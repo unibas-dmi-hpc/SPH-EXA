@@ -6,8 +6,7 @@ CC := g++ # This is the main compiler
 # CC := clang --analyze # and comment out the linker last line for sanity
 SRCDIR := src
 BUILDDIR := build
-BINDIR := bin
-TARGET := bin/runner
+TARGET := runner
  
 SRCEXT := cpp
 SOURCES := $(shell find $(SRCDIR) -type f -name *.$(SRCEXT))
@@ -35,8 +34,8 @@ clean:
 
 run: 
 	$(info )
-	$(info Run the default test case on CPU: )
-	./bin/runner 
+	$(info Run the default test case: )
+	./runner 
 
 # Tests
 # tester:
