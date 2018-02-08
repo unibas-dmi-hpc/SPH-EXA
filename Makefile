@@ -6,6 +6,7 @@ CC := g++ # This is the main compiler
 # CC := clang --analyze # and comment out the linker last line for sanity
 SRCDIR := src
 BUILDDIR := build
+BINDIR := bin
 TARGET := bin/runner
  
 SRCEXT := cpp
@@ -23,6 +24,7 @@ $(TARGET): $(OBJECTS)
 $(BUILDDIR)/%.o: $(SRCDIR)/%.$(SRCEXT)
 	$(info )
 	@mkdir -p $(BUILDDIR)
+	@mkdir -p $(BINDIR)
 	$(info Compiling the object files:)
 	$(CC) $(CFLAGS)  $(LIB) $(INC) -c $< -o $@
 
