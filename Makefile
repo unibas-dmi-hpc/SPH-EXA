@@ -23,7 +23,6 @@ $(TARGET): $(OBJECTS)
 $(BUILDDIR)/%.o: $(SRCDIR)/%.$(SRCEXT)
 	$(info )
 	@mkdir -p $(BUILDDIR)
-	@mkdir -p $(BINDIR)
 	$(info Compiling the object files:)
 	$(CC) $(CFLAGS)  $(LIB) $(INC) -c $< -o $@
 
