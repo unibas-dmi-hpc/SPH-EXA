@@ -11,7 +11,7 @@ TARGET := bin/runner
 SRCEXT := cpp
 SOURCES := $(shell find $(SRCDIR) -type f -name *.$(SRCEXT))
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
-CFLAGS := -g -std=c++17 -fopenmp# -Wall
+CFLAGS := -g -std=c++17 -O2 -march=native -mtune=native -fopenmp# -Wall
 LIB := -L lib #-lpthread #-lboost_thread-mt -lboost_filesystem-mt -lboost_system-mt
 INC := -I include
 
@@ -30,6 +30,11 @@ clean:
 	$(info )
 	$(info  Cleaning...) 
 	$(RM) -r $(BUILDDIR) $(TARGET)
+
+run: 
+	$(info )
+	$(info Run the default test case on CPU: )
+	./bin/runner 
 
 # Tests
 # tester:
