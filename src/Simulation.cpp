@@ -273,7 +273,7 @@ void Simulation :: start()
 void Simulation :: print_header()
 {
 	    
-  std::cout << " nPart = " << get_nparts()  << "; " 
+  std::cout << " nParts = " << get_nparts()  << "; " 
 	    << "nSteps = " << get_nsteps() << "; " 
 	    << "dt = "     << get_tstep()  << std::endl;
 	    
