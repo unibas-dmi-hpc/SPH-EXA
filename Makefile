@@ -11,20 +11,20 @@ TARGET := bin/runner
 SRCEXT := cpp
 SOURCES := $(shell find $(SRCDIR) -type f -name *.$(SRCEXT))
 OBJECTS := $(patsubst $(SRCDIR)/%,$(BUILDDIR)/%,$(SOURCES:.$(SRCEXT)=.o))
-CFLAGS := -g -std=c++17# -Wall
-LIB := -fopenmp -L lib #-lpthread #-lboost_thread-mt -lboost_filesystem-mt -lboost_system-mt
+CFLAGS := -g -std=c++17 -fopenmp# -Wall
+LIB := -L lib #-lpthread #-lboost_thread-mt -lboost_filesystem-mt -lboost_system-mt
 INC := -I include
 
 $(TARGET): $(OBJECTS)
 	$(info )
-	$(info Compiling the object files: )
-	$(CC) $^ -o $(TARGET) $(LIB)
+	$(info Linking the executable:)
+	$(CC) $(CFLAGS) $^ -o $(TARGET) $(LIB)
 
 $(BUILDDIR)/%.o: $(SRCDIR)/%.$(SRCEXT)
 	$(info )
 	@mkdir -p $(BUILDDIR)
-	$(info Linking the executable:)
-	$(CC) $(CFLAGS) $(INC) -c -o $@ $<
+	$(info Compiling the object files:)
+	$(CC) $(CFLAGS)  $(LIB) $(INC) -c $< -o $@
 
 clean:
 	$(info )
