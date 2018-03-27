@@ -90,7 +90,8 @@ void Simulation :: start()
   int n = get_nparts();
   int i,j;
   
-  const int alignment = 32;
+  const int alignment = 32; // depends on real_type?
+
   //particles = static_cast<Particle*>(std::aligned_alloc(alignment, sizeof(Particle)));
   //particles = (Particle*) aligned_alloc(alignment, sizeof(Particle));
   //particles = (Particle*) _mm_malloc(sizeof(Particle),alignment);
@@ -137,7 +138,7 @@ void Simulation :: start()
   double av=0.0, dev=0.0;
   int nf = 0;
   
-  const int tileSize = 8;
+  const int tileSize = 8; //depends on real_type
 
   const double t0 = time.start();
   for (int s=1; s<=get_nsteps(); ++s)
