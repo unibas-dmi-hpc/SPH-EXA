@@ -2,14 +2,16 @@
     file - octree.h
 
     Templated implementation of an octree for a cpu
-    source available at:
-    https://codereview.stackexchange.com/questions/124883/simple-octree-implementation
 
  */
 
 
 #ifndef OCTREE_CPU_H
 #define OCTREE_CPU_H
+
+#include "point3d.h"
+#include "boundingbox.h"
+#include "inneriterator.h"
 
 #include <algorithm>
 #include <array>
@@ -19,9 +21,6 @@
 #include <utility>
 #include <type_traits>
 
-#include "boundingbox.h"
-
-using Point = std::array<double, 3>;
 
 template <typename InputIterator, class PointExtractor, 
           size_t max_per_node = 16, size_t max_depth = 100>
@@ -39,13 +38,13 @@ class Octree {
 
   template <size_t max_per_node_>
   Octree(const Octree<InputIterator, PointExtractor, max_per_node_, max_depth>& rhs);
-
+  
   template <size_t max_depth_>
   Octree(const Octree<InputIterator, PointExtractor, max_per_node, max_depth_>& rhs);
-
+  
   template <size_t max_per_node_, size_t max_depth_>
   Octree(const Octree<InputIterator, PointExtractor, max_per_node_, max_depth_>& rhs);
-
+  
   Octree(tree_type&& rhs);
 
   void swap(tree_type& rhs);
@@ -60,29 +59,48 @@ class Octree {
   ~Octree();
 
   size_t size() const;
-
+ 
  private:  
   class Node;
 
-  enum NodeContents {
+  struct LeafNodeValues {
+    std::array<std::pair<InputIterator, Point3d>, max_per_node> values_;
+    size_t size_;
+  };
+
+  using childNodeArray = std::array<Node*, 8>;
+  using maxItemNode = std::vector<std::pair<InputIterator, Point3d>>;
+
+  union NodeValues {
+    NodeValues() : internalValue_() {}
+    NodeValues(const LeafNodeValues& v) : leafValue_(v) {}
+    NodeValues(const childNodeArray& v) : internalValue_(v) {}
+    NodeValues(const maxItemNode& v) : maxDepthLeafValue_(v) {}
+    NodeValues(const NodeValues& v) : NodeValues() {
+      memcpy(this, &v, sizeof(NodeValues));
+    }
+    NodeValues& operator=(const NodeValues& rhs) {
+      memcpy(this, &rhs, sizeof(NodeValues));
+      return *this;
+    }
+    ~NodeValues() {}
+
+    LeafNodeValues leafValue_;
+    childNodeArray internalValue_;
+    maxItemNode maxDepthLeafValue_;
+  };
+
+  enum class NodeContents : char {
     LEAF = 1,
     MAX_DEPTH_LEAF = 2,
     INTERNAL = 4
   };
 
-  struct LeafNodeValues {
-    std::array<std::pair<InputIterator, Point>, max_per_node> values_;
-    size_t size_;
-  };
-
-  using childNodeArray = std::array<Node*, 8>;
-  using maxItemNode = std::vector<std::pair<InputIterator, Point>>;
-
   class Node {
    public:    
-    Node(const std::vector<std::pair<InputIterator, Point>>& input_values);
+    Node(const std::vector<std::pair<InputIterator, Point3d>>& input_values);
 
-    Node(const std::vector<std::pair<InputIterator, Point>>& input_values, 
+    Node(const std::vector<std::pair<InputIterator, Point3d>>& input_values, 
          const BoundingBox& box,
          size_t current_depth);
 
@@ -92,49 +110,18 @@ class Octree {
     bool search(const BoundingBox& box, OutputIterator& it) const;
 
    private:
-    void* value_;
+    NodeValues value_;
     BoundingBox extrema_;
     NodeContents tag_;
 
-    void init_max_depth_leaf(const std::vector<std::pair<InputIterator, Point>>& input_values);
+    void init_max_depth_leaf(const std::vector<std::pair<InputIterator, Point3d>>& input_values);
 
-    void init_leaf(const std::vector<std::pair<InputIterator, Point>>& input_values);
-
+    void init_leaf(const std::vector<std::pair<InputIterator, Point3d>>& input_values);
+    
     void init_internal(
-        const std::vector<std::pair<InputIterator, Point>>& input_values,
+        const std::vector<std::pair<InputIterator, Point3d>>& input_values,
         size_t current_depth);
 
-    unsigned int getOctantIndex(const Point& p) const;
-
-    struct InnerIterator {
-      using wrapped_type = typename std::vector<std::pair<InputIterator, Point>>::const_iterator;
-      wrapped_type it_;
-
-      InnerIterator(wrapped_type it) : it_(it) {}
-
-      Point operator*() const {
-        return std::get<1>(*it_);
-      }
-
-      InnerIterator& operator++() {
-        ++it_;
-        return *this;
-      }
-
-      InnerIterator operator++(int) {
-        InnerIterator other = *this;
-        ++it_;
-        return other;
-      }
-
-      bool operator==(const InnerIterator& rhs) const {
-        return it_ == rhs.it_;
-      }
-
-      bool operator!=(const InnerIterator& rhs) const {
-        return !operator==(rhs);
-      }
-    };
   };
 
   PointExtractor functor_;
@@ -157,13 +144,13 @@ template <OCTREE_TEMPLATE>
 OCTREE::Octree(InputIterator begin, InputIterator end, PointExtractor f)
     : functor_(f), head_(nullptr), size_(0) {
 
-  std::vector<std::pair<InputIterator, Point>> v;
+  std::vector<std::pair<InputIterator, Point3d>> v;
   v.reserve(std::distance(begin, end));
 
   for (auto it = begin; it != end; ++it) {
-    v.push_back(std::pair<InputIterator, Point>(it, functor_(*it)));
+    v.push_back(std::pair<InputIterator, Point3d>(it, functor_(*it)));
   }
-
+  
   size_ = v.size();
   head_ = new Node(v);
 }
@@ -208,16 +195,18 @@ size_t OCTREE::size() const {
 }
 
 template <OCTREE_TEMPLATE>
-OCTREE::Node::Node(const std::vector<std::pair<InputIterator, Point>>& input_values)
+OCTREE::Node::Node(const std::vector<std::pair<InputIterator, Point3d>>& input_values)
   : Node(input_values, 
-         BoundingBox(InnerIterator(input_values.begin()), InnerIterator(input_values.end())),
+         makeBoundingBox(
+            InnerIterator<InputIterator>(input_values.begin()), 
+            InnerIterator<InputIterator>(input_values.end())),
          0) { }
 
 template <OCTREE_TEMPLATE>
 OCTREE::Node::Node(
-    const std::vector<std::pair<InputIterator, Point>>& input_values, 
+    const std::vector<std::pair<InputIterator, Point3d>>& input_values, 
     const BoundingBox& box,
-    size_t current_depth) : value_(nullptr), extrema_(box)  {
+    size_t current_depth) : extrema_(box)  {
   if (current_depth > max_depth) {
     init_max_depth_leaf(input_values);
   } else if (input_values.size() <= max_per_node) {
@@ -230,19 +219,15 @@ OCTREE::Node::Node(
 template <OCTREE_TEMPLATE>
 OCTREE::Node::~Node() {
   if (tag_ == NodeContents::INTERNAL) {
-    childNodeArray* children = static_cast<childNodeArray*>(value_);
-    for (size_t i = 0; i < 8; ++i) {
-      delete children[0][i];
-      children[0][i] = nullptr;
+    for (auto childPointer : value_.internalValue_) {
+      delete childPointer;
     }
-    delete children;
+    value_.internalValue_.~childNodeArray();
   } else if (tag_ == NodeContents::LEAF) {
-    delete static_cast<LeafNodeValues*>(value_);
+    value_.leafValue_.~LeafNodeValues();
   } else if (tag_ == NodeContents::MAX_DEPTH_LEAF) {
-    delete static_cast<maxItemNode*>(value_);
+    value_.maxDepthLeafValue_.~maxItemNode();
   }
-
-  value_ = nullptr;
 }
 
 template <OCTREE_TEMPLATE>
@@ -250,16 +235,15 @@ template <typename OutputIterator>
 bool OCTREE::Node::search(const BoundingBox& p, OutputIterator& it) const {
   bool success = false;
   if (tag_ == NodeContents::INTERNAL) {
-    childNodeArray& children = *static_cast<childNodeArray*>(value_);
-    for (auto child : children) {
+    for (auto child : value_.internalValue_) {
       if (child) {
-        success = child->search(p, it) || success;
+        success |= child->search(p, it);
       }
     }
   } else if (tag_ == NodeContents::LEAF) {
-    LeafNodeValues& children = *static_cast<LeafNodeValues*>(value_);
+    const LeafNodeValues& children = value_.leafValue_;
     for (size_t i = 0; i < children.size_; ++i) {
-      Point& point = std::get<1>(children.values_[i]);
+      const Point3d& point = std::get<1>(children.values_[i]);
       if (p.contains(point)) {
         *it = std::get<0>(children.values_[i]);
         ++it;
@@ -267,9 +251,8 @@ bool OCTREE::Node::search(const BoundingBox& p, OutputIterator& it) const {
       }
     }
   } else if (tag_ == NodeContents::MAX_DEPTH_LEAF) {
-    maxItemNode& children = *static_cast<maxItemNode*>(value_);
-    for (auto child : children) {
-      Point& point = std::get<1>(child);
+    for (auto child : value_.maxDepthLeafValue_) {
+      Point3d& point = std::get<1>(child);
       if (p.contains(point)) {
         *it = std::get<0>(child);
         ++it;
@@ -282,38 +265,38 @@ bool OCTREE::Node::search(const BoundingBox& p, OutputIterator& it) const {
 
 template <OCTREE_TEMPLATE>
 void OCTREE::Node::init_max_depth_leaf(
-    const std::vector<std::pair<InputIterator, Point>>& input_values) {  
-  value_ = new std::vector<std::pair<InputIterator, Point>>(input_values);
+    const std::vector<std::pair<InputIterator, Point3d>>& input_values) {  
+  value_ = input_values;
   tag_ = NodeContents::MAX_DEPTH_LEAF;
 }
 
 template <OCTREE_TEMPLATE>
 void OCTREE::Node::init_leaf(
-    const std::vector<std::pair<InputIterator, Point>>& input_values)  {
-  std::array<std::pair<InputIterator, Point>, max_per_node> a;
+    const std::vector<std::pair<InputIterator, Point3d>>& input_values)  {
+  std::array<std::pair<InputIterator, Point3d>, max_per_node> a;
   std::copy(input_values.begin(), input_values.end(), a.begin());
-  value_ = new LeafNodeValues{a, input_values.size()};
+  value_ = LeafNodeValues{a, input_values.size()};
   tag_ = NodeContents::LEAF;
 }
 
 template <OCTREE_TEMPLATE>
 void OCTREE::Node::init_internal(
-    const std::vector<std::pair<InputIterator, Point>>& input_values,
+    const std::vector<std::pair<InputIterator, Point3d>>& input_values,
     size_t current_depth)  {
-  std::array<std::vector<std::pair<InputIterator, Point>>, 8> childVectors;
+  std::array<std::vector<std::pair<InputIterator, Point3d>>, 8> childVectors;
   std::array<BoundingBox, 8> boxes = extrema_.partition();
   std::array<Node*, 8> children;
 
   for (unsigned child = 0; child < 8; ++child) {
-    std::vector<std::pair<InputIterator, Point>>& childVector = childVectors[child];
+    std::vector<std::pair<InputIterator, Point3d>>& childVector = childVectors[child];
     childVector.reserve(input_values.size() / 8);
 
     std::copy_if(
       input_values.begin(), 
       input_values.end(), 
       std::back_inserter(childVector),
-      [&boxes, child](const std::pair<InputIterator, Point>& element) -> bool {
-        Point p = std::get<1>(element);
+      [&boxes, child](const std::pair<InputIterator, Point3d>& element) -> bool {
+        Point3d p = std::get<1>(element);
         return boxes[child].contains(p);
       }
     );
@@ -323,38 +306,8 @@ void OCTREE::Node::init_internal(
         : new Node(childVector, boxes[child], ++current_depth);
   }
 
-  value_ = new std::array<Node*, 8>(children);
+  value_ = children;
   tag_ = NodeContents::INTERNAL;
-}
-
-template <OCTREE_TEMPLATE>
-unsigned int OCTREE::Node::getOctantIndex(const Point& p) const {
-  // children are ordered left to right, front to back, bottom to top.
-
-  double xmid = (extrema_.xhi - extrema_.xlo) / 2.;
-  double ymid = (extrema_.yhi - extrema_.ylo) / 2.;
-  double zmid = (extrema_.zhi - extrema_.zlo) / 2.;
-  bool left = p[0] < xmid && p[0] >= extrema_.xlo;
-  bool front = p[1] < ymid && p[1] >= extrema_.ylo;
-  bool bottom = p[2] < zmid && p[2] >= extrema_.zlo;
-
-  if (bottom && left && front) {
-    return 0;
-  } else if (bottom && !left && front) {
-    return 1;
-  } else if (bottom && left && !front) {
-    return 2;
-  } else if (bottom && !left && !front) {
-    return 3;
-  } else if (!bottom && left && front) {
-    return 4;
-  } else if (!bottom && !left && front) {
-    return 5;
-  } else if (!bottom && left && !front) {
-    return 6;
-  } else {
-    return 7;
-  }
 }
 
 #endif // DEFINED OCTREE_CPU_H
