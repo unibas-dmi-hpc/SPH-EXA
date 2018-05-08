@@ -35,9 +35,9 @@ void Simulation :: init_pos()
   {
     real_type r = static_cast<real_type>(rand()) / static_cast<real_type>(RAND_MAX); 
     r = (max - 1.0f) * r + 1.0f;
-    particles->pos_x[i] = -1.0f + 2.0f * r / max; 
-    particles->pos_y[i] = -1.0f + 2.0f * r / max;  
-    particles->pos_z[i] = -1.0f + 2.0f * r / max;     
+    particles->pos_x[i] = -1.0f + 2.0f * r / max;
+    particles->pos_y[i] = -1.0f + 2.0f * r / max;
+    particles->pos_z[i] = -1.0f + 2.0f * r / max;
   }
 }
 
@@ -57,14 +57,24 @@ void Simulation :: init_vel()
   }
 }
 
-void Simulation :: init_acc() 
+void Simulation :: init_grad()
 {
   for(int i=0; i<get_nparts(); ++i)
   {
-    particles->acc_x[i] = 0.f; 
-    particles->acc_y[i] = 0.f;
-    particles->acc_z[i] = 0.f;
+    particles->grad_p_x[i] = 0.f;
+    particles->grad_p_y[i] = 0.f;
+    particles->grad_p_z[i] = 0.f;
   }
+}
+
+void Simulation :: init_grav()
+{
+    for(int i=0; i<get_nparts(); ++i)
+    {
+        particles->grav_f_x[i] = 0.f;
+        particles->grav_f_x[i] = 0.f;
+        particles->grav_f_x[i] = 0.f;
+    }
 }
 
 void Simulation :: init_mass() 
@@ -82,6 +92,14 @@ void Simulation :: init_mass()
   }
 }
 
+
+void Simulation :: find_neighbours()
+{
+    for(int i=0; i<get_nparts(); ++i)
+    {
+        
+    }
+}
 
 void Simulation :: start() 
 {
@@ -113,14 +131,18 @@ void Simulation :: start()
   particles->vel_x = (real_type*) malloc(n*sizeof(real_type));
   particles->vel_y = (real_type*) malloc(n*sizeof(real_type));
   particles->vel_z = (real_type*) malloc(n*sizeof(real_type));
-  particles->acc_x = (real_type*) malloc(n*sizeof(real_type));
-  particles->acc_y = (real_type*) malloc(n*sizeof(real_type));
-  particles->acc_z = (real_type*) malloc(n*sizeof(real_type));
+  particles->grad_p_x = (real_type*) malloc(n*sizeof(real_type));
+  particles->grad_p_y = (real_type*) malloc(n*sizeof(real_type));
+  particles->grad_p_z = (real_type*) malloc(n*sizeof(real_type));
+  particles->grav_f_x = (real_type*) malloc(n*sizeof(real_type));
+  particles->grav_f_y = (real_type*) malloc(n*sizeof(real_type));
+  particles->grav_f_z = (real_type*) malloc(n*sizeof(real_type));
   particles->mass  = (real_type*) malloc(n*sizeof(real_type));
   
   init_pos();	
   init_vel();
-  init_acc();
+  init_grad();
+  init_grav();
   init_mass();
   
   print_header();
@@ -167,9 +189,12 @@ void Simulation :: start()
       __builtin_assume_aligned(particles->pos_x, alignment);
       __builtin_assume_aligned(particles->pos_y, alignment);
       __builtin_assume_aligned(particles->pos_z, alignment);
-      __builtin_assume_aligned(particles->acc_x, alignment);
-      __builtin_assume_aligned(particles->acc_y, alignment);
-      __builtin_assume_aligned(particles->acc_z, alignment);
+      __builtin_assume_aligned(particles->grad_p_x, alignment);
+      __builtin_assume_aligned(particles->grad_p_y, alignment);
+      __builtin_assume_aligned(particles->grad_p_z, alignment);
+      __builtin_assume_aligned(particles->grav_f_x, alignment);
+      __builtin_assume_aligned(particles->grav_f_y, alignment);
+      __builtin_assume_aligned(particles->grav_f_z, alignment);
       __builtin_assume_aligned(particles->mass, alignment);
 
       real_type ax_i = particles->acc_x[i];
@@ -191,17 +216,17 @@ void Simulation :: start()
           distanceSqr = dx*dx + dy*dy + dz*dz + softeningSquared;	//6flops
           distanceInv = 1.0f / sqrtf(distanceSqr);			//1div+1sqrt
 
-        	acc_xtile[i-ii] += dx * G * particles->mass[j] * distanceInv * distanceInv * distanceInv; //6flops
-        	acc_ytile[i-ii] += dy * G * particles->mass[j] * distanceInv * distanceInv * distanceInv; //6flops
-        	acc_ztile[i-ii] += dz * G * particles->mass[j] * distanceInv * distanceInv * distanceInv; //6flops
+        	//acc_xtile[i-ii] += dx * G * particles->mass[j] * distanceInv * distanceInv * distanceInv; //6flops
+        	//acc_ytile[i-ii] += dy * G * particles->mass[j] * distanceInv * distanceInv * distanceInv; //6flops
+        	//acc_ztile[i-ii] += dz * G * particles->mass[j] * distanceInv * distanceInv * distanceInv; //6flops
         }
       }
      #pragma omp simd
       for(int s=0; s<tileSize; s++)
       {
-        particles->acc_x[s+ii] = acc_xtile[s];
-        particles->acc_y[s+ii] = acc_ytile[s];
-        particles->acc_z[s+ii] = acc_ztile[s];
+        //particles->acc_x[s+ii] = acc_xtile[s];
+        //particles->acc_y[s+ii] = acc_ytile[s];
+        //particles->acc_z[s+ii] = acc_ztile[s];
       }
     }
     energy = 0;
@@ -216,9 +241,13 @@ void Simulation :: start()
       particles->pos_y[i] += particles->vel_y[i] * dt; //2flops
       particles->pos_z[i] += particles->vel_z[i] * dt; //2flops
 
-      particles->acc_x[i] = 0.;
-      particles->acc_y[i] = 0.;
-      particles->acc_z[i] = 0.;
+      particles->grad_p_x[i] = 0.;
+      particles->grad_p_y[i] = 0.;
+      particles->grad_p_z[i] = 0.;
+      
+      particles->grav_f_x[i] = 0.;
+      particles->grav_f_y[i] = 0.;
+      particles->grav_f_z[i] = 0.;
 
       energy += particles->mass[i] * (
          particles->vel_x[i]*particles->vel_x[i] + 
@@ -310,9 +339,12 @@ Simulation :: ~Simulation()
   free(particles->vel_x);
   free(particles->vel_y);
   free(particles->vel_z);
-  free(particles->acc_x);
-  free(particles->acc_y);
-  free(particles->acc_z);
+  free(particles->grad_p_x);
+  free(particles->grad_p_y);
+  free(particles->grad_p_z);
+  free(particles->grav_f_x);
+  free(particles->grav_f_y);
+  free(particles->grav_f_z);
   free(particles->mass);
   free(particles);
 }
