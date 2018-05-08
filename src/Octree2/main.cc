@@ -76,7 +76,9 @@ int main(int argc, char** argv)
 		if(partitions[i]== expectedPartitions[i]) std::cout << "Correctly partitioned\n";
 	}
 
-
+	for(auto valuepoint: o){
+		std::cout << valuepoint.dimensions_ << " is in " <<  << "\n"
+	}
 
 }
 
