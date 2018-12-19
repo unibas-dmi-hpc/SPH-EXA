@@ -12,6 +12,11 @@ SPH-EXA mini-app is a modern C++ headers-only code (except for main.cpp) with no
 The parallelism is currently expressed via MPI+OpenMP and will be extended to exploit accelerated parallelism (OpenACC, HPX).
 
 ## Test cases
+### 3D Rotating Square Patch
 This mini-app can simulate a three-dimensional rotating square patch, a demanding scenario for SPH simulations due to the presence of negative pressures, which stimulate the emergence of unphysical tensile instabilities that destroy the particle system, unless corrective repulsive forces are included.
+
+### Evrard Collapse
 A second demanding simulation scenario carried out by the SPH-EXA mini-app is the Evrard collapse: it consists of an initially static isothermal, spherical cloud of gas (mimicking a star) that undergoes an accelerated gravitational collapse, until the rapid rise of temperature and pressure at its core produces a shock wave that expands from the center of the star to its outer layers. The Evrard collapse involves ingredients that are crucial for astrophysical simulations, namely shock waves and self-gravity.
+
+### Blob test
 The mini-app can also simulate a wind-cloud scenario (also known as Blob test). This problem reunites several types of physics, such as strong shocks and mixing due to hydrodynamical instabilities in a multiphase medium with a large density contrast. The initial configuration consists of a dense spherical cloud of cold gas embedded in a hotter ambient medium. The cloud is initially at rest while the ambient background (the wind) moves supersonically, ablating and finally destroying the bubble. 
