@@ -1,4 +1,4 @@
-# SPH-EXA_mini-app
+# SPH-EXA mini-app
 The SPH-EXA mini-app implements the smoothed particle hydrodynamics (SPH) technique, a meshless Lagrangian method commonly used for performing hydrodynamical and computational fluid dynamics simulations.
 
 The SPH technique discretizes a fluid in a series of interpolation points (SPH particles) whose distribution follows
