@@ -15,43 +15,43 @@ template<typename T = double, typename ArrayT = std::vector<T>>
 class Timestep
 {
 public:
-	Timestep(const T chi = compute_3d_k(5.0), const T maxDtIncrease = 1.1) : chi(chi), maxDtIncrease(maxDtIncrease) {}
+	Timestep(const T Kcour = 0.2, const T maxDtIncrease = 1.1) : Kcour(Kcour), maxDtIncrease(maxDtIncrease) {}
 
-	void compute(const std::vector<int> &clist, const ArrayT &h, const ArrayT &c, const ArrayT &dt_m1, ArrayT &dt)
+	void compute(const std::vector<int> &clist, const ArrayT &h, const ArrayT &c, const ArrayT &dt_m1, ArrayT &dt, T &ttot)
 	{
-		int n =  clist.size();
+		const int n = clist.size();
 
-		#pragma omp parallel for
+		T mini = INFINITY;
+
+		#pragma omp parallel for reduction(min:mini)
 		for(int pi=0; pi<n; pi++)
 		{
 			int i = clist[pi];
-		    dt[i] = chi * (h[i]/c[i]);
+			// Time-scheme according to Press (2nd order)
+		    dt[i] = Kcour * (h[i]/c[i]);
+		    if(dt[i] < mini)
+                mini = dt[i];
 		}
 
-        T min = INFINITY;
-        for(int pi=0; pi<n; pi++)
-		{
-			int i = clist[pi];
-            if(dt[i] < min)
-                min = dt[i];
-        }
-
-        min = std::min(min, maxDtIncrease * dt_m1[0]);
+		if(n > 0)
+    		mini = std::min(mini, maxDtIncrease * dt_m1[0]);
 
         #ifdef USE_MPI
-        	MPI_Allreduce(MPI_IN_PLACE, &min, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        	MPI_Allreduce(MPI_IN_PLACE, &mini, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
         #endif
 
         #pragma omp parallel for
         for(int pi=0; pi<n; pi++)
 		{
 			int i = clist[pi];
-        	dt[i] = min;
+        	dt[i] = mini;
         }
+
+        ttot += mini;
 	}
 
 private:
-	const T chi, maxDtIncrease;
+	const T Kcour, maxDtIncrease;
 };
 
 }

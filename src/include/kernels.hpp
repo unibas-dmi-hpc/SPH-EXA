@@ -1,21 +1,12 @@
 #pragma once
 
 #include <cmath>
+#include "BBox.hpp"
 
 namespace sphexa
 {
 
 #define PI 3.141592653589793
-
-template<typename T>
-inline T distance(const T x1, const T y1, const T z1, const T x2, const T y2, const T z2)
-{
-    T xx = x1 - x2;
-    T yy = y1 - y2;
-    T zz = z1 - z2;
-
-    return sqrt(xx*xx + yy*yy + zz*zz);
-}
 
 template<typename T>
 inline T compute_3d_k(T n)
@@ -26,25 +17,23 @@ inline T compute_3d_k(T n)
     T b2 = 3.7451957e-3;
     T b3 = 4.7013839e-2;
 
-    return b0 + b1 * sqrt(n) + b2 * n + b3 * sqrt(n*n*n);
+    return b0 + b1 * std::sqrt(n) + b2 * n + b3 * std::sqrt(n*n*n);
 }
 
 template<typename T>
-inline T wharmonic(T v, T h, T K)
+inline T wharmonic(T v, T h, T sincIndex, T K)
 {
-    T value = (PI/2.0) * v;
-    return K/(h*h*h) * pow((sin(value)/value), 5);
+    T Pv = (PI/2.0) * v;
+    return K/(h*h*h) * std::pow((std::sin(Pv)/Pv), (int)sincIndex);
 }
 
 template<typename T>
-inline T wharmonic_derivative(T v, T h, T K)
+inline T wharmonic_derivative(T v, T h, T sincIndex, T K)
 {
-    T value = (PI/2.0) * v;
-    // r_ih = v * h
-    // extra h at the bottom comes from the chain rule of the partial derivative
-    T kernel = wharmonic(v, h, K);
-
-    return 5.0 * (PI/2.0) * kernel / (h * h) / v * ((1.0 / tan(value)) - (1.0 / value));
+    T Pv = (PI/2.0) *v;
+    T cotv = std::cos(Pv) / std::sin(Pv);;//1.0 / tan(P * v);
+    T sincnv = std::pow((std::sin(Pv)/(Pv)), (int)sincIndex);
+    return sincIndex * (Pv * cotv - 1.0) * sincnv * (K/(h*h*h*h*h*v*v));
 }
 
 template<typename T>
@@ -68,6 +57,35 @@ inline T artificial_viscosity(T ro_i, T ro_j, T h_i, T h_j, T c_i, T c_j, T rv, 
     }
 
     return viscosity_ij;
+}
+
+template<typename T>
+inline void applyPBC(const BBox<T> &bbox, const T r, T &xx, T &yy, T &zz)
+{
+    if(bbox.PBCx && xx > r) xx -= (bbox.xmax-bbox.xmin);
+    else if(bbox.PBCx && xx < -r) xx += (bbox.xmax-bbox.xmin);
+    
+    if(bbox.PBCy && yy > r) yy -= (bbox.ymax-bbox.ymin);
+    else if(bbox.PBCy && yy < -r) yy += (bbox.ymax-bbox.ymin);
+
+    if(bbox.PBCz && zz > r) zz -= (bbox.zmax-bbox.zmin);
+    else if(bbox.PBCz && zz < -r) zz += (bbox.zmax-bbox.zmin);
+
+    // xx += bbox.PBCx * ((xx < -r) - (xx > r)) * (bbox.xmax-bbox.xmin);
+    // yy += bbox.PBCy * ((yy < -r) - (yy > r)) * (bbox.ymax-bbox.ymin);
+    // zz += bbox.PBCz * ((zz < -r) - (zz > r)) * (bbox.zmax-bbox.zmin);
+}
+
+template<typename T>
+inline T distancePBC(const BBox<T> &bbox, const T hi, const T x1, const T y1, const T z1, const T x2, const T y2, const T z2)
+{
+    T xx = x1 - x2;
+    T yy = y1 - y2;
+    T zz = z1 - z2;
+
+    applyPBC<T>(bbox, 2.0*hi, xx, yy, zz);
+
+    return std::sqrt(xx*xx + yy*yy + zz*zz);
 }
 
 }

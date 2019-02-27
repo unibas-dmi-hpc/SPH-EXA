@@ -5,36 +5,17 @@
 #include <map>
 
 #include "BBox.hpp"
+#include "Domain.hpp"
 
 namespace sphexa
 {
 
-template<typename T, class ArrayT = std::vector<T>>
-class DistributedDomain
+template<typename T, class Tree = Octree<T>>
+class DistributedDomain : public Domain<T, Tree>
 {
 public:
-    MPI_Comm comm;
-
-    std::vector<int> assignedRanks;
-
-    BBox<T> localBBox, globalBBox;
-
-    std::vector<int> globalCellCount;
-    std::vector<std::vector<int>> cellList;
-
-    std::map<int,std::vector<int>> sendHaloList;
-    std::map<int,int> recvHaloList;
-    int haloCount;
-
-    T localMaxH, globalMaxH;
-
-    int ncells;
-    int nX, nY, nZ;
-
-    int comm_size, comm_rank, name_len;
-    char processor_name[MPI_MAX_PROCESSOR_NAME];
-
-    DistributedDomain(MPI_Comm comm) : comm(comm), ncells(0)
+    DistributedDomain(int ngmin, int ng0, int ngmax, int bucketSize = 128, MPI_Comm comm = MPI_COMM_WORLD) 
+        : Domain<T, Tree>(ngmin, ng0, ngmax, bucketSize), comm(comm), ncells(0)
     {
         MPI_Comm_size(comm, &comm_size);
         MPI_Comm_rank(comm, &comm_rank);
@@ -51,47 +32,7 @@ public:
         return leftA < rightB && rightA > leftB;
     }
 
-    inline BBox<T> computeBBox(const std::vector<int> &clist, const ArrayT &x, const ArrayT &y, const ArrayT &z)
-    {
-        T xmin = INFINITY;
-        T xmax = -INFINITY;
-        T ymin = INFINITY;
-        T ymax = -INFINITY;
-        T zmin = INFINITY;
-        T zmax = -INFINITY;
-
-        for(unsigned int i=0; i<clist.size(); i++)
-        {
-            T xx = x[clist[i]];
-            T yy = y[clist[i]];
-            T zz = z[clist[i]];
-
-            if(xx < xmin) xmin = xx;
-            if(xx > xmax) xmax = xx;
-            if(yy < ymin) ymin = yy;
-            if(yy > ymax) ymax = yy;
-            if(zz < zmin) zmin = zz;
-            if(zz > zmax) zmax = zz;
-        }
-
-        return BBox<T>(xmin, xmax, ymin, ymax, zmin, zmax);
-    }
-
-    inline BBox<T> computeGlobalBBox(const std::vector<int> &clist, const ArrayT &x, const ArrayT &y, const ArrayT &z)
-    {
-        BBox<T> bbox = computeBBox(clist, x, y, z);
-
-        MPI_Allreduce(MPI_IN_PLACE, &bbox.xmin, 1, MPI_DOUBLE, MPI_MIN, comm);
-        MPI_Allreduce(MPI_IN_PLACE, &bbox.ymin, 1, MPI_DOUBLE, MPI_MIN, comm);
-        MPI_Allreduce(MPI_IN_PLACE, &bbox.zmin, 1, MPI_DOUBLE, MPI_MIN, comm);
-        MPI_Allreduce(MPI_IN_PLACE, &bbox.xmax, 1, MPI_DOUBLE, MPI_MAX, comm);
-        MPI_Allreduce(MPI_IN_PLACE, &bbox.ymax, 1, MPI_DOUBLE, MPI_MAX, comm);
-        MPI_Allreduce(MPI_IN_PLACE, &bbox.zmax, 1, MPI_DOUBLE, MPI_MAX, comm);
-
-        return bbox;
-    }
-
-    inline T computeMaxH(const std::vector<int> &clist, const ArrayT &h)
+    inline T computeMaxH(const std::vector<int> &clist, const Array<T> &h)
     {
         T hmax = 0.0;
         for(unsigned int i=0; i<clist.size(); i++)
@@ -103,7 +44,7 @@ public:
         return hmax;
     }
 
-    inline T computeGlobalMaxH(const std::vector<int> &clist, const ArrayT &h)
+    inline T computeGlobalMaxH(const std::vector<int> &clist, const Array<T> &h)
     {
         T hmax = computeMaxH(clist, h);
 
@@ -112,7 +53,7 @@ public:
         return hmax;
     }
 
-    inline void distributeParticles(const std::vector<int> &clist, const ArrayT &x, const ArrayT &y, const ArrayT &z)
+    void distributeParticles(const std::vector<int> &clist, const BBox<T> &globalBBox, const Array<T> &x, const Array<T> &y, const Array<T> &z)
     {
         cellList.clear();
         cellList.resize(ncells);
@@ -143,15 +84,11 @@ public:
         }
     }
 
-    inline void computeGlobalCellCount()
+    void computeGlobalCellCount()
     {
-        globalCellCount.clear();
         globalCellCount.resize(ncells);
 
         std::vector<int> localCount(ncells);
-
-        for(unsigned int i=0; i<localCount.size(); i++)
-            localCount[i] = globalCellCount[i] = 0;
 
         for(int i=0; i<ncells; i++)
             localCount[i] = cellList[i].size();
@@ -159,7 +96,7 @@ public:
         MPI_Allreduce(&localCount[0], &globalCellCount[0], ncells, MPI_INT, MPI_SUM, comm);
     }
 
-    inline void assignRanks(const std::vector<int> &procsize)
+    void assignRanks(const std::vector<int> &procsize)
     {
         assignedRanks.resize(ncells);
         for(unsigned int i=0; i<assignedRanks.size(); i++)
@@ -182,52 +119,13 @@ public:
         }
     }
 
-    inline void computeBBoxes(std::vector<BBox<T>> &cellBBox)
-    {
-        for(int hz=0; hz<nZ; hz++)
-        {
-            for(int hy=0; hy<nY; hy++)
-            {
-                for(int hx=0; hx<nX; hx++)
-                {
-                    T ax = globalBBox.xmin + hx*(globalBBox.xmax-globalBBox.xmin)/nX;
-                    T bx = globalBBox.xmin + (hx+1)*(globalBBox.xmax-globalBBox.xmin)/nX;
-                    T ay = globalBBox.ymin + hy*(globalBBox.ymax-globalBBox.ymin)/nY;
-                    T by = globalBBox.ymin + (hy+1)*(globalBBox.ymax-globalBBox.ymin)/nY;
-                    T az = globalBBox.zmin + hz*(globalBBox.zmax-globalBBox.zmin)/nZ;
-                    T bz = globalBBox.zmin + (hz+1)*(globalBBox.zmax-globalBBox.zmin)/nZ;
-
-                    unsigned int i = hz*nX*nY+hy*nX+hx;
-
-                    cellBBox[i] = BBox<T>(ax, bx, ay, by, az, bz);
-                }
-            }
-        }
-    }
-
-    inline void computeDiscardList(const int count, std::vector<bool> &discardList)
-    {
-        discardList.resize(count, false);
-        for(int i=0; i<ncells; i++)
-        {
-            if(assignedRanks[i] != comm_rank)
-            {
-                for(unsigned j=0; j<cellList[i].size(); j++)
-                {
-                    // discardList.push_back(cellList[i][j]);
-                    discardList[cellList[i][j]] = true;
-                }
-            }
-        }
-    }
-
-    inline void resize(unsigned int size, std::vector<ArrayT*> &data)
+    inline void resize(unsigned int size, std::vector<Array<T>*> &data)
     {
         for(unsigned int i=0; i<data.size(); i++)
             data[i]->resize(size);
     }
-
-    inline void synchronize(std::vector<ArrayT*> &data)
+    
+    void synchronize(std::vector<Array<T>*> &data)
     {
         std::map<int,std::vector<int>> toSend;
         std::vector<std::vector<T>> buff;
@@ -297,7 +195,14 @@ public:
         }
     }
 
-    inline void computeHaloList(const std::vector<BBox<T>> &cellBBox, bool showGraph = false)
+    bool checkBoxOverlap(const std::vector<BBox<T>> &cellBBox, T xmin, T xmax, T ymin, T ymax, T zmin, T zmax, T ri, int l)
+    {
+        return overlap(cellBBox[l].xmin, cellBBox[l].xmax, xmin-ri, xmax+ri)
+            && overlap(cellBBox[l].ymin, cellBBox[l].ymax, ymin-ri, ymax+ri)
+            && overlap(cellBBox[l].zmin, cellBBox[l].zmax, zmin-ri, zmax+ri);
+    }
+
+    void computeHaloList(const BBox<T> &localBBox, const BBox<T> &globalBBox, bool showGraph = false)
     {
         sendHaloList.clear();
         recvHaloList.clear();
@@ -308,21 +213,47 @@ public:
         std::map<int,std::vector<int>> msources;
 
         {
+            std::vector<bool> visited(ncells, false);
             std::vector<int> sources, weights, degrees, dests;
 
-            for(int i=0; i<ncells; i++)
+            int mix = (int)floor(normalize(localBBox.xmin-2*localMaxH, globalBBox.xmin, globalBBox.xmax)*nX);
+            int miy = (int)floor(normalize(localBBox.ymin-2*localMaxH, globalBBox.ymin, globalBBox.ymax)*nY);
+            int miz = (int)floor(normalize(localBBox.zmin-2*localMaxH, globalBBox.zmin, globalBBox.zmax)*nZ);
+            int max = (int)floor(normalize(localBBox.xmax+2*localMaxH, globalBBox.xmin, globalBBox.xmax)*nX);
+            int may = (int)floor(normalize(localBBox.ymax+2*localMaxH, globalBBox.ymin, globalBBox.ymax)*nY);
+            int maz = (int)floor(normalize(localBBox.zmax+2*localMaxH, globalBBox.zmin, globalBBox.zmax)*nZ);
+
+            if(!globalBBox.PBCx) mix = std::max(mix, 0);
+            if(!globalBBox.PBCy) miy = std::max(miy, 0);
+            if(!globalBBox.PBCz) miz = std::max(miz, 0);
+            if(!globalBBox.PBCx) max = std::min(max, nX-1);
+            if(!globalBBox.PBCy) may = std::min(may, nY-1);
+            if(!globalBBox.PBCz) maz = std::min(maz, nZ-1);
+
+            for(int hz=miz; hz<=maz; hz++)
             {
-                if(assignedRanks[i] != comm_rank && globalCellCount[i] > 0)
+                for(int hy=miy; hy<=may; hy++)
                 {
-                    // maxH is an overrapproximation
-                    if(overlap(cellBBox[i].xmin, cellBBox[i].xmax, localBBox.xmin-2*localMaxH, localBBox.xmax+2*localMaxH) &&
-                        overlap(cellBBox[i].ymin, cellBBox[i].ymax, localBBox.ymin-2*localMaxH, localBBox.ymax+2*localMaxH) &&
-                        overlap(cellBBox[i].zmin, cellBBox[i].zmax, localBBox.zmin-2*localMaxH, localBBox.zmax+2*localMaxH))
+                    for(int hx=mix; hx<=max; hx++)
                     {
-                        int rank = assignedRanks[i];
-                        msources[rank].push_back(i);
-                        recvHaloList[rank] += globalCellCount[i];
-                        haloCount += globalCellCount[i];
+                        //T displz = bbox.PBCz? ((hz < 0) - (hz >= nZ)) * (globalBBox.zmax-globalBBox.zmin) : 0;
+                        //T disply = bbox.PBCy? ((hy < 0) - (hy >= nY)) * (globalBBox.ymax-globalBBox.ymin) : 0;
+                        //T displx = bbox.PBCx? ((hx < 0) - (hx >= nX)) * (globalBBox.xmax-globalBBox.xmin) : 0;
+
+                        int hzz = globalBBox.PBCz? (hz % nZ) + (hz < 0) * nZ : hz;
+                        int hyy = globalBBox.PBCy? (hy % nY) + (hy < 0) * nY : hy;
+                        int hxx = globalBBox.PBCx? (hx % nX) + (hx < 0) * nX : hx;
+
+                        unsigned int l = hzz*nY*nX+hyy*nX+hxx;
+
+                        if(!visited[l] && assignedRanks[l] != comm_rank && globalCellCount[l] > 0)// && checkBoxOverlap(cellBBox, localBBox.xmin+displx, localBBox.xmax+displx, localBBox.ymin+disply, localBBox.ymax+disply, localBBox.zmin+displz, localBBox.zmax+displz, 2*localMaxH, l))
+                        {
+                            int rank = assignedRanks[l];
+                            msources[rank].push_back(l);
+                            recvHaloList[rank] += globalCellCount[l];
+                            haloCount += globalCellCount[l];
+                            visited[l] = true;
+                        }
                     }
                 }
             }
@@ -361,10 +292,11 @@ public:
             printf("};\n");
             fflush(stdout);
         }
-        
+
         std::vector<MPI_Request> requests(indegree);
 
         // Ask sources a list of cells
+        // msources contains a list of cell id for each rank
         for(int i=0; i<indegree; i++)
         {
             int rank = sources[i];
@@ -374,6 +306,9 @@ public:
         }
 
         // Recv cell list from destinations
+        // buff contains a list of cell that we will have to send
+        // senHaloList contains for each rank, the list of particles to cell
+        // Better to move this to a list of cells
         for(int i=0; i<outdegree; i++)
         {
             MPI_Status status;
@@ -393,7 +328,27 @@ public:
         }
     }
 
-    inline void exchangeHalos(std::vector<ArrayT*> &data)
+    void makeDataArray(std::vector<Array<T>*> &data, Array<T>* d)
+    {
+        data.push_back(d);
+    }
+
+    template<typename... Args>
+    void makeDataArray(std::vector<Array<T>*> &data, Array<T>* first, Args... args)
+    {
+        data.push_back(first);
+        makeDataArray(data, args...);
+    }
+
+    template<typename... Args>
+    void synchronizeHalos(Args... args)
+    {
+        std::vector<Array<T>*> data;
+        makeDataArray(data, args...);
+        synchronizeHalos(data);
+    }
+
+    void synchronizeHalos(std::vector<Array<T>*> &data)
     {
         std::vector<std::vector<T>> buff;
         std::vector<MPI_Request> requests;
@@ -444,11 +399,11 @@ public:
         }
     }
 
-    inline void removeIndices(const std::vector<bool> indices, std::vector<ArrayT*> &data)
+    inline void removeIndices(const std::vector<bool> indices, std::vector<Array<T>*> &data)
     {
         for(unsigned int i=0; i<data.size(); i++)
         {
-            ArrayT &array = *data[i];
+            Array<T> &array = *data[i];
             
             int j = 0;
             std::vector<T> tmp(array.size());
@@ -456,15 +411,42 @@ public:
             {
                 if(indices[i] == false)
                     tmp[j++] = array[i];
-                // array[indices[i]] = array.back();
-                // array.pop_back();
             }
             tmp.swap(array);
             array.resize(j);
         }
     }
 
-    void discard(std::vector<ArrayT*> &data)
+    inline void keepIndices(const std::vector<int> indices, std::vector<Array<T>*> &data)
+    {
+        for(unsigned int i=0; i<data.size(); i++)
+        {
+            Array<T> &array = *data[i];
+            
+            int j = 0;
+            std::vector<T> tmp(indices.size());
+            for(unsigned int i=0; i<indices.size(); i++)
+                tmp[j++] = array[indices[i]];
+
+            tmp.swap(array);
+            array.resize(j);
+        }
+    }
+
+    void computeDiscardList(const int count, std::vector<bool> &discardList)
+    {
+        discardList.resize(count, false);
+        for(int i=0; i<ncells; i++)
+        {
+            if(assignedRanks[i] != comm_rank)
+            {
+                for(unsigned j=0; j<cellList[i].size(); j++)
+                    discardList[cellList[i][j]] = true;
+            }
+        }
+    }
+
+    void discard(std::vector<Array<T>*> &data)
     {
         std::vector<bool> discardList;
         computeDiscardList(data[0]->size(), discardList);
@@ -472,9 +454,14 @@ public:
             removeIndices(discardList, data);
     }
 
-    void build(const std::vector<int> &procsize, const ArrayT &x, const ArrayT &y, const ArrayT &z, const ArrayT &h, std::vector<int> &clist, std::vector<ArrayT*> &data, bool showGraph = false)
+    virtual void build(const std::vector<int> &procsize, Array<T> &x, Array<T> &y, Array<T> &z, Array<T> &h, BBox<T> &globalBBox, std::vector<int> &clist, std::vector<Array<T>*> &data, bool showGraph = false)
     {   
-        globalBBox = computeGlobalBBox(clist, x, y, z);
+        keepIndices(clist, data);
+        for(unsigned int i=0; i<clist.size(); i++)
+            clist[i] = i;
+
+        /* The 'bbox' here is is only used to test PBC. If PBC is activated, the globalBBox will take the corresponding bbox.x{min,max} values */
+        globalBBox.computeGlobal(clist, x, y, z, comm);
         globalMaxH = computeGlobalMaxH(clist, h);
         
         nX = std::max((globalBBox.xmax-globalBBox.xmin) / globalMaxH, 2.0);
@@ -482,7 +469,7 @@ public:
         nZ = std::max((globalBBox.zmax-globalBBox.zmin) / globalMaxH, 2.0);
         ncells = nX*nY*nZ;
 
-        distributeParticles(clist, x, y, z);
+        distributeParticles(clist, globalBBox, x, y, z);
         computeGlobalCellCount();
         assignRanks(procsize);
         synchronize(data);
@@ -491,36 +478,42 @@ public:
         clist.resize(data[0]->size());
         for(unsigned int i=0; i<clist.size(); i++)
             clist[i] = i;
+        
+        distributeParticles(clist, globalBBox, x, y, z);
 
-        // globalBBox = computeGlobalBBox(clist, x, y, z);
-        // globalMaxH = computeGlobalMaxH(clist, h);
-
-        // nX = std::max((globalBBox.xmax-globalBBox.xmin) / globalMaxH, 2.0);
-        // nY = std::max((globalBBox.ymax-globalBBox.ymin) / globalMaxH, 2.0);
-        // nZ = std::max((globalBBox.zmax-globalBBox.zmin) / globalMaxH, 2.0);
-        // ncells = nX*nY*nZ;
-
-        distributeParticles(clist, x, y, z);
-        //computeGlobalCellCount();
-        //assignRanks(procsize);
-        //synchronize(data);
-        //discard(data);
-
-        localBBox = computeBBox(clist, x, y, z);
+        BBox<T> localBBox;
+        localBBox.compute(clist, x, y, z);
         localMaxH = computeMaxH(clist, h);
 
-        // Compute cell boxes using globalBBox
-        std::vector<BBox<T>> cellBBox(ncells);
-        computeBBoxes(cellBBox);
+        // Use the localbbox to identify halo cells
+        computeHaloList(localBBox, globalBBox, showGraph);
 
-        // Use cell boxes and the localbbox to identify halo cells
-        computeHaloList(cellBBox, showGraph);
+        //synchronizeHalos(&x, &y, &z, &h);
+        //globalBBox.computeGlobal(clist, x, y, z, comm);
+
+        // Domain::tree
+        //Domain<T, Tree>::buildTree(globalBBox, x, y, z, h);
     }
 
-    void synchronizeHalos(std::vector<ArrayT*> &data)
-    {
-        exchangeHalos(data);
-    }
+public:
+    int haloCount;
+    
+    MPI_Comm comm;
+
+    T localMaxH, globalMaxH;
+
+    std::vector<int> assignedRanks;
+    std::vector<int> globalCellCount;
+    std::vector<std::vector<int>> cellList;
+
+    std::map<int,std::vector<int>> sendHaloList;
+    std::map<int,int> recvHaloList;
+
+    int ncells;
+    int nX, nY, nZ;
+
+    int comm_size, comm_rank, name_len;
+    char processor_name[MPI_MAX_PROCESSOR_NAME];
 };
 
 }

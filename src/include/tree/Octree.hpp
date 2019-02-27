@@ -8,26 +8,11 @@
 
 namespace sphexa
 {
+
 template<typename T = double, class ArrayT = std::vector<T>>
 class Octree
 {
 public:
-	int cellCount() const
-	{
-		int c = 1;
-		for(int i=0; i<ncells; i++)
-			if(cells[i] != nullptr) c += cells[i]->cellCount();
-		return c;
-	}
-
-	int bucketCount() const
-	{
-		int c = ncells;
-		for(int i=0; i<ncells; i++)
-			if(cells[i] != nullptr) c += cells[i]->bucketCount();
-		return c;
-	}
-
 	inline T normalize(T d, T min, T max) const
 	{
 		return (d-min)/(max-min);
@@ -42,57 +27,36 @@ public:
 		return xx*xx + yy*yy + zz*zz;
 	}
 
-	inline void check_add_start(const int start, const int count, const T xi, const T yi, const T zi, const T r, const unsigned int ngmax, std::vector<int> &neighbors) const
+	inline void check_add_start(const int start, const int count, const int id, const T xi, const T yi, const T zi, const T r, const unsigned int ngmax, std::vector<int> &neighbors) const
 	{
 		T dists[count];
 		for(int i=0; i<count; i++)
 		{
-			int id = start+i;
-			T xx = (*x)[id];
-			T yy = (*y)[id];
-			T zz = (*z)[id];
+			T xx = (*x)[start+i];
+			T yy = (*y)[start+i];
+			T zz = (*z)[start+i];
 
 			dists[i] = distancesq(xi, yi, zi, xx, yy, zz);
 		}
 
 		for(int i=0; i<count; i++)
 		{
-			if(neighbors.size() < ngmax && dists[i] < r*r)//distancesq(xi, yi, zi, xx, yy, zz) < r2)
+			if(neighbors.size() < ngmax && dists[i] < r*r && (*ordering)[start+i] != id)
 				neighbors.push_back((*ordering)[start+i]);
 		}
 	}
-
-	// inline T computeMaxH()
-	// {
-	// 	T hmax = 0.0;
-	// 	for(unsigned int i=0; i<ax.size(); i++)
-	// 	{
-	// 		T h = ah.getH(i);
-	// 		if(h > hmax)
-	// 			hmax = h;
-	// 	}
-	// 	return hmax;
-	// }
 
 	inline void distributeParticles(const std::vector<int> &list, const ArrayT &ax, const ArrayT &ay, const ArrayT &az, std::vector<std::vector<int>> &cellList)
 	{
 		for(unsigned int i=0; i<list.size(); i++)
 		{
-			T xx = std::max(std::min(ax[list[i]],bbox.xmax),bbox.xmin);
-			T yy = std::max(std::min(ay[list[i]],bbox.ymax),bbox.ymin);
-			T zz = std::max(std::min(az[list[i]],bbox.zmax),bbox.zmin);
+			T xx = ax[list[i]];
+			T yy = ay[list[i]];
+			T zz = az[list[i]];
 
-			T posx = normalize(xx, bbox.xmin, bbox.xmax);
-			T posy = normalize(yy, bbox.ymin, bbox.ymax);
-			T posz = normalize(zz, bbox.zmin, bbox.zmax);
-
-			int hx = posx*nX;
-			int hy = posy*nY;
-			int hz = posz*nZ;
-
-			hx = std::min(hx,nX-1);
-			hy = std::min(hy,nY-1);
-			hz = std::min(hz,nZ-1);
+			T hx = std::min(std::max((int)(normalize(xx, bbox.xmin, bbox.xmax)*nX),0),nX-1);
+			T hy = std::min(std::max((int)(normalize(yy, bbox.ymin, bbox.ymax)*nY),0),nY-1);
+			T hz = std::min(std::max((int)(normalize(zz, bbox.zmin, bbox.zmax)*nZ),0),nZ-1);
 
 			unsigned int l = hz*nX*nY+hy*nX+hx;
 
@@ -162,9 +126,12 @@ public:
 		cells.resize(ncells);
 		start.resize(ncells);
 		count.resize(ncells);
-
+		
 		for(int i=0; i<ncells; i++)
 		{
+			start[i] = ptr+padding[i];
+			count[i] = cellList[i].size();
+
 			if(cellList[i].size() > bucketSize)// && bx-ax > PLANCK && by-ay > PLANCK && bz-az > PLANCK)
 			{
 				cells[i] = std::make_shared<Octree>();
@@ -209,7 +176,7 @@ public:
 		buildRec(list, bbox, ax, ay, az, ah, bucketSize, 0);
 	}
 
-	void findNeighborsRec(const T xi, const T yi, const T zi, const T ri, const int ngmax, std::vector<int> &neighbors) const
+	void findNeighborsRec(const int id, const T xi, const T yi, const T zi, const T ri, const int ngmax, std::vector<int> &neighbors) const
 	{
 		int mix = std::max((int)(normalize(xi-ri, bbox.xmin, bbox.xmax)*nX),0);
 		int miy = std::max((int)(normalize(yi-ri, bbox.ymin, bbox.ymax)*nY),0);
@@ -227,15 +194,15 @@ public:
 					unsigned int l = hz*nX*nY+hy*nX+hx;
 					
 					if(cells[l] != nullptr)
-		 				cells[l]->findNeighborsRec(xi, yi, zi, ri, ngmax, neighbors);
+		 				cells[l]->findNeighborsRec(id, xi, yi, zi, ri, ngmax, neighbors);
 		 			else
-		 				check_add_start(start[l], count[l], xi, yi, zi, ri, ngmax, neighbors);
+		 				check_add_start(start[l], count[l], id, xi, yi, zi, ri, ngmax, neighbors);
 				}
 			}
 		}
 	}
 
-	void findNeighbors(const T xi, const T yi, const T zi, const T ri, const int ngmax, std::vector<int> &neighbors,
+	void findNeighbors(const int id, const T xi, const T yi, const T zi, const T ri, const int ngmax, std::vector<int> &neighbors,
 		const bool PBCx = false, const bool PBCy = false, const bool PBCz = false) const
 	{
 		if((PBCx && (xi-ri < bbox.xmin || xi+ri > bbox.xmax)) || (PBCy && (yi-ri < bbox.ymin || yi+ri > bbox.ymax)) || (PBCz && (zi-ri < bbox.zmin || zi+ri > bbox.zmax)))
@@ -247,8 +214,12 @@ public:
 			int may = (int)floor(normalize(yi+ri, bbox.ymin, bbox.ymax)*nY);
 			int maz = (int)floor(normalize(zi+ri, bbox.zmin, bbox.zmax)*nZ);
 
-			//printf("%f %f %f %f %f %f for %f %f %f with %f\n", bbox.xmin, bbox.xmax, bbox.ymin, bbox.ymax, bbox.zmin, bbox.zmax, xi, yi, zi, ri);
-			//printf("%d %d %d %d %d %d for %f %f %f\n", mix, miy, miz, max, may, maz, xi, yi, zi);
+			if(!PBCx) mix = std::max(mix, 0);
+            if(!PBCy) miy = std::max(miy, 0);
+            if(!PBCz) miz = std::max(miz, 0);
+            if(!PBCx) max = std::min(max, nX-1);
+            if(!PBCy) may = std::min(may, nY-1);
+            if(!PBCz) maz = std::min(maz, nZ-1);
 
 			for(int hz=miz; hz<=maz; hz++)
 			{
@@ -260,22 +231,27 @@ public:
 			 			T disply = PBCy? ((hy < 0) - (hy >= nY)) * (bbox.ymax-bbox.ymin) : 0;
 			 			T displx = PBCx? ((hx < 0) - (hx >= nX)) * (bbox.xmax-bbox.xmin) : 0;
 
-						int hzz = (hz + nZ) % nZ;
-			 			int hyy = (hy + nY) % nY;
-						int hxx = (hx + nX) % nX;
+						int hzz = PBCz? (hz % nZ) + (hz < 0) * nZ : hz;
+			 			int hyy = PBCy? (hy % nY) + (hy < 0) * nY : hy;
+						int hxx = PBCx? (hx % nX) + (hx < 0) * nX : hx;
 
 						unsigned int l = hzz*nY*nX+hyy*nX+hxx;
 
+						// if(id == 26)
+						// {
+						// 	printf("%d %d %d -- %f %f %f\n", hxx, hyy, hzz, displx, disply, displz);
+						// 	fflush(stdout);
+						// }
 						if(cells[l] != nullptr)
-			 				cells[l]->findNeighborsRec(xi+displx, yi+disply, zi+displz, ri, ngmax, neighbors);
+			 				cells[l]->findNeighborsRec(id, xi+displx, yi+disply, zi+displz, ri, ngmax, neighbors);
 			 			else
-			 				check_add_start(start[l], count[l], xi+displx, yi+disply, zi+displz, ri, ngmax, neighbors);
+			 				check_add_start(start[l], count[l], id, xi+displx, yi+disply, zi+displz, ri, ngmax, neighbors);
 			 		}
 				}
 			}
 		}
 		else
-			findNeighborsRec(xi, yi, zi, ri, ngmax, neighbors);
+			findNeighborsRec(id, xi, yi, zi, ri, ngmax, neighbors);
 	}
 
 public:

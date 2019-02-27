@@ -151,6 +151,7 @@ public:
         }
 
         etot = ecin = eint = 0.0;
+        ttot = 0.0;
 
         for(auto i : neighbors)
             i.reserve(ngmax);
@@ -245,6 +246,7 @@ public:
     std::vector<T> dt, dt_m1;
 
     T etot, ecin, eint;
+    T ttot;
 
     sphexa::BBox<T> bbox;
     std::vector<std::vector<int>> neighbors; // List of neighbor indices per particle.
@@ -260,7 +262,9 @@ public:
 
     std::vector<std::vector<T>*> data;
 
-    const T K = sphexa::compute_3d_k(5.0);
+    const T sincIndex = 6.0;
+    const T K = sphexa::compute_3d_k(sincIndex);
+    const T Kcour = 0.2;
     const T maxDtIncrease = 1.1;
     const int stabilizationTimesteps = -1;
     const unsigned int ngmin = 50, ng0 = 100, ngmax = 150; // Minimum, target and maximum number of neighbors per particle
