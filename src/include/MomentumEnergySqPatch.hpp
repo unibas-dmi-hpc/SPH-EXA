@@ -26,7 +26,9 @@ public:
         //const T delta_x_i = 1.0;//0.01;
         const T ep1 = 0.2, ep2 = 0.02, mre = 4.0;
         
+        #ifdef SPEC_OPENMP
         #pragma omp parallel for
+        #endif
         for(int pi=0; pi<n; pi++)
         {
             const int i = clist[pi];
@@ -58,7 +60,7 @@ public:
 
                 T r_square = (r_ijx * r_ijx) + (r_ijy * r_ijy) + (r_ijz * r_ijz);
 
-                T r_ij = std::sqrt(r_square);
+                T r_ij = sqrt(r_square);
                 T rv_i = r_ij / h[i];
                 T rv_j = r_ij / h[j];
 
@@ -80,7 +82,7 @@ public:
                 T grad_v_kernel_y_ij = (grad_v_kernel_y_i + grad_v_kernel_y_j)/2.0;
                 T grad_v_kernel_z_ij = (grad_v_kernel_z_i + grad_v_kernel_z_j)/2.0;
 
-                T force_i_j_r = std::exp(-(rv_i * rv_i)) * std::exp((dx*dx) / (h[i] * h[i]));
+                T force_i_j_r = exp(-(rv_i * rv_i)) * exp((dx*dx) / (h[i] * h[i]));
 
                 T A_j = 0.0;
                 if(p[j] < 0.0) A_j = 1.0;
@@ -90,7 +92,7 @@ public:
 
                 T R_i_j = ep1 * (A_i * std::abs(p[i]) + A_j * std::abs(p[j])) + ep2 * delta_pos_i_j * (std::abs(p[i]) + std::abs(p[j]));
 
-                T r_force_i_j = R_i_j * std::pow(force_i_j_r, mre);
+                T r_force_i_j = R_i_j * pow(force_i_j_r, mre);
 
                 T partial_repulsive_force = (r_force_i_j / (ro[i] * ro[j]));
 

@@ -14,12 +14,15 @@ template<typename T = double, typename ArrayT = std::vector<T>>
 class EnergyConservation
 {
 public:
-	void compute(const std::vector<int> &clist, const ArrayT &u, const ArrayT &vx, const ArrayT &vy, const ArrayT &vz, const ArrayT &m, T &etot, T &ecin, T &eint)
-	{
-		int n = clist.size();
+    void compute(const std::vector<int> &clist, const ArrayT &u, const ArrayT &vx, const ArrayT &vy, const ArrayT &vz, const ArrayT &m, T &etot, T &ecin, T &eint)
+    {
+        int n = clist.size();
 
-		T ecintmp = 0.0, einttmp = 0.0;
-		#pragma omp parallel for reduction (+:ecintmp,einttmp)
+        T ecintmp = 0.0, einttmp = 0.0;
+
+        #ifdef SPEC_OPENMP
+        #pragma omp parallel for reduction (+:ecintmp,einttmp)
+        #endif
         for(int pi=0; pi<n; pi++)
         {
             int i = clist[pi];
