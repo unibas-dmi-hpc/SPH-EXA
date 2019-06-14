@@ -11,111 +11,37 @@ template<typename T>
 class SqPatch
 {
 public:
-    #ifdef USE_MPI
-        SqPatch(int side, MPI_Comm comm = MPI_COMM_WORLD) : 
-            n(side*side*side), side(side), count(side*side*side), comm(comm),data({&x, &y, &z, &x_m1, &y_m1, &z_m1, &vx, &vy, &vz, 
-                &ro, &ro_0, &u, &p, &p_0, &h, &m, &c, &grad_P_x, &grad_P_y, &grad_P_z, &du, &du_m1, &dt, &dt_m1})//, ng0(ng0), ngmax(1.5*ng0)
-        {
+    SqPatch(int side) : 
+        n(side*side*side), side(side), count(side*side*side), data({&x, &y, &z, &x_m1, &y_m1, &z_m1, &vx, &vy, &vz, 
+            &ro, &ro_0, &u, &p, &p_0, &h, &m, &c, &grad_P_x, &grad_P_y, &grad_P_z, &du, &du_m1, &dt, &dt_m1})//, ng0(ng0), ngmax(1.5*ng0)
+    {
+        #ifdef USE_MPI
+            comm = MPI_COMM_WORLD;
             MPI_Comm_size(comm, &nrank);
             MPI_Comm_rank(comm, &rank);
             MPI_Get_processor_name(pname, &pnamelen);
-            loadMPI();
-            init();
-        }
-    #else
-         SqPatch(int side) : 
-            n(side*side*side), side(side), count(side*side*side), data({&x, &y, &z, &x_m1, &y_m1, &z_m1, &vx, &vy, &vz, 
-                &ro, &ro_0, &u, &p, &p_0, &h, &m, &c, &grad_P_x, &grad_P_y, &grad_P_z, &du, &du_m1, &dt, &dt_m1})//, ng0(ng0), ngmax(1.5*ng0)
-        {
-            resize(n);
-            load();
-            init();
-        }
-    #endif
+        #endif
+
+        load();
+        init();
+    }
 
     inline void resize(unsigned int size)
     {
         for(unsigned int i=0; i<data.size(); i++)
             data[i]->resize(size);
-        neighbors.resize(size);
+        neighbors.resize(size*ngmax);
+        neighborsCount.resize(size);
     }
 
     //void load(const std::string &filename)
     void load()
     {
-        // input file stream
-        // std::ifstream inputfile(filename, std::ios::binary);
-
-        // if(inputfile.is_open())
-        // {
-        //     // read the contents of the file into the vectors
-        //     inputfile.read(reinterpret_cast<char*>(x.data()), sizeof(T)*x.size());
-        //     inputfile.read(reinterpret_cast<char*>(y.data()), sizeof(T)*y.size());
-        //     inputfile.read(reinterpret_cast<char*>(z.data()), sizeof(T)*z.size());
-        //     inputfile.read(reinterpret_cast<char*>(vx.data()), sizeof(T)*vx.size());
-        //     inputfile.read(reinterpret_cast<char*>(vy.data()), sizeof(T)*vy.size());
-        //     inputfile.read(reinterpret_cast<char*>(vz.data()), sizeof(T)*vz.size());
-        //     inputfile.read(reinterpret_cast<char*>(p_0.data()), sizeof(T)*p_0.size());
-        // }
-        // else
-        //     std::cout << "ERROR: " << "in opening file " << filename << std::endl;
-        const double omega = 5.0;
-        const double myPI = std::acos(-1.0);
-
-        #ifdef SPEC_OPENMP
-        #pragma omp parallel for
-        #endif
-        for (int i = 0; i < side; ++i)
-        {
-            double lz = -0.5 + 1.0 / (2.0 * side) + i * 1.0 / side;
-  
-            for (int j = 0; j < side; ++j)
-            {
-                //double ly = -0.5 + 1.0 / (2.0 * side) +  (double)j / (double)side;
-                double lx = -0.5 + 1.0 / (2.0 * side) + j * 1.0 / side;
-
-                for (int k = 0; k < side; ++k)
-                {
-                    double ly = -0.5 + 1.0 / (2.0 * side) + k * 1.0 / side;
-                    //double lx = -0.5 + 1.0 / (2.0 * side) + (double)k / (double)side;
-                    
-                    double lvx = omega * ly;
-                    double lvy = -omega * lx;
-                    double lvz = 0.;
-                    double lp_0 = 0.;
-
-                    for (int m = 1; m <= 39; m+=2)
-                        for (int l = 1; l <= 39; l+=2)
-                            lp_0 = lp_0 - 32.0 * (omega * omega) / (m * l * (myPI * myPI)) / ((m * myPI) * (m * myPI) + (l * myPI) * (l * myPI)) * sin(m * myPI * (lx + 0.5)) * sin(l * myPI * (ly + 0.5));
-
-                    lp_0 *= 1000.0;
-
-                    // if(k == 0 && i == 0)
-                    //     std::cout << lp_0 << std::endl;
-
-                    //add to the vectors the current calculated values
-                    int lindex = i*side*side + j*side + k;
-
-                    z[lindex] = lz;
-                    y[lindex] = ly;
-                    x[lindex] = lx;
-                    vx[lindex] = lvx;
-                    vy[lindex] = lvy;
-                    vz[lindex] = lvz;
-                    p_0[lindex] = lp_0;
-                }
-            }
-        }
-    }
-
-    #ifdef USE_MPI
-    void loadMPI()
-    {
         count = n / nrank;
-        int offset = n % count;
-        
+        int offset = n % nrank;
+
         workload.resize(nrank);
-        std::vector<int> displs(nrank);
+        displs.resize(nrank);
 
         workload[0] = count+offset;
         displs[0] = 0;
@@ -126,37 +52,55 @@ public:
             displs[i] = displs[i-1] + workload[i-1];
         }
 
-        if(rank == 0)
+        count = workload[rank];
+
+        resize(count);
+
+        const double omega = 5.0;
+        const double myPI = std::acos(-1.0);
+
+        #pragma omp parallel for
+        for (int i = 0; i < side; ++i)
         {
-            count += offset;
+            double lz = -0.5 + 1.0 / (2.0 * side) + i * 1.0 / side;
 
-            resize(n);
-            load();
+            for (int j = 0; j < side; ++j)
+            {
+                //double ly = -0.5 + 1.0 / (2.0 * side) +  (double)j / (double)side;
+                double lx = -0.5 + 1.0 / (2.0 * side) + j * 1.0 / side;
 
-            MPI_Scatterv(&x[0], &workload[0], &displs[0], MPI_DOUBLE, MPI_IN_PLACE, count, MPI_DOUBLE, 0, comm);
-            MPI_Scatterv(&y[0], &workload[0], &displs[0], MPI_DOUBLE, MPI_IN_PLACE, count, MPI_DOUBLE, 0, comm);
-            MPI_Scatterv(&z[0], &workload[0], &displs[0], MPI_DOUBLE, MPI_IN_PLACE, count, MPI_DOUBLE, 0, comm);
-            MPI_Scatterv(&vx[0], &workload[0], &displs[0], MPI_DOUBLE, MPI_IN_PLACE, count, MPI_DOUBLE, 0, comm);
-            MPI_Scatterv(&vy[0], &workload[0], &displs[0], MPI_DOUBLE, MPI_IN_PLACE, count, MPI_DOUBLE, 0, comm);
-            MPI_Scatterv(&vz[0], &workload[0], &displs[0], MPI_DOUBLE, MPI_IN_PLACE, count, MPI_DOUBLE, 0, comm);
-            MPI_Scatterv(&p_0[0], &workload[0], &displs[0], MPI_DOUBLE, MPI_IN_PLACE, count, MPI_DOUBLE, 0, comm);
+                for (int k = 0; k < side; ++k)
+                {
+                    int lindex = i*side*side + j*side + k;
 
-            resize(count);
-        }
-        else
-        {
-            resize(count);
+                    if(lindex >= displs[rank] && lindex < displs[rank]+workload[rank])
+                    {
+                        double ly = -0.5 + 1.0 / (2.0 * side) + k * 1.0 / side;
+                        //double lx = -0.5 + 1.0 / (2.0 * side) + (double)k / (double)side;
+                        
+                        double lvx = omega * ly;
+                        double lvy = -omega * lx;
+                        double lvz = 0.;
+                        double lp_0 = 0.;
 
-            MPI_Scatterv(NULL, &workload[0], &displs[0], MPI_DOUBLE, &x[0], count, MPI_DOUBLE, 0, comm);
-            MPI_Scatterv(NULL, &workload[0], &displs[0], MPI_DOUBLE, &y[0], count, MPI_DOUBLE, 0, comm);
-            MPI_Scatterv(NULL, &workload[0], &displs[0], MPI_DOUBLE, &z[0], count, MPI_DOUBLE, 0, comm);
-            MPI_Scatterv(NULL, &workload[0], &displs[0], MPI_DOUBLE, &vx[0], count, MPI_DOUBLE, 0, comm);
-            MPI_Scatterv(NULL, &workload[0], &displs[0], MPI_DOUBLE, &vy[0], count, MPI_DOUBLE, 0, comm);
-            MPI_Scatterv(NULL, &workload[0], &displs[0], MPI_DOUBLE, &vz[0], count, MPI_DOUBLE, 0, comm);
-            MPI_Scatterv(NULL, &workload[0], &displs[0], MPI_DOUBLE, &p_0[0], count, MPI_DOUBLE, 0, comm);
+                        for (int m = 1; m <= 39; m+=2)
+                            for (int l = 1; l <= 39; l+=2)
+                                lp_0 = lp_0 - 32.0 * (omega * omega) / (m * l * (myPI * myPI)) / ((m * myPI) * (m * myPI) + (l * myPI) * (l * myPI)) * sin(m * myPI * (lx + 0.5)) * sin(l * myPI * (ly + 0.5));
+
+                        lp_0 *= 1000.0;
+
+                        z[lindex-displs[rank]] = lz;
+                        y[lindex-displs[rank]] = ly;
+                        x[lindex-displs[rank]] = lx;
+                        vx[lindex-displs[rank]] = lvx;
+                        vy[lindex-displs[rank]] = lvy;
+                        vz[lindex-displs[rank]] = lvz;
+                        p_0[lindex-displs[rank]] = lp_0;
+                    }
+                }
+            }
         }
     }
-    #endif
 
     void init()
     {
@@ -175,7 +119,7 @@ public:
 
             m[i] = 1000000.0/n;//1.0;//1000000.0/n;//1.0;//0.001;//0.001;//0.001;//1.0;
             c[i] = 3500.0;//35.0;//35.0;//35000
-            h[i] = 2.0*dx;//0.02;//0.02;
+            h[i] = 2.5*dx;//0.02;//0.02;
             ro[i] = 1.0;//1.0e3;//.0;//1e3;//1e3;
             ro_0[i] = 1.0;//1.0e3;//.0;//1e3;//1e3;
 
@@ -189,19 +133,33 @@ public:
             z_m1[i] = z[i] - vz[i] * dt[0];
         }
 
-        bbox.compute(x, y, z);
+        #ifdef USE_MPI
+            bbox.computeGlobal(x, y, z, comm);
+        #else
+            bbox.compute(x, y, z);
+        #endif
         bbox.PBCz = true;
         bbox.zmax += dx/2.0;
         bbox.zmin -= dx/2.0;
 
         etot = ecin = eint = 0.0;
         ttot = 0.0;
-        
-        for(auto i : neighbors)
-            i.reserve(ngmax);
+
+        if(rank == 0 && 2.0 * h[0] > (bbox.zmax-bbox.zmin)/2.0)
+        {
+            printf("ERROR::SqPatch::init()::SmoothingLength (%.2f) too large (%.2f) (n too small?)\n", h[0], bbox.zmax-bbox.zmin);
+            #ifdef USE_MPI
+                MPI_Finalize();
+                exit(0);
+            #endif
+        }
     }
 
+#ifdef USE_MPI
     void writeData(const std::vector<int> &clist, std::ofstream &dump)
+#else
+    void writeData(const std::vector<int>, std::ofstream &dump)
+#endif
     {
         #ifdef USE_MPI
             std::vector<int> workload(nrank);
@@ -281,6 +239,7 @@ public:
         }
     }
 
+    int iteration; // Current iteration
     int n, side, count; // Number of particles
     std::vector<T> x, y, z, x_m1, y_m1, z_m1; // Positions
     std::vector<T> vx, vy, vz; // Velocities
@@ -290,7 +249,6 @@ public:
     std::vector<T> h; // Smoothing Length
     std::vector<T> m; // Mass
     std::vector<T> c; // Speed of sound
-
     std::vector<T> grad_P_x, grad_P_y, grad_P_z; //gradient of the pressure
     std::vector<T> du, du_m1; //variation of the energy
     std::vector<T> dt, dt_m1;
@@ -298,16 +256,20 @@ public:
     T ttot, etot, ecin, eint;
 
     sphexa::BBox<T> bbox;
-    std::vector<std::vector<int>> neighbors; // List of neighbor indices per particle.
 
+    std::vector<int> neighbors; // List of neighbor indices per particle.
+    std::vector<int> neighborsCount;
+
+    std::vector<int> workload, displs;
+    
     #ifdef USE_MPI
         MPI_Comm comm;
-        int nrank = 0, pnamelen = 0;
+        int pnamelen = 0;
         char pname[MPI_MAX_PROCESSOR_NAME];
-        std::vector<int> workload;
     #endif
     
     int rank = 0;
+    int nrank = 1;
 
     std::vector<std::vector<T>*> data;
     T sincIndex = 6.0;
@@ -315,5 +277,6 @@ public:
     T Kcour = 0.2;
     T maxDtIncrease = 1.1;
     T dx = 0.01;
-    int ngmin = 5, ng0 = 250, ngmax = 500;
+    int ngmin = 5, ng0 = 500, ngmax = 800;
 };
+

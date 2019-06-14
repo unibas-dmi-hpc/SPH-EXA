@@ -1,21 +1,24 @@
 #pragma once
 
+#ifdef USE_MPI
+    #include "mpi.h"
+#endif
+
 #include <vector>
 #include <cmath>
 #include <map>
 
 #include "BBox.hpp"
-#include "Domain.hpp"
 
 namespace sphexa
 {
 
-template<typename T, class Tree = Octree<T>>
-class DistributedDomain : public Domain<T, Tree>
+template<typename T>
+class DistributedDomain
 {
+#ifdef USE_MPI
 public:
-    DistributedDomain(int ngmin, int ng0, int ngmax, int bucketSize = 128, MPI_Comm comm = MPI_COMM_WORLD) 
-        : Domain<T, Tree>(ngmin, ng0, ngmax, bucketSize), comm(comm), ncells(0)
+    DistributedDomain(MPI_Comm comm = MPI_COMM_WORLD) : comm(comm)
     {
         MPI_Comm_size(comm, &comm_size);
         MPI_Comm_rank(comm, &comm_rank);
@@ -240,9 +243,9 @@ public:
                         //T disply = bbox.PBCy? ((hy < 0) - (hy >= nY)) * (globalBBox.ymax-globalBBox.ymin) : 0;
                         //T displx = bbox.PBCx? ((hx < 0) - (hx >= nX)) * (globalBBox.xmax-globalBBox.xmin) : 0;
 
-                        int hzz = (hz % nZ) + (hz < 0) * nZ;
-                        int hyy = (hy % nY) + (hy < 0) * nY;
-                        int hxx = (hx % nX) + (hx < 0) * nX;
+                        int hzz = globalBBox.PBCz? (hz % nZ) + (hz < 0) * nZ : hz;
+                        int hyy = globalBBox.PBCy? (hy % nY) + (hy < 0) * nY : hy;
+                        int hxx = globalBBox.PBCx? (hx % nX) + (hx < 0) * nX : hx;
 
                         unsigned int l = hzz*nY*nX+hyy*nX+hxx;
 
@@ -326,6 +329,8 @@ public:
             MPI_Status status[requests.size()];
             MPI_Waitall(requests.size(), &requests[0], status);
         }
+
+        MPI_Comm_free(&graphComm);
     }
 
     void makeDataArray(std::vector<Array<T>*> &data, Array<T>* d)
@@ -417,22 +422,6 @@ public:
         }
     }
 
-    inline void keepIndices(const std::vector<int> indices, std::vector<Array<T>*> &data)
-    {
-        for(unsigned int i=0; i<data.size(); i++)
-        {
-            Array<T> &array = *data[i];
-            
-            int j = 0;
-            std::vector<T> tmp(indices.size());
-            for(unsigned int i=0; i<indices.size(); i++)
-                tmp[j++] = array[indices[i]];
-
-            tmp.swap(array);
-            array.resize(j);
-        }
-    }
-
     void computeDiscardList(const int count, std::vector<bool> &discardList)
     {
         discardList.resize(count, false);
@@ -454,49 +443,39 @@ public:
             removeIndices(discardList, data);
     }
 
-    virtual void build(const std::vector<int> &procsize, Array<T> &x, Array<T> &y, Array<T> &z, Array<T> &h, BBox<T> &globalBBox, std::vector<int> &clist, std::vector<Array<T>*> &data, bool showGraph = false)
+    template<class Dataset>
+    void distribute(std::vector<int> &clist, Dataset &d, bool showGraph = false)
     {   
-        keepIndices(clist, data);
-        for(unsigned int i=0; i<clist.size(); i++)
-            clist[i] = i;
-
         /* The 'bbox' here is is only used to test PBC. If PBC is activated, the globalBBox will take the corresponding bbox.x{min,max} values */
-        globalBBox.computeGlobal(clist, x, y, z, comm);
-        globalMaxH = computeGlobalMaxH(clist, h);
+        d.bbox.computeGlobal(clist, d.x, d.y, d.z, comm);
+        globalMaxH = computeGlobalMaxH(clist, d.h);
         
-        nX = std::max((globalBBox.xmax-globalBBox.xmin) / globalMaxH, 2.0);
-        nY = std::max((globalBBox.ymax-globalBBox.ymin) / globalMaxH, 2.0);
-        nZ = std::max((globalBBox.zmax-globalBBox.zmin) / globalMaxH, 2.0);
+        nX = std::max((d.bbox.xmax-d.bbox.xmin) / globalMaxH, 2.0);
+        nY = std::max((d.bbox.ymax-d.bbox.ymin) / globalMaxH, 2.0);
+        nZ = std::max((d.bbox.zmax-d.bbox.zmin) / globalMaxH, 2.0);
         ncells = nX*nY*nZ;
 
-        distributeParticles(clist, globalBBox, x, y, z);
-        computeGlobalCellCount();
-        assignRanks(procsize);
-        synchronize(data);
-        discard(data);
+        distributeParticles(clist, d.bbox, d.x, d.y, d.z); // Distribute particles in global buckets
+        computeGlobalCellCount(); // How many particles per bucket (globally) ?
+        assignRanks(d.workload); // Assign ranks to buckets
+        synchronize(d.data); // Receive new particles from neighbor nodes
+        discard(d.data); // Discard particles that were sent to other nodes
 
-        clist.resize(data[0]->size());
+        clist.resize(d.data[0]->size());
         for(unsigned int i=0; i<clist.size(); i++)
             clist[i] = i;
         
-        distributeParticles(clist, globalBBox, x, y, z);
+        distributeParticles(clist, d.bbox, d.x, d.y, d.z); // Re-distribute new particles in global buckets
 
         BBox<T> localBBox;
-        localBBox.compute(clist, x, y, z);
-        localMaxH = computeMaxH(clist, h);
+        localBBox.compute(clist, d.x, d.y, d.z);
+        localMaxH = computeMaxH(clist, d.h);
 
         // Use the localbbox to identify halo cells
-        computeHaloList(localBBox, globalBBox, showGraph);
+        computeHaloList(localBBox, d.bbox, showGraph); // Find which rank is our neighbor (builds a directed graph)
 
-        //synchronizeHalos(&x, &y, &z, &h);
-        //globalBBox.computeGlobal(clist, x, y, z, comm);
-
-        // Domain::tree
-        //Domain<T, Tree>::buildTree(globalBBox, x, y, z, h);
+        d.count = clist.size(); // Update particle count
     }
-
-public:
-    int haloCount;
 
 private:
     MPI_Comm comm;
@@ -515,6 +494,35 @@ private:
 
     int comm_size, comm_rank, name_len;
     char processor_name[MPI_MAX_PROCESSOR_NAME];
+
+#else
+public:
+    template<class Dataset>
+    void distribute(const std::vector<int> &clist, Dataset &d)
+    {
+        d.bbox.compute(clist, d.x, d.y, d.z);
+    }
+
+    template<typename... Args>
+    void synchronizeHalos(Args...) {}
+#endif
+
+public:
+    template<typename... Args>
+    void resizeArrays(const int count, Array<T>* d)
+    {
+        d->resize(count);
+    }
+
+    template<typename... Args>
+    void resizeArrays(const int count, Array<T>* first, Args... args)
+    {
+        first->resize(count);
+        resizeArrays(count, args...);
+    }
+
+public:
+    int haloCount = 0;
 };
 
 }
