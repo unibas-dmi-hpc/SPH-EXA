@@ -1,15 +1,55 @@
+# SPH
+
+The smooth particle hydrodynamics (SPH) technique is a purely Lagrangian method.
+SPH discretizes a fluid in a series of interpolation points (SPH particles) 
+whose distribution follows the mass density of the fluid and their evolution relies 
+on a weighted interpolation over close neighboring particles.
+
+SPH simulations represent computationally demanding calculations. 
+Therefore, trade-offs are made between temporal and spatial scales, resolution, 
+dimensionality (3-D or 2-D), and approximated versions of the physics involved. 
+The parallelization of SPH codes is not trivial due to their boundless nature 
+and the absence of a structured particle grid. 
+[SPHYNX](https://astro.physik.unibas.ch/sphynx/), 
+[ChaNGa](http://faculty.washington.edu/trq/hpcc/tools/changa.html), 
+and [SPH-flow](http://www.sph-flow.com) are the three SPH codes selected in the PASC SPH-EXA project proposal. 
+The performance of these codes is negatively impacted by factors, such as multiple time-stepping and gravity. 
+Therefore, the goal is to extrapolate their common basic SPH features, which are consolidated in a fully optimized, Exascale-ready, MPI+X, pure-SPH, mini-app. 
+
 # SPH-EXA mini-app
-The SPH-EXA mini-app implements the smoothed particle hydrodynamics (SPH) technique, a meshless Lagrangian method commonly used for performing hydrodynamical and computational fluid dynamics simulations.
 
-The SPH technique discretizes a fluid in a series of interpolation points (SPH particles) whose distribution follows
-the mass density of the fluid and their evolution relies on a weighted interpolation over close neighboring particles.
-SPH simulations with detailed physics calculations represent computationally-demanding applications. 
-The SPH-EXA mini-app is derived from three parent SPH codes used in astrophysics (SPHYNX and ChaNGa) and computational fluid dynamics (SPH-flow).
+SPH-EXA mini-app is a C++14 headers-only code with no external software dependencies. 
+The parallelism is currently expressed via MPI+OpenMP.
 
-A number of basic steps of any SPH calculation are included in the mini-app: from the particles’ positions and masses a tree is built and walked to identify the neighbors that will be used for the remainder of the global time-step (or iteration). Such steps include the evaluation of the particles’ density, acceleration, rate of change of internal energy, and all physical modules relevant to the studied scenario. Next, a new physically relevant and numerically stable time-step is found, and the properties of the particles are updated accordingly.
+You can use the following commands to compile and run the SquarePatch example:
 
-SPH-EXA mini-app is a modern C++ headers-only code (except for main.cpp) with no external software dependencies.
-The parallelism is currently expressed via MPI+OpenMP and will be extended to exploit accelerated parallelism (OpenACC, HPX).
+#### Compile
 
-### 3D Rotating Square Patch
-This mini-app can simulate a three-dimensional rotating square patch, a demanding scenario for SPH simulations due to the presence of negative pressures, which stimulate the emergence of unphysical tensile instabilities that destroy the particle system, unless corrective repulsive forces are included.
+* OpenMP: ```shell make omp```
+* MPI+OpenMP: ```shell make mpi+omp```
+
+#### Run
+
+* OpenMP: ```shell bin/omp.app```
+* MPI+OpenMP: ```shell bin/mpi+omp.app```
+
+## Authors
+
+* **Danilo Guerrera**
+* **Aurelien Cavelan**
+* **jg piccinali**
+* **David Imbert**
+* **Ruben Cabezon**
+* **Darren Reed**
+* **Lucio Mayer**
+* **Ali Mohammed**
+* **Florina Ciorba**
+* **Tom Quinn**
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
+
+## Acknowledgments
+
+* PASC SPH-EXA project
