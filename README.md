@@ -1,3 +1,5 @@
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 # SPH
 
 The smooth particle hydrodynamics (SPH) technique is a purely Lagrangian method.
@@ -37,7 +39,7 @@ You can use the following commands to compile and run the SquarePatch example:
 
 * **Danilo Guerrera**
 * **Aurelien Cavelan**
-* **jg piccinali**
+* **Jg Piccinali**
 * **David Imbert**
 * **Ruben Cabezon**
 * **Darren Reed**
