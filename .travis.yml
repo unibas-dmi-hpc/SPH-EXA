@@ -5,8 +5,8 @@ services:
 
 before_script:
   - docker pull jgphpc/mpich:ub1804_cuda92_mpi314
-#  - docker run jgphpc/mpich:ub1804_cuda92_mpi314 bash -c "./8.exe -n 10 -s 0"
+  - docker run jgphpc/mpich:ub1804_cuda92_mpi314 bash -c "/opt/SPH-EXA_mini-app-master/src/8.exe -n 10 -s 0"
 
 script:
-  - docker run jgphpc/mpich:ub1804_cuda92_mpi314 bash -c "./8.exe -n 10 -s 0"
+#  - docker run jgphpc/mpich:ub1804_cuda92_mpi314 bash -c "./8.exe -n 10 -s 0"
   - docker ps
