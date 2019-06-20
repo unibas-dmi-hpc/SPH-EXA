@@ -1,5 +1,5 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Build Status](https://travis-ci.org/jgphpc/SPH-EXA_mini-app?branch=master)](https://travis-ci.org/jgphpc/SPH-EXA_mini-app)
+[![Build Status](https://travis-ci.org/jgphpc/SPH-EXA_mini-app.svg?branch=master)](https://travis-ci.org/jgphpc/SPH-EXA_mini-app)
 
 # SPH
 
