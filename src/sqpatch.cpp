@@ -61,8 +61,11 @@ int main(int argc, char **argv)
         distributedDomain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
         timer.step("mpi::synchronizeHalos");
 
-        sph::computeMomentumAndEnergy<Real>(clist, d);
-        timer.step("MomentumEnergy");
+        // sph::computeMomentumAndEnergy<Real>(clist, d);
+        // timer.step("MomentumEnergy");
+        sph::computeMomentumAndEnergyIAD<Real>(clist, d);
+        timer.step("MomentumEnergyIAD");
+
         sph::computeTimestep<Real>(clist, d);
         timer.step("Timestep"); // AllReduce(min:dt)
         sph::computePositions<Real>(clist, d);
