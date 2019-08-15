@@ -12,11 +12,8 @@ namespace sph
 {
 
 template <typename T, class Dataset>
-void computeMomentumAndEnergyIAD(const std::vector<int> &l, Dataset &d)
+void computeIAD(const std::vector<int> &l, Dataset &d)
 {
-    const T gradh_i = 1.0;
-    const T gradh_j = 1.0;
-
     const int64_t n = l.size();
     const int64_t ngmax = d.ngmax;
     const int *clist = l.data();
@@ -28,24 +25,20 @@ void computeMomentumAndEnergyIAD(const std::vector<int> &l, Dataset &d)
     const T *x = d.x.data();
     const T *y = d.y.data();
     const T *z = d.z.data();
-    const T *vx = d.vx.data();
-    const T *vy = d.vy.data();
-    const T *vz = d.vz.data();
     const T *ro = d.ro.data();
-    const T *c = d.c.data();
-    const T *p = d.p.data();
 
-    T *du = d.du.data();
-    T *grad_P_x = d.grad_P_x.data();
-    T *grad_P_y = d.grad_P_y.data();
-    T *grad_P_z = d.grad_P_z.data();
+    T *c11 = d.c11.data();
+    T *c12 = d.c12.data();
+    T *c13 = d.c13.data();
+    T *c22 = d.c22.data();
+    T *c23 = d.c23.data();
+    T *c33 = d.c33.data();
 
     const BBox<T> bbox = d.bbox;
 
     const T sincIndex = d.sincIndex;
     const T K = d.K;
 
-    std::vector<T> c11(n), c12(n), c13(n), c22(n), c23(n), c33(n);
     std::vector<T> checkImem(n, 0), checkDeltaX(n, 0), checkDeltaY(n, 0), checkDeltaZ(n, 0);
 
 #pragma omp parallel for schedule(guided)
@@ -70,7 +63,7 @@ void computeMomentumAndEnergyIAD(const std::vector<int> &l, Dataset &d)
             T r_ijy = (y[i] - y[j]);
             T r_ijz = (z[i] - z[j]);
 
-            // applyPBC(bbox, 2.0 * h[i], r_ijx, r_ijy, r_ijz); // with this line energy grows even faster
+            applyPBC(bbox, 2.0 * h[i], r_ijx, r_ijy, r_ijz); // with this line energy grows even faster
 
             tau11 += r_ijx * r_ijx * m[j] / ro[j] * W;
             tau12 += r_ijx * r_ijy * m[j] / ro[j] * W;
@@ -79,10 +72,10 @@ void computeMomentumAndEnergyIAD(const std::vector<int> &l, Dataset &d)
             tau23 += r_ijy * r_ijz * m[j] / ro[j] * W;
             tau33 += r_ijz * r_ijz * m[j] / ro[j] * W;
 
-            checkImem[i] += m[j] / ro[j] * W;
-            checkDeltaX[i] += m[j] / ro[j] * (x[i] - x[j]) * W;
-            checkDeltaY[i] += m[j] / ro[j] * (y[i] - y[j]) * W;
-            checkDeltaZ[i] += m[j] / ro[j] * (z[i] - z[j]) * W;
+/*            checkImem[i] += m[j] / ro[j] * W;
+            checkDeltaX[i] += m[j] / ro[j] * (r_ijx) * W;
+            checkDeltaY[i] += m[j] / ro[j] * (r_ijy) * W;
+            checkDeltaZ[i] += m[j] / ro[j] * (r_ijz) * W;*/
         }
 
         const T det =
@@ -94,6 +87,55 @@ void computeMomentumAndEnergyIAD(const std::vector<int> &l, Dataset &d)
         c22[i] = (tau11 * tau33 - tau13 * tau13) / det;
         c23[i] = (tau13 * tau12 - tau11 * tau23) / det;
         c33[i] = (tau11 * tau22 - tau12 * tau12) / det;
+    }
+}
+
+template <typename T, class Dataset>
+void computeMomentumAndEnergyIAD(const std::vector<int> &l, Dataset &d)
+{
+    const T gradh_i = 1.0;
+    const T gradh_j = 1.0;
+
+    const int64_t n = l.size();
+    const int64_t ngmax = d.ngmax;
+    const int *clist = l.data();
+    const int *neighbors = d.neighbors.data();
+    const int *neighborsCount = d.neighborsCount.data();
+
+    const T *h = d.h.data();
+    const T *m = d.m.data();
+    const T *x = d.x.data();
+    const T *y = d.y.data();
+    const T *z = d.z.data();
+    const T *vx = d.vx.data();
+    const T *vy = d.vy.data();
+    const T *vz = d.vz.data();
+    const T *ro = d.ro.data();
+    const T *c = d.c.data();
+    const T *p = d.p.data();
+
+    const T *c11 = d.c11.data();
+    const T *c12 = d.c12.data();
+    const T *c13 = d.c13.data();
+    const T *c22 = d.c22.data();
+    const T *c23 = d.c23.data();
+    const T *c33 = d.c33.data();
+
+    T *du = d.du.data();
+    T *grad_P_x = d.grad_P_x.data();
+    T *grad_P_y = d.grad_P_y.data();
+    T *grad_P_z = d.grad_P_z.data();
+
+    const BBox<T> bbox = d.bbox;
+
+    const T sincIndex = d.sincIndex;
+    const T K = d.K;
+
+#pragma omp parallel for schedule(guided)
+    for (int pi = 0; pi < n; ++pi)
+    {
+        const int i = clist[pi];
+        const int nn = neighborsCount[pi];
 
         T momentum_x = 0.0, momentum_y = 0.0, momentum_z = 0.0, energy = 0.0, energyAV = 0.0;
         for (int pj = 0; pj < nn; ++pj)
@@ -167,8 +209,9 @@ void computeMomentumAndEnergyIAD(const std::vector<int> &l, Dataset &d)
             momentum_x += m[j] * (pro_i * termA1_i + pro_j * termA1_j) + grad_Px_AV;
             momentum_y += m[j] * (pro_i * termA2_i + pro_j * termA2_j) + grad_Py_AV;
             momentum_z += m[j] * (pro_i * termA3_i + pro_j * termA3_j) + grad_Pz_AV;
-            energy += m[j] * 2.0 * pro_i * ((vx[i] - vx[j]) * termA1_i + (vy[i] - vy[j]) * termA2_i + (vz[i] - vz[j]) * termA3_i);
-            energyAV += grad_Px_AV * (vx[i] - vx[j]) + grad_Py_AV * (vy[i] - vy[j]) + grad_Pz_AV * (vz[i] - vz[j]);
+
+            energy += m[j] * 2.0 * pro_i * (v_ijx * termA1_i + v_ijy * termA2_i + v_ijz * termA3_i);
+            energyAV += grad_Px_AV * v_ijx + grad_Py_AV * v_ijy + grad_Pz_AV * v_ijz;
         }
 
         du[i] = 0.5 * (energy + energyAV);
@@ -182,8 +225,8 @@ void computeMomentumAndEnergyIAD(const std::vector<int> &l, Dataset &d)
     // printf("%d %f %f %f %f\n", i, checkImem[i], checkDeltaX[i], checkDeltaY[i], checkDeltaZ[i]);
 
     // for (int i = 0 ; i < 5000; ++i)
-    int i = clist[0];
-    printf("%d %f %f %f %f\n", i, checkImem[i], checkDeltaX[i], checkDeltaY[i], checkDeltaZ[i]);
+/*    int i = clist[0];
+    printf("%d %f %f %f %f\n", i, checkImem[i], checkDeltaX[i], checkDeltaY[i], checkDeltaZ[i]);*/
 };
 } // namespace sph
 } // namespace sphexa

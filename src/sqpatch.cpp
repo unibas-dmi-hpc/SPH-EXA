@@ -63,6 +63,13 @@ int main(int argc, char **argv)
 
         // sph::computeMomentumAndEnergy<Real>(clist, d);
         // timer.step("MomentumEnergy");
+        sph::computeIAD<Real>(clist, d);
+        timer.step("IAD");
+
+        distributedDomain.resizeArrays(d.count, &d.c11, &d.c12, &d.c13, &d.c22, &d.c23, &d.c33); // Discard halos
+        distributedDomain.synchronizeHalos(&d.c11, &d.c12, &d.c13, &d.c22, &d.c23, &d.c33);
+        timer.step("mpi::synchronizeHalos");
+
         sph::computeMomentumAndEnergyIAD<Real>(clist, d);
         timer.step("MomentumEnergyIAD");
 
