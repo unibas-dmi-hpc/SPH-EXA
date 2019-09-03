@@ -58,6 +58,83 @@ public:
         makeDataArray(data, args...);
     }
 
+    void sync(const std::vector<std::vector<T>*> &arrayList)
+    {
+        std::map<int, std::vector<int>> toSendCellsPadding, toSendCellsCount;
+        std::vector<std::vector<T>> buff;
+        std::vector<int> counts;
+        std::vector<MPI_Request> requests;
+
+        int needed = 0;
+
+        octree.syncRec(toSendCellsPadding, toSendCellsCount, needed);
+
+        counts.resize(comm_size);
+        for (int rank = 0; rank < comm_size; rank++)
+        {
+            if (toSendCellsCount[rank].size() > 0)
+            {
+                int rcount = requests.size();
+                int bcount = buff.size();
+                counts[rank] = 0;
+
+                for(unsigned int i=0; i<toSendCellsCount[rank].size(); i++)
+                    counts[rank] += toSendCellsCount[rank][i];
+
+                requests.resize(rcount + arrayList.size() + 2);
+                buff.resize(bcount + arrayList.size());
+
+                MPI_Isend(&comm_rank, 1, MPI_INT, rank, 0, MPI_COMM_WORLD, &requests[rcount]);
+                MPI_Isend(&counts[rank], 1, MPI_INT, rank, 1, MPI_COMM_WORLD, &requests[rcount + 1]);
+
+                for (unsigned int i = 0; i < arrayList.size(); i++)
+                {
+                    buff[bcount + i].resize(counts[rank]);
+
+                    int bi = 0;
+                    // We go over every tree nodes to send for this rank
+                    for(unsigned int j=0; j<toSendCellsCount[rank].size(); j++)
+                    {
+                        int padding = toSendCellsPadding[rank][j];
+                        int count = toSendCellsCount[rank][j];
+                        for (int k = 0; k < count; k++)
+                        {
+                            buff[bcount + i][bi++] = (*arrayList[i])[padding + k];
+                        }
+                    }
+                    
+                    MPI_Isend(&buff[bcount + i][0], counts[rank], MPI_DOUBLE, rank, 2 + i, MPI_COMM_WORLD, &requests[rcount + 2 + i]);
+                }
+            }
+        }
+
+        int end = arrayList[0]->size();
+        for (unsigned int i = 0; i < arrayList.size(); i++)
+            (*arrayList[i]).resize(end + needed);
+
+        while (needed > 0)
+        {
+            //printf("Needed: %d\n", needed);
+            MPI_Status status[arrayList.size() + 2];
+
+            int rank, count;
+            MPI_Recv(&rank, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status[0]);
+            MPI_Recv(&count, 1, MPI_INT, rank, 1, MPI_COMM_WORLD, &status[1]);
+
+            for (unsigned int i = 0; i < arrayList.size(); i++)
+                MPI_Recv(&(*arrayList[i])[end], count, MPI_DOUBLE, rank, 2 + i, MPI_COMM_WORLD, &status[2 + i]);
+
+            end += count;
+            needed -= count;
+        }
+
+        if (requests.size() > 0)
+        {
+            MPI_Status status[requests.size()];
+            MPI_Waitall(requests.size(), &requests[0], status);
+        }
+    }
+
     template <typename... Args>
     void synchronizeHalos(Args... args)
     {
@@ -136,58 +213,6 @@ public:
             MPI_Status status[requests.size()];
             MPI_Waitall(requests.size(), &requests[0], &status[0]);
         }
-
-        // std::vector<double> buff(125, comm_rank);
-
-        /*double buff[125];
-
-        for (int i = 0; i < 125; i++)
-            buff[i] = comm_rank;
-
-        MPI_Status st;
-        MPI_Request r;
-
-        if(comm_rank == 0)
-        {
-             for(int i=0; i<125; i++)
-                 printf("%f ", buff[i]);
-             printf("\n");
-        }
-
-        if(comm_rank == 0) MPI_Send(buff, 125, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);//, &r);
-
-        //MPI_Barrier(MPI_COMM_WORLD);
-
-        sleep(1);
-
-        if(comm_rank == 1) MPI_Recv(buff, 125, MPI_DOUBLE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &st);//&requests[rcount + i]);
-
-        if(comm_rank == 1)
-        {
-             for(int i=0; i<125; i++)
-                 printf("%f ", buff[i]);
-             printf("\n");
-        }*/
-
-        // MPI_Status s;
-        // MPI_Wait(&r, &s);
-        /*
-                int world_rank;
-                MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
-                int world_size;
-                MPI_Comm_size(MPI_COMM_WORLD, &world_size);
-
-                int number;
-                if (world_rank == 0)
-                {
-                    number = -1;
-                    MPI_Send(&number, 1, MPI_INT, 1, 0, MPI_COMM_WORLD);
-                }
-                else if (world_rank == 1)
-                {
-                    MPI_Recv(&number, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                    printf("Process 1 received number %d from process 0\n", number);
-                }*/
     }
 
     void computeGlobalBoundingBox(const int n, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z)
@@ -288,19 +313,13 @@ public:
         std::vector<int> work(comm_size, split);
         work[0] += remaining;
 
-        // MPI_Barrier(MPI_COMM_WORLD);
-
         // We compute the global bounding box of the global domain
         // All processes will have the same box dimensions for the domain
         computeGlobalBoundingBox(n, x, y, z);
 
-        printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
+        //printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
 
-        // MPI_Barrier(MPI_COMM_WORLD);
-
-        printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount);
-
-        // MPI_Barrier(MPI_COMM_WORLD);
+        //printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount);
 
         // We map the nodes to a 1D array and retrieve the order of the particles in the tree
         std::vector<int> ordering(n);
@@ -324,28 +343,20 @@ public:
             totalAvail += work[i];
         }
 
-        // MPI_Barrier(MPI_COMM_WORLD);
-
-        printf("[%d] Total Avail: %d, Total Alloc: %d || Got: %d\n", comm_rank, totalAvail, totalAlloc,
-               work[comm_rank] - work_remaining[comm_rank]);
+        //printf("[%d] Total Avail: %d, Total Alloc: %d || Got: %d\n", comm_rank, totalAvail, totalAlloc, work[comm_rank] - work_remaining[comm_rank]);
 
         // Send the particles from the old arrays either to the new arrays or to another process
         // Basically collects a map[process][nodes] to send to other processes
         // Then it knows how many particle it is missing (particleCount - localParticleCount)
         // And just loop receive until we have received all the missing particles from other processes
-        octree.sync(d.arrayList);
+        sync(d.arrayList);
 
-        printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount, octree.globalParticleCount);
-
-        // MPI_Barrier(MPI_COMM_WORLD);
+        //printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount, octree.globalParticleCount);
 
         octree.computeGlobalMaxH();
         int haloCount = octree.findHalos(toSendHalos);
 
-        // MPI_Barrier(MPI_COMM_WORLD);
-
-        printf("[%d] haloCount: %d (%.2f%%)\n", comm_rank, haloCount,
-               haloCount / (double)(work[comm_rank] - work_remaining[comm_rank]) * 100.0);
+        //printf("[%d] haloCount: %d (%.2f%%)\n", comm_rank, haloCount, haloCount / (double)(work[comm_rank] - work_remaining[comm_rank]) * 100.0);
 
         // Finally remap everything
         ordering.resize(work[comm_rank] - work_remaining[comm_rank] + haloCount);
@@ -354,8 +365,6 @@ public:
 
         octree.localMapParticles(x, y, z, h, ordering, true);
         reorder(ordering, d);
-
-        //MPI_Barrier(MPI_COMM_WORLD);
     }
 
     const int local_sample_size = 100;
