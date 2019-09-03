@@ -16,7 +16,7 @@ public:
         : n(side * side * side)
         , side(side)
         , count(side * side * side)
-        , data({&x, &y,   &z, &x_m1, &y_m1, &z_m1,     &vx,       &vy,       &vz, &ro,    &ro_0, &u,
+        , arrayList({&x, &y,   &z, &x_m1, &y_m1, &z_m1,     &vx,       &vy,       &vz, &ro,    &ro_0, &u,
                 &p, &p_0, &h, &m,    &c,    &grad_P_x, &grad_P_y, &grad_P_z, &du, &du_m1, &dt,   &dt_m1}) //, ng0(ng0), ngmax(1.5*ng0)
     {
 #ifdef USE_MPI
@@ -32,8 +32,8 @@ public:
 
     inline void resize(unsigned int size)
     {
-        for (unsigned int i = 0; i < data.size(); i++)
-            data[i]->resize(size);
+        for (unsigned int i = 0; i < arrayList.size(); i++)
+            arrayList[i]->resize(size);
         neighbors.resize(size * ngmax);
         neighborsCount.resize(size);
     }
@@ -277,7 +277,7 @@ public:
     int rank = 0;
     int nrank = 1;
 
-    std::vector<std::vector<T> *> data;
+    std::vector<std::vector<T> *> arrayList;
     constexpr static T sincIndex = 6.0;
     constexpr static T Kcour = 0.2;
     constexpr static T maxDtIncrease = 1.1;

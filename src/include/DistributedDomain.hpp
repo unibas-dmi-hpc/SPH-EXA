@@ -9,332 +9,50 @@
 #include <map>
 #include <algorithm>
 
-#include "BBox.hpp"
+#include <unistd.h>
+
+#include "Octree.hpp"
 
 namespace sphexa
 {
 
-template <typename T, typename Array = std::vector<T>>
+template <typename T>
 class DistributedDomain
 {
-#ifdef USE_MPI
 public:
-    DistributedDomain(MPI_Comm comm = MPI_COMM_WORLD)
-        : comm(comm)
+    DistributedDomain()
     {
-        MPI_Comm_size(comm, &comm_size);
-        MPI_Comm_rank(comm, &comm_rank);
+        MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+        MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank);
         MPI_Get_processor_name(processor_name, &name_len);
     }
 
     inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
-    inline bool overlap(T leftA, T rightA, T leftB, T rightB) { return leftA < rightB && rightA > leftB; }
-
-    inline T computeMaxH(const std::vector<int> &clist, const Array &h)
+    void reorderSwap(const std::vector<int> &ordering, std::vector<T> &arrayList)
     {
-        T hmax = 0.0;
-        for (unsigned int i = 0; i < clist.size(); i++)
-        {
-            T hh = h[clist[i]];
-            if (hh > hmax) hmax = hh;
-        }
-        return hmax;
+        std::vector<T> tmp(ordering.size());
+        for (unsigned int i = 0; i < ordering.size(); i++)
+            tmp[i] = arrayList[ordering[i]];
+        tmp.swap(arrayList);
     }
 
-    inline T computeGlobalMaxH(const std::vector<int> &clist, const Array &h)
+    void reorder(const std::vector<int> &ordering, std::vector<std::vector<T> *> &arrayList)
     {
-        T hmax = computeMaxH(clist, h);
-
-        MPI_Allreduce(MPI_IN_PLACE, &hmax, 1, MPI_DOUBLE, MPI_MAX, comm);
-
-        return hmax;
+        for (unsigned int i = 0; i < arrayList.size(); i++)
+            reorderSwap(ordering, *arrayList[i]);
     }
 
-    void distributeParticles(const std::vector<int> &clist, const BBox<T> &globalBBox, const Array &x, const Array &y, const Array &z)
+    template <class Dataset>
+    void reorder(const std::vector<int> &ordering, Dataset &d)
     {
-        cellList.clear();
-        cellList.resize(ncells);
-
-        std::vector<int> localCount(ncells);
-
-        for (unsigned int i = 0; i < clist.size(); i++)
-        {
-            T xx = std::max(std::min(x[clist[i]], globalBBox.xmax), globalBBox.xmin);
-            T yy = std::max(std::min(y[clist[i]], globalBBox.ymax), globalBBox.ymin);
-            T zz = std::max(std::min(z[clist[i]], globalBBox.zmax), globalBBox.zmin);
-
-            T posx = normalize(xx, globalBBox.xmin, globalBBox.xmax);
-            T posy = normalize(yy, globalBBox.ymin, globalBBox.ymax);
-            T posz = normalize(zz, globalBBox.zmin, globalBBox.zmax);
-
-            int hx = posx * nX;
-            int hy = posy * nY;
-            int hz = posz * nZ;
-
-            hx = std::min(hx, nX - 1);
-            hy = std::min(hy, nY - 1);
-            hz = std::min(hz, nZ - 1);
-
-            unsigned int l = hz * nX * nY + hy * nX + hx;
-
-            cellList[l].push_back(clist[i]);
-        }
+        reorder(ordering, d.arrayList);
     }
 
-    void computeGlobalCellCount()
-    {
-        globalCellCount.resize(ncells);
-
-        std::vector<int> localCount(ncells);
-
-        for (int i = 0; i < ncells; i++)
-            localCount[i] = cellList[i].size();
-
-        MPI_Allreduce(&localCount[0], &globalCellCount[0], ncells, MPI_INT, MPI_SUM, comm);
-    }
-
-    void assignRanks(const std::vector<int> &procsize)
-    {
-        assignedRanks.resize(ncells);
-        for (unsigned int i = 0; i < assignedRanks.size(); i++)
-            assignedRanks[i] = 0;
-
-        int rank = 0;
-        int work = 0;
-
-        // Assign rank to each cell
-        for (int i = 0; i < ncells; i++)
-        {
-            work += globalCellCount[i];
-            assignedRanks[i] = rank;
-
-            if (work > 0 && work >= procsize[rank])
-            {
-                work = 0;
-                rank++;
-            }
-        }
-    }
-
-    inline void resize(unsigned int size, std::vector<Array *> &data)
-    {
-        for (unsigned int i = 0; i < data.size(); i++)
-            data[i]->resize(size);
-    }
-
-    void synchronize(std::vector<Array *> &data)
-    {
-        std::map<int, std::vector<int>> toSend;
-        std::vector<std::vector<T>> buff;
-        std::vector<int> counts;
-
-        int needed = 0;
-
-        for (int i = 0; i < ncells; i++)
-        {
-            int rank = assignedRanks[i];
-            if (rank != comm_rank && cellList[i].size() > 0)
-                toSend[rank].insert(toSend[rank].end(), cellList[i].begin(), cellList[i].end());
-            else if (rank == comm_rank)
-                needed += globalCellCount[i] - cellList[i].size();
-        }
-
-        std::vector<MPI_Request> requests;
-        counts.resize(comm_size);
-        for (int rank = 0; rank < comm_size; rank++)
-        {
-            if (toSend[rank].size() > 0)
-            {
-                int rcount = requests.size();
-                int bcount = buff.size();
-                counts[rank] = toSend[rank].size();
-
-                requests.resize(rcount + data.size() + 2);
-                buff.resize(bcount + data.size());
-
-                MPI_Isend(&comm_rank, 1, MPI_INT, rank, 0, comm, &requests[rcount]);
-                MPI_Isend(&counts[rank], 1, MPI_INT, rank, 1, comm, &requests[rcount + 1]);
-
-                for (unsigned int i = 0; i < data.size(); i++)
-                {
-                    buff[bcount + i].resize(counts[rank]);
-
-                    for (int j = 0; j < counts[rank]; j++)
-                        buff[bcount + i][j] = (*data[i])[toSend[rank][j]];
-
-                    MPI_Isend(&buff[bcount + i][0], counts[rank], MPI_DOUBLE, rank, 2 + i, comm, &requests[rcount + 2 + i]);
-                }
-            }
-        }
-
-        int end = data[0]->size();
-        resize(end + needed, data);
-
-        while (needed > 0)
-        {
-            MPI_Status status[data.size() + 2];
-
-            int rank, count;
-            MPI_Recv(&rank, 1, MPI_INT, MPI_ANY_SOURCE, 0, comm, &status[0]);
-            MPI_Recv(&count, 1, MPI_INT, rank, 1, comm, &status[1]);
-
-            for (unsigned int i = 0; i < data.size(); i++)
-                MPI_Recv(&(*data[i])[end], count, MPI_DOUBLE, rank, 2 + i, comm, &status[2 + i]);
-
-            end += count;
-            needed -= count;
-        }
-
-        if (requests.size() > 0)
-        {
-            MPI_Status status[requests.size()];
-            MPI_Waitall(requests.size(), &requests[0], status);
-        }
-    }
-
-    bool checkBoxOverlap(const std::vector<BBox<T>> &cellBBox, T xmin, T xmax, T ymin, T ymax, T zmin, T zmax, T ri, int l)
-    {
-        return overlap(cellBBox[l].xmin, cellBBox[l].xmax, xmin - ri, xmax + ri) &&
-               overlap(cellBBox[l].ymin, cellBBox[l].ymax, ymin - ri, ymax + ri) &&
-               overlap(cellBBox[l].zmin, cellBBox[l].zmax, zmin - ri, zmax + ri);
-    }
-
-    void computeHaloList(const BBox<T> &localBBox, const BBox<T> &globalBBox, bool showGraph = false)
-    {
-        sendHaloList.clear();
-        recvHaloList.clear();
-
-        int reorder = 0;
-        haloCount = 0;
-        MPI_Comm graphComm;
-        std::map<int, std::vector<int>> msources;
-
-        {
-            std::vector<bool> visited(ncells, false);
-            std::vector<int> sources, weights, degrees, dests;
-
-            int mix = (int)floor(normalize(localBBox.xmin - 2 * localMaxH, globalBBox.xmin, globalBBox.xmax) * nX);
-            int miy = (int)floor(normalize(localBBox.ymin - 2 * localMaxH, globalBBox.ymin, globalBBox.ymax) * nY);
-            int miz = (int)floor(normalize(localBBox.zmin - 2 * localMaxH, globalBBox.zmin, globalBBox.zmax) * nZ);
-            int max = (int)floor(normalize(localBBox.xmax + 2 * localMaxH, globalBBox.xmin, globalBBox.xmax) * nX);
-            int may = (int)floor(normalize(localBBox.ymax + 2 * localMaxH, globalBBox.ymin, globalBBox.ymax) * nY);
-            int maz = (int)floor(normalize(localBBox.zmax + 2 * localMaxH, globalBBox.zmin, globalBBox.zmax) * nZ);
-
-            if (!globalBBox.PBCx) mix = std::max(mix, 0);
-            if (!globalBBox.PBCy) miy = std::max(miy, 0);
-            if (!globalBBox.PBCz) miz = std::max(miz, 0);
-            if (!globalBBox.PBCx) max = std::min(max, nX - 1);
-            if (!globalBBox.PBCy) may = std::min(may, nY - 1);
-            if (!globalBBox.PBCz) maz = std::min(maz, nZ - 1);
-
-            for (int hz = miz; hz <= maz; hz++)
-            {
-                for (int hy = miy; hy <= may; hy++)
-                {
-                    for (int hx = mix; hx <= max; hx++)
-                    {
-                        // T displz = bbox.PBCz? ((hz < 0) - (hz >= nZ)) * (globalBBox.zmax-globalBBox.zmin) : 0;
-                        // T disply = bbox.PBCy? ((hy < 0) - (hy >= nY)) * (globalBBox.ymax-globalBBox.ymin) : 0;
-                        // T displx = bbox.PBCx? ((hx < 0) - (hx >= nX)) * (globalBBox.xmax-globalBBox.xmin) : 0;
-
-                        int hzz = globalBBox.PBCz ? (hz % nZ) + (hz < 0) * nZ : hz;
-                        int hyy = globalBBox.PBCy ? (hy % nY) + (hy < 0) * nY : hy;
-                        int hxx = globalBBox.PBCx ? (hx % nX) + (hx < 0) * nX : hx;
-
-                        unsigned int l = hzz * nY * nX + hyy * nX + hxx;
-
-                        if (!visited[l] && assignedRanks[l] != comm_rank &&
-                            globalCellCount[l] >
-                                0) // && checkBoxOverlap(cellBBox, localBBox.xmin+displx, localBBox.xmax+displx, localBBox.ymin+disply,
-                                   // localBBox.ymax+disply, localBBox.zmin+displz, localBBox.zmax+displz, 2*localMaxH, l))
-                        {
-                            int rank = assignedRanks[l];
-                            msources[rank].push_back(l);
-                            recvHaloList[rank] += globalCellCount[l];
-                            haloCount += globalCellCount[l];
-                            visited[l] = true;
-                        }
-                    }
-                }
-            }
-
-            int n = msources.size();
-            sources.resize(n);
-            weights.resize(n);
-            degrees.resize(n);
-            dests.resize(n);
-
-            int i = 0;
-            for (auto it = msources.begin(); it != msources.end(); ++it)
-            {
-                sources[i] = it->first;
-                weights[i] = it->second.size();
-                degrees[i] = 1;
-                dests[i++] = comm_rank;
-            }
-
-            MPI_Dist_graph_create(comm, n, &sources[0], &degrees[0], &dests[0], &weights[0], MPI_INFO_NULL, reorder, &graphComm);
-        }
-
-        int indegree = 0, outdegree = 0, weighted = 0;
-        MPI_Dist_graph_neighbors_count(graphComm, &indegree, &outdegree, &weighted);
-
-        std::vector<int> sources(indegree), sourceweights(indegree);
-        std::vector<int> dests(outdegree), destweights(outdegree);
-
-        MPI_Dist_graph_neighbors(graphComm, indegree, &sources[0], &sourceweights[0], outdegree, &dests[0], &destweights[0]);
-
-        if (showGraph)
-        {
-            printf("\t%d -> { ", comm_rank);
-            for (int i = 0; i < indegree; i++)
-                printf("%d ", sources[i]);
-            printf("};\n");
-            fflush(stdout);
-        }
-
-        std::vector<MPI_Request> requests(indegree);
-
-        // Ask sources a list of cells
-        // msources contains a list of cell id for each rank
-        for (int i = 0; i < indegree; i++)
-        {
-            int rank = sources[i];
-            int count = msources[rank].size();
-            // printf("%d send %d to %d\n", comm_rank, count, rank); fflush(stdout);
-            MPI_Isend(&msources[rank][0], count, MPI_INT, rank, 0, graphComm, &requests[i]);
-        }
-
-        // Recv cell list from destinations
-        // buff contains a list of cell that we will have to send
-        // senHaloList contains for each rank, the list of particles to cell
-        // Better to move this to a list of cells
-        for (int i = 0; i < outdegree; i++)
-        {
-            MPI_Status status;
-            int rank = dests[i];
-            int count = destweights[i];
-            std::vector<int> buff(count);
-            // printf("%d rcv %d from %d\n", comm_rank, count, rank); fflush(stdout);
-            MPI_Recv(&buff[0], count, MPI_INT, rank, 0, graphComm, &status);
-            for (int j = 0; j < count; j++)
-                sendHaloList[rank].insert(sendHaloList[rank].end(), cellList[buff[j]].begin(), cellList[buff[j]].end());
-        }
-
-        if (requests.size() > 0)
-        {
-            MPI_Status status[requests.size()];
-            MPI_Waitall(requests.size(), &requests[0], status);
-        }
-
-        MPI_Comm_free(&graphComm);
-    }
-
-    void makeDataArray(std::vector<Array *> &data, Array *d) { data.push_back(d); }
+    void makeDataArray(std::vector<std::vector<T> *> &data, std::vector<T> *d) { data.push_back(d); }
 
     template <typename... Args>
-    void makeDataArray(std::vector<Array *> &data, Array *first, Args... args)
+    void makeDataArray(std::vector<std::vector<T> *> &data, std::vector<T> *first, Args... args)
     {
         data.push_back(first);
         makeDataArray(data, args...);
@@ -343,182 +61,316 @@ public:
     template <typename... Args>
     void synchronizeHalos(Args... args)
     {
-        std::vector<Array *> data;
+        std::vector<std::vector<T> *> data;
         makeDataArray(data, args...);
         synchronizeHalos(data);
     }
 
-    void synchronizeHalos(std::vector<Array *> &data)
+    void synchronizeHalos(std::vector<std::vector<T> *> &data)
     {
-        std::vector<std::vector<T>> buff;
+        // std::vector<std::vector<T>> buff;
         std::vector<MPI_Request> requests;
 
-        for (auto it = sendHaloList.begin(); it != sendHaloList.end(); ++it)
+        for (auto const &itProc : toSendHalos)
         {
-            int rank = it->first;
-            const std::vector<int> &cellList = it->second;
+            int to = itProc.first;
 
-            int rcount = requests.size();
-            int bcount = buff.size();
-            int count = cellList.size();
-
-            requests.resize(rcount + data.size());
-            buff.resize(bcount + data.size());
-
-            for (unsigned int i = 0; i < data.size(); i++)
+            for (auto const &itNodes : itProc.second)
             {
-                buff[bcount + i].resize(count);
+                int ptri = itNodes.first;
+                Octree<T> *cell = itNodes.second;
 
-                for (int j = 0; j < count; j++)
-                    buff[bcount + i][j] = (*data[i])[cellList[j]];
+                int count = cell->globalParticleCount;
+                int padding = cell->localPadding;
+                int from = cell->assignee;
 
-                MPI_Isend(&buff[bcount + i][0], count, MPI_DOUBLE, rank, i, comm, &requests[rcount + i]);
+                if (from == comm_rank)
+                {
+                    int rcount = requests.size();
+                    requests.resize(rcount + data.size());
+
+                    for (unsigned int i = 0; i < data.size(); i++)
+                    {
+                        T *buff = &(*data[i])[padding];
+
+                        //if(comm_rank == 1) printf("[%d] sends cell %d (%d) at %d to %d\n", from, ptri, count, padding, to);
+                        //if(padding + count > (*data[i]).size()) printf("ERROR: %d %d %lu\n", padding, count, (*data[i]).size());
+                        MPI_Isend(buff, count, MPI_DOUBLE, to, ptri, MPI_COMM_WORLD, &requests[rcount + i]);
+                    }
+                }
             }
         }
 
-        int end = data[0]->size();
-        resize(end + haloCount, data);
+        MPI_Barrier(MPI_COMM_WORLD);
 
-        for (auto it = recvHaloList.begin(); it != recvHaloList.end(); ++it)
+        for (auto const &itProc : toSendHalos)
         {
-            MPI_Status status[data.size()];
+            int to = itProc.first;
 
-            int rank = it->first;
-            int count = it->second;
+            if (to == comm_rank)
 
-            for (unsigned int i = 0; i < data.size(); i++)
-                MPI_Recv(&(*data[i])[end], count, MPI_DOUBLE, rank, i, comm, &status[i]);
+                for (auto const &itNodes : itProc.second)
+                {
+                    int ptri = itNodes.first;
+                    Octree<T> *cell = itNodes.second;
 
-            end += count;
+                    int count = cell->globalParticleCount;
+                    int padding = cell->localPadding;
+                    int from = cell->assignee;
+
+                    MPI_Status status[data.size()];
+
+                    for (unsigned int i = 0; i < data.size(); i++)
+                    {
+                        T *buff = &(*data[i])[padding];
+
+                        //if(comm_rank == 0) printf("[%d] recv cell %d (%d) at %d from %d\n", to, ptri, count, padding, from);
+                        //if(padding + count > (*data[i]).size()) printf("ERROR: %d %d\n", padding, count);
+                        MPI_Recv(buff, count, MPI_DOUBLE, from, ptri, MPI_COMM_WORLD, &status[i]); //&requests[rcount + i]);
+                    }
+                }
         }
 
         if (requests.size() > 0)
         {
             MPI_Status status[requests.size()];
-            MPI_Waitall(requests.size(), &requests[0], status);
+            MPI_Waitall(requests.size(), &requests[0], &status[0]);
         }
-    }
 
-    inline void removeIndices(const std::vector<bool> indices, std::vector<Array *> &data)
-    {
-        for (unsigned int i = 0; i < data.size(); i++)
+        // std::vector<double> buff(125, comm_rank);
+
+        /*double buff[125];
+
+        for (int i = 0; i < 125; i++)
+            buff[i] = comm_rank;
+
+        MPI_Status st;
+        MPI_Request r;
+
+        if(comm_rank == 0)
         {
-            Array &array = *data[i];
-
-            int j = 0;
-            std::vector<T> tmp(array.size());
-            for (unsigned int i = 0; i < array.size(); i++)
-            {
-                if (indices[i] == false) tmp[j++] = array[i];
-            }
-            tmp.swap(array);
-            array.resize(j);
+             for(int i=0; i<125; i++)
+                 printf("%f ", buff[i]);
+             printf("\n");
         }
-    }
 
-    void computeDiscardList(const int count, std::vector<bool> &discardList)
-    {
-        discardList.resize(count, false);
-        for (int i = 0; i < ncells; i++)
+        if(comm_rank == 0) MPI_Send(buff, 125, MPI_DOUBLE, 1, 0, MPI_COMM_WORLD);//, &r);
+
+        //MPI_Barrier(MPI_COMM_WORLD);
+
+        sleep(1);
+
+        if(comm_rank == 1) MPI_Recv(buff, 125, MPI_DOUBLE, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &st);//&requests[rcount + i]);
+
+        if(comm_rank == 1)
         {
-            if (assignedRanks[i] != comm_rank)
-            {
-                for (unsigned j = 0; j < cellList[i].size(); j++)
-                    discardList[cellList[i][j]] = true;
-            }
-        }
+             for(int i=0; i<125; i++)
+                 printf("%f ", buff[i]);
+             printf("\n");
+        }*/
+
+        // MPI_Status s;
+        // MPI_Wait(&r, &s);
+        /*
+                int world_rank;
+                MPI_Comm_rank(MPI_COMM_WORLD, &world_rank);
+                int world_size;
+                MPI_Comm_size(MPI_COMM_WORLD, &world_size);
+
+                int number;
+                if (world_rank == 0)
+                {
+                    number = -1;
+                    MPI_Send(&number, 1, MPI_INT, 1, 0, MPI_COMM_WORLD);
+                }
+                else if (world_rank == 1)
+                {
+                    MPI_Recv(&number, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+                    printf("Process 1 received number %d from process 0\n", number);
+                }*/
     }
 
-    void discard(std::vector<Array *> &data)
+    void computeGlobalBoundingBox(const int n, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z)
     {
-        std::vector<bool> discardList;
-        computeDiscardList(data[0]->size(), discardList);
-        if (discardList.size() > 0) removeIndices(discardList, data);
+        if (!PBCx) xmin = INFINITY;
+        if (!PBCx) xmax = -INFINITY;
+        if (!PBCy) ymin = INFINITY;
+        if (!PBCy) ymax = -INFINITY;
+        if (!PBCz) zmin = INFINITY;
+        if (!PBCz) zmax = -INFINITY;
+
+        for (int i = 0; i < n; i++)
+        {
+            T xx = x[i];
+            T yy = y[i];
+            T zz = z[i];
+
+            if (!PBCx && xx < xmin) xmin = xx;
+            if (!PBCx && xx > xmax) xmax = xx;
+            if (!PBCy && yy < ymin) ymin = yy;
+            if (!PBCy && yy > ymax) ymax = yy;
+            if (!PBCz && zz < zmin) zmin = zz;
+            if (!PBCz && zz > zmax) zmax = zz;
+        }
+
+        MPI_Allreduce(MPI_IN_PLACE, &xmin, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, &ymin, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, &zmin, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, &xmax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, &ymax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, &zmax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
     }
 
     template <class Dataset>
-    void distribute(std::vector<int> &clist, Dataset &d, bool showGraph = false)
+    void approximate(Dataset &d)
     {
-        /* The 'bbox' here is is only used to test PBC. If PBC is activated, the globalBBox will take the corresponding bbox.x{min,max}
-         * values */
-        d.bbox.computeGlobal(clist, d.x, d.y, d.z, comm);
-        globalMaxH = computeGlobalMaxH(clist, d.h);
+        const std::vector<T> &x = d.x;
+        const std::vector<T> &y = d.y;
+        const std::vector<T> &z = d.z;
+        const std::vector<T> &h = d.h;
 
-        nX = std::max((d.bbox.xmax - d.bbox.xmin) / globalMaxH, 2.0);
-        nY = std::max((d.bbox.ymax - d.bbox.ymin) / globalMaxH, 2.0);
-        nZ = std::max((d.bbox.zmax - d.bbox.zmin) / globalMaxH, 2.0);
-        ncells = nX * nY * nZ;
+        // Prepare processes
+        const int n = d.count;
+        const int ntot = d.n;
+        const int split = ntot / comm_size;
+        const int remaining = ntot - comm_size * split;
 
-        distributeParticles(clist, d.bbox, d.x, d.y, d.z); // Distribute particles in global buckets
-        computeGlobalCellCount();                          // How many particles per bucket (globally) ?
-        assignRanks(d.workload);                           // Assign ranks to buckets
-        synchronize(d.data);                               // Receive new particles from neighbor nodes
-        discard(d.data);                                   // Discard particles that were sent to other nodes
+        std::vector<int> work(comm_size, split);
+        work[0] += remaining;
 
-        clist.resize(d.data[0]->size());
-        for (unsigned int i = 0; i < clist.size(); i++)
-            clist[i] = i;
+        // We compute the global bounding box of the global domain
+        // All processes will have the same box dimensions for the domain
+        computeGlobalBoundingBox(n, x, y, z);
 
-        distributeParticles(clist, d.bbox, d.x, d.y, d.z); // Re-distribute new particles in global buckets
+        printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
 
-        BBox<T> localBBox;
-        localBBox.compute(clist, d.x, d.y, d.z);
-        localMaxH = computeMaxH(clist, d.h);
+        // Each process creates a random sample of local_sample_size particles
+        const int global_sample_size = local_sample_size * comm_size;
+        const int ptri = local_sample_size * comm_rank;
 
-        // Use the localbbox to identify halo cells
-        computeHaloList(localBBox, d.bbox, showGraph); // Find which rank is our neighbor (builds a directed graph)
+        std::vector<T> sx(global_sample_size), sy(global_sample_size), sz(global_sample_size), sh(global_sample_size);
 
-        d.count = clist.size(); // Update particle count
+        for (int i = 0; i < local_sample_size; i++)
+        {
+            int j = rand() % n;
+            sx[ptri + i] = x[j];
+            sy[ptri + i] = y[j];
+            sz[ptri + i] = z[j];
+            sh[ptri + i] = h[j];
+        }
+
+        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sx[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
+        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sy[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
+        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sz[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
+        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sh[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
+
+        // Each process creates a tree based on the gathered sample
+        octree = Octree<T>(xmin, xmax, ymin, ymax, zmin, zmax, comm_rank, comm_size);
+        octree.approximate(sx, sy, sz, sh);
+
+        printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount);
     }
 
-private:
-    MPI_Comm comm;
+    template <class Dataset>
+    void distribute(Dataset &d)
+    {
+        const std::vector<T> &x = d.x;
+        const std::vector<T> &y = d.y;
+        const std::vector<T> &z = d.z;
+        const std::vector<T> &h = d.h;
 
-    T localMaxH, globalMaxH;
+        // Prepare processes
+        const int n = d.count;
+        const int ntot = d.n;
+        const int split = ntot / comm_size;
+        const int remaining = ntot - comm_size * split;
 
-    std::vector<int> assignedRanks;
-    std::vector<int> globalCellCount;
-    std::vector<std::vector<int>> cellList;
+        std::vector<int> work(comm_size, split);
+        work[0] += remaining;
 
-    std::map<int, std::vector<int>> sendHaloList;
-    std::map<int, int> recvHaloList;
+        // MPI_Barrier(MPI_COMM_WORLD);
 
-    int ncells;
-    int nX, nY, nZ;
+        // We compute the global bounding box of the global domain
+        // All processes will have the same box dimensions for the domain
+        computeGlobalBoundingBox(n, x, y, z);
+
+        printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
+
+        // MPI_Barrier(MPI_COMM_WORLD);
+
+        printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount);
+
+        // MPI_Barrier(MPI_COMM_WORLD);
+
+        // We map the nodes to a 1D array and retrieve the order of the particles in the tree
+        std::vector<int> ordering(n);
+
+        // We now reorder the data in memory so that it matches the octree layout
+        // In other words, iterating over the array is the same as walking the tree
+        // This is the same a following a Morton / Z-Curve path
+        octree.localMapParticles(x, y, z, h, ordering, false);
+        octree.computeGlobalParticleCount();
+        reorder(ordering, d);
+
+        // We then map the tree to processes
+        std::vector<int> work_remaining(comm_size);
+        octree.assignProcesses(work, work_remaining);
+
+        // Quick check
+        int totalAvail = 0, totalAlloc = 0;
+        for (int i = 0; i < (int)work.size(); i++)
+        {
+            totalAlloc += work[i] - work_remaining[i];
+            totalAvail += work[i];
+        }
+
+        // MPI_Barrier(MPI_COMM_WORLD);
+
+        printf("[%d] Total Avail: %d, Total Alloc: %d || Got: %d\n", comm_rank, totalAvail, totalAlloc,
+               work[comm_rank] - work_remaining[comm_rank]);
+
+        // Send the particles from the old arrays either to the new arrays or to another process
+        // Basically collects a map[process][nodes] to send to other processes
+        // Then it knows how many particle it is missing (particleCount - localParticleCount)
+        // And just loop receive until we have received all the missing particles from other processes
+        octree.sync(d.arrayList);
+
+        printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount, octree.globalParticleCount);
+
+        // MPI_Barrier(MPI_COMM_WORLD);
+
+        octree.computeGlobalMaxH();
+        int haloCount = octree.findHalos(toSendHalos);
+
+        // MPI_Barrier(MPI_COMM_WORLD);
+
+        printf("[%d] haloCount: %d (%.2f%%)\n", comm_rank, haloCount,
+               haloCount / (double)(work[comm_rank] - work_remaining[comm_rank]) * 100.0);
+
+        // Finally remap everything
+        ordering.resize(work[comm_rank] - work_remaining[comm_rank] + haloCount);
+        for (unsigned int i = 0; i < ordering.size(); i++)
+            ordering[i] = 0;
+
+        octree.localMapParticles(x, y, z, h, ordering, true);
+        reorder(ordering, d);
+
+        //MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    const int local_sample_size = 100;
 
     int comm_size, comm_rank, name_len;
-    char processor_name[MPI_MAX_PROCESSOR_NAME];
+    char processor_name[256];
 
-#else
-public:
-    template <class Dataset>
-    void distribute(const std::vector<int> &clist, Dataset &d)
-    {
-        d.bbox.compute(clist, d.x, d.y, d.z);
-    }
+    bool PBCx = false, PBCy = false, PBCz = false;
+    T xmin = INFINITY, xmax = -INFINITY, ymin = INFINITY, ymax = -INFINITY, zmin = INFINITY, zmax = -INFINITY;
 
-    template <typename... Args>
-    void synchronizeHalos(Args...)
-    {
-    }
-#endif
+    std::map<int, std::map<int, Octree<T> *>> toSendHalos;
 
-public:
-    template <typename... Args>
-    void resizeArrays(const int count, Array *d)
-    {
-        d->resize(count);
-    }
-
-    template <typename... Args>
-    void resizeArrays(const int count, Array *first, Args... args)
-    {
-        first->resize(count);
-        resizeArrays(count, args...);
-    }
-
-public:
     int haloCount = 0;
+
+    Octree<T> octree;
 };
 
 } // namespace sphexa

@@ -21,7 +21,6 @@ int main(int argc, char **argv)
 #endif
 
     typedef double Real;
-    typedef Octree<Real> Tree;
     typedef SqPatch<Real> Dataset;
 
 #ifdef USE_MPI
@@ -30,7 +29,7 @@ int main(int argc, char **argv)
 
     Dataset d(cubeSide);
     DistributedDomain<Real> distributedDomain;
-    Domain<Real, Tree> domain(d.ngmin, d.ng0, d.ngmax);
+    //Domain<Real, Tree> domain(d.ngmin, d.ng0, d.ngmax);
 
     vector<int> clist(d.count);
     for (unsigned int i = 0; i < clist.size(); i++)
@@ -38,16 +37,38 @@ int main(int argc, char **argv)
 
     std::ofstream constants("constants.txt");
 
+    distributedDomain.approximate(d);
+
     MPITimer timer(d.rank);
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
         timer.start();
-        d.resize(d.count); // Discard halos
-        distributedDomain.distribute(clist, d);
-        timer.step("domain::build");
+
+        distributedDomain.distribute(d);
+        timer.step("domain::distribute");
+
+       /* {
+            char fname[256];
+            sprintf(fname, "particles%d", distributedDomain.comm_rank);
+            FILE *fout = fopen(fname, "w");
+            for(int i=0; i<(int)d.x.size(); i++)
+                fprintf(fout, "%f %f %f\n", d.x[i], d.y[i], d.z[i]);
+            fclose(fout);
+        }*/
+
         distributedDomain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.m);
         timer.step("mpi::synchronizeHalos");
-        domain.buildTree(d);
+        
+       /* {
+            char fname[256];
+            sprintf(fname, "particlesSync%d", distributedDomain.comm_rank);
+            FILE *fout = fopen(fname, "w");
+            for(int i=0; i<(int)d.x.size(); i++)
+                fprintf(fout, "%f %f %f\n", d.x[i], d.y[i], d.z[i]);
+            fclose(fout);
+        }*/
+
+        /*domain.buildTree(d);
         timer.step("BuildTree");
         domain.findNeighbors(clist, d);
         timer.step("FindNeighbors");
@@ -93,7 +114,7 @@ int main(int argc, char **argv)
         d.writeConstants(d.iteration, totalNeighbors, constants);
 
         timer.stop();
-        if (d.rank == 0) cout << "=== Total time for iteration(" << d.iteration << ") " << timer.duration() << "s" << endl << endl;
+        if (d.rank == 0) cout << "=== Total time for iteration(" << d.iteration << ") " << timer.duration() << "s" << endl << endl;*/
     }
 
     constants.close();
