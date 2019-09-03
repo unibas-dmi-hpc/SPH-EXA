@@ -17,8 +17,10 @@ void computeIADImpl(const std::vector<int> &l, Dataset &d)
     const int64_t n = l.size();
     const int64_t ngmax = d.ngmax;
     const int *clist = l.data();
-    const int *neighbors = d.neighbors.data();
-    const int *neighborsCount = d.neighborsCount.data();
+    const size_t neighborsOffset = l.front() * ngmax;
+    const int *neighbors = d.neighbors.data() + neighborsOffset;
+    const size_t nOffset = l.front();
+    const int *neighborsCount = d.neighborsCount.data() + nOffset;
 
     const T *h = d.h.data();
     const T *m = d.m.data();
@@ -27,12 +29,12 @@ void computeIADImpl(const std::vector<int> &l, Dataset &d)
     const T *z = d.z.data();
     const T *ro = d.ro.data();
 
-    T *c11 = d.c11.data();
-    T *c12 = d.c12.data();
-    T *c13 = d.c13.data();
-    T *c22 = d.c22.data();
-    T *c23 = d.c23.data();
-    T *c33 = d.c33.data();
+    T *c11 = d.c11.data() + nOffset;
+    T *c12 = d.c12.data() + nOffset;
+    T *c13 = d.c13.data() + nOffset;
+    T *c22 = d.c22.data() + nOffset;
+    T *c23 = d.c23.data() + nOffset;
+    T *c33 = d.c33.data() + nOffset;
 
     const BBox<T> bbox = d.bbox;
 
@@ -42,6 +44,12 @@ void computeIADImpl(const std::vector<int> &l, Dataset &d)
     // std::vector<T> checkImem(n, 0), checkDeltaX(n, 0), checkDeltaY(n, 0), checkDeltaZ(n, 0);
 
 #if defined(USE_OMP_TARGET)
+    // Apparently Cray with -O2 has a bug when calling target regions in a loop. (and computeIADImpl can be called in a loop).
+    // A workaround is to call some method or allocate memory to either prevent buggy optimization or other side effect.
+    // with -O1 there is no problem
+    // Tested with Cray 8.7.3 with NVIDIA Tesla P100 on PizDaint
+    std::vector<T> imHereBecauseOfCrayCompilerO2Bug(4, 10);
+
     const int np = d.x.size();
     const size_t allNeighbors = n * ngmax;
 
@@ -56,11 +64,11 @@ void computeIADImpl(const std::vector<int> &l, Dataset &d)
 #elif defined(USE_ACC)
     const int np = d.x.size();
     const size_t allNeighbors = n * ngmax;
-    // clang-format off
-//#pragma acc kernels
- #pragma acc parallel loop copyin(clist [0:n], neighbors [0:allNeighbors], neighborsCount [0:n],                                            \
-                                  x [0:np], y [0:np], z [0:np], h [0:np], m [0:np], ro [0:np])                                              \
-                           copyout(c11 [0:n], c12 [0:n], c13 [0:n], c22 [0:n], c23 [0:n], c33 [0:n])
+// clang-format off
+#pragma acc parallel loop copyin(clist [0:n], neighbors [0:allNeighbors], neighborsCount [0:n],                                            \
+                                  x [0:np], y [0:np], z [0:np], h [0:np], m [0:np], ro [0:np])                                             \
+                           copyout(c11 [:n], c12 [:n], c13 [:n], c22 [:n], c23 [:n],                                                       \
+                                   c33 [:n])
 // clang-format on
 #else
 #pragma omp parallel for schedule(guided)
@@ -107,21 +115,24 @@ void computeIADImpl(const std::vector<int> &l, Dataset &d)
         const T det =
             tau11 * tau22 * tau33 + 2.0 * tau12 * tau23 * tau13 - tau11 * tau23 * tau23 - tau22 * tau13 * tau13 - tau33 * tau12 * tau12;
 
-        c11[i] = (tau22 * tau33 - tau23 * tau23) / det;
-        c12[i] = (tau13 * tau23 - tau33 * tau12) / det;
-        c13[i] = (tau12 * tau23 - tau22 * tau13) / det;
-        c22[i] = (tau11 * tau33 - tau13 * tau13) / det;
-        c23[i] = (tau13 * tau12 - tau11 * tau23) / det;
-        c33[i] = (tau11 * tau22 - tau12 * tau12) / det;
+        c11[pi] = (tau22 * tau33 - tau23 * tau23) / det;
+        c12[pi] = (tau13 * tau23 - tau33 * tau12) / det;
+        c13[pi] = (tau12 * tau23 - tau22 * tau13) / det;
+        c22[pi] = (tau11 * tau33 - tau13 * tau13) / det;
+        c23[pi] = (tau13 * tau12 - tau11 * tau23) / det;
+        c33[pi] = (tau11 * tau22 - tau12 * tau12) / det;
     }
 }
 template <typename T, class Dataset>
 void computeIAD(const std::vector<int> &l, Dataset &d)
 {
 #if defined(USE_CUDA)
-    cuda::computeIAD<T>(l, d);
+    cuda::computeIAD<T>(utils::partition(l, d.noOfGpuLoopSplits), d);
 #else
-    computeIADImpl<T>(l, d);
+    for (const auto &clist : utils::partition(l, d.noOfGpuLoopSplits))
+    {
+        computeIADImpl<T>(clist, d);
+    }
 #endif
 
     // for(size_t i=0; i < l.size(); ++i)
@@ -140,8 +151,10 @@ void computeMomentumAndEnergyIADImpl(const std::vector<int> &l, Dataset &d)
     const int64_t n = l.size();
     const int64_t ngmax = d.ngmax;
     const int *clist = l.data();
-    const int *neighbors = d.neighbors.data();
-    const int *neighborsCount = d.neighborsCount.data();
+    const size_t neighborsOffset = l.front() * ngmax;
+    const int *neighbors = d.neighbors.data() + neighborsOffset;
+    const size_t nOffset = l.front();
+    const int *neighborsCount = d.neighborsCount.data() + nOffset;
 
     const T *h = d.h.data();
     const T *m = d.m.data();
@@ -162,10 +175,10 @@ void computeMomentumAndEnergyIADImpl(const std::vector<int> &l, Dataset &d)
     const T *c23 = d.c23.data();
     const T *c33 = d.c33.data();
 
-    T *du = d.du.data();
-    T *grad_P_x = d.grad_P_x.data();
-    T *grad_P_y = d.grad_P_y.data();
-    T *grad_P_z = d.grad_P_z.data();
+    T *du = d.du.data() + nOffset;
+    T *grad_P_x = d.grad_P_x.data() + nOffset;
+    T *grad_P_y = d.grad_P_y.data() + nOffset;
+    T *grad_P_z = d.grad_P_z.data() + nOffset;
 
     const BBox<T> bbox = d.bbox;
 
@@ -173,6 +186,11 @@ void computeMomentumAndEnergyIADImpl(const std::vector<int> &l, Dataset &d)
     const T sincIndex = d.sincIndex;
 
 #if defined(USE_OMP_TARGET)
+    // Apparently Cray with -O2 has a bug when calling target regions in a loop. (and computeMomentumAndEnergyIADImpl can be called in a
+    // loop). A workaround is to call some method or allocate memory to either prevent buggy optimization or other side effect. with -O1
+    // there is no problem Tested with Cray 8.7.3 with NVIDIA Tesla P100 on PizDaint
+    std::vector<T> imHereBecauseOfCrayCompilerO2Bug(4, 10);
+
     const int np = d.x.size();
     const size_t allNeighbors = n * ngmax;
 // clang-format off
@@ -191,7 +209,7 @@ void computeMomentumAndEnergyIADImpl(const std::vector<int> &l, Dataset &d)
 #pragma acc parallel loop copyin(clist [0:n], neighbors [0:allNeighbors], neighborsCount [0:n], x [0:np], y [0:np], z [0:np], vx [0:np],   \
                                  vy [0:np], vz [0:np], h [0:np], m [0:np], ro [0:np], p [0:np], c [0:np], c11 [0:np], c12 [0:np],          \
                                  c13 [0:np], c22 [0:np], c23 [0:np], c33 [0:np])                                                           \
-                          copyout(grad_P_x [0:n], grad_P_y [0:n], grad_P_z [0:n], du [0:n])
+                          copyout(grad_P_x [:n], grad_P_y [:n], grad_P_z [:n], du [:n])
 // clang-format on
 #else
 #pragma omp parallel for schedule(guided)
@@ -280,10 +298,10 @@ void computeMomentumAndEnergyIADImpl(const std::vector<int> &l, Dataset &d)
             energyAV += grad_Px_AV * v_ijx + grad_Py_AV * v_ijy + grad_Pz_AV * v_ijz;
         }
 
-        du[i] = 0.5 * (energy + energyAV);
-        grad_P_x[i] = momentum_x;
-        grad_P_y[i] = momentum_y;
-        grad_P_z[i] = momentum_z;
+        du[pi] = 0.5 * (energy + energyAV);
+        grad_P_x[pi] = momentum_x;
+        grad_P_y[pi] = momentum_y;
+        grad_P_z[pi] = momentum_z;
     }
 };
 
@@ -291,9 +309,12 @@ template <typename T, class Dataset>
 void computeMomentumAndEnergyIAD(const std::vector<int> &l, Dataset &d)
 {
 #if defined(USE_CUDA)
-    cuda::computeMomentumAndEnergyIAD<T>(l, d);
+    cuda::computeMomentumAndEnergyIAD<T>(utils::partition(l, d.noOfGpuLoopSplits), d);
 #else
-    computeMomentumAndEnergyIADImpl<T>(l, d);
+    for (const auto &clist : utils::partition(l, d.noOfGpuLoopSplits))
+    {
+        computeMomentumAndEnergyIADImpl<T>(clist, d);
+    }
 #endif
 
     // for (size_t i = 0; i < l.size(); ++i)

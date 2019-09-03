@@ -1,3 +1,6 @@
+#include <cuda.h>
+#include <algorithm>
+
 #include "../kernels.hpp"
 #include "sph.cuh"
 #include "utils.cuh"
@@ -8,8 +11,8 @@ namespace sph
 {
 namespace cuda
 {
-template void computeDensity<double, SqPatch<double>>(const std::vector<int> &clist, SqPatch<double> &d);
-
+namespace kernels
+{
 template <typename T>
 __global__ void density(const int n, const T sincIndex, const T K, const int ngmax, const BBox<T> *bbox, const int *clist,
                         const int *neighbors, const int *neighborsCount, const T *x, const T *y, const T *z, const T *h, const T *m, T *ro)
@@ -34,39 +37,40 @@ __global__ void density(const int n, const T sincIndex, const T K, const int ngm
 
     ro[tid] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
 }
+} // namespace kernels
+
+template void computeDensity<double, SqPatch<double>>(const std::vector<ParticleIdxChunk> &clist, SqPatch<double> &d);
 
 template <typename T, class Dataset>
-void computeDensity(const std::vector<int> &clist, Dataset &d)
+void computeDensity(const std::vector<ParticleIdxChunk> &chunksToCompute, Dataset &d)
 {
-    const size_t n = clist.size();
     const size_t np = d.x.size();
-    const size_t n_chunk = n / d.noOfGpuLoopSplits;
-    const size_t n_lastChunk = n / d.noOfGpuLoopSplits + n % d.noOfGpuLoopSplits; // in case n is not dividable by noOfGpuLoopSplits
-    const size_t allNeighbors_chunk = n_chunk * d.ngmax;
-    const size_t allNeighbors_lastChunk = n_lastChunk * d.ngmax;
-
     const size_t size_np_T = np * sizeof(T);
-    const size_t size_bbox = sizeof(BBox<T>);
-    const size_t size_allNeighbors_chunk = allNeighbors_chunk * sizeof(int);
-    const size_t size_allNeighbors_lastChunk = allNeighbors_lastChunk * sizeof(int);
-    const size_t size_n_T_chunk = n_chunk * sizeof(T);
-    const size_t size_n_T_lastChunk = n_lastChunk * sizeof(T);
-    const size_t size_n_int_chunk = n_chunk * sizeof(int);
-    const size_t size_n_int_lastChunk = n_lastChunk * sizeof(int);
 
+    const auto largestChunkSize =
+        std::max_element(chunksToCompute.cbegin(), chunksToCompute.cend(),
+                         [](const std::vector<int> &lhs, const std::vector<int> &rhs) { return lhs.size() < rhs.size(); })
+            ->size();
+
+    const size_t size_largerNeighborsChunk_int = largestChunkSize * d.ngmax * sizeof(int);
+    const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
+    const size_t size_largerNChunk_T = largestChunkSize * sizeof(T);
+    const size_t size_bbox = sizeof(BBox<T>);
+
+    // device pointers - d_ prefix stands for device
     int *d_clist, *d_neighbors, *d_neighborsCount;
     T *d_x, *d_y, *d_z, *d_m, *d_h;
     T *d_ro;
     BBox<T> *d_bbox;
 
     // input data
-    utils::cudaMalloc(size_n_int_lastChunk, d_clist, d_neighborsCount);
-    utils::cudaMalloc(size_allNeighbors_lastChunk, d_neighbors);
-    utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m);
-    utils::cudaMalloc(size_bbox, d_bbox);
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d_bbox));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist, d_neighborsCount));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors));
 
     // output data
-    utils::cudaMalloc(size_n_T_lastChunk, d_ro);
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_T, d_ro));
 
     CHECK_CUDA_ERR(cudaMemcpy(d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
@@ -75,48 +79,36 @@ void computeDensity(const std::vector<int> &clist, Dataset &d)
     CHECK_CUDA_ERR(cudaMemcpy(d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
 
-    for (ushort s = 0; s < d.noOfGpuLoopSplits; ++s)
+    for (const auto &clist : chunksToCompute)
     {
+        const size_t n = clist.size();
+        const size_t size_n_T = n * sizeof(T);
+        const size_t size_n_int = n * sizeof(int);
+        const size_t size_nNeighbors = n * d.ngmax * sizeof(int);
+
+        const size_t neighborsOffset = clist.front() * d.ngmax;
+        const int *neighbors = d.neighbors.data() + neighborsOffset;
+
+        const size_t neighborsCountOffset = clist.front();
+        const int *neighborsCount = d.neighborsCount.data() + neighborsCountOffset;
+
+        CHECK_CUDA_ERR(cudaMemcpy(d_clist, clist.data(), size_n_int, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d_neighbors, neighbors, size_nNeighbors, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d_neighborsCount, neighborsCount, size_n_int, cudaMemcpyHostToDevice));
+
         const int threadsPerBlock = 256;
+        const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
-        if (s == d.noOfGpuLoopSplits - 1)
-        {
-            CHECK_CUDA_ERR(cudaMemcpy(d_clist, clist.data() + (s * n_chunk), size_n_int_lastChunk, cudaMemcpyHostToDevice));
-            CHECK_CUDA_ERR(cudaMemcpy(d_neighbors, d.neighbors.data() + (s * allNeighbors_chunk), size_allNeighbors_lastChunk,
-                                      cudaMemcpyHostToDevice));
-            CHECK_CUDA_ERR(
-                cudaMemcpy(d_neighborsCount, d.neighborsCount.data() + (s * n_chunk), size_n_int_lastChunk, cudaMemcpyHostToDevice));
+        // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
-            const int blocksPerGrid = (n_lastChunk + threadsPerBlock - 1) / threadsPerBlock;
+        kernels::density<<<blocksPerGrid, threadsPerBlock>>>(n, d.sincIndex, d.K, d.ngmax, d_bbox, d_clist, d_neighbors, d_neighborsCount,
+                                                             d_x, d_y, d_z, d_h, d_m, d_ro);
+        CHECK_CUDA_ERR(cudaGetLastError());
 
-            // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
-
-            density<<<blocksPerGrid, threadsPerBlock>>>(n_lastChunk, d.sincIndex, d.K, d.ngmax, d_bbox, d_clist, d_neighbors,
-                                                        d_neighborsCount, d_x, d_y, d_z, d_h, d_m, d_ro);
-            CHECK_CUDA_ERR(cudaGetLastError());
-
-            CHECK_CUDA_ERR(cudaMemcpy(d.ro.data() + (s * n_chunk), d_ro, size_n_T_lastChunk, cudaMemcpyDeviceToHost));
-        }
-        else
-        {
-            CHECK_CUDA_ERR(cudaMemcpy(d_clist, clist.data() + (s * n_chunk), size_n_int_chunk, cudaMemcpyHostToDevice));
-            CHECK_CUDA_ERR(
-                cudaMemcpy(d_neighbors, d.neighbors.data() + (s * allNeighbors_chunk), size_allNeighbors_chunk, cudaMemcpyHostToDevice));
-            CHECK_CUDA_ERR(cudaMemcpy(d_neighborsCount, d.neighborsCount.data() + (s * n_chunk), size_n_int_chunk, cudaMemcpyHostToDevice));
-
-            const int blocksPerGrid = (n_chunk + threadsPerBlock - 1) / threadsPerBlock;
-
-            // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
-
-            density<<<blocksPerGrid, threadsPerBlock>>>(n_chunk, d.sincIndex, d.K, d.ngmax, d_bbox, d_clist, d_neighbors, d_neighborsCount,
-                                                        d_x, d_y, d_z, d_h, d_m, d_ro);
-            CHECK_CUDA_ERR(cudaGetLastError());
-
-            CHECK_CUDA_ERR(cudaMemcpy(d.ro.data() + (s * n_chunk), d_ro, size_n_T_chunk, cudaMemcpyDeviceToHost));
-        }
+        CHECK_CUDA_ERR(cudaMemcpy(d.ro.data() + clist.front(), d_ro, size_n_T, cudaMemcpyDeviceToHost));
     }
 
-    utils::cudaFree(d_clist, d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_h, d_m, d_bbox, d_ro);
+    CHECK_CUDA_ERR(utils::cudaFree(d_clist, d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_h, d_m, d_bbox, d_ro));
 }
 
 } // namespace cuda
