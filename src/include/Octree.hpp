@@ -315,8 +315,12 @@ public:
                     }
                     else
                     {
+
                         if(a->assignee == comm_rank)
-                            haloCount += globalParticleCount;
+                        {
+                            if(toSendHalos[a->assignee].count(ptri) > 0)
+                                haloCount += globalParticleCount;
+                        }
                         toSendHalos[a->assignee][ptri] = this;
                     }
                 }
@@ -326,7 +330,7 @@ public:
         return haloCount;
     }
 
-    int findHalosRec(Octree *root, std::map<int, std::map<int, Octree<T>*>> &toSendHalos)
+    int findHalosRec(Octree *root, std::map<int, std::map<int, Octree<T>*>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
     {
         int haloCount = 0;
 
@@ -336,23 +340,78 @@ public:
             {
                 for (int i = 0; i < ncells; i++)
                 {
-                    haloCount += cells[i]->findHalosRec(root, toSendHalos);
+                    haloCount += cells[i]->findHalosRec(root, toSendHalos, PBCx, PBCy, PBCz);
                 }
             }
             else if(assignee >= 0)
             {
                 // Find halos from the root
                 haloCount += root->findHalosList(this, toSendHalos);
+                
+     /*           T oldxmin = xmin, oldxmax = xmax;
+                T oldymin = ymin, oldymax = ymax;
+                T oldzmin = zmin, oldzmax = zmax;
+
+                // Find halos from the root
+
+                int mix = (int)floor(normalize(xmin - 2 * globalMaxH, root->xmin, root->xmax) * nX);
+                int miy = (int)floor(normalize(ymin - 2 * globalMaxH, root->ymin, root->ymax) * nY);
+                int miz = (int)floor(normalize(zmin - 2 * globalMaxH, root->zmin, root->zmax) * nZ);
+                int max = (int)floor(normalize(xmax + 2 * globalMaxH, root->xmin, root->xmax) * nX);
+                int may = (int)floor(normalize(ymax + 2 * globalMaxH, root->ymin, root->ymax) * nY);
+                int maz = (int)floor(normalize(zmax + 2 * globalMaxH, root->zmin, root->zmax) * nZ);
+
+                if (!PBCx) mix = std::max(mix, 0);
+                if (!PBCy) miy = std::max(miy, 0);
+                if (!PBCz) miz = std::max(miz, 0);
+                if (!PBCx) max = std::min(max, nX - 1);
+                if (!PBCy) may = std::min(may, nY - 1);
+                if (!PBCz) maz = std::min(maz, nZ - 1);
+
+                for (int hz = miz; hz <= maz; hz++)
+                {
+                    for (int hy = miy; hy <= may; hy++)
+                    {
+                        for (int hx = mix; hx <= max; hx++)
+                        {
+                            T displz = PBCz? ((hz < 0) - (hz >= nZ)) * (root->zmax-root->zmin) : 0;
+                            T disply = PBCy? ((hy < 0) - (hy >= nY)) * (root->ymax-root->ymin) : 0;
+                            T displx = PBCx? ((hx < 0) - (hx >= nX)) * (root->xmax-root->xmin) : 0;
+
+                            int hzz = PBCz ? (hz % nZ) + (hz < 0) * nZ : hz;
+                            int hyy = PBCy ? (hy % nY) + (hy < 0) * nY : hy;
+                            int hxx = PBCx ? (hx % nX) + (hx < 0) * nX : hx;
+
+                            unsigned int l = hzz * nY * nX + hyy * nX + hxx;
+
+                            xmin = xmin + displx;
+                            xmax = xmax + displx;
+                            ymin = ymin + disply;
+                            ymax = ymax + disply;
+                            zmin = zmin + displz;
+                            zmax = zmax + displz;
+
+                            haloCount += root->findHalosList(this, toSendHalos);
+
+                            xmin = oldxmin;
+                            xmax = oldxmax;
+                            ymin = oldymin;
+                            ymax = oldymax;
+                            zmin = oldzmin;
+                            zmax = oldzmax;
+                        }
+                    }
+                }*/
             }
         }
 
         return haloCount;
     }
 
-    int findHalos(std::map<int, std::map<int, Octree<T>*>> &toSendHalos)
+    int findHalos(std::map<int, std::map<int, Octree<T>*>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
     {
         toSendHalos.clear();
-        return findHalosRec(this, toSendHalos);
+        return findHalosRec(this, toSendHalos, PBCx, PBCy, PBCz);
     }
 
     void writeTree(FILE *fout)

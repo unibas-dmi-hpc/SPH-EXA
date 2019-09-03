@@ -27,6 +27,19 @@ public:
         MPI_Get_processor_name(processor_name, &name_len);
     }
 
+    void setBox(T xmin, T xmax, T ymin, T ymax, T zmin, T zmax, bool PBCx, bool PBCy, bool PBCz)
+    {
+        this->xmin = xmin;
+        this->xmax = xmax;
+        this->ymin = ymin;
+        this->ymax = ymax;
+        this->zmin = zmin;
+        this->zmax = zmax;
+        this->PBCx = PBCx;
+        this->PBCy = PBCy;
+        this->PBCz = PBCz;
+    }
+    
     inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
     void reorderSwap(const std::vector<int> &ordering, std::vector<T> &arrayList)
@@ -317,7 +330,7 @@ public:
         // All processes will have the same box dimensions for the domain
         computeGlobalBoundingBox(n, x, y, z);
 
-        //printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
+        printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
 
         //printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount);
 
@@ -354,7 +367,7 @@ public:
         printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount, octree.globalParticleCount);
 
         octree.computeGlobalMaxH();
-        int haloCount = octree.findHalos(toSendHalos);
+        int haloCount = octree.findHalos(toSendHalos, PBCx, PBCy, PBCz);
 
         printf("[%d] haloCount: %d (%.2f%%)\n", comm_rank, haloCount, haloCount / (double)(work[comm_rank] - work_remaining[comm_rank]) * 100.0);
 
