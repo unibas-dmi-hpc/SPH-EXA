@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cuda.h>
+#include <cuda_runtime_api.h>
 #include <type_traits>
 
 namespace sphexa
@@ -37,7 +38,7 @@ inline cudaError_t cudaFree(Ptr first, Ptrs... ptrs)
     return ret;
 }
 
-inline cudaError_t cudaMalloc(size_t bytes) { return cudaSuccess; }
+inline cudaError_t cudaMalloc(size_t) { return cudaSuccess; }
 
 template <typename Ptr, typename... Ptrs>
 inline cudaError_t cudaMalloc(size_t bytes, Ptr &devptr, Ptrs &&... ptrs)

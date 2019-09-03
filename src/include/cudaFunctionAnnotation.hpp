@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef __NVCC__
+#ifdef __CUDACC__
 #define CUDA_DEVICE_HOST_FUN __device__ __host__
 #define CUDA_DEVICE_FUN __device__
 #else

@@ -8,7 +8,11 @@
 
 #define PI 3.14159265358979323846
 
-#include "sph/lookupTables.hpp"
+#ifdef USE_STD_MATH_IN_KERNELS
+#define math_namespace std
+#else
+#define math_namespace ::sphexa::math
+#endif
 
 namespace sphexa
 {
@@ -36,6 +40,5 @@ CUDA_DEVICE_HOST_FUN inline T pow(T a, int b)
     else
         return std::pow(a, b);
 }
-
 } // namespace math
 } // namespace sphexa
