@@ -108,7 +108,7 @@ public:
         const T size = std::max(sizez, std::max(sizey, sizex));
 
         // Expand node if cell bigger than 2.0 * h
-        if(size > 2.0*hmax && list.size() > 0)
+        if(size > 8.0*hmax && list.size() > 0)
         {
             std::vector<std::vector<int>> cellList(ncells);
             distributeParticles(list, x, y, z, cellList);
@@ -267,83 +267,6 @@ public:
                     cells[i]->syncRec(toSendCellsPadding, toSendCellsCount, needed);
                 }
             }
-        }
-    }
-
-    void sync(const std::vector<std::vector<T>*> &arrayList)
-    {
-        std::map<int, std::vector<int>> toSendCellsPadding, toSendCellsCount;
-        std::vector<std::vector<T>> buff;
-        std::vector<int> counts;
-        std::vector<MPI_Request> requests;
-
-        int needed = 0;
-
-        syncRec(toSendCellsPadding, toSendCellsCount, needed);
-
-        counts.resize(comm_size);
-        for (int rank = 0; rank < comm_size; rank++)
-        {
-            if (toSendCellsCount[rank].size() > 0)
-            {
-                int rcount = requests.size();
-                int bcount = buff.size();
-                counts[rank] = 0;
-
-                for(unsigned int i=0; i<toSendCellsCount[rank].size(); i++)
-                    counts[rank] += toSendCellsCount[rank][i];
-
-                requests.resize(rcount + arrayList.size() + 2);
-                buff.resize(bcount + arrayList.size());
-
-                MPI_Isend(&comm_rank, 1, MPI_INT, rank, 0, MPI_COMM_WORLD, &requests[rcount]);
-                MPI_Isend(&counts[rank], 1, MPI_INT, rank, 1, MPI_COMM_WORLD, &requests[rcount + 1]);
-
-                for (unsigned int i = 0; i < arrayList.size(); i++)
-                {
-                    buff[bcount + i].resize(counts[rank]);
-
-                    int bi = 0;
-                    // We go over every tree nodes to send for this rank
-                    for(unsigned int j=0; j<toSendCellsCount[rank].size(); j++)
-                    {
-                        int padding = toSendCellsPadding[rank][j];
-                        int count = toSendCellsCount[rank][j];
-                        for (int k = 0; k < count; k++)
-                        {
-                            buff[bcount + i][bi++] = (*arrayList[i])[padding + k];
-                        }
-                    }
-                    
-                    MPI_Isend(&buff[bcount + i][0], counts[rank], MPI_DOUBLE, rank, 2 + i, MPI_COMM_WORLD, &requests[rcount + 2 + i]);
-                }
-            }
-        }
-
-        int end = arrayList[0]->size();
-        for (unsigned int i = 0; i < arrayList.size(); i++)
-            (*arrayList[i]).resize(end + needed);
-
-        while (needed > 0)
-        {
-            //printf("Needed: %d\n", needed);
-            MPI_Status status[arrayList.size() + 2];
-
-            int rank, count;
-            MPI_Recv(&rank, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status[0]);
-            MPI_Recv(&count, 1, MPI_INT, rank, 1, MPI_COMM_WORLD, &status[1]);
-
-            for (unsigned int i = 0; i < arrayList.size(); i++)
-                MPI_Recv(&(*arrayList[i])[end], count, MPI_DOUBLE, rank, 2 + i, MPI_COMM_WORLD, &status[2 + i]);
-
-            end += count;
-            needed -= count;
-        }
-
-        if (requests.size() > 0)
-        {
-            MPI_Status status[requests.size()];
-            MPI_Waitall(requests.size(), &requests[0], status);
         }
     }
 

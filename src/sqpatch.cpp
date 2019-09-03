@@ -56,8 +56,8 @@ int main(int argc, char **argv)
             fclose(fout);
         }*/
 
-        distributedDomain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.m);
-        timer.step("mpi::synchronizeHalos");
+        // distributedDomain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.m);
+        // timer.step("mpi::synchronizeHalos");
         
        /* {
             char fname[256];
