@@ -27,6 +27,46 @@ public:
         MPI_Get_processor_name(processor_name, &name_len);
     }
 
+    template <class Dataset>
+    void findNeighbors(const std::vector<int> &clist, Dataset &d)
+    {
+        const int ngmax = d.ngmax;
+
+        int64_t n = clist.size();
+        d.neighbors.resize(n * ngmax);
+        d.neighborsCount.resize(n);
+
+#pragma omp parallel for schedule(guided)
+        for (int pi = 0; pi < n; pi++)
+        {
+            int i = clist[pi];
+
+            d.neighborsCount[pi] = 0;
+            octree.findNeighbors(i, d.x.data(), d.y.data(), d.z.data(), d.x[i], d.y[i], d.z[i], 2 * d.h[i], ngmax, &d.neighbors[pi * ngmax], d.neighborsCount[pi], d.bbox.PBCx,
+                               d.bbox.PBCy, d.bbox.PBCz);
+
+#ifndef NDEBUG
+            if (d.neighbors[pi].size() == 0)
+                printf("ERROR::FindNeighbors(%d) x %f y %f z %f h = %f ngi %zu\n", i, x[i], y[i], z[i], h[i], neighborsCount[pi]);
+#endif
+        }
+    }
+
+    template <class Dataset>
+    int64_t neighborsSum(const std::vector<int> &clist, const Dataset &d)
+    {
+        int64_t sum = 0;
+#pragma omp parallel for reduction(+ : sum)
+        for (unsigned int i = 0; i < clist.size(); i++)
+            sum += d.neighborsCount[i];
+
+#ifdef USE_MPI
+        MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+#endif
+
+        return sum;
+    }
+
     void setBox(T xmin, T xmax, T ymin, T ymax, T zmin, T zmax, bool PBCx, bool PBCy, bool PBCz)
     {
         this->xmin = xmin;

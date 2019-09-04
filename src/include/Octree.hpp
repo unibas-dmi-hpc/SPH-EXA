@@ -8,12 +8,21 @@
 namespace sphexa
 {
 
-template<typename T>
+template <typename T>
 class Octree
 {
 public:
-    Octree(const T xmin, const T xmax, const T ymin, const T ymax, const T zmin, const T zmax, int comm_rank, int comm_size) : 
-        xmin(xmin), xmax(xmax), ymin(ymin), ymax(ymax), zmin(zmin), zmax(zmax), comm_rank(comm_rank), comm_size(comm_size) {}
+    Octree(const T xmin, const T xmax, const T ymin, const T ymax, const T zmin, const T zmax, int comm_rank, int comm_size)
+        : xmin(xmin)
+        , xmax(xmax)
+        , ymin(ymin)
+        , ymax(ymax)
+        , zmin(zmin)
+        , zmax(zmax)
+        , comm_rank(comm_rank)
+        , comm_size(comm_size)
+    {
+    }
 
     Octree() {}
 
@@ -26,7 +35,7 @@ public:
     int assignee = -1;
 
     int localPadding = 0;
-    
+
     int globalNodeCount = 0;
 
     int localParticleCount = 0;
@@ -41,10 +50,49 @@ public:
 
     static const int nX = 2, nY = 2, nZ = 2;
     static const int ncells = 8;
+    static const int bucketSize = 64;
 
-    inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
+    static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
-    inline void distributeParticles(const std::vector<int> &list, const std::vector<T> &ax, const std::vector<T> &ay, const std::vector<T> &az, std::vector<std::vector<int>> &cellList)
+    static inline T distancesq(const T x1, const T y1, const T z1, const T x2, const T y2, const T z2)
+    {
+        T xx = x1 - x2;
+        T yy = y1 - y2;
+        T zz = z1 - z2;
+
+        return xx * xx + yy * yy + zz * zz;
+    }
+
+    inline void check_add_start(const int start, const int count, const int id, const T *x, const T *y, const T *z, const T xi, const T yi,
+                                const T zi, const T r, const int ngmax, int *neighbors, int &neighborsCount) const
+    {
+        //T *xp = &(*x)[start];
+        //T *yp = &(*y)[start];
+        //T *zp = &(*z)[start];
+        //int *op = &(*ordering)[start];
+        T r2 = r * r;
+
+        int localCounter = neighborsCount;
+        int maxCount = std::min(count, ngmax - localCounter);
+
+        for (int i = 0; i < maxCount; i++)
+        {
+            int ordi = start+i;
+
+            //T xx = xp[i];
+            //T yy = yp[i];
+            //T zz = zp[i];
+            //int ordi = op[i];
+
+            T dist = distancesq(xi, yi, zi, x[ordi], y[ordi], z[ordi]);
+            if (dist < r2 && ordi != id) neighbors[localCounter++] = ordi;
+        }
+
+        neighborsCount = localCounter;
+    }
+
+    inline void distributeParticles(const std::vector<int> &list, const std::vector<T> &ax, const std::vector<T> &ay,
+                                    const std::vector<T> &az, std::vector<std::vector<int>> &cellList)
     {
         for (unsigned int i = 0; i < list.size(); i++)
         {
@@ -60,6 +108,80 @@ public:
 
             cellList[l].push_back(list[i]);
         }
+    }
+
+    void findNeighborsRec(const int id, const T *x, const T *y, const T *z, const T xi, const T yi, const T zi, const T ri, const int ngmax,
+                          int *neighbors, int &neighborsCount) const
+    {
+        if((int)cells.size() == ncells)
+        {
+            int mix = std::max((int)(normalize(xi - ri, xmin, xmax) * nX), 0);
+            int miy = std::max((int)(normalize(yi - ri, ymin, ymax) * nY), 0);
+            int miz = std::max((int)(normalize(zi - ri, zmin, zmax) * nZ), 0);
+            int max = std::min((int)(normalize(xi + ri, xmin, xmax) * nX), nX - 1);
+            int may = std::min((int)(normalize(yi + ri, ymin, ymax) * nY), nY - 1);
+            int maz = std::min((int)(normalize(zi + ri, zmin, zmax) * nZ), nZ - 1);
+
+            for (int hz = miz; hz <= maz; hz++)
+            {
+                for (int hy = miy; hy <= may; hy++)
+                {
+                    for (int hx = mix; hx <= max; hx++)
+                    {
+                        unsigned int l = hz * nX * nY + hy * nX + hx;
+
+                        cells[l]->findNeighborsRec(id, x, y, z, xi, yi, zi, ri, ngmax, neighbors, neighborsCount);
+                    }
+                }
+            }
+        }
+        else
+            check_add_start(localPadding, localParticleCount, id, x, y, z, xi, yi, zi, ri, ngmax, neighbors, neighborsCount);
+    }
+
+    void findNeighbors(const int id, const T *x, const T *y, const T *z, const T xi, const T yi, const T zi, const T ri, const int ngmax,
+                       int *neighbors, int &neighborsCount, const bool PBCx = false, const bool PBCy = false, const bool PBCz = false) const
+    {
+        if ((PBCx && (xi - ri < xmin || xi + ri > xmax)) || (PBCy && (yi - ri < ymin || yi + ri > ymax)) ||
+            (PBCz && (zi - ri < zmin || zi + ri > zmax)))
+        {
+            int mix = (int)floor(normalize(xi - ri, xmin, xmax) * nX);
+            int miy = (int)floor(normalize(yi - ri, ymin, ymax) * nY);
+            int miz = (int)floor(normalize(zi - ri, zmin, zmax) * nZ);
+            int max = (int)floor(normalize(xi + ri, xmin, xmax) * nX);
+            int may = (int)floor(normalize(yi + ri, ymin, ymax) * nY);
+            int maz = (int)floor(normalize(zi + ri, zmin, zmax) * nZ);
+
+            if (!PBCx) mix = std::max(mix, 0);
+            if (!PBCy) miy = std::max(miy, 0);
+            if (!PBCz) miz = std::max(miz, 0);
+            if (!PBCx) max = std::min(max, nX - 1);
+            if (!PBCy) may = std::min(may, nY - 1);
+            if (!PBCz) maz = std::min(maz, nZ - 1);
+
+            for (int hz = miz; hz <= maz; hz++)
+            {
+                for (int hy = miy; hy <= may; hy++)
+                {
+                    for (int hx = mix; hx <= max; hx++)
+                    {
+                        T displz = PBCz ? ((hz < 0) - (hz >= nZ)) * (zmax - zmin) : 0;
+                        T disply = PBCy ? ((hy < 0) - (hy >= nY)) * (ymax - ymin) : 0;
+                        T displx = PBCx ? ((hx < 0) - (hx >= nX)) * (xmax - xmin) : 0;
+
+                        int hzz = PBCz ? (hz % nZ) + (hz < 0) * nZ : hz;
+                        int hyy = PBCy ? (hy % nY) + (hy < 0) * nY : hy;
+                        int hxx = PBCx ? (hx % nX) + (hx < 0) * nX : hx;
+
+                        unsigned int l = hzz * nY * nX + hyy * nX + hxx;
+
+                        cells[l]->findNeighborsRec(id, x, y, z, xi + displx, yi + disply, zi + displz, ri, ngmax, neighbors, neighborsCount);
+                    }
+                }
+            }
+        }
+        else
+            findNeighborsRec(id, x, y, z, xi, yi, zi, ri, ngmax, neighbors, neighborsCount);
     }
 
     void makeSubCells()
@@ -81,14 +203,14 @@ public:
 
                     unsigned int i = hz * nX * nY + hy * nX + hx;
 
-                    if(cells[i] == nullptr)
-                        cells[i] = std::make_shared<Octree>(ax, bx, ay, by, az, bz, comm_rank, comm_size);
+                    if (cells[i] == nullptr) cells[i] = std::make_shared<Octree>(ax, bx, ay, by, az, bz, comm_rank, comm_size);
                 }
             }
         }
     }
 
-    void approximateRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h)
+    void approximateRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z,
+                        const std::vector<T> &h)
     {
         this->globalNodeCount = 1;
 
@@ -101,14 +223,14 @@ public:
             if (hh > hmax) hmax = hh;
         }
 
-        const T sizex = xmax-xmin;
-        const T sizey = ymax-ymin;
-        const T sizez = zmax-zmin;
+        const T sizex = xmax - xmin;
+        const T sizey = ymax - ymin;
+        const T sizez = zmax - zmin;
 
         const T size = std::max(sizez, std::max(sizey, sizex));
 
         // Expand node if cell bigger than 2.0 * h
-        if(size > 8.0*hmax && list.size() > 0)
+        if (size > 8.0 * hmax && list.size() > 0)
         {
             std::vector<std::vector<int>> cellList(ncells);
             distributeParticles(list, x, y, z, cellList);
@@ -128,11 +250,25 @@ public:
         for (unsigned int i = 0; i < x.size(); i++)
             list[i] = i;
 
-        approximateRec(list, x, y, z, h);
+        this->globalNodeCount = 1;
+
+        global = true;
+        
+        std::vector<std::vector<int>> cellList(ncells);
+        distributeParticles(list, x, y, z, cellList);
+
+        // There is always one level below the root
+        // This simplifies the function for finding neighbors with
+        makeSubCells();
+        for (int i = 0; i < ncells; i++)
+        {
+            cells[i]->approximateRec(cellList[i], x, y, z, h);
+            this->globalNodeCount += cells[i]->globalNodeCount;
+        }
     }
 
-    void localMapParticlesRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h,
-        std::vector<int> &ordering, bool expand, int padding = 0)
+    void localMapParticlesRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z,
+                              const std::vector<T> &h, std::vector<int> &ordering, bool expand, int padding = 0)
     {
         this->localPadding = padding;
         this->localParticleCount = 0;
@@ -140,23 +276,24 @@ public:
 
         // If processes have been assigned to the tree nodes, it will ignore nodes not assigned to him
         // Thereby also discarding particles that do not belong to the current process
-        if(assignee == -1 || assignee == comm_rank)
+        if (assignee == -1 || assignee == comm_rank)
         {
             std::vector<std::vector<int>> cellList(ncells);
             distributeParticles(list, x, y, z, cellList);
 
-            if(expand == true && assignee == comm_rank && (int)cells.size() == 0 && list.size() > 64)
+            if (expand == true && assignee == comm_rank && (int)cells.size() == 0 && list.size() > bucketSize)
             {
                 makeSubCells();
                 for (int i = 0; i < ncells; i++)
                     cells[i]->assignee = comm_rank;
             }
 
-            if((int)cells.size() == ncells)
+            if ((int)cells.size() == ncells)
             {
                 for (int i = 0; i < ncells; i++)
                 {
-                    //if(comm_rank == 0 && (cells[i]->assignee == -1 || cells[i]->assignee == comm_rank)) printf("%d %d %d\n", (int)ordering.size(), padding, (int)cellList[i].size());
+                    // if(comm_rank == 0 && (cells[i]->assignee == -1 || cells[i]->assignee == comm_rank)) printf("%d %d %d\n",
+                    // (int)ordering.size(), padding, (int)cellList[i].size());
                     cells[i]->localMapParticlesRec(cellList[i], x, y, z, h, ordering, expand, padding);
                     this->localHmax = std::max(this->localHmax, cells[i]->localHmax);
                     this->localParticleCount += cells[i]->localParticleCount;
@@ -167,18 +304,17 @@ public:
             {
                 this->localHmax = 0.0;
                 this->localParticleCount = list.size();
-                for(int i=0; i<(int)list.size(); i++)
+                for (int i = 0; i < (int)list.size(); i++)
                 {
-                    ordering[padding+i] = list[i];
-                    if(h[list[i]] > this->localHmax)
-                        this->localHmax = h[list[i]];
+                    ordering[padding + i] = list[i];
+                    if (h[list[i]] > this->localHmax) this->localHmax = h[list[i]];
                 }
             }
         }
-        else if(halo)
+        else if (halo)
         {
             // Needed to set the padding correctly in every subnode
-            if((int)cells.size() == ncells)
+            if ((int)cells.size() == ncells)
             {
                 for (int i = 0; i < ncells; i++)
                 {
@@ -193,7 +329,8 @@ public:
         }
     }
 
-    void localMapParticles(const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h, std::vector<int> &ordering, bool expand)
+    void localMapParticles(const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h,
+                           std::vector<int> &ordering, bool expand)
     {
         std::vector<int> list(x.size());
         for (unsigned int i = 0; i < x.size(); i++)
@@ -204,14 +341,12 @@ public:
 
     void assignProcessesRec(std::vector<int> &work, int &pi)
     {
-        if(work[pi] <= 0 && pi+1 < (int)work.size())
-            pi++;
+        if (work[pi] <= 0 && pi + 1 < (int)work.size()) pi++;
 
         // If the node fits on process pi, we assign it to this branch
-        if(globalParticleCount <= work[pi])
-            assignee = pi;
+        if (globalParticleCount <= work[pi]) assignee = pi;
 
-        if((int)cells.size() == ncells)
+        if ((int)cells.size() == ncells)
         {
             for (int i = 0; i < ncells; i++)
                 cells[i]->assignProcessesRec(work, pi);
@@ -219,13 +354,13 @@ public:
         else
         {
             // Else if we are a leaf and it does not fit on process pi, we go to the next process
-            if(globalParticleCount > work[pi] && pi+1 < (int)work.size())
+            if (globalParticleCount > work[pi] && pi + 1 < (int)work.size())
             {
                 pi++;
                 // It may not fit
                 // If that happens, it means the tree is not well balanced
                 // Perhaps increase the sample size?
-                if(globalParticleCount > work[pi])
+                if (globalParticleCount > work[pi])
                 {
                     printf("Node has %d particles > assignee %d which has max %d work\n", globalParticleCount, pi, work[pi]);
                     printf("Increase sample size?\n");
@@ -246,21 +381,18 @@ public:
 
     void syncRec(std::map<int, std::vector<int>> &toSendCellsPadding, std::map<int, std::vector<int>> &toSendCellsCount, int &needed)
     {
-        if(global)
+        if (global)
         {
             // The cell is ours
-            if(assignee == comm_rank)
-            {
-                needed += globalParticleCount - localParticleCount;
-            }
+            if (assignee == comm_rank) { needed += globalParticleCount - localParticleCount; }
             // The cell is associated to a process but is not ours
-            else if(assignee >= 0 && localParticleCount > 0)
+            else if (assignee >= 0 && localParticleCount > 0)
             {
                 toSendCellsPadding[assignee].push_back(localPadding);
                 toSendCellsCount[assignee].push_back(localParticleCount);
             }
             // The cell is not associated. If it is not a leaf then
-            else if((int)cells.size() == ncells)
+            else if ((int)cells.size() == ncells)
             {
                 for (int i = 0; i < ncells; i++)
                 {
@@ -271,28 +403,27 @@ public:
     }
 
     inline bool overlap(T leftA, T rightA, T leftB, T rightB) { return leftA < rightB && rightA > leftB; }
-    
+
     inline bool overlap(Octree *a)
     {
         T radius = a->globalMaxH * 2.0;
 
-        return overlap(a->xmin - radius, a->xmax + radius, xmin, xmax) &&
-               overlap(a->ymin - radius, a->ymax + radius, ymin, ymax) &&
+        return overlap(a->xmin - radius, a->xmax + radius, xmin, xmax) && overlap(a->ymin - radius, a->ymax + radius, ymin, ymax) &&
                overlap(a->zmin - radius, a->zmax + radius, zmin, zmax);
     }
 
-    int findHalosList(Octree *a, std::map<int, std::map<int, Octree<T>*>> &toSendHalos, int ptri = 0)
+    int findHalosList(Octree *a, std::map<int, std::map<int, Octree<T> *>> &toSendHalos, int ptri = 0)
     {
         int haloCount = 0;
 
-        if(global)
+        if (global)
         {
             ptri++;
 
             // If this node is a halo (i.e. overlap) node a
-            if(globalParticleCount > 0)
-            { 
-                if(assignee == -1 && (int)cells.size() == ncells && overlap(a))
+            if (globalParticleCount > 0)
+            {
+                if (assignee == -1 && (int)cells.size() == ncells && overlap(a))
                 {
                     for (int i = 0; i < ncells; i++)
                     {
@@ -300,12 +431,11 @@ public:
                         ptri += cells[i]->globalNodeCount;
                     }
                 }
-                else if(assignee != a->assignee && (assignee == comm_rank || a->assignee == comm_rank) && overlap(a))
+                else if (assignee != a->assignee && (assignee == comm_rank || a->assignee == comm_rank) && overlap(a))
                 {
-                    if(a->assignee == comm_rank)
-                        halo = true;
+                    if (a->assignee == comm_rank) halo = true;
 
-                    if((int)cells.size() == ncells)
+                    if ((int)cells.size() == ncells)
                     {
                         for (int i = 0; i < ncells; i++)
                         {
@@ -316,10 +446,9 @@ public:
                     else
                     {
 
-                        if(a->assignee == comm_rank)
+                        if (a->assignee == comm_rank)
                         {
-                            if(toSendHalos[a->assignee].count(ptri) == 0)
-                                haloCount += globalParticleCount;
+                            if (toSendHalos[a->assignee].count(ptri) == 0) haloCount += globalParticleCount;
                         }
                         toSendHalos[a->assignee][ptri] = this;
                     }
@@ -330,24 +459,24 @@ public:
         return haloCount;
     }
 
-    int findHalosRec(Octree *root, std::map<int, std::map<int, Octree<T>*>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
+    int findHalosRec(Octree *root, std::map<int, std::map<int, Octree<T> *>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
     {
         int haloCount = 0;
 
-        if(global)
+        if (global)
         {
-            if(assignee == -1 && (int)cells.size() == ncells)
+            if (assignee == -1 && (int)cells.size() == ncells)
             {
                 for (int i = 0; i < ncells; i++)
                 {
                     haloCount += cells[i]->findHalosRec(root, toSendHalos, PBCx, PBCy, PBCz);
                 }
             }
-            else if(assignee >= 0)
+            else if (assignee >= 0)
             {
                 // Find halos from the root
                 haloCount += root->findHalosList(this, toSendHalos);
-                
+
                 T oldxmin = xmin, oldxmax = xmax;
                 T oldymin = ymin, oldymax = ymax;
                 T oldzmin = zmin, oldzmax = zmax;
@@ -374,9 +503,9 @@ public:
                     {
                         for (int hx = mix; hx <= max; hx++)
                         {
-                            T displz = PBCz? ((hz < 0) - (hz >= nZ)) * (root->zmax-root->zmin) : 0;
-                            T disply = PBCy? ((hy < 0) - (hy >= nY)) * (root->ymax-root->ymin) : 0;
-                            T displx = PBCx? ((hx < 0) - (hx >= nX)) * (root->xmax-root->xmin) : 0;
+                            T displz = PBCz ? ((hz < 0) - (hz >= nZ)) * (root->zmax - root->zmin) : 0;
+                            T disply = PBCy ? ((hy < 0) - (hy >= nY)) * (root->ymax - root->ymin) : 0;
+                            T displx = PBCx ? ((hx < 0) - (hx >= nX)) * (root->xmax - root->xmin) : 0;
 
                             int hzz = PBCz ? (hz % nZ) + (hz < 0) * nZ : hz;
                             int hyy = PBCy ? (hy % nY) + (hy < 0) * nY : hy;
@@ -392,7 +521,6 @@ public:
                             zmax = zmax + displz;
 
                             haloCount += root->findHalosList(this, toSendHalos);
-                            //printf("%d %f %f %f %f %f %f\n", haloCount, xmin, xmax, ymin, ymax, zmin, zmax);
 
                             xmin = oldxmin;
                             xmax = oldxmax;
@@ -409,7 +537,7 @@ public:
         return haloCount;
     }
 
-    int findHalos(std::map<int, std::map<int, Octree<T>*>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
+    int findHalos(std::map<int, std::map<int, Octree<T> *>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
     {
         toSendHalos.clear();
         return findHalosRec(this, toSendHalos, PBCx, PBCy, PBCz);
@@ -418,8 +546,8 @@ public:
     void writeTree(FILE *fout)
     {
         fprintf(fout, "%f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
-        
-        if((global && (assignee == comm_rank || assignee == -1)) && (int)cells.size() == ncells)
+
+        if ((global && (assignee == comm_rank || assignee == -1)) && (int)cells.size() == ncells)
         {
             for (int i = 0; i < ncells; i++)
             {
@@ -430,11 +558,11 @@ public:
 
     void getParticleCountPerNode(std::vector<int> &particleCount, int ptri = 0)
     {
-        if(global)
+        if (global)
         {
             particleCount[ptri] = this->localParticleCount;
 
-            if((int)cells.size() == ncells)
+            if ((int)cells.size() == ncells)
             {
                 ptri++;
                 for (int i = 0; i < ncells; i++)
@@ -448,11 +576,11 @@ public:
 
     void setParticleCountPerNode(const std::vector<int> &particleCount, int ptri = 0)
     {
-        if(global)
+        if (global)
         {
             this->globalParticleCount = particleCount[ptri];
 
-            if((int)cells.size() == ncells)
+            if ((int)cells.size() == ncells)
             {
                 ptri++;
                 for (int i = 0; i < ncells; i++)
@@ -477,11 +605,11 @@ public:
 
     void getMaxHPerNode(std::vector<double> &hmax, int ptri = 0)
     {
-        if(global)
+        if (global)
         {
             hmax[ptri] = this->localHmax;
 
-            if((int)cells.size() == ncells)
+            if ((int)cells.size() == ncells)
             {
                 ptri++;
                 for (int i = 0; i < ncells; i++)
@@ -495,11 +623,11 @@ public:
 
     void setMaxHPerNode(const std::vector<double> &hmax, int ptri = 0)
     {
-        if(global)
+        if (global)
         {
             this->globalMaxH = hmax[ptri];
 
-            if((int)cells.size() == ncells)
+            if ((int)cells.size() == ncells)
             {
                 ptri++;
                 for (int i = 0; i < ncells; i++)
@@ -520,7 +648,6 @@ public:
         MPI_Allreduce(MPI_IN_PLACE, &globalMaxH[0], globalNodeCount, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
         setMaxHPerNode(globalMaxH);
-
     }
 };
 

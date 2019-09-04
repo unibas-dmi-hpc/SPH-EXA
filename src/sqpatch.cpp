@@ -60,50 +60,45 @@ int main(int argc, char **argv)
         distributedDomain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.m);
         timer.step("mpi::synchronizeHalos");
         
-        {
-            char fname[256];
-            sprintf(fname, "particlesSync%d", distributedDomain.comm_rank);
-            FILE *fout = fopen(fname, "w");
-            for(int i=0; i<(int)d.x.size(); i++)
-                fprintf(fout, "%f %f %f\n", d.x[i], d.y[i], d.z[i]);
-            fclose(fout);
-        }
+        // {
+        //     char fname[256];
+        //     sprintf(fname, "particlesSync%d", distributedDomain.comm_rank);
+        //     FILE *fout = fopen(fname, "w");
+        //     for(int i=0; i<(int)d.x.size(); i++)
+        //         fprintf(fout, "%f %f %f\n", d.x[i], d.y[i], d.z[i]);
+        //     fclose(fout);
+        // }
 
-        // distributedDomain.findNeighbors(clist, d);
-        // timer.step("FindNeighbors");
-
-        /*domain.buildTree(d);
-        timer.step("BuildTree");
-        domain.findNeighbors(clist, d);
+        distributedDomain.findNeighbors(clist, d);
         timer.step("FindNeighbors");
 
-        sph::computeDensity<Real>(clist, d);
-        if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(clist, d); }
-        timer.step("Density");
+        // sph::computeDensity<Real>(clist, d);
+        // if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(clist, d); }
+        // timer.step("Density");
 
-        sph::computeEquationOfState<Real>(clist, d);
-        timer.step("EquationOfState");
+        // sph::computeEquationOfState<Real>(clist, d);
+        // timer.step("EquationOfState");
 
-        distributedDomain.resizeArrays(d.count, &d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c); // Discard halos
-        distributedDomain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
-        timer.step("mpi::synchronizeHalos");
+        // distributedDomain.resizeArrays(d.count, &d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c); // Discard halos
+        // distributedDomain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
+        // timer.step("mpi::synchronizeHalos");
 
-        sph::computeMomentumAndEnergy<Real>(clist, d);
-        timer.step("MomentumEnergy");
-        sph::computeTimestep<Real>(clist, d);
-        timer.step("Timestep"); // AllReduce(min:dt)
-        sph::computePositions<Real>(clist, d);
-        timer.step("UpdateQuantities");
-        sph::computeTotalEnergy<Real>(clist, d);
-        timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
+        // sph::computeMomentumAndEnergy<Real>(clist, d);
+        // timer.step("MomentumEnergy");
+        // sph::computeTimestep<Real>(clist, d);
+        // timer.step("Timestep"); // AllReduce(min:dt)
+        // sph::computePositions<Real>(clist, d);
+        // timer.step("UpdateQuantities");
+        // sph::computeTotalEnergy<Real>(clist, d);
+        // timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
 
-        long long int totalNeighbors = domain.neighborsSum(clist, d);
+        long long int totalNeighbors = distributedDomain.neighborsSum(clist, d);
         if (d.rank == 0)
         {
             cout << "### Check ### Particles: " << clist.size() << ", Halos: " << distributedDomain.haloCount << endl;
             cout << "### Check ### Computational domain: " << d.bbox.xmin << " " << d.bbox.xmax << " " << d.bbox.ymin << " " << d.bbox.ymax
                  << " " << d.bbox.zmin << " " << d.bbox.zmax << endl;
-            cout << "### Check ### Avg neighbor count per particle: " << totalNeighbors / d.n << endl;
+            cout << "### Check ### Total neighbors " << totalNeighbors << ", Avg count per particle: " << totalNeighbors / d.n << endl;
             cout << "### Check ### Total time: " << d.ttot << ", current time-step: " << d.dt[0] << endl;
             cout << "### Check ### Total energy: " << d.etot << ", (internal: " << d.eint << ", cinetic: " << d.ecin << ")" << endl;
         }
@@ -118,7 +113,7 @@ int main(int argc, char **argv)
         d.writeConstants(d.iteration, totalNeighbors, constants);
 
         timer.stop();
-        if (d.rank == 0) cout << "=== Total time for iteration(" << d.iteration << ") " << timer.duration() << "s" << endl << endl;*/
+        if (d.rank == 0) cout << "=== Total time for iteration(" << d.iteration << ") " << timer.duration() << "s" << endl << endl;
     }
 
     constants.close();
