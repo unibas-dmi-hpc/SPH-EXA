@@ -53,6 +53,8 @@ void computeTimestep(const std::vector<int> &l, Dataset &d)
         dt[i] = mini;
     }
 
+    d.minDt = mini;
+
     ttot += mini;
 }
 } // namespace sph

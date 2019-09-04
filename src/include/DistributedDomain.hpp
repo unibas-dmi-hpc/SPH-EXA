@@ -35,15 +35,15 @@ public:
         int64_t n = clist.size();
         d.neighbors.resize(n * ngmax);
         d.neighborsCount.resize(n);
-
+        
 #pragma omp parallel for schedule(guided)
         for (int pi = 0; pi < n; pi++)
         {
             int i = clist[pi];
 
             d.neighborsCount[pi] = 0;
-            octree.findNeighbors(i, d.x.data(), d.y.data(), d.z.data(), d.x[i], d.y[i], d.z[i], 2 * d.h[i], ngmax, &d.neighbors[pi * ngmax], d.neighborsCount[pi], d.bbox.PBCx,
-                               d.bbox.PBCy, d.bbox.PBCz);
+            octree.findNeighbors(i, d.x.data(), d.y.data(), d.z.data(), d.x[i], d.y[i], d.z[i], 2 * d.h[i], ngmax, &d.neighbors[pi * ngmax], d.neighborsCount[pi], PBCx,
+                               PBCy, PBCz);
 
 #ifndef NDEBUG
             if (d.neighbors[pi].size() == 0)
@@ -231,8 +231,6 @@ public:
             }
         }
 
-        MPI_Barrier(MPI_COMM_WORLD);
-
         for (auto const &itProc : toSendHalos)
         {
             int to = itProc.first;
@@ -254,8 +252,10 @@ public:
                     {
                         T *buff = &(*data[i])[padding];
 
-                        //if(comm_rank == 0) printf("[%d] recv cell %d (%d) at %d from %d\n", to, ptri, count, padding, from);
+                        //if(comm_rank == 1) printf("[%d] recv cell %d (%d) at %d from %d\n", to, ptri, count, padding, from);
                         //if(padding + count > (*data[i]).size()) printf("ERROR: %d %d\n", padding, count);
+                        //printf("Padding: %d\n", padding);
+
                         MPI_Recv(buff, count, MPI_DOUBLE, from, ptri, MPI_COMM_WORLD, &status[i]); //&requests[rcount + i]);
                     }
                 }
@@ -350,7 +350,7 @@ public:
     }
 
     template <class Dataset>
-    void distribute(Dataset &d)
+    void distribute(std::vector<int> &clist, Dataset &d)
     {
         const std::vector<T> &x = d.x;
         const std::vector<T> &y = d.y;
@@ -404,10 +404,14 @@ public:
         // And just loop receive until we have received all the missing particles from other processes
         sync(d.arrayList, ordering);
 
+        MPI_Barrier(MPI_COMM_WORLD);
+
         printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount, octree.globalParticleCount);
 
         octree.computeGlobalMaxH();
-        int haloCount = octree.findHalos(toSendHalos, PBCx, PBCy, PBCz);
+        haloCount = octree.findHalos(toSendHalos, PBCx, PBCy, PBCz);
+
+MPI_Barrier(MPI_COMM_WORLD);
 
         printf("[%d] haloCount: %d (%.2f%%)\n", comm_rank, haloCount, haloCount / (double)(work[comm_rank] - work_remaining[comm_rank]) * 100.0);
 
@@ -416,8 +420,17 @@ public:
         for (unsigned int i = 0; i < ordering.size(); i++)
             ordering[i] = 0;
 
+MPI_Barrier(MPI_COMM_WORLD);
+
         octree.localMapParticles(x, y, z, h, ordering, true);
         reorder(ordering, d);
+
+        d.count = work[comm_rank] - work_remaining[comm_rank];
+        clist.resize(work[comm_rank] - work_remaining[comm_rank]);
+        
+        octree.mapList(clist);
+
+        MPI_Barrier(MPI_COMM_WORLD);
     }
 
     const int local_sample_size = 100;

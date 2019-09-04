@@ -26,7 +26,7 @@ CXXFLAGS += $(RELEASE)
 NVCCFLAGS := -std=c++11 --expt-relaxed-constexpr -arch=sm_60
 
 ifeq ($(ENV),gnu)
-	CXXFLAGS += -std=c++14 -g -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native
+	CXXFLAGS += -std=c++14 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native
 endif
 
 ifeq ($(ENV),pgi)

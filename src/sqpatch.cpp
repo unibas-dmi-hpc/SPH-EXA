@@ -45,7 +45,7 @@ int main(int argc, char **argv)
     {
         timer.start();
 
-        distributedDomain.distribute(d);
+        distributedDomain.distribute(clist, d);
         timer.step("domain::distribute");
 
        /* {
@@ -99,7 +99,7 @@ int main(int argc, char **argv)
             cout << "### Check ### Computational domain: " << d.bbox.xmin << " " << d.bbox.xmax << " " << d.bbox.ymin << " " << d.bbox.ymax
                  << " " << d.bbox.zmin << " " << d.bbox.zmax << endl;
             cout << "### Check ### Total neighbors " << totalNeighbors << ", Avg count per particle: " << totalNeighbors / d.n << endl;
-            cout << "### Check ### Total time: " << d.ttot << ", current time-step: " << d.dt[0] << endl;
+            cout << "### Check ### Total time: " << d.ttot << ", current time-step: " << d.minDt << endl;
             cout << "### Check ### Total energy: " << d.etot << ", (internal: " << d.eint << ", cinetic: " << d.ecin << ")" << endl;
         }
 

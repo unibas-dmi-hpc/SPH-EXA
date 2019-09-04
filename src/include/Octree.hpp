@@ -184,6 +184,19 @@ public:
             findNeighborsRec(id, x, y, z, xi, yi, zi, ri, ngmax, neighbors, neighborsCount);
     }
 
+    void print(int l = 0)
+    {
+        for(int i=0; i<l; i++)
+            printf("   ");
+        printf("%d %d %d\n", localPadding, localParticleCount, globalParticleCount);
+
+        if((int)cells.size() == ncells)
+        {
+            for(int i=0; i<ncells; i++)
+                cells[i]->print(l+1);
+        }
+    }
+
     void makeSubCells()
     {
         cells.resize(ncells);
@@ -406,7 +419,7 @@ public:
 
     inline bool overlap(Octree *a)
     {
-        T radius = a->globalMaxH * 2.0;
+        T radius = a->globalMaxH * 600.0;
 
         return overlap(a->xmin - radius, a->xmax + radius, xmin, xmax) && overlap(a->ymin - radius, a->ymax + radius, ymin, ymax) &&
                overlap(a->zmin - radius, a->zmax + radius, zmin, zmax);
@@ -448,7 +461,10 @@ public:
 
                         if (a->assignee == comm_rank)
                         {
-                            if (toSendHalos[a->assignee].count(ptri) == 0) haloCount += globalParticleCount;
+                            if (toSendHalos[a->assignee].count(ptri) == 0)
+                            {
+                                haloCount += globalParticleCount;
+                            }
                         }
                         toSendHalos[a->assignee][ptri] = this;
                     }
@@ -475,7 +491,7 @@ public:
             else if (assignee >= 0)
             {
                 // Find halos from the root
-                haloCount += root->findHalosList(this, toSendHalos);
+                //haloCount += root->findHalosList(this, toSendHalos);
 
                 T oldxmin = xmin, oldxmax = xmax;
                 T oldymin = ymin, oldymax = ymax;
@@ -648,6 +664,31 @@ public:
         MPI_Allreduce(MPI_IN_PLACE, &globalMaxH[0], globalNodeCount, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
         setMaxHPerNode(globalMaxH);
+    }
+
+    void mapListRec(std::vector<int> &clist, int &it)
+    {
+        if(assignee == comm_rank)
+        {
+            for(int i=0; i<localParticleCount; i++)
+            {
+                clist[it++] = localPadding + i;
+            }
+        }
+        else if(assignee == -1 && (int)cells.size())
+        {
+            for (int i = 0; i < ncells; i++)
+            {
+                cells[i]->mapListRec(clist, it);
+                cells[i]->localParticleCount;
+            }
+        }
+    }
+
+    void mapList(std::vector<int> &clist)
+    {
+        int it = 0;
+        mapListRec(clist, it);
     }
 };
 

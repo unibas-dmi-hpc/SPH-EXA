@@ -150,6 +150,7 @@ public:
 
         etot = ecin = eint = 0.0;
         ttot = 0.0;
+        minDt = 0.0;
 
         if (rank == 0 && 2.0 * h[0] > (bbox.zmax - bbox.zmin) / 2.0)
         {
@@ -240,7 +241,7 @@ public:
     {
         if (rank == 0)
         {
-            constants << iteration << ' ' << ttot << ' ' << dt[0] << ' ' << etot << ' ' << ecin << ' ' << eint << ' ' << nntot << ' '
+            constants << iteration << ' ' << ttot << ' ' << minDt << ' ' << etot << ' ' << ecin << ' ' << eint << ' ' << nntot << ' '
                       << std::endl;
             constants.flush();
         }
@@ -261,6 +262,7 @@ public:
     std::vector<T> dt, dt_m1;
 
     T ttot, etot, ecin, eint;
+    T minDt;
 
     sphexa::BBox<T> bbox;
 
