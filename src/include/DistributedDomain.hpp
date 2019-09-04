@@ -35,21 +35,21 @@ public:
         int64_t n = clist.size();
         d.neighbors.resize(n * ngmax);
         d.neighborsCount.resize(n);
-        
-#pragma omp parallel for schedule(guided)
-        for (int pi = 0; pi < n; pi++)
-        {
-            int i = clist[pi];
 
-            d.neighborsCount[pi] = 0;
-            octree.findNeighbors(i, d.x.data(), d.y.data(), d.z.data(), d.x[i], d.y[i], d.z[i], 2 * d.h[i], ngmax, &d.neighbors[pi * ngmax], d.neighborsCount[pi], PBCx,
-                               PBCy, PBCz);
+#pragma omp parallel for schedule(guided)
+            for (int pi = 0; pi < n; pi++)
+            {
+                int i = clist[pi];
+
+                d.neighborsCount[pi] = 0;
+                octree.findNeighbors(i, d.x.data(), d.y.data(), d.z.data(), d.x[i], d.y[i], d.z[i], 2 * d.h[i], ngmax,
+                                     &d.neighbors[pi * ngmax], d.neighborsCount[pi], PBCx, PBCy, PBCz);
 
 #ifndef NDEBUG
-            if (d.neighbors[pi].size() == 0)
-                printf("ERROR::FindNeighbors(%d) x %f y %f z %f h = %f ngi %zu\n", i, x[i], y[i], z[i], h[i], neighborsCount[pi]);
+                if (d.neighbors[pi].size() == 0)
+                    printf("ERROR::FindNeighbors(%d) x %f y %f z %f h = %f ngi %zu\n", i, x[i], y[i], z[i], h[i], neighborsCount[pi]);
 #endif
-        }
+            }
     }
 
     template <class Dataset>
@@ -79,7 +79,7 @@ public:
         this->PBCy = PBCy;
         this->PBCz = PBCz;
     }
-    
+
     inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
     void reorderSwap(const std::vector<int> &ordering, std::vector<T> &arrayList)
@@ -111,7 +111,7 @@ public:
         makeDataArray(data, args...);
     }
 
-    void sync(const std::vector<std::vector<T>*> &arrayList, const std::vector<int> &ordering)
+    void sync(const std::vector<std::vector<T> *> &arrayList, const std::vector<int> &ordering)
     {
         std::map<int, std::vector<int>> toSendCellsPadding, toSendCellsCount;
         std::vector<std::vector<T>> buff;
@@ -131,7 +131,7 @@ public:
                 int bcount = buff.size();
                 counts[rank] = 0;
 
-                for(unsigned int i=0; i<toSendCellsCount[rank].size(); i++)
+                for (unsigned int i = 0; i < toSendCellsCount[rank].size(); i++)
                     counts[rank] += toSendCellsCount[rank][i];
 
                 requests.resize(rcount + arrayList.size() + 2);
@@ -146,7 +146,7 @@ public:
 
                     int bi = 0;
                     // We go over every tree nodes to send for this rank
-                    for(unsigned int j=0; j<toSendCellsCount[rank].size(); j++)
+                    for (unsigned int j = 0; j < toSendCellsCount[rank].size(); j++)
                     {
                         int padding = toSendCellsPadding[rank][j];
                         int count = toSendCellsCount[rank][j];
@@ -155,7 +155,7 @@ public:
                             buff[bcount + i][bi++] = (*arrayList[i])[ordering[padding + k]];
                         }
                     }
-                    
+
                     MPI_Isend(&buff[bcount + i][0], counts[rank], MPI_DOUBLE, rank, 2 + i, MPI_COMM_WORLD, &requests[rcount + 2 + i]);
                 }
             }
@@ -167,7 +167,7 @@ public:
 
         while (needed > 0)
         {
-            //printf("Needed: %d\n", needed);
+            // printf("Needed: %d\n", needed);
             MPI_Status status[arrayList.size() + 2];
 
             int rank, count;
@@ -223,8 +223,8 @@ public:
                     {
                         T *buff = &(*data[i])[padding];
 
-                        //if(comm_rank == 1) printf("[%d] sends cell %d (%d) at %d to %d\n", from, ptri, count, padding, to);
-                        //if(padding + count > (*data[i]).size()) printf("ERROR: %d %d %lu\n", padding, count, (*data[i]).size());
+                        // if(comm_rank == 1) printf("[%d] sends cell %d (%d) at %d to %d\n", from, ptri, count, padding, to);
+                        // if(padding + count > (*data[i]).size()) printf("ERROR: %d %d %lu\n", padding, count, (*data[i]).size());
                         MPI_Isend(buff, count, MPI_DOUBLE, to, ptri, MPI_COMM_WORLD, &requests[rcount + i]);
                     }
                 }
@@ -252,9 +252,9 @@ public:
                     {
                         T *buff = &(*data[i])[padding];
 
-                        //if(comm_rank == 1) printf("[%d] recv cell %d (%d) at %d from %d\n", to, ptri, count, padding, from);
-                        //if(padding + count > (*data[i]).size()) printf("ERROR: %d %d\n", padding, count);
-                        //printf("Padding: %d\n", padding);
+                        // if(comm_rank == 1) printf("[%d] recv cell %d (%d) at %d from %d\n", to, ptri, count, padding, from);
+                        // if(padding + count > (*data[i]).size()) printf("ERROR: %d %d\n", padding, count);
+                        // printf("Padding: %d\n", padding);
 
                         MPI_Recv(buff, count, MPI_DOUBLE, from, ptri, MPI_COMM_WORLD, &status[i]); //&requests[rcount + i]);
                     }
@@ -320,7 +320,7 @@ public:
         // All processes will have the same box dimensions for the domain
         computeGlobalBoundingBox(n, x, y, z);
 
-        //printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
+        // printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
 
         // Each process creates a random sample of local_sample_size particles
         const int global_sample_size = local_sample_size * comm_size;
@@ -372,7 +372,7 @@ public:
 
         printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
 
-        //printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount);
+        // printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount);
 
         // We map the nodes to a 1D array and retrieve the order of the particles in the tree
         std::vector<int> ordering(n);
@@ -382,7 +382,7 @@ public:
         // This is the same a following a Morton / Z-Curve path
         octree.localMapParticles(x, y, z, h, ordering, false);
         octree.computeGlobalParticleCount();
-        //reorder(ordering, d);
+        // reorder(ordering, d);
 
         // We then map the tree to processes
         std::vector<int> work_remaining(comm_size);
@@ -396,7 +396,8 @@ public:
             totalAvail += work[i];
         }
 
-        //printf("[%d] Total Avail: %d, Total Alloc: %d || Got: %d\n", comm_rank, totalAvail, totalAlloc, work[comm_rank] - work_remaining[comm_rank]);
+        // printf("[%d] Total Avail: %d, Total Alloc: %d || Got: %d\n", comm_rank, totalAvail, totalAlloc, work[comm_rank] -
+        // work_remaining[comm_rank]);
 
         // Send the particles from the old arrays either to the new arrays or to another process
         // Basically collects a map[process][nodes] to send to other processes
@@ -404,33 +405,32 @@ public:
         // And just loop receive until we have received all the missing particles from other processes
         sync(d.arrayList, ordering);
 
-        MPI_Barrier(MPI_COMM_WORLD);
-
         printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount, octree.globalParticleCount);
 
         octree.computeGlobalMaxH();
         haloCount = octree.findHalos(toSendHalos, PBCx, PBCy, PBCz);
 
-MPI_Barrier(MPI_COMM_WORLD);
+        workAssigned = work[comm_rank] - work_remaining[comm_rank];
 
-        printf("[%d] haloCount: %d (%.2f%%)\n", comm_rank, haloCount, haloCount / (double)(work[comm_rank] - work_remaining[comm_rank]) * 100.0);
+        printf("[%d] haloCount: %d (%.2f%%)\n", comm_rank, haloCount,
+               haloCount / (double)(workAssigned) * 100.0);
 
         // Finally remap everything
-        ordering.resize(work[comm_rank] - work_remaining[comm_rank] + haloCount);
+        ordering.resize(workAssigned + haloCount);
         for (unsigned int i = 0; i < ordering.size(); i++)
             ordering[i] = 0;
-
-MPI_Barrier(MPI_COMM_WORLD);
 
         octree.localMapParticles(x, y, z, h, ordering, true);
         reorder(ordering, d);
 
-        d.count = work[comm_rank] - work_remaining[comm_rank];
-        clist.resize(work[comm_rank] - work_remaining[comm_rank]);
-        
+        d.count = workAssigned;
+        clist.resize(workAssigned);
         octree.mapList(clist);
 
-        MPI_Barrier(MPI_COMM_WORLD);
+        synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
+
+        //octree.localMapParticles(x, y, z, h, ordering, true);
+        //reorder(ordering, d);
     }
 
     const int local_sample_size = 100;
@@ -444,6 +444,7 @@ MPI_Barrier(MPI_COMM_WORLD);
     std::map<int, std::map<int, Octree<T> *>> toSendHalos;
 
     int haloCount = 0;
+    int workAssigned = 0;
 
     Octree<T> octree;
 };
