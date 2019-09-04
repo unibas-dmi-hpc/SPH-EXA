@@ -60,14 +60,14 @@ int main(int argc, char **argv)
         distributedDomain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.m);
         timer.step("mpi::synchronizeHalos");
         
-        // {
-        //     char fname[256];
-        //     sprintf(fname, "particlesSync%d", distributedDomain.comm_rank);
-        //     FILE *fout = fopen(fname, "w");
-        //     for(int i=0; i<(int)d.x.size(); i++)
-        //         fprintf(fout, "%f %f %f\n", d.x[i], d.y[i], d.z[i]);
-        //     fclose(fout);
-        // }
+        {
+            char fname[256];
+            sprintf(fname, "particlesSync%d", distributedDomain.comm_rank);
+            FILE *fout = fopen(fname, "w");
+            for(int i=0; i<(int)d.x.size(); i++)
+                fprintf(fout, "%f %f %f\n", d.x[i], d.y[i], d.z[i]);
+            fclose(fout);
+        }
 
         // distributedDomain.findNeighbors(clist, d);
         // timer.step("FindNeighbors");

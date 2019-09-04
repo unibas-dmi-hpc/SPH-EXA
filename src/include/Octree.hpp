@@ -318,7 +318,7 @@ public:
 
                         if(a->assignee == comm_rank)
                         {
-                            if(toSendHalos[a->assignee].count(ptri) > 0)
+                            if(toSendHalos[a->assignee].count(ptri) == 0)
                                 haloCount += globalParticleCount;
                         }
                         toSendHalos[a->assignee][ptri] = this;
@@ -348,7 +348,7 @@ public:
                 // Find halos from the root
                 haloCount += root->findHalosList(this, toSendHalos);
                 
-     /*           T oldxmin = xmin, oldxmax = xmax;
+                T oldxmin = xmin, oldxmax = xmax;
                 T oldymin = ymin, oldymax = ymax;
                 T oldzmin = zmin, oldzmax = zmax;
 
@@ -392,6 +392,7 @@ public:
                             zmax = zmax + displz;
 
                             haloCount += root->findHalosList(this, toSendHalos);
+                            //printf("%d %f %f %f %f %f %f\n", haloCount, xmin, xmax, ymin, ymax, zmin, zmax);
 
                             xmin = oldxmin;
                             xmax = oldxmax;
@@ -401,7 +402,7 @@ public:
                             zmax = oldzmax;
                         }
                     }
-                }*/
+                }
             }
         }
 
