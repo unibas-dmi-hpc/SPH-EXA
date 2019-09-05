@@ -379,6 +379,12 @@ public:
         // We compute the global bounding box of the global domain
         // All processes will have the same box dimensions for the domain
         computeGlobalBoundingBox(n, x, y, z);
+        d.bbox.xmin = xmin;
+        d.bbox.xmax = xmax;
+        d.bbox.ymin = ymin;
+        d.bbox.ymax = ymax;
+        d.bbox.zmin = zmin;
+        d.bbox.zmax = zmax;
 
         // printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
 
