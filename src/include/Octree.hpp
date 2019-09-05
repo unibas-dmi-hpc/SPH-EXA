@@ -50,7 +50,7 @@ public:
 
     static const int nX = 2, nY = 2, nZ = 2;
     static const int ncells = 8;
-    static const int bucketSize = 64, maxGlobalBucketSize = 8192, minGlobalBucketSize = 512;
+    static const int bucketSize = 64, maxGlobalBucketSize = 8192, minGlobalBucketSize = 64;
 
     static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
@@ -273,6 +273,8 @@ public:
     {
         int nsplits = 0;
         this->globalNodeCount = 0;
+        this->assignee = -1;
+        this->halo = false;
 
         if (global)
         {
@@ -280,21 +282,13 @@ public:
 
             if ((int)cells.size() == ncells)
             {
-                if (globalParticleCount < minGlobalBucketSize && (int)cells.size() == 0)
-                {
-                    for (int i = 0; i < ncells; i++)
-                        cells[i] = nullptr;
+                if (globalParticleCount < minGlobalBucketSize)
                     cells.resize(0);
-                }
                 else
                 {
                     // Closing non global branches
                     if(cells[0]->global == false)
-                    {
-                        for (int i = 0; i < ncells; i++)
-                            cells[i] = nullptr;
                         cells.resize(0);
-                    }
                     else
                     {
                         for (int i = 0; i < ncells; i++)
@@ -309,14 +303,13 @@ public:
             {
                 if (globalParticleCount > maxGlobalBucketSize)
                 {
+                    cells.resize(0);
+
                     nsplits++;
                     makeSubCells();
                     this->globalNodeCount += 8;
                     for (int i = 0; i < ncells; i++)
-                    {
                         cells[i]->global = true;
-                        cells[i]->globalNodeCount = 1;
-                    }
                 }
             }
         }
@@ -672,7 +665,7 @@ public:
 
     void computeGlobalParticleCount()
     {
-        std::vector<int> localParticleCount(globalNodeCount), globalParticleCount(globalNodeCount);
+        std::vector<int> localParticleCount(globalNodeCount, 0), globalParticleCount(globalNodeCount, 0);
 
         getParticleCountPerNode(localParticleCount);
 
