@@ -50,7 +50,7 @@ public:
 
     static const int nX = 2, nY = 2, nZ = 2;
     static const int ncells = 8;
-    static const int bucketSize = 64;
+    static const int bucketSize = 64, maxGlobalBucketSize = 8192, minGlobalBucketSize = 512;
 
     static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
@@ -68,7 +68,7 @@ public:
     {
         T r2 = r * r;
 
-        //int maxCount = std::min(localParticleCount, ngmax - neighborsCount);
+        // int maxCount = std::min(localParticleCount, ngmax - neighborsCount);
 
         for (int i = 0; i < localParticleCount && neighborsCount < ngmax; i++)
         {
@@ -269,6 +269,61 @@ public:
         }
     }
 
+    int globalRebalance()
+    {
+        int nsplits = 0;
+        this->globalNodeCount = 0;
+
+        if (global)
+        {
+            this->globalNodeCount = 1;
+
+            if ((int)cells.size() == ncells)
+            {
+                if (globalParticleCount < minGlobalBucketSize && (int)cells.size() == 0)
+                {
+                    for (int i = 0; i < ncells; i++)
+                        cells[i] = nullptr;
+                    cells.resize(0);
+                }
+                else
+                {
+                    // Closing non global branches
+                    if(cells[0]->global == false)
+                    {
+                        for (int i = 0; i < ncells; i++)
+                            cells[i] = nullptr;
+                        cells.resize(0);
+                    }
+                    else
+                    {
+                        for (int i = 0; i < ncells; i++)
+                        {
+                            nsplits += cells[i]->globalRebalance();
+                            this->globalNodeCount += cells[i]->globalNodeCount;
+                        }
+                    }
+                }
+            }
+            else // if((int)cells.size() ==  0)
+            {
+                if (globalParticleCount > maxGlobalBucketSize)
+                {
+                    nsplits++;
+                    makeSubCells();
+                    this->globalNodeCount += 8;
+                    for (int i = 0; i < ncells; i++)
+                    {
+                        cells[i]->global = true;
+                        cells[i]->globalNodeCount = 1;
+                    }
+                }
+            }
+        }
+
+        return nsplits;
+    }
+
     void localMapParticlesRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z,
                               const std::vector<T> &h, std::vector<int> &ordering, bool expand, int padding = 0)
     {
@@ -342,7 +397,7 @@ public:
             else if (global)
                 // We are expanding before halos insertion (global only)
                 this->localParticleCount = globalParticleCount;
-                // We are expanding
+            // We are expanding
             else
             {
                 this->localHmax = 0.0;
@@ -356,13 +411,9 @@ public:
         }
     }
 
-    void localMapParticles(const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h,
+    void localMapParticles(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h,
                            std::vector<int> &ordering, bool expand)
     {
-        std::vector<int> list(x.size());
-        for (unsigned int i = 0; i < x.size(); i++)
-            list[i] = i;
-
         localMapParticlesRec(list, x, y, z, h, ordering, expand);
     }
 
@@ -534,11 +585,11 @@ public:
                             T disply = PBCy ? ((hy < 0) - (hy >= nY)) * (root->ymax - root->ymin) : 0;
                             T displx = PBCx ? ((hx < 0) - (hx >= nX)) * (root->xmax - root->xmin) : 0;
 
-                            int hzz = PBCz ? (hz % nZ) + (hz < 0) * nZ : hz;
-                            int hyy = PBCy ? (hy % nY) + (hy < 0) * nY : hy;
-                            int hxx = PBCx ? (hx % nX) + (hx < 0) * nX : hx;
+                            // int hzz = PBCz ? (hz % nZ) + (hz < 0) * nZ : hz;
+                            // int hyy = PBCy ? (hy % nY) + (hy < 0) * nY : hy;
+                            // int hxx = PBCx ? (hx % nX) + (hx < 0) * nX : hx;
 
-                            unsigned int l = hzz * nY * nX + hyy * nX + hxx;
+                            // unsigned int l = hzz * nY * nX + hyy * nX + hxx;
 
                             xmin = xmin + displx;
                             xmax = xmax + displx;

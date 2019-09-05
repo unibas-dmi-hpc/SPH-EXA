@@ -111,7 +111,7 @@ public:
         makeDataArray(data, args...);
     }
 
-    void sync(const std::vector<std::vector<T> *> &arrayList, const std::vector<int> &ordering)
+    void sync(const std::vector<std::vector<T> *> &arrayList)
     {
         std::map<int, std::vector<int>> toSendCellsPadding, toSendCellsCount;
         std::vector<std::vector<T>> buff;
@@ -152,7 +152,7 @@ public:
                         int count = toSendCellsCount[rank][j];
                         for (int k = 0; k < count; k++)
                         {
-                            buff[bcount + i][bi++] = (*arrayList[i])[ordering[padding + k]];
+                            buff[bcount + i][bi++] = (*arrayList[i])[padding + k];
                         }
                     }
 
@@ -346,11 +346,11 @@ public:
         octree = Octree<T>(xmin, xmax, ymin, ymax, zmin, zmax, comm_rank, comm_size);
         octree.approximate(sx, sy, sz, sh);
 
-        printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount);
+        //printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount);
     }
 
     template <class Dataset>
-    void distribute(std::vector<int> &clist, Dataset &d)
+    void distribute(const std::vector<int> &clist, Dataset &d)
     {
         const std::vector<T> &x = d.x;
         const std::vector<T> &y = d.y;
@@ -370,19 +370,30 @@ public:
         // All processes will have the same box dimensions for the domain
         computeGlobalBoundingBox(n, x, y, z);
 
-        printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
-
-        // printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount);
+        // printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
 
         // We map the nodes to a 1D array and retrieve the order of the particles in the tree
         std::vector<int> ordering(n);
 
-        // We now reorder the data in memory so that it matches the octree layout
-        // In other words, iterating over the array is the same as walking the tree
-        // This is the same a following a Morton / Z-Curve path
-        octree.localMapParticles(x, y, z, h, ordering, false);
-        octree.computeGlobalParticleCount();
-        // reorder(ordering, d);
+        int nsplits = 0;
+        do
+        {
+            // We now reorder the data in memory so that it matches the octree layout
+            // In other words, iterating over the array is the same as walking the tree
+            // This is the same a following a Morton / Z-Curve path
+            octree.localMapParticles(clist, x, y, z, h, ordering, false);
+            octree.computeGlobalParticleCount();
+
+            // Done every iteration, this will either add or remove global nodes
+            // depending if there are too much / too few particles globally
+            nsplits = octree.globalRebalance();
+            if(comm_rank == 0) printf("SPLITS: %d, Nodes: %d\n", nsplits, octree.globalNodeCount);
+        } while(nsplits > 0);
+
+        reorder(ordering, d);
+
+        // printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount);
+
 
         // We then map the tree to processes
         std::vector<int> work_remaining(comm_size);
@@ -403,29 +414,44 @@ public:
         // Basically collects a map[process][nodes] to send to other processes
         // Then it knows how many particle it is missing (particleCount - localParticleCount)
         // And just loop receive until we have received all the missing particles from other processes
-        sync(d.arrayList, ordering);
+        sync(d.arrayList);
 
-        printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount, octree.globalParticleCount);
+        //printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount, octree.globalParticleCount);
 
         octree.computeGlobalMaxH();
         haloCount = octree.findHalos(toSendHalos, PBCx, PBCy, PBCz);
 
         workAssigned = work[comm_rank] - work_remaining[comm_rank];
 
-        printf("[%d] haloCount: %d (%.2f%%)\n", comm_rank, haloCount,
-               haloCount / (double)(workAssigned) * 100.0);
+        // printf("[%d] haloCount: %d (%.2f%%)\n", comm_rank, haloCount,
+        //        haloCount / (double)(workAssigned) * 100.0);
 
         // Finally remap everything
         ordering.resize(workAssigned + haloCount);
-        for (unsigned int i = 0; i < ordering.size(); i++)
+        for(int i=0; i<(int)ordering.size(); i++)
             ordering[i] = 0;
 
-        octree.localMapParticles(x, y, z, h, ordering, false);
+        std::vector<int> list(x.size());
+        for(int i=0; i<(int)x.size(); i++)
+            list[i] = i;
+
+        octree.localMapParticles(list, x, y, z, h, ordering, false);
+
         reorder(ordering, d);
+    }
 
-        synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
+    template <class Dataset>
+    void buildTree(std::vector<int> &clist, Dataset &d)
+    {
+        // Finally remap everything
+        std::vector<int> ordering(workAssigned + haloCount);
 
-        octree.localMapParticles(x, y, z, h, ordering, true);
+        std::vector<int> list(d.x.size());
+        for(int i=0; i<(int)d.x.size(); i++)
+            list[i] = i;
+
+        // We need this to expand halo
+        octree.localMapParticles(list, d.x, d.y, d.z, d.h, ordering, true);
         reorder(ordering, d);
 
         d.count = workAssigned;

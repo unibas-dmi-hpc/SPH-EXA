@@ -29,7 +29,7 @@ int main(int argc, char **argv)
 
     Dataset d(cubeSide);
     DistributedDomain<Real> distributedDomain;
-    //Domain<Real, Tree> domain(d.ngmin, d.ng0, d.ngmax);
+    // Domain<Real, Tree> domain(d.ngmin, d.ng0, d.ngmax);
 
     vector<int> clist(d.count);
     for (unsigned int i = 0; i < clist.size(); i++)
@@ -48,39 +48,14 @@ int main(int argc, char **argv)
         distributedDomain.distribute(clist, d);
         timer.step("domain::distribute");
 
-       /* {
-            char fname[256];
-            sprintf(fname, "particles%d", distributedDomain.comm_rank);
-            FILE *fout = fopen(fname, "w");
-            for(int i=0; i<(int)d.x.size(); i++)
-                fprintf(fout, "%f %f %f\n", d.x[i], d.y[i], d.z[i]);
-            fclose(fout);
-        }*/
-
-        distributedDomain.synchronizeHalos(&d.m);
+        distributedDomain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
         timer.step("mpi::synchronizeHalos");
 
-        // {
-        //     char fname[256];
-        //     sprintf(fname, "particlesSync%d", distributedDomain.comm_rank);
-        //     FILE *fout = fopen(fname, "w");
-        //     for(int i=0; i<(int)d.x.size(); i++)
-        //         fprintf(fout, "%f %f %f\n", d.x[i], d.y[i], d.z[i]);
-        //     fclose(fout);
-        // }
+        distributedDomain.buildTree(clist, d);
+        timer.step("domain::buildTree");
 
         distributedDomain.findNeighbors(clist, d);
         timer.step("FindNeighbors");
-
-     //    if(distributedDomain.comm_rank == 0)
-     //    {
-	    //     for(int i=0; i<10; i++)
-	    //     {
-	    //     	printf("%f %f %f %d\n", d.x[clist[i]], d.y[clist[i]], d.z[clist[i]], d.neighborsCount[i]);
-	    //     }
-	    // }
-
-	    //if(distributedDomain.comm_rank == 0) distributedDomain.octree.print();
 
         sph::computeDensity<Real>(clist, d);
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(clist, d); }
@@ -89,7 +64,6 @@ int main(int argc, char **argv)
         sph::computeEquationOfState<Real>(clist, d);
         timer.step("EquationOfState");
 
-        //distributedDomain.resizeArrays(d.count, &d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c); // Discard halos
         distributedDomain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
         timer.step("mpi::synchronizeHalos");
 
@@ -105,7 +79,8 @@ int main(int argc, char **argv)
         long long int totalNeighbors = distributedDomain.neighborsSum(clist, d);
         if (d.rank == 0)
         {
-            cout << "### Check ### Particles: " << clist.size() << ", Halos: " << distributedDomain.haloCount << endl;
+            cout << "### Check ### Global Tree Nodes: " << distributedDomain.octree.globalNodeCount << ", Particles: " << clist.size()
+                 << ", Halos: " << distributedDomain.haloCount << endl;
             cout << "### Check ### Computational domain: " << d.bbox.xmin << " " << d.bbox.xmax << " " << d.bbox.ymin << " " << d.bbox.ymax
                  << " " << d.bbox.zmin << " " << d.bbox.zmax << endl;
             cout << "### Check ### Total neighbors " << totalNeighbors << ", Avg count per particle: " << totalNeighbors / d.n << endl;
@@ -134,3 +109,12 @@ int main(int argc, char **argv)
 
     return 0;
 }
+
+// {
+//     char fname[256];
+//     sprintf(fname, "particlesSync%d", distributedDomain.comm_rank);
+//     FILE *fout = fopen(fname, "w");
+//     for(int i=0; i<(int)d.x.size(); i++)
+//         fprintf(fout, "%f %f %f\n", d.x[i], d.y[i], d.z[i]);
+//     fclose(fout);
+// }
