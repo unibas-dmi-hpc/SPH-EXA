@@ -318,15 +318,16 @@ public:
             std::vector<std::vector<int>> cellList(ncells);
             distributeParticles(list, x, y, z, cellList);
 
-            // if (expand == true && (int)cells.size() == 0 && list.size() > bucketSize)
-            // {
-            //     makeSubCells();
-            //     for (int i = 0; i < ncells; i++)
-            //     {
-            //         cells[i]->halo = true;
-            //         cells[i]->assignee = assignee;
-            //     }
-            // }
+            if (expand == true && (int)cells.size() == 0 && list.size() > bucketSize)
+            {
+                makeSubCells();
+                for (int i = 0; i < ncells; i++)
+                {
+                    cells[i]->halo = true;
+                    cells[i]->assignee = assignee;
+                    cells[i]->localParticleCount = cellList[i].size();
+                }
+            }
 
             // Needed to set the padding correctly in every subnode
             if ((int)cells.size() == ncells)
@@ -341,9 +342,17 @@ public:
             else if (global)
                 // We are expanding before halos insertion (global only)
                 this->localParticleCount = globalParticleCount;
-/*            else
-                // We are expanding after halos insertion
-                this->localParticleCount = list.size();*/
+                // We are expanding
+            else
+            {
+                this->localHmax = 0.0;
+                this->localParticleCount = list.size();
+                for (int i = 0; i < (int)list.size(); i++)
+                {
+                    ordering[padding + i] = list[i];
+                    if (h[list[i]] > this->localHmax) this->localHmax = h[list[i]];
+                }
+            }
         }
     }
 

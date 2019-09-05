@@ -420,17 +420,17 @@ public:
         for (unsigned int i = 0; i < ordering.size(); i++)
             ordering[i] = 0;
 
+        octree.localMapParticles(x, y, z, h, ordering, false);
+        reorder(ordering, d);
+
+        synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
+
         octree.localMapParticles(x, y, z, h, ordering, true);
         reorder(ordering, d);
 
         d.count = workAssigned;
         clist.resize(workAssigned);
         octree.mapList(clist);
-
-        synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
-
-        //octree.localMapParticles(x, y, z, h, ordering, true);
-        //reorder(ordering, d);
     }
 
     const int local_sample_size = 100;
