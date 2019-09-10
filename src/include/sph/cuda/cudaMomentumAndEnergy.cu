@@ -1,8 +1,9 @@
 #include <cuda.h>
+#include <algorithm>
 
+#include "../kernels.hpp"
 #include "sph.cuh"
 #include "utils.cuh"
-#include "../kernels.hpp"
 
 namespace sphexa
 {
@@ -10,7 +11,7 @@ namespace sph
 {
 namespace cuda
 {
-template void computeMomentumAndEnergy<double, SqPatch<double>>(const std::vector<int> &clist, SqPatch<double> &d);
+template void computeMomentumAndEnergy<double, SqPatch<double>>(const std::vector<ParticleIdxChunk> &chunksToCompute, SqPatch<double> &d);
 
 const double gradh_i = 1.0;
 const double gradh_j = 1.0;
@@ -109,42 +110,35 @@ __global__ void momenumAndEnergy(const int n, const int dx, const T sincIndex, c
 }
 
 template <typename T, class Dataset>
-void computeMomentumAndEnergy(const std::vector<int> &clist, Dataset &d)
+void computeMomentumAndEnergy(const std::vector<ParticleIdxChunk> &chunksToCompute, Dataset &d)
 {
-    const size_t n = clist.size();
     const size_t np = d.x.size();
-    const size_t n_chunk = (size_t)n / d.noOfGpuLoopSplits;
-    const size_t n_lastChunk =
-        (size_t)n / d.noOfGpuLoopSplits + n % d.noOfGpuLoopSplits; // just in case n is not dividable by noOfGpuLoopSplits
-    const size_t allNeighbors_chunk = n_chunk * d.ngmax;
-    const size_t allNeighbors_lastChunk = n_lastChunk * d.ngmax;
-
-    const size_t size_allNeighbors_chunk = allNeighbors_chunk * sizeof(int);
-    const size_t size_allNeighbors_lastChunk = allNeighbors_lastChunk * sizeof(int);
-    const size_t size_n_T_chunk = n_chunk * sizeof(T);
-    const size_t size_n_T_lastChunk = n_lastChunk * sizeof(T);
-    const size_t size_n_int_chunk = n_chunk * sizeof(int);
-    const size_t size_n_int_lastChunk = n_lastChunk * sizeof(int);
     const size_t size_np_T = np * sizeof(T);
+
+    const auto largestChunkSize =
+        std::max_element(chunksToCompute.cbegin(), chunksToCompute.cend(),
+                         [](const std::vector<int> &lhs, const std::vector<int> &rhs) { return lhs.size() < rhs.size(); })
+            ->size();
+
+    const size_t size_largerNeighborsChunk_int = largestChunkSize * d.ngmax * sizeof(int);
+    const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
+    const size_t size_largerNChunk_T = largestChunkSize * sizeof(T);
     const size_t size_bbox = sizeof(BBox<T>);
 
-    int *d_clist, *d_neighbors, *d_neighborsCount; // d_ prefix stands for device
+    // device pointers - d_ prefix stands for device
+    int *d_clist, *d_neighbors, *d_neighborsCount;
     T *d_x, *d_y, *d_z, *d_vx, *d_vy, *d_vz, *d_h, *d_m, *d_ro, *d_p, *d_c;
     T *d_grad_P_x, *d_grad_P_y, *d_grad_P_z, *d_du;
     BBox<T> *d_bbox;
 
-    // const float neighborsSizeInGB = size_allNeighbors_chunk * 1e-9;
-    // const float memorySizeInGB = (2 * size_n_int_chunk + size_allNeighbors_chunk + size_bbox + 11 * size_np_T_slice + 4 *
-    // size_n_T_chunk)*1e-9; printf("CUDA: Total GPU memory usage: %.2fGB\n", memorySizeInGB);
-
     // input data
-    utils::cudaMalloc(size_n_int_lastChunk, d_clist, d_neighborsCount);
-    utils::cudaMalloc(size_allNeighbors_lastChunk, d_neighbors);
-    utils::cudaMalloc(size_bbox, d_bbox);
-    utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c);
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d_bbox));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist, d_neighborsCount));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors));
 
     // output data
-    utils::cudaMalloc(size_n_T_lastChunk, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du);
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_T, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du));
 
     CHECK_CUDA_ERR(cudaMemcpy(d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
@@ -159,54 +153,38 @@ void computeMomentumAndEnergy(const std::vector<int> &clist, Dataset &d)
     CHECK_CUDA_ERR(cudaMemcpy(d_c, d.c.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
 
-    for (ushort s = 0; s < d.noOfGpuLoopSplits; ++s)
+    for (const auto &clist : chunksToCompute)
     {
+        const size_t n = clist.size();
+        const size_t size_n_T = n * sizeof(T);
+        const size_t size_n_int = n * sizeof(int);
+        const size_t size_nNeighbors = n * d.ngmax * sizeof(int);
+
+        const size_t neighborsOffset = clist.front() * d.ngmax;
+        const int *neighbors = d.neighbors.data() + neighborsOffset;
+
+        const size_t neighborsCountOffset = clist.front();
+        const int *neighborsCount = d.neighborsCount.data() + neighborsCountOffset;
+
+        CHECK_CUDA_ERR(cudaMemcpy(d_clist, clist.data(), size_n_int, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d_neighbors, neighbors, size_nNeighbors, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d_neighborsCount, neighborsCount, size_n_int, cudaMemcpyHostToDevice));
+
         const int threadsPerBlock = 256;
-        // printf("CUDA MomentumAndEnergy kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
+        const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
-        if (s == d.noOfGpuLoopSplits - 1) // if its the last chunk, send the rest of particle data to GPU
-        {
-            CHECK_CUDA_ERR(cudaMemcpy(d_clist, clist.data() + (s * n_chunk), size_n_int_lastChunk, cudaMemcpyHostToDevice));
-            CHECK_CUDA_ERR(cudaMemcpy(d_neighbors, d.neighbors.data() + (s * allNeighbors_chunk), size_allNeighbors_lastChunk,
-                                      cudaMemcpyHostToDevice));
-            CHECK_CUDA_ERR(
-                cudaMemcpy(d_neighborsCount, d.neighborsCount.data() + (s * n_chunk), size_n_int_lastChunk, cudaMemcpyHostToDevice));
+        momenumAndEnergy<T><<<blocksPerGrid, threadsPerBlock>>>(n, d.dx, d.sincIndex, d.K, d.ngmax, d_bbox, d_clist, d_neighbors,
+                                                                d_neighborsCount, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c,
+                                                                d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du);
 
-            const int blocksPerGrid = (n_lastChunk + threadsPerBlock - 1) / threadsPerBlock;
-            momenumAndEnergy<T><<<blocksPerGrid, threadsPerBlock>>>(n_lastChunk, d.dx, d.sincIndex, d.K, d.ngmax, d_bbox, d_clist,
-                                                                    d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h,
-                                                                    d_m, d_ro, d_p, d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du);
-
-            CHECK_CUDA_ERR(cudaGetLastError());
-
-            CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data() + (s * n_chunk), d_grad_P_x, size_n_T_lastChunk, cudaMemcpyDeviceToHost));
-            CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data() + (s * n_chunk), d_grad_P_y, size_n_T_lastChunk, cudaMemcpyDeviceToHost));
-            CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data() + (s * n_chunk), d_grad_P_z, size_n_T_lastChunk, cudaMemcpyDeviceToHost));
-            CHECK_CUDA_ERR(cudaMemcpy(d.du.data() + (s * n_chunk), d_du, size_n_T_lastChunk, cudaMemcpyDeviceToHost));
-        }
-        else
-        {
-            CHECK_CUDA_ERR(cudaMemcpy(d_clist, clist.data() + (s * n_chunk), size_n_int_chunk, cudaMemcpyHostToDevice));
-            CHECK_CUDA_ERR(
-                cudaMemcpy(d_neighbors, d.neighbors.data() + (s * allNeighbors_chunk), size_allNeighbors_chunk, cudaMemcpyHostToDevice));
-            CHECK_CUDA_ERR(cudaMemcpy(d_neighborsCount, d.neighborsCount.data() + (s * n_chunk), size_n_int_chunk, cudaMemcpyHostToDevice));
-            const int blocksPerGrid = (n_chunk + threadsPerBlock - 1) / threadsPerBlock;
-
-            momenumAndEnergy<T><<<blocksPerGrid, threadsPerBlock>>>(n_chunk, d.dx, d.sincIndex, d.K, d.ngmax, d_bbox, d_clist, d_neighbors,
-                                                                    d_neighborsCount, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p,
-                                                                    d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du);
-
-            CHECK_CUDA_ERR(cudaGetLastError());
-
-            CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data() + (s * n_chunk), d_grad_P_x, size_n_T_chunk, cudaMemcpyDeviceToHost));
-            CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data() + (s * n_chunk), d_grad_P_y, size_n_T_chunk, cudaMemcpyDeviceToHost));
-            CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data() + (s * n_chunk), d_grad_P_z, size_n_T_chunk, cudaMemcpyDeviceToHost));
-            CHECK_CUDA_ERR(cudaMemcpy(d.du.data() + (s * n_chunk), d_du, size_n_T_chunk, cudaMemcpyDeviceToHost));
-        }
+        CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data() + clist.front(), d_grad_P_x, size_n_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data() + clist.front(), d_grad_P_y, size_n_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data() + clist.front(), d_grad_P_z, size_n_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.du.data() + clist.front(), d_du, size_n_T, cudaMemcpyDeviceToHost));
     }
 
-    utils::cudaFree(d_clist, d_neighborsCount, d_neighbors, d_bbox, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c, d_grad_P_x,
-                    d_grad_P_y, d_grad_P_z, d_du);
+    CHECK_CUDA_ERR(utils::cudaFree(d_clist, d_neighborsCount, d_neighbors, d_bbox, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p,
+                                   d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du));
 }
 } // namespace cuda
 } // namespace sph

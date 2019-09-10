@@ -10,11 +10,13 @@ namespace sph
 {
 namespace cuda
 {
-template <typename T, class Dataset>
-extern void computeMomentumAndEnergy(const std::vector<int> &l, Dataset &dataset);
+using ParticleIdxChunk = std::vector<int>;
 
 template <typename T, class Dataset>
-extern void computeDensity(const std::vector<int> &l, Dataset &dataset);
+extern void computeMomentumAndEnergy(const std::vector<ParticleIdxChunk> &l, Dataset &dataset);
+
+template <typename T, class Dataset>
+extern void computeDensity(const std::vector<ParticleIdxChunk> &l, Dataset &dataset);
 }
 } // namespace sph
 } // namespace sphexa
