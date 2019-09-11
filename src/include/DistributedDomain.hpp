@@ -225,7 +225,7 @@ public:
 
                         // if(comm_rank == 1) printf("[%d] sends cell %d (%d) at %d to %d\n", from, ptri, count, padding, to);
                         // if(padding + count > (*data[i]).size()) printf("ERROR: %d %d %lu\n", padding, count, (*data[i]).size());
-                        MPI_Isend(buff, count, MPI_DOUBLE, to, ptri, MPI_COMM_WORLD, &requests[rcount + i]);
+                        MPI_Isend(buff, count, MPI_DOUBLE, to, ptri * data.size() + i, MPI_COMM_WORLD, &requests[rcount + i]);
                     }
                 }
             }
@@ -256,7 +256,7 @@ public:
                         // if(padding + count > (*data[i]).size()) printf("ERROR: %d %d\n", padding, count);
                         // printf("Padding: %d\n", padding);
 
-                        MPI_Recv(buff, count, MPI_DOUBLE, from, ptri, MPI_COMM_WORLD, &status[i]); //&requests[rcount + i]);
+                        MPI_Recv(buff, count, MPI_DOUBLE, from, ptri * data.size() + i, MPI_COMM_WORLD, &status[i]); //&requests[rcount + i]);
                     }
                 }
         }
@@ -268,7 +268,7 @@ public:
         }
     }
 
-    void computeGlobalBoundingBox(const int n, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z)
+    void computeGlobalBoundingBox(const std::vector<int> &clist, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z)
     {
         if (!PBCx) xmin = INFINITY;
         if (!PBCx) xmax = -INFINITY;
@@ -277,8 +277,10 @@ public:
         if (!PBCz) zmin = INFINITY;
         if (!PBCz) zmax = -INFINITY;
 
-        for (int i = 0; i < n; i++)
+        for (unsigned int pi = 0; pi < clist.size(); pi++)
         {
+            const int i = clist[pi];
+
             T xx = x[i];
             T yy = y[i];
             T zz = z[i];
@@ -300,7 +302,7 @@ public:
     }
 
     template <class Dataset>
-    void approximate(Dataset &d)
+    void approximate(std::vector<int> &clist, Dataset &d)
     {
         const std::vector<T> &x = d.x;
         const std::vector<T> &y = d.y;
@@ -318,7 +320,13 @@ public:
 
         // We compute the global bounding box of the global domain
         // All processes will have the same box dimensions for the domain
-        computeGlobalBoundingBox(n, x, y, z);
+        computeGlobalBoundingBox(clist, x, y, z);
+        d.bbox.xmin = xmin;
+        d.bbox.xmax = xmax;
+        d.bbox.ymin = ymin;
+        d.bbox.ymax = ymax;
+        d.bbox.zmin = zmin;
+        d.bbox.zmax = zmax;
 
         // printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
 
@@ -331,36 +339,35 @@ public:
         for (int i = 0; i < local_sample_size; i++)
         {
             int j = rand() % n;
-            sx[ptri + i] = x[j];
-            sy[ptri + i] = y[j];
-            sz[ptri + i] = z[j];
-            sh[ptri + i] = h[j];
+            sx[ptri + i] = x[clist[j]];
+            sy[ptri + i] = y[clist[j]];
+            sz[ptri + i] = z[clist[j]];
+            sh[ptri + i] = h[clist[j]];
         }
-
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sx[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sy[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sz[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sh[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
 
         // Each process creates a tree based on the gathered sample
+        octree.cells.clear();
+
         octree = Octree<T>(xmin, xmax, ymin, ymax, zmin, zmax, comm_rank, comm_size);
         octree.approximate(sx, sy, sz, sh);
 
         std::vector<int> ordering(n);
-        
-        std::vector<int> list(x.size());
-        for(int i=0; i<(int)x.size(); i++)
-            list[i] = i;
-
-        octree.localMapParticles(list, x, y, z, h, ordering, false);
+        octree.localMapParticles(clist, x, y, z, h, ordering, false);
         octree.computeGlobalParticleCount();
         reorder(ordering, d);
+
+        for (unsigned int i = 0; i < clist.size(); i++)
+            clist[i] = i;
 
         //printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount);
     }
 
     template <class Dataset>
-    void distribute(const std::vector<int> &clist, Dataset &d)
+    void distribute(std::vector<int> &clist, Dataset &d)
     {
         const std::vector<T> &x = d.x;
         const std::vector<T> &y = d.y;
@@ -378,7 +385,8 @@ public:
 
         // We compute the global bounding box of the global domain
         // All processes will have the same box dimensions for the domain
-        computeGlobalBoundingBox(n, x, y, z);
+        computeGlobalBoundingBox(clist, x, y, z);
+
         d.bbox.xmin = xmin;
         d.bbox.xmax = xmax;
         d.bbox.ymin = ymin;
@@ -386,30 +394,34 @@ public:
         d.bbox.zmin = zmin;
         d.bbox.zmax = zmax;
 
-        // printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
+        // printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax); fflush(stdout);
 
         // We map the nodes to a 1D array and retrieve the order of the particles in the tree
         std::vector<int> ordering(n);
 
-        int nsplits = 0;
         //do
         {
             // Done every iteration, this will either add or remove global nodes
             // depending if there are too much / too few particles globally
-            nsplits = octree.globalRebalance();
 
-            if(comm_rank == 0) printf("SPLITS: %d, Nodes: %d\n", nsplits, octree.globalNodeCount);
+            // printf("[%d] %d -> %d %d %d %d %d %d %d %d\n", comm_rank, octree.globalNodeCount, octree.cells[0]->globalParticleCount, octree.cells[1]->globalParticleCount, octree.cells[2]->globalParticleCount, octree.cells[3]->globalParticleCount, octree.cells[4]->globalParticleCount, octree.cells[5]->globalParticleCount, octree.cells[6]->globalParticleCount, octree.cells[7]->globalParticleCount);
+            
+            octree.globalRebalance(xmin, xmax, ymin, ymax, zmin, zmax);
+
+            // printf("[%d] SPLITS: %d, Nodes: %d\n", comm_rank, nsplits, octree.globalNodeCount);
+            // fflush(stdout);
 
             // We now reorder the data in memory so that it matches the octree layout
             // In other words, iterating over the array is the same as walking the tree
             // This is the same a following a Morton / Z-Curve path
-            octree.localMapParticles(clist, x, y, z, h, ordering, false);
-            octree.computeGlobalParticleCount();
+            octree.buildGlobalTreeAndGlobalCountAndGlobalMaxH(clist, x, y, z, h, ordering);
+            //octree.computeGlobalParticleCount();
         } //while(nsplits > 0);
 
+        // Getting rid of particles that do not belong to us
         reorder(ordering, d);
 
-        // printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount);
+        // printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount); fflush(stdout);
 
         // We then map the tree to processes
         std::vector<int> work_remaining(comm_size);
@@ -424,7 +436,7 @@ public:
         }
 
         // printf("[%d] Total Avail: %d, Total Alloc: %d || Got: %d\n", comm_rank, totalAvail, totalAlloc, work[comm_rank] -
-        //  work_remaining[comm_rank]);
+        //   work_remaining[comm_rank]); fflush(stdout);
 
         // Send the particles from the old arrays either to the new arrays or to another process
         // Basically collects a map[process][nodes] to send to other processes
@@ -432,47 +444,56 @@ public:
         // And just loop receive until we have received all the missing particles from other processes
         sync(d.arrayList);
 
-        // printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount, octree.globalParticleCount);
+        // printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount, octree.globalParticleCount); fflush(stdout);
 
-        octree.computeGlobalMaxH();
+        //octree.computeGlobalMaxH();
         haloCount = octree.findHalos(toSendHalos, PBCx, PBCy, PBCz);
 
         workAssigned = work[comm_rank] - work_remaining[comm_rank];
 
+        // int check = workAssigned;
+        // MPI_Allreduce(MPI_IN_PLACE, &check, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        // if(comm_rank == 0)
+        //     printf("CHECK: %d\n", check);
+
         // printf("[%d] haloCount: %d (%.2f%%)\n", comm_rank, haloCount,
-        //         haloCount / (double)(workAssigned) * 100.0);
+        //         haloCount / (double)(workAssigned) * 100.0); fflush(stdout);
 
         // Finally remap everything
         ordering.resize(workAssigned + haloCount);
         for(int i=0; i<(int)ordering.size(); i++)
             ordering[i] = 0;
 
-        std::vector<int> list(x.size());
-        for(int i=0; i<(int)x.size(); i++)
+        // We map ALL particles
+        // Particles that do not belong to us will be ignored in the localMapParticleFunction
+        std::vector<int> list(d.x.size());
+        for(int i=0; i<(int)d.x.size(); i++)
             list[i] = i;
-        
-        octree.localMapParticles(list, x, y, z, h, ordering, false);
 
+        octree.buildTreeWithHalos(list, x, y, z, ordering);
         reorder(ordering, d);
+
+        clist.resize(workAssigned);
+        for(int i=0; i<workAssigned; i++)
+            clist[i] = i;
+
+        octree.mapList(clist);
+        d.count = workAssigned;
     }
 
     template <class Dataset>
-    void buildTree(std::vector<int> &clist, Dataset &d)
+    void buildTree(Dataset &d)
     {
         // Finally remap everything
-        std::vector<int> ordering(workAssigned + haloCount);
+        std::vector<int> ordering(d.x.size());
 
         std::vector<int> list(d.x.size());
         for(int i=0; i<(int)d.x.size(); i++)
             list[i] = i;
 
         // We need this to expand halo
-        octree.localMapParticles(list, d.x, d.y, d.z, d.h, ordering, true);
+        octree.buildTree(list, d.x, d.y, d.z, ordering);
         reorder(ordering, d);
-
-        d.count = workAssigned;
-        clist.resize(workAssigned);
-        octree.mapList(clist);
     }
 
     const int local_sample_size = 100;

@@ -26,6 +26,11 @@ public:
 
     Octree() {}
 
+    ~Octree()
+    {
+        cells.resize(0);
+    }
+
     std::vector<std::shared_ptr<Octree>> cells;
 
     T xmin = INFINITY, xmax = -INFINITY, ymin = INFINITY, ymax = -INFINITY, zmin = INFINITY, zmax = -INFINITY;
@@ -41,7 +46,7 @@ public:
     int localParticleCount = 0;
     int globalParticleCount = 0;
 
-    T localHmax = 0.0;
+    T localMaxH = 0.0;
     T globalMaxH = 0.0;
 
     bool halo = false;
@@ -50,7 +55,7 @@ public:
 
     static const int nX = 2, nY = 2, nZ = 2;
     static const int ncells = 8;
-    static const int bucketSize = 64, maxGlobalBucketSize = 8192, minGlobalBucketSize = 64;
+    static const int bucketSize = 32, maxGlobalBucketSize = 512, minGlobalBucketSize = 32;
 
     static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
@@ -175,14 +180,17 @@ public:
 
     void print(int l = 0)
     {
-        for (int i = 0; i < l; i++)
-            printf("   ");
-        printf("%d %d %d\n", localPadding, localParticleCount, globalParticleCount);
-
-        if ((int)cells.size() == ncells)
+        if(global)
         {
-            for (int i = 0; i < ncells; i++)
-                cells[i]->print(l + 1);
+            for (int i = 0; i < l; i++)
+                printf("   ");
+            printf("[%d] %d %d %d\n", assignee, localPadding, localParticleCount, globalParticleCount);
+
+            if ((int)cells.size() == ncells)
+            {
+                for (int i = 0; i < ncells; i++)
+                    cells[i]->print(l + 1);
+            }
         }
     }
 
@@ -232,7 +240,7 @@ public:
         const T size = std::max(sizez, std::max(sizey, sizex));
 
         // Expand node if cell bigger than 2.0 * h
-        if (size > 8.0 * hmax && list.size() > 0)
+        if (size > 2.0 * hmax && list.size() > 0)
         {
             std::vector<std::vector<int>> cellList(ncells);
             distributeParticles(list, x, y, z, cellList);
@@ -269,32 +277,59 @@ public:
         }
     }
 
-    int globalRebalance()
+    int globalRebalance(T xmin, T xmax, T ymin, T ymax,  T zmin, T zmax)
     {
-        int nsplits = 0;
-        this->globalNodeCount = 0;
+        this->xmin = xmin;
+        this->xmax = xmax;
+        this->ymin = ymin;
+        this->ymax = ymax;
+        this->zmin = zmin;
+        this->zmax = zmax;
+
         this->assignee = -1;
         this->halo = false;
+
+        this->localPadding = 0;
+        this->globalNodeCount = 0;
+        this->localParticleCount = 0;
+
+        this->localMaxH = 0.0;
+        this->globalMaxH = 0.0;
+
+        int nsplits = 0;
 
         if (global)
         {
             this->globalNodeCount = 1;
 
+            // Closing non global branches
+            if((int)cells.size() == ncells && cells[0]->global == false)
+                cells.clear();
+
             if ((int)cells.size() == ncells)
             {
                 if (globalParticleCount < minGlobalBucketSize)
-                    cells.resize(0);
+                    cells.clear();
                 else
                 {
-                    // Closing non global branches
-                    if(cells[0]->global == false)
-                        cells.resize(0);
-                    else
+                    for (int hz = 0; hz < nZ; hz++)
                     {
-                        for (int i = 0; i < ncells; i++)
+                        for (int hy = 0; hy < nY; hy++)
                         {
-                            nsplits += cells[i]->globalRebalance();
-                            this->globalNodeCount += cells[i]->globalNodeCount;
+                            for (int hx = 0; hx < nX; hx++)
+                            {
+                                T ax = xmin + hx * (xmax - xmin) / nX;
+                                T bx = xmin + (hx + 1) * (xmax - xmin) / nX;
+                                T ay = ymin + hy * (ymax - ymin) / nY;
+                                T by = ymin + (hy + 1) * (ymax - ymin) / nY;
+                                T az = zmin + hz * (zmax - zmin) / nZ;
+                                T bz = zmin + (hz + 1) * (zmax - zmin) / nZ;
+
+                                unsigned int i = hz * nX * nY + hy * nX + hx;
+
+                                nsplits += cells[i]->globalRebalance(ax, bx, ay, by, az, bz);
+                                this->globalNodeCount += cells[i]->globalNodeCount;
+                            }
                         }
                     }
                 }
@@ -303,16 +338,22 @@ public:
             {
                 if (globalParticleCount > maxGlobalBucketSize)
                 {
-                    cells.resize(0);
-
-                    nsplits++;
                     makeSubCells();
-                    this->globalNodeCount += 8;
+                    nsplits += ncells;
                     for (int i = 0; i < ncells; i++)
+                    {
+                        //cells[i]->approximateRec(cellList[i], x, y, z, h);
+                        cells[i]->globalNodeCount = 1;
                         cells[i]->global = true;
+                        this->globalNodeCount += cells[i]->globalNodeCount;
+                    }
                 }
+                else
+                    this->globalNodeCount = 1;
             }
         }
+
+        this->globalParticleCount = 0;
 
         return nsplits;
     }
@@ -322,7 +363,7 @@ public:
     {
         this->localPadding = padding;
         this->localParticleCount = 0;
-        this->localHmax = 0.0;
+        this->localMaxH = 0.0;
 
         // If processes have been assigned to the tree nodes, it will ignore nodes not assigned to him
         // Thereby also discarding particles that do not belong to the current process
@@ -345,19 +386,19 @@ public:
                     // if(comm_rank == 0 && (cells[i]->assignee == -1 || cells[i]->assignee == comm_rank)) printf("%d %d %d\n",
                     // (int)ordering.size(), padding, (int)cellList[i].size());
                     cells[i]->localMapParticlesRec(cellList[i], x, y, z, h, ordering, expand, padding);
-                    this->localHmax = std::max(this->localHmax, cells[i]->localHmax);
+                    this->localMaxH = std::max(this->localMaxH, cells[i]->localMaxH);
                     this->localParticleCount += cells[i]->localParticleCount;
                     padding += cells[i]->localParticleCount;
                 }
             }
             else
             {
-                this->localHmax = 0.0;
+                this->localMaxH = 0.0;
                 this->localParticleCount = list.size();
                 for (int i = 0; i < (int)list.size(); i++)
                 {
                     ordering[padding + i] = list[i];
-                    if (h[list[i]] > this->localHmax) this->localHmax = h[list[i]];
+                    if (h[list[i]] > this->localMaxH) this->localMaxH = h[list[i]];
                 }
             }
         }
@@ -393,12 +434,12 @@ public:
             // We are expanding
             else
             {
-                this->localHmax = 0.0;
+                this->localMaxH = 0.0;
                 this->localParticleCount = list.size();
                 for (int i = 0; i < (int)list.size(); i++)
                 {
                     ordering[padding + i] = list[i];
-                    if (h[list[i]] > this->localHmax) this->localHmax = h[list[i]];
+                    if (h[list[i]] > this->localMaxH) this->localMaxH = h[list[i]];
                 }
             }
         }
@@ -408,6 +449,130 @@ public:
                            std::vector<int> &ordering, bool expand)
     {
         localMapParticlesRec(list, x, y, z, h, ordering, expand);
+    }
+
+    void buildGlobalTreeAndGlobalCountAndGlobalMaxHRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h,
+                              std::vector<int> &ordering, std::vector<int> &globalParticleCount, std::vector<T> &globalMaxH, int padding = 0, int ptri = 0)
+    {
+        this->localPadding = padding;
+        this->localParticleCount = 0;
+        this->globalMaxH = 0.0;
+
+        int it = ptri;
+
+        ptri++;
+
+        std::vector<std::vector<int>> cellList(ncells);
+        distributeParticles(list, x, y, z, cellList);
+
+        if ((int)cells.size() == ncells)
+        {
+            for (int i = 0; i < ncells; i++)
+            {
+                cells[i]->buildGlobalTreeAndGlobalCountAndGlobalMaxHRec(cellList[i], x, y, z, h, ordering, globalParticleCount, globalMaxH, padding, ptri);
+                this->localParticleCount += cells[i]->localParticleCount;
+                this->globalMaxH = std::max(this->globalMaxH, cells[i]->globalMaxH);
+                padding += cells[i]->localParticleCount;
+                ptri += cells[i]->globalNodeCount;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < (int)list.size(); i++)
+            {
+                ordering[padding + i] = list[i];
+                if(h[list[i]] > this->globalMaxH)
+                    this->globalMaxH = h[list[i]];
+            }
+            this->localParticleCount = list.size();
+        }
+
+        globalMaxH[it] = this->globalMaxH;
+        globalParticleCount[it] = this->localParticleCount;
+    }
+
+    void buildGlobalTreeAndGlobalCountAndGlobalMaxH(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h, std::vector<int> &ordering)
+    {
+        std::vector<int> globalParticleCount(globalNodeCount, 0);
+        std::vector<T> globalMaxH(globalNodeCount, 0.0);
+
+        buildGlobalTreeAndGlobalCountAndGlobalMaxHRec(list, x, y, z, h, ordering, globalParticleCount, globalMaxH);
+
+        MPI_Allreduce(MPI_IN_PLACE, &globalParticleCount[0], globalNodeCount, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, &globalMaxH[0], globalNodeCount, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+        setParticleCountPerNode(globalParticleCount);
+        setMaxHPerNode(globalMaxH);
+    }
+
+    void buildTreeWithHalosRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, std::vector<int> &ordering, int padding = 0)
+    {
+        this->localPadding = padding;
+        this->localParticleCount = 0;// this->globalParticleCount;
+
+        if(assignee == -1 || assignee == comm_rank || halo == true)
+        {
+            std::vector<std::vector<int>> cellList(ncells);
+            distributeParticles(list, x, y, z, cellList);
+
+            if ((int)cells.size() == ncells)
+            {
+                for (int i = 0; i < ncells; i++)
+                {
+                    cells[i]->buildTreeWithHalosRec(cellList[i], x, y, z, ordering, padding);
+                    this->localParticleCount += cells[i]->localParticleCount;
+                    padding += cells[i]->localParticleCount;
+                }
+            }
+            else if(assignee == comm_rank || halo == true)
+            {
+                // If this is a halo node then we may not have all the particles yet
+                // But we know how much space to reserve!
+                this->localParticleCount = this->globalParticleCount;
+
+                for (int i = 0; i < (int)list.size(); i++)
+                    ordering[padding + i] = list[i];
+            }
+        }
+    }
+
+    void buildTreeWithHalos(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, std::vector<int> &ordering)
+    {
+        buildTreeWithHalosRec(list, x, y, z, ordering);
+    }
+
+    void buildTreeRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z,
+                              std::vector<int> &ordering, int padding = 0)
+    {
+        this->localPadding = padding;
+        this->localParticleCount = 0;
+
+        std::vector<std::vector<int>> cellList(ncells);
+        distributeParticles(list, x, y, z, cellList);
+
+        if((int)cells.size() == 0 && list.size() > bucketSize)
+            makeSubCells();
+
+        if ((int)cells.size() == ncells)
+        {
+            for (int i = 0; i < ncells; i++)
+            {
+                cells[i]->buildTreeRec(cellList[i], x, y, z, ordering, padding);
+                this->localParticleCount += cells[i]->localParticleCount;
+                padding += cells[i]->localParticleCount;
+            }
+        }
+        else
+        {
+            for (int i = 0; i < (int)list.size(); i++)
+                ordering[padding + i] = list[i];
+            this->localParticleCount = list.size();
+        }
+    }
+
+    void buildTree(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, std::vector<int> &ordering)
+    {
+        buildTreeRec(list, x, y, z, ordering);
     }
 
     void assignProcessesRec(std::vector<int> &work, int &pi)
@@ -473,15 +638,29 @@ public:
         }
     }
 
-    inline bool overlap(T leftA, T rightA, T leftB, T rightB) { return leftA < rightB && rightA > leftB; }
+    //inline bool overlap(T leftA, T rightA, T leftB, T rightB) { return leftA < rightB && rightA > leftB; }
+    //inline bool overlap(T leftA, T rightA, T leftB, T rightB) { return (leftA < rightB && leftA > leftB) || (rightA < rightB && rightA > leftB); }
 
     inline bool overlap(Octree *a)
     {
-        T radius = a->globalMaxH * 2.0;
+    	T radius = a->globalMaxH * 64.0;//2.1;
 
-        return overlap(a->xmin - radius, a->xmax + radius, xmin, xmax) && overlap(a->ymin - radius, a->ymax + radius, ymin, ymax) &&
-               overlap(a->zmin - radius, a->zmax + radius, zmin, zmax);
+    	//Check if Box1's max is greater than Box2's min and Box1's min is less than Box2's max
+	    return(a->xmax+radius > xmin && 
+	    a->xmin-radius < xmax &&
+	    a->ymax+radius > ymin &&
+	    a->ymin-radius < ymax &&
+	    a->zmax+radius > zmin &&
+	    a->zmin-radius < zmax);
     }
+
+    // inline bool overlap(Octree *a)
+    // {
+    //     T radius = a->globalMaxH * 2.0;
+
+    //     return overlap(a->xmin - radius, a->xmax + radius, xmin, xmax) && overlap(a->ymin - radius, a->ymax + radius, ymin, ymax) &&
+    //            overlap(a->zmin - radius, a->zmax + radius, zmin, zmax);
+    // }
 
     int findHalosList(Octree *a, std::map<int, std::map<int, Octree<T> *>> &toSendHalos, int ptri = 0)
     {
@@ -516,12 +695,14 @@ public:
                     }
                     else
                     {
-
-                        if (a->assignee == comm_rank)
+                        if (toSendHalos[a->assignee].count(ptri) == 0)
                         {
-                            if (toSendHalos[a->assignee].count(ptri) == 0) { haloCount += globalParticleCount; }
+                            if (a->assignee == comm_rank)
+                            {
+                                haloCount += globalParticleCount;
+                            }
+                            toSendHalos[a->assignee][ptri] = this;
                         }
-                        toSendHalos[a->assignee][ptri] = this;
                     }
                 }
             }
@@ -583,7 +764,7 @@ public:
                             // int hxx = PBCx ? (hx % nX) + (hx < 0) * nX : hx;
 
                             // unsigned int l = hzz * nY * nX + hyy * nX + hxx;
-
+                            
                             xmin = xmin + displx;
                             xmax = xmax + displx;
                             ymin = ymin + disply;
@@ -678,7 +859,7 @@ public:
     {
         if (global)
         {
-            hmax[ptri] = this->localHmax;
+            hmax[ptri] = this->localMaxH;
 
             if ((int)cells.size() == ncells)
             {
@@ -723,19 +904,24 @@ public:
 
     void mapListRec(std::vector<int> &clist, int &it)
     {
-        if (assignee == comm_rank)
+        if((int)cells.size() == ncells)
         {
-            for (int i = 0; i < localParticleCount; i++)
+            if(assignee == -1 || assignee == comm_rank)
             {
-                clist[it++] = localPadding + i;
+                for (int i = 0; i < ncells; i++)
+                {
+                    cells[i]->mapListRec(clist, it);
+                }
             }
         }
-        else if (assignee == -1 && (int)cells.size())
+        else
         {
-            for (int i = 0; i < ncells; i++)
+            if (assignee == comm_rank)
             {
-                cells[i]->mapListRec(clist, it);
-                cells[i]->localParticleCount;
+                for (int i = 0; i < localParticleCount; i++)
+                {
+                    clist[it++] = localPadding + i;
+                }
             }
         }
     }

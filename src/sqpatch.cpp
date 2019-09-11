@@ -38,7 +38,7 @@ int main(int argc, char **argv)
     std::ofstream constants("constants.txt");
 
     distributedDomain.setBox(0, 0, 0, 0, d.bbox.zmin, d.bbox.zmax, false, false, true);
-    distributedDomain.approximate(d);
+    distributedDomain.approximate(clist, d);
 
     MPITimer timer(d.rank);
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
@@ -46,34 +46,65 @@ int main(int argc, char **argv)
         timer.start();
 
         distributedDomain.distribute(clist, d);
+        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("domain::distribute");
 
+        //if(distributedDomain.comm_rank == 0) distributedDomain.octree.print();
+
         distributedDomain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
+        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("mpi::synchronizeHalos");
 
-        distributedDomain.buildTree(clist, d);
+        distributedDomain.buildTree(d);
+        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("domain::buildTree");
 
+  //       MPI_Barrier(MPI_COMM_WORLD);
+
+  //       {
+		//     char fname[256];
+		//     sprintf(fname, "particlesSync%d", distributedDomain.comm_rank);
+		//     FILE *fout = fopen(fname, "w");
+		//     //for(int i=0; i<(int)clist.size(); i++)
+		//     for(int i=0; i<d.x.size(); i++)
+		//     {
+		//     	//printf("%d %f %f %f\n", clist[i], d.x[clist[i]], d.y[clist[i]], d.z[clist[i]]);
+		//         //fprintf(fout, "%f %f %f\n", d.x[clist[i]], d.y[clist[i]], d.z[clist[i]]);
+		//         fprintf(fout, "%f %f %f\n", d.x[i], d.y[i], d.z[i]);
+		//     }
+		//     fclose(fout);
+		// }
+
+		// MPI_Barrier(MPI_COMM_WORLD);
+
         distributedDomain.findNeighbors(clist, d);
+        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("FindNeighbors");
 
         sph::computeDensity<Real>(clist, d);
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(clist, d); }
+        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("Density");
 
         sph::computeEquationOfState<Real>(clist, d);
+        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("EquationOfState");
 
         distributedDomain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
+        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("mpi::synchronizeHalos");
 
         sph::computeMomentumAndEnergy<Real>(clist, d);
+        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("MomentumEnergy");
         sph::computeTimestep<Real>(clist, d);
+        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("Timestep"); // AllReduce(min:dt)
         sph::computePositions<Real>(clist, d);
+        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("UpdateQuantities");
         sph::computeTotalEnergy<Real>(clist, d);
+        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
 
         long long int totalNeighbors = distributedDomain.neighborsSum(clist, d);
@@ -88,12 +119,10 @@ int main(int argc, char **argv)
             cout << "### Check ### Total energy: " << d.etot << ", (internal: " << d.eint << ", cinetic: " << d.ecin << ")" << endl;
         }
 
-        if (writeFrequency > 0 && d.iteration % writeFrequency == 0)
+        if ((writeFrequency > 0 && d.iteration % writeFrequency == 0))
         {
-            std::ofstream dump("dump" + to_string(d.iteration) + ".txt");
-            d.writeData(clist, dump);
+            d.writeData(clist, "dump" + to_string(d.iteration) + ".txt");
             timer.step("writeFile");
-            dump.close();
         }
         d.writeConstants(d.iteration, totalNeighbors, constants);
 
@@ -109,12 +138,3 @@ int main(int argc, char **argv)
 
     return 0;
 }
-
-// {
-//     char fname[256];
-//     sprintf(fname, "particlesSync%d", distributedDomain.comm_rank);
-//     FILE *fout = fopen(fname, "w");
-//     for(int i=0; i<(int)d.x.size(); i++)
-//         fprintf(fout, "%f %f %f\n", d.x[i], d.y[i], d.z[i]);
-//     fclose(fout);
-// }
