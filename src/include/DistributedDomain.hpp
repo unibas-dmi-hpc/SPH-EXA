@@ -356,8 +356,7 @@ public:
         octree.approximate(sx, sy, sz, sh);
 
         std::vector<int> ordering(n);
-        octree.localMapParticles(clist, x, y, z, h, ordering, false);
-        octree.computeGlobalParticleCount();
+        octree.buildGlobalTreeAndGlobalCountAndGlobalMaxH(clist, x, y, z, h, ordering);
         reorder(ordering, d);
 
         for (unsigned int i = 0; i < clist.size(); i++)
@@ -418,7 +417,7 @@ public:
             //octree.computeGlobalParticleCount();
         } //while(nsplits > 0);
 
-        // Getting rid of particles that do not belong to us
+        // Getting rid of old halos
         reorder(ordering, d);
 
         // printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount); fflush(stdout);

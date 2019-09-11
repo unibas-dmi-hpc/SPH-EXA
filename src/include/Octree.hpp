@@ -55,7 +55,7 @@ public:
 
     static const int nX = 2, nY = 2, nZ = 2;
     static const int ncells = 8;
-    static const int bucketSize = 128, maxGlobalBucketSize = 8192, minGlobalBucketSize = 512;
+    static const int bucketSize = 128, maxGlobalBucketSize = 512, minGlobalBucketSize = 256;
 
     static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
@@ -357,100 +357,7 @@ public:
 
         return nsplits;
     }
-
-    void localMapParticlesRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z,
-                              const std::vector<T> &h, std::vector<int> &ordering, bool expand, int padding = 0)
-    {
-        this->localPadding = padding;
-        this->localParticleCount = 0;
-        this->localMaxH = 0.0;
-
-        // If processes have been assigned to the tree nodes, it will ignore nodes not assigned to him
-        // Thereby also discarding particles that do not belong to the current process
-        if (assignee == -1 || assignee == comm_rank)
-        {
-            std::vector<std::vector<int>> cellList(ncells);
-            distributeParticles(list, x, y, z, cellList);
-
-            if (expand == true && assignee == comm_rank && (int)cells.size() == 0 && list.size() > bucketSize)
-            {
-                makeSubCells();
-                for (int i = 0; i < ncells; i++)
-                    cells[i]->assignee = comm_rank;
-            }
-
-            if ((int)cells.size() == ncells)
-            {
-                for (int i = 0; i < ncells; i++)
-                {
-                    // if(comm_rank == 0 && (cells[i]->assignee == -1 || cells[i]->assignee == comm_rank)) printf("%d %d %d\n",
-                    // (int)ordering.size(), padding, (int)cellList[i].size());
-                    cells[i]->localMapParticlesRec(cellList[i], x, y, z, h, ordering, expand, padding);
-                    this->localMaxH = std::max(this->localMaxH, cells[i]->localMaxH);
-                    this->localParticleCount += cells[i]->localParticleCount;
-                    padding += cells[i]->localParticleCount;
-                }
-            }
-            else
-            {
-                this->localMaxH = 0.0;
-                this->localParticleCount = list.size();
-                for (int i = 0; i < (int)list.size(); i++)
-                {
-                    ordering[padding + i] = list[i];
-                    if (h[list[i]] > this->localMaxH) this->localMaxH = h[list[i]];
-                }
-            }
-        }
-        else if (halo)
-        {
-            std::vector<std::vector<int>> cellList(ncells);
-            distributeParticles(list, x, y, z, cellList);
-
-            if (expand == true && (int)cells.size() == 0 && list.size() > bucketSize)
-            {
-                makeSubCells();
-                for (int i = 0; i < ncells; i++)
-                {
-                    cells[i]->halo = true;
-                    cells[i]->assignee = assignee;
-                    cells[i]->localParticleCount = cellList[i].size();
-                }
-            }
-
-            // Needed to set the padding correctly in every subnode
-            if ((int)cells.size() == ncells)
-            {
-                for (int i = 0; i < ncells; i++)
-                {
-                    cells[i]->localMapParticlesRec(cellList[i], x, y, z, h, ordering, expand, padding);
-                    this->localParticleCount += cells[i]->localParticleCount;
-                    padding += cells[i]->localParticleCount;
-                }
-            }
-            else if (global)
-                // We are expanding before halos insertion (global only)
-                this->localParticleCount = globalParticleCount;
-            // We are expanding
-            else
-            {
-                this->localMaxH = 0.0;
-                this->localParticleCount = list.size();
-                for (int i = 0; i < (int)list.size(); i++)
-                {
-                    ordering[padding + i] = list[i];
-                    if (h[list[i]] > this->localMaxH) this->localMaxH = h[list[i]];
-                }
-            }
-        }
-    }
-
-    void localMapParticles(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h,
-                           std::vector<int> &ordering, bool expand)
-    {
-        localMapParticlesRec(list, x, y, z, h, ordering, expand);
-    }
-
+    
     void buildGlobalTreeAndGlobalCountAndGlobalMaxHRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h,
                               std::vector<int> &ordering, std::vector<int> &globalParticleCount, std::vector<T> &globalMaxH, int padding = 0, int ptri = 0)
     {
@@ -559,8 +466,7 @@ public:
             {
                 #pragma omp task
                 cells[i]->buildTreeRec(cellList[i], x, y, z, ordering, padding);
-                //this->localParticleCount += cells[i]->localParticleCount;
-                padding += cellList[i].size();//cells[i]->localParticleCount;
+                padding += cellList[i].size();
             }
             #pragma omp taskwait
         }
@@ -568,7 +474,6 @@ public:
         {
             for (int i = 0; i < (int)list.size(); i++)
                 ordering[padding + i] = list[i];
-            //this->localParticleCount = list.size();
         }
     }
 
@@ -642,9 +547,6 @@ public:
         }
     }
 
-    //inline bool overlap(T leftA, T rightA, T leftB, T rightB) { return leftA < rightB && rightA > leftB; }
-    //inline bool overlap(T leftA, T rightA, T leftB, T rightB) { return (leftA < rightB && leftA > leftB) || (rightA < rightB && rightA > leftB); }
-
     inline bool overlap(Octree *a)
     {
     	T radius = a->globalMaxH * 2.0;
@@ -657,14 +559,6 @@ public:
 	    a->zmax+radius > zmin &&
 	    a->zmin-radius < zmax);
     }
-
-    // inline bool overlap(Octree *a)
-    // {
-    //     T radius = a->globalMaxH * 2.0;
-
-    //     return overlap(a->xmin - radius, a->xmax + radius, xmin, xmax) && overlap(a->ymin - radius, a->ymax + radius, ymin, ymax) &&
-    //            overlap(a->zmin - radius, a->zmax + radius, zmin, zmax);
-    // }
 
     int findHalosList(Octree *a, std::map<int, std::map<int, Octree<T> *>> &toSendHalos, int ptri = 0)
     {
@@ -848,35 +742,6 @@ public:
         }
     }
 
-    void computeGlobalParticleCount()
-    {
-        std::vector<int> localParticleCount(globalNodeCount, 0), globalParticleCount(globalNodeCount, 0);
-
-        getParticleCountPerNode(localParticleCount);
-
-        MPI_Allreduce(&localParticleCount[0], &globalParticleCount[0], globalNodeCount, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-        setParticleCountPerNode(globalParticleCount);
-    }
-
-    void getMaxHPerNode(std::vector<double> &hmax, int ptri = 0)
-    {
-        if (global)
-        {
-            hmax[ptri] = this->localMaxH;
-
-            if ((int)cells.size() == ncells)
-            {
-                ptri++;
-                for (int i = 0; i < ncells; i++)
-                {
-                    cells[i]->getMaxHPerNode(hmax, ptri);
-                    ptri += cells[i]->globalNodeCount;
-                }
-            }
-        }
-    }
-
     void setMaxHPerNode(const std::vector<double> &hmax, int ptri = 0)
     {
         if (global)
@@ -893,17 +758,6 @@ public:
                 }
             }
         }
-    }
-
-    void computeGlobalMaxH()
-    {
-        std::vector<double> globalMaxH(globalNodeCount);
-
-        getMaxHPerNode(globalMaxH);
-
-        MPI_Allreduce(MPI_IN_PLACE, &globalMaxH[0], globalNodeCount, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-        setMaxHPerNode(globalMaxH);
     }
 
     void mapListRec(std::vector<int> &clist, int &it)

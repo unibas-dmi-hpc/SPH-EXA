@@ -34,7 +34,7 @@ inline T pow(T a, int b)
 }
 
 /* Fast lookup table implementation for sin and cos */
-constexpr int MAX_CIRCLE_ANGLE = 131072;
+constexpr int MAX_CIRCLE_ANGLE = 262144;
 constexpr int HALF_MAX_CIRCLE_ANGLE = MAX_CIRCLE_ANGLE / 2;
 constexpr int QUARTER_MAX_CIRCLE_ANGLE = MAX_CIRCLE_ANGLE / 4;
 constexpr int MASK_MAX_CIRCLE_ANGLE = MAX_CIRCLE_ANGLE - 1;
@@ -83,7 +83,7 @@ struct lookup_table_initializer
     }
 };
 
-static math::lookup_table_initializer<float> ltinit;
+static math::lookup_table_initializer<double> ltinit;
 
 } // namespace math
 } // namespace sphexa
