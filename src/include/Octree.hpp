@@ -55,7 +55,7 @@ public:
 
     static const int nX = 2, nY = 2, nZ = 2;
     static const int ncells = 8;
-    static const int bucketSize = 32, maxGlobalBucketSize = 512, minGlobalBucketSize = 32;
+    static const int bucketSize = 128, maxGlobalBucketSize = 8192, minGlobalBucketSize = 512;
 
     static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
@@ -545,7 +545,7 @@ public:
                               std::vector<int> &ordering, int padding = 0)
     {
         this->localPadding = padding;
-        this->localParticleCount = 0;
+        this->localParticleCount = list.size();
 
         std::vector<std::vector<int>> cellList(ncells);
         distributeParticles(list, x, y, z, cellList);
@@ -557,21 +557,25 @@ public:
         {
             for (int i = 0; i < ncells; i++)
             {
+                #pragma omp task
                 cells[i]->buildTreeRec(cellList[i], x, y, z, ordering, padding);
-                this->localParticleCount += cells[i]->localParticleCount;
-                padding += cells[i]->localParticleCount;
+                //this->localParticleCount += cells[i]->localParticleCount;
+                padding += cellList[i].size();//cells[i]->localParticleCount;
             }
+            #pragma omp taskwait
         }
         else
         {
             for (int i = 0; i < (int)list.size(); i++)
                 ordering[padding + i] = list[i];
-            this->localParticleCount = list.size();
+            //this->localParticleCount = list.size();
         }
     }
 
     void buildTree(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, std::vector<int> &ordering)
     {
+        #pragma omp parallel
+        #pragma omp single
         buildTreeRec(list, x, y, z, ordering);
     }
 
@@ -643,7 +647,7 @@ public:
 
     inline bool overlap(Octree *a)
     {
-    	T radius = a->globalMaxH * 64.0;//2.1;
+    	T radius = a->globalMaxH * 2.0;
 
     	//Check if Box1's max is greater than Box2's min and Box1's min is less than Box2's max
 	    return(a->xmax+radius > xmin && 

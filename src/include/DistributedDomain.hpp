@@ -461,12 +461,14 @@ public:
 
         // Finally remap everything
         ordering.resize(workAssigned + haloCount);
+        #pragma omp parallel for
         for(int i=0; i<(int)ordering.size(); i++)
             ordering[i] = 0;
 
         // We map ALL particles
         // Particles that do not belong to us will be ignored in the localMapParticleFunction
         std::vector<int> list(d.x.size());
+        #pragma omp parallel for
         for(int i=0; i<(int)d.x.size(); i++)
             list[i] = i;
 
@@ -474,6 +476,7 @@ public:
         reorder(ordering, d);
 
         clist.resize(workAssigned);
+        #pragma omp parallel for
         for(int i=0; i<workAssigned; i++)
             clist[i] = i;
 
@@ -488,6 +491,7 @@ public:
         std::vector<int> ordering(d.x.size());
 
         std::vector<int> list(d.x.size());
+        #pragma omp parallel for
         for(int i=0; i<(int)d.x.size(); i++)
             list[i] = i;
 
