@@ -75,12 +75,12 @@ public:
 
         // int maxCount = std::min(localParticleCount, ngmax - neighborsCount);
 
-        for (int i = 0; i < localParticleCount && neighborsCount < ngmax; i++)
+        for (int i = 0; i < localParticleCount; i++)
         {
             int ordi = localPadding + i;
 
             T dist = distancesq(xi, yi, zi, x[ordi], y[ordi], z[ordi]);
-            if (dist < r2 && ordi != id) neighbors[neighborsCount++] = ordi;
+            if (dist < r2 && ordi != id && neighborsCount < ngmax) neighbors[neighborsCount++] = ordi;
         }
     }
 
@@ -357,7 +357,7 @@ public:
 
         return nsplits;
     }
-    
+
     void buildGlobalTreeAndGlobalCountAndGlobalMaxHRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h,
                               std::vector<int> &ordering, std::vector<int> &globalParticleCount, std::vector<T> &globalMaxH, int padding = 0, int ptri = 0)
     {
@@ -464,7 +464,7 @@ public:
         {
             for (int i = 0; i < ncells; i++)
             {
-                #pragma omp task
+                #pragma omp task shared(cellList, x, y, z, ordering) firstprivate(padding)
                 cells[i]->buildTreeRec(cellList[i], x, y, z, ordering, padding);
                 padding += cellList[i].size();
             }

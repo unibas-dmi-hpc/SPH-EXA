@@ -499,6 +499,32 @@ public:
         reorder(ordering, d);
     }
 
+    template <class Dataset>
+    void updateSmoothingLength(const std::vector<int> &clist, Dataset &d)
+    {
+        const T c0 = 7.0;
+        const T exp = 1.0/3.0;
+
+        const size_t n = clist.size();
+        const int *neighborsCount = d.neighborsCount.data();
+        const int ng0 = d.ng0;
+        T *h = d.h.data();
+
+        #pragma omp parallel for
+        for(int pi=0; pi<n; pi++)
+        {
+            const int i = clist[pi];
+            const int nn = neighborsCount[pi];
+
+            h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp);
+
+            #ifndef NDEBUG
+                if(std::isinf(h[i]) || std::isnan(h[i]))
+                    printf("ERROR::h(%d) ngi %d h %f\n", i, nn, h[i]);
+            #endif
+        }
+    }
+
     const int local_sample_size = 100;
 
     int comm_size, comm_rank, name_len;

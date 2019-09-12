@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <vector>
 
 #include "sphexa.hpp"
 #include "SqPatch.hpp"
@@ -46,66 +47,36 @@ int main(int argc, char **argv)
         timer.start();
 
         distributedDomain.distribute(clist, d);
-        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("domain::distribute");
-
-        //if(distributedDomain.comm_rank == 0) distributedDomain.octree.print();
-
         distributedDomain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
-        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("mpi::synchronizeHalos");
-
         distributedDomain.buildTree(d);
-        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("domain::buildTree");
-
-  //       MPI_Barrier(MPI_COMM_WORLD);
-
-  //       {
-		//     char fname[256];
-		//     sprintf(fname, "particlesSync%d", distributedDomain.comm_rank);
-		//     FILE *fout = fopen(fname, "w");
-		//     //for(int i=0; i<(int)clist.size(); i++)
-		//     for(int i=0; i<d.x.size(); i++)
-		//     {
-		//     	//printf("%d %f %f %f\n", clist[i], d.x[clist[i]], d.y[clist[i]], d.z[clist[i]]);
-		//         //fprintf(fout, "%f %f %f\n", d.x[clist[i]], d.y[clist[i]], d.z[clist[i]]);
-		//         fprintf(fout, "%f %f %f\n", d.x[i], d.y[i], d.z[i]);
-		//     }
-		//     fclose(fout);
-		// }
-
-		// MPI_Barrier(MPI_COMM_WORLD);
-
         distributedDomain.findNeighbors(clist, d);
-        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("FindNeighbors");
-
         sph::computeDensity<Real>(clist, d);
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(clist, d); }
-        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("Density");
-
         sph::computeEquationOfState<Real>(clist, d);
-        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("EquationOfState");
-
         distributedDomain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
-        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("mpi::synchronizeHalos");
-
-        sph::computeMomentumAndEnergy<Real>(clist, d);
-        //MPI_Barrier(MPI_COMM_WORLD);
-        timer.step("MomentumEnergy");
+        // sph::computeMomentumAndEnergy<Real>(clist, d);
+        // timer.step("MomentumEnergy");
+        sph::computeIAD<Real>(clist, d);
+        timer.step("IAD");
+        distributedDomain.synchronizeHalos(&d.c11, &d.c12, &d.c13, &d.c22, &d.c23, &d.c33);
+        timer.step("mpi::synchronizeHalos");
+        sph::computeMomentumAndEnergyIAD<Real>(clist, d);
+        timer.step("MomentumEnergyIAD");
         sph::computeTimestep<Real>(clist, d);
-        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("Timestep"); // AllReduce(min:dt)
         sph::computePositions<Real>(clist, d);
-        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("UpdateQuantities");
         sph::computeTotalEnergy<Real>(clist, d);
-        //MPI_Barrier(MPI_COMM_WORLD);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
+        //distributedDomain.updateSmoothingLength(clist, d);
+        //timer.step("updateSmoothingLength");
 
         long long int totalNeighbors = distributedDomain.neighborsSum(clist, d);
         if (d.rank == 0)
