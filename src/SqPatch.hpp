@@ -113,6 +113,7 @@ public:
     {
         dx = 100.0 / side;
 
+        #pragma omp parallel for
         for (int i = 0; i < count; i++)
         {
             // CGS

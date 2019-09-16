@@ -30,7 +30,7 @@ public:
     template <class Dataset>
     void findNeighbors(const std::vector<int> &clist, Dataset &d)
     {
-        const int ngmax = d.ngmax;
+        const int64_t ngmax = d.ngmax;
 
         int64_t n = clist.size();
         d.neighbors.resize(n * ngmax);
@@ -42,7 +42,7 @@ public:
                 int i = clist[pi];
 
                 d.neighborsCount[pi] = 0;
-                octree.findNeighbors(i, d.x.data(), d.y.data(), d.z.data(), d.x[i], d.y[i], d.z[i], 2 * d.h[i], ngmax,
+                octree.findNeighbors(i, &d.x[0], &d.y[0], &d.z[0], d.x[i], d.y[i], d.z[i], 2.0 * d.h[i], ngmax,
                                      &d.neighbors[pi * ngmax], d.neighborsCount[pi], PBCx, PBCy, PBCz);
 
 #ifndef NDEBUG
@@ -344,6 +344,7 @@ public:
             sz[ptri + i] = z[clist[j]];
             sh[ptri + i] = h[clist[j]];
         }
+
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sx[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sy[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sz[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
@@ -397,8 +398,9 @@ public:
 
         // We map the nodes to a 1D array and retrieve the order of the particles in the tree
         std::vector<int> ordering(n);
+        int nsplits = 0;
 
-        //do
+        do
         {
             // Done every iteration, this will either add or remove global nodes
             // depending if there are too much / too few particles globally
@@ -415,7 +417,7 @@ public:
             // This is the same a following a Morton / Z-Curve path
             octree.buildGlobalTreeAndGlobalCountAndGlobalMaxH(clist, x, y, z, h, ordering);
             //octree.computeGlobalParticleCount();
-        } //while(nsplits > 0);
+        } while(d.iteration == 0 && nsplits > 0);
 
         // Getting rid of old halos
         reorder(ordering, d);

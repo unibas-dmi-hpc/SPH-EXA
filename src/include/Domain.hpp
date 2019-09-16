@@ -37,7 +37,7 @@ public:
             int i = clist[pi];
 
             d.neighborsCount[pi] = 0;
-            tree.findNeighbors(i, d.x[i], d.y[i], d.z[i], 2 * d.h[i], ngmax, &d.neighbors[pi * ngmax], d.neighborsCount[pi], d.bbox.PBCx,
+            tree.findNeighbors(i, d.x[i], d.y[i], d.z[i], 2.0 * d.h[i], ngmax, &d.neighbors[pi * ngmax], d.neighborsCount[pi], d.bbox.PBCx,
                                d.bbox.PBCy, d.bbox.PBCz);
 
 #ifndef NDEBUG

@@ -49,10 +49,13 @@ int main(int argc, char **argv)
         distributedDomain.distribute(clist, d);
         timer.step("domain::distribute");
         distributedDomain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
+        MPI_Barrier(MPI_COMM_WORLD);
         timer.step("mpi::synchronizeHalos");
         distributedDomain.buildTree(d);
+        MPI_Barrier(MPI_COMM_WORLD);
         timer.step("domain::buildTree");
         distributedDomain.findNeighbors(clist, d);
+        MPI_Barrier(MPI_COMM_WORLD);
         timer.step("FindNeighbors");
         sph::computeDensity<Real>(clist, d);
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(clist, d); }

@@ -28,7 +28,7 @@ public:
 
     ~Octree()
     {
-        cells.resize(0);
+        cells.clear();
     }
 
     std::vector<std::shared_ptr<Octree>> cells;
@@ -55,7 +55,7 @@ public:
 
     static const int nX = 2, nY = 2, nZ = 2;
     static const int ncells = 8;
-    static const int bucketSize = 128, maxGlobalBucketSize = 512, minGlobalBucketSize = 256;
+    static const int bucketSize = 64, maxGlobalBucketSize = 512, minGlobalBucketSize = 256;
 
     static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
@@ -80,7 +80,8 @@ public:
             int ordi = localPadding + i;
 
             T dist = distancesq(xi, yi, zi, x[ordi], y[ordi], z[ordi]);
-            if (dist < r2 && ordi != id && neighborsCount < ngmax) neighbors[neighborsCount++] = ordi;
+            if (dist < r2 && ordi != id && neighborsCount < ngmax)
+               neighbors[neighborsCount++] = ordi;
         }
     }
 
@@ -240,7 +241,7 @@ public:
         const T size = std::max(sizez, std::max(sizey, sizex));
 
         // Expand node if cell bigger than 2.0 * h
-        if (size > 2.0 * hmax && list.size() > 0)
+        if (size > 4.0 * hmax && list.size() > 0)
         {
             std::vector<std::vector<int>> cellList(ncells);
             distributeParticles(list, x, y, z, cellList);
@@ -436,7 +437,6 @@ public:
                 // If this is a halo node then we may not have all the particles yet
                 // But we know how much space to reserve!
                 this->localParticleCount = this->globalParticleCount;
-
                 for (int i = 0; i < (int)list.size(); i++)
                     ordering[padding + i] = list[i];
             }
