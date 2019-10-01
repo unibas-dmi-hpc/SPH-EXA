@@ -1,4 +1,5 @@
 #include <cuda.h>
+#include <algorithm>
 
 #include "../kernels.hpp"
 #include "sph.cuh"
@@ -114,21 +115,29 @@ __global__ void computeMomentumAndEnergyIAD(const int n, const T sincIndex, cons
 }
 } // namespace kernels
 
-template void computeMomentumAndEnergyIAD<double, SqPatch<double>>(const std::vector<int> &clist, SqPatch<double> &d);
+template void computeMomentumAndEnergyIAD<double, SqPatch<double>>(const std::vector<ParticleIdxChunk> &chunksToCompute, SqPatch<double> &d);
 
 template <typename T, class Dataset>
-void computeMomentumAndEnergyIAD(const std::vector<int> &clist, Dataset &d)
+void computeMomentumAndEnergyIAD(const std::vector<ParticleIdxChunk> &chunksToCompute, Dataset &d)
 {
-    const size_t n = clist.size();
     const size_t np = d.x.size();
-
-    const size_t allNeighbors = n * d.ngmax;
-
-    const size_t size_bbox = sizeof(BBox<T>);
     const size_t size_np_T = np * sizeof(T);
-    const size_t size_n_int = n * sizeof(int);
-    const size_t size_n_T = n * sizeof(T);
-    const size_t size_allNeighbors = allNeighbors * sizeof(int);
+
+    const auto largestChunkSize =
+        std::max_element(chunksToCompute.cbegin(), chunksToCompute.cend(),
+                         [](const std::vector<int> &lhs, const std::vector<int> &rhs) { return lhs.size() < rhs.size(); })
+            ->size();
+
+    const size_t size_largerNeighborsChunk_int = largestChunkSize * d.ngmax * sizeof(int);
+    const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
+    const size_t size_largerNChunk_T = largestChunkSize * sizeof(T);
+    const size_t size_bbox = sizeof(BBox<T>);
+
+    // const size_t size_bbox = sizeof(BBox<T>);
+    // const size_t size_np_T = np * sizeof(T);
+    // const size_t size_n_int = n * sizeof(int);
+    // const size_t size_n_T = n * sizeof(T);
+    // const size_t size_allNeighbors = allNeighbors * sizeof(int);
 
     int *d_clist, *d_neighbors, *d_neighborsCount;
     T *d_x, *d_y, *d_z, *d_vx, *d_vy, *d_vz, *d_m, *d_h, *d_ro, *d_p, *d_c, *d_c11, *d_c12, *d_c13, *d_c22, *d_c23, *d_c33;
@@ -136,14 +145,14 @@ void computeMomentumAndEnergyIAD(const std::vector<int> &clist, Dataset &d)
     T *d_grad_P_x, *d_grad_P_y, *d_grad_P_z, *d_du;
 
     // input data
-    CHECK_CUDA_ERR(utils::cudaMalloc(size_n_int, d_clist, d_neighborsCount));
-    CHECK_CUDA_ERR(utils::cudaMalloc(size_allNeighbors, d_neighbors));
-    CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d_bbox));
     CHECK_CUDA_ERR(
         utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d_bbox));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist, d_neighborsCount));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors));
 
     // oputput data
-    CHECK_CUDA_ERR(utils::cudaMalloc(size_n_T, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_T, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du));
 
     CHECK_CUDA_ERR(cudaMemcpy(d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
@@ -164,23 +173,37 @@ void computeMomentumAndEnergyIAD(const std::vector<int> &clist, Dataset &d)
     CHECK_CUDA_ERR(cudaMemcpy(d_c33, d.c33.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
 
-    CHECK_CUDA_ERR(cudaMemcpy(d_clist, clist.data(), size_n_int, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d_neighbors, d.neighbors.data(), size_allNeighbors, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d_neighborsCount, d.neighborsCount.data(), size_n_int, cudaMemcpyHostToDevice));
+    for (const auto &clist : chunksToCompute)
+    {
+        const size_t n = clist.size();
+        const size_t size_n_T = n * sizeof(T);
+        const size_t size_n_int = n * sizeof(int);
+        const size_t size_nNeighbors = n * d.ngmax * sizeof(int);
 
-    const int threadsPerBlock = 256;
-    const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
+        const size_t neighborsOffset = clist.front() * d.ngmax;
+        const int *neighbors = d.neighbors.data() + neighborsOffset;
 
-    kernels::computeMomentumAndEnergyIAD<<<blocksPerGrid, threadsPerBlock>>>(
-        n, d.sincIndex, d.K, d.ngmax, d_bbox, d_clist, d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p,
-        d_c, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du);
+        const size_t neighborsCountOffset = clist.front();
+        const int *neighborsCount = d.neighborsCount.data() + neighborsCountOffset;
 
-    CHECK_CUDA_ERR(cudaGetLastError());
+        CHECK_CUDA_ERR(cudaMemcpy(d_clist, clist.data(), size_n_int, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d_neighbors, neighbors, size_nNeighbors, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d_neighborsCount, neighborsCount, size_n_int, cudaMemcpyHostToDevice));
 
-    CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data(), d_grad_P_x, size_n_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data(), d_grad_P_y, size_n_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data(), d_grad_P_z, size_n_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.du.data(), d_du, size_n_T, cudaMemcpyDeviceToHost));
+        const int threadsPerBlock = 256;
+        const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
+
+        kernels::computeMomentumAndEnergyIAD<<<blocksPerGrid, threadsPerBlock>>>(
+            n, d.sincIndex, d.K, d.ngmax, d_bbox, d_clist, d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro,
+            d_p, d_c, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du);
+
+        CHECK_CUDA_ERR(cudaGetLastError());
+
+        CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data() + clist.front(), d_grad_P_x, size_n_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data() + clist.front(), d_grad_P_y, size_n_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data() + clist.front(), d_grad_P_z, size_n_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.du.data() + clist.front(), d_du, size_n_T, cudaMemcpyDeviceToHost));
+    }
 
     CHECK_CUDA_ERR(utils::cudaFree(d_clist, d_neighborsCount, d_neighbors, d_bbox, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p,
                                    d_c, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du));
