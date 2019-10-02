@@ -13,7 +13,7 @@ std::vector<std::vector<T>> partition(const std::vector<T> &l, const size_t numP
     const int partitionSize = l.size() / numPartitions;
     const int lastPartitionOffset = l.size() - numPartitions * partitionSize;
 
-    auto partitioned = std::vector<std::vector<int>>(numPartitions);
+    auto partitioned = std::vector<std::vector<T>>(numPartitions);
 
     for (size_t i = 0; i < numPartitions; ++i)
     {

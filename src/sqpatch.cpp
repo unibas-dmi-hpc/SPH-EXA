@@ -51,13 +51,10 @@ int main(int argc, char **argv)
         distributedDomain.distribute(clist, d);
         timer.step("domain::distribute");
         distributedDomain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
-        MPI_Barrier(MPI_COMM_WORLD);
         timer.step("mpi::synchronizeHalos");
         distributedDomain.buildTree(d);
-        MPI_Barrier(MPI_COMM_WORLD);
         timer.step("domain::buildTree");
         distributedDomain.findNeighbors(clist, d);
-        MPI_Barrier(MPI_COMM_WORLD);
         timer.step("FindNeighbors");
         sph::computeDensity<Real>(clist, d);
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(clist, d); }
@@ -66,8 +63,6 @@ int main(int argc, char **argv)
         timer.step("EquationOfState");
         distributedDomain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
         timer.step("mpi::synchronizeHalos");
-        // sph::computeMomentumAndEnergy<Real>(clist, d);
-        // timer.step("MomentumEnergy");
         sph::computeIAD<Real>(clist, d);
         timer.step("IAD");
         distributedDomain.synchronizeHalos(&d.c11, &d.c12, &d.c13, &d.c22, &d.c23, &d.c33);
@@ -80,8 +75,6 @@ int main(int argc, char **argv)
         timer.step("UpdateQuantities");
         sph::computeTotalEnergy<Real>(clist, d);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
-        //distributedDomain.updateSmoothingLength(clist, d);
-        //timer.step("updateSmoothingLength");
 
         long long int totalNeighbors = distributedDomain.neighborsSum(clist, d);
         if (d.rank == 0)
