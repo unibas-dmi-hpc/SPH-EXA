@@ -43,7 +43,7 @@ public:
 
                 d.neighborsCount[pi] = 0;
                 octree.findNeighbors(i, &d.x[0], &d.y[0], &d.z[0], d.x[i], d.y[i], d.z[i], 2.0 * d.h[i], ngmax,
-                                     &d.neighbors[pi * ngmax], d.neighborsCount[pi], PBCx, PBCy, PBCz);
+                                     &d.neighbors[pi * ngmax], d.neighborsCount[pi], d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz);
 
 #ifndef NDEBUG
                 if (d.neighbors[pi].size() == 0)
@@ -65,19 +65,6 @@ public:
 #endif
 
         return sum;
-    }
-
-    void setBox(T xmin, T xmax, T ymin, T ymax, T zmin, T zmax, bool PBCx, bool PBCy, bool PBCz)
-    {
-        this->xmin = xmin;
-        this->xmax = xmax;
-        this->ymin = ymin;
-        this->ymax = ymax;
-        this->zmin = zmin;
-        this->zmax = zmax;
-        this->PBCx = PBCx;
-        this->PBCy = PBCy;
-        this->PBCz = PBCz;
     }
 
     inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
@@ -268,41 +255,8 @@ public:
         }
     }
 
-    void computeGlobalBoundingBox(const std::vector<int> &clist, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z)
-    {
-        if (!PBCx) xmin = INFINITY;
-        if (!PBCx) xmax = -INFINITY;
-        if (!PBCy) ymin = INFINITY;
-        if (!PBCy) ymax = -INFINITY;
-        if (!PBCz) zmin = INFINITY;
-        if (!PBCz) zmax = -INFINITY;
-
-        for (unsigned int pi = 0; pi < clist.size(); pi++)
-        {
-            const int i = clist[pi];
-
-            T xx = x[i];
-            T yy = y[i];
-            T zz = z[i];
-
-            if (!PBCx && xx < xmin) xmin = xx;
-            if (!PBCx && xx > xmax) xmax = xx;
-            if (!PBCy && yy < ymin) ymin = yy;
-            if (!PBCy && yy > ymax) ymax = yy;
-            if (!PBCz && zz < zmin) zmin = zz;
-            if (!PBCz && zz > zmax) zmax = zz;
-        }
-
-        MPI_Allreduce(MPI_IN_PLACE, &xmin, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-        MPI_Allreduce(MPI_IN_PLACE, &ymin, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-        MPI_Allreduce(MPI_IN_PLACE, &zmin, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-        MPI_Allreduce(MPI_IN_PLACE, &xmax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        MPI_Allreduce(MPI_IN_PLACE, &ymax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        MPI_Allreduce(MPI_IN_PLACE, &zmax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    }
-
     template <class Dataset>
-    void approximate(std::vector<int> &clist, Dataset &d)
+    void create(std::vector<int> &clist, Dataset &d)
     {
         const std::vector<T> &x = d.x;
         const std::vector<T> &y = d.y;
@@ -317,18 +271,6 @@ public:
 
         std::vector<int> work(comm_size, split);
         work[0] += remaining;
-
-        // We compute the global bounding box of the global domain
-        // All processes will have the same box dimensions for the domain
-        computeGlobalBoundingBox(clist, x, y, z);
-        d.bbox.xmin = xmin;
-        d.bbox.xmax = xmax;
-        d.bbox.ymin = ymin;
-        d.bbox.ymax = ymax;
-        d.bbox.zmin = zmin;
-        d.bbox.zmax = zmax;
-
-        // printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
 
         // Each process creates a random sample of local_sample_size particles
         const int global_sample_size = local_sample_size * comm_size;
@@ -353,7 +295,7 @@ public:
         // Each process creates a tree based on the gathered sample
         octree.cells.clear();
 
-        octree = Octree<T>(xmin, xmax, ymin, ymax, zmin, zmax, comm_rank, comm_size);
+        octree = Octree<T>(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, comm_rank, comm_size);
         octree.approximate(sx, sy, sz, sh);
 
         std::vector<int> ordering(n);
@@ -383,19 +325,6 @@ public:
         std::vector<int> work(comm_size, split);
         work[0] += remaining;
 
-        // We compute the global bounding box of the global domain
-        // All processes will have the same box dimensions for the domain
-        computeGlobalBoundingBox(clist, x, y, z);
-
-        d.bbox.xmin = xmin;
-        d.bbox.xmax = xmax;
-        d.bbox.ymin = ymin;
-        d.bbox.ymax = ymax;
-        d.bbox.zmin = zmin;
-        d.bbox.zmax = zmax;
-
-        // printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax); fflush(stdout);
-
         // We map the nodes to a 1D array and retrieve the order of the particles in the tree
         std::vector<int> ordering(n);
         int nsplits = 0;
@@ -407,7 +336,7 @@ public:
 
             // printf("[%d] %d -> %d %d %d %d %d %d %d %d\n", comm_rank, octree.globalNodeCount, octree.cells[0]->globalParticleCount, octree.cells[1]->globalParticleCount, octree.cells[2]->globalParticleCount, octree.cells[3]->globalParticleCount, octree.cells[4]->globalParticleCount, octree.cells[5]->globalParticleCount, octree.cells[6]->globalParticleCount, octree.cells[7]->globalParticleCount);
             
-            octree.globalRebalance(xmin, xmax, ymin, ymax, zmin, zmax);
+            octree.globalRebalance(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax);
 
             // printf("[%d] SPLITS: %d, Nodes: %d\n", comm_rank, nsplits, octree.globalNodeCount);
             // fflush(stdout);
@@ -448,7 +377,7 @@ public:
         // printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount, octree.globalParticleCount); fflush(stdout);
 
         //octree.computeGlobalMaxH();
-        haloCount = octree.findHalos(toSendHalos, PBCx, PBCy, PBCz);
+        haloCount = octree.findHalos(toSendHalos, d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz);
 
         workAssigned = work[comm_rank] - work_remaining[comm_rank];
 
@@ -531,9 +460,6 @@ public:
 
     int comm_size, comm_rank, name_len;
     char processor_name[256];
-
-    bool PBCx = false, PBCy = false, PBCz = false;
-    T xmin = INFINITY, xmax = -INFINITY, ymin = INFINITY, ymax = -INFINITY, zmin = INFINITY, zmax = -INFINITY;
 
     std::map<int, std::map<int, Octree<T> *>> toSendHalos;
 

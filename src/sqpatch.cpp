@@ -38,14 +38,16 @@ int main(int argc, char **argv)
 
     std::ofstream constants("constants.txt");
 
-    distributedDomain.setBox(0, 0, 0, 0, d.bbox.zmin, d.bbox.zmax, false, false, true);
-    distributedDomain.approximate(clist, d);
+    d.bbox.setBox(0, 0, 0, 0, d.bbox.zmin, d.bbox.zmax, false, false, true);
+    d.bbox.computeGlobal(clist, d.x, d.y, d.z);
+    distributedDomain.create(clist, d);
 
     MPITimer timer(d.rank);
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
         timer.start();
 
+        d.bbox.computeGlobal(clist, d.x, d.y, d.z);
         distributedDomain.distribute(clist, d);
         timer.step("domain::distribute");
         distributedDomain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
