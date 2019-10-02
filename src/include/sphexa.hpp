@@ -14,7 +14,6 @@
 #endif
 
 #include "DistributedDomain.hpp"
-#include "Domain.hpp"
 #include "Octree.hpp"
 #include "BBox.hpp"
 
