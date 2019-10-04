@@ -54,8 +54,10 @@ constexpr size_t wharmonicLookupTableSize = 20000;
 __device__ extern double wharmonicLookupTable[wharmonicLookupTableSize];
 __device__ extern double wharmonicDerivativeLookupTable[wharmonicLookupTableSize];
 #else
-static auto wharmonicLookupTable = createWharmonicLookupTable<double, wharmonicLookupTableSize>();
-static auto wharmonicDerivativeLookupTable = createWharmonicDerivativeLookupTable<double, wharmonicLookupTableSize>();
+static auto wh = createWharmonicLookupTable<double, wharmonicLookupTableSize>();
+static auto whd = createWharmonicDerivativeLookupTable<double, wharmonicLookupTableSize>();
+static const double* wharmonicLookupTable = wh.data();
+static const double* wharmonicDerivativeLookupTable = whd.data();
 #endif
 
 template <typename T>

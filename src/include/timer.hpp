@@ -2,7 +2,6 @@
 
 #include <chrono>
 #include <iostream>
-#include <functional>
 
 namespace sphexa
 {

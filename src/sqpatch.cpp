@@ -8,6 +8,8 @@
 using namespace std;
 using namespace sphexa;
 
+lookup_tables::GpuLookupTableInitializer<double> ltinit;
+
 int main(int argc, char **argv)
 {
     ArgParser parser(argc, argv);
