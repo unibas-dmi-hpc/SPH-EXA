@@ -8,6 +8,7 @@
 #include "sph/timestep.hpp"
 #include "sph/positions.hpp"
 #include "sph/totalEnergy.hpp"
+#include "sph/gravityTreeWalk.hpp"
 
 #ifdef USE_MPI
 #include "mpi.h"

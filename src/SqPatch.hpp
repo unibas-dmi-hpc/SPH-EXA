@@ -16,9 +16,10 @@ public:
         : n(side * side * side)
         , side(side)
         , count(side * side * side)
-        , arrayList({&x, &y,   &z, &x_m1, &y_m1, &z_m1,     &vx,       &vy,       &vz, &ro,    &ro_0, &u,
-                &p, &p_0, &h, &m,    &c,    &grad_P_x, &grad_P_y, &grad_P_z, &du, &du_m1, &dt,   &dt_m1,
-                &c11, &c12, &c13, &c22, &c23, &c33}) //, ng0(ng0), ngmax(1.5*ng0)
+        , arrayList({&x,  &y,   &z,  &x_m1,  &y_m1, &z_m1,     &vx,       &vy,       &vz,  &ro,    &ro_0, &u,
+                     &p,  &p_0, &h,  &m,     &c,    &grad_P_x, &grad_P_y, &grad_P_z, &du,  &du_m1, &dt,   &dt_m1,
+                     &fx, &fy,  &fz, &ugrav, &c11,  &c12,      &c13,      &c22,      &c23, &c33}) //, ng0(ng0),
+                                                                                                  // ngmax(1.5*ng0)
     {
 #ifdef USE_MPI
         comm = MPI_COMM_WORLD;
@@ -113,7 +114,7 @@ public:
     {
         dx = 100.0 / side;
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (int i = 0; i < count; i++)
         {
             // CGS
@@ -139,6 +140,8 @@ public:
             x_m1[i] = x[i] - vx[i] * dt[0];
             y_m1[i] = y[i] - vy[i] * dt[0];
             z_m1[i] = z[i] - vz[i] * dt[0];
+
+            fx[i] = fy[i] = fz[i] = ugrav[i] = 0.0;
         }
 
 #ifdef USE_MPI
@@ -166,13 +169,13 @@ public:
 
     void writeData(const std::vector<int> &clist, std::string dumpfilename)
     {
-        for(int turn=0; turn<nrank; turn++)
+        for (int turn = 0; turn < nrank; turn++)
         {
-            if(turn == rank)
+            if (turn == rank)
             {
                 std::ofstream dump;
 
-                if(rank == 0)
+                if (rank == 0)
                     dump.open(dumpfilename);
                 else
                     dump.open(dumpfilename, std::ios_base::app);
@@ -224,6 +227,7 @@ public:
     std::vector<T> grad_P_x, grad_P_y, grad_P_z; // gradient of the pressure
     std::vector<T> du, du_m1;                    // variation of the energy
     std::vector<T> dt, dt_m1;
+    std::vector<T> fx, fy, fz, ugrav; // Gravity
 
     std::vector<T> c11, c12, c13, c22, c23, c33;
 

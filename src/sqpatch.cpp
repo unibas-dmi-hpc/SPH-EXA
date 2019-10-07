@@ -54,6 +54,10 @@ int main(int argc, char **argv)
         distributedDomain.buildTree(d);
         MPI_Barrier(MPI_COMM_WORLD);
         timer.step("domain::buildTree");
+
+        sph::gravityTreeWalk(clist, distributedDomain.octree, d);
+        timer.step("\ngravityTreeWalk");
+
         distributedDomain.findNeighbors(clist, d);
         MPI_Barrier(MPI_COMM_WORLD);
         timer.step("FindNeighbors");

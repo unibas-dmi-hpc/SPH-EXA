@@ -353,7 +353,7 @@ public:
         // Each process creates a tree based on the gathered sample
         octree.cells.clear();
 
-        octree = Octree<T>(xmin, xmax, ymin, ymax, zmin, zmax, comm_rank, comm_size);
+        octree = GravityOctree<T>(xmin, xmax, ymin, ymax, zmin, zmax, comm_rank, comm_size);
         octree.approximate(sx, sy, sz, sh);
 
         std::vector<int> ordering(n);
@@ -497,7 +497,7 @@ public:
             list[i] = i;
 
         // We need this to expand halo
-        octree.buildTree(list, d.x, d.y, d.z, ordering);
+        octree.buildTree(list, d.x, d.y, d.z, d.m, ordering);
         reorder(ordering, d);
     }
 
@@ -540,7 +540,7 @@ public:
     int haloCount = 0;
     int workAssigned = 0;
 
-    Octree<T> octree;
+    GravityOctree<T> octree;
 };
 
 } // namespace sphexa
