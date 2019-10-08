@@ -13,14 +13,15 @@ before_script:
   - echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, PR=$PR, MYBRANCH=$MYBRANCH"
   - pwd
   - ls -la
-  - env
-  - docker build -f ./scripts/ci/docker/Dockerfile.ubuntu1804+cuda101+mpich314+sphexa -t sphexa/mpich:ub1804_cuda101_mpi314_sphexa --build-arg branchname=$MYBRANCH .
-#  - docker pull jgphpc/mpich:ub1804_cuda92_mpi314_sph
-#  - docker run jgphpc/mpich:ub1804_cuda92_mpi314_sph bash -c "/opt/SPH-EXA_mini-app-master/src/8.exe -n 10 -s 0"
+  - export mytagname=ubuntu1804+cuda101+mpich314+sphexa
+  - docker build -f ./scripts/ci/docker/Dockerfile.$mytagname \
+    -t sphexa/mpich:$mytagname \
+    --build-arg branchname=$MYBRANCH \
+    --build-arg reponame=TRAVIS_REPO_SLUG .
 
 script:
-  - docker run sphexa/mpich:ub1804_cuda92_mpi314_sph bash -c "./gnu7/omp.app -s 1 -n 10"    # gnu7
-  - docker run sphexa/mpich:ub1804_cuda92_mpi314_sph bash -c "./gnu8/omp.app -s 1 -n 10"    # gnu8
-  - docker run sphexa/mpich:ub1804_cuda92_mpi314_sph bash -c "./gnu9/omp.app -s 1 -n 10"    # gnu9
+  - docker run sphexa/mpich:$mytagname bash -c "./gnu7/omp.app -s 1 -n 10"    # gnu7
+  - docker run sphexa/mpich:$mytagname bash -c "./gnu8/omp.app -s 1 -n 10"    # gnu8
+  - docker run sphexa/mpich:$mytagname bash -c "./gnu9/omp.app -s 1 -n 10"    # gnu9
 
 #  - docker ps
