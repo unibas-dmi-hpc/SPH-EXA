@@ -9,6 +9,8 @@ services:
   - docker
 
 before_script:
+  - './.travis/main.sh'
+  - docker version
   - export MYBRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
   - echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, PR=$PR, MYBRANCH=$MYBRANCH"
   - pwd
@@ -24,4 +26,5 @@ script:
   - docker run sphexa/mpich:$mytagname bash -c "./gnu8/omp.app -s 1 -n 10"    # gnu8
   - docker run sphexa/mpich:$mytagname bash -c "./gnu9/omp.app -s 1 -n 10"    # gnu9
 
-#  - docker ps
+notifications:
+  email: false
