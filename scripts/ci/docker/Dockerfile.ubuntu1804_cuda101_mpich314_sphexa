@@ -1,5 +1,5 @@
 # https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app
-#
+# --------------------------------------------------
 # DD=Dockerfile.ubuntu1804+cuda101+mpich314+sphexa
 # VV=sphexa/mpich:ub1804_cuda101_mpi314_sphexa
 # docker build -f ./$DD -t $VV --build-arg branchname=master .
