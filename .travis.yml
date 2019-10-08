@@ -1,0 +1,23 @@
+# https://github.com/jgphpc/SPH-EXA_mini-app
+# https://docs.travis-ci.com/user/docker/
+# https://travis-ci.com/account/repositories
+language: cpp
+
+services:
+  - docker
+
+before_script:
+  - export MYBRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
+  - echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, PR=$PR, MYBRANCH=$MYBRANCH"
+  - pwd
+  - ls -la
+  - docker build -f ./scripts/ci/docker/Dockerfile.ubuntu1804+cuda101+mpich314+sphexa -t sphexa/mpich:ub1804_cuda101_mpi314_sphexa --build-arg branchname=$MYBRANCH .
+#  - docker pull jgphpc/mpich:ub1804_cuda92_mpi314_sph
+#  - docker run jgphpc/mpich:ub1804_cuda92_mpi314_sph bash -c "/opt/SPH-EXA_mini-app-master/src/8.exe -n 10 -s 0"
+
+script:
+  - docker run sphexa/mpich:ub1804_cuda92_mpi314_sph bash -c "./gnu7/omp.app -s 1 -n 10"    # gnu7
+  - docker run sphexa/mpich:ub1804_cuda92_mpi314_sph bash -c "./gnu8/omp.app -s 1 -n 10"    # gnu8
+  - docker run sphexa/mpich:ub1804_cuda92_mpi314_sph bash -c "./gnu9/omp.app -s 1 -n 10"    # gnu9
+
+#  - docker ps
