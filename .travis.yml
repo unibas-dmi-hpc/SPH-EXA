@@ -17,7 +17,7 @@ before_script:
   - docker build -f ./scripts/ci/docker/Dockerfile.$mytagname \
     -t sphexa/mpich:$mytagname \
     --build-arg branchname=$MYBRANCH \
-    --build-arg reponame=TRAVIS_REPO_SLUG .
+    --build-arg reponame=$TRAVIS_REPO_SLUG .
 
 script:
   - docker run sphexa/mpich:$mytagname bash -c "./gnu7/omp.app -s 1 -n 10"    # gnu7
