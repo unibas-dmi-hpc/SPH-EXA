@@ -3,6 +3,8 @@
 # https://travis-ci.com/account/repositories
 language: cpp
 
+dist: bionic
+
 services:
   - docker
 
@@ -11,6 +13,7 @@ before_script:
   - echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, PR=$PR, MYBRANCH=$MYBRANCH"
   - pwd
   - ls -la
+  - env
   - docker build -f ./scripts/ci/docker/Dockerfile.ubuntu1804+cuda101+mpich314+sphexa -t sphexa/mpich:ub1804_cuda101_mpi314_sphexa --build-arg branchname=$MYBRANCH .
 #  - docker pull jgphpc/mpich:ub1804_cuda92_mpi314_sph
 #  - docker run jgphpc/mpich:ub1804_cuda92_mpi314_sph bash -c "/opt/SPH-EXA_mini-app-master/src/8.exe -n 10 -s 0"

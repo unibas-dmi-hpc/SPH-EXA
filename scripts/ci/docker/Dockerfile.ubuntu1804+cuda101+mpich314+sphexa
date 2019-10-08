@@ -22,9 +22,10 @@ ARG branchname=develop
 #    && unzip develop.zip \
 #    && cd SPH-EXA_mini-app-develop
 
+#   && wget https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/archive/$branchname.zip \
 # get the branch from the pull request:
 RUN mkdir -p /sph && cd /sph \
-   && wget https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/archive/$branchname.zip \
+   && wget https://github.com/jgphpc/SPH-EXA_mini-app/archive/$branchname.zip \
    && unzip $branchname.zip \
    && cd SPH-EXA_mini-app-$branchname
 
