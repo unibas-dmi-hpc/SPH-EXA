@@ -13,19 +13,10 @@ FROM ethcscs/mpich:ub1804_cuda101_mpi314_osu
 
 ARG branchname=develop
 ARG reponame=jgphpc/SPH-EXA_mini-app
-# TRAVIS_REPO_SLUG=jgphpc/SPH-EXA_mini-app
 
 # RUN apt update \
 #     && apt install -y unzip
 
-# get the latest develop branch:
-# RUN mkdir -p /sph && cd /sph \
-#    && wget https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/archive/develop.zip \
-#    && unzip develop.zip \
-#    && cd SPH-EXA_mini-app-develop
-
-
-#   && wget https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/archive/$branchname.zip \
 # get the branch from the pull request:
 RUN mkdir -p /sph && cd /sph \
    && wget https://github.com/$reponame/archive/$branchname.zip \
@@ -43,7 +34,7 @@ RUN cd /sph/SPH-EXA_mini-app-$branchname \
     && make mpi+omp CXXFLAGS="-std=c++14 -fopenmp -g -DNDEBUG -I. -Isrc" BINDIR=bin/gnu7 \
     && ls -laR bin
 
-WORKDIR /sph/SPH-EXA_mini-app-develop/bin
+WORKDIR /sph/SPH-EXA_mini-app-$branchname/bin
 
 CMD ["./gnu7/omp.app", "-s", "0", "-n", "10"]
 # CMD ["mpirun", "-np", "2", "./mpi+omp.app", "-s", "0", "-n", "10"]
