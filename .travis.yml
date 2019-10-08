@@ -9,17 +9,15 @@ services:
   - docker
 
 before_script:
-  - './.travis/main.sh'
+#  - './.travis/main.sh'
   - docker version
   - export MYBRANCH=$(if [ "$TRAVIS_PULL_REQUEST" == "false" ]; then echo $TRAVIS_BRANCH; else echo $TRAVIS_PULL_REQUEST_BRANCH; fi)
   - echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, PR=$PR, MYBRANCH=$MYBRANCH"
   - pwd
   - ls -la
   - export mytagname=ubuntu1804_cuda101_mpich314_sphexa
-  - docker build -f ./scripts/ci/docker/Dockerfile.$mytagname \
-    -t sphexa/mpich:$mytagname \
-    --build-arg branchname=$MYBRANCH \
-    --build-arg reponame=$TRAVIS_REPO_SLUG .
+  - echo "mytagname=$mytagname branchname=$MYBRANCH reponame=$TRAVIS_REPO_SLUG"
+  - docker build -f ./scripts/ci/docker/Dockerfile.$mytagname -t sphexa/mpich:$mytagname --build-arg branchname=$MYBRANCH --build-arg reponame=$TRAVIS_REPO_SLUG .
 
 script:
   - docker run sphexa/mpich:$mytagname bash -c "./gnu7/omp.app -s 1 -n 10"    # gnu7
