@@ -20,9 +20,9 @@ before_script:
   - docker build -f ./scripts/ci/docker/Dockerfile.$mytagname -t sphexa/mpich:$mytagname --build-arg branchname=$MYBRANCH --build-arg reponame=$TRAVIS_REPO_SLUG .
 
 script:
-  - docker run sphexa/mpich:$mytagname bash -c "./gnu7/omp.app -s 1 -n 10"    # gnu7
-  - docker run sphexa/mpich:$mytagname bash -c "./gnu8/omp.app -s 1 -n 10"    # gnu8
-  - docker run sphexa/mpich:$mytagname bash -c "./gnu9/omp.app -s 1 -n 10"    # gnu9
+  - docker run sphexa/mpich:$mytagname bash -c "$WORKDIR/gnu7/omp.app -s 1 -n 10"    # gnu7
+  - docker run sphexa/mpich:$mytagname bash -c "$WORKDIR/gnu8/omp.app -s 1 -n 10"    # gnu8
+  - docker run sphexa/mpich:$mytagname bash -c "$WORKDIR/gnu9/omp.app -s 1 -n 10"    # gnu9
 
 notifications:
   email: false
