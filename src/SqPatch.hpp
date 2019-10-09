@@ -112,6 +112,7 @@ public:
     void init()
     {
         dx = 100.0 / side;
+        const T firstTimeStep = 1e-6;
 
         #pragma omp parallel for
         for (int i = 0; i < count; i++)
@@ -132,13 +133,13 @@ public:
             ro_0[i] = 1.0;        // 1.0e3;//.0;//1e3;//1e3;
 
             du[i] = du_m1[i] = 0.0;
-            dt[i] = dt_m1[i] = 1e-6;
+            dt[i] = dt_m1[i] = firstTimeStep;
 
             grad_P_x[i] = grad_P_y[i] = grad_P_z[i] = 0.0;
 
-            x_m1[i] = x[i] - vx[i] * dt[0];
-            y_m1[i] = y[i] - vy[i] * dt[0];
-            z_m1[i] = z[i] - vz[i] * dt[0];
+            x_m1[i] = x[i] - vx[i] * firstTimeStep;
+            y_m1[i] = y[i] - vy[i] * firstTimeStep;
+            z_m1[i] = z[i] - vz[i] * firstTimeStep;
         }
 
 #ifdef USE_MPI
