@@ -115,7 +115,7 @@ __global__ void computeMomentumAndEnergyIAD(const int n, const T sincIndex, cons
 }
 } // namespace kernels
 
-template void computeMomentumAndEnergyIAD<double, SqPatch<double>>(const std::vector<ParticleIdxChunk> &chunksToCompute, SqPatch<double> &d);
+template void computeMomentumAndEnergyIAD<double, ParticlesData<double>>(const std::vector<ParticleIdxChunk> &chunksToCompute, ParticlesData<double> &d);
 
 template <typename T, class Dataset>
 void computeMomentumAndEnergyIAD(const std::vector<ParticleIdxChunk> &chunksToCompute, Dataset &d)
