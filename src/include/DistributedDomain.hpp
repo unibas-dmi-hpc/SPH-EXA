@@ -6,6 +6,7 @@
 
 #include <vector>
 #include <cmath>
+#include <unordered_map>
 #include <map>
 #include <algorithm>
 
@@ -188,24 +189,36 @@ public:
 
     void synchronizeHalos(std::vector<std::vector<T> *> &data)
     {
+        static unsigned short int tag = 0;
+
         // typedef std::chrono::high_resolution_clock Clock;
         // typedef std::chrono::time_point<Clock> TimePoint;
         // typedef std::chrono::duration<float> Time;
 
         std::map<int, Octree<T>*> cellMap;
-        std::map<int, std::vector<int>> toSendPtri;
-        std::map<int, int> toSendCount;
 
+        struct ToSend
+        {
+            std::vector<int> ptris;
+            int ptriCount;
+
+            std::vector<std::vector<T>> buff;
+            int count;
+        };
+
+        std::unordered_map<int, ToSend> sendMap;
         int needed = 0;
 
         //MPI_Barrier(MPI_COMM_WORLD);
 
-        //TimePoint tstart = Clock::now();
-        
-        // Which node to send to which processor
+        // TimePoint tstart = Clock::now();
+
+        // Which tree node to send to which processor
         for (auto const &itProc : toSendHalos)
         {
             int to = itProc.first;
+
+            ToSend &_toSend = sendMap[to];
 
             for (auto const &itNodes : itProc.second)
             {
@@ -223,8 +236,8 @@ public:
                     needed += cellCount;
                 else if(from == comm_rank && to != comm_rank)
                 {
-                    toSendPtri[to].push_back(ptri);
-                    toSendCount[to] += cellCount;
+                    _toSend.ptris.push_back(ptri);
+                    _toSend.count += cellCount;
                 }
             }
         }
@@ -240,23 +253,17 @@ public:
         //     fflush(stdout);
         // }
 
-        std::map<int, int> toSendPtriCount;
-        std::map<int, std::vector<std::vector<T>>> toSendBuff;
-
-        //tstart = Clock::now();
+        // tstart = Clock::now();
 
         // Fill buffer
-        for(auto const &it : toSendPtri)
+        for(auto &it : sendMap)
         {
-            int to = it.first;
-
-            toSendPtriCount[to] = toSendPtri[to].size();
-            std::vector<std::vector<T>> &_toSendBuff = toSendBuff[to];
-            
-            _toSendBuff.resize(data.size(), std::vector<T>(toSendCount[to]));
+            ToSend &_toSend = it.second;
+            _toSend.ptriCount = _toSend.ptris.size();
+            _toSend.buff.resize(data.size(), std::vector<T>(_toSend.count));
 
             int current = 0;
-            for(const int &ptri : it.second)
+            for(const int &ptri : _toSend.ptris)
             {
                 Octree<T> *cell = cellMap[ptri];
 
@@ -266,10 +273,10 @@ public:
                 for (unsigned int i = 0; i < data.size(); i++)
                 {
                     T *_buff = &(*data[i])[padding];
-                    T *__toSendBuff = &_toSendBuff[i][current];
+                    T *_toSendBuff = &_toSend.buff[i][current];
 
                     for(int j=0; j<cellCount; j++)
-                        __toSendBuff[j] = _buff[j];
+                        _toSendBuff[j] = _buff[j];
                 }
 
                 current += cellCount;
@@ -293,27 +300,28 @@ public:
         // tstart = Clock::now();
 
         // Send!!
-        for(auto const &it : toSendPtri)
+        for(auto &it : sendMap)
         {
-            int rcount = requests.size();
             int to = it.first;
+            ToSend &_toSend = it.second;
 
+            int rcount = requests.size();
             requests.resize(rcount + data.size() + 4);
 
             // Send rank
-            MPI_Isend(&comm_rank, 1, MPI_INT, to, to * data.size() + 0, MPI_COMM_WORLD, &requests[rcount]);
+            MPI_Isend(&comm_rank, 1, MPI_INT, to, tag + data.size() + 0, MPI_COMM_WORLD, &requests[rcount]);
 
             // Send ptriBuff
-            MPI_Isend(&toSendPtriCount[to], 1, MPI_INT, to, to * data.size() + 1, MPI_COMM_WORLD, &requests[rcount + 1]);
-            MPI_Isend(&toSendPtri[to][0], toSendPtriCount[to], MPI_INT, to, to * data.size() + 2, MPI_COMM_WORLD, &requests[rcount + 2]);
+            MPI_Isend(&_toSend.ptriCount, 1, MPI_INT, to, tag + data.size() + 1, MPI_COMM_WORLD, &requests[rcount + 1]);
+            MPI_Isend(&_toSend.ptris[0], _toSend.ptriCount, MPI_INT, to, tag + data.size() + 2, MPI_COMM_WORLD, &requests[rcount + 2]);
 
             // Send bigBuffer
-            MPI_Isend(&toSendCount[to], 1, MPI_INT, to, to * data.size() + 3, MPI_COMM_WORLD, &requests[rcount + 3]);
+            MPI_Isend(&_toSend.count, 1, MPI_INT, to, tag + data.size() + 3, MPI_COMM_WORLD, &requests[rcount + 3]);
 
             //printf("[%d] send %d to %d\n", comm_rank, toSendCount[to], to); fflush(stdout);
             for(unsigned int i=0; i<data.size(); i++)
             {
-                MPI_Isend(&toSendBuff[to][i][0], toSendCount[to], MPI_DOUBLE, to, to * data.size() + 4 + i, MPI_COMM_WORLD, &requests[rcount + 4 + i]);
+                MPI_Isend(&_toSend.buff[i][0], _toSend.count, MPI_DOUBLE, to, tag + data.size() + 4 + i, MPI_COMM_WORLD, &requests[rcount + 4 + i]);
             }
         }
 
@@ -337,12 +345,15 @@ public:
             MPI_Status status[data.size() + 4];
 
             int from = -1;
-            MPI_Recv(&from, 1, MPI_INT, MPI_ANY_SOURCE, comm_rank * data.size() + 0, MPI_COMM_WORLD, &status[0]);
+            MPI_Recv(&from, 1, MPI_INT, MPI_ANY_SOURCE, tag + data.size() + 0, MPI_COMM_WORLD, &status[0]);
+
+            // int rcount = requests.size();
+            // requests.resize(rcount + data.size());
 
             int ptriCount = 0;
 
             // Recv ptriBuff
-            MPI_Recv(&ptriCount, 1, MPI_INT, from, comm_rank * data.size() + 1, MPI_COMM_WORLD, &status[1]);
+            MPI_Recv(&ptriCount, 1, MPI_INT, from, tag + data.size() + 1, MPI_COMM_WORLD, &status[1]);
 
             int ptriBuffCount = ptriBuffs.size();
             ptriBuffs.resize(ptriBuffCount+1);
@@ -350,12 +361,12 @@ public:
             std::vector<int> &ptriBuff = ptriBuffs[ptriBuffCount++];
             ptriBuff.resize(ptriCount);
 
-            MPI_Recv(&ptriBuff[0], ptriCount, MPI_INT, from, comm_rank * data.size() + 2, MPI_COMM_WORLD, &status[2]);
+            MPI_Recv(&ptriBuff[0], ptriCount, MPI_INT, from, tag + data.size() + 2, MPI_COMM_WORLD, &status[2]);
 
             int count = 0;
 
             // Recv bigBuffer
-            MPI_Recv(&count, 1, MPI_INT, from, comm_rank * data.size() + 3, MPI_COMM_WORLD, &status[3]);
+            MPI_Recv(&count, 1, MPI_INT, from, tag + data.size() + 3, MPI_COMM_WORLD, &status[3]);
 
             int recvBuffCount = recvBuffs.size();
             recvBuffs.resize(recvBuffCount+1);
@@ -367,7 +378,7 @@ public:
             for(unsigned int i=0; i<data.size(); i++)
             {
                 recvBuff[i].resize(count);
-                MPI_Recv(&recvBuff[i][0], count, MPI_DOUBLE, from, comm_rank * data.size() + 4 + i, MPI_COMM_WORLD, &status[4 + i]);
+                MPI_Recv(&recvBuffs[recvBuffCount-1][i][0], count, MPI_DOUBLE, from, tag + data.size() + 4 + i, MPI_COMM_WORLD, &status[4 + i]);
             }
 
             needed -= count;
@@ -410,7 +421,7 @@ public:
             }
         }
 
-        MPI_Barrier(MPI_COMM_WORLD);
+        // MPI_Barrier(MPI_COMM_WORLD);
 
         // tstop = Clock::now();
         // elaspedTime = std::chrono::duration_cast<Time>(tstop-tstart).count();
@@ -420,6 +431,8 @@ public:
         //     printf("synchronizeHalos::finalize() %f\n", elaspedTime);
         //     fflush(stdout);
         // }
+
+        tag += data.size() + 4;
 
         if (requests.size() > 0)
         {
@@ -509,7 +522,7 @@ public:
 
             // printf("[%d] %d -> %d %d %d %d %d %d %d %d\n", comm_rank, octree.globalNodeCount, octree.cells[0]->globalParticleCount, octree.cells[1]->globalParticleCount, octree.cells[2]->globalParticleCount, octree.cells[3]->globalParticleCount, octree.cells[4]->globalParticleCount, octree.cells[5]->globalParticleCount, octree.cells[6]->globalParticleCount, octree.cells[7]->globalParticleCount);
             
-            octree.globalRebalance(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax);
+            nsplits = octree.globalRebalance(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax);
 
             // printf("[%d] SPLITS: %d, Nodes: %d\n", comm_rank, nsplits, octree.globalNodeCount);
             // fflush(stdout);
