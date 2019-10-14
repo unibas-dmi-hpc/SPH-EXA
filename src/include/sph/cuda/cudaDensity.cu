@@ -39,7 +39,7 @@ __global__ void density(const int n, const T sincIndex, const T K, const int ngm
 }
 } // namespace kernels
 
-template void computeDensity<double, SqPatch<double>>(const std::vector<ParticleIdxChunk> &clist, SqPatch<double> &d);
+template void computeDensity<double, ParticlesData<double>>(const std::vector<ParticleIdxChunk> &clist, ParticlesData<double> &d);
 
 template <typename T, class Dataset>
 void computeDensity(const std::vector<ParticleIdxChunk> &chunksToCompute, Dataset &d)

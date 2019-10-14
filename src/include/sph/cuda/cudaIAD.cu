@@ -61,7 +61,7 @@ __global__ void computeIAD(const int n, const T sincIndex, const T K, const int 
 }
 } // namespace kernels
 
-template void computeIAD<double, SqPatch<double>>(const std::vector<ParticleIdxChunk> &chunksToCompute, SqPatch<double> &d);
+template void computeIAD<double, ParticlesData<double>>(const std::vector<ParticleIdxChunk> &chunksToCompute, ParticlesData<double> &d);
 
 template <typename T, class Dataset>
 void computeIAD(const std::vector<ParticleIdxChunk> &chunksToCompute, Dataset &d)
