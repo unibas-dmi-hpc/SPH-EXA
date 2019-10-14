@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "sphexa.hpp"
-#include "SqPatch.hpp"
+#include "SqPatchDataGenerator.hpp"
 
 using namespace std;
 using namespace sphexa;
@@ -12,37 +12,37 @@ using namespace sphexa;
 int main(int argc, char **argv)
 {
     ArgParser parser(argc, argv);
-    int cubeSide = parser.getInt("-n", 50);
-    int maxStep = parser.getInt("-s", 10);
-    int writeFrequency = parser.getInt("-w", -1);
+    const int cubeSide = parser.getInt("-n", 50);
+    const int maxStep = parser.getInt("-s", 10);
+    const int writeFrequency = parser.getInt("-w", -1);
 
 #ifdef _JENKINS
     maxStep = 0;
     writeFrequency = -1;
 #endif
 
-    typedef double Real;
-    typedef SqPatch<Real> Dataset;
+    using Real = double;
+    using Dataset = ParticlesData<Real>;
 
 #ifdef USE_MPI
     MPI_Init(NULL, NULL);
 #endif
 
-    Dataset d(cubeSide);
+    auto d = SqPatchDataGenerator<Real>::generate(cubeSide);
     DistributedDomain<Real> distributedDomain;
-    // Domain<Real, Tree> domain(d.ngmin, d.ng0, d.ngmax);
+    Printer<Dataset> printer(d);
+    MPITimer timer(d.rank);
+
+    std::ofstream constantsFile("constants.txt");
 
     vector<int> clist(d.count);
     for (unsigned int i = 0; i < clist.size(); i++)
         clist[i] = i;
 
-    std::ofstream constants("constants.txt");
-
     d.bbox.setBox(0, 0, 0, 0, d.bbox.zmin, d.bbox.zmax, false, false, true);
     d.bbox.computeGlobal(clist, d.x, d.y, d.z);
     distributedDomain.create(clist, d);
 
-    MPITimer timer(d.rank);
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
         timer.start();
@@ -79,27 +79,22 @@ int main(int argc, char **argv)
         long long int totalNeighbors = distributedDomain.neighborsSum(clist, d);
         if (d.rank == 0)
         {
-            cout << "### Check ### Global Tree Nodes: " << distributedDomain.octree.globalNodeCount << ", Particles: " << clist.size()
-                 << ", Halos: " << distributedDomain.haloCount << endl;
-            cout << "### Check ### Computational domain: " << d.bbox.xmin << " " << d.bbox.xmax << " " << d.bbox.ymin << " " << d.bbox.ymax
-                 << " " << d.bbox.zmin << " " << d.bbox.zmax << endl;
-            cout << "### Check ### Total neighbors " << totalNeighbors << ", Avg count per particle: " << totalNeighbors / d.n << endl;
-            cout << "### Check ### Total time: " << d.ttot << ", current time-step: " << d.minDt << endl;
-            cout << "### Check ### Total energy: " << d.etot << ", (internal: " << d.eint << ", cinetic: " << d.ecin << ")" << endl;
+            printer.printCheck(clist.size(), distributedDomain.octree.globalNodeCount, distributedDomain.haloCount, totalNeighbors, std::cout);
+            printer.printConstants(d.iteration, totalNeighbors, constantsFile);
         }
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0))
         {
-            d.writeData(clist, "dump" + to_string(d.iteration) + ".txt");
+            printer.printAllDataToFile(clist, "dump" + to_string(d.iteration) + ".txt");
             timer.step("writeFile");
         }
-        d.writeConstants(d.iteration, totalNeighbors, constants);
 
         timer.stop();
-        if (d.rank == 0) cout << "=== Total time for iteration(" << d.iteration << ") " << timer.duration() << "s" << endl << endl;
+
+        if (d.rank == 0) printer.printTotalIterationTime(timer.duration(), std::cout);
     }
 
-    constants.close();
+    constantsFile.close();
 
 #ifdef USE_MPI
     MPI_Finalize();

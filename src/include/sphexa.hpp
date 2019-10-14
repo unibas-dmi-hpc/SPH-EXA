@@ -19,3 +19,4 @@
 #include "ArgParser.hpp"
 #include "config.hpp"
 #include "timer.hpp"
+#include "Printer.hpp"

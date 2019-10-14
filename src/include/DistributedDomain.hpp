@@ -92,7 +92,7 @@ public:
     template <class Dataset>
     void reorder(const std::vector<int> &ordering, Dataset &d)
     {
-        reorder(ordering, d.arrayList);
+        reorder(ordering, d.data);
     }
 
     void makeDataArray(std::vector<std::vector<T> *> &data, std::vector<T> *d) { data.push_back(d); }
@@ -561,7 +561,7 @@ public:
         // Basically collects a map[process][nodes] to send to other processes
         // Then it knows how many particle it is missing (particleCount - localParticleCount)
         // And just loop receive until we have received all the missing particles from other processes
-        sync(d.arrayList);
+        sync(d.data);
 
         // printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount, octree.globalParticleCount); fflush(stdout);
 
@@ -609,7 +609,7 @@ public:
         const std::vector<T> &x = d.x;
         const std::vector<T> &y = d.y;
         const std::vector<T> &z = d.z;
-        
+
         const int n = d.count;
 
         std::vector<int> ordering(n);
