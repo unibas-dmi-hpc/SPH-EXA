@@ -399,6 +399,7 @@ public:
         globalParticleCount[it] = this->localParticleCount;
     }
 
+#ifdef USE_MPI
     void buildGlobalTreeAndGlobalCountAndGlobalMaxH(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h, std::vector<int> &ordering)
     {
         std::vector<int> globalParticleCount(globalNodeCount, 0);
@@ -412,7 +413,7 @@ public:
         setParticleCountPerNode(globalParticleCount);
         setMaxHPerNode(globalMaxH);
     }
-
+#endif
     void buildTreeWithHalosRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, std::vector<int> &ordering, int padding = 0)
     {
         this->localPadding = padding;
@@ -456,7 +457,7 @@ public:
 
         std::vector<std::vector<int>> cellList(ncells);
         distributeParticles(list, x, y, z, cellList);
-
+        
         if((int)cells.size() == 0 && list.size() > bucketSize)
             makeSubCells();
 

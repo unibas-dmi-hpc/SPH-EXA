@@ -114,6 +114,11 @@ public:
         MPI_Allreduce(MPI_IN_PLACE, &ymax, 1, MPI_DOUBLE, MPI_MAX, comm);
         MPI_Allreduce(MPI_IN_PLACE, &zmax, 1, MPI_DOUBLE, MPI_MAX, comm);
     }
+#else
+    inline void computeGlobal(const std::vector<int> &clist, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z)
+    {
+        compute(clist, x, y, z);
+    }
 #endif
 
     T xmin, xmax, ymin, ymax, zmin, zmax;

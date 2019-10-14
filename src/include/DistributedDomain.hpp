@@ -26,9 +26,11 @@ class DistributedDomain
 public:
     DistributedDomain()
     {
+        #ifdef USE_MPI
         MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
         MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank);
         MPI_Get_processor_name(processor_name, &name_len);
+        #endif
     }
 
     template <class Dataset>
@@ -50,8 +52,8 @@ public:
                                      &d.neighbors[pi * ngmax], d.neighborsCount[pi], d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz);
 
 #ifndef NDEBUG
-                if (d.neighbors[pi].size() == 0)
-                    printf("ERROR::FindNeighbors(%d) x %f y %f z %f h = %f ngi %zu\n", i, x[i], y[i], z[i], h[i], neighborsCount[pi]);
+                if (d.neighborsCount[pi] == 0)
+                    printf("ERROR::FindNeighbors(%d) x %f y %f z %f h = %f ngi %d\n", i, d.x[i], d.y[i], d.z[i], d.h[i], d.neighborsCount[pi]);
 #endif
             }
     }
@@ -102,6 +104,7 @@ public:
         makeDataArray(data, args...);
     }
 
+#ifdef USE_MPI
     void sync(const std::vector<std::vector<T> *> &arrayList)
     {
         std::map<int, std::vector<int>> toSendCellsPadding, toSendCellsCount;
@@ -599,6 +602,44 @@ public:
         octree.mapList(clist);
         d.count = workAssigned;
     }
+#else
+    template <class Dataset>
+    void create(std::vector<int> &clist, Dataset &d)
+    {
+        const std::vector<T> &x = d.x;
+        const std::vector<T> &y = d.y;
+        const std::vector<T> &z = d.z;
+        
+        const int n = d.count;
+
+        std::vector<int> ordering(n);
+        
+        // Each process creates a tree based on the gathered sample
+        octree.cells.clear();
+        octree = Octree<T>(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, comm_rank, comm_size);
+        octree.buildTree(clist, x, y, z, ordering);
+        reorder(ordering, d);
+
+        for (unsigned int i = 0; i < clist.size(); i++)
+            clist[i] = i;
+    }
+
+    template <class Dataset>
+    void distribute(std::vector<int>&, Dataset&)
+    {
+        return;
+    }
+    template <typename... Args>
+    void synchronizeHalos(Args...)
+    {
+        return;
+    }
+
+    void synchronizeHalos(std::vector<std::vector<T> *>&)
+    {
+        return;
+    }
+#endif
 
     template <class Dataset>
     void buildTree(Dataset &d)
