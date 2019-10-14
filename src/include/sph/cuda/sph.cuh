@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "SqPatch.hpp"
+#include "ParticlesData.hpp"
 
 namespace sphexa
 {
