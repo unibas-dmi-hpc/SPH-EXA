@@ -27,7 +27,7 @@ public:
              << ", Halos: " << haloCount << std::endl;
         out << "### Check ### Computational domain: " << d.bbox.xmin << " " << d.bbox.xmax << " " << d.bbox.ymin << " " << d.bbox.ymax
             << " " << d.bbox.zmin << " " << d.bbox.zmax << std::endl;
-        out << "### Check ### Avg neighbor count per particle: " << totalNeighbors / d.n << std::endl;
+        out << "### Check ### Total Neighbors: " << totalNeighbors << ", Avg neighbor count per particle: " << totalNeighbors / d.n << std::endl;
         out << "### Check ### Total time: " << d.ttot << ", current time-step: " << d.minDt << std::endl;
         out << "### Check ### Total energy: " << d.etot << ", (internal: " << d.eint << ", cinetic: " << d.ecin << ")" << std::endl;
     }
@@ -48,7 +48,7 @@ public:
                 for (unsigned int pi = 0; pi < clist.size(); pi++)
                 {
                     const int i = clist[pi];
-                    const int nn = d.neighborsCount[pi];
+                    //const int nn = d.neighborsCount[pi];
 
                     dump << d.x[i] << ' ' << d.y[i] << ' ' << d.z[i] << ' ';
                     dump << d.vx[i] << ' ' << d.vy[i] << ' ' << d.vz[i] << ' ';
@@ -57,7 +57,7 @@ public:
                     // T rad = sqrt(x[i] * x[i] + y[i] * y[i] + z[i] * z[i]);
                     // T vrad = (vx[i] * x[i] + vy[i] * y[i] + vz[i] * z[i]) / rad;
                     // dump << rad << ' ' << vrad << std::endl;
-                    dump << d.rank << ' ' << nn << std::endl;
+                    dump << d.rank << std::endl;
                 }
 
                 dump.close();

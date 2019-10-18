@@ -15,6 +15,7 @@
 #include "DistributedDomain.hpp"
 #include "Octree.hpp"
 #include "BBox.hpp"
+#include "Task.hpp"
 
 #include "ArgParser.hpp"
 #include "config.hpp"

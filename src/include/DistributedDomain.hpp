@@ -11,11 +11,12 @@
 #include <algorithm>
 
 #include <unistd.h>
-
-#include "Octree.hpp"
-
 #include <chrono>
 #include <ctime>
+
+#include "Octree.hpp"
+#include "Task.hpp"
+
 
 namespace sphexa
 {
@@ -34,37 +35,52 @@ public:
     }
 
     template <class Dataset>
-    void findNeighbors(const std::vector<int> &clist, Dataset &d)
+    void findNeighborsImpl(Task &t, Dataset &d)
     {
-        const int64_t ngmax = d.ngmax;
-
-        int64_t n = clist.size();
-        d.neighbors.resize(n * ngmax);
-        d.neighborsCount.resize(n);
+        int64_t n = t.clist.size();
 
 #pragma omp parallel for schedule(guided)
             for (int pi = 0; pi < n; pi++)
             {
-                int i = clist[pi];
+                int i = t.clist[pi];
 
-                d.neighborsCount[pi] = 0;
-                octree.findNeighbors(i, &d.x[0], &d.y[0], &d.z[0], d.x[i], d.y[i], d.z[i], 2.0 * d.h[i], ngmax,
-                                     &d.neighbors[pi * ngmax], d.neighborsCount[pi], d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz);
+                t.neighborsCount[pi] = 0;
+                octree.findNeighbors(i, &d.x[0], &d.y[0], &d.z[0], d.x[i], d.y[i], d.z[i], 2.0 * d.h[i], t.ngmax,
+                                     &t.neighbors[pi * t.ngmax], t.neighborsCount[pi], d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz);
 
 #ifndef NDEBUG
-                if (d.neighborsCount[pi] == 0)
-                    printf("ERROR::FindNeighbors(%d) x %f y %f z %f h = %f ngi %d\n", i, d.x[i], d.y[i], d.z[i], d.h[i], d.neighborsCount[pi]);
+                if (t.neighborsCount[pi] == 0)
+                    printf("ERROR::FindNeighbors(%d) x %f y %f z %f h = %f ngi %d\n", i, d.x[i], d.y[i], d.z[i], d.h[i], t.neighborsCount[pi]);
 #endif
             }
     }
 
     template <class Dataset>
-    int64_t neighborsSum(const std::vector<int> &clist, const Dataset &d)
+    void findNeighbors(std::vector<Task> &taskList, Dataset &d)
+    {
+        for (auto &task : taskList)
+        {
+            findNeighborsImpl(task, d);
+        }
+    }
+
+    int64_t neighborsSumImpl(const Task &t)
     {
         int64_t sum = 0;
-#pragma omp parallel for reduction(+ : sum)
-        for (unsigned int i = 0; i < clist.size(); i++)
-            sum += d.neighborsCount[i];
+        for (unsigned int i = 0; i < t.clist.size(); i++)
+            sum += t.neighborsCount[i];
+
+        return sum;
+    }
+
+    int64_t neighborsSum(const std::vector<Task> &taskList)
+    {
+        int64_t sum = 0;
+        #pragma omp parallel for reduction(+ : sum)
+        for (const auto &task : taskList)
+        {
+            sum += neighborsSumImpl(task);
+        }
 
 #ifdef USE_MPI
         MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
@@ -445,8 +461,12 @@ public:
     }
 
     template <class Dataset>
-    void create(std::vector<int> &clist, Dataset &d)
+    void create(Dataset &d)
     {
+        clist.resize(d.count);
+        for (unsigned int i = 0; i < clist.size(); i++)
+            clist[i] = i;
+
         const std::vector<T> &x = d.x;
         const std::vector<T> &y = d.y;
         const std::vector<T> &z = d.z;
@@ -498,7 +518,7 @@ public:
     }
 
     template <class Dataset>
-    void distribute(std::vector<int> &clist, Dataset &d)
+    void distribute(Dataset &d)
     {
         const std::vector<T> &x = d.x;
         const std::vector<T> &y = d.y;
@@ -510,6 +530,8 @@ public:
         const int ntot = d.n;
         const int split = ntot / comm_size;
         const int remaining = ntot - comm_size * split;
+
+        d.bbox.computeGlobal(clist, d.x, d.y, d.z);
 
         std::vector<int> work(comm_size, split);
         work[0] += remaining;
@@ -599,12 +621,11 @@ public:
         for(int i=0; i<workAssigned; i++)
             clist[i] = i;
 
-        octree.mapList(clist);
         d.count = workAssigned;
     }
 #else
     template <class Dataset>
-    void create(std::vector<int> &clist, Dataset &d)
+    void create(Dataset &d)
     {
         const std::vector<T> &x = d.x;
         const std::vector<T> &y = d.y;
@@ -612,11 +633,15 @@ public:
 
         const int n = d.count;
 
+        clist.resize(n);
+        for (unsigned int i = 0; i < n; i++)
+            clist[i] = i;
+
         std::vector<int> ordering(n);
         
         // Each process creates a tree based on the gathered sample
         octree.cells.clear();
-        octree = Octree<T>(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, comm_rank, comm_size);
+        octree = Octree<T>(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, 0, 1);
         octree.buildTree(clist, x, y, z, ordering);
         reorder(ordering, d);
 
@@ -625,8 +650,9 @@ public:
     }
 
     template <class Dataset>
-    void distribute(std::vector<int>&, Dataset&)
+    void distribute(Dataset &d)
     {
+        d.bbox.computeGlobal(clist, d.x, d.y, d.z);
         return;
     }
     template <typename... Args>
@@ -642,7 +668,7 @@ public:
 #endif
 
     template <class Dataset>
-    void buildTree(Dataset &d)
+    void buildTree(Dataset &d, std::vector<Task> &taskList)
     {
         // Finally remap everything
         std::vector<int> ordering(d.x.size());
@@ -655,10 +681,13 @@ public:
         // We need this to expand halo
         octree.buildTree(list, d.x, d.y, d.z, ordering);
         reorder(ordering, d);
+
+        taskList.clear();
+        octree.mapList(clist, taskList);
     }
 
     template <class Dataset>
-    void updateSmoothingLength(const std::vector<int> &clist, Dataset &d)
+    void updateSmoothingLength(Dataset &d)
     {
         const T c0 = 7.0;
         const T exp = 1.0/3.0;
@@ -694,6 +723,8 @@ public:
     int workAssigned = 0;
 
     Octree<T> octree;
+
+    std::vector<int> clist;
 };
 
 } // namespace sphexa

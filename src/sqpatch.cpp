@@ -35,57 +35,52 @@ int main(int argc, char **argv)
 
     std::ofstream constantsFile("constants.txt");
 
-    vector<int> clist(d.count);
-    for (unsigned int i = 0; i < clist.size(); i++)
-        clist[i] = i;
+    std::vector<Task> taskList, debug;
 
-    d.bbox.setBox(0, 0, 0, 0, d.bbox.zmin, d.bbox.zmax, false, false, true);
-    d.bbox.computeGlobal(clist, d.x, d.y, d.z);
-    distributedDomain.create(clist, d);
+    distributedDomain.create(d);
 
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
         timer.start();
 
-        d.bbox.computeGlobal(clist, d.x, d.y, d.z);
-        distributedDomain.distribute(clist, d);
+        distributedDomain.distribute(d);
         timer.step("domain::distribute");
         distributedDomain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
         timer.step("mpi::synchronizeHalos");
-        distributedDomain.buildTree(d);
+        distributedDomain.buildTree(d, taskList);
         timer.step("domain::buildTree");
-        distributedDomain.findNeighbors(clist, d);
+        distributedDomain.findNeighbors(taskList, d);
         timer.step("FindNeighbors");
-        sph::computeDensity<Real>(clist, d);
-        if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(clist, d); }
+        sph::computeDensity<Real>(taskList, d);
+        if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList, d); }
         timer.step("Density");
-        sph::computeEquationOfState<Real>(clist, d);
+        sph::computeEquationOfState<Real>(taskList, d);
         timer.step("EquationOfState");
         distributedDomain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
         timer.step("mpi::synchronizeHalos");
-        sph::computeIAD<Real>(clist, d);
+        sph::computeIAD<Real>(taskList, d);
         timer.step("IAD");
         distributedDomain.synchronizeHalos(&d.c11, &d.c12, &d.c13, &d.c22, &d.c23, &d.c33);
         timer.step("mpi::synchronizeHalos");
-        sph::computeMomentumAndEnergyIAD<Real>(clist, d);
+        sph::computeMomentumAndEnergyIAD<Real>(taskList, d);
         timer.step("MomentumEnergyIAD");
-        sph::computeTimestep<Real>(clist, d);
+        sph::computeTimestep<Real>(taskList, d);
         timer.step("Timestep"); // AllReduce(min:dt)
-        sph::computePositions<Real>(clist, d);
+        sph::computePositions<Real>(taskList, d);
         timer.step("UpdateQuantities");
-        sph::computeTotalEnergy<Real>(clist, d);
+        sph::computeTotalEnergy<Real>(taskList, d);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
 
-        long long int totalNeighbors = distributedDomain.neighborsSum(clist, d);
+        long long int totalNeighbors = distributedDomain.neighborsSum(taskList);
         if (d.rank == 0)
         {
-            printer.printCheck(clist.size(), distributedDomain.octree.globalNodeCount, distributedDomain.haloCount, totalNeighbors, std::cout);
+            printer.printCheck(distributedDomain.clist.size(), distributedDomain.octree.globalNodeCount, distributedDomain.haloCount, totalNeighbors, std::cout);
             printer.printConstants(d.iteration, totalNeighbors, constantsFile);
         }
 
-        if ((writeFrequency > 0 && d.iteration % writeFrequency == 0))
+        if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            printer.printAllDataToFile(clist, "dump" + to_string(d.iteration) + ".txt");
+            printer.printAllDataToFile(distributedDomain.clist, "dump" + to_string(d.iteration) + ".txt");
             timer.step("writeFile");
         }
 

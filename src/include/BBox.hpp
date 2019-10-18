@@ -119,6 +119,11 @@ public:
     {
         compute(clist, x, y, z);
     }
+
+    inline void computeGlobal(const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z)
+    {
+        compute(x, y, z);
+    }
 #endif
 
     T xmin, xmax, ymin, ymax, zmin, zmax;

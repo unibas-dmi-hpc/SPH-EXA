@@ -5,6 +5,8 @@
 #include <vector>
 #include <algorithm>
 
+#include "Task.hpp"
+
 namespace sphexa
 {
 
@@ -461,6 +463,9 @@ public:
         if((int)cells.size() == 0 && list.size() > bucketSize)
             makeSubCells();
 
+        if(!global && assignee == -1)
+            assignee = comm_rank;
+
         if ((int)cells.size() == ncells)
         {
             for (int i = 0; i < ncells; i++)
@@ -761,7 +766,7 @@ public:
         }
     }
 
-    void mapListRec(std::vector<int> &clist, int &it)
+    void mapListRec(std::vector<int> &clist, std::vector<Task> &taskList, int &it)
     {
         if((int)cells.size() == ncells)
         {
@@ -769,26 +774,29 @@ public:
             {
                 for (int i = 0; i < ncells; i++)
                 {
-                    cells[i]->mapListRec(clist, it);
+                    cells[i]->mapListRec(clist, taskList, it);
                 }
             }
         }
         else
         {
-            if (assignee == comm_rank)
+            if (assignee == comm_rank && localParticleCount > 0)
             {
+                Task task(localParticleCount);
                 for (int i = 0; i < localParticleCount; i++)
                 {
                     clist[it++] = localPadding + i;
+                    task.clist[i] = localPadding + i;
                 }
+                taskList.push_back(task);
             }
         }
     }
 
-    void mapList(std::vector<int> &clist)
+    void mapList(std::vector<int> &clist, std::vector<Task> &taskList)
     {
         int it = 0;
-        mapListRec(clist, it);
+        mapListRec(clist, taskList, it);
     }
 };
 

@@ -11,13 +11,8 @@ namespace sph
 {
 namespace cuda
 {
-<<<<<<< HEAD
-template void computeDensity<double, SqPatch<double>>(const std::vector<ParticleIdxChunk> &clist, SqPatch<double> &d);
-
-=======
 namespace kernels
 {
->>>>>>> origin/develop
 template <typename T>
 __global__ void density(const int n, const T sincIndex, const T K, const int ngmax, const BBox<T> *bbox, const int *clist,
                         const int *neighbors, const int *neighborsCount, const T *x, const T *y, const T *z, const T *h, const T *m, T *ro)
@@ -106,13 +101,8 @@ void computeDensity(const std::vector<ParticleIdxChunk> &chunksToCompute, Datase
 
         // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
-<<<<<<< HEAD
-        density<<<blocksPerGrid, threadsPerBlock>>>(n, d.sincIndex, d.K, d.ngmax, d_bbox, d_clist, d_neighbors, d_neighborsCount, d_x, d_y,
-                                                    d_z, d_h, d_m, d_ro);
-=======
         kernels::density<<<blocksPerGrid, threadsPerBlock>>>(n, d.sincIndex, d.K, d.ngmax, d_bbox, d_clist, d_neighbors, d_neighborsCount,
                                                              d_x, d_y, d_z, d_h, d_m, d_ro);
->>>>>>> origin/develop
         CHECK_CUDA_ERR(cudaGetLastError());
 
         CHECK_CUDA_ERR(cudaMemcpy(d.ro.data() + clist.front(), d_ro, size_n_T, cudaMemcpyDeviceToHost));

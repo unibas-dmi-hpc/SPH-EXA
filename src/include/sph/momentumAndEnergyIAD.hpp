@@ -12,15 +12,13 @@ namespace sph
 {
 
 template <typename T, class Dataset>
-void computeIADImpl(const std::vector<int> &l, Dataset &d)
+void computeIADImpl(const Task &t, Dataset &d)
 {
-    const int64_t n = l.size();
-    const int64_t ngmax = d.ngmax;
-    const int *clist = l.data();
-    //const size_t neighborsOffset = l.front() * ngmax;
-    const int *neighbors = d.neighbors.data();// + neighborsOffset;
-    //const size_t nOffset = l.front();
-    const int *neighborsCount = d.neighborsCount.data();// + nOffset;
+    const size_t n = t.clist.size();
+    const size_t ngmax = t.ngmax;
+    const int *clist = t.clist.data();
+    const int *neighbors = t.neighbors.data();
+    const int *neighborsCount = t.neighborsCount.data();
 
     const T *h = d.h.data();
     const T *m = d.m.data();
@@ -29,12 +27,12 @@ void computeIADImpl(const std::vector<int> &l, Dataset &d)
     const T *z = d.z.data();
     const T *ro = d.ro.data();
 
-    T *c11 = d.c11.data();// + nOffset;
-    T *c12 = d.c12.data();// + nOffset;
-    T *c13 = d.c13.data();// + nOffset;
-    T *c22 = d.c22.data();// + nOffset;
-    T *c23 = d.c23.data();// + nOffset;
-    T *c33 = d.c33.data();// + nOffset;
+    T *c11 = d.c11.data();
+    T *c12 = d.c12.data();
+    T *c13 = d.c13.data();
+    T *c22 = d.c22.data();
+    T *c23 = d.c23.data();
+    T *c33 = d.c33.data();
 
     const BBox<T> bbox = d.bbox;
 
@@ -73,7 +71,7 @@ void computeIADImpl(const std::vector<int> &l, Dataset &d)
 #else
 #pragma omp parallel for schedule(guided)
 #endif
-    for (int pi = 0; pi < n; ++pi)
+    for (size_t pi = 0; pi < n; ++pi)
     {
         const int i = clist[pi];
         const int nn = neighborsCount[pi];
@@ -130,39 +128,31 @@ void computeIADImpl(const std::vector<int> &l, Dataset &d)
         c33[i] = (tau11 * tau22 - tau12 * tau12) / det;
     }
 }
+
 template <typename T, class Dataset>
-void computeIAD(const std::vector<int> &l, Dataset &d)
+void computeIAD(const std::vector<Task> &taskList, Dataset &d)
 {
 #if defined(USE_CUDA)
-    cuda::computeIAD<T>(utils::partition(l, d.noOfGpuLoopSplits), d);
+    cuda::computeIAD<T>(taskList, d);//utils::partition(l, d.noOfGpuLoopSplits), d);
 #else
-    //for (const auto &clist : utils::partition(l, d.noOfGpuLoopSplits))
+    for (const auto &task : taskList)
     {
-        //computeIADImpl<T>(clist, d);
-        computeIADImpl<T>(l, d);
+        computeIADImpl<T>(task, d);
     }
 #endif
-
-    // for(size_t i=0; i < l.size(); ++i)
-    // {
-    //     printf("%lu:%.15f ", i, d.c11[i]);
-    //     if (i % 10 == 0) printf("\n");
-    // }
 }
 
 template <typename T, class Dataset>
-void computeMomentumAndEnergyIADImpl(const std::vector<int> &l, Dataset &d)
+void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
 {
+    const size_t n = t.clist.size();
+    const size_t ngmax = t.ngmax;
+    const int *clist = t.clist.data();
+    const int *neighbors = t.neighbors.data();
+    const int *neighborsCount = t.neighborsCount.data();
+
     const T gradh_i = 1.0;
     const T gradh_j = 1.0;
-
-    const int64_t n = l.size();
-    const int64_t ngmax = d.ngmax;
-    const int *clist = l.data();
-    //const size_t neighborsOffset = l.front() * ngmax;
-    const int *neighbors = d.neighbors.data();// + neighborsOffset;
-    //const size_t nOffset = l.front();
-    const int *neighborsCount = d.neighborsCount.data();// + nOffset;
 
     const T *h = d.h.data();
     const T *m = d.m.data();
@@ -222,7 +212,7 @@ void computeMomentumAndEnergyIADImpl(const std::vector<int> &l, Dataset &d)
 #else
 #pragma omp parallel for schedule(guided)
 #endif
-    for (int pi = 0; pi < n; ++pi)
+    for (size_t pi = 0; pi < n; ++pi)
     {
         const int i = clist[pi];
         const int nn = neighborsCount[pi];
@@ -319,23 +309,16 @@ void computeMomentumAndEnergyIADImpl(const std::vector<int> &l, Dataset &d)
 };
 
 template <typename T, class Dataset>
-void computeMomentumAndEnergyIAD(const std::vector<int> &l, Dataset &d)
+void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
 {
 #if defined(USE_CUDA)
-    cuda::computeMomentumAndEnergyIAD<T>(utils::partition(l, d.noOfGpuLoopSplits), d);
+    cuda::computeMomentumAndEnergyIAD<T>(taskList, d);//utils::partition(l, d.noOfGpuLoopSplits), d);
 #else
-    //for (const auto &clist : utils::partition(l, d.noOfGpuLoopSplits))
+    for (const auto &task : taskList)
     {
-        //computeMomentumAndEnergyIADImpl<T>(clist, d);
-        computeMomentumAndEnergyIADImpl<T>(l, d);
+        computeMomentumAndEnergyIADImpl<T>(task, d);
     }
 #endif
-
-    // for (size_t i = 0; i < l.size(); ++i)
-    // {
-    //     printf("%lu:%.15f ", i, d.grad_P_x[i]);
-    //     if (i % 10 == 0) printf("\n");
-    // }
 }
 
 } // namespace sph

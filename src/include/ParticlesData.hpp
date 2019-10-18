@@ -13,8 +13,6 @@ struct ParticlesData
     {
         for (unsigned int i = 0; i < data.size(); ++i)
             data[i]->resize(size);
-        neighbors.resize(size * ngmax);
-        neighborsCount.resize(size);
     }
 
     int iteration;                               // Current iteration
@@ -37,10 +35,6 @@ struct ParticlesData
 
     sphexa::BBox<T> bbox;
 
-    std::vector<int> neighbors; // List of neighbor indices per particle.
-    std::vector<int> neighborsCount;
-    std::vector<int> workload, displs;
-
     std::vector<std::vector<T> *> data{&x,    &y,     &z,  &x_m1,  &y_m1, &z_m1, &vx,  &vy,       &vz,       &ro,
                                        &ro_0, &u,     &p,  &p_0,   &h,    &m,    &c,   &grad_P_x, &grad_P_y, &grad_P_z,
                                        &du,   &du_m1, &dt, &dt_m1, &c11,  &c12,  &c13, &c22,      &c23,      &c33};
@@ -56,7 +50,6 @@ struct ParticlesData
     constexpr static T sincIndex = 6.0;
     constexpr static T Kcour = 0.2;
     constexpr static T maxDtIncrease = 1.1;
-    constexpr static size_t ngmin = 5, ng0 = 500, ngmax = 650;
     const static T K;
     static T dx;
 
