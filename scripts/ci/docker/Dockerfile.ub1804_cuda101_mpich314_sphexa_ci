@@ -45,12 +45,18 @@ COPY . /SPH-EXA_mini-app/
 # drwxrwxr-x 2 travis travis 4096 Oct 21 13:59 test
 # drwxrwxr-x 2 travis travis 4096 Oct 21 13:59 tools
 # -rw-rw-r-- 1 travis travis 1878 Oct 21 13:59 .travis.yml
+# TRAVIS_REPO_SLUG=jgphpc/SPH-EXA_mini-app
+# USER=travis
+# PWD=/home/travis/build/jgphpc/SPH-EXA_mini-app
+# HOME=/home/travis
+# TRAVIS_BUILD_DIR=/home/travis/build/jgphpc/SPH-EXA_mini-app
+# TRAVIS_BRANCH=travisJG
+# TRAVIS_HOME=/home/travis
 # -----------------------------------------------------------------------------
 
-# RUN cd /SPH-EXA_mini-app && ls -la
 # RUN cd /sph/SPH-EXA_mini-app-$branchname \
 # # compile omp with gnu7:
-RUN pwd ; ls -la ; cd /SPH-EXA_mini-app ; ls -la \
+RUN cd /SPH-EXA_mini-app ; ls -la \
     && make omp CXXFLAGS="-std=c++14 -fopenmp -g -DNDEBUG -I. -Isrc" BINDIR=bin/gnu7 CXX=/usr/bin/g++-7 \
 # compile omp with gnu8:
     && make omp CXXFLAGS="-std=c++14 -fopenmp -g -DNDEBUG -I. -Isrc" BINDIR=bin/gnu8 CXX=/usr/bin/g++-8 \
@@ -60,17 +66,6 @@ RUN pwd ; ls -la ; cd /SPH-EXA_mini-app ; ls -la \
     && make mpi+omp CXXFLAGS="-std=c++14 -fopenmp -g -DNDEBUG -I. -Isrc" BINDIR=bin/gnu7 \
     && ls -laR bin
 
-# TRAVIS_REPO_SLUG=jgphpc/SPH-EXA_mini-app
-# USER=travis
-# PWD=/home/travis/build/jgphpc/SPH-EXA_mini-app
-# HOME=/home/travis
-# TRAVIS_BUILD_DIR=/home/travis/build/jgphpc/SPH-EXA_mini-app
-# TRAVIS_BRANCH=travisJG
-# TRAVIS_HOME=/home/travis
-
 WORKDIR /SPH-EXA_mini-app/bin
-# WORKDIR $TRAVIS_BUILD_DIR/bin
-# /home/travis/build/jgphpc/SPH-EXA_mini-app
 
 CMD ["./gnu7/omp.app", "-s", "0", "-n", "10"]
-# CMD ["mpirun", "-np", "2", "./mpi+omp.app", "-s", "0", "-n", "10"]
