@@ -24,11 +24,11 @@ before_script:
 
 script:
   - docker run --rm sphexa/mpich:ub1804_cuda101_mpi314_sphexa_ci 
-    bash -c "OMP_NUM_THREADS=1 ./gnu7/omp.app -s 0 -n 25 && grep -q '1 1.1e-06 1.1e-06 2.0801e+10 2.08e+10 1e+06' constants.txt"
+    bash -c "OMP_NUM_THREADS=1 ./gnu7/omp.app -s 0 -n 10 && ls -lart && cat constants.txt && grep -q '1 1.1e-06 1.1e-06 2.0801e+10 2.08e+10 1e+06' constants.txt"
   - docker run --rm sphexa/mpich:ub1804_cuda101_mpi314_sphexa_ci 
-    bash -c "OMP_NUM_THREADS=1 ./gnu8/omp.app -s 0 -n 25 && grep -q '1 1.1e-06 1.1e-06 2.0801e+10 2.08e+10 1e+06' constants.txt"
+    bash -c "OMP_NUM_THREADS=1 ./gnu8/omp.app -s 0 -n 10 && ls -lart && grep -q '1 1.1e-06 1.1e-06 2.0801e+10 2.08e+10 1e+06' constants.txt"
   - docker run --rm sphexa/mpich:ub1804_cuda101_mpi314_sphexa_ci 
-    bash -c "OMP_NUM_THREADS=1 ./gnu9/omp.app -s 0 -n 25 && grep -q '1 1.1e-06 1.1e-06 2.0801e+10 2.08e+10 1e+06' constants.txt"
+    bash -c "OMP_NUM_THREADS=1 ./gnu9/omp.app -s 0 -n 10 && ls -lart && grep -q '1 1.1e-06 1.1e-06 2.0801e+10 2.08e+10 1e+06' constants.txt"
 
 #  - docker run sphexa/mpich:$mytagname bash -c "./gnu7/omp.app -s 1 -n 10"    # gnu7
 #  - docker run sphexa/mpich:$mytagname bash -c "./gnu8/omp.app -s 1 -n 10"    # gnu8
