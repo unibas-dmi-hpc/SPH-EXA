@@ -15,7 +15,7 @@ before_script:
   - echo "TRAVIS_BRANCH=$TRAVIS_BRANCH, PR=$PR, MYBRANCH=$MYBRANCH"
   - pwd
   - ls -la
-  - export mytagname=ubuntu1804_cuda101_mpich314_sphexa_ci
+  - export mytagname=ub1804_cuda101_mpich314_sphexa_ci
   - echo "mytagname=$mytagname branchname=$MYBRANCH reponame=$TRAVIS_REPO_SLUG"
   - docker build -f ./scripts/ci/docker/Dockerfile.$mytagname -t sphexa/mpich:$mytagname .
 #  - export mytagname=ubuntu1804_cuda101_mpich314_sphexa
