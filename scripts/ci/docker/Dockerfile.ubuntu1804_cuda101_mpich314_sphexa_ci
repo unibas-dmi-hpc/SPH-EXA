@@ -25,8 +25,8 @@ FROM ethcscs/mpich:ub1804_cuda101_mpi314_osu
 # RUN mkdir -p /SPH-EXA_mini-app
 
 # -----------------------------------------------------------------------------
-# This COPY not needed as travis will clone the branch:
-# COPY SPH-EXA_mini-app /SPH-EXA_mini-app
+# Call COPY to cp the branch into the Docker image:
+COPY * /SPH-EXA_mini-app
 # $ git clone --depth=50 --branch=travisJG https://github.com/jgphpc/SPH-EXA_mini-app.git jgphpc/SPH-EXA_mini-app
 # $ pwd
 # /home/travis/build/jgphpc/SPH-EXA_mini-app
@@ -50,7 +50,7 @@ FROM ethcscs/mpich:ub1804_cuda101_mpi314_osu
 # RUN cd /SPH-EXA_mini-app && ls -la
 # RUN cd /sph/SPH-EXA_mini-app-$branchname \
 # # compile omp with gnu7:
-RUN pwd \
+RUN pwd ; cd /SPH-EXA_mini-app \
     && make omp CXXFLAGS="-std=c++14 -fopenmp -g -DNDEBUG -I. -Isrc" BINDIR=bin/gnu7 CXX=/usr/bin/g++-7 \
 # compile omp with gnu8:
     && make omp CXXFLAGS="-std=c++14 -fopenmp -g -DNDEBUG -I. -Isrc" BINDIR=bin/gnu8 CXX=/usr/bin/g++-8 \
@@ -68,8 +68,8 @@ RUN pwd \
 # TRAVIS_BRANCH=travisJG
 # TRAVIS_HOME=/home/travis
 
-# WORKDIR /sph/SPH-EXA_mini-app-$branchname/bin
-WORKDIR $TRAVIS_BUILD_DIR/bin
+WORKDIR /SPH-EXA_mini-app/bin
+# WORKDIR $TRAVIS_BUILD_DIR/bin
 # /home/travis/build/jgphpc/SPH-EXA_mini-app
 
 CMD ["./gnu7/omp.app", "-s", "0", "-n", "10"]
