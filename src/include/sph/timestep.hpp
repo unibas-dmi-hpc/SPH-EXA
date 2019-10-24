@@ -15,47 +15,71 @@ namespace sphexa
 namespace sph
 {
 template <typename T, class Dataset>
-void computeTimestep(const std::vector<int> &l, Dataset &d)
+void computeMinTimestepImpl(const Task &t, Dataset &d, T &minDt)
 {
-    const int n = l.size();
-    const int *clist = l.data();
+    const size_t n = t.clist.size();
+    const int *clist = t.clist.data();
 
     const T *h = d.h.data();
     const T *c = d.c.data();
-    const T *dt_m1 = d.dt_m1.data();
     const T Kcour = d.Kcour;
-    const T maxDtIncrease = d.maxDtIncrease;
 
-    T &ttot = d.ttot;
-    T *dt = d.dt.data();
+    T minDtTmp = INFINITY;
 
-    T mini = INFINITY;
-
-#pragma omp parallel for reduction(min : mini)
-    for (int pi = 0; pi < n; pi++)
+#pragma omp parallel for reduction(min : minDtTmp)
+    for (size_t pi = 0; pi < n; pi++)
     {
         int i = clist[pi];
         // Time-scheme according to Press (2nd order)
-        dt[i] = Kcour * (h[i] / c[i]);
-        if (dt[i] < mini) mini = dt[i];
+        T dt = Kcour * (h[i] / c[i]);
+        if (dt < minDtTmp) minDtTmp = dt;
     }
 
-    if (n > 0) mini = std::min(mini, maxDtIncrease * dt_m1[0]);
+    minDt = minDtTmp;
+}
 
-#ifdef USE_MPI
-    MPI_Allreduce(MPI_IN_PLACE, &mini, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-#endif
+template <typename T, class Dataset>
+void setMinTimestepImpl(const Task &t, Dataset &d, const T minDt)
+{
+    const size_t n = t.clist.size();
+    const int *clist = t.clist.data();
+
+    T *dt = d.dt.data();
 
 #pragma omp parallel for
-    for (int pi = 0; pi < n; pi++)
+    for (size_t pi = 0; pi < n; pi++)
     {
         int i = clist[pi];
-        dt[i] = mini;
+        dt[i] = minDt;
+    }
+}
+
+template <typename T, class Dataset>
+void computeTimestep(const std::vector<Task> &taskList, Dataset &d)
+{
+    T minDtTmp = INFINITY;
+    for (const auto &task : taskList)
+    {
+        T tminDt = 0.0;
+        computeMinTimestepImpl<T>(task, d, tminDt);
+        minDtTmp = std::min(tminDt, minDtTmp);
     }
 
-    d.minDt = mini;
+    minDtTmp = std::min(minDtTmp, d.maxDtIncrease * d.minDt);
 
-    ttot += mini;
+#ifdef USE_MPI
+    MPI_Allreduce(MPI_IN_PLACE, &minDtTmp, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+#endif
+
+    for (const auto &task : taskList)
+    {
+        setMinTimestepImpl(task, d, minDtTmp);
+    }
+
+    d.ttot += minDtTmp;
+    d.minDt = minDtTmp;
 }
+
+
 } // namespace sph
 } // namespace sphexa

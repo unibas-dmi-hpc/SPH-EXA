@@ -4,6 +4,9 @@
 #include <memory>
 #include <vector>
 #include <algorithm>
+#include <map>
+
+#include "Task.hpp"
 
 namespace sphexa
 {
@@ -397,8 +400,8 @@ public:
         globalParticleCount[it] = this->localParticleCount;
     }
 
-    void buildGlobalTreeAndGlobalCountAndGlobalMaxH(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y,
-                                                    const std::vector<T> &z, const std::vector<T> &h, std::vector<int> &ordering)
+#ifdef USE_MPI
+    void buildGlobalTreeAndGlobalCountAndGlobalMaxH(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h, std::vector<int> &ordering)
     {
         std::vector<int> globalParticleCount(globalNodeCount, 0);
         std::vector<T> globalMaxH(globalNodeCount, 0.0);
@@ -411,9 +414,8 @@ public:
         setParticleCountPerNode(globalParticleCount);
         setMaxHPerNode(globalMaxH);
     }
-
-    void buildTreeWithHalosRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z,
-                               std::vector<int> &ordering, int padding = 0)
+#endif
+    void buildTreeWithHalosRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, std::vector<int> &ordering, int padding = 0)
     {
         this->localPadding = padding;
         this->localParticleCount = 0; // this->globalParticleCount;
@@ -457,8 +459,11 @@ public:
 
         std::vector<std::vector<int>> cellList(ncells);
         distributeParticles(list, x, y, z, cellList);
+        if((int)cells.size() == 0 && list.size() > bucketSize)
+            makeSubCells();
 
-        if ((int)cells.size() == 0 && list.size() > bucketSize) makeSubCells();
+        if(!global && assignee == -1)
+            assignee = comm_rank;
 
         if ((int)cells.size() == ncells)
         {
@@ -754,7 +759,7 @@ public:
         }
     }
 
-    void mapListRec(std::vector<int> &clist, int &it)
+    void mapListRec(std::vector<int> &clist, std::vector<Task> &taskList, int &it)
     {
         if ((int)cells.size() == ncells)
         {
@@ -762,28 +767,32 @@ public:
             {
                 for (int i = 0; i < ncells; i++)
                 {
-                    cells[i]->mapListRec(clist, it);
+                    cells[i]->mapListRec(clist, taskList, it);
                 }
             }
         }
         else
         {
-            if (assignee == comm_rank)
+            if (assignee == comm_rank && localParticleCount > 0)
             {
+                Task task(localParticleCount);
                 for (int i = 0; i < localParticleCount; i++)
                 {
                     clist[it++] = localPadding + i;
+                    task.clist[i] = localPadding + i;
                 }
+                taskList.push_back(task);
             }
         }
     }
 
-    void mapList(std::vector<int> &clist)
+    void mapList(std::vector<int> &clist, std::vector<Task> &taskList)
     {
         int it = 0;
-        mapListRec(clist, it);
+        mapListRec(clist, taskList, it);
     }
 };
+
 
 template <typename T>
 struct GravityOctree : Octree<T>
@@ -864,7 +873,7 @@ struct GravityOctree : Octree<T>
             xce = x[idx];
             yce = y[idx];
             zce = z[idx];
-            printf("Leaf id = %d. [%f, %f, %f]\n", idx, xce, yce, zce);
+            // printf("Leaf id = %d. [%f, %f, %f]\n", idx, xce, yce, zce);
 
             qxx = 0;
             qxy = 0;
@@ -892,7 +901,7 @@ struct GravityOctree : Octree<T>
         this->localPadding = padding;
         this->localParticleCount = list.size();
 
-        gravityBuildTree(list, x, y, z, m);
+       gravityBuildTree(list, x, y, z, m);
         // printf("GravityTree buildTreeRec. Particles=%lu: xcm=%f, ycm=%f, zcm=%f\n", list.size(), xcm, ycm, zcm);
 
         std::vector<std::vector<int>> cellList(Octree<T>::ncells);
@@ -905,6 +914,8 @@ struct GravityOctree : Octree<T>
             for (int i = 0; i < this->ncells; i++)
             {
 #pragma omp task shared(cellList, x, y, z, ordering) firstprivate(padding)
+                if (this->cells[i] == nullptr) printf("NULLPTR\n");
+
                 this->cells[i]->buildTreeRec(cellList[i], x, y, z, m, ordering, padding);
                 padding += cellList[i].size();
             }

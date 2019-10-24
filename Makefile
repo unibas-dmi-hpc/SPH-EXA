@@ -16,21 +16,22 @@ THIS_FILE := $(lastword $(MAKEFILE_LIST))
 HPP := $(wildcard src/include/*.hpp)
 HPP += $(wildcard src/include/tree/*.hpp)
 
-CUDA_OBJS := $(BUILDDIR)/cudaMomentumAndEnergy.o $(BUILDDIR)/cudaDensity.o
+CUDA_OBJS := $(BUILDDIR)/cudaDensity.o $(BUILDDIR)/cudaIAD.o $(BUILDDIR)/cudaMomentumAndEnergyIAD.o $(BUILDDIR)/cudaDataInitializer.o
 
 RELEASE := -DNDEBUG
 DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
 
 INC += -Isrc -Isrc/include
 CXXFLAGS += $(RELEASE)
-NVCCFLAGS := -std=c++11 --expt-relaxed-constexpr -arch=sm_60
+NVCCFLAGS := -std=c++14 --expt-relaxed-constexpr -arch=sm_60 -rdc=true
+NVCC_LDFLAGS := -arch=sm_60
 
 ifeq ($(ENV),gnu)
-	CXXFLAGS += -std=c++14 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native
+	CXXFLAGS += -std=c++14 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native -g
 endif
 
 ifeq ($(ENV),pgi)
-	CXXFLAGS += -O2 -std=c++14 -mp -dynamic -ta=tesla,cc60 -mp=nonuma
+	CXXFLAGS += -O2 -std=c++14 -mp -dynamic -acc -ta=tesla,cc60 -mp=nonuma #-g -Minfo=accel # prints generated accel functions
 endif
 
 ifeq ($(ENV),cray)
@@ -60,7 +61,9 @@ mpi+omp: $(HPP)
 omp+cuda: $(BUILDDIR)/cuda_no_mpi.o $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(CXX) -o $(BINDIR)/$@.app $+ -L$(CUDA_PATH)/lib64 -lcudart -fopenmp
+	nvcc $(NVCC_LDFLAGS) -dlink -o cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
+	$(CXX) -o $(BINDIR)/$@.app cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudart -fopenmp
+#	$(CXX) -o $(BINDIR)/$@.app $+ -L$(CUDA_PATH)/lib64 -lcudart -fopenmp
 
 omp+target: $(HPP)
 	@mkdir -p $(BINDIR)
@@ -75,12 +78,14 @@ mpi+omp+target: $(HPP)
 mpi+omp+acc: $(HPP)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_ACC src/sqpatch.cpp -o $(BINDIR)/$@.app $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS -DUSE_ACC src/sqpatch.cpp -o $(BINDIR)/$@.app $(LIB)
 
 mpi+omp+cuda: $(BUILDDIR)/cuda_mpi.o $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@.app $+ -L$(CUDA_PATH)/lib64 -lcudart
+	nvcc $(NVCC_LDFLAGS) -dlink -o cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
+	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@.app cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudart
+#	$(MPICXX) -o $(BINDIR)/$@.app $+ -L$(CUDA_PATH)/lib64 -lcudart -fopenmp
 
 $(BUILDDIR)/cuda_mpi.o: src/sqpatch.cpp
 	@mkdir -p $(BUILDDIR)
@@ -92,7 +97,8 @@ $(BUILDDIR)/cuda_no_mpi.o: src/sqpatch.cpp
 
 $(BUILDDIR)/%.o: src/include/sph/cuda/%.cu
 	@mkdir -p $(BUILDDIR)
-	$(NVCC) $(NVCCFLAGS) $(INC) -I$(CUDA_PATH)/include -L$(CUDA_PATH)/lib64 -DUSE_STD_MATH_IN_KERNELS -c -o $@ $<
+	$(NVCC) $(NVCCFLAGS) $(INC) -I$(CUDA_PATH)/include -L$(CUDA_PATH)/lib64 -c -o $@ $<
+#	$(NVCC) $(NVCCFLAGS) $(INC) -DUSE_STD_MATH_IN_KERNELS -I$(CUDA_PATH)/include -L$(CUDA_PATH)/lib64 -c -o $@ $<
 
 run_test:
 	@$(MAKE) -f $(THIS_FILE) omp

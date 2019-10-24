@@ -143,7 +143,7 @@ void gravityTreeWalk(const std::vector<int> &clist, const GravityOctree<T> &tree
 
     for (size_t pi = 0; pi < n; ++pi)
     {
-        const int i = clist[pi];
+        // const int i = clist[pi];
         // if (i==627) printf("%d, %d: [%f, %f, %f] ", pi, clist[i], x[i], y[i], z[i]);
     }
 
@@ -154,14 +154,14 @@ void gravityTreeWalk(const std::vector<int> &clist, const GravityOctree<T> &tree
         treeWalkRef(tree, i, x, y, z, h, fx, fy, fz, ugrav);
     }
 
-    printf("Gravity components\n");
+    // printf("Gravity components\n");
 
-    for (int pi = 0; pi < n; ++pi)
-    {
-        int i = clist[pi];
-        printf("%d: [%f, %f] ", clist[i], d.fx[i], d.ugrav[i]);
-        if (i % 10 == 0) printf("\n");
-    }
+    // for (size_t pi = 0; pi < n; ++pi)
+    // {
+    //     int i = clist[pi];
+    //     printf("%d: [%f, %f] ", clist[i], d.fx[i], d.ugrav[i]);
+    //     if (i % 10 == 0) printf("\n");
+    // }
 }
 
 } // namespace sph

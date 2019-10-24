@@ -6,12 +6,17 @@
 
 #include <vector>
 #include <cmath>
+#include <unordered_map>
 #include <map>
 #include <algorithm>
 
 #include <unistd.h>
+#include <chrono>
+#include <ctime>
 
 #include "Octree.hpp"
+#include "Task.hpp"
+
 
 namespace sphexa
 {
@@ -22,62 +27,66 @@ class DistributedDomain
 public:
     DistributedDomain()
     {
+        #ifdef USE_MPI
         MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
         MPI_Comm_rank(MPI_COMM_WORLD, &comm_rank);
         MPI_Get_processor_name(processor_name, &name_len);
+        #endif
     }
 
     template <class Dataset>
-    void findNeighbors(const std::vector<int> &clist, Dataset &d)
+    void findNeighborsImpl(Task &t, Dataset &d)
     {
-        const int64_t ngmax = d.ngmax;
-
-        int64_t n = clist.size();
-        d.neighbors.resize(n * ngmax);
-        d.neighborsCount.resize(n);
+        int64_t n = t.clist.size();
 
 #pragma omp parallel for schedule(guided)
             for (int pi = 0; pi < n; pi++)
             {
-                int i = clist[pi];
+                int i = t.clist[pi];
 
-                d.neighborsCount[pi] = 0;
-                octree.findNeighbors(i, &d.x[0], &d.y[0], &d.z[0], d.x[i], d.y[i], d.z[i], 2.0 * d.h[i], ngmax,
-                                     &d.neighbors[pi * ngmax], d.neighborsCount[pi], PBCx, PBCy, PBCz);
+                t.neighborsCount[pi] = 0;
+                octree.findNeighbors(i, &d.x[0], &d.y[0], &d.z[0], d.x[i], d.y[i], d.z[i], 2.0 * d.h[i], t.ngmax,
+                                     &t.neighbors[pi * t.ngmax], t.neighborsCount[pi], d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz);
 
 #ifndef NDEBUG
-                if (d.neighbors[pi].size() == 0)
-                    printf("ERROR::FindNeighbors(%d) x %f y %f z %f h = %f ngi %zu\n", i, x[i], y[i], z[i], h[i], neighborsCount[pi]);
+                if (t.neighborsCount[pi] == 0)
+                    printf("ERROR::FindNeighbors(%d) x %f y %f z %f h = %f ngi %d\n", i, d.x[i], d.y[i], d.z[i], d.h[i], t.neighborsCount[pi]);
 #endif
             }
     }
 
     template <class Dataset>
-    int64_t neighborsSum(const std::vector<int> &clist, const Dataset &d)
+    void findNeighbors(std::vector<Task> &taskList, Dataset &d)
+    {
+        for (auto &task : taskList)
+        {
+            findNeighborsImpl(task, d);
+        }
+    }
+
+    int64_t neighborsSumImpl(const Task &t)
     {
         int64_t sum = 0;
-#pragma omp parallel for reduction(+ : sum)
-        for (unsigned int i = 0; i < clist.size(); i++)
-            sum += d.neighborsCount[i];
+        for (unsigned int i = 0; i < t.clist.size(); i++)
+            sum += t.neighborsCount[i];
+
+        return sum;
+    }
+
+    int64_t neighborsSum(const std::vector<Task> &taskList)
+    {
+        int64_t sum = 0;
+//        #pragma omp parallel for reduction(+ : sum)
+        for (const auto task : taskList)
+        {
+            sum += neighborsSumImpl(task);
+        }
 
 #ifdef USE_MPI
         MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
 #endif
 
         return sum;
-    }
-
-    void setBox(T xmin, T xmax, T ymin, T ymax, T zmin, T zmax, bool PBCx, bool PBCy, bool PBCz)
-    {
-        this->xmin = xmin;
-        this->xmax = xmax;
-        this->ymin = ymin;
-        this->ymax = ymax;
-        this->zmin = zmin;
-        this->zmax = zmax;
-        this->PBCx = PBCx;
-        this->PBCy = PBCy;
-        this->PBCz = PBCz;
     }
 
     inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
@@ -99,7 +108,7 @@ public:
     template <class Dataset>
     void reorder(const std::vector<int> &ordering, Dataset &d)
     {
-        reorder(ordering, d.arrayList);
+        reorder(ordering, d.data);
     }
 
     void makeDataArray(std::vector<std::vector<T> *> &data, std::vector<T> *d) { data.push_back(d); }
@@ -111,6 +120,7 @@ public:
         makeDataArray(data, args...);
     }
 
+#ifdef USE_MPI
     void sync(const std::vector<std::vector<T> *> &arrayList)
     {
         std::map<int, std::vector<int>> toSendCellsPadding, toSendCellsCount;
@@ -198,68 +208,250 @@ public:
 
     void synchronizeHalos(std::vector<std::vector<T> *> &data)
     {
-        // std::vector<std::vector<T>> buff;
-        std::vector<MPI_Request> requests;
+        static unsigned short int tag = 0;
 
+        // typedef std::chrono::high_resolution_clock Clock;
+        // typedef std::chrono::time_point<Clock> TimePoint;
+        // typedef std::chrono::duration<float> Time;
+
+        std::map<int, Octree<T>*> cellMap;
+
+        struct ToSend
+        {
+            std::vector<int> ptris;
+            int ptriCount;
+
+            std::vector<std::vector<T>> buff;
+            int count;
+        };
+
+        std::unordered_map<int, ToSend> sendMap;
+        int needed = 0;
+
+        //MPI_Barrier(MPI_COMM_WORLD);
+
+        // TimePoint tstart = Clock::now();
+
+        // Which tree node to send to which processor
         for (auto const &itProc : toSendHalos)
         {
             int to = itProc.first;
+
+            ToSend &_toSend = sendMap[to];
 
             for (auto const &itNodes : itProc.second)
             {
                 int ptri = itNodes.first;
+
                 Octree<T> *cell = itNodes.second;
 
-                int count = cell->globalParticleCount;
-                int padding = cell->localPadding;
+                int cellCount = cell->globalParticleCount;
                 int from = cell->assignee;
 
-                if (from == comm_rank)
+                // store corresponding cell for when recving
+                cellMap[ptri] = cell;
+
+                if(to == comm_rank && from != comm_rank)
+                    needed += cellCount;
+                else if(from == comm_rank && to != comm_rank)
                 {
-                    int rcount = requests.size();
-                    requests.resize(rcount + data.size());
-
-                    for (unsigned int i = 0; i < data.size(); i++)
-                    {
-                        T *buff = &(*data[i])[padding];
-
-                        // if(comm_rank == 1) printf("[%d] sends cell %d (%d) at %d to %d\n", from, ptri, count, padding, to);
-                        // if(padding + count > (*data[i]).size()) printf("ERROR: %d %d %lu\n", padding, count, (*data[i]).size());
-                        MPI_Isend(buff, count, MPI_DOUBLE, to, ptri * data.size() + i, MPI_COMM_WORLD, &requests[rcount + i]);
-                    }
+                    _toSend.ptris.push_back(ptri);
+                    _toSend.count += cellCount;
                 }
             }
         }
 
-        for (auto const &itProc : toSendHalos)
+        // MPI_Barrier(MPI_COMM_WORLD);
+
+        // TimePoint tstop = Clock::now();
+        // float elaspedTime = std::chrono::duration_cast<Time>(tstop-tstart).count();
+
+        // if(comm_rank == 0)
+        // {
+        //     printf("synchronizeHalos::collect() %f\n", elaspedTime);
+        //     fflush(stdout);
+        // }
+
+        // tstart = Clock::now();
+
+        // Fill buffer
+        for(auto &it : sendMap)
         {
-            int to = itProc.first;
+            ToSend &_toSend = it.second;
+            _toSend.ptriCount = _toSend.ptris.size();
+            _toSend.buff.resize(data.size(), std::vector<T>(_toSend.count));
 
-            if (to == comm_rank)
+            int current = 0;
+            for(const int &ptri : _toSend.ptris)
+            {
+                Octree<T> *cell = cellMap[ptri];
 
-                for (auto const &itNodes : itProc.second)
+                int cellCount = cell->globalParticleCount;
+                int padding = cell->localPadding;
+
+                for (unsigned int i = 0; i < data.size(); i++)
                 {
-                    int ptri = itNodes.first;
-                    Octree<T> *cell = itNodes.second;
+                    T *_buff = &(*data[i])[padding];
+                    T *_toSendBuff = &_toSend.buff[i][current];
 
-                    int count = cell->globalParticleCount;
-                    int padding = cell->localPadding;
-                    int from = cell->assignee;
-
-                    MPI_Status status[data.size()];
-
-                    for (unsigned int i = 0; i < data.size(); i++)
-                    {
-                        T *buff = &(*data[i])[padding];
-
-                        // if(comm_rank == 1) printf("[%d] recv cell %d (%d) at %d from %d\n", to, ptri, count, padding, from);
-                        // if(padding + count > (*data[i]).size()) printf("ERROR: %d %d\n", padding, count);
-                        // printf("Padding: %d\n", padding);
-
-                        MPI_Recv(buff, count, MPI_DOUBLE, from, ptri * data.size() + i, MPI_COMM_WORLD, &status[i]); //&requests[rcount + i]);
-                    }
+                    for(int j=0; j<cellCount; j++)
+                        _toSendBuff[j] = _buff[j];
                 }
+
+                current += cellCount;
+            }
         }
+
+        std::vector<MPI_Request> requests;
+
+        // MPI_Barrier(MPI_COMM_WORLD);
+
+        // tstop = Clock::now();
+        // elaspedTime = std::chrono::duration_cast<Time>(tstop-tstart).count();
+
+        // if(comm_rank == 0)
+        // {
+        //     printf("synchronizeHalos::fill() %f\n", elaspedTime);
+        //     fflush(stdout);
+        // }
+
+
+        // tstart = Clock::now();
+
+        // Send!!
+        for(auto &it : sendMap)
+        {
+            int to = it.first;
+            ToSend &_toSend = it.second;
+
+            int rcount = requests.size();
+            requests.resize(rcount + data.size() + 4);
+
+            // Send rank
+            MPI_Isend(&comm_rank, 1, MPI_INT, to, tag + data.size() + 0, MPI_COMM_WORLD, &requests[rcount]);
+
+            // Send ptriBuff
+            MPI_Isend(&_toSend.ptriCount, 1, MPI_INT, to, tag + data.size() + 1, MPI_COMM_WORLD, &requests[rcount + 1]);
+            MPI_Isend(&_toSend.ptris[0], _toSend.ptriCount, MPI_INT, to, tag + data.size() + 2, MPI_COMM_WORLD, &requests[rcount + 2]);
+
+            // Send bigBuffer
+            MPI_Isend(&_toSend.count, 1, MPI_INT, to, tag + data.size() + 3, MPI_COMM_WORLD, &requests[rcount + 3]);
+
+            //printf("[%d] send %d to %d\n", comm_rank, toSendCount[to], to); fflush(stdout);
+            for(unsigned int i=0; i<data.size(); i++)
+            {
+                MPI_Isend(&_toSend.buff[i][0], _toSend.count, MPI_DOUBLE, to, tag + data.size() + 4 + i, MPI_COMM_WORLD, &requests[rcount + 4 + i]);
+            }
+        }
+
+        // MPI_Barrier(MPI_COMM_WORLD);
+
+        // tstop = Clock::now();
+        // elaspedTime = std::chrono::duration_cast<Time>(tstop-tstart).count();
+
+        // if(comm_rank == 0)
+        // {
+        //     printf("synchronizeHalos::send() %f\n", elaspedTime);
+        //     fflush(stdout);
+        // }
+
+        // tstart = Clock::now();
+
+        std::vector<std::vector<int>> ptriBuffs;
+        std::vector<std::vector<std::vector<T>>> recvBuffs;
+        while(needed > 0)
+        {
+            MPI_Status status[data.size() + 4];
+
+            int from = -1;
+            MPI_Recv(&from, 1, MPI_INT, MPI_ANY_SOURCE, tag + data.size() + 0, MPI_COMM_WORLD, &status[0]);
+
+            // int rcount = requests.size();
+            // requests.resize(rcount + data.size());
+
+            int ptriCount = 0;
+
+            // Recv ptriBuff
+            MPI_Recv(&ptriCount, 1, MPI_INT, from, tag + data.size() + 1, MPI_COMM_WORLD, &status[1]);
+
+            int ptriBuffCount = ptriBuffs.size();
+            ptriBuffs.resize(ptriBuffCount+1);
+
+            std::vector<int> &ptriBuff = ptriBuffs[ptriBuffCount++];
+            ptriBuff.resize(ptriCount);
+
+            MPI_Recv(&ptriBuff[0], ptriCount, MPI_INT, from, tag + data.size() + 2, MPI_COMM_WORLD, &status[2]);
+
+            int count = 0;
+
+            // Recv bigBuffer
+            MPI_Recv(&count, 1, MPI_INT, from, tag + data.size() + 3, MPI_COMM_WORLD, &status[3]);
+
+            int recvBuffCount = recvBuffs.size();
+            recvBuffs.resize(recvBuffCount+1);
+
+            std::vector<std::vector<T>> &recvBuff = recvBuffs[recvBuffCount++];
+            recvBuff.resize(data.size());
+
+            //printf("[%d] recv %d from %d\n", comm_rank, count, from); fflush(stdout);
+            for(unsigned int i=0; i<data.size(); i++)
+            {
+                recvBuff[i].resize(count);
+                MPI_Recv(&recvBuffs[recvBuffCount-1][i][0], count, MPI_DOUBLE, from, tag + data.size() + 4 + i, MPI_COMM_WORLD, &status[4 + i]);
+            }
+
+            needed -= count;
+        }
+
+        // MPI_Barrier(MPI_COMM_WORLD);
+
+        // tstop = Clock::now();
+        // elaspedTime = std::chrono::duration_cast<Time>(tstop-tstart).count();
+
+        // if(comm_rank == 0)
+        // {
+        //     printf("synchronizeHalos::recv() %f\n", elaspedTime);
+        //     fflush(stdout);
+        // }
+
+        // tstart = Clock::now();
+
+        for(unsigned int bi=0; bi<recvBuffs.size(); bi++)
+        {
+            std::vector<int> &ptriBuff = ptriBuffs[bi];
+            std::vector<std::vector<T>> &recvBuff = recvBuffs[bi];
+
+            int current = 0;
+            for(const int& ptri : ptriBuff)
+            {
+                Octree<T> *cell = cellMap[ptri];
+
+                int cellCount = cell->globalParticleCount;
+                int padding = cell->localPadding;
+
+                for(unsigned int i=0; i<data.size(); i++)
+                {
+                    T *buff = &(*data[i])[padding];
+                    for(int j=0; j<cellCount; j++)
+                        buff[j] = recvBuff[i][current + j];
+                }
+
+                current += cellCount;
+            }
+        }
+
+        // MPI_Barrier(MPI_COMM_WORLD);
+
+        // tstop = Clock::now();
+        // elaspedTime = std::chrono::duration_cast<Time>(tstop-tstart).count();
+
+        // if(comm_rank == 0)
+        // {
+        //     printf("synchronizeHalos::finalize() %f\n", elaspedTime);
+        //     fflush(stdout);
+        // }
+
+        tag += data.size() + 4;
 
         if (requests.size() > 0)
         {
@@ -268,42 +460,13 @@ public:
         }
     }
 
-    void computeGlobalBoundingBox(const std::vector<int> &clist, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z)
-    {
-        if (!PBCx) xmin = INFINITY;
-        if (!PBCx) xmax = -INFINITY;
-        if (!PBCy) ymin = INFINITY;
-        if (!PBCy) ymax = -INFINITY;
-        if (!PBCz) zmin = INFINITY;
-        if (!PBCz) zmax = -INFINITY;
-
-        for (unsigned int pi = 0; pi < clist.size(); pi++)
-        {
-            const int i = clist[pi];
-
-            T xx = x[i];
-            T yy = y[i];
-            T zz = z[i];
-
-            if (!PBCx && xx < xmin) xmin = xx;
-            if (!PBCx && xx > xmax) xmax = xx;
-            if (!PBCy && yy < ymin) ymin = yy;
-            if (!PBCy && yy > ymax) ymax = yy;
-            if (!PBCz && zz < zmin) zmin = zz;
-            if (!PBCz && zz > zmax) zmax = zz;
-        }
-
-        MPI_Allreduce(MPI_IN_PLACE, &xmin, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-        MPI_Allreduce(MPI_IN_PLACE, &ymin, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-        MPI_Allreduce(MPI_IN_PLACE, &zmin, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-        MPI_Allreduce(MPI_IN_PLACE, &xmax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        MPI_Allreduce(MPI_IN_PLACE, &ymax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-        MPI_Allreduce(MPI_IN_PLACE, &zmax, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-    }
-
     template <class Dataset>
-    void approximate(std::vector<int> &clist, Dataset &d)
+    void create(Dataset &d)
     {
+        clist.resize(d.count);
+        for (unsigned int i = 0; i < clist.size(); i++)
+            clist[i] = i;
+
         const std::vector<T> &x = d.x;
         const std::vector<T> &y = d.y;
         const std::vector<T> &z = d.z;
@@ -317,18 +480,6 @@ public:
 
         std::vector<int> work(comm_size, split);
         work[0] += remaining;
-
-        // We compute the global bounding box of the global domain
-        // All processes will have the same box dimensions for the domain
-        computeGlobalBoundingBox(clist, x, y, z);
-        d.bbox.xmin = xmin;
-        d.bbox.xmax = xmax;
-        d.bbox.ymin = ymin;
-        d.bbox.ymax = ymax;
-        d.bbox.zmin = zmin;
-        d.bbox.zmax = zmax;
-
-        // printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
 
         // Each process creates a random sample of local_sample_size particles
         const int global_sample_size = local_sample_size * comm_size;
@@ -353,7 +504,8 @@ public:
         // Each process creates a tree based on the gathered sample
         octree.cells.clear();
 
-        octree = GravityOctree<T>(xmin, xmax, ymin, ymax, zmin, zmax, comm_rank, comm_size);
+        octree = //GravityOctree<T>(xmin, xmax, ymin, ymax, zmin, zmax, comm_rank, comm_size);
+            GravityOctree<T>(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, 0, 1);
         octree.approximate(sx, sy, sz, sh);
 
         std::vector<int> ordering(n);
@@ -367,7 +519,7 @@ public:
     }
 
     template <class Dataset>
-    void distribute(std::vector<int> &clist, Dataset &d)
+    void distribute(Dataset &d)
     {
         const std::vector<T> &x = d.x;
         const std::vector<T> &y = d.y;
@@ -380,21 +532,10 @@ public:
         const int split = ntot / comm_size;
         const int remaining = ntot - comm_size * split;
 
+        d.bbox.computeGlobal(clist, d.x, d.y, d.z);
+
         std::vector<int> work(comm_size, split);
         work[0] += remaining;
-
-        // We compute the global bounding box of the global domain
-        // All processes will have the same box dimensions for the domain
-        computeGlobalBoundingBox(clist, x, y, z);
-
-        d.bbox.xmin = xmin;
-        d.bbox.xmax = xmax;
-        d.bbox.ymin = ymin;
-        d.bbox.ymax = ymax;
-        d.bbox.zmin = zmin;
-        d.bbox.zmax = zmax;
-
-        // printf("Global Bounding Box: %f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax); fflush(stdout);
 
         // We map the nodes to a 1D array and retrieve the order of the particles in the tree
         std::vector<int> ordering(n);
@@ -407,7 +548,7 @@ public:
 
             // printf("[%d] %d -> %d %d %d %d %d %d %d %d\n", comm_rank, octree.globalNodeCount, octree.cells[0]->globalParticleCount, octree.cells[1]->globalParticleCount, octree.cells[2]->globalParticleCount, octree.cells[3]->globalParticleCount, octree.cells[4]->globalParticleCount, octree.cells[5]->globalParticleCount, octree.cells[6]->globalParticleCount, octree.cells[7]->globalParticleCount);
             
-            octree.globalRebalance(xmin, xmax, ymin, ymax, zmin, zmax);
+            nsplits = octree.globalRebalance(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax);
 
             // printf("[%d] SPLITS: %d, Nodes: %d\n", comm_rank, nsplits, octree.globalNodeCount);
             // fflush(stdout);
@@ -443,12 +584,12 @@ public:
         // Basically collects a map[process][nodes] to send to other processes
         // Then it knows how many particle it is missing (particleCount - localParticleCount)
         // And just loop receive until we have received all the missing particles from other processes
-        sync(d.arrayList);
+        sync(d.data);
 
         // printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount, octree.globalParticleCount); fflush(stdout);
 
         //octree.computeGlobalMaxH();
-        haloCount = octree.findHalos(toSendHalos, PBCx, PBCy, PBCz);
+        haloCount = octree.findHalos(toSendHalos, d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz);
 
         workAssigned = work[comm_rank] - work_remaining[comm_rank];
 
@@ -481,12 +622,56 @@ public:
         for(int i=0; i<workAssigned; i++)
             clist[i] = i;
 
-        octree.mapList(clist);
         d.count = workAssigned;
+    }
+#else
+    template <class Dataset>
+    void create(Dataset &d)
+    {
+        const std::vector<T> &x = d.x;
+        const std::vector<T> &y = d.y;
+        const std::vector<T> &z = d.z;
+
+        const int n = d.count;
+
+        clist.resize(n);
+        for (unsigned int i = 0; i < n; i++)
+            clist[i] = i;
+
+        std::vector<int> ordering(n);
+
+        d.bbox.computeGlobal(clist, d.x, d.y, d.z);
+
+        // Each process creates a tree based on the gathered sample
+        octree.cells.clear();
+        octree = GravityOctree<T>(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, 0, 1);
+        octree.buildTree(clist, x, y, z, d.m, ordering);
+        reorder(ordering, d);
+
+        // for (unsigned int i = 0; i < clist.size(); i++)
+        //     clist[i] = i;
     }
 
     template <class Dataset>
-    void buildTree(Dataset &d)
+    void distribute(Dataset &d)
+    {
+        d.bbox.computeGlobal(clist, d.x, d.y, d.z);
+        return;
+    }
+    template <typename... Args>
+    void synchronizeHalos(Args...)
+    {
+        return;
+    }
+
+    void synchronizeHalos(std::vector<std::vector<T> *>&)
+    {
+        return;
+    }
+#endif
+
+    template <class Dataset>
+    void buildTree(Dataset &d, std::vector<Task> &taskList)
     {
         // Finally remap everything
         std::vector<int> ordering(d.x.size());
@@ -499,10 +684,13 @@ public:
         // We need this to expand halo
         octree.buildTree(list, d.x, d.y, d.z, d.m, ordering);
         reorder(ordering, d);
+
+        taskList.clear();
+        octree.mapList(clist, taskList);
     }
 
     template <class Dataset>
-    void updateSmoothingLength(const std::vector<int> &clist, Dataset &d)
+    void updateSmoothingLength(Dataset &d)
     {
         const T c0 = 7.0;
         const T exp = 1.0/3.0;
@@ -532,15 +720,15 @@ public:
     int comm_size, comm_rank, name_len;
     char processor_name[256];
 
-    bool PBCx = false, PBCy = false, PBCz = false;
-    T xmin = INFINITY, xmax = -INFINITY, ymin = INFINITY, ymax = -INFINITY, zmin = INFINITY, zmax = -INFINITY;
-
     std::map<int, std::map<int, Octree<T> *>> toSendHalos;
 
     int haloCount = 0;
     int workAssigned = 0;
 
+
     GravityOctree<T> octree;
+
+    std::vector<int> clist;
 };
 
 } // namespace sphexa
