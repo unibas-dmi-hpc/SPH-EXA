@@ -39,7 +39,7 @@ You can use the following commands to compile and run the SquarePatch example:
 
 * **Danilo Guerrera**
 * **Aurelien Cavelan**
-* **jg piccinali**
+* **Jg Piccinali**
 * **David Imbert**
 * **Ruben Cabezon**
 * **Darren Reed**
