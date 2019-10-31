@@ -459,7 +459,7 @@ public:
 
         std::vector<std::vector<int>> cellList(ncells);
         distributeParticles(list, x, y, z, cellList);
-        
+
         if((int)cells.size() == 0 && list.size() > bucketSize)
             makeSubCells();
 
@@ -766,7 +766,7 @@ public:
         }
     }
 
-    void mapListRec(std::vector<int> &clist, std::vector<Task> &taskList, int &it)
+    void mapListRec(std::vector<int> &clist, int &it)
     {
         if((int)cells.size() == ncells)
         {
@@ -774,7 +774,7 @@ public:
             {
                 for (int i = 0; i < ncells; i++)
                 {
-                    cells[i]->mapListRec(clist, taskList, it);
+                    cells[i]->mapListRec(clist, it);
                 }
             }
         }
@@ -782,22 +782,46 @@ public:
         {
             if (assignee == comm_rank && localParticleCount > 0)
             {
-                Task task(localParticleCount);
                 for (int i = 0; i < localParticleCount; i++)
-                {
                     clist[it++] = localPadding + i;
-                    task.clist[i] = localPadding + i;
-                }
-                taskList.push_back(task);
             }
         }
     }
 
-    void mapList(std::vector<int> &clist, std::vector<Task> &taskList)
+    void mapList(std::vector<int> &clist)
     {
         int it = 0;
-        mapListRec(clist, taskList, it);
+        mapListRec(clist, it);
     }
+
+    // void mapTasksRec(std::vector<Task> &taskList, int &it)
+    // {
+    //     if(assignee == comm_rank && localParticleCount < 131072 && localParticleCount > 0)
+    //     {
+    //         Task task(localParticleCount);
+    //         for (int i = 0; i < localParticleCount; i++)
+    //             task.clist[i] = localPadding + i;
+    //         taskList.push_back(task);
+    //     }
+    //     else if((int)cells.size() == ncells)
+    //     {
+    //         if(assignee == -1 || assignee == comm_rank)
+    //         {
+    //             for (int i = 0; i < ncells; i++)
+    //             {
+    //                 it++;
+    //                 cells[i]->mapTasksRec(taskList, it);
+    //             }
+    //         }
+    //     }
+    // }
+
+    // void mapTasks(std::vector<Task> &taskList)
+    // {
+    //     int it = 0;
+    //     taskList.clear();
+    //     mapTasksRec(taskList, it);
+    // }
 };
 
 } // namespace sphexa

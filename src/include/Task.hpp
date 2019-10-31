@@ -6,7 +6,14 @@ namespace sphexa
 {
 struct Task
 {
-    Task(int size) : clist(size), neighbors(size * ngmax), neighborsCount(size) {}
+    Task(size_t size = 0) : clist(size), neighbors(size * ngmax), neighborsCount(size) {}
+
+    void resize(size_t size)
+    {
+    	clist.resize(size);
+    	neighbors.resize(size * ngmax);
+    	neighborsCount.resize(size);
+    }
 
     std::vector<int> clist;
     std::vector<int> neighbors;

@@ -3,16 +3,14 @@
 #include <vector>
 
 #include "kernels.hpp"
-#include "sphUtils.hpp"
-#include "cuda/sph.cuh"
-#include "utils.hpp"
 #include "Task.hpp"
+#include "lookupTables.hpp"
+#include "cuda/sph.cuh"
 
 namespace sphexa
 {
 namespace sph
 {
-
 template <typename T, class Dataset>
 void computeDensityImpl(const Task &t, Dataset &d)
 {

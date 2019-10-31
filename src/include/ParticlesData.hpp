@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <vector>
 #include "BBox.hpp"
+#include "sph/kernels.hpp"
 
 namespace sphexa
 {
@@ -33,7 +34,7 @@ struct ParticlesData
     T ttot, etot, ecin, eint;
     T minDt;
 
-    sphexa::BBox<T> bbox;
+    BBox<T> bbox;
 
     std::vector<std::vector<T> *> data{&x,    &y,     &z,  &x_m1,  &y_m1, &z_m1, &vx,  &vy,       &vz,       &ro,
                                        &ro_0, &u,     &p,  &p_0,   &h,    &m,    &c,   &grad_P_x, &grad_P_y, &grad_P_z,

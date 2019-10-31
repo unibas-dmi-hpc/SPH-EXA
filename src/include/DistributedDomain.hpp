@@ -67,6 +67,7 @@ public:
     int64_t neighborsSumImpl(const Task &t)
     {
         int64_t sum = 0;
+        #pragma omp parallel for reduction(+ : sum)
         for (unsigned int i = 0; i < t.clist.size(); i++)
             sum += t.neighborsCount[i];
 
@@ -76,7 +77,6 @@ public:
     int64_t neighborsSum(const std::vector<Task> &taskList)
     {
         int64_t sum = 0;
-        #pragma omp parallel for reduction(+ : sum)
         for (const auto &task : taskList)
         {
             sum += neighborsSumImpl(task);
@@ -463,10 +463,6 @@ public:
     template <class Dataset>
     void create(Dataset &d)
     {
-        clist.resize(d.count);
-        for (unsigned int i = 0; i < clist.size(); i++)
-            clist[i] = i;
-
         const std::vector<T> &x = d.x;
         const std::vector<T> &y = d.y;
         const std::vector<T> &z = d.z;
@@ -477,6 +473,10 @@ public:
         const int ntot = d.n;
         const int split = ntot / comm_size;
         const int remaining = ntot - comm_size * split;
+
+        clist.resize(n);
+        for (int i = 0; i < n; i++)
+            clist[i] = i;
 
         std::vector<int> work(comm_size, split);
         work[0] += remaining;
@@ -501,20 +501,16 @@ public:
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sz[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
         MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sh[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
 
+        d.bbox.computeGlobal(clist, d.x, d.y, d.z);
+        
         // Each process creates a tree based on the gathered sample
         octree.cells.clear();
-
         octree = Octree<T>(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, comm_rank, comm_size);
         octree.approximate(sx, sy, sz, sh);
 
         std::vector<int> ordering(n);
         octree.buildGlobalTreeAndGlobalCountAndGlobalMaxH(clist, x, y, z, h, ordering);
         reorder(ordering, d);
-
-        for (unsigned int i = 0; i < clist.size(); i++)
-            clist[i] = i;
-
-        //printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount);
     }
 
     template <class Dataset>
@@ -634,19 +630,18 @@ public:
         const int n = d.count;
 
         clist.resize(n);
-        for (unsigned int i = 0; i < n; i++)
+        for (int i = 0; i < n; i++)
             clist[i] = i;
 
         std::vector<int> ordering(n);
+        
+        d.bbox.computeGlobal(clist, d.x, d.y, d.z);
         
         // Each process creates a tree based on the gathered sample
         octree.cells.clear();
         octree = Octree<T>(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, 0, 1);
         octree.buildTree(clist, x, y, z, ordering);
         reorder(ordering, d);
-
-        for (unsigned int i = 0; i < clist.size(); i++)
-            clist[i] = i;
     }
 
     template <class Dataset>
@@ -668,7 +663,7 @@ public:
 #endif
 
     template <class Dataset>
-    void buildTree(Dataset &d, std::vector<Task> &taskList)
+    void buildTree(Dataset &d)
     {
         // Finally remap everything
         std::vector<int> ordering(d.x.size());
@@ -682,8 +677,7 @@ public:
         octree.buildTree(list, d.x, d.y, d.z, ordering);
         reorder(ordering, d);
 
-        taskList.clear();
-        octree.mapList(clist, taskList);
+        octree.mapList(clist);
     }
 
     template <class Dataset>
@@ -709,6 +703,26 @@ public:
                 if(std::isinf(h[i]) || std::isnan(h[i]))
                     printf("ERROR::h(%d) ngi %d h %f\n", i, nn, h[i]);
             #endif
+        }
+    }
+
+    void createTasks(std::vector<Task> &taskList, const size_t nTasks)
+    {
+        const int partitionSize = clist.size() / nTasks;
+        const int lastPartitionOffset = clist.size() - nTasks * partitionSize;
+
+        taskList.resize(nTasks);
+
+        #pragma omp parallel for
+        for (size_t i = 0; i < nTasks; ++i)
+        {
+            const int begin = i * partitionSize;
+            const int end = (i + 1) * partitionSize + (i == nTasks - 1 ? lastPartitionOffset : 0);
+            const size_t size = end - begin;
+
+            taskList[i].resize(size);
+            for(size_t j = 0; j < size; j++)
+                taskList[i].clist[j] = clist[j+begin];
         }
     }
 

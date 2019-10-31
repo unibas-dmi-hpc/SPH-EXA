@@ -35,7 +35,13 @@ int main(int argc, char **argv)
 
     std::ofstream constantsFile("constants.txt");
 
-    std::vector<Task> taskList, debug;
+    std::vector<Task> taskList;
+
+    // Easiest way to go back to one task. Every loop add this after buildTree:
+    // Task bigTask(distributedDomain.clist.size());
+    // bigTask.clist = distributedDomain.clist;
+    // taskList.clear();
+    // taskList.push_back(bigTask);
 
     distributedDomain.create(d);
 
@@ -47,8 +53,10 @@ int main(int argc, char **argv)
         timer.step("domain::distribute");
         distributedDomain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
         timer.step("mpi::synchronizeHalos");
-        distributedDomain.buildTree(d, taskList);
+        distributedDomain.buildTree(d);
         timer.step("domain::buildTree");
+        distributedDomain.createTasks(taskList, 64);
+        timer.step("domain::createTasks");
         distributedDomain.findNeighbors(taskList, d);
         timer.step("FindNeighbors");
         sph::computeDensity<Real>(taskList, d);
