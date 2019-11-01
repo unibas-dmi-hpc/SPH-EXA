@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <vector>
 
 #include "sphexa.hpp"
 #include "SqPatchDataGenerator.hpp"
@@ -21,7 +22,6 @@ int main(int argc, char **argv)
 #endif
 
     using Real = double;
-    using Tree = Octree<Real>;
     using Dataset = ParticlesData<Real>;
 
 #ifdef USE_MPI
@@ -30,67 +30,65 @@ int main(int argc, char **argv)
 
     auto d = SqPatchDataGenerator<Real>::generate(cubeSide);
     DistributedDomain<Real> distributedDomain;
-    Domain<Real, Tree> domain(d.ngmin, d.ng0, d.ngmax);
     Printer<Dataset> printer(d);
     MPITimer timer(d.rank);
 
     std::ofstream constantsFile("constants.txt");
 
-    vector<int> clist(d.count);
-    for (unsigned int i = 0; i < clist.size(); i++)
-        clist[i] = i;
+    std::vector<Task> taskList;
+
+    // Easiest way to go back to one task. Every loop add this after buildTree:
+    // Task bigTask(distributedDomain.clist.size());
+    // bigTask.clist = distributedDomain.clist;
+    // taskList.clear();
+    // taskList.push_back(bigTask);
+
+    distributedDomain.create(d);
 
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
         timer.start();
-        d.resize(d.count); // Discard halos
-        distributedDomain.distribute(clist, d);
-        timer.step("domain::build");
-        distributedDomain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.m);
+
+        distributedDomain.distribute(d);
+        timer.step("domain::distribute");
+        distributedDomain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
         timer.step("mpi::synchronizeHalos");
-        domain.buildTree(d);
-        timer.step("BuildTree");
-        domain.findNeighbors(clist, d);
+        distributedDomain.buildTree(d);
+        timer.step("domain::buildTree");
+        distributedDomain.createTasks(taskList, 64);
+        timer.step("domain::createTasks");
+        distributedDomain.findNeighbors(taskList, d);
         timer.step("FindNeighbors");
-
-        sph::computeDensity<Real>(clist, d);
-        if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(clist, d); }
+        sph::computeDensity<Real>(taskList, d);
+        if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList, d); }
         timer.step("Density");
-
-        sph::computeEquationOfState<Real>(clist, d);
+        sph::computeEquationOfState<Real>(taskList, d);
         timer.step("EquationOfState");
-
-        distributedDomain.resizeArrays(d.count, &d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c); // Discard halos
         distributedDomain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
         timer.step("mpi::synchronizeHalos");
-
-        sph::computeIAD<Real>(clist, d);
+        sph::computeIAD<Real>(taskList, d);
         timer.step("IAD");
-
-        distributedDomain.resizeArrays(d.count, &d.c11, &d.c12, &d.c13, &d.c22, &d.c23, &d.c33); // Discard halos
         distributedDomain.synchronizeHalos(&d.c11, &d.c12, &d.c13, &d.c22, &d.c23, &d.c33);
         timer.step("mpi::synchronizeHalos");
-
-        sph::computeMomentumAndEnergyIAD<Real>(clist, d);
+        sph::computeMomentumAndEnergyIAD<Real>(taskList, d);
         timer.step("MomentumEnergyIAD");
-
-        sph::computeTimestep<Real>(clist, d);
+        sph::computeTimestep<Real>(taskList, d);
         timer.step("Timestep"); // AllReduce(min:dt)
-        sph::computePositions<Real>(clist, d);
+        sph::computePositions<Real>(taskList, d);
         timer.step("UpdateQuantities");
-        sph::computeTotalEnergy<Real>(clist, d);
+        sph::computeTotalEnergy<Real>(taskList, d);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
 
-        long long int totalNeighbors = domain.neighborsSum(clist, d);
+        long long int totalNeighbors = distributedDomain.neighborsSum(taskList);
         if (d.rank == 0)
         {
-            printer.printCheck(clist.size(), distributedDomain.haloCount, totalNeighbors, std::cout);
+            printer.printCheck(distributedDomain.clist.size(), distributedDomain.octree.globalNodeCount, distributedDomain.haloCount, totalNeighbors, std::cout);
             printer.printConstants(d.iteration, totalNeighbors, constantsFile);
         }
 
-        if (writeFrequency > 0 && d.iteration % writeFrequency == 0)
+        if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            printer.printAllDataToFile(clist, "dump" + to_string(d.iteration) + ".txt");
+            printer.printAllDataToFile(distributedDomain.clist, "dump" + to_string(d.iteration) + ".txt");
             timer.step("writeFile");
         }
 
