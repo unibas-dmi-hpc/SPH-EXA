@@ -9,10 +9,10 @@ namespace sphexa
 namespace sph
 {
 template <typename T, class Dataset>
-void __attribute__((noinline)) computeEquationOfState(const std::vector<int> &l, Dataset &d)
+void computeEquationOfStateImpl(const Task &t, Dataset &d)
 {
-    const int n = l.size();
-    const int *clist = l.data();
+    const size_t n = t.clist.size();
+    const int *clist = t.clist.data();
 
     const T *ro = d.ro.data();
     const T *ro_0 = d.ro_0.data();
@@ -30,7 +30,7 @@ void __attribute__((noinline)) computeEquationOfState(const std::vector<int> &l,
     const T chi = (density0 / heatCapacityRatio) * (speedOfSound0 * speedOfSound0);
 
 #pragma omp parallel for
-    for (int pi = 0; pi < n; pi++)
+    for (size_t pi = 0; pi < n; pi++)
     {
         const int i = clist[pi];
 
@@ -41,5 +41,15 @@ void __attribute__((noinline)) computeEquationOfState(const std::vector<int> &l,
         // 1e7 per unit of mass (1e-3 or 1g)
     }
 }
+
+template <typename T, class Dataset>
+void computeEquationOfState(const std::vector<Task> &taskList, Dataset &d)
+{
+    for (const auto &task : taskList)
+    {
+        computeEquationOfStateImpl<T>(task, d);
+    }
+}
+
 } // namespace sph
 } // namespace sphexa

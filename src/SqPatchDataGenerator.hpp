@@ -37,24 +37,18 @@ public:
     // void load(const std::string &filename)
     static void load(ParticlesData<T> &pd)
     {
-        pd.count = pd.n / pd.nrank;
-        int offset = pd.n % pd.nrank;
+        int split = pd.n / pd.nrank;
+        int remaining = pd.n - pd.nrank * split;
 
-        pd.workload.resize(pd.nrank);
-        pd.displs.resize(pd.nrank);
-
-        pd.workload[0] = pd.count + offset;
-        pd.displs[0] = 0;
-
-        for (int i = 1; i < pd.nrank; i++)
-        {
-            pd.workload[i] = pd.count;
-            pd.displs[i] = pd.displs[i - 1] + pd.workload[i - 1];
-        }
-
-        pd.count = pd.workload[pd.rank];
+        pd.count = split;
+        if(pd.rank == 0)
+            pd.count += remaining;
 
         pd.resize(pd.count);
+
+        int offset = pd.rank * split;
+        if(pd.rank > 0)
+            offset += remaining;
 
         const double omega = 5.0;
         const double myPI = std::acos(-1.0);
@@ -73,7 +67,7 @@ public:
                 {
                     int lindex = i * pd.side * pd.side + j * pd.side + k;
 
-                    if (lindex >= pd.displs[pd.rank] && lindex < pd.displs[pd.rank] + pd.workload[pd.rank])
+                    if (lindex >= offset && lindex < offset + pd.count)
                     {
                         double ly = -0.5 + 1.0 / (2.0 * pd.side) + k * 1.0 / pd.side;
                         // double lx = -0.5 + 1.0 / (2.0 * pd.side) + (double)k / (double)pd.side;
@@ -91,13 +85,13 @@ public:
 
                         lp_0 *= 1000.0;
 
-                        pd.z[lindex - pd.displs[pd.rank]] = lz;
-                        pd.y[lindex - pd.displs[pd.rank]] = ly;
-                        pd.x[lindex - pd.displs[pd.rank]] = lx;
-                        pd.vx[lindex - pd.displs[pd.rank]] = lvx;
-                        pd.vy[lindex - pd.displs[pd.rank]] = lvy;
-                        pd.vz[lindex - pd.displs[pd.rank]] = lvz;
-                        pd.p_0[lindex - pd.displs[pd.rank]] = lp_0;
+                        pd.z[lindex - offset] = lz;
+                        pd.y[lindex - offset] = ly;
+                        pd.x[lindex - offset] = lx;
+                        pd.vx[lindex - offset] = lvx;
+                        pd.vy[lindex - offset] = lvy;
+                        pd.vz[lindex - offset] = lvz;
+                        pd.p_0[lindex - offset] = lp_0;
                     }
                 }
             }
@@ -108,6 +102,9 @@ public:
     {
         pd.dx = 100.0 / pd.side;
 
+        const T firstTimeStep = 1e-6;
+
+        #pragma omp parallel for
         for (int i = 0; i < pd.count; i++)
         {
             // CGS
@@ -126,23 +123,21 @@ public:
             pd.ro_0[i] = 1.0;           // 1.0e3;//.0;//1e3;//1e3;
 
             pd.du[i] = pd.du_m1[i] = 0.0;
-            pd.dt[i] = pd.dt_m1[i] = 1e-6;
+            pd.dt[i] = pd.dt_m1[i] = firstTimeStep;
+            pd.minDt = firstTimeStep;
 
             pd.grad_P_x[i] = pd.grad_P_y[i] = pd.grad_P_z[i] = 0.0;
 
-            pd.x_m1[i] = pd.x[i] - pd.vx[i] * pd.dt[0];
-            pd.y_m1[i] = pd.y[i] - pd.vy[i] * pd.dt[0];
-            pd.z_m1[i] = pd.z[i] - pd.vz[i] * pd.dt[0];
+            pd.x_m1[i] = pd.x[i] - pd.vx[i] * firstTimeStep;
+            pd.y_m1[i] = pd.y[i] - pd.vy[i] * firstTimeStep;
+            pd.z_m1[i] = pd.z[i] - pd.vz[i] * firstTimeStep;
         }
 
-#ifdef USE_MPI
-        pd.bbox.computeGlobal(pd.x, pd.y, pd.z, pd.comm);
-#else
-        pd.bbox.compute(pd.x, pd.y, pd.z);
-#endif
-        pd.bbox.PBCz = true;
+        pd.bbox.computeGlobal(pd.x, pd.y, pd.z);
+
         pd.bbox.zmax += pd.dx / 2.0;
         pd.bbox.zmin -= pd.dx / 2.0;
+        pd.bbox.setBox(0, 0, 0, 0, pd.bbox.zmin, pd.bbox.zmax, false, false, true);
 
         pd.etot = pd.ecin = pd.eint = 0.0;
         pd.ttot = 0.0;

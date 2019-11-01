@@ -3,7 +3,8 @@
 #include <vector>
 
 #include "kernels.hpp"
-#include "sphUtils.hpp"
+#include "Task.hpp"
+#include "lookupTables.hpp"
 #include "cuda/sph.cuh"
 #include "utils.hpp"
 
@@ -11,20 +12,14 @@ namespace sphexa
 {
 namespace sph
 {
-
 template <typename T, class Dataset>
-void computeDensityImpl(const std::vector<int> &l, Dataset &d)
+void computeDensityImpl(const Task &t, Dataset &d)
 {
-    const size_t n = l.size();
-    const size_t ngmax = d.ngmax;
-    const int *clist = l.data();
-
-    // I assume here that indexes to compute in l are sequentially increasing, e.g 0, 1, 2, 3
-    const size_t neighborsOffset = l.front() * ngmax;
-    const int *neighbors = d.neighbors.data() + neighborsOffset;
-
-    const size_t nOffset = l.front();
-    const int *neighborsCount = d.neighborsCount.data() + nOffset;
+    const size_t n = t.clist.size();
+    const size_t ngmax = t.ngmax;
+    const int *clist = t.clist.data();
+    const int *neighbors = t.neighbors.data();
+    const int *neighborsCount = t.neighborsCount.data();
 
     const T *h = d.h.data();
     const T *m = d.m.data();
@@ -32,7 +27,7 @@ void computeDensityImpl(const std::vector<int> &l, Dataset &d)
     const T *y = d.y.data();
     const T *z = d.z.data();
 
-    T *ro = d.ro.data() + nOffset;
+    T *ro = d.ro.data();
 
     const BBox<T> bbox = d.bbox;
 
@@ -92,7 +87,8 @@ void computeDensityImpl(const std::vector<int> &l, Dataset &d)
             roloc += value * m[j];
         }
 
-        ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
+        //ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
+        ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
 
 #ifndef NDEBUG
         if (std::isnan(ro[i])) printf("ERROR::Density(%d) density %f, position: (%f %f %f), h: %f\n", i, ro[i], x[i], y[i], z[i], h[i]);
@@ -101,35 +97,41 @@ void computeDensityImpl(const std::vector<int> &l, Dataset &d)
 }
 
 template <typename T, class Dataset>
-void computeDensity(const std::vector<int> &l, Dataset &d)
+void computeDensity(const std::vector<Task> &taskList, Dataset &d)
 {
 #if defined(USE_CUDA)
-    cuda::computeDensity<T>(utils::partition(l, d.noOfGpuLoopSplits), d);
+    cuda::computeDensity<T>(taskList, d);//utils::partition(l, d.noOfGpuLoopSplits), d);
 #else
-    for (const auto &clist : utils::partition(l, d.noOfGpuLoopSplits))
+    for (const auto &task : taskList)
     {
-        computeDensityImpl<T>(clist, d);
+        computeDensityImpl<T>(task, d);
     }
-
 #endif
-    // for (size_t i = 0; i < d.ro.size(); ++i)
-    // {
-    //     printf(" %lu: %.15f", i, d.ro[i]);
-    //     if (i % 10 == 0) printf("\n");
-    // }
 }
 
 template <typename T, class Dataset>
-void initFluidDensityAtRest(const std::vector<int> &clist, Dataset &d)
+void initFluidDensityAtRestImpl(const Task &t, Dataset &d)
 {
+    const size_t n = t.clist.size();
+    const int *clist = t.clist.data();
+
     const T *ro = d.ro.data();
     T *ro_0 = d.ro_0.data();
 
 #pragma omp parallel for
-    for (size_t pi = 0; pi < clist.size(); ++pi)
+    for (size_t pi = 0; pi < n; ++pi)
     {
         const int i = clist[pi];
         ro_0[i] = ro[i];
+    }
+}
+
+template <typename T, class Dataset>
+void initFluidDensityAtRest(const std::vector<Task> &taskList, Dataset &d)
+{
+    for (const auto &task : taskList)
+    {
+        initFluidDensityAtRestImpl<T>(task, d);
     }
 }
 

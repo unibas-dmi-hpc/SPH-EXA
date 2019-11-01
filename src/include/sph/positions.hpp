@@ -8,16 +8,17 @@ namespace sphexa
 namespace sph
 {
 template <typename T, class Dataset>
-void computePositions(const std::vector<int> &l, Dataset &d)
+void computePositionsImpl(const Task &t, Dataset &d)
 {
-    const int n = l.size();
-    const int *clist = l.data();
+    const size_t n = t.clist.size();
+    const int *clist = t.clist.data();
 
     const T *grad_P_x = d.grad_P_x.data();
     const T *grad_P_y = d.grad_P_y.data();
     const T *grad_P_z = d.grad_P_z.data();
     const T *dt = d.dt.data();
     const T *du = d.du.data();
+
     T *x = d.x.data();
     T *y = d.y.data();
     T *z = d.z.data();
@@ -34,7 +35,7 @@ void computePositions(const std::vector<int> &l, Dataset &d)
     const BBox<T> bbox = d.bbox;
 
 #pragma omp parallel for
-    for (int pi = 0; pi < n; pi++)
+    for (size_t pi = 0; pi < n; pi++)
     {
         int i = clist[pi];
 
@@ -98,5 +99,15 @@ void computePositions(const std::vector<int> &l, Dataset &d)
         dt_m1[i] = dt[i];
     }
 }
+
+template <typename T, class Dataset>
+void computePositions(const std::vector<Task> &taskList, Dataset &d)
+{
+    for (const auto &task : taskList)
+    {
+        computePositionsImpl<T>(task, d);
+    }
+}
+
 } // namespace sph
 } // namespace sphexa
