@@ -91,25 +91,25 @@ public:
 
     inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
-    void reorderSwap(const std::vector<int> &ordering, std::vector<T> &arrayList)
-    {
-        std::vector<T> tmp(ordering.size());
-        for (unsigned int i = 0; i < ordering.size(); i++)
-            tmp[i] = arrayList[ordering[i]];
-        tmp.swap(arrayList);
-    }
+    //void reorderSwap(const std::vector<int> &ordering, std::vector<T> &arrayList)
+    //{
+    //    std::vector<T> tmp(ordering.size());
+    //    for (unsigned int i = 0; i < ordering.size(); i++)
+    //        tmp[i] = arrayList[ordering[i]];
+    //    tmp.swap(arrayList);
+    //}
 
-    void reorder(const std::vector<int> &ordering, std::vector<std::vector<T> *> &arrayList)
-    {
-        for (unsigned int i = 0; i < arrayList.size(); i++)
-            reorderSwap(ordering, *arrayList[i]);
-    }
+    //void reorder(const std::vector<int> &ordering, std::vector<std::vector<T> *> &arrayList)
+    //{
+    //    for (unsigned int i = 0; i < arrayList.size(); i++)
+    //        reorderSwap(ordering, *arrayList[i]);
+    //}
 
-    template <class Dataset>
-    void reorder(const std::vector<int> &ordering, Dataset &d)
-    {
-        reorder(ordering, d.data);
-    }
+    //template <class Dataset>
+    //void reorder(const std::vector<int> &ordering, Dataset &d)
+    //{
+    //    reorder(ordering, d.data);
+    //}
 
     void makeDataArray(std::vector<std::vector<T> *> &data, std::vector<T> *d) { data.push_back(d); }
 
@@ -507,21 +507,13 @@ public:
         octree = Octree<T>(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, comm_rank, comm_size);
         octree.approximate(sx, sy, sz, sh);
 
-        std::vector<int> ordering(n);
-        octree.buildGlobalTreeAndGlobalCountAndGlobalMaxH(clist, x, y, z, h, ordering);
-        reorder(ordering, d);
+        octree.updateGlobalCounts(clist, d);
     }
 
     template <class Dataset>
     void distribute(Dataset &d)
     {
-        const std::vector<T> &x = d.x;
-        const std::vector<T> &y = d.y;
-        const std::vector<T> &z = d.z;
-        const std::vector<T> &h = d.h;
-
         // Prepare processes
-        const int n = d.count;
         const int ntot = d.n;
         const int split = ntot / comm_size;
         const int remaining = ntot - comm_size * split;
@@ -532,7 +524,7 @@ public:
         work[0] += remaining;
 
         // We map the nodes to a 1D array and retrieve the order of the particles in the tree
-        std::vector<int> ordering(n);
+        //std::vector<int> ordering(n);
         int nsplits = 0;
 
         do
@@ -550,12 +542,12 @@ public:
             // We now reorder the data in memory so that it matches the octree layout
             // In other words, iterating over the array is the same as walking the tree
             // This is the same a following a Morton / Z-Curve path
-            octree.updateGlobalCounts(clist, x, y, z, h, ordering);
+            octree.updateGlobalCounts(clist, d);
             //octree.computeGlobalParticleCount();
         } while(d.iteration == 0 && nsplits > 0);
 
         // Getting rid of old halos
-        reorder(ordering, d);
+        //reorder(ordering, d);
 
         // printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount); fflush(stdout);
 
@@ -582,7 +574,6 @@ public:
 
         // printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount, octree.globalParticleCount); fflush(stdout);
 
-        //octree.computeGlobalMaxH();
         haloCount = octree.findHalos(toSendHalos, d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz);
 
         workAssigned = work[comm_rank] - work_remaining[comm_rank];
@@ -595,11 +586,6 @@ public:
         // printf("[%d] haloCount: %d (%.2f%%)\n", comm_rank, haloCount,
         //         haloCount / (double)(workAssigned) * 100.0); fflush(stdout);
 
-        // Finally remap everything
-        ordering.resize(workAssigned + haloCount);
-        #pragma omp parallel for
-        for(int i=0; i<(int)ordering.size(); i++)
-            ordering[i] = 0;
 
         // We map ALL particles
         // Particles that do not belong to us will be ignored in the localMapParticleFunction
@@ -608,8 +594,7 @@ public:
         for(int i=0; i<(int)d.x.size(); i++)
             list[i] = i;
 
-        octree.zCurveHaloUpdate(list, x, y, z, ordering);
-        reorder(ordering, d);
+        octree.zCurveHaloUpdate(list, d, workAssigned + haloCount);
 
         clist.resize(workAssigned);
         #pragma omp parallel for
@@ -622,24 +607,17 @@ public:
     template <class Dataset>
     void create(Dataset &d)
     {
-        const std::vector<T> &x = d.x;
-        const std::vector<T> &y = d.y;
-        const std::vector<T> &z = d.z;
-
         const int n = d.count;
 
         clist.resize(n);
         for (int i = 0; i < n; i++)
             clist[i] = i;
 
-        std::vector<int> ordering(n);
-        
         d.bbox.computeGlobal(clist, d.x, d.y, d.z);
         
         // Each process creates a tree based on the gathered sample
         octree = Octree<T>(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, 0, 1);
-        octree.buildTree(clist, x, y, z, ordering);
-        reorder(ordering, d);
+        octree.buildTree(clist, d);
     }
 
     template <class Dataset>
@@ -672,8 +650,7 @@ public:
             list[i] = i;
 
         // We need this to expand halo
-        octree.buildTree(list, d.x, d.y, d.z, ordering);
-        reorder(ordering, d);
+        octree.buildTree(list, d);
 
         octree.mapList(clist);
     }

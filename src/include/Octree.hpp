@@ -415,18 +415,23 @@ public:
     // zCurveOffset + localParticleCount locate particles belonging to this node in x,y,z,...
     // globalMaxH = global max H of any particle
     // globalParticleCount = global sum of all local particle counts
-    void updateGlobalCounts(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h, std::vector<int> &ordering)
+    template <class Dataset>
+    void updateGlobalCounts(const std::vector<int> &list, Dataset &d)
     {
+        std::vector<int> ordering(d.count);
+
         std::vector<int> globalParticleCount(globalNodeCount, 0);
         std::vector<T> globalMaxH(globalNodeCount, 0.0);
 
-        updateGlobalCountsRec(list, x, y, z, h, ordering, globalParticleCount, globalMaxH);
+        updateGlobalCountsRec(list, d.x, d.y, d.z, d.h, ordering, globalParticleCount, globalMaxH);
 
         MPI_Allreduce(MPI_IN_PLACE, &globalParticleCount[0], globalNodeCount, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
         MPI_Allreduce(MPI_IN_PLACE, &globalMaxH[0], globalNodeCount, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
         setParticleCountPerNode(globalParticleCount);
         setMaxHPerNode(globalMaxH);
+
+        reorder(ordering, d);
     }
 #endif
 
@@ -461,11 +466,14 @@ public:
     }
 
     // Some nodes previously not on this rank
-    // are now halos. The tree needs to update its zCurve ordering
-    // to accomodate the halo nodes that are going to be populated through halo exchange
-    void zCurveHaloUpdate(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, std::vector<int> &ordering)
+    // are now halos. The tree needs to be reindexed to update its zCurve ordering
+    // and accomodate the halo nodes that are going to be populated through halo exchange
+    template <class Dataset>
+    void zCurveHaloUpdate(const std::vector<int> &list, Dataset &d, int nPlusHalos)
     {
-        zCurveHaloUpdateRec(list, x, y, z, ordering);
+        std::vector<int> ordering(nPlusHalos);
+        zCurveHaloUpdateRec(list, d.x, d.y, d.z, ordering);
+        reorder(ordering, d);
     }
 
     void buildTreeRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z,
@@ -500,11 +508,16 @@ public:
         }
     }
 
-    void buildTree(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, std::vector<int> &ordering)
+    template <class Dataset>
+    void buildTree(const std::vector<int> &list, Dataset &d)
     {
+        std::vector<int> ordering(d.count);
+
         #pragma omp parallel
         #pragma omp single
-        buildTreeRec(list, x, y, z, ordering);
+        buildTreeRec(list, d.x, d.y, d.z, ordering);
+
+        reorder(ordering, d);
     }
 
     void assignProcessesRec(std::vector<int> &work, int &pi)
@@ -814,6 +827,26 @@ private:
                 }
             }
         }
+    }
+
+    static void reorderSwap(const std::vector<int> &ordering, std::vector<T> &arrayList)
+    {
+        std::vector<T> tmp(ordering.size());
+        for (unsigned int i = 0; i < ordering.size(); i++)
+            tmp[i] = arrayList[ordering[i]];
+        tmp.swap(arrayList);
+    }
+
+    static void reorder(const std::vector<int> &ordering, std::vector<std::vector<T> *> &arrayList)
+    {
+        for (unsigned int i = 0; i < arrayList.size(); i++)
+            reorderSwap(ordering, *arrayList[i]);
+    }
+
+    template <class Dataset>
+    static void reorder(const std::vector<int> &ordering, Dataset &d)
+    {
+        reorder(ordering, d.data);
     }
 
     // void mapTasksRec(std::vector<Task> &taskList, int &it)
