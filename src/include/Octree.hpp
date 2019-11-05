@@ -36,7 +36,7 @@ public:
 
     int getAssignedRank() const { return assignee; }
 
-    int getStorageOffset() const { return localPadding; }
+    int getStorageOffset() const { return zCurveOffset; }
 
     int getGlobalParticleCount() const { return globalParticleCount; }
 
@@ -49,7 +49,7 @@ private:
     int comm_size = -1;
     int assignee = -1;
 
-    int localPadding = 0;               // offset into particle property arrays
+    int zCurveOffset = 0;               // offset into particle property arrays
     int localParticleCount = 0;
 
     int globalParticleCount = 0;
@@ -88,7 +88,7 @@ private:
 
         for (int i = 0; i < localParticleCount; i++)
         {
-            int ordi = localPadding + i;
+            int ordi = zCurveOffset + i;
 
             T dist = distancesq(xi, yi, zi, x[ordi], y[ordi], z[ordi]);
             if (dist < r2 && ordi != id && neighborsCount < ngmax)
@@ -300,7 +300,7 @@ public:
         this->assignee = -1;
         this->halo = false;
 
-        this->localPadding = 0;
+        this->zCurveOffset = 0;
         this->globalNodeCount = 0;
         this->localParticleCount = 0;
 
@@ -369,16 +369,16 @@ public:
         return nsplits;
     }
 
-    void buildGlobalTreeAndGlobalCountAndGlobalMaxHRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h,
-                              std::vector<int> &ordering, std::vector<int> &globalParticleCount, std::vector<T> &globalMaxH, int padding = 0, int ptri = 0)
+    void updateGlobalCountsRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h,
+                              std::vector<int> &ordering, std::vector<int> &globalParticleCount, std::vector<T> &globalMaxH, int zoffset = 0, int zCurveNodeIdx = 0)
     {
-        this->localPadding = padding;
+        this->zCurveOffset = zoffset;
         this->localParticleCount = 0;
         this->globalMaxH = 0.0;
 
-        int it = ptri;
+        int it = zCurveNodeIdx;
 
-        ptri++;
+        zCurveNodeIdx++;
 
         std::vector<std::vector<int>> cellList(ncells);
         distributeParticles(list, x, y, z, cellList);
@@ -387,18 +387,18 @@ public:
         {
             for (int i = 0; i < ncells; i++)
             {
-                cells[i]->buildGlobalTreeAndGlobalCountAndGlobalMaxHRec(cellList[i], x, y, z, h, ordering, globalParticleCount, globalMaxH, padding, ptri);
+                cells[i]->updateGlobalCountsRec(cellList[i], x, y, z, h, ordering, globalParticleCount, globalMaxH, zoffset, zCurveNodeIdx);
                 this->localParticleCount += cells[i]->localParticleCount;
                 this->globalMaxH = std::max(this->globalMaxH, cells[i]->globalMaxH);
-                padding += cells[i]->localParticleCount;
-                ptri += cells[i]->globalNodeCount;
+                zoffset += cells[i]->localParticleCount;
+                zCurveNodeIdx += cells[i]->globalNodeCount;
             }
         }
         else
         {
             for (int i = 0; i < (int)list.size(); i++)
             {
-                ordering[padding + i] = list[i];
+                ordering[zoffset + i] = list[i];
                 if(h[list[i]] > this->globalMaxH)
                     this->globalMaxH = h[list[i]];
             }
@@ -410,12 +410,17 @@ public:
     }
 
 #ifdef USE_MPI
-    void buildGlobalTreeAndGlobalCountAndGlobalMaxH(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h, std::vector<int> &ordering)
+
+    // after this call, for each node:
+    // zCurveOffset + localParticleCount locate particles belonging to this node in x,y,z,...
+    // globalMaxH = global max H of any particle
+    // globalParticleCount = global sum of all local particle counts
+    void updateGlobalCounts(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &h, std::vector<int> &ordering)
     {
         std::vector<int> globalParticleCount(globalNodeCount, 0);
         std::vector<T> globalMaxH(globalNodeCount, 0.0);
 
-        buildGlobalTreeAndGlobalCountAndGlobalMaxHRec(list, x, y, z, h, ordering, globalParticleCount, globalMaxH);
+        updateGlobalCountsRec(list, x, y, z, h, ordering, globalParticleCount, globalMaxH);
 
         MPI_Allreduce(MPI_IN_PLACE, &globalParticleCount[0], globalNodeCount, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
         MPI_Allreduce(MPI_IN_PLACE, &globalMaxH[0], globalNodeCount, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -424,9 +429,10 @@ public:
         setMaxHPerNode(globalMaxH);
     }
 #endif
-    void buildTreeWithHalosRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, std::vector<int> &ordering, int padding = 0)
+
+    void zCurveHaloUpdateRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, std::vector<int> &ordering, int zoffset = 0)
     {
-        this->localPadding = padding;
+        this->zCurveOffset = zoffset;
         this->localParticleCount = 0;// this->globalParticleCount;
 
         if(assignee == -1 || assignee == comm_rank || halo == true)
@@ -438,9 +444,9 @@ public:
             {
                 for (int i = 0; i < ncells; i++)
                 {
-                    cells[i]->buildTreeWithHalosRec(cellList[i], x, y, z, ordering, padding);
+                    cells[i]->zCurveHaloUpdateRec(cellList[i], x, y, z, ordering, zoffset);
                     this->localParticleCount += cells[i]->localParticleCount;
-                    padding += cells[i]->localParticleCount;
+                    zoffset += cells[i]->localParticleCount;
                 }
             }
             else if(assignee == comm_rank || halo == true)
@@ -449,20 +455,23 @@ public:
                 // But we know how much space to reserve!
                 this->localParticleCount = this->globalParticleCount;
                 for (int i = 0; i < (int)list.size(); i++)
-                    ordering[padding + i] = list[i];
+                    ordering[zoffset + i] = list[i];
             }
         }
     }
 
-    void buildTreeWithHalos(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, std::vector<int> &ordering)
+    // Some nodes previously not on this rank
+    // are now halos. The tree needs to update its zCurve ordering
+    // to accomodate the halo nodes that are going to be populated through halo exchange
+    void zCurveHaloUpdate(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, std::vector<int> &ordering)
     {
-        buildTreeWithHalosRec(list, x, y, z, ordering);
+        zCurveHaloUpdateRec(list, x, y, z, ordering);
     }
 
     void buildTreeRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z,
                               std::vector<int> &ordering, int padding = 0)
     {
-        this->localPadding = padding;
+        this->zCurveOffset = padding;
         this->localParticleCount = list.size();
 
         std::vector<std::vector<int>> cellList(ncells);
@@ -547,7 +556,7 @@ public:
             // The cell is associated to a process but is not ours
             else if (assignee >= 0 && localParticleCount > 0)
             {
-                toSendCellsPadding[assignee].push_back(localPadding);
+                toSendCellsPadding[assignee].push_back(zCurveOffset);
                 toSendCellsCount[assignee].push_back(localParticleCount);
             }
             // The cell is not associated. If it is not a leaf then
@@ -711,7 +720,7 @@ public:
             if (assignee == comm_rank && localParticleCount > 0)
             {
                 for (int i = 0; i < localParticleCount; i++)
-                    clist[it++] = localPadding + i;
+                    clist[it++] = zCurveOffset + i;
             }
         }
     }
@@ -741,7 +750,7 @@ public:
         {
             for (int i = 0; i < l; i++)
                 printf("   ");
-            printf("[%d] %d %d %d\n", assignee, localPadding, localParticleCount, globalParticleCount);
+            printf("[%d] %d %d %d\n", assignee, zCurveOffset, localParticleCount, globalParticleCount);
 
             if ((int)cells.size() == ncells)
             {
@@ -813,7 +822,7 @@ private:
     //     {
     //         Task task(localParticleCount);
     //         for (int i = 0; i < localParticleCount; i++)
-    //             task.clist[i] = localPadding + i;
+    //             task.clist[i] = zCurveOffset + i;
     //         taskList.push_back(task);
     //     }
     //     else if((int)cells.size() == ncells)

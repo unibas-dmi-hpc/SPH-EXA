@@ -550,7 +550,7 @@ public:
             // We now reorder the data in memory so that it matches the octree layout
             // In other words, iterating over the array is the same as walking the tree
             // This is the same a following a Morton / Z-Curve path
-            octree.buildGlobalTreeAndGlobalCountAndGlobalMaxH(clist, x, y, z, h, ordering);
+            octree.updateGlobalCounts(clist, x, y, z, h, ordering);
             //octree.computeGlobalParticleCount();
         } while(d.iteration == 0 && nsplits > 0);
 
@@ -608,7 +608,7 @@ public:
         for(int i=0; i<(int)d.x.size(); i++)
             list[i] = i;
 
-        octree.buildTreeWithHalos(list, x, y, z, ordering);
+        octree.zCurveHaloUpdate(list, x, y, z, ordering);
         reorder(ordering, d);
 
         clist.resize(workAssigned);
