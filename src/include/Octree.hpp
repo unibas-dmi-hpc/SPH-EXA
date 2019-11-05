@@ -34,13 +34,13 @@ public:
     }
 
 
-int getAssignedRank() const { return assignee; }
+    int getAssignedRank() const { return assignee; }
 
-int getStorageOffset() const { return localPadding; }
+    int getStorageOffset() const { return localPadding; }
 
-int getGlobalParticleCount() const { return globalParticleCount; }
+    int getGlobalParticleCount() const { return globalParticleCount; }
 
-int getGlobalNodeCount() const { return globalNodeCount; }
+    int getGlobalNodeCount() const { return globalNodeCount; }
 
 private:
     T xmin = INFINITY, xmax = -INFINITY, ymin = INFINITY, ymax = -INFINITY, zmin = INFINITY, zmax = -INFINITY;
@@ -49,16 +49,13 @@ private:
     int comm_size = -1;
     int assignee = -1;
 
-    int localPadding = 0;
-    int globalParticleCount = 0;
-
-    int globalNodeCount = 0;
-
-private:
+    int localPadding = 0;               // offset into particle property arrays
     int localParticleCount = 0;
 
-    std::vector<std::shared_ptr<Octree>> cells;
+    int globalParticleCount = 0;
+    int globalNodeCount = 0;            // number of global nodes below this one
 
+    std::vector<std::shared_ptr<Octree>> cells;
 
     T localMaxH = 0.0;
     T globalMaxH = 0.0;
@@ -70,7 +67,6 @@ private:
     static const int ncells = 8;
     static const int bucketSize = 64, maxGlobalBucketSize = 512, minGlobalBucketSize = 256;
 
-public:
 
     static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
@@ -118,6 +114,46 @@ public:
             cellList[l].push_back(list[i]);
         }
     }
+
+    inline bool overlap(Octree *a)
+    {
+        T radius = a->globalMaxH * 2.0;
+
+        //Check if Box1's max is greater than Box2's min and Box1's min is less than Box2's max
+        return(a->xmax+radius > xmin &&
+               a->xmin-radius < xmax &&
+               a->ymax+radius > ymin &&
+               a->ymin-radius < ymax &&
+               a->zmax+radius > zmin &&
+               a->zmin-radius < zmax);
+    }
+
+    void makeSubCells()
+    {
+        cells.resize(ncells);
+
+        for (int hz = 0; hz < nZ; hz++)
+        {
+            for (int hy = 0; hy < nY; hy++)
+            {
+                for (int hx = 0; hx < nX; hx++)
+                {
+                    T ax = xmin + hx * (xmax - xmin) / nX;
+                    T bx = xmin + (hx + 1) * (xmax - xmin) / nX;
+                    T ay = ymin + hy * (ymax - ymin) / nY;
+                    T by = ymin + (hy + 1) * (ymax - ymin) / nY;
+                    T az = zmin + hz * (zmax - zmin) / nZ;
+                    T bz = zmin + (hz + 1) * (zmax - zmin) / nZ;
+
+                    unsigned int i = hz * nX * nY + hy * nX + hx;
+
+                    if (cells[i] == nullptr) cells[i] = std::make_shared<Octree>(ax, bx, ay, by, az, bz, comm_rank, comm_size);
+                }
+            }
+        }
+    }
+
+public:
 
     void findNeighborsRec(const int id, const T *x, const T *y, const T *z, const T xi, const T yi, const T zi, const T ri, const int ngmax,
                           int *neighbors, int &neighborsCount) const
@@ -192,47 +228,6 @@ public:
         }
         else
             findNeighborsRec(id, x, y, z, xi, yi, zi, ri, ngmax, neighbors, neighborsCount);
-    }
-
-    void print(int l = 0)
-    {
-        if(global)
-        {
-            for (int i = 0; i < l; i++)
-                printf("   ");
-            printf("[%d] %d %d %d\n", assignee, localPadding, localParticleCount, globalParticleCount);
-
-            if ((int)cells.size() == ncells)
-            {
-                for (int i = 0; i < ncells; i++)
-                    cells[i]->print(l + 1);
-            }
-        }
-    }
-
-    void makeSubCells()
-    {
-        cells.resize(ncells);
-
-        for (int hz = 0; hz < nZ; hz++)
-        {
-            for (int hy = 0; hy < nY; hy++)
-            {
-                for (int hx = 0; hx < nX; hx++)
-                {
-                    T ax = xmin + hx * (xmax - xmin) / nX;
-                    T bx = xmin + (hx + 1) * (xmax - xmin) / nX;
-                    T ay = ymin + hy * (ymax - ymin) / nY;
-                    T by = ymin + (hy + 1) * (ymax - ymin) / nY;
-                    T az = zmin + hz * (zmax - zmin) / nZ;
-                    T bz = zmin + (hz + 1) * (zmax - zmin) / nZ;
-
-                    unsigned int i = hz * nX * nY + hy * nX + hx;
-
-                    if (cells[i] == nullptr) cells[i] = std::make_shared<Octree>(ax, bx, ay, by, az, bz, comm_rank, comm_size);
-                }
-            }
-        }
     }
 
     void approximateRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z,
@@ -566,19 +561,6 @@ public:
         }
     }
 
-    inline bool overlap(Octree *a)
-    {
-    	T radius = a->globalMaxH * 2.0;
-
-    	//Check if Box1's max is greater than Box2's min and Box1's min is less than Box2's max
-	    return(a->xmax+radius > xmin && 
-	    a->xmin-radius < xmax &&
-	    a->ymax+radius > ymin &&
-	    a->ymin-radius < ymax &&
-	    a->zmax+radius > zmin &&
-	    a->zmin-radius < zmax);
-    }
-
     int findHalosList(Octree *a, std::map<int, std::map<int, Octree<T> *>> &toSendHalos, int ptri = 0)
     {
         int haloCount = 0;
@@ -712,6 +694,34 @@ public:
         return findHalosRec(this, toSendHalos, PBCx, PBCy, PBCz);
     }
 
+    void mapListRec(std::vector<int> &clist, int &it)
+    {
+        if((int)cells.size() == ncells)
+        {
+            if(assignee == -1 || assignee == comm_rank)
+            {
+                for (int i = 0; i < ncells; i++)
+                {
+                    cells[i]->mapListRec(clist, it);
+                }
+            }
+        }
+        else
+        {
+            if (assignee == comm_rank && localParticleCount > 0)
+            {
+                for (int i = 0; i < localParticleCount; i++)
+                    clist[it++] = localPadding + i;
+            }
+        }
+    }
+
+    void mapList(std::vector<int> &clist)
+    {
+        int it = 0;
+        mapListRec(clist, it);
+    }
+
     void writeTree(FILE *fout)
     {
         fprintf(fout, "%f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
@@ -724,6 +734,24 @@ public:
             }
         }
     }
+
+    void print(int l = 0)
+    {
+        if(global)
+        {
+            for (int i = 0; i < l; i++)
+                printf("   ");
+            printf("[%d] %d %d %d\n", assignee, localPadding, localParticleCount, globalParticleCount);
+
+            if ((int)cells.size() == ncells)
+            {
+                for (int i = 0; i < ncells; i++)
+                    cells[i]->print(l + 1);
+            }
+        }
+    }
+
+private:
 
     void getParticleCountPerNode(std::vector<int> &particleCount, int ptri = 0)
     {
@@ -777,34 +805,6 @@ public:
                 }
             }
         }
-    }
-
-    void mapListRec(std::vector<int> &clist, int &it)
-    {
-        if((int)cells.size() == ncells)
-        {
-            if(assignee == -1 || assignee == comm_rank)
-            {
-                for (int i = 0; i < ncells; i++)
-                {
-                    cells[i]->mapListRec(clist, it);
-                }
-            }
-        }
-        else
-        {
-            if (assignee == comm_rank && localParticleCount > 0)
-            {
-                for (int i = 0; i < localParticleCount; i++)
-                    clist[it++] = localPadding + i;
-            }
-        }
-    }
-
-    void mapList(std::vector<int> &clist)
-    {
-        int it = 0;
-        mapListRec(clist, it);
     }
 
     // void mapTasksRec(std::vector<Task> &taskList, int &it)
