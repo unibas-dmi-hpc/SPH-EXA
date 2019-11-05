@@ -245,8 +245,8 @@ public:
 
                 Octree<T> *cell = itNodes.second;
 
-                int cellCount = cell->globalParticleCount;
-                int from = cell->assignee;
+                int cellCount = cell->getGlobalParticleCount();
+                int from = cell->getAssignedRank();
 
                 // store corresponding cell for when recving
                 cellMap[ptri] = cell;
@@ -286,8 +286,8 @@ public:
             {
                 Octree<T> *cell = cellMap[ptri];
 
-                int cellCount = cell->globalParticleCount;
-                int padding = cell->localPadding;
+                int cellCount = cell->getGlobalParticleCount();
+                int padding = cell->getStorageOffset();
 
                 for (unsigned int i = 0; i < data.size(); i++)
                 {
@@ -426,8 +426,8 @@ public:
             {
                 Octree<T> *cell = cellMap[ptri];
 
-                int cellCount = cell->globalParticleCount;
-                int padding = cell->localPadding;
+                int cellCount = cell->getGlobalParticleCount();
+                int padding = cell->getStorageOffset();
 
                 for(unsigned int i=0; i<data.size(); i++)
                 {
@@ -504,7 +504,6 @@ public:
         d.bbox.computeGlobal(clist, d.x, d.y, d.z);
         
         // Each process creates a tree based on the gathered sample
-        octree.cells.clear();
         octree = Octree<T>(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, comm_rank, comm_size);
         octree.approximate(sx, sy, sz, sh);
 
@@ -541,7 +540,7 @@ public:
             // Done every iteration, this will either add or remove global nodes
             // depending if there are too much / too few particles globally
 
-            // printf("[%d] %d -> %d %d %d %d %d %d %d %d\n", comm_rank, octree.globalNodeCount, octree.cells[0]->globalParticleCount, octree.cells[1]->globalParticleCount, octree.cells[2]->globalParticleCount, octree.cells[3]->globalParticleCount, octree.cells[4]->globalParticleCount, octree.cells[5]->globalParticleCount, octree.cells[6]->globalParticleCount, octree.cells[7]->globalParticleCount);
+            // printf("[%d] %d -> %d %d %d %d %d %d %d %d\n", comm_rank, octree.globalNodeCount, octree.cells[0]->getGlobalParticleCount(), octree.cells[1]->getGlobalParticleCount(), octree.cells[2]->getGlobalParticleCount(), octree.cells[3]->getGlobalParticleCount(), octree.cells[4]->getGlobalParticleCount(), octree.cells[5]->getGlobalParticleCount(), octree.cells[6]->getGlobalParticleCount(), octree.cells[7]->getGlobalParticleCount());
             
             nsplits = octree.globalRebalance(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax);
 
@@ -638,7 +637,6 @@ public:
         d.bbox.computeGlobal(clist, d.x, d.y, d.z);
         
         // Each process creates a tree based on the gathered sample
-        octree.cells.clear();
         octree = Octree<T>(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, 0, 1);
         octree.buildTree(clist, x, y, z, ordering);
         reorder(ordering, d);

@@ -1,6 +1,7 @@
-CXX ?= g++ # This is the main compiler
-CC ?= gcc
-MPICXX ?= mpic++
+CXX ?= CC
+CC ?= cc
+MPICXX ?= CC
+
 ENV ?= gnu
 NVCC ?= nvcc
 

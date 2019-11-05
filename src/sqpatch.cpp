@@ -82,7 +82,7 @@ int main(int argc, char **argv)
         long long int totalNeighbors = distributedDomain.neighborsSum(taskList);
         if (d.rank == 0)
         {
-            printer.printCheck(distributedDomain.clist.size(), distributedDomain.octree.globalNodeCount, distributedDomain.haloCount, totalNeighbors, std::cout);
+            printer.printCheck(distributedDomain.clist.size(), distributedDomain.octree.getGlobalNodeCount(), distributedDomain.haloCount, totalNeighbors, std::cout);
             printer.printConstants(d.iteration, totalNeighbors, constantsFile);
         }
 

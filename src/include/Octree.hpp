@@ -33,8 +33,16 @@ public:
         cells.clear();
     }
 
-    std::vector<std::shared_ptr<Octree>> cells;
 
+int getAssignedRank() const { return assignee; }
+
+int getStorageOffset() const { return localPadding; }
+
+int getGlobalParticleCount() const { return globalParticleCount; }
+
+int getGlobalNodeCount() const { return globalNodeCount; }
+
+private:
     T xmin = INFINITY, xmax = -INFINITY, ymin = INFINITY, ymax = -INFINITY, zmin = INFINITY, zmax = -INFINITY;
 
     int comm_rank = -1;
@@ -42,22 +50,27 @@ public:
     int assignee = -1;
 
     int localPadding = 0;
+    int globalParticleCount = 0;
 
     int globalNodeCount = 0;
 
+private:
     int localParticleCount = 0;
-    int globalParticleCount = 0;
+
+    std::vector<std::shared_ptr<Octree>> cells;
+
 
     T localMaxH = 0.0;
     T globalMaxH = 0.0;
 
     bool halo = false;
-
     bool global = false;
 
     static const int nX = 2, nY = 2, nZ = 2;
     static const int ncells = 8;
     static const int bucketSize = 64, maxGlobalBucketSize = 512, minGlobalBucketSize = 256;
+
+public:
 
     static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
