@@ -1,6 +1,6 @@
-CXX ?= CC
-CC ?= cc
-MPICXX ?= CC
+CXX ?= g++
+CC ?= gcc
+MPICXX ?= mpic++
 
 ENV ?= gnu
 NVCC ?= nvcc

@@ -91,26 +91,6 @@ public:
 
     inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
-    //void reorderSwap(const std::vector<int> &ordering, std::vector<T> &arrayList)
-    //{
-    //    std::vector<T> tmp(ordering.size());
-    //    for (unsigned int i = 0; i < ordering.size(); i++)
-    //        tmp[i] = arrayList[ordering[i]];
-    //    tmp.swap(arrayList);
-    //}
-
-    //void reorder(const std::vector<int> &ordering, std::vector<std::vector<T> *> &arrayList)
-    //{
-    //    for (unsigned int i = 0; i < arrayList.size(); i++)
-    //        reorderSwap(ordering, *arrayList[i]);
-    //}
-
-    //template <class Dataset>
-    //void reorder(const std::vector<int> &ordering, Dataset &d)
-    //{
-    //    reorder(ordering, d.data);
-    //}
-
     void makeDataArray(std::vector<std::vector<T> *> &data, std::vector<T> *d) { data.push_back(d); }
 
     template <typename... Args>
