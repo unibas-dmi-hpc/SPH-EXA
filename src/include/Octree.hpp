@@ -512,7 +512,8 @@ public:
     template <class Dataset>
     void buildTree(const std::vector<int> &list, Dataset &d)
     {
-        std::vector<int> ordering(d.count);
+        // d.count is now != d.x.size(), because the arrays contain the halos!
+        std::vector<int> ordering(d.x.size());
 
         #pragma omp parallel
         #pragma omp single
