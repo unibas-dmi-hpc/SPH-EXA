@@ -524,7 +524,6 @@ public:
         work[0] += remaining;
 
         // We map the nodes to a 1D array and retrieve the order of the particles in the tree
-        //std::vector<int> ordering(n);
         int nsplits = 0;
 
         do
@@ -545,9 +544,6 @@ public:
             octree.updateGlobalCounts(clist, d);
             //octree.computeGlobalParticleCount();
         } while(d.iteration == 0 && nsplits > 0);
-
-        // Getting rid of old halos
-        //reorder(ordering, d);
 
         // printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount); fflush(stdout);
 

@@ -415,6 +415,7 @@ public:
     // zCurveOffset + localParticleCount locate particles belonging to this node in x,y,z,...
     // globalMaxH = global max H of any particle
     // globalParticleCount = global sum of all local particle counts
+    // localParticleCount = sum of particles (on this rank) in all children
     template <class Dataset>
     void updateGlobalCounts(const std::vector<int> &list, Dataset &d)
     {
@@ -477,9 +478,9 @@ public:
     }
 
     void buildTreeRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z,
-                              std::vector<int> &ordering, int padding = 0)
+                              std::vector<int> &ordering, int zoffset = 0)
     {
-        this->zCurveOffset = padding;
+        this->zCurveOffset = zoffset;
         this->localParticleCount = list.size();
 
         std::vector<std::vector<int>> cellList(ncells);
@@ -495,16 +496,16 @@ public:
         {
             for (int i = 0; i < ncells; i++)
             {
-                #pragma omp task shared(cellList, x, y, z, ordering) firstprivate(padding)
-                cells[i]->buildTreeRec(cellList[i], x, y, z, ordering, padding);
-                padding += cellList[i].size();
+                #pragma omp task shared(cellList, x, y, z, ordering) firstprivate(zoffset)
+                cells[i]->buildTreeRec(cellList[i], x, y, z, ordering, zoffset);
+                zoffset += cellList[i].size();
             }
             #pragma omp taskwait
         }
         else
         {
             for (int i = 0; i < (int)list.size(); i++)
-                ordering[padding + i] = list[i];
+                ordering[zoffset + i] = list[i];
         }
     }
 
@@ -583,13 +584,13 @@ public:
         }
     }
 
-    int findHalosList(Octree *a, std::map<int, std::map<int, Octree<T> *>> &toSendHalos, int ptri = 0)
+    int findHalosList(Octree *a, std::map<int, std::map<int, Octree<T> *>> &toSendHalos, int zCurveNodeIdx = 0)
     {
         int haloCount = 0;
 
         if (global)
         {
-            ptri++;
+            zCurveNodeIdx++;
 
             // If this node is a halo (i.e. overlap) node a
             if (globalParticleCount > 0)
@@ -598,8 +599,8 @@ public:
                 {
                     for (int i = 0; i < ncells; i++)
                     {
-                        haloCount += cells[i]->findHalosList(a, toSendHalos, ptri);
-                        ptri += cells[i]->globalNodeCount;
+                        haloCount += cells[i]->findHalosList(a, toSendHalos, zCurveNodeIdx);
+                        zCurveNodeIdx += cells[i]->globalNodeCount;
                     }
                 }
                 else if (assignee != a->assignee && (assignee == comm_rank || a->assignee == comm_rank) && overlap(a))
@@ -610,19 +611,19 @@ public:
                     {
                         for (int i = 0; i < ncells; i++)
                         {
-                            haloCount += cells[i]->findHalosList(a, toSendHalos, ptri);
-                            ptri += cells[i]->globalNodeCount;
+                            haloCount += cells[i]->findHalosList(a, toSendHalos, zCurveNodeIdx);
+                            zCurveNodeIdx += cells[i]->globalNodeCount;
                         }
                     }
                     else
                     {
-                        if (toSendHalos[a->assignee].count(ptri) == 0)
+                        if (toSendHalos[a->assignee].count(zCurveNodeIdx) == 0)
                         {
                             if (a->assignee == comm_rank)
                             {
                                 haloCount += globalParticleCount;
                             }
-                            toSendHalos[a->assignee][ptri] = this;
+                            toSendHalos[a->assignee][zCurveNodeIdx] = this;
                         }
                     }
                 }
@@ -710,6 +711,9 @@ public:
         return haloCount;
     }
 
+    // collect list of nodes to send to other ranks
+    // count number of halo particles to receive on this rank
+    // tag halo tree nodes on this rank
     int findHalos(std::map<int, std::map<int, Octree<T> *>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
     {
         toSendHalos.clear();
@@ -775,55 +779,55 @@ public:
 
 private:
 
-    void getParticleCountPerNode(std::vector<int> &particleCount, int ptri = 0)
+    void getParticleCountPerNode(std::vector<int> &particleCount, int zCurveNodeIdx = 0)
     {
         if (global)
         {
-            particleCount[ptri] = this->localParticleCount;
+            particleCount[zCurveNodeIdx] = this->localParticleCount;
 
             if ((int)cells.size() == ncells)
             {
-                ptri++;
+                zCurveNodeIdx++;
                 for (int i = 0; i < ncells; i++)
                 {
-                    cells[i]->getParticleCountPerNode(particleCount, ptri);
-                    ptri += cells[i]->globalNodeCount;
+                    cells[i]->getParticleCountPerNode(particleCount, zCurveNodeIdx);
+                    zCurveNodeIdx += cells[i]->globalNodeCount;
                 }
             }
         }
     }
 
-    void setParticleCountPerNode(const std::vector<int> &particleCount, int ptri = 0)
+    void setParticleCountPerNode(const std::vector<int> &particleCount, int zCurveNodeIdx = 0)
     {
         if (global)
         {
-            this->globalParticleCount = particleCount[ptri];
+            this->globalParticleCount = particleCount[zCurveNodeIdx];
 
             if ((int)cells.size() == ncells)
             {
-                ptri++;
+                zCurveNodeIdx++;
                 for (int i = 0; i < ncells; i++)
                 {
-                    cells[i]->setParticleCountPerNode(particleCount, ptri);
-                    ptri += cells[i]->globalNodeCount;
+                    cells[i]->setParticleCountPerNode(particleCount, zCurveNodeIdx);
+                    zCurveNodeIdx += cells[i]->globalNodeCount;
                 }
             }
         }
     }
 
-    void setMaxHPerNode(const std::vector<double> &hmax, int ptri = 0)
+    void setMaxHPerNode(const std::vector<double> &hmax, int zCurveNodeIdx = 0)
     {
         if (global)
         {
-            this->globalMaxH = hmax[ptri];
+            this->globalMaxH = hmax[zCurveNodeIdx];
 
             if ((int)cells.size() == ncells)
             {
-                ptri++;
+                zCurveNodeIdx++;
                 for (int i = 0; i < ncells; i++)
                 {
-                    cells[i]->setMaxHPerNode(hmax, ptri);
-                    ptri += cells[i]->globalNodeCount;
+                    cells[i]->setMaxHPerNode(hmax, zCurveNodeIdx);
+                    zCurveNodeIdx += cells[i]->globalNodeCount;
                 }
             }
         }
