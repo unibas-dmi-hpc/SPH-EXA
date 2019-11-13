@@ -12,8 +12,8 @@ using namespace sphexa;
 int main(int argc, char **argv)
 {
     ArgParser parser(argc, argv);
-    const int cubeSide = parser.getInt("-n", 50);
-    const int maxStep = parser.getInt("-s", 10);
+    const size_t cubeSide = parser.getInt("-n", 50);
+    const size_t maxStep = parser.getInt("-s", 10);
     const int writeFrequency = parser.getInt("-w", -1);
 
 #ifdef _JENKINS
@@ -36,12 +36,6 @@ int main(int argc, char **argv)
     std::ofstream constantsFile("constants.txt");
 
     std::vector<Task> taskList;
-
-    // Easiest way to go back to one task. Every loop add this after buildTree:
-    // Task bigTask(distributedDomain.clist.size());
-    // bigTask.clist = distributedDomain.clist;
-    // taskList.clear();
-    // taskList.push_back(bigTask);
 
     distributedDomain.create(d);
 
@@ -82,7 +76,8 @@ int main(int argc, char **argv)
         long long int totalNeighbors = distributedDomain.neighborsSum(taskList);
         if (d.rank == 0)
         {
-            printer.printCheck(distributedDomain.clist.size(), distributedDomain.octree.globalNodeCount, distributedDomain.haloCount, totalNeighbors, std::cout);
+            printer.printCheck(distributedDomain.clist.size(), distributedDomain.octree.globalNodeCount, distributedDomain.haloCount,
+                               totalNeighbors, std::cout);
             printer.printConstants(d.iteration, totalNeighbors, constantsFile);
         }
 

@@ -36,10 +36,10 @@ public:
     template <class Dataset>
     void findNeighborsImpl(Task &t, Dataset &d)
     {
-        int64_t n = t.clist.size();
+        size_t  n = t.clist.size();
 
 #pragma omp parallel for schedule(guided)
-        for (int pi = 0; pi < n; pi++)
+        for (size_t pi = 0; pi < n; pi++)
         {
             int i = t.clist[pi];
 
@@ -63,9 +63,9 @@ public:
         }
     }
 
-    int64_t neighborsSumImpl(const Task &t)
+    size_t  neighborsSumImpl(const Task &t)
     {
-        int64_t sum = 0;
+        size_t  sum = 0;
 #pragma omp parallel for reduction(+ : sum)
         for (unsigned int i = 0; i < t.clist.size(); i++)
             sum += t.neighborsCount[i];
@@ -73,9 +73,9 @@ public:
         return sum;
     }
 
-    int64_t neighborsSum(const std::vector<Task> &taskList)
+    size_t  neighborsSum(const std::vector<Task> &taskList)
     {
-        int64_t sum = 0;
+        size_t  sum = 0;
         for (const auto &task : taskList)
         {
             sum += neighborsSumImpl(task);
@@ -120,6 +120,10 @@ public:
     }
 
 #ifdef USE_MPI
+    /*  Send the particles from the old arrays either to the new arrays or to another process
+        Basically collects a map[process][nodes] to send to other processes
+        Then it knows how many particle it is missing (particleCount - localParticleCount)
+        And just loop receive until we have received all the missing particles from other processes */
     void sync(const std::vector<std::vector<T> *> &arrayList)
     {
         std::map<int, std::vector<int>> toSendCellsPadding, toSendCellsCount;
@@ -469,48 +473,68 @@ public:
         const std::vector<T> &h = d.h;
 
         // Prepare processes
-        const int n = d.count;
-        const int ntot = d.n;
-        const int split = ntot / comm_size;
-        const int remaining = ntot - comm_size * split;
+        const size_t n = d.count;
+        const size_t ntot = d.n;
+        const size_t split = ntot / comm_size;
+        const size_t remaining = ntot - comm_size * split;
 
         clist.resize(n);
         for (int i = 0; i < n; i++)
             clist[i] = i;
 
-        std::vector<int> work(comm_size, split);
-        work[0] += remaining;
-
-        // Each process creates a random sample of local_sample_size particles
-        const int global_sample_size = local_sample_size * comm_size;
-        const int ptri = local_sample_size * comm_rank;
-
-        std::vector<T> sx(global_sample_size), sy(global_sample_size), sz(global_sample_size), sh(global_sample_size);
-
-        for (int i = 0; i < local_sample_size; i++)
-        {
-            int j = rand() % n;
-            sx[ptri + i] = x[clist[j]];
-            sy[ptri + i] = y[clist[j]];
-            sz[ptri + i] = z[clist[j]];
-            sh[ptri + i] = h[clist[j]];
-        }
-
-        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sx[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
-        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sy[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
-        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sz[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
-        MPI_Allgather(MPI_IN_PLACE, 0, MPI_DATATYPE_NULL, &sh[0], local_sample_size, MPI_DOUBLE, MPI_COMM_WORLD);
-
         d.bbox.computeGlobal(clist, d.x, d.y, d.z);
 
-        // Each process creates a tree based on the gathered sample
         octree.cells.clear();
         octree = Octree<T>(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, comm_rank, comm_size);
-        octree.approximate(sx, sy, sz, sh);
+
+        octree.global = true;
+        octree.globalNodeCount = 9;
+        octree.globalParticleCount = 0;
 
         std::vector<int> ordering(n);
         octree.buildGlobalTreeAndGlobalCountAndGlobalMaxH(clist, x, y, z, h, ordering);
+
+        int nsplits = 0;
+        do
+        {
+            nsplits = octree.globalRebalance(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax);
+            octree.buildGlobalTreeAndGlobalCountAndGlobalMaxH(clist, x, y, z, h, ordering);
+        } while (nsplits > 0);
+
         reorder(ordering, d);
+
+        // We then map the tree to processes
+        std::vector<int> work(comm_size, split);
+        work[0] += remaining;
+
+        std::vector<int> work_remaining(comm_size);
+        octree.assignProcesses(work, work_remaining);
+
+        workAssigned = work[comm_rank] - work_remaining[comm_rank];
+
+        sync(d.data);
+
+        // adjust clist to consider only the particles that belong to us (using the tree)
+        clist.resize(workAssigned);
+        ordering.resize(workAssigned);
+        buildTree(d);
+
+        // build the global tree using only the particles that belong to us
+        octree.globalRebalance(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax);
+        octree.buildGlobalTreeAndGlobalCountAndGlobalMaxH(clist, x, y, z, h, ordering);
+        octree.assignProcesses(work, work_remaining);
+
+        // Get rid of particles that do not belong to us
+        reorder(ordering, d);
+        for (int i = 0; i < workAssigned; i++)
+            clist[i] = i;
+        d.resize(workAssigned);
+
+        workAssigned = work[comm_rank] - work_remaining[comm_rank];
+
+        sync(d.data);
+
+        d.count = workAssigned;
     }
 
     template <class Dataset>
@@ -522,10 +546,10 @@ public:
         const std::vector<T> &h = d.h;
 
         // Prepare processes
-        const int n = d.count;
-        const int ntot = d.n;
-        const int split = ntot / comm_size;
-        const int remaining = ntot - comm_size * split;
+        const size_t n = d.count;
+        const size_t ntot = d.n;
+        const size_t split = ntot / comm_size;
+        const size_t remaining = ntot - comm_size * split;
 
         d.bbox.computeGlobal(clist, d.x, d.y, d.z);
 
@@ -536,27 +560,8 @@ public:
         std::vector<int> ordering(n);
         int nsplits = 0;
 
-        do
-        {
-            // Done every iteration, this will either add or remove global nodes
-            // depending if there are too much / too few particles globally
-
-            // printf("[%d] %d -> %d %d %d %d %d %d %d %d\n", comm_rank, octree.globalNodeCount, octree.cells[0]->globalParticleCount,
-            // octree.cells[1]->globalParticleCount, octree.cells[2]->globalParticleCount, octree.cells[3]->globalParticleCount,
-            // octree.cells[4]->globalParticleCount, octree.cells[5]->globalParticleCount, octree.cells[6]->globalParticleCount,
-            // octree.cells[7]->globalParticleCount);
-
-            nsplits = octree.globalRebalance(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax);
-
-            // printf("[%d] SPLITS: %d, Nodes: %d\n", comm_rank, nsplits, octree.globalNodeCount);
-            // fflush(stdout);
-
-            // We now reorder the data in memory so that it matches the octree layout
-            // In other words, iterating over the array is the same as walking the tree
-            // This is the same a following a Morton / Z-Curve path
-            octree.buildGlobalTreeAndGlobalCountAndGlobalMaxH(clist, x, y, z, h, ordering);
-            // octree.computeGlobalParticleCount();
-        } while (d.iteration == 0 && nsplits > 0);
+        octree.globalRebalance(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax);
+        octree.buildGlobalTreeAndGlobalCountAndGlobalMaxH(clist, x, y, z, h, ordering);
 
         // Getting rid of old halos
         reorder(ordering, d);
@@ -578,10 +583,6 @@ public:
         // printf("[%d] Total Avail: %d, Total Alloc: %d || Got: %d\n", comm_rank, totalAvail, totalAlloc, work[comm_rank] -
         //   work_remaining[comm_rank]); fflush(stdout);
 
-        // Send the particles from the old arrays either to the new arrays or to another process
-        // Basically collects a map[process][nodes] to send to other processes
-        // Then it knows how many particle it is missing (particleCount - localParticleCount)
-        // And just loop receive until we have received all the missing particles from other processes
         sync(d.data);
 
         // printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount,
@@ -603,23 +604,25 @@ public:
         // Finally remap everything
         ordering.resize(workAssigned + haloCount);
 #pragma omp parallel for
-        for (int i = 0; i < (int)ordering.size(); i++)
+        for (size_t i = 0; i < (int)ordering.size(); i++)
             ordering[i] = 0;
 
         // We map ALL particles
         // Particles that do not belong to us will be ignored in the localMapParticleFunction
         std::vector<int> list(d.x.size());
 #pragma omp parallel for
-        for (int i = 0; i < (int)d.x.size(); i++)
+        for (size_t i = 0; i < (int)d.x.size(); i++)
             list[i] = i;
+
+        clist.resize(workAssigned);
+#pragma omp parallel for
+        for (size_t i = 0; i < workAssigned; i++)
+            clist[i] = i;
 
         octree.buildTreeWithHalos(list, x, y, z, ordering);
         reorder(ordering, d);
 
-        clist.resize(workAssigned);
-#pragma omp parallel for
-        for (int i = 0; i < workAssigned; i++)
-            clist[i] = i;
+        // MUST DO SYNCHALOS AND BUILDTREE AFTER
 
         d.count = workAssigned;
     }
@@ -631,10 +634,10 @@ public:
         const std::vector<T> &y = d.y;
         const std::vector<T> &z = d.z;
 
-        const int n = d.count;
+        const size_t n = d.count;
 
         clist.resize(n);
-        for (int i = 0; i < n; i++)
+        for (size_t i = 0; i < n; i++)
             clist[i] = i;
 
         std::vector<int> ordering(n);

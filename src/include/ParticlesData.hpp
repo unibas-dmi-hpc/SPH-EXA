@@ -16,8 +16,8 @@ struct ParticlesData
             data[i]->resize(size);
     }
 
-    int iteration;                               // Current iteration
-    int n, side, count;                          // Number of particles
+    size_t iteration;                               // Current iteration
+    size_t n, side, count;                          // Number of particles
     std::vector<T> x, y, z, x_m1, y_m1, z_m1;    // Positions
     std::vector<T> vx, vy, vz;                   // Velocities
     std::vector<T> ro, ro_0;                     // Density
