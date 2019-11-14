@@ -479,7 +479,7 @@ public:
         const size_t remaining = ntot - comm_size * split;
 
         clist.resize(n);
-        for (int i = 0; i < n; i++)
+        for (size_t i = 0; i < n; i++)
             clist[i] = i;
 
         d.bbox.computeGlobal(clist, d.x, d.y, d.z);
@@ -504,10 +504,10 @@ public:
         reorder(ordering, d);
 
         // We then map the tree to processes
-        std::vector<int> work(comm_size, split);
+        std::vector<size_t> work(comm_size, split);
         work[0] += remaining;
 
-        std::vector<int> work_remaining(comm_size);
+        std::vector<size_t> work_remaining(comm_size);
         octree.assignProcesses(work, work_remaining);
 
         workAssigned = work[comm_rank] - work_remaining[comm_rank];
@@ -526,7 +526,7 @@ public:
 
         // Get rid of particles that do not belong to us
         reorder(ordering, d);
-        for (int i = 0; i < workAssigned; i++)
+        for (size_t i = 0; i < workAssigned; i++)
             clist[i] = i;
         d.resize(workAssigned);
 
@@ -553,12 +553,11 @@ public:
 
         d.bbox.computeGlobal(clist, d.x, d.y, d.z);
 
-        std::vector<int> work(comm_size, split);
+        std::vector<size_t> work(comm_size, split);
         work[0] += remaining;
 
         // We map the nodes to a 1D array and retrieve the order of the particles in the tree
         std::vector<int> ordering(n);
-        int nsplits = 0;
 
         octree.globalRebalance(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax);
         octree.buildGlobalTreeAndGlobalCountAndGlobalMaxH(clist, x, y, z, h, ordering);
@@ -569,7 +568,7 @@ public:
         // printf("[%d] Global tree nodes: %d\n", comm_rank, octree.globalNodeCount); fflush(stdout);
 
         // We then map the tree to processes
-        std::vector<int> work_remaining(comm_size);
+        std::vector<size_t> work_remaining(comm_size);
         octree.assignProcesses(work, work_remaining);
 
         // Quick check
@@ -604,14 +603,14 @@ public:
         // Finally remap everything
         ordering.resize(workAssigned + haloCount);
 #pragma omp parallel for
-        for (size_t i = 0; i < (int)ordering.size(); i++)
+        for (size_t i = 0; i < ordering.size(); i++)
             ordering[i] = 0;
 
         // We map ALL particles
         // Particles that do not belong to us will be ignored in the localMapParticleFunction
         std::vector<int> list(d.x.size());
 #pragma omp parallel for
-        for (size_t i = 0; i < (int)d.x.size(); i++)
+        for (size_t i = 0; i < d.x.size(); i++)
             list[i] = i;
 
         clist.resize(workAssigned);
@@ -743,8 +742,8 @@ public:
 
     std::map<int, std::map<int, Octree<T> *>> toSendHalos;
 
-    int haloCount = 0;
-    int workAssigned = 0;
+    size_t haloCount = 0;
+    size_t workAssigned = 0;
 
     Octree<T> octree;
 

@@ -468,9 +468,9 @@ public:
         buildTreeRec(list, x, y, z, ordering);
     }
 
-    void assignProcessesRec(std::vector<int> &work, int &pi)
+    void assignProcessesRec(std::vector<size_t> &work, size_t &pi)
     {
-        if (work[pi] <= 0 && pi + 1 < (int)work.size()) pi++;
+        if (work[pi] <= 0 && pi + 1 < work.size()) pi++;
 
         // If the node fits on process pi, we assign it to this branch
         if (globalParticleCount <= work[pi]) assignee = pi;
@@ -483,7 +483,7 @@ public:
         else
         {
             // Else if we are a leaf and it does not fit on process pi, we go to the next process
-            if (globalParticleCount > work[pi] && pi + 1 < (int)work.size())
+            if (globalParticleCount > work[pi] && pi + 1 < work.size())
             {
                 pi++;
                 // It may not fit
@@ -491,7 +491,7 @@ public:
                 // Perhaps increase the sample size?
                 if (globalParticleCount > work[pi])
                 {
-                    printf("Node has %d particles > assignee %d which has max %d work\n", globalParticleCount, pi, work[pi]);
+                    printf("Node has %lu particles > assignee %lu which has max %lu work\n", globalParticleCount, pi, work[pi]);
                     printf("Increase sample size?\n");
                 }
             }
@@ -501,9 +501,9 @@ public:
         }
     }
 
-    void assignProcesses(const std::vector<int> &work, std::vector<int> &work_remaining)
+    void assignProcesses(const std::vector<size_t> &work, std::vector<size_t> &work_remaining)
     {
-        int pi = 0;
+        size_t pi = 0;
         work_remaining = work;
         assignProcessesRec(work_remaining, pi);
     }
