@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <map>
 #include <algorithm>
+#include <numeric>
 
 #include <unistd.h>
 #include <chrono>
@@ -128,52 +129,45 @@ public:
     {
         std::map<int, std::vector<int>> toSendCellsPadding, toSendCellsCount;
         std::vector<std::vector<T>> buff;
-        std::vector<int> counts;
         std::vector<MPI_Request> requests;
 
         int needed = 0;
 
         octree.syncRec(toSendCellsPadding, toSendCellsCount, needed);
 
-        counts.resize(comm_size);
         for (int rank = 0; rank < comm_size; rank++)
         {
             if (toSendCellsCount[rank].size() > 0)
             {
                 int rcount = requests.size();
-                int bcount = buff.size();
-                counts[rank] = 0;
-
-                for (unsigned int i = 0; i < toSendCellsCount[rank].size(); i++)
-                    counts[rank] += toSendCellsCount[rank][i];
+                int nParticlesToSend = std::accumulate(toSendCellsCount[rank].begin(), toSendCellsCount[rank].end(), 0);
 
                 requests.resize(rcount + arrayList.size() + 2);
-                buff.resize(bcount + arrayList.size());
 
                 MPI_Isend(&comm_rank, 1, MPI_INT, rank, 0, MPI_COMM_WORLD, &requests[rcount]);
-                MPI_Isend(&counts[rank], 1, MPI_INT, rank, 1, MPI_COMM_WORLD, &requests[rcount + 1]);
+                MPI_Isend(&nParticlesToSend, 1, MPI_INT, rank, 1, MPI_COMM_WORLD, &requests[rcount + 1]);
 
                 for (unsigned int i = 0; i < arrayList.size(); i++)
                 {
-                    buff[bcount + i].resize(counts[rank]);
+                    std::vector<T> localBuffer;
+                    localBuffer.reserve(nParticlesToSend);
 
-                    int bi = 0;
                     // We go over every tree nodes to send for this rank
                     for (unsigned int j = 0; j < toSendCellsCount[rank].size(); j++)
                     {
                         int padding = toSendCellsPadding[rank][j];
                         int count = toSendCellsCount[rank][j];
-                        for (int k = 0; k < count; k++)
-                        {
-                            buff[bcount + i][bi++] = (*arrayList[i])[padding + k];
-                        }
+
+                        std::copy((*arrayList[i]).begin() + padding, (*arrayList[i]).begin() + padding + count, std::back_inserter(localBuffer));
                     }
 
-                    MPI_Isend(&buff[bcount + i][0], counts[rank], MPI_DOUBLE, rank, 2 + i, MPI_COMM_WORLD, &requests[rcount + 2 + i]);
+                    MPI_Isend(localBuffer.data(), nParticlesToSend, MPI_DOUBLE, rank, 2 + i, MPI_COMM_WORLD, &requests[rcount + 2 + i]);
+                    buff.emplace_back(std::move(localBuffer));
                 }
             }
         }
 
+        // allocate space for the incoming particles
         int end = arrayList[0]->size();
         for (unsigned int i = 0; i < arrayList.size(); i++)
             (*arrayList[i]).resize(end + needed);
