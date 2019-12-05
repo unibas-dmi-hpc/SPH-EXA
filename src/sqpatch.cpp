@@ -72,6 +72,8 @@ int main(int argc, char **argv)
         timer.step("UpdateQuantities");
         sph::computeTotalEnergy<Real>(taskList, d);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
+        distributedDomain.updateSmoothingLength(taskList, d);
+        timer.step("UpdateSmoothingLength");
 
         long long int totalNeighbors = distributedDomain.neighborsSum(taskList);
         if (d.rank == 0)
