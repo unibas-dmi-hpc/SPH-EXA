@@ -115,7 +115,7 @@ public:
         // typedef std::chrono::time_point<Clock> TimePoint;
         // typedef std::chrono::duration<float> Time;
 
-        std::map<int, Octree<T> *> cellMap;
+        std::unordered_map<int, Octree<T> *> cellMap;
 
         struct ToSend
         {
@@ -533,7 +533,7 @@ private:
     int comm_size, comm_rank, name_len;
     char processor_name[256];
 
-    std::map<int, std::map<int, Octree<T> *>> toSendHalos;
+    std::unordered_map<int, std::unordered_map<int, Octree<T> *>> toSendHalos;
 
     size_t haloCount = 0;
     size_t workAssigned = 0;

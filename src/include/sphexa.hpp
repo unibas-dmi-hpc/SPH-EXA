@@ -2,13 +2,13 @@
 
 #ifdef USE_MPI
 #include "mpi.h"
+#include "DistributedDomain.hpp"
 #endif
 
-#include "DistributedDomain.hpp"
+#include "Domain.hpp"
 #include "Octree.hpp"
 #include "BBox.hpp"
 #include "Task.hpp"
-
 #include "ArgParser.hpp"
 #include "config.hpp"
 #include "Timer.hpp"

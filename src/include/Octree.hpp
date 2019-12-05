@@ -540,7 +540,7 @@ public:
                 a->zmax + radius > zmin && a->zmin - radius < zmax);
     }
 
-    int findHalosList(Octree *a, std::map<int, std::map<int, Octree<T> *>> &toSendHalos, int ptri = 0)
+    int findHalosList(Octree *a, std::unordered_map<int, std::unordered_map<int, Octree<T> *>> &toSendHalos, int ptri = 0)
     {
         int haloCount = 0;
 
@@ -586,7 +586,7 @@ public:
         return haloCount;
     }
 
-    int findHalosRec(Octree *root, std::map<int, std::map<int, Octree<T> *>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
+    int findHalosRec(Octree *root, std::unordered_map<int, std::unordered_map<int, Octree<T> *>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
     {
         int haloCount = 0;
 
@@ -656,7 +656,7 @@ public:
         return haloCount;
     }
 
-    int findHalos(std::map<int, std::map<int, Octree<T> *>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
+    int findHalos(std::unordered_map<int, std::unordered_map<int, Octree<T> *>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
     {
         toSendHalos.clear();
         return findHalosRec(this, toSendHalos, PBCx, PBCy, PBCz);
