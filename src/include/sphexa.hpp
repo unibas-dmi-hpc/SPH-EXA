@@ -11,7 +11,7 @@
 
 #include "ArgParser.hpp"
 #include "config.hpp"
-#include "timer.hpp"
+#include "Timer.hpp"
 #include "Printer.hpp"
 
 #if defined(USE_CUDA)

@@ -685,20 +685,21 @@ public:
     }
 
     template <class Dataset>
-    void updateSmoothingLength(Dataset &d)
+    void updateSmoothingLengthImpl(Task &t, Dataset &d)
     {
         const T c0 = 7.0;
         const T exp = 1.0 / 3.0;
-
-        const size_t n = clist.size();
-        const int *neighborsCount = d.neighborsCount.data();
-        const int ng0 = d.ng0;
+        
+        const int ng0 = Task::ng0;
+        const int *neighborsCount = t.neighborsCount.data();
         T *h = d.h.data();
 
-#pragma omp parallel for
-        for (int pi = 0; pi < n; pi++)
+        size_t  n = t.clist.size();
+
+#pragma omp parallel for schedule(guided)
+        for (size_t pi = 0; pi < n; pi++)
         {
-            const int i = clist[pi];
+            int i = t.clist[pi];
             const int nn = neighborsCount[pi];
 
             h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp);
@@ -706,6 +707,15 @@ public:
 #ifndef NDEBUG
             if (std::isinf(h[i]) || std::isnan(h[i])) printf("ERROR::h(%d) ngi %d h %f\n", i, nn, h[i]);
 #endif
+        }
+    }
+
+    template <class Dataset>
+    void updateSmoothingLength(std::vector<Task> &taskList, Dataset &d)
+    {
+        for (auto &task : taskList)
+        {
+            updateSmoothingLengthImpl(task, d);
         }
     }
 
@@ -728,8 +738,6 @@ public:
                 taskList[i].clist[j] = clist[j + begin];
         }
     }
-
-    const int local_sample_size = 100;
 
     int comm_size, comm_rank, name_len;
     char processor_name[256];
