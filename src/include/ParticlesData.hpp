@@ -53,9 +53,6 @@ struct ParticlesData
     constexpr static T Kcour = 0.2;
     constexpr static T maxDtIncrease = 1.1;
     const static T K;
-
-    // settings
-    constexpr static ushort noOfGpuLoopSplits = 4; // No. of loop splits running in GPU to fit into the GPU memory
 };
 
 template <typename T>
