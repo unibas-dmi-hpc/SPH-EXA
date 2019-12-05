@@ -16,11 +16,6 @@ int main(int argc, char **argv)
     const size_t maxStep = parser.getInt("-s", 10);
     const int writeFrequency = parser.getInt("-w", -1);
 
-#ifdef _JENKINS
-    maxStep = 0;
-    writeFrequency = -1;
-#endif
-
     using Real = double;
     using Dataset = ParticlesData<Real>;
 
@@ -72,6 +67,8 @@ int main(int argc, char **argv)
         timer.step("UpdateQuantities");
         sph::computeTotalEnergy<Real>(taskList, d);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
+        distributedDomain.updateSmoothingLength(taskList, d);
+        timer.step("UpdateSmoothingLength");
 
         long long int totalNeighbors = distributedDomain.neighborsSum(taskList);
         if (d.rank == 0)
