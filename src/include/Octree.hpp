@@ -603,13 +603,11 @@ public:
             {
                 // Find halos from the root
                 // haloCount += root->findHalosList(this, toSendHalos);
-
                 T oldxmin = xmin, oldxmax = xmax;
                 T oldymin = ymin, oldymax = ymax;
                 T oldzmin = zmin, oldzmax = zmax;
 
                 // Find halos from the root
-
                 int mix = (int)floor(normalize(xmin - 2 * globalMaxH, root->xmin, root->xmax) * nX);
                 int miy = (int)floor(normalize(ymin - 2 * globalMaxH, root->ymin, root->ymax) * nY);
                 int miz = (int)floor(normalize(zmin - 2 * globalMaxH, root->zmin, root->zmax) * nZ);
@@ -633,12 +631,6 @@ public:
                             T displz = PBCz ? ((hz < 0) - (hz >= nZ)) * (root->zmax - root->zmin) : 0;
                             T disply = PBCy ? ((hy < 0) - (hy >= nY)) * (root->ymax - root->ymin) : 0;
                             T displx = PBCx ? ((hx < 0) - (hx >= nX)) * (root->xmax - root->xmin) : 0;
-
-                            // int hzz = PBCz ? (hz % nZ) + (hz < 0) * nZ : hz;
-                            // int hyy = PBCy ? (hy % nY) + (hy < 0) * nY : hy;
-                            // int hxx = PBCx ? (hx % nX) + (hx < 0) * nX : hx;
-
-                            // size_t l = hzz * nY * nX + hyy * nX + hxx;
 
                             xmin = xmin + displx;
                             xmax = xmax + displx;
@@ -764,35 +756,6 @@ public:
         int it = 0;
         mapListRec(clist, it);
     }
-
-    // void mapTasksRec(std::vector<Task> &taskList, int &it)
-    // {
-    //     if(assignee == comm_rank && localParticleCount < 131072 && localParticleCount > 0)
-    //     {
-    //         Task task(localParticleCount);
-    //         for (int i = 0; i < localParticleCount; i++)
-    //             task.clist[i] = localPadding + i;
-    //         taskList.push_back(task);
-    //     }
-    //     else if((int)cells.size() == ncells)
-    //     {
-    //         if(assignee == -1 || assignee == comm_rank)
-    //         {
-    //             for (int i = 0; i < ncells; i++)
-    //             {
-    //                 it++;
-    //                 cells[i]->mapTasksRec(taskList, it);
-    //             }
-    //         }
-    //     }
-    // }
-
-    // void mapTasks(std::vector<Task> &taskList)
-    // {
-    //     int it = 0;
-    //     taskList.clear();
-    //     mapTasksRec(taskList, it);
-    // }
 };
 
 } // namespace sphexa
