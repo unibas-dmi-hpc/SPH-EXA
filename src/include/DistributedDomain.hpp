@@ -529,7 +529,6 @@ public:
         d.count = workAssigned;
     }
 
-private:
     int comm_size, comm_rank, name_len;
     char processor_name[256];
 
