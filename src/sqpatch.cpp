@@ -48,7 +48,7 @@ int main(int argc, char **argv)
         timer.step("domain::buildTree");
         domain.createTasks(taskList, 64);
         timer.step("domain::createTasks");
-        domain.findNeighbors(taskList, d);
+        sph::findNeighbors(taskList, d, domain.octree);
         timer.step("FindNeighbors");
         sph::computeDensity<Real>(taskList, d);
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList, d); }
@@ -69,10 +69,10 @@ int main(int argc, char **argv)
         timer.step("UpdateQuantities");
         sph::computeTotalEnergy<Real>(taskList, d);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
-        domain.updateSmoothingLength(taskList, d);
+        sph::updateSmoothingLength<Real>(taskList, d);
         timer.step("UpdateSmoothingLength");
 
-        size_t totalNeighbors = domain.neighborsSum(taskList);
+        size_t totalNeighbors = sph::neighborsSum(taskList);
         if (d.rank == 0)
         {
             printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, std::cout);

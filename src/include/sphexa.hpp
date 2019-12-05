@@ -18,6 +18,7 @@
 #include "sph/cuda/sph.cuh"
 #endif
 
+#include "sph/findNeighbors.hpp"
 #include "sph/density.hpp"
 #include "sph/IAD.hpp"
 #include "sph/momentumAndEnergyIAD.hpp"
@@ -26,3 +27,4 @@
 #include "sph/timestep.hpp"
 #include "sph/positions.hpp"
 #include "sph/totalEnergy.hpp"
+#include "sph/updateSmoothingLength.hpp"

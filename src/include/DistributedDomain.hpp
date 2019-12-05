@@ -22,15 +22,6 @@ public:
 
     ~DistributedDomain() override = default;
 
-    size_t neighborsSum(const std::vector<Task> &taskList) override
-    {
-        size_t sum = Domain<T,Dataset>::neighborsSum(taskList);
-
-        MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
-
-        return sum;
-    }
-
     /*  Send the particles from the old arrays either to the new arrays or to another process
         Basically collects a map[process][nodes] to send to other processes
         Then it knows how many particle it is missing (particleCount - localParticleCount)

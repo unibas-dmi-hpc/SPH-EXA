@@ -71,7 +71,7 @@ public:
 
     static const int nX = 2, nY = 2, nZ = 2;
     static const int ncells = 8;
-    static const int bucketSize = 64, maxGlobalBucketSize = 8192, minGlobalBucketSize = 1024;
+    static const int bucketSize = 64, maxGlobalBucketSize = 2048, minGlobalBucketSize = 512;
 
     static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
