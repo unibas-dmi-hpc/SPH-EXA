@@ -3,7 +3,7 @@
 #include <cmath>
 #include <memory>
 #include <vector>
-#include <algorithm>
+#include <unordered_map>
 
 #include "Task.hpp"
 
@@ -508,7 +508,7 @@ public:
         assignProcessesRec(work_remaining, pi);
     }
 
-    void syncRec(std::map<int, std::vector<int>> &toSendCellsPadding, std::map<int, std::vector<int>> &toSendCellsCount, int &needed)
+    void syncRec(std::unordered_map<int, std::vector<int>> &toSendCellsPadding, std::unordered_map<int, std::vector<int>> &toSendCellsCount, int &needed)
     {
         if (global)
         {

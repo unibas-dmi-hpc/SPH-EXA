@@ -2,14 +2,7 @@
 
 #include <vector>
 #include <cmath>
-#include <unordered_map>
-#include <map>
-#include <algorithm>
 #include <numeric>
-
-#include <unistd.h>
-#include <chrono>
-#include <ctime>
 
 #include "Octree.hpp"
 #include "Task.hpp"

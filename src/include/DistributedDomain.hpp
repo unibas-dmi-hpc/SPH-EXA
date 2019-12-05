@@ -1,5 +1,7 @@
 #pragma once
 
+#include <unordered_map>
+
 #include "Domain.hpp"
 
 #ifdef USE_MPI
@@ -28,7 +30,7 @@ public:
         And just loop receive until we have received all the missing particles from other processes */
     void sync(const std::vector<std::vector<T> *> &arrayList)
     {
-        std::map<int, std::vector<int>> toSendCellsPadding, toSendCellsCount;
+        std::unordered_map<int, std::vector<int>> toSendCellsPadding, toSendCellsCount;
         std::vector<std::vector<T>> buff;
         std::vector<MPI_Request> requests;
 
