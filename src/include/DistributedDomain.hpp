@@ -237,9 +237,6 @@ public:
                 int cellCount = cell->globalParticleCount;
                 int from = cell->assignee;
 
-                // store corresponding cell for when recving
-                cellMap[ptri] = cell;
-
                 if (to == comm_rank && from != comm_rank)
                     needed += cellCount;
                 else if (from == comm_rank && to != comm_rank)
@@ -251,24 +248,30 @@ public:
         }
 
 
-        std::map<int, std::vector<int>> reHalos;
-        std::map<int, Octree<T>*> reCellMap;
-        std::map<int, int> recvCount;
+        std::map<int, std::vector<int>> reHalos, sendHalos;
+        std::map<int, Octree<T>*> reCellMap, sendCellMap;
+        std::map<int, int> recvCount, sendCount;
 
         for (auto const& proc : toSendHalos)
         {
             int to = proc.first;
-            if (to == comm_rank)
+            for (auto const& halo : proc.second)
             {
-                for (auto const& halo : proc.second)
-                {
-                    int ptri = halo.first;
-                    Octree<T>* cell = halo.second;
-                    int from = cell->assignee;
+                int ptri = halo.first;
+                Octree<T>* cell = halo.second;
+                int from = cell->assignee;
 
+                if (to == comm_rank)
+                {
                     reHalos[from].push_back(ptri);
                     reCellMap[ptri] = cell;
                     recvCount[from] += cell->globalParticleCount;
+                }
+                else
+                {
+                    sendHalos[to].push_back(ptri);
+                    sendCellMap[ptri] = cell;
+                    sendCount[to] = cell->globalParticleCount;
                 }
             }
         }
@@ -284,7 +287,7 @@ public:
             int current = 0;
             for (const int &ptri : _toSend.ptris)
             {
-                Octree<T> *cell = cellMap[ptri];
+                Octree<T> *cell = sendCellMap[ptri];
 
                 int cellCount = cell->globalParticleCount;
                 int padding = cell->localPadding;
