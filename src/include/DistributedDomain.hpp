@@ -278,7 +278,7 @@ public:
         }
 
 
-        std::vector<std::vector<int>> ptriBuffs;
+        std::vector<int> fromIdx;
         std::vector<std::vector<std::vector<T>>> recvBuffs;
         while (needed > 0)
         {
@@ -286,21 +286,14 @@ public:
 
             int from = -1;
             MPI_Recv(&from, 1, MPI_INT, MPI_ANY_SOURCE, tag + data.size() + 0, MPI_COMM_WORLD, &status[0]);
+            fromIdx.push_back(from);
 
-            ptriBuffs.push_back(reHalos[from]);
             int count = recvCount[from];
+            recvBuffs.push_back(std::vector<std::vector<T>>(data.size(), std::vector<T>(count)));
 
-            int recvBuffCount = recvBuffs.size();
-            recvBuffs.resize(recvBuffCount + 1);
-
-            std::vector<std::vector<T>> &recvBuff = recvBuffs[recvBuffCount++];
-            recvBuff.resize(data.size());
-
-            // printf("[%d] recv %d from %d\n", comm_rank, count, from); fflush(stdout);
             for (unsigned int i = 0; i < data.size(); i++)
             {
-                recvBuff[i].resize(count);
-                MPI_Recv(&recvBuffs[recvBuffCount - 1][i][0], count, MPI_DOUBLE, from, tag + data.size() + 1 + i, MPI_COMM_WORLD,
+                MPI_Recv((*recvBuffs.rbegin())[i].data(), count, MPI_DOUBLE, from, tag + data.size() + 1 + i, MPI_COMM_WORLD,
                          &status[1 + i]);
             }
 
@@ -310,7 +303,7 @@ public:
 
         for (unsigned int bi = 0; bi < recvBuffs.size(); bi++)
         {
-            std::vector<int> &ptriBuff = ptriBuffs[bi];
+            std::vector<int> &ptriBuff = reHalos[fromIdx[bi]];
             std::vector<std::vector<T>> &recvBuff = recvBuffs[bi];
 
             int current = 0;
