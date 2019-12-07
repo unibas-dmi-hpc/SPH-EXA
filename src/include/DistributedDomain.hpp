@@ -221,7 +221,6 @@ public:
         std::unordered_map<int, ToSend> sendMap;
         int needed = 0;
 
-        // Which tree node to send to which processor
         for (auto const &itProc : toSendHalos)
         {
             int to = itProc.first;
@@ -301,65 +300,13 @@ public:
             sendBuffers[to] = std::move(procBuff);
         }
 
-        // Fill buffer
-        for (auto &it : sendMap)
-        {
-            ToSend &_toSend = it.second;
-            _toSend.ptriCount = _toSend.ptris.size();
-            _toSend.buff.resize(data.size(), std::vector<T>(_toSend.count));
-
-            int to = it.first;
-            if (to == comm_rank) continue;
-            if (_toSend.count != sendCount[to]) throw std::runtime_error("count mismatch\n");
-
-            int current = 0;
-            for (const int &ptri : _toSend.ptris)
-            {
-                Octree<T> *cell = sendCellMap[ptri];
-
-                int cellCount = cell->globalParticleCount;
-                int padding = cell->localPadding;
-
-                for (unsigned int i = 0; i < data.size(); i++)
-                {
-                    T *_buff = &(*data[i])[padding];
-                    T *_toSendBuff = &_toSend.buff[i][current];
-
-                    for (int j = 0; j < cellCount; j++)
-                        _toSendBuff[j] = _buff[j];
-                }
-
-                current += cellCount;
-            }
-        }
-
-        // check
-        for (auto &it : sendMap)
-        {
-            int to = it.first;
-            ToSend& tos = it.second;
-            if (to == comm_rank) continue;
-
-            if(tos.buff.size() != sendBuffers[to].size()) {
-                std::cout << tos.buff.size() << " " << sendBuffers[to].size() << std::endl;
-                std::cout << comm_rank << " " << to << std::endl;
-                throw std::runtime_error("A\n");
-            }
-            for (unsigned int i = 0; i < data.size(); i++)
-            {
-                if(tos.buff[i].size() != sendBuffers[to][i].size()) throw std::runtime_error("I\n");
-                if(!std::equal(tos.buff[i].begin(), tos.buff[i].end(), sendBuffers[to][i].begin()))
-                    throw std::runtime_error("J\n");
-            }
-        }
 
         std::vector<MPI_Request> requests;
 
         // Send!!
-        for (auto &it : sendMap)
+        for (auto &it : sendBuffers)
         {
             int to = it.first;
-            ToSend &_toSend = it.second;
             if (to == comm_rank) continue;
 
             int rcount = requests.size();
@@ -368,12 +315,10 @@ public:
             // Send rank
             MPI_Isend(&comm_rank, 1, MPI_INT, to, tag + data.size() + 0, MPI_COMM_WORLD, &requests[rcount]);
 
-            auto& src = sendBuffers[to];
+            auto& src = it.second;
             for (unsigned int i = 0; i < data.size(); i++)
             {
-                //MPI_Isend(&_toSend.buff[i][0], _toSend.count, MPI_DOUBLE, to, tag + data.size() + 1 + i, MPI_COMM_WORLD,
-                //          &requests[rcount + 1 + i]);
-                MPI_Isend(src[i].data(), _toSend.count, MPI_DOUBLE, to, tag + data.size() + 1 + i, MPI_COMM_WORLD,
+                MPI_Isend(src[i].data(), sendCount[to], MPI_DOUBLE, to, tag + data.size() + 1 + i, MPI_COMM_WORLD,
                           &requests[rcount + 1 + i]);
             }
         }
