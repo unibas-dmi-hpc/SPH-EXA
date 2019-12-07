@@ -238,9 +238,10 @@ public:
             }
         }
 
+        std::vector<MPI_Request> requests;
 
         // Fill Buffers
-        std::map<int, std::vector<std::vector<T>>> sendBuffers;
+        std::vector<std::vector<std::vector<T>>> sendBuffers;
         for (auto& procPtriVec : sendHalos)
         {
             int to = procPtriVec.first; 
@@ -255,36 +256,25 @@ public:
                 int cellCount = cell->globalParticleCount;
                 int padding = cell->localPadding;
 
-                for (unsigned int i = 0; i < data.size(); i++)
+                for (size_t i = 0; i < data.size(); i++)
                 {
                     auto src = (*data[i]).begin() + padding;
                     std::copy(src, src + cellCount, std::back_inserter(procBuff[i]));
                 }
             }
-            sendBuffers[to] = std::move(procBuff);
-        }
 
+            // send
+            requests.push_back(MPI_Request());
+            MPI_Isend(&comm_rank, 1, MPI_INT, to, tag + data.size() + 0, MPI_COMM_WORLD, &(*requests.rbegin()));
 
-        std::vector<MPI_Request> requests;
-
-        // Send!!
-        for (auto &it : sendBuffers)
-        {
-            int to = it.first;
-            if (to == comm_rank) continue;
-
-            int rcount = requests.size();
-            requests.resize(rcount + data.size() + 1);
-
-            // Send rank
-            MPI_Isend(&comm_rank, 1, MPI_INT, to, tag + data.size() + 0, MPI_COMM_WORLD, &requests[rcount]);
-
-            auto& src = it.second;
-            for (unsigned int i = 0; i < data.size(); i++)
+            for (size_t i = 0; i < data.size(); i++)
             {
-                MPI_Isend(src[i].data(), sendCount[to], MPI_DOUBLE, to, tag + data.size() + 1 + i, MPI_COMM_WORLD,
-                          &requests[rcount + 1 + i]);
+                requests.push_back(MPI_Request());
+                MPI_Isend(procBuff[i].data(), procBuff[i].size(), MPI_DOUBLE, to, tag + data.size() + 1 + i, MPI_COMM_WORLD,
+                          &(*requests.rbegin()));
             }
+
+            sendBuffers.emplace_back(std::move(procBuff));
         }
 
 
