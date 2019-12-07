@@ -207,45 +207,7 @@ public:
     {
         static unsigned short int tag = 0;
 
-        std::map<int, Octree<T> *> cellMap;
-
-        struct ToSend
-        {
-            std::vector<int> ptris;
-            int ptriCount;
-
-            std::vector<std::vector<T>> buff;
-            int count;
-        };
-
-        std::unordered_map<int, ToSend> sendMap;
         int needed = 0;
-
-        for (auto const &itProc : toSendHalos)
-        {
-            int to = itProc.first;
-
-            ToSend &_toSend = sendMap[to];
-
-            for (auto const &itNodes : itProc.second)
-            {
-                int ptri = itNodes.first;
-
-                Octree<T> *cell = itNodes.second;
-
-                int cellCount = cell->globalParticleCount;
-                int from = cell->assignee;
-
-                if (to == comm_rank && from != comm_rank)
-                    needed += cellCount;
-                else if (from == comm_rank && to != comm_rank)
-                {
-                    _toSend.ptris.push_back(ptri);
-                    _toSend.count += cellCount;
-                }
-            }
-        }
-
 
         std::map<int, std::vector<int>> reHalos, sendHalos;
         std::map<int, Octree<T>*> reCellMap, sendCellMap;
@@ -265,6 +227,7 @@ public:
                     reHalos[from].push_back(ptri);
                     reCellMap[ptri] = cell;
                     recvCount[from] += cell->globalParticleCount;
+                    needed += cell->globalParticleCount;
                 }
                 else
                 {
@@ -275,8 +238,9 @@ public:
             }
         }
 
-        std::map<int, std::vector<std::vector<T>>> sendBuffers;
 
+        // Fill Buffers
+        std::map<int, std::vector<std::vector<T>>> sendBuffers;
         for (auto& procPtriVec : sendHalos)
         {
             int to = procPtriVec.first; 
