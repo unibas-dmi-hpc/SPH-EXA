@@ -48,7 +48,7 @@ int main(int argc, char **argv)
         timer.step("domain::buildTree");
         domain.createTasks(taskList, 64);
         timer.step("domain::createTasks");
-        sph::findNeighbors(taskList, d, domain.octree);
+        sph::findNeighbors(domain.octree, taskList, d);
         timer.step("FindNeighbors");
         sph::computeDensity<Real>(taskList, d);
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList, d); }

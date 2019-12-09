@@ -9,7 +9,7 @@ namespace sph
 {
 
 template <typename T, class Dataset>
-void findNeighborsImpl(Task &t, Dataset &d, const Octree<T> &o)
+void findNeighborsImpl(const Octree<T> &o, Task &t, Dataset &d)
 {
     const size_t n = t.clist.size();
 
@@ -30,11 +30,11 @@ void findNeighborsImpl(Task &t, Dataset &d, const Octree<T> &o)
 }
 
 template <typename T, class Dataset>
-void findNeighbors(std::vector<Task> &taskList, Dataset &d, const Octree<T> &o)
+void findNeighbors(const Octree<T> &o, std::vector<Task> &taskList, Dataset &d)
 {
     for (auto &task : taskList)
     {
-        findNeighborsImpl(task, d, o);
+        findNeighborsImpl(o, task, d);
     }
 }
 

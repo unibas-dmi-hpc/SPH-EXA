@@ -378,6 +378,8 @@ public:
         std::vector<int> &clist = Domain<T, Dataset>::clist;
 
         clist.resize(n);
+
+        #pragma omp parallel for
         for (size_t i = 0; i < n; i++)
             clist[i] = i;
 
@@ -427,8 +429,11 @@ public:
 
         // Get rid of particles that do not belong to us
         reorder(ordering, d);
+
+        #pragma omp parallel for
         for (size_t i = 0; i < workAssigned; i++)
             clist[i] = i;
+        
         d.resize(workAssigned);
 
         workAssigned = work[comm_rank] - work_remaining[comm_rank];
