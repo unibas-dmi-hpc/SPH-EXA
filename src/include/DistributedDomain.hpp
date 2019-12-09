@@ -209,8 +209,8 @@ public:
 
         int needed = 0;
 
-        std::map<int, std::vector<int>> reHalos, sendHalos;
-        std::map<int, Octree<T>*> reCellMap, sendCellMap;
+        std::map<int, std::vector<int>> recvHalos, sendHalos;
+        std::map<int, Octree<T>*> recvCellMap, sendCellMap;
         std::map<int, int> recvCount, sendCount;
 
         for (auto const& proc : toSendHalos)
@@ -224,8 +224,8 @@ public:
 
                 if (to == comm_rank)
                 {
-                    reHalos[from].push_back(ptri);
-                    reCellMap[ptri] = cell;
+                    recvHalos[from].push_back(ptri);
+                    recvCellMap[ptri] = cell;
                     recvCount[from] += cell->globalParticleCount;
                     needed += cell->globalParticleCount;
                 }
@@ -264,12 +264,12 @@ public:
             }
 
             // send
-            requests.push_back(MPI_Request());
+            requests.emplace_back(MPI_Request());
             MPI_Isend(&comm_rank, 1, MPI_INT, to, tag + data.size() + 0, MPI_COMM_WORLD, &(*requests.rbegin()));
 
             for (size_t i = 0; i < data.size(); i++)
             {
-                requests.push_back(MPI_Request());
+                requests.emplace_back(MPI_Request());
                 MPI_Isend(procBuff[i].data(), procBuff[i].size(), MPI_DOUBLE, to, tag + data.size() + 1 + i, MPI_COMM_WORLD,
                           &(*requests.rbegin()));
             }
@@ -289,7 +289,7 @@ public:
             fromIdx.push_back(from);
 
             int count = recvCount[from];
-            recvBuffs.push_back(std::vector<std::vector<T>>(data.size(), std::vector<T>(count)));
+            recvBuffs.emplace_back(std::vector<std::vector<T>>(data.size(), std::vector<T>(count)));
 
             for (unsigned int i = 0; i < data.size(); i++)
             {
@@ -303,13 +303,13 @@ public:
 
         for (unsigned int bi = 0; bi < recvBuffs.size(); bi++)
         {
-            std::vector<int> &ptriBuff = reHalos[fromIdx[bi]];
+            std::vector<int> &ptriBuff = recvHalos[fromIdx[bi]];
             std::vector<std::vector<T>> &recvBuff = recvBuffs[bi];
 
             int current = 0;
             for (const int &ptri : ptriBuff)
             {
-                Octree<T> *cell = reCellMap[ptri];
+                Octree<T> *cell = recvCellMap[ptri];
 
                 int cellCount = cell->globalParticleCount;
                 int padding = cell->localPadding;
