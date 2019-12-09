@@ -3,7 +3,7 @@
 #include <cmath>
 #include <memory>
 #include <vector>
-#include <algorithm>
+#include <unordered_map>
 
 #include "Task.hpp"
 
@@ -71,7 +71,7 @@ public:
 
     static const int nX = 2, nY = 2, nZ = 2;
     static const int ncells = 8;
-    static const int bucketSize = 64, maxGlobalBucketSize = 8192, minGlobalBucketSize = 1024;
+    static const int bucketSize = 64, maxGlobalBucketSize = 2048, minGlobalBucketSize = 512;
 
     static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
@@ -508,7 +508,7 @@ public:
         assignProcessesRec(work_remaining, pi);
     }
 
-    void syncRec(std::map<int, std::vector<int>> &toSendCellsPadding, std::map<int, std::vector<int>> &toSendCellsCount, int &needed)
+    void syncRec(std::unordered_map<int, std::vector<int>> &toSendCellsPadding, std::unordered_map<int, std::vector<int>> &toSendCellsCount, int &needed)
     {
         if (global)
         {
@@ -540,7 +540,7 @@ public:
                 a->zmax + radius > zmin && a->zmin - radius < zmax);
     }
 
-    int findHalosList(Octree *a, std::map<int, std::map<int, Octree<T> *>> &toSendHalos, int ptri = 0)
+    int findHalosList(Octree *a, std::unordered_map<int, std::unordered_map<int, Octree<T> *>> &toSendHalos, int ptri = 0)
     {
         int haloCount = 0;
 
@@ -586,7 +586,7 @@ public:
         return haloCount;
     }
 
-    int findHalosRec(Octree *root, std::map<int, std::map<int, Octree<T> *>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
+    int findHalosRec(Octree *root, std::unordered_map<int, std::unordered_map<int, Octree<T> *>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
     {
         int haloCount = 0;
 
@@ -656,7 +656,7 @@ public:
         return haloCount;
     }
 
-    int findHalos(std::map<int, std::map<int, Octree<T> *>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
+    int findHalos(std::unordered_map<int, std::unordered_map<int, Octree<T> *>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
     {
         toSendHalos.clear();
         return findHalosRec(this, toSendHalos, PBCx, PBCy, PBCz);
