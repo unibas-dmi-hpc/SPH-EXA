@@ -3,7 +3,7 @@
 #include <cmath>
 #include <memory>
 #include <vector>
-#include <algorithm>
+#include <unordered_map>
 
 #include "Task.hpp"
 
@@ -71,7 +71,7 @@ public:
 
     static const int nX = 2, nY = 2, nZ = 2;
     static const int ncells = 8;
-    static const int bucketSize = 64, maxGlobalBucketSize = 65536, minGlobalBucketSize = 4096;
+    static const int bucketSize = 64, maxGlobalBucketSize = 2048, minGlobalBucketSize = 512;
 
     static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
@@ -508,7 +508,7 @@ public:
         assignProcessesRec(work_remaining, pi);
     }
 
-    void syncRec(std::map<int, std::vector<int>> &toSendCellsPadding, std::map<int, std::vector<int>> &toSendCellsCount, int &needed)
+    void syncRec(std::unordered_map<int, std::vector<int>> &toSendCellsPadding, std::unordered_map<int, std::vector<int>> &toSendCellsCount, int &needed)
     {
         if (global)
         {
@@ -540,7 +540,7 @@ public:
                 a->zmax + radius > zmin && a->zmin - radius < zmax);
     }
 
-    int findHalosList(Octree *a, std::map<int, std::map<int, Octree<T> *>> &toSendHalos, int ptri = 0)
+    int findHalosList(Octree *a, std::unordered_map<int, std::unordered_map<int, Octree<T> *>> &toSendHalos, int ptri = 0)
     {
         int haloCount = 0;
 
@@ -586,7 +586,7 @@ public:
         return haloCount;
     }
 
-    int findHalosRec(Octree *root, std::map<int, std::map<int, Octree<T> *>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
+    int findHalosRec(Octree *root, std::unordered_map<int, std::unordered_map<int, Octree<T> *>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
     {
         int haloCount = 0;
 
@@ -603,13 +603,11 @@ public:
             {
                 // Find halos from the root
                 // haloCount += root->findHalosList(this, toSendHalos);
-
                 T oldxmin = xmin, oldxmax = xmax;
                 T oldymin = ymin, oldymax = ymax;
                 T oldzmin = zmin, oldzmax = zmax;
 
                 // Find halos from the root
-
                 int mix = (int)floor(normalize(xmin - 2 * globalMaxH, root->xmin, root->xmax) * nX);
                 int miy = (int)floor(normalize(ymin - 2 * globalMaxH, root->ymin, root->ymax) * nY);
                 int miz = (int)floor(normalize(zmin - 2 * globalMaxH, root->zmin, root->zmax) * nZ);
@@ -633,12 +631,6 @@ public:
                             T displz = PBCz ? ((hz < 0) - (hz >= nZ)) * (root->zmax - root->zmin) : 0;
                             T disply = PBCy ? ((hy < 0) - (hy >= nY)) * (root->ymax - root->ymin) : 0;
                             T displx = PBCx ? ((hx < 0) - (hx >= nX)) * (root->xmax - root->xmin) : 0;
-
-                            // int hzz = PBCz ? (hz % nZ) + (hz < 0) * nZ : hz;
-                            // int hyy = PBCy ? (hy % nY) + (hy < 0) * nY : hy;
-                            // int hxx = PBCx ? (hx % nX) + (hx < 0) * nX : hx;
-
-                            // size_t l = hzz * nY * nX + hyy * nX + hxx;
 
                             xmin = xmin + displx;
                             xmax = xmax + displx;
@@ -664,7 +656,7 @@ public:
         return haloCount;
     }
 
-    int findHalos(std::map<int, std::map<int, Octree<T> *>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
+    int findHalos(std::unordered_map<int, std::unordered_map<int, Octree<T> *>> &toSendHalos, bool PBCx, bool PBCy, bool PBCz)
     {
         toSendHalos.clear();
         return findHalosRec(this, toSendHalos, PBCx, PBCy, PBCz);
@@ -764,35 +756,6 @@ public:
         int it = 0;
         mapListRec(clist, it);
     }
-
-    // void mapTasksRec(std::vector<Task> &taskList, int &it)
-    // {
-    //     if(assignee == comm_rank && localParticleCount < 131072 && localParticleCount > 0)
-    //     {
-    //         Task task(localParticleCount);
-    //         for (int i = 0; i < localParticleCount; i++)
-    //             task.clist[i] = localPadding + i;
-    //         taskList.push_back(task);
-    //     }
-    //     else if((int)cells.size() == ncells)
-    //     {
-    //         if(assignee == -1 || assignee == comm_rank)
-    //         {
-    //             for (int i = 0; i < ncells; i++)
-    //             {
-    //                 it++;
-    //                 cells[i]->mapTasksRec(taskList, it);
-    //             }
-    //         }
-    //     }
-    // }
-
-    // void mapTasks(std::vector<Task> &taskList)
-    // {
-    //     int it = 0;
-    //     taskList.clear();
-    //     mapTasksRec(taskList, it);
-    // }
 };
 
 } // namespace sphexa
