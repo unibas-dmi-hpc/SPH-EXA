@@ -28,20 +28,21 @@ bool inRange(T val, T min, T max)
         return false;
 }
 
+//template <class T>
+//void makeDataArray(std::vector<std::vector<T> *> &data, std::vector<T> *d) { data.push_back(d); }
+//
+//template <class T, typename... Args>
+//void makeDataArray(std::vector<std::vector<T> *> &data, std::vector<T> *first, Args... args)
+//{
+//    data.push_back(first);
+//    makeDataArray(data, args...);
+//}
+
+
+
 template <class T>
-void makeDataArray(std::vector<std::vector<T> *> &data, std::vector<T> *d) { data.push_back(d); }
-
-template <class T, typename... Args>
-void makeDataArray(std::vector<std::vector<T> *> &data, std::vector<T> *first, Args... args)
-{
-    data.push_back(first);
-    makeDataArray(data, args...);
-}
-
-
-
-template <class T>
-void synchronizeHalos(int comm_rank, std::map<int, std::map<int, Octree<T>*>> &toSendHalos, std::vector<std::vector<T> *> &data)
+void synchronizeHalos(int comm_rank, std::unordered_map<int, std::unordered_map<int, Octree<T>*>> &toSendHalos,
+                      std::vector<std::vector<T> *> &data)
 {
     static unsigned short int tag = 0;
 
@@ -273,10 +274,10 @@ TEST(Octree, syncHalos) {
     const int maxStep = 10;
 
     auto d = SqPatchDataGenerator<Real>::generate(cubeSide);
-    DistributedDomain<Real> distributedDomain;
+    DistributedDomain<Real, Dataset> distributedDomain;
 
     distributedDomain.create(d);
-    distributedDomain.distribute(d);
+    distributedDomain.update(d);
 
     std::vector<std::vector<Real> *> data;
     makeDataArray(data, &d.x, &d.y, &d.z);
