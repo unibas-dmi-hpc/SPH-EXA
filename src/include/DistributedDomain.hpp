@@ -13,8 +13,8 @@
 namespace sphexa
 {
 
-template <typename T, class Dataset>
-class DistributedDomain : public Domain<T, Dataset>
+template <typename T, class Dataset, class Tree = Octree<T>>
+class DistributedDomain : public Domain<T, Dataset, Tree>
 {
 public:
     DistributedDomain()
@@ -39,7 +39,7 @@ public:
 
         int needed = 0;
 
-        Domain<T, Dataset>::octree.syncRec(toSendCellsPadding, toSendCellsCount, needed);
+        Domain<T, Dataset, Tree>::octree.syncRec(toSendCellsPadding, toSendCellsCount, needed);
 
         for (int rank = 0; rank < comm_size; rank++)
         {
@@ -117,16 +117,16 @@ public:
         int needed = 0;
 
         std::map<int, std::vector<int>> recvHalos, sendHalos;
-        std::map<int, Octree<T>*> recvCellMap, sendCellMap;
+        std::map<int, Octree<T> *> recvCellMap, sendCellMap;
         std::map<int, int> recvCount, sendCount;
 
-        for (auto const& proc : toSendHalos)
+        for (auto const &proc : toSendHalos)
         {
             int to = proc.first;
-            for (auto const& halo : proc.second)
+            for (auto const &halo : proc.second)
             {
                 int ptri = halo.first;
-                Octree<T>* cell = halo.second;
+                Octree<T> *cell = halo.second;
                 int from = cell->assignee;
 
                 if (to == comm_rank)
@@ -146,21 +146,24 @@ public:
         }
 
         // ordering of the ptri buffer needs to be the same on sender and receiver side
-        for (auto& pv : sendHalos) std::sort(pv.second.begin(), pv.second.end());
-        for (auto& pv : recvHalos) std::sort(pv.second.begin(), pv.second.end());
+        for (auto &pv : sendHalos)
+            std::sort(pv.second.begin(), pv.second.end());
+        for (auto &pv : recvHalos)
+            std::sort(pv.second.begin(), pv.second.end());
 
         std::vector<MPI_Request> requests;
 
         // Fill Buffers
         std::vector<std::vector<std::vector<T>>> sendBuffers;
-        for (auto& procPtriVec : sendHalos)
+        for (auto &procPtriVec : sendHalos)
         {
-            int to = procPtriVec.first; 
+            int to = procPtriVec.first;
 
             std::vector<std::vector<T>> procBuff(data.size());
-            for (auto& vec : procBuff) vec.reserve(sendCount[to]);
+            for (auto &vec : procBuff)
+                vec.reserve(sendCount[to]);
 
-            for (const int& ptri : procPtriVec.second)
+            for (const int &ptri : procPtriVec.second)
             {
                 Octree<T> *cell = sendCellMap[ptri];
 
@@ -188,7 +191,6 @@ public:
             sendBuffers.emplace_back(std::move(procBuff)); // Note: need to move to keep buffer valid
         }
 
-
         std::vector<int> fromIdx;
         std::vector<std::vector<std::vector<T>>> recvBuffs;
         while (needed > 0)
@@ -210,7 +212,6 @@ public:
 
             needed -= count;
         }
-
 
         for (unsigned int bi = 0; bi < recvBuffs.size(); bi++)
         {
@@ -258,20 +259,20 @@ public:
         const size_t split = ntot / comm_size;
         const size_t remaining = ntot - comm_size * split;
 
-        std::vector<int> &clist = Domain<T, Dataset>::clist;
+        std::vector<int> &clist = Domain<T, Dataset, Tree>::clist;
 
         clist.resize(n);
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (size_t i = 0; i < n; i++)
             clist[i] = i;
 
         d.bbox.computeGlobal(clist, d.x, d.y, d.z);
 
-        Octree<T> &octree = Domain<T, Dataset>::octree;
+        Octree<T> &octree = Domain<T, Dataset, Tree>::octree;
 
         octree.cells.clear();
-        octree = Octree<T>(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, comm_rank, comm_size);
+        octree = Tree(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, comm_rank, comm_size);
 
         octree.global = true;
         octree.globalNodeCount = 9;
@@ -303,7 +304,7 @@ public:
         // adjust clist to consider only the particles that belong to us (using the tree)
         clist.resize(workAssigned);
         ordering.resize(workAssigned);
-        Domain<T, Dataset>::buildTree(d);
+        Domain<T, Dataset, Tree>::buildTree(d);
 
         // build the global tree using only the particles that belong to us
         octree.globalRebalance(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax);
@@ -313,10 +314,10 @@ public:
         // Get rid of particles that do not belong to us
         reorder(ordering, d);
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (size_t i = 0; i < workAssigned; i++)
             clist[i] = i;
-        
+
         d.resize(workAssigned);
 
         workAssigned = work[comm_rank] - work_remaining[comm_rank];
@@ -339,8 +340,8 @@ public:
         const size_t split = ntot / comm_size;
         const size_t remaining = ntot - comm_size * split;
 
-        std::vector<int> &clist = Domain<T, Dataset>::clist;
-        Octree<T> &octree = Domain<T, Dataset>::octree;
+        std::vector<int> &clist = Domain<T, Dataset, Tree>::clist;
+        Octree<T> &octree = Domain<T, Dataset, Tree>::octree;
 
         d.bbox.computeGlobal(clist, d.x, d.y, d.z);
 
@@ -426,4 +427,4 @@ public:
     size_t workAssigned = 0;
 };
 
-}
+} // namespace sphexa

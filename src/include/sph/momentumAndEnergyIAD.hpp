@@ -186,7 +186,7 @@ template <typename T, class Dataset>
 void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
 {
 #if defined(USE_CUDA)
-    cuda::computeMomentumAndEnergyIAD<T>(taskList, d);//utils::partition(l, d.noOfGpuLoopSplits), d);
+    cuda::computeMomentumAndEnergyIAD<T>(taskList, d);
 #else
     for (const auto &task : taskList)
     {

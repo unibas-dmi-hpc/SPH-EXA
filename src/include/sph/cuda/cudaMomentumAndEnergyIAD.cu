@@ -123,13 +123,14 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
 {
     const size_t np = d.x.size();
     const size_t size_np_T = np * sizeof(T);
+    const T ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
 
     const auto largestChunkSize =
         std::max_element(taskList.cbegin(), taskList.cend(),
                          [](const Task &lhs, const Task &rhs) { return lhs.clist.size() < rhs.clist.size(); })
             ->clist.size();
 
-    const size_t size_largerNeighborsChunk_int = largestChunkSize * Task::ngmax * sizeof(int);
+    const size_t size_largerNeighborsChunk_int = largestChunkSize * ngmax * sizeof(int);
     const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
     const size_t size_bbox = sizeof(BBox<T>);
 
@@ -174,7 +175,7 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
     {
         const size_t n = t.clist.size();
         const size_t size_n_int = n * sizeof(int);
-        const size_t size_nNeighbors = n * Task::ngmax * sizeof(int);
+        const size_t size_nNeighbors = n * ngmax * sizeof(int);
 
         CHECK_CUDA_ERR(cudaMemcpy(d_clist, t.clist.data(), size_n_int, cudaMemcpyHostToDevice));
         CHECK_CUDA_ERR(cudaMemcpy(d_neighbors, t.neighbors.data(), size_nNeighbors, cudaMemcpyHostToDevice));
@@ -184,7 +185,7 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
         const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
         kernels::computeMomentumAndEnergyIAD<<<blocksPerGrid, threadsPerBlock>>>(
-            n, d.sincIndex, d.K, Task::ngmax, d_bbox, d_clist, d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro,
+            n, d.sincIndex, d.K, ngmax, d_bbox, d_clist, d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro,
             d_p, d_c, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du);
 
         CHECK_CUDA_ERR(cudaGetLastError());

@@ -10,7 +10,6 @@ namespace sph
 {
 namespace cuda
 {
-	
 template <typename T, class Dataset>
 extern void computeDensity(const std::vector<Task> &taskList, Dataset &d);
 
