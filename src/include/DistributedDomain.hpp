@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 #include <map>
+#include <algorithm>
 
 #include "Domain.hpp"
 
@@ -143,6 +144,10 @@ public:
                 }
             }
         }
+
+        // ordering of the ptri buffer needs to be the same on sender and receiver side
+        for (auto& pv : sendHalos) std::sort(pv.second.begin(), pv.second.end());
+        for (auto& pv : recvHalos) std::sort(pv.second.begin(), pv.second.end());
 
         std::vector<MPI_Request> requests;
 
