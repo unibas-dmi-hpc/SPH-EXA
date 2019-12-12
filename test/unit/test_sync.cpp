@@ -87,6 +87,9 @@ void synchronizeHalos(int comm_rank, std::unordered_map<int, std::unordered_map<
                 _toSend.count += cellCount;
             }
         }
+
+        // sort ptri buffer on the sender side
+        std::sort(_toSend.ptris.begin(), _toSend.ptris.end());
     }
 
     // Fill buffer
@@ -170,7 +173,9 @@ void synchronizeHalos(int comm_rank, std::unordered_map<int, std::unordered_map<
             }
         }
     }
-    
+
+    // sort ptri buffer on the receiver side
+    for (auto& pv : reHalos) std::sort(pv.second.begin(), pv.second.end());
 
     // ***********************************************************
 
