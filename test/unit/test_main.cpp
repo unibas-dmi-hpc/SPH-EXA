@@ -93,10 +93,10 @@ TEST(Octree, SpaceCurveIndexCorrect) {
     const int maxStep = 10;
 
     auto d = SqPatchDataGenerator<Real>::generate(cubeSide);
-    DistributedDomain<Real> distributedDomain;
+    DistributedDomain<Real, Dataset> distributedDomain;
 
     distributedDomain.create(d);
-    distributedDomain.distribute(d);
+    distributedDomain.update(d);
 
     checkParticles(distributedDomain.octree, d);
 }
@@ -144,10 +144,10 @@ TEST(Octree, processAssignment) {
     const int maxStep = 10;
 
     auto d = SqPatchDataGenerator<Real>::generate(cubeSide);
-    DistributedDomain<Real> distributedDomain;
+    DistributedDomain<Real, Dataset> distributedDomain;
 
     distributedDomain.create(d);
-    distributedDomain.distribute(d);
+    distributedDomain.update(d);
 
     checkProcessAssignment(distributedDomain.octree);
 }
