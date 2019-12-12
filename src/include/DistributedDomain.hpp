@@ -35,6 +35,7 @@ public:
         std::unordered_map<int, std::vector<int>> toSendCellsPadding, toSendCellsCount;
         std::vector<std::vector<T>> buff;
         std::vector<MPI_Request> requests;
+        std::vector<int> particleCounts(comm_size);
 
         int needed = 0;
 
@@ -45,17 +46,17 @@ public:
             if (toSendCellsCount[rank].size() > 0)
             {
                 int rcount = requests.size();
-                int nParticlesToSend = std::accumulate(toSendCellsCount[rank].begin(), toSendCellsCount[rank].end(), 0);
+                particleCounts[rank] = std::accumulate(toSendCellsCount[rank].begin(), toSendCellsCount[rank].end(), 0);
 
                 requests.resize(rcount + arrayList.size() + 2);
 
                 MPI_Isend(&comm_rank, 1, MPI_INT, rank, 0, MPI_COMM_WORLD, &requests[rcount]);
-                MPI_Isend(&nParticlesToSend, 1, MPI_INT, rank, 1, MPI_COMM_WORLD, &requests[rcount + 1]);
+                MPI_Isend(&particleCounts[rank], 1, MPI_INT, rank, 1, MPI_COMM_WORLD, &requests[rcount + 1]);
 
                 for (unsigned int i = 0; i < arrayList.size(); i++)
                 {
                     std::vector<T> localBuffer;
-                    localBuffer.reserve(nParticlesToSend);
+                    localBuffer.reserve(particleCounts[rank]);
 
                     // We go over every tree nodes to send for this rank
                     for (unsigned int j = 0; j < toSendCellsCount[rank].size(); j++)
@@ -67,8 +68,8 @@ public:
                                   std::back_inserter(localBuffer));
                     }
 
-                    MPI_Isend(localBuffer.data(), nParticlesToSend, MPI_DOUBLE, rank, 2 + i, MPI_COMM_WORLD, &requests[rcount + 2 + i]);
-                    buff.emplace_back(std::move(localBuffer));
+                    MPI_Isend(localBuffer.data(), particleCounts[rank], MPI_DOUBLE, rank, 2 + i, MPI_COMM_WORLD, &requests[rcount + 2 + i]);
+                    buff.emplace_back(std::move(localBuffer)); // Note: need to move to keep the buffer valid
                 }
             }
         }
@@ -184,7 +185,7 @@ public:
                           &(*requests.rbegin()));
             }
 
-            sendBuffers.emplace_back(std::move(procBuff));
+            sendBuffers.emplace_back(std::move(procBuff)); // Note: need to move to keep buffer valid
         }
 
 
