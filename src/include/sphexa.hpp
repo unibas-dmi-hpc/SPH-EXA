@@ -28,3 +28,4 @@
 #include "sph/positions.hpp"
 #include "sph/totalEnergy.hpp"
 #include "sph/updateSmoothingLength.hpp"
+#include "sph/gravityTreeWalk.hpp"

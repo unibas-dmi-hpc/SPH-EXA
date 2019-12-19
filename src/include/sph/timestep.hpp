@@ -14,16 +14,40 @@ namespace sphexa
 {
 namespace sph
 {
+
 template <typename T, class Dataset>
+struct TimestepPress2ndOrder
+{
+    T operator()(const int i, const Dataset &d)
+    {
+        const T maxvsignal = d.maxvsignal[i];
+        return maxvsignal > 0.0 ? d.Kcour * d.h[i] / d.maxvsignal[i] : d.Kcour * d.h[i] / d.c[i];
+    }
+};
+
+template <typename T, class Dataset>
+struct TimestepKCourant
+{
+    T operator()(const int i, const Dataset &d) { return d.Kcour * d.h[i] / d.c[i]; }
+};
+
+template <typename T, class Dataset>
+struct TimestepKCourantDmy
+{
+    T operator()(const int i, const Dataset &d)
+    {
+        const T dtu = std::abs(d.dku * (d.u[i] / d.du[i]));
+        const T dtcour = d.Kcour * d.h[i] / d.c[i];
+        return std::min(dtu, dtcour);
+    }
+};
+
+template <typename T, class TimestepFunct, class Dataset>
 void computeMinTimestepImpl(const Task &t, Dataset &d, T &minDt)
 {
+    TimestepFunct functTimestep;
     const size_t n = t.clist.size();
     const int *clist = t.clist.data();
-
-    const T *h = d.h.data();
-    const T *c = d.c.data();
-    const T *maxvsignal = d.maxvsignal.data();
-    const T Kcour = d.Kcour;
 
     T minDtTmp = INFINITY;
 
@@ -31,17 +55,9 @@ void computeMinTimestepImpl(const Task &t, Dataset &d, T &minDt)
     for (size_t pi = 0; pi < n; pi++)
     {
         int i = clist[pi];
-        // Time-scheme according to Press (2nd order)
-        if(maxvsignal[i] > 0.0)
-        {
-            T dt = Kcour*h[i]/maxvsignal[i];
-            if (dt < minDtTmp) minDtTmp = dt;
-        }
-        else
-        {
-            T dt = Kcour * (h[i] / c[i]);
-            if (dt < minDtTmp) minDtTmp = dt;
-        }
+        const T dt_i = functTimestep(i, d);
+
+        minDtTmp = std::min(minDtTmp, dt_i);
     }
 
     minDt = minDtTmp;
@@ -63,17 +79,18 @@ void setMinTimestepImpl(const Task &t, Dataset &d, const T minDt)
     }
 }
 
-template <typename T, class Dataset>
+template <typename T, class TimestepFunct, class Dataset>
 void computeTimestep(const std::vector<Task> &taskList, Dataset &d)
 {
     T minDtTmp = INFINITY;
     for (const auto &task : taskList)
     {
         T tminDt = 0.0;
-        computeMinTimestepImpl<T>(task, d, tminDt);
+        computeMinTimestepImpl<T, TimestepFunct>(task, d, tminDt);
         minDtTmp = std::min(tminDt, minDtTmp);
     }
 
+    //    d.minTmpDt = minDtTmp;
     minDtTmp = std::min(minDtTmp, d.maxDtIncrease * d.minDt);
 
 #ifdef USE_MPI
@@ -88,7 +105,6 @@ void computeTimestep(const std::vector<Task> &taskList, Dataset &d)
     d.ttot += minDtTmp;
     d.minDt = minDtTmp;
 }
-
 
 } // namespace sph
 } // namespace sphexa

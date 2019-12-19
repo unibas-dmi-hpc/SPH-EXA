@@ -14,7 +14,7 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
     const T c0 = 7.0;
     const T exp = 1.0 / 3.0;
 
-    const int ng0 = Task::ng0;
+    const int ng0 = t.ng0;
     const int *neighborsCount = t.neighborsCount.data();
     T *h = d.h.data();
 

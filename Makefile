@@ -28,7 +28,7 @@ NVCCFLAGS := -std=c++14 --expt-relaxed-constexpr -rdc=true -arch=$(NVCCARCH)
 NVCCLDFLAGS := -arch=$(NVCCARCH) -rdc=true
 
 ifeq ($(ENV),gnu)
-	CXXFLAGS += -std=c++11 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native
+	CXXFLAGS += -std=c++14 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native #-g
 endif
 
 ifeq ($(ENV),pgi)
@@ -47,39 +47,45 @@ ifeq ($(ENV),clang)
 	CXXFLAGS += -O2 -std=c++14 -g -fopenmp=libomp
 endif
 
-all: $(TESTCASE)
+TESTCASE ?= sqpatch
+
+ifeq ($(TESTCASE),evrard)
+	TESTCASE_FLAGS = -DGRAVITY
+endif
+
+all: omp mpi+omp omp+cuda mpi+omp+cuda omp+target mpi+omp+target mpi+omp+acc
 
 omp: $(HPP)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(CXX) $(CXXFLAGS) $(INC) src/sqpatch.cpp -o $(BINDIR)/$@.app $(LIB)
+	$(CXX) $(CXXFLAGS) $(INC) $(TESTCASE_FLAGS) src/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
 
 mpi+omp: $(HPP)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI src/sqpatch.cpp -o $(BINDIR)/$@.app $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(TESTCASE_FLAGS) src/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
 
 omp+cuda: $(BUILDDIR)/cuda_no_mpi.o $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(NVCC) $(NVCCLDFLAGS) -DUSE_CUDA -dlink -o cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
+	$(NVCC) $(NVCCLDFLAGS) -DUSE_CUDA $(TESTCASE_FLAGS) -dlink -o cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
 	$(CXX) $(CXXFLAGS) -o $(BINDIR)/$@.app cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudart -lcudadevrt
 #	$(CXX) -o $(BINDIR)/$@.app $+ -L$(CUDA_PATH)/lib64 -lcudart -fopenmp
 
 omp+target: $(HPP)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(CXX) $(CXXFLAGS) $(INC) -DUSE_OMP_TARGET src/sqpatch.cpp -o $(BINDIR)/$@.app $(LIB)
+	$(CXX) $(CXXFLAGS) $(INC) -DUSE_OMP_TARGET $(TESTCASE_FLAGS) src/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
 
 mpi+omp+target: $(HPP)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET src/sqpatch.cpp -o $(BINDIR)/$@.app $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(TESTCASE_FLAGS) src/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
 
 mpi+omp+acc: $(HPP)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS -DUSE_ACC src/sqpatch.cpp -o $(BINDIR)/$@.app $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(TESTCASE_FLAGS) -DUSE_ACC src/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
 
 mpi+omp+cuda: $(BUILDDIR)/cuda_mpi.o $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)
@@ -88,17 +94,17 @@ mpi+omp+cuda: $(BUILDDIR)/cuda_mpi.o $(CUDA_OBJS)
 	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@.app cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
 #	$(MPICXX) -o $(BINDIR)/$@.app $+ -L$(CUDA_PATH)/lib64 -lcudart -fopenmp
 
-$(BUILDDIR)/cuda_mpi.o: src/sqpatch.cpp
+$(BUILDDIR)/cuda_mpi.o: src/$(TESTCASE).cpp
 	@mkdir -p $(BUILDDIR)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_CUDA -o $@ -c $<
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_CUDA $(TESTCASE_FLAGS) -o $@ -c $<
 
-$(BUILDDIR)/cuda_no_mpi.o: src/sqpatch.cpp
+$(BUILDDIR)/cuda_no_mpi.o: src/$(TESTCASE).cpp
 	@mkdir -p $(BUILDDIR)
-	$(CXX) $(CXXFLAGS) $(INC) -DUSE_CUDA -o $@ -c $<
+	$(CXX) $(CXXFLAGS) $(INC) -DUSE_CUDA $(TESTCASE_FLAGS) -o $@ -c $<
 
 $(BUILDDIR)/%.o: src/include/sph/cuda/%.cu
 	@mkdir -p $(BUILDDIR)
-	$(NVCC) $(NVCCFLAGS) -DUSE_CUDA $(INC) -c -o $@ $<
+	$(NVCC) $(NVCCFLAGS) -DUSE_CUDA $(TESTCASE_FLAGS) $(INC) -c -o $@ $<
 #	$(NVCC) $(NVCCFLAGS) $(INC) -DUSE_STD_MATH_IN_KERNELS -I$(CUDA_PATH)/include -L$(CUDA_PATH)/lib64 -c -o $@ $<
 
 run_test:
@@ -112,4 +118,4 @@ clean:
 	$(info Cleaning...)
 	$(RM) -rf $(BUILDDIR) $(BINDIR)
 
-.PHONY: clean
+.PHONY: all clean
