@@ -1,0 +1,27 @@
+Bootstrap: docker
+From: ethcscs/mpich:ub1804_cuda101_mpi314_osu
+# https://user.cscs.ch/tools/containers/singularity/
+# sudo singularity build ub1804_cuda101_mpich314_sphexa_reframe.sif SPH-EXA_mini-app/scripts/ci/singularity/ub1804_cuda101_mpich314_sphexa_reframe.def
+# 
+
+%files
+    SPH-EXA_mini-app.git /tmp/
+
+%post
+    cd /tmp/SPH-EXA_mini-app.git/ ; ls -la ;pwd
+    make mpi+omp CXXFLAGS="-std=c++14 -fopenmp -g -O2 -DNDEBUG -I. -Isrc" BINDIR=bin/gnu7
+# --- cuda:
+# cuda/10.1 supports gcc<9
+
+## compile mpi+omp+cuda with gnu7: 
+    make mpi+omp+cuda CXXFLAGS="-std=c++14 -fopenmp -g -O2 -DNDEBUG -I. -Isrc" BINDIR=bin/gnu7 CXX=/usr/bin/g++-7
+    NVCCFLAGS="-std=c++14 --expt-relaxed-constexpr -arch=sm_60 -rdc=true -ccbin=\${CXX}"
+
+## compile mpi+omp+cuda with gnu8: 
+    make mpi+omp+cuda CXXFLAGS="-std=c++14 -fopenmp -g -O2 -DNDEBUG -I. -Isrc" BINDIR=bin/gnu8 CXX=/usr/bin/g++-8
+    NVCCFLAGS="-std=c++14 --expt-relaxed-constexpr -arch=sm_60 -rdc=true -ccbin=\${CXX}"
+## list executables:
+    ls -laR bin
+
+%runscript
+    /tmp/SPH-EXA_mini-app.git/bin/gnu7/mpi+omp.app
