@@ -86,7 +86,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
             roloc += value * m[j];
         }
 
-        //ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
+        // ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
         ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
 
 #ifndef NDEBUG
@@ -99,7 +99,7 @@ template <typename T, class Dataset>
 void computeDensity(const std::vector<Task> &taskList, Dataset &d)
 {
 #if defined(USE_CUDA)
-    cuda::computeDensity<T>(taskList, d);//utils::partition(l, d.noOfGpuLoopSplits), d);
+    cuda::computeDensity<T>(taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
 #else
     for (const auto &task : taskList)
     {
