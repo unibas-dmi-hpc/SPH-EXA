@@ -14,6 +14,8 @@ public:
     typedef std::chrono::time_point<Clock> TimePoint;
     typedef std::chrono::duration<float> Time;
 
+    Timer(std::ostream& out) : out(out) {}
+
     float duration() { return std::chrono::duration_cast<Time>(tstop - tstart).count(); }
 
     void start() { tstart = tstop = tlast = Clock::now(); }
@@ -23,19 +25,20 @@ public:
     void step(const std::string &name)
     {
         stop();
-        std::cout << "# " << name << ": " << std::chrono::duration_cast<Time>(tstop - tlast).count() << "s" << std::endl;
+        out << "# " << name << ": " << std::chrono::duration_cast<Time>(tstop - tlast).count() << "s" << std::endl;
         tlast = tstop;
     }
 
 private:
+    std::ostream& out;
     TimePoint tstart, tstop, tlast;
 };
 
 class MasterProcessTimer : public Timer
 {
 public:
-    MasterProcessTimer(int rank)
-        : rank(rank)
+    MasterProcessTimer(std::ostream& out, int rank)
+        : Timer(out), rank(rank)
     {
     }
 
