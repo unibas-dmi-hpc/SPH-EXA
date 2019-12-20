@@ -2,13 +2,19 @@ Bootstrap: docker
 From: ethcscs/mpich:ub1804_cuda101_mpi314_osu
 # https://user.cscs.ch/tools/containers/singularity/
 # sudo singularity build ub1804_cuda101_mpich314_sphexa_reframe.sif SPH-EXA_mini-app/scripts/ci/singularity/ub1804_cuda101_mpich314_sphexa_reframe.def
-# 
+# module load singularity/3.4.2-daint # <---------
+# srun -Cgpu -N2 singularity run ./ub1804_cuda101_mpich314_sphexa_reframe.sif
+# srun --pty -Cgpu -N1 -n1 singularity shell ./ub1804_cuda101_mpich314_sphexa_reframe.sif
+# -----------------------------------------------------------------------------
+# srun -Cgpu -N1 singularity exec --nv ./ub1804_cuda101_mpich314_sphexa_reframe.sif nvidia-smi
+# srun -Cgpu -N1 singularity exec --nv ./ub1804_cuda101_mpich314_sphexa_reframe.sif /home/SPH-EXA_mini-app.git/bin/gnu7/mpi+omp+cuda.app -s 0 -n 100
+# srun -Cgpu -N2 -n2 singularity exec --nv ./ub1804_cuda101_mpich314_sphexa_reframe.sif /home/SPH-EXA_mini-app.git/bin/gnu7/mpi+omp+cuda.app -s 2 -n 100
 
 %files
-    SPH-EXA_mini-app.git /tmp/
+    SPH-EXA_mini-app.git /home/
 
 %post
-    cd /tmp/SPH-EXA_mini-app.git/ ; ls -la ;pwd
+    cd /home/SPH-EXA_mini-app.git/ ; ls -la ;pwd
     make mpi+omp CXXFLAGS="-std=c++14 -fopenmp -g -O2 -DNDEBUG -I. -Isrc" BINDIR=bin/gnu7
 # --- cuda:
 # cuda/10.1 supports gcc<9
@@ -24,4 +30,4 @@ From: ethcscs/mpich:ub1804_cuda101_mpi314_osu
     ls -laR bin
 
 %runscript
-    /tmp/SPH-EXA_mini-app.git/bin/gnu7/mpi+omp.app
+    /home/SPH-EXA_mini-app.git/bin/gnu7/mpi+omp.app
