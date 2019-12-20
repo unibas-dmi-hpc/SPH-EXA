@@ -6,6 +6,9 @@ NOCOLOR='\033[0m'
 BOLD='\e[1m'
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> Increase input for Travis tests (#23)
 EXPECTED_OUTPUT_FILE=$(mktemp /tmp/sph-exa-correctness-test-tmp.XXXXXXXXXX)
 exec 3>"$EXPECTED_OUTPUT_FILE"
 echo "0 1.1e-06 1.1e-06 2.07823e+10 2.07813e+10 1e+06 1734080 
@@ -19,6 +22,7 @@ echo "0 1.1e-06 1.1e-06 2.07823e+10 2.07813e+10 1e+06 1734080
 8 1.49374e-05 2.35795e-06 2.07838e+10 2.07834e+10 346323 1967792 
 9 1.75312e-05 2.59374e-06 2.07844e+10 2.07843e+10 149915 2023388 
 10 2.03843e-05 2.85312e-06 2.07853e+10 2.07854e+10 -99238 1989454 " > $EXPECTED_OUTPUT_FILE
+<<<<<<< HEAD
 
 OUTPUT_FILE=constants.txt
 
@@ -50,36 +54,46 @@ run_test() {
 =======
 EXPECTED_OUTPUT_FILE=expected_constants_n25_s0.txt
 OUTPUT_FILE=constants.txt
+=======
+>>>>>>> Increase input for Travis tests (#23)
 
-BIN_PATH=../bin/
-OMP_BIN=$BIN_PATH/omp.app
-OMP_CUDA_BIN=$BIN_PATH/omp+cuda.app
-MPI_OMP_BIN=$BIN_PATH/mpi+omp.app
-MPI_OMP_CUDA_BIN=$BIN_PATH/mpi+omp+cuda.app
-BIN_PARAMS="-n 25 -s 0"
+OUTPUT_FILE=constants.txt
 
-EXIT_CODE_PASSED=1
-EXIT_CODE_FAILED=0
+EXIT_CODE_PASSED=0
+EXIT_CODE_FAILED=1
 EXIT_CODE_BINARY_MISSING=2
 
-run_test() {
-    name=$1
-    binary=$2
-    printf "${NOCOLOR}\n"
+BIN=$1
 
+if [ $# -ne 1 ]; 
+     then echo "Usage: $0 <path to binary>"
+     exit -1
+fi 
+
+run_test() {
+    binary=$1
+    bin_params=$2
+    printf "${NOCOLOR}\n"
+    
     if test -f $binary; then
-        $binary $BIN_PARAMS
+        $binary $bin_params
 
         cmp --silent $EXPECTED_OUTPUT_FILE $OUTPUT_FILE && printf "${GREEN}${BOLD}$name Correctness test PASSED\n" ||
                 { printf "${RED}${BOLD}Correctness test FAILED\nOutput file diff:\n"; diff $EXPECTED_OUTPUT_FILE $OUTPUT_FILE; return $EXIT_CODE_FAILED; }
+
         return $EXIT_CODE_PASSED
     else
+<<<<<<< HEAD
         printf "${RED}${BOLD}$name binary does not exist in Path: $BIN_PATH, skipping test\n"
 >>>>>>> correctness test
+=======
+        printf "${RED}${BOLD} $binary binary does not exist. Skipping test\n"
+>>>>>>> Increase input for Travis tests (#23)
         return $EXIT_CODE_BINARY_MISSING
     fi
 }
 
+<<<<<<< HEAD
 <<<<<<< HEAD
 if test -f $OUTPUT_FILE; then rm $OUTPUT_FILE; fi
 
@@ -99,22 +113,24 @@ fi
 =======
 print_verdict() {
     result_code=$1
+=======
+if test -f $OUTPUT_FILE; then rm $OUTPUT_FILE; fi
+>>>>>>> Increase input for Travis tests (#23)
 
-    if [ $result_code -eq $EXIT_CODE_PASSED ]; then printf "${GREEN}${BOLD}PASSED\n";
-    elif [ $result_code -eq $EXIT_CODE_FAILED ]; then printf "${RED}${BOLD}FAILED\n";
-    else printf "${RED}${BOLD}BINARY MISSING\n";
-    fi
-}
+run_test $BIN "-n 20 -s 10"; ret_code=$?
 
-run_test "OpenMP" $OMP_BIN; omp_result=$?
-run_test "OpenMP+CUDA" $OMP_CUDA_BIN; omp_cuda_result=$?
-run_test "MPI+OpenMP" $MPI_OMP_BIN; mpiomp_result=$?
-run_test "MPI+OpenMP+CUDA" $MPI_OMP_CUDA_BIN; mpiompcuda_result=$?
-
-printf "\n${NOCOLOR}CORRECTNESS TEST SUMMARY\n"
-printf "${NOCOLOR}OpenMP "; print_verdict $omp_result 
-printf "${NOCOLOR}OpenMP+CUDA "; print_verdict $omp_cuda_result 
-printf "${NOCOLOR}MPI+OpenMP "; print_verdict $mpiomp_result
-printf "${NOCOLOR}MPI+OpenMP+CUDA "; print_verdict $mpiompcuda_result
 printf "\n"
+<<<<<<< HEAD
 >>>>>>> correctness test
+=======
+rm "$EXPECTED_OUTPUT_FILE"
+
+
+if [ $ret_code -eq $EXIT_CODE_FAILED ]; then
+    exit 1
+else
+    exit 0
+fi
+
+
+>>>>>>> Increase input for Travis tests (#23)
