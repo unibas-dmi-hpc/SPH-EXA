@@ -55,7 +55,7 @@ void writeParticleCheckpointDataToBinWithMPI(const Dataset &d, const std::string
     const MPI_Offset headerOffset = 2 * sizeof(double) + sizeof(size_t);
     MPI_Offset offset = headerOffset + d.rank * split * sizeof(double);
 
-    if (d.rank > 0) offset += remaining * sizeof(double);
+    if (d.rank > d.nrank - 1) offset += remaining * sizeof(double);
     if (d.rank == 0)
     {
         MPI_File_write(file, &d.n, 1, MPI_UNSIGNED_LONG, &status);
@@ -82,7 +82,7 @@ void writeParticleDataToBinFileWithMPI(const Dataset &d, const std::string &path
 
     const MPI_Offset col = d.n * sizeof(double);
     MPI_Offset offset = d.rank * split * sizeof(double);
-    if (d.rank > 0) offset += remaining * sizeof(double);
+    if (d.rank > d.nrank - 1) offset += remaining * sizeof(double);
 
     details::writeParticleDataToBinFileWithMPI(file, d.count, offset, col, 0, data...);
 
@@ -94,7 +94,7 @@ void readParticleDataFromBinFileWithMPI(const std::string &path, Dataset &pd, Ar
     const size_t split = pd.n / pd.nrank;
     const size_t remaining = pd.n - pd.nrank * split;
 
-    pd.count = pd.rank == 0 ? split : split + remaining;
+    pd.count = pd.rank != pd.nrank - 1 ? split : split + remaining;
     pd.resize(pd.count);
 
     MPI_File fh;
@@ -102,7 +102,7 @@ void readParticleDataFromBinFileWithMPI(const std::string &path, Dataset &pd, Ar
     const MPI_Offset col = pd.n * sizeof(double);
 
     MPI_Offset offset = pd.rank * split * sizeof(double);
-    if (pd.rank > 0) offset += remaining * sizeof(double);
+    if (pd.rank > pd.nrank - 1) offset += remaining * sizeof(double);
 
     const int err = MPI_File_open(pd.comm, path.c_str(), MPI_MODE_RDWR, MPI_INFO_NULL, &fh);
     if (err != MPI_SUCCESS) { throw MPIFileNotOpenedException("Can't open MPI file at path: " + path, err); }
@@ -133,9 +133,9 @@ void readParticleCheckpointDataFromBinFileWithMPI(const std::string &path, Datas
     const MPI_Offset col = pd.n * sizeof(double);
 
     MPI_Offset offset = headerOffset + pd.rank * split * sizeof(double);
-    if (pd.rank > 0) offset += remaining * sizeof(double);
+    if (pd.rank > pd.nrank - 1) offset += remaining * sizeof(double);
 
-    pd.count = pd.rank == 0 ? split : split + remaining;
+    pd.count = pd.rank != pd.nrank - 1 ? split : split + remaining;
     pd.resize(pd.count);
 
     MPI_File_read(fh, &pd.ttot, 1, MPI_DOUBLE, &status);

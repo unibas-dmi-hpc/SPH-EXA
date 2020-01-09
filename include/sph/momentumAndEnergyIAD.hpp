@@ -180,7 +180,7 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
         grad_P_z[i] = momentum_z;
         maxvsignal[i] = maxvsignali;
     }
-};
+}
 
 template <typename T, class Dataset>
 void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
