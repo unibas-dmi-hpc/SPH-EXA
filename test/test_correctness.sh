@@ -52,7 +52,7 @@ run_test() {
 
 if test -f $OUTPUT_FILE; then rm $OUTPUT_FILE; fi
 
-run_test $BIN "-n 20 -s 10"; ret_code=$?
+run_test $BIN "-n 20 -s 10 --quiet"; ret_code=$?
 
 printf "\n"
 rm "$EXPECTED_OUTPUT_FILE"

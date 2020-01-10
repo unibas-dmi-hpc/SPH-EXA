@@ -12,6 +12,10 @@ int main(int argc, char **argv)
 
     const size_t maxStep = parser.getInt("-s", 10);
     const size_t writeFrequency = parser.getInt("-w", -1);
+    const bool quiet = parser.exists("--quiet");
+    
+    std::ofstream nullOutput("/dev/null");
+    std::ostream& output = quiet ? nullOutput : std::cout;
 
     using Real = double;
     using Dataset = ParticlesDataEvrard<Real>;
@@ -27,7 +31,7 @@ int main(int argc, char **argv)
     auto d = EvrardCollapseInputFileReader<Real>::load(nParticles, "bigfiles/Test3DEvrardRel.bin");
 
     Printer<Dataset> printer(d);
-    MasterProcessTimer timer(d.rank);
+    MasterProcessTimer timer(output, d.rank);
 
     std::ofstream constantsFile("constants.txt");
 
@@ -83,7 +87,7 @@ int main(int argc, char **argv)
         {
             // printer.printRadiusAndGravityForce(domain.clist, fxFile);
             // printer.printTree(domain.octree, treeFile);
-            printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, std::cout);
+            printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, output);
             printer.printConstants(d.iteration, totalNeighbors, constantsFile);
         }
 
@@ -95,7 +99,7 @@ int main(int argc, char **argv)
 
         timer.stop();
 
-        if (d.rank == 0) printer.printTotalIterationTime(timer.duration(), std::cout);
+        if (d.rank == 0) printer.printTotalIterationTime(timer.duration(), output);
     }
 
     constantsFile.close();
