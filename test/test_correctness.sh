@@ -117,7 +117,7 @@ print_verdict() {
 if test -f $OUTPUT_FILE; then rm $OUTPUT_FILE; fi
 >>>>>>> Increase input for Travis tests (#23)
 
-run_test $BIN "-n 20 -s 10"; ret_code=$?
+run_test $BIN "-n 20 -s 10 --quiet"; ret_code=$?
 
 printf "\n"
 <<<<<<< HEAD
