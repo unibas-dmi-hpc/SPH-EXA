@@ -40,7 +40,7 @@ ifeq ($(ENV),intel)
 endif
 
 ifeq ($(ENV),clang)
-	CXXFLAGS += -O2 -std=c++14 -g -fopenmp=libomp
+	CXXFLAGS += -O2 -std=c++14 -g -fopenmp
 endif
 
 TESTCASE ?= sqpatch
