@@ -122,7 +122,7 @@ struct EvrardCollapseInputFileReader
             init(pd);
         }
         else
-            printf("ERROR: Can't open file %s\n", filename);
+            printf("ERROR: Can't open file %s\n", filename.c_str());
 
             printf("OK\n");
 
