@@ -25,6 +25,24 @@ struct EvrardCollapseInputFileReader
         return pd;
     }
 
+    static ParticlesDataEvrard<T> loadCheckpoint(const size_t size, const std::string &filename)
+    {
+        ParticlesDataEvrard<T> pd;
+
+#if defined(USE_MPI)
+        pd.n = size;
+        pd.comm = MPI_COMM_WORLD;
+        MPI_Comm_size(pd.comm, &pd.nrank);
+        MPI_Comm_rank(pd.comm, &pd.rank);
+        MPI_Get_processor_name(pd.pname, &pd.pnamelen);
+
+        loadDataFromFileMPI(filename, pd);
+#else
+        loadCheckpointFromFile(filename, pd);
+#endif
+        return pd;
+    }
+
 #if defined(USE_MPI)
     static void loadDataFromFileMPI(const std::string &filename, ParticlesDataEvrard<T> &pd)
     {
@@ -51,7 +69,6 @@ struct EvrardCollapseInputFileReader
             MPI_Abort(pd.comm, err);
             exit(EXIT_FAILURE);
         }
-
 
         MPI_File_set_view(fh, offset, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
         MPI_File_read(fh, &pd.x[0], pd.count, MPI_DOUBLE, &status);
@@ -92,6 +109,80 @@ struct EvrardCollapseInputFileReader
         init(pd);
     }
 #else
+    static ParticlesDataEvrard<T> loadCheckpointFromFile(const std::string &filename, ParticlesDataEvrard<T> &pd)
+    {
+
+        std::ifstream inputfile(filename, std::ios::binary);
+
+        if (inputfile.is_open())
+        {
+            inputfile.read(reinterpret_cast<char *>(&pd.n), sizeof(T));
+            printf("Loading checkpoint file with %lu particles for Evrard Collapse... ", pd.n);
+
+            pd.resize(pd.n);
+
+            pd.n = pd.x.size();
+            pd.count = pd.x.size();
+
+
+            inputfile.read(reinterpret_cast<char *>(&pd.ttot), sizeof(T));
+            inputfile.read(reinterpret_cast<char *>(&pd.minDt), sizeof(T));
+
+            inputfile.read(reinterpret_cast<char *>(pd.x.data()), sizeof(T) * pd.x.size());
+            inputfile.read(reinterpret_cast<char *>(pd.y.data()), sizeof(T) * pd.y.size());
+            inputfile.read(reinterpret_cast<char *>(pd.z.data()), sizeof(T) * pd.z.size());
+            inputfile.read(reinterpret_cast<char *>(pd.vx.data()), sizeof(T) * pd.vx.size());
+            inputfile.read(reinterpret_cast<char *>(pd.vy.data()), sizeof(T) * pd.vy.size());
+            inputfile.read(reinterpret_cast<char *>(pd.vz.data()), sizeof(T) * pd.vz.size());
+            inputfile.read(reinterpret_cast<char *>(pd.ro.data()), sizeof(T) * pd.ro.size());
+            inputfile.read(reinterpret_cast<char *>(pd.u.data()), sizeof(T) * pd.u.size());
+            inputfile.read(reinterpret_cast<char *>(pd.p.data()), sizeof(T) * pd.p.size());
+            inputfile.read(reinterpret_cast<char *>(pd.h.data()), sizeof(T) * pd.h.size());
+            inputfile.read(reinterpret_cast<char *>(pd.m.data()), sizeof(T) * pd.m.size());
+
+            inputfile.read(reinterpret_cast<char *>(pd.temp.data()), sizeof(T) * pd.temp.size());
+            inputfile.read(reinterpret_cast<char *>(pd.mue.data()), sizeof(T) * pd.mue.size());
+            inputfile.read(reinterpret_cast<char *>(pd.mui.data()), sizeof(T) * pd.mui.size());
+
+            inputfile.read(reinterpret_cast<char *>(pd.du.data()), sizeof(T) * pd.du.size());
+            inputfile.read(reinterpret_cast<char *>(pd.du_m1.data()), sizeof(T) * pd.du_m1.size());
+            inputfile.read(reinterpret_cast<char *>(pd.dt.data()), sizeof(T) * pd.dt.size());
+            inputfile.read(reinterpret_cast<char *>(pd.dt_m1.data()), sizeof(T) * pd.dt_m1.size());
+
+            inputfile.read(reinterpret_cast<char *>(pd.x_m1.data()), sizeof(T) * pd.x_m1.size());
+            inputfile.read(reinterpret_cast<char *>(pd.y_m1.data()), sizeof(T) * pd.y_m1.size());
+            inputfile.read(reinterpret_cast<char *>(pd.z_m1.data()), sizeof(T) * pd.z_m1.size());
+
+            inputfile.close();
+            printf("ttot=%f, minDt=%f\n", pd.ttot, pd.minDt);
+
+            //            init(pd);
+
+            std::fill(pd.grad_P_x.begin(), pd.grad_P_x.end(), 0.0);
+            std::fill(pd.grad_P_y.begin(), pd.grad_P_y.end(), 0.0);
+            std::fill(pd.grad_P_z.begin(), pd.grad_P_z.end(), 0.0);
+
+            std::fill(pd.fx.begin(), pd.fx.end(), 0);
+            std::fill(pd.fy.begin(), pd.fy.end(), 0);
+            std::fill(pd.fz.begin(), pd.fz.end(), 0);
+            std::fill(pd.ugrav.begin(), pd.ugrav.end(), 0);
+
+            for (unsigned int i = 0; i < pd.count; i++)
+            {
+                // pd.x_m1[i] = pd.x[i] - pd.vx[i] * pd.dt[0];
+                // pd.y_m1[i] = pd.y[i] - pd.vy[i] * pd.dt[0];
+                // pd.z_m1[i] = pd.z[i] - pd.vz[i] * pd.dt[0];
+            }
+            pd.etot = pd.ecin = pd.eint = pd.egrav = 0.0;
+
+            printf("OK\n");
+        }
+        else
+            printf("ERROR: Can't open file %s\n", filename.c_str());
+
+        return pd;
+    }
+
     static ParticlesDataEvrard<T> loadDataFromFile(const size_t size, const std::string &filename, ParticlesDataEvrard<T> &pd)
     {
         pd.resize(size);
@@ -99,7 +190,7 @@ struct EvrardCollapseInputFileReader
         pd.n = pd.x.size();
         pd.count = pd.x.size();
 
-        printf("Loading input file for Evrard Collapse... ");
+        printf("Loading input file with %lu particles for Evrard Collapse... ", pd.n);
 
         std::ifstream inputfile(filename, std::ios::binary);
 
@@ -120,11 +211,11 @@ struct EvrardCollapseInputFileReader
             inputfile.close();
 
             init(pd);
+
+            printf("OK\n");
         }
         else
             printf("ERROR: Can't open file %s\n", filename.c_str());
-
-            printf("OK\n");
 
         return pd;
     }

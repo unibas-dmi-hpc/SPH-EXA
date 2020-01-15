@@ -890,6 +890,7 @@ struct GravityOctree : Octree<T>
 
         this->localPadding = padding;
         this->localParticleCount = list.size();
+        //        printf("gravityBuildTreeRec with %lu particles\n", list.size());
 
         gravityBuildTree(list, x, y, z, m);
 

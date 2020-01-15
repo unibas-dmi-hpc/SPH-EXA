@@ -93,7 +93,8 @@ void computeTotalEnergyWithGravityImpl(const Task &t, Dataset &d, T &ecin, T &ei
         T vmod2 = vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i];
 
 #ifdef NDEBUG
-        if (std::isnan(u[i]) || std::isnan(m[i]) || std::isnan(vmod2)) printf("ERROR::TotalEnergy(%d) u[i]=%f m[i]=%f, vmod2=%f\n", i, u[i], m[i], vmod2);
+        if (std::isnan(u[i]) || std::isnan(m[i]) || std::isnan(vmod2)) { printf("ERROR::TotalEnergy(%d) u[i]=%f m[i]=%f, vmod2=%f\n", i, u[i], m[i], vmod2); exit(1); }
+
 #endif
 
         ecintmp += 0.5 * m[i] * vmod2;

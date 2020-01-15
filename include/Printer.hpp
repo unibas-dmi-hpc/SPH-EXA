@@ -100,6 +100,50 @@ public:
         }
     }
 
+    void printCheckpointToFile(const std::vector<int> &clist, const std::string &dumpfilename)
+    {
+        std::ofstream dump;
+
+        dump.open(dumpfilename, std::ofstream::out | std::ofstream::binary);
+        dump.write((char *)&d.n, sizeof(d.n));
+        dump.write((char *)&d.ttot, sizeof(d.ttot));
+        dump.write((char *)&d.minDt, sizeof(d.minDt));
+
+        for (int i = 0; i < 5; ++i)
+        {
+            printf("[%d] write x=%f, y=%f\n", i, d.x[i], d.y[i]);
+        }
+
+        dump.write((char *)&d.x[0], d.x.size() * sizeof(double));
+        dump.write((char *)&d.y[0], d.y.size() * sizeof(double));
+        dump.write((char *)&d.z[0], d.z.size() * sizeof(double));
+        dump.write((char *)&d.vx[0], d.vx.size() * sizeof(double));
+        dump.write((char *)&d.vy[0], d.vy.size() * sizeof(double));
+        dump.write((char *)&d.vz[0], d.vz.size() * sizeof(double));
+        dump.write((char *)&d.ro[0], d.ro.size() * sizeof(double));
+        dump.write((char *)&d.u[0], d.ro.size() * sizeof(double));
+        dump.write((char *)&d.p[0], d.p.size() * sizeof(double));
+        dump.write((char *)&d.h[0], d.h.size() * sizeof(double));
+        dump.write((char *)&d.m[0], d.h.size() * sizeof(double));
+
+        dump.write((char *)&d.temp[0], d.temp.size() * sizeof(double));
+        dump.write((char *)&d.mue[0], d.mue.size() * sizeof(double));
+        dump.write((char *)&d.mui[0], d.mui.size() * sizeof(double));
+
+        dump.write((char *)&d.du[0], d.du.size() * sizeof(double));
+        dump.write((char *)&d.du_m1[0], d.du_m1.size() * sizeof(double));
+        dump.write((char *)&d.dt[0], d.dt.size() * sizeof(double));
+        dump.write((char *)&d.dt_m1[0], d.dt_m1.size() * sizeof(double));
+
+        dump.write((char *)&d.x_m1[0], d.x_m1.size() * sizeof(double));
+        dump.write((char *)&d.y_m1[0], d.y_m1.size() * sizeof(double));
+        dump.write((char *)&d.z_m1[0], d.z_m1.size() * sizeof(double));
+
+
+        dump.close();
+
+    }
+
     void printTotalIterationTime(const float duration, std::ostream &out)
     {
         out << "=== Total time for iteration(" << d.iteration << ") " << duration << "s" << std::endl << std::endl;
