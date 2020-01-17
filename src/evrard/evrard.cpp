@@ -11,10 +11,13 @@ int main(int argc, char **argv)
     ArgParser parser(argc, argv);
 
     const size_t maxStep = parser.getInt("-s", 10);
-    const size_t writeFrequency = parser.getInt("-w", -1);
-    const size_t checkpointFrequency = parser.getInt("-c", -1);
+    const size_t nParticles = parser.getInt("-n", 65536);
+    const int writeFrequency = parser.getInt("-w", -1);
+    const int checkpointFrequency = parser.getInt("-c", -1);
     const bool quiet = parser.exists("--quiet");
     const std::string checkpointInput = parser.getString("--cinput");
+    const std::string inputFile = parser.getString("--input", "bigfiles/Test3DEvrardRel.bin");
+    const std::string outDirectory = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
     std::ostream &output = quiet ? nullOutput : std::cout;
@@ -29,30 +32,8 @@ int main(int argc, char **argv)
     Domain<Real, Dataset, Tree> domain;
 #endif
 
-    const size_t nParticles = 65536;
-    /*    ParticlesDataEvrard<Real> d;
-
-    if (!checkpointInput.empty()) { d = EvrardCollapseInputFileReader<Real>::loadCheckpoint(nParticles, checkpointInput); }
-    else
-    {
-        d = EvrardCollapseInputFileReader<Real>::load(nParticles, "bigfiles/Test3DEvrardRel.bin");
-    }
-    */
-
-    auto d = checkpointInput.empty() ? EvrardCollapseInputFileReader<Real>::load(nParticles, "bigfiles/Test3DEvrardRel.bin") :
-        EvrardCollapseInputFileReader<Real>::loadCheckpoint(nParticles, checkpointInput);
-
-    //    const size_t nParticles = 1000000;
-
-    //    auto d = EvrardCollapseInputFileReader<Real>::load(nParticles, "bigfiles/evrard_1M.bin");
-    //    auto d = EvrardCollapseInputFileReader<Real>::load(nParticles, "bigfiles/Evrard3D.bin");
-
-    for (int i = 0; i < d.count; ++i)
-        if (i < 10 || (i > d.count - 10) || (i > d.count / 2 - 10 && i < d.count / 2 + 10))
-            printf("i=%d x=%f y=%f z=%f vx=%f vy=%f vz=%f ro=%f u=%f p=%f h=%f m=%.15f\n", i, d.x[i], d.y[i], d.z[i], d.vx[i], d.vy[i],
-                   d.vz[i], d.ro[i], d.u[i], d.h[i], d.m[i]);
-
-    //  return 0;
+    auto d = checkpointInput.empty() ? EvrardCollapseInputFileReader<Real>::load(nParticles, inputFile)
+                                     : EvrardCollapseInputFileReader<Real>::loadCheckpoint(checkpointInput);
 
     Printer<Dataset> printer(d);
     MasterProcessTimer timer(output, d.rank);
@@ -60,11 +41,9 @@ int main(int argc, char **argv)
     std::ofstream constantsFile("constants.txt");
 
     Tree::bucketSize = 1;
-    Tree::minGlobalBucketSize = 512;
-    Tree::maxGlobalBucketSize = 2048;
+    Tree::minGlobalBucketSize = 1;
+    Tree::maxGlobalBucketSize = 1;
     domain.create(d);
-
-    printf("Domain created\n");
 
     const size_t nTasks = 64;
     const size_t ng0 = 100;
@@ -108,9 +87,6 @@ int main(int argc, char **argv)
         sph::updateSmoothingLength<Real>(taskList.tasks, d);
         timer.step("UpdateSmoothingLength"); // AllReduce(sum:ecin,ein)
 
-        // for (int i = 0; i < 5 ; ++i)
-        //     printf("[%d] vx=%.15f vy=%.15f vz=%.15f\n", i, d.vx[i], d.vy[i], d.vz[i]);
-
         size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
         if (d.rank == 0)
         {
@@ -122,13 +98,13 @@ int main(int argc, char **argv)
 
         if (writeFrequency > 0 && d.iteration % writeFrequency == 0)
         {
-            printer.printAllDataToFile(domain.clist, "dump" + std::to_string(d.iteration) + ".txt");
+            printer.printAllDataToFile(domain.clist, outDirectory + "dump" + std::to_string(d.iteration) + ".txt");
             timer.step("writeFile");
         }
         if (checkpointFrequency > 0 && d.iteration % checkpointFrequency == 0)
         {
-            printer.printCheckpointToFile(domain.clist, "checkpoint" + std::to_string(d.iteration) + ".txt");
-            timer.step("writeCheckpointFile");
+            printer.printCheckpointToFile(outDirectory + "checkpoint" + std::to_string(d.iteration) + ".bin");
+            timer.step("Save Checkpoint File");
         }
 
         timer.stop();

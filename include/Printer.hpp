@@ -100,49 +100,95 @@ public:
         }
     }
 
-    void printCheckpointToFile(const std::vector<int> &clist, const std::string &dumpfilename)
+    void printCheckpointToFile(const std::string &path)
     {
-        std::ofstream dump;
+#ifdef USE_MPI
+        printCheckpointToFileMPI(path);
+        return;
+#endif
+        std::ofstream checkpoint;
+        checkpoint.open(path, std::ofstream::out | std::ofstream::binary);
 
-        dump.open(dumpfilename, std::ofstream::out | std::ofstream::binary);
-        dump.write((char *)&d.n, sizeof(d.n));
-        dump.write((char *)&d.ttot, sizeof(d.ttot));
-        dump.write((char *)&d.minDt, sizeof(d.minDt));
-
-        for (int i = 0; i < 5; ++i)
+        if (checkpoint.is_open())
         {
-            printf("[%d] write x=%f, y=%f\n", i, d.x[i], d.y[i]);
+            printf("Writing checkpoint at path: %s\n", path.c_str());
+
+            checkpoint.write((char *)&d.n, sizeof(d.n));
+            checkpoint.write((char *)&d.ttot, sizeof(d.ttot));
+            checkpoint.write((char *)&d.minDt, sizeof(d.minDt));
+
+            checkpoint.write((char *)&d.x[0], d.x.size() * sizeof(double));
+            checkpoint.write((char *)&d.y[0], d.y.size() * sizeof(double));
+            checkpoint.write((char *)&d.z[0], d.z.size() * sizeof(double));
+            checkpoint.write((char *)&d.vx[0], d.vx.size() * sizeof(double));
+            checkpoint.write((char *)&d.vy[0], d.vy.size() * sizeof(double));
+            checkpoint.write((char *)&d.vz[0], d.vz.size() * sizeof(double));
+            checkpoint.write((char *)&d.ro[0], d.ro.size() * sizeof(double));
+            checkpoint.write((char *)&d.u[0], d.ro.size() * sizeof(double));
+            checkpoint.write((char *)&d.p[0], d.p.size() * sizeof(double));
+            checkpoint.write((char *)&d.h[0], d.h.size() * sizeof(double));
+            checkpoint.write((char *)&d.m[0], d.h.size() * sizeof(double));
+
+            checkpoint.write((char *)&d.temp[0], d.temp.size() * sizeof(double));
+            checkpoint.write((char *)&d.mue[0], d.mue.size() * sizeof(double));
+            checkpoint.write((char *)&d.mui[0], d.mui.size() * sizeof(double));
+
+            checkpoint.write((char *)&d.du[0], d.du.size() * sizeof(double));
+            checkpoint.write((char *)&d.du_m1[0], d.du_m1.size() * sizeof(double));
+            checkpoint.write((char *)&d.dt[0], d.dt.size() * sizeof(double));
+            checkpoint.write((char *)&d.dt_m1[0], d.dt_m1.size() * sizeof(double));
+
+            checkpoint.write((char *)&d.x_m1[0], d.x_m1.size() * sizeof(double));
+            checkpoint.write((char *)&d.y_m1[0], d.y_m1.size() * sizeof(double));
+            checkpoint.write((char *)&d.z_m1[0], d.z_m1.size() * sizeof(double));
+
+            checkpoint.close();
+        }
+        else
+        {
+            printf("Error: Can't open file to save checkpoint. Path: %s\n", path.c_str());
+        }
+    }
+
+#ifdef USE_MPI
+    void printCheckpointToFileMPI(const std::string &path)
+    {
+        MPI_File file;
+        MPI_Status status;
+
+        int err = MPI_File_open(d.comm, path.c_str(), MPI_MODE_CREATE | MPI_MODE_RDWR, MPI_INFO_NULL, &file);
+        if (err != MPI_SUCCESS)
+        {
+            if (d.rank == 0) printf("Error %d! Can't open the file to write checkpoint. Path: %s\n", err, path.c_str());
+            MPI_Abort(d.comm, err);
+            exit(EXIT_FAILURE);
         }
 
-        dump.write((char *)&d.x[0], d.x.size() * sizeof(double));
-        dump.write((char *)&d.y[0], d.y.size() * sizeof(double));
-        dump.write((char *)&d.z[0], d.z.size() * sizeof(double));
-        dump.write((char *)&d.vx[0], d.vx.size() * sizeof(double));
-        dump.write((char *)&d.vy[0], d.vy.size() * sizeof(double));
-        dump.write((char *)&d.vz[0], d.vz.size() * sizeof(double));
-        dump.write((char *)&d.ro[0], d.ro.size() * sizeof(double));
-        dump.write((char *)&d.u[0], d.ro.size() * sizeof(double));
-        dump.write((char *)&d.p[0], d.p.size() * sizeof(double));
-        dump.write((char *)&d.h[0], d.h.size() * sizeof(double));
-        dump.write((char *)&d.m[0], d.h.size() * sizeof(double));
+        const size_t split = d.n / d.nrank;
+        const size_t remaining = d.n - d.nrank * split;
 
-        dump.write((char *)&d.temp[0], d.temp.size() * sizeof(double));
-        dump.write((char *)&d.mue[0], d.mue.size() * sizeof(double));
-        dump.write((char *)&d.mui[0], d.mui.size() * sizeof(double));
+        const MPI_Offset col = d.n * sizeof(double);
+        const MPI_Offset headerOffset = 2 * sizeof(double) + sizeof(size_t);
+        MPI_Offset offset = headerOffset + d.rank * split * sizeof(double);
+        if (d.rank > 0) offset += remaining * sizeof(double);
 
-        dump.write((char *)&d.du[0], d.du.size() * sizeof(double));
-        dump.write((char *)&d.du_m1[0], d.du_m1.size() * sizeof(double));
-        dump.write((char *)&d.dt[0], d.dt.size() * sizeof(double));
-        dump.write((char *)&d.dt_m1[0], d.dt_m1.size() * sizeof(double));
+        if (d.rank == 0)
+        {
+            MPI_File_write(file, &d.n, 1, MPI_UNSIGNED_LONG, &status);
+            MPI_File_write(file, &d.ttot, 1, MPI_DOUBLE, &status);
+            MPI_File_write(file, &d.minDt, 1, MPI_DOUBLE, &status);
+        }
+        MPI_Barrier(d.comm);
 
-        dump.write((char *)&d.x_m1[0], d.x_m1.size() * sizeof(double));
-        dump.write((char *)&d.y_m1[0], d.y_m1.size() * sizeof(double));
-        dump.write((char *)&d.z_m1[0], d.z_m1.size() * sizeof(double));
+        writeParticleDataToBinFileWithMPI(file, d.count, offset, col, 0, d.x, d.y, d.z, d.vx, d.vy, d.vz, d.ro, d.u, d.p, d.h, d.m, d.temp,
+                                          d.mue, d.mui, d.du, d.du_m1, d.dt, d.dt_m1, d.x_m1, d.y_m1, d.z_m1);
 
+        MPI_File_close(&file);
 
-        dump.close();
-
+        if (d.rank == 0) printf("MPI Checkpoint file saved!\n");
     }
+
+#endif
 
     void printTotalIterationTime(const float duration, std::ostream &out)
     {

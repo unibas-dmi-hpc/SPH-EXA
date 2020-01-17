@@ -24,7 +24,7 @@ NVCCFLAGS := -std=c++14 --expt-relaxed-constexpr -rdc=true -arch=$(NVCCARCH)
 NVCCLDFLAGS := -arch=$(NVCCARCH) -rdc=true
 
 ifeq ($(ENV),gnu)
-	CXXFLAGS += -std=c++14 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native -g
+	CXXFLAGS += -std=c++14 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native #-g
 endif
 
 ifeq ($(ENV),pgi)
@@ -40,7 +40,7 @@ ifeq ($(ENV),intel)
 endif
 
 ifeq ($(ENV),clang)
-	CXXFLAGS += -O2 -std=c++14 -g -fopenmp
+	CXXFLAGS += -O2 -std=c++14 -fopenmp
 endif
 
 TESTCASE ?= sqpatch

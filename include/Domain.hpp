@@ -79,12 +79,9 @@ public:
         // Each process creates a tree based on the gathered sample
         octree.cells.clear();
         octree = Tree(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, 0, 1);
-        printf("buldingTree\n");
-
         octree.buildTree(clist, x, y, z, m, ordering);
-        printf("#2\n");
+
         reorder(ordering, d);
-        printf("#3\n");
     }
 
     virtual void update(Dataset &d)

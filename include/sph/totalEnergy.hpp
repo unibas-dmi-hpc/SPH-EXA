@@ -32,7 +32,8 @@ void computeTotalEnergyImpl(const Task &t, Dataset &d, T &ecin, T &eint)
         T vmod2 = vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i];
 
 #ifdef NDEBUG
-        if (std::isnan(u[i]) || std::isnan(m[i]) || std::isnan(vmod2)) printf("ERROR::TotalEnergy(%d) u[i]=%f m[i]=%f, vmod2=%f\n", i, u[i], m[i], vmod2);
+        if (std::isnan(u[i]) || std::isnan(m[i]) || std::isnan(vmod2))
+            printf("ERROR::TotalEnergy(%d) u[i]=%f m[i]=%f, vmod2=%f\n", i, u[i], m[i], vmod2);
 #endif
 
         ecintmp += 0.5 * m[i] * vmod2;
@@ -61,7 +62,7 @@ void computeTotalEnergy(const std::vector<Task> &taskList, Dataset &d)
 #endif
 
 #ifdef NDEBUG
-        if (std::isnan(ecintmp) || std::isnan(einttmp)) printf("ERROR::TotalEnergy tecin=%f teint=%f\n", ecintmp, einttmp);
+    if (std::isnan(ecintmp) || std::isnan(einttmp)) printf("ERROR::TotalEnergy tecin=%f teint=%f\n", ecintmp, einttmp);
 #endif
 
     d.ecin = ecintmp;
@@ -93,7 +94,11 @@ void computeTotalEnergyWithGravityImpl(const Task &t, Dataset &d, T &ecin, T &ei
         T vmod2 = vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i];
 
 #ifdef NDEBUG
-        if (std::isnan(u[i]) || std::isnan(m[i]) || std::isnan(vmod2)) { printf("ERROR::TotalEnergy(%d) u[i]=%f m[i]=%f, vmod2=%f\n", i, u[i], m[i], vmod2); exit(1); }
+        if (std::isnan(u[i]) || std::isnan(m[i]) || std::isnan(vmod2))
+        {
+            printf("ERROR::TotalEnergy(%d) u[i]=%f m[i]=%f, vmod2=%f\n", i, u[i], m[i], vmod2);
+            exit(EXIT_FAILURE);
+        }
 
 #endif
 
@@ -127,7 +132,8 @@ void computeTotalEnergyWithGravity(const std::vector<Task> &taskList, Dataset &d
 #endif
 
 #ifdef NDEBUG
-        if (std::isnan(ecintmp) || std::isnan(einttmp) || std::isnan(egravtmp)) printf("ERROR::TotalEnergy tecin=%f teint=%f, tegrav=%f\n", ecintmp, einttmp, egravtmp);
+    if (std::isnan(ecintmp) || std::isnan(einttmp) || std::isnan(egravtmp))
+        printf("ERROR::TotalEnergy tecin=%f teint=%f, tegrav=%f\n", ecintmp, einttmp, egravtmp);
 #endif
 
     d.ecin = ecintmp;

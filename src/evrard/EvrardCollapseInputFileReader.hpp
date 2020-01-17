@@ -25,18 +25,17 @@ struct EvrardCollapseInputFileReader
         return pd;
     }
 
-    static ParticlesDataEvrard<T> loadCheckpoint(const size_t size, const std::string &filename)
+    static ParticlesDataEvrard<T> loadCheckpoint(const std::string &filename)
     {
         ParticlesDataEvrard<T> pd;
 
 #if defined(USE_MPI)
-        pd.n = size;
         pd.comm = MPI_COMM_WORLD;
         MPI_Comm_size(pd.comm, &pd.nrank);
         MPI_Comm_rank(pd.comm, &pd.rank);
         MPI_Get_processor_name(pd.pname, &pd.pnamelen);
 
-        loadDataFromFileMPI(filename, pd);
+        loadCheckpointDataFromFileMPI(filename, pd);
 #else
         loadCheckpointFromFile(filename, pd);
 #endif
@@ -53,14 +52,13 @@ struct EvrardCollapseInputFileReader
         pd.resize(pd.count);
 
         MPI_File fh;
-        MPI_Status status;
 
         const MPI_Offset col = pd.n * sizeof(double);
 
         MPI_Offset offset = pd.rank * split * sizeof(double);
         if (pd.rank > 0) offset += remaining * sizeof(double);
 
-        if (pd.rank == 0) printf("Loading input file for Evrard Collapse... ");
+        if (pd.rank == 0) printf("Loading input file with %lu particles for Evrard Collapse... ", pd.n);
 
         int err = MPI_File_open(pd.comm, filename.c_str(), MPI_MODE_RDWR, MPI_INFO_NULL, &fh);
         if (err != MPI_SUCCESS)
@@ -70,60 +68,80 @@ struct EvrardCollapseInputFileReader
             exit(EXIT_FAILURE);
         }
 
-        MPI_File_set_view(fh, offset, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
-        MPI_File_read(fh, &pd.x[0], pd.count, MPI_DOUBLE, &status);
-
-        MPI_File_set_view(fh, 1 * col + offset, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
-        MPI_File_read(fh, &pd.y[0], pd.count, MPI_DOUBLE, &status);
-
-        MPI_File_set_view(fh, 2 * col + offset, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
-        MPI_File_read(fh, &pd.z[0], pd.count, MPI_DOUBLE, &status);
-
-        MPI_File_set_view(fh, 3 * col + offset, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
-        MPI_File_read(fh, &pd.vx[0], pd.count, MPI_DOUBLE, &status);
-
-        MPI_File_set_view(fh, 4 * col + offset, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
-        MPI_File_read(fh, &pd.vy[0], pd.count, MPI_DOUBLE, &status);
-
-        MPI_File_set_view(fh, 5 * col + offset, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
-        MPI_File_read(fh, &pd.vz[0], pd.count, MPI_DOUBLE, &status);
-
-        MPI_File_set_view(fh, 6 * col + offset, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
-        MPI_File_read(fh, &pd.ro[0], pd.count, MPI_DOUBLE, &status);
-
-        MPI_File_set_view(fh, 7 * col + offset, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
-        MPI_File_read(fh, &pd.u[0], pd.count, MPI_DOUBLE, &status);
-
-        MPI_File_set_view(fh, 8 * col + offset, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
-        MPI_File_read(fh, &pd.p[0], pd.count, MPI_DOUBLE, &status);
-
-        MPI_File_set_view(fh, 9 * col + offset, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
-        MPI_File_read(fh, &pd.h[0], pd.count, MPI_DOUBLE, &status);
-
-        MPI_File_set_view(fh, 10 * col + offset, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
-        MPI_File_read(fh, &pd.m[0], pd.count, MPI_DOUBLE, &status);
+        readFileMPI(fh, pd.count, offset, col, 0, pd.x, pd.y, pd.z, pd.vx, pd.vy, pd.vz, pd.ro, pd.u, pd.p, pd.h, pd.m);
 
         MPI_File_close(&fh);
 
         if (pd.rank == 0) printf("OK\n");
         init(pd);
     }
+
+    static void loadCheckpointDataFromFileMPI(const std::string &filename, ParticlesDataEvrard<T> &pd)
+    {
+        MPI_File fh;
+        MPI_Status status;
+
+        int err = MPI_File_open(pd.comm, filename.c_str(), MPI_MODE_RDWR, MPI_INFO_NULL, &fh);
+        if (err != MPI_SUCCESS)
+        {
+            if (pd.rank == 0) printf("Error %d! Can't open the file!\n", err);
+            MPI_Abort(pd.comm, err);
+            exit(EXIT_FAILURE);
+        }
+
+        MPI_File_read(fh, &pd.n, 1, MPI_UNSIGNED_LONG, &status);
+
+        const MPI_Offset headerOffset = 2 * sizeof(double) + sizeof(size_t);
+
+        const size_t split = pd.n / pd.nrank;
+        const size_t remaining = pd.n - pd.nrank * split;
+        const MPI_Offset col = pd.n * sizeof(double);
+
+        MPI_Offset offset = headerOffset + pd.rank * split * sizeof(double);
+        if (pd.rank > 0) offset += remaining * sizeof(double);
+
+        if (pd.rank == 0) printf("MPI Loading checkpoint file with %lu particles for Evrard Collapse... ", pd.n);
+
+        pd.count = pd.rank == 0 ? split : split + remaining;
+        pd.resize(pd.count);
+
+        MPI_File_read(fh, &pd.ttot, 1, MPI_DOUBLE, &status);
+        MPI_File_read(fh, &pd.minDt, 1, MPI_DOUBLE, &status);
+
+        readFileMPI(fh, pd.count, offset, col, 0, pd.x, pd.y, pd.z, pd.vx, pd.vy, pd.vz, pd.ro, pd.u, pd.p, pd.h, pd.m, pd.temp, pd.mue,
+                    pd.mui, pd.du, pd.du_m1, pd.dt, pd.dt_m1, pd.x_m1, pd.y_m1, pd.z_m1);
+
+        MPI_File_close(&fh);
+
+        if (pd.rank == 0) printf("OK\n");
+
+        std::fill(pd.grad_P_x.begin(), pd.grad_P_x.end(), 0.0);
+        std::fill(pd.grad_P_y.begin(), pd.grad_P_y.end(), 0.0);
+        std::fill(pd.grad_P_z.begin(), pd.grad_P_z.end(), 0.0);
+
+        std::fill(pd.fx.begin(), pd.fx.end(), 0);
+        std::fill(pd.fy.begin(), pd.fy.end(), 0);
+        std::fill(pd.fz.begin(), pd.fz.end(), 0);
+        std::fill(pd.ugrav.begin(), pd.ugrav.end(), 0);
+
+        pd.etot = pd.ecin = pd.eint = pd.egrav = 0.0;
+    }
+
 #else
     static ParticlesDataEvrard<T> loadCheckpointFromFile(const std::string &filename, ParticlesDataEvrard<T> &pd)
     {
-
         std::ifstream inputfile(filename, std::ios::binary);
 
         if (inputfile.is_open())
         {
-            inputfile.read(reinterpret_cast<char *>(&pd.n), sizeof(T));
-            printf("Loading checkpoint file with %lu particles for Evrard Collapse... ", pd.n);
+            inputfile.read(reinterpret_cast<char *>(&pd.n), sizeof(size_t));
 
             pd.resize(pd.n);
 
             pd.n = pd.x.size();
             pd.count = pd.x.size();
 
+            printf("Loading checkpoint file with %lu particles for Evrard Collapse... ", pd.n);
 
             inputfile.read(reinterpret_cast<char *>(&pd.ttot), sizeof(T));
             inputfile.read(reinterpret_cast<char *>(&pd.minDt), sizeof(T));
@@ -154,9 +172,6 @@ struct EvrardCollapseInputFileReader
             inputfile.read(reinterpret_cast<char *>(pd.z_m1.data()), sizeof(T) * pd.z_m1.size());
 
             inputfile.close();
-            printf("ttot=%f, minDt=%f\n", pd.ttot, pd.minDt);
-
-            //            init(pd);
 
             std::fill(pd.grad_P_x.begin(), pd.grad_P_x.end(), 0.0);
             std::fill(pd.grad_P_y.begin(), pd.grad_P_y.end(), 0.0);
@@ -167,12 +182,6 @@ struct EvrardCollapseInputFileReader
             std::fill(pd.fz.begin(), pd.fz.end(), 0);
             std::fill(pd.ugrav.begin(), pd.ugrav.end(), 0);
 
-            for (unsigned int i = 0; i < pd.count; i++)
-            {
-                // pd.x_m1[i] = pd.x[i] - pd.vx[i] * pd.dt[0];
-                // pd.y_m1[i] = pd.y[i] - pd.vy[i] * pd.dt[0];
-                // pd.z_m1[i] = pd.z[i] - pd.vz[i] * pd.dt[0];
-            }
             pd.etot = pd.ecin = pd.eint = pd.egrav = 0.0;
 
             printf("OK\n");
