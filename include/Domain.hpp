@@ -80,6 +80,7 @@ public:
         octree.cells.clear();
         octree = Tree(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, 0, 1);
         octree.buildTree(clist, x, y, z, m, ordering);
+
         reorder(ordering, d);
     }
 
