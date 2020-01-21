@@ -11,11 +11,16 @@ int main(int argc, char **argv)
     ArgParser parser(argc, argv);
 
     const size_t maxStep = parser.getInt("-s", 10);
-    const size_t writeFrequency = parser.getInt("-w", -1);
+    const size_t nParticles = parser.getInt("-n", 65536);
+    const int writeFrequency = parser.getInt("-w", -1);
+    const int checkpointFrequency = parser.getInt("-c", -1);
     const bool quiet = parser.exists("--quiet");
-    
+    const std::string checkpointInput = parser.getString("--cinput");
+    const std::string inputFile = parser.getString("--input", "bigfiles/Test3DEvrardRel.bin");
+    const std::string outDirectory = parser.getString("--outDir");
+
     std::ofstream nullOutput("/dev/null");
-    std::ostream& output = quiet ? nullOutput : std::cout;
+    std::ostream &output = quiet ? nullOutput : std::cout;
 
     using Real = double;
     using Dataset = ParticlesDataEvrard<Real>;
@@ -27,8 +32,8 @@ int main(int argc, char **argv)
     Domain<Real, Dataset, Tree> domain;
 #endif
 
-    const size_t nParticles = 65536;
-    auto d = EvrardCollapseInputFileReader<Real>::load(nParticles, "bigfiles/Test3DEvrardRel.bin");
+    auto d = checkpointInput.empty() ? EvrardCollapseInputFileReader<Real>::load(nParticles, inputFile)
+                                     : EvrardCollapseInputFileReader<Real>::loadCheckpoint(checkpointInput);
 
     Printer<Dataset> printer(d);
     MasterProcessTimer timer(output, d.rank);
@@ -93,8 +98,13 @@ int main(int argc, char **argv)
 
         if (writeFrequency > 0 && d.iteration % writeFrequency == 0)
         {
-            printer.printAllDataToFile(domain.clist, "dump" + std::to_string(d.iteration) + ".txt");
+            printer.printAllDataToFile(domain.clist, outDirectory + "dump" + std::to_string(d.iteration) + ".txt");
             timer.step("writeFile");
+        }
+        if (checkpointFrequency > 0 && d.iteration % checkpointFrequency == 0)
+        {
+            printer.printCheckpointToFile(outDirectory + "checkpoint" + std::to_string(d.iteration) + ".bin");
+            timer.step("Save Checkpoint File");
         }
 
         timer.stop();

@@ -3,6 +3,7 @@
 #ifdef USE_MPI
 #include "mpi.h"
 #include "DistributedDomain.hpp"
+#include "mpiFileUtils.hpp"
 #endif
 
 #include "Domain.hpp"
