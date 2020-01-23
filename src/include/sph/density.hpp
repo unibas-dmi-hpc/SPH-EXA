@@ -28,6 +28,10 @@ void computeDensityImpl(const Task &t, Dataset &d)
 
     T *ro = d.ro.data();
 
+    // general VE
+    T *xmass = d.xmass.data();
+    T *vol = d.vol.data();
+
     const BBox<T> bbox = d.bbox;
 
     const T K = d.K;
@@ -63,6 +67,8 @@ void computeDensityImpl(const Task &t, Dataset &d)
         const int nn = neighborsCount[pi];
 
         T roloc = 0.0;
+        // general VE
+        T sumkx = 0.0;
 
         // int converstion to avoid a bug that prevents vectorization with some compilers
         for (int pj = 0; pj < nn; pj++)
@@ -84,10 +90,17 @@ void computeDensityImpl(const Task &t, Dataset &d)
             const T w = K * math_namespace::pow(wharmonic(vloc), (int)sincIndex);
             const T value = w / (h[i] * h[i] * h[i]);
             roloc += value * m[j];
+            // general VE
+            sumkx += value * xmass[j];
         }
 
         //ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
-        ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
+//        ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]); // old standard-sph density
+        // general VE
+        sumkx += xmass[i] * K / (h[i] * h[i] * h[i]);  // self contribution
+        vol[i] = xmass[i] / sumkx;  // calculate volume element
+        // new density
+        ro[i] = m[i] / vol[i];
 
 #ifndef NDEBUG
         if (std::isnan(ro[i])) printf("ERROR::Density(%d) density %f, position: (%f %f %f), h: %f\n", i, ro[i], x[i], y[i], z[i], h[i]);
