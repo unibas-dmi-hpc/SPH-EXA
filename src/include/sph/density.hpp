@@ -30,6 +30,21 @@ void computeDensityImpl(const Task &t, Dataset &d)
 
     // general VE
     T *xmass = d.xmass.data();
+//    const T *xmass = d.m.data();
+//    const T *xmass = d.p.data(); // should be equivalent to using cabezon 2017, eq10 with X_a = P_a^1. but gives segfault...
+//    const T xmassexp = 1.0;  // if this is != 1.0, density is nan... it's because pressure is negative, for whatever reaseon. ask ruben...
+    // when using the abs(xmass), it's no longer nan, but still segfaults... for xmassexp = 0.99
+
+// acc. to Aurelien segfault happens if particles get accelerated into oblivion. Might have something to do if they move
+// too far with pbc, i.e. wrap twice around the box or something... but why the acceleration? too much speed, I guess
+// todo: suggestion from aurelien: what about the units of pressure? GZ: Need to make sure that kernel and pressure
+//       use same unit for length dimensions... as X_a is multiplied with kernel in the sum in denominator
+//       but kernel is dimensionless, right??? I.e. units don't really matter...
+//
+// looks like the pressure is just wrong?? in sqpatchdatagenerator it's set to some pattern, but with only negative values
+// it's used in momentumandenergyiad, so can't be too off... but why does it fuck up here this bad? I guess I know why...
+// because the density is used to update the pressure which is then later used to do the momentumandenergy...
+
     T *vol = d.vol.data();
 
     const BBox<T> bbox = d.bbox;
@@ -97,7 +112,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
         //ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
 //        ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]); // old standard-sph density
         // general VE
-        sumkx += xmass[i] * K / (h[i] * h[i] * h[i]);  // self contribution
+        sumkx += xmass[i] * K / (h[i] * h[i] * h[i]);  // self contribution. no need for kernel (dist = 0 -> 1)
         vol[i] = xmass[i] / sumkx;  // calculate volume element
         // new density
         ro[i] = m[i] / vol[i];
