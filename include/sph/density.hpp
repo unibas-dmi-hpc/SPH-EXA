@@ -13,7 +13,14 @@ namespace sphexa
 namespace sph
 {
     double xmass_particle(sphexa::ParticlesData<double> &d, int particleIndex) {
-        return d.m.data()[particleIndex];
+        if (d.iteration < 0) {
+            return d.m.data()[particleIndex];
+        }
+        return pow(d.m.data()[particleIndex] / d.ro.data()[particleIndex], 0.5); // with exponent = 1 -> corner particles fly off -> segfault. with 0.7 exponent, corners start to deform, but less problematic
+        // generally, the smaller the exponent, the fewer the problems... obviously, as it approaches 0, we reproduce xmass = 1 which equals the case of xmass = mass for equal mass per particle which we have here and which we know that works
+//        return (d.m.data()[particleIndex] + d.m.data()[particleIndex] / d.ro.data()[particleIndex]) / 2.0;
+        //other choices:
+//        return pow(abs(d.p.data()[particleIndex]), 1.0);
     }
 
 template <typename T, class Dataset>
@@ -41,8 +48,8 @@ void computeDensityImpl(const Task &t, Dataset &d)
 // acc. to Aurelien segfault happens if particles get accelerated into oblivion. Might have something to do if they move
 // too far with pbc, i.e. wrap twice around the box or something... but why the acceleration? too much speed, I guess
 // todo: suggestion from aurelien: what about the units of pressure? GZ: Need to make sure that kernel and pressure
-//       use same unit for length dimensions... as X_a is multiplied with kernel in the sum in denominator
-//       but kernel is dimensionless, right??? I.e. units don't really matter...
+//       use same unit for length dimensions... as X_a is multiplied with kernel in the sum in denominator. kernel is
+//       length^-3...
 //
 // looks like the pressure is just wrong?? in sqpatchdatagenerator it's set to some pattern, but with only negative values
 // it's used in momentumandenergyiad, so can't be too off... but why does it fuck up here this bad? I guess I know why...
