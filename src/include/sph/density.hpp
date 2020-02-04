@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <include/ParticlesData.hpp>
 
 #include "kernels.hpp"
 #include "Task.hpp"
@@ -11,6 +12,10 @@ namespace sphexa
 {
 namespace sph
 {
+    double xmass_particle(sphexa::ParticlesData<double> &d, int particleIndex) {
+        return d.m.data()[particleIndex];
+    }
+
 template <typename T, class Dataset>
 void computeDensityImpl(const Task &t, Dataset &d)
 {
@@ -29,8 +34,6 @@ void computeDensityImpl(const Task &t, Dataset &d)
     T *ro = d.ro.data();
 
     // general VE
-    T *xmass = d.xmass.data();
-//    const T *xmass = d.m.data();
 //    const T *xmass = d.p.data(); // should be equivalent to using cabezon 2017, eq10 with X_a = P_a^1. but gives segfault...
 //    const T xmassexp = 1.0;  // if this is != 1.0, density is nan... it's because pressure is negative, for whatever reaseon. ask ruben...
     // when using the abs(xmass), it's no longer nan, but still segfaults... for xmassexp = 0.99
@@ -106,14 +109,14 @@ void computeDensityImpl(const Task &t, Dataset &d)
             const T value = w / (h[i] * h[i] * h[i]);
             roloc += value * m[j];
             // general VE
-            sumkx += value * xmass[j];
+            sumkx += value * xmass_particle(d, j);
         }
 
         //ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
 //        ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]); // old standard-sph density
         // general VE
-        sumkx += xmass[i] * K / (h[i] * h[i] * h[i]);  // self contribution. no need for kernel (dist = 0 -> 1)
-        vol[i] = xmass[i] / sumkx;  // calculate volume element
+        sumkx += xmass_particle(d, i) * K / (h[i] * h[i] * h[i]);  // self contribution. no need for kernel (dist = 0 -> 1)
+        vol[i] = xmass_particle(d, i) / sumkx;  // calculate volume element
         // new density
         ro[i] = m[i] / vol[i];
 

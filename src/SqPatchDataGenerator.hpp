@@ -112,8 +112,6 @@ public:
             pd.p[i] = pd.p_0[i] = pd.p_0[i] * 10.0;
 
             pd.m[i] = 1000000.0 / pd.n; // 1.0;//1000000.0/n;//1.0;//0.001;//0.001;//0.001;//1.0;
-            pd.xmass[i] = pd.m[i];      // for first tests init xmass as particle mass (cabezon 2017 below eq10 (X_a = m_a))
-//            pd.vol[i] = ?             // todo: what about volume? no need to initialize!?
             pd.c[i] = 3500.0;           // 35.0;//35.0;//35000
             pd.h[i] = 2.0 * dx;         // 0.02;//0.02;
             pd.ro[i] = 1.0;             // 1.0e3;//.0;//1e3;//1e3;
