@@ -52,7 +52,7 @@ void makeDataArray(std::vector<std::vector<T> *> &data, std::vector<T> *first, A
     makeDataArray(data, args...);
 }
 
-template <typename T, class Dataset>
+template <typename T, class Dataset, class Tree = Octree<T>>
 class Domain
 {
 public:
@@ -64,6 +64,7 @@ public:
         const std::vector<T> &x = d.x;
         const std::vector<T> &y = d.y;
         const std::vector<T> &z = d.z;
+        const std::vector<T> &m = d.m;
 
         const size_t n = d.count;
 
@@ -77,8 +78,9 @@ public:
 
         // Each process creates a tree based on the gathered sample
         octree.cells.clear();
-        octree = Octree<T>(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, 0, 1);
-        octree.buildTree(clist, x, y, z, ordering);
+        octree = Tree(d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax, 0, 1);
+        octree.buildTree(clist, x, y, z, m, ordering);
+
         reorder(ordering, d);
     }
 
@@ -106,30 +108,10 @@ public:
             list[i] = i;
 
         // We need this to expand halo
-        octree.buildTree(list, d.x, d.y, d.z, ordering);
+        octree.buildTree(list, d.x, d.y, d.z, d.m, ordering);
         reorder(ordering, d);
 
         octree.mapList(clist);
-    }
-
-    void createTasks(std::vector<Task> &taskList, const size_t nTasks)
-    {
-        const int partitionSize = clist.size() / nTasks;
-        const int lastPartitionOffset = clist.size() - nTasks * partitionSize;
-
-        taskList.resize(nTasks);
-
-#pragma omp parallel for
-        for (size_t i = 0; i < nTasks; ++i)
-        {
-            const int begin = i * partitionSize;
-            const int end = (i + 1) * partitionSize + (i == nTasks - 1 ? lastPartitionOffset : 0);
-            const size_t size = end - begin;
-
-            taskList[i].resize(size);
-            for (size_t j = 0; j < size; j++)
-                taskList[i].clist[j] = clist[j + begin];
-        }
     }
 
     // placeholder for the non-distributed domain implementation
@@ -140,7 +122,7 @@ public:
 
     void synchronizeHalos(std::vector<std::vector<T> *> &) {}
 
-    Octree<T> octree;
+    Tree octree;
     std::vector<int> clist;
 };
 

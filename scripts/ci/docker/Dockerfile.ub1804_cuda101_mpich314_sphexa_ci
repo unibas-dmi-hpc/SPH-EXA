@@ -57,13 +57,18 @@ COPY . /SPH-EXA_mini-app/
 # RUN cd /sph/SPH-EXA_mini-app-$branchname \
 RUN cd /SPH-EXA_mini-app ; ls -la \
 # compile omp with gnu7:
-    && make omp CXXFLAGS="-std=c++14 -fopenmp -g -DNDEBUG -I. -Isrc" BINDIR=bin/gnu7 CXX=/usr/bin/g++-7 \
+    && make omp BINDIR=bin/gnu7 CXX=/usr/bin/g++-7 \
 # compile omp with gnu8:
-    && make omp CXXFLAGS="-std=c++14 -fopenmp -g -DNDEBUG -I. -Isrc" BINDIR=bin/gnu8 CXX=/usr/bin/g++-8 \
+    && make omp BINDIR=bin/gnu8 CXX=/usr/bin/g++-8 \
 # compile omp with gnu9:
-    && make omp CXXFLAGS="-std=c++14 -fopenmp -g -DNDEBUG -I. -Isrc" BINDIR=bin/gnu9 CXX=/usr/bin/g++-9 \
+    && make omp BINDIR=bin/gnu9 CXX=/usr/bin/g++-9 \
 # compile mpi+omp with gnu7 (-DUSE_MPI):
-    && make mpi+omp CXXFLAGS="-std=c++14 -fopenmp -g -DNDEBUG -I. -Isrc" BINDIR=bin/gnu7 \
+    && make mpi+omp BINDIR=bin/gnu7 MPICH_CC=/usr/bin/g++-7 \
+# compile mpi+omp with gnu8 (-DUSE_MPI):
+    && make mpi+omp BINDIR=bin/gnu8 MPICH_CC=/usr/bin/g++-8 \
+# compile mpi+omp with gnu9 (-DUSE_MPI):
+    && make mpi+omp BINDIR=bin/gnu9 MPICH_CC=/usr/bin/g++-9 \
+
 # --- cuda:
 # cuda/10.1 supports gcc<9
 # compile omp+cuda with gnu7: 

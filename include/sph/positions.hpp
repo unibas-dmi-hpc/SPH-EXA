@@ -2,20 +2,43 @@
 
 #include <vector>
 #include <cmath>
+#include <tuple>
 
 namespace sphexa
 {
 namespace sph
 {
+
 template <typename T, class Dataset>
+struct computeAccelerationWithGravity
+{
+    std::tuple<T, T, T> operator()(const int idx, Dataset &d)
+    {
+        const T G = d.g;
+        const T ax = -(d.grad_P_x[idx] - G * d.fx[idx]);
+        const T ay = -(d.grad_P_y[idx] - G * d.fy[idx]);
+        const T az = -(d.grad_P_z[idx] - G * d.fz[idx]);
+        return std::make_tuple(ax, ay, az);
+    }
+};
+
+template <typename T, class Dataset>
+struct computeAcceleration
+{
+    std::tuple<T, T, T> operator()(const int idx, Dataset &d)
+    {
+        return std::make_tuple(-d.grad_P_x[idx], -d.grad_P_y[idx], -d.grad_P_z[idx]);
+    }
+};
+
+template <typename T, class FunctAccel, class Dataset>
 void computePositionsImpl(const Task &t, Dataset &d)
 {
+    FunctAccel accelFunct;
+
     const size_t n = t.clist.size();
     const int *clist = t.clist.data();
 
-    const T *grad_P_x = d.grad_P_x.data();
-    const T *grad_P_y = d.grad_P_y.data();
-    const T *grad_P_z = d.grad_P_z.data();
     const T *dt = d.dt.data();
     const T *du = d.du.data();
 
@@ -37,12 +60,9 @@ void computePositionsImpl(const Task &t, Dataset &d)
 #pragma omp parallel for
     for (size_t pi = 0; pi < n; pi++)
     {
-        int i = clist[pi];
-
-        // ADD COMPONENT DUE TO THE GRAVITY HERE
-        T ax = -(grad_P_x[i]); //-G * fx
-        T ay = -(grad_P_y[i]); //-G * fy
-        T az = -(grad_P_z[i]); //-G * fz
+        const int i = clist[pi];
+        T ax, ay, az;
+        std::tie(ax, ay, az) = accelFunct(i, d);
 
 #ifndef NDEBUG
         if (std::isnan(ax) || std::isnan(ay) || std::isnan(az))
@@ -122,12 +142,12 @@ void computePositionsImpl(const Task &t, Dataset &d)
     }
 }
 
-template <typename T, class Dataset>
+template <typename T, class FunctAccel, class Dataset>
 void computePositions(const std::vector<Task> &taskList, Dataset &d)
 {
     for (const auto &task : taskList)
     {
-        computePositionsImpl<T>(task, d);
+        computePositionsImpl<T, FunctAccel>(task, d);
     }
 }
 

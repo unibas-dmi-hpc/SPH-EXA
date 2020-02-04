@@ -47,13 +47,14 @@ void computeDensity(const std::vector<Task> &taskList, ParticleData &d)
 {
     const size_t np = d.x.size();
     const size_t size_np_T = np * sizeof(T);
+    const T ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
 
     const auto largestChunkSize =
         std::max_element(taskList.cbegin(), taskList.cend(),
                          [](const Task &lhs, const Task &rhs) { return lhs.clist.size() < rhs.clist.size(); })
             ->clist.size();
 
-    const size_t size_largerNeighborsChunk_int = largestChunkSize * Task::ngmax * sizeof(int);
+    const size_t size_largerNeighborsChunk_int = largestChunkSize * ngmax * sizeof(int);
     const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
     const size_t size_bbox = sizeof(BBox<T>);
 
@@ -80,7 +81,7 @@ void computeDensity(const std::vector<Task> &taskList, ParticleData &d)
     {
         const size_t n = t.clist.size();
         const size_t size_n_int = n * sizeof(int);
-        const size_t size_nNeighbors = n * Task::ngmax * sizeof(int);
+        const size_t size_nNeighbors = n * ngmax * sizeof(int);
 
         CHECK_CUDA_ERR(cudaMemcpy(d_clist, t.clist.data(), size_n_int, cudaMemcpyHostToDevice));
         CHECK_CUDA_ERR(cudaMemcpy(d_neighbors, t.neighbors.data(), size_nNeighbors, cudaMemcpyHostToDevice));

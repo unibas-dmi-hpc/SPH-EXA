@@ -1,8 +1,8 @@
 #pragma once
 
 #include <vector>
-#include <include/ParticlesData.hpp>
 
+#include "../ParticlesData.hpp"
 #include "kernels.hpp"
 #include "Task.hpp"
 #include "lookupTables.hpp"
@@ -112,7 +112,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
             sumkx += value * xmass_particle(d, j);
         }
 
-        //ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
+        // ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
 //        ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]); // old standard-sph density
         // general VE
         sumkx += xmass_particle(d, i) * K / (h[i] * h[i] * h[i]);  // self contribution. no need for kernel (dist = 0 -> 1)
@@ -130,7 +130,7 @@ template <typename T, class Dataset>
 void computeDensity(const std::vector<Task> &taskList, Dataset &d)
 {
 #if defined(USE_CUDA)
-    cuda::computeDensity<T>(taskList, d);//utils::partition(l, d.noOfGpuLoopSplits), d);
+    cuda::computeDensity<T>(taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
 #else
     for (const auto &task : taskList)
     {

@@ -3,6 +3,7 @@
 #ifdef USE_MPI
 #include "mpi.h"
 #include "DistributedDomain.hpp"
+#include "mpiFileUtils.hpp"
 #endif
 
 #include "Domain.hpp"
@@ -28,3 +29,4 @@
 #include "sph/positions.hpp"
 #include "sph/totalEnergy.hpp"
 #include "sph/updateSmoothingLength.hpp"
+#include "sph/gravityTreeWalk.hpp"
