@@ -175,11 +175,11 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
             momentum_y += xa[i] / m[i] * xa[j] * (pro_i * termA2_i + pro_j * termA2_j) + grad_Py_AV;
             momentum_z += xa[i] / m[i] * xa[j] * (pro_i * termA3_i + pro_j * termA3_j) + grad_Pz_AV;
 
-            energy += xa[j] * 2.0 * pro_i * (v_ijx * termA1_i + v_ijy * termA2_i + v_ijz * termA3_i); // cabezon2017 eq 23
-            energyAV += grad_Px_AV * v_ijx + grad_Py_AV * v_ijy + grad_Pz_AV * v_ijz;  // cabezon2017 eq 32
+            energy += xa[j] * pro_i * (v_ijx * termA1_i + v_ijy * termA2_i + v_ijz * termA3_i); // cabezon2017 eq 23
+            energyAV += grad_Px_AV * v_ijx + grad_Py_AV * v_ijy + grad_Pz_AV * v_ijz;  // cabezon2017 eq 23
         }
 
-        du[i] = 0.5 * (xa[i] / m[i] * energy + energyAV); // have X_a/m_a in front of energy, energyAV is the (du/dt)^AV  // put the 0.5 only for the energyAV
+        du[i] = xa[i] / m[i] * energy + 0.5 * energyAV; // cabezon2017 eq 32. But why the 1/2 only for the AV?
         grad_P_x[i] = momentum_x;
         grad_P_y[i] = momentum_y;
         grad_P_z[i] = momentum_z;
