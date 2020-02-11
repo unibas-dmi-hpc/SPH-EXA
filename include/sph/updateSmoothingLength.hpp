@@ -18,6 +18,11 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
     const int *neighborsCount = t.neighborsCount.data();
     T *h = d.h.data();
 
+    // general VE
+    const T *ro = d.ro.data();
+    const T *m = d.m.data();
+    T *xa = d.xa.data();
+
     size_t n = t.clist.size();
 
 #pragma omp parallel for schedule(guided)
@@ -27,6 +32,10 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
         const int nn = neighborsCount[pi];
 
         h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp);
+
+        // also update VE estimator
+//        xa[i] = pow(m[i] / ro[i], d.veExp);  // sphynx VE...
+        xa[i] = m[i];  // "normal" VE...
 
 #ifndef NDEBUG
         if (std::isinf(h[i]) || std::isnan(h[i])) printf("ERROR::h(%d) ngi %d h %f\n", i, nn, h[i]);

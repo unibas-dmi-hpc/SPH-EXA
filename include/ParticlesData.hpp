@@ -24,6 +24,8 @@ struct ParticlesData
     std::vector<T> vol;                          // Volume
     // todo: it's redundant to carry around volume, mass and density... how to resolve this???
     //       which 2 of the 3 do we keep? Or is comms and memory overhead negligible?
+    std::vector<T> xa;                           // to store Xa (VE estimators). We need it because we only update at end of run...
+    std::vector<T> sumkx;                        // kernel weighted sum of VE estimators (sumkx in sphynx)
     std::vector<T> u;                            // Internal Energy
     std::vector<T> p, p_0;                       // Pressure
     std::vector<T> h;                            // Smoothing Length
@@ -43,7 +45,7 @@ struct ParticlesData
     std::vector<std::vector<T> *> data{&x,  &y,     &z,   &x_m1, &y_m1, &z_m1, &vx,       &vy,       &vz,        &ro, &ro_0,
                                        &u,  &p,     &p_0, &h,    &m,    &c,    &grad_P_x, &grad_P_y, &grad_P_z,  &du, &du_m1,
                                        &dt, &dt_m1, &c11, &c12,  &c13,  &c22,  &c23,      &c33,      &maxvsignal,
-                                       &vol};
+                                       &vol, &xa, &sumkx};
 #ifdef USE_MPI
     MPI_Comm comm;
     int pnamelen = 0;
@@ -57,6 +59,9 @@ struct ParticlesData
     constexpr static T Kcour = 0.2;
     constexpr static T maxDtIncrease = 1.1;
     const static T K;
+
+    // general VE
+    constexpr static T veExp = 1.0;
 };
 
 template <typename T>

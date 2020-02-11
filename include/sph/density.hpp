@@ -12,16 +12,6 @@ namespace sphexa
 {
 namespace sph
 {
-    double xmass_particle(sphexa::ParticlesData<double> &d, int particleIndex) {
-        if (d.iteration < 0) {
-            return d.m.data()[particleIndex];
-        }
-        return pow(d.m.data()[particleIndex] / d.ro.data()[particleIndex], 0.5); // with exponent = 1 -> corner particles fly off -> segfault. with 0.7 exponent, corners start to deform, but less problematic
-        // generally, the smaller the exponent, the fewer the problems... obviously, as it approaches 0, we reproduce xmass = 1 which equals the case of xmass = mass for equal mass per particle which we have here and which we know that works
-//        return (d.m.data()[particleIndex] + d.m.data()[particleIndex] / d.ro.data()[particleIndex]) / 2.0;
-        //other choices:
-//        return pow(abs(d.p.data()[particleIndex]), 1.0);
-    }
 
 template <typename T, class Dataset>
 void computeDensityImpl(const Task &t, Dataset &d)
@@ -39,6 +29,10 @@ void computeDensityImpl(const Task &t, Dataset &d)
     const T *z = d.z.data();
 
     T *ro = d.ro.data();
+    // general VE
+    const T *xa = d.xa.data(); // the VE estimators. Only updated at end of iteration
+    T *sumkx = d.sumkx.data(); // kernel-weighted sum of VE estimators
+
 
     // general VE
 //    const T *xmass = d.p.data(); // should be equivalent to using cabezon 2017, eq10 with X_a = P_a^1. but gives segfault...
@@ -93,7 +87,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
 
         T roloc = 0.0;
         // general VE
-        T sumkx = 0.0;
+        T sumkx_loc = 0.0;
 
         // int converstion to avoid a bug that prevents vectorization with some compilers
         for (int pj = 0; pj < nn; pj++)
@@ -116,14 +110,15 @@ void computeDensityImpl(const Task &t, Dataset &d)
             const T value = w / (h[i] * h[i] * h[i]);
             roloc += value * m[j];
             // general VE
-            sumkx += value * xmass_particle(d, j);
+            sumkx_loc += value * xa[j];
         }
 
         // ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
 //        ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]); // old standard-sph density
         // general VE
-        sumkx += xmass_particle(d, i) * K / (h[i] * h[i] * h[i]);  // self contribution. no need for kernel (dist = 0 -> 1)
-        vol[i] = xmass_particle(d, i) / sumkx;  // calculate volume element
+        sumkx_loc += xa[i] * K / (h[i] * h[i] * h[i]);  // self contribution. no need for kernel (dist = 0 -> 1)
+        // problem: if use density for xa, this change will never propagate on the current timestep unless we do NR
+        vol[i] = xa[i] / sumkx_loc;  // calculate volume element
         // new density
         ro[i] = m[i] / vol[i];
 
