@@ -19,7 +19,6 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
     T *h = d.h.data();
 
     // general VE
-    const T *ro = d.ro.data();
     const T *m = d.m.data();
     T *xa = d.xa.data();
 

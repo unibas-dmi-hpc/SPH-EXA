@@ -121,6 +121,9 @@ void computeDensityImpl(const Task &t, Dataset &d)
         vol[i] = xa[i] / sumkx_loc;  // calculate volume element
         // new density
         ro[i] = m[i] / vol[i];
+//        double diff = roloc + m[i] * K / (h[i] * h[i] * h[i]) - ro[i];
+//        if (abs(diff) > 1.11e-16) printf("Roloc[%d] - ro[%d] = %.5e\n", i, i, diff);
+        sumkx[i] = sumkx_loc;
 
 #ifndef NDEBUG
         if (std::isnan(ro[i])) printf("ERROR::Density(%d) density %f, position: (%f %f %f), h: %f\n", i, ro[i], x[i], y[i], z[i], h[i]);
