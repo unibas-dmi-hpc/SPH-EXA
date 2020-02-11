@@ -55,6 +55,11 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
     const T K = d.K;
     const T sincIndex = d.sincIndex;
 
+    // general VE
+    const T *sumkx = d.sumkx.data();
+    const T *xa = d.xa.data();
+    const T *vol = d.vol.data();
+
 #if defined(USE_OMP_TARGET)
     // Apparently Cray with -O2 has a bug when calling target regions in a loop. (and computeMomentumAndEnergyIADImpl can be called in a
     // loop). A workaround is to call some method or allocate memory to either prevent buggy optimization or other side effect. with -O1
@@ -151,8 +156,8 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
             const T termA2_j = (kern21_j + kern22_j + kern23_j) * W2;
             const T termA3_j = (kern31_j + kern32_j + kern33_j) * W2;
 
-            const T pro_i = p[i] / (gradh_i * ro[i] * ro[i]);
-            const T pro_j = p[j] / (gradh_j * ro[j] * ro[j]);
+            const T pro_i = p[i] / (gradh_i * sumkx[i] * sumkx[i]);  // Pa/(omega * Kappa^2), in cabezon2017, eqs 22&23 todo: consider moving this out of the loop (only i-terms)
+            const T pro_j = p[j] / (gradh_j * sumkx[j] * sumkx[j]);
 
             const T r_square = dist * dist;
             const T viscosity_ij = artificial_viscosity(ro[i], ro[j], h[i], h[j], c[i], c[j], rv, r_square);
@@ -162,19 +167,19 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
             const T vijsignal = c[i] + c[j] - 3.0 * wij;
             if(vijsignal > maxvsignali) maxvsignali = vijsignal;
 
-            const T grad_Px_AV = 0.5 * (m[i] / ro[i] * viscosity_ij * termA1_i + m[j] / ro[j] * viscosity_ij * termA1_j);
-            const T grad_Py_AV = 0.5 * (m[i] / ro[i] * viscosity_ij * termA2_i + m[j] / ro[j] * viscosity_ij * termA2_j);
-            const T grad_Pz_AV = 0.5 * (m[i] / ro[i] * viscosity_ij * termA3_i + m[j] / ro[j] * viscosity_ij * termA3_j);
+            const T grad_Px_AV = 0.5 * (vol[i] / m[i] * m[j] * viscosity_ij * termA1_i + vol[j] * viscosity_ij * termA1_j);  // cabezon2017 eq29
+            const T grad_Py_AV = 0.5 * (vol[i] / m[i] * m[j] * viscosity_ij * termA2_i + vol[j] * viscosity_ij * termA2_j);
+            const T grad_Pz_AV = 0.5 * (vol[i] / m[i] * m[j] * viscosity_ij * termA3_i + vol[j] * viscosity_ij * termA3_j);
 
-            momentum_x += m[j] * (pro_i * termA1_i + pro_j * termA1_j) + grad_Px_AV;
-            momentum_y += m[j] * (pro_i * termA2_i + pro_j * termA2_j) + grad_Py_AV;
-            momentum_z += m[j] * (pro_i * termA3_i + pro_j * termA3_j) + grad_Pz_AV;
+            momentum_x += xa[i] / m[i] * xa[j] * (pro_i * termA1_i + pro_j * termA1_j) + grad_Px_AV; // cabezon2017 eq22
+            momentum_y += xa[i] / m[i] * xa[j] * (pro_i * termA2_i + pro_j * termA2_j) + grad_Py_AV;
+            momentum_z += xa[i] / m[i] * xa[j] * (pro_i * termA3_i + pro_j * termA3_j) + grad_Pz_AV;
 
-            energy += m[j] * 2.0 * pro_i * (v_ijx * termA1_i + v_ijy * termA2_i + v_ijz * termA3_i);
-            energyAV += grad_Px_AV * v_ijx + grad_Py_AV * v_ijy + grad_Pz_AV * v_ijz;
+            energy += xa[j] * 2.0 * pro_i * (v_ijx * termA1_i + v_ijy * termA2_i + v_ijz * termA3_i); // cabezon2017 eq 23
+            energyAV += grad_Px_AV * v_ijx + grad_Py_AV * v_ijy + grad_Pz_AV * v_ijz;  // cabezon2017 eq 32
         }
 
-        du[i] = 0.5 * (energy + energyAV);
+        du[i] = 0.5 * (xa[i] / m[i] * energy + energyAV); // have X_a/m_a in front of energy, energyAV is the (du/dt)^AV  // put the 0.5 only for the energyAV
         grad_P_x[i] = momentum_x;
         grad_P_y[i] = momentum_y;
         grad_P_z[i] = momentum_z;
