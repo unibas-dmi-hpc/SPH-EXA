@@ -53,7 +53,7 @@ int main(int argc, char **argv)
 
         domain.update(d);
         timer.step("domain::distribute");
-        domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
+        domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.xa);  // also synchronize VE estimator xa!
         timer.step("mpi::synchronizeHalos");
         domain.buildTree(d);
         timer.step("domain::buildTree");
@@ -61,12 +61,12 @@ int main(int argc, char **argv)
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
-        sph::computeDensity<Real>(taskList.tasks, d);
+        sph::computeDensity<Real>(taskList.tasks, d); //initial guess for density
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
         timer.step("Density");
         sph::computeEquationOfState<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
-        domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
+        domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c, &d.sumkx);  // also synchronize sumkx after density!
         timer.step("mpi::synchronizeHalos");
         sph::computeIAD<Real>(taskList.tasks, d);
         timer.step("IAD");
