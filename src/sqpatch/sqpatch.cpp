@@ -61,7 +61,7 @@ int main(int argc, char **argv)
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
-        sph::computeDensity<Real>(taskList.tasks, d); //initial guess for density
+        sph::computeDensity<Real>(taskList.tasks, d);
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
         timer.step("Density");
         sph::computeEquationOfState<Real>(taskList.tasks, d);
