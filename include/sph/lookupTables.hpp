@@ -22,7 +22,7 @@ std::array<T, N> createWharmonicLookupTable()
     for (size_t i = 0; i < N; ++i)
     {
         T normalizedVal = i / halfsSize;
-        lt[i] = wharmonic_std(normalizedVal);
+        lt[i] = wharmonic_std(normalizedVal);  // divided by v (sinc) or not? Check this.
     }
     return lt;
 }

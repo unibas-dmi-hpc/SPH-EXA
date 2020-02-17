@@ -30,7 +30,7 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
         int i = t.clist[pi];
         const int nn = neighborsCount[pi];
 
-        h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp);
+        h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp); // update of smoothing length...
 
         // also update VE estimator
 //        xa[i] = pow(m[i] / ro[i], d.veExp);  // sphynx VE...
