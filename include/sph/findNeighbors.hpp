@@ -26,7 +26,9 @@ void findNeighborsImpl(const Octree<T> &o, Task &t, Dataset &d)
         o.findNeighbors(i, &d.x[0], &d.y[0], &d.z[0], d.x[i], d.y[i], d.z[i], 2.0 * d.h[i], t.ngmax, &t.neighbors[pi * t.ngmax],
                              t.neighborsCount[pi], d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz);
 
+#ifdef DO_NEWTONRAPHSON
         ballmass[i] = ro[i] * h[i] * h[i] * h[i];
+#endif
 
 #ifndef NDEBUG
         if (t.neighborsCount[pi] == 0)

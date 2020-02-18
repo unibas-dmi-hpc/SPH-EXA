@@ -54,10 +54,20 @@ omp: $(HPP)
 	$(info Linking the executable:)
 	$(CXX) $(CXXFLAGS) $(INC) $(TESTCASE_FLAGS) src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
 
+omp+NR: $(HPP)
+	@mkdir -p $(BINDIR)
+	$(info Linking the executable:)
+	$(CXX) $(CXXFLAGS) $(INC) $(TESTCASE_FLAGS) -DDO_NEWTONRAPHSON src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
+
 mpi+omp: $(HPP)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(TESTCASE_FLAGS) src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
+
+mpi+omp+NR: $(HPP)
+	@mkdir -p $(BINDIR)
+	$(info Linking the executable:)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DDO_NEWTONRAPHSON $(TESTCASE_FLAGS) src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
 
 omp+cuda: $(BUILDDIR)/cuda_no_mpi.o $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)

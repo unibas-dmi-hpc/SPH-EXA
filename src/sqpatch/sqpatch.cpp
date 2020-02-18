@@ -61,10 +61,13 @@ int main(int argc, char **argv)
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
+#ifdef DO_NEWTONRAPHSON
         domain.synchronizeHalos(&d.ballmass);  // synchronize ballmass
         timer.step("mpi::synchronizeHalos");
+#endif
         sph::computeDensity<Real>(taskList.tasks, d);  // initial guess for density...
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
+#ifdef DO_NEWTONRAPHSON
         if (d.iteration > 10) {
             domain.synchronizeHalos(&d.ro, &d.vol, &d.sumkx, &d.sumwh);  // synchronize density stuff. needed?
             timer.step("mpi::synchronizeHalos");
@@ -79,8 +82,8 @@ int main(int argc, char **argv)
                 domain.synchronizeHalos(&d.h);  // synchronize h
                 timer.step("mpi::synchronizeHalos");
             }
-
         }
+#endif
         timer.step("Density");
         sph::computeEquationOfState<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
