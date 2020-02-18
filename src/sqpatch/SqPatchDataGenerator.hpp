@@ -128,8 +128,11 @@ public:
             pd.z_m1[i] = pd.z[i] - pd.vz[i] * firstTimeStep;
 
             // general VE
-//            pd.xa[i] = pow(pd.m[i] / pd.ro[i], pd.veExp);  // sphynx VE...
+#ifdef SPHYNX_VE
+            pd.xa[i] = pow(pd.m[i] / pd.ro[i], pd.veExp);  // sphynx VE...
+#else
             pd.xa[i] = pd.m[i];  // "normal VE"
+#endif
         }
 
         pd.bbox.computeGlobal(pd.x, pd.y, pd.z);
