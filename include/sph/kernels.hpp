@@ -36,16 +36,30 @@ CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative_std(T v)
     if (v == 0.0) return 0.0;
 
     const T Pv = (PI / 2.0) * v;
-    const T sincv = std::sin(Pv) / (Pv); // This is missing a multiplicationi with the kernel index (see below)
+    const T sincv = std::sin(Pv) / (Pv);
 
-    return sincv * (PI / 2.0) * ((std::cos(Pv) / std::sin(Pv)) - 1.0 / Pv); // this is used in lookuptable or not.
-    //kernelindex * sincv * v / h**4[i] * K * (PI / 2.0) * ((std::cos(Pv) / std::sin(Pv)) - 1.0 / Pv); // h**4[i] needs to go outside (obviously...). compare to sphynx lookup table
-    // second column of sphynx LT is pi/2(1/tan((pi/2)*v) - 1/((pi/2)*v)) * v  [sphynx doesn't have the * v, for cleanness (multiplied when using the derivative), but it could be here for saving operations]
-    // generally, the second column of the lookuptable should be the ratio of w'/w so that we can reconstruct w' by multiplying the second column with the kernel (w' = w'/w * w)...
-    // additionally, don't forget the K * kernelIndex / h[i] (see picture of ruben's ntes towards the center of the page.. in the notes, the h is included, but we won't do that in the code, because it depends on [i]
-    // there is a trick how to get the kernelIndex-1 from the derivative back to the same (kernelIndex in the calculation)
-    // also, the sincv MUST NOT BE in the derivative lookup-table, because it couples the lookuptable to the index... (i.e. the version here is not correct! but as it looks it is not yet used anyways)
+    return sincv * (PI / 2.0) * ((std::cos(Pv) / std::sin(Pv)) - 1.0 / Pv);
 }
+
+template <typename T>
+CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative_gz_std(T v)
+{
+if (v == 0.0) return 0.0;
+
+const T Pv = (PI / 2.0) * v;
+
+return - Pv * (std::cos(Pv) / std::sin(Pv) - 1.0);  // we can't do more (smoothing-length and kernel index need to be. I have put Pv inside (saves operations)
+// note from GZ: I created a new function instead of modifying wharmonic_derivative_std because the code is currently
+//               using the original version to do interpolation of the kernel function. If I change this, then
+//               I break the existing code.
+// full derivative is: - kernelindex * sincv**kernelindex / h**4[i] * K * Pv * ((std::cos(Pv) / std::sin(Pv)) - 1.0);
+// h**4[i] needs to go outside because it depends on i
+// also put everything with kernelindex, sincv, K outside, because it depends on the kernelindex (n)
+// this is to be multiplied when using this lookuptable.
+// second column of sphynx LT is pi/2(1/tan((pi/2)*v) - 1/((pi/2)*v)) * v [sphynx doesn't have the * v, for cleanness (multiplied when using the derivative)]
+// generally, the second column of the lookuptable is the ratio of w'/w so that we can reconstruct w' by multiplying the second column with the kernel (w' = w'/w * w)...
+}
+
 
 template <typename T>
 CUDA_DEVICE_FUN inline T artificial_viscosity(const T ro_i, const T ro_j, const T h_i, const T h_j, const T c_i, const T c_j, const T rv,

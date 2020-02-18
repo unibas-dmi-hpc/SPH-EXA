@@ -32,6 +32,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
     // general VE
     const T *xa = d.xa.data(); // the VE estimators. Only updated at end of iteration
     T *sumkx = d.sumkx.data(); // kernel-weighted sum of VE estimators
+    T *sumwh = d.sumwh.data(); // sum of VE estimators weighted by derivative of kernel wrt. h
 
 
     // general VE
@@ -88,6 +89,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
         T roloc = 0.0;
         // general VE
         T sumkx_loc = 0.0;
+        T sumwh_loc = 0.0;
 
         // int converstion to avoid a bug that prevents vectorization with some compilers
         for (int pj = 0; pj < nn; pj++)
@@ -111,19 +113,23 @@ void computeDensityImpl(const Task &t, Dataset &d)
             roloc += value * m[j];
             // general VE
             sumkx_loc += value * xa[j];
+            // summation part of derivative of density wrt. h[i] (needed for NR)
+            sumwh_loc += xa[j] * value * (int)sincIndex * wharmonic_derivative(vloc) / h[i];
         }
 
         // ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
 //        ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]); // old standard-sph density
         // general VE
         sumkx_loc += xa[i] * K / (h[i] * h[i] * h[i]);  // self contribution. no need for kernel (dist = 0 -> 1)
-        // problem: if use density for xa, this change will never propagate on the current timestep unless we do NR
+//        sumwh_loc += xa[i] * 0.0; // self-contribution: is 0, right? because derivative is linear in v -> 0 at v = 0
+
         vol[i] = xa[i] / sumkx_loc;  // calculate volume element
         // new density
         ro[i] = m[i] / vol[i];
 //        double diff = roloc + m[i] * K / (h[i] * h[i] * h[i]) - ro[i];
 //        if (abs(diff) > 1.11e-16) printf("Roloc[%d] - ro[%d] = %.5e\n", i, i, diff);
         sumkx[i] = sumkx_loc;
+        sumwh[i] = sumwh_loc;
 
 #ifndef NDEBUG
         if (std::isnan(ro[i])) printf("ERROR::Density(%d) density %f, position: (%f %f %f), h: %f\n", i, ro[i], x[i], y[i], z[i], h[i]);

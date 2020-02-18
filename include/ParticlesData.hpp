@@ -26,6 +26,8 @@ struct ParticlesData
     //       which 2 of the 3 do we keep? Or is comms and memory overhead negligible?
     std::vector<T> xa;                           // to store Xa (VE estimators). We need it because we only update at end of run...
     std::vector<T> sumkx;                        // kernel weighted sum of VE estimators (sumkx in sphynx)
+    std::vector<T> ballmass;                     // this is needed to do newton-raphson for h and density
+    std::vector<T> sumwh;                        // this is needed to calculate the derivative of the ballmass[i]/h[i]**3 - ro[i] = 0 with newton-raphson
     std::vector<T> u;                            // Internal Energy
     std::vector<T> p, p_0;                       // Pressure
     std::vector<T> h;                            // Smoothing Length
@@ -45,7 +47,7 @@ struct ParticlesData
     std::vector<std::vector<T> *> data{&x,  &y,     &z,   &x_m1, &y_m1, &z_m1, &vx,       &vy,       &vz,        &ro, &ro_0,
                                        &u,  &p,     &p_0, &h,    &m,    &c,    &grad_P_x, &grad_P_y, &grad_P_z,  &du, &du_m1,
                                        &dt, &dt_m1, &c11, &c12,  &c13,  &c22,  &c23,      &c33,      &maxvsignal,
-                                       &vol, &xa, &sumkx};
+                                       &vol, &xa, &sumkx, &sumwh, &ballmass};
 #ifdef USE_MPI
     MPI_Comm comm;
     int pnamelen = 0;

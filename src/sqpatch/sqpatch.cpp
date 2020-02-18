@@ -61,16 +61,30 @@ int main(int argc, char **argv)
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
+        domain.synchronizeHalos(&d.ballmass);  // synchronize ballmass
+        timer.step("mpi::synchronizeHalos");
         sph::computeDensity<Real>(taskList.tasks, d);  // initial guess for density...
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
+        if (d.iteration > 10) {
+            domain.synchronizeHalos(&d.ro, &d.vol, &d.sumkx, &d.sumwh);  // synchronize density stuff. needed?
+            timer.step("mpi::synchronizeHalos");
+            sph::newtonRaphson<Real>(taskList.tasks, d);
+            domain.synchronizeHalos(&d.h);  // synchronize h
+            timer.step("mpi::synchronizeHalos");
+            for (int iterNR = 0; iterNR < 2; iterNR++) {
+                sph::computeDensity<Real>(taskList.tasks, d);
+                domain.synchronizeHalos(&d.ro, &d.vol, &d.sumkx, &d.sumwh);  // synchronize density stuff
+                timer.step("mpi::synchronizeHalos");
+                sph::newtonRaphson<Real>(taskList.tasks, d);
+                domain.synchronizeHalos(&d.h);  // synchronize h
+                timer.step("mpi::synchronizeHalos");
+            }
+
+        }
         timer.step("Density");
-        // NR here for updating the smoothing length
-        // ruben: don't run find neighbors in here, even if h changes (small cheat)
-        // NR tries to keep ball mass constant. BM_i = rho_i * h_i^3
-        // the iterative scheme will need communication of density and might need comm of h_i
         sph::computeEquationOfState<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
-        domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c, &d.sumkx);  // also synchronize sumkx after density!// for newton-raphson, should communicate smoothing length here...
+        domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c, &d.sumkx);  // also synchronize sumkx after density!
         timer.step("mpi::synchronizeHalos");
         sph::computeIAD<Real>(taskList.tasks, d);
         timer.step("IAD");

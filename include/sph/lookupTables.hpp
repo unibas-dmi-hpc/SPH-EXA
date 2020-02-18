@@ -22,7 +22,7 @@ std::array<T, N> createWharmonicLookupTable()
     for (size_t i = 0; i < N; ++i)
     {
         T normalizedVal = i / halfsSize;
-        lt[i] = wharmonic_std(normalizedVal);  // divided by v (sinc) or not? Check this.
+        lt[i] = wharmonic_std(normalizedVal);  // this is the plain sinc(pi/2 * v), i.e. the argument passed will be multiplied by pi/2
     }
     return lt;
 }
@@ -36,7 +36,7 @@ std::array<T, N> createWharmonicDerivativeLookupTable()
     for (size_t i = 0; i < N; ++i)
     {
         T normalizedVal = i / halfsSize;
-        lt[i] = wharmonic_derivative_std(normalizedVal);
+        lt[i] = wharmonic_derivative_gz_std(normalizedVal);
     }
 
     return lt;
@@ -131,7 +131,7 @@ CUDA_DEVICE_FUN inline T wharmonic_derivative_lt(const T v)
 
     const size_t idx = (v * lt::wharmonicLookupTableSize / 2.0);
 
-    return (idx >= lt::wharmonicLookupTableSize) ? -0.5 : lt::wharmonicDerivativeLookupTable[idx];
+    return (idx >= lt::wharmonicLookupTableSize) ? 0.0 : lt::wharmonicDerivativeLookupTable[idx];  // why was there -0.5? kernel is and remains 0.0 if argument exceeds support...
 }
 
 } // namespace lookup_tables
@@ -140,7 +140,7 @@ CUDA_DEVICE_FUN inline T wharmonic_derivative_lt(const T v)
 constexpr auto wharmonic = wharmonic_std<double>;
 constexpr auto wharmonic_derivative = wharmonic_derivative_std<double>;
 #else
-constexpr auto wharmonic = lookup_tables::wharmonic_lt_with_derivative<double>;
+constexpr auto wharmonic = lookup_tables::wharmonic_lt<double>;  // our new derivative is incompatible with kernel interpolation -> don't use wharmonic_lt_with_derivative for now
 constexpr auto wharmonic_derivative = lookup_tables::wharmonic_derivative_lt<double>;
 #endif
 
