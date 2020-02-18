@@ -20,6 +20,9 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
 
     // general VE
     const T *m = d.m.data();
+#ifdef SPHYNX_VE
+    const T *ro = d.ro.data();
+#endif
     T *xa = d.xa.data();
 
     size_t n = t.clist.size();
@@ -33,8 +36,11 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
         h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp);
 
         // also update VE estimator
-//        xa[i] = pow(m[i] / ro[i], d.veExp);  // sphynx VE...
-        xa[i] = m[i];  // "normal" VE...
+#ifdef SPHYNX_VE
+        xa[i] = pow(m[i] / ro[i], d.veExp);  // sphynx VE...
+#else
+        xa[i] = m[i];  // "normal VE"
+#endif
 
 #ifndef NDEBUG
         if (std::isinf(h[i]) || std::isnan(h[i])) printf("ERROR::h(%d) ngi %d h %f\n", i, nn, h[i]);
