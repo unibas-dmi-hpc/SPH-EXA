@@ -33,23 +33,6 @@ void computeDensityImpl(const Task &t, Dataset &d)
     const T *xa = d.xa.data(); // the VE estimators. Only updated at end of iteration
     T *sumkx = d.sumkx.data(); // kernel-weighted sum of VE estimators
     T *sumwh = d.sumwh.data(); // sum of VE estimators weighted by derivative of kernel wrt. h
-
-
-    // general VE
-//    const T *xmass = d.p.data(); // should be equivalent to using cabezon 2017, eq10 with X_a = P_a^1. but gives segfault...
-//    const T xmassexp = 1.0;  // if this is != 1.0, density is nan... it's because pressure is negative, for whatever reaseon. ask ruben...
-    // when using the abs(xmass), it's no longer nan, but still segfaults... for xmassexp = 0.99
-
-// acc. to Aurelien segfault happens if particles get accelerated into oblivion. Might have something to do if they move
-// too far with pbc, i.e. wrap twice around the box or something... but why the acceleration? too much speed, I guess
-// todo: suggestion from aurelien: what about the units of pressure? GZ: Need to make sure that kernel and pressure
-//       use same unit for length dimensions... as X_a is multiplied with kernel in the sum in denominator. kernel is
-//       length^-3...
-//
-// looks like the pressure is just wrong?? in sqpatchdatagenerator it's set to some pattern, but with only negative values
-// it's used in momentumandenergyiad, so can't be too off... but why does it fuck up here this bad? I guess I know why...
-// because the density is used to update the pressure which is then later used to do the momentumandenergy...
-
     T *vol = d.vol.data();
 
     const BBox<T> bbox = d.bbox;
