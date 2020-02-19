@@ -33,7 +33,7 @@ int main(int argc, char **argv)
 
     auto d = SqPatchDataGenerator<Real>::generate(cubeSide);
     Printer<Dataset> printer(d);
-    MasterProcessTimer timer(output, d.rank);
+    MasterProcessTimer timer(output, d.rank), totalTimer(output, d.rank);
 
     std::ofstream constantsFile("constants.txt");
 
@@ -42,11 +42,12 @@ int main(int argc, char **argv)
     Tree::maxGlobalBucketSize = 2048;
     domain.create(d);
 
-    const size_t nTasks = 64;
+    const size_t nTasks = 1;
     const size_t ngmax = 300;
     const size_t ng0 = 250;
     TaskList taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
 
+    totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
         timer.start();
@@ -84,8 +85,13 @@ int main(int argc, char **argv)
         timer.step("UpdateSmoothingLength");
 
         size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
+	//printf("Rank %d, particles %lu\n", d.rank, d.count); 
+	//int totalParticles = d.count;
+	//MPI_Allreduce(MPI_IN_PLACE, &totalParticles, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
         if (d.rank == 0)
         {
+	  //printf("**** Rank %d, TOTAL particles %d\n", d.rank, totalParticles);
             printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, output);
             printer.printConstants(d.iteration, totalNeighbors, constantsFile);
         }
@@ -100,7 +106,8 @@ int main(int argc, char **argv)
 
         if (d.rank == 0) printer.printTotalIterationTime(timer.duration(), output);
     }
-
+    totalTimer.step("Total time");
+    
     constantsFile.close();
 
 #ifdef USE_MPI
