@@ -148,4 +148,5 @@ public:
         }
     }
 };
+
 } // namespace sphexa

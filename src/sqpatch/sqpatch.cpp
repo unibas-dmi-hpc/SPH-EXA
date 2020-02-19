@@ -5,6 +5,7 @@
 
 #include "sphexa.hpp"
 #include "SqPatchDataGenerator.hpp"
+#include "SqPatchFileWriter.hpp"
 
 using namespace std;
 using namespace sphexa;
@@ -16,9 +17,9 @@ int main(int argc, char **argv)
     const size_t maxStep = parser.getInt("-s", 10);
     const int writeFrequency = parser.getInt("-w", -1);
     const bool quiet = parser.exists("--quiet");
-    
+
     std::ofstream nullOutput("/dev/null");
-    std::ostream& output = quiet ? nullOutput : std::cout;
+    std::ostream &output = quiet ? nullOutput : std::cout;
 
     using Real = double;
     using Dataset = ParticlesData<Real>;
@@ -27,12 +28,15 @@ int main(int argc, char **argv)
 #ifdef USE_MPI
     MPI_Init(NULL, NULL);
     DistributedDomain<Real, Dataset, Tree> domain;
+    const IFileWriter<Dataset> &fileWriter = SqPatchMPIFileWriter<Dataset>();
 #else
     Domain<Real, Dataset, Tree> domain;
+    const IFileWriter<Dataset> &fileWriter = SqPatchFileWriter<Dataset>();
 #endif
 
     auto d = SqPatchDataGenerator<Real>::generate(cubeSide);
-    Printer<Dataset> printer(d);
+    const Printer<Dataset> printer(d);
+
     MasterProcessTimer timer(output, d.rank), totalTimer(output, d.rank);
 
     std::ofstream constantsFile("constants.txt");
@@ -84,21 +88,18 @@ int main(int argc, char **argv)
         sph::updateSmoothingLength<Real>(taskList.tasks, d);
         timer.step("UpdateSmoothingLength");
 
-        size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
-	//printf("Rank %d, particles %lu\n", d.rank, d.count); 
-	//int totalParticles = d.count;
-	//MPI_Allreduce(MPI_IN_PLACE, &totalParticles, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        const size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
 
         if (d.rank == 0)
         {
-	  //printf("**** Rank %d, TOTAL particles %d\n", d.rank, totalParticles);
             printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, output);
             printer.printConstants(d.iteration, totalNeighbors, constantsFile);
         }
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            printer.printAllDataToFile(domain.clist, "dump" + to_string(d.iteration) + ".txt");
+            fileWriter.dumpParticleDataToAsciiFile(d, domain.clist, "dump_sqpatch" + to_string(d.iteration) + ".txt");
+            fileWriter.dumpParticleDataToBinFile(d, "dump_sqpatch" + to_string(d.iteration) + ".bin");
             timer.step("writeFile");
         }
 
@@ -106,8 +107,9 @@ int main(int argc, char **argv)
 
         if (d.rank == 0) printer.printTotalIterationTime(timer.duration(), output);
     }
-    totalTimer.step("Total time");
-    
+
+    totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of SqPatch");
+
     constantsFile.close();
 
 #ifdef USE_MPI
