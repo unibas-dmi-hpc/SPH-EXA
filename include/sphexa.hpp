@@ -3,7 +3,6 @@
 #ifdef USE_MPI
 #include "mpi.h"
 #include "DistributedDomain.hpp"
-#include "mpiFileUtils.hpp"
 #endif
 
 #include "Domain.hpp"
@@ -13,6 +12,7 @@
 #include "ArgParser.hpp"
 #include "config.hpp"
 #include "Timer.hpp"
+#include "FileUtils.hpp"
 #include "Printer.hpp"
 
 #if defined(USE_CUDA)

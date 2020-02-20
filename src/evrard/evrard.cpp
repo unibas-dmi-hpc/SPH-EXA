@@ -3,6 +3,7 @@
 
 #include "sphexa.hpp"
 #include "EvrardCollapseInputFileReader.hpp"
+#include "EvrardCollapseFileWriter.hpp"
 
 using namespace sphexa;
 
@@ -16,7 +17,7 @@ int main(int argc, char **argv)
     const int checkpointFrequency = parser.getInt("-c", -1);
     const bool quiet = parser.exists("--quiet");
     const std::string checkpointInput = parser.getString("--cinput");
-    const std::string inputFile = parser.getString("--input", "bigfiles/Test3DEvrardRel.bin");
+    const std::string inputFilePath = parser.getString("--input", "bigfiles/Test3DEvrardRel.bin");
     const std::string outDirectory = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
@@ -25,18 +26,23 @@ int main(int argc, char **argv)
     using Real = double;
     using Dataset = ParticlesDataEvrard<Real>;
     using Tree = GravityOctree<Real>;
+
 #ifdef USE_MPI
     MPI_Init(NULL, NULL);
     DistributedDomain<Real, Dataset, Tree> domain;
+    const IFileReader<Dataset> &fileReader = EvrardCollapseMPIInputFileReader<Dataset>();
+    const IFileWriter<Dataset> &fileWriter = EvrardCollapseMPIFileWriter<Dataset>();
 #else
     Domain<Real, Dataset, Tree> domain;
+    const IFileReader<Dataset> &fileReader = EvrardCollapseInputFileReader<Dataset>();
+    const IFileWriter<Dataset> &fileWriter = EvrardCollapseFileWriter<Dataset>();
 #endif
 
-    auto d = checkpointInput.empty() ? EvrardCollapseInputFileReader<Real>::load(nParticles, inputFile)
-                                     : EvrardCollapseInputFileReader<Real>::loadCheckpoint(checkpointInput);
+    auto d = checkpointInput.empty() ? fileReader.readParticleDataFromBinFile(inputFilePath, nParticles)
+                                     : fileReader.readParticleDataFromCheckpointBinFile(checkpointInput);
+    const Printer<Dataset> printer(d);
 
-    Printer<Dataset> printer(d);
-    MasterProcessTimer timer(output, d.rank);
+    MasterProcessTimer timer(output, d.rank), totalTimer(output, d.rank);
 
     std::ofstream constantsFile("constants.txt");
 
@@ -50,6 +56,7 @@ int main(int argc, char **argv)
     const size_t ngmax = 150;
     TaskList taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
 
+    totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
         timer.start();
@@ -87,7 +94,7 @@ int main(int argc, char **argv)
         sph::updateSmoothingLength<Real>(taskList.tasks, d);
         timer.step("UpdateSmoothingLength"); // AllReduce(sum:ecin,ein)
 
-        size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
+        const size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
         if (d.rank == 0)
         {
             // printer.printRadiusAndGravityForce(domain.clist, fxFile);
@@ -98,12 +105,12 @@ int main(int argc, char **argv)
 
         if (writeFrequency > 0 && d.iteration % writeFrequency == 0)
         {
-            printer.printAllDataToFile(domain.clist, outDirectory + "dump" + std::to_string(d.iteration) + ".txt");
+            fileWriter.dumpParticleDataToAsciiFile(d, domain.clist, outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".txt");
             timer.step("writeFile");
         }
         if (checkpointFrequency > 0 && d.iteration % checkpointFrequency == 0)
         {
-            printer.printCheckpointToFile(outDirectory + "checkpoint" + std::to_string(d.iteration) + ".bin");
+            fileWriter.dumpCheckpointDataToBinFile(d, outDirectory + "checkpoint_evrard" + std::to_string(d.iteration) + ".bin");
             timer.step("Save Checkpoint File");
         }
 
@@ -112,6 +119,7 @@ int main(int argc, char **argv)
         if (d.rank == 0) printer.printTotalIterationTime(timer.duration(), output);
     }
 
+    totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Evrard Collapse");
     constantsFile.close();
 
 #ifdef USE_MPI
