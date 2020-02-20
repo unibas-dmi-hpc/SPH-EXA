@@ -160,7 +160,7 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
             // For time-step calculations
             const T wij = rv / dist;
             const T vijsignal = c[i] + c[j] - 3.0 * wij;
-            if(vijsignal > maxvsignali) maxvsignali = vijsignal;
+            if (vijsignal > maxvsignali) maxvsignali = vijsignal;
 
             const T grad_Px_AV = 0.5 * (m[i] / ro[i] * viscosity_ij * termA1_i + m[j] / ro[j] * viscosity_ij * termA1_j);
             const T grad_Py_AV = 0.5 * (m[i] / ro[i] * viscosity_ij * termA2_i + m[j] / ro[j] * viscosity_ij * termA2_j);
