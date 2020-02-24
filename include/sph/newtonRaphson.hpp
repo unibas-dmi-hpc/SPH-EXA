@@ -44,7 +44,7 @@ namespace sphexa
             {
                 const int i = clist[pi];
                 f = ballmass[i] / (h[i] * h[i] * h[i]) - ro[i];  // function we want to find the 0 of
-                fprime = - 3 * ballmass[i] / (h[i] * h[i] * h[i] * h[i]) - m[i] / xa[i] * sumwh[i];  // df/dh
+                fprime = - 3 * ballmass[i] / (h[i] * h[i] * h[i] * h[i]) - sumwh[i];  // df/dh
 
                 deltah = - f / fprime;
 

@@ -97,7 +97,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
             // general VE
             sumkx_loc += value * xa[j];
             // summation part of derivative of density wrt. h[i] (needed for NR)
-            sumwh_loc += xa[j] * value * (int)sincIndex * wharmonic_derivative(vloc) / h[i];
+            sumwh_loc += m[i] / xa[i] * xa[j] * value * (int)sincIndex * wharmonic_derivative(vloc) / h[i];
         }
 
         // ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);

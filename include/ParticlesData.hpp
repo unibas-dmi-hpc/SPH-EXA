@@ -63,7 +63,7 @@ struct ParticlesData
     const static T K;
 
     // general VE
-    constexpr static T veExp = 1.0;
+    constexpr static T veExp = 0.7;
 };
 
 template <typename T>

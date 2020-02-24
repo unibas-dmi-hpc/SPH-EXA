@@ -37,7 +37,12 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
 
         // also update VE estimator
 #ifdef SPHYNX_VE
-        xa[i] = pow(m[i] / ro[i], d.veExp);  // sphynx VE...
+        if (d.iteration >= 10) {
+            xa[i] = pow(m[i] / ro[i], d.veExp);  // sphynx VE...
+        }
+        else {
+            xa[i] = m[i];  // "normal VE"
+        }
 #else
         xa[i] = m[i];  // "normal VE"
 #endif
