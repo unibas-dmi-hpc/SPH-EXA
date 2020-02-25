@@ -64,6 +64,11 @@ struct ParticlesData
 
     // general VE
     constexpr static T veExp = 0.7;
+
+    // newton Raphson for h
+#ifdef DO_NEWTONRAPHSON
+    const static int starthNR = 10;
+#endif
 };
 
 template <typename T>

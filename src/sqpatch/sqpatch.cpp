@@ -65,7 +65,7 @@ int main(int argc, char **argv)
         timer.step("Density");
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
 #ifdef DO_NEWTONRAPHSON
-        if (d.iteration > 10) {
+        if (d.iteration > d.starthNR) {
             sph::newtonRaphson<Real>(taskList.tasks, d);
             timer.step("hNR");
             domain.synchronizeHalos(&d.h);  // synchronize h

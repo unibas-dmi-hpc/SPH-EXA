@@ -33,7 +33,7 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
         const int nn = neighborsCount[pi];
 
 #ifdef DO_NEWTONRAPHSON
-        if (d.iteration <= 10) { // only update it here if we are not doing NR yet. else it's done in the main loop for NR
+        if (d.iteration <= d.starthNR) { // only update it here if we are not doing NR yet. else it's done in the main loop for NR
             h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp); // update of smoothing length...
             ballmass[i] = ro[i] * h[i] * h[i] * h[i];
         }
@@ -42,7 +42,7 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
 #endif
         // also update VE estimator
 #ifdef SPHYNX_VE
-        if (d.iteration >= 10) {
+        if (d.iteration >= d.starthNR) {
             xa[i] = pow(m[i] / ro[i], d.veExp);  // sphynx VE...
         }
         else {
