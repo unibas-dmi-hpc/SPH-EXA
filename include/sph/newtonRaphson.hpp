@@ -28,12 +28,10 @@ namespace sphexa
             const size_t n = t.clist.size();
             const int *clist = t.clist.data();
 
-            const T *m = d.m.data();
 
             T *h = d.h.data();
-            T *ro = d.ro.data();
+            const T *ro = d.ro.data();
             // general VE
-            const T *xa = d.xa.data(); // the VE estimators. Only updated at end of iteration
             const T *sumwh = d.sumwh.data(); // the sum of Xmass weighted by the derivative of the kernel wrt. h
             const T *ballmass = d.ballmass.data();
 
@@ -50,11 +48,11 @@ namespace sphexa
 
                 if (abs(deltah / h[i]) < 0.2) {
                     h[i] += deltah;  // only update if smaller than 0.2...
-                    // but what happens if deltah is >= 0.2? As h doesn't change, sumwh, sumkx and thus the density
+                    // but what happens if deltah/h is >= 0.2? As h doesn't change, sumwh, sumkx and thus the density
                     // do not change in this entire timestep -> it won't get updated in any future NR iteration!
                 }
                 else {
-                    printf("h[%d] not updated (delta was %.3e)\n", i, deltah);
+//                    printf("h[%d] not updated (deltah/h was %.3f)\n", i, deltah / h[i]);
                 }
 
 #ifndef NDEBUG

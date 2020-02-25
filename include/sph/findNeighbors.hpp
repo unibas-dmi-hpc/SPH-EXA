@@ -13,10 +13,6 @@ void findNeighborsImpl(const Octree<T> &o, Task &t, Dataset &d)
 {
     const size_t n = t.clist.size();
 
-    const T *h = d.h.data();
-    const T *ro = d.ro.data();
-    T *ballmass = d.ballmass.data();
-
 #pragma omp parallel for schedule(guided)
     for (size_t pi = 0; pi < n; pi++)
     {
@@ -26,11 +22,6 @@ void findNeighborsImpl(const Octree<T> &o, Task &t, Dataset &d)
         o.findNeighbors(i, &d.x[0], &d.y[0], &d.z[0], d.x[i], d.y[i], d.z[i], 2.0 * d.h[i], t.ngmax, &t.neighbors[pi * t.ngmax],
                              t.neighborsCount[pi], d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz);
 
-#ifdef DO_NEWTONRAPHSON
-        if (d.iteration <= 10) {
-            ballmass[i] = ro[i] * h[i] * h[i] * h[i];
-        }
-#endif
 
 #ifndef NDEBUG
         if (t.neighborsCount[pi] == 0)

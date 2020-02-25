@@ -97,14 +97,12 @@ void computeDensityImpl(const Task &t, Dataset &d)
             // general VE
             sumkx_loc += value * xa[j];
             // summation part of derivative of density wrt. h[i] (needed for NR)
-            sumwh_loc += m[i] / xa[i] * xa[j] * value * (int)sincIndex * wharmonic_derivative(vloc) / h[i];
+            sumwh_loc += - xa[j] * value / h[i] * (3.0 + vloc * (int)sincIndex * wharmonic_derivative(vloc)); // updated 25.2.20
         }
 
-        // ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
-//        ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]); // old standard-sph density
         // general VE
         sumkx_loc += xa[i] * K / (h[i] * h[i] * h[i]);  // self contribution. no need for kernel (dist = 0 -> 1)
-//        sumwh_loc += xa[i] * 0.0; // self-contribution: is 0, right? because derivative is linear in v -> 0 at v = 0
+        sumwh_loc += - xa[i] * K / (h[i] * h[i] * h[i] * h[i]) * 3.0; // self-contribution
 
         vol[i] = xa[i] / sumkx_loc;  // calculate volume element
         // new density
@@ -112,7 +110,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
 //        double diff = roloc + m[i] * K / (h[i] * h[i] * h[i]) - ro[i];
 //        if (abs(diff) > 1.11e-16) printf("Roloc[%d] - ro[%d] = %.5e\n", i, i, diff);
         sumkx[i] = sumkx_loc;
-        sumwh[i] = sumwh_loc;
+        sumwh[i] = m[i] / xa[i] * sumwh_loc;
 
 #ifndef NDEBUG
         if (std::isnan(ro[i])) printf("ERROR::Density(%d) density %f, position: (%f %f %f), h: %f\n", i, ro[i], x[i], y[i], z[i], h[i]);

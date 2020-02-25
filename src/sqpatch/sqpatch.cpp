@@ -62,23 +62,24 @@ int main(int argc, char **argv)
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
         sph::computeDensity<Real>(taskList.tasks, d);  // initial guess for density...
+        timer.step("Density");
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
 #ifdef DO_NEWTONRAPHSON
-        if (d.iteration >= 10) {
-            timer.step("mpi::synchronizeHalos");
+        if (d.iteration > 10) {
             sph::newtonRaphson<Real>(taskList.tasks, d);
+            timer.step("hNR");
             domain.synchronizeHalos(&d.h);  // synchronize h
-            timer.step("mpi::synchronizeHalos");
+            timer.step("mpi::synchronizeHalos_hNR");
             for (int iterNR = 0; iterNR < 2; iterNR++) {
                 sph::computeDensity<Real>(taskList.tasks, d);
-                timer.step("mpi::synchronizeHalos");
+                timer.step("Density");
                 sph::newtonRaphson<Real>(taskList.tasks, d);
+                timer.step("hNR");
                 domain.synchronizeHalos(&d.h);  // synchronize h
-                timer.step("mpi::synchronizeHalos");
+                timer.step("mpi::synchronizeHalos_hNR");
             }
         }
 #endif
-        timer.step("Density");
         sph::computeEquationOfState<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
         domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c, &d.sumkx);  // also synchronize sumkx after density!
