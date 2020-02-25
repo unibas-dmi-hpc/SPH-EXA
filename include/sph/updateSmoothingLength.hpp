@@ -20,7 +20,7 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
 
     // general VE
     const T *m = d.m.data();
-    T *xa = d.xa.data();
+    T *xmass = d.xmass.data();
     const T *ro = d.ro.data();
     T *ballmass = d.ballmass.data();
 
@@ -43,13 +43,13 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
         // also update VE estimator
 #ifdef SPHYNX_VE
         if (d.iteration >= d.starthNR) {
-            xa[i] = pow(m[i] / ro[i], d.veExp);  // sphynx VE...
+            xmass[i] = pow(m[i] / ro[i], d.veExp);  // sphynx VE...
         }
         else {
-            xa[i] = m[i];  // "normal VE"
+            xmass[i] = m[i];  // "normal VE"
         }
 #else
-        xa[i] = m[i];  // "normal VE"
+        xmass[i] = m[i];  // "normal VE"
 #endif
 
 #ifndef NDEBUG

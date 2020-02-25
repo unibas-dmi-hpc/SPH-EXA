@@ -57,7 +57,7 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
 
     // general VE
     const T *sumkx = d.sumkx.data();
-    const T *xa = d.xa.data();
+    const T *xmass = d.xmass.data();
     const T *vol = d.vol.data();
 
 #if defined(USE_OMP_TARGET)
@@ -171,15 +171,15 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
             const T grad_Py_AV = 0.5 * (vol[i] / m[i] * m[j] * viscosity_ij * termA2_i + vol[j] * viscosity_ij * termA2_j);
             const T grad_Pz_AV = 0.5 * (vol[i] / m[i] * m[j] * viscosity_ij * termA3_i + vol[j] * viscosity_ij * termA3_j);
 
-            momentum_x += xa[i] / m[i] * xa[j] * (pro_i * termA1_i + pro_j * termA1_j) + grad_Px_AV; // cabezon2017 eq22
-            momentum_y += xa[i] / m[i] * xa[j] * (pro_i * termA2_i + pro_j * termA2_j) + grad_Py_AV;
-            momentum_z += xa[i] / m[i] * xa[j] * (pro_i * termA3_i + pro_j * termA3_j) + grad_Pz_AV;
+            momentum_x += xmass[i] / m[i] * xmass[j] * (pro_i * termA1_i + pro_j * termA1_j) + grad_Px_AV; // cabezon2017 eq22
+            momentum_y += xmass[i] / m[i] * xmass[j] * (pro_i * termA2_i + pro_j * termA2_j) + grad_Py_AV;
+            momentum_z += xmass[i] / m[i] * xmass[j] * (pro_i * termA3_i + pro_j * termA3_j) + grad_Pz_AV;
 
-            energy += xa[j] * pro_i * (v_ijx * termA1_i + v_ijy * termA2_i + v_ijz * termA3_i); // cabezon2017 eq 23
+            energy += xmass[j] * pro_i * (v_ijx * termA1_i + v_ijy * termA2_i + v_ijz * termA3_i); // cabezon2017 eq 23
             energyAV += grad_Px_AV * v_ijx + grad_Py_AV * v_ijy + grad_Pz_AV * v_ijz;  // cabezon2017 eq 23
         }
 
-        du[i] = xa[i] / m[i] * energy + 0.5 * energyAV; // cabezon2017 eq 32.
+        du[i] = xmass[i] / m[i] * energy + 0.5 * energyAV; // cabezon2017 eq 32.
         grad_P_x[i] = momentum_x;
         grad_P_y[i] = momentum_y;
         grad_P_z[i] = momentum_z;

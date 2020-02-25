@@ -53,7 +53,7 @@ int main(int argc, char **argv)
 
         domain.update(d);
         timer.step("domain::distribute");
-        domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.xa);  // also synchronize VE estimator xa!
+        domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.xmass);  // also synchronize VE estimator function xmass!
         timer.step("mpi::synchronizeHalos");
         domain.buildTree(d);
         timer.step("domain::buildTree");

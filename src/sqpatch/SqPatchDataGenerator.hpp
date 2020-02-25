@@ -129,9 +129,9 @@ public:
 
             // general VE
 #ifdef SPHYNX_VE
-            pd.xa[i] = pow(pd.m[i] / pd.ro[i], pd.veExp);  // sphynx VE...
+            pd.xmass[i] = pow(pd.m[i] / pd.ro[i], pd.veExp);  // sphynx VE...
 #else
-            pd.xa[i] = pd.m[i];  // "normal VE"
+            pd.xmass[i] = pd.m[i];  // "normal VE"
 #endif
         }
 
