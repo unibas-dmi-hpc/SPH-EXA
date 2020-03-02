@@ -38,6 +38,8 @@ struct ParticlesData
     std::vector<T> dt, dt_m1;
     std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T> maxvsignal;
+    std::vector<T> nn;                           // number of neighbors
+    std::vector<T> gradh;                        // gradh terms (omega)
 
     T ttot, etot, ecin, eint;
     T minDt;
@@ -47,7 +49,7 @@ struct ParticlesData
     std::vector<std::vector<T> *> data{&x,  &y,     &z,   &x_m1, &y_m1, &z_m1, &vx,       &vy,       &vz,        &ro, &ro_0,
                                        &u,  &p,     &p_0, &h,    &m,    &c,    &grad_P_x, &grad_P_y, &grad_P_z,  &du, &du_m1,
                                        &dt, &dt_m1, &c11, &c12,  &c13,  &c22,  &c23,      &c33,      &maxvsignal,
-                                       &vol, &xmass, &sumkx, &sumwh, &ballmass};
+                                       &vol, &xmass, &sumkx, &sumwh, &ballmass, &nn, &gradh};
 #ifdef USE_MPI
     MPI_Comm comm;
     int pnamelen = 0;

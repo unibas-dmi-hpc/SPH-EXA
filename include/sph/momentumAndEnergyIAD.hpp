@@ -22,9 +22,6 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
     const int *neighbors = t.neighbors.data();
     const int *neighborsCount = t.neighborsCount.data();
 
-    const T gradh_i = 1.0;
-    const T gradh_j = 1.0;
-
     const T *h = d.h.data();
     const T *m = d.m.data();
     const T *x = d.x.data();
@@ -60,6 +57,9 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
     const T *xmass = d.xmass.data();
     const T *vol = d.vol.data();
 
+    // gradh
+    const T *gradh = d.gradh.data();
+
 #if defined(USE_OMP_TARGET)
     // Apparently Cray with -O2 has a bug when calling target regions in a loop. (and computeMomentumAndEnergyIADImpl can be called in a
     // loop). A workaround is to call some method or allocate memory to either prevent buggy optimization or other side effect. with -O1
@@ -94,11 +94,15 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
         const int i = clist[pi];
         const int nn = neighborsCount[pi];
 
+        const T gradh_i = gradh[i];
+
         T maxvsignali = 0.0;
         T momentum_x = 0.0, momentum_y = 0.0, momentum_z = 0.0, energy = 0.0, energyAV = 0.0;
         for (int pj = 0; pj < nn; ++pj)
         {
             const int j = neighbors[pi * ngmax + pj];
+
+            const T gradh_j = gradh[j];
 
             T r_ijx = (x[i] - x[j]);
             T r_ijy = (y[i] - y[j]);

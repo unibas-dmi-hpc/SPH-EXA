@@ -33,16 +33,16 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
         const int nn = neighborsCount[pi];
 
 #ifdef DO_NEWTONRAPHSON
-        if (d.iteration <= d.starthNR) { // only update it here if we are not doing NR yet. else it's done in the main loop for NR
-            h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp); // update of smoothing length...
-            ballmass[i] = ro[i] * h[i] * h[i] * h[i];
+        if (d.iteration > d.starthNR) { // only update it here if we are not doing NR yet. else it's done in the main loop for NR. CORRECTION: sphynx does it only after we started NR for h, and not before!... Except for iter0 if nn > nnmax or < nnmin...
+            h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp); // update of smoothing length... Same as in sphynx... this is to adjust h such that nn gets closer to the target number of neighbors (ng0)
         }
+        ballmass[i] = ro[i] * h[i] * h[i] * h[i]; //this is also in the findneighbors of sphynx -> runs every iteration, not just if iter > startNR as it is in update of sphynx
 #else
         h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp); // update of smoothing length...
 #endif
         // also update VE estimator
 #ifdef SPHYNX_VE
-        if (d.iteration >= d.starthNR) {
+        if (d.iteration > d.starthNR - 5) { // now identical to sphynx update.f90 with volstdprom = false
             xmass[i] = pow(m[i] / ro[i], d.veExp);  // sphynx VE...
         }
         else {

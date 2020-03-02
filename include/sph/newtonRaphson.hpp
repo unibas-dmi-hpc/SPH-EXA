@@ -37,7 +37,7 @@ namespace sphexa
 
             T f, fprime, deltah;
 
-#pragma omp parallel for
+#pragma omp parallel for private(f, fprime, deltah)
             for (size_t pi = 0; pi < n; pi++)
             {
                 const int i = clist[pi];

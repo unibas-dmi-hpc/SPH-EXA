@@ -75,7 +75,8 @@ public:
                     dump << d.vx[i] << ' ' << d.vy[i] << ' ' << d.vz[i] << ' ';
                     dump << d.h[i] << ' ' << d.ro[i] << ' ' << d.u[i] << ' ' << d.p[i] << ' ' << d.c[i] << ' ';
                     dump << ' ' << d.grad_P_x[i] << ' ' << d.grad_P_y[i] << ' ' << d.grad_P_z[i] << ' ';
-                    dump << radius << ' ';
+                    dump << radius << ' ' << d.nn[i] << ' ' << d.sumkx[i] << ' ' << d.sumwh[i] << ' ';
+                    dump << d.xmass[i] << ' ' << d.gradh[i] << ' ' << d.ballmass[i] << ' ';
 #ifdef GRAVITY
                     dump << d.fx[i] << ' ' << d.fy[i] << ' ' << d.fz[i] << ' ' << d.ugrav[i] << ' ';
 #endif

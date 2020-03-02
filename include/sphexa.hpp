@@ -22,6 +22,7 @@
 #include "sph/findNeighbors.hpp"
 #include "sph/density.hpp"
 #include "sph/newtonRaphson.hpp"
+#include "sph/gradhTerms.hpp"
 #include "sph/IAD.hpp"
 #include "sph/momentumAndEnergyIAD.hpp"
 #include "sph/kernels.hpp"

@@ -60,6 +60,10 @@ int main(int argc, char **argv)
         taskList.update(domain.clist);
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
+        if (d.iteration == 0) { // todo: refactor this!
+            domain.synchronizeHalos(&d.h);
+            sph::findNeighbors(domain.octree, taskList.tasks, d);
+        }
         timer.step("FindNeighbors");
         sph::computeDensity<Real>(taskList.tasks, d);  // initial guess for density...
         timer.step("Density");
@@ -80,9 +84,11 @@ int main(int argc, char **argv)
             }
         }
 #endif
-        sph::computeEquationOfState<Real>(taskList.tasks, d);
+        sph::calcGradhTerms<Real>(taskList.tasks, d);
+        timer.step("calcGradhTerms");
+        sph::computeEquationOfStateSphynxWater<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
-        domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c, &d.sumkx);  // also synchronize sumkx after density!
+        domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c, &d.sumkx, &d.gradh);  // also synchronize sumkx after density!
         timer.step("mpi::synchronizeHalos");
         sph::computeIAD<Real>(taskList.tasks, d);
         timer.step("IAD");

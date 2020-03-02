@@ -12,6 +12,7 @@ template <typename T, class Dataset>
 void findNeighborsImpl(const Octree<T> &o, Task &t, Dataset &d)
 {
     const size_t n = t.clist.size();
+    T *nn = d.nn.data();
 
 #pragma omp parallel for schedule(guided)
     for (size_t pi = 0; pi < n; pi++)
@@ -27,6 +28,18 @@ void findNeighborsImpl(const Octree<T> &o, Task &t, Dataset &d)
         if (t.neighborsCount[pi] == 0)
             printf("ERROR::FindNeighbors(%d) x %f y %f z %f h = %f ngi %d\n", i, d.x[i], d.y[i], d.z[i], d.h[i], t.neighborsCount[pi]);
 #endif
+        nn[i] = t.neighborsCount[pi];
+        // todo: refactor this!
+        if (d.iteration == 0 && nn[i] < 100) {  // to mimimic sphinx first_feindneighbors.f90 with hardcoded minimum = 100 (need to run synHalos for h and find neighbors again!)
+
+            const T c0 = 7.0;
+            const T exp = 1.0 / 3.0;
+            const int ng0 = t.ng0;
+
+            T *h = d.h.data();
+
+            h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn[i]), exp); // update if not reached minimum number of neighbors
+        }
     }
 }
 
