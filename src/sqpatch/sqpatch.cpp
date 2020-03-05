@@ -61,7 +61,6 @@ int main(int argc, char **argv)
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         if (d.iteration == 0) { // todo: refactor this!
-            domain.synchronizeHalos(&d.h);
             sph::findNeighbors(domain.octree, taskList.tasks, d);
         }
         timer.step("FindNeighbors");
@@ -72,15 +71,11 @@ int main(int argc, char **argv)
         if (d.iteration > d.starthNR) {
             sph::newtonRaphson<Real>(taskList.tasks, d);
             timer.step("hNR");
-            domain.synchronizeHalos(&d.h);  // synchronize h
-            timer.step("mpi::synchronizeHalos_hNR");
             for (int iterNR = 0; iterNR < 2; iterNR++) {
                 sph::computeDensity<Real>(taskList.tasks, d);
                 timer.step("Density");
                 sph::newtonRaphson<Real>(taskList.tasks, d);
                 timer.step("hNR");
-                domain.synchronizeHalos(&d.h);  // synchronize h
-                timer.step("mpi::synchronizeHalos_hNR");
             }
         }
 #endif
@@ -88,7 +83,7 @@ int main(int argc, char **argv)
         timer.step("calcGradhTerms");
         sph::computeEquationOfStateSphynxWater<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
-        domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c, &d.sumkx, &d.gradh);  // also synchronize sumkx after density!
+        domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c, &d.sumkx, &d.gradh, &d.h);  // also synchronize sumkx after density! Synchronize also h for h[j] accesses in momentum and energy
         timer.step("mpi::synchronizeHalos");
         sph::computeIAD<Real>(taskList.tasks, d);
         timer.step("IAD");
