@@ -31,7 +31,8 @@ public:
 #ifdef GRAVITY
             out << d.egrav << ' ';
 #endif
-            out << nntot << ' ' << std::endl;
+            out << nntot << ' ' << d.ttot / d.tkh << ' ' << d.masscloud << ' ' << d.masscloud / d.masscloudinic << ' ';
+            out << std::endl;
             out.flush();
         }
     }

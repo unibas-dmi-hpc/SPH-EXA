@@ -121,6 +121,41 @@ void computeEquationOfStateSphynxWater(const std::vector<Task> &taskList, Datase
     }
 }
 
+template <typename T, class Dataset>
+void computeEquationOfStateWindblobImpl(const Task &t, Dataset &d)
+{
+    // this is the eos_u from sphynx (input is eint, not temperature) this is the same as sphynx evrard uses
+    // and the windblob instructions don't say to change it...
+    const size_t n = t.clist.size();
+    const int *clist = t.clist.data();
+
+    const T *ro = d.ro.data();
+
+    T *p = d.p.data();
+    T *c = d.c.data();
+    T *u = d.u.data();
+
+    const T gamma1 = 5.0/3.0 - 1.0;
+
+#pragma omp parallel for
+    for (size_t pi = 0; pi < n; pi++)
+    {
+        const int i = clist[pi];
+
+        p[i] = u[i] * ro[i] * gamma1;
+        c[i] = sqrt(gamma1 * u[i]);
+    }
+}
+
+template <typename T, class Dataset>
+void computeEquationOfStateWindblob(const std::vector<Task> &taskList, Dataset &d)
+{
+    for (const auto &task : taskList)
+    {
+        computeEquationOfStateWindblobImpl<T>(task, d);
+    }
+}
+
 template <typename T, typename Dataset>
 void computeEquationOfStateEvrardImpl(const Task &t, Dataset &d)
 {

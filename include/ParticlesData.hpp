@@ -44,6 +44,13 @@ struct ParticlesData
     T ttot, etot, ecin, eint;
     T minDt;
 
+    // for windblob
+    T masscloudinic;                             // to get initial mass of cloud
+    T masscloud;
+    T rocloud;
+    T uambient;
+    T tkh;
+
     BBox<T> bbox;
 
     std::vector<std::vector<T> *> data{&x,  &y,     &z,   &x_m1, &y_m1, &z_m1, &vx,       &vy,       &vz,        &ro, &ro_0,
