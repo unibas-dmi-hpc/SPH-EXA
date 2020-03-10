@@ -117,16 +117,6 @@ int main(int argc, char **argv)
         timer.step("UpdateSmoothingLength");
 
         size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
-        // stuff for windblob cloud tracking
-        // every rank only has up to date values for particles in it's domain (where kernel > 0)
-        double masscloud_loc = 0.0;
-        for (int i = 0; i < d.count; i++) {
-            if (d.ro[i] >= (0.64 * d.rocloud) && d.u[i] <= (0.9 * d.uambient)) { // todo confirm that these are the right indexes...
-                masscloud_loc += d.m[i];
-            }
-        }
-
-        MPI_Reduce(&masscloud_loc, &d.masscloud, 1, MPI_DOUBLE, MPI_SUM, 0, d.comm); // accumulate to dataset on rank0
 
         if (d.rank == 0)
         {

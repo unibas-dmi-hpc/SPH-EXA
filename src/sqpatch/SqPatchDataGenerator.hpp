@@ -140,6 +140,8 @@ public:
         pd.etot = pd.ecin = pd.eint = 0.0;
         pd.ttot = 0.0;
 
+        pd.masscloudinic = 1.0; // just to avoid risk of division by zero in printer. todo: refactor (how to better deal with test case specific data?)
+
         if (pd.rank == 0 && 2.0 * pd.h[0] > (pd.bbox.zmax - pd.bbox.zmin) / 2.0)
         {
             printf("ERROR::SqPatch::init()::SmoothingLength (%.2f) too large (%.2f) (n too small?)\n", pd.h[0],

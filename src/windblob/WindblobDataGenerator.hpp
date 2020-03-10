@@ -106,7 +106,7 @@ namespace sphexa
 
             double masscloudinic_loc = 0.0; // initial cloud mass
 
-#pragma omp parallel for
+#pragma omp parallel for reduction(+: masscloudinic_loc)
             for (size_t i = 0; i < pd.count; i++)
             {
                 pd.x[i] = pd.x[i];
@@ -120,7 +120,8 @@ namespace sphexa
                 pd.m[i] = 1.99915e-08;
                 if (pd.ro[i] > 2.0) { // condition taken from sphynx manual pdf
                     masscloudinic_loc += pd.m[i];
-                }                pd.du[i] = pd.du_m1[i] = 0.0;
+                }
+                pd.du[i] = pd.du_m1[i] = 0.0;
                 pd.dt[i] = pd.dt_m1[i] = firstTimeStep;
                 pd.minDt = firstTimeStep;
 
@@ -139,7 +140,7 @@ namespace sphexa
             }
 
             double masscloudinic = 0.0;
-            MPI_Reduce(&masscloudinic_loc, &masscloudinic, 1, MPI_DOUBLE, MPI_SUM, 0, pd.comm); // accumulate to rank0
+            MPI_Allreduce(&masscloudinic_loc, &masscloudinic, 1, MPI_DOUBLE, MPI_SUM, pd.comm);
 
             pd.masscloudinic = masscloudinic;
             pd.uambient = 0.5; // are these correct? depend on input file, I copied them from sphynx example!
