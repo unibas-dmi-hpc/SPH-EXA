@@ -97,7 +97,7 @@ public:
         return;
     }
 
-    void buildTree(Dataset &d)
+  void buildTree(Dataset &d)
     {
         // Finally remap everything
         std::vector<int> ordering(d.x.size());

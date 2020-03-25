@@ -122,7 +122,7 @@ struct EvrardCollapseMPIInputFileReader : EvrardCollapseInputFileReader<Dataset>
         try
         {
             fileutils::readParticleDataFromBinFileWithMPI(path, d, d.x, d.y, d.z, d.vx, d.vy, d.vz, d.ro, d.u, d.p, d.h, d.m);
-            printf("Loaded input file with %lu particles for Evrard Collapse from path '%s'... ", d.n, path.c_str());
+            if (d.rank == 0) printf("Loaded input file with %lu particles for Evrard Collapse from path '%s' \n", d.n, path.c_str());
         }
         catch (MPIFileNotOpenedException &ex)
         {
@@ -134,6 +134,7 @@ struct EvrardCollapseMPIInputFileReader : EvrardCollapseInputFileReader<Dataset>
 
         return d;
     }
+
     Dataset readParticleDataFromCheckpointBinFile(const std::string &path) const override
     {
         Dataset d;
@@ -141,11 +142,10 @@ struct EvrardCollapseMPIInputFileReader : EvrardCollapseInputFileReader<Dataset>
 
         try
         {
-            fileutils::readParticleCheckpointDataFromBinFileWithMPI(path, d, d.x, d.y, d.z, d.vx, d.vy, d.vz, d.ro, d.u, d.p,
-                                                                    d.h, d.m, d.temp, d.mue, d.mui, d.du, d.du_m1, d.dt, d.dt_m1,
-                                                                    d.x_m1, d.y_m1, d.z_m1);
-            printf("Loaded checkpoint file with %lu particles for Evrard Collapse from path '%s'... ", d.n, path.c_str());
-
+            fileutils::readParticleCheckpointDataFromBinFileWithMPI(path, d, d.x, d.y, d.z, d.vx, d.vy, d.vz, d.ro, d.u, d.p, d.h, d.m,
+                                                                    d.temp, d.mue, d.mui, d.du, d.du_m1, d.dt, d.dt_m1, d.x_m1, d.y_m1,
+                                                                    d.z_m1);
+            if (d.rank == 0) printf("Loaded checkpoint file with %lu particles for Evrard Collapse from path '%s'\n", d.n, path.c_str());
         }
         catch (MPIFileNotOpenedException &ex)
         {

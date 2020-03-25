@@ -1,7 +1,9 @@
 #pragma once
 
 #include <cmath>
-#include <iomanip>
+#include <map>
+#include <mutex>
+#include <unordered_set>
 
 #include "../Octree.hpp"
 
@@ -11,50 +13,59 @@ namespace sph
 {
 
 constexpr static double gravityTolerance = 0.5;
+std::mutex mtx;
+
+using RankToParticles = std::map<int, std::unordered_set<int>>;
 
 template <typename T>
-void treeWalkRef(const Octree<T> &node, const int i, const T *x, const T *y, const T *z, const T *h, const T *m, T *fx, T *fy, T *fz,
-                 T *ugrav)
+void treeWalkRef(const Octree<T> &node, const int i, const T *xi, const T *yi, const T *zi, const T *hi, const T *hj, const T *mj, T *fx,
+                 T *fy, T *fz, T *ugrav, RankToParticles &particlesForRemoteGravCalculations)
 {
     const auto gnode = dynamic_cast<const GravityOctree<T> &>(node);
 
-    if (gnode.plist.empty()) return; // skip empty nodes
+    // Skip empty treenodes that are not part of global tree
+    // Carefull! empty global tree nodes cannot be skipped. They are used to fill RankToParticles map used later in remote grav calculations
+    if (gnode.particleIdxList.empty() && !gnode.global) return;
 
-    const T d1 = std::abs(x[i] - gnode.xce);
-    const T d2 = std::abs(y[i] - gnode.yce);
-    const T d3 = std::abs(z[i] - gnode.zce);
-    const T dc = 4.0 * h[i] + gnode.dx / 2.0;
+    const T d1 = std::abs(xi[i] - gnode.xce);
+    const T d2 = std::abs(yi[i] - gnode.yce);
+    const T d3 = std::abs(zi[i] - gnode.zce);
+    const T dc = 4.0 * hi[i] + gnode.dx / 2.0;
 
     if (d1 <= dc && d2 <= dc && d3 <= dc) // intersecting
     {
         if (gnode.dx == 0) // node is a leaf
         {
+            // If tree node assignee is -1 it means that this tree node is shared across a few computing nodes.
+            // uncomment the if below if you want to skip calculating gravity contribution of this nodes
+            // if (gnode.assignee == -1) return;
+
             const auto j = gnode.particleIdx;
 
-            if (i != j) // skip calculating gravity contribution of myself
-            // if (!(x[i] == gnode.xce && y[i] == gnode.yce && z[i] == gnode.zce))
+            // if (i != j) // skip calculating gravity contribution of myself
+            if (!(xi[i] == gnode.xce && yi[i] == gnode.yce && zi[i] == gnode.zce))
             {
                 const T dd2 = d1 * d1 + d2 * d2 + d3 * d3;
                 const T dd5 = std::sqrt(dd2);
 
                 T g0;
 
-                if (dd5 > 2.0 * h[i] && dd5 > 2.0 * h[j]) { g0 = 1.0 / dd5 / dd2; }
+                if (dd5 > 2.0 * hi[i] && dd5 > 2.0 * hj[j]) { g0 = 1.0 / dd5 / dd2; }
                 else
                 {
-                    const T hij = h[i] + h[j];
+                    const T hij = hi[i] + hj[j];
                     const T vgr = dd5 / hij;
                     const T mefec = std::min(1.0, vgr * vgr * vgr);
                     g0 = mefec / dd5 / dd2;
                 }
-                const T r1 = x[i] - gnode.xcm;
-                const T r2 = y[i] - gnode.ycm;
-                const T r3 = z[i] - gnode.zcm;
+                const T r1 = xi[i] - gnode.xcm;
+                const T r2 = yi[i] - gnode.ycm;
+                const T r3 = zi[i] - gnode.zcm;
 
-                fx[i] -= g0 * r1 * m[j];
-                fy[i] -= g0 * r2 * m[j];
-                fz[i] -= g0 * r3 * m[j];
-                ugrav[i] += g0 * dd2 * m[j];
+                fx[i] -= g0 * r1 * mj[j];
+                fy[i] -= g0 * r2 * mj[j];
+                fz[i] -= g0 * r3 * mj[j];
+                ugrav[i] += g0 * dd2 * mj[j];
 #ifndef NDEBUG
                 if (std::isnan(fx[i])) printf("i=%d fx[i]=%.15f, g0=%f\n", i, fx[i], g0);
 #endif
@@ -64,19 +75,30 @@ void treeWalkRef(const Octree<T> &node, const int i, const T *x, const T *y, con
         {
             for (const auto &child : gnode.cells) // go deeper to the childs
             {
-                treeWalkRef(*child, i, x, y, z, h, m, fx, fy, fz, ugrav);
+                if (child->global && child->assignee != child->comm_rank && child->assignee != -1)
+                {
+                    std::lock_guard<std::mutex> l(mtx);
+                    particlesForRemoteGravCalculations[child->assignee].insert(i);
+                    continue;
+                }
+
+                treeWalkRef(*child, i, xi, yi, zi, hi, hj, mj, fx, fy, fz, ugrav, particlesForRemoteGravCalculations);
             }
         }
     }
     else // not intersecting
     {
-        const T r1 = x[i] - gnode.xcm;
-        const T r2 = y[i] - gnode.ycm;
-        const T r3 = z[i] - gnode.zcm;
+        const T r1 = xi[i] - gnode.xcm;
+        const T r2 = yi[i] - gnode.ycm;
+        const T r3 = zi[i] - gnode.zcm;
         const T dd2 = r1 * r1 + r2 * r2 + r3 * r3;
 
         if (gnode.dx * gnode.dx <= gravityTolerance * dd2)
         {
+            // If tree node assignee is -1 it means that this tree node is shared across a few computing nodes.
+            // uncomment the if below if you want to skip calculating gravity contribution of this nodes
+            // if (gnode.assignee == -1) return;
+
             const T dd5 = sqrt(dd2);
             const T d32 = 1.0 / dd5 / dd2;
 
@@ -85,13 +107,13 @@ void treeWalkRef(const Octree<T> &node, const int i, const T *x, const T *y, con
             if (gnode.dx == 0) // node is a leaf
             {
                 const int j = gnode.particleIdx;
-                const T v1 = dd5 / h[i];
-                const T v2 = dd5 / h[j];
+                const T v1 = dd5 / hi[i];
+                const T v2 = dd5 / hj[j];
 
                 if (v1 > 2.0 && v2 > 2.0) { g0 = gnode.mTot * d32; }
                 else
                 {
-                    const T hij = h[i] + h[j];
+                    const T hij = hi[i] + hj[j];
                     const T vgr = dd5 / hij;
                     const T mefec = std::min(1.0, vgr * vgr * vgr);
                     g0 = mefec * d32 * gnode.mTot;
@@ -152,47 +174,58 @@ void treeWalkRef(const Octree<T> &node, const int i, const T *x, const T *y, con
         {
             for (const auto &child : gnode.cells) // go deeper to the childs
             {
-                treeWalkRef(*child, i, x, y, z, h, m, fx, fy, fz, ugrav);
+                if (child->global && child->assignee != child->comm_rank && child->assignee != -1)
+                {
+                    std::lock_guard<std::mutex> l(mtx);
+                    particlesForRemoteGravCalculations[child->assignee].insert(i);
+                    continue;
+                }
+
+                treeWalkRef(*child, i, xi, yi, zi, hi, hj, mj, fx, fy, fz, ugrav, particlesForRemoteGravCalculations);
             }
         }
     }
 }
 
-
 template <typename T, typename Dataset>
-void gravityTreeWalkImpl(const Task &t, const GravityOctree<T> &tree, Dataset &d)
+void gravityTreeWalkImpl(const Task &t, const GravityOctree<T> &tree, Dataset &d, RankToParticles &particlesForRemoteGravCalculations)
 {
     const size_t n = t.clist.size();
     const int *clist = t.clist.data();
-    const T *x = d.x.data();
-    const T *y = d.y.data();
-    const T *z = d.z.data();
-    const T *h = d.h.data();
-    const T *m = d.m.data();
+    const T *xi = d.x.data();
+    const T *yi = d.y.data();
+    const T *zi = d.z.data();
+    const T *hi = d.h.data();
+
+    const T *hj = d.h.data();
+    const T *mj = d.m.data();
 
     T *fx = d.fx.data();
     T *fy = d.fy.data();
     T *fz = d.fz.data();
     T *ugrav = d.ugrav.data();
 
-
-#pragma omp parallel for schedule(guided, 10)
+#pragma omp parallel for schedule(guided)
     for (size_t pi = 0; pi < n; ++pi)
     {
         const int i = clist[pi];
         fx[i] = fy[i] = fz[i] = ugrav[i] = 0.0;
 
-	treeWalkRef(tree, i, x, y, z, h, m, fx, fy, fz, ugrav);
+        treeWalkRef(tree, i, xi, yi, zi, hi, hj, mj, fx, fy, fz, ugrav, particlesForRemoteGravCalculations);
     }
 }
 
 template <typename T, class Dataset>
-void gravityTreeWalk(const std::vector<Task> &taskList, const GravityOctree<T> &tree, Dataset &d)
+RankToParticles gravityTreeWalk(const std::vector<Task> &taskList, const GravityOctree<T> &tree, Dataset &d)
 {
+    RankToParticles particlesForRemoteGravCalculations;
+
     for (const auto &task : taskList)
     {
-        gravityTreeWalkImpl<T>(task, tree, d);
+        gravityTreeWalkImpl<T>(task, tree, d, particlesForRemoteGravCalculations);
     }
+
+    return particlesForRemoteGravCalculations;
 }
 
 } // namespace sph

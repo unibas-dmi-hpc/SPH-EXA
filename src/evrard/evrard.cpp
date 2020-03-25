@@ -9,13 +9,14 @@ using namespace sphexa;
 
 int main(int argc, char **argv)
 {
-    ArgParser parser(argc, argv);
+    const ArgParser parser(argc, argv);
 
     const size_t maxStep = parser.getInt("-s", 10);
     const size_t nParticles = parser.getInt("-n", 65536);
     const int writeFrequency = parser.getInt("-w", -1);
     const int checkpointFrequency = parser.getInt("-c", -1);
     const bool quiet = parser.exists("--quiet");
+    const bool timeRemoteGravitySteps = parser.exists("--timeRemoteGravity");
     const std::string checkpointInput = parser.getString("--cinput");
     const std::string inputFilePath = parser.getString("--input", "bigfiles/Test3DEvrardRel.bin");
     const std::string outDirectory = parser.getString("--outDir");
@@ -40,36 +41,52 @@ int main(int argc, char **argv)
 
     auto d = checkpointInput.empty() ? fileReader.readParticleDataFromBinFile(inputFilePath, nParticles)
                                      : fileReader.readParticleDataFromCheckpointBinFile(checkpointInput);
+
     const Printer<Dataset> printer(d);
 
     MasterProcessTimer timer(output, d.rank), totalTimer(output, d.rank);
 
     std::ofstream constantsFile("constants.txt");
+    std::ofstream treeFile("tree.txt");
 
     Tree::bucketSize = 1;
-    Tree::minGlobalBucketSize = 1;
-    Tree::maxGlobalBucketSize = 1;
+    Tree::minGlobalBucketSize = 512;
+    Tree::maxGlobalBucketSize = 2048;
+    // Tree::minGlobalBucketSize = 1;
+    // Tree::maxGlobalBucketSize = 1;
+
     domain.create(d);
 
     const size_t nTasks = 64;
     const size_t ng0 = 100;
     const size_t ngmax = 150;
     TaskList taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
+    using namespace std::chrono_literals;
 
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
         timer.start();
         domain.update(d);
-        timer.step("domain::distribute");
+        timer.step("domain::update");
         domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.m);
         timer.step("mpi::synchronizeHalos");
         domain.buildTree(d);
         timer.step("BuildTree");
+        domain.octree.buildGlobalGravityTree(d.x, d.y, d.z, d.m);
+        timer.step("BuildGlobalGravityTree");
         taskList.update(domain.clist);
         timer.step("updateTasks");
-        sph::gravityTreeWalk(taskList.tasks, domain.octree, d);
-        timer.step("Gravity");
+        auto rankToParticlesForRemoteGravCalculations = sph::gravityTreeWalk(taskList.tasks, domain.octree, d);
+        timer.step("Gravity (self)");
+        sph::remoteGravityTreeWalks<Real>(domain.octree, d, rankToParticlesForRemoteGravCalculations, timeRemoteGravitySteps);
+        timer.step("Gravity (remote contributions)");
+#ifdef USE_MPI
+        // This barrier is only just to check how imbalanced gravity is.
+        // Can be removed safely if not needed.
+        MPI_Barrier(d.comm);
+        timer.step("Gravity (remote contributions) Barrier");
+#endif
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
         sph::computeDensity<Real>(taskList.tasks, d);
@@ -103,7 +120,7 @@ int main(int argc, char **argv)
             printer.printConstants(d.iteration, totalNeighbors, constantsFile);
         }
 
-        if (writeFrequency > 0 && d.iteration % writeFrequency == 0)
+        if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
             fileWriter.dumpParticleDataToAsciiFile(d, domain.clist, outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".txt");
             timer.step("writeFile");
@@ -120,6 +137,7 @@ int main(int argc, char **argv)
     }
 
     totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Evrard Collapse");
+
     constantsFile.close();
 
 #ifdef USE_MPI
