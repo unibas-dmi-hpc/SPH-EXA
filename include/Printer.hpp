@@ -1,5 +1,7 @@
 #pragma once
 
+#include <iomanip>
+
 namespace sphexa
 {
 
@@ -17,9 +19,9 @@ public:
             out << std::sqrt(d.x[i] * d.x[i] + d.y[i] * d.y[i] + d.z[i] * d.z[i]) << ' ' << d.x[i] << ' ' << d.y[i] << ' ' << d.z[i] << ' '
                 << d.fx[i] << ' ' << d.fy[i] << ' ' << d.fz[i] << std::endl;
         }
-
-        void printTree(GravityOctree<double> &octree, std::ostream &out) { octree.print(out); }
     */
+    void printTree(GravityOctree<double> &octree, std::ostream &out) { octree.print(); }
+
     void printConstants(const int iteration, const int nntot, std::ostream &out) const
     {
         if (d.rank == 0)
@@ -48,7 +50,9 @@ public:
         out << "### Check ### Total time: " << d.ttot << ", current time-step: " << d.minDt << std::endl;
         out << "### Check ### Total energy: " << d.etot << ", (internal: " << d.eint << ", cinetic: " << d.ecin;
 #ifdef GRAVITY
-        out << ", gravitational: " << d.egrav;
+        const std::streamsize defaultPrecision = std::cout.precision();
+        const std::streamsize gravityPrecision = 15;
+        out << ", gravitational: " << std::setprecision(gravityPrecision) << d.egrav << std::setprecision(defaultPrecision);
 #endif
         out << ")" << std::endl;
     }

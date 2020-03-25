@@ -30,3 +30,4 @@
 #include "sph/totalEnergy.hpp"
 #include "sph/updateSmoothingLength.hpp"
 #include "sph/gravityTreeWalk.hpp"
+#include "sph/gravityTreeWalkForRemoteParticles.hpp"
