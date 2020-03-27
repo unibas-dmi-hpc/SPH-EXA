@@ -47,29 +47,11 @@ Main -[#SeaGreen]> DistributedDomain: <color:#SeaGreen>buildTree</color>
 note right
 Recursive calls with OpenMP tasks. Complexity N*log(N)
 end note
-Main -[#SeaGreen]> DistributedDomain: <color:#SeaGreen>buildGravityTree</color>
-note right
-MPI_Allreduce in a global part of Octree.
-end note
-== Global Barrier MPI_Allreduce == 
-
-loop over particles (n times)
-Main -[#SeaGreen]> DistributedDomain: <color:#SeaGreen>gravityTreewalk</color>
-note right
-OpenMP parallel for
-end note
-end
-loop over particles (n times)
-Main -[#SeaGreen]> DistributedDomain: <color:#SeaGreen>remoteGravityTreewalks</color>
-note right
-OpenMP parallel for
-end note
-end
 
 loop over particles (n times)
 Main -[#SeaGreen]> DistributedDomain: <color:#SeaGreen>findNeighbors</color>
 note right
-Complexity N*log(N)
+~10% of iteration time. Complexity N*log(N)
 OpenMP parallel for
 end note
 end
@@ -77,7 +59,7 @@ end
 loop over particles (n times)
 Main -[#LightSeaGreen]> SPH: <color:#LightSeaGreen>computeDensity</color>
 note right
-Complexity O(N * M)
+~10% of iteration time. Complexity O(N * M)
 Models: CUDA, Parallel for with OpenMP, OpenMP+target, OpenACC.
 end note
 end
@@ -99,7 +81,7 @@ deactivate DistributedDomain
 loop over particles (n times)
 Main -[#LightSeaGreen]> SPH: <color:#LightSeaGreen>computeIAD</color>
 note right
-Complexity O(N * M)
+~30% of iteration time. Complexity O(N * M)
 Models: CUDA, Parallel for with OpenMP, OpenMP+target, OpenACC.
 end note
 end
@@ -113,7 +95,7 @@ deactivate DistributedDomain
 loop over particles (n times)
 Main -[#LightSeaGreen]> SPH: <color:#LightSeaGreen>computeMomentumAndEnergy</color>
 note right
-Complexity O(N * M)
+~40% of iteration time. Complexity O(N * M)
 Models: CUDA, Parallel for with OpenMP, OpenMP+target, OpenACC.
 end note
 end
