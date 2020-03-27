@@ -26,7 +26,7 @@ The parallelism is currently expressed via following models: MPI, OpenMP, OpenMP
 
 [Check our wiki for more details](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/wiki)
 
-#### Code structure
+#### Folder structure
 
 ```
 SPH-EXA
