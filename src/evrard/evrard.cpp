@@ -7,9 +7,19 @@
 
 using namespace sphexa;
 
+void printHelp(char *binName, int rank);
+
 int main(int argc, char **argv)
 {
+    const int rank = initAndGetRankId();
+
     const ArgParser parser(argc, argv);
+
+    if (parser.exists("-h") || parser.exists("--h") || parser.exists("-help") || parser.exists("--help"))
+    {
+        printHelp(argv[0], rank);
+        return exitSuccess();
+    }
 
     const size_t maxStep = parser.getInt("-s", 10);
     const size_t nParticles = parser.getInt("-n", 65536);
@@ -29,7 +39,6 @@ int main(int argc, char **argv)
     using Tree = GravityOctree<Real>;
 
 #ifdef USE_MPI
-    MPI_Init(NULL, NULL);
     DistributedDomain<Real, Dataset, Tree> domain;
     const IFileReader<Dataset> &fileReader = EvrardCollapseMPIInputFileReader<Dataset>();
     const IFileWriter<Dataset> &fileWriter = EvrardCollapseMPIFileWriter<Dataset>();
@@ -46,8 +55,7 @@ int main(int argc, char **argv)
 
     MasterProcessTimer timer(output, d.rank), totalTimer(output, d.rank);
 
-    std::ofstream constantsFile("constants.txt");
-    std::ofstream treeFile("tree.txt");
+    std::ofstream constantsFile(outDirectory + "constants.txt");
 
     Tree::bucketSize = 1;
     Tree::minGlobalBucketSize = 512;
@@ -140,9 +148,28 @@ int main(int argc, char **argv)
 
     constantsFile.close();
 
-#ifdef USE_MPI
-    MPI_Finalize();
-#endif
+    return exitSuccess();
+}
 
-    return 0;
+void printHelp(char *name, int rank)
+{
+    if (rank == 0)
+    {
+        printf("\nUsage:\n\n");
+        printf("%s [OPTIONS]\n", name);
+        printf("\nWhere possible options are:\n");
+        printf("\t-n NUM \t\t\t NUM Number of particles\n");
+        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps)\n");
+        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps)\n");
+        printf("\t-c NUM \t\t\t Create checkpoint every NUM iterations (time-steps)\n\n");
+
+        printf("\t--quiet \t\t Don't print anything to stdout\n");
+        printf("\t--timeRemoteGravity \t Print times of gravity treewalk steps for each node\n\n");
+
+        printf("\t--input PATH \t\t Path to input file\n");
+        printf("\t--cinput PATH \t\t Path to checkpoint input file\n");
+        printf("\t--outDir PATH \t\t Path to directory where output will be saved.\
+                    \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
+                    \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n");
+    }
 }

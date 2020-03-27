@@ -21,7 +21,7 @@ public:
         return def;
     }
 
-    int getInt(const std::string &option, const int def = 0) const 
+    int getInt(const std::string &option, const int def = 0) const
     {
         char **itr = std::find(begin, end, option);
         if (itr != end && ++itr != end) return (int)std::stof(*itr);

@@ -10,10 +10,10 @@
 #include "BBox.hpp"
 #include "Task.hpp"
 #include "ArgParser.hpp"
-#include "config.hpp"
 #include "Timer.hpp"
 #include "FileUtils.hpp"
 #include "Printer.hpp"
+#include "utils.hpp"
 
 #if defined(USE_CUDA)
 #include "sph/cuda/sph.cuh"
