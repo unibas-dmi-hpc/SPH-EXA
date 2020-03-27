@@ -24,9 +24,23 @@ Therefore, the goal is to extrapolate their common basic SPH features, which are
 SPH-EXA mini-app is a C++14 headers-only code with no external software dependencies. 
 The parallelism is currently expressed via following models: MPI, OpenMP, OpenMP4.5 target offloading, OpenACC and CUDA.
 
-You can use the following commands to compile and run the SquarePatch example:
+[Check our wiki for more details](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/wiki)
 
+#### Code structure
+
+```
+SPH-EXA
+|   README.md
+└───include/        - folder containing all sph functions,
+|                     utilities and helpers that are shared between all test cases.
+└───src/            - folder containing test cases
+    └───testcase/   - folder containing test case main function and 
+                      other test case specific functions, 
+                      like reading input data from the file
+```
 #### Compile
+
+Use the following commands to compile and run the SquarePatch example:
 
 * OpenMP: ```make omp```
 * OpenMP + CUDA: ```make omp+cuda```
@@ -41,7 +55,7 @@ Compiled binaries are placed in bin/ in the project root folder.
 
 To run the SPH-EXA type ```shell bin/{compiled_parallel_model}.app arguments```
 
-Possible arguments:  
+Possible arguments for the Square Patch test case:  
 * ```-n NUM``` : Run the simulation with NUM^3 (NUM to the cube) number of particles  
 * ```-s NUM``` : Run the simulation with NUM of iterations (time-steps)  
 * ```-w NUM``` : Dump particle data every NUM iterations (time-steps)  
