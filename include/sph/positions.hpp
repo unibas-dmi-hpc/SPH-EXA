@@ -41,6 +41,9 @@ void computePositionsImpl(const Task &t, Dataset &d)
 
     const T *dt = d.dt.data();
     const T *du = d.du.data();
+    const T *du_av = d.du_av.data();
+    const T *du_m1 = d.du_m1.data();
+    const T *du_av_m1 = d.du_av_m1.data();
 
     T *x = d.x.data();
     T *y = d.y.data();
@@ -52,7 +55,6 @@ void computePositionsImpl(const Task &t, Dataset &d)
     T *y_m1 = d.y_m1.data();
     T *z_m1 = d.z_m1.data();
     T *u = d.u.data();
-    T *du_m1 = d.du_m1.data();
     T *dt_m1 = d.dt_m1.data();
 
     const BBox<T> &bbox = d.bbox;
@@ -65,8 +67,8 @@ void computePositionsImpl(const Task &t, Dataset &d)
         std::tie(ax, ay, az) = accelFunct(i, d);
 
 #ifndef NDEBUG
-        if (std::isnan(ax) || std::isnan(ay) || std::isnan(az))
-            printf("ERROR::UpdateQuantities(%d) acceleration: (%f %f %f)\n", i, ax, ay, az);
+        if (std::isnan(ax) || std::isinf(ax) || std::isnan(ay) || std::isinf(ay) || std::isnan(az) || std::isinf(az))
+            printf("ERROR::UpdateQuantities(%d) acceleration: (%f %f %f)\n", int(d.id[i]), ax, ay, az);
 #endif
 
         // Update positions according to Press (2nd order)
@@ -129,16 +131,16 @@ void computePositionsImpl(const Task &t, Dataset &d)
         deltaA = 0.5 * dt[i] * dt[i] / dt_m1[i];
         deltaB = dt[i] + deltaA;
 
-        u[i] += du[i] * deltaB - du_m1[i] * deltaA;
+        u[i] += (du[i] + du_av[i]) * deltaB - (du_m1[i] + du_av_m1[i]) * deltaA; // same as sphynx...
 
 #ifndef NDEBUG
-        if (std::isnan(u[i]))
-            printf("ERROR::UpdateQuantities(%d) internal energy: u %f du %f dB %f du_m1 %f dA %f\n", i, u[i], du[i], deltaB, du_m1[i],
-                   deltaA);
+        if ((d.writeErrorOnNegU && u[i] < 0) || std::isnan(u[i]) || std::isinf(u[i]))
+            printf("ERROR::UpdateQuantities(%d) internal energy: u %f du %f du_av %f dB %e du_m1 %f du_av_m1 %f dA %e dt %e dt_m1 %e\n",
+                   int(d.id[i]), u[i], du[i], du_av[i], deltaB, du_m1[i], du_av_m1[i], deltaA, dt[i], dt_m1[i]);
 #endif
 
-        du_m1[i] = du[i];
-        dt_m1[i] = dt[i];
+        // moved saving of values of old iteration to where the new iteration's value is updated
+        // to keep the previous one in the dumps at end of iteration
     }
 }
 

@@ -71,6 +71,8 @@ public:
                 {
                     const int i = clist[pi];
                     // const int nn = d.neighborsCount[pi];
+                    // note: dt_m1[i] is already overwritten with the current dt[i] (in positions.hpp)!
+                    // same for du_m1[i]
                     const double radius = std::sqrt(d.x[i] * d.x[i] + d.y[i] * d.y[i] + d.z[i] * d.z[i]);
                     dump << d.x[i] << ' ' << d.y[i] << ' ' << d.z[i] << ' ';
                     dump << d.vx[i] << ' ' << d.vy[i] << ' ' << d.vz[i] << ' ';
@@ -78,6 +80,15 @@ public:
                     dump << ' ' << d.grad_P_x[i] << ' ' << d.grad_P_y[i] << ' ' << d.grad_P_z[i] << ' ';
                     dump << radius << ' ' << d.nn[i] << ' ' << d.sumkx[i] << ' ' << d.sumwh[i] << ' ';
                     dump << d.xmass[i] << ' ' << d.gradh[i] << ' ' << d.ballmass[i] << ' ';
+#ifndef NDEBUG
+                    dump << d.du[i] << ' ' << d.du_m1[i] << ' ' << d.du_av[i] << ' ' << d.du_av_m1[i] << ' ';
+                    dump << d.dt[i] << ' ' << d.dt_m1[i] << ' ';
+                    dump << d.maxvsignal[i] << ' ';
+                    dump << d.c11[i] << ' ' << d.c12[i] << ' ' << d.c13[i] << ' ';
+                    dump << d.c22[i] << ' ' << d.c23[i] << ' ';
+                    dump << d.c33[i] << ' ';
+                    dump << int(d.id[i]) << ' ';
+#endif
 #ifdef GRAVITY
                     dump << d.fx[i] << ' ' << d.fy[i] << ' ' << d.fz[i] << ' ' << d.ugrav[i] << ' ';
 #endif

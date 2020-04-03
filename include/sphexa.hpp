@@ -6,6 +6,10 @@
 #include "mpiFileUtils.hpp"
 #endif
 
+#ifndef NDEBUG
+#include "debugUtils.hpp"
+#endif
+
 #include "Domain.hpp"
 #include "Octree.hpp"
 #include "BBox.hpp"
@@ -16,6 +20,8 @@
 #include "Printer.hpp"
 
 #if defined(USE_CUDA)
+// CUDA NOT YET SUPPORTED FOR GENERAL VE
+exit(EXIT_FAILURE);
 #include "sph/cuda/sph.cuh"
 #endif
 

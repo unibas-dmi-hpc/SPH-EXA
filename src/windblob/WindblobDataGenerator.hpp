@@ -122,12 +122,13 @@ namespace sphexa
                     masscloudinic_loc += pd.m[i];
                 }
                 pd.du[i] = pd.du_m1[i] = 0.0;
+                pd.du_av[i] = pd.du_av_m1[i] = 0.0;
                 pd.dt[i] = pd.dt_m1[i] = firstTimeStep;
                 pd.minDt = firstTimeStep;
 
                 pd.h[i] = pd.h[i];
                 pd.u[i] = pd.p[i]/gamma/pd.ro[i];
-                pd.c[i] = sqrt((2.0/3.0)*pd.u[i]);
+                pd.c[i] = sqrt((2.0/3.0)*pd.u[i]); //correct, checked 2.4.2020
 
                 pd.grad_P_x[i] = pd.grad_P_y[i] = pd.grad_P_z[i] = 0.0;
 
@@ -137,13 +138,19 @@ namespace sphexa
 
                 // general VE. We always start with standard VE...
                 pd.xmass[i] = pd.m[i];  // "normal VE"
+
+                //identifier for debugging
+                // not quite perfect because rank 0 takes the remaining ones -> overlap with rank 1
+                // could change such that the last rank takes the additional ones, but no time to chnage
+                // and verify test. should be good enough for tracking
+                pd.id[i] = pd.rank * pd.count + i;
             }
 
             double masscloudinic = 0.0;
             MPI_Allreduce(&masscloudinic_loc, &masscloudinic, 1, MPI_DOUBLE, MPI_SUM, pd.comm);
 
             pd.masscloudinic = masscloudinic;
-            pd.uambient = 0.5; // are these correct? depend on input file, I copied them from sphynx example!
+            pd.uambient = 0.5; // ruben says correct (same as sphynx example!)
             pd.rocloud = 10.0;
             pd.tkh = 0.0937;
 
@@ -152,7 +159,9 @@ namespace sphexa
             pd.ttot = 0.0;
 
             pd.iteration = 0;
-
+#ifndef NDEBUG
+            pd.writeErrorOnNegU = true;
+#endif
             if (pd.rank == 0 && 2.0 * pd.h[0] > (pd.bbox.zmax - pd.bbox.zmin) / 2.0)
             {
                 printf("ERROR::SqPatch::init()::SmoothingLength (%.2f) too large (%.2f) (n too small?)\n", pd.h[0],

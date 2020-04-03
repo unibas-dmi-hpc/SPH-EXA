@@ -56,7 +56,7 @@ namespace sphexa
                 }
 
 #ifndef NDEBUG
-                if (std::isnan(h[i])) printf("ERROR::NewtonRaphson(%d) h %f, delta-h: %f\n", i, h[i], deltah);
+                if (std::isnan(h[i]) || std::isinf(h[i]) || h[i] <= 0.0) printf("ERROR::NewtonRaphson(%d) h %f, delta-h: %f\n", int(d.id[i]), h[i], deltah);
 #endif
             }
         }

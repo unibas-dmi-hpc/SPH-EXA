@@ -33,7 +33,7 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
         const int nn = neighborsCount[pi];
 
 #ifdef DO_NEWTONRAPHSON
-        if (d.iteration > d.starthNR) { // only update it here if we are not doing NR yet. else it's done in the main loop for NR. CORRECTION: sphynx does it only after we started NR for h, and not before!... Except for iter0 if nn > nnmax or < nnmin...
+        if (d.iteration > d.starthNR) { // only update it here if we are not doing NR yet. else it's done in the main loop for NR. CORRECTION: sphynx does it only after we started NR for h, and not before!... Except for iter0 if nn > nnmax or < nnmin... i have that in the first findneighbors
             h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp); // update of smoothing length... Same as in sphynx... this is to adjust h such that nn gets closer to the target number of neighbors (ng0)
         }
         ballmass[i] = ro[i] * h[i] * h[i] * h[i]; //this is also in the findneighbors of sphynx -> runs every iteration, not just if iter > startNR as it is in update of sphynx
@@ -53,7 +53,7 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
 #endif
 
 #ifndef NDEBUG
-        if (std::isinf(h[i]) || std::isnan(h[i])) printf("ERROR::h(%d) ngi %d h %f\n", i, nn, h[i]);
+        if (std::isinf(h[i]) || std::isnan(h[i])) printf("ERROR::h(%d) ngi %d h %f\n", int(d.id[i]), nn, h[i]);
 #endif
     }
 }

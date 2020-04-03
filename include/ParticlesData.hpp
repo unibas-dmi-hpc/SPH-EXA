@@ -35,11 +35,13 @@ struct ParticlesData
     std::vector<T> c;                            // Speed of sound
     std::vector<T> grad_P_x, grad_P_y, grad_P_z; // gradient of the pressure
     std::vector<T> du, du_m1;                    // variation of the energy
+    std::vector<T> du_av, du_av_m1;                    // artificial viscosity contribution of the variation of the energy
     std::vector<T> dt, dt_m1;
     std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T> maxvsignal;
     std::vector<T> nn;                           // number of neighbors
     std::vector<T> gradh;                        // gradh terms (omega)
+    std::vector<T> id;                           // particle identifier (index is reordere). this should be globally unique
 
     T ttot, etot, ecin, eint;
     T minDt;
@@ -56,7 +58,7 @@ struct ParticlesData
     std::vector<std::vector<T> *> data{&x,  &y,     &z,   &x_m1, &y_m1, &z_m1, &vx,       &vy,       &vz,        &ro, &ro_0,
                                        &u,  &p,     &p_0, &h,    &m,    &c,    &grad_P_x, &grad_P_y, &grad_P_z,  &du, &du_m1,
                                        &dt, &dt_m1, &c11, &c12,  &c13,  &c22,  &c23,      &c33,      &maxvsignal,
-                                       &vol, &xmass, &sumkx, &sumwh, &ballmass, &nn, &gradh};
+                                       &vol, &xmass, &sumkx, &sumwh, &ballmass, &nn, &gradh, &id, &du_av, &du_av_m1};
 #ifdef USE_MPI
     MPI_Comm comm;
     int pnamelen = 0;
@@ -77,6 +79,10 @@ struct ParticlesData
     // newton Raphson for h
 #ifdef DO_NEWTONRAPHSON
     const static int starthNR = 10;
+#endif
+
+#ifndef NDEBUG
+    bool writeErrorOnNegU = false;
 #endif
 };
 

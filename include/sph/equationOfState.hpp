@@ -83,6 +83,8 @@ void computeEquationOfStateSphynxWaterImpl(const Task &t, Dataset &d)
                 p[i] = p_0[i];
                 c[i] = speedOfSound0; // * sqrt(pow(ro[i]/ro_0[i], heatCapacityRatio-1.));
                 u[i] = 1.0;           //
+                if (std::isnan(c[i]) || std::isinf(c[i]) || std::isnan(p[i]) || std::isinf(p[i]))
+                    printf("ERROR:equation_of_state_sphynxwater c %f u %f p %f\n", c[i], u[i], p[i]);
             }
         }
         else if (d.iteration == eosStart) {
@@ -95,6 +97,8 @@ void computeEquationOfStateSphynxWaterImpl(const Task &t, Dataset &d)
                 c[i] = speedOfSound0; // * sqrt(pow(ro[i]/ro_0[i], heatCapacityRatio-1.));
                 u[i] = 1.0;           //
                 ro_0[i] = ro[i];
+                if (std::isnan(c[i]) || std::isinf(c[i]) || std::isnan(p[i]) || std::isinf(p[i]))
+                    printf("ERROR:equation_of_state_sphynxwater c %f u %f p %f\n", c[i], u[i], p[i]);
             }
         }
         else {
@@ -108,6 +112,8 @@ void computeEquationOfStateSphynxWaterImpl(const Task &t, Dataset &d)
                 u[i] = 1.0;           //
                 // u[i] = 1e-10;
                 // 1e7 per unit of mass (1e-3 or 1g)
+                if (std::isnan(c[i]) || std::isinf(c[i]) || std::isnan(p[i]) || std::isinf(p[i]))
+                    printf("ERROR:equation_of_state_sphynxwater c %f u %f p %f\n", c[i], u[i], p[i]);
             }
         }
     }
@@ -144,6 +150,10 @@ void computeEquationOfStateWindblobImpl(const Task &t, Dataset &d)
 
         p[i] = u[i] * ro[i] * gamma1;
         c[i] = sqrt(gamma1 * u[i]);
+#ifndef NDEBUG
+        if (std::isnan(c[i]) || std::isinf(c[i]) || std::isnan(p[i]) || std::isinf(p[i]))
+            printf("ERROR:equation_of_state_windblob[id=%d] c %f u %f p %f\n", int(d.id[i]), c[i], u[i], p[i]);
+#endif
     }
 }
 

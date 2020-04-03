@@ -87,7 +87,11 @@ void computeDensityImpl(const Task &t, Dataset &d)
 
 #ifndef NDEBUG
             if (vloc > 2.0 + 1e-6 || vloc < 0.0)
-                printf("ERROR:Density(%d,%d) vloc %f -- x %f %f %f -- %f %f %f -- dist %f -- hi %f\n", i, j, vloc, x[i], y[i], z[i], x[j],
+//                // todo
+//                // I see values of vloc up to 23... what's going on??? The reported dist of those is 92, but the actual is only 8... there's a problem with the
+//                // pbc, I think, because we have pbc in z and the cube is 50 high -> 2*50-8 = 92, that would fit... -> see comment in applyPBC()...
+//                // it's wrong but shouldn't be a problem as it's caught by the compact support of the kernel...
+                printf("ERROR:Density or Distance (%d,%d) vloc %f -- x %f %f %f -- %f %f %f -- dist %f -- hi %f\n", int(d.id[i]), int(d.id[j]), vloc, x[i], y[i], z[i], x[j],
                        y[j], z[j], dist, h[i]);
 #endif
 
@@ -98,6 +102,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
             sumkx_loc += value * xmass[j];
             // summation part of derivative of density wrt. h[i] (needed for NR)
             sumwh_loc += - xmass[j] * value / h[i] * (3.0 + vloc * (int)sincIndex * wharmonic_derivative(vloc)); // updated 25.2.20
+            // checked 2.4.2020: identical to sphynx with sphynx kernel = 2...
         }
 
         // general VE
@@ -113,7 +118,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
         sumwh[i] = m[i] / xmass[i] * sumwh_loc;
 
 #ifndef NDEBUG
-        if (std::isnan(ro[i])) printf("ERROR::Density(%d) density %f, position: (%f %f %f), h: %f\n", i, ro[i], x[i], y[i], z[i], h[i]);
+        if (std::isnan(ro[i]) || std::isinf(ro[i])) printf("ERROR::Density(%d) density %f, position: (%f %f %f), h: %f\n", int(d.id[i]), ro[i], x[i], y[i], z[i], h[i]);
 #endif
     }
 }

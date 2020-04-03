@@ -134,6 +134,21 @@ public:
 template <typename T>
 CUDA_DEVICE_HOST_FUN inline void applyPBC(const BBox<T> &bbox, const T r, T &xx, T &yy, T &zz)
 {
+    // todo:
+    // this is based on invalid assumptions that we don't change h after the findneighbors function is run...
+    // then we only have neighbors that are within r=2h of the particle... particles further away
+    // must then have be detected as a neighbor because of the PBC and we correct for that here,
+    // but this approach is invalid if we increase h after the findneighbors function is run...
+    // BUT:
+    // if r is increased, these conditions below are less likely to be fulfilled -> PBC will not be applied to
+    // some particles, but since they were not in r before, they are not returned by the findneighbors function
+    // -> no problem
+    //
+    // if r is decreased, some particles will be considered neighbors and have the PBC applied where they should not
+    // they move to the opposite side of the boundary and are thus further away than they should be...
+    // but due to the compact support of the kernel, this should not matter either.
+    // confirm that this is not an issue by running findneighbors after every update on h...
+
     if (bbox.PBCx && xx > r)
         xx -= (bbox.xmax - bbox.xmin);
     else if (bbox.PBCx && xx < -r)

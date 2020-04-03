@@ -26,12 +26,12 @@ void findNeighborsImpl(const Octree<T> &o, Task &t, Dataset &d)
 
 #ifndef NDEBUG
         if (t.neighborsCount[pi] == 0)
-            printf("ERROR::FindNeighbors(%d) x %f y %f z %f h = %f ngi %d\n", i, d.x[i], d.y[i], d.z[i], d.h[i], t.neighborsCount[pi]);
+            printf("ERROR::FindNeighbors(%d) x %f y %f z %f h = %f ngi %d\n", int(d.id[i]), d.x[i], d.y[i], d.z[i], d.h[i], t.neighborsCount[pi]);
 #endif
         nn[i] = t.neighborsCount[pi];
         // todo: refactor this!
-        if (d.iteration == 0 && nn[i] < 100) {  // to mimimic sphinx first_feindneighbors.f90 with hardcoded minimum = 100 (need to run synHalos for h and find neighbors again!)
-
+        if (d.iteration == 0 && nn[i] < 100) {  // to mimimic sphinx first_feindneighbors.f90 with hardcoded minimum = 100 (need to run find neighbors again!)
+            printf("Adjusting h because less than 100 neighbors in first iteration!\n");
             const T c0 = 7.0;
             const T exp = 1.0 / 3.0;
             const int ng0 = t.ng0;

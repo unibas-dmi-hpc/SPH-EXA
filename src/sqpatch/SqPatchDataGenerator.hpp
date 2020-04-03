@@ -118,6 +118,7 @@ public:
             pd.ro_0[i] = 1.0;           // 1.0e3;//.0;//1e3;//1e3;
 
             pd.du[i] = pd.du_m1[i] = 0.0;
+            pd.du_av[i] = pd.du_av_m1[i] = 0.0;
             pd.dt[i] = pd.dt_m1[i] = firstTimeStep;
             pd.minDt = firstTimeStep;
 
@@ -129,6 +130,9 @@ public:
 
             // general VE. We always start with standard VE...
             pd.xmass[i] = pd.m[i];  // "normal VE"
+
+            //identifier for debugging
+            pd.id[i] = pd.rank * pd.count + i;
         }
 
         pd.bbox.computeGlobal(pd.x, pd.y, pd.z);
@@ -141,6 +145,9 @@ public:
         pd.ttot = 0.0;
 
         pd.masscloudinic = 1.0; // just to avoid risk of division by zero in printer. todo: refactor (how to better deal with test case specific data?)
+        pd.uambient = 0.5; // are these correct? depend on input file, I copied them from sphynx example!
+        pd.rocloud = 10.0;
+        pd.tkh = 0.0937;
 
         if (pd.rank == 0 && 2.0 * pd.h[0] > (pd.bbox.zmax - pd.bbox.zmin) / 2.0)
         {

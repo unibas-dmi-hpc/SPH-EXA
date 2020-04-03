@@ -139,6 +139,10 @@ public:
                     for (int hx = mix; hx <= max; hx++)
                     {
                         size_t l = hz * nX * nY + hy * nX + hx;
+#ifndef NDEBUG
+                        if (l >= ncells)
+                            printf("ERROR:findneighborsRec: l >= ncells: l %d, hx %d, nX %d, hy %d, nY %d\n", l, hx, nX, hy, nY);
+#endif
 
                         cells[l]->findNeighborsRec(id, x, y, z, xi, yi, zi, ri, ngmax, neighbors, neighborsCount);
                     }
@@ -184,7 +188,10 @@ public:
                         int hxx = PBCx ? (hx % nX) + (hx < 0) * nX : hx;
 
                         size_t l = hzz * nY * nX + hyy * nX + hxx;
-
+#ifndef NDEBUG
+                        if (l >= ncells)
+                            printf("ERROR:findneighbors: l >= ncells: l %d, hxx %d, nX %d, hyy %d, nY %d, hzz %d, nZ %d\n", l, hxx, nX, hyy, nY, hzz, nZ);
+#endif
                         cells[l]->findNeighborsRec(id, x, y, z, xi + displx, yi + disply, zi + displz, ri, ngmax, neighbors,
                                                    neighborsCount);
                     }

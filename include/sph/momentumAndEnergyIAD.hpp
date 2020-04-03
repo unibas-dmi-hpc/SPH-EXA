@@ -42,6 +42,12 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
     const T *c33 = d.c33.data();
 
     T *du = d.du.data();
+    T *du_av = d.du_av.data();
+    T *du_m1 = d.du_m1.data();
+    T *du_av_m1 = d.du_av_m1.data();
+#ifndef DEBUG
+    const T *u = d.u.data();
+#endif
     T *grad_P_x = d.grad_P_x.data();
     T *grad_P_y = d.grad_P_y.data();
     T *grad_P_z = d.grad_P_z.data();
@@ -164,12 +170,14 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
             const T pro_j = p[j] / (gradh_j * sumkx[j] * sumkx[j]);
 
             const T r_square = dist * dist;
-            const T viscosity_ij = artificial_viscosity(ro[i], ro[j], h[i], h[j], c[i], c[j], rv, r_square);
 
             // For time-step calculations
-            const T wij = rv / dist;
+            const T wij = rv / dist;  // todo: what if dist calc is wrong? See problem with PBC...
             const T vijsignal = c[i] + c[j] - 3.0 * wij;
             if(vijsignal > maxvsignali) maxvsignali = vijsignal;
+
+            const T alpha = 4.0 / 3.0; // sphynx parameters.f90
+            const T viscosity_ij = rv < 0.0 ? - alpha * 0.5 * wij * vijsignal : 0.0; // cabezon2017 eq27
 
             const T grad_Px_AV = 0.5 * (vol[i] / m[i] * m[j] * viscosity_ij * termA1_i + vol[j] * viscosity_ij * termA1_j);  // cabezon2017 eq29
             const T grad_Py_AV = 0.5 * (vol[i] / m[i] * m[j] * viscosity_ij * termA2_i + vol[j] * viscosity_ij * termA2_j);
@@ -182,8 +190,15 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
             energy += xmass[j] * pro_i * (v_ijx * termA1_i + v_ijy * termA2_i + v_ijz * termA3_i); // cabezon2017 eq 23
             energyAV += grad_Px_AV * v_ijx + grad_Py_AV * v_ijy + grad_Pz_AV * v_ijz;  // cabezon2017 eq 23
         }
+//        todo: check sphynx where the additional 0.5 is for the viscosity energy... couldn't find it after
+//          brief look in momeqnmod.f90 and update.f90
 
-        du[i] = xmass[i] / m[i] * energy + 0.5 * energyAV; // cabezon2017 eq 32.
+        du_m1[i] = du[i];
+        du_av_m1[i] = du_av[i];
+
+        du[i] = xmass[i] / m[i] * energy; // cabezon2017 eq 32.
+        du_av[i] = 0.5 * energyAV; // tried removing 0.5 because couldn't find it in sphynx. still crash at 200
+
         grad_P_x[i] = momentum_x;
         grad_P_y[i] = momentum_y;
         grad_P_z[i] = momentum_z;
