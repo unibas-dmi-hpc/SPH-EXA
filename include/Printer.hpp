@@ -20,7 +20,7 @@ public:
 
         void printTree(GravityOctree<double> &octree, std::ostream &out) { octree.print(out); }
     */
-    void printConstants(const int iteration, const int nntot, std::ostream &out)
+    void printConstants(const int iteration, const int nntot, const size_t nnmax, std::ostream &out)
     {
         if (d.rank == 0)
         {
@@ -31,7 +31,8 @@ public:
 #ifdef GRAVITY
             out << d.egrav << ' ';
 #endif
-            out << nntot << ' ' << d.ttot / d.tkh << ' ' << d.masscloud << ' ' << d.masscloud / d.masscloudinic << ' ';
+            out << nntot << ' ' << nnmax << ' ';
+            out << d.ttot / d.tkh << ' ' << d.masscloud << ' ' << d.masscloud / d.masscloudinic << ' ';
             out << std::endl;
             out.flush();
         }

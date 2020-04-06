@@ -191,7 +191,7 @@ int main(int argc, char **argv)
         if (d.rank == 0)
         {
             printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, maxNeighbors, output);
-            printer.printConstants(d.iteration, totalNeighbors, constantsFile);
+            printer.printConstants(d.iteration, totalNeighbors, maxNeighbors, constantsFile);
         }
 
 //        if (d.rank == 1 && d.iteration == 2) {
