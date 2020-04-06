@@ -6,9 +6,7 @@
 #include "mpiFileUtils.hpp"
 #endif
 
-#ifndef NDEBUG
 #include "debugUtils.hpp"
-#endif
 
 #include "Domain.hpp"
 #include "Octree.hpp"

@@ -6,34 +6,21 @@
 #include "sphexa.hpp"
 #include "WindblobDataGenerator.hpp"
 
-#ifndef DNDEBUG
 #include <fenv.h>
-#include <ctime>
+
 #pragma STDC FENV_ACCESS ON
+#ifndef NDEBUG
+#include <ctime>
 #endif
 
 using namespace std;
 using namespace sphexa;
 
-bool all_check_FPE(const std::string msg, ParticlesData<double> d)
-{
-    bool fpe_raised = serious_fpe_raised();
-    if (fpe_raised)
-    {
-        printf("Rank %d fpe_raised.", d.rank);
-        show_fe_exceptions();
-        cout << "msg: " << msg << std::endl;
-    }
-#ifdef USE_MPI
-    MPI_Allreduce(MPI_IN_PLACE, &fpe_raised, 1, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
-#endif
-    return fpe_raised;
-}
-
 int main(int argc, char **argv)
 {
-#ifndef DNDEBUG
     std::feclearexcept(FE_ALL_EXCEPT);
+#ifdef NDEBUG
+    enable_fe_hwexceptions(); // we want to crash if we see NANs or INFs!
 #endif
 
     ArgParser parser(argc, argv);
@@ -69,7 +56,7 @@ int main(int argc, char **argv)
     domain.create(d);
 
     const size_t nTasks = 64;
-    const size_t ngmax = 350; // now matching sphynx default
+    const size_t ngmax = 750; // increased to fight bug
     const size_t ng0 = 250;
     TaskList taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
 
@@ -113,13 +100,13 @@ int main(int argc, char **argv)
         }
         timer.step("FindNeighbors");
 #ifndef NDEBUG
-//        fpe_raised = all_check_FPE("FindNeighbors", d);
+//        fpe_raised = all_check_FPE("FindNeighbors");
         if (fpe_raised) break;
 #endif
         sph::computeDensity<Real>(taskList.tasks, d);
         timer.step("Density");
 #ifndef NDEBUG
-//        fpe_raised = all_check_FPE("Density", d);
+//        fpe_raised = all_check_FPE("Density");
         if (fpe_raised) break;
 #endif
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
@@ -129,8 +116,6 @@ int main(int argc, char **argv)
             timer.step("hNR");
             sph::findNeighbors(domain.octree, taskList.tasks, d);
             timer.step("FindNeighbors");
-            domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.xmass);  // sync again, because h changed -> just to be sure
-            timer.step("mpi::synchronizeHalos");
             for (int iterNR = 0; iterNR < 2; iterNR++) {
                 sph::computeDensity<Real>(taskList.tasks, d);
                 timer.step("Density");
@@ -138,25 +123,23 @@ int main(int argc, char **argv)
                 timer.step("hNR");
                 sph::findNeighbors(domain.octree, taskList.tasks, d);
                 timer.step("FindNeighbors");
-                domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.xmass);  // sync again, because h changed -> just to be sure
-                timer.step("mpi::synchronizeHalos");
             }
         }
 #endif
 #ifndef NDEBUG
-//        fpe_raised = all_check_FPE("NR", d);
+//        fpe_raised = all_check_FPE("NR");
         if (fpe_raised) break;
 #endif
         sph::calcGradhTerms<Real>(taskList.tasks, d);
         timer.step("calcGradhTerms");
 #ifndef NDEBUG
-//        fpe_raised = all_check_FPE("gradh", d);
+//        fpe_raised = all_check_FPE("gradh");
         if (fpe_raised) break;
 #endif
         sph::computeEquationOfStateWindblob<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
 #ifndef NDEBUG
-//        fpe_raised = all_check_FPE("EOS", d);
+//        fpe_raised = all_check_FPE("EOS");
         if (fpe_raised) break;
 #endif
         domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c, &d.sumkx, &d.gradh, &d.h, &d.vol);  // also synchronize sumkx after density! Synchronize also h for h[j] accesses in momentum and energy
@@ -164,7 +147,7 @@ int main(int argc, char **argv)
         sph::computeIAD<Real>(taskList.tasks, d);
         timer.step("IAD");
 #ifndef NDEBUG
-//        fpe_raised = all_check_FPE("IAD", d);
+//        fpe_raised = all_check_FPE("IAD");
         if (fpe_raised) break;
 #endif
         domain.synchronizeHalos(&d.c11, &d.c12, &d.c13, &d.c22, &d.c23, &d.c33);
@@ -172,7 +155,7 @@ int main(int argc, char **argv)
         sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d);
         timer.step("MomentumEnergyIAD");
 #ifndef NDEBUG
-//        fpe_raised = all_check_FPE("MomEnergyIAD", d);
+//        fpe_raised = all_check_FPE("MomEnergyIAD");
         if (fpe_raised) break;
 #endif
         sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
@@ -180,33 +163,34 @@ int main(int argc, char **argv)
         // I now changed the press2ndOrder to be closer to courant in sphynx...
         timer.step("Timestep"); // AllReduce(min:dt)
 #ifndef NDEBUG
-//        fpe_raised = all_check_FPE("Timestep", d);
+//        fpe_raised = all_check_FPE("Timestep");
         if (fpe_raised) break;
 #endif
         sph::computePositions<Real, sph::computeAcceleration<Real, Dataset>>(taskList.tasks, d);
         timer.step("UpdateQuantities");
 #ifndef NDEBUG
-//        fpe_raised = all_check_FPE("UpdateQuantities", d);
+//        fpe_raised = all_check_FPE("UpdateQuantities");
         if (fpe_raised) break;
 #endif
         sph::computeTotalEnergy<Real>(taskList.tasks, d);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
 #ifndef NDEBUG
-//        fpe_raised = all_check_FPE("EnergyConserv", d);
+//        fpe_raised = all_check_FPE("EnergyConserv");
         if (fpe_raised) break;
 #endif
         sph::updateSmoothingLength<Real>(taskList.tasks, d);
         timer.step("UpdateSmoothingLength");
 #ifndef NDEBUG
-//        fpe_raised = all_check_FPE("Updateh", d);
+//        fpe_raised = all_check_FPE("Updateh");
         if (fpe_raised) break;
 #endif
 
         size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
+        size_t maxNeighbors = sph::neighborsMax(taskList.tasks);
 
         if (d.rank == 0)
         {
-            printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, output);
+            printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, maxNeighbors, output);
             printer.printConstants(d.iteration, totalNeighbors, constantsFile);
         }
 
@@ -215,7 +199,7 @@ int main(int argc, char **argv)
 //        }
 
 #ifndef NDEBUG
-        fpe_raised = all_check_FPE("after print", d);
+        fpe_raised = all_check_FPE("after print, rank " + to_string(d.rank));
         if (fpe_raised) break;
 #endif
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)

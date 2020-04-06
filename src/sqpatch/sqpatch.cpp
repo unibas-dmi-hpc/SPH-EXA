@@ -6,35 +6,22 @@
 #include "sphexa.hpp"
 #include "SqPatchDataGenerator.hpp"
 
-#ifndef DNDEBUG
-    #include <fenv.h>
-    #pragma STDC FENV_ACCESS ON
+#include <fenv.h>
+#pragma STDC FENV_ACCESS ON
+#ifndef NDEBUG
     #include <ctime>
 #endif
 
 using namespace std;
 using namespace sphexa;
 
-bool all_check_FPE(const std::string msg, ParticlesData<double> d)
-{
-    bool fpe_raised = serious_fpe_raised();
-    if (fpe_raised)
-    {
-        printf("Rank %d fpe_raised.", d.rank);
-        show_fe_exceptions();
-        cout << "msg: " << msg << std::endl;
-    }
-#ifdef USE_MPI
-    MPI_Allreduce(MPI_IN_PLACE, &fpe_raised, 1, MPI_C_BOOL, MPI_LOR, MPI_COMM_WORLD);
-#endif
-    return fpe_raised;
-}
-
 int main(int argc, char **argv)
 {
-#ifndef DNDEBUG
     std::feclearexcept(FE_ALL_EXCEPT);
+#ifdef NDEBUG
+    enable_fe_hwexceptions(); // we want to crash if we see NANs or INFs!
 #endif
+
     ArgParser parser(argc, argv);
     const size_t cubeSide = parser.getInt("-n", 50);
     const size_t maxStep = parser.getInt("-s", 10);
@@ -67,7 +54,7 @@ int main(int argc, char **argv)
     domain.create(d);
 
     const size_t nTasks = 64;
-    const size_t ngmax = 300;
+    const size_t ngmax = 750;
     const size_t ng0 = 250;
     TaskList taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
 
@@ -99,8 +86,6 @@ int main(int argc, char **argv)
             timer.step("hNR");
             sph::findNeighbors(domain.octree, taskList.tasks, d);
             timer.step("FindNeighbors");
-            domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.xmass);  // sync again, because h changed -> just to be sure
-            timer.step("mpi::synchronizeHalos");
 //            without those, it crashes around 1971... sometimes the debugger shows variable values, sometimes not...
 //            without those on the cluster, but with -g and DEBUG flags, I get index out of bounds at line 188 in o.findneighbors() in iteration 1379. Also ngmax=-1419685523 which is odd (maybe display error in gdb from conversion to size_t(as defined) to int (as in function signature))
             for (int iterNR = 0; iterNR < 2; iterNR++) {
@@ -110,8 +95,6 @@ int main(int argc, char **argv)
                 timer.step("hNR");
             sph::findNeighbors(domain.octree, taskList.tasks, d);
             timer.step("FindNeighbors");
-            domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.xmass);  // sync again, because h changed -> just to be sure
-            timer.step("mpi::synchronizeHalos");
             }
         }
 #endif
@@ -137,13 +120,15 @@ int main(int argc, char **argv)
         timer.step("UpdateSmoothingLength");
 
         size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
+        size_t maxNeighbors = sph::neighborsMax(taskList.tasks);
+
         if (d.rank == 0)
         {
-            printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, output);
+            printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, maxNeighbors, output);
             printer.printConstants(d.iteration, totalNeighbors, constantsFile);
         }
 #ifndef NDEBUG
-        fpe_raised = all_check_FPE("after print", d);
+        fpe_raised = all_check_FPE("after print, rank " + to_string(d.rank));
         if (fpe_raised) break;
 #endif
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)

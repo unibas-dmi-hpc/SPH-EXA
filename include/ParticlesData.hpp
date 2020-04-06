@@ -24,7 +24,7 @@ struct ParticlesData
     std::vector<T> vol;                          // Volume
     // todo: it's redundant to carry around volume, mass and density... how to resolve this???
     //       which 2 of the 3 do we keep? Or is comms and memory overhead negligible?
-    std::vector<T> xmass;                           // to store X_a (VE estimator function). We need it because we only update at end of run...
+    std::vector<T> xmass;                        // to store X_a (VE estimator function). We need it because we only update at end of run...
     std::vector<T> sumkx;                        // kernel weighted sum of VE estimators (sumkx in sphynx)
     std::vector<T> ballmass;                     // this is needed to do newton-raphson for h and density
     std::vector<T> sumwh;                        // this is needed to calculate the derivative of the ballmass[i]/h[i]**3 - ro[i] = 0 with newton-raphson
@@ -35,13 +35,14 @@ struct ParticlesData
     std::vector<T> c;                            // Speed of sound
     std::vector<T> grad_P_x, grad_P_y, grad_P_z; // gradient of the pressure
     std::vector<T> du, du_m1;                    // variation of the energy
-    std::vector<T> du_av, du_av_m1;                    // artificial viscosity contribution of the variation of the energy
+    std::vector<T> du_av, du_av_m1;              // artificial viscosity contribution of the variation of the energy
     std::vector<T> dt, dt_m1;
     std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T> maxvsignal;
     std::vector<T> nn;                           // number of neighbors
     std::vector<T> gradh;                        // gradh terms (omega)
     std::vector<T> id;                           // particle identifier (index is reordere). this should be globally unique
+    std::vector<T> volnorm;                      // to check volume normalization (integration of volume should be 1)
 
     T ttot, etot, ecin, eint;
     T minDt;
@@ -55,10 +56,11 @@ struct ParticlesData
 
     BBox<T> bbox;
 
-    std::vector<std::vector<T> *> data{&x,  &y,     &z,   &x_m1, &y_m1, &z_m1, &vx,       &vy,       &vz,        &ro, &ro_0,
-                                       &u,  &p,     &p_0, &h,    &m,    &c,    &grad_P_x, &grad_P_y, &grad_P_z,  &du, &du_m1,
-                                       &dt, &dt_m1, &c11, &c12,  &c13,  &c22,  &c23,      &c33,      &maxvsignal,
-                                       &vol, &xmass, &sumkx, &sumwh, &ballmass, &nn, &gradh, &id, &du_av, &du_av_m1};
+    std::vector<std::vector<T> *> data{&x,        &y,        &z,   &x_m1,       &y_m1,     &z_m1,  &vx,    &vy,    &vz,
+                                       &ro,       &ro_0,     &u,   &p,          &p_0,      &h,     &m,     &c,     &grad_P_x,
+                                       &grad_P_y, &grad_P_z, &du,  &du_m1,      &dt,       &dt_m1, &c11,   &c12,   &c13,
+                                       &c22,      &c23,      &c33, &maxvsignal, &vol,      &xmass, &sumkx, &sumwh, &ballmass,
+                                       &nn,       &gradh,    &id,  &du_av,      &du_av_m1, &volnorm};
 #ifdef USE_MPI
     MPI_Comm comm;
     int pnamelen = 0;

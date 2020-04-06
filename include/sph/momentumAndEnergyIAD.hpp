@@ -52,6 +52,7 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
     T *grad_P_y = d.grad_P_y.data();
     T *grad_P_z = d.grad_P_z.data();
     T *maxvsignal = d.maxvsignal.data();
+    T *volnorm = d.volnorm.data();  // check kernel normalization
 
     const BBox<T> bbox = d.bbox;
 
@@ -104,6 +105,7 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
 
         T maxvsignali = 0.0;
         T momentum_x = 0.0, momentum_y = 0.0, momentum_z = 0.0, energy = 0.0, energyAV = 0.0;
+        T volnorm_loc = 0.0;
         for (int pj = 0; pj < nn; ++pj)
         {
             const int j = neighbors[pi * ngmax + pj];
@@ -189,6 +191,8 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
 
             energy += xmass[j] * pro_i * (v_ijx * termA1_i + v_ijy * termA2_i + v_ijz * termA3_i); // cabezon2017 eq 23
             energyAV += grad_Px_AV * v_ijx + grad_Py_AV * v_ijy + grad_Pz_AV * v_ijz;  // cabezon2017 eq 23
+
+            volnorm_loc += vol[j] * W1;
         }
 //        todo: check sphynx where the additional 0.5 is for the viscosity energy... couldn't find it after
 //          brief look in momeqnmod.f90 and update.f90
@@ -203,6 +207,8 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
         grad_P_y[i] = momentum_y;
         grad_P_z[i] = momentum_z;
         maxvsignal[i] = maxvsignali;
+
+        volnorm[i] = volnorm_loc + vol[i] * K / (h[i] * h[i] * h[i]); // self contrib and store volume normalization
     }
 };
 

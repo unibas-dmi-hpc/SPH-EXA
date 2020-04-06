@@ -38,14 +38,14 @@ public:
     }
 
     void printCheck(const size_t particleCount, const size_t nodeCount, const size_t haloCount, const size_t totalNeighbors,
-                    std::ostream &out)
+                    const size_t maxNeighbors, std::ostream &out)
     {
         out << "### Check ### Global Tree Nodes: " << nodeCount << ", Particles: " << particleCount << ", Halos: " << haloCount
             << std::endl;
         out << "### Check ### Computational domain: " << d.bbox.xmin << " " << d.bbox.xmax << " " << d.bbox.ymin << " " << d.bbox.ymax
             << " " << d.bbox.zmin << " " << d.bbox.zmax << std::endl;
         out << "### Check ### Total Neighbors: " << totalNeighbors << ", Avg neighbor count per particle: " << totalNeighbors / d.n
-            << std::endl;
+            << ", Max neighbor count: " << maxNeighbors << std::endl;
         out << "### Check ### Total time: " << d.ttot << ", current time-step: " << d.minDt << std::endl;
         out << "### Check ### Total energy: " << d.etot << ", (internal: " << d.eint << ", cinetic: " << d.ecin;
 #ifdef GRAVITY
@@ -88,6 +88,7 @@ public:
                     dump << d.c22[i] << ' ' << d.c23[i] << ' ';
                     dump << d.c33[i] << ' ';
                     dump << int(d.id[i]) << ' ';
+                    dump << d.volnorm[i] << ' ';
 #endif
 #ifdef GRAVITY
                     dump << d.fx[i] << ' ' << d.fy[i] << ' ' << d.fz[i] << ' ' << d.ugrav[i] << ' ';

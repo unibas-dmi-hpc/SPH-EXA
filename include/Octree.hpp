@@ -540,7 +540,7 @@ public:
 
     inline bool overlap(Octree *a)
     {
-        T radius = a->globalMaxH * 2.0;
+        T radius = a->globalMaxH * 4.0;
 
         // Check if Box1's max is greater than Box2's min and Box1's min is less than Box2's max
         return (a->xmax + radius > xmin && a->xmin - radius < xmax && a->ymax + radius > ymin && a->ymin - radius < ymax &&

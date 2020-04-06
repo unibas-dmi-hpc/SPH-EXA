@@ -31,7 +31,7 @@ void findNeighborsImpl(const Octree<T> &o, Task &t, Dataset &d)
         nn[i] = t.neighborsCount[pi];
         // todo: refactor this!
         if (d.iteration == 0 && nn[i] < 100) {  // to mimimic sphinx first_feindneighbors.f90 with hardcoded minimum = 100 (need to run find neighbors again!)
-            printf("Adjusting h because less than 100 neighbors in first iteration!\n");
+//            printf("Adjusting h because less than 100 neighbors in first iteration!\n");
             const T c0 = 7.0;
             const T exp = 1.0 / 3.0;
             const int ng0 = t.ng0;
@@ -74,6 +74,31 @@ size_t neighborsSum(const std::vector<Task> &taskList)
 #endif
 
     return sum;
+}
+
+size_t neighborsMaxImpl(const Task &t)
+{
+    size_t max = 0;
+#pragma omp parallel for reduction(max : max)
+    for (unsigned int i = 0; i < t.clist.size(); i++)
+        max = t.neighborsCount[i] > max ? t.neighborsCount[i] : max;
+    return max;
+}
+
+size_t neighborsMax(const std::vector<Task> &taskList)
+{
+    size_t max = 0;
+    for (const auto &task : taskList)
+    {
+        size_t m = neighborsMaxImpl(task);
+        max = m > max ? m : max;
+    }
+
+#ifdef USE_MPI
+    MPI_Allreduce(MPI_IN_PLACE, &max, 1, MPI_LONG_LONG_INT, MPI_MAX, MPI_COMM_WORLD);
+#endif
+
+    return max;
 }
 } // namespace sph
 } // namespace sphexa
