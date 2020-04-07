@@ -9,11 +9,8 @@
 
 #include <fenv.h>
 #pragma STDC FENV_ACCESS ON
-#ifndef NDEBUG
-    #include <ctime>
-#endif
 
-using namespace std;
+
 using namespace sphexa;
 
 void printHelp(char *binName, int rank);
@@ -143,7 +140,7 @@ int main(int argc, char **argv)
             printer.printConstants(d.iteration, totalNeighbors, maxNeighbors, constantsFile);
         }
 #ifndef NDEBUG
-        fpe_raised = all_check_FPE("after print, rank " + to_string(d.rank));
+        fpe_raised = all_check_FPE("after print, rank " + std::to_string(d.rank));
         if (fpe_raised) break;
 #endif
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
@@ -159,8 +156,7 @@ int main(int argc, char **argv)
     }
 #ifndef NDEBUG
     if (fpe_raised) {
-        // todo: port this to new filewriter things
-        printer.printAllDataToFile(domain.clist, "fperrordump" + to_string(d.iteration) + "_" + to_string(std::time(0)) + ".txt");
+        fileWriter.dumpParticleDataToAsciiFile(d, domain.clist, outDirectory + "fperrordump_sqpatch" + std::to_string(d.iteration) + "_" + std::to_string(std::time(0)) + ".txt");
     }
 #endif
 
