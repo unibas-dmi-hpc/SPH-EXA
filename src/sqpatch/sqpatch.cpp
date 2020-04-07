@@ -136,8 +136,8 @@ int main(int argc, char **argv)
         const size_t maxNeighbors = sph::neighborsMax(taskList.tasks);
         if (d.rank == 0)
         {
-            printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, maxNeighbors, output);
-            printer.printConstants(d.iteration, totalNeighbors, maxNeighbors, constantsFile);
+            printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, maxNeighbors, ngmax, output);
+            printer.printConstants(d.iteration, totalNeighbors, maxNeighbors, ngmax, constantsFile);
         }
 #ifndef NDEBUG
         fpe_raised = all_check_FPE("after print, rank " + std::to_string(d.rank));
@@ -160,7 +160,7 @@ int main(int argc, char **argv)
     }
 #endif
 
-    totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of SqPatch");
+    totalTimer.step("Total execution time for " + std::to_string(d.iteration) + " iterations of SqPatch");
 
     constantsFile.close();
 
