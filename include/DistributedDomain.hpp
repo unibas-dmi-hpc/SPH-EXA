@@ -69,6 +69,7 @@ public:
                     }
 
                     MPI_Isend(localBuffer.data(), particleCounts[rank], MPI_DOUBLE, rank, 2 + i, MPI_COMM_WORLD, &requests[rcount + 2 + i]);
+
                     buff.emplace_back(std::move(localBuffer)); // Note: need to move to keep the buffer valid
                 }
             }
@@ -248,6 +249,13 @@ public:
 
     void create(Dataset &d) override
     {
+        /*
+         * With very large MPI ranks the work assigned to ranks is not balanced in a way that the last rank will get a way more work than it
+         * should. To overcome that issue we add a little more work (variable below) to each rank. It's tempoary fix for a strong scaling
+         * experiments. The downside of this solution is that the last rank will get less work than it should.
+         */
+        assignedWorkExtender = std::max(d.count / comm_size, Tree::maxGlobalBucketSize);
+
         const std::vector<T> &x = d.x;
         const std::vector<T> &y = d.y;
         const std::vector<T> &z = d.z;
@@ -291,7 +299,7 @@ public:
         reorder(ordering, d);
 
         // We then map the tree to processes
-        std::vector<size_t> work(comm_size, split);
+        std::vector<size_t> work(comm_size, split + assignedWorkExtender);
         work[0] += remaining;
 
         std::vector<size_t> work_remaining(comm_size);
@@ -345,7 +353,7 @@ public:
 
         d.bbox.computeGlobal(clist, d.x, d.y, d.z);
 
-        std::vector<size_t> work(comm_size, split);
+        std::vector<size_t> work(comm_size, split + assignedWorkExtender);
         work[0] += remaining;
 
         // We map the nodes to a 1D array and retrieve the order of the particles in the tree
@@ -425,6 +433,13 @@ public:
 
     size_t haloCount = 0;
     size_t workAssigned = 0;
+
+    /*
+     * With very large MPI ranks the work assigned to ranks is not balanced in a way that the last rank will get a way more work than it
+     * should. To overcome that issue we add a little more work (variable below) to each rank. It's tempoary fix for a strong scaling
+     * experiments. The downside of this solution is that the last rank will get less work than it should.
+     */
+    size_t assignedWorkExtender = 1;
 };
 
 } // namespace sphexa

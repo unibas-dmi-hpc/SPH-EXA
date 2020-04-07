@@ -95,7 +95,7 @@ void computeTotalEnergyWithGravityImpl(const Task &t, Dataset &d, T &ecin, T &ei
     const T g = d.g;
 
     T ecintmp = 0.0, einttmp = 0.0, egravtmp = 0.0;
-#pragma omp parallel for reduction(+ : ecintmp, einttmp, egravtmp)
+#pragma omp parallel for reduction(+ : ecintmp, einttmp) reduction(- : egravtmp)
     for (size_t pi = 0; pi < n; pi++)
     {
         int i = clist[pi];

@@ -2,6 +2,8 @@
 
 #include <cmath>
 #include <memory>
+#include <algorithm>
+#include <numeric>
 #include <vector>
 #include <unordered_map>
 
@@ -43,9 +45,9 @@ public:
     {
     }
 
-    Octree() {}
+    Octree() = default;
 
-    ~Octree() { cells.clear(); }
+    virtual ~Octree() = default;
 
     std::vector<std::shared_ptr<Octree>> cells;
 
@@ -71,6 +73,7 @@ public:
 
     static const int nX = 2, nY = 2, nZ = 2;
     static const int ncells = 8;
+    static const int noParticlesThatPreventParallelTaskCreation = 10000;
 
     static size_t bucketSize, minGlobalBucketSize, maxGlobalBucketSize;
 
@@ -208,7 +211,8 @@ public:
         {
             for (int i = 0; i < l; i++)
                 printf("   ");
-            printf("[%d] %d %d %d\n", assignee, localPadding, localParticleCount, globalParticleCount);
+            printf("[%d] %d %d %d %d %d %d\n", assignee, localPadding, localParticleCount, globalParticleCount, globalNodeCount,
+                   (int)cells.size(), halo);
 
             if ((int)cells.size() == ncells)
             {
@@ -217,7 +221,6 @@ public:
             }
         }
     }
-
     virtual void makeSubCells()
     {
         cells.resize(ncells);
@@ -453,9 +456,17 @@ public:
         {
             for (int i = 0; i < ncells; i++)
             {
+                if (list.size() < noParticlesThatPreventParallelTaskCreation)
+                {
+                    cells[i]->buildTreeRec(cellList[i], x, y, z, m, ordering, padding);
+                    padding += cellList[i].size();
+                }
+                else
+                {
 #pragma omp task shared(cellList, x, y, z, m, ordering) firstprivate(padding)
-                cells[i]->buildTreeRec(cellList[i], x, y, z, m, ordering, padding);
-                padding += cellList[i].size();
+                    cells[i]->buildTreeRec(cellList[i], x, y, z, m, ordering, padding);
+                    padding += cellList[i].size();
+                }
             }
 #pragma omp taskwait
         }
@@ -479,8 +490,7 @@ public:
         if (work[pi] <= 0 && pi + 1 < work.size()) pi++;
 
         // If the node fits on process pi, we assign it to this branch
-        if (globalParticleCount <= work[pi]) assignee = pi;
-
+        if (globalParticleCount <= work[pi] || pi + 1 == work.size()) assignee = pi;
         if ((int)cells.size() == ncells)
         {
             for (int i = 0; i < ncells; i++)
@@ -648,9 +658,10 @@ public:
                             zmax = zmax + displz;
 
                             /*
-                            * TEMP HACK TO MAKE EVRARD COLLAPSE WORK WITH MPI
-                            * uncomment lines below
-                            */
+                             * TEMP HACK TO MAKE EVRARD COLLAPSE WORK WITH MPI WITHOUT REMOTE GRAVITY CALCULATIONS
+                             * uncomment lines below and comment out remote gravity calculations in evrard.cpp
+                             * It's slow like hell but it's working.
+                             */
                             // const auto tmpH = this->globalMaxH;
                             // this->globalMaxH = 1000;
                             haloCount += root->findHalosList(this, toSendHalos);
@@ -772,6 +783,7 @@ public:
         mapListRec(clist, it);
     }
 };
+
 template <typename T>
 size_t Octree<T>::bucketSize;
 template <typename T>
@@ -793,24 +805,16 @@ struct GravityOctree : Octree<T>
     {
     }
 
+    ~GravityOctree() = default;
+
     void gravityBuildTree(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z,
-                          const std::vector<T> &m)
+                          const std::vector<T> &m, bool withGravitySync = false)
     {
-        plist = list;
+        particleIdxList = list;
         calcGeometricalCenter();
         dx = this->xmax - this->xmin;
 
-        qxxa = 0.0, qxya = 0.0, qxza = 0.0;
-        qyya = 0.0, qyza = 0.0;
-        qzza = 0.0;
-        xcm = 0.0;
-        ycm = 0.0;
-        zcm = 0.0;
-        mTot = 0.0;
-
-        qxx = 0.0, qxy = 0.0, qxz = 0.0;
-        qyy = 0.0, qyz = 0.0;
-        qzz = 0.0;
+        zeroGravValues();
 
         for (const auto i : list)
         {
@@ -838,8 +842,10 @@ struct GravityOctree : Octree<T>
             qzza += rz * rz * m_i;
         }
 
-        const size_t np = list.size();
-        if (np > 1)
+        if (withGravitySync) gatherGravValues();
+
+        const size_t noParticles = list.size();
+        if (noParticles > 1 || this->global)
         {
             xcm /= mTot;
             ycm /= mTot;
@@ -857,7 +863,7 @@ struct GravityOctree : Octree<T>
 
             trq = qxx + qyy + qzz;
         }
-        else if (np == 1)
+        else if (noParticles == 1)
         {
             // save the future particleIdx after reordering
             particleIdx = this->localPadding;
@@ -870,7 +876,6 @@ struct GravityOctree : Octree<T>
             xce = x[idx];
             yce = y[idx];
             zce = z[idx];
-            // printf("Leaf id = %d. [%f, %f, %f]\n", idx, xce, yce, zce);
 
             qxx = 0;
             qxy = 0;
@@ -894,7 +899,6 @@ struct GravityOctree : Octree<T>
     void buildTreeRec(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z,
                       const std::vector<T> &m, std::vector<int> &ordering, int padding = 0) override
     {
-
         this->localPadding = padding;
         this->localParticleCount = list.size();
 
@@ -911,9 +915,17 @@ struct GravityOctree : Octree<T>
         {
             for (int i = 0; i < this->ncells; i++)
             {
+                if (list.size() < this->noParticlesThatPreventParallelTaskCreation)
+                {
+                    this->cells[i]->buildTreeRec(cellList[i], x, y, z, m, ordering, padding);
+                    padding += cellList[i].size();
+                }
+                else
+                {
 #pragma omp task shared(cellList, x, y, z, m, ordering) firstprivate(padding)
-                this->cells[i]->buildTreeRec(cellList[i], x, y, z, m, ordering, padding);
-                padding += cellList[i].size();
+                    this->cells[i]->buildTreeRec(cellList[i], x, y, z, m, ordering, padding);
+                    padding += cellList[i].size();
+                }
             }
 #pragma omp taskwait
         }
@@ -949,40 +961,163 @@ struct GravityOctree : Octree<T>
             }
         }
     }
+    using Octree<T>::print;
 
-    void print(std::ostream &out)
+    void buildGlobalGravityTree(const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &m)
     {
-        // if (global)
+        zeroGravValues();
+        for (const auto &cell : this->cells)
         {
+            asGravityOctree(cell)->zeroGravityValuesInHaloNodesRec();
+        }
+
+        buildGlobalParticleListRec();
+        for (const auto &cell : this->cells)
+        {
+            asGravityOctree(cell)->buildGlobalParticleListRec();
+        }
+
+        for (const auto &cell : this->cells)
+        {
+            asGravityOctree(cell)->buildGlobalGravityTreeRec(x, y, z, m);
+        }
+    }
+
+    void buildGlobalGravityTreeRec(const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &m)
+    {
+        if (this->global)
+        {
+            const bool withGravitySync = true;
+            gravityBuildTree(globalParticleIdxList, x, y, z, m, withGravitySync);
+
+            for (int i = 0; i < this->ncells; i++)
+            {
+                if ((int)this->cells.size() == this->ncells) { asGravityOctree(this->cells[i])->buildGlobalGravityTreeRec(x, y, z, m); }
+            }
+        }
+    }
+
+    bool doAllChildCellsBelongToGlobalTree()
+    {
+        return (int)this->cells.size() == this->ncells &&
+               std::all_of(this->cells.begin(), this->cells.end(), [](const auto &t) { return t->global; });
+    }
+
+    void zeroGravityValuesInHaloNodesRec()
+    {
+
+        if (doAllChildCellsBelongToGlobalTree())
+        {
+            for (const auto &cell : this->cells)
+            {
+                asGravityOctree(cell)->zeroGravityValuesInHaloNodesRec();
+            }
+        } // traverse bottom up
+
+        pcount = particleIdxList.size();
+        globalParticleIdxList = particleIdxList;
+
+        if (this->halo)
+        {
+            zeroGravValues();
+            pcount = 0;
+            globalParticleIdxList.clear();
+        }
+    }
+
+    void buildGlobalParticleListRec()
+    {
+
+        if (doAllChildCellsBelongToGlobalTree())
+        {
+            pcount = 0;
+            globalParticleIdxList.clear();
+
+            const size_t accSize =
+                std::accumulate(this->cells.begin(), this->cells.end(), size_t(0), [this](const size_t acc, const auto &el) {
+                    return asGravityOctree(el)->globalParticleIdxList.size() + acc;
+                });
+            globalParticleIdxList.reserve(accSize);
+            pcount = accSize;
+
+            for (const auto &cell : this->cells)
+            {
+                GravityOctree<T> *gptr = asGravityOctree(cell);
+                std::copy(gptr->globalParticleIdxList.begin(), gptr->globalParticleIdxList.end(),
+                          std::back_inserter(globalParticleIdxList));
+            }
+            for (const auto &cell : this->cells)
+            {
+                asGravityOctree(cell)->buildGlobalParticleListRec();
+            }
+        }
+    }
+
+    void zeroGravValues()
+    {
+        qxxa = 0.0, qxya = 0.0, qxza = 0.0;
+        qyya = 0.0, qyza = 0.0;
+        qzza = 0.0;
+        xcm = 0.0;
+        ycm = 0.0;
+        zcm = 0.0;
+        mTot = 0.0;
+
+        qxx = 0.0, qxy = 0.0, qxz = 0.0;
+        qyy = 0.0, qyz = 0.0;
+        qzz = 0.0;
+        trq = 0.0;
+    }
+
+    void print(int l = 0)
+    {
+        if (this->global)
+        {
+            for (int i = 0; i < l; i++)
+                printf("   ");
+            printf("[%d] lp:%d gp:%d gn:%d h:%d mTot:%.15f qxx:%.15f trq:%.15f ycm:%.15f pcount=%d, globalParticleIdxList.size=%lu\n",
+                   this->assignee, this->localParticleCount, this->globalParticleCount, this->globalNodeCount, this->halo, mTot, qxx, trq,
+                   ycm, pcount, globalParticleIdxList.size());
 
             if ((int)this->cells.size() == this->ncells)
             {
                 for (int i = 0; i < this->ncells; i++)
                 {
-
-                    Octree<T> *ptr = this->cells[i].get();
-                    GravityOctree<T> *gptr = dynamic_cast<GravityOctree<T> *>(ptr);
-                    if (gptr->plist.empty()) continue;
-                    out
-                        // << gptr->qxx << ' ' <<gptr-> qxy << ' ' <<gptr-> qxz << ' '<<gptr-> qyy << ' ' << gptr->qyz << ' ' << gptr->qzz
-                        // << ' ' <<gptr->trq << ' ' << gptr->xce << ' ' << gptr->yce << ' ' <<gptr->zce
-                        << ' ' << gptr->xcm << ' ' << gptr->ycm << ' ' << gptr->zcm << ' ' << gptr->mTot << ' '
-                        << gptr->dx
-                        //<< ' ' << gptr->xmax - gptr->xmin << ' ' << gptr->ymax - gptr->ymin << ' ' << gptr->zmax - gptr->zmin
-                        //<< ' ' << gptr->dx
-                        << std::endl;
-                }
-                for (int i = 0; i < this->ncells; i++)
-                {
-                    Octree<T> *ptr = this->cells[i].get();
-                    GravityOctree<T> *gptr = dynamic_cast<GravityOctree<T> *>(ptr);
-                    gptr->print(out);
+                    asGravityOctree(this->cells[i])->print(l + 1);
                 }
             }
         }
     }
 
-    T mTot = 0;
+    inline GravityOctree<T> *asGravityOctree(const std::shared_ptr<Octree<T>> &octree)
+    {
+        return dynamic_cast<GravityOctree<T> *>(octree.get());
+    }
+
+    void gatherGravValues()
+    {
+#ifdef USE_MPI
+        // if (this->global)
+        if (this->global && this->assignee == -1)
+        {
+            //	  printf("[%d] MPI_Allreduce in tree node with %lu particles and mTot=%.15f\n", this->comm_rank, pcount, mTot);
+            MPI_Allreduce(MPI_IN_PLACE, &mTot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+            MPI_Allreduce(MPI_IN_PLACE, &xcm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+            MPI_Allreduce(MPI_IN_PLACE, &ycm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+            MPI_Allreduce(MPI_IN_PLACE, &zcm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+            MPI_Allreduce(MPI_IN_PLACE, &qxxa, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+            MPI_Allreduce(MPI_IN_PLACE, &qxya, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+            MPI_Allreduce(MPI_IN_PLACE, &qxza, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+            MPI_Allreduce(MPI_IN_PLACE, &qyya, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+            MPI_Allreduce(MPI_IN_PLACE, &qyza, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+            MPI_Allreduce(MPI_IN_PLACE, &qzza, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+        }
+#endif
+    }
+
+    T mTot = 0.0;
     T xce, yce, zce;
     T xcm = 0.0, ycm = 0.0, zcm = 0.0;
 
@@ -995,12 +1130,13 @@ struct GravityOctree : Octree<T>
     T qzza = 0.0;
 
     T trq;
+    int pcount = 0;
 
-    std::vector<int> plist;
-    T dx;                         // side of a cell;
-    int particleIdx = 0;          // filled only if node is a leaf
-                                  //    int oldIdx;
-    constexpr static T tol = 0.5; // tolerance // TODO make it global
+    std::vector<int> particleIdxList;
+    std::vector<int> globalParticleIdxList;
+
+    T dx;                // side of a cell;
+    int particleIdx = 0; // filled only if node is a leaf
 };
 
 } // namespace sphexa

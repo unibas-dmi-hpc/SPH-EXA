@@ -160,4 +160,5 @@ public:
         }
     }
 };
+
 } // namespace sphexa

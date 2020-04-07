@@ -176,7 +176,7 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
             // For time-step calculations
             const T wij = rv / dist;  // todo: what if dist calc is wrong? See problem with PBC...
             const T vijsignal = c[i] + c[j] - 3.0 * wij;
-            if(vijsignal > maxvsignali) maxvsignali = vijsignal;
+            if (vijsignal > maxvsignali) maxvsignali = vijsignal;
 
             const T alpha = 4.0 / 3.0; // sphynx parameters.f90
             const T viscosity_ij = rv < 0.0 ? - alpha * 0.5 * wij * vijsignal : 0.0; // cabezon2017 eq27
@@ -210,7 +210,7 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
 
         volnorm[i] = volnorm_loc + vol[i] * K / (h[i] * h[i] * h[i]); // self contrib and store volume normalization
     }
-};
+}
 
 template <typename T, class Dataset>
 void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)

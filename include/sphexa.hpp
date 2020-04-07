@@ -3,7 +3,6 @@
 #ifdef USE_MPI
 #include "mpi.h"
 #include "DistributedDomain.hpp"
-#include "mpiFileUtils.hpp"
 #endif
 
 #include "debugUtils.hpp"
@@ -13,9 +12,10 @@
 #include "BBox.hpp"
 #include "Task.hpp"
 #include "ArgParser.hpp"
-#include "config.hpp"
 #include "Timer.hpp"
+#include "FileUtils.hpp"
 #include "Printer.hpp"
+#include "utils.hpp"
 
 #if defined(USE_CUDA)
 // CUDA NOT YET SUPPORTED FOR GENERAL VE
@@ -36,3 +36,4 @@ exit(EXIT_FAILURE);
 #include "sph/totalEnergy.hpp"
 #include "sph/updateSmoothingLength.hpp"
 #include "sph/gravityTreeWalk.hpp"
+#include "sph/gravityTreeWalkForRemoteParticles.hpp"
