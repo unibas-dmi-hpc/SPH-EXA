@@ -29,7 +29,7 @@ void writeParticleDataToAsciiFile(std::ostream &, const int, const char) {}
 template <typename Arg, typename... Args>
 void writeParticleDataToAsciiFile(std::ostream &file, const int idx, const char separator, const Arg &first, Args &&... data)
 {
-    file << first[idx] << ' ';
+    file << first[idx] << separator;
 
     writeParticleDataToAsciiFile(file, idx, separator, data...);
 }
@@ -87,9 +87,15 @@ void writeParticleDataToBinFile(const std::string &path, Args &&... data)
 }
 
 template <typename... Args>
-void writeParticleDataToAsciiFile(const std::vector<int> &clist, const std::string &path, const char separator, Args &&... data)
+void writeParticleDataToAsciiFile(const std::vector<int> &clist, const std::string &path, const bool append, const char separator, Args &&... data)
 {
-    std::ofstream dump(path, std::ostream::out);
+    std::ios_base::openmode mode;
+    if (append)
+        mode = std::ofstream::app;
+    else
+        mode = std::ofstream::out;
+
+    std::ofstream dump(path, mode);
 
     if (dump.is_open())
     {
@@ -106,6 +112,12 @@ void writeParticleDataToAsciiFile(const std::vector<int> &clist, const std::stri
     }
 
     dump.close();
+}
+
+template <typename... Args>
+void writeParticleDataToAsciiFile(const std::vector<int> &clist, const std::string &path, const char separator, Args &&... data)
+{
+    writeParticleDataToAsciiFile(clist, path, false, separator, data...);
 }
 
 template <typename... Args>
