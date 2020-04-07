@@ -101,9 +101,6 @@ int main(int argc, char **argv)
         taskList.update(domain.clist);
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
-        if (d.iteration == 0) { // todo: refactor this!
-            sph::findNeighbors(domain.octree, taskList.tasks, d);
-        }
         timer.step("FindNeighbors");
         sph::computeDensity<Real>(taskList.tasks, d);
         timer.step("Density");
@@ -137,15 +134,28 @@ int main(int argc, char **argv)
         sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d);
         timer.step("MomentumEnergyIAD");
         sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
-        //what timestep thing to choose???
-        // I now changed the press2ndOrder to be closer to courant in sphynx...
         timer.step("Timestep"); // AllReduce(min:dt)
         sph::computePositions<Real, sph::computeAcceleration<Real, Dataset>>(taskList.tasks, d);
         timer.step("UpdateQuantities");
         sph::computeTotalEnergy<Real>(taskList.tasks, d);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
+#ifdef DO_NEWTONRAPHSON
+        if (d.iteration > d.starthNR)
+            sph::updateSmoothingLength<Real>(taskList.tasks, d);
+#else
         sph::updateSmoothingLength<Real>(taskList.tasks, d);
+#endif //DO_NEWTONRAPHSON
         timer.step("UpdateSmoothingLength");
+
+#ifdef SPHYNX_VE
+        if (d.iteration > d.starthNR - 5)
+            sph::updateVEEstimator<Real, sph::XmassSPHYNXVE<Real, Dataset>>(taskList.tasks, d);
+        else
+            sph::updateVEEstimator<Real, sph::XmassStdVE<Real, Dataset>>(taskList.tasks, d);
+#else
+        sph::updateVEEstimator<Real, sph::XmassStdVE<Real, Dataset>>(taskList.tasks, d);
+#endif //SPHYNX_VE
+        timer.step("UpdateVEEstimator");
 
         const size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
         const size_t maxNeighbors = sph::neighborsMax(taskList.tasks);
@@ -155,10 +165,6 @@ int main(int argc, char **argv)
             printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, maxNeighbors, ngmax, output);
             printer.printConstants(d.iteration, totalNeighbors, maxNeighbors, ngmax, constantsFile);
         }
-
-//        if (d.rank == 1 && d.iteration == 2) {
-//            crash_me();
-//        }
 
 #ifndef NDEBUG
         fpe_raised = all_check_FPE("after print, rank " + std::to_string(d.rank));

@@ -35,5 +35,6 @@ exit(EXIT_FAILURE);
 #include "sph/positions.hpp"
 #include "sph/totalEnergy.hpp"
 #include "sph/updateSmoothingLength.hpp"
+#include "sph/updateVEEstimator.hpp"
 #include "sph/gravityTreeWalk.hpp"
 #include "sph/gravityTreeWalkForRemoteParticles.hpp"

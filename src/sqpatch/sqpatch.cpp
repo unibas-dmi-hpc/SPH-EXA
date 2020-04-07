@@ -86,9 +86,6 @@ int main(int argc, char **argv)
         taskList.update(domain.clist);
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
-        if (d.iteration == 0) { // todo: refactor this!
-            sph::findNeighbors(domain.octree, taskList.tasks, d);
-        }
         timer.step("FindNeighbors");
         sph::computeDensity<Real>(taskList.tasks, d);  // initial guess for density...
         timer.step("Density");
@@ -99,8 +96,6 @@ int main(int argc, char **argv)
             timer.step("hNR");
             sph::findNeighbors(domain.octree, taskList.tasks, d);
             timer.step("FindNeighbors");
-//            without those, it crashes around 1971... sometimes the debugger shows variable values, sometimes not...
-//            without those on the cluster, but with -g and DEBUG flags, I get index out of bounds at line 188 in o.findneighbors() in iteration 1379. Also ngmax=-1419685523 which is odd (maybe display error in gdb from conversion to size_t(as defined) to int (as in function signature))
             for (int iterNR = 0; iterNR < 2; iterNR++) {
                 sph::computeDensity<Real>(taskList.tasks, d);
                 timer.step("Density");
@@ -129,8 +124,23 @@ int main(int argc, char **argv)
         timer.step("UpdateQuantities");
         sph::computeTotalEnergy<Real>(taskList.tasks, d);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
+#ifdef DO_NEWTONRAPHSON
+        if (d.iteration > d.starthNR)
+            sph::updateSmoothingLength<Real>(taskList.tasks, d);
+#else
         sph::updateSmoothingLength<Real>(taskList.tasks, d);
+#endif //DO_NEWTONRAPHSON
         timer.step("UpdateSmoothingLength");
+
+#ifdef SPHYNX_VE
+        if (d.iteration > d.starthNR - 5)
+            sph::updateVEEstimator<Real, sph::XmassSPHYNXVE<Real, Dataset>>(taskList.tasks, d);
+        else
+            sph::updateVEEstimator<Real, sph::XmassStdVE<Real, Dataset>>(taskList.tasks, d);
+#else
+        sph::updateVEEstimator<Real, sph::XmassStdVE<Real, Dataset>>(taskList.tasks, d);
+#endif //SPHYNX_VE
+        timer.step("UpdateVEEstimator");
 
         const size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
         const size_t maxNeighbors = sph::neighborsMax(taskList.tasks);
