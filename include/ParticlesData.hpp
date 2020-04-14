@@ -43,6 +43,9 @@ struct ParticlesData
     std::vector<T> gradh;                        // gradh terms (omega)
     std::vector<T> id;                           // particle identifier (index is reordere). this should be globally unique
     std::vector<T> volnorm;                      // to check volume normalization (integration of volume should be 1)
+    std::vector<T> avgdeltar_x;                  // to check the \sum_b{V_b(r_b-r_a)*W_{ab} = 0 condition (cabezon2017 Fig5 right)
+    std::vector<T> avgdeltar_y;                  // to check the \sum_b{V_b(r_b-r_a)*W_{ab} = 0 condition (cabezon2017 Fig5 right)
+    std::vector<T> avgdeltar_z;                  // to check the \sum_b{V_b(r_b-r_a)*W_{ab} = 0 condition (cabezon2017 Fig5 right)
 
     T ttot, etot, ecin, eint;
     T minDt;
@@ -56,11 +59,12 @@ struct ParticlesData
 
     BBox<T> bbox;
 
-    std::vector<std::vector<T> *> data{&x,        &y,        &z,   &x_m1,       &y_m1,     &z_m1,  &vx,    &vy,    &vz,
-                                       &ro,       &ro_0,     &u,   &p,          &p_0,      &h,     &m,     &c,     &grad_P_x,
-                                       &grad_P_y, &grad_P_z, &du,  &du_m1,      &dt,       &dt_m1, &c11,   &c12,   &c13,
-                                       &c22,      &c23,      &c33, &maxvsignal, &vol,      &xmass, &sumkx, &sumwh, &ballmass,
-                                       &nn,       &gradh,    &id,  &du_av,      &du_av_m1, &volnorm};
+    std::vector<std::vector<T> *> data{&x,        &y,        &z,   &x_m1,       &y_m1,     &z_m1,   &vx,    &vy,    &vz,
+                                       &ro,       &ro_0,     &u,   &p,          &p_0,      &h,      &m,     &c,     &grad_P_x,
+                                       &grad_P_y, &grad_P_z, &du,  &du_m1,      &dt,       &dt_m1,  &c11,   &c12,   &c13,
+                                       &c22,      &c23,      &c33, &maxvsignal, &vol,      &xmass,  &sumkx, &sumwh, &ballmass,
+                                       &nn,       &gradh,    &id,  &du_av,      &du_av_m1, &volnorm, &avgdeltar_x,
+                                       &avgdeltar_y, &avgdeltar_z};
 #ifdef USE_MPI
     MPI_Comm comm;
     int pnamelen = 0;

@@ -17,7 +17,7 @@ struct WindblobFileWriter : IFileWriter<Dataset>
                     d.vz, d.h, d.ro, d.u, d.p,
                     d.c, d.grad_P_x, d.grad_P_y, d.grad_P_z, /*d.radius,*/
                     d.nn, d.sumkx, d.sumwh, d.xmass, d.gradh,
-                    d.ballmass, d.volnorm
+                    d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z
                     );
         }
         catch (FileNotOpenedException &ex)
@@ -38,7 +38,7 @@ struct WindblobFileWriter : IFileWriter<Dataset>
                                                     d.vz, d.h, d.ro, d.u, d.p,
                                                     d.c, d.grad_P_x, d.grad_P_y, d.grad_P_z, /*d.radius,*/
                                                     d.nn, d.sumkx, d.sumwh, d.xmass, d.gradh,
-                                                    d.ballmass, d.volnorm
+                                                    d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z
                                                     );
         }
         catch (FileNotOpenedException &ex)
@@ -75,7 +75,7 @@ struct WindblobMPIFileWriter : IFileWriter<Dataset>
                                                     d.vz, d.h, d.ro, d.u, d.p,
                                                     d.c, d.grad_P_x, d.grad_P_y, d.grad_P_z, /*d.radius,*/
                                                     d.nn, d.sumkx, d.sumwh, d.xmass, d.gradh,
-                                                    d.ballmass, d.volnorm
+                                                    d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z
                                                     );
                 }
                 catch (MPIFileNotOpenedException &ex)
@@ -101,7 +101,7 @@ struct WindblobMPIFileWriter : IFileWriter<Dataset>
                     d.vz, d.h, d.ro, d.u, d.p,
                     d.c, d.grad_P_x, d.grad_P_y, d.grad_P_z, /*d.radius,*/
                     d.nn, d.sumkx, d.sumwh, d.xmass, d.gradh,
-                    d.ballmass, d.volnorm
+                    d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z
                     );
         }
         catch (MPIFileNotOpenedException &ex)

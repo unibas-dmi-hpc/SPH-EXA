@@ -53,6 +53,9 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
     T *grad_P_z = d.grad_P_z.data();
     T *maxvsignal = d.maxvsignal.data();
     T *volnorm = d.volnorm.data();  // check kernel normalization
+    T *avgdeltar_x = d.avgdeltar_x.data(); // check <delta r> magnitude
+    T *avgdeltar_y = d.avgdeltar_y.data();
+    T *avgdeltar_z = d.avgdeltar_z.data();
 
     const BBox<T> bbox = d.bbox;
 
@@ -106,6 +109,8 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
         T maxvsignali = 0.0;
         T momentum_x = 0.0, momentum_y = 0.0, momentum_z = 0.0, energy = 0.0, energyAV = 0.0;
         T volnorm_loc = 0.0;
+        T avgdeltar_x_loc = 0.0, avgdeltar_y_loc = 0.0, avgdeltar_z_loc = 0.0;
+
         for (int pj = 0; pj < nn; ++pj)
         {
             const int j = neighbors[pi * ngmax + pj];
@@ -192,7 +197,11 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
             energy += xmass[j] * pro_i * (v_ijx * termA1_i + v_ijy * termA2_i + v_ijz * termA3_i); // cabezon2017 eq 23
             energyAV += grad_Px_AV * v_ijx + grad_Py_AV * v_ijy + grad_Pz_AV * v_ijz;  // cabezon2017 eq 23
 
-            volnorm_loc += vol[j] * W1;
+            T voljW = vol[j] * W1;
+            volnorm_loc += voljW;
+            avgdeltar_x_loc += voljW * r_jix;
+            avgdeltar_y_loc += voljW * r_jiy;
+            avgdeltar_z_loc += voljW * r_jiz;
         }
 //        todo: check sphynx where the additional 0.5 is for the viscosity energy... couldn't find it after
 //          brief look in momeqnmod.f90 and update.f90
@@ -209,6 +218,9 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
         maxvsignal[i] = maxvsignali;
 
         volnorm[i] = volnorm_loc + vol[i] * K / (h[i] * h[i] * h[i]); // self contrib and store volume normalization
+        avgdeltar_x[i] = avgdeltar_x_loc;  //no self contrib because deltar = 0...
+        avgdeltar_y[i] = avgdeltar_y_loc;
+        avgdeltar_z[i] = avgdeltar_z_loc;
     }
 }
 
