@@ -34,6 +34,12 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
 
 #ifndef NDEBUG
         if (std::isinf(h[i]) || std::isnan(h[i])) printf("ERROR::h(%d) ngi %d h %f\n", int(d.id[i]), nn, h[i]);
+        if ((d.bbox.PBCx && 2.0 * h[i] > (d.bbox.xmax - d.bbox.xmin) / 2.0) ||
+            (d.bbox.PBCy && 2.0 * h[i] > (d.bbox.ymax - d.bbox.ymin) / 2.0) ||
+            (d.bbox.PBCz && 2.0 * h[i] > (d.bbox.zmax - d.bbox.zmin) / 2.0)
+                )
+            printf("ERROR::Update_h(%d) 2*(h=%f) > than half of domain width! x: %f - %f, y: %f - %f, z: %f - %f\n",
+                   int(d.id[i]), h[i], d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax);
 #endif
     }
 }

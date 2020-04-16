@@ -183,8 +183,15 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
             const T vijsignal = c[i] + c[j] - 3.0 * wij;
             if (vijsignal > maxvsignali) maxvsignali = vijsignal;
 
-            const T alpha = 4.0 / 3.0; // sphynx parameters.f90
-            const T viscosity_ij = rv < 0.0 ? - alpha * 0.5 * wij * vijsignal : 0.0; // cabezon2017 eq27
+            T viscosity_ij;
+            if (d.oldAV){
+                viscosity_ij = artificial_viscosity(ro[i], ro[j], h[i], h[j], c[i], c[j], rv, r_square);
+            }
+            else {
+                const T alpha = 4.0 / 3.0; // sphynx parameters.f90
+                viscosity_ij = rv < 0.0 ? - alpha * 0.5 * wij * vijsignal : 0.0; // cabezon2017 eq27
+            }
+
 
             const T grad_Px_AV = 0.5 * (vol[i] / m[i] * m[j] * viscosity_ij * termA1_i + vol[j] * viscosity_ij * termA1_j);  // cabezon2017 eq29
             const T grad_Py_AV = 0.5 * (vol[i] / m[i] * m[j] * viscosity_ij * termA2_i + vol[j] * viscosity_ij * termA2_j);

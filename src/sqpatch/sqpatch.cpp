@@ -37,6 +37,11 @@ int main(int argc, char **argv)
     const int writeFrequency = parser.getInt("-w", -1);
     const bool quiet = parser.exists("--quiet");
     const std::string outDirectory = parser.getString("--outDir");
+    const bool oldAV = parser.exists("--oldAV");
+    const bool gVE = parser.exists("--gVE");
+    const int hNRStart = parser.getInt("--hNRStart", 15);
+    const int hNgBMStop = parser.getInt("--hNgBMStop", 15);
+    const size_t ngmax_cli = std::max(parser.getInt("--ngmax", 750), 0);
 
     std::ofstream nullOutput("/dev/null");
     std::ostream &output = quiet ? nullOutput : std::cout;
@@ -54,6 +59,7 @@ int main(int argc, char **argv)
 #endif
 
     auto d = SqPatchDataGenerator<Real>::generate(cubeSide);
+    d.oldAV = oldAV;
     const Printer<Dataset> printer(d);
 
     MasterProcessTimer timer(output, d.rank), totalTimer(output, d.rank);
@@ -66,8 +72,9 @@ int main(int argc, char **argv)
     domain.create(d);
 
     const size_t nTasks = 1;
-    const size_t ngmax = 750;
     const size_t ng0 = 250;
+//    const size_t ngmax = 750; // increased to fight bug
+    const size_t ngmax = std::max(ng0 + 100, ngmax_cli);
     TaskList taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
 
     // want to dump on floating point exceptions
@@ -90,22 +97,16 @@ int main(int argc, char **argv)
         sph::computeDensity<Real>(taskList.tasks, d);  // initial guess for density...
         timer.step("Density");
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
-#ifdef DO_NEWTONRAPHSON
-        if (d.iteration > d.starthNR) {
+        if (d.iteration > hNRStart) {
             sph::newtonRaphson<Real>(taskList.tasks, d);
             timer.step("hNR");
-            sph::findNeighbors(domain.octree, taskList.tasks, d);
-            timer.step("FindNeighbors");
             for (int iterNR = 0; iterNR < 2; iterNR++) {
                 sph::computeDensity<Real>(taskList.tasks, d);
                 timer.step("Density");
                 sph::newtonRaphson<Real>(taskList.tasks, d);
                 timer.step("hNR");
-            sph::findNeighbors(domain.octree, taskList.tasks, d);
-            timer.step("FindNeighbors");
             }
         }
-#endif
         sph::calcGradhTerms<Real>(taskList.tasks, d);
         timer.step("calcGradhTerms");
         sph::computeEquationOfStateSphynxWater<Real>(taskList.tasks, d);
@@ -124,22 +125,15 @@ int main(int argc, char **argv)
         timer.step("UpdateQuantities");
         sph::computeTotalEnergy<Real>(taskList.tasks, d);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
-#ifdef DO_NEWTONRAPHSON
-        if (d.iteration > d.starthNR)
+        if (d.iteration < hNgBMStop) {
             sph::updateSmoothingLength<Real>(taskList.tasks, d);
-#else
-        sph::updateSmoothingLength<Real>(taskList.tasks, d);
-#endif //DO_NEWTONRAPHSON
-        timer.step("UpdateSmoothingLength");
+            timer.step("UpdateSmoothingLength");
+        }
 
-#ifdef SPHYNX_VE
-        if (d.iteration > d.starthNR - 5)
+        if (gVE && d.iteration > hNRStart - 5)
             sph::updateVEEstimator<Real, sph::XmassSPHYNXVE<Real, Dataset>>(taskList.tasks, d);
         else
             sph::updateVEEstimator<Real, sph::XmassStdVE<Real, Dataset>>(taskList.tasks, d);
-#else
-        sph::updateVEEstimator<Real, sph::XmassStdVE<Real, Dataset>>(taskList.tasks, d);
-#endif //SPHYNX_VE
         timer.step("UpdateVEEstimator");
 
         const size_t totalNeighbors = sph::neighborsSum(taskList.tasks);

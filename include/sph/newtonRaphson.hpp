@@ -57,6 +57,12 @@ namespace sphexa
 
 #ifndef NDEBUG
                 if (std::isnan(h[i]) || std::isinf(h[i]) || h[i] <= 0.0) printf("ERROR::NewtonRaphson(%d) h %f, delta-h: %f\n", int(d.id[i]), h[i], deltah);
+                if ((d.bbox.PBCx && 2.0 * h[i] > (d.bbox.xmax - d.bbox.xmin) / 2.0) ||
+                    (d.bbox.PBCy && 2.0 * h[i] > (d.bbox.ymax - d.bbox.ymin) / 2.0) ||
+                    (d.bbox.PBCz && 2.0 * h[i] > (d.bbox.zmax - d.bbox.zmin) / 2.0)
+                    )
+                    printf("ERROR::NewtonRaphson(%d) 2*(h=%f) > than half of domain width! x: %f - %f, y: %f - %f, z: %f - %f\n",
+                            int(d.id[i]), h[i], d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax);
 #endif
             }
         }

@@ -134,35 +134,37 @@ public:
 template <typename T>
 CUDA_DEVICE_HOST_FUN inline void applyPBC(const BBox<T> &bbox, const T r, T &xx, T &yy, T &zz)
 {
-    // todo:
-    // this is based on assumption that we don't change h after the findneighbors function is run...
-    // then we only have neighbors that are within r=2h of the particle... particles further away
-    // must then have be detected as a neighbor because of the PBC and we correct for that here,
-    // but this approach is invalid if we increase h after the findneighbors function is run...
-    // BUT:
-    // if r is increased, these conditions below are less likely to be fulfilled -> PBC will not be applied to
-    // some particles, but since they were not in r before, they are not returned by the findneighbors function
-    // -> no problem
+    // todo: add warning after update of h if h is bigger than the half-width of the bbox of any dimension...
+    //       but this is actually not a problem for only the bbox, but a limitation/assumption of the domain/simulation
+    //       architecture. We only allow wrap-around once (i.e. a particle cannot be a neighbor of another particle
+    //       multiple times (e.g once "directly" and once "through a PBC" then again through applying the PBC a
+    //       second time...)
     //
-    // if r is decreased, some particles will be considered neighbors and have the PBC applied where they should not
-    // they move to the opposite side of the boundary and are thus further away than they should be...
-    // but due to the compact support of the kernel, this should not matter either.
-    // confirm that this is not an issue by running findneighbors after every update on h...
+    // todo: refactor such that parameter r is removed. It actually has no influence on whether applying the PBC
+    //       has an effect...
+    //
+    // todo: optimize! This function is called for basically every kernel call and the bbox bounds don't change
+    //       in an iteration until positions are updated -> probably makes sense to store the widths in the bbox
+    //       after the update, no?
 
-    if (bbox.PBCx && xx > r)
-        xx -= (bbox.xmax - bbox.xmin);
-    else if (bbox.PBCx && xx < -r)
-        xx += (bbox.xmax - bbox.xmin);
 
-    if (bbox.PBCy && yy > r)
-        yy -= (bbox.ymax - bbox.ymin);
-    else if (bbox.PBCy && yy < -r)
-        yy += (bbox.ymax - bbox.ymin);
+    const T xWidth = bbox.xmax - bbox.xmin;
+    if (bbox.PBCx && xx > xWidth / 2.0)
+        xx -= xWidth;
+    else if (bbox.PBCx && xx < - xWidth / 2.0)
+        xx += xWidth;
 
-    if (bbox.PBCz && zz > r)
-        zz -= (bbox.zmax - bbox.zmin);
-    else if (bbox.PBCz && zz < -r)
-        zz += (bbox.zmax - bbox.zmin);
+    const T yWidth = bbox.ymax - bbox.ymin;
+    if (bbox.PBCy && yy > yWidth / 2.0)
+        yy -= yWidth;
+    else if (bbox.PBCy && yy < - yWidth / 2.0)
+        yy += yWidth;
+
+    const T zWidth = bbox.zmax - bbox.zmin;
+    if (bbox.PBCz && zz > zWidth / 2.0)
+        zz -= zWidth;
+    else if (bbox.PBCz && zz < - zWidth / 2.0)
+        zz += zWidth;
 
     // xx += bbox.PBCx * ((xx < -r) - (xx > r)) * (bbox.xmax-bbox.xmin);
     // yy += bbox.PBCy * ((yy < -r) - (yy > r)) * (bbox.ymax-bbox.ymin);
