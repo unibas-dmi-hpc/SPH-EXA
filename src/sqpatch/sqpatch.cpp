@@ -92,16 +92,28 @@ int main(int argc, char **argv)
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
-        const size_t maxNeighbors = sph::neighborsMax<Real>(taskList.tasks, d); // AllReduce
-        if (hackyNgMaxFix && maxNeighbors >= ngmax){
-            // todo: maybe have a counter to avoid endless repeats here...
+
+        size_t maxNeighbors = sph::neighborsMax<Real>(taskList.tasks, d); // AllReduce
+        const int maxRetries = 10;
+        int tries = 0;
+        while (hackyNgMaxFix && tries < maxRetries && maxNeighbors >= ngmax) {
+            tries++;
+            if (d.rank == 0) output << "maxNeighbors " << maxNeighbors << " try: " << tries <<  std::endl;
             sph::updateSmoothingLength<Real>(taskList.tasks, d);
             timer.step("HackyUpdateSmoothingLengthBecauseTooManyNeighbors");
-            // ugly compensation of for loop increment:
-            // todo: consider changing to while loop with explicit increment in body...
-            d.iteration--;
-            continue;
+            domain.update(d);
+            timer.step("domain::distribute");
+            domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.xmass);
+            timer.step("mpi::synchronizeHalos");
+            domain.buildTree(d);
+            timer.step("domain::buildTree");
+            taskList.update(domain.clist);
+            timer.step("updateTasks");
+            sph::findNeighbors(domain.octree, taskList.tasks, d);
+            timer.step("FindNeighbors");
+            maxNeighbors = sph::neighborsMax<Real>(taskList.tasks, d); // AllReduce
         }
+
         sph::computeDensity<Real>(taskList.tasks, d);
         timer.step("Density");
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
