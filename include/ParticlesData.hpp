@@ -39,7 +39,10 @@ struct ParticlesData
     std::vector<T> dt, dt_m1;
     std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T> maxvsignal;
+    // todo: the nn ones should be reconciled with the neighborscount in the task struct.
+    //       problem is that like this here, we can dump it easily for debug, but they're actually uints, not doubles!
     std::vector<T> nn;                           // number of neighbors
+    std::vector<T> nn_actual;                    // actual number of neighbors (not capped by ngmax)
     std::vector<T> gradh;                        // gradh terms (omega)
     std::vector<T> id;                           // particle identifier (index is reordere). this should be globally unique
     std::vector<T> volnorm;                      // to check volume normalization (integration of volume should be 1)
@@ -64,7 +67,7 @@ struct ParticlesData
                                        &grad_P_y, &grad_P_z, &du,  &du_m1,      &dt,       &dt_m1,  &c11,   &c12,   &c13,
                                        &c22,      &c23,      &c33, &maxvsignal, &vol,      &xmass,  &sumkx, &sumwh, &ballmass,
                                        &nn,       &gradh,    &id,  &du_av,      &du_av_m1, &volnorm, &avgdeltar_x,
-                                       &avgdeltar_y, &avgdeltar_z};
+                                       &avgdeltar_y, &avgdeltar_z, &nn_actual};
 #ifdef USE_MPI
     MPI_Comm comm;
     int pnamelen = 0;

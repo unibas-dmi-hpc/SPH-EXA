@@ -45,9 +45,7 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
     T *du_av = d.du_av.data();
     T *du_m1 = d.du_m1.data();
     T *du_av_m1 = d.du_av_m1.data();
-#ifndef DEBUG
-    const T *u = d.u.data();
-#endif
+
     T *grad_P_x = d.grad_P_x.data();
     T *grad_P_y = d.grad_P_y.data();
     T *grad_P_z = d.grad_P_z.data();

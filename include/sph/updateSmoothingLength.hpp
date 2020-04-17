@@ -15,7 +15,7 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
     const T exp = 1.0 / 3.0;
 
     const int ng0 = t.ng0;
-    const int *neighborsCount = t.neighborsCount.data();
+    const T *nn_actual = d.nn_actual.data();
     T *h = d.h.data();
 
     const T *ro = d.ro.data();
@@ -27,7 +27,8 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
     for (size_t pi = 0; pi < n; pi++)
     {
         int i = t.clist[pi];
-        const int nn = neighborsCount[pi];
+//        const int nn = neighborsCount[pi];
+        const int nn = std::round(nn_actual[i]);
 
         h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp); // update of smoothing length...
         ballmass[i] = ro[i] * h[i] * h[i] * h[i]; //this is also in the findneighbors of sphynx -> runs every iteration, not just if iter > startNR as it is in update of sphynx

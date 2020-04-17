@@ -13,6 +13,7 @@ void findNeighborsImpl(const Octree<T> &o, Task &t, Dataset &d)
 {
     const size_t n = t.clist.size();
     T *nn = d.nn.data();
+    T *nn_actual = d.nn_actual.data();
 
 #pragma omp parallel for schedule(guided)
     for (size_t pi = 0; pi < n; pi++)
@@ -20,17 +21,18 @@ void findNeighborsImpl(const Octree<T> &o, Task &t, Dataset &d)
         const int i = t.clist[pi];
 
         t.neighborsCount[pi] = 0;
+        int nn_act = 0;
         o.findNeighbors(i, &d.x[0], &d.y[0], &d.z[0], d.x[i], d.y[i], d.z[i], 2.0 * d.h[i], t.ngmax, &t.neighbors[pi * t.ngmax],
-                             t.neighborsCount[pi], d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz);
-
+                             t.neighborsCount[pi], nn_act, d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz);
 
 #ifndef NDEBUG
         if (t.neighborsCount[pi] == 0)
             printf("ERROR::FindNeighbors(%d) x %f y %f z %f h = %f ngi %d\n", int(d.id[i]), d.x[i], d.y[i], d.z[i], d.h[i], t.neighborsCount[pi]);
         if (t.neighborsCount[pi] == t.ngmax)
-            printf("WARNING::FindNeighbors(%d) x %f y %f z %f h = %f ngi %d reached ngmax (%d)\n", int(d.id[i]), d.x[i], d.y[i], d.z[i], d.h[i], t.neighborsCount[pi], t.ngmax);
+            printf("WARNING::FindNeighbors(%d) x %f y %f z %f h = %f ngi %d reached ngmax (%d). Actual neighbor count is %d\n", int(d.id[i]), d.x[i], d.y[i], d.z[i], d.h[i], t.neighborsCount[pi], t.ngmax, nn_act);
 #endif
         nn[i] = t.neighborsCount[pi];
+        nn_actual[i] = nn_act;
     }
 }
 
@@ -67,21 +69,25 @@ size_t neighborsSum(const std::vector<Task> &taskList)
     return sum;
 }
 
-size_t neighborsMaxImpl(const Task &t)
+template <typename T, class Dataset>
+size_t neighborsMaxImpl(const Task &t, Dataset &d)
 {
     size_t max = 0;
 #pragma omp parallel for reduction(max : max)
-    for (unsigned int i = 0; i < t.clist.size(); i++)
-        max = t.neighborsCount[i] > max ? t.neighborsCount[i] : max;
+    for (unsigned int pi = 0; pi < t.clist.size(); pi++){
+        int i = t.clist[pi];
+        max = d.nn_actual[i] > max ? d.nn_actual[i] : max;
+    }
     return max;
 }
 
-size_t neighborsMax(const std::vector<Task> &taskList)
+template <typename T, class Dataset>
+size_t neighborsMax(const std::vector<Task> &taskList, Dataset &d)
 {
     size_t max = 0;
     for (const auto &task : taskList)
     {
-        size_t m = neighborsMaxImpl(task);
+        size_t m = neighborsMaxImpl<T>(task, d);
         max = m > max ? m : max;
     }
 

@@ -16,7 +16,7 @@ struct SqPatchFileWriter : IFileWriter<Dataset>
                     d.x, d.y, d.z, d.vx, d.vy,
                     d.vz, d.h, d.ro, d.u, d.p,
                     d.c, d.grad_P_x, d.grad_P_y, d.grad_P_z, /*d.radius,*/
-                    d.nn, d.sumkx, d.sumwh, d.xmass, d.gradh,
+                    d.nn_actual, d.sumkx, d.sumwh, d.xmass, d.gradh,
                     d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z
                     );
         }
@@ -37,7 +37,7 @@ struct SqPatchFileWriter : IFileWriter<Dataset>
                                                     d.x, d.y, d.z, d.vx, d.vy,
                                                     d.vz, d.h, d.ro, d.u, d.p,
                                                     d.c, d.grad_P_x, d.grad_P_y, d.grad_P_z, /*d.radius,*/
-                                                    d.nn, d.sumkx, d.sumwh, d.xmass, d.gradh,
+                                                    d.nn_actual, d.sumkx, d.sumwh, d.xmass, d.gradh,
                                                     d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z
                                                     );
         }
@@ -74,7 +74,7 @@ struct SqPatchMPIFileWriter : IFileWriter<Dataset>
                                                     d.x, d.y, d.z, d.vx, d.vy,
                                                     d.vz, d.h, d.ro, d.u, d.p,
                                                     d.c, d.grad_P_x, d.grad_P_y, d.grad_P_z, /*d.radius,*/
-                                                    d.nn, d.sumkx, d.sumwh, d.xmass, d.gradh,
+                                                    d.nn_actual, d.sumkx, d.sumwh, d.xmass, d.gradh,
                                                     d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z
                                                     );
                 }
@@ -100,7 +100,7 @@ struct SqPatchMPIFileWriter : IFileWriter<Dataset>
                     d.x, d.y, d.z, d.vx, d.vy,
                     d.vz, d.h, d.ro, d.u, d.p,
                     d.c, d.grad_P_x, d.grad_P_y, d.grad_P_z, /*d.radius,*/
-                    d.nn, d.sumkx, d.sumwh, d.xmass, d.gradh,
+                    d.nn_actual, d.sumkx, d.sumwh, d.xmass, d.gradh,
                     d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z
                     );
         }

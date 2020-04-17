@@ -20,9 +20,6 @@ int main(int argc, char **argv)
 #endif
 
     std::feclearexcept(FE_ALL_EXCEPT);
-#ifdef NDEBUG
-    enable_fe_hwexceptions(); // we want to crash if we see NANs or INFs!
-#endif
 
     const int rank = initAndGetRankId();
 
@@ -32,9 +29,10 @@ int main(int argc, char **argv)
     const std::string outDirectory = "";
     const bool oldAV = parser.exists("--oldAV");
     const bool gVE = parser.exists("--gVE");
-    const int hNRStart = parser.getInt("--hNRStart", 15);
-    const int hNgBMStop = parser.getInt("--hNgBMStop", 15);
+    const int hNRStart = parser.getInt("--hNRStart", maxStep);
+    const int hNgBMStop = parser.getInt("--hNgBMStop", maxStep);
     const size_t ngmax_cli = std::max(parser.getInt("--ngmax", 750), 0);
+    const bool hackyNgMaxFix = parser.exists("--hackyNgMaxFix");
 
     std::ostream &output = std::cout;
 
@@ -106,6 +104,16 @@ int main(int argc, char **argv)
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
+        const size_t maxNeighbors = sph::neighborsMax<Real>(taskList.tasks, d); // AllReduce
+        if (hackyNgMaxFix && maxNeighbors >= ngmax){
+            // todo: maybe have a counter to avoid endless repeats here...
+            sph::updateSmoothingLength<Real>(taskList.tasks, d);
+            timer.step("HackyUpdateSmoothingLengthBecauseTooManyNeighbors");
+            // ugly compensation of for loop increment:
+            // todo: consider changing to while loop with explicit increment in body...
+            d.iteration--;
+            continue;
+        }
         sph::computeDensity<Real>(taskList.tasks, d);
         timer.step("Density");
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
@@ -123,7 +131,7 @@ int main(int argc, char **argv)
         timer.step("calcGradhTerms");
         sph::computeEquationOfStateWindblob<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
-        domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c, &d.sumkx, &d.gradh, &d.h, &d.vol);  // also synchronize sumkx after density! Synchronize also h for h[j] accesses in momentum and energy
+        domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c, &d.sumkx, &d.gradh, &d.h, &d.vol);
         timer.step("mpi::synchronizeHalos");
         sph::computeIAD<Real>(taskList.tasks, d);
         timer.step("IAD");
@@ -149,7 +157,6 @@ int main(int argc, char **argv)
         timer.step("UpdateVEEstimator");
 
         const size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
-        const size_t maxNeighbors = sph::neighborsMax(taskList.tasks);
 
         if (d.rank == 0)
         {
@@ -157,10 +164,9 @@ int main(int argc, char **argv)
             printer.printConstants(d.iteration, totalNeighbors, maxNeighbors, ngmax, constantsFile);
         }
 
-#ifndef NDEBUG
         fpe_raised = all_check_FPE("after print, rank " + std::to_string(d.rank));
         if (fpe_raised) break;
-#endif
+
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
             fileWriter.dumpParticleDataToAsciiFile(d, domain.clist, outDirectory + "dump_windblob" + std::to_string(d.iteration) + ".txt");
@@ -171,11 +177,10 @@ int main(int argc, char **argv)
 
         if (d.rank == 0) printer.printTotalIterationTime(timer.duration(), output);
     }
-#ifndef NDEBUG
+
     if (fpe_raised) {
         fileWriter.dumpParticleDataToAsciiFile(d, domain.clist, outDirectory + "fperrordump_windblob" + std::to_string(d.iteration) + "_" + std::to_string(std::time(0)) + ".txt");
     }
-#endif
 
     totalTimer.step("Total execution time for " + std::to_string(d.iteration) + " iterations of Windblob");
 

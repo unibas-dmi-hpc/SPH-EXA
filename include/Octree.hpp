@@ -89,7 +89,7 @@ public:
     }
 
     inline void check_add_start(const int id, const T *x, const T *y, const T *z, const T xi, const T yi, const T zi, const T r,
-                                const int ngmax, int *neighbors, int &neighborsCount) const
+                                const int ngmax, int *neighbors, int &neighborsCount, int &actualNeighborsCount) const
     {
         T r2 = r * r;
 
@@ -100,7 +100,10 @@ public:
             int ordi = localPadding + i;
 
             T dist = distancesq(xi, yi, zi, x[ordi], y[ordi], z[ordi]);
-            if (dist < r2 && ordi != id && neighborsCount < ngmax) neighbors[neighborsCount++] = ordi;
+            if (dist < r2 && ordi != id){
+                actualNeighborsCount++;
+                if (neighborsCount < ngmax) neighbors[neighborsCount++] = ordi;
+            }
         }
     }
 
@@ -124,7 +127,7 @@ public:
     }
 
     void findNeighborsRec(const int id, const T *x, const T *y, const T *z, const T xi, const T yi, const T zi, const T ri, const int ngmax,
-                          int *neighbors, int &neighborsCount) const
+                          int *neighbors, int &neighborsCount, int &actualNeighborsCount) const
     {
         if ((int)cells.size() == ncells)
         {
@@ -147,17 +150,17 @@ public:
                             printf("ERROR:findneighborsRec: l >= ncells: l %d, hx %d, nX %d, hy %d, nY %d\n", l, hx, nX, hy, nY);
 #endif
 
-                        cells[l]->findNeighborsRec(id, x, y, z, xi, yi, zi, ri, ngmax, neighbors, neighborsCount);
+                        cells[l]->findNeighborsRec(id, x, y, z, xi, yi, zi, ri, ngmax, neighbors, neighborsCount, actualNeighborsCount);
                     }
                 }
             }
         }
         else
-            check_add_start(id, x, y, z, xi, yi, zi, ri, ngmax, neighbors, neighborsCount);
+            check_add_start(id, x, y, z, xi, yi, zi, ri, ngmax, neighbors, neighborsCount, actualNeighborsCount);
     }
 
     void findNeighbors(const int id, const T *x, const T *y, const T *z, const T xi, const T yi, const T zi, const T ri, const int ngmax,
-                       int *neighbors, int &neighborsCount, const bool PBCx = false, const bool PBCy = false, const bool PBCz = false) const
+                       int *neighbors, int &neighborsCount, int &actualNeighborsCount, const bool PBCx = false, const bool PBCy = false, const bool PBCz = false) const
     {
         if ((PBCx && (xi - ri < xmin || xi + ri > xmax)) || (PBCy && (yi - ri < ymin || yi + ri > ymax)) ||
             (PBCz && (zi - ri < zmin || zi + ri > zmax)))
@@ -196,13 +199,13 @@ public:
                             printf("ERROR:findneighbors: l >= ncells: l %d, hxx %d, nX %d, hyy %d, nY %d, hzz %d, nZ %d\n", l, hxx, nX, hyy, nY, hzz, nZ);
 #endif
                         cells[l]->findNeighborsRec(id, x, y, z, xi + displx, yi + disply, zi + displz, ri, ngmax, neighbors,
-                                                   neighborsCount);
+                                                   neighborsCount, actualNeighborsCount);
                     }
                 }
             }
         }
         else
-            findNeighborsRec(id, x, y, z, xi, yi, zi, ri, ngmax, neighbors, neighborsCount);
+            findNeighborsRec(id, x, y, z, xi, yi, zi, ri, ngmax, neighbors, neighborsCount, actualNeighborsCount);
     }
 
     void print(int l = 0)

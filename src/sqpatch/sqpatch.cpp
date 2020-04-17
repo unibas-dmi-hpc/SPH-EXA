@@ -18,9 +18,6 @@ void printHelp(char *binName, int rank);
 int main(int argc, char **argv)
 {
     std::feclearexcept(FE_ALL_EXCEPT);
-#ifdef NDEBUG
-    enable_fe_hwexceptions(); // we want to crash if we see NANs or INFs!
-#endif
 
     const int rank = initAndGetRankId();
 
@@ -39,9 +36,10 @@ int main(int argc, char **argv)
     const std::string outDirectory = parser.getString("--outDir");
     const bool oldAV = parser.exists("--oldAV");
     const bool gVE = parser.exists("--gVE");
-    const int hNRStart = parser.getInt("--hNRStart", 15);
-    const int hNgBMStop = parser.getInt("--hNgBMStop", 15);
+    const int hNRStart = parser.getInt("--hNRStart", maxStep);
+    const int hNgBMStop = parser.getInt("--hNgBMStop", maxStep);
     const size_t ngmax_cli = std::max(parser.getInt("--ngmax", 750), 0);
+    const bool hackyNgMaxFix = parser.exists("--hackyNgMaxFix");
 
     std::ofstream nullOutput("/dev/null");
     std::ostream &output = quiet ? nullOutput : std::cout;
@@ -86,7 +84,7 @@ int main(int argc, char **argv)
 
         domain.update(d);
         timer.step("domain::distribute");
-        domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.xmass);  // also synchronize VE estimator function xmass!
+        domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.xmass);
         timer.step("mpi::synchronizeHalos");
         domain.buildTree(d);
         timer.step("domain::buildTree");
@@ -94,7 +92,17 @@ int main(int argc, char **argv)
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
-        sph::computeDensity<Real>(taskList.tasks, d);  // initial guess for density...
+        const size_t maxNeighbors = sph::neighborsMax<Real>(taskList.tasks, d); // AllReduce
+        if (hackyNgMaxFix && maxNeighbors >= ngmax){
+            // todo: maybe have a counter to avoid endless repeats here...
+            sph::updateSmoothingLength<Real>(taskList.tasks, d);
+            timer.step("HackyUpdateSmoothingLengthBecauseTooManyNeighbors");
+            // ugly compensation of for loop increment:
+            // todo: consider changing to while loop with explicit increment in body...
+            d.iteration--;
+            continue;
+        }
+        sph::computeDensity<Real>(taskList.tasks, d);
         timer.step("Density");
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
         if (d.iteration > hNRStart) {
@@ -111,7 +119,7 @@ int main(int argc, char **argv)
         timer.step("calcGradhTerms");
         sph::computeEquationOfStateSphynxWater<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
-        domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c, &d.sumkx, &d.gradh, &d.h, &d.vol);  // also synchronize sumkx after density! Synchronize also h for h[j] accesses in momentum and energy
+        domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c, &d.sumkx, &d.gradh, &d.h, &d.vol);
         timer.step("mpi::synchronizeHalos");
         sph::computeIAD<Real>(taskList.tasks, d);
         timer.step("IAD");
@@ -137,16 +145,15 @@ int main(int argc, char **argv)
         timer.step("UpdateVEEstimator");
 
         const size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
-        const size_t maxNeighbors = sph::neighborsMax(taskList.tasks);
         if (d.rank == 0)
         {
             printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, maxNeighbors, ngmax, output);
             printer.printConstants(d.iteration, totalNeighbors, maxNeighbors, ngmax, constantsFile);
         }
-#ifndef NDEBUG
+
         fpe_raised = all_check_FPE("after print, rank " + std::to_string(d.rank));
         if (fpe_raised) break;
-#endif
+
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
             fileWriter.dumpParticleDataToAsciiFile(d, domain.clist, outDirectory + "dump_sqpatch" + std::to_string(d.iteration) + ".txt");
@@ -158,11 +165,10 @@ int main(int argc, char **argv)
 
         if (d.rank == 0) printer.printTotalIterationTime(timer.duration(), output);
     }
-#ifndef NDEBUG
+
     if (fpe_raised) {
         fileWriter.dumpParticleDataToAsciiFile(d, domain.clist, outDirectory + "fperrordump_sqpatch" + std::to_string(d.iteration) + "_" + std::to_string(std::time(0)) + ".txt");
     }
-#endif
 
     totalTimer.step("Total execution time for " + std::to_string(d.iteration) + " iterations of SqPatch");
 
