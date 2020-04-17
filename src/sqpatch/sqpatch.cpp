@@ -39,7 +39,7 @@ int main(int argc, char **argv)
     const int hNRStart = parser.getInt("--hNRStart", maxStep);
     const int hNgBMStop = parser.getInt("--hNgBMStop", maxStep);
     const size_t ngmax_cli = std::max(parser.getInt("--ngmax", 750), 0);
-    const bool hackyNgMaxFix = parser.exists("--hackyNgMaxFix");
+    const int hackyNgMaxFixTries = parser.getInt("--hackyNgMaxFixTries", 10);
 
     std::ofstream nullOutput("/dev/null");
     std::ostream &output = quiet ? nullOutput : std::cout;
@@ -96,7 +96,7 @@ int main(int argc, char **argv)
         size_t maxNeighbors = sph::neighborsMax<Real>(taskList.tasks, d); // AllReduce
         const int maxRetries = 10;
         int tries = 0;
-        while (hackyNgMaxFix && tries < maxRetries && maxNeighbors >= ngmax) {
+        while (tries < hackyNgMaxFixTries && maxNeighbors >= ngmax) {
             tries++;
             if (d.rank == 0) output << "maxNeighbors " << maxNeighbors << " try: " << tries <<  std::endl;
             sph::updateSmoothingLength<Real>(taskList.tasks, d);
