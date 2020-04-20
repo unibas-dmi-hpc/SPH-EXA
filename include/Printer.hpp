@@ -49,8 +49,8 @@ public:
             << " " << d.bbox.zmin << " " << d.bbox.zmax << std::endl;
         out << "### Check ### Total Neighbors: " << totalNeighbors << ", Avg neighbor count per particle: " << totalNeighbors / d.n
             << ", Max neighbor count: " << maxNeighbors << " of " << ngmax << " supported neighbors" << std::endl;
-        if (maxNeighbors >= ngmax)
-            out << "### WARNING ### ONE OR MORE PARTICLES HAVE REACHED THE MAXIMUM SUPPORTED NUMBER OF NEIGHBORS! Check accuracy of results carefully!" << std::endl;
+        if (maxNeighbors > ngmax)
+            out << "### WARNING ### ONE OR MORE PARTICLES HAVE EXCEEDED THE MAXIMUM SUPPORTED NUMBER OF NEIGHBORS! Check accuracy of results carefully!" << std::endl;
         out << "### Check ### Total time: " << d.ttot << ", current time-step: " << d.minDt << std::endl;
         out << "### Check ### Total energy: " << d.etot << ", (internal: " << d.eint << ", cinetic: " << d.ecin;
 #ifdef GRAVITY
