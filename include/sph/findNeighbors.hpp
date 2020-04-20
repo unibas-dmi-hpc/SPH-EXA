@@ -29,7 +29,7 @@ void findNeighborsImpl(const Octree<T> &o, Task &t, Dataset &d)
 #ifndef NDEBUG
         if (t.neighborsCount[pi] == 0)
             printf("ERROR::FindNeighbors(%d) x %f y %f z %f h = %f ngi %d\n", int(d.id[i]), d.x[i], d.y[i], d.z[i], d.h[i], t.neighborsCount[pi]);
-        if (t.neighborsCount[pi] == t.ngmax)
+        if (nn_act > t.ngmax)
             printf("WARNING::FindNeighbors(%d) x %f y %f z %f h = %f ngi %d reached ngmax (%d). Actual neighbor count is %d\n", int(d.id[i]), d.x[i], d.y[i], d.z[i], d.h[i], t.neighborsCount[pi], t.ngmax, nn_act);
 #endif
         nn[i] = t.neighborsCount[pi];
@@ -87,6 +87,8 @@ std::tuple <size_t, size_t> neighborsStatsImpl(const Task &t, Dataset &d)
 template <typename T, class Dataset>
 std::tuple <size_t, size_t> neighborsStats(const std::vector<Task> &taskList, Dataset &d)
 {
+    // todo: probably best to implement a generic aggregator function that provides way
+    //       to calculate statistics over any specified quantity of the dataset
     size_t max = 0;
     size_t min = std::numeric_limits<std::size_t>::max();
     for (const auto &task : taskList)

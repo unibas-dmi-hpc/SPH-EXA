@@ -55,7 +55,7 @@ void updateSmoothingLength(std::vector<Task> &taskList, Dataset &d)
 }
 
 template <typename T, class Dataset>
-void updateSmoothingLengthForExceedingImpl(Task &t, Dataset &d)
+void updateSmoothingLengthForExceedingImpl(Task &t, Dataset &d, const size_t ngmin)
 {
     const T c0 = 7.0;
     const T exp = 1.0 / 3.0;
@@ -74,9 +74,9 @@ void updateSmoothingLengthForExceedingImpl(Task &t, Dataset &d)
     {
         int i = t.clist[pi];
 //        const int nn = neighborsCount[pi];
-        const int nn = std::round(nn_actual[i]);
+        const size_t nn = std::round(nn_actual[i]);
 
-        if (nn > t.ngmax){
+        if (nn > t.ngmax || nn < ngmin){
             h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp); // update of smoothing length...
             ballmass[i] = ro[i] * h[i] * h[i] * h[i]; //this is also in the findneighbors of sphynx -> runs every iteration, not just if iter > startNR as it is in update of sphynx
 
@@ -94,11 +94,11 @@ void updateSmoothingLengthForExceedingImpl(Task &t, Dataset &d)
 }
 
 template <typename T, class Dataset>
-void updateSmoothingLengthForExceeding(std::vector<Task> &taskList, Dataset &d)
+void updateSmoothingLengthForExceeding(std::vector<Task> &taskList, Dataset &d, const size_t ngmin)
 {
     for (auto &task : taskList)
     {
-        updateSmoothingLengthForExceedingImpl<T>(task, d);
+        updateSmoothingLengthForExceedingImpl<T>(task, d, ngmin);
     }
 }
 } // namespace sph

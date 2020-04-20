@@ -29,10 +29,11 @@ int main(int argc, char **argv)
     const std::string outDirectory = "";
     const bool oldAV = parser.exists("--oldAV");
     const bool gVE = parser.exists("--gVE");
-    const int hNRStart = parser.getInt("--hNRStart", maxStep);
-    const int hNgBMStop = parser.getInt("--hNgBMStop", maxStep);
+    const size_t hNRStart = parser.getInt("--hNRStart", maxStep);
+    const size_t hNgBMStop = parser.getInt("--hNgBMStop", maxStep);
     const size_t ngmax_cli = std::max(parser.getInt("--ngmax", 750), 0);
-    const int hackyNgMaxFixTries = parser.getInt("--hackyNgMaxFixTries", 5);
+    const size_t ngmin_cli = std::max(parser.getInt("--ngmin", 150), 0);
+    const size_t hackyNgMinMaxFixTries = parser.getInt("--hackyNgMinMaxFixTries", 5);
 
     std::ostream &output = std::cout;
 
@@ -107,17 +108,17 @@ int main(int argc, char **argv)
 
         size_t maxNeighbors, minNeighbors;
         std::tie(minNeighbors, maxNeighbors) = sph::neighborsStats<Real>(taskList.tasks, d); // AllReduce
-        int tries = 0;
-        while (tries < hackyNgMaxFixTries && maxNeighbors > ngmax) {
+        size_t tries = 0;
+        while (tries < hackyNgMinMaxFixTries && (maxNeighbors > ngmax || minNeighbors < ngmin_cli)) {
             tries++;
-            if (d.rank == 0) output << "maxNeighbors " << maxNeighbors << " try: " << tries <<  std::endl;
+            if (d.rank == 0) output << "-- minNeighbors " << minNeighbors << " maxNeighbors " << maxNeighbors << " try: " << tries <<  std::endl;
             // updating for all is often unstable and oscillates...
             // the update guarantees to reduce h if it's higher than ng0 ->
             // a particle that had n < ng0 is now overshooting
             // another option could be to have a "soft"-max, i.e.
             // the threshold for recalculating is lower than the actually supported max...
-            sph::updateSmoothingLengthForExceeding<Real>(taskList.tasks, d);
-            timer.step("HackyUpdateSmoothingLengthForThoseWithTooManyNeighbors");
+            sph::updateSmoothingLengthForExceeding<Real>(taskList.tasks, d, ngmin_cli);
+            timer.step("HackyUpdateSmoothingLengthForThoseWithTooManyOrTooFewNeighbors");
             domain.update(d);
             timer.step("domain::distribute");
             domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h, &d.xmass);
