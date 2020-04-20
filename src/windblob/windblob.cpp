@@ -105,7 +105,8 @@ int main(int argc, char **argv)
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
 
-        size_t maxNeighbors = sph::neighborsMax<Real>(taskList.tasks, d); // AllReduce
+        size_t maxNeighbors, minNeighbors;
+        std::tie(minNeighbors, maxNeighbors) = sph::neighborsStats<Real>(taskList.tasks, d); // AllReduce
         int tries = 0;
         while (tries < hackyNgMaxFixTries && maxNeighbors > ngmax) {
             tries++;
@@ -127,7 +128,7 @@ int main(int argc, char **argv)
             timer.step("updateTasks");
             sph::findNeighbors(domain.octree, taskList.tasks, d);
             timer.step("FindNeighbors");
-            maxNeighbors = sph::neighborsMax<Real>(taskList.tasks, d); // AllReduce
+            std::tie(minNeighbors, maxNeighbors) = sph::neighborsStats<Real>(taskList.tasks, d); // AllReduce        const int maxRetries = 10;
         }
 
         sph::computeDensity<Real>(taskList.tasks, d);
@@ -176,8 +177,9 @@ int main(int argc, char **argv)
 
         if (d.rank == 0)
         {
-            printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, maxNeighbors, ngmax, output);
-            printer.printConstants(d.iteration, totalNeighbors, maxNeighbors, ngmax, constantsFile);
+            printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors,
+                               minNeighbors, maxNeighbors, ngmax, output);
+            printer.printConstants(d.iteration, totalNeighbors, minNeighbors, maxNeighbors, ngmax, constantsFile);
         }
 
         fpe_raised = all_check_FPE("after print, rank " + std::to_string(d.rank));

@@ -2,6 +2,7 @@
 
 #include <vector>
 #include "Task.hpp"
+#include <tuple>
 
 namespace sphexa
 {
@@ -70,32 +71,39 @@ size_t neighborsSum(const std::vector<Task> &taskList)
 }
 
 template <typename T, class Dataset>
-size_t neighborsMaxImpl(const Task &t, Dataset &d)
+std::tuple <size_t, size_t> neighborsStatsImpl(const Task &t, Dataset &d)
 {
     size_t max = 0;
-#pragma omp parallel for reduction(max : max)
+    size_t min = std::numeric_limits<std::size_t>::max();
+#pragma omp parallel for reduction(max : max) reduction(min : min)
     for (unsigned int pi = 0; pi < t.clist.size(); pi++){
         int i = t.clist[pi];
+        min = d.nn_actual[i] < min ? d.nn_actual[i] : min;
         max = d.nn_actual[i] > max ? d.nn_actual[i] : max;
     }
-    return max;
+    return std::make_tuple(min, max);
 }
 
 template <typename T, class Dataset>
-size_t neighborsMax(const std::vector<Task> &taskList, Dataset &d)
+std::tuple <size_t, size_t> neighborsStats(const std::vector<Task> &taskList, Dataset &d)
 {
     size_t max = 0;
+    size_t min = std::numeric_limits<std::size_t>::max();
     for (const auto &task : taskList)
     {
-        size_t m = neighborsMaxImpl<T>(task, d);
-        max = m > max ? m : max;
+        size_t mi, ma;
+        std::tie(mi, ma) = neighborsStatsImpl<T>(task, d);
+        min = mi < min ? mi : min;
+        max = ma > max ? ma : max;
     }
 
 #ifdef USE_MPI
+    MPI_Allreduce(MPI_IN_PLACE, &min, 1, MPI_LONG_LONG_INT, MPI_MIN, MPI_COMM_WORLD);
     MPI_Allreduce(MPI_IN_PLACE, &max, 1, MPI_LONG_LONG_INT, MPI_MAX, MPI_COMM_WORLD);
 #endif
 
-    return max;
+    return std::make_tuple(min, max);
 }
+
 } // namespace sph
 } // namespace sphexa
