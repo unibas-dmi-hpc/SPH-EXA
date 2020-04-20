@@ -107,7 +107,7 @@ int main(int argc, char **argv)
 
         size_t maxNeighbors = sph::neighborsMax<Real>(taskList.tasks, d); // AllReduce
         int tries = 0;
-        while (tries < hackyNgMaxFixTries && maxNeighbors >= ngmax) {
+        while (tries < hackyNgMaxFixTries && maxNeighbors > ngmax) {
             tries++;
             if (d.rank == 0) output << "maxNeighbors " << maxNeighbors << " try: " << tries <<  std::endl;
             // updating for all is often unstable and oscillates...
