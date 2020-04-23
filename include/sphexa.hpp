@@ -18,9 +18,12 @@
 #include "utils.hpp"
 
 #if defined(USE_CUDA)
-// CUDA NOT YET SUPPORTED FOR GENERAL VE
-exit(EXIT_FAILURE);
+#error "The code was refactored to support General Volume Elements, but the CUDA code was not addressed yet."
 #include "sph/cuda/sph.cuh"
+#endif
+
+#if defined(USE_ACC) || defined(USE_OMP_TARGET)
+#error "The code was refactored to support General Volume Elements, but openACC and OMP Target have not been addressed yet."
 #endif
 
 #include "sph/findNeighbors.hpp"

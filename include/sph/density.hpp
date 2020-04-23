@@ -8,6 +8,11 @@
 #include "lookupTables.hpp"
 #include "cuda/sph.cuh"
 
+#if defined(USE_CUDA) || defined(USE_ACC) || defined(USE_OMP_TARGET)
+#error "The code was refactored to support General Volume Elements, but accelerator code has not been addressed yet."
+#endif
+
+
 namespace sphexa
 {
 namespace sph
@@ -123,6 +128,7 @@ template <typename T, class Dataset>
 void computeDensity(const std::vector<Task> &taskList, Dataset &d)
 {
 #if defined(USE_CUDA)
+# error "General Volume elements have not been implemented in CUDA yet (sumkx, sumwh, xmass, ...)"
     cuda::computeDensity<T>(taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
 #else
     for (const auto &task : taskList)

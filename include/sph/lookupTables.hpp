@@ -4,6 +4,10 @@
 #include "../cudaFunctionAnnotation.hpp"
 #include "kernels.hpp"
 
+#if defined(USE_CUDA) || defined(USE_ACC) || defined(USE_OMP_TARGET)
+#error "The code was refactored to support General Volume Elements, but accelerator code has not been addressed yet."
+#endif
+
 #ifdef __NVCC__
 #include "cuda/cudaUtils.cuh"
 #endif

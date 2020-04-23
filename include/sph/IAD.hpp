@@ -8,6 +8,11 @@
 #include "lookupTables.hpp"
 #include "cuda/sph.cuh"
 
+#if defined(USE_CUDA) || defined(USE_ACC) || defined(USE_OMP_TARGET)
+#error "The code was refactored to support General Volume Elements, but accelerator code has not been addressed yet."
+#endif
+
+
 namespace sphexa
 {
 namespace sph
