@@ -26,7 +26,7 @@ int main(int argc, char **argv)
     const ArgParser parser(argc, argv);
     const size_t maxStep = parser.getInt("-s", 10);
     const int writeFrequency = parser.getInt("-w", -1);
-    const std::string outDirectory = "";
+    const std::string outDirectory = parser.getString("--outDir");
     const bool oldAV = parser.exists("--oldAV");
     const bool gVE = parser.exists("--gVE");
     const size_t hNRStart = parser.getInt("--hNRStart", maxStep);
