@@ -219,9 +219,9 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
         du_av_m1[i] = du_av[i];
 
         du[i] = xmass[i] / m[i] * energy; // cabezon2017 eq 32.. sphynx seems to have an extra *2.0 for the energy (line 219, momeqnmod.f90)
-        du_av[i] = 0.5 * energyAV; // tried removing 0.5 because couldn't find it in sphynx. still crash at 200. The 0.5 here might serve to get the same ratio between energy and energy AV as in sphynx
-                                   // sphynx has an extra 0.5 for the energy and avist (lines 182, 183 in update.f90). These should cancel, right?
-                                   // BUT: sphynx seems to have a du_av[i] = max(0.0, energyAV) -> du_av can't be negative. We don't have that
+        du_av[i] = std::max(0.0, 0.5 * energyAV); // tried removing 0.5 because couldn't find it in sphynx. still crash at 200. The 0.5 here might serve to get the same ratio between energy and energy AV as in sphynx
+                                                  // sphynx has an extra 0.5 for the energy and avist (lines 182, 183 in update.f90). These should cancel, right?
+                                                  // BUT: sphynx seems to have a du_av[i] = max(0.0, energyAV) -> du_av can't be negative. I have added that
 
         grad_P_x[i] = momentum_x;
         grad_P_y[i] = momentum_y;
