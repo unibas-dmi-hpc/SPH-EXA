@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     const size_t hNRStart = parser.getInt("--hNRStart", maxStep);
     const size_t hNgBMStop = parser.getInt("--hNgBMStop", maxStep);
     const size_t ngmax_cli = std::max(parser.getInt("--ngmax", 750), 0);
-    const size_t ngmin_cli = std::max(parser.getInt("--ngmin", 150), 0);
+    const size_t ngmin_cli = std::max(parser.getInt("--ngmin", 50), 0);
     const size_t ng0 = parser.getInt("--ng0", 250);
     const size_t hackyNgMinMaxFixTries = parser.getInt("--hackyNgMinMaxFixTries", 5);
 
@@ -67,7 +67,7 @@ int main(int argc, char **argv)
     const size_t nTasks = 64;
 //    const size_t ng0 = 250;
 //    const size_t ngmax = 750; // increased to fight bug
-    const size_t ngmax = std::max(ng0 + 100, ngmax_cli);
+    const size_t ngmax = std::max(ng0 + 50, ngmax_cli);
     TaskList taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
 
     // want to dump on floating point exceptions
