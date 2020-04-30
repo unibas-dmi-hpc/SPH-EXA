@@ -34,7 +34,7 @@ public:
             out << d.egrav << ' ';
 #endif
             out << nntot << ' ' << nnmin << ' ' << nnmax << ' ' << ngmax << ' ';
-            out << d.ttot / d.tkh << ' ' << d.masscloud << ' ' << d.masscloud / d.masscloudinic << ' ';
+            out << d.ttot / d.tkh << ' ' << d.masscloud << ' ' << d.masscloud / d.masscloudinic;
             out << std::endl;
             out.flush();
         }

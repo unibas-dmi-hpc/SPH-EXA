@@ -131,7 +131,7 @@ void computePositionsImpl(const Task &t, Dataset &d)
         deltaA = 0.5 * dt[i] * dt[i] / dt_m1[i];
         deltaB = dt[i] + deltaA;
 
-        u[i] += (du[i] + du_av[i]) * deltaB - (du_m1[i] + du_av_m1[i]) * deltaA; // same as sphynx...
+        u[i] += (du[i] + du_av[i]) * deltaB - (du_m1[i] + du_av_m1[i]) * deltaA; // same as sphynx..., except for a 0.5 in sphynx
 
 #ifndef NDEBUG
         if ((d.writeErrorOnNegU && u[i] < 0) || std::isnan(u[i]) || std::isinf(u[i]))
