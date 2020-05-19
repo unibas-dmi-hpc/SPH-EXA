@@ -5,7 +5,7 @@
 #include <mutex>
 #include <unordered_set>
 
-#include "../Octree.hpp"
+#include "../GravityOctree.hpp"
 
 namespace sphexa
 {

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "../GravityOctree.hpp"
+
 namespace sphexa
 {
 namespace sph

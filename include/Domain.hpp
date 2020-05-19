@@ -18,7 +18,7 @@ inline T normalize(T d, T min, T max)
 }
 
 template <typename T>
-void reorderSwap(const std::vector<int> &ordering, std::vector<T> &arrayList)
+inline void reorderSwap(const std::vector<int> &ordering, std::vector<T> &arrayList)
 {
     std::vector<T> tmp(ordering.size());
     for (unsigned int i = 0; i < ordering.size(); i++)
@@ -27,14 +27,14 @@ void reorderSwap(const std::vector<int> &ordering, std::vector<T> &arrayList)
 }
 
 template <typename T>
-void reorder(const std::vector<int> &ordering, std::vector<std::vector<T> *> &arrayList)
+inline void reorder(const std::vector<int> &ordering, std::vector<std::vector<T> *> &arrayList)
 {
     for (unsigned int i = 0; i < arrayList.size(); i++)
         reorderSwap(ordering, *arrayList[i]);
 }
 
 template <class Dataset>
-void reorder(const std::vector<int> &ordering, Dataset &d)
+inline void reorder(const std::vector<int> &ordering, Dataset &d)
 {
     reorder(ordering, d.data);
 }
@@ -97,7 +97,7 @@ public:
         return;
     }
 
-  void buildTree(Dataset &d)
+    void buildTree(Dataset &d)
     {
         // Finally remap everything
         std::vector<int> ordering(d.x.size());
@@ -107,7 +107,6 @@ public:
         for (int i = 0; i < (int)d.x.size(); i++)
             list[i] = i;
 
-        // We need this to expand halo
         octree.buildTree(list, d.x, d.y, d.z, d.m, ordering);
         reorder(ordering, d);
 
