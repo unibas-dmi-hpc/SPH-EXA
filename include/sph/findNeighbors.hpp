@@ -3,24 +3,14 @@
 #include <vector>
 #include "Task.hpp"
 #include "ParticlesData.hpp"
+#include "Octree.hpp"
+#include "LinearOctree.hpp"
 #include "cuda/sph.cuh"
 
 namespace sphexa
 {
 namespace sph
 {
-
-template<typename T>
-struct LinearOctree
-{
-    int size;
-    std::vector<int> ncells;
-    std::vector<int> cells;
-    std::vector<int> localPadding;
-    std::vector<int> localParticleCount;
-    std::vector<T> xmin, xmax, ymin, ymax, zmin, zmax;
-};
-
 template <typename T>
 void findNeighborsDispl(const LinearOctree<T> &o, const int *clist, const int pi, const T *x, const T *y, const T *z,  const T *h, const T displx, const T disply, const T displz, const int ngmax,
                       int *neighbors, int *neighborsCount)
@@ -28,7 +18,8 @@ void findNeighborsDispl(const LinearOctree<T> &o, const int *clist, const int pi
 	const int i = clist[pi];
 
     // 64 is not enough... Depends on the bucket size and h...
-    // Luckily this can be created and stored on the GPU directly.
+    // This can be created and stored on the GPU directly.
+    // For a fixed problem and size, if it works then it will always work
     int collisionsCount = 0;
     int collisionNodes[128];
 
@@ -174,77 +165,14 @@ void findNeighborsImpl(const LinearOctree<T> &o, Task &t, Dataset &d)
     }
 }
 
-template<typename T>
-size_t getNumberOfNodesRec(const Octree<T> &o)
-{
-    size_t count = 1;
-    if ((int)o.cells.size() == o.ncells)
-        for (int i = 0; i < o.ncells; i++)
-            count += getNumberOfNodesRec(*o.cells[i]);
-    return count;
-}
-
-template<typename T>
-size_t createLinearOctreeRec(const Octree<T> &o, LinearOctree<T> &l, size_t it = 0)
-{
-    l.localPadding[it] = o.localPadding;
-    l.ncells[it] = o.cells.size();
-    l.localParticleCount[it] = o.localParticleCount;
-    l.xmin[it] = o.xmin;
-    l.xmax[it] = o.xmax;
-    l.ymin[it] = o.ymin;
-    l.ymax[it] = o.ymax;
-    l.zmin[it] = o.zmin;
-    l.zmax[it] = o.zmax;
-
-    int count = 1;
-
-    if ((int)o.cells.size() == o.ncells)
-    {
-        for (int i = 0; i < o.ncells; i++)
-        {
-            l.cells[it * 8 + i] = it+count;
-            count += createLinearOctreeRec(*o.cells[i], l, it+count);
-        }
-    }
-
-    return count;
-}
-
-template<typename T>
-void createLinearOctree(const Octree<T> &o, LinearOctree<T> &l)
-{
-    size_t nodeCount = getNumberOfNodesRec(o);
-
-    l.size = nodeCount;
-    l.ncells.resize(nodeCount);
-    l.cells.resize(8 * nodeCount);
-    l.localPadding.resize(nodeCount);
-    l.localParticleCount.resize(nodeCount);
-    l.xmin.resize(nodeCount);
-    l.xmax.resize(nodeCount);
-    l.ymin.resize(nodeCount);
-    l.ymax.resize(nodeCount);
-    l.zmin.resize(nodeCount);
-    l.zmax.resize(nodeCount);
-
-    createLinearOctreeRec(o, l);
-}
-
 template <typename T, class Dataset>
 void findNeighbors(const Octree<T> &o, std::vector<Task> &taskList, Dataset &d)
 {
-    printf("Start\n");
     LinearOctree<T> l;
     createLinearOctree(o, l);
-    printf("Stop\n");
-
-    // printf("size: %ld\n", l.size);
-    // for(size_t i=0; i<l.size; i++)
-    //     printf("%ld: %d %d\n", i, l.localPadding[i], l.localParticleCount[i]);
 
     #if defined(USE_CUDA)
-    	cuda::computeFindNeighbors<T>(o, taskList, d);
+    	cuda::computeFindNeighbors<T>(l, taskList, d);
 	#else
 	    for (auto &task : taskList)
 	    {

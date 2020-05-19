@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "Task.hpp"
-#include "Octree.hpp"
+#include "LinearOctree.hpp"
 
 namespace sphexa
 {
@@ -13,7 +13,7 @@ namespace cuda
 {
 
 template <typename T, class Dataset>
-extern void computeFindNeighbors(const Octree<T> &o, std::vector<Task> &taskList, Dataset &d);
+extern void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList, Dataset &d);
 
 template <typename T, class Dataset>
 extern void computeDensity(const std::vector<Task> &taskList, Dataset &d);
