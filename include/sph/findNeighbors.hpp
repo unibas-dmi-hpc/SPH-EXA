@@ -12,7 +12,7 @@ namespace sphexa
 namespace sph
 {
 template <typename T>
-void findNeighborsDispl(const LinearOctree<T> &o, const int *clist, const int pi, const T *x, const T *y, const T *z,  const T *h, const T displx, const T disply, const T displz, const int ngmax,
+inline void findNeighborsDispl(const LinearOctree<T> &o, const int *clist, const int pi, const T *x, const T *y, const T *z,  const T *h, const T displx, const T disply, const T displz, const int ngmax,
                       int *neighbors, int *neighborsCount)
 {
 	const int i = clist[pi];
@@ -50,11 +50,11 @@ void findNeighborsDispl(const LinearOctree<T> &o, const int *clist, const int pi
             int maz = std::min((int)(normalize(zi + ri, o.zmin[node], o.zmax[node]) * nZ), nZ - 1);
 
             // Maximize threads sync
-            for (int hz = 0; hz <= 2; hz++)
+            for (int hz = 0; hz < 2; hz++)
             {
-                for (int hy = 0; hy <= 2; hy++)
+                for (int hy = 0; hy < 2; hy++)
                 {
-                    for (int hx = 0; hx <= 2; hx++)
+                    for (int hx = 0; hx < 2; hx++)
                     {
                         // if overlap
                         if(hz >= miz && hz <= maz && hy >= miy && hy <= may && hx >= mix && hx <= max)
