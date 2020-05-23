@@ -25,24 +25,30 @@ struct DeviceLinearOctree
 template<typename T>
 void mapLinearOctreeToDevice(const LinearOctree<T> &o, DeviceLinearOctree<T> &d_o)
 {
+    size_t size_int = o.size * sizeof(int);
+    size_t size_T = o.size * sizeof(T);
+
     d_o.size = o.size;
 
-    CHECK_CUDA_ERR(utils::cudaMalloc(d_o.size * 8, d_o.cells));
-    CHECK_CUDA_ERR(utils::cudaMalloc(d_o.size, d_o.ncells, d_o.localPadding, d_o.localParticleCount));
-    CHECK_CUDA_ERR(utils::cudaMalloc(d_o.size, d_o.xmin, d_o.xmax, d_o.ymin, d_o.ymax, d_o.zmin, d_o.zmax));
+    T *d_xmin;
 
-    CHECK_CUDA_ERR(cudaMemcpy(d_o.cells, o.cells.data(), d_o.size * 8, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d_o.ncells, o.ncells.data(), d_o.size, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d_o.localPadding, o.localPadding.data(), d_o.size, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d_o.localParticleCount, o.localParticleCount.data(), d_o.size, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_int * 8, d_o.cells));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_int, d_o.ncells, d_o.localPadding, d_o.localParticleCount));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_T, d_xmin, d_o.xmax, d_o.ymin, d_o.ymax, d_o.zmin, d_o.zmax));
 
-    CHECK_CUDA_ERR(cudaMemcpy(d_o.xmin, o.xmin.data(), d_o.size, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d_o.xmax, o.xmax.data(), d_o.size, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d_o.ymin, o.ymin.data(), d_o.size, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d_o.ymax, o.ymax.data(), d_o.size, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d_o.zmin, o.zmin.data(), d_o.size, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d_o.zmax, o.zmax.data(), d_o.size, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.cells, o.cells.data(), size_int * 8, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.ncells, o.ncells.data(), size_int, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.localPadding, o.localPadding.data(), size_int, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.localParticleCount, o.localParticleCount.data(), size_int, cudaMemcpyHostToDevice));
 
+    CHECK_CUDA_ERR(cudaMemcpy(d_xmin, o.xmin.data(), size_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.xmax, o.xmax.data(), size_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.ymin, o.ymin.data(), size_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.ymax, o.ymax.data(), size_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.zmin, o.zmin.data(), size_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.zmax, o.zmax.data(), size_T, cudaMemcpyHostToDevice));
+
+    d_o.xmin = d_xmin;
 }
 
 template<typename T>
@@ -59,7 +65,7 @@ template <typename T>
 __device__ T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
 template <typename T>
-__device__ void findNeighborsDispl(const DeviceLinearOctree<T> &o, const int *clist, const int pi, const T *x, const T *y, const T *z,  const T *h, const T displx, const T disply, const T displz, const int ngmax,
+__device__ void findNeighborsDispl(const DeviceLinearOctree<T> o, const int *clist, const int pi, const T *x, const T *y, const T *z,  const T *h, const T displx, const T disply, const T displz, const int ngmax,
                       int *neighbors, int *neighborsCount)
 {
     const int i = clist[pi];
@@ -87,6 +93,7 @@ __device__ void findNeighborsDispl(const DeviceLinearOctree<T> &o, const int *cl
 
     do
     {
+        stack[stackptr] = -1;
         if(o.ncells[node] == 8)
         {
             int mix = std::max((int)(normalize(xi - ri, o.xmin[node], o.xmax[node]) * nX), 0);
@@ -95,7 +102,7 @@ __device__ void findNeighborsDispl(const DeviceLinearOctree<T> &o, const int *cl
             int max = std::min((int)(normalize(xi + ri, o.xmin[node], o.xmax[node]) * nX), nX - 1);
             int may = std::min((int)(normalize(yi + ri, o.ymin[node], o.ymax[node]) * nY), nY - 1);
             int maz = std::min((int)(normalize(zi + ri, o.zmin[node], o.zmax[node]) * nZ), nZ - 1);
-
+           
             // Maximize threads sync
             for (int hz = 0; hz < 2; hz++)
             {
@@ -116,12 +123,12 @@ __device__ void findNeighborsDispl(const DeviceLinearOctree<T> &o, const int *cl
 
         if(o.ncells[node] != 8)
             collisionNodes[collisionsCount++] = node;
-
+        
         node = stack[--stackptr]; // Pop next
     }
-    while(node != -1);
+    while(node > 0);
 
-    __syncthreads();
+    //__syncthreads();
 
     int ngc = 0;
     
@@ -151,13 +158,16 @@ __device__ void findNeighborsDispl(const DeviceLinearOctree<T> &o, const int *cl
 
     neighborsCount[pi] += ngc;
 
-    __syncthreads();
+    //__syncthreads();
 }
 
 template <typename T>
-__global__ void findNeighbors(const DeviceLinearOctree<T> &o, const int *clist, const int pi, const T *x, const T *y, const T *z, const T *h, const T displx,
+__global__ void findNeighbors(const DeviceLinearOctree<T> o, const int *clist, const int n, const T *x, const T *y, const T *z, const T *h, const T displx,
                               const T disply, const T displz, const int max, const int may, const int maz, const int ngmax, int *neighbors, int *neighborsCount)
 {
+    const int pi = blockDim.x * blockIdx.x + threadIdx.x;
+    if (pi >= n) return;
+
     T dispx[3], dispy[3], dispz[3];
 
     dispx[0] = 0;       dispy[0] = 0;       dispz[0] = 0;
@@ -232,8 +242,6 @@ void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList,
 
         CHECK_CUDA_ERR(cudaMemcpy(t.neighbors.data(), d_neighbors, size_nNeighbors, cudaMemcpyDeviceToHost));
         CHECK_CUDA_ERR(cudaMemcpy(t.neighborsCount.data(), d_neighborsCount, size_n_int, cudaMemcpyDeviceToHost));
-
-        CHECK_CUDA_ERR(utils::cudaFree(d_clist, d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_h));
     }
 
     unmapLinearOctreeFromDevice(d_o);

@@ -76,70 +76,48 @@ int main(int argc, char **argv)
         timer.step("domain::buildTree");
         taskList.update(domain.clist);
         timer.step("updateTasks");
-
-        // sph::findNeighbors(domain.octree, taskList.tasks, d);
-        // timer.step("FindNeighbor1");
-
         sph::findNeighbors(domain.octree, taskList.tasks, d);
-        timer.step("FindNeighbor2");
+        timer.step("FindNeighbor");
+        sph::computeDensity<Real>(taskList.tasks, d);
+        if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
+        timer.step("Density");
+        sph::computeEquationOfState<Real>(taskList.tasks, d);
+        timer.step("EquationOfState");
+        domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
+        timer.step("mpi::synchronizeHalos");
+        sph::computeIAD<Real>(taskList.tasks, d);
+        timer.step("IAD");
+        domain.synchronizeHalos(&d.c11, &d.c12, &d.c13, &d.c22, &d.c23, &d.c33);
+        timer.step("mpi::synchronizeHalos");
+        sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d);
+        timer.step("MomentumEnergyIAD");
+        sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
+        timer.step("Timestep"); // AllReduce(min:dt)
+        sph::computePositions<Real, sph::computeAcceleration<Real, Dataset>>(taskList.tasks, d);
+        timer.step("UpdateQuantities");
+        sph::computeTotalEnergy<Real>(taskList.tasks, d);
+        timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
+        sph::updateSmoothingLength<Real>(taskList.tasks, d);
+        timer.step("UpdateSmoothingLength");
 
-        size_t s1 = 0;
-        for(const auto &task : taskList.tasks)
+        const size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
+
+        if (d.rank == 0)
         {
-            for(int i=0; i< (int)task.neighborsCount.size(); i++)
-            {
-                s1 += task.neighborsCount[i];
-                //printf("%d %d\n", domain.clist[i], task.neighborsCount[i]);
-            }
-            //printf("\n");
-            //break;
+            printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, output);
+            printer.printConstants(d.iteration, totalNeighbors, constantsFile);
         }
 
-        MPI_Allreduce(MPI_IN_PLACE, &s1, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+        if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
+        {
+            fileWriter.dumpParticleDataToAsciiFile(d, domain.clist, outDirectory + "dump_sqpatch" + std::to_string(d.iteration) + ".txt");
+            // fileWriter.dumpParticleDataToBinFile(d, outDirectory + "dump_sqpatch" + std::to_string(d.iteration) + ".bin");
+            timer.step("writeFile");
+        }
 
-        printf("SUM: %ld\n", s1);
+        timer.stop();
 
-        break;
-        // sph::computeDensity<Real>(taskList.tasks, d);
-        // if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
-        // timer.step("Density");
-        // sph::computeEquationOfState<Real>(taskList.tasks, d);
-        // timer.step("EquationOfState");
-        // domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
-        // timer.step("mpi::synchronizeHalos");
-        // sph::computeIAD<Real>(taskList.tasks, d);
-        // timer.step("IAD");
-        // domain.synchronizeHalos(&d.c11, &d.c12, &d.c13, &d.c22, &d.c23, &d.c33);
-        // timer.step("mpi::synchronizeHalos");
-        // sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d);
-        // timer.step("MomentumEnergyIAD");
-        // sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
-        // timer.step("Timestep"); // AllReduce(min:dt)
-        // sph::computePositions<Real, sph::computeAcceleration<Real, Dataset>>(taskList.tasks, d);
-        // timer.step("UpdateQuantities");
-        // sph::computeTotalEnergy<Real>(taskList.tasks, d);
-        // timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
-        // sph::updateSmoothingLength<Real>(taskList.tasks, d);
-        // timer.step("UpdateSmoothingLength");
-
-        // const size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
-
-        // if (d.rank == 0)
-        // {
-        //     printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, output);
-        //     printer.printConstants(d.iteration, totalNeighbors, constantsFile);
-        // }
-
-        // if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
-        // {
-        //     fileWriter.dumpParticleDataToAsciiFile(d, domain.clist, outDirectory + "dump_sqpatch" + std::to_string(d.iteration) + ".txt");
-        //     // fileWriter.dumpParticleDataToBinFile(d, outDirectory + "dump_sqpatch" + std::to_string(d.iteration) + ".bin");
-        //     timer.step("writeFile");
-        // }
-
-        // timer.stop();
-
-        // if (d.rank == 0) printer.printTotalIterationTime(timer.duration(), output);
+        if (d.rank == 0) printer.printTotalIterationTime(timer.duration(), output);
     }
 
     totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of SqPatch");

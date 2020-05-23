@@ -151,7 +151,7 @@ void findNeighborsImpl(const LinearOctree<T> &o, Task &t, Dataset &d)
     const T displz = o.zmax[0] - o.zmin[0];
 
 //#pragma omp target map(to: x[0:np], y[0:np], z[0:np], h[0:np], neighbors[0:allNeighbors]) map(tofrom: neighborsCount[0:n])
-#pragma omp teams distribute parallel for schedule(guided)
+#pragma omp parallel for schedule(guided)
     for (size_t pi = 0; pi < n; pi++)
     {
     	neighborsCount[pi] = 0;
