@@ -174,6 +174,8 @@ __global__ void findNeighbors(const DeviceLinearOctree<T> o, const int *clist, c
     dispx[1] = -displx; dispy[1] = -disply; dispz[1] = -displz;
     dispx[2] = displx;  dispy[2] = disply;  dispz[2] = displz;
 
+    neighborsCount[pi] = 0;
+    
     for (int hz = 0; hz <= maz; hz++)
         for (int hy = 0; hy <= may; hy++)
             for (int hx = 0; hx <= max; hx++)
