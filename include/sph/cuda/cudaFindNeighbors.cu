@@ -177,7 +177,7 @@ __global__ void findNeighbors(const DeviceLinearOctree<T> o, const int *clist, c
     for (int hz = 0; hz <= maz; hz++)
         for (int hy = 0; hy <= may; hy++)
             for (int hx = 0; hx <= max; hx++)
-                findNeighborsDispl(o, clist, pi, x, y, z, h, dispx[hx], dispy[hy], dispz[hz], ngmax, neighbors, neighborsCount);
+                findNeighborsDispl(o, clist, pi, x, y, z, h, dispx[hx], dispy[hy], dispz[hz], ngmax, neighbors[pi*ngmax], neighborsCount);
 }
 }
 
