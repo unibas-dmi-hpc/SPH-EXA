@@ -125,7 +125,7 @@ __device__ void findNeighborsDispl(const DeviceLinearOctree<T> o, const int *cli
 
     //__syncthreads();
 
-    int ngc = 0;
+    int ngc = neighborsCount[pi];
     
     for(int ni=0; ni<collisionsCount; ni++)
     {
@@ -151,7 +151,7 @@ __device__ void findNeighborsDispl(const DeviceLinearOctree<T> o, const int *cli
         }
     }
 
-    neighborsCount[pi] += ngc;
+    neighborsCount[pi] = ngc;
 
     //__syncthreads();
 }

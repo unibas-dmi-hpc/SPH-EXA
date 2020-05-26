@@ -39,9 +39,6 @@ size_t createLinearOctreeRec(const Octree<T> &o, LinearOctree<T> &l, size_t it =
     l.zmin[it] = o.zmin;
     l.zmax[it] = o.zmax;
 
-    // printf("%ld %ld %d %d\n", l.size, it, l.localPadding[it], l.localParticleCount[it]);
-    // fflush(stdout);
-
     size_t padding = 1;
 
     if ((int)o.cells.size() == o.ncells)

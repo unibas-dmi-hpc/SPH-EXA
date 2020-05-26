@@ -78,6 +78,19 @@ int main(int argc, char **argv)
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
+        // for(size_t ti=0; ti<taskList.tasks.size(); ti++)
+        // {
+        //     for(size_t pi=0; pi<taskList.tasks[ti].clist.size(); pi++)
+        //     {
+        //         int i = taskList.tasks[ti].clist[pi];
+        //         if(i==0)
+        //         {
+        //             printf("%d\n", taskList.tasks[ti].neighborsCount[pi]);
+        //             for(int pj = 0; pj<taskList.tasks[ti].neighborsCount[pi]; pj++)
+        //                 printf("%d ", taskList.tasks[ti].neighbors[pi*ngmax+pj]);
+        //         }
+        //     }
+        // }
         sph::computeDensity<Real>(taskList.tasks, d);
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
         timer.step("Density");

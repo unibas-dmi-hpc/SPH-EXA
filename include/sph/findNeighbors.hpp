@@ -1,7 +1,6 @@
 #pragma once
 
 #include <vector>
-#include <algorithm>
 #include "Task.hpp"
 #include "ParticlesData.hpp"
 #include "Octree.hpp"
@@ -12,15 +11,32 @@ namespace sphexa
 {
 namespace sph
 {
+template<typename T>
+struct DeviceLinearOctree
+{
+    const size_t size;
+    const int *ncells;
+    const int *cells;
+    const int *localPadding;
+    const int *localParticleCount;
+    const T *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;
+};
+
+namespace kernels
+{
+
 template <typename T>
-inline void findNeighborsDispl(const LinearOctree<T> &o, const int *clist, const int pi, const T *x, const T *y, const T *z,  const T *h, const T displx, const T disply, const T displz, const int ngmax,
+T normalize(T d, T min, T max) { return (d - min) / (max - min); }
+
+template <typename T>
+void findNeighborsDispl(const DeviceLinearOctree<T> o, const int *clist, const int pi, const T *x, const T *y, const T *z,  const T *h, const T displx, const T disply, const T displz, const int ngmax,
                       int *neighbors, int *neighborsCount)
 {
-	const int i = clist[pi];
+    const int i = clist[pi];
 
-    // 64 is not enough... Depends on the bucket size and h...
-    // This can be created and stored on the GPU directly.
-    // For a fixed problem and size, if it works then it will always work
+    // // 64 is not enough... Depends on the bucket size and h...
+    // // This can be created and stored on the GPU directly.
+    // // For a fixed problem and size, if it works then it will always work
     int collisionsCount = 0;
     int collisionNodes[128];
 
@@ -49,7 +65,7 @@ inline void findNeighborsDispl(const LinearOctree<T> &o, const int *clist, const
             int max = std::min((int)(normalize(xi + ri, o.xmin[node], o.xmax[node]) * nX), nX - 1);
             int may = std::min((int)(normalize(yi + ri, o.ymin[node], o.ymax[node]) * nY), nY - 1);
             int maz = std::min((int)(normalize(zi + ri, o.zmin[node], o.zmax[node]) * nZ), nZ - 1);
-
+           
             // Maximize threads sync
             for (int hz = 0; hz < 2; hz++)
             {
@@ -67,16 +83,17 @@ inline void findNeighborsDispl(const LinearOctree<T> &o, const int *clist, const
                 }
             }
         }
-        else
-            collisionNodes[collisionsCount++] = node;
 
+        if(o.ncells[node] != 8)
+             collisionNodes[collisionsCount++] = node;
+        
         node = stack[--stackptr]; // Pop next
     }
-    while(node != -1);
+    while(node > 0);
 
-    // SYNCTHREADS
+    //__syncthreads();
 
-    int ngc = 0;
+    int ngc = neighborsCount[pi];
     
     for(int ni=0; ni<collisionsCount; ni++)
     {
@@ -98,70 +115,87 @@ inline void findNeighborsDispl(const LinearOctree<T> &o, const int *clist, const
             T dist = xx * xx + yy * yy + zz * zz;
 
             if (dist < r2 && i != j && ngc < ngmax)
-            	neighbors[ngc++] = j;
+                neighbors[ngc++] = j;
         }
     }
 
-    neighborsCount[pi] += ngc;
+    neighborsCount[pi] = ngc;
 
-    // SYNCTHREADS
+    //__syncthreads();
 }
 
 template <typename T>
-void findNeighbors(const LinearOctree<T> &o, const int *clist, const int pi, const T *x, const T *y, const T *z, const T *h, const T displx,
+void findNeighbors(const int pi, const DeviceLinearOctree<T> o, const int *clist, const int n, const T *x, const T *y, const T *z, const T *h, const T displx,
                               const T disply, const T displz, const int max, const int may, const int maz, const int ngmax, int *neighbors, int *neighborsCount)
 {
-	T dispx[3], dispy[3], dispz[3];
+    T dispx[3], dispy[3], dispz[3];
 
     dispx[0] = 0;       dispy[0] = 0;       dispz[0] = 0;
     dispx[1] = -displx; dispy[1] = -disply; dispz[1] = -displz;
     dispx[2] = displx;  dispy[2] = disply;  dispz[2] = displz;
 
+    neighborsCount[pi] = 0;
+
     for (int hz = 0; hz <= maz; hz++)
         for (int hy = 0; hy <= may; hy++)
             for (int hx = 0; hx <= max; hx++)
-                findNeighborsDispl(o, clist, pi, x, y, z, h, dispx[hx], dispy[hy], dispz[hz], ngmax, neighbors, neighborsCount);
+                findNeighborsDispl(o, clist, pi, x, y, z, h, dispx[hx], dispy[hy], dispz[hz], ngmax, &neighbors[pi*ngmax], neighborsCount);
+}
 }
 
 template <typename T, class Dataset>
-void findNeighborsImpl(const LinearOctree<T> &o, Task &t, Dataset &d)
+void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList, Dataset &d)
 {
-    const size_t n = t.clist.size();
-
-    const size_t ngmax = t.ngmax;
-    const int *clist = t.clist.data();
-
-    const T *h = d.h.data();
-    const T *x = d.x.data();
-    const T *y = d.y.data();
-    const T *z = d.z.data();
-
-    const size_t np = d.x.size();
-    const size_t allNeighbors = n * ngmax;
-
-    int *neighbors = t.neighbors.data();
-    int *neighborsCount = t.neighborsCount.data();
-
-    const int maz = d.bbox.PBCz? 2 : 0;
-    const int may = d.bbox.PBCy? 2 : 0;
-    const int max = d.bbox.PBCx? 2 : 0;
-
+    const int maz = d.bbox.PBCz ? 2 : 0;
+    const int may = d.bbox.PBCy ? 2 : 0;
+    const int max = d.bbox.PBCx ? 2 : 0;
+    
     const T displx = o.xmax[0] - o.xmin[0];
     const T disply = o.ymax[0] - o.ymin[0];
     const T displz = o.zmax[0] - o.zmin[0];
 
-//#pragma omp target map(to: x[0:np], y[0:np], z[0:np], h[0:np], neighbors[0:allNeighbors]) map(tofrom: neighborsCount[0:n])
-#pragma omp parallel for schedule(guided)
-    for (size_t pi = 0; pi < n; pi++)
+    const size_t np = d.x.size();
+    const T ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
+
+    // Device pointers
+    const T *d_h = d.h.data();
+    const T *d_x = d.x.data();
+    const T *d_y = d.y.data();
+    const T *d_z = d.z.data();
+
+    // Map LinearTree
+    DeviceLinearOctree<T> d_o = {
+    	o.size,
+    	o.ncells.data(),
+    	o.cells.data(),
+    	o.localPadding.data(),
+    	o.localParticleCount.data(),
+    	o.xmin.data(),
+    	o.xmax.data(),
+    	o.ymin.data(),
+    	o.ymax.data(),
+    	o.zmin.data(),
+    	o.zmax.data()
+    };
+
+    const size_t st = o.size;
+    const size_t stt = o.size * 8;
+    //#pragma omp target data map(to: d_x[0:np], d_y[0:np], d_z[0:np], d_h[0:np], d_o, d_o.cells[0:stt], d_o.ncells[0:st], d_o.localPadding[0:st], d_o.localParticleCount[0:st], d_o.xmin[0:st], d_o.xmax[0:st], d_o.ymin[0:st], d_o.ymax[0:st], d_o.zmin[0:st], d_o.zmax[0:st])
+    for (auto &t : taskList)
     {
-    	neighborsCount[pi] = 0;
+        const size_t n = t.clist.size();
+        const size_t nn = n * ngmax;
 
-        findNeighbors(o, clist, pi, x, y, z, h, displx, disply, displz, max, may, maz, ngmax, &neighbors[pi * ngmax], neighborsCount);
+        // Device pointers
+        const int *d_clist = t.clist.data();
+        int *d_neighbors = t.neighbors.data();
+        int *d_neighborsCount = t.neighborsCount.data();
 
-#ifndef NDEBUG
-        if (neighborsCount[pi] == 0)
-            printf("ERROR::findNodeCollisions(%d) x %f y %f z %f h = %f ngi %d\n", i, x[i], y[i], z[i], h[i], collisionsCount[pi]);
-#endif
+        //#pragma omp target map(to: d_o, n, ngmax, max, may, maz, displx, disply, displz, d_clist[0:n]) map(tofrom: d_neighbors[0:nn], d_neighborsCount[0:n])
+        //#pragma omp teams distribute parallel for
+        #pragma omp parallel for
+        for(int pi=0; pi<n; pi++)
+        	kernels::findNeighbors(pi, d_o, d_clist, n, d_x, d_y, d_z, d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors, d_neighborsCount);
     }
 }
 
@@ -174,10 +208,7 @@ void findNeighbors(const Octree<T> &o, std::vector<Task> &taskList, Dataset &d)
     #if defined(USE_CUDA)
     	cuda::computeFindNeighbors<T>(l, taskList, d);
 	#else
-	    for (auto &task : taskList)
-	    {
-	        findNeighborsImpl<T>(l, task, d);
-	    }
+	    computeFindNeighbors<T>(l, taskList, d);
 	#endif
 }
 
