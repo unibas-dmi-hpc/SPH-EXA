@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <algorithm>
 #include "Task.hpp"
 #include "ParticlesData.hpp"
 #include "Octree.hpp"
@@ -66,8 +67,7 @@ inline void findNeighborsDispl(const LinearOctree<T> &o, const int *clist, const
                 }
             }
         }
-
-        if(o.ncells[node] != 8)
+        else
             collisionNodes[collisionsCount++] = node;
 
         node = stack[--stackptr]; // Pop next

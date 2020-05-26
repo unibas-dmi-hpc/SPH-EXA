@@ -77,7 +77,7 @@ int main(int argc, char **argv)
         taskList.update(domain.clist);
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
-        timer.step("FindNeighbor");
+        timer.step("FindNeighbors");
         sph::computeDensity<Real>(taskList.tasks, d);
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
         timer.step("Density");

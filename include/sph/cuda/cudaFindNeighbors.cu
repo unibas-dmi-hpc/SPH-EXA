@@ -30,25 +30,21 @@ void mapLinearOctreeToDevice(const LinearOctree<T> &o, DeviceLinearOctree<T> &d_
 
     d_o.size = o.size;
 
-    T *d_xmin;
-
     CHECK_CUDA_ERR(utils::cudaMalloc(size_int * 8, d_o.cells));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_int, d_o.ncells, d_o.localPadding, d_o.localParticleCount));
-    CHECK_CUDA_ERR(utils::cudaMalloc(size_T, d_xmin, d_o.xmax, d_o.ymin, d_o.ymax, d_o.zmin, d_o.zmax));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_T, d_o.xmin, d_o.xmax, d_o.ymin, d_o.ymax, d_o.zmin, d_o.zmax));
 
     CHECK_CUDA_ERR(cudaMemcpy(d_o.cells, o.cells.data(), size_int * 8, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_o.ncells, o.ncells.data(), size_int, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_o.localPadding, o.localPadding.data(), size_int, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_o.localParticleCount, o.localParticleCount.data(), size_int, cudaMemcpyHostToDevice));
 
-    CHECK_CUDA_ERR(cudaMemcpy(d_xmin, o.xmin.data(), size_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.xmin, o.xmin.data(), size_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_o.xmax, o.xmax.data(), size_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_o.ymin, o.ymin.data(), size_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_o.ymax, o.ymax.data(), size_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_o.zmin, o.zmin.data(), size_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_o.zmax, o.zmax.data(), size_T, cudaMemcpyHostToDevice));
-
-    d_o.xmin = d_xmin;
 }
 
 template<typename T>
@@ -93,7 +89,6 @@ __device__ void findNeighborsDispl(const DeviceLinearOctree<T> o, const int *cli
 
     do
     {
-        stack[stackptr] = -1;
         if(o.ncells[node] == 8)
         {
             int mix = std::max((int)(normalize(xi - ri, o.xmin[node], o.xmax[node]) * nX), 0);
@@ -175,7 +170,7 @@ __global__ void findNeighbors(const DeviceLinearOctree<T> o, const int *clist, c
     dispx[2] = displx;  dispy[2] = disply;  dispz[2] = displz;
 
     neighborsCount[pi] = 0;
-    
+
     for (int hz = 0; hz <= maz; hz++)
         for (int hy = 0; hy <= may; hy++)
             for (int hx = 0; hx <= max; hx++)

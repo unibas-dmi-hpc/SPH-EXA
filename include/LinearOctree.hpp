@@ -8,7 +8,7 @@ namespace sphexa
 template <typename T>
 struct LinearOctree
 {
-    int size;
+    size_t size;
     std::vector<int> ncells;
     std::vector<int> cells;
     std::vector<int> localPadding;
@@ -39,18 +39,21 @@ size_t createLinearOctreeRec(const Octree<T> &o, LinearOctree<T> &l, size_t it =
     l.zmin[it] = o.zmin;
     l.zmax[it] = o.zmax;
 
-    int count = 1;
+    // printf("%ld %ld %d %d\n", l.size, it, l.localPadding[it], l.localParticleCount[it]);
+    // fflush(stdout);
+
+    size_t padding = 1;
 
     if ((int)o.cells.size() == o.ncells)
     {
         for (int i = 0; i < o.ncells; i++)
         {
-            l.cells[it * 8 + i] = it + count;
-            count += createLinearOctreeRec(*o.cells[i], l, it + count);
+            l.cells[it * 8 + i] = it + padding;
+            padding += createLinearOctreeRec(*o.cells[i], l, it + padding);
         }
     }
 
-    return count;
+    return padding;
 }
 
 template <typename T>
