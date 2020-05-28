@@ -11,26 +11,20 @@ namespace sphexa
 {
 namespace sph
 {
-template<typename T>
-struct DeviceLinearOctree
-{
-    const size_t size;
-    const int *ncells;
-    const int *cells;
-    const int *localPadding;
-    const int *localParticleCount;
-    const T *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;
-};
-
 namespace kernels
 {
 
 template <typename T>
-T normalize(T d, T min, T max) { return (d - min) / (max - min); }
+T normalize(T d, T min, T max)
+{
+    return (d - min) / (max - min);
+}
 
 template <typename T>
-void findNeighborsDispl(const DeviceLinearOctree<T> o, const int *clist, const int pi, const T *x, const T *y, const T *z,  const T *h, const T displx, const T disply, const T displz, const int ngmax,
-                      int *neighbors, int *neighborsCount)
+void findNeighborsDispl(const int pi, const int *clist, const T *x, const T *y, const T *z, const T *h,
+                        const T displx, const T disply, const T displz, const int ngmax, int *neighbors, int *neighborsCount,
+                        // The linear tree
+                   		const int *o_cells, const int *o_ncells, const int *o_localPadding, const int *o_localParticleCount, const T *o_xmin, const T *o_xmax, const T *o_ymin, const T *o_ymax, const T *o_zmin, const T *o_zmax)
 {
     const int i = clist[pi];
 
@@ -57,15 +51,15 @@ void findNeighborsDispl(const DeviceLinearOctree<T> o, const int *clist, const i
 
     do
     {
-        if(o.ncells[node] == 8)
+        if (o_ncells[node] == 8)
         {
-            int mix = std::max((int)(normalize(xi - ri, o.xmin[node], o.xmax[node]) * nX), 0);
-            int miy = std::max((int)(normalize(yi - ri, o.ymin[node], o.ymax[node]) * nY), 0);
-            int miz = std::max((int)(normalize(zi - ri, o.zmin[node], o.zmax[node]) * nZ), 0);
-            int max = std::min((int)(normalize(xi + ri, o.xmin[node], o.xmax[node]) * nX), nX - 1);
-            int may = std::min((int)(normalize(yi + ri, o.ymin[node], o.ymax[node]) * nY), nY - 1);
-            int maz = std::min((int)(normalize(zi + ri, o.zmin[node], o.zmax[node]) * nZ), nZ - 1);
-           
+            int mix = std::max((int)(normalize(xi - ri, o_xmin[node], o_xmax[node]) * nX), 0);
+            int miy = std::max((int)(normalize(yi - ri, o_ymin[node], o_ymax[node]) * nY), 0);
+            int miz = std::max((int)(normalize(zi - ri, o_zmin[node], o_zmax[node]) * nZ), 0);
+            int max = std::min((int)(normalize(xi + ri, o_xmin[node], o_xmax[node]) * nX), nX - 1);
+            int may = std::min((int)(normalize(yi + ri, o_ymin[node], o_ymax[node]) * nY), nY - 1);
+            int maz = std::min((int)(normalize(zi + ri, o_zmin[node], o_zmax[node]) * nZ), nZ - 1);
+
             // Maximize threads sync
             for (int hz = 0; hz < 2; hz++)
             {
@@ -74,35 +68,33 @@ void findNeighborsDispl(const DeviceLinearOctree<T> o, const int *clist, const i
                     for (int hx = 0; hx < 2; hx++)
                     {
                         // if overlap
-                        if(hz >= miz && hz <= maz && hy >= miy && hy <= may && hx >= mix && hx <= max)
+                        if (hz >= miz && hz <= maz && hy >= miy && hy <= may && hx >= mix && hx <= max)
                         {
                             int l = hz * nX * nY + hy * nX + hx;
-                            stack[stackptr++] = o.cells[node * 8 +l];
+                            stack[stackptr++] = o_cells[node * 8 + l];
                         }
                     }
                 }
             }
         }
 
-        if(o.ncells[node] != 8)
-             collisionNodes[collisionsCount++] = node;
-        
+        if (o_ncells[node] != 8) collisionNodes[collisionsCount++] = node;
+
         node = stack[--stackptr]; // Pop next
-    }
-    while(node > 0);
+    } while (node > 0);
 
     //__syncthreads();
 
     int ngc = neighborsCount[pi];
-    
-    for(int ni=0; ni<collisionsCount; ni++)
+
+    for (int ni = 0; ni < collisionsCount; ni++)
     {
         int node = collisionNodes[ni];
         T r2 = ri * ri;
 
-        for (int pj = 0; pj < o.localParticleCount[node]; pj++)
+        for (int pj = 0; pj < o_localParticleCount[node]; pj++)
         {
-            int j = o.localPadding[node] + pj;
+            int j = o_localPadding[node] + pj;
 
             T xj = x[j];
             T yj = y[j];
@@ -114,8 +106,7 @@ void findNeighborsDispl(const DeviceLinearOctree<T> o, const int *clist, const i
 
             T dist = xx * xx + yy * yy + zz * zz;
 
-            if (dist < r2 && i != j && ngc < ngmax)
-                neighbors[ngc++] = j;
+            if (dist < r2 && i != j && ngc < ngmax) neighbors[ngc++] = j;
         }
     }
 
@@ -125,23 +116,33 @@ void findNeighborsDispl(const DeviceLinearOctree<T> o, const int *clist, const i
 }
 
 template <typename T>
-void findNeighbors(const int pi, const DeviceLinearOctree<T> o, const int *clist, const int n, const T *x, const T *y, const T *z, const T *h, const T displx,
-                              const T disply, const T displz, const int max, const int may, const int maz, const int ngmax, int *neighbors, int *neighborsCount)
+void findNeighbors(const int pi, const int *clist, const T *x, const T *y, const T *z, const T *h, const T displx,
+                   const T disply, const T displz, const int max, const int may, const int maz, const int ngmax, int *neighbors, int *neighborsCount,
+                   // The linear tree
+                   const int *o_cells, const int *o_ncells, const int *o_localPadding, const int *o_localParticleCount, const T *o_xmin, const T *o_xmax, const T *o_ymin, const T *o_ymax, const T *o_zmin, const T *o_zmax)
 {
     T dispx[3], dispy[3], dispz[3];
 
-    dispx[0] = 0;       dispy[0] = 0;       dispz[0] = 0;
-    dispx[1] = -displx; dispy[1] = -disply; dispz[1] = -displz;
-    dispx[2] = displx;  dispy[2] = disply;  dispz[2] = displz;
+    dispx[0] = 0;
+    dispy[0] = 0;
+    dispz[0] = 0;
+    dispx[1] = -displx;
+    dispy[1] = -disply;
+    dispz[1] = -displz;
+    dispx[2] = displx;
+    dispy[2] = disply;
+    dispz[2] = displz;
 
     neighborsCount[pi] = 0;
 
     for (int hz = 0; hz <= maz; hz++)
         for (int hy = 0; hy <= may; hy++)
             for (int hx = 0; hx <= max; hx++)
-                findNeighborsDispl(o, clist, pi, x, y, z, h, dispx[hx], dispy[hy], dispz[hz], ngmax, &neighbors[pi*ngmax], neighborsCount);
+                findNeighborsDispl<T>(pi, clist, x, y, z, h, dispx[hx], dispy[hy], dispz[hz], ngmax, &neighbors[pi * ngmax], neighborsCount,
+                                   // The linear tree
+                                   o_cells, o_ncells, o_localPadding, o_localParticleCount, o_xmin, o_xmax, o_ymin, o_ymax, o_zmin, o_zmax);
 }
-}
+} // namespace kernels
 
 template <typename T, class Dataset>
 void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList, Dataset &d)
@@ -149,7 +150,7 @@ void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList,
     const int maz = d.bbox.PBCz ? 2 : 0;
     const int may = d.bbox.PBCy ? 2 : 0;
     const int max = d.bbox.PBCx ? 2 : 0;
-    
+
     const T displx = o.xmax[0] - o.xmin[0];
     const T disply = o.ymax[0] - o.ymin[0];
     const T displz = o.zmax[0] - o.zmin[0];
@@ -163,24 +164,25 @@ void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList,
     const T *d_y = d.y.data();
     const T *d_z = d.z.data();
 
-    // Map LinearTree
-    DeviceLinearOctree<T> d_o = {
-    	o.size,
-    	o.ncells.data(),
-    	o.cells.data(),
-    	o.localPadding.data(),
-    	o.localParticleCount.data(),
-    	o.xmin.data(),
-    	o.xmax.data(),
-    	o.ymin.data(),
-    	o.ymax.data(),
-    	o.zmin.data(),
-    	o.zmax.data()
-    };
-
+    // Map LinearTree to device pointers
+    // Currently OpenMP implementations do not support very well the mapping of structures
+    // So we convert everything to simple arrays and pass them to OpenMP
     const size_t st = o.size;
     const size_t stt = o.size * 8;
-    //#pragma omp target data map(to: d_x[0:np], d_y[0:np], d_z[0:np], d_h[0:np], d_o, d_o.cells[0:stt], d_o.ncells[0:st], d_o.localPadding[0:st], d_o.localParticleCount[0:st], d_o.xmin[0:st], d_o.xmax[0:st], d_o.ymin[0:st], d_o.ymax[0:st], d_o.zmin[0:st], d_o.zmax[0:st])
+    const int *o_ncells = o.ncells.data();
+    const int *o_cells = o.cells.data();
+    const int *o_localPadding = o.localPadding.data();
+    const int *o_localParticleCount = o.localParticleCount.data();
+    const T *o_xmin = o.xmin.data();
+    const T *o_xmax = o.xmax.data();
+    const T *o_ymin = o.ymin.data();
+    const T *o_ymax = o.ymax.data();
+    const T *o_zmin = o.zmin.data();
+    const T *o_zmax = o.zmax.data();
+
+// clang-format off
+#pragma omp target data map(to: max, may, maz, displx, disply, displz, d_x[0:np], d_y[0:np], d_z[0:np], d_h[0:np], o_cells[0:stt], o_ncells[0:st], o_localPadding[0:st], o_localParticleCount[0:st], o_xmin[0:st], o_xmax[0:st], o_ymin[0:st], o_ymax[0:st], o_zmin[0:st], o_zmax[0:st])
+// clang-format on
     for (auto &t : taskList)
     {
         const size_t n = t.clist.size();
@@ -191,11 +193,15 @@ void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList,
         int *d_neighbors = t.neighbors.data();
         int *d_neighborsCount = t.neighborsCount.data();
 
-        //#pragma omp target map(to: d_o, n, ngmax, max, may, maz, displx, disply, displz, d_clist[0:n]) map(tofrom: d_neighbors[0:nn], d_neighborsCount[0:n])
-        //#pragma omp teams distribute parallel for
-        #pragma omp parallel for
-        for(int pi=0; pi<n; pi++)
-        	kernels::findNeighbors(pi, d_o, d_clist, n, d_x, d_y, d_z, d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors, d_neighborsCount);
+// clang-format off
+#pragma omp target map(to : n, ngmax, d_clist[0:n]) map(tofrom: d_neighbors[0:nn], d_neighborsCount [0:n])
+#pragma omp teams distribute parallel for
+//#pragma omp parallel for
+// clang-format on
+        for (size_t pi = 0; pi < n; pi++)
+            kernels::findNeighbors<T>(pi, d_clist, d_x, d_y, d_z, d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors, d_neighborsCount,
+                                   // The linear tree
+                                   o_cells, o_ncells, o_localPadding, o_localParticleCount, o_xmin, o_xmax, o_ymin, o_ymax, o_zmin, o_zmax);
     }
 }
 
@@ -205,11 +211,11 @@ void findNeighbors(const Octree<T> &o, std::vector<Task> &taskList, Dataset &d)
     LinearOctree<T> l;
     createLinearOctree(o, l);
 
-    #if defined(USE_CUDA)
-    	cuda::computeFindNeighbors<T>(l, taskList, d);
-	#else
-	    computeFindNeighbors<T>(l, taskList, d);
-	#endif
+#if defined(USE_CUDA)
+    cuda::computeFindNeighbors<T>(l, taskList, d);
+#else
+    computeFindNeighbors<T>(l, taskList, d);
+#endif
 }
 
 size_t neighborsSumImpl(const Task &t)

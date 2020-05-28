@@ -61,7 +61,7 @@ template <typename T>
 __device__ T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
 template <typename T>
-__device__ void findNeighborsDispl(const DeviceLinearOctree<T> o, const int *clist, const int pi, const T *x, const T *y, const T *z,  const T *h, const T displx, const T disply, const T displz, const int ngmax,
+__device__ void findNeighborsDispl(const DeviceLinearOctree<T> o, const int pi, const int *clist, const T *x, const T *y, const T *z,  const T *h, const T displx, const T disply, const T displz, const int ngmax,
                       int *neighbors, int *neighborsCount)
 {
     const int i = clist[pi];
@@ -174,7 +174,7 @@ __global__ void findNeighbors(const DeviceLinearOctree<T> o, const int *clist, c
     for (int hz = 0; hz <= maz; hz++)
         for (int hy = 0; hy <= may; hy++)
             for (int hx = 0; hx <= max; hx++)
-                findNeighborsDispl(o, clist, pi, x, y, z, h, dispx[hx], dispy[hy], dispz[hz], ngmax, &neighbors[pi*ngmax], neighborsCount);
+                findNeighborsDispl(o, pi, clist, x, y, z, h, dispx[hx], dispy[hy], dispz[hz], ngmax, &neighbors[pi*ngmax], neighborsCount);
 }
 }
 
