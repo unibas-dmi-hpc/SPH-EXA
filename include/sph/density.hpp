@@ -46,14 +46,14 @@ void computeDensityImpl(const Task &t, Dataset &d)
 #pragma omp target map(to                                                                                                                  \
                        : clist [0:n], neighbors [:allNeighbors], neighborsCount [:n], m [0:np], h [0:np], x [0:np], y [0:np], z [0:np])    \
                    map(from                                                                                                                \
-                       : ro [:n])
+                       : ro [:np])
 #pragma omp teams distribute parallel for
 // clang-format on
 #elif defined(USE_ACC)
     const size_t np = d.x.size();
     const size_t allNeighbors = n * ngmax;
 #pragma acc parallel loop copyin(n, clist [0:n], neighbors [0:allNeighbors], neighborsCount [0:n], m [0:np], h [0:np], x [0:np], y [0:np], \
-                                 z [0:np]) copyout(ro[:n])
+                                 z [0:np]) copyout(ro[:np])
 #else
 #pragma omp parallel for
 #endif

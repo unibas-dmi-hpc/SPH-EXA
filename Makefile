@@ -14,7 +14,7 @@ THIS_FILE := $(lastword $(MAKEFILE_LIST))
 
 CUDA_OBJS := $(BUILDDIR)/cudaFindNeighbors.o $(BUILDDIR)/cudaDensity.o $(BUILDDIR)/cudaIAD.o $(BUILDDIR)/cudaMomentumAndEnergyIAD.o $(BUILDDIR)/cudaLookupTables.o
 
-RELEASE := -DNDEBUG -DUSE_STD_MATH_IN_KERNELS
+RELEASE := -DNDEBUG
 DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
 
 INC += -Isrc -Iinclude

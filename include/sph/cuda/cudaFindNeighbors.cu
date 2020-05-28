@@ -108,8 +108,12 @@ __device__ void findNeighborsDispl(const DeviceLinearOctree<T> o, const int pi, 
                         // if overlap
                         if(hz >= miz && hz <= maz && hy >= miy && hy <= may && hx >= mix && hx <= max)
                         {
-                            int l = hz * nX * nY + hy * nX + hx;
-                            stack[stackptr++] = o.cells[node * 8 +l];
+                            // int l = hz * nX * nY + hy * nX + hx;
+                            // stack[stackptr++] = o.cells[node * 8 +l];
+                            const int l = hz * nX * nY + hy * nX + hx;
+                            const int child = o.cells[node * 8 + l];
+                            if(o.localParticleCount[child] > 0)
+                                stack[stackptr++] = child;
                         }
                     }
                 }

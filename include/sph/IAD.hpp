@@ -58,7 +58,7 @@ void computeIADImpl(const Task &t, Dataset &d)
 		       : clist [:n], neighbors[:allNeighbors], neighborsCount[:n],                                                         \
                        x [0:np], y [0:np], z [0:np], h [0:np], m [0:np], ro [0:np])                                                        \
                    map(from                                                                                                                \
-                       : c11[:n], c12[:n], c13[:n], c22[:n], c23[:n], c33[:n])
+                       : c11[:np], c12[:np], c13[:np], c22[:np], c23[:np], c33[:np])
 // clang-format on
 #pragma omp teams distribute parallel for // dist_schedule(guided)
 #elif defined(USE_ACC)
@@ -67,8 +67,8 @@ void computeIADImpl(const Task &t, Dataset &d)
 // clang-format off
 #pragma acc parallel loop copyin(clist [0:n], neighbors [0:allNeighbors], neighborsCount [0:n],                                            \
                                   x [0:np], y [0:np], z [0:np], h [0:np], m [0:np], ro [0:np])                                             \
-                           copyout(c11 [:n], c12 [:n], c13 [:n], c22 [:n], c23 [:n],                                                       \
-                                   c33 [:n])
+                           copyout(c11 [:np], c12 [:np], c13 [:np], c22 [:np], c23 [:np],                                                       \
+                                   c33 [:np])
 // clang-format on
 #else
 #pragma omp parallel for schedule(guided)

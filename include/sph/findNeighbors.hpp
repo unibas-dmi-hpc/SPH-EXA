@@ -70,8 +70,12 @@ void findNeighborsDispl(const int pi, const int *clist, const T *x, const T *y, 
                         // if overlap
                         if (hz >= miz && hz <= maz && hy >= miy && hy <= may && hx >= mix && hx <= max)
                         {
-                            int l = hz * nX * nY + hy * nX + hx;
-                            stack[stackptr++] = o_cells[node * 8 + l];
+                            // int l = hz * nX * nY + hy * nX + hx;
+                            // stack[stackptr++] = o_cells[node * 8 + l];
+                            const int l = hz * nX * nY + hy * nX + hx;
+                            const int child = o_cells[node * 8 + l];
+                            if(o_localParticleCount[child] > 0)
+                                stack[stackptr++] = child;
                         }
                     }
                 }
@@ -180,24 +184,31 @@ void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList,
     const T *o_zmin = o.zmin.data();
     const T *o_zmax = o.zmax.data();
 
-// clang-format off
-#pragma omp target data map(to: max, may, maz, displx, disply, displz, d_x[0:np], d_y[0:np], d_z[0:np], d_h[0:np], o_cells[0:stt], o_ncells[0:st], o_localPadding[0:st], o_localParticleCount[0:st], o_xmin[0:st], o_xmax[0:st], o_ymin[0:st], o_ymax[0:st], o_zmin[0:st], o_zmax[0:st])
-// clang-format on
     for (auto &t : taskList)
     {
-        const size_t n = t.clist.size();
-        const size_t nn = n * ngmax;
-
         // Device pointers
         const int *d_clist = t.clist.data();
         int *d_neighbors = t.neighbors.data();
         int *d_neighborsCount = t.neighborsCount.data();
 
+        const size_t n = t.clist.size();
+        
 // clang-format off
-#pragma omp target map(to : n, ngmax, d_clist[0:n]) map(tofrom: d_neighbors[0:nn], d_neighborsCount [0:n])
+#if defined(USE_OMP_TARGET)
+    // Apparently Cray with -O2 has a bug when calling target regions in a loop. (and computeDensityImpl can be called in a loop).
+    // A workaround is to call some method or allocate memory to either prevent buggy optimization or other side effect.
+    // with -O1 there is no problem
+    // Tested with Cray 8.7.3 with NVIDIA Tesla P100 on PizDaint
+    std::vector<T> imHereBecauseOfCrayCompilerO2Bug(4, 10);
+    
+    const size_t nn = n * ngmax;
+
+#pragma omp target map(to : n, ngmax, max, may, maz, displx, disply, displz, d_x[0:np], d_y[0:np], d_z[0:np], d_h[0:np], o_cells[0:stt], o_ncells[0:st], o_localPadding[0:st], o_localParticleCount[0:st], o_xmin[0:st], o_xmax[0:st], o_ymin[0:st], o_ymax[0:st], o_zmin[0:st], o_zmax[0:st], d_clist[0:n]) map(from: d_neighbors[0:nn], d_neighborsCount [0:n])
 #pragma omp teams distribute parallel for
-//#pragma omp parallel for
 // clang-format on
+#else
+#pragma omp parallel for
+#endif
         for (size_t pi = 0; pi < n; pi++)
             kernels::findNeighbors<T>(pi, d_clist, d_x, d_y, d_z, d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors, d_neighborsCount,
                                    // The linear tree
