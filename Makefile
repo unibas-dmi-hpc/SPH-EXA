@@ -1,4 +1,4 @@
-CXX ?= g++ # This is the main compiler
+CXX = g++-9 # This is the main compiler
 CC ?= gcc
 MPICXX ?= mpic++
 ENV ?= gnu

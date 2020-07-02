@@ -8,6 +8,11 @@
 #include "lookupTables.hpp"
 #include "cuda/sph.cuh"
 
+#if defined(USE_CUDA) || defined(USE_ACC) || defined(USE_OMP_TARGET)
+#error "The code was refactored to support General Volume Elements, but accelerator code has not been addressed yet."
+#endif
+
+
 namespace sphexa
 {
 namespace sph
@@ -23,11 +28,11 @@ void computeIADImpl(const Task &t, Dataset &d)
     const int *neighborsCount = t.neighborsCount.data();
 
     const T *h = d.h.data();
-    const T *m = d.m.data();
+    const T *xmass = d.xmass.data();
     const T *x = d.x.data();
     const T *y = d.y.data();
     const T *z = d.z.data();
-    const T *ro = d.ro.data();
+    const T *sumkx = d.sumkx.data();
 
     T *c11 = d.c11.data();
     T *c12 = d.c12.data();
@@ -97,12 +102,12 @@ void computeIADImpl(const Task &t, Dataset &d)
 
             applyPBC(bbox, 2.0 * h[i], r_ijx, r_ijy, r_ijz);
 
-            tau11 += r_ijx * r_ijx * m[j] / ro[j] * W;
-            tau12 += r_ijx * r_ijy * m[j] / ro[j] * W;
-            tau13 += r_ijx * r_ijz * m[j] / ro[j] * W;
-            tau22 += r_ijy * r_ijy * m[j] / ro[j] * W;
-            tau23 += r_ijy * r_ijz * m[j] / ro[j] * W;
-            tau33 += r_ijz * r_ijz * m[j] / ro[j] * W;
+            tau11 += r_ijx * r_ijx * xmass[j] / sumkx[j] * W;
+            tau12 += r_ijx * r_ijy * xmass[j] / sumkx[j] * W;
+            tau13 += r_ijx * r_ijz * xmass[j] / sumkx[j] * W;
+            tau22 += r_ijy * r_ijy * xmass[j] / sumkx[j] * W;
+            tau23 += r_ijy * r_ijz * xmass[j] / sumkx[j] * W;
+            tau33 += r_ijz * r_ijz * xmass[j] / sumkx[j] * W;
 
             /*
             checkImem[i] += m[j] / ro[j] * W;

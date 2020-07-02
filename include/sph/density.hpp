@@ -2,15 +2,22 @@
 
 #include <vector>
 
+#include "../ParticlesData.hpp"
 #include "kernels.hpp"
 #include "Task.hpp"
 #include "lookupTables.hpp"
 #include "cuda/sph.cuh"
 
+#if defined(USE_CUDA) || defined(USE_ACC) || defined(USE_OMP_TARGET)
+#error "The code was refactored to support General Volume Elements, but accelerator code has not been addressed yet."
+#endif
+
+
 namespace sphexa
 {
 namespace sph
 {
+
 template <typename T, class Dataset>
 void computeDensityImpl(const Task &t, Dataset &d)
 {
@@ -27,6 +34,11 @@ void computeDensityImpl(const Task &t, Dataset &d)
     const T *z = d.z.data();
 
     T *ro = d.ro.data();
+    // general VE
+    const T *xmass = d.xmass.data(); // the VE estimator function vals. Only updated at end of iteration
+    T *sumkx = d.sumkx.data(); // kernel-weighted sum of VE estimators
+    T *sumwh = d.sumwh.data(); // sum of VE estimators weighted by derivative of kernel wrt. h
+    T *vol = d.vol.data();
 
     const BBox<T> bbox = d.bbox;
 
@@ -63,6 +75,9 @@ void computeDensityImpl(const Task &t, Dataset &d)
         const int nn = neighborsCount[pi];
 
         T roloc = 0.0;
+        // general VE
+        T sumkx_loc = 0.0;
+        T sumwh_loc = 0.0;
 
         // int converstion to avoid a bug that prevents vectorization with some compilers
         for (int pj = 0; pj < nn; pj++)
@@ -76,21 +91,35 @@ void computeDensityImpl(const Task &t, Dataset &d)
             T vloc = dist / h[i];
 
 #ifndef NDEBUG
-            if (vloc > 2.0 + 1e-6 || vloc < 0.0)
-                printf("ERROR:Density(%d,%d) vloc %f -- x %f %f %f -- %f %f %f -- dist %f -- hi %f\n", i, j, vloc, x[i], y[i], z[i], x[j],
+            if (vloc > 2.0 * 5.0 || vloc < 0.0)
+                printf("ERROR:Density or Distance (%d,%d) vloc %f -- x %f %f %f -- %f %f %f -- dist %f -- hi %f\n", int(d.id[i]), int(d.id[j]), vloc, x[i], y[i], z[i], x[j],
                        y[j], z[j], dist, h[i]);
 #endif
 
             const T w = K * math_namespace::pow(wharmonic(vloc), (int)sincIndex);
             const T value = w / (h[i] * h[i] * h[i]);
             roloc += value * m[j];
+            // general VE
+            sumkx_loc += value * xmass[j];
+            // summation part of derivative of density wrt. h[i] (needed for NR)
+            sumwh_loc += - xmass[j] * value / h[i] * (3.0 + vloc * (int)sincIndex * wharmonic_derivative(vloc)); // updated 25.2.20
+            // checked 2.4.2020: identical to sphynx with sphynx kernel = 2...
         }
 
-        // ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
-        ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
+        // general VE
+        sumkx_loc += xmass[i] * K / (h[i] * h[i] * h[i]);  // self contribution. no need for kernel (dist = 0 -> 1)
+        sumwh_loc += - xmass[i] * K / (h[i] * h[i] * h[i] * h[i]) * 3.0; // self-contribution
+
+        vol[i] = xmass[i] / sumkx_loc;  // calculate volume element
+        // new density
+        ro[i] = m[i] / vol[i];
+//        double diff = roloc + m[i] * K / (h[i] * h[i] * h[i]) - ro[i];
+//        if (abs(diff) > 1.11e-16) printf("Roloc[%d] - ro[%d] = %.5e\n", i, i, diff);
+        sumkx[i] = sumkx_loc;
+        sumwh[i] = m[i] / xmass[i] * sumwh_loc;
 
 #ifndef NDEBUG
-        if (std::isnan(ro[i])) printf("ERROR::Density(%d) density %f, position: (%f %f %f), h: %f\n", i, ro[i], x[i], y[i], z[i], h[i]);
+        if (std::isnan(ro[i]) || std::isinf(ro[i])) printf("ERROR::Density(%d) density %f, position: (%f %f %f), h: %f\n", int(d.id[i]), ro[i], x[i], y[i], z[i], h[i]);
 #endif
     }
 }
@@ -99,6 +128,7 @@ template <typename T, class Dataset>
 void computeDensity(const std::vector<Task> &taskList, Dataset &d)
 {
 #if defined(USE_CUDA)
+# error "General Volume elements have not been implemented in CUDA yet (sumkx, sumwh, xmass, ...)"
     cuda::computeDensity<T>(taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
 #else
     for (const auto &task : taskList)
