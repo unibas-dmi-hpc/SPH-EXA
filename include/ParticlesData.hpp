@@ -32,6 +32,9 @@ struct ParticlesData
     std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T> maxvsignal;
 
+    // For Sedov
+    std::vector<T> mui, temp, cv;
+
     T ttot, etot, ecin, eint;
     T minDt;
 
@@ -39,7 +42,8 @@ struct ParticlesData
 
     std::vector<std::vector<T> *> data{&x,  &y,     &z,   &x_m1, &y_m1, &z_m1, &vx,       &vy,       &vz,        &ro, &ro_0,
                                        &u,  &p,     &p_0, &h,    &m,    &c,    &grad_P_x, &grad_P_y, &grad_P_z,  &du, &du_m1,
-                                       &dt, &dt_m1, &c11, &c12,  &c13,  &c22,  &c23,      &c33,      &maxvsignal};
+                                       &dt, &dt_m1, &c11, &c12,  &c13,  &c22,  &c23,      &c33,      &maxvsignal,
+                                       &mui, &temp, &cv};
 #ifdef USE_MPI
     MPI_Comm comm;
     int pnamelen = 0;
