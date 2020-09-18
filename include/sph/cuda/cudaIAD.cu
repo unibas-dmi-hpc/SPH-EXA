@@ -18,8 +18,8 @@ namespace kernels
 {
 template <typename T>
 __global__ void computeIAD(const int n, const T sincIndex, const T K, const int ngmax, const BBox<T> *bbox, const int *clist,
-                           const int *neighbors, const int *neighborsCount, const T *x, const T *y, const T *z, const T *h, const T *m,
-                           const T *ro, T *c11, T *c12, T *c13, T *c22, T *c23, T *c33)
+                           const int *neighbors, const int *neighborsCount, const T *x, const T *y, const T *z, const T *h, const T *m, 
+                           const T *ro, const T *wh, const T *whd, const size_t ltsize, T *c11, T *c12, T *c13, T *c22, T *c23, T *c33)
 {
     const int tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
@@ -35,7 +35,7 @@ __global__ void computeIAD(const int n, const T sincIndex, const T K, const int 
         const T dist = distancePBC(*bbox, h[i], x[i], y[i], z[i], x[j], y[j], z[j]);
         const T vloc = dist / h[i];
 
-        const T w = K * math_namespace::pow(wharmonic(vloc), (int)sincIndex);
+        const T w = K * math_namespace::pow(lt::wharmonic_lt(wh, ltsize, vloc), (int)sincIndex);
         const T W = w / (h[i] * h[i] * h[i]);
 
         T r_ijx = (x[i] - x[j]);
@@ -82,12 +82,16 @@ void computeIAD(const std::vector<Task> &taskList, Dataset &d)
 
     // device pointers - d_ prefix stands for device
     int *d_clist, *d_neighbors, *d_neighborsCount;
-    T *d_x, *d_y, *d_z, *d_m, *d_h, *d_ro;
+    T *d_x, *d_y, *d_z, *d_m, *d_h, *d_ro, *d_wh, *d_whd;
     BBox<T> *d_bbox;
     T *d_c11, *d_c12, *d_c13, *d_c22, *d_c23, *d_c33;
 
+    const size_t ltsize = d.wh.size();
+    const size_t size_lt_T = ltsize * sizeof(T);
+
     // input data
     CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m, d_ro, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d_bbox));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist, d_neighborsCount));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors));
@@ -98,6 +102,8 @@ void computeIAD(const std::vector<Task> &taskList, Dataset &d)
     CHECK_CUDA_ERR(cudaMemcpy(d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_ro, d.ro.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_wh, d.wh.data(), size_lt_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_whd, d.whd.data(), size_lt_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
 
     for (const auto &t : taskList)
@@ -116,7 +122,7 @@ void computeIAD(const std::vector<Task> &taskList, Dataset &d)
         // printf("CUDA IAD kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
         kernels::computeIAD<<<blocksPerGrid, threadsPerBlock>>>(n, d.sincIndex, d.K, ngmax, d_bbox, d_clist, d_neighbors,
-                                                                d_neighborsCount, d_x, d_y, d_z, d_h, d_m, d_ro, d_c11, d_c12, d_c13, d_c22,
+                                                                d_neighborsCount, d_x, d_y, d_z, d_h, d_m, d_ro, d_wh, d_whd, ltsize, d_c11, d_c12, d_c13, d_c22,
                                                                 d_c23, d_c33);
         CHECK_CUDA_ERR(cudaGetLastError());
     }
@@ -129,7 +135,7 @@ void computeIAD(const std::vector<Task> &taskList, Dataset &d)
     CHECK_CUDA_ERR(cudaMemcpy(d.c33.data(), d_c33, size_np_T, cudaMemcpyDeviceToHost));
 
     CHECK_CUDA_ERR(utils::cudaFree(d_bbox, d_clist, d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_h, d_m, d_ro, d_c11, d_c12, d_c13,
-                                   d_c22, d_c23, d_c33));
+                                   d_c22, d_c23, d_c33, d_wh, d_whd));
 }
 
 template void computeIAD<double, ParticlesData<double>>(const std::vector<Task> &taskList, ParticlesData<double> &d);
