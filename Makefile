@@ -43,7 +43,7 @@ ifeq ($(ENV),clang)
 	CXXFLAGS += -O2 -std=c++14 -fopenmp
 endif
 
-TESTCASE ?= sqpatch
+TESTCASE ?= sedov
 
 ifeq ($(TESTCASE),evrard)
 	TESTCASE_FLAGS = -DGRAVITY
