@@ -45,12 +45,12 @@ std::array<T, N> createWharmonicDerivativeLookupTable()
     return whd;
 }
 
-template <typename T>
-CUDA_DEVICE_FUN inline T wharmonic_lt(const T *wh, const size_t ltsize, const T v)
-{
-    const size_t idx = (v * ltsize / 2.0);
-    return (idx >= ltsize) ? 0.0 : wh[idx];
-}
+// template <typename T>
+// CUDA_DEVICE_FUN inline T wharmonic_lt(const T *wh, const size_t ltsize, const T v)
+// {
+//     const size_t idx = (v * ltsize / 2.0);
+//     return (idx >= ltsize) ? 0.0 : wh[idx];
+// }
 
 template <typename T>
 CUDA_DEVICE_FUN inline T wharmonic_lt_with_derivative(const T *wh, const T *whd, const size_t ltsize, const T v)
@@ -60,12 +60,12 @@ CUDA_DEVICE_FUN inline T wharmonic_lt_with_derivative(const T *wh, const T *whd,
     return (idx >= ltsize) ? 0.0 : wh[idx] + whd[idx] * (v - (T)idx / halfTableSize);
 }
 
-template <typename T>
-CUDA_DEVICE_FUN inline T wharmonic_derivative_lt(const T *whd, const size_t ltsize, const T v)
-{
-    const size_t idx = (v * ltsize / 2.0);
-    return (idx >= ltsize) ? -0.5 : whd[idx];
-}
+// template <typename T>
+// CUDA_DEVICE_FUN inline T wharmonic_derivative_lt(const T *whd, const size_t ltsize, const T v)
+// {
+//     const size_t idx = (v * ltsize / 2.0);
+//     return (idx >= ltsize) ? -0.5 : whd[idx];
+// }
 
 } // namespace lt
 

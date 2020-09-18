@@ -86,7 +86,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
                        y[j], z[j], dist, h[i]);
 #endif
 
-            const T w = K * math_namespace::pow(lt::wharmonic_lt(wh, ltsize, vloc), (int)sincIndex);
+            const T w = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, vloc), (int)sincIndex);
             const T value = w / (h[i] * h[i] * h[i]);
             roloc += value * m[j];
         }

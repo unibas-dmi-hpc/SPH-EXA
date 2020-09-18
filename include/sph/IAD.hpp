@@ -91,7 +91,7 @@ void computeIADImpl(const Task &t, Dataset &d)
             const T dist = distancePBC(bbox, h[i], x[i], y[i], z[i], x[j], y[j], z[j]); // store the distance from each neighbor
             // calculate the v as ratio between the distance and the smoothing length
             const T vloc = dist / h[i];
-            const T w = K * math_namespace::pow(lt::wharmonic_lt(wh, ltsize, vloc), (int)sincIndex);
+            const T w = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, vloc), (int)sincIndex);
             const T W = w / (h[i] * h[i] * h[i]);
 
             T r_ijx = (x[i] - x[j]);

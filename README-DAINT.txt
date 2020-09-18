@@ -19,3 +19,9 @@ module load craype-accel-nvidia60
 export CUDA_HOME=$CUDATOOLKIT_HOME
 
 make TESTCASE=sedov NVCC=nvcc ENV=pgi MPICXX=CC mpi+omp+acc
+
+
+# gnuplot
+set size square;
+pl 'dump_Sedov200.txt' u (abs($3/$7)<2.?$1:1/0):2:8 w p pt 7 lc palette z
+pl 'dump_Sedov200.txt' u (($1*$1+$2*$2+$3*$3)**.5):8  w d
