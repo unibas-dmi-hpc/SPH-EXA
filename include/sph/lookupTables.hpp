@@ -19,30 +19,30 @@ constexpr size_t size = 20000;
 template <typename T, std::size_t N>
 std::array<T, N> createWharmonicLookupTable()
 {
-    std::array<T, N> lt;
+    std::array<T, N> wh;
 
     const T halfsSize = N / 2.0;
     for (size_t i = 0; i < N; ++i)
     {
         T normalizedVal = i / halfsSize;
-        lt[i] = wharmonic_std(normalizedVal);
+        wh[i] = wharmonic_std(normalizedVal);
     }
-    return lt;
+    return wh;
 }
 
 template <typename T, std::size_t N>
 std::array<T, N> createWharmonicDerivativeLookupTable()
 {
-    std::array<T, N> lt;
+    std::array<T, N> whd;
 
     const T halfsSize = N / 2.0;
     for (size_t i = 0; i < N; ++i)
     {
         T normalizedVal = i / halfsSize;
-        lt[i] = wharmonic_derivative_std(normalizedVal);
+        whd[i] = wharmonic_derivative_std(normalizedVal);
     }
 
-    return lt;
+    return whd;
 }
 
 template <typename T>

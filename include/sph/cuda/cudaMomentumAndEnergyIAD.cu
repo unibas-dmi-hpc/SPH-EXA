@@ -24,14 +24,15 @@ __global__ void computeMomentumAndEnergyIAD(const int n, const T sincIndex, cons
                                             const int *clist, const int *neighbors, const int *neighborsCount, const T *x, const T *y,
                                             const T *z, const T *vx, const T *vy, const T *vz, const T *h, const T *m, const T *ro,
                                             const T *p, const T *c, const T *c11, const T *c12, const T *c13, const T *c22, const T *c23,
-                                            const T *c33, T *grad_P_x, T *grad_P_y, T *grad_P_z, T *du)
+                                            const T *c33, const T *wh, const T *whd, const size_t ltsize, T *grad_P_x, T *grad_P_y, T *grad_P_z, T *du, T *maxvsignal)
 {
     const int tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
 
     const int i = clist[tid];
     const int nn = neighborsCount[tid];
-
+    
+    T maxvsignali = 0.0;
     T momentum_x = 0.0, momentum_y = 0.0, momentum_z = 0.0, energy = 0.0, energyAV = 0.0;
     for (int pj = 0; pj < nn; ++pj)
     {
@@ -59,8 +60,8 @@ __global__ void computeMomentumAndEnergyIAD(const int n, const T sincIndex, cons
 
         const T rv = r_ijx * v_ijx + r_ijy * v_ijy + r_ijz * v_ijz;
 
-        const T w1 = K * math_namespace::pow(wharmonic(v1), (int)sincIndex);
-        const T w2 = K * math_namespace::pow(wharmonic(v2), (int)sincIndex);
+        const T w1 = K * math_namespace::pow(lt::wharmonic_lt(wh, ltsize, v1), (int)sincIndex);
+        const T w2 = K * math_namespace::pow(lt::wharmonic_lt(wh, ltsize, v2), (int)sincIndex);
 
         const T W1 = w1 / (h[i] * h[i] * h[i]);
         const T W2 = w2 / (h[j] * h[j] * h[j]);
@@ -98,6 +99,11 @@ __global__ void computeMomentumAndEnergyIAD(const int n, const T sincIndex, cons
 
         const T r_square = dist * dist;
         const T viscosity_ij = artificial_viscosity(ro[i], ro[j], h[i], h[j], c[i], c[j], rv, r_square);
+        
+        // For time-step calculations
+        const T wij = rv / dist;
+        const T vijsignal = c[i] + c[j] - 3.0 * wij;
+        if (vijsignal > maxvsignali) maxvsignali = vijsignal;
 
         const T grad_Px_AV = 0.5 * (m[i] / ro[i] * viscosity_ij * termA1_i + m[j] / ro[j] * viscosity_ij * termA1_j);
         const T grad_Py_AV = 0.5 * (m[i] / ro[i] * viscosity_ij * termA2_i + m[j] / ro[j] * viscosity_ij * termA2_j);
@@ -115,6 +121,7 @@ __global__ void computeMomentumAndEnergyIAD(const int n, const T sincIndex, cons
     grad_P_x[i] = momentum_x;
     grad_P_y[i] = momentum_y;
     grad_P_z[i] = momentum_z;
+    maxvsignal[i] = maxvsignali;
 }
 } // namespace kernels
 
@@ -141,13 +148,17 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
     // const size_t size_allNeighbors = allNeighbors * sizeof(int);
 
     int *d_clist, *d_neighbors, *d_neighborsCount;
-    T *d_x, *d_y, *d_z, *d_vx, *d_vy, *d_vz, *d_m, *d_h, *d_ro, *d_p, *d_c, *d_c11, *d_c12, *d_c13, *d_c22, *d_c23, *d_c33;
+    T *d_x, *d_y, *d_z, *d_vx, *d_vy, *d_vz, *d_m, *d_h, *d_ro, *d_p, *d_c, *d_c11, *d_c12, *d_c13, *d_c22, *d_c23, *d_c33, *d_wh, *d_whd;
     BBox<T> *d_bbox;
-    T *d_grad_P_x, *d_grad_P_y, *d_grad_P_z, *d_du;
+    T *d_grad_P_x, *d_grad_P_y, *d_grad_P_z, *d_du, *d_maxvsignal;
+
+    const size_t ltsize = d.wh.size();
+    const size_t size_lt_T = ltsize * sizeof(T);
 
     // input data
     CHECK_CUDA_ERR(
-        utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du));
+    utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d_bbox));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist, d_neighborsCount));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors));
@@ -169,6 +180,7 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
     CHECK_CUDA_ERR(cudaMemcpy(d_c22, d.c22.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_c23, d.c23.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_c33, d.c33.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_whd, d.whd.data(), size_lt_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
 
     for (const auto &t : taskList)
@@ -186,7 +198,7 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
 
         kernels::computeMomentumAndEnergyIAD<<<blocksPerGrid, threadsPerBlock>>>(
             n, d.sincIndex, d.K, ngmax, d_bbox, d_clist, d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro,
-            d_p, d_c, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du);
+            d_p, d_c, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_wh, d_whd, ltsize, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal);
 
         CHECK_CUDA_ERR(cudaGetLastError());
     }
@@ -195,9 +207,10 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
     CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data(), d_grad_P_y, size_np_T, cudaMemcpyDeviceToHost));
     CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data(), d_grad_P_z, size_np_T, cudaMemcpyDeviceToHost));
     CHECK_CUDA_ERR(cudaMemcpy(d.du.data(), d_du, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.maxvsignal.data(), d_maxvsignal, size_np_T, cudaMemcpyDeviceToHost));
 
     CHECK_CUDA_ERR(utils::cudaFree(d_clist, d_neighborsCount, d_neighbors, d_bbox, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p,
-                                   d_c, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du));
+                                   d_c, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal, d_wh, d_whd));
 }
 
 template void computeMomentumAndEnergyIAD<double, ParticlesData<double>>(const std::vector<Task> &taskList, ParticlesData<double> &d);
