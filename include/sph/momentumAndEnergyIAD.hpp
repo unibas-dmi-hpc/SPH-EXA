@@ -50,6 +50,10 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
     T *grad_P_z = d.grad_P_z.data();
     T *maxvsignal = d.maxvsignal.data();
 
+    const T *wh = d.wh.data();
+    const T *whd = d.whd.data();
+    const size_t ltsize = d.wh.size();
+
     const BBox<T> bbox = d.bbox;
 
     const T K = d.K;
@@ -60,16 +64,15 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
     // loop). A workaround is to call some method or allocate memory to either prevent buggy optimization or other side effect. with -O1
     // there is no problem Tested with Cray 8.7.3 with NVIDIA Tesla P100 on PizDaint
     std::vector<T> imHereBecauseOfCrayCompilerO2Bug(4, 10);
-
     const int np = d.x.size();
     const size_t allNeighbors = n * ngmax;
 // clang-format off
 #pragma omp target map(to                                                                                                                  \
 		       : clist [:n], neighbors[:allNeighbors], neighborsCount[:n], x [0:np], y [0:np], z [0:np],                           \
                        vx [0:np], vy [0:np], vz [0:np], h [0:np], m [0:np], ro [0:np], p [0:np], c [0:np],                                 \
-                       c11 [0:np], c12 [0:np], c13 [0:np], c22 [0:np], c23 [0:np], c33 [0:np])                                             \
+                       c11 [0:np], c12 [0:np], c13 [0:np], c22 [0:np], c23 [0:np], c33 [0:np], wh[0:ltsize], whd[0:ltsize])                                             \
                    map(from                                                                                                                \
-                       : grad_P_x [:n], grad_P_y [:n], grad_P_z [:n], du [:n])
+                       : grad_P_x [:n], grad_P_y [:n], grad_P_z [:n], du [:n], maxvsignal[0:n])
 // clang-format on
 #pragma omp teams distribute parallel for
 #elif defined(USE_ACC)
@@ -78,8 +81,8 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
 // clang-format off
 #pragma acc parallel loop copyin(clist [0:n], neighbors [0:allNeighbors], neighborsCount [0:n], x [0:np], y [0:np], z [0:np], vx [0:np],   \
                                  vy [0:np], vz [0:np], h [0:np], m [0:np], ro [0:np], p [0:np], c [0:np], c11 [0:np], c12 [0:np],          \
-                                 c13 [0:np], c22 [0:np], c23 [0:np], c33 [0:np])                                                           \
-                          copyout(grad_P_x [:n], grad_P_y [:n], grad_P_z [:n], du [:n])
+                                 c13 [0:np], c22 [0:np], c23 [0:np], c33 [0:np], wh[0:ltsize], whd[0:ltsize])                                                           \
+                          copyout(grad_P_x [:n], grad_P_y [:n], grad_P_z [:n], du [:n], maxvsignal[0:n])
 // clang-format on
 #else
 #pragma omp parallel for schedule(guided)
@@ -117,8 +120,8 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
 
             const T rv = r_ijx * v_ijx + r_ijy * v_ijy + r_ijz * v_ijz;
 
-            const T w1 = K * math_namespace::pow(wharmonic(v1), (int)sincIndex);
-            const T w2 = K * math_namespace::pow(wharmonic(v2), (int)sincIndex);
+            const T w1 = K * math_namespace::pow(lt::wharmonic_lt(wh, ltsize, v1), (int)sincIndex);
+            const T w2 = K * math_namespace::pow(lt::wharmonic_lt(whd, ltsize, v2), (int)sincIndex);
 
             const T W1 = w1 / (h[i] * h[i] * h[i]);
             const T W2 = w2 / (h[j] * h[j] * h[j]);
