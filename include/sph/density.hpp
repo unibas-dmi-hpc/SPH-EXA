@@ -26,6 +26,10 @@ void computeDensityImpl(const Task &t, Dataset &d)
     const T *y = d.y.data();
     const T *z = d.z.data();
 
+    const T *wh = d.wh.data();
+    const T *whd = d.whd.data();
+    const size_t ltsize = d.wh.size();
+
     T *ro = d.ro.data();
 
     const BBox<T> bbox = d.bbox;
@@ -42,9 +46,10 @@ void computeDensityImpl(const Task &t, Dataset &d)
 
     const size_t np = d.x.size();
     const size_t allNeighbors = n * ngmax;
+
 // clang-format off
 #pragma omp target map(to                                                                                                                  \
-                       : clist [0:n], neighbors [:allNeighbors], neighborsCount [:n], m [0:np], h [0:np], x [0:np], y [0:np], z [0:np])    \
+                       : n, clist [0:n], neighbors [:allNeighbors], neighborsCount [:n], m [0:np], h [0:np], x [0:np], y [0:np], z [0:np],  wh [0:ltsize], whd [0:ltsize])    \
                    map(from                                                                                                                \
                        : ro [:n])
 #pragma omp teams distribute parallel for
@@ -53,7 +58,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
     const size_t np = d.x.size();
     const size_t allNeighbors = n * ngmax;
 #pragma acc parallel loop copyin(n, clist [0:n], neighbors [0:allNeighbors], neighborsCount [0:n], m [0:np], h [0:np], x [0:np], y [0:np], \
-                                 z [0:np]) copyout(ro[:n])
+                                 z [0:np], wh [0:ltsize], whd [0:ltsize]) copyout(ro[:n])
 #else
 #pragma omp parallel for
 #endif
@@ -81,12 +86,12 @@ void computeDensityImpl(const Task &t, Dataset &d)
                        y[j], z[j], dist, h[i]);
 #endif
 
-            const T w = K * math_namespace::pow(wharmonic(vloc), (int)sincIndex);
+            const T w = K * math_namespace::pow(lt::wharmonic_lt(wh, ltsize, vloc), (int)sincIndex);
             const T value = w / (h[i] * h[i] * h[i]);
             roloc += value * m[j];
         }
 
-        // ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
+        ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
         ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
 
 #ifndef NDEBUG
