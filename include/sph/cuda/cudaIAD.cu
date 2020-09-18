@@ -35,7 +35,7 @@ __global__ void computeIAD(const int n, const T sincIndex, const T K, const int 
         const T dist = distancePBC(*bbox, h[i], x[i], y[i], z[i], x[j], y[j], z[j]);
         const T vloc = dist / h[i];
 
-        const T w = K * math_namespace::pow(lt::wharmonic_lt(wh, ltsize, vloc), (int)sincIndex);
+        const T w = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, vloc), (int)sincIndex);
         const T W = w / (h[i] * h[i] * h[i]);
 
         T r_ijx = (x[i] - x[j]);

@@ -60,8 +60,8 @@ __global__ void computeMomentumAndEnergyIAD(const int n, const T sincIndex, cons
 
         const T rv = r_ijx * v_ijx + r_ijy * v_ijy + r_ijz * v_ijz;
 
-        const T w1 = K * math_namespace::pow(lt::wharmonic_lt(wh, ltsize, v1), (int)sincIndex);
-        const T w2 = K * math_namespace::pow(lt::wharmonic_lt(wh, ltsize, v2), (int)sincIndex);
+        const T w1 = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, v1), (int)sincIndex);
+        const T w2 = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, v2), (int)sincIndex);
 
         const T W1 = w1 / (h[i] * h[i] * h[i]);
         const T W2 = w2 / (h[j] * h[j] * h[j]);
@@ -180,6 +180,7 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
     CHECK_CUDA_ERR(cudaMemcpy(d_c22, d.c22.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_c23, d.c23.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_c33, d.c33.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_wh, d.wh.data(), size_lt_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_whd, d.whd.data(), size_lt_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
 
