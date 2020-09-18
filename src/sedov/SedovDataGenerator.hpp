@@ -48,9 +48,6 @@ public:
         size_t offset = pd.rank * split;
         if (pd.rank > 0) offset += remaining;
 
-        const double omega = 5.0;
-        const double myPI = std::acos(-1.0);
-
 #pragma omp parallel for
         for (size_t i = 0; i < pd.side; ++i)
         {
@@ -66,28 +63,12 @@ public:
                     {
                         double ly = -0.5 + 1.0 / (2.0 * pd.side) + k * 1.0 / pd.side;
 
-                        // double lx = -0.5 + 1.0 / (2.0 * pd.side) + (double)k / (double)pd.side;
-
-                        double lvx = omega * ly;
-                        double lvy = -omega * lx;
-                        double lvz = 0.;
-                        double lp_0 = 0.;
-
-                        for (size_t m = 1; m <= 39; m += 2)
-                            for (size_t l = 1; l <= 39; l += 2)
-                                lp_0 = lp_0 - 32.0 * (omega * omega) / (m * l * (myPI * myPI)) /
-                                                  ((m * myPI) * (m * myPI) + (l * myPI) * (l * myPI)) * sin(m * myPI * (lx + 0.5)) *
-                                                  sin(l * myPI * (ly + 0.5));
-
-                        lp_0 *= 1000.0;
-
                         pd.z[lindex - offset] = lz;
                         pd.y[lindex - offset] = ly;
                         pd.x[lindex - offset] = lx;
                         pd.vx[lindex - offset] = 0.0;
                         pd.vy[lindex - offset] = 0.0;
                         pd.vz[lindex - offset] = 0.0;
-                        // pd.p_0[lindex - offset] = lp_0;
                     }
                 }
             }

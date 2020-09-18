@@ -41,7 +41,7 @@ int main(int argc, char **argv)
     const IFileWriter<Dataset> &fileWriter = SedovMPIFileWriter<Dataset>();
 #else
     Domain<Real, Dataset, Tree> domain;
-    const IFileWriter<Dataset> &fileWriter = SedovDataFileWriter<Dataset>();
+    const IFileWriter<Dataset> &fileWriter = SedovFileWriter<Dataset>();
 #endif
 
     auto d = SedovDataGenerator<Real>::generate(cubeSide);
