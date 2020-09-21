@@ -141,13 +141,16 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
     const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
     const size_t size_bbox = sizeof(BBox<T>);
 
+    // number of streams to use
+    const int NST = 3;
+
     // const size_t size_bbox = sizeof(BBox<T>);
     // const size_t size_np_T = np * sizeof(T);
     // const size_t size_n_int = n * sizeof(int);
     // const size_t size_n_T = n * sizeof(T);
     // const size_t size_allNeighbors = allNeighbors * sizeof(int);
 
-    int *d_clist, *d_neighbors, *d_neighborsCount;
+    int *d_clist[NST], *d_neighbors[NST], *d_neighborsCount[NST]; // work arrays per stream
     T *d_x, *d_y, *d_z, *d_vx, *d_vy, *d_vz, *d_m, *d_h, *d_ro, *d_p, *d_c, *d_c11, *d_c12, *d_c13, *d_c22, *d_c23, *d_c33, *d_wh, *d_whd;
     BBox<T> *d_bbox;
     T *d_grad_P_x, *d_grad_P_y, *d_grad_P_z, *d_du, *d_maxvsignal;
@@ -160,8 +163,10 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
     utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d_bbox));
-    CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist, d_neighborsCount));
-    CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors));
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist[i], d_neighborsCount[i]));
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors[i]));
 
     CHECK_CUDA_ERR(cudaMemcpy(d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
@@ -184,21 +189,34 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
     CHECK_CUDA_ERR(cudaMemcpy(d_whd, d.whd.data(), size_lt_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
 
-    for (const auto &t : taskList)
+    cudaStream_t streams[NST];
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(cudaStreamCreate(&streams[i]));
+
+    for (int i = 0; i < taskList.size(); ++i)
     {
+        const auto &t = taskList[i];
+
+        const int sIdx = i % NST;
+        cudaStream_t stream = streams[sIdx];
+
+        int *d_clist_use = d_clist[sIdx];
+        int *d_neighbors_use = d_neighbors[sIdx];
+        int *d_neighborsCount_use = d_neighborsCount[sIdx];
+
         const size_t n = t.clist.size();
         const size_t size_n_int = n * sizeof(int);
         const size_t size_nNeighbors = n * ngmax * sizeof(int);
 
-        CHECK_CUDA_ERR(cudaMemcpy(d_clist, t.clist.data(), size_n_int, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERR(cudaMemcpy(d_neighbors, t.neighbors.data(), size_nNeighbors, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERR(cudaMemcpy(d_neighborsCount, t.neighborsCount.data(), size_n_int, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, cudaMemcpyHostToDevice, stream));
+        CHECK_CUDA_ERR(cudaMemcpyAsync(d_neighbors_use, t.neighbors.data(), size_nNeighbors, cudaMemcpyHostToDevice, stream));
+        CHECK_CUDA_ERR(cudaMemcpyAsync(d_neighborsCount_use, t.neighborsCount.data(), size_n_int, cudaMemcpyHostToDevice, stream));
 
         const int threadsPerBlock = 256;
         const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
-        kernels::computeMomentumAndEnergyIAD<<<blocksPerGrid, threadsPerBlock>>>(
-            n, d.sincIndex, d.K, ngmax, d_bbox, d_clist, d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro,
+        kernels::computeMomentumAndEnergyIAD<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
+            n, d.sincIndex, d.K, ngmax, d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro,
             d_p, d_c, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_wh, d_whd, ltsize, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal);
 
         CHECK_CUDA_ERR(cudaGetLastError());
@@ -210,8 +228,13 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
     CHECK_CUDA_ERR(cudaMemcpy(d.du.data(), d_du, size_np_T, cudaMemcpyDeviceToHost));
     CHECK_CUDA_ERR(cudaMemcpy(d.maxvsignal.data(), d_maxvsignal, size_np_T, cudaMemcpyDeviceToHost));
 
-    CHECK_CUDA_ERR(utils::cudaFree(d_clist, d_neighborsCount, d_neighbors, d_bbox, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p,
+   for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(cudaStreamDestroy(streams[i]));
+
+    CHECK_CUDA_ERR(utils::cudaFree(d_bbox, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p,
                                    d_c, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal, d_wh, d_whd));
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(utils::cudaFree(d_clist[i], d_neighbors[i], d_neighborsCount[i]));
 }
 
 template void computeMomentumAndEnergyIAD<double, ParticlesData<double>>(const std::vector<Task> &taskList, ParticlesData<double> &d);
