@@ -20,7 +20,6 @@ export CUDA_HOME=$CUDATOOLKIT_HOME
 
 make TESTCASE=sedov NVCC=nvcc ENV=pgi MPICXX=CC mpi+omp+acc
 
-
 # python
 python plot.py dump_Sedov0.bin 1000000
 
