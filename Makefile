@@ -28,19 +28,19 @@ ifeq ($(ENV),gnu)
 endif
 
 ifeq ($(ENV),pgi)
-	CXXFLAGS += -O2 -std=c++14 -mp -dynamic -acc -ta=tesla,cc60 -mp=nonuma -Mcuda #-g -Minfo=accel # prints generated accel functions
+	CXXFLAGS += -O2 -std=c++14 -mp -dynamic -acc -ta=tesla,cc60 -mp=nonuma -Mcuda -g #-g -Minfo=accel # prints generated accel functions
 endif
 
 ifeq ($(ENV),cray)
-	CXXFLAGS += -O2 -hstd=c++14 -homp -hacc -dynamic
+	CXXFLAGS += -O2 -hstd=c++14 -homp -hacc -dynamic -g
 endif
 
 ifeq ($(ENV),intel)
-	CXXFLAGS += -O2 -std=c++14 -qopenmp -dynamic
+	CXXFLAGS += -O2 -std=c++14 -qopenmp -dynamic -g
 endif
 
 ifeq ($(ENV),clang)
-	CXXFLAGS += -O2 -std=c++14 -fopenmp
+	CXXFLAGS += -O2 -std=c++14 -fopenmp -g
 endif
 
 TESTCASE ?= sedov
