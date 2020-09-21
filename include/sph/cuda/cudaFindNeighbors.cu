@@ -210,13 +210,17 @@ void computeFindNeighbors2(const LinearOctree<T> &o, std::vector<Task> &taskList
     const size_t size_largerNeighborsChunk_int = largestChunkSize * ngmax * sizeof(int);
     const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
 
+    const int NST = 2;
+
     // Device pointers
-    int *d_clist, *d_neighbors, *d_neighborsCount;
+    int *d_clist[NST], *d_neighbors[NST], *d_neighborsCount[NST]; // work arrays per stream
     T *d_x, *d_y, *d_z, *d_h;
 
     CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h));
-    CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist, d_neighborsCount));
-    CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors));
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist[i], d_neighborsCount[i]));
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors[i]));
 
     CHECK_CUDA_ERR(cudaMemcpy(d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
@@ -226,28 +230,52 @@ void computeFindNeighbors2(const LinearOctree<T> &o, std::vector<Task> &taskList
     DeviceLinearOctree<T> d_o;
     mapLinearOctreeToDevice(o, d_o);
 
-    for (auto &t : taskList)
+    cudaStream_t streams[NST];
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(cudaStreamCreate(&streams[i]));
+
+    for (int i = 0; i < taskList.size(); ++i)
     {
+        auto &t = taskList[i];
+
+        const int sIdx = i % NST;
+        cudaStream_t stream = streams[sIdx];
+
+        int *d_clist_use = d_clist[sIdx];
+        int *d_neighbors_use = d_neighbors[sIdx];
+        int *d_neighborsCount_use = d_neighborsCount[sIdx];
+
         const size_t n = t.clist.size();
         const size_t size_n_int = n * sizeof(int);
         const size_t size_nNeighbors = n * ngmax * sizeof(int);
 
-        CHECK_CUDA_ERR(cudaMemcpy(d_clist, t.clist.data(), size_n_int, cudaMemcpyHostToDevice));
+        //CHECK_CUDA_ERR(cudaMemcpy(d_clist, t.clist.data(), size_n_int, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, cudaMemcpyHostToDevice, stream));
 
         const int threadsPerBlock = 256;
         const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
         // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
-        kernels::findNeighbors<<<blocksPerGrid, threadsPerBlock>>>(d_o, d_clist, n, d_x, d_y, d_z, d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors, d_neighborsCount);
+        kernels::findNeighbors<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
+            d_o, d_clist_use, n, d_x, d_y, d_z, d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
+        );
 
-        CHECK_CUDA_ERR(cudaMemcpy(t.neighbors.data(), d_neighbors, size_nNeighbors, cudaMemcpyDeviceToHost));
-        CHECK_CUDA_ERR(cudaMemcpy(t.neighborsCount.data(), d_neighborsCount, size_n_int, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighbors.data(), d_neighbors_use, size_nNeighbors, cudaMemcpyDeviceToHost, stream));
+        CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighborsCount.data(), d_neighborsCount_use, size_n_int, cudaMemcpyDeviceToHost, stream));
     }
+
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(cudaStreamSynchronize(streams[i]));
 
     unmapLinearOctreeFromDevice(d_o);
 
-    CHECK_CUDA_ERR(utils::cudaFree(d_clist, d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_h));
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(cudaStreamDestroy(streams[i]));
+
+    CHECK_CUDA_ERR(utils::cudaFree(d_x, d_y, d_z, d_h));
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(utils::cudaFree(d_clist[i], d_neighbors[i], d_neighborsCount[i]));
 }
 
 template void computeFindNeighbors2<double, ParticlesData<double>>(const LinearOctree<double> &o, std::vector<Task> &taskList, ParticlesData<double> &d);
