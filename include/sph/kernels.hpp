@@ -32,6 +32,7 @@ CUDA_DEVICE_HOST_FUN inline T wharmonic_std(T v)
 template <typename T>
 CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative_std(T v)
 {
+    // 13.2.2020: this is most likely wrong. (missing kernel index multiplication (ruben has the derivation of this)).
     if (v == 0.0) return 0.0;
 
     const T Pv = (PI / 2.0) * v;
@@ -39,6 +40,29 @@ CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative_std(T v)
 
     return sincv * (PI / 2.0) * ((std::cos(Pv) / std::sin(Pv)) - 1.0 / Pv);
 }
+
+template <typename T>
+CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative_gz_std(T v)
+{
+if (v == 0.0) return 0.0;
+
+const T Ph = (PI / 2.0);
+const T Pv = Ph * v;
+
+return Ph * (1.0 / std::tan(Pv) - 1.0 / Pv);  // we can't do more (smoothing-length and kernel index need to be. I have put Pv inside (saves operations)
+// note from GZ: I created a new function instead of modifying wharmonic_derivative_std because the code is currently
+//               using the original version to do interpolation of the kernel function. If I change this, then
+//               I break the existing code.
+// full derivative is:- K / h[i]**4 sincv**kernelindex (3 + kernelindex * Pv * (1.0 / std::tan(Pv) - 1.0 / Pv));
+// h**4[i] needs to go outside because it depends on i
+// also put everything with kernelindex, sincv, K outside, because it depends on the kernelindex (n)
+// this is to be multiplied when using this lookuptable.
+// second column of sphynx LT is pi/2(1/tan((pi/2)*v) - 1/((pi/2)*v)) * v [sphynx doesn't have the * v, for some optimization
+// for avoiding a sqrt (see hint in wkernel.f90) (it's to be multiplied when using the derivative)]
+// generally, the second column of the lookuptable is the ratio of w'/w so that we can reconstruct w' by
+// multiplying the second column with the kernel (w' = w'/w * w)...
+}
+
 
 template <typename T>
 CUDA_DEVICE_FUN inline T artificial_viscosity(const T ro_i, const T ro_j, const T h_i, const T h_j, const T c_i, const T c_j, const T rv,

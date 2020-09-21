@@ -51,6 +51,121 @@ void computeEquationOfState(const std::vector<Task> &taskList, Dataset &d)
     }
 }
 
+template <typename T, class Dataset>
+void computeEquationOfStateSphynxWaterImpl(const Task &t, Dataset &d)
+    {
+        const size_t n = t.clist.size();
+        const int *clist = t.clist.data();
+
+        const T *ro = d.ro.data();
+        T *ro_0 = d.ro_0.data();
+        const T *p_0 = d.p_0.data();
+        T *p = d.p.data();
+        T *c = d.c.data();
+        T *u = d.u.data();
+
+        const T heatCapacityRatio = 7.0;
+        const T speedOfSound0 = 3500.0;
+        const T density0 = 1.0;
+
+        const int eosStart = 15;
+
+        // (ro_0 / 7.0) * c^2
+        // const T chi = (1000.0 / 7.0) * (35.0 * 35.0);
+        const T chi = (density0 / heatCapacityRatio) * (speedOfSound0 * speedOfSound0);
+
+        if (d.iteration < eosStart) {
+#pragma omp parallel for
+            for (size_t pi = 0; pi < n; pi++)
+            {
+                const int i = clist[pi];
+
+                p[i] = p_0[i];
+                c[i] = speedOfSound0; // * sqrt(pow(ro[i]/ro_0[i], heatCapacityRatio-1.));
+                u[i] = 1.0;           //
+                if (std::isnan(c[i]) || std::isinf(c[i]) || std::isnan(p[i]) || std::isinf(p[i]))
+                    printf("ERROR:equation_of_state_sphynxwater c %f u %f p %f\n", c[i], u[i], p[i]);
+            }
+        }
+        else if (d.iteration == eosStart) {
+#pragma omp parallel for
+            for (size_t pi = 0; pi < n; pi++)
+            {
+                const int i = clist[pi];
+
+                p[i] = p_0[i];
+                c[i] = speedOfSound0; // * sqrt(pow(ro[i]/ro_0[i], heatCapacityRatio-1.));
+                u[i] = 1.0;           //
+                ro_0[i] = ro[i];
+                if (std::isnan(c[i]) || std::isinf(c[i]) || std::isnan(p[i]) || std::isinf(p[i]))
+                    printf("ERROR:equation_of_state_sphynxwater c %f u %f p %f\n", c[i], u[i], p[i]);
+            }
+        }
+        else {
+#pragma omp parallel for
+            for (size_t pi = 0; pi < n; pi++)
+            {
+                const int i = clist[pi];
+
+                p[i] = chi * (pow(ro[i] / ro_0[i], heatCapacityRatio) - 1.0) + p_0[i];
+                c[i] = speedOfSound0; // * sqrt(pow(ro[i]/ro_0[i], heatCapacityRatio-1.));
+                u[i] = 1.0;           //
+                // u[i] = 1e-10;
+                // 1e7 per unit of mass (1e-3 or 1g)
+                if (std::isnan(c[i]) || std::isinf(c[i]) || std::isnan(p[i]) || std::isinf(p[i]))
+                    printf("ERROR:equation_of_state_sphynxwater c %f u %f p %f\n", c[i], u[i], p[i]);
+            }
+        }
+    }
+
+template <typename T, class Dataset>
+void computeEquationOfStateSphynxWater(const std::vector<Task> &taskList, Dataset &d)
+{
+    for (const auto &task : taskList)
+    {
+        computeEquationOfStateSphynxWaterImpl<T>(task, d);
+    }
+}
+
+template <typename T, class Dataset>
+void computeEquationOfStateWindblobImpl(const Task &t, Dataset &d)
+{
+    // this is the eos_u from sphynx (input is eint, not temperature) this is the same as sphynx evrard uses
+    // and the windblob instructions don't say to change it...
+    const size_t n = t.clist.size();
+    const int *clist = t.clist.data();
+
+    const T *ro = d.ro.data();
+
+    T *p = d.p.data();
+    T *c = d.c.data();
+    T *u = d.u.data();
+
+    const T gamma1 = 5.0/3.0 - 1.0;
+
+#pragma omp parallel for
+    for (size_t pi = 0; pi < n; pi++)
+    {
+        const int i = clist[pi];
+
+        p[i] = u[i] * ro[i] * gamma1;
+        c[i] = sqrt(gamma1 * u[i]);
+#ifndef NDEBUG
+        if (std::isnan(c[i]) || std::isinf(c[i]) || std::isnan(p[i]) || std::isinf(p[i]))
+            printf("ERROR:equation_of_state_windblob[id=%d] c %f u %f p %f\n", int(d.id[i]), c[i], u[i], p[i]);
+#endif
+    }
+}
+
+template <typename T, class Dataset>
+void computeEquationOfStateWindblob(const std::vector<Task> &taskList, Dataset &d)
+{
+    for (const auto &task : taskList)
+    {
+        computeEquationOfStateWindblobImpl<T>(task, d);
+    }
+}
+
 template <typename T, typename Dataset>
 void computeEquationOfStateEvrardImpl(const Task &t, Dataset &d)
 {

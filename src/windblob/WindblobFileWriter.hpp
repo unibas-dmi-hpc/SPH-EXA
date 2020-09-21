@@ -5,7 +5,7 @@
 namespace sphexa
 {
 template <typename Dataset>
-struct SqPatchFileWriter : IFileWriter<Dataset>
+struct WindblobFileWriter : IFileWriter<Dataset>
 {
     void dumpParticleDataToBinFile(const Dataset &d, const std::string &path) const override
     {
@@ -17,7 +17,8 @@ struct SqPatchFileWriter : IFileWriter<Dataset>
                     d.vz, d.h, d.ro, d.u, d.p,
                     d.c, d.grad_P_x, d.grad_P_y, d.grad_P_z, /*d.radius,*/
                     d.nn_actual, d.sumkx, d.sumwh, d.xmass, d.gradh,
-                    d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z
+                    d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z,
+                    d.du, d.du_av
                     );
         }
         catch (FileNotOpenedException &ex)
@@ -38,7 +39,8 @@ struct SqPatchFileWriter : IFileWriter<Dataset>
                                                     d.vz, d.h, d.ro, d.u, d.p,
                                                     d.c, d.grad_P_x, d.grad_P_y, d.grad_P_z, /*d.radius,*/
                                                     d.nn_actual, d.sumkx, d.sumwh, d.xmass, d.gradh,
-                                                    d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z
+                                                    d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z,
+                                                    d.du, d.du_av
                                                     );
         }
         catch (FileNotOpenedException &ex)
@@ -50,7 +52,7 @@ struct SqPatchFileWriter : IFileWriter<Dataset>
 
     void dumpCheckpointDataToBinFile(const Dataset &, const std::string &) const override
     {
-        fprintf(stderr, "Warning: dumping checkpoint is not implemented in SqPatchFileWriter, exiting...\n");
+        fprintf(stderr, "Warning: dumping checkpoint is not implemented in WindblobFileWriter, exiting...\n");
         exit(EXIT_FAILURE);
     }
 };
@@ -58,7 +60,7 @@ struct SqPatchFileWriter : IFileWriter<Dataset>
 #ifdef USE_MPI
 
 template <typename Dataset>
-struct SqPatchMPIFileWriter : IFileWriter<Dataset>
+struct WindblobMPIFileWriter : IFileWriter<Dataset>
 {
     void dumpParticleDataToAsciiFile(const Dataset &d, const std::vector<int> &clist, const std::string &path) const override
     {
@@ -75,7 +77,8 @@ struct SqPatchMPIFileWriter : IFileWriter<Dataset>
                                                     d.vz, d.h, d.ro, d.u, d.p,
                                                     d.c, d.grad_P_x, d.grad_P_y, d.grad_P_z, /*d.radius,*/
                                                     d.nn_actual, d.sumkx, d.sumwh, d.xmass, d.gradh,
-                                                    d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z
+                                                    d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z,
+                                                    d.du, d.du_av
                                                     );
                 }
                 catch (MPIFileNotOpenedException &ex)
@@ -101,7 +104,8 @@ struct SqPatchMPIFileWriter : IFileWriter<Dataset>
                     d.vz, d.h, d.ro, d.u, d.p,
                     d.c, d.grad_P_x, d.grad_P_y, d.grad_P_z, /*d.radius,*/
                     d.nn_actual, d.sumkx, d.sumwh, d.xmass, d.gradh,
-                    d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z
+                    d.ballmass, d.volnorm, d.avgdeltar_x, d.avgdeltar_y, d.avgdeltar_z,
+                    d.du, d.du_av
                     );
         }
         catch (MPIFileNotOpenedException &ex)
@@ -113,7 +117,7 @@ struct SqPatchMPIFileWriter : IFileWriter<Dataset>
 
     void dumpCheckpointDataToBinFile(const Dataset &d, const std::string &) const override
     {
-        if (d.rank == 0) fprintf(stderr, "Warning: dumping checkpoint is not implemented in SqPatchMPIFileWriter, exiting...\n");
+        if (d.rank == 0) fprintf(stderr, "Warning: dumping checkpoint is not implemented in WindblobMPIFileWriter, exiting...\n");
         MPI_Abort(d.comm, MPI_ERR_OTHER);
     }
 };

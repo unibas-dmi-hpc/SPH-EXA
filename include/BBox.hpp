@@ -134,20 +134,37 @@ public:
 template <typename T>
 CUDA_DEVICE_HOST_FUN inline void applyPBC(const BBox<T> &bbox, const T r, T &xx, T &yy, T &zz)
 {
-    if (bbox.PBCx && xx > r)
-        xx -= (bbox.xmax - bbox.xmin);
-    else if (bbox.PBCx && xx < -r)
-        xx += (bbox.xmax - bbox.xmin);
+    // todo: add warning after update of h if h is bigger than the half-width of the bbox of any dimension...
+    //       but this is actually not a problem for only the bbox, but a limitation/assumption of the domain/simulation
+    //       architecture. We only allow wrap-around once (i.e. a particle cannot be a neighbor of another particle
+    //       multiple times (e.g once "directly" and once "through a PBC" then again through applying the PBC a
+    //       second time...)
+    //
+    // todo: refactor such that parameter r is removed. It actually has no influence on whether applying the PBC
+    //       has an effect...
+    //
+    // todo: optimize! This function is called for basically every kernel call and the bbox bounds don't change
+    //       in an iteration until positions are updated -> probably makes sense to store the widths in the bbox
+    //       after the update, no?
 
-    if (bbox.PBCy && yy > r)
-        yy -= (bbox.ymax - bbox.ymin);
-    else if (bbox.PBCy && yy < -r)
-        yy += (bbox.ymax - bbox.ymin);
 
-    if (bbox.PBCz && zz > r)
-        zz -= (bbox.zmax - bbox.zmin);
-    else if (bbox.PBCz && zz < -r)
-        zz += (bbox.zmax - bbox.zmin);
+    const T xWidth = bbox.xmax - bbox.xmin;
+    if (bbox.PBCx && xx > xWidth / 2.0)
+        xx -= xWidth;
+    else if (bbox.PBCx && xx < - xWidth / 2.0)
+        xx += xWidth;
+
+    const T yWidth = bbox.ymax - bbox.ymin;
+    if (bbox.PBCy && yy > yWidth / 2.0)
+        yy -= yWidth;
+    else if (bbox.PBCy && yy < - yWidth / 2.0)
+        yy += yWidth;
+
+    const T zWidth = bbox.zmax - bbox.zmin;
+    if (bbox.PBCz && zz > zWidth / 2.0)
+        zz -= zWidth;
+    else if (bbox.PBCz && zz < - zWidth / 2.0)
+        zz += zWidth;
 
     // xx += bbox.PBCx * ((xx < -r) - (xx > r)) * (bbox.xmax-bbox.xmin);
     // yy += bbox.PBCy * ((yy < -r) - (yy > r)) * (bbox.ymax-bbox.ymin);

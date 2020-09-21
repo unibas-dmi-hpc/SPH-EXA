@@ -21,25 +21,56 @@ struct ParticlesData
     std::vector<T> x, y, z, x_m1, y_m1, z_m1;    // Positions
     std::vector<T> vx, vy, vz;                   // Velocities
     std::vector<T> ro, ro_0;                     // Density
+    std::vector<T> vol;                          // Volume
+    // todo: it's redundant to carry around volume, mass and density... how to resolve this???
+    //       which 2 of the 3 do we keep? Or is comms and memory overhead negligible?
+    std::vector<T> xmass;                        // to store X_a (VE estimator function). We need it because we only update at end of run...
+    std::vector<T> sumkx;                        // kernel weighted sum of VE estimators (sumkx in sphynx)
+    std::vector<T> ballmass;                     // this is needed to do newton-raphson for h and density
+    std::vector<T> sumwh;                        // this is needed to calculate the derivative of the ballmass[i]/h[i]**3 - ro[i] = 0 with newton-raphson
     std::vector<T> u;                            // Internal Energy
     std::vector<T> p, p_0;                       // Pressure
     std::vector<T> h;                            // Smoothing Length
     std::vector<T> m;                            // Mass
     std::vector<T> c;                            // Speed of sound
     std::vector<T> grad_P_x, grad_P_y, grad_P_z; // gradient of the pressure
-    std::vector<T> du, du_m1;                    // variation of the energy
+    std::vector<T> du, du_m1;                    // variation of the energy without AV contribution
+    std::vector<T> du_av, du_av_m1;              // artificial viscosity contribution of the variation of the energy
     std::vector<T> dt, dt_m1;
     std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T> maxvsignal;
+    // todo: the nn ones should be reconciled with the neighborscount in the task struct.
+    //       problem is that like this here, we can dump it easily for debug, but they're actually uints, not doubles!
+    //       challenge for the dump: I'm not sure how the particle index from the task clist maps to the index in the
+    //       particle data arrays (basically the i = clist[pi] mapping). If we want to dump data from the task struct,
+    //       we need to tell the writeparticledata function which index to use... (whether to apply the mapping or not)
+    std::vector<T> nn;                           // number of neighbors
+    std::vector<T> nn_actual;                    // actual number of neighbors (not capped by ngmax)
+    std::vector<T> gradh;                        // gradh terms (omega)
+    std::vector<T> id;                           // particle identifier (index is reordere). this should be globally unique
+    std::vector<T> volnorm;                      // to check volume normalization (integration of volume should be 1)
+    std::vector<T> avgdeltar_x;                  // to check the \sum_b{V_b(r_b-r_a)*W_{ab} = 0 condition (cabezon2017 Fig5 right)
+    std::vector<T> avgdeltar_y;                  // to check the \sum_b{V_b(r_b-r_a)*W_{ab} = 0 condition (cabezon2017 Fig5 right)
+    std::vector<T> avgdeltar_z;                  // to check the \sum_b{V_b(r_b-r_a)*W_{ab} = 0 condition (cabezon2017 Fig5 right)
 
     T ttot, etot, ecin, eint;
     T minDt;
 
+    // for windblob
+    T masscloudinic;                             // to get initial mass of cloud
+    T masscloud;
+    T rocloud;
+    T uambient;
+    T tkh;
+
     BBox<T> bbox;
 
-    std::vector<std::vector<T> *> data{&x,  &y,     &z,   &x_m1, &y_m1, &z_m1, &vx,       &vy,       &vz,        &ro, &ro_0,
-                                       &u,  &p,     &p_0, &h,    &m,    &c,    &grad_P_x, &grad_P_y, &grad_P_z,  &du, &du_m1,
-                                       &dt, &dt_m1, &c11, &c12,  &c13,  &c22,  &c23,      &c33,      &maxvsignal};
+    std::vector<std::vector<T> *> data{&x,        &y,        &z,   &x_m1,       &y_m1,     &z_m1,   &vx,    &vy,    &vz,
+                                       &ro,       &ro_0,     &u,   &p,          &p_0,      &h,      &m,     &c,     &grad_P_x,
+                                       &grad_P_y, &grad_P_z, &du,  &du_m1,      &dt,       &dt_m1,  &c11,   &c12,   &c13,
+                                       &c22,      &c23,      &c33, &maxvsignal, &vol,      &xmass,  &sumkx, &sumwh, &ballmass,
+                                       &nn,       &gradh,    &id,  &du_av,      &du_av_m1, &volnorm, &avgdeltar_x,
+                                       &avgdeltar_y, &avgdeltar_z, &nn_actual};
 #ifdef USE_MPI
     MPI_Comm comm;
     int pnamelen = 0;
@@ -53,6 +84,17 @@ struct ParticlesData
     constexpr static T Kcour = 0.2;
     constexpr static T maxDtIncrease = 1.1;
     const static T K;
+
+    // general VE
+    constexpr static T veExp = 0.7;
+
+    // whether to use old AV implmentation (gringold monoghan 1983 or newer one
+    bool oldAV = false;
+
+
+#ifndef NDEBUG
+    bool writeErrorOnNegU = false;
+#endif
 };
 
 template <typename T>

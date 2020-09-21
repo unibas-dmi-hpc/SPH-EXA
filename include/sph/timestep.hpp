@@ -70,11 +70,13 @@ void setMinTimestepImpl(const Task &t, Dataset &d, const T minDt)
     const int *clist = t.clist.data();
 
     T *dt = d.dt.data();
+    T *dt_m1 = d.dt_m1.data();
 
 #pragma omp parallel for
     for (size_t pi = 0; pi < n; pi++)
     {
         int i = clist[pi];
+        dt_m1[i] = dt[i];
         dt[i] = minDt;
     }
 }

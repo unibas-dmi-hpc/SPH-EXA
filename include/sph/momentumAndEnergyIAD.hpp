@@ -8,6 +8,10 @@
 #include "lookupTables.hpp"
 #include "cuda/sph.cuh"
 
+#if defined(USE_CUDA) || defined(USE_ACC) || defined(USE_OMP_TARGET)
+#error "The code was refactored to support General Volume Elements, but accelerator code has not been addressed yet."
+#endif
+
 namespace sphexa
 {
 namespace sph
@@ -21,9 +25,6 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
     const int *clist = t.clist.data();
     const int *neighbors = t.neighbors.data();
     const int *neighborsCount = t.neighborsCount.data();
-
-    const T gradh_i = 1.0;
-    const T gradh_j = 1.0;
 
     const T *h = d.h.data();
     const T *m = d.m.data();
@@ -45,15 +46,31 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
     const T *c33 = d.c33.data();
 
     T *du = d.du.data();
+    T *du_av = d.du_av.data();
+    T *du_m1 = d.du_m1.data();
+    T *du_av_m1 = d.du_av_m1.data();
+
     T *grad_P_x = d.grad_P_x.data();
     T *grad_P_y = d.grad_P_y.data();
     T *grad_P_z = d.grad_P_z.data();
     T *maxvsignal = d.maxvsignal.data();
+    T *volnorm = d.volnorm.data();  // check kernel normalization
+    T *avgdeltar_x = d.avgdeltar_x.data(); // check <delta r> magnitude
+    T *avgdeltar_y = d.avgdeltar_y.data();
+    T *avgdeltar_z = d.avgdeltar_z.data();
 
     const BBox<T> bbox = d.bbox;
 
     const T K = d.K;
     const T sincIndex = d.sincIndex;
+
+    // general VE
+    const T *sumkx = d.sumkx.data();
+    const T *xmass = d.xmass.data();
+    const T *vol = d.vol.data();
+
+    // gradh
+    const T *gradh = d.gradh.data();
 
 #if defined(USE_OMP_TARGET)
     // Apparently Cray with -O2 has a bug when calling target regions in a loop. (and computeMomentumAndEnergyIADImpl can be called in a
@@ -89,11 +106,18 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
         const int i = clist[pi];
         const int nn = neighborsCount[pi];
 
+        const T gradh_i = gradh[i];
+
         T maxvsignali = 0.0;
         T momentum_x = 0.0, momentum_y = 0.0, momentum_z = 0.0, energy = 0.0, energyAV = 0.0;
+        T volnorm_loc = 0.0;
+        T avgdeltar_x_loc = 0.0, avgdeltar_y_loc = 0.0, avgdeltar_z_loc = 0.0;
+
         for (int pj = 0; pj < nn; ++pj)
         {
             const int j = neighbors[pi * ngmax + pj];
+
+            const T gradh_j = gradh[j];
 
             T r_ijx = (x[i] - x[j]);
             T r_ijy = (y[i] - y[j]);
@@ -151,34 +175,63 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
             const T termA2_j = (kern21_j + kern22_j + kern23_j) * W2;
             const T termA3_j = (kern31_j + kern32_j + kern33_j) * W2;
 
-            const T pro_i = p[i] / (gradh_i * ro[i] * ro[i]);
-            const T pro_j = p[j] / (gradh_j * ro[j] * ro[j]);
+            const T pro_i = p[i] / (gradh_i * sumkx[i] * sumkx[i]);  // Pa/(omega * Kappa^2), in cabezon2017, eqs 22&23 todo: consider moving this out of the loop (only i-terms)
+            const T pro_j = p[j] / (gradh_j * sumkx[j] * sumkx[j]);
 
             const T r_square = dist * dist;
-            const T viscosity_ij = artificial_viscosity(ro[i], ro[j], h[i], h[j], c[i], c[j], rv, r_square);
 
             // For time-step calculations
-            const T wij = rv / dist;
+            const T wij = rv / dist;  // todo: what if dist calc is wrong? See problem with PBC...
             const T vijsignal = c[i] + c[j] - 3.0 * wij;
             if (vijsignal > maxvsignali) maxvsignali = vijsignal;
 
-            const T grad_Px_AV = 0.5 * (m[i] / ro[i] * viscosity_ij * termA1_i + m[j] / ro[j] * viscosity_ij * termA1_j);
-            const T grad_Py_AV = 0.5 * (m[i] / ro[i] * viscosity_ij * termA2_i + m[j] / ro[j] * viscosity_ij * termA2_j);
-            const T grad_Pz_AV = 0.5 * (m[i] / ro[i] * viscosity_ij * termA3_i + m[j] / ro[j] * viscosity_ij * termA3_j);
+            T viscosity_ij;
+            if (d.oldAV){
+                viscosity_ij = artificial_viscosity(ro[i], ro[j], h[i], h[j], c[i], c[j], rv, r_square);
+            }
+            else {
+                const T alpha = 4.0 / 3.0; // sphynx parameters.f90
+                viscosity_ij = rv < 0.0 ? - alpha * 0.5 * wij * vijsignal : 0.0; // cabezon2017 eq27
+            }
 
-            momentum_x += m[j] * (pro_i * termA1_i + pro_j * termA1_j) + grad_Px_AV;
-            momentum_y += m[j] * (pro_i * termA2_i + pro_j * termA2_j) + grad_Py_AV;
-            momentum_z += m[j] * (pro_i * termA3_i + pro_j * termA3_j) + grad_Pz_AV;
 
-            energy += m[j] * 2.0 * pro_i * (v_ijx * termA1_i + v_ijy * termA2_i + v_ijz * termA3_i);
-            energyAV += grad_Px_AV * v_ijx + grad_Py_AV * v_ijy + grad_Pz_AV * v_ijz;
+            const T grad_Px_AV = 0.5 * (vol[i] / m[i] * m[j] * viscosity_ij * termA1_i + vol[j] * viscosity_ij * termA1_j);  // cabezon2017 eq29
+            const T grad_Py_AV = 0.5 * (vol[i] / m[i] * m[j] * viscosity_ij * termA2_i + vol[j] * viscosity_ij * termA2_j);
+            const T grad_Pz_AV = 0.5 * (vol[i] / m[i] * m[j] * viscosity_ij * termA3_i + vol[j] * viscosity_ij * termA3_j);
+
+            momentum_x += xmass[i] / m[i] * xmass[j] * (pro_i * termA1_i + pro_j * termA1_j) + grad_Px_AV; // cabezon2017 eq22
+            momentum_y += xmass[i] / m[i] * xmass[j] * (pro_i * termA2_i + pro_j * termA2_j) + grad_Py_AV;
+            momentum_z += xmass[i] / m[i] * xmass[j] * (pro_i * termA3_i + pro_j * termA3_j) + grad_Pz_AV;
+
+            energy += xmass[j] * pro_i * (v_ijx * termA1_i + v_ijy * termA2_i + v_ijz * termA3_i); // cabezon2017 eq 23
+            energyAV += grad_Px_AV * v_ijx + grad_Py_AV * v_ijy + grad_Pz_AV * v_ijz;  // cabezon2017 eq 23
+
+            T voljW = vol[j] * W1;
+            volnorm_loc += voljW;
+            avgdeltar_x_loc += voljW * r_jix;
+            avgdeltar_y_loc += voljW * r_jiy;
+            avgdeltar_z_loc += voljW * r_jiz;
         }
+//        todo: check sphynx where the additional 0.5 is for the viscosity energy... couldn't find it after
+//          brief look in momeqnmod.f90 and update.f90
 
-        du[i] = 0.5 * (energy + energyAV);
+        du_m1[i] = du[i];
+        du_av_m1[i] = du_av[i];
+
+        du[i] = xmass[i] / m[i] * energy; // cabezon2017 eq 32.. sphynx seems to have an extra *2.0 for the energy (line 219, momeqnmod.f90)
+        du_av[i] = std::max(0.0, 0.5 * energyAV); // tried removing 0.5 because couldn't find it in sphynx. still crash at 200. The 0.5 here might serve to get the same ratio between energy and energy AV as in sphynx
+                                                  // sphynx has an extra 0.5 for the energy and avist (lines 182, 183 in update.f90). These should cancel, right?
+                                                  // BUT: sphynx seems to have a du_av[i] = max(0.0, energyAV) -> du_av can't be negative. I have added that
+
         grad_P_x[i] = momentum_x;
         grad_P_y[i] = momentum_y;
         grad_P_z[i] = momentum_z;
         maxvsignal[i] = maxvsignali;
+
+        volnorm[i] = volnorm_loc + vol[i] * K / (h[i] * h[i] * h[i]); // self contrib and store volume normalization
+        avgdeltar_x[i] = avgdeltar_x_loc;  //no self contrib because deltar = 0...
+        avgdeltar_y[i] = avgdeltar_y_loc;
+        avgdeltar_z[i] = avgdeltar_z_loc;
     }
 }
 
