@@ -7,6 +7,7 @@
 
 #include "Domain.hpp"
 #include "Octree.hpp"
+#include "LinearOctree.hpp"
 #include "BBox.hpp"
 #include "Task.hpp"
 #include "ArgParser.hpp"

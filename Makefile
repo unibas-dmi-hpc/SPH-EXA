@@ -12,7 +12,7 @@ BUILDDIR := build
 BINDIR := bin
 THIS_FILE := $(lastword $(MAKEFILE_LIST))
 
-CUDA_OBJS := $(BUILDDIR)/cudaDensity.o $(BUILDDIR)/cudaIAD.o $(BUILDDIR)/cudaMomentumAndEnergyIAD.o
+CUDA_OBJS := $(BUILDDIR)/cudaFindNeighbors.o $(BUILDDIR)/cudaDensity.o $(BUILDDIR)/cudaIAD.o $(BUILDDIR)/cudaMomentumAndEnergyIAD.o
 
 RELEASE := -DNDEBUG
 DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
