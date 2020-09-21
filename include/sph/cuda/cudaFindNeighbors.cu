@@ -183,7 +183,7 @@ __global__ void findNeighbors(const DeviceLinearOctree<T> o, const int *clist, c
 }
 
 template <typename T, class Dataset>
-void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList, Dataset &d)
+void computeFindNeighbors2(const LinearOctree<T> &o, std::vector<Task> &taskList, Dataset &d)
 {
     const T *h = d.h.data();
     const T *x = d.x.data();
@@ -250,7 +250,7 @@ void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList,
     CHECK_CUDA_ERR(utils::cudaFree(d_clist, d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_h));
 }
 
-template void computeFindNeighbors<double, ParticlesData<double>>(const LinearOctree<double> &o, std::vector<Task> &taskList, ParticlesData<double> &d);
+template void computeFindNeighbors2<double, ParticlesData<double>>(const LinearOctree<double> &o, std::vector<Task> &taskList, ParticlesData<double> &d);
 
 } // namespace cuda
 } // namespace sph
