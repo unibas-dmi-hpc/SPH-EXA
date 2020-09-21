@@ -21,6 +21,9 @@ export CUDA_HOME=$CUDATOOLKIT_HOME
 make TESTCASE=sedov NVCC=nvcc ENV=pgi MPICXX=CC mpi+omp+acc
 
 
+# python
+python plot.py dump_Sedov0.bin 1000000
+
 # gnuplot
 set size square;
 pl 'dump_Sedov200.txt' u (abs($3/$7)<2.?$1:1/0):2:8 w p pt 7 lc palette z
