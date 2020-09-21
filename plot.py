@@ -1,12 +1,18 @@
 import os
+import sys
 import math
 import numpy as np
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
-n = 1000000
+if len(sys.argv) < 3:
+	print('usage: python plot.py <filename> <n>')
+	sys.exit()
 
-d = np.fromfile('dump_Sedov200.bin')
+file = sys.argv[1]
+n = int(sys.argv[2])
+
+d = np.fromfile(file)
 
 x = d[0:n]
 y = d[1*n:2*n]
@@ -51,3 +57,4 @@ plt.title('Density')
 # ax.scatter(x[mask], y[mask], z[mask], c=ro[mask], s=10.0, label="Sedov", vmin=min(ro[mask]), vmax=max(ro[mask]), cmap=cm)
 
 plt.show()
+raw_input('press return to continue')
