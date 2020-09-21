@@ -159,7 +159,6 @@ void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList,
     const T disply = o.ymax[0] - o.ymin[0];
     const T displz = o.zmax[0] - o.zmin[0];
 
-    const size_t np = d.x.size();
     const T ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
 
     // Device pointers
@@ -171,8 +170,6 @@ void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList,
     // Map LinearTree to device pointers
     // Currently OpenMP implementations do not support very well the mapping of structures
     // So we convert everything to simple arrays and pass them to OpenMP
-    const size_t st = o.size;
-    const size_t stt = o.size * 8;
     const int *o_ncells = o.ncells.data();
     const int *o_cells = o.cells.data();
     const int *o_localPadding = o.localPadding.data();
@@ -195,6 +192,9 @@ void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList,
         
 // clang-format off
 #if defined(USE_OMP_TARGET)
+    const size_t np = d.x.size();
+    const size_t st = o.size;
+    const size_t stt = o.size * 8;
     // Apparently Cray with -O2 has a bug when calling target regions in a loop. (and computeDensityImpl can be called in a loop).
     // A workaround is to call some method or allocate memory to either prevent buggy optimization or other side effect.
     // with -O1 there is no problem
@@ -223,7 +223,7 @@ void findNeighbors(const Octree<T> &o, std::vector<Task> &taskList, Dataset &d)
     createLinearOctree(o, l);
 
 #if defined(USE_CUDA)
-    cuda::computeFindNeighbors<T>(l, taskList, d);
+    cuda::computeFindNeighbors2<T>(l, taskList, d);
 #else
     computeFindNeighbors<T>(l, taskList, d);
 #endif

@@ -34,7 +34,9 @@ srun bin/mpi+omp+cuda.app -n 100 -s 200 -w 100
 where n is the size of the cube (# of particles in each dimension), s is the number of timesteps, w is the frequency to write a snapshot in timesteps.
 
 # To do profiling
-srun nvprof bin/mpi+omp+cuda.app -n 100 -s 0
+srun nvprof --analysis-metrics -o profile.nvvp -f bin/mpi+omp+cuda.app -n 100 -s 0
+
+# debugging
 srun cuda-memcheck bin/mpi+omp+cuda.app -n 20 -s 0
 
 (-s 0 will run one iteration)
