@@ -58,8 +58,16 @@ void computeDensity(const std::vector<Task> &taskList, ParticleData &d)
     const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
     const size_t size_bbox = sizeof(BBox<T>);
 
+    // number of CUDA streams to use
+    const int NST = 2;
+
+    // initialize streams
+    cudaStream_t streams[NST];
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(cudaStreamCreate(&streams[i]));
+
     // device pointers - d_ prefix stands for device
-    int *d_clist, *d_neighbors, *d_neighborsCount;
+    int *d_clist[NST], *d_neighbors[NST], *d_neighborsCount[NST];
     T *d_x, *d_y, *d_z, *d_m, *d_h, *d_wh, *d_whd;
     T *d_ro;
     BBox<T> *d_bbox;
@@ -71,8 +79,14 @@ void computeDensity(const std::vector<Task> &taskList, ParticleData &d)
     CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m, d_ro));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d_bbox));
-    CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist, d_neighborsCount));
-    CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors));
+
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d_bbox));
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist[i], d_neighborsCount[i]));
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors[i]));
+    //CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist, d_neighborsCount));
+    //CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors));
 
     CHECK_CUDA_ERR(cudaMemcpy(d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
@@ -83,29 +97,44 @@ void computeDensity(const std::vector<Task> &taskList, ParticleData &d)
     CHECK_CUDA_ERR(cudaMemcpy(d_whd, d.whd.data(), size_lt_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
 
-    for (const auto &t : taskList)
+    for (int i = 0; i < taskList.size(); ++i)
     {
+        const auto &t = taskList[i];
+
+        const int sIdx = i % NST;
+        cudaStream_t stream = streams[sIdx];
+
+        int *d_clist_use = d_clist[sIdx];
+        int *d_neighbors_use = d_neighbors[sIdx];
+        int *d_neighborsCount_use = d_neighborsCount[sIdx];
+
         const size_t n = t.clist.size();
         const size_t size_n_int = n * sizeof(int);
         const size_t size_nNeighbors = n * ngmax * sizeof(int);
 
-        CHECK_CUDA_ERR(cudaMemcpy(d_clist, t.clist.data(), size_n_int, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERR(cudaMemcpy(d_neighbors, t.neighbors.data(), size_nNeighbors, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERR(cudaMemcpy(d_neighborsCount, t.neighborsCount.data(), size_n_int, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, cudaMemcpyHostToDevice, stream));
+        CHECK_CUDA_ERR(cudaMemcpyAsync(d_neighbors_use, t.neighbors.data(), size_nNeighbors, cudaMemcpyHostToDevice, stream));
+        CHECK_CUDA_ERR(cudaMemcpyAsync(d_neighborsCount_use, t.neighborsCount.data(), size_n_int, cudaMemcpyHostToDevice, stream));
 
         const int threadsPerBlock = 256;
         const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
         // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
-        kernels::density<<<blocksPerGrid, threadsPerBlock>>>(n, d.sincIndex, d.K, t.ngmax, d_bbox, d_clist, d_neighbors, d_neighborsCount,
-                                                             d_x, d_y, d_z, d_h, d_m, d_wh, d_whd, ltsize, d_ro);
+        kernels::density<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(n, d.sincIndex, d.K, t.ngmax, d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
+                                                                        d_x, d_y, d_z, d_h, d_m, d_wh, d_whd, ltsize, d_ro);
         CHECK_CUDA_ERR(cudaGetLastError());
     }
 
+    // Memcpy in default stream synchronizes all other streams
     CHECK_CUDA_ERR(cudaMemcpy(d.ro.data(), d_ro, size_np_T, cudaMemcpyDeviceToHost));
 
-    CHECK_CUDA_ERR(utils::cudaFree(d_clist, d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_h, d_m, d_bbox, d_ro, d_wh, d_whd));
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(cudaStreamDestroy(streams[i]));
+
+    CHECK_CUDA_ERR(utils::cudaFree(d_x, d_y, d_z, d_h, d_m, d_bbox, d_ro, d_wh, d_whd));
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(utils::cudaFree(d_clist[i], d_neighbors[i], d_neighborsCount[i]));
 }
 
 template void computeDensity<double, ParticlesData<double>>(const std::vector<Task> &taskList, ParticlesData<double> &d);
