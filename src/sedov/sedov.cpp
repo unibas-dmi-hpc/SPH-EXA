@@ -56,7 +56,7 @@ int main(int argc, char **argv)
     Tree::maxGlobalBucketSize = 2048;
     domain.create(d);
 
-    const size_t nTasks = 1;
+    const size_t nTasks = 64;
     const size_t ngmax = 150;
     const size_t ng0 = 100;
     TaskList taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
