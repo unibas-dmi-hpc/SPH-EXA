@@ -20,6 +20,19 @@ export CUDA_HOME=$CUDATOOLKIT_HOME
 
 make TESTCASE=sedov NVCC=nvcc ENV=pgi MPICXX=CC mpi+omp+acc
 
+# To allocate an interactive session:
+(using c16 project)
+salloc -A c16 -C gpu --nodes=1  --exclusive --ntasks-per-core=2 --cpus-per-task=24 --partition=normal --time 02:00:00 bash
+
+(using hackathon account)
+salloc -C gpu --nodes=1  --exclusive --ntasks-per-core=2 --cpus-per-task=24 --partition=debug --time 00:30:00 bash
+
+
+# To run:
+srun bin/mpi+omp+cuda.app -n 100 -s 200 -w 100
+
+where n is the size of the cube (# of particles in each dimension), s is the number of timesteps, w is the frequency to write a snapshot in timesteps.
+
 # python
 python plot.py dump_Sedov0.bin 1000000
 
