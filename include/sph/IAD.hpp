@@ -41,6 +41,10 @@ void computeIADImpl(const Task &t, Dataset &d)
     T *c23 = d.c23.data();
     T *c33 = d.c33.data();
 
+    const T *wh = d.wh.data();
+    const T *whd = d.whd.data();
+    const size_t ltsize = d.wh.size();
+
     const BBox<T> bbox = d.bbox;
 
     const T K = d.K;
@@ -54,14 +58,13 @@ void computeIADImpl(const Task &t, Dataset &d)
     // with -O1 there is no problem
     // Tested with Cray 8.7.3 with NVIDIA Tesla P100 on PizDaint
     std::vector<T> imHereBecauseOfCrayCompilerO2Bug(4, 10);
-
     const int np = d.x.size();
     const size_t allNeighbors = n * ngmax;
 
 // clang-format off
 #pragma omp target map(to                                                                                                                  \
 		       : clist [:n], neighbors[:allNeighbors], neighborsCount[:n],                                                         \
-                       x [0:np], y [0:np], z [0:np], h [0:np], m [0:np], ro [0:np])                                                        \
+                       x [0:np], y [0:np], z [0:np], h [0:np], m [0:np], ro [0:np], wh[0:ltsize], whd[0:ltsize])                                                        \
                    map(from                                                                                                                \
                        : c11[:np], c12[:np], c13[:np], c22[:np], c23[:np], c33[:np])
 // clang-format on
@@ -71,9 +74,10 @@ void computeIADImpl(const Task &t, Dataset &d)
     const size_t allNeighbors = n * ngmax;
 // clang-format off
 #pragma acc parallel loop copyin(clist [0:n], neighbors [0:allNeighbors], neighborsCount [0:n],                                            \
-                                  x [0:np], y [0:np], z [0:np], h [0:np], m [0:np], ro [0:np])                                             \
-                           copyout(c11 [:np], c12 [:np], c13 [:np], c22 [:np], c23 [:np],                                                       \
-                                   c33 [:np])
+
+                                  x [0:np], y [0:np], z [0:np], h [0:np], m [0:np], ro [0:np], wh[0:ltsize], whd[0:ltsize])                                             \
+                           copyout(c11 [:n], c12 [:n], c13 [:n], c22 [:n], c23 [:n],                                                       \
+                                   c33 [:n])
 // clang-format on
 #else
 #pragma omp parallel for schedule(guided)
@@ -93,7 +97,7 @@ void computeIADImpl(const Task &t, Dataset &d)
             const T dist = distancePBC(bbox, h[i], x[i], y[i], z[i], x[j], y[j], z[j]); // store the distance from each neighbor
             // calculate the v as ratio between the distance and the smoothing length
             const T vloc = dist / h[i];
-            const T w = K * math_namespace::pow(wharmonic(vloc), (int)sincIndex);
+            const T w = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, vloc), (int)sincIndex);
             const T W = w / (h[i] * h[i] * h[i]);
 
             T r_ijx = (x[i] - x[j]);

@@ -12,7 +12,7 @@ BUILDDIR := build
 BINDIR := bin
 THIS_FILE := $(lastword $(MAKEFILE_LIST))
 
-CUDA_OBJS := $(BUILDDIR)/cudaFindNeighbors.o $(BUILDDIR)/cudaDensity.o $(BUILDDIR)/cudaIAD.o $(BUILDDIR)/cudaMomentumAndEnergyIAD.o $(BUILDDIR)/cudaLookupTables.o
+CUDA_OBJS :=  $(BUILDDIR)/cudaFindNeighbors.o $(BUILDDIR)/cudaDensity.o $(BUILDDIR)/cudaIAD.o $(BUILDDIR)/cudaMomentumAndEnergyIAD.o
 
 RELEASE := -DNDEBUG
 DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
@@ -24,26 +24,26 @@ NVCCFLAGS := -std=c++14 --expt-relaxed-constexpr -rdc=true -arch=$(NVCCARCH)
 NVCCLDFLAGS := -arch=$(NVCCARCH) -rdc=true
 
 ifeq ($(ENV),gnu)
-	CXXFLAGS += -std=c++14 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native #-g
+	CXXFLAGS += -std=c++14 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native -g
 endif
 
 ifeq ($(ENV),pgi)
-	CXXFLAGS += -O2 -std=c++14 -mp -dynamic -acc -ta=tesla,cc60 -mp=nonuma -Mcuda #-g -Minfo=accel # prints generated accel functions
+	CXXFLAGS += -O2 -std=c++14 -mp -dynamic -acc -ta=tesla,cc60 -mp=nonuma -Mcuda -g #-g -Minfo=accel # prints generated accel functions
 endif
 
 ifeq ($(ENV),cray)
-	CXXFLAGS += -O2 -hstd=c++14 -homp -hacc -dynamic
+	CXXFLAGS += -O2 -hstd=c++14 -homp -hacc -dynamic -g
 endif
 
 ifeq ($(ENV),intel)
-	CXXFLAGS += -O2 -std=c++14 -qopenmp -dynamic
+	CXXFLAGS += -O2 -std=c++14 -qopenmp -dynamic -g
 endif
 
 ifeq ($(ENV),clang)
-	CXXFLAGS += -O2 -std=c++14 -fopenmp
+	CXXFLAGS += -O2 -std=c++14 -fopenmp -g
 endif
 
-TESTCASE ?= sqpatch
+TESTCASE ?= sedov
 
 ifeq ($(TESTCASE),evrard)
 	TESTCASE_FLAGS = -DGRAVITY

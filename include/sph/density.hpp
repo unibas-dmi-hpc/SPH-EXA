@@ -33,6 +33,10 @@ void computeDensityImpl(const Task &t, Dataset &d)
     const T *y = d.y.data();
     const T *z = d.z.data();
 
+    const T *wh = d.wh.data();
+    const T *whd = d.whd.data();
+    const size_t ltsize = d.wh.size();
+
     T *ro = d.ro.data();
     // general VE
     const T *xmass = d.xmass.data(); // the VE estimator function vals. Only updated at end of iteration
@@ -54,9 +58,10 @@ void computeDensityImpl(const Task &t, Dataset &d)
 
     const size_t np = d.x.size();
     const size_t allNeighbors = n * ngmax;
+
 // clang-format off
 #pragma omp target map(to                                                                                                                  \
-                       : clist [0:n], neighbors [:allNeighbors], neighborsCount [:n], m [0:np], h [0:np], x [0:np], y [0:np], z [0:np])    \
+                       : n, clist [0:n], neighbors [:allNeighbors], neighborsCount [:n], m [0:np], h [0:np], x [0:np], y [0:np], z [0:np],  wh [0:ltsize], whd [0:ltsize])    \
                    map(from                                                                                                                \
                        : ro [:np])
 #pragma omp teams distribute parallel for
@@ -65,7 +70,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
     const size_t np = d.x.size();
     const size_t allNeighbors = n * ngmax;
 #pragma acc parallel loop copyin(n, clist [0:n], neighbors [0:allNeighbors], neighborsCount [0:n], m [0:np], h [0:np], x [0:np], y [0:np], \
-                                 z [0:np]) copyout(ro[:np])
+                                 z [0:np], wh [0:ltsize], whd [0:ltsize]) copyout(ro[:n])
 #else
 #pragma omp parallel for
 #endif
@@ -96,7 +101,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
                        y[j], z[j], dist, h[i]);
 #endif
 
-            const T w = K * math_namespace::pow(wharmonic(vloc), (int)sincIndex);
+            const T w = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, vloc), (int)sincIndex);
             const T value = w / (h[i] * h[i] * h[i]);
             roloc += value * m[j];
             // general VE
@@ -106,17 +111,8 @@ void computeDensityImpl(const Task &t, Dataset &d)
             // checked 2.4.2020: identical to sphynx with sphynx kernel = 2...
         }
 
-        // general VE
-        sumkx_loc += xmass[i] * K / (h[i] * h[i] * h[i]);  // self contribution. no need for kernel (dist = 0 -> 1)
-        sumwh_loc += - xmass[i] * K / (h[i] * h[i] * h[i] * h[i]) * 3.0; // self-contribution
-
-        vol[i] = xmass[i] / sumkx_loc;  // calculate volume element
-        // new density
-        ro[i] = m[i] / vol[i];
-//        double diff = roloc + m[i] * K / (h[i] * h[i] * h[i]) - ro[i];
-//        if (abs(diff) > 1.11e-16) printf("Roloc[%d] - ro[%d] = %.5e\n", i, i, diff);
-        sumkx[i] = sumkx_loc;
-        sumwh[i] = m[i] / xmass[i] * sumwh_loc;
+        ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
+        ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
 
 #ifndef NDEBUG
         if (std::isnan(ro[i]) || std::isinf(ro[i])) printf("ERROR::Density(%d) density %f, position: (%f %f %f), h: %f\n", int(d.id[i]), ro[i], x[i], y[i], z[i], h[i]);

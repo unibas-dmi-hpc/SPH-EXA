@@ -4,6 +4,7 @@
 #include <vector>
 #include "BBox.hpp"
 #include "sph/kernels.hpp"
+#include "sph/lookupTables.hpp"
 
 namespace sphexa
 {
@@ -53,6 +54,9 @@ struct ParticlesData
     std::vector<T> avgdeltar_y;                  // to check the \sum_b{V_b(r_b-r_a)*W_{ab} = 0 condition (cabezon2017 Fig5 right)
     std::vector<T> avgdeltar_z;                  // to check the \sum_b{V_b(r_b-r_a)*W_{ab} = 0 condition (cabezon2017 Fig5 right)
 
+    // For Sedov
+    std::vector<T> mui, temp, cv;
+
     T ttot, etot, ecin, eint;
     T minDt;
 
@@ -65,12 +69,13 @@ struct ParticlesData
 
     BBox<T> bbox;
 
-    std::vector<std::vector<T> *> data{&x,        &y,        &z,   &x_m1,       &y_m1,     &z_m1,   &vx,    &vy,    &vz,
-                                       &ro,       &ro_0,     &u,   &p,          &p_0,      &h,      &m,     &c,     &grad_P_x,
-                                       &grad_P_y, &grad_P_z, &du,  &du_m1,      &dt,       &dt_m1,  &c11,   &c12,   &c13,
-                                       &c22,      &c23,      &c33, &maxvsignal, &vol,      &xmass,  &sumkx, &sumwh, &ballmass,
-                                       &nn,       &gradh,    &id,  &du_av,      &du_av_m1, &volnorm, &avgdeltar_x,
-                                       &avgdeltar_y, &avgdeltar_z, &nn_actual};
+    std::vector<std::vector<T> *> data{&x,   &y,   &z,   &x_m1, &y_m1, &z_m1,     &vx,         &vy,       &vz,   &ro,    &ro_0, &u,
+                                       &p,   &p_0, &h,   &m,    &c,    &grad_P_x, &grad_P_y,   &grad_P_z, &du,   &du_m1, &dt,   &dt_m1,
+                                       &c11, &c12, &c13, &c22,  &c23,  &c33,      &maxvsignal, &mui,      &temp, &cv};
+
+    const std::array<double, lt::size> wh = lt::createWharmonicLookupTable<double, lt::size>();
+    const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+
 #ifdef USE_MPI
     MPI_Comm comm;
     int pnamelen = 0;

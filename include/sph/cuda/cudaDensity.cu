@@ -18,7 +18,7 @@ namespace kernels
 {
 template <typename T>
 __global__ void density(const int n, const T sincIndex, const T K, const int ngmax, const BBox<T> *bbox, const int *clist,
-                        const int *neighbors, const int *neighborsCount, const T *x, const T *y, const T *z, const T *h, const T *m, T *ro)
+                        const int *neighbors, const int *neighborsCount, const T *x, const T *y, const T *z, const T *h, const T *m, const T *wh, const T *whd, const size_t ltsize, T *ro)
 {
     const int tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
@@ -33,7 +33,7 @@ __global__ void density(const int n, const T sincIndex, const T K, const int ngm
         const int j = neighbors[tid * ngmax + pj];
         const T dist = distancePBC(*bbox, h[i], x[i], y[i], z[i], x[j], y[j], z[j]);
         const T vloc = dist / h[i];
-        const T w = K * math_namespace::pow(wharmonic(vloc), (int)sincIndex);
+        const T w = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, vloc), (int)sincIndex);
         const T value = w / (h[i] * h[i] * h[i]);
         roloc += value * m[j];
     }
@@ -60,12 +60,16 @@ void computeDensity(const std::vector<Task> &taskList, ParticleData &d)
 
     // device pointers - d_ prefix stands for device
     int *d_clist, *d_neighbors, *d_neighborsCount;
-    T *d_x, *d_y, *d_z, *d_m, *d_h;
+    T *d_x, *d_y, *d_z, *d_m, *d_h, *d_wh, *d_whd;
     T *d_ro;
     BBox<T> *d_bbox;
 
+    const size_t ltsize = d.wh.size();
+    const size_t size_lt_T = ltsize * sizeof(T);
+
     // input data
     CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m, d_ro));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d_bbox));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist, d_neighborsCount));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors));
@@ -75,6 +79,8 @@ void computeDensity(const std::vector<Task> &taskList, ParticleData &d)
     CHECK_CUDA_ERR(cudaMemcpy(d_z, d.z.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_wh, d.wh.data(), size_lt_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_whd, d.whd.data(), size_lt_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
 
     for (const auto &t : taskList)
@@ -93,13 +99,13 @@ void computeDensity(const std::vector<Task> &taskList, ParticleData &d)
         // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
         kernels::density<<<blocksPerGrid, threadsPerBlock>>>(n, d.sincIndex, d.K, t.ngmax, d_bbox, d_clist, d_neighbors, d_neighborsCount,
-                                                             d_x, d_y, d_z, d_h, d_m, d_ro);
+                                                             d_x, d_y, d_z, d_h, d_m, d_wh, d_whd, ltsize, d_ro);
         CHECK_CUDA_ERR(cudaGetLastError());
     }
 
     CHECK_CUDA_ERR(cudaMemcpy(d.ro.data(), d_ro, size_np_T, cudaMemcpyDeviceToHost));
 
-    CHECK_CUDA_ERR(utils::cudaFree(d_clist, d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_h, d_m, d_bbox, d_ro));
+    CHECK_CUDA_ERR(utils::cudaFree(d_clist, d_neighbors, d_neighborsCount, d_x, d_y, d_z, d_h, d_m, d_bbox, d_ro, d_wh, d_whd));
 }
 
 template void computeDensity<double, ParticlesData<double>>(const std::vector<Task> &taskList, ParticlesData<double> &d);
