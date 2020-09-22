@@ -48,7 +48,7 @@ __global__ void findNeighbors(const DeviceLinearOctree<T> o, const int *clist, c
 } // namespace kernels
 
 template <typename T, class ParticleData>
-void computeDensity(const LinearOctree<T> &o, const std::vector<Task> &taskList, ParticleData &d)
+void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, ParticleData &d)
 {
     const int maz = d.bbox.PBCz ? 2 : 0;
     const int may = d.bbox.PBCy ? 2 : 0;
@@ -115,7 +115,7 @@ void computeDensity(const LinearOctree<T> &o, const std::vector<Task> &taskList,
 
     for (int i = 0; i < taskList.size(); ++i)
     {
-        const auto &t = taskList[i];
+        auto &t = taskList[i];
 
         const int sIdx = i % NST;
         cudaStream_t stream = streams[sIdx];
@@ -144,6 +144,8 @@ void computeDensity(const LinearOctree<T> &o, const std::vector<Task> &taskList,
         kernels::density<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(n, d.sincIndex, d.K, t.ngmax, d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
                                                                         d_x, d_y, d_z, d_h, d_m, d_wh, d_whd, ltsize, d_ro);
         CHECK_CUDA_ERR(cudaGetLastError());
+
+        CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighborsCount.data(), d_neighborsCount_use, size_n_int, cudaMemcpyDeviceToHost, stream));
     }
 
     unmapLinearOctreeFromDevice(d_o);
@@ -159,7 +161,7 @@ void computeDensity(const LinearOctree<T> &o, const std::vector<Task> &taskList,
         CHECK_CUDA_ERR(utils::cudaFree(d_clist[i], d_neighbors[i], d_neighborsCount[i]));
 }
 
-template void computeDensity<double, ParticlesData<double>>(const LinearOctree<double> &o, const std::vector<Task> &taskList, ParticlesData<double> &d);
+template void computeDensity<double, ParticlesData<double>>(const LinearOctree<double> &o, std::vector<Task> &taskList, ParticlesData<double> &d);
 
 } // namespace cuda
 } // namespace sph
