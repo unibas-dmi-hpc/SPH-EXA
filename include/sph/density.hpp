@@ -101,7 +101,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
 }
 
 template <typename T, class Dataset>
-void computeDensity(const Octree<T> &o, const std::vector<Task> &taskList, Dataset &d)
+void computeDensity(const Octree<T> &o, std::vector<Task> &taskList, Dataset &d)
 {
 #if defined(USE_CUDA)
     LinearOctree<T> l;

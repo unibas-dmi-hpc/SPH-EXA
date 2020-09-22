@@ -48,7 +48,7 @@ __global__ void findNeighbors(const DeviceLinearOctree<T> o, const int *clist, c
 } // namespace kernels
 
 template <typename T, class ParticleData>
-void computeDensity(const LinearOctree<T> &o, const std::vector<Task> &taskList, ParticleData &d)
+void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, ParticleData &d)
 {
     const int maz = d.bbox.PBCz ? 2 : 0;
     const int may = d.bbox.PBCy ? 2 : 0;
@@ -159,7 +159,7 @@ void computeDensity(const LinearOctree<T> &o, const std::vector<Task> &taskList,
         CHECK_CUDA_ERR(utils::cudaFree(d_clist[i], d_neighbors[i], d_neighborsCount[i]));
 }
 
-template void computeDensity<double, ParticlesData<double>>(const LinearOctree<double> &o, const std::vector<Task> &taskList, ParticlesData<double> &d);
+template void computeDensity<double, ParticlesData<double>>(const LinearOctree<double> &o, std::vector<Task> &taskList, ParticlesData<double> &d);
 
 } // namespace cuda
 } // namespace sph
