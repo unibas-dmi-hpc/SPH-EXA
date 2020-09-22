@@ -52,6 +52,54 @@ inline cudaError_t cudaMalloc(size_t bytes, Ptr &devptr, Ptrs &&... ptrs)
 }
 
 } // namespace utils
+
+
+
+template<typename T>
+struct DeviceLinearOctree
+{
+    int size;
+    int *ncells;
+    int *cells;
+    int *localPadding;
+    int *localParticleCount;
+    T *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;
+};
+
+template<typename T>
+void mapLinearOctreeToDevice(const LinearOctree<T> &o, DeviceLinearOctree<T> &d_o)
+{
+    size_t size_int = o.size * sizeof(int);
+    size_t size_T = o.size * sizeof(T);
+
+    d_o.size = o.size;
+
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_int * 8, d_o.cells));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_int, d_o.ncells, d_o.localPadding, d_o.localParticleCount));
+    CHECK_CUDA_ERR(utils::cudaMalloc(size_T, d_o.xmin, d_o.xmax, d_o.ymin, d_o.ymax, d_o.zmin, d_o.zmax));
+
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.cells, o.cells.data(), size_int * 8, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.ncells, o.ncells.data(), size_int, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.localPadding, o.localPadding.data(), size_int, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.localParticleCount, o.localParticleCount.data(), size_int, cudaMemcpyHostToDevice));
+
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.xmin, o.xmin.data(), size_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.xmax, o.xmax.data(), size_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.ymin, o.ymin.data(), size_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.ymax, o.ymax.data(), size_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.zmin, o.zmin.data(), size_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d_o.zmax, o.zmax.data(), size_T, cudaMemcpyHostToDevice));
+}
+
+template<typename T>
+void unmapLinearOctreeFromDevice(DeviceLinearOctree<T> &d_o)
+{
+    CHECK_CUDA_ERR(utils::cudaFree(d_o.cells));
+    CHECK_CUDA_ERR(utils::cudaFree(d_o.ncells, d_o.localPadding, d_o.localParticleCount));
+    CHECK_CUDA_ERR(utils::cudaFree(d_o.xmin, d_o.xmax, d_o.ymin, d_o.ymax, d_o.zmin, d_o.zmax));
+}
+
+
 } // namespace cuda
 } // namespace sph
 } // namespace sphexa

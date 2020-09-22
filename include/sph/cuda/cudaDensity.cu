@@ -48,7 +48,7 @@ __global__ void findNeighbors(const DeviceLinearOctree<T> o, const int *clist, c
 } // namespace kernels
 
 template <typename T, class ParticleData>
-void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, ParticleData &d)
+void computeDensity(const LinearOctree<T> &o, const std::vector<Task> &taskList, ParticleData &d)
 {
     const int maz = d.bbox.PBCz ? 2 : 0;
     const int may = d.bbox.PBCy ? 2 : 0;
@@ -109,6 +109,9 @@ void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Parti
     //DeviceLinearOctree<T> d_o;
     d.d_o.mapLinearOctreeToDevice(o);
 
+    DeviceLinearOctree<T> d_o;
+    mapLinearOctreeToDevice(o, d_o);
+
     for (int i = 0; i < taskList.size(); ++i)
     {
         auto &t = taskList[i];
@@ -132,7 +135,7 @@ void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Parti
         const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
         kernels::findNeighbors<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
-            d.d_o, d_clist_use, n, d.d_x, d.d_y, d.d_z, d.d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
+            d_o, d_clist_use, n, d_x, d_y, d_z, d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
         );
 
         // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
@@ -144,7 +147,7 @@ void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Parti
         CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighborsCount.data(), d_neighborsCount_use, size_n_int, cudaMemcpyDeviceToHost, stream));
     }
 
-    //d_o.unmapLinearOctreeFromDevice();
+    unmapLinearOctreeFromDevice(d_o);
 
     // Memcpy in default stream synchronizes all other streams
     CHECK_CUDA_ERR(cudaMemcpy(d.ro.data(), d.d_ro, size_np_T, cudaMemcpyDeviceToHost));
@@ -156,7 +159,7 @@ void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Parti
         CHECK_CUDA_ERR(utils::cudaFree(d_clist[i], d_neighbors[i], d_neighborsCount[i]));
 }
 
-template void computeDensity<double, ParticlesData<double>>(const LinearOctree<double> &o, std::vector<Task> &taskList, ParticlesData<double> &d);
+template void computeDensity<double, ParticlesData<double>>(const LinearOctree<double> &o, const std::vector<Task> &taskList, ParticlesData<double> &d);
 
 } // namespace cuda
 } // namespace sph

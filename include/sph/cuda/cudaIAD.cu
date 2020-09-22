@@ -124,8 +124,8 @@ void computeIAD(const LinearOctree<T> &o, const std::vector<Task> &taskList, Dat
     for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(cudaStreamCreate(&streams[i]));
 
-    //DeviceLinearOctree<T> d_o;
-    //d.d_o.mapLinearOctreeToDevice(o);
+    DeviceLinearOctree<T> d_o;
+    mapLinearOctreeToDevice(o, d_o);
     
     for (int i = 0; i < taskList.size(); ++i)
     {
@@ -150,7 +150,7 @@ void computeIAD(const LinearOctree<T> &o, const std::vector<Task> &taskList, Dat
         const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
         kernels::findNeighbors<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
-            d.d_o, d_clist_use, n, d.d_x, d.d_y, d.d_z, d.d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
+            d_o, d_clist_use, n, d_x, d_y, d_z, d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
         );
 
         // printf("CUDA IAD kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
@@ -161,8 +161,7 @@ void computeIAD(const LinearOctree<T> &o, const std::vector<Task> &taskList, Dat
         CHECK_CUDA_ERR(cudaGetLastError());
     }
 
-    /*
-    d.d_o.unmapLinearOctreeFromDevice();
+    unmapLinearOctreeFromDevice(d_o);
 
     CHECK_CUDA_ERR(cudaMemcpy(d.c11.data(), d_c11, size_np_T, cudaMemcpyDeviceToHost));
     CHECK_CUDA_ERR(cudaMemcpy(d.c12.data(), d_c12, size_np_T, cudaMemcpyDeviceToHost));

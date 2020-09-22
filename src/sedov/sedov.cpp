@@ -83,7 +83,8 @@ int main(int argc, char **argv)
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
-        if(domain.clist.size() > 0) sph::computeDensity<Real>(domain.octree, taskList.tasks, d);
+        sph::computeDensity<Real>(domain.octree, taskList.tasks, d);
+        if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
         timer.step("Density");
         sph::computeEquationOfStateEvrard<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
