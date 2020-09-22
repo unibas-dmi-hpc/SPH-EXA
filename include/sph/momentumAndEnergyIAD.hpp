@@ -186,10 +186,12 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
 }
 
 template <typename T, class Dataset>
-void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
+void computeMomentumAndEnergyIAD(const Octree<T> &o, const std::vector<Task> &taskList, Dataset &d)
 {
 #if defined(USE_CUDA)
-    cuda::computeMomentumAndEnergyIAD<T>(taskList, d);
+    LinearOctree<T> l;
+    createLinearOctree(o, l);
+    cuda::computeMomentumAndEnergyIAD<T>(l, taskList, d);
 #else
     for (const auto &task : taskList)
     {

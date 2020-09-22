@@ -15,16 +15,16 @@ template <typename T, class Dataset>
 extern void computeFindNeighbors2(const LinearOctree<T> &o, std::vector<Task> &taskList, Dataset &d);
 
 template <typename T, class Dataset>
-extern void computeDensity(const std::vector<Task> &taskList, Dataset &d);
+extern void computeDensity(const LinearOctree<T> &o, const std::vector<Task> &taskList, Dataset &d);
 
 template <typename T, class Dataset>
-extern void computeMomentumAndEnergy(const std::vector<Task> &taskList, Dataset &d);
+extern void computeMomentumAndEnergy(const LinearOctree<T> &o, const std::vector<Task> &taskList, Dataset &d);
 
 template <typename T, class Dataset>
-extern void computeIAD(const std::vector<Task> &taskList, Dataset &d);
+extern void computeIAD(const LinearOctree<T> &o, const std::vector<Task> &taskList, Dataset &d);
 
 template <typename T, class Dataset>
-extern void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d);
+extern void computeMomentumAndEnergyIAD(const LinearOctree<T> &o, const std::vector<Task> &taskList, Dataset &d);
 
 } // namespace cuda
 } // namespace sph
