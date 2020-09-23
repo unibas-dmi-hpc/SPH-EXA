@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include "pinned_allocator.h"
 
 namespace sphexa
 {
@@ -25,7 +26,7 @@ struct Task
 
     std::vector<int> clist;
     std::vector<int> neighbors;
-    std::vector<int> neighborsCount;
+    std::vector<int, pinned_allocator<int>> neighborsCount;
 };
 
 class TaskList
