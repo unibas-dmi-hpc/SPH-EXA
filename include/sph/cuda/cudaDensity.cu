@@ -143,7 +143,7 @@ void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Parti
 
         kernels::density<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(n, d.sincIndex, d.K, t.ngmax, d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
                                                                         d_x, d_y, d_z, d_h, d_m, d_wh, d_whd, ltsize, d_ro);
-        CHECK_CUDA_ERR(cudaGetLastError());
+        //CHECK_CUDA_ERR(cudaGetLastError());
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighborsCount.data(), d_neighborsCount_use, size_n_int, cudaMemcpyDeviceToHost, stream));
     }
