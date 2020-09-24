@@ -219,12 +219,12 @@ void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList,
 template <typename T, class Dataset>
 void findNeighbors(const Octree<T> &o, std::vector<Task> &taskList, Dataset &d)
 {
-    LinearOctree<T> l;
-    createLinearOctree(o, l);
 
 #if defined(USE_CUDA)
-    cuda::computeFindNeighbors2<T>(l, taskList, d);
+    //cuda::computeFindNeighbors2<T>(l, taskList, d);
 #else
+    LinearOctree<T> l;
+    createLinearOctree(o, l);
     computeFindNeighbors<T>(l, taskList, d);
 #endif
 }
