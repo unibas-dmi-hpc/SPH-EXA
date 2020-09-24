@@ -101,10 +101,12 @@ void computeDensityImpl(const Task &t, Dataset &d)
 }
 
 template <typename T, class Dataset>
-void computeDensity(const std::vector<Task> &taskList, Dataset &d)
+void computeDensity(const Octree<T> &o, std::vector<Task> &taskList, Dataset &d)
 {
 #if defined(USE_CUDA)
-    cuda::computeDensity<T>(taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
+    LinearOctree<T> l;
+    createLinearOctree(o, l);
+    cuda::computeDensity<T>(l, taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
 #else
     for (const auto &task : taskList)
     {
