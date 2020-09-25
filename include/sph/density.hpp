@@ -106,6 +106,7 @@ void computeDensity(const Octree<T> &o, std::vector<Task> &taskList, Dataset &d)
 #if defined(USE_CUDA)
     LinearOctree<T> l;
     createLinearOctree(o, l);
+    //d.moveParticleDataToDevice(l, taskList);
     cuda::computeDensity<T>(l, taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
 #else
     for (const auto &task : taskList)

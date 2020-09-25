@@ -183,8 +183,8 @@ void computeMomentumAndEnergyIAD(const LinearOctree<T> &o, const std::vector<Tas
     for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(cudaStreamCreate(&streams[i]));
 
-    DeviceLinearOctree<T> d_o;
-    mapLinearOctreeToDevice(o, d_o);
+    //DeviceLinearOctree<T> d_o;
+    //d_o.mapLinearOctreeToDevice(o);
     
     for (int i = 0; i < taskList.size(); ++i)
     {
@@ -209,7 +209,7 @@ void computeMomentumAndEnergyIAD(const LinearOctree<T> &o, const std::vector<Tas
         const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
         kernels::findNeighbors<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
-            d_o, d_clist_use, n, d_x, d_y, d_z, d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
+            d.d_o, d_clist_use, n, d.d_x, d.d_y, d.d_z, d.d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
         );
 
         kernels::computeMomentumAndEnergyIAD<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
@@ -219,13 +219,13 @@ void computeMomentumAndEnergyIAD(const LinearOctree<T> &o, const std::vector<Tas
         CHECK_CUDA_ERR(cudaGetLastError());
     }
 
-    unmapLinearOctreeFromDevice(d_o);
+    d.d_o.unmapLinearOctreeFromDevice();
 
-    CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data(), d_grad_P_x, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data(), d_grad_P_y, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data(), d_grad_P_z, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.du.data(), d_du, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.maxvsignal.data(), d_maxvsignal, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data(), d.d_grad_P_x, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data(), d.d_grad_P_y, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data(), d.d_grad_P_z, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.du.data(), d.d_du, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.maxvsignal.data(), d.d_maxvsignal, size_np_T, cudaMemcpyDeviceToHost));
 
    for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(cudaStreamDestroy(streams[i]));
