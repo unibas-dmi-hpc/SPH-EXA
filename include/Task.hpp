@@ -1,7 +1,9 @@
 #pragma once
 
 #include <vector>
+#ifdef __CUDACC__
 #include "pinned_allocator.h"
+#endif
 
 namespace sphexa
 {
@@ -17,7 +19,9 @@ struct Task
     void resize(const size_t size)
     {
         clist.resize(size);
+#ifndef __CUDACC__
         neighbors.resize(size * ngmax);
+#endif
         neighborsCount.resize(size);
     }
 
@@ -25,8 +29,14 @@ struct Task
     const size_t ng0;
 
     std::vector<int> clist;
-    std::vector<int> neighbors;
+
+#ifdef __CUDACC__
+    // No neighbors array on the CPU if using CUDA!
     std::vector<int, pinned_allocator<int>> neighborsCount;
+#else
+    std::vector<int> neighborsCount;
+#endif
+    std::vector<int> neighbors;
 };
 
 class TaskList
