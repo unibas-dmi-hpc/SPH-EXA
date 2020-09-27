@@ -1,7 +1,9 @@
 #pragma once
 
 #include <vector>
+#ifdef USE_CUDA
 #include "pinned_allocator.h"
+#endif
 
 namespace sphexa
 {
@@ -26,7 +28,11 @@ struct Task
 
     std::vector<int> clist;
     std::vector<int> neighbors;
+#ifdef USE_CUDA
     std::vector<int, pinned_allocator<int>> neighborsCount;
+#else
+    std::vector<int> neighborsCount;
+#endif
 };
 
 class TaskList
