@@ -152,7 +152,6 @@ void computeMomentumAndEnergyIAD(const LinearOctree<T> &o, const std::vector<Tas
 
     const size_t size_largerNeighborsChunk_int = largestChunkSize * ngmax * sizeof(int);
     const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
-    const size_t size_bbox = sizeof(BBox<T>);
 
     // number of streams to use
     const int NST = 3;
@@ -166,7 +165,6 @@ void computeMomentumAndEnergyIAD(const LinearOctree<T> &o, const std::vector<Tas
     int *d_clist[NST], *d_neighbors[NST], *d_neighborsCount[NST]; // work arrays per stream
 
     const size_t ltsize = d.wh.size();
-    const size_t size_lt_T = ltsize * sizeof(T);
 
     // input data
     CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d.d_vx, d.d_vy, d.d_vz, d.d_p, d.d_c, d.d_grad_P_x, d.d_grad_P_y, d.d_grad_P_z, d.d_du, d.d_maxvsignal));

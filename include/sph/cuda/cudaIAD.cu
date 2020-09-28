@@ -91,7 +91,6 @@ void computeIAD(const LinearOctree<T> &o, const std::vector<Task> &taskList, Dat
 
     const size_t size_largerNeighborsChunk_int = largestChunkSize * ngmax * sizeof(int);
     const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
-    const size_t size_bbox = sizeof(BBox<T>);
 
     // number of CUDA streams to use
     const int NST = 2;
@@ -100,7 +99,6 @@ void computeIAD(const LinearOctree<T> &o, const std::vector<Task> &taskList, Dat
     int *d_clist[NST], *d_neighbors[NST], *d_neighborsCount[NST]; // work arrays per stream
 
     const size_t ltsize = d.wh.size();
-    const size_t size_lt_T = ltsize * sizeof(T);
 
     // input data
     CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d.d_c11, d.d_c12, d.d_c13, d.d_c22, d.d_c23, d.d_c33));
