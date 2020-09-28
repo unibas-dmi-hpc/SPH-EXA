@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#ifdef __CUDACC__
+#ifdef USE_CUDA
 #include "pinned_allocator.h"
 #endif
 
@@ -29,14 +29,12 @@ struct Task
     const size_t ng0;
 
     std::vector<int> clist;
-
-#ifdef __CUDACC__
-    // No neighbors array on the CPU if using CUDA!
+    std::vector<int> neighbors;
+#ifdef USE_CUDA
     std::vector<int, pinned_allocator<int>> neighborsCount;
 #else
     std::vector<int> neighborsCount;
 #endif
-    std::vector<int> neighbors;
 };
 
 class TaskList
