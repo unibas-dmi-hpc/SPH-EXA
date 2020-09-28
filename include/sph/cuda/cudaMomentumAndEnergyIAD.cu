@@ -179,6 +179,13 @@ void computeMomentumAndEnergyIAD(const LinearOctree<T> &o, const std::vector<Tas
     CHECK_CUDA_ERR(cudaMemcpy(d.d_p, d.p.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.d_c, d.c.data(), size_np_T, cudaMemcpyHostToDevice));
 
+    CHECK_CUDA_ERR(cudaMemcpy(d.d_c11, d.c11.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.d_c12, d.c12.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.d_c13, d.c13.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.d_c22, d.c22.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.d_c23, d.c23.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.d_c33, d.c33.data(), size_np_T, cudaMemcpyHostToDevice));
+
     cudaStream_t streams[NST];
     for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(cudaStreamCreate(&streams[i]));
