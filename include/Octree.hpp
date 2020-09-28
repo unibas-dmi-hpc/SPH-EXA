@@ -472,6 +472,7 @@ public:
 
         // If the node fits on process pi, we assign it to this branch
         if (globalParticleCount <= work[pi] || pi + 1 == work.size()) assignee = pi;
+        
         if ((int)cells.size() == ncells)
         {
             for (int i = 0; i < ncells; i++)
