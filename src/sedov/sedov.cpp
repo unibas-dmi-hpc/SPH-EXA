@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 
     if(d.rank == 0) std::cout << "Domain created." << std::endl;
 
-    const size_t nTasks = 512;
+    const size_t nTasks = 256;
     const size_t ngmax = 150;
     const size_t ng0 = 100;
     TaskList taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
