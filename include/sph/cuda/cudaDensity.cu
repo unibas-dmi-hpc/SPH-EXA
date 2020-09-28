@@ -126,7 +126,7 @@ void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Parti
 
         const size_t n = t.clist.size();
         const size_t size_n_int = n * sizeof(int);
-        const size_t size_nNeighbors = n * ngmax * sizeof(int);
+        // const size_t size_nNeighbors = n * ngmax * sizeof(int);
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, cudaMemcpyHostToDevice, stream));
         //CHECK_CUDA_ERR(cudaMemcpyAsync(d_neighbors_use, t.neighbors.data(), size_nNeighbors, cudaMemcpyHostToDevice, stream));
