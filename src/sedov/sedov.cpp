@@ -61,7 +61,7 @@ int main(int argc, char **argv)
 
     if(d.rank == 0) std::cout << "Domain created." << std::endl;
 
-    const size_t nTasks = 64;
+    const size_t nTasks = 512;
     const size_t ngmax = 150;
     const size_t ng0 = 100;
     TaskList taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
@@ -83,8 +83,7 @@ int main(int argc, char **argv)
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
-        sph::computeDensity<Real>(domain.octree, taskList.tasks, d);
-        if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
+        if(domain.clist.size() > 0) sph::computeDensity<Real>(domain.octree, taskList.tasks, d);
         timer.step("Density");
         sph::computeEquationOfStateEvrard<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
