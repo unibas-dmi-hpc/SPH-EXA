@@ -137,16 +137,9 @@ void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Parti
 
         // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
-<<<<<<< HEAD
-        kernels::density<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(n, d.sincIndex, d.K, t.ngmax, d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
-                                                                        d_x, d_y, d_z, d_h, d_m, d_wh, d_whd, ltsize, d_ro);
-        //CHECK_CUDA_ERR(cudaGetLastError());
-=======
-        
         kernels::density<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(n, d.sincIndex, d.K, t.ngmax, d.d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
             d.d_x, d.d_y, d.d_z, d.d_h, d.d_m, d.d_wh, d.d_whd, ltsize, d.d_ro);
         CHECK_CUDA_ERR(cudaGetLastError());
->>>>>>> removed intermediate copy to host from gpu
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighborsCount.data(), d_neighborsCount_use, size_n_int, cudaMemcpyDeviceToHost, stream));
     }
