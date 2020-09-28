@@ -10,7 +10,7 @@
 #endif
 
 #include "sphexa.hpp"
-#include "SqPatchDataGenerator.hpp"
+#include "sqpatch/SqPatchDataGenerator.hpp"
 
 #include "gtest/gtest.h"
 
@@ -59,7 +59,7 @@ void checkParticlesRec(Octree<T>* node,
         else
         {
             int offset = node->localPadding;
-            int npart   = node->localParticleCount;
+            int npart  = node->localParticleCount;
 
             // is not true!
             //EXPECT_EQ(node->localParticleCount, node->globalParticleCount);
@@ -88,12 +88,17 @@ TEST(Octree, SpaceCurveIndexCorrect) {
 
     using Real = double;
     using Dataset = ParticlesData<Real>;
+    using Tree = Octree<Real>;
 
     const int cubeSide = 50;
     const int maxStep = 10;
 
     auto d = SqPatchDataGenerator<Real>::generate(cubeSide);
-    DistributedDomain<Real, Dataset> distributedDomain;
+    DistributedDomain<Real, Dataset, Tree> distributedDomain;
+
+    Tree::bucketSize = 64;
+    Tree::minGlobalBucketSize = 512;
+    Tree::maxGlobalBucketSize = 2048;
 
     distributedDomain.create(d);
     distributedDomain.update(d);
