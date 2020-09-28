@@ -47,19 +47,26 @@ int main(int argc, char **argv)
     auto d = SedovDataGenerator<Real>::generate(cubeSide);
     const Printer<Dataset> printer(d);
 
+    if(d.rank == 0) std::cout << "Data generated." << std::endl;
+
     MasterProcessTimer timer(output, d.rank), totalTimer(output, d.rank);
 
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
+    // -n 350, 42M per node
     Tree::bucketSize = 64;
-    Tree::minGlobalBucketSize = 512;
-    Tree::maxGlobalBucketSize = 2048;
+    Tree::minGlobalBucketSize = std::pow(2,13);
+    Tree::maxGlobalBucketSize = std::pow(2,14);//1048576;
     domain.create(d);
 
-    const size_t nTasks = 64;
+    if(d.rank == 0) std::cout << "Domain created." << std::endl;
+
+    const size_t nTasks = 256;
     const size_t ngmax = 150;
     const size_t ng0 = 100;
     TaskList taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
+
+    if(d.rank == 0) std::cout << "Starting main loop." << std::endl;
 
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
@@ -76,18 +83,18 @@ int main(int argc, char **argv)
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
-        sph::computeDensity<Real>(domain.octree, taskList.tasks, d);
+        if(domain.clist.size() > 0) sph::computeDensity<Real>(domain.octree, taskList.tasks, d);
         if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
         timer.step("Density");
         sph::computeEquationOfStateEvrard<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
         domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
         timer.step("mpi::synchronizeHalos");
-        sph::computeIAD<Real>(domain.octree, taskList.tasks, d);
+        if(domain.clist.size() > 0) sph::computeIAD<Real>(domain.octree, taskList.tasks, d);
         timer.step("IAD");
         domain.synchronizeHalos(&d.c11, &d.c12, &d.c13, &d.c22, &d.c23, &d.c33);
         timer.step("mpi::synchronizeHalos");
-        sph::computeMomentumAndEnergyIAD<Real>(domain.octree, taskList.tasks, d);
+        if(domain.clist.size() > 0) sph::computeMomentumAndEnergyIAD<Real>(domain.octree, taskList.tasks, d);
         timer.step("MomentumEnergyIAD");
         sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
         timer.step("Timestep"); // AllReduce(min:dt)
