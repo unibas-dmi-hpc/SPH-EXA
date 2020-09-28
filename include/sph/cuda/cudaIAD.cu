@@ -165,12 +165,12 @@ void computeIAD(const LinearOctree<T> &o, const std::vector<Task> &taskList, Dat
     d.d_o.unmapLinearOctreeFromDevice();
     */
 
-    CHECK_CUDA_ERR(cudaMemcpy(d.c11.data(), d_c11, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.c12.data(), d_c12, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.c13.data(), d_c13, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.c22.data(), d_c22, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.c23.data(), d_c23, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.c33.data(), d_c33, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.c11.data(), d.d_c11, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.c12.data(), d.d_c12, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.c13.data(), d.d_c13, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.c22.data(), d.d_c22, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.c23.data(), d.d_c23, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.c33.data(), d.d_c33, size_np_T, cudaMemcpyDeviceToHost));
 
     for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(cudaStreamDestroy(streams[i]));
