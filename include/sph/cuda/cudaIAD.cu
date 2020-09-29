@@ -113,7 +113,7 @@ void computeIAD(const LinearOctree<T> &o, const std::vector<Task> &taskList, Dat
     // CHECK_CUDA_ERR(cudaMemcpy(d_z, d.z.data(), size_np_T, cudaMemcpyHostToDevice));
     // CHECK_CUDA_ERR(cudaMemcpy(d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
     // CHECK_CUDA_ERR(cudaMemcpy(d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.d_ro, d.ro.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devicePtrs.d_ro, d.ro.data(), size_np_T, cudaMemcpyHostToDevice));
     // CHECK_CUDA_ERR(cudaMemcpy(d_wh, d.wh.data(), size_lt_T, cudaMemcpyHostToDevice));
     // CHECK_CUDA_ERR(cudaMemcpy(d_whd, d.whd.data(), size_lt_T, cudaMemcpyHostToDevice));
     // CHECK_CUDA_ERR(cudaMemcpy(d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
