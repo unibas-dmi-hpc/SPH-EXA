@@ -8,7 +8,7 @@ namespace sphexa
 namespace detail {
 
 //! \brief Expands a 10-bit integer into 30 bits by inserting 2 zeros after each bit.
-unsigned int expandBits(unsigned int v)
+static unsigned int expandBits(unsigned int v)
 {
     v = (v * 0x00010001u) & 0xFF0000FFu;
     v = (v * 0x00000101u) & 0x0F00F00Fu;
