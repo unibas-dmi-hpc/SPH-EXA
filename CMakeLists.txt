@@ -36,6 +36,7 @@ add_subdirectory(src)
 =======
 =======
 find_package(MPI)
+include(CTest)
 
 >>>>>>> link tests against MPI
 add_subdirectory(test)
