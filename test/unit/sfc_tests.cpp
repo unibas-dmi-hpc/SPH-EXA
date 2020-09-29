@@ -5,7 +5,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sfc.hpp"
+#include "sfc/zorder.hpp"
 
 
 TEST(SFC, mortonIndex) {
