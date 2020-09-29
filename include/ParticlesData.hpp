@@ -60,7 +60,9 @@ struct ParticlesData
 #endif
 
 #if defined(USE_CUDA)
-    sph::cuda::DeviceParticlesData<T> devicePtrs(*this);
+    ParticlesData() : devicePtrs(*this) {}
+
+    sph::cuda::DeviceParticlesData<T, ParticlesData> devicePtrs;
 #endif
 
     int rank = 0;
