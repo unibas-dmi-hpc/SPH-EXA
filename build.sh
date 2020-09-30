@@ -19,5 +19,6 @@ export CRAYPE_LINK_TYPE=dynamic
 export OMP_NUM_THREADS=1
 module rm xalt
 module list -t
+make clean
 make -f Makefile -j 2 CC="cc" CXX="CC" FC="ftn" NVCC="nvcc" mpi+omp+cuda MPICXX=CC SRCDIR=. BUILDDIR=build BINDIR=bin CUDA_PATH=$CUDATOOLKIT_HOME
 mv bin/mpi+omp+cuda.app bin/mpi+omp+cuda

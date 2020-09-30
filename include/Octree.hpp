@@ -334,28 +334,15 @@ public:
 
         std::vector<std::vector<int>> cellList(ncells);
         distributeParticles(list, x, y, z, cellList);
-
-        // if(comm_rank ==1)
-        // {
-        //     if(list.size() == 500000)
-        //     {
-        //         printf("%f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
-        //         for(int i=0; i<10; i++)
-        //             printf("%d %f %f %f\n", list[i], x[list[i]], y[list[i]], z[list[i]]);
-        //     }
-
-        //     printf("%d (%lu): ", it, list.size());
-        //     for(int i=0; i<cellList.size(); i++)
-        //         printf("%lu ", cellList[i].size());
-        //     printf("\n\n");
-        // }
-
+        
         if ((int)cells.size() == ncells)
         {
             for (int i = 0; i < ncells; i++)
             {
                 cells[i]->buildGlobalTreeAndGlobalCountAndGlobalMaxHRec(cellList[i], x, y, z, h, ordering, globalParticleCount, globalMaxH,
                                                                         padding, ptri);
+                cellList[i].clear();// free the damn memory
+
                 this->localParticleCount += cells[i]->localParticleCount;
                 this->globalMaxH = std::max(this->globalMaxH, cells[i]->globalMaxH);
                 padding += cells[i]->localParticleCount;
@@ -373,9 +360,6 @@ public:
             this->localParticleCount = list.size();
         }
 
-        // if(comm_rank == 1 && list.size() == 500000)
-        //     printf("%d Wrong\n", it);
-
         globalMaxH[it] = this->globalMaxH;
         globalParticleCount[it] = this->localParticleCount;
     }
@@ -386,6 +370,8 @@ public:
     {
         std::vector<size_t> globalParticleCount(globalNodeCount, 0);
         std::vector<T> globalMaxH(globalNodeCount, 0.0);
+
+        //std::vector<int> tempList(list);
 
         buildGlobalTreeAndGlobalCountAndGlobalMaxHRec(list, x, y, z, h, ordering, globalParticleCount, globalMaxH);
 
@@ -412,6 +398,7 @@ public:
                 for (int i = 0; i < ncells; i++)
                 {
                     cells[i]->buildTreeWithHalosRec(cellList[i], x, y, z, ordering, padding);
+                    cellList[i].clear();
                     this->localParticleCount += cells[i]->localParticleCount;
                     padding += cells[i]->localParticleCount;
                 }
@@ -453,6 +440,7 @@ public:
                 {
                     cells[i]->buildTreeRec(cellList[i], x, y, z, m, ordering, padding);
                     padding += cellList[i].size();
+                    cellList[i].clear();
                 }
                 else
                 {
@@ -484,6 +472,7 @@ public:
 
         // If the node fits on process pi, we assign it to this branch
         if (globalParticleCount <= work[pi] || pi + 1 == work.size()) assignee = pi;
+        
         if ((int)cells.size() == ncells)
         {
             for (int i = 0; i < ncells; i++)
@@ -912,6 +901,7 @@ struct GravityOctree : Octree<T>
                 {
                     this->cells[i]->buildTreeRec(cellList[i], x, y, z, m, ordering, padding);
                     padding += cellList[i].size();
+                    cellList[i].clear();
                 }
                 else
                 {
