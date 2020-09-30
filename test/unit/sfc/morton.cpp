@@ -50,6 +50,17 @@ TEST(SFC, decodeMorton32)
     EXPECT_EQ(z, sphexa::decodeMortonZ(code));
 }
 
+TEST(SFC, decodeMorton64)
+{
+    std::size_t code = 0x7FFFFFFFFFFFFFFFlu;
+    EXPECT_EQ((1u<<21u)-1u, sphexa::decodeMortonX(code));
+    EXPECT_EQ((1u<<21u)-1u, sphexa::decodeMortonY(code));
+    EXPECT_EQ((1u<<21u)-1u, sphexa::decodeMortonZ(code));
+
+    code = 0x1249249241249249;
+    EXPECT_EQ((1u<<21u)-512u-1u, sphexa::decodeMortonZ(code));
+}
+
 TEST(SFC, mortonIndices)
 {
     EXPECT_EQ(0x08000000, sphexa::mortonFromIndices({1}));
