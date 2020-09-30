@@ -39,12 +39,26 @@ inline unsigned compactBits(unsigned v)
 inline std::size_t expandBits(std::size_t v)
 {
     std::size_t x = v & 0x1fffffu; // discard bits higher 21
-    x = (x | x << 32u) & 0x1f00000000fffflu;
-    x = (x | x << 16u) & 0x1f0000ff0000fflu;
-    x = (x | x << 8u) & 0x100f00f00f00f00flu;
-    x = (x | x << 4u) & 0x10c30c30c30c30c3lu;
-    x = (x | x << 2u) & 0x1249249249249249lu;
+    x = (x | x << 32u) & 0x001f00000000fffflu;
+    x = (x | x << 16u) & 0x001f0000ff0000fflu;
+    x = (x | x << 8u)  & 0x100f00f00f00f00flu;
+    x = (x | x << 4u)  & 0x10c30c30c30c30c3lu;
+    x = (x | x << 2u)  & 0x1249249249249249lu;
     return x;
+}
+
+/*! \brief Compacts a 63-bit integer into 21 bits by selecting only bits divisible by 3
+ *         this inverts expandBits
+ */
+inline std::size_t compactBits(std::size_t v)
+{
+    v &= 0x1249249249249249lu;
+    v = (v ^ (v >>  2u)) & 0x10c30c30c30c30c3lu;
+    v = (v ^ (v >>  4u)) & 0x100f00f00f00f00flu;
+    v = (v ^ (v >>  8u)) & 0x001f0000ff0000fflu;
+    v = (v ^ (v >> 16u)) & 0x001f00000000fffflu;
+    v = (v ^ (v >> 32u)) & 0x00000000001ffffflu;
+    return v;
 }
 
 /*! \brief Calculates a 30-bit Morton code for a 3D point
