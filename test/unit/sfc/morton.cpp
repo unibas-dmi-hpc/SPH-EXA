@@ -38,6 +38,18 @@ TEST(SFC, mortonIndex64) {
     EXPECT_EQ(reference, sphexa::morton3D<std::size_t>(x, y, z));
 }
 
+TEST(SFC, decodeMorton32)
+{
+    unsigned x = 5;
+    unsigned y = 2;
+    unsigned z = 4;
+
+    unsigned code = 340;
+    EXPECT_EQ(x, sphexa::decodeMortonX(code));
+    EXPECT_EQ(y, sphexa::decodeMortonY(code));
+    EXPECT_EQ(z, sphexa::decodeMortonZ(code));
+}
+
 TEST(SFC, mortonIndices)
 {
     EXPECT_EQ(0x08000000, sphexa::mortonFromIndices({1}));
