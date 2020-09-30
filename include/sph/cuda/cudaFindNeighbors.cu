@@ -185,7 +185,7 @@ void computeFindNeighbors2(const LinearOctree<T> &o, std::vector<Task> &taskList
     CHECK_CUDA_ERR(cudaMemcpy(d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
 
     DeviceLinearOctree<T> d_o;
-    mapLinearOctreeToDevice(o, d_o);
+    d_o.mapLinearOctreeToDevice(o);
 
     cudaStream_t streams[NST];
     for (int i = 0; i < NST; ++i)
@@ -225,7 +225,7 @@ void computeFindNeighbors2(const LinearOctree<T> &o, std::vector<Task> &taskList
     for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(cudaStreamSynchronize(streams[i]));
 
-    unmapLinearOctreeFromDevice(d_o);
+    d_o.unmapLinearOctreeFromDevice();
 
     for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(cudaStreamDestroy(streams[i]));

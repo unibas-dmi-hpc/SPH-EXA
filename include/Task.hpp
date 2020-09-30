@@ -19,7 +19,7 @@ struct Task
     void resize(const size_t size)
     {
         clist.resize(size);
-#ifndef __CUDACC__
+#ifndef USE_CUDA
         neighbors.resize(size * ngmax);
 #endif
         neighborsCount.resize(size);

@@ -254,7 +254,7 @@ public:
          * should. To overcome that issue we add a little more work (variable below) to each rank. It's tempoary fix for a strong scaling
          * experiments. The downside of this solution is that the last rank will get less work than it should.
          */
-        assignedWorkExtender = std::max(d.count / comm_size, Tree::maxGlobalBucketSize);
+        assignedWorkExtender = Tree::minGlobalBucketSize;//std::max(d.count / comm_size, Tree::maxGlobalBucketSize);
 
         const std::vector<T> &x = d.x;
         const std::vector<T> &y = d.y;
