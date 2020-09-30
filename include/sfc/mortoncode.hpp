@@ -12,7 +12,7 @@ namespace detail
 //! \brief Expands a 10-bit integer into 30 bits by inserting 2 zeros after each bit.
 inline unsigned expandBits(unsigned v)
 {
-    v &= 0x000003ff;
+    v &= 0x000003ffu; // discard bit higher 10
     v = (v * 0x00010001u) & 0xFF0000FFu;
     v = (v * 0x00000101u) & 0x0F00F00Fu;
     v = (v * 0x00000011u) & 0xC30C30C3u;
@@ -20,10 +20,25 @@ inline unsigned expandBits(unsigned v)
     return v;
 }
 
+/*! \brief Compacts a 30-bit integer into 10 bits by selecting only bits divisible by 3
+ *         this inverts expandBits
+ */
+inline unsigned compactBits(unsigned v)
+{
+    // Inverse of Part1By2 - "delete" all bits not at positions divisible by 3
+    v &= 0x09249249u;                   // x = ---- 9--8 --7- -6-- 5--4 --3- -2-- 1--0
+    v = (v ^ (v >>  2u)) & 0x030c30c3u; // x = ---- --98 ---- 76-- --54 ---- 32-- --10
+    v = (v ^ (v >>  4u)) & 0x0300f00fu; // x = ---- --98 ---- ---- 7654 ---- ---- 3210
+    v = (v ^ (v >>  8u)) & 0xff0000ffu; // x = ---- --98 ---- ---- ---- ---- 7654 3210
+    v = (v ^ (v >> 16u)) & 0x000003ffu; // x = ---- ---- ---- ---- ---- --98 7654 3210
+    return v;
+}
+
+
 //! \brief Expands a 21-bit integer into 63 bits by inserting 2 zeros after each bit.
 inline std::size_t expandBits(std::size_t v)
 {
-    std::size_t x = v & 0x1fffffu; // get first 21 bits
+    std::size_t x = v & 0x1fffffu; // discard bits higher 21
     x = (x | x << 32u) & 0x1f00000000fffflu;
     x = (x | x << 16u) & 0x1f0000ff0000fflu;
     x = (x | x << 8u) & 0x100f00f00f00f00flu;
@@ -88,16 +103,37 @@ std::size_t morton3D_(T x, T y, T z, [[maybe_unused]] std::size_t tag)
  *
  * \tparam I specify either a 32 or 64 bit unsigned integer to select
  *           the precision.
- *           Note: needs to be specified explicitly.
+ *           Note: I needs to be specified explicitly.
+ *           Note: not specifying an unsigned type results in a compilation error
  *
  * \param[in] x,y,z input coordinates within the unit cube [0,1]^3
  */
 template <class I, class T>
-inline I morton3D(T x, T y, T z)
+inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3D(T x, T y, T z)
 {
     return detail::morton3D_(x,y,z, I{});
 }
 
+//! \brief extract X component from a morton code
+template<class I>
+inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonX(I code)
+{
+    return detail::compactBits(code >> 2);
+}
+
+//! \brief extract Y component from a morton code
+template<class I>
+inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonY(I code)
+{
+    return detail::compactBits(code >> 1);
+}
+
+//! \brief extract Z component from a morton code
+template<class I>
+inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonZ(I code)
+{
+    return detail::compactBits(code);
+}
 
 /*! \brief transfer a series of octree indices into a morton code
  *
