@@ -149,6 +149,56 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonZ(I code)
     return detail::compactBits(code);
 }
 
+namespace detail {
+
+//! \brief cut down the input morton code to the start code of the enclosing box at <treeLevel>
+template<class I>
+inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsigned treeLevel)
+{
+    // total usable bits in the morton code, 30 or 63
+    constexpr unsigned nBits = 3 * ((sizeof(I) * 8) / 3);
+
+    // number of bits to discard, counting from lowest bit
+    unsigned discardedBits = nBits - 3 * treeLevel;
+    //return code & ( ~((I(1u)<<discardedBits)-I(1u)) );
+    code = code >> discardedBits;
+    return code << discardedBits;
+}
+
+}
+
+template<class I>
+inline std::enable_if_t<std::is_unsigned<I>{}, I>
+mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz)
+{
+    // number of bits per dimension
+    constexpr unsigned nBits = (sizeof(I) * 8) / 3;
+    unsigned shiftLevel = nBits - treeLevel;
+
+    // zero out lower tree levels
+    code = detail::enclosingBoxCode(code, treeLevel);
+
+    //using SignedInt = std::make_signed_t<I>;
+    I x = decodeMortonX(code);
+    I y = decodeMortonY(code);
+    I z = decodeMortonZ(code);
+
+    x += dx * (I(1) << shiftLevel);
+    // prevent overflow (non-PBC)
+    x = std::min(x, (I(1)<<nBits)-I(1));
+
+    y += dy * (I(1) << shiftLevel);
+    y = std::min(y, (I(1)<<nBits)-I(1));
+
+    z += dz * (I(1) << shiftLevel);
+    z = std::min(z, (I(1)<<nBits)-I(1));
+
+    return detail::expandBits(x) * I(4)
+         + detail::expandBits(y) * I(2)
+         + detail::expandBits(z);
+}
+
+
 /*! \brief transfer a series of octree indices into a morton code
  *
  * \param indices indices[0] contains the octree index 0-7 for the top-level,
