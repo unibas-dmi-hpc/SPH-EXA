@@ -55,7 +55,7 @@ int main(int argc, char **argv)
 
     // -n 350, 42M per node
     Tree::bucketSize = 64;
-    Tree::minGlobalBucketSize = std::pow(2,13);
+    Tree::minGlobalBucketSize = std::pow(2,12);
     Tree::maxGlobalBucketSize = std::pow(2,14);//1048576;
     domain.create(d);
 
@@ -84,7 +84,6 @@ int main(int argc, char **argv)
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
         if(domain.clist.size() > 0) sph::computeDensity<Real>(domain.octree, taskList.tasks, d);
-        if (d.iteration == 0) { sph::initFluidDensityAtRest<Real>(taskList.tasks, d); }
         timer.step("Density");
         sph::computeEquationOfStateEvrard<Real>(taskList.tasks, d);
         timer.step("EquationOfState");

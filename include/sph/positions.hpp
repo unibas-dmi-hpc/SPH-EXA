@@ -77,6 +77,14 @@ void computePositionsImpl(const Task &t, Dataset &d)
         T valy = (y[i] - y_m1[i]) / dt_m1[i];
         T valz = (z[i] - z_m1[i]) / dt_m1[i];
 
+#ifndef NDEBUG
+        if (std::isnan(valx) || std::isnan(valy) || std::isnan(valz))
+        {
+            printf("ERROR::UpdateQuantities(%d) velocities: (%f %f %f)\n", i, valx, valy, valz);
+            printf("ERROR::UpdateQuantities(%d) x, y, z, dt_m1: (%f %f %f %f)\n", i, x[i], y[i], z[i], dt_m1[i]);
+        }
+#endif
+
         vx[i] = valx + ax * deltaA;
         vy[i] = valy + ay * deltaA;
         vz[i] = valz + az * deltaA;
