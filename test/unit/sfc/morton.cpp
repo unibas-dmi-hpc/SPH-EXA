@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <string>
@@ -59,6 +60,75 @@ TEST(SFC, decodeMorton64)
 
     code = 0x1249249241249249;
     EXPECT_EQ((1u<<21u)-512u-1u, sphexa::decodeMortonZ(code));
+
+    code = 0b0111lu << (20u*3);
+    EXPECT_EQ(1u<<20u, sphexa::decodeMortonX(code));
+    EXPECT_EQ(1u<<20u, sphexa::decodeMortonY(code));
+    EXPECT_EQ(1u<<20u, sphexa::decodeMortonZ(code));
+
+    code = 0b0011lu << (20u*3);
+    EXPECT_EQ(0, sphexa::decodeMortonX(code));
+    EXPECT_EQ(1u<<20u, sphexa::decodeMortonY(code));
+    EXPECT_EQ(1u<<20u, sphexa::decodeMortonZ(code));
+}
+
+TEST(SFC, enclosingBox)
+{
+    std::size_t code      = 0x0FF0000000000001;
+    std::size_t reference = 0x0FC0000000000000;
+    EXPECT_EQ(reference, sphexa::detail::enclosingBoxCode(code, 3));
+
+    unsigned code_u = 0x07F00001;
+    unsigned reference_u = 0x07E00000;
+    EXPECT_EQ(reference_u, sphexa::detail::enclosingBoxCode(code_u, 3));
+}
+
+TEST(SFC, mortonNeighbor)
+{
+    {
+        unsigned code = 0x07E00000;
+        // move one node up in x-direction at tree level 3
+        unsigned xUpCode = sphexa::mortonNeighbor(code, 3, 1, 0, 0);
+        unsigned reference = 0x23600000;
+
+        EXPECT_EQ(reference, xUpCode);
+    }
+    {
+        std::vector<std::size_t> codes{
+            0b0000111111lu << (18u*3),
+            0b0000111111lu << (18u*3),
+            0b0000111111lu << (18u*3),
+            0b0000111111lu << (18u*3),
+            0b0000111111lu << (18u*3),
+            0b0000111111lu << (18u*3),
+            0b0011lu << (20u*3),
+            0b0111lu << (20u*3),
+        };
+        std::vector<std::size_t> references{
+            0b0000111011lu << (18u*3),
+            0b0100011011lu << (18u*3),
+            0b0000111101lu << (18u*3),
+            0b0010101101lu << (18u*3),
+            0b0000111110lu << (18u*3),
+            0b0001110110lu << (18u*3),
+            0b0111lu << (20u*3),
+            0b0111lu << (20u*3),
+        };
+        std::vector<std::size_t> probes{
+            sphexa::mortonNeighbor(codes[0], 3, -1, 0, 0),
+            sphexa::mortonNeighbor(codes[1], 3, 1, 0, 0),
+            sphexa::mortonNeighbor(codes[2], 3, 0, -1, 0),
+            sphexa::mortonNeighbor(codes[3], 3, 0, 1, 0),
+            sphexa::mortonNeighbor(codes[4], 3, 0, 0, -1),
+            sphexa::mortonNeighbor(codes[5], 3, 0, 0, 1),
+            sphexa::mortonNeighbor(codes[6], 1, 1, 0, 0),
+            sphexa::mortonNeighbor(codes[7], 1, 1, 0, 0),
+        };
+
+        // move one node up in x-direction at tree level 3
+        //std::size_t xUpCode = sphexa::mortonNeighbor(code, 3, 1, 0, 0);
+        EXPECT_EQ(references, probes);
+    }
 }
 
 TEST(SFC, mortonIndices)
