@@ -82,17 +82,40 @@ TEST(SFC, enclosingBox)
     EXPECT_EQ(reference_u, sphexa::detail::enclosingBoxCode(code_u, 3));
 }
 
-TEST(SFC, mortonNeighbor)
+TEST(SFC, mortonNeighbor32)
 {
+    std::vector<std::tuple<unsigned, unsigned, unsigned, int, int, int>> codes{
+        {0b00000111111u << (7u*3), 0b00000111011u << (7u*3), 3, -1,  0,  0},
+        {0b00000111111u << (7u*3), 0b00100011011u << (7u*3), 3,  1,  0,  0},
+        {0b00000111111u << (7u*3), 0b00000111101u << (7u*3), 3,  0, -1,  0},
+        {0b00000111111u << (7u*3), 0b00010101101u << (7u*3), 3,  0,  1,  0},
+        {0b00000111111u << (7u*3), 0b00000111110u << (7u*3), 3,  0,  0, -1},
+        {0b00000111111u << (7u*3), 0b00001110110u << (7u*3), 3,  0,  0,  1},
+        // over/underflow tests
+        {0b00100111111u << (7u*3), 0b00100111111u << (7u*3), 3,  1,  0,  0}, // overflow
+        {0b00000011011u << (7u*3), 0b00000011011u << (7u*3), 3, -1,  0,  0}, // underflow
+        {0b00011u << (9u*3),       0b00111lu << (9u*3),       1,  1,  0,  0},
+        {0b00111u << (9u*3),       0b00111lu << (9u*3),       1,  1,  0,  0}, // overflow
+        {0b00011u << (9u*3),       0b00011lu << (9u*3),       1, -1,  0,  0}, // underflow
+    };
+
+    auto computeCode = [](auto t)
     {
-        unsigned code = 0x07E00000;
-        // move one node up in x-direction at tree level 3
-        unsigned xUpCode = sphexa::mortonNeighbor(code, 3, 1, 0, 0);
-        unsigned reference = 0x23600000;
+      return sphexa::mortonNeighbor(std::get<0>(t), std::get<2>(t), std::get<3>(t),
+                                    std::get<4>(t), std::get<5>(t));
+    };
 
-        EXPECT_EQ(reference, xUpCode);
+    std::vector<unsigned> probes(codes.size());
+    std::transform(begin(codes), end(codes), begin(probes), computeCode);
+
+    for (int i = 0; i < codes.size(); ++i)
+    {
+        EXPECT_EQ(std::get<1>(codes[i]), probes[i]);
     }
+}
 
+TEST(SFC, mortonNeighbor64)
+{
     std::vector<std::tuple<std::size_t, std::size_t, unsigned, int, int, int>> codes{
         {0b0000111111lu << (18u*3), 0b0000111011lu << (18u*3), 3, -1,  0,  0},
         {0b0000111111lu << (18u*3), 0b0100011011lu << (18u*3), 3,  1,  0,  0},
@@ -100,11 +123,12 @@ TEST(SFC, mortonNeighbor)
         {0b0000111111lu << (18u*3), 0b0010101101lu << (18u*3), 3,  0,  1,  0},
         {0b0000111111lu << (18u*3), 0b0000111110lu << (18u*3), 3,  0,  0, -1},
         {0b0000111111lu << (18u*3), 0b0001110110lu << (18u*3), 3,  0,  0,  1},
+        // over/underflow tests
+        {0b0100111111lu << (18u*3), 0b0100111111lu << (18u*3), 3,  1,  0,  0}, // overflow
+        {0b0000011011lu << (18u*3), 0b0000011011lu << (18u*3), 3, -1,  0,  0}, // underflow
         {0b0011lu << (20u*3),       0b0111lu << (20u*3),       1,  1,  0,  0},
-        {0b0111lu << (20u*3),       0b0111lu << (20u*3),       1,  1,  0,  0},
-        {0b0100111111lu << (18u*3), 0b0100111011lu << (18u*3), 3, -1,  0,  0},
-        {0b0100111111lu << (18u*3), 0b0100111111lu << (18u*3), 3,  1,  0,  0},
-        {0b0000011011lu << (18u*3), 0b0000011011lu << (18u*3), 3, -1,  0,  0},
+        {0b0111lu << (20u*3),       0b0111lu << (20u*3),       1,  1,  0,  0}, // overflow
+        {0b0011lu << (20u*3),       0b0011lu << (20u*3),       1, -1,  0,  0}, // underflow
     };
 
     auto computeCode = [](auto t)
