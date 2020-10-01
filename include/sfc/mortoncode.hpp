@@ -171,31 +171,32 @@ template<class I>
 inline std::enable_if_t<std::is_unsigned<I>{}, I>
 mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz)
 {
-    // number of bits per dimension
+    // spatial resolution in bits per dimension
     constexpr unsigned nBits = (sizeof(I) * 8) / 3;
-    unsigned shiftLevel = nBits - treeLevel;
+    // maximum coordinate value per dimension 2^nBits-1
+    constexpr int maxCoord = int((1u << nBits) - 1u);
+
+    unsigned shiftBits  = nBits - treeLevel;
+    int shiftValue = int(1u << shiftBits);
 
     // zero out lower tree levels
     code = detail::enclosingBoxCode(code, treeLevel);
 
-    //using SignedInt = std::make_signed_t<I>;
-    I x = decodeMortonX(code);
-    I y = decodeMortonY(code);
-    I z = decodeMortonZ(code);
+    int x = decodeMortonX(code);
+    int y = decodeMortonY(code);
+    int z = decodeMortonZ(code);
 
-    x += dx * (I(1) << shiftLevel);
-    // prevent overflow (non-PBC)
-    x = std::min(x, (I(1)<<nBits)-I(1));
+    // handle under and overflow (non-PBC)
+    int newX = x + dx * shiftValue;
+    x = (newX < 0 || newX > maxCoord) ? x : newX;
+    int newY = y + dy * shiftValue;
+    y = (newY < 0 || newY > maxCoord) ? y : newY;
+    int newZ = z + dz * shiftValue;
+    z = (newZ < 0 || newZ > maxCoord) ? z : newZ;
 
-    y += dy * (I(1) << shiftLevel);
-    y = std::min(y, (I(1)<<nBits)-I(1));
-
-    z += dz * (I(1) << shiftLevel);
-    z = std::min(z, (I(1)<<nBits)-I(1));
-
-    return detail::expandBits(x) * I(4)
-         + detail::expandBits(y) * I(2)
-         + detail::expandBits(z);
+    return detail::expandBits(I(x)) * I(4)
+         + detail::expandBits(I(y)) * I(2)
+         + detail::expandBits(I(z));
 }
 
 

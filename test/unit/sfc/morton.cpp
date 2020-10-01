@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <iostream>
-#include <fstream>
-#include <string>
+#include <tuple>
 #include <vector>
 
 #include "gtest/gtest.h"
@@ -93,41 +92,33 @@ TEST(SFC, mortonNeighbor)
 
         EXPECT_EQ(reference, xUpCode);
     }
-    {
-        std::vector<std::size_t> codes{
-            0b0000111111lu << (18u*3),
-            0b0000111111lu << (18u*3),
-            0b0000111111lu << (18u*3),
-            0b0000111111lu << (18u*3),
-            0b0000111111lu << (18u*3),
-            0b0000111111lu << (18u*3),
-            0b0011lu << (20u*3),
-            0b0111lu << (20u*3),
-        };
-        std::vector<std::size_t> references{
-            0b0000111011lu << (18u*3),
-            0b0100011011lu << (18u*3),
-            0b0000111101lu << (18u*3),
-            0b0010101101lu << (18u*3),
-            0b0000111110lu << (18u*3),
-            0b0001110110lu << (18u*3),
-            0b0111lu << (20u*3),
-            0b0111lu << (20u*3),
-        };
-        std::vector<std::size_t> probes{
-            sphexa::mortonNeighbor(codes[0], 3, -1, 0, 0),
-            sphexa::mortonNeighbor(codes[1], 3, 1, 0, 0),
-            sphexa::mortonNeighbor(codes[2], 3, 0, -1, 0),
-            sphexa::mortonNeighbor(codes[3], 3, 0, 1, 0),
-            sphexa::mortonNeighbor(codes[4], 3, 0, 0, -1),
-            sphexa::mortonNeighbor(codes[5], 3, 0, 0, 1),
-            sphexa::mortonNeighbor(codes[6], 1, 1, 0, 0),
-            sphexa::mortonNeighbor(codes[7], 1, 1, 0, 0),
-        };
 
-        // move one node up in x-direction at tree level 3
-        //std::size_t xUpCode = sphexa::mortonNeighbor(code, 3, 1, 0, 0);
-        EXPECT_EQ(references, probes);
+    std::vector<std::tuple<std::size_t, std::size_t, unsigned, int, int, int>> codes{
+        {0b0000111111lu << (18u*3), 0b0000111011lu << (18u*3), 3, -1,  0,  0},
+        {0b0000111111lu << (18u*3), 0b0100011011lu << (18u*3), 3,  1,  0,  0},
+        {0b0000111111lu << (18u*3), 0b0000111101lu << (18u*3), 3,  0, -1,  0},
+        {0b0000111111lu << (18u*3), 0b0010101101lu << (18u*3), 3,  0,  1,  0},
+        {0b0000111111lu << (18u*3), 0b0000111110lu << (18u*3), 3,  0,  0, -1},
+        {0b0000111111lu << (18u*3), 0b0001110110lu << (18u*3), 3,  0,  0,  1},
+        {0b0011lu << (20u*3),       0b0111lu << (20u*3),       1,  1,  0,  0},
+        {0b0111lu << (20u*3),       0b0111lu << (20u*3),       1,  1,  0,  0},
+        {0b0100111111lu << (18u*3), 0b0100111011lu << (18u*3), 3, -1,  0,  0},
+        {0b0100111111lu << (18u*3), 0b0100111111lu << (18u*3), 3,  1,  0,  0},
+        {0b0000011011lu << (18u*3), 0b0000011011lu << (18u*3), 3, -1,  0,  0},
+    };
+
+    auto computeCode = [](auto t)
+    {
+        return sphexa::mortonNeighbor(std::get<0>(t), std::get<2>(t), std::get<3>(t),
+                                      std::get<4>(t), std::get<5>(t));
+    };
+
+    std::vector<std::size_t> probes(codes.size());
+    std::transform(begin(codes), end(codes), begin(probes), computeCode);
+
+    for (int i = 0; i < codes.size(); ++i)
+    {
+        EXPECT_EQ(std::get<1>(codes[i]), probes[i]);
     }
 }
 
