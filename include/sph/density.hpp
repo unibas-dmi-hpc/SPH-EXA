@@ -91,7 +91,6 @@ void computeDensityImpl(const Task &t, Dataset &d)
             roloc += value * m[j];
         }
 
-        ro[pi] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
         ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
 
 #ifndef NDEBUG
