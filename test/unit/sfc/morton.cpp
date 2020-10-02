@@ -6,7 +6,7 @@
 #include "gtest/gtest.h"
 #include "sfc/mortoncode.hpp"
 
-TEST(SFC, mortonIndex32) {
+TEST(MortonCode, mortonIndex32) {
 
     double x = 0.00489; // 5 on the scale 0-1023
     double y = 0.00196; // 2
@@ -22,7 +22,7 @@ TEST(SFC, mortonIndex32) {
     EXPECT_EQ(340, sphexa::morton3D<unsigned>(x, y, z));
 }
 
-TEST(SFC, mortonIndex64) {
+TEST(MortonCode, mortonIndex64) {
 
     double x = 0.5;
     double y = 0.5;
@@ -38,7 +38,7 @@ TEST(SFC, mortonIndex64) {
     EXPECT_EQ(reference, sphexa::morton3D<std::size_t>(x, y, z));
 }
 
-TEST(SFC, decodeMorton32)
+TEST(MortonCode, decodeMorton32)
 {
     unsigned x = 5;
     unsigned y = 2;
@@ -50,7 +50,7 @@ TEST(SFC, decodeMorton32)
     EXPECT_EQ(z, sphexa::decodeMortonZ(code));
 }
 
-TEST(SFC, decodeMorton64)
+TEST(MortonCode, decodeMorton64)
 {
     std::size_t code = 0x7FFFFFFFFFFFFFFFlu;
     EXPECT_EQ((1u<<21u)-1u, sphexa::decodeMortonX(code));
@@ -71,7 +71,7 @@ TEST(SFC, decodeMorton64)
     EXPECT_EQ(1u<<20u, sphexa::decodeMortonZ(code));
 }
 
-TEST(SFC, enclosingBox)
+TEST(MortonCode, enclosingBox)
 {
     std::size_t code      = 0x0FF0000000000001;
     std::size_t reference = 0x0FC0000000000000;
@@ -82,7 +82,7 @@ TEST(SFC, enclosingBox)
     EXPECT_EQ(reference_u, sphexa::detail::enclosingBoxCode(code_u, 3));
 }
 
-TEST(SFC, mortonNeighbor32)
+TEST(MortonCode, mortonNeighbor32)
 {
     std::vector<std::tuple<unsigned, unsigned, unsigned, int, int, int>> codes{
         {0b00000111111u << (7u*3), 0b00000111011u << (7u*3), 3, -1,  0,  0},
@@ -97,6 +97,9 @@ TEST(SFC, mortonNeighbor32)
         {0b00011u << (9u*3),       0b00111lu << (9u*3),       1,  1,  0,  0},
         {0b00111u << (9u*3),       0b00111lu << (9u*3),       1,  1,  0,  0}, // overflow
         {0b00011u << (9u*3),       0b00011lu << (9u*3),       1, -1,  0,  0}, // underflow
+        // diagonal offset
+        {0b00000111111u << (7u*3), 0b00111000u << (7u*3), 3, -1, -1, -1},
+        {0b00000111000u << (7u*3), 0b00111111u << (7u*3), 3,  1,  1,  1},
     };
 
     auto computeCode = [](auto t)
@@ -114,7 +117,7 @@ TEST(SFC, mortonNeighbor32)
     }
 }
 
-TEST(SFC, mortonNeighbor64)
+TEST(MortonCode, mortonNeighbor64)
 {
     std::vector<std::tuple<std::size_t, std::size_t, unsigned, int, int, int>> codes{
         {0b0000111111lu << (18u*3), 0b0000111011lu << (18u*3), 3, -1,  0,  0},
@@ -129,6 +132,9 @@ TEST(SFC, mortonNeighbor64)
         {0b0011lu << (20u*3),       0b0111lu << (20u*3),       1,  1,  0,  0},
         {0b0111lu << (20u*3),       0b0111lu << (20u*3),       1,  1,  0,  0}, // overflow
         {0b0011lu << (20u*3),       0b0011lu << (20u*3),       1, -1,  0,  0}, // underflow
+        // diagonal offset
+        {0b0000111111lu << (18u*3), 0b0111000lu << (18u*3), 3, -1, -1, -1},
+        {0b0000111000lu << (18u*3), 0b0111111lu << (18u*3), 3,  1,  1,  1},
     };
 
     auto computeCode = [](auto t)
@@ -146,14 +152,14 @@ TEST(SFC, mortonNeighbor64)
     }
 }
 
-TEST(SFC, mortonIndices)
+TEST(MortonCode, mortonIndices)
 {
     EXPECT_EQ(0x08000000, sphexa::mortonFromIndices({1}));
     EXPECT_EQ(0x09000000, sphexa::mortonFromIndices({1,1}));
     EXPECT_EQ(0x09E00000, sphexa::mortonFromIndices({1,1,7}));
 }
 
-TEST(SFC, mortonCodes)
+TEST(MortonCode, mortonCodesSequence)
 {
     using sphexa::detail::normalize;
 

@@ -160,13 +160,45 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsig
 
     // number of bits to discard, counting from lowest bit
     unsigned discardedBits = nBits - 3 * treeLevel;
-    //return code & ( ~((I(1u)<<discardedBits)-I(1u)) );
     code = code >> discardedBits;
     return code << discardedBits;
 }
 
 }
 
+/*! \brief compute the maximum range of an octree node at a given subdivision level
+ *
+ * \tparam I 32- or 64-bit unsigned integer type
+ * \param treeLevel octree subdivision level
+ * \return the range
+ *
+ * At treeLevel 0, the range is the entire 30 or 63 bits used in the Morton code.
+ * After that, the range decreases by 3 bits for each level.
+ *
+ */
+template<class I>
+inline std::enable_if_t<std::is_unsigned<I>{}, I>
+nodeRange(unsigned treeLevel)
+{
+    // 10 or 21 bits per dimension
+    constexpr unsigned nBits = (sizeof(I) * 8) / 3;
+
+    return 3 * (nBits - treeLevel);
+}
+
+/*! \brief compute morton codes corresponding to neighboring octree nodes
+ *         for a given input code and tree level
+ *
+ * \tparam I 32- or 64-bit unsigned integer type
+ * \param code input Morton code
+ * \param treeLevel octree subdivision level, 0-10 for 32-bit, and 0-21 for 64-bit
+ * \param dx neighbor offset in x direction
+ * \param dy neighbor offset in y direction
+ * \param dz neighbor offset in z direction
+ * \return morton neighbor start code
+ *
+ * Note that the end of the neighbor range is given by the start code + nodeRange(treeLevel)
+ */
 template<class I>
 inline std::enable_if_t<std::is_unsigned<I>{}, I>
 mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz)
