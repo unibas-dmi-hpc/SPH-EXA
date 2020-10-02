@@ -25,15 +25,13 @@ inline unsigned expandBits(unsigned v)
  */
 inline unsigned compactBits(unsigned v)
 {
-    // Inverse of Part1By2 - "delete" all bits not at positions divisible by 3
-    v &= 0x09249249u;                   // x = ---- 9--8 --7- -6-- 5--4 --3- -2-- 1--0
-    v = (v ^ (v >>  2u)) & 0x030c30c3u; // x = ---- --98 ---- 76-- --54 ---- 32-- --10
-    v = (v ^ (v >>  4u)) & 0x0300f00fu; // x = ---- --98 ---- ---- 7654 ---- ---- 3210
-    v = (v ^ (v >>  8u)) & 0xff0000ffu; // x = ---- --98 ---- ---- ---- ---- 7654 3210
-    v = (v ^ (v >> 16u)) & 0x000003ffu; // x = ---- ---- ---- ---- ---- --98 7654 3210
+    v &= 0x09249249u;
+    v = (v ^ (v >>  2u)) & 0x030c30c3u;
+    v = (v ^ (v >>  4u)) & 0x0300f00fu;
+    v = (v ^ (v >>  8u)) & 0xff0000ffu;
+    v = (v ^ (v >> 16u)) & 0x000003ffu;
     return v;
 }
-
 
 //! \brief Expands a 21-bit integer into 63 bits by inserting 2 zeros after each bit.
 inline std::size_t expandBits(std::size_t v)
@@ -61,54 +59,15 @@ inline std::size_t compactBits(std::size_t v)
     return v;
 }
 
-/*! \brief Calculates a 30-bit Morton code for a 3D point
- *
- * \param[in] x,y,z input coordinates within the unit cube [0,1]^3
- */
-template <class T>
-unsigned int morton3D_(T x, T y, T z, [[maybe_unused]] unsigned tag)
+template <class I, class T>
+inline I toNBitInt(T x)
 {
-    assert(x >= 0.0 && x <= 1.0);
-    assert(y >= 0.0 && y <= 1.0);
-    assert(z >= 0.0 && z <= 1.0);
+    // spatial resolution in bits per dimension
+    constexpr unsigned nBits = (sizeof(I) * 8) / 3;
 
-    // normalize floating point numbers
-    // 1024 = 2^10, so we map the floating point numbers
-    // in [0,1] to [0,1023] and convert to integers
-    x = std::min(std::max(x * T(1024.0), T(0.0)), T(1023.0));
-    y = std::min(std::max(y * T(1024.0), T(0.0)), T(1023.0));
-    z = std::min(std::max(z * T(1024.0), T(0.0)), T(1023.0));
-    unsigned int xx = detail::expandBits((unsigned int)x);
-    unsigned int yy = detail::expandBits((unsigned int)y);
-    unsigned int zz = detail::expandBits((unsigned int)z);
-
-    // interleave the x, y, z components
-    return xx * 4 + yy * 2 + zz;
-}
-
-/*! \brief Calculates a 63-bit Morton code for a 3D point
- *
- * \param[in] x,y,z input coordinates within the unit cube [0,1]^3
- */
-template <class T>
-std::size_t morton3D_(T x, T y, T z, [[maybe_unused]] std::size_t tag)
-{
-    assert(x >= 0.0 && x <= 1.0);
-    assert(y >= 0.0 && y <= 1.0);
-    assert(z >= 0.0 && z <= 1.0);
-
-    // normalize floating point numbers
-    // 2097152 = 2^21, so we map the floating point numbers
-    // in [0,1] to [0,2097152-1] and convert to integers
-    x = std::min(std::max(x * T(2097152.0), T(0.0)), T(2097151.0));
-    y = std::min(std::max(y * T(2097152.0), T(0.0)), T(2097151.0));
-    z = std::min(std::max(z * T(2097152.0), T(0.0)), T(2097151.0));
-    std::size_t xx = detail::expandBits((std::size_t)x);
-    std::size_t yy = detail::expandBits((std::size_t)y);
-    std::size_t zz = detail::expandBits((std::size_t)z);
-
-    // interleave the x, y, z components
-    return xx * 4 + yy * 2 + zz;
+    // [0,1] to [0,1023] and convert to integer (32-bit) or
+    // [0,1] to [0,2097151] and convert to integer (64-bit)
+    return std::min(std::max(x * T(1u<<nBits), T(0.0)), T((1u<<nBits)-1u));
 }
 
 } // namespace detail
@@ -125,7 +84,21 @@ std::size_t morton3D_(T x, T y, T z, [[maybe_unused]] std::size_t tag)
 template <class I, class T>
 inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3D(T x, T y, T z)
 {
-    return detail::morton3D_(x,y,z, I{});
+    assert(x >= 0.0 && x <= 1.0);
+    assert(y >= 0.0 && y <= 1.0);
+    assert(z >= 0.0 && z <= 1.0);
+
+    // normalize floating point numbers
+    I xi = detail::toNBitInt<I>(x);
+    I yi = detail::toNBitInt<I>(y);
+    I zi = detail::toNBitInt<I>(z);
+
+    I xx = detail::expandBits(xi);
+    I yy = detail::expandBits(yi);
+    I zz = detail::expandBits(zi);
+
+    // interleave the x, y, z components
+    return xx * 4 + yy * 2 + zz;
 }
 
 //! \brief extract X component from a morton code
@@ -168,9 +141,9 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsig
 
 /*! \brief compute the maximum range of an octree node at a given subdivision level
  *
- * \tparam I 32- or 64-bit unsigned integer type
- * \param treeLevel octree subdivision level
- * \return the range
+ * \tparam I         32- or 64-bit unsigned integer type
+ * \param treeLevel  octree subdivision level
+ * \return           the range
  *
  * At treeLevel 0, the range is the entire 30 or 63 bits used in the Morton code.
  * After that, the range decreases by 3 bits for each level.
@@ -189,13 +162,13 @@ nodeRange(unsigned treeLevel)
 /*! \brief compute morton codes corresponding to neighboring octree nodes
  *         for a given input code and tree level
  *
- * \tparam I 32- or 64-bit unsigned integer type
- * \param code input Morton code
+ * \tparam I        32- or 64-bit unsigned integer type
+ * \param code      input Morton code
  * \param treeLevel octree subdivision level, 0-10 for 32-bit, and 0-21 for 64-bit
- * \param dx neighbor offset in x direction
- * \param dy neighbor offset in y direction
- * \param dz neighbor offset in z direction
- * \return morton neighbor start code
+ * \param dx        neighbor offset in x direction
+ * \param dy        neighbor offset in y direction
+ * \param dz        neighbor offset in z direction
+ * \return          morton neighbor start code
  *
  * Note that the end of the neighbor range is given by the start code + nodeRange(treeLevel)
  */
