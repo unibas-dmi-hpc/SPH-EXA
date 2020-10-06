@@ -10,7 +10,7 @@
 
 namespace sphexa
 {
-/*! \brief calculate the sortKey that sortes the input sequence
+/*! \brief calculate the sortKey that sorts the input sequence
  *
  * \param[in] inBegin input sequence start 
  * \param[in] inEnd input sequence end
@@ -62,9 +62,9 @@ void computeZorder(InputIterator  xBegin,
     std::size_t n = std::distance(xBegin, xEnd);
 
     std::vector<unsigned> mortonCodes(n); 
-    computeMortonCodes(xBegin, xEnd, yBegin, zBegin, begin(mortonCodes), xmin, xmax, ymin, ymax, zmin, xmax);
+    computeMortonCodes(xBegin, xEnd, yBegin, zBegin, begin(mortonCodes), xmin, xmax, ymin, ymax, zmin, zmax);
 
-    sort_invert(begin(mortonCodes), end(mortonCodes), orderBegin);
+    sort_invert(cbegin(mortonCodes), cend(mortonCodes), orderBegin);
 }
 
 } // namespace sphexa
