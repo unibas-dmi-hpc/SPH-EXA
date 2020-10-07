@@ -10,5 +10,5 @@ export OMP_NUM_THREADS=1
 # to collect advanced nvvp performance data, for example:
 # "::computeMomentumAndEnergyIAD:" 
 
-rm -f report
-nvprof --profile-child-processes -f -o report-%p ./bin/mpi+omp+cuda.app -n 30 -s 2 2>&1
+rm -f report-*
+sudo nvprof --profile-child-processes -f -o report-%p ./bin/mpi+omp+cuda.app -n 30 -s 2 2>&1
