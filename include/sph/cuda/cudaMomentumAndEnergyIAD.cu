@@ -123,23 +123,18 @@ __global__ void computeMomentumAndEnergyIAD(const int n, const T sincIndex, cons
     grad_P_z[i] = momentum_z;
     maxvsignal[i] = maxvsignali;
 }
-
-template <typename T>
-__global__ void findNeighbors(const DeviceLinearOctree<T> o, const int *clist, const int n, const T *x, const T *y, const T *z, const T *h, const T displx,
-                              const T disply, const T displz, const int max, const int may, const int maz, const int ngmax, int *neighbors, int *neighborsCount);
-
 } // namespace kernels
 
 template <typename T, class Dataset>
-void computeMomentumAndEnergyIAD(const LinearOctree<T> &o, const std::vector<Task> &taskList, Dataset &d)
+void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
 {
     const int maz = d.bbox.PBCz ? 2 : 0;
     const int may = d.bbox.PBCy ? 2 : 0;
     const int max = d.bbox.PBCx ? 2 : 0;
     
-    const T displx = o.xmax[0] - o.xmin[0];
-    const T disply = o.ymax[0] - o.ymin[0];
-    const T displz = o.zmax[0] - o.zmin[0];
+    const T displx = d.devPtrs.d_o.xmax0 - d.devPtrs.d_o.xmin0;
+    const T disply = d.devPtrs.d_o.ymax0 - d.devPtrs.d_o.ymin0;
+    const T displz = d.devPtrs.d_o.zmax0 - d.devPtrs.d_o.zmin0;
 
     const size_t np = d.x.size();
     const size_t size_np_T = np * sizeof(T);
@@ -216,7 +211,7 @@ void computeMomentumAndEnergyIAD(const LinearOctree<T> &o, const std::vector<Tas
         const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
         kernels::findNeighbors<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
-            d.d_o, d_clist_use, n, d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
+            d.devPtrs.d_o, d_clist_use, n, d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
         );
 
         kernels::computeMomentumAndEnergyIAD<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
@@ -226,7 +221,7 @@ void computeMomentumAndEnergyIAD(const LinearOctree<T> &o, const std::vector<Tas
         CHECK_CUDA_ERR(cudaGetLastError());
     }
 
-    d.d_o.unmapLinearOctreeFromDevice();
+    //d.devPtrs.d_o.unmapLinearOctreeFromDevice();
 
     CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data(), d.devPtrs.d_grad_P_x, size_np_T, cudaMemcpyDeviceToHost));
     CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data(), d.devPtrs.d_grad_P_y, size_np_T, cudaMemcpyDeviceToHost));
@@ -241,7 +236,7 @@ void computeMomentumAndEnergyIAD(const LinearOctree<T> &o, const std::vector<Tas
         CHECK_CUDA_ERR(utils::cudaFree(d_clist[i], d_neighbors[i], d_neighborsCount[i]));
 }
 
-template void computeMomentumAndEnergyIAD<double, ParticlesData<double>>(const LinearOctree<double> &o, const std::vector<Task> &taskList, ParticlesData<double> &d);
+template void computeMomentumAndEnergyIAD<double, ParticlesData<double>>(const std::vector<Task> &taskList, ParticlesData<double> &d);
 
 } // namespace cuda
 } // namespace sph

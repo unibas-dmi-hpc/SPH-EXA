@@ -22,8 +22,14 @@ struct DeviceLinearOctree
     T *xmin, *xmax, *ymin, *ymax, *zmin, *zmax;
     T xmin0, xmax0, ymin0, ymax0, zmin0, zmax0;
 
+    bool already_mapped = false;
+
     void mapLinearOctreeToDevice(const LinearOctree<T> &o)
     {
+        if (already_mapped)
+        {
+            unmapLinearOctreeFromDevice();
+        }
         size_t size_int = o.size * sizeof(int);
         size_t size_T = o.size * sizeof(T);
 
@@ -51,6 +57,7 @@ struct DeviceLinearOctree
         ymax0 = o.ymax[0];
         zmin0 = o.zmin[0];
         zmax0 = o.zmax[0];
+        already_mapped = true;
     }
 
     void unmapLinearOctreeFromDevice()
@@ -85,7 +92,7 @@ struct DeviceParticlesData
 
     void resize(const ParticleData &pd)
     {
-        if (!allocated)
+        if (!allocated) // this is called twice during generation of dataset and during creation of domain so we should only allocate once
         {
             const size_t np = pd.x.size();
             const size_t size_np_T = np * sizeof(T);

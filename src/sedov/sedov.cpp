@@ -83,17 +83,17 @@ int main(int argc, char **argv)
         timer.step("updateTasks");
         sph::findNeighbors(domain.octree, taskList.tasks, d);
         timer.step("FindNeighbors");
-        if(domain.clist.size() > 0) sph::computeDensity<Real>(domain.octree, taskList.tasks, d);
+        if(domain.clist.size() > 0) sph::computeDensity<Real>(taskList.tasks, d);
         timer.step("Density");
         sph::computeEquationOfStateEvrard<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
         domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
         timer.step("mpi::synchronizeHalos");
-        if(domain.clist.size() > 0) sph::computeIAD<Real>(domain.octree, taskList.tasks, d);
+        if(domain.clist.size() > 0) sph::computeIAD<Real>(taskList.tasks, d);
         timer.step("IAD");
         domain.synchronizeHalos(&d.c11, &d.c12, &d.c13, &d.c22, &d.c23, &d.c33);
         timer.step("mpi::synchronizeHalos");
-        if(domain.clist.size() > 0) sph::computeMomentumAndEnergyIAD<Real>(domain.octree, taskList.tasks, d);
+        if(domain.clist.size() > 0) sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d);
         timer.step("MomentumEnergyIAD");
         sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
         timer.step("Timestep"); // AllReduce(min:dt)

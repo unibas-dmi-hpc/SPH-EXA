@@ -40,23 +40,18 @@ __global__ void density(const int n, const T sincIndex, const T K, const int ngm
 
     ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
 }
-
-template <typename T>
-__global__ void findNeighbors(const DeviceLinearOctree<T> o, const int *clist, const int n, const T *x, const T *y, const T *z, const T *h, const T displx,
-                              const T disply, const T displz, const int max, const int may, const int maz, const int ngmax, int *neighbors, int *neighborsCount);
-
 } // namespace kernels
 
 template <typename T, class Dataset>
-void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Dataset &d)
+void computeDensity(std::vector<Task> &taskList, Dataset &d)
 {
     const int maz = d.bbox.PBCz ? 2 : 0;
     const int may = d.bbox.PBCy ? 2 : 0;
     const int max = d.bbox.PBCx ? 2 : 0;
     
-    const T displx = o.xmax[0] - o.xmin[0];
-    const T disply = o.ymax[0] - o.ymin[0];
-    const T displz = o.zmax[0] - o.zmin[0];
+    const T displx = d.devPtrs.d_o.xmax0 - d.devPtrs.d_o.xmin0;
+    const T disply = d.devPtrs.d_o.ymax0 - d.devPtrs.d_o.ymin0;
+    const T displz = d.devPtrs.d_o.zmax0 - d.devPtrs.d_o.zmin0;
 
     const size_t np = d.x.size();
     const size_t size_np_T = np * sizeof(T);
@@ -109,7 +104,7 @@ void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Datas
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
 
     //DeviceLinearOctree<T> d_o;
-    d.d_o.mapLinearOctreeToDevice(o);
+    //d.devPtrs.d_o.mapLinearOctreeToDevice(o);
 
     for (int i = 0; i < taskList.size(); ++i)
     {
@@ -134,7 +129,7 @@ void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Datas
         const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
         kernels::findNeighbors<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
-            d.d_o, d_clist_use, n, d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
+            d.devPtrs.d_o, d_clist_use, n, d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
         );
 
         // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
@@ -158,7 +153,7 @@ void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Datas
         CHECK_CUDA_ERR(utils::cudaFree(d_clist[i], d_neighbors[i], d_neighborsCount[i]));
 }
 
-template void computeDensity<double, ParticlesData<double>>(const LinearOctree<double> &o, std::vector<Task> &taskList, ParticlesData<double> &d);
+template void computeDensity<double, ParticlesData<double>>(std::vector<Task> &taskList, ParticlesData<double> &d);
 
 } // namespace cuda
 } // namespace sph

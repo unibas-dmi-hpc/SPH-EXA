@@ -113,11 +113,7 @@ struct ParticlesData
     const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
 
 #if defined(USE_CUDA)
-    //ParticlesData() : devPtrs(*this) {};
-
     sph::cuda::DeviceParticlesData<T, ParticlesData> devPtrs;
-
-    sph::cuda::DeviceLinearOctree<T> d_o;
 #endif
 
 #ifdef USE_MPI
