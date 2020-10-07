@@ -181,7 +181,7 @@ nodeRange(unsigned treeLevel)
     // 10 or 21 bits per dimension
     constexpr unsigned nBits = (sizeof(I) * 8) / 3;
 
-    return 1u << (3 * (nBits - treeLevel));
+    return I(1) << (3 * (nBits - treeLevel));
 }
 
 /*! \brief compute morton codes corresponding to neighboring octree nodes
