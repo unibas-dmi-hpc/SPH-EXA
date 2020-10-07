@@ -98,8 +98,8 @@ void sortNeighbors(int *neighbors, int *neighborsCount, int n, int ngmax)
 
 TEST(FindNeighbors, treeLevel)
 {
-    EXPECT_EQ(3, sphexa::treeLevel(0.124, 0., 1., 0., 1., 0., 1.));
-    EXPECT_EQ(2, sphexa::treeLevel(0.126, 0., 1., 0., 1., 0., 1.));
+    EXPECT_EQ(3, sphexa::treeLevel(0.124, 1.));
+    EXPECT_EQ(2, sphexa::treeLevel(0.126, 1.));
 }
 
 TEST(FindNeighbors, fixtureIsSorted)
@@ -133,6 +133,7 @@ TEST(FindNeighbors, randomUniform)
     real radius = 0.124;
 
     real xmin = 0, xmax = 1, ymin = 0, ymax = 1, zmin = 0, zmax = 1;
+    real maxRange = std::max(std::max(xmax - xmin, ymax-ymin), zmax - zmin);
     RandomCoordinates<real, CodeType> coords(n, xmin, xmax, ymin, ymax, zmin, zmax);
 
     std::vector<int> neighborsRef(n * ngmax), neighborsCountRef(n);
@@ -144,7 +145,7 @@ TEST(FindNeighbors, randomUniform)
     for (int i = 0; i < n; ++i)
     {
         sphexa::findNeighbors(i, coords.x().data(), coords.y().data(), coords.z().data(),
-                              radius, {xmin, xmax, ymin, ymax, zmin, zmax}, coords.mortonCodes().data(),
+                              radius, maxRange, coords.mortonCodes().data(),
                               neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
     }
     sortNeighbors(neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
