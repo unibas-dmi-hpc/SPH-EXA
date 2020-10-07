@@ -22,61 +22,40 @@ static inline T distancesq(const T x1, const T y1, const T z1, const T x2, const
 }
 
 template<class T>
-unsigned treeLevel(T radius, T xmin, T xmax, T ymin, T ymax, T zmin, T zmax)
+unsigned treeLevel(T radius, T maxRange)
 {
-    std::array<T, 3> boxRanges{ xmax-xmin, ymax-ymin, zmax-zmin };
-
-    T maxRange = *std::max_element(begin(boxRanges), end(boxRanges));
     T radiusNormalized = radius / maxRange;
-
     return unsigned(-log2(radiusNormalized));
 }
 
 template<class T, class I>
-void findNeighbors(int id, const T* x, const T* y, const T* z, T radius, std::array<T, 6> box,
+void findNeighbors(int id, const T* x, const T* y, const T* z, T radius, T boxMaxRange,
                    const I* mortonCodes, int *neighbors, int *neighborsCount,
                    int n, int ngmax)
 {
     T radiusSq = radius * radius;
-    unsigned depth = treeLevel(radius, box[0], box[1], box[2], box[3], box[4], box[5]);
-    I currentCode = mortonCodes[id];
-    I homeBox     = detail::enclosingBoxCode(currentCode, depth);
+    unsigned depth = treeLevel(radius, boxMaxRange);
+    I mortonCode = mortonCodes[id];
 
-    std::vector<std::tuple<int, int>> ranges;
-    ranges.reserve(27);
+    std::array<I, 27> neighborCodes;
 
     // find neighboring boxes / octree nodes
+    int nBoxes = 0;
     for (int dx = -1; dx < 2; ++dx)
-    {
         for (int dy = -1; dy < 2; ++dy)
-        {
             for (int dz = -1; dz < 2; ++dz)
-            {
-                I neighborStart = mortonNeighbor(homeBox, depth, dx, dy, dz);
-                I neighborEnd   = neighborStart + nodeRange<I>(depth);
+                neighborCodes[nBoxes++] = mortonNeighbor(mortonCode, depth, dx, dy, dz);
 
-                auto itStart = std::lower_bound(mortonCodes, mortonCodes + n, neighborStart);
-                auto itEnd   = std::upper_bound(mortonCodes, mortonCodes + n, neighborEnd);
-
-                int startIndex = std::distance(mortonCodes, itStart);
-                int endIndex   = std::distance(mortonCodes, itEnd);
-
-                ranges.emplace_back(startIndex, endIndex);
-            }
-        }
-    }
-
-    std::sort(begin(ranges), end(ranges));
-    auto last = std::unique(begin(ranges), end(ranges));
-    ranges.erase(last, end(ranges));
+    std::sort(begin(neighborCodes), begin(neighborCodes) + nBoxes);
+    auto last = std::unique(begin(neighborCodes), begin(neighborCodes) + nBoxes);
 
     T xi = x[id], yi = y[id], zi = z[id];
-    int ngcount = 0;
 
-    for (auto range : ranges)
+    int ngcount = 0;
+    for (auto neighbor = begin(neighborCodes); neighbor != last; ++neighbor)
     {
-        auto startIndex = std::get<0>(range);
-        auto endIndex = std::get<1>(range);
+        int startIndex = std::lower_bound(mortonCodes, mortonCodes + n, *neighbor) - mortonCodes;
+        int endIndex   = std::upper_bound(mortonCodes, mortonCodes + n, *neighbor + nodeRange<I>(depth)) - mortonCodes;
 
         for (int j = startIndex; j < endIndex; ++j)
         {
