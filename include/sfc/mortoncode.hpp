@@ -137,6 +137,31 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsig
     return code << discardedBits;
 }
 
+/*! \brief decode a morton code into x,y,z and convert coordinates
+ *
+ * @tparam I 32- or 64-bit unsigned integer
+ * @param code input Morton code
+ * @param treeLevel octree subdivision level
+ * @return array with x, y, z in the range [0, 2^treeLevel-1]
+ */
+template<class I>
+std::array<I, 3> boxCoordinates(I code, unsigned treeLevel)
+{
+    // 10 or 21 bits per dimension
+    constexpr unsigned nBits = (sizeof(I) * 8) / 3;
+
+    // number of bits to discard
+    unsigned discardedBits = nBits - treeLevel;
+
+    code = enclosingBoxCode(code, treeLevel);
+
+    I x = decodeMortonX(code);
+    I y = decodeMortonY(code);
+    I z = decodeMortonZ(code);
+
+    return {x >> discardedBits, y >> discardedBits, z >> discardedBits} ;
+}
+
 }
 
 /*! \brief compute the maximum range of an octree node at a given subdivision level
@@ -156,7 +181,7 @@ nodeRange(unsigned treeLevel)
     // 10 or 21 bits per dimension
     constexpr unsigned nBits = (sizeof(I) * 8) / 3;
 
-    return 3 * (nBits - treeLevel);
+    return 1u << (3 * (nBits - treeLevel));
 }
 
 /*! \brief compute morton codes corresponding to neighboring octree nodes
