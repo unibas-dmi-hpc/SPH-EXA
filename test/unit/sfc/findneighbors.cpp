@@ -102,7 +102,7 @@ TEST(FindNeighbors, treeLevel)
     EXPECT_EQ(2, sphexa::treeLevel(0.126, 1.));
 }
 
-TEST(FindNeighbors, fixtureIsSorted)
+TEST(FindNeighbors, coordinateContainerIsSorted)
 {
     using real = double;
     using CodeType = unsigned;
@@ -123,33 +123,76 @@ TEST(FindNeighbors, fixtureIsSorted)
     EXPECT_EQ(testCodes, testCodesSorted);
 }
 
-TEST(FindNeighbors, randomUniform)
+
+template<class T, class I>
+class NeighborCheck
 {
-    using real = double;
-    using CodeType = unsigned;
+public:
+    NeighborCheck(T r, int np) : radius(r), n(np) {}
 
-    int ngmax = 500;
-    int n = 1000;
-    real radius = 0.124;
-
-    real xmin = 0, xmax = 1, ymin = 0, ymax = 1, zmin = 0, zmax = 1;
-    real maxRange = std::max(std::max(xmax - xmin, ymax-ymin), zmax - zmin);
-    RandomCoordinates<real, CodeType> coords(n, xmin, xmax, ymin, ymax, zmin, zmax);
-
-    std::vector<int> neighborsRef(n * ngmax), neighborsCountRef(n);
-    all2allNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), n, radius,
-                     neighborsRef.data(), neighborsCountRef.data(), ngmax);
-    sortNeighbors(neighborsRef.data(), neighborsCountRef.data(), n, ngmax);
-
-    std::vector<int> neighborsProbe(n * ngmax), neighborsCountProbe(n);
-    for (int i = 0; i < n; ++i)
+    void check()
     {
-        sphexa::findNeighbors(i, coords.x().data(), coords.y().data(), coords.z().data(),
-                              radius, maxRange, coords.mortonCodes().data(),
-                              neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
-    }
-    sortNeighbors(neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
+        using real = T;
+        using CodeType = I;
 
-    EXPECT_EQ(neighborsRef, neighborsProbe);
-    EXPECT_EQ(neighborsCountRef, neighborsCountProbe);
+        int ngmax = 100;
+
+        real xmin = 0, xmax = 1, ymin = 0, ymax = 1, zmin = 0, zmax = 1;
+        real maxRange = std::max(std::max(xmax - xmin, ymax-ymin), zmax - zmin);
+        RandomCoordinates<real, CodeType> coords(n, xmin, xmax, ymin, ymax, zmin, zmax);
+
+        std::vector<int> neighborsRef(n * ngmax), neighborsCountRef(n);
+        all2allNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), n, radius,
+                         neighborsRef.data(), neighborsCountRef.data(), ngmax);
+        sortNeighbors(neighborsRef.data(), neighborsCountRef.data(), n, ngmax);
+
+        std::vector<int> neighborsProbe(n * ngmax), neighborsCountProbe(n);
+        for (int i = 0; i < n; ++i)
+        {
+            sphexa::findNeighbors(i, coords.x().data(), coords.y().data(), coords.z().data(),
+                                  radius, maxRange, coords.mortonCodes().data(),
+                                  neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
+        }
+        sortNeighbors(neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
+
+        EXPECT_EQ(neighborsRef, neighborsProbe);
+        EXPECT_EQ(neighborsCountRef, neighborsCountProbe);
+    }
+
+private:
+    T   radius;
+    int n;
+};
+
+class FindNeighborsRandomUniform : public testing::TestWithParam<std::tuple<double, int>>
+{
+public:
+    template<class I>
+    void check()
+    {
+        double radius     = std::get<0>(GetParam());
+        int    nParticles = std::get<1>(GetParam());
+        {
+            NeighborCheck<double, I> chk(radius, nParticles);
+            chk.check();
+        }
+    }
+};
+
+TEST_P(FindNeighborsRandomUniform, all2allComparison32bit)
+{
+    check<uint32_t>();
 }
+
+TEST_P(FindNeighborsRandomUniform, all2allComparison64bit)
+{
+    check<uint64_t>();
+}
+
+std::array<double, 2> radii{0.124, 0.0624};
+std::array<int, 1>    nParticles{5000};
+
+INSTANTIATE_TEST_SUITE_P(RandomUniformNeighbors,
+                         FindNeighborsRandomUniform,
+                         testing::Combine(testing::ValuesIn(radii),
+                                          testing::ValuesIn(nParticles)));
