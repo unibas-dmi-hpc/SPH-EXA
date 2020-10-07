@@ -81,10 +81,7 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, T radius, T boxMa
     for (auto neighbor = begin(neighborCodes); neighbor != last; ++neighbor)
     {
         int startIndex = std::lower_bound(mortonCodes, mortonCodes + n, *neighbor) - mortonCodes;
-        //int endIndex   = std::upper_bound(mortonCodes, mortonCodes + n, *neighbor + nodeRange<I>(depth)) - mortonCodes;
-        I nrange = nodeRange<I>(depth);
-        I upperCode = *neighbor + nrange;
-        int endIndex = std::upper_bound(mortonCodes, mortonCodes + n, upperCode) - mortonCodes;
+        int endIndex   = std::upper_bound(mortonCodes, mortonCodes + n, *neighbor + nodeRange<I>(depth)) - mortonCodes;
 
         for (int j = startIndex; j < endIndex; ++j)
         {
