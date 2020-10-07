@@ -15,8 +15,8 @@ public:
         : xmin(x1), xmax(x2), ymin(y1), ymax(y2), zmin(z1), zmax(z2),
         x_(n), y_(n), z_(n), codes_(n)
     {
-        std::random_device rd;
-        std::mt19937 gen(rd());
+        //std::random_device rd;
+        std::mt19937 gen(42);
         std::uniform_real_distribution<T> disX(xmin, xmax);
         std::uniform_real_distribution<T> disY(ymin, ymax);
         std::uniform_real_distribution<T> disZ(zmin, zmax);
@@ -64,29 +64,22 @@ private:
     std::vector<I> codes_;
 };
 
-template<class T>
-static inline T distancesq(const T x1, const T y1, const T z1, const T x2, const T y2, const T z2)
-{
-    T xx = x1 - x2;
-    T yy = y1 - y2;
-    T zz = z1 - z2;
-
-    return xx * xx + yy * yy + zz * zz;
-}
 
 //! \brief simple N^2 all-to-all neighbor search
 template<class T>
 void all2allNeighbors(const T* x, const T* y, const T* z, int n, T radius,
                       int *neighbors, int *neighborsCount, int ngmax)
 {
+    T r2 = radius * radius;
     for (int i = 0; i < n; ++i)
     {
         T xi = x[i], yi = y[i], zi = z[i];
 
         int ngcount = 0;
-        for (int j = i + 1; j < n; ++j)
+        for (int j = 0; j < n; ++j)
         {
-            if (ngcount < ngmax && distancesq(xi, yi, zi, x[j], y[j], z[j]) < radius)
+            if (j == i) { continue; }
+            if (ngcount < ngmax && sphexa::distancesq(xi, yi, zi, x[j], y[j], z[j]) < r2)
             {
                 neighbors[i * ngmax + ngcount++] = j;
             }
@@ -137,25 +130,25 @@ TEST(FindNeighbors, randomUniform)
 
     int ngmax = 500;
     int n = 1000;
+    real radius = 0.124;
 
     real xmin = 0, xmax = 1, ymin = 0, ymax = 1, zmin = 0, zmax = 1;
     RandomCoordinates<real, CodeType> coords(n, xmin, xmax, ymin, ymax, zmin, zmax);
 
     std::vector<int> neighborsRef(n * ngmax), neighborsCountRef(n);
-
-    real radius = 0.124;
     all2allNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), n, radius,
                      neighborsRef.data(), neighborsCountRef.data(), ngmax);
     sortNeighbors(neighborsRef.data(), neighborsCountRef.data(), n, ngmax);
 
-    //std::copy(begin(neighbors), begin(neighbors) + neighborsCount[0],
-    //          std::ostream_iterator<int>(std::cout, " "));
-    //std::copy(begin(neighborsCountRef), end(neighborsCountRef),
-    //          std::ostream_iterator<int>(std::cout, " "));
-    //std::cout << std::endl;
+    std::vector<int> neighborsProbe(n * ngmax), neighborsCountProbe(n);
+    for (int i = 0; i < n; ++i)
+    {
+        sphexa::findNeighbors(i, coords.x().data(), coords.y().data(), coords.z().data(),
+                              radius, {xmin, xmax, ymin, ymax, zmin, zmax}, coords.mortonCodes().data(),
+                              neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
+    }
+    sortNeighbors(neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
 
-    //real avg = std::accumulate(begin(neighborsCountRef), end(neighborsCountRef), 0) / real(n);
-    //std::cout << "avg count " << avg << std::endl;
-
-    EXPECT_EQ(coords.x().size(), n);
+    EXPECT_EQ(neighborsRef, neighborsProbe);
+    EXPECT_EQ(neighborsCountRef, neighborsCountProbe);
 }

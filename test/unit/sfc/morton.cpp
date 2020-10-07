@@ -31,7 +31,7 @@ TEST(MortonCode, mortonIndex64) {
     // 21 bit inputs:
     // (2**20, 2**20, 2**20)
     // Morton code is box number 7 (=111) on the first split level, so
-    // 0x0(111)(000)(000)...(000) = 0x7000000000000000lu
+    // 0b0(111)(000)(000)...(000) = 0x7000000000000000lu
 
     std::size_t reference = 0x7000000000000000lu;
     EXPECT_EQ(reference, sphexa::morton3D<std::size_t>(float(x), float(y), float(z)));
@@ -80,6 +80,24 @@ TEST(MortonCode, enclosingBox)
     unsigned code_u = 0x07F00001;
     unsigned reference_u = 0x07E00000;
     EXPECT_EQ(reference_u, sphexa::detail::enclosingBoxCode(code_u, 3));
+}
+
+TEST(MortonCode, boxCoordinates)
+{
+    constexpr unsigned treeLevel = 3;
+    // (5,3,6)
+    unsigned code = 0b00101011110u << (7u*3);
+
+    auto c = sphexa::detail::boxCoordinates(code, treeLevel);
+
+    std::array<unsigned, 3> cref{ 5, 3, 6 };
+    EXPECT_EQ(c, cref);
+
+    unsigned code100 = sphexa::mortonNeighbor(code, treeLevel, 0, 0, 1);
+    std::array<unsigned, 3> c100ref{ 5, 3, 7 };
+    EXPECT_EQ(c100ref, sphexa::detail::boxCoordinates(code100, treeLevel));
+
+
 }
 
 TEST(MortonCode, mortonNeighbor32)
