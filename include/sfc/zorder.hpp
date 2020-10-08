@@ -57,12 +57,12 @@ void computeZorder(InputIterator  xBegin,
                    InputIterator  yBegin,
                    InputIterator  zBegin,
                    OutputIterator orderBegin,
-                   T xmin, T xmax, T ymin, T ymax, T zmin, T zmax)
+                   const Box<T>&  box)
 {
     std::size_t n = std::distance(xBegin, xEnd);
 
     std::vector<unsigned> mortonCodes(n); 
-    computeMortonCodes(xBegin, xEnd, yBegin, zBegin, begin(mortonCodes), xmin, xmax, ymin, ymax, zmin, zmax);
+    computeMortonCodes(xBegin, xEnd, yBegin, zBegin, begin(mortonCodes), box);
 
     sort_invert(cbegin(mortonCodes), cend(mortonCodes), orderBegin);
 }
