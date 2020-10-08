@@ -25,9 +25,9 @@ static inline T distancesq(const T x1, const T y1, const T z1, const T x2, const
  *         one dimension is bigger or equal than the search radius
  */
 template<class T>
-unsigned treeLevel(T radius, T maxRange)
+unsigned treeLevel(T radius, T minRange)
 {
-    T radiusNormalized = radius / maxRange;
+    T radiusNormalized = radius / minRange;
     return unsigned(-log2(radiusNormalized));
 }
 
@@ -55,12 +55,12 @@ unsigned treeLevel(T radius, T maxRange)
  * \param[in] ngmax maximum number of neighbors per particle
  */
 template<class T, class I>
-void findNeighbors(int id, const T* x, const T* y, const T* z, T radius, T boxMaxRange,
+void findNeighbors(int id, const T* x, const T* y, const T* z, T radius, T boxMinRange,
                    const I* mortonCodes, int *neighbors, int *neighborsCount,
                    int n, int ngmax)
 {
     T radiusSq = radius * radius;
-    unsigned depth = treeLevel(radius, boxMaxRange);
+    unsigned depth = treeLevel(radius, boxMinRange);
     I mortonCode = mortonCodes[id];
 
     std::array<I, 27> neighborCodes;
