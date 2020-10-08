@@ -11,15 +11,14 @@ class RandomCoordinates
 {
 public:
 
-    RandomCoordinates(int n, T x1, T x2, T y1, T y2, T z1, T z2)
-        : xmin(x1), xmax(x2), ymin(y1), ymax(y2), zmin(z1), zmax(z2),
-        x_(n), y_(n), z_(n), codes_(n)
+    RandomCoordinates(int n, sphexa::Box<T> box)
+        : box_(std::move(box)), x_(n), y_(n), z_(n), codes_(n)
     {
         //std::random_device rd;
         std::mt19937 gen(42);
-        std::uniform_real_distribution<T> disX(xmin, xmax);
-        std::uniform_real_distribution<T> disY(ymin, ymax);
-        std::uniform_real_distribution<T> disZ(zmin, zmax);
+        std::uniform_real_distribution<T> disX(box_.xmin(), box_.xmax());
+        std::uniform_real_distribution<T> disY(box_.ymin(), box_.ymax());
+        std::uniform_real_distribution<T> disZ(box_.zmin(), box_.zmax());
 
         auto randX = [&disX, &gen]() { return disX(gen); };
         auto randY = [&disY, &gen]() { return disY(gen); };
@@ -29,8 +28,8 @@ public:
         std::generate(begin(y_), end(y_), randY);
         std::generate(begin(z_), end(z_), randZ);
 
-        sphexa::computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_), begin(codes_),
-                                   xmin, xmax, ymin, ymax, zmin, zmax);
+        sphexa::computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_),
+                                   begin(codes_), box);
 
         std::vector<I> mortonOrder(n);
         sphexa::sort_invert(cbegin(codes_), cend(codes_), begin(mortonOrder));
@@ -46,7 +45,6 @@ public:
     const std::vector<T>& z() const { return z_; }
     const std::vector<I>& mortonCodes() const { return codes_; }
 
-    T xmin, xmax, ymin, ymax, zmin, zmax;
 private:
 
     template<class ValueType>
@@ -60,6 +58,7 @@ private:
         std::swap(tmp, array);
     }
 
+    sphexa::Box<T> box_;
     std::vector<T> x_, y_, z_;
     std::vector<I> codes_;
 };
@@ -108,12 +107,12 @@ TEST(FindNeighbors, coordinateContainerIsSorted)
     using CodeType = unsigned;
     int n = 10;
 
-    real xmin = 0, xmax = 1, ymin = 0, ymax = 1, zmin = 0, zmax = 1;
-    RandomCoordinates<real, CodeType> c(n, xmin, xmax, ymin, ymax, zmin, zmax);
+    sphexa::Box<real> box{ 0, 1, 0, 1, 0, 1 };
+    RandomCoordinates<real, CodeType> c(n, box);
 
     std::vector<CodeType> testCodes(n);
     sphexa::computeMortonCodes(begin(c.x()), end(c.x()), begin(c.y()), begin(c.z()),
-                               begin(testCodes), xmin, xmax, ymin, ymax, zmin, zmax);
+                               begin(testCodes), box);
 
     EXPECT_EQ(testCodes, c.mortonCodes());
 
@@ -137,9 +136,9 @@ public:
 
         int ngmax = 100;
 
-        real xmin = 0, xmax = 1, ymin = 0, ymax = 1, zmin = 0, zmax = 1;
-        real maxRange = std::max(std::max(xmax - xmin, ymax-ymin), zmax - zmin);
-        RandomCoordinates<real, CodeType> coords(n, xmin, xmax, ymin, ymax, zmin, zmax);
+        sphexa::Box<real> box{ 0, 1, 0, 1, 0, 1 };
+        real maxRange = std::max(std::max(box.xmax() - box.xmin(), box.ymax()-box.ymin()), box.zmax() - box.zmin());
+        RandomCoordinates<real, CodeType> coords(n, box);
 
         std::vector<int> neighborsRef(n * ngmax), neighborsCountRef(n);
         all2allNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), n, radius,

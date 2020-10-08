@@ -183,6 +183,7 @@ TEST(MortonCode, mortonCodesSequence)
 
     constexpr double boxMin = -1;
     constexpr double boxMax = 1;
+    sphexa::Box<double> box(boxMin, boxMax);
 
     std::vector<double> x{-0.5, 0.5, -0.5, 0.5};
     std::vector<double> y{-0.5, 0.5, 0.5, -0.5};
@@ -196,7 +197,7 @@ TEST(MortonCode, mortonCodesSequence)
     }
 
     std::vector<unsigned> probe(x.size());
-    sphexa::computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(probe), boxMin, boxMax, boxMin, boxMax, boxMin, boxMax);
+    sphexa::computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(probe), box);
 
     EXPECT_EQ(probe, reference);
 }

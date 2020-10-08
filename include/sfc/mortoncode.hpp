@@ -3,6 +3,8 @@
 #include <array>
 #include <cassert>
 
+#include "box.hpp"
+
 namespace sphexa
 {
 
@@ -273,16 +275,16 @@ void computeMortonCodes(InputIterator  xBegin,
                         InputIterator  yBegin,
                         InputIterator  zBegin,
                         OutputIterator codesBegin,
-                        T xmin, T xmax, T ymin, T ymax, T zmin, T zmax)
+                        const Box<T>& box)
 {
     using detail::normalize;
     using Integer = std::decay_t<decltype(*codesBegin)>;
 
     while (xBegin != xEnd)
     {
-        *codesBegin++ = morton3D<Integer>(normalize(*xBegin++, xmin, xmax),
-                                          normalize(*yBegin++, ymin, ymax),
-                                          normalize(*zBegin++, zmin, zmax));
+        *codesBegin++ = morton3D<Integer>(normalize(*xBegin++, box.xmin(), box.xmax()),
+                                          normalize(*yBegin++, box.ymin(), box.ymax()),
+                                          normalize(*zBegin++, box.zmin(), box.zmax()));
     }
 }
 

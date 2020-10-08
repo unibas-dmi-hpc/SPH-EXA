@@ -12,7 +12,7 @@ TEST(SFC, sortInvert)
 {
     std::vector<int> v{2,1,5,4};
 
-    // the sort keys that sorts v is be {1,0,3,2}
+    // the sort keys that sorts v is {1,0,3,2}
     std::vector<int> sortKey(v.size());
 
     sphexa::sort_invert(begin(v), end(v), begin(sortKey));
@@ -27,6 +27,7 @@ TEST(SFC, computeZorder)
     // assume BBox of [-1, 1]^3
     constexpr double boxMin = -1;
     constexpr double boxMax = 1;
+    sphexa::Box<double> box{boxMin, boxMax};
 
     // 8 particles, each centered in each of the 8 octants,
     // Z-indices            4    5      1     6     3     0     2    7
@@ -40,8 +41,7 @@ TEST(SFC, computeZorder)
     std::vector<unsigned> reference{5,2,6,4,0,1,3,7};
 
     std::vector<unsigned> zOrder(x.size());
-    sphexa::computeZorder(begin(x), end(x), begin(y), begin(z), begin(zOrder),
-                          boxMin, boxMax, boxMin, boxMax, boxMin, boxMax);
+    sphexa::computeZorder(begin(x), end(x), begin(y), begin(z), begin(zOrder), box);
 
     EXPECT_EQ(zOrder, reference);
 }
