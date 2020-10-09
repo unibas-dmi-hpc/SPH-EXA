@@ -82,22 +82,54 @@ TEST(MortonCode, enclosingBox)
     EXPECT_EQ(reference_u, sphexa::detail::enclosingBoxCode(code_u, 3));
 }
 
-TEST(MortonCode, boxCoordinates)
+TEST(MortonCode, boxCoordinates32)
 {
     constexpr unsigned treeLevel = 3;
     // (5,3,6)
     unsigned code = 0b00101011110u << (7u*3);
 
-    auto c = sphexa::detail::boxCoordinates(code, treeLevel);
+    auto c = sphexa::detail::boxFromCode(code, treeLevel);
 
     std::array<unsigned, 3> cref{ 5, 3, 6 };
     EXPECT_EQ(c, cref);
+}
 
-    unsigned code100 = sphexa::mortonNeighbor(code, treeLevel, 0, 0, 1);
-    std::array<unsigned, 3> c100ref{ 5, 3, 7 };
-    EXPECT_EQ(c100ref, sphexa::detail::boxCoordinates(code100, treeLevel));
+TEST(MortonCode, boxCoordinates64)
+{
+    constexpr unsigned treeLevel = 3;
+    // (5,3,6)
+    uint64_t inputCode = 0b0101011110ul << (18u*3);
 
+    auto c = sphexa::detail::boxFromCode(inputCode, treeLevel);
 
+    std::array<unsigned, 3> cref{ 5, 3, 6 };
+    EXPECT_EQ(c, cref);
+}
+
+TEST(MortonCode, codeFromBox32)
+{
+    using CodeType = unsigned;
+
+    constexpr unsigned treeLevel = 3;
+    std::array<unsigned, 3> box{ 5, 3, 6 };
+
+    CodeType testCode = sphexa::detail::codeFromBox<CodeType>(box, treeLevel);
+
+    std::array<unsigned, 3> testBox = sphexa::detail::boxFromCode(testCode, treeLevel);
+    EXPECT_EQ(testBox, box);
+}
+
+TEST(MortonCode, codeFromBox64)
+{
+    using CodeType = uint64_t;
+
+    constexpr unsigned treeLevel = 3;
+    std::array<unsigned, 3> box{ 5, 3, 6 };
+
+    CodeType testCode = sphexa::detail::codeFromBox<CodeType>(box, treeLevel);
+
+    std::array<unsigned, 3> testBox = sphexa::detail::boxFromCode(testCode, treeLevel);
+    EXPECT_EQ(testBox, box);
 }
 
 TEST(MortonCode, mortonNeighbor32)

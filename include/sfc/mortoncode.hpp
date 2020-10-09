@@ -139,15 +139,15 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsig
     return code << discardedBits;
 }
 
-/*! \brief decode a morton code into x,y,z and convert coordinates
+/*! \brief Decode a morton code into x,y,z and convert coordinates
  *
- * @tparam I 32- or 64-bit unsigned integer
- * @param code input Morton code
- * @param treeLevel octree subdivision level
- * @return array with x, y, z in the range [0, 2^treeLevel-1]
+ * \tparam I         32- or 64-bit unsigned integer
+ * \param code       input Morton code
+ * \param treeLevel  octree subdivision level
+ * \return           array with x,y,z in the range [0, 2^treeLevel-1]
  */
 template<class I>
-std::array<I, 3> boxCoordinates(I code, unsigned treeLevel)
+std::array<unsigned, 3> boxFromCode(I code, unsigned treeLevel)
 {
     // 10 or 21 bits per dimension
     constexpr unsigned nBits = (sizeof(I) * 8) / 3;
@@ -161,7 +161,33 @@ std::array<I, 3> boxCoordinates(I code, unsigned treeLevel)
     I y = decodeMortonY(code);
     I z = decodeMortonZ(code);
 
-    return {x >> discardedBits, y >> discardedBits, z >> discardedBits} ;
+    return { unsigned(x >> discardedBits), unsigned(y >> discardedBits), unsigned(z >> discardedBits)} ;
+}
+
+/*! \brief Calculate the morton code corresponding to integer input box coordinates
+ *         at a given tree subdivision level. Inverts boxCoordinates.
+ *
+ * \tparam I         32- or 64-bit unsigned integer
+ * \param xyz        input integer box coordinates, must be in the range [0, 2^treeLevel-1]
+ * \param treeLevel  octree subdivison level
+ * \return           the morton code
+ */
+template<class I>
+I codeFromBox(std::array<unsigned, 3> xyz, unsigned treeLevel)
+{
+    constexpr unsigned nBits = (sizeof(I) * 8) / 3;
+    unsigned shifts = nBits - treeLevel;
+
+    assert( xyz[0] < (1u << treeLevel));
+    assert( xyz[1] < (1u << treeLevel));
+    assert( xyz[2] < (1u << treeLevel));
+
+    I xx = detail::expandBits(I(xyz[0]) << shifts);
+    I yy = detail::expandBits(I(xyz[1]) << shifts);
+    I zz = detail::expandBits(I(xyz[2]) << shifts);
+
+    // interleave the x, y, z components
+    return xx * 4 + yy * 2 + zz;
 }
 
 }
