@@ -202,11 +202,20 @@ TEST(MortonCode, mortonNeighbor64)
     }
 }
 
-TEST(MortonCode, mortonIndices)
+TEST(MortonCode, mortonIndices32)
 {
-    EXPECT_EQ(0x08000000, sphexa::mortonFromIndices({1}));
-    EXPECT_EQ(0x09000000, sphexa::mortonFromIndices({1,1}));
-    EXPECT_EQ(0x09E00000, sphexa::mortonFromIndices({1,1,7}));
+    using CodeType = unsigned;
+    EXPECT_EQ(0x08000000, sphexa::detail::codeFromIndices<CodeType>({1}));
+    EXPECT_EQ(0x09000000, sphexa::detail::codeFromIndices<CodeType>({1,1}));
+    EXPECT_EQ(0x09E00000, sphexa::detail::codeFromIndices<CodeType>({1,1,7}));
+}
+
+TEST(MortonCode, mortonIndices64)
+{
+    using CodeType = uint64_t;
+    EXPECT_EQ(0b0001lu << 60u, sphexa::detail::codeFromIndices<CodeType>({1}));
+    EXPECT_EQ(0b0001001lu << 57u, sphexa::detail::codeFromIndices<CodeType>({1,1}));
+    EXPECT_EQ(0b0001001111lu << 54u, sphexa::detail::codeFromIndices<CodeType>({1,1,7}));
 }
 
 TEST(MortonCode, mortonCodesSequence)
