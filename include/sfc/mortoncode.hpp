@@ -190,6 +190,33 @@ I codeFromBox(std::array<unsigned, 3> xyz, unsigned treeLevel)
     return xx * 4 + yy * 2 + zz;
 }
 
+/*! \brief transfer a series of hierarchical octree indices into a morton code
+ *
+ * \tparam I       32- or 64-bit unsigned integer
+ * \param indices  indices[0] contains the octree index 0-7 for the top-level,
+ *                 indices[1] refers to the first subdivision, etc
+ *                 a 32-bit integer can resolve up to 10 layers, while
+ *                 a 64-bit integer can resolve 21 layers
+ *
+ *                 Note: all indices must be in the range [0-7]!
+ *
+ * \return         the morton code
+ */
+template<class I>
+inline I codeFromIndices(std::array<unsigned char, 21> indices)
+{
+    constexpr unsigned nLevels = (sizeof(I) * 8) / 3;
+
+    I ret = 0;
+    for(unsigned idx = 0; idx < nLevels; ++idx)
+    {
+        unsigned treeLevel = nLevels - idx - 1;
+        ret += I(indices[idx]) << (3*treeLevel);
+    }
+
+    return ret;
+}
+
 }
 
 /*! \brief compute the maximum range of an octree node at a given subdivision level
@@ -257,30 +284,6 @@ mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz)
          + detail::expandBits(I(z));
 }
 
-
-/*! \brief transfer a series of octree indices into a morton code
- *
- * \param indices indices[0] contains the octree index 0-7 for the top-level,
- *                 indices[1] reference to the first subdivision, etc
- *                 a 32-bit integer can resolve up to 10 layers
- * \return the morton code
- */
-static unsigned mortonFromIndices(std::array<unsigned char, 10> indices)
-{
-    unsigned ret = 0;
-    ret += indices[0] << 27u;
-    ret += indices[1] << 24u;
-    ret += indices[2] << 21u;
-    ret += indices[3] << 18u;
-    ret += indices[4] << 15u;
-    ret += indices[5] << 12u;
-    ret += indices[6] << 9u;
-    ret += indices[7] << 6u;
-    ret += indices[8] << 3u;
-    ret += indices[9];
-
-    return ret;
-}
 
 namespace detail {
 
