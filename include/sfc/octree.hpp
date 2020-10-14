@@ -40,7 +40,7 @@ struct SfcNode
  * \param[in] bucketSize  determine size of octree nodes such that
  *                        (leaf node).count < bucketSize
  *                        and for their parents (<=> internal nodes)
- *                        (parent node). count >= bucketSize
+ *                        (parent node).count >= bucketSize
  *
  * \return vector with the sorted octree leaf nodes
  */
@@ -48,6 +48,19 @@ template<class I>
 std::vector<SfcNode<I>> generateOctree(const std::vector<I>& mortonCodes, unsigned bucketSize)
 {
     std::vector<SfcNode<I>> ret;
+
+    unsigned n = mortonCodes.size();
+    unsigned i = 0;
+    while (i < n)
+    {
+        I code = mortonCodes[i];
+        unsigned upperIndex = std::min(n, i + bucketSize);
+        I upperCode = mortonCodes[upperIndex];
+        unsigned nzeros = __builtin_clz(upperCode);
+
+    }
+
+
 
     return ret;
 }
