@@ -1,10 +1,11 @@
 #pragma once
 
-#include <vector>
+#include <iostream>
 
 namespace detail
 {
 
+//! \brief count leading zeros, does not handle an input of 0
 static int clz32(uint32_t x)
 {
     static const int debruijn32[32] = {0, 31, 9, 30, 3, 8,  13, 29, 2,  5,  7,  21, 12, 24, 28, 19,
@@ -15,9 +16,10 @@ static int clz32(uint32_t x)
     x |= x >> 8u;
     x |= x >> 16u;
     x++;
-    return debruijn32[x * 0x076be629 >> 27];
+    return debruijn32[x * 0x076be629 >> 27u];
 }
 
+//! \brief count leading zeros, does not handle an input of 0
 static int clz64(uint64_t x)
 {
     static const int debruijn64[64] = {0,  47, 1,  56, 48, 27, 2,  60, 57, 49, 41, 37, 28, 16, 3,  61, 54, 58, 35, 52, 50, 42,
@@ -36,8 +38,16 @@ static int clz64(uint64_t x)
 
 } // namespace detail
 
+/*! \brief count leading zeros, for 32 and 64 bit integers,
+ *         return the number of bits in the input type for an input value of 0
+ *
+ * \tparam I  32- or 64-bit unsigned integer type
+ * \param x   input number
+ * \return    number of leading zeros, or the number of bits in the input type
+ *            for an input value of 0
+ */
 template<class I>
-int clz(I x)
+int countLeadingZeros(I x)
 {
     // with GCC and clang, we can use the builtin implementation
     // this also works with the intel compiler, which also defines __GNUC__

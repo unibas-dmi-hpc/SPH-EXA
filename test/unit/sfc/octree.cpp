@@ -84,7 +84,6 @@ public:
     {
     }
 
-private:
     std::vector<I> codes;
     // expected resulting tree
     std::vector<sphexa::SfcNode<I>> nodes;
@@ -92,9 +91,12 @@ private:
 
 TEST(Octree, construct)
 {
-    unsigned bucketSize = 2;
+    using CodeType = unsigned;
+    unsigned bucketSize = 8;
 
-    std::vector<unsigned> codes;
+    ExampleOctree<CodeType> tree;
 
-    sphexa::generateOctree(codes, bucketSize);
+    //auto leafs = sphexa::generateOctree(tree.codes, bucketSize);
+
+    //EXPECT_EQ(leafs[0], tree.nodes[0]);
 }
