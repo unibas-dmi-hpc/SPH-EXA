@@ -34,7 +34,7 @@ TEST(CLZ, builtin_clz_32)
 
     std::vector<unsigned> probes;
     for (unsigned i : inputs)
-        probes.push_back(clz(i));
+        probes.push_back(countLeadingZeros(i));
 
     EXPECT_EQ(probes, references);
 }
@@ -46,7 +46,7 @@ TEST(CLZ, builtin_clz_64)
 
     std::vector<int> probes;
     for (auto i : inputs)
-        probes.push_back(clz(i));
+        probes.push_back(countLeadingZeros(i));
 
     EXPECT_EQ(probes, references);
 }

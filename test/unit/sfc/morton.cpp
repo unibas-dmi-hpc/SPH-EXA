@@ -71,7 +71,7 @@ TEST(MortonCode, decodeMorton64)
     EXPECT_EQ(1u<<20u, sphexa::decodeMortonZ(code));
 }
 
-TEST(MortonCode, enclosingBox)
+TEST(MortonCode, enclosingBoxTrim)
 {
     std::size_t code      = 0x0FF0000000000001;
     std::size_t reference = 0x0FC0000000000000;
@@ -80,6 +80,61 @@ TEST(MortonCode, enclosingBox)
     unsigned code_u = 0x07F00001;
     unsigned reference_u = 0x07E00000;
     EXPECT_EQ(reference_u, sphexa::detail::enclosingBoxCode(code_u, 3));
+}
+
+TEST(MortonCode, enclosingBoxMaxLevel32)
+{
+    using CodeType = unsigned;
+    CodeType code  = 0x0FF00001;
+    CodeType probe = sphexa::detail::enclosingBoxCode(code, sphexa::maxTreeLevel<CodeType>{});
+    EXPECT_EQ(probe, code);
+}
+
+TEST(MortonCode, enclosingBoxMaxLevel64)
+{
+    using CodeType = uint64_t;
+    CodeType code  = 0x0FF0000000000001;
+    CodeType probe = sphexa::detail::enclosingBoxCode(code, sphexa::maxTreeLevel<CodeType>{});
+    EXPECT_EQ(probe, code);
+}
+
+TEST(MortonCode, smallestCommonBoxEqualCode)
+{
+    using CodeType = unsigned;
+    CodeType code = 0;
+    auto probe = sphexa::smallestCommonBox(code, code);
+    std::tuple<CodeType, CodeType> reference{code, code + 1};
+    EXPECT_EQ(probe, reference);
+}
+
+TEST(MortonCode, smallestCommonBoxL1)
+{
+    using CodeType = unsigned;
+    CodeType code1 = 0b00001001u << 24u;
+    CodeType code2 = 0b00001010u << 24u;
+    auto probe = sphexa::smallestCommonBox(code1, code2);
+    std::tuple<CodeType, CodeType> reference{0b00001000u<<24u, 0b000010000u << 24u};
+    EXPECT_EQ(probe, reference);
+}
+
+TEST(MortonCode, smallestCommonBoxL0_32)
+{
+    using CodeType = unsigned;
+    CodeType code1 = 0b00000001u << 24u;
+    CodeType code2 = 0b00001010u << 24u;
+    auto probe = sphexa::smallestCommonBox(code1, code2);
+    std::tuple<CodeType, CodeType> reference{0u, 0b01u << 30u};
+    EXPECT_EQ(probe, reference);
+}
+
+TEST(MortonCode, smallestCommonBoxL0_64)
+{
+    using CodeType = uint64_t;
+    CodeType code1 = 0b0000001lu << 57u;
+    CodeType code2 = 0b0001010lu << 57u;
+    auto probe = sphexa::smallestCommonBox(code1, code2);
+    std::tuple<CodeType, CodeType> reference{0lu, 1lu << 63u};
+    EXPECT_EQ(probe, reference);
 }
 
 TEST(MortonCode, boxCoordinates32)

@@ -4,9 +4,24 @@
 #include <cassert>
 
 #include "box.hpp"
+#include "clz.hpp"
 
 namespace sphexa
 {
+
+//! \brief number of unused leading zeros in a 32-bit Morton code
+template<class I>
+struct unusedBits : std::integral_constant<unsigned, 2> {};
+
+//! \brief number of unused leading zeros in a 64-bit Morton code
+template<>
+struct unusedBits<uint64_t> : std::integral_constant<unsigned, 1> {};
+
+template<class I>
+struct maxTreeLevel : std::integral_constant<unsigned, 10> {};
+
+template<>
+struct maxTreeLevel<uint64_t> : std::integral_constant<unsigned, 21> {};
 
 namespace detail
 {
@@ -236,7 +251,33 @@ nodeRange(unsigned treeLevel)
     // 10 or 21 bits per dimension
     constexpr unsigned nBits = (sizeof(I) * 8) / 3;
 
-    return I(1) << (3 * (nBits - treeLevel));
+    I ret = I(1) << (3 * (nBits - treeLevel));
+    return ret;
+}
+
+/*! \brief compute an enclosing envelope corresponding to the smallest possible
+ *         octree node for two input Morton codes
+ *
+ * \tparam I              32- or 64-bit unsigned integer type
+ * \param[in] firstCode   lower Morton code
+ * \param[in] secondCode  upper Morton code
+ *
+ * \return                two morton codes that delineate the start and end of
+ *                        the smallest octree node that contains both input codes
+ */
+template<class I>
+inline std::tuple<I, I> smallestCommonBox(I firstCode, I secondCode)
+{
+    assert(firstCode <= secondCode);
+
+    // XOR for superposition, followed by leading zero count
+    // yields number of identical bits, counting from MSB to first differing bit
+    unsigned commonBits = countLeadingZeros(firstCode ^ secondCode);
+
+    unsigned commonLevel = (commonBits - unusedBits<I>{}) / 3;
+    I        nodeStart   = detail::enclosingBoxCode(firstCode, commonLevel);
+
+    return std::make_tuple(nodeStart, nodeStart + nodeRange<I>(commonLevel));
 }
 
 /*! \brief compute morton codes corresponding to neighboring octree nodes
