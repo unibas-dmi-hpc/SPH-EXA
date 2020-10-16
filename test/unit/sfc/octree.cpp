@@ -262,7 +262,7 @@ TEST(Octree, trim10b)
 class RandomBoxTrimmer : public testing::TestWithParam<int>
 {
 public:
-    template<class I>
+    template<class I, template <class...> class CoordinateType>
     void check(int bucketSize)
     {
         using CodeType = I;
@@ -271,7 +271,8 @@ public:
         unsigned n = 100000;
         //unsigned bucketSize = 64;
 
-        RandomCoordinates<double, CodeType> randomBox(n, box);
+        //RandomCoordinates<double, CodeType> randomBox(n, box);
+        CoordinateType<double, CodeType> randomBox(n, box);
 
         auto trimmedZCurve = sphexa::trimZCurve(randomBox.mortonCodes(), bucketSize);
 
@@ -297,14 +298,24 @@ public:
     }
 };
 
-TEST_P(RandomBoxTrimmer, trimRandomBox32)
+TEST_P(RandomBoxTrimmer, trimRandomUniform32)
 {
-    check<unsigned>(GetParam());
+    check<unsigned, RandomCoordinates>(GetParam());
 }
 
-TEST_P(RandomBoxTrimmer, trimRandomBox64)
+TEST_P(RandomBoxTrimmer, trimRandomUniform64)
 {
-    check<uint64_t>(GetParam());
+    check<uint64_t, RandomCoordinates>(GetParam());
+}
+
+TEST_P(RandomBoxTrimmer, trimRandomNormal32)
+{
+    check<unsigned, RandomGaussianCoordinates>(GetParam());
+}
+
+TEST_P(RandomBoxTrimmer, trimRandomNormal64)
+{
+    check<uint64_t, RandomGaussianCoordinates>(GetParam());
 }
 
 std::array<int, 3> bucketSizes{64, 1024, 10000};

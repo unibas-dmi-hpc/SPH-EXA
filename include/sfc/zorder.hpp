@@ -10,6 +10,7 @@
 
 namespace sphexa
 {
+
 /*! \brief calculate the sortKey that sorts the input sequence
  *
  * \param[in] inBegin input sequence start 
@@ -45,6 +46,7 @@ void sort_invert(InputIterator inBegin, InputIterator inEnd, OutputIterator outB
                    [](const auto& tuple) { return std::get<1>(tuple); } );
 }
 
+
 /*! \brief compute the Morton z-order for the input coordinate arrays
  *
  * \param[in]  [x,y,z][Begin, End] (const) input iterators for coordinate arrays
@@ -65,6 +67,25 @@ void computeZorder(InputIterator  xBegin,
     computeMortonCodes(xBegin, xEnd, yBegin, zBegin, begin(mortonCodes), box);
 
     sort_invert(cbegin(mortonCodes), cend(mortonCodes), orderBegin);
+}
+
+
+/*! \brief reorder the input array according to the specified ordering
+ *
+ * \tparam I          integer type
+ * \tparam ValueType  float or double
+ * \param ordering    an ordering
+ * \param array       an array
+ */
+template<class I, class ValueType>
+void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array)
+{
+    std::vector<ValueType> tmp(array.size());
+    for (std::size_t i = 0; i < array.size(); ++i)
+    {
+        tmp[i] = array[ordering[i]];
+    }
+    std::swap(tmp, array);
 }
 
 } // namespace sphexa
