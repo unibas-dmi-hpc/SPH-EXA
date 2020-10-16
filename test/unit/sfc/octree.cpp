@@ -4,6 +4,8 @@
 #include "sfc/mortoncode.hpp"
 #include "sfc/octree.hpp"
 
+#include "randombox.hpp"
+
 using sphexa::detail::codeFromIndices;
 
 template <class I>
@@ -256,3 +258,55 @@ TEST(Octree, trim10b)
     EXPECT_EQ(leaves[1], node1);
     EXPECT_EQ(leaves[2], node2);
 }
+
+class RandomBoxTrimmer : public testing::TestWithParam<int>
+{
+public:
+    template<class I>
+    void check(int bucketSize)
+    {
+        using CodeType = I;
+        sphexa::Box<double> box{0, 1};
+
+        unsigned n = 100000;
+        //unsigned bucketSize = 64;
+
+        RandomCoordinates<double, CodeType> randomBox(n, box);
+
+        auto trimmedZCurve = sphexa::trimZCurve(randomBox.mortonCodes(), bucketSize);
+
+        std::cout << "number of nodes: " << trimmedZCurve.size() << std::endl;
+
+        // check that nodes don't overlap
+        for (int ni = 0; ni + 1 < trimmedZCurve.size(); ++ni)
+        {
+            EXPECT_TRUE(trimmedZCurve[ni].endCode <= trimmedZCurve[ni + 1].startCode);
+        }
+
+        // check that referenced particles are within specified range
+        for (const auto &node : trimmedZCurve)
+        {
+            for (int i = node.coordinateIndex; i < node.coordinateIndex + node.count; ++i)
+            {
+                // note: assumes x,y,z already normalized in [0,1]
+                CodeType iCode = sphexa::morton3D<CodeType>(randomBox.x()[i], randomBox.y()[i], randomBox.z()[i]);
+                EXPECT_TRUE(node.startCode <= iCode);
+                EXPECT_TRUE(iCode < node.endCode);
+            }
+        }
+    }
+};
+
+TEST_P(RandomBoxTrimmer, trimRandomBox32)
+{
+    check<unsigned>(GetParam());
+}
+
+TEST_P(RandomBoxTrimmer, trimRandomBox64)
+{
+    check<uint64_t>(GetParam());
+}
+
+std::array<int, 3> bucketSizes{64, 1024, 10000};
+
+INSTANTIATE_TEST_SUITE_P(TrimRandomBox, RandomBoxTrimmer, testing::ValuesIn(bucketSizes));
