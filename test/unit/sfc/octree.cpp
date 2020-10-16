@@ -269,9 +269,7 @@ public:
         sphexa::Box<double> box{0, 1};
 
         unsigned n = 100000;
-        //unsigned bucketSize = 64;
 
-        //RandomCoordinates<double, CodeType> randomBox(n, box);
         CoordinateType<double, CodeType> randomBox(n, box);
 
         auto trimmedZCurve = sphexa::trimZCurve(randomBox.mortonCodes(), bucketSize);
