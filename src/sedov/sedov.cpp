@@ -58,21 +58,16 @@ int main(int argc, char **argv)
     Tree::minGlobalBucketSize = std::pow(2,12);
     Tree::maxGlobalBucketSize = std::pow(2,14);//1048576;
     domain.create(d);
-
     if(d.rank == 0) std::cout << "Domain created." << std::endl;
-
     const size_t nTasks = 256;
     const size_t ngmax = 150;
     const size_t ng0 = 100;
     TaskList taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
-
     if(d.rank == 0) std::cout << "Starting main loop." << std::endl;
-
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
         timer.start();
-
         domain.update(d);
         timer.step("domain::distribute");
         domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
@@ -103,9 +98,7 @@ int main(int argc, char **argv)
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
         sph::updateSmoothingLength<Real>(taskList.tasks, d);
         timer.step("UpdateSmoothingLength");
-
         const size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
-
         if (d.rank == 0)
         {
             printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, output);
@@ -114,8 +107,12 @@ int main(int argc, char **argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
+#ifdef USE_H5
+            fileWriter.dumpParticleDataToH5File(d, domain.clist, outDirectory + "dump_Sedov.h5");
+#else
             //fileWriter.dumpParticleDataToAsciiFile(d, domain.clist, outDirectory + "dump_Sedov" + std::to_string(d.iteration) + ".txt");
             fileWriter.dumpParticleDataToBinFile(d, outDirectory + "dump_Sedov" + std::to_string(d.iteration) + ".bin");
+#endif
             timer.step("writeFile");
         }
 
@@ -125,7 +122,6 @@ int main(int argc, char **argv)
     }
 
     totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Sedov");
-
     constantsFile.close();
 
     return exitSuccess();
