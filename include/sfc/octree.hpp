@@ -37,7 +37,7 @@ struct SfcNode
 template<class I>
 inline bool operator<(const SfcNode<I>& lhs, const SfcNode<I>& rhs)
 {
-    return lhs.startCode < rhs.startCode;
+    return std::tie(lhs.startCode, lhs.endCode) < std::tie(rhs.startCode, rhs.endCode);
 }
 
 template<class I>
@@ -48,8 +48,38 @@ inline bool operator==(const SfcNode<I>& lhs, const SfcNode<I>& rhs)
 
 }
 
+//! \brief Defines data to describe an octree node, no coordinate reference
+template<class I>
+struct GlobalSfcNode
+{
+    GlobalSfcNode(I start, I end, [[maybe_unused]] unsigned ignore, unsigned c)
+        : startCode(start), endCode(end), count(c) { }
+
+    //! start and end codes
+    I startCode;
+    I endCode;
+
+    //! The particle content of the node.
+    unsigned count;
+};
+
+template<class I>
+inline bool operator<(const GlobalSfcNode<I>& lhs, const GlobalSfcNode<I>& rhs)
+{
+    return std::tie(lhs.startCode, lhs.endCode) < std::tie(rhs.startCode, rhs.endCode);
+}
+
+template<class I>
+inline bool operator==(const GlobalSfcNode<I>& lhs, const GlobalSfcNode<I>& rhs)
+{
+    return std::tie(lhs.startCode, lhs.endCode, lhs.count)
+           == std::tie(rhs.startCode, rhs.endCode, rhs.count);
+
+}
+
 /*! \brief aggregate mortonCodes into octree leaf nodes of increased size
  *
+ * \tparam NodeType       SfcNode, either with or without offset into coordinate arrays
  * \tparam I              32- or 64-bit unsigned integer
  * \param[in] mortonCodes input mortonCode array
  * \param[in] bucketSize  determine size of octree nodes such that
@@ -59,8 +89,8 @@ inline bool operator==(const SfcNode<I>& lhs, const SfcNode<I>& rhs)
  *
  * \return vector with the sorted octree leaf nodes
  */
-template<class I>
-std::vector<SfcNode<I>> trimZCurve(const std::vector<I>& mortonCodes, unsigned bucketSize)
+template<template<class> class NodeType, class I>
+std::vector<NodeType<I>> trimZCurve(const std::vector<I>& mortonCodes, unsigned bucketSize)
 {
     std::vector<SfcNode<I>> ret;
 
@@ -93,12 +123,39 @@ std::vector<SfcNode<I>> trimZCurve(const std::vector<I>& mortonCodes, unsigned b
         j = std::min(j, k);
 
         std::tuple<I, I> box = smallestCommonBox(code, mortonCodes[j-1]);
-        ret.push_back(SfcNode<I>{std::get<0>(box), std::get<1>(box), i, j-i});
+        ret.push_back(NodeType<I>{std::get<0>(box), std::get<1>(box), i, j-i});
         i = j;
         previousBoxEnd = std::get<1>(box);
     }
 
     return ret;
 }
+
+namespace detail
+{
+
+/*! \brief merge two overlapping ranges of GlobalSfcNodes
+ *
+ * \tparam SfcInputIterator input random access iterator
+ * \tparam I                32- or 64-bit unsigned integer type
+ * \param superRange        iterator to the enclosing octree Morton code range
+ * \param subRangeStart     superRange->startCode <= subRangeStart->startCode
+ * \param subRangeEnd       subIt->endCode <= superRange->endCode for all subIt with subRangeStart <= subIt < subRangeEnd
+ * \param outputNodes       output for the merged GlobalSfcNodes<I>
+ */
+template<class SfcInputIterator, class I>
+void mergeOverlappingRange(SfcInputIterator superRange, SfcInputIterator subRangeStart, SfcInputIterator subRangeEnd,
+                           std::vector<GlobalSfcNode<I>>& outputNodes)
+{
+}
+
+} // namespace detail
+
+template<class I>
+std::vector<GlobalSfcNode<I>> mergeZCurves(const std::vector<GlobalSfcNode<I>>& a,
+                                           const std::vector<GlobalSfcNode<I>>& b)
+{
+}
+
 
 } // namespace sphexa
