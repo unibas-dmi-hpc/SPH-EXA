@@ -91,7 +91,7 @@ TEST(Octree, trimExample32)
 
     ExampleOctree<I> tree;
 
-    auto leaves = sphexa::trimZCurve(tree.codes, bucketSize);
+    auto leaves = sphexa::trimZCurve<sphexa::SfcNode>(tree.codes, bucketSize);
     EXPECT_EQ(leaves, tree.nodes);
 }
 
@@ -102,7 +102,7 @@ TEST(Octree, trimExample64)
 
     ExampleOctree<I> tree;
 
-    auto leaves = sphexa::trimZCurve(tree.codes, bucketSize);
+    auto leaves = sphexa::trimZCurve<sphexa::SfcNode>(tree.codes, bucketSize);
     EXPECT_EQ(leaves, tree.nodes);
 }
 
@@ -134,7 +134,7 @@ TEST(Octree, trim8)
         EXPECT_EQ(false, isInBox(codes[7], codeLimit));
     }
 
-    auto leaves = sphexa::trimZCurve(codes, bucketSize);
+    auto leaves = sphexa::trimZCurve<sphexa::SfcNode>(codes, bucketSize);
 
     sphexa::SfcNode<I> node0{codeFromIndices<I>({0}), codeFromIndices<I>({1}), 0, 7};
     sphexa::SfcNode<I> node1{codeFromIndices<I>({1}), codeFromIndices<I>({1})+1, 7, 1};
@@ -163,7 +163,7 @@ TEST(Octree, trim9)
         codeFromIndices<I>({1}),
     };
 
-    auto leaves = sphexa::trimZCurve(codes, bucketSize);
+    auto leaves = sphexa::trimZCurve<sphexa::SfcNode>(codes, bucketSize);
 
     sphexa::SfcNode<I> node0{codeFromIndices<I>({0}), codeFromIndices<I>({1}), 0, 8};
     sphexa::SfcNode<I> node1{codeFromIndices<I>({1}), codeFromIndices<I>({1}) + 1, 8, 1};
@@ -191,7 +191,7 @@ TEST(Octree, trim10)
         codeFromIndices<I>({1,0,0,5}),
     };
 
-    auto leaves = sphexa::trimZCurve(codes, bucketSize);
+    auto leaves = sphexa::trimZCurve<sphexa::SfcNode>(codes, bucketSize);
 
     sphexa::SfcNode<I> node0{codeFromIndices<I>({0}), codeFromIndices<I>({1}), 0, 8};
     sphexa::SfcNode<I> node1{codeFromIndices<I>({1}), codeFromIndices<I>({1, 0, 1}), 8, 2};
@@ -219,7 +219,7 @@ TEST(Octree, trim10a)
         codeFromIndices<I>({1,0,0,5}),
     };
 
-    auto leaves = sphexa::trimZCurve(codes, bucketSize);
+    auto leaves = sphexa::trimZCurve<sphexa::SfcNode>(codes, bucketSize);
 
     sphexa::SfcNode<I> node0{codeFromIndices<I>({0}), codeFromIndices<I>({1}), 0, 8};
     sphexa::SfcNode<I> node1{codeFromIndices<I>({1}), codeFromIndices<I>({1, 0, 1}), 8, 2};
@@ -247,7 +247,7 @@ TEST(Octree, trim10b)
         codeFromIndices<I>({2}),
     };
 
-    auto leaves = sphexa::trimZCurve(codes, bucketSize);
+    auto leaves = sphexa::trimZCurve<sphexa::SfcNode>(codes, bucketSize);
 
     sphexa::SfcNode<I> node0{codeFromIndices<I>({0}), codeFromIndices<I>({1}), 0, 8};
     sphexa::SfcNode<I> node1{codeFromIndices<I>({1}), codeFromIndices<I>({1})+1, 8, 1};
@@ -272,7 +272,7 @@ public:
 
         CoordinateType<double, CodeType> randomBox(n, box);
 
-        auto trimmedZCurve = sphexa::trimZCurve(randomBox.mortonCodes(), bucketSize);
+        auto trimmedZCurve = sphexa::trimZCurve<sphexa::SfcNode>(randomBox.mortonCodes(), bucketSize);
 
         std::cout << "number of nodes: " << trimmedZCurve.size() << std::endl;
 
