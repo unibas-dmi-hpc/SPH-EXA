@@ -92,7 +92,7 @@ struct DeviceParticlesData
 
     void resize(const size_t size)
     {
-        if (pd.count > allocated_device_memory)
+        if (size > allocated_device_memory)
         {
             // We should only reallocated when the new count is less than the already allocated_device_memory
             // TODO: I'am not freeing the old memory:
