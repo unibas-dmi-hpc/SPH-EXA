@@ -88,12 +88,16 @@ struct DeviceParticlesData
 
     DeviceLinearOctree<T> d_o;
 
-    bool allocated = false; // TODO check if size_np_T is changed when calling resize
+    size_t allocated_device_memory = 0;
 
     void resize(const ParticleData &pd)
     {
-        if (!allocated) // this is called twice during generation of dataset and during creation of domain so we should only allocate once
+        if (!pd.count > allocated_device_memory)
         {
+            // We should only reallocated when the new count is less than the already allocated_device_memory
+            // TODO: I'am not freeing the old memory:
+            //          I should either implement a realloc in cuda (efficient but might keep allocated memory in gpu with no need if pd.count <<< allocated_device_memory)
+            //          Or I should free/malloc each time this is called (inefficient but scalable)
             const size_t np = pd.x.size();
             const size_t size_np_T = np * sizeof(T);
 
@@ -108,7 +112,7 @@ struct DeviceParticlesData
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal));
             CHECK_CUDA_ERR(cudaGetLastError());
-            allocated = true;
+            allocated_device_memory = pd.count;
         }
     }
 
@@ -136,12 +140,9 @@ struct DeviceParticlesData
 
     ~DeviceParticlesData()
     {
-        if (allocated)
-        {
-            CHECK_CUDA_ERR(utils::cudaFree(d_bbox, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c, d_c11, d_c12, d_c13, d_c22,
+        CHECK_CUDA_ERR(utils::cudaFree(d_bbox, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c, d_c11, d_c12, d_c13, d_c22,
                                            d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal, d_wh, d_whd));
-            CHECK_CUDA_ERR(cudaGetLastError());
-        }
+        CHECK_CUDA_ERR(cudaGetLastError());
     }
 };
 } // namespace cuda
