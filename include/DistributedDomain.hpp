@@ -383,6 +383,10 @@ public:
         //   work_remaining[comm_rank]); fflush(stdout);
 
         sync(d.data);
+#if defined(USE_CUDA)
+        // TODO: this should be moved to the sync function. As soon as we resize d.data vectors, we can resize the device memory
+        d.devPtrs.resize(d);
+#endif
 
         // printf("[%d] Total number of particles %d (local) %d (global)\n", comm_rank, octree.localParticleCount,
         // octree.globalParticleCount); fflush(stdout);
