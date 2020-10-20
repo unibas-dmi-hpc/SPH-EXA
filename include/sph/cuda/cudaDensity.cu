@@ -87,8 +87,6 @@ void computeDensity(std::vector<Task> &taskList, Dataset &d)
     CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d.d_bbox));
     */
 
-    printf("[DEBUG] -- size_largerNChunk_int: %ld\n", size_largerNChunk_int);
-    printf("[DEBUG] -- size_largerNeighborsChunk_int: %ld\n", size_largerNeighborsChunk_int);
     for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist[i], d_neighborsCount[i]));
     for (int i = 0; i < NST; ++i)
