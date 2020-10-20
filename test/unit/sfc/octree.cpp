@@ -7,6 +7,7 @@
 #include "randombox.hpp"
 
 using sphexa::detail::codeFromIndices;
+using sphexa::detail::codeFromBox;
 
 template <class I>
 class ExampleOctree
@@ -319,3 +320,54 @@ TEST_P(RandomBoxTrimmer, trimRandomNormal64)
 std::array<int, 3> bucketSizes{64, 1024, 10000};
 
 INSTANTIATE_TEST_SUITE_P(TrimRandomBox, RandomBoxTrimmer, testing::ValuesIn(bucketSizes));
+
+
+TEST(GlobalTree, countTreeNodes)
+{
+    using CodeType = unsigned;
+    std::vector<CodeType> codes;
+
+    constexpr unsigned n     = 4;
+    constexpr unsigned level = 2;
+
+    // a regular n x n x n grid
+    for (unsigned i = 0; i < n; ++i)
+        for (unsigned j = 0; j < n; ++j)
+            for (unsigned k = 0; k < n; ++k)
+    {
+        codes.push_back(codeFromBox<CodeType>({i,j,k}, level));
+    }
+
+    std::sort(begin(codes), end(codes));
+
+    std::vector<CodeType> tree{
+        codeFromIndices<CodeType>({0,0}),
+        codeFromIndices<CodeType>({0,1}),
+        codeFromIndices<CodeType>({0,2}),
+        codeFromIndices<CodeType>({0,3}),
+        codeFromIndices<CodeType>({0,4}),
+        codeFromIndices<CodeType>({0,5}),
+        codeFromIndices<CodeType>({0,6}),
+        codeFromIndices<CodeType>({0,7}),
+
+        codeFromIndices<CodeType>({1,0}),
+        codeFromIndices<CodeType>({2,0}),
+        codeFromIndices<CodeType>({3,0}),
+        codeFromIndices<CodeType>({4,0}),
+        codeFromIndices<CodeType>({5,0}),
+        codeFromIndices<CodeType>({6,0}),
+        codeFromIndices<CodeType>({7,0}),
+    };
+
+    std::vector<int> counts(tree.size());
+
+    sphexa::countTreeNodes(tree.data(), counts.data(), tree.size(), codes.data(), codes.data() + codes.size());
+
+    // the level 2 nodes have 1/64 of the total volume/particle count
+    for (int i = 0; i < 8; ++i)
+        EXPECT_EQ(counts[i], 1);
+
+    // the level 1 nodes have 1/8 of the total
+    for (int i = 8; i < tree.size(); ++i)
+        EXPECT_EQ(counts[i], 8);
+}

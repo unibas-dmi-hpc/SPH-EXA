@@ -157,5 +157,34 @@ std::vector<GlobalSfcNode<I>> mergeZCurves(const std::vector<GlobalSfcNode<I>>& 
 {
 }
 
+/*! \brief count number of particles in each octree node
+ *
+ * \tparam I           32- or 64-bit unsigned integer type
+ * \param tree         input tree, given as morton codes, node i is delineated
+ *                     by Morton code range(tree[i], tree[i+1]), or range(tree[i], codesEnd) if i == n-1
+ *                     length = @a nNodes
+ * \param counts       output particle counts per node, length = @a nNodes
+ * \param nNodes       number of nodes in tree
+ * \param codesStart   Morton code range start of particles to count
+ * \param codesEnd     Morton code range end of particles to count
+ */
+template<class I>
+void countTreeNodes(const I* tree, int* counts, int nNodes, const I* codesStart, const I* codesEnd)
+{
+    for (int i = 0; i < nNodes-1; ++i)
+    {
+        I nodeStart = tree[i];
+        I nodeEnd   = tree[i+1];
+
+        // count particles in range
+        auto rangeStart = std::lower_bound(codesStart, codesEnd, nodeStart);
+        auto rangeEnd   = std::lower_bound(codesStart, codesEnd, nodeEnd);
+        counts[i] = std::distance(rangeStart, rangeEnd);
+    }
+
+    auto lastNode    = std::lower_bound(codesStart, codesEnd, tree[nNodes-1]);
+    counts[nNodes-1] = std::distance(lastNode, codesEnd);
+}
+
 
 } // namespace sphexa
