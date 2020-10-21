@@ -170,6 +170,43 @@ std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes, int b
     return balancedTree;
 }
 
+template<class I>
+std::vector<I> computeOctree(const I* codesStart, const I* codesEnd, int bucketSize)
+{
+    unsigned nParticles   = codesEnd - codesStart;
+    // the minimum tree level needed is ceil(log8(nParticles/bucketSize))
+    unsigned minTreeLevel = log8ceil(nParticles/bucketSize);
+    unsigned ticks        = 1u << minTreeLevel;
+
+    std::vector<I> tree;
+    tree.reserve(ticks*ticks*ticks);
+
+    // generate regular minTreeLevel tree
+    for (unsigned x = 0; x < ticks; ++x)
+        for (unsigned y = 0; y < ticks; ++y)
+            for (unsigned z = 0; z < ticks; ++z)
+            {
+                tree.push_back(detail::codeFromBox<I>({x,y,z}, minTreeLevel));
+            }
+
+    sort(begin(tree), end(tree));
+
+    std::vector<int> counts(tree.size());
+
+    bool converged = false;
+    while (!converged)
+    {
+        computeNodeCounts(tree.data(), counts.data(), tree.size(), codesStart, codesEnd);
+        std::vector<I> balancedTree = rebalanceTree(tree.data(), counts.data(), tree.size(), bucketSize);
+        if (tree == balancedTree)
+            converged = true;
+
+        swap(tree, balancedTree);
+        counts.resize(tree.size());
+    }
+
+    return tree;
+}
 
 //////////////////////////////////////////////////////////
 // Tested, but not currently used functionality

@@ -71,6 +71,16 @@ TEST(MortonCode, decodeMorton64)
     EXPECT_EQ(1u<<20u, sphexa::decodeMortonZ(code));
 }
 
+TEST(MortonCode, log8ceil32)
+{
+    EXPECT_EQ(3, sphexa::log8ceil(100u));
+}
+
+TEST(MortonCode, log8ceil64)
+{
+    EXPECT_EQ(3, sphexa::log8ceil(100lu));
+}
+
 TEST(MortonCode, treeLevel32)
 {
     using CodeType = unsigned;

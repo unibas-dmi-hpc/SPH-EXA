@@ -255,6 +255,16 @@ nodeRange(unsigned treeLevel)
     return ret;
 }
 
+//! \brief compute ceil(log8(n))
+template<class I>
+inline std::enable_if_t<std::is_unsigned<I>{}, unsigned> log8ceil(I n)
+{
+    if (n == 0)
+        return 0;
+
+    unsigned lz = countLeadingZeros(n-1);
+    return maxTreeLevel<I>{} - (lz - unusedBits<I>{}) / 3;
+}
 
 //! \brief check whether n is a power of 8
 template<class I>
