@@ -407,6 +407,9 @@ void rebalanceShrinkStart()
 
     std::vector<CodeType> balancedTree = sphexa::rebalanceTree(tree.data(), counts.data(), tree.size(), bucketSize);
 
+    EXPECT_TRUE(sphexa::checkOctreeInvariants(balancedTree.data(), balancedTree.size()));
+    EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), tree.size()));
+
     std::vector<CodeType> reference;
     reference.reserve(8);
 
@@ -454,6 +457,9 @@ void rebalanceShrinkMid()
     std::vector<int> counts(tree.size(), 1);
 
     std::vector<CodeType> balancedTree = sphexa::rebalanceTree(tree.data(), counts.data(), tree.size(), bucketSize);
+
+    EXPECT_TRUE(sphexa::checkOctreeInvariants(balancedTree.data(), balancedTree.size()));
+    EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), tree.size()));
 
     std::vector<CodeType> reference;
     reference.reserve(8);
@@ -503,6 +509,9 @@ void rebalanceShrinkEnd()
     std::vector<int> counts(tree.size(), 1);
 
     std::vector<CodeType> balancedTree = sphexa::rebalanceTree(tree.data(), counts.data(), tree.size(), bucketSize);
+
+    EXPECT_TRUE(sphexa::checkOctreeInvariants(balancedTree.data(), balancedTree.size()));
+    EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), tree.size()));
 
     std::vector<CodeType> reference;
     reference.reserve(8);
@@ -603,28 +612,31 @@ void rebalanceSplitShrink()
     constexpr int bucketSize = 8;
 
     std::vector<CodeType> tree
-        {
-            codeFromIndices<CodeType>({0}),
-            codeFromIndices<CodeType>({1}),
-            codeFromIndices<CodeType>({2}),
-            codeFromIndices<CodeType>({3}),
-            codeFromIndices<CodeType>({4}),
-            codeFromIndices<CodeType>({5}),
-            codeFromIndices<CodeType>({6}),
-            codeFromIndices<CodeType>({7,0}),
-            codeFromIndices<CodeType>({7,1}),
-            codeFromIndices<CodeType>({7,2}),
-            codeFromIndices<CodeType>({7,3}),
-            codeFromIndices<CodeType>({7,4}),
-            codeFromIndices<CodeType>({7,5}),
-            codeFromIndices<CodeType>({7,6}),
-            codeFromIndices<CodeType>({7,7}),
-        };
+    {
+        codeFromIndices<CodeType>({0}),
+        codeFromIndices<CodeType>({1}),
+        codeFromIndices<CodeType>({2}),
+        codeFromIndices<CodeType>({3}),
+        codeFromIndices<CodeType>({4}),
+        codeFromIndices<CodeType>({5}),
+        codeFromIndices<CodeType>({6}),
+        codeFromIndices<CodeType>({7,0}),
+        codeFromIndices<CodeType>({7,1}),
+        codeFromIndices<CodeType>({7,2}),
+        codeFromIndices<CodeType>({7,3}),
+        codeFromIndices<CodeType>({7,4}),
+        codeFromIndices<CodeType>({7,5}),
+        codeFromIndices<CodeType>({7,6}),
+        codeFromIndices<CodeType>({7,7}),
+    };
 
     std::vector<int> counts(tree.size(), 1);
     counts[1] = bucketSize+1;
 
     std::vector<CodeType> balancedTree = sphexa::rebalanceTree(tree.data(), counts.data(), tree.size(), bucketSize);
+
+    EXPECT_TRUE(sphexa::checkOctreeInvariants(balancedTree.data(), balancedTree.size()));
+    EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), tree.size()));
 
     std::vector<CodeType> reference;
     reference.reserve(8);
@@ -646,4 +658,64 @@ TEST(GlobalTree, rebalanceSplitShrink32)
 TEST(GlobalTree, rebalanceSplitShrink64)
 {
     rebalanceShrinkEnd<uint64_t>();
+}
+
+template<class CodeType>
+void octreeInvariantHead()
+{
+    std::vector<CodeType> tree
+        {
+            codeFromIndices<CodeType>({1}),
+            codeFromIndices<CodeType>({2}),
+            codeFromIndices<CodeType>({3}),
+            codeFromIndices<CodeType>({4}),
+            codeFromIndices<CodeType>({5}),
+            codeFromIndices<CodeType>({6}),
+            codeFromIndices<CodeType>({7,0}),
+            codeFromIndices<CodeType>({7,1}),
+            codeFromIndices<CodeType>({7,2}),
+            codeFromIndices<CodeType>({7,3}),
+            codeFromIndices<CodeType>({7,4}),
+            codeFromIndices<CodeType>({7,5}),
+            codeFromIndices<CodeType>({7,6}),
+            codeFromIndices<CodeType>({7,7}),
+        };
+
+    EXPECT_FALSE(sphexa::checkOctreeInvariants(tree.data(), tree.size()));
+}
+
+template<class CodeType>
+void octreeInvariantTail()
+{
+    std::vector<CodeType> tree
+    {
+        codeFromIndices<CodeType>({0}),
+        codeFromIndices<CodeType>({1}),
+        codeFromIndices<CodeType>({2}),
+        codeFromIndices<CodeType>({3}),
+        codeFromIndices<CodeType>({4}),
+        codeFromIndices<CodeType>({5}),
+        codeFromIndices<CodeType>({6}),
+        codeFromIndices<CodeType>({7,0}),
+        codeFromIndices<CodeType>({7,1}),
+        codeFromIndices<CodeType>({7,2}),
+        codeFromIndices<CodeType>({7,3}),
+        codeFromIndices<CodeType>({7,4}),
+        codeFromIndices<CodeType>({7,5}),
+        codeFromIndices<CodeType>({7,6}),
+    };
+
+    EXPECT_FALSE(sphexa::checkOctreeInvariants(tree.data(), tree.size()));
+}
+
+TEST(GlobalTree, octreeInvariants32)
+{
+    octreeInvariantHead<unsigned>();
+    octreeInvariantTail<unsigned>();
+}
+
+TEST(GlobalTree, octreeInvariants64)
+{
+    octreeInvariantHead<uint64_t>();
+    octreeInvariantTail<uint64_t>();
 }

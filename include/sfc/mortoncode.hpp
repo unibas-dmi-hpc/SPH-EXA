@@ -255,6 +255,15 @@ nodeRange(unsigned treeLevel)
     return ret;
 }
 
+
+//! \brief check whether n is a power of 8
+template<class I>
+bool isPowerOf8(I n)
+{
+    unsigned lz = countLeadingZeros(n - 1) - unusedBits<I>{};
+    return lz % 3 == 0 && !(n & (n-1));
+}
+
 /*! \brief return octree subdivision level corresponding to codeRange
  *
  * \tparam I         32- or 64-bit unsigned integer type
@@ -264,9 +273,7 @@ nodeRange(unsigned treeLevel)
 template<class I>
 inline unsigned treeLevel(I codeRange)
 {
-    // check that codeRange is a power of 8
-    assert( (countLeadingZeros(codeRange - 1) - unusedBits<I>{}) % 3 == 0);
-
+    assert( isPowerOf8(codeRange) );
     return (countLeadingZeros(codeRange - 1) - unusedBits<I>{}) / 3;
 }
 

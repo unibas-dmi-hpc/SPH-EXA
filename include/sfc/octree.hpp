@@ -8,6 +8,178 @@
 namespace sphexa
 {
 
+
+/*! \brief check whether octree invariants are fulfilled
+ *
+ * \tparam I           32- or 64-bit unsigned integer type
+ * \param tree         octree nodes given as Morton codes of length @a nNodes
+ * \param nNodes       number of nodes
+ * \return             true if invariants ar satisfied, false otherwise
+ *
+ * The invariants are:
+ *      - tree contains root node with code 0
+ *      - tree is sorted
+ *      - difference between consecutive elements must be a power of 8
+ *        (for the last element use nodeRange<I>(0) to compute the range)
+ *
+ * These three conditions guarantee that
+ *      - the entire space is covered
+ *      - for each node, all its siblings (nodes at the same subdivision level)
+ *        are present in the tree as a Morton code
+ */
+template<class I>
+bool checkOctreeInvariants(const I* tree, int nNodes)
+{
+    // the root node with code 0 must be part of the tree
+    if (nNodes > 0 && tree[0] != 0)
+        return false;
+
+    for (int i = 0; i < nNodes; ++i)
+    {
+        if (i+1 < nNodes && tree[i] >= tree[i+1])
+        {
+            // tree must be sorted
+            return false;
+        }
+
+        I thisNode     = tree[i];
+        I nextNode     = (i+1 == nNodes) ? nodeRange<I>(0) : tree[i+1];
+        I range        = nextNode - thisNode;
+
+        if (!isPowerOf8(range))
+        {
+            // range must be a power of 8
+            return false;
+        }
+    }
+
+    return true;
+}
+
+/*! \brief count number of particles in each octree node
+ *
+ * \tparam I           32- or 64-bit unsigned integer type
+ * \param tree         octree nodes given as Morton codes of length @a nNodes
+ *                     needs to satisfy the octree invariants
+ * \param counts       output particle counts per node, length = @a nNodes
+ * \param nNodes       number of nodes in tree
+ * \param codesStart   Morton code range start of particles to count
+ * \param codesEnd     Morton code range end of particles to count
+ */
+template<class I>
+void computeNodeCounts(const I* tree, int* counts, int nNodes, const I* codesStart, const I* codesEnd)
+{
+    for (int i = 0; i < nNodes-1; ++i)
+    {
+        I nodeStart = tree[i];
+        I nodeEnd   = tree[i+1];
+
+        // count particles in range
+        auto rangeStart = std::lower_bound(codesStart, codesEnd, nodeStart);
+        auto rangeEnd   = std::lower_bound(codesStart, codesEnd, nodeEnd);
+        counts[i] = std::distance(rangeStart, rangeEnd);
+    }
+
+    auto lastNode    = std::lower_bound(codesStart, codesEnd, tree[nNodes-1]);
+    counts[nNodes-1] = std::distance(lastNode, codesEnd);
+}
+
+/*! \brief split or fuse octree nodes based on node counts relative to bucketSize
+ *
+ * \tparam I           32- or 64-bit unsigned integer type
+ * \param tree         octree nodes given as Morton codes of length @a nNodes
+ *                     needs to satisfy the octree invariants
+ * \param counts       output particle counts per node, length = @a nNodes
+ * \param nNodes       number of nodes in tree
+ * \param bucketSize   maximum particle count per (leaf) node and
+ *                     minimum particle count (strictly >) for (implicit) internal nodes
+ * \return             the rebalanced Morton code octree
+ */
+template<class I>
+std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes, int bucketSize)
+{
+    std::vector<I> balancedTree;
+    balancedTree.reserve(nNodes);
+
+    int i = 0;
+    while(i < nNodes-1)
+    {
+        I thisNode     = tree[i];
+        I range        = tree[i+1] - thisNode;
+        unsigned level = treeLevel(range);
+
+        if (counts[i] > bucketSize)
+        {
+            // split
+            for (int sibling = 0; sibling < 8; ++sibling)
+            {
+                balancedTree.push_back(thisNode + sibling * nodeRange<I>(level + 1));
+            }
+            i++;
+        }
+        else
+        {
+            I nextParent = (i+8 < nNodes) ? tree[i+8] : nodeRange<I>(0);
+
+            if (parentIndex(thisNode, level) == 0 &&
+                nextParent == thisNode + nodeRange<I>(level -1))
+            {
+                // check siblings to determine whether nodes need to be combined
+                int parentCount = std::accumulate(counts + i, counts + i + 8, 0);
+                if (parentCount > bucketSize)
+                {
+                    // the nodes can stay
+                    std::copy(tree + i, tree + i + 8, std::back_inserter(balancedTree));
+                }
+                else
+                {
+                    // the nodes must be fused, only select the first peer
+                    balancedTree.push_back(thisNode);
+                }
+                i += 8;
+            }
+            else
+            {
+                // node neither gets split or fused
+                balancedTree.push_back(thisNode);
+                i++;
+            }
+        }
+    }
+
+    // take care of the last node
+    if (i < nNodes)
+    {
+        I thisNode = tree[nNodes - 1];
+        I range = nodeRange<I>(0) - thisNode;
+        unsigned level = treeLevel(range);
+        if (counts[nNodes - 1] > bucketSize)
+        {
+            // split
+            for (int peer = 0; peer < 8; ++peer)
+            {
+                balancedTree.push_back(thisNode + peer * nodeRange<I>(level + 1));
+            }
+        }
+        else
+        {
+            balancedTree.push_back(thisNode);
+        }
+    }
+
+    return balancedTree;
+}
+
+
+//////////////////////////////////////////////////////////
+// Tested, but not currently used functionality
+// the code below implements an alternative octree format
+// where each node has an upper and lower bound.
+// Therefore, this format allows to have holes in the space filling curve
+// of morton codes - or, in octree language, empty nodes can be omitted,
+// such that not all the siblings of a node in the tree are guaranteed to exist.
+//////////////////////////////////////////////////////////
+
 //! \brief Defines data to describe an octree node
 template<class I>
 struct SfcNode
@@ -156,113 +328,5 @@ std::vector<GlobalSfcNode<I>> mergeZCurves(const std::vector<GlobalSfcNode<I>>& 
                                            const std::vector<GlobalSfcNode<I>>& b)
 {
 }
-
-/*! \brief count number of particles in each octree node
- *
- * \tparam I           32- or 64-bit unsigned integer type
- * \param tree         input tree, given as morton codes, node i is delineated
- *                     by Morton code range(tree[i], tree[i+1]), or range(tree[i], codesEnd) if i == n-1
- *                     length = @a nNodes
- * \param counts       output particle counts per node, length = @a nNodes
- * \param nNodes       number of nodes in tree
- * \param codesStart   Morton code range start of particles to count
- * \param codesEnd     Morton code range end of particles to count
- */
-template<class I>
-void computeNodeCounts(const I* tree, int* counts, int nNodes, const I* codesStart, const I* codesEnd)
-{
-    for (int i = 0; i < nNodes-1; ++i)
-    {
-        I nodeStart = tree[i];
-        I nodeEnd   = tree[i+1];
-
-        // count particles in range
-        auto rangeStart = std::lower_bound(codesStart, codesEnd, nodeStart);
-        auto rangeEnd   = std::lower_bound(codesStart, codesEnd, nodeEnd);
-        counts[i] = std::distance(rangeStart, rangeEnd);
-    }
-
-    auto lastNode    = std::lower_bound(codesStart, codesEnd, tree[nNodes-1]);
-    counts[nNodes-1] = std::distance(lastNode, codesEnd);
-}
-
-template<class I>
-std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes, int bucketSize)
-{
-    std::vector<I> balancedTree;
-    balancedTree.reserve(nNodes);
-
-    int i = 0;
-    while(i < nNodes-1)
-    {
-        I thisNode     = tree[i];
-        I range        = tree[i+1] - thisNode;
-        unsigned level = treeLevel(range);
-
-        if (counts[i] > bucketSize)
-        {
-            // split
-            for (int peer = 0; peer < 8; ++peer)
-            {
-                balancedTree.push_back(thisNode + peer * nodeRange<I>(level + 1));
-            }
-            i++;
-        }
-        else if (parentIndex(thisNode, level) == 0)
-        {
-            I nextParent = (i+8 < nNodes) ? tree[i+8] : nodeRange<I>(0);
-
-            if (nextParent == thisNode + nodeRange<I>(level -1))
-            {
-                // check peers to determine whether nodes need to be combined
-                int parentCount = std::accumulate(counts + i, counts + i + 8, 0);
-                if (parentCount > bucketSize)
-                {
-                    // the nodes can stay
-                    std::copy(tree + i, tree + i + 8, std::back_inserter(balancedTree));
-                }
-                else
-                {
-                    // the nodes must be fused, only select the first peer
-                    balancedTree.push_back(thisNode);
-                }
-                i += 8;
-            }
-            else {
-                balancedTree.push_back(thisNode);
-                i++;
-            }
-        }
-        else
-        {
-            // use node as is
-            balancedTree.push_back(thisNode);
-            i++;
-        }
-    }
-
-    // take care of the last node
-    if (i < nNodes)
-    {
-        I thisNode = tree[nNodes - 1];
-        I range = nodeRange<I>(0) - thisNode;
-        unsigned level = treeLevel(range);
-        if (counts[nNodes - 1] > bucketSize)
-        {
-            // split
-            for (int peer = 0; peer < 8; ++peer)
-            {
-                balancedTree.push_back(thisNode + peer * nodeRange<I>(level + 1));
-            }
-        }
-        else
-        {
-            balancedTree.push_back(thisNode);
-        }
-    }
-
-    return balancedTree;
-}
-
 
 } // namespace sphexa
