@@ -719,3 +719,64 @@ TEST(GlobalTree, octreeInvariants64)
     octreeInvariantHead<uint64_t>();
     octreeInvariantTail<uint64_t>();
 }
+
+class RandomBoxPingPong : public testing::TestWithParam<int>
+{
+public:
+    template<class I, template <class...> class CoordinateType>
+    void check(int bucketSize)
+    {
+        using CodeType = I;
+        sphexa::Box<double> box{0, 1};
+
+        unsigned n = 100000;
+
+        CoordinateType<double, CodeType> randomBox(n, box);
+
+        std::vector<I> tree = sphexa::computeOctree(randomBox.mortonCodes().data(),
+                                                    randomBox.mortonCodes().data() + n,
+                                                    bucketSize);
+        std::vector<int> counts(tree.size());
+        sphexa::computeNodeCounts(tree.data(), counts.data(), tree.size(), randomBox.mortonCodes().data(),
+                                  randomBox.mortonCodes().data() + n);
+
+        std::cout << "number of nodes: " << tree.size() << std::endl;
+
+        EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), tree.size()));
+
+        // check that referenced particles are within specified range
+        for (int nodeIndex = 0; nodeIndex < tree.size(); ++nodeIndex)
+        {
+            int nodeStart = std::lower_bound(begin(randomBox.mortonCodes()), end(randomBox.mortonCodes()), tree[nodeIndex]) -
+                            begin(randomBox.mortonCodes());
+
+            if (counts[nodeIndex])
+            {
+                ASSERT_LT(nodeStart, n);
+            }
+
+            for (int i = nodeStart; i < counts[nodeIndex]; ++i)
+            {
+                // note: assumes x,y,z already normalized in [0,1]
+                CodeType iCode = sphexa::morton3D<CodeType>(randomBox.x()[i], randomBox.y()[i], randomBox.z()[i]);
+                EXPECT_TRUE(tree[nodeIndex] <= iCode);
+                CodeType nodeEnd = (nodeIndex < tree.size()-1) ? tree[nodeIndex + 1] : sphexa::nodeRange<I>(0);
+                EXPECT_TRUE(iCode < nodeEnd);
+            }
+        }
+    }
+};
+
+TEST_P(RandomBoxPingPong, pingPongRandomNormal32)
+{
+    check<unsigned, RandomGaussianCoordinates>(GetParam());
+}
+
+TEST_P(RandomBoxPingPong, pingPongRandomNormal64)
+{
+    check<uint64_t, RandomGaussianCoordinates>(GetParam());
+}
+
+std::array<int, 3> bucketSizesPP{64, 1024, 10000};
+
+INSTANTIATE_TEST_SUITE_P(RandomBoxPP, RandomBoxPingPong, testing::ValuesIn(bucketSizesPP));
