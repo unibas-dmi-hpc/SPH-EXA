@@ -322,9 +322,9 @@ std::array<int, 3> bucketSizes{64, 1024, 10000};
 INSTANTIATE_TEST_SUITE_P(TrimRandomBox, RandomBoxTrimmer, testing::ValuesIn(bucketSizes));
 
 
-TEST(GlobalTree, countTreeNodes)
+template<class CodeType>
+void checkCountTreeNodes()
 {
-    using CodeType = unsigned;
     std::vector<CodeType> codes;
 
     constexpr unsigned n     = 4;
@@ -361,7 +361,7 @@ TEST(GlobalTree, countTreeNodes)
 
     std::vector<int> counts(tree.size());
 
-    sphexa::countTreeNodes(tree.data(), counts.data(), tree.size(), codes.data(), codes.data() + codes.size());
+    sphexa::computeNodeCounts(tree.data(), counts.data(), tree.size(), codes.data(), codes.data() + codes.size());
 
     // the level 2 nodes have 1/64 of the total volume/particle count
     for (int i = 0; i < 8; ++i)
@@ -370,4 +370,280 @@ TEST(GlobalTree, countTreeNodes)
     // the level 1 nodes have 1/8 of the total
     for (int i = 8; i < tree.size(); ++i)
         EXPECT_EQ(counts[i], 8);
+}
+
+TEST(GlobalTree, countTreeNodes32)
+{
+    checkCountTreeNodes<unsigned>();
+}
+
+TEST(GlobalTree, countTreeNodes64)
+{
+    checkCountTreeNodes<uint64_t>();
+}
+
+template<class CodeType>
+void rebalanceShrinkStart()
+{
+    constexpr int bucketSize = 8;
+
+    std::vector<CodeType> tree;
+    tree.reserve(20);
+
+    std::vector<int> counts;
+    counts.reserve(20);
+
+    for (unsigned char i = 0; i < 8; ++i)
+    {
+        tree.push_back(codeFromIndices<CodeType>({0, i}));
+        counts.push_back(1);
+    }
+
+    for (unsigned char i = 1; i < 8; ++i)
+    {
+        tree.push_back(codeFromIndices<CodeType>({i}));
+        counts.push_back(1);
+    }
+
+    std::vector<CodeType> balancedTree = sphexa::rebalanceTree(tree.data(), counts.data(), tree.size(), bucketSize);
+
+    std::vector<CodeType> reference;
+    reference.reserve(8);
+
+    for (unsigned char i = 0; i < 8; ++i)
+    {
+        reference.push_back(codeFromIndices<CodeType>({i}));
+    }
+    EXPECT_EQ(balancedTree, reference);
+}
+
+TEST(GlobalTree, rebalanceShrinkStart32)
+{
+    rebalanceShrinkStart<unsigned>();
+}
+
+TEST(GlobalTree, rebalanceShrinkStart64)
+{
+    rebalanceShrinkStart<uint64_t>();
+}
+
+template<class CodeType>
+void rebalanceShrinkMid()
+{
+    constexpr int bucketSize = 8;
+
+    std::vector<CodeType> tree
+    {
+        codeFromIndices<CodeType>({0}),
+        codeFromIndices<CodeType>({1,0}),
+        codeFromIndices<CodeType>({1,1}),
+        codeFromIndices<CodeType>({1,2}),
+        codeFromIndices<CodeType>({1,3}),
+        codeFromIndices<CodeType>({1,4}),
+        codeFromIndices<CodeType>({1,5}),
+        codeFromIndices<CodeType>({1,6}),
+        codeFromIndices<CodeType>({1,7}),
+        codeFromIndices<CodeType>({2}),
+        codeFromIndices<CodeType>({3}),
+        codeFromIndices<CodeType>({4}),
+        codeFromIndices<CodeType>({5}),
+        codeFromIndices<CodeType>({6}),
+        codeFromIndices<CodeType>({7}),
+    };
+
+    std::vector<int> counts(tree.size(), 1);
+
+    std::vector<CodeType> balancedTree = sphexa::rebalanceTree(tree.data(), counts.data(), tree.size(), bucketSize);
+
+    std::vector<CodeType> reference;
+    reference.reserve(8);
+
+    for (unsigned char i = 0; i < 8; ++i)
+    {
+        reference.push_back(codeFromIndices<CodeType>({i}));
+    }
+
+    EXPECT_EQ(balancedTree, reference);
+}
+
+TEST(GlobalTree, rebalanceShrinkMid32)
+{
+    rebalanceShrinkMid<unsigned>();
+}
+
+TEST(GlobalTree, rebalanceShrinkMid64)
+{
+    rebalanceShrinkMid<uint64_t>();
+}
+
+template<class CodeType>
+void rebalanceShrinkEnd()
+{
+    constexpr int bucketSize = 8;
+
+    std::vector<CodeType> tree
+    {
+        codeFromIndices<CodeType>({0}),
+        codeFromIndices<CodeType>({1}),
+        codeFromIndices<CodeType>({2}),
+        codeFromIndices<CodeType>({3}),
+        codeFromIndices<CodeType>({4}),
+        codeFromIndices<CodeType>({5}),
+        codeFromIndices<CodeType>({6}),
+        codeFromIndices<CodeType>({7,0}),
+        codeFromIndices<CodeType>({7,1}),
+        codeFromIndices<CodeType>({7,2}),
+        codeFromIndices<CodeType>({7,3}),
+        codeFromIndices<CodeType>({7,4}),
+        codeFromIndices<CodeType>({7,5}),
+        codeFromIndices<CodeType>({7,6}),
+        codeFromIndices<CodeType>({7,7}),
+    };
+
+    std::vector<int> counts(tree.size(), 1);
+
+    std::vector<CodeType> balancedTree = sphexa::rebalanceTree(tree.data(), counts.data(), tree.size(), bucketSize);
+
+    std::vector<CodeType> reference;
+    reference.reserve(8);
+
+    for (unsigned char i = 0; i < 8; ++i)
+    {
+        reference.push_back(codeFromIndices<CodeType>({i}));
+    }
+
+    EXPECT_EQ(balancedTree, reference);
+}
+
+TEST(GlobalTree, rebalanceShrinkEnd32)
+{
+    rebalanceShrinkEnd<unsigned>();
+}
+
+TEST(GlobalTree, rebalanceShrinkEnd64)
+{
+    rebalanceShrinkEnd<uint64_t>();
+}
+
+TEST(GlobalTree, rebalanceRoot32)
+{
+    using CodeType = unsigned;
+    constexpr int bucketSize = 8;
+
+    // single root node
+    std::vector<CodeType> tree{0};
+    std::vector<int>      counts{7};
+
+    std::vector<CodeType> balancedTree = sphexa::rebalanceTree(tree.data(), counts.data(), tree.size(), bucketSize);
+
+    EXPECT_EQ(balancedTree, tree);
+}
+
+TEST(GlobalTree, rebalanceRoot64)
+{
+    using CodeType = uint64_t;
+    constexpr int bucketSize = 8;
+
+    // single root node
+    std::vector<CodeType> tree{0};
+    std::vector<int>      counts{7};
+
+    std::vector<CodeType> balancedTree = sphexa::rebalanceTree(tree.data(), counts.data(), tree.size(), bucketSize);
+
+    EXPECT_EQ(balancedTree, tree);
+}
+
+TEST(GlobalTree, rebalanceRootSplit32)
+{
+    using CodeType = unsigned;
+    constexpr int bucketSize = 8;
+
+    // single root node
+    std::vector<CodeType> tree{0};
+    std::vector<int>      counts{9};
+
+    std::vector<CodeType> balancedTree = sphexa::rebalanceTree(tree.data(), counts.data(), tree.size(), bucketSize);
+
+    std::vector<CodeType> reference;
+    reference.reserve(8);
+
+    for (unsigned char i = 0; i < 8; ++i)
+    {
+        reference.push_back(codeFromIndices<CodeType>({i}));
+    }
+
+    EXPECT_EQ(balancedTree, reference);
+}
+
+TEST(GlobalTree, rebalanceRootSplit64)
+{
+    using CodeType = uint64_t;
+    constexpr int bucketSize = 8;
+
+    // single root node
+    std::vector<CodeType> tree{0};
+    std::vector<int>      counts{9};
+
+    std::vector<CodeType> balancedTree = sphexa::rebalanceTree(tree.data(), counts.data(), tree.size(), bucketSize);
+
+    std::vector<CodeType> reference;
+    reference.reserve(8);
+
+    for (unsigned char i = 0; i < 8; ++i)
+    {
+        reference.push_back(codeFromIndices<CodeType>({i}));
+    }
+
+    EXPECT_EQ(balancedTree, reference);
+}
+
+template<class CodeType>
+void rebalanceSplitShrink()
+{
+    constexpr int bucketSize = 8;
+
+    std::vector<CodeType> tree
+        {
+            codeFromIndices<CodeType>({0}),
+            codeFromIndices<CodeType>({1}),
+            codeFromIndices<CodeType>({2}),
+            codeFromIndices<CodeType>({3}),
+            codeFromIndices<CodeType>({4}),
+            codeFromIndices<CodeType>({5}),
+            codeFromIndices<CodeType>({6}),
+            codeFromIndices<CodeType>({7,0}),
+            codeFromIndices<CodeType>({7,1}),
+            codeFromIndices<CodeType>({7,2}),
+            codeFromIndices<CodeType>({7,3}),
+            codeFromIndices<CodeType>({7,4}),
+            codeFromIndices<CodeType>({7,5}),
+            codeFromIndices<CodeType>({7,6}),
+            codeFromIndices<CodeType>({7,7}),
+        };
+
+    std::vector<int> counts(tree.size(), 1);
+    counts[1] = bucketSize+1;
+
+    std::vector<CodeType> balancedTree = sphexa::rebalanceTree(tree.data(), counts.data(), tree.size(), bucketSize);
+
+    std::vector<CodeType> reference;
+    reference.reserve(8);
+
+    reference.push_back(codeFromIndices<CodeType>({0}));
+    for (unsigned char i = 0; i < 8; ++i)
+        reference.push_back(codeFromIndices<CodeType>({1,i}));
+    for (unsigned char i = 2; i < 8; ++i)
+        reference.push_back(codeFromIndices<CodeType>({i}));
+
+    EXPECT_EQ(balancedTree, reference);
+}
+
+TEST(GlobalTree, rebalanceSplitShrink32)
+{
+    rebalanceShrinkEnd<unsigned>();
+}
+
+TEST(GlobalTree, rebalanceSplitShrink64)
+{
+    rebalanceShrinkEnd<uint64_t>();
 }

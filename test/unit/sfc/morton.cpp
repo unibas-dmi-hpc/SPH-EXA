@@ -71,6 +71,40 @@ TEST(MortonCode, decodeMorton64)
     EXPECT_EQ(1u<<20u, sphexa::decodeMortonZ(code));
 }
 
+TEST(MortonCode, treeLevel32)
+{
+    using CodeType = unsigned;
+    EXPECT_EQ(0, sphexa::treeLevel<CodeType>(1u<<30u));
+    EXPECT_EQ(1, sphexa::treeLevel<CodeType>(1u<<27u));
+    EXPECT_EQ(10, sphexa::treeLevel<CodeType>(1));
+}
+
+TEST(MortonCode, treeLevel64)
+{
+    using CodeType = uint64_t;
+    EXPECT_EQ(0, sphexa::treeLevel<CodeType>(1ul<<63u));
+    EXPECT_EQ(1, sphexa::treeLevel<CodeType>(1ul<<60u));
+    EXPECT_EQ(21, sphexa::treeLevel<CodeType>(1));
+}
+
+TEST(MortonCode, parentIndex32)
+{
+    using CodeType = unsigned;
+    EXPECT_EQ(6, sphexa::parentIndex(6u, 10));
+    EXPECT_EQ(1, sphexa::parentIndex(1u<<24u, 2));
+    EXPECT_EQ(2, sphexa::parentIndex(1u<<25u, 2));
+    EXPECT_EQ(1, sphexa::parentIndex(1u<<27u, 1));
+}
+
+TEST(MortonCode, parentIndex64)
+{
+    using CodeType = uint64_t;
+    EXPECT_EQ(6, sphexa::parentIndex(6ul, 21));
+    EXPECT_EQ(1, sphexa::parentIndex(1ul<<57u, 2));
+    EXPECT_EQ(2, sphexa::parentIndex(1ul<<58u, 2));
+    EXPECT_EQ(1, sphexa::parentIndex(1ul<<60u, 1));
+}
+
 TEST(MortonCode, enclosingBoxTrim)
 {
     std::size_t code      = 0x0FF0000000000001;

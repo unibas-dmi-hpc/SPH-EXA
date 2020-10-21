@@ -255,6 +255,36 @@ nodeRange(unsigned treeLevel)
     return ret;
 }
 
+/*! \brief return octree subdivision level corresponding to codeRange
+ *
+ * \tparam I         32- or 64-bit unsigned integer type
+ * \param codeRange  input Morton code range
+ * \return           octree subdivision level 0-10 (32-bit) or 0-21 (64-bit)
+ */
+template<class I>
+inline unsigned treeLevel(I codeRange)
+{
+    // check that codeRange is a power of 8
+    assert( (countLeadingZeros(codeRange - 1) - unusedBits<I>{}) % 3 == 0);
+
+    return (countLeadingZeros(codeRange - 1) - unusedBits<I>{}) / 3;
+}
+
+/*! \brief return the node index between 0-7 of the input code in the parent node
+ *
+ * \tparam I    32- or 64-bit unsigned integer type
+ * \param code  input code corresponding to an octree node
+ * \param level octree subdivision level to fully specify the octree node together with @a code
+ * \return      the index between 0 and 7 that locates @a code in its enclosing parent node
+ *              at level - 1. For the root node at level 0 which has no parent, the return value
+ *              is 0.
+ */
+template<class I>
+inline unsigned parentIndex(I code, unsigned level)
+{
+    return (code >> (3u*(maxTreeLevel<I>{} - level))) & 7u;
+}
+
 /*! \brief compute an enclosing envelope corresponding to the smallest possible
  *         octree node for two input Morton codes
  *
