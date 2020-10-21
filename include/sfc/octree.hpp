@@ -169,7 +169,7 @@ std::vector<GlobalSfcNode<I>> mergeZCurves(const std::vector<GlobalSfcNode<I>>& 
  * \param codesEnd     Morton code range end of particles to count
  */
 template<class I>
-void countTreeNodes(const I* tree, int* counts, int nNodes, const I* codesStart, const I* codesEnd)
+void computeNodeCounts(const I* tree, int* counts, int nNodes, const I* codesStart, const I* codesEnd)
 {
     for (int i = 0; i < nNodes-1; ++i)
     {
@@ -184,6 +184,84 @@ void countTreeNodes(const I* tree, int* counts, int nNodes, const I* codesStart,
 
     auto lastNode    = std::lower_bound(codesStart, codesEnd, tree[nNodes-1]);
     counts[nNodes-1] = std::distance(lastNode, codesEnd);
+}
+
+template<class I>
+std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes, int bucketSize)
+{
+    std::vector<I> balancedTree;
+    balancedTree.reserve(nNodes);
+
+    int i = 0;
+    while(i < nNodes-1)
+    {
+        I thisNode     = tree[i];
+        I range        = tree[i+1] - thisNode;
+        unsigned level = treeLevel(range);
+
+        if (counts[i] > bucketSize)
+        {
+            // split
+            for (int peer = 0; peer < 8; ++peer)
+            {
+                balancedTree.push_back(thisNode + peer * nodeRange<I>(level + 1));
+            }
+            i++;
+        }
+        else if (parentIndex(thisNode, level) == 0)
+        {
+            I nextParent = (i+8 < nNodes) ? tree[i+8] : nodeRange<I>(0);
+
+            if (nextParent == thisNode + nodeRange<I>(level -1))
+            {
+                // check peers to determine whether nodes need to be combined
+                int parentCount = std::accumulate(counts + i, counts + i + 8, 0);
+                if (parentCount > bucketSize)
+                {
+                    // the nodes can stay
+                    std::copy(tree + i, tree + i + 8, std::back_inserter(balancedTree));
+                }
+                else
+                {
+                    // the nodes must be fused, only select the first peer
+                    balancedTree.push_back(thisNode);
+                }
+                i += 8;
+            }
+            else {
+                balancedTree.push_back(thisNode);
+                i++;
+            }
+        }
+        else
+        {
+            // use node as is
+            balancedTree.push_back(thisNode);
+            i++;
+        }
+    }
+
+    // take care of the last node
+    if (i < nNodes)
+    {
+        I thisNode = tree[nNodes - 1];
+        I range = nodeRange<I>(0) - thisNode;
+        unsigned level = treeLevel(range);
+        if (counts[nNodes - 1] > bucketSize)
+        {
+            // split
+            for (int peer = 0; peer < 8; ++peer)
+            {
+                balancedTree.push_back(thisNode + peer * nodeRange<I>(level + 1));
+            }
+        }
+        else
+        {
+            balancedTree.push_back(thisNode);
+        }
+    }
+
+    return balancedTree;
 }
 
 
