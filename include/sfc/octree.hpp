@@ -8,19 +8,33 @@
 namespace sphexa
 {
 
+/*! \brief returns the number of nodes in a tree
+ *
+ * \tparam I           32- or 64-bit unsigned integer type
+ * \param tree         input tree
+ * \return             the number of nodes
+ *
+ * This makes it explicit that a vector of n Morton codes
+ * corresponds to a tree with n-1 nodes.
+ */
+template<class I>
+std::size_t nNodes(const std::vector<I>& tree)
+{
+    assert(tree.size());
+    return tree.size() - 1;
+}
 
 /*! \brief check whether octree invariants are fulfilled
  *
  * \tparam I           32- or 64-bit unsigned integer type
- * \param tree         octree nodes given as Morton codes of length @a nNodes
+ * \param tree         octree nodes given as Morton codes of length @a nNodes+1
  * \param nNodes       number of nodes
  * \return             true if invariants ar satisfied, false otherwise
  *
  * The invariants are:
- *      - tree contains root node with code 0
+ *      - tree contains root node with code 0 and the maximum code (nodeRange<I>(0))
  *      - tree is sorted
  *      - difference between consecutive elements must be a power of 8
- *        (for the last element use nodeRange<I>(0) to compute the range)
  *
  * These three conditions guarantee that
  *      - the entire space is covered
@@ -30,27 +44,22 @@ namespace sphexa
 template<class I>
 bool checkOctreeInvariants(const I* tree, int nNodes)
 {
-    // the root node with code 0 must be part of the tree
-    if (nNodes > 0 && tree[0] != 0)
+    // the root node delineated by code 0 and nodeRange<I>(0)
+    // must be part of the tree
+    if (nNodes < 1)
+        return false;
+    if (tree[0] != 0 || tree[nNodes] != nodeRange<I>(0))
         return false;
 
     for (int i = 0; i < nNodes; ++i)
     {
         if (i+1 < nNodes && tree[i] >= tree[i+1])
-        {
-            // tree must be sorted
             return false;
-        }
 
-        I thisNode     = tree[i];
-        I nextNode     = (i+1 == nNodes) ? nodeRange<I>(0) : tree[i+1];
-        I range        = nextNode - thisNode;
+        I range = tree[i+1] - tree[i];
 
         if (!isPowerOf8(range))
-        {
-            // range must be a power of 8
             return false;
-        }
     }
 
     return true;
@@ -59,7 +68,7 @@ bool checkOctreeInvariants(const I* tree, int nNodes)
 /*! \brief count number of particles in each octree node
  *
  * \tparam I           32- or 64-bit unsigned integer type
- * \param tree         octree nodes given as Morton codes of length @a nNodes
+ * \param tree         octree nodes given as Morton codes of length @a nNodes+1
  *                     needs to satisfy the octree invariants
  * \param counts       output particle counts per node, length = @a nNodes
  * \param nNodes       number of nodes in tree
@@ -69,7 +78,7 @@ bool checkOctreeInvariants(const I* tree, int nNodes)
 template<class I>
 void computeNodeCounts(const I* tree, int* counts, int nNodes, const I* codesStart, const I* codesEnd)
 {
-    for (int i = 0; i < nNodes-1; ++i)
+    for (int i = 0; i < nNodes; ++i)
     {
         I nodeStart = tree[i];
         I nodeEnd   = tree[i+1];
@@ -79,9 +88,6 @@ void computeNodeCounts(const I* tree, int* counts, int nNodes, const I* codesSta
         auto rangeEnd   = std::lower_bound(codesStart, codesEnd, nodeEnd);
         counts[i] = std::distance(rangeStart, rangeEnd);
     }
-
-    auto lastNode    = std::lower_bound(codesStart, codesEnd, tree[nNodes-1]);
-    counts[nNodes-1] = std::distance(lastNode, codesEnd);
 }
 
 /*! \brief split or fuse octree nodes based on node counts relative to bucketSize
@@ -99,10 +105,10 @@ template<class I>
 std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes, int bucketSize)
 {
     std::vector<I> balancedTree;
-    balancedTree.reserve(nNodes);
+    balancedTree.reserve(nNodes + 1);
 
     int i = 0;
-    while(i < nNodes-1)
+    while(i < nNodes)
     {
         I thisNode     = tree[i];
         I range        = tree[i+1] - thisNode;
@@ -119,10 +125,8 @@ std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes, int b
         }
         else
         {
-            I nextParent = (i+8 < nNodes) ? tree[i+8] : nodeRange<I>(0);
-
             if (parentIndex(thisNode, level) == 0 &&
-                nextParent == thisNode + nodeRange<I>(level -1))
+                tree[i+8] == thisNode + nodeRange<I>(level - 1))
             {
                 // check siblings to determine whether nodes need to be combined
                 int parentCount = std::accumulate(counts + i, counts + i + 8, 0);
@@ -146,26 +150,7 @@ std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes, int b
             }
         }
     }
-
-    // take care of the last node
-    if (i < nNodes)
-    {
-        I thisNode = tree[nNodes - 1];
-        I range = nodeRange<I>(0) - thisNode;
-        unsigned level = treeLevel(range);
-        if (counts[nNodes - 1] > bucketSize)
-        {
-            // split
-            for (int peer = 0; peer < 8; ++peer)
-            {
-                balancedTree.push_back(thisNode + peer * nodeRange<I>(level + 1));
-            }
-        }
-        else
-        {
-            balancedTree.push_back(thisNode);
-        }
-    }
+    balancedTree.push_back(nodeRange<I>(0));
 
     return balancedTree;
 }
@@ -179,7 +164,7 @@ std::vector<I> computeOctree(const I* codesStart, const I* codesEnd, int bucketS
     unsigned ticks        = 1u << minTreeLevel;
 
     std::vector<I> tree;
-    tree.reserve(ticks*ticks*ticks);
+    tree.reserve(ticks*ticks*ticks + 1);
 
     // generate regular minTreeLevel tree
     for (unsigned x = 0; x < ticks; ++x)
@@ -188,21 +173,22 @@ std::vector<I> computeOctree(const I* codesStart, const I* codesEnd, int bucketS
             {
                 tree.push_back(detail::codeFromBox<I>({x,y,z}, minTreeLevel));
             }
+    tree.push_back(nodeRange<I>(0));
 
     sort(begin(tree), end(tree));
 
-    std::vector<int> counts(tree.size());
+    std::vector<int> counts(nNodes(tree));
 
     bool converged = false;
     while (!converged)
     {
-        computeNodeCounts(tree.data(), counts.data(), tree.size(), codesStart, codesEnd);
-        std::vector<I> balancedTree = rebalanceTree(tree.data(), counts.data(), tree.size(), bucketSize);
+        computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd);
+        std::vector<I> balancedTree = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
         if (tree == balancedTree)
             converged = true;
 
         swap(tree, balancedTree);
-        counts.resize(tree.size());
+        counts.resize(nNodes(tree));
     }
 
     return tree;
