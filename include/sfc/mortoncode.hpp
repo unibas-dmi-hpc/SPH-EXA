@@ -225,8 +225,34 @@ inline I codeFromIndices(std::array<unsigned char, 21> indices)
     I ret = 0;
     for(unsigned idx = 0; idx < nLevels; ++idx)
     {
+        assert(indices[idx] < 8);
         unsigned treeLevel = nLevels - idx - 1;
         ret += I(indices[idx]) << (3*treeLevel);
+    }
+
+    return ret;
+}
+
+/*! \brief convert a morton code into a series of hierarchical octree indices
+ *
+ * \tparam I       32- or 64-bit unsigned integer
+ * \param[in]      the morton code
+ *
+ * \return indices indices[0] contains the octree index 0-7 for the top-level,
+ *                 indices[1] refers to the first subdivision, etc
+ *                 a 32-bit integer can resolve up to 10 layers, while
+ *                 a 64-bit integer can resolve 21 layers
+ */
+template<class I>
+inline std::array<unsigned char, maxTreeLevel<I>{}>  indicesFromCode(I code)
+{
+    constexpr unsigned nLevels = maxTreeLevel<I>{};
+
+    std::array<unsigned char, nLevels> ret;
+    for(unsigned idx = 0; idx < nLevels; ++idx)
+    {
+        unsigned treeLevel = nLevels - idx - 1;
+        ret[treeLevel] = (code >> (3*idx)) % 8;
     }
 
     return ret;
