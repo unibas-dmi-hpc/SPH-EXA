@@ -181,7 +181,7 @@ TEST(MortonCode, smallestCommonBoxL0_64)
     EXPECT_EQ(probe, reference);
 }
 
-TEST(MortonCode, boxCoordinates32)
+TEST(MortonCode, boxFromCode32)
 {
     constexpr unsigned treeLevel = 3;
     // (5,3,6)
@@ -193,7 +193,7 @@ TEST(MortonCode, boxCoordinates32)
     EXPECT_EQ(c, cref);
 }
 
-TEST(MortonCode, boxCoordinates64)
+TEST(MortonCode, boxFromCode64)
 {
     constexpr unsigned treeLevel = 3;
     // (5,3,6)
@@ -229,6 +229,75 @@ TEST(MortonCode, codeFromBox64)
 
     std::array<unsigned, 3> testBox = sphexa::detail::boxFromCode(testCode, treeLevel);
     EXPECT_EQ(testBox, box);
+}
+
+TEST(MortonCode, codeFromIndices32)
+{
+    using CodeType = unsigned;
+
+    constexpr unsigned maxLevel = sphexa::maxTreeLevel<CodeType>{};
+
+    std::array<unsigned char, 21> input{0};
+    for (int i = 0; i < maxLevel; ++i)
+    {
+        input[i] = 7;
+    }
+
+    EXPECT_EQ(sphexa::nodeRange<CodeType>(0), sphexa::detail::codeFromIndices<CodeType>(input) + 1);
+}
+
+TEST(MortonCode, codeFromIndices64)
+{
+    using CodeType = uint64_t;
+
+    constexpr unsigned maxLevel = sphexa::maxTreeLevel<CodeType>{};
+
+    std::array<unsigned char, 21> input{0};
+    for (int i = 0; i < maxLevel; ++i)
+    {
+        input[i] = 7;
+    }
+
+    EXPECT_EQ(sphexa::nodeRange<CodeType>(0), sphexa::detail::codeFromIndices<CodeType>(input) + 1);
+}
+
+TEST(MortonCode, indicesFromCode32)
+{
+    using CodeType = unsigned;
+
+    constexpr unsigned maxLevel = sphexa::maxTreeLevel<CodeType>{};
+
+    CodeType input = sphexa::nodeRange<CodeType>(0);
+
+    std::array<unsigned char, maxLevel> reference{0};
+    for (int i = 0; i < maxLevel; ++i)
+    {
+        reference[i] = 7;
+    }
+
+    EXPECT_EQ(reference, sphexa::detail::indicesFromCode(input - 1));
+
+    input = 2 * sphexa::nodeRange<CodeType>(3) + 4 * sphexa::nodeRange<CodeType>(8);
+
+    reference = std::array<unsigned char, maxLevel>{0,0,2,0,0,0,0,4,0,0};
+    EXPECT_EQ(reference, sphexa::detail::indicesFromCode(input));
+}
+
+TEST(MortonCode, indicesFromCode64)
+{
+    using CodeType = uint64_t;
+
+    constexpr unsigned maxLevel = sphexa::maxTreeLevel<CodeType>{};
+
+    CodeType input = sphexa::nodeRange<CodeType>(0);
+
+    std::array<unsigned char, maxLevel> reference{0};
+    for (int i = 0; i < maxLevel; ++i)
+    {
+        reference[i] = 7;
+    }
+
+    EXPECT_EQ(reference, sphexa::detail::indicesFromCode(input - 1));
 }
 
 TEST(MortonCode, mortonNeighbor32)
