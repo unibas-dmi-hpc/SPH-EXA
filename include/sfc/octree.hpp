@@ -128,33 +128,20 @@ std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes,
             changes++;
             i++;
         }
+        else if (parentIndex(thisNode, level) == 0 &&  // current node is first of 8 siblings
+                 tree[i+8] == thisNode + nodeRange<I>(level - 1) && // next 7 nodes are all siblings
+                 std::accumulate(counts + i, counts + i + 8, 0) <= bucketSize) // parent count too small
+        {
+            // fuse, by omitting the 7 siblings
+            balancedTree.push_back(thisNode);
+            changes++;
+            i += 8;
+        }
         else
         {
-            if (parentIndex(thisNode, level) == 0 &&
-                tree[i+8] == thisNode + nodeRange<I>(level - 1))
-            {
-                // check siblings to determine whether nodes need to be combined
-                int parentCount = std::accumulate(counts + i, counts + i + 8, 0);
-                if (parentCount > bucketSize)
-                {
-                    // the node can stay
-                    balancedTree.push_back(thisNode);
-                    i++;
-                }
-                else
-                {
-                    // the nodes must be fused, only select the first peer
-                    balancedTree.push_back(thisNode);
-                    changes++;
-                    i += 8;
-                }
-            }
-            else
-            {
-                // node neither gets split or fused
-                balancedTree.push_back(thisNode);
-                i++;
-            }
+            // do nothing
+            balancedTree.push_back(thisNode);
+            i++;
         }
     }
     balancedTree.push_back(nodeRange<I>(0));
