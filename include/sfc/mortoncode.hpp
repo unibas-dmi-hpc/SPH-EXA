@@ -87,9 +87,12 @@ inline I toNBitInt(T x)
     return std::min(std::max(x * T(1u<<nBits), T(0.0)), T((1u<<nBits)-1u));
 }
 
+template<class T>
+static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
+
 } // namespace detail
 
-/*! \brief Calculates a Morton code for a 3D point
+/*! \brief Calculates a Morton code for a 3D point in the unit cube
  *
  * \tparam I specify either a 32 or 64 bit unsigned integer to select
  *           the precision.
@@ -99,7 +102,7 @@ inline I toNBitInt(T x)
  * \param[in] x,y,z input coordinates within the unit cube [0,1]^3
  */
 template <class I, class T>
-inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3D(T x, T y, T z)
+inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3DunitCube(T x, T y, T z)
 {
     assert(x >= 0.0 && x <= 1.0);
     assert(y >= 0.0 && y <= 1.0);
@@ -116,6 +119,27 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3D(T x, T y, T z)
 
     // interleave the x, y, z components
     return xx * 4 + yy * 2 + zz;
+}
+
+/*! \brief Calculates a Morton code for a 3D point within the specified box
+ *
+ * \tparam I specify either a 32 or 64 bit unsigned integer to select
+ *           the precision.
+ *           Note: I needs to be specified explicitly.
+ *           Note: not specifying an unsigned type results in a compilation error
+ *
+ * \param[in] x,y,z input coordinates within the unit cube [0,1]^3
+ * \param[in] box   bounding for coordinates
+ *
+ * \return          the Morton code
+ */
+template <class I, class T>
+inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3D(T x, T y, T z, Box<T> box)
+{
+    using detail::normalize;
+    return morton3DunitCube<I>(normalize(x, box.xmin(), box.xmax()),
+                               normalize(y, box.ymin(), box.ymax()),
+                               normalize(z, box.zmin(), box.zmax()));
 }
 
 //! \brief extract X component from a morton code
@@ -399,13 +423,6 @@ mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz)
 }
 
 
-namespace detail {
-
-template<class T>
-static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
-
-} // namespace detail
-
 /*! \brief compute the Morton codes for the input coordinate arrays
  *
  * \param[in]  [x,y,z][Begin, End] (const) input iterators for coordinate arrays
@@ -425,9 +442,7 @@ void computeMortonCodes(InputIterator  xBegin,
 
     while (xBegin != xEnd)
     {
-        *codesBegin++ = morton3D<Integer>(normalize(*xBegin++, box.xmin(), box.xmax()),
-                                          normalize(*yBegin++, box.ymin(), box.ymax()),
-                                          normalize(*zBegin++, box.zmin(), box.zmax()));
+        *codesBegin++ = morton3D<Integer>(*xBegin++, *yBegin++, *zBegin++, box);
     }
 }
 
