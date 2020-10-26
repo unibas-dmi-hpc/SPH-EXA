@@ -18,8 +18,8 @@ TEST(MortonCode, mortonIndex32) {
     // z = 100
     // Morton code is 101010100 = 340
 
-    EXPECT_EQ(340, sphexa::morton3D<unsigned>(float(x), float(y), float(z)));
-    EXPECT_EQ(340, sphexa::morton3D<unsigned>(x, y, z));
+    EXPECT_EQ(340, sphexa::morton3DunitCube<unsigned>(float(x), float(y), float(z)));
+    EXPECT_EQ(340, sphexa::morton3DunitCube<unsigned>(x, y, z));
 }
 
 TEST(MortonCode, mortonIndex64) {
@@ -34,8 +34,8 @@ TEST(MortonCode, mortonIndex64) {
     // 0b0(111)(000)(000)...(000) = 0x7000000000000000lu
 
     std::size_t reference = 0x7000000000000000lu;
-    EXPECT_EQ(reference, sphexa::morton3D<std::size_t>(float(x), float(y), float(z)));
-    EXPECT_EQ(reference, sphexa::morton3D<std::size_t>(x, y, z));
+    EXPECT_EQ(reference, sphexa::morton3DunitCube<std::size_t>(float(x), float(y), float(z)));
+    EXPECT_EQ(reference, sphexa::morton3DunitCube<std::size_t>(x, y, z));
 }
 
 TEST(MortonCode, decodeMorton32)
@@ -402,7 +402,7 @@ TEST(MortonCode, mortonCodesSequence)
     for (int i = 0; i < x.size(); ++i)
     {
         reference.push_back(
-            sphexa::morton3D<unsigned>(normalize(x[i], boxMin, boxMax), normalize(y[i], boxMin, boxMax), normalize(z[i], boxMin, boxMax)));
+            sphexa::morton3DunitCube<unsigned>(normalize(x[i], boxMin, boxMax), normalize(y[i], boxMin, boxMax), normalize(z[i], boxMin, boxMax)));
     }
 
     std::vector<unsigned> probe(x.size());

@@ -290,8 +290,7 @@ public:
         {
             for (int i = node.coordinateIndex; i < node.coordinateIndex + node.count; ++i)
             {
-                // note: assumes x,y,z already normalized in [0,1]
-                CodeType iCode = sphexa::morton3D<CodeType>(randomBox.x()[i], randomBox.y()[i], randomBox.z()[i]);
+                CodeType iCode = sphexa::morton3D<CodeType>(randomBox.x()[i], randomBox.y()[i], randomBox.z()[i], box);
                 EXPECT_TRUE(node.startCode <= iCode);
                 EXPECT_TRUE(iCode < node.endCode);
             }
@@ -787,6 +786,7 @@ TEST(GlobalTree, octreeInvariants64)
 template<class I, class T>
 void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<int>& counts, int bucketSize,
                            const std::vector<I>& mortonCodes,
+                           sphexa::Box<T> box,
                            const std::vector<T>& x,
                            const std::vector<T>& y,
                            const std::vector<T>& z)
@@ -816,8 +816,7 @@ void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<int>& c
 
         for (int i = nodeStart; i < counts[nodeIndex]; ++i)
         {
-            // note: assumes x,y,z already normalized in [0,1]
-            CodeType iCode = sphexa::morton3D<CodeType>(x[i], y[i], z[i]);
+            CodeType iCode = sphexa::morton3D<CodeType>(x[i], y[i], z[i], box);
             EXPECT_TRUE(tree[nodeIndex] <= iCode);
             EXPECT_TRUE(iCode < tree[nodeIndex+1]);
         }
@@ -845,7 +844,7 @@ public:
         std::cout << "number of nodes: " << nNodes(treeML) << std::endl;
 
         checkOctreeWithCounts(treeML, countsML, bucketSize, randomBox.mortonCodes(),
-                              randomBox.x(), randomBox.y(), randomBox.z());
+                              box, randomBox.x(), randomBox.y(), randomBox.z());
 
         // compute octree starting from just the root node
         auto [treeRN, countsRN] = sphexa::computeOctree(randomBox.mortonCodes().data(),
@@ -853,7 +852,7 @@ public:
                                                         bucketSize, sphexa::detail::makeRootNodeTree<I>());
 
         checkOctreeWithCounts(treeML, countsRN, bucketSize, randomBox.mortonCodes(),
-                              randomBox.x(), randomBox.y(), randomBox.z());
+                              box, randomBox.x(), randomBox.y(), randomBox.z());
 
         EXPECT_EQ(treeML, treeRN);
     }
