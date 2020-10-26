@@ -324,6 +324,46 @@ std::array<int, 3> bucketSizes{64, 1024, 10000};
 INSTANTIATE_TEST_SUITE_P(TrimRandomBox, RandomBoxTrimmer, testing::ValuesIn(bucketSizes));
 
 
+template<class I>
+void printIndices(std::array<unsigned char, sphexa::maxTreeLevel<I>{}> indices)
+{
+    for (int i = 0; i < sphexa::maxTreeLevel<I>{}; ++i)
+        std::cout << indices[i] << ",";
+}
+
+
+template<class T, std::size_t N>
+std::ostream& operator<<(std::ostream& os, const std::array<T, N>& input)
+{
+    unsigned lastNonZero = 0;
+    for (int i = 0; i < N-1; ++i)
+    {
+        if (input[i] != 0)
+        {
+            lastNonZero = i;
+        }
+    }
+
+    for (int i = 0; i < lastNonZero+1; ++i)
+        os << int(input[i]) << ",";
+    os << input[N-1];
+
+    return os;
+}
+
+template<class I>
+void printTree(const I* tree, const int* counts, int nNodes)
+{
+    for (int i = 0; i < nNodes; ++i)
+    {
+        I thisNode     = tree[i];
+        //I range        = tree[i+1] - thisNode;
+        //unsigned level = sphexa::treeLevel(range);
+        std::cout << sphexa::detail::indicesFromCode(thisNode) << " :" << counts[i] << std::endl;
+    }
+    std::cout << std::endl;
+}
+
 template<class CodeType>
 void checkCountTreeNodes()
 {
@@ -774,6 +814,13 @@ public:
         {
             int nodeStart = std::lower_bound(begin(randomBox.mortonCodes()), end(randomBox.mortonCodes()), tree[nodeIndex]) -
                             begin(randomBox.mortonCodes());
+
+            int nodeEnd = std::lower_bound(begin(randomBox.mortonCodes()), end(randomBox.mortonCodes()), tree[nodeIndex+1]) -
+                          begin(randomBox.mortonCodes());
+
+            // check that counts are correct
+            EXPECT_EQ(nodeEnd - nodeStart, counts[nodeIndex]);
+            EXPECT_LE(counts[nodeIndex], bucketSize);
 
             if (counts[nodeIndex])
             {

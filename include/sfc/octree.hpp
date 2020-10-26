@@ -92,20 +92,24 @@ void computeNodeCounts(const I* tree, int* counts, int nNodes, const I* codesSta
 
 /*! \brief split or fuse octree nodes based on node counts relative to bucketSize
  *
- * \tparam I           32- or 64-bit unsigned integer type
- * \param tree         octree nodes given as Morton codes of length @a nNodes
- *                     needs to satisfy the octree invariants
- * \param counts       output particle counts per node, length = @a nNodes
- * \param nNodes       number of nodes in tree
- * \param bucketSize   maximum particle count per (leaf) node and
- *                     minimum particle count (strictly >) for (implicit) internal nodes
- * \return             the rebalanced Morton code octree
+ * \tparam I               32- or 64-bit unsigned integer type
+ * \param[in] tree         octree nodes given as Morton codes of length @a nNodes
+ *                         needs to satisfy the octree invariants
+ * \param[in] counts       output particle counts per node, length = @a nNodes
+ * \param[in] nNodes       number of nodes in tree
+ * \param[in] bucketSize   maximum particle count per (leaf) node and
+ *                         minimum particle count (strictly >) for (implicit) internal nodes
+ * \param[out] converged   optional boolean flag to indicate convergence
+ * \return                 the rebalanced Morton code octree
  */
 template<class I>
-std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes, int bucketSize)
+std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes,
+                             int bucketSize, bool* converged = nullptr)
 {
     std::vector<I> balancedTree;
     balancedTree.reserve(nNodes + 1);
+
+    int changes = 0;
 
     int i = 0;
     while(i < nNodes)
@@ -121,6 +125,7 @@ std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes, int b
             {
                 balancedTree.push_back(thisNode + sibling * nodeRange<I>(level + 1));
             }
+            changes++;
             i++;
         }
         else
@@ -132,15 +137,17 @@ std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes, int b
                 int parentCount = std::accumulate(counts + i, counts + i + 8, 0);
                 if (parentCount > bucketSize)
                 {
-                    // the nodes can stay
-                    std::copy(tree + i, tree + i + 8, std::back_inserter(balancedTree));
+                    // the node can stay
+                    balancedTree.push_back(thisNode);
+                    i++;
                 }
                 else
                 {
                     // the nodes must be fused, only select the first peer
                     balancedTree.push_back(thisNode);
+                    changes++;
+                    i += 8;
                 }
-                i += 8;
             }
             else
             {
@@ -151,6 +158,11 @@ std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes, int b
         }
     }
     balancedTree.push_back(nodeRange<I>(0));
+
+    if (converged != nullptr)
+    {
+        *converged = (changes == 0);
+    }
 
     return balancedTree;
 }
@@ -173,9 +185,11 @@ std::vector<I> computeOctree(const I* codesStart, const I* codesEnd, int bucketS
             {
                 tree.push_back(detail::codeFromBox<I>({x,y,z}, minTreeLevel));
             }
+
     tree.push_back(nodeRange<I>(0));
 
     sort(begin(tree), end(tree));
+    assert(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
     std::vector<int> counts(nNodes(tree));
 
@@ -183,9 +197,8 @@ std::vector<I> computeOctree(const I* codesStart, const I* codesEnd, int bucketS
     while (!converged)
     {
         computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd);
-        std::vector<I> balancedTree = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
-        if (tree == balancedTree)
-            converged = true;
+        std::vector<I> balancedTree;
+        balancedTree = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize, &converged);
 
         swap(tree, balancedTree);
         counts.resize(nNodes(tree));
