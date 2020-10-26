@@ -167,12 +167,27 @@ std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes,
     return balancedTree;
 }
 
-template<class I>
-std::vector<I> computeOctree(const I* codesStart, const I* codesEnd, int bucketSize)
+namespace detail
 {
-    unsigned nParticles   = codesEnd - codesStart;
+
+//! \brief returns an octree with just the root node
+template<class I>
+std::vector<I> makeRootNodeTree()
+{
+    std::vector<I> tree;
+
+    tree.push_back(0);
+    tree.push_back(nodeRange<I>(0));
+
+    return tree;
+}
+
+//! \brief returns a uniform octree with 8^ceil(log8(nBuckets)) leaf nodes
+template<class I>
+std::vector<I> makeUniformNLevelTree(int nParticles, int bucketSize)
+{
     // the minimum tree level needed is ceil(log8(nParticles/bucketSize))
-    unsigned minTreeLevel = log8ceil(nParticles/bucketSize);
+    unsigned minTreeLevel = log8ceil(I(nParticles/bucketSize));
     unsigned ticks        = 1u << minTreeLevel;
 
     std::vector<I> tree;
@@ -191,6 +206,29 @@ std::vector<I> computeOctree(const I* codesStart, const I* codesEnd, int bucketS
     sort(begin(tree), end(tree));
     assert(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
+    return tree;
+}
+
+} // namespace detail
+
+/*! \brief compute an octree from morton codes for a specified bucket size
+ *
+ * \tparam I           32- or 64-bit unsigned integer type
+ * \param codesStart   particle morton code sequence start
+ * \param codesEnd     particle morton code sequence end
+ * \param bucketSize   maximum number of particles/codes per octree leaf node
+ * \param[inout] tree  initial tree for the first iteration
+ * \return             the tree and the node counts
+ */
+template<class I>
+std::tuple<std::vector<I>, std::vector<int>>
+computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vector<I>&& tree = std::vector<I>(0))
+{
+    if (!tree.size())
+    {
+        tree = detail::makeUniformNLevelTree<I>(codesEnd - codesStart, bucketSize);
+    }
+
     std::vector<int> counts(nNodes(tree));
 
     bool converged = false;
@@ -204,7 +242,7 @@ std::vector<I> computeOctree(const I* codesStart, const I* codesEnd, int bucketS
         counts.resize(nNodes(tree));
     }
 
-    return tree;
+    return std::make_tuple(tree, counts);
 }
 
 //////////////////////////////////////////////////////////

@@ -784,6 +784,46 @@ TEST(GlobalTree, octreeInvariants64)
     octreeInvariantTail<uint64_t>();
 }
 
+template<class I, class T>
+void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<int>& counts, int bucketSize,
+                           const std::vector<I>& mortonCodes,
+                           const std::vector<T>& x,
+                           const std::vector<T>& y,
+                           const std::vector<T>& z)
+{
+    using CodeType = I;
+    EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
+
+    int nParticles = mortonCodes.size();
+
+    // check that referenced particles are within specified range
+    for (int nodeIndex = 0; nodeIndex < nNodes(tree); ++nodeIndex)
+    {
+        int nodeStart = std::lower_bound(begin(mortonCodes), end(mortonCodes), tree[nodeIndex]) -
+                        begin(mortonCodes);
+
+        int nodeEnd = std::lower_bound(begin(mortonCodes), end(mortonCodes), tree[nodeIndex+1]) -
+                      begin(mortonCodes);
+
+        // check that counts are correct
+        EXPECT_EQ(nodeEnd - nodeStart, counts[nodeIndex]);
+        EXPECT_LE(counts[nodeIndex], bucketSize);
+
+        if (counts[nodeIndex])
+        {
+            ASSERT_LT(nodeStart, nParticles);
+        }
+
+        for (int i = nodeStart; i < counts[nodeIndex]; ++i)
+        {
+            // note: assumes x,y,z already normalized in [0,1]
+            CodeType iCode = sphexa::morton3D<CodeType>(x[i], y[i], z[i]);
+            EXPECT_TRUE(tree[nodeIndex] <= iCode);
+            EXPECT_TRUE(iCode < tree[nodeIndex+1]);
+        }
+    }
+}
+
 class RandomBoxPingPong : public testing::TestWithParam<int>
 {
 public:
@@ -793,48 +833,29 @@ public:
         using CodeType = I;
         sphexa::Box<double> box{0, 1};
 
-        unsigned n = 100000;
+        int nParticles = 100000;
 
-        CoordinateType<double, CodeType> randomBox(n, box);
+        CoordinateType<double, CodeType> randomBox(nParticles, box);
 
-        std::vector<I> tree = sphexa::computeOctree(randomBox.mortonCodes().data(),
-                                                    randomBox.mortonCodes().data() + n,
+        // compute octree starting from default uniform octree
+        auto [treeML, countsML] = sphexa::computeOctree(randomBox.mortonCodes().data(),
+                                                    randomBox.mortonCodes().data() + nParticles,
                                                     bucketSize);
-        std::vector<int> counts(nNodes(tree));
-        sphexa::computeNodeCounts(tree.data(), counts.data(), nNodes(tree),
-                                  randomBox.mortonCodes().data(),
-                                  randomBox.mortonCodes().data() + n);
 
-        std::cout << "number of nodes: " << nNodes(tree) << std::endl;
+        std::cout << "number of nodes: " << nNodes(treeML) << std::endl;
 
-        EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
+        checkOctreeWithCounts(treeML, countsML, bucketSize, randomBox.mortonCodes(),
+                              randomBox.x(), randomBox.y(), randomBox.z());
 
-        // check that referenced particles are within specified range
-        for (int nodeIndex = 0; nodeIndex < nNodes(tree); ++nodeIndex)
-        {
-            int nodeStart = std::lower_bound(begin(randomBox.mortonCodes()), end(randomBox.mortonCodes()), tree[nodeIndex]) -
-                            begin(randomBox.mortonCodes());
+        // compute octree starting from just the root node
+        auto [treeRN, countsRN] = sphexa::computeOctree(randomBox.mortonCodes().data(),
+                                                        randomBox.mortonCodes().data() + nParticles,
+                                                        bucketSize, sphexa::detail::makeRootNodeTree<I>());
 
-            int nodeEnd = std::lower_bound(begin(randomBox.mortonCodes()), end(randomBox.mortonCodes()), tree[nodeIndex+1]) -
-                          begin(randomBox.mortonCodes());
+        checkOctreeWithCounts(treeML, countsRN, bucketSize, randomBox.mortonCodes(),
+                              randomBox.x(), randomBox.y(), randomBox.z());
 
-            // check that counts are correct
-            EXPECT_EQ(nodeEnd - nodeStart, counts[nodeIndex]);
-            EXPECT_LE(counts[nodeIndex], bucketSize);
-
-            if (counts[nodeIndex])
-            {
-                ASSERT_LT(nodeStart, n);
-            }
-
-            for (int i = nodeStart; i < counts[nodeIndex]; ++i)
-            {
-                // note: assumes x,y,z already normalized in [0,1]
-                CodeType iCode = sphexa::morton3D<CodeType>(randomBox.x()[i], randomBox.y()[i], randomBox.z()[i]);
-                EXPECT_TRUE(tree[nodeIndex] <= iCode);
-                EXPECT_TRUE(iCode < tree[nodeIndex+1]);
-            }
-        }
+        EXPECT_EQ(treeML, treeRN);
     }
 };
 
