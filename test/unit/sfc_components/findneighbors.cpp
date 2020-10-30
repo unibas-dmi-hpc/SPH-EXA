@@ -40,8 +40,8 @@ void sortNeighbors(int *neighbors, int *neighborsCount, int n, int ngmax)
 
 TEST(FindNeighbors, treeLevel)
 {
-    EXPECT_EQ(3, sphexa::treeLevel(0.124, 1.));
-    EXPECT_EQ(2, sphexa::treeLevel(0.126, 1.));
+    EXPECT_EQ(3, sphexa::radiusToTreeLevel(0.124, 1.));
+    EXPECT_EQ(2, sphexa::radiusToTreeLevel(0.126, 1.));
 }
 
 TEST(FindNeighbors, coordinateContainerIsSorted)
