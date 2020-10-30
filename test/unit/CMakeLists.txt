@@ -24,6 +24,7 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
                  ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
                  EXCLUDE_FROM_ALL)
 
-add_subdirectory(sfc_components)
 
+add_subdirectory(coord_samples)
+add_subdirectory(sfc_components)
 add_subdirectory(mpi_domain)

@@ -1,12 +1,11 @@
 #include <iostream>
-#include <random>
 #include <vector>
 
 #include "gtest/gtest.h"
 
 #include "sfc/findneighbors.hpp"
 
-#include "randombox.hpp"
+#include "coord_samples/random.hpp"
 
 //! \brief simple N^2 all-to-all neighbor search
 template<class T>
