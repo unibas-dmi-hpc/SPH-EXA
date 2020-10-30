@@ -1,7 +1,34 @@
+#include <algorithm>
+#include <numeric>
+
 #include "gtest/gtest.h"
 
 #include "sfc/domaindecomp.hpp"
 
+
+TEST(DomainDecomposition, distributeSFC)
+{
+    using CodeType = unsigned;
+
+    int nLeaves           = 6;
+    int nParticlesPerNode = 5;
+    int nParticles = nLeaves * nParticlesPerNode;
+
+    int nSplits = 2;
+
+    std::vector<int> counts(nLeaves, nParticlesPerNode);
+    counts[nLeaves - 1] = nParticlesPerNode + 1;
+
+    std::vector<CodeType> tree(nLeaves + 1);
+    std::iota(begin(tree), end(tree), 0);
+
+    std::vector<std::tuple<CodeType, CodeType, int>> splits
+        = sphexa::distributeSpaceCurve(tree, counts, nParticles/nSplits, nSplits);
+
+    std::vector<std::tuple<CodeType, CodeType, int>> ref{{0, 3, 15}, {3, 6, 16}};
+
+    EXPECT_EQ(ref, splits);
+}
 
 TEST(DomainDecomposition, binX)
 {
