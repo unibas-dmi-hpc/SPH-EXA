@@ -4,7 +4,7 @@
 #include "sfc/mortoncode.hpp"
 #include "sfc/octree.hpp"
 
-#include "randombox.hpp"
+#include "coord_samples/random.hpp"
 
 using sphexa::detail::codeFromIndices;
 using sphexa::detail::codeFromBox;
@@ -471,13 +471,9 @@ TEST(GlobalTree, octreeInvariants64)
     octreeInvariantTail<uint64_t>();
 }
 
-template<class I, class T>
+template<class I>
 void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<int>& counts, int bucketSize,
-                           const std::vector<I>& mortonCodes,
-                           sphexa::Box<T> box,
-                           const std::vector<T>& x,
-                           const std::vector<T>& y,
-                           const std::vector<T>& z)
+                           const std::vector<I>& mortonCodes)
 {
     using CodeType = I;
     EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
@@ -504,7 +500,7 @@ void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<int>& c
 
         for (int i = nodeStart; i < counts[nodeIndex]; ++i)
         {
-            CodeType iCode = sphexa::morton3D<CodeType>(x[i], y[i], z[i], box);
+            CodeType iCode = mortonCodes[i];
             EXPECT_TRUE(tree[nodeIndex] <= iCode);
             EXPECT_TRUE(iCode < tree[nodeIndex+1]);
         }
@@ -531,16 +527,14 @@ public:
 
         std::cout << "number of nodes: " << nNodes(treeML) << std::endl;
 
-        checkOctreeWithCounts(treeML, countsML, bucketSize, randomBox.mortonCodes(),
-                              box, randomBox.x(), randomBox.y(), randomBox.z());
+        checkOctreeWithCounts(treeML, countsML, bucketSize, randomBox.mortonCodes());
 
         // compute octree starting from just the root node
         auto [treeRN, countsRN] = sphexa::computeOctree(randomBox.mortonCodes().data(),
                                                         randomBox.mortonCodes().data() + nParticles,
                                                         bucketSize, sphexa::detail::makeRootNodeTree<I>());
 
-        checkOctreeWithCounts(treeML, countsRN, bucketSize, randomBox.mortonCodes(),
-                              box, randomBox.x(), randomBox.y(), randomBox.z());
+        checkOctreeWithCounts(treeML, countsRN, bucketSize, randomBox.mortonCodes());
 
         EXPECT_EQ(treeML, treeRN);
     }

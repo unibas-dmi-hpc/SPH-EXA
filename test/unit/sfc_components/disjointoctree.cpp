@@ -4,7 +4,7 @@
 #include "sfc/mortoncode.hpp"
 #include "sfc/octree.hpp"
 
-#include "randombox.hpp"
+#include "coord_samples/random.hpp"
 
 using sphexa::detail::codeFromIndices;
 using sphexa::detail::codeFromBox;
@@ -290,7 +290,7 @@ public:
         {
             for (int i = node.coordinateIndex; i < node.coordinateIndex + node.count; ++i)
             {
-                CodeType iCode = sphexa::morton3D<CodeType>(randomBox.x()[i], randomBox.y()[i], randomBox.z()[i], box);
+                CodeType iCode = randomBox.mortonCodes()[i];
                 EXPECT_TRUE(node.startCode <= iCode);
                 EXPECT_TRUE(iCode < node.endCode);
             }
