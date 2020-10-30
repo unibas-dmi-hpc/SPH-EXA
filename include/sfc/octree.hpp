@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef USE_MPI
+#include <mpi.h>
+#endif
+
 #include "Octree.hpp"
 
 #include "sfc/clz.hpp"
@@ -198,6 +202,23 @@ std::vector<I> makeUniformNLevelTree(int nParticles, int bucketSize)
 
 } // namespace detail
 
+struct LocalReduce
+{
+    void operator()(std::vector<int>& counts)
+    {
+    }
+};
+
+#ifdef USE_MPI
+struct GlobalReduce
+{
+    void operator()(std::vector<int>& counts)
+    {
+        MPI_Allreduce(MPI_IN_PLACE, counts.data(), counts.size(), MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    }
+};
+#endif
+
 /*! \brief compute an octree from morton codes for a specified bucket size
  *
  * \tparam I           32- or 64-bit unsigned integer type
@@ -207,7 +228,7 @@ std::vector<I> makeUniformNLevelTree(int nParticles, int bucketSize)
  * \param[inout] tree  initial tree for the first iteration
  * \return             the tree and the node counts
  */
-template<class I>
+template<class I, class Reduce = LocalReduce>
 std::tuple<std::vector<I>, std::vector<int>>
 computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vector<I>&& tree = std::vector<I>(0))
 {
@@ -222,6 +243,7 @@ computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vecto
     while (!converged)
     {
         computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd);
+        Reduce{}(counts);
         std::vector<I> balancedTree;
         balancedTree = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize, &converged);
 

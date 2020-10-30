@@ -24,12 +24,6 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
                  ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
                  EXCLUDE_FROM_ALL)
 
-add_executable(run_mpi_tests test_main.cpp)
-target_include_directories(run_mpi_tests PRIVATE ${PROJECT_SOURCE_DIR}/include)
-target_include_directories(run_mpi_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
-target_include_directories(run_mpi_tests PRIVATE ${MPI_CXX_INCLUDE_PATH})
-target_link_libraries(run_mpi_tests gtest_main)
-target_link_libraries(run_mpi_tests ${MPI_CXX_LIBRARIES})
-add_test(NAME mpi_tests COMMAND run_sfc_tests)
-
 add_subdirectory(sfc)
+
+add_subdirectory(mpi_domain)
