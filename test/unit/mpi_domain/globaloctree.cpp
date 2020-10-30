@@ -9,7 +9,7 @@
 
 #define USE_MPI
 #include "sfc/octree.hpp"
-#include "../sfc/randombox.hpp"
+#include "../sfc_components/randombox.hpp"
 
 using namespace sphexa;
 
