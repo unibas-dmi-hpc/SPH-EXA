@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <numeric>
 #include <tuple>
 #include <vector>
@@ -25,7 +26,7 @@ static inline T distancesq(const T x1, const T y1, const T z1, const T x2, const
  *         one dimension is bigger or equal than the search radius
  */
 template<class T>
-unsigned treeLevel(T radius, T minRange)
+unsigned radiusToTreeLevel(T radius, T minRange)
 {
     T radiusNormalized = radius / minRange;
     return unsigned(-log2(radiusNormalized));
@@ -47,7 +48,7 @@ unsigned treeLevel(T radius, T minRange)
  * \param[in] y  particle y-coordinates
  * \param[in] z  particle z-coordinates
  * \param[in] radius search radius
- * \param[in] boxMaxRange max_element(xmax-xmin, ymax-ymin, zmax-zmin) of the global bounding box
+ * \param[in] boxMinRange min_element(xmax-xmin, ymax-ymin, zmax-zmin) of the global bounding box
  * \param[in] mortonCodes Morton codes of all particles in x,y,z
  * \param[out] neighbors output to store the neighbors
  * \param[out] neighborsCount output to store the number of neighbors
@@ -60,7 +61,7 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, T radius, T boxMi
                    int n, int ngmax)
 {
     T radiusSq = radius * radius;
-    unsigned depth = treeLevel(radius, boxMinRange);
+    unsigned depth = radiusToTreeLevel(radius, boxMinRange);
     I mortonCode = mortonCodes[id];
 
     std::array<I, 27> neighborCodes;
