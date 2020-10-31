@@ -1,11 +1,8 @@
 
 #include <vector>
-
 #include <mpi.h>
 
-
 #include <gtest/gtest.h>
-#include "gtest-mpi-listener.hpp"
 
 #define USE_MPI
 #include "sfc/octree.hpp"
@@ -66,37 +63,14 @@ void buildTree(int rank)
 
 TEST(GlobalTree, basicRegularTree32)
 {
-    int rank = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    buildTree<unsigned>(rank);
-}
-
-int main(int argc, char **argv)
-{
-    ::testing::InitGoogleTest(&argc, argv);
-
-    MPI_Init(NULL, NULL);
     int rank = 0, nRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
-    if (nRanks != 2)
-        throw std::runtime_error("This example needs to be run with 2 ranks");
+    constexpr int thisExampleRanks = 2;
 
-    // Add object that will finalize MPI on exit; Google Test owns this pointer
-    ::testing::AddGlobalTestEnvironment(new GTestMPIListener::MPIEnvironment);
+    if (nRanks != thisExampleRanks)
+        throw std::runtime_error("this test needs 2 ranks\n");
 
-    // Get the event listener list.
-    ::testing::TestEventListeners& listeners = ::testing::UnitTest::GetInstance()->listeners();
-
-    // Remove default listener: the default printer and the default XML printer
-    ::testing::TestEventListener *l = listeners.Release(listeners.default_result_printer());
-    //if (rank != 0) { delete l; }
-
-    // Adds MPI listener; Google Test owns this pointer
-    listeners.Append(new GTestMPIListener::MPIWrapperPrinter(l, MPI_COMM_WORLD));
-
-    auto ret = RUN_ALL_TESTS();
-
-    return ret;
+    buildTree<unsigned>(rank);
 }
