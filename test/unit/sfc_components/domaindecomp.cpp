@@ -6,7 +6,7 @@
 #include "sfc/domaindecomp.hpp"
 
 
-TEST(DomainDecomposition, distributeSFC)
+TEST(DomainDecomposition, singleRangeSfcSplit)
 {
     using CodeType = unsigned;
 
@@ -22,10 +22,9 @@ TEST(DomainDecomposition, distributeSFC)
     std::vector<CodeType> tree(nLeaves + 1);
     std::iota(begin(tree), end(tree), 0);
 
-    std::vector<std::tuple<CodeType, CodeType, int>> splits
-        = sphexa::distributeSpaceCurve(tree, counts, nParticles/nSplits, nSplits);
+    auto splits = sphexa::singleRangeSfcSplit(tree, counts, nParticles/nSplits, nSplits);
 
-    std::vector<std::tuple<CodeType, CodeType, int>> ref{{0, 3, 15}, {3, 6, 16}};
+    std::vector<std::vector<sphexa::SfcRange<CodeType>>> ref{{{0, 3, 15}}, {{3, 6, 16}}};
 
     EXPECT_EQ(ref, splits);
 }
