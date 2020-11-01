@@ -318,7 +318,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, unsigned> log8ceil(I n)
 
 //! \brief check whether n is a power of 8
 template<class I>
-bool isPowerOf8(I n)
+inline std::enable_if_t<std::is_unsigned<I>{}, bool> isPowerOf8(I n)
 {
     unsigned lz = countLeadingZeros(n - 1) - unusedBits<I>{};
     return lz % 3 == 0 && !(n & (n-1));
