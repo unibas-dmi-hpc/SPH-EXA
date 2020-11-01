@@ -73,11 +73,13 @@ TEST(MortonCode, decodeMorton64)
 
 TEST(MortonCode, log8ceil32)
 {
+    EXPECT_EQ(2, sphexa::log8ceil(64u));
     EXPECT_EQ(3, sphexa::log8ceil(100u));
 }
 
 TEST(MortonCode, log8ceil64)
 {
+    EXPECT_EQ(2, sphexa::log8ceil(64lu));
     EXPECT_EQ(3, sphexa::log8ceil(100lu));
 }
 

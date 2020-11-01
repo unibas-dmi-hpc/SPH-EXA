@@ -3,7 +3,7 @@
 
 #include "random.hpp"
 
-TEST(RandomCoordinates, coordinateContainerIsSorted)
+TEST(CoordinateSamples, randomContainerIsSorted)
 {
     using real = double;
     using CodeType = unsigned;
@@ -22,4 +22,43 @@ TEST(RandomCoordinates, coordinateContainerIsSorted)
     std::sort(begin(testCodesSorted), end(testCodesSorted));
 
     EXPECT_EQ(testCodes, testCodesSorted);
+}
+
+template<class I>
+std::vector<I> makeRegularGrid(unsigned gridSize)
+{
+    assert(sphexa::isPowerOf8(gridSize));
+    std::vector<I> codes;
+
+    unsigned level = sphexa::log8ceil(gridSize);
+
+    // a regular n x n x n grid
+    unsigned n = 1u << level;
+    for (unsigned i = 0; i < n; ++i)
+        for (unsigned j = 0; j < n; ++j)
+            for (unsigned k = 0; k < n; ++k)
+            {
+                codes.push_back(sphexa::detail::codeFromBox<I>({i,j,k}, level));
+            }
+
+    std::sort(begin(codes), end(codes));
+
+    return codes;
+}
+
+template<class I>
+void testRegularGrid()
+{
+    unsigned gridSize = 64;
+
+    std::vector<I> refCodes = makeRegularGrid<I>(gridSize);
+    RegularGridCoordinates<double, I> coords(gridSize);
+
+    EXPECT_EQ(refCodes, coords.mortonCodes());
+}
+
+TEST(CoordinateSamples, regularGridCodes)
+{
+    testRegularGrid<unsigned>();
+    testRegularGrid<uint64_t>();
 }

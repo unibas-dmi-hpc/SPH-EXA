@@ -99,3 +99,51 @@ private:
     std::vector<T> x_, y_, z_;
     std::vector<I> codes_;
 };
+
+
+template<class T, class I>
+class RegularGridCoordinates
+{
+public:
+
+    RegularGridCoordinates(unsigned gridSize)
+        : box_(0,1), codes_(gridSize)
+    {
+        assert(sphexa::isPowerOf8(gridSize));
+        //x_.reserve(gridSize);
+        //y_.reserve(gridSize);
+        //z_.reserve(gridSize);
+
+        unsigned n_ = 1u << sphexa::log8ceil(gridSize);
+        for (int i = 0; i < n_; ++i)
+            for (int j = 0; j < n_; ++j)
+                for (int k = 0; k < n_; ++k)
+                {
+                    x_.push_back(i);
+                    y_.push_back(j);
+                    z_.push_back(k);
+                }
+
+        box_ = sphexa::Box<T>(0, n_);
+        sphexa::computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_),
+                                   begin(codes_), box_);
+
+        std::vector<I> mortonOrder(gridSize);
+        sphexa::sort_invert(cbegin(codes_), cend(codes_), begin(mortonOrder));
+
+        sphexa::reorder(mortonOrder, codes_);
+        sphexa::reorder(mortonOrder, x_);
+        sphexa::reorder(mortonOrder, y_);
+        sphexa::reorder(mortonOrder, z_);
+    }
+
+    const std::vector<T>& x() const { return x_; }
+    const std::vector<T>& y() const { return y_; }
+    const std::vector<T>& z() const { return z_; }
+    const std::vector<I>& mortonCodes() const { return codes_; }
+
+private:
+    sphexa::Box<T> box_;
+    std::vector<T> x_, y_, z_;
+    std::vector<I> codes_;
+};
