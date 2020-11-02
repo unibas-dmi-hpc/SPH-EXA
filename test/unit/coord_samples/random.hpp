@@ -64,9 +64,9 @@ public:
         //std::random_device rd;
         std::mt19937 gen(42);
         // random gaussian distribution at the center
-        std::normal_distribution<T> disX((box_.xmax() - box_.xmin())/2, (box_.xmax() - box_.xmin())/5);
-        std::normal_distribution<T> disY((box_.ymax() - box_.ymin())/2, (box_.ymax() - box_.ymin())/5);
-        std::normal_distribution<T> disZ((box_.zmax() - box_.zmin())/2, (box_.zmax() - box_.zmin())/5);
+        std::normal_distribution<T> disX((box_.xmax() + box_.xmin())/2, (box_.xmax() - box_.xmin())/5);
+        std::normal_distribution<T> disY((box_.ymax() + box_.ymin())/2, (box_.ymax() - box_.ymin())/5);
+        std::normal_distribution<T> disZ((box_.zmax() + box_.zmin())/2, (box_.zmax() - box_.zmin())/5);
 
         auto randX = [cmin=box_.xmin(), cmax=box_.xmax(), &disX, &gen]() { return std::max(std::min(disX(gen), cmax), cmin); };
         auto randY = [cmin=box_.ymin(), cmax=box_.ymax(), &disY, &gen]() { return std::max(std::min(disY(gen), cmax), cmin); };
