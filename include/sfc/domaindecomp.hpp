@@ -83,6 +83,44 @@ SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, co
     return ret;
 }
 
+using SendManifest = std::vector<std::array<int, 2>>;
+using SendList     = std::vector<SendManifest>;
+
+/*! \brief create the list of particle index ranges to send to each rank
+ *
+ * \tparam I                 32- or 64-bit integer
+ * \param assignment         space curve assignment to ranks
+ * \param mortonCodes        sorted list of morton codes for particles present on this rank
+ * \return                   for each rank, a list of index ranges into \a mortonCodes to send
+ */
+template<class I>
+SendList createSendList(const SpaceCurveAssignment<I>& assignment, const std::vector<I>& mortonCodes)
+{
+    int nRanks = assignment.size();
+
+    SendList ret(nRanks);
+
+    for (int rank = 0; rank < nRanks; ++rank)
+    {
+        SendManifest manifest(assignment[rank].size());
+        for (int rangeIndex = 0; rangeIndex < assignment[rank].size(); ++rangeIndex)
+        {
+            I rangeStart = assignment[rank][rangeIndex].codeStart();
+            I rangeEnd   = assignment[rank][rangeIndex].codeEnd();
+
+            int lowerParticleIndex = std::lower_bound(cbegin(mortonCodes), cend(mortonCodes), rangeStart) -
+                                        cbegin(mortonCodes);
+
+            int upperParticleIndex = std::lower_bound(cbegin(mortonCodes) + lowerParticleIndex, cend(mortonCodes), rangeEnd) -
+                                        cbegin(mortonCodes);
+
+            manifest[rangeIndex]   = SendManifest::value_type{lowerParticleIndex, upperParticleIndex};
+        }
+        ret[rank] = manifest;
+    }
+
+    return ret;
+}
 
 
 template<class I>
