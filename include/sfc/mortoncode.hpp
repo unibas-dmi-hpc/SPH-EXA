@@ -298,6 +298,7 @@ template<class I>
 inline std::enable_if_t<std::is_unsigned<I>{}, I>
 nodeRange(unsigned treeLevel)
 {
+    assert (treeLevel <= maxTreeLevel<I>{});
     // 10 or 21 bits per dimension
     constexpr unsigned nBits = (sizeof(I) * 8) / 3;
 

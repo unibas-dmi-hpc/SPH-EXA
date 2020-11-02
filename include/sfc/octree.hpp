@@ -122,7 +122,7 @@ std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes,
         I range        = tree[i+1] - thisNode;
         unsigned level = treeLevel(range);
 
-        if (counts[i] > bucketSize)
+        if (counts[i] > bucketSize && level < maxTreeLevel<I>{})
         {
             // split
             for (int sibling = 0; sibling < 8; ++sibling)
