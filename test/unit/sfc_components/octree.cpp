@@ -560,7 +560,7 @@ public:
     void check(int bucketSize)
     {
         using CodeType = I;
-        sphexa::Box<double> box{0, 1};
+        sphexa::Box<double> box{-1, 1};
 
         int nParticles = 100000;
 
