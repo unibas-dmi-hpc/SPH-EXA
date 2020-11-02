@@ -132,7 +132,8 @@ std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes,
             changes++;
             i++;
         }
-        else if (parentIndex(thisNode, level) == 0 &&  // current node is first of 8 siblings
+        else if (level > 0 && // level 0 cannot be fused
+                 parentIndex(thisNode, level) == 0 &&  // current node is first of 8 siblings
                  tree[i+8] == thisNode + nodeRange<I>(level - 1) && // next 7 nodes are all siblings
                  std::accumulate(counts + i, counts + i + 8, 0) <= bucketSize) // parent count too small
         {
