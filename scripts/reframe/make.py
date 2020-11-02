@@ -36,15 +36,6 @@ class Base_Build_Test(rfm.CompileOnlyRegressionTest):
             'PrgEnv-pgi': ['-I.', '-I./include', '-std=c++14', '-g', '-O3',
                            '-DUSE_MPI', '-DNDEBUG', '-mp'],
         }
-        sed_ifdef = (r'"s-#include \"cuda/sph.cuh\"-#ifdef USE_CUDA\n'
-                     r'#include \"cuda/sph.cuh\"\n#endif-"')
-        # first this:
-        self.prebuild_cmds = [
-            f'sed -i {sed_ifdef} include/sph/findNeighbors.hpp',
-            f'sed -i {sed_ifdef} include/sph/density.hpp',
-            f'sed -i {sed_ifdef} include/sph/IAD.hpp',
-            f'sed -i {sed_ifdef} include/sph/momentumAndEnergyIAD.hpp',
-        ]
         # TODO: fullpath = f'{self.target_executable}.{self.testname}...
         self.sanity_patterns = sn.assert_not_found(r'warning', self.stdout)
 
@@ -61,6 +52,14 @@ class Base_Build_Test(rfm.CompileOnlyRegressionTest):
             'SRCDIR=.', 'BUILDDIR=.', 'BINDIR=.', f'CXXFLAGS="{flags}"',
             'CUDA_PATH=$CUDATOOLKIT_HOME',
             f'TESTCASE={self.executable}',
+        ]
+        sed_ifdef = (r'"s-#include \"cuda/sph.cuh\"-#ifdef USE_CUDA\n'
+                     r'#include \"cuda/sph.cuh\"\n#endif-"')
+        self.prebuild_cmds += [
+            f'sed -i {sed_ifdef} include/sph/findNeighbors.hpp',
+            f'sed -i {sed_ifdef} include/sph/density.hpp',
+            f'sed -i {sed_ifdef} include/sph/IAD.hpp',
+            f'sed -i {sed_ifdef} include/sph/momentumAndEnergyIAD.hpp',
         ]
 # }}}
 # }}}
