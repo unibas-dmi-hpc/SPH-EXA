@@ -103,7 +103,7 @@ void testSingleRangeSfcSplitRandom()
 {
     int nParticles = 1003;
     int bucketSize = 64;
-    RandomGaussianCoordinates<double, I> coords(nParticles, {0,1});
+    RandomGaussianCoordinates<double, I> coords(nParticles, {-1,1});
 
     auto [tree, counts] = sphexa::computeOctree(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles,
                                                 bucketSize);
@@ -121,7 +121,7 @@ void testSingleRangeSfcSplitRandom()
         EXPECT_GE(rankCount, nParticles/nSplits);
     }
 
-    auto sendList   = sphexa::createSendList(assignment, coords.mortonCodes());
+    auto sendList = sphexa::createSendList(assignment, coords.mortonCodes());
 
     int particleRecount = 0;
     for (auto& list : sendList)
