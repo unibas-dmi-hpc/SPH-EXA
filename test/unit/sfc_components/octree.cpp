@@ -23,7 +23,7 @@ template<class T, std::size_t N>
 std::ostream& operator<<(std::ostream& os, const std::array<T, N>& input)
 {
     unsigned lastNonZero = 0;
-    for (int i = 0; i < N-1; ++i)
+    for (int i = 0; i < N; ++i)
     {
         if (input[i] != 0)
         {
@@ -31,9 +31,9 @@ std::ostream& operator<<(std::ostream& os, const std::array<T, N>& input)
         }
     }
 
-    for (int i = 0; i < lastNonZero+1; ++i)
+    for (int i = 0; i < lastNonZero; ++i)
         os << int(input[i]) << ",";
-    os << input[N-1];
+    os << int(input[lastNonZero]);
 
     return os;
 }
@@ -44,8 +44,7 @@ void printTree(const I* tree, const int* counts, int nNodes)
     for (int i = 0; i < nNodes; ++i)
     {
         I thisNode     = tree[i];
-        //I range        = tree[i+1] - thisNode;
-        //unsigned level = sphexa::treeLevel(range);
+        //std::cout << thisNode << " :" << counts[i] << std::endl;
         std::cout << sphexa::detail::indicesFromCode(thisNode) << " :" << counts[i] << std::endl;
     }
     std::cout << std::endl;
@@ -407,6 +406,53 @@ TEST(GlobalTree, rebalanceSplitShrink32)
 TEST(GlobalTree, rebalanceSplitShrink64)
 {
     rebalanceShrinkEnd<uint64_t>();
+}
+
+template<class CodeType>
+void rebalanceInsufficentResolution()
+{
+    constexpr int bucketSize = 1;
+
+    std::vector<CodeType> tree{0};
+    std::array<unsigned char, 21> zeroIndices{0};
+    for (int level = 0; level < sphexa::maxTreeLevel<CodeType>{}; ++level)
+    {
+        auto indices = zeroIndices;
+        for (int sibling = 1; sibling < 8; ++sibling)
+        {
+            indices[level] = sibling;
+            tree.push_back(sphexa::detail::codeFromIndices<CodeType>(indices));
+        }
+    }
+    tree.push_back(nodeRange<CodeType>(0));
+    std::sort(begin(tree), end(tree));
+
+    std::vector<int> counts(nNodes(tree), 1);
+    counts[0] = bucketSize + 1;
+
+    //printTree(tree.data(), counts.data(), nNodes(tree));
+    EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
+
+    // the first node has two particles, one more than the bucketSize
+    // since the first node is at the maximum subdivision layer, the tree
+    // can't be further refined to satisfy the bucketSize
+    std::vector<CodeType> balancedTree
+        = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
+
+    EXPECT_TRUE(sphexa::checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
+    EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
+
+    EXPECT_EQ(balancedTree, tree);
+}
+
+TEST(GlobalTree, rebalanceInsufficientResolution32)
+{
+    rebalanceInsufficentResolution<unsigned>();
+}
+
+TEST(GlobalTree, rebalanceInsufficientResolution64)
+{
+    rebalanceInsufficentResolution<uint64_t>();
 }
 
 template<class CodeType>
