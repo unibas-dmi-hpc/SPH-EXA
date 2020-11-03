@@ -154,11 +154,63 @@ std::vector<T> createSendBuffer(const SendManifest& manifest, const std::vector<
     return sendBuffer;
 }
 
+#ifdef USE_MPI
+
+template<class T>
+std::enable_if_t<std::is_same<double, T>{}>
+mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
+{
+    requests.push_back(MPI_Request{});
+    MPI_Isend(data, count, MPI_DOUBLE, rank, tag, MPI_COMM_WORLD, &requests.back());
+}
+
+template<class T>
+std::enable_if_t<std::is_same<float, T>{}>
+mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
+{
+    requests.push_back(MPI_Request{});
+    MPI_Isend(data, count, MPI_FLOAT, rank, tag, MPI_COMM_WORLD, &requests.back());
+}
+
+template<class T>
+std::enable_if_t<std::is_same<int, T>{}>
+mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
+{
+    requests.push_back(MPI_Request{});
+    MPI_Isend(data, count, MPI_INT, rank, tag, MPI_COMM_WORLD, &requests.back());
+}
+
 template<class T, class... Arrays>
-void exchangeParticles(const SendList& sendList, int receiveCount, int thisRank, Arrays&... arrays)
+void exchangeParticles(const SendList& sendList, int receiveCount, int thisRank, const std::vector<int>& ordering, Arrays&... arrays)
 {
     std::vector<std::vector<T>*> data{ (&arrays)... };
+    int nRanks = sendList.size();
+
+    std::vector<std::vector<T>> sendBuffers;
+    std::vector<MPI_Request>    sendRequests;
+    sendBuffers.reserve( data.size() * (nRanks-1));
+    sendRequests.reserve( (2 + data.size()) * (nRanks-1));
+
+    for (int destinationRank = 0; destinationRank < nRanks; ++destinationRank)
+    {
+        if (destinationRank == thisRank) { continue; }
+
+        int sendSize = 0;
+        for (auto& range : sendList[destinationRank]) { sendSize += range[1] - range[0]; }
+
+        mpiSendAsync(&thisRank, 1, destinationRank, 0, sendRequests);
+        mpiSendAsync(&sendSize, 1, destinationRank, 1, sendRequests);
+
+        for (int arrayIndex = 0; arrayIndex < data.size(); ++arrayIndex)
+        {
+            auto arrayBuffer = createSendBuffer(sendList[destinationRank], *data[arrayIndex], ordering);
+            mpiSendAsync(arrayBuffer.data(), arrayBuffer.size(), destinationRank, sendRequests.size(), sendRequests);
+            sendBuffers.emplace_back(std::move(arrayBuffer));
+        }
+    }
 }
+
+#endif // USE_MPI
 
 template<class I>
 struct CompareX
