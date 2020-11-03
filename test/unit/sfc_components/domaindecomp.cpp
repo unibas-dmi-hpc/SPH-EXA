@@ -138,6 +138,43 @@ TEST(DomainDecomposition, assignSendIntegration)
     testSingleRangeSfcSplitRandom<uint64_t>();
 }
 
+template<class I>
+void testCreateSendBufferGrid()
+{
+    std::vector<I> codes;
+
+    int n = 4;
+    int level = 2;
+    for (unsigned i = 0; i < n; ++i)
+        for (unsigned j = 0; j < n; ++j)
+            for (unsigned k = 0; k < n; ++k)
+            {
+                codes.push_back(sphexa::detail::codeFromBox<I>({i,j,k}, level));
+            }
+
+    std::sort(begin(codes), end(codes));
+
+    sphexa::SendList sendList{ {{0, 32}}, {{32, 64}} };
+
+    std::vector<double> particles(codes.size());
+    std::vector<int> ordering(codes.size());
+    std::iota(begin(particles), end(particles), 0);
+    std::iota(begin(ordering), end(ordering), 0);
+
+    auto buffer0 = sphexa::createSendBuffer(sendList[0], particles, ordering);
+    auto buffer1 = sphexa::createSendBuffer(sendList[1], particles, ordering);
+
+    EXPECT_TRUE(std::equal(begin(buffer0), end(buffer0), begin(particles)));
+    EXPECT_TRUE(std::equal(begin(buffer1), end(buffer1), begin(particles) + 32));
+}
+
+TEST(DomainDecomposition, createSendBufferGrid)
+{
+    testCreateSendBufferGrid<unsigned>();
+    testCreateSendBufferGrid<uint64_t>();
+}
+
+
 TEST(DomainDecomposition, binX)
 {
     using CodeType = unsigned;
