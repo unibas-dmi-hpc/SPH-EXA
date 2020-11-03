@@ -14,15 +14,34 @@ template<class I>
 void testExchangeParticles(int rank, int nRanks)
 {
     int gridSize = 64;
-    RegularGridCoordinates<double, I> coordinates(gridSize);
 
-    std::vector<int> ordering(gridSize);
+    std::vector<double> x(gridSize);
+    std::vector<int>    ordering(gridSize);
+
+    std::iota(begin(x), end(x), 0);
     std::iota(begin(ordering), end(ordering), 0);
 
     sphexa::SendList sendList{ {{0, 32}}, {{32, 64}} };
 
-    std::vector<double> x = coordinates.x();
+    EXPECT_EQ(sendList[0].count(), 32);
+    EXPECT_EQ(sendList[1].count(), 32);
+
     sphexa::exchangeParticles<double>(sendList, gridSize, rank, ordering, x);
+
+    if (rank == 0)
+    {
+        std::vector<double> refX(gridSize);
+        std::iota(begin(refX), begin(refX) + 32, 0);
+        std::iota(begin(refX)+32, end(refX), 0);
+        EXPECT_EQ(refX, x);
+    }
+    else
+    {
+        std::vector<double> refX(gridSize);
+        std::iota(begin(refX), begin(refX) + 32, 32);
+        std::iota(begin(refX)+32, end(refX), 32);
+        EXPECT_EQ(refX, x);
+    }
 }
 
 TEST(GlobalDomain, exchangeParticles)

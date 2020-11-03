@@ -83,7 +83,55 @@ SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, co
     return ret;
 }
 
-using SendManifest = std::vector<std::array<int, 2>>;
+class SendManifest_
+{
+public:
+    using RangeType = std::array<int, 2>;
+
+    SendManifest_() : count_(0), ranges_{} {}
+
+    SendManifest_(std::initializer_list<RangeType> il) : count_(0), ranges_{il}
+    {
+        for (const auto& range : ranges_)
+        {
+            count_ += range[1] - range[0];
+        }
+    }
+
+    void addRange(int lower, int upper)
+    {
+        assert(lower <= upper);
+        ranges_.push_back({lower, upper});
+        count_ += upper - lower;
+    }
+
+    const RangeType& operator[](int i) const
+    {
+        return ranges_[i];
+    }
+
+    [[nodiscard]] auto begin() const { return std::cbegin(ranges_); }
+    [[nodiscard]] auto end()   const { return std::cend(ranges_); }
+
+    //int& count() { return count_; }
+
+    [[nodiscard]]
+    const int& count() const { return count_; }
+
+private:
+
+    friend bool operator==(const SendManifest_& lhs, const SendManifest_& rhs)
+    {
+        return lhs.ranges_ == rhs.ranges_;
+    }
+
+    int count_;
+    std::vector<RangeType> ranges_;
+};
+
+
+//using SendManifest = std::vector<std::array<int, 2>>;
+using SendManifest = SendManifest_;
 using SendList     = std::vector<SendManifest>;
 
 /*! \brief create the list of particle index ranges to send to each rank
@@ -102,7 +150,7 @@ SendList createSendList(const SpaceCurveAssignment<I>& assignment, const std::ve
 
     for (int rank = 0; rank < nRanks; ++rank)
     {
-        SendManifest manifest(assignment[rank].size());
+        SendManifest manifest;//(assignment[rank].size());
         for (int rangeIndex = 0; rangeIndex < assignment[rank].size(); ++rangeIndex)
         {
             I rangeStart = assignment[rank][rangeIndex].codeStart();
@@ -114,7 +162,7 @@ SendList createSendList(const SpaceCurveAssignment<I>& assignment, const std::ve
             int upperParticleIndex = std::lower_bound(cbegin(mortonCodes) + lowerParticleIndex, cend(mortonCodes), rangeEnd) -
                                         cbegin(mortonCodes);
 
-            manifest[rangeIndex]   = SendManifest::value_type{lowerParticleIndex, upperParticleIndex};
+            manifest.addRange(lowerParticleIndex, upperParticleIndex);
         }
         ret[rank] = manifest;
     }
@@ -135,15 +183,11 @@ template<class T>
 std::vector<T> createSendBuffer(const SendManifest& manifest, const std::vector<T>& source,
                                 const std::vector<int>& ordering)
 {
-    int sendSize = 0;
-    for (auto& range : manifest)
-    {
-        sendSize += range[1] - range[0];
-    }
+    int sendSize = manifest.count();
 
     std::vector<T> sendBuffer;
     sendBuffer.reserve(sendSize);
-    for (auto& range : manifest)
+    for (const auto& range : manifest)
     {
         for (int i = range[0]; i < range[1]; ++i)
         {
@@ -157,7 +201,7 @@ std::vector<T> createSendBuffer(const SendManifest& manifest, const std::vector<
 #ifdef USE_MPI
 
 template<class T>
-std::enable_if_t<std::is_same<double, T>{}>
+std::enable_if_t<std::is_same<double, std::decay_t<T>>{}>
 mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
 {
     requests.push_back(MPI_Request{});
@@ -165,7 +209,7 @@ mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& re
 }
 
 template<class T>
-std::enable_if_t<std::is_same<float, T>{}>
+std::enable_if_t<std::is_same<float, std::decay_t<T>>{}>
 mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
 {
     requests.push_back(MPI_Request{});
@@ -173,7 +217,7 @@ mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& re
 }
 
 template<class T>
-std::enable_if_t<std::is_same<int, T>{}>
+std::enable_if_t<std::is_same<int, std::decay_t<T>>{}>
 mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
 {
     requests.push_back(MPI_Request{});
@@ -187,26 +231,69 @@ void exchangeParticles(const SendList& sendList, int receiveCount, int thisRank,
     int nRanks = sendList.size();
 
     std::vector<std::vector<T>> sendBuffers;
-    std::vector<MPI_Request>    sendRequests;
     sendBuffers.reserve( data.size() * (nRanks-1));
+
+    std::vector<MPI_Request> sendRequests;
     sendRequests.reserve( (2 + data.size()) * (nRanks-1));
 
     for (int destinationRank = 0; destinationRank < nRanks; ++destinationRank)
     {
-        if (destinationRank == thisRank) { continue; }
-
-        int sendSize = 0;
-        for (auto& range : sendList[destinationRank]) { sendSize += range[1] - range[0]; }
+        if (destinationRank == thisRank || sendList[destinationRank].count() == 0) { continue; }
 
         mpiSendAsync(&thisRank, 1, destinationRank, 0, sendRequests);
-        mpiSendAsync(&sendSize, 1, destinationRank, 1, sendRequests);
+        mpiSendAsync(&sendList[destinationRank].count(), 1, destinationRank, 1, sendRequests);
 
         for (int arrayIndex = 0; arrayIndex < data.size(); ++arrayIndex)
         {
             auto arrayBuffer = createSendBuffer(sendList[destinationRank], *data[arrayIndex], ordering);
-            mpiSendAsync(arrayBuffer.data(), arrayBuffer.size(), destinationRank, sendRequests.size(), sendRequests);
+            mpiSendAsync(arrayBuffer.data(), arrayBuffer.size(), destinationRank, 2 + arrayIndex, sendRequests);
             sendBuffers.emplace_back(std::move(arrayBuffer));
         }
+    }
+
+    // handle thisRank
+    for (int arrayIndex = 0; arrayIndex < data.size(); ++arrayIndex)
+    {
+        auto arrayBuffer = createSendBuffer(sendList[thisRank], *data[arrayIndex], ordering);
+        std::copy(begin(arrayBuffer), end(arrayBuffer), data[arrayIndex]->begin());
+    }
+
+    int nParticlesPresent  = sendList[thisRank].count();
+    for (auto array : data)
+    {
+        array->resize(receiveCount);
+    }
+
+    while (nParticlesPresent != receiveCount)
+    {
+        assert(nParticlesPresent < receiveCount);
+        MPI_Status status[2 + data.size()];
+        int receiveRank, receiveRankCount;
+        MPI_Recv(&receiveRank, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status[0]);
+        MPI_Recv(&receiveRankCount, 1, MPI_INT, receiveRank, 1, MPI_COMM_WORLD, &status[1]);
+        assert(nParticlesPresent + receiveRankCount <= receiveCount);
+
+        for (int arrayIndex = 0; arrayIndex < data.size(); ++arrayIndex)
+        {
+            if constexpr (std::is_same<T, double>{})
+            {
+                MPI_Recv(data[arrayIndex]->data() + nParticlesPresent, receiveRankCount, MPI_DOUBLE, receiveRank, 2 + arrayIndex,
+                         MPI_COMM_WORLD, &status[2 + arrayIndex]);
+            }
+            else if constexpr (std::is_same<T, float>{})
+            {
+                MPI_Recv(data[arrayIndex]->data() + nParticlesPresent, receiveRankCount, MPI_FLOAT, receiveRank, 2 + arrayIndex,
+                         MPI_COMM_WORLD, &status[2 + arrayIndex]);
+            }
+        }
+
+        nParticlesPresent += receiveRankCount;
+    }
+
+    if (not sendRequests.empty())
+    {
+        MPI_Status status[sendRequests.size()];
+        MPI_Waitall(sendRequests.size(), sendRequests.data(), status);
     }
 }
 

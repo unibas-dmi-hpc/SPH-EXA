@@ -90,6 +90,8 @@ void testCreateSendListGrid()
     sphexa::SendList refSendList{ {{0, 32}}, {{32, 64}} };
 
     EXPECT_EQ(refSendList, sendList);
+    EXPECT_EQ(sendList[0].count(), 32);
+    EXPECT_EQ(sendList[1].count(), 32);
 }
 
 TEST(DomainDecomposition, createSendListGrid)
