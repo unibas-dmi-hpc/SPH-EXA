@@ -122,6 +122,43 @@ SendList createSendList(const SpaceCurveAssignment<I>& assignment, const std::ve
     return ret;
 }
 
+/*! \brief create a buffer of elements to send
+ *
+ * \tparam T         float or double
+ * \param manifest   contains the index ranges of \a source to put into the send buffer
+ * \param source     x,y,z coordinate arrays
+ * \param ordering   the space curve ordering to handle unsorted source arrays
+ *                   if source is space-curve-sorted, \a ordering is the trivial 0,1,...,n sequence
+ * \return           the send buffer
+ */
+template<class T>
+std::vector<T> createSendBuffer(const SendManifest& manifest, const std::vector<T>& source,
+                                const std::vector<int>& ordering)
+{
+    int sendSize = 0;
+    for (auto& range : manifest)
+    {
+        sendSize += range[1] - range[0];
+    }
+
+    std::vector<T> sendBuffer;
+    sendBuffer.reserve(sendSize);
+    for (auto& range : manifest)
+    {
+        for (int i = range[0]; i < range[1]; ++i)
+        {
+            sendBuffer.push_back(source[ordering[i]]);
+        }
+    }
+
+    return sendBuffer;
+}
+
+template<class T, class... Arrays>
+void exchangeParticles(const SendList& sendList, int receiveCount, int thisRank, Arrays&... arrays)
+{
+    std::vector<std::vector<T>*> data{ (&arrays)... };
+}
 
 template<class I>
 struct CompareX
