@@ -265,6 +265,14 @@ void exchangeParticles(const SendList& sendList, int nParticlesAssigned, int thi
         MPI_Status status[sendRequests.size()];
         MPI_Waitall(sendRequests.size(), sendRequests.data(), status);
     }
+
+    // If this process is going to send messages with rank/tag combinations
+    // already sent in this function, this can lead to messages being mixed up
+    // on the receiver side. For this reason, a barrier is enacted here.
+    // If there are no interfering messages going to be sent, it would be possible to
+    // remove the barrier. But if that assumption turned out to be wrong, it would lead
+    // to hard to detect bugs.
+    MPI_Barrier(MPI_COMM_WORLD);
 }
 
 #endif // USE_MPI
