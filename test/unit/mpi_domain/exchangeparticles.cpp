@@ -10,38 +10,43 @@
 
 #include "coord_samples/random.hpp"
 
-template<class I>
-void testExchangeParticles(int rank, int nRanks)
+template<class T>
+void exchangeIdenticalRanges(int thisRank, int nRanks)
 {
     int gridSize = 64;
 
-    std::vector<double> x(gridSize);
-    std::vector<int>    ordering(gridSize);
+    std::vector<T> x(gridSize);
+    std::vector<int> ordering(gridSize);
 
     std::iota(begin(x), end(x), 0);
     std::iota(begin(ordering), end(ordering), 0);
 
-    sphexa::SendList sendList{ {{0, 32}}, {{32, 64}} };
+    int segmentSize = gridSize / nRanks;
 
-    EXPECT_EQ(sendList[0].count(), 32);
-    EXPECT_EQ(sendList[1].count(), 32);
-
-    sphexa::exchangeParticles<double>(sendList, gridSize, rank, ordering, x);
-
-    if (rank == 0)
+    sphexa::SendList sendList(nRanks);
+    for (int rank = 0; rank < nRanks; ++rank)
     {
-        std::vector<double> refX(gridSize);
-        std::iota(begin(refX), begin(refX) + 32, 0);
-        std::iota(begin(refX)+32, end(refX), 0);
-        EXPECT_EQ(refX, x);
+        int lower = rank * segmentSize;
+        int upper = lower + segmentSize;
+
+        if (rank == nRanks -1 )
+            upper += gridSize % nRanks;
+
+        sendList[rank].addRange(lower, upper);
     }
-    else
+
+    segmentSize = sendList[thisRank].count();
+    int nParticlesThisRank = segmentSize * nRanks;
+
+    sphexa::exchangeParticles<T>(sendList, nParticlesThisRank, thisRank, ordering, x);
+
+    std::vector<T> refX(nParticlesThisRank);
+    for (int rank = 0; rank < nRanks; ++rank)
     {
-        std::vector<double> refX(gridSize);
-        std::iota(begin(refX), begin(refX) + 32, 32);
-        std::iota(begin(refX)+32, end(refX), 32);
-        EXPECT_EQ(refX, x);
+        std::iota(begin(refX) + rank * segmentSize, begin(refX) + rank * segmentSize + segmentSize,
+                  sendList[thisRank][0][0]);
     }
+    EXPECT_EQ(refX, x);
 }
 
 TEST(GlobalDomain, exchangeParticles)
@@ -50,10 +55,9 @@ TEST(GlobalDomain, exchangeParticles)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
-    constexpr int thisExampleRanks = 2;
-
-    if (nRanks != thisExampleRanks)
-        throw std::runtime_error("this test needs 2 ranks\n");
-
-    testExchangeParticles<unsigned>(rank, nRanks);
+    exchangeIdenticalRanges<double>(rank, nRanks);
+    MPI_Barrier(MPI_COMM_WORLD);
+    exchangeIdenticalRanges<float>(rank, nRanks);
+    MPI_Barrier(MPI_COMM_WORLD);
+    exchangeIdenticalRanges<int>(rank, nRanks);
 }

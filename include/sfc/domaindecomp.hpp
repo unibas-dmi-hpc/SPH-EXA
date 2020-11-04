@@ -5,6 +5,10 @@
 #include "sfc/octree.hpp"
 #include "sfc/mortoncode.hpp"
 
+#ifdef USE_MPI
+#include "mpi_wrappers.hpp"
+#endif
+
 namespace sphexa
 {
 
@@ -150,7 +154,7 @@ SendList createSendList(const SpaceCurveAssignment<I>& assignment, const std::ve
 
     for (int rank = 0; rank < nRanks; ++rank)
     {
-        SendManifest manifest;//(assignment[rank].size());
+        SendManifest manifest;
         for (int rangeIndex = 0; rangeIndex < assignment[rank].size(); ++rangeIndex)
         {
             I rangeStart = assignment[rank][rangeIndex].codeStart();
@@ -200,32 +204,8 @@ std::vector<T> createSendBuffer(const SendManifest& manifest, const std::vector<
 
 #ifdef USE_MPI
 
-template<class T>
-std::enable_if_t<std::is_same<double, std::decay_t<T>>{}>
-mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
-{
-    requests.push_back(MPI_Request{});
-    MPI_Isend(data, count, MPI_DOUBLE, rank, tag, MPI_COMM_WORLD, &requests.back());
-}
-
-template<class T>
-std::enable_if_t<std::is_same<float, std::decay_t<T>>{}>
-mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
-{
-    requests.push_back(MPI_Request{});
-    MPI_Isend(data, count, MPI_FLOAT, rank, tag, MPI_COMM_WORLD, &requests.back());
-}
-
-template<class T>
-std::enable_if_t<std::is_same<int, std::decay_t<T>>{}>
-mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
-{
-    requests.push_back(MPI_Request{});
-    MPI_Isend(data, count, MPI_INT, rank, tag, MPI_COMM_WORLD, &requests.back());
-}
-
 template<class T, class... Arrays>
-void exchangeParticles(const SendList& sendList, int receiveCount, int thisRank, const std::vector<int>& ordering, Arrays&... arrays)
+void exchangeParticles(const SendList& sendList, int nParticlesAssigned, int thisRank, const std::vector<int>& ordering, Arrays&... arrays)
 {
     std::vector<std::vector<T>*> data{ (&arrays)... };
     int nRanks = sendList.size();
@@ -261,30 +241,20 @@ void exchangeParticles(const SendList& sendList, int receiveCount, int thisRank,
     int nParticlesPresent  = sendList[thisRank].count();
     for (auto array : data)
     {
-        array->resize(receiveCount);
+        array->reserve(nParticlesAssigned);
+        array->resize(nParticlesAssigned);
     }
 
-    while (nParticlesPresent != receiveCount)
+    while (nParticlesPresent != nParticlesAssigned)
     {
-        assert(nParticlesPresent < receiveCount);
         MPI_Status status[2 + data.size()];
         int receiveRank, receiveRankCount;
         MPI_Recv(&receiveRank, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status[0]);
         MPI_Recv(&receiveRankCount, 1, MPI_INT, receiveRank, 1, MPI_COMM_WORLD, &status[1]);
-        assert(nParticlesPresent + receiveRankCount <= receiveCount);
 
         for (int arrayIndex = 0; arrayIndex < data.size(); ++arrayIndex)
         {
-            if constexpr (std::is_same<T, double>{})
-            {
-                MPI_Recv(data[arrayIndex]->data() + nParticlesPresent, receiveRankCount, MPI_DOUBLE, receiveRank, 2 + arrayIndex,
-                         MPI_COMM_WORLD, &status[2 + arrayIndex]);
-            }
-            else if constexpr (std::is_same<T, float>{})
-            {
-                MPI_Recv(data[arrayIndex]->data() + nParticlesPresent, receiveRankCount, MPI_FLOAT, receiveRank, 2 + arrayIndex,
-                         MPI_COMM_WORLD, &status[2 + arrayIndex]);
-            }
+            mpiRecvSync(data[arrayIndex]->data() + nParticlesPresent, receiveRankCount, receiveRank, 2 + arrayIndex, &status[2 + arrayIndex]);
         }
 
         nParticlesPresent += receiveRankCount;
