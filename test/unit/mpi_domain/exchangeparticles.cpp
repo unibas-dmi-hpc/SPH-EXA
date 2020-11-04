@@ -15,10 +15,11 @@ void exchangeIdenticalRanges(int thisRank, int nRanks)
 {
     int gridSize = 64;
 
-    std::vector<T> x(gridSize);
+    std::vector<T> x(gridSize), y(gridSize);
     std::vector<int> ordering(gridSize);
 
     std::iota(begin(x), end(x), 0);
+    std::iota(begin(y), end(y), 0);
     std::iota(begin(ordering), end(ordering), 0);
 
     int segmentSize = gridSize / nRanks;
@@ -38,7 +39,7 @@ void exchangeIdenticalRanges(int thisRank, int nRanks)
     segmentSize = sendList[thisRank].count();
     int nParticlesThisRank = segmentSize * nRanks;
 
-    sphexa::exchangeParticles<T>(sendList, nParticlesThisRank, thisRank, ordering, x);
+    sphexa::exchangeParticles<T>(sendList, nParticlesThisRank, thisRank, ordering, x, y);
 
     std::vector<T> refX(nParticlesThisRank);
     for (int rank = 0; rank < nRanks; ++rank)
@@ -46,7 +47,10 @@ void exchangeIdenticalRanges(int thisRank, int nRanks)
         std::iota(begin(refX) + rank * segmentSize, begin(refX) + rank * segmentSize + segmentSize,
                   sendList[thisRank][0][0]);
     }
+    std::vector<T> refY(refX);
+
     EXPECT_EQ(refX, x);
+    EXPECT_EQ(refY, y);
 }
 
 TEST(GlobalDomain, exchangeParticles)
@@ -56,8 +60,6 @@ TEST(GlobalDomain, exchangeParticles)
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
     exchangeIdenticalRanges<double>(rank, nRanks);
-    MPI_Barrier(MPI_COMM_WORLD);
     exchangeIdenticalRanges<float>(rank, nRanks);
-    MPI_Barrier(MPI_COMM_WORLD);
     exchangeIdenticalRanges<int>(rank, nRanks);
 }
