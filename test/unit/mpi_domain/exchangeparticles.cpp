@@ -10,8 +10,9 @@
 
 #include "coord_samples/random.hpp"
 
+//! \brief all-to-all exchange, the most communication possible
 template<class T>
-void exchangeIdenticalRanges(int thisRank, int nRanks)
+void exchangeAllToAll(int thisRank, int nRanks)
 {
     int gridSize = 64;
 
@@ -53,13 +54,54 @@ void exchangeIdenticalRanges(int thisRank, int nRanks)
     EXPECT_EQ(refY, y);
 }
 
-TEST(GlobalDomain, exchangeParticles)
+template<class T>
+void exchangeCyclicNeighbors(int thisRank, int nRanks)
+{
+    int gridSize = 64;
+
+    std::vector<T> x(gridSize, thisRank), y(gridSize, thisRank);
+    std::vector<int> ordering(gridSize);
+    std::iota(begin(ordering), end(ordering), 0);
+
+    // send the last nex elements to the next rank
+    int nex = 10;
+    int nextRank = (thisRank + 1) % nRanks;
+
+    sphexa::SendList sendList(nRanks);
+    // keep all but the last nex elements
+    sendList[thisRank].addRange(0, gridSize - nex);
+    // send last nex to nextRank
+    sendList[nextRank].addRange(gridSize - nex, gridSize);
+
+    sphexa::exchangeParticles<T>(sendList, gridSize, thisRank, ordering, x, y);
+
+    int incomingRank = (thisRank - 1 + nRanks) % nRanks;
+    std::vector<T> refX(gridSize, thisRank);
+    std::fill(begin(refX) + gridSize - nex, end(refX), incomingRank);
+    auto refY = refX;
+
+    EXPECT_EQ(refX, x);
+    EXPECT_EQ(refY, y);
+}
+
+TEST(GlobalDomain, exchangeAllToAll)
 {
     int rank = 0, nRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
-    exchangeIdenticalRanges<double>(rank, nRanks);
-    exchangeIdenticalRanges<float>(rank, nRanks);
-    exchangeIdenticalRanges<int>(rank, nRanks);
+    exchangeAllToAll<double>(rank, nRanks);
+    exchangeAllToAll<float>(rank, nRanks);
+    exchangeAllToAll<int>(rank, nRanks);
+}
+
+TEST(GlobalDomain, exchangeCyclicNeighbors)
+{
+    int rank = 0, nRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+
+    exchangeCyclicNeighbors<double>(rank, nRanks);
+    exchangeCyclicNeighbors<float>(rank, nRanks);
+    exchangeCyclicNeighbors<int>(rank, nRanks);
 }

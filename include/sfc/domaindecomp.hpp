@@ -204,6 +204,25 @@ std::vector<T> createSendBuffer(const SendManifest& manifest, const std::vector<
 
 #ifdef USE_MPI
 
+/*! \brief exchange array elements with other ranks according to the specified ranges
+ *
+ * \tparam T                  double, float or int
+ * \tparam Arrays             all std::vector<T>
+ * \param sendList[in]        List of index ranges assigned to each rank, indices
+ *                            are valid w.r.t to arrays present on \a thisRank
+ * \param nParticlesAssigned  Number of elements that each array will hold on \a thisRank after the exchange
+ * \param thisRank[in]        Rank of the executing process
+ * \param ordering[in]        Ordering through which to access arrays
+ * \param arrays[inout]       Arrays of identical sizes, the index range based exchange operations
+ *                            performed are identical for each input array. Upon completion, arrays will
+ *                            contain elements from the specified ranges from all ranks.
+ *                            The order in which the incoming ranges are grouped is random.
+ *
+ *  Example: If sendList[ri] contains the range [upper, lower), all elements arrays[upper:lower] will be sent to rank ri.
+ *           At the destination ri, the incoming elements will be appended to the corresponding arrays.
+ *           No information about incoming particles to \a thisRank is contained in the function arguments,
+ *           only their total number.
+ */
 template<class T, class... Arrays>
 void exchangeParticles(const SendList& sendList, int nParticlesAssigned, int thisRank, const std::vector<int>& ordering, Arrays&... arrays)
 {
@@ -270,8 +289,8 @@ void exchangeParticles(const SendList& sendList, int nParticlesAssigned, int thi
     // already sent in this function, this can lead to messages being mixed up
     // on the receiver side. For this reason, a barrier is enacted here.
     // If there are no interfering messages going to be sent, it would be possible to
-    // remove the barrier. But if that assumption turned out to be wrong, it would lead
-    // to hard to detect bugs.
+    // remove the barrier. But if that assumption turns out to be wrong, arising bugs
+    // will be hard to detect.
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
