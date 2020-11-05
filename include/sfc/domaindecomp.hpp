@@ -12,7 +12,7 @@
 namespace sphexa
 {
 
-//! \brief Represents a continuous part of the global octree
+//! \brief References a continuous part of the global octree
 template<class I>
 class SfcRange
 {
@@ -61,6 +61,7 @@ using SpaceCurveAssignment = std::vector<std::vector<SfcRange<I>>>;
  * \return                   a vector with nSplit elements, each element is a vector of SfcRanges of Morton codes
  *
  * This function acts on global data. All calling ranks should call this function with identical arguments.
+ *
  * Not the best way to distribute the global tree to different ranks, but a very simple one
  */
 template<class I>
@@ -69,19 +70,48 @@ SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, co
 {
     // one element per rank in outer vector, just one element in inner vector to store a single range per rank;
     // other distribution strategies might have more than one range per rank
-    SpaceCurveAssignment<I> ret(nSplits, std::vector<SfcRange<I>>(1));
+    SpaceCurveAssignment<I> ret(nSplits, std::vector<SfcRange<I>>(1)); // 1 because of one range
 
-    int particlesPerSplit = std::accumulate(begin(globalCounts), end(globalCounts), 0) / nSplits;
+    std::size_t globalNParticles = std::accumulate(begin(globalCounts), end(globalCounts), std::size_t(0));
+
+    // distribute work, every rank gets global count / nSplits,
+    // the remainder gets distributed one by one
+    std::vector<std::size_t> nParticlesPerSplit(nSplits, globalNParticles/nSplits);
+    for (int split = 0; split < globalNParticles % nSplits; ++split)
+    {
+        nParticlesPerSplit[split]++;
+    }
 
     int leavesDone = 0;
     for (int split = 0; split < nSplits; ++split)
     {
-        int splitCount = 0;
+        std::size_t targetCount = nParticlesPerSplit[split];
+        std::size_t splitCount = 0;
         int j = leavesDone;
-        while (splitCount < particlesPerSplit && j < nNodes(globalTree))
+        while (splitCount < targetCount && j < nNodes(globalTree))
         {
+            // if adding the particles of the next leaf takes us further away from
+            // the target count than where we're now, we stop
+            if (targetCount < splitCount + globalCounts[j] && // overshoot
+                targetCount - splitCount < splitCount + globalCounts[j] - targetCount) // overshoot more than undershoot
+            { break; }
+
             splitCount += globalCounts[j++];
         }
+
+        if (split < nSplits - 1)
+        {
+            // carry over difference of particles over/under assigned to next split
+            // to avoid accumulating round off
+            long int delta = (long int)(targetCount) - (long int)(splitCount);
+            nParticlesPerSplit[split+1] += delta;
+        }
+        // afaict, j < nNodes(globalTree) can only happen if there are empty nodes at the end
+        else {
+            for( ; j < nNodes(globalTree); ++j)
+                splitCount += globalCounts[j];
+        }
+
         ret[split][0] = SfcRange<I>(globalTree[leavesDone], globalTree[j], splitCount);
         leavesDone = j;
     }

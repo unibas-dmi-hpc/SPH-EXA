@@ -89,4 +89,7 @@ TEST(GlobalTreeDomain, randomGaussian)
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
     globalRandomGaussian<unsigned, double>(rank, nRanks);
+    globalRandomGaussian<uint64_t, double>(rank, nRanks);
+    globalRandomGaussian<unsigned, float>(rank, nRanks);
+    globalRandomGaussian<uint64_t, float>(rank, nRanks);
 }
