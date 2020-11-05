@@ -57,19 +57,21 @@ using SpaceCurveAssignment = std::vector<std::vector<SfcRange<I>>>;
  * \tparam I                 32- or 64-bit integer
  * \param globalTree         the octree
  * \param globalCounts       counts per leaf
- * \param particlesPerSplit  number of particles to put in each split, sensible choice e.g.: sum(globalCounts)/nSplits
  * \param nSplits            divide the global tree into nSplits pieces, sensible choice e.g.: nSplits == nRanks
  * \return                   a vector with nSplit elements, each element is a vector of SfcRanges of Morton codes
  *
+ * This function acts on global data. All calling ranks should call this function with identical arguments.
  * Not the best way to distribute the global tree to different ranks, but a very simple one
  */
 template<class I>
 SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, const std::vector<int>& globalCounts,
-                                            int particlesPerSplit, int nSplits)
+                                            int nSplits)
 {
     // one element per rank in outer vector, just one element in inner vector to store a single range per rank;
     // other distribution strategies might have more than one range per rank
     SpaceCurveAssignment<I> ret(nSplits, std::vector<SfcRange<I>>(1));
+
+    int particlesPerSplit = std::accumulate(begin(globalCounts), end(globalCounts), 0) / nSplits;
 
     int leavesDone = 0;
     for (int split = 0; split < nSplits; ++split)
@@ -87,14 +89,18 @@ SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, co
     return ret;
 }
 
-class SendManifest_
+/*! \brief Stores ranges of local particles to be sent to another rank
+ *
+ *  Used to build a SendList which consists of one SendManifest per rank
+ */
+class SendManifest
 {
 public:
     using RangeType = std::array<int, 2>;
 
-    SendManifest_() : count_(0), ranges_{} {}
+    SendManifest() : count_(0), ranges_{} {}
 
-    SendManifest_(std::initializer_list<RangeType> il) : count_(0), ranges_{il}
+    SendManifest(std::initializer_list<RangeType> il) : count_(0), ranges_{il}
     {
         for (const auto& range : ranges_)
         {
@@ -102,6 +108,7 @@ public:
         }
     }
 
+    //! \brief add a local index range
     void addRange(int lower, int upper)
     {
         assert(lower <= upper);
@@ -117,11 +124,12 @@ public:
     [[nodiscard]] auto begin() const { return std::cbegin(ranges_); }
     [[nodiscard]] auto end()   const { return std::cend(ranges_); }
 
+    //! \brief the sum of number of particles in all ranges or total send count
     [[nodiscard]] const int& count() const { return count_; }
 
 private:
 
-    friend bool operator==(const SendManifest_& lhs, const SendManifest_& rhs)
+    friend bool operator==(const SendManifest& lhs, const SendManifest& rhs)
     {
         return lhs.ranges_ == rhs.ranges_;
     }
@@ -131,15 +139,13 @@ private:
 };
 
 
-//using SendManifest = std::vector<std::array<int, 2>>;
-using SendManifest = SendManifest_;
-using SendList     = std::vector<SendManifest>;
+using SendList = std::vector<SendManifest>;
 
-/*! \brief create the list of particle index ranges to send to each rank
+/*! \brief Based on global assignment, create the list of local particle index ranges to send to each rank
  *
  * \tparam I                 32- or 64-bit integer
- * \param assignment         space curve assignment to ranks
- * \param mortonCodes        sorted list of morton codes for particles present on this rank
+ * \param assignment         global space curve assignment to ranks
+ * \param mortonCodes        sorted list of morton codes for local particles present on this rank
  * \return                   for each rank, a list of index ranges into \a mortonCodes to send
  */
 template<class I>

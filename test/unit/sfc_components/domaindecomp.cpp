@@ -23,7 +23,7 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
     std::vector<CodeType> tree(nLeaves + 1);
     std::iota(begin(tree), end(tree), 0);
 
-    auto splits = sphexa::singleRangeSfcSplit(tree, counts, nParticles/nSplits, nSplits);
+    auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
     sphexa::SpaceCurveAssignment<CodeType> ref{{{0, 3, 15}}, {{3, 6, 16}}};
 
@@ -31,7 +31,7 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
 }
 
 template<class I>
-void testSingleRangeSfcSplitGrid()
+void singleRangeSfcSplitGrid()
 {
     std::vector<I> tree;
 
@@ -54,14 +54,14 @@ void testSingleRangeSfcSplitGrid()
         {{sphexa::detail::codeFromIndices<I>({4}), sphexa::nodeRange<I>(0), 32}}
     };
 
-    auto assignment = sphexa::singleRangeSfcSplit(tree, counts, 32, 2);
+    auto assignment = sphexa::singleRangeSfcSplit(tree, counts, 2);
     EXPECT_EQ(refAssignment, assignment);
 }
 
 TEST(DomainDecomposition, singleRangeSplitGrid)
 {
-    testSingleRangeSfcSplitGrid<unsigned>();
-    testSingleRangeSfcSplitGrid<uint64_t>();
+    singleRangeSfcSplitGrid<unsigned>();
+    singleRangeSfcSplitGrid<uint64_t>();
 }
 
 template<class I>
@@ -111,7 +111,7 @@ void testSingleRangeSfcSplitRandom()
                                                 bucketSize);
 
     int nSplits = 4;
-    auto assignment = sphexa::singleRangeSfcSplit(tree, counts, nParticles/nSplits, nSplits);
+    auto assignment = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
     // all splits except the last one should at least be assigned nParticles/nSplits
     for (int rank = 0; rank < nSplits -1; ++rank)
