@@ -28,7 +28,7 @@ void globalRandomGaussian(int thisRank, int nRanks)
     // particles are in Morton order
     std::iota(begin(ordering), end(ordering), 0);
 
-    auto assignment = sphexa::singleRangeSfcSplit(tree, counts, nParticles, nRanks);
+    auto assignment = sphexa::singleRangeSfcSplit(tree, counts, nRanks);
     auto sendList   = sphexa::createSendList(assignment, coords.mortonCodes());
 
     EXPECT_EQ(std::accumulate(begin(counts), end(counts), 0), nParticles * nRanks);
