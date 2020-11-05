@@ -10,24 +10,49 @@
 TEST(DomainDecomposition, singleRangeSfcSplit)
 {
     using CodeType = unsigned;
+    {
+        int nSplits = 2;
+        std::vector<int> counts{5 ,5, 5, 5, 5, 6};
+        std::vector<CodeType> tree{0, 1, 2, 3, 4, 5, 6};
 
-    int nLeaves           = 6;
-    int nParticlesPerNode = 5;
-    int nParticles = nLeaves * nParticlesPerNode;
+        auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
-    int nSplits = 2;
+        sphexa::SpaceCurveAssignment<CodeType> ref{{{0, 3, 15}}, {{3, 6, 16}}};
+        EXPECT_EQ(ref, splits);
+    }
+    {
+        int nSplits = 2;
+        std::vector<int> counts{5, 5, 5, 15, 1, 0};
+        std::vector<CodeType> tree{0, 1, 2, 3, 4, 5, 6};
 
-    std::vector<int> counts(nLeaves, nParticlesPerNode);
-    counts[nLeaves - 1] = nParticlesPerNode + 1;
+        auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
-    std::vector<CodeType> tree(nLeaves + 1);
-    std::iota(begin(tree), end(tree), 0);
+        sphexa::SpaceCurveAssignment<CodeType> ref{{{0, 3, 15}}, {{3, 6, 16}}};
+        EXPECT_EQ(ref, splits);
+    }
+    {
+        int nSplits = 2;
+        std::vector<int> counts{15, 0, 1, 5, 5, 5};
+        std::vector<CodeType> tree{0, 1, 2, 3, 4, 5, 6};
 
-    auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
+        auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
-    sphexa::SpaceCurveAssignment<CodeType> ref{{{0, 3, 15}}, {{3, 6, 16}}};
+        sphexa::SpaceCurveAssignment<CodeType> ref{{{0, 3, 16}}, {{3, 6, 15}}};
+        EXPECT_EQ(ref, splits);
+    }
+    {
+        int nSplits = 7;
+        std::vector<int> counts{4, 3, 4, 3, 4, 3, 4, 3, 4, 3};
+        // should be grouped |4|7|3|7|4|7|3|
+        std::vector<CodeType> tree{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
-    EXPECT_EQ(ref, splits);
+        auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
+
+        sphexa::SpaceCurveAssignment<CodeType> ref{
+            {{0, 1, 4}}, {{1, 3, 7}}, {{3, 4, 3}}, {{4, 6, 7}}, {{6, 7, 4}}, {{7, 9, 7}}, {{9, 10, 3}}
+        };
+        EXPECT_EQ(ref, splits);
+    }
 }
 
 template<class I>
@@ -65,7 +90,7 @@ TEST(DomainDecomposition, singleRangeSplitGrid)
 }
 
 template<class I>
-void testCreateSendListGrid()
+void createSendListGrid()
 {
     std::vector<I> codes;
 
@@ -96,12 +121,12 @@ void testCreateSendListGrid()
 
 TEST(DomainDecomposition, createSendListGrid)
 {
-    testCreateSendListGrid<unsigned>();
-    testCreateSendListGrid<uint64_t>();
+    createSendListGrid<unsigned>();
+    createSendListGrid<uint64_t>();
 }
 
 template<class I>
-void testSingleRangeSfcSplitRandom()
+void singleRangeSfcSplitRandom()
 {
     int nParticles = 1003;
     int bucketSize = 64;
@@ -114,13 +139,15 @@ void testSingleRangeSfcSplitRandom()
     auto assignment = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
     // all splits except the last one should at least be assigned nParticles/nSplits
-    for (int rank = 0; rank < nSplits -1; ++rank)
+    for (int rank = 0; rank < nSplits; ++rank)
     {
         int rankCount = 0;
         for (auto& range : assignment[rank])
             rankCount += range.count();
 
-        EXPECT_GE(rankCount, nParticles/nSplits);
+        // particles in each rank should be within avg per rank +- bucketCount
+        EXPECT_LE(nParticles/nSplits - bucketSize, rankCount);
+        EXPECT_LE(rankCount, nParticles/nSplits + bucketSize);
     }
 
     auto sendList = sphexa::createSendList(assignment, coords.mortonCodes());
@@ -136,12 +163,12 @@ void testSingleRangeSfcSplitRandom()
 
 TEST(DomainDecomposition, assignSendIntegration)
 {
-    testSingleRangeSfcSplitRandom<unsigned>();
-    testSingleRangeSfcSplitRandom<uint64_t>();
+    singleRangeSfcSplitRandom<unsigned>();
+    singleRangeSfcSplitRandom<uint64_t>();
 }
 
 template<class I>
-void testCreateSendBufferGrid()
+void createSendBufferGrid()
 {
     std::vector<I> codes;
 
@@ -172,8 +199,8 @@ void testCreateSendBufferGrid()
 
 TEST(DomainDecomposition, createSendBufferGrid)
 {
-    testCreateSendBufferGrid<unsigned>();
-    testCreateSendBufferGrid<uint64_t>();
+    createSendBufferGrid<unsigned>();
+    createSendBufferGrid<uint64_t>();
 }
 
 
