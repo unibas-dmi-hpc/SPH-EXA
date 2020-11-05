@@ -117,10 +117,7 @@ public:
     [[nodiscard]] auto begin() const { return std::cbegin(ranges_); }
     [[nodiscard]] auto end()   const { return std::cend(ranges_); }
 
-    //int& count() { return count_; }
-
-    [[nodiscard]]
-    const int& count() const { return count_; }
+    [[nodiscard]] const int& count() const { return count_; }
 
 private:
 

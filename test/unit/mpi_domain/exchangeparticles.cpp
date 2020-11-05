@@ -8,8 +8,6 @@
 
 #include "sfc/domaindecomp.hpp"
 
-#include "coord_samples/random.hpp"
-
 //! \brief all-to-all exchange, the most communication possible
 template<class T>
 void exchangeAllToAll(int thisRank, int nRanks)
