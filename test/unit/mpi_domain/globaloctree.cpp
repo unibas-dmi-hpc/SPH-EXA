@@ -55,7 +55,7 @@ void buildTree(int rank)
         nodeRange<I>(0)
     };
 
-    std::vector<int> refCounts(8,8);
+    std::vector<std::size_t> refCounts(8,8);
 
     EXPECT_EQ(counts, refCounts);
     EXPECT_EQ(tree, refTree);

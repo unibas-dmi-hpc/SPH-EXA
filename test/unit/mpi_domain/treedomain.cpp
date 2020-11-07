@@ -37,7 +37,7 @@ void globalRandomGaussian(int thisRank, int nRanks)
     std::vector<T> y = coords.y();
     std::vector<T> z = coords.z();
 
-    int nParticlesAssigned = 0;
+    std::size_t nParticlesAssigned = 0;
     for (const auto& range : assignment[thisRank])
         nParticlesAssigned += range.count();
 

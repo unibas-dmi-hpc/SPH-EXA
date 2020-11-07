@@ -12,8 +12,8 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
     using CodeType = unsigned;
     {
         int nSplits = 2;
-        std::vector<int> counts{5 ,5, 5, 5, 5, 6};
-        std::vector<CodeType> tree{0, 1, 2, 3, 4, 5, 6};
+        std::vector<std::size_t> counts{5 ,5, 5, 5, 5, 6};
+        std::vector<CodeType>    tree{0, 1, 2, 3, 4, 5, 6};
 
         auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
@@ -22,8 +22,8 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
     }
     {
         int nSplits = 2;
-        std::vector<int> counts{5, 5, 5, 15, 1, 0};
-        std::vector<CodeType> tree{0, 1, 2, 3, 4, 5, 6};
+        std::vector<std::size_t> counts{5, 5, 5, 15, 1, 0};
+        std::vector<CodeType>    tree{0, 1, 2, 3, 4, 5, 6};
 
         auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
@@ -32,8 +32,8 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
     }
     {
         int nSplits = 2;
-        std::vector<int> counts{15, 0, 1, 5, 5, 5};
-        std::vector<CodeType> tree{0, 1, 2, 3, 4, 5, 6};
+        std::vector<std::size_t> counts{15, 0, 1, 5, 5, 5};
+        std::vector<CodeType>    tree{0, 1, 2, 3, 4, 5, 6};
 
         auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
@@ -42,7 +42,7 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
     }
     {
         int nSplits = 7;
-        std::vector<int> counts{4, 3, 4, 3, 4, 3, 4, 3, 4, 3};
+        std::vector<std::size_t> counts{4, 3, 4, 3, 4, 3, 4, 3, 4, 3};
         // should be grouped |4|7|3|7|4|7|3|
         std::vector<CodeType> tree{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
@@ -72,7 +72,7 @@ void singleRangeSfcSplitGrid()
 
     std::sort(begin(tree), end(tree));
 
-    std::vector<int> counts(sphexa::nNodes(tree), 1);
+    std::vector<std::size_t> counts(sphexa::nNodes(tree), 1);
 
     sphexa::SpaceCurveAssignment<I> refAssignment{
         {{0, sphexa::detail::codeFromIndices<I>({4}), 32}},
@@ -141,7 +141,7 @@ void singleRangeSfcSplitRandom()
     // all splits except the last one should at least be assigned nParticles/nSplits
     for (int rank = 0; rank < nSplits; ++rank)
     {
-        int rankCount = 0;
+        std::size_t rankCount = 0;
         for (auto& range : assignment[rank])
             rankCount += range.count();
 
