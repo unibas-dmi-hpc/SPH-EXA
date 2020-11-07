@@ -19,7 +19,7 @@ class SfcRange
 public:
 
     SfcRange() {}
-    SfcRange(I start, I end, int c)
+    SfcRange(I start, I end, std::size_t c)
         : codeStart_(start), codeEnd_(end), count_(c)
     {
     }
@@ -31,7 +31,7 @@ public:
     I codeEnd() const { return codeEnd_; }
 
     [[nodiscard]]
-    int count() const { return count_; }
+    std::size_t count() const { return count_; }
 
 private:
     // non-member free function
@@ -46,7 +46,7 @@ private:
     //! Morton code range end
     I   codeEnd_;
     //! global count of particles in range
-    int count_;
+    std::size_t count_;
 };
 
 template<class I>
@@ -65,7 +65,7 @@ using SpaceCurveAssignment = std::vector<std::vector<SfcRange<I>>>;
  * Not the best way to distribute the global tree to different ranks, but a very simple one
  */
 template<class I>
-SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, const std::vector<int>& globalCounts,
+SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, const std::vector<std::size_t>& globalCounts,
                                             int nSplits)
 {
     // one element per rank in outer vector, just one element in inner vector to store a single range per rank;

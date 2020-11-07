@@ -88,7 +88,7 @@ void checkCountTreeNodes()
         nodeRange<CodeType>(0)
     };
 
-    std::vector<int> counts(sphexa::nNodes(tree));
+    std::vector<std::size_t> counts(sphexa::nNodes(tree));
 
     sphexa::computeNodeCounts(tree.data(), counts.data(), sphexa::nNodes(tree),
                               codes.data(), codes.data() + codes.size());
@@ -120,7 +120,7 @@ void rebalanceShrinkStart()
     std::vector<CodeType> tree;
     tree.reserve(20);
 
-    std::vector<int> counts;
+    std::vector<std::size_t> counts;
     counts.reserve(20);
 
     for (unsigned char i = 0; i < 8; ++i)
@@ -188,7 +188,7 @@ void rebalanceShrinkMid()
     };
     tree.push_back(nodeRange<CodeType>(0));
 
-    std::vector<int> counts(nNodes(tree), 1);
+    std::vector<std::size_t> counts(nNodes(tree), 1);
     std::vector<CodeType> balancedTree
         = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
 
@@ -242,7 +242,7 @@ void rebalanceShrinkEnd()
         nodeRange<CodeType>(0)
     };
 
-    std::vector<int> counts(nNodes(tree), 1);
+    std::vector<std::size_t> counts(nNodes(tree), 1);
 
     std::vector<CodeType> balancedTree
         = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
@@ -278,8 +278,8 @@ TEST(GlobalTree, rebalanceRoot32)
     constexpr int bucketSize = 8;
 
     // single root node
-    std::vector<CodeType> tree{0, nodeRange<CodeType>(0)};
-    std::vector<int>      counts{7};
+    std::vector<CodeType>    tree{0, nodeRange<CodeType>(0)};
+    std::vector<std::size_t> counts{7};
 
     std::vector<CodeType> balancedTree
         = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
@@ -293,8 +293,8 @@ TEST(GlobalTree, rebalanceRoot64)
     constexpr int bucketSize = 8;
 
     // single root node
-    std::vector<CodeType> tree{0, nodeRange<CodeType>(0)};
-    std::vector<int>      counts{7};
+    std::vector<CodeType>    tree{0, nodeRange<CodeType>(0)};
+    std::vector<std::size_t> counts{7};
 
     std::vector<CodeType> balancedTree
         = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
@@ -308,8 +308,8 @@ TEST(GlobalTree, rebalanceRootSplit32)
     constexpr int bucketSize = 8;
 
     // single root node
-    std::vector<CodeType> tree{0, nodeRange<CodeType>(0)};
-    std::vector<int>      counts{9};
+    std::vector<CodeType>    tree{0, nodeRange<CodeType>(0)};
+    std::vector<std::size_t> counts{9};
 
     std::vector<CodeType> balancedTree
         = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
@@ -332,8 +332,8 @@ TEST(GlobalTree, rebalanceRootSplit64)
     constexpr int bucketSize = 8;
 
     // single root node
-    std::vector<CodeType> tree{0, nodeRange<CodeType>(0)};
-    std::vector<int>      counts{9};
+    std::vector<CodeType>    tree{0, nodeRange<CodeType>(0)};
+    std::vector<std::size_t> counts{9};
 
     std::vector<CodeType> balancedTree
         = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
@@ -375,7 +375,7 @@ void rebalanceSplitShrink()
         nodeRange<CodeType>(0)
     };
 
-    std::vector<int> counts(nNodes(tree), 1);
+    std::vector<std::size_t> counts(nNodes(tree), 1);
     counts[1] = bucketSize+1;
 
     std::vector<CodeType> balancedTree
@@ -414,7 +414,7 @@ void rebalanceInsufficentResolution()
     constexpr int bucketSize = 1;
 
     std::vector<CodeType> tree{0};
-    std::array<unsigned char, 21> zeroIndices{0};
+    std::array<unsigned char, sphexa::maxTreeLevel<uint64_t>{}> zeroIndices{0};
     for (int level = 0; level < sphexa::maxTreeLevel<CodeType>{}; ++level)
     {
         auto indices = zeroIndices;
@@ -427,7 +427,7 @@ void rebalanceInsufficentResolution()
     tree.push_back(nodeRange<CodeType>(0));
     std::sort(begin(tree), end(tree));
 
-    std::vector<int> counts(nNodes(tree), 1);
+    std::vector<std::size_t> counts(nNodes(tree), 1);
     counts[0] = bucketSize + 1;
 
     //printTree(tree.data(), counts.data(), nNodes(tree));
@@ -518,7 +518,7 @@ TEST(GlobalTree, octreeInvariants64)
 }
 
 template<class I>
-void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<int>& counts, int bucketSize,
+void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<std::size_t>& counts, int bucketSize,
                            const std::vector<I>& mortonCodes)
 {
     using CodeType = I;

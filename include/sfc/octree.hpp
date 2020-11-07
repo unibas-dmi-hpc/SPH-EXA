@@ -80,7 +80,7 @@ bool checkOctreeInvariants(const I* tree, int nNodes)
  * \param codesEnd     Morton code range end of particles to count
  */
 template<class I>
-void computeNodeCounts(const I* tree, int* counts, int nNodes, const I* codesStart, const I* codesEnd)
+void computeNodeCounts(const I* tree, std::size_t* counts, int nNodes, const I* codesStart, const I* codesEnd)
 {
     for (int i = 0; i < nNodes; ++i)
     {
@@ -107,7 +107,7 @@ void computeNodeCounts(const I* tree, int* counts, int nNodes, const I* codesSta
  * \return                 the rebalanced Morton code octree
  */
 template<class I>
-std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes,
+std::vector<I> rebalanceTree(const I* tree, const std::size_t* counts, int nNodes,
                              int bucketSize, bool* converged = nullptr)
 {
     std::vector<I> balancedTree;
@@ -135,7 +135,7 @@ std::vector<I> rebalanceTree(const I* tree, const int* counts, int nNodes,
         else if (level > 0 && // level 0 cannot be fused
                  parentIndex(thisNode, level) == 0 &&  // current node is first of 8 siblings
                  tree[i+8] == thisNode + nodeRange<I>(level - 1) && // next 7 nodes are all siblings
-                 std::accumulate(counts + i, counts + i + 8, 0) <= bucketSize) // parent count too small
+                 std::accumulate(counts + i, counts + i + 8, std::size_t(0)) <= bucketSize) // parent count too small
         {
             // fuse, by omitting the 7 siblings
             balancedTree.push_back(thisNode);
@@ -176,10 +176,10 @@ std::vector<I> makeRootNodeTree()
 
 //! \brief returns a uniform octree with 8^ceil(log8(nBuckets)) leaf nodes
 template<class I>
-std::vector<I> makeUniformNLevelTree(int nParticles, int bucketSize)
+std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
 {
     // the minimum tree level needed is ceil(log8(nParticles/bucketSize))
-    unsigned minTreeLevel = log8ceil(I(nParticles/bucketSize));
+    unsigned minTreeLevel = log8ceil(I(nParticles/std::size_t(bucketSize)));
     unsigned ticks        = 1u << minTreeLevel;
 
     std::vector<I> tree;
@@ -205,7 +205,7 @@ std::vector<I> makeUniformNLevelTree(int nParticles, int bucketSize)
 
 struct LocalReduce
 {
-    void operator()(std::vector<int>& counts)
+    void operator()(std::vector<std::size_t>& counts)
     {
     }
 };
@@ -213,9 +213,9 @@ struct LocalReduce
 #ifdef USE_MPI
 struct GlobalReduce
 {
-    void operator()(std::vector<int>& counts)
+    void operator()(std::vector<std::size_t>& counts)
     {
-        MPI_Allreduce(MPI_IN_PLACE, counts.data(), counts.size(), MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+        MPI_Allreduce(MPI_IN_PLACE, counts.data(), counts.size(), MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
     }
 };
 #endif
@@ -230,7 +230,7 @@ struct GlobalReduce
  * \return             the tree and the node counts
  */
 template<class I, class Reduce = LocalReduce>
-std::tuple<std::vector<I>, std::vector<int>>
+std::tuple<std::vector<I>, std::vector<std::size_t>>
 computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vector<I>&& tree = std::vector<I>(0))
 {
     if (!tree.size())
@@ -238,7 +238,7 @@ computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vecto
         tree = detail::makeUniformNLevelTree<I>(codesEnd - codesStart, bucketSize);
     }
 
-    std::vector<int> counts(nNodes(tree));
+    std::vector<std::size_t> counts(nNodes(tree));
 
     bool converged = false;
     while (!converged)
@@ -308,7 +308,7 @@ inline bool operator==(const SfcNode<I>& lhs, const SfcNode<I>& rhs)
 template<class I>
 struct GlobalSfcNode
 {
-    GlobalSfcNode(I start, I end, [[maybe_unused]] unsigned ignore, unsigned c)
+    GlobalSfcNode(I start, I end, [[maybe_unused]] unsigned ignore, std::size_t c)
         : startCode(start), endCode(end), count(c) { }
 
     //! start and end codes
@@ -316,7 +316,7 @@ struct GlobalSfcNode
     I endCode;
 
     //! The particle content of the node.
-    unsigned count;
+    std::size_t count;
 };
 
 template<class I>
