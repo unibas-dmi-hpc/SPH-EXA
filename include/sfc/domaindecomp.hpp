@@ -259,7 +259,7 @@ std::vector<T> createSendBuffer(const SendManifest& manifest, const std::vector<
 template<class T, class... Arrays>
 void exchangeParticles(const SendList& sendList, int nParticlesAssigned, int thisRank, const std::vector<int>& ordering, Arrays&... arrays)
 {
-    std::vector<std::vector<T>*> data{ (&arrays)... };
+    std::array<std::vector<T>*, sizeof...(Arrays)> data{ (&arrays)... };
     int nRanks = sendList.size();
 
     std::vector<std::vector<T>> sendBuffers;
@@ -320,7 +320,8 @@ void exchangeParticles(const SendList& sendList, int nParticlesAssigned, int thi
 
     // If this process is going to send messages with rank/tag combinations
     // already sent in this function, this can lead to messages being mixed up
-    // on the receiver side. For this reason, a barrier is enacted here.
+    // on the receiver side. This happens e.g. with repeated consecutive calls of
+    // this function. For this reason, a barrier is enacted here.
     // If there are no interfering messages going to be sent, it would be possible to
     // remove the barrier. But if that assumption turns out to be wrong, arising bugs
     // will be hard to detect.

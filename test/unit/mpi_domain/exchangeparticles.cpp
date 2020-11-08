@@ -8,7 +8,15 @@
 
 #include "sfc/domaindecomp.hpp"
 
-//! \brief all-to-all exchange, the most communication possible
+/*! \brief all-to-all exchange, the most communication possible
+ *
+ * \tparam T       float, double or int
+ * \param thisRank executing rank
+ * \param nRanks   total number of ranks
+ *
+ * Each rank keeps (1/nRanks)-th of its local elements and sends the
+ * other nRanks-1 chunks to the other nRanks-1 ranks.
+ */
 template<class T>
 void exchangeAllToAll(int thisRank, int nRanks)
 {
@@ -18,8 +26,22 @@ void exchangeAllToAll(int thisRank, int nRanks)
     std::vector<int> ordering(gridSize);
 
     std::iota(begin(x), end(x), 0);
-    std::iota(begin(y), end(y), 0);
+    // unique element id across all ranks
+    std::iota(begin(y), end(y), gridSize * thisRank);
+    // start from trivial ordering
     std::iota(begin(ordering), end(ordering), 0);
+
+    {
+        // A simple, but nontrivial ordering.
+        // Simulates the use case where the x,y,z coordinate arrays
+        // are not sorted according to the Morton code ordering for which the
+        // the index ranges in the SendList are valid.
+        int swap1 = 0;
+        int swap2 = gridSize - 1;
+        std::swap(x[swap1], x[swap2]);
+        std::swap(y[swap1], y[swap2]);
+        std::swap(ordering[swap1], ordering[swap2]);
+    }
 
     int segmentSize = gridSize / nRanks;
 
@@ -29,7 +51,7 @@ void exchangeAllToAll(int thisRank, int nRanks)
         int lower = rank * segmentSize;
         int upper = lower + segmentSize;
 
-        if (rank == nRanks -1 )
+        if (rank == nRanks - 1)
             upper += gridSize % nRanks;
 
         sendList[rank].addRange(lower, upper);
@@ -46,7 +68,18 @@ void exchangeAllToAll(int thisRank, int nRanks)
         std::iota(begin(refX) + rank * segmentSize, begin(refX) + rank * segmentSize + segmentSize,
                   sendList[thisRank][0][0]);
     }
-    std::vector<T> refY(refX);
+
+    std::vector<T> refY;
+    for (int rank = 0; rank < nRanks; ++rank)
+    {
+        int seqStart = rank * gridSize + (gridSize/nRanks) * thisRank;
+
+        for (int i = 0; i < segmentSize; ++i)
+            refY.push_back(seqStart++);
+    }
+
+    // received particles are in indeterminate order
+    std::sort(begin(y), end(y));
 
     EXPECT_EQ(refX, x);
     EXPECT_EQ(refY, y);
