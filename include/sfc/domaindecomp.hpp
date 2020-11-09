@@ -16,8 +16,11 @@ namespace sphexa
  *
  * \tparam I  32- or 64-bit signed or unsigned integer to store the indices
  *
- *  Used for SendRanges with index ranges referencing elements in e.g. x,y,z,h arrays
- *  and for SfcRanges with index ranges referencing parts of an SFC-octree with Morton codes.
+ *  Used for SendRanges with index ranges referencing elements in e.g. x,y,z,h arrays.
+ *  In this case, count() equals the sum of all range differences computed as rangeEnd() - rangeStart().
+ *
+ *  Also used for SfcRanges with index ranges referencing parts of an SFC-octree with Morton codes.
+ *  In that case, count() does NOT equal sum(rangeEnd(i) - rangeStart(i), i=0...nRanges)
  */
 template<class I>
 class IndexRanges
@@ -50,9 +53,6 @@ public:
     [[nodiscard]] const std::size_t& count() const { return count_; }
 
     [[nodiscard]] std::size_t nRanges() const { return ranges_.size(); }
-
-    [[nodiscard]] auto begin() const { return std::cbegin(ranges_); }
-    [[nodiscard]] auto end()   const { return std::cend(ranges_); }
 
 private:
 
@@ -149,6 +149,8 @@ using SendList     = std::vector<SendManifest>;
  * \param assignment         global space curve assignment to ranks
  * \param mortonCodes        sorted list of morton codes for local particles present on this rank
  * \return                   for each rank, a list of index ranges into \a mortonCodes to send
+ *
+ * Converts the global assignment Morton code ranges into particle indices with binary search
  */
 template<class I>
 SendList createSendList(const SpaceCurveAssignment<I>& assignment, const std::vector<I>& mortonCodes)
@@ -180,11 +182,11 @@ SendList createSendList(const SpaceCurveAssignment<I>& assignment, const std::ve
     return ret;
 }
 
-/*! \brief create a buffer of elements to send
+/*! \brief create a buffer of elements to send by extracting elements from the source array
  *
  * \tparam T         float or double
  * \param manifest   contains the index ranges of \a source to put into the send buffer
- * \param source     x,y,z coordinate arrays
+ * \param source     e.g. x,y,z,h arrays
  * \param ordering   the space curve ordering to handle unsorted source arrays
  *                   if source is space-curve-sorted, \a ordering is the trivial 0,1,...,n sequence
  * \return           the send buffer
@@ -197,9 +199,9 @@ std::vector<T> createSendBuffer(const SendManifest& manifest, const std::vector<
 
     std::vector<T> sendBuffer;
     sendBuffer.reserve(sendSize);
-    for (const auto& range : manifest)
+    for (int rangeIndex = 0; rangeIndex < manifest.nRanges(); ++ rangeIndex)
     {
-        for (int i = range[0]; i < range[1]; ++i)
+        for (int i = manifest.rangeStart(rangeIndex); i < manifest.rangeEnd(rangeIndex); ++i)
         {
             sendBuffer.push_back(source[ordering[i]]);
         }
