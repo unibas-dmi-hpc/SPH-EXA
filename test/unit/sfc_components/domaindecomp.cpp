@@ -17,7 +17,9 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
 
         auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
-        sphexa::SpaceCurveAssignment<CodeType> ref{{{0, 3, 15}}, {{3, 6, 16}}};
+        sphexa::SpaceCurveAssignment<CodeType> ref(nSplits);
+        ref[0].addRange(0,3,15);
+        ref[1].addRange(3,6,16);
         EXPECT_EQ(ref, splits);
     }
     {
@@ -27,7 +29,9 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
 
         auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
-        sphexa::SpaceCurveAssignment<CodeType> ref{{{0, 3, 15}}, {{3, 6, 16}}};
+        sphexa::SpaceCurveAssignment<CodeType> ref(nSplits);
+        ref[0].addRange(0,3,15);
+        ref[1].addRange(3,6,16);
         EXPECT_EQ(ref, splits);
     }
     {
@@ -37,7 +41,9 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
 
         auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
-        sphexa::SpaceCurveAssignment<CodeType> ref{{{0, 3, 16}}, {{3, 6, 15}}};
+        sphexa::SpaceCurveAssignment<CodeType> ref(nSplits);
+        ref[0].addRange(0,3,16);
+        ref[1].addRange(3,6,15);
         EXPECT_EQ(ref, splits);
     }
     {
@@ -48,9 +54,14 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
 
         auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
-        sphexa::SpaceCurveAssignment<CodeType> ref{
-            {{0, 1, 4}}, {{1, 3, 7}}, {{3, 4, 3}}, {{4, 6, 7}}, {{6, 7, 4}}, {{7, 9, 7}}, {{9, 10, 3}}
-        };
+        sphexa::SpaceCurveAssignment<CodeType> ref(nSplits);
+        ref[0].addRange(0,1,4);
+        ref[1].addRange(1,3,7);
+        ref[2].addRange(3,4,3);
+        ref[3].addRange(4,6,7);
+        ref[4].addRange(6,7,4);
+        ref[5].addRange(7,9,7);
+        ref[6].addRange(9,10,3);
         EXPECT_EQ(ref, splits);
     }
 }
@@ -74,10 +85,9 @@ void singleRangeSfcSplitGrid()
 
     std::vector<std::size_t> counts(sphexa::nNodes(tree), 1);
 
-    sphexa::SpaceCurveAssignment<I> refAssignment{
-        {{0, sphexa::detail::codeFromIndices<I>({4}), 32}},
-        {{sphexa::detail::codeFromIndices<I>({4}), sphexa::nodeRange<I>(0), 32}}
-    };
+    sphexa::SpaceCurveAssignment<I> refAssignment(2);
+    refAssignment[0].addRange(0, sphexa::detail::codeFromIndices<I>({4}), 32);
+    refAssignment[1].addRange(sphexa::detail::codeFromIndices<I>({4}), sphexa::nodeRange<I>(0), 32);
 
     auto assignment = sphexa::singleRangeSfcSplit(tree, counts, 2);
     EXPECT_EQ(refAssignment, assignment);
@@ -105,14 +115,15 @@ void createSendListGrid()
 
     std::sort(begin(codes), end(codes));
 
-    sphexa::SpaceCurveAssignment<I> assignment{
-        {{0, sphexa::detail::codeFromIndices<I>({4}), 32}},
-        {{sphexa::detail::codeFromIndices<I>({4}), sphexa::nodeRange<I>(0), 32}}
-    };
+    sphexa::SpaceCurveAssignment<I> assignment(2);
+    assignment[0].addRange(0, sphexa::detail::codeFromIndices<I>({4}), 32);
+    assignment[1].addRange(sphexa::detail::codeFromIndices<I>({4}), sphexa::nodeRange<I>(0), 32);
 
     auto sendList = sphexa::createSendList(assignment, codes);
 
-    sphexa::SendList refSendList{ {{0, 32}}, {{32, 64}} };
+    sphexa::SendList refSendList(2);
+    refSendList[0].addRange(0,32,32);
+    refSendList[1].addRange(32, 64, 32);
 
     EXPECT_EQ(refSendList, sendList);
     EXPECT_EQ(sendList[0].count(), 32);
@@ -141,9 +152,7 @@ void singleRangeSfcSplitRandom()
     // all splits except the last one should at least be assigned nParticles/nSplits
     for (int rank = 0; rank < nSplits; ++rank)
     {
-        std::size_t rankCount = 0;
-        for (auto& range : assignment[rank])
-            rankCount += range.count();
+        std::size_t rankCount = assignment[rank].count();
 
         // particles in each rank should be within avg per rank +- bucketCount
         EXPECT_LE(nParticles/nSplits - bucketSize, rankCount);
@@ -172,6 +181,7 @@ void createSendBufferGrid()
 {
     std::vector<I> codes;
 
+    // a regular grid of 64 Morton codes
     int n = 4;
     int level = 2;
     for (unsigned i = 0; i < n; ++i)
@@ -183,7 +193,9 @@ void createSendBufferGrid()
 
     std::sort(begin(codes), end(codes));
 
-    sphexa::SendList sendList{ {{0, 32}}, {{32, 64}} };
+    sphexa::SendList sendList(2);
+    sendList[0].addRange(0, 32, 32);
+    sendList[1].addRange(32, 64, 32);
 
     std::vector<double> particles(codes.size());
     std::vector<int> ordering(codes.size());

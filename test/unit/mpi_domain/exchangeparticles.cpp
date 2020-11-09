@@ -54,7 +54,7 @@ void exchangeAllToAll(int thisRank, int nRanks)
         if (rank == nRanks - 1)
             upper += gridSize % nRanks;
 
-        sendList[rank].addRange(lower, upper);
+        sendList[rank].addRange(lower, upper, upper - lower);
     }
 
     segmentSize = sendList[thisRank].count();
@@ -66,7 +66,7 @@ void exchangeAllToAll(int thisRank, int nRanks)
     for (int rank = 0; rank < nRanks; ++rank)
     {
         std::iota(begin(refX) + rank * segmentSize, begin(refX) + rank * segmentSize + segmentSize,
-                  sendList[thisRank][0][0]);
+                  sendList[thisRank].rangeStart(0));
     }
 
     std::vector<T> refY;
@@ -100,9 +100,9 @@ void exchangeCyclicNeighbors(int thisRank, int nRanks)
 
     sphexa::SendList sendList(nRanks);
     // keep all but the last nex elements
-    sendList[thisRank].addRange(0, gridSize - nex);
+    sendList[thisRank].addRange(0, gridSize - nex, gridSize - nex);
     // send last nex to nextRank
-    sendList[nextRank].addRange(gridSize - nex, gridSize);
+    sendList[nextRank].addRange(gridSize - nex, gridSize, nex);
 
     sphexa::exchangeParticles<T>(sendList, gridSize, thisRank, ordering, x, y);
 
