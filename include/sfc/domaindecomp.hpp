@@ -12,45 +12,64 @@
 namespace sphexa
 {
 
-//! \brief References a continuous part of the global octree
+/*! \brief Stores ranges of local particles to be sent to another rank
+ *
+ * \tparam I  32- or 64-bit signed or unsigned integer to store the indices
+ *
+ *  Used for SendRanges with index ranges referencing elements in e.g. x,y,z,h arrays
+ *  and for SfcRanges with index ranges referencing parts of an SFC-octree with Morton codes.
+ */
 template<class I>
-class SfcRange
+class IndexRanges
 {
 public:
+    using IndexType = I;
+    using RangeType = std::array<I, 2>;
 
-    SfcRange() {}
-    SfcRange(I start, I end, std::size_t c)
-        : codeStart_(start), codeEnd_(end), count_(c)
+    IndexRanges() : count_(0), ranges_{} {}
+
+    //! \brief add a local index range
+    void addRange(I lower, I upper, std::size_t cnt)
     {
+        assert(lower <= upper);
+        ranges_.push_back({lower, upper});
+        count_ += cnt;
     }
 
-    [[nodiscard]]
-    I codeStart() const { return codeStart_; }
+    [[nodiscard]] I rangeStart(int i) const
+    {
+        return ranges_[i][0];
+    }
 
-    [[nodiscard]]
-    I codeEnd() const { return codeEnd_; }
+    [[nodiscard]] I rangeEnd(int i) const
+    {
+        return ranges_[i][1];
+    }
 
-    [[nodiscard]]
-    std::size_t count() const { return count_; }
+    //! \brief the sum of number of particles in all ranges or total send count
+    [[nodiscard]] const std::size_t& count() const { return count_; }
+
+    [[nodiscard]] std::size_t nRanges() const { return ranges_.size(); }
+
+    [[nodiscard]] auto begin() const { return std::cbegin(ranges_); }
+    [[nodiscard]] auto end()   const { return std::cend(ranges_); }
 
 private:
-    // non-member free function
-    friend bool operator==(const SfcRange<I>& lhs, const SfcRange<I>& rhs)
+
+    friend bool operator==(const IndexRanges& lhs, const IndexRanges& rhs)
     {
-        return std::tie(lhs.codeStart_, lhs.codeEnd_, lhs.count_) ==
-               std::tie(rhs.codeStart_, rhs.codeEnd_, rhs.count_);
+        return lhs.count_ == rhs.count_ && lhs.ranges_ == rhs.ranges_;
     }
 
-    //! Morton code range start
-    I   codeStart_;
-    //! Morton code range end
-    I   codeEnd_;
-    //! global count of particles in range
     std::size_t count_;
+    std::vector<RangeType> ranges_;
 };
 
 template<class I>
-using SpaceCurveAssignment = std::vector<std::vector<SfcRange<I>>>;
+using RankAssignment = IndexRanges<I>;
+
+template<class I>
+using SpaceCurveAssignment = std::vector<RankAssignment<I>>;
 
 /*! \brief assign the global tree/SFC to nSplits ranks, assigning to each rank only a single Morton code range
  *
@@ -68,9 +87,8 @@ template<class I>
 SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, const std::vector<std::size_t>& globalCounts,
                                             int nSplits)
 {
-    // one element per rank in outer vector, just one element in inner vector to store a single range per rank;
-    // other distribution strategies might have more than one range per rank
-    SpaceCurveAssignment<I> ret(nSplits, std::vector<SfcRange<I>>(1)); // 1 because of one range
+    // one element per rank
+    SpaceCurveAssignment<I> ret(nSplits);
 
     std::size_t globalNParticles = std::accumulate(begin(globalCounts), end(globalCounts), std::size_t(0));
 
@@ -112,64 +130,18 @@ SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, co
                 splitCount += globalCounts[j];
         }
 
-        ret[split][0] = SfcRange<I>(globalTree[leavesDone], globalTree[j], splitCount);
+        // other distribution strategies might have more than one range per rank
+        ret[split].addRange(globalTree[leavesDone], globalTree[j], splitCount);
         leavesDone = j;
     }
 
     return ret;
 }
 
-/*! \brief Stores ranges of local particles to be sent to another rank
- *
- *  Used to build a SendList which consists of one SendManifest per rank
- */
-class SendManifest
-{
-public:
-    using RangeType = std::array<int, 2>;
-
-    SendManifest() : count_(0), ranges_{} {}
-
-    SendManifest(std::initializer_list<RangeType> il) : count_(0), ranges_{il}
-    {
-        for (const auto& range : ranges_)
-        {
-            count_ += range[1] - range[0];
-        }
-    }
-
-    //! \brief add a local index range
-    void addRange(int lower, int upper)
-    {
-        assert(lower <= upper);
-        ranges_.push_back({lower, upper});
-        count_ += upper - lower;
-    }
-
-    const RangeType& operator[](int i) const
-    {
-        return ranges_[i];
-    }
-
-    [[nodiscard]] auto begin() const { return std::cbegin(ranges_); }
-    [[nodiscard]] auto end()   const { return std::cend(ranges_); }
-
-    //! \brief the sum of number of particles in all ranges or total send count
-    [[nodiscard]] const int& count() const { return count_; }
-
-private:
-
-    friend bool operator==(const SendManifest& lhs, const SendManifest& rhs)
-    {
-        return lhs.ranges_ == rhs.ranges_;
-    }
-
-    int count_;
-    std::vector<RangeType> ranges_;
-};
-
-
-using SendList = std::vector<SendManifest>;
+//! \brief stores one or multiple index ranges of local particles to send out to another rank
+using SendManifest = IndexRanges<int>; // works if there are < 2^31 local particles
+//! \brief SendList will contain one manifest per rank
+using SendList     = std::vector<SendManifest>;
 
 /*! \brief Based on global assignment, create the list of local particle index ranges to send to each rank
  *
@@ -181,27 +153,28 @@ using SendList = std::vector<SendManifest>;
 template<class I>
 SendList createSendList(const SpaceCurveAssignment<I>& assignment, const std::vector<I>& mortonCodes)
 {
+    using IndexType = SendManifest::IndexType;
     int nRanks = assignment.size();
 
     SendList ret(nRanks);
 
     for (int rank = 0; rank < nRanks; ++rank)
     {
-        SendManifest manifest;
-        for (int rangeIndex = 0; rangeIndex < assignment[rank].size(); ++rangeIndex)
+        SendManifest& manifest = ret[rank];
+        for (int rangeIndex = 0; rangeIndex < assignment[rank].nRanges(); ++rangeIndex)
         {
-            I rangeStart = assignment[rank][rangeIndex].codeStart();
-            I rangeEnd   = assignment[rank][rangeIndex].codeEnd();
+            I rangeStart = assignment[rank].rangeStart(rangeIndex);
+            I rangeEnd   = assignment[rank].rangeEnd(rangeIndex);
 
-            int lowerParticleIndex = std::lower_bound(cbegin(mortonCodes), cend(mortonCodes), rangeStart) -
-                                        cbegin(mortonCodes);
+            auto lit = std::lower_bound(cbegin(mortonCodes), cend(mortonCodes), rangeStart);
+            IndexType lowerParticleIndex = std::distance(cbegin(mortonCodes), lit);
 
-            int upperParticleIndex = std::lower_bound(cbegin(mortonCodes) + lowerParticleIndex, cend(mortonCodes), rangeEnd) -
-                                        cbegin(mortonCodes);
+            auto uit = std::lower_bound(cbegin(mortonCodes) + lowerParticleIndex, cend(mortonCodes), rangeEnd);
+            IndexType upperParticleIndex = std::distance(cbegin(mortonCodes), uit);
 
-            manifest.addRange(lowerParticleIndex, upperParticleIndex);
+            IndexType count = std::distance(lit, uit);
+            manifest.addRange(lowerParticleIndex, upperParticleIndex, count);
         }
-        ret[rank] = manifest;
     }
 
     return ret;
@@ -290,7 +263,7 @@ void exchangeParticles(const SendList& sendList, int nParticlesAssigned, int thi
         std::copy(begin(arrayBuffer), end(arrayBuffer), data[arrayIndex]->begin());
     }
 
-    int nParticlesPresent  = sendList[thisRank].count();
+    unsigned nParticlesPresent  = sendList[thisRank].count();
     for (auto array : data)
     {
         array->reserve(nParticlesAssigned);
@@ -300,9 +273,10 @@ void exchangeParticles(const SendList& sendList, int nParticlesAssigned, int thi
     while (nParticlesPresent != nParticlesAssigned)
     {
         MPI_Status status[2 + data.size()];
-        int receiveRank, receiveRankCount;
-        MPI_Recv(&receiveRank, 1, MPI_INT, MPI_ANY_SOURCE, 0, MPI_COMM_WORLD, &status[0]);
-        MPI_Recv(&receiveRankCount, 1, MPI_INT, receiveRank, 1, MPI_COMM_WORLD, &status[1]);
+        int receiveRank;
+        std::size_t receiveRankCount;
+        mpiRecvSync(&receiveRank, 1, MPI_ANY_SOURCE, 0, &status[0]);
+        mpiRecvSync(&receiveRankCount, 1, receiveRank, 1, &status[1]);
 
         for (int arrayIndex = 0; arrayIndex < data.size(); ++arrayIndex)
         {
