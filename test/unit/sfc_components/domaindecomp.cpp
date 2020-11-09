@@ -12,7 +12,7 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
     using CodeType = unsigned;
     {
         int nSplits = 2;
-        std::vector<std::size_t> counts{5 ,5, 5, 5, 5, 6};
+        std::vector<std::size_t> counts{5, 5, 5, 5, 5, 6};
         std::vector<CodeType>    tree{0, 1, 2, 3, 4, 5, 6};
 
         auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
@@ -66,95 +66,81 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
     }
 }
 
+
+/*! \brief test SendList creation from a SFC assignment
+ *
+ * This test creates an array with Morton codes and an
+ * SFC assignment with Morton code ranges.
+ * CreateSendList then translated the code ranges into indices
+ * valid for the Morton code array.
+ */
 template<class I>
-void singleRangeSfcSplitGrid()
+void createSendList()
 {
-    std::vector<I> tree;
+    int nParticles = 10;
+    std::vector<I> codes(nParticles);
+    std::iota(begin(codes), end(codes), 10);
 
-    int n = 4;
-    int level = 2;
-    for (unsigned i = 0; i < n; ++i)
-        for (unsigned j = 0; j < n; ++j)
-            for (unsigned k = 0; k < n; ++k)
-            {
-                tree.push_back(sphexa::detail::codeFromBox<I>({i,j,k}, level));
-            }
-    tree.push_back(sphexa::nodeRange<I>(0));
+    int nRanks = 2;
+    sphexa::SpaceCurveAssignment<I> assignment(nRanks);
+    assignment[0].addRange(9, 11, 1);   // range lower than lowest code
+    assignment[0].addRange(13, 15, 2);
+    assignment[1].addRange(17, 1000, 2); // range bigger than highest code
 
-    std::sort(begin(tree), end(tree));
-
-    std::vector<std::size_t> counts(sphexa::nNodes(tree), 1);
-
-    sphexa::SpaceCurveAssignment<I> refAssignment(2);
-    refAssignment[0].addRange(0, sphexa::detail::codeFromIndices<I>({4}), 32);
-    refAssignment[1].addRange(sphexa::detail::codeFromIndices<I>({4}), sphexa::nodeRange<I>(0), 32);
-
-    auto assignment = sphexa::singleRangeSfcSplit(tree, counts, 2);
-    EXPECT_EQ(refAssignment, assignment);
-}
-
-TEST(DomainDecomposition, singleRangeSplitGrid)
-{
-    singleRangeSfcSplitGrid<unsigned>();
-    singleRangeSfcSplitGrid<uint64_t>();
-}
-
-template<class I>
-void createSendListGrid()
-{
-    std::vector<I> codes;
-
-    int n = 4;
-    int level = 2;
-    for (unsigned i = 0; i < n; ++i)
-        for (unsigned j = 0; j < n; ++j)
-            for (unsigned k = 0; k < n; ++k)
-            {
-                codes.push_back(sphexa::detail::codeFromBox<I>({i,j,k}, level));
-            }
-
-    std::sort(begin(codes), end(codes));
-
-    sphexa::SpaceCurveAssignment<I> assignment(2);
-    assignment[0].addRange(0, sphexa::detail::codeFromIndices<I>({4}), 32);
-    assignment[1].addRange(sphexa::detail::codeFromIndices<I>({4}), sphexa::nodeRange<I>(0), 32);
-
+    // note: codes input needs to be sorted
     auto sendList = sphexa::createSendList(assignment, codes);
 
-    sphexa::SendList refSendList(2);
-    refSendList[0].addRange(0,32,32);
-    refSendList[1].addRange(32, 64, 32);
+    EXPECT_EQ(sendList[0].count(), 3);
+    EXPECT_EQ(sendList[1].count(), 3);
+
+    sphexa::SendList refSendList(nRanks);
+    refSendList[0].addRange(0, 1, 1);
+    refSendList[0].addRange(3, 5, 2);
+    refSendList[1].addRange(7, 10, 3);
 
     EXPECT_EQ(refSendList, sendList);
-    EXPECT_EQ(sendList[0].count(), 32);
-    EXPECT_EQ(sendList[1].count(), 32);
 }
 
-TEST(DomainDecomposition, createSendListGrid)
+TEST(DomainDecomposition, createSendList)
 {
-    createSendListGrid<unsigned>();
-    createSendListGrid<uint64_t>();
+    createSendList<unsigned>();
+    createSendList<uint64_t>();
 }
 
+/*! \brief This test integrates octree generation, SFC assignment and SendList creation
+ *
+ * Test procedure:
+ *
+ * 1. create nParticles random gaussian distributed x,y,z coordinates in a box
+ * 2. create (local) sfc-octree
+ * 3. create sfc assignment based on octree from 2.
+ * 4. create sendList from assignment
+ *
+ * Expected results:
+ *
+ * 1. assignment contains nSplit SFC ranges which all contain about nParticles/nSplit +- bucketSize particles
+ * 2. each particle appears in the SendList, i.e. each particle did get assigned to some rank
+ */
 template<class I>
-void singleRangeSfcSplitRandom()
+void assignSendRandomData()
 {
     int nParticles = 1003;
     int bucketSize = 64;
     RandomGaussianCoordinates<double, I> coords(nParticles, {-1,1});
 
-    auto [tree, counts] = sphexa::computeOctree(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles,
+    auto [tree, counts] = sphexa::computeOctree(coords.mortonCodes().data(),
+                                                coords.mortonCodes().data() + nParticles,
                                                 bucketSize);
 
     int nSplits = 4;
     auto assignment = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
-    // all splits except the last one should at least be assigned nParticles/nSplits
+    /// all splits except the last one should at least be assigned nParticles/nSplits
     for (int rank = 0; rank < nSplits; ++rank)
     {
         std::size_t rankCount = assignment[rank].count();
 
-        // particles in each rank should be within avg per rank +- bucketCount
+        /// particles in each rank should be within avg per rank +- bucketCount
         EXPECT_LE(nParticles/nSplits - bucketSize, rankCount);
         EXPECT_LE(rankCount, nParticles/nSplits + bucketSize);
     }
@@ -162,57 +148,61 @@ void singleRangeSfcSplitRandom()
     auto sendList = sphexa::createSendList(assignment, coords.mortonCodes());
 
     int particleRecount = 0;
-    for (auto& list : sendList)
-        for (auto& manifest : list)
-            particleRecount += manifest[1]  - manifest[0];
+    for (auto& manifest : sendList)
+        for (int rangeIndex = 0; rangeIndex < manifest.nRanges(); ++rangeIndex)
+            particleRecount += manifest.rangeEnd(rangeIndex) - manifest.rangeStart(rangeIndex);
 
-    // make sure that all particles present on the node got assigned to some rank
+    /// make sure that all particles present on the node got assigned to some rank
     EXPECT_EQ(nParticles, particleRecount);
 }
 
 TEST(DomainDecomposition, assignSendIntegration)
 {
-    singleRangeSfcSplitRandom<unsigned>();
-    singleRangeSfcSplitRandom<uint64_t>();
+    assignSendRandomData<unsigned>();
+    assignSendRandomData<uint64_t>();
 }
 
+/*! \brief Test that createSendBuffer can create the correct buffer from a source array
+ *
+ * @tparam I 32- or 64-bit unsigned integer
+ *
+ * Precondition: an array, corresponding ordering and SendManifest with valid index ranges into
+ *               the array
+ *
+ * Expected Result: createSendBuffer extracts the elements that fall within the index ranges in the
+ *                  sendManifest into the output buffer
+ */
 template<class I>
-void createSendBufferGrid()
+void createSendBuffer()
 {
-    std::vector<I> codes;
+    int bufferSize = 64;
+    // the source array from which to extract the buffer
+    std::vector<double> x(bufferSize);
+    std::iota(begin(x), end(x), 0);
 
-    // a regular grid of 64 Morton codes
-    int n = 4;
-    int level = 2;
-    for (unsigned i = 0; i < n; ++i)
-        for (unsigned j = 0; j < n; ++j)
-            for (unsigned k = 0; k < n; ++k)
-            {
-                codes.push_back(sphexa::detail::codeFromBox<I>({i,j,k}, level));
-            }
+    sphexa::SendManifest manifest;
+    manifest.addRange(0, 8, 8);
+    manifest.addRange(40, 42, 2);
+    manifest.addRange(50, 50, 0);
 
-    std::sort(begin(codes), end(codes));
-
-    sphexa::SendList sendList(2);
-    sendList[0].addRange(0, 32, 32);
-    sendList[1].addRange(32, 64, 32);
-
-    std::vector<double> particles(codes.size());
-    std::vector<int> ordering(codes.size());
-    std::iota(begin(particles), end(particles), 0);
+    std::vector<int> ordering(bufferSize);
     std::iota(begin(ordering), end(ordering), 0);
 
-    auto buffer0 = sphexa::createSendBuffer(sendList[0], particles, ordering);
-    auto buffer1 = sphexa::createSendBuffer(sendList[1], particles, ordering);
+    // non-default ordering will make x appear sorted despite two elements being swapped
+    std::swap(x[0], x[1]);
+    std::swap(ordering[0], ordering[1]);
 
-    EXPECT_TRUE(std::equal(begin(buffer0), end(buffer0), begin(particles)));
-    EXPECT_TRUE(std::equal(begin(buffer1), end(buffer1), begin(particles) + 32));
+    auto buffer = sphexa::createSendBuffer(manifest, x, ordering);
+
+    // note sorted reference
+    std::vector<double> ref{0,1,2,3,4,5,6,7,40,41};
+    EXPECT_EQ(buffer, ref);
 }
 
-TEST(DomainDecomposition, createSendBufferGrid)
+TEST(DomainDecomposition, createSendBuffer)
 {
-    createSendBufferGrid<unsigned>();
-    createSendBufferGrid<uint64_t>();
+    createSendBuffer<unsigned>();
+    createSendBuffer<uint64_t>();
 }
 
 
