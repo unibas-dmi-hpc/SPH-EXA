@@ -3,10 +3,8 @@
 #include <mpi/mpi.h>
 #include <gtest/gtest.h>
 
-#define USE_MPI
-
-#include "sfc/domaindecomp.hpp"
 #include "sfc/octree_mpi.hpp"
+#include "sfc/domaindecomp_mpi.hpp"
 
 #include "coord_samples/random.hpp"
 
