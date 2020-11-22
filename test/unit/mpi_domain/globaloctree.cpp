@@ -4,8 +4,7 @@
 
 #include <gtest/gtest.h>
 
-#define USE_MPI
-#include "sfc/octree.hpp"
+#include "sfc/octree_mpi.hpp"
 
 using namespace sphexa;
 
@@ -41,7 +40,7 @@ void buildTree(int rank)
     auto codes = makeRegularGrid<I>(rank);
 
     int bucketSize = 8;
-    auto [tree, counts] = computeOctree<I, GlobalReduce>(codes.data(), codes.data() + codes.size(), bucketSize);
+    auto [tree, counts] = computeOctreeGlobal(codes.data(), codes.data() + codes.size(), bucketSize);
 
     std::vector<I> refTree{
         codeFromIndices<I>({0}),

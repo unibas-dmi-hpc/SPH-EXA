@@ -6,7 +6,7 @@
 #define USE_MPI
 
 #include "sfc/domaindecomp.hpp"
-#include "sfc/octree.hpp"
+#include "sfc/octree_mpi.hpp"
 
 #include "coord_samples/random.hpp"
 
@@ -21,8 +21,8 @@ void globalRandomGaussian(int thisRank, int nRanks)
     RandomGaussianCoordinates<T, I> coords(nParticles, box);
 
     auto [tree, counts] =
-        sphexa::computeOctree<I, sphexa::GlobalReduce>(coords.mortonCodes().data(),
-                                                       coords.mortonCodes().data() + nParticles, bucketSize);
+        sphexa::computeOctreeGlobal(coords.mortonCodes().data(),
+                                    coords.mortonCodes().data() + nParticles, bucketSize);
 
     std::vector<int> ordering(nParticles);
     // particles are in Morton order
@@ -55,7 +55,7 @@ void globalRandomGaussian(int thisRank, int nRanks)
     sphexa::reorder(ordering, newCodes);
 
     auto [newTree, newCounts] =
-        sphexa::computeOctree<I, sphexa::GlobalReduce>(newCodes.data(),newCodes.data() + newCodes.size(), bucketSize);
+        sphexa::computeOctreeGlobal(newCodes.data(), newCodes.data() + newCodes.size(), bucketSize);
 
     // global tree and counts stay the same
     EXPECT_EQ(tree, newTree);

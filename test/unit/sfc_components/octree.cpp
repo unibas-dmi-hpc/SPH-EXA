@@ -600,6 +600,7 @@ std::array<int, 3> bucketSizesPP{64, 1024, 10000};
 
 INSTANTIATE_TEST_SUITE_P(RandomBoxPP, ComputeOctreeTester, testing::ValuesIn(bucketSizesPP));
 
+
 TEST(GlobalTree, computeNodeMax)
 {
     using CodeType = unsigned;

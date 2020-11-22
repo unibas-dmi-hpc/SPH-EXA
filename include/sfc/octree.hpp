@@ -1,10 +1,9 @@
 #pragma once
 
-#ifdef USE_MPI
-#include <mpi.h>
-#endif
-
-#include "Octree.hpp"
+#include <algorithm>
+#include <cmath>
+#include <numeric>
+#include <vector>
 
 #include "sfc/clz.hpp"
 #include "sfc/mortoncode.hpp"
@@ -203,22 +202,13 @@ std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
 
 } // namespace detail
 
-struct LocalReduce
+struct DoNothing
 {
     void operator()(std::vector<std::size_t>& counts)
     {
     }
 };
 
-#ifdef USE_MPI
-struct GlobalReduce
-{
-    void operator()(std::vector<std::size_t>& counts)
-    {
-        MPI_Allreduce(MPI_IN_PLACE, counts.data(), counts.size(), MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
-    }
-};
-#endif
 
 /*! \brief compute an octree from morton codes for a specified bucket size
  *
@@ -229,7 +219,7 @@ struct GlobalReduce
  * \param[inout] tree  initial tree for the first iteration
  * \return             the tree and the node counts
  */
-template<class I, class Reduce = LocalReduce>
+template<class I, class Reduce = DoNothing>
 std::tuple<std::vector<I>, std::vector<std::size_t>>
 computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vector<I>&& tree = std::vector<I>(0))
 {
