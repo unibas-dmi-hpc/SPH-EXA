@@ -1,12 +1,9 @@
 
 #include <vector>
-#include <mpi.h>
 
 #include <gtest/gtest.h>
 
-#define USE_MPI
-
-#include "sfc/domaindecomp.hpp"
+#include "sfc/domaindecomp_mpi.hpp"
 
 /*! \brief all-to-all exchange, the most communication possible
  *
