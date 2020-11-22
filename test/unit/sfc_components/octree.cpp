@@ -599,3 +599,24 @@ TEST_P(ComputeOctreeTester, pingPongRandomNormal64)
 std::array<int, 3> bucketSizesPP{64, 1024, 10000};
 
 INSTANTIATE_TEST_SUITE_P(RandomBoxPP, ComputeOctreeTester, testing::ValuesIn(bucketSizesPP));
+
+TEST(GlobalTree, computeNodeMax)
+{
+    using CodeType = unsigned;
+
+    std::vector<CodeType> tree{0,8,16,24,32};
+
+    std::vector<CodeType> particleCodes{ 2,4, 8,14, 20, 24,25,26,31 };
+    std::vector<float>    smoothingLs{ 1,2, 4,3, 5, 2,8,1,3};
+    std::vector<float>    hMaxPerNode{ 2,    4,  5,   8};
+
+    std::vector<int> ordering(particleCodes.size());
+    std::iota(begin(ordering), end(ordering), 0);
+
+    std::vector<float> probe(hMaxPerNode.size());
+
+    sphexa::computeNodeMax(tree.data(), nNodes(tree), particleCodes.data(), particleCodes.data() + particleCodes.size(),
+                           ordering.data(), smoothingLs.data(), probe.data());
+
+    EXPECT_EQ(probe, hMaxPerNode);
+}
