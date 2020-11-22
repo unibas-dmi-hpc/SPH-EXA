@@ -73,3 +73,37 @@ TEST(GlobalTree, basicRegularTree32)
 
     buildTree<unsigned>(rank);
 }
+
+template<class CodeType>
+void computeNodeMax(int rank, int nRanks)
+{
+    std::vector<CodeType> tree{0,8,16,24,32};
+
+    std::vector<CodeType> particleCodes{ 2,4, 8,14, 20, 24,25,26,31 };
+
+    std::vector<float>    smoothingLs{ 1,2, 4,3, 5, 2,8,1,3};
+    for (auto& i : smoothingLs) i *= float(rank);
+
+    std::vector<float>    hMaxPerNode{ 2,    4,  5,   8};
+    for (auto& i : hMaxPerNode) i *= float(nRanks - 1);
+
+    std::vector<int> ordering(particleCodes.size());
+    std::iota(begin(ordering), end(ordering), 0);
+
+    std::vector<float> probe(hMaxPerNode.size());
+
+    sphexa::computeNodeMaxGlobal(tree.data(), nNodes(tree), particleCodes.data(), particleCodes.data() + particleCodes.size(),
+                                 ordering.data(), smoothingLs.data(), probe.data());
+
+    EXPECT_EQ(probe, hMaxPerNode);
+}
+
+TEST(GlobalTree, computeNodeMax)
+{
+    int rank = 0, nRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+
+    computeNodeMax<unsigned>(rank, nRanks);
+    computeNodeMax<uint64_t>(rank, nRanks);
+}

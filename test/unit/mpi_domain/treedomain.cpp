@@ -8,7 +8,33 @@
 
 #include "coord_samples/random.hpp"
 
-//! \brief integration test between global octree build and domain particle exchange
+/*! \brief integration test between global octree build and domain particle exchange
+ *
+ * This test performs the following steps on each rank:
+ *
+ * 1. Create nParticles randomly
+ *
+ *    RandomGaussianCoordinates<T, I> coords(nParticles, box):
+ *    Creates nParticles in the [-1,1]^3 box with random gaussian distribution
+ *    centered at (0,0,0), calculate the Morton code for each particle,
+ *    reorder codes and x,y,z array of coords according to ascending Morton codes
+ *
+ * 2. Compute global octree and node particle counts
+ *
+ *    auto [tree, counts] = sphexa::computeOctreeGlobal(...)
+ *
+ * 3. split & assign a part of the global octree to each rank
+ *
+ * 4. Exchange particles, such that each rank gets all the particles present on all nodes
+ *    that lie within the area of the octree that each rank got assigned.
+ *
+ * Post exchange:
+ *
+ * 5. Repeat 2., global octree and counts should stay the same
+ *
+ * 6. Repeat 3., the decomposition should now indicate that all particles stay on the
+ *    node they currently are and that no rank sends any particles to other ranks.
+ */
 template<class I, class T>
 void globalRandomGaussian(int thisRank, int nRanks)
 {
