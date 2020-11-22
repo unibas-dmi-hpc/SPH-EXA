@@ -202,13 +202,6 @@ std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
 
 } // namespace detail
 
-struct DoNothing
-{
-    void operator()(std::vector<std::size_t>& counts)
-    {
-    }
-};
-
 
 /*! \brief compute an octree from morton codes for a specified bucket size
  *
@@ -219,7 +212,7 @@ struct DoNothing
  * \param[inout] tree  initial tree for the first iteration
  * \return             the tree and the node counts
  */
-template<class I, class Reduce = DoNothing>
+template<class I, class Reduce = void>
 std::tuple<std::vector<I>, std::vector<std::size_t>>
 computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vector<I>&& tree = std::vector<I>(0))
 {
@@ -234,7 +227,7 @@ computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vecto
     while (!converged)
     {
         computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd);
-        Reduce{}(counts);
+        if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
         std::vector<I> balancedTree;
         balancedTree = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize, &converged);
 
