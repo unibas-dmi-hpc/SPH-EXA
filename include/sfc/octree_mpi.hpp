@@ -2,6 +2,7 @@
 
 #include <mpi/mpi.h>
 
+#include "sfc/mpi_wrappers.hpp"
 #include "sfc/octree.hpp"
 
 namespace sphexa
@@ -53,7 +54,7 @@ template <class I, class T>
 void computeNodeMaxGlobal(const I *tree, int nNodes, const I *codesStart, const I *codesEnd, const int *ordering, const T *input, T *output)
 {
     computeNodeMax(tree, nNodes, codesStart, codesEnd, ordering, input, output);
-    //MPI_Allreduce(MPI_IN_PLACE, output.data(), output.size(), MPI_UNSIGNED_LONG, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, output, nNodes, MpiType<T>{}, MPI_MAX, MPI_COMM_WORLD);
 }
 
 } // namespace sphexa
