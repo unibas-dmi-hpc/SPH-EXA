@@ -255,6 +255,49 @@ computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vecto
     return std::make_tuple(tree, counts);
 }
 
+/*! \brief Compute the maximum value of a given input array for each node in the global or local octree
+ *
+ * Example: For each node, compute the maximum smoothing length of all particles in that node
+ *
+ * \tparam I           32- or 64-bit unsigned integer type
+ * \param tree         octree nodes given as Morton codes of length @a nNodes+1
+ *                     This function does not rely on octree invariants, sortedness of the nodes
+ *                     is the only requirement.
+ * \param nNodes       number of nodes in tree
+ * \param codesStart   sorted Morton code range start of particles to count
+ * \param codesEnd     sorted Morton code range end of particles to count
+ * \param ordering     Access input according to \a ordering
+ *                     The sequence input[ordering[i]], i=0,...,N must list the elements of input
+ *                     (i.e. the smoothing lengths) such that input[i] is a property of the particle
+ *                     (x[i], y[i], z[i]), with x,y,z sorted according to Morton ordering.
+ * \param input        Array to compute maximum over nodes, length = codesEnd - codesStart
+ * \param output       maximum per node, length = @a nNodes
+ */
+template<class I, class T>
+void computeNodeMax(const I* tree, int nNodes, const I* codesStart, const I* codesEnd,
+                    const int* ordering, const T* input, T* output)
+{
+    for (int i = 0; i < nNodes; ++i)
+    {
+        I nodeStart = tree[i];
+        I nodeEnd   = tree[i+1];
+
+        // find elements belonging to particles in node i
+        int startIndex = std::lower_bound(codesStart, codesEnd, nodeStart) - codesStart;
+        int endIndex   = std::lower_bound(codesStart, codesEnd, nodeEnd)   - codesStart;
+
+        T nodeMax = -INFINITY;
+        for(int p = startIndex; p < endIndex; ++p)
+        {
+            T nodeElement = input[ordering[p]];
+            if (nodeElement > nodeMax)
+                nodeMax = nodeElement;
+        }
+
+        output[i] = nodeMax;
+    }
+}
+
 //////////////////////////////////////////////////////////
 // Tested, but not currently used functionality
 // the code below implements an alternative octree format
