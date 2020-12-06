@@ -61,7 +61,7 @@ void globalRandomGaussian(int thisRank, int nRanks)
     std::vector<T> y = coords.y();
     std::vector<T> z = coords.z();
 
-    std::size_t nParticlesAssigned = assignment[thisRank].count();
+    std::size_t nParticlesAssigned = assignment[thisRank].totalCount();
 
     sphexa::exchangeParticles<T>(sendList, nParticlesAssigned, thisRank, ordering, x, y, z);
 
@@ -92,10 +92,10 @@ void globalRandomGaussian(int thisRank, int nRanks)
         // the new send list now indicates that all elements on the current rank
         // stay where they are
         if (rank == thisRank)
-            EXPECT_EQ(newSendList[rank].count(), nParticlesAssigned);
+            EXPECT_EQ(newSendList[rank].totalCount(), nParticlesAssigned);
         // no particles are sent to other ranks
         else
-            EXPECT_EQ(newSendList[rank].count(), 0);
+            EXPECT_EQ(newSendList[rank].totalCount(), 0);
     }
 
     // quick check that send buffers are created w.r.t ordering

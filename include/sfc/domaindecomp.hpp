@@ -24,30 +24,33 @@ class IndexRanges
 {
 public:
     using IndexType = I;
-    using RangeType = std::array<I, 2>;
+    using RangeType = std::tuple<I, I, std::size_t>;
 
-    IndexRanges() : count_(0), ranges_{} {}
+    IndexRanges() : totalCount_(0), ranges_{} {}
 
     //! \brief add a local index range
     void addRange(I lower, I upper, std::size_t cnt)
     {
         assert(lower <= upper);
-        ranges_.push_back({lower, upper});
-        count_ += cnt;
+        ranges_.push_back({lower, upper, cnt});
+        totalCount_ += cnt;
     }
 
     [[nodiscard]] I rangeStart(int i) const
     {
-        return ranges_[i][0];
+        return std::get<0>(ranges_[i]);
     }
 
     [[nodiscard]] I rangeEnd(int i) const
     {
-        return ranges_[i][1];
+        return std::get<1>(ranges_[i]);
     }
 
+    //! \brief the number of particles in range i
+    [[nodiscard]] const std::size_t& count(int i) const { return std::get<2>(ranges_[i]); }
+
     //! \brief the sum of number of particles in all ranges or total send count
-    [[nodiscard]] const std::size_t& count() const { return count_; }
+    [[nodiscard]] const std::size_t& totalCount() const { return totalCount_; }
 
     [[nodiscard]] std::size_t nRanges() const { return ranges_.size(); }
 
@@ -55,10 +58,10 @@ private:
 
     friend bool operator==(const IndexRanges& lhs, const IndexRanges& rhs)
     {
-        return lhs.count_ == rhs.count_ && lhs.ranges_ == rhs.ranges_;
+        return lhs.totalCount_ == rhs.totalCount_ && lhs.ranges_ == rhs.ranges_;
     }
 
-    std::size_t count_;
+    std::size_t totalCount_;
     std::vector<RangeType> ranges_;
 };
 
@@ -77,8 +80,9 @@ using SpaceCurveAssignment = std::vector<RankAssignment<I>>;
  * \return                   a vector with nSplit elements, each element is a vector of SfcRanges of Morton codes
  *
  * This function acts on global data. All calling ranks should call this function with identical arguments.
+ * Therefore each rank will compute the same SpaceCurveAssignment and each rank will thus know the ranges that
+ * all the ranks are assigned.
  *
- * Not the best way to distribute the global tree to different ranks, but a very simple one
  */
 template<class I>
 SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, const std::vector<std::size_t>& globalCounts,
@@ -192,7 +196,7 @@ template<class T>
 std::vector<T> createSendBuffer(const SendManifest& manifest, const std::vector<T>& source,
                                 const std::vector<int>& ordering)
 {
-    int sendSize = manifest.count();
+    int sendSize = manifest.totalCount();
 
     std::vector<T> sendBuffer;
     sendBuffer.reserve(sendSize);

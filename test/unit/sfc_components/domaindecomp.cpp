@@ -90,8 +90,8 @@ void createSendList()
     // note: codes input needs to be sorted
     auto sendList = sphexa::createSendList(assignment, codes);
 
-    EXPECT_EQ(sendList[0].count(), 3);
-    EXPECT_EQ(sendList[1].count(), 3);
+    EXPECT_EQ(sendList[0].totalCount(), 3);
+    EXPECT_EQ(sendList[1].totalCount(), 3);
 
     sphexa::SendList refSendList(nRanks);
     refSendList[0].addRange(0, 1, 1);
@@ -138,7 +138,7 @@ void assignSendRandomData()
     /// all splits except the last one should at least be assigned nParticles/nSplits
     for (int rank = 0; rank < nSplits; ++rank)
     {
-        std::size_t rankCount = assignment[rank].count();
+        std::size_t rankCount = assignment[rank].totalCount();
 
         /// particles in each rank should be within avg per rank +- bucketCount
         EXPECT_LE(nParticles/nSplits - bucketSize, rankCount);
