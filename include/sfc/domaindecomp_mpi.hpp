@@ -40,10 +40,10 @@ void exchangeParticles(const SendList& sendList, int nParticlesAssigned, int thi
 
     for (int destinationRank = 0; destinationRank < nRanks; ++destinationRank)
     {
-        if (destinationRank == thisRank || sendList[destinationRank].count() == 0) { continue; }
+        if (destinationRank == thisRank || sendList[destinationRank].totalCount() == 0) { continue; }
 
         mpiSendAsync(&thisRank, 1, destinationRank, 0, sendRequests);
-        mpiSendAsync(&sendList[destinationRank].count(), 1, destinationRank, 1, sendRequests);
+        mpiSendAsync(&sendList[destinationRank].totalCount(), 1, destinationRank, 1, sendRequests);
 
         for (int arrayIndex = 0; arrayIndex < data.size(); ++arrayIndex)
         {
@@ -60,7 +60,7 @@ void exchangeParticles(const SendList& sendList, int nParticlesAssigned, int thi
         std::copy(begin(arrayBuffer), end(arrayBuffer), data[arrayIndex]->begin());
     }
 
-    unsigned nParticlesPresent  = sendList[thisRank].count();
+    unsigned nParticlesPresent  = sendList[thisRank].totalCount();
     for (auto array : data)
     {
         array->reserve(nParticlesAssigned);
