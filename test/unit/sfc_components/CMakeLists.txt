@@ -8,6 +8,7 @@ add_executable(sfc_tests
         findneighbors.cpp
         domaindecomp.cpp
         histogram.cpp
+        halos.cpp
         test_main.cpp)
 
 target_include_directories(sfc_tests PRIVATE ${PROJECT_SOURCE_DIR}/include)

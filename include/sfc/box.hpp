@@ -5,6 +5,16 @@
 namespace sphexa
 {
 
+/*! \brief normalize a spatial length w.r.t. to a min/max range
+ *
+ * @tparam T
+ * @param d
+ * @param min
+ * @param max
+ * @return
+ */
+template<class T>
+static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
 /*! \brief stores the coordinated bounds
  *

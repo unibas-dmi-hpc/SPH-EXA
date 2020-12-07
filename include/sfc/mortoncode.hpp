@@ -87,9 +87,6 @@ inline I toNBitInt(T x)
     return std::min(std::max(x * T(1u<<nBits), T(0.0)), T((1u<<nBits)-1u));
 }
 
-template<class T>
-static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
-
 } // namespace detail
 
 /*! \brief Calculates a Morton code for a 3D point in the unit cube
@@ -136,7 +133,6 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3DunitCube(T x, T y, T z
 template <class I, class T>
 inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3D(T x, T y, T z, Box<T> box)
 {
-    using detail::normalize;
     return morton3DunitCube<I>(normalize(x, box.xmin(), box.xmax()),
                                normalize(y, box.ymin(), box.ymax()),
                                normalize(z, box.zmin(), box.zmax()));
@@ -438,12 +434,11 @@ void computeMortonCodes(InputIterator  xBegin,
                         OutputIterator codesBegin,
                         const Box<T>& box)
 {
-    using detail::normalize;
-    using Integer = std::decay_t<decltype(*codesBegin)>;
+    using CodeType = std::decay_t<decltype(*codesBegin)>;
 
     while (xBegin != xEnd)
     {
-        *codesBegin++ = morton3D<Integer>(*xBegin++, *yBegin++, *zBegin++, box);
+        *codesBegin++ = morton3D<CodeType>(*xBegin++, *yBegin++, *zBegin++, box);
     }
 }
 
