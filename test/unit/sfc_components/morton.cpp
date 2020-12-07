@@ -390,7 +390,7 @@ TEST(MortonCode, mortonIndices64)
 
 TEST(MortonCode, mortonCodesSequence)
 {
-    using sphexa::detail::normalize;
+    using sphexa::normalize;
 
     constexpr double boxMin = -1;
     constexpr double boxMax = 1;
