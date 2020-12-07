@@ -22,9 +22,9 @@ namespace sphexa
 template<class I>
 class IndexRanges
 {
+    using RangeType = std::tuple<I, I, std::size_t>;
 public:
     using IndexType = I;
-    using RangeType = std::tuple<I, I, std::size_t>;
 
     IndexRanges() : totalCount_(0), ranges_{} {}
 
