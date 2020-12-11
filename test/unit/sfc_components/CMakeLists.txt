@@ -9,6 +9,7 @@ add_executable(sfc_tests
         domaindecomp.cpp
         histogram.cpp
         halos.cpp
+        binarytree.cpp
         test_main.cpp)
 
 target_include_directories(sfc_tests PRIVATE ${PROJECT_SOURCE_DIR}/include)
