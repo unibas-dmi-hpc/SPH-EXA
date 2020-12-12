@@ -29,6 +29,7 @@ void reorderSwap(const std::vector<int> &ordering, std::vector<T> &arrayList)
 template <typename T>
 void reorder(const std::vector<int> &ordering, std::vector<std::vector<T> *> &arrayList)
 {
+    #pragma omp parallel for
     for (unsigned int i = 0; i < arrayList.size(); i++)
         reorderSwap(ordering, *arrayList[i]);
 }
