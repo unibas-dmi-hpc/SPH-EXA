@@ -39,14 +39,14 @@ std::vector<uint64_t> makeExample()
 {
     std::vector<uint64_t> ret
         {
-            0b000001ul << 56u,
-            0b000010ul << 56u,
-            0b000100ul << 56u,
-            0b000101ul << 56u,
-            0b010011ul << 56u,
-            0b011000ul << 56u,
-            0b011001ul << 56u,
-            0b011110ul << 56u
+            0b000001ul << 58u,
+            0b000010ul << 58u,
+            0b000100ul << 58u,
+            0b000101ul << 58u,
+            0b010011ul << 58u,
+            0b011000ul << 58u,
+            0b011001ul << 58u,
+            0b011110ul << 58u
         };
     return ret;
 }
@@ -108,7 +108,9 @@ void findChildrenTest()
         };
 
     std::vector<int> refLeftIndices {-1, 0, 2, -1, 4, -1, 5};
-    std::vector<int> refRightIndices{-1, 1, 3, -1, 1, 7, 6};
+    std::vector<int> refRightIndices{-1, 1, 3, -1, -1, 7, 6};
+
+    std::vector<int> refPrefixLengths{0, 3, 4, 2, 1, 2, 4};
 
     for (int idx = 0; idx < internalNodes.size(); ++idx)
     {
@@ -117,20 +119,11 @@ void findChildrenTest()
 
     for (int idx = 0; idx < internalNodes.size(); ++idx)
     {
-        if (internalNodes[idx].leftChild) {
-            EXPECT_EQ(internalNodes[idx].leftChild, refLeft[idx]);
-        }
-        else {
-            EXPECT_EQ(internalNodes[idx].leftLeafIndex, refLeftIndices[idx]);
-        }
-
-        if (internalNodes[idx].rightChild) {
-            EXPECT_EQ(internalNodes[idx].rightChild, refRight[idx]);
-        }
-        else {
-            EXPECT_EQ(internalNodes[idx].rightLeafIndex, refRightIndices[idx]);
-        }
-
+        EXPECT_EQ(internalNodes[idx].leftChild,      refLeft[idx]);
+        EXPECT_EQ(internalNodes[idx].leftLeafIndex,  refLeftIndices[idx]);
+        EXPECT_EQ(internalNodes[idx].rightChild,     refRight[idx]);
+        EXPECT_EQ(internalNodes[idx].rightLeafIndex, refRightIndices[idx]);
+        EXPECT_EQ(internalNodes[idx].prefixLength,   refPrefixLengths[idx]);
     }
 }
 
