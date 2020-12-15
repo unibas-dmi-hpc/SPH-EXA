@@ -121,6 +121,8 @@ int findSplit(I*  sortedMortonCodes,
 template<class I>
 void constructInternalNode(I* codes, int nLeaves, BinaryNode<I>* internalNodes, int idx)
 {
+    BinaryNode<I>* idxNode = internalNodes + idx;
+
     int d = 1;
     int minPrefixLength = -1;
 
@@ -170,8 +172,8 @@ void constructInternalNode(I* codes, int nLeaves, BinaryNode<I>* internalNodes, 
 
     } while (step > 1);
 
-    int jdx = idx + nodeLength * d;
-    internalNodes[idx].prefixLength = cpr(codes[idx], codes[jdx]);
+    int jdx               = idx + nodeLength * d;
+    idxNode->prefixLength = cpr(codes[idx], codes[jdx]);
 
     // find position of highest differing bit between [idx, jdx]
     int gamma = findSplit(codes, std::min(jdx, idx), std::max(jdx, idx));
@@ -180,27 +182,27 @@ void constructInternalNode(I* codes, int nLeaves, BinaryNode<I>* internalNodes, 
     if (std::min(jdx, idx) == gamma)
     {
         // left child is a leaf
-        internalNodes[idx].leftChild     = nullptr;
-        internalNodes[idx].leftLeafIndex = gamma;
+        idxNode->leftChild     = nullptr;
+        idxNode->leftLeafIndex = gamma;
     }
     else
     {
         //left child is an internal binary node
-        internalNodes[idx].leftChild     = internalNodes + gamma;
-        internalNodes[idx].leftLeafIndex = -1;
+        idxNode->leftChild     = internalNodes + gamma;
+        idxNode->leftLeafIndex = -1;
     }
 
     if (std::max(jdx,idx) == gamma + 1)
     {
         // right child is a leaf
-        internalNodes[idx].rightChild     = nullptr;
-        internalNodes[idx].rightLeafIndex = gamma + 1;
+        idxNode->rightChild     = nullptr;
+        idxNode->rightLeafIndex = gamma + 1;
     }
     else
     {
         // right child is an internal binary node
-        internalNodes[idx].rightChild     = internalNodes + gamma + 1;
-        internalNodes[idx].rightLeafIndex = -1;
+        idxNode->rightChild     = internalNodes + gamma + 1;
+        idxNode->rightLeafIndex = -1;
     }
 }
 
