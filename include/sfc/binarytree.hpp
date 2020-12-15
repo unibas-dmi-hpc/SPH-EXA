@@ -52,13 +52,14 @@ struct BinaryNode
  * @tparam I    32 or 64 bit unsigned integer
  * @param key1  first morton code key
  * @param key2  second morton code key
- * @return      number of identical bits, counting from MSB
- *
+ * @return      number of continuous identical bits, counting from MSB
+ *              minus the 2 unused bits in 32 bit codes or minus the 1 unused bit
+ *              int 64 bit codes.
  */
 template<class I>
-I cpr(I key1, I key2)
+int cpr(I key1, I key2)
 {
-    return countLeadingZeros(key1 ^ key2);
+    return int(countLeadingZeros(key1 ^ key2)) - unusedBits<I>{};
 }
 
 /*! \brief find position of first differing bit
@@ -81,8 +82,7 @@ int findSplit(I*  sortedMortonCodes,
     if (firstCode == lastCode)
         return (first + last) >> 1;
 
-    // Calculate the number of highest bits that are the same
-    // for all objects, using the count-leading-zeros intrinsic.
+    // Calculate the number of highest bits that are the same for all objects
     int commonPrefix = cpr(firstCode, lastCode);
 
     // Use binary search to find where the next bit differs.
@@ -122,7 +122,7 @@ template<class I>
 void constructInternalNode(I* codes, int nLeaves, BinaryNode<I>* internalNodes, int idx)
 {
     int d = 1;
-    int minPrefixLength = unusedBits<I>{} - 1;
+    int minPrefixLength = -1;
 
     if (idx > 0)
     {
@@ -171,6 +171,7 @@ void constructInternalNode(I* codes, int nLeaves, BinaryNode<I>* internalNodes, 
     } while (step > 1);
 
     int jdx = idx + nodeLength * d;
+    internalNodes[idx].prefixLength = cpr(codes[idx], codes[jdx]);
 
     // find position of highest differing bit between [idx, jdx]
     int gamma = findSplit(codes, std::min(jdx, idx), std::max(jdx, idx));
@@ -179,26 +180,27 @@ void constructInternalNode(I* codes, int nLeaves, BinaryNode<I>* internalNodes, 
     if (std::min(jdx, idx) == gamma)
     {
         // left child is a leaf
-        //internalNodes[idx].leftChild = leaves + gamma;
-        internalNodes[idx].leftChild = nullptr;
+        internalNodes[idx].leftChild     = nullptr;
         internalNodes[idx].leftLeafIndex = gamma;
     }
     else
     {
         //left child is an internal binary node
-        internalNodes[idx].leftChild = internalNodes + gamma;
+        internalNodes[idx].leftChild     = internalNodes + gamma;
+        internalNodes[idx].leftLeafIndex = -1;
     }
 
     if (std::max(jdx,idx) == gamma + 1)
     {
         // right child is a leaf
-        internalNodes[idx].rightChild = nullptr;
-        internalNodes[idx].rightLeafIndex  = gamma + 1;
+        internalNodes[idx].rightChild     = nullptr;
+        internalNodes[idx].rightLeafIndex = gamma + 1;
     }
     else
     {
         // right child is an internal binary node
-        internalNodes[idx].rightChild = internalNodes + gamma + 1;
+        internalNodes[idx].rightChild     = internalNodes + gamma + 1;
+        internalNodes[idx].rightLeafIndex = -1;
     }
 }
 
