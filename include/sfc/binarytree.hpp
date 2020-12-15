@@ -38,11 +38,13 @@ struct BinaryNode
 {
     BinaryNode* leftChild;
     BinaryNode* rightChild;
-    BinaryNode* parent;
+    //BinaryNode* parent;
 
-    I        prefix;
-    unsigned prefixLength;
-    I        mortonCode;
+    I   prefix;
+    int prefixLength;
+
+    int leftLeafIndex;
+    int rightLeafIndex;
 };
 
 /*! \brief calculate common prefix (cpr) of two morton keys
@@ -117,7 +119,7 @@ int findSplit(I*  sortedMortonCodes,
  * @param idx
  */
 template<class I>
-void constructInternalNode(I* codes, BinaryNode<I>* leaves, int nLeaves, BinaryNode<I>* internalNodes, int idx)
+void constructInternalNode(I* codes, int nLeaves, BinaryNode<I>* internalNodes, int idx)
 {
     int d = 1;
     int minPrefixLength = unusedBits<I>{} - 1;
@@ -176,19 +178,26 @@ void constructInternalNode(I* codes, BinaryNode<I>* leaves, int nLeaves, BinaryN
     // establish child relationships
     if (std::min(jdx, idx) == gamma)
     {
-        internalNodes[idx].leftChild = leaves + gamma;
+        // left child is a leaf
+        //internalNodes[idx].leftChild = leaves + gamma;
+        internalNodes[idx].leftChild = nullptr;
+        internalNodes[idx].leftLeafIndex = gamma;
     }
     else
     {
+        //left child is an internal binary node
         internalNodes[idx].leftChild = internalNodes + gamma;
     }
 
     if (std::max(jdx,idx) == gamma + 1)
     {
-        internalNodes[idx].rightChild = leaves + gamma + 1;
+        // right child is a leaf
+        internalNodes[idx].rightChild = nullptr;
+        internalNodes[idx].rightLeafIndex  = gamma + 1;
     }
     else
     {
+        // right child is an internal binary node
         internalNodes[idx].rightChild = internalNodes + gamma + 1;
     }
 }

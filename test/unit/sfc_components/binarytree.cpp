@@ -7,6 +7,13 @@
 namespace sphexa
 {
 
+/*! Create a set of example octree leaves
+ *
+ * This example also provided in the original paper referenced in sfc/binarytree.hpp.
+ * Please refer to the publication for a graphical illustration of the resulting
+ * node connectivity.
+ */
+
 template<class I>
 std::vector<I> makeExample();
 
@@ -76,45 +83,54 @@ void findChildrenTest()
 
     std::vector<CodeType> example = makeExample<CodeType>();
 
-    std::vector<BinaryNode<CodeType>> leaves(example.size());
-    for (int i = 0; i < example.size(); ++i)
-    {
-        leaves[i].mortonCode = example[i];
-    }
-
     std::vector<BinaryNode<CodeType>> internalNodes(example.size() - 1);
 
     std::vector<BinaryNode<CodeType>*> refLeft
         {
             internalNodes.data() + 3,
-            leaves.data() + 0,
-            leaves.data() + 2,
+            nullptr,
+            nullptr,
             internalNodes.data() + 1,
-            leaves.data() + 4,
+            nullptr,
             internalNodes.data() + 6,
-            leaves.data() + 5
+            nullptr
         };
 
     std::vector<BinaryNode<CodeType>*> refRight
         {
             internalNodes.data() + 4,
-            leaves.data() + 1,
-            leaves.data() + 3,
+            nullptr,
+            nullptr,
             internalNodes.data() + 2,
             internalNodes.data() + 5,
-            leaves.data() + 7,
-            leaves.data() + 6
+            nullptr,
+            nullptr
         };
+
+    std::vector<int> refLeftIndices {-1, 0, 2, -1, 4, -1, 5};
+    std::vector<int> refRightIndices{-1, 1, 3, -1, 1, 7, 6};
 
     for (int idx = 0; idx < internalNodes.size(); ++idx)
     {
-        constructInternalNode(example.data(), leaves.data(), leaves.size(), internalNodes.data(), idx);
+        constructInternalNode(example.data(), example.size(), internalNodes.data(), idx);
     }
 
     for (int idx = 0; idx < internalNodes.size(); ++idx)
     {
-        EXPECT_EQ(internalNodes[idx].leftChild,  refLeft[idx]);
-        EXPECT_EQ(internalNodes[idx].rightChild, refRight[idx]);
+        if (internalNodes[idx].leftChild) {
+            EXPECT_EQ(internalNodes[idx].leftChild, refLeft[idx]);
+        }
+        else {
+            EXPECT_EQ(internalNodes[idx].leftLeafIndex, refLeftIndices[idx]);
+        }
+
+        if (internalNodes[idx].rightChild) {
+            EXPECT_EQ(internalNodes[idx].rightChild, refRight[idx]);
+        }
+        else {
+            EXPECT_EQ(internalNodes[idx].rightLeafIndex, refRightIndices[idx]);
+        }
+
     }
 }
 
