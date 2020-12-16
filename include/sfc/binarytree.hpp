@@ -54,7 +54,7 @@ struct BinaryNode
  * @param key2  second morton code key
  * @return      number of continuous identical bits, counting from MSB
  *              minus the 2 unused bits in 32 bit codes or minus the 1 unused bit
- *              int 64 bit codes.
+ *              in 64 bit codes.
  */
 template<class I>
 int cpr(I key1, I key2)
@@ -119,7 +119,7 @@ int findSplit(I*  sortedMortonCodes,
  * @param idx
  */
 template<class I>
-void constructInternalNode(I* codes, int nLeaves, BinaryNode<I>* internalNodes, int idx)
+void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalNodes, int idx)
 {
     BinaryNode<I>* idxNode = internalNodes + idx;
 
@@ -172,7 +172,9 @@ void constructInternalNode(I* codes, int nLeaves, BinaryNode<I>* internalNodes, 
 
     } while (step > 1);
 
-    int jdx               = idx + nodeLength * d;
+    int jdx = idx + nodeLength * d;
+
+    idxNode->prefix       = codes[idx];
     idxNode->prefixLength = cpr(codes[idx], codes[jdx]);
 
     // find position of highest differing bit between [idx, jdx]
@@ -204,6 +206,27 @@ void constructInternalNode(I* codes, int nLeaves, BinaryNode<I>* internalNodes, 
         idxNode->rightChild     = internalNodes + gamma + 1;
         idxNode->rightLeafIndex = -1;
     }
+}
+
+
+/*! \brief create the internal part of an octree as internal nodes
+ *
+ * @tparam I    32- or 64-bit unsigned integer
+ * @param tree  sorted Morton codes representing the leaves of the (global) octree
+ * @return      the internal part of the input tree constructed as binary nodes
+ */
+template<class I>
+std::vector<BinaryNode<I>> createInternalTree(const std::vector<I>& tree)
+{
+    std::vector<BinaryNode<I>> ret(tree.size() - 1);
+
+    // (omp) parallel
+    for (int idx = 0; idx < ret.size(); ++idx)
+    {
+        constructInternalNode(tree.data(), tree.size(), ret.data(), idx);
+    }
+
+    return ret;
 }
 
 } // namespace sphexa
