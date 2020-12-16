@@ -166,10 +166,20 @@ void internal4x4x4()
     EXPECT_EQ(internalTree[0].prefixLength, 0);
 
     EXPECT_EQ(internalTree[31].prefixLength, 1);
-    EXPECT_GE(cpr(internalTree[31].prefix, pad(I(0b011), 3)), 3);
-
+    EXPECT_EQ(internalTree[31].prefix, pad(I(0b0), 1));
     EXPECT_EQ(internalTree[32].prefixLength, 1);
-    EXPECT_GE(cpr(internalTree[32].prefix, pad(I(0b100), 3)), 3);
+    EXPECT_EQ(internalTree[32].prefix, pad(I(0b1), 1));
+
+    EXPECT_EQ(internalTree[15].prefixLength, 2);
+    EXPECT_EQ(internalTree[15].prefix, pad(I(0b00), 2));
+    EXPECT_EQ(internalTree[16].prefixLength, 2);
+    EXPECT_EQ(internalTree[16].prefix, pad(I(0b01), 2));
+
+    EXPECT_EQ(internalTree[7].prefixLength, 3);
+    EXPECT_EQ(internalTree[7].prefix, pad(I(0b000), 3));
+    EXPECT_EQ(internalTree[8].prefixLength, 3);
+    EXPECT_EQ(internalTree[8].prefix, pad(I(0b001), 3));
+
 }
 
 } // namespace sphexa

@@ -71,6 +71,20 @@ TEST(MortonCode, decodeMorton64)
     EXPECT_EQ(1u<<20u, sphexa::decodeMortonZ(code));
 }
 
+TEST(MortonCode, zeroLowBits32)
+{
+    EXPECT_EQ( (0b00111u << 27u), sphexa::zeroLowBits( (0b00111111u << 24u), 3));
+    EXPECT_EQ( (0b0011u  << 28u), sphexa::zeroLowBits( (0b00111111u << 24u), 2));
+    EXPECT_EQ( (0b001u   << 29u), sphexa::zeroLowBits( (0b00111111u << 24u), 1));
+}
+
+TEST(MortonCode, zeroLowBits64)
+{
+    EXPECT_EQ( (0b0111lu << 60u), sphexa::zeroLowBits( (0b0111111lu << 57u), 3));
+    EXPECT_EQ( (0b011lu  << 61u), sphexa::zeroLowBits( (0b0111111lu << 57u), 2));
+    EXPECT_EQ( (0b01lu   << 62u), sphexa::zeroLowBits( (0b0111111lu << 57u), 1));
+}
+
 TEST(MortonCode, log8ceil32)
 {
     EXPECT_EQ(2, sphexa::log8ceil(64u));

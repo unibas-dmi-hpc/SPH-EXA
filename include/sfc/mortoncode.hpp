@@ -159,6 +159,16 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonZ(I code)
     return detail::compactBits(code);
 }
 
+//! \brief zero all but the highest nBits in a Morton code
+template<class I>
+inline I zeroLowBits(I code, int nBits)
+{
+    int nLowerBits = sizeof(I) * 8 - unusedBits<I>{} - nBits;
+    I mask = (I(1) << nLowerBits) - 1;
+
+    return code & ~mask;
+}
+
 namespace detail {
 
 //! \brief cut down the input morton code to the start code of the enclosing box at <treeLevel>

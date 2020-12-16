@@ -174,8 +174,8 @@ void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalN
 
     int jdx = idx + nodeLength * d;
 
-    idxNode->prefix       = codes[idx];
     idxNode->prefixLength = cpr(codes[idx], codes[jdx]);
+    idxNode->prefix       = zeroLowBits(codes[idx], idxNode->prefixLength);
 
     // find position of highest differing bit between [idx, jdx]
     int gamma = findSplit(codes, std::min(jdx, idx), std::max(jdx, idx));
@@ -208,6 +208,19 @@ void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalN
     }
 }
 
+template<class I>
+void findCollisions(BinaryNode<I>* internalRoot, int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
+{
+    BinaryNode<I>  stack[64];
+    BinaryNode<I>* stackPtr = stack;
+
+    *stackPtr++ = nullptr;
+
+    BinaryNode<I>* node = internalRoot;
+    do {
+
+    } while (node != nullptr);
+}
 
 /*! \brief create the internal part of an octree as internal nodes
  *
