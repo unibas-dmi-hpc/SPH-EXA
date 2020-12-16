@@ -157,7 +157,7 @@ namespace sphexa
 {
 
 template <class I>
-void internal4x4x4()
+void internal4x4x4PrefixTest()
 {
     // a tree with 4 subdivisions along each dimension, 64 nodes
     std::vector<I> tree = detail::makeUniformNLevelTree<I>(64, 1);
@@ -179,13 +179,60 @@ void internal4x4x4()
     EXPECT_EQ(internalTree[7].prefix, pad(I(0b000), 3));
     EXPECT_EQ(internalTree[8].prefixLength, 3);
     EXPECT_EQ(internalTree[8].prefix, pad(I(0b001), 3));
-
 }
 
 } // namespace sphexa
 
-TEST(BinaryTree, internalTreeRegular4x4x4)
+TEST(BinaryTree, internalTree4x4x4PrefixTest)
 {
-    sphexa::internal4x4x4<unsigned>();
-    sphexa::internal4x4x4<uint64_t>();
+    sphexa::internal4x4x4PrefixTest<unsigned>();
+    sphexa::internal4x4x4PrefixTest<uint64_t>();
 }
+
+namespace sphexa
+{
+
+template <class I>
+void overlapTest()
+{
+    int r = I(1)<<(maxTreeLevel<I>{} - 2);
+
+    BinaryNode<I> node{};
+
+    // node range: (r-2r)^3
+    node.prefix       = pad(I(0b000111), 6);
+    node.prefixLength = 6;
+
+    EXPECT_FALSE(overlap(node, 0, r, 0, r, 0, r));
+
+    EXPECT_TRUE(overlap(node, r, 2*r, r, 2*r, r, 2*r));
+    EXPECT_TRUE(overlap(node, 2*r-1, 2*r, 2*r-1, 2*r, 2*r-1, 2*r));
+    EXPECT_TRUE(overlap(node, 2*r-1, 2*r+1, 2*r-1, 2*r+1, 2*r-1, 2*r+1));
+
+    EXPECT_FALSE(overlap(node, 2*r, 2*r+1, 2*r-1, 2*r, 2*r-1, 2*r));
+    EXPECT_FALSE(overlap(node, 2*r-1, 2*r, 2*r, 2*r+1, 2*r-1, 2*r));
+    EXPECT_FALSE(overlap(node, 2*r-1, 2*r, 2*r-1, 2*r, 2*r, 2*r+1));
+}
+
+} // namespace sphexa
+
+TEST(BinaryTree, internalTree4x4x4OverlapTest)
+{
+    sphexa::overlapTest<unsigned>();
+    sphexa::overlapTest<uint64_t>();
+}
+
+namespace sphexa
+{
+
+template <class I>
+void internal4x4x4traversalTest()
+{
+    // a tree with 4 subdivisions along each dimension, 64 nodes
+    // node range in each dimension is 256
+    std::vector<I> tree = detail::makeUniformNLevelTree<I>(64, 1);
+
+    auto internalTree = createInternalTree(tree);
+}
+
+} // namespace sphexa
