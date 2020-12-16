@@ -217,6 +217,7 @@ void findCollisions(BinaryNode<I>* internalRoot, int xmin, int xmax, int ymin, i
     *stackPtr++ = nullptr;
 
     BinaryNode<I>* node = internalRoot;
+
     do {
 
     } while (node != nullptr);
