@@ -169,6 +169,54 @@ inline I zeroLowBits(I code, int nBits)
     return code & ~mask;
 }
 
+/*! \brief compute range of X values that the given code can cover
+ *
+ * @tparam I      32- or 64-bit unsigned integer
+ * @param code    A morton code, all bits except the first 2 + length
+ *                bits (32-bit) or the first 1 + length bits (64-bit)
+ *                are expected to be zero.
+ * @param length  Number of bits to consider for calculating the upper range limit
+ * @return        The range of possible X values in [0...2^10] (32-bit)
+ *                or [0...2^21] (64-bit). The start of the range is the
+ *                X-component of the input \a code. The length of the range
+ *                only depends on the number of bits. For every X-bit, the
+ *                range decreases from the maximum by a factor of two.
+ */
+template<class I>
+inline std::array<int, 2> decodeXRange(I code, int length)
+{
+    std::array<int, 2> ret{0, 0};
+
+    ret[0] = decodeMortonX(code);
+    ret[1] = ret[0] + (I(1) << (maxTreeLevel<I>{} - (length+2)/3));
+
+    return ret;
+}
+
+//! \brief see decodeXRange
+template<class I>
+inline std::array<int, 2> decodeYRange(I code, int length)
+{
+    std::array<int, 2> ret{0, 0};
+
+    ret[0] = decodeMortonY(code);
+    ret[1] = ret[0] + (I(1) << (maxTreeLevel<I>{} - (length+1)/3));
+
+    return ret;
+}
+
+//! \brief see decodeXRange
+template<class I>
+inline std::array<int, 2> decodeZRange(I code, int length)
+{
+    std::array<int, 2> ret{0, 0};
+
+    ret[0] = decodeMortonZ(code);
+    ret[1] = ret[0] + (I(1) << (maxTreeLevel<I>{} - length/3));
+
+    return ret;
+}
+
 namespace detail {
 
 //! \brief cut down the input morton code to the start code of the enclosing box at <treeLevel>
