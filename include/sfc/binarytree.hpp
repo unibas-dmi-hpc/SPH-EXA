@@ -209,8 +209,26 @@ void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalN
 }
 
 template<class I>
+bool overlap(const BinaryNode<I>& node, int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
+{
+    std::array<int, 2> xRange = decodeXRange(node.prefix, node.prefixLength);
+    std::array<int, 2> yRange = decodeYRange(node.prefix, node.prefixLength);
+    std::array<int, 2> zRange = decodeZRange(node.prefix, node.prefixLength);
+
+    bool xOverlap = xmax > xRange[0] && xRange[1] > xmin;
+    bool yOverlap = ymax > yRange[0] && yRange[1] > ymin;
+    bool zOverlap = zmax > yRange[0] && zRange[1] > zmin;
+
+    return xOverlap && yOverlap && zOverlap;
+}
+
+template<class I>
 void findCollisions(BinaryNode<I>* internalRoot, int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
 {
+    assert(0 <= xmin && xmin < (1u<<maxTreeLevel<I>{}));
+    assert(0 <= ymin && ymin < (1u<<maxTreeLevel<I>{}));
+    assert(0 <= zmin && zmin < (1u<<maxTreeLevel<I>{}));
+
     BinaryNode<I>  stack[64];
     BinaryNode<I>* stackPtr = stack;
 
