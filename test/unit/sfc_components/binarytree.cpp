@@ -203,15 +203,22 @@ void overlapTest()
     node.prefix       = pad(I(0b000111), 6);
     node.prefixLength = 6;
 
-    EXPECT_FALSE(overlap(node, 0, r, 0, r, 0, r));
+    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, 0, r, 0, r, 0, r));
 
-    EXPECT_TRUE(overlap(node, r, 2*r, r, 2*r, r, 2*r));
-    EXPECT_TRUE(overlap(node, 2*r-1, 2*r, 2*r-1, 2*r, 2*r-1, 2*r));
-    EXPECT_TRUE(overlap(node, 2*r-1, 2*r+1, 2*r-1, 2*r+1, 2*r-1, 2*r+1));
+    EXPECT_TRUE(overlap(node.prefix, node.prefixLength, r, 2*r, r, 2*r, r, 2*r));
+    EXPECT_TRUE(overlap(node.prefix, node.prefixLength, 2*r-1, 2*r, 2*r-1, 2*r, 2*r-1, 2*r));
+    EXPECT_TRUE(overlap(node.prefix, node.prefixLength, 2*r-1, 2*r+1, 2*r-1, 2*r+1, 2*r-1, 2*r+1));
 
-    EXPECT_FALSE(overlap(node, 2*r, 2*r+1, 2*r-1, 2*r, 2*r-1, 2*r));
-    EXPECT_FALSE(overlap(node, 2*r-1, 2*r, 2*r, 2*r+1, 2*r-1, 2*r));
-    EXPECT_FALSE(overlap(node, 2*r-1, 2*r, 2*r-1, 2*r, 2*r, 2*r+1));
+    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, 2*r, 2*r+1, 2*r-1, 2*r, 2*r-1, 2*r));
+    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, 2*r-1, 2*r, 2*r, 2*r+1, 2*r-1, 2*r));
+    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, 2*r-1, 2*r, 2*r-1, 2*r, 2*r, 2*r+1));
+
+    // for octree leaves, we can find the number of bits in the key
+    // by first computing the tree level, then multiplying by 3
+    I leaf1 = pad(I(0b000111), 6);
+    I leaf2 = pad(I(0b001000), 6);
+    int level = treeLevel(leaf2 - leaf1);
+    EXPECT_EQ(6, level * 3);
 }
 
 } // namespace sphexa
@@ -225,14 +232,102 @@ TEST(BinaryTree, internalTree4x4x4OverlapTest)
 namespace sphexa
 {
 
+/*! \brief Traversal test for all leaves in a regular octree
+ *
+ * This test performs the following:
+ *
+ * 1. Create the leaves of a regular octree with 64 leaves.
+ *
+ * 2. For each leaf enlarged by the halo range, find collisions
+ *    between all the other leaves
+ *
+ * 3. a) For each leaf, compute x,y,z coordinate range of the leaf + halo radius
+ *    b) Test all the other leaves for overlap with the ranges of part a)
+ *       If a collision between the node pair was reported in 2., there has to be overlap,
+ *       if no collision was reported, there must not be any overlap.
+ */
 template <class I>
 void internal4x4x4traversalTest()
 {
+    /// 1.
     // a tree with 4 subdivisions along each dimension, 64 nodes
     // node range in each dimension is 256
     std::vector<I> tree = detail::makeUniformNLevelTree<I>(64, 1);
 
     auto internalTree = createInternalTree(tree);
+
+    CollisionList collisions[nNodes(tree)];
+
+    // halo ranges
+    int dx = 1;
+    int dy = 1;
+    int dz = 1;
+
+    /// 2.
+    // find collisions of all leaf nodes enlarged by the halo ranges with all the other leaves
+    // with (dx,dy,dz) = (1,1,1), this finds all immediate neighbors
+    for (int leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
+    {
+        findCollisions(internalTree.data(), tree.data(), collisions[leafIdx], leafIdx, dx, dy, dz);
+    }
+
+    /// 3. a)
+    for (int leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
+    {
+        // compute the coordinate ranges for leaf node with index leafIdx
+        I leafCode       = tree[leafIdx];
+        I leafUpperBound = tree[leafIdx+1];
+
+        int prefixNBits = treeLevel(leafUpperBound - leafCode) * 3;
+
+        std::array<int, 2> xrange = decodeXRange(leafCode, prefixNBits);
+        std::array<int, 2> yrange = decodeYRange(leafCode, prefixNBits);
+        std::array<int, 2> zrange = decodeZRange(leafCode, prefixNBits);
+
+        constexpr int maxCoordinate = (1u << maxTreeLevel<I>{}) - 1;
+
+        // add the halo range on top of the
+        int xmin = std::max(0, xrange[0] - dx);
+        int xmax = std::min(maxCoordinate, xrange[1] + dx);
+        int ymin = std::max(0, yrange[0] - dy);
+        int ymax = std::min(maxCoordinate, yrange[1] + dy);
+        int zmin = std::max(0, zrange[0] - dz);
+        int zmax = std::min(maxCoordinate, zrange[1] + dz);
+
+        // number of nearest neighbors in a regular 3D grid is between 8 and 27
+        EXPECT_GE(collisions[leafIdx].size(), 8);
+        EXPECT_LE(collisions[leafIdx].size(), 27);
+
+        /// 3. b)
+        for (int cIdx = 0; cIdx < nNodes(tree); ++cIdx)
+        {
+            int collisionNodeIndex   = collisions[leafIdx][cIdx];
+            I collisionLeafCode      = tree[collisionNodeIndex];
+            I collisionLeafCodeUpper = tree[collisionNodeIndex+1];
+            int nBits = treeLevel(collisionLeafCodeUpper - collisionLeafCode) * 3;
+
+            // has a collision been reported between leafNodes cIdx and leafIdx?
+            bool hasCollision =
+                std::find(collisions[leafIdx].begin(), collisions[leafIdx].end(), collisionNodeIndex) != collisions[leafIdx].end();
+
+            if (hasCollision)
+            {
+                // if yes, then the cIdx nodes has to overlap with leafIdx enlarged by the halos
+                EXPECT_TRUE(overlap(collisionLeafCode, nBits, xmin, xmax, ymin, ymax, zmin, zmax));
+            }
+            else
+            {
+                // if not, then there must not be any overlap
+                EXPECT_FALSE(overlap(collisionLeafCode, nBits, xmin, xmax, ymin, ymax, zmin, zmax));
+            }
+        }
+    }
 }
 
 } // namespace sphexa
+
+TEST(BinaryTree, internalTree4x4x4FullTraversal)
+{
+    sphexa::internal4x4x4traversalTest<unsigned>();
+    sphexa::overlapTest<uint64_t>();
+}

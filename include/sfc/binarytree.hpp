@@ -208,37 +208,152 @@ void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalN
     }
 }
 
-template<class I>
-bool overlap(const BinaryNode<I>& node, int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
+//! \brief stores indices of colliding octree leaf nodes
+class CollisionList
 {
-    std::array<int, 2> xRange = decodeXRange(node.prefix, node.prefixLength);
-    std::array<int, 2> yRange = decodeYRange(node.prefix, node.prefixLength);
-    std::array<int, 2> zRange = decodeZRange(node.prefix, node.prefixLength);
+public:
+    //! \brief add an index to the list of colliding leaf tree nodes
+    void add(int i)
+    {
+        list_[n_] = i;
+        n_ = (n_ < collisionMax-1) ? n_+1 : n_;
+    }
+
+    //! \brief access collision list as a range
+    [[nodiscard]] const int* begin() const { return list_; }
+    [[nodiscard]] const int* end()   const { return list_ + n_; }
+
+    //! \brief access collision list elements
+    int operator[](int i) const
+    {
+        assert(i < collisionMax);
+        return list_[i];
+    }
+
+    /*! \brief returns number of collisions
+     *
+     * Can (should) also be used to check whether the internal storage
+     * was exhausted during collision detection.
+     */
+    [[nodiscard]] int size() const { return n_; };
+
+private:
+    static constexpr int collisionMax = 64;
+    int n_{0};
+    int list_[collisionMax]{0};
+};
+
+template<class I>
+bool overlap(I prefix, int length, int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
+{
+    std::array<int, 2> xRange = decodeXRange(prefix, length);
+    std::array<int, 2> yRange = decodeYRange(prefix, length);
+    std::array<int, 2> zRange = decodeZRange(prefix, length);
 
     bool xOverlap = xmax > xRange[0] && xRange[1] > xmin;
     bool yOverlap = ymax > yRange[0] && yRange[1] > ymin;
-    bool zOverlap = zmax > yRange[0] && zRange[1] > zmin;
+    bool zOverlap = zmax > zRange[0] && zRange[1] > zmin;
 
     return xOverlap && yOverlap && zOverlap;
 }
 
 template<class I>
-void findCollisions(BinaryNode<I>* internalRoot, int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
+void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes,
+                    CollisionList& collisionList,
+                    int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
 {
-    assert(0 <= xmin && xmin < (1u<<maxTreeLevel<I>{}));
-    assert(0 <= ymin && ymin < (1u<<maxTreeLevel<I>{}));
-    assert(0 <= zmin && zmin < (1u<<maxTreeLevel<I>{}));
+    using NodePtr = BinaryNode<I>*;
+    assert(0 <= xmin && xmax < (1u<<maxTreeLevel<I>{}));
+    assert(0 <= ymin && ymax < (1u<<maxTreeLevel<I>{}));
+    assert(0 <= zmin && zmax < (1u<<maxTreeLevel<I>{}));
 
-    BinaryNode<I>  stack[64];
-    BinaryNode<I>* stackPtr = stack;
+    NodePtr  stack[64];
+    NodePtr* stackPtr = stack;
 
     *stackPtr++ = nullptr;
 
-    BinaryNode<I>* node = internalRoot;
+    const BinaryNode<I>* node = internalRoot;
 
     do {
+        if (node->leftChild)
+        {
+            //I prefix   = node->leftChild->prefix;
+            //int length = node->leftChild->prefixLength;
+            if (overlap(node->leftChild->prefix, node->leftChild->prefixLength,
+            //if (overlap(prefix, length,
+                        xmin, xmax, ymin, ymax, zmin, zmax))
+            {
+                assert(stackPtr - stack < 64 && "local stack overflow");
+                *stackPtr++ = node->leftChild;
+            }
+        }
+        else {
+            int leafIndex    = node->leftLeafIndex;
+            I leafCode       = leafNodes[leafIndex];
+            I leafUpperBound = leafNodes[leafIndex+1];
+
+            int prefixNBits = treeLevel(leafUpperBound - leafCode) * 3;
+
+            if (overlap(leafCode, prefixNBits, xmin, xmax, ymin, ymax, zmin, zmax))
+            {
+                collisionList.add(leafIndex);
+            }
+        }
+        if (node->rightChild)
+        {
+            //I prefix   = node->rightChild->prefix;
+            //int length = node->rightChild->prefixLength;
+            if (overlap(node->rightChild->prefix, node->rightChild->prefixLength,
+                        xmin, xmax, ymin, ymax, zmin, zmax))
+            {
+                assert(stackPtr - stack < 64 && "local stack overflow");
+                *stackPtr++ = node->rightChild;
+            }
+        }
+        else {
+            int leafIndex    = node->rightLeafIndex;
+            I leafCode       = leafNodes[leafIndex];
+            I leafUpperBound = leafNodes[leafIndex+1];
+
+            int prefixNBits = treeLevel(leafUpperBound - leafCode) * 3;
+
+            if (overlap(leafCode, prefixNBits, xmin, xmax, ymin, ymax, zmin, zmax))
+            {
+                collisionList.add(leafIndex);
+            }
+        }
+
+        node = *--stackPtr;
 
     } while (node != nullptr);
+}
+
+template<class I>
+void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes,
+                    CollisionList& collisionList, int leafIndex, int dx, int dy, int dz)
+{
+    I leafCode       = leafNodes[leafIndex];
+    I leafUpperBound = leafNodes[leafIndex+1];
+
+    int prefixNBits = treeLevel(leafUpperBound - leafCode) * 3;
+
+    std::array<int, 2> xrange = decodeXRange(leafCode, prefixNBits);
+    std::array<int, 2> yrange = decodeYRange(leafCode, prefixNBits);
+    std::array<int, 2> zrange = decodeZRange(leafCode, prefixNBits);
+
+    constexpr int maxCoordinate = (1u << maxTreeLevel<I>{}) - 1;
+
+    // add halo range to the coordinate ranges of the node to be collided
+    int xmin = std::max(0, xrange[0] - dx);
+    int xmax = std::min(maxCoordinate, xrange[1] + dx);
+    int ymin = std::max(0, yrange[0] - dy);
+    int ymax = std::min(maxCoordinate, yrange[1] + dy);
+    int zmin = std::max(0, zrange[0] - dz);
+    int zmax = std::min(maxCoordinate, zrange[1] + dz);
+
+    // find collisions between the leafIndex node enlarged by the halo (dx,dy,dz) range
+    // and all the other leaf nodes
+    findCollisions(internalRoot, leafNodes, collisionList, xmin, xmax, ymin, ymax, zmin, zmax);
 }
 
 /*! \brief create the internal part of an octree as internal nodes
@@ -246,6 +361,10 @@ void findCollisions(BinaryNode<I>* internalRoot, int xmin, int xmax, int ymin, i
  * @tparam I    32- or 64-bit unsigned integer
  * @param tree  sorted Morton codes representing the leaves of the (global) octree
  * @return      the internal part of the input tree constructed as binary nodes
+ *
+ * This is a CPU version that can be OpenMP parallelized.
+ * In the GPU version, the for-loop body is designed such that one GPU-thread
+ * can be launched for each for-loop element.
  */
 template<class I>
 std::vector<BinaryNode<I>> createInternalTree(const std::vector<I>& tree)
@@ -259,6 +378,38 @@ std::vector<BinaryNode<I>> createInternalTree(const std::vector<I>& tree)
     }
 
     return ret;
+}
+
+/*! \brief For each leaf node enlarged by its halo radius, find all colliding leaf nodes
+ *
+ * @tparam I            32- or 64-bit unsigned integer
+ * @param internalTree  internal binary tree
+ * @param tree          sorted Morton codes representing the leaves of the (global) octree
+ * @param haloRadii     halo search radii per leaf node, length = nNodes(tree)
+ * @return              list of colliding node indices for each leaf node
+ *
+ * This is a CPU version that can be OpenMP parallelized.
+ * In the GPU version, the for-loop body is designed such that one GPU-thread
+ * can be launched for each for-loop element.
+ */
+template<class I, class T>
+std::vector<CollisionList> findAllCollisions(const std::vector<BinaryNode<I>>& internalTree, const std::vector<I>& tree,
+                                             const std::vector<T>& haloRadii, const Box<T>& box)
+{
+    std::vector<CollisionList> collisions(nNodes(tree));
+
+    for (int leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
+    {
+        T radius = haloRadii[leafIdx];
+
+        int dx = detail::toNBitInt<I>(normalize(radius, box.xmin(), box.xmax()));
+        int dy = detail::toNBitInt<I>(normalize(radius, box.ymin(), box.ymax()));
+        int dz = detail::toNBitInt<I>(normalize(radius, box.zmin(), box.zmax()));
+
+        findCollisions(internalTree.data(), tree.data(), collisions[leafIdx], leafIdx, dx, dy, dz);
+    }
+
+    return collisions;
 }
 
 } // namespace sphexa
