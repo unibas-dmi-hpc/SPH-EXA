@@ -192,26 +192,46 @@ TEST(BinaryTree, internalTree4x4x4PrefixTest)
 namespace sphexa
 {
 
+/*! \brief Test overlap between octree nodes and coordinate ranges
+ *
+ * The octree node is given as a Morton code plus number of bits
+ * and the coordinates as integer ranges.
+ */
 template <class I>
 void overlapTest()
 {
+    // range of a level-2 node
     int r = I(1)<<(maxTreeLevel<I>{} - 2);
 
     BinaryNode<I> node{};
 
-    // node range: (r-2r)^3
+    // node range: [r,2r]^3
     node.prefix       = pad(I(0b000111), 6);
     node.prefixLength = 6;
 
+    /// Each test is a separate case
+
     EXPECT_FALSE(overlap(node.prefix, node.prefixLength, 0, r, 0, r, 0, r));
 
+    // exact match
     EXPECT_TRUE(overlap(node.prefix, node.prefixLength, r, 2*r, r, 2*r, r, 2*r));
+    // contained within (1,1,1) corner of node
     EXPECT_TRUE(overlap(node.prefix, node.prefixLength, 2*r-1, 2*r, 2*r-1, 2*r, 2*r-1, 2*r));
+    // contained and exceeding (1,1,1) corner by 1 in all dimensions
     EXPECT_TRUE(overlap(node.prefix, node.prefixLength, 2*r-1, 2*r+1, 2*r-1, 2*r+1, 2*r-1, 2*r+1));
 
+    // all of these miss the (1,1,1) corner by 1 in one of the three dimensions
     EXPECT_FALSE(overlap(node.prefix, node.prefixLength, 2*r, 2*r+1, 2*r-1, 2*r, 2*r-1, 2*r));
     EXPECT_FALSE(overlap(node.prefix, node.prefixLength, 2*r-1, 2*r, 2*r, 2*r+1, 2*r-1, 2*r));
     EXPECT_FALSE(overlap(node.prefix, node.prefixLength, 2*r-1, 2*r, 2*r-1, 2*r, 2*r, 2*r+1));
+
+    // contained within (0,0,0) corner of node
+    EXPECT_TRUE(overlap(node.prefix, node.prefixLength, r, r+1, r, r+1, r, r+1));
+
+    // all of these miss the (0,0,0) corner by 1 in one of the three dimensions
+    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, r-1, r, r, r+1, r, r+1));
+    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, r, r+1, r-1, r, r, r+1));
+    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, r, r+1, r, r+1, r-1, r));
 
     // for octree leaves, we can find the number of bits in the key
     // by first computing the tree level, then multiplying by 3
@@ -263,7 +283,7 @@ void internal4x4x4traversalTest()
     int dz = 1;
 
     // if the box has size [0, 2^10-1]^3 (32-bit) or [0, 2^21]^3 (64-bit),
-    // radius (1 + epsilon) in double will translation to radius 1 normalized to integer.
+    // radius (1 + epsilon) in double will translate to radius 1 normalized to integer.
     Box<double> box(0, (1u<<maxTreeLevel<I>{})-1);
     std::vector<double> haloRadii(nNodes(tree), 1.1);
 

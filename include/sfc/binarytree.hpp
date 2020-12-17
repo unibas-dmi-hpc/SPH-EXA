@@ -277,10 +277,7 @@ void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes,
     do {
         if (node->leftChild)
         {
-            //I prefix   = node->leftChild->prefix;
-            //int length = node->leftChild->prefixLength;
             if (overlap(node->leftChild->prefix, node->leftChild->prefixLength,
-            //if (overlap(prefix, length,
                         xmin, xmax, ymin, ymax, zmin, zmax))
             {
                 assert(stackPtr - stack < 64 && "local stack overflow");
@@ -301,8 +298,6 @@ void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes,
         }
         if (node->rightChild)
         {
-            //I prefix   = node->rightChild->prefix;
-            //int length = node->rightChild->prefixLength;
             if (overlap(node->rightChild->prefix, node->rightChild->prefixLength,
                         xmin, xmax, ymin, ymax, zmin, zmax))
             {
