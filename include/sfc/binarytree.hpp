@@ -396,9 +396,13 @@ template<class I, class T>
 std::vector<CollisionList> findAllCollisions(const std::vector<BinaryNode<I>>& internalTree, const std::vector<I>& tree,
                                              const std::vector<T>& haloRadii, const Box<T>& box)
 {
-    std::vector<CollisionList> collisions(nNodes(tree));
+    assert(internalTree.size() == tree.size() - 1 && "internal tree does not match leaves");
+    assert(internalTree.size() == haloRadii.size() && "need one halo radius per leaf node");
 
-    for (int leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
+    std::vector<CollisionList> collisions(tree.size() - 1);
+
+    // (omp) parallel
+    for (int leafIdx = 0; leafIdx < internalTree.size(); ++leafIdx)
     {
         T radius = haloRadii[leafIdx];
 

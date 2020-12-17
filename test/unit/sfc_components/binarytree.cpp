@@ -236,10 +236,11 @@ namespace sphexa
  *
  * This test performs the following:
  *
- * 1. Create the leaves of a regular octree with 64 leaves.
+ * 1. Create the leaves of a regular octree with 64 leaves and the
+ *    corresponding internal binary part.
  *
  * 2. For each leaf enlarged by the halo range, find collisions
- *    between all the other leaves
+ *    between all the other leaves.
  *
  * 3. a) For each leaf, compute x,y,z coordinate range of the leaf + halo radius
  *    b) Test all the other leaves for overlap with the ranges of part a)
@@ -256,20 +257,24 @@ void internal4x4x4traversalTest()
 
     auto internalTree = createInternalTree(tree);
 
-    CollisionList collisions[nNodes(tree)];
-
     // halo ranges
     int dx = 1;
     int dy = 1;
     int dz = 1;
 
+    // if the box has size [0, 2^10-1]^3 (32-bit) or [0, 2^21]^3 (64-bit),
+    // radius (1 + epsilon) in double will translation to radius 1 normalized to integer.
+    Box<double> box(0, (1u<<maxTreeLevel<I>{})-1);
+    std::vector<double> haloRadii(nNodes(tree), 1.1);
+
+    EXPECT_EQ(dx, detail::toNBitInt<I>(normalize(haloRadii[0], box.xmin(), box.xmax())));
+    EXPECT_EQ(dy, detail::toNBitInt<I>(normalize(haloRadii[0], box.ymin(), box.ymax())));
+    EXPECT_EQ(dz, detail::toNBitInt<I>(normalize(haloRadii[0], box.zmin(), box.zmax())));
+
     /// 2.
     // find collisions of all leaf nodes enlarged by the halo ranges with all the other leaves
     // with (dx,dy,dz) = (1,1,1), this finds all immediate neighbors
-    for (int leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
-    {
-        findCollisions(internalTree.data(), tree.data(), collisions[leafIdx], leafIdx, dx, dy, dz);
-    }
+    std::vector<CollisionList> collisions = findAllCollisions(internalTree, tree, haloRadii, box);
 
     /// 3. a)
     for (int leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
