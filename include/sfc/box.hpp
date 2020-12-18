@@ -1,7 +1,5 @@
 #pragma once
 
-#include <array>
-
 namespace sphexa
 {
 
@@ -49,8 +47,8 @@ public:
     bool pbcZ() const { return pbc[2]; }
 
 private:
-    std::array<T, 6> limits;
-    std::array<bool, 3> pbc;
+    T limits[6];
+    bool pbc[3];
 };
 
 } // namespace sphexa
