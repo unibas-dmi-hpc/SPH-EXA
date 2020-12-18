@@ -317,6 +317,37 @@ Box<int> makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz)
 }
 
 
+/*! \brief find all collisions between a leaf node enlarged by (dx,dy,dz) and the rest of the tree
+ *
+ * @tparam I                  32- or 64-bit unsigned integer
+ * @param[in]  internalRoot   root of the internal binary radix tree
+ * @param[in]  leafNodes      octree leaf nodes
+ * @param[out] collisionList  output list of indices of colliding nodes
+ * @param[in]  haloBox        query box to look for collisions
+ *                            with leaf nodes
+ *
+ * At all traversal steps through the hierarchy of the internal binary radix tree,
+ * all 3 x,y,z dimensions are checked to determine overlap with a binary node.
+ * In principle it would be sufficient to only check
+ *
+ * x at nodes with prefixLength % 3 == 1
+ * y at nodes with prefixLength % 3 == 2
+ * z at nodes with prefixLength % 3 == 0
+ *
+ * This is possible due the invariants of the construction of the octree leaf nodes:
+ * - the 7 siblings of each node with the same parent node always exist
+ * - the leaf nodes are guaranteed to cover the whole space or Morton code range
+ *   from 0 to 2^(30 or 63).
+ * Due to these invariants each internal binary node will have one more bit in its
+ * prefix than its parent.
+ *
+ * However, the construction of the internal tree and the following traversal as
+ * implemented also works if an arbitrary sorted sequence of Morton codes was used
+ * for the construction of the internal tree, i.e. holes or omission of empty nodes
+ * would be possible. Since this capability might be useful in the future, and the
+ * cost to check all 3 dimensions at each step should not be very high, we keep
+ * the implementation general.
+ */
 template<class I>
 void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes,
                     CollisionList& collisionList, Box<int> haloBox)
@@ -382,29 +413,6 @@ void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes,
     } while (node != nullptr);
 }
 
-/*! \brief find all collisions between a leaf node enlarged by (dx,dy,dz) and the rest of the tree
- *
- * @tparam I                  32- or 64-bit unsigned integer
- * @param[in]  internalRoot   root of the internal binary tree
- * @param[in]  leafNodes      octree leaf nodes
- * @param[out] collisionList  output list of indices of colliding nodes
- * @param[in]  leafIndex      query node index to look for collisions
- * @param[in]  dx             enlarge X range of node by +-dx
- * @param[in]  dy             enlarge Y range of node by +-dy
- * @param[in]  dz             enlarge Z range of node by +-dz
- *
- */
-template<class I>
-void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes,
-                    CollisionList& collisionList, int leafIndex, int dx, int dy, int dz)
-{
-    Box<int> haloBox = makeHaloBox(leafNodes[leafIndex], leafNodes[leafIndex+1], dx, dy, dz);
-
-    // find collisions between the leafIndex node enlarged by the halo (dx,dy,dz) range
-    // and all the other leaf nodes
-    findCollisions(internalRoot, leafNodes, collisionList, haloBox);
-}
-
 /*! \brief create the internal part of an octree as internal nodes
  *
  * @tparam I    32- or 64-bit unsigned integer
@@ -459,7 +467,8 @@ std::vector<CollisionList> findAllCollisions(const std::vector<BinaryNode<I>>& i
         int dy = detail::toNBitInt<I>(normalize(radius, globalBox.ymin(), globalBox.ymax()));
         int dz = detail::toNBitInt<I>(normalize(radius, globalBox.zmin(), globalBox.zmax()));
 
-        findCollisions(internalTree.data(), tree.data(), collisions[leafIdx], leafIdx, dx, dy, dz);
+        Box<int> haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx+1], dx, dy, dz);
+        findCollisions(internalTree.data(), tree.data(), collisions[leafIdx], haloBox);
     }
 
     return collisions;
