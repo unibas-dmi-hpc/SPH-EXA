@@ -127,7 +127,6 @@ TEST(BinaryTree, internalTree4x4x4OverlapTest)
 
 namespace sphexa
 {
-
 template<class I>
 void makeHaloBoxTest()
 {
@@ -214,10 +213,8 @@ void makeHaloBoxTest()
             EXPECT_EQ(haloBox.zmax(), 2*r);
         }
     }
-
 }
-
-}
+} // namespace sphexa
 
 TEST(BinaryTree, makeHaloBox)
 {
@@ -228,7 +225,6 @@ TEST(BinaryTree, makeHaloBox)
 
 namespace sphexa
 {
-
 /*! \brief Traversal test for all leaves in a regular octree
  *
  * This test performs the following:
@@ -307,7 +303,6 @@ void regular4x4x4traversalTest()
         }
     }
 }
-
 } // namespace sphexa
 
 TEST(BinaryTree, regularTree4x4x4FullTraversal)
@@ -315,7 +310,6 @@ TEST(BinaryTree, regularTree4x4x4FullTraversal)
     sphexa::regular4x4x4traversalTest<unsigned>();
     sphexa::overlapTest<uint64_t>();
 }
-
 
 namespace sphexa
 {
