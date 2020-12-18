@@ -128,6 +128,107 @@ TEST(BinaryTree, internalTree4x4x4OverlapTest)
 namespace sphexa
 {
 
+template<class I>
+void makeHaloBoxTest()
+{
+    {
+        int r = I(1) << (maxTreeLevel<I>{} - 3);
+        // node range: [r,2r]^3
+        I nodeStart = pad(I(0b000000111), 9);
+        I nodeEnd = pad(I(0b000001000), 9);
+
+        /// internal node check
+        {
+            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
+            EXPECT_EQ(haloBox.xmin(), r - 1);
+            EXPECT_EQ(haloBox.xmax(), 2 * r + 1);
+            EXPECT_EQ(haloBox.ymin(), r);
+            EXPECT_EQ(haloBox.ymax(), 2 * r);
+            EXPECT_EQ(haloBox.zmin(), r);
+            EXPECT_EQ(haloBox.zmax(), 2 * r);
+        }
+        {
+            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
+            EXPECT_EQ(haloBox.xmin(), r);
+            EXPECT_EQ(haloBox.xmax(), 2 * r);
+            EXPECT_EQ(haloBox.ymin(), r - 1);
+            EXPECT_EQ(haloBox.ymax(), 2 * r + 1);
+            EXPECT_EQ(haloBox.zmin(), r);
+            EXPECT_EQ(haloBox.zmax(), 2 * r);
+        }
+        {
+            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
+            EXPECT_EQ(haloBox.xmin(), r);
+            EXPECT_EQ(haloBox.xmax(), 2 * r);
+            EXPECT_EQ(haloBox.ymin(), r);
+            EXPECT_EQ(haloBox.ymax(), 2 * r);
+            EXPECT_EQ(haloBox.zmin(), r - 1);
+            EXPECT_EQ(haloBox.zmax(), 2 * r + 1);
+        }
+    }
+
+    /// underflow check
+    {
+        int r = I(1) << (maxTreeLevel<I>{} - 1);
+        // node range: [r,2r]^3
+        I nodeStart = pad(I(0b000), 3);
+        I nodeEnd = pad(I(0b001), 3);
+
+        {
+            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
+            EXPECT_EQ(haloBox.xmin(), 0);
+            EXPECT_EQ(haloBox.xmax(), r+1);
+        }
+        {
+            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
+            EXPECT_EQ(haloBox.ymin(), 0);
+            EXPECT_EQ(haloBox.ymax(), r+1);
+        }
+        {
+            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
+            EXPECT_EQ(haloBox.zmin(), 0);
+            EXPECT_EQ(haloBox.zmax(), r+1);
+        }
+    }
+
+    /// overflow check
+    {
+        int r = I(1) << (maxTreeLevel<I>{} - 1);
+        // node range: [r,2r]^3
+        I nodeStart = pad(I(0b111), 3);
+        I nodeEnd   = nodeRange<I>(0);
+
+        {
+            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
+            EXPECT_EQ(haloBox.xmin(), r-1);
+            EXPECT_EQ(haloBox.xmax(), 2*r);
+        }
+        {
+            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
+            EXPECT_EQ(haloBox.ymin(), r-1);
+            EXPECT_EQ(haloBox.ymax(), 2*r);
+        }
+        {
+            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
+            EXPECT_EQ(haloBox.zmin(), r-1);
+            EXPECT_EQ(haloBox.zmax(), 2*r);
+        }
+    }
+
+}
+
+}
+
+TEST(BinaryTree, makeHaloBox)
+{
+    sphexa::makeHaloBoxTest<unsigned>();
+    sphexa::makeHaloBoxTest<uint64_t>();
+}
+
+
+namespace sphexa
+{
+
 /*! \brief Traversal test for all leaves in a regular octree
  *
  * This test performs the following:

@@ -283,6 +283,17 @@ bool overlap(I prefix, int length, Box<int> box)
 }
 
 
+/*! \brief Construct a 3D box from an octree node plus halo range
+ *
+ * @tparam I             32- or 64-bit unsigned integer
+ * @param[in] codeStart  octree leaf node lower bound
+ * @param[in] codeEnd    octree leaf node upper bound
+ * @param[in] dx         extend X range by +- dx
+ * @param[in] dy         extend Y range by +- dy
+ * @param[in] dz         extend Z range by +- dz
+ * @return               a box containing the integer coordinate ranges
+ *                       of the input octree node extended by (dx,dy,dz)
+ */
 template<class I>
 Box<int> makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz)
 {
@@ -292,7 +303,7 @@ Box<int> makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz)
     pair<int> yrange = decodeYRange(codeStart, prefixNBits);
     pair<int> zrange = decodeZRange(codeStart, prefixNBits);
 
-    constexpr int maxCoordinate = (1u << maxTreeLevel<I>{}) - 1;
+    constexpr int maxCoordinate = (1u << maxTreeLevel<I>{});
 
     // add halo range to the coordinate ranges of the node to be collided
     int xmin = std::max(0, xrange[0] - dx);
@@ -311,9 +322,9 @@ void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes,
                     CollisionList& collisionList, Box<int> haloBox)
 {
     using NodePtr = BinaryNode<I>*;
-    assert(0 <= haloBox.xmin() && haloBox.xmax() < (1u<<maxTreeLevel<I>{}));
-    assert(0 <= haloBox.ymin() && haloBox.ymax() < (1u<<maxTreeLevel<I>{}));
-    assert(0 <= haloBox.zmin() && haloBox.zmax() < (1u<<maxTreeLevel<I>{}));
+    assert(0 <= haloBox.xmin() && haloBox.xmax() <= (1u<<maxTreeLevel<I>{}));
+    assert(0 <= haloBox.ymin() && haloBox.ymax() <= (1u<<maxTreeLevel<I>{}));
+    assert(0 <= haloBox.zmin() && haloBox.zmax() <= (1u<<maxTreeLevel<I>{}));
 
     NodePtr  stack[64];
     NodePtr* stackPtr = stack;
