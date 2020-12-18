@@ -87,27 +87,27 @@ void overlapTest()
 
     /// Each test is a separate case
 
-    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, 0, r, 0, r, 0, r));
+    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, Box<int>{0, r, 0, r, 0, r}));
 
     // exact match
-    EXPECT_TRUE(overlap(node.prefix, node.prefixLength, r, 2*r, r, 2*r, r, 2*r));
+    EXPECT_TRUE(overlap(node.prefix, node.prefixLength, Box<int>{r, 2*r, r, 2*r, r, 2*r}));
     // contained within (1,1,1) corner of node
-    EXPECT_TRUE(overlap(node.prefix, node.prefixLength, 2*r-1, 2*r, 2*r-1, 2*r, 2*r-1, 2*r));
+    EXPECT_TRUE(overlap(node.prefix, node.prefixLength, Box<int>{2*r-1, 2*r, 2*r-1, 2*r, 2*r-1, 2*r}));
     // contained and exceeding (1,1,1) corner by 1 in all dimensions
-    EXPECT_TRUE(overlap(node.prefix, node.prefixLength, 2*r-1, 2*r+1, 2*r-1, 2*r+1, 2*r-1, 2*r+1));
+    EXPECT_TRUE(overlap(node.prefix, node.prefixLength, Box<int>{2*r-1, 2*r+1, 2*r-1, 2*r+1, 2*r-1, 2*r+1}));
 
     // all of these miss the (1,1,1) corner by 1 in one of the three dimensions
-    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, 2*r, 2*r+1, 2*r-1, 2*r, 2*r-1, 2*r));
-    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, 2*r-1, 2*r, 2*r, 2*r+1, 2*r-1, 2*r));
-    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, 2*r-1, 2*r, 2*r-1, 2*r, 2*r, 2*r+1));
+    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, Box<int>{2*r, 2*r+1, 2*r-1, 2*r, 2*r-1, 2*r}));
+    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, Box<int>{2*r-1, 2*r, 2*r, 2*r+1, 2*r-1, 2*r}));
+    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, Box<int>{2*r-1, 2*r, 2*r-1, 2*r, 2*r, 2*r+1}));
 
     // contained within (0,0,0) corner of node
-    EXPECT_TRUE(overlap(node.prefix, node.prefixLength, r, r+1, r, r+1, r, r+1));
+    EXPECT_TRUE(overlap(node.prefix, node.prefixLength, Box<int>{r, r+1, r, r+1, r, r+1}));
 
     // all of these miss the (0,0,0) corner by 1 in one of the three dimensions
-    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, r-1, r, r, r+1, r, r+1));
-    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, r, r+1, r-1, r, r, r+1));
-    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, r, r+1, r, r+1, r-1, r));
+    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, Box<int>{r-1, r, r, r+1, r, r+1}));
+    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, Box<int>{r, r+1, r-1, r, r, r+1}));
+    EXPECT_FALSE(overlap(node.prefix, node.prefixLength, Box<int>{r, r+1, r, r+1, r-1, r}));
 
     // for octree leaves, we can find the number of bits in the key
     // by first computing the tree level, then multiplying by 3
@@ -175,25 +175,7 @@ void regular4x4x4traversalTest()
     /// 3. a)
     for (int leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
     {
-        // compute the coordinate ranges for leaf node with index leafIdx
-        I leafCode       = tree[leafIdx];
-        I leafUpperBound = tree[leafIdx+1];
-
-        int prefixNBits = treeLevel(leafUpperBound - leafCode) * 3;
-
-        auto xrange = decodeXRange(leafCode, prefixNBits);
-        auto yrange = decodeYRange(leafCode, prefixNBits);
-        auto zrange = decodeZRange(leafCode, prefixNBits);
-
-        constexpr int maxCoordinate = (1u << maxTreeLevel<I>{}) - 1;
-
-        // add the halo range on top of the
-        int xmin = std::max(0, xrange[0] - dx);
-        int xmax = std::min(maxCoordinate, xrange[1] + dx);
-        int ymin = std::max(0, yrange[0] - dy);
-        int ymax = std::min(maxCoordinate, yrange[1] + dy);
-        int zmin = std::max(0, zrange[0] - dz);
-        int zmax = std::min(maxCoordinate, zrange[1] + dz);
+        Box<int> haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx+1], dx, dy, dz);
 
         // number of nearest neighbors in a regular 3D grid is between 8 and 27
         EXPECT_GE(collisions[leafIdx].size(), 8);
@@ -214,12 +196,12 @@ void regular4x4x4traversalTest()
             if (hasCollision)
             {
                 // if yes, then the cIdx nodes has to overlap with leafIdx enlarged by the halos
-                EXPECT_TRUE(overlap(collisionLeafCode, nBits, xmin, xmax, ymin, ymax, zmin, zmax));
+                EXPECT_TRUE(overlap(collisionLeafCode, nBits, haloBox));
             }
             else
             {
                 // if not, then there must not be any overlap
-                EXPECT_FALSE(overlap(collisionLeafCode, nBits, xmin, xmax, ymin, ymax, zmin, zmax));
+                EXPECT_FALSE(overlap(collisionLeafCode, nBits, haloBox));
             }
         }
     }
@@ -247,7 +229,7 @@ TEST(BinaryTree, irregularTreeTraversal)
 namespace sphexa
 {
 
-/*! Create a set of example octree leaves
+/*! Create a set of irregular octree leaves which do not cover the whole space
  *
  * This example is illustrated in the original paper referenced in sfc/binarytree.hpp.
  * Please refer to the publication for a graphical illustration of the resulting
