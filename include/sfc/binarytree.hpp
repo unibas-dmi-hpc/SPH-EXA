@@ -271,9 +271,9 @@ private:
 template<class I>
 bool overlap(I prefix, int length, int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
 {
-    std::array<int, 2> xRange = decodeXRange(prefix, length);
-    std::array<int, 2> yRange = decodeYRange(prefix, length);
-    std::array<int, 2> zRange = decodeZRange(prefix, length);
+    pair<int> xRange = decodeXRange(prefix, length);
+    pair<int> yRange = decodeYRange(prefix, length);
+    pair<int> zRange = decodeZRange(prefix, length);
 
     bool xOverlap = xmax > xRange[0] && xRange[1] > xmin;
     bool yOverlap = ymax > yRange[0] && yRange[1] > ymin;
@@ -371,9 +371,9 @@ void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes,
 
     int prefixNBits = treeLevel(leafUpperBound - leafCode) * 3;
 
-    std::array<int, 2> xrange = decodeXRange(leafCode, prefixNBits);
-    std::array<int, 2> yrange = decodeYRange(leafCode, prefixNBits);
-    std::array<int, 2> zrange = decodeZRange(leafCode, prefixNBits);
+    pair<int> xrange = decodeXRange(leafCode, prefixNBits);
+    pair<int> yrange = decodeYRange(leafCode, prefixNBits);
+    pair<int> zrange = decodeZRange(leafCode, prefixNBits);
 
     constexpr int maxCoordinate = (1u << maxTreeLevel<I>{}) - 1;
 

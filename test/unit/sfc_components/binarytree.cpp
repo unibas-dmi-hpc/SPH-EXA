@@ -181,9 +181,9 @@ void regular4x4x4traversalTest()
 
         int prefixNBits = treeLevel(leafUpperBound - leafCode) * 3;
 
-        std::array<int, 2> xrange = decodeXRange(leafCode, prefixNBits);
-        std::array<int, 2> yrange = decodeYRange(leafCode, prefixNBits);
-        std::array<int, 2> zrange = decodeZRange(leafCode, prefixNBits);
+        auto xrange = decodeXRange(leafCode, prefixNBits);
+        auto yrange = decodeYRange(leafCode, prefixNBits);
+        auto zrange = decodeZRange(leafCode, prefixNBits);
 
         constexpr int maxCoordinate = (1u << maxTreeLevel<I>{}) - 1;
 
