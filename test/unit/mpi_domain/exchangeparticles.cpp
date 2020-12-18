@@ -54,7 +54,8 @@ void exchangeAllToAll(int thisRank, int nRanks)
         sendList[rank].addRange(lower, upper, upper - lower);
     }
 
-    segmentSize = sendList[thisRank].count();
+    // there's only one range per rank
+    segmentSize = sendList[thisRank].count(0);
     int nParticlesThisRank = segmentSize * nRanks;
 
     sphexa::exchangeParticles<T>(sendList, nParticlesThisRank, thisRank, ordering, x, y);
