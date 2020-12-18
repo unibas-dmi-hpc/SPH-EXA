@@ -32,7 +32,7 @@ unsigned radiusToTreeLevel(T radius, T minRange)
     return unsigned(-log2(radiusNormalized));
 }
 
-/*! \brief findNeighbors of particle number id among x,y,z within radius
+/*! \brief findNeighbors of particle number \a id within radius
  *
  * Based on the Morton code of the input particle id, morton codes of neighboring
  * (implicit) octree nodes are computed in a first step, where the size of the
@@ -41,19 +41,20 @@ unsigned radiusToTreeLevel(T radius, T minRange)
  * of these ranges are determined by binary search and all particles within those ranges
  * are checked whether they lie within the search radius around the particle at id.
  *
- * \tparam T coordinate type, float or double
- * \tparam I Morton code type, uint32 uint64
- * \param[in] id the index of the particle for which to look for neighbors
- * \param[in] x  particle x-coordinates
- * \param[in] y  particle y-coordinates
- * \param[in] z  particle z-coordinates
- * \param[in] radius search radius
- * \param[in] boxMinRange min_element(xmax-xmin, ymax-ymin, zmax-zmin) of the global bounding box
- * \param[in] mortonCodes Morton codes of all particles in x,y,z
- * \param[out] neighbors output to store the neighbors
- * \param[out] neighborsCount output to store the number of neighbors
- * \param[in] n number of particles in x,y,z
- * \param[in] ngmax maximum number of neighbors per particle
+ * \tparam T                   coordinate type, float or double
+ * \tparam I                   Morton code type, uint32 uint64
+ * \param[in] id               the index of the particle for which to look for neighbors
+ * \param[in] x                particle x-coordinates
+ * \param[in] y                particle y-coordinates
+ * \param[in] z                particle z-coordinates
+ * \param[in] radius           search radius
+ * \param[in] boxMinRange      min_element(xmax-xmin, ymax-ymin, zmax-zmin)
+ *                             of the global bounding box
+ * \param[in] mortonCodes      Morton codes of all particles in x,y,z
+ * \param[out] neighbors       output to store the neighbors
+ * \param[out] neighborsCount  output to store the number of neighbors
+ * \param[in] n                number of particles in x,y,z
+ * \param[in] ngmax            maximum number of neighbors per particle
  */
 template<class T, class I>
 void findNeighbors(int id, const T* x, const T* y, const T* z, T radius, T boxMinRange,

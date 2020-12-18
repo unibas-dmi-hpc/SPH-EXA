@@ -350,7 +350,7 @@ Box<int> makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz)
  */
 template<class I>
 void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes,
-                    CollisionList& collisionList, Box<int> haloBox)
+                    CollisionList& collisionList, const Box<int>& haloBox)
 {
     using NodePtr = BinaryNode<I>*;
     assert(0 <= haloBox.xmin() && haloBox.xmax() <= (1u<<maxTreeLevel<I>{}));
@@ -431,7 +431,7 @@ std::vector<BinaryNode<I>> createInternalTree(const std::vector<I>& tree)
     // (omp) parallel
     for (int idx = 0; idx < ret.size(); ++idx)
     {
-        constructInternalNode(tree.data(), tree.size(), ret.data(), idx);
+        constructInternalNode(tree.data(), tree.size() - 1, ret.data(), idx);
     }
 
     return ret;
