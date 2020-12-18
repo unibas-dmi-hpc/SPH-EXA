@@ -183,9 +183,9 @@ inline I zeroLowBits(I code, int nBits)
  *                range decreases from the maximum by a factor of two.
  */
 template<class I>
-inline std::array<int, 2> decodeXRange(I code, int length)
+inline pair<int> decodeXRange(I code, int length)
 {
-    std::array<int, 2> ret{0, 0};
+    pair<int> ret{0, 0};
 
     ret[0] = decodeMortonX(code);
     ret[1] = ret[0] + (I(1) << (maxTreeLevel<I>{} - (length+2)/3));
@@ -195,9 +195,9 @@ inline std::array<int, 2> decodeXRange(I code, int length)
 
 //! \brief see decodeXRange
 template<class I>
-inline std::array<int, 2> decodeYRange(I code, int length)
+inline pair<int> decodeYRange(I code, int length)
 {
-    std::array<int, 2> ret{0, 0};
+    pair<int> ret{0, 0};
 
     ret[0] = decodeMortonY(code);
     ret[1] = ret[0] + (I(1) << (maxTreeLevel<I>{} - (length+1)/3));
@@ -207,9 +207,9 @@ inline std::array<int, 2> decodeYRange(I code, int length)
 
 //! \brief see decodeXRange
 template<class I>
-inline std::array<int, 2> decodeZRange(I code, int length)
+inline pair<int> decodeZRange(I code, int length)
 {
-    std::array<int, 2> ret{0, 0};
+    pair<int> ret{0, 0};
 
     ret[0] = decodeMortonZ(code);
     ret[1] = ret[0] + (I(1) << (maxTreeLevel<I>{} - length/3));

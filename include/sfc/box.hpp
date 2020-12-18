@@ -42,13 +42,34 @@ public:
     T zmin() const { return limits[4]; }
     T zmax() const { return limits[5]; }
 
-    bool pbcX() const { return pbc[0]; }
-    bool pbcY() const { return pbc[1]; }
-    bool pbcZ() const { return pbc[2]; }
+    [[nodiscard]] bool pbcX() const { return pbc[0]; }
+    [[nodiscard]] bool pbcY() const { return pbc[1]; }
+    [[nodiscard]] bool pbcZ() const { return pbc[2]; }
 
 private:
     T limits[6];
     bool pbc[3];
+};
+
+//! \brief simple pair that's usable in both CPU and GPU code
+template<class T>
+class pair
+{
+public:
+
+    pair(T first, T second) : data{first, second} {}
+
+          T& operator[](int i)       { return data[i]; }
+    const T& operator[](int i) const { return data[i]; }
+
+private:
+
+    friend bool operator==(const pair& a, const pair& b)
+    {
+        return a.data[0] == b.data[0] && a.data[1] == b.data[1];
+    }
+
+    T data[2];
 };
 
 } // namespace sphexa

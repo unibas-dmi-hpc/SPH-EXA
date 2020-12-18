@@ -87,98 +87,98 @@ TEST(MortonCode, zeroLowBits64)
 
 TEST(MortonCode, decodeXRange32)
 {
-    EXPECT_EQ( (std::array<int, 2>{0,   512}),  sphexa::decodeXRange(0b000u << 29u, 1));
-    EXPECT_EQ( (std::array<int, 2>{512, 1024}), sphexa::decodeXRange(0b001u << 29u, 1));
+    EXPECT_EQ( (sphexa::pair<int>{0,   512}),  sphexa::decodeXRange(0b000u << 29u, 1));
+    EXPECT_EQ( (sphexa::pair<int>{512, 1024}), sphexa::decodeXRange(0b001u << 29u, 1));
 
-    EXPECT_EQ( (std::array<int, 2>{0,   512}),  sphexa::decodeXRange(0b0000u << 28u, 2));
-    EXPECT_EQ( (std::array<int, 2>{512, 1024}), sphexa::decodeXRange(0b0010u << 28u, 2));
+    EXPECT_EQ( (sphexa::pair<int>{0,   512}),  sphexa::decodeXRange(0b0000u << 28u, 2));
+    EXPECT_EQ( (sphexa::pair<int>{512, 1024}), sphexa::decodeXRange(0b0010u << 28u, 2));
 
-    EXPECT_EQ( (std::array<int, 2>{0,   512}),  sphexa::decodeXRange(0b00000u << 27u, 3));
-    EXPECT_EQ( (std::array<int, 2>{512, 1024}), sphexa::decodeXRange(0b00100u << 27u, 3));
+    EXPECT_EQ( (sphexa::pair<int>{0,   512}),  sphexa::decodeXRange(0b00000u << 27u, 3));
+    EXPECT_EQ( (sphexa::pair<int>{512, 1024}), sphexa::decodeXRange(0b00100u << 27u, 3));
 
-    EXPECT_EQ( (std::array<int, 2>{256,     256+256}),     sphexa::decodeXRange(0b000001u << 26u, 4));
-    EXPECT_EQ( (std::array<int, 2>{512+256, 512+256+256}), sphexa::decodeXRange(0b001001u << 26u, 4));
+    EXPECT_EQ( (sphexa::pair<int>{256,     256+256}),     sphexa::decodeXRange(0b000001u << 26u, 4));
+    EXPECT_EQ( (sphexa::pair<int>{512+256, 512+256+256}), sphexa::decodeXRange(0b001001u << 26u, 4));
 
-    EXPECT_EQ( (std::array<int, 2>{512+256+128, 512+256+128+128}), sphexa::decodeXRange(0b001001001u << 23u, 7));
-    EXPECT_EQ( (std::array<int, 2>{512    +128, 512    +128+128}), sphexa::decodeXRange(0b001000001u << 23u, 7));
+    EXPECT_EQ( (sphexa::pair<int>{512+256+128, 512+256+128+128}), sphexa::decodeXRange(0b001001001u << 23u, 7));
+    EXPECT_EQ( (sphexa::pair<int>{512    +128, 512    +128+128}), sphexa::decodeXRange(0b001000001u << 23u, 7));
 
-    EXPECT_EQ( (std::array<int, 2>{512+256+128, 512+256+128+128}), sphexa::decodeXRange(0b001101011u << 23u, 7));
-    EXPECT_EQ( (std::array<int, 2>{512    +128, 512    +128+128}), sphexa::decodeXRange(0b001100011u << 23u, 7));
+    EXPECT_EQ( (sphexa::pair<int>{512+256+128, 512+256+128+128}), sphexa::decodeXRange(0b001101011u << 23u, 7));
+    EXPECT_EQ( (sphexa::pair<int>{512    +128, 512    +128+128}), sphexa::decodeXRange(0b001100011u << 23u, 7));
 }
 
 TEST(MortonCode, decodeXRange64)
 {
-    EXPECT_EQ( (std::array<int, 2>{0,      1u<<20}), sphexa::decodeXRange(0b00ul << 62u, 1));
-    EXPECT_EQ( (std::array<int, 2>{1u<<20, 1u<<21}), sphexa::decodeXRange(0b01ul << 62u, 1));
+    EXPECT_EQ( (sphexa::pair<int>{0,      1u<<20}), sphexa::decodeXRange(0b00ul << 62u, 1));
+    EXPECT_EQ( (sphexa::pair<int>{1u<<20, 1u<<21}), sphexa::decodeXRange(0b01ul << 62u, 1));
 
-    EXPECT_EQ( (std::array<int, 2>{0,      1u<<20}), sphexa::decodeXRange(0b000ul << 61u, 2));
-    EXPECT_EQ( (std::array<int, 2>{1u<<20, 1u<<21}), sphexa::decodeXRange(0b010ul << 61u, 2));
+    EXPECT_EQ( (sphexa::pair<int>{0,      1u<<20}), sphexa::decodeXRange(0b000ul << 61u, 2));
+    EXPECT_EQ( (sphexa::pair<int>{1u<<20, 1u<<21}), sphexa::decodeXRange(0b010ul << 61u, 2));
 
-    EXPECT_EQ( (std::array<int, 2>{0,      1u<<20}), sphexa::decodeXRange(0b0000ul << 60u, 3));
-    EXPECT_EQ( (std::array<int, 2>{1u<<20, 1u<<21}), sphexa::decodeXRange(0b0100ul << 60u, 3));
+    EXPECT_EQ( (sphexa::pair<int>{0,      1u<<20}), sphexa::decodeXRange(0b0000ul << 60u, 3));
+    EXPECT_EQ( (sphexa::pair<int>{1u<<20, 1u<<21}), sphexa::decodeXRange(0b0100ul << 60u, 3));
 
-    EXPECT_EQ( (std::array<int, 2>{1u<<19,              1u<<20}), sphexa::decodeXRange(0b00001ul << 59u, 4));
-    EXPECT_EQ( (std::array<int, 2>{(1u<<20) + (1u<<19), 1u<<21}), sphexa::decodeXRange(0b01001ul << 59u, 4));
+    EXPECT_EQ( (sphexa::pair<int>{1u<<19,              1u<<20}), sphexa::decodeXRange(0b00001ul << 59u, 4));
+    EXPECT_EQ( (sphexa::pair<int>{(1u<<20) + (1u<<19), 1u<<21}), sphexa::decodeXRange(0b01001ul << 59u, 4));
 }
 
 TEST(MortonCode, decodeYRange32)
 {
-    EXPECT_EQ( (std::array<int, 2>{0,   512}),  sphexa::decodeYRange(0b0000u << 28u, 2));
-    EXPECT_EQ( (std::array<int, 2>{512, 1024}), sphexa::decodeYRange(0b0001u << 28u, 2));
+    EXPECT_EQ( (sphexa::pair<int>{0,   512}),  sphexa::decodeYRange(0b0000u << 28u, 2));
+    EXPECT_EQ( (sphexa::pair<int>{512, 1024}), sphexa::decodeYRange(0b0001u << 28u, 2));
 
-    EXPECT_EQ( (std::array<int, 2>{0,   512}),  sphexa::decodeYRange(0b00000u << 27u, 3));
-    EXPECT_EQ( (std::array<int, 2>{512, 1024}), sphexa::decodeYRange(0b00010u << 27u, 3));
+    EXPECT_EQ( (sphexa::pair<int>{0,   512}),  sphexa::decodeYRange(0b00000u << 27u, 3));
+    EXPECT_EQ( (sphexa::pair<int>{512, 1024}), sphexa::decodeYRange(0b00010u << 27u, 3));
 
-    EXPECT_EQ( (std::array<int, 2>{0,   512}),  sphexa::decodeYRange(0b000000u << 26u, 4));
-    EXPECT_EQ( (std::array<int, 2>{512, 1024}), sphexa::decodeYRange(0b000100u << 26u, 4));
+    EXPECT_EQ( (sphexa::pair<int>{0,   512}),  sphexa::decodeYRange(0b000000u << 26u, 4));
+    EXPECT_EQ( (sphexa::pair<int>{512, 1024}), sphexa::decodeYRange(0b000100u << 26u, 4));
 
-    EXPECT_EQ( (std::array<int, 2>{256,     256+256}),     sphexa::decodeYRange(0b0000001u << 25u, 5));
-    EXPECT_EQ( (std::array<int, 2>{512+256, 512+256+256}), sphexa::decodeYRange(0b0001001u << 25u, 5));
+    EXPECT_EQ( (sphexa::pair<int>{256,     256+256}),     sphexa::decodeYRange(0b0000001u << 25u, 5));
+    EXPECT_EQ( (sphexa::pair<int>{512+256, 512+256+256}), sphexa::decodeYRange(0b0001001u << 25u, 5));
 }
 
 TEST(MortonCode, decodeYRange64)
 {
-    EXPECT_EQ( (std::array<int, 2>{0,      1u<<20}), sphexa::decodeYRange(0b000ul << 61u, 2));
-    EXPECT_EQ( (std::array<int, 2>{1u<<20, 1u<<21}), sphexa::decodeYRange(0b001ul << 61u, 2));
+    EXPECT_EQ( (sphexa::pair<int>{0,      1u<<20}), sphexa::decodeYRange(0b000ul << 61u, 2));
+    EXPECT_EQ( (sphexa::pair<int>{1u<<20, 1u<<21}), sphexa::decodeYRange(0b001ul << 61u, 2));
 
-    EXPECT_EQ( (std::array<int, 2>{0,      1u<<20}), sphexa::decodeYRange(0b0000ul << 60u, 3));
-    EXPECT_EQ( (std::array<int, 2>{1u<<20, 1u<<21}), sphexa::decodeYRange(0b0010ul << 60u, 3));
+    EXPECT_EQ( (sphexa::pair<int>{0,      1u<<20}), sphexa::decodeYRange(0b0000ul << 60u, 3));
+    EXPECT_EQ( (sphexa::pair<int>{1u<<20, 1u<<21}), sphexa::decodeYRange(0b0010ul << 60u, 3));
 
-    EXPECT_EQ( (std::array<int, 2>{0,      1u<<20}), sphexa::decodeYRange(0b00000ul << 59u, 4));
-    EXPECT_EQ( (std::array<int, 2>{1u<<20, 1u<<21}), sphexa::decodeYRange(0b00100ul << 59u, 4));
+    EXPECT_EQ( (sphexa::pair<int>{0,      1u<<20}), sphexa::decodeYRange(0b00000ul << 59u, 4));
+    EXPECT_EQ( (sphexa::pair<int>{1u<<20, 1u<<21}), sphexa::decodeYRange(0b00100ul << 59u, 4));
 
-    EXPECT_EQ( (std::array<int, 2>{1u<<19,              1u<<20}), sphexa::decodeYRange(0b000001ul << 58u, 5));
-    EXPECT_EQ( (std::array<int, 2>{(1u<<20) + (1u<<19), 1u<<21}), sphexa::decodeYRange(0b001001ul << 58u, 5));
+    EXPECT_EQ( (sphexa::pair<int>{1u<<19,              1u<<20}), sphexa::decodeYRange(0b000001ul << 58u, 5));
+    EXPECT_EQ( (sphexa::pair<int>{(1u<<20) + (1u<<19), 1u<<21}), sphexa::decodeYRange(0b001001ul << 58u, 5));
 }
 
 TEST(MortonCode, decodeZRange32)
 {
-    EXPECT_EQ( (std::array<int, 2>{0,   512}),  sphexa::decodeZRange(0b00000u << 27u, 3));
-    EXPECT_EQ( (std::array<int, 2>{512, 1024}), sphexa::decodeZRange(0b00001u << 27u, 3));
+    EXPECT_EQ( (sphexa::pair<int>{0,   512}),  sphexa::decodeZRange(0b00000u << 27u, 3));
+    EXPECT_EQ( (sphexa::pair<int>{512, 1024}), sphexa::decodeZRange(0b00001u << 27u, 3));
 
-    EXPECT_EQ( (std::array<int, 2>{0,   512}),  sphexa::decodeZRange(0b000000u << 26u, 4));
-    EXPECT_EQ( (std::array<int, 2>{512, 1024}), sphexa::decodeZRange(0b000010u << 26u, 4));
+    EXPECT_EQ( (sphexa::pair<int>{0,   512}),  sphexa::decodeZRange(0b000000u << 26u, 4));
+    EXPECT_EQ( (sphexa::pair<int>{512, 1024}), sphexa::decodeZRange(0b000010u << 26u, 4));
 
-    EXPECT_EQ( (std::array<int, 2>{0,   512}),  sphexa::decodeZRange(0b0000000u << 25u, 5));
-    EXPECT_EQ( (std::array<int, 2>{512, 1024}), sphexa::decodeZRange(0b0000100u << 25u, 5));
+    EXPECT_EQ( (sphexa::pair<int>{0,   512}),  sphexa::decodeZRange(0b0000000u << 25u, 5));
+    EXPECT_EQ( (sphexa::pair<int>{512, 1024}), sphexa::decodeZRange(0b0000100u << 25u, 5));
 
-    EXPECT_EQ( (std::array<int, 2>{256,     256+256}),     sphexa::decodeZRange(0b00000001u << 24u, 6));
-    EXPECT_EQ( (std::array<int, 2>{512+256, 512+256+256}), sphexa::decodeZRange(0b00001001u << 24u, 6));
+    EXPECT_EQ( (sphexa::pair<int>{256,     256+256}),     sphexa::decodeZRange(0b00000001u << 24u, 6));
+    EXPECT_EQ( (sphexa::pair<int>{512+256, 512+256+256}), sphexa::decodeZRange(0b00001001u << 24u, 6));
 }
 
 TEST(MortonCode, decodeZRange64)
 {
-    EXPECT_EQ( (std::array<int, 2>{0,      1u<<20}), sphexa::decodeZRange(0b0000ul << 60u, 3));
-    EXPECT_EQ( (std::array<int, 2>{1u<<20, 1u<<21}), sphexa::decodeZRange(0b0001ul << 60u, 3));
+    EXPECT_EQ( (sphexa::pair<int>{0,      1u<<20}), sphexa::decodeZRange(0b0000ul << 60u, 3));
+    EXPECT_EQ( (sphexa::pair<int>{1u<<20, 1u<<21}), sphexa::decodeZRange(0b0001ul << 60u, 3));
 
-    EXPECT_EQ( (std::array<int, 2>{0,      1u<<20}), sphexa::decodeZRange(0b00000ul << 59u, 4));
-    EXPECT_EQ( (std::array<int, 2>{1u<<20, 1u<<21}), sphexa::decodeZRange(0b00010ul << 59u, 4));
+    EXPECT_EQ( (sphexa::pair<int>{0,      1u<<20}), sphexa::decodeZRange(0b00000ul << 59u, 4));
+    EXPECT_EQ( (sphexa::pair<int>{1u<<20, 1u<<21}), sphexa::decodeZRange(0b00010ul << 59u, 4));
 
-    EXPECT_EQ( (std::array<int, 2>{0,      1u<<20}), sphexa::decodeZRange(0b000000ul << 58u, 5));
-    EXPECT_EQ( (std::array<int, 2>{1u<<20, 1u<<21}), sphexa::decodeZRange(0b000100ul << 58u, 5));
+    EXPECT_EQ( (sphexa::pair<int>{0,      1u<<20}), sphexa::decodeZRange(0b000000ul << 58u, 5));
+    EXPECT_EQ( (sphexa::pair<int>{1u<<20, 1u<<21}), sphexa::decodeZRange(0b000100ul << 58u, 5));
 
-    EXPECT_EQ( (std::array<int, 2>{1u<<19,              1u<<20}), sphexa::decodeZRange(0b0000001ul << 57u, 6));
-    EXPECT_EQ( (std::array<int, 2>{(1u<<20) + (1u<<19), 1u<<21}), sphexa::decodeZRange(0b0001001ul << 57u, 6));
+    EXPECT_EQ( (sphexa::pair<int>{1u<<19,              1u<<20}), sphexa::decodeZRange(0b0000001ul << 57u, 6));
+    EXPECT_EQ( (sphexa::pair<int>{(1u<<20) + (1u<<19), 1u<<21}), sphexa::decodeZRange(0b0001001ul << 57u, 6));
 }
 
 TEST(MortonCode, log8ceil32)
