@@ -61,6 +61,9 @@ bool checkOctreeInvariants(const I* tree, int nNodes)
 
         I range = tree[i+1] - tree[i];
 
+        if (range == 0)
+            return false;
+
         if (!isPowerOf8(range))
             return false;
     }

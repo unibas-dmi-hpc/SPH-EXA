@@ -314,11 +314,153 @@ TEST(BinaryTree, regularTree4x4x4FullTraversal)
 namespace sphexa
 {
 
+/*! \brief test collision detection with anisotropic halo ranges
+ *
+ * If the bounding box of the floating point boundary box is not cubic,
+ * an isotropic search range with one halo radius per node will correspond
+ * to an anisotropic range in the Morton code SFC which always gets mapped
+ * to an unit cube.
+ */
+template <class I>
+void anisotropicHaloBox()
+{
+    // a tree with 4 subdivisions along each dimension, 64 nodes
+    // node range in each dimension is 2^(10 or 21 - 2)
+    std::vector<I>             tree         = detail::makeUniformNLevelTree<I>(64, 1);
+    std::vector<BinaryNode<I>> internalTree = createInternalTree(tree);
+
+    int r = 1u<<(maxTreeLevel<I>{}-2);
+
+    int queryIdx = 7;
+
+    // this will hit two nodes in +x direction, not just one neighbor node
+    Box<int> haloBox = makeHaloBox(tree[queryIdx], tree[queryIdx+1], 2*r, 0, 0);
+
+    CollisionList collisions;
+    findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+
+    std::vector<int> collisionsSorted(collisions.begin(), collisions.end());
+    std::sort(begin(collisionsSorted), end(collisionsSorted));
+
+    std::vector<int> collisionsReference{3,7,35,39};
+    EXPECT_EQ(collisionsSorted, collisionsReference);
 }
+
+} // namespace sphexa
+
+TEST(BinaryTree, anisotropicHalo)
+{
+    sphexa::anisotropicHaloBox<unsigned>();
+    sphexa::anisotropicHaloBox<uint64_t>();
+}
+
+namespace sphexa
+{
+
+template<class I>
+void irregularTreeTraversal()
+{
+    using detail::codeFromIndices;
+    using uchar = unsigned char;
+
+    std::vector<I> tree;
+    tree.reserve(100);
+
+    // divide root node
+    for(int i = 0; i < 8; ++i)
+        tree.push_back(codeFromIndices<I>({uchar(i)}));
+
+    // divide node 0 at level 1
+    for(int i = 1; i < 8; ++i)
+        tree.push_back(codeFromIndices<I>({0, uchar(i)}));
+
+    // divide node 0,7 at level 2
+    for(int i = 1; i < 8; ++i)
+        tree.push_back(codeFromIndices<I>({0, 7, uchar(i)}));
+
+    tree.push_back(nodeRange<I>(0));
+
+    std::sort(begin(tree), end(tree));
+
+    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
+
+    std::vector<BinaryNode<I>> internalTree = createInternalTree(tree);
+
+    // quick test that we can locate nodes in the {l1,l2,l3,...} format with std::find
+    {
+        int idx1 = std::find(begin(tree), end(tree), codeFromIndices<I>({0,7,0}))
+                   - begin(tree);
+        EXPECT_EQ(7, idx1);
+
+        int idx2 = std::find(begin(tree), end(tree), codeFromIndices<I>({0,7,7}))
+                   - begin(tree);
+        EXPECT_EQ(14, idx2);
+
+        int idx3 = std::find(begin(tree), end(tree), codeFromIndices<I>({4}))
+                   - begin(tree);
+        EXPECT_EQ(18, idx3);
+    }
+
+    // launch collision detection with a big level 1 node next to the small level 3 ones
+    {
+        I queryNode = codeFromIndices<I>({4});
+        int queryIdx = std::find(begin(tree), end(tree), queryNode) - begin(tree);
+
+        // this halo box intersects with neighbors in x direction and will intersect
+        // with multiple smaller level 2 and level 3 nodes
+        Box<int> haloBox = makeHaloBox(tree[queryIdx], tree[queryIdx + 1], 1, 0, 0);
+
+        CollisionList collisions;
+        findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+
+        // list of nodes that should collide with the halo box
+        std::vector<I> collidingNodes{
+            codeFromIndices<I>({0,4}),
+            codeFromIndices<I>({0,5}),
+            codeFromIndices<I>({0,6}),
+            codeFromIndices<I>({0,7,4}),
+            codeFromIndices<I>({0,7,5}),
+            codeFromIndices<I>({0,7,6}),
+            codeFromIndices<I>({0,7,7}),
+            codeFromIndices<I>({4}),
+        };
+
+        //for (I code : collidingNodes)
+        //{
+        //    int index = std::find(begin(tree), end(tree), code) - begin(tree);
+        //    bool collided = std::find(collisions.begin(), collisions.end(), index)
+        //                        != collisions.end();
+
+        //    bool olp = false;
+        //    {
+        //        int prefixBits = treeLevel(tree[index+1] - tree[index]) * 3;
+        //        olp = overlap(tree[index], prefixBits, haloBox);
+        //    }
+
+        //    std::cout << collided << " " << olp << std::endl;
+        //}
+
+        EXPECT_EQ(collisions.size(), collidingNodes.size());
+
+        // go through all leaf nodes and check that collisions have only
+        // been reported for the nodes listed in collidingNodes
+        for(int nodeIdx = 0; nodeIdx < nNodes(tree); ++nodeIdx)
+        {
+            bool shouldCollide = std::find(begin(collidingNodes), end(collidingNodes), tree[nodeIdx])
+                                 != end(collidingNodes);
+            bool didCollide = std::find(collisions.begin(), collisions.end(), nodeIdx)
+                              != collisions.end();
+
+            EXPECT_EQ(shouldCollide, didCollide);
+        }
+    }
+}
+} // namespace sphexa
 
 TEST(BinaryTree, irregularTreeTraversal)
 {
-
+    sphexa::irregularTreeTraversal<unsigned>();
+    sphexa::irregularTreeTraversal<uint64_t>();
 }
 
 namespace sphexa
@@ -346,7 +488,7 @@ std::vector<unsigned> makeExample()
             0b0010011u << 25u,
             0b0011000u << 25u,
             0b0011001u << 25u,
-            0b0011110u << 25u
+            0b0011110u << 25u,
         };
     return ret;
 }
@@ -363,7 +505,7 @@ std::vector<uint64_t> makeExample()
             0b010011ul << 58u,
             0b011000ul << 58u,
             0b011001ul << 58u,
-            0b011110ul << 58u
+            0b011110ul << 58u,
         };
     return ret;
 }
@@ -399,7 +541,11 @@ void paperExampleTest()
     using CodeType = I;
 
     std::vector<CodeType> example = makeExample<CodeType>();
-    std::vector<BinaryNode<CodeType>> internalNodes = createInternalTree(example);
+    std::vector<BinaryNode<CodeType>> internalNodes(example.size() - 1);
+    for (int i = 0; i < internalNodes.size(); ++i)
+    {
+        constructInternalNode(example.data(), example.size(), internalNodes.data(), i);
+    }
 
     std::vector<BinaryNode<CodeType>*> refLeft
         {
