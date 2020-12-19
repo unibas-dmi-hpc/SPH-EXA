@@ -7,6 +7,29 @@
 
 #include "sfc/mortoncode.hpp"
 
+/*! \brief \file Generation of local and global octrees in cornerstone format
+ *
+ * In the cornerstone format, the octree is stored as sequence of Morton codes
+ * fulfilling three invariants. Each code in the sequence both signifies the
+ * the start Morton code of an octree leaf node and serves as an upper Morton code bound
+ * for the previous node.
+ *
+ * The invariants of the cornerstone format are:
+ *      - code sequence contains code 0 and the maximum code 2^30 or 2^61
+ *      - code sequence is sorted by ascending code value
+ *      - difference between consecutive elements must be a power of 8
+ *
+ * The consequences of these invariants are:
+ *      - the entire space is covered, i.e. there are no holes in the tree
+ *      - only leaf nodes are stored
+ *      - for each leaf node, all its siblings (nodes at the same subdivision level with
+ *        the same parent) are present in the Morton code sequence
+ *      - each node with index i is defined by its lowest possible Morton code at position
+ *        i in the vector and the highest possible (excluding) Morton code at position i+1
+ *        in the vector
+ *      - a vector of length N represents N-1 leaf nodes
+ */
+
 namespace sphexa
 {
 
@@ -26,7 +49,7 @@ std::size_t nNodes(const std::vector<I>& tree)
     return tree.size() - 1;
 }
 
-/*! \brief check whether octree invariants are fulfilled
+/*! \brief check whether the cornerstone octree format invariants are fulfilled
  *
  * \tparam I           32- or 64-bit unsigned integer type
  * \param tree         octree nodes given as Morton codes of length @a nNodes+1
@@ -34,14 +57,9 @@ std::size_t nNodes(const std::vector<I>& tree)
  * \return             true if invariants ar satisfied, false otherwise
  *
  * The invariants are:
- *      - tree contains root node with code 0 and the maximum code (nodeRange<I>(0))
+ *      - tree contains code 0 and the maximum code 2^30 or 2^61
  *      - tree is sorted
  *      - difference between consecutive elements must be a power of 8
- *
- * These three conditions guarantee that
- *      - the entire space is covered
- *      - for each node, all its siblings (nodes at the same subdivision level)
- *        are present in the tree as a Morton code
  */
 template<class I>
 bool checkOctreeInvariants(const I* tree, int nNodes)
