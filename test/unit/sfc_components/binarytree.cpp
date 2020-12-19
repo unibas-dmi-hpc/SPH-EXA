@@ -4,6 +4,7 @@
 
 #include "sfc/binarytree.hpp"
 #include "sfc/octree.hpp"
+#include "sfc/octree_util.hpp"
 
 using namespace sphexa;
 

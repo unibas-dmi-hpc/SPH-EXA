@@ -3,6 +3,7 @@
 
 #include "sfc/mortoncode.hpp"
 #include "sfc/octree.hpp"
+#include "sfc/octree_util.hpp"
 
 #include "coord_samples/random.hpp"
 
@@ -103,12 +104,12 @@ void checkCountTreeNodes()
         EXPECT_EQ(counts[i], 8);
 }
 
-TEST(GlobalTree, countTreeNodes32)
+TEST(CornerstoneOctree, countTreeNodes32)
 {
     checkCountTreeNodes<unsigned>();
 }
 
-TEST(GlobalTree, countTreeNodes64)
+TEST(CornerstoneOctree, countTreeNodes64)
 {
     checkCountTreeNodes<uint64_t>();
 }
@@ -155,12 +156,12 @@ void rebalanceShrinkStart()
     EXPECT_EQ(balancedTree, reference);
 }
 
-TEST(GlobalTree, rebalanceShrinkStart32)
+TEST(CornerstoneOctree, rebalanceShrinkStart32)
 {
     rebalanceShrinkStart<unsigned>();
 }
 
-TEST(GlobalTree, rebalanceShrinkStart64)
+TEST(CornerstoneOctree, rebalanceShrinkStart64)
 {
     rebalanceShrinkStart<uint64_t>();
 }
@@ -210,12 +211,12 @@ void rebalanceShrinkMid()
     EXPECT_EQ(balancedTree, reference);
 }
 
-TEST(GlobalTree, rebalanceShrinkMid32)
+TEST(CornerstoneOctree, rebalanceShrinkMid32)
 {
     rebalanceShrinkMid<unsigned>();
 }
 
-TEST(GlobalTree, rebalanceShrinkMid64)
+TEST(CornerstoneOctree, rebalanceShrinkMid64)
 {
     rebalanceShrinkMid<uint64_t>();
 }
@@ -266,12 +267,12 @@ void rebalanceShrinkEnd()
     EXPECT_EQ(balancedTree, reference);
 }
 
-TEST(GlobalTree, rebalanceShrinkEnd32)
+TEST(CornerstoneOctree, rebalanceShrinkEnd32)
 {
     rebalanceShrinkEnd<unsigned>();
 }
 
-TEST(GlobalTree, rebalanceShrinkEnd64)
+TEST(CornerstoneOctree, rebalanceShrinkEnd64)
 {
     rebalanceShrinkEnd<uint64_t>();
 }
@@ -293,12 +294,12 @@ void rebalanceRootInvariant()
     EXPECT_EQ(balancedTree, tree);
 }
 
-TEST(GlobalTree, rebalanceRootInvariant32)
+TEST(CornerstoneOctree, rebalanceRootInvariant32)
 {
     rebalanceRootInvariant<uint64_t>();
 }
 
-TEST(GlobalTree, rebalanceRootInvariant64)
+TEST(CornerstoneOctree, rebalanceRootInvariant64)
 {
     rebalanceRootInvariant<uint64_t>();
 }
@@ -329,12 +330,12 @@ void rebalanceRootSplit()
     EXPECT_EQ(balancedTree, reference);
 }
 
-TEST(GlobalTree, rebalanceRootSplit32)
+TEST(CornerstoneOctree, rebalanceRootSplit32)
 {
     rebalanceRootSplit<unsigned>();
 }
 
-TEST(GlobalTree, rebalanceRootSplit64)
+TEST(CornerstoneOctree, rebalanceRootSplit64)
 {
     rebalanceRootSplit<uint64_t>();
 }
@@ -390,12 +391,12 @@ void rebalanceSplitShrink()
     EXPECT_EQ(balancedTree, reference);
 }
 
-TEST(GlobalTree, rebalanceSplitShrink32)
+TEST(CornerstoneOctree, rebalanceSplitShrink32)
 {
     rebalanceSplitShrink<unsigned>();
 }
 
-TEST(GlobalTree, rebalanceSplitShrink64)
+TEST(CornerstoneOctree, rebalanceSplitShrink64)
 {
     rebalanceSplitShrink<uint64_t>();
 }
@@ -444,77 +445,16 @@ void rebalanceInsufficentResolution()
     EXPECT_EQ(balancedTree, tree);
 }
 
-TEST(GlobalTree, rebalanceInsufficientResolution32)
+TEST(CornerstoneOctree, rebalanceInsufficientResolution32)
 {
     rebalanceInsufficentResolution<unsigned>();
 }
 
-TEST(GlobalTree, rebalanceInsufficientResolution64)
+TEST(CornerstoneOctree, rebalanceInsufficientResolution64)
 {
     rebalanceInsufficentResolution<uint64_t>();
 }
 
-template<class CodeType>
-void octreeInvariantHead()
-{
-    std::vector<CodeType> tree
-    {
-        codeFromIndices<CodeType>({1}),
-        codeFromIndices<CodeType>({2}),
-        codeFromIndices<CodeType>({3}),
-        codeFromIndices<CodeType>({4}),
-        codeFromIndices<CodeType>({5}),
-        codeFromIndices<CodeType>({6}),
-        codeFromIndices<CodeType>({7,0}),
-        codeFromIndices<CodeType>({7,1}),
-        codeFromIndices<CodeType>({7,2}),
-        codeFromIndices<CodeType>({7,3}),
-        codeFromIndices<CodeType>({7,4}),
-        codeFromIndices<CodeType>({7,5}),
-        codeFromIndices<CodeType>({7,6}),
-        codeFromIndices<CodeType>({7,7}),
-        nodeRange<CodeType>(0)
-    };
-
-    EXPECT_FALSE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
-}
-
-template<class CodeType>
-void octreeInvariantTail()
-{
-    std::vector<CodeType> tree
-    {
-        codeFromIndices<CodeType>({0}),
-        codeFromIndices<CodeType>({1}),
-        codeFromIndices<CodeType>({2}),
-        codeFromIndices<CodeType>({3}),
-        codeFromIndices<CodeType>({4}),
-        codeFromIndices<CodeType>({5}),
-        codeFromIndices<CodeType>({6}),
-        codeFromIndices<CodeType>({7,0}),
-        codeFromIndices<CodeType>({7,1}),
-        codeFromIndices<CodeType>({7,2}),
-        codeFromIndices<CodeType>({7,3}),
-        codeFromIndices<CodeType>({7,4}),
-        codeFromIndices<CodeType>({7,5}),
-        codeFromIndices<CodeType>({7,6}),
-        codeFromIndices<CodeType>({7,7}),
-    };
-
-    EXPECT_FALSE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
-}
-
-TEST(GlobalTree, octreeInvariants32)
-{
-    octreeInvariantHead<unsigned>();
-    octreeInvariantTail<unsigned>();
-}
-
-TEST(GlobalTree, octreeInvariants64)
-{
-    octreeInvariantHead<uint64_t>();
-    octreeInvariantTail<uint64_t>();
-}
 
 template<class I>
 void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<std::size_t>& counts, int bucketSize,
@@ -600,7 +540,7 @@ std::array<int, 3> bucketSizesPP{64, 1024, 10000};
 INSTANTIATE_TEST_SUITE_P(RandomBoxPP, ComputeOctreeTester, testing::ValuesIn(bucketSizesPP));
 
 
-TEST(GlobalTree, computeNodeMax)
+TEST(CornerstoneOctree, computeNodeMax)
 {
     using CodeType = unsigned;
 

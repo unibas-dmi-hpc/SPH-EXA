@@ -4,6 +4,7 @@ add_executable(sfc_tests
         morton.cpp
         disjointoctree.cpp
         octree.cpp
+        octree_util.cpp
         zorder.cpp
         findneighbors.cpp
         domaindecomp.cpp
