@@ -8,20 +8,11 @@ namespace sphexa
 {
 
 template <class I>
-void createInternalTree()
-{
-    // a tree with 4 subdivisions along each dimension, 64 nodes
-    std::vector<I> tree = detail::makeUniformNLevelTree<I>(64, 1);
-
-    auto internalTree = createInternalTree(tree);
-}
-
-template <class I>
 void findIncomingHalos()
 {
 
     // a tree with 4 subdivisions along each dimension, 64 nodes
-    std::vector<I> tree = detail::makeUniformNLevelTree<I>(64, 1);
+    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
 
     // two particles per node
     std::vector<std::size_t> counts(nNodes(tree), 2);

@@ -50,6 +50,7 @@ void printTree(const I* tree, const int* counts, int nNodes)
     std::cout << std::endl;
 }
 
+//! \brief test that computeNodeCounts correctly counts the number of codes for each node
 template<class CodeType>
 void checkCountTreeNodes()
 {
@@ -112,6 +113,7 @@ TEST(GlobalTree, countTreeNodes64)
     checkCountTreeNodes<uint64_t>();
 }
 
+//! \brief check that nodes can be fused at the start of the tree
 template<class CodeType>
 void rebalanceShrinkStart()
 {
@@ -163,6 +165,7 @@ TEST(GlobalTree, rebalanceShrinkStart64)
     rebalanceShrinkStart<uint64_t>();
 }
 
+//! \brief check that nodes can be fused in the middle of the tree
 template<class CodeType>
 void rebalanceShrinkMid()
 {
@@ -217,6 +220,7 @@ TEST(GlobalTree, rebalanceShrinkMid64)
     rebalanceShrinkMid<uint64_t>();
 }
 
+//! \brief check that nodes can be fused at the end of the tree
 template<class CodeType>
 void rebalanceShrinkEnd()
 {
@@ -272,9 +276,11 @@ TEST(GlobalTree, rebalanceShrinkEnd64)
     rebalanceShrinkEnd<uint64_t>();
 }
 
-TEST(GlobalTree, rebalanceRoot32)
+//! \brief test invariance of a single root node under rebalancing if count < bucketsize
+template<class I>
+void rebalanceRootInvariant()
 {
-    using CodeType = unsigned;
+    using CodeType = I;
     constexpr int bucketSize = 8;
 
     // single root node
@@ -287,69 +293,53 @@ TEST(GlobalTree, rebalanceRoot32)
     EXPECT_EQ(balancedTree, tree);
 }
 
-TEST(GlobalTree, rebalanceRoot64)
+TEST(GlobalTree, rebalanceRootInvariant32)
 {
-    using CodeType = uint64_t;
+    rebalanceRootInvariant<uint64_t>();
+}
+
+TEST(GlobalTree, rebalanceRootInvariant64)
+{
+    rebalanceRootInvariant<uint64_t>();
+}
+
+//! \brief test splitting of a single root node
+template<class I>
+void rebalanceRootSplit()
+{
+    using CodeType = I;
     constexpr int bucketSize = 8;
 
     // single root node
     std::vector<CodeType>    tree{0, nodeRange<CodeType>(0)};
-    std::vector<std::size_t> counts{7};
+    std::vector<std::size_t> counts{9};
 
     std::vector<CodeType> balancedTree
         = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
 
-    EXPECT_EQ(balancedTree, tree);
+    std::vector<CodeType> reference;
+    reference.reserve(9);
+
+    for (unsigned char i = 0; i < 8; ++i)
+    {
+        reference.push_back(codeFromIndices<CodeType>({i}));
+    }
+    reference.push_back(nodeRange<CodeType>(0));
+
+    EXPECT_EQ(balancedTree, reference);
 }
 
 TEST(GlobalTree, rebalanceRootSplit32)
 {
-    using CodeType = unsigned;
-    constexpr int bucketSize = 8;
-
-    // single root node
-    std::vector<CodeType>    tree{0, nodeRange<CodeType>(0)};
-    std::vector<std::size_t> counts{9};
-
-    std::vector<CodeType> balancedTree
-        = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
-
-    std::vector<CodeType> reference;
-    reference.reserve(9);
-
-    for (unsigned char i = 0; i < 8; ++i)
-    {
-        reference.push_back(codeFromIndices<CodeType>({i}));
-    }
-    reference.push_back(nodeRange<CodeType>(0));
-
-    EXPECT_EQ(balancedTree, reference);
+    rebalanceRootSplit<unsigned>();
 }
 
 TEST(GlobalTree, rebalanceRootSplit64)
 {
-    using CodeType = uint64_t;
-    constexpr int bucketSize = 8;
-
-    // single root node
-    std::vector<CodeType>    tree{0, nodeRange<CodeType>(0)};
-    std::vector<std::size_t> counts{9};
-
-    std::vector<CodeType> balancedTree
-        = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
-
-    std::vector<CodeType> reference;
-    reference.reserve(9);
-
-    for (unsigned char i = 0; i < 8; ++i)
-    {
-        reference.push_back(codeFromIndices<CodeType>({i}));
-    }
-    reference.push_back(nodeRange<CodeType>(0));
-
-    EXPECT_EQ(balancedTree, reference);
+    rebalanceRootSplit<uint64_t>();
 }
 
+//! \brief test node splitting and fusion simultaneously
 template<class CodeType>
 void rebalanceSplitShrink()
 {
@@ -375,7 +365,9 @@ void rebalanceSplitShrink()
         nodeRange<CodeType>(0)
     };
 
+    // nodes {7,i} will need to be fused
     std::vector<std::size_t> counts(nNodes(tree), 1);
+    // node {1} will need to be split
     counts[1] = bucketSize+1;
 
     std::vector<CodeType> balancedTree
@@ -400,12 +392,12 @@ void rebalanceSplitShrink()
 
 TEST(GlobalTree, rebalanceSplitShrink32)
 {
-    rebalanceShrinkEnd<unsigned>();
+    rebalanceSplitShrink<unsigned>();
 }
 
 TEST(GlobalTree, rebalanceSplitShrink64)
 {
-    rebalanceShrinkEnd<uint64_t>();
+    rebalanceSplitShrink<uint64_t>();
 }
 
 template<class CodeType>
@@ -578,7 +570,7 @@ public:
         // compute octree starting from just the root node
         auto [treeRN, countsRN] = sphexa::computeOctree(randomBox.mortonCodes().data(),
                                                         randomBox.mortonCodes().data() + nParticles,
-                                                        bucketSize, sphexa::detail::makeRootNodeTree<I>());
+                                                        bucketSize, sphexa::makeRootNodeTree<I>());
 
         checkOctreeWithCounts(treeML, countsRN, bucketSize, randomBox.mortonCodes());
 

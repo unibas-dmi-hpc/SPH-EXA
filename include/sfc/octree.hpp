@@ -161,9 +161,6 @@ std::vector<I> rebalanceTree(const I* tree, const std::size_t* counts, int nNode
     return balancedTree;
 }
 
-namespace detail
-{
-
 //! \brief returns an octree with just the root node
 template<class I>
 std::vector<I> makeRootNodeTree()
@@ -198,12 +195,9 @@ std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
     tree.push_back(nodeRange<I>(0));
 
     sort(begin(tree), end(tree));
-    assert(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
     return tree;
 }
-
-} // namespace detail
 
 
 /*! \brief compute an octree from morton codes for a specified bucket size
@@ -221,7 +215,7 @@ computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vecto
 {
     if (!tree.size())
     {
-        tree = detail::makeUniformNLevelTree<I>(codesEnd - codesStart, bucketSize);
+        tree = makeUniformNLevelTree<I>(codesEnd - codesStart, bucketSize);
     }
 
     std::vector<std::size_t> counts(nNodes(tree));
@@ -414,32 +408,6 @@ std::vector<NodeType<I>> trimZCurve(const std::vector<I>& mortonCodes, unsigned 
     }
 
     return ret;
-}
-
-namespace detail
-{
-
-/*! \brief merge two overlapping ranges of GlobalSfcNodes
- *
- * \tparam SfcInputIterator input random access iterator
- * \tparam I                32- or 64-bit unsigned integer type
- * \param superRange        iterator to the enclosing octree Morton code range
- * \param subRangeStart     superRange->startCode <= subRangeStart->startCode
- * \param subRangeEnd       subIt->endCode <= superRange->endCode for all subIt with subRangeStart <= subIt < subRangeEnd
- * \param outputNodes       output for the merged GlobalSfcNodes<I>
- */
-template<class SfcInputIterator, class I>
-void mergeOverlappingRange(SfcInputIterator superRange, SfcInputIterator subRangeStart, SfcInputIterator subRangeEnd,
-                           std::vector<GlobalSfcNode<I>>& outputNodes)
-{
-}
-
-} // namespace detail
-
-template<class I>
-std::vector<GlobalSfcNode<I>> mergeZCurves(const std::vector<GlobalSfcNode<I>>& a,
-                                           const std::vector<GlobalSfcNode<I>>& b)
-{
 }
 
 } // namespace sphexa
