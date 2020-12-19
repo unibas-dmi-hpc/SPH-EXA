@@ -5,7 +5,6 @@
 #include <numeric>
 #include <vector>
 
-#include "sfc/clz.hpp"
 #include "sfc/mortoncode.hpp"
 
 namespace sphexa
