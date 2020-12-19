@@ -322,7 +322,7 @@ inline I codeFromIndices(std::array<unsigned char, 21> indices)
  *                 a 64-bit integer can resolve 21 layers
  */
 template<class I>
-inline std::array<unsigned char, maxTreeLevel<I>{}>  indicesFromCode(I code)
+inline std::array<unsigned char, maxTreeLevel<I>{}> indicesFromCode(I code)
 {
     constexpr unsigned nLevels = maxTreeLevel<I>{};
 
