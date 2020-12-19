@@ -5,6 +5,7 @@
 #include "sfc/binarytree.hpp"
 #include "sfc/octree.hpp"
 
+using namespace sphexa;
 
 /*! \brief add (binary) zeros behind a prefix
  *
@@ -29,16 +30,14 @@ TEST(BinaryTree, padUtility)
     EXPECT_EQ(pad(0b011ul, 3), 0b0011ul << 60);
 }
 
-namespace sphexa
-{
 
 template <class I>
 void internal4x4x4PrefixTest()
 {
     // a tree with 4 subdivisions along each dimension, 64 nodes
-    std::vector<I> tree = detail::makeUniformNLevelTree<I>(64, 1);
+    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
 
-    auto internalTree = createInternalTree(tree);
+    auto internalTree = sphexa::createInternalTree(tree);
     EXPECT_EQ(internalTree[0].prefixLength, 0);
 
     EXPECT_EQ(internalTree[31].prefixLength, 1);
@@ -57,16 +56,12 @@ void internal4x4x4PrefixTest()
     EXPECT_EQ(internalTree[8].prefix, pad(I(0b001), 3));
 }
 
-} // namespace sphexa
-
 TEST(BinaryTree, internalTree4x4x4PrefixTest)
 {
-    sphexa::internal4x4x4PrefixTest<unsigned>();
-    sphexa::internal4x4x4PrefixTest<uint64_t>();
+    internal4x4x4PrefixTest<unsigned>();
+    internal4x4x4PrefixTest<uint64_t>();
 }
 
-namespace sphexa
-{
 
 /*! \brief Test overlap between octree nodes and coordinate ranges
  *
@@ -117,16 +112,12 @@ void overlapTest()
     EXPECT_EQ(6, level * 3);
 }
 
-} // namespace sphexa
-
 TEST(BinaryTree, internalTree4x4x4OverlapTest)
 {
-    sphexa::overlapTest<unsigned>();
-    sphexa::overlapTest<uint64_t>();
+    overlapTest<unsigned>();
+    overlapTest<uint64_t>();
 }
 
-namespace sphexa
-{
 template<class I>
 void makeHaloBoxTest()
 {
@@ -214,17 +205,14 @@ void makeHaloBoxTest()
         }
     }
 }
-} // namespace sphexa
 
 TEST(BinaryTree, makeHaloBox)
 {
-    sphexa::makeHaloBoxTest<unsigned>();
-    sphexa::makeHaloBoxTest<uint64_t>();
+    makeHaloBoxTest<unsigned>();
+    makeHaloBoxTest<uint64_t>();
 }
 
 
-namespace sphexa
-{
 /*! \brief Traversal test for all leaves in a regular octree
  *
  * This test performs the following:
@@ -246,7 +234,7 @@ void regular4x4x4traversalTest()
     /// 1.
     // a tree with 4 subdivisions along each dimension, 64 nodes
     // node range in each dimension is 256
-    std::vector<I> tree = detail::makeUniformNLevelTree<I>(64, 1);
+    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
 
     auto internalTree = createInternalTree(tree);
 
@@ -260,9 +248,9 @@ void regular4x4x4traversalTest()
     Box<double> box(0, (1u<<maxTreeLevel<I>{})-1);
     std::vector<double> haloRadii(nNodes(tree), 1.1);
 
-    EXPECT_EQ(dx, detail::toNBitInt<I>(normalize(haloRadii[0], box.xmin(), box.xmax())));
-    EXPECT_EQ(dy, detail::toNBitInt<I>(normalize(haloRadii[0], box.ymin(), box.ymax())));
-    EXPECT_EQ(dz, detail::toNBitInt<I>(normalize(haloRadii[0], box.zmin(), box.zmax())));
+    EXPECT_EQ(dx, sphexa::detail::toNBitInt<I>(normalize(haloRadii[0], box.xmin(), box.xmax())));
+    EXPECT_EQ(dy, sphexa::detail::toNBitInt<I>(normalize(haloRadii[0], box.ymin(), box.ymax())));
+    EXPECT_EQ(dz, sphexa::detail::toNBitInt<I>(normalize(haloRadii[0], box.zmin(), box.zmax())));
 
     /// 2.
     // find collisions of all leaf nodes enlarged by the halo ranges with all the other leaves
@@ -303,16 +291,13 @@ void regular4x4x4traversalTest()
         }
     }
 }
-} // namespace sphexa
 
 TEST(BinaryTree, regularTree4x4x4FullTraversal)
 {
-    sphexa::regular4x4x4traversalTest<unsigned>();
-    sphexa::overlapTest<uint64_t>();
+    regular4x4x4traversalTest<unsigned>();
+    regular4x4x4traversalTest<uint64_t>();
 }
 
-namespace sphexa
-{
 
 /*! \brief test collision detection with anisotropic halo ranges
  *
@@ -326,7 +311,7 @@ void anisotropicHaloBox()
 {
     // a tree with 4 subdivisions along each dimension, 64 nodes
     // node range in each dimension is 2^(10 or 21 - 2)
-    std::vector<I>             tree         = detail::makeUniformNLevelTree<I>(64, 1);
+    std::vector<I>             tree         = makeUniformNLevelTree<I>(64, 1);
     std::vector<BinaryNode<I>> internalTree = createInternalTree(tree);
 
     int r = 1u<<(maxTreeLevel<I>{}-2);
@@ -346,21 +331,18 @@ void anisotropicHaloBox()
     EXPECT_EQ(collisionsSorted, collisionsReference);
 }
 
-} // namespace sphexa
 
 TEST(BinaryTree, anisotropicHalo)
 {
-    sphexa::anisotropicHaloBox<unsigned>();
-    sphexa::anisotropicHaloBox<uint64_t>();
+    anisotropicHaloBox<unsigned>();
+    anisotropicHaloBox<uint64_t>();
 }
 
-namespace sphexa
-{
 
 template<class I>
 void irregularTreeTraversal()
 {
-    using detail::codeFromIndices;
+    using sphexa::detail::codeFromIndices;
     using uchar = unsigned char;
 
     std::vector<I> tree;
@@ -455,16 +437,13 @@ void irregularTreeTraversal()
         }
     }
 }
-} // namespace sphexa
 
 TEST(BinaryTree, irregularTreeTraversal)
 {
-    sphexa::irregularTreeTraversal<unsigned>();
-    sphexa::irregularTreeTraversal<uint64_t>();
+    irregularTreeTraversal<unsigned>();
+    irregularTreeTraversal<uint64_t>();
 }
 
-namespace sphexa
-{
 
 /*! Create a set of irregular octree leaves which do not cover the whole space
  *
@@ -584,10 +563,8 @@ void paperExampleTest()
     }
 }
 
-} // namespace sphexa
-
 TEST(BinaryTree, internalIrregular)
 {
-    sphexa::paperExampleTest<unsigned>();
-    sphexa::paperExampleTest<uint64_t>();
+    paperExampleTest<unsigned>();
+    paperExampleTest<uint64_t>();
 }
