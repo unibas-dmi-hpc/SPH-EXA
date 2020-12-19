@@ -400,6 +400,13 @@ TEST(GlobalTree, rebalanceSplitShrink64)
     rebalanceSplitShrink<uint64_t>();
 }
 
+/*! \brief test behavior of a maximum-depth tree under rebalancing
+ *
+ *  Node 0 is at the lowest octree level (10 or 21) and its particle
+ *  count is bigger than the bucket size. This test verifies that
+ *  this tree stays invariant under rebalancing because the capacity
+ *  of the underlying 30-bit or 63 bit Morton code is exhausted.
+ */
 template<class CodeType>
 void rebalanceInsufficentResolution()
 {
