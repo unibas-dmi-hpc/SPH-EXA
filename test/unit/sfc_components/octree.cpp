@@ -7,10 +7,9 @@
 
 #include "coord_samples/random.hpp"
 
+using namespace sphexa;
 using sphexa::detail::codeFromIndices;
 using sphexa::detail::codeFromBox;
-using sphexa::nodeRange;
-using sphexa::nNodes;
 
 template<class I>
 void printIndices(std::array<unsigned char, sphexa::maxTreeLevel<I>{}> indices)
@@ -67,31 +66,11 @@ void checkCountTreeNodes()
     {
         codes.push_back(codeFromBox<CodeType>({i,j,k}, level));
     }
-
     std::sort(begin(codes), end(codes));
 
-    std::vector<CodeType> tree{
-        codeFromIndices<CodeType>({0,0}),
-        codeFromIndices<CodeType>({0,1}),
-        codeFromIndices<CodeType>({0,2}),
-        codeFromIndices<CodeType>({0,3}),
-        codeFromIndices<CodeType>({0,4}),
-        codeFromIndices<CodeType>({0,5}),
-        codeFromIndices<CodeType>({0,6}),
-        codeFromIndices<CodeType>({0,7}),
-
-        codeFromIndices<CodeType>({1}),
-        codeFromIndices<CodeType>({2}),
-        codeFromIndices<CodeType>({3}),
-        codeFromIndices<CodeType>({4}),
-        codeFromIndices<CodeType>({5}),
-        codeFromIndices<CodeType>({6}),
-        codeFromIndices<CodeType>({7}),
-        nodeRange<CodeType>(0)
-    };
+    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
 
     std::vector<std::size_t> counts(sphexa::nNodes(tree));
-
     sphexa::computeNodeCounts(tree.data(), counts.data(), sphexa::nNodes(tree),
                               codes.data(), codes.data() + codes.size());
 
@@ -172,25 +151,7 @@ void rebalanceShrinkMid()
 {
     constexpr int bucketSize = 8;
 
-    std::vector<CodeType> tree
-    {
-        codeFromIndices<CodeType>({0}),
-        codeFromIndices<CodeType>({1,0}),
-        codeFromIndices<CodeType>({1,1}),
-        codeFromIndices<CodeType>({1,2}),
-        codeFromIndices<CodeType>({1,3}),
-        codeFromIndices<CodeType>({1,4}),
-        codeFromIndices<CodeType>({1,5}),
-        codeFromIndices<CodeType>({1,6}),
-        codeFromIndices<CodeType>({1,7}),
-        codeFromIndices<CodeType>({2}),
-        codeFromIndices<CodeType>({3}),
-        codeFromIndices<CodeType>({4}),
-        codeFromIndices<CodeType>({5}),
-        codeFromIndices<CodeType>({6}),
-        codeFromIndices<CodeType>({7}),
-    };
-    tree.push_back(nodeRange<CodeType>(0));
+    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(1).makeTree();
 
     std::vector<std::size_t> counts(nNodes(tree), 1);
     std::vector<CodeType> balancedTree
@@ -227,25 +188,7 @@ void rebalanceShrinkEnd()
 {
     constexpr int bucketSize = 8;
 
-    std::vector<CodeType> tree
-    {
-        codeFromIndices<CodeType>({0}),
-        codeFromIndices<CodeType>({1}),
-        codeFromIndices<CodeType>({2}),
-        codeFromIndices<CodeType>({3}),
-        codeFromIndices<CodeType>({4}),
-        codeFromIndices<CodeType>({5}),
-        codeFromIndices<CodeType>({6}),
-        codeFromIndices<CodeType>({7,0}),
-        codeFromIndices<CodeType>({7,1}),
-        codeFromIndices<CodeType>({7,2}),
-        codeFromIndices<CodeType>({7,3}),
-        codeFromIndices<CodeType>({7,4}),
-        codeFromIndices<CodeType>({7,5}),
-        codeFromIndices<CodeType>({7,6}),
-        codeFromIndices<CodeType>({7,7}),
-        nodeRange<CodeType>(0)
-    };
+    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(7).makeTree();
 
     std::vector<std::size_t> counts(nNodes(tree), 1);
 
@@ -346,25 +289,7 @@ void rebalanceSplitShrink()
 {
     constexpr int bucketSize = 8;
 
-    std::vector<CodeType> tree
-    {
-        codeFromIndices<CodeType>({0}),
-        codeFromIndices<CodeType>({1}),
-        codeFromIndices<CodeType>({2}),
-        codeFromIndices<CodeType>({3}),
-        codeFromIndices<CodeType>({4}),
-        codeFromIndices<CodeType>({5}),
-        codeFromIndices<CodeType>({6}),
-        codeFromIndices<CodeType>({7,0}),
-        codeFromIndices<CodeType>({7,1}),
-        codeFromIndices<CodeType>({7,2}),
-        codeFromIndices<CodeType>({7,3}),
-        codeFromIndices<CodeType>({7,4}),
-        codeFromIndices<CodeType>({7,5}),
-        codeFromIndices<CodeType>({7,6}),
-        codeFromIndices<CodeType>({7,7}),
-        nodeRange<CodeType>(0)
-    };
+    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(7).makeTree();
 
     // nodes {7,i} will need to be fused
     std::vector<std::size_t> counts(nNodes(tree), 1);
@@ -413,34 +338,19 @@ void rebalanceInsufficentResolution()
 {
     constexpr int bucketSize = 1;
 
-    std::vector<CodeType> tree{0};
-    std::array<unsigned char, sphexa::maxTreeLevel<uint64_t>{}> zeroIndices{0};
-    for (int level = 0; level < sphexa::maxTreeLevel<CodeType>{}; ++level)
-    {
-        auto indices = zeroIndices;
-        for (int sibling = 1; sibling < 8; ++sibling)
-        {
-            indices[level] = sibling;
-            tree.push_back(sphexa::detail::codeFromIndices<CodeType>(indices));
-        }
-    }
-    tree.push_back(nodeRange<CodeType>(0));
-    std::sort(begin(tree), end(tree));
+    OctreeMaker<CodeType> octreeMaker;
+    for (int level = 0; level < maxTreeLevel<CodeType>{}; ++level)
+        octreeMaker.divide({}, level);
+    std::vector<CodeType> tree = octreeMaker.makeTree();
 
     std::vector<std::size_t> counts(nNodes(tree), 1);
     counts[0] = bucketSize + 1;
-
-    //printTree(tree.data(), counts.data(), nNodes(tree));
-    EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
 
     // the first node has two particles, one more than the bucketSize
     // since the first node is at the maximum subdivision layer, the tree
     // can't be further refined to satisfy the bucketSize
     std::vector<CodeType> balancedTree
         = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
-
-    EXPECT_TRUE(sphexa::checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
-    EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
 
     EXPECT_EQ(balancedTree, tree);
 }

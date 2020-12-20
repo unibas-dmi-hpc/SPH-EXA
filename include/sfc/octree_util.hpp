@@ -68,7 +68,6 @@ std::vector<I> makeRootNodeTree()
 template<class I>
 class OctreeMaker
 {
-    using uchar = unsigned char;
 public:
     OctreeMaker() : tree(makeRootNodeTree<I>()) {}
 
