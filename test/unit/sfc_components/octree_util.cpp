@@ -147,6 +147,8 @@ void octreeMakerMaxLevel()
         std::sort(begin(refTree), end(refTree));
     }
 
+    EXPECT_TRUE(sphexa::checkOctreeInvariants(refTree.data(), nNodes(refTree)));
+
     OctreeMaker<CodeType> octreeMaker;
     for (int level = 0; level < maxTreeLevel<I>{}; ++level)
         octreeMaker.divide({}, level);
