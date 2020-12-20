@@ -2,6 +2,7 @@
 add_executable(sfc_tests
         boxoverlap.cpp
         btree.cpp
+        btreetraversal.cpp
         clz.cpp
         domaindecomp.cpp
         disjointoctree.cpp

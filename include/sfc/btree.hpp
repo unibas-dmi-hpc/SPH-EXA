@@ -1,6 +1,6 @@
 #pragma once
 
-/*! \brief \file binary radix tree implementation
+/*! \brief \file parallel binary radix tree construction implementation
  *
  * Algorithm published in https://dl.acm.org/doi/10.5555/2383795.2383801
  * and further illustrated at
@@ -60,40 +60,6 @@ struct BinaryNode
     int rightLeafIndex;
 };
 
-//! \brief stores indices of colliding octree leaf nodes
-class CollisionList
-{
-public:
-    //! \brief add an index to the list of colliding leaf tree nodes
-    void add(int i)
-    {
-        list_[n_] = i;
-        n_ = (n_ < collisionMax-1) ? n_+1 : n_;
-    }
-
-    //! \brief access collision list as a range
-    [[nodiscard]] const int* begin() const { return list_; }
-    [[nodiscard]] const int* end()   const { return list_ + n_; }
-
-    //! \brief access collision list elements
-    int operator[](int i) const
-    {
-        assert(i < collisionMax);
-        return list_[i];
-    }
-
-    /*! \brief returns number of collisions
-     *
-     * Can (should) also be used to check whether the internal storage
-     * was exhausted during collision detection.
-     */
-    [[nodiscard]] int size() const { return n_; };
-
-private:
-    static constexpr int collisionMax = 64;
-    int n_{0};
-    int list_[collisionMax]{0};
-};
 
 /*! \brief calculate common prefix (cpr) of two morton keys
  *
@@ -258,102 +224,6 @@ void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalN
 }
 
 
-/*! \brief find all collisions between a leaf node enlarged by (dx,dy,dz) and the rest of the tree
- *
- * @tparam I                  32- or 64-bit unsigned integer
- * @param[in]  internalRoot   root of the internal binary radix tree
- * @param[in]  leafNodes      octree leaf nodes
- * @param[out] collisionList  output list of indices of colliding nodes
- * @param[in]  haloBox        query box to look for collisions
- *                            with leaf nodes
- *
- * At all traversal steps through the hierarchy of the internal binary radix tree,
- * all 3 x,y,z dimensions are checked to determine overlap with a binary node.
- * In principle it would be sufficient to only check
- *
- * x at nodes with prefixLength % 3 == 1
- * y at nodes with prefixLength % 3 == 2
- * z at nodes with prefixLength % 3 == 0
- *
- * This is possible due the invariants of the construction of the octree leaf nodes:
- * - the 7 siblings of each node with the same parent node always exist
- * - the leaf nodes are guaranteed to cover the whole space or Morton code range
- *   from 0 to 2^(30 or 63).
- * Due to these invariants each internal binary node will have one more bit in its
- * prefix than its parent.
- *
- * However, the construction of the internal tree and the following traversal as
- * implemented also works if an arbitrary sorted sequence of Morton codes was used
- * for the construction of the internal tree, i.e. holes or omission of empty nodes
- * would be possible. Since this capability might be useful in the future, and the
- * cost to check all 3 dimensions at each step should not be very high, we keep
- * the implementation general.
- */
-template<class I>
-void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes,
-                    CollisionList& collisionList, const Box<int>& haloBox)
-{
-    using NodePtr = BinaryNode<I>*;
-    assert(0 <= haloBox.xmin() && haloBox.xmax() <= (1u<<maxTreeLevel<I>{}));
-    assert(0 <= haloBox.ymin() && haloBox.ymax() <= (1u<<maxTreeLevel<I>{}));
-    assert(0 <= haloBox.zmin() && haloBox.zmax() <= (1u<<maxTreeLevel<I>{}));
-
-    NodePtr  stack[64];
-    NodePtr* stackPtr = stack;
-
-    *stackPtr++ = nullptr;
-
-    const BinaryNode<I>* node = internalRoot;
-
-    do {
-        if (node->leftChild)
-        {
-            if (overlap(node->leftChild->prefix, node->leftChild->prefixLength,
-                        haloBox))
-            {
-                assert(stackPtr - stack < 64 && "local stack overflow");
-                *stackPtr++ = node->leftChild;
-            }
-        }
-        else {
-            int leafIndex    = node->leftLeafIndex;
-            I leafCode       = leafNodes[leafIndex];
-            I leafUpperBound = leafNodes[leafIndex+1];
-
-            int prefixNBits = treeLevel(leafUpperBound - leafCode) * 3;
-
-            if (overlap(leafCode, prefixNBits, haloBox))
-            {
-                collisionList.add(leafIndex);
-            }
-        }
-        if (node->rightChild)
-        {
-            if (overlap(node->rightChild->prefix, node->rightChild->prefixLength,
-                        haloBox))
-            {
-                assert(stackPtr - stack < 64 && "local stack overflow");
-                *stackPtr++ = node->rightChild;
-            }
-        }
-        else {
-            int leafIndex    = node->rightLeafIndex;
-            I leafCode       = leafNodes[leafIndex];
-            I leafUpperBound = leafNodes[leafIndex+1];
-
-            int prefixNBits = treeLevel(leafUpperBound - leafCode) * 3;
-
-            if (overlap(leafCode, prefixNBits, haloBox))
-            {
-                collisionList.add(leafIndex);
-            }
-        }
-
-        node = *--stackPtr;
-
-    } while (node != nullptr);
-}
-
 /*! \brief create the internal part of an octree as internal nodes
  *
  * @tparam I    32- or 64-bit unsigned integer
@@ -376,43 +246,6 @@ std::vector<BinaryNode<I>> createInternalTree(const std::vector<I>& tree)
     }
 
     return ret;
-}
-
-/*! \brief For each leaf node enlarged by its halo radius, find all colliding leaf nodes
- *
- * @tparam I            32- or 64-bit unsigned integer
- * @param internalTree  internal binary tree
- * @param tree          sorted Morton codes representing the leaves of the (global) octree
- * @param haloRadii     halo search radii per leaf node, length = nNodes(tree)
- * @return              list of colliding node indices for each leaf node
- *
- * This is a CPU version that can be OpenMP parallelized.
- * In the GPU version, the for-loop body is designed such that one GPU-thread
- * can be launched for each for-loop element.
- */
-template<class I, class T>
-std::vector<CollisionList> findAllCollisions(const std::vector<BinaryNode<I>>& internalTree, const std::vector<I>& tree,
-                                             const std::vector<T>& haloRadii, const Box<T>& globalBox)
-{
-    assert(internalTree.size() == tree.size() - 1 && "internal tree does not match leaves");
-    assert(internalTree.size() == haloRadii.size() && "need one halo radius per leaf node");
-
-    std::vector<CollisionList> collisions(tree.size() - 1);
-
-    // (omp) parallel
-    for (int leafIdx = 0; leafIdx < internalTree.size(); ++leafIdx)
-    {
-        T radius = haloRadii[leafIdx];
-
-        int dx = detail::toNBitInt<I>(normalize(radius, globalBox.xmin(), globalBox.xmax()));
-        int dy = detail::toNBitInt<I>(normalize(radius, globalBox.ymin(), globalBox.ymax()));
-        int dz = detail::toNBitInt<I>(normalize(radius, globalBox.zmin(), globalBox.zmax()));
-
-        Box<int> haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx+1], dx, dy, dz);
-        findCollisions(internalTree.data(), tree.data(), collisions[leafIdx], haloBox);
-    }
-
-    return collisions;
 }
 
 } // namespace sphexa
