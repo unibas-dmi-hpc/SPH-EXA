@@ -32,38 +32,6 @@ TEST(BinaryTree, padUtility)
 }
 
 
-template <class I>
-void internal4x4x4PrefixTest()
-{
-    // a tree with 4 subdivisions along each dimension, 64 nodes
-    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
-
-    auto internalTree = sphexa::createInternalTree(tree);
-    EXPECT_EQ(internalTree[0].prefixLength, 0);
-
-    EXPECT_EQ(internalTree[31].prefixLength, 1);
-    EXPECT_EQ(internalTree[31].prefix, pad(I(0b0), 1));
-    EXPECT_EQ(internalTree[32].prefixLength, 1);
-    EXPECT_EQ(internalTree[32].prefix, pad(I(0b1), 1));
-
-    EXPECT_EQ(internalTree[15].prefixLength, 2);
-    EXPECT_EQ(internalTree[15].prefix, pad(I(0b00), 2));
-    EXPECT_EQ(internalTree[16].prefixLength, 2);
-    EXPECT_EQ(internalTree[16].prefix, pad(I(0b01), 2));
-
-    EXPECT_EQ(internalTree[7].prefixLength, 3);
-    EXPECT_EQ(internalTree[7].prefix, pad(I(0b000), 3));
-    EXPECT_EQ(internalTree[8].prefixLength, 3);
-    EXPECT_EQ(internalTree[8].prefix, pad(I(0b001), 3));
-}
-
-TEST(BinaryTree, internalTree4x4x4PrefixTest)
-{
-    internal4x4x4PrefixTest<unsigned>();
-    internal4x4x4PrefixTest<uint64_t>();
-}
-
-
 /*! \brief Test overlap between octree nodes and coordinate ranges
  *
  * The octree node is given as a Morton code plus number of bits
@@ -104,113 +72,145 @@ void overlapTest()
     EXPECT_FALSE(overlap(node.prefix, node.prefixLength, Box<int>{r-1, r, r, r+1, r, r+1}));
     EXPECT_FALSE(overlap(node.prefix, node.prefixLength, Box<int>{r, r+1, r-1, r, r, r+1}));
     EXPECT_FALSE(overlap(node.prefix, node.prefixLength, Box<int>{r, r+1, r, r+1, r-1, r}));
-
-    // for octree leaves, we can find the number of bits in the key
-    // by first computing the tree level, then multiplying by 3
-    I leaf1 = pad(I(0b000111), 6);
-    I leaf2 = pad(I(0b001000), 6);
-    int level = treeLevel(leaf2 - leaf1);
-    EXPECT_EQ(6, level * 3);
 }
 
-TEST(BinaryTree, internalTree4x4x4OverlapTest)
+TEST(BinaryTree, overlaps)
 {
     overlapTest<unsigned>();
     overlapTest<uint64_t>();
 }
 
+
+//! \brief check halo box ranges in all spatial dimensions
 template<class I>
-void makeHaloBoxTest()
+void makeHaloBoxXYZ()
 {
-    {
-        int r = I(1) << (maxTreeLevel<I>{} - 3);
-        // node range: [r,2r]^3
-        I nodeStart = pad(I(0b000000111), 9);
-        I nodeEnd = pad(I(0b000001000), 9);
+    int r = I(1) << (maxTreeLevel<I>{} - 3);
+    // node range: [r,2r]^3
+    I nodeStart = pad(I(0b000000111), 9);
+    I nodeEnd = pad(I(0b000001000), 9);
 
-        /// internal node check
-        {
-            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
-            EXPECT_EQ(haloBox.xmin(), r - 1);
-            EXPECT_EQ(haloBox.xmax(), 2 * r + 1);
-            EXPECT_EQ(haloBox.ymin(), r);
-            EXPECT_EQ(haloBox.ymax(), 2 * r);
-            EXPECT_EQ(haloBox.zmin(), r);
-            EXPECT_EQ(haloBox.zmax(), 2 * r);
-        }
-        {
-            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
-            EXPECT_EQ(haloBox.xmin(), r);
-            EXPECT_EQ(haloBox.xmax(), 2 * r);
-            EXPECT_EQ(haloBox.ymin(), r - 1);
-            EXPECT_EQ(haloBox.ymax(), 2 * r + 1);
-            EXPECT_EQ(haloBox.zmin(), r);
-            EXPECT_EQ(haloBox.zmax(), 2 * r);
-        }
-        {
-            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
-            EXPECT_EQ(haloBox.xmin(), r);
-            EXPECT_EQ(haloBox.xmax(), 2 * r);
-            EXPECT_EQ(haloBox.ymin(), r);
-            EXPECT_EQ(haloBox.ymax(), 2 * r);
-            EXPECT_EQ(haloBox.zmin(), r - 1);
-            EXPECT_EQ(haloBox.zmax(), 2 * r + 1);
-        }
+    /// internal node check
+    {
+        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
+        Box<int> refBox{r-1, 2*r+1, r, 2*r, r, 2*r};
+        EXPECT_EQ(haloBox, refBox);
     }
-
-    /// underflow check
     {
-        int r = I(1) << (maxTreeLevel<I>{} - 1);
-        // node range: [r,2r]^3
-        I nodeStart = pad(I(0b000), 3);
-        I nodeEnd = pad(I(0b001), 3);
-
-        {
-            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
-            EXPECT_EQ(haloBox.xmin(), 0);
-            EXPECT_EQ(haloBox.xmax(), r+1);
-        }
-        {
-            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
-            EXPECT_EQ(haloBox.ymin(), 0);
-            EXPECT_EQ(haloBox.ymax(), r+1);
-        }
-        {
-            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
-            EXPECT_EQ(haloBox.zmin(), 0);
-            EXPECT_EQ(haloBox.zmax(), r+1);
-        }
+        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
+        Box<int> refBox{r, 2*r, r-1, 2*r+1, r, 2*r};
+        EXPECT_EQ(haloBox, refBox);
     }
-
-    /// overflow check
     {
-        int r = I(1) << (maxTreeLevel<I>{} - 1);
-        // node range: [r,2r]^3
-        I nodeStart = pad(I(0b111), 3);
-        I nodeEnd   = nodeRange<I>(0);
-
-        {
-            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
-            EXPECT_EQ(haloBox.xmin(), r-1);
-            EXPECT_EQ(haloBox.xmax(), 2*r);
-        }
-        {
-            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
-            EXPECT_EQ(haloBox.ymin(), r-1);
-            EXPECT_EQ(haloBox.ymax(), 2*r);
-        }
-        {
-            Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
-            EXPECT_EQ(haloBox.zmin(), r-1);
-            EXPECT_EQ(haloBox.zmax(), 2*r);
-        }
+        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
+        Box<int> refBox{r, 2*r, r, 2*r, r-1, 2*r+1};
+        EXPECT_EQ(haloBox, refBox);
     }
 }
 
-TEST(BinaryTree, makeHaloBox)
+TEST(BinaryTree, makeHaloBoxXYZ)
 {
-    makeHaloBoxTest<unsigned>();
-    makeHaloBoxTest<uint64_t>();
+    makeHaloBoxXYZ<unsigned>();
+    makeHaloBoxXYZ<uint64_t>();
+}
+
+
+//! \brief underflow check
+template<class I>
+void makeHaloBoxUnderflow()
+{
+    int r = I(1) << (maxTreeLevel<I>{} - 1);
+    // node range: [r,2r]^3
+    I nodeStart = pad(I(0b000), 3);
+    I nodeEnd = pad(I(0b001), 3);
+
+    {
+        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
+        Box<int> refBox{0, r+1, 0, r, 0, r};
+        EXPECT_EQ(haloBox, refBox);
+    }
+    {
+        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
+        Box<int> refBox{0, r, 0, r+1, 0, r};
+        EXPECT_EQ(haloBox, refBox);
+    }
+    {
+        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
+        Box<int> refBox{0, r, 0, r, 0, r+1};
+        EXPECT_EQ(haloBox, refBox);
+    }
+}
+
+TEST(BinaryTree, makeHaloBoxUnderflow)
+{
+    makeHaloBoxUnderflow<unsigned>();
+    makeHaloBoxUnderflow<uint64_t>();
+}
+
+
+//! \brief overflow check
+template<class I>
+void makeHaloBoxOverflow()
+{
+    int r = I(1) << (maxTreeLevel<I>{} - 1);
+    // node range: [r,2r]^3
+    I nodeStart = pad(I(0b111), 3);
+    I nodeEnd   = nodeRange<I>(0);
+
+    {
+        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
+        Box<int> refBox{r-1, 2*r, r, 2*r, r, 2*r};
+        EXPECT_EQ(haloBox, refBox);
+    }
+    {
+        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
+        Box<int> refBox{r, 2*r, r-1, 2*r, r, 2*r};
+        EXPECT_EQ(haloBox, refBox);
+    }
+    {
+        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
+        Box<int> refBox{r, 2*r, r, 2*r, r-1, 2*r};
+        EXPECT_EQ(haloBox, refBox);
+    }
+}
+
+TEST(BinaryTree, makeHaloBoxOverflow)
+{
+    makeHaloBoxOverflow<unsigned>();
+    makeHaloBoxOverflow<uint64_t>();
+}
+
+
+//! \brief check binary node prefixes
+template <class I>
+void internal4x4x4PrefixTest()
+{
+    // a tree with 4 subdivisions along each dimension, 64 nodes
+    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
+
+    auto internalTree = sphexa::createInternalTree(tree);
+    EXPECT_EQ(internalTree[0].prefixLength, 0);
+
+    EXPECT_EQ(internalTree[31].prefixLength, 1);
+    EXPECT_EQ(internalTree[31].prefix, pad(I(0b0), 1));
+    EXPECT_EQ(internalTree[32].prefixLength, 1);
+    EXPECT_EQ(internalTree[32].prefix, pad(I(0b1), 1));
+
+    EXPECT_EQ(internalTree[15].prefixLength, 2);
+    EXPECT_EQ(internalTree[15].prefix, pad(I(0b00), 2));
+    EXPECT_EQ(internalTree[16].prefixLength, 2);
+    EXPECT_EQ(internalTree[16].prefix, pad(I(0b01), 2));
+
+    EXPECT_EQ(internalTree[7].prefixLength, 3);
+    EXPECT_EQ(internalTree[7].prefix, pad(I(0b000), 3));
+    EXPECT_EQ(internalTree[8].prefixLength, 3);
+    EXPECT_EQ(internalTree[8].prefix, pad(I(0b001), 3));
+}
+
+TEST(BinaryTree, internalTree4x4x4PrefixTest)
+{
+    internal4x4x4PrefixTest<unsigned>();
+    internal4x4x4PrefixTest<uint64_t>();
 }
 
 
