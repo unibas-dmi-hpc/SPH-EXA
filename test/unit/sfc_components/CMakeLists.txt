@@ -1,17 +1,17 @@
 
 add_executable(sfc_tests
         boxoverlap.cpp
+        btree.cpp
         clz.cpp
-        morton.cpp
+        domaindecomp.cpp
         disjointoctree.cpp
+        findneighbors.cpp
+        halos.cpp
+        histogram.cpp
+        morton.cpp
         octree.cpp
         octree_util.cpp
         zorder.cpp
-        findneighbors.cpp
-        domaindecomp.cpp
-        histogram.cpp
-        halos.cpp
-        binarytree.cpp
         test_main.cpp)
 
 target_include_directories(sfc_tests PRIVATE ${PROJECT_SOURCE_DIR}/include)
