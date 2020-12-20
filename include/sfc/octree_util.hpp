@@ -103,7 +103,7 @@ public:
         return *this;
     }
 
-    /*! \brief convenience alias for the other divid
+    /*! \brief convenience alias for the other divide
      *
      * Gets rid of the explicit level argument which is not needed if the number
      * of levels is known at compile time.
