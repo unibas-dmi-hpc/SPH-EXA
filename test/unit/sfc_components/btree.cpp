@@ -2,7 +2,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sfc/binarytree.hpp"
+#include "sfc/btree.hpp"
 #include "sfc/octree.hpp"
 #include "sfc/octree_util.hpp"
 
