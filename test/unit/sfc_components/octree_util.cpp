@@ -5,11 +5,11 @@
 #include "sfc/octree.hpp"
 #include "sfc/octree_util.hpp"
 
+
+using namespace sphexa;
+
 using sphexa::detail::codeFromIndices;
 using sphexa::detail::codeFromBox;
-using sphexa::nodeRange;
-using sphexa::nNodes;
-
 
 //! \brief detect missing zero node
 template<class CodeType>
@@ -80,4 +80,87 @@ TEST(CornerstoneUtil, invariants64)
     invariantHead<uint64_t>();
     invariantTail<uint64_t>();
     invariantSiblings<uint64_t>();
+}
+
+//! \brief test OctreeMaker node division
+template<class I>
+void octreeMakerDivide()
+{
+    using CodeType = I;
+
+    // divide root node and node {7}
+    auto tree = OctreeMaker<CodeType>{}.divide().divide(7).makeTree();
+
+    std::vector<CodeType> refTree
+        {
+            codeFromIndices<CodeType>({0}),
+            codeFromIndices<CodeType>({1}),
+            codeFromIndices<CodeType>({2}),
+            codeFromIndices<CodeType>({3}),
+            codeFromIndices<CodeType>({4}),
+            codeFromIndices<CodeType>({5}),
+            codeFromIndices<CodeType>({6}),
+            codeFromIndices<CodeType>({7,0}),
+            codeFromIndices<CodeType>({7,1}),
+            codeFromIndices<CodeType>({7,2}),
+            codeFromIndices<CodeType>({7,3}),
+            codeFromIndices<CodeType>({7,4}),
+            codeFromIndices<CodeType>({7,5}),
+            codeFromIndices<CodeType>({7,6}),
+            codeFromIndices<CodeType>({7,7}),
+            nodeRange<CodeType>(0)
+        };
+
+    EXPECT_EQ(tree, refTree);
+}
+
+TEST(CornerstoneUtil, octreeMakerDivide32)
+{
+    octreeMakerDivide<unsigned>();
+}
+
+TEST(CornerstoneUtil, octreeMakerDivide64)
+{
+    octreeMakerDivide<uint64_t>();
+}
+
+
+//! \brief test OctreeMaker creation of a maximum level tree
+template<class I>
+void octreeMakerMaxLevel()
+{
+    using CodeType = I;
+
+    std::vector<CodeType> refTree{0};
+    {
+        std::array<unsigned char, sphexa::maxTreeLevel<uint64_t>{}> zeroIndices{0};
+        for (int level = 0; level < sphexa::maxTreeLevel<CodeType>{}; ++level)
+        {
+            auto indices = zeroIndices;
+            for (int sibling = 1; sibling < 8; ++sibling)
+            {
+                indices[level] = sibling;
+                refTree.push_back(sphexa::detail::codeFromIndices<CodeType>(indices));
+            }
+        }
+        refTree.push_back(nodeRange<CodeType>(0));
+        std::sort(begin(refTree), end(refTree));
+    }
+
+    OctreeMaker<CodeType> octreeMaker;
+    for (int level = 0; level < maxTreeLevel<I>{}; ++level)
+        octreeMaker.divide({}, level);
+
+    std::vector<CodeType> tree = octreeMaker.makeTree();
+    EXPECT_EQ(tree, refTree);
+}
+
+TEST(CornerstoneUtil, octreeMakerMaxLevel32)
+{
+    octreeMakerMaxLevel<unsigned>();
+}
+
+TEST(CornerstoneUtil, octreeMakerMaxLevel64)
+{
+    octreeMakerMaxLevel<uint64_t>();
 }

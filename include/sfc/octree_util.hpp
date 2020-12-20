@@ -63,4 +63,67 @@ std::vector<I> makeRootNodeTree()
     return tree;
 }
 
+
+//! \brief generate example cornerstone octrees for testing
+template<class I>
+class OctreeMaker
+{
+    using uchar = unsigned char;
+public:
+    OctreeMaker() : tree(makeRootNodeTree<I>()) {}
+
+    /*! \brief introduce all 8 children of the node specified as argument
+     *
+     * @param idx    node definition given as a series of indices in [0-7],
+     *               as specified by the function codeFromIndices.
+     * @param level  number of indices in idx that belong to the node to be divided
+     * @return       the object itself to allow chaining of divide calls()
+     *
+     * This function adds the Morton codes codeFromIndices({args..., i}) for i = 1...7
+     * to the tree which corresponds to dividing the existing node codeFromIndices({args...});
+     */
+    OctreeMaker& divide(std::array<int, maxTreeLevel<uint64_t>{}> idx, int level)
+    {
+        std::array<unsigned char, maxTreeLevel<uint64_t>{}> indices{};
+        for (int i = 0; i < idx.size(); ++i)
+            indices[i] = static_cast<unsigned char>(idx[i]);
+
+        assert( std::find(begin(tree), end(tree), detail::codeFromIndices<I>(indices))
+                != end(tree) && "node to be divided not present in tree");
+
+        indices[level] = 1;
+        assert( std::find(begin(tree), end(tree), detail::codeFromIndices<I>(indices))
+                == end(tree) && "children of node to be divided already present in tree");
+
+        for (int sibling = 1; sibling < 8; ++sibling)
+        {
+            indices[level] = sibling;
+            tree.push_back(detail::codeFromIndices<I>(indices));
+        }
+
+        return *this;
+    }
+
+    /*! \brief convenience alias for the other divid
+     *
+     * Gets rid of the explicit level argument which is not needed if the number
+     * of levels is known at compile time.
+     */
+    template<class ...Args>
+    OctreeMaker& divide(Args... args)
+    {
+        return divide({args...}, sizeof...(Args));
+    }
+
+    //! \brief return the finished tree, fulfilling the necessary invariants
+    std::vector<I> makeTree()
+    {
+        std::sort(begin(tree), end(tree)) ;
+        return tree;
+    }
+
+private:
+    std::vector<I> tree;
+};
+
 } // namespace sphexa
