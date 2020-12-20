@@ -344,28 +344,8 @@ template<class I>
 void irregularTreeTraversal()
 {
     using sphexa::detail::codeFromIndices;
-    using uchar = unsigned char;
 
-    std::vector<I> tree;
-    tree.reserve(100);
-
-    // divide root node
-    for(int i = 0; i < 8; ++i)
-        tree.push_back(codeFromIndices<I>({uchar(i)}));
-
-    // divide node 0 at level 1
-    for(int i = 1; i < 8; ++i)
-        tree.push_back(codeFromIndices<I>({0, uchar(i)}));
-
-    // divide node 0,7 at level 2
-    for(int i = 1; i < 8; ++i)
-        tree.push_back(codeFromIndices<I>({0, 7, uchar(i)}));
-
-    tree.push_back(nodeRange<I>(0));
-
-    std::sort(begin(tree), end(tree));
-
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
+    auto tree = OctreeMaker<I>{}.divide().divide(0).divide(0,7).makeTree();
 
     std::vector<BinaryNode<I>> internalTree = createInternalTree(tree);
 
@@ -378,16 +358,13 @@ void irregularTreeTraversal()
         int idx2 = std::find(begin(tree), end(tree), codeFromIndices<I>({0,7,7}))
                    - begin(tree);
         EXPECT_EQ(14, idx2);
-
-        int idx3 = std::find(begin(tree), end(tree), codeFromIndices<I>({4}))
-                   - begin(tree);
-        EXPECT_EQ(18, idx3);
     }
 
     // launch collision detection with a big level 1 node next to the small level 3 ones
     {
         I queryNode = codeFromIndices<I>({4});
         int queryIdx = std::find(begin(tree), end(tree), queryNode) - begin(tree);
+        EXPECT_EQ(18, queryIdx);
 
         // this halo box intersects with neighbors in x direction and will intersect
         // with multiple smaller level 2 and level 3 nodes
