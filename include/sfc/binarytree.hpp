@@ -37,6 +37,7 @@
 
 #include "sfc/clz.hpp"
 #include "sfc/mortoncode.hpp"
+#include "sfc/boxoverlap.hpp"
 
 namespace sphexa {
 
@@ -59,6 +60,41 @@ struct BinaryNode
     int rightLeafIndex;
 };
 
+//! \brief stores indices of colliding octree leaf nodes
+class CollisionList
+{
+public:
+    //! \brief add an index to the list of colliding leaf tree nodes
+    void add(int i)
+    {
+        list_[n_] = i;
+        n_ = (n_ < collisionMax-1) ? n_+1 : n_;
+    }
+
+    //! \brief access collision list as a range
+    [[nodiscard]] const int* begin() const { return list_; }
+    [[nodiscard]] const int* end()   const { return list_ + n_; }
+
+    //! \brief access collision list elements
+    int operator[](int i) const
+    {
+        assert(i < collisionMax);
+        return list_[i];
+    }
+
+    /*! \brief returns number of collisions
+     *
+     * Can (should) also be used to check whether the internal storage
+     * was exhausted during collision detection.
+     */
+    [[nodiscard]] int size() const { return n_; };
+
+private:
+    static constexpr int collisionMax = 64;
+    int n_{0};
+    int list_[collisionMax]{0};
+};
+
 /*! \brief calculate common prefix (cpr) of two morton keys
  *
  * @tparam I    32 or 64 bit unsigned integer
@@ -73,6 +109,7 @@ int cpr(I key1, I key2)
 {
     return int(countLeadingZeros(key1 ^ key2)) - unusedBits<I>{};
 }
+
 
 /*! \brief find position of first differing bit
  *
@@ -218,102 +255,6 @@ void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalN
         idxNode->rightChild     = internalNodes + gamma + 1;
         idxNode->rightLeafIndex = -1;
     }
-}
-
-//! \brief stores indices of colliding octree leaf nodes
-class CollisionList
-{
-public:
-    //! \brief add an index to the list of colliding leaf tree nodes
-    void add(int i)
-    {
-        list_[n_] = i;
-        n_ = (n_ < collisionMax-1) ? n_+1 : n_;
-    }
-
-    //! \brief access collision list as a range
-    [[nodiscard]] const int* begin() const { return list_; }
-    [[nodiscard]] const int* end()   const { return list_ + n_; }
-
-    //! \brief access collision list elements
-    int operator[](int i) const
-    {
-        assert(i < collisionMax);
-        return list_[i];
-    }
-
-    /*! \brief returns number of collisions
-     *
-     * Can (should) also be used to check whether the internal storage
-     * was exhausted during collision detection.
-     */
-    [[nodiscard]] int size() const { return n_; };
-
-private:
-    static constexpr int collisionMax = 64;
-    int n_{0};
-    int list_[collisionMax]{0};
-};
-
-/*! \brief check for overlap between a binary or octree node and an box 3D space
- *
- * @tparam I
- * @param prefix            Morton code node prefix, defines the corner of node
- *                          closest to origin. Also equals the lower Morton code bound
- *                          of the node.
- * @param length            Number of bits in the prefix to treat as the key. Defines
- *                          the Morton code range of the node.
- * @param [x,y,z][min,max]  3D coordinate range, defines an arbitrary box in space to
- *                          test for overlap.
- * @return                  true or false
- *
- */
-template<class I>
-bool overlap(I prefix, int length, Box<int> box)
-{
-    pair<int> xRange = decodeXRange(prefix, length);
-    pair<int> yRange = decodeYRange(prefix, length);
-    pair<int> zRange = decodeZRange(prefix, length);
-
-    bool xOverlap = box.xmax() > xRange[0] && xRange[1] > box.xmin();
-    bool yOverlap = box.ymax() > yRange[0] && yRange[1] > box.ymin();
-    bool zOverlap = box.zmax() > zRange[0] && zRange[1] > box.zmin();
-
-    return xOverlap && yOverlap && zOverlap;
-}
-
-
-/*! \brief Construct a 3D box from an octree node plus halo range
- *
- * @tparam I             32- or 64-bit unsigned integer
- * @param[in] codeStart  octree leaf node lower bound
- * @param[in] codeEnd    octree leaf node upper bound
- * @param[in] dx         extend X range by +- dx
- * @param[in] dy         extend Y range by +- dy
- * @param[in] dz         extend Z range by +- dz
- * @return               a box containing the integer coordinate ranges
- *                       of the input octree node extended by (dx,dy,dz)
- */
-template<class I>
-Box<int> makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz)
-{
-    int prefixNBits = treeLevel(codeEnd - codeStart) * 3;
-
-    pair<int> xrange = decodeXRange(codeStart, prefixNBits);
-    pair<int> yrange = decodeYRange(codeStart, prefixNBits);
-    pair<int> zrange = decodeZRange(codeStart, prefixNBits);
-
-    constexpr int maxCoordinate = (1u << maxTreeLevel<I>{});
-
-    // add halo range to the coordinate ranges of the node to be collided
-    int xmin = std::max(0, xrange[0] - dx);
-    int xmax = std::min(maxCoordinate, xrange[1] + dx);
-    int ymin = std::max(0, yrange[0] - dy);
-    int ymax = std::min(maxCoordinate, yrange[1] + dy);
-    int zmin = std::max(0, zrange[0] - dz);
-    int zmax = std::min(maxCoordinate, zrange[1] + dz);
-
-    return Box<int>(xmin, xmax, ymin, ymax, zmin, zmax);
 }
 
 
