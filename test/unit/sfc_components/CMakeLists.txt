@@ -1,5 +1,6 @@
 
 add_executable(sfc_tests
+        boxoverlap.cpp
         clz.cpp
         morton.cpp
         disjointoctree.cpp
