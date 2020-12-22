@@ -1,6 +1,6 @@
 #pragma once
 
-#include <mpi/mpi.h>
+#include <mpi.h>
 
 #include "sfc/mpi_wrappers.hpp"
 #include "sfc/octree.hpp"
