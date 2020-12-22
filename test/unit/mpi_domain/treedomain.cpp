@@ -1,6 +1,6 @@
 
 
-#include <mpi/mpi.h>
+#include <mpi.h>
 #include <gtest/gtest.h>
 
 #include "sfc/octree_mpi.hpp"

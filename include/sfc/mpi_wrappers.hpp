@@ -1,7 +1,7 @@
 
 #pragma once
 
-#include <mpi/mpi.h>
+#include <mpi.h>
 
 template<class T>
 struct MpiType
