@@ -72,8 +72,8 @@ private:
  * the implementation general.
  */
 template <class I>
-void findCollisions(const BinaryNode<I> *internalRoot, const I *leafNodes, CollisionList &collisionList,
-                    const Box<int> &collisionBox)
+void findCollisions(const BinaryNode<I> *internalRoot, const I *leafNodes, CollisionList& collisionList,
+                    const Box<int>& collisionBox)
 {
     using NodePtr = BinaryNode<I> *;
     assert(0 <= collisionBox.xmin() && collisionBox.xmax() <= (1u << maxTreeLevel<I>{}));
