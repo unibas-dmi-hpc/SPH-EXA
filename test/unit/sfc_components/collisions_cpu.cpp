@@ -53,6 +53,7 @@ void irregularTreeTraversal()
 
     Box<T> box(0, 1);
     std::vector<T> haloRadii(nNodes(tree), 0.1);
+    generalCollisionTest(tree, haloRadii, box);
 }
 
 TEST(Collisions, irregularTreeTraversal)
@@ -61,4 +62,47 @@ TEST(Collisions, irregularTreeTraversal)
     irregularTreeTraversal<uint64_t, float>();
     irregularTreeTraversal<unsigned, double>();
     irregularTreeTraversal<uint64_t, double>();
+}
+
+
+//! \brief an irregular tree with level-3 nodes next to level-1 ones
+template<class I, class T>
+void regularTreeTraversal()
+{
+    // 8x8x8 grid
+    auto tree = makeUniformNLevelTree<I>(512, 1);
+
+    Box<T> box(0, 1);
+    // node edge length is 0.125
+    std::vector<T> haloRadii(nNodes(tree), 0.124);
+    generalCollisionTest(tree, haloRadii, box);
+}
+
+TEST(Collisions, regularTreeTraversal)
+{
+    regularTreeTraversal<unsigned, float>();
+    regularTreeTraversal<uint64_t, float>();
+    regularTreeTraversal<unsigned, double>();
+    regularTreeTraversal<uint64_t, double>();
+}
+
+//! \brief an irregular tree with level-3 nodes next to level-1 ones
+template<class I, class T>
+void anisotropicBoxTraversal()
+{
+    // 8x8x8 grid
+    auto tree = makeUniformNLevelTree<I>(512, 1);
+
+    Box<T> box(0, 1, 0, 2, 0, 2);
+    // node edge length is 0.125 in x and 0.250 in y,z
+    std::vector<T> haloRadii(nNodes(tree), 0.175);
+    generalCollisionTest(tree, haloRadii, box);
+}
+
+TEST(Collisions, anisotropicBoxTraversal)
+{
+    anisotropicBoxTraversal<unsigned, float>();
+    anisotropicBoxTraversal<uint64_t, float>();
+    anisotropicBoxTraversal<unsigned, double>();
+    anisotropicBoxTraversal<uint64_t, double>();
 }
