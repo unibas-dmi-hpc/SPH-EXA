@@ -42,6 +42,26 @@ private:
     int list_[collisionMax]{0};
 };
 
+template<class I>
+inline bool traverseNode(const BinaryNode<I>* node, const Box<int>& collisionBox)
+{
+    return (node != nullptr) && overlap(node->prefix, node->prefixLength, collisionBox);
+}
+
+template<class I>
+inline bool leafOverlap(int leafIndex, const I* leafNodes,
+                        const Box<int>& collisionBox)
+{
+    if (leafIndex < 0)
+        return false;
+
+    I leafCode = leafNodes[leafIndex];
+    I leafUpperBound = leafNodes[leafIndex + 1];
+
+    int prefixNBits = treeLevel(leafUpperBound - leafCode) * 3;
+
+    return overlap(leafCode, prefixNBits, collisionBox);
+}
 
 /*! \brief find all collisions between a leaf node enlarged by (dx,dy,dz) and the rest of the tree
  *
@@ -72,61 +92,40 @@ private:
  * the implementation general.
  */
 template <class I>
-void findCollisions(const BinaryNode<I> *internalRoot, const I *leafNodes, CollisionList& collisionList,
+void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes, CollisionList& collisionList,
                     const Box<int>& collisionBox)
 {
-    using NodePtr = BinaryNode<I> *;
-    assert(0 <= collisionBox.xmin() && collisionBox.xmax() <= (1u << maxTreeLevel<I>{}));
-    assert(0 <= collisionBox.ymin() && collisionBox.ymax() <= (1u << maxTreeLevel<I>{}));
-    assert(0 <= collisionBox.zmin() && collisionBox.zmax() <= (1u << maxTreeLevel<I>{}));
+    using NodePtr = BinaryNode<I>*;
 
-    NodePtr stack[64];
-    NodePtr *stackPtr = stack;
+    NodePtr  stack[64];
+    NodePtr* stackPtr = stack;
 
     *stackPtr++ = nullptr;
 
-    const BinaryNode<I> *node = internalRoot;
+    const BinaryNode<I>* node = internalRoot;
 
     do
     {
-        if (node->leftChild)
+        bool traverseL = traverseNode(node->leftChild, collisionBox);
+        bool traverseR = traverseNode(node->rightChild, collisionBox);
+
+        bool overlapLeafL = leafOverlap(node->leftLeafIndex, leafNodes, collisionBox);
+        bool overlapLeafR = leafOverlap(node->rightLeafIndex, leafNodes, collisionBox);
+
+        if (overlapLeafL) collisionList.add(node->leftLeafIndex);
+        if (overlapLeafR) collisionList.add(node->rightLeafIndex);
+
+        if (!traverseL and !traverseR)
         {
-            if (overlap(node->leftChild->prefix, node->leftChild->prefixLength, collisionBox))
-            {
-                assert(stackPtr - stack < 64 && "local stack overflow");
-                *stackPtr++ = node->leftChild;
-            }
+            node = *--stackPtr; // pop
         }
         else
         {
-            int leafIndex = node->leftLeafIndex;
-            I leafCode = leafNodes[leafIndex];
-            I leafUpperBound = leafNodes[leafIndex + 1];
+            if (traverseL && traverseR)
+                *stackPtr++ = node->rightChild; // push
 
-            int prefixNBits = treeLevel(leafUpperBound - leafCode) * 3;
-
-            if (overlap(leafCode, prefixNBits, collisionBox)) { collisionList.add(leafIndex); }
+            node = (traverseL) ? node->leftChild : node->rightChild;
         }
-        if (node->rightChild)
-        {
-            if (overlap(node->rightChild->prefix, node->rightChild->prefixLength, collisionBox))
-            {
-                assert(stackPtr - stack < 64 && "local stack overflow");
-                *stackPtr++ = node->rightChild;
-            }
-        }
-        else
-        {
-            int leafIndex = node->rightLeafIndex;
-            I leafCode = leafNodes[leafIndex];
-            I leafUpperBound = leafNodes[leafIndex + 1];
-
-            int prefixNBits = treeLevel(leafUpperBound - leafCode) * 3;
-
-            if (overlap(leafCode, prefixNBits, collisionBox)) { collisionList.add(leafIndex); }
-        }
-
-        node = *--stackPtr;
 
     } while (node != nullptr);
 }
