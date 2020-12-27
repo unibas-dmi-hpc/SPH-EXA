@@ -28,6 +28,49 @@ TEST(BinaryTreeTraversal, collisionList)
     EXPECT_EQ(refValues, probe);
 }
 
+/*! \brief test findCollisions with halo boxes that exceed the Morton range
+ *
+ * The Morton integer coordinate ranges in x,y,z are either [0,2^10]
+ * or [0,2^21]. But findCollisions should be able to correctly report
+ * no collisions if the halo box lies outside the supported range.
+ */
+template<class I>
+void boxOutOfRange()
+{
+    std::vector<I>             tree         = makeUniformNLevelTree<I>(8, 1);
+    std::vector<BinaryNode<I>> internalTree = createInternalTree(tree);
+
+    int r = 1u<<maxTreeLevel<I>{};
+
+    {
+        // box exceeds maximum integer coordinates by +-1 in all dimensions
+        Box<int> haloBox{-1, r, -1, r, -1, r};
+
+        CollisionList collisions;
+        findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+
+        // all nodes should collide
+        EXPECT_EQ(collisions.size(), nNodes(tree));
+    }
+    {
+        // box exceeds maximum integer coordinates by +-1 in all dimensions
+        Box<int> haloBox{r, r+1, 0, r, 0, r};
+
+        CollisionList collisions;
+        findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+
+        // no nodes collide
+        EXPECT_EQ(collisions.size(), 0);
+    }
+}
+
+TEST(BinaryTreeTraversal, boxOutOfRange)
+{
+    boxOutOfRange<unsigned>();
+    boxOutOfRange<uint64_t>();
+}
+
+
 /*! \brief test collision detection with anisotropic halo ranges
  *
  * If the bounding box of the floating point boundary box is not cubic,
