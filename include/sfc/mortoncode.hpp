@@ -297,6 +297,21 @@ inline std::enable_if_t<std::is_unsigned<I>{}, bool> isPowerOf8(I n)
     return lz % 3 == 0 && !(n & (n-1));
 }
 
+/*! \brief calculate common prefix (cpr) of two morton keys
+ *
+ * @tparam I    32 or 64 bit unsigned integer
+ * @param key1  first morton code key
+ * @param key2  second morton code key
+ * @return      number of continuous identical bits, counting from MSB
+ *              minus the 2 unused bits in 32 bit codes or minus the 1 unused bit
+ *              in 64 bit codes.
+ */
+template<class I>
+int commonPrefix(I key1, I key2)
+{
+    return int(countLeadingZeros(key1 ^ key2)) - unusedBits<I>{};
+}
+
 /*! \brief return octree subdivision level corresponding to codeRange
  *
  * \tparam I         32- or 64-bit unsigned integer type
@@ -340,11 +355,7 @@ inline pair<I> smallestCommonBox(I firstCode, I secondCode)
 {
     assert(firstCode <= secondCode);
 
-    // XOR for superposition, followed by leading zero count
-    // yields number of identical bits, counting from MSB to first differing bit
-    unsigned commonBits = countLeadingZeros(firstCode ^ secondCode);
-
-    unsigned commonLevel = (commonBits - unusedBits<I>{}) / 3;
+    unsigned commonLevel = commonPrefix(firstCode, secondCode) / 3;
     I        nodeStart   = enclosingBoxCode(firstCode, commonLevel);
 
     return pair<I>(nodeStart, nodeStart + nodeRange<I>(commonLevel));
