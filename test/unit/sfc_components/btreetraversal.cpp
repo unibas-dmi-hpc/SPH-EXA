@@ -7,6 +7,27 @@
 
 using namespace sphexa;
 
+//! \brief test add(), operator[] and begin()/end() of the CollisionList class
+TEST(BinaryTreeTraversal, collisionList)
+{
+    CollisionList collisions;
+    collisions.add(3);
+    collisions.add(7);
+    collisions.add(10);
+    collisions.add(0);
+
+    EXPECT_EQ(collisions.size(), 4);
+    EXPECT_EQ(collisions[0], 3);
+    EXPECT_EQ(collisions[1], 7);
+    EXPECT_EQ(collisions[2], 10);
+    EXPECT_EQ(collisions[3], 0);
+
+    std::vector<int> refValues{3,7,10,0};
+    std::vector<int> probe{collisions.begin(), collisions.end()};
+
+    EXPECT_EQ(refValues, probe);
+}
+
 /*! \brief test collision detection with anisotropic halo ranges
  *
  * If the bounding box of the floating point boundary box is not cubic,
