@@ -35,7 +35,6 @@
  * would make up for the overhead of constructing the internal octree.
  */
 
-#include "sfc/clz.hpp"
 #include "sfc/mortoncode.hpp"
 #include "sfc/boxoverlap.hpp"
 
@@ -61,7 +60,7 @@ struct BinaryNode
 };
 
 
-/*! \brief calculate common prefix (cpr) of two morton keys
+/*! \brief calculate common prefix (commonPrefix) of two morton keys
  *
  * @tparam I    32 or 64 bit unsigned integer
  * @param key1  first morton code key
@@ -70,11 +69,11 @@ struct BinaryNode
  *              minus the 2 unused bits in 32 bit codes or minus the 1 unused bit
  *              in 64 bit codes.
  */
-template<class I>
-int cpr(I key1, I key2)
-{
-    return int(countLeadingZeros(key1 ^ key2)) - unusedBits<I>{};
-}
+//template<class I>
+//int commonPrefix(I key1, I key2)
+//{
+//    return int(countLeadingZeros(key1 ^ key2)) - unusedBits<I>{};
+//}
 
 
 /*! \brief find position of first differing bit
@@ -98,7 +97,7 @@ int findSplit(I*  sortedMortonCodes,
         return (first + last) >> 1;
 
     // Calculate the number of highest bits that are the same for all objects
-    int commonPrefix = cpr(firstCode, lastCode);
+    int cpr = commonPrefix(firstCode, lastCode);
 
     // Use binary search to find where the next bit differs.
     // Specifically, we are looking for the highest object that
@@ -114,8 +113,8 @@ int findSplit(I*  sortedMortonCodes,
         if (newSplit < last)
         {
             I splitCode = sortedMortonCodes[newSplit];
-            int splitPrefix = cpr(firstCode, splitCode);
-            if (splitPrefix > commonPrefix)
+            int splitPrefix = commonPrefix(firstCode, splitCode);
+            if (splitPrefix > cpr)
                 split = newSplit; // accept proposal
         }
     }
@@ -143,13 +142,13 @@ void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalN
 
     if (idx > 0)
     {
-        d = (cpr(codes[idx], codes[idx + 1]) > cpr(codes[idx], codes[idx - 1])) ? 1 : -1;
-        minPrefixLength = cpr(codes[idx], codes[idx-d]);
+        d = (commonPrefix(codes[idx], codes[idx + 1]) > commonPrefix(codes[idx], codes[idx - 1])) ? 1 : -1;
+        minPrefixLength = commonPrefix(codes[idx], codes[idx-d]);
     }
 
     //int jdx = idx + d;
     //while (0 < jdx && jdx < nLeaves - 1
-    //       && cpr(codes[jdx+d], codes[idx]) > minPrefixLength)
+    //       && commonPrefix(codes[jdx+d], codes[idx]) > minPrefixLength)
     //{
     //    jdx += d;
     //}
@@ -158,7 +157,7 @@ void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalN
     int jSearchRange = 2;
     int upperJ       = idx + jSearchRange * d;
     while(0 <= upperJ && upperJ < nLeaves
-          && cpr(codes[idx], codes[upperJ]) > minPrefixLength)
+          && commonPrefix(codes[idx], codes[upperJ]) > minPrefixLength)
     {
         jSearchRange *= 2;
         upperJ = idx + jSearchRange * d;
@@ -180,7 +179,7 @@ void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalN
     do
     {
         step = (step + 1) / 2;
-        if (cpr(codes[idx], codes[idx + (nodeLength+step)*d]) > minPrefixLength)
+        if (commonPrefix(codes[idx], codes[idx + (nodeLength+step)*d]) > minPrefixLength)
         {
             nodeLength += step;
         }
@@ -189,7 +188,7 @@ void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalN
 
     int jdx = idx + nodeLength * d;
 
-    idxNode->prefixLength = cpr(codes[idx], codes[jdx]);
+    idxNode->prefixLength = commonPrefix(codes[idx], codes[jdx]);
     idxNode->prefix       = zeroLowBits(codes[idx], idxNode->prefixLength);
 
     // find position of highest differing bit between [idx, jdx]
