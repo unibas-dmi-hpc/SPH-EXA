@@ -1,9 +1,10 @@
-#include <vector>
-
 #include "gtest/gtest.h"
 
 #include "sfc/btree.hpp"
 #include "sfc/octree.hpp"
+
+/*! \brief \file tests for binary tree generation
+ */
 
 using namespace sphexa;
 

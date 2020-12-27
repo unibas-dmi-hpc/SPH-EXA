@@ -86,23 +86,59 @@ TEST(Collisions, regularTreeTraversal)
     regularTreeTraversal<uint64_t, double>();
 }
 
-//! \brief an irregular tree with level-3 nodes next to level-1 ones
-template<class I, class T>
-void anisotropicBoxTraversal()
+/*! \brief test tree traversal with anisotropic boxes
+ *
+ * anisotropic boxes with a single halo radius per node
+ * results in different x,y,z halo search lengths once
+ * the coordinates are normalized to the cubic unit box.
+ */
+class AnisotropicBoxTraversal : public testing::TestWithParam<std::array<int,6>>
 {
-    // 8x8x8 grid
-    auto tree = makeUniformNLevelTree<I>(512, 1);
+public:
+    template <class I, class T>
+    void check()
+    {
+        // 8x8x8 grid
+        auto tree = makeUniformNLevelTree<I>(512, 1);
 
-    Box<T> box(0, 1, 0, 2, 0, 2);
-    // node edge length is 0.125 in x and 0.250 in y,z
-    std::vector<T> haloRadii(nNodes(tree), 0.175);
-    generalCollisionTest(tree, haloRadii, box);
+        Box<T> box(std::get<0>(GetParam()),
+                   std::get<1>(GetParam()),
+                   std::get<2>(GetParam()),
+                   std::get<3>(GetParam()),
+                   std::get<4>(GetParam()),
+                   std::get<5>(GetParam()));
+
+        // node edge length is 0.125 in the compressed dimension
+        // and 0.250 in the other two dimensions
+        std::vector<T> haloRadii(nNodes(tree), 0.175);
+        generalCollisionTest(tree, haloRadii, box);
+    }
+};
+
+TEST_P(AnisotropicBoxTraversal, compressedAxis32f)
+{
+    check<unsigned, float>();
 }
 
-TEST(Collisions, anisotropicBoxTraversal)
+TEST_P(AnisotropicBoxTraversal, compressedAxis64f)
 {
-    anisotropicBoxTraversal<unsigned, float>();
-    anisotropicBoxTraversal<uint64_t, float>();
-    anisotropicBoxTraversal<unsigned, double>();
-    anisotropicBoxTraversal<uint64_t, double>();
+    check<uint64_t, float>();
 }
+
+TEST_P(AnisotropicBoxTraversal, compressedAxis32d)
+{
+    check<unsigned, double>();
+}
+
+TEST_P(AnisotropicBoxTraversal, compressedAxis64d)
+{
+    check<uint64_t, double>();
+}
+
+std::vector<std::array<int, 6>> boxLimits{{0,1,0,2,0,2},
+                                          {0,2,0,1,0,2},
+                                          {0,2,0,2,0,1}};
+
+INSTANTIATE_TEST_SUITE_P(AnisotropicBoxTraversal,
+                         AnisotropicBoxTraversal,
+                         testing::ValuesIn(boxLimits));

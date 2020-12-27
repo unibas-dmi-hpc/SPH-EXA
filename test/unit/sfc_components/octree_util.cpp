@@ -5,6 +5,12 @@
 #include "sfc/octree.hpp"
 #include "sfc/octree_util.hpp"
 
+/*! \brief \file octree utility tests
+ *
+ * This file implements test for OctreeMaker.
+ * OctreeMaker can be used to generate octrees in cornerstone
+ * format. It is only used to test the octree implementation.
+ */
 
 using namespace sphexa;
 
