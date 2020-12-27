@@ -14,8 +14,8 @@
 
 using namespace sphexa;
 
-using sphexa::detail::codeFromIndices;
-using sphexa::detail::codeFromBox;
+using sphexa::codeFromIndices;
+using sphexa::codeFromBox;
 
 //! \brief detect missing zero node
 template<class CodeType>
@@ -146,7 +146,7 @@ void octreeMakerMaxLevel()
             for (int sibling = 1; sibling < 8; ++sibling)
             {
                 indices[level] = sibling;
-                refTree.push_back(sphexa::detail::codeFromIndices<CodeType>(indices));
+                refTree.push_back(sphexa::codeFromIndices<CodeType>(indices));
             }
         }
         refTree.push_back(nodeRange<CodeType>(0));

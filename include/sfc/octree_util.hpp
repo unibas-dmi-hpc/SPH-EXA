@@ -87,17 +87,17 @@ public:
         for (int i = 0; i < idx.size(); ++i)
             indices[i] = static_cast<unsigned char>(idx[i]);
 
-        assert( std::find(begin(tree), end(tree), detail::codeFromIndices<I>(indices))
+        assert( std::find(begin(tree), end(tree), codeFromIndices<I>(indices))
                 != end(tree) && "node to be divided not present in tree");
 
         indices[level] = 1;
-        assert( std::find(begin(tree), end(tree), detail::codeFromIndices<I>(indices))
+        assert( std::find(begin(tree), end(tree), codeFromIndices<I>(indices))
                 == end(tree) && "children of node to be divided already present in tree");
 
         for (int sibling = 1; sibling < 8; ++sibling)
         {
             indices[level] = sibling;
-            tree.push_back(detail::codeFromIndices<I>(indices));
+            tree.push_back(codeFromIndices<I>(indices));
         }
 
         return *this;

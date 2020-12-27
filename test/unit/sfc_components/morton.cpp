@@ -1,10 +1,11 @@
 #include <algorithm>
-#include <iostream>
 #include <tuple>
 #include <vector>
 
 #include "gtest/gtest.h"
 #include "sfc/mortoncode.hpp"
+
+using namespace sphexa;
 
 TEST(MortonCode, mortonIndex32) {
 
@@ -231,18 +232,18 @@ TEST(MortonCode, enclosingBoxTrim)
 {
     std::size_t code      = 0x0FF0000000000001;
     std::size_t reference = 0x0FC0000000000000;
-    EXPECT_EQ(reference, sphexa::detail::enclosingBoxCode(code, 3));
+    EXPECT_EQ(reference, sphexa::enclosingBoxCode(code, 3));
 
     unsigned code_u = 0x07F00001;
     unsigned reference_u = 0x07E00000;
-    EXPECT_EQ(reference_u, sphexa::detail::enclosingBoxCode(code_u, 3));
+    EXPECT_EQ(reference_u, sphexa::enclosingBoxCode(code_u, 3));
 }
 
 TEST(MortonCode, enclosingBoxMaxLevel32)
 {
     using CodeType = unsigned;
     CodeType code  = 0x0FF00001;
-    CodeType probe = sphexa::detail::enclosingBoxCode(code, sphexa::maxTreeLevel<CodeType>{});
+    CodeType probe = sphexa::enclosingBoxCode(code, sphexa::maxTreeLevel<CodeType>{});
     EXPECT_EQ(probe, code);
 }
 
@@ -250,7 +251,7 @@ TEST(MortonCode, enclosingBoxMaxLevel64)
 {
     using CodeType = uint64_t;
     CodeType code  = 0x0FF0000000000001;
-    CodeType probe = sphexa::detail::enclosingBoxCode(code, sphexa::maxTreeLevel<CodeType>{});
+    CodeType probe = sphexa::enclosingBoxCode(code, sphexa::maxTreeLevel<CodeType>{});
     EXPECT_EQ(probe, code);
 }
 
@@ -259,7 +260,7 @@ TEST(MortonCode, smallestCommonBoxEqualCode)
     using CodeType = unsigned;
     CodeType code = 0;
     auto probe = sphexa::smallestCommonBox(code, code);
-    std::tuple<CodeType, CodeType> reference{code, code + 1};
+    pair<CodeType> reference{code, code + 1};
     EXPECT_EQ(probe, reference);
 }
 
@@ -269,7 +270,7 @@ TEST(MortonCode, smallestCommonBoxL1)
     CodeType code1 = 0b00001001u << 24u;
     CodeType code2 = 0b00001010u << 24u;
     auto probe = sphexa::smallestCommonBox(code1, code2);
-    std::tuple<CodeType, CodeType> reference{0b00001000u<<24u, 0b000010000u << 24u};
+    pair<CodeType> reference{0b00001000u<<24u, 0b000010000u << 24u};
     EXPECT_EQ(probe, reference);
 }
 
@@ -279,7 +280,7 @@ TEST(MortonCode, smallestCommonBoxL0_32)
     CodeType code1 = 0b00000001u << 24u;
     CodeType code2 = 0b00001010u << 24u;
     auto probe = sphexa::smallestCommonBox(code1, code2);
-    std::tuple<CodeType, CodeType> reference{0u, 0b01u << 30u};
+    pair<CodeType> reference{0u, 0b01u << 30u};
     EXPECT_EQ(probe, reference);
 }
 
@@ -289,7 +290,7 @@ TEST(MortonCode, smallestCommonBoxL0_64)
     CodeType code1 = 0b0000001lu << 57u;
     CodeType code2 = 0b0001010lu << 57u;
     auto probe = sphexa::smallestCommonBox(code1, code2);
-    std::tuple<CodeType, CodeType> reference{0lu, 1lu << 63u};
+    pair<CodeType> reference{0lu, 1lu << 63u};
     EXPECT_EQ(probe, reference);
 }
 
@@ -299,7 +300,7 @@ TEST(MortonCode, boxFromCode32)
     // (5,3,6)
     unsigned code = 0b00101011110u << (7u*3);
 
-    auto c = sphexa::detail::boxFromCode(code, treeLevel);
+    auto c = sphexa::boxFromCode(code, treeLevel);
 
     std::array<unsigned, 3> cref{ 5, 3, 6 };
     EXPECT_EQ(c, cref);
@@ -311,7 +312,7 @@ TEST(MortonCode, boxFromCode64)
     // (5,3,6)
     uint64_t inputCode = 0b0101011110ul << (18u*3);
 
-    auto c = sphexa::detail::boxFromCode(inputCode, treeLevel);
+    auto c = sphexa::boxFromCode(inputCode, treeLevel);
 
     std::array<unsigned, 3> cref{ 5, 3, 6 };
     EXPECT_EQ(c, cref);
@@ -324,9 +325,9 @@ TEST(MortonCode, codeFromBox32)
     constexpr unsigned treeLevel = 3;
     std::array<unsigned, 3> box{ 5, 3, 6 };
 
-    CodeType testCode = sphexa::detail::codeFromBox<CodeType>(box, treeLevel);
+    CodeType testCode = sphexa::codeFromBox<CodeType>(box, treeLevel);
 
-    std::array<unsigned, 3> testBox = sphexa::detail::boxFromCode(testCode, treeLevel);
+    std::array<unsigned, 3> testBox = sphexa::boxFromCode(testCode, treeLevel);
     EXPECT_EQ(testBox, box);
 }
 
@@ -337,9 +338,9 @@ TEST(MortonCode, codeFromBox64)
     constexpr unsigned treeLevel = 3;
     std::array<unsigned, 3> box{ 5, 3, 6 };
 
-    CodeType testCode = sphexa::detail::codeFromBox<CodeType>(box, treeLevel);
+    CodeType testCode = sphexa::codeFromBox<CodeType>(box, treeLevel);
 
-    std::array<unsigned, 3> testBox = sphexa::detail::boxFromCode(testCode, treeLevel);
+    std::array<unsigned, 3> testBox = sphexa::boxFromCode(testCode, treeLevel);
     EXPECT_EQ(testBox, box);
 }
 
@@ -355,7 +356,7 @@ TEST(MortonCode, codeFromIndices32)
         input[i] = 7;
     }
 
-    EXPECT_EQ(sphexa::nodeRange<CodeType>(0), sphexa::detail::codeFromIndices<CodeType>(input) + 1);
+    EXPECT_EQ(sphexa::nodeRange<CodeType>(0), sphexa::codeFromIndices<CodeType>(input) + 1);
 }
 
 TEST(MortonCode, codeFromIndices64)
@@ -370,7 +371,7 @@ TEST(MortonCode, codeFromIndices64)
         input[i] = 7;
     }
 
-    EXPECT_EQ(sphexa::nodeRange<CodeType>(0), sphexa::detail::codeFromIndices<CodeType>(input) + 1);
+    EXPECT_EQ(sphexa::nodeRange<CodeType>(0), sphexa::codeFromIndices<CodeType>(input) + 1);
 }
 
 TEST(MortonCode, indicesFromCode32)
@@ -387,12 +388,12 @@ TEST(MortonCode, indicesFromCode32)
         reference[i] = 7;
     }
 
-    EXPECT_EQ(reference, sphexa::detail::indicesFromCode(input - 1));
+    EXPECT_EQ(reference, sphexa::indicesFromCode(input - 1));
 
     input = 2 * sphexa::nodeRange<CodeType>(3) + 4 * sphexa::nodeRange<CodeType>(8);
 
     reference = std::array<unsigned char, maxLevel>{0,0,2,0,0,0,0,4,0,0};
-    EXPECT_EQ(reference, sphexa::detail::indicesFromCode(input));
+    EXPECT_EQ(reference, sphexa::indicesFromCode(input));
 }
 
 TEST(MortonCode, indicesFromCode64)
@@ -409,7 +410,7 @@ TEST(MortonCode, indicesFromCode64)
         reference[i] = 7;
     }
 
-    EXPECT_EQ(reference, sphexa::detail::indicesFromCode(input - 1));
+    EXPECT_EQ(reference, sphexa::indicesFromCode(input - 1));
 }
 
 TEST(MortonCode, mortonNeighbor32)
@@ -485,17 +486,17 @@ TEST(MortonCode, mortonNeighbor64)
 TEST(MortonCode, mortonIndices32)
 {
     using CodeType = unsigned;
-    EXPECT_EQ(0x08000000, sphexa::detail::codeFromIndices<CodeType>({1}));
-    EXPECT_EQ(0x09000000, sphexa::detail::codeFromIndices<CodeType>({1,1}));
-    EXPECT_EQ(0x09E00000, sphexa::detail::codeFromIndices<CodeType>({1,1,7}));
+    EXPECT_EQ(0x08000000, sphexa::codeFromIndices<CodeType>({1}));
+    EXPECT_EQ(0x09000000, sphexa::codeFromIndices<CodeType>({1,1}));
+    EXPECT_EQ(0x09E00000, sphexa::codeFromIndices<CodeType>({1,1,7}));
 }
 
 TEST(MortonCode, mortonIndices64)
 {
     using CodeType = uint64_t;
-    EXPECT_EQ(0b0001lu << 60u, sphexa::detail::codeFromIndices<CodeType>({1}));
-    EXPECT_EQ(0b0001001lu << 57u, sphexa::detail::codeFromIndices<CodeType>({1,1}));
-    EXPECT_EQ(0b0001001111lu << 54u, sphexa::detail::codeFromIndices<CodeType>({1,1,7}));
+    EXPECT_EQ(0b0001lu << 60u, sphexa::codeFromIndices<CodeType>({1}));
+    EXPECT_EQ(0b0001001lu << 57u, sphexa::codeFromIndices<CodeType>({1,1}));
+    EXPECT_EQ(0b0001001111lu << 54u, sphexa::codeFromIndices<CodeType>({1,1,7}));
 }
 
 TEST(MortonCode, mortonCodesSequence)

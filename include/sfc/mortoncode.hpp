@@ -217,8 +217,6 @@ inline pair<int> decodeZRange(I code, int length)
     return ret;
 }
 
-namespace detail {
-
 //! \brief cut down the input morton code to the start code of the enclosing box at <treeLevel>
 template<class I>
 inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsigned treeLevel)
@@ -336,7 +334,6 @@ inline std::array<unsigned char, maxTreeLevel<I>{}> indicesFromCode(I code)
     return ret;
 }
 
-}
 
 /*! \brief compute the maximum range of an octree node at a given subdivision level
  *
@@ -418,7 +415,7 @@ inline unsigned parentIndex(I code, unsigned level)
  *                        the smallest octree node that contains both input codes
  */
 template<class I>
-inline std::tuple<I, I> smallestCommonBox(I firstCode, I secondCode)
+inline pair<I> smallestCommonBox(I firstCode, I secondCode)
 {
     assert(firstCode <= secondCode);
 
@@ -427,9 +424,9 @@ inline std::tuple<I, I> smallestCommonBox(I firstCode, I secondCode)
     unsigned commonBits = countLeadingZeros(firstCode ^ secondCode);
 
     unsigned commonLevel = (commonBits - unusedBits<I>{}) / 3;
-    I        nodeStart   = detail::enclosingBoxCode(firstCode, commonLevel);
+    I        nodeStart   = enclosingBoxCode(firstCode, commonLevel);
 
-    return std::make_tuple(nodeStart, nodeStart + nodeRange<I>(commonLevel));
+    return pair<I>(nodeStart, nodeStart + nodeRange<I>(commonLevel));
 }
 
 /*! \brief compute morton codes corresponding to neighboring octree nodes
@@ -458,7 +455,7 @@ mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz)
     int shiftValue = int(1u << shiftBits);
 
     // zero out lower tree levels
-    code = detail::enclosingBoxCode(code, treeLevel);
+    code = enclosingBoxCode(code, treeLevel);
 
     int x = decodeMortonX(code);
     int y = decodeMortonY(code);

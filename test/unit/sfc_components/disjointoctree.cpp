@@ -6,8 +6,8 @@
 
 #include "coord_samples/random.hpp"
 
-using sphexa::detail::codeFromIndices;
-using sphexa::detail::codeFromBox;
+using sphexa::codeFromIndices;
+using sphexa::codeFromBox;
 using sphexa::nodeRange;
 using sphexa::nNodes;
 
@@ -130,9 +130,7 @@ TEST(DisjointOctree, trim8)
     {
         I code = codes[0];
         I codeLimit = codes[8];
-        auto isInBox = [code](I c1_, I c2_){ return std::get<1>(sphexa::smallestCommonBox(code, c1_)) < c2_; };
-        //auto ub = std::upper_bound(cbegin(codes), cbegin(codes) + 8, codeLimit, isInBox);
-        //unsigned j = ub - cbegin(codes);
+        auto isInBox = [code](I c1_, I c2_){ return sphexa::smallestCommonBox(code, c1_)[1] < c2_; };
         EXPECT_EQ(true, isInBox(codes[6], codeLimit));
         EXPECT_EQ(false, isInBox(codes[7], codeLimit));
     }
