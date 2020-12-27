@@ -1,8 +1,5 @@
 #pragma once
 
-#include <array>
-#include <cassert>
-
 #include "box.hpp"
 #include "clz.hpp"
 
@@ -242,18 +239,18 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsig
  * and does not depend on std::array.
  */
 template<class I>
-I codeFromBox(std::array<unsigned, 3> xyz, unsigned treeLevel)
+I codeFromBox(unsigned x, unsigned y, unsigned z, unsigned treeLevel)
 {
     constexpr unsigned nBits = (sizeof(I) * 8) / 3;
     unsigned shifts = nBits - treeLevel;
 
-    assert( xyz[0] < (1u << treeLevel));
-    assert( xyz[1] < (1u << treeLevel));
-    assert( xyz[2] < (1u << treeLevel));
+    assert( x < (1u << treeLevel));
+    assert( y < (1u << treeLevel));
+    assert( z < (1u << treeLevel));
 
-    I xx = detail::expandBits(I(xyz[0]) << shifts);
-    I yy = detail::expandBits(I(xyz[1]) << shifts);
-    I zz = detail::expandBits(I(xyz[2]) << shifts);
+    I xx = detail::expandBits(I(x) << shifts);
+    I yy = detail::expandBits(I(y) << shifts);
+    I zz = detail::expandBits(I(z) << shifts);
 
     // interleave the x, y, z components
     return xx * 4 + yy * 2 + zz;

@@ -51,7 +51,7 @@ std::array<unsigned, 3> boxFromCode(I code, unsigned treeLevel)
  * \return         the morton code
  */
 template<class I>
-inline I codeFromIndices(std::array<unsigned char, 21> indices)
+inline I codeFromIndices(std::array<unsigned char, maxTreeLevel<uint64_t>{}> indices)
 {
     constexpr unsigned nLevels = (sizeof(I) * 8) / 3;
 

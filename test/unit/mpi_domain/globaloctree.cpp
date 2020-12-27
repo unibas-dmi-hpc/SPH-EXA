@@ -4,6 +4,7 @@
 
 #include <gtest/gtest.h>
 
+#include "sfc/mortonconversions.hpp"
 #include "sfc/octree_mpi.hpp"
 
 using namespace sphexa;
@@ -25,7 +26,7 @@ std::vector<I> makeRegularGrid(int rank)
         for (unsigned j = 0; j < n; ++j)
             for (unsigned k = 0; k < n; ++k)
     {
-        codes.push_back(sphexa::detail::codeFromBox<I>({i,j,k}, level));
+        codes.push_back(sphexa::codeFromBox<I>(i,j,k, level));
     }
 
     std::sort(begin(codes), end(codes));
@@ -36,7 +37,7 @@ std::vector<I> makeRegularGrid(int rank)
 template<class I>
 void buildTree(int rank)
 {
-    using sphexa::detail::codeFromIndices;
+    using sphexa::codeFromIndices;
     auto codes = makeRegularGrid<I>(rank);
 
     int bucketSize = 8;

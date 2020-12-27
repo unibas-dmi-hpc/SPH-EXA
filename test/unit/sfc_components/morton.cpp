@@ -326,7 +326,7 @@ TEST(MortonCode, codeFromBox32)
     constexpr unsigned treeLevel = 3;
     std::array<unsigned, 3> box{ 5, 3, 6 };
 
-    CodeType testCode = sphexa::codeFromBox<CodeType>(box, treeLevel);
+    CodeType testCode = sphexa::codeFromBox<CodeType>(box[0], box[1], box[2], treeLevel);
 
     std::array<unsigned, 3> testBox = sphexa::boxFromCode(testCode, treeLevel);
     EXPECT_EQ(testBox, box);
@@ -339,7 +339,7 @@ TEST(MortonCode, codeFromBox64)
     constexpr unsigned treeLevel = 3;
     std::array<unsigned, 3> box{ 5, 3, 6 };
 
-    CodeType testCode = sphexa::codeFromBox<CodeType>(box, treeLevel);
+    CodeType testCode = sphexa::codeFromBox<CodeType>(box[0], box[1], box[2], treeLevel);
 
     std::array<unsigned, 3> testBox = sphexa::boxFromCode(testCode, treeLevel);
     EXPECT_EQ(testBox, box);
