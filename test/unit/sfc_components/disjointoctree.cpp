@@ -2,6 +2,7 @@
 #include "gtest/gtest.h"
 
 #include "sfc/mortoncode.hpp"
+#include "sfc/mortonconversions.hpp"
 #include "sfc/octree.hpp"
 
 #include "coord_samples/random.hpp"

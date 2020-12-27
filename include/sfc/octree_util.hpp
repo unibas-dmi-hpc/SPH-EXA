@@ -7,6 +7,7 @@
  *
  */
 
+#include "sfc/mortonconversions.hpp"
 #include "sfc/octree.hpp"
 
 namespace sphexa
