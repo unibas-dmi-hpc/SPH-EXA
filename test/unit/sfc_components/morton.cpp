@@ -4,6 +4,7 @@
 
 #include "gtest/gtest.h"
 #include "sfc/mortoncode.hpp"
+#include "sfc/mortonconversions.hpp"
 
 using namespace sphexa;
 
