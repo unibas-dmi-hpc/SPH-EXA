@@ -156,7 +156,7 @@ std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
         for (unsigned y = 0; y < ticks; ++y)
             for (unsigned z = 0; z < ticks; ++z)
             {
-                tree.push_back(detail::codeFromBox<I>({x,y,z}, minTreeLevel));
+                tree.push_back(codeFromBox<I>({x,y,z}, minTreeLevel));
             }
 
     tree.push_back(nodeRange<I>(0));
@@ -354,12 +354,12 @@ std::vector<NodeType<I>> trimZCurve(const std::vector<I>& mortonCodes, unsigned 
         I codeLimit = (i + bucketSize < n) ? mortonCodes[i + bucketSize] : nodeRange<I>(0);
 
         // find smallest j in [i, i + bucketSize], such that codeLimit < get<1>(smallestCommonBox(mCodes[i], mCodes[j]))
-        auto isInBox = [code](I c1_, I c2_){ return c1_ < std::get<1>(smallestCommonBox(code, c2_)); };
+        auto isInBox = [code](I c1_, I c2_){ return c1_ < smallestCommonBox(code, c2_)[1]; };
         auto jIt = std::upper_bound(cbegin(mortonCodes) + i, cbegin(mortonCodes) + std::min(n, i + bucketSize), codeLimit, isInBox);
         unsigned j = jIt - cbegin(mortonCodes);
 
         // find smallest k in [i, i + bucketSize], such that not(get<0>(smallestCommonBox(mCodes[i], mCodes[k])) < previousBoxEnd)
-        auto isBelowBox = [code](I c1_, I c2_){ return !(std::get<0>(smallestCommonBox(code, c1_)) < c2_); };
+        auto isBelowBox = [code](I c1_, I c2_){ return !(smallestCommonBox(code, c1_)[0] < c2_); };
         auto kIt = std::lower_bound(cbegin(mortonCodes) + i, cbegin(mortonCodes) + std::min(n, i + bucketSize), previousBoxEnd, isBelowBox);
         unsigned k = kIt - cbegin(mortonCodes);
 
@@ -368,10 +368,10 @@ std::vector<NodeType<I>> trimZCurve(const std::vector<I>& mortonCodes, unsigned 
         // and does not include more than bucketSize particles
         j = std::min(j, k);
 
-        std::tuple<I, I> box = smallestCommonBox(code, mortonCodes[j-1]);
-        ret.push_back(NodeType<I>{std::get<0>(box), std::get<1>(box), i, j-i});
+        pair<I> box = smallestCommonBox(code, mortonCodes[j-1]);
+        ret.push_back(NodeType<I>{box[0], box[1], i, j-i});
         i = j;
-        previousBoxEnd = std::get<1>(box);
+        previousBoxEnd = box[1];
     }
 
     return ret;

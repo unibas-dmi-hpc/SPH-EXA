@@ -8,8 +8,8 @@
 #include "coord_samples/random.hpp"
 
 using namespace sphexa;
-using sphexa::detail::codeFromIndices;
-using sphexa::detail::codeFromBox;
+using sphexa::codeFromIndices;
+using sphexa::codeFromBox;
 
 template<class I>
 void printIndices(std::array<unsigned char, sphexa::maxTreeLevel<I>{}> indices)
@@ -45,7 +45,7 @@ void printTree(const I* tree, const int* counts, int nNodes)
     {
         I thisNode     = tree[i];
         //std::cout << thisNode << " :" << counts[i] << std::endl;
-        std::cout << sphexa::detail::indicesFromCode(thisNode) << " :" << counts[i] << std::endl;
+        std::cout << sphexa::indicesFromCode(thisNode) << " :" << counts[i] << std::endl;
     }
     std::cout << std::endl;
 }
