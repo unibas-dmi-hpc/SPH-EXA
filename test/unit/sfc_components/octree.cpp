@@ -8,8 +8,6 @@
 #include "coord_samples/random.hpp"
 
 using namespace sphexa;
-using sphexa::codeFromIndices;
-using sphexa::codeFromBox;
 
 template<class I>
 void printIndices(std::array<unsigned char, sphexa::maxTreeLevel<I>{}> indices)
@@ -64,7 +62,7 @@ void checkCountTreeNodes()
         for (unsigned j = 0; j < n; ++j)
             for (unsigned k = 0; k < n; ++k)
     {
-        codes.push_back(codeFromBox<CodeType>({i,j,k}, level));
+        codes.push_back(codeFromBox<CodeType>(i,j,k, level));
     }
     std::sort(begin(codes), end(codes));
 

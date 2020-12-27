@@ -156,7 +156,7 @@ std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
         for (unsigned y = 0; y < ticks; ++y)
             for (unsigned z = 0; z < ticks; ++z)
             {
-                tree.push_back(codeFromBox<I>({x,y,z}, minTreeLevel));
+                tree.push_back(codeFromBox<I>(x,y,z, minTreeLevel));
             }
 
     tree.push_back(nodeRange<I>(0));
