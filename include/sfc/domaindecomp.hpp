@@ -7,7 +7,6 @@
 #include "sfc/util.hpp"
 #include "sfc/zorder.hpp"
 
-using Rank = StrongType<int, struct RankTag>;
 
 namespace sphexa
 {
@@ -78,6 +77,16 @@ private:
     std::vector<Range> ranges_;
 };
 
+
+/*! \brief a custom type for type safety in function calls
+ *
+ * The resulting type behaves like an int, except that explicit
+ * conversion is required in function calls. Used e.g. in
+ * SpaceCurveAssignment::addRange to force the caller to write
+ * addRange(Rank(r), a,b,c) instead of addRange(r,a,b,c).
+ * This makes it impossible to unintentionally mix up the arguments.
+ */
+using Rank = StrongType<int, struct RankTag>;
 
 /*! \brief stores which parts of the SFC belong to which rank, on a per-rank basis
  *
@@ -162,12 +171,13 @@ public:
         reorder(order, ranks_);
     }
 
+    //! \brief returns the rank that the argument code is assigned to
     int findRank(I code)
     {
-        int index = std::lower_bound(begin(rangeCodeStarts_), end(rangeCodeStarts_), code)
+        int index = std::upper_bound(begin(rangeCodeStarts_), end(rangeCodeStarts_), code)
                     - begin(rangeCodeStarts_);
 
-        return ranks_[index];
+        return ranks_[index-1];
     }
 
 private:

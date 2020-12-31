@@ -10,71 +10,111 @@ namespace sphexa
 {
 
 template <class I>
-struct IncomingHaloRange
+struct HaloRange
 {
     I codeStart;
     I codeEnd;
     std::size_t count;
     int sourceRank;
+
+    friend bool operator<(const HaloRange& a, const HaloRange& b)
+    {
+        return a.codeStart < b.codeStart;
+    }
+
+    friend bool operator==(const HaloRange& a, const HaloRange& b)
+    {
+        return a.codeStart == b.codeStart && a.codeEnd == b.codeEnd &&
+               a.count == b.count && a.sourceRank == b.sourceRank;
+    }
 };
 
 
-
+/*! \brief compose a list of Morton code ranges that contain halos from rank's perspective
+ *
+ * @tparam I
+ * @tparam T
+ * @param tree
+ * @param nodeCounts
+ * @param interactionRadii
+ * @param box
+ * @param assignment
+ * @param rank
+ * @return
+ *
+ * This means that the returned Morton code ranges are not assigned to \a rank, but
+ * contain halos of the code ranges assigned to \a rank.
+ *
+ * Unparallelized prototype implementation
+ */
 template <class I, class T>
-std::vector<IncomingHaloRange<I>> findIncomingHalos(const std::vector<I>&           tree,
-                                                    const std::vector<std::size_t>& nodeCounts,
-                                                    const std::vector<T>&           interactionRadii,
-                                                    const Box<T>&                   box,
-                                                    const SpaceCurveAssignment<I>&  assignment,
-                                                    int                             rank)
+std::vector<HaloRange<I>> findIncomingHalos(const std::vector<I>&           tree,
+                                            const std::vector<std::size_t>& nodeCounts,
+                                            const std::vector<T>&           interactionRadii,
+                                            const Box<T>&                   box,
+                                            const SpaceCurveAssignment<I>&  assignment,
+                                            int                             rank)
 {
+    SfcLookupKey<I> sfcLookup(assignment);
+
     std::vector<BinaryNode<I>> internalTree = createInternalTree(tree);
+    std::vector<HaloRange<I>> ret;
 
-    std::vector<IncomingHaloRange<I>> ret;
-
-    // loop over all the nodes in the octree
-    // (omp) parallel
-    for (int nodeIdx = 0; nodeIdx < nNodes(tree); ++nodeIdx)
+    // go through all ranges assigned to rank
+    for (int range = 0; range < assignment.nRanges(rank); ++range)
     {
-        CollisionList collisions;
-        T radius = interactionRadii[nodeIdx];
+        int nodeStart = std::lower_bound(begin(tree), end(tree), assignment.rangeStart(rank, range)) - begin(tree);
+        int nodeEnd   = std::lower_bound(begin(tree), end(tree), assignment.rangeEnd(rank, range)) - begin(tree);
 
-        int dx = detail::toNBitInt<I>(normalize(radius, box.xmin(), box.xmax()));
-        int dy = detail::toNBitInt<I>(normalize(radius, box.ymin(), box.ymax()));
-        int dz = detail::toNBitInt<I>(normalize(radius, box.zmin(), box.zmax()));
-
-        // find out with which other nodes in the octree that the node at nodeIdx
-        // enlarged by the halo radius collides with
-        Box<int> haloBox = makeHaloBox(tree[nodeIdx], tree[nodeIdx +1], dx, dy, dz);
-        findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
-
-        // Go through all colliding nodes to determine which of them fall into a part of the SFC
-        // that is not assigned to the executing rank. These nodes will be marked as halos.
-        for (int i = 0; i < collisions.size(); ++i)
+        // loop over all the nodes in range
+        for (int nodeIdx = nodeStart; nodeIdx < nodeEnd; ++nodeIdx)
         {
-            int collidingNodeIdx = collisions[i];
+            CollisionList collisions;
+            T radius = interactionRadii[nodeIdx];
 
-            I collidingNodeStart = tree[collidingNodeIdx];
-            I collidingNodeEnd   = tree[collidingNodeIdx+1];
+            int dx = detail::toNBitInt<I>(normalize(radius, box.xmin(), box.xmax()));
+            int dy = detail::toNBitInt<I>(normalize(radius, box.ymin(), box.ymax()));
+            int dz = detail::toNBitInt<I>(normalize(radius, box.zmin(), box.zmax()));
 
-            bool isHalo = false;
-            for (int a = 0; a < assignment.nRanges(rank); ++a)
+            // find out with which other nodes in the octree that the node at nodeIdx
+            // enlarged by the halo radius collides with
+            Box<int> haloBox = makeHaloBox(tree[nodeIdx], tree[nodeIdx + 1], dx, dy, dz);
+            findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+
+            // Go through all colliding nodes to determine which of them fall into a part of the SFC
+            // that is not assigned to the executing rank. These nodes will be marked as halos.
+            for (int i = 0; i < collisions.size(); ++i)
             {
-                I assignmentStart = assignment.rangeStart(rank, a);
-                I assignmentEnd = assignment.rangeEnd(rank, a);
+                int collidingNodeIdx = collisions[i];
 
-                if (collidingNodeStart < assignmentStart || collidingNodeEnd > assignmentEnd)
+                I collidingNodeStart = tree[collidingNodeIdx];
+                I collidingNodeEnd   = tree[collidingNodeIdx + 1];
+
+                bool isHalo = false;
+                for (int a = 0; a < assignment.nRanges(rank); ++a)
                 {
-                    // node with index collidingNodeIdx is a halo node
-                    isHalo = true;
+                    I assignmentStart = assignment.rangeStart(rank, a);
+                    I assignmentEnd   = assignment.rangeEnd(rank, a);
+
+                    if (collidingNodeStart < assignmentStart || collidingNodeEnd > assignmentEnd)
+                    {
+                        // node with index collidingNodeIdx is a halo node
+                        isHalo = true;
+                    }
                 }
-            }
-            if (isHalo)
-            {
-                ret.push_back({collidingNodeStart, collidingNodeEnd, nodeCounts[collidingNodeIdx], 0});
+                if (isHalo)
+                {
+                    ret.push_back({collidingNodeStart, collidingNodeEnd, nodeCounts[collidingNodeIdx],
+                                   sfcLookup.findRank(collidingNodeStart)});
+                }
             }
         }
     }
+
+    // eliminate duplicates
+    std::sort(begin(ret), end(ret));
+    auto uit = std::unique(begin(ret), end(ret));
+    ret.erase(uit, end(ret));
 
     return ret;
 }
