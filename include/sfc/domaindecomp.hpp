@@ -25,7 +25,18 @@ namespace sphexa
 template<class I>
 class IndexRanges
 {
-    using RangeType = std::tuple<I, I, std::size_t>;
+    struct Range
+    {
+        I start;
+        I end;
+        std::size_t count;
+
+        friend bool operator==(const Range& a, const Range& b)
+        {
+            return a.start == b.start && a.end == b.end && a.count == b.count;
+        }
+    };
+
 public:
     using IndexType = I;
 
@@ -41,16 +52,16 @@ public:
 
     [[nodiscard]] I rangeStart(int i) const
     {
-        return std::get<0>(ranges_[i]);
+        return ranges_[i].start;
     }
 
     [[nodiscard]] I rangeEnd(int i) const
     {
-        return std::get<1>(ranges_[i]);
+        return ranges_[i].end;
     }
 
     //! \brief the number of particles in range i
-    [[nodiscard]] const std::size_t& count(int i) const { return std::get<2>(ranges_[i]); }
+    [[nodiscard]] const std::size_t& count(int i) const { return ranges_[i].count; }
 
     //! \brief the sum of number of particles in all ranges or total send count
     [[nodiscard]] const std::size_t& totalCount() const { return totalCount_; }
@@ -58,18 +69,14 @@ public:
     [[nodiscard]] std::size_t nRanges() const { return ranges_.size(); }
 
 private:
-
     friend bool operator==(const IndexRanges& lhs, const IndexRanges& rhs)
     {
         return lhs.totalCount_ == rhs.totalCount_ && lhs.ranges_ == rhs.ranges_;
     }
 
     std::size_t totalCount_;
-    std::vector<RangeType> ranges_;
+    std::vector<Range> ranges_;
 };
-
-template<class I>
-using RankAssignment = IndexRanges<I>;
 
 
 /*! \brief stores which parts of the SFC belong to which rank, on a per-rank basis
@@ -117,7 +124,7 @@ private:
         return a.rankAssignment_ == b.rankAssignment_;
     }
 
-    std::vector<RankAssignment<I>> rankAssignment_;
+    std::vector<IndexRanges<I>> rankAssignment_;
 };
 
 
