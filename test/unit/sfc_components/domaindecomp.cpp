@@ -7,6 +7,7 @@
 #include "sfc/octree.hpp"
 #include "coord_samples/random.hpp"
 
+using namespace sphexa;
 
 TEST(DomainDecomposition, singleRangeSfcSplit)
 {
@@ -68,25 +69,50 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
 }
 
 //! \brief test that the SfcLookupKey can lookup the rank for a given code
-TEST(DomainDecomposition, SfcLookupKey)
+TEST(DomainDecomposition, SfcLookupMinimal)
 {
     using I = unsigned;
 
     int nRanks = 4;
-    sphexa::SpaceCurveAssignment<I> assignment(nRanks);
+    SpaceCurveAssignment<I> assignment(nRanks);
     assignment.addRange(Rank(3), 0, 1, 1);
-    assignment.addRange(Rank(2), 2, 3, 1);
-    assignment.addRange(Rank(0), 1, 2, 1);
-    assignment.addRange(Rank(1), 3, 4, 1);
-    assignment.addRange(Rank(3), 4, 5, 1);
+    assignment.addRange(Rank(2), 3, 4, 1);
+    assignment.addRange(Rank(0), 1, 3, 1);
+    assignment.addRange(Rank(1), 4, 5, 1);
+    assignment.addRange(Rank(3), 5, 7, 1);
 
-    sphexa::SfcLookupKey<I> key(assignment);
+    SfcLookupKey<I> key(assignment);
 
     EXPECT_EQ(3, key.findRank(0));
-    EXPECT_EQ(2, key.findRank(2));
+    EXPECT_EQ(2, key.findRank(3));
     EXPECT_EQ(0, key.findRank(1));
-    EXPECT_EQ(1, key.findRank(3));
-    EXPECT_EQ(3, key.findRank(4));
+    EXPECT_EQ(0, key.findRank(2));
+    EXPECT_EQ(1, key.findRank(4));
+    EXPECT_EQ(3, key.findRank(5));
+    EXPECT_EQ(3, key.findRank(6));
+}
+
+TEST(DomainDecomposition, SfcLookupGrid)
+{
+    using I = unsigned;
+
+    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
+
+    int nRanks = 2;
+    SpaceCurveAssignment<I> assignment(nRanks);
+    assignment.addRange(Rank(0), tree[0], tree[32], 0);
+    assignment.addRange(Rank(1), tree[32], tree[64], 0);
+
+    SfcLookupKey<I> key(assignment);
+
+    for (int i = 0; i < 32; ++i)
+    {
+        EXPECT_EQ(key.findRank(tree[i]), 0);
+    }
+    for (int i = 32; i < 64; ++i)
+    {
+        EXPECT_EQ(key.findRank(tree[i]), 1);
+    }
 }
 
 
