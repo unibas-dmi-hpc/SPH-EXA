@@ -58,10 +58,10 @@ std::vector<IncomingHaloRange<I>> findIncomingHalos(const std::vector<I>&       
             I collidingNodeEnd   = tree[collidingNodeIdx+1];
 
             bool isHalo = false;
-            for (int a = 0; a < assignment[rank].nRanges(); ++a)
+            for (int a = 0; a < assignment.nRanges(rank); ++a)
             {
-                I assignmentStart = assignment[rank].rangeStart(a);
-                I assignmentEnd = assignment[rank].rangeEnd(a);
+                I assignmentStart = assignment.rangeStart(rank, a);
+                I assignmentEnd = assignment.rangeEnd(rank, a);
 
                 if (collidingNodeStart < assignmentStart || collidingNodeEnd > assignmentEnd)
                 {

@@ -19,8 +19,8 @@ void findIncomingHalos()
 
     // two domains
     SpaceCurveAssignment<I> assignment(2);
-    assignment[0].addRange(tree[0], tree[32], 64);
-    assignment[1].addRange(tree[32], tree[64], 64);
+    assignment.addRange(Rank(0), tree[0], tree[32], 64);
+    assignment.addRange(Rank(1), tree[32], tree[64], 64);
 
     Box<double> box(-1, 1);
 

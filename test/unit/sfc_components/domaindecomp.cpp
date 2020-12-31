@@ -19,8 +19,8 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
         sphexa::SpaceCurveAssignment<CodeType> ref(nSplits);
-        ref[0].addRange(0,3,15);
-        ref[1].addRange(3,6,16);
+        ref.addRange(Rank(0),0,3,15);
+        ref.addRange(Rank(1),3,6,16);
         EXPECT_EQ(ref, splits);
     }
     {
@@ -31,8 +31,8 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
         sphexa::SpaceCurveAssignment<CodeType> ref(nSplits);
-        ref[0].addRange(0,3,15);
-        ref[1].addRange(3,6,16);
+        ref.addRange(Rank(0),0,3,15);
+        ref.addRange(Rank(1),3,6,16);
         EXPECT_EQ(ref, splits);
     }
     {
@@ -43,8 +43,8 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
         sphexa::SpaceCurveAssignment<CodeType> ref(nSplits);
-        ref[0].addRange(0,3,16);
-        ref[1].addRange(3,6,15);
+        ref.addRange(Rank(0),0,3,16);
+        ref.addRange(Rank(1),3,6,15);
         EXPECT_EQ(ref, splits);
     }
     {
@@ -56,13 +56,13 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
 
         sphexa::SpaceCurveAssignment<CodeType> ref(nSplits);
-        ref[0].addRange(0,1,4);
-        ref[1].addRange(1,3,7);
-        ref[2].addRange(3,4,3);
-        ref[3].addRange(4,6,7);
-        ref[4].addRange(6,7,4);
-        ref[5].addRange(7,9,7);
-        ref[6].addRange(9,10,3);
+        ref.addRange(Rank(0),0,1,4);
+        ref.addRange(Rank(1),1,3,7);
+        ref.addRange(Rank(2),3,4,3);
+        ref.addRange(Rank(3),4,6,7);
+        ref.addRange(Rank(4),6,7,4);
+        ref.addRange(Rank(5),7,9,7);
+        ref.addRange(Rank(6),9,10,3);
         EXPECT_EQ(ref, splits);
     }
 }
@@ -72,7 +72,7 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
  *
  * This test creates an array with Morton codes and an
  * SFC assignment with Morton code ranges.
- * CreateSendList then translated the code ranges into indices
+ * CreateSendList then translates the code ranges into indices
  * valid for the Morton code array.
  */
 template<class I>
@@ -84,9 +84,9 @@ void createSendList()
 
     int nRanks = 2;
     sphexa::SpaceCurveAssignment<I> assignment(nRanks);
-    assignment[0].addRange(9, 11, 1);   // range lower than lowest code
-    assignment[0].addRange(13, 15, 2);
-    assignment[1].addRange(17, 1000, 2); // range bigger than highest code
+    assignment.addRange(Rank(0),9, 11, 1);   // range lower than lowest code
+    assignment.addRange(Rank(0),13, 15, 2);
+    assignment.addRange(Rank(1),17, 1000, 2); // range bigger than highest code
 
     // note: codes input needs to be sorted
     auto sendList = sphexa::createSendList(assignment, codes);
@@ -139,7 +139,7 @@ void assignSendRandomData()
     /// all splits except the last one should at least be assigned nParticles/nSplits
     for (int rank = 0; rank < nSplits; ++rank)
     {
-        std::size_t rankCount = assignment[rank].totalCount();
+        std::size_t rankCount = assignment.totalCount(rank);
 
         /// particles in each rank should be within avg per rank +- bucketCount
         EXPECT_LE(nParticles/nSplits - bucketSize, rankCount);
