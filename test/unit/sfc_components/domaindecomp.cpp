@@ -67,6 +67,28 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
     }
 }
 
+//! \brief test that the SfcLookupKey can lookup the rank for a given code
+TEST(DomainDecomposition, SfcLookupKey)
+{
+    using I = unsigned;
+
+    int nRanks = 4;
+    sphexa::SpaceCurveAssignment<I> assignment(nRanks);
+    assignment.addRange(Rank(3), 0, 1, 1);
+    assignment.addRange(Rank(2), 2, 3, 1);
+    assignment.addRange(Rank(0), 1, 2, 1);
+    assignment.addRange(Rank(1), 3, 4, 1);
+    assignment.addRange(Rank(3), 4, 5, 1);
+
+    sphexa::SfcLookupKey<I> key(assignment);
+
+    EXPECT_EQ(3, key.findRank(0));
+    EXPECT_EQ(2, key.findRank(2));
+    EXPECT_EQ(0, key.findRank(1));
+    EXPECT_EQ(1, key.findRank(3));
+    EXPECT_EQ(3, key.findRank(4));
+}
+
 
 /*! \brief test SendList creation from a SFC assignment
  *

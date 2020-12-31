@@ -17,7 +17,7 @@ namespace sphexa
  * \param[in] inEnd input sequence end
  * \param[out] outBegin integer sortKey output
  *
- * upon completion of this routine, the output sequence containes the sort keys
+ * upon completion of this routine, the output sequence contains the sort keys
  * that will access the input sequence in a sorted manner, i.e.
  * the sequence inBegin[outBegin[k]], k=0,1,2,...,n is sorted
  */

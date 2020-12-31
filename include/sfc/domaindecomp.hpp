@@ -5,6 +5,7 @@
 
 #include "sfc/octree.hpp"
 #include "sfc/util.hpp"
+#include "sfc/zorder.hpp"
 
 using Rank = StrongType<int, struct RankTag>;
 
@@ -70,6 +71,17 @@ private:
 template<class I>
 using RankAssignment = IndexRanges<I>;
 
+
+/*! \brief stores which parts of the SFC belong to which rank, on a per-rank basis
+ *
+ * \tparam I  32- or 64-bit unsigned integer
+ *
+ * The storage layout allows fast look-up of the Morton code ranges that a given rank
+ * was assigned.
+ *
+ * Note: Assignment of SFC ranges to ranks should be unique, each SFC range should only
+ * be assigned to one rank. This is NOT checked.
+ */
 template<class I>
 class SpaceCurveAssignment
 {
@@ -78,6 +90,7 @@ public:
 
     explicit SpaceCurveAssignment(int nRanks) : rankAssignment_(nRanks) {}
 
+    //! \brief add an index/code range to rank \a rank
     void addRange(Rank rank, I lower, I upper, std::size_t cnt)
     {
         rankAssignment_[rank].addRange(lower, upper, cnt);
@@ -95,16 +108,64 @@ public:
     //! \brief the sum of number of particles in all ranges or total send count of rank \a rank
     [[nodiscard]] const std::size_t& totalCount(int rank) const { return rankAssignment_[rank].totalCount(); }
 
+    //! \brief number of ranges per rank
     [[nodiscard]] std::size_t nRanges(int rank) const { return rankAssignment_[rank].nRanges(); }
 
 private:
-
     friend bool operator==(const SpaceCurveAssignment& a, const SpaceCurveAssignment& b)
     {
         return a.rankAssignment_ == b.rankAssignment_;
     }
 
     std::vector<RankAssignment<I>> rankAssignment_;
+};
+
+
+/*! \brief Stores the SFC assignment to ranks on a per-code basis
+ *
+ * \tparam I  32- or 64-bit unsigned integer
+ *
+ * The stored information is the same as the SpaceCurveAssignment, but
+ * in a different layout that allows a fast lookup of the rank that a given
+ * Morton code is assigned. Since this kind of lookup is only needed after the
+ * SFC has been assigned, this class is non-modifiable after construction.
+ *
+ * Note: Construction assumes that the provided SpaceCurveAssignment only
+ * contains unique assignments where each SFC range is only assigned to a single rank.
+ * This is NOT checked.
+ */
+template<class I>
+class SfcLookupKey
+{
+public:
+    explicit SfcLookupKey(const SpaceCurveAssignment<I>& sfc)
+    {
+        for (int rank = 0; rank < sfc.nRanks(); ++rank)
+        {
+            for (int range = 0; range < sfc.nRanges(rank); ++range)
+            {
+                ranks_.push_back(rank);
+                rangeCodeStarts_.push_back(sfc.rangeStart(rank, range));
+            }
+        }
+
+        std::vector<int> order(rangeCodeStarts_.size());
+        sort_invert(begin(rangeCodeStarts_), end(rangeCodeStarts_), begin(order));
+        reorder(order, rangeCodeStarts_);
+        reorder(order, ranks_);
+    }
+
+    int findRank(I code)
+    {
+        int index = std::lower_bound(begin(rangeCodeStarts_), end(rangeCodeStarts_), code)
+                    - begin(rangeCodeStarts_);
+
+        return ranks_[index];
+    }
+
+private:
+    std::vector<I>   rangeCodeStarts_;
+    std::vector<int> ranks_;
 };
 
 
