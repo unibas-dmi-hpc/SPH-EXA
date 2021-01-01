@@ -28,43 +28,50 @@ struct HaloRange
 };
 
 
-/*! \brief compose a list of Morton code ranges that contain halos from rank's perspective
+/*! \brief Compute halo node pairs
  *
- * @tparam I
- * @tparam T
- * @param tree
- * @param nodeCounts
- * @param interactionRadii
- * @param box
- * @param assignment
- * @param rank
+ * @tparam I                   32- or 64-bit unsigned integer
+ * @tparam T                   float or double
+ * @param tree                 cornerstone octree
+ * @param interactionRadii     halo search radii per octree (leaf) node
+ * @param box                  coordinate bounding box
+ * @param assignment           list if Morton code ranges assignments per rank
+ * @param rank                 compute pairs from perspective of \a rank
+ * @param[out] haloPairs       output list of halo node index pairs
  * @return
  *
- * This means that the returned Morton code ranges are not assigned to \a rank, but
- * contain halos of the code ranges assigned to \a rank.
+ * A pair of indices (i,j) in [0...nNodes(tree)], is a halo pair for rank r if
+ *   - tree[i] is assigned to rank r
+ *   - tree[j] is not assigned to rank r
+ *   - tree[i] enlarged by the search radius interactionRadii[i] overlaps with tree[j]
+ *   - tree[j] enlarged by the search radius interactionRadii[j] overlaps with tree[i]
  *
- * Unparallelized prototype implementation
+ * This means that the first element in each index pair in \a haloPairs is the index of a
+ * node (in \a tree) that belongs to rank \a rank and must be sent out to another rank.
+ *
+ * The second element of each pair is the index of a remote node that is a halo for rank \a rank.
+ * We can easily find the source rank of the halo with binary search in the space curve assignment.
+ * The source rank of the halo is also the destination where the internal node referenced in the first
+ * pair element must be sent to.
  */
 template <class I, class T>
-std::vector<HaloRange<I>> findIncomingHalos(const std::vector<I>&           tree,
-                                            const std::vector<T>&           interactionRadii,
-                                            const Box<T>&                   box,
-                                            const SpaceCurveAssignment<I>&  assignment,
-                                            int                             rank)
+void findHalos(const std::vector<I>&           tree,
+               const std::vector<T>&           interactionRadii,
+               const Box<T>&                   box,
+               const SpaceCurveAssignment<I>&  assignment,
+               int                             rank,
+               std::vector<pair<int>>&         haloPairs)
 {
-    SfcLookupKey<I> sfcLookup(assignment);
-
     std::vector<BinaryNode<I>> internalTree = createInternalTree(tree);
-    std::vector<HaloRange<I>> ret;
 
     // go through all ranges assigned to rank
     for (int range = 0; range < assignment.nRanges(rank); ++range)
     {
-        int nodeStart = std::lower_bound(begin(tree), end(tree), assignment.rangeStart(rank, range)) - begin(tree);
-        int nodeEnd   = std::lower_bound(begin(tree), end(tree), assignment.rangeEnd(rank, range)) - begin(tree);
+        int firstNode = std::lower_bound(begin(tree), end(tree), assignment.rangeStart(rank, range)) - begin(tree);
+        int lastNode  = std::lower_bound(begin(tree), end(tree), assignment.rangeEnd(rank, range)) - begin(tree);
 
         // loop over all the nodes in range
-        for (int nodeIdx = nodeStart; nodeIdx < nodeEnd; ++nodeIdx)
+        for (int nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
         {
             CollisionList collisions;
             T radius = interactionRadii[nodeIdx];
@@ -97,18 +104,17 @@ std::vector<HaloRange<I>> findIncomingHalos(const std::vector<I>&           tree
                 }
                 if (isHalo)
                 {
-                    ret.push_back({collidingNodeStart, collidingNodeEnd, sfcLookup.findRank(collidingNodeStart)});
+                    // check if remote node +halo also overlaps with internal node
+                    Box<int> remoteNodeBox = makeHaloBox(collidingNodeStart, collidingNodeEnd,
+                                                         interactionRadii[collidingNodeIdx], box);
+                    if (overlap(tree[nodeIdx], tree[nodeIdx+1], remoteNodeBox))
+                    {
+                        haloPairs.emplace_back(nodeIdx, collidingNodeIdx);
+                    }
                 }
             }
         }
     }
-
-    // eliminate duplicates
-    std::sort(begin(ret), end(ret));
-    auto uit = std::unique(begin(ret), end(ret));
-    ret.erase(uit, end(ret));
-
-    return ret;
 }
 
 } // namespace sphexa

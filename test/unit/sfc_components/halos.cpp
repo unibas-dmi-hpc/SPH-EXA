@@ -21,7 +21,7 @@ namespace sphexa
  * (1, 0-4, 0-4) halos of rank 1
  */
 template <class I>
-void findIncomingHalos()
+void findHalos()
 {
 
     // a tree with 4 subdivisions along each dimension, 64 nodes
@@ -37,27 +37,38 @@ void findIncomingHalos()
     // size of one node is 0.25^3
     std::vector<double> interactionRadii(nNodes(tree), 0.1);
 
-    std::vector<pair<int>> ranks{{0, 1}, {1, 0}};
-
-    for (auto p : ranks)
-    {
-        int executingRank = p[0];
-        int remoteRank    = p[1];
-        std::vector<HaloRange<I>> halos
-            = findIncomingHalos(tree, interactionRadii, box, assignment, executingRank);
-
-        std::vector<HaloRange<I>> refHalos;
-        for (int y = 0; y < 4; ++y)
-            for (int z = 0; z < 4; ++z)
+    std::vector<pair<int>> refPairs0;
+    for (int i = 0; i < nNodes(tree) / 2; ++i)
+        for (int j = nNodes(tree) / 2; j < nNodes(tree); ++j)
+        {
+            if (overlap(tree[i], tree[i + 1], makeHaloBox(tree[j], tree[j + 1], interactionRadii[j], box)))
             {
-                int x = 2 - executingRank;
-                I node = codeFromBox<I>(x, y, z, 2);
-                refHalos.push_back({node, node + nodeRange<I>(2), remoteRank});
+                refPairs0.emplace_back(i, j);
             }
+        }
+    std::sort(begin(refPairs0), end(refPairs0));
+    EXPECT_EQ(refPairs0.size(), 100);
 
-        std::sort(begin(refHalos), end(refHalos));
+    {
+        std::vector<pair<int>> testPairs0;
+        findHalos(tree, interactionRadii, box, assignment, 0, testPairs0);
+        std::sort(begin(testPairs0), end(testPairs0));
 
-        EXPECT_EQ(halos, refHalos);
+        EXPECT_EQ(testPairs0.size(), 100);
+        EXPECT_EQ(testPairs0, refPairs0);
+    }
+
+    auto refPairs1 = refPairs0;
+    for (auto& p : refPairs1)
+        std::swap(p[0], p[1]);
+    std::sort(begin(refPairs1), end(refPairs1));
+
+    {
+        std::vector<pair<int>> testPairs1;
+        findHalos(tree, interactionRadii, box, assignment, 1, testPairs1);
+        std::sort(begin(testPairs1), end(testPairs1));
+        EXPECT_EQ(testPairs1.size(), 100);
+        EXPECT_EQ(testPairs1, refPairs1);
     }
 }
 
@@ -65,6 +76,6 @@ void findIncomingHalos()
 
 TEST(Halos, findIncomingHalos)
 {
-    sphexa::findIncomingHalos<unsigned>();
-    sphexa::findIncomingHalos<uint64_t>();
+    sphexa::findHalos<unsigned>();
+    sphexa::findHalos<uint64_t>();
 }

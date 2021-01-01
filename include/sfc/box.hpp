@@ -83,6 +83,14 @@ private:
         return a.data[0] == b.data[0] && a.data[1] == b.data[1];
     }
 
+    friend bool operator<(const pair& a, const pair& b)
+    {
+        bool c0 = a.data[0] < b.data[0];
+        bool e0 = a.data[0] == b.data[0];
+        bool c1 = a.data[1] < b.data[1];
+        return c0 || (e0 && c1);
+    }
+
     T data[2];
 };
 
