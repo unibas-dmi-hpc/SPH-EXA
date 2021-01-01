@@ -27,9 +27,6 @@ void findIncomingHalos()
     // a tree with 4 subdivisions along each dimension, 64 nodes
     std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
 
-    // two particles per node
-    std::vector<std::size_t> counts(nNodes(tree), 2);
-
     // two domains
     SpaceCurveAssignment<I> assignment(2);
     assignment.addRange(Rank(0), tree[0], tree[32], 64);
@@ -47,7 +44,7 @@ void findIncomingHalos()
         int executingRank = p[0];
         int remoteRank    = p[1];
         std::vector<HaloRange<I>> halos
-            = findIncomingHalos(tree, counts, interactionRadii, box, assignment, executingRank);
+            = findIncomingHalos(tree, interactionRadii, box, assignment, executingRank);
 
         std::vector<HaloRange<I>> refHalos;
         for (int y = 0; y < 4; ++y)
@@ -55,7 +52,7 @@ void findIncomingHalos()
             {
                 int x = 2 - executingRank;
                 I node = codeFromBox<I>(x, y, z, 2);
-                refHalos.push_back({node, node + nodeRange<I>(2), 2, remoteRank});
+                refHalos.push_back({node, node + nodeRange<I>(2), remoteRank});
             }
 
         std::sort(begin(refHalos), end(refHalos));

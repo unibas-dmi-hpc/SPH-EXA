@@ -14,7 +14,6 @@ struct HaloRange
 {
     I codeStart;
     I codeEnd;
-    std::size_t count;
     int sourceRank;
 
     friend bool operator<(const HaloRange& a, const HaloRange& b)
@@ -24,8 +23,7 @@ struct HaloRange
 
     friend bool operator==(const HaloRange& a, const HaloRange& b)
     {
-        return a.codeStart == b.codeStart && a.codeEnd == b.codeEnd &&
-               a.count == b.count && a.sourceRank == b.sourceRank;
+        return a.codeStart == b.codeStart && a.codeEnd == b.codeEnd && a.sourceRank == b.sourceRank;
     }
 };
 
@@ -49,7 +47,6 @@ struct HaloRange
  */
 template <class I, class T>
 std::vector<HaloRange<I>> findIncomingHalos(const std::vector<I>&           tree,
-                                            const std::vector<std::size_t>& nodeCounts,
                                             const std::vector<T>&           interactionRadii,
                                             const Box<T>&                   box,
                                             const SpaceCurveAssignment<I>&  assignment,
@@ -104,8 +101,7 @@ std::vector<HaloRange<I>> findIncomingHalos(const std::vector<I>&           tree
                 }
                 if (isHalo)
                 {
-                    ret.push_back({collidingNodeStart, collidingNodeEnd, nodeCounts[collidingNodeIdx],
-                                   sfcLookup.findRank(collidingNodeStart)});
+                    ret.push_back({collidingNodeStart, collidingNodeEnd, sfcLookup.findRank(collidingNodeStart)});
                 }
             }
         }
