@@ -31,11 +31,7 @@ std::vector<CollisionList> findAllCollisions(const std::vector<BinaryNode<I>>& i
     {
         T radius = haloRadii[leafIdx];
 
-        int dx = detail::toNBitInt<I>(normalize(radius, globalBox.xmin(), globalBox.xmax()));
-        int dy = detail::toNBitInt<I>(normalize(radius, globalBox.ymin(), globalBox.ymax()));
-        int dz = detail::toNBitInt<I>(normalize(radius, globalBox.zmin(), globalBox.zmax()));
-
-        Box<int> haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx+1], dx, dy, dz);
+        Box<int> haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx+1], radius, globalBox);
         findCollisions(internalTree.data(), tree.data(), collisions[leafIdx], haloBox);
     }
 
