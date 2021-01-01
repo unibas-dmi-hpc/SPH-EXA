@@ -69,13 +69,9 @@ std::vector<HaloRange<I>> findIncomingHalos(const std::vector<I>&           tree
             CollisionList collisions;
             T radius = interactionRadii[nodeIdx];
 
-            int dx = detail::toNBitInt<I>(normalize(radius, box.xmin(), box.xmax()));
-            int dy = detail::toNBitInt<I>(normalize(radius, box.ymin(), box.ymax()));
-            int dz = detail::toNBitInt<I>(normalize(radius, box.zmin(), box.zmax()));
-
             // find out with which other nodes in the octree that the node at nodeIdx
             // enlarged by the halo radius collides with
-            Box<int> haloBox = makeHaloBox(tree[nodeIdx], tree[nodeIdx + 1], dx, dy, dz);
+            Box<int> haloBox = makeHaloBox(tree[nodeIdx], tree[nodeIdx + 1], radius, box);
             findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
 
             // Go through all colliding nodes to determine which of them fall into a part of the SFC

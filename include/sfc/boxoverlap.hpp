@@ -68,4 +68,15 @@ Box<int> makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz)
     return Box<int>(xmin, xmax, ymin, ymax, zmin, zmax);
 }
 
+//! \brief create a box with specified radius around node delineated by codeStart/End
+template <class I, class T>
+Box<int> makeHaloBox(I codeStart, I codeEnd, T radius, const Box<T>& box)
+{
+    int dx = detail::toNBitInt<I>(normalize(radius, box.xmin(), box.xmax()));
+    int dy = detail::toNBitInt<I>(normalize(radius, box.ymin(), box.ymax()));
+    int dz = detail::toNBitInt<I>(normalize(radius, box.zmin(), box.zmax()));
+
+    return makeHaloBox(codeStart, codeEnd, dx, dy, dz);
+}
+
 } // namespace sphexa
