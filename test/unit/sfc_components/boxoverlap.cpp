@@ -44,9 +44,14 @@ void overlapTest()
     I prefix         = pad(I(0b000111), 6);
     int prefixLength = 6;
 
+    I bound = pad(I(0b001), 3);
+
+    EXPECT_EQ(prefixLength, treeLevel(bound-prefix) * 3);
+
     /// Each test is a separate case
 
     EXPECT_FALSE(overlap(prefix, prefixLength, Box<int>{0, r, 0, r, 0, r}));
+    EXPECT_FALSE(overlap(prefix, bound, Box<int>{0, r, 0, r, 0, r}));
 
     // exact match
     EXPECT_TRUE(overlap(prefix, prefixLength, Box<int>{r, 2*r, r, 2*r, r, 2*r}));

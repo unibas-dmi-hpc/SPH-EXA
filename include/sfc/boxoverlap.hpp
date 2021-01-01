@@ -8,7 +8,7 @@
 namespace sphexa
 {
 
-/*! \brief check for overlap between a binary or octree node and an box 3D space
+/*! \brief check for overlap between a binary or octree node and a box in 3D space
  *
  * @tparam I
  * @param prefix            Morton code node prefix, defines the corner of node
@@ -33,6 +33,13 @@ bool overlap(I prefix, int length, Box<int> box)
     bool zOverlap = box.zmax() > zRange[0] && zRange[1] > box.zmin();
 
     return xOverlap && yOverlap && zOverlap;
+}
+
+template <class I>
+bool overlap(I codeStart, I codeEnd, Box<int> box)
+{
+    int level = treeLevel(codeEnd - codeStart);
+    return overlap(codeStart, level*3, box);
 }
 
 /*! \brief Construct a 3D box from an octree node plus halo range
