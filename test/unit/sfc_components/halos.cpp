@@ -79,7 +79,7 @@ TEST(Halos, findHalos)
 
 //! \brief test processing of halo pair nodes into send/receive node lists
 template <class I>
-void prepareHaloExchange()
+void computeSendRecvNodeList()
 {
     // a tree with 4 subdivisions along each dimension, 64 nodes
     std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
@@ -109,7 +109,7 @@ void prepareHaloExchange()
         std::vector<std::vector<int>> incomingHalos(assignment.nRanks());
         std::vector<std::vector<int>> outgoingHalos(assignment.nRanks());
 
-        prepareHaloExchange<I>(tree, assignment, haloPairs, incomingHalos, outgoingHalos);
+        computeSendRecvNodeList<I>(tree, assignment, haloPairs, incomingHalos, outgoingHalos);
 
         std::vector<std::vector<int>> refIncomingHalos(assignment.nRanks());
         std::vector<std::vector<int>> refOutgoingHalos(assignment.nRanks());
@@ -125,8 +125,8 @@ void prepareHaloExchange()
     }
 }
 
-TEST(Halos, prepareHaloExchange)
+TEST(Halos, sendRecvNodeList)
 {
-    prepareHaloExchange<unsigned>();
-    prepareHaloExchange<uint64_t>();
+    computeSendRecvNodeList<unsigned>();
+    computeSendRecvNodeList<uint64_t>();
 }

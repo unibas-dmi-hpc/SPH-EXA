@@ -49,6 +49,15 @@ public:
         totalCount_ += cnt;
     }
 
+    //! \brief add a local index range, infer count from difference
+    void addRange(I lower, I upper)
+    {
+        assert(lower <= upper);
+        std::size_t cnt = upper - lower;
+        ranges_.push_back({lower, upper, cnt});
+        totalCount_ += cnt;
+    }
+
     [[nodiscard]] I rangeStart(int i) const
     {
         return ranges_[i].start;

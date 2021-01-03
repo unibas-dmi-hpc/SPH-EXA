@@ -9,25 +9,6 @@
 namespace sphexa
 {
 
-template <class I>
-struct HaloRange
-{
-    I codeStart;
-    I codeEnd;
-    int sourceRank;
-
-    friend bool operator<(const HaloRange& a, const HaloRange& b)
-    {
-        return a.codeStart < b.codeStart;
-    }
-
-    friend bool operator==(const HaloRange& a, const HaloRange& b)
-    {
-        return a.codeStart == b.codeStart && a.codeEnd == b.codeEnd && a.sourceRank == b.sourceRank;
-    }
-};
-
-
 /*! \brief Compute halo node pairs
  *
  * @tparam I                   32- or 64-bit unsigned integer
@@ -131,11 +112,11 @@ void findHalos(const std::vector<I>&           tree,
  *                              grouped by destination rank
  */
 template<class I>
-void prepareHaloExchange(const std::vector<I>& tree,
-                         const SpaceCurveAssignment<I>& assignment,
-                         const std::vector<pair<int>>& haloPairs,
-                         std::vector<std::vector<int>>& incomingNodes,
-                         std::vector<std::vector<int>>& outgoingNodes)
+void computeSendRecvNodeList(const std::vector<I>& tree,
+                             const SpaceCurveAssignment<I>& assignment,
+                             const std::vector<pair<int>>& haloPairs,
+                             std::vector<std::vector<int>>& incomingNodes,
+                             std::vector<std::vector<int>>& outgoingNodes)
 {
     // needed to efficiently look up the assigned rank of a given octree node
     SfcLookupKey<I> sfcLookup(assignment);
