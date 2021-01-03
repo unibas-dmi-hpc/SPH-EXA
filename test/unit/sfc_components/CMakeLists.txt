@@ -10,6 +10,7 @@ add_executable(sfc_tests
         findneighbors.cpp
         halos.cpp
         histogram.cpp
+        layout.cpp
         morton.cpp
         octree.cpp
         octree_util.cpp
