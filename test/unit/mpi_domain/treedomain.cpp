@@ -58,7 +58,6 @@ void globalRandomGaussian(int thisRank, int nRanks)
 
     auto assignment        = sphexa::singleRangeSfcSplit(tree, counts, nRanks);
     auto sendList          = sphexa::createSendList(assignment, coords.mortonCodes());
-    auto assignedSfcRanges = assignment.makeRangePairs(thisRank);
 
     EXPECT_EQ(std::accumulate(begin(counts), end(counts), std::size_t(0)), nParticles * nRanks);
 
@@ -84,6 +83,7 @@ void globalRandomGaussian(int thisRank, int nRanks)
     sphexa::reorder(ordering, newCodes);
 
     // the assigned sfc ranges provides an envelope for the new morton codes after particle exchange
+    auto assignedSfcRanges = assignment.makeRangePairs(thisRank);
     EXPECT_LE(assignedSfcRanges[0], newCodes[0]);
     EXPECT_GE(assignedSfcRanges[1], newCodes[newCodes.size()-1]);
 
