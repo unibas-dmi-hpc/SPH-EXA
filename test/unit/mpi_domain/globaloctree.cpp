@@ -79,30 +79,55 @@ TEST(GlobalTree, basicRegularTree32)
         throw std::runtime_error("this test needs 2 ranks\n");
 
     buildTree<unsigned>(rank);
+    buildTree<uint64_t>(rank);
 }
 
 template<class CodeType>
-void computeNodeMax(int rank, int nRanks)
+void computeNodeMax(int rank)
 {
+    // an (incomplete) tree with 4 nodes
     std::vector<CodeType> tree{0,8,16,24,32};
 
+    // node boundaries:                 |    |     |   |           |
     std::vector<CodeType> particleCodes{ 2,4, 8,14, 20, 24,25,26,31 };
 
-    std::vector<float>    smoothingLs{ 1,2, 4,3, 5, 2,8,1,3};
-    for (auto& i : smoothingLs) i *= float(rank);
+    std::vector<std::vector<float>> smoothingLs
+    {
+    //  |    |    |  |       |
+        {1,1, 2,3, 6, 2,9,1,3}, // rank 0 smoothing lengths
+        {1,2, 4,3, 5, 2,8,1,3}, // rank 1 smoothing lengths
+    };
 
-    std::vector<float>    hMaxPerNode{ 2,    4,  5,   8};
-    for (auto& i : hMaxPerNode) i *= float(nRanks - 1);
+    // expected maximum per node across both ranks searching all nodes
+    std::vector<float>    hMaxPerNode{2, 4, 6, 9};
+    // expected outcome with restricted range
+    std::vector<float>    hMaxRestricted{1, 3, 5, 8};
 
+    CodeType fullRange[2]       = {0, 32};
+    CodeType restrictedRange[2] = { 16u*rank, 16u*(rank+1) };
+
+    // trivial ordering
     std::vector<int> ordering(particleCodes.size());
     std::iota(begin(ordering), end(ordering), 0);
 
-    std::vector<float> probe(hMaxPerNode.size());
+    {
+        std::vector<float> probe(hMaxPerNode.size());
 
-    sphexa::computeNodeMaxGlobal(tree.data(), nNodes(tree), particleCodes.data(), particleCodes.data() + particleCodes.size(),
-                                 ordering.data(), smoothingLs.data(), probe.data());
+        sphexa::computeNodeMaxGlobal(tree.data(), nNodes(tree), fullRange, 1, particleCodes.data(),
+                                     particleCodes.data() + particleCodes.size(), ordering.data(),
+                                     smoothingLs[rank].data(), probe.data());
 
-    EXPECT_EQ(probe, hMaxPerNode);
+        EXPECT_EQ(probe, hMaxPerNode);
+    }
+    {
+        std::vector<float> probe(hMaxPerNode.size());
+
+        sphexa::computeNodeMaxGlobal(tree.data(), nNodes(tree), restrictedRange, 1, particleCodes.data(),
+                                     particleCodes.data() + particleCodes.size(), ordering.data(),
+                                     smoothingLs[rank].data(), probe.data());
+
+        EXPECT_EQ(probe, hMaxRestricted);
+    }
 }
 
 TEST(GlobalTree, computeNodeMax)
@@ -111,6 +136,11 @@ TEST(GlobalTree, computeNodeMax)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
-    computeNodeMax<unsigned>(rank, nRanks);
-    computeNodeMax<uint64_t>(rank, nRanks);
+    constexpr int thisExampleRanks = 2;
+
+    if (nRanks != thisExampleRanks)
+        throw std::runtime_error("this test needs 2 ranks\n");
+
+    computeNodeMax<unsigned>(rank);
+    computeNodeMax<uint64_t>(rank);
 }

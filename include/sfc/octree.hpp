@@ -243,6 +243,8 @@ computeOctree(const I* codesStart, const I* codesEnd, int bucketSize,
  *                     This function does not rely on octree invariants, sortedness of the nodes
  *                     is the only requirement.
  * \param nNodes       number of nodes in tree
+ * \param sfcRanges    (i,i+1) pairs of Morton code ranges assigned to rank
+ * \param nRanges      number of Morton code pairs in \a nodeRanges
  * \param codesStart   sorted Morton code range start of particles to count
  * \param codesEnd     sorted Morton code range end of particles to count
  * \param ordering     Access input according to \a ordering
@@ -253,27 +255,46 @@ computeOctree(const I* codesStart, const I* codesEnd, int bucketSize,
  * \param output       maximum per node, length = @a nNodes
  */
 template<class I, class T>
-void computeNodeMax(const I* tree, int nNodes, const I* codesStart, const I* codesEnd,
+void computeNodeMax(const I* tree, int nNodes, const I* sfcRanges, int nRanges,
+                    const I* codesStart, const I* codesEnd,
                     const int* ordering, const T* input, T* output)
 {
     for (int i = 0; i < nNodes; ++i)
+        output[i] = -INFINITY;
+
+    for (int rangeIndex = 0; rangeIndex < nRanges; ++rangeIndex)
     {
-        I nodeStart = tree[i];
-        I nodeEnd   = tree[i+1];
+        // Morton code range
+        I lowerCode = sfcRanges[2*rangeIndex];
+        I upperCode = sfcRanges[2*rangeIndex+1];
 
-        // find elements belonging to particles in node i
-        int startIndex = std::lower_bound(codesStart, codesEnd, nodeStart) - codesStart;
-        int endIndex   = std::lower_bound(codesStart, codesEnd, nodeEnd)   - codesStart;
+        // Find range of node indices in the tree that is contained in the Morton code range
+        int lowerNodeIndex = std::lower_bound(tree, tree + nNodes, lowerCode) - tree;
+        int upperNodeIndex = std::lower_bound(tree, tree + nNodes, upperCode) - tree;
 
-        T nodeMax = -INFINITY;
-        for(int p = startIndex; p < endIndex; ++p)
+        // maximum bounds of the code array for optimizing the binary searches
+        const I* a = std::lower_bound(codesStart, codesEnd, lowerCode);
+        const I* b = std::lower_bound(codesStart, codesEnd, upperCode);
+
+        for (int i = lowerNodeIndex; i < upperNodeIndex; ++i)
         {
-            T nodeElement = input[ordering[p]];
-            if (nodeElement > nodeMax)
-                nodeMax = nodeElement;
-        }
+            I nodeStart = tree[i];
+            I nodeEnd   = tree[i+1];
 
-        output[i] = nodeMax;
+            // find elements belonging to particles in node i
+            int startIndex = std::lower_bound(a, b, nodeStart) - codesStart;
+            int endIndex   = std::lower_bound(a, b, nodeEnd)   - codesStart;
+
+            T nodeMax = -INFINITY;
+            for(int p = startIndex; p < endIndex; ++p)
+            {
+                T nodeElement = input[ordering[p]];
+                if (nodeElement > nodeMax)
+                    nodeMax = nodeElement;
+            }
+
+            output[i] = nodeMax;
+        }
     }
 }
 
