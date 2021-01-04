@@ -22,14 +22,17 @@ struct GlobalReduce
  * \param codesStart   particle morton code sequence start
  * \param codesEnd     particle morton code sequence end
  * \param bucketSize   maximum number of particles/codes per octree leaf node
+ * \param sfcRanges    (i,i+1) pairs of Morton code ranges assigned to rank
+ * \param nRanges      number of Morton code pairs in \a nodeRanges
  * \param[inout] tree  initial tree for the first iteration
  * \return             the tree and the node counts
  */
 template <class I>
-std::tuple<std::vector<I>, std::vector<std::size_t>> computeOctreeGlobal(const I *codesStart, const I *codesEnd, int bucketSize,
-                                                                         std::vector<I> &&tree = std::vector<I>(0))
+std::tuple<std::vector<I>, std::vector<std::size_t>> computeOctreeGlobal(const I* codesStart, const I* codesEnd, int bucketSize,
+                                                                         const I* sfcRanges, int nRanges,
+                                                                         std::vector<I>&& tree = std::vector<I>(0))
 {
-    return computeOctree<I, GlobalReduce>(codesStart, codesEnd, bucketSize, std::move(tree));
+    return computeOctree<I, GlobalReduce>(codesStart, codesEnd, bucketSize, sfcRanges, nRanges, std::move(tree));
 }
 
 /*! \brief Compute the global maximum value of a given input array for each node in the global or local octree

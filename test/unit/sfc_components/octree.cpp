@@ -66,10 +66,14 @@ void checkCountTreeNodes()
     }
     std::sort(begin(codes), end(codes));
 
-    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
-
+    std::vector<CodeType>    tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
     std::vector<std::size_t> counts(sphexa::nNodes(tree));
-    sphexa::computeNodeCounts(tree.data(), counts.data(), sphexa::nNodes(tree),
+
+    // the entire tree
+    CodeType sfcRange[2] = {0, nodeRange<CodeType>(0)};
+    int nRanges = 1;
+
+    sphexa::computeNodeCounts(tree.data(), counts.data(), nNodes(tree), sfcRange, nRanges,
                               codes.data(), codes.data() + codes.size());
 
     // the level 2 nodes have 1/64 of the total volume/particle count
@@ -413,10 +417,15 @@ public:
 
         CoordinateType<double, CodeType> randomBox(nParticles, box);
 
+        // the entire SFC curve
+        I sfcRange[2] = {0, nodeRange<I>(0)};
+        int nRanges = 1;
+
         // compute octree starting from default uniform octree
         auto [treeML, countsML] = sphexa::computeOctree(randomBox.mortonCodes().data(),
                                                         randomBox.mortonCodes().data() + nParticles,
-                                                        bucketSize);
+                                                        bucketSize,
+                                                        sfcRange, nRanges);
 
         std::cout << "number of nodes: " << nNodes(treeML) << std::endl;
 
@@ -425,7 +434,8 @@ public:
         // compute octree starting from just the root node
         auto [treeRN, countsRN] = sphexa::computeOctree(randomBox.mortonCodes().data(),
                                                         randomBox.mortonCodes().data() + nParticles,
-                                                        bucketSize, sphexa::makeRootNodeTree<I>());
+                                                        bucketSize, sfcRange, nRanges,
+                                                        sphexa::makeRootNodeTree<I>());
 
         checkOctreeWithCounts(treeML, countsRN, bucketSize, randomBox.mortonCodes());
 
