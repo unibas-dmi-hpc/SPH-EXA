@@ -18,16 +18,14 @@ void computeLocalNodeRanges()
 
     {
         int rank = 0;
-        IndexRanges<int> nodeIndexRanges = computeLocalNodeRanges(tree, assignment, rank);
-        IndexRanges<int> ref;
-        ref.addRange(0, 32, 32);
+        std::vector<int> nodeIndexRanges = computeLocalNodeRanges(tree, assignment, rank);
+        std::vector<int> ref{0,32};
         EXPECT_EQ(nodeIndexRanges, ref);
     }
     {
         int rank = 1;
-        IndexRanges<int> nodeIndexRanges = computeLocalNodeRanges(tree, assignment, rank);
-        IndexRanges<int> ref;
-        ref.addRange(32, 64, 32);
+        std::vector<int> nodeIndexRanges = computeLocalNodeRanges(tree, assignment, rank);
+        std::vector<int> ref{32,64};
         EXPECT_EQ(nodeIndexRanges, ref);
     }
 }
@@ -55,9 +53,7 @@ TEST(Layout, computeLayoutBasic)
     int nNodes = 64;
     std::vector<std::size_t> nodeCounts(nNodes, 1);
 
-    IndexRanges<int> localNodes;
-    localNodes.addRange(0, 32, 32);
-
+    std::vector<int> localNodes{0,32};
     std::vector<int> halos{32, 34};
 
     ArrayLayout layout = computeLayout(localNodes, halos, nodeCounts);
@@ -79,9 +75,7 @@ TEST(Layout, computeLayoutElaborate)
     int nNodes = 32;
     std::vector<std::size_t> nodeCounts(nNodes, 1);
 
-    IndexRanges<int> localNodes;
-    localNodes.addRange(4, 10);
-    localNodes.addRange(23, 28);
+    std::vector<int> localNodes{4,10,23,28};
 
     std::vector<int> halos{1, 3, 14, 15, 16, 21, 30};
     nodeCounts[1]  = 2;
