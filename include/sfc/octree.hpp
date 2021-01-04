@@ -56,35 +56,35 @@ std::size_t nNodes(const std::vector<I>& tree)
  *                     needs to satisfy the octree invariants
  * \param counts       output particle counts per node, length = @a nNodes
  * \param nNodes       number of nodes in tree
- * \param sfcRanges    (i,i+1) pairs of global node index ranges assigned to rank
- * \param nRanges      number of index pairs in \a nodeRanges
  * \param codesStart   Morton code range start of particles to count
- * \param codesEnd     Morton code range end of particles to count
+ * \param codeRanges   (i,i+1) index pairs, denoting ranges within the codes array
+ *                     [codeStart, codeEnd] to be considered for computing
+ *                     octree node particle count
+ * \param nRanges      number of index pairs in \a codeRanges
  *
  * We only count particles in the nodes which are covered by sfcRanges.
  * This allows this function to scale with the number of ranks, but is also required to
  * avoid double counting of halo particles which remain from previous SPH iterations.
  */
 template<class I>
-void computeNodeCounts(const I* tree, std::size_t* counts, int nNodes, const I* sfcRanges,
-                       int nRanges, const I* codesStart, const I* codesEnd)
+void computeNodeCounts(const I* tree, std::size_t* counts, int nNodes,
+                       const I* codesStart, const int* codeRanges, int nRanges)
 {
     for (int i = 0; i < nNodes; ++i)
         counts[i] = 0;
 
     for (int rangeIndex = 0; rangeIndex < nRanges; ++rangeIndex)
     {
-        // Morton code range
-        I lowerCode = sfcRanges[2*rangeIndex];
-        I upperCode = sfcRanges[2*rangeIndex+1];
-
-        // Find range of node indices in the tree that is contained in the Morton code range
-        int lowerNodeIndex = std::lower_bound(tree, tree + nNodes, lowerCode) - tree;
-        int upperNodeIndex = std::lower_bound(tree, tree + nNodes, upperCode) - tree;
+        int lowerCodeIndex = codeRanges[2*rangeIndex];
+        int upperCodeIndex = codeRanges[2*rangeIndex+1];
 
         // maximum bounds of the code array for optimizing the binary searches
-        const I* a = std::lower_bound(codesStart, codesEnd, lowerCode);
-        const I* b = std::lower_bound(codesStart, codesEnd, upperCode);
+        const I* a = codesStart + lowerCodeIndex;
+        const I* b = codesStart + upperCodeIndex;
+
+        // Find smallest part of tree that contains the code range [*a, *b]
+        int lowerNodeIndex = std::upper_bound(tree, tree + nNodes, *a) - tree - 1; // round towards tree origin
+        int upperNodeIndex = std::lower_bound(tree, tree + nNodes, *(b-1)) - tree; // round towards tree end
 
         // (omp) parallel
         for (int i = lowerNodeIndex; i < upperNodeIndex; ++i)
@@ -198,19 +198,27 @@ std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
  * \tparam I           32- or 64-bit unsigned integer type
  * \param codesStart   particle morton code sequence start
  * \param codesEnd     particle morton code sequence end
+ * \param codeRanges   (i,i+1) index pairs, denoting ranges within the codes array
+ *                     [codeStart, codeEnd] to be considered for computing
+ *                     octree node particle count
+ * \param nRanges      number of index pairs in \a codeRanges
  * \param bucketSize   maximum number of particles/codes per octree leaf node
- * \param sfcRanges    (i,i+1) pairs of Morton code ranges assigned to rank
- * \param nRanges      number of Morton code pairs in \a nodeRanges
  * \param[inout] tree  initial tree for the first iteration
  * \return             the tree and the node counts
  *
+ * The reason for providing the \a codeRanges argument is to prevent those codes belonging to halo
+ * particles from participating in the calculation of octree node counts. To avoid double counting,
+ * each rank must only count those codes/particles that fall within its assigned SFC-Morton range.
+ * If each rank gets assigned a single continuous range of Morton codes,
+ * nRanges == 1. This is currently the case, though not a requirement for this function.
+ *
  * If there is no prior assignment of the tree to ranks or if only a single rank builds the tree,
- * sfcRanges covers the entire tree, i.e. sfcRanges is {0,2^(30 or 63)} and nRanges == 1.
+ * codeRanges covers all codes, i.e. codeRanges is {0,codesEnd-codeStart} and nRanges == 1.
  */
 template<class I, class Reduce = void>
 std::tuple<std::vector<I>, std::vector<std::size_t>>
-computeOctree(const I* codesStart, const I* codesEnd, int bucketSize,
-              const I* sfcRanges, int nRanges, std::vector<I>&& tree = std::vector<I>(0))
+computeOctree(const I* codesStart, const I* codesEnd, const int* codeRanges, int nRanges,
+              int bucketSize, std::vector<I>&& tree = std::vector<I>(0))
 {
     if (!tree.size())
     {
@@ -222,7 +230,7 @@ computeOctree(const I* codesStart, const I* codesEnd, int bucketSize,
     bool converged = false;
     while (!converged)
     {
-        computeNodeCounts(tree.data(), counts.data(), nNodes(tree), sfcRanges, nRanges, codesStart, codesEnd);
+        computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codeRanges, nRanges);
         if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
         std::vector<I> balancedTree;
         balancedTree = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize, &converged);
@@ -243,10 +251,11 @@ computeOctree(const I* codesStart, const I* codesEnd, int bucketSize,
  *                     This function does not rely on octree invariants, sortedness of the nodes
  *                     is the only requirement.
  * \param nNodes       number of nodes in tree
- * \param sfcRanges    (i,i+1) pairs of Morton code ranges assigned to rank
- * \param nRanges      number of Morton code pairs in \a nodeRanges
  * \param codesStart   sorted Morton code range start of particles to count
- * \param codesEnd     sorted Morton code range end of particles to count
+ * \param codeRanges   (i,i+1) index pairs, denoting ranges within the codes array
+ *                     [codeStart, codeEnd] to be considered for computing
+ *                     octree node particle count
+ * \param nRanges      number of index pairs in \a codeRanges
  * \param ordering     Access input according to \a ordering
  *                     The sequence input[ordering[i]], i=0,...,N must list the elements of input
  *                     (i.e. the smoothing lengths) such that input[i] is a property of the particle
@@ -255,8 +264,7 @@ computeOctree(const I* codesStart, const I* codesEnd, int bucketSize,
  * \param output       maximum per node, length = @a nNodes
  */
 template<class I, class T>
-void computeNodeMax(const I* tree, int nNodes, const I* sfcRanges, int nRanges,
-                    const I* codesStart, const I* codesEnd,
+void computeNodeMax(const I* tree, int nNodes, const I* codesStart, const int* codeRanges, int nRanges,
                     const int* ordering, const T* input, T* output)
 {
     for (int i = 0; i < nNodes; ++i)
@@ -264,17 +272,16 @@ void computeNodeMax(const I* tree, int nNodes, const I* sfcRanges, int nRanges,
 
     for (int rangeIndex = 0; rangeIndex < nRanges; ++rangeIndex)
     {
-        // Morton code range
-        I lowerCode = sfcRanges[2*rangeIndex];
-        I upperCode = sfcRanges[2*rangeIndex+1];
-
-        // Find range of node indices in the tree that is contained in the Morton code range
-        int lowerNodeIndex = std::lower_bound(tree, tree + nNodes, lowerCode) - tree;
-        int upperNodeIndex = std::lower_bound(tree, tree + nNodes, upperCode) - tree;
+        int lowerCodeIndex = codeRanges[2*rangeIndex];
+        int upperCodeIndex = codeRanges[2*rangeIndex+1];
 
         // maximum bounds of the code array for optimizing the binary searches
-        const I* a = std::lower_bound(codesStart, codesEnd, lowerCode);
-        const I* b = std::lower_bound(codesStart, codesEnd, upperCode);
+        const I* a = codesStart + lowerCodeIndex;
+        const I* b = codesStart + upperCodeIndex;
+
+        // Find smallest part of tree that contains the code range [*a, *b]
+        int lowerNodeIndex = std::upper_bound(tree, tree + nNodes, *a) - tree - 1; // round towards tree origin
+        int upperNodeIndex = std::lower_bound(tree, tree + nNodes, *(b-1)) - tree; // round towards tree end
 
         for (int i = lowerNodeIndex; i < upperNodeIndex; ++i)
         {

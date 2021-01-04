@@ -40,14 +40,12 @@ void buildTree(int rank)
     using sphexa::codeFromIndices;
     auto codes = makeRegularGrid<I>(rank);
 
-    // rank 0 gets the first half, rank 0 the second half of the SFC
-    I halfTheSfc  = nodeRange<I>(0)/2;
-    I sfcRange[2] = {halfTheSfc * rank, halfTheSfc * (rank+1)};
-    int nRanges   = 1;
+    int codeRange[2] = {0, (int)codes.size()};
+    int nRanges      = 1;
 
     int bucketSize = 8;
-    auto [tree, counts] = computeOctreeGlobal(codes.data(), codes.data() + codes.size(), bucketSize,
-                                              sfcRange, nRanges);
+    auto [tree, counts] = computeOctreeGlobal(codes.data(), codes.data() + codes.size(),
+                                              codeRange, nRanges, bucketSize);
 
     std::vector<I> refTree{
         codeFromIndices<I>({0}),
@@ -103,8 +101,11 @@ void computeNodeMax(int rank)
     // expected outcome with restricted range
     std::vector<float>    hMaxRestricted{1, 3, 5, 8};
 
-    CodeType fullRange[2]       = {0, 32};
-    CodeType restrictedRange[2] = { 16u*rank, 16u*(rank+1) };
+    int fullRange[2] = {0, (int)particleCodes.size()};
+
+    int lowerIndex[2] = {0, 4};
+    int upperIndex[2] = {4, (int)particleCodes.size()};
+    int restrictedRange[2] = { lowerIndex[rank], upperIndex[rank] };
 
     // trivial ordering
     std::vector<int> ordering(particleCodes.size());
@@ -113,8 +114,8 @@ void computeNodeMax(int rank)
     {
         std::vector<float> probe(hMaxPerNode.size());
 
-        sphexa::computeNodeMaxGlobal(tree.data(), nNodes(tree), fullRange, 1, particleCodes.data(),
-                                     particleCodes.data() + particleCodes.size(), ordering.data(),
+        sphexa::computeNodeMaxGlobal(tree.data(), nNodes(tree), particleCodes.data(),
+                                     fullRange, 1, ordering.data(),
                                      smoothingLs[rank].data(), probe.data());
 
         EXPECT_EQ(probe, hMaxPerNode);
@@ -122,8 +123,8 @@ void computeNodeMax(int rank)
     {
         std::vector<float> probe(hMaxPerNode.size());
 
-        sphexa::computeNodeMaxGlobal(tree.data(), nNodes(tree), restrictedRange, 1, particleCodes.data(),
-                                     particleCodes.data() + particleCodes.size(), ordering.data(),
+        sphexa::computeNodeMaxGlobal(tree.data(), nNodes(tree), particleCodes.data(),
+                                     restrictedRange, 1, ordering.data(),
                                      smoothingLs[rank].data(), probe.data());
 
         EXPECT_EQ(probe, hMaxRestricted);

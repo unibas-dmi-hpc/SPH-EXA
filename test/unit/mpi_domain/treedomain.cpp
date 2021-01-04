@@ -44,13 +44,13 @@ void globalRandomGaussian(int thisRank, int nRanks)
     sphexa::Box<T> box{-1, 1};
     RandomGaussianCoordinates<T, I> coords(nParticles, box);
 
-    // initially, all ranks have particles everywhere along the SFC
-    I initialSfcRange[2] = {0, sphexa::nodeRange<I>(0)};
+    // all local particles are assigned to the executing rank
+    int particleRange[2] = {0, nParticles};
     int nRanges = 1;
 
     auto [tree, counts] =
         sphexa::computeOctreeGlobal(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles,
-                                    bucketSize, initialSfcRange, nRanges);
+                                    particleRange, nRanges, bucketSize);
 
     std::vector<int> ordering(nParticles);
     // particles are in Morton order
@@ -65,7 +65,7 @@ void globalRandomGaussian(int thisRank, int nRanks)
     std::vector<T> y = coords.y();
     std::vector<T> z = coords.z();
 
-    std::size_t nParticlesAssigned = assignment.totalCount(thisRank);
+    int nParticlesAssigned = assignment.totalCount(thisRank);
 
     sphexa::exchangeParticles<T>(sendList, nParticlesAssigned, thisRank, ordering, x, y, z);
 
@@ -82,14 +82,12 @@ void globalRandomGaussian(int thisRank, int nRanks)
     sphexa::sort_invert(cbegin(newCodes), cend(newCodes), begin(ordering));
     sphexa::reorder(ordering, newCodes);
 
-    // the assigned sfc ranges provides an envelope for the new morton codes after particle exchange
-    auto assignedSfcRanges = assignment.makeRangePairs(thisRank);
-    EXPECT_LE(assignedSfcRanges[0], newCodes[0]);
-    EXPECT_GE(assignedSfcRanges[1], newCodes[newCodes.size()-1]);
-
+    // still all local particles belong to the executing rank, because
+    // there are no halos in this test
+    int newParticleRange[2] = {0, nParticlesAssigned};
     auto [newTree, newCounts] =
-        sphexa::computeOctreeGlobal(newCodes.data(), newCodes.data() + newCodes.size(), bucketSize,
-                                    assignedSfcRanges.data(), assignment.nRanges(thisRank));
+        sphexa::computeOctreeGlobal(newCodes.data(), newCodes.data() + newCodes.size(), newParticleRange,
+                                    nRanges, bucketSize);
 
     // global tree and counts stay the same
     EXPECT_EQ(tree, newTree);

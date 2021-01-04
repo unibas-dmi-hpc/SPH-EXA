@@ -136,18 +136,6 @@ public:
     //! \brief number of ranges per rank
     [[nodiscard]] std::size_t nRanges(int rank) const { return rankAssignment_[rank].nRanges(); }
 
-    //! \brief extract morton code range pairs for a given rank, as used for octree construction
-    [[nodiscard]] std::vector<I> makeRangePairs(int rank) const
-    {
-        std::vector<I> ret(2*nRanges(rank));
-        for (int rangeIndex = 0; rangeIndex < nRanges(rank); ++rangeIndex)
-        {
-            ret[2*rangeIndex]   = rangeStart(rank, rangeIndex);
-            ret[2*rangeIndex+1] = rangeEnd(rank, rangeIndex);
-        }
-        return ret;
-    }
-
 private:
     friend bool operator==(const SpaceCurveAssignment& a, const SpaceCurveAssignment& b)
     {
