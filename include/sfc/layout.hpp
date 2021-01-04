@@ -1,6 +1,7 @@
 #pragma once
 
 #include <unordered_map>
+#include <vector>
 
 #include "sfc/domaindecomp.hpp"
 
@@ -8,6 +9,8 @@ namespace sphexa
 {
 
 /*! \brief Stores offsets into particle buffers for all nodes present on a given rank
+ *
+ * Associates the index of a node in the global tree with an offset into a particle array.
  *
  * Each rank will be assigned a part of the SFC, equating to one or multiple ranges of
  * node indices of the global cornerstone octree. In a addition to the assigned nodes,
@@ -32,16 +35,25 @@ public:
     }
 
     //! \brief number of local node ranges
-    int nLocalRanges() { return ranges_.nRanges(); }
+    int nLocalRanges() { return (int)ranges_.size()/2; }
 
     //! \brief
-    int localRangePosition(int rangeIndex) const { return ranges_.rangeStart(rangeIndex); }
+    int localRangePosition(int rangeIndex) const { return ranges_[2*rangeIndex]; }
 
     //! \brief  number of particles in local range
-    int localRangeCount(int rangeIndex) const { return ranges_.count(rangeIndex); }
+    int localRangeCount(int rangeIndex) const
+    {
+        return ranges_[2*rangeIndex+1] - ranges_[2*rangeIndex];
+    }
 
     //! \brief number of particles in all local ranges
-    int localCount() const { return ranges_.totalCount(); }
+    int localCount() const
+    {
+        int ret = 0;
+        for (int p = 0; p < ranges_.size(); p+=2)
+            ret += ranges_[p+1] - ranges_[p];
+        return ret;
+    }
 
     //! \brief array offset
     int nodePosition(int globalNodeIndex) const
@@ -77,12 +89,13 @@ public:
 
         int lowerOffset = offsets_[localIndex];
         int upperOffset = offsets_[localIndex + nNodes];
-        ranges_.addRange(lowerOffset, upperOffset);
+        ranges_.push_back(lowerOffset);
+        ranges_.push_back(upperOffset);
     }
 
 private:
-    //! \brief pairs of node indices, one pair per local range
-    IndexRanges<int> ranges_;
+    //! \brief pairs (i, i+1), of consecutive indices to store local ranges
+    std::vector<int> ranges_;
 
     //! \brief pairs of (global octree node index, local index into offsets_ and nodeList_)
     std::unordered_map<int, int> global2local_;
@@ -103,11 +116,11 @@ private:
  * @return             ranges of node indices in \a tree that belong to rank \a rank
  */
 template<class I>
-IndexRanges<int> computeLocalNodeRanges(const std::vector<I>& tree,
+std::vector<int> computeLocalNodeRanges(const std::vector<I>& tree,
                                         const SpaceCurveAssignment<I>& assignment,
                                         int rank)
 {
-    IndexRanges<int> ret;
+    std::vector<int> ret;
 
     for (int rangeIndex = 0; rangeIndex < assignment.nRanges(rank); ++rangeIndex)
     {
@@ -116,7 +129,8 @@ IndexRanges<int> computeLocalNodeRanges(const std::vector<I>& tree,
         int secondNodeIndex = std::lower_bound(begin(tree), end(tree),
                                                assignment.rangeEnd(rank, rangeIndex)) - begin(tree);
 
-        ret.addRange(firstNodeIndex, secondNodeIndex, secondNodeIndex - firstNodeIndex);
+        ret.push_back(firstNodeIndex);
+        ret.push_back(secondNodeIndex);
     }
 
     return ret;
@@ -142,25 +156,23 @@ std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& groupedNod
 
 /*! \brief computes the array layout for particle buffers of the executing rank
  *
- * @tparam I                32- or 64-bit unsigned integer
  * @param localNodes        Ranges of node indices, assigned to executing rank
  * @param haloNodes         List of halo node indices. From the perspective of the
  *                          executing rank, these are incoming halo nodes.
  * @param globalNodeCounts  Particle count per node in the global octree
  * @return                  The array layout, see class ArrayLayout
  */
-template<class I>
-ArrayLayout computeLayout(const IndexRanges<I>& localNodes,
+ArrayLayout computeLayout(const std::vector<int>& localNodes,
                           std::vector<int> haloNodes,
                           const std::vector<std::size_t>& globalNodeCounts)
 {
     std::vector<int>& nodeList = haloNodes;
 
     // add all local nodes to nodeList
-    for (int rangeIndex = 0; rangeIndex < localNodes.nRanges(); ++rangeIndex)
+    for (int rangeIndex = 0; rangeIndex < localNodes.size(); rangeIndex += 2)
     {
-        int lower = localNodes.rangeStart(rangeIndex);
-        int upper = localNodes.rangeEnd(rangeIndex);
+        int lower = localNodes[rangeIndex];
+        int upper = localNodes[rangeIndex+1];
         for (int i = lower; i < upper; ++i)
             nodeList.push_back(i);
     }
@@ -191,10 +203,10 @@ ArrayLayout computeLayout(const IndexRanges<I>& localNodes,
 
     ArrayLayout layout(std::move(nodeList), std::move(offsets));
     // register which ranges of nodes are part of the local assignment
-    for (int rangeIndex = 0; rangeIndex < localNodes.nRanges(); ++rangeIndex)
+    for (int rangeIndex = 0; rangeIndex < localNodes.size(); rangeIndex += 2)
     {
-        int lower = localNodes.rangeStart(rangeIndex);
-        int upper = localNodes.rangeEnd(rangeIndex);
+        int lower = localNodes[rangeIndex];
+        int upper = localNodes[rangeIndex+1];
         layout.addLocalRange(lower, upper);
     }
 
