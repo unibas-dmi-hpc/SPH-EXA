@@ -68,18 +68,6 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
     }
 }
 
-//! \brief test extraction of ranges per rank from a SpaceCurveAssignment
-TEST(DomainDecomposition, SfcMakeRangePairs)
-{
-    using I = unsigned;
-    SpaceCurveAssignment<I> assignment(1);
-    assignment.addRange(Rank(0), 0, 1, 1);
-    assignment.addRange(Rank(0), 2, 3, 1);
-
-    std::vector<I> refRanges{0,1,2,3};
-    EXPECT_EQ(refRanges, assignment.makeRangePairs(0));
-}
-
 //! \brief test that the SfcLookupKey can lookup the rank for a given code
 TEST(DomainDecomposition, SfcLookupMinimal)
 {
@@ -189,13 +177,13 @@ void assignSendRandomData()
     int bucketSize = 64;
     RandomGaussianCoordinates<double, I> coords(nParticles, {-1,1});
 
-    // the entire SFC curve
-    I sfcRange[2] = {0, nodeRange<I>(0)};
+    // all particles
+    int codeRange[2] = {0, nParticles};
     int nRanges = 1;
 
     auto [tree, counts] = sphexa::computeOctree(coords.mortonCodes().data(),
                                                 coords.mortonCodes().data() + nParticles,
-                                                bucketSize, sfcRange, nRanges);
+                                                codeRange, nRanges, bucketSize);
 
     int nSplits = 4;
     auto assignment = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
