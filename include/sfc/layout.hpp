@@ -23,6 +23,7 @@ class ArrayLayout
 {
 public:
 
+    //! \brief construct from sorted nodeList and offsets (use std::move)
     ArrayLayout(std::vector<int>&& nodeList, std::vector<int>&& offsets)
         : nodeList_(nodeList), offsets_(offsets)
     {
@@ -80,17 +81,27 @@ public:
     }
 
 private:
+    //! \brief pairs of node indices, one pair per local range
     IndexRanges<int> ranges_;
 
-    // pairs of (global node index, local index)
+    //! \brief pairs of (global octree node index, local index into offsets_ and nodeList_)
     std::unordered_map<int, int> global2local_;
 
+    //! \brief sorted list of nodes
     std::vector<int> nodeList_;
+    //! \brief array offset per node
     std::vector<int> offsets_;
-
 };
 
 
+/*! \brief  Finds the ranges of node indices of the tree that are assigned to a given rank
+ *
+ * @tparam I           32- or 64-bit unsigned integer
+ * @param tree         global cornerstone octree
+ * @param assignment   assignment of Morton code ranges to ranks
+ * @param rank         extract rank's part from assignment
+ * @return             ranges of node indices in \a tree that belong to rank \a rank
+ */
 template<class I>
 IndexRanges<int> computeLocalNodeRanges(const std::vector<I>& tree,
                                         const SpaceCurveAssignment<I>& assignment,
@@ -111,6 +122,7 @@ IndexRanges<int> computeLocalNodeRanges(const std::vector<I>& tree,
     return ret;
 }
 
+//! \brief create a sorted list of nodes from the hierarchical per rank node list
 std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& groupedNodes)
 {
     int nNodes = 0;
@@ -128,6 +140,15 @@ std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& groupedNod
     return nodeList;
 }
 
+/*! \brief computes the array layout for particle buffers of the executing rank
+ *
+ * @tparam I                32- or 64-bit unsigned integer
+ * @param localNodes        Ranges of node indices, assigned to executing rank
+ * @param haloNodes         List of halo node indices. From the perspective of the
+ *                          executing rank, these are incoming halo nodes.
+ * @param globalNodeCounts  Particle count per node in the global octree
+ * @return                  The array layout, see class ArrayLayout
+ */
 template<class I>
 ArrayLayout computeLayout(const IndexRanges<I>& localNodes,
                           std::vector<int> haloNodes,
@@ -156,7 +177,7 @@ ArrayLayout computeLayout(const IndexRanges<I>& localNodes,
         nodeCounts[i]       = globalNodeCounts[globalNodeIndex];
     }
 
-    // now we can calculate the offsets
+    // the last element stores the total size of the layout
     std::vector<int> offsets(nodeList.size() + 1);
     {
         int offset = 0;
@@ -169,6 +190,7 @@ ArrayLayout computeLayout(const IndexRanges<I>& localNodes,
     }
 
     ArrayLayout layout(std::move(nodeList), std::move(offsets));
+    // register which ranges of nodes are part of the local assignment
     for (int rangeIndex = 0; rangeIndex < localNodes.nRanges(); ++rangeIndex)
     {
         int lower = localNodes.rangeStart(rangeIndex);
