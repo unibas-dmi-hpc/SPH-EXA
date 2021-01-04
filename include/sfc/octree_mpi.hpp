@@ -44,6 +44,8 @@ std::tuple<std::vector<I>, std::vector<std::size_t>> computeOctreeGlobal(const I
  *                     This function does not rely on octree invariants, sortedness of the nodes
  *                     is the only requirement.
  * \param nNodes       number of nodes in tree
+ * \param sfcRanges    (i,i+1) pairs of Morton code ranges assigned to rank
+ * \param nRanges      number of Morton code pairs in \a nodeRanges
  * \param codesStart   sorted Morton code range start of particles to count
  * \param codesEnd     sorted Morton code range end of particles to count
  * \param ordering     Access input according to \a ordering
@@ -54,9 +56,10 @@ std::tuple<std::vector<I>, std::vector<std::size_t>> computeOctreeGlobal(const I
  * \param output       maximum per node, length = @a nNodes
  */
 template <class I, class T>
-void computeNodeMaxGlobal(const I *tree, int nNodes, const I *codesStart, const I *codesEnd, const int *ordering, const T *input, T *output)
+void computeNodeMaxGlobal(const I* tree, int nNodes, const I* sfcRanges, int nRanges,
+                          const I* codesStart, const I* codesEnd, const int* ordering, const T* input, T* output)
 {
-    computeNodeMax(tree, nNodes, codesStart, codesEnd, ordering, input, output);
+    computeNodeMax(tree, nNodes, sfcRanges, nRanges, codesStart, codesEnd, ordering, input, output);
     MPI_Allreduce(MPI_IN_PLACE, output, nNodes, MpiType<T>{}, MPI_MAX, MPI_COMM_WORLD);
 }
 
