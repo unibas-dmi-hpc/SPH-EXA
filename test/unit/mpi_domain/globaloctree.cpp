@@ -40,8 +40,14 @@ void buildTree(int rank)
     using sphexa::codeFromIndices;
     auto codes = makeRegularGrid<I>(rank);
 
+    // rank 0 gets the first half, rank 0 the second half of the SFC
+    I halfTheSfc  = nodeRange<I>(0)/2;
+    I sfcRange[2] = {halfTheSfc * rank, halfTheSfc * (rank+1)};
+    int nRanges   = 1;
+
     int bucketSize = 8;
-    auto [tree, counts] = computeOctreeGlobal(codes.data(), codes.data() + codes.size(), bucketSize);
+    auto [tree, counts] = computeOctreeGlobal(codes.data(), codes.data() + codes.size(), bucketSize,
+                                              sfcRange, nRanges);
 
     std::vector<I> refTree{
         codeFromIndices<I>({0}),

@@ -44,24 +44,29 @@ void globalRandomGaussian(int thisRank, int nRanks)
     sphexa::Box<T> box{-1, 1};
     RandomGaussianCoordinates<T, I> coords(nParticles, box);
 
+    // initially, all ranks have particles everywhere along the SFC
+    I initialSfcRange[2] = {0, sphexa::nodeRange<I>(0)};
+    int nRanges = 1;
+
     auto [tree, counts] =
-        sphexa::computeOctreeGlobal(coords.mortonCodes().data(),
-                                    coords.mortonCodes().data() + nParticles, bucketSize);
+        sphexa::computeOctreeGlobal(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles,
+                                    bucketSize, initialSfcRange, nRanges);
 
     std::vector<int> ordering(nParticles);
     // particles are in Morton order
     std::iota(begin(ordering), end(ordering), 0);
 
-    auto assignment = sphexa::singleRangeSfcSplit(tree, counts, nRanks);
-    auto sendList   = sphexa::createSendList(assignment, coords.mortonCodes());
+    auto assignment        = sphexa::singleRangeSfcSplit(tree, counts, nRanks);
+    auto sendList          = sphexa::createSendList(assignment, coords.mortonCodes());
+    auto assignedSfcRanges = assignment.makeRangePairs(thisRank);
 
-    EXPECT_EQ(std::accumulate(begin(counts), end(counts), 0), nParticles * nRanks);
+    EXPECT_EQ(std::accumulate(begin(counts), end(counts), std::size_t(0)), nParticles * nRanks);
 
     std::vector<T> x = coords.x();
     std::vector<T> y = coords.y();
     std::vector<T> z = coords.z();
 
-    std::size_t nParticlesAssigned = assignment[thisRank].totalCount();
+    std::size_t nParticlesAssigned = assignment.totalCount(thisRank);
 
     sphexa::exchangeParticles<T>(sendList, nParticlesAssigned, thisRank, ordering, x, y, z);
 
@@ -78,8 +83,13 @@ void globalRandomGaussian(int thisRank, int nRanks)
     sphexa::sort_invert(cbegin(newCodes), cend(newCodes), begin(ordering));
     sphexa::reorder(ordering, newCodes);
 
+    // the assigned sfc ranges provides an envelope for the new morton codes after particle exchange
+    EXPECT_LE(assignedSfcRanges[0], newCodes[0]);
+    EXPECT_GE(assignedSfcRanges[1], newCodes[newCodes.size()-1]);
+
     auto [newTree, newCounts] =
-        sphexa::computeOctreeGlobal(newCodes.data(), newCodes.data() + newCodes.size(), bucketSize);
+        sphexa::computeOctreeGlobal(newCodes.data(), newCodes.data() + newCodes.size(), bucketSize,
+                                    assignedSfcRanges.data(), assignment.nRanges(thisRank));
 
     // global tree and counts stay the same
     EXPECT_EQ(tree, newTree);

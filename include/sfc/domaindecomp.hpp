@@ -130,11 +130,23 @@ public:
     //! \brief the number of particles in range rangeIdx of rank \a rank
     [[nodiscard]] const std::size_t& count(int rank, int rangeIdx) const { return rankAssignment_[rank].count(rangeIdx); }
 
-    //! \brief the sum of number of particles in all ranges or total send count of rank \a rank
+    //! \brief the sum of number of particles in all ranges, i.e. total number of assigned particles per range
     [[nodiscard]] const std::size_t& totalCount(int rank) const { return rankAssignment_[rank].totalCount(); }
 
     //! \brief number of ranges per rank
     [[nodiscard]] std::size_t nRanges(int rank) const { return rankAssignment_[rank].nRanges(); }
+
+    //! \brief extract morton code range pairs for a given rank, as used for octree construction
+    [[nodiscard]] std::vector<I> makeRangePairs(int rank) const
+    {
+        std::vector<I> ret(2*nRanges(rank));
+        for (int rangeIndex = 0; rangeIndex < nRanges(rank); ++rangeIndex)
+        {
+            ret[2*rangeIndex]   = rangeStart(rank, rangeIndex);
+            ret[2*rangeIndex+1] = rangeEnd(rank, rangeIndex);
+        }
+        return ret;
+    }
 
 private:
     friend bool operator==(const SpaceCurveAssignment& a, const SpaceCurveAssignment& b)
