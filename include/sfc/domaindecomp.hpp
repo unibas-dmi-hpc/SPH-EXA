@@ -308,6 +308,15 @@ SendList createSendList(const SpaceCurveAssignment<I>& assignment, const I* code
     return ret;
 }
 
+template<class T>
+void extractRange(const SendManifest& manifest, const T* source, const int* ordering, T* destination)
+{
+    int idx = 0;
+    for (int rangeIndex = 0; rangeIndex < manifest.nRanges(); ++rangeIndex)
+        for (int i = manifest.rangeStart(rangeIndex); i < manifest.rangeEnd(rangeIndex); ++i)
+            destination[idx++] = source[ordering[i]];
+}
+
 /*! \brief create a buffer of elements to send by extracting elements from the source array
  *
  * \tparam T         float or double
@@ -323,15 +332,8 @@ std::vector<T> createSendBuffer(const SendManifest& manifest, const T* source,
 {
     int sendSize = manifest.totalCount();
 
-    std::vector<T> sendBuffer;
-    sendBuffer.reserve(sendSize);
-    for (int rangeIndex = 0; rangeIndex < manifest.nRanges(); ++ rangeIndex)
-    {
-        for (int i = manifest.rangeStart(rangeIndex); i < manifest.rangeEnd(rangeIndex); ++i)
-        {
-            sendBuffer.push_back(source[ordering[i]]);
-        }
-    }
+    std::vector<T> sendBuffer(sendSize);
+    extractRange(manifest, source, ordering, sendBuffer.data());
 
     return sendBuffer;
 }
