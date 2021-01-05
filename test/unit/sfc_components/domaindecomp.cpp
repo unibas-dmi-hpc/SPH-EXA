@@ -242,7 +242,7 @@ void createSendBuffer()
     std::swap(x[0], x[1]);
     std::swap(ordering[0], ordering[1]);
 
-    auto buffer = sphexa::createSendBuffer(manifest, x, ordering);
+    auto buffer = sphexa::createSendBuffer(manifest, x.data(), ordering.data());
 
     // note sorted reference
     std::vector<double> ref{0,1,2,3,4,5,6,7,40,41};
