@@ -21,11 +21,10 @@ struct GlobalReduce
  * See documentation of computeOctree
  */
 template <class I>
-std::tuple<std::vector<I>, std::vector<std::size_t>> computeOctreeGlobal(const I* codesStart, const I* codesEnd,
-                                                                         const int* codeRanges, int nRanges,
-                                                                         int bucketSize, std::vector<I>&& tree = std::vector<I>(0))
+std::tuple<std::vector<I>, std::vector<std::size_t>> computeOctreeGlobal(const I *codesStart, const I *codesEnd, int bucketSize,
+                                                                         std::vector<I> &&tree = std::vector<I>(0))
 {
-    return computeOctree<I, GlobalReduce>(codesStart, codesEnd, codeRanges, nRanges, bucketSize, std::move(tree));
+    return computeOctree<I, GlobalReduce>(codesStart, codesEnd, bucketSize, std::move(tree));
 }
 
 /*! \brief Compute the global maximum value of a given input array for each node in the global or local octree
@@ -33,10 +32,9 @@ std::tuple<std::vector<I>, std::vector<std::size_t>> computeOctreeGlobal(const I
  * See documentation of computeNodeMax
  */
 template <class I, class T>
-void computeNodeMaxGlobal(const I* tree, int nNodes, const I* codesStart, const int* codeRanges,
-                          int nRanges, const int* ordering, const T* input, T* output)
+void computeNodeMaxGlobal(const I *tree, int nNodes, const I *codesStart, const I *codesEnd, const int *ordering, const T *input, T *output)
 {
-    computeNodeMax(tree, nNodes, codesStart, codeRanges, nRanges, ordering, input, output);
+    computeNodeMax(tree, nNodes, codesStart, codesEnd, ordering, input, output);
     MPI_Allreduce(MPI_IN_PLACE, output, nNodes, MpiType<T>{}, MPI_MAX, MPI_COMM_WORLD);
 }
 

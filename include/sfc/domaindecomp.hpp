@@ -272,13 +272,14 @@ using SendList     = std::vector<SendManifest>;
  *
  * \tparam I                 32- or 64-bit integer
  * \param assignment         global space curve assignment to ranks
- * \param mortonCodes        sorted list of morton codes for local particles present on this rank
+ * \param codesStart         sorted list of morton codes of local particles present on this rank
+ * \param codesEnd
  * \return                   for each rank, a list of index ranges into \a mortonCodes to send
  *
  * Converts the global assignment Morton code ranges into particle indices with binary search
  */
 template<class I>
-SendList createSendList(const SpaceCurveAssignment<I>& assignment, const std::vector<I>& mortonCodes)
+SendList createSendList(const SpaceCurveAssignment<I>& assignment, const I* codesStart, const I* codesEnd)
 {
     using IndexType = SendManifest::IndexType;
     int nRanks = assignment.nRanks();
@@ -293,11 +294,11 @@ SendList createSendList(const SpaceCurveAssignment<I>& assignment, const std::ve
             I rangeStart = assignment.rangeStart(rank, rangeIndex);
             I rangeEnd   = assignment.rangeEnd(rank, rangeIndex);
 
-            auto lit = std::lower_bound(cbegin(mortonCodes), cend(mortonCodes), rangeStart);
-            IndexType lowerParticleIndex = std::distance(cbegin(mortonCodes), lit);
+            auto lit = std::lower_bound(codesStart, codesEnd, rangeStart);
+            IndexType lowerParticleIndex = std::distance(codesStart, lit);
 
-            auto uit = std::lower_bound(cbegin(mortonCodes) + lowerParticleIndex, cend(mortonCodes), rangeEnd);
-            IndexType upperParticleIndex = std::distance(cbegin(mortonCodes), uit);
+            auto uit = std::lower_bound(codesStart + lowerParticleIndex, codesEnd, rangeEnd);
+            IndexType upperParticleIndex = std::distance(codesStart, uit);
 
             IndexType count = std::distance(lit, uit);
             manifest.addRange(lowerParticleIndex, upperParticleIndex, count);

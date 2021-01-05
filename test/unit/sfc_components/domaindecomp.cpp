@@ -137,7 +137,7 @@ void createSendList()
     assignment.addRange(Rank(1),17, 1000, 2); // range bigger than highest code
 
     // note: codes input needs to be sorted
-    auto sendList = sphexa::createSendList(assignment, codes);
+    auto sendList = sphexa::createSendList(assignment, codes.data(), codes.data() + nParticles);
 
     EXPECT_EQ(sendList[0].totalCount(), 3);
     EXPECT_EQ(sendList[1].totalCount(), 3);
@@ -177,13 +177,9 @@ void assignSendRandomData()
     int bucketSize = 64;
     RandomGaussianCoordinates<double, I> coords(nParticles, {-1,1});
 
-    // all particles
-    int codeRange[2] = {0, nParticles};
-    int nRanges = 1;
-
     auto [tree, counts] = sphexa::computeOctree(coords.mortonCodes().data(),
                                                 coords.mortonCodes().data() + nParticles,
-                                                codeRange, nRanges, bucketSize);
+                                                bucketSize);
 
     int nSplits = 4;
     auto assignment = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
@@ -198,7 +194,8 @@ void assignSendRandomData()
         EXPECT_LE(rankCount, nParticles/nSplits + bucketSize);
     }
 
-    auto sendList = sphexa::createSendList(assignment, coords.mortonCodes());
+    auto sendList = sphexa::createSendList(assignment, coords.mortonCodes().data(),
+                                           coords.mortonCodes().data() + nParticles);
 
     int particleRecount = 0;
     for (auto& manifest : sendList)

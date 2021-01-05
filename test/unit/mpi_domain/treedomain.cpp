@@ -44,20 +44,17 @@ void globalRandomGaussian(int thisRank, int nRanks)
     sphexa::Box<T> box{-1, 1};
     RandomGaussianCoordinates<T, I> coords(nParticles, box);
 
-    // all local particles are assigned to the executing rank
-    int particleRange[2] = {0, nParticles};
-    int nRanges = 1;
-
     auto [tree, counts] =
         sphexa::computeOctreeGlobal(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles,
-                                    particleRange, nRanges, bucketSize);
+                                    bucketSize);
 
     std::vector<int> ordering(nParticles);
     // particles are in Morton order
     std::iota(begin(ordering), end(ordering), 0);
 
     auto assignment        = sphexa::singleRangeSfcSplit(tree, counts, nRanks);
-    auto sendList          = sphexa::createSendList(assignment, coords.mortonCodes());
+    auto sendList          = sphexa::createSendList(assignment, coords.mortonCodes().data(),
+                                                    coords.mortonCodes().data() + nParticles);
 
     EXPECT_EQ(std::accumulate(begin(counts), end(counts), std::size_t(0)), nParticles * nRanks);
 
@@ -82,18 +79,14 @@ void globalRandomGaussian(int thisRank, int nRanks)
     sphexa::sort_invert(cbegin(newCodes), cend(newCodes), begin(ordering));
     sphexa::reorder(ordering, newCodes);
 
-    // still all local particles belong to the executing rank, because
-    // there are no halos in this test
-    int newParticleRange[2] = {0, nParticlesAssigned};
     auto [newTree, newCounts] =
-        sphexa::computeOctreeGlobal(newCodes.data(), newCodes.data() + newCodes.size(), newParticleRange,
-                                    nRanges, bucketSize);
+        sphexa::computeOctreeGlobal(newCodes.data(), newCodes.data() + newCodes.size(), bucketSize);
 
     // global tree and counts stay the same
     EXPECT_EQ(tree, newTree);
     EXPECT_EQ(counts, newCounts);
 
-    auto newSendList = sphexa::createSendList(assignment, newCodes);
+    auto newSendList = sphexa::createSendList(assignment, newCodes.data(), newCodes.data() + nParticlesAssigned);
 
     for (int rank = 0; rank < nRanks; ++rank)
     {
