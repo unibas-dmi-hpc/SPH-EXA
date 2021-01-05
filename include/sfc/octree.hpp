@@ -57,46 +57,20 @@ std::size_t nNodes(const std::vector<I>& tree)
  * \param counts       output particle counts per node, length = @a nNodes
  * \param nNodes       number of nodes in tree
  * \param codesStart   Morton code range start of particles to count
- * \param codeRanges   (i,i+1) index pairs, denoting ranges within the codes array
- *                     [codeStart, codeEnd] to be considered for computing
- *                     octree node particle count
- * \param nRanges      number of index pairs in \a codeRanges
- *
- * We only count particles in the nodes which are covered by sfcRanges.
- * This allows this function to scale with the number of ranks, but is also required to
- * avoid double counting of halo particles which remain from previous SPH iterations.
+ * \param codesEnd     Morton code range end of particles to count
  */
 template<class I>
-void computeNodeCounts(const I* tree, std::size_t* counts, int nNodes,
-                       const I* codesStart, const int* codeRanges, int nRanges)
+void computeNodeCounts(const I* tree, std::size_t* counts, int nNodes, const I* codesStart, const I* codesEnd)
 {
     for (int i = 0; i < nNodes; ++i)
-        counts[i] = 0;
-
-    for (int rangeIndex = 0; rangeIndex < nRanges; ++rangeIndex)
     {
-        int lowerCodeIndex = codeRanges[2*rangeIndex];
-        int upperCodeIndex = codeRanges[2*rangeIndex+1];
+        I nodeStart = tree[i];
+        I nodeEnd   = tree[i+1];
 
-        // maximum bounds of the code array for optimizing the binary searches
-        const I* a = codesStart + lowerCodeIndex;
-        const I* b = codesStart + upperCodeIndex;
-
-        // Find smallest part of tree that contains the code range [*a, *b]
-        int lowerNodeIndex = std::upper_bound(tree, tree + nNodes, *a) - tree - 1; // round towards tree origin
-        int upperNodeIndex = std::lower_bound(tree, tree + nNodes, *(b-1)) - tree; // round towards tree end
-
-        // (omp) parallel
-        for (int i = lowerNodeIndex; i < upperNodeIndex; ++i)
-        {
-            I nodeStart = tree[i];
-            I nodeEnd   = tree[i + 1];
-
-            // count particles in range
-            auto rangeStart = std::lower_bound(a, b, nodeStart);
-            auto rangeEnd   = std::lower_bound(a, b, nodeEnd);
-            counts[i] = std::distance(rangeStart, rangeEnd);
-        }
+        // count particles in range
+        auto rangeStart = std::lower_bound(codesStart, codesEnd, nodeStart);
+        auto rangeEnd   = std::lower_bound(codesStart, codesEnd, nodeEnd);
+        counts[i] = std::distance(rangeStart, rangeEnd);
     }
 }
 
@@ -198,27 +172,13 @@ std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
  * \tparam I           32- or 64-bit unsigned integer type
  * \param codesStart   particle morton code sequence start
  * \param codesEnd     particle morton code sequence end
- * \param codeRanges   (i,i+1) index pairs, denoting ranges within the codes array
- *                     [codeStart, codeEnd] to be considered for computing
- *                     octree node particle count
- * \param nRanges      number of index pairs in \a codeRanges
  * \param bucketSize   maximum number of particles/codes per octree leaf node
  * \param[inout] tree  initial tree for the first iteration
  * \return             the tree and the node counts
- *
- * The reason for providing the \a codeRanges argument is to prevent those codes belonging to halo
- * particles from participating in the calculation of octree node counts. To avoid double counting,
- * each rank must only count those codes/particles that fall within its assigned SFC-Morton range.
- * If each rank gets assigned a single continuous range of Morton codes,
- * nRanges == 1. This is currently the case, though not a requirement for this function.
- *
- * If there is no prior assignment of the tree to ranks or if only a single rank builds the tree,
- * codeRanges covers all codes, i.e. codeRanges is {0,codesEnd-codeStart} and nRanges == 1.
  */
 template<class I, class Reduce = void>
 std::tuple<std::vector<I>, std::vector<std::size_t>>
-computeOctree(const I* codesStart, const I* codesEnd, const int* codeRanges, int nRanges,
-              int bucketSize, std::vector<I>&& tree = std::vector<I>(0))
+computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vector<I>&& tree = std::vector<I>(0))
 {
     if (!tree.size())
     {
@@ -230,7 +190,7 @@ computeOctree(const I* codesStart, const I* codesEnd, const int* codeRanges, int
     bool converged = false;
     while (!converged)
     {
-        computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codeRanges, nRanges);
+        computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd);
         if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
         std::vector<I> balancedTree;
         balancedTree = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize, &converged);
@@ -252,10 +212,7 @@ computeOctree(const I* codesStart, const I* codesEnd, const int* codeRanges, int
  *                     is the only requirement.
  * \param nNodes       number of nodes in tree
  * \param codesStart   sorted Morton code range start of particles to count
- * \param codeRanges   (i,i+1) index pairs, denoting ranges within the codes array
- *                     [codeStart, codeEnd] to be considered for computing
- *                     octree node particle count
- * \param nRanges      number of index pairs in \a codeRanges
+ * \param codesEnd     sorted Morton code range end of particles to count
  * \param ordering     Access input according to \a ordering
  *                     The sequence input[ordering[i]], i=0,...,N must list the elements of input
  *                     (i.e. the smoothing lengths) such that input[i] is a property of the particle
@@ -264,44 +221,27 @@ computeOctree(const I* codesStart, const I* codesEnd, const int* codeRanges, int
  * \param output       maximum per node, length = @a nNodes
  */
 template<class I, class T>
-void computeNodeMax(const I* tree, int nNodes, const I* codesStart, const int* codeRanges, int nRanges,
+void computeNodeMax(const I* tree, int nNodes, const I* codesStart, const I* codesEnd,
                     const int* ordering, const T* input, T* output)
 {
     for (int i = 0; i < nNodes; ++i)
-        output[i] = -INFINITY;
-
-    for (int rangeIndex = 0; rangeIndex < nRanges; ++rangeIndex)
     {
-        int lowerCodeIndex = codeRanges[2*rangeIndex];
-        int upperCodeIndex = codeRanges[2*rangeIndex+1];
+        I nodeStart = tree[i];
+        I nodeEnd   = tree[i+1];
 
-        // maximum bounds of the code array for optimizing the binary searches
-        const I* a = codesStart + lowerCodeIndex;
-        const I* b = codesStart + upperCodeIndex;
+        // find elements belonging to particles in node i
+        int startIndex = std::lower_bound(codesStart, codesEnd, nodeStart) - codesStart;
+        int endIndex   = std::lower_bound(codesStart, codesEnd, nodeEnd)   - codesStart;
 
-        // Find smallest part of tree that contains the code range [*a, *b]
-        int lowerNodeIndex = std::upper_bound(tree, tree + nNodes, *a) - tree - 1; // round towards tree origin
-        int upperNodeIndex = std::lower_bound(tree, tree + nNodes, *(b-1)) - tree; // round towards tree end
-
-        for (int i = lowerNodeIndex; i < upperNodeIndex; ++i)
+        T nodeMax = -INFINITY;
+        for(int p = startIndex; p < endIndex; ++p)
         {
-            I nodeStart = tree[i];
-            I nodeEnd   = tree[i+1];
-
-            // find elements belonging to particles in node i
-            int startIndex = std::lower_bound(a, b, nodeStart) - codesStart;
-            int endIndex   = std::lower_bound(a, b, nodeEnd)   - codesStart;
-
-            T nodeMax = -INFINITY;
-            for(int p = startIndex; p < endIndex; ++p)
-            {
-                T nodeElement = input[ordering[p]];
-                if (nodeElement > nodeMax)
-                    nodeMax = nodeElement;
-            }
-
-            output[i] = nodeMax;
+            T nodeElement = input[ordering[p]];
+            if (nodeElement > nodeMax)
+                nodeMax = nodeElement;
         }
+
+        output[i] = nodeMax;
     }
 }
 

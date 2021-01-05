@@ -42,7 +42,6 @@ void printTree(const I* tree, const int* counts, int nNodes)
     for (int i = 0; i < nNodes; ++i)
     {
         I thisNode     = tree[i];
-        //std::cout << thisNode << " :" << counts[i] << std::endl;
         std::cout << sphexa::indicesFromCode(thisNode) << " :" << counts[i] << std::endl;
     }
     std::cout << std::endl;
@@ -69,17 +68,13 @@ void checkCountTreeNodes()
     std::vector<CodeType>    tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
     std::vector<std::size_t> counts(sphexa::nNodes(tree));
 
-    // all particles
-    int codeRange[2] = {0, (int)codes.size()};
-    int nRanges = 1;
-
     // doesn't affect the end result, but makes sure that
     // binary searching correctly finds the first tree node
     // with a _lower_ code than the first particle code
     codes[0]++;
 
     sphexa::computeNodeCounts(tree.data(), counts.data(), nNodes(tree),
-                              codes.data(), codeRange, nRanges);
+                              codes.data(), codes.data() + codes.size());
 
     // the level 2 nodes have 1/64 of the total volume/particle count
     for (int i = 0; i < 8; ++i)
@@ -422,14 +417,9 @@ public:
 
         CoordinateType<double, CodeType> randomBox(nParticles, box);
 
-        // all codes
-        int codeRange[2] = {0, (int)randomBox.mortonCodes().size()};
-        int nRanges = 1;
-
         // compute octree starting from default uniform octree
         auto [treeML, countsML] = sphexa::computeOctree(randomBox.mortonCodes().data(),
                                                         randomBox.mortonCodes().data() + nParticles,
-                                                        codeRange, nRanges,
                                                         bucketSize);
 
         std::cout << "number of nodes: " << nNodes(treeML) << std::endl;
@@ -439,8 +429,7 @@ public:
         // compute octree starting from just the root node
         auto [treeRN, countsRN] = sphexa::computeOctree(randomBox.mortonCodes().data(),
                                                         randomBox.mortonCodes().data() + nParticles,
-                                                        codeRange, nRanges, bucketSize,
-                                                        sphexa::makeRootNodeTree<I>());
+                                                        bucketSize, sphexa::makeRootNodeTree<I>());
 
         checkOctreeWithCounts(treeML, countsRN, bucketSize, randomBox.mortonCodes());
 
@@ -478,8 +467,7 @@ TEST(CornerstoneOctree, computeNodeMax)
 
     std::vector<float> probe(hMaxPerNode.size());
 
-    int codeRanges[2] = {0, (int)particleCodes.size()};
-    sphexa::computeNodeMax(tree.data(), nNodes(tree), particleCodes.data(), codeRanges, 1,
+    sphexa::computeNodeMax(tree.data(), nNodes(tree), particleCodes.data(), particleCodes.data() + particleCodes.size(),
                            ordering.data(), smoothingLs.data(), probe.data());
 
     EXPECT_EQ(probe, hMaxPerNode);

@@ -40,12 +40,8 @@ void buildTree(int rank)
     using sphexa::codeFromIndices;
     auto codes = makeRegularGrid<I>(rank);
 
-    int codeRange[2] = {0, (int)codes.size()};
-    int nRanges      = 1;
-
     int bucketSize = 8;
-    auto [tree, counts] = computeOctreeGlobal(codes.data(), codes.data() + codes.size(),
-                                              codeRange, nRanges, bucketSize);
+    auto [tree, counts] = computeOctreeGlobal(codes.data(), codes.data() + codes.size(), bucketSize);
 
     std::vector<I> refTree{
         codeFromIndices<I>({0}),
@@ -98,14 +94,6 @@ void computeNodeMax(int rank)
 
     // expected maximum per node across both ranks searching all nodes
     std::vector<float>    hMaxPerNode{2, 4, 6, 9};
-    // expected outcome with restricted range
-    std::vector<float>    hMaxRestricted{1, 3, 5, 8};
-
-    int fullRange[2] = {0, (int)particleCodes.size()};
-
-    int lowerIndex[2] = {0, 4};
-    int upperIndex[2] = {4, (int)particleCodes.size()};
-    int restrictedRange[2] = { lowerIndex[rank], upperIndex[rank] };
 
     // trivial ordering
     std::vector<int> ordering(particleCodes.size());
@@ -115,19 +103,10 @@ void computeNodeMax(int rank)
         std::vector<float> probe(hMaxPerNode.size());
 
         sphexa::computeNodeMaxGlobal(tree.data(), nNodes(tree), particleCodes.data(),
-                                     fullRange, 1, ordering.data(),
+                                     particleCodes.data() + particleCodes.size(), ordering.data(),
                                      smoothingLs[rank].data(), probe.data());
 
         EXPECT_EQ(probe, hMaxPerNode);
-    }
-    {
-        std::vector<float> probe(hMaxPerNode.size());
-
-        sphexa::computeNodeMaxGlobal(tree.data(), nNodes(tree), particleCodes.data(),
-                                     restrictedRange, 1, ordering.data(),
-                                     smoothingLs[rank].data(), probe.data());
-
-        EXPECT_EQ(probe, hMaxRestricted);
     }
 }
 
