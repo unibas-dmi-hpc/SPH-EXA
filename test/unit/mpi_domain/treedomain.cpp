@@ -8,6 +8,8 @@
 
 #include "coord_samples/random.hpp"
 
+using namespace sphexa;
+
 /*! \brief integration test between global octree build and domain particle exchange
  *
  * This test performs the following steps on each rank:
@@ -64,7 +66,7 @@ void globalRandomGaussian(int thisRank, int nRanks)
 
     int nParticlesAssigned = assignment.totalCount(thisRank);
 
-    sphexa::exchangeParticles<T>(sendList, nParticlesAssigned, thisRank, ordering.data(), x, y, z);
+    exchangeParticles<T>(sendList, Rank(thisRank), nParticlesAssigned, ordering.data(), x, y, z);
 
     /// post-exchange test:
     /// if the global tree build and assignment is repeated, no particles are exchanged anymore
