@@ -27,7 +27,7 @@ namespace sphexa
  *           only their total number.
  */
 template<class T, class... Arrays>
-void exchangeParticles(const SendList& sendList, int nParticlesAssigned, int thisRank, const std::vector<int>& ordering, Arrays&... arrays)
+void exchangeParticles(const SendList& sendList, int nParticlesAssigned, int thisRank, const int* ordering, Arrays&... arrays)
 {
     std::array<std::vector<T>*, sizeof...(Arrays)> data{ (&arrays)... };
     int nRanks = sendList.size();
@@ -47,7 +47,7 @@ void exchangeParticles(const SendList& sendList, int nParticlesAssigned, int thi
 
         for (int arrayIndex = 0; arrayIndex < data.size(); ++arrayIndex)
         {
-            auto arrayBuffer = createSendBuffer(sendList[destinationRank], *data[arrayIndex], ordering);
+            auto arrayBuffer = createSendBuffer(sendList[destinationRank], data[arrayIndex]->data(), ordering);
             mpiSendAsync(arrayBuffer.data(), arrayBuffer.size(), destinationRank, 2 + arrayIndex, sendRequests);
             sendBuffers.emplace_back(std::move(arrayBuffer));
         }
@@ -56,7 +56,7 @@ void exchangeParticles(const SendList& sendList, int nParticlesAssigned, int thi
     // handle thisRank
     for (int arrayIndex = 0; arrayIndex < data.size(); ++arrayIndex)
     {
-        auto arrayBuffer = createSendBuffer(sendList[thisRank], *data[arrayIndex], ordering);
+        auto arrayBuffer = createSendBuffer(sendList[thisRank], data[arrayIndex]->data(), ordering);
         std::copy(begin(arrayBuffer), end(arrayBuffer), data[arrayIndex]->begin());
     }
 

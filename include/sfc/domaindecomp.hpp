@@ -318,8 +318,8 @@ SendList createSendList(const SpaceCurveAssignment<I>& assignment, const I* code
  * \return           the send buffer
  */
 template<class T>
-std::vector<T> createSendBuffer(const SendManifest& manifest, const std::vector<T>& source,
-                                const std::vector<int>& ordering)
+std::vector<T> createSendBuffer(const SendManifest& manifest, const T* source,
+                                const int* ordering)
 {
     int sendSize = manifest.totalCount();
 

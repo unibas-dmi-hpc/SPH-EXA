@@ -64,7 +64,7 @@ void globalRandomGaussian(int thisRank, int nRanks)
 
     int nParticlesAssigned = assignment.totalCount(thisRank);
 
-    sphexa::exchangeParticles<T>(sendList, nParticlesAssigned, thisRank, ordering, x, y, z);
+    sphexa::exchangeParticles<T>(sendList, nParticlesAssigned, thisRank, ordering.data(), x, y, z);
 
     /// post-exchange test:
     /// if the global tree build and assignment is repeated, no particles are exchanged anymore
@@ -100,7 +100,7 @@ void globalRandomGaussian(int thisRank, int nRanks)
     }
 
     // quick check that send buffers are created w.r.t ordering
-    auto xBuffer = sphexa::createSendBuffer(newSendList[thisRank], x, ordering);
+    auto xBuffer = sphexa::createSendBuffer(newSendList[thisRank], x.data(), ordering.data());
     sphexa::reorder(ordering, x);
     EXPECT_EQ(xBuffer, x);
 }
