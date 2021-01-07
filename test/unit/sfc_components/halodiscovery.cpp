@@ -1,7 +1,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sfc/halos.hpp"
+#include "sfc/halodiscovery.hpp"
 
 using namespace sphexa;
 
@@ -70,7 +70,7 @@ void findHalos()
     }
 }
 
-TEST(Halos, findHalos)
+TEST(HaloDiscovery, findHalos)
 {
     findHalos<unsigned>();
     findHalos<uint64_t>();
@@ -125,7 +125,7 @@ void computeSendRecvNodeList()
     }
 }
 
-TEST(Halos, sendRecvNodeList)
+TEST(HaloDiscovery, sendRecvNodeList)
 {
     computeSendRecvNodeList<unsigned>();
     computeSendRecvNodeList<uint64_t>();
