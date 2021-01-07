@@ -23,18 +23,16 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, int nParticle
     sendBuffers.reserve(nArrays * (nRanks-1));
 
     std::vector<MPI_Request> sendRequests;
-    sendRequests.reserve( (1 + nArrays) * (nRanks-1));
+    sendRequests.reserve(nArrays * (nRanks-1));
 
     for (int destinationRank = 0; destinationRank < nRanks; ++destinationRank)
     {
         if (destinationRank == thisRank || sendList[destinationRank].totalCount() == 0) { continue; }
 
-        mpiSendAsync(&sendList[destinationRank].totalCount(), 1, destinationRank, 0, sendRequests);
-
         for (int arrayIndex = 0; arrayIndex < nArrays; ++arrayIndex)
         {
             auto arrayBuffer = createSendBuffer(sendList[destinationRank], sourceArrays[arrayIndex], ordering);
-            mpiSendAsync(arrayBuffer.data(), arrayBuffer.size(), destinationRank, 1 + arrayIndex, sendRequests);
+            mpiSendAsync(arrayBuffer.data(), arrayBuffer.size(), destinationRank, arrayIndex, sendRequests);
             sendBuffers.emplace_back(std::move(arrayBuffer));
         }
     }
@@ -51,15 +49,17 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, int nParticle
 
     while (nParticlesPresent != nParticlesAssigned)
     {
-        MPI_Status status[1 + nArrays];
-        std::size_t receiveCount;
-        mpiRecvSync(&receiveCount, 1, MPI_ANY_SOURCE, 0, &status[0]);
-        int receiveRank = status[0].MPI_SOURCE;
+        MPI_Status status;
+        MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+        int receiveRank  = status.MPI_SOURCE;
+        //int receiveTag   = status[0].MPI_TAG;
+        int receiveCount;
+        MPI_Get_count(&status, MpiType<T>{}, &receiveCount);
 
         for (int arrayIndex = 0; arrayIndex < nArrays; ++arrayIndex)
         {
             mpiRecvSync(destinationArrays[arrayIndex] + nParticlesPresent, receiveCount,
-                        receiveRank, 1 + arrayIndex, &status[1 + arrayIndex]);
+                        receiveRank, arrayIndex, &status);
         }
 
         nParticlesPresent += receiveCount;
