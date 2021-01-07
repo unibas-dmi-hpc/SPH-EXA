@@ -106,8 +106,8 @@ void computeSendRecvNodeList()
     std::sort(begin(haloPairs), end(haloPairs));
 
     {
-        std::vector<std::vector<int>> incomingHalos(assignment.nRanks());
-        std::vector<std::vector<int>> outgoingHalos(assignment.nRanks());
+        std::vector<std::vector<int>> incomingHalos;
+        std::vector<std::vector<int>> outgoingHalos;
 
         computeSendRecvNodeList<I>(tree, assignment, haloPairs, incomingHalos, outgoingHalos);
 

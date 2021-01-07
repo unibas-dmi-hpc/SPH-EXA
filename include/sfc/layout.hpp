@@ -156,6 +156,59 @@ std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& groupedNod
 
 /*! \brief computes the array layout for particle buffers of the executing rank
  *
+ * @param localNodeRanges   Ranges of node indices, assigned to executing rank
+ * @param haloNodes         List of halo node indices without duplicates.
+ *                          From the perspective of the
+ *                          executing rank, these are incoming halo nodes.
+ * @param globalNodeCounts  Particle count per node in the global octree
+ * @return                  The array layout, see class ArrayLayout
+ */
+void computeLayoutOffsets(const std::vector<int>& localNodeRanges,
+                          const std::vector<int>& haloNodes,
+                          const std::vector<std::size_t>& globalNodeCounts,
+                          std::vector<int>& presentNodes,
+                          std::vector<int>& offsets)
+{
+    // add all halo nodes to present
+    std::copy(begin(haloNodes), end(haloNodes), std::back_inserter(presentNodes));
+
+    // add all local nodes to presentNodes
+    for (int rangeIndex = 0; rangeIndex < localNodeRanges.size(); rangeIndex += 2)
+    {
+        int lower = localNodeRanges[rangeIndex];
+        int upper = localNodeRanges[rangeIndex+1];
+        for (int i = lower; i < upper; ++i)
+            presentNodes.push_back(i);
+    }
+
+    std::sort(begin(presentNodes), end(presentNodes));
+
+    // an extract of globalNodeCounts, containing only nodes listed in localNodes and incomingHalos
+    std::vector<int> nodeCounts(presentNodes.size());
+
+    // extract particle count information for all nodes in nodeList
+    for (int i = 0; i < presentNodes.size(); ++i)
+    {
+        int globalNodeIndex = presentNodes[i];
+        nodeCounts[i]       = globalNodeCounts[globalNodeIndex];
+    }
+
+    offsets.resize(presentNodes.size() + 1);
+    {
+        int offset = 0;
+        for (int i = 0; i < presentNodes.size(); ++i)
+        {
+            offsets[i] = offset;
+            offset += nodeCounts[i];
+        }
+        // the last element stores the total size of the layout
+        offsets[presentNodes.size()] = offset;
+    }
+}
+
+
+/*! \brief computes the array layout for particle buffers of the executing rank
+ *
  * @param localNodes        Ranges of node indices, assigned to executing rank
  * @param haloNodes         List of halo node indices. From the perspective of the
  *                          executing rank, these are incoming halo nodes.
@@ -163,45 +216,15 @@ std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& groupedNod
  * @return                  The array layout, see class ArrayLayout
  */
 ArrayLayout computeLayout(const std::vector<int>& localNodes,
-                          std::vector<int> haloNodes,
+                          const std::vector<int>& haloNodes,
                           const std::vector<std::size_t>& globalNodeCounts)
 {
-    std::vector<int>& nodeList = haloNodes;
+    std::vector<int> presentNodes;
+    std::vector<int> offsets;
 
-    // add all local nodes to nodeList
-    for (int rangeIndex = 0; rangeIndex < localNodes.size(); rangeIndex += 2)
-    {
-        int lower = localNodes[rangeIndex];
-        int upper = localNodes[rangeIndex+1];
-        for (int i = lower; i < upper; ++i)
-            nodeList.push_back(i);
-    }
+    computeLayoutOffsets(localNodes, haloNodes, globalNodeCounts, presentNodes, offsets);
 
-    std::sort(begin(nodeList), end(nodeList));
-
-    // an extract of globalNodeCounts, containing only nodes listed in localNodes and incomingHalos
-    std::vector<int> nodeCounts(nodeList.size());
-
-    // extract particle count information for all nodes in nodeList
-    for (int i = 0; i < nodeList.size(); ++i)
-    {
-        int globalNodeIndex = nodeList[i];
-        nodeCounts[i]       = globalNodeCounts[globalNodeIndex];
-    }
-
-    // the last element stores the total size of the layout
-    std::vector<int> offsets(nodeList.size() + 1);
-    {
-        int offset = 0;
-        for (int i = 0; i < nodeList.size(); ++i)
-        {
-            offsets[i] = offset;
-            offset += nodeCounts[i];
-        }
-        offsets[nodeList.size()] = offset;
-    }
-
-    ArrayLayout layout(std::move(nodeList), std::move(offsets));
+    ArrayLayout layout(std::move(presentNodes), std::move(offsets));
     // register which ranges of nodes are part of the local assignment
     for (int rangeIndex = 0; rangeIndex < localNodes.size(); rangeIndex += 2)
     {
@@ -211,6 +234,41 @@ ArrayLayout computeLayout(const std::vector<int>& localNodes,
     }
 
     return layout;
+}
+
+
+/*! \brief translate global node indices involved in halo exchange to array ranges
+ *
+ * @param outgoingHaloNodes   For each rank, a list of global node indices to send or receive.
+ *                            Each node referenced in these lists must be contained in
+ *                            \a presentNodes.
+ * @param presentNodes        Sorted unique list of global node indices present on the
+ *                            executing rank
+ * @param nodeOffsets         nodeOffset[i] stores the location of the node presentNodes[i]
+ *                            in the particle arrays. nodeOffset[presentNodes.size()] stores
+ *                            the total size of the particle arrays on the executing rank.
+ *                            Size is presentNodes.size() + 1
+ * @return                    For each rank, the returned sendList has one or multiple ranges of indices
+ *                            of local particle arrays to send or receive.
+ */
+SendList createHaloExchangeList(const std::vector<std::vector<int>>& outgoingHaloNodes,
+                                const std::vector<int>& presentNodes,
+                                const std::vector<int>& nodeOffsets)
+{
+    SendList sendList(outgoingHaloNodes.size());
+
+    for (int rank = 0; rank < sendList.size(); ++rank)
+    {
+        for (int globalNodeIndex : outgoingHaloNodes[rank])
+        {
+            int localIndex = std::lower_bound(begin(presentNodes), end(presentNodes), globalNodeIndex)
+                                - begin(presentNodes);
+
+            sendList[rank].addRange(nodeOffsets[localIndex], nodeOffsets[localIndex+1]);
+        }
+    }
+
+    return sendList;
 }
 
 

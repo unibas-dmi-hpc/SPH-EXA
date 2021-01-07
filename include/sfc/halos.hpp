@@ -121,6 +121,9 @@ void computeSendRecvNodeList(const std::vector<I>& tree,
     // needed to efficiently look up the assigned rank of a given octree node
     SfcLookupKey<I> sfcLookup(assignment);
 
+    incomingNodes.resize(assignment.nRanks());
+    outgoingNodes.resize(assignment.nRanks());
+
     for (auto& p : haloPairs)
     {
         // as defined in findHalos, the internal node index is stored first
