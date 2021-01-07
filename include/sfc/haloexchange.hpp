@@ -10,10 +10,8 @@ namespace sphexa
 {
 
 template<class T, class...Arrays>
-void haloexchange(const ArrayLayout& layout,
-                  const std::vector<std::vector<int>>& incomingHalos,
-                  const std::vector<std::vector<int>>& outgoingHalos,
-                  int thisRank,
+void haloexchange(const SendList& incomingHalos,
+                  const SendList& outgoingHalos,
                   Arrays... arrays)
 {
     constexpr int nArrays = sizeof...(Arrays);
@@ -25,20 +23,22 @@ void haloexchange(const ArrayLayout& layout,
 
     for (int destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
     {
-        if (outgoingHalos[destinationRank].empty())
+        int sendCount = outgoingHalos[destinationRank].totalCount();
+        if (sendCount == 0)
             continue;
 
-        std::vector<T> buffer;
+        std::vector<T> buffer(sendCount * nArrays);
         for (int arrayIndex = 0; arrayIndex < nArrays; ++arrayIndex)
         {
-            for (int ni = 0; ni < outgoingHalos[destinationRank].size(); ++ni)
+            int outputOffset = sendCount * arrayIndex;
+            for (int rangeIdx = 0; rangeIdx < outgoingHalos[destinationRank].nRanges(); ++rangeIdx)
             {
-                int nodeIndex = outgoingHalos[destinationRank][ni];
-                int offset    = layout.nodePosition(nodeIndex);
-                int count     = layout.nodeCount(nodeIndex);
+                int lowerIndex = outgoingHalos[destinationRank].rangeStart(rangeIdx);
+                int upperIndex = outgoingHalos[destinationRank].rangeEnd(rangeIdx);
 
-                std::copy(data[arrayIndex]+offset, data[arrayIndex]+offset+count,
-                          std::back_inserter(buffer));
+                std::copy(data[arrayIndex]+lowerIndex, data[arrayIndex]+upperIndex,
+                          buffer.data() + outputOffset);
+                outputOffset += upperIndex - lowerIndex;
             }
         }
 
@@ -49,12 +49,15 @@ void haloexchange(const ArrayLayout& layout,
     }
 
     int nMessages = 0;
+    int maxReceiveSize = 0;
     for (int sourceRank = 0; sourceRank < incomingHalos.size(); ++sourceRank)
-        if (!incomingHalos[sourceRank].empty())
+        if (incomingHalos[sourceRank].totalCount() > 0)
+        {
             nMessages++;
+            maxReceiveSize = std::max(maxReceiveSize, (int)incomingHalos[sourceRank].totalCount());
+        }
 
-    int maxReceiveSize = (layout.totalSize() - layout.localCount()) * nArrays;
-    std::vector<T> receiveBuffer(maxReceiveSize);
+    std::vector<T> receiveBuffer(maxReceiveSize * nArrays);
 
     while (nMessages > 0)
     {
@@ -70,11 +73,10 @@ void haloexchange(const ArrayLayout& layout,
         for (int arrayIndex = 0; arrayIndex < nArrays; ++arrayIndex)
         {
             int inputOffset = countPerArray * arrayIndex;
-            for (int ni = 0; ni < incomingHalos[receiveRank].size(); ++ni)
+            for (int rangeIdx = 0; rangeIdx < incomingHalos[receiveRank].nRanges(); ++rangeIdx)
             {
-                int nodeIndex = incomingHalos[receiveRank][ni];
-                int offset    = layout.nodePosition(nodeIndex);
-                int count     = layout.nodeCount(nodeIndex);
+                int offset = incomingHalos[receiveRank].rangeStart(rangeIdx);
+                int count  = incomingHalos[receiveRank].count(rangeIdx);
 
                 std::copy(receiveBuffer.data() + inputOffset, receiveBuffer.data() + inputOffset + count,
                           data[arrayIndex]+offset);
