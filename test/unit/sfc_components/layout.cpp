@@ -69,12 +69,12 @@ TEST(Layout, computeLayoutBasic)
     EXPECT_EQ(layout.totalSize(), 34);
 }
 
-
-TEST(Layout, computeLayoutElaborate)
+TEST(Layout, computeLayoutOffsets)
 {
     int nNodes = 32;
     std::vector<std::size_t> nodeCounts(nNodes, 1);
 
+    // nodes 4-9 and 23-27 are local nodes
     std::vector<int> localNodes{4,10,23,28};
 
     std::vector<int> halos{1, 3, 14, 15, 16, 21, 30};
@@ -85,52 +85,36 @@ TEST(Layout, computeLayoutElaborate)
     nodeCounts[24] = 8;
     nodeCounts[30] = 9;
 
-    ArrayLayout layout = computeLayout(localNodes, halos, nodeCounts);
+    std::vector<int> presentNodes, offsets;
+    computeLayoutOffsets(localNodes, halos, nodeCounts, presentNodes, offsets);
 
-    EXPECT_EQ(layout.nodePosition(1), 0);
-    EXPECT_EQ(layout.nodePosition(3), 2);
-    EXPECT_EQ(layout.nodePosition(4), 5);
-    EXPECT_EQ(layout.nodePosition(5), 10);
-    EXPECT_EQ(layout.nodePosition(6), 11);
-    EXPECT_EQ(layout.nodePosition(7), 12);
-    EXPECT_EQ(layout.nodePosition(8), 13);
-    EXPECT_EQ(layout.nodePosition(9), 14);
-    EXPECT_EQ(layout.nodePosition(14), 15);
-    EXPECT_EQ(layout.nodePosition(15), 16);
-    EXPECT_EQ(layout.nodePosition(16), 17);
-    EXPECT_EQ(layout.nodePosition(21), 23);
-    EXPECT_EQ(layout.nodePosition(23), 24);
-    EXPECT_EQ(layout.nodePosition(24), 25);
-    EXPECT_EQ(layout.nodePosition(25), 33);
-    EXPECT_EQ(layout.nodePosition(26), 34);
-    EXPECT_EQ(layout.nodePosition(27), 35);
-    EXPECT_EQ(layout.nodePosition(30), 36);
+    std::vector<int> refPresentNodes{1,3,4,5,6,7,8,9,14,15,16,21,23,24,25,26,27,30};
+    EXPECT_EQ(presentNodes, refPresentNodes);
 
-    EXPECT_EQ(layout.nodeCount(1), 2);
-    EXPECT_EQ(layout.nodeCount(3), 3);
-    EXPECT_EQ(layout.nodeCount(4), 5);
-    EXPECT_EQ(layout.nodeCount(5), 1);
-    EXPECT_EQ(layout.nodeCount(6), 1);
-    EXPECT_EQ(layout.nodeCount(7), 1);
-    EXPECT_EQ(layout.nodeCount(8), 1);
-    EXPECT_EQ(layout.nodeCount(9), 1);
-    EXPECT_EQ(layout.nodeCount(14), 1);
-    EXPECT_EQ(layout.nodeCount(15), 1);
-    EXPECT_EQ(layout.nodeCount(16), 6);
-    EXPECT_EQ(layout.nodeCount(21), 1);
-    EXPECT_EQ(layout.nodeCount(23), 1);
-    EXPECT_EQ(layout.nodeCount(24), 8);
-    EXPECT_EQ(layout.nodeCount(25), 1);
-    EXPECT_EQ(layout.nodeCount(26), 1);
-    EXPECT_EQ(layout.nodeCount(27), 1);
-    EXPECT_EQ(layout.nodeCount(30), 9);
-
-    EXPECT_EQ(layout.nLocalRanges(), 2);
-    EXPECT_EQ(layout.localRangePosition(0), 5);
-    EXPECT_EQ(layout.localRangeCount(0), 10);
-    EXPECT_EQ(layout.localRangePosition(1), 24);
-    EXPECT_EQ(layout.localRangeCount(1), 12);
-
-    EXPECT_EQ(layout.localCount(), 22);
-    EXPECT_EQ(layout.totalSize(), 45);
+    std::vector<int> refOffsets{0,2,5,10,11,12,13,14,15,16,17,23,24,25,33,34,35,36,45};
+    EXPECT_EQ(offsets, refOffsets);
 }
+
+TEST(Layout, createHaloExchangeList)
+{
+    int nRanks = 3;
+    std::vector<std::vector<int>> outgoingHaloNodes(nRanks);
+    outgoingHaloNodes[1].push_back(1);
+    outgoingHaloNodes[1].push_back(10);
+    outgoingHaloNodes[2].push_back(12);
+    outgoingHaloNodes[2].push_back(22);
+
+    std::vector<int> presentNodes{1,2,10,12,20,22};
+    std::vector<int>      offsets{0,1,3, 6, 10,15,21};
+
+    SendList sendList = createHaloExchangeList(outgoingHaloNodes, presentNodes, offsets);
+
+    SendList refSendList(nRanks);
+    refSendList[1].addRange(0,1);
+    refSendList[1].addRange(3,6);
+    refSendList[2].addRange(6,10);
+    refSendList[2].addRange(15,21);
+
+    EXPECT_EQ(sendList, refSendList);
+}
+
