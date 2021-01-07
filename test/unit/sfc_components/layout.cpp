@@ -48,27 +48,6 @@ TEST(Layout, flattenNodeList)
 }
 
 
-TEST(Layout, computeLayoutBasic)
-{
-    int nNodes = 64;
-    std::vector<std::size_t> nodeCounts(nNodes, 1);
-
-    std::vector<int> localNodes{0,32};
-    std::vector<int> halos{32, 34};
-
-    ArrayLayout layout = computeLayout(localNodes, halos, nodeCounts);
-
-    for (int i = 0; i < 33; ++i)
-        EXPECT_EQ(layout.nodePosition(i), i);
-
-    EXPECT_EQ(layout.nodePosition(34), 33);
-
-    EXPECT_EQ(layout.nLocalRanges(), 1);
-    EXPECT_EQ(layout.localRangePosition(0), 0);
-    EXPECT_EQ(layout.localRangeCount(0), 32);
-    EXPECT_EQ(layout.totalSize(), 34);
-}
-
 TEST(Layout, computeLayoutOffsets)
 {
     int nNodes = 32;

@@ -1,16 +1,10 @@
 #pragma once
 
-#include <unordered_map>
 #include <vector>
 
 #include "sfc/domaindecomp.hpp"
 
-namespace sphexa
-{
-
-/*! \brief Stores offsets into particle buffers for all nodes present on a given rank
- *
- * Associates the index of a node in the global tree with an offset into a particle array.
+/*! \brief \file Utility functions for determining the layout of particle buffers on a given rank
  *
  * Each rank will be assigned a part of the SFC, equating to one or multiple ranges of
  * node indices of the global cornerstone octree. In a addition to the assigned nodes,
@@ -19,93 +13,19 @@ namespace sphexa
  * particle array (x,y,z,h,...) according to increasing node index, which is the same
  * as increasing Morton code.
  *
- * This class stores the position and size of each node (halo or assigned node).
- * The resulting layout is valid for all particle buffers, such as x,y,z,h,d,p,...
+ * Given
+ *  - the global cornerstone tree
+ *  - its assignment to ranks
+ *  - lists of in/outgoing halo nodes (global indices) per rank,
+ * the utility functions in this file determine the position and size of each node (halo or assigned node)
+ * in the particle buffers. The resulting layout is valid for all particle buffers, such as x,y,z,h,d,p,...
+ *
+ * Note:
+ * If a node of the global cornerstone octree has index i, this means its Morton code range is tree[i] - tree[i+1]
  */
-class ArrayLayout
+
+namespace sphexa
 {
-public:
-
-    //! \brief construct from sorted nodeList and offsets (use std::move)
-    ArrayLayout(std::vector<int>&& nodeList, std::vector<int>&& offsets)
-        : nodeList_(nodeList), offsets_(offsets)
-    {
-        for (int i = 0; i < nodeList.size(); ++i)
-            global2local_[nodeList[i]] = i;
-    }
-
-    //! \brief number of local node ranges
-    int nLocalRanges() { return (int)ranges_.size()/2; }
-
-    //! \brief
-    int localRangePosition(int rangeIndex) const { return ranges_[2*rangeIndex]; }
-
-    //! \brief  number of particles in local range
-    int localRangeCount(int rangeIndex) const
-    {
-        return ranges_[2*rangeIndex+1] - ranges_[2*rangeIndex];
-    }
-
-    //! \brief number of particles in all local ranges
-    int localCount() const
-    {
-        int ret = 0;
-        for (int p = 0; p < ranges_.size(); p+=2)
-            ret += ranges_[p+1] - ranges_[p];
-        return ret;
-    }
-
-    //! \brief array offset
-    int nodePosition(int globalNodeIndex) const
-    {
-        // note: globalNodeIndex needs to exist!
-        int localIndex = global2local_.at(globalNodeIndex);
-        return offsets_[localIndex];
-    }
-
-    //! \brief number of particles per node
-    int nodeCount(int globalNodeIndex) const
-    {
-        int localIndex = global2local_.at(globalNodeIndex);
-        return offsets_[localIndex+1] - offsets_[localIndex];
-    }
-
-    //! \brief sum of all internal node and halo node sizes present in the layout
-    int totalSize() const { return offsets_[nodeList_.size()]; }
-
-
-    /*! \brief mark specified range of nodes as local, i.e. part of rank assignment
-     *
-     * @param lowerGlobalNodeIndex
-     * @param upperGlobalNodeIndex
-     *
-     * Calling this function only works if the specified index range is consistent
-     * with the node lists used upon construction.
-     */
-    void addLocalRange(int lowerGlobalNodeIndex, int upperGlobalNodeIndex)
-    {
-        int nNodes     = upperGlobalNodeIndex - lowerGlobalNodeIndex;
-        int localIndex = global2local_.at(lowerGlobalNodeIndex);
-
-        int lowerOffset = offsets_[localIndex];
-        int upperOffset = offsets_[localIndex + nNodes];
-        ranges_.push_back(lowerOffset);
-        ranges_.push_back(upperOffset);
-    }
-
-private:
-    //! \brief pairs (i, i+1), of consecutive indices to store local ranges
-    std::vector<int> ranges_;
-
-    //! \brief pairs of (global octree node index, local index into offsets_ and nodeList_)
-    std::unordered_map<int, int> global2local_;
-
-    //! \brief sorted list of nodes
-    std::vector<int> nodeList_;
-    //! \brief array offset per node
-    std::vector<int> offsets_;
-};
-
 
 /*! \brief  Finds the ranges of node indices of the tree that are assigned to a given rank
  *
@@ -204,36 +124,6 @@ void computeLayoutOffsets(const std::vector<int>& localNodeRanges,
         // the last element stores the total size of the layout
         offsets[presentNodes.size()] = offset;
     }
-}
-
-
-/*! \brief computes the array layout for particle buffers of the executing rank
- *
- * @param localNodes        Ranges of node indices, assigned to executing rank
- * @param haloNodes         List of halo node indices. From the perspective of the
- *                          executing rank, these are incoming halo nodes.
- * @param globalNodeCounts  Particle count per node in the global octree
- * @return                  The array layout, see class ArrayLayout
- */
-ArrayLayout computeLayout(const std::vector<int>& localNodes,
-                          const std::vector<int>& haloNodes,
-                          const std::vector<std::size_t>& globalNodeCounts)
-{
-    std::vector<int> presentNodes;
-    std::vector<int> offsets;
-
-    computeLayoutOffsets(localNodes, haloNodes, globalNodeCounts, presentNodes, offsets);
-
-    ArrayLayout layout(std::move(presentNodes), std::move(offsets));
-    // register which ranges of nodes are part of the local assignment
-    for (int rangeIndex = 0; rangeIndex < localNodes.size(); rangeIndex += 2)
-    {
-        int lower = localNodes[rangeIndex];
-        int upper = localNodes[rangeIndex+1];
-        layout.addLocalRange(lower, upper);
-    }
-
-    return layout;
 }
 
 
