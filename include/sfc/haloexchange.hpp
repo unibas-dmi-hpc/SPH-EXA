@@ -19,7 +19,6 @@ void haloexchange(const SendList& incomingHalos,
 
     std::vector<std::vector<T>> sendBuffers;
     std::vector<MPI_Request>    sendRequests;
-    std::vector<int>            sendCounts(outgoingHalos.size());
 
     for (int destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
     {
@@ -42,9 +41,7 @@ void haloexchange(const SendList& incomingHalos,
             }
         }
 
-        sendCounts[destinationRank] = buffer.size();
-        mpiSendAsync(&sendCounts[destinationRank], 1, destinationRank, 0, sendRequests);
-        mpiSendAsync(buffer.data(), buffer.size(), destinationRank, 1, sendRequests);
+        mpiSendAsync(buffer.data(), sendCount * nArrays, destinationRank, 0, sendRequests);
         sendBuffers.push_back(std::move(buffer));
     }
 
@@ -62,13 +59,9 @@ void haloexchange(const SendList& incomingHalos,
     while (nMessages > 0)
     {
         MPI_Status status;
-        int receiveCount;
-        mpiRecvSync(&receiveCount, 1, MPI_ANY_SOURCE, 0, &status);
-
+        mpiRecvSync(receiveBuffer.data(), receiveBuffer.size(), MPI_ANY_SOURCE, 0, &status);
         int receiveRank = status.MPI_SOURCE;
-        mpiRecvSync(receiveBuffer.data(), receiveCount, receiveRank, 1, &status);
-
-        int countPerArray = receiveCount / nArrays;
+        int countPerArray = incomingHalos[receiveRank].totalCount();
 
         for (int arrayIndex = 0; arrayIndex < nArrays; ++arrayIndex)
         {
