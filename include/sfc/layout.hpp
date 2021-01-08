@@ -76,12 +76,15 @@ std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& groupedNod
 
 /*! \brief computes the array layout for particle buffers of the executing rank
  *
- * @param localNodeRanges   Ranges of node indices, assigned to executing rank
- * @param haloNodes         List of halo node indices without duplicates.
- *                          From the perspective of the
- *                          executing rank, these are incoming halo nodes.
- * @param globalNodeCounts  Particle count per node in the global octree
- * @return                  The array layout, see class ArrayLayout
+ * @param localNodeRanges    Ranges of node indices, assigned to executing rank
+ * @param haloNodes          List of halo node indices without duplicates.
+ *                           From the perspective of the
+ *                           executing rank, these are incoming halo nodes.
+ * @param globalNodeCounts   Particle count per node in the global octree
+ * @param presentNodes[out]  Upon return, will contain a sorted list of global node indices
+ *                           present on the executing rank
+ * @param offsets[out]       Will contain an offset index for each node in \a presentNodes,
+ *                           indicating its position in the particle x,y,z,... buffers
  */
 void computeLayoutOffsets(const std::vector<int>& localNodeRanges,
                           const std::vector<int>& haloNodes,
