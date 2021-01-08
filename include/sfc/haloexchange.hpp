@@ -85,6 +85,10 @@ void haloexchange(const SendList& incomingHalos,
         MPI_Status status[sendRequests.size()];
         MPI_Waitall(sendRequests.size(), sendRequests.data(), status);
     }
+
+    // prevent rank from sending further messages with tag 0 while other ranks
+    // are still listening to the messages sent out here
+    MPI_Barrier(MPI_COMM_WORLD);
 }
 
 } // namespace sphexa
