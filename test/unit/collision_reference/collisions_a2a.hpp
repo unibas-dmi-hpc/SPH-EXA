@@ -39,9 +39,9 @@ std::vector<CollisionList> findCollisionsAll2all(const std::vector<I>& tree, con
     {
         T radius = haloRadii[leafIdx];
 
-        int dx = detail::toNBitInt<I>(normalize(radius, globalBox.xmin(), globalBox.xmax()));
-        int dy = detail::toNBitInt<I>(normalize(radius, globalBox.ymin(), globalBox.ymax()));
-        int dz = detail::toNBitInt<I>(normalize(radius, globalBox.zmin(), globalBox.zmax()));
+        int dx = detail::toNBitInt<I>(abs(normalize(radius, globalBox.xmin(), globalBox.xmax())));
+        int dy = detail::toNBitInt<I>(abs(normalize(radius, globalBox.ymin(), globalBox.ymax())));
+        int dz = detail::toNBitInt<I>(abs(normalize(radius, globalBox.zmin(), globalBox.zmax())));
 
         Box<int> haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx + 1], dx, dy, dz);
         findCollisions2All(tree, collisions[leafIdx], haloBox);
