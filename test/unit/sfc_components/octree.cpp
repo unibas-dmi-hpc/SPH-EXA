@@ -472,3 +472,48 @@ TEST(CornerstoneOctree, computeNodeMax)
 
     EXPECT_EQ(probe, hMaxPerNode);
 }
+
+TEST(CornerstoneOctree, nodeMaxRegression)
+{
+    std::vector<unsigned> tree{0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 24, 32, 40, 48, 56, 64, 128, 192, 256, 320, 384,
+                               448, 512, 1024, 1536, 2048, 2560, 3072, 3584, 4096, 8192, 12288, 16384, 20480, 24576,
+                               28672, 32768, 65536, 98304, 131072, 163840, 196608, 229376, 262144, 524288, 786432, 1048576,
+                               1310720, 1572864, 1835008, 2097152, 4194304, 6291456, 8388608, 10485760, 12582912, 14680064,
+                               16777216, 33554432, 50331648, 67108864, 83886080, 100663296, 117440512, 134217728, 268435456,
+                               402653184, 536870912, 671088640, 805306368, 939524096, 956301312, 973078528, 989855744, 1006632960,
+                               1023410176, 1040187392, 1056964608, 1059061760, 1061158912, 1063256064, 1065353216, 1067450368,
+                               1069547520, 1071644672, 1071906816, 1072168960, 1072431104, 1072693248, 1072955392, 1073217536,
+                               1073479680, 1073512448, 1073545216, 1073577984, 1073610752, 1073643520, 1073676288, 1073709056,
+                               1073713152, 1073717248, 1073721344, 1073725440, 1073729536, 1073733632, 1073737728, 1073738240,
+                               1073738752, 1073739264, 1073739776, 1073740288, 1073740800, 1073741312, 1073741376, 1073741440,
+                               1073741504, 1073741568, 1073741632, 1073741696, 1073741760, 1073741768, 1073741776, 1073741784,
+                               1073741792, 1073741800, 1073741808, 1073741816, 1073741817, 1073741818, 1073741819, 1073741820,
+                               1073741821, 1073741822, 1073741823, 1073741824};
+
+    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
+
+    std::vector<std::size_t> nodeCounts(nNodes(tree), 0);
+    nodeCounts[0] = 2;
+    *nodeCounts.rbegin() = 2;
+
+    std::vector<unsigned> codes{0, 0, 1073741823, 1073741823};
+
+    {
+        std::vector<std::size_t> countsProbe(nNodes(tree));
+        sphexa::computeNodeCounts(tree.data(), countsProbe.data(), nNodes(tree), codes.data(), codes.data() + codes.size());
+        EXPECT_EQ(nodeCounts, countsProbe);
+    }
+
+    std::vector<double> h{0.2, 0.2, 0.2, 0.2};
+    std::vector<int> ordering{0,1,2,3};
+
+    std::vector<double> hMaxPerNode(nNodes(tree), 0);
+    computeNodeMax(tree.data(), nNodes(tree), codes.data(), codes.data() + codes.size(), ordering.data(), h.data(),
+                   hMaxPerNode.data());
+
+    std::vector<double> refhMaxPerNode(nNodes(tree));
+    refhMaxPerNode[0] = 0.2;
+    refhMaxPerNode[nNodes(tree)-1] = 0.2;
+
+    EXPECT_EQ(refhMaxPerNode, hMaxPerNode);
+}

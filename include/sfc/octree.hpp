@@ -233,7 +233,7 @@ void computeNodeMax(const I* tree, int nNodes, const I* codesStart, const I* cod
         int startIndex = std::lower_bound(codesStart, codesEnd, nodeStart) - codesStart;
         int endIndex   = std::lower_bound(codesStart, codesEnd, nodeEnd)   - codesStart;
 
-        T nodeMax = -INFINITY;
+        T nodeMax = 0;
         for(int p = startIndex; p < endIndex; ++p)
         {
             T nodeElement = input[ordering[p]];
