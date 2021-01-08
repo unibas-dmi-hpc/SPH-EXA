@@ -37,7 +37,7 @@ public:
     [[nodiscard]] int size() const { return n_; };
 
 private:
-    static constexpr int collisionMax = 64;
+    static constexpr int collisionMax = 256;
     int n_{0};
     int list_[collisionMax]{0};
 };
@@ -122,7 +122,13 @@ void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes, Colli
         else
         {
             if (traverseL && traverseR)
+            {
+                if (stackPtr-stack >= 64)
+                {
+                    throw std::runtime_error("btree traversal stack exhausted\n");
+                }
                 *stackPtr++ = node->rightChild; // push
+            }
 
             node = (traverseL) ? node->leftChild : node->rightChild;
         }
