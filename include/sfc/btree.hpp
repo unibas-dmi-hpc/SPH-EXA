@@ -60,22 +60,6 @@ struct BinaryNode
 };
 
 
-/*! \brief calculate common prefix (commonPrefix) of two morton keys
- *
- * @tparam I    32 or 64 bit unsigned integer
- * @param key1  first morton code key
- * @param key2  second morton code key
- * @return      number of continuous identical bits, counting from MSB
- *              minus the 2 unused bits in 32 bit codes or minus the 1 unused bit
- *              in 64 bit codes.
- */
-//template<class I>
-//int commonPrefix(I key1, I key2)
-//{
-//    return int(countLeadingZeros(key1 ^ key2)) - unusedBits<I>{};
-//}
-
-
 /*! \brief find position of first differing bit
  *
  * @tparam I                 32 or 64 bit unsigned integer
@@ -161,16 +145,6 @@ void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalN
     {
         jSearchRange *= 2;
         upperJ = idx + jSearchRange * d;
-    }
-
-    // prune max search range if out of bounds
-    if (upperJ >= nLeaves)
-    {
-        jSearchRange = nLeaves - idx;
-    }
-    if (upperJ < 0)
-    {
-        jSearchRange = idx;
     }
 
     // binary search to determine the second node range index jdx
