@@ -164,29 +164,32 @@ TEST(Collisions, adjacentEdgeRegression)
     auto internalTree = createInternalTree(tree);
 
     Box<double> box(0.5, 0.6);
-    //Box<double> box(0, 1);
 
     std::vector<double> haloRadii(nNodes(tree), 0);
     haloRadii[0] = 0.2;
     *haloRadii.rbegin() = 0.2;
 
-    int lastNode = nNodes(tree) - 1;
-    Box<int> haloBox = makeHaloBox(tree[lastNode], tree[lastNode+1], haloRadii[lastNode], box);
+    std::vector<int> allNodes(nNodes(tree));
+    std::iota(begin(allNodes), end(allNodes), 0);
 
-    //std::cout << haloBox.xmin() << " "  << haloBox.xmax() << std::endl;
-    //std::cout << haloBox.ymin() << " "  << haloBox.ymax() << std::endl;
-    //std::cout << haloBox.zmin() << " "  << haloBox.zmax() << std::endl;
+    for (int i = 0; i < nNodes(tree); ++i)
+    {
+        Box<int> haloBox = makeHaloBox(tree[i], tree[i+1], haloRadii[i], box);
+        CollisionList collisions;
+        findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
 
-    CollisionList collisions;
-    findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+        std::vector<int> cnodes{collisions.begin(), collisions.end()};
+        std::sort(begin(cnodes), end(cnodes));
 
-    std::vector<int> cnodes{collisions.begin(), collisions.end()};
-    std::sort(begin(cnodes), end(cnodes));
+        if (i == 0 || i == nNodes(tree) - 1)
+        {
+            EXPECT_EQ(cnodes, allNodes);
+        }
+        else
+        {
+            EXPECT_EQ(cnodes, std::vector<int>(1,i));
+        }
+    }
 
-    //for (auto node : cnodes)
-    //    std::cout << node << " ";
-    //std::cout << std::endl;
-
-    //EXPECT_EQ(collisions.size(), nNodes(tree));
-    //generalCollisionTest(tree, haloRadii, box);
+    generalCollisionTest(tree, haloRadii, box);
 }

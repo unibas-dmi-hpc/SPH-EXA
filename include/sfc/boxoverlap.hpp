@@ -79,9 +79,9 @@ Box<int> makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz)
 template <class I, class T>
 Box<int> makeHaloBox(I codeStart, I codeEnd, T radius, const Box<T>& box)
 {
-    int dx = detail::toNBitInt<I>(abs(normalize(radius, box.xmin(), box.xmax())));
-    int dy = detail::toNBitInt<I>(abs(normalize(radius, box.ymin(), box.ymax())));
-    int dz = detail::toNBitInt<I>(abs(normalize(radius, box.zmin(), box.zmax())));
+    int dx = detail::toNBitInt<I>(radius / (box.xmax() - box.xmin()));
+    int dy = detail::toNBitInt<I>(radius / (box.ymax() - box.ymin()));
+    int dz = detail::toNBitInt<I>(radius / (box.zmax() - box.zmin()));
 
     return makeHaloBox(codeStart, codeEnd, dx, dy, dz);
 }
