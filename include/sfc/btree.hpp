@@ -179,11 +179,14 @@ void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalN
     do
     {
         step = (step + 1) / 2;
-        if (commonPrefix(codes[idx], codes[idx + (nodeLength+step)*d]) > minPrefixLength)
+        int newNodeLength = nodeLength + step;
+        if (idx + newNodeLength*d <= nLeaves && idx + newNodeLength*d >= 0)
         {
-            nodeLength += step;
+            if (commonPrefix(codes[idx], codes[idx + newNodeLength * d]) > minPrefixLength)
+            {
+                nodeLength = newNodeLength;
+            }
         }
-
     } while (step > 1);
 
     int jdx = idx + nodeLength * d;
