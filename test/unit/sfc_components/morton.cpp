@@ -8,7 +8,83 @@
 
 using namespace sphexa;
 
-TEST(MortonCode, mortonIndex32) {
+using sphexa::detail::toNBitInt;
+using sphexa::detail::toNBitIntCeil;
+
+template<class T>
+void normalization32()
+{
+    EXPECT_EQ(toNBitInt<unsigned>(T(0)), 0);
+    EXPECT_EQ(toNBitInt<unsigned>(T(0.0000001)), 0);
+    EXPECT_EQ(toNBitInt<unsigned>(T(1)), 1023);
+
+    EXPECT_EQ(toNBitInt<unsigned>(T(0.00489)), 5);
+    EXPECT_EQ(toNBitInt<unsigned>(T(0.00196)), 2);
+    EXPECT_EQ(toNBitInt<unsigned>(T(0.00391)), 4);
+}
+
+TEST(MortonCode, normalization32)
+{
+    normalization32<float>();
+    normalization32<double>();
+}
+
+template<class T>
+void normalization64()
+{
+    EXPECT_EQ(toNBitInt<uint64_t>(T(0)), 0);
+    EXPECT_EQ(toNBitInt<unsigned>(T(0.0000001)), 0);
+    EXPECT_EQ(toNBitInt<uint64_t>(T(1)), 2097151);
+
+    EXPECT_EQ(toNBitInt<uint64_t>(T(0.00489)), 10255);
+    EXPECT_EQ(toNBitInt<uint64_t>(T(0.00196)), 4110);
+    EXPECT_EQ(toNBitInt<uint64_t>(T(0.00391)), 8199);
+}
+
+TEST(MortonCode, normalization64)
+{
+    normalization64<float>();
+    normalization64<double>();
+}
+
+template<class T>
+void normalizationCeil32()
+{
+    EXPECT_EQ(toNBitIntCeil<unsigned>(T(0)), 0);
+    EXPECT_EQ(toNBitIntCeil<unsigned>(T(0.0000001)), 1);
+    EXPECT_EQ(toNBitIntCeil<unsigned>(T(1)), 1023);
+
+    EXPECT_EQ(toNBitIntCeil<unsigned>(T(0.00489)), 6);
+    EXPECT_EQ(toNBitIntCeil<unsigned>(T(0.00196)), 3);
+    EXPECT_EQ(toNBitIntCeil<unsigned>(T(0.00391)), 5);
+}
+
+TEST(MortonCode, normalizationCeil32)
+{
+    normalizationCeil32<float>();
+    normalizationCeil32<double>();
+}
+
+template<class T>
+void normalizationCeil64()
+{
+    EXPECT_EQ(toNBitIntCeil<uint64_t>(T(0)), 0);
+    EXPECT_EQ(toNBitIntCeil<unsigned>(T(0.0000001)), 1);
+    EXPECT_EQ(toNBitIntCeil<uint64_t>(T(1)), 2097151);
+
+    EXPECT_EQ(toNBitIntCeil<uint64_t>(T(0.00489)), 10256);
+    EXPECT_EQ(toNBitIntCeil<uint64_t>(T(0.00196)), 4111);
+    EXPECT_EQ(toNBitIntCeil<uint64_t>(T(0.00391)), 8200);
+}
+
+TEST(MortonCode, normalizationCeil64)
+{
+    normalizationCeil64<float>();
+    normalizationCeil64<double>();
+}
+
+
+TEST(MortonCode, encode32) {
 
     double x = 0.00489; // 5 on the scale 0-1023
     double y = 0.00196; // 2
@@ -20,11 +96,11 @@ TEST(MortonCode, mortonIndex32) {
     // z = 100
     // Morton code is 101010100 = 340
 
-    EXPECT_EQ(340, sphexa::morton3DunitCube<unsigned>(float(x), float(y), float(z)));
-    EXPECT_EQ(340, sphexa::morton3DunitCube<unsigned>(x, y, z));
+    EXPECT_EQ(340, morton3DunitCube<unsigned>(float(x), float(y), float(z)));
+    EXPECT_EQ(340, morton3DunitCube<unsigned>(x, y, z));
 }
 
-TEST(MortonCode, mortonIndex64) {
+TEST(MortonCode, encode64) {
 
     double x = 0.5;
     double y = 0.5;
@@ -36,8 +112,8 @@ TEST(MortonCode, mortonIndex64) {
     // 0b0(111)(000)(000)...(000) = 0x7000000000000000lu
 
     std::size_t reference = 0x7000000000000000lu;
-    EXPECT_EQ(reference, sphexa::morton3DunitCube<std::size_t>(float(x), float(y), float(z)));
-    EXPECT_EQ(reference, sphexa::morton3DunitCube<std::size_t>(x, y, z));
+    EXPECT_EQ(reference, morton3DunitCube<std::size_t>(float(x), float(y), float(z)));
+    EXPECT_EQ(reference, morton3DunitCube<std::size_t>(x, y, z));
 }
 
 TEST(MortonCode, decodeMorton32)

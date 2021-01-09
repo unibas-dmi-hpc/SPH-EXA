@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cmath> // for std::ceil
+
 #include "box.hpp"
 #include "clz.hpp"
 
@@ -73,6 +75,15 @@ inline std::size_t compactBits(std::size_t v)
     return v;
 }
 
+/*! \brief normalize a floating point number in [0,1] to an integer in [0, 2^(10 or 21)-1]
+ *
+ * @tparam I  32-bit or 64-bit unsigned integer
+ * @tparam T  float or double
+ * @param x   input floating point number in [0,1]
+ * @return    x converted to an 10-bit or 21-bit integer
+ *
+ * Integer conversion happens with truncation as required for morton code calculations
+ */
 template <class I, class T>
 inline I toNBitInt(T x)
 {
@@ -82,6 +93,27 @@ inline I toNBitInt(T x)
     // [0,1] to [0,1023] and convert to integer (32-bit) or
     // [0,1] to [0,2097151] and convert to integer (64-bit)
     return std::min(std::max(x * T(1u<<nBits), T(0.0)), T((1u<<nBits)-1u));
+}
+
+/*! \brief normalize a floating point number in [0,1] to an integer in [0, 2^(10 or 21)-1]
+ *
+ * @tparam I  32-bit or 64-bit unsigned integer
+ * @tparam T  float or double
+ * @param x   input floating point number in [0,1]
+ * @return    x converted to an 10-bit or 21-bit integer
+ *
+ * Integer conversion happens with ceil() as required for converting halo radii to integers
+ * where we must round up to the smallest integer not less than x*2^(10 or 21)
+ */
+template <class I, class T>
+inline I toNBitIntCeil(T x)
+{
+    // spatial resolution in bits per dimension
+    constexpr unsigned nBits = (sizeof(I) * 8) / 3;
+
+    // [0,1] to [0,1023] and convert to integer (32-bit) or
+    // [0,1] to [0,2097151] and convert to integer (64-bit)
+    return std::min(std::max(std::ceil(x * T(1u<<nBits)), T(0.0)), T((1u<<nBits)-1u));
 }
 
 } // namespace detail
