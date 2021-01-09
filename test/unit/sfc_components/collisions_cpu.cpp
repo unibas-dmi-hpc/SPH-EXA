@@ -143,8 +143,8 @@ INSTANTIATE_TEST_SUITE_P(AnisotropicBoxTraversal,
                          AnisotropicBoxTraversal,
                          testing::ValuesIn(boxLimits));
 
-
-TEST(Collisions, adjacentEdgeRegression)
+//! \brief this tree results from 2 particles at (0,0,0) and 2 at (1,1,1) with a bucket size of 1
+std::vector<unsigned> makeEdgeTree()
 {
     std::vector<unsigned> tree{0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 24, 32, 40, 48, 56, 64, 128, 192, 256, 320, 384,
                                448, 512, 1024, 1536, 2048, 2560, 3072, 3584, 4096, 8192, 12288, 16384, 20480, 24576,
@@ -161,6 +161,18 @@ TEST(Collisions, adjacentEdgeRegression)
                                1073741792, 1073741800, 1073741808, 1073741816, 1073741817, 1073741818, 1073741819, 1073741820,
                                1073741821, 1073741822, 1073741823, 1073741824};
 
+    return tree;
+}
+
+/*! \brief a simple collision test with the edge tree from above
+ *
+ * Since the halo radius for the first and last node is bigger than the box,
+ * this two nodes collide with all nodes in the tree, while all other nodes have
+ * radius 0 and only collide with themselves.
+ */
+TEST(Collisions, adjacentEdgeRegression)
+{
+    std::vector<unsigned> tree = makeEdgeTree();
     auto internalTree = createInternalTree(tree);
 
     Box<double> box(0.5, 0.6);
@@ -192,4 +204,66 @@ TEST(Collisions, adjacentEdgeRegression)
     }
 
     generalCollisionTest(tree, haloRadii, box);
+}
+
+/*! \brief collisions test with a very small radius
+ *
+ * This tests that a very small, but non-zero halo radius
+ * does not get rounded down to zero.
+ */
+TEST(Collisions, adjacentEdgeSmallRadius)
+{
+    std::vector<unsigned> tree = makeEdgeTree();
+    auto internalTree = createInternalTree((tree));
+
+    Box<double> box(0,1);
+
+    // nNodes is 134
+    int secondLastNode = 132;
+    double radius = 0.0001;
+    Box<int> haloBox = makeHaloBox(tree[secondLastNode], tree[secondLastNode+1], radius, box);
+
+    CollisionList collisions;
+    findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+
+    std::vector<int> cnodes{collisions.begin(), collisions.end()};
+    std::sort(begin(cnodes), end(cnodes));
+
+    std::vector<int> refNodes{125,126,127,128,129,130,131,132,133};
+    EXPECT_EQ(cnodes, refNodes);
+}
+
+TEST(Collisions, adjacentEdgeLastNode)
+{
+    std::vector<unsigned> tree = makeEdgeTree();
+    auto internalTree = createInternalTree((tree));
+
+    Box<double> box(0,1);
+
+    // nNodes is 134
+    int lastNode = 133;
+    double radius = 0.0;
+    Box<int> haloBox = makeHaloBox(tree[lastNode], tree[lastNode+1], radius, box);
+
+    CollisionList collisions;
+    findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+
+    std::vector<int> cnodes{collisions.begin(), collisions.end()};
+    std::sort(begin(cnodes), end(cnodes));
+
+    std::vector<int> refNodes{133};
+    EXPECT_EQ(cnodes, refNodes);
+}
+
+TEST(Collisions, regularLastNode)
+{
+    // a tree with 4 subdivisions along each dimension, 64 nodes
+    std::vector<unsigned> tree = makeUniformNLevelTree<unsigned>(64, 1);
+    auto internalTree = createInternalTree(tree);
+
+    Box<int> haloBox{1022, 1023, 1022, 1023, 1022, 1023};
+    CollisionList collisions;
+    findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+    EXPECT_EQ(collisions.size(), 1);
+    EXPECT_EQ(collisions[0], 63);
 }
