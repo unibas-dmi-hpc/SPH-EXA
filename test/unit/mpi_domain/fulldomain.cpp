@@ -5,7 +5,80 @@
 
 using namespace sphexa;
 
-TEST(Domain, simpleTest)
+template<class I, class T>
+void noHalos(int rank, int nRanks)
 {
-    Domain<unsigned, double> domain(0);
+    int bucketSize = 1;
+    Domain<I, T> domain(rank, nRanks, bucketSize);
+
+    std::vector<T> x{0.5, 0.6};
+    std::vector<T> y{0.5, 0.6};
+    std::vector<T> z{0.5, 0.6};
+    std::vector<T> h{0.11, 0.11}; // out of range
+
+    domain.sync(x,y,z,h);
+
+    std::vector<T> cref;
+    if (rank == 0)
+        cref = std::vector<T>{0.5, 0.5};
+    else if (rank == 1)
+        cref = std::vector<T>{0.6, 0.6};
+
+    EXPECT_EQ(cref, x);
+    EXPECT_EQ(cref, y);
+    EXPECT_EQ(cref, z);
+}
+
+//TEST(Domain, noHalos)
+//{
+//    int rank = 0, nRanks = 0;
+//    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+//    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+//
+//    noHalos<unsigned, double>(rank, nRanks);
+//    noHalos<uint64_t, double>(rank, nRanks);
+//    noHalos<unsigned, float>(rank, nRanks);
+//    noHalos<uint64_t, float>(rank, nRanks);
+//}
+
+template<class I, class T>
+void withHalos(int rank, int nRanks)
+{
+    int bucketSize = 1;
+    Domain<I, T> domain(rank, nRanks, bucketSize);
+
+    std::vector<T> x{0.5, 0.6};
+    std::vector<T> y{0.5, 0.6};
+    std::vector<T> z{0.5, 0.6};
+    std::vector<T> h{0.2, 0.2}; // in range
+
+    domain.sync(x,y,z,h);
+
+    if (rank == 0)
+    {
+        EXPECT_EQ(domain.startIndex(), 0);
+    }
+    else if (rank == 1)
+    {
+        EXPECT_EQ(domain.startIndex(), 2);
+    }
+
+    //std::vector<T> cref;
+    //if (rank == 0)
+    //    cref = std::vector{0.5, 0.5, 0.0, 0.0};
+    //else if (rank == 1)
+    //    cref = std::vector{0.0, 0.0, 0.6, 0.6};
+
+    //EXPECT_EQ(cref, x);
+    //EXPECT_EQ(cref, y);
+    //EXPECT_EQ(cref, z);
+}
+
+TEST(Domain, halos)
+{
+    int rank = 0, nRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+
+    withHalos<unsigned, double>(rank, nRanks);
 }
