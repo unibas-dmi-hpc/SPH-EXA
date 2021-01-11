@@ -25,6 +25,7 @@ void internal4x4x4PrefixTest()
 
     auto internalTree = createInternalTree(tree);
     EXPECT_EQ(internalTree[0].prefixLength, 0);
+    EXPECT_EQ(internalTree[0].prefixLength, 0);
 
     EXPECT_EQ(internalTree[31].prefixLength, 1);
     EXPECT_EQ(internalTree[31].prefix, pad(I(0b0), 1));
@@ -40,6 +41,10 @@ void internal4x4x4PrefixTest()
     EXPECT_EQ(internalTree[7].prefix, pad(I(0b000), 3));
     EXPECT_EQ(internalTree[8].prefixLength, 3);
     EXPECT_EQ(internalTree[8].prefix, pad(I(0b001), 3));
+
+    // second (useless) root node
+    EXPECT_EQ(internalTree[63].prefixLength, 0);
+    EXPECT_EQ(internalTree[63].prefix, 0);
 }
 
 TEST(BinaryTree, internalTree4x4x4PrefixTest)

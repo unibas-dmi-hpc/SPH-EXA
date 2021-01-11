@@ -109,15 +109,15 @@ int findSplit(I*  sortedMortonCodes,
 
 /*! \brief construct the internal binary tree node with index idx
  *
- * @tparam I
- * @param codes
- * @param leaves
- * @param nLeaves
- * @param internalNodes
- * @param idx
+ * @tparam I                  32- or 64-bit unsigned integer
+ * @param codes[in]           sorted Morton code sequence without duplicates
+ * @param nCodes[in]          number of elements in \a codes
+ * @param internalNodes[out]  output internal binary radix tree, size is nCodes - 1
+ * @param idx                 element of \a internalNodes to construct,
+ *                            permissible range is 0 <= idx < nCodes -1
  */
 template<class I>
-void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalNodes, int idx)
+void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNodes, int idx)
 {
     BinaryNode<I>* idxNode = internalNodes + idx;
 
@@ -140,7 +140,7 @@ void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalN
     // find max search range
     int jSearchRange = 2;
     int upperJ       = idx + jSearchRange * d;
-    while(0 <= upperJ && upperJ < nLeaves
+    while(0 <= upperJ && upperJ < nCodes
           && commonPrefix(codes[idx], codes[upperJ]) > minPrefixLength)
     {
         jSearchRange *= 2;
@@ -154,7 +154,7 @@ void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalN
     {
         step = (step + 1) / 2;
         int newNodeLength = nodeLength + step;
-        if (idx + newNodeLength*d <= nLeaves && idx + newNodeLength*d >= 0)
+        if (idx + newNodeLength*d < nCodes && idx + newNodeLength*d >= 0)
         {
             if (commonPrefix(codes[idx], codes[idx + newNodeLength * d]) > minPrefixLength)
             {
@@ -203,8 +203,24 @@ void constructInternalNode(const I* codes, int nLeaves, BinaryNode<I>* internalN
 /*! \brief create the internal part of an octree as internal nodes
  *
  * @tparam I    32- or 64-bit unsigned integer
- * @param tree  sorted Morton codes representing the leaves of the (global) octree
+ * @param tree  Sorted Morton codes representing the leaves of the (global) octree
+ *              or the locations of objects in 3D.
+ *              Cornerstone invariants are not a requirement for this function,
+ *              only that the codes be sorted and not contain any duplicates.
  * @return      the internal part of the input tree constructed as binary nodes
+ *
+ * Note that if the input \a tree is a cornerstone octree, the root node with index
+ * 0 in the returned binary tree only maps binary nodes 0 <= ... < tree.size() -1.
+ * Due to the last element of tree being the maximum Morton code 2^(30 or 61),
+ * the last node/element of the returned binary tree will be set up as a useless
+ * second root node that is not reachable from the root node with index 0.
+ * So if \a tree is a cornerstone octree of size N, there are / will be
+ *      - N-1 octree leaf nodes
+ *      - a binary tree of size N-1 with 0...N-2 as usable elements
+ *
+ * One could of course prevent the generation of the last binary node with index N-1,
+ * but that would result in loss of generality for arbitrary sorted Morton code sequences
+ * without duplicates.
  *
  * This is a CPU version that can be OpenMP parallelized.
  * In the GPU version, the for-loop body is designed such that one GPU-thread
@@ -218,7 +234,7 @@ std::vector<BinaryNode<I>> createInternalTree(const std::vector<I>& tree)
     // (omp) parallel
     for (int idx = 0; idx < ret.size(); ++idx)
     {
-        constructInternalNode(tree.data(), tree.size() - 1, ret.data(), idx);
+        constructInternalNode(tree.data(), tree.size(), ret.data(), idx);
     }
 
     return ret;
