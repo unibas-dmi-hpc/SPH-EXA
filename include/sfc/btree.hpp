@@ -43,18 +43,29 @@ namespace sphexa {
 /*! \brief binary radix tree node
  *
  * @tparam I 32 or 64 bit unsigned integer
- *
- * (final content TBD)
  */
 template<class I>
 struct BinaryNode
 {
+    //! \brief pointer to the left child node with one bit longer prefixLength and prefix + 0-bit
     BinaryNode* leftChild;
+    //! \brief pointer to the left child node with one bit longer prefixLength and prefix + 1-bit
     BinaryNode* rightChild;
 
+    /*! \brief the Morton code prefix
+     *
+     * Shared among all the node's children share. Only the first prefixLength bits are relevant.
+     */
     I   prefix;
+    //! \brief number of bits in prefix to interpret
     int prefixLength;
 
+    /*! \brief Indices of leaf codes
+     *
+     * If the left/right child is a leaf code of the tree used to construct the internal binary tree,
+     * this integer stores the index (e.g. the global octree), otherwise it will be set to -1
+     * if the children are also internal binary nodes.
+     */
     int leftLeafIndex;
     int rightLeafIndex;
 };
@@ -84,14 +95,14 @@ int findSplit(I*  sortedMortonCodes,
     int cpr = commonPrefix(firstCode, lastCode);
 
     // Use binary search to find where the next bit differs.
-    // Specifically, we are looking for the highest object that
+    // Specifically, we are looking for the highest Morton code that
     // shares more than commonPrefix bits with the first one.
     int split = first; // initial guess
     int step = last - first;
 
     do
     {
-        step = (step + 1) >> 1;      // exponential decrease
+        step = (step + 1) / 2;      // exponential decrease
         int newSplit = split + step; // proposed new position
 
         if (newSplit < last)
@@ -113,89 +124,78 @@ int findSplit(I*  sortedMortonCodes,
  * @param codes[in]           sorted Morton code sequence without duplicates
  * @param nCodes[in]          number of elements in \a codes
  * @param internalNodes[out]  output internal binary radix tree, size is nCodes - 1
- * @param idx                 element of \a internalNodes to construct,
- *                            permissible range is 0 <= idx < nCodes -1
+ * @param firstIndex          element of \a internalNodes to construct,
+ *                            permissible range is 0 <= firstIndex < nCodes -1
  */
 template<class I>
-void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNodes, int idx)
+void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNodes, int firstIndex)
 {
-    BinaryNode<I>* idxNode = internalNodes + idx;
+    BinaryNode<I>* outputNode = internalNodes + firstIndex;
 
     int d = 1;
     int minPrefixLength = -1;
 
-    if (idx > 0)
+    if (firstIndex > 0)
     {
-        d = (commonPrefix(codes[idx], codes[idx + 1]) > commonPrefix(codes[idx], codes[idx - 1])) ? 1 : -1;
-        minPrefixLength = commonPrefix(codes[idx], codes[idx-d]);
+        d = (commonPrefix(codes[firstIndex], codes[firstIndex + 1]) >
+             commonPrefix(codes[firstIndex], codes[firstIndex - 1])) ? 1 : -1;
+        minPrefixLength = commonPrefix(codes[firstIndex], codes[firstIndex -d]);
     }
 
-    //int jdx = idx + d;
-    //while (0 < jdx && jdx < nLeaves - 1
-    //       && commonPrefix(codes[jdx+d], codes[idx]) > minPrefixLength)
-    //{
-    //    jdx += d;
-    //}
-
-    // find max search range
-    int jSearchRange = 2;
-    int upperJ       = idx + jSearchRange * d;
-    while(0 <= upperJ && upperJ < nCodes
-          && commonPrefix(codes[idx], codes[upperJ]) > minPrefixLength)
+    // determine searchRange, the maximum distance of secondIndex from firstIndex
+    int searchRange = 2;
+    int secondIndex = firstIndex + searchRange * d;
+    while(0 <= secondIndex && secondIndex < nCodes
+          && commonPrefix(codes[firstIndex], codes[secondIndex]) > minPrefixLength)
     {
-        jSearchRange *= 2;
-        upperJ = idx + jSearchRange * d;
+        searchRange *= 2;
+        secondIndex = firstIndex + searchRange * d;
     }
 
-    // binary search to determine the second node range index jdx
-    int nodeLength = 0;
-    int step = jSearchRange;
+    // start binary search with known searchRange
+    secondIndex = firstIndex;
     do
     {
-        step = (step + 1) / 2;
-        int newNodeLength = nodeLength + step;
-        if (idx + newNodeLength*d < nCodes && idx + newNodeLength*d >= 0)
+        searchRange = (searchRange + 1) / 2;
+        int newJdx = secondIndex + searchRange * d;
+        if (0 <= newJdx && newJdx < nCodes
+            && commonPrefix(codes[firstIndex], codes[newJdx]) > minPrefixLength)
         {
-            if (commonPrefix(codes[idx], codes[idx + newNodeLength * d]) > minPrefixLength)
-            {
-                nodeLength = newNodeLength;
-            }
+            secondIndex = newJdx;
         }
-    } while (step > 1);
+    } while (searchRange > 1);
 
-    int jdx = idx + nodeLength * d;
+    outputNode->prefixLength = commonPrefix(codes[firstIndex], codes[secondIndex]);
+    outputNode->prefix       = zeroLowBits(codes[firstIndex], outputNode->prefixLength);
 
-    idxNode->prefixLength = commonPrefix(codes[idx], codes[jdx]);
-    idxNode->prefix       = zeroLowBits(codes[idx], idxNode->prefixLength);
-
-    // find position of highest differing bit between [idx, jdx]
-    int gamma = findSplit(codes, std::min(jdx, idx), std::max(jdx, idx));
+    // find position of highest differing bit between [firstIndex, secondIndex]
+    int gamma = findSplit(codes, std::min(secondIndex, firstIndex), std::max(secondIndex, firstIndex));
 
     // establish child relationships
-    if (std::min(jdx, idx) == gamma)
+    if (std::min(secondIndex, firstIndex) == gamma)
     {
         // left child is a leaf
-        idxNode->leftChild     = nullptr;
-        idxNode->leftLeafIndex = gamma;
+        outputNode->leftChild     = nullptr;
+        outputNode->leftLeafIndex = gamma;
     }
     else
     {
         //left child is an internal binary node
-        idxNode->leftChild     = internalNodes + gamma;
-        idxNode->leftLeafIndex = -1;
+        outputNode->leftChild     = internalNodes + gamma;
+        outputNode->leftLeafIndex = -1;
     }
 
-    if (std::max(jdx,idx) == gamma + 1)
+    if (std::max(secondIndex, firstIndex) == gamma + 1)
     {
         // right child is a leaf
-        idxNode->rightChild     = nullptr;
-        idxNode->rightLeafIndex = gamma + 1;
+        outputNode->rightChild     = nullptr;
+        outputNode->rightLeafIndex = gamma + 1;
     }
     else
     {
         // right child is an internal binary node
-        idxNode->rightChild     = internalNodes + gamma + 1;
-        idxNode->rightLeafIndex = -1;
+        outputNode->rightChild     = internalNodes + gamma + 1;
+        outputNode->rightLeafIndex = -1;
     }
 }
 
