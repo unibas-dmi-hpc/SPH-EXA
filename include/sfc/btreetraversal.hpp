@@ -36,8 +36,10 @@ public:
      */
     [[nodiscard]] int size() const { return n_; };
 
+    [[nodiscard]] bool exhausted() const { return n_ == collisionMax-1; }
+
 private:
-    static constexpr int collisionMax = 256;
+    static constexpr int collisionMax = 512;
     int n_{0};
     int list_[collisionMax]{0};
 };

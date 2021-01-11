@@ -80,7 +80,7 @@ public:
         std::vector<int> incomingHalosFlattened = flattenNodeList(incomingHaloNodes);
         std::vector<int> localNodeRanges        = computeLocalNodeRanges(tree_, assignment, myRank_);
 
-        //if (myRank_ == 1)
+        //if (myRank_ == 0)
         //{
         //    std::cout << "local node range\n";
         //    std::cout << localNodeRanges[0] << " " << localNodeRanges[1] << std::endl;
@@ -127,8 +127,8 @@ public:
         // TODO: sort received halo particles into Morton ordering
     }
 
-    int startIndex() const { return particleStart_; }
-    int endIndex() const   { return particleEnd_; }
+    [[nodiscard]] int startIndex() const { return particleStart_; }
+    [[nodiscard]] int endIndex() const   { return particleEnd_; }
 
 private:
 
