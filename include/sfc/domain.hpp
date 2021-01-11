@@ -1,9 +1,8 @@
 
-#include <vector>
-
 #include "sfc/box_mpi.hpp"
 #include "sfc/domaindecomp_mpi.hpp"
 #include "sfc/halodiscovery.hpp"
+#include "sfc/haloexchange.hpp"
 #include "sfc/layout.hpp"
 #include "sfc/octree_mpi.hpp"
 
@@ -32,12 +31,11 @@ public:
         }
 
         Box<T> box = makeGlobalBox(begin(x), end(x), begin(y), end(y), begin(z), end(z), pbcX_, pbcY_, pbcZ_);
-        //Box<T> box(0,1);
 
         // number of locally assigned particles to consider for global tree building
         int nParticles = particleEnd_ - particleStart_;
 
-        // compute morton codes for particles participating in tree build
+        // compute morton codes only for particles participating in tree build
         std::vector<I> mortonCodes(nParticles);
         computeMortonCodes(begin(x) + particleStart_, begin(x) + particleEnd_,
                            begin(y) + particleStart_,
@@ -68,12 +66,6 @@ public:
         computeNodeMaxGlobal(tree_.data(), nNodes(tree_), mortonCodes.data(), mortonCodes.data() + nParticles,
                              mortonOrder.data(), h.data() + particleStart_, haloRadii.data());
 
-        //if (myRank_ == 1)
-        //{
-        //    std::copy(begin(haloRadii), end(haloRadii), std::ostream_iterator<double>(std::cout, "\n"));
-        //    std::cout << std::endl;
-        //}
-
         // find outgoing and incoming halo nodes of the tree
         // uses 3D collision detection
         std::vector<pair<int>> haloPairs;
@@ -84,19 +76,18 @@ public:
         std::vector<std::vector<int>> outgoingHaloNodes;
         computeSendRecvNodeList(tree_, assignment, haloPairs, incomingHaloNodes, outgoingHaloNodes);
 
-
         // compute list of local node index ranges
         std::vector<int> incomingHalosFlattened = flattenNodeList(incomingHaloNodes);
         std::vector<int> localNodeRanges        = computeLocalNodeRanges(tree_, assignment, myRank_);
 
-        if (myRank_ == 1)
-        {
-            std::cout << "local node range\n";
-            std::cout << localNodeRanges[0] << " " << localNodeRanges[1] << std::endl;
-            std::cout << "incoming halo nodes\n";
-            std::copy(begin(incomingHalosFlattened), end(incomingHalosFlattened), std::ostream_iterator<int>(std::cout, "\n"));
-            std::cout << std::endl;
-        }
+        //if (myRank_ == 1)
+        //{
+        //    std::cout << "local node range\n";
+        //    std::cout << localNodeRanges[0] << " " << localNodeRanges[1] << std::endl;
+        //    std::cout << "incoming halo nodes\n";
+        //    std::copy(begin(incomingHalosFlattened), end(incomingHalosFlattened), std::ostream_iterator<int>(std::cout, "\n"));
+        //    std::cout << std::endl;
+        //}
 
         // Put all local node indices and incoming halo node indices in one sorted list.
         // and compute an offset for each node into these arrays.
@@ -112,7 +103,9 @@ public:
         int newParticleEnd   = newParticleStart + newNParticlesAssigned;
 
         // compute send array ranges for domain exchange
-        // index ranges are valid relative to the sorted code array mortonCodes
+        // index ranges in domainExchangeSends are valid relative to the sorted code array mortonCodes
+        // note that there is no offset applied to mortonCodes, because it was constructed
+        // only with locally assigned particles
         SendList domainExchangeSends = createSendList(assignment, mortonCodes.data(), mortonCodes.data() + nParticles);
 
         // assigned particles + halos
@@ -120,8 +113,18 @@ public:
         exchangeParticles<T>(domainExchangeSends, Rank(myRank_), totalNParticles, newNParticlesAssigned,
                              particleStart_, newParticleStart, mortonOrder.data(), x,y,z,h);
 
+        // TODO: sort received local particles into Morton ordering
+
+        // assigned particles have been moved to their new locations by the domain exchange exchangeParticles
         std::swap(particleStart_, newParticleStart);
         std::swap(particleEnd_, newParticleEnd);
+
+        SendList incomingHaloIndices = createHaloExchangeList(incomingHaloNodes, presentNodes, nodeOffsets);
+        SendList outgoingHaloIndices = createHaloExchangeList(outgoingHaloNodes, presentNodes, nodeOffsets);
+
+        haloexchange<T>(incomingHaloIndices, outgoingHaloIndices, x.data(), y.data(), z.data(), h.data());
+
+        // TODO: sort received halo particles into Morton ordering
     }
 
     int startIndex() const { return particleStart_; }
