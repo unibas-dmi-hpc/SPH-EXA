@@ -64,6 +64,8 @@ void findHalos(const std::vector<I>&           tree,
             // TODO skip collision detection if is the halo box is fully contained in the assigned range
             findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
 
+            if (collisions.exhausted()) throw std::runtime_error("collision list exhausted\n");
+
             // Go through all colliding nodes to determine which of them fall into a part of the SFC
             // that is not assigned to the executing rank. These nodes will be marked as halos.
             for (int i = 0; i < collisions.size(); ++i)

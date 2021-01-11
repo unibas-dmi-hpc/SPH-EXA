@@ -14,7 +14,8 @@ void noHalos(int rank, int nRanks)
     std::vector<T> x{0.5, 0.6};
     std::vector<T> y{0.5, 0.6};
     std::vector<T> z{0.5, 0.6};
-    std::vector<T> h{0.05, 0.05}; // no halos
+    // radii around 0.5 and 0.6 don't overlap
+    std::vector<T> h{0.05, 0.05};
 
     domain.sync(x,y,z,h);
 
@@ -84,7 +85,7 @@ TEST(Domain, halos)
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
     withHalos<unsigned, double>(rank, nRanks);
-    //withHalos<uint64_t, double>(rank, nRanks);
+    withHalos<uint64_t, double>(rank, nRanks);
     withHalos<unsigned, float>(rank, nRanks);
-    //withHalos<uint64_t, float>(rank, nRanks);
+    withHalos<uint64_t, float>(rank, nRanks);
 }
