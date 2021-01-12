@@ -3,7 +3,7 @@
 #include <algorithm>
 #include <vector>
 
-#include "sfc/collisions_cpu.hpp"
+#include "sfc/btreetraversal.hpp"
 #include "sfc/domaindecomp.hpp"
 
 namespace sphexa
