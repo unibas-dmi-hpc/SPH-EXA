@@ -30,18 +30,18 @@ public:
             particleEnd_   = x.size();
         }
 
-        Box<T> box = makeGlobalBox(begin(x) + particleStart_, end(x) + particleEnd_,
-                                   begin(y) + particleStart_,
-                                   begin(z) + particleStart_, pbcX_, pbcY_, pbcZ_);
+        Box<T> box = makeGlobalBox(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
+                                   cbegin(y) + particleStart_,
+                                   cbegin(z) + particleStart_, pbcX_, pbcY_, pbcZ_);
 
         // number of locally assigned particles to consider for global tree building
         int nParticles = particleEnd_ - particleStart_;
 
         // compute morton codes only for particles participating in tree build
         std::vector<I> mortonCodes(nParticles);
-        computeMortonCodes(begin(x) + particleStart_, begin(x) + particleEnd_,
-                           begin(y) + particleStart_,
-                           begin(z) + particleStart_,
+        computeMortonCodes(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
+                           cbegin(y) + particleStart_,
+                           cbegin(z) + particleStart_,
                            begin(mortonCodes), box);
 
         // compute the ordering that will sort the mortonCodes in ascending order
@@ -82,15 +82,6 @@ public:
         std::vector<int> incomingHalosFlattened = flattenNodeList(incomingHaloNodes);
         std::vector<int> localNodeRanges        = computeLocalNodeRanges(tree_, assignment, myRank_);
 
-        //if (myRank_ == 0)
-        //{
-        //    std::cout << "local node range\n";
-        //    std::cout << localNodeRanges[0] << " " << localNodeRanges[1] << std::endl;
-        //    std::cout << "incoming halo nodes\n";
-        //    std::copy(begin(incomingHalosFlattened), end(incomingHalosFlattened), std::ostream_iterator<int>(std::cout, "\n"));
-        //    std::cout << std::endl;
-        //}
-
         // Put all local node indices and incoming halo node indices in one sorted list.
         // and compute an offset for each node into these arrays.
         // This will be the new layout for x,y,z,h arrays.
@@ -98,7 +89,7 @@ public:
         std::vector<int> nodeOffsets;
         computeLayoutOffsets(localNodeRanges, incomingHalosFlattened, nodeCounts, presentNodes, nodeOffsets);
 
-        int firstLocalNode = std::lower_bound(begin(presentNodes), end(presentNodes), localNodeRanges[0])
+        int firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), localNodeRanges[0])
                              - begin(presentNodes);
 
         int newParticleStart = nodeOffsets[firstLocalNode];
@@ -120,17 +111,17 @@ public:
         std::swap(particleEnd_, newParticleEnd);
 
         mortonCodes.resize(newNParticlesAssigned);
-        computeMortonCodes(begin(x) + particleStart_, begin(x) + particleEnd_,
-                           begin(y) + particleStart_,
-                           begin(z) + particleStart_,
+        computeMortonCodes(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
+                           cbegin(y) + particleStart_,
+                           cbegin(z) + particleStart_,
                            begin(mortonCodes), box);
 
         mortonOrder.resize(newNParticlesAssigned);
         sort_invert(cbegin(mortonCodes), cend(mortonCodes), begin(mortonOrder));
 
-        // we have to reorder the locally assigned particles in the coordinate arrays
-        // which are located in the index range [particleStart_, particleEnd_],
-        // because during the domain particle exchange, contributions from remote ranks
+        // We have to reorder the locally assigned particles in the coordinate arrays
+        // which are located in the index range [particleStart_, particleEnd_].
+        // Due to the domain particle exchange, contributions from remote ranks
         // are received in arbitrary order
         reorder(mortonOrder, x, particleStart_);
         reorder(mortonOrder, y, particleStart_);
