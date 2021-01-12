@@ -424,6 +424,11 @@ public:
         // MUST DO SYNCHALOS AND BUILDTREE AFTER
 
         d.count = workAssigned;
+
+#if defined(USE_CUDA)
+        //d.devPtrs.resize(d.count);
+        d.devPtrs.resize(d.x.size());
+#endif
     }
 
     int comm_size, comm_rank, name_len;
