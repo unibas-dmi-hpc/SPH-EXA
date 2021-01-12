@@ -75,7 +75,7 @@ void computeZorder(InputIterator  xBegin,
  * \tparam I          integer type
  * \tparam ValueType  float or double
  * \param ordering    an ordering
- * \param array       an array
+ * \param array       an array, same size as ordering
  */
 template<class I, class ValueType>
 void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array)
@@ -85,6 +85,39 @@ void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array)
     {
         tmp[i] = array[ordering[i]];
     }
+    std::swap(tmp, array);
+}
+
+/*! \brief reorder the input array according to the specified ordering
+ *
+ * \tparam I          integer type
+ * \tparam ValueType  float or double
+ * \param ordering    an ordering
+ * \param array       an array
+ * \param offset      access array with an offset
+ */
+template<class I, class ValueType>
+void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array, int offset)
+{
+    assert(array.size() >= ordering.size() + offset);
+
+    std::vector<ValueType> tmp(array.size());
+
+    for (int i = 0; i < offset; ++i)
+    {
+        tmp[i] = array[i];
+    }
+
+    for (std::size_t i = 0; i < ordering.size(); ++i)
+    {
+        tmp[i+offset] = array[ordering[i]+offset];
+    }
+
+    for (size_t i = ordering.size()+offset; i < array.size(); ++i)
+    {
+        tmp[i] = array[i];
+    }
+
     std::swap(tmp, array);
 }
 
