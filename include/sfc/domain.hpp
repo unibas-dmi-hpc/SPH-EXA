@@ -113,18 +113,32 @@ public:
         exchangeParticles<T>(domainExchangeSends, Rank(myRank_), totalNParticles, newNParticlesAssigned,
                              particleStart_, newParticleStart, mortonOrder.data(), x,y,z,h);
 
-        // TODO: sort received local particles into Morton ordering
-
         // assigned particles have been moved to their new locations by the domain exchange exchangeParticles
         std::swap(particleStart_, newParticleStart);
         std::swap(particleEnd_, newParticleEnd);
+
+        mortonCodes.resize(newNParticlesAssigned);
+        computeMortonCodes(begin(x) + particleStart_, begin(x) + particleEnd_,
+                           begin(y) + particleStart_,
+                           begin(z) + particleStart_,
+                           begin(mortonCodes), box);
+
+        mortonOrder.resize(newNParticlesAssigned);
+        sort_invert(cbegin(mortonCodes), cend(mortonCodes), begin(mortonOrder));
+
+        // we have to reorder the locally assigned particles in the coordinate arrays
+        // which are located in the index range [particleStart_, particleEnd_],
+        // because during the domain particle exchange, contributions from remote ranks
+        // are received in arbitrary order
+        reorder(mortonOrder, x, particleStart_);
+        reorder(mortonOrder, y, particleStart_);
+        reorder(mortonOrder, z, particleStart_);
+        reorder(mortonOrder, h, particleStart_);
 
         SendList incomingHaloIndices = createHaloExchangeList(incomingHaloNodes, presentNodes, nodeOffsets);
         SendList outgoingHaloIndices = createHaloExchangeList(outgoingHaloNodes, presentNodes, nodeOffsets);
 
         haloexchange<T>(incomingHaloIndices, outgoingHaloIndices, x.data(), y.data(), z.data(), h.data());
-
-        // TODO: sort received halo particles into Morton ordering
     }
 
     [[nodiscard]] int startIndex() const { return particleStart_; }
