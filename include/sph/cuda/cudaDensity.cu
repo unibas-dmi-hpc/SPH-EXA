@@ -40,23 +40,18 @@ __global__ void density(const int n, const T sincIndex, const T K, const int ngm
 
     ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
 }
-
-template <typename T>
-__global__ void findNeighbors(const DeviceLinearOctree<T> o, const int *clist, const int n, const T *x, const T *y, const T *z, const T *h, const T displx,
-                              const T disply, const T displz, const int max, const int may, const int maz, const int ngmax, int *neighbors, int *neighborsCount);
-
 } // namespace kernels
 
-template <typename T, class ParticleData>
-void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, ParticleData &d)
+template <typename T, class Dataset>
+void computeDensity(std::vector<Task> &taskList, Dataset &d)
 {
     const int maz = d.bbox.PBCz ? 2 : 0;
     const int may = d.bbox.PBCy ? 2 : 0;
     const int max = d.bbox.PBCx ? 2 : 0;
     
-    const T displx = o.xmax[0] - o.xmin[0];
-    const T disply = o.ymax[0] - o.ymin[0];
-    const T displz = o.zmax[0] - o.zmin[0];
+    const T displx = d.devPtrs.d_o.xmax0 - d.devPtrs.d_o.xmin0;
+    const T disply = d.devPtrs.d_o.ymax0 - d.devPtrs.d_o.ymin0;
+    const T displz = d.devPtrs.d_o.zmax0 - d.devPtrs.d_o.zmin0;
 
     const size_t np = d.x.size();
     const size_t size_np_T = np * sizeof(T);
@@ -86,9 +81,11 @@ void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Parti
     const size_t size_lt_T = ltsize * sizeof(T);
 
     // input data
+    /*
     CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d.d_x, d.d_y, d.d_z, d.d_h, d.d_m, d.d_ro));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d.d_wh, d.d_whd));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d.d_bbox));
+    */
 
     for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist[i], d_neighborsCount[i]));
@@ -97,17 +94,17 @@ void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Parti
     //CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist, d_neighborsCount));
     //CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors));
 
-    CHECK_CUDA_ERR(cudaMemcpy(d.d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.d_z, d.z.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.d_wh, d.wh.data(), size_lt_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.d_whd, d.whd.data(), size_lt_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_z, d.z.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_wh, d.wh.data(), size_lt_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_whd, d.whd.data(), size_lt_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
 
     //DeviceLinearOctree<T> d_o;
-    d.d_o.mapLinearOctreeToDevice(o);
+    //d.devPtrs.d_o.mapLinearOctreeToDevice(o);
 
     for (int i = 0; i < taskList.size(); ++i)
     {
@@ -132,13 +129,13 @@ void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Parti
         const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
         kernels::findNeighbors<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
-            d.d_o, d_clist_use, n, d.d_x, d.d_y, d.d_z, d.d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
+            d.devPtrs.d_o, d_clist_use, n, d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
         );
 
         // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
-        kernels::density<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(n, d.sincIndex, d.K, t.ngmax, d.d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
-            d.d_x, d.d_y, d.d_z, d.d_h, d.d_m, d.d_wh, d.d_whd, ltsize, d.d_ro);
+        kernels::density<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(n, d.sincIndex, d.K, t.ngmax, d.devPtrs.d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
+            d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_wh, d.devPtrs.d_whd, ltsize, d.devPtrs.d_ro);
         CHECK_CUDA_ERR(cudaGetLastError());
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighborsCount.data(), d_neighborsCount_use, size_n_int, cudaMemcpyDeviceToHost, stream));
@@ -147,7 +144,7 @@ void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Parti
     //d_o.unmapLinearOctreeFromDevice();
 
     // Memcpy in default stream synchronizes all other streams
-    CHECK_CUDA_ERR(cudaMemcpy(d.ro.data(), d.d_ro, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.ro.data(), d.devPtrs.d_ro, size_np_T, cudaMemcpyDeviceToHost));
 
     for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(cudaStreamDestroy(streams[i]));
@@ -156,7 +153,7 @@ void computeDensity(const LinearOctree<T> &o, std::vector<Task> &taskList, Parti
         CHECK_CUDA_ERR(utils::cudaFree(d_clist[i], d_neighbors[i], d_neighborsCount[i]));
 }
 
-template void computeDensity<double, ParticlesData<double>>(const LinearOctree<double> &o, std::vector<Task> &taskList, ParticlesData<double> &d);
+template void computeDensity<double, ParticlesData<double>>(std::vector<Task> &taskList, ParticlesData<double> &d);
 
 } // namespace cuda
 } // namespace sph

@@ -7,6 +7,10 @@
 #include "Octree.hpp"
 #include "Task.hpp"
 
+#if defined(USE_CUDA)
+#include "sph/cuda/cudaParticlesData.cuh"
+#endif
+
 namespace sphexa
 {
 
@@ -113,6 +117,11 @@ public:
         reorder(ordering, d);
 
         octree.mapList(clist);
+#if defined(USE_CUDA)
+        LinearOctree<T> l;
+        createLinearOctree(octree, l);
+        d.devPtrs.d_o.mapLinearOctreeToDevice(l);
+#endif
     }
 
     // placeholder for the non-distributed domain implementation

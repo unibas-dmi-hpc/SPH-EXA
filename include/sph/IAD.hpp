@@ -135,12 +135,10 @@ void computeIADImpl(const Task &t, Dataset &d)
 }
 
 template <typename T, class Dataset>
-void computeIAD(const Octree<T> &o, const std::vector<Task> &taskList, Dataset &d)
+void computeIAD(const std::vector<Task> &taskList, Dataset &d)
 {
 #if defined(USE_CUDA)
-    LinearOctree<T> l;
-    createLinearOctree(o, l);
-    cuda::computeIAD<T>(l, taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
+    cuda::computeIAD<T>(taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
 #else
     for (const auto &task : taskList)
     {
