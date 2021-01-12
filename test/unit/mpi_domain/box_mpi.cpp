@@ -75,7 +75,7 @@ void makeGlobalBox(int rank, int nRanks)
     for (auto& val : z)
         val *= (rank+3);
 
-    Box<T> box = makeGlobalBox(begin(x), end(x), begin(y), end(y), begin(z), end(z), true, true, true);
+    Box<T> box = makeGlobalBox(begin(x), end(x), begin(y), begin(z), true, true, true);
 
     Box<T> refBox{1, T(nElements*nRanks), 2, T(nElements*(nRanks+1)), 3, T(nElements*(nRanks+2)), true, true, true};
 

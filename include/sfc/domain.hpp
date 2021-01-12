@@ -30,7 +30,9 @@ public:
             particleEnd_   = x.size();
         }
 
-        Box<T> box = makeGlobalBox(begin(x), end(x), begin(y), end(y), begin(z), end(z), pbcX_, pbcY_, pbcZ_);
+        Box<T> box = makeGlobalBox(begin(x) + particleStart_, end(x) + particleEnd_,
+                                   begin(y) + particleStart_,
+                                   begin(z) + particleStart_, pbcX_, pbcY_, pbcZ_);
 
         // number of locally assigned particles to consider for global tree building
         int nParticles = particleEnd_ - particleStart_;

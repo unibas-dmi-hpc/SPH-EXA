@@ -44,18 +44,17 @@ template<class Iterator>
 auto makeGlobalBox(Iterator xB,
                    Iterator xE,
                    Iterator yB,
-                   Iterator yE,
                    Iterator zB,
-                   Iterator zE,
                    bool pbcX = false,
                    bool pbcY = false,
                    bool pbcZ = false)
 {
     using T = std::decay_t<decltype(*xB)>;
 
+    int nElements = xE - xB;
     return Box<T>{globalMin(xB, xE), globalMax(xB, xE),
-                  globalMin(yB, yE), globalMax(yB, yE),
-                  globalMin(zB, zE), globalMax(zB, zE),
+                  globalMin(yB, yB + nElements), globalMax(yB, yB + nElements),
+                  globalMin(zB, zB + nElements), globalMax(zB, zB + nElements),
                   pbcX, pbcY, pbcZ};
 };
 
