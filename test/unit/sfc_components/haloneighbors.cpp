@@ -17,6 +17,33 @@
 
 using namespace sphexa;
 
+template<class T>
+static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, int n, T radius,
+                               int *neighbors, int *neighborsCount, int ngmax)
+{
+    T r2 = radius * radius;
+
+    T xi = x[i], yi = y[i], zi = z[i];
+
+    int ngcount = 0;
+    for (int j = 0; j < n; ++j)
+    {
+        if (j == i) { continue; }
+
+        //if (i == 68 && j == 511)
+        //{
+        //    std::cout << "n " << n << " dist " << sqrt(distancesq(xi, yi, zi, x[j], y[j], z[j]))
+        //              << " r " << radius << std::endl;
+        //}
+
+        if (ngcount < ngmax && sphexa::distancesq(xi, yi, zi, x[j], y[j], z[j]) < r2)
+        {
+            neighbors[i * ngmax + ngcount++] = j;
+        }
+    }
+    neighborsCount[i] = ngcount;
+}
+
 template<class I, class T>
 void extractParticles(const T* source, const I* sourceCodes, int nSourceCodes, const int* ordering,
                       const int* nodeList, const int* nodeOffsets, int nNodesPresent,
@@ -80,7 +107,7 @@ void randomGaussianHaloNeighbors()
 {
     int nParticles = 1000;
     int bucketSize = 10;
-    T   smoothingL = 0.1;
+    T   smoothingL = 0.3;
 
     int nRanks     = 2;
 
@@ -105,7 +132,7 @@ void randomGaussianHaloNeighbors()
     computeNodeMax(tree.data(), nNodes(tree), codes.data(), codes.data() + nParticles, ordering.data(),
                    h.data(), hNode.data());
 
-    auto assignment = singleRangeSfcSplit(tree, counts, nRanks);
+    SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree, counts, nRanks);
 
     // find halos for rank 0
     int myRank = 0;
@@ -124,6 +151,59 @@ void randomGaussianHaloNeighbors()
     std::vector<int> presentNodes;
     std::vector<int> nodeOffsets;
     computeLayoutOffsets(localNodeRanges, incomingHalosFlattened, counts, presentNodes, nodeOffsets);
+
+    int firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), localNodeRanges[0])
+                         - begin(presentNodes);
+
+    int newParticleStart = nodeOffsets[firstLocalNode];
+    int newParticleEnd   = newParticleStart + assignment.totalCount(myRank);
+    int nParticlesCore   = assignment.totalCount(myRank);
+    int nParticlesExtracted = *nodeOffsets.rbegin();
+
+    std::vector<T> xl(nParticlesExtracted);
+    std::vector<T> yl(nParticlesExtracted);
+    std::vector<T> zl(nParticlesExtracted);
+    std::vector<T> hl(nParticlesExtracted);
+    std::vector<I> codesl(nParticlesExtracted);
+
+    //std::cout << "pStart " << newParticleStart << " pEnd " << newParticleEnd << " nCore " << nParticlesExtracted << std::endl;
+    //std::cout << "assignment " << assignment.rangeStart(0, 0) << " " << assignment.rangeEnd(0,0) << std::endl;
+    //std::cout << std::endl;
+
+    extractParticles(codes.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(), presentNodes.size(),
+                     tree.data(), codesl.data());
+
+    extractParticles(x.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(), presentNodes.size(),
+                     tree.data(), xl.data());
+    extractParticles(y.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(), presentNodes.size(),
+                     tree.data(), yl.data());
+    extractParticles(z.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(), presentNodes.size(),
+                     tree.data(), zl.data());
+    extractParticles(h.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(), presentNodes.size(),
+                     tree.data(), hl.data());
+
+
+    int ngmax = 200;
+    std::vector<int> neighbors(nParticles * ngmax);
+    std::vector<int> neighborsCount(nParticles);
+    std::vector<int> neighborsCore(nParticlesCore * ngmax);
+    std::vector<int> neighborsCountCore(nParticlesCore);
+
+    for (int i = newParticleStart; i < newParticleEnd; ++i)
+    {
+        I code = codesl[i];
+        int iOrig = std::lower_bound(begin(codes), end(codes), code) - begin(codes);
+        EXPECT_EQ(code, codes[iOrig]);
+
+        findNeighborsNaive(iOrig, x.data(), y.data(), z.data(), nParticles, h[iOrig], neighbors.data(), neighborsCount.data(), ngmax);
+        findNeighborsNaive(i, xl.data(), yl.data(), zl.data(), nParticlesExtracted, hl[i], neighborsCore.data(), neighborsCountCore.data(), ngmax);
+
+        ASSERT_EQ(neighborsCountCore[i], neighborsCount[iOrig]);
+        for (int ni = 0; ni < neighborsCountCore[i]; ++ni)
+        {
+            EXPECT_EQ(codesl[neighborsCore[i*ngmax + ni]], codes[neighbors[iOrig*ngmax+ni]]);
+        }
+    }
 }
 
 TEST(HaloNeighbors, randomGaussian)
