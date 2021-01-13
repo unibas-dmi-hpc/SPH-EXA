@@ -105,7 +105,7 @@ void randomGaussianHaloNeighbors()
     int nRanks     = 2;
 
     Box<T> box{-1, 1};
-    RandomCoordinates<T, I> coords(nParticles, box);
+    RandomGaussianCoordinates<T, I> coords(nParticles, box);
 
     std::vector<I> codes = coords.mortonCodes();
 
@@ -159,10 +159,6 @@ void randomGaussianHaloNeighbors()
     std::vector<T> hl(nParticlesExtracted);
     std::vector<I> codesl(nParticlesExtracted);
 
-    //std::cout << "pStart " << newParticleStart << " pEnd " << newParticleEnd << " nCore " << nParticlesExtracted << std::endl;
-    //std::cout << "assignment " << assignment.rangeStart(0, 0) << " " << assignment.rangeEnd(0,0) << std::endl;
-    //std::cout << std::endl;
-
     extractParticles(codes.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(), presentNodes.size(),
                      tree.data(), codesl.data());
 
@@ -174,7 +170,6 @@ void randomGaussianHaloNeighbors()
                      tree.data(), zl.data());
     extractParticles(h.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(), presentNodes.size(),
                      tree.data(), hl.data());
-
 
     int ngmax = 200;
     std::vector<int> neighbors(nParticles * ngmax);
