@@ -9,6 +9,7 @@ add_executable(sfc_tests
         disjointoctree.cpp
         findneighbors.cpp
         halodiscovery.cpp
+        haloneighbors.cpp
         histogram.cpp
         layout.cpp
         morton.cpp

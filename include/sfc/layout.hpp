@@ -36,9 +36,9 @@ namespace sphexa
  * @return             ranges of node indices in \a tree that belong to rank \a rank
  */
 template<class I>
-std::vector<int> computeLocalNodeRanges(const std::vector<I>& tree,
-                                        const SpaceCurveAssignment<I>& assignment,
-                                        int rank)
+static std::vector<int> computeLocalNodeRanges(const std::vector<I>& tree,
+                                               const SpaceCurveAssignment<I>& assignment,
+                                               int rank)
 {
     std::vector<int> ret;
 
@@ -57,7 +57,7 @@ std::vector<int> computeLocalNodeRanges(const std::vector<I>& tree,
 }
 
 //! \brief create a sorted list of nodes from the hierarchical per rank node list
-std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& groupedNodes)
+static std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& groupedNodes)
 {
     int nNodes = 0;
     for (auto& v : groupedNodes) nNodes += v.size();
@@ -86,11 +86,11 @@ std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& groupedNod
  * @param offsets[out]       Will contain an offset index for each node in \a presentNodes,
  *                           indicating its position in the particle x,y,z,... buffers
  */
-void computeLayoutOffsets(const std::vector<int>& localNodeRanges,
-                          const std::vector<int>& haloNodes,
-                          const std::vector<std::size_t>& globalNodeCounts,
-                          std::vector<int>& presentNodes,
-                          std::vector<int>& offsets)
+static void computeLayoutOffsets(const std::vector<int>& localNodeRanges,
+                                 const std::vector<int>& haloNodes,
+                                 const std::vector<std::size_t>& globalNodeCounts,
+                                 std::vector<int>& presentNodes,
+                                 std::vector<int>& offsets)
 {
     // add all halo nodes to present
     std::copy(begin(haloNodes), end(haloNodes), std::back_inserter(presentNodes));
@@ -144,9 +144,9 @@ void computeLayoutOffsets(const std::vector<int>& localNodeRanges,
  * @return                    For each rank, the returned sendList has one or multiple ranges of indices
  *                            of local particle arrays to send or receive.
  */
-SendList createHaloExchangeList(const std::vector<std::vector<int>>& outgoingHaloNodes,
-                                const std::vector<int>& presentNodes,
-                                const std::vector<int>& nodeOffsets)
+static SendList createHaloExchangeList(const std::vector<std::vector<int>>& outgoingHaloNodes,
+                                       const std::vector<int>& presentNodes,
+                                       const std::vector<int>& nodeOffsets)
 {
     SendList sendList(outgoingHaloNodes.size());
 
