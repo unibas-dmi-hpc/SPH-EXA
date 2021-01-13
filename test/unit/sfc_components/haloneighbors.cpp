@@ -29,13 +29,6 @@ static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, int n,
     for (int j = 0; j < n; ++j)
     {
         if (j == i) { continue; }
-
-        //if (i == 68 && j == 511)
-        //{
-        //    std::cout << "n " << n << " dist " << sqrt(distancesq(xi, yi, zi, x[j], y[j], z[j]))
-        //              << " r " << radius << std::endl;
-        //}
-
         if (ngcount < ngmax && sphexa::distancesq(xi, yi, zi, x[j], y[j], z[j]) < r2)
         {
             neighbors[i * ngmax + ngcount++] = j;
@@ -209,4 +202,7 @@ void randomGaussianHaloNeighbors()
 TEST(HaloNeighbors, randomGaussian)
 {
     randomGaussianHaloNeighbors<unsigned, double>();
+    randomGaussianHaloNeighbors<uint64_t, double>();
+    randomGaussianHaloNeighbors<unsigned, float>();
+    randomGaussianHaloNeighbors<uint64_t, float>();
 }
