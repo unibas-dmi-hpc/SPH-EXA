@@ -18,10 +18,10 @@
 using namespace sphexa;
 
 template<class T>
-static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, int n, T radius,
+static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, const T* h, int n,
                                int *neighbors, int *neighborsCount, int ngmax)
 {
-    T r2 = radius * radius;
+    T r2 = h[i] * h[i];
 
     T xi = x[i], yi = y[i], zi = z[i];
 
@@ -29,7 +29,9 @@ static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, int n,
     for (int j = 0; j < n; ++j)
     {
         if (j == i) { continue; }
-        if (ngcount < ngmax && sphexa::distancesq(xi, yi, zi, x[j], y[j], z[j]) < r2)
+        // i only interacts with j if j also interacts with i
+        T r2mutual = std::min(h[j] * h[j], r2);
+        if (ngcount < ngmax && distancesq(xi, yi, zi, x[j], y[j], z[j]) < r2mutual)
         {
             neighbors[i * ngmax + ngcount++] = j;
         }
@@ -95,12 +97,35 @@ TEST(HaloNeighbors, extractParticlesTest)
 }
 
 
+/*! \brief Test that halo discovery finds all nodes needed for a correct neighbor search
+ *
+ * @tparam I  unsigned 32- or 64-bit integer
+ * @tparam T  float or double
+ *
+ * This test creates nParticles gaussian distributed particles in the box [-1,1]^3.
+ * The resulting tree is then split into two pieces A and B.
+ * From the perspective of A, halo discovery is performed to determine
+ * all the nodes from B needed for a correct neighbor list for the particles in A.
+ *
+ * A + halos of A in B are then copied into separate x,y,z,h arrays and a neighbor search
+ * is performed for the particles in A. The neighbors should exactly match the
+ * neighbors of the particles in A determined with the original full A+B arrays.
+ *
+ * Additionally, this test verifies the mutuality property of the halo discovery,
+ * where two nodes i and j are only halos if (i+maxH_i) overlaps with j AND (j+maxH_j)
+ * overlaps with i. This needs to be reflected in the neighbor search algorithm, such
+ * that two particles p and q only interact with each other if |r_p - r_q| < min(h_p, h_q).
+ *
+ * The smoothing lengths parameters in h for each particles are tuned such that there is
+ * enough asymmetry for some nodes (i+maxH_i) to overlap with j, while (j+maxH_j) does
+ * not overlap with i.
+ */
 template<class I, class T>
 void randomGaussianHaloNeighbors()
 {
     int nParticles = 1000;
     int bucketSize = 10;
-    T   smoothingL = 0.3;
+    T   smoothingL = 0.02;
 
     int nRanks     = 2;
 
@@ -113,6 +138,13 @@ void randomGaussianHaloNeighbors()
     std::vector<T> y = coords.y();
     std::vector<T> z = coords.z();
     std::vector<T> h(nParticles, smoothingL);
+
+    // introduce asymmetry in h with nodes far from the center having a much bigger
+    // interaction radius
+    for (int i = 0; i < h.size(); ++i)
+    {
+        h[i] = smoothingL * (0.2 + 30*(x[i] * x[i] + y[i] * y[i] + z[i] * z[i]));
+    }
 
     std::vector<int> ordering(nParticles);
     std::iota(begin(ordering), end(ordering), 0);
@@ -183,8 +215,8 @@ void randomGaussianHaloNeighbors()
         int iOrig = std::lower_bound(begin(codes), end(codes), code) - begin(codes);
         EXPECT_EQ(code, codes[iOrig]);
 
-        findNeighborsNaive(iOrig, x.data(), y.data(), z.data(), nParticles, h[iOrig], neighbors.data(), neighborsCount.data(), ngmax);
-        findNeighborsNaive(i, xl.data(), yl.data(), zl.data(), nParticlesExtracted, hl[i], neighborsCore.data(), neighborsCountCore.data(), ngmax);
+        findNeighborsNaive(iOrig, x.data(), y.data(), z.data(), h.data(), nParticles, neighbors.data(), neighborsCount.data(), ngmax);
+        findNeighborsNaive(i, xl.data(), yl.data(), zl.data(), hl.data(), nParticlesExtracted, neighborsCore.data(), neighborsCountCore.data(), ngmax);
 
         ASSERT_EQ(neighborsCountCore[i], neighborsCount[iOrig]);
         for (int ni = 0; ni < neighborsCountCore[i]; ++ni)
