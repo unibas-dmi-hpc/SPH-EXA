@@ -9,10 +9,10 @@ using namespace sphexa;
 
 //! \brief simple N^2 all-to-all neighbor search
 template<class T>
-static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, int n, T radius,
+static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, const T* h, int n,
                                int *neighbors, int *neighborsCount, int ngmax)
 {
-    T r2 = radius * radius;
+    T r2 = h[i] * h[i];
 
     T xi = x[i], yi = y[i], zi = z[i];
 
@@ -20,7 +20,9 @@ static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, int n,
     for (int j = 0; j < n; ++j)
     {
         if (j == i) { continue; }
-        if (ngcount < ngmax && sphexa::distancesq(xi, yi, zi, x[j], y[j], z[j]) < r2)
+        // i only interacts with j if j also interacts with i
+        T r2mutual = std::min(h[j] * h[j], r2);
+        if (ngcount < ngmax && distancesq(xi, yi, zi, x[j], y[j], z[j]) < r2mutual)
         {
             neighbors[ngcount++] = j;
         }
@@ -52,7 +54,7 @@ template<class I, class T>
 void randomGaussianDomain(int rank, int nRanks)
 {
     int    nParticles    = 1000;
-    T      smoothingLength = 0.3;
+    T      smoothingLength = 0.02;
     Box<T> box{-1, 1};
     int    bucketSize = 10;
     nParticles = (nParticles/nRanks) * nRanks;
@@ -65,12 +67,10 @@ void randomGaussianDomain(int rank, int nRanks)
 
     std::vector<T> hGlobal(nParticles, smoothingLength);
 
-    //for (int i = 0; i < h.size(); ++i)
-    //{
-    //    // neighbor sum: 306358
-    //    // max neighbor per particle: 60
-    //    //h[i] = smoothingLength * (1 + (x[i] * x[i] + y[i] * y[i] + z[i] * z[i]));
-    //}
+    for (int i = 0; i < hGlobal.size(); ++i)
+    {
+        hGlobal[i] = smoothingLength * (0.2 + 30*(xGlobal[i] * xGlobal[i] + yGlobal[i] * yGlobal[i] + zGlobal[i] * zGlobal[i]));
+    }
 
     int nParticlesPerRank = nParticles / nRanks;
 
@@ -106,12 +106,6 @@ void randomGaussianDomain(int rank, int nRanks)
         EXPECT_TRUE(mortonCodes[i] <= mortonCodes[i+1]);
     }
 
-    //if (rank == 0)
-    //{
-    //    std::cout << "localCount " << localCount << " " << std::endl;
-    //    std::cout << "extractedCount " << extractedCount << std::endl;
-    //}
-
     int ngmax = 200;
     std::vector<int> neighbors(localCount * ngmax);
     std::vector<int> neighborsCount(localCount);
@@ -120,7 +114,7 @@ void randomGaussianDomain(int rank, int nRanks)
         int particleIndex = i + domain.startIndex();
         //findNeighbors(particleIndex, x.data(), y.data(), z.data(), h[particleIndex], actualBox.xmax()-actualBox.xmin(),
         //              mortonCodes.data(), neighbors.data(), neighborsCount.data(), localCount, ngmax);
-        findNeighborsNaive(particleIndex, x.data(), y.data(), z.data(), extractedCount, h[particleIndex],
+        findNeighborsNaive(particleIndex, x.data(), y.data(), z.data(), h.data(), extractedCount,
                            neighbors.data() + i*ngmax, neighborsCount.data() + i, ngmax);
     }
 
@@ -129,6 +123,8 @@ void randomGaussianDomain(int rank, int nRanks)
     if (rank == 0)
     {
         std::cout << " neighborSum " << neighborSum << std::endl;
+        //std::cout << "localCount " << localCount << " " << std::endl;
+        //std::cout << "extractedCount " << extractedCount << std::endl;
     }
 
     {
@@ -139,7 +135,7 @@ void randomGaussianDomain(int rank, int nRanks)
         {
             //findNeighbors(i, xGlobal.data(), yGlobal.data(), zGlobal.data(), h[i], actualBox.xmax()-actualBox.xmin(),
             //              mortonCodes.data(), neighborsRef.data(), neighborsCountRef.data(), nParticles, ngmax);
-            findNeighborsNaive(i, xGlobal.data(), yGlobal.data(), zGlobal.data(), nParticles, hGlobal[i],
+            findNeighborsNaive(i, xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), nParticles,
                                neighborsRef.data() + i*ngmax, neighborsCountRef.data() + i, ngmax);
         }
         int neighborSumRef = std::accumulate(begin(neighborsCountRef), end(neighborsCountRef), 0);
