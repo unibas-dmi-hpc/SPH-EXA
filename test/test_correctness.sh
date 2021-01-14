@@ -5,10 +5,6 @@ GREEN='\033[0;32m'
 NOCOLOR='\033[0m'
 BOLD='\e[1m'
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> Increase input for Travis tests (#23)
 EXPECTED_OUTPUT_FILE=$(mktemp /tmp/sph-exa-correctness-test-tmp.XXXXXXXXXX)
 exec 3>"$EXPECTED_OUTPUT_FILE"
 echo "0 1.1e-06 1.1e-06 2.07823e+10 2.07813e+10 1e+06 1734080 
@@ -22,40 +18,8 @@ echo "0 1.1e-06 1.1e-06 2.07823e+10 2.07813e+10 1e+06 1734080
 8 1.49374e-05 2.35795e-06 2.07838e+10 2.07834e+10 346323 1967792 
 9 1.75312e-05 2.59374e-06 2.07844e+10 2.07843e+10 149915 2023388 
 10 2.03843e-05 2.85312e-06 2.07853e+10 2.07854e+10 -99238 1989454 " > $EXPECTED_OUTPUT_FILE
-<<<<<<< HEAD
-
-OUTPUT_FILE=constants.txt
-
-EXIT_CODE_PASSED=0
-EXIT_CODE_FAILED=1
-EXIT_CODE_BINARY_MISSING=2
-
-BIN=$1
-
-if [ $# -ne 1 ]; 
-     then echo "Usage: $0 <path to binary>"
-     exit -1
-fi 
-
-run_test() {
-    binary=$1
-    bin_params=$2
-    printf "${NOCOLOR}\n"
-    
-    if test -f $binary; then
-        $binary $bin_params
-
-        cmp --silent $EXPECTED_OUTPUT_FILE $OUTPUT_FILE && printf "${GREEN}${BOLD}$name Correctness test PASSED\n" ||
-                { printf "${RED}${BOLD}Correctness test FAILED\nOutput file diff:\n"; diff $EXPECTED_OUTPUT_FILE $OUTPUT_FILE; return $EXIT_CODE_FAILED; }
-
-        return $EXIT_CODE_PASSED
-    else
-        printf "${RED}${BOLD} $binary binary does not exist. Skipping test\n"
-=======
 EXPECTED_OUTPUT_FILE=expected_constants_n25_s0.txt
 OUTPUT_FILE=constants.txt
-=======
->>>>>>> Increase input for Travis tests (#23)
 
 OUTPUT_FILE=constants.txt
 
@@ -83,18 +47,11 @@ run_test() {
 
         return $EXIT_CODE_PASSED
     else
-<<<<<<< HEAD
         printf "${RED}${BOLD}$name binary does not exist in Path: $BIN_PATH, skipping test\n"
->>>>>>> correctness test
-=======
-        printf "${RED}${BOLD} $binary binary does not exist. Skipping test\n"
->>>>>>> Increase input for Travis tests (#23)
         return $EXIT_CODE_BINARY_MISSING
     fi
 }
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 if test -f $OUTPUT_FILE; then rm $OUTPUT_FILE; fi
 
 run_test $BIN "-n 20 -s 10 --quiet"; ret_code=$?
@@ -110,19 +67,13 @@ else
 fi
 
 
-=======
 print_verdict() {
     result_code=$1
-=======
 if test -f $OUTPUT_FILE; then rm $OUTPUT_FILE; fi
->>>>>>> Increase input for Travis tests (#23)
 
 run_test $BIN "-n 20 -s 10 --quiet"; ret_code=$?
 
 printf "\n"
-<<<<<<< HEAD
->>>>>>> correctness test
-=======
 rm "$EXPECTED_OUTPUT_FILE"
 
 
@@ -131,6 +82,3 @@ if [ $ret_code -eq $EXIT_CODE_FAILED ]; then
 else
     exit 0
 fi
-
-
->>>>>>> Increase input for Travis tests (#23)
