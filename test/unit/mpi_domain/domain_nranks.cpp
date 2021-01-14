@@ -51,8 +51,8 @@ void initCoordinates(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, Bo
 template<class I, class T>
 void randomGaussianDomain(int rank, int nRanks)
 {
-    int    nParticles    = 10000;
-    T      smoothingLength = 0.1;
+    int    nParticles    = 1000;
+    T      smoothingLength = 0.3;
     Box<T> box{-1, 1};
     int    bucketSize = 10;
     nParticles = (nParticles/nRanks) * nRanks;
@@ -128,7 +128,7 @@ void randomGaussianDomain(int rank, int nRanks)
     MPI_Allreduce(MPI_IN_PLACE, &neighborSum, 1, MpiType<int>{}, MPI_SUM, MPI_COMM_WORLD);
     if (rank == 0)
     {
-        std::cout << "rank " << rank << " neighborSum " << neighborSum << std::endl;
+        std::cout << " neighborSum " << neighborSum << std::endl;
     }
 
     {
@@ -145,7 +145,7 @@ void randomGaussianDomain(int rank, int nRanks)
         int neighborSumRef = std::accumulate(begin(neighborsCountRef), end(neighborsCountRef), 0);
         EXPECT_EQ(neighborSum, neighborSumRef);
     }
-};
+}
 
 TEST(Domain, moreHalos)
 {
