@@ -15,9 +15,28 @@ class Domain
 public:
     explicit Domain(int rank, int nRanks, int bucketSize, bool pbcX=false, bool pbcY = false, bool pbcZ = false)
         : myRank_(rank), nRanks_(nRanks), bucketSize_(bucketSize),
-          particleStart_(0), particleEnd_(-1), pbcX_(pbcX), pbcY_(pbcY), pbcZ_(pbcZ)
+          particleStart_(0), particleEnd_(-1), localNParticles_(-1), pbcX_(pbcX), pbcY_(pbcY), pbcZ_(pbcZ)
     {}
 
+    /*! \brief Perform the full domain update sequence for coordinate arrays x,y,z and h
+     *
+     * @param x  floating point coordinates
+     * @param y
+     * @param z
+     * @param h  smoothing lengths
+     *
+     * This includes:
+     *      1. compute global coordinate bounding box
+     *      2. compute global octree
+     *      3. compute max_h per octree node
+     *      4. assign octree to ranks
+     *      5. discover halos
+     *      6. compute particle layout, i.e. count number of halos and assigned particles
+     *         and compute halo send and receive index ranges
+     *      7. exchange assigned particles
+     *      8. morton sort exchanged assigned particles
+     *      9. exchange halo particles
+     */
     void sync(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, std::vector<T>& h)
     {
         if (x.size() != y.size() || x.size() != z.size() || x.size() != h.size())
@@ -26,8 +45,8 @@ public:
         // bounds initialization on first call, use all particles
         if (particleEnd_ == -1)
         {
-            particleStart_ = 0;
-            particleEnd_   = x.size();
+            particleStart_   = 0;
+            particleEnd_     = x.size();
         }
 
         Box<T> box = makeGlobalBox(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
@@ -88,6 +107,7 @@ public:
         std::vector<int> presentNodes;
         std::vector<int> nodeOffsets;
         computeLayoutOffsets(localNodeRanges, incomingHalosFlattened, nodeCounts, presentNodes, nodeOffsets);
+        localNParticles_ = *nodeOffsets.rbegin();
 
         int firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), localNodeRanges[0])
                              - begin(presentNodes);
@@ -102,8 +122,7 @@ public:
         SendList domainExchangeSends = createSendList(assignment, mortonCodes.data(), mortonCodes.data() + nParticles);
 
         // assigned particles + halos
-        int totalNParticles = *nodeOffsets.rbegin();
-        exchangeParticles<T>(domainExchangeSends, Rank(myRank_), totalNParticles, newNParticlesAssigned,
+        exchangeParticles<T>(domainExchangeSends, Rank(myRank_), localNParticles_, newNParticlesAssigned,
                              particleStart_, newParticleStart, mortonOrder.data(), x,y,z,h);
 
         // assigned particles have been moved to their new locations by the domain exchange exchangeParticles
@@ -128,13 +147,35 @@ public:
         reorder(mortonOrder, z, particleStart_);
         reorder(mortonOrder, h, particleStart_);
 
-        SendList incomingHaloIndices = createHaloExchangeList(incomingHaloNodes, presentNodes, nodeOffsets);
-        SendList outgoingHaloIndices = createHaloExchangeList(outgoingHaloNodes, presentNodes, nodeOffsets);
+        incomingHaloIndices_ = createHaloExchangeList(incomingHaloNodes, presentNodes, nodeOffsets);
+        outgoingHaloIndices_ = createHaloExchangeList(outgoingHaloNodes, presentNodes, nodeOffsets);
 
-        haloexchange<T>(incomingHaloIndices, outgoingHaloIndices, x.data(), y.data(), z.data(), h.data());
+        haloexchange<T>(incomingHaloIndices_, outgoingHaloIndices_, x.data(), y.data(), z.data(), h.data());
     }
 
+    /*! \brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
+     *
+     * @param arrays  std::vector<float or double>
+     *
+     * This is used e.g. for densities
+     */
+    template<class...Arrays>
+    void exchangeHalos(Arrays&... arrays)
+    {
+        std::array<std::size_t, sizeof...(Arrays)> sizes{arrays.size()...};
+        if (*std::min_element(begin(sizes), end(sizes)) != localNParticles_ ||
+            *std::max_element(begin(sizes), end(sizes)) != localNParticles_)
+        {
+            throw std::runtime_error("halo exchange array sizes inconsistent with previous sync operation\n");
+        }
+
+        haloexchange<T>(incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
+    }
+
+    //! \brief return the index of the first particle that's part of the local assignment
     [[nodiscard]] int startIndex() const { return particleStart_; }
+
+    //! \brief return one past the index of the last particle that's part of the local assignment
     [[nodiscard]] int endIndex() const   { return particleEnd_; }
 
 private:
@@ -142,8 +183,17 @@ private:
     int myRank_;
     int nRanks_;
 
+    /*! \brief array index of first local particle belonging to the assignment
+     *  i.e. the index of the first particle that belongs to this rank and is not a halo.
+     */
     int particleStart_;
+    //! \brief index (upper bound) of last particle that belongs to the assignment
     int particleEnd_;
+    //! \brief number of locally present particles, = number of halos + assigned particles
+    int localNParticles_;
+
+    SendList incomingHaloIndices_;
+    SendList outgoingHaloIndices_;
 
     bool pbcX_;
     bool pbcY_;
