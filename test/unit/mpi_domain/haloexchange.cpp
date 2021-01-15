@@ -13,12 +13,18 @@ void simpleTest(int thisRank)
     int nRanks = 2;
     std::vector<int> nodeList{0,1,10,11};
     std::vector<int>  offsets{0,1,3,6,10};
-    ArrayLayout layout(std::move(nodeList), std::move(offsets));
 
+    int localCount, localOffset;
     if (thisRank == 0)
-        layout.addLocalRange(0,2);
+    {
+        localCount  = 3;
+        localOffset = 0;
+    }
     if (thisRank == 1)
-        layout.addLocalRange(10,12);
+    {
+        localCount  = 7;
+        localOffset = 3;
+    }
 
     SendList incomingHalos(nRanks);
     SendList outgoingHalos(nRanks);
@@ -38,15 +44,13 @@ void simpleTest(int thisRank)
         outgoingHalos[0].addRange(6,10);
     }
 
-    EXPECT_EQ(layout.totalSize(), 10);
-    std::vector<T> x(layout.totalSize());
-    std::vector<T> y(layout.totalSize());
+    std::vector<T> x(*offsets.rbegin());
+    std::vector<T> y(*offsets.rbegin());
 
     int xshift = 20;
     int yshift = 30;
-    for (int i = 0; i < layout.localRangeCount(0); ++i)
+    for (int i = 0; i < localCount; ++i)
     {
-        int localOffset = layout.localRangePosition(0);
         x[localOffset + i] = localOffset + i + xshift;
         y[localOffset + i] = localOffset + i + yshift;
     }

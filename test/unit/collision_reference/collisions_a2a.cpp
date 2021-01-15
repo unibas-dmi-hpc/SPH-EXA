@@ -13,8 +13,6 @@ using namespace sphexa;
 template<class I>
 void collide2all()
 {
-    using sphexa::detail::codeFromIndices;
-
     auto tree = OctreeMaker<I>{}.divide().divide(0).divide(0,7).makeTree();
 
     // this search box intersects with neighbors in x direction and will intersect
@@ -59,8 +57,6 @@ TEST(Collisions, collide2all)
 template<class I, class T>
 void collideAll2all()
 {
-    using sphexa::detail::codeFromIndices;
-
     auto tree = OctreeMaker<I>{}.divide().divide(0).divide(0,7).makeTree();
 
     Box<T> box(0, 1);

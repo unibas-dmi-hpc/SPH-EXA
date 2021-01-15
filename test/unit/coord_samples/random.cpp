@@ -3,6 +3,8 @@
 
 #include "random.hpp"
 
+using namespace sphexa;
+
 TEST(CoordinateSamples, randomContainerIsSorted)
 {
     using real = double;
@@ -38,7 +40,7 @@ std::vector<I> makeRegularGrid(unsigned gridSize)
         for (unsigned j = 0; j < n; ++j)
             for (unsigned k = 0; k < n; ++k)
             {
-                codes.push_back(sphexa::detail::codeFromBox<I>({i,j,k}, level));
+                codes.push_back(codeFromBox<I>(i, j, k, level));
             }
 
     std::sort(begin(codes), end(codes));
