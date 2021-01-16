@@ -37,12 +37,12 @@
 
 #include "coord_samples/random.hpp"
 
-using namespace sphexa;
+using namespace cstone;
 
 template<class I>
-void printIndices(std::array<unsigned char, sphexa::maxTreeLevel<I>{}> indices)
+void printIndices(std::array<unsigned char, maxTreeLevel<I>{}> indices)
 {
-    for (int i = 0; i < sphexa::maxTreeLevel<I>{}; ++i)
+    for (int i = 0; i < maxTreeLevel<I>{}; ++i)
         std::cout << indices[i] << ",";
 }
 
@@ -72,7 +72,7 @@ void printTree(const I* tree, const int* counts, int nNodes)
     for (int i = 0; i < nNodes; ++i)
     {
         I thisNode     = tree[i];
-        std::cout << sphexa::indicesFromCode(thisNode) << " :" << counts[i] << std::endl;
+        std::cout << indicesFromCode(thisNode) << " :" << counts[i] << std::endl;
     }
     std::cout << std::endl;
 }
@@ -96,14 +96,14 @@ void checkCountTreeNodes()
     std::sort(begin(codes), end(codes));
 
     std::vector<CodeType>    tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
-    std::vector<std::size_t> counts(sphexa::nNodes(tree));
+    std::vector<std::size_t> counts(nNodes(tree));
 
     // doesn't affect the end result, but makes sure that
     // binary searching correctly finds the first tree node
     // with a _lower_ code than the first particle code
     codes[0]++;
 
-    sphexa::computeNodeCounts(tree.data(), counts.data(), nNodes(tree),
+    computeNodeCounts(tree.data(), counts.data(), nNodes(tree),
                               codes.data(), codes.data() + codes.size());
 
     // the level 2 nodes have 1/64 of the total volume/particle count
@@ -150,11 +150,11 @@ void rebalanceShrinkStart()
     }
     tree.push_back(nodeRange<CodeType>(0));
 
-    std::vector<CodeType> balancedTree = sphexa::rebalanceTree(tree.data(), counts.data(),
-                                                               sphexa::nNodes(tree), bucketSize);
+    std::vector<CodeType> balancedTree = rebalanceTree(tree.data(), counts.data(),
+                                                               nNodes(tree), bucketSize);
 
-    EXPECT_TRUE(sphexa::checkOctreeInvariants(balancedTree.data(), sphexa::nNodes(balancedTree)));
-    EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), sphexa::nNodes(tree)));
+    EXPECT_TRUE(checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
+    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
     std::vector<CodeType> reference;
     reference.reserve(9);
@@ -187,10 +187,10 @@ void rebalanceShrinkMid()
 
     std::vector<std::size_t> counts(nNodes(tree), 1);
     std::vector<CodeType> balancedTree
-        = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
+        = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
 
-    EXPECT_TRUE(sphexa::checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
-    EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
+    EXPECT_TRUE(checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
+    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
     std::vector<CodeType> reference;
     reference.reserve(9);
@@ -225,10 +225,10 @@ void rebalanceShrinkEnd()
     std::vector<std::size_t> counts(nNodes(tree), 1);
 
     std::vector<CodeType> balancedTree
-        = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
+        = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
 
-    EXPECT_TRUE(sphexa::checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
-    EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
+    EXPECT_TRUE(checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
+    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
     std::vector<CodeType> reference;
     reference.reserve(9);
@@ -264,7 +264,7 @@ void rebalanceRootInvariant()
     std::vector<std::size_t> counts{7};
 
     std::vector<CodeType> balancedTree
-        = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
+        = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
 
     EXPECT_EQ(balancedTree, tree);
 }
@@ -291,7 +291,7 @@ void rebalanceRootSplit()
     std::vector<std::size_t> counts{9};
 
     std::vector<CodeType> balancedTree
-        = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
+        = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
 
     std::vector<CodeType> reference;
     reference.reserve(9);
@@ -329,10 +329,10 @@ void rebalanceSplitShrink()
     counts[1] = bucketSize+1;
 
     std::vector<CodeType> balancedTree
-        = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
+        = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
 
-    EXPECT_TRUE(sphexa::checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
-    EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
+    EXPECT_TRUE(checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
+    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
     std::vector<CodeType> reference;
     reference.reserve(9);
@@ -382,7 +382,7 @@ void rebalanceInsufficentResolution()
     // since the first node is at the maximum subdivision layer, the tree
     // can't be further refined to satisfy the bucketSize
     std::vector<CodeType> balancedTree
-        = sphexa::rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
+        = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
 
     EXPECT_EQ(balancedTree, tree);
 }
@@ -403,7 +403,7 @@ void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<std::si
                            const std::vector<I>& mortonCodes)
 {
     using CodeType = I;
-    EXPECT_TRUE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
+    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
     int nParticles = mortonCodes.size();
 
@@ -441,14 +441,14 @@ public:
     void check(int bucketSize)
     {
         using CodeType = I;
-        sphexa::Box<double> box{-1, 1};
+        Box<double> box{-1, 1};
 
         int nParticles = 100000;
 
         CoordinateType<double, CodeType> randomBox(nParticles, box);
 
         // compute octree starting from default uniform octree
-        auto [treeML, countsML] = sphexa::computeOctree(randomBox.mortonCodes().data(),
+        auto [treeML, countsML] = computeOctree(randomBox.mortonCodes().data(),
                                                         randomBox.mortonCodes().data() + nParticles,
                                                         bucketSize);
 
@@ -457,9 +457,9 @@ public:
         checkOctreeWithCounts(treeML, countsML, bucketSize, randomBox.mortonCodes());
 
         // compute octree starting from just the root node
-        auto [treeRN, countsRN] = sphexa::computeOctree(randomBox.mortonCodes().data(),
+        auto [treeRN, countsRN] = computeOctree(randomBox.mortonCodes().data(),
                                                         randomBox.mortonCodes().data() + nParticles,
-                                                        bucketSize, sphexa::makeRootNodeTree<I>());
+                                                        bucketSize, makeRootNodeTree<I>());
 
         checkOctreeWithCounts(treeML, countsRN, bucketSize, randomBox.mortonCodes());
 
@@ -497,7 +497,7 @@ TEST(CornerstoneOctree, computeNodeMax)
 
     std::vector<float> probe(hMaxPerNode.size());
 
-    sphexa::computeNodeMax(tree.data(), nNodes(tree), particleCodes.data(), particleCodes.data() + particleCodes.size(),
+    computeNodeMax(tree.data(), nNodes(tree), particleCodes.data(), particleCodes.data() + particleCodes.size(),
                            ordering.data(), smoothingLs.data(), probe.data());
 
     EXPECT_EQ(probe, hMaxPerNode);
@@ -530,7 +530,7 @@ TEST(CornerstoneOctree, nodeMaxRegression)
 
     {
         std::vector<std::size_t> countsProbe(nNodes(tree));
-        sphexa::computeNodeCounts(tree.data(), countsProbe.data(), nNodes(tree), codes.data(), codes.data() + codes.size());
+        computeNodeCounts(tree.data(), countsProbe.data(), nNodes(tree), codes.data(), codes.data() + codes.size());
         EXPECT_EQ(nodeCounts, countsProbe);
     }
 

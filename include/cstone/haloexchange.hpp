@@ -36,7 +36,7 @@
 #include "cstone/mpi_wrappers.hpp"
 #include "cstone/domaindecomp.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 template<class T, class...Arrays>
@@ -121,4 +121,4 @@ void haloexchange(const SendList& incomingHalos,
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
-} // namespace sphexa
+} // namespace cstone

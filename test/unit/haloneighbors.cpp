@@ -44,7 +44,7 @@
  *
  */
 
-using namespace sphexa;
+using namespace cstone;
 
 template<class T>
 static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, const T* h, int n,

@@ -38,7 +38,7 @@
 
 #include "coord_samples/random.hpp"
 
-using namespace sphexa;
+using namespace cstone;
 
 /*! \brief integration test between global octree build and domain particle exchange
  *
@@ -53,7 +53,7 @@ using namespace sphexa;
  *
  * 2. Compute global octree and node particle counts
  *
- *    auto [tree, counts] = sphexa::computeOctreeGlobal(...)
+ *    auto [tree, counts] = computeOctreeGlobal(...)
  *
  * 3. split & assign a part of the global octree to each rank
  *
@@ -73,19 +73,19 @@ void globalRandomGaussian(int thisRank, int nRanks)
     int nParticles = 1000;
     int bucketSize = 64;
 
-    sphexa::Box<T> box{-1, 1};
+    Box<T> box{-1, 1};
     RandomGaussianCoordinates<T, I> coords(nParticles, box);
 
     auto [tree, counts] =
-        sphexa::computeOctreeGlobal(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles,
+        computeOctreeGlobal(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles,
                                     bucketSize);
 
     std::vector<int> ordering(nParticles);
     // particles are in Morton order
     std::iota(begin(ordering), end(ordering), 0);
 
-    auto assignment        = sphexa::singleRangeSfcSplit(tree, counts, nRanks);
-    auto sendList          = sphexa::createSendList(assignment, coords.mortonCodes().data(),
+    auto assignment        = singleRangeSfcSplit(tree, counts, nRanks);
+    auto sendList          = createSendList(assignment, coords.mortonCodes().data(),
                                                     coords.mortonCodes().data() + nParticles);
 
     EXPECT_EQ(std::accumulate(begin(counts), end(counts), std::size_t(0)), nParticles * nRanks);
@@ -104,21 +104,21 @@ void globalRandomGaussian(int thisRank, int nRanks)
     EXPECT_EQ(x.size(), nParticlesAssigned);
 
     std::vector<I> newCodes(nParticlesAssigned);
-    sphexa::computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(newCodes), box);
+    computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(newCodes), box);
 
     // received particles are not stored in morton order after the exchange
     ordering.resize(nParticlesAssigned);
-    sphexa::sort_invert(cbegin(newCodes), cend(newCodes), begin(ordering));
-    sphexa::reorder(ordering, newCodes);
+    sort_invert(cbegin(newCodes), cend(newCodes), begin(ordering));
+    reorder(ordering, newCodes);
 
     auto [newTree, newCounts] =
-        sphexa::computeOctreeGlobal(newCodes.data(), newCodes.data() + newCodes.size(), bucketSize);
+        computeOctreeGlobal(newCodes.data(), newCodes.data() + newCodes.size(), bucketSize);
 
     // global tree and counts stay the same
     EXPECT_EQ(tree, newTree);
     EXPECT_EQ(counts, newCounts);
 
-    auto newSendList = sphexa::createSendList(assignment, newCodes.data(), newCodes.data() + nParticlesAssigned);
+    auto newSendList = createSendList(assignment, newCodes.data(), newCodes.data() + nParticlesAssigned);
 
     for (int rank = 0; rank < nRanks; ++rank)
     {
@@ -132,8 +132,8 @@ void globalRandomGaussian(int thisRank, int nRanks)
     }
 
     // quick check that send buffers are created w.r.t ordering
-    auto xBuffer = sphexa::createSendBuffer(newSendList[thisRank], x.data(), ordering.data());
-    sphexa::reorder(ordering, x);
+    auto xBuffer = createSendBuffer(newSendList[thisRank], x.data(), ordering.data());
+    reorder(ordering, x);
     EXPECT_EQ(xBuffer, x);
 }
 

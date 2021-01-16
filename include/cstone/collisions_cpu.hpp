@@ -33,7 +33,7 @@
 
 #include "cstone/btreetraversal.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 /*! \brief For each leaf node enlarged by its halo radius, find all colliding leaf nodes
@@ -69,4 +69,4 @@ std::vector<CollisionList> findAllCollisions(const std::vector<BinaryNode<I>>& i
     return collisions;
 }
 
-} // namespace sphexa
+} // namespace cstone

@@ -36,7 +36,7 @@
 
 #include "cstone/box_mpi.hpp"
 
-using namespace sphexa;
+using namespace cstone;
 
 template<class T>
 void globalMin(int rank, int nRanks)

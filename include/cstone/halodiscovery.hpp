@@ -37,7 +37,7 @@
 #include "cstone/btreetraversal.hpp"
 #include "cstone/domaindecomp.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 /*! \brief Compute halo node pairs
@@ -186,4 +186,4 @@ void computeSendRecvNodeList(const std::vector<I>& tree,
     }
 }
 
-} // namespace sphexa
+} // namespace cstone

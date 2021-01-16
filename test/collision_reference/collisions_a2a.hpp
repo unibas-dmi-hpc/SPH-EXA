@@ -34,7 +34,7 @@
 #include "cstone/btreetraversal.hpp"
 #include "cstone/octree_util.hpp"
 
-namespace sphexa
+namespace cstone
 {
 /*! \brief to-all implementation of findCollisions
  *
@@ -81,4 +81,4 @@ std::vector<CollisionList> findCollisionsAll2all(const std::vector<I>& tree, con
     return collisions;
 }
 
-} // namespace sphexa
+} // namespace cstone

@@ -36,7 +36,7 @@
 #include "box.hpp"
 #include "clz.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 //! \brief number of unused leading zeros in a 32-bit Morton code
@@ -492,4 +492,4 @@ void computeMortonCodes(InputIterator  xBegin,
     }
 }
 
-} // namespace sphexa
+} // namespace cstone

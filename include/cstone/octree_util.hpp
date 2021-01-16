@@ -38,7 +38,7 @@
 #include "cstone/mortonconversions.hpp"
 #include "cstone/octree.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 /*! \brief check whether the cornerstone octree format invariants are fulfilled
@@ -154,4 +154,4 @@ private:
     std::vector<I> tree;
 };
 
-} // namespace sphexa
+} // namespace cstone

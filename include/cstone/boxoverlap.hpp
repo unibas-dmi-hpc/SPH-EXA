@@ -35,7 +35,7 @@
 #include "cstone/mortoncode.hpp"
 
 
-namespace sphexa
+namespace cstone
 {
 
 /*! \brief check for overlap between a binary or octree node and a box in 3D space
@@ -116,4 +116,4 @@ Box<int> makeHaloBox(I codeStart, I codeEnd, T radius, const Box<T>& box)
     return makeHaloBox(codeStart, codeEnd, dx, dy, dz);
 }
 
-} // namespace sphexa
+} // namespace cstone

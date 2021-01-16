@@ -35,7 +35,7 @@
 
 #include "cstone/domaindecomp_mpi.hpp"
 
-using namespace sphexa;
+using namespace cstone;
 
 /*! \brief all-to-all exchange, the most communication possible
  *
@@ -74,7 +74,7 @@ void exchangeAllToAll(int thisRank, int nRanks)
 
     int segmentSize = gridSize / nRanks;
 
-    sphexa::SendList sendList(nRanks);
+    SendList sendList(nRanks);
     for (int rank = 0; rank < nRanks; ++rank)
     {
         int lower = rank * segmentSize;

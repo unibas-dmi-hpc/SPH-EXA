@@ -46,7 +46,7 @@
 #include "cstone/domain.hpp"
 #include "cstone/findneighbors.hpp"
 
-using namespace sphexa;
+using namespace cstone;
 
 //! \brief simple N^2 all-to-all neighbor search
 template<class T>

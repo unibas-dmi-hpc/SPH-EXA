@@ -37,7 +37,7 @@
 #include "collision_reference/collisions_a2a.hpp"
 
 
-using namespace sphexa;
+using namespace cstone;
 
 /*! \brief compare tree-traversal collision detection with the naive all-to-all algorithm
  *

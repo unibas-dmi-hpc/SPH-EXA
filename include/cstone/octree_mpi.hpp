@@ -37,7 +37,7 @@
 #include "cstone/mpi_wrappers.hpp"
 #include "cstone/octree.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 struct GlobalReduce
@@ -70,4 +70,4 @@ void computeNodeMaxGlobal(const I *tree, int nNodes, const I *codesStart, const 
     MPI_Allreduce(MPI_IN_PLACE, output, nNodes, MpiType<T>{}, MPI_MAX, MPI_COMM_WORLD);
 }
 
-} // namespace sphexa
+} // namespace cstone

@@ -34,7 +34,7 @@
 #include "collisions_a2a.hpp"
 
 
-using namespace sphexa;
+using namespace cstone;
 
 /*! \brief test the naive to-all collision detection function
  *

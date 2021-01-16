@@ -33,7 +33,7 @@
 
 #include "cstone/halodiscovery.hpp"
 
-using namespace sphexa;
+using namespace cstone;
 
 /*! \brief find halo test
  *

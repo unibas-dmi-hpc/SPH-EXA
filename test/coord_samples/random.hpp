@@ -39,12 +39,14 @@
 #include "cstone/mortoncode.hpp"
 #include "cstone/zorder.hpp"
 
+using namespace cstone;
+
 template<class T, class I>
 class RandomCoordinates
 {
 public:
 
-    RandomCoordinates(unsigned n, sphexa::Box<T> box)
+    RandomCoordinates(unsigned n, Box<T> box)
         : box_(std::move(box)), x_(n), y_(n), z_(n), codes_(n)
     {
         //std::random_device rd;
@@ -61,16 +63,16 @@ public:
         std::generate(begin(y_), end(y_), randY);
         std::generate(begin(z_), end(z_), randZ);
 
-        sphexa::computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_),
+        computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_),
                                    begin(codes_), box);
 
         std::vector<I> mortonOrder(n);
-        sphexa::sort_invert(cbegin(codes_), cend(codes_), begin(mortonOrder));
+        sort_invert(cbegin(codes_), cend(codes_), begin(mortonOrder));
 
-        sphexa::reorder(mortonOrder, codes_);
-        sphexa::reorder(mortonOrder, x_);
-        sphexa::reorder(mortonOrder, y_);
-        sphexa::reorder(mortonOrder, z_);
+        reorder(mortonOrder, codes_);
+        reorder(mortonOrder, x_);
+        reorder(mortonOrder, y_);
+        reorder(mortonOrder, z_);
     }
 
     const std::vector<T>& x() const { return x_; }
@@ -80,7 +82,7 @@ public:
 
 private:
 
-    sphexa::Box<T> box_;
+    Box<T> box_;
     std::vector<T> x_, y_, z_;
     std::vector<I> codes_;
 };
@@ -90,7 +92,7 @@ class RandomGaussianCoordinates
 {
 public:
 
-    RandomGaussianCoordinates(unsigned n, sphexa::Box<T> box)
+    RandomGaussianCoordinates(unsigned n, Box<T> box)
         : box_(std::move(box)), x_(n), y_(n), z_(n), codes_(n)
     {
         //std::random_device rd;
@@ -108,16 +110,16 @@ public:
         std::generate(begin(y_), end(y_), randY);
         std::generate(begin(z_), end(z_), randZ);
 
-        sphexa::computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_),
+        computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_),
                                    begin(codes_), box);
 
         std::vector<I> mortonOrder(n);
-        sphexa::sort_invert(cbegin(codes_), cend(codes_), begin(mortonOrder));
+        sort_invert(cbegin(codes_), cend(codes_), begin(mortonOrder));
 
-        sphexa::reorder(mortonOrder, codes_);
-        sphexa::reorder(mortonOrder, x_);
-        sphexa::reorder(mortonOrder, y_);
-        sphexa::reorder(mortonOrder, z_);
+        reorder(mortonOrder, codes_);
+        reorder(mortonOrder, x_);
+        reorder(mortonOrder, y_);
+        reorder(mortonOrder, z_);
     }
 
     const std::vector<T>& x() const { return x_; }
@@ -127,7 +129,7 @@ public:
 
 private:
 
-    sphexa::Box<T> box_;
+    Box<T> box_;
     std::vector<T> x_, y_, z_;
     std::vector<I> codes_;
 };
@@ -141,12 +143,12 @@ public:
     RegularGridCoordinates(unsigned gridSize)
         : box_(0,1), codes_(gridSize)
     {
-        assert(sphexa::isPowerOf8(gridSize));
+        assert(isPowerOf8(gridSize));
         //x_.reserve(gridSize);
         //y_.reserve(gridSize);
         //z_.reserve(gridSize);
 
-        unsigned n_ = 1u << sphexa::log8ceil(gridSize);
+        unsigned n_ = 1u << log8ceil(gridSize);
         for (int i = 0; i < n_; ++i)
             for (int j = 0; j < n_; ++j)
                 for (int k = 0; k < n_; ++k)
@@ -156,17 +158,17 @@ public:
                     z_.push_back(k);
                 }
 
-        box_ = sphexa::Box<T>(0, n_);
-        sphexa::computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_),
+        box_ = Box<T>(0, n_);
+        computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_),
                                    begin(codes_), box_);
 
         std::vector<I> mortonOrder(gridSize);
-        sphexa::sort_invert(cbegin(codes_), cend(codes_), begin(mortonOrder));
+        sort_invert(cbegin(codes_), cend(codes_), begin(mortonOrder));
 
-        sphexa::reorder(mortonOrder, codes_);
-        sphexa::reorder(mortonOrder, x_);
-        sphexa::reorder(mortonOrder, y_);
-        sphexa::reorder(mortonOrder, z_);
+        reorder(mortonOrder, codes_);
+        reorder(mortonOrder, x_);
+        reorder(mortonOrder, y_);
+        reorder(mortonOrder, z_);
     }
 
     const std::vector<T>& x() const { return x_; }
@@ -175,7 +177,7 @@ public:
     const std::vector<I>& mortonCodes() const { return codes_; }
 
 private:
-    sphexa::Box<T> box_;
+    Box<T> box_;
     std::vector<T> x_, y_, z_;
     std::vector<I> codes_;
 };

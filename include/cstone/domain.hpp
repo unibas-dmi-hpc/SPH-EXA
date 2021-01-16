@@ -38,7 +38,7 @@
 #include "cstone/layout.hpp"
 #include "cstone/octree_mpi.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 template<class I, class T>
@@ -235,4 +235,4 @@ private:
     std::vector<I> tree_;
 };
 
-} // namespace sphexa
+} // namespace cstone

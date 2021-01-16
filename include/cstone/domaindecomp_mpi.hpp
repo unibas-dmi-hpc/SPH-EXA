@@ -35,7 +35,7 @@
 
 #include "mpi_wrappers.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 template<class T, class... Arrays>
@@ -177,4 +177,4 @@ void exchangeParticles(const SendList& sendList, Rank thisRank, int nParticlesAs
     exchangeParticles<T>(sendList, thisRank, nParticlesAssigned, nParticlesAssigned, 0, 0, ordering, arrays...);
 }
 
-} // namespace sphexa
+} // namespace cstone

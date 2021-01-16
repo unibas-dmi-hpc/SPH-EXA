@@ -42,7 +42,7 @@
 #include "cstone/zorder.hpp"
 
 
-namespace sphexa
+namespace cstone
 {
 
 /*! \brief Stores ranges of local particles to be sent to another rank
@@ -373,4 +373,4 @@ std::vector<T> createSendBuffer(const SendManifest& manifest, const T* source,
 }
 
 
-} // namespace sphexa
+} // namespace cstone

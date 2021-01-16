@@ -65,7 +65,7 @@
 #include "cstone/mortoncode.hpp"
 #include "cstone/boxoverlap.hpp"
 
-namespace sphexa {
+namespace cstone {
 
 /*! \brief binary radix tree node
  *
@@ -267,4 +267,4 @@ std::vector<BinaryNode<I>> createInternalTree(const std::vector<I>& tree)
     return ret;
 }
 
-} // namespace sphexa
+} // namespace cstone

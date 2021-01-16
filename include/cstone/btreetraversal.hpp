@@ -33,7 +33,7 @@
 
 #include "cstone/btree.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 //! \brief stores indices of colliding octree leaf nodes
@@ -167,4 +167,4 @@ void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes, Colli
     } while (node != nullptr);
 }
 
-} // namespace sphexa
+} // namespace cstone

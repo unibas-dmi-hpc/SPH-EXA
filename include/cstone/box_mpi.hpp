@@ -39,7 +39,7 @@
 #include "cstone/mpi_wrappers.hpp"
 
 
-namespace sphexa
+namespace cstone
 {
 
 //! \brief compute global minimum of an array range
@@ -87,4 +87,4 @@ auto makeGlobalBox(Iterator xB,
                   pbcX, pbcY, pbcZ};
 };
 
-} // namespace sphexa
+} // namespace cstone

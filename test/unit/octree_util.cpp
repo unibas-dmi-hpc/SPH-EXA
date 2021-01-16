@@ -39,10 +39,7 @@
 #include "cstone/octree.hpp"
 #include "cstone/octree_util.hpp"
 
-using namespace sphexa;
-
-using sphexa::codeFromIndices;
-using sphexa::codeFromBox;
+using namespace cstone;
 
 //! \brief detect missing zero node
 template<class CodeType>
@@ -60,7 +57,7 @@ void invariantHead()
         nodeRange<CodeType>(0)
     };
 
-    EXPECT_FALSE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
+    EXPECT_FALSE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 }
 
 //! \brief detect missing end node
@@ -79,7 +76,7 @@ void invariantTail()
         codeFromIndices<CodeType>({7}),
     };
 
-    EXPECT_FALSE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
+    EXPECT_FALSE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 }
 
 //! \brief detect missing siblings
@@ -98,7 +95,7 @@ void invariantSiblings()
             nodeRange<CodeType>(0)
         };
 
-    EXPECT_FALSE(sphexa::checkOctreeInvariants(tree.data(), nNodes(tree)));
+    EXPECT_FALSE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 }
 
 TEST(CornerstoneUtil, invariants32)
@@ -166,21 +163,21 @@ void octreeMakerMaxLevel()
 
     std::vector<CodeType> refTree{0};
     {
-        std::array<unsigned char, sphexa::maxTreeLevel<uint64_t>{}> zeroIndices{0};
-        for (int level = 0; level < sphexa::maxTreeLevel<CodeType>{}; ++level)
+        std::array<unsigned char, maxTreeLevel<uint64_t>{}> zeroIndices{0};
+        for (int level = 0; level < maxTreeLevel<CodeType>{}; ++level)
         {
             auto indices = zeroIndices;
             for (int sibling = 1; sibling < 8; ++sibling)
             {
                 indices[level] = sibling;
-                refTree.push_back(sphexa::codeFromIndices<CodeType>(indices));
+                refTree.push_back(codeFromIndices<CodeType>(indices));
             }
         }
         refTree.push_back(nodeRange<CodeType>(0));
         std::sort(begin(refTree), end(refTree));
     }
 
-    EXPECT_TRUE(sphexa::checkOctreeInvariants(refTree.data(), nNodes(refTree)));
+    EXPECT_TRUE(checkOctreeInvariants(refTree.data(), nNodes(refTree)));
 
     OctreeMaker<CodeType> octreeMaker;
     for (int level = 0; level < maxTreeLevel<I>{}; ++level)
