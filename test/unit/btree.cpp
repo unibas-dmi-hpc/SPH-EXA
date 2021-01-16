@@ -37,13 +37,13 @@
 /*! \brief \file tests for binary tree generation
  */
 
-using namespace sphexa;
+using namespace cstone;
 
 //! \brief documented and tested in boxoverlap.cpp
 template <class I>
 constexpr I pad(I prefix, int length)
 {
-    return prefix << (3*sphexa::maxTreeLevel<I>{} - length);
+    return prefix << (3*maxTreeLevel<I>{} - length);
 }
 
 

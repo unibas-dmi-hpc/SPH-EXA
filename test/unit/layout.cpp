@@ -34,7 +34,7 @@
 
 #include "cstone/layout.hpp"
 
-using namespace sphexa;
+using namespace cstone;
 
 template<class I>
 void computeLocalNodeRanges()

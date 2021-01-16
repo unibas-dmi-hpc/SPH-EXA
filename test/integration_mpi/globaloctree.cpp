@@ -37,7 +37,7 @@
 #include "cstone/mortonconversions.hpp"
 #include "cstone/octree_mpi.hpp"
 
-using namespace sphexa;
+using namespace cstone;
 
 template<class I>
 std::vector<I> makeRegularGrid(int rank)
@@ -56,7 +56,7 @@ std::vector<I> makeRegularGrid(int rank)
         for (unsigned j = 0; j < n; ++j)
             for (unsigned k = 0; k < n; ++k)
     {
-        codes.push_back(sphexa::codeFromBox<I>(i,j,k, level));
+        codes.push_back(codeFromBox<I>(i,j,k, level));
     }
 
     std::sort(begin(codes), end(codes));
@@ -67,7 +67,6 @@ std::vector<I> makeRegularGrid(int rank)
 template<class I>
 void buildTree(int rank)
 {
-    using sphexa::codeFromIndices;
     auto codes = makeRegularGrid<I>(rank);
 
     int bucketSize = 8;
@@ -132,7 +131,7 @@ void computeNodeMax(int rank)
     {
         std::vector<float> probe(hMaxPerNode.size());
 
-        sphexa::computeNodeMaxGlobal(tree.data(), nNodes(tree), particleCodes.data(),
+        computeNodeMaxGlobal(tree.data(), nNodes(tree), particleCodes.data(),
                                      particleCodes.data() + particleCodes.size(), ordering.data(),
                                      smoothingLs[rank].data(), probe.data());
 

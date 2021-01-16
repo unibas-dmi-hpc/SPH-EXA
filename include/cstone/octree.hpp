@@ -58,7 +58,7 @@
 
 #include "cstone/mortoncode.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 /*! \brief returns the number of nodes in a tree
@@ -405,4 +405,4 @@ std::vector<NodeType<I>> trimZCurve(const std::vector<I>& mortonCodes, unsigned 
     return ret;
 }
 
-} // namespace sphexa
+} // namespace cstone

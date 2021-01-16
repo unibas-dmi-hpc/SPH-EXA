@@ -33,7 +33,7 @@
 
 #include "random.hpp"
 
-using namespace sphexa;
+using namespace cstone;
 
 TEST(CoordinateSamples, randomContainerIsSorted)
 {
@@ -41,11 +41,11 @@ TEST(CoordinateSamples, randomContainerIsSorted)
     using CodeType = unsigned;
     int n = 10;
 
-    sphexa::Box<real> box{ 0, 1, -1, 2, 0, 5 };
+    Box<real> box{ 0, 1, -1, 2, 0, 5 };
     RandomCoordinates<real, CodeType> c(n, box);
 
     std::vector<CodeType> testCodes(n);
-    sphexa::computeMortonCodes(begin(c.x()), end(c.x()), begin(c.y()), begin(c.z()),
+    computeMortonCodes(begin(c.x()), end(c.x()), begin(c.y()), begin(c.z()),
                                begin(testCodes), box);
 
     EXPECT_EQ(testCodes, c.mortonCodes());
@@ -59,10 +59,10 @@ TEST(CoordinateSamples, randomContainerIsSorted)
 template<class I>
 std::vector<I> makeRegularGrid(unsigned gridSize)
 {
-    assert(sphexa::isPowerOf8(gridSize));
+    assert(isPowerOf8(gridSize));
     std::vector<I> codes;
 
-    unsigned level = sphexa::log8ceil(gridSize);
+    unsigned level = log8ceil(gridSize);
 
     // a regular n x n x n grid
     unsigned n = 1u << level;

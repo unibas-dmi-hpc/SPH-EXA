@@ -38,7 +38,7 @@
 #include "cstone/octree.hpp"
 #include "coord_samples/random.hpp"
 
-using namespace sphexa;
+using namespace cstone;
 
 TEST(DomainDecomposition, singleRangeSfcSplit)
 {
@@ -48,9 +48,9 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         std::vector<std::size_t> counts{5, 5, 5, 5, 5, 6};
         std::vector<CodeType>    tree{0, 1, 2, 3, 4, 5, 6};
 
-        auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
+        auto splits = singleRangeSfcSplit(tree, counts, nSplits);
 
-        sphexa::SpaceCurveAssignment<CodeType> ref(nSplits);
+        SpaceCurveAssignment<CodeType> ref(nSplits);
         ref.addRange(Rank(0),0,3,15);
         ref.addRange(Rank(1),3,6,16);
         EXPECT_EQ(ref, splits);
@@ -60,9 +60,9 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         std::vector<std::size_t> counts{5, 5, 5, 15, 1, 0};
         std::vector<CodeType>    tree{0, 1, 2, 3, 4, 5, 6};
 
-        auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
+        auto splits = singleRangeSfcSplit(tree, counts, nSplits);
 
-        sphexa::SpaceCurveAssignment<CodeType> ref(nSplits);
+        SpaceCurveAssignment<CodeType> ref(nSplits);
         ref.addRange(Rank(0),0,3,15);
         ref.addRange(Rank(1),3,6,16);
         EXPECT_EQ(ref, splits);
@@ -72,9 +72,9 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         std::vector<std::size_t> counts{15, 0, 1, 5, 5, 5};
         std::vector<CodeType>    tree{0, 1, 2, 3, 4, 5, 6};
 
-        auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
+        auto splits = singleRangeSfcSplit(tree, counts, nSplits);
 
-        sphexa::SpaceCurveAssignment<CodeType> ref(nSplits);
+        SpaceCurveAssignment<CodeType> ref(nSplits);
         ref.addRange(Rank(0),0,3,16);
         ref.addRange(Rank(1),3,6,15);
         EXPECT_EQ(ref, splits);
@@ -85,9 +85,9 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         // should be grouped |4|7|3|7|4|7|3|
         std::vector<CodeType> tree{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
-        auto splits = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
+        auto splits = singleRangeSfcSplit(tree, counts, nSplits);
 
-        sphexa::SpaceCurveAssignment<CodeType> ref(nSplits);
+        SpaceCurveAssignment<CodeType> ref(nSplits);
         ref.addRange(Rank(0),0,1,4);
         ref.addRange(Rank(1),1,3,7);
         ref.addRange(Rank(2),3,4,3);
@@ -162,18 +162,18 @@ void createSendList()
     std::iota(begin(codes), end(codes), 10);
 
     int nRanks = 2;
-    sphexa::SpaceCurveAssignment<I> assignment(nRanks);
+    SpaceCurveAssignment<I> assignment(nRanks);
     assignment.addRange(Rank(0),9, 11, 1);   // range lower than lowest code
     assignment.addRange(Rank(0),13, 15, 2);
     assignment.addRange(Rank(1),17, 1000, 2); // range bigger than highest code
 
     // note: codes input needs to be sorted
-    auto sendList = sphexa::createSendList(assignment, codes.data(), codes.data() + nParticles);
+    auto sendList = createSendList(assignment, codes.data(), codes.data() + nParticles);
 
     EXPECT_EQ(sendList[0].totalCount(), 3);
     EXPECT_EQ(sendList[1].totalCount(), 3);
 
-    sphexa::SendList refSendList(nRanks);
+    SendList refSendList(nRanks);
     refSendList[0].addRange(0, 1, 1);
     refSendList[0].addRange(3, 5, 2);
     refSendList[1].addRange(7, 10, 3);
@@ -208,12 +208,12 @@ void assignSendRandomData()
     int bucketSize = 64;
     RandomGaussianCoordinates<double, I> coords(nParticles, {-1,1});
 
-    auto [tree, counts] = sphexa::computeOctree(coords.mortonCodes().data(),
+    auto [tree, counts] = computeOctree(coords.mortonCodes().data(),
                                                 coords.mortonCodes().data() + nParticles,
                                                 bucketSize);
 
     int nSplits = 4;
-    auto assignment = sphexa::singleRangeSfcSplit(tree, counts, nSplits);
+    auto assignment = singleRangeSfcSplit(tree, counts, nSplits);
 
     /// all splits except the last one should at least be assigned nParticles/nSplits
     for (int rank = 0; rank < nSplits; ++rank)
@@ -225,7 +225,7 @@ void assignSendRandomData()
         EXPECT_LE(rankCount, nParticles/nSplits + bucketSize);
     }
 
-    auto sendList = sphexa::createSendList(assignment, coords.mortonCodes().data(),
+    auto sendList = createSendList(assignment, coords.mortonCodes().data(),
                                            coords.mortonCodes().data() + nParticles);
 
     int particleRecount = 0;
@@ -261,7 +261,7 @@ void createSendBuffer()
     std::vector<double> x(bufferSize);
     std::iota(begin(x), end(x), 0);
 
-    sphexa::SendManifest manifest;
+    SendManifest manifest;
     manifest.addRange(0, 8, 8);
     manifest.addRange(40, 42, 2);
     manifest.addRange(50, 50, 0);
@@ -273,7 +273,7 @@ void createSendBuffer()
     std::swap(x[0], x[1]);
     std::swap(ordering[0], ordering[1]);
 
-    auto buffer = sphexa::createSendBuffer(manifest, x.data(), ordering.data());
+    auto buffer = createSendBuffer(manifest, x.data(), ordering.data());
 
     // note sorted reference
     std::vector<double> ref{0,1,2,3,4,5,6,7,40,41};

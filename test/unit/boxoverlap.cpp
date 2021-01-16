@@ -34,7 +34,7 @@
 
 #include "cstone/boxoverlap.hpp"
 
-using namespace sphexa;
+using namespace cstone;
 
 /*! \brief add (binary) zeros behind a prefix
  *
@@ -50,7 +50,7 @@ using namespace sphexa;
 template <class I>
 constexpr I pad(I prefix, int length)
 {
-    return prefix << (3*sphexa::maxTreeLevel<I>{} - length);
+    return prefix << (3*maxTreeLevel<I>{} - length);
 }
 
 TEST(BoxOverlap, padUtility)

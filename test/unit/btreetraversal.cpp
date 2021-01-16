@@ -37,7 +37,7 @@
 #include "cstone/btreetraversal.hpp"
 #include "cstone/octree.hpp"
 
-using namespace sphexa;
+using namespace cstone;
 
 //! \brief test add(), operator[] and begin()/end() of the CollisionList class
 TEST(BinaryTreeTraversal, collisionList)

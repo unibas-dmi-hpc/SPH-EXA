@@ -52,7 +52,7 @@ void all2allNeighbors(const T* x, const T* y, const T* z, int n, T radius,
         for (int j = 0; j < n; ++j)
         {
             if (j == i) { continue; }
-            if (ngcount < ngmax && sphexa::distancesq(xi, yi, zi, x[j], y[j], z[j]) < r2)
+            if (ngcount < ngmax && distancesq(xi, yi, zi, x[j], y[j], z[j]) < r2)
             {
                 neighbors[i * ngmax + ngcount++] = j;
             }
@@ -71,8 +71,8 @@ void sortNeighbors(int *neighbors, int *neighborsCount, int n, int ngmax)
 
 TEST(FindNeighbors, treeLevel)
 {
-    EXPECT_EQ(3, sphexa::radiusToTreeLevel(0.124, 1.));
-    EXPECT_EQ(2, sphexa::radiusToTreeLevel(0.126, 1.));
+    EXPECT_EQ(3, radiusToTreeLevel(0.124, 1.));
+    EXPECT_EQ(2, radiusToTreeLevel(0.126, 1.));
 }
 
 
@@ -80,7 +80,7 @@ template<class T, class I>
 class NeighborCheck
 {
 public:
-    NeighborCheck(T r, int np, sphexa::Box<T> b) : radius(r), n(np), box(b) {}
+    NeighborCheck(T r, int np, Box<T> b) : radius(r), n(np), box(b) {}
 
     void check()
     {
@@ -101,7 +101,7 @@ public:
         std::vector<int> neighborsProbe(n * ngmax), neighborsCountProbe(n);
         for (int i = 0; i < n; ++i)
         {
-            sphexa::findNeighbors(i, coords.x().data(), coords.y().data(), coords.z().data(),
+            findNeighbors(i, coords.x().data(), coords.y().data(), coords.z().data(),
                                   radius, minRange, coords.mortonCodes().data(),
                                   neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
         }
@@ -114,10 +114,10 @@ public:
 private:
     T   radius;
     int n;
-    sphexa::Box<T> box;
+    Box<T> box;
 };
 
-class FindNeighborsRandomUniform : public testing::TestWithParam<std::tuple<double, int, sphexa::Box<double>>>
+class FindNeighborsRandomUniform : public testing::TestWithParam<std::tuple<double, int, Box<double>>>
 {
 public:
     template<class I>
@@ -125,7 +125,7 @@ public:
     {
         double radius     = std::get<0>(GetParam());
         int    nParticles = std::get<1>(GetParam());
-        sphexa::Box<double> box = std::get<2>(GetParam());
+        Box<double> box = std::get<2>(GetParam());
         {
             NeighborCheck<double, I> chk(radius, nParticles, box);
             chk.check();
@@ -145,7 +145,7 @@ TEST_P(FindNeighborsRandomUniform, all2allComparison64bit)
 
 std::array<double, 2> radii{0.124, 0.0624};
 std::array<int, 1>    nParticles{5000};
-std::array<sphexa::Box<double>, 2> boxes{{ {0.,1.,0.,1.,0.,1.},
+std::array<Box<double>, 2> boxes{{ {0.,1.,0.,1.,0.,1.},
                                            {-1.2, 0.23, -0.213, 3.213, -5.1, 1.23} }};
 
 INSTANTIATE_TEST_SUITE_P(RandomUniformNeighbors,

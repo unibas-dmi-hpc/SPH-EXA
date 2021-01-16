@@ -34,7 +34,7 @@
 #include "cstone/haloexchange.hpp"
 
 
-using namespace sphexa;
+using namespace cstone;
 
 
 template<class T>

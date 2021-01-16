@@ -39,7 +39,7 @@
 
 #include "zorder.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 template<class T>
@@ -131,4 +131,4 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, T radius, T boxMi
     neighborsCount[id] = ngcount;
 }
 
-} // namespace sphexa
+} // namespace cstone

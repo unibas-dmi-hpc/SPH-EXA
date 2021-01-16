@@ -52,7 +52,7 @@
 
 #include "cstone/domaindecomp.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 /*! \brief  Finds the ranges of node indices of the tree that are assigned to a given rank
@@ -193,4 +193,4 @@ static SendList createHaloExchangeList(const std::vector<std::vector<int>>& outg
 }
 
 
-} // namespace sphexa
+} // namespace cstone

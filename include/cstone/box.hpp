@@ -32,7 +32,7 @@
 #pragma once
 
 
-namespace sphexa
+namespace cstone
 {
 
 /*! \brief normalize a spatial length w.r.t. to a min/max range
@@ -126,4 +126,4 @@ private:
     T data[2];
 };
 
-} // namespace sphexa
+} // namespace cstone

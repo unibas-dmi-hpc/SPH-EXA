@@ -40,7 +40,7 @@
 
 #include "mortoncode.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 /*! \brief calculate the sortKey that sorts the input sequence
@@ -153,4 +153,4 @@ void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array, int 
     std::swap(tmp, array);
 }
 
-} // namespace sphexa
+} // namespace cstone

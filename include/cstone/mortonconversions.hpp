@@ -38,7 +38,7 @@
 
 #include "cstone/mortoncode.hpp"
 
-namespace sphexa
+namespace cstone
 {
 
 /*! \brief Decode a morton code into x,y,z and convert coordinates
@@ -119,4 +119,4 @@ inline std::array<unsigned char, maxTreeLevel<I>{}> indicesFromCode(I code)
     return ret;
 }
 
-} // namespace sphexa
+} // namespace cstone
