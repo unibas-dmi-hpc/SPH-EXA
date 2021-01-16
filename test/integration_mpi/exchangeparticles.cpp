@@ -33,7 +33,7 @@
 
 #include <gtest/gtest.h>
 
-#include "sfc/domaindecomp_mpi.hpp"
+#include "cstone/domaindecomp_mpi.hpp"
 
 using namespace sphexa;
 

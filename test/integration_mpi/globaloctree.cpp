@@ -34,8 +34,8 @@
 
 #include <gtest/gtest.h>
 
-#include "sfc/mortonconversions.hpp"
-#include "sfc/octree_mpi.hpp"
+#include "cstone/mortonconversions.hpp"
+#include "cstone/octree_mpi.hpp"
 
 using namespace sphexa;
 

@@ -35,8 +35,8 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "sfc/mortoncode.hpp"
-#include "sfc/mortonconversions.hpp"
+#include "cstone/mortoncode.hpp"
+#include "cstone/mortonconversions.hpp"
 
 using namespace sphexa;
 

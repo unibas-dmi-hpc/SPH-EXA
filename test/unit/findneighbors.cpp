@@ -34,7 +34,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sfc/findneighbors.hpp"
+#include "cstone/findneighbors.hpp"
 
 #include "coord_samples/random.hpp"
 

@@ -32,7 +32,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sfc/layout.hpp"
+#include "cstone/layout.hpp"
 
 using namespace sphexa;
 

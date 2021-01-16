@@ -62,8 +62,8 @@
 
 #pragma once
 
-#include "sfc/mortoncode.hpp"
-#include "sfc/boxoverlap.hpp"
+#include "cstone/mortoncode.hpp"
+#include "cstone/boxoverlap.hpp"
 
 namespace sphexa {
 

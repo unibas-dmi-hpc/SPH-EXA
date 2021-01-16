@@ -31,9 +31,9 @@
 
 #include "gtest/gtest.h"
 
-#include "sfc/findneighbors.hpp"
-#include "sfc/halodiscovery.hpp"
-#include "sfc/layout.hpp"
+#include "cstone/findneighbors.hpp"
+#include "cstone/halodiscovery.hpp"
+#include "cstone/layout.hpp"
 
 #include "coord_samples/random.hpp"
 

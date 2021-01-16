@@ -43,8 +43,8 @@
 #include "gtest/gtest.h"
 
 #include "coord_samples/random.hpp"
-#include "sfc/domain.hpp"
-#include "sfc/findneighbors.hpp"
+#include "cstone/domain.hpp"
+#include "cstone/findneighbors.hpp"
 
 using namespace sphexa;
 

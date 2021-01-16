@@ -29,10 +29,7 @@
  * \author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-
 #pragma once
-
-#include <iostream>
 
 namespace detail
 {

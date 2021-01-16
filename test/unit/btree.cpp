@@ -31,8 +31,8 @@
 
 #include "gtest/gtest.h"
 
-#include "sfc/btree.hpp"
-#include "sfc/octree.hpp"
+#include "cstone/btree.hpp"
+#include "cstone/octree.hpp"
 
 /*! \brief \file tests for binary tree generation
  */

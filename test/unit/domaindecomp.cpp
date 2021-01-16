@@ -34,8 +34,8 @@
 
 #include "gtest/gtest.h"
 
-#include "sfc/domaindecomp.hpp"
-#include "sfc/octree.hpp"
+#include "cstone/domaindecomp.hpp"
+#include "cstone/octree.hpp"
 #include "coord_samples/random.hpp"
 
 using namespace sphexa;

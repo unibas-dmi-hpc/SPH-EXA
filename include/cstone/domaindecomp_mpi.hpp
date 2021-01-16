@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "sfc/domaindecomp.hpp"
+#include "cstone/domaindecomp.hpp"
 
 #include "mpi_wrappers.hpp"
 

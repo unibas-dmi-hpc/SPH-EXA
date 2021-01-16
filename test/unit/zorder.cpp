@@ -34,7 +34,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sfc/zorder.hpp"
+#include "cstone/zorder.hpp"
 
 
 TEST(SFC, sortInvert)

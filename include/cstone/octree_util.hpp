@@ -35,8 +35,8 @@
 
 #pragma once
 
-#include "sfc/mortonconversions.hpp"
-#include "sfc/octree.hpp"
+#include "cstone/mortonconversions.hpp"
+#include "cstone/octree.hpp"
 
 namespace sphexa
 {

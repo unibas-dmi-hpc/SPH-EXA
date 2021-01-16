@@ -31,12 +31,12 @@
 
 #pragma once
 
-#include "sfc/box_mpi.hpp"
-#include "sfc/domaindecomp_mpi.hpp"
-#include "sfc/halodiscovery.hpp"
-#include "sfc/haloexchange.hpp"
-#include "sfc/layout.hpp"
-#include "sfc/octree_mpi.hpp"
+#include "cstone/box_mpi.hpp"
+#include "cstone/domaindecomp_mpi.hpp"
+#include "cstone/halodiscovery.hpp"
+#include "cstone/haloexchange.hpp"
+#include "cstone/layout.hpp"
+#include "cstone/octree_mpi.hpp"
 
 namespace sphexa
 {

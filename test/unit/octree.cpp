@@ -31,9 +31,9 @@
 
 #include "gtest/gtest.h"
 
-#include "sfc/mortoncode.hpp"
-#include "sfc/octree.hpp"
-#include "sfc/octree_util.hpp"
+#include "cstone/mortoncode.hpp"
+#include "cstone/octree.hpp"
+#include "cstone/octree_util.hpp"
 
 #include "coord_samples/random.hpp"
 

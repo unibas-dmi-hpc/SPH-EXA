@@ -34,8 +34,8 @@
 
 #include "gtest/gtest.h"
 
-#include "sfc/btreetraversal.hpp"
-#include "sfc/octree.hpp"
+#include "cstone/btreetraversal.hpp"
+#include "cstone/octree.hpp"
 
 using namespace sphexa;
 
