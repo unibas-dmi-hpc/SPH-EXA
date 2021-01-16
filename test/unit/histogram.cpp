@@ -51,8 +51,6 @@
 #include "gtest/gtest.h"
 
 
- */
-
 #include "sfc/mortoncode.hpp"
 
 namespace sphexa
