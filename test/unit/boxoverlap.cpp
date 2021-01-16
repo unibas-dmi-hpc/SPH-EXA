@@ -32,7 +32,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sfc/boxoverlap.hpp"
+#include "cstone/boxoverlap.hpp"
 
 using namespace sphexa;
 

@@ -31,8 +31,8 @@
 
 #pragma once
 
-#include "sfc/box.hpp"
-#include "sfc/mortoncode.hpp"
+#include "cstone/box.hpp"
+#include "cstone/mortoncode.hpp"
 
 
 namespace sphexa

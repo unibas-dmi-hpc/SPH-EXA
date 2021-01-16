@@ -31,8 +31,8 @@
 
 #include "gtest/gtest.h"
 
-#include "sfc/collisions_cpu.hpp"
-#include "sfc/octree_util.hpp"
+#include "cstone/collisions_cpu.hpp"
+#include "cstone/octree_util.hpp"
 
 #include "collision_reference/collisions_a2a.hpp"
 

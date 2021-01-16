@@ -36,7 +36,7 @@
 
 #include <array>
 
-#include "sfc/mortoncode.hpp"
+#include "cstone/mortoncode.hpp"
 
 namespace sphexa
 {

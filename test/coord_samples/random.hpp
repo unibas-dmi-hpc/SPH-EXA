@@ -36,8 +36,8 @@
 #include <random>
 #include <vector>
 
-#include "sfc/mortoncode.hpp"
-#include "sfc/zorder.hpp"
+#include "cstone/mortoncode.hpp"
+#include "cstone/zorder.hpp"
 
 template<class T, class I>
 class RandomCoordinates

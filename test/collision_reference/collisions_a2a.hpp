@@ -31,8 +31,8 @@
 
 #pragma once
 
-#include "sfc/btreetraversal.hpp"
-#include "sfc/octree_util.hpp"
+#include "cstone/btreetraversal.hpp"
+#include "cstone/octree_util.hpp"
 
 namespace sphexa
 {

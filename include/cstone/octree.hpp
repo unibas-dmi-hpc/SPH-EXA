@@ -56,7 +56,7 @@
 #include <numeric>
 #include <vector>
 
-#include "sfc/mortoncode.hpp"
+#include "cstone/mortoncode.hpp"
 
 namespace sphexa
 {

@@ -33,11 +33,9 @@
 #pragma once
 
 #include <algorithm>
-#include <cassert>
+#include <array>
 #include <cmath>
 #include <numeric>
-#include <tuple>
-#include <vector>
 
 #include "zorder.hpp"
 

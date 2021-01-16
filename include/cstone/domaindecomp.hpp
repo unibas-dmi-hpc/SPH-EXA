@@ -37,9 +37,9 @@
 #include <algorithm>
 #include <vector>
 
-#include "sfc/octree.hpp"
-#include "sfc/util.hpp"
-#include "sfc/zorder.hpp"
+#include "cstone/octree.hpp"
+#include "cstone/util.hpp"
+#include "cstone/zorder.hpp"
 
 
 namespace sphexa

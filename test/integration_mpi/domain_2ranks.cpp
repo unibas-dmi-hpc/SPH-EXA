@@ -31,7 +31,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sfc/domain.hpp"
+#include "cstone/domain.hpp"
 
 using namespace sphexa;
 

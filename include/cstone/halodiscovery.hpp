@@ -34,8 +34,8 @@
 #include <algorithm>
 #include <vector>
 
-#include "sfc/btreetraversal.hpp"
-#include "sfc/domaindecomp.hpp"
+#include "cstone/btreetraversal.hpp"
+#include "cstone/domaindecomp.hpp"
 
 namespace sphexa
 {

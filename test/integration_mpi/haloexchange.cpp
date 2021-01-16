@@ -31,7 +31,7 @@
 
 #include <gtest/gtest.h>
 
-#include "sfc/haloexchange.hpp"
+#include "cstone/haloexchange.hpp"
 
 
 using namespace sphexa;

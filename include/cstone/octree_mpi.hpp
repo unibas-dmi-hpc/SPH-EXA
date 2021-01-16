@@ -34,8 +34,8 @@
 
 #include <mpi.h>
 
-#include "sfc/mpi_wrappers.hpp"
-#include "sfc/octree.hpp"
+#include "cstone/mpi_wrappers.hpp"
+#include "cstone/octree.hpp"
 
 namespace sphexa
 {

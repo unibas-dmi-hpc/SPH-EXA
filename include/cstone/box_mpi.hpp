@@ -35,8 +35,8 @@
 
 #include <mpi.h>
 
-#include "sfc/box.hpp"
-#include "sfc/mpi_wrappers.hpp"
+#include "cstone/box.hpp"
+#include "cstone/mpi_wrappers.hpp"
 
 
 namespace sphexa

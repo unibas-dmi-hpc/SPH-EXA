@@ -32,7 +32,7 @@
 #include <vector>
 #include "gtest/gtest.h"
 
-#include "sfc/clz.hpp"
+#include "cstone/clz.hpp"
 
 TEST(CLZ, C_clz_32)
 {

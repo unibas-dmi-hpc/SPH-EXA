@@ -34,7 +34,7 @@
 #include <numeric>
 #include <vector>
 
-#include "sfc/box_mpi.hpp"
+#include "cstone/box_mpi.hpp"
 
 using namespace sphexa;
 

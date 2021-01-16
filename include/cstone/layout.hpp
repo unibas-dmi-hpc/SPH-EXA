@@ -50,7 +50,7 @@
 
 #include <vector>
 
-#include "sfc/domaindecomp.hpp"
+#include "cstone/domaindecomp.hpp"
 
 namespace sphexa
 {

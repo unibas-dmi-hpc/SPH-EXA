@@ -33,9 +33,8 @@
 
 #include <vector>
 
-#include "sfc/mpi_wrappers.hpp"
-
-#include "sfc/layout.hpp"
+#include "cstone/mpi_wrappers.hpp"
+#include "cstone/domaindecomp.hpp"
 
 namespace sphexa
 {
