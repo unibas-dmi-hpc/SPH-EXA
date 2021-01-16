@@ -26,9 +26,10 @@ Building client  applications using the libraries does not require any dependenc
 ```
 cornerstone-octree
 |   README.md
-└───include/cstone/   - folder containing all domain and octree functionality
+└───include/cstone/       - folder containing all domain and octree functionality
 └───test/
-    └───unit/         - contains all unit tests
+    └───integration_mpi/  - MPI-enabled integration tests between different units
+    └───unit/             - (non-MPI) unit tests
 ```
 #### Compile
 
