@@ -113,9 +113,13 @@ template<class I, class ValueType>
 void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array)
 {
     std::vector<ValueType> tmp(array.size());
-    for (std::size_t i = 0; i < array.size(); ++i)
+    for (std::size_t i = 0; i < ordering.size(); ++i)
     {
         tmp[i] = array[ordering[i]];
+    }
+    for (std::size_t i = ordering.size(); i < array.size(); ++i)
+    {
+        tmp[i] = array[i];
     }
     std::swap(tmp, array);
 }
@@ -124,8 +128,8 @@ void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array)
  *
  * \tparam I          integer type
  * \tparam ValueType  float or double
- * \param ordering    an ordering
- * \param array       an array
+ * \param ordering    an ordering, all indices from 0 to ordering.size() are accessed
+ * \param array       an array, indices offset to offset + ordering.size() are accessed
  * \param offset      access array with an offset
  */
 template<class I, class ValueType>

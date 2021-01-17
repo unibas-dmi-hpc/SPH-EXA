@@ -47,15 +47,16 @@ class Domain
 public:
     explicit Domain(int rank, int nRanks, int bucketSize, bool pbcX=false, bool pbcY = false, bool pbcZ = false)
         : myRank_(rank), nRanks_(nRanks), bucketSize_(bucketSize),
-          particleStart_(0), particleEnd_(-1), localNParticles_(-1), pbcX_(pbcX), pbcY_(pbcY), pbcZ_(pbcZ)
+          particleStart_(0), particleEnd_(-1), localNParticles_(-1), box_(0,1), pbcX_(pbcX), pbcY_(pbcY), pbcZ_(pbcZ)
     {}
 
     /*! \brief Perform the full domain update sequence for coordinate arrays x,y,z and h
      *
-     * @param x  floating point coordinates
+     * @param x      floating point coordinates
      * @param y
      * @param z
-     * @param h  smoothing lengths
+     * @param h      smoothing lengths
+     * @param codes  Morton codes
      *
      * This includes:
      *      1. compute global coordinate bounding box
@@ -69,7 +70,7 @@ public:
      *      8. morton sort exchanged assigned particles
      *      9. exchange halo particles
      */
-    void sync(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, std::vector<T>& h)
+    void sync(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, std::vector<T>& h, std::vector<I>& codes)
     {
         if (x.size() != y.size() || x.size() != z.size() || x.size() != h.size())
             throw std::runtime_error("x,y,z,h sizes do not match\n");
@@ -81,34 +82,36 @@ public:
             particleEnd_     = x.size();
         }
 
-        Box<T> box = makeGlobalBox(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
-                                   cbegin(y) + particleStart_,
-                                   cbegin(z) + particleStart_, pbcX_, pbcY_, pbcZ_);
+        box_ = makeGlobalBox(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
+                             cbegin(y) + particleStart_,
+                             cbegin(z) + particleStart_, pbcX_, pbcY_, pbcZ_);
 
         // number of locally assigned particles to consider for global tree building
         int nParticles = particleEnd_ - particleStart_;
 
+        codes.resize(nParticles);
+
         // compute morton codes only for particles participating in tree build
-        std::vector<I> mortonCodes(nParticles);
+        //std::vector<I> mortonCodes(nParticles);
         computeMortonCodes(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
                            cbegin(y) + particleStart_,
                            cbegin(z) + particleStart_,
-                           begin(mortonCodes), box);
+                           begin(codes), box_);
 
         // compute the ordering that will sort the mortonCodes in ascending order
         std::vector<int> mortonOrder(nParticles);
-        sort_invert(cbegin(mortonCodes), cend(mortonCodes), begin(mortonOrder));
+        sort_invert(cbegin(codes), cbegin(codes) + nParticles, begin(mortonOrder));
 
         // reorder the codes according to the ordering
         // has the same net effect as std::sort(begin(mortonCodes), end(mortonCodes)),
         // but with the difference that we explicitly know the ordering, such
         // that we can later apply it to the x,y,z,h arrays or to access them in the Morton order
-        reorder(mortonOrder, mortonCodes);
+        reorder(mortonOrder, codes);
 
         // compute the global octree in cornerstone format (leaves only)
         // the resulting tree and node counts will be identical on all ranks
         std::vector<std::size_t> nodeCounts;
-        std::tie(tree_, nodeCounts) = computeOctreeGlobal(mortonCodes.data(), mortonCodes.data() + nParticles, bucketSize_);
+        std::tie(tree_, nodeCounts) = computeOctreeGlobal(codes.data(), codes.data() + nParticles, bucketSize_);
 
         // assign one single range of Morton codes each rank
         SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree_, nodeCounts, nRanks_);
@@ -116,13 +119,13 @@ public:
 
         // compute the maximum smoothing length (=halo radii) in each global node
         std::vector<T> haloRadii(nNodes(tree_));
-        computeNodeMaxGlobal(tree_.data(), nNodes(tree_), mortonCodes.data(), mortonCodes.data() + nParticles,
+        computeNodeMaxGlobal(tree_.data(), nNodes(tree_), codes.data(), codes.data() + nParticles,
                              mortonOrder.data(), h.data() + particleStart_, haloRadii.data());
 
         // find outgoing and incoming halo nodes of the tree
         // uses 3D collision detection
         std::vector<pair<int>> haloPairs;
-        findHalos(tree_, haloRadii, box, assignment, myRank_, haloPairs);
+        findHalos(tree_, haloRadii, box_, assignment, myRank_, haloPairs);
 
         // group outgoing and incoming halo node indices by destination/source rank
         std::vector<std::vector<int>> incomingHaloNodes;
@@ -151,9 +154,9 @@ public:
         // index ranges in domainExchangeSends are valid relative to the sorted code array mortonCodes
         // note that there is no offset applied to mortonCodes, because it was constructed
         // only with locally assigned particles
-        SendList domainExchangeSends = createSendList(assignment, mortonCodes.data(), mortonCodes.data() + nParticles);
+        SendList domainExchangeSends = createSendList(assignment, codes.data(), codes.data() + nParticles);
 
-        // assigned particles + halos
+        // assigned particles + halos, resizes x,y,z,h
         exchangeParticles<T>(domainExchangeSends, Rank(myRank_), localNParticles_, newNParticlesAssigned,
                              particleStart_, newParticleStart, mortonOrder.data(), x,y,z,h);
 
@@ -161,14 +164,14 @@ public:
         std::swap(particleStart_, newParticleStart);
         std::swap(particleEnd_, newParticleEnd);
 
-        mortonCodes.resize(newNParticlesAssigned);
+        codes.resize(localNParticles_);
         computeMortonCodes(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
                            cbegin(y) + particleStart_,
                            cbegin(z) + particleStart_,
-                           begin(mortonCodes), box);
+                           begin(codes) + particleStart_, box_);
 
         mortonOrder.resize(newNParticlesAssigned);
-        sort_invert(cbegin(mortonCodes), cend(mortonCodes), begin(mortonOrder));
+        sort_invert(cbegin(codes) + particleStart_, cbegin(codes) + particleEnd_, begin(mortonOrder));
 
         // We have to reorder the locally assigned particles in the coordinate arrays
         // which are located in the index range [particleStart_, particleEnd_].
@@ -178,11 +181,23 @@ public:
         reorder(mortonOrder, y, particleStart_);
         reorder(mortonOrder, z, particleStart_);
         reorder(mortonOrder, h, particleStart_);
+        reorder(mortonOrder, codes, particleStart_);
 
         incomingHaloIndices_ = createHaloExchangeList(incomingHaloNodes, presentNodes, nodeOffsets);
         outgoingHaloIndices_ = createHaloExchangeList(outgoingHaloNodes, presentNodes, nodeOffsets);
 
         haloexchange<T>(incomingHaloIndices_, outgoingHaloIndices_, x.data(), y.data(), z.data(), h.data());
+
+        // compute Morton codes for halo paritcles just received, from 0 to particleStart_
+        // and from particleEnd_ to localNParticles_
+        computeMortonCodes(cbegin(x), cbegin(x) + particleStart_,
+                           cbegin(y),
+                           cbegin(z),
+                           begin(codes), box_);
+        computeMortonCodes(cbegin(x) + particleEnd_, cend(x),
+                           cbegin(y) + particleEnd_,
+                           cbegin(z) + particleEnd_,
+                           begin(codes) + particleEnd_, box_);
     }
 
     /*! \brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
@@ -223,6 +238,9 @@ private:
     int particleEnd_;
     //! \brief number of locally present particles, = number of halos + assigned particles
     int localNParticles_;
+
+    //! \brief coordinate bounding box, updated at each sync call
+    Box<T> box_;
 
     SendList incomingHaloIndices_;
     SendList outgoingHaloIndices_;

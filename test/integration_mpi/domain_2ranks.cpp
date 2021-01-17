@@ -47,7 +47,8 @@ void noHalos(int rank, int nRanks)
     // radii around 0.5 and 0.6 don't overlap
     std::vector<T> h{0.05, 0.05};
 
-    domain.sync(x,y,z,h);
+    std::vector<I> codes;
+    domain.sync(x,y,z,h, codes);
 
     EXPECT_EQ(domain.startIndex(), 0);
     EXPECT_EQ(domain.endIndex(), 2);
@@ -92,7 +93,8 @@ void withHalos(int rank, int nRanks)
     std::vector<T> z{0.5, 0.6};
     std::vector<T> h{0.2, 0.22}; // in range
 
-    domain.sync(x,y,z,h);
+    std::vector<I> codes;
+    domain.sync(x,y,z,h, codes);
 
     if (rank == 0)
     {
@@ -158,7 +160,8 @@ void moreHalos(int rank, int nRanks)
         h.push_back(hGlobal[i]);
     }
 
-    domain.sync(x,y,z,h);
+    std::vector<I> codes;
+    domain.sync(x,y,z,h, codes);
 
     if (rank == 0)
     {
@@ -235,7 +238,8 @@ void postSyncHalos(int rank, int nRanks)
         h.push_back(hGlobal[i]);
     }
 
-    domain.sync(x,y,z,h);
+    std::vector<I> codes;
+    domain.sync(x,y,z,h, codes);
 
     std::vector<T> density, refDensity;
     if (rank == 0) {
@@ -299,7 +303,8 @@ void multiStepSync(int rank, int nRanks)
         h.push_back(hGlobal[i]);
     }
 
-    domain.sync(x,y,z,h);
+    std::vector<I> codes;
+    domain.sync(x,y,z,h, codes);
 
     // now a particle on rank 0 gets moved into an area of the global tree that's on rank 1
     if (rank == 0)
@@ -309,7 +314,7 @@ void multiStepSync(int rank, int nRanks)
         z[1] = 0.813;
     }
 
-    domain.sync(x,y,z,h);
+    domain.sync(x,y,z,h, codes);
 
     if (rank == 0)
     {
