@@ -122,7 +122,8 @@ void randomGaussianDomain(int rank, int nRanks)
 
     Domain<I, T> domain(rank, nRanks, bucketSize);
 
-    domain.sync(x, y, z, h);
+    std::vector<I> codes;
+    domain.sync(x, y, z, h, codes);
 
     int localCount = domain.endIndex() - domain.startIndex();
     int localCountSum = localCount;
@@ -141,7 +142,8 @@ void randomGaussianDomain(int rank, int nRanks)
     std::vector<I> mortonCodes(x.size());
     computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(mortonCodes), actualBox);
 
-    // check that particles are Morton order sorted
+    // check that particles are Morton order sorted and the codes are in sync with the x,y,z arrays
+    EXPECT_EQ(mortonCodes, codes);
     for (int i = 0; i < mortonCodes.size()-1; ++i)
     {
         EXPECT_TRUE(mortonCodes[i] <= mortonCodes[i+1]);
