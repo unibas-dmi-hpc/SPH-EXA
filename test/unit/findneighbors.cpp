@@ -89,8 +89,7 @@ public:
 
         int ngmax = 100;
 
-        real minRange = std::min(std::min(box.xmax()-box.xmin(), box.ymax()-box.ymin()),
-                                 box.zmax()-box.zmin());
+        real minRange = box.minExtent();
         RandomCoordinates<real, CodeType> coords(n, box);
 
         std::vector<int> neighborsRef(n * ngmax), neighborsCountRef(n);

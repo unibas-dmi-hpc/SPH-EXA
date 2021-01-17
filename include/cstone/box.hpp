@@ -78,6 +78,12 @@ public:
     [[nodiscard]] bool pbcY() const { return pbc[1]; }
     [[nodiscard]] bool pbcZ() const { return pbc[2]; }
 
+    //! \brief return the shortest coordinate range in any dimension
+    T minExtent() const
+    {
+        return std::min({xmax() - xmin(), ymax() - ymin(), zmax() - zmin()});
+    }
+
 private:
 
     friend bool operator==(const Box<T>& a, const Box<T>& b)
