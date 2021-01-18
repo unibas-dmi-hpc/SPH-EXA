@@ -9,3 +9,4 @@ find_package(MPI)
 include(CTest)
 
 add_subdirectory(domain)
+add_subdirectory(src)
