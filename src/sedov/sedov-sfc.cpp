@@ -61,7 +61,7 @@ int main(int argc, char **argv)
     if(d.rank == 0) std::cout << "Domain created." << std::endl;
 
     std::vector<CodeType> codes;
-    domain.sync(d.x, d.y, d.z, d.y, codes);
+    domain.sync(d.x, d.y, d.z, d.h, codes);
 
     if(d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
