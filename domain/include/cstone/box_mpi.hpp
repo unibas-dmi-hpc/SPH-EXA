@@ -36,8 +36,6 @@
 #include <mpi.h>
 
 #include <algorithm>
-#include <cassert>
-#include <cmath>
 
 #include "cstone/box.hpp"
 #include "cstone/mpi_wrappers.hpp"

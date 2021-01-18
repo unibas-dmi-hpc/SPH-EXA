@@ -1,4 +1,5 @@
 
+<<<<<<< HEAD
 add_executable(sedov sedov.cpp)
 target_include_directories(sedov PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
 target_include_directories(sedov PRIVATE ${PROJECT_SOURCE_DIR}/include)
@@ -16,3 +17,10 @@ set_target_properties(sedov-cuda PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 target_link_libraries(sedov-cuda ${MPI_CXX_LIBRARIES})
 target_link_libraries(sedov-cuda OpenMP::OpenMP_CXX)
 target_link_libraries(sedov-cuda CUDA::cudart)
+=======
+add_executable(sedov-sfc sedov-sfc.cpp)
+target_include_directories(sedov-sfc PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
+target_include_directories(sedov-sfc PRIVATE ${PROJECT_SOURCE_DIR}/include)
+target_include_directories(sedov-sfc PRIVATE ${MPI_CXX_INCLUDE_PATH})
+target_link_libraries(sedov-sfc ${MPI_CXX_LIBRARIES})
+>>>>>>> added missing includes
