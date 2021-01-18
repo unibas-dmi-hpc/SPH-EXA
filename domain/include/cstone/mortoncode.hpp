@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <cassert>
 #include <cmath> // for std::ceil
 
 #include "box.hpp"
