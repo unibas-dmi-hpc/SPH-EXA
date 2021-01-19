@@ -49,12 +49,13 @@ void computeDensity(std::vector<Task> &taskList, Dataset &d)
                          [](const Task &lhs, const Task &rhs) { return lhs.clist.size() < rhs.clist.size(); })
             ->clist.size();
 
+    d.devPtrs.resize_streams(largestChunkSize, ngmax);
     const size_t size_largerNeighborsChunk_int = largestChunkSize * ngmax * sizeof(int);
     const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
     const size_t size_bbox = sizeof(BBox<T>);
 
     // number of CUDA streams to use
-    const int NST = 2;
+    const int NST = DeviceParticlesData<T, Dataset>::NST;
 
     // initialize streams
     cudaStream_t streams[NST];
@@ -98,11 +99,18 @@ void computeDensity(std::vector<Task> &taskList, Dataset &d)
         auto &t = taskList[i];
 
         const int sIdx = i % NST;
+        /*
         cudaStream_t stream = streams[sIdx];
 
         int *d_clist_use = d_clist[sIdx];
         int *d_neighbors_use = d_neighbors[sIdx];
         int *d_neighborsCount_use = d_neighborsCount[sIdx];
+        */
+        cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
+
+        int *d_clist_use = d.devPtrs.d_stream[sIdx].d_clist;
+        int *d_neighbors_use = d.devPtrs.d_stream[sIdx].d_neighbors;
+        int *d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
 
         const size_t n = t.clist.size();
         const size_t size_n_int = n * sizeof(int);

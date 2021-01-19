@@ -76,7 +76,7 @@ struct DeviceParticlesData
 
     struct neighbors_stream
     {
-        cudaStream_t streams;
+        cudaStream_t stream;
         int *d_clist, *d_neighbors, *d_neighborsCount;
     };
 
@@ -88,7 +88,7 @@ struct DeviceParticlesData
 
     DeviceLinearOctree<T> d_o;
 
-    size_t allocated_device_memory = 0;
+    size_t allocated_device_memory = 0, largerNeighborsChunk = 0, largerNChunk = 0;
 
     void resize(const size_t size)
     {
@@ -108,6 +108,26 @@ struct DeviceParticlesData
         }
     }
 
+    void resize_streams(const size_t largestChunkSize, const size_t ngmax)
+    {
+        const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
+        if (size_largerNChunk_int > largerNChunk)
+        {
+            printf("[D] increased stream size from %ld to %ld\n", largerNChunk, size_largerNChunk_int);
+            for (int i = 0; i < NST; ++i)
+                CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_stream[i].d_clist, d_stream[i].d_neighborsCount));
+            largerNChunk = size_largerNChunk_int;
+        }
+        const size_t size_largerNeighborsChunk_int = largestChunkSize * ngmax * sizeof(int);
+        if (size_largerNeighborsChunk_int > largerNeighborsChunk)
+        {
+            printf("[D] increased stream size from %ld to %ld\n", largerNeighborsChunk, size_largerNeighborsChunk_int);
+            for (int i = 0; i < NST; ++i)
+                CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_stream[i].d_neighbors));
+            largerNeighborsChunk = size_largerNeighborsChunk_int;
+        }
+    }
+
     DeviceParticlesData() = delete;
 
     DeviceParticlesData(const ParticleData &pd)
@@ -120,12 +140,24 @@ struct DeviceParticlesData
         CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
         CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d_bbox));
         CHECK_CUDA_ERR(cudaGetLastError());
+
+        for (int i = 0; i < NST; ++i)
+            CHECK_CUDA_ERR(cudaStreamCreate(&d_stream[i].stream));
+        CHECK_CUDA_ERR(cudaGetLastError());
     }
 
     ~DeviceParticlesData()
     {
         CHECK_CUDA_ERR(utils::cudaFree(d_bbox, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c, d_c11, d_c12, d_c13, d_c22,
                                            d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal, d_wh, d_whd));
+        CHECK_CUDA_ERR(cudaGetLastError());
+
+        for (int i = 0; i < NST; ++i)
+            CHECK_CUDA_ERR(cudaStreamDestroy(d_stream[i].stream));
+        CHECK_CUDA_ERR(cudaGetLastError());
+
+        for (int i = 0; i < NST; ++i)
+            CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_clist, d_stream[i].d_neighbors, d_stream[i].d_neighborsCount));
         CHECK_CUDA_ERR(cudaGetLastError());
     }
 };
