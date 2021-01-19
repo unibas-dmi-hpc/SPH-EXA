@@ -183,8 +183,8 @@ void randomGaussianHaloNeighbors()
                                     bucketSize);
 
     std::vector<T> hNode(nNodes(tree));
-    computeNodeMax(tree.data(), nNodes(tree), codes.data(), codes.data() + nParticles, ordering.data(),
-                   h.data(), hNode.data());
+    computeHaloRadii(tree.data(), nNodes(tree), codes.data(), codes.data() + nParticles, ordering.data(),
+                     h.data(), hNode.data());
 
     SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree, counts, nRanks);
 

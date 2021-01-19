@@ -187,8 +187,8 @@ public:
 
         // compute the maximum smoothing length (=halo radii) in each global node
         std::vector<T> haloRadii(nNodes(tree_));
-        computeNodeMaxGlobal(tree_.data(), nNodes(tree_), codes.data(), codes.data() + nParticles,
-                             mortonOrder.data(), h.data() + particleStart_, haloRadii.data());
+        computeHaloRadiiGlobal(tree_.data(), nNodes(tree_), codes.data(), codes.data() + nParticles,
+                               mortonOrder.data(), h.data() + particleStart_, haloRadii.data());
 
         // find outgoing and incoming halo nodes of the tree
         // uses 3D collision detection

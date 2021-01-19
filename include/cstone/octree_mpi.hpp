@@ -61,12 +61,12 @@ std::tuple<std::vector<I>, std::vector<std::size_t>> computeOctreeGlobal(const I
 
 /*! \brief Compute the global maximum value of a given input array for each node in the global or local octree
  *
- * See documentation of computeNodeMax
+ * See documentation of computeHaloRadii
  */
 template <class I, class T>
-void computeNodeMaxGlobal(const I *tree, int nNodes, const I *codesStart, const I *codesEnd, const int *ordering, const T *input, T *output)
+void computeHaloRadiiGlobal(const I *tree, int nNodes, const I *codesStart, const I *codesEnd, const int *ordering, const T *input, T *output)
 {
-    computeNodeMax(tree, nNodes, codesStart, codesEnd, ordering, input, output);
+    computeHaloRadii(tree, nNodes, codesStart, codesEnd, ordering, input, output);
     MPI_Allreduce(MPI_IN_PLACE, output, nNodes, MpiType<T>{}, MPI_MAX, MPI_COMM_WORLD);
 }
 

@@ -45,7 +45,7 @@ namespace cstone
  * @tparam I                   32- or 64-bit unsigned integer
  * @tparam T                   float or double
  * @param tree                 cornerstone octree
- * @param interactionRadii     halo search radii per octree (leaf) node
+ * @param interactionRadii     effective halo search radii per octree (leaf) node
  * @param box                  coordinate bounding box
  * @param assignment           list if Morton code ranges assignments per rank
  * @param rank                 compute pairs from perspective of \a rank
