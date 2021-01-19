@@ -70,6 +70,10 @@ TEST(Domain, noHalos)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
+    const int thisExampleRanks = 2;
+    if (nRanks != thisExampleRanks)
+        throw std::runtime_error("this test needs 2 ranks\n");
+
     noHalos<unsigned, double>(rank, nRanks);
     noHalos<uint64_t, double>(rank, nRanks);
     noHalos<unsigned, float>(rank, nRanks);
@@ -121,6 +125,10 @@ TEST(Domain, halos)
     int rank = 0, nRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+
+    const int thisExampleRanks = 2;
+    if (nRanks != thisExampleRanks)
+        throw std::runtime_error("this test needs 2 ranks\n");
 
     withHalos<unsigned, double>(rank, nRanks);
     withHalos<uint64_t, double>(rank, nRanks);
@@ -202,10 +210,87 @@ TEST(Domain, moreHalos)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
+    const int thisExampleRanks = 2;
+    if (nRanks != thisExampleRanks)
+        throw std::runtime_error("this test needs 2 ranks\n");
+
     moreHalos<unsigned, double>(rank, nRanks);
     moreHalos<uint64_t, double>(rank, nRanks);
     moreHalos<unsigned, float>(rank, nRanks);
     moreHalos<uint64_t, float>(rank, nRanks);
+}
+
+/*! \brief A test for one initial domain.sync() with a particle property
+ *
+ * Tests correct assignment and distribution of the global tree
+ * plus distribution of an additional particle property.
+ * This could be masses or charges.
+ */
+template<class I, class T>
+void particleProperty(int rank, int nRanks)
+{
+    int bucketSize = 4;
+    Domain<I, T> domain(rank, nRanks, bucketSize);
+
+    // node boundaries     |--(0,0)----|---------(0,7)-------------|-----(7,0)----------|-------(7,7)------|
+    // indices             0    1      2      3      4      5      6      7      8      9      10     11
+    std::vector<T> xGlobal{0.0, 0.11,  0.261, 0.281, 0.301, 0.321, 0.521, 0.541, 0.561, 0.761, 0.781, 1.000};
+    std::vector<T> yGlobal{0.0, 0.12,  0.262, 0.282, 0.302, 0.322, 0.522, 0.542, 0.562, 0.762, 0.781, 1.000};
+    std::vector<T> zGlobal{0.0, 0.13,  0.263, 0.283, 0.303, 0.323, 0.523, 0.543, 0.563, 0.763, 0.781, 1.000};
+    std::vector<T> hGlobal{0.1, 0.101, 0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108, 0.109, 0.110, 0.111};
+    // sync result rank 0: |---------assignment-------------------|------halos---------|
+    // sync result rank 1:             |-----halos----------------|-----------assignment-------------------|
+
+    std::vector<T> massGlobal{1,2,3,4,5,6,7,8,9,10,11,12};
+
+    std::vector<T> x,y,z,h,mass;
+    // rank 0 gets particles with even index before the sync
+    // rank 1 gets particles with uneven index before the sync
+    for(int i = rank; i < xGlobal.size(); i+=nRanks)
+    {
+        x.push_back(xGlobal[i]);
+        y.push_back(yGlobal[i]);
+        z.push_back(zGlobal[i]);
+        h.push_back(hGlobal[i]);
+        mass.push_back(massGlobal[i]);
+    }
+
+    std::vector<I> codes;
+    domain.sync(x,y,z,h, codes, mass);
+
+    std::vector<T> refMass;
+    if (rank == 0)
+    {
+        refMass = std::vector<T>{1,2,3,4,5,6,0,0,0};
+    }
+    else if (rank == 1)
+    {
+        refMass = std::vector<T>{0,0,0,0,7,8,9,10,11,12};
+    }
+
+    EXPECT_EQ(mass.size(), refMass.size());
+    for (int i = domain.startIndex(); i < domain.endIndex(); ++i)
+    {
+        // we can only compare the assigned range from startIndex() to endIndex(),
+        // the other elements are undefined
+        EXPECT_EQ(mass[i], refMass[i]);
+    }
+}
+
+TEST(Domain, particleProperty)
+{
+    int rank = 0, nRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+
+    const int thisExampleRanks = 2;
+    if (nRanks != thisExampleRanks)
+        throw std::runtime_error("this test needs 2 ranks\n");
+
+    particleProperty<unsigned, double>(rank, nRanks);
+    particleProperty<uint64_t, double>(rank, nRanks);
+    particleProperty<unsigned, float>(rank, nRanks);
+    particleProperty<uint64_t, float>(rank, nRanks);
 }
 
 /*! \brief tests that after a domain.sync(), the previous halo exchange pattern can be reapplied
@@ -265,6 +350,10 @@ TEST(Domain, postSyncHalos)
     int rank = 0, nRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+
+    const int thisExampleRanks = 2;
+    if (nRanks != thisExampleRanks)
+        throw std::runtime_error("this test needs 2 ranks\n");
 
     postSyncHalos<unsigned, double>(rank, nRanks);
     postSyncHalos<uint64_t, double>(rank, nRanks);
@@ -347,6 +436,10 @@ TEST(Domain, multiStepSync)
     int rank = 0, nRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+
+    const int thisExampleRanks = 2;
+    if (nRanks != thisExampleRanks)
+        throw std::runtime_error("this test needs 2 ranks\n");
 
     multiStepSync<unsigned, double>(rank, nRanks);
     multiStepSync<uint64_t, double>(rank, nRanks);
