@@ -24,7 +24,10 @@
  */
 
 /*! \file
- * \brief A domain class to manage distributed x,y,z coordinates and their halos
+ * \brief A domain class to manage distributed particles and their halos.
+ *
+ * Particles are represented by x,y,z coordinates, interaction radii and
+ * a user defined number of additional properties, such as masses or charges.
  *
  * \author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -50,15 +53,74 @@ public:
           particleStart_(0), particleEnd_(-1), localNParticles_(-1), box_(0,1), pbcX_(pbcX), pbcY_(pbcY), pbcZ_(pbcZ)
     {}
 
-    /*! \brief Perform the full domain update sequence for coordinate arrays x,y,z and h
+    /*! \brief Domain update sequence for particles with coordinates x,y,z, interaction radius h and their properties
      *
-     * @param x      floating point coordinates
-     * @param y
-     * @param z
-     * @param h      smoothing lengths
-     * @param codes  Morton codes
+     * @param x[inout]                   floating point coordinates
+     * @param y[inout]
+     * @param z[inout]
+     * @param h[inout]                   interaction radii in SPH convention, actual interaction radius is twice
+     *                                   the value in h
+     * @param codes[out]                 Morton codes
+     * @param particleProperties[inout]  particle properties to distribute along with the coordinates
+     *                                   e.g. mass or charge
      *
-     * This includes:
+     * ============================================================================================================
+     * Preconditions:
+     * ============================================================================================================
+     *
+     *   - Array sizes of x,y,z,h and particleProperties are identical
+     *     AND equal to the internally stored value of localNParticles_ from the previous call, except
+     *     on the first call. This is checked.
+     *
+     *     This means that none of the argument arrays can be resized between calls of this function.
+     *     Or in other words, particles cannot be created or destroyed.
+     *     (If this should ever be required though, it can be easily enabled by allowing the assigned
+     *     index range from startIndex() to endIndex() to be modified from the outside.)
+     *
+     *   - The particle order is irrelevant
+     *
+     *   - Content of codes is irrelevant as it will be resized to fit x,y,z,h and particleProperties
+     *
+     * ============================================================================================================
+     * Postconditions:
+     * ============================================================================================================
+     *
+     *   Array sizes:
+     *   ------------
+     *   - All arrays, x,y,z,h, codes and particleProperties are resized with space for the newly assigned particles
+     *     AND their halos.
+     *
+     *   Content of x,y,z and h
+     *   ----------------------------
+     *   - x,y,z,h at indices from startIndex() to endIndex() contain assigned particles that the executing rank owns,
+     *     all other elements are _halos_ of the assigned particles, i.e. the halos for x,y,z,h and codes are already
+     *     in place post-call.
+     *
+     *   Content of particleProperties
+     *   ----------------------------
+     *   - particleProperties arrays contain the updated properties at indices from startIndex() to endIndex(),
+     *     i.e. index i refers to a property of the particle with coordinates (x[i], y[i], z[i]).
+     *     Content of elements outside this range is _undefined_, but can be filled with the corresponding halo data
+     *     by a subsequent call to exchangeHalos(particleProperty), such that also for i outside [startIndex():endIndex()],
+     *     particleProperty[i] is a property of the halo particle with coordinates (x[i], y[i], z[i]).
+     *
+     *   Content of codes
+     *   ----------------
+     *   - The codes output is sorted and contains the Morton codes of assigned _and_ halo particles,
+     *     i.e. all arrays will be output in Morton order.
+     *
+     *   Internal state of the domain
+     *   ----------------------------
+     *   The following members are modified by calling this function:
+     *   - Update of the global octree, for use as starting guess in the next call
+     *   - Update of the assigned range startIndex() and endIndex()
+     *   - Update of the total local particle count, i.e. assigned + halo particles
+     *   - Update of the halo exchange patterns, for subsequent use in exchangeHalos
+     *   - Update of the global coordinate bounding box
+     *
+     * ============================================================================================================
+     * Update sequence:
+     * ============================================================================================================
      *      1. compute global coordinate bounding box
      *      2. compute global octree
      *      3. compute max_h per octree node
@@ -66,20 +128,26 @@ public:
      *      5. discover halos
      *      6. compute particle layout, i.e. count number of halos and assigned particles
      *         and compute halo send and receive index ranges
-     *      7. exchange assigned particles
-     *      8. morton sort exchanged assigned particles
-     *      9. exchange halo particles
+     *      7. resize x,y,z,h,codes and properties to new number of assigned + halo particles
+     *      8. exchange coordinates, h, and properties of assigned particles
+     *      9. morton sort exchanged assigned particles
+     *     10. exchange halo particles
      */
-    void sync(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, std::vector<T>& h, std::vector<I>& codes)
+    template<class... Vectors>
+    void sync(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, std::vector<T>& h, std::vector<I>& codes,
+              Vectors&... particleProperties)
     {
-        if (x.size() != y.size() || x.size() != z.size() || x.size() != h.size())
-            throw std::runtime_error("x,y,z,h sizes do not match\n");
-
         // bounds initialization on first call, use all particles
         if (particleEnd_ == -1)
         {
             particleStart_   = 0;
             particleEnd_     = x.size();
+            localNParticles_ = x.size();
+        }
+
+        if (!sizesAllEqualTo(localNParticles_, x, y, z, h, particleProperties...))
+        {
+            throw std::runtime_error("Domain sync: input array sizes are inconsistent\n");
         }
 
         box_ = makeGlobalBox(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
@@ -156,9 +224,9 @@ public:
         // only with locally assigned particles
         SendList domainExchangeSends = createSendList(assignment, codes.data(), codes.data() + nParticles);
 
-        // assigned particles + halos, resizes x,y,z,h
+        // assigned particles + halos, resizes arrays
         exchangeParticles<T>(domainExchangeSends, Rank(myRank_), localNParticles_, newNParticlesAssigned,
-                             particleStart_, newParticleStart, mortonOrder.data(), x,y,z,h);
+                             particleStart_, newParticleStart, mortonOrder.data(), x,y,z,h, particleProperties...);
 
         // assigned particles have been moved to their new locations by the domain exchange exchangeParticles
         std::swap(particleStart_, newParticleStart);
@@ -173,22 +241,25 @@ public:
         mortonOrder.resize(newNParticlesAssigned);
         sort_invert(cbegin(codes) + particleStart_, cbegin(codes) + particleEnd_, begin(mortonOrder));
 
-        // We have to reorder the locally assigned particles in the coordinate arrays
+        // We have to reorder the locally assigned particles in the coordinate and property arrays
         // which are located in the index range [particleStart_, particleEnd_].
         // Due to the domain particle exchange, contributions from remote ranks
-        // are received in arbitrary order
-        reorder(mortonOrder, x, particleStart_);
-        reorder(mortonOrder, y, particleStart_);
-        reorder(mortonOrder, z, particleStart_);
-        reorder(mortonOrder, h, particleStart_);
-        reorder(mortonOrder, codes, particleStart_);
+        // are received in arbitrary order.
+        {
+            std::array<std::vector<T>*, 4 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &h, &particleProperties...};
+            for (int i = 0; i < particleArrays.size(); ++i)
+            {
+                reorder(mortonOrder, *particleArrays[i], particleStart_) ;
+            }
+            reorder(mortonOrder, codes, particleStart_);
+        }
 
         incomingHaloIndices_ = createHaloExchangeList(incomingHaloNodes, presentNodes, nodeOffsets);
         outgoingHaloIndices_ = createHaloExchangeList(outgoingHaloNodes, presentNodes, nodeOffsets);
 
-        haloexchange<T>(incomingHaloIndices_, outgoingHaloIndices_, x.data(), y.data(), z.data(), h.data());
+        exchangeHalos(x,y,z,h);
 
-        // compute Morton codes for halo paritcles just received, from 0 to particleStart_
+        // compute Morton codes for halo particles just received, from 0 to particleStart_
         // and from particleEnd_ to localNParticles_
         computeMortonCodes(cbegin(x), cbegin(x) + particleStart_,
                            cbegin(y),
@@ -202,16 +273,14 @@ public:
 
     /*! \brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
      *
-     * @param arrays  std::vector<float or double>
+     * @param arrays  std::vector<float or double> of size localNParticles_
      *
      * This is used e.g. for densities
      */
     template<class...Arrays>
-    void exchangeHalos(Arrays&... arrays)
+    void exchangeHalos(Arrays&... arrays) const
     {
-        std::array<std::size_t, sizeof...(Arrays)> sizes{arrays.size()...};
-        if (*std::min_element(begin(sizes), end(sizes)) != localNParticles_ ||
-            *std::max_element(begin(sizes), end(sizes)) != localNParticles_)
+        if (!sizesAllEqualTo(localNParticles_, arrays...))
         {
             throw std::runtime_error("halo exchange array sizes inconsistent with previous sync operation\n");
         }
@@ -229,6 +298,14 @@ public:
     Box<T> box() const { return box_; }
 
 private:
+
+    //! \brief return true if all array sizes are equal to value
+    template<class... Arrays>
+    static bool sizesAllEqualTo(std::size_t value, Arrays&... arrays)
+    {
+        std::array<std::size_t, sizeof...(Arrays)> sizes{arrays.size()...};
+        return std::count(begin(sizes), end(sizes), value) == sizes.size();
+    }
 
     int myRank_;
     int nRanks_;
