@@ -79,21 +79,21 @@ void computeIAD(const std::vector<Task> &taskList, Dataset &d)
     const size_t size_np_T = np * sizeof(T);
     const T ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
 
+    const size_t ltsize = d.wh.size();
+
     const auto largestChunkSize =
         std::max_element(taskList.cbegin(), taskList.cend(),
                          [](const Task &lhs, const Task &rhs) { return lhs.clist.size() < rhs.clist.size(); })
             ->clist.size();
 
-    const size_t size_largerNeighborsChunk_int = largestChunkSize * ngmax * sizeof(int);
-    const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
+    d.devPtrs.resize_streams(largestChunkSize, ngmax);
 
     // number of CUDA streams to use
-    const int NST = 2;
+    const int NST = DeviceParticlesData<T, Dataset>::NST;
 
+    /*
     // device pointers - d_ prefix stands for device
     int *d_clist[NST], *d_neighbors[NST], *d_neighborsCount[NST]; // work arrays per stream
-
-    const size_t ltsize = d.wh.size();
 
     // input data
     //CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d.d_c11, d.d_c12, d.d_c13, d.d_c22, d.d_c23, d.d_c33));
@@ -103,6 +103,10 @@ void computeIAD(const std::vector<Task> &taskList, Dataset &d)
     for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors[i]));
 
+    cudaStream_t streams[NST];
+    for (int i = 0; i < NST; ++i)
+        CHECK_CUDA_ERR(cudaStreamCreate(&streams[i]));
+    */
     
     // CHECK_CUDA_ERR(cudaMemcpy(d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
     // CHECK_CUDA_ERR(cudaMemcpy(d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
@@ -113,11 +117,6 @@ void computeIAD(const std::vector<Task> &taskList, Dataset &d)
     // CHECK_CUDA_ERR(cudaMemcpy(d_wh, d.wh.data(), size_lt_T, cudaMemcpyHostToDevice));
     // CHECK_CUDA_ERR(cudaMemcpy(d_whd, d.whd.data(), size_lt_T, cudaMemcpyHostToDevice));
     // CHECK_CUDA_ERR(cudaMemcpy(d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
-    
-
-    cudaStream_t streams[NST];
-    for (int i = 0; i < NST; ++i)
-        CHECK_CUDA_ERR(cudaStreamCreate(&streams[i]));
 
     //DeviceLinearOctree<T> d_o;
     //d.d_o.mapLinearOctreeToDevice(o);
@@ -127,11 +126,18 @@ void computeIAD(const std::vector<Task> &taskList, Dataset &d)
         const auto &t = taskList[i];
 
         const int sIdx = i % NST;
+        /*
         cudaStream_t stream = streams[sIdx];
 
         int *d_clist_use = d_clist[sIdx];
         int *d_neighbors_use = d_neighbors[sIdx];
         int *d_neighborsCount_use = d_neighborsCount[sIdx];
+        */
+        cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
+
+        int *d_clist_use = d.devPtrs.d_stream[sIdx].d_clist;
+        int *d_neighbors_use = d.devPtrs.d_stream[sIdx].d_neighbors;
+        int *d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
 
         const size_t n = t.clist.size();
         const size_t size_n_int = n * sizeof(int);
@@ -166,12 +172,13 @@ void computeIAD(const std::vector<Task> &taskList, Dataset &d)
     CHECK_CUDA_ERR(cudaMemcpy(d.c23.data(), d.devPtrs.d_c23, size_np_T, cudaMemcpyDeviceToHost));
     CHECK_CUDA_ERR(cudaMemcpy(d.c33.data(), d.devPtrs.d_c33, size_np_T, cudaMemcpyDeviceToHost));
     
-
+    /*
     for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(cudaStreamDestroy(streams[i]));
 
     for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(utils::cudaFree(d_clist[i], d_neighbors[i], d_neighborsCount[i]));
+    */
 }
 
 template void computeIAD<double, ParticlesData<double>>(const std::vector<Task> &taskList, ParticlesData<double> &d);
