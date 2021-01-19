@@ -45,7 +45,7 @@ void noHalos(int rank, int nRanks)
     std::vector<T> y{0.5, 0.6};
     std::vector<T> z{0.5, 0.6};
     // radii around 0.5 and 0.6 don't overlap
-    std::vector<T> h{0.05, 0.05};
+    std::vector<T> h{0.005, 0.005};
 
     std::vector<I> codes;
     domain.sync(x,y,z,h, codes);
