@@ -107,11 +107,14 @@ void computeZorder(InputIterator  xBegin,
  * \tparam I          integer type
  * \tparam ValueType  float or double
  * \param ordering    an ordering
- * \param array       an array, same size as ordering
+ * \param array       an array, size >= ordering.size(), particles past ordering.size()
+ *                    are copied element by element
  */
 template<class I, class ValueType>
 void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array)
 {
+    assert(array.size() >= ordering.size());
+
     std::vector<ValueType> tmp(array.size());
     for (std::size_t i = 0; i < ordering.size(); ++i)
     {
@@ -129,7 +132,8 @@ void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array)
  * \tparam I          integer type
  * \tparam ValueType  float or double
  * \param ordering    an ordering, all indices from 0 to ordering.size() are accessed
- * \param array       an array, indices offset to offset + ordering.size() are accessed
+ * \param array       an array, indices offset to offset + ordering.size() are reordered.
+ *                    other elements are copied element by element
  * \param offset      access array with an offset
  */
 template<class I, class ValueType>
