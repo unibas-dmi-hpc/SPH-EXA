@@ -122,7 +122,7 @@ void computeNodeMax(int rank)
     };
 
     // expected maximum per node across both ranks searching all nodes
-    std::vector<float>    hMaxPerNode{2, 4, 6, 9};
+    std::vector<float>    hMaxPerNode{4, 8, 12, 18};
 
     // trivial ordering
     std::vector<int> ordering(particleCodes.size());
@@ -131,9 +131,9 @@ void computeNodeMax(int rank)
     {
         std::vector<float> probe(hMaxPerNode.size());
 
-        computeNodeMaxGlobal(tree.data(), nNodes(tree), particleCodes.data(),
-                                     particleCodes.data() + particleCodes.size(), ordering.data(),
-                                     smoothingLs[rank].data(), probe.data());
+        computeHaloRadiiGlobal(tree.data(), nNodes(tree), particleCodes.data(),
+                               particleCodes.data() + particleCodes.size(), ordering.data(),
+                               smoothingLs[rank].data(), probe.data());
 
         EXPECT_EQ(probe, hMaxPerNode);
     }
