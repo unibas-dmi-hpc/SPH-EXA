@@ -61,72 +61,84 @@ int main(int argc, char **argv)
     if(d.rank == 0) std::cout << "Domain created." << std::endl;
 
     std::vector<CodeType> codes;
-    domain.sync(d.x, d.y, d.z, d.h, codes);
+    domain.sync(d.x, d.y, d.z, d.h, codes, d.m, d.mui, d.u, d.vx, d.vy, d.vz);
+
+    std::vector<int> clist(domain.nParticles());
+    std::iota(begin(clist), end(clist), domain.startIndex());
 
     if(d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
     const size_t nTasks = 64;
     const size_t ngmax = 150;
     const size_t ng0 = 100;
-    //TaskList taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
+    TaskList taskList = TaskList(clist, nTasks, ngmax, ng0);
 
     if(d.rank == 0) std::cout << "Starting main loop." << std::endl;
 
     totalTimer.start();
-    //for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
-    //{
-    //    timer.start();
+    for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
+    {
+        timer.start();
 
-    //    domain.update(d);
-    //    timer.step("domain::distribute");
-    //    domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
-    //    timer.step("mpi::synchronizeHalos");
-    //    domain.buildTree(d);
-    //    timer.step("domain::buildTree");
-    //    taskList.update(domain.clist);
-    //    timer.step("updateTasks");
-    //    sph::findNeighbors(domain.octree, taskList.tasks, d);
-    //    timer.step("FindNeighbors");
-    //    if(domain.clist.size() > 0) sph::computeDensity<Real>(taskList.tasks, d);
-    //    timer.step("Density");
-    //    sph::computeEquationOfStateEvrard<Real>(taskList.tasks, d);
-    //    timer.step("EquationOfState");
-    //    domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
-    //    timer.step("mpi::synchronizeHalos");
-    //    if(domain.clist.size() > 0) sph::computeIAD<Real>(taskList.tasks, d);
-    //    timer.step("IAD");
-    //    domain.synchronizeHalos(&d.c11, &d.c12, &d.c13, &d.c22, &d.c23, &d.c33);
-    //    timer.step("mpi::synchronizeHalos");
-    //    if(domain.clist.size() > 0) sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d);
-    //    timer.step("MomentumEnergyIAD");
-    //    sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
-    //    timer.step("Timestep"); // AllReduce(min:dt)
-    //    sph::computePositions<Real, sph::computeAcceleration<Real, Dataset>>(taskList.tasks, d);
-    //    timer.step("UpdateQuantities");
-    //    sph::computeTotalEnergy<Real>(taskList.tasks, d);
-    //    timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
-    //    sph::updateSmoothingLength<Real>(taskList.tasks, d);
-    //    timer.step("UpdateSmoothingLength");
+        //domain.update(d);
 
-    //    const size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
+        domain.sync(d.x, d.y, d.z, d.h, codes, d.m, d.mui, d.u, d.vx, d.vy, d.vz);
+        clist.resize(domain.nParticles());
+        std::iota(begin(clist), end(clist), domain.startIndex());
 
-    //    if (d.rank == 0)
-    //    {
-    //        printer.printCheck(d.count, domain.octree.globalNodeCount, d.x.size() - d.count, totalNeighbors, output);
-    //        printer.printConstants(d.iteration, totalNeighbors, constantsFile);
-    //    }
+        //timer.step("domain::distribute");
+        //domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
 
-    //    if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
-    //    {
-    //        //fileWriter.dumpParticleDataToAsciiFile(d, domain.clist, outDirectory + "dump_Sedov" + std::to_string(d.iteration) + ".txt");
-    //        fileWriter.dumpParticleDataToBinFile(d, outDirectory + "dump_Sedov" + std::to_string(d.iteration) + ".bin");
-    //        timer.step("writeFile");
-    //    }
+        //timer.step("mpi::synchronizeHalos");
+        //domain.buildTree(d);
+        //timer.step("domain::buildTree");
+        //taskList.update(domain.clist);
+        taskList.update(clist);
+        //timer.step("updateTasks");
+        timer.step("domain::sync");
+        //sph::findNeighbors(domain.octree, taskList.tasks, d);
+        //timer.step("FindNeighbors");
+        //if(domain.clist.size() > 0) sph::computeDensity<Real>(taskList.tasks, d);
+        //timer.step("Density");
+        //sph::computeEquationOfStateEvrard<Real>(taskList.tasks, d);
+        //timer.step("EquationOfState");
+        //domain.synchronizeHalos(&d.vx, &d.vy, &d.vz, &d.ro, &d.p, &d.c);
+        //timer.step("mpi::synchronizeHalos");
+        //if(domain.clist.size() > 0) sph::computeIAD<Real>(taskList.tasks, d);
+        //timer.step("IAD");
+        //domain.synchronizeHalos(&d.c11, &d.c12, &d.c13, &d.c22, &d.c23, &d.c33);
+        //timer.step("mpi::synchronizeHalos");
+        //if(domain.clist.size() > 0) sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d);
+        //timer.step("MomentumEnergyIAD");
+        //sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
+        //timer.step("Timestep"); // AllReduce(min:dt)
+        //sph::computePositions<Real, sph::computeAcceleration<Real, Dataset>>(taskList.tasks, d);
+        //timer.step("UpdateQuantities");
+        //sph::computeTotalEnergy<Real>(taskList.tasks, d);
+        //timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
+        //sph::updateSmoothingLength<Real>(taskList.tasks, d);
+        //timer.step("UpdateSmoothingLength");
 
-    //    timer.stop();
+        //const size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
+        const size_t totalNeighbors = 0;
 
-    //    if (d.rank == 0) printer.printTotalIterationTime(timer.duration(), output);
-    //}
+        if (d.rank == 0)
+        {
+            printer.printCheck(domain.nParticles(), domain.tree().size(), d.x.size() - domain.nParticles(), totalNeighbors, output);
+            printer.printConstants(d.iteration, totalNeighbors, constantsFile);
+        }
+
+        //if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
+        //{
+        //    //fileWriter.dumpParticleDataToAsciiFile(d, domain.clist, outDirectory + "dump_Sedov" + std::to_string(d.iteration) + ".txt");
+        //    fileWriter.dumpParticleDataToBinFile(d, outDirectory + "dump_Sedov" + std::to_string(d.iteration) + ".bin");
+        //    timer.step("writeFile");
+        //}
+
+        timer.stop();
+
+        if (d.rank == 0) printer.printTotalIterationTime(timer.duration(), output);
+    }
 
     totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Sedov");
 
