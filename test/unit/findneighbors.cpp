@@ -40,12 +40,14 @@
 
 //! \brief simple N^2 all-to-all neighbor search
 template<class T>
-void all2allNeighbors(const T* x, const T* y, const T* z, int n, T radius,
+void all2allNeighbors(const T* x, const T* y, const T* z, const T* h, int n,
                       int *neighbors, int *neighborsCount, int ngmax)
 {
-    T r2 = radius * radius;
     for (int i = 0; i < n; ++i)
     {
+        T radius = 2 * h[i];
+        T r2 = radius * radius;
+
         T xi = x[i], yi = y[i], zi = z[i];
 
         int ngcount = 0;
@@ -91,9 +93,10 @@ public:
 
         real minRange = box.minExtent();
         RandomCoordinates<real, CodeType> coords(n, box);
+        std::vector<T> h(n, radius/2);
 
         std::vector<int> neighborsRef(n * ngmax), neighborsCountRef(n);
-        all2allNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), n, radius,
+        all2allNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), h.data(), n,
                          neighborsRef.data(), neighborsCountRef.data(), ngmax);
         sortNeighbors(neighborsRef.data(), neighborsCountRef.data(), n, ngmax);
 
@@ -101,8 +104,8 @@ public:
         for (int i = 0; i < n; ++i)
         {
             findNeighbors(i, coords.x().data(), coords.y().data(), coords.z().data(),
-                                  radius, minRange, coords.mortonCodes().data(),
-                                  neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
+                          h.data(), box, coords.mortonCodes().data(),
+                          neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
         }
         sortNeighbors(neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
 
