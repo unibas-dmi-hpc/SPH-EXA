@@ -12,6 +12,7 @@
 #include "SedovDataGenerator.hpp"
 #include "SedovDataFileWriter.hpp"
 
+#include "sph/findNeighborsSfc.hpp"
 
 using namespace sphexa;
 using namespace cstone;
@@ -79,25 +80,14 @@ int main(int argc, char **argv)
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
         timer.start();
-
-        //domain.update(d);
-
         domain.sync(d.x, d.y, d.z, d.h, codes, d.m, d.mui, d.u, d.vx, d.vy, d.vz);
+        timer.step("domain::sync");
         clist.resize(domain.nParticles());
         std::iota(begin(clist), end(clist), domain.startIndex());
-
-        //timer.step("domain::distribute");
-        //domain.synchronizeHalos(&d.x, &d.y, &d.z, &d.h);
-
-        //timer.step("mpi::synchronizeHalos");
-        //domain.buildTree(d);
-        //timer.step("domain::buildTree");
-        //taskList.update(domain.clist);
         taskList.update(clist);
-        //timer.step("updateTasks");
-        timer.step("domain::sync");
-        //sph::findNeighbors(domain.octree, taskList.tasks, d);
-        //timer.step("FindNeighbors");
+        timer.step("updateTasks");
+        sph::findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, codes, domain.box());
+        timer.step("FindNeighbors");
         //if(domain.clist.size() > 0) sph::computeDensity<Real>(taskList.tasks, d);
         //timer.step("Density");
         //sph::computeEquationOfStateEvrard<Real>(taskList.tasks, d);
