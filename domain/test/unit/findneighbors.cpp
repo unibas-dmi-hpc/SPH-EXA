@@ -105,7 +105,7 @@ public:
         {
             findNeighbors(i, coords.x().data(), coords.y().data(), coords.z().data(),
                           h.data(), box, coords.mortonCodes().data(),
-                          neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
+                          neighborsProbe.data() + i*ngmax, neighborsCountProbe.data() + i, n, ngmax);
         }
         sortNeighbors(neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
 
