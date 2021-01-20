@@ -298,6 +298,12 @@ public:
     //! \brief return one past the index of the last particle that's part of the local assignment
     [[nodiscard]] int endIndex() const   { return particleEnd_; }
 
+    //! \brief return number of locally assigned particles
+    [[nodiscard]] int nParticles() const { return endIndex() - startIndex(); }
+
+    //! \brief read only visibility of the octree to the outside
+    const std::vector<I>& tree() const { return tree_; }
+
     //! \brief return the coordinate bounding box from the previous sync call
     Box<T> box() const { return box_; }
 
