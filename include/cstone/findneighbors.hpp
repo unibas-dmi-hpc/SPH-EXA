@@ -123,14 +123,14 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
 
             if (distancesq(xi, yi, zi, x[j], y[j], z[j]) < radiusSq)
             {
-                neighbors[id * ngmax + ngcount++] = j;
+                neighbors[ngcount++] = j;
             }
 
             if (ngcount == ngmax) { break; }
         }
     }
 
-    neighborsCount[id] = ngcount;
+    *neighborsCount = ngcount;
 }
 
 } // namespace cstone
