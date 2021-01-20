@@ -41,11 +41,11 @@ namespace cstone
 template<class T, class... Arrays>
 void exchangeParticlesImpl(const SendList& sendList, int thisRank, int nParticlesAssigned,
                            int inputOffset, int outputOffset,
-                           const int* ordering, T* tempBuffer, Arrays&... arrays)
+                           const int* ordering, T* tempBuffer, Arrays... arrays)
 {
     constexpr int nArrays = sizeof...(Arrays);
-    std::array<T*, nArrays> sourceArrays{ (arrays.data() + inputOffset)... };
-    std::array<T*, nArrays> destinationArrays{ (arrays.data() + outputOffset)... };
+    std::array<T*, nArrays> sourceArrays{ (arrays + inputOffset)... };
+    std::array<T*, nArrays> destinationArrays{ (arrays + outputOffset)... };
 
     int nRanks = sendList.size();
 
@@ -135,13 +135,12 @@ void reallocate(std::size_t size, Arrays&... arrays)
  * \param sendList[in]        List of index ranges to be sent to each rank, indices
  *                            are valid w.r.t to arrays present on \a thisRank relative to the \a inputOffset.
  * \param thisRank[in]        Rank of the executing process
- * \param totalSize[in]       The final size for each array
- * \param nParticlesAssigned  Number of particles for each array that participate in the exchange on \a thisRank.
- *                            This serves as the stop criterion for listening to incoming particles.
+ * \param nParticlesAssigned  New number of assigned particles for each array on \a thisRank.
+ *        [in]                This serves as the stop criterion for listening to incoming particles.
  * \param inputOffset[in]     Access arrays starting from \a inputOffset when extracting particles for sending
  * \param outputOffset[in]    Incoming particles will be added to their destination arrays starting from \a outputOffset
  * \param ordering[in]        Ordering through which to access arrays
- * \param arrays[inout]       Arrays of identical sizes, the index range based exchange operations
+ * \param arrays[inout]       T* pointers of identical sizes. The index range based exchange operations
  *                            performed are identical for each input array. Upon completion, arrays will
  *                            contain elements from the specified ranges from all ranks.
  *                            The order in which the incoming ranges are grouped is random.
@@ -170,10 +169,11 @@ void reallocate(std::size_t size, Arrays&... arrays)
  *      *std::max_element(begin(ordering), end(ordering)) == nOldAssignment - 1
  */
 template<class T, class... Arrays>
-void exchangeParticles(const SendList& sendList, Rank thisRank, int totalSize, int nParticlesAssigned,
-                       int inputOffset, int outputOffset, const int* ordering, Arrays&... arrays)
+void exchangeParticles(const SendList& sendList, Rank thisRank, int nParticlesAssigned,
+                       int inputOffset, int outputOffset, const int* ordering, Arrays... arrays)
 {
-    std::vector<T> tempBuffer(totalSize);
+    int nParticlesAlreadyPresent = sendList[thisRank].totalCount();
+    std::vector<T> tempBuffer(nParticlesAlreadyPresent);
     exchangeParticlesImpl(sendList, thisRank, nParticlesAssigned, inputOffset, outputOffset,
                           ordering, tempBuffer.data(), arrays...);
 }
@@ -187,7 +187,7 @@ void exchangeParticles(const SendList& sendList, Rank thisRank, int totalSize, i
  * \param thisRank[in]        Rank of the executing process
  * \param nParticlesAssigned  Number of elements that each array will hold on \a thisRank after the exchange
  * \param ordering[in]        Ordering through which to access arrays
- * \param arrays[inout]       Arrays of identical sizes, the index range based exchange operations
+ * \param arrays[inout]       T* pointers of identical sizes, the index range based exchange operations
  *                            performed are identical for each input array. Upon completion, arrays will
  *                            contain elements from the specified ranges from all ranks.
  *                            The order in which the incoming ranges are grouped is random.
@@ -196,9 +196,9 @@ void exchangeParticles(const SendList& sendList, Rank thisRank, int totalSize, i
  */
 template<class T, class... Arrays>
 void exchangeParticles(const SendList& sendList, Rank thisRank, int nParticlesAssigned,
-                       const int* ordering, Arrays&... arrays)
+                       const int* ordering, Arrays... arrays)
 {
-    exchangeParticles<T>(sendList, thisRank, nParticlesAssigned, nParticlesAssigned, 0, 0, ordering, arrays...);
+    exchangeParticles<T>(sendList, thisRank, nParticlesAssigned, 0, 0, ordering, arrays...);
 }
 
 } // namespace cstone
