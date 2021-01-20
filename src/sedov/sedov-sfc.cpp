@@ -109,8 +109,7 @@ int main(int argc, char **argv)
         //sph::updateSmoothingLength<Real>(taskList.tasks, d);
         //timer.step("UpdateSmoothingLength");
 
-        //const size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
-        const size_t totalNeighbors = 0;
+        const size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
 
         if (d.rank == 0)
         {
