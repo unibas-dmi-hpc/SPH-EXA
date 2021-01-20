@@ -482,7 +482,7 @@ std::array<int, 3> bucketSizesPP{64, 1024, 10000};
 INSTANTIATE_TEST_SUITE_P(RandomBoxPP, ComputeOctreeTester, testing::ValuesIn(bucketSizesPP));
 
 
-TEST(CornerstoneOctree, computeNodeMax)
+TEST(CornerstoneOctree, computeHaloRadii)
 {
     using CodeType = unsigned;
 
@@ -490,15 +490,15 @@ TEST(CornerstoneOctree, computeNodeMax)
 
     std::vector<CodeType> particleCodes{ 0,4, 8,14, 20, 24,25,26,31 };
     std::vector<float>    smoothingLs{   2,1, 4,3,   5, 8,2,1,3};
-    std::vector<float>    hMaxPerNode{    2,   4,    5,   8};
+    std::vector<float>    hMaxPerNode{    4,   8,   10,  16};
 
     std::vector<int> ordering(particleCodes.size());
     std::iota(begin(ordering), end(ordering), 0);
 
     std::vector<float> probe(hMaxPerNode.size());
 
-    computeNodeMax(tree.data(), nNodes(tree), particleCodes.data(), particleCodes.data() + particleCodes.size(),
-                           ordering.data(), smoothingLs.data(), probe.data());
+    computeHaloRadii(tree.data(), nNodes(tree), particleCodes.data(), particleCodes.data() + particleCodes.size(),
+                     ordering.data(), smoothingLs.data(), probe.data());
 
     EXPECT_EQ(probe, hMaxPerNode);
 }
@@ -538,12 +538,12 @@ TEST(CornerstoneOctree, nodeMaxRegression)
     std::vector<int> ordering{0,1,2,3};
 
     std::vector<double> hMaxPerNode(nNodes(tree), 0);
-    computeNodeMax(tree.data(), nNodes(tree), codes.data(), codes.data() + codes.size(), ordering.data(), h.data(),
-                   hMaxPerNode.data());
+    computeHaloRadii(tree.data(), nNodes(tree), codes.data(), codes.data() + codes.size(), ordering.data(), h.data(),
+                     hMaxPerNode.data());
 
     std::vector<double> refhMaxPerNode(nNodes(tree));
-    refhMaxPerNode[0] = 0.2;
-    refhMaxPerNode[nNodes(tree)-1] = 0.2;
+    refhMaxPerNode[0] = 0.4;
+    refhMaxPerNode[nNodes(tree)-1] = 0.4;
 
     EXPECT_EQ(refhMaxPerNode, hMaxPerNode);
 }

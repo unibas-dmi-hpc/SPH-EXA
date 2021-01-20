@@ -230,9 +230,13 @@ computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vecto
     return std::make_tuple(tree, counts);
 }
 
-/*! \brief Compute the maximum value of a given input array for each node in the global or local octree
+/*! \brief Compute the halo radius of each node in the given octree
  *
- * Example: For each node, compute the maximum smoothing length of all particles in that node
+ * This is the maximum distance beyond the node boundaries that a particle outside the
+ * node could possibly interact with.
+ *
+ * TODO: Don't calculate the maximum smoothing length, calculate the maximum distance by
+ *       which any of the particles plus radius protrude outside the node.
  *
  * \tparam I           32- or 64-bit unsigned integer type
  * \param tree         octree nodes given as Morton codes of length @a nNodes+1
@@ -245,12 +249,12 @@ computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vecto
  *                     The sequence input[ordering[i]], i=0,...,N must list the elements of input
  *                     (i.e. the smoothing lengths) such that input[i] is a property of the particle
  *                     (x[i], y[i], z[i]), with x,y,z sorted according to Morton ordering.
- * \param input        Array to compute maximum over nodes, length = codesEnd - codesStart
- * \param output       maximum per node, length = @a nNodes
+ * \param input        Radii per particle, i.e. the smoothing lengths in SPH, length = codesEnd - codesStart
+ * \param output       Radius per node, length = @a nNodes
  */
 template<class I, class T>
-void computeNodeMax(const I* tree, int nNodes, const I* codesStart, const I* codesEnd,
-                    const int* ordering, const T* input, T* output)
+void computeHaloRadii(const I* tree, int nNodes, const I* codesStart, const I* codesEnd,
+                      const int* ordering, const T* input, T* output)
 {
     for (int i = 0; i < nNodes; ++i)
     {
@@ -269,7 +273,8 @@ void computeNodeMax(const I* tree, int nNodes, const I* codesStart, const I* cod
                 nodeMax = nodeElement;
         }
 
-        output[i] = nodeMax;
+        // note factor of 2 due to SPH conventions
+        output[i] = 2 * nodeMax;
     }
 }
 
