@@ -226,16 +226,17 @@ public:
 
         // resize arrays to new sizes
         reallocate(localNParticles_, x,y,z,h, particleProperties...);
+        reallocate(localNParticles_, codes);
         // exchange assigned particles
-        exchangeParticles<T>(domainExchangeSends, Rank(myRank_), localNParticles_, newNParticlesAssigned,
-                             particleStart_, newParticleStart, mortonOrder.data(), x,y,z,h, particleProperties...);
+        exchangeParticles<T>(domainExchangeSends, Rank(myRank_), newNParticlesAssigned,
+                             particleStart_, newParticleStart, mortonOrder.data(),
+                             x.data(), y.data(), z.data(), h.data(), particleProperties.data()...);
 
         // assigned particles have been moved to their new locations starting at particleStart_
         // by the domain exchange exchangeParticles
         std::swap(particleStart_, newParticleStart);
         std::swap(particleEnd_, newParticleEnd);
 
-        codes.resize(localNParticles_);
         computeMortonCodes(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
                            cbegin(y) + particleStart_,
                            cbegin(z) + particleStart_,
