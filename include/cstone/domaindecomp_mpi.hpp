@@ -43,7 +43,6 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, int nParticle
                            int inputOffset, int outputOffset,
                            const int* ordering, T* tempBuffer, Arrays&... arrays)
 {
-    //std::array<std::vector<T>*, sizeof...(Arrays)> data{ (&arrays)... };
     constexpr int nArrays = sizeof...(Arrays);
     std::array<T*, nArrays> sourceArrays{ (arrays.data() + inputOffset)... };
     std::array<T*, nArrays> destinationArrays{ (arrays.data() + outputOffset)... };
@@ -87,6 +86,11 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, int nParticle
         int receiveCount;
         MPI_Get_count(&status, MpiType<T>{}, &receiveCount);
 
+        if (nParticlesPresent + receiveCount > nParticlesAssigned)
+        {
+            throw std::runtime_error("Particle exchange: cannot receive more particles than assigned\n");
+        }
+
         for (int arrayIndex = 0; arrayIndex < nArrays; ++arrayIndex)
         {
             mpiRecvSync(destinationArrays[arrayIndex] + nParticlesPresent, receiveCount,
@@ -112,11 +116,23 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, int nParticle
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
+//! \brief reallocate arrays to the specified size
+template<class... Arrays>
+void reallocate(std::size_t size, Arrays&... arrays)
+{
+    std::array data{ (&arrays)... };
+    for (auto array : data)
+    {
+        array->reserve(size);
+        array->resize(size);
+    }
+}
+
 /*! \brief exchange array elements with other ranks according to the specified ranges
  *
  * \tparam T                  double, float or int
  * \tparam Arrays             all std::vector<T>
- * \param sendList[in]        List of index ranges assigned to each rank, indices
+ * \param sendList[in]        List of index ranges to be sent to each rank, indices
  *                            are valid w.r.t to arrays present on \a thisRank relative to the \a inputOffset.
  * \param thisRank[in]        Rank of the executing process
  * \param totalSize[in]       The final size for each array
@@ -130,25 +146,33 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, int nParticle
  *                            contain elements from the specified ranges from all ranks.
  *                            The order in which the incoming ranges are grouped is random.
  *
- *  Example: If sendList[ri] contains the range [upper, lower), all elements (arrays+inputOffset)[upper:lower]
+ *  Example: If sendList[ri] contains the range [upper, lower), all elements (arrays+inputOffset)[ordering[upper:lower]]
  *           will be sent to rank ri. At the destination ri, any assigned particles already present,
  *           are moved to their destination arrays, starting from \a outputOffset. The incoming elements to ri
  *           will be appended to the aforementioned elements.
  *           No information about incoming particles to \a thisRank is contained in the function arguments,
  *           only their total number \a nParticlesAssigned, which also includes any assigned particles
  *           already present on \a thisRank.
+ *
+ *  A note on the sizes of \a arrays:
+ *  Let's set
+ *      int nOldAssignment = the maximum of sendList[rank].rangeEnd(range) for any rank and range combination
+ *  Then inputOffset + nOldAssignment is the upper bound for read accesses in \a arrays while sending.
+ *  This is assuming that ordering.size() == nOldAssignment and that ordering[i] < nOldAssignment, which
+ *  is what the Morten (re)order code produces.
+ *  While writing during the receive phase, the highest index is outputOffset + nParticlesAssigned and it
+ *  is checked that no writes occur past that location.
+ *  In summary, the conditions to check in case of access violations / segmentation faults are for all arrays:
+ *
+ *      array.size() >= inputOffset + nOldAssignment
+ *      array.size() >= outputOffset + nParticlesAssigned
+ *      ordering.size() == nOldAssignment
+ *      *std::max_element(begin(ordering), end(ordering)) == nOldAssignment - 1
  */
 template<class T, class... Arrays>
 void exchangeParticles(const SendList& sendList, Rank thisRank, int totalSize, int nParticlesAssigned,
                        int inputOffset, int outputOffset, const int* ordering, Arrays&... arrays)
 {
-    std::array<std::vector<T>*, sizeof...(Arrays)> data{ (&arrays)... };
-    for (auto array : data)
-    {
-        array->reserve(totalSize);
-        array->resize(totalSize);
-    }
-
     std::vector<T> tempBuffer(totalSize);
     exchangeParticlesImpl(sendList, thisRank, nParticlesAssigned, inputOffset, outputOffset,
                           ordering, tempBuffer.data(), arrays...);
