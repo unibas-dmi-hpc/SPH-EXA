@@ -224,11 +224,14 @@ public:
         // only with locally assigned particles
         SendList domainExchangeSends = createSendList(assignment, codes.data(), codes.data() + nParticles);
 
-        // assigned particles + halos, resizes arrays
+        // resize arrays to new sizes
+        reallocate(localNParticles_, x,y,z,h, particleProperties...);
+        // exchange assigned particles
         exchangeParticles<T>(domainExchangeSends, Rank(myRank_), localNParticles_, newNParticlesAssigned,
                              particleStart_, newParticleStart, mortonOrder.data(), x,y,z,h, particleProperties...);
 
-        // assigned particles have been moved to their new locations by the domain exchange exchangeParticles
+        // assigned particles have been moved to their new locations starting at particleStart_
+        // by the domain exchange exchangeParticles
         std::swap(particleStart_, newParticleStart);
         std::swap(particleEnd_, newParticleEnd);
 
