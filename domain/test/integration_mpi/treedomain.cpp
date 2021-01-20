@@ -96,7 +96,8 @@ void globalRandomGaussian(int thisRank, int nRanks)
 
     int nParticlesAssigned = assignment.totalCount(thisRank);
 
-    exchangeParticles<T>(sendList, Rank(thisRank), nParticlesAssigned, ordering.data(), x, y, z);
+    reallocate(nParticlesAssigned, x, y, z);
+    exchangeParticles<T>(sendList, Rank(thisRank), nParticlesAssigned, ordering.data(), x.data(), y.data(), z.data());
 
     /// post-exchange test:
     /// if the global tree build and assignment is repeated, no particles are exchanged anymore

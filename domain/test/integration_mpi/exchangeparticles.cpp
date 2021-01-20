@@ -90,7 +90,8 @@ void exchangeAllToAll(int thisRank, int nRanks)
     segmentSize = sendList[thisRank].count(0);
     int nParticlesThisRank = segmentSize * nRanks;
 
-    exchangeParticles<T>(sendList, Rank(thisRank), nParticlesThisRank, nParticlesThisRank, 0, 0, ordering.data(), x, y);
+    reallocate(nParticlesThisRank, x, y);
+    exchangeParticles<T>(sendList, Rank(thisRank), nParticlesThisRank, ordering.data(), x.data(), y.data());
 
     std::vector<T> refX(nParticlesThisRank);
     for (int rank = 0; rank < nRanks; ++rank)
@@ -146,7 +147,8 @@ void exchangeCyclicNeighbors(int thisRank, int nRanks)
     // send last nex to nextRank
     sendList[nextRank].addRange(gridSize - nex, gridSize, nex);
 
-    exchangeParticles<T>(sendList, Rank(thisRank), gridSize, ordering.data(), x, y);
+    reallocate(gridSize, x, y);
+    exchangeParticles<T>(sendList, Rank(thisRank), gridSize, ordering.data(), x.data(), y.data());
 
     int incomingRank = (thisRank - 1 + nRanks) % nRanks;
     std::vector<T> refX(gridSize, thisRank);
@@ -219,8 +221,9 @@ void exchangeCyclicNeighborsOffsets(int thisRank, int nRanks)
     // send last nex to nextRank
     sendList[nextRank].addRange(assignedSize - nex, assignedSize, nex);
 
-    exchangeParticles<T>(sendList, Rank(thisRank), finalSize, assignedSize,
-                         inputOffset, outputOffset, ordering.data(), x, y);
+    reallocate(finalSize, x, y);
+    exchangeParticles<T>(sendList, Rank(thisRank), assignedSize,
+                         inputOffset, outputOffset, ordering.data(), x.data(), y.data());
 
     // the reference covers only the assigned range of 64
     std::vector<T> refX(assignedSize, thisRank);

@@ -37,7 +37,7 @@
 #include <cmath>
 #include <numeric>
 
-#include "zorder.hpp"
+#include "mortoncode.hpp"
 
 namespace cstone
 {
@@ -52,7 +52,7 @@ static inline T distancesq(const T x1, const T y1, const T z1, const T x2, const
     return xx * xx + yy * yy + zz * zz;
 }
 
-/*! \brief determines the octree subdivision layer at which the node size in
+/*! \brief determines the octree subdivision layer at which the node edge length in
  *         one dimension is bigger or equal than the search radius
  */
 template<class T>
@@ -73,27 +73,29 @@ unsigned radiusToTreeLevel(T radius, T minRange)
  *
  * \tparam T                   coordinate type, float or double
  * \tparam I                   Morton code type, uint32 uint64
- * \param[in] id               the index of the particle for which to look for neighbors
- * \param[in] x                particle x-coordinates
- * \param[in] y                particle y-coordinates
- * \param[in] z                particle z-coordinates
- * \param[in] radius           search radius
- * \param[in] boxMinRange      min_element(xmax-xmin, ymax-ymin, zmax-zmin)
- *                             of the global bounding box
- * \param[in] mortonCodes      Morton codes of all particles in x,y,z
+ * \param[in]  id              the index of the particle for which to look for neighbors
+ * \param[in]  x               particle x-coordinates in Morton order
+ * \param[in]  y               particle y-coordinates in Morton order
+ * \param[in]  z               particle z-coordinates in Morton order
+ * \param[in]  h               smoothing lengths (1/2 the search radius) in Morton order
+ * \param[in]  box             coordinate bounding box that was used to calculate the Morton codes
+ * \param[in]  mortonCodes     sorted Morton codes of all particles in x,y,z
  * \param[out] neighbors       output to store the neighbors
  * \param[out] neighborsCount  output to store the number of neighbors
- * \param[in] n                number of particles in x,y,z
- * \param[in] ngmax            maximum number of neighbors per particle
+ * \param[in]  n               number of particles in x,y,z
+ * \param[in]  ngmax           maximum number of neighbors per particle
  */
 template<class T, class I>
-void findNeighbors(int id, const T* x, const T* y, const T* z, T radius, T boxMinRange,
+void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const Box<T>& box,
                    const I* mortonCodes, int *neighbors, int *neighborsCount,
                    int n, int ngmax)
 {
-    T radiusSq = radius * radius;
-    unsigned depth = radiusToTreeLevel(radius, boxMinRange);
-    I mortonCode = mortonCodes[id];
+    // SPH convention is search radius = 2 * h
+    T radius       = 2 * h[id];
+    T radiusSq     = radius * radius;
+    // depth is the smallest tree subdivision level at which the node edge length is still bigger than radius
+    unsigned depth = radiusToTreeLevel(radius, box.minExtent());
+    I mortonCode   = mortonCodes[id];
 
     std::array<I, 27> neighborCodes;
 
