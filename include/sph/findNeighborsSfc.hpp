@@ -27,9 +27,9 @@ void findNeighborsSfc(std::vector<Task>& taskList,
 
     for (auto &t : taskList)
     {
-        const int *clist = t.clist.data();
-        int *neighbors = t.neighbors.data();
-        int *neighborsCount = t.neighborsCount.data();
+        const int* clist = t.clist.data();
+        int* neighbors = t.neighbors.data();
+        int* neighborsCount = t.neighborsCount.data();
 
         const size_t n = t.clist.size();
 
@@ -37,9 +37,8 @@ void findNeighborsSfc(std::vector<Task>& taskList,
         for (size_t pi = 0; pi < n; pi++)
         {
             int i = clist[pi];
-            assert( i < x.size());
-            cstone::findNeighbors(i, x.data(), y.data(), z.data(), h.data(), box, codes.data(), neighbors, neighborsCount,
-                                  x.size(), ngmax);
+            cstone::findNeighbors(i, x.data(), y.data(), z.data(), h.data(), box, codes.data(),
+                                  neighbors + pi*ngmax, neighborsCount + pi, x.size(), ngmax);
         }
     }
 }
