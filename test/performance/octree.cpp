@@ -31,6 +31,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <numeric>
 
 #include "cstone/octree.hpp"
 
@@ -55,17 +56,21 @@ int main()
                                         bucketSize);
 
     auto tp1  = std::chrono::high_resolution_clock::now();
+
     double t0 = std::chrono::duration<double>(tp1 - tp0).count();
-
-    std::cout << "build time from scratch " << t0 << " nNodes(tree): " << nNodes(tree) << std::endl;
-
-    std::tie(tree, counts) = computeOctree(randomBox.mortonCodes().data(),
-                                           randomBox.mortonCodes().data() + nParticles,
-                                           bucketSize, std::move(tree));
+    std::cout << "build time from scratch " << t0 << " nNodes(tree): " << nNodes(tree)
+              << " count: " << std::accumulate(begin(counts), end(counts), 0lu) << std::endl;
 
     auto tp2  = std::chrono::high_resolution_clock::now();
-    double t1 = std::chrono::duration<double>(tp2 - tp1).count();
 
-    std::cout << "build time with guess " << t1 << " nNodes(tree): " << nNodes(tree) << std::endl;
+    auto [tree2, counts2] = computeOctree(randomBox.mortonCodes().data(),
+                                          randomBox.mortonCodes().data() + nParticles,
+                                          bucketSize, std::move(tree));
+
+    auto tp3  = std::chrono::high_resolution_clock::now();
+
+    double t1 = std::chrono::duration<double>(tp3 - tp2).count();
+    std::cout << "build time with guess " << t1 << " nNodes(tree): " << nNodes(tree2)
+              << " count: " << std::accumulate(begin(counts2), end(counts2), 0lu) << std::endl;
 }
 
