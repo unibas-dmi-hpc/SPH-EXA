@@ -98,15 +98,15 @@ void computeNodeCounts(const I* tree, std::size_t* counts, int nNodes, const I* 
         lastNode  = std::upper_bound(tree, tree + nNodes, *(codesEnd-1)) - tree;
     }
 
-    #pragma omp parallel for default(shared)
+    #pragma omp parallel for
     for (int i = 0; i < firstNode; ++i)
         counts[i] = 0;
 
-    #pragma omp parallel for default(shared)
+    #pragma omp parallel for
     for (int i = lastNode; i < nNodes; ++i)
         counts[i] = 0;
 
-    #pragma omp parallel for default(shared)
+    #pragma omp parallel for
     for (int i = firstNode; i < lastNode; ++i)
     {
         I nodeStart = tree[i];
