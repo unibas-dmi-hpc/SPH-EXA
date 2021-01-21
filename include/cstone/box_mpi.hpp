@@ -36,6 +36,7 @@
 #include <mpi.h>
 
 #include <algorithm>
+#include <cmath>
 
 #include "cstone/box.hpp"
 #include "cstone/mpi_wrappers.hpp"
@@ -50,11 +51,18 @@ auto globalMin(Iterator start, Iterator end)
 {
     using T = std::decay_t<decltype(*start)>;
 
-    T ret = *std::min_element(start, end);
+    T minimum = INFINITY;
 
-    MPI_Allreduce(MPI_IN_PLACE, &ret, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
+    #pragma omp parallel for reduction(min : minimum)
+    for (size_t pi = 0; pi < end-start; pi++)
+    {
+        T value = start[pi];
+        minimum = std::min(minimum, value);
+    }
 
-    return ret;
+    MPI_Allreduce(MPI_IN_PLACE, &minimum, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
+
+    return minimum;
 }
 
 //! \brief compute global maximum of an array range
@@ -63,11 +71,18 @@ auto globalMax(Iterator start, Iterator end)
 {
     using T = std::decay_t<decltype(*start)>;
 
-    T ret = *std::max_element(start, end);
+    T maximum = -INFINITY;
 
-    MPI_Allreduce(MPI_IN_PLACE, &ret, 1, MpiType<T>{}, MPI_MAX, MPI_COMM_WORLD);
+    #pragma omp parallel for reduction(max : maximum)
+    for (size_t pi = 0; pi < end-start; pi++)
+    {
+        T value = start[pi];
+        maximum = std::max(maximum, value);
+    }
 
-    return ret;
+    MPI_Allreduce(MPI_IN_PLACE, &maximum, 1, MpiType<T>{}, MPI_MAX, MPI_COMM_WORLD);
+
+    return maximum;
 }
 
 //! \brief compute global bounding box for local x,y,z arrays
