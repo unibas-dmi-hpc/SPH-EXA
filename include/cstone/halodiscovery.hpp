@@ -97,7 +97,23 @@ void findHalos(const std::vector<I>&           tree,
                 // enlarged by the halo radius collides with
                 Box<int> haloBox = makeHaloBox(tree[nodeIdx], tree[nodeIdx + 1], radius, box);
 
-                // TODO skip collision detection if is the halo box is fully contained in the assigned range
+                unsigned xmin = std::max(0, haloBox.xmin());
+                unsigned xmax = std::min((1<<maxTreeLevel<I>{})-1, haloBox.xmax());
+                unsigned ymin = std::max(0, haloBox.ymin());
+                unsigned ymax = std::min((1<<maxTreeLevel<I>{})-1, haloBox.ymax());
+                unsigned zmin = std::max(0, haloBox.zmin());
+                unsigned zmax = std::min((1<<maxTreeLevel<I>{})-1, haloBox.zmax());
+
+                I lowestCode  = codeFromBox<I>(xmin, ymin, zmin, maxTreeLevel<I>{});
+                I highestCode = codeFromBox<I>(xmax, ymax, zmax, maxTreeLevel<I>{});
+
+                // if the box is fully inside the assigned SFC range, we skip collision detection
+                if (lowestCode > assignment.rangeStart(rank, range) &&
+                    highestCode < assignment.rangeEnd(rank, range))
+                {
+                    continue;
+                }
+
                 findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
 
                 if (collisions.exhausted()) throw std::runtime_error("collision list exhausted\n");
