@@ -210,7 +210,9 @@ computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vecto
 {
     if (!tree.size())
     {
-        tree = makeUniformNLevelTree<I>(codesEnd - codesStart, bucketSize);
+        // tree containing just the root node
+        tree.push_back(0);
+        tree.push_back(nodeRange<I>(0));
     }
 
     std::vector<std::size_t> counts(nNodes(tree));
@@ -220,14 +222,14 @@ computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vecto
     {
         computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd);
         if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
-        std::vector<I> balancedTree;
-        balancedTree = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize, &converged);
+        std::vector<I> balancedTree =
+            rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize, &converged);
 
         swap(tree, balancedTree);
         counts.resize(nNodes(tree));
     }
 
-    return std::make_tuple(tree, counts);
+    return std::make_tuple(std::move(tree), std::move(counts));
 }
 
 /*! \brief Compute the halo radius of each node in the given octree

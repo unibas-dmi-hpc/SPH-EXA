@@ -487,9 +487,10 @@ void computeMortonCodes(InputIterator  xBegin,
 {
     using CodeType = std::decay_t<decltype(*codesBegin)>;
 
-    while (xBegin != xEnd)
+    #pragma omp parallel for
+    for (std::size_t i = 0; i < xEnd-xBegin; ++i)
     {
-        *codesBegin++ = morton3D<CodeType>(*xBegin++, *yBegin++, *zBegin++, box);
+        codesBegin[i] = morton3D<CodeType>(xBegin[i], yBegin[i], zBegin[i], box);
     }
 }
 
