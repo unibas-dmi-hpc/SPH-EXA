@@ -79,8 +79,8 @@ void findHalos(const std::vector<I>&           tree,
     // go through all ranges assigned to rank
     for (int range = 0; range < assignment.nRanges(rank); ++range)
     {
-        int firstNode = std::lower_bound(begin(tree), end(tree), assignment.rangeStart(rank, range)) - begin(tree);
-        int lastNode  = std::lower_bound(begin(tree), end(tree), assignment.rangeEnd(rank, range)) - begin(tree);
+        int firstNode = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeStart(rank, range)) - begin(tree);
+        int lastNode  = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeEnd(rank, range)) - begin(tree);
 
         // loop over all the nodes in range
         for (int nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
