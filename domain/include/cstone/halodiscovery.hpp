@@ -79,55 +79,81 @@ void findHalos(const std::vector<I>&           tree,
     // go through all ranges assigned to rank
     for (int range = 0; range < assignment.nRanges(rank); ++range)
     {
-        int firstNode = std::lower_bound(begin(tree), end(tree), assignment.rangeStart(rank, range)) - begin(tree);
-        int lastNode  = std::lower_bound(begin(tree), end(tree), assignment.rangeEnd(rank, range)) - begin(tree);
+        int firstNode = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeStart(rank, range)) - begin(tree);
+        int lastNode  = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeEnd(rank, range)) - begin(tree);
 
-        // loop over all the nodes in range
-        for (int nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
+        #pragma omp parallel
         {
-            CollisionList collisions;
-            T radius = interactionRadii[nodeIdx];
+            std::vector<pair<int>> threadHaloPairs;
 
-            // find out with which other nodes in the octree that the node at nodeIdx
-            // enlarged by the halo radius collides with
-            Box<int> haloBox = makeHaloBox(tree[nodeIdx], tree[nodeIdx + 1], radius, box);
-
-            // TODO skip collision detection if is the halo box is fully contained in the assigned range
-            findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
-
-            if (collisions.exhausted()) throw std::runtime_error("collision list exhausted\n");
-
-            // Go through all colliding nodes to determine which of them fall into a part of the SFC
-            // that is not assigned to the executing rank. These nodes will be marked as halos.
-            for (int i = 0; i < collisions.size(); ++i)
+            // loop over all the nodes in range
+            #pragma omp for
+            for (int nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
             {
-                int collidingNodeIdx = collisions[i];
+                CollisionList collisions;
+                T radius = interactionRadii[nodeIdx];
 
-                I collidingNodeStart = tree[collidingNodeIdx];
-                I collidingNodeEnd   = tree[collidingNodeIdx + 1];
+                // find out with which other nodes in the octree that the node at nodeIdx
+                // enlarged by the halo radius collides with
+                Box<int> haloBox = makeHaloBox(tree[nodeIdx], tree[nodeIdx + 1], radius, box);
 
-                bool isHalo = false;
-                for (int a = 0; a < assignment.nRanges(rank); ++a)
+                unsigned xmin = std::max(0, haloBox.xmin());
+                unsigned xmax = std::min((1<<maxTreeLevel<I>{})-1, haloBox.xmax());
+                unsigned ymin = std::max(0, haloBox.ymin());
+                unsigned ymax = std::min((1<<maxTreeLevel<I>{})-1, haloBox.ymax());
+                unsigned zmin = std::max(0, haloBox.zmin());
+                unsigned zmax = std::min((1<<maxTreeLevel<I>{})-1, haloBox.zmax());
+
+                I lowestCode  = codeFromBox<I>(xmin, ymin, zmin, maxTreeLevel<I>{});
+                I highestCode = codeFromBox<I>(xmax, ymax, zmax, maxTreeLevel<I>{});
+
+                // if the box is fully inside the assigned SFC range, we skip collision detection
+                if (lowestCode > assignment.rangeStart(rank, range) &&
+                    highestCode < assignment.rangeEnd(rank, range))
                 {
-                    I assignmentStart = assignment.rangeStart(rank, a);
-                    I assignmentEnd   = assignment.rangeEnd(rank, a);
+                    continue;
+                }
 
-                    if (collidingNodeStart < assignmentStart || collidingNodeEnd > assignmentEnd)
+                findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+
+                if (collisions.exhausted()) throw std::runtime_error("collision list exhausted\n");
+
+                // Go through all colliding nodes to determine which of them fall into a part of the SFC
+                // that is not assigned to the executing rank. These nodes will be marked as halos.
+                for (int i = 0; i < collisions.size(); ++i)
+                {
+                    int collidingNodeIdx = collisions[i];
+
+                    I collidingNodeStart = tree[collidingNodeIdx];
+                    I collidingNodeEnd = tree[collidingNodeIdx + 1];
+
+                    bool isHalo = false;
+                    for (int a = 0; a < assignment.nRanges(rank); ++a)
                     {
-                        // node with index collidingNodeIdx is a halo node
-                        isHalo = true;
+                        I assignmentStart = assignment.rangeStart(rank, a);
+                        I assignmentEnd = assignment.rangeEnd(rank, a);
+
+                        if (collidingNodeStart < assignmentStart || collidingNodeEnd > assignmentEnd)
+                        {
+                            // node with index collidingNodeIdx is a halo node
+                            isHalo = true;
+                        }
+                    }
+                    if (isHalo)
+                    {
+                        // check if remote node +halo also overlaps with internal node
+                        Box<int> remoteNodeBox = makeHaloBox(collidingNodeStart, collidingNodeEnd,
+                                                             interactionRadii[collidingNodeIdx], box);
+                        if (overlap(tree[nodeIdx], tree[nodeIdx + 1], remoteNodeBox))
+                        {
+                            threadHaloPairs.emplace_back(nodeIdx, collidingNodeIdx);
+                        }
                     }
                 }
-                if (isHalo)
-                {
-                    // check if remote node +halo also overlaps with internal node
-                    Box<int> remoteNodeBox = makeHaloBox(collidingNodeStart, collidingNodeEnd,
-                                                         interactionRadii[collidingNodeIdx], box);
-                    if (overlap(tree[nodeIdx], tree[nodeIdx+1], remoteNodeBox))
-                    {
-                        haloPairs.emplace_back(nodeIdx, collidingNodeIdx);
-                    }
-                }
+            }
+            #pragma omp critical
+            {
+                std::copy(begin(threadHaloPairs), end(threadHaloPairs), std::back_inserter(haloPairs));
             }
         }
     }
