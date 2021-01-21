@@ -90,7 +90,24 @@ std::size_t nNodes(const std::vector<I>& tree)
 template<class I>
 void computeNodeCounts(const I* tree, std::size_t* counts, int nNodes, const I* codesStart, const I* codesEnd)
 {
-    for (int i = 0; i < nNodes; ++i)
+    int firstNode = 0;
+    int lastNode  = nNodes;
+    if (codesStart != codesEnd)
+    {
+        firstNode = std::upper_bound(tree, tree + nNodes, *codesStart) - tree - 1;
+        lastNode  = std::upper_bound(tree, tree + nNodes, *(codesEnd-1)) - tree;
+    }
+
+    #pragma omp parallel for
+    for (int i = 0; i < firstNode; ++i)
+        counts[i] = 0;
+
+    #pragma omp parallel for
+    for (int i = lastNode; i < nNodes; ++i)
+        counts[i] = 0;
+
+    #pragma omp parallel for
+    for (int i = firstNode; i < lastNode; ++i)
     {
         I nodeStart = tree[i];
         I nodeEnd   = tree[i+1];
@@ -98,7 +115,7 @@ void computeNodeCounts(const I* tree, std::size_t* counts, int nNodes, const I* 
         // count particles in range
         auto rangeStart = std::lower_bound(codesStart, codesEnd, nodeStart);
         auto rangeEnd   = std::lower_bound(codesStart, codesEnd, nodeEnd);
-        counts[i] = std::distance(rangeStart, rangeEnd);
+        counts[i]       = std::distance(rangeStart, rangeEnd);
     }
 }
 
