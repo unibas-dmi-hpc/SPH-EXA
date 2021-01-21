@@ -35,6 +35,9 @@
 
 #include "cstone/octree.hpp"
 
+#include "cstone/halodiscovery.hpp"
+#include "cstone/domaindecomp.hpp"
+
 #include "coord_samples/random.hpp"
 
 using namespace cstone;
@@ -61,16 +64,29 @@ int main()
     std::cout << "build time from scratch " << t0 << " nNodes(tree): " << nNodes(tree)
               << " count: " << std::accumulate(begin(counts), end(counts), 0lu) << std::endl;
 
-    auto tp2  = std::chrono::high_resolution_clock::now();
+    tp0  = std::chrono::high_resolution_clock::now();
 
     auto [tree2, counts2] = computeOctree(randomBox.mortonCodes().data(),
                                           randomBox.mortonCodes().data() + nParticles,
                                           bucketSize, std::move(tree));
 
-    auto tp3  = std::chrono::high_resolution_clock::now();
+    tp1  = std::chrono::high_resolution_clock::now();
 
-    double t1 = std::chrono::duration<double>(tp3 - tp2).count();
+    double t1 = std::chrono::duration<double>(tp1 - tp0).count();
     std::cout << "build time with guess " << t1 << " nNodes(tree): " << nNodes(tree2)
               << " count: " << std::accumulate(begin(counts2), end(counts2), 0lu) << std::endl;
+
+    int nSplits = 4;
+    SpaceCurveAssignment<CodeType> assignment = singleRangeSfcSplit(tree2, counts2, nSplits);
+    std::vector<double> haloRadii(nNodes(tree2), 0.01);
+
+    std::vector<pair<int>> haloPairs;
+    int doSplit = 0;
+    tp0  = std::chrono::high_resolution_clock::now();
+    findHalos(tree2, haloRadii, box, assignment, doSplit, haloPairs);
+    tp1  = std::chrono::high_resolution_clock::now();
+
+    double t2 = std::chrono::duration<double>(tp1 - tp0).count();
+    std::cout << "halo discovery: " << t2 << " nPairs: " << haloPairs.size() << std::endl;
 }
 
