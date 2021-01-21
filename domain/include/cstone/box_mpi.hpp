@@ -36,6 +36,7 @@
 #include <mpi.h>
 
 #include <algorithm>
+#include <cmath>
 
 #include "cstone/box.hpp"
 #include "cstone/mpi_wrappers.hpp"
@@ -54,7 +55,7 @@ auto globalMin(Iterator start, Iterator end)
     T minimum = INFINITY;
 
     #pragma omp parallel for reduction(min : minimum)
-    for (size_t pi = 0; pi < std::size_t(end-start); pi++)
+    for (size_t pi = 0; pi < end-start; pi++)
     {
         T value = start[pi];
         minimum = std::min(minimum, value);
@@ -75,7 +76,7 @@ auto globalMax(Iterator start, Iterator end)
     T maximum = -INFINITY;
 
     #pragma omp parallel for reduction(max : maximum)
-    for (size_t pi = 0; pi < std::size_t(end-start); pi++)
+    for (size_t pi = 0; pi < end-start; pi++)
     {
         T value = start[pi];
         maximum = std::max(maximum, value);

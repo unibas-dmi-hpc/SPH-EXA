@@ -61,13 +61,13 @@ void sort_invert(InputIterator inBegin, InputIterator inEnd, OutputIterator outB
     std::size_t n   = std::distance(inBegin, inEnd);
 
     // create index sequence 0,1,2,...,n
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for
     for (std::size_t i = 0; i < n; ++i)
         outBegin[i] = i;
 
     // zip the input integer array together with the index sequence
     std::vector<std::tuple<ValueType, Integer>> keyIndexPairs(n);
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for
     for (std::size_t i = 0; i < n; ++i)
         keyIndexPairs[i] = std::make_tuple(inBegin[i], outBegin[i]);
 
@@ -76,7 +76,7 @@ void sort_invert(InputIterator inBegin, InputIterator inEnd, OutputIterator outB
               [](const auto& t1, const auto& t2){ return std::get<0>(t1) < std::get<0>(t2); });
 
     // extract the resulting ordering
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for
     for (std::size_t i = 0; i < n; ++i)
         outBegin[i] = std::get<1>(keyIndexPairs[i]);
 }

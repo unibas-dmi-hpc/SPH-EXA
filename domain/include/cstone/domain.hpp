@@ -193,17 +193,9 @@ public:
 
         // compute the global octree in cornerstone format (leaves only)
         // the resulting tree and node counts will be identical on all ranks
-        if (incrementalBuild_)
-        {
-            updateOctreeGlobal(codes.data(), codes.data() + nParticles, bucketSize_, tree_, nodeCounts_);
-            //std::tie(tree_, nodeCounts_) = computeOctreeGlobal(codes.data(), codes.data() + nParticles, bucketSize_, std::move(tree_));
-        }
-        else
-        {
-            // full build on first call
-            std::tie(tree_, nodeCounts_) = computeOctreeGlobal(codes.data(), codes.data() + nParticles, bucketSize_);
-            incrementalBuild_ = true;
-        }
+        std::vector<std::size_t> nodeCounts;
+        std::tie(tree_, nodeCounts) = computeOctreeGlobal(codes.data(), codes.data() + nParticles, bucketSize_,
+                                                          std::move(tree_));
 
         // assign one single range of Morton codes each rank
         SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree_, nodeCounts_, nRanks_);
