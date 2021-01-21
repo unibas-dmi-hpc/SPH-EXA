@@ -29,11 +29,10 @@
  * \author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include <chrono>
 #include <iostream>
 
-#include "cstone/mortoncode.hpp"
 #include "cstone/octree.hpp"
-#include "cstone/octree_util.hpp"
 
 #include "coord_samples/random.hpp"
 
@@ -44,16 +43,29 @@ int main()
     using CodeType = unsigned;
     Box<double> box{-1, 1};
 
-    int nParticles = 100000;
+    int nParticles = 2000000;
     int bucketSize = 10;
 
     RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
 
-    // compute octree starting from default uniform octree
+    auto tp0 = std::chrono::high_resolution_clock::now();
+
     auto [tree, counts] = computeOctree(randomBox.mortonCodes().data(),
                                         randomBox.mortonCodes().data() + nParticles,
                                         bucketSize);
 
-    std::cout << "nNodes(tree): " << nNodes(tree) << std::endl;
+    auto tp1  = std::chrono::high_resolution_clock::now();
+    double t0 = std::chrono::duration<double>(tp1 - tp0).count();
+
+    std::cout << "build time from scratch " << t0 << " nNodes(tree): " << nNodes(tree) << std::endl;
+
+    std::tie(tree, counts) = computeOctree(randomBox.mortonCodes().data(),
+                                           randomBox.mortonCodes().data() + nParticles,
+                                           bucketSize, std::move(tree));
+
+    auto tp2  = std::chrono::high_resolution_clock::now();
+    double t1 = std::chrono::duration<double>(tp2 - tp1).count();
+
+    std::cout << "build time with guess " << t1 << " nNodes(tree): " << nNodes(tree) << std::endl;
 }
 
