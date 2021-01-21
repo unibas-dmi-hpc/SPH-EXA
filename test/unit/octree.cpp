@@ -449,8 +449,8 @@ public:
 
         // compute octree starting from default uniform octree
         auto [treeML, countsML] = computeOctree(randomBox.mortonCodes().data(),
-                                                        randomBox.mortonCodes().data() + nParticles,
-                                                        bucketSize);
+                                                randomBox.mortonCodes().data() + nParticles,
+                                                bucketSize);
 
         std::cout << "number of nodes: " << nNodes(treeML) << std::endl;
 
