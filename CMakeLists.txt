@@ -9,4 +9,6 @@ set(CMAKE_CUDA_FLAGS_RELEASE "-O2 -DNDEBUG")
 find_package(MPI)
 include(CTest)
 
+find_package(OpenMP)
+
 add_subdirectory(test)
