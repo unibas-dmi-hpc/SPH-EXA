@@ -60,22 +60,25 @@ void sort_invert(InputIterator inBegin, InputIterator inEnd, OutputIterator outB
     using Integer   = std::decay_t<decltype(*outBegin)>;
     std::size_t n   = std::distance(inBegin, inEnd);
 
-    OutputIterator outEnd = outBegin + n;
     // create index sequence 0,1,2,...,n
-    std::iota(outBegin, outEnd, 0);
+    #pragma omp parallel for
+    for (std::size_t i = 0; i < n; ++i)
+        outBegin[i] = i;
 
     // zip the input integer array together with the index sequence
     std::vector<std::tuple<ValueType, Integer>> keyIndexPairs(n);
-    std::transform(inBegin, inEnd, outBegin, begin(keyIndexPairs),
-                   [](ValueType i1, Integer i2) { return std::make_tuple(i1, i2); });
+    #pragma omp parallel for
+    for (std::size_t i = 0; i < n; ++i)
+        keyIndexPairs[i] = std::make_tuple(inBegin[i], outBegin[i]);
 
     // sort, comparing only the first tuple element
     std::sort(begin(keyIndexPairs), end(keyIndexPairs),
               [](const auto& t1, const auto& t2){ return std::get<0>(t1) < std::get<0>(t2); });
 
     // extract the resulting ordering
-    std::transform(begin(keyIndexPairs), end(keyIndexPairs), outBegin,
-                   [](const auto& tuple) { return std::get<1>(tuple); } );
+    #pragma omp parallel for
+    for (std::size_t i = 0; i < n; ++i)
+        outBegin[i] = std::get<1>(keyIndexPairs[i]);
 }
 
 
