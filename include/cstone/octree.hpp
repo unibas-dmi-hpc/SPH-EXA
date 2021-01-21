@@ -275,7 +275,24 @@ template<class I, class T>
 void computeHaloRadii(const I* tree, int nNodes, const I* codesStart, const I* codesEnd,
                       const int* ordering, const T* input, T* output)
 {
-    for (int i = 0; i < nNodes; ++i)
+    int firstNode = 0;
+    int lastNode  = nNodes;
+    if (codesStart != codesEnd)
+    {
+        firstNode = std::upper_bound(tree, tree + nNodes, *codesStart) - tree - 1;
+        lastNode  = std::upper_bound(tree, tree + nNodes, *(codesEnd-1)) - tree;
+    }
+
+    #pragma omp parallel for
+    for (int i = 0; i < firstNode; ++i)
+        output[i] = 0;
+
+    #pragma omp parallel for
+    for (int i = lastNode; i < nNodes; ++i)
+        output[i] = 0;
+
+    #pragma omp parallel for
+    for (int i = firstNode; i < lastNode; ++i)
     {
         I nodeStart = tree[i];
         I nodeEnd   = tree[i+1];
@@ -288,8 +305,7 @@ void computeHaloRadii(const I* tree, int nNodes, const I* codesStart, const I* c
         for(int p = startIndex; p < endIndex; ++p)
         {
             T nodeElement = input[ordering[p]];
-            if (nodeElement > nodeMax)
-                nodeMax = nodeElement;
+            nodeMax       = std::max(nodeMax, nodeElement);
         }
 
         // note factor of 2 due to SPH conventions
