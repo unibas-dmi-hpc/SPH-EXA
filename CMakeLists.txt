@@ -8,5 +8,6 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -march=native -mtune=native -DNDEBUG")
 find_package(MPI)
 include(CTest)
 
-add_subdirectory(domain)
-add_subdirectory(src)
+find_package(OpenMP)
+
+add_subdirectory(test)
