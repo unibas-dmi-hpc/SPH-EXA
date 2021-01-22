@@ -93,27 +93,24 @@ void findHalos(const std::vector<I>&           tree,
                 CollisionList collisions;
                 T radius = interactionRadii[nodeIdx];
 
-                // find out with which other nodes in the octree that the node at nodeIdx
-                // enlarged by the halo radius collides with
                 Box<int> haloBox = makeHaloBox(tree[nodeIdx], tree[nodeIdx + 1], radius, box);
 
-                unsigned xmin = std::max(0, haloBox.xmin());
-                unsigned xmax = std::min((1<<maxTreeLevel<I>{})-1, haloBox.xmax());
-                unsigned ymin = std::max(0, haloBox.ymin());
-                unsigned ymax = std::min((1<<maxTreeLevel<I>{})-1, haloBox.ymax());
-                unsigned zmin = std::max(0, haloBox.zmin());
-                unsigned zmax = std::min((1<<maxTreeLevel<I>{})-1, haloBox.zmax());
-
-                I lowestCode  = codeFromBox<I>(xmin, ymin, zmin, maxTreeLevel<I>{});
+                I lowestCode  = codeFromBox<I>(haloBox.xmin(), haloBox.ymin(), haloBox.zmin(), maxTreeLevel<I>{});
+                int maxCoord  = (1u<<maxTreeLevel<I>{}) - 1;
+                int xmax      = std::min(maxCoord, haloBox.xmax());
+                int ymax      = std::min(maxCoord, haloBox.ymax());
+                int zmax      = std::min(maxCoord, haloBox.zmax());
                 I highestCode = codeFromBox<I>(xmax, ymax, zmax, maxTreeLevel<I>{});
 
-                // if the box is fully inside the assigned SFC range, we skip collision detection
+                // if the halo box is fully inside the assigned SFC range, we skip collision detection
                 if (lowestCode > assignment.rangeStart(rank, range) &&
                     highestCode < assignment.rangeEnd(rank, range))
                 {
                     continue;
                 }
 
+                // find out with which other nodes in the octree that the node at nodeIdx
+                // enlarged by the halo radius collides with
                 findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
 
                 if (collisions.exhausted()) throw std::runtime_error("collision list exhausted\n");

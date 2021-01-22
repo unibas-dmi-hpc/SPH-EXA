@@ -306,12 +306,12 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsig
 template<class I>
 I codeFromBox(unsigned x, unsigned y, unsigned z, unsigned treeLevel)
 {
-    constexpr unsigned nBits = (sizeof(I) * 8) / 3;
-    unsigned shifts = nBits - treeLevel;
+    assert(treeLevel <= maxTreeLevel<I>{});
+    unsigned shifts = maxTreeLevel<I>{} - treeLevel;
 
-    assert( x < (1u << treeLevel));
-    assert( y < (1u << treeLevel));
-    assert( z < (1u << treeLevel));
+    assert(x < (1u << treeLevel));
+    assert(y < (1u << treeLevel));
+    assert(z < (1u << treeLevel));
 
     I xx = detail::expandBits(I(x) << shifts);
     I yy = detail::expandBits(I(y) << shifts);
