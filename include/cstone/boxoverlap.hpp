@@ -72,6 +72,31 @@ bool overlap(I codeStart, I codeEnd, const Box<int>& box)
     return overlap(codeStart, level*3, box);
 }
 
+/*! \brief Check whether a coordinate box is fully contained in a Morton code range
+ *
+ * @tparam I         32- or 64-bit unsigned integer
+ * @param codeStart  Morton code range start
+ * @param codeEnd    Morton code range end
+ * @param box        3D box with x,y,z integer coordinates in [0,2^maxTreeLevel<I>{}-1]
+ * @return           true if the box is fully contained within the specified Morton code range
+ */
+template <class I>
+std::enable_if_t<std::is_unsigned_v<I>, bool>
+containedIn(I codeStart, I codeEnd, const Box<int>& box)
+{
+    // volume 0 boxes are not possible if makeHaloBox was used to generate it
+    assert(box.xmin() < box.xmax());
+    assert(box.ymin() < box.ymax());
+    assert(box.zmin() < box.zmax());
+
+    I lowCode  = codeFromBox<I>(box.xmin(), box.ymin(), box.zmin(), maxTreeLevel<I>{});
+    // we have to subtract 1 and use strict <, because we cannot generate
+    // Morton codes for x,y,z >= 2^maxTreeLevel<I>{} (2^10 or 2^21)
+    I highCode = codeFromBox<I>(box.xmax()-1, box.ymax()-1, box.zmax()-1, maxTreeLevel<I>{});
+
+    return (lowCode >= codeStart) && (highCode < codeEnd);
+}
+
 /*! \brief Construct a 3D box from an octree node plus halo range
  *
  * @tparam I             32- or 64-bit unsigned integer
@@ -109,6 +134,8 @@ Box<int> makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz)
 template <class I, class T>
 Box<int> makeHaloBox(I codeStart, I codeEnd, T radius, const Box<T>& box)
 {
+    // disallow boxes with no volume
+    assert(codeEnd > codeStart);
     int dx = detail::toNBitIntCeil<I>(radius / (box.xmax() - box.xmin()));
     int dy = detail::toNBitIntCeil<I>(radius / (box.ymax() - box.ymin()));
     int dz = detail::toNBitIntCeil<I>(radius / (box.zmax() - box.zmin()));

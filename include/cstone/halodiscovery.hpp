@@ -95,16 +95,9 @@ void findHalos(const std::vector<I>&           tree,
 
                 Box<int> haloBox = makeHaloBox(tree[nodeIdx], tree[nodeIdx + 1], radius, box);
 
-                I lowestCode  = codeFromBox<I>(haloBox.xmin(), haloBox.ymin(), haloBox.zmin(), maxTreeLevel<I>{});
-                int maxCoord  = (1u<<maxTreeLevel<I>{}) - 1;
-                int xmax      = std::min(maxCoord, haloBox.xmax());
-                int ymax      = std::min(maxCoord, haloBox.ymax());
-                int zmax      = std::min(maxCoord, haloBox.zmax());
-                I highestCode = codeFromBox<I>(xmax, ymax, zmax, maxTreeLevel<I>{});
-
                 // if the halo box is fully inside the assigned SFC range, we skip collision detection
-                if (lowestCode > assignment.rangeStart(rank, range) &&
-                    highestCode < assignment.rangeEnd(rank, range))
+                if (containedIn(assignment.rangeStart(rank, range),
+                                assignment.rangeEnd(range, range), haloBox))
                 {
                     continue;
                 }
