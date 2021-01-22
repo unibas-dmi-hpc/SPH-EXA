@@ -52,7 +52,7 @@ namespace cstone
  *
  */
 template <class I>
-bool overlap(I prefix, int length, Box<int> box)
+bool overlap(I prefix, int length, const Box<int>& box)
 {
     pair<int> xRange = decodeXRange(prefix, length);
     pair<int> yRange = decodeYRange(prefix, length);
@@ -66,7 +66,7 @@ bool overlap(I prefix, int length, Box<int> box)
 }
 
 template <class I>
-bool overlap(I codeStart, I codeEnd, Box<int> box)
+bool overlap(I codeStart, I codeEnd, const Box<int>& box)
 {
     int level = treeLevel(codeEnd - codeStart);
     return overlap(codeStart, level*3, box);
