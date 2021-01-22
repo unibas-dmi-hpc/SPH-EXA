@@ -210,3 +210,76 @@ TEST(BoxOverlap, makeHaloBoxOverflow)
     makeHaloBoxOverflow<unsigned>();
     makeHaloBoxOverflow<uint64_t>();
 }
+
+template<class I>
+void haloBoxContainedIn()
+{
+    {
+        Box<int> haloBox{0, 1, 0, 1, 0, 1};
+        EXPECT_TRUE(containedIn(I(0), I(1), haloBox));
+    }
+    {
+        Box<int> haloBox{0, 1, 0, 1, 0, 2};
+        EXPECT_FALSE(containedIn(I(0), I(1), haloBox));
+    }
+    {
+        Box<int> haloBox{0, 1, 0, 1, 0, 2};
+        EXPECT_TRUE(containedIn(I(0), I(2), haloBox));
+    }
+    {
+        Box<int> haloBox{0, 1, 0, 2, 0, 2};
+        EXPECT_FALSE(containedIn(I(0), I(3), haloBox));
+    }
+    {
+        Box<int> haloBox{0, 1, 0, 2, 0, 2};
+        EXPECT_TRUE(containedIn(I(0), I(4), haloBox));
+    }
+    {
+        Box<int> haloBox{0, 2, 0, 2, 0, 2};
+        EXPECT_FALSE(containedIn(I(0), I(7), haloBox));
+    }
+    {
+        Box<int> haloBox{0, 2, 0, 2, 0, 2};
+        EXPECT_TRUE(containedIn(I(0), I(8), haloBox));
+    }
+
+    int maxCoord = (1u<<maxTreeLevel<I>{}) - 1;
+    {
+        I firstCode  = codeFromBox<I>(0,0,maxCoord, maxTreeLevel<I>{});
+        I secondCode = firstCode + 1;
+        Box<int> haloBox{0, 1, 0, 1, maxCoord, maxCoord + 1};
+        EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
+    }
+    {
+        I firstCode  = codeFromBox<I>(0,0,maxCoord, maxTreeLevel<I>{});
+        I secondCode = firstCode + 1;
+        Box<int> haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
+        EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));
+    }
+    {
+        I firstCode  = codeFromBox<I>(0,0,maxCoord, maxTreeLevel<I>{});
+        I secondCode = firstCode + 2;
+        Box<int> haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
+        EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));
+    }
+    {
+        I firstCode  = codeFromBox<I>(0,0,maxCoord, maxTreeLevel<I>{});
+        I secondCode = firstCode + 3;
+        Box<int> haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
+        EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
+    }
+    {
+        I firstCode  = codeFromBox<I>(maxCoord,maxCoord,maxCoord, maxTreeLevel<I>{});
+        I secondCode = firstCode + 1;
+        Box<int> haloBox{maxCoord, maxCoord+1, maxCoord, maxCoord+1, maxCoord, maxCoord + 1};
+        EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
+    }
+
+}
+
+//! \brief test containment of a box within a Morton code range
+TEST(BoxOverlap, haloBoxContainedIn)
+{
+    haloBoxContainedIn<unsigned>();
+    haloBoxContainedIn<uint64_t>();
+}
