@@ -69,10 +69,23 @@ inline bool overlapTwoRanges(int a, int b, int c, int d)
  *
  * @tparam R  periodic range
  * @return    true or false
+ *
+ * Some restrictions apply, no input value can be further than R
+ * from the periodic range.
  */
 template<int R>
 bool overlapRange(int a, int b, int c, int d)
 {
+    assert(a >= -R);
+    assert(a < R);
+    assert(b > 0);
+    assert(b <= 2*R);
+
+    assert(c >= -R);
+    assert(c < R);
+    assert(d > 0);
+    assert(d <= 2*R);
+
     return overlapTwoRanges(a,b,c,d) ||
            overlapTwoRanges(a+R, b+R, c, d) ||
            overlapTwoRanges(a, b, c+R, d+R);
