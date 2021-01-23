@@ -111,14 +111,10 @@ bool overlap(I prefix, int length, const Box<int>& box)
     pair<int> yRange = decodeYRange(prefix, length);
     pair<int> zRange = decodeZRange(prefix, length);
 
-    bool xOverlap = box.xmax() > xRange[0] && xRange[1] > box.xmin();
-    bool yOverlap = box.ymax() > yRange[0] && yRange[1] > box.ymin();
-    bool zOverlap = box.zmax() > zRange[0] && zRange[1] > box.zmin();
-
-    //constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
-    //bool xOverlap = overlapRange<maxCoord>(xRange[0], xRange[1], box.xmin(), box.xmax());
-    //bool yOverlap = overlapRange<maxCoord>(yRange[0], yRange[1], box.ymin(), box.ymax());
-    //bool zOverlap = overlapRange<maxCoord>(zRange[0], zRange[1], box.zmin(), box.zmax());
+    constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+    bool xOverlap = overlapRange<maxCoord>(xRange[0], xRange[1], box.xmin(), box.xmax());
+    bool yOverlap = overlapRange<maxCoord>(yRange[0], yRange[1], box.ymin(), box.ymax());
+    bool zOverlap = overlapRange<maxCoord>(zRange[0], zRange[1], box.zmin(), box.zmax());
 
     return xOverlap && yOverlap && zOverlap;
 }

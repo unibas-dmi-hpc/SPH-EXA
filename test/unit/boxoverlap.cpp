@@ -325,20 +325,29 @@ TEST(BoxOverlap, haloBoxContainedIn)
 template<class I>
 void pbcHaloBoxOverlap()
 {
-    //int maxCoord = (1u<<maxTreeLevel<I>{}) - 1;
-    //{
-    //    Box<int> haloBox{-1, 1, 0, 1, 0, 1, true, false, false};
-    //    EXPECT_TRUE(overlap(I(0), I(1), haloBox));
-    //}
-    //{
-    //    I firstCode  = codeFromBox<I>(maxCoord,0,0, maxTreeLevel<I>{});
-    //    I secondCode = firstCode + 1;
-    //    Box<int> haloBox{-1, 1, 0, 1, 0, 1, true, false, false};
-    //    EXPECT_TRUE(overlap(firstCode, secondCode, haloBox));
-    //}
+    int maxCoord = (1u<<maxTreeLevel<I>{}) - 1;
+    {
+        Box<int> haloBox{-1, 1, 0, 1, 0, 1};
+        EXPECT_TRUE(overlap(I(0), I(1), haloBox));
+    }
+    {
+        I firstCode  = codeFromBox<I>(maxCoord,0,0, maxTreeLevel<I>{});
+        I secondCode = firstCode + 1;
+        Box<int> haloBox{-1, 1, 0, 1, 0, 1};
+        EXPECT_TRUE(overlap(firstCode, secondCode, haloBox));
+    }
+    {
+        Box<int> haloBox{maxCoord, maxCoord+2, 0, 1, 0, 1};
+        EXPECT_TRUE(overlap(I(0), I(1), haloBox));
+    }
+    {
+        Box<int> haloBox{-1, 1, -1, 1, -1, 1};
+        EXPECT_TRUE(overlap(nodeRange<I>(0)-1, nodeRange<I>(0), haloBox));
+    }
 }
 
 TEST(BoxOverlap, pbcHaloBoxOverlap)
 {
     pbcHaloBoxOverlap<unsigned>();
+    pbcHaloBoxOverlap<uint64_t>();
 }
