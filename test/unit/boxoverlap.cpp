@@ -59,6 +59,43 @@ TEST(BoxOverlap, padUtility)
     EXPECT_EQ(pad(0b011ul, 3), 0b0011ul << 60);
 }
 
+template<class I>
+void pbcAdjust()
+{
+    constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+    EXPECT_EQ(1,          pbcAdjust<maxCoord>(1));
+    EXPECT_EQ(maxCoord-1, pbcAdjust<maxCoord>(-1));
+    EXPECT_EQ(0,          pbcAdjust<maxCoord>(maxCoord));
+    EXPECT_EQ(maxCoord-1, pbcAdjust<maxCoord>(-maxCoord-1));
+    EXPECT_EQ(2,          pbcAdjust<maxCoord>(4*maxCoord + 2));
+}
+
+TEST(BoxOverlap, pbcAdjust)
+{
+    pbcAdjust<unsigned>();
+    pbcAdjust<uint64_t>();
+}
+
+TEST(BoxOverlap, overlapRange)
+{
+    constexpr int R = 1u<<maxTreeLevel<unsigned>{};
+
+    EXPECT_TRUE(overlapRange<R>(0,2,1,3));
+    EXPECT_FALSE(overlapRange<R>(0,1,1,2));
+    EXPECT_FALSE(overlapRange<R>(0,1,2,3));
+    EXPECT_TRUE(overlapRange<R>(0,R-1,1,3));
+    EXPECT_TRUE(overlapRange<R>(0,R,1,3));
+    EXPECT_TRUE(overlapRange<R>(0,2*R,1,3));
+    EXPECT_FALSE(overlapRange<R>(0,0,1,3));
+
+    EXPECT_TRUE(overlapRange<R>(R-2,R,R-1,R));
+    EXPECT_TRUE(overlapRange<R>(R-1,R+1,0,1));
+    EXPECT_FALSE(overlapRange<R>(0,1,R-1,R));
+    EXPECT_TRUE(overlapRange<R>(-1,0, R-1, R));
+    EXPECT_TRUE(overlapRange<R>(-1,0, R-1, R+1));
+    EXPECT_TRUE(overlapRange<R>(-1,1, R-1, R+1));
+    EXPECT_FALSE(overlapRange<R>(-1,1, R-2, R-1));
+}
 
 /*! \brief Test overlap between octree nodes and coordinate ranges
  *
@@ -282,4 +319,27 @@ TEST(BoxOverlap, haloBoxContainedIn)
 {
     haloBoxContainedIn<unsigned>();
     haloBoxContainedIn<uint64_t>();
+}
+
+//! \brief test overlaps of periodic halo boxes with parts of the SFC tree
+template<class I>
+void pbcHaloBoxOverlap()
+{
+    int maxCoord = (1u<<maxTreeLevel<I>{}) - 1;
+    {
+        Box<int> haloBox{-1, 1, 0, 1, 0, 1, true, false, false};
+        EXPECT_TRUE(overlap(I(0), I(1), haloBox));
+    }
+    {
+        I firstCode  = codeFromBox<I>(maxCoord,0,0, maxTreeLevel<I>{});
+        I secondCode = firstCode + 1;
+        Box<int> haloBox{-1, 1, 0, 1, 0, 1, true, false, false};
+        EXPECT_TRUE(overlap(firstCode, secondCode, haloBox));
+    }
+
+}
+
+TEST(BoxOverlap, pbcHaloBoxOverlap)
+{
+    pbcHaloBoxOverlap<unsigned>();
 }
