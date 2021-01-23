@@ -197,7 +197,7 @@ std::vector<unsigned> makeEdgeTree()
 /*! \brief a simple collision test with the edge tree from above
  *
  * Since the halo radius for the first and last node is bigger than the box,
- * this two nodes collide with all nodes in the tree, while all other nodes have
+ * these two nodes collide with all nodes in the tree, while all other nodes have
  * radius 0 and only collide with themselves.
  */
 TEST(Collisions, adjacentEdgeRegression)
