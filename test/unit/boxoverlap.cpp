@@ -78,25 +78,23 @@ TEST(BoxOverlap, pbcAdjust)
 
 TEST(BoxOverlap, overlapRange)
 {
-    constexpr int R = 1u<<maxTreeLevel<unsigned>{};
+    constexpr int R = 1024;
 
-    EXPECT_TRUE(overlapRange<R>(0,2,1,3));
+    EXPECT_TRUE (overlapRange<R>(0,2,1,3));
     EXPECT_FALSE(overlapRange<R>(0,1,1,2));
     EXPECT_FALSE(overlapRange<R>(0,1,2,3));
-    EXPECT_TRUE(overlapRange<R>(0,R-1,1,3));
-    EXPECT_TRUE(overlapRange<R>(0,R,1,3));
-    EXPECT_TRUE(overlapRange<R>(0,2*R,1,3));
-    EXPECT_FALSE(overlapRange<R>(0,0,1,3));
+    EXPECT_TRUE (overlapRange<R>(0,1023,1,3));
+    EXPECT_TRUE (overlapRange<R>(0,1024,1,3));
+    EXPECT_TRUE (overlapRange<R>(0,2048,1,3));
 
-    EXPECT_TRUE(overlapRange<R>(R-2,R,R-1,R));
-    EXPECT_TRUE(overlapRange<R>(R-1,R+1,0,1));
-    EXPECT_FALSE(overlapRange<R>(0,1,R-1,R));
-    EXPECT_TRUE(overlapRange<R>(-1,0, R-1, R));
-    EXPECT_TRUE(overlapRange<R>(-1,0, R-1, R+1));
-    EXPECT_TRUE(overlapRange<R>(-1,1, R-1, R+1));
-    EXPECT_FALSE(overlapRange<R>(-1,1, R-2, R-1));
+    EXPECT_TRUE (overlapRange<R>(1022,1024,1023,1024));
+    EXPECT_TRUE (overlapRange<R>(1023,1025,0,1));
+    EXPECT_FALSE(overlapRange<R>(0,1,1023,1024));
+    EXPECT_TRUE (overlapRange<R>(-1,1, 1023, 1024));
+    EXPECT_FALSE(overlapRange<R>(-1,1, 1022, 1023));
 
-    EXPECT_TRUE(overlapRange<1024>(512, 1024, 332, 820));
+    EXPECT_TRUE (overlapRange<R>(1023, 2048, 0, 1));
+    EXPECT_TRUE (overlapRange<R>(512, 1024, 332, 820));
 }
 
 /*! \brief Test overlap between octree nodes and coordinate ranges
