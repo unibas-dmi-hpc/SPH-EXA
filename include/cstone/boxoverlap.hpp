@@ -38,6 +38,30 @@
 namespace cstone
 {
 
+template<int R>
+int pbcAdjust(int x)
+{
+    return x - R * std::floor(double(x)/R);
+}
+
+template<int R>
+bool overlapRange(int a, int b, int c, int d)
+{
+    int ap = pbcAdjust<R>(a);
+    int bp = pbcAdjust<R>(b);
+    int cp = pbcAdjust<R>(c);
+    int dp = pbcAdjust<R>(d);
+
+    bool fullRange = (std::abs(a-b) >= R) || (std::abs(c-d) >= R);
+
+    bool c1 = bp > cp && dp > ap;
+    bool c2 = ap > bp && cp > dp;
+    bool c3 = bp > cp && (dp+R) > ap && (ap > bp);
+    bool c4 = (bp+R) > cp && dp > ap && (cp > dp);
+
+    return fullRange || c1 || c2 || c3 || c4;
+}
+
 /*! \brief check for overlap between a binary or octree node and a box in 3D space
  *
  * @tparam I
@@ -109,7 +133,8 @@ containedIn(I codeStart, I codeEnd, const Box<int>& box)
  *                       of the input octree node extended by (dx,dy,dz)
  */
 template <class I>
-Box<int> makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz)
+Box<int> makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz,
+                     bool pbcX = false, bool pbcY = false, bool pbcZ = false)
 {
     int prefixNBits = treeLevel(codeEnd - codeStart) * 3;
 
@@ -120,14 +145,14 @@ Box<int> makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz)
     constexpr int maxCoordinate = (1u << maxTreeLevel<I>{});
 
     // add halo range to the coordinate ranges of the node to be collided
-    int xmin = std::max(0, xrange[0] - dx);
-    int xmax = std::min(maxCoordinate, xrange[1] + dx);
-    int ymin = std::max(0, yrange[0] - dy);
-    int ymax = std::min(maxCoordinate, yrange[1] + dy);
-    int zmin = std::max(0, zrange[0] - dz);
-    int zmax = std::min(maxCoordinate, zrange[1] + dz);
+    int xmin = (pbcX) ? xrange[0] - dx : std::max(0, xrange[0] - dx);
+    int xmax = (pbcX) ? xrange[1] + dx : std::min(maxCoordinate, xrange[1] + dx);
+    int ymin = (pbcY) ? yrange[0] - dy : std::max(0, yrange[0] - dy);
+    int ymax = (pbcY) ? yrange[1] + dy : std::min(maxCoordinate, yrange[1] + dy);
+    int zmin = (pbcZ) ? zrange[0] - dz : std::max(0, zrange[0] - dz);
+    int zmax = (pbcZ) ? zrange[1] + dz : std::min(maxCoordinate, zrange[1] + dz);
 
-    return Box<int>(xmin, xmax, ymin, ymax, zmin, zmax);
+    return Box<int>(xmin, xmax, ymin, ymax, zmin, zmax, pbcX, pbcY, pbcZ);
 }
 
 //! \brief create a box with specified radius around node delineated by codeStart/End
@@ -140,7 +165,7 @@ Box<int> makeHaloBox(I codeStart, I codeEnd, T radius, const Box<T>& box)
     int dy = detail::toNBitIntCeil<I>(radius / (box.ymax() - box.ymin()));
     int dz = detail::toNBitIntCeil<I>(radius / (box.zmax() - box.zmin()));
 
-    return makeHaloBox(codeStart, codeEnd, dx, dy, dz);
+    return makeHaloBox(codeStart, codeEnd, dx, dy, dz, box.pbcX(), box.pbcY(), box.pbcZ());
 }
 
 } // namespace cstone
