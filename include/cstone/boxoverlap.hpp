@@ -38,28 +38,44 @@
 namespace cstone
 {
 
+/*! \brief map x into periodic range 0...R-1
+ *
+ * @tparam R periodic range
+ * @param x  input value
+ * @return   x mapped into periodic range
+ *
+ * Examples:
+ *   -1 -> R-1
+ *    0 -> 0
+ *    1 -> 1
+ *  R-1 -> R-1
+ *    R -> 0
+ *  R+1 -> 1
+ */
 template<int R>
 int pbcAdjust(int x)
 {
     return x - R * std::floor(double(x)/R);
 }
 
+//! \brief standard criterion for two ranges a-b and c-d to overlap, a<b and c<d
+inline bool overlapTwoRanges(int a, int b, int c, int d)
+{
+    assert(a<=b && c<=d);
+    return b > c && d > a;
+}
+
+/*! \brief determine whether two ranges ab and cd overlap
+ *
+ * @tparam R  periodic range
+ * @return    true or false
+ */
 template<int R>
 bool overlapRange(int a, int b, int c, int d)
 {
-    int ap = pbcAdjust<R>(a);
-    int bp = pbcAdjust<R>(b);
-    int cp = pbcAdjust<R>(c);
-    int dp = pbcAdjust<R>(d);
-
-    bool fullRange = (std::abs(a-b) >= R) || (std::abs(c-d) >= R);
-
-    bool c1 = bp > cp && dp > ap;
-    bool c2 = ap > bp && cp > dp;
-    bool c3 = bp > cp && (dp+R) > ap && (ap > bp);
-    bool c4 = (bp+R) > cp && dp > ap && (cp > dp);
-
-    return fullRange || c1 || c2 || c3 || c4;
+    return overlapTwoRanges(a,b,c,d) ||
+           overlapTwoRanges(a+R, b+R, c, d) ||
+           overlapTwoRanges(a, b, c+R, d+R);
 }
 
 /*! \brief check for overlap between a binary or octree node and a box in 3D space
@@ -85,6 +101,11 @@ bool overlap(I prefix, int length, const Box<int>& box)
     bool xOverlap = box.xmax() > xRange[0] && xRange[1] > box.xmin();
     bool yOverlap = box.ymax() > yRange[0] && yRange[1] > box.ymin();
     bool zOverlap = box.zmax() > zRange[0] && zRange[1] > box.zmin();
+
+    //constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+    //bool xOverlap = overlapRange<maxCoord>(xRange[0], xRange[1], box.xmin(), box.xmax());
+    //bool yOverlap = overlapRange<maxCoord>(yRange[0], yRange[1], box.ymin(), box.ymax());
+    //bool zOverlap = overlapRange<maxCoord>(zRange[0], zRange[1], box.zmin(), box.zmax());
 
     return xOverlap && yOverlap && zOverlap;
 }
