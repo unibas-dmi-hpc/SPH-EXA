@@ -44,7 +44,7 @@ using namespace cstone;
  * nodes (0-2, 0-4, 0-4) -> rank 0
  * nodes (2-4, 0-4, 0-4) -> rank 1
  *
- * Halo search radius is less then a node edge length, so the halo nodes are
+ * Halo search radius is less than a node edge length, so the halo nodes are
  *
  * (2, 0-4, 0-4) halos of rank 0
  * (1, 0-4, 0-4) halos of rank 1
@@ -159,4 +159,60 @@ TEST(HaloDiscovery, sendRecvNodeList)
 {
     computeSendRecvNodeList<unsigned>();
     computeSendRecvNodeList<uint64_t>();
+}
+
+//! \brief an integration test between findHalos, computeSendRecvNodeList and Pbc
+template<class I>
+void findHalosPbc()
+{
+    // a tree with 4 subdivisions along each dimension, 64 nodes
+    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
+
+    // two domains
+    SpaceCurveAssignment<I> assignment(2);
+    assignment.addRange(Rank(0), tree[0], tree[32], 64);
+    assignment.addRange(Rank(1), tree[32], tree[64], 64);
+
+    Box<double> box(0, 1, 0, 1, 0, 1, true, true, true);
+
+    // size of one node is 0.25^3
+    std::vector<double> interactionRadii(nNodes(tree), 0.1);
+    {
+        int rank = 0;
+        std::vector<pair<int>> haloPairs;
+        findHalos(tree, interactionRadii, box, assignment, rank, haloPairs);
+
+        std::vector<std::vector<int>> incomingHalos;
+        std::vector<std::vector<int>> outgoingHalos;
+        computeSendRecvNodeList<I>(tree, assignment, haloPairs, incomingHalos, outgoingHalos);
+
+        std::vector<int> refIncoming(32);
+        std::iota(begin(refIncoming), end(refIncoming), 32);
+        std::vector<int> refOutgoing(32);
+        std::iota(begin(refOutgoing), end(refOutgoing), 0);
+        EXPECT_EQ(incomingHalos[rank+1], refIncoming);
+        EXPECT_EQ(outgoingHalos[rank+1], refOutgoing);
+    }
+    {
+        int rank = 1;
+        std::vector<pair<int>> haloPairs;
+        findHalos(tree, interactionRadii, box, assignment, rank, haloPairs);
+
+        std::vector<std::vector<int>> incomingHalos;
+        std::vector<std::vector<int>> outgoingHalos;
+        computeSendRecvNodeList<I>(tree, assignment, haloPairs, incomingHalos, outgoingHalos);
+
+        std::vector<int> refIncoming(32);
+        std::iota(begin(refIncoming), end(refIncoming), 0);
+        std::vector<int> refOutgoing(32);
+        std::iota(begin(refOutgoing), end(refOutgoing), 32);
+        EXPECT_EQ(incomingHalos[rank-1], refIncoming);
+        EXPECT_EQ(outgoingHalos[rank-1], refOutgoing);
+    }
+}
+
+TEST(HaloDiscovery, findHalosPbc)
+{
+    findHalosPbc<unsigned>();
+    findHalosPbc<uint64_t>();
 }
