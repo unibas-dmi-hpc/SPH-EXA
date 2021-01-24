@@ -374,6 +374,18 @@ void haloBoxContainedIn()
         EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
     }
 
+    /// PBC cases
+    {
+        Box<int> haloBox{-1, 1, 0, 1, 0, 1};
+        EXPECT_FALSE(containedIn(I(0), I(1), haloBox));
+    }
+    {
+        I firstCode  = codeFromBox<I>(0,0,maxCoord, maxTreeLevel<I>{});
+        I secondCode = firstCode + 3;
+        Box<int> haloBox{0, 1, 0, 1, maxCoord, maxCoord + 2};
+        EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));
+    }
+
 }
 
 //! \brief test containment of a box within a Morton code range

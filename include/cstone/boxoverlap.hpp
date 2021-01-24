@@ -143,6 +143,15 @@ containedIn(I codeStart, I codeEnd, const Box<int>& box)
     assert(box.ymin() < box.ymax());
     assert(box.zmin() < box.zmax());
 
+    constexpr int pbcRange = 1u<<maxTreeLevel<I>{};
+    if (std::min({box.xmin(), box.ymin(), box.zmin()}) < 0 ||
+        std::max({box.xmax(), box.ymax(), box.zmax()}) > pbcRange)
+    {
+        // any box that wraps around a PBC boundary cannot be contained within
+        // any octree node, except the full root node
+        return codeStart == 0 && codeEnd == nodeRange<I>(0);
+    }
+
     I lowCode  = codeFromBox<I>(box.xmin(), box.ymin(), box.zmin(), maxTreeLevel<I>{});
     // we have to subtract 1 and use strict <, because we cannot generate
     // Morton codes for x,y,z >= 2^maxTreeLevel<I>{} (2^10 or 2^21)
