@@ -95,11 +95,10 @@ TEST(Collisions, irregularTreeTraversal)
 }
 
 
-//! \brief an irregular tree with level-3 nodes next to level-1 ones
+//! \brief a regular tree with level-3 nodes, 8x8x8 grid
 template<class I, class T>
 void regularTreeTraversal()
 {
-    // 8x8x8 grid
     auto tree = makeUniformNLevelTree<I>(512, 1);
 
     Box<T> box(0, 1);
