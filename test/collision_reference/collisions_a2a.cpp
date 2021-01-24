@@ -129,3 +129,126 @@ TEST(Collisions, collideAll2all)
     collideAll2all<unsigned, double>();
     collideAll2all<uint64_t, double>();
 }
+
+/*! \brief test the naive all-to-all collision detection function, PBC-X case
+ *
+ * @tparam I  32- or 64-bit unsigned integer
+ */
+template<class I, class T>
+void collideAll2allPbcX()
+{
+    auto tree = OctreeMaker<I>{}.divide().divide(0).divide(0,7).makeTree();
+
+    Box<T> box(0, 1, 0, 1, 0, 1, true, false, false);
+    std::vector<T> haloRadii(nNodes(tree), 0.1);
+
+    std::vector<CollisionList> allCollisions = findCollisionsAll2all(tree, haloRadii, box);
+
+    // extract list of collisions for node with index 18, corresponding to {4}
+    std::vector<I> n18coll(allCollisions[18].size());
+    for (int i = 0; i < n18coll.size(); ++i)
+        n18coll[i] = tree[allCollisions[18][i]];
+
+    std::sort(begin(n18coll), end(n18coll));
+
+    // reference list of collisions for node with index 18, corresponding to {4}
+    std::vector<I> refCollisions{
+            codeFromIndices<I>({0,0}), // due to pbc X
+            codeFromIndices<I>({0,1}), // due to pbc X
+            codeFromIndices<I>({0,2}), // due to pbc X
+            codeFromIndices<I>({0,3}), // due to pbc X
+            codeFromIndices<I>({0,4}),
+            codeFromIndices<I>({0,5}),
+            codeFromIndices<I>({0,6}),
+            codeFromIndices<I>({0,7,4}),
+            codeFromIndices<I>({0,7,5}),
+            codeFromIndices<I>({0,7,6}),
+            codeFromIndices<I>({0,7,7}),
+            codeFromIndices<I>({1}),
+            codeFromIndices<I>({2}),
+            codeFromIndices<I>({3}),
+            codeFromIndices<I>({4}),
+            codeFromIndices<I>({5}),
+            codeFromIndices<I>({6}),
+            codeFromIndices<I>({7})
+    };
+
+    EXPECT_EQ(n18coll, refCollisions);
+}
+
+TEST(Collisions, collideAll2allPbcX)
+{
+    collideAll2allPbcX<unsigned, float>();
+    collideAll2allPbcX<uint64_t, float>();
+    collideAll2allPbcX<unsigned, double>();
+    collideAll2allPbcX<uint64_t, double>();
+}
+
+
+/*! \brief test the naive all-to-all collision detection function, PBC-XYZ case
+ *
+ * @tparam I  32- or 64-bit unsigned integer
+ */
+template<class I, class T>
+void collideAll2allPbcXYZ()
+{
+    auto tree = OctreeMaker<I>{}.divide().divide(0).divide(0,7).divide(5).divide(6).makeTree();
+
+    Box<T> box(0, 1, 0, 1, 0, 1, true, true, true);
+    std::vector<T> haloRadii(nNodes(tree), 0.1);
+
+    std::vector<CollisionList> allCollisions = findCollisionsAll2all(tree, haloRadii, box);
+
+    // extract list of collisions for node with index 18, corresponding to {4}
+    std::vector<I> n18coll(allCollisions[18].size());
+    for (int i = 0; i < n18coll.size(); ++i)
+        n18coll[i] = tree[allCollisions[18][i]];
+
+    std::sort(begin(n18coll), end(n18coll));
+
+    // reference list of collisions for node with index 18, corresponding to {4}
+    std::vector<I> refCollisions{
+            codeFromIndices<I>({0,0}), // due to pbc X
+            codeFromIndices<I>({0,1}), // due to pbc X
+            codeFromIndices<I>({0,2}), // due to pbc X
+            codeFromIndices<I>({0,3}), // due to pbc X
+            codeFromIndices<I>({0,4}),
+            codeFromIndices<I>({0,5}),
+            codeFromIndices<I>({0,6}),
+            codeFromIndices<I>({0,7,4}),
+            codeFromIndices<I>({0,7,5}),
+            codeFromIndices<I>({0,7,6}),
+            codeFromIndices<I>({0,7,7}),
+            codeFromIndices<I>({1}),
+            codeFromIndices<I>({2}),
+            codeFromIndices<I>({3}),
+            codeFromIndices<I>({4}),
+            codeFromIndices<I>({5,0}),
+            codeFromIndices<I>({5,1}), // due to pbc Z
+            codeFromIndices<I>({5,2}),
+            codeFromIndices<I>({5,3}), // due to pbc Z
+            codeFromIndices<I>({5,4}),
+            codeFromIndices<I>({5,5}), // due to pbc Z
+            codeFromIndices<I>({5,6}),
+            codeFromIndices<I>({5,7}), // due to pbc Z
+            codeFromIndices<I>({6,0}),
+            codeFromIndices<I>({6,1}),
+            codeFromIndices<I>({6,2}), // due to pbc Y
+            codeFromIndices<I>({6,3}), // due to pbc Y
+            codeFromIndices<I>({6,4}),
+            codeFromIndices<I>({6,5}),
+            codeFromIndices<I>({6,6}), // due to pbc Y
+            codeFromIndices<I>({6,7}), // due to pbc Y
+            codeFromIndices<I>({7})
+    };
+
+    EXPECT_EQ(n18coll, refCollisions);
+}
+
+TEST(Collisions, collideAll2allPbcXYZ)
+{
+    collideAll2allPbcXYZ<unsigned, float>();
+    collideAll2allPbcXYZ<uint64_t, float>();
+    collideAll2allPbcXYZ<unsigned, double>();
+    collideAll2allPbcXYZ<uint64_t, double>();
+}
