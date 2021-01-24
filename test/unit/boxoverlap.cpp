@@ -148,6 +148,37 @@ TEST(BoxOverlap, overlaps)
     overlapTest<uint64_t>();
 }
 
+//! \brief test overlaps of periodic halo boxes with parts of the SFC tree
+template<class I>
+void pbcOverlaps()
+{
+    int maxCoord = (1u<<maxTreeLevel<I>{}) - 1;
+    {
+        Box<int> haloBox{-1, 1, 0, 1, 0, 1};
+        EXPECT_TRUE(overlap(I(0), I(1), haloBox));
+    }
+    {
+        I firstCode  = codeFromBox<I>(maxCoord,0,0, maxTreeLevel<I>{});
+        I secondCode = firstCode + 1;
+        Box<int> haloBox{-1, 1, 0, 1, 0, 1};
+        EXPECT_TRUE(overlap(firstCode, secondCode, haloBox));
+    }
+    {
+        Box<int> haloBox{maxCoord, maxCoord+2, 0, 1, 0, 1};
+        EXPECT_TRUE(overlap(I(0), I(1), haloBox));
+    }
+    {
+        Box<int> haloBox{-1, 1, -1, 1, -1, 1};
+        EXPECT_TRUE(overlap(nodeRange<I>(0)-1, nodeRange<I>(0), haloBox));
+    }
+}
+
+TEST(BoxOverlap, pbcOverlaps)
+{
+    pbcOverlaps<unsigned>();
+    pbcOverlaps<uint64_t>();
+}
+
 
 //! \brief check halo box ranges in all spatial dimensions
 template<class I>
@@ -183,7 +214,7 @@ TEST(BoxOverlap, makeHaloBoxXYZ)
 }
 
 
-//! \brief underflow check
+//! \brief underflow check, non-periodic case
 template<class I>
 void makeHaloBoxUnderflow()
 {
@@ -216,7 +247,7 @@ TEST(BoxOverlap, makeHaloBoxUnderflow)
 }
 
 
-//! \brief overflow check
+//! \brief overflow check, non-periodic case
 template<class I>
 void makeHaloBoxOverflow()
 {
@@ -246,6 +277,37 @@ TEST(BoxOverlap, makeHaloBoxOverflow)
 {
     makeHaloBoxOverflow<unsigned>();
     makeHaloBoxOverflow<uint64_t>();
+}
+
+//! \brief check halo box ranges with periodic boundary conditions
+template<class I>
+void makeHaloBoxPbc()
+{
+    int r = I(1) << (maxTreeLevel<I>{} - 3);
+    // node range: [r,2r]^3
+    I nodeStart = pad(I(0b000000111), 9);
+    I nodeEnd = pad(I(0b000001000), 9);
+
+    Box<double> bbox(0.,1.,0.,1.,0.,1.,true,true,true);
+
+    {
+        double radius = 0.999/r; // normalize(radius) = 7.992
+        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, radius, bbox);
+        Box<int> refBox{r-8, 2*r+8, r-8, 2*r+8, r-8, 2*r+8, true, true, true};
+        EXPECT_EQ(haloBox, refBox);
+    }
+    {
+        double radius = 1.000001/8; // normalize(radius) = r + epsilon
+        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, radius, bbox);
+        Box<int> refBox{-1, 3*r+1, -1, 3*r+1, -1, 3*r+1, true, true, true};
+        EXPECT_EQ(haloBox, refBox);
+    }
+}
+
+TEST(BoxOverlap, makeHaloBoxPbc)
+{
+    makeHaloBoxPbc<unsigned>();
+    makeHaloBoxPbc<uint64_t>();
 }
 
 template<class I>
@@ -319,35 +381,4 @@ TEST(BoxOverlap, haloBoxContainedIn)
 {
     haloBoxContainedIn<unsigned>();
     haloBoxContainedIn<uint64_t>();
-}
-
-//! \brief test overlaps of periodic halo boxes with parts of the SFC tree
-template<class I>
-void pbcHaloBoxOverlap()
-{
-    int maxCoord = (1u<<maxTreeLevel<I>{}) - 1;
-    {
-        Box<int> haloBox{-1, 1, 0, 1, 0, 1};
-        EXPECT_TRUE(overlap(I(0), I(1), haloBox));
-    }
-    {
-        I firstCode  = codeFromBox<I>(maxCoord,0,0, maxTreeLevel<I>{});
-        I secondCode = firstCode + 1;
-        Box<int> haloBox{-1, 1, 0, 1, 0, 1};
-        EXPECT_TRUE(overlap(firstCode, secondCode, haloBox));
-    }
-    {
-        Box<int> haloBox{maxCoord, maxCoord+2, 0, 1, 0, 1};
-        EXPECT_TRUE(overlap(I(0), I(1), haloBox));
-    }
-    {
-        Box<int> haloBox{-1, 1, -1, 1, -1, 1};
-        EXPECT_TRUE(overlap(nodeRange<I>(0)-1, nodeRange<I>(0), haloBox));
-    }
-}
-
-TEST(BoxOverlap, pbcHaloBoxOverlap)
-{
-    pbcHaloBoxOverlap<unsigned>();
-    pbcHaloBoxOverlap<uint64_t>();
 }
