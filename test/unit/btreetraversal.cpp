@@ -60,47 +60,69 @@ TEST(BinaryTreeTraversal, collisionList)
     EXPECT_EQ(refValues, probe);
 }
 
-/*! \brief test findCollisions with halo boxes that exceed the Morton range
+/*! \brief test findCollisions with pbc halo boxes
  *
- * The Morton integer coordinate ranges in x,y,z are either [0,2^10]
- * or [0,2^21]. But findCollisions should be able to correctly report
- * no collisions if the halo box lies outside the supported range.
+ * The example constructs a 4x4x4 regular octree with 64 nodes. A haloBox
+ * with coordinates [-1,1]^3 will collide with all 8 nodes in the corners of the tree.
+ * and the same happens for a haloBox at the opposite diagonal end with
+ * coordinates [2^(10 or 21)-1, 2^(10 or 21)+1]^3.
  */
-//template<class I>
-//void boxOutOfRange()
-//{
-//    std::vector<I>             tree         = makeUniformNLevelTree<I>(8, 1);
-//    std::vector<BinaryNode<I>> internalTree = createInternalTree(tree);
-//
-//    int r = 1u<<maxTreeLevel<I>{};
-//
-//    {
-//        // box exceeds maximum integer coordinates by +-1 in all dimensions
-//        Box<int> haloBox{-1, r, -1, r, -1, r};
-//
-//        CollisionList collisions;
-//        findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
-//
-//        // all nodes should collide
-//        EXPECT_EQ(collisions.size(), nNodes(tree));
-//    }
-//    {
-//        // box exceeds maximum integer coordinates by +-1 in all dimensions
-//        Box<int> haloBox{r, r+1, 0, r, 0, r};
-//
-//        CollisionList collisions;
-//        findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
-//
-//        // no nodes collide
-//        EXPECT_EQ(collisions.size(), 0);
-//    }
-//}
-//
-//TEST(BinaryTreeTraversal, boxOutOfRange)
-//{
-//    boxOutOfRange<unsigned>();
-//    boxOutOfRange<uint64_t>();
-//}
+template<class I>
+void pbcCollision()
+{
+    std::vector<I>             tree         = makeUniformNLevelTree<I>(64, 1);
+    std::vector<BinaryNode<I>> internalTree = createInternalTree(tree);
+
+    {
+        Box<int> haloBox{-1, 1, -1, 1, -1, 1};
+
+        CollisionList collisions;
+        findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+
+        std::vector<int> collided(collisions.begin(), collisions.end());
+        std::sort(begin(collided), end(collided));
+
+        int deltaLevel = maxTreeLevel<I>{} - 2;
+        I   l2factor    = (1ul<<deltaLevel) * (1ul<<deltaLevel) * (1u<<deltaLevel);
+        // reference from x,y,z coordinates in [0,4], illustrates that all 8 corners collide
+        std::vector<int> refCollided{
+                int(codeFromBox<I>(0,0,0,2) / l2factor),
+                int(codeFromBox<I>(0,0,3,2) / l2factor),
+                int(codeFromBox<I>(0,3,0,2) / l2factor),
+                int(codeFromBox<I>(0,3,3,2) / l2factor),
+                int(codeFromBox<I>(3,0,0,2) / l2factor),
+                int(codeFromBox<I>(3,0,3,2) / l2factor),
+                int(codeFromBox<I>(3,3,0,2) / l2factor),
+                int(codeFromBox<I>(3,3,3,2) / l2factor),
+        };
+        // node indices of the 8 corners in a level-2 tree with 4x4x4=64 nodes
+        // explicitly specified
+        std::vector<int> refCollidedExplicit{0,9,18,27,36,45,54,63};
+
+        EXPECT_EQ(collided, refCollided);
+        EXPECT_EQ(refCollided, refCollidedExplicit);
+    }
+    {
+        int maxCoord = 1u<<maxTreeLevel<I>{};
+        Box<int> haloBox{maxCoord-1, maxCoord+1, maxCoord-1, maxCoord+1, maxCoord-1, maxCoord+1};
+
+        CollisionList collisions;
+        findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+
+        std::vector<int> collided(collisions.begin(), collisions.end());
+        std::sort(begin(collided), end(collided));
+        // 8 corners
+        std::vector<int> refCollided{0,9,18,27,36,45,54,63};
+
+        EXPECT_EQ(collided, refCollided);
+    }
+}
+
+TEST(BinaryTreeTraversal, pbcCollision)
+{
+    pbcCollision<unsigned>();
+    pbcCollision<uint64_t>();
+}
 
 
 /*! \brief test collision detection with anisotropic halo ranges
