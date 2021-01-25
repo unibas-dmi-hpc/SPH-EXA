@@ -6,7 +6,7 @@
 #include "ParticlesData.hpp"
 #include "cudaUtils.cuh"
 #include "../kernels.hpp"
-#include "kernel/computeDensity.hpp"
+#include "../kernel/computeDensity.hpp"
 
 namespace sphexa
 {
@@ -23,9 +23,8 @@ __global__ void density(const int n, const T sincIndex, const T K, const int ngm
     const int tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
 
-    const int i = clist[tid];
-
-    densityJLoop(i, sincIndex, K, ngmax, bbox, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ltsize, ro);
+    // computes ro[i]
+    sph::kernels::densityJLoop(tid, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ltsize, ro);
 }
 } // namespace kernels
 
