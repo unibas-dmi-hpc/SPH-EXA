@@ -113,7 +113,7 @@ struct DeviceParticlesData
         const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
         if (size_largerNChunk_int > largerNChunk)
         {
-            printf("[D] increased stream size from %ld to %ld\n", largerNChunk, size_largerNChunk_int);
+            //printf("[D] increased stream size from %ld to %ld\n", largerNChunk, size_largerNChunk_int);
             for (int i = 0; i < NST; ++i)
                 CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_stream[i].d_clist, d_stream[i].d_neighborsCount));
             largerNChunk = size_largerNChunk_int;
@@ -121,7 +121,7 @@ struct DeviceParticlesData
         const size_t size_largerNeighborsChunk_int = largestChunkSize * ngmax * sizeof(int);
         if (size_largerNeighborsChunk_int > largerNeighborsChunk)
         {
-            printf("[D] increased stream size from %ld to %ld\n", largerNeighborsChunk, size_largerNeighborsChunk_int);
+            //printf("[D] increased stream size from %ld to %ld\n", largerNeighborsChunk, size_largerNeighborsChunk_int);
             for (int i = 0; i < NST; ++i)
                 CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_stream[i].d_neighbors));
             largerNeighborsChunk = size_largerNeighborsChunk_int;

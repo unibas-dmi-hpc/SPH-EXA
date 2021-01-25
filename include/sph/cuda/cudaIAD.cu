@@ -6,15 +6,13 @@
 #include "ParticlesData.hpp"
 #include "cudaUtils.cuh"
 #include "../kernels.hpp"
-#include "../lookupTables.hpp"
+#include "../kernel/computeIAD.hpp"
 
 namespace sphexa
 {
 namespace sph
 {
 namespace cuda
-{
-namespace kernels
 {
 template <typename T>
 __global__ void computeIAD(const int n, const T sincIndex, const T K, const int ngmax, const BBox<T> *bbox, const int *clist,
@@ -24,45 +22,8 @@ __global__ void computeIAD(const int n, const T sincIndex, const T K, const int 
     const int tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
 
-    const int i = clist[tid];
-    const int nn = neighborsCount[tid];
-
-    T tau11 = 0.0, tau12 = 0.0, tau13 = 0.0, tau22 = 0.0, tau23 = 0.0, tau33 = 0.0;
-    for (int pj = 0; pj < nn; ++pj)
-    {
-        const int j = neighbors[tid * ngmax + pj];
-
-        const T dist = distancePBC(*bbox, h[i], x[i], y[i], z[i], x[j], y[j], z[j]);
-        const T vloc = dist / h[i];
-
-        const T w = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, vloc), (int)sincIndex);
-        const T W = w / (h[i] * h[i] * h[i]);
-
-        T r_ijx = (x[i] - x[j]);
-        T r_ijy = (y[i] - y[j]);
-        T r_ijz = (z[i] - z[j]);
-
-        applyPBC(*bbox, 2.0 * h[i], r_ijx, r_ijy, r_ijz);
-
-        tau11 += r_ijx * r_ijx * m[j] / ro[j] * W;
-        tau12 += r_ijx * r_ijy * m[j] / ro[j] * W;
-        tau13 += r_ijx * r_ijz * m[j] / ro[j] * W;
-        tau22 += r_ijy * r_ijy * m[j] / ro[j] * W;
-        tau23 += r_ijy * r_ijz * m[j] / ro[j] * W;
-        tau33 += r_ijz * r_ijz * m[j] / ro[j] * W;
-    }
-
-    const T det =
-        tau11 * tau22 * tau33 + 2.0 * tau12 * tau23 * tau13 - tau11 * tau23 * tau23 - tau22 * tau13 * tau13 - tau33 * tau12 * tau12;
-
-    c11[i] = (tau22 * tau33 - tau23 * tau23) / det;
-    c12[i] = (tau13 * tau23 - tau33 * tau12) / det;
-    c13[i] = (tau12 * tau23 - tau22 * tau13) / det;
-    c22[i] = (tau11 * tau33 - tau13 * tau13) / det;
-    c23[i] = (tau13 * tau12 - tau11 * tau23) / det;
-    c33[i] = (tau11 * tau22 - tau12 * tau12) / det;
+    sph::kernels::IADJLoop(tid, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, h, m, ro, wh, whd, ltsize, c11, c12, c13, c22, c23, c33);
 }
-} // namespace kernels
 
 template <typename T, class Dataset>
 void computeIAD(const std::vector<Task> &taskList, Dataset &d)
@@ -156,7 +117,7 @@ void computeIAD(const std::vector<Task> &taskList, Dataset &d)
 
         // printf("CUDA IAD kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
-        kernels::computeIAD<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(n, d.sincIndex, d.K, ngmax, d.devPtrs.d_bbox, d_clist_use, d_neighbors_use,
+        computeIAD<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(n, d.sincIndex, d.K, ngmax, d.devPtrs.d_bbox, d_clist_use, d_neighbors_use,
             d_neighborsCount_use, d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_ro, d.devPtrs.d_wh, d.devPtrs.d_whd, ltsize, d.devPtrs.d_c11, d.devPtrs.d_c12, d.devPtrs.d_c13, d.devPtrs.d_c22,
             d.devPtrs.d_c23, d.devPtrs.d_c33);
         CHECK_CUDA_ERR(cudaGetLastError());

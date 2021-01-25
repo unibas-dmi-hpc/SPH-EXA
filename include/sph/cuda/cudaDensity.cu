@@ -14,8 +14,6 @@ namespace sph
 {
 namespace cuda
 {
-namespace kernels
-{
 template <typename T>
 __global__ void density(const int n, const T sincIndex, const T K, const int ngmax, const BBox<T> *bbox, const int *clist,
                         const int *neighbors, const int *neighborsCount, const T *x, const T *y, const T *z, const T *h, const T *m, const T *wh, const T *whd, const size_t ltsize, T *ro)
@@ -26,7 +24,6 @@ __global__ void density(const int n, const T sincIndex, const T K, const int ngm
     // computes ro[i]
     sph::kernels::densityJLoop(tid, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ltsize, ro);
 }
-} // namespace kernels
 
 template <typename T, class Dataset>
 void computeDensity(std::vector<Task> &taskList, Dataset &d)
@@ -130,7 +127,7 @@ void computeDensity(std::vector<Task> &taskList, Dataset &d)
 
         // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
-        kernels::density<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(n, d.sincIndex, d.K, t.ngmax, d.devPtrs.d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
+        density<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(n, d.sincIndex, d.K, t.ngmax, d.devPtrs.d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
             d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_wh, d.devPtrs.d_whd, ltsize, d.devPtrs.d_ro);
         CHECK_CUDA_ERR(cudaGetLastError());
 
