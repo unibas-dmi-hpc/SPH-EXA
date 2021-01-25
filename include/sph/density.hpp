@@ -4,7 +4,7 @@
 
 #include "kernels.hpp"
 #include "Task.hpp"
-#include "lookupTables.hpp"
+#include "kernel/computeDensity.hpp"
 #include "cuda/sph.cuh"
 
 namespace sphexa

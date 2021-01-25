@@ -6,7 +6,7 @@
 #include "ParticlesData.hpp"
 #include "cudaUtils.cuh"
 #include "../kernels.hpp"
-#include "../lookupTables.hpp"
+#include "kernel/computeDensity.hpp"
 
 namespace sphexa
 {
