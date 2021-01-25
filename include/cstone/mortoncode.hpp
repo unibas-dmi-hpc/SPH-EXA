@@ -447,7 +447,8 @@ mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz,
                bool pbcX = false, bool pbcY = false, bool pbcZ = false)
 {
     // maximum coordinate value per dimension 2^nBits-1
-    constexpr int maxCoord = int((1u << maxTreeLevel<I>{}) - 1u);
+    constexpr int pbcRange = 1u << maxTreeLevel<I>{};
+    constexpr int maxCoord = pbcRange - 1;
 
     unsigned shiftBits  = maxTreeLevel<I>{} - treeLevel;
     int shiftValue = int(1u << shiftBits);
@@ -459,13 +460,29 @@ mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz,
     int y = decodeMortonY(code);
     int z = decodeMortonZ(code);
 
-    // handle under and overflow (non-PBC)
     int newX = x + dx * shiftValue;
-    x = (newX < 0 || newX > maxCoord) ? x : newX;
+    if (pbcX) {
+        x = pbcAdjust<pbcRange>(newX);
+    }
+    else {
+        x = (newX < 0 || newX > maxCoord) ? x : newX;
+    }
+
     int newY = y + dy * shiftValue;
-    y = (newY < 0 || newY > maxCoord) ? y : newY;
+    if (pbcY) {
+        y = pbcAdjust<pbcRange>(newY);
+    }
+    else {
+        y = (newY < 0 || newY > maxCoord) ? y : newY;
+    }
+
     int newZ = z + dz * shiftValue;
-    z = (newZ < 0 || newZ > maxCoord) ? z : newZ;
+    if (pbcZ) {
+        z = pbcAdjust<pbcRange>(newZ);
+    }
+    else {
+        z = (newZ < 0 || newZ > maxCoord) ? z : newZ;
+    }
 
     return detail::expandBits(I(x)) * I(4)
          + detail::expandBits(I(y)) * I(2)

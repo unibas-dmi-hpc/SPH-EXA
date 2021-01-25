@@ -524,28 +524,48 @@ TEST(MortonCode, indicesFromCode64)
 
 TEST(MortonCode, mortonNeighbor32)
 {
-    std::vector<std::tuple<unsigned, unsigned, unsigned, int, int, int>> codes{
-        {0b00000111111u << (7u*3), 0b00000111011u << (7u*3), 3, -1,  0,  0},
-        {0b00000111111u << (7u*3), 0b00100011011u << (7u*3), 3,  1,  0,  0},
-        {0b00000111111u << (7u*3), 0b00000111101u << (7u*3), 3,  0, -1,  0},
-        {0b00000111111u << (7u*3), 0b00010101101u << (7u*3), 3,  0,  1,  0},
-        {0b00000111111u << (7u*3), 0b00000111110u << (7u*3), 3,  0,  0, -1},
-        {0b00000111111u << (7u*3), 0b00001110110u << (7u*3), 3,  0,  0,  1},
+    //                      input    ref. out  treeLevel dx   dy   dz   PBC
+    std::vector<std::tuple<unsigned, unsigned, unsigned, int, int, int, bool>> codes{
+        {0b00000111111u << (7u*3), 0b00000111011u << (7u*3), 3, -1,  0,  0, false},
+        {0b00000111111u << (7u*3), 0b00100011011u << (7u*3), 3,  1,  0,  0, false},
+        {0b00000111111u << (7u*3), 0b00000111101u << (7u*3), 3,  0, -1,  0, false},
+        {0b00000111111u << (7u*3), 0b00010101101u << (7u*3), 3,  0,  1,  0, false},
+        {0b00000111111u << (7u*3), 0b00000111110u << (7u*3), 3,  0,  0, -1, false},
+        {0b00000111111u << (7u*3), 0b00001110110u << (7u*3), 3,  0,  0,  1, false},
         // over/underflow tests
-        {0b00100111111u << (7u*3), 0b00100111111u << (7u*3), 3,  1,  0,  0}, // overflow
-        {0b00000011011u << (7u*3), 0b00000011011u << (7u*3), 3, -1,  0,  0}, // underflow
-        {0b00011u << (9u*3),       0b00111lu << (9u*3),       1,  1,  0,  0},
-        {0b00111u << (9u*3),       0b00111lu << (9u*3),       1,  1,  0,  0}, // overflow
-        {0b00011u << (9u*3),       0b00011lu << (9u*3),       1, -1,  0,  0}, // underflow
+        {0b00100111111u << (7u*3), 0b00100111111u << (7u*3), 3,  1,  0,  0, false}, // overflow
+        {0b00000011011u << (7u*3), 0b00000011011u << (7u*3), 3, -1,  0,  0, false}, // underflow
+        {0b00011u << (9u*3),       0b00111lu << (9u*3),       1,  1,  0,  0, false},
+        {0b00111u << (9u*3),       0b00111lu << (9u*3),       1,  1,  0,  0, false}, // overflow
+        {0b00011u << (9u*3),       0b00011lu << (9u*3),       1, -1,  0,  0, false}, // underflow
         // diagonal offset
-        {0b00000111111u << (7u*3), 0b00111000u << (7u*3), 3, -1, -1, -1},
-        {0b00000111000u << (7u*3), 0b00111111u << (7u*3), 3,  1,  1,  1},
+        {0b00000111111u << (7u*3), 0b00111000u << (7u*3), 3, -1, -1, -1, false},
+        {0b00000111000u << (7u*3), 0b00111111u << (7u*3), 3,  1,  1,  1, false},
+        // PBC cases
+        {0b00000111111u << (7u*3), 0b00000111011u << (7u*3), 3, -1,  0,  0, true},
+        {0b00000111111u << (7u*3), 0b00100011011u << (7u*3), 3,  1,  0,  0, true},
+        {0b00000111111u << (7u*3), 0b00000111101u << (7u*3), 3,  0, -1,  0, true},
+        {0b00000111111u << (7u*3), 0b00010101101u << (7u*3), 3,  0,  1,  0, true},
+        {0b00000111111u << (7u*3), 0b00000111110u << (7u*3), 3,  0,  0, -1, true},
+        {0b00000111111u << (7u*3), 0b00001110110u << (7u*3), 3,  0,  0,  1, true},
+        // over/underflow tests
+        {0b00100111111u << (7u*3), 0b00000011011u << (7u*3), 3,  1,  0,  0, true}, // PBC sensitive
+        {0b00000011011u << (7u*3), 0b00100111111u << (7u*3), 3, -1,  0,  0, true}, // PBC sensitive
+        {0b00011u << (9u*3),       0b00111lu << (9u*3),       1,  1,  0,  0, true},
+        {0b00111u << (9u*3),       0b00011lu << (9u*3),       1,  1,  0,  0, true}, // PBC sensitive
+        {0b00011u << (9u*3),       0b00111lu << (9u*3),       1, -1,  0,  0, true}, // PBC sensitive
+        // diagonal offset
+        {0b00000111111u << (7u*3), 0b00111000u << (7u*3), 3, -1, -1, -1, true},
+        {0b00000111000u << (7u*3), 0b00111111u << (7u*3), 3,  1,  1,  1, true},
+        {0b00000111111u << (7u*3), 0b00111111111u << (7u*3), 3, -4, -4, -4, true}, // PBC sensitive
+        {0b00000111000u << (7u*3), 0b00000000u << (7u*3), 3,  6,  6,  6, true}, // PBC sensitive
     };
 
     auto computeCode = [](auto t)
     {
-      return mortonNeighbor(std::get<0>(t), std::get<2>(t), std::get<3>(t),
-                                    std::get<4>(t), std::get<5>(t));
+        bool usePbc = std::get<6>(t);
+        return mortonNeighbor(std::get<0>(t), std::get<2>(t), std::get<3>(t),
+                              std::get<4>(t), std::get<5>(t), usePbc, usePbc, usePbc);
     };
 
     std::vector<unsigned> probes(codes.size());
