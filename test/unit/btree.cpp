@@ -32,20 +32,13 @@
 #include "gtest/gtest.h"
 
 #include "cstone/btree.hpp"
+#include "cstone/mortonconversions.hpp"
 #include "cstone/octree.hpp"
 
 /*! \brief \file tests for binary tree generation
  */
 
 using namespace cstone;
-
-//! \brief documented and tested in boxoverlap.cpp
-template <class I>
-constexpr I pad(I prefix, int length)
-{
-    return prefix << (3*maxTreeLevel<I>{} - length);
-}
-
 
 //! \brief check binary node prefixes
 template <class I>
