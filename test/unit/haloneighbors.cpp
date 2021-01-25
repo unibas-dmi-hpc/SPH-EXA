@@ -48,7 +48,7 @@ using namespace cstone;
 
 template<class T>
 static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, const T* h, int n,
-                               int *neighbors, int *neighborsCount, int ngmax)
+                               int *neighbors, int *neighborsCount, int ngmax, const Box<T>& box)
 {
     T r2 = h[i] * h[i];
 
@@ -60,7 +60,7 @@ static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, const 
         if (j == i) { continue; }
         // i only interacts with j if j also interacts with i
         T r2mutual = std::min(h[j] * h[j], r2);
-        if (ngcount < ngmax && distancesq(xi, yi, zi, x[j], y[j], z[j]) < r2mutual)
+        if (ngcount < ngmax && distanceSqPbc(xi, yi, zi, x[j], y[j], z[j], box) < r2mutual)
         {
             neighbors[i * ngmax + ngcount++] = j;
         }
@@ -150,7 +150,7 @@ TEST(HaloNeighbors, extractParticlesTest)
  * not overlap with i.
  */
 template<class I, class T>
-void randomGaussianHaloNeighbors()
+void randomGaussianHaloNeighbors(bool usePbc)
 {
     int nParticles = 1000;
     int bucketSize = 10;
@@ -158,7 +158,7 @@ void randomGaussianHaloNeighbors()
 
     int nRanks     = 2;
 
-    Box<T> box{-1, 1};
+    Box<T> box{-1, 1, -1, 1, -1, 1, usePbc, usePbc, usePbc};
     RandomGaussianCoordinates<T, I> coords(nParticles, box);
 
     std::vector<I> codes = coords.mortonCodes();
@@ -170,9 +170,15 @@ void randomGaussianHaloNeighbors()
 
     // introduce asymmetry in h with nodes far from the center having a much bigger
     // interaction radius
-    for (int i = 0; i < h.size(); ++i)
+    if (!usePbc)
     {
-        h[i] = smoothingL * (0.2 + 30*(x[i] * x[i] + y[i] * y[i] + z[i] * z[i]));
+        for (int i = 0; i < h.size(); ++i)
+        {
+            h[i] = smoothingL * (0.2 + 30*(x[i] * x[i] + y[i] * y[i] + z[i] * z[i]));
+        }
+    }
+    else {
+        h = std::vector<T>(nParticles, 0.1);
     }
 
     std::vector<int> ordering(nParticles);
@@ -191,6 +197,8 @@ void randomGaussianHaloNeighbors()
     // find halos for rank 0
     int myRank = 0;
     std::vector<pair<int>> haloPairs;
+
+    //Box<T> box2{-1, 1};
     findHalos(tree, hNode, box, assignment, myRank, haloPairs);
 
     // group outgoing and incoming halo node indices by destination/source rank
@@ -214,6 +222,7 @@ void randomGaussianHaloNeighbors()
     int nParticlesCore   = assignment.totalCount(myRank);
     int nParticlesExtracted = *nodeOffsets.rbegin();
 
+    // (x,y,z)l arrays only contain the particles of the first assignment + halos
     std::vector<T> xl(nParticlesExtracted);
     std::vector<T> yl(nParticlesExtracted);
     std::vector<T> zl(nParticlesExtracted);
@@ -244,8 +253,12 @@ void randomGaussianHaloNeighbors()
         int iOrig = std::lower_bound(begin(codes), end(codes), code) - begin(codes);
         EXPECT_EQ(code, codes[iOrig]);
 
-        findNeighborsNaive(iOrig, x.data(), y.data(), z.data(), h.data(), nParticles, neighbors.data(), neighborsCount.data(), ngmax);
-        findNeighborsNaive(i, xl.data(), yl.data(), zl.data(), hl.data(), nParticlesExtracted, neighborsCore.data(), neighborsCountCore.data(), ngmax);
+        // neighborsCount from reference (global) source data
+        findNeighborsNaive(iOrig, x.data(), y.data(), z.data(), h.data(), nParticles, neighbors.data(),
+                           neighborsCount.data(), ngmax, box);
+        // neighborsCount from extracted particles for first assignment
+        findNeighborsNaive(i, xl.data(), yl.data(), zl.data(), hl.data(), nParticlesExtracted, neighborsCore.data(),
+                           neighborsCountCore.data(), ngmax, box);
 
         ASSERT_EQ(neighborsCountCore[i], neighborsCount[iOrig]);
         for (int ni = 0; ni < neighborsCountCore[i]; ++ni)
@@ -257,8 +270,16 @@ void randomGaussianHaloNeighbors()
 
 TEST(HaloNeighbors, randomGaussian)
 {
-    randomGaussianHaloNeighbors<unsigned, double>();
-    randomGaussianHaloNeighbors<uint64_t, double>();
-    randomGaussianHaloNeighbors<unsigned, float>();
-    randomGaussianHaloNeighbors<uint64_t, float>();
+    randomGaussianHaloNeighbors<unsigned, double>(false);
+    randomGaussianHaloNeighbors<uint64_t, double>(false);
+    randomGaussianHaloNeighbors<unsigned, float>(false);
+    randomGaussianHaloNeighbors<uint64_t, float>(false);
+}
+
+TEST(HaloNeighbors, randomGaussianPbc)
+{
+    randomGaussianHaloNeighbors<unsigned, double>(true);
+    randomGaussianHaloNeighbors<uint64_t, double>(true);
+    randomGaussianHaloNeighbors<unsigned, float>(true);
+    randomGaussianHaloNeighbors<uint64_t, float>(true);
 }
