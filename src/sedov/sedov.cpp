@@ -59,12 +59,8 @@ int main(int argc, char **argv)
     Tree::maxGlobalBucketSize = 2048;//std::pow(2,14);//1048576;
     domain.create(d);
     if(d.rank == 0) std::cout << "Domain created." << std::endl;
-<<<<<<< HEAD
 
     const size_t nTasks = 64;
-=======
-    const size_t nTasks = 256;
->>>>>>> Add hdf5 support
     const size_t ngmax = 150;
     const size_t ng0 = 100;
     TaskList taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
