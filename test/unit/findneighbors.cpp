@@ -71,6 +71,22 @@ void sortNeighbors(int *neighbors, int *neighborsCount, int n, int ngmax)
     }
 }
 
+TEST(FindNeighbors, distanceSqPbc)
+{
+    {
+        Box<double> box{0, 10, 0, 10, 0, 10, false, false, false};
+        EXPECT_DOUBLE_EQ(64.0, distanceSqPbc(1., 0., 0., 9., 0., 0., box));
+        EXPECT_DOUBLE_EQ(64.0, distanceSqPbc(9., 0., 0., 1., 0., 0., box));
+        EXPECT_DOUBLE_EQ(192.0, distanceSqPbc(9., 9., 9., 1., 1., 1., box));
+    }
+    {
+        Box<double> box{0, 10, 0, 10, 0, 10, true, true, true};
+        EXPECT_DOUBLE_EQ(4.0, distanceSqPbc(1., 0., 0., 9., 0., 0., box));
+        EXPECT_DOUBLE_EQ(4.0, distanceSqPbc(9., 0., 0., 1., 0., 0., box));
+        EXPECT_DOUBLE_EQ(12.0, distanceSqPbc(9., 9., 9., 1., 1., 1., box));
+    }
+}
+
 TEST(FindNeighbors, treeLevel)
 {
     EXPECT_EQ(3, radiusToTreeLevel(0.124, 1.));
