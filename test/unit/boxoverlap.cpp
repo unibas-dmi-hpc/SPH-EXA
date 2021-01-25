@@ -33,25 +33,9 @@
 #include "gtest/gtest.h"
 
 #include "cstone/boxoverlap.hpp"
+#include "cstone/mortonconversions.hpp"
 
 using namespace cstone;
-
-/*! \brief add (binary) zeros behind a prefix
- *
- * Allows comparisons, such as number of leading common bits (cpr)
- * of the prefix with Morton codes.
- *
- * @tparam I      32- or 64-bit unsigned integer type
- * @param prefix  the bit pattern
- * @param length  number of bits in the prefix
- * @return        prefix padded out with zeros
- *
- */
-template <class I>
-constexpr I pad(I prefix, int length)
-{
-    return prefix << (3*maxTreeLevel<I>{} - length);
-}
 
 TEST(BoxOverlap, padUtility)
 {

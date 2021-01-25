@@ -403,6 +403,12 @@ TEST(MortonCode, smallestCommonBoxL0_64)
     EXPECT_EQ(probe, reference);
 }
 
+TEST(MortonCode, padUtility)
+{
+    EXPECT_EQ(pad(0b011,   3), 0b00011 << 27);
+    EXPECT_EQ(pad(0b011ul, 3), 0b0011ul << 60);
+}
+
 TEST(MortonCode, boxFromCode32)
 {
     constexpr unsigned treeLevel = 3;
