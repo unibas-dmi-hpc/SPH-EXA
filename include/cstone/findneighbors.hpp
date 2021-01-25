@@ -42,7 +42,7 @@
 namespace cstone
 {
 
-/*! \brief returns periodic shift dx, s.t. x + dx is folded -l/2 to l/2
+/*! \brief returns periodic shift dx, s.t. x + dx is folded into -l/2 to l/2
  *
  * @tparam T   float or double
  * @param x    input value

@@ -127,7 +127,7 @@ void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array)
     {
         tmp[i] = array[i];
     }
-    std::swap(tmp, array);
+    swap(tmp, array);
 }
 
 /*! \brief reorder the input array according to the specified ordering
@@ -161,7 +161,7 @@ void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array, int 
         tmp[i] = array[i];
     }
 
-    std::swap(tmp, array);
+    swap(tmp, array);
 }
 
 } // namespace cstone
