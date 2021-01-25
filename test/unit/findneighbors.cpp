@@ -41,7 +41,7 @@
 //! \brief simple N^2 all-to-all neighbor search
 template<class T>
 void all2allNeighbors(const T* x, const T* y, const T* z, const T* h, int n,
-                      int *neighbors, int *neighborsCount, int ngmax)
+                      int *neighbors, int *neighborsCount, int ngmax, const Box<T>& box)
 {
     for (int i = 0; i < n; ++i)
     {
@@ -54,7 +54,7 @@ void all2allNeighbors(const T* x, const T* y, const T* z, const T* h, int n,
         for (int j = 0; j < n; ++j)
         {
             if (j == i) { continue; }
-            if (ngcount < ngmax && distancesq(xi, yi, zi, x[j], y[j], z[j]) < r2)
+            if (ngcount < ngmax && distanceSqPbc(xi, yi, zi, x[j], y[j], z[j], box) < r2)
             {
                 neighbors[i * ngmax + ngcount++] = j;
             }
@@ -108,7 +108,7 @@ void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
 
     std::vector<int> neighborsRef(n * ngmax), neighborsCountRef(n);
     all2allNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), h.data(), n,
-                     neighborsRef.data(), neighborsCountRef.data(), ngmax);
+                     neighborsRef.data(), neighborsCountRef.data(), ngmax, box);
     sortNeighbors(neighborsRef.data(), neighborsCountRef.data(), n, ngmax);
 
     std::vector<int> neighborsProbe(n * ngmax), neighborsCountProbe(n);
@@ -124,16 +124,19 @@ void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
     EXPECT_EQ(neighborsCountRef, neighborsCountProbe);
 }
 
-class FindNeighborsRandom : public testing::TestWithParam<std::tuple<double, int, std::array<double,6>>>
+class FindNeighborsRandom : public testing::TestWithParam<std::tuple<double, int, std::array<double,6>, bool>>
 {
 public:
     template<class I, template<class...> class CoordinateKind>
     void check()
     {
-        double radius     = std::get<0>(GetParam());
-        int    nParticles = std::get<1>(GetParam());
+        double radius                = std::get<0>(GetParam());
+        int    nParticles            = std::get<1>(GetParam());
         std::array<double, 6> limits = std::get<2>(GetParam());
-        Box<double> box{limits[0], limits[1], limits[2], limits[3], limits[4], limits[5]};
+        bool usePbc                  = std::get<3>(GetParam());
+        Box<double> box{limits[0], limits[1], limits[2], limits[3], limits[4], limits[5],
+                        usePbc, usePbc, usePbc};
+
         CoordinateKind<double, I> coords(nParticles, box);
 
         neighborCheck(coords, radius, box);
@@ -164,9 +167,11 @@ std::array<double, 2> radii{0.124, 0.0624};
 std::array<int, 1>    nParticles{2500};
 std::array<std::array<double, 6>, 2> boxes{{ {0.,1.,0.,1.,0.,1.},
                                              {-1.2, 0.23, -0.213, 3.213, -5.1, 1.23} }};
+std::array<bool, 2> pbcUsage{false, true};
 
 INSTANTIATE_TEST_SUITE_P(RandomNeighbors,
                          FindNeighborsRandom,
                          testing::Combine(testing::ValuesIn(radii),
                                           testing::ValuesIn(nParticles),
-                                          testing::ValuesIn(boxes)));
+                                          testing::ValuesIn(boxes),
+                                          testing::ValuesIn(pbcUsage)));

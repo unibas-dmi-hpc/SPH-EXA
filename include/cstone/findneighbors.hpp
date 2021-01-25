@@ -131,7 +131,8 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
     for (int dx = -1; dx < 2; ++dx)
         for (int dy = -1; dy < 2; ++dy)
             for (int dz = -1; dz < 2; ++dz)
-                neighborCodes[nBoxes++] = mortonNeighbor(mortonCode, depth, dx, dy, dz);
+                neighborCodes[nBoxes++] = mortonNeighbor(mortonCode, depth, dx, dy, dz,
+                                                         box.pbcX(), box.pbcY(), box.pbcZ());
 
     std::sort(begin(neighborCodes), begin(neighborCodes) + nBoxes);
     auto last = std::unique(begin(neighborCodes), begin(neighborCodes) + nBoxes);
@@ -148,7 +149,7 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
         {
             if (j == id) { continue; }
 
-            if (distancesq(xi, yi, zi, x[j], y[j], z[j]) < radiusSq)
+            if (distanceSqPbc(xi, yi, zi, x[j], y[j], z[j], box) < radiusSq)
             {
                 neighbors[ngcount++] = j;
             }
