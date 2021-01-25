@@ -41,6 +41,29 @@
 namespace cstone
 {
 
+/*! \brief add (binary) zeros behind a prefix
+ *
+ * Allows comparisons, such as number of leading common bits (cpr)
+ * of the prefix with Morton codes.
+ *
+ * @tparam I      32- or 64-bit unsigned integer type
+ * @param prefix  the bit pattern
+ * @param length  number of bits in the prefix
+ * @return        prefix padded out with zeros
+ *
+ * Examples:
+ *  pad(0b011u,  3) -> 0b00011 << 27
+ *  pad(0b011ul, 3) -> 0b0011ul << 60
+ *
+ *  i.e. \a length plus the number of zeros added adds up to 30 for 32-bit integers
+ *  or 63 for 64-bit integers, because these are the numbers of usable bits in Morton codes.
+ */
+template <class I>
+constexpr I pad(I prefix, int length)
+{
+    return prefix << (3*maxTreeLevel<I>{} - length);
+}
+
 /*! \brief Decode a morton code into x,y,z and convert coordinates
  *
  * \tparam I         32- or 64-bit unsigned integer
