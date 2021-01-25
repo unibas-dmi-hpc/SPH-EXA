@@ -86,7 +86,7 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
 #endif
     for (size_t pi = 0; pi < n; ++pi)
     {
-        kernels::momentumAndEnergyJLoop(pi, sincIndex, K, ngmax, *bbox, clist, neighbors, neighborsCount, x, y, z, vx, vy, vz, h, m, ro,
+        kernels::momentumAndEnergyJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, vx, vy, vz, h, m, ro,
                                 p, c, c11, c12, c13, c22, c23, c33, wh, whd, ltsize, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
     }
 }

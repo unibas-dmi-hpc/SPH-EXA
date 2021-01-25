@@ -6,6 +6,7 @@
 #include "ParticlesData.hpp"
 #include "cudaUtils.cuh"
 #include "../kernels.hpp"
+#include "../kernel/computeFindNeighbors.hpp"
 #include "../kernel/computeMomentumAndEnergy.hpp"
 
 namespace sphexa
@@ -126,7 +127,7 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
         const int threadsPerBlock = 256;
         const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
-        kernels::findNeighbors<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
+        findNeighbors<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
             d.devPtrs.d_o, d_clist_use, n, d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
         );
 
