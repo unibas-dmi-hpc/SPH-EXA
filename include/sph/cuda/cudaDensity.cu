@@ -24,21 +24,8 @@ __global__ void density(const int n, const T sincIndex, const T K, const int ngm
     if (tid >= n) return;
 
     const int i = clist[tid];
-    const int nn = neighborsCount[tid];
 
-    T roloc = 0.0;
-
-    for (int pj = 0; pj < nn; ++pj)
-    {
-        const int j = neighbors[tid * ngmax + pj];
-        const T dist = distancePBC(*bbox, h[i], x[i], y[i], z[i], x[j], y[j], z[j]);
-        const T vloc = dist / h[i];
-        const T w = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, vloc), (int)sincIndex);
-        const T value = w / (h[i] * h[i] * h[i]);
-        roloc += value * m[j];
-    }
-
-    ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
+    densityJLoop(i, sincIndex, K, ngmax, bbox, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ltsize, ro);
 }
 } // namespace kernels
 
