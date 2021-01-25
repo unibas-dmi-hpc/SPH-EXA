@@ -104,7 +104,6 @@ void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
     int ngmax = 200;
 
     real minRange = box.minExtent();
-    //RandomCoordinates<real, CodeType> coords(n, box);
     std::vector<T> h(n, radius/2);
 
     std::vector<int> neighborsRef(n * ngmax), neighborsCountRef(n);

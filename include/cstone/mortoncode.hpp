@@ -431,23 +431,25 @@ inline pair<I> smallestCommonBox(I firstCode, I secondCode)
  * \tparam I        32- or 64-bit unsigned integer type
  * \param code      input Morton code
  * \param treeLevel octree subdivision level, 0-10 for 32-bit, and 0-21 for 64-bit
- * \param dx        neighbor offset in x direction
- * \param dy        neighbor offset in y direction
- * \param dz        neighbor offset in z direction
+ * \param dx        neighbor offset in x direction at \a treeLevel
+ * \param dy        neighbor offset in y direction at \a treeLevel
+ * \param dz        neighbor offset in z direction at \a treeLevel
+ * \param pbcX      apply pbc in X direction
+ * \param pbcY      apply pbc in Y direction
+ * \param pbcZ      apply pbc in Z direction
  * \return          morton neighbor start code
  *
  * Note that the end of the neighbor range is given by the start code + nodeRange(treeLevel)
  */
 template<class I>
 inline std::enable_if_t<std::is_unsigned<I>{}, I>
-mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz)
+mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz,
+               bool pbcX = false, bool pbcY = false, bool pbcZ = false)
 {
-    // spatial resolution in bits per dimension
-    constexpr unsigned nBits = (sizeof(I) * 8) / 3;
     // maximum coordinate value per dimension 2^nBits-1
-    constexpr int maxCoord = int((1u << nBits) - 1u);
+    constexpr int maxCoord = int((1u << maxTreeLevel<I>{}) - 1u);
 
-    unsigned shiftBits  = nBits - treeLevel;
+    unsigned shiftBits  = maxTreeLevel<I>{} - treeLevel;
     int shiftValue = int(1u << shiftBits);
 
     // zero out lower tree levels
