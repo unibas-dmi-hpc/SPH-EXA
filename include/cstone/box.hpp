@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <cmath>
 
 namespace cstone
 {
@@ -45,6 +46,26 @@ namespace cstone
  */
 template<class T>
 static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
+
+/*! \brief map x into periodic range 0...R-1
+ *
+ * @tparam R periodic range
+ * @param x  input value
+ * @return   x mapped into periodic range
+ *
+ * Examples:
+ *   -1 -> R-1
+ *    0 -> 0
+ *    1 -> 1
+ *  R-1 -> R-1
+ *    R -> 0
+ *  R+1 -> 1
+ */
+template<int R>
+static int pbcAdjust(int x)
+{
+    return x - R * std::floor(double(x)/R);
+}
 
 /*! \brief stores the coordinated bounds
  *

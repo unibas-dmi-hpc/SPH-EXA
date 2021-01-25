@@ -38,26 +38,6 @@
 namespace cstone
 {
 
-/*! \brief map x into periodic range 0...R-1
- *
- * @tparam R periodic range
- * @param x  input value
- * @return   x mapped into periodic range
- *
- * Examples:
- *   -1 -> R-1
- *    0 -> 0
- *    1 -> 1
- *  R-1 -> R-1
- *    R -> 0
- *  R+1 -> 1
- */
-template<int R>
-int pbcAdjust(int x)
-{
-    return x - R * std::floor(double(x)/R);
-}
-
 //! \brief standard criterion for two ranges a-b and c-d to overlap, a<b and c<d
 inline bool overlapTwoRanges(int a, int b, int c, int d)
 {
