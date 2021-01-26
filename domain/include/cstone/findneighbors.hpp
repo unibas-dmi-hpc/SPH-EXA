@@ -42,8 +42,35 @@
 namespace cstone
 {
 
+/*! \brief returns periodic shift dx, s.t. x + dx is folded into -l/2 to l/2
+ *
+ * @tparam T   float or double
+ * @param x    input value
+ * @param l    periodic length
+ * @return     dx, such that x + dx is in [-l/2, l/2]
+ */
 template<class T>
-static inline T distancesq(const T x1, const T y1, const T z1, const T x2, const T y2, const T z2)
+static inline T pbcAdjust(T x, T l)
+{
+    return -l * std::rint(x/l);
+}
+
+//! \brief compute squared distance, taking PBC into account
+template<class T>
+static inline T distanceSqPbc(T x1, T y1, T z1, T x2, T y2, T z2, const Box<T>& box)
+{
+    T dx = x1 - x2;
+    T dy = y1 - y2;
+    T dz = z1 - z2;
+    dx += box.pbcX() * pbcAdjust(dx, box.xmax() - box.xmin());
+    dy += box.pbcY() * pbcAdjust(dy, box.ymax() - box.ymin());
+    dz += box.pbcZ() * pbcAdjust(dz, box.zmax() - box.zmin());
+
+    return dx * dx + dy * dy + dz * dz;
+}
+
+template<class T>
+static inline T distancesq(T x1, T y1, T z1, T x2, T y2, T z2)
 {
     T xx = x1 - x2;
     T yy = y1 - y2;
@@ -104,7 +131,8 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
     for (int dx = -1; dx < 2; ++dx)
         for (int dy = -1; dy < 2; ++dy)
             for (int dz = -1; dz < 2; ++dz)
-                neighborCodes[nBoxes++] = mortonNeighbor(mortonCode, depth, dx, dy, dz);
+                neighborCodes[nBoxes++] = mortonNeighbor(mortonCode, depth, dx, dy, dz,
+                                                         box.pbcX(), box.pbcY(), box.pbcZ());
 
     std::sort(begin(neighborCodes), begin(neighborCodes) + nBoxes);
     auto last = std::unique(begin(neighborCodes), begin(neighborCodes) + nBoxes);
@@ -121,7 +149,7 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
         {
             if (j == id) { continue; }
 
-            if (distancesq(xi, yi, zi, x[j], y[j], z[j]) < radiusSq)
+            if (distanceSqPbc(xi, yi, zi, x[j], y[j], z[j], box) < radiusSq)
             {
                 neighbors[ngcount++] = j;
             }

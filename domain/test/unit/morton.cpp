@@ -403,6 +403,12 @@ TEST(MortonCode, smallestCommonBoxL0_64)
     EXPECT_EQ(probe, reference);
 }
 
+TEST(MortonCode, padUtility)
+{
+    EXPECT_EQ(pad(0b011,   3), 0b00011 << 27);
+    EXPECT_EQ(pad(0b011ul, 3), 0b0011ul << 60);
+}
+
 TEST(MortonCode, boxFromCode32)
 {
     constexpr unsigned treeLevel = 3;
@@ -522,33 +528,55 @@ TEST(MortonCode, indicesFromCode64)
     EXPECT_EQ(reference, indicesFromCode(input - 1));
 }
 
-TEST(MortonCode, mortonNeighbor32)
+template<class I>
+void mortonNeighbors()
 {
-    std::vector<std::tuple<unsigned, unsigned, unsigned, int, int, int>> codes{
-        {0b00000111111u << (7u*3), 0b00000111011u << (7u*3), 3, -1,  0,  0},
-        {0b00000111111u << (7u*3), 0b00100011011u << (7u*3), 3,  1,  0,  0},
-        {0b00000111111u << (7u*3), 0b00000111101u << (7u*3), 3,  0, -1,  0},
-        {0b00000111111u << (7u*3), 0b00010101101u << (7u*3), 3,  0,  1,  0},
-        {0b00000111111u << (7u*3), 0b00000111110u << (7u*3), 3,  0,  0, -1},
-        {0b00000111111u << (7u*3), 0b00001110110u << (7u*3), 3,  0,  0,  1},
+    //                      input    ref. out  treeLevel dx   dy   dz   PBC
+    std::vector<std::tuple<  I,         I,     unsigned, int, int, int, bool>>
+    codes{
+        {pad(I(0b000111111), 9), pad(I(0b000111011), 9), 3, -1,  0,  0, false},
+        {pad(I(0b000111111), 9), pad(I(0b100011011), 9), 3,  1,  0,  0, false},
+        {pad(I(0b000111111), 9), pad(I(0b000111101), 9), 3,  0, -1,  0, false},
+        {pad(I(0b000111111), 9), pad(I(0b010101101), 9), 3,  0,  1,  0, false},
+        {pad(I(0b000111111), 9), pad(I(0b000111110), 9), 3,  0,  0, -1, false},
+        {pad(I(0b000111111), 9), pad(I(0b001110110), 9), 3,  0,  0,  1, false},
         // over/underflow tests
-        {0b00100111111u << (7u*3), 0b00100111111u << (7u*3), 3,  1,  0,  0}, // overflow
-        {0b00000011011u << (7u*3), 0b00000011011u << (7u*3), 3, -1,  0,  0}, // underflow
-        {0b00011u << (9u*3),       0b00111lu << (9u*3),       1,  1,  0,  0},
-        {0b00111u << (9u*3),       0b00111lu << (9u*3),       1,  1,  0,  0}, // overflow
-        {0b00011u << (9u*3),       0b00011lu << (9u*3),       1, -1,  0,  0}, // underflow
+        {pad(I(0b100111111), 9), pad(I(0b100111111), 9), 3,  1,  0,  0, false}, // overflow
+        {pad(I(0b000011011), 9), pad(I(0b000011011), 9), 3, -1,  0,  0, false}, // underflow
+        {pad(I(0b011), 3),       pad(I(0b111), 3),       1,  1,  0,  0, false},
+        {pad(I(0b111), 3),       pad(I(0b111), 3),       1,  1,  0,  0, false}, // overflow
+        {pad(I(0b011), 3),       pad(I(0b011), 3),       1, -1,  0,  0, false}, // underflow
         // diagonal offset
-        {0b00000111111u << (7u*3), 0b00111000u << (7u*3), 3, -1, -1, -1},
-        {0b00000111000u << (7u*3), 0b00111111u << (7u*3), 3,  1,  1,  1},
+        {pad(I(0b000111111), 9), pad(I(0b000111000), 9), 3, -1, -1, -1, false},
+        {pad(I(0b000111000), 9), pad(I(0b000111111), 9), 3,  1,  1,  1, false},
+        // PBC cases
+        {pad(I(0b000111111), 9), pad(I(0b000111011), 9), 3, -1,  0,  0, true},
+        {pad(I(0b000111111), 9), pad(I(0b100011011), 9), 3,  1,  0,  0, true},
+        {pad(I(0b000111111), 9), pad(I(0b000111101), 9), 3,  0, -1,  0, true},
+        {pad(I(0b000111111), 9), pad(I(0b010101101), 9), 3,  0,  1,  0, true},
+        {pad(I(0b000111111), 9), pad(I(0b000111110), 9), 3,  0,  0, -1, true},
+        {pad(I(0b000111111), 9), pad(I(0b001110110), 9), 3,  0,  0,  1, true},
+        // over/underflow tests
+        {pad(I(0b100111111), 9), pad(I(0b000011011), 9), 3,  1,  0,  0, true}, // PBC sensitive
+        {pad(I(0b000011011), 9), pad(I(0b100111111), 9), 3, -1,  0,  0, true}, // PBC sensitive
+        {pad(I(0b011), 3),       pad(I(0b111), 3),       1,  1,  0,  0, true},
+        {pad(I(0b111), 3),       pad(I(0b011), 3),       1,  1,  0,  0, true}, // PBC sensitive
+        {pad(I(0b011), 3),       pad(I(0b111), 3),       1, -1,  0,  0, true}, // PBC sensitive
+        // diagonal offset
+        {pad(I(0b000111111), 9), pad(I(0b000111000), 9), 3, -1, -1, -1, true},
+        {pad(I(0b000111000), 9), pad(I(0b000111111), 9), 3,  1,  1,  1, true},
+        {pad(I(0b000111111), 9), pad(I(0b111111111), 9), 3, -4, -4, -4, true}, // PBC sensitive
+        {pad(I(0b000111000), 9), pad(I(0b000000000), 9), 3,  6,  6,  6, true}, // PBC sensitive
     };
 
     auto computeCode = [](auto t)
     {
-      return mortonNeighbor(std::get<0>(t), std::get<2>(t), std::get<3>(t),
-                                    std::get<4>(t), std::get<5>(t));
+        bool usePbc = std::get<6>(t);
+        return mortonNeighbor(std::get<0>(t), std::get<2>(t), std::get<3>(t),
+                              std::get<4>(t), std::get<5>(t), usePbc, usePbc, usePbc);
     };
 
-    std::vector<unsigned> probes(codes.size());
+    std::vector<I> probes(codes.size());
     std::transform(begin(codes), end(codes), begin(probes), computeCode);
 
     for (int i = 0; i < codes.size(); ++i)
@@ -557,39 +585,10 @@ TEST(MortonCode, mortonNeighbor32)
     }
 }
 
-TEST(MortonCode, mortonNeighbor64)
+TEST(MortonCode, mortonNeighbor32)
 {
-    std::vector<std::tuple<std::size_t, std::size_t, unsigned, int, int, int>> codes{
-        {0b0000111111lu << (18u*3), 0b0000111011lu << (18u*3), 3, -1,  0,  0},
-        {0b0000111111lu << (18u*3), 0b0100011011lu << (18u*3), 3,  1,  0,  0},
-        {0b0000111111lu << (18u*3), 0b0000111101lu << (18u*3), 3,  0, -1,  0},
-        {0b0000111111lu << (18u*3), 0b0010101101lu << (18u*3), 3,  0,  1,  0},
-        {0b0000111111lu << (18u*3), 0b0000111110lu << (18u*3), 3,  0,  0, -1},
-        {0b0000111111lu << (18u*3), 0b0001110110lu << (18u*3), 3,  0,  0,  1},
-        // over/underflow tests
-        {0b0100111111lu << (18u*3), 0b0100111111lu << (18u*3), 3,  1,  0,  0}, // overflow
-        {0b0000011011lu << (18u*3), 0b0000011011lu << (18u*3), 3, -1,  0,  0}, // underflow
-        {0b0011lu << (20u*3),       0b0111lu << (20u*3),       1,  1,  0,  0},
-        {0b0111lu << (20u*3),       0b0111lu << (20u*3),       1,  1,  0,  0}, // overflow
-        {0b0011lu << (20u*3),       0b0011lu << (20u*3),       1, -1,  0,  0}, // underflow
-        // diagonal offset
-        {0b0000111111lu << (18u*3), 0b0111000lu << (18u*3), 3, -1, -1, -1},
-        {0b0000111000lu << (18u*3), 0b0111111lu << (18u*3), 3,  1,  1,  1},
-    };
-
-    auto computeCode = [](auto t)
-    {
-        return mortonNeighbor(std::get<0>(t), std::get<2>(t), std::get<3>(t),
-                                      std::get<4>(t), std::get<5>(t));
-    };
-
-    std::vector<std::size_t> probes(codes.size());
-    std::transform(begin(codes), end(codes), begin(probes), computeCode);
-
-    for (int i = 0; i < codes.size(); ++i)
-    {
-        EXPECT_EQ(std::get<1>(codes[i]), probes[i]);
-    }
+    mortonNeighbors<unsigned>();
+    mortonNeighbors<uint64_t>();
 }
 
 TEST(MortonCode, mortonIndices32)

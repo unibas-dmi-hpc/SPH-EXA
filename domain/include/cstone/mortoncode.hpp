@@ -306,12 +306,12 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsig
 template<class I>
 I codeFromBox(unsigned x, unsigned y, unsigned z, unsigned treeLevel)
 {
-    constexpr unsigned nBits = (sizeof(I) * 8) / 3;
-    unsigned shifts = nBits - treeLevel;
+    assert(treeLevel <= maxTreeLevel<I>{});
+    unsigned shifts = maxTreeLevel<I>{} - treeLevel;
 
-    assert( x < (1u << treeLevel));
-    assert( y < (1u << treeLevel));
-    assert( z < (1u << treeLevel));
+    assert(x < (1u << treeLevel));
+    assert(y < (1u << treeLevel));
+    assert(z < (1u << treeLevel));
 
     I xx = detail::expandBits(I(x) << shifts);
     I yy = detail::expandBits(I(y) << shifts);
@@ -336,10 +336,9 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I>
 nodeRange(unsigned treeLevel)
 {
     assert (treeLevel <= maxTreeLevel<I>{});
-    // 10 or 21 bits per dimension
-    constexpr unsigned nBits = (sizeof(I) * 8) / 3;
+    unsigned shifts = maxTreeLevel<I>{} - treeLevel;
 
-    I ret = I(1) << (3 * (nBits - treeLevel));
+    I ret = I(1) << (3u * shifts);
     return ret;
 }
 
@@ -432,23 +431,26 @@ inline pair<I> smallestCommonBox(I firstCode, I secondCode)
  * \tparam I        32- or 64-bit unsigned integer type
  * \param code      input Morton code
  * \param treeLevel octree subdivision level, 0-10 for 32-bit, and 0-21 for 64-bit
- * \param dx        neighbor offset in x direction
- * \param dy        neighbor offset in y direction
- * \param dz        neighbor offset in z direction
+ * \param dx        neighbor offset in x direction at \a treeLevel
+ * \param dy        neighbor offset in y direction at \a treeLevel
+ * \param dz        neighbor offset in z direction at \a treeLevel
+ * \param pbcX      apply pbc in X direction
+ * \param pbcY      apply pbc in Y direction
+ * \param pbcZ      apply pbc in Z direction
  * \return          morton neighbor start code
  *
  * Note that the end of the neighbor range is given by the start code + nodeRange(treeLevel)
  */
 template<class I>
 inline std::enable_if_t<std::is_unsigned<I>{}, I>
-mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz)
+mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz,
+               bool pbcX, bool pbcY, bool pbcZ)
 {
-    // spatial resolution in bits per dimension
-    constexpr unsigned nBits = (sizeof(I) * 8) / 3;
     // maximum coordinate value per dimension 2^nBits-1
-    constexpr int maxCoord = int((1u << nBits) - 1u);
+    constexpr int pbcRange = 1u << maxTreeLevel<I>{};
+    constexpr int maxCoord = pbcRange - 1;
 
-    unsigned shiftBits  = nBits - treeLevel;
+    unsigned shiftBits  = maxTreeLevel<I>{} - treeLevel;
     int shiftValue = int(1u << shiftBits);
 
     // zero out lower tree levels
@@ -458,13 +460,29 @@ mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz)
     int y = decodeMortonY(code);
     int z = decodeMortonZ(code);
 
-    // handle under and overflow (non-PBC)
     int newX = x + dx * shiftValue;
-    x = (newX < 0 || newX > maxCoord) ? x : newX;
+    if (pbcX) {
+        x = pbcAdjust<pbcRange>(newX);
+    }
+    else {
+        x = (newX < 0 || newX > maxCoord) ? x : newX;
+    }
+
     int newY = y + dy * shiftValue;
-    y = (newY < 0 || newY > maxCoord) ? y : newY;
+    if (pbcY) {
+        y = pbcAdjust<pbcRange>(newY);
+    }
+    else {
+        y = (newY < 0 || newY > maxCoord) ? y : newY;
+    }
+
     int newZ = z + dz * shiftValue;
-    z = (newZ < 0 || newZ > maxCoord) ? z : newZ;
+    if (pbcZ) {
+        z = pbcAdjust<pbcRange>(newZ);
+    }
+    else {
+        z = (newZ < 0 || newZ > maxCoord) ? z : newZ;
+    }
 
     return detail::expandBits(I(x)) * I(4)
          + detail::expandBits(I(y)) * I(2)
