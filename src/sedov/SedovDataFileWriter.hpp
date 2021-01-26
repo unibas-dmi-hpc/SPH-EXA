@@ -7,6 +7,7 @@ namespace sphexa
 template <typename Dataset>
 struct SedovFileWriter : IFileWriter<Dataset>
 {
+// {{{ dumpParticleDataToBinFile
     void dumpParticleDataToBinFile(const Dataset &d, const std::string &path) const override
     {
         try
@@ -21,6 +22,9 @@ struct SedovFileWriter : IFileWriter<Dataset>
             exit(EXIT_FAILURE);
         }
     }
+// }}}
+
+// {{{ dumpParticleDataToAsciiFile
     void dumpParticleDataToAsciiFile(const Dataset &d, const std::vector<int> &clist, const std::string &path) const override
     {
         try
@@ -37,12 +41,15 @@ struct SedovFileWriter : IFileWriter<Dataset>
             exit(EXIT_FAILURE);
         }
     }
+// }}}
 
+// {{{ dumpCheckpointDataToBinFile
     void dumpCheckpointDataToBinFile(const Dataset &, const std::string &) const override
     {
         fprintf(stderr, "Warning: dumping checkpoint is not implemented in SedovFileWriter, exiting...\n");
         exit(EXIT_FAILURE);
     }
+// }}}
 };
 
 #ifdef USE_MPI
@@ -50,6 +57,23 @@ struct SedovFileWriter : IFileWriter<Dataset>
 template <typename Dataset>
 struct SedovMPIFileWriter : IFileWriter<Dataset>
 {
+// {{{ dumpParticleDataToBinFile
+    void dumpParticleDataToBinFile(const Dataset &d, const std::string &path) const override
+    {
+        try
+        {
+            fileutils::writeParticleDataToBinFileWithMPI(d, path, d.x, d.y, d.z, d.vx, d.vy, d.vz, d.h, d.ro, d.u, d.p, d.c, d.grad_P_x,
+                                                         d.grad_P_y, d.grad_P_z /*, d.radius*/);
+        }
+        catch (MPIFileNotOpenedException &ex)
+        {
+            if (d.rank == 0) fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
+            MPI_Abort(d.comm, ex.mpierr);
+        }
+    };
+// }}}
+
+// {{{ dumpParticleDataToAsciiFile
     void dumpParticleDataToAsciiFile(const Dataset &d, const std::vector<int> &clist, const std::string &path) const override
     {
         const char separator = ' ';
@@ -77,12 +101,18 @@ struct SedovMPIFileWriter : IFileWriter<Dataset>
             }
         }
     }
-    void dumpParticleDataToBinFile(const Dataset &d, const std::string &path) const override
+// }}}
+
+// {{{ dumpParticleDataToH5File
+#ifdef USE_H5
+    void dumpParticleDataToH5File(const Dataset &d, const std::vector<int> &clist, const std::string &path) const override
     {
         try
         {
-            fileutils::writeParticleDataToBinFileWithMPI(d, path, d.x, d.y, d.z, d.vx, d.vy, d.vz, d.h, d.ro, d.u, d.p, d.c, d.grad_P_x,
-                                                         d.grad_P_y, d.grad_P_z /*, d.radius*/);
+            fileutils::writeParticleDataToBinFileWithH5Part(d, clist, path, \
+                d.x, d.y, d.z, d.h, d.ro);
+//             d.vx, d.vy, d.vz, d.h, d.ro, d.u, d.p, d.c, d.grad_P_x,
+//             d.grad_P_y, d.grad_P_z /*, d.radius*/);
         }
         catch (MPIFileNotOpenedException &ex)
         {
@@ -90,12 +120,16 @@ struct SedovMPIFileWriter : IFileWriter<Dataset>
             MPI_Abort(d.comm, ex.mpierr);
         }
     };
+#endif
+// }}}
 
+// {{{ dumpCheckpointDataToBinFile
     void dumpCheckpointDataToBinFile(const Dataset &d, const std::string &) const override
     {
         if (d.rank == 0) fprintf(stderr, "Warning: dumping checkpoint is not implemented in SedovMPIFileWriter, exiting...\n");
         MPI_Abort(d.comm, MPI_ERR_OTHER);
     }
+// }}}
 };
 
 #endif
