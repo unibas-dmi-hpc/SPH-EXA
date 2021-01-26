@@ -153,7 +153,7 @@ containedIn(I codeStart, I codeEnd, const IBox& box)
  */
 template <class I>
 IBox makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz,
-                 bool pbcX = false, bool pbcY = false, bool pbcZ = false)
+                     bool pbcX = false, bool pbcY = false, bool pbcZ = false)
 {
     int prefixNBits = treeLevel(codeEnd - codeStart) * 3;
 
@@ -175,8 +175,8 @@ IBox makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz,
 }
 
 //! \brief create a box with specified radius around node delineated by codeStart/End
-template <class CoordinateType, class RadiusType, class I>
-IBox makeHaloBox(I codeStart, I codeEnd, RadiusType radius, const Box<CoordinateType>& box)
+template <class I, class T>
+IBox makeHaloBox(I codeStart, I codeEnd, T radius, const Box<T>& box)
 {
     // disallow boxes with no volume
     assert(codeEnd > codeStart);

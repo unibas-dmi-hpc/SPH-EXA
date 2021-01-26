@@ -40,12 +40,8 @@
 namespace cstone
 {
 
-/*! \brief compute squared distance, taking PBC into account
- *
- * Note that if box.pbc{X,Y,Z} is false, the result is identical to distancesq below.
- */
+//! \brief compute squared distance, taking PBC into account
 template<class T>
-CUDA_HOST_DEVICE_FUN
 static inline T distanceSqPbc(T x1, T y1, T z1, T x2, T y2, T z2, const Box<T>& box)
 {
     T dx = x1 - x2;
