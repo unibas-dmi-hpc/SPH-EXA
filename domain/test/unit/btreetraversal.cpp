@@ -74,7 +74,7 @@ void pbcCollision()
     std::vector<BinaryNode<I>> internalTree = createInternalTree(tree);
 
     {
-        Box<int> haloBox{-1, 1, -1, 1, -1, 1};
+        IBox haloBox{-1, 1, -1, 1, -1, 1};
 
         CollisionList collisions;
         findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
@@ -104,7 +104,7 @@ void pbcCollision()
     }
     {
         int maxCoord = 1u<<maxTreeLevel<I>{};
-        Box<int> haloBox{maxCoord-1, maxCoord+1, maxCoord-1, maxCoord+1, maxCoord-1, maxCoord+1};
+        IBox haloBox{maxCoord-1, maxCoord+1, maxCoord-1, maxCoord+1, maxCoord-1, maxCoord+1};
 
         CollisionList collisions;
         findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
@@ -145,7 +145,7 @@ void anisotropicHaloBox()
     int queryIdx = 7;
 
     // this will hit two nodes in +x direction, not just one neighbor node
-    Box<int> haloBox = makeHaloBox(tree[queryIdx], tree[queryIdx+1], 2*r, 0, 0);
+    IBox haloBox = makeHaloBox(tree[queryIdx], tree[queryIdx+1], 2*r, 0, 0);
 
     CollisionList collisions;
     findCollisions(internalTree.data(), tree.data(), collisions, haloBox);

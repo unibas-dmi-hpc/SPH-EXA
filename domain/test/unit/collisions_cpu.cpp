@@ -231,7 +231,7 @@ TEST(Collisions, adjacentEdgeRegression)
 
     for (int i = 0; i < nNodes(tree); ++i)
     {
-        Box<int> haloBox = makeHaloBox(tree[i], tree[i+1], haloRadii[i], box);
+        IBox haloBox = makeHaloBox(tree[i], tree[i+1], haloRadii[i], box);
         CollisionList collisions;
         findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
 
@@ -269,7 +269,7 @@ TEST(Collisions, adjacentEdgeSmallRadius)
     // nNodes is 134
     int secondLastNode = 132;
     double radius = 0.0001;
-    Box<int> haloBox = makeHaloBox(tree[secondLastNode], tree[secondLastNode+1], radius, box);
+    IBox haloBox = makeHaloBox(tree[secondLastNode], tree[secondLastNode+1], radius, box);
 
     CollisionList collisions;
     findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
@@ -291,7 +291,7 @@ TEST(Collisions, adjacentEdgeLastNode)
     // nNodes is 134
     int lastNode = 133;
     double radius = 0.0;
-    Box<int> haloBox = makeHaloBox(tree[lastNode], tree[lastNode+1], radius, box);
+    IBox haloBox = makeHaloBox(tree[lastNode], tree[lastNode+1], radius, box);
 
     CollisionList collisions;
     findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
@@ -309,7 +309,7 @@ TEST(Collisions, regularLastNode)
     std::vector<unsigned> tree = makeUniformNLevelTree<unsigned>(64, 1);
     auto internalTree = createInternalTree(tree);
 
-    Box<int> haloBox{1022, 1023, 1022, 1023, 1022, 1023};
+    IBox haloBox{1022, 1023, 1022, 1023, 1022, 1023};
     CollisionList collisions;
     findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
     EXPECT_EQ(collisions.size(), 1);

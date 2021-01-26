@@ -102,28 +102,28 @@ void overlapTest()
 
     /// Each test is a separate case
 
-    EXPECT_FALSE(overlap(prefix, prefixLength, Box<int>{0, r, 0, r, 0, r}));
-    EXPECT_FALSE(overlap(prefix, bound, Box<int>{0, r, 0, r, 0, r}));
+    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{0, r, 0, r, 0, r}));
+    EXPECT_FALSE(overlap(prefix, bound, IBox{0, r, 0, r, 0, r}));
 
     // exact match
-    EXPECT_TRUE(overlap(prefix, prefixLength, Box<int>{r, 2*r, r, 2*r, r, 2*r}));
+    EXPECT_TRUE(overlap(prefix, prefixLength, IBox{r, 2*r, r, 2*r, r, 2*r}));
     // contained within (1,1,1) corner of node
-    EXPECT_TRUE(overlap(prefix, prefixLength, Box<int>{2*r-1, 2*r, 2*r-1, 2*r, 2*r-1, 2*r}));
+    EXPECT_TRUE(overlap(prefix, prefixLength, IBox{2*r-1, 2*r, 2*r-1, 2*r, 2*r-1, 2*r}));
     // contained and exceeding (1,1,1) corner by 1 in all dimensions
-    EXPECT_TRUE(overlap(prefix, prefixLength, Box<int>{2*r-1, 2*r+1, 2*r-1, 2*r+1, 2*r-1, 2*r+1}));
+    EXPECT_TRUE(overlap(prefix, prefixLength, IBox{2*r-1, 2*r+1, 2*r-1, 2*r+1, 2*r-1, 2*r+1}));
 
     // all of these miss the (1,1,1) corner by 1 in one of the three dimensions
-    EXPECT_FALSE(overlap(prefix, prefixLength, Box<int>{2*r, 2*r+1, 2*r-1, 2*r, 2*r-1, 2*r}));
-    EXPECT_FALSE(overlap(prefix, prefixLength, Box<int>{2*r-1, 2*r, 2*r, 2*r+1, 2*r-1, 2*r}));
-    EXPECT_FALSE(overlap(prefix, prefixLength, Box<int>{2*r-1, 2*r, 2*r-1, 2*r, 2*r, 2*r+1}));
+    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{2*r, 2*r+1, 2*r-1, 2*r, 2*r-1, 2*r}));
+    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{2*r-1, 2*r, 2*r, 2*r+1, 2*r-1, 2*r}));
+    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{2*r-1, 2*r, 2*r-1, 2*r, 2*r, 2*r+1}));
 
     // contained within (0,0,0) corner of node
-    EXPECT_TRUE(overlap(prefix, prefixLength, Box<int>{r, r+1, r, r+1, r, r+1}));
+    EXPECT_TRUE(overlap(prefix, prefixLength, IBox{r, r+1, r, r+1, r, r+1}));
 
     // all of these miss the (0,0,0) corner by 1 in one of the three dimensions
-    EXPECT_FALSE(overlap(prefix, prefixLength, Box<int>{r-1, r, r, r+1, r, r+1}));
-    EXPECT_FALSE(overlap(prefix, prefixLength, Box<int>{r, r+1, r-1, r, r, r+1}));
-    EXPECT_FALSE(overlap(prefix, prefixLength, Box<int>{r, r+1, r, r+1, r-1, r}));
+    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{r-1, r, r, r+1, r, r+1}));
+    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{r, r+1, r-1, r, r, r+1}));
+    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{r, r+1, r, r+1, r-1, r}));
 }
 
 TEST(BoxOverlap, overlaps)
@@ -138,21 +138,21 @@ void pbcOverlaps()
 {
     int maxCoord = (1u<<maxTreeLevel<I>{}) - 1;
     {
-        Box<int> haloBox{-1, 1, 0, 1, 0, 1};
+        IBox haloBox{-1, 1, 0, 1, 0, 1};
         EXPECT_TRUE(overlap(I(0), I(1), haloBox));
     }
     {
         I firstCode  = codeFromBox<I>(maxCoord,0,0, maxTreeLevel<I>{});
         I secondCode = firstCode + 1;
-        Box<int> haloBox{-1, 1, 0, 1, 0, 1};
+        IBox haloBox{-1, 1, 0, 1, 0, 1};
         EXPECT_TRUE(overlap(firstCode, secondCode, haloBox));
     }
     {
-        Box<int> haloBox{maxCoord, maxCoord+2, 0, 1, 0, 1};
+        IBox haloBox{maxCoord, maxCoord+2, 0, 1, 0, 1};
         EXPECT_TRUE(overlap(I(0), I(1), haloBox));
     }
     {
-        Box<int> haloBox{-1, 1, -1, 1, -1, 1};
+        IBox haloBox{-1, 1, -1, 1, -1, 1};
         EXPECT_TRUE(overlap(nodeRange<I>(0)-1, nodeRange<I>(0), haloBox));
     }
 }
@@ -175,18 +175,18 @@ void makeHaloBoxXYZ()
 
     /// internal node check
     {
-        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
-        Box<int> refBox{r-1, 2*r+1, r, 2*r, r, 2*r};
+        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
+        IBox refBox{r-1, 2*r+1, r, 2*r, r, 2*r};
         EXPECT_EQ(haloBox, refBox);
     }
     {
-        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
-        Box<int> refBox{r, 2*r, r-1, 2*r+1, r, 2*r};
+        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
+        IBox refBox{r, 2*r, r-1, 2*r+1, r, 2*r};
         EXPECT_EQ(haloBox, refBox);
     }
     {
-        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
-        Box<int> refBox{r, 2*r, r, 2*r, r-1, 2*r+1};
+        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
+        IBox refBox{r, 2*r, r, 2*r, r-1, 2*r+1};
         EXPECT_EQ(haloBox, refBox);
     }
 }
@@ -208,18 +208,18 @@ void makeHaloBoxUnderflow()
     I nodeEnd = pad(I(0b001), 3);
 
     {
-        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
-        Box<int> refBox{0, r+1, 0, r, 0, r};
+        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
+        IBox refBox{0, r+1, 0, r, 0, r};
         EXPECT_EQ(haloBox, refBox);
     }
     {
-        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
-        Box<int> refBox{0, r, 0, r+1, 0, r};
+        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
+        IBox refBox{0, r, 0, r+1, 0, r};
         EXPECT_EQ(haloBox, refBox);
     }
     {
-        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
-        Box<int> refBox{0, r, 0, r, 0, r+1};
+        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
+        IBox refBox{0, r, 0, r, 0, r+1};
         EXPECT_EQ(haloBox, refBox);
     }
 }
@@ -241,18 +241,18 @@ void makeHaloBoxOverflow()
     I nodeEnd   = nodeRange<I>(0);
 
     {
-        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
-        Box<int> refBox{r-1, 2*r, r, 2*r, r, 2*r};
+        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
+        IBox refBox{r-1, 2*r, r, 2*r, r, 2*r};
         EXPECT_EQ(haloBox, refBox);
     }
     {
-        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
-        Box<int> refBox{r, 2*r, r-1, 2*r, r, 2*r};
+        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
+        IBox refBox{r, 2*r, r-1, 2*r, r, 2*r};
         EXPECT_EQ(haloBox, refBox);
     }
     {
-        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
-        Box<int> refBox{r, 2*r, r, 2*r, r-1, 2*r};
+        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
+        IBox refBox{r, 2*r, r, 2*r, r-1, 2*r};
         EXPECT_EQ(haloBox, refBox);
     }
 }
@@ -276,14 +276,14 @@ void makeHaloBoxPbc()
 
     {
         double radius = 0.999/r; // normalize(radius) = 7.992
-        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, radius, bbox);
-        Box<int> refBox{r-8, 2*r+8, r-8, 2*r+8, r-8, 2*r+8, true, true, true};
+        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, radius, bbox);
+        IBox refBox{r-8, 2*r+8, r-8, 2*r+8, r-8, 2*r+8};
         EXPECT_EQ(haloBox, refBox);
     }
     {
         double radius = 1.000001/8; // normalize(radius) = r + epsilon
-        Box<int> haloBox = makeHaloBox(nodeStart, nodeEnd, radius, bbox);
-        Box<int> refBox{-1, 3*r+1, -1, 3*r+1, -1, 3*r+1, true, true, true};
+        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, radius, bbox);
+        IBox refBox{-1, 3*r+1, -1, 3*r+1, -1, 3*r+1};
         EXPECT_EQ(haloBox, refBox);
     }
 }
@@ -298,31 +298,31 @@ template<class I>
 void haloBoxContainedIn()
 {
     {
-        Box<int> haloBox{0, 1, 0, 1, 0, 1};
+        IBox haloBox{0, 1, 0, 1, 0, 1};
         EXPECT_TRUE(containedIn(I(0), I(1), haloBox));
     }
     {
-        Box<int> haloBox{0, 1, 0, 1, 0, 2};
+        IBox haloBox{0, 1, 0, 1, 0, 2};
         EXPECT_FALSE(containedIn(I(0), I(1), haloBox));
     }
     {
-        Box<int> haloBox{0, 1, 0, 1, 0, 2};
+        IBox haloBox{0, 1, 0, 1, 0, 2};
         EXPECT_TRUE(containedIn(I(0), I(2), haloBox));
     }
     {
-        Box<int> haloBox{0, 1, 0, 2, 0, 2};
+        IBox haloBox{0, 1, 0, 2, 0, 2};
         EXPECT_FALSE(containedIn(I(0), I(3), haloBox));
     }
     {
-        Box<int> haloBox{0, 1, 0, 2, 0, 2};
+        IBox haloBox{0, 1, 0, 2, 0, 2};
         EXPECT_TRUE(containedIn(I(0), I(4), haloBox));
     }
     {
-        Box<int> haloBox{0, 2, 0, 2, 0, 2};
+        IBox haloBox{0, 2, 0, 2, 0, 2};
         EXPECT_FALSE(containedIn(I(0), I(7), haloBox));
     }
     {
-        Box<int> haloBox{0, 2, 0, 2, 0, 2};
+        IBox haloBox{0, 2, 0, 2, 0, 2};
         EXPECT_TRUE(containedIn(I(0), I(8), haloBox));
     }
 
@@ -330,43 +330,43 @@ void haloBoxContainedIn()
     {
         I firstCode  = codeFromBox<I>(0,0,maxCoord, maxTreeLevel<I>{});
         I secondCode = firstCode + 1;
-        Box<int> haloBox{0, 1, 0, 1, maxCoord, maxCoord + 1};
+        IBox haloBox{0, 1, 0, 1, maxCoord, maxCoord + 1};
         EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
     }
     {
         I firstCode  = codeFromBox<I>(0,0,maxCoord, maxTreeLevel<I>{});
         I secondCode = firstCode + 1;
-        Box<int> haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
+        IBox haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
         EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));
     }
     {
         I firstCode  = codeFromBox<I>(0,0,maxCoord, maxTreeLevel<I>{});
         I secondCode = firstCode + 2;
-        Box<int> haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
+        IBox haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
         EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));
     }
     {
         I firstCode  = codeFromBox<I>(0,0,maxCoord, maxTreeLevel<I>{});
         I secondCode = firstCode + 3;
-        Box<int> haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
+        IBox haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
         EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
     }
     {
         I firstCode  = codeFromBox<I>(maxCoord,maxCoord,maxCoord, maxTreeLevel<I>{});
         I secondCode = firstCode + 1;
-        Box<int> haloBox{maxCoord, maxCoord+1, maxCoord, maxCoord+1, maxCoord, maxCoord + 1};
+        IBox haloBox{maxCoord, maxCoord+1, maxCoord, maxCoord+1, maxCoord, maxCoord + 1};
         EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
     }
 
     /// PBC cases
     {
-        Box<int> haloBox{-1, 1, 0, 1, 0, 1};
+        IBox haloBox{-1, 1, 0, 1, 0, 1};
         EXPECT_FALSE(containedIn(I(0), I(1), haloBox));
     }
     {
         I firstCode  = codeFromBox<I>(0,0,maxCoord, maxTreeLevel<I>{});
         I secondCode = firstCode + 3;
-        Box<int> haloBox{0, 1, 0, 1, maxCoord, maxCoord + 2};
+        IBox haloBox{0, 1, 0, 1, maxCoord, maxCoord + 2};
         EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));
     }
 
