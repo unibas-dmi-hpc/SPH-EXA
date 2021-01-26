@@ -105,11 +105,16 @@ void makeGlobalBox(int rank, int nRanks)
     for (auto& val : z)
         val *= (rank+3);
 
-    Box<T> box = makeGlobalBox(begin(x), end(x), begin(y), begin(z), true, true, true);
-
-    Box<T> refBox{1, T(nElements*nRanks), 2, T(nElements*(nRanks+1)), 3, T(nElements*(nRanks+2)), true, true, true};
+    Box<T> box = makeGlobalBox(begin(x), end(x), begin(y), begin(z), Box<T>{0,1});
+    Box<T> refBox{1, T(nElements*nRanks), 2, T(nElements*(nRanks+1)), 3, T(nElements*(nRanks+2))};
 
     EXPECT_EQ(box, refBox);
+
+    // PBC case
+    Box<T> pbcBox{0,1,0,1,0,1,true,true,true};
+    Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
+
+    EXPECT_EQ(pbcBox, newPbcBox);
 }
 
 TEST(GlobalBox, makeGlobalBox)
