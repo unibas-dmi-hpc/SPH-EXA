@@ -85,23 +85,40 @@ auto globalMax(Iterator start, Iterator end)
     return maximum;
 }
 
-//! \brief compute global bounding box for local x,y,z arrays
+/*! \brief compute global bounding box for local x,y,z arrays
+ *
+ * @tparam Iterator      coordinate array iterator, providing random access
+ * @param  xB            x coordinate array start
+ * @param  xE            x coordinate array end
+ * @param  yB            y coordinate array start
+ * @param  zB            z coordinate array start
+ * @param  previousBox   previous coordinate bounding box, default non-pbc box
+ *                       with limits ignored
+ * @return               the new bounding box
+ *
+ * For each periodic dimension, limits are fixed and will not be modified.
+ * For non-periodic dimensions, limits are determined by global min/max.
+ */
 template<class Iterator>
 auto makeGlobalBox(Iterator xB,
                    Iterator xE,
                    Iterator yB,
                    Iterator zB,
-                   bool pbcX = false,
-                   bool pbcY = false,
-                   bool pbcZ = false)
+                   const Box<std::decay_t<decltype(*xB)>>& previousBox =
+                       Box<std::decay_t<decltype(*xB)>>{0,1})
 {
     using T = std::decay_t<decltype(*xB)>;
 
-    int nElements = xE - xB;
-    return Box<T>{globalMin(xB, xE), globalMax(xB, xE),
-                  globalMin(yB, yB + nElements), globalMax(yB, yB + nElements),
-                  globalMin(zB, zB + nElements), globalMax(zB, zB + nElements),
-                  pbcX, pbcY, pbcZ};
+    std::size_t nElements = xE - xB;
+    T newXmin = (previousBox.pbcX()) ? previousBox.xmin() : globalMin(xB, xB + nElements);
+    T newYmin = (previousBox.pbcY()) ? previousBox.ymin() : globalMin(yB, yB + nElements);
+    T newZmin = (previousBox.pbcZ()) ? previousBox.zmin() : globalMin(zB, zB + nElements);
+    T newXmax = (previousBox.pbcX()) ? previousBox.xmax() : globalMax(xB, xB + nElements);
+    T newYmax = (previousBox.pbcY()) ? previousBox.ymax() : globalMax(yB, yB + nElements);
+    T newZmax = (previousBox.pbcZ()) ? previousBox.zmax() : globalMax(zB, zB + nElements);
+
+    return Box<T>{newXmin, newXmax, newYmin, newYmax, newZmin, newZmax,
+                  previousBox.pbcX(), previousBox.pbcY(), previousBox.pbcZ()};
 };
 
 } // namespace cstone
