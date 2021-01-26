@@ -153,7 +153,7 @@ containedIn(I codeStart, I codeEnd, const IBox& box)
  */
 template <class I>
 IBox makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz,
-                     bool pbcX = false, bool pbcY = false, bool pbcZ = false)
+                 bool pbcX = false, bool pbcY = false, bool pbcZ = false)
 {
     int prefixNBits = treeLevel(codeEnd - codeStart) * 3;
 
