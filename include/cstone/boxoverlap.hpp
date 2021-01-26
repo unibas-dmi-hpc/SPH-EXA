@@ -85,7 +85,7 @@ bool overlapRange(int a, int b, int c, int d)
  *
  */
 template <class I>
-bool overlap(I prefix, int length, const Box<int>& box)
+bool overlap(I prefix, int length, const IBox& box)
 {
     pair<int> xRange = decodeXRange(prefix, length);
     pair<int> yRange = decodeYRange(prefix, length);
@@ -100,7 +100,7 @@ bool overlap(I prefix, int length, const Box<int>& box)
 }
 
 template <class I>
-bool overlap(I codeStart, I codeEnd, const Box<int>& box)
+bool overlap(I codeStart, I codeEnd, const IBox& box)
 {
     int level = treeLevel(codeEnd - codeStart);
     return overlap(codeStart, level*3, box);
@@ -116,7 +116,7 @@ bool overlap(I codeStart, I codeEnd, const Box<int>& box)
  */
 template <class I>
 std::enable_if_t<std::is_unsigned_v<I>, bool>
-containedIn(I codeStart, I codeEnd, const Box<int>& box)
+containedIn(I codeStart, I codeEnd, const IBox& box)
 {
     // volume 0 boxes are not possible if makeHaloBox was used to generate it
     assert(box.xmin() < box.xmax());
@@ -152,7 +152,7 @@ containedIn(I codeStart, I codeEnd, const Box<int>& box)
  *                       of the input octree node extended by (dx,dy,dz)
  */
 template <class I>
-Box<int> makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz,
+IBox makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz,
                      bool pbcX = false, bool pbcY = false, bool pbcZ = false)
 {
     int prefixNBits = treeLevel(codeEnd - codeStart) * 3;
@@ -171,12 +171,12 @@ Box<int> makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz,
     int zmin = (pbcZ) ? zrange[0] - dz : std::max(0, zrange[0] - dz);
     int zmax = (pbcZ) ? zrange[1] + dz : std::min(maxCoordinate, zrange[1] + dz);
 
-    return Box<int>(xmin, xmax, ymin, ymax, zmin, zmax, pbcX, pbcY, pbcZ);
+    return IBox(xmin, xmax, ymin, ymax, zmin, zmax);
 }
 
 //! \brief create a box with specified radius around node delineated by codeStart/End
 template <class I, class T>
-Box<int> makeHaloBox(I codeStart, I codeEnd, T radius, const Box<T>& box)
+IBox makeHaloBox(I codeStart, I codeEnd, T radius, const Box<T>& box)
 {
     // disallow boxes with no volume
     assert(codeEnd > codeStart);

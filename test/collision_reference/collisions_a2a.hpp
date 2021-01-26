@@ -49,7 +49,7 @@ namespace cstone
  */
 template <class I>
 void findCollisions2All(const std::vector<I>& tree, CollisionList& collisionList,
-                        const Box<int>& collisionBox)
+                        const IBox& collisionBox)
 {
     for (std::size_t nodeIndex = 0; nodeIndex < nNodes(tree); ++nodeIndex)
     {
@@ -70,7 +70,7 @@ std::vector<CollisionList> findCollisionsAll2all(const std::vector<I>& tree, con
     {
         T radius = haloRadii[leafIdx];
 
-        Box<int> haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx + 1], radius, globalBox);
+        IBox haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx + 1], radius, globalBox);
         findCollisions2All(tree, collisions[leafIdx], haloBox);
     }
 

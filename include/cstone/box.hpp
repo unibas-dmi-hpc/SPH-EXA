@@ -67,7 +67,7 @@ static int pbcAdjust(int x)
     return x - R * std::floor(double(x)/R);
 }
 
-/*! \brief stores the coordinated bounds
+/*! \brief stores the coordinate bounds
  *
  * Needs a slightly different behavior in the PBC case than the existing BBox
  * to manage morton code based octrees.
@@ -85,7 +85,10 @@ public:
 
     Box(T xmin, T xmax, T ymin, T ymax, T zmin, T zmax,
         bool pbcX = false, bool pbcY = false, bool pbcZ = false)
-    : limits{xmin, xmax, ymin, ymax, zmin, zmax}, pbc{pbcX, pbcY, pbcZ}
+    : limits{xmin, xmax, ymin, ymax, zmin, zmax},
+      lengths_{xmax-xmin, ymax-ymin, zmax-zmin},
+      inverseLengths_{T(1.)/(xmax-xmin), T(1.)/(ymax-ymin), T(1.)/(zmax-zmin)},
+      pbc{pbcX, pbcY, pbcZ}
     {}
 
     T xmin() const { return limits[0]; }
@@ -94,6 +97,16 @@ public:
     T ymax() const { return limits[3]; }
     T zmin() const { return limits[4]; }
     T zmax() const { return limits[5]; }
+
+    //! \brief return edge lengths
+    T lx() const { return lengths_[0]; }
+    T ly() const { return lengths_[1]; }
+    T lz() const { return lengths_[2]; }
+
+    //! \brief return inverse edge lengths
+    T ilx() const { return inverseLengths_[0]; }
+    T ily() const { return inverseLengths_[1]; }
+    T ilz() const { return inverseLengths_[2]; }
 
     [[nodiscard]] bool pbcX() const { return pbc[0]; }
     [[nodiscard]] bool pbcY() const { return pbc[1]; }
@@ -121,7 +134,51 @@ private:
     }
 
     T limits[6];
+    T lengths_[3];
+    T inverseLengths_[3];
     bool pbc[3];
+};
+
+/*! \brief stores octree index integer bounds
+ */
+class IBox
+{
+public:
+
+    IBox(int xyzMin, int xyzMax) :
+        limits{xyzMin, xyzMax, xyzMin, xyzMax, xyzMin, xyzMax}
+    {}
+
+    IBox(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
+        : limits{xmin, xmax, ymin, ymax, zmin, zmax}
+    {}
+
+    [[nodiscard]] int xmin() const { return limits[0]; }
+    [[nodiscard]] int xmax() const { return limits[1]; }
+    [[nodiscard]] int ymin() const { return limits[2]; }
+    [[nodiscard]] int ymax() const { return limits[3]; }
+    [[nodiscard]] int zmin() const { return limits[4]; }
+    [[nodiscard]] int zmax() const { return limits[5]; }
+
+    //! \brief return the shortest coordinate range in any dimension
+    [[nodiscard]] int minExtent() const
+    {
+        return std::min({xmax() - xmin(), ymax() - ymin(), zmax() - zmin()});
+    }
+
+private:
+
+    friend bool operator==(const IBox& a, const IBox& b)
+    {
+        return    a.limits[0] == b.limits[0]
+                  && a.limits[1] == b.limits[1]
+                  && a.limits[2] == b.limits[2]
+                  && a.limits[3] == b.limits[3]
+                  && a.limits[4] == b.limits[4]
+                  && a.limits[5] == b.limits[5];
+    }
+
+    int limits[6];
 };
 
 //! \brief simple pair that's usable in both CPU and GPU code
