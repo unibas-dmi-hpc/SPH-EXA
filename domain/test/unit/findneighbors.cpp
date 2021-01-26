@@ -41,7 +41,7 @@
 //! \brief simple N^2 all-to-all neighbor search
 template<class T>
 void all2allNeighbors(const T* x, const T* y, const T* z, const T* h, int n,
-                      int *neighbors, int *neighborsCount, int ngmax)
+                      int *neighbors, int *neighborsCount, int ngmax, const Box<T>& box)
 {
     for (int i = 0; i < n; ++i)
     {
@@ -54,7 +54,7 @@ void all2allNeighbors(const T* x, const T* y, const T* z, const T* h, int n,
         for (int j = 0; j < n; ++j)
         {
             if (j == i) { continue; }
-            if (ngcount < ngmax && distancesq(xi, yi, zi, x[j], y[j], z[j]) < r2)
+            if (ngcount < ngmax && distanceSqPbc(xi, yi, zi, x[j], y[j], z[j], box) < r2)
             {
                 neighbors[i * ngmax + ngcount++] = j;
             }
@@ -71,6 +71,22 @@ void sortNeighbors(int *neighbors, int *neighborsCount, int n, int ngmax)
     }
 }
 
+TEST(FindNeighbors, distanceSqPbc)
+{
+    {
+        Box<double> box{0, 10, 0, 10, 0, 10, false, false, false};
+        EXPECT_DOUBLE_EQ(64.0, distanceSqPbc(1., 0., 0., 9., 0., 0., box));
+        EXPECT_DOUBLE_EQ(64.0, distanceSqPbc(9., 0., 0., 1., 0., 0., box));
+        EXPECT_DOUBLE_EQ(192.0, distanceSqPbc(9., 9., 9., 1., 1., 1., box));
+    }
+    {
+        Box<double> box{0, 10, 0, 10, 0, 10, true, true, true};
+        EXPECT_DOUBLE_EQ(4.0, distanceSqPbc(1., 0., 0., 9., 0., 0., box));
+        EXPECT_DOUBLE_EQ(4.0, distanceSqPbc(9., 0., 0., 1., 0., 0., box));
+        EXPECT_DOUBLE_EQ(12.0, distanceSqPbc(9., 9., 9., 1., 1., 1., box));
+    }
+}
+
 TEST(FindNeighbors, treeLevel)
 {
     EXPECT_EQ(3, radiusToTreeLevel(0.124, 1.));
@@ -78,80 +94,84 @@ TEST(FindNeighbors, treeLevel)
 }
 
 
-template<class T, class I>
-class NeighborCheck
+template<class Coordinates, class T>
+void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
 {
-public:
-    NeighborCheck(T r, int np, Box<T> b) : radius(r), n(np), box(b) {}
+    using real = T;
+    using CodeType = std::decay_t<decltype(coords.mortonCodes()[0])>;
 
-    void check()
+    int n = coords.x().size();
+    int ngmax = 200;
+
+    real minRange = box.minExtent();
+    std::vector<T> h(n, radius/2);
+
+    std::vector<int> neighborsRef(n * ngmax), neighborsCountRef(n);
+    all2allNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), h.data(), n,
+                     neighborsRef.data(), neighborsCountRef.data(), ngmax, box);
+    sortNeighbors(neighborsRef.data(), neighborsCountRef.data(), n, ngmax);
+
+    std::vector<int> neighborsProbe(n * ngmax), neighborsCountProbe(n);
+    for (int i = 0; i < n; ++i)
     {
-        using real = T;
-        using CodeType = I;
-
-        int ngmax = 100;
-
-        real minRange = box.minExtent();
-        RandomCoordinates<real, CodeType> coords(n, box);
-        std::vector<T> h(n, radius/2);
-
-        std::vector<int> neighborsRef(n * ngmax), neighborsCountRef(n);
-        all2allNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), h.data(), n,
-                         neighborsRef.data(), neighborsCountRef.data(), ngmax);
-        sortNeighbors(neighborsRef.data(), neighborsCountRef.data(), n, ngmax);
-
-        std::vector<int> neighborsProbe(n * ngmax), neighborsCountProbe(n);
-        for (int i = 0; i < n; ++i)
-        {
-            findNeighbors(i, coords.x().data(), coords.y().data(), coords.z().data(),
-                          h.data(), box, coords.mortonCodes().data(),
-                          neighborsProbe.data() + i*ngmax, neighborsCountProbe.data() + i, n, ngmax);
-        }
-        sortNeighbors(neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
-
-        EXPECT_EQ(neighborsRef, neighborsProbe);
-        EXPECT_EQ(neighborsCountRef, neighborsCountProbe);
+        findNeighbors(i, coords.x().data(), coords.y().data(), coords.z().data(),
+                      h.data(), box, coords.mortonCodes().data(),
+                      neighborsProbe.data() + i*ngmax, neighborsCountProbe.data() + i, n, ngmax);
     }
+    sortNeighbors(neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
 
-private:
-    T   radius;
-    int n;
-    Box<T> box;
-};
-
-class FindNeighborsRandomUniform : public testing::TestWithParam<std::tuple<double, int, Box<double>>>
-{
-public:
-    template<class I>
-    void check()
-    {
-        double radius     = std::get<0>(GetParam());
-        int    nParticles = std::get<1>(GetParam());
-        Box<double> box = std::get<2>(GetParam());
-        {
-            NeighborCheck<double, I> chk(radius, nParticles, box);
-            chk.check();
-        }
-    }
-};
-
-TEST_P(FindNeighborsRandomUniform, all2allComparison32bit)
-{
-    check<uint32_t>();
+    EXPECT_EQ(neighborsRef, neighborsProbe);
+    EXPECT_EQ(neighborsCountRef, neighborsCountProbe);
 }
 
-TEST_P(FindNeighborsRandomUniform, all2allComparison64bit)
+class FindNeighborsRandom : public testing::TestWithParam<std::tuple<double, int, std::array<double,6>, bool>>
 {
-    check<uint64_t>();
+public:
+    template<class I, template<class...> class CoordinateKind>
+    void check()
+    {
+        double radius                = std::get<0>(GetParam());
+        int    nParticles            = std::get<1>(GetParam());
+        std::array<double, 6> limits = std::get<2>(GetParam());
+        bool usePbc                  = std::get<3>(GetParam());
+        Box<double> box{limits[0], limits[1], limits[2], limits[3], limits[4], limits[5],
+                        usePbc, usePbc, usePbc};
+
+        CoordinateKind<double, I> coords(nParticles, box);
+
+        neighborCheck(coords, radius, box);
+    }
+};
+
+TEST_P(FindNeighborsRandom, 32bitUniform)
+{
+    check<uint32_t, RandomCoordinates>();
+}
+
+TEST_P(FindNeighborsRandom, 64bitUniform)
+{
+    check<uint64_t, RandomCoordinates>();
+}
+
+TEST_P(FindNeighborsRandom, 32bitGaussian)
+{
+    check<uint32_t, RandomGaussianCoordinates>();
+}
+
+TEST_P(FindNeighborsRandom, 64bitGaussian)
+{
+    check<uint64_t, RandomGaussianCoordinates>();
 }
 
 std::array<double, 2> radii{0.124, 0.0624};
-std::array<int, 1>    nParticles{5000};
-std::array<Box<double>, 2> boxes{{ {0.,1.,0.,1.,0.,1.},
-                                           {-1.2, 0.23, -0.213, 3.213, -5.1, 1.23} }};
+std::array<int, 1>    nParticles{2500};
+std::array<std::array<double, 6>, 2> boxes{{ {0.,1.,0.,1.,0.,1.},
+                                             {-1.2, 0.23, -0.213, 3.213, -5.1, 1.23} }};
+std::array<bool, 2> pbcUsage{false, true};
 
-INSTANTIATE_TEST_SUITE_P(RandomUniformNeighbors,
-                         FindNeighborsRandomUniform,
+INSTANTIATE_TEST_SUITE_P(RandomNeighbors,
+                         FindNeighborsRandom,
                          testing::Combine(testing::ValuesIn(radii),
                                           testing::ValuesIn(nParticles),
-                                          testing::ValuesIn(boxes)));
+                                          testing::ValuesIn(boxes),
+                                          testing::ValuesIn(pbcUsage)));

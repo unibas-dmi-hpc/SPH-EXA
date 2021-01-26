@@ -76,33 +76,40 @@ void generalCollisionTest(const std::vector<I>& tree, const std::vector<T>& halo
 }
 
 //! \brief an irregular tree with level-3 nodes next to level-1 ones
-template<class I, class T>
+template<class I, class T, bool Pbc>
 void irregularTreeTraversal()
 {
     auto tree = OctreeMaker<I>{}.divide().divide(0).divide(0,7).makeTree();
 
-    Box<T> box(0, 1);
+    Box<T> box(0, 1, 0, 1, 0, 1, Pbc, Pbc, Pbc);
     std::vector<T> haloRadii(nNodes(tree), 0.1);
     generalCollisionTest(tree, haloRadii, box);
 }
 
 TEST(Collisions, irregularTreeTraversal)
 {
-    irregularTreeTraversal<unsigned, float>();
-    irregularTreeTraversal<uint64_t, float>();
-    irregularTreeTraversal<unsigned, double>();
-    irregularTreeTraversal<uint64_t, double>();
+    irregularTreeTraversal<unsigned, float , false>();
+    irregularTreeTraversal<uint64_t, float , false>();
+    irregularTreeTraversal<unsigned, double, false>();
+    irregularTreeTraversal<uint64_t, double, false>();
+}
+
+TEST(Collisions, irregularTreeTraversalPbc)
+{
+    irregularTreeTraversal<unsigned, float , true>();
+    irregularTreeTraversal<uint64_t, float , true>();
+    irregularTreeTraversal<unsigned, double, true>();
+    irregularTreeTraversal<uint64_t, double, true>();
 }
 
 
-//! \brief an irregular tree with level-3 nodes next to level-1 ones
-template<class I, class T>
+//! \brief a regular tree with level-3 nodes, 8x8x8 grid
+template<class I, class T, bool Pbc>
 void regularTreeTraversal()
 {
-    // 8x8x8 grid
     auto tree = makeUniformNLevelTree<I>(512, 1);
 
-    Box<T> box(0, 1);
+    Box<T> box(0, 1, 0, 1, 0, 1, Pbc, Pbc, Pbc);
     // node edge length is 0.125
     std::vector<T> haloRadii(nNodes(tree), 0.124);
     generalCollisionTest(tree, haloRadii, box);
@@ -110,10 +117,18 @@ void regularTreeTraversal()
 
 TEST(Collisions, regularTreeTraversal)
 {
-    regularTreeTraversal<unsigned, float>();
-    regularTreeTraversal<uint64_t, float>();
-    regularTreeTraversal<unsigned, double>();
-    regularTreeTraversal<uint64_t, double>();
+    regularTreeTraversal<unsigned, float, false>();
+    regularTreeTraversal<uint64_t, float, false>();
+    regularTreeTraversal<unsigned, double, false>();
+    regularTreeTraversal<uint64_t, double, false>();
+}
+
+TEST(Collisions, regularTreeTraversalPbc)
+{
+    regularTreeTraversal<unsigned, float , true>();
+    regularTreeTraversal<uint64_t, float , true>();
+    regularTreeTraversal<unsigned, double, true>();
+    regularTreeTraversal<uint64_t, double, true>();
 }
 
 /*! \brief test tree traversal with anisotropic boxes
@@ -197,7 +212,7 @@ std::vector<unsigned> makeEdgeTree()
 /*! \brief a simple collision test with the edge tree from above
  *
  * Since the halo radius for the first and last node is bigger than the box,
- * this two nodes collide with all nodes in the tree, while all other nodes have
+ * these two nodes collide with all nodes in the tree, while all other nodes have
  * radius 0 and only collide with themselves.
  */
 TEST(Collisions, adjacentEdgeRegression)
@@ -234,6 +249,9 @@ TEST(Collisions, adjacentEdgeRegression)
     }
 
     generalCollisionTest(tree, haloRadii, box);
+
+    Box<double> boxPbc(0.5, 0.6, 0.5, 0.6, 0.5, 0.6, true, true, true);
+    generalCollisionTest(tree, haloRadii, boxPbc);
 }
 
 /*! \brief collisions test with a very small radius
