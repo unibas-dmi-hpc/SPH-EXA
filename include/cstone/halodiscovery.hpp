@@ -93,7 +93,7 @@ void findHalos(const std::vector<I>&           tree,
                 CollisionList collisions;
                 T radius = interactionRadii[nodeIdx];
 
-                Box<int> haloBox = makeHaloBox(tree[nodeIdx], tree[nodeIdx + 1], radius, box);
+                IBox haloBox = makeHaloBox(tree[nodeIdx], tree[nodeIdx + 1], radius, box);
 
                 // if the halo box is fully inside the assigned SFC range, we skip collision detection
                 if (containedIn(assignment.rangeStart(rank, range),
@@ -132,7 +132,7 @@ void findHalos(const std::vector<I>&           tree,
                     if (isHalo)
                     {
                         // check if remote node +halo also overlaps with internal node
-                        Box<int> remoteNodeBox = makeHaloBox(collidingNodeStart, collidingNodeEnd,
+                        IBox remoteNodeBox = makeHaloBox(collidingNodeStart, collidingNodeEnd,
                                                              interactionRadii[collidingNodeIdx], box);
                         if (overlap(tree[nodeIdx], tree[nodeIdx + 1], remoteNodeBox))
                         {

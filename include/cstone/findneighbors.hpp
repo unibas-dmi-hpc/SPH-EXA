@@ -42,19 +42,6 @@
 namespace cstone
 {
 
-/*! \brief returns periodic shift dx, s.t. x + dx is folded into -l/2 to l/2
- *
- * @tparam T   float or double
- * @param x    input value
- * @param l    periodic length
- * @return     dx, such that x + dx is in [-l/2, l/2]
- */
-template<class T>
-static inline T pbcAdjust(T x, T l)
-{
-    return -l * std::rint(x/l);
-}
-
 //! \brief compute squared distance, taking PBC into account
 template<class T>
 static inline T distanceSqPbc(T x1, T y1, T z1, T x2, T y2, T z2, const Box<T>& box)
@@ -62,9 +49,10 @@ static inline T distanceSqPbc(T x1, T y1, T z1, T x2, T y2, T z2, const Box<T>& 
     T dx = x1 - x2;
     T dy = y1 - y2;
     T dz = z1 - z2;
-    dx += box.pbcX() * pbcAdjust(dx, box.xmax() - box.xmin());
-    dy += box.pbcY() * pbcAdjust(dy, box.ymax() - box.ymin());
-    dz += box.pbcZ() * pbcAdjust(dz, box.zmax() - box.zmin());
+    // this folds d into the periodic range [-l/2, l/2] for each dimension if enabled
+    dx -= box.pbcX() * box.lx() * std::rint(dx * box.ilx());
+    dy -= box.pbcY() * box.ly() * std::rint(dy * box.ily());
+    dz -= box.pbcZ() * box.lz() * std::rint(dz * box.ilz());
 
     return dx * dx + dy * dy + dz * dz;
 }
