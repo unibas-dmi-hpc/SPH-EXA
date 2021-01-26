@@ -48,12 +48,22 @@ template<class I, class T>
 class Domain
 {
 public:
-    explicit Domain(int rank, int nRanks, int bucketSize, bool pbcX=false, bool pbcY = false, bool pbcZ = false)
+    /*! @brief construct empty Domain
+     *
+     * @param rank        executing rank
+     * @param nRanks      number of ranks
+     * @param bucketSize  build tree with max @a bucketSize particles per node
+     * @param box         global bounding box, default is non-pbc box
+     *                    for each periodic dimension in @a box, the coordinate min/max
+     *                    limits will never be changed for the lifetime of the Domain
+     *
+     */
+    explicit Domain(int rank, int nRanks, int bucketSize, const Box<T>& box = Box<T>{0,1})
         : myRank_(rank), nRanks_(nRanks), bucketSize_(bucketSize),
-          particleStart_(0), particleEnd_(-1), localNParticles_(-1), box_(0,1), pbcX_(pbcX), pbcY_(pbcY), pbcZ_(pbcZ)
+          particleStart_(0), particleEnd_(-1), localNParticles_(-1), box_(box)
     {}
 
-    /*! \brief Domain update sequence for particles with coordinates x,y,z, interaction radius h and their properties
+    /*! @brief Domain update sequence for particles with coordinates x,y,z, interaction radius h and their properties
      *
      * @param x[inout]                   floating point coordinates
      * @param y[inout]
@@ -152,7 +162,7 @@ public:
 
         box_ = makeGlobalBox(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
                              cbegin(y) + particleStart_,
-                             cbegin(z) + particleStart_, pbcX_, pbcY_, pbcZ_);
+                             cbegin(z) + particleStart_, box_);
 
         // number of locally assigned particles to consider for global tree building
         int nParticles = particleEnd_ - particleStart_;
@@ -280,7 +290,8 @@ public:
      *
      * @param arrays  std::vector<float or double> of size localNParticles_
      *
-     * This is used e.g. for densities
+     * Arrays are not resized or reallocated.
+     * This is used e.g. for densities.
      */
     template<class...Arrays>
     void exchangeHalos(Arrays&... arrays) const
@@ -330,15 +341,11 @@ private:
     //! \brief number of locally present particles, = number of halos + assigned particles
     int localNParticles_;
 
-    //! \brief coordinate bounding box, updated at each sync call
+    //! \brief coordinate bounding box, each non-periodic dimension is at a sync call
     Box<T> box_;
 
     SendList incomingHaloIndices_;
     SendList outgoingHaloIndices_;
-
-    bool pbcX_;
-    bool pbcY_;
-    bool pbcZ_;
 
     int bucketSize_;
     std::vector<I> tree_;
