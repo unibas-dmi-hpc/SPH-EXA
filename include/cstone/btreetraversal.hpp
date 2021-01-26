@@ -74,14 +74,14 @@ private:
 };
 
 template<class I>
-inline bool traverseNode(const BinaryNode<I>* node, const Box<int>& collisionBox)
+inline bool traverseNode(const BinaryNode<I>* node, const IBox& collisionBox)
 {
     return (node != nullptr) && overlap(node->prefix, node->prefixLength, collisionBox);
 }
 
 template<class I>
 inline bool leafOverlap(int leafIndex, const I* leafNodes,
-                        const Box<int>& collisionBox)
+                        const IBox& collisionBox)
 {
     if (leafIndex < 0)
         return false;
@@ -124,7 +124,7 @@ inline bool leafOverlap(int leafIndex, const I* leafNodes,
  */
 template <class I>
 void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes, CollisionList& collisionList,
-                    const Box<int>& collisionBox)
+                    const IBox& collisionBox)
 {
     using NodePtr = BinaryNode<I>*;
 
