@@ -49,7 +49,7 @@ void collide2all()
     // with multiple smaller level 2 and level 3 nodes
     // it corresponds to the node with code codeFromIndices<I>({4}) with a dx=1 halo extension
     int r = 1u<<(maxTreeLevel<I>{} - 1);
-    Box<int> haloBox{r-1, 2*r, 0, r, 0, r};
+    IBox haloBox{r-1, 2*r, 0, r, 0, r};
 
     CollisionList collisionList;
     findCollisions2All(tree, collisionList, haloBox);

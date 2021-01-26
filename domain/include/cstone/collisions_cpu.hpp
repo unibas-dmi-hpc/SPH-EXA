@@ -62,7 +62,7 @@ std::vector<CollisionList> findAllCollisions(const std::vector<BinaryNode<I>>& i
     {
         T radius = haloRadii[leafIdx];
 
-        Box<int> haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx+1], radius, globalBox);
+        IBox haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx+1], radius, globalBox);
         findCollisions(internalTree.data(), tree.data(), collisions[leafIdx], haloBox);
     }
 
