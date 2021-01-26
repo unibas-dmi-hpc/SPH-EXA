@@ -136,8 +136,7 @@ public:
         pd.bbox.ymin -= dx / 2.0;
         pd.bbox.xmax += dx / 2.0;
         pd.bbox.xmin -= dx / 2.0;
-        //pd.bbox.setBox(pd.bbox.xmin, pd.bbox.xmax, pd.bbox.ymin, pd.bbox.ymax, pd.bbox.zmin, pd.bbox.zmax, true, true, true);
-        pd.bbox.setBox(pd.bbox.xmin, pd.bbox.xmax, pd.bbox.ymin, pd.bbox.ymax, pd.bbox.zmin, pd.bbox.zmax, false, false, false);
+        pd.bbox.setBox(pd.bbox.xmin, pd.bbox.xmax, pd.bbox.ymin, pd.bbox.ymax, pd.bbox.zmin, pd.bbox.zmax, true, true, true);
 
         pd.etot = pd.ecin = pd.eint = 0.0;
         pd.ttot = 0.0;
