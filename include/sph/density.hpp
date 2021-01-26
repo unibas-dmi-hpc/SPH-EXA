@@ -4,7 +4,7 @@
 
 #include "kernels.hpp"
 #include "Task.hpp"
-#include "lookupTables.hpp"
+#include "kernel/computeDensity.hpp"
 #include "cuda/sph.cuh"
 
 namespace sphexa
@@ -32,7 +32,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
 
     T *ro = d.ro.data();
 
-    const BBox<T> bbox = d.bbox;
+    const BBox<T> *bbox = &d.bbox;
 
     const T K = d.K;
     const T sincIndex = d.sincIndex;
@@ -64,10 +64,8 @@ void computeDensityImpl(const Task &t, Dataset &d)
 #endif
     for (size_t pi = 0; pi < n; pi++)
     {
-        const int i = clist[pi];
         // computes ro[i]
-        densityJLoop(i, sincIndex, K, ngmax, bbox, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ltsize, ro);
-
+        kernels::densityJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ltsize, ro);
 #ifndef NDEBUG
         if (std::isnan(ro[i])) printf("ERROR::Density(%d) density %f, position: (%f %f %f), h: %f\n", i, ro[i], x[i], y[i], z[i], h[i]);
 #endif
