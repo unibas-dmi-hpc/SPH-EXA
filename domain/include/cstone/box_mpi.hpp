@@ -106,10 +106,10 @@ auto makeGlobalBox(Iterator xB,
                    Iterator xE,
                    Iterator yB,
                    Iterator zB,
-                   const Box<typename Iterator::value_type>& previousBox =
-                       Box<typename Iterator::value_type>{0,1})
+                   const Box<std::decay_t<decltype(*xB)>>& previousBox =
+                       Box<std::decay_t<decltype(*xB)>>{0,1})
 {
-    using T = typename Iterator::value_type;
+    using T = std::decay_t<decltype(*xB)>;
 
     std::size_t nElements = xE - xB;
     T newXmin = (previousBox.pbcX()) ? previousBox.xmin() : globalMin(xB, xB + nElements);

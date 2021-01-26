@@ -362,6 +362,7 @@ private:
     SendList incomingHaloIndices_;
     SendList outgoingHaloIndices_;
 
+    int bucketSize_;
     std::vector<I> tree_;
     std::vector<unsigned> nodeCounts_;
     bool incrementalBuild_{false};
