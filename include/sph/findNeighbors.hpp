@@ -72,7 +72,7 @@ void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList,
 #pragma omp teams distribute parallel for
 // clang-format on
 #else
-#pragma omp parallel for
+#pragma omp parallel for schedule(static)
 #endif
         for (size_t pi = 0; pi < n; pi++)
             kernels::findNeighborsJLoop(pi, d_clist, d_x, d_y, d_z, d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors, d_neighborsCount,
