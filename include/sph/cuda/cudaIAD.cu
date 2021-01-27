@@ -144,6 +144,7 @@ void computeIAD(const std::vector<Task> &taskList, Dataset &d)
 }
 
 template void computeIAD<double, ParticlesData<double>>(const std::vector<Task> &taskList, ParticlesData<double> &d);
+template void computeIAD<double, ParticlesDataEvrard<double>>(const std::vector<Task> &taskList, ParticlesDataEvrard<double> &d);
 
 } // namespace cuda
 } // namespace sph
