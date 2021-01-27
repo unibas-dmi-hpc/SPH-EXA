@@ -78,6 +78,13 @@ unsigned radiusToTreeLevel(T radius, T minRange)
     return unsigned(-log2(radiusNormalized));
 }
 
+template<class I>
+inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, I code, I* boxes)
+{
+    if (pbc) boxes[(*iPbc)--]    = code;
+    else     boxes[(*iNonPbc)++] = code;
+}
+
 /*! \brief find neighbor box codes
  *
  * @tparam T           float or double
@@ -125,84 +132,88 @@ int findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, I* nCodes)
     T dz0 = (zi - zBox) * (zi - zBox);
     T dz1 = (zi - (zBox + uLz)) * (zi - (zBox + uLz));
 
-    bool pbcX = bbox.pbcX();
-    bool pbcY = bbox.pbcY();
-    bool pbcZ = bbox.pbcZ();
+    bool hitXdown  = ixBox == 0;
+    bool hitXup    = ixBox >= maxCoord-unitsPerBox;
+    bool hitYdown  = iyBox == 0;
+    bool hitYup    = iyBox >= maxCoord-unitsPerBox;
+    bool hitZdown  = izBox == 0;
+    bool hitZup    = izBox >= maxCoord-unitsPerBox;
+    bool stepXdown = !hitXdown || (bbox.pbcX() && level > 1);
+    bool stepXup   = !hitXup   || (bbox.pbcX() && level > 1);
+    bool stepYdown = !hitYdown || (bbox.pbcY() && level > 1);
+    bool stepYup   = !hitYup   || (bbox.pbcY() && level > 1);
+    bool stepZdown = !hitZdown || (bbox.pbcZ() && level > 1);
+    bool stepZup   = !hitZup   || (bbox.pbcZ() && level > 1);
 
-    bool stepXdown = ixBox > 0                    || (bbox.pbcX() && level > 1);
-    bool stepXup   = ixBox < maxCoord-unitsPerBox || (bbox.pbcX() && level > 1);
-    bool stepYdown = iyBox > 0                    || (bbox.pbcY() && level > 1);
-    bool stepYup   = iyBox < maxCoord-unitsPerBox || (bbox.pbcY() && level > 1);
-    bool stepZdown = izBox > 0                    || (bbox.pbcZ() && level > 1);
-    bool stepZup   = izBox < maxCoord-unitsPerBox || (bbox.pbcZ() && level > 1);
-
-    int nBoxes = 0;
+    int nBoxes  = 0;
+    int iBoxPbc = 26;
 
     // home box
     nCodes[nBoxes++] = boxCode;
 
     // X,Y,Z face touch
     if (dx0 < radiusSq && stepXdown)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1, 0, 0, pbcX, pbcY, pbcZ);
+        //storeCode(hitXdown, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level, -1, 0, 0), nCodes);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1, 0, 0);
     if (dx1 < radiusSq && stepXup)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1, 0, 0, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1, 0, 0);
     if (dy0 < radiusSq && stepYdown)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, 0, -1, 0, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, 0, -1, 0);
     if (dy1 < radiusSq && stepYup)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, 0,  1, 0, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, 0,  1, 0);
     if (dz0 < radiusSq && stepZdown)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, 0, 0, -1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, 0, 0, -1);
     if (dz1 < radiusSq && stepZup)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, 0, 0, 1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, 0, 0, 1);
 
     // XY edge touch
     if (dx0 + dy0 < radiusSq && stepXdown && stepYdown)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1, -1, 0, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1, -1, 0);
     if (dx0 + dy1 < radiusSq && stepXdown && stepYup)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1,  1, 0, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1,  1, 0);
     if (dx1 + dy0 < radiusSq && stepXup && stepYdown)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1, -1, 0, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1, -1, 0);
     if (dx1 + dy1 < radiusSq && stepXup && stepYup)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1,  1, 0, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1,  1, 0);
 
     // XZ edge touch
     if (dx0 + dz0 < radiusSq && stepXdown && stepZdown)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1, 0, -1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1, 0, -1);
     if (dx0 + dz1 < radiusSq && stepXdown && stepZup)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1,  0, 1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1,  0, 1);
     if (dx1 + dz0 < radiusSq && stepXup && stepZdown)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1, 0, -1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1, 0, -1);
     if (dx1 + dz1 < radiusSq && stepXup && stepZup)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1,  0, 1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1,  0, 1);
 
     // YZ edge touch
     if (dy0 + dz0 < radiusSq && stepYdown && stepZdown)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, 0, -1, -1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, 0, -1, -1);
     if (dy0 + dz1 < radiusSq && stepYdown && stepZup)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, 0, -1, 1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  0, -1, 1);
     if (dy1 + dz0 < radiusSq && stepYup && stepZdown)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  0, 1, -1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  0, 1, -1);
     if (dy1 + dz1 < radiusSq && stepYup && stepZup)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  0,  1, 1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  0,  1, 1);
 
     // corner touches
     if (dx0 + dy0 + dz0 < radiusSq && stepXdown && stepYdown && stepZdown)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1, -1, -1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1, -1, -1);
     if (dx0 + dy0 + dz1 < radiusSq && stepXdown && stepYdown && stepZup)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1, -1, 1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1, -1, 1);
     if (dx0 + dy1 + dz0 < radiusSq && stepXdown && stepYup && stepZdown)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1,  1, -1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1,  1, -1);
     if (dx0 + dy1 + dz1 < radiusSq && stepXdown && stepYup && stepZup)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1,  1,  1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level, -1,  1,  1);
 
     if (dx1 + dy0 + dz0 < radiusSq && stepXup && stepYdown && stepZdown)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1, -1, -1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1, -1, -1);
     if (dx1 + dy0 + dz1 < radiusSq && stepXup && stepYdown && stepZup)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1, -1, 1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1, -1, 1);
     if (dx1 + dy1 + dz0 < radiusSq && stepXup && stepYup && stepZdown)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1,  1, -1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1,  1, -1);
     if (dx1 + dy1 + dz1 < radiusSq && stepXup && stepYup && stepZup)
-        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1,  1,  1, pbcX, pbcY, pbcZ);
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, level,  1,  1,  1);
 
     return nBoxes;
 
