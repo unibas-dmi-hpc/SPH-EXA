@@ -67,11 +67,6 @@ static inline T distancesq(T x1, T y1, T z1, T x2, T y2, T z2)
     return xx * xx + yy * yy + zz * zz;
 }
 
-template<class I, class T>
-bool touchFaceX(int boxOriginX, int edge, int d, T xNorm, T rNorm)
-{
-}
-
 /*! \brief determines the octree subdivision layer at which the node edge length in
  *         one dimension is bigger or equal than the search radius
  */
@@ -136,6 +131,13 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
     // load coordinates for particle #id
     T xi = x[id], yi = y[id], zi = z[id];
 
+    T dxiBx0 = (xi - xBox) * (xi - xBox);
+    T dxiBx1 = (xi - xBox - uLx) * (xi - xBox - uLx);
+    T dyiBy0 = (yi - yBox) * (yi - yBox);
+    T dyiBy1 = (yi - yBox - uLy) * (yi - yBox - uLy);
+    T dziBz0 = (zi - zBox) * (zi - zBox);
+    T dziBz1 = (zi - (zBox + uLz)) * (zi - (zBox + uLz));
+
     int nBoxes = 0;
     std::array<I, 27> nCodes; // neighborCodes
     nCodes[nBoxes++] = boxCode;
@@ -155,52 +157,52 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
         nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, 0, 0, 1, pbcX, pbcY, pbcZ);
 
     // XY edge touch
-    if ((xi-xBox)*(xi-xBox) + (yi-yBox)*(yi-yBox) < radiusSq)
+    if (dxiBx0 + dyiBy0 < radiusSq)
         nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1, -1, 0, pbcX, pbcY, pbcZ);
-    if ((xi-xBox)*(xi-xBox) + (yi-(yBox+uLy))*(yi-(yBox+uLy)) < radiusSq)
+    if (dxiBx0 + dyiBy1 < radiusSq)
       nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1,  1, 0, pbcX, pbcY, pbcZ);
-    if ((xi-(xBox+uLx))*(xi-(xBox+uLx)) + (yi-yBox)*(yi-yBox) < radiusSq)
+    if (dxiBx1 + dyiBy0 < radiusSq)
       nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1, -1, 0, pbcX, pbcY, pbcZ);
-    if ((xi-(xBox+uLx))*(xi-(xBox+uLx)) + (yi-(yBox+uLy))*(yi-(yBox+uLy)) < radiusSq)
+    if (dxiBx1 + dyiBy1 < radiusSq)
         nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1,  1, 0, pbcX, pbcY, pbcZ);
 
     // XZ edge touch
-    if ((xi-xBox)*(xi-xBox) + (zi-zBox)*(zi-zBox) < radiusSq)
+    if (dxiBx0 + dziBz0 < radiusSq)
         nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1, 0, -1, pbcX, pbcY, pbcZ);
-    if ((xi-xBox)*(xi-xBox) + (zi-(zBox+uLz))*(zi-(zBox+uLz)) < radiusSq)
+    if (dxiBx0 + dziBz1 < radiusSq)
       nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1,  0, 1, pbcX, pbcY, pbcZ);
-    if ((xi-(xBox+uLx))*(xi-(xBox+uLx)) + (zi-zBox)*(zi-zBox) < radiusSq)
+    if (dxiBx1 + dziBz0 < radiusSq)
       nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1, 0, -1, pbcX, pbcY, pbcZ);
-    if ((xi-(xBox+uLx))*(xi-(xBox+uLx)) + (zi-(zBox+uLz))*(zi-(zBox+uLz)) < radiusSq)
+    if (dxiBx1 + dziBz1 < radiusSq)
         nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1,  0, 1, pbcX, pbcY, pbcZ);
 
     // YZ edge touch
-    if ((yi-yBox)*(yi-yBox) + (zi-zBox)*(zi-zBox) < radiusSq)
+    if (dyiBy0 + dziBz0 < radiusSq)
         nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, 0, -1, -1, pbcX, pbcY, pbcZ);
-    if ((yi-yBox)*(yi-yBox) + (zi-(zBox+uLz))*(zi-(zBox+uLz)) < radiusSq)
+    if (dyiBy0 + dziBz1 < radiusSq)
       nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, 0, -1, 1, pbcX, pbcY, pbcZ);
-    if ((yi-(yBox+uLy))*(yi-(yBox+uLy)) + (zi-zBox)*(zi-zBox) < radiusSq)
+    if (dyiBy1 + dziBz0 < radiusSq)
       nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  0, 1, -1, pbcX, pbcY, pbcZ);
-    if ((yi-(yBox+uLy))*(yi-(yBox+uLy)) + (zi-(zBox+uLz))*(zi-(zBox+uLz)) < radiusSq)
+    if (dyiBy1 + dziBz1 < radiusSq)
         nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  0,  1, 1, pbcX, pbcY, pbcZ);
 
     // corner touches
-    if ((xi-xBox)*(xi-xBox) + (yi-yBox)*(yi-yBox) + (zi-zBox)*(zi-zBox) < radiusSq)
+    if (dxiBx0 + dyiBy0 + dziBz0 < radiusSq)
         nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1, -1, -1, pbcX, pbcY, pbcZ);
-    if ((xi-xBox)*(xi-xBox) + (yi-yBox)*(yi-yBox) + (zi-(zBox+uLz))*(zi-(zBox+uLz)) < radiusSq)
+    if (dxiBx0 + dyiBy0 + dziBz1 < radiusSq)
       nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1, -1, 1, pbcX, pbcY, pbcZ);
-    if ((xi-xBox)*(xi-xBox) + (yi-(yBox+uLy))*(yi-(yBox+uLy)) + (zi-zBox)*(zi-zBox) < radiusSq)
+    if (dxiBx0 + dyiBy1 + dziBz0 < radiusSq)
       nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1,  1, -1, pbcX, pbcY, pbcZ);
-    if ((xi-xBox)*(xi-xBox) + (yi-(yBox+uLy))*(yi-(yBox+uLy)) + (zi-(zBox+uLz))*(zi-(zBox+uLz)) < radiusSq)
+    if (dxiBx0 + dyiBy1 + dziBz1 < radiusSq)
       nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1,  1,  1, pbcX, pbcY, pbcZ);
 
-    if ((xi-(xBox+uLx))*(xi-(xBox+uLx)) + (yi-yBox)*(yi-yBox) + (zi-zBox)*(zi-zBox) < radiusSq)
+    if (dxiBx1 + dyiBy0 + dziBz0 < radiusSq)
       nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1, -1, -1, pbcX, pbcY, pbcZ);
-    if ((xi-(xBox+uLx))*(xi-(xBox+uLx)) + (yi-yBox)*(yi-yBox) + (zi-(zBox+uLz))*(zi-(zBox+uLz)) < radiusSq)
+    if (dxiBx1 + dyiBy0 + dziBz1 < radiusSq)
       nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1, -1, 1, pbcX, pbcY, pbcZ);
-    if ((xi-(xBox+uLx))*(xi-(xBox+uLx)) + (yi-(yBox+uLy))*(yi-(yBox+uLy)) + (zi-zBox)*(zi-zBox) < radiusSq)
+    if (dxiBx1 + dyiBy1 + dziBz0 < radiusSq)
       nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1,  1, -1, pbcX, pbcY, pbcZ);
-    if ((xi-(xBox+uLx))*(xi-(xBox+uLx)) + (yi-(yBox+uLy))*(yi-(yBox+uLy)) + (zi-(zBox+uLz))*(zi-(zBox+uLz)) < radiusSq)
+    if (dxiBx1 + dyiBy1 + dziBz1 < radiusSq)
         nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1,  1,  1, pbcX, pbcY, pbcZ);
 
     // find neighboring boxes / octree nodes
@@ -227,6 +229,7 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
             if (j == id) { continue; }
 
             if (distanceSqPbc(xi, yi, zi, x[j], y[j], z[j], box) < radiusSq)
+            //if (distancesq(xi, yi, zi, x[j], y[j], z[j]) < radiusSq)
             {
                 neighbors[ngcount++] = j;
             }
