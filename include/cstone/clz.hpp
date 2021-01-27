@@ -75,8 +75,7 @@ static int clz64(uint64_t x)
  * \return    number of leading zeros, or the number of bits in the input type
  *            for an input value of 0
  */
-template<class I>
-int countLeadingZeros(I x)
+inline int countLeadingZeros(uint32_t x)
 {
     // with GCC and clang, we can use the builtin implementation
     // this also works with the intel compiler, which also defines __GNUC__
@@ -86,26 +85,31 @@ int countLeadingZeros(I x)
     // __builtin_clz(l) is implemented with the LZCNT instruction
     // which returns the number of bits for an input of zero,
     // so this check is not required in that case (flag: -march=haswell)
-    if (x == 0) return sizeof(I) * 8;
+    if (x == 0) return 8 * sizeof(uint32_t);
+    return __builtin_clz(x);
 
-    if constexpr (sizeof(I) == 8)
-    {
-        return __builtin_clzl(x);
-    }
-    else
-    {
-        return __builtin_clz(x);
-    }
 #else
-    if (x == 0) return sizeof(I) * 8;
+    if (x == 0) return 8 * sizeof(uint32_t);
+    return detail::clz32(x);
 
-    if constexpr (sizeof(I) == 8)
-    {
-        return detail::clz64(x);
-    }
-    else
-    {
-        return detail::clz32(x);
-    }
+#endif
+}
+
+inline int countLeadingZeros(uint64_t x)
+{
+    // with GCC and clang, we can use the builtin implementation
+    // this also works with the intel compiler, which also defines __GNUC__
+#if defined(__GNUC__) || defined(__clang__)
+
+    // if the target architecture is Haswell or later,
+    // __builtin_clz(l) is implemented with the LZCNT instruction
+    // which returns the number of bits for an input of zero,
+    // so this check is not required in that case (flag: -march=haswell)
+    if (x == 0) return 8 * sizeof(uint64_t);
+    return __builtin_clzl(x);
+
+#else
+    if (x == 0) return 8 * sizeof(uint64_t);
+    return detail::clz64(x);
 #endif
 }
