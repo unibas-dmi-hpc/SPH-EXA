@@ -93,6 +93,86 @@ TEST(FindNeighbors, treeLevel)
     EXPECT_EQ(2, radiusToTreeLevel(0.126, 1.));
 }
 
+template<class I, class T>
+void callFindNeighborBoxes(int* nBoxes, I* nCodes, T xi, T yi, T zi, T radius, const Box<T>& bbox)
+{
+    // smallest octree cell edge length in unit cube
+    constexpr T uL = T(1.) / (1u<<maxTreeLevel<I>{});
+    T radiusSq     = radius * radius;
+
+    // depth is the smallest tree subdivision level at which the node edge length is still bigger than radius
+    unsigned depth = radiusToTreeLevel(radius, bbox.minExtent());
+
+    I xyzCode = morton3D<I>(xi,yi,zi, bbox);
+    I boxCode = enclosingBoxCode(xyzCode, depth);
+
+    T xBox    = bbox.xmin() + decodeMortonX(boxCode) * uL * bbox.lx();
+    T yBox    = bbox.ymin() + decodeMortonY(boxCode) * uL * bbox.ly();
+    T zBox    = bbox.zmin() + decodeMortonZ(boxCode) * uL * bbox.lz();
+
+    int unitsPerBox = 1u<<(maxTreeLevel<I>{} - depth);
+    T uLx = uL * bbox.lx() * unitsPerBox; // box length in x
+    T uLy = uL * bbox.ly() * unitsPerBox; // box length in y
+    T uLz = uL * bbox.lz() * unitsPerBox; // box length in z
+
+    T dx0 = (xi - xBox) * (xi - xBox);
+    T dx1 = (xi - xBox - uLx) * (xi - xBox - uLx);
+    T dy0 = (yi - yBox) * (yi - yBox);
+    T dy1 = (yi - yBox - uLy) * (yi - yBox - uLy);
+    T dz0 = (zi - zBox) * (zi - zBox);
+    T dz1 = (zi - (zBox + uLz)) * (zi - (zBox + uLz));
+
+    int nB = findNeighborBoxes(dx0, dx1, dy0, dy1, dz0, dz1, boxCode, depth, radiusSq,
+                               bbox.pbcX(), bbox.pbcY(), bbox.pbcZ(), nCodes);
+    *nBoxes = nB;
+}
+
+/*! \brief find neighbor boxes around a particles centered in (1,1,1) box
+ *
+ * The particles (x,y,z) is centered in the (ix,iy,iz) = (1,1,1) node
+ * with i{x,y,z} = coordinates in [0, 2^maxTreeLevel<I>{}]
+ * The minimum radius to hit all neighboring (ix+-1,iy+-1,iz+-1) nodes is sqrt(3/4)
+ * and this is checked.
+ */
+template<class I>
+void findNeighborBoxes()
+{
+    using T = double;
+    // smallest octree cell edge length in unit cube
+    constexpr T uL = T(1.) / (1u<<maxTreeLevel<I>{});
+
+    Box<T> bbox(0,1);
+
+    T x      = 1.5 * uL;
+    T y      = 1.5 * uL;
+    T z      = 1.5 * uL;
+    T radius = 0.867 * uL;
+
+    I neighborCodes[27];
+    int nBoxes;
+    callFindNeighborBoxes(&nBoxes, neighborCodes, x, y, z, radius, bbox);
+    EXPECT_EQ(nBoxes, 27);
+    std::sort(neighborCodes, neighborCodes + nBoxes);
+
+    std::vector<I> refBoxes;
+    for (int ix = 0; ix < 3; ++ix)
+        for (int iy = 0; iy < 3; ++iy)
+            for (int iz = 0; iz < 3; ++iz)
+            {
+                refBoxes.push_back(codeFromBox<I>(ix,iy,iz, maxTreeLevel<I>{}));
+            }
+    std::sort(begin(refBoxes), end(refBoxes));
+
+    std::vector<I> probeBoxes(neighborCodes, neighborCodes + nBoxes);
+    EXPECT_EQ(probeBoxes, refBoxes);
+}
+
+TEST(FindNeighbors, findNeighborBoxes)
+{
+    findNeighborBoxes<unsigned>();
+    findNeighborBoxes<uint64_t>();
+}
+
 
 template<class Coordinates, class T>
 void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)

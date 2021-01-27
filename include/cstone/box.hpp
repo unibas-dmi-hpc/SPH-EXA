@@ -80,7 +80,10 @@ class Box
 public:
 
     Box(T xyzMin, T xyzMax, bool hasPbc = false) :
-        limits{xyzMin, xyzMax, xyzMin, xyzMax, xyzMin, xyzMax}, pbc{hasPbc, hasPbc, hasPbc}
+        limits{xyzMin, xyzMax, xyzMin, xyzMax, xyzMin, xyzMax},
+        lengths_{xyzMax-xyzMin, xyzMax-xyzMin, xyzMax-xyzMin},
+        inverseLengths_{T(1.)/(xyzMax-xyzMin), T(1.)/(xyzMax-xyzMin), T(1.)/(xyzMax-xyzMin)},
+        pbc{hasPbc, hasPbc, hasPbc}
     {}
 
     Box(T xmin, T xmax, T ymin, T ymax, T zmin, T zmax,
