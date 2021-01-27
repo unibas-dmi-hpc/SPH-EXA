@@ -79,6 +79,26 @@ unsigned radiusToTreeLevel(T radius, T minRange)
     return unsigned(-log2(radiusNormalized));
 }
 
+/*! \brief find neighbor box codes
+ *
+ * @tparam T           float or double
+ * @tparam I           32- or 64-bit unsigned integer
+ * @param dx0[in]      (x-xBox)^2, xBox is the lowest x-coordinate of \a boxCode
+ * @param dx1[in]      (x-(xBox+boxLengthX)^2, boxLengthX is the edge length of
+ *                     \a boxCode in x-direction
+ * @param dy0[in]      see dx0
+ * @param dy1[in]      see dx1
+ * @param dz0[in]      see dx0
+ * @param dz1[in]      see dx1
+ * @param boxCode[in]  box around which to compute neighbors
+ * @param level[in]    subdivision level of \a boxCode
+ * @param radiusSq[in] squared interaction radius of particle used to calculate d{x,y,z}{0,1}
+ * @param pbcX [in]    look for periodic neighbors in X
+ * @param pbcY [in]    look for periodic neighbors in Y
+ * @param pbcZ [in]    look for periodic neighbors in Z
+ * @param nCodes[out]  output array for the neighbor box code, max size is 27
+ * @return             number of neighbor boxes found
+ */
 template<class T, class I>
 int findNeighborBoxes(T dx0, T dx1, T dy0, T dy1, T dz0, T dz1,
                       I boxCode, int level, T radiusSq, bool pbcX, bool pbcY, bool pbcZ,
@@ -161,7 +181,7 @@ int findNeighborBoxes(T dx0, T dx1, T dy0, T dy1, T dz0, T dz1,
     //        for (int dz = -1; dz < 2; ++dz)
     //        {
     //            nCodes[nBoxes++] = mortonNeighbor(boxCode, level, dx, dy, dz,
-    //                                              box.pbcX(), box.pbcY(), box.pbcZ());
+    //                                              pbcX, pbcY, pbcZ);
     //        }
 }
 
@@ -215,15 +235,15 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
 
     if (*neighborsCount == ngmax) { return; }
 
-    T dxiBx0 = (xi - xBox) * (xi - xBox);
-    T dxiBx1 = (xi - xBox - uLx) * (xi - xBox - uLx);
-    T dyiBy0 = (yi - yBox) * (yi - yBox);
-    T dyiBy1 = (yi - yBox - uLy) * (yi - yBox - uLy);
-    T dziBz0 = (zi - zBox) * (zi - zBox);
-    T dziBz1 = (zi - (zBox + uLz)) * (zi - (zBox + uLz));
+    T dx0 = (xi - xBox) * (xi - xBox);
+    T dx1 = (xi - xBox - uLx) * (xi - xBox - uLx);
+    T dy0 = (yi - yBox) * (yi - yBox);
+    T dy1 = (yi - yBox - uLy) * (yi - yBox - uLy);
+    T dz0 = (zi - zBox) * (zi - zBox);
+    T dz1 = (zi - (zBox + uLz)) * (zi - (zBox + uLz));
 
     I nCodes[27]; // neighborCodes
-    int nBoxes = findNeighborBoxes(dxiBx0, dxiBx1, dyiBy0, dyiBy1, dziBz0, dziBz1, boxCode, depth, radiusSq,
+    int nBoxes = findNeighborBoxes(dx0, dx1, dy0, dy1, dz0, dz1, boxCode, depth, radiusSq,
                                    box.pbcX(), box.pbcY(), box.pbcZ(), nCodes);
 
     std::sort(nCodes, nCodes + nBoxes);
