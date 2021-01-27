@@ -80,27 +80,47 @@ unsigned radiusToTreeLevel(T radius, T minRange)
  *
  * @tparam T           float or double
  * @tparam I           32- or 64-bit unsigned integer
- * @param dx0[in]      (x-xBox)^2, xBox is the lowest x-coordinate of \a boxCode
- * @param dx1[in]      (x-(xBox+boxLengthX)^2, boxLengthX is the edge length of
- *                     \a boxCode in x-direction
- * @param dy0[in]      see dx0
- * @param dy1[in]      see dx1
- * @param dz0[in]      see dx0
- * @param dz1[in]      see dx1
- * @param boxCode[in]  box around which to compute neighbors
- * @param level[in]    subdivision level of \a boxCode
+ * @param xi[in]       particle x coordinate
+ * @param yi[in]       particle y coordinate
+ * @param zi[in]       particle z coordinate
  * @param radiusSq[in] squared interaction radius of particle used to calculate d{x,y,z}{0,1}
- * @param pbcX [in]    look for periodic neighbors in X
- * @param pbcY [in]    look for periodic neighbors in Y
- * @param pbcZ [in]    look for periodic neighbors in Z
+ * @param bbox[in]     global coordinate bounding box
  * @param nCodes[out]  output array for the neighbor box code, max size is 27
  * @return             number of neighbor boxes found
  */
 template<class T, class I>
-int findNeighborBoxes(T dx0, T dx1, T dy0, T dy1, T dz0, T dz1,
-                      I boxCode, int level, T radiusSq, bool pbcX, bool pbcY, bool pbcZ,
-                      I* nCodes)
+int findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, I* nCodes)
 {
+    // smallest octree cell edge length in unit cube
+    constexpr T uL = T(1.) / (1u<<maxTreeLevel<I>{});
+
+    T radiusSq = radius * radius;
+
+    // level is the smallest tree subdivision level at which the node edge length is still bigger than radius
+    unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
+    I xyzCode = morton3D<I>(xi, yi, zi, bbox);
+    I boxCode = enclosingBoxCode(xyzCode, level);
+
+    T xBox = bbox.xmin() + decodeMortonX(boxCode) * uL * bbox.lx();
+    T yBox = bbox.ymin() + decodeMortonY(boxCode) * uL * bbox.ly();
+    T zBox = bbox.zmin() + decodeMortonZ(boxCode) * uL * bbox.lz();
+
+    int unitsPerBox = 1u<<(maxTreeLevel<I>{} - level);
+    T uLx = uL * bbox.lx() * unitsPerBox; // box length in x
+    T uLy = uL * bbox.ly() * unitsPerBox; // box length in y
+    T uLz = uL * bbox.lz() * unitsPerBox; // box length in z
+
+    T dx0 = (xi - xBox) * (xi - xBox);
+    T dx1 = (xi - xBox - uLx) * (xi - xBox - uLx);
+    T dy0 = (yi - yBox) * (yi - yBox);
+    T dy1 = (yi - yBox - uLy) * (yi - yBox - uLy);
+    T dz0 = (zi - zBox) * (zi - zBox);
+    T dz1 = (zi - (zBox + uLz)) * (zi - (zBox + uLz));
+
+    bool pbcX = bbox.pbcX();
+    bool pbcY = bbox.pbcY();
+    bool pbcZ = bbox.pbcZ();
+
     int nBoxes = 0;
 
     // home box
@@ -211,38 +231,18 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
                    const I* mortonCodes, int *neighbors, int *neighborsCount,
                    int n, int ngmax)
 {
-    // smallest octree cell edge length in unit cube
-    constexpr T uL = T(1.) / (1u<<maxTreeLevel<I>{});
-
     // SPH convention is search radius = 2 * h
     T radius       = 2 * h[id];
     T radiusSq     = radius * radius;
-    // depth is the smallest tree subdivision level at which the node edge length is still bigger than radius
+
+    // level is the smallest tree subdivision level at which the node edge length is still bigger than radius
     unsigned depth = radiusToTreeLevel(radius, box.minExtent());
-
-    I boxCode = enclosingBoxCode(mortonCodes[id], depth);
-    T xBox    = box.xmin() + decodeMortonX(boxCode) * uL * box.lx();
-    T yBox    = box.ymin() + decodeMortonY(boxCode) * uL * box.ly();
-    T zBox    = box.zmin() + decodeMortonZ(boxCode) * uL * box.lz();
-
-    int unitsPerBox = 1u<<(maxTreeLevel<I>{} - depth);
-    T uLx = uL * box.lx() * unitsPerBox; // box length in x
-    T uLy = uL * box.ly() * unitsPerBox; // box length in y
-    T uLz = uL * box.lz() * unitsPerBox; // box length in z
 
     // load coordinates for particle #id
     T xi = x[id], yi = y[id], zi = z[id];
 
-    T dx0 = (xi - xBox) * (xi - xBox);
-    T dx1 = (xi - xBox - uLx) * (xi - xBox - uLx);
-    T dy0 = (yi - yBox) * (yi - yBox);
-    T dy1 = (yi - yBox - uLy) * (yi - yBox - uLy);
-    T dz0 = (zi - zBox) * (zi - zBox);
-    T dz1 = (zi - (zBox + uLz)) * (zi - (zBox + uLz));
-
     I nCodes[27]; // neighborCodes
-    int nBoxes = findNeighborBoxes(dx0, dx1, dy0, dy1, dz0, dz1, boxCode, depth, radiusSq,
-                                   box.pbcX(), box.pbcY(), box.pbcZ(), nCodes);
+    int nBoxes = findNeighborBoxes(xi, yi, zi, radius, box, nCodes);
 
     std::sort(nCodes, nCodes + nBoxes);
     nBoxes = std::unique(nCodes, nCodes + nBoxes) - nCodes;
