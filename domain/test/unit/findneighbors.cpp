@@ -115,7 +115,8 @@ void findNeighborBoxesInterior()
     T radius = 0.867 * uL;
 
     I neighborCodes[27];
-    int nBoxes = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
+    auto pbi = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
+    int nBoxes = pbi[0];
 
     EXPECT_EQ(nBoxes, 27);
     std::sort(neighborCodes, neighborCodes + nBoxes);
@@ -134,8 +135,8 @@ void findNeighborBoxesInterior()
 
     // now, the 8 farthest corners are not hit any more
     radius = 0.866 * uL;
-    nBoxes = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
-    EXPECT_EQ(nBoxes, 19);
+    pbi = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
+    EXPECT_EQ(pbi[0], 19);
 }
 
 TEST(FindNeighbors, findNeighborBoxesInterior)
@@ -168,7 +169,8 @@ void findNeighborBoxesCorner()
     T radius = 0.867 * uL;
 
     I neighborCodes[27];
-    int nBoxes = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
+    auto pbi = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
+    int nBoxes = pbi[0];
 
     EXPECT_EQ(nBoxes, 8);
     std::sort(neighborCodes, neighborCodes + nBoxes);
@@ -210,7 +212,8 @@ void findNeighborBoxesUpperCorner()
     T radius = 0.867 * nUnits * uL;
 
     I neighborCodes[27];
-    int nBoxes = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
+    auto pbi   = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
+    int nBoxes = pbi[0];
 
     EXPECT_EQ(nBoxes, 8);
     std::sort(neighborCodes, neighborCodes + nBoxes);
@@ -232,6 +235,35 @@ TEST(FindNeighbors, findNeighborBoxesUpperCorner)
 {
     findNeighborBoxesUpperCorner<unsigned>();
     findNeighborBoxesUpperCorner<uint64_t>();
+}
+
+template<class I>
+void findNeighborBoxesCornerPbc()
+{
+    using T = double;
+    // smallest octree cell edge length in unit cube
+    constexpr T uL = T(1.) / (1u<<maxTreeLevel<I>{});
+
+    Box<T> bbox(0,1,true);
+
+    T x      = 0.5 * uL;
+    T y      = 0.5 * uL;
+    T z      = 0.5 * uL;
+    T radius = 0.867 * uL;
+
+    I neighborCodes[27];
+    auto pbi    = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
+    int nBoxes  = pbi[0];
+    int iBoxPbc = pbi[1];
+
+    EXPECT_EQ(nBoxes,  8);
+    EXPECT_EQ(iBoxPbc, 8);
+}
+
+TEST(FindNeighbors, findNeighborBoxesCornerPbc)
+{
+    findNeighborBoxesCornerPbc<unsigned>();
+    findNeighborBoxesCornerPbc<uint64_t>();
 }
 
 
