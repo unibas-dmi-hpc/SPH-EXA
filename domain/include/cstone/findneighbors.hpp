@@ -32,7 +32,6 @@
 
 #pragma once
 
-#include <algorithm>
 #include <cmath>
 
 #include "bsearch.hpp"
@@ -90,6 +89,8 @@ unsigned radiusToTreeLevel(T radius, T minRange)
  * @param bbox[in]     global coordinate bounding box
  * @param nCodes[out]  output array for the neighbor box code, max size is 27
  * @return             number of neighbor boxes found
+ *
+ * Note box-codes from nCodes to nCodes + nBoxes are unique.
  */
 template<class T, class I>
 int findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, I* nCodes)
