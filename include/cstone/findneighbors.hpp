@@ -33,7 +33,6 @@
 #pragma once
 
 #include <algorithm>
-#include <array>
 #include <cmath>
 #include <numeric>
 
@@ -139,21 +138,21 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
     T dziBz1 = (zi - (zBox + uLz)) * (zi - (zBox + uLz));
 
     int nBoxes = 0;
-    std::array<I, 27> nCodes; // neighborCodes
+    I nCodes[27]; // neighborCodes
     nCodes[nBoxes++] = boxCode;
 
     // X,Y,Z face touch
-    if ((xi - radius) < xBox)
+    if (dxiBx0 < radiusSq)
         nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1, 0, 0, pbcX, pbcY, pbcZ);
-    if ((xi + radius) > xBox + uLx)
+    if (dxiBx1 < radiusSq)
         nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1, 0, 0, pbcX, pbcY, pbcZ);
-    if ((yi - radius) < yBox)
+    if (dyiBy0 < radiusSq)
         nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, 0, -1, 0, pbcX, pbcY, pbcZ);
-    if ((yi + radius) > yBox + uLy)
+    if (dyiBy1 < radiusSq)
         nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, 0,  1, 0, pbcX, pbcY, pbcZ);
-    if ((zi - radius) < zBox)
+    if (dziBz0 < radiusSq)
         nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, 0, 0, -1, pbcX, pbcY, pbcZ);
-    if ((zi + radius) > zBox + uLz)
+    if (dziBz1 < radiusSq)
         nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, 0, 0, 1, pbcX, pbcY, pbcZ);
 
     // XY edge touch
@@ -215,14 +214,16 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
     //                                              box.pbcX(), box.pbcY(), box.pbcZ());
     //        }
 
-    std::sort(begin(nCodes), begin(nCodes) + nBoxes);
-    auto last = std::unique(begin(nCodes), begin(nCodes) + nBoxes);
+    std::sort(nCodes, nCodes + nBoxes);
+    nBoxes = std::unique(nCodes, nCodes + nBoxes) - nCodes;
 
     int ngcount = 0;
-    for (auto neighbor = begin(nCodes); neighbor != last; ++neighbor)
+    for (int ibox = 0; ibox < nBoxes; ++ibox)
     {
-        int startIndex = std::lower_bound(mortonCodes, mortonCodes + n, *neighbor) - mortonCodes;
-        int endIndex   = std::upper_bound(mortonCodes, mortonCodes + n, *neighbor + nodeRange<I>(depth)) - mortonCodes;
+        I neighbor     = nCodes[ibox];
+        int startIndex = std::lower_bound(mortonCodes, mortonCodes + n, neighbor) - mortonCodes;
+        int endIndex   = std::upper_bound(mortonCodes + startIndex, mortonCodes + n,
+                                          neighbor + nodeRange<I>(depth)) - mortonCodes;
 
         for (int j = startIndex; j < endIndex; ++j)
         {
