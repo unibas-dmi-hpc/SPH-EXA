@@ -365,25 +365,72 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
 
     if (*neighborsCount == ngmax) { return; }
 
-    // search PBC boxes
-    searchBoxes(nCodes, iBoxPbc, 27, mortonCodes, n, depth, id, x, y, z, radiusSq, neighbors, neighborsCount, ngmax,
-                [&box](T xi, T yi, T zi, T xj, T yj, T zj) { return distanceSqPbc(xi, yi, zi, xj, yj, zj, box); } );
+    T dxiBx0 = (xi - xBox) * (xi - xBox);
+    T dxiBx1 = (xi - xBox - uLx) * (xi - xBox - uLx);
+    T dyiBy0 = (yi - yBox) * (yi - yBox);
+    T dyiBy1 = (yi - yBox - uLy) * (yi - yBox - uLy);
+    T dziBz0 = (zi - zBox) * (zi - zBox);
+    T dziBz1 = (zi - (zBox + uLz)) * (zi - (zBox + uLz));
+
+    int nBoxes = 0;
+    std::array<I, 27> nCodes; // neighborCodes
+    nCodes[nBoxes++] = boxCode;
 
 
-    //int ngcount = 0;
+    // XY edge touch
+    if (dxiBx0 + dyiBy0 < radiusSq)
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1, -1, 0, pbcX, pbcY, pbcZ);
+    if (dxiBx0 + dyiBy1 < radiusSq)
+      nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1,  1, 0, pbcX, pbcY, pbcZ);
+    if (dxiBx1 + dyiBy0 < radiusSq)
+      nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1, -1, 0, pbcX, pbcY, pbcZ);
+    if (dxiBx1 + dyiBy1 < radiusSq)
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1,  1, 0, pbcX, pbcY, pbcZ);
 
-    //for (int ibox = 0; ibox < nBoxes; ++ibox)
-    //{
-    //    I neighbor     = nCodes[ibox];
-    //    int startIndex = std::lower_bound(mortonCodes, mortonCodes + n, neighbor) - mortonCodes;
-    //    int endIndex   = std::upper_bound(mortonCodes + startIndex, mortonCodes + n,
-    //                                      neighbor + nodeRange<I>(depth)) - mortonCodes;
+    // XZ edge touch
+    if (dxiBx0 + dziBz0 < radiusSq)
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1, 0, -1, pbcX, pbcY, pbcZ);
+    if (dxiBx0 + dziBz1 < radiusSq)
+      nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1,  0, 1, pbcX, pbcY, pbcZ);
+    if (dxiBx1 + dziBz0 < radiusSq)
+      nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1, 0, -1, pbcX, pbcY, pbcZ);
+    if (dxiBx1 + dziBz1 < radiusSq)
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1,  0, 1, pbcX, pbcY, pbcZ);
 
-    //    for (int j = startIndex; j < endIndex; ++j)
-    //    {
-    //        if (j == id) { continue; }
+    // YZ edge touch
+    if (dyiBy0 + dziBz0 < radiusSq)
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, 0, -1, -1, pbcX, pbcY, pbcZ);
+    if (dyiBy0 + dziBz1 < radiusSq)
+      nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, 0, -1, 1, pbcX, pbcY, pbcZ);
+    if (dyiBy1 + dziBz0 < radiusSq)
+      nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  0, 1, -1, pbcX, pbcY, pbcZ);
+    if (dyiBy1 + dziBz1 < radiusSq)
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  0,  1, 1, pbcX, pbcY, pbcZ);
 
-    //        if (distancesq(xi, yi, zi, x[j], y[j], z[j]) < radiusSq)
+    // corner touches
+    if (dxiBx0 + dyiBy0 + dziBz0 < radiusSq)
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1, -1, -1, pbcX, pbcY, pbcZ);
+    if (dxiBx0 + dyiBy0 + dziBz1 < radiusSq)
+      nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1, -1, 1, pbcX, pbcY, pbcZ);
+    if (dxiBx0 + dyiBy1 + dziBz0 < radiusSq)
+      nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1,  1, -1, pbcX, pbcY, pbcZ);
+    if (dxiBx0 + dyiBy1 + dziBz1 < radiusSq)
+      nCodes[nBoxes++] = mortonNeighbor(boxCode, depth, -1,  1,  1, pbcX, pbcY, pbcZ);
+
+    if (dxiBx1 + dyiBy0 + dziBz0 < radiusSq)
+      nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1, -1, -1, pbcX, pbcY, pbcZ);
+    if (dxiBx1 + dyiBy0 + dziBz1 < radiusSq)
+      nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1, -1, 1, pbcX, pbcY, pbcZ);
+    if (dxiBx1 + dyiBy1 + dziBz0 < radiusSq)
+      nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1,  1, -1, pbcX, pbcY, pbcZ);
+    if (dxiBx1 + dyiBy1 + dziBz1 < radiusSq)
+        nCodes[nBoxes++] = mortonNeighbor(boxCode, depth,  1,  1,  1, pbcX, pbcY, pbcZ);
+
+    // find neighboring boxes / octree nodes
+    //int nBoxes = 0;
+    //for (int dx = -1; dx < 2; ++dx)
+    //    for (int dy = -1; dy < 2; ++dy)
+    //        for (int dz = -1; dz < 2; ++dz)
     //        {
     //            neighbors[ngcount++] = j;
     //        }
@@ -403,10 +450,11 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
     //    {
     //        if (j == id) { continue; }
 
-    //        if (distanceSqPbc(xi, yi, zi, x[j], y[j], z[j], box) < radiusSq)
-    //        {
-    //            neighbors[ngcount++] = j;
-    //        }
+            if (distanceSqPbc(xi, yi, zi, x[j], y[j], z[j], box) < radiusSq)
+            //if (distancesq(xi, yi, zi, x[j], y[j], z[j]) < radiusSq)
+            {
+                neighbors[ngcount++] = j;
+            }
 
     //        if (ngcount == ngmax) { *neighborsCount = ngmax; return; }
     //    }
