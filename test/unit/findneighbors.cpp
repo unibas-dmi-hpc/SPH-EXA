@@ -151,7 +151,7 @@ TEST(FindNeighbors, findNeighborBoxesInterior)
  * with i{x,y,z} = coordinates in [0, 2^maxTreeLevel<I>{}]
  * The minimum radius to hit all neighboring (ix+1,iy+1,iz+1) nodes is sqrt(3/4)
  * and this is checked. All negative offsets correspond to non-existing boxes
- * for this case that doesn't use PBC, such that there are only boxes found.
+ * for this case that doesn't use PBC, such that there are only 8 boxes found.
  */
 template<class I>
 void findNeighborBoxesCorner()
@@ -188,8 +188,50 @@ void findNeighborBoxesCorner()
 
 TEST(FindNeighbors, findNeighborBoxesCorner)
 {
-    //findNeighborBoxesCorner<unsigned>();
-    //findNeighborBoxesCorner<uint64_t>();
+    findNeighborBoxesCorner<unsigned>();
+    findNeighborBoxesCorner<uint64_t>();
+}
+
+template<class I>
+void findNeighborBoxesUpperCorner()
+{
+    using T = double;
+    // smallest octree cell edge length in unit cube
+    constexpr T uL = T(1.) / (1u<<maxTreeLevel<I>{});
+
+    Box<T> bbox(0,1);
+
+    constexpr int level = 3;
+    constexpr int nUnits = 1u<<(maxTreeLevel<I>{} - level);
+
+    T x      = nUnits/2 * uL;
+    T y      = nUnits/2 * uL;
+    T z      = 7.5 * nUnits * uL;
+    T radius = 0.867 * nUnits * uL;
+
+    I neighborCodes[27];
+    int nBoxes = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
+
+    EXPECT_EQ(nBoxes, 8);
+    std::sort(neighborCodes, neighborCodes + nBoxes);
+
+    std::vector<I> refBoxes;
+    for (int ix = 0; ix < 2; ++ix)
+        for (int iy = 0; iy < 2; ++iy)
+            for (int iz = 6; iz < 8; ++iz)
+            {
+                refBoxes.push_back(codeFromBox<I>(ix,iy,iz, level));
+            }
+    std::sort(begin(refBoxes), end(refBoxes));
+
+    std::vector<I> probeBoxes(neighborCodes, neighborCodes + nBoxes);
+    EXPECT_EQ(probeBoxes, refBoxes);
+}
+
+TEST(FindNeighbors, findNeighborBoxesUpperCorner)
+{
+    findNeighborBoxesUpperCorner<unsigned>();
+    findNeighborBoxesUpperCorner<uint64_t>();
 }
 
 
