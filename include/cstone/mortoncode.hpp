@@ -444,7 +444,7 @@ inline pair<I> smallestCommonBox(I firstCode, I secondCode)
 template<class I>
 inline std::enable_if_t<std::is_unsigned<I>{}, I>
 mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz,
-               bool pbcX, bool pbcY, bool pbcZ)
+               bool pbcX=true, bool pbcY=true, bool pbcZ=true)
 {
     // maximum coordinate value per dimension 2^nBits-1
     constexpr int pbcRange = 1u << maxTreeLevel<I>{};
