@@ -644,10 +644,10 @@ public:
                              * uncomment lines below and comment out remote gravity calculations in evrard.cpp
                              * It's slow like hell but it's working.
                              */
-                            const auto tmpH = this->globalMaxH;
-                            this->globalMaxH = 1000;
+                            //const auto tmpH = this->globalMaxH;
+                            //this->globalMaxH = 1000;
                             haloCount += root->findHalosList(this, toSendHalos);
-                            this->globalMaxH = tmpH;
+                            //this->globalMaxH = tmpH;
 
                             xmin = oldxmin;
                             xmax = oldxmax;
