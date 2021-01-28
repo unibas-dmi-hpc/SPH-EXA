@@ -205,7 +205,7 @@ void gravityTreeWalkImpl(const Task &t, const GravityOctree<T> &tree, Dataset &d
     T *fz = d.fz.data();
     T *ugrav = d.ugrav.data();
 
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
     for (size_t pi = 0; pi < n; ++pi)
     {
         const int i = clist[pi];
