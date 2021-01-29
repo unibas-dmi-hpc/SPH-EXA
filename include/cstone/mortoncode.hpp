@@ -38,27 +38,44 @@
 #include "box.hpp"
 #include "clz.hpp"
 
+namespace stl
+{
+
+template<typename T, T v>
+struct integral_constant
+{
+    static constexpr T              value = v;
+    typedef T                       value_type;
+    typedef integral_constant<T, v> type;
+
+    CUDA_HOST_DEVICE_FUN
+    constexpr operator value_type() const noexcept { return value; } // NOLINT
+};
+
+} // namespace stl
+
 namespace cstone
 {
 
 //! \brief number of unused leading zeros in a 32-bit Morton code
 template<class I>
-struct unusedBits : std::integral_constant<unsigned, 2> {};
+struct unusedBits : stl::integral_constant<unsigned, 2> {};
 
 //! \brief number of unused leading zeros in a 64-bit Morton code
 template<>
-struct unusedBits<uint64_t> : std::integral_constant<unsigned, 1> {};
+struct unusedBits<uint64_t> : stl::integral_constant<unsigned, 1> {};
 
 template<class I>
-struct maxTreeLevel : std::integral_constant<unsigned, 10> {};
+struct maxTreeLevel : stl::integral_constant<unsigned, 10> {};
 
 template<>
-struct maxTreeLevel<uint64_t> : std::integral_constant<unsigned, 21> {};
+struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21> {};
 
 namespace detail
 {
 
 //! \brief Expands a 10-bit integer into 30 bits by inserting 2 zeros after each bit.
+CUDA_HOST_DEVICE_FUN
 inline unsigned expandBits(unsigned v)
 {
     v &= 0x000003ffu; // discard bit higher 10
@@ -72,6 +89,7 @@ inline unsigned expandBits(unsigned v)
 /*! \brief Compacts a 30-bit integer into 10 bits by selecting only bits divisible by 3
  *         this inverts expandBits
  */
+CUDA_HOST_DEVICE_FUN
 inline unsigned compactBits(unsigned v)
 {
     v &= 0x09249249u;
@@ -83,6 +101,7 @@ inline unsigned compactBits(unsigned v)
 }
 
 //! \brief Expands a 21-bit integer into 63 bits by inserting 2 zeros after each bit.
+CUDA_HOST_DEVICE_FUN
 inline std::size_t expandBits(std::size_t v)
 {
     std::size_t x = v & 0x1fffffu; // discard bits higher 21
@@ -97,6 +116,7 @@ inline std::size_t expandBits(std::size_t v)
 /*! \brief Compacts a 63-bit integer into 21 bits by selecting only bits divisible by 3
  *         this inverts expandBits
  */
+CUDA_HOST_DEVICE_FUN
 inline std::size_t compactBits(std::size_t v)
 {
     v &= 0x1249249249249249lu;
@@ -118,14 +138,16 @@ inline std::size_t compactBits(std::size_t v)
  * Integer conversion happens with truncation as required for morton code calculations
  */
 template <class I, class T>
+CUDA_HOST_DEVICE_FUN
 inline I toNBitInt(T x)
 {
     // spatial resolution in bits per dimension
-    constexpr unsigned nBits = (sizeof(I) * 8) / 3;
+    constexpr unsigned nBits = maxTreeLevel<I>{};
 
     // [0,1] to [0,1023] and convert to integer (32-bit) or
     // [0,1] to [0,2097151] and convert to integer (64-bit)
-    return std::min(std::max(x * T(1u<<nBits), T(0.0)), T((1u<<nBits)-1u));
+    //return std::min(std::max(x * T(1u<<nBits), T(0.0)), T((1u<<nBits)-1u));
+    return stl::min(stl::max(x * T(1u<<nBits), T(0.0)), T((1u<<nBits)-1u));
 }
 
 /*! \brief normalize a floating point number in [0,1] to an integer in [0, 2^(10 or 21)-1]
@@ -139,14 +161,15 @@ inline I toNBitInt(T x)
  * where we must round up to the smallest integer not less than x*2^(10 or 21)
  */
 template <class I, class T>
+CUDA_HOST_DEVICE_FUN
 inline I toNBitIntCeil(T x)
 {
     // spatial resolution in bits per dimension
-    constexpr unsigned nBits = (sizeof(I) * 8) / 3;
+    constexpr unsigned nBits = maxTreeLevel<I>{};
 
     // [0,1] to [0,1023] and convert to integer (32-bit) or
     // [0,1] to [0,2097151] and convert to integer (64-bit)
-    return std::min(std::max(std::ceil(x * T(1u<<nBits)), T(0.0)), T((1u<<nBits)-1u));
+    return stl::min(stl::max(std::ceil(x * T(1u<<nBits)), T(0.0)), T((1u<<nBits)-1u));
 }
 
 } // namespace detail
@@ -161,6 +184,7 @@ inline I toNBitIntCeil(T x)
  * \param[in] x,y,z input coordinates within the unit cube [0,1]^3
  */
 template <class I, class T>
+CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3DunitCube(T x, T y, T z)
 {
     assert(x >= 0.0 && x <= 1.0);
@@ -193,6 +217,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3DunitCube(T x, T y, T z
  * \return          the Morton code
  */
 template <class I, class T>
+CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3D(T x, T y, T z, Box<T> box)
 {
     return morton3DunitCube<I>(normalize(x, box.xmin(), box.xmax()),
@@ -202,6 +227,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3D(T x, T y, T z, Box<T>
 
 //! \brief extract X component from a morton code
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonX(I code)
 {
     return detail::compactBits(code >> 2);
@@ -209,6 +235,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonX(I code)
 
 //! \brief extract Y component from a morton code
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonY(I code)
 {
     return detail::compactBits(code >> 1);
@@ -216,6 +243,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonY(I code)
 
 //! \brief extract Z component from a morton code
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonZ(I code)
 {
     return detail::compactBits(code);
@@ -223,6 +251,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonZ(I code)
 
 //! \brief zero all but the highest nBits in a Morton code
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline I zeroLowBits(I code, int nBits)
 {
     int nLowerBits = sizeof(I) * 8 - unusedBits<I>{} - nBits;
@@ -245,6 +274,7 @@ inline I zeroLowBits(I code, int nBits)
  *                range decreases from the maximum by a factor of two.
  */
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline pair<int> decodeXRange(I code, int length)
 {
     pair<int> ret{0, 0};
@@ -257,6 +287,7 @@ inline pair<int> decodeXRange(I code, int length)
 
 //! \brief see decodeXRange
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline pair<int> decodeYRange(I code, int length)
 {
     pair<int> ret{0, 0};
@@ -269,6 +300,7 @@ inline pair<int> decodeYRange(I code, int length)
 
 //! \brief see decodeXRange
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline pair<int> decodeZRange(I code, int length)
 {
     pair<int> ret{0, 0};
@@ -281,6 +313,7 @@ inline pair<int> decodeZRange(I code, int length)
 
 //! \brief cut down the input morton code to the start code of the enclosing box at <treeLevel>
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsigned treeLevel)
 {
     // total usable bits in the morton code, 30 or 63
@@ -304,6 +337,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsig
  * and does not depend on std::array.
  */
 template<class I>
+CUDA_HOST_DEVICE_FUN
 I codeFromBox(unsigned x, unsigned y, unsigned z, unsigned treeLevel)
 {
     assert(treeLevel <= maxTreeLevel<I>{});
@@ -332,6 +366,7 @@ I codeFromBox(unsigned x, unsigned y, unsigned z, unsigned treeLevel)
  *
  */
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, I>
 nodeRange(unsigned treeLevel)
 {
@@ -344,6 +379,7 @@ nodeRange(unsigned treeLevel)
 
 //! \brief compute ceil(log8(n))
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, unsigned> log8ceil(I n)
 {
     if (n == 0)
@@ -355,6 +391,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, unsigned> log8ceil(I n)
 
 //! \brief check whether n is a power of 8
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, bool> isPowerOf8(I n)
 {
     unsigned lz = countLeadingZeros(n - 1) - unusedBits<I>{};
@@ -371,6 +408,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, bool> isPowerOf8(I n)
  *              in 64 bit codes.
  */
 template<class I>
+CUDA_HOST_DEVICE_FUN
 int commonPrefix(I key1, I key2)
 {
     return int(countLeadingZeros(key1 ^ key2)) - unusedBits<I>{};
@@ -383,6 +421,7 @@ int commonPrefix(I key1, I key2)
  * \return           octree subdivision level 0-10 (32-bit) or 0-21 (64-bit)
  */
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline unsigned treeLevel(I codeRange)
 {
     assert( isPowerOf8(codeRange) );
@@ -399,6 +438,7 @@ inline unsigned treeLevel(I codeRange)
  *              is 0.
  */
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline unsigned parentIndex(I code, unsigned level)
 {
     return (code >> (3u*(maxTreeLevel<I>{} - level))) & 7u;
@@ -442,6 +482,7 @@ inline pair<I> smallestCommonBox(I firstCode, I secondCode)
  * Note that the end of the neighbor range is given by the start code + nodeRange(treeLevel)
  */
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, I>
 mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz,
                bool pbcX=true, bool pbcY=true, bool pbcZ=true)
