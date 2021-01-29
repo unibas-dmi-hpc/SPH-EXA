@@ -1,11 +1,13 @@
 
+check_language(CUDA)
 
 if(CMAKE_CUDA_COMPILER)
-    add_executable(cudaNeighborsTest $<TARGET_OBJECTS:cuda_find_neighbors_obj> neighbor_driver.cpp)
+    enable_language(CUDA)
+    add_executable(cudaNeighborsTest findneighbors.cu)
     target_include_directories(cudaNeighborsTest PRIVATE ../../include)
     target_include_directories(cudaNeighborsTest PRIVATE ../)
-
-    target_link_libraries(cudaNeighborsTest PUBLIC CUDA::cudart OpenMP::OpenMP_CXX)
+else()
+    message(STATUS "No CUDA support")
 endif()
 
 add_executable(octree_perf octree.cpp)

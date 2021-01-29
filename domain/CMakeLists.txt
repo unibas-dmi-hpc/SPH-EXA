@@ -4,10 +4,8 @@ project(cornerstone-octree CXX)
 set(CMAKE_CXX_STANDARD 17)
 
 find_package(MPI)
-find_package(CUDAToolkit)
-find_package(OpenMP REQUIRED)
 
-include(CTest)
+find_package(CUDAToolkit REQUIRED)
 
 set(default_build_type "Release")
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -22,5 +20,8 @@ if(CUDAToolkit_FOUND)
 else()
     message(STATUS "No CUDA support")
 endif()
+
+include(CTest)
+include(CheckLanguage)
 
 add_subdirectory(test)
