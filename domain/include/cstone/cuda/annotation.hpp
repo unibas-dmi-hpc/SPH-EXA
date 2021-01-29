@@ -36,5 +36,12 @@
 #ifdef __CUDACC__
 #define CUDA_DEVICE_FUN __device__
 #else
-#define CUDA_DEVICE_FUN
+#endif
+
+// This will compile the annotated function as device AND host code in cuda translation units
+// and as host functions in .cpp units
+#ifdef __CUDACC__
+#define CUDA_HOST_DEVICE_FUN __host__ __device__
+#else
+#define CUDA_HOST_DEVICE_FUN
 #endif

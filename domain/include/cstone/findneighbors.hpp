@@ -42,6 +42,7 @@ namespace cstone
 
 //! \brief compute squared distance, taking PBC into account
 template<class T>
+CUDA_HOST_DEVICE_FUN
 static inline T distanceSqPbc(T x1, T y1, T z1, T x2, T y2, T z2, const Box<T>& box)
 {
     T dx = x1 - x2;
@@ -79,6 +80,7 @@ unsigned radiusToTreeLevel(T radius, T minRange)
 }
 
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, I code, I* boxes)
 {
     if (pbc) boxes[--(*iPbc)]    = code;
@@ -105,6 +107,7 @@ inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, I code, I* boxes)
  * which is more than twice as expensive as plain direct distances.
  */
 template<class T, class I>
+CUDA_HOST_DEVICE_FUN
 pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, I* nCodes)
 {
     constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
@@ -232,6 +235,7 @@ pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, I* n
 }
 
 template<class I, class T, class F>
+CUDA_HOST_DEVICE_FUN
 void searchBoxes(const I* nCodes, int firstBox, int lastBox, const I* mortonCodes, int n, int depth, int id,
                  const T* x, const T* y, const T* z, T radiusSq, int* neighbors, int* neighborsCount, int ngmax, F&& distance)
 {
@@ -243,8 +247,8 @@ void searchBoxes(const I* nCodes, int firstBox, int lastBox, const I* mortonCode
     for (int ibox = firstBox; ibox < lastBox; ++ibox)
     {
         I neighbor = nCodes[ibox];
-        int startIndex = std::lower_bound(mortonCodes, mortonCodes + n, neighbor) - mortonCodes;
-        int endIndex = std::upper_bound(mortonCodes + startIndex, mortonCodes + n, neighbor + nodeRange<I>(depth)) - mortonCodes;
+        int startIndex = stl::lower_bound(mortonCodes, mortonCodes + n, neighbor) - mortonCodes;
+        int endIndex = stl::upper_bound(mortonCodes + startIndex, mortonCodes + n, neighbor + nodeRange<I>(depth)) - mortonCodes;
 
         for (int j = startIndex; j < endIndex; ++j)
         {

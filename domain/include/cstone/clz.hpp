@@ -77,11 +77,11 @@ namespace detail
  * \return    number of leading zeros, or the number of bits in the input type
  *            for an input value of 0
  */
-CUDA_DEVICE_FUN inline int countLeadingZeros(uint32_t x)
+CUDA_HOST_DEVICE_FUN
+inline int countLeadingZeros(uint32_t x)
 {
-#if defined(__CUDACC__)
+#ifdef __CUDA_ARCH__
     return __clz(x);
-
     // with GCC and clang, we can use the builtin implementation
     // this also works with the intel compiler, which also defines __GNUC__
 #elif defined(__GNUC__) || defined(__clang__)
@@ -100,11 +100,11 @@ CUDA_DEVICE_FUN inline int countLeadingZeros(uint32_t x)
 #endif
 }
 
-CUDA_DEVICE_FUN inline int countLeadingZeros(uint64_t x)
+CUDA_HOST_DEVICE_FUN
+inline int countLeadingZeros(uint64_t x)
 {
-#if defined(__CUDACC__)
+#ifdef __CUDA_ARCH__
     return __clzll(x);
-
     // with GCC and clang, we can use the builtin implementation
     // this also works with the intel compiler, which also defines __GNUC__
 #elif defined(__GNUC__) || defined(__clang__)
@@ -121,3 +121,4 @@ CUDA_DEVICE_FUN inline int countLeadingZeros(uint64_t x)
     return detail::clz64(x);
 #endif
 }
+
