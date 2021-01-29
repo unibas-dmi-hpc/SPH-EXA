@@ -31,6 +31,8 @@
 
 #pragma once
 
+#include "cuda/annotation.hpp"
+
 namespace detail
 {
 
@@ -75,11 +77,14 @@ static int clz64(uint64_t x)
  * \return    number of leading zeros, or the number of bits in the input type
  *            for an input value of 0
  */
-inline int countLeadingZeros(uint32_t x)
+CUDA_DEVICE_FUN inline int countLeadingZeros(uint32_t x)
 {
+#if defined(__CUDACC__)
+    return __clz(x);
+
     // with GCC and clang, we can use the builtin implementation
     // this also works with the intel compiler, which also defines __GNUC__
-#if defined(__GNUC__) || defined(__clang__)
+#elif defined(__GNUC__) || defined(__clang__)
 
     // if the target architecture is Haswell or later,
     // __builtin_clz(l) is implemented with the LZCNT instruction
@@ -95,11 +100,14 @@ inline int countLeadingZeros(uint32_t x)
 #endif
 }
 
-inline int countLeadingZeros(uint64_t x)
+CUDA_DEVICE_FUN inline int countLeadingZeros(uint64_t x)
 {
+#if defined(__CUDACC__)
+    return __clzll(x);
+
     // with GCC and clang, we can use the builtin implementation
     // this also works with the intel compiler, which also defines __GNUC__
-#if defined(__GNUC__) || defined(__clang__)
+#elif defined(__GNUC__) || defined(__clang__)
 
     // if the target architecture is Haswell or later,
     // __builtin_clz(l) is implemented with the LZCNT instruction
