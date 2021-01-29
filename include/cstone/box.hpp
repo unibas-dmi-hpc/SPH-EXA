@@ -33,6 +33,31 @@
 
 #include <cmath>
 
+#include "cuda/annotation.hpp"
+
+namespace stl
+{
+
+template<class T>
+CUDA_HOST_DEVICE_FUN
+inline const T& min(const T& a, const T& b)
+{
+  if (b < a)
+    return b;
+  return a;
+}
+
+template<class T>
+CUDA_HOST_DEVICE_FUN
+inline const T& max(const T& a, const T& b)
+{
+    if (a < b)
+        return b;
+    return a;
+}
+
+} // namespace stl
+
 namespace cstone
 {
 
@@ -45,6 +70,7 @@ namespace cstone
  * @return
  */
 template<class T>
+CUDA_HOST_DEVICE_FUN
 static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
 /*! \brief map x into periodic range 0...R-1
@@ -62,6 +88,7 @@ static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
  *  R+1 -> 1
  */
 template<int R>
+CUDA_HOST_DEVICE_FUN
 static int pbcAdjust(int x)
 {
     return x - R * std::floor(double(x)/R);
@@ -79,6 +106,7 @@ class Box
 {
 public:
 
+    CUDA_HOST_DEVICE_FUN
     Box(T xyzMin, T xyzMax, bool hasPbc = false) :
         limits{xyzMin, xyzMax, xyzMin, xyzMax, xyzMin, xyzMax},
         lengths_{xyzMax-xyzMin, xyzMax-xyzMin, xyzMax-xyzMin},
@@ -86,6 +114,7 @@ public:
         pbc{hasPbc, hasPbc, hasPbc}
     {}
 
+    CUDA_HOST_DEVICE_FUN
     Box(T xmin, T xmax, T ymin, T ymax, T zmin, T zmax,
         bool pbcX = false, bool pbcY = false, bool pbcZ = false)
     : limits{xmin, xmax, ymin, ymax, zmin, zmax},
@@ -94,35 +123,37 @@ public:
       pbc{pbcX, pbcY, pbcZ}
     {}
 
-    T xmin() const { return limits[0]; }
-    T xmax() const { return limits[1]; }
-    T ymin() const { return limits[2]; }
-    T ymax() const { return limits[3]; }
-    T zmin() const { return limits[4]; }
-    T zmax() const { return limits[5]; }
+    CUDA_HOST_DEVICE_FUN T xmin() const { return limits[0]; }
+    CUDA_HOST_DEVICE_FUN T xmax() const { return limits[1]; }
+    CUDA_HOST_DEVICE_FUN T ymin() const { return limits[2]; }
+    CUDA_HOST_DEVICE_FUN T ymax() const { return limits[3]; }
+    CUDA_HOST_DEVICE_FUN T zmin() const { return limits[4]; }
+    CUDA_HOST_DEVICE_FUN T zmax() const { return limits[5]; }
 
     //! \brief return edge lengths
-    T lx() const { return lengths_[0]; }
-    T ly() const { return lengths_[1]; }
-    T lz() const { return lengths_[2]; }
+    CUDA_HOST_DEVICE_FUN T lx() const { return lengths_[0]; }
+    CUDA_HOST_DEVICE_FUN T ly() const { return lengths_[1]; }
+    CUDA_HOST_DEVICE_FUN T lz() const { return lengths_[2]; }
 
     //! \brief return inverse edge lengths
-    T ilx() const { return inverseLengths_[0]; }
-    T ily() const { return inverseLengths_[1]; }
-    T ilz() const { return inverseLengths_[2]; }
+    CUDA_HOST_DEVICE_FUN T ilx() const { return inverseLengths_[0]; }
+    CUDA_HOST_DEVICE_FUN T ily() const { return inverseLengths_[1]; }
+    CUDA_HOST_DEVICE_FUN T ilz() const { return inverseLengths_[2]; }
 
-    [[nodiscard]] bool pbcX() const { return pbc[0]; }
-    [[nodiscard]] bool pbcY() const { return pbc[1]; }
-    [[nodiscard]] bool pbcZ() const { return pbc[2]; }
+    CUDA_HOST_DEVICE_FUN bool pbcX() const { return pbc[0]; } // NOLINT
+    CUDA_HOST_DEVICE_FUN bool pbcY() const { return pbc[1]; } // NOLINT
+    CUDA_HOST_DEVICE_FUN bool pbcZ() const { return pbc[2]; } // NOLINT
 
     //! \brief return the shortest coordinate range in any dimension
-    T minExtent() const
+    CUDA_HOST_DEVICE_FUN T minExtent() const
     {
-        return std::min({xmax() - xmin(), ymax() - ymin(), zmax() - zmin()});
+        //return std::min({xmax() - xmin(), ymax() - ymin(), zmax() - zmin()});
+        return stl::min(stl::min(xmax() - xmin(), ymax() - ymin()), zmax() - zmin());
     }
 
 private:
 
+    CUDA_HOST_DEVICE_FUN
     friend bool operator==(const Box<T>& a, const Box<T>& b)
     {
         return    a.limits[0] == b.limits[0]
@@ -148,29 +179,33 @@ class IBox
 {
 public:
 
+    CUDA_HOST_DEVICE_FUN
     IBox(int xyzMin, int xyzMax) :
         limits{xyzMin, xyzMax, xyzMin, xyzMax, xyzMin, xyzMax}
     {}
 
+    CUDA_HOST_DEVICE_FUN
     IBox(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
         : limits{xmin, xmax, ymin, ymax, zmin, zmax}
     {}
 
-    [[nodiscard]] int xmin() const { return limits[0]; }
-    [[nodiscard]] int xmax() const { return limits[1]; }
-    [[nodiscard]] int ymin() const { return limits[2]; }
-    [[nodiscard]] int ymax() const { return limits[3]; }
-    [[nodiscard]] int zmin() const { return limits[4]; }
-    [[nodiscard]] int zmax() const { return limits[5]; }
+    CUDA_HOST_DEVICE_FUN int xmin() const { return limits[0]; } // NOLINT
+    CUDA_HOST_DEVICE_FUN int xmax() const { return limits[1]; } // NOLINT
+    CUDA_HOST_DEVICE_FUN int ymin() const { return limits[2]; } // NOLINT
+    CUDA_HOST_DEVICE_FUN int ymax() const { return limits[3]; } // NOLINT
+    CUDA_HOST_DEVICE_FUN int zmin() const { return limits[4]; } // NOLINT
+    CUDA_HOST_DEVICE_FUN int zmax() const { return limits[5]; } // NOLINT
 
     //! \brief return the shortest coordinate range in any dimension
-    [[nodiscard]] int minExtent() const
+    CUDA_HOST_DEVICE_FUN int minExtent() const // NOLINT
     {
-        return std::min({xmax() - xmin(), ymax() - ymin(), zmax() - zmin()});
+        //return std::min({xmax() - xmin(), ymax() - ymin(), zmax() - zmin()});
+        return stl::min(stl::min(xmax() - xmin(), ymax() - ymin()), zmax() - zmin());
     }
 
 private:
 
+    CUDA_HOST_DEVICE_FUN
     friend bool operator==(const IBox& a, const IBox& b)
     {
         return    a.limits[0] == b.limits[0]
@@ -190,19 +225,20 @@ class pair
 {
 public:
 
+    CUDA_HOST_DEVICE_FUN
     pair(T first, T second) : data{first, second} {}
 
-          T& operator[](int i)       { return data[i]; }
-    const T& operator[](int i) const { return data[i]; }
+    CUDA_HOST_DEVICE_FUN       T& operator[](int i)       { return data[i]; }
+    CUDA_HOST_DEVICE_FUN const T& operator[](int i) const { return data[i]; }
 
 private:
 
-    friend bool operator==(const pair& a, const pair& b)
+    CUDA_HOST_DEVICE_FUN friend bool operator==(const pair& a, const pair& b)
     {
         return a.data[0] == b.data[0] && a.data[1] == b.data[1];
     }
 
-    friend bool operator<(const pair& a, const pair& b)
+    CUDA_HOST_DEVICE_FUN friend bool operator<(const pair& a, const pair& b)
     {
         bool c0 = a.data[0] < b.data[0];
         bool e0 = a.data[0] == b.data[0];

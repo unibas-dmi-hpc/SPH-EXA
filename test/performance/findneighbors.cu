@@ -30,58 +30,87 @@
  */
 
 #include <iostream>
+#include <iterator>
 
 #include "../coord_samples/random.hpp"
 #include "../../include/cstone/findneighbors.hpp"
 
-__global__ void callClz(unsigned arg, int* ret)
+
+template<class T, class I>
+__global__ void findNeighborsCuda(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
+                                  Box<T> box, const I* codes, int* neighbors, int* neighborsCount, int ngmax)
 {
     int tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid == 0)
+    int id = firstId + tid;
+    if (id < lastId)
     {
-      *ret = countLeadingZeros(arg);
+        cstone::findNeighbors(id, x, y, z, h, box, codes, neighbors + tid*ngmax, neighborsCount + tid, n, ngmax);
     }
 }
 
 int main()
 {
-    int* d_buffer;
-    cudaMalloc((void**)&d_buffer, 4);
-    //cudaMallocHost((void**)&buffer, 4);
-    //cudaHostGetDevicePointer((void**)&d_buffer, buffer, 0);
-    callClz<<<1,1>>>(2, d_buffer);
-
-    int out;
-    cudaMemcpy(&out, d_buffer, 4, cudaMemcpyDeviceToHost);
-    std::cout << out << std::endl;
-
-    cudaFree(d_buffer);
-
     using CodeType = unsigned;
     using T        = float;
 
-    Box<T> box{0,1, true};
+    Box<T> box{0,1, false};
     int n = 2000000;
 
     RandomCoordinates<T, CodeType> coords(n, box);
+    std::vector<T> h(n, 0.006);
+
+    int ngmax = 100;
+    std::vector<int> neighbors(ngmax * n);
+    std::vector<int> neighborsCount(n);
 
     const T* x = coords.x().data();
     const T* y = coords.y().data();
     const T* z = coords.z().data();
+    const CodeType* codes = coords.mortonCodes().data();
+
+    int* neighs = neighbors.data();
+    int* neighsC = neighborsCount.data();
 
     T* d_x;
     T* d_y;
     T* d_z;
     T* d_h;
+    CodeType* d_codes;
+    int* d_neighs;
+    int* d_neighsC;
+
     cudaMalloc((void **)&d_x, sizeof(T) * n);
     cudaMalloc((void **)&d_y, sizeof(T) * n);
     cudaMalloc((void **)&d_z, sizeof(T) * n);
+    cudaMalloc((void **)&d_h, sizeof(T) * n);
+    cudaMalloc((void **)&d_codes, sizeof(T) * n);
+    cudaMalloc((void **)&d_neighs, sizeof(int) * neighbors.size());
+    cudaMalloc((void **)&d_neighsC, sizeof(int) * neighborsCount.size());
 
     cudaMemcpy(d_x, x, sizeof(T) * n, cudaMemcpyHostToDevice);
     cudaMemcpy(d_y, y, sizeof(T) * n, cudaMemcpyHostToDevice);
     cudaMemcpy(d_x, z, sizeof(T) * n, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_h, h.data(), sizeof(T) * n, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_codes, codes, sizeof(T) * n, cudaMemcpyHostToDevice);
+
+    findNeighborsCuda<<<256, 256>>>(d_x, d_y, d_z, d_h, 0, n, n, box, d_codes, d_neighs, d_neighsC, ngmax);
+    cudaMemcpy(neighsC, d_neighsC, n * sizeof(int), cudaMemcpyDeviceToHost);
+
+    std::copy(neighsC, neighsC + 10, std::ostream_iterator<int>(std::cout, " "));
+    std::cout << std::endl;
+
+    #pragma omp parallel for
+    for (int id = 0; id < 256 * 256; ++id)
+    {
+        cstone::findNeighbors(id, x, y, z, h.data(), box, codes, neighs + id*ngmax, neighsC + id, n, ngmax);
+    }
+    std::copy(neighsC, neighsC + 10, std::ostream_iterator<int>(std::cout, " "));
+    std::cout << std::endl;
 
     cudaFree(d_x);
     cudaFree(d_y);
     cudaFree(d_z);
+    cudaFree(d_h);
+    cudaFree(d_neighs);
+    cudaFree(d_neighsC);
 }
