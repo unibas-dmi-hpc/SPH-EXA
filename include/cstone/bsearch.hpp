@@ -24,24 +24,65 @@
  */
 
 /*! \file
- * \brief  Defines macros for enabling device code compilation
+ * \brief  Functions that exist in std::, but cannot be used in device code
  *
  * \author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-// This will compile the annotated function as device code in cuda translation units
-// and as host functions in .cpp units
-#ifdef __CUDACC__
-#define CUDA_DEVICE_FUN __device__
-#else
-#endif
+#include "cuda/annotation.hpp"
 
-// This will compile the annotated function as device AND host code in cuda translation units
-// and as host functions in .cpp units
-#ifdef __CUDACC__
-#define CUDA_HOST_DEVICE_FUN __host__ __device__
-#else
-#define CUDA_HOST_DEVICE_FUN
-#endif
+
+namespace stl
+{
+
+//! \brief a simplified version of std::lower_bound that can be compiled as devide code
+template <class ForwardIt, class T>
+CUDA_HOST_DEVICE_FUN ForwardIt lower_bound(ForwardIt first, ForwardIt last, const T& value)
+{
+    ForwardIt it;
+    long long int step;
+    long long int count = last - first;
+
+    while (count > 0)
+    {
+        it = first;
+        step = count / 2;
+        it += step;
+        if (*it < value)
+        {
+            first = ++it;
+            count -= step + 1;
+        }
+        else
+            count = step;
+    }
+    return first;
+}
+
+//! \brief a simplified version of std::upper_bound that can be compiled as devide code
+template<class ForwardIt, class T>
+CUDA_HOST_DEVICE_FUN ForwardIt upper_bound(ForwardIt first, ForwardIt last, const T& value)
+{
+    ForwardIt it;
+    long long int step;
+    long long int count = last - first;
+
+    while (count > 0)
+    {
+        it = first;
+        step = count / 2;
+        it += step;
+        if (!(value < *it))
+        {
+            first = ++it;
+            count -= step + 1;
+        }
+        else
+            count = step;
+    }
+    return first;
+}
+
+}

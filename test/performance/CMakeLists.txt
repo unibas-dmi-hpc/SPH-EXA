@@ -6,6 +6,9 @@ if(CMAKE_CUDA_COMPILER)
     add_executable(cudaNeighborsTest findneighbors.cu)
     target_include_directories(cudaNeighborsTest PRIVATE ../../include)
     target_include_directories(cudaNeighborsTest PRIVATE ../)
+
+    target_link_libraries(cudaNeighborsTest PUBLIC OpenMP::OpenMP_CXX)
+
 else()
     message(STATUS "No CUDA support")
 endif()
