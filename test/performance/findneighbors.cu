@@ -53,7 +53,7 @@ int main()
     using CodeType = unsigned;
     using T        = float;
 
-    Box<T> box{0,1, false};
+    Box<T> box{0,1, true};
     int n = 2000000;
 
     RandomCoordinates<T, CodeType> coords(n, box);
@@ -89,18 +89,18 @@ int main()
 
     cudaMemcpy(d_x, x, sizeof(T) * n, cudaMemcpyHostToDevice);
     cudaMemcpy(d_y, y, sizeof(T) * n, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_x, z, sizeof(T) * n, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_z, z, sizeof(T) * n, cudaMemcpyHostToDevice);
     cudaMemcpy(d_h, h.data(), sizeof(T) * n, cudaMemcpyHostToDevice);
     cudaMemcpy(d_codes, codes, sizeof(T) * n, cudaMemcpyHostToDevice);
 
-    findNeighborsCuda<<<256, 256>>>(d_x, d_y, d_z, d_h, 0, n, n, box, d_codes, d_neighs, d_neighsC, ngmax);
+    findNeighborsCuda<<<1, 10>>>(d_x, d_y, d_z, d_h, 0, n, n, box, d_codes, d_neighs, d_neighsC, ngmax);
     cudaMemcpy(neighsC, d_neighsC, n * sizeof(int), cudaMemcpyDeviceToHost);
 
     std::copy(neighsC, neighsC + 10, std::ostream_iterator<int>(std::cout, " "));
     std::cout << std::endl;
 
     #pragma omp parallel for
-    for (int id = 0; id < 256 * 256; ++id)
+    for (int id = 0; id < 10; ++id)
     {
         cstone::findNeighbors(id, x, y, z, h.data(), box, codes, neighs + id*ngmax, neighsC + id, n, ngmax);
     }
