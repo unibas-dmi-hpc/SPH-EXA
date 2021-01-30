@@ -303,13 +303,13 @@ void searchBoxes(const I* nCodes, int firstBox, int lastBox, const I* mortonCode
         {
             if (j == id) { continue; }
 
-            if (distance(xi, yi, zi, x[j], y[j], z[j]) < radiusSq) { neighbors[ngcount++] = j; }
-
             if (ngcount == ngmax)
             {
                 *neighborsCount = ngmax;
                 return;
             }
+
+            if (distance(xi, yi, zi, x[j], y[j], z[j]) < radiusSq) { neighbors[ngcount++] = j; }
         }
     }
     *neighborsCount = ngcount;
