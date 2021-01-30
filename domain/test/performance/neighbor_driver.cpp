@@ -38,7 +38,7 @@
 #include "../coord_samples/random.hpp"
 #include "cstone/findneighbors.hpp"
 
-#include "cstone/cuda/findneighbors.cuh"
+#include "findneighbors.cuh"
 
 int main()
 {
