@@ -147,8 +147,13 @@ public:
     //! \brief return the shortest coordinate range in any dimension
     CUDA_HOST_DEVICE_FUN T minExtent() const
     {
-        //return std::min({xmax() - xmin(), ymax() - ymin(), zmax() - zmin()});
-        return stl::min(stl::min(xmax() - xmin(), ymax() - ymin()), zmax() - zmin());
+        return stl::min(stl::min(lengths_[0], lengths_[1]), lengths_[2]);
+    }
+
+    //! \brief return the longes coordinate range in any dimension
+    CUDA_HOST_DEVICE_FUN T maxExtent() const
+    {
+        return stl::max(stl::max(lengths_[0], lengths_[1]), lengths_[2]);
     }
 
 private:
@@ -199,7 +204,6 @@ public:
     //! \brief return the shortest coordinate range in any dimension
     CUDA_HOST_DEVICE_FUN int minExtent() const // NOLINT
     {
-        //return std::min({xmax() - xmin(), ymax() - ymin(), zmax() - zmin()});
         return stl::min(stl::min(xmax() - xmin(), ymax() - ymin()), zmax() - zmin());
     }
 

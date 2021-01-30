@@ -274,7 +274,7 @@ void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
     using CodeType = std::decay_t<decltype(coords.mortonCodes()[0])>;
 
     int n = coords.x().size();
-    int ngmax = 200;
+    int ngmax = n;
 
     real minRange = box.minExtent();
     std::vector<T> h(n, radius/2);
@@ -346,5 +346,12 @@ INSTANTIATE_TEST_SUITE_P(RandomNeighbors,
                          FindNeighborsRandom,
                          testing::Combine(testing::ValuesIn(radii),
                                           testing::ValuesIn(nParticles),
+                                          testing::ValuesIn(boxes),
+                                          testing::ValuesIn(pbcUsage)));
+
+INSTANTIATE_TEST_SUITE_P(RandomNeighborsLargeRadius,
+                         FindNeighborsRandom,
+                         testing::Combine(testing::Values(3.0),
+                                          testing::Values(500),
                                           testing::ValuesIn(boxes),
                                           testing::ValuesIn(pbcUsage)));
