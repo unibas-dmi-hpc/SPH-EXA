@@ -32,8 +32,9 @@
 #pragma once
 
 #include <cassert>
-#include <cmath>   // for std::ceil
-#include <cstdint> // for uint32_t and uint64_t
+#include <cmath>       // for std::ceil
+#include <cstdint>     // for uint32_t and uint64_t
+#include <type_traits> // for std::enable_if_t
 
 #include "box.hpp"
 #include "clz.hpp"
