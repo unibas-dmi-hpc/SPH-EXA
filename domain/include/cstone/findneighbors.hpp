@@ -40,7 +40,10 @@
 namespace cstone
 {
 
-//! \brief compute squared distance, taking PBC into account
+/*! \brief compute squared distance, taking PBC into account
+ *
+ * Note that if box.pbc{X,Y,Z} is false, the result is identical to distancesq below.
+ */
 template<class T>
 CUDA_HOST_DEVICE_FUN
 static inline T distanceSqPbc(T x1, T y1, T z1, T x2, T y2, T z2, const Box<T>& box)
@@ -105,6 +108,9 @@ inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, I code, I* boxes)
  * The reason for distinguishing between non-PBC and PBC reachable boxes is that
  * non-PBC boxes can be searched for neighbors without PBC-adjusting the distances,
  * which is more than twice as expensive as plain direct distances.
+ *
+ * This function only adds a neighbor box if the sphere (xi,yi,zi)+-radius actually overlaps
+ * with said box, which means that there are 26 different overlap checks.
  */
 template<class T, class I>
 CUDA_HOST_DEVICE_FUN
@@ -156,8 +162,13 @@ pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, I* n
     int nBoxes  = 0;
     int iBoxPbc = 27;
 
+    // If the radius is longer than the shortest bbox edge, but shorter than the longest
+    // we have to look for neighbors with PBC if enabled.
+    // This is a rare corner case that will never occur for sensible input data.
+    bool periodicHomeBox = level == 0 && radius < bbox.maxExtent();
+
     // home box
-    nCodes[nBoxes++] = boxCode;
+    storeCode(periodicHomeBox, &nBoxes, &iBoxPbc, boxCode, nCodes);
 
     // X,Y,Z face touch
     if (dx0 < radiusSq && stepXdown)
@@ -223,15 +234,53 @@ pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, I* n
         storeCode(hxu || hyu || hzu, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level,  1,  1,  1), nCodes);
 
     return pair<int>(nBoxes, iBoxPbc);
+}
 
-    // unoptimized version
-    //int nBoxes = 0;
-    //for (int dx = -1; dx < 2; ++dx)
-    //    for (int dy = -1; dy < 2; ++dy)
-    //        for (int dz = -1; dz < 2; ++dz)
-    //        {
-    //            nCodes[nBoxes++] = mortonNeighbor(boxCode, level, dx, dy, dz);
-    //        }
+/*! \brief simple version
+ *
+ * @tparam T            float or double
+ * @tparam I            32- or 64-bit integer type
+ * @param xi            x-coordinate of particle for which to do the neighbor search
+ * @param yi            see xi
+ * @param zi            see xi
+ * @param radius        search radius
+ * @param bbox          coordinate bounding box
+ * @param nCodes[out]   output for boxes to search for neighbors of (xi, yi, zi), size 27
+ * @return              a pair of indices, pair[0] is unused, pair[1] contains an index
+ *                      into nCodes. The elements to search are nCodes[pair[1]:27]
+ *
+ * This simple version of findNeighborBoxes adds all (up to) 27 neighbor boxes, regardless
+ * of whether or not they actually overlap with (xi,yi,zi)+-radius. All boxes are
+ * return in the PBC-enabled part of \a nCodes, such that distanceSqPbc will be used to
+ * calculate distances.
+ */
+template<class T, class I>
+CUDA_HOST_DEVICE_FUN
+pair<int> findNeighborBoxesSimple(T xi, T yi, T zi, T radius, const Box<T>& bbox, I* nCodes)
+{
+    // level is the smallest tree subdivision level at which the node edge length is still bigger than radius
+    unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
+    I xyzCode = morton3D<I>(xi, yi, zi, bbox);
+    I boxCode = enclosingBoxCode(xyzCode, level);
+
+    int ibox = 27;
+    for (int dx = -1; dx < 2; ++dx)
+        for (int dy = -1; dy < 2; ++dy)
+            for (int dz = -1; dz < 2; ++dz)
+            {
+                I searchBoxCode = mortonNeighbor(boxCode, level, dx, dy, dz);
+                bool alreadyThere = false;
+                for (int i = ibox; i < 27; ++i)
+                {
+                    if (nCodes[i] == searchBoxCode)
+                        alreadyThere = true;
+                }
+
+                if (!alreadyThere)
+                    nCodes[--ibox] = searchBoxCode;
+            }
+
+    return {0, ibox};
 }
 
 template<class I, class T, class F>
@@ -307,6 +356,7 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
 
     I nCodes[27]; // neighborCodes
     pair<int> boxCodeIndices = findNeighborBoxes(xi, yi, zi, radius, box, nCodes);
+    //pair<int> boxCodeIndices = findNeighborBoxesSimple(xi, yi, zi, radius, box, nCodes);
     int       nBoxes         = boxCodeIndices[0];
     int       iBoxPbc        = boxCodeIndices[1];
 
@@ -348,8 +398,8 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
     //for (int ibox = iBoxPbc; ibox < 27; ++ibox)
     //{
     //    I neighbor     = nCodes[ibox];
-    //    int startIndex = std::lower_bound(mortonCodes, mortonCodes + n, neighbor) - mortonCodes;
-    //    int endIndex   = std::upper_bound(mortonCodes + startIndex, mortonCodes + n,
+    //    int startIndex = stl::lower_bound(mortonCodes, mortonCodes + n, neighbor) - mortonCodes;
+    //    int endIndex   = stl::upper_bound(mortonCodes + startIndex, mortonCodes + n,
     //                                      neighbor + nodeRange<I>(depth)) - mortonCodes;
 
     //    for (int j = startIndex; j < endIndex; ++j)
