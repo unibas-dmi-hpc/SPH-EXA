@@ -29,32 +29,25 @@
  * \author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include "findneighbors.cuh"
+#pragma once
 
-template<class T, class I>
-__global__ void findNeighborsCudaKernel(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                                        cstone::Box<T> box, const I* codes, int* neighbors, int* neighborsCount, int ngmax)
-{
-    int tid = blockDim.x * blockIdx.x + threadIdx.x;
-    int id = firstId + tid;
-    if (id < lastId)
-    {
-        cstone::findNeighbors(id, x, y, z, h, box, codes, neighbors + tid*ngmax, neighborsCount + tid, n, ngmax);
-    }
-}
+#include <cuda_runtime.h>
+
+#include "cstone/findneighbors.hpp"
 
 template<class T, class I>
 void findNeighborsCuda(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
                        cstone::Box<T> box, const I* codes, int* neighbors, int* neighborsCount, int ngmax,
-                       cudaStream_t stream)
-{
-    constexpr int threadsPerBlock = 256;
-    int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
-    findNeighborsCudaKernel<<<blocksPerGrid, threadsPerBlock, 0, stream>>>
-        (x, y, z, h, firstId, lastId, n, box, codes, neighbors, neighborsCount, ngmax);
-}
+                       cudaStream_t stream = cudaStreamDefault);
 
-template FIND_NEIGHBORS_CUDA(float,  uint32_t)
-template FIND_NEIGHBORS_CUDA(float,  uint64_t)
-template FIND_NEIGHBORS_CUDA(double, uint32_t)
-template FIND_NEIGHBORS_CUDA(double, uint64_t)
+
+#define FIND_NEIGHBORS_CUDA(T, I) \
+void findNeighborsCuda(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n, \
+                       cstone::Box<T> box, const I* codes, int* neighbors, int* neighborsCount, int ngmax, \
+                       cudaStream_t stream);
+
+extern template FIND_NEIGHBORS_CUDA(float, uint32_t )
+extern template FIND_NEIGHBORS_CUDA(float, uint64_t )
+extern template FIND_NEIGHBORS_CUDA(double, uint32_t)
+extern template FIND_NEIGHBORS_CUDA(double, uint64_t)
+
