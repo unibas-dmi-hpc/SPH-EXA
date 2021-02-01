@@ -144,37 +144,3 @@ mpiRecvSync(T* data, int count, int rank, int tag, MPI_Status* status)
 }
 
 
-//template<class T>
-//std::enable_if_t<std::is_same<double, std::decay_t<T>>{}>
-//mpiAllreduce(void* output, T* data, int count, MPI_Op operation, MPI_Comm communicator)
-//{
-//    MPI_Allreduce(output, data, count, MPI_DOUBLE, operation, communicator);
-//}
-//
-//template<class T>
-//std::enable_if_t<std::is_same<float, std::decay_t<T>>{}>
-//mpiAllreduce(void* output, T* data, int count, MPI_Op operation, MPI_Comm communicator)
-//{
-//    MPI_Allreduce(output, data, count, MPI_FLOAT, operation, communicator);
-//}
-//
-//template<class T>
-//std::enable_if_t<std::is_same<int, std::decay_t<T>>{}>
-//mpiAllreduce(void* output, T* data, int count, MPI_Op operation, MPI_Comm communicator)
-//{
-//    MPI_Allreduce(output, data, count, MPI_INT, operation, communicator);
-//}
-//
-//template<class T>
-//std::enable_if_t<std::is_same<unsigned, std::decay_t<T>>{}>
-//mpiAllreduce(void* output, T* data, int count, MPI_Op operation, MPI_Comm communicator)
-//{
-//    MPI_Allreduce(output, data, count, MPI_UNSIGNED, operation, communicator);
-//}
-//
-//template<class T>
-//std::enable_if_t<std::is_same<unsigned long, std::decay_t<T>>{}>
-//mpiAllreduce(void* output, T* data, int count, MPI_Op operation, MPI_Comm communicator)
-//{
-//    MPI_Allreduce(output, data, count, MPI_UNSIGNED_LONG, operation, communicator);
-//}
