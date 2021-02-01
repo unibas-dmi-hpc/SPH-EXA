@@ -6,15 +6,14 @@
 #include "ParticlesData.hpp"
 #include "cudaUtils.cuh"
 #include "../kernels.hpp"
-#include "../lookupTables.hpp"
+#include "../kernel/computeFindNeighbors.hpp"
+#include "../kernel/computeDensity.hpp"
 
 namespace sphexa
 {
 namespace sph
 {
 namespace cuda
-{
-namespace kernels
 {
 template <typename T>
 __global__ void density(const int n, const T sincIndex, const T K, const int ngmax, const BBox<T> *bbox, const int *clist,
@@ -23,24 +22,9 @@ __global__ void density(const int n, const T sincIndex, const T K, const int ngm
     const int tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
 
-    const int i = clist[tid];
-    const int nn = neighborsCount[tid];
-
-    T roloc = 0.0;
-
-    for (int pj = 0; pj < nn; ++pj)
-    {
-        const int j = neighbors[tid * ngmax + pj];
-        const T dist = distancePBC(*bbox, h[i], x[i], y[i], z[i], x[j], y[j], z[j]);
-        const T vloc = dist / h[i];
-        const T w = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, vloc), (int)sincIndex);
-        const T value = w / (h[i] * h[i] * h[i]);
-        roloc += value * m[j];
-    }
-
-    ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
+    // computes ro[i]
+    sph::kernels::densityJLoop(tid, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ltsize, ro);
 }
-} // namespace kernels
 
 template <typename T, class Dataset>
 void computeDensity(std::vector<Task> &taskList, Dataset &d)
@@ -62,13 +46,20 @@ void computeDensity(std::vector<Task> &taskList, Dataset &d)
                          [](const Task &lhs, const Task &rhs) { return lhs.clist.size() < rhs.clist.size(); })
             ->clist.size();
 
+    d.devPtrs.resize_streams(largestChunkSize, ngmax);
+    /*
     const size_t size_largerNeighborsChunk_int = largestChunkSize * ngmax * sizeof(int);
     const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
+    */
     const size_t size_bbox = sizeof(BBox<T>);
 
     // number of CUDA streams to use
-    const int NST = 2;
+    const int NST = DeviceParticlesData<T, Dataset>::NST;
 
+    const size_t ltsize = d.wh.size();
+    const size_t size_lt_T = ltsize * sizeof(T);
+
+    /*
     // initialize streams
     cudaStream_t streams[NST];
     for (int i = 0; i < NST; ++i)
@@ -77,15 +68,10 @@ void computeDensity(std::vector<Task> &taskList, Dataset &d)
     // device pointers - d_ prefix stands for device
     int *d_clist[NST], *d_neighbors[NST], *d_neighborsCount[NST];
 
-    const size_t ltsize = d.wh.size();
-    const size_t size_lt_T = ltsize * sizeof(T);
-
     // input data
-    /*
     CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d.d_x, d.d_y, d.d_z, d.d_h, d.d_m, d.d_ro));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d.d_wh, d.d_whd));
     CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d.d_bbox));
-    */
 
     for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist[i], d_neighborsCount[i]));
@@ -93,6 +79,7 @@ void computeDensity(std::vector<Task> &taskList, Dataset &d)
         CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors[i]));
     //CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist, d_neighborsCount));
     //CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors));
+    */
 
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
@@ -111,11 +98,18 @@ void computeDensity(std::vector<Task> &taskList, Dataset &d)
         auto &t = taskList[i];
 
         const int sIdx = i % NST;
+        /*
         cudaStream_t stream = streams[sIdx];
 
         int *d_clist_use = d_clist[sIdx];
         int *d_neighbors_use = d_neighbors[sIdx];
         int *d_neighborsCount_use = d_neighborsCount[sIdx];
+        */
+        cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
+
+        int *d_clist_use = d.devPtrs.d_stream[sIdx].d_clist;
+        int *d_neighbors_use = d.devPtrs.d_stream[sIdx].d_neighbors;
+        int *d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
 
         const size_t n = t.clist.size();
         const size_t size_n_int = n * sizeof(int);
@@ -128,13 +122,13 @@ void computeDensity(std::vector<Task> &taskList, Dataset &d)
         const int threadsPerBlock = 256;
         const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
-        kernels::findNeighbors<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
+        findNeighbors<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
             d.devPtrs.d_o, d_clist_use, n, d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
         );
 
         // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
-        kernels::density<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(n, d.sincIndex, d.K, t.ngmax, d.devPtrs.d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
+        density<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(n, d.sincIndex, d.K, t.ngmax, d.devPtrs.d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
             d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_wh, d.devPtrs.d_whd, ltsize, d.devPtrs.d_ro);
         CHECK_CUDA_ERR(cudaGetLastError());
 
@@ -146,14 +140,17 @@ void computeDensity(std::vector<Task> &taskList, Dataset &d)
     // Memcpy in default stream synchronizes all other streams
     CHECK_CUDA_ERR(cudaMemcpy(d.ro.data(), d.devPtrs.d_ro, size_np_T, cudaMemcpyDeviceToHost));
 
+    /*
     for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(cudaStreamDestroy(streams[i]));
 
     for (int i = 0; i < NST; ++i)
         CHECK_CUDA_ERR(utils::cudaFree(d_clist[i], d_neighbors[i], d_neighborsCount[i]));
+    */
 }
 
 template void computeDensity<double, ParticlesData<double>>(std::vector<Task> &taskList, ParticlesData<double> &d);
+template void computeDensity<double, ParticlesDataEvrard<double>>(std::vector<Task> &taskList, ParticlesDataEvrard<double> &d);
 
 } // namespace cuda
 } // namespace sph

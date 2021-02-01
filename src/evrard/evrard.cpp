@@ -57,7 +57,7 @@ int main(int argc, char **argv)
 
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
-    Tree::bucketSize = 1;
+    Tree::bucketSize = 64;
     Tree::minGlobalBucketSize = 512;
     Tree::maxGlobalBucketSize = 2048;
     // Tree::minGlobalBucketSize = 1;

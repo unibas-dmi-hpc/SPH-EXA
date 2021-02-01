@@ -4,7 +4,7 @@
 
 #include "kernels.hpp"
 #include "Task.hpp"
-#include "lookupTables.hpp"
+#include "kernel/computeDensity.hpp"
 #include "cuda/sph.cuh"
 
 namespace sphexa
@@ -32,7 +32,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
 
     T *ro = d.ro.data();
 
-    const BBox<T> bbox = d.bbox;
+    const BBox<T> *bbox = &d.bbox;
 
     const T K = d.K;
     const T sincIndex = d.sincIndex;
@@ -64,35 +64,8 @@ void computeDensityImpl(const Task &t, Dataset &d)
 #endif
     for (size_t pi = 0; pi < n; pi++)
     {
-        const int i = clist[pi];
-        const int nn = neighborsCount[pi];
-
-        T roloc = 0.0;
-
-        // int converstion to avoid a bug that prevents vectorization with some compilers
-        for (int pj = 0; pj < nn; pj++)
-        {
-            const int j = neighbors[pi * ngmax + pj];
-
-            // later can be stores into an array per particle
-            T dist = distancePBC(bbox, h[i], x[i], y[i], z[i], x[j], y[j], z[j]); // store the distance from each neighbor
-
-            // calculate the v as ratio between the distance and the smoothing length
-            T vloc = dist / h[i];
-
-#ifndef NDEBUG
-            if (vloc > 2.0 + 1e-6 || vloc < 0.0)
-                printf("ERROR:Density(%d,%d) vloc %f -- x %f %f %f -- %f %f %f -- dist %f -- hi %f\n", i, j, vloc, x[i], y[i], z[i], x[j],
-                       y[j], z[j], dist, h[i]);
-#endif
-
-            const T w = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, vloc), (int)sincIndex);
-            const T value = w / (h[i] * h[i] * h[i]);
-            roloc += value * m[j];
-        }
-
-        ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
-
+        // computes ro[i]
+        kernels::densityJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ltsize, ro);
 #ifndef NDEBUG
         if (std::isnan(ro[i])) printf("ERROR::Density(%d) density %f, position: (%f %f %f), h: %f\n", i, ro[i], x[i], y[i], z[i], h[i]);
 #endif
