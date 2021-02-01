@@ -156,6 +156,7 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
 }
 
 template void computeMomentumAndEnergyIAD<double, ParticlesData<double>>(const std::vector<Task> &taskList, ParticlesData<double> &d);
+template void computeMomentumAndEnergyIAD<double, ParticlesDataEvrard<double>>(const std::vector<Task> &taskList, ParticlesDataEvrard<double> &d);
 
 } // namespace cuda
 } // namespace sph

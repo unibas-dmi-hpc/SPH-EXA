@@ -39,7 +39,7 @@ void findNeighborsDispl(const int pi, const int *clist, const T *x, const T *y, 
     // // This can be created and stored on the GPU directly.
     // // For a fixed problem and size, if it works then it will always work
     int collisionsCount = 0;
-    int collisionNodes[128];
+    int collisionNodes[256];
 
     const T xi = x[i] + displx;
     const T yi = y[i] + disply;

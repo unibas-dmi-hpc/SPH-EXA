@@ -14,4 +14,6 @@ rm -f report-*
 rm -f dump_Sedov*
 #sudo nvprof --profile-child-processes -f -o report-%p ./bin/mpi+omp+cuda.app -n 30 -s 2 2>&1
 #mpirun -n 2 ./bin/mpi+omp+cuda.app -n 30 -s 2
-mpirun -n 2 ./bin/app -n 50 -s 50 -w 50
+#mpirun -n 2 ./bin/app -n 50 -s 50 -w 50
+mpirun -n 2 ./bin/app --input bigfiles/Test3DEvrardRel.bin
+
