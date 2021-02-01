@@ -150,6 +150,7 @@ void computeDensity(std::vector<Task> &taskList, Dataset &d)
 }
 
 template void computeDensity<double, ParticlesData<double>>(std::vector<Task> &taskList, ParticlesData<double> &d);
+template void computeDensity<double, ParticlesDataEvrard<double>>(std::vector<Task> &taskList, ParticlesDataEvrard<double> &d);
 
 } // namespace cuda
 } // namespace sph

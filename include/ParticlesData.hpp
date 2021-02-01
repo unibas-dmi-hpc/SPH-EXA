@@ -176,6 +176,14 @@ struct ParticlesDataEvrard
                                        &p_0, &h,   &m,   &c,    &grad_P_x,   &grad_P_y, &grad_P_z, &du, &du_m1, &dt, &dt_m1, &c11, &c12,
                                        &c13, &c22, &c23, &c33,  &maxvsignal, &fx,       &fy,       &fz, &ugrav, &cv, &temp,  &mue, &mui};
 
+    const std::array<double, lt::size> wh = lt::createWharmonicLookupTable<double, lt::size>();
+    const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+
+#if defined(USE_CUDA)
+    sph::cuda::DeviceParticlesData<T, ParticlesDataEvrard> devPtrs;
+
+    ParticlesDataEvrard() : devPtrs(*this) {};
+#endif
 
 #ifdef USE_MPI
     MPI_Comm comm;
