@@ -35,6 +35,33 @@
 
 #include "cstone/findneighbors.hpp"
 
+/*! \brief find neighbors on the GPU
+ *
+ * @tparam T                  float or double
+ * @tparam I                  32- or 64-bit unsigned integer
+ * @param x                   device x-coords, size \a n, order consistent with \a coords
+ * @param y                   device y-coords, size \a n, order consistent with \a coords
+ * @param z                   device z-coords, size \a n, order consistent with \a coords
+ * @param h                   device h-radii,  size \a n, order consistent with \a coords
+ * @param firstId             first particle index in [0:n] for which to compute neighbors
+ * @param lastId              last particle indes in [0:n] for which to compute neighbors
+ * @param n                   number of coordinates in x,y,z,h
+ * @param box                 coordinate bounding box used to calculate codes
+ * @param codes               device morton codes of particles, sorted, size \a n
+ * @param neighbors[out]      device neighbor indices found per particle
+ * @param neighborsCount[out] device number of neighbors found per particles
+ * @param ngmax               maximum number of neighbors to store in \a neighbors
+ * @param stream              execute on cuda stream \a stream
+ *
+ * Preconditions:
+ *      - codes[i] = morton3D(x[i], y[i], z[i], box);
+ *      - codes[i] <= codes[j], i < j
+ * Postconditions:
+ *      - If id is the index of the particle (x[id], y[id], z[id), and if id is in [firstId:lastId], then
+ *        the neighbors of id are stored in
+ *        neighbors[(id-firstId)*ngmax, (id-firstId)*ngmax + neighborsCount[id-firstId]]
+ *
+ */
 template<class T, class I>
 void findNeighborsCuda(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
                        cstone::Box<T> box, const I* codes, int* neighbors, int* neighborsCount, int ngmax,
