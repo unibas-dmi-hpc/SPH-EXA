@@ -83,6 +83,10 @@ struct GravityParticlesData
 };
 
 template <typename T>
+<<<<<<< HEAD
 const T GravityParticlesData<T>::K = sphexa::compute_3d_k(sincIndex);
+=======
+const T ParticlesDataEvrard<T>::K = sphexa::compute_3d_k(sincIndex);
+>>>>>>> initialize gravity branch
 
 } // namespace sphexa
