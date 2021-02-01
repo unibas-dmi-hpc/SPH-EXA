@@ -17,17 +17,13 @@ CUDA_OBJS := $(BUILDDIR)/gather.o $(BUILDDIR)/findneighbors.o $(BUILDDIR)/cudaDe
 RELEASE := -DNDEBUG
 DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
 
-# cuda architecture targets
-SMS ?= 35 60 70 75
-$(foreach sm,$(SMS),$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
-
-INC += -Isrc -Iinclude -Idomain/include -I$(CUDA_PATH)/include
+INC += -Isrc -Iinclude -Idomain/include
 CXXFLAGS += $(RELEASE)
 NVCCFLAGS := -std=c++14 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS) -Wno-deprecated-gpu-targets -g
 NVCCLDFLAGS := $(GENCODE_FLAGS) -rdc=true
 
 ifeq ($(ENV),gnu)
-	CXXFLAGS += -std=c++17 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native -g
+	CXXFLAGS += -std=c++17 -O0 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native -g
 endif
 
 ifeq ($(ENV),pgi)
