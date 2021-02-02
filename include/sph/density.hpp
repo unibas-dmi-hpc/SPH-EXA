@@ -67,7 +67,11 @@ void computeDensityImpl(const Task &t, Dataset &d)
         // computes ro[i]
         kernels::densityJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ltsize, ro);
 #ifndef NDEBUG
+<<<<<<< HEAD
         if (std::isnan(ro[pi])) printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", pi, ro[pi], x[pi], y[pi], z[pi], h[pi]);
+=======
+        if (std::isnan(ro[pi])) printf("ERROR::Density(%d) density %f, position: (%f %f %f), h: %f\n", pi, ro[pi], x[pi], y[pi], z[pi], h[pi]);
+>>>>>>> added cmake definitions to compile mpi+omp+cuda.app
 #endif
     }
 }

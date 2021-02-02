@@ -1,8 +1,13 @@
 
 if(CMAKE_CUDA_COMPILER)
+<<<<<<< HEAD
     add_library(cuda_sph OBJECT cudaDensity.cu cudaIAD.cu cudaMomentumAndEnergyIAD.cu)
     target_include_directories(cuda_sph PRIVATE ${PROJECT_SOURCE_DIR}/include)
     target_include_directories(cuda_sph PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
+=======
+    add_library(cuda_sph OBJECT cudaFindNeighbors.cu cudaDensity.cu cudaIAD.cu cudaMomentumAndEnergyIAD.cu)
+    target_include_directories(cuda_sph PRIVATE ${PROJECT_SOURCE_DIR}/include)
+>>>>>>> added cmake definitions to compile mpi+omp+cuda.app
 
     target_compile_definitions(cuda_sph PRIVATE USE_CUDA)
     target_compile_options(cuda_sph PRIVATE --expt-relaxed-constexpr)
