@@ -28,10 +28,6 @@ __global__ void computeIAD(const int n, const T sincIndex, const T K, const int 
 template <typename T, class Dataset>
 void computeIAD(const std::vector<Task> &taskList, Dataset &d)
 {
-    const T displx = d.devPtrs.d_o.xmax0 - d.devPtrs.d_o.xmin0;
-    const T disply = d.devPtrs.d_o.ymax0 - d.devPtrs.d_o.ymin0;
-    const T displz = d.devPtrs.d_o.zmax0 - d.devPtrs.d_o.zmin0;
-
     const size_t np = d.x.size();
     const size_t size_np_T = np * sizeof(T);
     const T ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
