@@ -18,7 +18,7 @@ RELEASE := -DNDEBUG
 DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
 
 # cuda architecture targets
-SMS ?= 35 60 70 75 80 86
+SMS ?= 35 60 70 75 80
 $(foreach sm,$(SMS),$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
 
 INC += -Isrc -Iinclude -Idomain/include -I$(CUDA_PATH)/include
@@ -43,7 +43,7 @@ ifeq ($(ENV),intel)
 endif
 
 ifeq ($(ENV),clang)
-	CXXFLAGS += -O2 -std=c++17 -fopenmp -g
+	CXXFLAGS += -O2 -march=native -std=c++17 -fopenmp -g
 endif
 
 TESTCASE ?= sedov
