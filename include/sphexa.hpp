@@ -20,7 +20,7 @@
 #include "sph/cuda/sph.cuh"
 #endif
 
-#include "sph/findNeighbors.hpp"
+//#include "sph/findNeighbors.hpp"
 #include "sph/density.hpp"
 #include "sph/IAD.hpp"
 #include "sph/momentumAndEnergyIAD.hpp"

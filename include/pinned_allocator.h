@@ -184,7 +184,7 @@ template<typename T>
      *  \param x The other \p pinned_allocator of interest.
      *  \return This method always returns \c true.
      */
-    inline bool operator==(pinned_allocator const& x) const { return true; }
+    inline bool operator==([[maybe_unused]] pinned_allocator const& x) const { return true; }
 
     /*! This method tests this \p pinned_allocator for inequality
      *  to another.
