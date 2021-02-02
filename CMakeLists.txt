@@ -13,4 +13,12 @@ find_package(OpenMP REQUIRED)
 include(CTest)
 
 add_subdirectory(domain)
+
+if(CMAKE_CUDA_COMPILER)
+    enable_language(CUDA)
+    add_subdirectory(include)
+else()
+    message(STATUS "No CUDA support")
+endif()
+
 add_subdirectory(src)

@@ -67,7 +67,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
         // computes ro[i]
         kernels::densityJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ltsize, ro);
 #ifndef NDEBUG
-        if (std::isnan(ro[i])) printf("ERROR::Density(%d) density %f, position: (%f %f %f), h: %f\n", i, ro[i], x[i], y[i], z[i], h[i]);
+        if (std::isnan(ro[pi])) printf("ERROR::Density(%d) density %f, position: (%f %f %f), h: %f\n", pi, ro[pi], x[pi], y[pi], z[pi], h[pi]);
 #endif
     }
 }
