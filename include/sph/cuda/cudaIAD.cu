@@ -95,8 +95,10 @@ void computeIAD(const std::vector<Task> &taskList, Dataset &d)
     CHECK_CUDA_ERR(cudaMemcpy(d.c33.data(), d.devPtrs.d_c33, size_np_T, cudaMemcpyDeviceToHost));
 }
 
-template void computeIAD<double, ParticlesData<double>>(const std::vector<Task> &taskList, ParticlesData<double> &d);
-template void computeIAD<double, ParticlesDataEvrard<double>>(const std::vector<Task> &taskList, ParticlesDataEvrard<double> &d);
+template void computeIAD<double, ParticlesData<double, unsigned>>(const std::vector<Task> &taskList, ParticlesData<double, unsigned> &d);
+template void computeIAD<double, ParticlesDataEvrard<double, unsigned>>(const std::vector<Task> &taskList, ParticlesDataEvrard<double, unsigned> &d);
+template void computeIAD<double, ParticlesData<double, uint64_t>>(const std::vector<Task> &taskList, ParticlesData<double, uint64_t> &d);
+template void computeIAD<double, ParticlesDataEvrard<double, uint64_t>>(const std::vector<Task> &taskList, ParticlesDataEvrard<double, uint64_t> &d);
 
 } // namespace cuda
 } // namespace sph
