@@ -20,7 +20,7 @@ public:
                 << d.fx[i] << ' ' << d.fy[i] << ' ' << d.fz[i] << std::endl;
         }
     */
-    void printTree(GravityOctree<double> &octree, std::ostream &out) { octree.print(); }
+    void printTree(GravityOctree<double> &octree, [[maybe_unused]] std::ostream &out) { octree.print(); }
 
     void printConstants(const int iteration, const int nntot, std::ostream &out) const
     {
