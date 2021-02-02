@@ -259,7 +259,7 @@ std::vector<BinaryNode<I>> createInternalTree(const std::vector<I>& tree)
     std::vector<BinaryNode<I>> ret(tree.size() - 1);
 
     #pragma omp parallel for
-    for (int idx = 0; idx < ret.size(); ++idx)
+    for (std::size_t idx = 0; idx < ret.size(); ++idx)
     {
         constructInternalNode(tree.data(), tree.size(), ret.data(), idx);
     }

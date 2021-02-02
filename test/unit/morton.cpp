@@ -321,7 +321,6 @@ TEST(MortonCode, treeLevel64)
 
 TEST(MortonCode, parentIndex32)
 {
-    using CodeType = unsigned;
     EXPECT_EQ(6, parentIndex(6u, 10));
     EXPECT_EQ(1, parentIndex(1u<<24u, 2));
     EXPECT_EQ(2, parentIndex(1u<<25u, 2));
@@ -330,7 +329,6 @@ TEST(MortonCode, parentIndex32)
 
 TEST(MortonCode, parentIndex64)
 {
-    using CodeType = uint64_t;
     EXPECT_EQ(6, parentIndex(6ul, 21));
     EXPECT_EQ(1, parentIndex(1ul<<57u, 2));
     EXPECT_EQ(2, parentIndex(1ul<<58u, 2));
@@ -466,7 +464,7 @@ TEST(MortonCode, codeFromIndices32)
     constexpr unsigned maxLevel = maxTreeLevel<CodeType>{};
 
     std::array<unsigned char, 21> input{0};
-    for (int i = 0; i < maxLevel; ++i)
+    for (unsigned i = 0; i < maxLevel; ++i)
     {
         input[i] = 7;
     }
@@ -481,7 +479,7 @@ TEST(MortonCode, codeFromIndices64)
     constexpr unsigned maxLevel = maxTreeLevel<CodeType>{};
 
     std::array<unsigned char, 21> input{0};
-    for (int i = 0; i < maxLevel; ++i)
+    for (unsigned i = 0; i < maxLevel; ++i)
     {
         input[i] = 7;
     }
@@ -498,7 +496,7 @@ TEST(MortonCode, indicesFromCode32)
     CodeType input = nodeRange<CodeType>(0);
 
     std::array<unsigned char, maxLevel> reference{0};
-    for (int i = 0; i < maxLevel; ++i)
+    for (unsigned i = 0; i < maxLevel; ++i)
     {
         reference[i] = 7;
     }
@@ -520,7 +518,7 @@ TEST(MortonCode, indicesFromCode64)
     CodeType input = nodeRange<CodeType>(0);
 
     std::array<unsigned char, maxLevel> reference{0};
-    for (int i = 0; i < maxLevel; ++i)
+    for (unsigned i = 0; i < maxLevel; ++i)
     {
         reference[i] = 7;
     }
@@ -579,7 +577,7 @@ void mortonNeighbors()
     std::vector<I> probes(codes.size());
     std::transform(begin(codes), end(codes), begin(probes), computeCode);
 
-    for (int i = 0; i < codes.size(); ++i)
+    for (std::size_t i = 0; i < codes.size(); ++i)
     {
         EXPECT_EQ(std::get<1>(codes[i]), probes[i]);
     }
@@ -618,7 +616,7 @@ TEST(MortonCode, mortonCodesSequence)
     std::vector<double> z{-0.5, 0.5, 0.5, 0.5};
 
     std::vector<unsigned> reference;
-    for (int i = 0; i < x.size(); ++i)
+    for (std::size_t i = 0; i < x.size(); ++i)
     {
         reference.push_back(
             morton3DunitCube<unsigned>(normalize(x[i], boxMin, boxMax), normalize(y[i], boxMin, boxMax), normalize(z[i], boxMin, boxMax)));

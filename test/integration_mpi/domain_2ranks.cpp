@@ -160,7 +160,7 @@ void moreHalos(int rank, int nRanks)
     std::vector<T> x,y,z,h;
     // rank 0 gets particles with even index before the sync
     // rank 1 gets particles with uneven index before the sync
-    for(int i = rank; i < xGlobal.size(); i+=nRanks)
+    for(std::size_t i = rank; i < xGlobal.size(); i+=nRanks)
     {
         x.push_back(xGlobal[i]);
         y.push_back(yGlobal[i]);
@@ -246,7 +246,7 @@ void particleProperty(int rank, int nRanks)
     std::vector<T> x,y,z,h,mass;
     // rank 0 gets particles with even index before the sync
     // rank 1 gets particles with uneven index before the sync
-    for(int i = rank; i < xGlobal.size(); i+=nRanks)
+    for(std::size_t i = rank; i < xGlobal.size(); i+=nRanks)
     {
         x.push_back(xGlobal[i]);
         y.push_back(yGlobal[i]);
@@ -315,7 +315,7 @@ void postSyncHalos(int rank, int nRanks)
     std::vector<T> x, y, z, h;
     // rank 0 gets particles with even index before the sync
     // rank 1 gets particles with uneven index before the sync
-    for (int i = rank; i < xGlobal.size(); i += nRanks)
+    for (std::size_t i = rank; i < xGlobal.size(); i += nRanks)
     {
         x.push_back(xGlobal[i]);
         y.push_back(yGlobal[i]);
@@ -384,7 +384,7 @@ void multiStepSync(int rank, int nRanks)
     std::vector<T> x, y, z, h;
     // rank 0 gets particles with even index before the sync
     // rank 1 gets particles with uneven index before the sync
-    for (int i = rank; i < xGlobal.size(); i += nRanks)
+    for (std::size_t i = rank; i < xGlobal.size(); i += nRanks)
     {
         x.push_back(xGlobal[i]);
         y.push_back(yGlobal[i]);

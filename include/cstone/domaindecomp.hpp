@@ -199,9 +199,9 @@ class SfcLookupKey
 public:
     explicit SfcLookupKey(const SpaceCurveAssignment<I>& sfc)
     {
-        for (int rank = 0; rank < sfc.nRanks(); ++rank)
+        for (std::size_t rank = 0; rank < sfc.nRanks(); ++rank)
         {
-            for (int range = 0; range < sfc.nRanges(rank); ++range)
+            for (std::size_t range = 0; range < sfc.nRanges(rank); ++range)
             {
                 ranks_.push_back(rank);
                 rangeCodeStarts_.push_back(sfc.rangeStart(rank, range));
@@ -254,17 +254,17 @@ SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, co
     // distribute work, every rank gets global count / nSplits,
     // the remainder gets distributed one by one
     std::vector<std::size_t> nParticlesPerSplit(nSplits, globalNParticles/nSplits);
-    for (int split = 0; split < globalNParticles % nSplits; ++split)
+    for (std::size_t split = 0; split < globalNParticles % nSplits; ++split)
     {
         nParticlesPerSplit[split]++;
     }
 
-    int leavesDone = 0;
+    std::size_t leavesDone = 0;
     for (int split = 0; split < nSplits; ++split)
     {
         std::size_t targetCount = nParticlesPerSplit[split];
         std::size_t splitCount = 0;
-        int j = leavesDone;
+        std::size_t j = leavesDone;
         while (splitCount < targetCount && j < nNodes(globalTree))
         {
             // if adding the particles of the next leaf takes us further away from
@@ -323,7 +323,7 @@ SendList createSendList(const SpaceCurveAssignment<I>& assignment, const I* code
     for (int rank = 0; rank < nRanks; ++rank)
     {
         SendManifest& manifest = ret[rank];
-        for (int rangeIndex = 0; rangeIndex < assignment.nRanges(rank); ++rangeIndex)
+        for (std::size_t rangeIndex = 0; rangeIndex < assignment.nRanges(rank); ++rangeIndex)
         {
             I rangeStart = assignment.rangeStart(rank, rangeIndex);
             I rangeEnd   = assignment.rangeEnd(rank, rangeIndex);
@@ -346,7 +346,7 @@ template<class T>
 void extractRange(const SendManifest& manifest, const T* source, const int* ordering, T* destination)
 {
     int idx = 0;
-    for (int rangeIndex = 0; rangeIndex < manifest.nRanges(); ++rangeIndex)
+    for (std::size_t rangeIndex = 0; rangeIndex < manifest.nRanges(); ++rangeIndex)
         for (int i = manifest.rangeStart(rangeIndex); i < manifest.rangeEnd(rangeIndex); ++i)
             destination[idx++] = source[ordering[i]];
 }

@@ -37,7 +37,7 @@ namespace detail
 {
 
 //! \brief count leading zeros, does not handle an input of 0
-static int clz32(uint32_t x)
+[[maybe_unused]] static int clz32(uint32_t x)
 {
     static const int debruijn32[32] = {0, 31, 9, 30, 3, 8,  13, 29, 2,  5,  7,  21, 12, 24, 28, 19,
                                        1, 10, 4, 14, 6, 22, 25, 20, 11, 15, 23, 26, 16, 27, 17, 18};
@@ -51,7 +51,7 @@ static int clz32(uint32_t x)
 }
 
 //! \brief count leading zeros, does not handle an input of 0
-static int clz64(uint64_t x)
+[[maybe_unused]] static int clz64(uint64_t x)
 {
     static const int debruijn64[64] = {0,  47, 1,  56, 48, 27, 2,  60, 57, 49, 41, 37, 28, 16, 3,  61, 54, 58, 35, 52, 50, 42,
                                        21, 44, 38, 32, 29, 23, 17, 11, 4,  62, 46, 55, 26, 59, 40, 36, 15, 53, 34, 51, 20, 43,

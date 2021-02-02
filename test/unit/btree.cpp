@@ -154,7 +154,7 @@ void paperExampleTest()
 
     std::vector<CodeType> example = makeExample<CodeType>();
     std::vector<BinaryNode<CodeType>> internalNodes(example.size() - 1);
-    for (int i = 0; i < internalNodes.size(); ++i)
+    for (std::size_t i = 0; i < internalNodes.size(); ++i)
     {
         constructInternalNode(example.data(), example.size(), internalNodes.data(), i);
     }
@@ -186,7 +186,7 @@ void paperExampleTest()
 
     std::vector<int> refPrefixLengths{0, 3, 4, 2, 1, 2, 4};
 
-    for (int idx = 0; idx < internalNodes.size(); ++idx)
+    for (std::size_t idx = 0; idx < internalNodes.size(); ++idx)
     {
         EXPECT_EQ(internalNodes[idx].leftChild,      refLeft[idx]);
         EXPECT_EQ(internalNodes[idx].leftLeafIndex,  refLeftIndices[idx]);

@@ -149,9 +149,9 @@ public:
         //z_.reserve(gridSize);
 
         unsigned n_ = 1u << log8ceil(gridSize);
-        for (int i = 0; i < n_; ++i)
-            for (int j = 0; j < n_; ++j)
-                for (int k = 0; k < n_; ++k)
+        for (unsigned i = 0; i < n_; ++i)
+            for (unsigned j = 0; j < n_; ++j)
+                for (unsigned k = 0; k < n_; ++k)
                 {
                     x_.push_back(i);
                     y_.push_back(j);
