@@ -68,12 +68,12 @@ struct ParticlesDataSqPatch
     const static T K;
 };
 
-template <typename T, typename I>
+template <typename T, typename I = unsigned>
 struct ParticlesData
 {
     using CodeType = I;
 
-    inline void resize(size_t size)
+    inline void resize(const size_t size)
     {
         size_t current_capacity = data[0]->capacity();
         if (size > current_capacity)
@@ -89,9 +89,12 @@ struct ParticlesData
 
         for (unsigned int i = 0; i < data.size(); ++i)
         {
+            // call reserve to limit reallocation growth to 1% instead of 200%
+            data[i]->reserve(size * 1.01);
             data[i]->resize(size);
         }
 
+        codes.reserve(size * 1.01);
         codes.resize(size);
 
 #if defined(USE_CUDA)
@@ -156,11 +159,11 @@ struct ParticlesData
 template <typename T, typename I>
 const T ParticlesData<T, I>::K = sphexa::compute_3d_k(sincIndex);
 
-template <typename T, typename I>
+template <typename T, typename I = unsigned>
 struct ParticlesDataEvrard
 {
     using CodeType = I;
-    inline void resize(size_t size)
+    inline void resize(const size_t size)
     {
         size_t current_capacity = data[0]->capacity();
         if (size > current_capacity)
@@ -176,9 +179,12 @@ struct ParticlesDataEvrard
 
         for (unsigned int i = 0; i < data.size(); ++i)
         {
+            // call reserve to limit reallocation growth to 1% instead of 200%
+            data[i]->reserve(size * 1.01);
             data[i]->resize(size);
         }
 
+        codes.reserve(size * 1.01);
         codes.resize(size);
 
 #if defined(USE_CUDA)

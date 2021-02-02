@@ -10,6 +10,8 @@ namespace sphexa
 namespace sph
 {
 
+#ifndef USE_CUDA
+
 template<class T, class I>
 void findNeighborsSfc(std::vector<Task>& taskList,
                       const std::vector<T>& x,
@@ -42,6 +44,21 @@ void findNeighborsSfc(std::vector<Task>& taskList,
         }
     }
 }
+#else
+
+template<class T, class I>
+void findNeighborsSfc(std::vector<Task>& taskList,
+                      const std::vector<T>& x,
+                      const std::vector<T>& y,
+                      const std::vector<T>& z,
+                      const std::vector<T>& h,
+                      const std::vector<I>& codes,
+                      const cstone::Box<T>& box)
+{
+
+}
+
+#endif
 
 } // namespace sph
 } // namespace sphexa

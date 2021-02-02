@@ -63,8 +63,8 @@ int main(int argc, char **argv)
 
     if(d.rank == 0) std::cout << "Domain created." << std::endl;
 
-    std::vector<CodeType> codes;
-    domain.sync(d.x, d.y, d.z, d.h, codes, d.m, d.mui, d.u, d.vx, d.vy, d.vz,
+    //std::vector<CodeType> codes;
+    domain.sync(d.x, d.y, d.z, d.h, d.codes, d.m, d.mui, d.u, d.vx, d.vy, d.vz,
                 d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
 
     std::vector<int> clist(domain.nParticles());
@@ -83,16 +83,20 @@ int main(int argc, char **argv)
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
         timer.start();
-        domain.sync(d.x, d.y, d.z, d.h, codes, d.m, d.mui, d.u, d.vx, d.vy, d.vz,
+        domain.sync(d.x, d.y, d.z, d.h, d.codes, d.m, d.mui, d.u, d.vx, d.vy, d.vz,
                     d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
-        domain.exchangeHalos(d.m);
         timer.step("domain::sync");
-        d.resize(d.x.size());  // also resize arrays not listed in sync, even though space for halos is not needed
+
+        d.resize(domain.nParticlesWithHalos());  // also resize arrays not listed in sync, even though space for halos is not needed
         clist.resize(domain.nParticles());
         std::iota(begin(clist), end(clist), domain.startIndex());
+        //domain.exchangeHalos(d.m);
+        std::fill(begin(d.m), begin(d.m) + domain.startIndex(), d.m[domain.startIndex()]);
+        std::fill(begin(d.m) + domain.endIndex(), begin(d.m) + domain.nParticlesWithHalos(), d.m[domain.startIndex()]);
+
         taskList.update(clist);
         timer.step("updateTasks");
-        sph::findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, codes, domain.box());
+        sph::findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, domain.box());
         timer.step("FindNeighbors");
         if(!clist.empty()) sph::computeDensity<Real>(taskList.tasks, d);
         timer.step("Density");
