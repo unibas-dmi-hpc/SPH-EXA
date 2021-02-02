@@ -23,7 +23,7 @@ $(foreach sm,$(SMS),$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_
 
 INC += -Isrc -Iinclude -Idomain/include -I$(CUDA_PATH)/include
 CXXFLAGS += $(RELEASE)
-NVCCFLAGS := -std=c++14 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS) -g
+NVCCFLAGS := -std=c++14 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS) -Wno-deprecated-gpu-targets -g
 NVCCLDFLAGS := $(GENCODE_FLAGS) -rdc=true
 
 ifeq ($(ENV),gnu)
