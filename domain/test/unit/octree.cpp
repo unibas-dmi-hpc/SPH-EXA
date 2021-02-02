@@ -59,7 +59,7 @@ std::ostream& operator<<(std::ostream& os, const std::array<T, N>& input)
         }
     }
 
-    for (int i = 0; i < lastNonZero; ++i)
+    for (unsigned i = 0; i < lastNonZero; ++i)
         os << int(input[i]) << ",";
     os << int(input[lastNonZero]);
 
@@ -107,11 +107,11 @@ void checkCountTreeNodes()
                               codes.data(), codes.data() + codes.size());
 
     // the level 2 nodes have 1/64 of the total volume/particle count
-    for (int i = 0; i < 8; ++i)
+    for (std::size_t i = 0; i < 8; ++i)
         EXPECT_EQ(counts[i], 1);
 
     // the level 1 nodes have 1/8 of the total
-    for (int i = 8; i < counts.size(); ++i)
+    for (std::size_t i = 8; i < counts.size(); ++i)
         EXPECT_EQ(counts[i], 8);
 }
 
@@ -371,7 +371,7 @@ void rebalanceInsufficentResolution()
     constexpr int bucketSize = 1;
 
     OctreeMaker<CodeType> octreeMaker;
-    for (int level = 0; level < maxTreeLevel<CodeType>{}; ++level)
+    for (unsigned level = 0; level < maxTreeLevel<CodeType>{}; ++level)
         octreeMaker.divide({}, level);
     std::vector<CodeType> tree = octreeMaker.makeTree();
 
@@ -408,7 +408,7 @@ void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<std::si
     int nParticles = mortonCodes.size();
 
     // check that referenced particles are within specified range
-    for (int nodeIndex = 0; nodeIndex < nNodes(tree); ++nodeIndex)
+    for (std::size_t nodeIndex = 0; nodeIndex < nNodes(tree); ++nodeIndex)
     {
         int nodeStart = std::lower_bound(begin(mortonCodes), end(mortonCodes), tree[nodeIndex]) -
                         begin(mortonCodes);
@@ -425,7 +425,7 @@ void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<std::si
             ASSERT_LT(nodeStart, nParticles);
         }
 
-        for (int i = nodeStart; i < counts[nodeIndex]; ++i)
+        for (std::size_t i = nodeStart; i < counts[nodeIndex]; ++i)
         {
             CodeType iCode = mortonCodes[i];
             EXPECT_TRUE(tree[nodeIndex] <= iCode);

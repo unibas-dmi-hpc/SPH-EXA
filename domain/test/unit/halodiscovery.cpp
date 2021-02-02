@@ -66,8 +66,8 @@ void findHalos()
     std::vector<double> interactionRadii(nNodes(tree), 0.1);
 
     std::vector<pair<int>> refPairs0;
-    for (int i = 0; i < nNodes(tree) / 2; ++i)
-        for (int j = nNodes(tree) / 2; j < nNodes(tree); ++j)
+    for (std::size_t i = 0; i < nNodes(tree) / 2u; ++i)
+        for (std::size_t j = nNodes(tree) / 2u; j < nNodes(tree); ++j)
         {
             if (overlap(tree[i], tree[i + 1], makeHaloBox(tree[j], tree[j + 1], interactionRadii[j], box)))
             {
@@ -125,8 +125,8 @@ void computeSendRecvNodeList()
     std::vector<double> interactionRadii(nNodes(tree), 0.1);
 
     std::vector<pair<int>> haloPairs;
-    for (int i = 0; i < nNodes(tree) / 2; ++i)
-        for (int j = nNodes(tree) / 2; j < nNodes(tree); ++j)
+    for (std::size_t i = 0; i < nNodes(tree) / 2; ++i)
+        for (std::size_t j = nNodes(tree) / 2; j < nNodes(tree); ++j)
         {
             if (overlap(tree[i], tree[i + 1], makeHaloBox(tree[j], tree[j + 1], interactionRadii[j], box)))
             {

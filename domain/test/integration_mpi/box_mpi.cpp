@@ -63,7 +63,7 @@ TEST(GlobalBox, globalMin)
 }
 
 template<class T>
-void globalMax(int rank, int nRanks)
+void globalMax(int rank, [[maybe_unused]] int nRanks)
 {
     int nElements = 1000;
     std::vector<T> x(nElements);

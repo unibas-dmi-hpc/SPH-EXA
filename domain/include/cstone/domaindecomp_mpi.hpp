@@ -39,7 +39,7 @@ namespace cstone
 {
 
 template<class T, class... Arrays>
-void exchangeParticlesImpl(const SendList& sendList, int thisRank, int nParticlesAssigned,
+void exchangeParticlesImpl(const SendList& sendList, int thisRank, std::size_t nParticlesAssigned,
                            int inputOffset, int outputOffset,
                            const int* ordering, T* tempBuffer, Arrays... arrays)
 {
@@ -75,7 +75,7 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, int nParticle
         std::copy(tempBuffer, tempBuffer + sendList[thisRank].totalCount(), destinationArrays[arrayIndex]);
     }
 
-    unsigned nParticlesPresent = sendList[thisRank].totalCount();
+    std::size_t nParticlesPresent = sendList[thisRank].totalCount();
 
     while (nParticlesPresent != nParticlesAssigned)
     {
@@ -86,7 +86,7 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, int nParticle
         int receiveCount;
         MPI_Get_count(&status, MpiType<T>{}, &receiveCount);
 
-        if (nParticlesPresent + receiveCount > nParticlesAssigned)
+        if (nParticlesPresent + (std::size_t)receiveCount > nParticlesAssigned)
         {
             throw std::runtime_error("Particle exchange: cannot receive more particles than assigned\n");
         }

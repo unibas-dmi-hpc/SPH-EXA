@@ -172,7 +172,7 @@ void randomGaussianHaloNeighbors(bool usePbc)
     // interaction radius
     if (!usePbc)
     {
-        for (int i = 0; i < h.size(); ++i)
+        for (std::size_t i = 0; i < h.size(); ++i)
         {
             h[i] = smoothingL * (0.2 + 30*(x[i] * x[i] + y[i] * y[i] + z[i] * z[i]));
         }

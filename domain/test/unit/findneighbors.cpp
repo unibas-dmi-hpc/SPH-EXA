@@ -270,13 +270,9 @@ TEST(FindNeighbors, findNeighborBoxesCornerPbc)
 template<class Coordinates, class T>
 void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
 {
-    using real = T;
-    using CodeType = std::decay_t<decltype(coords.mortonCodes()[0])>;
-
     int n = coords.x().size();
     int ngmax = n;
 
-    real minRange = box.minExtent();
     std::vector<T> h(n, radius/2);
 
     std::vector<int> neighborsRef(n * ngmax), neighborsCountRef(n);
