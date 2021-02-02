@@ -94,8 +94,10 @@ void computeDensity(std::vector<Task> &taskList, Dataset &d)
 
 }
 
-template void computeDensity<double, ParticlesData<double>>(std::vector<Task> &taskList, ParticlesData<double> &d);
-template void computeDensity<double, ParticlesDataEvrard<double>>(std::vector<Task> &taskList, ParticlesDataEvrard<double> &d);
+template void computeDensity<double, ParticlesData<double, unsigned>>(std::vector<Task> &taskList, ParticlesData<double, unsigned> &d);
+template void computeDensity<double, ParticlesDataEvrard<double, unsigned>>(std::vector<Task> &taskList, ParticlesDataEvrard<double, unsigned> &d);
+template void computeDensity<double, ParticlesData<double, uint64_t>>(std::vector<Task> &taskList, ParticlesData<double, uint64_t> &d);
+template void computeDensity<double, ParticlesDataEvrard<double, uint64_t>>(std::vector<Task> &taskList, ParticlesDataEvrard<double, uint64_t> &d);
 
 } // namespace cuda
 } // namespace sph

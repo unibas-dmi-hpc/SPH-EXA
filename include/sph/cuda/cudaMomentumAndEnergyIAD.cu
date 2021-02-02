@@ -100,8 +100,10 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
     CHECK_CUDA_ERR(cudaMemcpy(d.maxvsignal.data(), d.devPtrs.d_maxvsignal, size_np_T, cudaMemcpyDeviceToHost));
 }
 
-template void computeMomentumAndEnergyIAD<double, ParticlesData<double>>(const std::vector<Task> &taskList, ParticlesData<double> &d);
-template void computeMomentumAndEnergyIAD<double, ParticlesDataEvrard<double>>(const std::vector<Task> &taskList, ParticlesDataEvrard<double> &d);
+template void computeMomentumAndEnergyIAD<double, ParticlesData<double, unsigned>>(const std::vector<Task> &taskList, ParticlesData<double, unsigned> &d);
+template void computeMomentumAndEnergyIAD<double, ParticlesDataEvrard<double, unsigned>>(const std::vector<Task> &taskList, ParticlesDataEvrard<double, unsigned> &d);
+template void computeMomentumAndEnergyIAD<double, ParticlesData<double, uint64_t>>(const std::vector<Task> &taskList, ParticlesData<double, uint64_t> &d);
+template void computeMomentumAndEnergyIAD<double, ParticlesDataEvrard<double, uint64_t>>(const std::vector<Task> &taskList, ParticlesDataEvrard<double, uint64_t> &d);
 
 } // namespace cuda
 } // namespace sph

@@ -44,11 +44,11 @@ int main(int argc, char **argv)
 
     using Real = double;
     using CodeType = unsigned;
-    using Dataset = ParticlesData<Real>;
+    using Dataset = ParticlesData<Real, CodeType>;
 
     const IFileWriter<Dataset> &fileWriter = SedovMPIFileWriter<Dataset>();
 
-    auto d = SedovDataGenerator<Real>::generate(cubeSide);
+    auto d = SedovDataGenerator<Real, CodeType>::generate(cubeSide);
     const Printer<Dataset> printer(d);
 
     if(d.rank == 0) std::cout << "Data generated." << std::endl;

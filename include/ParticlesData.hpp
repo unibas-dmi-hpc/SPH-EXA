@@ -68,7 +68,7 @@ struct ParticlesDataSqPatch
     const static T K;
 };
 
-template <typename T, typename I = unsigned>
+template <typename T, typename I>
 struct ParticlesData
 {
     using CodeType = I;
@@ -147,7 +147,7 @@ struct ParticlesData
 template <typename T, typename I>
 const T ParticlesData<T, I>::K = sphexa::compute_3d_k(sincIndex);
 
-template <typename T, typename I = unsigned>
+template <typename T, typename I>
 struct ParticlesDataEvrard
 {
     using CodeType = I;
