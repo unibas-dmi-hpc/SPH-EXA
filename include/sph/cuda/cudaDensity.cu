@@ -21,76 +21,79 @@ __global__ void density(const int n, const T sincIndex, const T K, const int ngm
     const int tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
 
-    // computes ro[i]
+    // computes ro[clist[tid]]
     sph::kernels::densityJLoop(tid, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ltsize, ro);
 }
 
 template <typename T, class Dataset>
 void computeDensity(std::vector<Task> &taskList, Dataset &d)
 {
-    const size_t np = d.x.size();
-    const size_t size_np_T = np * sizeof(T);
-    const T ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
+    size_t np = d.x.size();
+    size_t size_np_T = np * sizeof(T);
+    size_t size_np_CodeType = np * sizeof(typename Dataset::CodeType);
+    T ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
 
-    const auto largestChunkSize =
+    auto largestChunkSize =
         std::max_element(taskList.cbegin(), taskList.cend(),
                          [](const Task &lhs, const Task &rhs) { return lhs.clist.size() < rhs.clist.size(); })
             ->clist.size();
 
     d.devPtrs.resize_streams(largestChunkSize, ngmax);
-    const size_t size_bbox = sizeof(BBox<T>);
+    size_t size_bbox = sizeof(BBox<T>);
     cstone::Box<T> cstoneBox{d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax,
                              d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz};
 
     // number of CUDA streams to use
-    const int NST = DeviceParticlesData<T, Dataset>::NST;
+    constexpr int NST = DeviceParticlesData<T, Dataset>::NST;
 
-    const size_t ltsize = d.wh.size();
-    const size_t size_lt_T = ltsize * sizeof(T);
+    size_t ltsize = d.wh.size();
+    size_t size_lt_T = ltsize * sizeof(T);
 
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_z, d.z.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_codes, d.codes.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_wh, d.wh.data(), size_lt_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_whd, d.whd.data(), size_lt_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
+
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_codes, d.codes.data(), size_np_CodeType, cudaMemcpyHostToDevice));
 
     for (int i = 0; i < taskList.size(); ++i)
     {
         auto &t = taskList[i];
 
-        const int sIdx = i % NST;
+        int sIdx = i % NST;
         cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
 
         int *d_clist_use = d.devPtrs.d_stream[sIdx].d_clist;
         int *d_neighbors_use = d.devPtrs.d_stream[sIdx].d_neighbors;
         int *d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
 
-        const size_t n = t.clist.size();
-        const size_t size_n_int = n * sizeof(int);
+        size_t n = t.clist.size();
+        size_t size_n_int = n * sizeof(int);
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, cudaMemcpyHostToDevice, stream));
 
-        const int threadsPerBlock = 256;
-        const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
+        int threadsPerBlock = 256;
+        int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
         findNeighborsCuda(d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, t.clist[0], t.clist[n-1] + 1, np, cstoneBox,
                           d.devPtrs.d_codes, d_neighbors_use, d_neighborsCount_use, ngmax, stream);
+        CHECK_CUDA_ERR(cudaGetLastError())
 
         // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
         density<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(n, d.sincIndex, d.K, t.ngmax, d.devPtrs.d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
             d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_wh, d.devPtrs.d_whd, ltsize, d.devPtrs.d_ro);
-        CHECK_CUDA_ERR(cudaGetLastError());
+        CHECK_CUDA_ERR(cudaGetLastError())
 
-        CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighborsCount.data(), d_neighborsCount_use, size_n_int, cudaMemcpyDeviceToHost, stream));
+        CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighborsCount.data(), d_neighborsCount_use, size_n_int, cudaMemcpyDeviceToHost, stream))
     }
 
     // Memcpy in default stream synchronizes all other streams
-    CHECK_CUDA_ERR(cudaMemcpy(d.ro.data(), d.devPtrs.d_ro, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.ro.data(), d.devPtrs.d_ro, size_np_T, cudaMemcpyDeviceToHost))
 
 }
 

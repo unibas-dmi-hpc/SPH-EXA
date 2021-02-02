@@ -32,11 +32,11 @@ __global__ void computeMomentumAndEnergyIAD(const int n, const T sincIndex, cons
 template <typename T, class Dataset>
 void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
 {
-    const size_t np = d.x.size();
-    const size_t size_np_T = np * sizeof(T);
-    const T ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
+    size_t np = d.x.size();
+    size_t size_np_T = np * sizeof(T);
+    T ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
 
-    const auto largestChunkSize =
+    auto largestChunkSize =
         std::max_element(taskList.cbegin(), taskList.cend(),
                          [](const Task &lhs, const Task &rhs) { return lhs.clist.size() < rhs.clist.size(); })
             ->clist.size();
@@ -44,9 +44,9 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
     d.devPtrs.resize_streams(largestChunkSize, ngmax);
 
     // number of CUDA streams to use
-    const int NST = DeviceParticlesData<T, Dataset>::NST;
+    constexpr int NST = DeviceParticlesData<T, Dataset>::NST;
 
-    const size_t ltsize = d.wh.size();
+    size_t ltsize = d.wh.size();
 
     cstone::Box<T> cstoneBox{d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax,
                              d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz};
@@ -68,23 +68,24 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
     {
         const auto &t = taskList[i];
 
-        const int sIdx = i % NST;
+        int sIdx = i % NST;
         cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
 
         int *d_clist_use = d.devPtrs.d_stream[sIdx].d_clist;
         int *d_neighbors_use = d.devPtrs.d_stream[sIdx].d_neighbors;
         int *d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
 
-        const size_t n = t.clist.size();
-        const size_t size_n_int = n * sizeof(int);
+        size_t n = t.clist.size();
+        size_t size_n_int = n * sizeof(int);
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, cudaMemcpyHostToDevice, stream));
 
-        const int threadsPerBlock = 256;
-        const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
+        constexpr int threadsPerBlock = 256;
+        int           blocksPerGrid   = (n + threadsPerBlock - 1) / threadsPerBlock;
 
         findNeighborsCuda(d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, t.clist[0], t.clist[n-1] + 1, np, cstoneBox,
                           d.devPtrs.d_codes, d_neighbors_use, d_neighborsCount_use, ngmax, stream);
+        CHECK_CUDA_ERR(cudaGetLastError())
 
         computeMomentumAndEnergyIAD<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
             n, d.sincIndex, d.K, ngmax, d.devPtrs.d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use, d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_vx, d.devPtrs.d_vy, d.devPtrs.d_vz, d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_ro,
