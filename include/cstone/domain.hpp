@@ -313,6 +313,9 @@ public:
     //! \brief return number of locally assigned particles
     [[nodiscard]] int nParticles() const { return endIndex() - startIndex(); }
 
+    //! \brief return number of locally assigned particles plus number of halos
+    [[nodiscard]] int nParticlesWithHalos() const { return localNParticles_; }
+
     //! \brief read only visibility of the octree to the outside
     const std::vector<I>& tree() const { return tree_; }
 
