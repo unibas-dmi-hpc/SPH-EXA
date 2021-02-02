@@ -17,11 +17,14 @@ CUDA_OBJS := $(BUILDDIR)/findneighbors.o $(BUILDDIR)/cudaDensity.o $(BUILDDIR)/c
 RELEASE := -DNDEBUG
 DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
 
+# cuda architecture targets
+SMS ?= 35 60 70 75 80 86
+$(foreach sm,$(SMS),$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
+
 INC += -Isrc -Iinclude -Idomain/include -I$(CUDA_PATH)/include
 CXXFLAGS += $(RELEASE)
-NVCCARCH := sm_35
-NVCCFLAGS := -std=c++14 --expt-relaxed-constexpr -rdc=true -arch=$(NVCCARCH) -g
-NVCCLDFLAGS := -arch=$(NVCCARCH) -rdc=true
+NVCCFLAGS := -std=c++14 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS) -g
+NVCCLDFLAGS := $(GENCODE_FLAGS) -rdc=true
 
 ifeq ($(ENV),gnu)
 	CXXFLAGS += -std=c++17 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native -g
