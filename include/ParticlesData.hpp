@@ -68,13 +68,22 @@ struct ParticlesDataSqPatch
     const static T K;
 };
 
-template <typename T>
+template <typename T, typename I = unsigned>
 struct ParticlesData
 {
+    using CodeType = I;
+
     inline void resize(const size_t size)
     {
         for (unsigned int i = 0; i < data.size(); ++i)
+        {
+            // call reserve to limit reallocation growth to 1% instead of 200%
+            data[i]->reserve(size * 1.01);
             data[i]->resize(size);
+        }
+
+        codes.reserve(size * 1.01);
+        codes.resize(size);
 
 #if defined(USE_CUDA)
         devPtrs.resize(size);
@@ -96,6 +105,8 @@ struct ParticlesData
     std::vector<T> dt, dt_m1;
     std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T> maxvsignal;
+
+    std::vector<CodeType> codes; // Particle Morton codes
 
     // For Sedov
     std::vector<T> mui, temp, cv;
@@ -133,16 +144,28 @@ struct ParticlesData
     const static T K;
 };
 
-template <typename T>
-const T ParticlesData<T>::K = sphexa::compute_3d_k(sincIndex);
+template <typename T, typename I>
+const T ParticlesData<T, I>::K = sphexa::compute_3d_k(sincIndex);
 
-template <typename T>
+template <typename T, typename I = unsigned>
 struct ParticlesDataEvrard
 {
+    using CodeType = I;
     inline void resize(const size_t size)
     {
         for (unsigned int i = 0; i < data.size(); ++i)
+        {
+            // call reserve to limit reallocation growth to 1% instead of 200%
+            data[i]->reserve(size * 1.01);
             data[i]->resize(size);
+        }
+
+        codes.reserve(size * 1.01);
+        codes.resize(size);
+
+#if defined(USE_CUDA)
+        devPtrs.resize(size);
+#endif
     }
 
     size_t iteration;                            // Current iteration
@@ -166,6 +189,8 @@ struct ParticlesDataEvrard
     std::vector<T> temp;              // Temperature
     std::vector<T> mue;               // Mean molecular weigh of electrons
     std::vector<T> mui;               // Mean molecular weight of ions
+
+    std::vector<CodeType> codes; // Particle Morton codes
 
     T ttot = 0.0, etot, ecin, eint, egrav = 0.0;
     T minDt, minDmy = 1e-4, minTmpDt;
@@ -204,7 +229,7 @@ struct ParticlesDataEvrard
     const static T K;
 };
 
-template <typename T>
-const T ParticlesDataEvrard<T>::K = sphexa::compute_3d_k(sincIndex);
+template <typename T, typename I>
+const T ParticlesDataEvrard<T, I>::K = sphexa::compute_3d_k(sincIndex);
 
 } // namespace sphexa

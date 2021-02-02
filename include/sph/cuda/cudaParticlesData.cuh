@@ -86,6 +86,8 @@ struct DeviceParticlesData
     BBox<T> *d_bbox;
     T *d_grad_P_x, *d_grad_P_y, *d_grad_P_z, *d_du, *d_maxvsignal;
 
+    typename ParticleData::CodeType  *d_codes;
+
     DeviceLinearOctree<T> d_o;
 
     size_t allocated_device_memory = 0, largerNeighborsChunk = 0, largerNChunk = 0;
@@ -103,6 +105,7 @@ struct DeviceParticlesData
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m, d_ro));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_codes))
             CHECK_CUDA_ERR(cudaGetLastError());
             allocated_device_memory = size;
         }
@@ -150,6 +153,7 @@ struct DeviceParticlesData
     {
         CHECK_CUDA_ERR(utils::cudaFree(d_bbox, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c, d_c11, d_c12, d_c13, d_c22,
                                            d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal, d_wh, d_whd));
+        CHECK_CUDA_ERR(utils::cudaFree(d_codes))
         CHECK_CUDA_ERR(cudaGetLastError());
 
         for (int i = 0; i < NST; ++i)
