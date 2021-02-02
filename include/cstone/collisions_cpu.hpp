@@ -58,7 +58,7 @@ std::vector<CollisionList> findAllCollisions(const std::vector<BinaryNode<I>>& i
     std::vector<CollisionList> collisions(tree.size() - 1);
 
     // (omp) parallel
-    for (int leafIdx = 0; leafIdx < internalTree.size(); ++leafIdx)
+    for (std::size_t leafIdx = 0; leafIdx < internalTree.size(); ++leafIdx)
     {
         T radius = haloRadii[leafIdx];
 

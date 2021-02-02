@@ -70,7 +70,7 @@ static std::vector<int> computeLocalNodeRanges(const std::vector<I>& tree,
 {
     std::vector<int> ret;
 
-    for (int rangeIndex = 0; rangeIndex < assignment.nRanges(rank); ++rangeIndex)
+    for (std::size_t rangeIndex = 0; rangeIndex < assignment.nRanges(rank); ++rangeIndex)
     {
         int firstNodeIndex  = std::lower_bound(begin(tree), end(tree),
                                                assignment.rangeStart(rank, rangeIndex)) - begin(tree);
@@ -124,7 +124,7 @@ static void computeLayoutOffsets(const std::vector<int>& localNodeRanges,
     std::copy(begin(haloNodes), end(haloNodes), std::back_inserter(presentNodes));
 
     // add all local nodes to presentNodes
-    for (int rangeIndex = 0; rangeIndex < localNodeRanges.size(); rangeIndex += 2)
+    for (std::size_t rangeIndex = 0; rangeIndex < localNodeRanges.size(); rangeIndex += 2)
     {
         int lower = localNodeRanges[rangeIndex];
         int upper = localNodeRanges[rangeIndex+1];
@@ -138,7 +138,7 @@ static void computeLayoutOffsets(const std::vector<int>& localNodeRanges,
     std::vector<int> nodeCounts(presentNodes.size());
 
     // extract particle count information for all nodes in nodeList
-    for (int i = 0; i < presentNodes.size(); ++i)
+    for (std::size_t i = 0; i < presentNodes.size(); ++i)
     {
         int globalNodeIndex = presentNodes[i];
         nodeCounts[i]       = globalNodeCounts[globalNodeIndex];
@@ -147,7 +147,7 @@ static void computeLayoutOffsets(const std::vector<int>& localNodeRanges,
     offsets.resize(presentNodes.size() + 1);
     {
         int offset = 0;
-        for (int i = 0; i < presentNodes.size(); ++i)
+        for (std::size_t i = 0; i < presentNodes.size(); ++i)
         {
             offsets[i] = offset;
             offset += nodeCounts[i];
@@ -178,7 +178,7 @@ static SendList createHaloExchangeList(const std::vector<std::vector<int>>& outg
 {
     SendList sendList(outgoingHaloNodes.size());
 
-    for (int rank = 0; rank < sendList.size(); ++rank)
+    for (std::size_t rank = 0; rank < sendList.size(); ++rank)
     {
         for (int globalNodeIndex : outgoingHaloNodes[rank])
         {

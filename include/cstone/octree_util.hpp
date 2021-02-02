@@ -110,10 +110,10 @@ public:
      * This function adds the Morton codes codeFromIndices({args..., i}) for i = 1...7
      * to the tree which corresponds to dividing the existing node codeFromIndices({args...});
      */
-    OctreeMaker& divide(std::array<int, maxTreeLevel<uint64_t>{}> idx, int level)
+    OctreeMaker& divide(std::array<int, maxTreeLevel<uint64_t>{}> idx, std::size_t level)
     {
         std::array<unsigned char, maxTreeLevel<uint64_t>{}> indices{};
-        for (int i = 0; i < idx.size(); ++i)
+        for (std::size_t i = 0; i < idx.size(); ++i)
             indices[i] = static_cast<unsigned char>(idx[i]);
 
         assert( std::find(begin(tree), end(tree), codeFromIndices<I>(indices))
@@ -123,7 +123,7 @@ public:
         assert( std::find(begin(tree), end(tree), codeFromIndices<I>(indices))
                 == end(tree) && "children of node to be divided already present in tree");
 
-        for (int sibling = 1; sibling < 8; ++sibling)
+        for (std::size_t sibling = 1; sibling < 8; ++sibling)
         {
             indices[level] = sibling;
             tree.push_back(codeFromIndices<I>(indices));

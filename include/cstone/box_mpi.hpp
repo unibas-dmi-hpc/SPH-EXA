@@ -36,6 +36,7 @@
 #include <mpi.h>
 
 #include <algorithm>
+#include <cassert>
 #include <cmath>
 
 #include "cstone/box.hpp"
@@ -49,12 +50,13 @@ namespace cstone
 template<class Iterator>
 auto globalMin(Iterator start, Iterator end)
 {
+    assert(end > start);
     using T = std::decay_t<decltype(*start)>;
 
     T minimum = INFINITY;
 
     #pragma omp parallel for reduction(min : minimum)
-    for (size_t pi = 0; pi < end-start; pi++)
+    for (size_t pi = 0; pi < std::size_t(end-start); pi++)
     {
         T value = start[pi];
         minimum = std::min(minimum, value);
@@ -69,12 +71,13 @@ auto globalMin(Iterator start, Iterator end)
 template<class Iterator>
 auto globalMax(Iterator start, Iterator end)
 {
+    assert(end > start);
     using T = std::decay_t<decltype(*start)>;
 
     T maximum = -INFINITY;
 
     #pragma omp parallel for reduction(max : maximum)
-    for (size_t pi = 0; pi < end-start; pi++)
+    for (size_t pi = 0; pi < std::size_t(end-start); pi++)
     {
         T value = start[pi];
         maximum = std::max(maximum, value);

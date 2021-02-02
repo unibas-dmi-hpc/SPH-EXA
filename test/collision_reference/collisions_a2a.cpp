@@ -55,7 +55,7 @@ void collide2all()
     findCollisions2All(tree, collisionList, haloBox);
 
     std::vector<I> collisions(collisionList.size());
-    for (int i = 0; i < collisions.size(); ++i)
+    for (std::size_t i = 0; i < collisions.size(); ++i)
         collisions[i] = tree[collisionList[i]];
 
     // list of octree leaf morton codes that should collide
@@ -96,7 +96,7 @@ void collideAll2all()
 
     // extract list of collisions for node with index 18, corresponding to {4}
     std::vector<I> n18coll(allCollisions[18].size());
-    for (int i = 0; i < n18coll.size(); ++i)
+    for (std::size_t i = 0; i < n18coll.size(); ++i)
         n18coll[i] = tree[allCollisions[18][i]];
 
     std::sort(begin(n18coll), end(n18coll));
@@ -146,7 +146,7 @@ void collideAll2allPbcX()
 
     // extract list of collisions for node with index 18, corresponding to {4}
     std::vector<I> n18coll(allCollisions[18].size());
-    for (int i = 0; i < n18coll.size(); ++i)
+    for (std::size_t i = 0; i < n18coll.size(); ++i)
         n18coll[i] = tree[allCollisions[18][i]];
 
     std::sort(begin(n18coll), end(n18coll));
@@ -201,7 +201,7 @@ void collideAll2allPbcXYZ()
 
     // extract list of collisions for node with index 18, corresponding to {4}
     std::vector<I> n18coll(allCollisions[18].size());
-    for (int i = 0; i < n18coll.size(); ++i)
+    for (std::size_t i = 0; i < n18coll.size(); ++i)
         n18coll[i] = tree[allCollisions[18][i]];
 
     std::sort(begin(n18coll), end(n18coll));

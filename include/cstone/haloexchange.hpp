@@ -50,7 +50,7 @@ void haloexchange(const SendList& incomingHalos,
     std::vector<std::vector<T>> sendBuffers;
     std::vector<MPI_Request>    sendRequests;
 
-    for (int destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
+    for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
     {
         int sendCount = outgoingHalos[destinationRank].totalCount();
         if (sendCount == 0)
@@ -60,7 +60,7 @@ void haloexchange(const SendList& incomingHalos,
         for (int arrayIndex = 0; arrayIndex < nArrays; ++arrayIndex)
         {
             int outputOffset = sendCount * arrayIndex;
-            for (int rangeIdx = 0; rangeIdx < outgoingHalos[destinationRank].nRanges(); ++rangeIdx)
+            for (std::size_t rangeIdx = 0; rangeIdx < outgoingHalos[destinationRank].nRanges(); ++rangeIdx)
             {
                 int lowerIndex = outgoingHalos[destinationRank].rangeStart(rangeIdx);
                 int upperIndex = outgoingHalos[destinationRank].rangeEnd(rangeIdx);
@@ -77,7 +77,7 @@ void haloexchange(const SendList& incomingHalos,
 
     int nMessages = 0;
     int maxReceiveSize = 0;
-    for (int sourceRank = 0; sourceRank < incomingHalos.size(); ++sourceRank)
+    for (std::size_t sourceRank = 0; sourceRank < incomingHalos.size(); ++sourceRank)
         if (incomingHalos[sourceRank].totalCount() > 0)
         {
             nMessages++;
@@ -96,7 +96,7 @@ void haloexchange(const SendList& incomingHalos,
         for (int arrayIndex = 0; arrayIndex < nArrays; ++arrayIndex)
         {
             int inputOffset = countPerArray * arrayIndex;
-            for (int rangeIdx = 0; rangeIdx < incomingHalos[receiveRank].nRanges(); ++rangeIdx)
+            for (std::size_t rangeIdx = 0; rangeIdx < incomingHalos[receiveRank].nRanges(); ++rangeIdx)
             {
                 int offset = incomingHalos[receiveRank].rangeStart(rangeIdx);
                 int count  = incomingHalos[receiveRank].count(rangeIdx);

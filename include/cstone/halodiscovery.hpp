@@ -77,7 +77,7 @@ void findHalos(const std::vector<I>&           tree,
     std::vector<BinaryNode<I>> internalTree = createInternalTree(tree);
 
     // go through all ranges assigned to rank
-    for (int range = 0; range < assignment.nRanges(rank); ++range)
+    for (std::size_t range = 0; range < assignment.nRanges(rank); ++range)
     {
         int firstNode = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeStart(rank, range)) - begin(tree);
         int lastNode  = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeEnd(rank, range)) - begin(tree);
@@ -110,7 +110,7 @@ void findHalos(const std::vector<I>&           tree,
 
                 // Go through all colliding nodes to determine which of them fall into a part of the SFC
                 // that is not assigned to the executing rank. These nodes will be marked as halos.
-                for (int i = 0; i < collisions.size(); ++i)
+                for (std::size_t i = 0; i < collisions.size(); ++i)
                 {
                     int collidingNodeIdx = collisions[i];
 
@@ -118,7 +118,7 @@ void findHalos(const std::vector<I>&           tree,
                     I collidingNodeEnd = tree[collidingNodeIdx + 1];
 
                     bool isHalo = false;
-                    for (int a = 0; a < assignment.nRanges(rank); ++a)
+                    for (std::size_t a = 0; a < assignment.nRanges(rank); ++a)
                     {
                         I assignmentStart = assignment.rangeStart(rank, a);
                         I assignmentEnd = assignment.rangeEnd(rank, a);

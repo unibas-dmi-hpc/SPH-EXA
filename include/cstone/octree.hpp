@@ -133,7 +133,7 @@ void computeNodeCounts(const I* tree, std::size_t* counts, int nNodes, const I* 
  */
 template<class I>
 std::vector<I> rebalanceTree(const I* tree, const std::size_t* counts, int nNodes,
-                             int bucketSize, bool* converged = nullptr)
+                             unsigned bucketSize, bool* converged = nullptr)
 {
     std::vector<I> balancedTree;
     balancedTree.reserve(nNodes + 1);
@@ -150,7 +150,7 @@ std::vector<I> rebalanceTree(const I* tree, const std::size_t* counts, int nNode
         if (counts[i] > bucketSize && level < maxTreeLevel<I>{})
         {
             // split
-            for (int sibling = 0; sibling < 8; ++sibling)
+            for (std::size_t sibling = 0; sibling < 8; ++sibling)
             {
                 balancedTree.push_back(thisNode + sibling * nodeRange<I>(level + 1));
             }
@@ -223,7 +223,7 @@ std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
  */
 template<class I, class Reduce = void>
 std::tuple<std::vector<I>, std::vector<std::size_t>>
-computeOctree(const I* codesStart, const I* codesEnd, int bucketSize, std::vector<I>&& tree = std::vector<I>(0))
+computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize, std::vector<I>&& tree = std::vector<I>(0))
 {
     if (!tree.size())
     {

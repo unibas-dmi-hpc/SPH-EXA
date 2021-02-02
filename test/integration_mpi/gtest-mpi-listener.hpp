@@ -90,7 +90,7 @@ class MPIEnvironment : public ::testing::Environment {
 
  private:
   // Disallow copying
-  MPIEnvironment(const MPIEnvironment& env) {}
+  MPIEnvironment([[maybe_unused]] const MPIEnvironment& env) {}
 
 }; // class MPIEnvironment
 

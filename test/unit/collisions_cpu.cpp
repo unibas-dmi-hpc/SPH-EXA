@@ -63,7 +63,7 @@ void generalCollisionTest(const std::vector<I>& tree, const std::vector<T>& halo
     // naive all-to-all algorithm
     std::vector<CollisionList> refCollisions = findCollisionsAll2all(tree, haloRadii, box);
 
-    for (int nodeIndex = 0; nodeIndex < nNodes(tree); ++nodeIndex)
+    for (std::size_t nodeIndex = 0; nodeIndex < nNodes(tree); ++nodeIndex)
     {
         std::vector<int> c{collisions[nodeIndex].begin(), collisions[nodeIndex].end()};
         std::vector<int> ref{refCollisions[nodeIndex].begin(), refCollisions[nodeIndex].end()};
@@ -229,7 +229,7 @@ TEST(Collisions, adjacentEdgeRegression)
     std::vector<int> allNodes(nNodes(tree));
     std::iota(begin(allNodes), end(allNodes), 0);
 
-    for (int i = 0; i < nNodes(tree); ++i)
+    for (std::size_t i = 0; i < nNodes(tree); ++i)
     {
         IBox haloBox = makeHaloBox(tree[i], tree[i+1], haloRadii[i], box);
         CollisionList collisions;

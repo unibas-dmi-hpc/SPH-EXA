@@ -63,13 +63,13 @@ public:
      * Can (should) also be used to check whether the internal storage
      * was exhausted during collision detection.
      */
-    [[nodiscard]] int size() const { return n_; };
+    [[nodiscard]] std::size_t size() const { return n_; };
 
     [[nodiscard]] bool exhausted() const { return n_ == collisionMax-1; }
 
 private:
     static constexpr int collisionMax = 512;
-    int n_{0};
+    std::size_t n_{0};
     int list_[collisionMax]{0};
 };
 
