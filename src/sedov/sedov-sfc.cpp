@@ -4,7 +4,9 @@
 #include <vector>
 
 // hard code MPI for now
+#ifndef USE_MPI
 #define USE_MPI
+#endif
 
 #include "cstone/domain.hpp"
 
