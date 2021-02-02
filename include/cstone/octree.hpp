@@ -55,6 +55,7 @@
 #include <cmath>
 #include <numeric>
 #include <vector>
+#include <tuple>
 
 #include "cstone/mortoncode.hpp"
 
