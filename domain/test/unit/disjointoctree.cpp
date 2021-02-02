@@ -306,7 +306,7 @@ public:
         std::cout << "number of nodes: " << trimmedZCurve.size() << std::endl;
 
         // check that nodes don't overlap
-        for (int ni = 0; ni + 1 < trimmedZCurve.size(); ++ni)
+        for (std::size_t ni = 0; ni + 1 < trimmedZCurve.size(); ++ni)
         {
             EXPECT_TRUE(trimmedZCurve[ni].endCode <= trimmedZCurve[ni + 1].startCode);
         }
@@ -314,7 +314,7 @@ public:
         // check that referenced particles are within specified range
         for (const auto &node : trimmedZCurve)
         {
-            for (int i = node.coordinateIndex; i < node.coordinateIndex + node.count; ++i)
+            for (unsigned i = node.coordinateIndex; i < node.coordinateIndex + node.count; ++i)
             {
                 CodeType iCode = randomBox.mortonCodes()[i];
                 EXPECT_TRUE(node.startCode <= iCode);

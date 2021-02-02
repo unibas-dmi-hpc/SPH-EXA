@@ -164,10 +164,10 @@ void octreeMakerMaxLevel()
     std::vector<CodeType> refTree{0};
     {
         std::array<unsigned char, maxTreeLevel<uint64_t>{}> zeroIndices{0};
-        for (int level = 0; level < maxTreeLevel<CodeType>{}; ++level)
+        for (std::size_t level = 0; level < maxTreeLevel<CodeType>{}; ++level)
         {
             auto indices = zeroIndices;
-            for (int sibling = 1; sibling < 8; ++sibling)
+            for (std::size_t sibling = 1; sibling < 8; ++sibling)
             {
                 indices[level] = sibling;
                 refTree.push_back(codeFromIndices<CodeType>(indices));
@@ -180,7 +180,7 @@ void octreeMakerMaxLevel()
     EXPECT_TRUE(checkOctreeInvariants(refTree.data(), nNodes(refTree)));
 
     OctreeMaker<CodeType> octreeMaker;
-    for (int level = 0; level < maxTreeLevel<I>{}; ++level)
+    for (std::size_t level = 0; level < maxTreeLevel<I>{}; ++level)
         octreeMaker.divide({}, level);
 
     std::vector<CodeType> tree = octreeMaker.makeTree();

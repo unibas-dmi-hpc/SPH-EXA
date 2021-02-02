@@ -230,7 +230,7 @@ void assignSendRandomData()
 
     int particleRecount = 0;
     for (auto& manifest : sendList)
-        for (int rangeIndex = 0; rangeIndex < manifest.nRanges(); ++rangeIndex)
+        for (std::size_t rangeIndex = 0; rangeIndex < manifest.nRanges(); ++rangeIndex)
             particleRecount += manifest.rangeEnd(rangeIndex) - manifest.rangeStart(rangeIndex);
 
     /// make sure that all particles present on the node got assigned to some rank

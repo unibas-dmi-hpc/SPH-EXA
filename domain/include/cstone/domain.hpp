@@ -262,7 +262,7 @@ public:
         // are received in arbitrary order.
         {
             std::array<std::vector<T>*, 4 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &h, &particleProperties...};
-            for (int i = 0; i < particleArrays.size(); ++i)
+            for (std::size_t i = 0; i < particleArrays.size(); ++i)
             {
                 reorder(mortonOrder, *particleArrays[i], particleStart_) ;
             }
@@ -334,6 +334,7 @@ private:
 
     int myRank_;
     int nRanks_;
+    int bucketSize_;
 
     /*! \brief array index of first local particle belonging to the assignment
      *  i.e. the index of the first particle that belongs to this rank and is not a halo.
@@ -350,7 +351,6 @@ private:
     SendList incomingHaloIndices_;
     SendList outgoingHaloIndices_;
 
-    int bucketSize_;
     std::vector<I> tree_;
 };
 

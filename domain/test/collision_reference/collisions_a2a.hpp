@@ -66,7 +66,7 @@ std::vector<CollisionList> findCollisionsAll2all(const std::vector<I>& tree, con
 {
     std::vector<CollisionList> collisions(tree.size() - 1);
 
-    for (int leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
+    for (std::size_t leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
     {
         T radius = haloRadii[leafIdx];
 

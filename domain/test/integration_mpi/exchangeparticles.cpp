@@ -236,7 +236,7 @@ void exchangeCyclicNeighborsOffsets(int thisRank, int nRanks)
     EXPECT_EQ(x.size(), finalSize);
     EXPECT_EQ(y.size(), finalSize);
 
-    for (int i = 0; i < refX.size(); ++i)
+    for (std::size_t i = 0; i < refX.size(); ++i)
     {
         EXPECT_EQ(refX[i], x[i+outputOffset]);
         EXPECT_EQ(refY[i], y[i+outputOffset]);

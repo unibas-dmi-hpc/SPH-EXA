@@ -108,7 +108,7 @@ void randomGaussianDomain(int rank, int nRanks)
 
     std::vector<T> hGlobal(nParticles, smoothingLength);
 
-    for (int i = 0; i < hGlobal.size(); ++i)
+    for (std::size_t i = 0; i < hGlobal.size(); ++i)
     {
         hGlobal[i] = smoothingLength * (0.2 + 30*(xGlobal[i] * xGlobal[i] + yGlobal[i] * yGlobal[i] + zGlobal[i] * zGlobal[i]));
     }
@@ -144,7 +144,7 @@ void randomGaussianDomain(int rank, int nRanks)
 
     // check that particles are Morton order sorted and the codes are in sync with the x,y,z arrays
     EXPECT_EQ(mortonCodes, codes);
-    for (int i = 0; i < mortonCodes.size()-1; ++i)
+    for (std::size_t i = 0; i < mortonCodes.size()-1; ++i)
     {
         EXPECT_TRUE(mortonCodes[i] <= mortonCodes[i+1]);
     }
