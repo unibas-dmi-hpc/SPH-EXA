@@ -69,8 +69,11 @@ struct DeviceLinearOctree
 };
 
 template <typename T, class ParticleData>
-struct DeviceParticlesData
+class DeviceParticlesData
 {
+    size_t allocated_device_memory = 0, largerNeighborsChunk = 0, largerNChunk = 0;
+
+public:
     // number of CUDA streams to use
     static constexpr int NST = 2;
 
@@ -86,20 +89,24 @@ struct DeviceParticlesData
     BBox<T> *d_bbox;
     T *d_grad_P_x, *d_grad_P_y, *d_grad_P_z, *d_du, *d_maxvsignal;
 
-    typename ParticleData::CodeType  *d_codes;
+    typename ParticleData::CodeType *d_codes;
 
-    DeviceLinearOctree<T> d_o;
 
-    size_t allocated_device_memory = 0, largerNeighborsChunk = 0, largerNChunk = 0;
-
-    void resize(const size_t size)
+    void resize(size_t size)
     {
         if (size > allocated_device_memory)
         {
-            // We should only reallocated when the new count is less than the already allocated_device_memory
-            // TODO: I'am not freeing the old memory:
-            //          I should either implement a realloc in cuda (efficient but might keep allocated memory in gpu with no need if pd.count <<< allocated_device_memory)
-            //          Or I should free/malloc each time this is called (inefficient but scalable)
+            // TODO: Investigate benefits of low-level reallocate
+            if (allocated_device_memory)
+            {
+                CHECK_CUDA_ERR(utils::cudaFree(d_x, d_y, d_z, d_h, d_m, d_ro));
+                CHECK_CUDA_ERR(utils::cudaFree(d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
+                CHECK_CUDA_ERR(utils::cudaFree(d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal));
+                CHECK_CUDA_ERR(utils::cudaFree(d_codes))
+            }
+
+            size *= 1.05; // allocate 5% extra to avoid reallocation on small size increase
+
             size_t size_np_T        = size * sizeof(T);
             size_t size_np_CodeType = size * sizeof(typename ParticleData::CodeType);
 
