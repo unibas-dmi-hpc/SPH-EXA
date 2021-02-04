@@ -102,14 +102,13 @@ public:
                 CHECK_CUDA_ERR(utils::cudaFree(d_x, d_y, d_z, d_h, d_m, d_ro));
                 CHECK_CUDA_ERR(utils::cudaFree(d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
                 CHECK_CUDA_ERR(utils::cudaFree(d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal));
-
-                CHECK_CUDA_ERR(utils::cudaFree(d_codes))
+                // CHECK_CUDA_ERR(utils::cudaFree(d_codes));
             }
 
             size *= 1.05; // allocate 5% extra to avoid reallocation on small size increase
 
             size_t size_np_T        = size * sizeof(T);
-            size_t size_np_CodeType = size * sizeof(typename ParticleData::CodeType);
+            // size_t size_np_CodeType = size * sizeof(typename ParticleData::CodeType);
 
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m, d_ro));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
