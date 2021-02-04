@@ -13,9 +13,9 @@
 
 namespace sphexa
 {
-    
+
 template <typename T>
-struct ParticlesDataEvrard
+struct GravityParticlesData
 {
     inline void resize(const size_t size)
     {
@@ -83,6 +83,6 @@ struct ParticlesDataEvrard
 };
 
 template <typename T>
-const T ParticlesDataEvrard<T>::K = sphexa::compute_3d_k(sincIndex);
+const T GravityParticlesData<T>::K = sphexa::compute_3d_k(sincIndex);
 
 } // namespace sphexa

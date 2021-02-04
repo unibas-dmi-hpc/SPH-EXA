@@ -23,7 +23,8 @@ NVCCFLAGS := -std=c++14 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS) -Wno
 NVCCLDFLAGS := $(GENCODE_FLAGS) -rdc=true
 
 ifeq ($(ENV),gnu)
-	CXXFLAGS += -std=c++17 -O0 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native -g
+	#CXXFLAGS += -std=c++17 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native -g
+	CXXFLAGS += -std=c++17 -O0 -Wall -Wextra -fopenacc -march=native -mtune=native -g
 endif
 
 ifeq ($(ENV),pgi)
