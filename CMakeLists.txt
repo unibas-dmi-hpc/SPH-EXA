@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.17)
 
 project(cornerstone-octree CXX)
 set(CMAKE_CXX_STANDARD 17)
@@ -10,7 +10,7 @@ find_package(OpenMP REQUIRED)
 include(CTest)
 include(CheckLanguage)
 
-if(CMAKE_CUDA_COMPILER)
+if(CUDAToolkit_FOUND)
     enable_language(CUDA)
     add_subdirectory(include)
 else()
