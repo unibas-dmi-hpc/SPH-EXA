@@ -42,6 +42,11 @@ template<class T, class I>
 class DeviceMemory
 {
 public:
+    template<class TD>
+    using DeviceIterator = typename thrust::device_vector<TD>::iterator;
+    template<class TD>
+    using DeviceConstIterator = typename thrust::device_vector<TD>::const_iterator;
+
     DeviceMemory(const I* map_first, const I* map_last)
         : d_ordering_(typename std::vector<I>::const_iterator(map_first),
                       typename std::vector<I>::const_iterator(map_last)),
@@ -49,6 +54,12 @@ public:
           d_destination_(map_last - map_first)
     {}
 
+    DeviceConstIterator<I> ordering() const { return d_ordering_.begin(); }
+
+    DeviceIterator<T> source()      { return d_source_.begin(); }
+    DeviceIterator<T> destination() { return d_destination_.begin(); }
+
+private:
     thrust::device_vector<I> d_ordering_;
     thrust::device_vector<T> d_source_;
     thrust::device_vector<T> d_destination_;
@@ -62,6 +73,7 @@ DeviceGather<T, I>::DeviceGather()
 template<class T, class I>
 void DeviceGather<T, I>::setReorderMap(const I* map_first, const I* map_last)
 {
+    mapSize_      = map_last - map_first;
     deviceMemory_ = std::make_unique<DeviceMemory<T, I>>(map_first, map_last);
 }
 
@@ -71,11 +83,15 @@ DeviceGather<T, I>::~DeviceGather() {}
 template<class T, class I>
 void DeviceGather<T, I>::operator()(T* values)
 {
-    thrust::copy(values, values + deviceMemory_->d_ordering_.size(), deviceMemory_->d_source_.begin());
-    thrust::gather(thrust::device, deviceMemory_->d_ordering_.begin(), deviceMemory_->d_ordering_.end(),
-                   deviceMemory_->d_source_.begin(), deviceMemory_->d_destination_.begin());
+    // upload to device
+    thrust::copy(values, values + mapSize_, deviceMemory_->source());
 
-    thrust::copy(deviceMemory_->d_destination_.begin(), deviceMemory_->d_destination_.end(), values);
+    // reorder on device
+    thrust::gather(thrust::device, deviceMemory_->ordering(), deviceMemory_->ordering() + mapSize_,
+                   deviceMemory_->source(), deviceMemory_->destination());
+
+    // download to host
+    thrust::copy(deviceMemory_->destination(), deviceMemory_->destination() + mapSize_, values);
 }
 
 template class DeviceGather<float,  unsigned>;
