@@ -35,6 +35,8 @@
 #include <random>
 #include <vector>
 
+#include <cuda_runtime.h>
+
 #include "cstone/cuda/gather.cuh"
 
 template<class I>
@@ -71,7 +73,10 @@ void check()
 
     DeviceGather<T, I> devGather;
     devGather.setReorderMap(map.data(), map.data() + map.size());
-    devGather(values.data());
+    //devGather(values.data());
+    devGather.stage(values.data());
+    devGather.gatherStaged();
+    devGather.unstage(values.data());
 
     std::vector<T> reference{0,2,4,6,8,1,3,5,7,9};
 
@@ -112,9 +117,13 @@ int main()
     DeviceGather<T, I> devGather;
     devGather.setReorderMap(map.data(), map.data() + map.size());
 
+    devGather.stage(values.data());
+
     auto tgpu0 = std::chrono::high_resolution_clock::now();
-    devGather(values.data());
+    devGather.gatherStaged();
     auto tgpu1 = std::chrono::high_resolution_clock::now();
+
+    devGather.unstage(values.data());
 
     std::cout << "gpu gather Melements/s: " << T(nElements)/(1e6*std::chrono::duration<double>(tgpu1 - tgpu0).count()) << std::endl;
 }
