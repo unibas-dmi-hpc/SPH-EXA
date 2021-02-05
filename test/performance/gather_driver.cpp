@@ -69,8 +69,9 @@ void check()
     std::vector<I> map{0,2,4,6,8,1,3,5,7,9};
     std::vector<T> values{0,1,2,3,4,5,6,7,8,9};
 
-    DeviceGather<T, I> dg(map.data(), map.data() + map.size());
-    dg.gather(values.data());
+    DeviceGather<T, I> devGather;
+    devGather.setReorderMap(map.data(), map.data() + map.size());
+    devGather(values.data());
 
     std::vector<T> reference{0,2,4,6,8,1,3,5,7,9};
 
@@ -108,10 +109,11 @@ int main()
 
     std::cout << "cpu gather Melements/s: " << T(nElements)/(1e6 * std::chrono::duration<double>(tcpu1 - tcpu0).count()) << std::endl;
 
-    DeviceGather<T, I> dg(map.data(), map.data() + map.size());
+    DeviceGather<T, I> devGather;
+    devGather.setReorderMap(map.data(), map.data() + map.size());
 
     auto tgpu0 = std::chrono::high_resolution_clock::now();
-    dg.gather(values.data());
+    devGather(values.data());
     auto tgpu1 = std::chrono::high_resolution_clock::now();
 
     std::cout << "gpu gather Melements/s: " << T(nElements)/(1e6*std::chrono::duration<double>(tgpu1 - tgpu0).count()) << std::endl;

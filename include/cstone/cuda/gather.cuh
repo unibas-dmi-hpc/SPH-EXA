@@ -30,21 +30,39 @@
  */
 
 #include <cstdint>
+#include <memory>
 
-#include <thrust/device_vector.h>
 
+template<class T, class I> class DeviceMemory;
+
+/*! \brief A stateful functor for reordering arrays on the gpu
+ * 
+ * Holds on to the reorder map and device buffers for reuse on multiple input arrays
+ */
 template<class T, class I>
 class DeviceGather
 {
 public:
-    DeviceGather(const I* map_first, const I* map_last);
+    DeviceGather();
 
-    void gather(T* values);
+    ~DeviceGather();
+
+    /*! \brief upload the new reorder map to the device and reallocates buffers if necessary
+     *
+     * If the sequence [map_first:map_last] does not contain each element [0:map_last-map_first]
+     * exactly once, the behavior is undefined.
+     */
+    void setReorderMap(const I* map_first, const I* map_last); 
+
+    /*! \brief reorder the array \a values according to the reorder map provided previously
+     *
+     * \a values must have at least as many elements as the reorder map provided in the last call
+     * to setReorderMap, otherwise the behavior is undefined. 
+     */
+    void operator()(T* values);
 
 private:
-    thrust::device_vector<I> d_ordering_;
-    thrust::device_vector<T> d_source_;
-    thrust::device_vector<T> d_destination_;
+    std::unique_ptr<DeviceMemory<T, I>> deviceMemory_;
 };
 
 extern template class DeviceGather<float,  unsigned>;
