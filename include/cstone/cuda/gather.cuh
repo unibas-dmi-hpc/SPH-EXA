@@ -24,19 +24,14 @@
  */
 
 /*! \file
- * \brief  Exposes gather functionality to reorder arrays by a map
+ * \brief  Exposes gather functionality to reorder arrays with a map
  *
  * \author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include <cstdint>
+
 #include <thrust/device_vector.h>
-
-template<class T, class I>
-void thrustGather(const I* map_first, const I* map_last, T* values);
-
-#define THRUST_GATHER_SIGNATURE(T, I) void thrustGather(const I*, const I*, T*)
-
-extern template THRUST_GATHER_SIGNATURE(double, unsigned);
 
 template<class T, class I>
 class DeviceGather
@@ -52,5 +47,8 @@ private:
     thrust::device_vector<T> d_destination_;
 };
 
+extern template class DeviceGather<float,  unsigned>;
+extern template class DeviceGather<float,  uint64_t>;
 extern template class DeviceGather<double, unsigned>;
+extern template class DeviceGather<double, uint64_t>;
 

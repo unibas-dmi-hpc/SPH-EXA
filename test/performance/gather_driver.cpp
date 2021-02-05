@@ -32,7 +32,6 @@
 #include <algorithm>
 #include <chrono>
 #include <iostream>
-#include <iterator>
 #include <random>
 #include <vector>
 
@@ -53,7 +52,8 @@ template<class T, class I>
 void cpuGather(const std::vector<I>& map, std::vector<T>& values)
 {
     std::vector<T> tmp(values.size());
-#pragma omp parallel for schedule(static)
+
+    #pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < map.size(); ++i)
         tmp[i] = values[map[i]];
 
@@ -72,9 +72,22 @@ void check()
     DeviceGather<T, I> dg(map.data(), map.data() + map.size());
     dg.gather(values.data());
 
-    for (auto v : values)
-        std::cout << v << " ";
-    std::cout << std::endl;
+    std::vector<T> reference{0,2,4,6,8,1,3,5,7,9};
+
+    if (reference == values)
+        std::cout << "gather check: PASS\n";
+    else
+    {
+        std::cout << "gather check: fail\n";
+
+        std::cout << "expected: ";
+        for (auto v : reference) std::cout << v << " ";
+        std::cout << std::endl;
+
+        std::cout << "actual: ";
+        for (auto v : values) std::cout << v << " ";
+        std::cout << std::endl;
+    }
 }
 
 int main()
@@ -100,5 +113,6 @@ int main()
     auto tgpu0 = std::chrono::high_resolution_clock::now();
     dg.gather(values.data());
     auto tgpu1 = std::chrono::high_resolution_clock::now();
+
     std::cout << "gpu gather Melements/s: " << T(nElements)/(1e6*std::chrono::duration<double>(tgpu1 - tgpu0).count()) << std::endl;
 }

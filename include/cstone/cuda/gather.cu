@@ -31,7 +31,6 @@
 
 #include <vector>
 
-#include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 #include <thrust/copy.h>
 #include <thrust/gather.h>
@@ -39,27 +38,6 @@
 
 #include "gather.cuh"
 
-template<class T, class I>
-void thrustGather(const I* map_first, const I* map_last, T* values)
-{
-    std::cout << "thrust gather" << std::endl;
-    std::size_t nElements = map_last - map_first;
-    auto i1 = typename std::vector<I>::const_iterator(map_first);
-    auto i2 = typename std::vector<I>::const_iterator(map_last);
-
-
-    thrust::device_vector<I> d_map(i1, i2);
-    //thrust::host_vector<I> h_map(map_first, map_last);
-    //thrust::device_vector<I> d_map = h_map;
-
-    thrust::device_vector<T> d_source(values, values + nElements);
-    thrust::device_vector<T> d_destination(nElements);
-    thrust::gather(thrust::device, d_map.begin(), d_map.end(), d_source.begin(), d_destination.begin());
-
-    thrust::copy(d_destination.begin(), d_destination.end(), values);
-}
-
-template THRUST_GATHER_SIGNATURE(double, unsigned);
 
 template<class T, class I>
 DeviceGather<T, I>::DeviceGather(const I* map_first, const I* map_last)
@@ -79,4 +57,7 @@ void DeviceGather<T, I>::gather(T* values)
     thrust::copy(d_destination_.begin(), d_destination_.end(), values);
 }
 
+template class DeviceGather<float,  unsigned>;
+template class DeviceGather<float,  uint64_t>;
 template class DeviceGather<double, unsigned>;
+template class DeviceGather<double, uint64_t>;
