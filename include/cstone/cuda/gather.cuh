@@ -62,6 +62,7 @@ public:
     void operator()(T* values);
 
 private:
+    std::size_t mapSize_{0};
     std::unique_ptr<DeviceMemory<T, I>> deviceMemory_;
 };
 
