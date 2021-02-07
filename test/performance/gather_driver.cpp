@@ -138,9 +138,9 @@ void multiArrayCheck(int nElements)
     std::cout << "cpu gather Melements/s: " << arrays.size() * T(nElements)/(1e6 * std::chrono::duration<double>(tcpu1 - tcpu0).count()) << std::endl;
 
     if (pass)
-        std::cout << "multi array gather check: PASS";
+        std::cout << "multi array gather check: PASS\n";
     else
-        std::cout << "multi array gather check: FAIL";
+        std::cout << "multi array gather check: FAIL\n";
 }
 
 template<class T, class I>
@@ -174,7 +174,7 @@ int main()
     using T = double;
     using I = unsigned;
 
-    int nElements = 3200000;
+    int nElements = 32000000;
 
     check();
 
