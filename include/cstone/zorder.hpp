@@ -61,13 +61,13 @@ void sort_invert(InputIterator inBegin, InputIterator inEnd, OutputIterator outB
     std::size_t n   = std::distance(inBegin, inEnd);
 
     // create index sequence 0,1,2,...,n
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < n; ++i)
         outBegin[i] = i;
 
     // zip the input integer array together with the index sequence
     std::vector<std::tuple<ValueType, Integer>> keyIndexPairs(n);
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < n; ++i)
         keyIndexPairs[i] = std::make_tuple(inBegin[i], outBegin[i]);
 
@@ -76,7 +76,7 @@ void sort_invert(InputIterator inBegin, InputIterator inEnd, OutputIterator outB
               [](const auto& t1, const auto& t2){ return std::get<0>(t1) < std::get<0>(t2); });
 
     // extract the resulting ordering
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < n; ++i)
         outBegin[i] = std::get<1>(keyIndexPairs[i]);
 }
@@ -119,10 +119,12 @@ void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array)
     assert(array.size() >= ordering.size());
 
     std::vector<ValueType> tmp(array.size());
+    #pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < ordering.size(); ++i)
     {
         tmp[i] = array[ordering[i]];
     }
+    #pragma omp parallel for schedule(static)
     for (std::size_t i = ordering.size(); i < array.size(); ++i)
     {
         tmp[i] = array[i];
@@ -146,16 +148,19 @@ void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array, int 
 
     std::vector<ValueType> tmp(array.size());
 
+    #pragma omp parallel for schedule(static)
     for (int i = 0; i < offset; ++i)
     {
         tmp[i] = array[i];
     }
 
+    #pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < ordering.size(); ++i)
     {
         tmp[i+offset] = array[ordering[i]+offset];
     }
 
+    #pragma omp parallel for schedule(static)
     for (size_t i = ordering.size()+offset; i < array.size(); ++i)
     {
         tmp[i] = array[i];
