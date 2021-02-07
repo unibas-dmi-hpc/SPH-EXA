@@ -96,15 +96,56 @@ void check()
     }
 }
 
-int main()
+template<class T, class I>
+void multiArrayCheck(int nElements)
 {
-    using I = unsigned;
-    using T = double;
+    std::vector<I> map = makeRandomPermutation<I>(nElements);
+    std::vector<T> v1(nElements);
+    std::vector<T> v2(nElements);
+    std::vector<T> v3(nElements);
+    std::vector<T> v4(nElements);
 
-    check();
+    std::iota(begin(v1), end(v1), 0);
+    std::iota(begin(v2), end(v2), 0);
+    std::iota(begin(v3), end(v3), 0);
+    std::iota(begin(v4), end(v4), 0);
 
-    int nElements = 32000000;
+    std::vector<T> hv1 = v1;
+    std::vector<T> hv2 = v2;
+    std::vector<T> hv3 = v3;
+    std::vector<T> hv4 = v4;
 
+    std::array<T*, 4> arrays{v1.data(), v2.data(), v3.data(), v4.data()};
+
+    DeviceGather<T, I> devGather;
+    devGather.setReorderMap(map.data(), map.data() + map.size());
+
+    auto tgpu0 = std::chrono::high_resolution_clock::now();
+    devGather.reorderArrays(arrays.data(), arrays.size());
+    auto tgpu1 = std::chrono::high_resolution_clock::now();
+
+    std::cout << "gpu gather Melements/s: " << arrays.size() * T(nElements)/(1e6*std::chrono::duration<double>(tgpu1 - tgpu0).count()) << std::endl;
+
+    auto tcpu0 = std::chrono::high_resolution_clock::now();
+    cpuGather(map, hv1);
+    cpuGather(map, hv2);
+    cpuGather(map, hv3);
+    cpuGather(map, hv4);
+    auto tcpu1 = std::chrono::high_resolution_clock::now();
+
+    bool pass = v1 == hv1 && v2 == hv2 && v3 == hv3 && v4 == hv4;
+
+    std::cout << "cpu gather Melements/s: " << arrays.size() * T(nElements)/(1e6 * std::chrono::duration<double>(tcpu1 - tcpu0).count()) << std::endl;
+
+    if (pass)
+        std::cout << "multi array gather check: PASS";
+    else
+        std::cout << "multi array gather check: FAIL";
+}
+
+template<class T, class I>
+void singleArrayCheck(int nElements)
+{
     std::vector<I> map = makeRandomPermutation<I>(nElements);
     std::vector<T> values(nElements);
 
@@ -126,4 +167,17 @@ int main()
     devGather.unstage(values.data());
 
     std::cout << "gpu gather Melements/s: " << T(nElements)/(1e6*std::chrono::duration<double>(tgpu1 - tgpu0).count()) << std::endl;
+}
+
+int main()
+{
+    using T = double;
+    using I = unsigned;
+
+    int nElements = 3200000;
+
+    check();
+
+    //singleArrayCheck<T, I>(nElements);
+    multiArrayCheck<T, I>(nElements);
 }
