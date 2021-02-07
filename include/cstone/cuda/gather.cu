@@ -80,7 +80,7 @@ public:
 
     I* ordering() { return d_ordering_; }
 
-    T* deviceBuffer(int i)      { return d_buffer_[i]; }
+    T* deviceBuffer(int i) { return d_buffer_[i]; }
 
 private:
     std::size_t allocatedSize_{0} ;
@@ -105,6 +105,40 @@ void DeviceGather<T, I>::setReorderMap(const I* map_first, const I* map_last)
     cudaMemcpy(deviceMemory_->ordering(), map_first, mapSize_ * sizeof(I), cudaMemcpyHostToDevice);
 }
 
+template<class I>
+__global__ void iotaKernel(I* buffer, size_t n, size_t offset)
+{
+    size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (tid < n)
+    {
+        buffer[tid] = offset + tid;
+    }
+}
+
+template<class T, class I>
+void DeviceGather<T, I>::setMapFromCodes(I* codes_first, I* codes_last)
+{
+    mapSize_      = codes_last - codes_first;
+    deviceMemory_->reallocate(mapSize_);
+
+    static_assert(sizeof(I) <= sizeof(T));
+    I* d_codes = reinterpret_cast<I*>(deviceMemory_->deviceBuffer(0));
+
+    cudaMemcpy(d_codes, codes_first, mapSize_ * sizeof(I), cudaMemcpyHostToDevice);
+
+    constexpr int nThreads = 256;
+    int nBlocks = (mapSize_ + nThreads - 1) / nThreads;
+    iotaKernel<<<nBlocks, nThreads>>>(deviceMemory_->ordering(), mapSize_, 0);
+
+    thrust::sort_by_key(thrust::device,
+                        thrust::device_pointer_cast(d_codes),
+                        thrust::device_pointer_cast(d_codes+mapSize_),
+                        thrust::device_pointer_cast(deviceMemory_->ordering()));
+
+    cudaMemcpy(codes_first, d_codes, mapSize_ * sizeof(I), cudaMemcpyDeviceToHost);
+}
+
 template<class T, class I>
 DeviceGather<T, I>::~DeviceGather() = default;
 
@@ -114,9 +148,10 @@ __global__ void reorder(I* map, T* source, T* destination, size_t n)
 {
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if (tid > n) return;
-
-    destination[tid] = source[map[tid]];
+    if (tid < n)
+    {
+        destination[tid] = source[map[tid]];
+    }
 }
 
 template<class T, class I>
@@ -139,6 +174,6 @@ void DeviceGather<T, I>::operator()(T* values)
 }
 
 template class DeviceGather<float,  unsigned>;
-template class DeviceGather<float,  uint64_t>;
+//template class DeviceGather<float,  uint64_t>;
 template class DeviceGather<double, unsigned>;
 template class DeviceGather<double, uint64_t>;
