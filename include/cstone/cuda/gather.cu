@@ -32,7 +32,6 @@
 #include <vector>
 
 #include <thrust/device_vector.h>
-#include <thrust/gather.h>
 #include <thrust/sort.h>
 
 #include "gather.cuh"
@@ -42,24 +41,17 @@ class DeviceMemory
 {
 public:
 
-    DeviceMemory()
-    {
-        cudaStreamCreate(&streams_[0]);
-        cudaStreamCreate(&streams_[1]);
-    }
+    DeviceMemory() = default;
 
     ~DeviceMemory()
     {
-        cudaStreamDestroy(streams_[0]);
-        cudaStreamDestroy(streams_[1]);
+        if (allocatedSize_ > 0)
+        {
+            cudaFree(d_ordering_);
 
-        cudaFree(d_ordering_);
-
-        cudaFreeHost(h_buffer_[0]);
-        cudaFreeHost(h_buffer_[1]);
-
-        cudaFree(d_buffer_[0]);
-        cudaFree(d_buffer_[1]);
+            cudaFree(d_buffer_[0]);
+            cudaFree(d_buffer_[1]);
+        }
     }
 
     void reallocate(std::size_t newSize)
@@ -73,17 +65,11 @@ public:
             {
                 cudaFree(d_ordering_);
 
-                cudaFreeHost(h_buffer_[0]);
-                cudaFreeHost(h_buffer_[1]);
-
                 cudaFree(d_buffer_[0]);
                 cudaFree(d_buffer_[1]);
             }
 
             cudaMalloc((void**)&d_ordering_,  newSize * sizeof(I));
-
-            cudaHostAlloc((void**)&(h_buffer_[0]), newSize * sizeof(T), cudaHostAllocMapped);
-            cudaHostAlloc((void**)&(h_buffer_[1]), newSize * sizeof(T), cudaHostAllocMapped);
 
             cudaMalloc((void**)&(d_buffer_[0]), newSize * sizeof(T));
             cudaMalloc((void**)&(d_buffer_[1]), newSize * sizeof(T));
@@ -94,20 +80,13 @@ public:
 
     I* ordering() { return d_ordering_; }
 
-    T* stageBuffer(int i) { return h_buffer_[i]; }
     T* deviceBuffer(int i)      { return d_buffer_[i]; }
-
-    cudaStream_t stream(int i) { return streams_[i]; }
 
 private:
     std::size_t allocatedSize_{0} ;
 
-    cudaStream_t streams_[2];
-
     //! \brief reorder map
     I* d_ordering_;
-    //! \brief pinned host memory for zero-copy write-back
-    T* h_buffer_[2];
     //! \brief device buffers
     T* d_buffer_[2];
 };
@@ -129,91 +108,34 @@ void DeviceGather<T, I>::setReorderMap(const I* map_first, const I* map_last)
 template<class T, class I>
 DeviceGather<T, I>::~DeviceGather() = default;
 
+
+template<class T, class I>
+__global__ void reorder(I* map, T* source, T* destination, size_t n)
+{
+    size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (tid > n) return;
+
+    destination[tid] = source[map[tid]];
+}
+
 template<class T, class I>
 void DeviceGather<T, I>::operator()(T* values)
 {
+    constexpr int nThreads = 256;
+    int nBlocks = (mapSize_ + nThreads - 1) / nThreads;
+
     // upload to device
     cudaMemcpy(deviceMemory_->deviceBuffer(0), values, mapSize_ * sizeof(T), cudaMemcpyHostToDevice);
 
     // reorder on device
-    thrust::gather(thrust::device, deviceMemory_->ordering(), deviceMemory_->ordering() + mapSize_,
-                   deviceMemory_->deviceBuffer(0), deviceMemory_->deviceBuffer(1));
+    reorder<<<nBlocks, nThreads>>>(deviceMemory_->ordering(),
+                                   deviceMemory_->deviceBuffer(0),
+                                   deviceMemory_->deviceBuffer(1),
+                                   mapSize_);
 
     // download to host
     cudaMemcpy(values, deviceMemory_->deviceBuffer(1), mapSize_ * sizeof(T), cudaMemcpyDeviceToHost);
-}
-
-template<class T, class I>
-void DeviceGather<T, I>::stage(const T* values)
-{
-    T* stageBuffer = deviceMemory_->stageBuffer(0);
-    #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < mapSize_; ++i)
-        stageBuffer[i] = values[i];
-}
-
-template<class T, class I>
-void DeviceGather<T, I>::unstage(T* values)
-{
-    T* stageBuffer = deviceMemory_->stageBuffer(0);
-    #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < mapSize_; ++i)
-        values[i] = stageBuffer[i];
-}
-
-template<class T, class I>
-void DeviceGather<T, I>::gatherStaged()
-{
-    T* d_stageBuffer;
-    cudaHostGetDevicePointer((void**)&d_stageBuffer, deviceMemory_->stageBuffer(0), 0);
-    // upload to device
-    cudaMemcpy(deviceMemory_->deviceBuffer(0), deviceMemory_->stageBuffer(0),
-               mapSize_ * sizeof(T), cudaMemcpyHostToDevice);
-
-    // reorder on device and write back to host zero-copy memory
-    thrust::gather(thrust::device, thrust::device_pointer_cast(deviceMemory_->ordering()),
-                   thrust::device_pointer_cast(deviceMemory_->ordering() + mapSize_),
-                   thrust::device_pointer_cast(deviceMemory_->deviceBuffer(0)),
-                   thrust::device_pointer_cast(d_stageBuffer));
-}
-
-template<class T, class I>
-void DeviceGather<T, I>::reorderArrays(T** arrays, int nArrays)
-{
-    // get the device pointer version for the pinned host stage buffers (zero-copy memory)
-    T* stageBuffers[2];
-    cudaHostGetDevicePointer((void**)&stageBuffers[0], deviceMemory_->stageBuffer(0), 0);
-    cudaHostGetDevicePointer((void**)&stageBuffers[1], deviceMemory_->stageBuffer(1), 0);
-
-    for (int i = 0; i < nArrays; ++i)
-    {
-        int streamID = i % 2;
-
-        //cudaMemcpyAsync(deviceMemory_->deviceBuffer(streamID), arrays[i],
-        //                mapSize_ * sizeof(T), cudaMemcpyHostToDevice,
-        //                deviceMemory_->stream(streamID));
-
-        cudaMemcpyAsync(deviceMemory_->stageBuffer(streamID), arrays[i],
-                        mapSize_ * sizeof(T), cudaMemcpyHostToHost,
-                        deviceMemory_->stream(streamID));
-
-        cudaMemcpyAsync(deviceMemory_->deviceBuffer(streamID), deviceMemory_->stageBuffer(streamID),
-                        mapSize_ * sizeof(T), cudaMemcpyHostToDevice,
-                        deviceMemory_->stream(streamID));
-
-        // reorder on device and write back to host zero-copy memory
-        thrust::gather(thrust::cuda::par.on(deviceMemory_->stream(streamID)),
-                       thrust::device_pointer_cast(deviceMemory_->ordering()),
-                       thrust::device_pointer_cast(deviceMemory_->ordering() + mapSize_),
-                       thrust::device_pointer_cast(deviceMemory_->deviceBuffer(streamID)),
-                       thrust::device_pointer_cast(stageBuffers[streamID]));
-
-        // move reordered data from host staging to original location
-        cudaMemcpyAsync(arrays[i], deviceMemory_->stageBuffer(streamID), mapSize_ * sizeof(T),
-                        cudaMemcpyHostToHost, deviceMemory_->stream(streamID));
-    }
-    cudaStreamSynchronize(deviceMemory_->stream(0));
-    cudaStreamSynchronize(deviceMemory_->stream(1));
 }
 
 template class DeviceGather<float,  unsigned>;
