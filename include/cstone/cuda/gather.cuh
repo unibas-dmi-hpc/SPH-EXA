@@ -52,7 +52,9 @@ public:
      * If the sequence [map_first:map_last] does not contain each element [0:map_last-map_first]
      * exactly once, the behavior is undefined.
      */
-    void setReorderMap(const I* map_first, const I* map_last); 
+    void setReorderMap(const I* map_first, const I* map_last);
+
+    void setMapFromCodes(I* codes_first, I* codes_last);
 
     /*! \brief reorder the array \a values according to the reorder map provided previously
      *
@@ -68,7 +70,7 @@ private:
 };
 
 extern template class DeviceGather<float,  unsigned>;
-extern template class DeviceGather<float,  uint64_t>;
+//extern template class DeviceGather<float,  uint64_t>;
 extern template class DeviceGather<double, unsigned>;
 extern template class DeviceGather<double, uint64_t>;
 

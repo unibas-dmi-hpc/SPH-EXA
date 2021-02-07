@@ -91,6 +91,47 @@ void demo()
     }
 }
 
+void setFromCodeDemo()
+{
+    using I = unsigned;
+    using T = double;
+
+    std::vector<I> codes{0, 50, 10, 60, 20, 70, 30, 80, 40, 90};
+
+    DeviceGather<T, I> devGather;
+    devGather.setMapFromCodes(codes.data(), codes.data() + codes.size());
+
+    if (codes == std::vector<I>{0,10,20,30,40,50,60,70,80,90})
+        std::cout << "demo code sort: PASS\n";
+    else
+    {
+        std::cout << "demo code sort: FAIL\n";
+
+        std::cout << "actual: ";
+        for (auto v : codes) std::cout << v << " ";
+        std::cout << std::endl;
+    }
+
+    std::vector<T> values{0,1,2,3,4,5,6,7,8,9};
+    devGather(values.data());
+    std::vector<T> reference{0,2,4,6,8,1,3,5,7,9};
+
+    if (reference == values)
+        std::cout << "demo code reorder check: PASS\n";
+    else
+    {
+        std::cout << "demo code reorder check: FAIL\n";
+
+        std::cout << "expected: ";
+        for (auto v : reference) std::cout << v << " ";
+        std::cout << std::endl;
+
+        std::cout << "actual: ";
+        for (auto v : values) std::cout << v << " ";
+        std::cout << std::endl;
+    }
+}
+
 template<class T, class I>
 void reorderCheck(int nElements)
 {
@@ -132,5 +173,6 @@ int main()
     int nElements = 32000000;
 
     demo();
+    setFromCodeDemo();
     reorderCheck<T, I>(nElements);
 }
