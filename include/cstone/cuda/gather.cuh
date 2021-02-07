@@ -61,14 +61,6 @@ public:
      */
     void operator()(T* values);
 
-    void stage(const T* values);
-
-    void unstage(T* values);
-
-    void gatherStaged();
-
-    void reorderArrays(T** arrays, int nArrays);
-
 private:
     std::size_t mapSize_{0};
 

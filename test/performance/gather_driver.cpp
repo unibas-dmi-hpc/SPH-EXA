@@ -35,8 +35,6 @@
 #include <random>
 #include <vector>
 
-#include <cuda_runtime.h>
-
 #include "cstone/cuda/gather.cuh"
 
 template<class I>
@@ -63,7 +61,7 @@ void cpuGather(const std::vector<I>& map, std::vector<T>& values)
     swap(values, tmp);
 }
 
-void check()
+void demo()
 {
     using I = unsigned;
     using T = double;
@@ -73,18 +71,15 @@ void check()
 
     DeviceGather<T, I> devGather;
     devGather.setReorderMap(map.data(), map.data() + map.size());
-    //devGather(values.data());
-    devGather.stage(values.data());
-    devGather.gatherStaged();
-    devGather.unstage(values.data());
+    devGather(values.data());
 
     std::vector<T> reference{0,2,4,6,8,1,3,5,7,9};
 
     if (reference == values)
-        std::cout << "gather check: PASS\n";
+        std::cout << "demo gather check: PASS\n";
     else
     {
-        std::cout << "gather check: fail\n";
+        std::cout << "demo gather check: FAIL\n";
 
         std::cout << "expected: ";
         for (auto v : reference) std::cout << v << " ";
@@ -97,76 +92,36 @@ void check()
 }
 
 template<class T, class I>
-void multiArrayCheck(int nElements)
+void reorderCheck(int nElements)
 {
     std::vector<I> map = makeRandomPermutation<I>(nElements);
-    std::vector<T> v1(nElements);
-    std::vector<T> v2(nElements);
-    std::vector<T> v3(nElements);
-    std::vector<T> v4(nElements);
+    std::vector<T> v(nElements);
 
-    std::iota(begin(v1), end(v1), 0);
-    std::iota(begin(v2), end(v2), 0);
-    std::iota(begin(v3), end(v3), 0);
-    std::iota(begin(v4), end(v4), 0);
+    std::iota(begin(v), end(v), 0);
 
-    std::vector<T> hv1 = v1;
-    std::vector<T> hv2 = v2;
-    std::vector<T> hv3 = v3;
-    std::vector<T> hv4 = v4;
-
-    std::array<T*, 4> arrays{v1.data(), v2.data(), v3.data(), v4.data()};
-
-    DeviceGather<T, I> devGather;
-    devGather.setReorderMap(map.data(), map.data() + map.size());
-
-    auto tgpu0 = std::chrono::high_resolution_clock::now();
-    devGather.reorderArrays(arrays.data(), arrays.size());
-    auto tgpu1 = std::chrono::high_resolution_clock::now();
-
-    std::cout << "gpu gather Melements/s: " << arrays.size() * T(nElements)/(1e6*std::chrono::duration<double>(tgpu1 - tgpu0).count()) << std::endl;
+    std::vector<T> hv = v;
 
     auto tcpu0 = std::chrono::high_resolution_clock::now();
-    cpuGather(map, hv1);
-    cpuGather(map, hv2);
-    cpuGather(map, hv3);
-    cpuGather(map, hv4);
+    cpuGather(map, hv);
     auto tcpu1 = std::chrono::high_resolution_clock::now();
-
-    bool pass = v1 == hv1 && v2 == hv2 && v3 == hv3 && v4 == hv4;
-
-    std::cout << "cpu gather Melements/s: " << arrays.size() * T(nElements)/(1e6 * std::chrono::duration<double>(tcpu1 - tcpu0).count()) << std::endl;
-
-    if (pass)
-        std::cout << "multi array gather check: PASS\n";
-    else
-        std::cout << "multi array gather check: FAIL\n";
-}
-
-template<class T, class I>
-void singleArrayCheck(int nElements)
-{
-    std::vector<I> map = makeRandomPermutation<I>(nElements);
-    std::vector<T> values(nElements);
-
-    auto tcpu0 = std::chrono::high_resolution_clock::now();
-    cpuGather(map, values);
-    auto tcpu1 = std::chrono::high_resolution_clock::now();
-
     std::cout << "cpu gather Melements/s: " << T(nElements)/(1e6 * std::chrono::duration<double>(tcpu1 - tcpu0).count()) << std::endl;
 
+
     DeviceGather<T, I> devGather;
     devGather.setReorderMap(map.data(), map.data() + map.size());
 
-    devGather.stage(values.data());
-
     auto tgpu0 = std::chrono::high_resolution_clock::now();
-    devGather.gatherStaged();
+    devGather(v.data());
     auto tgpu1 = std::chrono::high_resolution_clock::now();
 
-    devGather.unstage(values.data());
-
     std::cout << "gpu gather Melements/s: " << T(nElements)/(1e6*std::chrono::duration<double>(tgpu1 - tgpu0).count()) << std::endl;
+
+    bool pass = (v == hv);
+
+    if (pass)
+        std::cout << "gather check: PASS\n";
+    else
+        std::cout << "gather check: FAIL\n";
 }
 
 int main()
@@ -176,8 +131,6 @@ int main()
 
     int nElements = 32000000;
 
-    check();
-
-    //singleArrayCheck<T, I>(nElements);
-    multiArrayCheck<T, I>(nElements);
+    demo();
+    reorderCheck<T, I>(nElements);
 }
