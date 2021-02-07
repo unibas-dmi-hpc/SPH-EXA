@@ -188,11 +188,18 @@ void DeviceGather<T, I>::reorderArrays(T** arrays, int nArrays)
     for (int i = 0; i < nArrays; ++i)
     {
         int streamID = i % 2;
-        // upload array to device, this blocks on the host, since source not pinned
-        // but allows operations in other streams on the GPU to run
-        cudaMemcpyAsync(deviceMemory_->deviceBuffer(streamID), arrays[i],
-                   mapSize_ * sizeof(T), cudaMemcpyHostToDevice,
-                   deviceMemory_->stream(streamID));
+
+        //cudaMemcpyAsync(deviceMemory_->deviceBuffer(streamID), arrays[i],
+        //                mapSize_ * sizeof(T), cudaMemcpyHostToDevice,
+        //                deviceMemory_->stream(streamID));
+
+        cudaMemcpyAsync(deviceMemory_->stageBuffer(streamID), arrays[i],
+                        mapSize_ * sizeof(T), cudaMemcpyHostToHost,
+                        deviceMemory_->stream(streamID));
+
+        cudaMemcpyAsync(deviceMemory_->deviceBuffer(streamID), deviceMemory_->stageBuffer(streamID),
+                        mapSize_ * sizeof(T), cudaMemcpyHostToDevice,
+                        deviceMemory_->stream(streamID));
 
         // reorder on device and write back to host zero-copy memory
         thrust::gather(thrust::cuda::par.on(deviceMemory_->stream(streamID)),
