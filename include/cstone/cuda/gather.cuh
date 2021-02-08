@@ -95,7 +95,7 @@ private:
 };
 
 extern template class DeviceGather<float,  unsigned>;
-//extern template class DeviceGather<float,  uint64_t>;
+extern template class DeviceGather<float,  uint64_t>;
 extern template class DeviceGather<double, unsigned>;
 extern template class DeviceGather<double, uint64_t>;
 

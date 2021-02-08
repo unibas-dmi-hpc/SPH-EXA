@@ -71,20 +71,32 @@ void setFromCodeDemo()
 
 TEST(DeviceGather, smallDemo)
 {
+    setFromCodeDemo<float, unsigned>();
+    setFromCodeDemo<float, uint64_t>();
     setFromCodeDemo<double, unsigned>();
     setFromCodeDemo<double, uint64_t>();
 }
 
 template<class T, class I>
-void reorderCheck(int nElements)
+void reorderCheck(int nElements, bool reallocate = false)
 {
+    using LocalIndex = typename cstone::DeviceGather<T, I>::LocalIndex;
+
+    cstone::DeviceGather<T, I> devGather;
+    if (reallocate)
+    {
+        // initialize with a small size to trigger buffer reallocation
+        std::vector<LocalIndex> ord(10);
+        devGather.setReorderMap(ord.data(), ord.data() + ord.size());
+    }
+
     std::vector<I> codes = makeRandomPermutation<I>(nElements);
 
     std::vector<T> v(nElements);
     std::iota(begin(v), end(v), 0);
     std::vector<T> hv = v;
 
-    std::vector<unsigned> h_order(nElements);
+    std::vector<LocalIndex> h_order(nElements);
     std::iota(begin(h_order), end(h_order), 0u);
     cstone::sort_invert(begin(codes), end(codes), begin(h_order));
 
@@ -93,7 +105,6 @@ void reorderCheck(int nElements)
     auto tcpu1 = std::chrono::high_resolution_clock::now();
     std::cout << "cpu gather Melements/s: " << T(nElements)/(1e6 * std::chrono::duration<double>(tcpu1 - tcpu0).count()) << std::endl;
 
-    cstone::DeviceGather<T, I> devGather;
     devGather.setMapFromCodes(codes.data(), codes.data() + codes.size());
 
     EXPECT_TRUE(std::is_sorted(begin(codes), end(codes)));
@@ -109,8 +120,20 @@ void reorderCheck(int nElements)
 
 TEST(DeviceGather, matchCpu)
 {
-    int nElements = 3200000;
+    int nElements = 320000;
 
+    reorderCheck<float, unsigned>(nElements);
+    reorderCheck<float, uint64_t>(nElements);
     reorderCheck<double, unsigned>(nElements);
     reorderCheck<double, uint64_t>(nElements);
+}
+
+TEST(DeviceGather, reallocate)
+{
+    int nElements = 32000;
+
+    reorderCheck<float, unsigned>(nElements, true);
+    reorderCheck<float, uint64_t>(nElements, true);
+    reorderCheck<double, unsigned>(nElements, true);
+    reorderCheck<double, uint64_t>(nElements, true);
 }
