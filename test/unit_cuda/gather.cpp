@@ -35,6 +35,8 @@
 #include <random>
 #include <vector>
 
+#include "gtest/gtest.h"
+
 #include "cstone/zorder.hpp"
 #include "cstone/cuda/gather.cuh"
 
@@ -49,75 +51,28 @@ std::vector<I> makeRandomPermutation(std::size_t nElements)
     return map;
 }
 
-void demo()
-{
-    using I = unsigned;
-    using T = double;
-
-    std::vector<I> map{0,2,4,6,8,1,3,5,7,9};
-    std::vector<T> values{0,1,2,3,4,5,6,7,8,9};
-
-    cstone::DeviceGather<T, I> devGather;
-    devGather.setReorderMap(map.data(), map.data() + map.size());
-    devGather(values.data());
-
-    std::vector<T> reference{0,2,4,6,8,1,3,5,7,9};
-
-    if (reference == values)
-        std::cout << "demo gather check: PASS\n";
-    else
-    {
-        std::cout << "demo gather check: FAIL\n";
-
-        std::cout << "expected: ";
-        for (auto v : reference) std::cout << v << " ";
-        std::cout << std::endl;
-
-        std::cout << "actual: ";
-        for (auto v : values) std::cout << v << " ";
-        std::cout << std::endl;
-    }
-}
-
+template<class T, class I>
 void setFromCodeDemo()
 {
-    using I = unsigned;
-    using T = double;
-
     std::vector<I> codes{0, 50, 10, 60, 20, 70, 30, 80, 40, 90};
 
     cstone::DeviceGather<T, I> devGather;
     devGather.setMapFromCodes(codes.data(), codes.data() + codes.size());
 
-    if (codes == std::vector<I>{0,10,20,30,40,50,60,70,80,90})
-        std::cout << "demo code sort: PASS\n";
-    else
-    {
-        std::cout << "demo code sort: FAIL\n";
-
-        std::cout << "actual: ";
-        for (auto v : codes) std::cout << v << " ";
-        std::cout << std::endl;
-    }
+    std::vector<I> refCodes{0,10,20,30,40,50,60,70,80,90};
+    EXPECT_EQ(codes, refCodes);
 
     std::vector<T> values{0,1,2,3,4,5,6,7,8,9};
     devGather(values.data());
     std::vector<T> reference{0,2,4,6,8,1,3,5,7,9};
 
-    if (reference == values)
-        std::cout << "demo code reorder check: PASS\n";
-    else
-    {
-        std::cout << "demo code reorder check: FAIL\n";
+    EXPECT_EQ(values, reference);
+}
 
-        std::cout << "expected: ";
-        for (auto v : reference) std::cout << v << " ";
-        std::cout << std::endl;
-
-        std::cout << "actual: ";
-        for (auto v : values) std::cout << v << " ";
-        std::cout << std::endl;
-    }
+TEST(DeviceGather, smallDemo)
+{
+    setFromCodeDemo<double, unsigned>();
+    setFromCodeDemo<double, uint64_t>();
 }
 
 template<class T, class I>
@@ -138,9 +93,10 @@ void reorderCheck(int nElements)
     auto tcpu1 = std::chrono::high_resolution_clock::now();
     std::cout << "cpu gather Melements/s: " << T(nElements)/(1e6 * std::chrono::duration<double>(tcpu1 - tcpu0).count()) << std::endl;
 
-
     cstone::DeviceGather<T, I> devGather;
     devGather.setMapFromCodes(codes.data(), codes.data() + codes.size());
+
+    EXPECT_TRUE(std::is_sorted(begin(codes), end(codes)));
 
     auto tgpu0 = std::chrono::high_resolution_clock::now();
     devGather(v.data());
@@ -148,22 +104,13 @@ void reorderCheck(int nElements)
 
     std::cout << "gpu gather Melements/s: " << T(nElements)/(1e6*std::chrono::duration<double>(tgpu1 - tgpu0).count()) << std::endl;
 
-    bool pass = (v == hv);
-
-    if (pass)
-        std::cout << "gather check: PASS\n";
-    else
-        std::cout << "gather check: FAIL\n";
+    EXPECT_EQ(v, hv);
 }
 
-int main()
+TEST(DeviceGather, matchCpu)
 {
-    using T = double;
-    using I = unsigned;
+    int nElements = 3200000;
 
-    int nElements = 32000000;
-
-    demo();
-    setFromCodeDemo();
-    reorderCheck<T, I>(nElements);
+    reorderCheck<double, unsigned>(nElements);
+    reorderCheck<double, uint64_t>(nElements);
 }
