@@ -34,9 +34,10 @@
 #include <thrust/device_vector.h>
 #include <thrust/sort.h>
 
+#include "errorcheck.cuh"
 #include "gather.cuh"
 
-template<class T, class I>
+template<class T, class LocalIndex>
 class DeviceMemory
 {
 public:
@@ -47,10 +48,10 @@ public:
     {
         if (allocatedSize_ > 0)
         {
-            cudaFree(d_ordering_);
+            checkCudaErrors(cudaFree(d_ordering_));
 
-            cudaFree(d_buffer_[0]);
-            cudaFree(d_buffer_[1]);
+            checkCudaErrors(cudaFree(d_buffer_[0]));
+            checkCudaErrors(cudaFree(d_buffer_[1]));
         }
     }
 
@@ -63,22 +64,22 @@ public:
 
             if (allocatedSize_ > 0)
             {
-                cudaFree(d_ordering_);
+                checkCudaErrors(cudaFree(d_ordering_));
 
-                cudaFree(d_buffer_[0]);
-                cudaFree(d_buffer_[1]);
+                checkCudaErrors(cudaFree(d_buffer_[0]));
+                checkCudaErrors(cudaFree(d_buffer_[1]));
             }
 
-            cudaMalloc((void**)&d_ordering_,  newSize * sizeof(I));
+            checkCudaErrors(cudaMalloc((void**)&d_ordering_,  newSize * sizeof(LocalIndex)));
 
-            cudaMalloc((void**)&(d_buffer_[0]), newSize * sizeof(T));
-            cudaMalloc((void**)&(d_buffer_[1]), newSize * sizeof(T));
+            checkCudaErrors(cudaMalloc((void**)&(d_buffer_[0]), newSize * sizeof(T)));
+            checkCudaErrors(cudaMalloc((void**)&(d_buffer_[1]), newSize * sizeof(T)));
 
             allocatedSize_ = newSize;
         }
     }
 
-    I* ordering() { return d_ordering_; }
+    LocalIndex* ordering() { return d_ordering_; }
 
     T* deviceBuffer(int i) { return d_buffer_[i]; }
 
@@ -86,7 +87,8 @@ private:
     std::size_t allocatedSize_{0} ;
 
     //! \brief reorder map
-    I* d_ordering_;
+    LocalIndex* d_ordering_;
+
     //! \brief device buffers
     T* d_buffer_[2];
 };
@@ -94,15 +96,18 @@ private:
 
 template<class T, class I>
 DeviceGather<T, I>::DeviceGather()
-    : deviceMemory_(std::make_unique<DeviceMemory<T, I>>())
+    : deviceMemory_(std::make_unique<DeviceMemory<T, LocalIndex>>())
 {}
 
 template<class T, class I>
-void DeviceGather<T, I>::setReorderMap(const I* map_first, const I* map_last)
+void DeviceGather<T, I>::setReorderMap(const LocalIndex* map_first,
+                                       const LocalIndex* map_last)
 {
     mapSize_      = map_last - map_first;
     deviceMemory_->reallocate(mapSize_);
+    // upload new ordering to the device
     cudaMemcpy(deviceMemory_->ordering(), map_first, mapSize_ * sizeof(I), cudaMemcpyHostToDevice);
+    checkCudaErrors(cudaGetLastError());
 }
 
 template<class I>
@@ -125,18 +130,25 @@ void DeviceGather<T, I>::setMapFromCodes(I* codes_first, I* codes_last)
     static_assert(sizeof(I) <= sizeof(T));
     I* d_codes = reinterpret_cast<I*>(deviceMemory_->deviceBuffer(0));
 
+    // send Morton codes to the device
     cudaMemcpy(d_codes, codes_first, mapSize_ * sizeof(I), cudaMemcpyHostToDevice);
+    checkCudaErrors(cudaGetLastError());
 
     constexpr int nThreads = 256;
     int nBlocks = (mapSize_ + nThreads - 1) / nThreads;
     iotaKernel<<<nBlocks, nThreads>>>(deviceMemory_->ordering(), mapSize_, 0);
+    checkCudaErrors(cudaGetLastError());
 
+    // sort Morton codes on device as keys, track new ordering on the device
     thrust::sort_by_key(thrust::device,
                         thrust::device_pointer_cast(d_codes),
                         thrust::device_pointer_cast(d_codes+mapSize_),
                         thrust::device_pointer_cast(deviceMemory_->ordering()));
+    checkCudaErrors(cudaGetLastError());
 
+    // send sorted codes back to host
     cudaMemcpy(codes_first, d_codes, mapSize_ * sizeof(I), cudaMemcpyDeviceToHost);
+    checkCudaErrors(cudaGetLastError());
 }
 
 template<class T, class I>
@@ -162,15 +174,18 @@ void DeviceGather<T, I>::operator()(T* values)
 
     // upload to device
     cudaMemcpy(deviceMemory_->deviceBuffer(0), values, mapSize_ * sizeof(T), cudaMemcpyHostToDevice);
+    checkCudaErrors(cudaGetLastError());
 
     // reorder on device
     reorder<<<nBlocks, nThreads>>>(deviceMemory_->ordering(),
                                    deviceMemory_->deviceBuffer(0),
                                    deviceMemory_->deviceBuffer(1),
                                    mapSize_);
+    checkCudaErrors(cudaGetLastError());
 
     // download to host
     cudaMemcpy(values, deviceMemory_->deviceBuffer(1), mapSize_ * sizeof(T), cudaMemcpyDeviceToHost);
+    checkCudaErrors(cudaGetLastError());
 }
 
 template class DeviceGather<float,  unsigned>;
