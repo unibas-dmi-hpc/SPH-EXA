@@ -35,6 +35,7 @@
 #include <random>
 #include <vector>
 
+#include "cstone/zorder.hpp"
 #include "cstone/cuda/gather.cuh"
 
 template<class I>
@@ -48,19 +49,6 @@ std::vector<I> makeRandomPermutation(std::size_t nElements)
     return map;
 }
 
-template<class T, class I>
-void cpuGather(const std::vector<I>& map, std::vector<T>& values)
-{
-    std::vector<T> tmp(values.size());
-
-    #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < map.size(); ++i)
-        tmp[i] = values[map[i]];
-
-    using std::swap;
-    swap(values, tmp);
-}
-
 void demo()
 {
     using I = unsigned;
@@ -69,7 +57,7 @@ void demo()
     std::vector<I> map{0,2,4,6,8,1,3,5,7,9};
     std::vector<T> values{0,1,2,3,4,5,6,7,8,9};
 
-    DeviceGather<T, I> devGather;
+    cstone::DeviceGather<T, I> devGather;
     devGather.setReorderMap(map.data(), map.data() + map.size());
     devGather(values.data());
 
@@ -98,7 +86,7 @@ void setFromCodeDemo()
 
     std::vector<I> codes{0, 50, 10, 60, 20, 70, 30, 80, 40, 90};
 
-    DeviceGather<T, I> devGather;
+    cstone::DeviceGather<T, I> devGather;
     devGather.setMapFromCodes(codes.data(), codes.data() + codes.size());
 
     if (codes == std::vector<I>{0,10,20,30,40,50,60,70,80,90})
@@ -135,21 +123,24 @@ void setFromCodeDemo()
 template<class T, class I>
 void reorderCheck(int nElements)
 {
-    std::vector<I> map = makeRandomPermutation<I>(nElements);
+    std::vector<I> codes = makeRandomPermutation<I>(nElements);
+
     std::vector<T> v(nElements);
-
     std::iota(begin(v), end(v), 0);
-
     std::vector<T> hv = v;
 
+    std::vector<unsigned> h_order(nElements);
+    std::iota(begin(h_order), end(h_order), 0u);
+    cstone::sort_invert(begin(codes), end(codes), begin(h_order));
+
     auto tcpu0 = std::chrono::high_resolution_clock::now();
-    cpuGather(map, hv);
+    cstone::reorder(h_order, hv);
     auto tcpu1 = std::chrono::high_resolution_clock::now();
     std::cout << "cpu gather Melements/s: " << T(nElements)/(1e6 * std::chrono::duration<double>(tcpu1 - tcpu0).count()) << std::endl;
 
 
-    DeviceGather<T, I> devGather;
-    devGather.setReorderMap(map.data(), map.data() + map.size());
+    cstone::DeviceGather<T, I> devGather;
+    devGather.setMapFromCodes(codes.data(), codes.data() + codes.size());
 
     auto tgpu0 = std::chrono::high_resolution_clock::now();
     devGather(v.data());
