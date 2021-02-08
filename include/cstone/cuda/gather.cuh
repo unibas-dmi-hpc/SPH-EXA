@@ -32,6 +32,8 @@
 #include <cstdint>
 #include <memory>
 
+namespace cstone
+{
 
 template<class T, class LocalIndex> class DeviceMemory;
 
@@ -97,3 +99,4 @@ extern template class DeviceGather<float,  unsigned>;
 extern template class DeviceGather<double, unsigned>;
 extern template class DeviceGather<double, uint64_t>;
 
+} // namespace cstone

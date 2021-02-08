@@ -37,6 +37,9 @@
 #include "errorcheck.cuh"
 #include "gather.cuh"
 
+namespace cstone
+{
+
 template<class T, class LocalIndex>
 class DeviceMemory
 {
@@ -192,3 +195,5 @@ template class DeviceGather<float,  unsigned>;
 //template class DeviceGather<float,  uint64_t>;
 template class DeviceGather<double, unsigned>;
 template class DeviceGather<double, uint64_t>;
+
+} // namespace cstone
