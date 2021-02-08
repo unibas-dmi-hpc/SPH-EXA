@@ -33,16 +33,21 @@
 #include <memory>
 
 
-template<class T, class I> class DeviceMemory;
+template<class T, class LocalIndex> class DeviceMemory;
 
 /*! \brief A stateful functor for reordering arrays on the gpu
- * 
- * Holds on to the reorder map and device buffers for reuse on multiple input arrays
+ *
+ * @tparam T   float or double
+ * @tparam I   32- or 64-bit unsigned integer
  */
 template<class T, class I>
 class DeviceGather
 {
 public:
+    //! \brief type to index node-local particles, assuming fewer than 2^32
+    using LocalIndex = unsigned;
+    using CodeType   = I;
+
     DeviceGather();
 
     ~DeviceGather();
@@ -52,21 +57,39 @@ public:
      * If the sequence [map_first:map_last] does not contain each element [0:map_last-map_first]
      * exactly once, the behavior is undefined.
      */
-    void setReorderMap(const I* map_first, const I* map_last);
+    void setReorderMap(const LocalIndex* map_first, const LocalIndex* map_last);
 
-    void setMapFromCodes(I* codes_first, I* codes_last);
+    /*! \brief sort given Morton codes on the device and determine reorder map based on sort order
+     *
+     * \param[inout] codes_first   pointer to first Morton code
+     * \param[inout] codes_last    pointer to last Morton code
+     *
+     * Precondition:
+     *   - [codes_first:codes_last] is a continues sequence of accessible elements of size N
+     *
+     * Postcondition
+     *   - [codes_first:codes_last] is sorted
+     *   - subsequent calls to operator() apply a gather operation to the input sequence
+     *     with the map obtained from sort_by_key with [codes_first:codes_last] as the keys
+     *     and the identity permutation as the values
+     *
+     *  Remarks:
+     *    - reallocates space on the device if necessary to fit N elements of type LocalIndex
+     *      and a second buffer of size max(2N*sizeof(T), N*sizeof(I))
+     */
+    void setMapFromCodes(CodeType* codes_first, CodeType* codes_last);
 
     /*! \brief reorder the array \a values according to the reorder map provided previously
      *
      * \a values must have at least as many elements as the reorder map provided in the last call
-     * to setReorderMap, otherwise the behavior is undefined. 
+     * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
      */
     void operator()(T* values);
 
 private:
     std::size_t mapSize_{0};
 
-    std::unique_ptr<DeviceMemory<T, I>> deviceMemory_;
+    std::unique_ptr<DeviceMemory<T, LocalIndex>> deviceMemory_;
 };
 
 extern template class DeviceGather<float,  unsigned>;
