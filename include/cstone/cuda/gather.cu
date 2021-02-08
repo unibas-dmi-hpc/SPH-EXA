@@ -43,6 +43,7 @@ namespace cstone
 template<class T, class LocalIndex>
 class DeviceMemory
 {
+    static constexpr int alignment = 4096/sizeof(T);
 public:
 
     DeviceMemory() = default;
@@ -52,9 +53,7 @@ public:
         if (allocatedSize_ > 0)
         {
             checkCudaErrors(cudaFree(d_ordering_));
-
-            checkCudaErrors(cudaFree(d_buffer_[0]));
-            checkCudaErrors(cudaFree(d_buffer_[1]));
+            checkCudaErrors(cudaFree(d_buffer_));
         }
     }
 
@@ -64,19 +63,18 @@ public:
         {
             // allocate 5% extra to avoid reallocation on small increase
             newSize = double(newSize) * 1.05;
+            // round up newSize to next 4K boundary
+            newSize += newSize%alignment;
 
             if (allocatedSize_ > 0)
             {
                 checkCudaErrors(cudaFree(d_ordering_));
 
-                checkCudaErrors(cudaFree(d_buffer_[0]));
-                checkCudaErrors(cudaFree(d_buffer_[1]));
+                checkCudaErrors(cudaFree(d_buffer_));
             }
 
             checkCudaErrors(cudaMalloc((void**)&d_ordering_,  newSize * sizeof(LocalIndex)));
-
-            checkCudaErrors(cudaMalloc((void**)&(d_buffer_[0]), newSize * sizeof(T)));
-            checkCudaErrors(cudaMalloc((void**)&(d_buffer_[1]), newSize * sizeof(T)));
+            checkCudaErrors(cudaMalloc((void**)&(d_buffer_), 2 * newSize * sizeof(T)));
 
             allocatedSize_ = newSize;
         }
@@ -84,7 +82,11 @@ public:
 
     LocalIndex* ordering() { return d_ordering_; }
 
-    T* deviceBuffer(int i) { return d_buffer_[i]; }
+    T* deviceBuffer(int i)
+    {
+        if (i > 1) throw std::runtime_error("buffer index out of bounds\n");
+        return d_buffer_ + i * allocatedSize_;
+    }
 
 private:
     std::size_t allocatedSize_{0} ;
@@ -93,7 +95,7 @@ private:
     LocalIndex* d_ordering_;
 
     //! \brief device buffers
-    T* d_buffer_[2];
+    T* d_buffer_;
 };
 
 
@@ -130,7 +132,9 @@ void DeviceGather<T, I>::setMapFromCodes(I* codes_first, I* codes_last)
     mapSize_      = codes_last - codes_first;
     deviceMemory_->reallocate(mapSize_);
 
-    static_assert(sizeof(I) <= sizeof(T));
+    // the deviceBuffer is allocated as a single chunk of size 2 * mapSize_ * sizeof(T)
+    // so we can reuse it for mapSize_ elements of I, as long as the static assert holds
+    static_assert(sizeof(I) <= 2 * sizeof(T), "buffer size not big enough for codes device array\n");
     I* d_codes = reinterpret_cast<I*>(deviceMemory_->deviceBuffer(0));
 
     // send Morton codes to the device
@@ -192,7 +196,7 @@ void DeviceGather<T, I>::operator()(T* values)
 }
 
 template class DeviceGather<float,  unsigned>;
-//template class DeviceGather<float,  uint64_t>;
+template class DeviceGather<float,  uint64_t>;
 template class DeviceGather<double, unsigned>;
 template class DeviceGather<double, uint64_t>;
 
