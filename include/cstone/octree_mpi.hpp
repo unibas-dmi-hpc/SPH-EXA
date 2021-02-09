@@ -67,11 +67,12 @@ std::tuple<std::vector<I>, std::vector<unsigned>> computeOctreeGlobal(const I *c
  *
  * See documentation of computeHaloRadii
  */
-template <class T, class I, class IndexType>
-void computeHaloRadiiGlobal(const I *tree, int nNodes, const I *codesStart, const I *codesEnd, const IndexType *ordering, const T *input, T *output)
+template <class Tin, class Tout, class I, class IndexType>
+void computeHaloRadiiGlobal(const I *tree, int nNodes, const I *codesStart, const I *codesEnd, const IndexType *ordering,
+                            const Tin *input, Tout *output)
 {
     computeHaloRadii(tree, nNodes, codesStart, codesEnd, ordering, input, output);
-    MPI_Allreduce(MPI_IN_PLACE, output, nNodes, MpiType<T>{}, MPI_MAX, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, output, nNodes, MpiType<Tout>{}, MPI_MAX, MPI_COMM_WORLD);
 }
 
 } // namespace cstone
