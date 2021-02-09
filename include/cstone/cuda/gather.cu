@@ -115,6 +115,12 @@ void DeviceGather<ValueType, CodeType, IndexType>::setReorderMap(const IndexType
     checkCudaErrors(cudaGetLastError());
 }
 
+template<class ValueType, class CodeType, class IndexType>
+void DeviceGather<ValueType, CodeType, IndexType>::getReorderMap(IndexType* map_first)
+{
+    cudaMemcpy(map_first, deviceMemory_->ordering(), mapSize_ * sizeof(IndexType), cudaMemcpyDeviceToHost);
+}
+
 template<class I>
 __global__ void iotaKernel(I* buffer, size_t n, size_t offset)
 {

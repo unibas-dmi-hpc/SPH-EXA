@@ -59,6 +59,9 @@ public:
      */
     void setReorderMap(const IndexType* map_first, const IndexType* map_last);
 
+    //! \brief download the reorder map from the device
+    void getReorderMap(IndexType* map_first);
+
     /*! \brief sort given Morton codes on the device and determine reorder map based on sort order
      *
      * \param[inout] codes_first   pointer to first Morton code

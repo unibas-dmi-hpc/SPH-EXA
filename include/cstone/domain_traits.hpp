@@ -55,6 +55,13 @@ struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, Cp
     using type = CpuGather<ValueType, CodeType, IndexType>;
 };
 
+template<class Accelerator>
+struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, CudaTag>{}>>
+{
+    template<class ValueType, class CodeType, class IndexType>
+    using type = DeviceGather<ValueType, CodeType, IndexType>;
+};
+
 } // namespace detail
 
 //! \brief returns reorder functor type to be used, depending on the accelerator
