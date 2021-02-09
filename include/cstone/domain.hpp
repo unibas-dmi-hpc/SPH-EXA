@@ -35,6 +35,7 @@
 #pragma once
 
 #include "cstone/box_mpi.hpp"
+#include "cstone/domain_traits.hpp"
 #include "cstone/domaindecomp_mpi.hpp"
 #include "cstone/halodiscovery.hpp"
 #include "cstone/haloexchange.hpp"
@@ -44,9 +45,14 @@
 namespace cstone
 {
 
-template<class I, class T>
+template<class I, class T, class Accelerator = CpuTag>
 class Domain
 {
+    static_assert(std::is_unsigned<I>{}, "Morton code type needs to be an unsigned integer\n");
+    using LocalIndex = SendManifest::IndexType;
+
+    using ReorderFunctor = ReorderFunctor_t<Accelerator, T, I, LocalIndex>;
+
 public:
     /*! @brief construct empty Domain
      *
@@ -165,26 +171,25 @@ public:
                              cbegin(z) + particleStart_, box_);
 
         // number of locally assigned particles to consider for global tree building
-        int nParticles = particleEnd_ - particleStart_;
+        LocalIndex nParticles = particleEnd_ - particleStart_;
 
         codes.resize(nParticles);
 
         // compute morton codes only for particles participating in tree build
-        //std::vector<I> mortonCodes(nParticles);
         computeMortonCodes(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
                            cbegin(y) + particleStart_,
                            cbegin(z) + particleStart_,
                            begin(codes), box_);
 
-        // compute the ordering that will sort the mortonCodes in ascending order
-        std::vector<int> mortonOrder(nParticles);
-        sort_invert(cbegin(codes), cbegin(codes) + nParticles, begin(mortonOrder));
-
         // reorder the codes according to the ordering
         // has the same net effect as std::sort(begin(mortonCodes), end(mortonCodes)),
         // but with the difference that we explicitly know the ordering, such
         // that we can later apply it to the x,y,z,h arrays or to access them in the Morton order
-        reorder(mortonOrder, codes);
+        reorderFunctor.setMapFromCodes(codes.data(), codes.data() + codes.size());
+
+        // extract ordering for use in e.g. exchange particles
+        std::vector<LocalIndex> mortonOrder(nParticles);
+        reorderFunctor.getReorderMap(mortonOrder.data());
 
         // compute the global octree in cornerstone format (leaves only)
         // the resulting tree and node counts will be identical on all ranks
@@ -194,7 +199,7 @@ public:
 
         // assign one single range of Morton codes each rank
         SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree_, nodeCounts, nRanks_);
-        int newNParticlesAssigned = assignment.totalCount(myRank_);
+        LocalIndex newNParticlesAssigned   = assignment.totalCount(myRank_);
 
         // compute the maximum smoothing length (=halo radii) in each global node
         std::vector<T> haloRadii(nNodes(tree_));
@@ -219,15 +224,15 @@ public:
         // and compute an offset for each node into these arrays.
         // This will be the new layout for x,y,z,h arrays.
         std::vector<int> presentNodes;
-        std::vector<int> nodeOffsets;
+        std::vector<LocalIndex> nodeOffsets;
         computeLayoutOffsets(localNodeRanges, incomingHalosFlattened, nodeCounts, presentNodes, nodeOffsets);
         localNParticles_ = *nodeOffsets.rbegin();
 
         int firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), localNodeRanges[0])
                              - begin(presentNodes);
 
-        int newParticleStart = nodeOffsets[firstLocalNode];
-        int newParticleEnd   = newParticleStart + newNParticlesAssigned;
+        LocalIndex newParticleStart = nodeOffsets[firstLocalNode];
+        LocalIndex newParticleEnd   = newParticleStart + newNParticlesAssigned;
 
         // compute send array ranges for domain exchange
         // index ranges in domainExchangeSends are valid relative to the sorted code array mortonCodes
@@ -253,8 +258,7 @@ public:
                            cbegin(z) + particleStart_,
                            begin(codes) + particleStart_, box_);
 
-        mortonOrder.resize(newNParticlesAssigned);
-        sort_invert(cbegin(codes) + particleStart_, cbegin(codes) + particleEnd_, begin(mortonOrder));
+        reorderFunctor.setMapFromCodes(codes.data() + particleStart_, codes.data() + particleEnd_);
 
         // We have to reorder the locally assigned particles in the coordinate and property arrays
         // which are located in the index range [particleStart_, particleEnd_].
@@ -264,9 +268,8 @@ public:
             std::array<std::vector<T>*, 4 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &h, &particleProperties...};
             for (std::size_t i = 0; i < particleArrays.size(); ++i)
             {
-                reorder(mortonOrder, *particleArrays[i], particleStart_) ;
+                reorderFunctor(particleArrays[i]->data() + particleStart_) ;
             }
-            reorder(mortonOrder, codes, particleStart_);
         }
 
         incomingHaloIndices_ = createHaloExchangeList(incomingHaloNodes, presentNodes, nodeOffsets);
@@ -305,16 +308,16 @@ public:
     }
 
     //! \brief return the index of the first particle that's part of the local assignment
-    [[nodiscard]] int startIndex() const { return particleStart_; }
+    [[nodiscard]] LocalIndex startIndex() const { return particleStart_; }
 
     //! \brief return one past the index of the last particle that's part of the local assignment
-    [[nodiscard]] int endIndex() const   { return particleEnd_; }
+    [[nodiscard]] LocalIndex endIndex() const   { return particleEnd_; }
 
     //! \brief return number of locally assigned particles
-    [[nodiscard]] int nParticles() const { return endIndex() - startIndex(); }
+    [[nodiscard]] LocalIndex nParticles() const { return endIndex() - startIndex(); }
 
     //! \brief return number of locally assigned particles plus number of halos
-    [[nodiscard]] int nParticlesWithHalos() const { return localNParticles_; }
+    [[nodiscard]] LocalIndex nParticlesWithHalos() const { return localNParticles_; }
 
     //! \brief read only visibility of the octree to the outside
     const std::vector<I>& tree() const { return tree_; }
@@ -339,11 +342,11 @@ private:
     /*! \brief array index of first local particle belonging to the assignment
      *  i.e. the index of the first particle that belongs to this rank and is not a halo.
      */
-    int particleStart_;
+    LocalIndex particleStart_;
     //! \brief index (upper bound) of last particle that belongs to the assignment
-    int particleEnd_;
+    LocalIndex particleEnd_;
     //! \brief number of locally present particles, = number of halos + assigned particles
-    int localNParticles_;
+    LocalIndex localNParticles_;
 
     //! \brief coordinate bounding box, each non-periodic dimension is at a sync call
     Box<T> box_;
@@ -352,6 +355,8 @@ private:
     SendList outgoingHaloIndices_;
 
     std::vector<I> tree_;
+
+    ReorderFunctor reorderFunctor;
 };
 
 } // namespace cstone
