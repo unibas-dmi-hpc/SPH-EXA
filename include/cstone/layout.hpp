@@ -117,7 +117,7 @@ static std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& gro
 template<class IndexType>
 static void computeLayoutOffsets(const std::vector<int>& localNodeRanges,
                                  const std::vector<int>& haloNodes,
-                                 const std::vector<std::size_t>& globalNodeCounts,
+                                 const std::vector<unsigned>& globalNodeCounts,
                                  std::vector<int>& presentNodes,
                                  std::vector<IndexType>& offsets)
 {
