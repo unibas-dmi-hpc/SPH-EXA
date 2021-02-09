@@ -63,8 +63,8 @@ std::tuple<std::vector<I>, std::vector<std::size_t>> computeOctreeGlobal(const I
  *
  * See documentation of computeHaloRadii
  */
-template <class I, class T>
-void computeHaloRadiiGlobal(const I *tree, int nNodes, const I *codesStart, const I *codesEnd, const int *ordering, const T *input, T *output)
+template <class T, class I, class IndexType>
+void computeHaloRadiiGlobal(const I *tree, int nNodes, const I *codesStart, const I *codesEnd, const IndexType *ordering, const T *input, T *output)
 {
     computeHaloRadii(tree, nNodes, codesStart, codesEnd, ordering, input, output);
     MPI_Allreduce(MPI_IN_PLACE, output, nNodes, MpiType<T>{}, MPI_MAX, MPI_COMM_WORLD);
