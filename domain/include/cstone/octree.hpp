@@ -87,9 +87,12 @@ std::size_t nNodes(const std::vector<I>& tree)
  * \param nNodes       number of nodes in tree
  * \param codesStart   Morton code range start of particles to count
  * \param codesEnd     Morton code range end of particles to count
+ * \param maxCount     maximum particle count per node to store, this is used
+ *                     to prevent overflow in MPI_Allreduce
  */
 template<class I>
-void computeNodeCounts(const I* tree, std::size_t* counts, int nNodes, const I* codesStart, const I* codesEnd)
+void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* codesStart, const I* codesEnd,
+                       unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
     int firstNode = 0;
     int lastNode  = nNodes;
@@ -116,7 +119,8 @@ void computeNodeCounts(const I* tree, std::size_t* counts, int nNodes, const I* 
         // count particles in range
         auto rangeStart = std::lower_bound(codesStart, codesEnd, nodeStart);
         auto rangeEnd   = std::lower_bound(codesStart, codesEnd, nodeEnd);
-        counts[i]       = std::distance(rangeStart, rangeEnd);
+        unsigned count  = std::distance(rangeStart, rangeEnd);
+        counts[i]       = std::min(count, maxCount);
     }
 }
 
@@ -133,7 +137,7 @@ void computeNodeCounts(const I* tree, std::size_t* counts, int nNodes, const I* 
  * \return                 the rebalanced Morton code octree
  */
 template<class I>
-std::vector<I> rebalanceTree(const I* tree, const std::size_t* counts, int nNodes,
+std::vector<I> rebalanceTree(const I* tree, const unsigned* counts, int nNodes,
                              unsigned bucketSize, bool* converged = nullptr)
 {
     std::vector<I> balancedTree;
@@ -219,12 +223,22 @@ std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
  * \param codesStart   particle morton code sequence start
  * \param codesEnd     particle morton code sequence end
  * \param bucketSize   maximum number of particles/codes per octree leaf node
+ * \param maxCount     if actual node counts are higher, they will be capped to \a maxCount
  * \param[inout] tree  initial tree for the first iteration
  * \return             the tree and the node counts
+ *
+ * Remarks:
+ *    It is sensible to assume that the bucket size of the tree is much smaller than 2^32,
+ *    and thus it is ok to use 32-bit integers for the node counts, because if the node count
+ *    happens to be bigger than 2^32 for a node, this node will anyway be divided until the
+ *    node count is smaller than the bucket size. We just have to make sure to prevent overflow,
+ *    in MPI_Allreduce, therefore, maxCount should be set to 2^32/nRanks - 1 for distributed tree builds.
  */
 template<class I, class Reduce = void>
-std::tuple<std::vector<I>, std::vector<std::size_t>>
-computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize, std::vector<I>&& tree = std::vector<I>(0))
+std::tuple<std::vector<I>, std::vector<unsigned>>
+computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
+              unsigned maxCount = std::numeric_limits<unsigned>::max(),
+              std::vector<I>&& tree = std::vector<I>(0))
 {
     if (!tree.size())
     {
@@ -233,12 +247,12 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize, std::
         tree.push_back(nodeRange<I>(0));
     }
 
-    std::vector<std::size_t> counts(nNodes(tree));
+    std::vector<unsigned> counts(nNodes(tree));
 
     bool converged = false;
     while (!converged)
     {
-        computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd);
+        computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd, maxCount);
         if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
         std::vector<I> balancedTree =
             rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize, &converged);
@@ -258,7 +272,8 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize, std::
  * TODO: Don't calculate the maximum smoothing length, calculate the maximum distance by
  *       which any of the particles plus radius protrude outside the node.
  *
- * \tparam T           float or double
+ * \tparam Tin         float or double
+ * \tparam Tout        float or double, usually float
  * \tparam I           32- or 64-bit unsigned integer type for Morton codes
  * \tparam IndexType   integer type for local particle array indices, 32-bit for fewer than 2^32 local particles
  * \param tree         octree nodes given as Morton codes of length @a nNodes+1
@@ -274,9 +289,9 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize, std::
  * \param input        Radii per particle, i.e. the smoothing lengths in SPH, length = codesEnd - codesStart
  * \param output       Radius per node, length = @a nNodes
  */
-template<class T, class I, class IndexType>
+template<class Tin, class Tout, class I, class IndexType>
 void computeHaloRadii(const I* tree, int nNodes, const I* codesStart, const I* codesEnd,
-                      const IndexType* ordering, const T* input, T* output)
+                      const IndexType* ordering, const Tin* input, Tout* output)
 {
     int firstNode = 0;
     int lastNode  = nNodes;
@@ -304,15 +319,15 @@ void computeHaloRadii(const I* tree, int nNodes, const I* codesStart, const I* c
         auto startIndex = IndexType(std::lower_bound(codesStart, codesEnd, nodeStart) - codesStart);
         auto endIndex   = IndexType(std::lower_bound(codesStart, codesEnd, nodeEnd)   - codesStart);
 
-        T nodeMax = 0;
+        Tin nodeMax = 0;
         for(IndexType p = startIndex; p < endIndex; ++p)
         {
-            T nodeElement = input[ordering[p]];
+            Tin nodeElement = input[ordering[p]];
             nodeMax       = std::max(nodeMax, nodeElement);
         }
 
         // note factor of 2 due to SPH conventions
-        output[i] = 2 * nodeMax;
+        output[i] = Tout(2 * nodeMax);
     }
 }
 

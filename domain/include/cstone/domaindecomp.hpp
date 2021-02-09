@@ -243,7 +243,7 @@ private:
  *
  */
 template<class I>
-SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, const std::vector<std::size_t>& globalCounts,
+SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, const std::vector<unsigned>& globalCounts,
                                             int nSplits)
 {
     // one element per rank
