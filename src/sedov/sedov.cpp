@@ -61,7 +61,11 @@ int main(int argc, char **argv)
     const int bucketSize = 512;
     cstone::Box<Real> box{d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax,
                           d.bbox.zmin, d.bbox.zmax, d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz};
+#ifdef USE_CUDA
+    cstone::Domain<CodeType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, box);
+#else
     cstone::Domain<CodeType, Real> domain(rank, d.nrank, bucketSize, box);
+#endif
 
     if(d.rank == 0) std::cout << "Domain created." << std::endl;
 
