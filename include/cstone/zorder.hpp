@@ -212,6 +212,11 @@ public:
         std::copy(map_first, map_last, begin(ordering_));
     }
 
+    void getReorderMap(IndexType* map_first)
+    {
+        std::copy(ordering_.data(), ordering_.data() + mapSize_, map_first);
+    }
+
     /*! \brief sort given Morton codes on the device and determine reorder map based on sort order
      *
      * \param[inout] codes_first   pointer to first Morton code
