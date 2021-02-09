@@ -96,7 +96,7 @@ void CpuGatherTest()
 {
     std::vector<CodeType> codes{0, 50, 10, 60, 20, 70, 30, 80, 40, 90};
 
-    CpuGather<IndexType> cpuGather;
+    CpuGather<ValueType, CodeType, IndexType> cpuGather;
     cpuGather.setMapFromCodes(codes.data(), codes.data() + codes.size());
 
     {

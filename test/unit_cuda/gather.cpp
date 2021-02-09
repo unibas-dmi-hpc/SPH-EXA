@@ -51,12 +51,12 @@ std::vector<I> makeRandomPermutation(std::size_t nElements)
     return map;
 }
 
-template<class T, class I>
+template<class T, class I, class IndexType>
 void setFromCodeDemo()
 {
     std::vector<I> codes{0, 50, 10, 60, 20, 70, 30, 80, 40, 90};
 
-    cstone::DeviceGather<T, I> devGather;
+    cstone::DeviceGather<T, I, IndexType> devGather;
     devGather.setMapFromCodes(codes.data(), codes.data() + codes.size());
 
     std::vector<I> refCodes{0,10,20,30,40,50,60,70,80,90};
@@ -71,22 +71,24 @@ void setFromCodeDemo()
 
 TEST(DeviceGather, smallDemo)
 {
-    setFromCodeDemo<float, unsigned>();
-    setFromCodeDemo<float, uint64_t>();
-    setFromCodeDemo<double, unsigned>();
-    setFromCodeDemo<double, uint64_t>();
+    setFromCodeDemo<float, unsigned , unsigned>();
+    setFromCodeDemo<float, uint64_t , unsigned>();
+    setFromCodeDemo<double, unsigned, unsigned>();
+    setFromCodeDemo<double, uint64_t, unsigned>();
+    setFromCodeDemo<float, unsigned , uint64_t>();
+    setFromCodeDemo<float, uint64_t , uint64_t>();
+    setFromCodeDemo<double, unsigned, uint64_t>();
+    setFromCodeDemo<double, uint64_t, uint64_t>();
 }
 
-template<class T, class I>
+template<class T, class I, class IndexType>
 void reorderCheck(int nElements, bool reallocate = false)
 {
-    using LocalIndex = typename cstone::DeviceGather<T, I>::LocalIndex;
-
-    cstone::DeviceGather<T, I> devGather;
+    cstone::DeviceGather<T, I, IndexType> devGather;
     if (reallocate)
     {
         // initialize with a small size to trigger buffer reallocation
-        std::vector<LocalIndex> ord(10);
+        std::vector<IndexType> ord(10);
         devGather.setReorderMap(ord.data(), ord.data() + ord.size());
     }
 
@@ -96,7 +98,7 @@ void reorderCheck(int nElements, bool reallocate = false)
     std::iota(begin(v), end(v), 0);
     std::vector<T> hv = v;
 
-    std::vector<LocalIndex> h_order(nElements);
+    std::vector<IndexType> h_order(nElements);
     std::iota(begin(h_order), end(h_order), 0u);
     cstone::sort_invert(begin(codes), end(codes), begin(h_order));
 
@@ -122,18 +124,26 @@ TEST(DeviceGather, matchCpu)
 {
     int nElements = 320000;
 
-    reorderCheck<float, unsigned>(nElements);
-    reorderCheck<float, uint64_t>(nElements);
-    reorderCheck<double, unsigned>(nElements);
-    reorderCheck<double, uint64_t>(nElements);
+    reorderCheck<float, unsigned , unsigned>(nElements);
+    reorderCheck<float, uint64_t , unsigned>(nElements);
+    reorderCheck<double, unsigned, unsigned>(nElements);
+    reorderCheck<double, uint64_t, unsigned>(nElements);
+    reorderCheck<float, unsigned , uint64_t>(nElements);
+    reorderCheck<float, uint64_t , uint64_t>(nElements);
+    reorderCheck<double, unsigned, uint64_t>(nElements);
+    reorderCheck<double, uint64_t, uint64_t>(nElements);
 }
 
 TEST(DeviceGather, reallocate)
 {
     int nElements = 32000;
 
-    reorderCheck<float, unsigned>(nElements, true);
-    reorderCheck<float, uint64_t>(nElements, true);
-    reorderCheck<double, unsigned>(nElements, true);
-    reorderCheck<double, uint64_t>(nElements, true);
+    reorderCheck<float, unsigned , unsigned>(nElements, true);
+    reorderCheck<float, uint64_t , unsigned>(nElements, true);
+    reorderCheck<double, unsigned, unsigned>(nElements, true);
+    reorderCheck<double, uint64_t, unsigned>(nElements, true);
+    reorderCheck<float, unsigned , uint64_t>(nElements, true);
+    reorderCheck<float, uint64_t , uint64_t>(nElements, true);
+    reorderCheck<double, unsigned, uint64_t>(nElements, true);
+    reorderCheck<double, uint64_t, uint64_t>(nElements, true);
 }

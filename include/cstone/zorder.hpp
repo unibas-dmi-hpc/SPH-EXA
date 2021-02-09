@@ -194,7 +194,7 @@ void reorderInPlace(const std::vector<LocalIndex>& ordering, ValueType* array)
 }
 
 //! \brief This class conforms to the same interface as the device version to allow abstraction
-template<class IndexType>
+template<class ValueType, class CodeType, class IndexType>
 class CpuGather
 {
 public:
@@ -230,14 +230,13 @@ public:
      *    - reallocates space on the device if necessary to fit N elements of type LocalIndex
      *      and a second buffer of size max(2N*sizeof(T), N*sizeof(I))
      */
-    template<class CodeType>
     void setMapFromCodes(CodeType* codes_first, CodeType* codes_last)
     {
         mapSize_ = std::size_t(codes_last - codes_first);
         ordering_.resize(mapSize_);
 
         sort_invert(codes_first, codes_last, begin(ordering_));
-        operator()(codes_first);
+        reorderInPlace(ordering_, codes_first);
     }
 
     /*! \brief reorder the array \a values according to the reorder map provided previously
@@ -245,7 +244,6 @@ public:
      * \a values must have at least as many elements as the reorder map provided in the last call
      * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
      */
-    template<class ValueType>
     void operator()(ValueType* values)
     {
         reorderInPlace(ordering_, values);

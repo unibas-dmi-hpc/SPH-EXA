@@ -39,16 +39,14 @@ template<class T, class LocalIndex> class DeviceMemory;
 
 /*! \brief A stateful functor for reordering arrays on the gpu
  *
- * @tparam T   float or double
- * @tparam I   32- or 64-bit unsigned integer
+ * @tparam ValueType   any type that behaves like a built-in type (check template instantation list)
+ * @tparam CodeType    32- or 64-bit unsigned integer
+ * @tparam IndexType   type to index node-local particles, 32-bit or 64-bit integer
  */
-template<class T, class I>
+template<class ValueType, class CodeType, class IndexType>
 class DeviceGather
 {
 public:
-    //! \brief type to index node-local particles, assuming fewer than 2^32
-    using LocalIndex = unsigned;
-    using CodeType   = I;
 
     DeviceGather();
 
@@ -59,7 +57,7 @@ public:
      * If the sequence [map_first:map_last] does not contain each element [0:map_last-map_first]
      * exactly once, the behavior is undefined.
      */
-    void setReorderMap(const LocalIndex* map_first, const LocalIndex* map_last);
+    void setReorderMap(const IndexType* map_first, const IndexType* map_last);
 
     /*! \brief sort given Morton codes on the device and determine reorder map based on sort order
      *
@@ -86,17 +84,21 @@ public:
      * \a values must have at least as many elements as the reorder map provided in the last call
      * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
      */
-    void operator()(T* values);
+    void operator()(ValueType* values);
 
 private:
     std::size_t mapSize_{0};
 
-    std::unique_ptr<DeviceMemory<T, LocalIndex>> deviceMemory_;
+    std::unique_ptr<DeviceMemory<ValueType, IndexType>> deviceMemory_;
 };
 
-extern template class DeviceGather<float,  unsigned>;
-extern template class DeviceGather<float,  uint64_t>;
-extern template class DeviceGather<double, unsigned>;
-extern template class DeviceGather<double, uint64_t>;
+extern template class DeviceGather<float,  unsigned, unsigned>;
+extern template class DeviceGather<float,  uint64_t, unsigned>;
+extern template class DeviceGather<double, unsigned, unsigned>;
+extern template class DeviceGather<double, uint64_t, unsigned>;
+extern template class DeviceGather<float,  unsigned, uint64_t>;
+extern template class DeviceGather<float,  uint64_t, uint64_t>;
+extern template class DeviceGather<double, unsigned, uint64_t>;
+extern template class DeviceGather<double, uint64_t, uint64_t>;
 
 } // namespace cstone
