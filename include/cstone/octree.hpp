@@ -258,7 +258,9 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize, std::
  * TODO: Don't calculate the maximum smoothing length, calculate the maximum distance by
  *       which any of the particles plus radius protrude outside the node.
  *
- * \tparam I           32- or 64-bit unsigned integer type
+ * \tparam T           float or double
+ * \tparam I           32- or 64-bit unsigned integer type for Morton codes
+ * \tparam IndexType   integer type for local particle array indices, 32-bit for fewer than 2^32 local particles
  * \param tree         octree nodes given as Morton codes of length @a nNodes+1
  *                     This function does not rely on octree invariants, sortedness of the nodes
  *                     is the only requirement.
@@ -272,9 +274,9 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize, std::
  * \param input        Radii per particle, i.e. the smoothing lengths in SPH, length = codesEnd - codesStart
  * \param output       Radius per node, length = @a nNodes
  */
-template<class I, class T>
+template<class T, class I, class IndexType>
 void computeHaloRadii(const I* tree, int nNodes, const I* codesStart, const I* codesEnd,
-                      const int* ordering, const T* input, T* output)
+                      const IndexType* ordering, const T* input, T* output)
 {
     int firstNode = 0;
     int lastNode  = nNodes;
@@ -284,26 +286,26 @@ void computeHaloRadii(const I* tree, int nNodes, const I* codesStart, const I* c
         lastNode  = std::upper_bound(tree, tree + nNodes, *(codesEnd-1)) - tree;
     }
 
-    #pragma omp parallel for default(shared)
+    #pragma omp parallel for schedule(static)
     for (int i = 0; i < firstNode; ++i)
         output[i] = 0;
 
-    #pragma omp parallel for default(shared)
+    #pragma omp parallel for schedule(static)
     for (int i = lastNode; i < nNodes; ++i)
         output[i] = 0;
 
-    #pragma omp parallel for default(shared)
+    #pragma omp parallel for
     for (int i = firstNode; i < lastNode; ++i)
     {
         I nodeStart = tree[i];
         I nodeEnd   = tree[i+1];
 
         // find elements belonging to particles in node i
-        int startIndex = std::lower_bound(codesStart, codesEnd, nodeStart) - codesStart;
-        int endIndex   = std::lower_bound(codesStart, codesEnd, nodeEnd)   - codesStart;
+        auto startIndex = IndexType(std::lower_bound(codesStart, codesEnd, nodeStart) - codesStart);
+        auto endIndex   = IndexType(std::lower_bound(codesStart, codesEnd, nodeEnd)   - codesStart);
 
         T nodeMax = 0;
-        for(int p = startIndex; p < endIndex; ++p)
+        for(IndexType p = startIndex; p < endIndex; ++p)
         {
             T nodeElement = input[ordering[p]];
             nodeMax       = std::max(nodeMax, nodeElement);

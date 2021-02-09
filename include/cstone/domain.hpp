@@ -47,6 +47,7 @@ namespace cstone
 template<class I, class T>
 class Domain
 {
+    using LocalIndex = SendManifest::IndexType;
 public:
     /*! @brief construct empty Domain
      *
@@ -165,7 +166,7 @@ public:
                              cbegin(z) + particleStart_, box_);
 
         // number of locally assigned particles to consider for global tree building
-        int nParticles = particleEnd_ - particleStart_;
+        LocalIndex nParticles = particleEnd_ - particleStart_;
 
         codes.resize(nParticles);
 
@@ -177,7 +178,7 @@ public:
                            begin(codes), box_);
 
         // compute the ordering that will sort the mortonCodes in ascending order
-        std::vector<int> mortonOrder(nParticles);
+        std::vector<LocalIndex> mortonOrder(nParticles);
         sort_invert(cbegin(codes), cbegin(codes) + nParticles, begin(mortonOrder));
 
         // reorder the codes according to the ordering
@@ -194,7 +195,7 @@ public:
 
         // assign one single range of Morton codes each rank
         SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree_, nodeCounts, nRanks_);
-        int newNParticlesAssigned = assignment.totalCount(myRank_);
+        LocalIndex newNParticlesAssigned   = assignment.totalCount(myRank_);
 
         // compute the maximum smoothing length (=halo radii) in each global node
         std::vector<T> haloRadii(nNodes(tree_));
@@ -219,15 +220,15 @@ public:
         // and compute an offset for each node into these arrays.
         // This will be the new layout for x,y,z,h arrays.
         std::vector<int> presentNodes;
-        std::vector<int> nodeOffsets;
+        std::vector<LocalIndex> nodeOffsets;
         computeLayoutOffsets(localNodeRanges, incomingHalosFlattened, nodeCounts, presentNodes, nodeOffsets);
         localNParticles_ = *nodeOffsets.rbegin();
 
         int firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), localNodeRanges[0])
                              - begin(presentNodes);
 
-        int newParticleStart = nodeOffsets[firstLocalNode];
-        int newParticleEnd   = newParticleStart + newNParticlesAssigned;
+        LocalIndex newParticleStart = nodeOffsets[firstLocalNode];
+        LocalIndex newParticleEnd   = newParticleStart + newNParticlesAssigned;
 
         // compute send array ranges for domain exchange
         // index ranges in domainExchangeSends are valid relative to the sorted code array mortonCodes
@@ -305,16 +306,16 @@ public:
     }
 
     //! \brief return the index of the first particle that's part of the local assignment
-    [[nodiscard]] int startIndex() const { return particleStart_; }
+    [[nodiscard]] LocalIndex startIndex() const { return particleStart_; }
 
     //! \brief return one past the index of the last particle that's part of the local assignment
-    [[nodiscard]] int endIndex() const   { return particleEnd_; }
+    [[nodiscard]] LocalIndex endIndex() const   { return particleEnd_; }
 
     //! \brief return number of locally assigned particles
-    [[nodiscard]] int nParticles() const { return endIndex() - startIndex(); }
+    [[nodiscard]] LocalIndex nParticles() const { return endIndex() - startIndex(); }
 
     //! \brief return number of locally assigned particles plus number of halos
-    [[nodiscard]] int nParticlesWithHalos() const { return localNParticles_; }
+    [[nodiscard]] LocalIndex nParticlesWithHalos() const { return localNParticles_; }
 
     //! \brief read only visibility of the octree to the outside
     const std::vector<I>& tree() const { return tree_; }
@@ -339,11 +340,11 @@ private:
     /*! \brief array index of first local particle belonging to the assignment
      *  i.e. the index of the first particle that belongs to this rank and is not a halo.
      */
-    int particleStart_;
+    LocalIndex particleStart_;
     //! \brief index (upper bound) of last particle that belongs to the assignment
-    int particleEnd_;
+    LocalIndex particleEnd_;
     //! \brief number of locally present particles, = number of halos + assigned particles
-    int localNParticles_;
+    LocalIndex localNParticles_;
 
     //! \brief coordinate bounding box, each non-periodic dimension is at a sync call
     Box<T> box_;
