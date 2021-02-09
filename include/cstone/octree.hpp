@@ -272,7 +272,8 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
  * TODO: Don't calculate the maximum smoothing length, calculate the maximum distance by
  *       which any of the particles plus radius protrude outside the node.
  *
- * \tparam T           float or double
+ * \tparam Tin         float or double
+ * \tparam Tout        float or double, usually float
  * \tparam I           32- or 64-bit unsigned integer type for Morton codes
  * \tparam IndexType   integer type for local particle array indices, 32-bit for fewer than 2^32 local particles
  * \param tree         octree nodes given as Morton codes of length @a nNodes+1
@@ -288,9 +289,9 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
  * \param input        Radii per particle, i.e. the smoothing lengths in SPH, length = codesEnd - codesStart
  * \param output       Radius per node, length = @a nNodes
  */
-template<class T, class I, class IndexType>
+template<class Tin, class Tout, class I, class IndexType>
 void computeHaloRadii(const I* tree, int nNodes, const I* codesStart, const I* codesEnd,
-                      const IndexType* ordering, const T* input, T* output)
+                      const IndexType* ordering, const Tin* input, Tout* output)
 {
     int firstNode = 0;
     int lastNode  = nNodes;
@@ -318,15 +319,15 @@ void computeHaloRadii(const I* tree, int nNodes, const I* codesStart, const I* c
         auto startIndex = IndexType(std::lower_bound(codesStart, codesEnd, nodeStart) - codesStart);
         auto endIndex   = IndexType(std::lower_bound(codesStart, codesEnd, nodeEnd)   - codesStart);
 
-        T nodeMax = 0;
+        Tin nodeMax = 0;
         for(IndexType p = startIndex; p < endIndex; ++p)
         {
-            T nodeElement = input[ordering[p]];
+            Tin nodeElement = input[ordering[p]];
             nodeMax       = std::max(nodeMax, nodeElement);
         }
 
         // note factor of 2 due to SPH conventions
-        output[i] = 2 * nodeMax;
+        output[i] = Tout(2 * nodeMax);
     }
 }
 

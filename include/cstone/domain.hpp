@@ -201,8 +201,10 @@ public:
         SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree_, nodeCounts, nRanks_);
         LocalIndex newNParticlesAssigned   = assignment.totalCount(myRank_);
 
-        // compute the maximum smoothing length (=halo radii) in each global node
-        std::vector<T> haloRadii(nNodes(tree_));
+        // Compute the maximum smoothing length (=halo radii) in each global node.
+        // Float has a 23-bit mantissa and is therefore sufficiently precise to be normalized
+        // into the range [0, 2^maxTreelevel<CodeType>{}], which is at most 21-bit for 64-bit Morton codes
+        std::vector<float> haloRadii(nNodes(tree_));
         computeHaloRadiiGlobal(tree_.data(), nNodes(tree_), codes.data(), codes.data() + nParticles,
                                mortonOrder.data(), h.data() + particleStart_, haloRadii.data());
 
