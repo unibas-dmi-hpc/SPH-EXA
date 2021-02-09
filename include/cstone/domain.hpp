@@ -193,7 +193,7 @@ public:
 
         // compute the global octree in cornerstone format (leaves only)
         // the resulting tree and node counts will be identical on all ranks
-        std::vector<std::size_t> nodeCounts;
+        std::vector<unsigned> nodeCounts;
         std::tie(tree_, nodeCounts) = computeOctreeGlobal(codes.data(), codes.data() + nParticles, bucketSize_,
                                                           std::move(tree_));
 
