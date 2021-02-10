@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     std::ostream &output = quiet ? nullOutput : std::cout;
 
     using Real = double;
-    using CodeType = unsigned;
+    using CodeType = uint64_t;
     using Dataset = ParticlesData<Real, CodeType>;
 
     const IFileWriter<Dataset> &fileWriter = SedovMPIFileWriter<Dataset>();
@@ -58,7 +58,7 @@ int main(int argc, char **argv)
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
     // -n 350, 42M per node
-    const int bucketSize = 512;
+    const int bucketSize = 4096;
     cstone::Box<Real> box{d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax,
                           d.bbox.zmin, d.bbox.zmax, d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz};
 #ifdef USE_CUDA
