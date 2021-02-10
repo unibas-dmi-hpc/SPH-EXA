@@ -69,7 +69,6 @@ int main(int argc, char **argv)
 
     if(d.rank == 0) std::cout << "Domain created." << std::endl;
 
-    //std::vector<CodeType> codes;
     domain.sync(d.x, d.y, d.z, d.h, d.codes, d.m, d.mui, d.u, d.vx, d.vy, d.vz,
                 d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
 
