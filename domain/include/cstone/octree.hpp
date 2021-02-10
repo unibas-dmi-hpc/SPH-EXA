@@ -264,6 +264,32 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
     return std::make_tuple(std::move(tree), std::move(counts));
 }
 
+/*! \brief update the octree with a single rebalance/count step
+ *
+ * @tparam I              32- or 64-bit unsigned integer for morton code
+ * @tparam Reduce         functor for global counts reduction in distributed builds
+ * @param codesStart[in]  local particle Morton codes start
+ * @param codesEnd[in]    local particle morton codes end
+ * @param bucketSize[in]  maximum number of particles per node
+ * @param tree[inout]     the octree leaf nodes (cornerstone format)
+ * @param counts[inout]   the octree leaf node particle count
+ * @param maxCount[in]    if actual node counts are higher, they will be capped to \a maxCount
+ */
+template<class I, class Reduce = void>
+void updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
+                  std::vector<I>& tree, std::vector<unsigned>& counts,
+                  unsigned maxCount = std::numeric_limits<unsigned>::max())
+{
+    std::vector<I> balancedTree = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
+    swap(tree, balancedTree);
+    counts.resize(nNodes(tree));
+
+    // local node counts
+    computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd, maxCount);
+    // global node count sums when using distributed builds
+    if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
+}
+
 /*! \brief Compute the halo radius of each node in the given octree
  *
  * This is the maximum distance beyond the node boundaries that a particle outside the
