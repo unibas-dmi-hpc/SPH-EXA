@@ -193,12 +193,19 @@ public:
 
         // compute the global octree in cornerstone format (leaves only)
         // the resulting tree and node counts will be identical on all ranks
-        std::vector<unsigned> nodeCounts;
-        std::tie(tree_, nodeCounts) = computeOctreeGlobal(codes.data(), codes.data() + nParticles, bucketSize_,
-                                                          std::move(tree_));
+        if (incrementalBuild_)
+        {
+            updateOctreeGlobal(codes.data(), codes.data() + nParticles, bucketSize_, tree_, nodeCounts_);
+        }
+        else
+        {
+            // full build on first call
+            std::tie(tree_, nodeCounts_) = computeOctreeGlobal(codes.data(), codes.data() + nParticles, bucketSize_);
+            incrementalBuild_ = true;
+        }
 
         // assign one single range of Morton codes each rank
-        SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree_, nodeCounts, nRanks_);
+        SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree_, nodeCounts_, nRanks_);
         LocalIndex newNParticlesAssigned   = assignment.totalCount(myRank_);
 
         // Compute the maximum smoothing length (=halo radii) in each global node.
@@ -227,7 +234,7 @@ public:
         // This will be the new layout for x,y,z,h arrays.
         std::vector<int> presentNodes;
         std::vector<LocalIndex> nodeOffsets;
-        computeLayoutOffsets(localNodeRanges, incomingHalosFlattened, nodeCounts, presentNodes, nodeOffsets);
+        computeLayoutOffsets(localNodeRanges, incomingHalosFlattened, nodeCounts_, presentNodes, nodeOffsets);
         localNParticles_ = *nodeOffsets.rbegin();
 
         int firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), localNodeRanges[0])
@@ -357,6 +364,8 @@ private:
     SendList outgoingHaloIndices_;
 
     std::vector<I> tree_;
+    std::vector<unsigned> nodeCounts_;
+    bool incrementalBuild_{false};
 
     ReorderFunctor reorderFunctor;
 };
