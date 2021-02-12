@@ -82,6 +82,10 @@ int main(int argc, char **argv)
         domain.buildTree(d);
         timer.step("BuildTree");
         domain.octree.buildGlobalGravityTree(d.x, d.y, d.z, d.m);
+        FILE* fout = fopen("tree.txt", "w");
+        domain.octree.writeTree(fout);
+        fclose(fout);
+        domain.octree.print();
         timer.step("BuildGlobalGravityTree");
         taskList.update(domain.clist);
         timer.step("updateTasks");

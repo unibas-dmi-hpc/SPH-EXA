@@ -672,10 +672,14 @@ public:
 
     void writeTree(FILE *fout)
     {
-        fprintf(fout, "%f %f %f %f %f %f\n", xmin, xmax, ymin, ymax, zmin, zmax);
+        fprintf(fout, "[%p] = {%f %f %f %f %f %f} : %d +> %d\n", this, xmin, xmax, ymin, ymax, zmin, zmax, localPadding, localParticleCount);
 
         if ((global && (assignee == comm_rank || assignee == -1)) && (int)cells.size() == ncells)
         {
+            for (int i = 0; i < ncells; i++)
+            {
+                fprintf(fout, "  -- [%p]\n", cells[i].get());
+            }
             for (int i = 0; i < ncells; i++)
             {
                 cells[i]->writeTree(fout);
@@ -792,6 +796,11 @@ struct GravityOctree : Octree<T>
     void gravityBuildTree(const std::vector<int> &list, const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z,
                           const std::vector<T> &m, bool withGravitySync = false)
     {
+        /*
+        static int total_calls = 0;
+        total_calls += list.size();
+        printf("current total calls: %d\n", total_calls);
+        */
         particleIdxList = list;
         calcGeometricalCenter();
         dx = this->xmax - this->xmin;

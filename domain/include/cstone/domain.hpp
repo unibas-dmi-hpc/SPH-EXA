@@ -42,6 +42,8 @@
 #include "cstone/layout.hpp"
 #include "cstone/octree_mpi.hpp"
 
+#include "gravityTree.hpp"
+
 namespace cstone
 {
 
@@ -332,6 +334,8 @@ public:
 
     //! \brief return the coordinate bounding box from the previous sync call
     Box<T> box() const { return box_; }
+
+    gravity::GravityTree<T>& gTree() { return gTree_; }
 
 private:
 

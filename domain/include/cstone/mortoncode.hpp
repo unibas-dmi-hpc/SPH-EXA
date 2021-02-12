@@ -221,6 +221,10 @@ template <class I, class T>
 CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3D(T x, T y, T z, Box<T> box)
 {
+    /*
+     * TODO: use LUT to compute from https://www.forceflow.be/2013/10/07/morton-encodingdecoding-through-bit-interleaving-implementations/
+     * claims to be 3x faster
+     */
     return morton3DunitCube<I>(normalize(x, box.xmin(), box.xmax()),
                                normalize(y, box.ymin(), box.ymax()),
                                normalize(z, box.zmin(), box.zmax()));
@@ -308,6 +312,54 @@ inline pair<int> decodeZRange(I code, int length)
 
     ret[0] = decodeMortonZ(code);
     ret[1] = ret[0] + (I(1) << (maxTreeLevel<I>{} - length/3));
+
+    return ret;
+}
+
+/*! \brief compute the X coordinate of a given code inside a box
+ *
+ * @tparam I      32- or 64-bit unsigned integer
+ * @param code    A morton code
+ * @param box     The enclosing box of the XYZ-space
+ * @return        The X coordinate of the input code inside the input box
+ */
+template<class I, class T>
+CUDA_HOST_DEVICE_FUN
+inline T decodeXCoordinate(I code, const Box<T>& box)
+{
+    constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+    constexpr T uL = T(1.) / maxCoord; // uL = unitLength
+
+    int ixBox = decodeMortonX(code);
+    T ret = box.xmin() + ixBox * uL * box.lx();
+
+    return ret;
+}
+
+//! \brief See decodeXCoordinate
+template<class I, class T>
+CUDA_HOST_DEVICE_FUN
+inline T decodeYCoordinate(I code, const Box<T>& box)
+{
+    constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+    constexpr T uL = T(1.) / maxCoord; // uL = unitLength
+
+    int iyBox = decodeMortonY(code);
+    T ret = box.ymin() + iyBox * uL * box.ly();
+
+    return ret;
+}
+
+//! \brief See decodeXCoordinate
+template<class I, class T>
+CUDA_HOST_DEVICE_FUN
+inline T decodeZCoordinate(I code, const Box<T>& box)
+{
+    constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+    constexpr T uL = T(1.) / maxCoord; // uL = unitLength
+
+    int izBox = decodeMortonZ(code);
+    T ret = box.zmin() + izBox * uL * box.lz();
 
     return ret;
 }
