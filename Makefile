@@ -24,7 +24,7 @@ NVCCLDFLAGS := $(GENCODE_FLAGS) -rdc=true
 
 ifeq ($(ENV),gnu)
 	#CXXFLAGS += -std=c++17 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native -g
-	CXXFLAGS += -std=c++17 -O0 -Wall -Wextra -fopenacc -march=native -mtune=native -g
+	CXXFLAGS += -std=c++17 -O0 -fopenacc -march=native -mtune=native -g
 endif
 
 ifeq ($(ENV),pgi)
@@ -49,10 +49,14 @@ ifeq ($(TESTCASE),evrard)
 	TESTCASE_FLAGS = -DGRAVITY
 endif
 
-#omp: $(HPP)
-#	@mkdir -p $(BINDIR)
-#	$(info Linking the executable:)
-#	$(CXX) $(CXXFLAGS) $(INC) $(TESTCASE_FLAGS) src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
+ifeq ($(TESTCASE),evrard-sfc)
+	TESTCASE_FLAGS = -DGRAVITY
+endif
+
+omp: $(HPP)
+	@mkdir -p $(BINDIR)
+	$(info Linking the executable:)
+	$(CXX) $(CXXFLAGS) $(INC) $(TESTCASE_FLAGS) src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
 
 mpi+omp: $(HPP)
 	@mkdir -p $(BINDIR)

@@ -23,7 +23,7 @@ void treeWalkRef(const GravityTree<T> &gtree, const int i, const T *xi, const T 
     // Carefull! empty global tree nodes cannot be skipped. They are used to fill RankToParticles map used later in remote grav calculations
     //if (gnode.particleIdxList.empty() && !gnode.global) return;
 
-    for (auto gnode: gtree.nodeData)
+    for (auto gnode: gtree)
     {
         const T d1 = std::abs(xi[i] - gnode.xce);
         const T d2 = std::abs(yi[i] - gnode.yce);

@@ -111,7 +111,7 @@ void treeWalkRef(const Octree<T> &node, const int i, const T *xi, const T *yi, c
                 const T v2 = dd5 / hj[j];
 
                 if (v1 > 2.0 && v2 > 2.0) { g0 = gnode.mTot * d32; }
-                else
+                else // force smoothing if they are too close (softening on the mass)
                 {
                     const T hij = hi[i] + hj[j];
                     const T vgr = dd5 / hij;
@@ -131,7 +131,7 @@ void treeWalkRef(const Octree<T> &node, const int i, const T *xi, const T *yi, c
             else // node is not leaf
             {
 
-                g0 = gnode.mTot * d32; // Base Value
+                g0 = gnode.mTot * d32; // Base Value (zero order expansion)
                 fx[i] -= g0 * r1;
                 fy[i] -= g0 * r2;
                 fz[i] -= g0 * r3;

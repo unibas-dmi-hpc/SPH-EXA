@@ -797,10 +797,11 @@ struct GravityOctree : Octree<T>
                           const std::vector<T> &m, bool withGravitySync = false)
     {
         /*
-        static int total_calls = 0;
+        int total_calls = 0;
         total_calls += list.size();
+        printf("THIS IS NEW\n");
         printf("current total calls: %d\n", total_calls);
-        */
+        //*/
         particleIdxList = list;
         calcGeometricalCenter();
         dx = this->xmax - this->xmin;

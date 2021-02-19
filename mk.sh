@@ -1,6 +1,5 @@
 #!/bin/bash
 
-export CRAYPE_LINK_TYPE=dynamic
 export OMP_NUM_THREADS=4
 
 make clean

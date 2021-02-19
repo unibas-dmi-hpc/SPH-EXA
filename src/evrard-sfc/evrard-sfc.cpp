@@ -97,11 +97,15 @@ int main(int argc, char **argv)
         d.resize(d.x.size());  // also resize arrays not listed in sync, even though space for halos is not needed
         clist.resize(domain.nParticles());
         std::iota(begin(clist), end(clist), domain.startIndex());
-        // build the gravity tree here!
+        // TODO: build the local gravity tree
+        // build the global gravity tree
         gravity::buildGlobalGravityTree(domain.tree(), d.x, d.y, d.z, d.m, codes, domain.box(), domain.gTree(), false);
         timer.step("gravity::buildGravityTree");
         taskList.update(clist);
         timer.step("updateTasks");
+        // DEBUG TREE
+        gravity::showParticles(domain.tree(), d.x, d.y, d.z, d.m, codes, domain.box());
+        // END DEBUG TREE
         // gravity treewalk
         auto rankToParticlesForRemoteGravCalculations = gravity::gravityTreeWalk(taskList.tasks, domain.gTree(), d);
         timer.step("Gravity (self)");
