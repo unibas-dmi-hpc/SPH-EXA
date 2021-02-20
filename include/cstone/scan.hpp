@@ -55,7 +55,7 @@ void exclusiveScanSerialInplace(T* out, size_t num_elements, T init)
 template<class T>
 void exclusiveScan(const T* in, T* out, size_t numElements)
 {
-    constexpr int blockSize = 8192 + 16384 / sizeof(T);
+    constexpr int blockSize = (8192 + 16384) / sizeof(T);
 
     int numThreads = 1;
     #pragma omp parallel
@@ -63,7 +63,6 @@ void exclusiveScan(const T* in, T* out, size_t numElements)
         #pragma omp single
         numThreads = omp_get_num_threads();
     }
-    std::cout << "numThreads is: " << numThreads << std::endl;
 
     T superBlock[numThreads+1];
     std::fill(superBlock, superBlock + numThreads+1, 0);
