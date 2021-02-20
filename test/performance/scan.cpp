@@ -91,7 +91,7 @@ void test_scan(const std::vector<T>& input, std::vector<T>& output, const std::v
 
 int main()
 {
-    std::size_t numElements = 10000000;
+    std::size_t numElements = 40000000;
     //std::size_t numElements = 100;
     std::vector<unsigned> input(numElements, 1);
     std::vector<unsigned> output(numElements);
