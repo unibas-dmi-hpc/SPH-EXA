@@ -40,11 +40,24 @@ namespace cstone
 {
 
 template<class T>
-void exclusiveScan(const T* in, T* out, std::size_t numElements)
+void exclusiveScanSerialInplace(T* out, size_t num_elements, T init)
 {
-    constexpr int blockSize = 16384 / sizeof(T);
+    T a = init;
+    T b = init;
+    for (size_t i = 0; i < num_elements; ++i)
+    {
+        a += out[i];
+        out[i] = b;
+        b = a;
+    }
+}
 
-    int numThreads = 0;
+template<class T>
+void exclusiveScan(const T* in, T* out, size_t numElements)
+{
+    constexpr int blockSize = 8192 + 16384 / sizeof(T);
+
+    int numThreads = 1;
     #pragma omp parallel
     {
         #pragma omp single
@@ -52,72 +65,48 @@ void exclusiveScan(const T* in, T* out, std::size_t numElements)
     }
     std::cout << "numThreads is: " << numThreads << std::endl;
 
-    T superBlock[numThreads];
-    std::fill(superBlock, superBlock + numThreads, 0);
+    T superBlock[numThreads+1];
+    std::fill(superBlock, superBlock + numThreads+1, 0);
 
     unsigned elementsPerStep = numThreads * blockSize;
     unsigned nSteps = numElements / elementsPerStep;
 
-    size_t stepSum = 0;
+    T stepSum = 0;
 
     #pragma omp parallel num_threads(numThreads)
     {
         int tid = omp_get_thread_num();
-        for (std::size_t step = 0; step < nSteps; ++step)
+        for (size_t step = 0; step < nSteps; ++step)
         {
-            //#pragma omp parallel num_threads(numThreads)
-            //for (int tid = 0; tid < numThreads; ++tid)
+            size_t stepOffset = step * elementsPerStep + tid * blockSize;
+
+            T tSum = 0;
+            for (size_t ib = 0; ib < blockSize; ++ib)
             {
-                //int tid = omp_get_thread_num();
-                size_t stepOffset = step * elementsPerStep + tid * blockSize;
+                size_t i = stepOffset + ib;
 
-                T tSum = 0;
-                for (std::size_t ib = 0; ib < blockSize; ++ib)
-                {
-                    size_t i = stepOffset + ib;
-
-                    out[i] = tSum + stepSum;
-                    tSum += in[i];
-                }
-
-                superBlock[tid] = tSum;
+                out[i] = tSum;
+                tSum += in[i];
             }
+
+            superBlock[tid] = tSum;
 
             #pragma omp barrier
 
             if (tid == 0)
             {
-                // inclusive scan the super block
-                for (int blockId = 1; blockId < numThreads; ++blockId)
-                {
-                    superBlock[blockId] += superBlock[blockId - 1];
-                }
+                exclusiveScanSerialInplace(superBlock, numThreads+1, stepSum);
+                stepSum = superBlock[numThreads];
             }
 
             #pragma omp barrier
 
-            //#pragma omp parallel num_threads(numThreads)
-            //for (int tid = 1; tid < numThreads; ++tid)
+            tSum = superBlock[tid];
+            for (size_t ib = 0; ib < blockSize; ++ib)
             {
-                //int tid = omp_get_thread_num();
-                if (tid > 0)
-                {
-                    size_t stepOffset = step * elementsPerStep + tid * blockSize;
-
-                    T superBlockSum = superBlock[tid - 1];
-                    for (std::size_t ib = 0; ib < blockSize; ++ib)
-                    {
-                        size_t i = stepOffset + ib;
-                        out[i] += superBlockSum;
-                    }
-                }
+                size_t i = stepOffset + ib;
+                out[i] += tSum;
             }
-
-            if (tid == 0)
-            {
-                stepSum += superBlock[numThreads - 1];
-            }
-            #pragma omp barrier
         }
     }
 

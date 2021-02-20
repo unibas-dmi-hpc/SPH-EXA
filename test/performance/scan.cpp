@@ -40,13 +40,26 @@
 using namespace cstone;
 
 template<class T>
-void simple_scan(const T* in, T* out, std::size_t num_elements)
+void exclusiveScanSerial(const T* in, T* out, std::size_t num_elements)
 {
     T sum = 0;
     for (size_t i = 0; i < num_elements; ++i)
     {
         out[i] = sum;
         sum += in[i];
+    }
+}
+
+template<class T>
+void exclusiveScanSerialInplace(const T* in, T* out, std::size_t num_elements)
+{
+    T a = 0;
+    T b = 0;
+    for (size_t i = 0; i < num_elements; ++i)
+    {
+        a += out[i];
+        out[i] = b;
+        b = a;
     }
 }
 
@@ -74,19 +87,22 @@ void test_scan(const std::vector<T>& input, std::vector<T>& output, const std::v
             std::cout << std::endl;
         }
     }
-
 }
 
 int main()
 {
     std::size_t numElements = 10000000;
+    //std::size_t numElements = 100;
     std::vector<unsigned> input(numElements, 1);
     std::vector<unsigned> output(numElements);
 
     std::vector<unsigned> reference(numElements);
     std::iota(begin(reference), end(reference), 0);
 
-    test_scan(input, output, reference, simple_scan<unsigned>);
+    test_scan(input, output, reference, exclusiveScanSerial<unsigned>);
+
+    output = input;
+    test_scan(input, output, reference, exclusiveScanSerialInplace<unsigned>);
 
     output = input;
     test_scan(input, output, reference, exclusiveScan<unsigned>);
