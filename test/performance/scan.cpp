@@ -30,7 +30,6 @@
  */
 
 #include <chrono>
-#include <execution>
 #include <iostream>
 #include <iterator>
 #include <numeric>
@@ -39,36 +38,16 @@
 
 #include "cstone/scan.hpp"
 
-using namespace cstone;
-
 template<class T>
 void exclusiveScanSerial(const T* in, T* out, std::size_t num_elements)
 {
-    T sum = 0;
-    for (size_t i = 0; i < num_elements; ++i)
-    {
-        out[i] = sum;
-        sum += in[i];
-    }
+    std::exclusive_scan(in, in + num_elements, out, 0);
 }
 
 template<class T>
-void exclusiveScanSerialInplace(const T* in, T* out, std::size_t num_elements)
+void exclusiveScanInplace([[maybe_unused]] const T* in, T* out, std::size_t num_elements)
 {
-    T a = 0;
-    T b = 0;
-    for (size_t i = 0; i < num_elements; ++i)
-    {
-        a += out[i];
-        out[i] = b;
-        b = a;
-    }
-}
-
-template<class T>
-void exclusiveScanSTL(const T* in, T* out, std::size_t num_elements)
-{
-    std::exclusive_scan(std::execution::par, in, in + num_elements, out, 0);
+    cstone::exclusiveScan(out, num_elements);
 }
 
 template<class T>
@@ -77,15 +56,12 @@ void test_scan(std::string name, const std::vector<T>& input, std::vector<T>& ou
 {
     std::size_t numElements = input.size();
 
-    auto tp0 = std::chrono::high_resolution_clock::now();
     func(input.data(), output.data(), numElements);
-    auto tp1  = std::chrono::high_resolution_clock::now();
 
     bool pass = (output == reference);
-    double t0 = std::chrono::duration<double>(tp1 - tp0).count();
 
     if (pass)
-        std::cout << name << " scan test: PASS, bandwidth: " << numElements * sizeof(unsigned) / (t0 * 1e6) << " MB/s\n";
+        std::cout << name << " scan test: PASS\n";
     else
     {
         std::cout << name << " scan test: FAIL\n";
@@ -98,7 +74,7 @@ void test_scan(std::string name, const std::vector<T>& input, std::vector<T>& ou
 }
 
 template<class T>
-void benchmark_scan(std::string name, const std::vector<T>& input, std::vector<T>& output, const std::vector<T>& reference,
+void benchmark_scan(const std::string& name, const std::vector<T>& input, std::vector<T>& output, const std::vector<T>& reference,
                     void(*func)(const T*, T*, std::size_t))
 {
     std::size_t numElements = input.size();
@@ -120,6 +96,7 @@ void benchmark_scan(std::string name, const std::vector<T>& input, std::vector<T
     std::cout << name << " benchmark bandwidth: " << numElements * sizeof(unsigned) / (t0 * 1e6) * repetitions << " MB/s\n";
 }
 
+
 int main(int argc, char** argv)
 {
     std::size_t numElements = 10000000;
@@ -134,22 +111,12 @@ int main(int argc, char** argv)
     std::iota(begin(reference), end(reference), 0);
 
     test_scan("serial", input, output, reference, exclusiveScanSerial<unsigned>);
-
     output = input;
-    test_scan("serial inplace", input, output, reference, exclusiveScanSerialInplace<unsigned>);
-
+    test_scan("parallel", input, output, reference, cstone::exclusiveScan<unsigned>);
     output = input;
-    test_scan("STL parallel", input, output, reference, exclusiveScanSTL<unsigned>);
+    test_scan("parallel inplace", input, output, reference, exclusiveScanInplace<unsigned>);
 
-    output = input;
-    test_scan("parallel", input, output, reference, exclusiveScan<unsigned>);
-
-    output = input;
     benchmark_scan("serial", input, output, reference, exclusiveScanSerial<unsigned>);
-
-    output = input;
-    benchmark_scan("STL parallel", input, output, reference, exclusiveScanSTL<unsigned>);
-
-    output = input;
-    benchmark_scan("parallel", input, output, reference, exclusiveScan<unsigned>);
+    benchmark_scan("parallel", input, output, reference, cstone::exclusiveScan<unsigned>);
+    benchmark_scan("parallel inplace", input, output, reference, exclusiveScanInplace<unsigned>);
 }

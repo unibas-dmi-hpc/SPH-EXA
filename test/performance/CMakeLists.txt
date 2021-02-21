@@ -15,14 +15,8 @@ target_include_directories(octree_perf PRIVATE ../)
 target_link_libraries(octree_perf PUBLIC OpenMP::OpenMP_CXX)
 
 
-find_package(TBB)
+add_executable(scan_perf scan.cpp)
 
-if(TBB_FOUND)
-
-    add_executable(scan_perf scan.cpp)
-
-    target_include_directories(scan_perf PRIVATE ../../include)
-    target_include_directories(scan_perf PRIVATE ../)
-    target_link_libraries(scan_perf PUBLIC OpenMP::OpenMP_CXX TBB::tbb)
-
-endif()
+target_include_directories(scan_perf PRIVATE ../../include)
+target_include_directories(scan_perf PRIVATE ../)
+target_link_libraries(scan_perf PUBLIC OpenMP::OpenMP_CXX)
