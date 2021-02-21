@@ -56,6 +56,7 @@ template<class T>
 void exclusiveScan(const T* in, T* out, size_t numElements)
 {
     constexpr int blockSize = (8192 + 16384) / sizeof(T);
+    //constexpr int blockSize = 4;
 
     int numThreads = 1;
     #pragma omp parallel
@@ -64,13 +65,12 @@ void exclusiveScan(const T* in, T* out, size_t numElements)
         numThreads = omp_get_num_threads();
     }
 
-    T superBlock[numThreads+1];
-    std::fill(superBlock, superBlock + numThreads+1, 0);
+    T superBlock[2][numThreads+1];
+    std::fill(superBlock[0], superBlock[0] + numThreads+1, 0);
+    std::fill(superBlock[1], superBlock[1] + numThreads+1, 0);
 
     unsigned elementsPerStep = numThreads * blockSize;
     unsigned nSteps = numElements / elementsPerStep;
-
-    T stepSum = 0;
 
     #pragma omp parallel num_threads(numThreads)
     {
@@ -88,19 +88,19 @@ void exclusiveScan(const T* in, T* out, size_t numElements)
                 tSum += in[i];
             }
 
-            superBlock[tid] = tSum;
+            superBlock[step%2][tid] = tSum;
 
             #pragma omp barrier
 
-            if (tid == 0)
+            tSum = superBlock[(step+1)%2][numThreads];
+            for (size_t t = 0; t < tid; ++t)
+                tSum += superBlock[step%2][t];
+
+            if (tid == numThreads - 1)
             {
-                exclusiveScanSerialInplace(superBlock, numThreads+1, stepSum);
-                stepSum = superBlock[numThreads];
+                superBlock[step%2][numThreads] = tSum + superBlock[step%2][numThreads - 1];
             }
 
-            #pragma omp barrier
-
-            tSum = superBlock[tid];
             for (size_t ib = 0; ib < blockSize; ++ib)
             {
                 size_t i = stepOffset + ib;
@@ -109,6 +109,7 @@ void exclusiveScan(const T* in, T* out, size_t numElements)
         }
     }
 
+    T stepSum = superBlock[(nSteps+1)%2][numThreads];
     for (size_t i = nSteps * elementsPerStep; i < numElements; ++i)
     {
         out[i] = stepSum;
