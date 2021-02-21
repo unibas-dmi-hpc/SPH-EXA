@@ -89,10 +89,36 @@ void test_scan(const std::vector<T>& input, std::vector<T>& output, const std::v
     }
 }
 
-int main()
+template<class T>
+void benchmark_scan(const std::vector<T>& input, std::vector<T>& output, const std::vector<T>& reference,
+                    void(*func)(const T*, T*, std::size_t))
 {
-    std::size_t numElements = 400000000;
-    //std::size_t numElements = 99;
+    std::size_t numElements = input.size();
+
+    int repetitions = 30;
+
+    // warmup
+    func(input.data(), output.data(), numElements);
+
+    auto tp0 = std::chrono::high_resolution_clock::now();
+    for (int i = 0; i < repetitions; ++i)
+    {
+        func(input.data(), output.data(), numElements);
+    }
+    auto tp1  = std::chrono::high_resolution_clock::now();
+
+    double t0 = std::chrono::duration<double>(tp1 - tp0).count();
+
+    std::cout << "benchmark bandwidth: " << numElements * sizeof(unsigned) / (t0 * 1e6) * repetitions << " MB/s\n";
+}
+
+int main(int argc, char** argv)
+{
+    std::size_t numElements = 10000000;
+    if (argc > 1)
+        numElements = std::stoi(argv[1]);
+
+    std::cout << "scanning " << numElements << " elements\n";
     std::vector<unsigned> input(numElements, 1);
     std::vector<unsigned> output(numElements);
 
@@ -106,5 +132,11 @@ int main()
 
     output = input;
     test_scan(input, output, reference, exclusiveScan<unsigned>);
+
+    output = input;
+    benchmark_scan(input, output, reference, exclusiveScanSerial<unsigned>);
+
+    output = input;
+    benchmark_scan(input, output, reference, exclusiveScan<unsigned>);
 }
 
