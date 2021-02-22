@@ -125,6 +125,27 @@ TEST(CornerstoneOctree, countTreeNodes64)
     checkCountTreeNodes<uint64_t>();
 }
 
+template<class CodeType, class LocalIndex>
+void rebalanceDecision()
+{
+    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
+
+    unsigned bucketSize = 4;
+    std::vector<unsigned> counts{1,1,1,0,0,0,0,0, 2, 3, 4, 5, 6, 7, 8};
+
+    std::vector<LocalIndex> nodeOps(nNodes(tree));
+    rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data());
+
+    std::vector<LocalIndex> reference{1,0,0,0,0,0,0,0, 1, 1, 1, 8, 8, 8, 8};
+    EXPECT_EQ(nodeOps, reference);
+}
+
+TEST(CornerstoneOctree, rebalanceDecision)
+{
+    rebalanceDecision<unsigned, unsigned>();
+    rebalanceDecision<uint64_t, unsigned>();
+}
+
 //! \brief check that nodes can be fused at the start of the tree
 template<class CodeType>
 void rebalanceShrinkStart()
@@ -396,51 +417,6 @@ TEST(CornerstoneOctree, rebalanceInsufficientResolution64)
 {
     rebalanceInsufficentResolution<uint64_t>();
 }
-
-
-template<class CodeType, class LocalIndex>
-void rebalanceOps()
-{
-    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
-
-    unsigned bucketSize = 4;
-    std::vector<unsigned> counts{1,1,1,0,0,0,0,0, 2, 3, 4, 5, 6, 7, 8};
-    //std::vector<unsigned> counts{1,1,1, 0,2,1,0,0,0,0,0,       0,0,0,0, 2, 3, 4, 5, 6, 7, 8};
-
-    std::vector<LocalIndex> nodeOps(nNodes(tree));
-    rebalanceOps(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data());
-
-    std::vector<LocalIndex> reference{1,0,0,0,0,0,0,0, 1, 1, 1, 8, 8, 8, 8};
-    //std::vector<LocalIndex> reference{1,1,1, 1,0,0,0,0,0,0,0,  1,1,1,1, 1, 1, 1, 8, 8, 8, 8};
-    EXPECT_EQ(nodeOps, reference);
-}
-
-TEST(CornerstoneOctree, rebalanceOps)
-{
-    rebalanceOps<unsigned, unsigned>();
-}
-
-template<class CodeType>
-void rebalanceTree2()
-{
-    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
-    unsigned bucketSize = 4;
-    std::vector<unsigned> counts{1,1,1,0,0,0,0,0, 2, 3, 4, 4, 4, 42, 1};
-
-    // node(0) goes away, node(6) will be split
-    bool converged = true;
-    std::vector<CodeType> balancedTree = rebalanceTree2(tree.data(), counts.data(), nNodes(tree), bucketSize, &converged);
-    EXPECT_FALSE(converged);
-
-    std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().divide(6).makeTree();
-    EXPECT_EQ(balancedTree, reference);
-}
-
-TEST(CornerstoneOctree, rebalanceTree2)
-{
-   rebalanceTree2<unsigned>();
-}
-
 
 
 template<class I>
