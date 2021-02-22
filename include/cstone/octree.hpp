@@ -52,6 +52,7 @@
 #pragma once
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <numeric>
 #include <vector>
@@ -103,29 +104,32 @@ void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* cod
         lastNode  = std::upper_bound(tree, tree + nNodes, *(codesEnd-1)) - tree;
     }
 
-    #pragma omp parallel for
-    for (int i = 0; i < firstNode; ++i)
-        counts[i] = 0;
-
-    #pragma omp parallel for
-    for (int i = lastNode; i < nNodes; ++i)
-        counts[i] = 0;
-
-    #pragma omp parallel for
-    for (int i = firstNode; i < lastNode; ++i)
+    #pragma omp parallel
     {
-        I nodeStart = tree[i];
-        I nodeEnd   = tree[i+1];
+        #pragma omp for schedule(static) nowait
+        for (int i = 0; i < firstNode; ++i)
+            counts[i] = 0;
 
-        // count particles in range
-        auto rangeStart = std::lower_bound(codesStart, codesEnd, nodeStart);
-        auto rangeEnd   = std::lower_bound(codesStart, codesEnd, nodeEnd);
-        unsigned count  = std::distance(rangeStart, rangeEnd);
-        counts[i]       = std::min(count, maxCount);
+        #pragma omp for schedule(static) nowait
+            for (int i = lastNode; i < nNodes; ++i)
+            counts[i] = 0;
+
+        #pragma omp for schedule(static)
+        for (int i = firstNode; i < lastNode; ++i)
+        {
+            I nodeStart = tree[i];
+            I nodeEnd   = tree[i+1];
+
+            // count particles in range
+            auto rangeStart = std::lower_bound(codesStart, codesEnd, nodeStart);
+            auto rangeEnd   = std::lower_bound(codesStart, codesEnd, nodeEnd);
+            unsigned count  = std::distance(rangeStart, rangeEnd);
+            counts[i]       = std::min(count, maxCount);
+        }
     }
 }
 
-/*! \brief split or fuse octree nodes based on node counts relative to bucketSize
+/*! \brief Compute split or fuse decision for each octree node in parallel
  *
  * \tparam I               32- or 64-bit unsigned integer type
  * \param[in] tree         octree nodes given as Morton codes of length @a nNodes
@@ -134,68 +138,21 @@ void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* cod
  * \param[in] nNodes       number of nodes in tree
  * \param[in] bucketSize   maximum particle count per (leaf) node and
  *                         minimum particle count (strictly >) for (implicit) internal nodes
- * \param[out] converged   optional boolean flag to indicate convergence
- * \return                 the rebalanced Morton code octree
+ * \param[out] nodeOps     stores rebalance decision result for each node, length = @a nNodes
+ * \return                 number of nodes split + fused
+ *
+ * For each node i in the tree, in nodeOps[i], stores
+ *  - 0 if to be merged
+ *  - 1 if unchanged,
+ *  - 8 if to be split.
  */
-template<class I>
-std::vector<I> rebalanceTree(const I* tree, const unsigned* counts, int nNodes,
-                             unsigned bucketSize, bool* converged = nullptr)
-{
-    std::vector<I> balancedTree;
-    balancedTree.reserve(nNodes + 1);
-
-    int changes = 0;
-
-    int i = 0;
-    while(i < nNodes)
-    {
-        I thisNode     = tree[i];
-        I range        = tree[i+1] - thisNode;
-        unsigned level = treeLevel(range);
-
-        if (counts[i] > bucketSize && level < maxTreeLevel<I>{})
-        {
-            // split
-            for (std::size_t sibling = 0; sibling < 8; ++sibling)
-            {
-                balancedTree.push_back(thisNode + sibling * nodeRange<I>(level + 1));
-            }
-            changes++;
-            i++;
-        }
-        else if (level > 0 && // level 0 cannot be fused
-                 parentIndex(thisNode, level) == 0 &&  // current node is first of 8 siblings
-                 tree[i+8] == thisNode + nodeRange<I>(level - 1) && // next 7 nodes are all siblings
-                 std::accumulate(counts + i, counts + i + 8, std::size_t(0)) <= bucketSize) // parent count too small
-        {
-            // fuse, by omitting the 7 siblings
-            balancedTree.push_back(thisNode);
-            changes++;
-            i += 8;
-        }
-        else
-        {
-            // do nothing
-            balancedTree.push_back(thisNode);
-            i++;
-        }
-    }
-    balancedTree.push_back(nodeRange<I>(0));
-
-    if (converged != nullptr)
-    {
-        *converged = (changes == 0);
-    }
-
-    return balancedTree;
-}
-
 template<class I, class LocalIndex>
-int rebalanceOps(const I* tree, const unsigned* counts, int nNodes,
-                 unsigned bucketSize, LocalIndex* nodeOps)
+int rebalanceDecision(const I* tree, const unsigned* counts, int nNodes,
+                      unsigned bucketSize, LocalIndex* nodeOps)
 {
     std::atomic<int> changes{0};
 
+    #pragma omp parallel for
     for (int i = 0; i < nNodes; ++i)
     {
         I thisNode     = tree[i];
@@ -230,19 +187,32 @@ int rebalanceOps(const I* tree, const unsigned* counts, int nNodes,
     return changes;
 }
 
+/*! \brief split or fuse octree nodes based on node counts relative to bucketSize
+ *
+ * \tparam I               32- or 64-bit unsigned integer type
+ * \param[in] tree         octree nodes given as Morton codes of length @a nNodes
+ *                         needs to satisfy the octree invariants
+ * \param[in] counts       output particle counts per node, length = @a nNodes
+ * \param[in] nNodes       number of nodes in tree
+ * \param[in] bucketSize   maximum particle count per (leaf) node and
+ *                         minimum particle count (strictly >) for (implicit) internal nodes
+ * \param[out] converged   optional boolean flag to indicate convergence
+ * \return                 the rebalanced Morton code octree
+ */
 template<class I>
-std::vector<I> rebalanceTree2(const I* tree, const unsigned* counts, int nNodes,
-                              unsigned bucketSize, bool* converged = nullptr)
+std::vector<I> rebalanceTree(const I* tree, const unsigned* counts, int nNodes,
+                             unsigned bucketSize, bool* converged = nullptr)
 {
     using LocalIndex = unsigned;
     std::vector<LocalIndex> nodeOps(nNodes + 1);
 
-    int changes = rebalanceOps(tree, counts, nNodes, bucketSize, nodeOps.data());
+    int changes = rebalanceDecision(tree, counts, nNodes, bucketSize, nodeOps.data());
 
-    exclusiveScanSerialInplace(nodeOps.data(), nNodes + 1, 0u);
+    exclusiveScan(nodeOps.data(), nNodes + 1);
 
     std::vector<I> balancedTree(*nodeOps.rbegin() + 1);
 
+    #pragma omp parallel for
     for (int i = 0; i < nNodes; ++i)
     {
         I thisNode     = tree[i];

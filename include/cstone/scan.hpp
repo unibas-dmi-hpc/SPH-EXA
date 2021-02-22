@@ -102,6 +102,8 @@ T exclusiveScanSerialInplace(T* out, size_t num_elements, T init)
     return b;
 }
 
+#ifdef _OPENMP
+
 template<class T>
 void exclusiveScan(T* out, size_t numElements)
 {
@@ -147,5 +149,15 @@ void exclusiveScan(T* out, size_t numElements)
     T stepSum = superBlock[(nSteps+1)%2][numThreads];
     exclusiveScanSerialInplace(out + nSteps*elementsPerStep, numElements - nSteps*elementsPerStep, stepSum);
 }
+
+#else
+
+template<class T>
+void exclusiveScan(T* out, size_t numElements)
+{
+    exclusiveScanSerialInplace(out, numElements, T(0));
+}
+
+#endif
 
 } // namespace cstone
