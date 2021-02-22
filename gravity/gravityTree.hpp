@@ -18,15 +18,15 @@ struct GravityData
     T xce, yce, zce;
     T xcm = 0.0, ycm = 0.0, zcm = 0.0;
 
-    T qxx, qxy, qxz;
-    T qyy, qyz;
-    T qzz;
+    T qxx = 0.0, qxy = 0.0, qxz = 0.0;
+    T qyy = 0.0, qyz = 0.0;
+    T qzz = 0.0;
 
     T qxxa = 0.0, qxya = 0.0, qxza = 0.0;
     T qyya = 0.0, qyza = 0.0;
     T qzza = 0.0;
 
-    T trq;
+    T trq = 0.0;
     int pcount = 0;
 
     // std::vector<int> particleIdxList;
@@ -34,6 +34,11 @@ struct GravityData
 
     T dx;                // side of a cell;
     int particleIdx = 0; // filled only if node is a leaf
+
+    void print()
+    {
+        printf("mTot = %f, trq = %f\n", mTot, trq);
+    }
 };
 
 template <class T>
@@ -344,14 +349,18 @@ GravityData<T> aggregateNodeGravity(const std::vector<I> &tree,
             x.data() + startIndex, y.data() + startIndex, z.data() + startIndex, m.data() + startIndex, nParticles, (xmax - xmin) / 2,
             (ymax - ymin) / 2, (zmax - zmin) / 2, gv.xcm, gv.ycm, gv.ycm, gv.mTot);
 
-        gv.qxx += partialGravity.qxxa - rxxm;
+        T dxxa = partialGravity.qxxa - rxxm;
+        T dyya = partialGravity.qyya - ryym;
+        T dzza = partialGravity.qzza - rzzm;
+
+        gv.qxx += dxxa;
         gv.qxy += partialGravity.qxya - rxym;
         gv.qxz += partialGravity.qxza - rxzm;
-        gv.qyy += partialGravity.qyya - ryym;
+        gv.qyy += dyya;
         gv.qyz += partialGravity.qyza - ryzm;
-        gv.qzz += partialGravity.qzza - rzzm;
+        gv.qzz += dzza;
 
-        gv.trq = partialGravity.qxx + partialGravity.qyy + partialGravity.qzz;
+        gv.trq += dxxa + dyya + dzza;
         gv.pcount += partialGravity.pcount;
     }
     return gv;
@@ -390,7 +399,11 @@ void buildGlobalGravityTree(const std::vector<I> &tree,
     gravityNodes.emplace_back(0750000000, 0760000000);
     gravityNodes.emplace_back(0760000000, 0770000000);
     gravityNodes.emplace_back(0770000000, 01000000000);
-    aggregateNodeGravity<I, T>(tree, treeData, gravityNodes, x, y, z, m, codes, box);
+    GravityData<T> gv = aggregateNodeGravity<I, T>(tree, treeData, gravityNodes, x, y, z, m, codes, box);
+    gv.print();
+    gv = computeNodeGravity<I, T>(0700000000, 01000000000, x.data(), y.data(), z.data(), m.data(), codes.data(), codes.size(), box, false);
+    gv.print();
+
 }
 
 /**
@@ -432,7 +445,7 @@ void showParticles(const std::vector<I> &tree, const std::vector<T> &x, const st
 
         int level = cstone::treeLevel(secondCode - firstCode);
 
-        printf("%o, %o, %ld, %d, %f %f %f %f %f %f\n", firstCode, secondCode, level, nParticles, xmin, xmax, ymin, ymax, zmin, zmax);
+        printf("%o, %o, %d, %d, %f %f %f %f %f %f\n", firstCode, secondCode, level, nParticles, xmin, xmax, ymin, ymax, zmin, zmax);
 
         for (int i = 0; i < nParticles; ++i)
         {
