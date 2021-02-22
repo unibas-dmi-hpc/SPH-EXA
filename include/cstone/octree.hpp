@@ -58,6 +58,7 @@
 #include <tuple>
 
 #include "cstone/mortoncode.hpp"
+#include "cstone/scan.hpp"
 
 namespace cstone
 {
@@ -180,6 +181,90 @@ std::vector<I> rebalanceTree(const I* tree, const unsigned* counts, int nNodes,
         }
     }
     balancedTree.push_back(nodeRange<I>(0));
+
+    if (converged != nullptr)
+    {
+        *converged = (changes == 0);
+    }
+
+    return balancedTree;
+}
+
+template<class I, class LocalIndex>
+int rebalanceOps(const I* tree, const unsigned* counts, int nNodes,
+                 unsigned bucketSize, LocalIndex* nodeOps)
+{
+    std::atomic<int> changes{0};
+
+    for (int i = 0; i < nNodes; ++i)
+    {
+        I thisNode     = tree[i];
+        I range        = tree[i+1] - thisNode;
+        unsigned level = treeLevel(range);
+
+        nodeOps[i] = 1; // default: do nothing
+
+        if (counts[i] > bucketSize && level < maxTreeLevel<I>{})
+        {
+            changes++;
+            nodeOps[i] = 8; // split
+        }
+        else if (level > 0) // level 0 cannot be fused
+        {
+            int pi = parentIndex(thisNode, level);
+            assert (i >= pi);
+            // node's 7 siblings are next to each other
+            bool siblings = (tree[i-pi+8] == tree[i-pi] + nodeRange<I>(level - 1));
+            if (siblings && pi > 0) // if not first of 8 siblings
+            {
+                size_t parentCount = std::accumulate(counts + i - pi, counts + i - pi + 8, size_t(0));
+                if (parentCount <= bucketSize)
+                {
+                    nodeOps[i] = 0; // fuse
+                    changes++;
+                }
+            }
+        }
+    }
+
+    return changes;
+}
+
+template<class I>
+std::vector<I> rebalanceTree2(const I* tree, const unsigned* counts, int nNodes,
+                              unsigned bucketSize, bool* converged = nullptr)
+{
+    using LocalIndex = unsigned;
+    std::vector<LocalIndex> nodeOps(nNodes + 1);
+
+    int changes = rebalanceOps(tree, counts, nNodes, bucketSize, nodeOps.data());
+
+    exclusiveScanSerialInplace(nodeOps.data(), nNodes + 1, 0u);
+
+    std::vector<I> balancedTree(*nodeOps.rbegin() + 1);
+
+    for (int i = 0; i < nNodes; ++i)
+    {
+        I thisNode     = tree[i];
+        I range        = tree[i+1] - thisNode;
+        unsigned level = treeLevel(range);
+
+        LocalIndex opCode       = nodeOps[i+1] - nodeOps[i];
+        LocalIndex newNodeIndex = nodeOps[i];
+
+        if (opCode == 1)
+        {
+            balancedTree[newNodeIndex] = thisNode;
+        }
+        else if (opCode == 8)
+        {
+            for (int sibling = 0; sibling < 8; ++sibling)
+            {
+                balancedTree[newNodeIndex + sibling] = thisNode + sibling * nodeRange<I>(level + 1);
+            }
+        }
+    }
+    *balancedTree.rbegin() = nodeRange<I>(0);
 
     if (converged != nullptr)
     {
