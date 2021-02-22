@@ -35,10 +35,7 @@ struct GravityData
     T dx;                // side of a cell;
     int particleIdx = 0; // filled only if node is a leaf
 
-    void print()
-    {
-        printf("mTot = %f, trq = %f\n", mTot, trq);
-    }
+    void print() { printf("mTot = %f, trq = %f\n", mTot, trq); }
 };
 
 template <class T>
@@ -231,10 +228,10 @@ void calculateLeafGravityData(const std::vector<I> &tree,
     for (auto it = tree.begin(); it + 1 != tree.end(); ++it)
     {
         I firstCode = *it;
-        I secondCode = *(it+1);
+        I secondCode = *(it + 1);
         InternalNode<I> node = std::make_pair(firstCode, secondCode);
-        gravityTreeData[node] = computeNodeGravity<I, T>(*it, *(it + 1), x.data(), y.data(), z.data(), m.data(), codes.data(),
-                                                              codes.size(), box, withGravitySync);
+        gravityTreeData[node] = computeNodeGravity<I, T>(*it, *(it + 1), x.data(), y.data(), z.data(), m.data(), codes.data(), codes.size(),
+                                                         box, withGravitySync);
     }
 }
 
@@ -286,9 +283,9 @@ CUDA_HOST_DEVICE_FUN GravityData<T> particleGravityContribution(const T *x, cons
 template <class I, class T>
 GravityData<T> aggregateNodeGravity(const std::vector<I> &tree,
                                     // const std::vector<BinaryNode<I>>& internalNodes,
-                                    TreeData<I, T> &treeData, const std::vector<InternalNode<I>> &gravityNodes,
-                                    const std::vector<T> &x, const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &m,
-                                    const std::vector<I> &codes, const cstone::Box<T> &box)
+                                    TreeData<I, T> &treeData, const std::vector<InternalNode<I>> &gravityNodes, const std::vector<T> &x,
+                                    const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &m, const std::vector<I> &codes,
+                                    const cstone::Box<T> &box)
 {
     // std::vector<cstone::BinaryNode<I>> internalNodes = cstone::createInternalTree(tree);
     GravityData<T> gv;
@@ -345,24 +342,28 @@ GravityData<T> aggregateNodeGravity(const std::vector<I> &tree,
         T zmin = decodeZCoordinate(firstCode, box);
         T zmax = decodeZCoordinate(secondCode, box);
 
-        GravityData<T> partialGravity = particleGravityContribution<I, T>(
-            x.data() + startIndex, y.data() + startIndex, z.data() + startIndex, m.data() + startIndex, nParticles, (xmax - xmin) / 2,
-            (ymax - ymin) / 2, (zmax - zmin) / 2, gv.xcm, gv.ycm, gv.ycm, gv.mTot);
+        GravityData<T> partialGravity =
+            particleGravityContribution<I, T>(x.data() + startIndex, y.data() + startIndex, z.data() + startIndex, m.data() + startIndex,
+                                              nParticles, gv.xce, gv.yce, gv.zce, gv.xcm, gv.ycm, gv.ycm, gv.mTot);
 
-        T dxxa = partialGravity.qxxa - rxxm;
-        T dyya = partialGravity.qyya - ryym;
-        T dzza = partialGravity.qzza - rzzm;
+        gv.qxxa += partialGravity.qxxa;
+        gv.qxya += partialGravity.qxya;
+        gv.qxza += partialGravity.qxza;
+        gv.qyya += partialGravity.qyya;
+        gv.qyza += partialGravity.qyza;
+        gv.qzza += partialGravity.qzza;
 
-        gv.qxx += dxxa;
-        gv.qxy += partialGravity.qxya - rxym;
-        gv.qxz += partialGravity.qxza - rxzm;
-        gv.qyy += dyya;
-        gv.qyz += partialGravity.qyza - ryzm;
-        gv.qzz += dzza;
-
-        gv.trq += dxxa + dyya + dzza;
         gv.pcount += partialGravity.pcount;
     }
+
+    gv.qxx = gv.qxxa - rxxm;
+    gv.qxy = gv.qxya - rxym;
+    gv.qxz = gv.qxza - rxzm;
+    gv.qyy = gv.qyya - ryym;
+    gv.qyz = gv.qyza - ryzm;
+    gv.qzz = gv.qzza - rzzm;
+
+    gv.trq = gv.qxx + gv.qyy + gv.qzz;
     return gv;
 }
 
@@ -401,9 +402,12 @@ void buildGlobalGravityTree(const std::vector<I> &tree,
     gravityNodes.emplace_back(0770000000, 01000000000);
     GravityData<T> gv = aggregateNodeGravity<I, T>(tree, treeData, gravityNodes, x, y, z, m, codes, box);
     gv.print();
-    gv = computeNodeGravity<I, T>(0700000000, 01000000000, x.data(), y.data(), z.data(), m.data(), codes.data(), codes.size(), box, false);
-    gv.print();
+    GravityData<T> gv2 =
+        computeNodeGravity<I, T>(0700000000, 01000000000, x.data(), y.data(), z.data(), m.data(), codes.data(), codes.size(), box, false);
+    gv2.print();
 
+    // construct leaf tree
+    // build aggregate and build up the tree
 }
 
 /**
