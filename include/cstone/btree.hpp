@@ -69,7 +69,7 @@ namespace cstone {
 
 /*! \brief binary radix tree node
  *
- * @tparam I 32 or 64 bit unsigned integer
+ * @tparam I 32- or 64 bit unsigned integer
  */
 template<class I>
 struct BinaryNode
@@ -81,7 +81,7 @@ struct BinaryNode
 
     /*! \brief the Morton code prefix
      *
-     * Shared among all the node's children share. Only the first prefixLength bits are relevant.
+     * Shared among all the node's children. Only the first prefixLength bits are relevant.
      */
     I   prefix;
     //! \brief number of bits in prefix to interpret
