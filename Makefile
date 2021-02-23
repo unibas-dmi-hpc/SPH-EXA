@@ -17,7 +17,7 @@ CUDA_OBJS := $(BUILDDIR)/gather.o $(BUILDDIR)/findneighbors.o $(BUILDDIR)/cudaDe
 RELEASE := -DNDEBUG
 DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
 
-INC += -Isrc -Iinclude -Idomain/include
+INC += -Isrc -Iinclude -Idomain/include -Igravity/include
 CXXFLAGS += $(RELEASE)
 NVCCFLAGS := -std=c++14 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS) -Wno-deprecated-gpu-targets -g
 NVCCLDFLAGS := $(GENCODE_FLAGS) -rdc=true
