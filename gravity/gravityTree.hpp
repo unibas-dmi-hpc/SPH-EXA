@@ -406,8 +406,48 @@ void buildGlobalGravityTree(const std::vector<I> &tree,
         computeNodeGravity<I, T>(0700000000, 01000000000, x.data(), y.data(), z.data(), m.data(), codes.data(), codes.size(), box, false);
     gv2.print();
 
-    // construct leaf tree
-    // build aggregate and build up the tree
+    std::vector<cstone::BinaryNode<I>> internalTree = cstone::createInternalTree(tree);
+
+    using NodePtr = cstone::BinaryNode<I>*;
+
+    NodePtr  stack[64];
+    NodePtr* stackPtr = stack;
+
+    *stackPtr++ = nullptr;
+
+    const cstone::BinaryNode<I>* node = internalTree.data();
+    /*
+    do
+    {
+        bool traverseL = traverseNode(node->leftChild, collisionBox);
+        bool traverseR = traverseNode(node->rightChild, collisionBox);
+
+        bool overlapLeafL = leafOverlap(node->leftLeafIndex, leafNodes, collisionBox);
+        bool overlapLeafR = leafOverlap(node->rightLeafIndex, leafNodes, collisionBox);
+
+        if (overlapLeafL) collisionList.add(node->leftLeafIndex);
+        if (overlapLeafR) collisionList.add(node->rightLeafIndex);
+
+        if (!traverseL and !traverseR)
+        {
+            node = *--stackPtr; // pop
+        }
+        else
+        {
+            if (traverseL && traverseR)
+            {
+                if (stackPtr-stack >= 64)
+                {
+                    throw std::runtime_error("btree traversal stack exhausted\n");
+                }
+                *stackPtr++ = node->rightChild; // push
+            }
+
+            node = (traverseL) ? node->leftChild : node->rightChild;
+        }
+
+    } while (node != nullptr);
+    */
 }
 
 /**
