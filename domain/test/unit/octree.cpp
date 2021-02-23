@@ -125,6 +125,27 @@ TEST(CornerstoneOctree, countTreeNodes64)
     checkCountTreeNodes<uint64_t>();
 }
 
+template<class CodeType, class LocalIndex>
+void rebalanceDecision()
+{
+    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
+
+    unsigned bucketSize = 4;
+    std::vector<unsigned> counts{1,1,1,0,0,0,0,0, 2, 3, 4, 5, 6, 7, 8};
+
+    std::vector<LocalIndex> nodeOps(nNodes(tree));
+    rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data());
+
+    std::vector<LocalIndex> reference{1,0,0,0,0,0,0,0, 1, 1, 1, 8, 8, 8, 8};
+    EXPECT_EQ(nodeOps, reference);
+}
+
+TEST(CornerstoneOctree, rebalanceDecision)
+{
+    rebalanceDecision<unsigned, unsigned>();
+    rebalanceDecision<uint64_t, unsigned>();
+}
+
 //! \brief check that nodes can be fused at the start of the tree
 template<class CodeType>
 void rebalanceShrinkStart()
