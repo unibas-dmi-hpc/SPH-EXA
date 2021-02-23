@@ -83,8 +83,8 @@ void gatherGravValues(GravityData<T> *gv, bool global, int assignee)
  * @param withGravitySync
  */
 template <class I, class T>
-CUDA_HOST_DEVICE_FUN GravityData<T> particleGravity(const T *x, const T *y, const T *z, const T *m, int nParticles, T xmin, T xmax, T ymin,
-                                                    T ymax, T zmin, T zmax, bool withGravitySync = false)
+CUDA_HOST_DEVICE_FUN GravityData<T> computeNodeGravity(const T *x, const T *y, const T *z, const T *m, int nParticles, T xmin, T xmax,
+                                                       T ymin, T ymax, T zmin, T zmax, bool withGravitySync = false)
 {
     GravityData<T> gv;
     gv.xce = (xmax - xmin) / 2.0;
@@ -168,42 +168,6 @@ CUDA_HOST_DEVICE_FUN GravityData<T> particleGravity(const T *x, const T *y, cons
 }
 
 /**
- * @brief Compute equivalent gravity component for a tree node represented by the first and last morton code
- *
- * @tparam I
- * @tparam T
- * @param firstCode
- * @param secondCode
- * @param x
- * @param y
- * @param z
- * @param m
- * @param codes
- * @param box
- * @param withGravitySync
- * @return GravityData<T>
- */
-template <class I, class T>
-GravityData<T> computeNodeGravity(const I firstCode, const I secondCode, const T *x, const T *y, const T *z, const T *m, const I *codes,
-                                  const size_t n, const cstone::Box<T> &box, bool withGravitySync = false)
-{
-    // TODO: Search only from codes+lastParticle to the end since we know particles can not be in multiple nodes
-    int startIndex = stl::lower_bound(codes, codes + n, firstCode) - codes;
-    int endIndex = stl::upper_bound(codes, codes + n, secondCode) - codes;
-    int nParticles = endIndex - startIndex;
-    // NOTE: using morton codes to compute geometrical center. It might not be accurate.
-    T xmin = decodeXCoordinate(firstCode, box);
-    T xmax = decodeXCoordinate(secondCode, box);
-    T ymin = decodeYCoordinate(firstCode, box);
-    T ymax = decodeYCoordinate(secondCode, box);
-    T zmin = decodeZCoordinate(firstCode, box);
-    T zmax = decodeZCoordinate(secondCode, box);
-
-    return particleGravity<I, T>(x + startIndex, y + startIndex, z + startIndex, m + startIndex, nParticles, xmin, xmax, ymin, ymax, zmin,
-                                 zmax, withGravitySync);
-}
-
-/**
  * @brief Generates the global gravity values for all the nodes in a given tree
  *
  * @tparam I
@@ -229,9 +193,23 @@ void calculateLeafGravityData(const std::vector<I> &tree,
     {
         I firstCode = *it;
         I secondCode = *(it + 1);
+
+        // TODO: Search only from codes+lastParticle to the end since we know particles can not be in multiple nodes
+        int startIndex = stl::lower_bound(codes.data(), codes.data() + codes.size(), firstCode) - codes.data();
+        int endIndex = stl::upper_bound(codes.data(), codes.data() + codes.size(), secondCode) - codes.data();
+        int nParticles = endIndex - startIndex;
+        // NOTE: using morton codes to compute geometrical center. It might not be accurate.
+        T xmin = decodeXCoordinate(firstCode, box);
+        T xmax = decodeXCoordinate(secondCode, box);
+        T ymin = decodeYCoordinate(firstCode, box);
+        T ymax = decodeYCoordinate(secondCode, box);
+        T zmin = decodeZCoordinate(firstCode, box);
+        T zmax = decodeZCoordinate(secondCode, box);
+
         InternalNode<I> node = std::make_pair(firstCode, secondCode);
-        gravityTreeData[node] = computeNodeGravity<I, T>(*it, *(it + 1), x.data(), y.data(), z.data(), m.data(), codes.data(), codes.size(),
-                                                         box, withGravitySync);
+        gravityTreeData[node] =
+            computeNodeGravity<I, T>(x.data() + startIndex, y.data() + startIndex, z.data() + startIndex, m.data() + startIndex, nParticles,
+                                     xmin, xmax, ymin, ymax, zmin, zmax, withGravitySync);
     }
 }
 
@@ -253,8 +231,8 @@ void calculateLeafGravityData(const std::vector<I> &tree,
  * @param withGravitySync
  */
 template <class I, class T>
-CUDA_HOST_DEVICE_FUN GravityData<T> particleGravityContribution(const T *x, const T *y, const T *z, const T *m, int nParticles, T xce,
-                                                                T yce, T zce, T xcm, T ycm, T zcm, T mTot)
+CUDA_HOST_DEVICE_FUN GravityData<T> partialNodeContribution(const T *x, const T *y, const T *z, const T *m, int nParticles, T xce, T yce,
+                                                            T zce, T xcm, T ycm, T zcm, T mTot)
 {
     GravityData<T> gv;
     for (size_t i = 0; i < nParticles; ++i)
@@ -343,8 +321,8 @@ GravityData<T> aggregateNodeGravity(const std::vector<I> &tree,
         T zmax = decodeZCoordinate(secondCode, box);
 
         GravityData<T> partialGravity =
-            particleGravityContribution<I, T>(x.data() + startIndex, y.data() + startIndex, z.data() + startIndex, m.data() + startIndex,
-                                              nParticles, gv.xce, gv.yce, gv.zce, gv.xcm, gv.ycm, gv.ycm, gv.mTot);
+            partialNodeContribution<I, T>(x.data() + startIndex, y.data() + startIndex, z.data() + startIndex, m.data() + startIndex,
+                                          nParticles, gv.xce, gv.yce, gv.zce, gv.xcm, gv.ycm, gv.ycm, gv.mTot);
 
         gv.qxxa += partialGravity.qxxa;
         gv.qxya += partialGravity.qxya;
@@ -365,6 +343,47 @@ GravityData<T> aggregateNodeGravity(const std::vector<I> &tree,
 
     gv.trq = gv.qxx + gv.qyy + gv.qzz;
     return gv;
+}
+
+template <class I, class T>
+void recursiveBuildGravityTree(std::vector<OctreeNode<I>> internalOctree, const std::vector<T> &x, const std::vector<T> &y,
+                               const std::vector<T> &z, const std::vector<T> &m, const std::vector<I> &codes, const cstone::Box<T> &box)
+{
+    for (OctreeNode<I> node : internalOctree)
+    {
+        if (node.calculated) { continue; }
+
+        if (node.isLeaf)
+        {
+            I firstCode = node.first;
+            I secondCode = node.first + node.range;
+
+            // TODO: Search only from codes+lastParticle to the end since we know particles can not be in multiple nodes
+            int startIndex = stl::lower_bound(codes.data(), codes.data() + codes.size(), firstCode) - codes.data();
+            int endIndex = stl::upper_bound(codes.data(), codes.data() + codes.size(), secondCode) - codes.data();
+            int nParticles = endIndex - startIndex;
+            // NOTE: using morton codes to compute geometrical center. It might not be accurate.
+            T xmin = decodeXCoordinate(firstCode, box);
+            T xmax = decodeXCoordinate(secondCode, box);
+            T ymin = decodeYCoordinate(firstCode, box);
+            T ymax = decodeYCoordinate(secondCode, box);
+            T zmin = decodeZCoordinate(firstCode, box);
+            T zmax = decodeZCoordinate(secondCode, box);
+
+            node.gravityData = computeNodeGravity<I, T>(x.data() + startIndex, y.data() + startIndex, z.data() + startIndex,
+                                                        m.data() + startIndex, nParticles, xmin, xmax, ymin, ymax, zmin, zmax, false);
+            
+            node.calculated = true;
+        }
+        else
+        {
+            for (int i = 0; i < 8; ++i)
+            {
+                internalOctree[i].gravityData = recursiveBuildGravityTree(internalOctree, x, y, z, m, codes, box);
+            }
+            node.gravityData = aggregateNodeGravity(node, x, y, z, m, codes, box);
+        }
+    }
 }
 
 /**
@@ -389,65 +408,9 @@ void buildGlobalGravityTree(const std::vector<I> &tree,
                             const std::vector<I> &codes, const cstone::Box<T> &box, GravityTree<T> &gravityTree,
                             bool withGravitySync = false)
 {
-    TreeData<I, T> treeData;
-    calculateLeafGravityData(tree, x, y, z, m, codes, box, treeData);
-    std::vector<InternalNode<I>> gravityNodes;
-    gravityNodes.emplace_back(0700000000, 0710000000);
-    gravityNodes.emplace_back(0710000000, 0720000000);
-    gravityNodes.emplace_back(0720000000, 0730000000);
-    gravityNodes.emplace_back(0730000000, 0740000000);
-    gravityNodes.emplace_back(0740000000, 0750000000);
-    gravityNodes.emplace_back(0750000000, 0760000000);
-    gravityNodes.emplace_back(0760000000, 0770000000);
-    gravityNodes.emplace_back(0770000000, 01000000000);
-    GravityData<T> gv = aggregateNodeGravity<I, T>(tree, treeData, gravityNodes, x, y, z, m, codes, box);
-    gv.print();
-    GravityData<T> gv2 =
-        computeNodeGravity<I, T>(0700000000, 01000000000, x.data(), y.data(), z.data(), m.data(), codes.data(), codes.size(), box, false);
-    gv2.print();
-
-    std::vector<cstone::BinaryNode<I>> internalTree = cstone::createInternalTree(tree);
-
-    using NodePtr = cstone::BinaryNode<I>*;
-
-    NodePtr  stack[64];
-    NodePtr* stackPtr = stack;
-
-    *stackPtr++ = nullptr;
-
-    const cstone::BinaryNode<I>* node = internalTree.data();
-    /*
-    do
-    {
-        bool traverseL = traverseNode(node->leftChild, collisionBox);
-        bool traverseR = traverseNode(node->rightChild, collisionBox);
-
-        bool overlapLeafL = leafOverlap(node->leftLeafIndex, leafNodes, collisionBox);
-        bool overlapLeafR = leafOverlap(node->rightLeafIndex, leafNodes, collisionBox);
-
-        if (overlapLeafL) collisionList.add(node->leftLeafIndex);
-        if (overlapLeafR) collisionList.add(node->rightLeafIndex);
-
-        if (!traverseL and !traverseR)
-        {
-            node = *--stackPtr; // pop
-        }
-        else
-        {
-            if (traverseL && traverseR)
-            {
-                if (stackPtr-stack >= 64)
-                {
-                    throw std::runtime_error("btree traversal stack exhausted\n");
-                }
-                *stackPtr++ = node->rightChild; // push
-            }
-
-            node = (traverseL) ? node->leftChild : node->rightChild;
-        }
-
-    } while (node != nullptr);
-    */
+    std::vector<cstone::BinaryNode<I>> binaryTree = cstone::createInternalTree(tree);
+    std::vector<OctreeNode<I>> internalOctree = cstone::createInternalOctree(binaryTree, tree);
+    recursiveBuildGravityTree(internalOctree);
 }
 
 /**
