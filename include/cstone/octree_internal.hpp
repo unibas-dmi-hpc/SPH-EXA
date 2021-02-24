@@ -80,9 +80,9 @@ struct OctreeNode
 
     /*! \brief Child node indices
      *
-     *  If childType[i] is ChildType::internal, children[i] is an internal node index,
-     *  otherwise children[i] is the index of an octree leaf node.
-     *  Note that in one case or the other, the index refers to two different arrays!
+     *  If childType[i] is ChildType::internal, child[i] is an internal node index,
+     *  If childType[i] is ChildType::leaf, child[i] is the index of an octree leaf node.
+     *  Note that the indices in these two cases refer to two different arrays!
      */
     TreeNodeIndex child[8];
     ChildType     childType[8];
@@ -172,14 +172,6 @@ inline void constructOctreeNode(OctreeNode<I>*       internalOctree,
     }
 }
 
-//! \brief aggregate for the internal octree nodes and the parent indices of the leaf nodes
-template<class I>
-struct InternalOctree
-{
-    std::vector<OctreeNode<I>> nodes;
-    std::vector<TreeNodeIndex> leafParents;
-};
-
 /*! \brief translate an internal binary radix tree into an internal octree
  *
  * @tparam I           32- or 64-bit unsigned integer
@@ -188,8 +180,8 @@ struct InternalOctree
  * @return             the internal octree nodes and octree leaf node parent indices
  */
 template<class I>
-InternalOctree<I> createInternalOctreeCpu(const std::vector<BinaryNode<I>>& binaryTree,
-                                          TreeNodeIndex nLeafNodes)
+std::tuple<std::vector<OctreeNode<I>>, std::vector<TreeNodeIndex>>
+createInternalOctreeCpu(const std::vector<BinaryNode<I>>& binaryTree, TreeNodeIndex nLeafNodes)
 {
     // we ignore the last binary tree node which is a duplicate root node
     TreeNodeIndex nBinaryNodes = binaryTree.size() - 1;
@@ -228,7 +220,7 @@ InternalOctree<I> createInternalOctreeCpu(const std::vector<BinaryNode<I>>& bina
                             scatterMap.data(), prefixes.data(), leafParents.data());
     }
 
-    return InternalOctree<I>{std::move(internalOctree), std::move(leafParents)};
+    return std::make_tuple(std::move(internalOctree), std::move(leafParents));
 }
 
 
@@ -241,28 +233,11 @@ InternalOctree<I> createInternalOctreeCpu(const std::vector<BinaryNode<I>>& bina
  *                     for each octree leaf of \a tree
  */
 template<class I>
-InternalOctree<I> createInternalOctree(const std::vector<I>& tree)
+std::tuple<std::vector<OctreeNode<I>>, std::vector<TreeNodeIndex>>
+createInternalOctree(const std::vector<I>& tree)
 {
     std::vector<BinaryNode<I>> binaryTree = createInternalTree(tree);
     auto internalOctree = createInternalOctreeCpu(binaryTree, nNodes(tree));
-
-    for (int i = 0; i < internalOctree.nodes.size(); ++i)
-    {
-        printf("octree node %d, prefix %10o, level %d, parent %d, children ",
-               i, internalOctree.nodes[i].prefix, internalOctree.nodes[i].level, internalOctree.nodes[i].parent);
-        for (int k = 0; k < 8; ++k)
-        {
-            if (internalOctree.nodes[i].childType[k] == OctreeNode<I>::internal)
-            {
-                printf(" %10d ", internalOctree.nodes[i].child[k]);
-            }
-            else
-            {
-                printf(" %10o ", tree[internalOctree.nodes[i].child[k]]);
-            }
-        }
-        std::cout << std::endl;
-    }
 
     return internalOctree;
 }
