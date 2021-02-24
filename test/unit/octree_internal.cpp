@@ -36,31 +36,26 @@
 #include "gtest/gtest.h"
 
 #include "cstone/octree_internal.hpp"
+#include "cstone/octree_util.hpp"
 
 using namespace cstone;
-
-template<class I>
-void checkChildren(const std::vector<OctreeNode<I>>& iTree, TreeNodeIndex nodeIndex,
-                   const std::vector<TreeNodeIndex>& leafParents)
-{
-
-}
 
 /*! \brief test internal octree creation from a regular 4x4x4 grid of leaves
  *
  * This creates 64 level-2 leaf nodes. The resulting internal tree should
  * have 9 nodes, the root node and the 8 level-1 nodes.
  * The children of the root point to the level-1 nodes while the children
- * of the level-1 nodes point int the leaf nodes, which is a separate array.
+ * of the level-1 nodes point to the leaf nodes, i.e. the tree provided for constructing,
+ * which is a separate array.
  */
-TEST(InternalOctree, octree4x4x4)
+template<class I>
+void internalOctree4x4x4()
 {
-    using I = unsigned;
-
     std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
 
-    InternalOctree<I> iTreeAndLeafParents = createInternalOctree(tree);
-    std::vector<OctreeNode<I>>& iTree     = iTreeAndLeafParents.nodes;
+    std::vector<OctreeNode<I>> iTree;
+    std::vector<TreeNodeIndex> leafParents;
+    std::tie(iTree, leafParents) = createInternalOctree(tree);
 
     auto i = OctreeNode<I>::internal;
     auto l = OctreeNode<I>::leaf;
@@ -91,10 +86,53 @@ TEST(InternalOctree, octree4x4x4)
         8,8,8,8,8,8,8,8,
     };
 
-    std::vector<TreeNodeIndex>& leafParents = iTreeAndLeafParents.leafParents;
     EXPECT_EQ(leafParents, refLeafParents);
 }
 
+TEST(InternalOctree, octree4x4x4)
+{
+    internalOctree4x4x4<unsigned>();
+    internalOctree4x4x4<uint64_t>();
+}
+
+/*! \brief test internal octree creation with an irregular leaf tree
+ *
+ * The leaf tree is the result of subdiving the root node, then further
+ * subdividing octant 0. This results in 15 leaves, so the internal tree
+ * should have two nodes: the root and the one internal level-1 node for the
+ * first octant. The root points to the one internal node and to leaves 8-15.
+ * The internal level-1 nodes points to leaves 0-7.
+ */
+template<class I>
+void internalOctreeIrregular()
+{
+    std::vector<I> tree = OctreeMaker<I>{}.divide().divide(0).makeTree();
+
+    std::vector<OctreeNode<I>> iTree;
+    std::vector<TreeNodeIndex> leafParents;
+    std::tie(iTree, leafParents) = createInternalOctree(tree);
+
+    auto i = OctreeNode<I>::internal;
+    auto l = OctreeNode<I>::leaf;
+
+    std::vector<OctreeNode<I>> referenceNodes {
+            {0, 0, 0, {1,8,9,10,11,12,13,14}, {i, l, l, l, l, l, l, l}}, // the root node
+            {0, 1, 0, {0,1,2,3,4,5,6,7}, {l, l, l, l, l, l, l, l}},
+    };
+
+    std::vector<TreeNodeIndex> refLeafParents{1,1,1,1,1,1,1,1,0,0,0,0,0,0,0};
+
+    // an octree with N leaves has (N-1) / 7 internal nodes
+    EXPECT_EQ(iTree.size(), (nNodes(tree) - 1) / 7);
+    EXPECT_EQ(iTree, referenceNodes);
+    EXPECT_EQ(leafParents, refLeafParents);
+}
+
+TEST(InternalOctree, irregular)
+{
+    internalOctreeIrregular<unsigned>();
+    internalOctreeIrregular<uint64_t>();
+}
 
 //! \brief test OctreNode equality comparison
 TEST(InternalOctree, OctreeNodeEq)
