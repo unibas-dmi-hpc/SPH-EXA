@@ -1,0 +1,3 @@
+---
+Checks: '-openmp-use-default-none'
+InheritParentConfig: true
