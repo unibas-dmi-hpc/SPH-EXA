@@ -130,7 +130,7 @@ void exclusiveScan(T* out, size_t numElements)
         {
             size_t stepOffset = step * elementsPerStep + tid * blockSize;
 
-            superBlock[step%2][tid] = exclusiveScanSerialInplace(out + stepOffset, blockSize, 0u);
+            superBlock[step%2][tid] = exclusiveScanSerialInplace(out + stepOffset, blockSize, T(0));
 
             #pragma omp barrier
 
