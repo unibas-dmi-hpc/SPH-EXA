@@ -47,15 +47,10 @@
 #include "cstone/octree.hpp"
 #include "cstone/scan.hpp"
 
+#include "cstone/cuda/annotation.hpp"
+
 namespace cstone
 {
-
-//! \brief named bool to tag children of internal octree nodes
-enum class ChildType : bool
-{
-    internal = true,
-    leaf     = false
-};
 
 /*! \brief octree node for the internal part of cornerstone octrees
  *
@@ -64,6 +59,12 @@ enum class ChildType : bool
 template<class I>
 struct OctreeNode
 {
+    //! \brief named bool to tag children of internal octree nodes
+    enum ChildType : bool
+    {
+        internal = true,
+        leaf     = false
+    };
 
     /*! \brief the Morton code prefix
      *
@@ -74,7 +75,8 @@ struct OctreeNode
     //! \brief octree division level, equals 1/3rd the number of bits in prefix to interpret
     int level;
 
-    int btreeIndex;
+    //! \brief internal node index of the parent node
+    TreeNodeIndex parent;
 
     /*! \brief Child node indices
      *
@@ -82,32 +84,132 @@ struct OctreeNode
      *  otherwise children[i] is the index of an octree leaf node.
      *  Note that in one case or the other, the index refers to two different arrays!
      */
-    int       children[8];
-    ChildType childTypes[8];
+    TreeNodeIndex child[8];
+    ChildType     childType[8];
+
+    friend bool operator==(const OctreeNode<I>& lhs, const OctreeNode<I>& rhs)
+    {
+        bool eqChild = true;
+        for (int i = 0; i < 8; ++i)
+        {
+            eqChild = eqChild &&
+                      lhs.child[i]     == rhs.child[i] &&
+                      lhs.childType[i] == rhs.childType[i];
+        }
+
+        return lhs.prefix == rhs.prefix &&
+               lhs.level  == rhs.level &&
+               lhs.parent == rhs.parent &&
+               eqChild;
+    }
 };
 
+/*! \brief construct the internal octree node with index \a nodeIndex
+ *
+ * @tparam I                       32- or 64-bit unsigned integer type
+ * @param internalOctree[out]      linear array of OctreeNode<I>'s
+ * @param binaryTree[in]           linear array of binary tree nodes
+ * @param nodeIndex[in]            element of @a internalOctree to construct
+ * @param octreeToBinaryIndex[in]  octreeToBinaryIndex[i] stores the index of the binary node in
+ *                                 @a binaryTree with the identical prefix as the octree node with index i
+ * @param binaryToOctreeIndex[in]  inverts @a octreeToBinaryIndex
+ * @param leafParents[out]         linear array of indices to store the parent index of each octree leaf
+ *                                 number of elements corresponds to the number of nodes in the cornerstone
+ *                                 octree that was used to construct @a binaryTree
+ *
+ * This function sets all members of internalOctree[nodeIndex] except the parent member.
+ * (Exception: the parent of the root node is set to 0)
+ * In addition, it sets the parent member of the child nodes to \a nodeIndex.
+ */
 template<class I>
-void createInternalOctree(const std::vector<BinaryNode<I>>& binaryTree, const std::vector<I>& tree)
+CUDA_HOST_DEVICE_FUN
+inline void constructOctreeNode(OctreeNode<I>*       internalOctree,
+                                const BinaryNode<I>* binaryTree,
+                                TreeNodeIndex        nodeIndex,
+                                const TreeNodeIndex* scatterMap,
+                                const TreeNodeIndex* binaryToOctreeIndex,
+                                TreeNodeIndex*       leafParents)
 {
-    std::vector<unsigned> prefixes(binaryTree.size() + 1);
+    OctreeNode<I>& octreeNode = internalOctree[nodeIndex];
 
-    for (int i = 0; i < binaryTree.size(); ++i)
+    TreeNodeIndex bi = scatterMap[nodeIndex]; // binary tree index
+    octreeNode.prefix = binaryTree[bi].prefix;
+    octreeNode.level  = binaryTree[bi].prefixLength / 3;
+
+    // the root node is its own parent
+    if (octreeNode.level == 0)
+    {
+        octreeNode.parent = 0;
+    }
+
+    for (int hx = 0; hx < 2; ++hx)
+    {
+        for (int hy = 0; hy < 2; ++hy)
+        {
+            for (int hz = 0; hz < 2; ++hz)
+            {
+                int octant = 4*hx + 2*hy + hz;
+                if (binaryTree[bi].child[hx]->child[hy]->child[hz] != nullptr)
+                {
+                    TreeNodeIndex childBinaryIndex = binaryTree[bi].child[hx]->child[hy]->child[hz]
+                                                     - binaryTree;
+                    TreeNodeIndex childOctreeIndex = binaryToOctreeIndex[childBinaryIndex];
+
+                    octreeNode.child[octant]     = childOctreeIndex;
+                    octreeNode.childType[octant] = OctreeNode<I>::internal;
+
+                    internalOctree[childOctreeIndex].parent = nodeIndex;
+                }
+                else
+                {
+                    TreeNodeIndex octreeLeafIndex = binaryTree[bi].child[hx]->child[hy]->leafIndex[hz];
+                    octreeNode.child[octant]      = octreeLeafIndex;
+                    octreeNode.childType[octant]  = OctreeNode<I>::leaf;
+                    leafParents[octreeLeafIndex]  = nodeIndex;
+                }
+            }
+        }
+    }
+}
+
+//! \brief aggregate for the internal octree nodes and the parent indices of the leaf nodes
+template<class I>
+struct InternalOctree
+{
+    std::vector<OctreeNode<I>> nodes;
+    std::vector<TreeNodeIndex> leafParents;
+};
+
+/*! \brief translate an internal binary radix tree into an internal octree
+ *
+ * @tparam I           32- or 64-bit unsigned integer
+ * @param binaryTree   binary tree nodes
+ * @param nLeafNodes   number of octree leaf nodes used to construct \a binaryTree
+ * @return             the internal octree nodes and octree leaf node parent indices
+ */
+template<class I>
+InternalOctree<I> createInternalOctreeCpu(const std::vector<BinaryNode<I>>& binaryTree,
+                                          TreeNodeIndex nLeafNodes)
+{
+    // we ignore the last binary tree node which is a duplicate root node
+    TreeNodeIndex nBinaryNodes = binaryTree.size() - 1;
+
+    // one extra element to store the total sum of the exclusive scan
+    std::vector<TreeNodeIndex> prefixes(nBinaryNodes + 1);
+    for (TreeNodeIndex i = 0; i < nBinaryNodes; ++i)
     {
         int prefixLength = binaryTree[i].prefixLength;
-        if (prefixLength%3 == 0)
-            prefixes[i] = 1;
-        else
-            prefixes[i] = 0;
+        prefixes[i] = (prefixLength % 3) ? 0 : 1;
     }
 
     // stream compaction: scan and scatter
     exclusiveScan(prefixes.data(), prefixes.size());
 
-    unsigned nInternalOctreeNodes = *prefixes.rbegin();
-    std::vector<unsigned> scatterMap(nInternalOctreeNodes);
+    TreeNodeIndex nInternalOctreeNodes = *prefixes.rbegin();
+    std::vector<TreeNodeIndex> scatterMap(nInternalOctreeNodes);
 
     // compaction step, scatterMap -> compacted list of binary nodes that correspond to octree nodes
-    for (int i = 0; i < binaryTree.size(); ++i)
+    for (TreeNodeIndex i = 0; i < nBinaryNodes; ++i)
     {
         bool isOctreeNode = (prefixes[i+1] - prefixes[i]) == 1;
         if (isOctreeNode)
@@ -118,80 +220,52 @@ void createInternalOctree(const std::vector<BinaryNode<I>>& binaryTree, const st
     }
 
     std::vector<OctreeNode<I>> internalOctree(nInternalOctreeNodes);
+    std::vector<TreeNodeIndex> leafParents(nLeafNodes);
 
-    for (int i = 0; i < nInternalOctreeNodes; ++i)
+    for (TreeNodeIndex i = 0; i < nInternalOctreeNodes; ++i)
     {
-        OctreeNode<I> octreeNode;
-
-        int bi = scatterMap[i]; // binary tree index
-        octreeNode.prefix = binaryTree[bi].prefix;
-        octreeNode.level  = binaryTree[bi].prefixLength / 3;
-        octreeNode.btreeIndex = bi;
-
-        if (binaryTree[bi].leftChild->leftChild->leftChild != nullptr) {
-            octreeNode.children[0]   = binaryTree[bi].leftChild->leftChild->leftChild  - binaryTree.data();
-            octreeNode.childTypes[0] = ChildType::internal;
-        }
-        else {
-            octreeNode.children[0]   = binaryTree[bi].leftChild->leftChild->leftLeafIndex;
-            octreeNode.childTypes[0] = ChildType::leaf;
-        }
-
-        if (binaryTree[bi].leftChild->leftChild->rightChild != nullptr) {
-            octreeNode.children[1]   = binaryTree[bi].leftChild->leftChild->rightChild - binaryTree.data();
-            octreeNode.childTypes[1] = ChildType::internal;
-        }
-        else{
-            octreeNode.children[1]   = binaryTree[bi].leftChild->leftChild->rightLeafIndex;
-            octreeNode.childTypes[1] = ChildType::leaf;
-        }
-
-        if (binaryTree[bi].leftChild->rightChild->leftChild != nullptr) {
-            octreeNode.children[2]   = binaryTree[bi].leftChild->rightChild->leftChild - binaryTree.data();
-            octreeNode.childTypes[2] = ChildType::internal;
-        }
-        else{
-            octreeNode.children[2]   = binaryTree[bi].leftChild->rightChild->leftLeafIndex;
-            octreeNode.childTypes[2] = ChildType::leaf;
-        }
-
-        internalOctree[i] = octreeNode;
+        constructOctreeNode(internalOctree.data(), binaryTree.data(), i,
+                            scatterMap.data(), prefixes.data(), leafParents.data());
     }
 
-    for (int i = 0; i < binaryTree.size(); ++i)
-        std::cout << std::setw(3) << prefixes[i] << " ";
-    std::cout << std::endl;
-    for (int i = 0; i < binaryTree.size(); ++i)
-        std::cout << std::setw(3) << i << " ";
-    std::cout << std::endl;
+    return InternalOctree<I>{std::move(internalOctree), std::move(leafParents)};
+}
 
-    std::cout << std::endl;
 
-    for (int i = 0; i < internalOctree.size(); ++i)
-        std::cout << std::setw(2) << internalOctree[i].btreeIndex << " ";
-    std::cout << std::endl;
-    for (int i = 0; i < internalOctree.size(); ++i)
-        std::cout << std::setw(2) << internalOctree[i].level << " ";
+/*! \brief create the internal part for a given cornerstone octree with just leaves
+ *
+ * @tparam I           32- or 64-bit unsigned integer
+ * @param tree         cornerstone octree with the octree leaves
+ * @return             the internal octree and a vector of length nNodes(tree)
+ *                     with an index into the internal octree to store the parent node
+ *                     for each octree leaf of \a tree
+ */
+template<class I>
+InternalOctree<I> createInternalOctree(const std::vector<I>& tree)
+{
+    std::vector<BinaryNode<I>> binaryTree = createInternalTree(tree);
+    auto internalOctree = createInternalOctreeCpu(binaryTree, nNodes(tree));
 
-    std::cout << std::endl;
-    std::cout << std::endl;
-
-    for (int i = 0; i < internalOctree.size(); ++i)
+    for (int i = 0; i < internalOctree.nodes.size(); ++i)
     {
-        printf("octree node %d, prefix %10o, level %d, children ", i, internalOctree[i].prefix, internalOctree[i].level);
-        for (int k = 0; k < 7; ++k)
+        printf("octree node %d, prefix %10o, level %d, parent %d, children ",
+               i, internalOctree.nodes[i].prefix, internalOctree.nodes[i].level, internalOctree.nodes[i].parent);
+        for (int k = 0; k < 8; ++k)
         {
-            if (internalOctree[i].childTypes[k] == ChildType::internal)
+            if (internalOctree.nodes[i].childType[k] == OctreeNode<I>::internal)
             {
-                printf(" %10d ", internalOctree[i].children[k]);
+                printf(" %10d ", internalOctree.nodes[i].child[k]);
             }
             else
             {
-                printf(" %10o ", tree[internalOctree[i].children[k]]);
+                printf(" %10o ", tree[internalOctree.nodes[i].child[k]]);
             }
         }
         std::cout << std::endl;
     }
+
+    return internalOctree;
 }
+
 
 } // namespace cstone
