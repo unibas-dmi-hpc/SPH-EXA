@@ -24,17 +24,49 @@
  */
 
 /*! \file
- * \brief GTest driver
+ * \brief Traits classes for Domain to manage GPU device acceleration behavior
  *
  * \author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#pragma once
 
-#include "gtest/gtest.h"
+#include <type_traits>
 
-int main(int argc, char **argv) {
+#include "cstone/zorder.hpp"
+#include "cstone/cuda/gather.cuh"
 
-  ::testing::InitGoogleTest(&argc, argv);
-  auto ret = RUN_ALL_TESTS();
-  return ret;
-}
+namespace cstone
+{
+
+struct CpuTag {};
+struct CudaTag {};
+
+namespace detail
+{
+
+template<class Accelerator, class = void>
+struct ReorderFunctor {};
+
+template<class Accelerator>
+struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, CpuTag>{}>>
+{
+    template<class ValueType, class CodeType, class IndexType>
+    using type = CpuGather<ValueType, CodeType, IndexType>;
+};
+
+template<class Accelerator>
+struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, CudaTag>{}>>
+{
+    template<class ValueType, class CodeType, class IndexType>
+    using type = DeviceGather<ValueType, CodeType, IndexType>;
+};
+
+} // namespace detail
+
+//! \brief returns reorder functor type to be used, depending on the accelerator
+template<class Accelerator, class ValueType, class CodeType, class IndexType>
+using ReorderFunctor_t = typename detail::ReorderFunctor<Accelerator>::template type<ValueType, CodeType, IndexType>;
+
+
+} // namespace cstone

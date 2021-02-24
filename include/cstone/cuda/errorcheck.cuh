@@ -23,18 +23,19 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief GTest driver
- *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
- */
+#pragma once
 
+#include <cuda_runtime.h>
 
-#include "gtest/gtest.h"
-
-int main(int argc, char **argv) {
-
-  ::testing::InitGoogleTest(&argc, argv);
-  auto ret = RUN_ALL_TESTS();
-  return ret;
+inline void checkErr(cudaError_t err, const char *filename, int lineno, const char *funcName)
+{
+    if (err != cudaSuccess)
+    {
+        const char *errName = cudaGetErrorName(err);
+        const char *errStr = cudaGetErrorString(err);
+        fprintf(stderr, "CUDA Error at %s:%d. Function %s returned err %d: %s - %s\n", filename, lineno, funcName, err, errName, errStr);
+        exit(EXIT_FAILURE);
+    }
 }
+
+#define checkCudaErrors(errcode) checkErr((errcode), __FILE__, __LINE__, #errcode);

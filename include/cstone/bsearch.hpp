@@ -24,17 +24,65 @@
  */
 
 /*! \file
- * \brief GTest driver
+ * \brief  Functions that exist in std::, but cannot be used in device code
  *
  * \author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#pragma once
 
-#include "gtest/gtest.h"
+#include "cuda/annotation.hpp"
 
-int main(int argc, char **argv) {
 
-  ::testing::InitGoogleTest(&argc, argv);
-  auto ret = RUN_ALL_TESTS();
-  return ret;
+namespace stl
+{
+
+//! \brief a simplified version of std::lower_bound that can be compiled as devide code
+template <class ForwardIt, class T>
+CUDA_HOST_DEVICE_FUN ForwardIt lower_bound(ForwardIt first, ForwardIt last, const T& value)
+{
+    ForwardIt it;
+    long long int step;
+    long long int count = last - first;
+
+    while (count > 0)
+    {
+        it = first;
+        step = count / 2;
+        it += step;
+        if (*it < value)
+        {
+            first = ++it;
+            count -= step + 1;
+        }
+        else
+            count = step;
+    }
+    return first;
+}
+
+//! \brief a simplified version of std::upper_bound that can be compiled as devide code
+template<class ForwardIt, class T>
+CUDA_HOST_DEVICE_FUN ForwardIt upper_bound(ForwardIt first, ForwardIt last, const T& value)
+{
+    ForwardIt it;
+    long long int step;
+    long long int count = last - first;
+
+    while (count > 0)
+    {
+        it = first;
+        step = count / 2;
+        it += step;
+        if (!(value < *it))
+        {
+            first = ++it;
+            count -= step + 1;
+        }
+        else
+            count = step;
+    }
+    return first;
+}
+
 }

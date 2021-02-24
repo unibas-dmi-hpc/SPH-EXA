@@ -1,90 +1,102 @@
-[![Build Status](https://api.travis-ci.org/unibas-dmi-hpc/SPH-EXA_mini-app.svg?branch=develop)](https://travis-ci.org/unibas-dmi-hpc/SPH-EXA_mini-app)
 
 
-# SPH
+# Cornerstone octree - a distributed domain and octree for N-body simulations
 
-The smooth particle hydrodynamics (SPH) technique is a purely Lagrangian method.
-SPH discretizes a fluid in a series of interpolation points (SPH particles) 
-whose distribution follows the mass density of the fluid and their evolution relies 
-on a weighted interpolation over close neighboring particles.
+Cornerstone octree is a collection of header only routines for
+* **3D Morton codes:** encoding/decoding in 32 and 64 bits
+* **Octrees:** local and distributed octree builds from x,y,z coordinates, using
+  a lean format that stores only the leaf nodes with one Morton code per leaf
+  in a contiguous array.
+* **Halo discovery:** identify halo nodes in a global octree, using a 3D collision detection
+  algorithm that builds and traverses a binary radix tree.
+* **Neighbor searching:** Find particle neighbors within a radius using sorted particle Morton codes
+* **Particle exchange:** exchange elements of local coordinate arrays to whip them into shape
+   as defined by a global octree, including halo particles.
 
-SPH simulations represent computationally demanding calculations. 
-Therefore, trade-offs are made between temporal and spatial scales, resolution, 
-dimensionality (3-D or 2-D), and approximated versions of the physics involved. 
-The parallelization of SPH codes is not trivial due to their boundless nature 
-and the absence of a structured particle grid. 
-[SPHYNX](https://astro.physik.unibas.ch/sphynx/), 
-[ChaNGa](http://faculty.washington.edu/trq/hpcc/tools/changa.html), 
-and [SPH-flow](http://www.sph-flow.com) are the three SPH codes selected in the PASC SPH-EXA project proposal. 
-The performance of these codes is negatively impacted by factors, such as multiple time-stepping and gravity. 
-Therefore, the goal is to extrapolate their common basic SPH features, which are consolidated in a fully optimized, Exascale-ready, MPI+X, pure-SPH, mini-app. 
+All of these components are combined into a **global domain** to manage distributed particles
+unified under a global octree. But of course, each component can also be used on its own to
+build domains with different behaviors.
 
-# SPH-EXA mini-app
-
-SPH-EXA mini-app is a C++14 headers-only code with no external software dependencies. 
-The parallelism is currently expressed via following models: MPI, OpenMP, OpenMP4.5 target offloading, OpenACC and CUDA.
-
-[Check our wiki for more details](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/wiki)
+Cornerstone octree is a C++17 headers-only library with no external software dependencies,
+except for the Google test framework, used to compile the unit tests and automatically downloaded by CMake.
+Building client  applications using the libraries does not require any dependencies.
 
 #### Folder structure
 
 ```
-SPH-EXA
+cornerstone-octree
 |   README.md
-└───include/        - folder containing all sph functions,
-|                     utilities and helpers that are shared between all test cases.
-└───src/            - folder containing test cases
-    └───testcase/   - folder containing test case main function and 
-                      other test case specific functions, 
-                      like reading input data from the file
+└───include/cstone/       - folder containing all domain and octree functionality
+└───test/
+    └───integration_mpi/  - MPI-enabled integration tests between different units
+    └───unit/             - (non-MPI) unit tests
 ```
 #### Compile
 
-Use the following commands to compile and run the SquarePatch example:
+Tests have to be built with CMake, as they depend on the Google test framework
+which is automatically downloaded by CMake.
 
-* OpenMP: ```make omp```
-* OpenMP + CUDA: ```make omp+cuda```
-* MPI + OpenMP: ```make mpi+omp```
-* MPI + OpenMP + OpenMP 4.5 Offloading: ```mpi+omp+target```
-* MPI + OpenMP + CUDA: ```make mpi+omp+cuda```
-* MPI + OpenMP + OpenACC: ```make mpi+omp+acc```
-
-Compiled binaries are placed in bin/ in the project root folder.
+Client applications can be build with any build system, with and without MPI functionality.
 
 #### Run
 
-To run the SPH-EXA type ```shell bin/{compiled_parallel_model}.app arguments```
+A minimal sketch of what a client program employing the full domain might look like is listed below.
 
-Possible arguments for the Square Patch test case:  
-* ```-n NUM``` : Run the simulation with NUM^3 (NUM to the cube) number of particles  
-* ```-s NUM``` : Run the simulation with NUM of iterations (time-steps)  
-* ```-w NUM``` : Dump particle data every NUM iterations (time-steps)  
-* ```--quiet``` : Don't print any output to stdout  
+```c++
+#include "domain.hpp"
 
-Example usage:  
-* ```./bin/omp.app -n 100 -s 1000 -w 10``` Runs the Square Patch simulation with 1 million particles for 1000 iterations (time-steps) with OpenMP and dumps particles data every 10 iterations  
-* ```./bin/omp+cuda.app -n 20 -s 500``` Runs the Square Patch simulation with 8 thousands particles for 500 iterations (time-steps) with OpenMP and CUDA  
-* ```mpirun bin/mpi+omp+cuda.app -n 500 -s 10``` Runs the Square Patch simulation with 125 million particles for 10 iterations (time-steps) with MPI, OpenMP and CUDA  
-* ```mpirun bin/mpi+omp+target.app -n 100 -s 10000``` Runs the Square Patch simulation with 1 million particles for 10000 iterations (time-steps) with MPI, OpenMP and OpenMP4.5 target offloading  
+using Real     = double;
+using CodeType = unsigned;
+
+int main()
+{
+    int rank = 0, nRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+    
+    // fill x,y,z,h with some initial values on each rank
+    std::vector<Real> x{/*...*/}, y{/*...*/}, z{/*...*/}, h{/*...*/};
+    
+    int bucketSize = 10;
+    Domain<CodeType, Real> domain(rank, nRanks, bucketSize) ;
+    
+    int nIterations = 10;
+    for (int iter = 0; iter < nIterations; ++iter)
+    {
+        domain.sync(x,y,z,h);
+
+        // x,y,z,h now contain all particles of a part of the global octree,
+        // including their halos.
+
+        std::vector<Real> density(x.size());
+
+        // compute physical quantities, e.g. densities for particles in the assigned ranges:
+        // computeDensity(density,x,y,z,h,domain.startIndex(),domain.endIndex());
+
+        // repeat the halo exchange for densities
+        domain.exchangeHalos(density);
+
+        // compute more quantities and finally update particle positions in x,y,z and h,
+        // then start over
+    }
+
+    return;
+}
+```
 
 ## Authors
 
-* **Danilo Guerrera**
-* **Aurelien Cavelan**
-* **Michal Grabarczyk**
-* **jg piccinali**
-* **David Imbert**
-* **Ruben Cabezon**
-* **Darren Reed**
-* **Lucio Mayer**
-* **Ali Mohammed**
-* **Florina Ciorba**
-* **Tom Quinn**
+* **Sebastian Keller**
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
 
-## Acknowledgments
+## Thanks / see also
 
-* PASC SPH-EXA project
+* [PASC SPH-EXA project](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app)
+* Aurélien Cavelan [@acavelan](https://github.com/acavelan) for his recursive/heap-allocation based octree
+ implementation which served as a precursor for this work.
+* This [blog post](https://fgiesen.wordpress.com/2009/12/13/decoding-morton-codes/) about decoding Morton codes
+* This NVidia developer [blog post trilogy](https://developer.nvidia.com/blog/thinking-parallel-part-i-collision-detection-gpu/)
+  on 3D collision detection
