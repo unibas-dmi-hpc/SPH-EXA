@@ -188,6 +188,7 @@ createInternalOctreeCpu(const std::vector<BinaryNode<I>>& binaryTree, TreeNodeIn
 
     // one extra element to store the total sum of the exclusive scan
     std::vector<TreeNodeIndex> prefixes(nBinaryNodes + 1);
+    #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < nBinaryNodes; ++i)
     {
         int prefixLength = binaryTree[i].prefixLength;
@@ -201,6 +202,7 @@ createInternalOctreeCpu(const std::vector<BinaryNode<I>>& binaryTree, TreeNodeIn
     std::vector<TreeNodeIndex> scatterMap(nInternalOctreeNodes);
 
     // compaction step, scatterMap -> compacted list of binary nodes that correspond to octree nodes
+    #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < nBinaryNodes; ++i)
     {
         bool isOctreeNode = (prefixes[i+1] - prefixes[i]) == 1;
@@ -214,6 +216,7 @@ createInternalOctreeCpu(const std::vector<BinaryNode<I>>& binaryTree, TreeNodeIn
     std::vector<OctreeNode<I>> internalOctree(nInternalOctreeNodes);
     std::vector<TreeNodeIndex> leafParents(nLeafNodes);
 
+    #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < nInternalOctreeNodes; ++i)
     {
         constructOctreeNode(internalOctree.data(), binaryTree.data(), i,
