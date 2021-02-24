@@ -118,7 +118,6 @@ CUDA_HOST_DEVICE_FUN GravityData<T> computeNodeGravity(const T *x, const T *y, c
         gv.particleIdx = i;
     }
 
-    // if all nodes are global, why do we need an assignee ?? should global nodes also be assigned !?
     bool global = false;
     int assignee = -1;
     if (withGravitySync) gatherGravValues(&gv, global, assignee);
@@ -323,6 +322,10 @@ GravityData<T> aggregateNodeGravity(const std::vector<I> &tree,
         GravityData<T> partialGravity =
             partialNodeContribution<I, T>(x.data() + startIndex, y.data() + startIndex, z.data() + startIndex, m.data() + startIndex,
                                           nParticles, gv.xce, gv.yce, gv.zce, gv.xcm, gv.ycm, gv.ycm, gv.mTot);
+        
+        /**
+         * @brief Since we do have the gravity contributions, can't we use qxxa from the cell to correct for the new geometrical center?
+         */
 
         gv.qxxa += partialGravity.qxxa;
         gv.qxya += partialGravity.qxya;
@@ -346,43 +349,43 @@ GravityData<T> aggregateNodeGravity(const std::vector<I> &tree,
 }
 
 template <class I, class T>
-void recursiveBuildGravityTree(std::vector<OctreeNode<I>> internalOctree, const std::vector<T> &x, const std::vector<T> &y,
+void recursiveBuildGravityTree(std::vector<OctreeNode<I>> internalOctree, TreeNodeIndex i, const std::vector<T> &x, const std::vector<T> &y,
                                const std::vector<T> &z, const std::vector<T> &m, const std::vector<I> &codes, const cstone::Box<T> &box)
 {
-    for (OctreeNode<I> node : internalOctree)
+    OctreeNode<I> node = internalOctree[i];
+
+    if (node.calculated) { continue; }
+
+    if (node.isLeaf)
     {
-        if (node.calculated) { continue; }
+        I firstCode = node.first;
+        I secondCode = node.first + node.range;
 
-        if (node.isLeaf)
+        // TODO: Search only from codes+lastParticle to the end since we know particles can not be in multiple nodes
+        int startIndex = stl::lower_bound(codes.data(), codes.data() + codes.size(), firstCode) - codes.data();
+        int endIndex = stl::upper_bound(codes.data(), codes.data() + codes.size(), secondCode) - codes.data();
+        int nParticles = endIndex - startIndex;
+        // NOTE: using morton codes to compute geometrical center. It might not be accurate.
+        T xmin = decodeXCoordinate(firstCode, box);
+        T xmax = decodeXCoordinate(secondCode, box);
+        T ymin = decodeYCoordinate(firstCode, box);
+        T ymax = decodeYCoordinate(secondCode, box);
+        T zmin = decodeZCoordinate(firstCode, box);
+        T zmax = decodeZCoordinate(secondCode, box);
+
+        node.gravityData = computeNodeGravity<I, T>(x.data() + startIndex, y.data() + startIndex, z.data() + startIndex,
+                                                    m.data() + startIndex, nParticles, xmin, xmax, ymin, ymax, zmin, zmax, false);
+        
+        node.calculated = true;
+    }
+    else
+    {
+        for (int i = 0; i < 8; ++i)
         {
-            I firstCode = node.first;
-            I secondCode = node.first + node.range;
-
-            // TODO: Search only from codes+lastParticle to the end since we know particles can not be in multiple nodes
-            int startIndex = stl::lower_bound(codes.data(), codes.data() + codes.size(), firstCode) - codes.data();
-            int endIndex = stl::upper_bound(codes.data(), codes.data() + codes.size(), secondCode) - codes.data();
-            int nParticles = endIndex - startIndex;
-            // NOTE: using morton codes to compute geometrical center. It might not be accurate.
-            T xmin = decodeXCoordinate(firstCode, box);
-            T xmax = decodeXCoordinate(secondCode, box);
-            T ymin = decodeYCoordinate(firstCode, box);
-            T ymax = decodeYCoordinate(secondCode, box);
-            T zmin = decodeZCoordinate(firstCode, box);
-            T zmax = decodeZCoordinate(secondCode, box);
-
-            node.gravityData = computeNodeGravity<I, T>(x.data() + startIndex, y.data() + startIndex, z.data() + startIndex,
-                                                        m.data() + startIndex, nParticles, xmin, xmax, ymin, ymax, zmin, zmax, false);
-            
-            node.calculated = true;
+            OctreeNode<I> child = internalOctree[i];
+            child.gravityData = recursiveBuildGravityTree(child, i, x, y, z, m, codes, box);
         }
-        else
-        {
-            for (int i = 0; i < 8; ++i)
-            {
-                internalOctree[i].gravityData = recursiveBuildGravityTree(internalOctree, x, y, z, m, codes, box);
-            }
-            node.gravityData = aggregateNodeGravity(node, x, y, z, m, codes, box);
-        }
+        node.gravityData = aggregateNodeGravity(node, x, y, z, m, codes, box);
     }
 }
 
@@ -410,7 +413,7 @@ void buildGlobalGravityTree(const std::vector<I> &tree,
 {
     std::vector<cstone::BinaryNode<I>> binaryTree = cstone::createInternalTree(tree);
     std::vector<OctreeNode<I>> internalOctree = cstone::createInternalOctree(binaryTree, tree);
-    recursiveBuildGravityTree(internalOctree);
+    recursiveBuildGravityTree(internalOctree, 0, x, y, z, m, codes, box);
 }
 
 /**
