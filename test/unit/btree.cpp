@@ -166,12 +166,13 @@ void paperExampleTest()
 
     std::vector<int> refPrefixLengths{0, 3, 4, 2, 1, 2, 4};
 
+    using Node = BinaryNode<I>;
     for (std::size_t idx = 0; idx < internalNodes.size(); ++idx)
     {
-        EXPECT_EQ(internalNodes[idx].leftChild,      refLeft[idx]);
-        EXPECT_EQ(internalNodes[idx].leftLeafIndex,  refLeftIndices[idx]);
-        EXPECT_EQ(internalNodes[idx].rightChild,     refRight[idx]);
-        EXPECT_EQ(internalNodes[idx].rightLeafIndex, refRightIndices[idx]);
+        EXPECT_EQ(internalNodes[idx].child[Node::left], refLeft[idx]);
+        EXPECT_EQ(internalNodes[idx].leafIndex[Node::left],  refLeftIndices[idx]);
+        EXPECT_EQ(internalNodes[idx].child[Node::right], refRight[idx]);
+        EXPECT_EQ(internalNodes[idx].leafIndex[Node::right], refRightIndices[idx]);
         EXPECT_EQ(internalNodes[idx].prefixLength,   refPrefixLengths[idx]);
     }
 }
