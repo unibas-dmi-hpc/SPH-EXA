@@ -1,0 +1,45 @@
+
+add_executable(globaloctree globaloctree.cpp test_main.cpp)
+target_include_directories(globaloctree PRIVATE ../../include)
+target_include_directories(globaloctree PRIVATE ${MPI_CXX_INCLUDE_PATH})
+target_link_libraries(globaloctree ${MPI_CXX_LIBRARIES} gtest_main)
+add_test(NAME GlobalTreeTests COMMAND globaloctree)
+
+add_executable(exchangeparticles exchangeparticles.cpp test_main.cpp)
+target_include_directories(exchangeparticles PRIVATE ../../include)
+target_include_directories(exchangeparticles PRIVATE ${MPI_CXX_INCLUDE_PATH})
+target_link_libraries(exchangeparticles ${MPI_CXX_LIBRARIES} gtest_main)
+add_test(NAME GlobalDomainExchange COMMAND exchangeparticles)
+
+add_executable(treedomain treedomain.cpp test_main.cpp)
+target_include_directories(treedomain PRIVATE ../../include)
+target_include_directories(treedomain PRIVATE ../)
+target_include_directories(treedomain PRIVATE ${MPI_CXX_INCLUDE_PATH})
+target_link_libraries(treedomain ${MPI_CXX_LIBRARIES} gtest_main)
+add_test(NAME GlobalDomainTreeIntegration COMMAND treedomain)
+
+add_executable(haloexchange haloexchange.cpp test_main.cpp)
+target_include_directories(haloexchange PRIVATE ../../include)
+target_include_directories(haloexchange PRIVATE ${MPI_CXX_INCLUDE_PATH})
+target_link_libraries(haloexchange ${MPI_CXX_LIBRARIES} gtest_main)
+add_test(NAME GlobalHaloExchange COMMAND haloexchange)
+
+add_executable(domain_2ranks domain_2ranks.cpp test_main.cpp)
+target_include_directories(domain_2ranks PRIVATE ../../include)
+target_include_directories(domain_2ranks PRIVATE ${MPI_CXX_INCLUDE_PATH})
+target_link_libraries(domain_2ranks ${MPI_CXX_LIBRARIES} gtest_main)
+add_test(NAME GlobalDomain2Ranks COMMAND domain_2ranks)
+
+add_executable(domain_nranks domain_nranks.cpp test_main.cpp)
+target_include_directories(domain_nranks PRIVATE ../../include)
+target_include_directories(domain_nranks PRIVATE ../)
+target_include_directories(domain_nranks PRIVATE ${MPI_CXX_INCLUDE_PATH})
+target_link_libraries(domain_nranks ${MPI_CXX_LIBRARIES} gtest_main)
+add_test(NAME GlobalDomainNRanks COMMAND domain_nranks)
+
+add_executable(box_mpi box_mpi.cpp test_main.cpp)
+target_include_directories(box_mpi PRIVATE ../../include)
+target_include_directories(box_mpi PRIVATE ${MPI_CXX_INCLUDE_PATH})
+target_link_libraries(box_mpi ${MPI_CXX_LIBRARIES} gtest_main)
+add_test(NAME GlobalBox COMMAND box_mpi)
+

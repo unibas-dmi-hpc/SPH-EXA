@@ -24,7 +24,7 @@
  */
 
 /*! \file
- * \brief GTest driver
+ * \brief GTest main
  *
  * \author Sebastian Keller <sebastian.f.keller@gmail.com>
  */

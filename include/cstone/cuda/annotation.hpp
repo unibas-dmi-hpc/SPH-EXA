@@ -24,17 +24,24 @@
  */
 
 /*! \file
- * \brief GTest driver
+ * \brief  Defines macros for enabling device code compilation
  *
  * \author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#pragma once
 
-#include "gtest/gtest.h"
+// This will compile the annotated function as device code in cuda translation units
+// and as host functions in .cpp units
+#ifdef __CUDACC__
+#define CUDA_DEVICE_FUN __device__
+#else
+#endif
 
-int main(int argc, char **argv) {
-
-  ::testing::InitGoogleTest(&argc, argv);
-  auto ret = RUN_ALL_TESTS();
-  return ret;
-}
+// This will compile the annotated function as device AND host code in cuda translation units
+// and as host functions in .cpp units
+#ifdef __CUDACC__
+#define CUDA_HOST_DEVICE_FUN __host__ __device__
+#else
+#define CUDA_HOST_DEVICE_FUN
+#endif
