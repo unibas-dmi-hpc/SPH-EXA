@@ -111,7 +111,7 @@ void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* cod
             counts[i] = 0;
 
         #pragma omp for schedule(static) nowait
-            for (int i = lastNode; i < nNodes; ++i)
+        for (int i = lastNode; i < nNodes; ++i)
             counts[i] = 0;
 
         #pragma omp for schedule(static)
