@@ -1,22 +1,21 @@
 
 set(UNIT_TESTS
-        boxoverlap.cpp
-        btree.cpp
-        btreetraversal.cpp
-        collisions_cpu.cpp
-        clz.cpp
-        domaindecomp.cpp
-        disjointoctree.cpp
+        domain/domaindecomp.cpp
+        domain/halodiscovery.cpp
+        domain/haloneighbors.cpp
+        domain/layout.cpp
         findneighbors.cpp
-        halodiscovery.cpp
-        haloneighbors.cpp
-        histogram.cpp
-        layout.cpp
-        morton.cpp
-        octree.cpp
-        octree_internal.cpp
-        octree_util.cpp
-        zorder.cpp
+        halos/boxoverlap.cpp
+        halos/btreetraversal.cpp
+        halos/collisions_cpu.cpp
+        primitives/clz.cpp
+        primitives/gather.cpp
+        sfc/morton.cpp
+        tree/btree.cpp
+        tree/disjointoctree.cpp
+        tree/octree.cpp
+        tree/octree_internal.cpp
+        tree/octree_util.cpp
         test_main.cpp)
 
 add_executable(component_units ${UNIT_TESTS})

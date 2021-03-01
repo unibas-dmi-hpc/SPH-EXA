@@ -34,8 +34,8 @@
 
 #include <gtest/gtest.h>
 
-#include "cstone/mortonconversions.hpp"
-#include "cstone/octree_mpi.hpp"
+#include "cstone/sfc/mortonconversions.hpp"
+#include "cstone/tree/octree_mpi.hpp"
 
 using namespace cstone;
 
