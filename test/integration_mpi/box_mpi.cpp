@@ -34,7 +34,7 @@
 #include <numeric>
 #include <vector>
 
-#include "cstone/box_mpi.hpp"
+#include "cstone/sfc/box_mpi.hpp"
 
 using namespace cstone;
 

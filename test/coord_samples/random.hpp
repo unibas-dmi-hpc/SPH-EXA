@@ -36,8 +36,8 @@
 #include <random>
 #include <vector>
 
-#include "cstone/mortoncode.hpp"
-#include "cstone/zorder.hpp"
+#include "cstone/sfc/mortoncode.hpp"
+#include "cstone/primitives/gather.hpp"
 
 using namespace cstone;
 

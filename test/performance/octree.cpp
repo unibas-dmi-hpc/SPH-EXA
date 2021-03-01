@@ -33,10 +33,10 @@
 #include <iostream>
 #include <numeric>
 
-#include "cstone/octree.hpp"
+#include "cstone/tree/octree.hpp"
 
-#include "cstone/halodiscovery.hpp"
-#include "cstone/domaindecomp.hpp"
+#include "cstone/domain/halodiscovery.hpp"
+#include "cstone/domain/domaindecomp.hpp"
 
 #include "coord_samples/random.hpp"
 
