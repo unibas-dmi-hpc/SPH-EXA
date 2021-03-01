@@ -171,3 +171,100 @@ TEST(InternalOctree, OctreeNodeEq)
     node2 = OctreeNode<I>{0, 0, 0, {1,2,3,4,5,6,7,8}, {i, i, i, i, i, i, i, l}};
     EXPECT_FALSE(node1 == node2);
 }
+
+
+//! \brief This creates an irregular tree. Checks geometry relations between children and parents.
+template<class I>
+void fullTreeIrregular()
+{
+    std::vector<I> codes = OctreeMaker<I>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
+
+    Octree<I> tree;
+    tree.compute(codes.data(), codes.data() + codes.size()-1, 1);
+    EXPECT_EQ(tree.nTreeNodes(), 33);
+    EXPECT_EQ(tree.nLeaves(), 29);
+    EXPECT_EQ(tree.nInternalNodes(), 4);
+
+    Box<double> box(0,1);
+
+    for (int i = 0; i < tree.nTreeNodes(); ++i)
+    {
+        if (i < 4)
+            EXPECT_FALSE(tree.isLeaf(i));
+
+        if (i == 0)
+            EXPECT_TRUE(tree.isRoot(i));
+
+        auto x = tree.x(i, box);
+        auto y = tree.y(i, box);
+        auto z = tree.z(i, box);
+
+        // check geometrical relation between node i and its children
+        if (!tree.isLeaf(i))
+        {
+            for (int hx = 0; hx < 2; ++hx)
+            {
+                for (int hy = 0; hy < 2; ++hy)
+                {
+                    for (int hz = 0; hz < 2; ++hz)
+                    {
+                        int octant = 4*hx + 2*hy + hz;
+                        TreeNodeIndex child = tree.child(i, octant);
+
+                        auto xChild = tree.x(child, box);
+                        auto yChild = tree.y(child, box);
+                        auto zChild = tree.z(child, box);
+
+                        EXPECT_EQ(x[0], xChild[0] - hx * (xChild[1] - xChild[0]));
+                        EXPECT_EQ(y[0], yChild[0] - hy * (yChild[1] - yChild[0]));
+                        EXPECT_EQ(z[0], zChild[0] - hz * (zChild[1] - zChild[0]));
+
+                        EXPECT_EQ(x[1], xChild[1] + (hx+1)%2 * (xChild[1] - xChild[0]));
+                        EXPECT_EQ(y[1], yChild[1] + (hy+1)%2 * (yChild[1] - yChild[0]));
+                        EXPECT_EQ(z[1], zChild[1] + (hz+1)%2 * (zChild[1] - zChild[0]));
+                    }
+                }
+            }
+        }
+
+        // check geometrical relation between node i and its parent
+        if (!tree.isRoot(i))
+        {
+            TreeNodeIndex parent = tree.parent(i);
+            auto xParent = tree.x(parent, box);
+            auto yParent = tree.y(parent, box);
+            auto zParent = tree.z(parent, box);
+
+            EXPECT_EQ(xParent[1] - xParent[0], 2 * (x[1] - x[0]));
+            EXPECT_EQ(yParent[1] - yParent[0], 2 * (y[1] - y[0]));
+            EXPECT_EQ(zParent[1] - zParent[0], 2 * (z[1] - z[0]));
+
+            EXPECT_TRUE(xParent[0] <= x[0] && xParent[1] >= x[1]);
+            EXPECT_TRUE(yParent[0] <= y[0] && yParent[1] >= y[1]);
+            EXPECT_TRUE(zParent[0] <= z[0] && zParent[1] >= z[1]);
+        }
+    }
+
+    //for (int i = 0; i < tree.nTreeNodes(); ++i)
+    //{
+    //    printf("node %3d, level %d, prefix %10o, parent %3d, ", i, tree.level(i), tree.codeStart(i), tree.parent(i));
+    //    auto x = tree.x(i, box);
+    //    auto y = tree.y(i, box);
+    //    auto z = tree.z(i, box);
+    //    printf("x: [%.4f:%4f], y: [%.4f:%.4f], z: [%.4f:%.4f]", x[0], x[1], y[0], y[1], z[0], z[1]);
+
+    //    if (!tree.isLeaf(i))
+    //    {
+    //        std::cout << ", children: ";
+    //        for (int octant = 0; octant < 8; ++octant)
+    //            std::cout << tree.child(i, octant) << " ";
+    //    }
+    //    std::cout << std::endl;
+    //}
+}
+
+TEST(InternalOctree, fullTreeIrregular)
+{
+    fullTreeIrregular<unsigned>();
+    fullTreeIrregular<uint64_t>();
+}

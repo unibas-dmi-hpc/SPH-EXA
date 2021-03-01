@@ -246,4 +246,217 @@ createInternalOctree(const std::vector<I>& tree)
 }
 
 
+
+struct GlobalTree{};
+struct LocalTree{};
+
+
+/*! \brief This class unifies a cornerstone octree with the internal part
+ *
+ * @tparam I          32- or 64-bit unsigned integer
+ * @tparam Locality   GlobalTree or LocalTree, selects between distributed and local trees
+ *
+ * Leaves are stored separately from the internal nodes.
+ * For either type of node, just a single buffer is allocated.
+ */
+template<class I, class Locality = LocalTree>
+class Octree {
+public:
+    Octree() = default;
+
+    /*! \brief builds the tree from a range of particle Morton codes
+     *
+     * @param codesStart[in]    local particle Morton code buffer start
+     * @param codesEnd[in]                                        end
+     * @param bucketSize[in]    refine tree until each leaf has bucketSize or fewer particles
+     *
+     * internal state change:
+     *      -full tree update
+     */
+    void compute(const I *codesStart, const I *codesEnd, unsigned bucketSize)
+    {
+        static_assert(std::is_same_v<Locality, LocalTree> || std::is_same_v<Locality, GlobalTree>);
+
+        if constexpr (std::is_same_v<Locality, LocalTree>)
+        {
+            std::tie(tree_, nodeCounts_) = computeOctree(codesStart, codesEnd, bucketSize,
+                                                         std::numeric_limits<unsigned>::max(), std::move(tree_));
+        } else if constexpr (std::is_same_v<Locality, GlobalTree>)
+        {
+            std::tie(tree_, nodeCounts_) = computeOctreeGlobal(codesStart, codesEnd, bucketSize, std::move(tree_));
+        }
+
+        std::tie(internalTree_, leafParents_) = createInternalOctree(tree_);
+        internalCounts_.resize(internalTree_.size());
+    }
+
+    //! \brief total number of nodes in the tree
+    [[nodiscard]] inline TreeNodeIndex nTreeNodes() const
+    { return nNodes(tree_) + internalTree_.size(); }
+
+    //! \brief number of leaf nodes in the tree
+    [[nodiscard]] inline TreeNodeIndex nLeaves() const
+    { return nNodes(tree_); }
+
+    //! \brief number of internal nodes in the tree, equal to (nLeaves()-1) / 7
+    [[nodiscard]] inline TreeNodeIndex nInternalNodes() const
+    { return internalTree_.size(); }
+
+    //! \brief check if node is at the bottom of the tree
+    [[nodiscard]] inline bool isLeaf(TreeNodeIndex node) const
+    {
+        assert(node < nTreeNodes());
+        return node >= internalTree_.size();
+    }
+
+    //! \brief check if node is the root node
+    [[nodiscard]] inline bool isRoot(TreeNodeIndex node) const
+    {
+        return node == 0;
+    }
+
+    /*! \brief return child node index
+     *
+     * @param node[in]    node index, range [0:nInternalNodes()]
+     * @param octant[in]  octant index, range [0:8]
+     * @return            child node index, range [0:nNodes()]
+     *
+     * If \a node is not internal, behavior is undefined.
+     * Query with isLeaf(node) before calling this function.
+     */
+    [[nodiscard]] TreeNodeIndex child(TreeNodeIndex node, TreeNodeIndex octant) const
+    {
+        assert(node < internalTree_.size());
+
+        TreeNodeIndex childIndex = internalTree_[node].child[octant];
+        if (internalTree_[node].childType[octant] == OctreeNode<I>::leaf)
+        {
+            childIndex += nInternalNodes();
+        }
+
+        return childIndex;
+    }
+
+    /*! \brief index of parent node
+     *
+     * Note: the root node is its own parent
+     */
+    [[nodiscard]] TreeNodeIndex parent(TreeNodeIndex node) const
+    {
+        if (node < nInternalNodes())
+        {
+            return internalTree_[node].parent;
+        } else
+        {
+            return leafParents_[node - nInternalNodes()];
+        }
+    }
+
+    //! \brief lowest SFC key contained int the geometrical box of \a node
+    [[nodiscard]] I codeStart(TreeNodeIndex node) const
+    {
+        if (node < nInternalNodes())
+        {
+            return internalTree_[node].prefix;
+        } else
+        {
+            return tree_[node - nInternalNodes()];
+        }
+    }
+
+    //! \brief highest SFC key contained in the geometrical box of \a node
+    [[nodiscard]] I codeEnd(TreeNodeIndex node) const
+    {
+        if (node < nInternalNodes())
+        {
+            return internalTree_[node].prefix + nodeRange<I>(internalTree_[node].level);
+        } else
+        {
+            return tree_[node - nInternalNodes() + 1];
+        }
+    }
+
+    /*! \brief octree subdivision level for \a node
+     *
+     * Returns 0 for the root node. Highest value is maxTreeLevel<I>{}.
+     */
+    [[nodiscard]] I level(TreeNodeIndex node) const
+    {
+        if (node < nInternalNodes())
+        {
+            return internalTree_[node].level;
+        } else
+        {
+            return treeLevel(tree_[node - nInternalNodes() + 1] -
+                             tree_[node - nInternalNodes()]);
+        }
+    }
+
+    //! \brief returns (min,max) x-coordinate pair for \a node
+    template<class T>
+    [[nodiscard]] pair<T> x(TreeNodeIndex node, const Box<T>& box)
+    {
+        constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+        constexpr T uL = T(1.) / maxCoord;
+
+        I prefix = codeStart(node);
+        int ix = decodeMortonX(prefix);
+        T xBox = box.xmin() + ix * uL * box.lx();
+        int unitsPerBox = 1u<<(maxTreeLevel<I>{} - level(node));
+
+        T uLx = uL * box.lx() * unitsPerBox;
+
+        return {xBox, xBox + uLx};
+    }
+
+    //! \brief returns (min,max) y-coordinate pair for \a node
+    template<class T>
+    [[nodiscard]] pair<T> y(TreeNodeIndex node, const Box<T>& box)
+    {
+        constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+        constexpr T uL = T(1.) / maxCoord;
+
+        I prefix = codeStart(node);
+        int iy = decodeMortonY(prefix);
+        T yBox = box.ymin() + iy * uL * box.ly();
+        int unitsPerBox = 1u<<(maxTreeLevel<I>{} - level(node));
+
+        T uLy = uL * box.ly() * unitsPerBox;
+
+        return {yBox, yBox + uLy};
+    }
+
+    //! \brief returns (min,max) z-coordinate pair for \a node
+    template<class T>
+    [[nodiscard]] pair<T> z(TreeNodeIndex node, const Box<T>& box)
+    {
+        constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+        constexpr T uL = T(1.) / maxCoord;
+
+        I prefix = codeStart(node);
+        int iz = decodeMortonZ(prefix);
+        T zBox = box.zmin() + iz * uL * box.lz();
+        int unitsPerBox = 1u<<(maxTreeLevel<I>{} - level(node));
+
+        T uLz = uL * box.lz() * unitsPerBox;
+
+        return {zBox, zBox + uLz};
+    }
+
+private:
+
+    //! \brief cornerstone octree, just the leaves
+    std::vector<I>             tree_;
+    //! \brief leaf node particles counts
+    std::vector<unsigned>      nodeCounts_;
+    //! \brief indices into internalTree_ to store the parent index of each leaf
+    std::vector<TreeNodeIndex> leafParents_;
+
+    //! \brief the internal tree
+    std::vector<OctreeNode<I>> internalTree_;
+    //! \brief internal tree node particles counts
+    std::vector<unsigned>      internalCounts_;
+};
+
+
 } // namespace cstone
