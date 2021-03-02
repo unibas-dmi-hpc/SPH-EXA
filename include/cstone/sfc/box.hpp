@@ -34,29 +34,7 @@
 #include <cmath>
 
 #include "cstone/cuda/annotation.hpp"
-
-namespace stl
-{
-
-template<class T>
-CUDA_HOST_DEVICE_FUN
-inline const T& min(const T& a, const T& b)
-{
-  if (b < a)
-    return b;
-  return a;
-}
-
-template<class T>
-CUDA_HOST_DEVICE_FUN
-inline const T& max(const T& a, const T& b)
-{
-    if (a < b)
-        return b;
-    return a;
-}
-
-} // namespace stl
+#include "cstone/primitives/stl.hpp"
 
 namespace cstone
 {

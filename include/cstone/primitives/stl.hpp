@@ -24,18 +24,51 @@
  */
 
 /*! \file
- * \brief  Functions that exist in std::, but cannot be used in device code
+ * \brief  Functionality that exist in std::, but cannot be used in device code
  *
  * \author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
+#include <cmath> // for std::ceil
+
 #include "cstone/cuda/annotation.hpp"
 
 
 namespace stl
 {
+
+template<typename T, T v>
+struct integral_constant {
+    static constexpr T value = v;
+    typedef T value_type;
+    typedef integral_constant<T, v> type;
+
+    CUDA_HOST_DEVICE_FUN
+    constexpr operator value_type() const noexcept
+    { return value; } // NOLINT
+};
+
+//! \brief This does what you think it does
+template<class T>
+CUDA_HOST_DEVICE_FUN
+inline const T& min(const T& a, const T& b)
+{
+  if (b < a)
+    return b;
+  return a;
+}
+
+//! \brief This does what you think it does
+template<class T>
+CUDA_HOST_DEVICE_FUN
+inline const T& max(const T& a, const T& b)
+{
+    if (a < b)
+        return b;
+    return a;
+}
 
 //! \brief a simplified version of std::lower_bound that can be compiled as devide code
 template <class ForwardIt, class T>

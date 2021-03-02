@@ -35,7 +35,7 @@
 #include <type_traits>
 
 #include "cstone/primitives/clz.hpp"
-#include "cstone/sfc/box.hpp"
+#include "cstone/primitives/stl.hpp"
 #include "cstone/util.hpp"
 
 namespace cstone
