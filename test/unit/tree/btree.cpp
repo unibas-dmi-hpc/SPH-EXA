@@ -34,6 +34,7 @@
 #include "cstone/tree/btree.hpp"
 #include "cstone/sfc/mortonconversions.hpp"
 #include "cstone/tree/octree.hpp"
+#include "cstone/tree/octree_util.hpp"
 
 /*! \brief \file tests for binary tree generation
  */

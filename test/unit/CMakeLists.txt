@@ -10,6 +10,7 @@ set(UNIT_TESTS
         halos/collisions_cpu.cpp
         primitives/clz.cpp
         primitives/gather.cpp
+        sfc/common.cpp
         sfc/morton.cpp
         tree/btree.cpp
         tree/disjointoctree.cpp

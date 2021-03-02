@@ -36,6 +36,7 @@
 
 #include "cstone/halos/btreetraversal.hpp"
 #include "cstone/tree/octree.hpp"
+#include "cstone/tree/octree_util.hpp"
 
 using namespace cstone;
 
