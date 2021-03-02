@@ -47,13 +47,13 @@ void invariantHead()
 {
     std::vector<CodeType> tree
     {
-        codeFromIndices<CodeType>({1}),
-        codeFromIndices<CodeType>({2}),
-        codeFromIndices<CodeType>({3}),
-        codeFromIndices<CodeType>({4}),
-        codeFromIndices<CodeType>({5}),
-        codeFromIndices<CodeType>({6}),
-        codeFromIndices<CodeType>({7}),
+        pad(CodeType(01), 3),
+        pad(CodeType(02), 3),
+        pad(CodeType(03), 3),
+        pad(CodeType(04), 3),
+        pad(CodeType(05), 3),
+        pad(CodeType(06), 3),
+        pad(CodeType(07), 3),
         nodeRange<CodeType>(0)
     };
 
@@ -66,14 +66,14 @@ void invariantTail()
 {
     std::vector<CodeType> tree
     {
-        codeFromIndices<CodeType>({0}),
-        codeFromIndices<CodeType>({1}),
-        codeFromIndices<CodeType>({2}),
-        codeFromIndices<CodeType>({3}),
-        codeFromIndices<CodeType>({4}),
-        codeFromIndices<CodeType>({5}),
-        codeFromIndices<CodeType>({6}),
-        codeFromIndices<CodeType>({7}),
+        pad(CodeType(00), 3),
+        pad(CodeType(01), 3),
+        pad(CodeType(02), 3),
+        pad(CodeType(03), 3),
+        pad(CodeType(04), 3),
+        pad(CodeType(05), 3),
+        pad(CodeType(06), 3),
+        pad(CodeType(07), 3),
     };
 
     EXPECT_FALSE(checkOctreeInvariants(tree.data(), nNodes(tree)));
@@ -85,13 +85,13 @@ void invariantSiblings()
 {
     std::vector<CodeType> tree
         {
-            codeFromIndices<CodeType>({0}),
-            codeFromIndices<CodeType>({1}),
-            codeFromIndices<CodeType>({2}),
-            codeFromIndices<CodeType>({3}),
-            codeFromIndices<CodeType>({4}),
-            codeFromIndices<CodeType>({5}),
-            codeFromIndices<CodeType>({6}),
+            pad(CodeType(00), 3),
+            pad(CodeType(01), 3),
+            pad(CodeType(02), 3),
+            pad(CodeType(03), 3),
+            pad(CodeType(04), 3),
+            pad(CodeType(05), 3),
+            pad(CodeType(06), 3),
             nodeRange<CodeType>(0)
         };
 
@@ -122,24 +122,24 @@ void octreeMakerDivide()
     auto tree = OctreeMaker<CodeType>{}.divide().divide(7).makeTree();
 
     std::vector<CodeType> refTree
-        {
-            codeFromIndices<CodeType>({0}),
-            codeFromIndices<CodeType>({1}),
-            codeFromIndices<CodeType>({2}),
-            codeFromIndices<CodeType>({3}),
-            codeFromIndices<CodeType>({4}),
-            codeFromIndices<CodeType>({5}),
-            codeFromIndices<CodeType>({6}),
-            codeFromIndices<CodeType>({7,0}),
-            codeFromIndices<CodeType>({7,1}),
-            codeFromIndices<CodeType>({7,2}),
-            codeFromIndices<CodeType>({7,3}),
-            codeFromIndices<CodeType>({7,4}),
-            codeFromIndices<CodeType>({7,5}),
-            codeFromIndices<CodeType>({7,6}),
-            codeFromIndices<CodeType>({7,7}),
-            nodeRange<CodeType>(0)
-        };
+    {
+        pad(CodeType(00),  3),
+        pad(CodeType(01),  3),
+        pad(CodeType(02),  3),
+        pad(CodeType(03),  3),
+        pad(CodeType(04),  3),
+        pad(CodeType(05),  3),
+        pad(CodeType(06),  3),
+        pad(CodeType(070), 6),
+        pad(CodeType(071), 6),
+        pad(CodeType(072), 6),
+        pad(CodeType(073), 6),
+        pad(CodeType(074), 6),
+        pad(CodeType(075), 6),
+        pad(CodeType(076), 6),
+        pad(CodeType(077), 6),
+        nodeRange<CodeType>(0)
+    };
 
     EXPECT_EQ(tree, refTree);
 }

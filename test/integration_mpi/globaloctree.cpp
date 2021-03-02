@@ -36,6 +36,7 @@
 
 #include "cstone/sfc/mortonconversions.hpp"
 #include "cstone/tree/octree_mpi.hpp"
+#include "cstone/tree/octree_util.hpp"
 
 using namespace cstone;
 
@@ -56,7 +57,7 @@ std::vector<I> makeRegularGrid(int rank)
         for (unsigned j = 0; j < n; ++j)
             for (unsigned k = 0; k < n; ++k)
     {
-        codes.push_back(codeFromBox<I>(i,j,k, level));
+        codes.push_back(imorton3D<I>(i,j,k, level));
     }
 
     std::sort(begin(codes), end(codes));
@@ -72,17 +73,7 @@ void buildTree(int rank)
     int bucketSize = 8;
     auto [tree, counts] = computeOctreeGlobal(codes.data(), codes.data() + codes.size(), bucketSize);
 
-    std::vector<I> refTree{
-        codeFromIndices<I>({0}),
-        codeFromIndices<I>({1}),
-        codeFromIndices<I>({2}),
-        codeFromIndices<I>({3}),
-        codeFromIndices<I>({4}),
-        codeFromIndices<I>({5}),
-        codeFromIndices<I>({6}),
-        codeFromIndices<I>({7}),
-        nodeRange<I>(0)
-    };
+    std::vector<I> refTree = OctreeMaker<I>{}.divide().makeTree();
 
     std::vector<unsigned> refCounts(8,8);
 

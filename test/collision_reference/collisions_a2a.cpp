@@ -47,7 +47,7 @@ void collide2all()
 
     // this search box intersects with neighbors in x direction and will intersect
     // with multiple smaller level 2 and level 3 nodes
-    // it corresponds to the node with code codeFromIndices<I>({4}) with a dx=1 halo extension
+    // it corresponds to the node with code 04000000000 (octal, 32-bit) with a dx=1 halo extension
     int r = 1u<<(maxTreeLevel<I>{} - 1);
     IBox haloBox{r-1, 2*r, 0, r, 0, r};
 
@@ -58,17 +58,17 @@ void collide2all()
     for (std::size_t i = 0; i < collisions.size(); ++i)
         collisions[i] = tree[collisionList[i]];
 
-    // list of octree leaf morton codes that should collide
+    // list of octree leaf sfc codes (in octal) that should collide
     // with the halo box
     std::vector<I> refCollisions{
-        codeFromIndices<I>({0,4}),
-        codeFromIndices<I>({0,5}),
-        codeFromIndices<I>({0,6}),
-        codeFromIndices<I>({0,7,4}),
-        codeFromIndices<I>({0,7,5}),
-        codeFromIndices<I>({0,7,6}),
-        codeFromIndices<I>({0,7,7}),
-        codeFromIndices<I>({4})
+        pad(I(004),  6),
+        pad(I(005),  6),
+        pad(I(006),  6),
+        pad(I(0074), 9),
+        pad(I(0075), 9),
+        pad(I(0076), 9),
+        pad(I(0077), 9),
+        pad(I(04),   3)
     };
 
     EXPECT_EQ(collisions, refCollisions);
@@ -103,20 +103,20 @@ void collideAll2all()
 
     // reference list of collisions for node with index 18, corresponding to {4}
     std::vector<I> refCollisions{
-        codeFromIndices<I>({0,4}),
-        codeFromIndices<I>({0,5}),
-        codeFromIndices<I>({0,6}),
-        codeFromIndices<I>({0,7,4}),
-        codeFromIndices<I>({0,7,5}),
-        codeFromIndices<I>({0,7,6}),
-        codeFromIndices<I>({0,7,7}),
-        codeFromIndices<I>({1}),
-        codeFromIndices<I>({2}),
-        codeFromIndices<I>({3}),
-        codeFromIndices<I>({4}),
-        codeFromIndices<I>({5}),
-        codeFromIndices<I>({6}),
-        codeFromIndices<I>({7})
+        pad(I(004),  6),
+        pad(I(005),  6),
+        pad(I(006),  6),
+        pad(I(0074), 9),
+        pad(I(0075), 9),
+        pad(I(0076), 9),
+        pad(I(0077), 9),
+        pad(I(01),   3),
+        pad(I(02),   3),
+        pad(I(03),   3),
+        pad(I(04),   3),
+        pad(I(05),   3),
+        pad(I(06),   3),
+        pad(I(07),   3)
     };
 
     EXPECT_EQ(n18coll, refCollisions);
@@ -153,24 +153,24 @@ void collideAll2allPbcX()
 
     // reference list of collisions for node with index 18, corresponding to {4}
     std::vector<I> refCollisions{
-            codeFromIndices<I>({0,0}), // due to pbc X
-            codeFromIndices<I>({0,1}), // due to pbc X
-            codeFromIndices<I>({0,2}), // due to pbc X
-            codeFromIndices<I>({0,3}), // due to pbc X
-            codeFromIndices<I>({0,4}),
-            codeFromIndices<I>({0,5}),
-            codeFromIndices<I>({0,6}),
-            codeFromIndices<I>({0,7,4}),
-            codeFromIndices<I>({0,7,5}),
-            codeFromIndices<I>({0,7,6}),
-            codeFromIndices<I>({0,7,7}),
-            codeFromIndices<I>({1}),
-            codeFromIndices<I>({2}),
-            codeFromIndices<I>({3}),
-            codeFromIndices<I>({4}),
-            codeFromIndices<I>({5}),
-            codeFromIndices<I>({6}),
-            codeFromIndices<I>({7})
+            pad(I(000), 6), // due to pbc X
+            pad(I(001), 6), // due to pbc X
+            pad(I(002), 6), // due to pbc X
+            pad(I(003), 6), // due to pbc X
+            pad(I(004), 6),
+            pad(I(005), 6),
+            pad(I(006), 6),
+            pad(I(0074), 9),
+            pad(I(0075), 9),
+            pad(I(0076), 9),
+            pad(I(0077), 9),
+            pad(I(01), 3),
+            pad(I(02), 3),
+            pad(I(03), 3),
+            pad(I(04), 3),
+            pad(I(05), 3),
+            pad(I(06), 3),
+            pad(I(07), 3)
     };
 
     EXPECT_EQ(n18coll, refCollisions);
@@ -208,38 +208,38 @@ void collideAll2allPbcXYZ()
 
     // reference list of collisions for node with index 18, corresponding to {4}
     std::vector<I> refCollisions{
-            codeFromIndices<I>({0,0}), // due to pbc X
-            codeFromIndices<I>({0,1}), // due to pbc X
-            codeFromIndices<I>({0,2}), // due to pbc X
-            codeFromIndices<I>({0,3}), // due to pbc X
-            codeFromIndices<I>({0,4}),
-            codeFromIndices<I>({0,5}),
-            codeFromIndices<I>({0,6}),
-            codeFromIndices<I>({0,7,4}),
-            codeFromIndices<I>({0,7,5}),
-            codeFromIndices<I>({0,7,6}),
-            codeFromIndices<I>({0,7,7}),
-            codeFromIndices<I>({1}),
-            codeFromIndices<I>({2}),
-            codeFromIndices<I>({3}),
-            codeFromIndices<I>({4}),
-            codeFromIndices<I>({5,0}),
-            codeFromIndices<I>({5,1}), // due to pbc Z
-            codeFromIndices<I>({5,2}),
-            codeFromIndices<I>({5,3}), // due to pbc Z
-            codeFromIndices<I>({5,4}),
-            codeFromIndices<I>({5,5}), // due to pbc Z
-            codeFromIndices<I>({5,6}),
-            codeFromIndices<I>({5,7}), // due to pbc Z
-            codeFromIndices<I>({6,0}),
-            codeFromIndices<I>({6,1}),
-            codeFromIndices<I>({6,2}), // due to pbc Y
-            codeFromIndices<I>({6,3}), // due to pbc Y
-            codeFromIndices<I>({6,4}),
-            codeFromIndices<I>({6,5}),
-            codeFromIndices<I>({6,6}), // due to pbc Y
-            codeFromIndices<I>({6,7}), // due to pbc Y
-            codeFromIndices<I>({7})
+            pad(I(000),  6), // due to pbc X
+            pad(I(001),  6), // due to pbc X
+            pad(I(002),  6), // due to pbc X
+            pad(I(003),  6), // due to pbc X
+            pad(I(004),  6),
+            pad(I(005),  6),
+            pad(I(006),  6),
+            pad(I(0074), 9),
+            pad(I(0075), 9),
+            pad(I(0076), 9),
+            pad(I(0077), 9),
+            pad(I(01),   3),
+            pad(I(02),   3),
+            pad(I(03),   3),
+            pad(I(04),   3),
+            pad(I(050),  6),
+            pad(I(051),  6), // due to pbc Z
+            pad(I(052),  6),
+            pad(I(053),  6), // due to pbc Z
+            pad(I(054),  6),
+            pad(I(055),  6), // due to pbc Z
+            pad(I(056),  6),
+            pad(I(057),  6), // due to pbc Z
+            pad(I(060),  6),
+            pad(I(061),  6),
+            pad(I(062),  6), // due to pbc Y
+            pad(I(063),  6), // due to pbc Y
+            pad(I(064),  6),
+            pad(I(065),  6),
+            pad(I(066),  6), // due to pbc Y
+            pad(I(067),  6), // due to pbc Y
+            pad(I(07),   3)
     };
 
     EXPECT_EQ(n18coll, refCollisions);
