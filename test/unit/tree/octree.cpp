@@ -38,43 +38,6 @@
 
 using namespace cstone;
 
-template<class I>
-void printIndices(std::array<unsigned char, maxTreeLevel<I>{}> indices)
-{
-    for (int i = 0; i < maxTreeLevel<I>{}; ++i)
-        std::cout << indices[i] << ",";
-}
-
-
-template<class T, std::size_t N>
-std::ostream& operator<<(std::ostream& os, const std::array<T, N>& input)
-{
-    unsigned lastNonZero = 0;
-    for (int i = 0; i < N; ++i)
-    {
-        if (input[i] != 0)
-        {
-            lastNonZero = i;
-        }
-    }
-
-    for (unsigned i = 0; i < lastNonZero; ++i)
-        os << int(input[i]) << ",";
-    os << int(input[lastNonZero]);
-
-    return os;
-}
-
-template<class I>
-void printTree(const I* tree, const int* counts, int nNodes)
-{
-    for (int i = 0; i < nNodes; ++i)
-    {
-        I thisNode     = tree[i];
-        std::cout << indicesFromCode(thisNode) << " :" << counts[i] << std::endl;
-    }
-    std::cout << std::endl;
-}
 
 //! \brief test that computeNodeCounts correctly counts the number of codes for each node
 template<class CodeType>
