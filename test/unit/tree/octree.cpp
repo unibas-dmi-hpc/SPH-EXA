@@ -114,24 +114,8 @@ void rebalanceShrinkStart()
 {
     constexpr int bucketSize = 8;
 
-    std::vector<CodeType> tree;
-    tree.reserve(20);
-
-    std::vector<unsigned> counts;
-    counts.reserve(20);
-
-    for (unsigned char i = 0; i < 8; ++i)
-    {
-        tree.push_back(codeFromIndices<CodeType>({0, i}));
-        counts.push_back(1);
-    }
-
-    for (unsigned char i = 1; i < 8; ++i)
-    {
-        tree.push_back(codeFromIndices<CodeType>({i}));
-        counts.push_back(1);
-    }
-    tree.push_back(nodeRange<CodeType>(0));
+    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
+    std::vector<unsigned> counts(nNodes(tree), 1);
 
     std::vector<CodeType> balancedTree = rebalanceTree(tree.data(), counts.data(),
                                                        nNodes(tree), bucketSize);
@@ -139,14 +123,8 @@ void rebalanceShrinkStart()
     EXPECT_TRUE(checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
     EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
-    std::vector<CodeType> reference;
-    reference.reserve(9);
+    std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().makeTree();
 
-    for (unsigned char i = 0; i < 8; ++i)
-    {
-        reference.push_back(codeFromIndices<CodeType>({i}));
-    }
-    reference.push_back(nodeRange<CodeType>(0));
     EXPECT_EQ(balancedTree, reference);
 }
 
@@ -175,14 +153,7 @@ void rebalanceShrinkMid()
     EXPECT_TRUE(checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
     EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
-    std::vector<CodeType> reference;
-    reference.reserve(9);
-
-    for (unsigned char i = 0; i < 8; ++i)
-    {
-        reference.push_back(codeFromIndices<CodeType>({i}));
-    }
-    reference.push_back(nodeRange<CodeType>(0));
+    std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().makeTree();
 
     EXPECT_EQ(balancedTree, reference);
 }
@@ -213,14 +184,7 @@ void rebalanceShrinkEnd()
     EXPECT_TRUE(checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
     EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
-    std::vector<CodeType> reference;
-    reference.reserve(9);
-
-    for (unsigned char i = 0; i < 8; ++i)
-    {
-        reference.push_back(codeFromIndices<CodeType>({i}));
-    }
-    reference.push_back(nodeRange<CodeType>(0));
+    std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().makeTree();
 
     EXPECT_EQ(balancedTree, reference);
 }
@@ -276,14 +240,7 @@ void rebalanceRootSplit()
     std::vector<CodeType> balancedTree
         = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
 
-    std::vector<CodeType> reference;
-    reference.reserve(9);
-
-    for (unsigned char i = 0; i < 8; ++i)
-    {
-        reference.push_back(codeFromIndices<CodeType>({i}));
-    }
-    reference.push_back(nodeRange<CodeType>(0));
+    std::vector<CodeType> reference = OctreeMaker<I>{}.divide().makeTree();
 
     EXPECT_EQ(balancedTree, reference);
 }
@@ -317,16 +274,7 @@ void rebalanceSplitShrink()
     EXPECT_TRUE(checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
     EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
-    std::vector<CodeType> reference;
-    reference.reserve(9);
-
-    reference.push_back(codeFromIndices<CodeType>({0}));
-    for (unsigned char i = 0; i < 8; ++i)
-        reference.push_back(codeFromIndices<CodeType>({1,i}));
-    for (unsigned char i = 2; i < 8; ++i)
-        reference.push_back(codeFromIndices<CodeType>({i}));
-
-    reference.push_back(nodeRange<CodeType>(0));
+    std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().divide(1).makeTree();
 
     EXPECT_EQ(balancedTree, reference);
 }
