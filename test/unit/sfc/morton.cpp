@@ -247,45 +247,6 @@ TEST(MortonCode, codeFromIndices64)
     EXPECT_EQ(nodeRange<CodeType>(0), codeFromIndices<CodeType>(input) + 1);
 }
 
-TEST(MortonCode, indicesFromCode32)
-{
-    using CodeType = unsigned;
-
-    constexpr unsigned maxLevel = maxTreeLevel<CodeType>{};
-
-    CodeType input = nodeRange<CodeType>(0);
-
-    std::array<unsigned char, maxLevel> reference{0};
-    for (unsigned i = 0; i < maxLevel; ++i)
-    {
-        reference[i] = 7;
-    }
-
-    EXPECT_EQ(reference, indicesFromCode(input - 1));
-
-    input = 2 * nodeRange<CodeType>(3) + 4 * nodeRange<CodeType>(8);
-
-    reference = std::array<unsigned char, maxLevel>{0,0,2,0,0,0,0,4,0,0};
-    EXPECT_EQ(reference, indicesFromCode(input));
-}
-
-TEST(MortonCode, indicesFromCode64)
-{
-    using CodeType = uint64_t;
-
-    constexpr unsigned maxLevel = maxTreeLevel<CodeType>{};
-
-    CodeType input = nodeRange<CodeType>(0);
-
-    std::array<unsigned char, maxLevel> reference{0};
-    for (unsigned i = 0; i < maxLevel; ++i)
-    {
-        reference[i] = 7;
-    }
-
-    EXPECT_EQ(reference, indicesFromCode(input - 1));
-}
-
 template<class I>
 void mortonNeighbors()
 {
