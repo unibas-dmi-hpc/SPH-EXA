@@ -13,7 +13,6 @@ set(UNIT_TESTS
         sfc/common.cpp
         sfc/morton.cpp
         tree/btree.cpp
-        tree/disjointoctree.cpp
         tree/octree.cpp
         tree/octree_internal.cpp
         tree/octree_util.cpp
