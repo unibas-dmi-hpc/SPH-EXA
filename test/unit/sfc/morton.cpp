@@ -36,7 +36,6 @@
 
 #include "gtest/gtest.h"
 #include "cstone/sfc/mortoncode.hpp"
-#include "cstone/sfc/mortonconversions.hpp"
 
 using namespace cstone;
 
@@ -217,36 +216,6 @@ TEST(MortonCode, decodeZRange64)
     EXPECT_EQ( (pair<int>{(1u<<20) + (1u<<19), 1u<<21}), decodeZRange(0b0001001ul << 57u, 6));
 }
 
-TEST(MortonCode, codeFromIndices32)
-{
-    using CodeType = unsigned;
-
-    constexpr unsigned maxLevel = maxTreeLevel<CodeType>{};
-
-    std::array<unsigned char, 21> input{0};
-    for (unsigned i = 0; i < maxLevel; ++i)
-    {
-        input[i] = 7;
-    }
-
-    EXPECT_EQ(nodeRange<CodeType>(0), codeFromIndices<CodeType>(input) + 1);
-}
-
-TEST(MortonCode, codeFromIndices64)
-{
-    using CodeType = uint64_t;
-
-    constexpr unsigned maxLevel = maxTreeLevel<CodeType>{};
-
-    std::array<unsigned char, 21> input{0};
-    for (unsigned i = 0; i < maxLevel; ++i)
-    {
-        input[i] = 7;
-    }
-
-    EXPECT_EQ(nodeRange<CodeType>(0), codeFromIndices<CodeType>(input) + 1);
-}
-
 template<class I>
 void mortonNeighbors()
 {
@@ -308,22 +277,6 @@ TEST(MortonCode, mortonNeighbor32)
 {
     mortonNeighbors<unsigned>();
     mortonNeighbors<uint64_t>();
-}
-
-TEST(MortonCode, mortonIndices32)
-{
-    using CodeType = unsigned;
-    EXPECT_EQ(0x08000000, codeFromIndices<CodeType>({1}));
-    EXPECT_EQ(0x09000000, codeFromIndices<CodeType>({1,1}));
-    EXPECT_EQ(0x09E00000, codeFromIndices<CodeType>({1,1,7}));
-}
-
-TEST(MortonCode, mortonIndices64)
-{
-    using CodeType = uint64_t;
-    EXPECT_EQ(0b0001lu << 60u, codeFromIndices<CodeType>({1}));
-    EXPECT_EQ(0b0001001lu << 57u, codeFromIndices<CodeType>({1,1}));
-    EXPECT_EQ(0b0001001111lu << 54u, codeFromIndices<CodeType>({1,1,7}));
 }
 
 TEST(MortonCode, mortonCodesSequence)

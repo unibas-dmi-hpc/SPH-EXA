@@ -32,7 +32,6 @@
 #include "gtest/gtest.h"
 
 #include "cstone/tree/btree.hpp"
-#include "cstone/sfc/mortonconversions.hpp"
 #include "cstone/tree/octree.hpp"
 #include "cstone/tree/octree_util.hpp"
 

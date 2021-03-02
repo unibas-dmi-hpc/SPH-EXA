@@ -112,6 +112,42 @@ TEST(CornerstoneUtil, invariants64)
     invariantSiblings<uint64_t>();
 }
 
+TEST(CornerstoneUtil, codeFromIndices32)
+{
+    using CodeType = unsigned;
+    EXPECT_EQ(0x08000000, codeFromIndices<CodeType>({1}));
+    EXPECT_EQ(0x09000000, codeFromIndices<CodeType>({1,1}));
+    EXPECT_EQ(0x09E00000, codeFromIndices<CodeType>({1,1,7}));
+}
+
+TEST(CornerstoneUtil, codeFromIndices64)
+{
+    using CodeType = uint64_t;
+    EXPECT_EQ(0b0001lu << 60u, codeFromIndices<CodeType>({1}));
+    EXPECT_EQ(0b0001001lu << 57u, codeFromIndices<CodeType>({1,1}));
+    EXPECT_EQ(0b0001001111lu << 54u, codeFromIndices<CodeType>({1,1,7}));
+}
+
+template<class CodeType>
+void codeFromIndices()
+{
+    constexpr unsigned maxLevel = maxTreeLevel<CodeType>{};
+
+    std::array<unsigned char, 21> input{0};
+    for (unsigned i = 0; i < maxLevel; ++i)
+    {
+        input[i] = 7;
+    }
+
+    EXPECT_EQ(nodeRange<CodeType>(0), codeFromIndices<CodeType>(input) + 1);
+}
+
+TEST(CornerstoneUtil, codeFromIndices)
+{
+    codeFromIndices<unsigned>();
+    codeFromIndices<uint64_t>();
+}
+
 //! \brief test OctreeMaker node division
 template<class I>
 void octreeMakerDivide()

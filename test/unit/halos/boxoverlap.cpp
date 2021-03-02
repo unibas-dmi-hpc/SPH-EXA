@@ -33,7 +33,6 @@
 #include "gtest/gtest.h"
 
 #include "cstone/halos/boxoverlap.hpp"
-#include "cstone/sfc/mortonconversions.hpp"
 
 using namespace cstone;
 
