@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "../tree/btree.hpp"
+#include "cstone/tree/btree.hpp"
 
 namespace cstone
 {

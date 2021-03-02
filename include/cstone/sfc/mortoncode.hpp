@@ -111,9 +111,9 @@ template <class I>
 CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, I> imorton3D(unsigned ix, unsigned iy, unsigned iz)
 {
-    assert(ix >= 0 && ix < (1u << maxTreeLevel<I>{}));
-    assert(iy >= 0 && iy < (1u << maxTreeLevel<I>{}));
-    assert(iz >= 0 && iz < (1u << maxTreeLevel<I>{}));
+    assert(ix < (1u << maxTreeLevel<I>{}));
+    assert(iy < (1u << maxTreeLevel<I>{}));
+    assert(iz < (1u << maxTreeLevel<I>{}));
 
     I xx = detail::expandBits(I(ix));
     I yy = detail::expandBits(I(iy));
