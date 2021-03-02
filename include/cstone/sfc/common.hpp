@@ -41,11 +41,11 @@
 
 namespace cstone
 {
-//! \brief number of unused leading zeros in a 32-bit Morton code
+//! \brief number of unused leading zeros in a 32-bit SFC code
 template<class I>
 struct unusedBits : stl::integral_constant<unsigned, 2> {};
 
-//! \brief number of unused leading zeros in a 64-bit Morton code
+//! \brief number of unused leading zeros in a 64-bit SFC code
 template<>
 struct unusedBits<uint64_t> : stl::integral_constant<unsigned, 1> {};
 
@@ -103,7 +103,7 @@ inline unsigned toNBitIntCeil(T x)
 /*! \brief add (binary) zeros behind a prefix
  *
  * Allows comparisons, such as number of leading common bits (cpr)
- * of the prefix with Morton codes.
+ * of the prefix with SFC codes.
  *
  * @tparam I      32- or 64-bit unsigned integer type
  * @param prefix  the bit pattern
@@ -115,7 +115,7 @@ inline unsigned toNBitIntCeil(T x)
  *  pad(0b011ul, 3) -> 0b0011ul << 60
  *
  *  i.e. \a length plus the number of zeros added adds up to 30 for 32-bit integers
- *  or 63 for 64-bit integers, because these are the numbers of usable bits in Morton codes.
+ *  or 63 for 64-bit integers, because these are the numbers of usable bits in SFC codes.
  */
 template <class I>
 constexpr I pad(I prefix, int length)
@@ -129,7 +129,7 @@ constexpr I pad(I prefix, int length)
  * \param treeLevel  octree subdivision level
  * \return           the range
  *
- * At treeLevel 0, the range is the entire 30 or 63 bits used in the Morton code.
+ * At treeLevel 0, the range is the entire 30 or 63 bits used in the SFC code.
  * After that, the range decreases by 3 bits for each level.
  *
  */
@@ -185,7 +185,7 @@ int commonPrefix(I key1, I key2)
 /*! \brief return octree subdivision level corresponding to codeRange
  *
  * \tparam I         32- or 64-bit unsigned integer type
- * \param codeRange  input Morton code range
+ * \param codeRange  input SFC code range
  * \return           octree subdivision level 0-10 (32-bit) or 0-21 (64-bit)
  */
 template<class I>
@@ -227,11 +227,11 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsig
 }
 
 /*! \brief compute an enclosing envelope corresponding to the smallest possible
- *         octree node for two input Morton codes
+ *         octree node for two input SFC codes
  *
  * \tparam I              32- or 64-bit unsigned integer type
- * \param[in] firstCode   lower Morton code
- * \param[in] secondCode  upper Morton code
+ * \param[in] firstCode   lower SFC code
+ * \param[in] secondCode  upper SFC code
  *
  * \return                two morton codes that delineate the start and end of
  *                        the smallest octree node that contains both input codes
@@ -247,7 +247,7 @@ inline pair<I> smallestCommonBox(I firstCode, I secondCode)
     return pair<I>(nodeStart, nodeStart + nodeRange<I>(commonLevel));
 }
 
-//! \brief zero all but the highest nBits in a Morton code
+//! \brief zero all but the highest nBits in a SFC code
 template<class I>
 CUDA_HOST_DEVICE_FUN
 inline I zeroLowBits(I code, int nBits)
