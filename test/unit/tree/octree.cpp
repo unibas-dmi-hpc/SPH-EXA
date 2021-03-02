@@ -43,19 +43,10 @@ using namespace cstone;
 template<class CodeType>
 void checkCountTreeNodes()
 {
-    std::vector<CodeType> codes;
-
     constexpr unsigned n     = 4;
     constexpr unsigned level = 2;
 
-    // a regular n x n x n grid
-    for (unsigned i = 0; i < n; ++i)
-        for (unsigned j = 0; j < n; ++j)
-            for (unsigned k = 0; k < n; ++k)
-    {
-        codes.push_back(imorton3D<CodeType>(i,j,k, level));
-    }
-    std::sort(begin(codes), end(codes));
+    std::vector<CodeType> codes = makeNLevelGrid<CodeType>(level);
 
     std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
     std::vector<unsigned> counts(nNodes(tree));

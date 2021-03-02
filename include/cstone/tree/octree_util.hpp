@@ -94,27 +94,33 @@ std::vector<I> makeRootNodeTree()
     return tree;
 }
 
-//! \brief returns a uniform octree with 8^ceil(log8(nBuckets)) leaf nodes
+//! \brief returns a uniform grid of SFC codes
 template<class I>
-std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
+std::vector<I> makeNLevelGrid(int level)
 {
-    // the minimum tree level needed is ceil(log8(nParticles/bucketSize))
-    unsigned minTreeLevel = log8ceil(I(nParticles/std::size_t(bucketSize)));
-    unsigned ticksPerDim  = 1u << minTreeLevel;
+    unsigned ticksPerDim  = 1u << level;
     I        nNodes       = ticksPerDim * ticksPerDim * ticksPerDim;
-    I tickRange = nodeRange<I>(minTreeLevel);
+    I tickRange = nodeRange<I>(level);
 
-    std::vector<I> tree;
-    tree.reserve(nNodes + 1);
+    std::vector<I> codes;
+    codes.reserve(nNodes + 1);
 
     for (unsigned i = 0; i < nNodes; ++i)
     {
-        tree.push_back(i*tickRange);
+        codes.push_back(i*tickRange);
     }
 
-    tree.push_back(nodeRange<I>(0));
+    return codes;
+}
 
-    sort(begin(tree), end(tree));
+//! \brief returns a uniform cornerstone octree with 8^ceil(log8(nBuckets)) nodes
+template<class I>
+std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
+{
+    unsigned level      = log8ceil(I(nParticles/std::size_t(bucketSize)));
+    std::vector<I> tree = makeNLevelGrid<I>(level);
+
+    tree.push_back(nodeRange<I>(0));
 
     return tree;
 }
