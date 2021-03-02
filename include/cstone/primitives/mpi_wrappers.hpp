@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include <mpich/mpi.h>
+#include <mpi.h>
 
 template<class T>
 struct MpiType

@@ -43,9 +43,7 @@ using namespace cstone;
 template<class CodeType>
 void checkCountTreeNodes()
 {
-    constexpr unsigned n     = 4;
-    constexpr unsigned level = 2;
-
+    constexpr unsigned    level = 2;
     std::vector<CodeType> codes = makeNLevelGrid<CodeType>(level);
 
     std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
