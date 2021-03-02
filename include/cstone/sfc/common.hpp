@@ -54,8 +54,6 @@ struct maxTreeLevel : stl::integral_constant<unsigned, 10> {};
 template<>
 struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21> {};
 
-namespace detail
-{
 
 /*! \brief normalize a floating point number in [0,1] to an integer in [0, 2^(10 or 21)-1]
  *
@@ -99,8 +97,6 @@ inline I toNBitIntCeil(T x)
     // [0,1] to [0,1023] and convert to integer (32-bit) or
     // [0,1] to [0,2097151] and convert to integer (64-bit)
     return stl::min(stl::max(std::ceil(x * T(1u<<nBits)), T(0.0)), T((1u<<nBits)-1u));
-}
-
 }
 
 /*! \brief add (binary) zeros behind a prefix

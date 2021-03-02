@@ -119,9 +119,9 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3DunitCube(T x, T y, T z
     assert(z >= 0.0 && z <= 1.0);
 
     // normalize floating point numbers
-    I xi = detail::toNBitInt<I>(x);
-    I yi = detail::toNBitInt<I>(y);
-    I zi = detail::toNBitInt<I>(z);
+    I xi = toNBitInt<I>(x);
+    I yi = toNBitInt<I>(y);
+    I zi = toNBitInt<I>(z);
 
     I xx = detail::expandBits(xi);
     I yy = detail::expandBits(yi);

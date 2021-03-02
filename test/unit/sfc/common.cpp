@@ -35,9 +35,6 @@
 
 using namespace cstone;
 
-using cstone::detail::toNBitInt;
-using cstone::detail::toNBitIntCeil;
-
 template<class T>
 void normalization32()
 {
