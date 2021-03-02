@@ -62,8 +62,7 @@
 
 #pragma once
 
-#include "cstone/sfc/mortoncode.hpp"
-#include "cstone/halos/boxoverlap.hpp"
+#include "cstone/sfc/common.hpp"
 
 namespace cstone {
 
