@@ -201,54 +201,20 @@ TEST(MortonCode, decodeZRange64)
     EXPECT_EQ( (pair<int>{(1u<<20) + (1u<<19), 1u<<21}), decodeZRange(0b0001001ul << 57u, 6));
 }
 
-TEST(MortonCode, boxFromCode32)
+template<class I>
+void codeFromBox()
 {
-    constexpr unsigned treeLevel = 3;
-    // (5,3,6)
-    unsigned code = 0b00101011110u << (7u*3);
-
-    auto c = boxFromCode(code, treeLevel);
-
-    std::array<unsigned, 3> cref{ 5, 3, 6 };
-    EXPECT_EQ(c, cref);
-}
-
-TEST(MortonCode, boxFromCode64)
-{
-    constexpr unsigned treeLevel = 3;
-    // (5,3,6)
-    uint64_t inputCode = 0b0101011110ul << (18u*3);
-
-    auto c = boxFromCode(inputCode, treeLevel);
-
-    std::array<unsigned, 3> cref{ 5, 3, 6 };
-    EXPECT_EQ(c, cref);
-}
-
-TEST(MortonCode, codeFromBox32)
-{
-    using CodeType = unsigned;
-
     constexpr unsigned treeLevel = 3;
     std::array<unsigned, 3> box{ 5, 3, 6 };
 
-    CodeType testCode = codeFromBox<CodeType>(box[0], box[1], box[2], treeLevel);
-
-    std::array<unsigned, 3> testBox = boxFromCode(testCode, treeLevel);
-    EXPECT_EQ(testBox, box);
+    I testCode = codeFromBox<I>(box[0], box[1], box[2], treeLevel);
+    EXPECT_EQ(testCode, pad(I(0b101011110), 9));
 }
 
-TEST(MortonCode, codeFromBox64)
+TEST(MortonCode, codeFromBox)
 {
-    using CodeType = uint64_t;
-
-    constexpr unsigned treeLevel = 3;
-    std::array<unsigned, 3> box{ 5, 3, 6 };
-
-    CodeType testCode = codeFromBox<CodeType>(box[0], box[1], box[2], treeLevel);
-
-    std::array<unsigned, 3> testBox = boxFromCode(testCode, treeLevel);
-    EXPECT_EQ(testBox, box);
+    codeFromBox<unsigned>();
+    codeFromBox<uint64_t>();
 }
 
 TEST(MortonCode, codeFromIndices32)

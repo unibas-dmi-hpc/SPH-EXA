@@ -37,17 +37,15 @@
  * in an iterative fashion with a local stack.
  */
 
-
 #pragma once
 
 #include <iterator>
 #include <vector>
 
 #include "btree.hpp"
-#include "cstone/tree/octree.hpp"
-#include "cstone/primitives/scan.hpp"
-
 #include "cstone/cuda/annotation.hpp"
+#include "cstone/tree/octree.hpp"
+
 
 namespace cstone
 {
