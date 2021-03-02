@@ -35,7 +35,9 @@
 
 #pragma once
 
-#include "cstone/sfc/mortonconversions.hpp"
+#include <array>
+
+#include "cstone/sfc/common.hpp"
 #include "cstone/tree/octree.hpp"
 
 namespace cstone
@@ -117,6 +119,34 @@ std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
     return tree;
 }
 
+
+/*! \brief transfer a series of hierarchical octree indices into a morton code
+ *
+ * \tparam I       32- or 64-bit unsigned integer
+ * \param indices  indices[0] contains the octree index 0-7 for the top-level,
+ *                 indices[1] refers to the first subdivision, etc
+ *                 a 32-bit integer can resolve up to 10 layers, while
+ *                 a 64-bit integer can resolve 21 layers
+ *
+ *                 Note: all indices must be in the range [0-7]!
+ *
+ * \return         the morton code
+ */
+template<class I>
+inline I codeFromIndices(std::array<unsigned char, maxTreeLevel<uint64_t>{}> indices)
+{
+    constexpr unsigned nLevels = (sizeof(I) * 8) / 3;
+
+    I ret = 0;
+    for(unsigned idx = 0; idx < nLevels; ++idx)
+    {
+        assert(indices[idx] < 8);
+        unsigned treeLevel = nLevels - idx - 1;
+        ret += I(indices[idx]) << (3*treeLevel);
+    }
+
+    return ret;
+}
 
 //! \brief generate example cornerstone octrees for testing
 template<class I>
