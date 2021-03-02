@@ -180,9 +180,9 @@ IBox makeHaloBox(I codeStart, I codeEnd, RadiusType radius, const Box<Coordinate
 {
     // disallow boxes with no volume
     assert(codeEnd > codeStart);
-    int dx = detail::toNBitIntCeil<I>(radius / (box.xmax() - box.xmin()));
-    int dy = detail::toNBitIntCeil<I>(radius / (box.ymax() - box.ymin()));
-    int dz = detail::toNBitIntCeil<I>(radius / (box.zmax() - box.zmin()));
+    int dx = toNBitIntCeil<I>(radius / (box.xmax() - box.xmin()));
+    int dy = toNBitIntCeil<I>(radius / (box.ymax() - box.ymin()));
+    int dz = toNBitIntCeil<I>(radius / (box.zmax() - box.zmin()));
 
     return makeHaloBox(codeStart, codeEnd, dx, dy, dz, box.pbcX(), box.pbcY(), box.pbcZ());
 }
