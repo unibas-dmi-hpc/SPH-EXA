@@ -129,20 +129,3 @@ private:
 
     T data[2];
 };
-
-
-namespace stl
-{
-
-template<typename T, T v>
-struct integral_constant
-{
-    static constexpr T              value = v;
-    typedef T                       value_type;
-    typedef integral_constant<T, v> type;
-
-    CUDA_HOST_DEVICE_FUN
-    constexpr operator value_type() const noexcept { return value; } // NOLINT
-};
-
-} // namespace stl
