@@ -98,18 +98,17 @@ std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
 {
     // the minimum tree level needed is ceil(log8(nParticles/bucketSize))
     unsigned minTreeLevel = log8ceil(I(nParticles/std::size_t(bucketSize)));
-    unsigned ticks        = 1u << minTreeLevel;
+    unsigned ticksPerDim  = 1u << minTreeLevel;
+    I        nNodes       = ticksPerDim * ticksPerDim * ticksPerDim;
+    I tickRange = nodeRange<I>(minTreeLevel);
 
     std::vector<I> tree;
-    tree.reserve(ticks*ticks*ticks + 1);
+    tree.reserve(nNodes + 1);
 
-    // generate regular minTreeLevel tree
-    for (unsigned x = 0; x < ticks; ++x)
-        for (unsigned y = 0; y < ticks; ++y)
-            for (unsigned z = 0; z < ticks; ++z)
-            {
-                tree.push_back(codeFromBox<I>(x,y,z, minTreeLevel));
-            }
+    for (unsigned i = 0; i < nNodes; ++i)
+    {
+        tree.push_back(i*tickRange);
+    }
 
     tree.push_back(nodeRange<I>(0));
 

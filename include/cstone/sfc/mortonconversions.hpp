@@ -41,31 +41,6 @@
 namespace cstone
 {
 
-/*! \brief Decode a morton code into x,y,z and convert coordinates
- *
- * \tparam I         32- or 64-bit unsigned integer
- * \param code       input Morton code
- * \param treeLevel  octree subdivision level
- * \return           array with x,y,z in the range [0, 2^treeLevel-1]
- */
-template<class I>
-std::array<unsigned, 3> boxFromCode(I code, unsigned treeLevel)
-{
-    // 10 or 21 bits per dimension
-    constexpr unsigned nBits = (sizeof(I) * 8) / 3;
-
-    // number of bits to discard
-    unsigned discardedBits = nBits - treeLevel;
-
-    code = enclosingBoxCode(code, treeLevel);
-
-    I x = decodeMortonX(code);
-    I y = decodeMortonY(code);
-    I z = decodeMortonZ(code);
-
-    return {unsigned(x >> discardedBits), unsigned(y >> discardedBits), unsigned(z >> discardedBits)};
-}
-
 /*! \brief transfer a series of hierarchical octree indices into a morton code
  *
  * \tparam I       32- or 64-bit unsigned integer

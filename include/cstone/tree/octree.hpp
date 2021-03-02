@@ -58,7 +58,7 @@
 #include <vector>
 #include <tuple>
 
-#include "cstone/sfc/mortoncode.hpp"
+#include "cstone/sfc/common.hpp"
 #include "cstone/primitives/scan.hpp"
 
 namespace cstone
@@ -169,7 +169,6 @@ int rebalanceDecision(const I* tree, const unsigned* counts, int nNodes,
         else if (level > 0) // level 0 cannot be fused
         {
             int pi = parentIndex(thisNode, level);
-            assert (i >= pi);
             // node's 7 siblings are next to each other
             bool siblings = (tree[i-pi+8] == tree[i-pi] + nodeRange<I>(level - 1));
             if (siblings && pi > 0) // if not first of 8 siblings
