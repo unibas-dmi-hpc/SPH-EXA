@@ -132,10 +132,10 @@ containedIn(I codeStart, I codeEnd, const IBox& box)
         return codeStart == 0 && codeEnd == nodeRange<I>(0);
     }
 
-    I lowCode  = codeFromBox<I>(box.xmin(), box.ymin(), box.zmin(), maxTreeLevel<I>{});
+    I lowCode  = imorton3D<I>(box.xmin(), box.ymin(), box.zmin());
     // we have to subtract 1 and use strict <, because we cannot generate
     // Morton codes for x,y,z >= 2^maxTreeLevel<I>{} (2^10 or 2^21)
-    I highCode = codeFromBox<I>(box.xmax()-1, box.ymax()-1, box.zmax()-1, maxTreeLevel<I>{});
+    I highCode = imorton3D<I>(box.xmax()-1, box.ymax()-1, box.zmax()-1);
 
     return (lowCode >= codeStart) && (highCode < codeEnd);
 }

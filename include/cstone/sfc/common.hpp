@@ -67,7 +67,7 @@ struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21> {};
  */
 template <class I, class T>
 CUDA_HOST_DEVICE_FUN
-inline I toNBitInt(T x)
+inline unsigned toNBitInt(T x)
 {
     // spatial resolution in bits per dimension
     constexpr unsigned nBits = maxTreeLevel<I>{};
@@ -90,7 +90,7 @@ inline I toNBitInt(T x)
  */
 template <class I, class T>
 CUDA_HOST_DEVICE_FUN
-inline I toNBitIntCeil(T x)
+inline unsigned toNBitIntCeil(T x)
 {
     // spatial resolution in bits per dimension
     constexpr unsigned nBits = maxTreeLevel<I>{};

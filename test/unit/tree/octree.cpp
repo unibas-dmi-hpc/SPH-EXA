@@ -90,11 +90,11 @@ void checkCountTreeNodes()
         for (unsigned j = 0; j < n; ++j)
             for (unsigned k = 0; k < n; ++k)
     {
-        codes.push_back(codeFromBox<CodeType>(i,j,k, level));
+        codes.push_back(imorton3D<CodeType>(i,j,k, level));
     }
     std::sort(begin(codes), end(codes));
 
-    std::vector<CodeType>    tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
+    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
     std::vector<unsigned> counts(nNodes(tree));
 
     // doesn't affect the end result, but makes sure that
