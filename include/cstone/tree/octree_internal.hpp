@@ -42,9 +42,11 @@
 #include <iterator>
 #include <vector>
 
-#include "btree.hpp"
 #include "cstone/cuda/annotation.hpp"
-#include "cstone/tree/octree.hpp"
+#include "cstone/sfc/mortoncode.hpp"
+
+#include "btree.hpp"
+#include "octree.hpp"
 
 
 namespace cstone
