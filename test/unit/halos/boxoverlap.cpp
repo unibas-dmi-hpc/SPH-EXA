@@ -142,7 +142,7 @@ void pbcOverlaps()
         EXPECT_TRUE(overlap(I(0), I(1), haloBox));
     }
     {
-        I firstCode  = codeFromBox<I>(maxCoord,0,0, maxTreeLevel<I>{});
+        I firstCode  = imorton3D<I>(maxCoord,0,0);
         I secondCode = firstCode + 1;
         IBox haloBox{-1, 1, 0, 1, 0, 1};
         EXPECT_TRUE(overlap(firstCode, secondCode, haloBox));
@@ -328,31 +328,31 @@ void haloBoxContainedIn()
 
     int maxCoord = (1u<<maxTreeLevel<I>{}) - 1;
     {
-        I firstCode  = codeFromBox<I>(0,0,maxCoord, maxTreeLevel<I>{});
+        I firstCode  = imorton3D<I>(0,0,maxCoord);
         I secondCode = firstCode + 1;
         IBox haloBox{0, 1, 0, 1, maxCoord, maxCoord + 1};
         EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
     }
     {
-        I firstCode  = codeFromBox<I>(0,0,maxCoord, maxTreeLevel<I>{});
+        I firstCode  = imorton3D<I>(0,0,maxCoord);
         I secondCode = firstCode + 1;
         IBox haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
         EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));
     }
     {
-        I firstCode  = codeFromBox<I>(0,0,maxCoord, maxTreeLevel<I>{});
+        I firstCode  = imorton3D<I>(0,0,maxCoord);
         I secondCode = firstCode + 2;
         IBox haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
         EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));
     }
     {
-        I firstCode  = codeFromBox<I>(0,0,maxCoord, maxTreeLevel<I>{});
+        I firstCode  = imorton3D<I>(0,0,maxCoord);
         I secondCode = firstCode + 3;
         IBox haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
         EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
     }
     {
-        I firstCode  = codeFromBox<I>(maxCoord,maxCoord,maxCoord, maxTreeLevel<I>{});
+        I firstCode  = imorton3D<I>(maxCoord,maxCoord,maxCoord);
         I secondCode = firstCode + 1;
         IBox haloBox{maxCoord, maxCoord+1, maxCoord, maxCoord+1, maxCoord, maxCoord + 1};
         EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
@@ -364,7 +364,7 @@ void haloBoxContainedIn()
         EXPECT_FALSE(containedIn(I(0), I(1), haloBox));
     }
     {
-        I firstCode  = codeFromBox<I>(0,0,maxCoord, maxTreeLevel<I>{});
+        I firstCode  = imorton3D<I>(0,0,maxCoord);
         I secondCode = firstCode + 3;
         IBox haloBox{0, 1, 0, 1, maxCoord, maxCoord + 2};
         EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));

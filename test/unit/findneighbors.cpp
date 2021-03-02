@@ -126,7 +126,7 @@ void findNeighborBoxesInterior()
         for (int iy = 0; iy < 3; ++iy)
             for (int iz = 0; iz < 3; ++iz)
             {
-                refBoxes.push_back(codeFromBox<I>(ix,iy,iz, maxTreeLevel<I>{}));
+                refBoxes.push_back(imorton3D<I>(ix,iy,iz));
             }
     std::sort(begin(refBoxes), end(refBoxes));
 
@@ -180,7 +180,7 @@ void findNeighborBoxesCorner()
         for (int iy = 0; iy < 2; ++iy)
             for (int iz = 0; iz < 2; ++iz)
             {
-                refBoxes.push_back(codeFromBox<I>(ix,iy,iz, maxTreeLevel<I>{}));
+                refBoxes.push_back(imorton3D<I>(ix,iy,iz));
             }
     std::sort(begin(refBoxes), end(refBoxes));
 
@@ -223,7 +223,7 @@ void findNeighborBoxesUpperCorner()
         for (int iy = 0; iy < 2; ++iy)
             for (int iz = 6; iz < 8; ++iz)
             {
-                refBoxes.push_back(codeFromBox<I>(ix,iy,iz, level));
+                refBoxes.push_back(imorton3D<I>(ix,iy,iz, level));
             }
     std::sort(begin(refBoxes), end(refBoxes));
 

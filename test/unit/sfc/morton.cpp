@@ -72,6 +72,22 @@ TEST(MortonCode, encode64) {
     EXPECT_EQ(reference, morton3DunitCube<std::size_t>(x, y, z));
 }
 
+template<class I>
+void imorton3D()
+{
+    constexpr unsigned treeLevel = 3;
+    std::array<unsigned, 3> box{ 5, 3, 6 };
+
+    I testCode = imorton3D<I>(box[0], box[1], box[2], treeLevel);
+    EXPECT_EQ(testCode, pad(I(0b101011110), 9));
+}
+
+TEST(MortonCode, imorton3D)
+{
+    imorton3D<unsigned>();
+    imorton3D<uint64_t>();
+}
+
 TEST(MortonCode, decodeMorton32)
 {
     unsigned x = 5;
@@ -199,22 +215,6 @@ TEST(MortonCode, decodeZRange64)
 
     EXPECT_EQ( (pair<int>{1u<<19,              1u<<20}), decodeZRange(0b0000001ul << 57u, 6));
     EXPECT_EQ( (pair<int>{(1u<<20) + (1u<<19), 1u<<21}), decodeZRange(0b0001001ul << 57u, 6));
-}
-
-template<class I>
-void codeFromBox()
-{
-    constexpr unsigned treeLevel = 3;
-    std::array<unsigned, 3> box{ 5, 3, 6 };
-
-    I testCode = codeFromBox<I>(box[0], box[1], box[2], treeLevel);
-    EXPECT_EQ(testCode, pad(I(0b101011110), 9));
-}
-
-TEST(MortonCode, codeFromBox)
-{
-    codeFromBox<unsigned>();
-    codeFromBox<uint64_t>();
 }
 
 TEST(MortonCode, codeFromIndices32)

@@ -101,6 +101,44 @@ inline uint64_t compactBits(uint64_t v)
 
 } // namespace detail
 
+/*! \brief Calculates a Morton code for a 3D point in integer coordinates
+ *
+ * \tparam I  32- or 64 bit unsigned integer
+ *
+ * \param[in] ix,iy,iz input coordinates in [0:2^maxTreeLevel<I>{}]
+ */
+template <class I>
+CUDA_HOST_DEVICE_FUN
+inline std::enable_if_t<std::is_unsigned<I>{}, I> imorton3D(unsigned ix, unsigned iy, unsigned iz)
+{
+    assert(ix >= 0 && ix < (1u << maxTreeLevel<I>{}));
+    assert(iy >= 0 && iy < (1u << maxTreeLevel<I>{}));
+    assert(iz >= 0 && iz < (1u << maxTreeLevel<I>{}));
+
+    I xx = detail::expandBits(I(ix));
+    I yy = detail::expandBits(I(iy));
+    I zz = detail::expandBits(I(iz));
+
+    // interleave the x, y, z components
+    return xx * 4 + yy * 2 + zz;
+}
+
+/*! \brief Calculate morton code from n-level integer 3D coordinates
+ *
+ * \tparam I         32- or 64-bit unsigned integer
+ * \param ix,iy,iz   input integer box coordinates, must be in the range [0, 2^treeLevel-1]
+ * \param treeLevel  octree subdivison level
+ * \return           the morton code
+ */
+template<class I>
+CUDA_HOST_DEVICE_FUN
+I imorton3D(unsigned ix, unsigned iy, unsigned iz, unsigned treeLevel)
+{
+    assert(treeLevel <= maxTreeLevel<I>{});
+    unsigned shifts = maxTreeLevel<I>{} - treeLevel;
+    return imorton3D<I>(ix<<shifts, iy<<shifts, iz<<shifts);
+}
+
 /*! \brief Calculates a Morton code for a 3D point in the unit cube
  *
  * \tparam I specify either a 32 or 64 bit unsigned integer to select
@@ -119,16 +157,11 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3DunitCube(T x, T y, T z
     assert(z >= 0.0 && z <= 1.0);
 
     // normalize floating point numbers
-    I xi = toNBitInt<I>(x);
-    I yi = toNBitInt<I>(y);
-    I zi = toNBitInt<I>(z);
+    unsigned ix = toNBitInt<I>(x);
+    unsigned iy = toNBitInt<I>(y);
+    unsigned iz = toNBitInt<I>(z);
 
-    I xx = detail::expandBits(xi);
-    I yy = detail::expandBits(yi);
-    I zz = detail::expandBits(zi);
-
-    // interleave the x, y, z components
-    return xx * 4 + yy * 2 + zz;
+    return imorton3D<I>(ix, iy, iz);
 }
 
 /*! \brief Calculates a Morton code for a 3D point within the specified box
@@ -225,36 +258,6 @@ inline pair<int> decodeZRange(I code, int length)
     ret[1] = ret[0] + (I(1) << (maxTreeLevel<I>{} - length/3));
 
     return ret;
-}
-
-/*! \brief Calculate the morton code corresponding to integer input box coordinates
- *         at a given tree subdivision level.
- *
- * \tparam I         32- or 64-bit unsigned integer
- * \param xyz        input integer box coordinates, must be in the range [0, 2^treeLevel-1]
- * \param treeLevel  octree subdivison level
- * \return           the morton code
- *
- * This function is allowed to stay here because it's used in octree.hpp
- * and does not depend on std::array.
- */
-template<class I>
-CUDA_HOST_DEVICE_FUN
-I codeFromBox(unsigned x, unsigned y, unsigned z, unsigned treeLevel)
-{
-    assert(treeLevel <= maxTreeLevel<I>{});
-    unsigned shifts = maxTreeLevel<I>{} - treeLevel;
-
-    assert(x < (1u << treeLevel));
-    assert(y < (1u << treeLevel));
-    assert(z < (1u << treeLevel));
-
-    I xx = detail::expandBits(I(x) << shifts);
-    I yy = detail::expandBits(I(y) << shifts);
-    I zz = detail::expandBits(I(z) << shifts);
-
-    // interleave the x, y, z components
-    return xx * 4 + yy * 2 + zz;
 }
 
 /*! \brief compute morton codes corresponding to neighboring octree nodes
