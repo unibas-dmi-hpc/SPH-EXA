@@ -36,6 +36,7 @@
 
 #include "cstone/domain/domaindecomp.hpp"
 #include "cstone/tree/octree.hpp"
+#include "cstone/tree/octree_util.hpp"
 #include "coord_samples/random.hpp"
 
 using namespace cstone;

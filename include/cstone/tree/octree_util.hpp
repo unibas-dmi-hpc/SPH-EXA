@@ -92,6 +92,32 @@ std::vector<I> makeRootNodeTree()
     return tree;
 }
 
+//! \brief returns a uniform octree with 8^ceil(log8(nBuckets)) leaf nodes
+template<class I>
+std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
+{
+    // the minimum tree level needed is ceil(log8(nParticles/bucketSize))
+    unsigned minTreeLevel = log8ceil(I(nParticles/std::size_t(bucketSize)));
+    unsigned ticks        = 1u << minTreeLevel;
+
+    std::vector<I> tree;
+    tree.reserve(ticks*ticks*ticks + 1);
+
+    // generate regular minTreeLevel tree
+    for (unsigned x = 0; x < ticks; ++x)
+        for (unsigned y = 0; y < ticks; ++y)
+            for (unsigned z = 0; z < ticks; ++z)
+            {
+                tree.push_back(codeFromBox<I>(x,y,z, minTreeLevel));
+            }
+
+    tree.push_back(nodeRange<I>(0));
+
+    sort(begin(tree), end(tree));
+
+    return tree;
+}
+
 
 //! \brief generate example cornerstone octrees for testing
 template<class I>

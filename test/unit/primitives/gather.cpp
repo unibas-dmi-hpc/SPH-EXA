@@ -38,7 +38,7 @@
 
 using namespace cstone;
 
-TEST(SFC, sortInvert)
+TEST(GatherCpu, sortInvert)
 {
     std::vector<int> v{2,1,5,4};
 
@@ -52,7 +52,7 @@ TEST(SFC, sortInvert)
     EXPECT_EQ(sortKey, reference);
 }
 
-TEST(SFC, computeZorder)
+TEST(GatherCpu, computeZorder)
 {
     // assume BBox of [-1, 1]^3
     constexpr double boxMin = -1;
@@ -76,7 +76,7 @@ TEST(SFC, computeZorder)
     EXPECT_EQ(zOrder, reference);
 }
 
-TEST(SFC, reorder)
+TEST(GatherCpu, reorder)
 {
     std::vector<int> ordering{1,0,4,3,2};
 
@@ -111,7 +111,7 @@ void CpuGatherTest()
     EXPECT_EQ(values, reference);
 }
 
-TEST(SFC, CpuGather)
+TEST(GatherCpu, CpuGather)
 {
     CpuGatherTest<float,  unsigned, unsigned>();
     CpuGatherTest<float,  uint64_t, unsigned>();
