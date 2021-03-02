@@ -24,54 +24,46 @@
  */
 
 /*! \file
- * \brief Naive collision detection implementation for validation and testing
+ * \brief CPU driver for 3D collision detection
  *
  * \author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include "cstone/halos/btreetraversal.hpp"
-#include "cstone/tree/octree_util.hpp"
+#include "btreetraversal.hpp"
 
 namespace cstone
 {
-/*! \brief to-all implementation of findCollisions
- *
- * @tparam I   32- or 64-bit unsigned integer
- * @param[in]  tree           octree leaf nodes in cornerstone format
- * @param[out] collisionList  output list of indices of colliding nodes
- * @param[in]  collisionBox   query box to look for collisions
- *                            with leaf nodes
- *
- * Naive implementation without tree traversal for reference
- * and testing purposes
- */
-template <class I>
-void findCollisions2All(const std::vector<I>& tree, CollisionList& collisionList,
-                        const IBox& collisionBox)
-{
-    for (std::size_t nodeIndex = 0; nodeIndex < nNodes(tree); ++nodeIndex)
-    {
-        int prefixBits = treeLevel(tree[nodeIndex+1] - tree[nodeIndex]) * 3;
-        if (overlap(tree[nodeIndex], prefixBits, collisionBox))
-            collisionList.add((int)nodeIndex);
-    }
-}
 
-//! \brief all-to-all implementation of findAllCollisions
+/*! \brief For each leaf node enlarged by its halo radius, find all colliding leaf nodes
+ *
+ * @tparam I            32- or 64-bit unsigned integer
+ * @param internalTree  internal binary tree
+ * @param tree          sorted Morton codes representing the leaves of the (global) octree
+ * @param haloRadii     halo search radii per leaf node, length = nNodes(tree)
+ * @return              list of colliding node indices for each leaf node
+ *
+ * This is a CPU version that can be OpenMP parallelized.
+ * In the GPU version, the for-loop body is designed such that one GPU-thread
+ * can be launched for each for-loop element.
+ */
 template<class I, class T>
-std::vector<CollisionList> findCollisionsAll2all(const std::vector<I>& tree, const std::vector<T>& haloRadii,
-                                                 const Box<T>& globalBox)
+std::vector<CollisionList> findAllCollisions(const std::vector<BinaryNode<I>>& internalTree, const std::vector<I>& tree,
+                                             const std::vector<T>& haloRadii, const Box<T>& globalBox)
 {
+    assert(internalTree.size() == tree.size() - 1 && "internal tree does not match leaves");
+    assert(internalTree.size() == haloRadii.size() && "need one halo radius per leaf node");
+
     std::vector<CollisionList> collisions(tree.size() - 1);
 
-    for (std::size_t leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
+    // (omp) parallel
+    for (std::size_t leafIdx = 0; leafIdx < internalTree.size(); ++leafIdx)
     {
         T radius = haloRadii[leafIdx];
 
-        IBox haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx + 1], radius, globalBox);
-        findCollisions2All(tree, collisions[leafIdx], haloBox);
+        IBox haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx+1], radius, globalBox);
+        findCollisions(internalTree.data(), tree.data(), collisions[leafIdx], haloBox);
     }
 
     return collisions;
