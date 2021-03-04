@@ -380,7 +380,7 @@ public:
      *
      * Returns 0 for the root node. Highest value is maxTreeLevel<I>{}.
      */
-    [[nodiscard]] I level(TreeNodeIndex node) const
+    [[nodiscard]] int level(TreeNodeIndex node) const
     {
         if (node < nInternalNodes())
         {

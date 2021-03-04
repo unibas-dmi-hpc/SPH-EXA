@@ -32,6 +32,9 @@
 #pragma once
 
 #include "btreetraversal.hpp"
+#include "traversal.hpp"
+
+#include "cstone/tree/octree_internal.hpp"
 
 namespace cstone
 {
@@ -57,13 +60,33 @@ std::vector<CollisionList> findAllCollisions(const std::vector<BinaryNode<I>>& i
 
     std::vector<CollisionList> collisions(tree.size() - 1);
 
-    // (omp) parallel
+    #pragma omp parallel for
     for (std::size_t leafIdx = 0; leafIdx < internalTree.size(); ++leafIdx)
     {
         T radius = haloRadii[leafIdx];
 
         IBox haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx+1], radius, globalBox);
         findCollisions(internalTree.data(), tree.data(), collisions[leafIdx], haloBox);
+    }
+
+    return collisions;
+}
+
+template<class I, class T>
+std::vector<CollisionList> findAllCollisions(const Octree<I>& octree, const std::vector<T>& haloRadii, const Box<T>& globalBox)
+{
+    assert(octree.nLeaves() == haloRadii.size() && "need one halo radius per leaf node");
+
+    std::vector<CollisionList> collisions(octree.nLeaves());
+
+    #pragma omp parallel for
+    for (std::size_t leafIdx = 0; leafIdx < octree.nLeaves(); ++leafIdx)
+    {
+        T radius = haloRadii[leafIdx];
+
+        IBox haloBox = makeHaloBox(octree.codeStart(leafIdx + octree.nInternalNodes()),
+                                   octree.codeEnd(leafIdx + octree.nInternalNodes()), radius, globalBox);
+        findCollisions(octree, collisions[leafIdx], haloBox);
     }
 
     return collisions;

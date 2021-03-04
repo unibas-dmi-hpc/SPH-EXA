@@ -33,10 +33,14 @@
 #include <iostream>
 #include <numeric>
 
-#include "cstone/tree/octree.hpp"
 
 #include "cstone/domain/halodiscovery.hpp"
 #include "cstone/domain/domaindecomp.hpp"
+
+#include "cstone/halos/collisions_cpu.hpp"
+
+#include "cstone/tree/octree.hpp"
+#include "cstone/tree/octree_internal.hpp"
 
 #include "coord_samples/random.hpp"
 
@@ -89,5 +93,36 @@ int main()
 
     double t2 = std::chrono::duration<double>(tp1 - tp0).count();
     std::cout << "halo discovery: " << t2 << " nPairs: " << haloPairs.size() << std::endl;
+
+    {
+        auto binaryTree = createInternalTree(tree2);
+        tp0 = std::chrono::high_resolution_clock::now();
+        auto collisions = findAllCollisions(binaryTree, tree2, haloRadii, box);
+        tp1 = std::chrono::high_resolution_clock::now();
+
+        size_t nCollisions = 0;
+        for (auto& c : collisions)
+            nCollisions += c.size();
+
+        double t2 = std::chrono::duration<double>(tp1 - tp0).count();
+        std::cout << "binary traversal: " << t2 << " nCollisions: " << nCollisions << std::endl;
+    }
+
+    {
+        Octree<CodeType> octree;
+        octree.compute(tree2.data(), tree2.data() + nNodes(tree2), 1);
+
+        tp0 = std::chrono::high_resolution_clock::now();
+        auto collisions = findAllCollisions(octree, haloRadii, box);
+        tp1 = std::chrono::high_resolution_clock::now();
+
+        size_t nCollisions = 0;
+        for (auto& c : collisions)
+            nCollisions += c.size();
+
+        double t2 = std::chrono::duration<double>(tp1 - tp0).count();
+        std::cout << "octree traversal: " << t2 << " nCollisions: " << nCollisions << std::endl;
+    }
+
 }
 
