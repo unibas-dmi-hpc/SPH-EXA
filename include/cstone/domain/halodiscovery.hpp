@@ -110,17 +110,18 @@ void findHalos(const std::vector<I>&           tree,
 
                 if (collisions.exhausted()) throw std::runtime_error("collision list exhausted\n");
 
-                // Go through all colliding nodes to determine which of them fall into a part of the SFC
-                // that is not assigned to the executing rank. These nodes will be marked as halos.
+                // collisions now has all nodes that collide with the haloBox around the node at tree[nodeIdx]
+                // we only mark those nodes in collisions as halos if their haloBox collides with tree[nodeIdx]
+                // i.e. we make sure that the local node (nodeIdx) is also a halo of the remote node
                 for (std::size_t i = 0; i < collisions.size(); ++i)
                 {
                     int collidingNodeIdx = collisions[i];
 
                     I collidingNodeStart = tree[collidingNodeIdx];
-                    I collidingNodeEnd = tree[collidingNodeIdx + 1];
+                    I collidingNodeEnd   = tree[collidingNodeIdx + 1];
 
                     IBox remoteNodeBox = makeHaloBox(collidingNodeStart, collidingNodeEnd,
-                                                         interactionRadii[collidingNodeIdx], box);
+                                                     interactionRadii[collidingNodeIdx], box);
                     if (overlap(tree[nodeIdx], tree[nodeIdx + 1], remoteNodeBox))
                     {
                         threadHaloPairs.emplace_back(nodeIdx, collidingNodeIdx);
