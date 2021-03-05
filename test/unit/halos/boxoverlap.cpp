@@ -371,3 +371,60 @@ TEST(BoxOverlap, haloBoxContainedIn)
     haloBoxContainedIn<unsigned>();
     haloBoxContainedIn<uint64_t>();
 }
+
+template<class I>
+void excludeRangeContainedIn()
+{
+    I rangeStart = pad(I(01), 3);
+    I rangeEnd   = pad(I(02), 3);
+
+    {
+        I prefix = pad(I(01), 3);
+        int prefixLength = 3;
+        EXPECT_TRUE(containedIn(prefix, prefixLength, rangeStart, rangeEnd));
+    }
+    {
+        I prefix = pad(I(01), 3);
+        int prefixLength = 4;
+        EXPECT_TRUE(containedIn(prefix, prefixLength, rangeStart, rangeEnd));
+    }
+    {
+        I prefix = 0;
+        int prefixLength = 3;
+        EXPECT_FALSE(containedIn(prefix, prefixLength, rangeStart, rangeEnd));
+    }
+    {
+        I prefix = 0;
+        int prefixLength = 0;
+        EXPECT_FALSE(containedIn(prefix, prefixLength, rangeStart, rangeEnd));
+    }
+
+    rangeStart = 0;
+    rangeEnd   = pad(I(01), 3);
+    {
+        I prefix = 0;
+        int prefixLength = 3;
+        EXPECT_TRUE(containedIn(prefix, prefixLength, rangeStart, rangeEnd));
+    }
+    {
+        I prefix = 0;
+        int prefixLength = 2;
+        EXPECT_FALSE(containedIn(prefix, prefixLength, rangeStart, rangeEnd));
+    }
+
+    rangeStart = imorton3D<I>(0,0,3,2);
+    rangeEnd   = imorton3D<I>(0,1,2,2);
+    EXPECT_EQ(rangeStart, 9 * nodeRange<I>(2));
+    EXPECT_EQ(rangeEnd, 10 * nodeRange<I>(2));
+    {
+        I prefix = 9 * nodeRange<I>(2);
+        int prefixLength = 6;
+        EXPECT_TRUE(containedIn(prefix, prefixLength, rangeStart, rangeEnd));
+    }
+}
+
+TEST(BoxOverlap, excludeRangeContainedIn)
+{
+    excludeRangeContainedIn<unsigned>();
+    excludeRangeContainedIn<uint64_t>();
+}

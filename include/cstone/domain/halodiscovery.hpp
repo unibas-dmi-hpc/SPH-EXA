@@ -98,14 +98,15 @@ void findHalos(const std::vector<I>&           tree,
 
                 // if the halo box is fully inside the assigned SFC range, we skip collision detection
                 if (containedIn(assignment.rangeStart(rank, range),
-                                assignment.rangeEnd(range, range), haloBox))
+                                assignment.rangeEnd(rank, range), haloBox))
                 {
                     continue;
                 }
 
                 // find out with which other nodes in the octree that the node at nodeIdx
                 // enlarged by the halo radius collides with
-                findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+                findCollisions(internalTree.data(), tree.data(), collisions, haloBox,
+                               {assignment.rangeStart(rank, range), assignment.rangeEnd(rank, range)});
 
                 if (collisions.exhausted()) throw std::runtime_error("collision list exhausted\n");
 
@@ -118,27 +119,11 @@ void findHalos(const std::vector<I>&           tree,
                     I collidingNodeStart = tree[collidingNodeIdx];
                     I collidingNodeEnd = tree[collidingNodeIdx + 1];
 
-                    bool isHalo = false;
-                    for (std::size_t a = 0; a < assignment.nRanges(rank); ++a)
+                    IBox remoteNodeBox = makeHaloBox(collidingNodeStart, collidingNodeEnd,
+                                                         interactionRadii[collidingNodeIdx], box);
+                    if (overlap(tree[nodeIdx], tree[nodeIdx + 1], remoteNodeBox))
                     {
-                        I assignmentStart = assignment.rangeStart(rank, a);
-                        I assignmentEnd = assignment.rangeEnd(rank, a);
-
-                        if (collidingNodeStart < assignmentStart || collidingNodeEnd > assignmentEnd)
-                        {
-                            // node with index collidingNodeIdx is a halo node
-                            isHalo = true;
-                        }
-                    }
-                    if (isHalo)
-                    {
-                        // check if remote node +halo also overlaps with internal node
-                        IBox remoteNodeBox = makeHaloBox(collidingNodeStart, collidingNodeEnd,
-                                                             interactionRadii[collidingNodeIdx], box);
-                        if (overlap(tree[nodeIdx], tree[nodeIdx + 1], remoteNodeBox))
-                        {
-                            threadHaloPairs.emplace_back(nodeIdx, collidingNodeIdx);
-                        }
+                        threadHaloPairs.emplace_back(nodeIdx, collidingNodeIdx);
                     }
                 }
             }
