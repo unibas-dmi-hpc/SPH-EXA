@@ -140,6 +140,24 @@ containedIn(I codeStart, I codeEnd, const IBox& box)
     return (lowCode >= codeStart) && (highCode < codeEnd);
 }
 
+/*! \brief determine whether a binary/octree node (prefix, prefixLength) is fully contained in an SFC range
+ *
+ * @tparam I            32- or 64-bit unsigned integer
+ * @param prefix        lowest SFC code of the tree node
+ * @param prefixLength  range of the tree node in bits,
+ *                      corresponding SFC range is 2^(3*maxTreeLevel<I>{} - prefixLength)
+ * @param codeStart     start of the SFC range
+ * @param codeEnd       end of the SFC range
+ * @return
+ */
+template <class I>
+inline std::enable_if_t<std::is_unsigned_v<I>, bool>
+containedIn(I prefix, int prefixLength, I codeStart, I codeEnd)
+{
+    I nodeEnd = prefix + (I(1) << (3*maxTreeLevel<I>{} - prefixLength));
+    return !(prefix < codeStart || nodeEnd > codeEnd);
+}
+
 /*! \brief Construct a 3D box from an octree node plus halo range
  *
  * @tparam I             32- or 64-bit unsigned integer

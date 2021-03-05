@@ -75,14 +75,16 @@ private:
 };
 
 template<class I>
-inline bool traverseNode(const BinaryNode<I>* node, const IBox& collisionBox)
+inline bool traverseNode(const BinaryNode<I>* node, const IBox& collisionBox, pair<I> excludeRange)
 {
-    return (node != nullptr) && overlap(node->prefix, node->prefixLength, collisionBox);
+    return (node != nullptr)
+    && !containedIn(node->prefix, node->prefixLength, excludeRange[0], excludeRange[1])
+    && overlap(node->prefix, node->prefixLength, collisionBox);
 }
 
 template<class I>
 inline bool leafOverlap(int leafIndex, const I* leafNodes,
-                        const IBox& collisionBox)
+                        const IBox& collisionBox, pair<I> excludeRange)
 {
     if (leafIndex < 0)
         return false;
@@ -92,7 +94,8 @@ inline bool leafOverlap(int leafIndex, const I* leafNodes,
 
     int prefixNBits = treeLevel(leafUpperBound - leafCode) * 3;
 
-    return overlap(leafCode, prefixNBits, collisionBox);
+    bool notExcluded = !containedIn(leafCode, prefixNBits, excludeRange[0], excludeRange[1]);
+    return notExcluded && overlap(leafCode, prefixNBits, collisionBox);
 }
 
 /*! \brief find all collisions between a leaf node enlarged by (dx,dy,dz) and the rest of the tree
@@ -103,6 +106,9 @@ inline bool leafOverlap(int leafIndex, const I* leafNodes,
  * @param[out] collisionList  output list of indices of colliding nodes
  * @param[in]  collisionBox   query box to look for collisions
  *                            with leaf nodes
+ * @param[in]  excludeRange   range defined by two SFC codes to exclude from collision search
+ *                            any leaf nodes fully contained in the specified range will not be
+ *                            reported as collisions
  *
  * At all traversal steps through the hierarchy of the internal binary radix tree,
  * all 3 x,y,z dimensions are checked to determine overlap with a binary node.
@@ -125,7 +131,7 @@ inline bool leafOverlap(int leafIndex, const I* leafNodes,
  */
 template <class I>
 void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes, CollisionList& collisionList,
-                    const IBox& collisionBox)
+                    const IBox& collisionBox, pair<I> excludeRange)
 {
     using Node    = BinaryNode<I>;
     using NodePtr = const Node*;
@@ -139,11 +145,11 @@ void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes, Colli
 
     do
     {
-        bool traverseL = traverseNode(node->child[Node::left], collisionBox);
-        bool traverseR = traverseNode(node->child[Node::right], collisionBox);
+        bool traverseL = traverseNode(node->child[Node::left], collisionBox, excludeRange);
+        bool traverseR = traverseNode(node->child[Node::right], collisionBox, excludeRange);
 
-        bool overlapLeafL = leafOverlap(node->leafIndex[Node::left], leafNodes, collisionBox);
-        bool overlapLeafR = leafOverlap(node->leafIndex[Node::right], leafNodes, collisionBox);
+        bool overlapLeafL = leafOverlap(node->leafIndex[Node::left], leafNodes, collisionBox, excludeRange);
+        bool overlapLeafR = leafOverlap(node->leafIndex[Node::right], leafNodes, collisionBox, excludeRange);
 
         if (overlapLeafL) collisionList.add(node->leafIndex[Node::left]);
         if (overlapLeafR) collisionList.add(node->leafIndex[Node::right]);

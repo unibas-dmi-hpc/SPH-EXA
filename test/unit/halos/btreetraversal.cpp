@@ -74,11 +74,12 @@ void pbcCollision()
     std::vector<I>             tree         = makeUniformNLevelTree<I>(64, 1);
     std::vector<BinaryNode<I>> internalTree = createInternalTree(tree);
 
+    // halo box around coordinate origin
     {
         IBox haloBox{-1, 1, -1, 1, -1, 1};
 
         CollisionList collisions;
-        findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+        findCollisions(internalTree.data(), tree.data(), collisions, haloBox, {0,0});
 
         std::vector<int> collided(collisions.begin(), collisions.end());
         std::sort(begin(collided), end(collided));
@@ -105,12 +106,14 @@ void pbcCollision()
         EXPECT_EQ(collided, refCollided);
         EXPECT_EQ(refCollided, refCollidedExplicit);
     }
+
+    // halo box around far corner
     {
         int maxCoord = 1u<<maxTreeLevel<I>{};
         IBox haloBox{maxCoord-1, maxCoord+1, maxCoord-1, maxCoord+1, maxCoord-1, maxCoord+1};
 
         CollisionList collisions;
-        findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+        findCollisions(internalTree.data(), tree.data(), collisions, haloBox, {0,0});
 
         std::vector<int> collided(collisions.begin(), collisions.end());
         std::sort(begin(collided), end(collided));
@@ -122,6 +125,68 @@ void pbcCollision()
 }
 
 TEST(BinaryTreeTraversal, pbcCollision)
+{
+    pbcCollision<unsigned>();
+    pbcCollision<uint64_t>();
+}
+
+/*! \brief test findCollisions with pbc halo boxes and part of the tree excluded from collision detection
+ *
+ * The example constructs a 4x4x4 regular octree with 64 nodes. A haloBox
+ * with coordinates [-1,1]^3 will collide with all 8 nodes in the corners of the tree, except if excluded.
+ * The same happens for a haloBox at the opposite diagonal end with
+ * coordinates [2^(10 or 21)-1, 2^(10 or 21)+1]^3.
+ */
+template<class I>
+void pbcCollisionWithExclusions()
+{
+    constexpr int level2 = 2;
+    std::vector<I>             tree         = makeUniformNLevelTree<I>(64, 1);
+    std::vector<BinaryNode<I>> internalTree = createInternalTree(tree);
+
+    IBox haloBox{-1, 1, -1, 1, -1, 1};
+    {
+        CollisionList collisions;
+        findCollisions(internalTree.data(), tree.data(), collisions, haloBox,
+                       {0, nodeRange<I>(level2)});
+
+        std::vector<int> collided(collisions.begin(), collisions.end());
+        std::sort(begin(collided), end(collided));
+
+        // node 0 gets excluded
+        std::vector<int> refCollided{0,9,18,27,36,45,54,63};
+
+        EXPECT_EQ(collided, refCollided);
+    }
+    {
+        CollisionList collisions;
+        findCollisions(internalTree.data(), tree.data(), collisions, haloBox,
+                       {imorton3D<I>(0,0,3,level2), imorton3D<I>(0,0,3,level2) + nodeRange<I>(level2)});
+
+        std::vector<int> collided(collisions.begin(), collisions.end());
+        std::sort(begin(collided), end(collided));
+
+        // node 9 gets excluded
+        std::vector<int> refCollided{0,18,27,36,45,54,63};
+
+        EXPECT_EQ(collided, refCollided);
+    }
+    {
+        CollisionList collisions;
+        findCollisions(internalTree.data(), tree.data(), collisions, haloBox,
+                       {imorton3D<I>(3,3,3,level2), imorton3D<I>(3,3,3,level2) + nodeRange<I>(level2)});
+
+        std::vector<int> collided(collisions.begin(), collisions.end());
+        std::sort(begin(collided), end(collided));
+
+        // node 63 gets excluded
+        std::vector<int> refCollided{0,9,18,27,36,45,54};
+
+        EXPECT_EQ(collided, refCollided);
+    }
+}
+
+TEST(BinaryTreeTraversal, pbcCollisionWithExclusions)
 {
     pbcCollision<unsigned>();
     pbcCollision<uint64_t>();
@@ -151,7 +216,7 @@ void anisotropicHaloBox()
     IBox haloBox = makeHaloBox(tree[queryIdx], tree[queryIdx+1], 2*r, 0, 0);
 
     CollisionList collisions;
-    findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+    findCollisions(internalTree.data(), tree.data(), collisions, haloBox, {0,0});
 
     std::vector<int> collisionsSorted(collisions.begin(), collisions.end());
     std::sort(begin(collisionsSorted), end(collisionsSorted));
