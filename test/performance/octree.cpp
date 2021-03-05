@@ -38,7 +38,6 @@
 #include "cstone/domain/domaindecomp.hpp"
 
 #include "cstone/halos/btreetraversal.hpp"
-#include "cstone/halos/traversal.hpp"
 
 #include "cstone/tree/octree.hpp"
 #include "cstone/tree/octree_internal.hpp"
@@ -97,51 +96,4 @@ int main()
 
     double t2 = std::chrono::duration<double>(tp1 - tp0).count();
     std::cout << "halo discovery: " << t2 << " nPairs: " << haloPairs.size() << std::endl;
-
-    {
-        auto binaryTree = createInternalTree(tree);
-        std::vector<CollisionList> collisions(nNodes(tree));
-
-        tp0 = std::chrono::high_resolution_clock::now();
-        #pragma omp parallel for
-        for (std::size_t leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
-        {
-            auto radius = haloRadii[leafIdx];
-            IBox haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx+1], radius, box);
-            findCollisions(binaryTree.data(), tree.data(), collisions[leafIdx], haloBox, {0,0});
-        }
-        tp1 = std::chrono::high_resolution_clock::now();
-
-        size_t nCollisions = 0;
-        for (auto& c : collisions)
-            nCollisions += c.size();
-
-        double t2 = std::chrono::duration<double>(tp1 - tp0).count();
-        std::cout << "binary traversal: " << t2 << " nCollisions: " << nCollisions << std::endl;
-    }
-
-    {
-        Octree<CodeType> octree;
-        octree.compute(tree.data(), tree.data() + nNodes(tree), 1);
-
-        tp0 = std::chrono::high_resolution_clock::now();
-        std::vector<CollisionList> collisions(nNodes(tree));
-        #pragma omp parallel for
-        for (std::size_t leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
-        {
-            auto radius = haloRadii[leafIdx];
-            IBox haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx+1], radius, box);
-            findCollisions(octree, collisions[leafIdx], haloBox);
-        }
-        tp1 = std::chrono::high_resolution_clock::now();
-
-        size_t nCollisions = 0;
-        for (auto& c : collisions)
-            nCollisions += c.size();
-
-        double t2 = std::chrono::duration<double>(tp1 - tp0).count();
-        std::cout << "octree traversal: " << t2 << " nCollisions: " << nCollisions << std::endl;
-    }
-
 }
-

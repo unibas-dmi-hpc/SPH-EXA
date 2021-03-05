@@ -31,7 +31,6 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/halos/traversal.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 #include "collision_reference/collisions_a2a.hpp"
@@ -81,37 +80,6 @@ void generalCollisionTest(const std::vector<I>& tree, const std::vector<T>& halo
     }
 }
 
-template<class I, class T>
-void generalOctreeCollisionTest(const std::vector<I>& tree, const std::vector<T>& haloRadii,
-                                const Box<T>& box)
-{
-    Octree<I> octree;
-    octree.compute(tree.data(), tree.data() + nNodes(tree), 1);
-
-    // tree traversal collision detection
-    std::vector<CollisionList> collisions(octree.nLeaves());
-    for (std::size_t leafIdx = 0; leafIdx < octree.nLeaves(); ++leafIdx)
-    {
-        T radius = haloRadii[leafIdx];
-        IBox haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx+1], radius, box);
-        findCollisions(octree, collisions[leafIdx], haloBox);
-    }
-
-    // naive all-to-all algorithm
-    std::vector<CollisionList> refCollisions = findCollisionsAll2all(tree, haloRadii, box);
-
-    for (std::size_t nodeIndex = 0; nodeIndex < nNodes(tree); ++nodeIndex)
-    {
-        std::vector<int> c{collisions[nodeIndex].begin(), collisions[nodeIndex].end()};
-        std::vector<int> ref{refCollisions[nodeIndex].begin(), refCollisions[nodeIndex].end()};
-
-        std::sort(begin(c), end(c));
-        std::sort(begin(ref), end(ref));
-
-        EXPECT_EQ(c, ref);
-    }
-}
-
 //! \brief an irregular tree with level-3 nodes next to level-1 ones
 template<class I, class T, bool Pbc>
 void irregularTreeTraversal()
@@ -121,8 +89,6 @@ void irregularTreeTraversal()
     Box<T> box(0, 1, 0, 1, 0, 1, Pbc, Pbc, Pbc);
     std::vector<T> haloRadii(nNodes(tree), 0.1);
     generalCollisionTest(tree, haloRadii, box);
-
-    generalOctreeCollisionTest(tree, haloRadii, box);
 }
 
 TEST(Collisions, irregularTreeTraversal)
@@ -152,8 +118,6 @@ void regularTreeTraversal()
     // node edge length is 0.125
     std::vector<T> haloRadii(nNodes(tree), 0.124);
     generalCollisionTest(tree, haloRadii, box);
-
-    generalOctreeCollisionTest(tree, haloRadii, box);
 }
 
 TEST(Collisions, regularTreeTraversal)
