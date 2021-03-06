@@ -76,7 +76,7 @@ void findHalos(const std::vector<I>&           tree,
                std::vector<pair<int>>&         haloPairs)
 {
     std::vector<BinaryNode<I>> internalTree(nNodes(tree));
-    createInternalTree(tree.data(), nNodes(tree), internalTree.data());
+    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
 
     // go through all ranges assigned to rank
     for (std::size_t range = 0; range < assignment.nRanges(rank); ++range)

@@ -74,7 +74,7 @@ void pbcCollision()
     std::vector<I>             tree         = makeUniformNLevelTree<I>(64, 1);
 
     std::vector<BinaryNode<I>> internalTree(nNodes(tree));
-    createInternalTree(tree.data(), nNodes(tree), internalTree.data());
+    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
 
     // halo box around coordinate origin
     {
@@ -146,7 +146,7 @@ void pbcCollisionWithExclusions()
     std::vector<I>             tree         = makeUniformNLevelTree<I>(64, 1);
 
     std::vector<BinaryNode<I>> internalTree(nNodes(tree));
-    createInternalTree(tree.data(), nNodes(tree), internalTree.data());
+    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
 
     IBox haloBox{-1, 1, -1, 1, -1, 1};
     {
@@ -212,7 +212,7 @@ void anisotropicHaloBox()
     std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
 
     std::vector<BinaryNode<I>> internalTree(nNodes(tree));
-    createInternalTree(tree.data(), nNodes(tree), internalTree.data());
+    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
 
     int r = 1u<<(maxTreeLevel<I>{}-2);
 
@@ -270,7 +270,7 @@ TEST(Collisions, adjacentEdgeRegression)
 {
     std::vector<unsigned> tree = makeEdgeTree();
     std::vector<BinaryNode<unsigned>> internalTree(nNodes(tree));
-    createInternalTree(tree.data(), nNodes(tree), internalTree.data());
+    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
 
     Box<double> box(0.5, 0.6);
 
@@ -310,7 +310,7 @@ TEST(Collisions, adjacentEdgeSmallRadius)
 {
     std::vector<unsigned> tree = makeEdgeTree();
     std::vector<BinaryNode<unsigned>> internalTree(nNodes(tree));
-    createInternalTree(tree.data(), nNodes(tree), internalTree.data());
+    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
 
     Box<double> box(0,1);
 
@@ -333,7 +333,7 @@ TEST(Collisions, adjacentEdgeLastNode)
 {
     std::vector<unsigned> tree = makeEdgeTree();
     std::vector<BinaryNode<unsigned>> internalTree(nNodes(tree));
-    createInternalTree(tree.data(), nNodes(tree), internalTree.data());
+    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
 
     Box<double> box(0,1);
 
@@ -357,7 +357,7 @@ TEST(Collisions, regularLastNode)
     // a tree with 4 subdivisions along each dimension, 64 nodes
     std::vector<unsigned> tree = makeUniformNLevelTree<unsigned>(64, 1);
     std::vector<BinaryNode<unsigned>> internalTree(nNodes(tree));
-    createInternalTree(tree.data(), nNodes(tree), internalTree.data());
+    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
 
     IBox haloBox{1022, 1023, 1022, 1023, 1022, 1023};
     CollisionList collisions;

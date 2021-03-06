@@ -235,7 +235,7 @@ void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNo
 }
 
 
-/*! \brief create the internal part of an octree as internal nodes
+/*! \brief create a binary radix tree from a cornerstone octree
  *
  * @tparam I                  32- or 64-bit unsigned integer
  * @param tree[in]            Sorted Morton codes representing the leaves of the (global) octree
@@ -263,7 +263,7 @@ void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNo
  * A GPU version of this function can launch a thread for each node [0:nNodes] in parallel.
  */
 template<class I>
-void createInternalTree(const I* tree, TreeNodeIndex nNodes, BinaryNode<I>* binaryTree)
+void createBinaryTree(const I* tree, TreeNodeIndex nNodes, BinaryNode<I>* binaryTree)
 {
     #pragma omp parallel for
     for (std::size_t idx = 0; idx < nNodes; ++idx)
