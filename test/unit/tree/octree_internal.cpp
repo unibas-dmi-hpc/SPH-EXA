@@ -190,15 +190,15 @@ TEST(InternalOctree, irregularL2)
 template<class I>
 void octreeIrregularL3()
 {
-    std::vector<I> codes = OctreeMaker<I>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
+    std::vector<I> tree = OctreeMaker<I>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
 
-    Octree<I> tree;
-    tree.compute(codes.data(), codes.data() + codes.size()-1, 1);
-    EXPECT_EQ(tree.nTreeNodes(), 33);
-    EXPECT_EQ(tree.nLeaves(), 29);
-    EXPECT_EQ(tree.nInternalNodes(), 4);
+    Octree<I> fullTree;
+    fullTree.update(tree.data(), tree.data() + tree.size());
+    EXPECT_EQ(fullTree.nTreeNodes(), 33);
+    EXPECT_EQ(fullTree.nLeaves(), 29);
+    EXPECT_EQ(fullTree.nInternalNodes(), 4);
 
-    checkConnectivity(tree);
+    checkConnectivity(fullTree);
 }
 
 TEST(InternalOctree, irregularL3)
