@@ -54,7 +54,8 @@ template<class I, class T>
 void generalCollisionTest(const std::vector<I>& tree, const std::vector<T>& haloRadii,
                           const Box<T>& box)
 {
-    std::vector<BinaryNode<I>> internalTree = createInternalTree(tree);
+    std::vector<BinaryNode<I>> internalTree(nNodes(tree));
+    createInternalTree(tree.data(), nNodes(tree), internalTree.data());
 
     // tree traversal collision detection
     std::vector<CollisionList> collisions(nNodes(tree));

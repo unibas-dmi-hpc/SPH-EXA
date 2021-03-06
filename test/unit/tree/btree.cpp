@@ -47,7 +47,9 @@ void internal4x4x4PrefixTest()
     // a tree with 4 subdivisions along each dimension, 64 nodes
     std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
 
-    auto internalTree = createInternalTree(tree);
+    std::vector<BinaryNode<I>> internalTree(nNodes(tree));
+    createInternalTree(tree.data(), nNodes(tree), internalTree.data());
+
     EXPECT_EQ(internalTree[0].prefixLength, 0);
     EXPECT_EQ(internalTree[0].prefix, 0);
 

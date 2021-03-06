@@ -227,29 +227,8 @@ createInternalOctreeCpu(const std::vector<BinaryNode<I>>& binaryTree, TreeNodeIn
 }
 
 
-/*! \brief create the internal part for a given cornerstone octree with just leaves
- *
- * @tparam I           32- or 64-bit unsigned integer
- * @param tree         cornerstone octree with the octree leaves
- * @return             the internal octree and a vector of length nNodes(tree)
- *                     with an index into the internal octree to store the parent node
- *                     for each octree leaf of \a tree
- */
-template<class I>
-std::tuple<std::vector<OctreeNode<I>>, std::vector<TreeNodeIndex>>
-createInternalOctree(const std::vector<I>& tree)
-{
-    std::vector<BinaryNode<I>> binaryTree = createInternalTree(tree);
-    auto internalOctree = createInternalOctreeCpu(binaryTree, nNodes(tree));
-
-    return internalOctree;
-}
-
-
-
 struct GlobalTree{};
 struct LocalTree{};
-
 
 /*! \brief This class unifies a cornerstone octree with the internal part
  *
@@ -264,6 +243,28 @@ class Octree {
 public:
     Octree() = default;
 
+    /*! \brief sets the leaves to the provided ones and updates the internal part based on them
+     *
+     * @param firstLeaf  first leaf
+     * @param lastLeaf   last leaf
+     *
+     * internal state change:
+     *      -full tree update
+     */
+    void update(const I* firstLeaf, const I* lastLeaf)
+    {
+        assert(lastLeaf > firstLeaf);
+        TreeNodeIndex treeSize = lastLeaf - firstLeaf;
+
+        tree_.resize(treeSize);
+        std::copy(firstLeaf, lastLeaf, tree_.data());
+
+        binaryTree_.resize(nNodes(tree_));
+        createInternalTree(tree_.data(), nNodes(tree_), binaryTree_.data());
+        std::tie(internalTree_, leafParents_) = createInternalOctreeCpu(binaryTree_, nNodes(tree_));
+        internalCounts_.resize(internalTree_.size());
+    }
+
     /*! \brief builds the tree from a range of particle Morton codes
      *
      * @param codesStart[in]    local particle Morton code buffer start
@@ -273,7 +274,7 @@ public:
      * internal state change:
      *      -full tree update
      */
-    void compute(const I *codesStart, const I *codesEnd, unsigned bucketSize)
+    void compute(const I* codesStart, const I* codesEnd, unsigned bucketSize)
     {
         static_assert(std::is_same_v<Locality, LocalTree> || std::is_same_v<Locality, GlobalTree>);
 
@@ -286,7 +287,9 @@ public:
             std::tie(tree_, nodeCounts_) = computeOctreeGlobal(codesStart, codesEnd, bucketSize, std::move(tree_));
         }
 
-        std::tie(internalTree_, leafParents_) = createInternalOctree(tree_);
+        binaryTree_.resize(nNodes(tree_));
+        createInternalTree(tree_.data(), nNodes(tree_), binaryTree_.data());
+        std::tie(internalTree_, leafParents_) = createInternalOctreeCpu(binaryTree_, nNodes(tree_));
         internalCounts_.resize(internalTree_.size());
     }
 
@@ -454,6 +457,12 @@ private:
 
     //! \brief the internal tree
     std::vector<OctreeNode<I>> internalTree_;
+    /*! \brief the internal part as binary radix nodes, precursor to internalTree_
+     *
+     * This is kept here because the binary format is faster for findHalos / collision detection
+     */
+    std::vector<BinaryNode<I>> binaryTree_;
+
     //! \brief internal tree node particles counts
     std::vector<unsigned>      internalCounts_;
 };
