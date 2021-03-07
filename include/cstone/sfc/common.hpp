@@ -218,7 +218,7 @@ CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsigned treeLevel)
 {
     // total usable bits in the morton code, 30 or 63
-    constexpr unsigned nBits = 3 * ((sizeof(I) * 8) / 3);
+    constexpr unsigned nBits = 3 * maxTreeLevel<I>{};
 
     // number of bits to discard, counting from lowest bit
     unsigned discardedBits = nBits - 3 * treeLevel;

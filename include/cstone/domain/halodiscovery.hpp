@@ -75,7 +75,8 @@ void findHalos(const std::vector<I>&           tree,
                int                             rank,
                std::vector<pair<int>>&         haloPairs)
 {
-    std::vector<BinaryNode<I>> internalTree = createInternalTree(tree);
+    std::vector<BinaryNode<I>> internalTree(nNodes(tree));
+    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
 
     // go through all ranges assigned to rank
     for (std::size_t range = 0; range < assignment.nRanges(rank); ++range)
@@ -98,47 +99,33 @@ void findHalos(const std::vector<I>&           tree,
 
                 // if the halo box is fully inside the assigned SFC range, we skip collision detection
                 if (containedIn(assignment.rangeStart(rank, range),
-                                assignment.rangeEnd(range, range), haloBox))
+                                assignment.rangeEnd(rank, range), haloBox))
                 {
                     continue;
                 }
 
                 // find out with which other nodes in the octree that the node at nodeIdx
                 // enlarged by the halo radius collides with
-                findCollisions(internalTree.data(), tree.data(), collisions, haloBox);
+                findCollisions(internalTree.data(), tree.data(), collisions, haloBox,
+                               {assignment.rangeStart(rank, range), assignment.rangeEnd(rank, range)});
 
                 if (collisions.exhausted()) throw std::runtime_error("collision list exhausted\n");
 
-                // Go through all colliding nodes to determine which of them fall into a part of the SFC
-                // that is not assigned to the executing rank. These nodes will be marked as halos.
+                // collisions now has all nodes that collide with the haloBox around the node at tree[nodeIdx]
+                // we only mark those nodes in collisions as halos if their haloBox collides with tree[nodeIdx]
+                // i.e. we make sure that the local node (nodeIdx) is also a halo of the remote node
                 for (std::size_t i = 0; i < collisions.size(); ++i)
                 {
                     int collidingNodeIdx = collisions[i];
 
                     I collidingNodeStart = tree[collidingNodeIdx];
-                    I collidingNodeEnd = tree[collidingNodeIdx + 1];
+                    I collidingNodeEnd   = tree[collidingNodeIdx + 1];
 
-                    bool isHalo = false;
-                    for (std::size_t a = 0; a < assignment.nRanges(rank); ++a)
+                    IBox remoteNodeBox = makeHaloBox(collidingNodeStart, collidingNodeEnd,
+                                                     interactionRadii[collidingNodeIdx], box);
+                    if (overlap(tree[nodeIdx], tree[nodeIdx + 1], remoteNodeBox))
                     {
-                        I assignmentStart = assignment.rangeStart(rank, a);
-                        I assignmentEnd = assignment.rangeEnd(rank, a);
-
-                        if (collidingNodeStart < assignmentStart || collidingNodeEnd > assignmentEnd)
-                        {
-                            // node with index collidingNodeIdx is a halo node
-                            isHalo = true;
-                        }
-                    }
-                    if (isHalo)
-                    {
-                        // check if remote node +halo also overlaps with internal node
-                        IBox remoteNodeBox = makeHaloBox(collidingNodeStart, collidingNodeEnd,
-                                                             interactionRadii[collidingNodeIdx], box);
-                        if (overlap(tree[nodeIdx], tree[nodeIdx + 1], remoteNodeBox))
-                        {
-                            threadHaloPairs.emplace_back(nodeIdx, collidingNodeIdx);
-                        }
+                        threadHaloPairs.emplace_back(nodeIdx, collidingNodeIdx);
                     }
                 }
             }

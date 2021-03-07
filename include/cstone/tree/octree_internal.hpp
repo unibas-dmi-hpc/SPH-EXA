@@ -174,20 +174,22 @@ inline void constructOctreeNode(OctreeNode<I>*       internalOctree,
 
 /*! \brief translate an internal binary radix tree into an internal octree
  *
- * @tparam I           32- or 64-bit unsigned integer
- * @param binaryTree   binary tree nodes
- * @param nLeafNodes   number of octree leaf nodes used to construct \a binaryTree
- * @return             the internal octree nodes and octree leaf node parent indices
+ * @tparam I                   32- or 64-bit unsigned integer
+ * @param binaryTree[in        binary tree nodes
+ * @param nLeafNodes[in]       number of octree leaf nodes used to construct \a binaryTree
+ * @param internalOctree[out]  output internal octree nodes, length = \a (nLeafNodes-1) / 7
+ * @param leafParents[out]     node index of the parent node for each leaf, length = \a nLeafNodes
+ *
  */
 template<class I>
-std::tuple<std::vector<OctreeNode<I>>, std::vector<TreeNodeIndex>>
-createInternalOctreeCpu(const std::vector<BinaryNode<I>>& binaryTree, TreeNodeIndex nLeafNodes)
+void createInternalOctreeCpu(const BinaryNode<I>* binaryTree, TreeNodeIndex nLeafNodes,
+                             OctreeNode<I>* internalOctree, TreeNodeIndex* leafParents)
 {
     // we ignore the last binary tree node which is a duplicate root node
-    TreeNodeIndex nBinaryNodes = binaryTree.size() - 1;
+    TreeNodeIndex nBinaryNodes = nLeafNodes - 1;
 
     // one extra element to store the total sum of the exclusive scan
-    std::vector<TreeNodeIndex> prefixes(nBinaryNodes + 1);
+    std::vector<TreeNodeIndex> prefixes(nBinaryNodes);
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < nBinaryNodes; ++i)
     {
@@ -198,7 +200,7 @@ createInternalOctreeCpu(const std::vector<BinaryNode<I>>& binaryTree, TreeNodeIn
     // stream compaction: scan and scatter
     exclusiveScan(prefixes.data(), prefixes.size());
 
-    TreeNodeIndex nInternalOctreeNodes = *prefixes.rbegin();
+    TreeNodeIndex nInternalOctreeNodes = (nLeafNodes-1)/7;
     std::vector<TreeNodeIndex> scatterMap(nInternalOctreeNodes);
 
     // compaction step, scatterMap -> compacted list of binary nodes that correspond to octree nodes
@@ -213,81 +215,49 @@ createInternalOctreeCpu(const std::vector<BinaryNode<I>>& binaryTree, TreeNodeIn
         }
     }
 
-    std::vector<OctreeNode<I>> internalOctree(nInternalOctreeNodes);
-    std::vector<TreeNodeIndex> leafParents(nLeafNodes);
-
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < nInternalOctreeNodes; ++i)
     {
-        constructOctreeNode(internalOctree.data(), binaryTree.data(), i,
-                            scatterMap.data(), prefixes.data(), leafParents.data());
+        constructOctreeNode(internalOctree, binaryTree, i, scatterMap.data(), prefixes.data(), leafParents);
     }
-
-    return std::make_tuple(std::move(internalOctree), std::move(leafParents));
 }
-
-
-/*! \brief create the internal part for a given cornerstone octree with just leaves
- *
- * @tparam I           32- or 64-bit unsigned integer
- * @param tree         cornerstone octree with the octree leaves
- * @return             the internal octree and a vector of length nNodes(tree)
- *                     with an index into the internal octree to store the parent node
- *                     for each octree leaf of \a tree
- */
-template<class I>
-std::tuple<std::vector<OctreeNode<I>>, std::vector<TreeNodeIndex>>
-createInternalOctree(const std::vector<I>& tree)
-{
-    std::vector<BinaryNode<I>> binaryTree = createInternalTree(tree);
-    auto internalOctree = createInternalOctreeCpu(binaryTree, nNodes(tree));
-
-    return internalOctree;
-}
-
-
-
-struct GlobalTree{};
-struct LocalTree{};
 
 
 /*! \brief This class unifies a cornerstone octree with the internal part
  *
  * @tparam I          32- or 64-bit unsigned integer
- * @tparam Locality   GlobalTree or LocalTree, selects between distributed and local trees
  *
  * Leaves are stored separately from the internal nodes.
  * For either type of node, just a single buffer is allocated.
  */
-template<class I, class Locality = LocalTree>
+template<class I>
 class Octree {
 public:
     Octree() = default;
 
-    /*! \brief builds the tree from a range of particle Morton codes
+    /*! \brief sets the leaves to the provided ones and updates the internal part based on them
      *
-     * @param codesStart[in]    local particle Morton code buffer start
-     * @param codesEnd[in]                                        end
-     * @param bucketSize[in]    refine tree until each leaf has bucketSize or fewer particles
+     * @param firstLeaf  first leaf
+     * @param lastLeaf   last leaf
      *
      * internal state change:
      *      -full tree update
      */
-    void compute(const I *codesStart, const I *codesEnd, unsigned bucketSize)
+    void update(const I* firstLeaf, const I* lastLeaf)
     {
-        static_assert(std::is_same_v<Locality, LocalTree> || std::is_same_v<Locality, GlobalTree>);
+        assert(lastLeaf > firstLeaf);
+        TreeNodeIndex treeSize = lastLeaf - firstLeaf;
 
-        if constexpr (std::is_same_v<Locality, LocalTree>)
-        {
-            std::tie(tree_, nodeCounts_) = computeOctree(codesStart, codesEnd, bucketSize,
-                                                         std::numeric_limits<unsigned>::max(), std::move(tree_));
-        } else if constexpr (std::is_same_v<Locality, GlobalTree>)
-        {
-            std::tie(tree_, nodeCounts_) = computeOctreeGlobal(codesStart, codesEnd, bucketSize, std::move(tree_));
-        }
+        tree_.resize(treeSize);
+        std::copy(firstLeaf, lastLeaf, tree_.data());
 
-        std::tie(internalTree_, leafParents_) = createInternalOctree(tree_);
-        internalCounts_.resize(internalTree_.size());
+        binaryTree_.resize(nNodes(tree_));
+        createBinaryTree(tree_.data(), nNodes(tree_), binaryTree_.data());
+
+        internalTree_.resize((nNodes(tree_)-1)/7);
+        leafParents_.resize(nNodes(tree_));
+
+        createInternalOctreeCpu(binaryTree_.data(), nNodes(tree_), internalTree_.data(), leafParents_.data());
     }
 
     //! \brief total number of nodes in the tree
@@ -380,7 +350,7 @@ public:
      *
      * Returns 0 for the root node. Highest value is maxTreeLevel<I>{}.
      */
-    [[nodiscard]] I level(TreeNodeIndex node) const
+    [[nodiscard]] int level(TreeNodeIndex node) const
     {
         if (node < nInternalNodes())
         {
@@ -447,15 +417,16 @@ private:
 
     //! \brief cornerstone octree, just the leaves
     std::vector<I>             tree_;
-    //! \brief leaf node particles counts
-    std::vector<unsigned>      nodeCounts_;
     //! \brief indices into internalTree_ to store the parent index of each leaf
     std::vector<TreeNodeIndex> leafParents_;
 
     //! \brief the internal tree
     std::vector<OctreeNode<I>> internalTree_;
-    //! \brief internal tree node particles counts
-    std::vector<unsigned>      internalCounts_;
+    /*! \brief the internal part as binary radix nodes, precursor to internalTree_
+     *
+     * This is kept here because the binary format is faster for findHalos / collision detection
+     */
+    std::vector<BinaryNode<I>> binaryTree_;
 };
 
 
