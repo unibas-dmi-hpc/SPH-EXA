@@ -7,7 +7,7 @@ set(UNIT_TESTS
         findneighbors.cpp
         halos/boxoverlap.cpp
         halos/btreetraversal.cpp
-        halos/collisions_cpu.cpp
+        halos/btreetraversal_a2a.cpp
         primitives/clz.cpp
         primitives/gather.cpp
         sfc/common.cpp
