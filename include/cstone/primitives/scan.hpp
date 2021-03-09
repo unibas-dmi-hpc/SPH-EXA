@@ -37,6 +37,8 @@
 
 #include <omp.h>
 
+#include "cstone/primitives/stl.hpp"
+
 namespace cstone
 {
 
@@ -66,7 +68,7 @@ void exclusiveScan(const T* in, T* out, size_t numElements)
         {
             size_t stepOffset = step * elementsPerStep + tid * blockSize;
 
-            std::exclusive_scan(in + stepOffset, in + stepOffset + blockSize, out + stepOffset, 0);
+            stl::exclusive_scan(in + stepOffset, in + stepOffset + blockSize, out + stepOffset, 0);
 
             superBlock[step%2][tid] = out[stepOffset + blockSize - 1] + in[stepOffset + blockSize -1];
 
@@ -85,7 +87,7 @@ void exclusiveScan(const T* in, T* out, size_t numElements)
 
     // remainder
     T stepSum = superBlock[(nSteps+1)%2][numThreads];
-    std::exclusive_scan(in + nSteps*elementsPerStep, in + numElements, out + nSteps*elementsPerStep, stepSum);
+    stl::exclusive_scan(in + nSteps*elementsPerStep, in + numElements, out + nSteps*elementsPerStep, stepSum);
 }
 
 template<class T>
