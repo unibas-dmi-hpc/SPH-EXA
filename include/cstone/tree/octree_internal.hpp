@@ -43,6 +43,7 @@
 #include <vector>
 
 #include "cstone/cuda/annotation.hpp"
+#include "cstone/primitives/gather.hpp"
 #include "cstone/sfc/mortoncode.hpp"
 
 #include "btree.hpp"
@@ -127,6 +128,7 @@ inline void constructOctreeNode(OctreeNode<I>*       internalOctree,
                                 const BinaryNode<I>* binaryTree,
                                 TreeNodeIndex        nodeIndex,
                                 const TreeNodeIndex* scatterMap,
+                                const TreeNodeIndex* levelMap,
                                 const TreeNodeIndex* binaryToOctreeIndex,
                                 TreeNodeIndex*       leafParents)
 {
@@ -172,6 +174,24 @@ inline void constructOctreeNode(OctreeNode<I>*       internalOctree,
     }
 }
 
+template<class I>
+void levelSortMap(const TreeNodeIndex* octreeToBinaryIndex, TreeNodeIndex nInternalNodes,
+                  const BinaryNode<I>* binaryTree, TreeNodeIndex* levelMap)
+{
+    std::vector<int> levels(nInternalNodes);
+
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < nInternalNodes; ++i)
+    {
+        levelMap[i] = i;
+
+        TreeNodeIndex binaryIndex = octreeToBinaryIndex[i];
+        levels[i] = binaryTree[binaryIndex].prefixLength / 3;
+    }
+
+    sort_invert(levels.data(), levels.data() + nInternalNodes, levelMap);
+}
+
 /*! \brief translate an internal binary radix tree into an internal octree
  *
  * @tparam I                   32- or 64-bit unsigned integer
@@ -189,17 +209,19 @@ void createInternalOctreeCpu(const BinaryNode<I>* binaryTree, TreeNodeIndex nLea
     TreeNodeIndex nBinaryNodes = nLeafNodes - 1;
 
     // one extra element to store the total sum of the exclusive scan
-    std::vector<TreeNodeIndex> prefixes(nBinaryNodes);
+    std::vector<TreeNodeIndex> prefixes(nBinaryNodes + 1);
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < nBinaryNodes; ++i)
     {
-        int prefixLength = binaryTree[i].prefixLength;
-        prefixes[i] = (prefixLength % 3) ? 0 : 1;
+        int  prefixLength = binaryTree[i].prefixLength;
+        bool divisibleBy3 = prefixLength % 3 == 0;
+        prefixes[i] = (divisibleBy3) ? 1 : 0;
     }
 
     // stream compaction: scan and scatter
     exclusiveScan(prefixes.data(), prefixes.size());
 
+    // nInternalOctreeNodes is also equal to prefixes[nBinaryNodes]
     TreeNodeIndex nInternalOctreeNodes = (nLeafNodes-1)/7;
     std::vector<TreeNodeIndex> scatterMap(nInternalOctreeNodes);
 
@@ -215,10 +237,13 @@ void createInternalOctreeCpu(const BinaryNode<I>* binaryTree, TreeNodeIndex nLea
         }
     }
 
+    std::vector<TreeNodeIndex> levelMap(nInternalOctreeNodes);
+    levelSortMap(scatterMap.data(), nInternalOctreeNodes, binaryTree, levelMap.data());
+
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < nInternalOctreeNodes; ++i)
     {
-        constructOctreeNode(internalOctree, binaryTree, i, scatterMap.data(), prefixes.data(), leafParents);
+        constructOctreeNode(internalOctree, binaryTree, i, scatterMap.data(), levelMap.data(), prefixes.data(), leafParents);
     }
 }
 
