@@ -32,7 +32,7 @@
 
 #pragma once
 
-#include <mpich/mpi.h>
+#include <mpi.h>
 
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/tree/octree.hpp"
