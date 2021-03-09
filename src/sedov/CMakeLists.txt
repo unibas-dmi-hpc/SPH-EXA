@@ -5,7 +5,6 @@ target_include_directories(sedov PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(sedov PRIVATE ${MPI_CXX_INCLUDE_PATH})
 target_link_libraries(sedov ${MPI_CXX_LIBRARIES})
 target_link_libraries(sedov OpenMP::OpenMP_CXX)
-target_link_libraries(sedov CUDA::cudart)
 
 if(CMAKE_CUDA_COMPILER)
     add_executable(sedov-cuda $<TARGET_OBJECTS:gather_obj> $<TARGET_OBJECTS:cuda_find_neighbors_obj> $<TARGET_OBJECTS:cuda_sph> sedov.cpp)
