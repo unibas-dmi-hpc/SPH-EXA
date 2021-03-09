@@ -24,34 +24,49 @@
  */
 
 /*! \file
- * \brief Random coordinates generation for testing
+ * \brief Traits classes for Domain to manage GPU device acceleration behavior
  *
  * \author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include <gtest/gtest.h>
+#pragma once
 
-#include "random.hpp"
+#include <type_traits>
 
-using namespace cstone;
+#include "cstone/primitives/gather.hpp"
+#include "cstone/cuda/gather.cuh"
 
-TEST(CoordinateSamples, randomContainerIsSorted)
+namespace cstone
 {
-    using real = double;
-    using CodeType = unsigned;
-    int n = 10;
 
-    Box<real> box{ 0, 1, -1, 2, 0, 5 };
-    RandomCoordinates<real, CodeType> c(n, box);
+struct CpuTag {};
+struct CudaTag {};
 
-    std::vector<CodeType> testCodes(n);
-    computeMortonCodes(begin(c.x()), end(c.x()), begin(c.y()), begin(c.z()),
-                               begin(testCodes), box);
+namespace detail
+{
 
-    EXPECT_EQ(testCodes, c.mortonCodes());
+template<class Accelerator, class = void>
+struct ReorderFunctor {};
 
-    std::vector<CodeType> testCodesSorted = testCodes;
-    std::sort(begin(testCodesSorted), end(testCodesSorted));
+template<class Accelerator>
+struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, CpuTag>{}>>
+{
+    template<class ValueType, class CodeType, class IndexType>
+    using type = CpuGather<ValueType, CodeType, IndexType>;
+};
 
-    EXPECT_EQ(testCodes, testCodesSorted);
-}
+template<class Accelerator>
+struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, CudaTag>{}>>
+{
+    template<class ValueType, class CodeType, class IndexType>
+    using type = DeviceGather<ValueType, CodeType, IndexType>;
+};
+
+} // namespace detail
+
+//! \brief returns reorder functor type to be used, depending on the accelerator
+template<class Accelerator, class ValueType, class CodeType, class IndexType>
+using ReorderFunctor_t = typename detail::ReorderFunctor<Accelerator>::template type<ValueType, CodeType, IndexType>;
+
+
+} // namespace cstone

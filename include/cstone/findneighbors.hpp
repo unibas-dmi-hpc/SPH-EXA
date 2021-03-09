@@ -34,8 +34,8 @@
 
 #include <cmath>
 
-#include "bsearch.hpp"
-#include "mortoncode.hpp"
+#include "cstone/primitives/stl.hpp"
+#include "cstone/sfc/mortoncode.hpp"
 
 namespace cstone
 {

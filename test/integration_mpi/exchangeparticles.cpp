@@ -33,7 +33,7 @@
 
 #include <gtest/gtest.h>
 
-#include "cstone/domaindecomp_mpi.hpp"
+#include "cstone/domain/domaindecomp_mpi.hpp"
 
 using namespace cstone;
 

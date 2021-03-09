@@ -31,6 +31,10 @@
 
 #pragma once
 
+#include <utility>
+
+#include "cstone/cuda/annotation.hpp"
+
 /*! \brief A template to create structs as a type-safe version to using declarations
  *
  * Used in public API functions where a distinction between different
@@ -94,3 +98,34 @@ inline bool operator>(const StrongType<T, Phantom>& lhs, const StrongType<T, Pha
 {
     return lhs.value() > rhs.value();
 }
+
+
+//! \brief simple pair that's usable in both CPU and GPU code
+template<class T>
+class pair
+{
+public:
+
+    CUDA_HOST_DEVICE_FUN
+    pair(T first, T second) : data{first, second} {}
+
+    CUDA_HOST_DEVICE_FUN       T& operator[](int i)       { return data[i]; }
+    CUDA_HOST_DEVICE_FUN const T& operator[](int i) const { return data[i]; }
+
+private:
+
+    CUDA_HOST_DEVICE_FUN friend bool operator==(const pair& a, const pair& b)
+    {
+        return a.data[0] == b.data[0] && a.data[1] == b.data[1];
+    }
+
+    CUDA_HOST_DEVICE_FUN friend bool operator<(const pair& a, const pair& b)
+    {
+        bool c0 = a.data[0] < b.data[0];
+        bool e0 = a.data[0] == b.data[0];
+        bool c1 = a.data[1] < b.data[1];
+        return c0 || (e0 && c1);
+    }
+
+    T data[2];
+};
