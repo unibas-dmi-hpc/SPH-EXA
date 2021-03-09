@@ -199,15 +199,10 @@ void octreeIrregularL3()
     EXPECT_EQ(fullTree.nInternalNodes(), 4);
 
     checkConnectivity(fullTree);
-
-    for (int i = 0; i < fullTree.nTreeNodes(); ++i)
-    {
-        printf("node %3d, prefix %10o, level %1d\n", i, fullTree.codeStart(i), fullTree.level(i));
-    }
 }
 
 TEST(InternalOctree, irregularL3)
 {
     octreeIrregularL3<unsigned>();
-    //octreeIrregularL3<uint64_t>();
+    octreeIrregularL3<uint64_t>();
 }
