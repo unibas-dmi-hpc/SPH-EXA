@@ -8,7 +8,7 @@
 #define USE_MPI
 #endif
 
-#include "cstone/domain.hpp"
+#include "cstone/domain/domain.hpp"
 
 #include "sphexa.hpp"
 #include "SedovDataGenerator.hpp"
