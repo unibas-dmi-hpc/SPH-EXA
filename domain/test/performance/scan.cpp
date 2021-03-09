@@ -36,7 +36,7 @@
 #include <string>
 #include <vector>
 
-#include "cstone/scan.hpp"
+#include "cstone/primitives/scan.hpp"
 
 template<class T>
 void exclusiveScanSerial(const T* in, T* out, std::size_t num_elements)

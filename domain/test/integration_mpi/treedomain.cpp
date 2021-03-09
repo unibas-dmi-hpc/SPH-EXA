@@ -33,8 +33,8 @@
 #include <mpi.h>
 #include <gtest/gtest.h>
 
-#include "cstone/octree_mpi.hpp"
-#include "cstone/domaindecomp_mpi.hpp"
+#include "cstone/tree/octree_mpi.hpp"
+#include "cstone/domain/domaindecomp_mpi.hpp"
 
 #include "coord_samples/random.hpp"
 

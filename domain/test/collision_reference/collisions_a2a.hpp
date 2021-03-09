@@ -31,8 +31,8 @@
 
 #pragma once
 
-#include "cstone/btreetraversal.hpp"
-#include "cstone/octree_util.hpp"
+#include "cstone/halos/btreetraversal.hpp"
+#include "cstone/tree/octree_util.hpp"
 
 namespace cstone
 {
