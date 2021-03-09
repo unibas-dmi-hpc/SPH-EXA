@@ -34,55 +34,24 @@
 
 #include <gtest/gtest.h>
 
-#include "cstone/mortonconversions.hpp"
-#include "cstone/octree_mpi.hpp"
+#include "cstone/tree/octree_mpi.hpp"
+#include "cstone/tree/octree_util.hpp"
 
 using namespace cstone;
 
-template<class I>
-std::vector<I> makeRegularGrid(int rank)
-{
-    std::vector<I> codes;
-
-    constexpr unsigned n     = 4;
-    constexpr unsigned level = 2;
-
-    unsigned nRanks = 2;
-    unsigned istart = rank * n/nRanks;
-    unsigned iend   = (rank + 1) * n/nRanks;
-
-    // a regular n x n x n grid
-    for (unsigned i = istart; i < iend; ++i)
-        for (unsigned j = 0; j < n; ++j)
-            for (unsigned k = 0; k < n; ++k)
-    {
-        codes.push_back(codeFromBox<I>(i,j,k, level));
-    }
-
-    std::sort(begin(codes), end(codes));
-
-    return codes;
-}
 
 template<class I>
 void buildTree(int rank)
 {
-    auto codes = makeRegularGrid<I>(rank);
+    constexpr unsigned level = 2;
+    std::vector<I> allCodes = makeNLevelGrid<I>(level);
+    std::vector<I> codes{begin(allCodes) + rank     * allCodes.size()/2,
+                         begin(allCodes) + (rank+1) * allCodes.size()/2};
 
     int bucketSize = 8;
     auto [tree, counts] = computeOctreeGlobal(codes.data(), codes.data() + codes.size(), bucketSize);
 
-    std::vector<I> refTree{
-        codeFromIndices<I>({0}),
-        codeFromIndices<I>({1}),
-        codeFromIndices<I>({2}),
-        codeFromIndices<I>({3}),
-        codeFromIndices<I>({4}),
-        codeFromIndices<I>({5}),
-        codeFromIndices<I>({6}),
-        codeFromIndices<I>({7}),
-        nodeRange<I>(0)
-    };
+    std::vector<I> refTree = OctreeMaker<I>{}.divide().makeTree();
 
     std::vector<unsigned> refCounts(8,8);
 
