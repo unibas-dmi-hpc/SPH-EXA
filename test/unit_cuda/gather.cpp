@@ -37,7 +37,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/zorder.hpp"
+#include "cstone/primitives/gather.hpp"
 #include "cstone/cuda/gather.cuh"
 
 template<class I>

@@ -31,7 +31,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/domain.hpp"
+#include "cstone/domain/domain.hpp"
 
 using namespace cstone;
 
