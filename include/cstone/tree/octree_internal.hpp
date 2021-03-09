@@ -128,7 +128,6 @@ inline void constructOctreeNode(OctreeNode<I>*       internalOctree,
                                 const BinaryNode<I>* binaryTree,
                                 TreeNodeIndex        nodeIndex,
                                 const TreeNodeIndex* scatterMap,
-                                const TreeNodeIndex* levelMap,
                                 const TreeNodeIndex* binaryToOctreeIndex,
                                 TreeNodeIndex*       leafParents)
 {
@@ -172,24 +171,6 @@ inline void constructOctreeNode(OctreeNode<I>*       internalOctree,
             }
         }
     }
-}
-
-template<class I>
-void levelSortMap(const TreeNodeIndex* octreeToBinaryIndex, TreeNodeIndex nInternalNodes,
-                  const BinaryNode<I>* binaryTree, TreeNodeIndex* levelMap)
-{
-    std::vector<int> levels(nInternalNodes);
-
-    #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex i = 0; i < nInternalNodes; ++i)
-    {
-        levelMap[i] = i;
-
-        TreeNodeIndex binaryIndex = octreeToBinaryIndex[i];
-        levels[i] = binaryTree[binaryIndex].prefixLength / 3;
-    }
-
-    sort_invert(levels.data(), levels.data() + nInternalNodes, levelMap);
 }
 
 /*! \brief translate an internal binary radix tree into an internal octree
@@ -237,13 +218,10 @@ void createInternalOctreeCpu(const BinaryNode<I>* binaryTree, TreeNodeIndex nLea
         }
     }
 
-    std::vector<TreeNodeIndex> levelMap(nInternalOctreeNodes);
-    levelSortMap(scatterMap.data(), nInternalOctreeNodes, binaryTree, levelMap.data());
-
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < nInternalOctreeNodes; ++i)
     {
-        constructOctreeNode(internalOctree, binaryTree, i, scatterMap.data(), levelMap.data(), prefixes.data(), leafParents);
+        constructOctreeNode(internalOctree, binaryTree, i, scatterMap.data(), prefixes.data(), leafParents);
     }
 }
 
