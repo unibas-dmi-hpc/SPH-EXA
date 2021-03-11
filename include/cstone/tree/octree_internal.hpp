@@ -170,6 +170,41 @@ void nodeDepth(const OctreeNode<I>* octree, TreeNodeIndex nNodes, std::atomic<Tr
     }
 }
 
+/*! \brief reorder internal octree nodes according to a map
+ *
+ * @tparam I                   32- or 64-bit unsigned integer
+ * @param oldNodes[in]         array of octree nodes, length @a nInternalNodes
+ * @param rewireMap[in]        a permutation of [0:nInternalNodes]
+ * @param nInternalNodes[in]   number of internal octree nodes
+ * @param newNodes[out]        reordered array of octree nodes, length @a nInternalNodes
+ */
+template<class I>
+void rewireInternal(const OctreeNode<I>* oldNodes,
+                    const TreeNodeIndex* rewireMap,
+                    TreeNodeIndex nInternalNodes,
+                    OctreeNode<I>* newNodes)
+{
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex oldIndex = 0; oldIndex < nInternalNodes; ++oldIndex)
+    {
+        // node at <oldIndex> moves to <newIndex>
+        TreeNodeIndex newIndex = rewireMap[oldIndex];
+
+        OctreeNode<I> newNode = oldNodes[oldIndex];
+        newNode.parent = rewireMap[newNode.parent];
+        for (int octant = 0; octant < 8; ++octant)
+        {
+            if (newNode.childType[octant] == OctreeNode<I>::internal)
+            {
+                TreeNodeIndex oldChild = newNode.child[octant];
+                newNode.child[octant] = rewireMap[oldChild];
+            }
+        }
+
+        newNodes[newIndex] = newNode;
+    }
+}
+
 /*! \brief construct the internal octree node with index \a nodeIndex
  *
  * @tparam I                       32- or 64-bit unsigned integer type
@@ -481,7 +516,7 @@ public:
         return {zBox, zBox + uLz};
     }
 
-//private:
+private:
 
     //! \brief cornerstone octree, just the leaves
     std::vector<I>             tree_;
