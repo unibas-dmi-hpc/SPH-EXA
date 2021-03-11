@@ -206,6 +206,48 @@ void checkConnectivity(const Octree<I>& fullTree)
     }
 }
 
+TEST(InternalOctree, rewire)
+{
+    using I = unsigned;
+
+    auto i_ = OctreeNode<I>::internal;
+    auto l_ = OctreeNode<I>::leaf;
+
+    // internal tree, matches leaves for
+    // std::vector<I> tree = OctreeMaker<I>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
+    std::vector<OctreeNode<I>> internalTree
+    {
+        // prefix, level, parent, children, childTypes
+        {          0, 0, 0, {2, 19, 20, 3, 29, 30, 31, 32, }  , {i_, l_, l_, i_, l_, l_, l_, l_}},
+        { 0200000000, 2, 2, {6, 7, 8, 9, 10, 11, 12, 13, }    , {l_, l_, l_, l_, l_, l_, l_, l_}},
+        {          0, 1, 0, {4, 5, 1, 14, 15, 16, 17, 18, }   , {l_, l_, i_, l_, l_, l_, l_, l_}},
+        {03000000000, 1, 0, {21, 22, 23, 24, 25, 26, 27, 28, }, {l_, l_, l_, l_, l_, l_, l_, l_}}
+    };
+
+    // maps oldIndex to rewireMap[oldIndex] (scatter operation)
+    std::vector<TreeNodeIndex> rewireMap{0,3,1,2};
+
+    std::vector<OctreeNode<I>> rewiredTree(internalTree.size());
+    rewireInternal(internalTree.data(), rewireMap.data(), internalTree.size(),
+                   rewiredTree.data());
+
+    for (int i = 0; i < rewiredTree.size(); ++i)
+    {
+        printf("node %3d, prefix %10o, level %1d\n", i, rewiredTree[i].prefix, rewiredTree[i].level);
+    }
+
+    std::vector<OctreeNode<I>> reference
+    {
+        // prefix, level, parent, children, childTypes
+        {          0, 0, 0, {1, 19, 20, 2, 29, 30, 31, 32, }  , {i_, l_, l_, i_, l_, l_, l_, l_}},
+        {          0, 1, 0, {4, 5, 3, 14, 15, 16, 17, 18, }   , {l_, l_, i_, l_, l_, l_, l_, l_}},
+        {03000000000, 1, 0, {21, 22, 23, 24, 25, 26, 27, 28, }, {l_, l_, l_, l_, l_, l_, l_, l_}},
+        { 0200000000, 2, 1, {6, 7, 8, 9, 10, 11, 12, 13, }    , {l_, l_, l_, l_, l_, l_, l_, l_}}
+    };
+
+    EXPECT_EQ(rewiredTree, reference);
+}
+
 /*! \brief test internal octree creation from a regular 4x4x4 grid of leaves
  *
  * This creates 64 level-2 leaf nodes. The resulting internal tree should

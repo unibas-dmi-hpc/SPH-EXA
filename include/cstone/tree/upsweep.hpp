@@ -41,37 +41,6 @@
 namespace cstone
 {
 
-template<class I>
-void rewire(const OctreeNode<I>* oldNodes, const TreeNodeIndex* oldLeafParents,
-            OctreeNode<I>* newNodes, TreeNodeIndex* newLeafParents, const TreeNodeIndex* rewireMap,
-            TreeNodeIndex nInternalNodes)
-{
-    #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex oldIndex = 0; oldIndex < nInternalNodes; ++oldIndex)
-    {
-        // node at <oldIndex> moves to <newIndex>
-        TreeNodeIndex newIndex = rewireMap[oldIndex];
-
-        OctreeNode<I> newNode = oldNodes[oldIndex];
-        newNode.parent = rewireMap[newNode.parent];
-        for (int octant = 0; octant < 8; ++octant)
-        {
-            TreeNodeIndex oldChild = newNode.child[octant];
-
-            if (newNode.childType[octant] == OctreeNode<I>::leaf)
-            {
-                newLeafParents[oldChild] = newIndex;
-            }
-            else
-            {
-                newNode.child[octant] = rewireMap[oldChild];
-            }
-        }
-
-        newNodes[newIndex] = newNode;
-    }
-}
-
 template<class T>
 using CombinationFunction = T (*)(const T*, const T*, const T*, const T*, const T*, const T*, const T*, const T*);
 
