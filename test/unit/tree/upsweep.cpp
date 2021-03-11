@@ -42,17 +42,46 @@ TEST(Upsweep, sum)
     using I = unsigned;
 
     std::vector<I> tree = OctreeMaker<I>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
+    //std::vector<I> tree = makeUniformNLevelTree<I>(512, 1);
 
     Octree<I> fullTree;
     fullTree.update(tree.data(), tree.data() + tree.size());
-    EXPECT_EQ(fullTree.nTreeNodes(), 33);
-    EXPECT_EQ(fullTree.nLeaves(), 29);
-    EXPECT_EQ(fullTree.nInternalNodes(), 4);
 
     //checkConnectivity(fullTree);
+    std::vector<std::atomic<TreeNodeIndex>> depths(fullTree.nInternalNodes());
 
-    for (int i = 0; i < fullTree.nTreeNodes(); ++i)
+    nodeDepth(fullTree, depths.data());
+
+    for (int i = 0; i < fullTree.nInternalNodes(); ++i)
+    {
+        printf("node %3d, prefix %10o, level %1d, depth %d\n", i, fullTree.codeStart(i), fullTree.level(i), depths[i].load());
+    }
+}
+
+TEST(Upsweep, rewire)
+{
+    using I = unsigned;
+
+    std::vector<I> tree = OctreeMaker<I>{}.divide().divide(0).divide(0, 2).divide(3).makeTree();
+
+    Octree<I> fullTree;
+    fullTree.update(tree.data(), tree.data() + tree.size());
+
+    for (int i = 0; i < fullTree.nInternalNodes(); ++i)
     {
         printf("node %3d, prefix %10o, level %1d\n", i, fullTree.codeStart(i), fullTree.level(i));
+    }
+
+    std::vector<TreeNodeIndex> rewireMap{0,3,1,2};
+
+    Octree<I> rewiredTree = fullTree;
+    rewire(fullTree.internalTree_.data(), fullTree.leafParents_.data(),
+           rewiredTree.internalTree_.data(), rewiredTree.leafParents_.data(), rewireMap.data(), fullTree.nInternalNodes());
+
+    std::cout << std::endl;
+
+    for (int i = 0; i < rewiredTree.nInternalNodes(); ++i)
+    {
+        printf("node %3d, prefix %10o, level %1d\n", i, rewiredTree.codeStart(i), rewiredTree.level(i));
     }
 }

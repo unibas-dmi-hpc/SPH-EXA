@@ -416,7 +416,7 @@ public:
         return {zBox, zBox + uLz};
     }
 
-private:
+//private:
 
     //! \brief cornerstone octree, just the leaves
     std::vector<I>             tree_;
