@@ -37,31 +37,6 @@
 
 using namespace cstone;
 
-TEST(Upsweep, sum)
-{
-    using I = unsigned;
-
-    std::vector<I> tree = OctreeMaker<I>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
-    //std::vector<I> tree = makeUniformNLevelTree<I>(512, 1);
-
-    Octree<I> fullTree;
-    fullTree.update(tree.data(), tree.data() + tree.size());
-
-    //checkConnectivity(fullTree);
-    std::vector<std::atomic<TreeNodeIndex>> depths(fullTree.nInternalNodes());
-
-    nodeDepth(fullTree, depths.data());
-
-    for (int i = 0; i < fullTree.nInternalNodes(); ++i)
-    {
-        //printf("node %3d, prefix %10o, level %1d, depth %d\n", i, fullTree.codeStart(i), fullTree.level(i), depths[i].load());
-        printf("{%10o, %d, %d, {", fullTree.codeStart(i), fullTree.level(i), fullTree.parent(i));
-        for (int octant = 0; octant < 8; ++octant)
-            std::cout << fullTree.child(i, octant) << ", ";
-        std::cout << "}}," << std::endl;
-    }
-}
-
 TEST(Upsweep, rewire)
 {
     using I = unsigned;
