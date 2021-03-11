@@ -105,6 +105,71 @@ struct OctreeNode
     }
 };
 
+/*! \brief atomically update a maximum value and return the previous maximum value
+ *
+ * @tparam T                     integer type
+ * @param maximumValue[inout]    the maximum value to be atomically updated
+ * @param newValue[in]           the value with which to compute the new maximum
+ * @return                       the previous maximum value
+ */
+template<typename T>
+T atomicMax(std::atomic<T>& maximumValue, const T& newValue) noexcept
+{
+    T previousValue = maximumValue;
+    while(previousValue < newValue && !maximumValue.compare_exchange_weak(previousValue, newValue))
+    {}
+    return previousValue;
+}
+
+/*! \brief calculate distance to farthest leaf for each internal node in parallel
+ *
+ * @tparam I             32- or 64-bit integer type
+ * @param octree[in]     an octree, length @a nNodes
+ * @param nNodes[in]     number of (internal) nodes
+ * @param depths[out]    array of length @a nNodes, contains
+ *                       the distance to the farthest leaf for each node.
+ *                       The distance is equal to 1 for each node whose children are only leaves.
+ */
+template<class I>
+void nodeDepth(const OctreeNode<I>* octree, TreeNodeIndex nNodes, std::atomic<TreeNodeIndex>* depths)
+{
+    #pragma omp parallel for
+    for (TreeNodeIndex i = 0; i < nNodes; ++i)
+    {
+        int nLeafChildren = 0;
+        for (int octant = 0; octant < 8; ++octant)
+        {
+            if (octree[i].childType[octant] == OctreeNode<I>::leaf)
+            {
+                nLeafChildren++;
+            }
+        }
+
+        if (nLeafChildren == 8) { depths[i] = 1; } // all children are leaves - maximum depth is 1
+        else                    { continue; }
+
+        TreeNodeIndex nodeIndex = i;
+        TreeNodeIndex depth = 1;
+
+        // race to the top
+        do
+        {   // ascend one level
+            nodeIndex = octree[nodeIndex].parent;
+            depth++;
+
+            // set depths[nodeIndex] = max(depths[nodeIndex], depths) and store previous value
+            // of depths[nodeIndex] in previousMax
+            TreeNodeIndex previousMax = atomicMax(depths[nodeIndex], depth);
+            if (previousMax >= depth)
+            {
+                // another thread already set a higher value for depths[nodeIndex], drop out of race
+                break;
+            }
+
+        } while (nodeIndex != octree[nodeIndex].parent);
+    }
+}
+
 /*! \brief construct the internal octree node with index \a nodeIndex
  *
  * @tparam I                       32- or 64-bit unsigned integer type

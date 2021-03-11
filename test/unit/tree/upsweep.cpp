@@ -54,7 +54,11 @@ TEST(Upsweep, sum)
 
     for (int i = 0; i < fullTree.nInternalNodes(); ++i)
     {
-        printf("node %3d, prefix %10o, level %1d, depth %d\n", i, fullTree.codeStart(i), fullTree.level(i), depths[i].load());
+        //printf("node %3d, prefix %10o, level %1d, depth %d\n", i, fullTree.codeStart(i), fullTree.level(i), depths[i].load());
+        printf("{%10o, %d, %d, {", fullTree.codeStart(i), fullTree.level(i), fullTree.parent(i));
+        for (int octant = 0; octant < 8; ++octant)
+            std::cout << fullTree.child(i, octant) << ", ";
+        std::cout << "}}," << std::endl;
     }
 }
 
