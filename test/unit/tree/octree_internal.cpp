@@ -78,6 +78,80 @@ TEST(InternalOctree, OctreeNodeEq)
     EXPECT_FALSE(node1 == node2);
 }
 
+/*! \brief test nodeDepth on a simple, explicitly constructed example
+ *
+ * Note: this example is not big enough to detect multithreading bugs, if present
+ */
+TEST(InternalOctree, nodeDepth)
+{
+    using I = unsigned;
+
+    auto i_ = OctreeNode<I>::internal;
+    auto l_ = OctreeNode<I>::leaf;
+
+    // internal tree, matches leaves for
+    // std::vector<I> tree = OctreeMaker<I>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
+    std::vector<OctreeNode<I>> internalTree
+    {
+        // prefix, level, parent, children, childTypes
+        {          0, 0, 0, {2, 19, 20, 3, 29, 30, 31, 32, }  , {i_, l_, l_, i_, l_, l_, l_, l_}},
+        { 0200000000, 2, 2, {6, 7, 8, 9, 10, 11, 12, 13, }    , {l_, l_, l_, l_, l_, l_, l_, l_}},
+        {          0, 1, 0, {4, 5, 1, 14, 15, 16, 17, 18, }   , {l_, l_, i_, l_, l_, l_, l_, l_}},
+        {03000000000, 1, 0, {21, 22, 23, 24, 25, 26, 27, 28, }, {l_, l_, l_, l_, l_, l_, l_, l_}}
+    };
+
+    std::vector<std::atomic<TreeNodeIndex>> depths(internalTree.size());
+    for (auto& d : depths) d = 0;
+
+    nodeDepth(internalTree.data(), internalTree.size(), depths.data());
+
+    std::vector<int> depths_v{begin(depths), end(depths)};
+    std::vector<int> depths_reference{3, 1, 2, 1};
+
+    EXPECT_EQ(depths_v, depths_reference);
+}
+
+/*! \brief larger test case for nodeDepth to detect multithreading issues
+ *
+ * Depends on binary/octree generation, so not strictly a unit test
+ */
+template<class I>
+void nodeDepthThreading()
+{
+    // uniform 16x16x16 tree
+    std::vector<I> leaves = makeUniformNLevelTree<I>(4096, 1);
+
+    std::vector<BinaryNode<I>> binaryTree(nNodes(leaves));
+    createBinaryTree(leaves.data(), nNodes(leaves), binaryTree.data());
+
+    std::vector<OctreeNode<I>> octree((nNodes(leaves)-1)/7);
+    std::vector<TreeNodeIndex>  leafParents(nNodes(leaves));
+
+    createInternalOctreeCpu(binaryTree.data(), nNodes(leaves), octree.data(), leafParents.data());
+
+    std::vector<std::atomic<TreeNodeIndex>> depths(octree.size());
+    for (auto& d : depths) d = 0;
+
+    nodeDepth(octree.data(), octree.size(), depths.data());
+    std::vector<int> depths_v{begin(depths), end(depths)};
+
+    constexpr int maxTreeLevel = 4;         // tree has 4 layers of subdivisions
+    std::vector<int> depths_reference(octree.size());
+    for (TreeNodeIndex i = 0; i < octree.size(); ++i)
+    {
+        // in a uniform tree, level + depth == maxTreeLevel is constant for all nodes
+        depths_reference[i] = maxTreeLevel - octree[i].level;
+    }
+
+    EXPECT_EQ(depths_v, depths_reference);
+}
+
+TEST(InternalOctree, nodeDepthsThreading)
+{
+    nodeDepthThreading<unsigned>();
+    nodeDepthThreading<uint64_t>();
+}
+
 template<class I>
 void checkConnectivity(const Octree<I>& fullTree)
 {
