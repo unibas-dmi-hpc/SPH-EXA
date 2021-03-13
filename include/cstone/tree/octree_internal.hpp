@@ -172,10 +172,16 @@ void nodeDepth(const OctreeNode<I>* octree, TreeNodeIndex nNodes, std::atomic<Tr
 
 /*! @brief calculates the tree node ordering for descending max leaf distance
  *
- * @tparam I             32- or 64-bit integer
- * @param octree[in]     input array of OctreeNode<I>
- * @param nNodes[in]     number of input octree nodes
- * @param ordering[out]  output ordering, a permutation of [0:nNodes]
+ * @tparam I                    32- or 64-bit integer
+ * @param octree[in]            input array of OctreeNode<I>
+ * @param nNodes[in]            number of input octree nodes
+ * @param ordering[out]         output ordering, a permutation of [0:nNodes]
+ * @param nNodesPerLevel[out]   number of nodes per value of farthest leaf distance
+ *                              length is maxTreeLevel<I>{} (10 or 21)
+ *
+ * nNodesPerLevel[0] is the number of internal nodes with a max leaf distance of 1,
+ * i.e. all nodes which only have leaves as children. nNodesPerLevel[1] is all
+ * number of nodes with max leaf distance of 2, etc.
  *
  * First calculates the distance of the farthest leaf for each node, then
  * determines an ordering that sorts the nodes according to decreasing distance.
@@ -185,7 +191,8 @@ void nodeDepth(const OctreeNode<I>* octree, TreeNodeIndex nNodes, std::atomic<Tr
 template<class I>
 void decreasingMaxDepthOrder(const OctreeNode<I>* octree,
                              TreeNodeIndex nNodes,
-                             TreeNodeIndex* ordering)
+                             TreeNodeIndex* ordering,
+                             TreeNodeIndex* nNodesPerLevel)
 {
     std::vector<std::atomic<TreeNodeIndex>> depths(nNodes);
 
@@ -208,7 +215,9 @@ void decreasingMaxDepthOrder(const OctreeNode<I>* octree,
     }
 
     std::vector<TreeNodeIndex> depths_v(begin(depths), end(depths));
+    // Todo: we need sort_by_key here
     sort_invert(begin(depths_v), end(depths_v), begin(inverseOrdering), std::greater<TreeNodeIndex>{});
+    std::sort(begin(depths_v), end(depths_v), std::greater<TreeNodeIndex>{});
 
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < nNodes; ++i)
@@ -217,6 +226,14 @@ void decreasingMaxDepthOrder(const OctreeNode<I>* octree,
     }
 
     sort_invert(begin(inverseOrdering), end(inverseOrdering), ordering);
+
+    // count nodes per level
+    for (TreeNodeIndex depth = 0; depth < maxTreeLevel<I>{} - 1; ++depth)
+    {
+        auto it1 = std::lower_bound(begin(depths_v), end(depths_v), depth+1, std::greater<TreeNodeIndex>{});
+        auto it2 = std::upper_bound(begin(depths_v), end(depths_v), depth+1, std::greater<TreeNodeIndex>{});
+        nNodesPerLevel[depth] = std::distance(it1, it2);
+    }
 }
 
 /*! \brief reorder internal octree nodes according to a map
