@@ -125,7 +125,7 @@ void nodeDepthThreading()
     createBinaryTree(leaves.data(), nNodes(leaves), binaryTree.data());
 
     std::vector<OctreeNode<I>> octree((nNodes(leaves)-1)/7);
-    std::vector<TreeNodeIndex>  leafParents(nNodes(leaves));
+    std::vector<TreeNodeIndex> leafParents(nNodes(leaves));
 
     createInternalOctreeCpu(binaryTree.data(), nNodes(leaves), octree.data(), leafParents.data());
 
@@ -150,6 +150,66 @@ TEST(InternalOctree, nodeDepthsThreading)
 {
     nodeDepthThreading<unsigned>();
     nodeDepthThreading<uint64_t>();
+}
+
+TEST(InternalOctree, calculateInternalOrderExplicit)
+{
+    using I = unsigned;
+
+    auto i_ = OctreeNode<I>::internal;
+    auto l_ = OctreeNode<I>::leaf;
+
+    // internal tree, matches leaves for
+    // std::vector<I> tree = OctreeMaker<I>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
+    std::vector<OctreeNode<I>> octree
+    {
+        // prefix, level, parent, children, childTypes
+        {          0, 0, 0, {2, 19, 20, 3, 29, 30, 31, 32, }  , {i_, l_, l_, i_, l_, l_, l_, l_}},
+        { 0200000000, 2, 2, {6, 7, 8, 9, 10, 11, 12, 13, }    , {l_, l_, l_, l_, l_, l_, l_, l_}},
+        {          0, 1, 0, {4, 5, 1, 14, 15, 16, 17, 18, }   , {l_, l_, i_, l_, l_, l_, l_, l_}},
+        {03000000000, 1, 0, {21, 22, 23, 24, 25, 26, 27, 28, }, {l_, l_, l_, l_, l_, l_, l_, l_}}
+    };
+
+    std::vector<TreeNodeIndex> ordering(octree.size());
+    decreasingMaxDepthOrder(octree.data(), octree.size(), ordering.data());
+
+    std::vector<TreeNodeIndex> reference{0, 2, 1, 3};
+    EXPECT_EQ(ordering, reference);
+}
+
+template<class I>
+void decreasingMaxDepthOrderIsSorted()
+{
+    // uniform 16x16x16 tree
+    std::vector<I> leaves = makeUniformNLevelTree<I>(4096, 1);
+
+    std::vector<BinaryNode<I>> binaryTree(nNodes(leaves));
+    createBinaryTree(leaves.data(), nNodes(leaves), binaryTree.data());
+
+    std::vector<OctreeNode<I>> octree((nNodes(leaves)-1)/7);
+    std::vector<TreeNodeIndex> leafParents(nNodes(leaves));
+
+    createInternalOctreeCpu(binaryTree.data(), nNodes(leaves), octree.data(), leafParents.data());
+
+    std::vector<TreeNodeIndex> depthOrder(octree.size());
+    decreasingMaxDepthOrder(octree.data(), octree.size(), depthOrder.data());
+
+    std::vector<OctreeNode<I>> newOctree(octree.size());
+    rewireInternal(octree.data(), depthOrder.data(), octree.size(), newOctree.data());
+
+    std::vector<std::atomic<TreeNodeIndex>> depths(octree.size());
+    for (auto& d : depths) d = 0;
+
+    nodeDepth(newOctree.data(), newOctree.size(), depths.data());
+    std::vector<int> depths_v{begin(depths), end(depths)};
+
+    EXPECT_TRUE(std::is_sorted(begin(depths_v), end(depths_v), std::greater<TreeNodeIndex>{}));
+}
+
+TEST(InternalOctree, decreasingMaxDepthOrderIsSorted)
+{
+    decreasingMaxDepthOrderIsSorted<unsigned>();
+    decreasingMaxDepthOrderIsSorted<uint64_t>();
 }
 
 template<class I>

@@ -170,6 +170,55 @@ void nodeDepth(const OctreeNode<I>* octree, TreeNodeIndex nNodes, std::atomic<Tr
     }
 }
 
+/*! @brief calculates the tree node ordering for descending max leaf distance
+ *
+ * @tparam I             32- or 64-bit integer
+ * @param octree[in]     input array of OctreeNode<I>
+ * @param nNodes[in]     number of input octree nodes
+ * @param ordering[out]  output ordering, a permutation of [0:nNodes]
+ *
+ * First calculates the distance of the farthest leaf for each node, then
+ * determines an ordering that sorts the nodes according to decreasing distance.
+ * The resulting ordering is valid from a scatter-perspective, i.e.
+ * Nodes at <oldIndex> should be moved to @a ordering[<oldIndex>].
+ */
+template<class I>
+void decreasingMaxDepthOrder(const OctreeNode<I>* octree,
+                             TreeNodeIndex nNodes,
+                             TreeNodeIndex* ordering)
+{
+    std::vector<std::atomic<TreeNodeIndex>> depths(nNodes);
+
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < nNodes; ++i)
+    {
+        depths[i] = 0;
+    }
+
+    nodeDepth(octree, nNodes, depths.data());
+
+    // inverse ordering will be the inverse permutation of the
+    // output ordering and also corresponds to the ordering
+    // from a gather-perspective
+    std::vector<TreeNodeIndex> inverseOrdering(nNodes);
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < nNodes; ++i)
+    {
+        inverseOrdering[i] = i;
+    }
+
+    std::vector<TreeNodeIndex> depths_v(begin(depths), end(depths));
+    sort_invert(begin(depths_v), end(depths_v), begin(inverseOrdering), std::greater<TreeNodeIndex>{});
+
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < nNodes; ++i)
+    {
+        ordering[i] = i;
+    }
+
+    sort_invert(begin(inverseOrdering), end(inverseOrdering), ordering);
+}
+
 /*! \brief reorder internal octree nodes according to a map
  *
  * @tparam I                   32- or 64-bit unsigned integer
@@ -202,6 +251,20 @@ void rewireInternal(const OctreeNode<I>* oldNodes,
         }
 
         newNodes[newIndex] = newNode;
+    }
+}
+
+//! \brief scatter-reorder the input into output
+template<class Index>
+void scatterReorder(const Index* input,
+                    const Index* scatterMap,
+                    size_t nElements,
+                    Index* output)
+{
+    #pragma omp parallel schedule(static)
+    for (size_t i = 0; i < nElements; ++i)
+    {
+        output[scatterMap[i]] = input[i];
     }
 }
 
