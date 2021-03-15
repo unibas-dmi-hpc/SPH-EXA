@@ -177,11 +177,11 @@ void nodeDepth(const OctreeNode<I>* octree, TreeNodeIndex nNodes, std::atomic<Tr
  * @param nNodes[in]            number of input octree nodes
  * @param ordering[out]         output ordering, a permutation of [0:nNodes]
  * @param nNodesPerLevel[out]   number of nodes per value of farthest leaf distance
- *                              length is maxTreeLevel<I>{} - 1 (9 or 20)
+ *                              length is maxTreeLevel<I>{} (10 or 21)
  *
- * nNodesPerLevel[0] is the number of internal nodes with a max leaf distance of 1,
- * i.e. all nodes which only have leaves as children. nNodesPerLevel[1] is all
- * number of nodes with max leaf distance of 2, etc.
+ *  nNodesPerLevel[0] --> number of leaf nodes (NOT set in this function)
+ *  nNodesPerLevel[1] --> number of nodes with maxDepth = 1, children: only leaves
+ *  nNodesPerLevel[2] --> number of internal nodes with maxDepth = 2, children: leaves and maxDepth = 1
  *
  * First calculates the distance of the farthest leaf for each node, then
  * determines an ordering that sorts the nodes according to decreasing distance.
@@ -228,10 +228,10 @@ void decreasingMaxDepthOrder(const OctreeNode<I>* octree,
     sort_invert(begin(inverseOrdering), end(inverseOrdering), ordering);
 
     // count nodes per value of depth
-    for (TreeNodeIndex depth = 0; depth < maxTreeLevel<I>{} - 1; ++depth)
+    for (TreeNodeIndex depth = 1; depth < maxTreeLevel<I>{}; ++depth)
     {
-        auto it1 = std::lower_bound(begin(depths_v), end(depths_v), depth + 1, std::greater<TreeNodeIndex>{});
-        auto it2 = std::upper_bound(begin(depths_v), end(depths_v), depth + 1, std::greater<TreeNodeIndex>{});
+        auto it1 = std::lower_bound(begin(depths_v), end(depths_v), depth, std::greater<TreeNodeIndex>{});
+        auto it2 = std::upper_bound(begin(depths_v), end(depths_v), depth, std::greater<TreeNodeIndex>{});
         nNodesPerLevel[depth] = std::distance(it1, it2);
     }
 }
@@ -281,7 +281,7 @@ void scatterReorder(const Index* input,
     #pragma omp parallel schedule(static)
     for (size_t i = 0; i < nElements; ++i)
     {
-        output[scatterMap[i]] = input[i];
+        output[i] = scatterMap[input[i]];
     }
 }
 
@@ -416,7 +416,7 @@ void createInternalOctreeCpu(const BinaryNode<I>* binaryTree, TreeNodeIndex nLea
 template<class I>
 class Octree {
 public:
-    Octree() : nNodesPerLevel_(maxTreeLevel<I>{}-1) {}
+    Octree() : nNodesPerLevel_(maxTreeLevel<I>{}) {}
 
     /*! \brief sets the leaves to the provided ones and updates the internal part based on them
      *
@@ -429,23 +429,52 @@ public:
     void update(const I* firstLeaf, const I* lastLeaf)
     {
         assert(lastLeaf > firstLeaf);
-        TreeNodeIndex treeSize = lastLeaf - firstLeaf;
 
+        // make space for leaf nodes
+        TreeNodeIndex treeSize = lastLeaf - firstLeaf;
+        nNodesPerLevel_[0]     = treeSize;
         tree_.resize(treeSize);
         std::copy(firstLeaf, lastLeaf, tree_.data());
 
         binaryTree_.resize(nNodes(tree_));
         createBinaryTree(tree_.data(), nNodes(tree_), binaryTree_.data());
 
-        internalTree_.resize((nNodes(tree_)-1)/7);
-        leafParents_.resize(nNodes(tree_));
+        std::vector<OctreeNode<I>> preTree((nNodes(tree_)-1)/7);
+        std::vector<TreeNodeIndex> preLeafParents(nNodes(tree_));
 
-        createInternalOctreeCpu(binaryTree_.data(), nNodes(tree_), internalTree_.data(), leafParents_.data());
+        createInternalOctreeCpu(binaryTree_.data(), nNodes(tree_), preTree.data(), preLeafParents.data());
+
+        // re-sort internal nodes to establish a max-depth ordering
+        std::vector<TreeNodeIndex> ordering(preTree.size());
+        // determine ordering
+        decreasingMaxDepthOrder(preTree.data(), preTree.size(), ordering.data(), nNodesPerLevel_.data());
+        // apply the ordering to the internal tree;
+        internalTree_.resize(preTree.size());
+        rewireInternal(preTree.data(), ordering.data(), preTree.size(), internalTree_.data());
+
+        // apply ordering to leaf parents
+        leafParents_.resize(preLeafParents.size());
+        scatterReorder(preLeafParents.data(), ordering.data(), preLeafParents.size(), leafParents_.data());
     }
 
     //! \brief total number of nodes in the tree
     [[nodiscard]] inline TreeNodeIndex nTreeNodes() const
     { return nNodes(tree_) + internalTree_.size(); }
+
+    /*! \brief number of nodes with given value of maxDepth
+     *
+     * @param maxDepth
+     * @return
+     *
+     * nTreeNodes(0) == nLeaves()
+     * sum([nTreeNodes(i) for i in [0:maxTreeLevel<I>{}]]) == nTreeNodes()
+     * sum([nTreeNodes(i) for i in [1:maxTreeLevel<I>{}]]) == nInternalNodes()
+     */
+    [[nodiscard]] inline TreeNodeIndex nTreeNodes(int maxDepth) const
+    {
+        assert(maxDepth < maxTreeLevel<I>{});
+        return nNodesPerLevel_[maxDepth];
+    }
 
     //! \brief number of leaf nodes in the tree
     [[nodiscard]] inline TreeNodeIndex nLeaves() const
@@ -614,9 +643,12 @@ private:
     std::vector<BinaryNode<I>> binaryTree_;
 
     /*! \brief stores the number of internal nodes for each of the maxTreeLevel<I>{}-1 possible values of maxDepth
-     *  i.e. nNodesPerLevel[0] is the number of nodes with maxDepth = 1, so all nodes which only have leaf nodes as
-     *  children. nNodesPerLevel[1] is the number of internal nodes with maxDepth = 2, with only leaves or maxDepth = 1
-     *  nodes as children.
+     *
+     *  i.e.
+     *  nNodesPerLevel[0] --> number of leaf nodes
+     *  nNodesPerLevel[1] --> number of nodes with maxDepth = 1, children: only leaves
+     *  nNodesPerLevel[2] --> number of internal nodes with maxDepth = 2, children: leaves and maxDepth = 1
+     *  etc.
      */
      std::vector<TreeNodeIndex> nNodesPerLevel_;
 };
