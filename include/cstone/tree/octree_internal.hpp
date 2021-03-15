@@ -177,7 +177,7 @@ void nodeDepth(const OctreeNode<I>* octree, TreeNodeIndex nNodes, std::atomic<Tr
  * @param nNodes[in]            number of input octree nodes
  * @param ordering[out]         output ordering, a permutation of [0:nNodes]
  * @param nNodesPerLevel[out]   number of nodes per value of farthest leaf distance
- *                              length is maxTreeLevel<I>{} (10 or 21)
+ *                              length is maxTreeLevel<I>{} - 1 (9 or 20)
  *
  * nNodesPerLevel[0] is the number of internal nodes with a max leaf distance of 1,
  * i.e. all nodes which only have leaves as children. nNodesPerLevel[1] is all
@@ -227,11 +227,11 @@ void decreasingMaxDepthOrder(const OctreeNode<I>* octree,
 
     sort_invert(begin(inverseOrdering), end(inverseOrdering), ordering);
 
-    // count nodes per level
+    // count nodes per value of depth
     for (TreeNodeIndex depth = 0; depth < maxTreeLevel<I>{} - 1; ++depth)
     {
-        auto it1 = std::lower_bound(begin(depths_v), end(depths_v), depth+1, std::greater<TreeNodeIndex>{});
-        auto it2 = std::upper_bound(begin(depths_v), end(depths_v), depth+1, std::greater<TreeNodeIndex>{});
+        auto it1 = std::lower_bound(begin(depths_v), end(depths_v), depth + 1, std::greater<TreeNodeIndex>{});
+        auto it2 = std::upper_bound(begin(depths_v), end(depths_v), depth + 1, std::greater<TreeNodeIndex>{});
         nNodesPerLevel[depth] = std::distance(it1, it2);
     }
 }
@@ -416,7 +416,7 @@ void createInternalOctreeCpu(const BinaryNode<I>* binaryTree, TreeNodeIndex nLea
 template<class I>
 class Octree {
 public:
-    Octree() = default;
+    Octree() : nNodesPerLevel_(maxTreeLevel<I>{}-1) {}
 
     /*! \brief sets the leaves to the provided ones and updates the internal part based on them
      *
@@ -600,16 +600,25 @@ private:
 
     //! \brief cornerstone octree, just the leaves
     std::vector<I>             tree_;
+
     //! \brief indices into internalTree_ to store the parent index of each leaf
     std::vector<TreeNodeIndex> leafParents_;
 
     //! \brief the internal tree
     std::vector<OctreeNode<I>> internalTree_;
+
     /*! \brief the internal part as binary radix nodes, precursor to internalTree_
      *
      * This is kept here because the binary format is faster for findHalos / collision detection
      */
     std::vector<BinaryNode<I>> binaryTree_;
+
+    /*! \brief stores the number of internal nodes for each of the maxTreeLevel<I>{}-1 possible values of maxDepth
+     *  i.e. nNodesPerLevel[0] is the number of nodes with maxDepth = 1, so all nodes which only have leaf nodes as
+     *  children. nNodesPerLevel[1] is the number of internal nodes with maxDepth = 2, with only leaves or maxDepth = 1
+     *  nodes as children.
+     */
+     std::vector<TreeNodeIndex> nNodesPerLevel_;
 };
 
 
