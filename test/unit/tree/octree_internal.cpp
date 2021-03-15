@@ -178,9 +178,9 @@ TEST(InternalOctree, calculateInternalOrderExplicit)
     EXPECT_EQ(ordering, reference);
 
     std::vector<TreeNodeIndex> nNodesPerLevelReference(maxTreeLevel<I>{}, 0);
-    nNodesPerLevelReference[0] = 2;
-    nNodesPerLevelReference[1] = 1;
+    nNodesPerLevelReference[1] = 2;
     nNodesPerLevelReference[2] = 1;
+    nNodesPerLevelReference[3] = 1;
     EXPECT_EQ(nNodesPerLevel, nNodesPerLevelReference);
 }
 
@@ -199,7 +199,7 @@ void decreasingMaxDepthOrderIsSorted()
     createInternalOctreeCpu(binaryTree.data(), nNodes(leaves), octree.data(), leafParents.data());
 
     std::vector<TreeNodeIndex> depthOrder(octree.size());
-    std::vector<TreeNodeIndex> nNodesPerLevel(maxTreeLevel<I>{});
+    std::vector<TreeNodeIndex> nNodesPerLevel(maxTreeLevel<I>{}, 0);
     decreasingMaxDepthOrder(octree.data(), octree.size(), depthOrder.data(), nNodesPerLevel.data());
 
     std::vector<OctreeNode<I>> newOctree(octree.size());
@@ -214,10 +214,10 @@ void decreasingMaxDepthOrderIsSorted()
     EXPECT_TRUE(std::is_sorted(begin(depths_v), end(depths_v), std::greater<TreeNodeIndex>{}));
 
     std::vector<TreeNodeIndex> nNodesPerLevelReference(maxTreeLevel<I>{}, 0);
-    nNodesPerLevelReference[0] = 512;
-    nNodesPerLevelReference[1] = 64;
-    nNodesPerLevelReference[2] = 8;
-    nNodesPerLevelReference[3] = 1;
+    nNodesPerLevelReference[1] = 512;
+    nNodesPerLevelReference[2] = 64;
+    nNodesPerLevelReference[3] = 8;
+    nNodesPerLevelReference[4] = 1;
     EXPECT_EQ(nNodesPerLevel, nNodesPerLevelReference);
 }
 
