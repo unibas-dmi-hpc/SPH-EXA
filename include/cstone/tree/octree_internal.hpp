@@ -441,16 +441,16 @@ public:
         // make space for leaf nodes
         TreeNodeIndex treeSize = lastLeaf - firstLeaf;
         nNodesPerLevel_[0]     = treeSize;
-        tree_.resize(treeSize);
-        std::copy(firstLeaf, lastLeaf, tree_.data());
+        cstoneTree_.resize(treeSize);
+        std::copy(firstLeaf, lastLeaf, cstoneTree_.data());
 
-        binaryTree_.resize(nNodes(tree_));
-        createBinaryTree(tree_.data(), nNodes(tree_), binaryTree_.data());
+        binaryTree_.resize(nNodes(cstoneTree_));
+        createBinaryTree(cstoneTree_.data(), nNodes(cstoneTree_), binaryTree_.data());
 
-        std::vector<OctreeNode<I>> preTree((nNodes(tree_)-1)/7);
-        std::vector<TreeNodeIndex> preLeafParents(nNodes(tree_));
+        std::vector<OctreeNode<I>> preTree((nNodes(cstoneTree_) - 1) / 7);
+        std::vector<TreeNodeIndex> preLeafParents(nNodes(cstoneTree_));
 
-        createInternalOctreeCpu(binaryTree_.data(), nNodes(tree_), preTree.data(), preLeafParents.data());
+        createInternalOctreeCpu(binaryTree_.data(), nNodes(cstoneTree_), preTree.data(), preLeafParents.data());
 
         // re-sort internal nodes to establish a max-depth ordering
         std::vector<TreeNodeIndex> ordering(preTree.size());
@@ -468,7 +468,7 @@ public:
     //! \brief total number of nodes in the tree
     [[nodiscard]] inline TreeNodeIndex nTreeNodes() const
     {
-        return nNodes(tree_) + internalTree_.size();
+        return nNodes(cstoneTree_) + internalTree_.size();
     }
 
     /*! \brief number of nodes with given value of maxDepth
@@ -490,7 +490,7 @@ public:
     //! \brief number of leaf nodes in the tree
     [[nodiscard]] inline TreeNodeIndex nLeafNodes() const
     {
-        return nNodes(tree_);
+        return nNodes(cstoneTree_);
     }
 
     //! \brief number of internal nodes in the tree, equal to (nLeafNodes()-1) / 7
@@ -591,7 +591,7 @@ public:
             return internalTree_[node].prefix;
         } else
         {
-            return tree_[node - nInternalNodes()];
+            return cstoneTree_[node - nInternalNodes()];
         }
     }
 
@@ -603,7 +603,7 @@ public:
             return internalTree_[node].prefix + nodeRange<I>(internalTree_[node].level);
         } else
         {
-            return tree_[node - nInternalNodes() + 1];
+            return cstoneTree_[node - nInternalNodes() + 1];
         }
     }
 
@@ -618,8 +618,8 @@ public:
             return internalTree_[node].level;
         } else
         {
-            return treeLevel(tree_[node - nInternalNodes() + 1] -
-                             tree_[node - nInternalNodes()]);
+            return treeLevel(cstoneTree_[node - nInternalNodes() + 1] -
+                             cstoneTree_[node - nInternalNodes()]);
         }
     }
 
@@ -677,7 +677,7 @@ public:
 private:
 
     //! \brief cornerstone octree, just the leaves
-    std::vector<I>             tree_;
+    std::vector<I>             cstoneTree_;
 
     //! \brief indices into internalTree_ to store the parent index of each leaf
     std::vector<TreeNodeIndex> leafParents_;
@@ -691,9 +691,9 @@ private:
      */
     std::vector<BinaryNode<I>> binaryTree_;
 
-    /*! \brief stores the number of internal nodes for each of the maxTreeLevel<I>{}-1 possible values of maxDepth
+    /*! \brief stores the number of nodes for each of the maxTreeLevel<I>{} possible values of
      *
-     *  i.e.
+     *  maxDepth is the distance of the farthest leaf, i.e.
      *  nNodesPerLevel[0] --> number of leaf nodes
      *  nNodesPerLevel[1] --> number of nodes with maxDepth = 1, children: only leaves
      *  nNodesPerLevel[2] --> number of internal nodes with maxDepth = 2, children: leaves and maxDepth = 1
