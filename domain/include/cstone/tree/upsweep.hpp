@@ -1,0 +1,96 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2021 CSCS, ETH Zurich
+ *               2021 University of Basel
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/*! \file
+ * \brief  Generic octree upsweep procedure to calculate quantities for internal nodes from their children
+ *
+ * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ *
+ * Examples applications would be the calculation of particle counts for internal nodes for given leaf counts,
+ * the maximum smoothing length of any particle in the node or multipole moments.
+ */
+
+#pragma once
+
+#include "octree_internal.hpp"
+
+namespace cstone
+{
+
+/*! \brief performs an upsweep operation, calculates quantities for internal nodes, based on given leaf nodes
+ *
+ * @tparam T                       anything that can be copied
+ * @tparam I                       32- or 64-bit unsigned integer
+ * @tparam CombinationFunction     callable with signature T(T,T,T,T,T,T,T,T)
+ * @param octree[in]               the octree
+ * @param leafQuantities[in]       input array of length octree.nLeafNodes()
+ * @param internalQuantities[out]  output array of length octree.nInternalNodes()
+ * @param combinationFunction[in]
+ */
+template<class T, class I, class CombinationFunction>
+void upsweep(const Octree<I>& octree, const T* leafQuantities, T* internalQuantities, CombinationFunction combinationFunction)
+{
+    int depth = 1;
+    TreeNodeIndex internalNodeIndex = octree.nInternalNodes();
+
+    internalNodeIndex -= octree.nTreeNodes(depth);
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = internalNodeIndex; i < internalNodeIndex + octree.nTreeNodes(depth); ++i)
+    {
+        internalQuantities[i] = combinationFunction(leafQuantities[octree.childDirect(i, 0)],
+                                                    leafQuantities[octree.childDirect(i, 1)],
+                                                    leafQuantities[octree.childDirect(i, 2)],
+                                                    leafQuantities[octree.childDirect(i, 3)],
+                                                    leafQuantities[octree.childDirect(i, 4)],
+                                                    leafQuantities[octree.childDirect(i, 5)],
+                                                    leafQuantities[octree.childDirect(i, 6)],
+                                                    leafQuantities[octree.childDirect(i, 7)]);
+    }
+
+    depth++;
+
+    while (depth < maxTreeLevel<I>{} && octree.nTreeNodes(depth) > 0)
+    {
+        internalNodeIndex -= octree.nTreeNodes(depth);
+        #pragma omp parallel for schedule(static)
+        for (TreeNodeIndex i = internalNodeIndex; i < internalNodeIndex + octree.nTreeNodes(depth); ++i)
+        {
+            T a = octree.isLeafChild(i, 0) ? leafQuantities[octree.childDirect(i, 0)] : internalQuantities[octree.childDirect(i, 0)];
+            T b = octree.isLeafChild(i, 1) ? leafQuantities[octree.childDirect(i, 1)] : internalQuantities[octree.childDirect(i, 1)];
+            T c = octree.isLeafChild(i, 2) ? leafQuantities[octree.childDirect(i, 2)] : internalQuantities[octree.childDirect(i, 2)];
+            T d = octree.isLeafChild(i, 3) ? leafQuantities[octree.childDirect(i, 3)] : internalQuantities[octree.childDirect(i, 3)];
+            T e = octree.isLeafChild(i, 4) ? leafQuantities[octree.childDirect(i, 4)] : internalQuantities[octree.childDirect(i, 4)];
+            T f = octree.isLeafChild(i, 5) ? leafQuantities[octree.childDirect(i, 5)] : internalQuantities[octree.childDirect(i, 5)];
+            T g = octree.isLeafChild(i, 6) ? leafQuantities[octree.childDirect(i, 6)] : internalQuantities[octree.childDirect(i, 6)];
+            T h = octree.isLeafChild(i, 7) ? leafQuantities[octree.childDirect(i, 7)] : internalQuantities[octree.childDirect(i, 7)];
+
+            internalQuantities[i] = combinationFunction(a, b, c, d, e, f, g, h);
+        }
+
+        depth++;
+    }
+}
+
+} // namespace cstone

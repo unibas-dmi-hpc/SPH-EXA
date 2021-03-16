@@ -45,16 +45,17 @@ namespace cstone
 
 /*! \brief calculate the sortKey that sorts the input sequence
  *
- * \param[in] inBegin input sequence start 
- * \param[in] inEnd input sequence end
- * \param[out] outBegin integer sortKey output
+ * \param[in]  inBegin   input sequence start
+ * \param[in]  inEnd     input sequence end
+ * \param[out] outBegin  integer sortKey output
+ * \param[in]  compare   comparison function
  *
- * upon completion of this routine, the output sequence contains the sort keys
+ * Upon completion of this routine, the output sequence contains the sort keys
  * that will access the input sequence in a sorted manner, i.e.
- * the sequence inBegin[outBegin[k]], k=0,1,2,...,n is sorted
+ * the sequence inBegin[outBegin[k]], k=0,1,2,...,n is sorted.
  */
-template <class InputIterator, class OutputIterator>
-void sort_invert(InputIterator inBegin, InputIterator inEnd, OutputIterator outBegin)
+template <class InputIterator, class OutputIterator, class Compare>
+void sort_invert(InputIterator inBegin, InputIterator inEnd, OutputIterator outBegin, Compare compare)
 {
     using ValueType = std::decay_t<decltype(*inBegin)>;
     using Integer   = std::decay_t<decltype(*outBegin)>;
@@ -73,12 +74,19 @@ void sort_invert(InputIterator inBegin, InputIterator inEnd, OutputIterator outB
 
     // sort, comparing only the first tuple element
     std::sort(begin(keyIndexPairs), end(keyIndexPairs),
-              [](const auto& t1, const auto& t2){ return std::get<0>(t1) < std::get<0>(t2); });
+              [compare](const auto& t1, const auto& t2){ return compare(std::get<0>(t1), std::get<0>(t2)); });
 
     // extract the resulting ordering
     #pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < n; ++i)
         outBegin[i] = std::get<1>(keyIndexPairs[i]);
+}
+
+//! \brief calculate the sortKey that sorts the input sequence, default ascending order
+template <class InputIterator, class OutputIterator>
+void sort_invert(InputIterator inBegin, InputIterator inEnd, OutputIterator outBegin)
+{
+    sort_invert(inBegin, inEnd, outBegin, std::less<std::decay_t<decltype(*inBegin)>>{});
 }
 
 
