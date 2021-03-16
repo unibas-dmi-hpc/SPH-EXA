@@ -70,7 +70,7 @@ inline const T& max(const T& a, const T& b)
     return a;
 }
 
-//! \brief a simplified version of std::lower_bound that can be compiled as devide code
+//! \brief a simplified version of std::lower_bound that can be compiled as device code
 template <class ForwardIt, class T>
 CUDA_HOST_DEVICE_FUN ForwardIt lower_bound(ForwardIt first, ForwardIt last, const T& value)
 {
@@ -94,7 +94,7 @@ CUDA_HOST_DEVICE_FUN ForwardIt lower_bound(ForwardIt first, ForwardIt last, cons
     return first;
 }
 
-//! \brief a simplified version of std::upper_bound that can be compiled as devide code
+//! \brief a simplified version of std::upper_bound that can be compiled as device code
 template<class ForwardIt, class T>
 CUDA_HOST_DEVICE_FUN ForwardIt upper_bound(ForwardIt first, ForwardIt last, const T& value)
 {
