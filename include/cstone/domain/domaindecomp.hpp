@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Functions to assign a global cornerstone octree to different ranks
+/*! @file
+ * @brief Functions to assign a global cornerstone octree to different ranks
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  *
  * Any code in this file relies on a global cornerstone octree on each calling rank.
  */
@@ -45,9 +45,9 @@
 namespace cstone
 {
 
-/*! \brief Stores ranges of local particles to be sent to another rank
+/*! @brief Stores ranges of local particles to be sent to another rank
  *
- * \tparam I  32- or 64-bit signed or unsigned integer to store the indices
+ * @tparam I  32- or 64-bit signed or unsigned integer to store the indices
  *
  *  Used for SendRanges with index ranges referencing elements in e.g. x,y,z,h arrays.
  *  In this case, count() equals the sum of all range differences computed as rangeEnd() - rangeStart().
@@ -75,7 +75,7 @@ public:
 
     IndexRanges() : totalCount_(0), ranges_{} {}
 
-    //! \brief add a local index range
+    //! @brief add a local index range
     void addRange(I lower, I upper, std::size_t cnt)
     {
         assert(lower <= upper);
@@ -83,7 +83,7 @@ public:
         totalCount_ += cnt;
     }
 
-    //! \brief add a local index range, infer count from difference
+    //! @brief add a local index range, infer count from difference
     void addRange(I lower, I upper)
     {
         assert(lower <= upper);
@@ -102,10 +102,10 @@ public:
         return ranges_[i].end;
     }
 
-    //! \brief the number of particles in range i
+    //! @brief the number of particles in range i
     [[nodiscard]] const std::size_t& count(int i) const { return ranges_[i].count; }
 
-    //! \brief the sum of number of particles in all ranges or total send count
+    //! @brief the sum of number of particles in all ranges or total send count
     [[nodiscard]] const std::size_t& totalCount() const { return totalCount_; }
 
     [[nodiscard]] std::size_t nRanges() const { return ranges_.size(); }
@@ -121,7 +121,7 @@ private:
 };
 
 
-/*! \brief a custom type for type safety in function calls
+/*! @brief a custom type for type safety in function calls
  *
  * The resulting type behaves like an int, except that explicit
  * conversion is required in function calls. Used e.g. in
@@ -131,9 +131,9 @@ private:
  */
 using Rank = StrongType<int, struct RankTag>;
 
-/*! \brief stores which parts of the SFC belong to which rank, on a per-rank basis
+/*! @brief stores which parts of the SFC belong to which rank, on a per-rank basis
  *
- * \tparam I  32- or 64-bit unsigned integer
+ * @tparam I  32- or 64-bit unsigned integer
  *
  * The storage layout allows fast look-up of the Morton code ranges that a given rank
  * was assigned.
@@ -149,7 +149,7 @@ public:
 
     explicit SpaceCurveAssignment(int nRanks) : rankAssignment_(nRanks) {}
 
-    //! \brief add an index/code range to rank \a rank
+    //! @brief add an index/code range to rank @p rank
     void addRange(Rank rank, I lower, I upper, std::size_t cnt)
     {
         rankAssignment_[rank].addRange(lower, upper, cnt);
@@ -161,13 +161,13 @@ public:
 
     [[nodiscard]] I rangeEnd(int rank, int rangeIdx) const { return rankAssignment_[rank].rangeEnd(rangeIdx); }
 
-    //! \brief the number of particles in range rangeIdx of rank \a rank
+    //! @brief the number of particles in range rangeIdx of rank @p rank
     [[nodiscard]] const std::size_t& count(int rank, int rangeIdx) const { return rankAssignment_[rank].count(rangeIdx); }
 
-    //! \brief the sum of number of particles in all ranges, i.e. total number of assigned particles per range
+    //! @brief the sum of number of particles in all ranges, i.e. total number of assigned particles per range
     [[nodiscard]] const std::size_t& totalCount(int rank) const { return rankAssignment_[rank].totalCount(); }
 
-    //! \brief number of ranges per rank
+    //! @brief number of ranges per rank
     [[nodiscard]] std::size_t nRanges(int rank) const { return rankAssignment_[rank].nRanges(); }
 
 private:
@@ -180,9 +180,9 @@ private:
 };
 
 
-/*! \brief Stores the SFC assignment to ranks on a per-code basis
+/*! @brief Stores the SFC assignment to ranks on a per-code basis
  *
- * \tparam I  32- or 64-bit unsigned integer
+ * @tparam I  32- or 64-bit unsigned integer
  *
  * The stored information is the same as the SpaceCurveAssignment, but
  * in a different layout that allows a fast lookup of the rank that a given
@@ -214,7 +214,7 @@ public:
         reorder(order, ranks_);
     }
 
-    //! \brief returns the rank that the argument code is assigned to
+    //! @brief returns the rank that the argument code is assigned to
     int findRank(I code)
     {
         int index = std::upper_bound(begin(rangeCodeStarts_), end(rangeCodeStarts_), code)
@@ -229,13 +229,13 @@ private:
 };
 
 
-/*! \brief assign the global tree/SFC to nSplits ranks, assigning to each rank only a single Morton code range
+/*! @brief assign the global tree/SFC to nSplits ranks, assigning to each rank only a single Morton code range
  *
- * \tparam I                 32- or 64-bit integer
- * \param globalTree         the octree
- * \param globalCounts       counts per leaf
- * \param nSplits            divide the global tree into nSplits pieces, sensible choice e.g.: nSplits == nRanks
- * \return                   a vector with nSplit elements, each element is a vector of SfcRanges of Morton codes
+ * @tparam I                 32- or 64-bit integer
+ * @param globalTree         the octree
+ * @param globalCounts       counts per leaf
+ * @param nSplits            divide the global tree into nSplits pieces, sensible choice e.g.: nSplits == nRanks
+ * @return                   a vector with nSplit elements, each element is a vector of SfcRanges of Morton codes
  *
  * This function acts on global data. All calling ranks should call this function with identical arguments.
  * Therefore each rank will compute the same SpaceCurveAssignment and each rank will thus know the ranges that
@@ -297,18 +297,18 @@ SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, co
     return ret;
 }
 
-//! \brief stores one or multiple index ranges of local particles to send out to another rank
+//! @brief stores one or multiple index ranges of local particles to send out to another rank
 using SendManifest = IndexRanges<unsigned>; // works if there are < 2^32 local particles
-//! \brief SendList will contain one manifest per rank
+//! @brief SendList will contain one manifest per rank
 using SendList     = std::vector<SendManifest>;
 
-/*! \brief Based on global assignment, create the list of local particle index ranges to send to each rank
+/*! @brief Based on global assignment, create the list of local particle index ranges to send to each rank
  *
- * \tparam I                 32- or 64-bit integer
- * \param assignment         global space curve assignment to ranks
- * \param codesStart         sorted list of morton codes of local particles present on this rank
- * \param codesEnd
- * \return                   for each rank, a list of index ranges into \a mortonCodes to send
+ * @tparam I                 32- or 64-bit integer
+ * @param assignment         global space curve assignment to ranks
+ * @param codesStart         sorted list of morton codes of local particles present on this rank
+ * @param codesEnd
+ * @return                   for each rank, a list of index ranges into @p mortonCodes to send
  *
  * Converts the global assignment Morton code ranges into particle indices with binary search
  */
@@ -351,14 +351,14 @@ void extractRange(const SendManifest& manifest, const T* source, const IndexType
             destination[idx++] = source[ordering[i]];
 }
 
-/*! \brief create a buffer of elements to send by extracting elements from the source array
+/*! @brief create a buffer of elements to send by extracting elements from the source array
  *
- * \tparam T         float or double
- * \param manifest   contains the index ranges of \a source to put into the send buffer
- * \param source     e.g. x,y,z,h arrays
- * \param ordering   the space curve ordering to handle unsorted source arrays
- *                   if source is space-curve-sorted, \a ordering is the trivial 0,1,...,n sequence
- * \return           the send buffer
+ * @tparam T         float or double
+ * @param manifest   contains the index ranges of @p source to put into the send buffer
+ * @param source     e.g. x,y,z,h arrays
+ * @param ordering   the space curve ordering to handle unsorted source arrays
+ *                   if source is space-curve-sorted, @p ordering is the trivial 0,1,...,n sequence
+ * @return           the send buffer
  */
 template<class T, class IndexType>
 std::vector<T> createSendBuffer(const SendManifest& manifest, const T* source,

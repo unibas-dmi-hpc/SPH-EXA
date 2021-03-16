@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Binary radix tree creation tests
+/*! @file
+ * @brief Binary radix tree creation tests
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include "gtest/gtest.h"
@@ -35,12 +35,12 @@
 #include "cstone/tree/octree.hpp"
 #include "cstone/tree/octree_util.hpp"
 
-/*! \brief \file tests for binary tree generation
+/*! @brief @file tests for binary tree generation
  */
 
 using namespace cstone;
 
-//! \brief check binary node prefixes
+//! @brief check binary node prefixes
 template <class I>
 void internal4x4x4PrefixTest()
 {

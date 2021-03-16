@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Testing of the naive collision detection implementation
+/*! @file
+ * @brief Testing of the naive collision detection implementation
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include "gtest/gtest.h"
@@ -36,7 +36,7 @@
 
 using namespace cstone;
 
-/*! \brief test the naive to-all collision detection function
+/*! @brief test the naive to-all collision detection function
  *
  * @tparam I  32- or 64-bit unsigned integer
  */
@@ -80,7 +80,7 @@ TEST(Collisions, collide2all)
     collide2all<uint64_t>();
 }
 
-/*! \brief test the naive all-to-all collision detection function
+/*! @brief test the naive all-to-all collision detection function
  *
  * @tparam I  32- or 64-bit unsigned integer
  */
@@ -130,7 +130,7 @@ TEST(Collisions, collideAll2all)
     collideAll2all<uint64_t, double>();
 }
 
-/*! \brief test the naive all-to-all collision detection function, PBC-X case
+/*! @brief test the naive all-to-all collision detection function, PBC-X case
  *
  * @tparam I  32- or 64-bit unsigned integer
  */
@@ -185,7 +185,7 @@ TEST(Collisions, collideAll2allPbcX)
 }
 
 
-/*! \brief test the naive all-to-all collision detection function, PBC-XYZ case
+/*! @brief test the naive all-to-all collision detection function, PBC-XYZ case
  *
  * @tparam I  32- or 64-bit unsigned integer
  */

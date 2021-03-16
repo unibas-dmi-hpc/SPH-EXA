@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief  Tests a gather (reordering) operation on arrays
+/*! @file
+ * @brief  Tests a gather (reordering) operation on arrays
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include <algorithm>

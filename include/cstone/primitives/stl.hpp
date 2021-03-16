@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief  Functionality that exist in std::, but cannot be used in device code
+/*! @file
+ * @brief  Functionality that exist in std::, but cannot be used in device code
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -50,7 +50,7 @@ struct integral_constant {
     { return value; } // NOLINT
 };
 
-//! \brief This does what you think it does
+//! @brief This does what you think it does
 template<class T>
 CUDA_HOST_DEVICE_FUN
 inline const T& min(const T& a, const T& b)
@@ -60,7 +60,7 @@ inline const T& min(const T& a, const T& b)
   return a;
 }
 
-//! \brief This does what you think it does
+//! @brief This does what you think it does
 template<class T>
 CUDA_HOST_DEVICE_FUN
 inline const T& max(const T& a, const T& b)
@@ -70,7 +70,7 @@ inline const T& max(const T& a, const T& b)
     return a;
 }
 
-//! \brief a simplified version of std::lower_bound that can be compiled as device code
+//! @brief a simplified version of std::lower_bound that can be compiled as device code
 template <class ForwardIt, class T>
 CUDA_HOST_DEVICE_FUN ForwardIt lower_bound(ForwardIt first, ForwardIt last, const T& value)
 {
@@ -94,7 +94,7 @@ CUDA_HOST_DEVICE_FUN ForwardIt lower_bound(ForwardIt first, ForwardIt last, cons
     return first;
 }
 
-//! \brief a simplified version of std::upper_bound that can be compiled as device code
+//! @brief a simplified version of std::upper_bound that can be compiled as device code
 template<class ForwardIt, class T>
 CUDA_HOST_DEVICE_FUN ForwardIt upper_bound(ForwardIt first, ForwardIt last, const T& value)
 {
@@ -118,7 +118,7 @@ CUDA_HOST_DEVICE_FUN ForwardIt upper_bound(ForwardIt first, ForwardIt last, cons
     return first;
 }
 
-//! \brief this can be removed once most compilers support it as part of STL
+//! @brief this can be removed once most compilers support it as part of STL
 template<class InputIterator, class OutputIterator, class T>
 void exclusive_scan(InputIterator in1, InputIterator in2, OutputIterator out, T init)
 {

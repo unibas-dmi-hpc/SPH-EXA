@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief utility functions for cornerstone octrees
+/*! @file
+ * @brief utility functions for cornerstone octrees
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  *
  * The functionality in this file is primarily used to test the cornerstone
  * octree implementation, but might be useful in production code as well.
@@ -43,12 +43,12 @@
 namespace cstone
 {
 
-/*! \brief check whether the cornerstone octree format invariants are fulfilled
+/*! @brief check whether the cornerstone octree format invariants are fulfilled
  *
- * \tparam I           32- or 64-bit unsigned integer type
- * \param tree         octree nodes given as Morton codes of length @a nNodes+1
- * \param nNodes       number of nodes
- * \return             true if invariants ar satisfied, false otherwise
+ * @tparam I           32- or 64-bit unsigned integer type
+ * @param tree         octree nodes given as Morton codes of length @a nNodes+1
+ * @param nNodes       number of nodes
+ * @return             true if invariants ar satisfied, false otherwise
  *
  * The invariants are:
  *      - tree contains code 0 and the maximum code 2^30 or 2^61
@@ -82,7 +82,7 @@ bool checkOctreeInvariants(const I* tree, int nNodes)
     return true;
 }
 
-//! \brief returns an octree with just the root node
+//! @brief returns an octree with just the root node
 template<class I>
 std::vector<I> makeRootNodeTree()
 {
@@ -94,7 +94,7 @@ std::vector<I> makeRootNodeTree()
     return tree;
 }
 
-//! \brief returns a uniform grid of SFC codes
+//! @brief returns a uniform grid of SFC codes
 template<class I>
 std::vector<I> makeNLevelGrid(int level)
 {
@@ -113,7 +113,7 @@ std::vector<I> makeNLevelGrid(int level)
     return codes;
 }
 
-//! \brief returns a uniform cornerstone octree with 8^ceil(log8(nBuckets)) nodes
+//! @brief returns a uniform cornerstone octree with 8^ceil(log8(nBuckets)) nodes
 template<class I>
 std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
 {
@@ -126,17 +126,17 @@ std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
 }
 
 
-/*! \brief transfer a series of hierarchical octree indices into a morton code
+/*! @brief transfer a series of hierarchical octree indices into a morton code
  *
- * \tparam I       32- or 64-bit unsigned integer
- * \param indices  indices[0] contains the octree index 0-7 for the top-level,
+ * @tparam I       32- or 64-bit unsigned integer
+ * @param indices  indices[0] contains the octree index 0-7 for the top-level,
  *                 indices[1] refers to the first subdivision, etc
  *                 a 32-bit integer can resolve up to 10 layers, while
  *                 a 64-bit integer can resolve 21 layers
  *
  *                 Note: all indices must be in the range [0-7]!
  *
- * \return         the morton code
+ * @return         the morton code
  */
 template<class I>
 inline I codeFromIndices(std::array<unsigned char, maxTreeLevel<uint64_t>{}> indices)
@@ -154,14 +154,14 @@ inline I codeFromIndices(std::array<unsigned char, maxTreeLevel<uint64_t>{}> ind
     return ret;
 }
 
-//! \brief generate example cornerstone octrees for testing
+//! @brief generate example cornerstone octrees for testing
 template<class I>
 class OctreeMaker
 {
 public:
     OctreeMaker() : tree(makeRootNodeTree<I>()) {}
 
-    /*! \brief introduce all 8 children of the node specified as argument
+    /*! @brief introduce all 8 children of the node specified as argument
      *
      * @param idx    node definition given as a series of indices in [0-7],
      *               as specified by the function codeFromIndices.
@@ -193,7 +193,7 @@ public:
         return *this;
     }
 
-    /*! \brief convenience alias for the other divide
+    /*! @brief convenience alias for the other divide
      *
      * Gets rid of the explicit level argument which is not needed if the number
      * of levels is known at compile time.
@@ -204,7 +204,7 @@ public:
         return divide({args...}, sizeof...(Args));
     }
 
-    //! \brief return the finished tree, fulfilling the necessary invariants
+    //! @brief return the finished tree, fulfilling the necessary invariants
     std::vector<I> makeTree()
     {
         std::sort(begin(tree), end(tree)) ;

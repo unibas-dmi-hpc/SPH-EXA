@@ -23,8 +23,8 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief  Exposes gather functionality to reorder arrays by a map
+/*! @file
+ * @brief  Exposes gather functionality to reorder arrays by a map
  *
  * \author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -91,10 +91,10 @@ public:
 private:
     std::size_t allocatedSize_{0} ;
 
-    //! \brief reorder map
+    //! @brief reorder map
     LocalIndex* d_ordering_;
 
-    //! \brief device buffers
+    //! @brief device buffers
     T* d_buffer_;
 };
 

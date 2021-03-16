@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief binary tree traversal implementation
+/*! @file
+ * @brief binary tree traversal implementation
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -37,29 +37,29 @@
 namespace cstone
 {
 
-//! \brief stores indices of colliding octree leaf nodes
+//! @brief stores indices of colliding octree leaf nodes
 class CollisionList
 {
 public:
-    //! \brief add an index to the list of colliding leaf tree nodes
+    //! @brief add an index to the list of colliding leaf tree nodes
     void add(int i)
     {
         list_[n_] = i;
         n_ = (n_ < collisionMax-1) ? n_+1 : n_;
     }
 
-    //! \brief access collision list as a range
+    //! @brief access collision list as a range
     [[nodiscard]] const int* begin() const { return list_; }
     [[nodiscard]] const int* end()   const { return list_ + n_; }
 
-    //! \brief access collision list elements
+    //! @brief access collision list elements
     int operator[](int i) const
     {
         assert(i < collisionMax);
         return list_[i];
     }
 
-    /*! \brief returns number of collisions
+    /*! @brief returns number of collisions
      *
      * Can (should) also be used to check whether the internal storage
      * was exhausted during collision detection.
@@ -98,7 +98,7 @@ inline bool leafOverlap(int leafIndex, const I* leafNodes,
     return notExcluded && overlap(leafCode, prefixNBits, collisionBox);
 }
 
-/*! \brief find all collisions between a leaf node enlarged by (dx,dy,dz) and the rest of the tree
+/*! @brief find all collisions between a leaf node enlarged by (dx,dy,dz) and the rest of the tree
  *
  * @tparam I                  32- or 64-bit unsigned integer
  * @param[in]  internalRoot   root of the internal binary radix tree

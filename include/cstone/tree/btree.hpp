@@ -23,9 +23,9 @@
  * SOFTWARE.
  */
 
-/*! \brief \file parallel binary radix tree construction implementation
+/*! @brief @file parallel binary radix tree construction implementation
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  *
  * Algorithm published in https://dl.acm.org/doi/10.5555/2383795.2383801
  * and further illustrated at
@@ -68,7 +68,7 @@ namespace cstone {
 
 using TreeNodeIndex = int;
 
-/*! \brief binary radix tree node
+/*! @brief binary radix tree node
  *
  * @tparam I 32- or 64 bit unsigned integer
  */
@@ -77,7 +77,7 @@ struct BinaryNode
 {
     enum ChildType{ left = 0, right = 1 };
 
-    /*! \brief pointer to the left and right children nodes
+    /*! @brief pointer to the left and right children nodes
      *
      * The left child adds a 0-bit to the prefix, while
      * the right child adds a 1-bit to the prefix.
@@ -87,16 +87,16 @@ struct BinaryNode
      */
     BinaryNode* child[2];
 
-    /*! \brief the Morton code prefix
+    /*! @brief the Morton code prefix
      *
      * Shared among all the node's children. Only the first prefixLength bits are relevant.
      */
     I   prefix;
 
-    //! \brief number of bits in prefix to interpret
+    //! @brief number of bits in prefix to interpret
     int prefixLength;
 
-    /*! \brief Indices of leaf codes
+    /*! @brief Indices of leaf codes
      *
      * If the left/right child is a leaf code of the tree used to construct the internal binary tree,
      * this integer stores the index (e.g. the global octree), otherwise it will be set to -1
@@ -106,18 +106,16 @@ struct BinaryNode
 };
 
 
-/*! \brief find position of first differing bit
+/*! @brief find position of first differing bit
  *
- * @tparam I                 32 or 64 bit unsigned integer
- * @param sortedMortonCodes
- * @param first              first range index
- * @param last               last rang index
- * @return                   position of morton
+ * @tparam I                     32 or 64 bit unsigned integer
+ * @param[in] sortedMortonCodes  sorted morton Codes
+ * @param[in] first              first range index
+ * @param[in] last               last rang index
+ * @return                       position of morton
  */
 template<class I>
-int findSplit(I*  sortedMortonCodes,
-              int first,
-              int last)
+int findSplit(const I* sortedMortonCodes, int first, int last)
 {
     // Identical Morton codes => split the range in the middle.
     I firstCode = sortedMortonCodes[first];
@@ -153,14 +151,14 @@ int findSplit(I*  sortedMortonCodes,
     return split;
 }
 
-/*! \brief construct the internal binary tree node with index idx
+/*! @brief construct the internal binary tree node with index idx
  *
  * @tparam I                  32- or 64-bit unsigned integer
- * @param codes[in]           sorted Morton code sequence without duplicates
- * @param nCodes[in]          number of elements in \a codes
- * @param internalNodes[out]  output internal binary radix tree, size is nCodes - 1
- * @param firstIndex          element of \a internalNodes to construct,
- *                            permissible range is 0 <= firstIndex < nCodes -1
+ * @param[in]  codes          sorted Morton code sequence without duplicates
+ * @param[in]  nCodes         number of elements in @p codes
+ * @param[out] internalNodes  output internal binary radix tree, size is nCodes - 1
+ * @param[in]  firstIndex     element of @p internalNodes to construct,
+ *                            permissible range is 0 <= firstIndex < nCodes-1
  */
 template<class I>
 void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNodes, int firstIndex)
@@ -235,25 +233,25 @@ void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNo
 }
 
 
-/*! \brief create a binary radix tree from a cornerstone octree
+/*! @brief create a binary radix tree from a cornerstone octree
  *
  * @tparam I                  32- or 64-bit unsigned integer
- * @param tree[in]            Sorted Morton codes representing the leaves of the (global) octree
+ * @param[in]  tree           Sorted Morton codes representing the leaves of the (global) octree
  *                            or the locations of objects in 3D.
  *                            Cornerstone invariants are not a requirement for this function,
  *                            only that the codes be sorted and not contain any duplicates.
- * @param nNodes[in]          nNodes == length(tree) - 1
- *                            If \a tree is in cornerstone format, nNodes is the number of leaf nodes.
- * @param binaryTree[out]     output binary tree, length == \a nNodes
+ * @param[in]  nNodes         nNodes == length(tree) - 1
+ *                            If @p tree is in cornerstone format, nNodes is the number of leaf nodes.
+ * @param[out] binaryTree     output binary tree, length == @p nNodes
  * @return                    the internal part of the input tree constructed as binary nodes
  *
- * Note that if the input \a tree is a cornerstone octree, the root node with index
+ * Note that if the input @p tree is a cornerstone octree, the root node with index
  * 0 in the returned binary tree only maps binary nodes 0 <= ... < tree.size() -1.
  * Due to the last element of tree being the maximum Morton code 2^(30 or 61),
  * the last node/element of the returned binary tree will be set up as a useless
  * second root node that is not reachable from the root node with index 0.
- * So if \a tree is a cornerstone octree with an array size of N, we can say that
- *      - \a tree has N-1 octree leaf nodes
+ * So if @p tree is a cornerstone octree with an array size of N, we can say that
+ *      - @p tree has N-1 octree leaf nodes
  *      - the output is a binary tree of array size N-1 with 0...N-2 as usable elements
  *
  * One could of course prevent the generation of the last binary node with index N-1,

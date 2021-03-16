@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Space filling curve octree assignment to ranks tests
+/*! @file
+ * @brief Space filling curve octree assignment to ranks tests
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include <algorithm>
@@ -100,7 +100,7 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
     }
 }
 
-//! \brief test that the SfcLookupKey can lookup the rank for a given code
+//! @brief test that the SfcLookupKey can lookup the rank for a given code
 TEST(DomainDecomposition, SfcLookupMinimal)
 {
     using I = unsigned;
@@ -148,7 +148,7 @@ TEST(DomainDecomposition, SfcLookupGrid)
 }
 
 
-/*! \brief test SendList creation from a SFC assignment
+/*! @brief test SendList creation from a SFC assignment
  *
  * This test creates an array with Morton codes and an
  * SFC assignment with Morton code ranges.
@@ -188,7 +188,7 @@ TEST(DomainDecomposition, createSendList)
     createSendList<uint64_t>();
 }
 
-/*! \brief This test integrates octree generation, SFC assignment and SendList creation
+/*! @brief This test integrates octree generation, SFC assignment and SendList creation
  *
  * Test procedure:
  *
@@ -244,7 +244,7 @@ TEST(DomainDecomposition, assignSendIntegration)
     assignSendRandomData<uint64_t>();
 }
 
-/*! \brief Test that createSendBuffer can create the correct buffer from a source array
+/*! @brief Test that createSendBuffer can create the correct buffer from a source array
  *
  * @tparam I 32- or 64-bit unsigned integer
  *

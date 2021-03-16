@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Test morton code implementation
+/*! @file
+ * @brief Test morton code implementation
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include "gtest/gtest.h"
@@ -39,7 +39,7 @@
 using namespace cstone;
 
 
-//! \brief test that computeNodeCounts correctly counts the number of codes for each node
+//! @brief test that computeNodeCounts correctly counts the number of codes for each node
 template<class CodeType>
 void checkCountTreeNodes()
 {
@@ -97,7 +97,7 @@ TEST(CornerstoneOctree, rebalanceDecision)
     rebalanceDecision<uint64_t, unsigned>();
 }
 
-//! \brief check that nodes can be fused at the start of the tree
+//! @brief check that nodes can be fused at the start of the tree
 template<class CodeType>
 void rebalanceShrinkStart()
 {
@@ -127,7 +127,7 @@ TEST(CornerstoneOctree, rebalanceShrinkStart64)
     rebalanceShrinkStart<uint64_t>();
 }
 
-//! \brief check that nodes can be fused in the middle of the tree
+//! @brief check that nodes can be fused in the middle of the tree
 template<class CodeType>
 void rebalanceShrinkMid()
 {
@@ -157,7 +157,7 @@ TEST(CornerstoneOctree, rebalanceShrinkMid64)
     rebalanceShrinkMid<uint64_t>();
 }
 
-//! \brief check that nodes can be fused at the end of the tree
+//! @brief check that nodes can be fused at the end of the tree
 template<class CodeType>
 void rebalanceShrinkEnd()
 {
@@ -188,7 +188,7 @@ TEST(CornerstoneOctree, rebalanceShrinkEnd64)
     rebalanceShrinkEnd<uint64_t>();
 }
 
-//! \brief test invariance of a single root node under rebalancing if count < bucketsize
+//! @brief test invariance of a single root node under rebalancing if count < bucketsize
 template<class I>
 void rebalanceRootInvariant()
 {
@@ -215,7 +215,7 @@ TEST(CornerstoneOctree, rebalanceRootInvariant64)
     rebalanceRootInvariant<uint64_t>();
 }
 
-//! \brief test splitting of a single root node
+//! @brief test splitting of a single root node
 template<class I>
 void rebalanceRootSplit()
 {
@@ -244,7 +244,7 @@ TEST(CornerstoneOctree, rebalanceRootSplit64)
     rebalanceRootSplit<uint64_t>();
 }
 
-//! \brief test node splitting and fusion simultaneously
+//! @brief test node splitting and fusion simultaneously
 template<class CodeType>
 void rebalanceSplitShrink()
 {
@@ -278,7 +278,7 @@ TEST(CornerstoneOctree, rebalanceSplitShrink64)
     rebalanceSplitShrink<uint64_t>();
 }
 
-/*! \brief test behavior of a maximum-depth tree under rebalancing
+/*! @brief test behavior of a maximum-depth tree under rebalancing
  *
  *  Node 0 is at the lowest octree level (10 or 21) and its particle
  *  count is bigger than the bucket size. This test verifies that

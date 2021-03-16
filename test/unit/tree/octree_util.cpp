@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief octree utility tests
+/*! @file
+ * @brief octree utility tests
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  *
  * This file implements tests for OctreeMaker.
  * OctreeMaker can be used to generate octrees in cornerstone
@@ -41,7 +41,7 @@
 
 using namespace cstone;
 
-//! \brief detect missing zero node
+//! @brief detect missing zero node
 template<class CodeType>
 void invariantHead()
 {
@@ -60,7 +60,7 @@ void invariantHead()
     EXPECT_FALSE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 }
 
-//! \brief detect missing end node
+//! @brief detect missing end node
 template<class CodeType>
 void invariantTail()
 {
@@ -79,7 +79,7 @@ void invariantTail()
     EXPECT_FALSE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 }
 
-//! \brief detect missing siblings
+//! @brief detect missing siblings
 template<class CodeType>
 void invariantSiblings()
 {
@@ -148,7 +148,7 @@ TEST(CornerstoneUtil, codeFromIndices)
     codeFromIndices<uint64_t>();
 }
 
-//! \brief test OctreeMaker node division
+//! @brief test OctreeMaker node division
 template<class I>
 void octreeMakerDivide()
 {
@@ -191,7 +191,7 @@ TEST(CornerstoneUtil, octreeMakerDivide64)
 }
 
 
-//! \brief test OctreeMaker creation of a maximum level tree
+//! @brief test OctreeMaker creation of a maximum level tree
 template<class I>
 void octreeMakerMaxLevel()
 {

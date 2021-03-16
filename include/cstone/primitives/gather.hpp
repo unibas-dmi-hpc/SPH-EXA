@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Functionality for calculating for performing gather operations on the CPU
+/*! @file
+ * @brief Functionality for calculating for performing gather operations on the CPU
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 
@@ -43,12 +43,12 @@
 namespace cstone
 {
 
-/*! \brief sort values according to a key
+/*! @brief sort values according to a key
  *
- * \param[inout] keyBegin    key sequence start
- * \param[inout] keyEnd      key sequence end
- * \param[inout] valueBegin  values
- * \param[in]    compare     comparison function
+ * @param[inout] keyBegin    key sequence start
+ * @param[inout] keyEnd      key sequence end
+ * @param[inout] valueBegin  values
+ * @param[in]    compare     comparison function
  *
  * Upon completion of this routine, the key sequence will be sorted and values
  * will be rearranged to reflect the key ordering
@@ -79,7 +79,7 @@ void sort_by_key(InoutIterator keyBegin, InoutIterator keyEnd, OutputIterator va
     }
 }
 
-//! \brief calculate the sortKey that sorts the input sequence, default ascending order
+//! @brief calculate the sortKey that sorts the input sequence, default ascending order
 template <class InoutIterator, class OutputIterator>
 void sort_by_key(InoutIterator inBegin, InoutIterator inEnd, OutputIterator outBegin)
 {
@@ -87,12 +87,12 @@ void sort_by_key(InoutIterator inBegin, InoutIterator inEnd, OutputIterator outB
 }
 
 
-/*! \brief reorder the input array according to the specified ordering
+/*! @brief reorder the input array according to the specified ordering
  *
- * \tparam I          integer type
- * \tparam ValueType  float or double
- * \param ordering    an ordering
- * \param array       an array, size >= ordering.size(), particles past ordering.size()
+ * @tparam I          integer type
+ * @tparam ValueType  float or double
+ * @param ordering    an ordering
+ * @param array       an array, size >= ordering.size(), particles past ordering.size()
  *                    are copied element by element
  */
 template<class I, class ValueType>
@@ -114,14 +114,14 @@ void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array)
     swap(tmp, array);
 }
 
-/*! \brief reorder the input array according to the specified ordering
+/*! @brief reorder the input array according to the specified ordering
  *
- * \tparam I          integer type
- * \tparam ValueType  float or double
- * \param ordering    an ordering, all indices from 0 to ordering.size() are accessed
- * \param array       an array, indices offset to offset + ordering.size() are reordered.
+ * @tparam I          integer type
+ * @tparam ValueType  float or double
+ * @param ordering    an ordering, all indices from 0 to ordering.size() are accessed
+ * @param array       an array, indices offset to offset + ordering.size() are reordered.
  *                    other elements are copied element by element
- * \param offset      access array with an offset
+ * @param offset      access array with an offset
  */
 template<class I, class ValueType>
 void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array, int offset)
@@ -152,12 +152,12 @@ void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array, int 
 }
 
 
-/*! \brief reorder the input array according to the specified ordering, no reallocation
+/*! @brief reorder the input array according to the specified ordering, no reallocation
  *
- * \tparam LocalIndex    integer type
- * \tparam ValueType     float or double
- * \param ordering       an ordering
- * \param array          an array, size >= ordering.size()
+ * @tparam LocalIndex    integer type
+ * @tparam ValueType     float or double
+ * @param ordering       an ordering
+ * @param array          an array, size >= ordering.size()
  */
 template<class LocalIndex, class ValueType>
 void reorderInPlace(const std::vector<LocalIndex>& ordering, ValueType* array)
@@ -175,14 +175,14 @@ void reorderInPlace(const std::vector<LocalIndex>& ordering, ValueType* array)
     }
 }
 
-//! \brief This class conforms to the same interface as the device version to allow abstraction
+//! @brief This class conforms to the same interface as the device version to allow abstraction
 template<class ValueType, class CodeType, class IndexType>
 class CpuGather
 {
 public:
     CpuGather() = default;
 
-    /*! \brief upload the new reorder map to the device and reallocates buffers if necessary
+    /*! @brief upload the new reorder map to the device and reallocates buffers if necessary
      *
      * If the sequence [map_first:map_last] does not contain each element [0:map_last-map_first]
      * exactly once, the behavior is undefined.
@@ -199,10 +199,10 @@ public:
         std::copy(ordering_.data(), ordering_.data() + mapSize_, map_first);
     }
 
-    /*! \brief sort given Morton codes on the device and determine reorder map based on sort order
+    /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
      *
-     * \param[inout] codes_first   pointer to first Morton code
-     * \param[inout] codes_last    pointer to last Morton code
+     * @param[inout] codes_first   pointer to first Morton code
+     * @param[inout] codes_last    pointer to last Morton code
      *
      * Precondition:
      *   - [codes_first:codes_last] is a continues sequence of accessible elements of size N
@@ -226,9 +226,9 @@ public:
         sort_by_key(codes_first, codes_last, begin(ordering_));
     }
 
-    /*! \brief reorder the array \a values according to the reorder map provided previously
+    /*! @brief reorder the array @p values according to the reorder map provided previously
      *
-     * \a values must have at least as many elements as the reorder map provided in the last call
+     * @p values must have at least as many elements as the reorder map provided in the last call
      * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
      */
     void operator()(ValueType* values)

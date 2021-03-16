@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Utility functions for determining the layout of particle buffers on a given rank
+/*! @file
+ * @brief Utility functions for determining the layout of particle buffers on a given rank
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  *
  * Each rank will be assigned a part of the SFC, equating to one or multiple ranges of
  * node indices of the global cornerstone octree. In a addition to the assigned nodes,
@@ -55,13 +55,13 @@
 namespace cstone
 {
 
-/*! \brief  Finds the ranges of node indices of the tree that are assigned to a given rank
+/*! @brief  Finds the ranges of node indices of the tree that are assigned to a given rank
  *
  * @tparam I           32- or 64-bit unsigned integer
  * @param tree         global cornerstone octree
  * @param assignment   assignment of Morton code ranges to ranks
  * @param rank         extract rank's part from assignment
- * @return             ranges of node indices in \a tree that belong to rank \a rank
+ * @return             ranges of node indices in @p tree that belong to rank @p rank
  */
 template<class I>
 static std::vector<int> computeLocalNodeRanges(const std::vector<I>& tree,
@@ -84,7 +84,7 @@ static std::vector<int> computeLocalNodeRanges(const std::vector<I>& tree,
     return ret;
 }
 
-//! \brief create a sorted list of nodes from the hierarchical per rank node list
+//! @brief create a sorted list of nodes from the hierarchical per rank node list
 static std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& groupedNodes)
 {
     int nNodes = 0;
@@ -102,17 +102,17 @@ static std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& gro
     return nodeList;
 }
 
-/*! \brief computes the array layout for particle buffers of the executing rank
+/*! @brief computes the array layout for particle buffers of the executing rank
  *
- * @param localNodeRanges    Ranges of node indices, assigned to executing rank
- * @param haloNodes          List of halo node indices without duplicates.
- *                           From the perspective of the
- *                           executing rank, these are incoming halo nodes.
- * @param globalNodeCounts   Particle count per node in the global octree
- * @param presentNodes[out]  Upon return, will contain a sorted list of global node indices
- *                           present on the executing rank
- * @param offsets[out]       Will contain an offset index for each node in \a presentNodes,
- *                           indicating its position in the particle x,y,z,... buffers
+ * @param[in]  localNodeRanges    Ranges of node indices, assigned to executing rank
+ * @param[in]  haloNodes          List of halo node indices without duplicates.
+ *                                From the perspective of the
+ *                                executing rank, these are incoming halo nodes.
+ * @param[in]  globalNodeCounts   Particle count per node in the global octree
+ * @param[out] presentNodes       Upon return, will contain a sorted list of global node indices
+ *                                present on the executing rank
+ * @param[out] offsets            Will contain an offset index for each node in @p presentNodes,
+ *                                indicating its position in the particle x,y,z,... buffers
  */
 template<class IndexType>
 static void computeLayoutOffsets(const std::vector<int>& localNodeRanges,
@@ -159,11 +159,11 @@ static void computeLayoutOffsets(const std::vector<int>& localNodeRanges,
 }
 
 
-/*! \brief translate global node indices involved in halo exchange to array ranges
+/*! @brief translate global node indices involved in halo exchange to array ranges
  *
  * @param outgoingHaloNodes   For each rank, a list of global node indices to send or receive.
  *                            Each node referenced in these lists must be contained in
- *                            \a presentNodes.
+ *                            @p presentNodes.
  * @param presentNodes        Sorted unique list of global node indices present on the
  *                            executing rank
  * @param nodeOffsets         nodeOffset[i] stores the location of the node presentNodes[i]

@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Domain tests with n-ranks
+/*! @file
+ * @brief Domain tests with n-ranks
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  *
  * Each rank creates identical random gaussian distributed particles.
  * Then each ranks grabs 1/n-th of those particles and uses them
@@ -48,7 +48,7 @@
 
 using namespace cstone;
 
-//! \brief simple N^2 all-to-all neighbor search
+//! @brief simple N^2 all-to-all neighbor search
 template<class T>
 static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, const T* h, int n,
                                int *neighbors, int *neighborsCount, int ngmax)

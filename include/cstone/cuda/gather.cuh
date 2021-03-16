@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief  Exposes gather functionality to reorder arrays with a map
+/*! @file
+ * @brief  Exposes gather functionality to reorder arrays with a map
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include <cstdint>
@@ -37,7 +37,7 @@ namespace cstone
 
 template<class T, class LocalIndex> class DeviceMemory;
 
-/*! \brief A stateful functor for reordering arrays on the gpu
+/*! @brief A stateful functor for reordering arrays on the gpu
  *
  * @tparam ValueType   any type that behaves like a built-in type (check template instantation list)
  * @tparam CodeType    32- or 64-bit unsigned integer
@@ -52,17 +52,17 @@ public:
 
     ~DeviceGather();
 
-    /*! \brief upload the new reorder map to the device and reallocates buffers if necessary
+    /*! @brief upload the new reorder map to the device and reallocates buffers if necessary
      *
      * If the sequence [map_first:map_last] does not contain each element [0:map_last-map_first]
      * exactly once, the behavior is undefined.
      */
     void setReorderMap(const IndexType* map_first, const IndexType* map_last);
 
-    //! \brief download the reorder map from the device
+    //! @brief download the reorder map from the device
     void getReorderMap(IndexType* map_first);
 
-    /*! \brief sort given Morton codes on the device and determine reorder map based on sort order
+    /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
      *
      * \param[inout] codes_first   pointer to first Morton code
      * \param[inout] codes_last    pointer to last Morton code
@@ -82,7 +82,7 @@ public:
      */
     void setMapFromCodes(CodeType* codes_first, CodeType* codes_last);
 
-    /*! \brief reorder the array \a values according to the reorder map provided previously
+    /*! @brief reorder the array \a values according to the reorder map provided previously
      *
      * \a values must have at least as many elements as the reorder map provided in the last call
      * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.

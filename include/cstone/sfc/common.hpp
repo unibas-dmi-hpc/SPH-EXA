@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief  Common operations on SFC keys that do not depend on the specific SFC used
+/*! @file
+ * @brief  Common operations on SFC keys that do not depend on the specific SFC used
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -41,11 +41,11 @@
 
 namespace cstone
 {
-//! \brief number of unused leading zeros in a 32-bit SFC code
+//! @brief number of unused leading zeros in a 32-bit SFC code
 template<class I>
 struct unusedBits : stl::integral_constant<unsigned, 2> {};
 
-//! \brief number of unused leading zeros in a 64-bit SFC code
+//! @brief number of unused leading zeros in a 64-bit SFC code
 template<>
 struct unusedBits<uint64_t> : stl::integral_constant<unsigned, 1> {};
 
@@ -56,7 +56,7 @@ template<>
 struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21> {};
 
 
-/*! \brief normalize a floating point number in [0,1] to an integer in [0, 2^(10 or 21)-1]
+/*! @brief normalize a floating point number in [0,1] to an integer in [0, 2^(10 or 21)-1]
  *
  * @tparam I  32-bit or 64-bit unsigned integer
  * @tparam T  float or double
@@ -74,11 +74,10 @@ inline unsigned toNBitInt(T x)
 
     // [0,1] to [0,1023] and convert to integer (32-bit) or
     // [0,1] to [0,2097151] and convert to integer (64-bit)
-    //return std::min(std::max(x * T(1u<<nBits), T(0.0)), T((1u<<nBits)-1u));
     return stl::min(stl::max(x * T(1u<<nBits), T(0.0)), T((1u<<nBits)-1u));
 }
 
-/*! \brief normalize a floating point number in [0,1] to an integer in [0, 2^(10 or 21)-1]
+/*! @brief normalize a floating point number in [0,1] to an integer in [0, 2^(10 or 21)-1]
  *
  * @tparam I  32-bit or 64-bit unsigned integer
  * @tparam T  float or double
@@ -100,7 +99,7 @@ inline unsigned toNBitIntCeil(T x)
     return stl::min(stl::max(std::ceil(x * T(1u<<nBits)), T(0.0)), T((1u<<nBits)-1u));
 }
 
-/*! \brief add (binary) zeros behind a prefix
+/*! @brief add (binary) zeros behind a prefix
  *
  * Allows comparisons, such as number of leading common bits (cpr)
  * of the prefix with SFC codes.
@@ -114,7 +113,7 @@ inline unsigned toNBitIntCeil(T x)
  *  pad(0b011u,  3) -> 0b00011 << 27
  *  pad(0b011ul, 3) -> 0b0011ul << 60
  *
- *  i.e. \a length plus the number of zeros added adds up to 30 for 32-bit integers
+ *  i.e. @p length plus the number of zeros added adds up to 30 for 32-bit integers
  *  or 63 for 64-bit integers, because these are the numbers of usable bits in SFC codes.
  */
 template <class I>
@@ -123,11 +122,11 @@ constexpr I pad(I prefix, int length)
     return prefix << (3*maxTreeLevel<I>{} - length);
 }
 
-/*! \brief compute the maximum range of an octree node at a given subdivision level
+/*! @brief compute the maximum range of an octree node at a given subdivision level
  *
- * \tparam I         32- or 64-bit unsigned integer type
- * \param treeLevel  octree subdivision level
- * \return           the range
+ * @tparam I         32- or 64-bit unsigned integer type
+ * @param treeLevel  octree subdivision level
+ * @return           the range
  *
  * At treeLevel 0, the range is the entire 30 or 63 bits used in the SFC code.
  * After that, the range decreases by 3 bits for each level.
@@ -145,7 +144,7 @@ nodeRange(unsigned treeLevel)
     return ret;
 }
 
-//! \brief compute ceil(log8(n))
+//! @brief compute ceil(log8(n))
 template<class I>
 CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, unsigned> log8ceil(I n)
@@ -157,7 +156,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, unsigned> log8ceil(I n)
     return maxTreeLevel<I>{} - (lz - unusedBits<I>{}) / 3;
 }
 
-//! \brief check whether n is a power of 8
+//! @brief check whether n is a power of 8
 template<class I>
 CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, bool> isPowerOf8(I n)
@@ -166,7 +165,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, bool> isPowerOf8(I n)
     return lz % 3 == 0 && !(n & (n-1));
 }
 
-/*! \brief calculate common prefix (cpr) of two morton keys
+/*! @brief calculate common prefix (cpr) of two morton keys
  *
  * @tparam I    32 or 64 bit unsigned integer
  * @param key1  first morton code key
@@ -182,11 +181,11 @@ int commonPrefix(I key1, I key2)
     return int(countLeadingZeros(key1 ^ key2)) - unusedBits<I>{};
 }
 
-/*! \brief return octree subdivision level corresponding to codeRange
+/*! @brief return octree subdivision level corresponding to codeRange
  *
- * \tparam I         32- or 64-bit unsigned integer type
- * \param codeRange  input SFC code range
- * \return           octree subdivision level 0-10 (32-bit) or 0-21 (64-bit)
+ * @tparam I         32- or 64-bit unsigned integer type
+ * @param codeRange  input SFC code range
+ * @return           octree subdivision level 0-10 (32-bit) or 0-21 (64-bit)
  */
 template<class I>
 CUDA_HOST_DEVICE_FUN
@@ -196,12 +195,12 @@ inline unsigned treeLevel(I codeRange)
     return (countLeadingZeros(codeRange - 1) - unusedBits<I>{}) / 3;
 }
 
-/*! \brief return the node index between 0-7 of the input code in the parent node
+/*! @brief return the node index between 0-7 of the input code in the parent node
  *
- * \tparam I    32- or 64-bit unsigned integer type
- * \param code  input code corresponding to an octree node
- * \param level octree subdivision level to fully specify the octree node together with @a code
- * \return      the index between 0 and 7 that locates @a code in its enclosing parent node
+ * @tparam I    32- or 64-bit unsigned integer type
+ * @param code  input code corresponding to an octree node
+ * @param level octree subdivision level to fully specify the octree node together with @a code
+ * @return      the index between 0 and 7 that locates @a code in its enclosing parent node
  *              at level - 1. For the root node at level 0 which has no parent, the return value
  *              is 0.
  */
@@ -212,7 +211,7 @@ inline unsigned parentIndex(I code, unsigned level)
     return (code >> (3u * (maxTreeLevel<I>{} - level))) & 7u;
 }
 
-//! \brief cut down the input morton code to the start code of the enclosing box at <treeLevel>
+//! @brief cut down the input morton code to the start code of the enclosing box at <treeLevel>
 template<class I>
 CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsigned treeLevel)
@@ -226,14 +225,14 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsig
     return code << discardedBits;
 }
 
-/*! \brief compute an enclosing envelope corresponding to the smallest possible
+/*! @brief compute an enclosing envelope corresponding to the smallest possible
  *         octree node for two input SFC codes
  *
- * \tparam I              32- or 64-bit unsigned integer type
- * \param[in] firstCode   lower SFC code
- * \param[in] secondCode  upper SFC code
+ * @tparam I              32- or 64-bit unsigned integer type
+ * @param[in] firstCode   lower SFC code
+ * @param[in] secondCode  upper SFC code
  *
- * \return                two morton codes that delineate the start and end of
+ * @return                two morton codes that delineate the start and end of
  *                        the smallest octree node that contains both input codes
  */
 template<class I>
@@ -247,7 +246,7 @@ inline pair<I> smallestCommonBox(I firstCode, I secondCode)
     return pair<I>(nodeStart, nodeStart + nodeRange<I>(commonLevel));
 }
 
-//! \brief zero all but the highest nBits in a SFC code
+//! @brief zero all but the highest nBits in a SFC code
 template<class I>
 CUDA_HOST_DEVICE_FUN
 inline I zeroLowBits(I code, int nBits)

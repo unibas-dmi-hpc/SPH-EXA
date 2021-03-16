@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief count leading zeros in unsigned integers
+/*! @file
+ * @brief count leading zeros in unsigned integers
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -36,7 +36,7 @@
 namespace detail
 {
 
-//! \brief count leading zeros, does not handle an input of 0
+//! @brief count leading zeros, does not handle an input of 0
 [[maybe_unused]] static int clz32(uint32_t x)
 {
     static const int debruijn32[32] = {0, 31, 9, 30, 3, 8,  13, 29, 2,  5,  7,  21, 12, 24, 28, 19,
@@ -50,7 +50,7 @@ namespace detail
     return debruijn32[x * 0x076be629 >> 27u];
 }
 
-//! \brief count leading zeros, does not handle an input of 0
+//! @brief count leading zeros, does not handle an input of 0
 [[maybe_unused]] static int clz64(uint64_t x)
 {
     static const int debruijn64[64] = {0,  47, 1,  56, 48, 27, 2,  60, 57, 49, 41, 37, 28, 16, 3,  61, 54, 58, 35, 52, 50, 42,
@@ -69,12 +69,12 @@ namespace detail
 
 } // namespace detail
 
-/*! \brief count leading zeros, for 32 and 64 bit integers,
+/*! @brief count leading zeros, for 32 and 64 bit integers,
  *         return the number of bits in the input type for an input value of 0
  *
- * \tparam I  32- or 64-bit unsigned integer type
- * \param x   input number
- * \return    number of leading zeros, or the number of bits in the input type
+ * @tparam I  32- or 64-bit unsigned integer type
+ * @param x   input number
+ * @return    number of leading zeros, or the number of bits in the input type
  *            for an input value of 0
  */
 CUDA_HOST_DEVICE_FUN

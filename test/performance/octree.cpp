@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Test morton code implementation
+/*! @file
+ * @brief Test morton code implementation
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include <chrono>
@@ -40,7 +40,6 @@
 #include "cstone/halos/btreetraversal.hpp"
 
 #include "cstone/tree/octree.hpp"
-#include "cstone/tree/octree_internal.hpp"
 
 #include "coord_samples/random.hpp"
 
