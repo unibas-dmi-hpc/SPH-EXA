@@ -209,8 +209,8 @@ public:
         }
 
         std::vector<int> order(rangeCodeStarts_.size());
-        sort_invert(begin(rangeCodeStarts_), end(rangeCodeStarts_), begin(order));
-        reorder(order, rangeCodeStarts_);
+        std::iota(begin(order), end(order), 0);
+        sort_by_key(begin(rangeCodeStarts_), end(rangeCodeStarts_), begin(order));
         reorder(order, ranks_);
     }
 

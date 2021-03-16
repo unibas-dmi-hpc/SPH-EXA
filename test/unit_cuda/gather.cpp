@@ -100,7 +100,7 @@ void reorderCheck(int nElements, bool reallocate = false)
 
     std::vector<IndexType> h_order(nElements);
     std::iota(begin(h_order), end(h_order), 0u);
-    cstone::sort_invert(begin(codes), end(codes), begin(h_order));
+    cstone::sort_by_key(begin(codes), end(codes), begin(h_order));
 
     auto tcpu0 = std::chrono::high_resolution_clock::now();
     cstone::reorder(h_order, hv);
