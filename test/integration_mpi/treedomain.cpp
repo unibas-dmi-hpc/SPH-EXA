@@ -109,8 +109,8 @@ void globalRandomGaussian(int thisRank, int nRanks)
 
     // received particles are not stored in morton order after the exchange
     ordering.resize(nParticlesAssigned);
-    sort_invert(cbegin(newCodes), cend(newCodes), begin(ordering));
-    reorder(ordering, newCodes);
+    std::iota(begin(ordering), end(ordering), 0);
+    sort_by_key(begin(newCodes), end(newCodes), begin(ordering));
 
     auto [newTree, newCounts] =
         computeOctreeGlobal(newCodes.data(), newCodes.data() + newCodes.size(), bucketSize);

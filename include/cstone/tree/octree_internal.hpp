@@ -215,9 +215,7 @@ void decreasingMaxDepthOrder(const OctreeNode<I>* octree,
     }
 
     std::vector<TreeNodeIndex> depths_v(begin(depths), end(depths));
-    // Todo: we need sort_by_key here
-    sort_invert(begin(depths_v), end(depths_v), begin(inverseOrdering), std::greater<TreeNodeIndex>{});
-    std::sort(begin(depths_v), end(depths_v), std::greater<TreeNodeIndex>{});
+    sort_by_key(begin(depths_v), end(depths_v), begin(inverseOrdering), std::greater<TreeNodeIndex>{});
 
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < nNodes; ++i)
@@ -225,7 +223,7 @@ void decreasingMaxDepthOrder(const OctreeNode<I>* octree,
         ordering[i] = i;
     }
 
-    sort_invert(begin(inverseOrdering), end(inverseOrdering), ordering);
+    sort_by_key(begin(inverseOrdering), end(inverseOrdering), ordering);
 
     // count nodes per value of depth
     for (TreeNodeIndex depth = 1; depth < maxTreeLevel<I>{}; ++depth)

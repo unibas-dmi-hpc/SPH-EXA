@@ -67,9 +67,9 @@ public:
                                    begin(codes_), box);
 
         std::vector<I> mortonOrder(n);
-        sort_invert(cbegin(codes_), cend(codes_), begin(mortonOrder));
+        std::iota(begin(mortonOrder), end(mortonOrder), 0);
+        sort_by_key(begin(codes_), end(codes_), begin(mortonOrder));
 
-        reorder(mortonOrder, codes_);
         reorder(mortonOrder, x_);
         reorder(mortonOrder, y_);
         reorder(mortonOrder, z_);
@@ -114,9 +114,9 @@ public:
                                    begin(codes_), box);
 
         std::vector<I> mortonOrder(n);
-        sort_invert(cbegin(codes_), cend(codes_), begin(mortonOrder));
+        std::iota(begin(mortonOrder), end(mortonOrder), 0);
+        sort_by_key(begin(codes_), end(codes_), begin(mortonOrder));
 
-        reorder(mortonOrder, codes_);
         reorder(mortonOrder, x_);
         reorder(mortonOrder, y_);
         reorder(mortonOrder, z_);
