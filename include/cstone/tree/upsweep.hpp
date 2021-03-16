@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief  Generic octree upsweep procedure to calculate quantities for internal nodes from their children
+/*! @file
+ * @brief  Generic octree upsweep procedure to calculate quantities for internal nodes from their children
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  *
  * Examples applications would be the calculation of particle counts for internal nodes for given leaf counts,
  * the maximum smoothing length of any particle in the node or multipole moments.
@@ -39,15 +39,15 @@
 namespace cstone
 {
 
-/*! \brief performs an upsweep operation, calculates quantities for internal nodes, based on given leaf nodes
+/*! @brief performs an upsweep operation, calculates quantities for internal nodes, based on given leaf nodes
  *
- * @tparam T                       anything that can be copied
- * @tparam I                       32- or 64-bit unsigned integer
- * @tparam CombinationFunction     callable with signature T(T,T,T,T,T,T,T,T)
- * @param octree[in]               the octree
- * @param leafQuantities[in]       input array of length octree.nLeafNodes()
- * @param internalQuantities[out]  output array of length octree.nInternalNodes()
- * @param combinationFunction[in]
+ * @tparam T                         anything that can be copied
+ * @tparam I                         32- or 64-bit unsigned integer
+ * @tparam CombinationFunction       callable with signature T(T,T,T,T,T,T,T,T)
+ * @param[in]  octree                the octree
+ * @param[in]  leafQuantities        input array of length octree.nLeafNodes()
+ * @param[out] internalQuantities    output array of length octree.nInternalNodes()
+ * @param[in]  combinationFunction   callable of type @p CombinationFunction
  */
 template<class T, class I, class CombinationFunction>
 void upsweep(const Octree<I>& octree, const T* leafQuantities, T* internalQuantities, CombinationFunction combinationFunction)

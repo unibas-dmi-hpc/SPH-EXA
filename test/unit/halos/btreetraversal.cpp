@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Binary radix tree traversal tests with explicit references
+/*! @file
+ * @brief Binary radix tree traversal tests with explicit references
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 
@@ -40,7 +40,7 @@
 
 using namespace cstone;
 
-//! \brief test add(), operator[] and begin()/end() of the CollisionList class
+//! @brief test add(), operator[] and begin()/end() of the CollisionList class
 TEST(BinaryTreeTraversal, collisionList)
 {
     CollisionList collisions;
@@ -61,7 +61,7 @@ TEST(BinaryTreeTraversal, collisionList)
     EXPECT_EQ(refValues, probe);
 }
 
-/*! \brief test findCollisions with pbc halo boxes
+/*! @brief test findCollisions with pbc halo boxes
  *
  * The example constructs a 4x4x4 regular octree with 64 nodes. A haloBox
  * with coordinates [-1,1]^3 will collide with all 8 nodes in the corners of the tree.
@@ -132,7 +132,7 @@ TEST(BinaryTreeTraversal, pbcCollision)
     pbcCollision<uint64_t>();
 }
 
-/*! \brief test findCollisions with pbc halo boxes and part of the tree excluded from collision detection
+/*! @brief test findCollisions with pbc halo boxes and part of the tree excluded from collision detection
  *
  * The example constructs a 4x4x4 regular octree with 64 nodes. A haloBox
  * with coordinates [-1,1]^3 will collide with all 8 nodes in the corners of the tree, except if excluded.
@@ -197,7 +197,7 @@ TEST(BinaryTreeTraversal, pbcCollisionWithExclusions)
 }
 
 
-/*! \brief test collision detection with anisotropic halo ranges
+/*! @brief test collision detection with anisotropic halo ranges
  *
  * If the bounding box of the floating point boundary box is not cubic,
  * an isotropic search range with one halo radius per node will correspond
@@ -239,7 +239,7 @@ TEST(BinaryTreeTraversal, anisotropicHalo)
 }
 
 
-//! \brief this tree results from 2 particles at (0,0,0) and at (1,1,1) with a bucket size of 1
+//! @brief this tree results from 2 particles at (0,0,0) and at (1,1,1) with a bucket size of 1
 std::vector<unsigned> makeEdgeTree()
 {
     std::vector<unsigned> tree{0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 24, 32, 40, 48, 56, 64, 128, 192, 256, 320, 384,
@@ -260,7 +260,7 @@ std::vector<unsigned> makeEdgeTree()
     return tree;
 }
 
-/*! \brief a simple collision test with the edge tree from above
+/*! @brief a simple collision test with the edge tree from above
  *
  * Since the halo radius for the first and last node is bigger than the box,
  * these two nodes collide with all nodes in the tree, while all other nodes have
@@ -301,7 +301,7 @@ TEST(Collisions, adjacentEdgeRegression)
     }
 }
 
-/*! \brief collisions test with a very small radius
+/*! @brief collisions test with a very small radius
  *
  * This tests that a very small, but non-zero halo radius
  * does not get rounded down to zero.

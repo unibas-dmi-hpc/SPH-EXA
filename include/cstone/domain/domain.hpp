@@ -23,13 +23,13 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief A domain class to manage distributed particles and their halos.
+/*! @file
+ * @brief A domain class to manage distributed particles and their halos.
  *
  * Particles are represented by x,y,z coordinates, interaction radii and
  * a user defined number of additional properties, such as masses or charges.
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -71,13 +71,13 @@ public:
 
     /*! @brief Domain update sequence for particles with coordinates x,y,z, interaction radius h and their properties
      *
-     * @param x[inout]                   floating point coordinates
-     * @param y[inout]
-     * @param z[inout]
-     * @param h[inout]                   interaction radii in SPH convention, actual interaction radius is twice
-     *                                   the value in h
-     * @param codes[out]                 Morton codes
-     * @param particleProperties[inout]  particle properties to distribute along with the coordinates
+     * @param[inout] x      floating point coordinates
+     * @param[inout] y
+     * @param[inout] z
+     * @param[inout] h      interaction radii in SPH convention, actual interaction radius is twice the value in h
+     * @param[out]   codes  Morton codes
+     *
+     * @param[inout] particleProperties  particle properties to distribute along with the coordinates
      *                                   e.g. mass or charge
      *
      * ============================================================================================================
@@ -299,9 +299,9 @@ public:
                            begin(codes) + particleEnd_, box_);
     }
 
-    /*! \brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
+    /*! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
      *
-     * @param arrays  std::vector<float or double> of size localNParticles_
+     * @param[inout] arrays  std::vector<float or double> of size localNParticles_
      *
      * Arrays are not resized or reallocated.
      * This is used e.g. for densities.
@@ -317,27 +317,27 @@ public:
         haloexchange<T>(incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
     }
 
-    //! \brief return the index of the first particle that's part of the local assignment
+    //! @brief return the index of the first particle that's part of the local assignment
     [[nodiscard]] LocalIndex startIndex() const { return particleStart_; }
 
-    //! \brief return one past the index of the last particle that's part of the local assignment
+    //! @brief return one past the index of the last particle that's part of the local assignment
     [[nodiscard]] LocalIndex endIndex() const   { return particleEnd_; }
 
-    //! \brief return number of locally assigned particles
+    //! @brief return number of locally assigned particles
     [[nodiscard]] LocalIndex nParticles() const { return endIndex() - startIndex(); }
 
-    //! \brief return number of locally assigned particles plus number of halos
+    //! @brief return number of locally assigned particles plus number of halos
     [[nodiscard]] LocalIndex nParticlesWithHalos() const { return localNParticles_; }
 
-    //! \brief read only visibility of the octree to the outside
+    //! @brief read only visibility of the octree to the outside
     const std::vector<I>& tree() const { return tree_; }
 
-    //! \brief return the coordinate bounding box from the previous sync call
+    //! @brief return the coordinate bounding box from the previous sync call
     Box<T> box() const { return box_; }
 
 private:
 
-    //! \brief return true if all array sizes are equal to value
+    //! @brief return true if all array sizes are equal to value
     template<class... Arrays>
     static bool sizesAllEqualTo(std::size_t value, Arrays&... arrays)
     {
@@ -349,16 +349,16 @@ private:
     int nRanks_;
     int bucketSize_;
 
-    /*! \brief array index of first local particle belonging to the assignment
+    /*! @brief array index of first local particle belonging to the assignment
      *  i.e. the index of the first particle that belongs to this rank and is not a halo.
      */
     LocalIndex particleStart_;
-    //! \brief index (upper bound) of last particle that belongs to the assignment
+    //! @brief index (upper bound) of last particle that belongs to the assignment
     LocalIndex particleEnd_;
-    //! \brief number of locally present particles, = number of halos + assigned particles
+    //! @brief number of locally present particles, = number of halos + assigned particles
     LocalIndex localNParticles_;
 
-    //! \brief coordinate bounding box, each non-periodic dimension is at a sync call
+    //! @brief coordinate bounding box, each non-periodic dimension is at a sync call
     Box<T> box_;
 
     SendList incomingHaloIndices_;
