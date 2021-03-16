@@ -271,17 +271,24 @@ void rewireInternal(const OctreeNode<I>* oldNodes,
     }
 }
 
-//! \brief scatter-reorder the input into output
+/*! \brief translate each input index according to a map
+ *
+ * @tparam Index         integer type
+ * @param input[in]      input indices, length @a nElements
+ * @param rewireMap[in]  index translation map
+ * @param nElements[in]  number of Elements
+ * @param output[out]    translated indices, length @a nElements
+ */
 template<class Index>
-void scatterReorder(const Index* input,
-                    const Index* scatterMap,
-                    size_t nElements,
-                    Index* output)
+void rewireIndices(const Index* input,
+                   const Index* rewireMap,
+                   size_t nElements,
+                   Index* output)
 {
-    #pragma omp parallel schedule(static)
+    #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < nElements; ++i)
     {
-        output[i] = scatterMap[input[i]];
+        output[i] = rewireMap[input[i]];
     }
 }
 
@@ -410,8 +417,9 @@ void createInternalOctreeCpu(const BinaryNode<I>* binaryTree, TreeNodeIndex nLea
  *
  * @tparam I          32- or 64-bit unsigned integer
  *
- * Leaves are stored separately from the internal nodes.
- * For either type of node, just a single buffer is allocated.
+ * Leaves are stored separately from the internal nodes. For either type of node, just a single buffer is allocated.
+ * All nodes are guaranteed to be stored ordered according to decreasing value of the distance of the farthest leaf.
+ * This property is relied upon by the generic upsweep implementation.
  */
 template<class I>
 class Octree {
@@ -454,21 +462,24 @@ public:
 
         // apply ordering to leaf parents
         leafParents_.resize(preLeafParents.size());
-        scatterReorder(preLeafParents.data(), ordering.data(), preLeafParents.size(), leafParents_.data());
+        rewireIndices(preLeafParents.data(), ordering.data(), preLeafParents.size(), leafParents_.data());
     }
 
     //! \brief total number of nodes in the tree
     [[nodiscard]] inline TreeNodeIndex nTreeNodes() const
-    { return nNodes(tree_) + internalTree_.size(); }
+    {
+        return nNodes(tree_) + internalTree_.size();
+    }
 
     /*! \brief number of nodes with given value of maxDepth
      *
-     * @param maxDepth
-     * @return
+     * @param maxDepth[in]  distance to farthest leaf
+     * @return              number of nodes in the tree with given value for maxDepth
      *
-     * nTreeNodes(0) == nLeaves()
-     * sum([nTreeNodes(i) for i in [0:maxTreeLevel<I>{}]]) == nTreeNodes()
-     * sum([nTreeNodes(i) for i in [1:maxTreeLevel<I>{}]]) == nInternalNodes()
+     * Some relations with other node-count functions:
+     *      nTreeNodes(0) == nLeafNodes()
+     *      sum([nTreeNodes(i) for i in [0:maxTreeLevel<I>{}]]) == nTreeNodes()
+     *      sum([nTreeNodes(i) for i in [1:maxTreeLevel<I>{}]]) == nInternalNodes()
      */
     [[nodiscard]] inline TreeNodeIndex nTreeNodes(int maxDepth) const
     {
@@ -477,18 +488,40 @@ public:
     }
 
     //! \brief number of leaf nodes in the tree
-    [[nodiscard]] inline TreeNodeIndex nLeaves() const
-    { return nNodes(tree_); }
+    [[nodiscard]] inline TreeNodeIndex nLeafNodes() const
+    {
+        return nNodes(tree_);
+    }
 
-    //! \brief number of internal nodes in the tree, equal to (nLeaves()-1) / 7
+    //! \brief number of internal nodes in the tree, equal to (nLeafNodes()-1) / 7
     [[nodiscard]] inline TreeNodeIndex nInternalNodes() const
-    { return internalTree_.size(); }
+    {
+        return internalTree_.size();
+    }
 
-    //! \brief check if node is at the bottom of the tree
+    /*! \brief check whether node is a leaf
+     *
+     * @param node[in]    node index, range [0:nTreeNodes()]
+     * @return            true or false
+     */
     [[nodiscard]] inline bool isLeaf(TreeNodeIndex node) const
     {
         assert(node < nTreeNodes());
         return node >= internalTree_.size();
+    }
+
+    /*! \brief check whether child of node is a leaf
+     *
+     * @param node[in]    node index, range [0:nInternalNodes()]
+     * @param octant[in]  octant index, range [0:8]
+     * @return            true or false
+     *
+     * If \a node is not internal, behavior is undefined.
+     */
+    [[nodiscard]] inline bool isLeafChild(TreeNodeIndex node, int octant) const
+    {
+        assert(node < internalTree_.size());
+        return internalTree_[node].childType[octant] == OctreeNode<I>::leaf;
     }
 
     //! \brief check if node is the root node
@@ -506,7 +539,7 @@ public:
      * If \a node is not internal, behavior is undefined.
      * Query with isLeaf(node) before calling this function.
      */
-    [[nodiscard]] TreeNodeIndex child(TreeNodeIndex node, TreeNodeIndex octant) const
+    [[nodiscard]] inline TreeNodeIndex child(TreeNodeIndex node, int octant) const
     {
         assert(node < internalTree_.size());
 
@@ -519,11 +552,27 @@ public:
         return childIndex;
     }
 
+    /*! \brief return child node indices with leaf indices starting from 0
+     *
+     * @param node[in]    node index, range [0:nInternalNodes()]
+     * @param octant[in]  octant index, range [0:8]
+     * @return            child node index, range [0:nInternalNodes()] if child is internal
+     *                    or [0:nLeafNodes()] if child is a leaf
+     *
+     * If @a node is not internal, behavior is undefined.
+     * Note: the indices returned by this function refer to two different arrays, depending on
+     * whether the child specified by @a node and @a octant is a leaf or an internal node.
+     */
+    [[nodiscard]] inline TreeNodeIndex childDirect(TreeNodeIndex node, int octant) const
+    {
+        return internalTree_[node].child[octant];
+    }
+
     /*! \brief index of parent node
      *
      * Note: the root node is its own parent
      */
-    [[nodiscard]] TreeNodeIndex parent(TreeNodeIndex node) const
+    [[nodiscard]] inline TreeNodeIndex parent(TreeNodeIndex node) const
     {
         if (node < nInternalNodes())
         {
@@ -535,7 +584,7 @@ public:
     }
 
     //! \brief lowest SFC key contained int the geometrical box of \a node
-    [[nodiscard]] I codeStart(TreeNodeIndex node) const
+    [[nodiscard]] inline I codeStart(TreeNodeIndex node) const
     {
         if (node < nInternalNodes())
         {
@@ -547,7 +596,7 @@ public:
     }
 
     //! \brief highest SFC key contained in the geometrical box of \a node
-    [[nodiscard]] I codeEnd(TreeNodeIndex node) const
+    [[nodiscard]] inline I codeEnd(TreeNodeIndex node) const
     {
         if (node < nInternalNodes())
         {
@@ -562,7 +611,7 @@ public:
      *
      * Returns 0 for the root node. Highest value is maxTreeLevel<I>{}.
      */
-    [[nodiscard]] int level(TreeNodeIndex node) const
+    [[nodiscard]] inline int level(TreeNodeIndex node) const
     {
         if (node < nInternalNodes())
         {

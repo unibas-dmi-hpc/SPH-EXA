@@ -340,7 +340,7 @@ void octree4x4x4()
     fullTree.update(tree.data(), tree.data() + tree.size());
 
     ASSERT_EQ(fullTree.nInternalNodes(), (64 - 1) / 7);
-    ASSERT_EQ(fullTree.nLeaves(), 64);
+    ASSERT_EQ(fullTree.nLeafNodes(), 64);
     checkConnectivity(fullTree);
 }
 
@@ -355,8 +355,8 @@ TEST(InternalOctree, octree4x4x4)
  * The leaf tree is the result of subdividing the root node, then further
  * subdividing octant 0. This results in 15 leaves, so the internal tree
  * should have two nodes: the root and the one internal level-1 node for the
- * first octant. The root points to the one internal node and to leaves 8-15.
- * The internal level-1 nodes points to leaves 0-7.
+ * first octant. The root points to the one internal node and to leaves [8:15].
+ * The internal level-1 nodes points to leaves [0:8].
  */
 template<class I>
 void octreeIrregularL2()
@@ -367,7 +367,7 @@ void octreeIrregularL2()
     fullTree.update(tree.data(), tree.data() + tree.size());
 
     ASSERT_EQ(fullTree.nInternalNodes(), (15 - 1) / 7);
-    ASSERT_EQ(fullTree.nLeaves(), 15);
+    ASSERT_EQ(fullTree.nLeafNodes(), 15);
     checkConnectivity(fullTree);
 }
 
@@ -386,7 +386,7 @@ void octreeIrregularL3()
     Octree<I> fullTree;
     fullTree.update(tree.data(), tree.data() + tree.size());
     EXPECT_EQ(fullTree.nTreeNodes(), 33);
-    EXPECT_EQ(fullTree.nLeaves(), 29);
+    EXPECT_EQ(fullTree.nLeafNodes(), 29);
     EXPECT_EQ(fullTree.nInternalNodes(), 4);
 
     checkConnectivity(fullTree);
