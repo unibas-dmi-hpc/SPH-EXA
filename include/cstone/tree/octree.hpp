@@ -67,18 +67,34 @@ namespace cstone
 
 /*! @brief returns the number of nodes in a tree
  *
- * @tparam    I       32- or 64-bit unsigned integer type
+ * @tparam    Vector  a vector-like container that has a .size() member
  * @param[in] tree    input tree
  * @return            the number of nodes
  *
  * This makes it explicit that a vector of n Morton codes
  * corresponds to a tree with n-1 nodes.
  */
-template<class I>
-std::size_t nNodes(const std::vector<I>& tree)
+template<class Vector>
+std::size_t nNodes(const Vector& tree)
 {
     assert(tree.size());
     return tree.size() - 1;
+}
+
+//! @brief count particles in one tree node
+template<class I>
+CUDA_HOST_DEVICE_FUN
+unsigned calculateNodeCount(const I* tree, TreeNodeIndex nodeIdx, const I* codesStart, const I* codesEnd, unsigned maxCount)
+{
+    I nodeStart = tree[nodeIdx];
+    I nodeEnd   = tree[nodeIdx+1];
+
+    // count particles in range
+    auto rangeStart = stl::lower_bound(codesStart, codesEnd, nodeStart);
+    auto rangeEnd   = stl::lower_bound(codesStart, codesEnd, nodeEnd);
+    unsigned count  = rangeEnd - rangeStart;
+
+    return stl::min(count, maxCount);
 }
 
 /*! @brief count number of particles in each octree node
@@ -88,8 +104,8 @@ std::size_t nNodes(const std::vector<I>& tree)
  *                          needs to satisfy the octree invariants
  * @param[out] counts       output particle counts per node, length = @a nNodes
  * @param[in]  nNodes       number of nodes in tree
- * @param[in]  codesStart   Morton code range start of particles to count
- * @param[in]  codesEnd     Morton code range end of particles to count
+ * @param[in]  codesStart   sorted particle SFC code range start
+ * @param[in]  codesEnd     sorted particle SFC code range end
  * @param[in]  maxCount     maximum particle count per node to store, this is used
  *                          to prevent overflow in MPI_Allreduce
  */
@@ -105,31 +121,18 @@ void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* cod
         lastNode  = std::upper_bound(tree, tree + nNodes, *(codesEnd-1)) - tree;
     }
 
-    #pragma omp parallel
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < nNodes; ++i)
+        counts[i] = 0;
+
+    #pragma omp parallel for schedule(static)
+    for (int i = firstNode; i < lastNode; ++i)
     {
-        #pragma omp for schedule(static) nowait
-        for (int i = 0; i < firstNode; ++i)
-            counts[i] = 0;
-
-        #pragma omp for schedule(static) nowait
-        for (int i = lastNode; i < nNodes; ++i)
-            counts[i] = 0;
-
-        #pragma omp for schedule(static)
-        for (int i = firstNode; i < lastNode; ++i)
-        {
-            I nodeStart = tree[i];
-            I nodeEnd   = tree[i+1];
-
-            // count particles in range
-            auto rangeStart = std::lower_bound(codesStart, codesEnd, nodeStart);
-            auto rangeEnd   = std::lower_bound(codesStart, codesEnd, nodeEnd);
-            unsigned count  = std::distance(rangeStart, rangeEnd);
-            counts[i]       = std::min(count, maxCount);
-        }
+        counts[i] = calculateNodeCount(tree, i, codesStart, codesEnd, maxCount);
     }
 }
 
+//! @brief returns 0 for merging, 1 for no-change, 8 for splitting
 template<class I>
 CUDA_HOST_DEVICE_FUN
 int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize, int* changeCount)
@@ -176,7 +179,7 @@ int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts
  * @param[in] bucketSize   maximum particle count per (leaf) node and
  *                         minimum particle count (strictly >) for (implicit) internal nodes
  * @param[out] nodeOps     stores rebalance decision result for each node, length = @a nNodes
- * @return                 number of nodes split + fused
+ * @param[out] converged   stores 0 upon return if converged, a non-zero positive integer otherwise
  *
  * For each node i in the tree, in nodeOps[i], stores
  *  - 0 if to be merged
@@ -191,6 +194,38 @@ void rebalanceDecision(const I* tree, const unsigned* counts, int nNodes,
     for (TreeNodeIndex i = 0; i < nNodes; ++i)
     {
         nodeOps[i] = calculateNodeOp(tree, i, counts, bucketSize, converged);
+    }
+}
+
+/*! @brief transform old nodes into new nodes based on opcodes
+ *
+ * @tparam I          32- or 64-bit integer
+ * @param nodeIndex   the node to process in @p oldTree
+ * @param oldTree     the old tree
+ * @param nodeOps     opcodes per old tree node
+ * @param newTree     the new tree
+ */
+template<class I>
+CUDA_HOST_DEVICE_FUN
+void processNode(TreeNodeIndex nodeIndex, const I* oldTree, const TreeNodeIndex* nodeOps, I* newTree)
+{
+    I thisNode     = oldTree[nodeIndex];
+    I range        = oldTree[nodeIndex+1] - thisNode;
+    unsigned level = treeLevel(range);
+
+    TreeNodeIndex opCode       = nodeOps[nodeIndex+1] - nodeOps[nodeIndex];
+    TreeNodeIndex newNodeIndex = nodeOps[nodeIndex];
+
+    if (opCode == 1)
+    {
+        newTree[newNodeIndex] = thisNode;
+    }
+    else if (opCode == 8)
+    {
+        for (int sibling = 0; sibling < 8; ++sibling)
+        {
+            newTree[newNodeIndex + sibling] = thisNode + sibling * nodeRange<I>(level + 1);
+        }
     }
 }
 
@@ -210,8 +245,7 @@ template<class I>
 std::vector<I> rebalanceTree(const I* tree, const unsigned* counts, int nNodes,
                              unsigned bucketSize, bool* converged = nullptr)
 {
-    using LocalIndex = unsigned;
-    std::vector<LocalIndex> nodeOps(nNodes + 1);
+    std::vector<TreeNodeIndex> nodeOps(nNodes + 1);
 
     int changeCounter = 0;
     rebalanceDecision(tree, counts, nNodes, bucketSize, nodeOps.data(), &changeCounter);
@@ -220,27 +254,10 @@ std::vector<I> rebalanceTree(const I* tree, const unsigned* counts, int nNodes,
 
     std::vector<I> balancedTree(*nodeOps.rbegin() + 1);
 
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static)
     for (int i = 0; i < nNodes; ++i)
     {
-        I thisNode     = tree[i];
-        I range        = tree[i+1] - thisNode;
-        unsigned level = treeLevel(range);
-
-        LocalIndex opCode       = nodeOps[i+1] - nodeOps[i];
-        LocalIndex newNodeIndex = nodeOps[i];
-
-        if (opCode == 1)
-        {
-            balancedTree[newNodeIndex] = thisNode;
-        }
-        else if (opCode == 8)
-        {
-            for (int sibling = 0; sibling < 8; ++sibling)
-            {
-                balancedTree[newNodeIndex + sibling] = thisNode + sibling * nodeRange<I>(level + 1);
-            }
-        }
+        processNode(i, tree, nodeOps.data(), balancedTree.data());
     }
     *balancedTree.rbegin() = nodeRange<I>(0);
 
