@@ -64,9 +64,9 @@
 
 #include "cstone/sfc/common.hpp"
 
-namespace cstone {
+#include "definitions.h"
 
-using TreeNodeIndex = int;
+namespace cstone {
 
 /*! @brief binary radix tree node
  *
