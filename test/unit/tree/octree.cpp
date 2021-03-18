@@ -108,15 +108,12 @@ void rebalanceShrinkStart()
     std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
     std::vector<unsigned> counts(nNodes(tree), 1);
 
-    std::vector<CodeType> balancedTree = rebalanceTree(tree.data(), counts.data(),
-                                                       nNodes(tree), bucketSize);
-
-    EXPECT_TRUE(checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
+    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
+    rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize);
     EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
     std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().makeTree();
-
-    EXPECT_EQ(balancedTree, reference);
+    EXPECT_EQ(tree, reference);
 }
 
 TEST(CornerstoneOctree, rebalanceShrinkStart32)
@@ -138,15 +135,12 @@ void rebalanceShrinkMid()
     std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(1).makeTree();
 
     std::vector<unsigned> counts(nNodes(tree), 1);
-    std::vector<CodeType> balancedTree
-        = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
-
-    EXPECT_TRUE(checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
+    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
+    rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize);
     EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
     std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().makeTree();
-
-    EXPECT_EQ(balancedTree, reference);
+    EXPECT_EQ(tree, reference);
 }
 
 TEST(CornerstoneOctree, rebalanceShrinkMid32)
@@ -169,15 +163,12 @@ void rebalanceShrinkEnd()
 
     std::vector<unsigned> counts(nNodes(tree), 1);
 
-    std::vector<CodeType> balancedTree
-        = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
-
-    EXPECT_TRUE(checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
+    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
+    rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize);
     EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
     std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().makeTree();
-
-    EXPECT_EQ(balancedTree, reference);
+    EXPECT_EQ(tree, reference);
 }
 
 TEST(CornerstoneOctree, rebalanceShrinkEnd32)
@@ -201,10 +192,10 @@ void rebalanceRootInvariant()
     std::vector<CodeType> tree{0, nodeRange<CodeType>(0)};
     std::vector<unsigned> counts{7};
 
-    std::vector<CodeType> balancedTree
-        = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
+    rebalanceTree(tree,counts.data(), nNodes(tree), bucketSize);
 
-    EXPECT_EQ(balancedTree, tree);
+    std::vector<CodeType> reference{0, nodeRange<CodeType>(0)};
+    EXPECT_EQ(tree, reference);
 }
 
 TEST(CornerstoneOctree, rebalanceRootInvariant32)
@@ -228,12 +219,10 @@ void rebalanceRootSplit()
     std::vector<CodeType> tree{0, nodeRange<CodeType>(0)};
     std::vector<unsigned> counts{9};
 
-    std::vector<CodeType> balancedTree
-        = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
+    rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize);
 
     std::vector<CodeType> reference = OctreeMaker<I>{}.divide().makeTree();
-
-    EXPECT_EQ(balancedTree, reference);
+    EXPECT_EQ(tree, reference);
 }
 
 TEST(CornerstoneOctree, rebalanceRootSplit32)
@@ -259,15 +248,12 @@ void rebalanceSplitShrink()
     // node {1} will need to be split
     counts[1] = bucketSize+1;
 
-    std::vector<CodeType> balancedTree
-        = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
-
-    EXPECT_TRUE(checkOctreeInvariants(balancedTree.data(), nNodes(balancedTree)));
+    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
+    rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize);
     EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
     std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().divide(1).makeTree();
-
-    EXPECT_EQ(balancedTree, reference);
+    EXPECT_EQ(tree, reference);
 }
 
 TEST(CornerstoneOctree, rebalanceSplitShrink32)
@@ -295,7 +281,9 @@ void rebalanceInsufficentResolution()
     OctreeMaker<CodeType> octreeMaker;
     for (unsigned level = 0; level < maxTreeLevel<CodeType>{}; ++level)
         octreeMaker.divide({}, level);
+
     std::vector<CodeType> tree = octreeMaker.makeTree();
+    std::vector<CodeType> reference = tree;
 
     std::vector<unsigned> counts(nNodes(tree), 1);
     counts[0] = bucketSize + 1;
@@ -303,10 +291,9 @@ void rebalanceInsufficentResolution()
     // the first node has two particles, one more than the bucketSize
     // since the first node is at the maximum subdivision layer, the tree
     // can't be further refined to satisfy the bucketSize
-    std::vector<CodeType> balancedTree
-        = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
+    rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize);
 
-    EXPECT_EQ(balancedTree, tree);
+    EXPECT_EQ(tree, reference);
 }
 
 TEST(CornerstoneOctree, rebalanceInsufficientResolution32)
