@@ -23,7 +23,7 @@ add_executable(component_units ${UNIT_TESTS})
 
 target_include_directories(component_units PRIVATE ../../include)
 target_include_directories(component_units PRIVATE ../)
-target_link_libraries(component_units gtest_main)
+target_link_libraries(component_units PRIVATE gtest_main)
 add_test(NAME ComponentUnits COMMAND component_units)
 
 add_executable(component_units_omp ${UNIT_TESTS})

@@ -84,11 +84,13 @@ void rebalanceDecision()
     unsigned bucketSize = 4;
     std::vector<unsigned> counts{1,1,1,0,0,0,0,0, 2, 3, 4, 5, 6, 7, 8};
 
+    int changeCounter = 0;
     std::vector<LocalIndex> nodeOps(nNodes(tree));
-    rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data());
+    rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data(), &changeCounter);
 
     std::vector<LocalIndex> reference{1,0,0,0,0,0,0,0, 1, 1, 1, 8, 8, 8, 8};
     EXPECT_EQ(nodeOps, reference);
+    EXPECT_NE(changeCounter, 0);
 }
 
 TEST(CornerstoneOctree, rebalanceDecision)

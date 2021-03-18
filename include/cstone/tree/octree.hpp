@@ -52,7 +52,6 @@
 #pragma once
 
 #include <algorithm>
-#include <atomic>
 #include <cmath>
 #include <numeric>
 #include <vector>
@@ -60,6 +59,8 @@
 
 #include "cstone/sfc/common.hpp"
 #include "cstone/primitives/scan.hpp"
+
+#include "definitions.h"
 
 namespace cstone
 {
@@ -129,6 +130,42 @@ void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* cod
     }
 }
 
+template<class I>
+CUDA_HOST_DEVICE_FUN
+int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize, int* changeCount)
+{
+    I thisNode     = tree[nodeIdx];
+    I range        = tree[nodeIdx + 1] - thisNode;
+    unsigned level = treeLevel(range);
+
+    if (counts[nodeIdx] > bucketSize && level < maxTreeLevel<I>{})
+    {
+        (*changeCount)++;
+        return 8; // split
+    }
+    else if (level > 0) // level 0 cannot be fused
+    {
+        TreeNodeIndex pi = parentIndex(thisNode, level);
+        // node's 7 siblings are next to each other
+        bool siblings = (tree[nodeIdx-pi+8] == tree[nodeIdx-pi] + nodeRange<I>(level - 1));
+        if (siblings && pi > 0) // if not first of 8 siblings
+        {
+            #ifdef __CUDA_ARCH__
+            size_t parentCount = thrust::reduce(thrust::seq, counts + nodeIdx - pi, counts + nodeIdx - pi + 8, size_t(0));
+            #else
+            size_t parentCount = std::accumulate(counts + nodeIdx - pi, counts + nodeIdx - pi + 8, size_t(0));
+            #endif
+            if (parentCount <= bucketSize)
+            {
+                (*changeCount)++;
+                return 0; // fuse
+            }
+        }
+    }
+
+    return 1; // default: do nothing
+};
+
 /*! @brief Compute split or fuse decision for each octree node in parallel
  *
  * @tparam I               32- or 64-bit unsigned integer type
@@ -147,43 +184,14 @@ void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* cod
  *  - 8 if to be split.
  */
 template<class I, class LocalIndex>
-int rebalanceDecision(const I* tree, const unsigned* counts, int nNodes,
-                      unsigned bucketSize, LocalIndex* nodeOps)
+void rebalanceDecision(const I* tree, const unsigned* counts, int nNodes,
+                       unsigned bucketSize, LocalIndex* nodeOps, int* converged)
 {
-    std::atomic<int> changes{0};
-
     #pragma omp parallel for
-    for (int i = 0; i < nNodes; ++i)
+    for (TreeNodeIndex i = 0; i < nNodes; ++i)
     {
-        I thisNode     = tree[i];
-        I range        = tree[i+1] - thisNode;
-        unsigned level = treeLevel(range);
-
-        nodeOps[i] = 1; // default: do nothing
-
-        if (counts[i] > bucketSize && level < maxTreeLevel<I>{})
-        {
-            changes++;
-            nodeOps[i] = 8; // split
-        }
-        else if (level > 0) // level 0 cannot be fused
-        {
-            int pi = parentIndex(thisNode, level);
-            // node's 7 siblings are next to each other
-            bool siblings = (tree[i-pi+8] == tree[i-pi] + nodeRange<I>(level - 1));
-            if (siblings && pi > 0) // if not first of 8 siblings
-            {
-                size_t parentCount = std::accumulate(counts + i - pi, counts + i - pi + 8, size_t(0));
-                if (parentCount <= bucketSize)
-                {
-                    nodeOps[i] = 0; // fuse
-                    changes++;
-                }
-            }
-        }
+        nodeOps[i] = calculateNodeOp(tree, i, counts, bucketSize, converged);
     }
-
-    return changes;
 }
 
 /*! @brief split or fuse octree nodes based on node counts relative to bucketSize
@@ -205,7 +213,8 @@ std::vector<I> rebalanceTree(const I* tree, const unsigned* counts, int nNodes,
     using LocalIndex = unsigned;
     std::vector<LocalIndex> nodeOps(nNodes + 1);
 
-    int changes = rebalanceDecision(tree, counts, nNodes, bucketSize, nodeOps.data());
+    int changeCounter = 0;
+    rebalanceDecision(tree, counts, nNodes, bucketSize, nodeOps.data(), &changeCounter);
 
     exclusiveScan(nodeOps.data(), nNodes + 1);
 
@@ -237,7 +246,7 @@ std::vector<I> rebalanceTree(const I* tree, const unsigned* counts, int nNodes,
 
     if (converged != nullptr)
     {
-        *converged = (changes == 0);
+        *converged = (changeCounter == 0);
     }
 
     return balancedTree;
