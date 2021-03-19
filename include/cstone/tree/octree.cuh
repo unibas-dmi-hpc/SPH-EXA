@@ -50,6 +50,17 @@
 namespace cstone
 {
 
+template<class I>
+__global__ void computeNodeCountsCore(const I* tree, unsigned* counts, TreeNodeIndex nNodes, const I* codesStart,
+                                      const I* codesEnd, unsigned maxCount = std::numeric_limits<unsigned>::max())
+{
+    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
+    if (tid < nNodes)
+    {
+        counts[tid] = calculateNodeCount(tree, tid, codesStart, codesEnd, maxCount);
+    }
+}
+
 /*! @brief count number of particles in each octree node
  *
  * @tparam I                32- or 64-bit unsigned integer type
@@ -69,7 +80,17 @@ __global__ void computeNodeCountsKernel(const I* tree, unsigned* counts, TreeNod
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid < nNodes)
     {
-        counts[tid] = calculateNodeCount(tree, tid, codesStart, codesEnd, maxCount);
+        counts[tid] = 0;
+    }
+
+    if (tid == 0 && codesStart != codesEnd)
+    {
+        TreeNodeIndex firstNode = stl::upper_bound(tree, tree + nNodes, *codesStart) - tree - 1;
+        TreeNodeIndex lastNode  = stl::upper_bound(tree, tree + nNodes, *(codesEnd - 1)) - tree;
+
+        constexpr unsigned nThreads = 512;
+        computeNodeCountsCore<<<iceil(lastNode-firstNode, nThreads), nThreads>>>
+            (tree+firstNode, counts+firstNode, lastNode - firstNode, codesStart, codesEnd, maxCount);
     }
 }
 
