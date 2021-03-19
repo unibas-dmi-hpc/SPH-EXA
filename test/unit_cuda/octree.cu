@@ -39,7 +39,8 @@
 
 using namespace cstone;
 
-TEST(OctreeGpu, computeNodeCounts)
+//! @brief direct node count test
+TEST(OctreeGpu, computeNodeCountsCore)
 {
     using I = unsigned;
 
@@ -61,7 +62,7 @@ TEST(OctreeGpu, computeNodeCounts)
     thrust::device_vector<unsigned> d_counts(nNodes(d_cstree));
 
     constexpr unsigned nThreads = 512;
-    computeNodeCountsKernel<<<iceil(nNodes(d_cstree), nThreads), nThreads>>>
+    computeNodeCountsCore<<<iceil(nNodes(d_cstree), nThreads), nThreads>>>
     (
         thrust::raw_pointer_cast(d_cstree.data()),
         thrust::raw_pointer_cast(d_counts.data()),
@@ -77,6 +78,56 @@ TEST(OctreeGpu, computeNodeCounts)
     // the first 8 nodes are level-4, node count is 1, the other nodes are level-3 with node counts of 8
     for (int nodeIdx = 0; nodeIdx < 8; ++nodeIdx)
         refCounts[nodeIdx] = 1;
+
+    EXPECT_EQ(h_counts, refCounts);
+}
+
+//! @brief dynamically parallel version, counts only tree nodes that cover the supplied particle codes
+TEST(OctreeGpu, computeNodeCountsKernel)
+{
+    using I = unsigned;
+
+    // regular level-3 cornerstone tree with 512 leaves
+    thrust::host_vector<I> h_cstree   = makeUniformNLevelTree<I>(8*8*8, 1);
+    // subdivide the first level-3 node
+    for (int octant = 1; octant < 8; ++octant)
+        h_cstree.push_back(octant*nodeRange<I>(4));
+
+    std::sort(begin(h_cstree), end(h_cstree));
+
+    // create + upload tree to the device
+    thrust::device_vector<I> d_cstree = h_cstree;
+
+    thrust::host_vector<I> h_codes;
+    for (int nodeIdx = 1; nodeIdx < nNodes(h_cstree)-1; ++nodeIdx)
+    {
+        // put 2 particles in each tree node
+        h_codes.push_back(h_cstree[nodeIdx]);
+        h_codes.push_back(h_cstree[nodeIdx]+1);
+    }
+
+    // upload particle codes to device
+    thrust::device_vector<I> d_codes = h_codes;
+
+    thrust::device_vector<unsigned> d_counts(nNodes(d_cstree), 1);
+
+    constexpr unsigned nThreads = 512;
+    computeNodeCountsKernel<<<iceil(nNodes(d_cstree), nThreads), nThreads>>>
+        (
+            thrust::raw_pointer_cast(d_cstree.data()),
+            thrust::raw_pointer_cast(d_counts.data()),
+            nNodes(d_cstree),
+            thrust::raw_pointer_cast(d_codes.data()),
+            thrust::raw_pointer_cast(d_codes.data() + d_codes.size())
+        );
+
+    // download counts from device
+    thrust::host_vector<unsigned> h_counts = d_counts;
+
+    thrust::host_vector<unsigned> refCounts(nNodes(d_cstree), 2);
+    // first and last nodes are empty
+    refCounts[0] = 0;
+    *refCounts.rbegin() = 0;
 
     EXPECT_EQ(h_counts, refCounts);
 }
