@@ -34,6 +34,8 @@
 
 #include <thrust/host_vector.h>
 
+#include "coord_samples/random.hpp"
+
 #include "cstone/tree/octree.cuh"
 #include "cstone/tree/octree_util.hpp"
 
@@ -193,4 +195,34 @@ TEST(OctreeGpu, rebalanceTree)
     thrust::host_vector<CodeType> h_tree = tree;
     thrust::host_vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().divide(1).makeTree();
     EXPECT_EQ(h_tree, reference);
+}
+
+TEST(OctreeGpu, computeOctree)
+{
+    using CodeType = unsigned;
+    Box<double> box{-1, 1};
+
+    int nParticles = 100000;
+    unsigned bucketSize = 64;
+
+    RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
+
+    // compute octree starting from default uniform octree
+    auto [treeML, countsML] = computeOctree(randomBox.mortonCodes().data(),
+                                            randomBox.mortonCodes().data() + nParticles,
+                                            bucketSize);
+
+    thrust::device_vector<CodeType> d_tree;
+    thrust::device_vector<CodeType> d_codes(randomBox.mortonCodes().begin(), randomBox.mortonCodes().end());
+
+    thrust::device_vector<unsigned> d_counts;
+
+    computeOctreeGpu(thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_codes.data() + d_codes.size()),
+                     bucketSize, d_tree, d_counts);
+
+    // download tree from device
+    thrust::host_vector<CodeType> h_tree = d_tree;
+    thrust::host_vector<CodeType> cpuReference = treeML;
+
+    EXPECT_EQ(h_tree, cpuReference);
 }

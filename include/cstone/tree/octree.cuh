@@ -50,6 +50,7 @@
 namespace cstone
 {
 
+//! @brief like computeNodeCountsKernel, but counts each node
 template<class I>
 __global__ void computeNodeCountsCore(const I* tree, unsigned* counts, TreeNodeIndex nNodes, const I* codesStart,
                                       const I* codesEnd, unsigned maxCount = std::numeric_limits<unsigned>::max())
@@ -184,6 +185,55 @@ void rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, TreeNodeIndex nOl
     }
 
     swap(tree, balancedTree);
+}
+
+/*! @brief compute an octree from morton codes for a specified bucket size
+
+ * @tparam I               32- or 64-bit unsigned integer type
+ * @param[in]    codesStart   particle morton code sequence start
+ * @param[in]    codesEnd     particle morton code sequence end
+ * @param[in]    bucketSize   maximum number of particles/codes per octree leaf node
+ * @param[inout] tree         input tree for initial guess and converged output tree
+ * @param[out]   counts       particle counts per node in @p tree
+ * @param[in]    maxCount     if actual node counts are higher, they will be capped to @p maxCount
+ *
+ * See CPU version for an explanation about @p maxCount
+ */
+template<class SfcVector, class CountsVector, class I, class Reduce = void>
+void computeOctreeGpu(const I* codesStart, const I* codesEnd, unsigned bucketSize,
+                      SfcVector& tree, CountsVector& counts,
+                      unsigned maxCount = std::numeric_limits<unsigned>::max())
+{
+    static_assert(std::is_same_v<typename SfcVector::value_type, I>);
+    static_assert(std::is_same_v<typename CountsVector::value_type, unsigned>);
+
+    if (!tree.size())
+    {
+        // tree containing just the root node
+        tree.push_back(0);
+        tree.push_back(nodeRange<I>(0));
+    }
+
+    bool converged = false;
+    while (!converged)
+    {
+        counts.resize(nNodes(tree));
+
+        constexpr unsigned nThreads = 512;
+        computeNodeCountsKernel<<<iceil(nNodes(tree), nThreads), nThreads>>>
+        (
+            thrust::raw_pointer_cast(tree.data()),
+            thrust::raw_pointer_cast(counts.data()),
+            nNodes(tree), codesStart, codesEnd, maxCount
+        );
+
+        if constexpr (!std::is_same_v<void, Reduce>)
+        {
+            (void*)Reduce{}(counts); // void cast to silence "warning: expression has no effect" from nvcc
+        }
+
+        rebalanceTreeGpu(tree, thrust::raw_pointer_cast(counts.data()), nNodes(tree), bucketSize, &converged);
+    }
 }
 
 } // namespace cstone
