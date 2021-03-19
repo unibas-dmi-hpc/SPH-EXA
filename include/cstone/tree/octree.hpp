@@ -187,7 +187,7 @@ int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts
  *  - 8 if to be split.
  */
 template<class I, class LocalIndex>
-void rebalanceDecision(const I* tree, const unsigned* counts, int nNodes,
+void rebalanceDecision(const I* tree, const unsigned* counts, TreeNodeIndex nNodes,
                        unsigned bucketSize, LocalIndex* nodeOps, int* converged)
 {
     #pragma omp parallel for
@@ -242,7 +242,7 @@ void processNode(TreeNodeIndex nodeIndex, const I* oldTree, const TreeNodeIndex*
  * @return                 the rebalanced Morton code octree
  */
 template<class SfcVector>
-void rebalanceTree(SfcVector& tree, const unsigned* counts, int nNodes,
+void rebalanceTree(SfcVector& tree, const unsigned* counts, TreeNodeIndex nNodes,
                    unsigned bucketSize, bool* converged = nullptr)
 {
     using I = typename SfcVector::value_type;
@@ -256,7 +256,7 @@ void rebalanceTree(SfcVector& tree, const unsigned* counts, int nNodes,
     SfcVector balancedTree(*nodeOps.rbegin() + 1);
 
     #pragma omp parallel for schedule(static)
-    for (int i = 0; i < nNodes; ++i)
+    for (TreeNodeIndex i = 0; i < nNodes; ++i)
     {
         processNode(i, tree.data(), nodeOps.data(), balancedTree.data());
     }
@@ -367,7 +367,7 @@ void updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
  * @param[out] output       Radius per node, length = @a nNodes
  */
 template<class Tin, class Tout, class I, class IndexType>
-void computeHaloRadii(const I* tree, int nNodes, const I* codesStart, const I* codesEnd,
+void computeHaloRadii(const I* tree, TreeNodeIndex nNodes, const I* codesStart, const I* codesEnd,
                       const IndexType* ordering, const Tin* input, Tout* output)
 {
     int firstNode = 0;
@@ -379,15 +379,15 @@ void computeHaloRadii(const I* tree, int nNodes, const I* codesStart, const I* c
     }
 
     #pragma omp parallel for schedule(static)
-    for (int i = 0; i < firstNode; ++i)
+    for (TreeNodeIndex i = 0; i < firstNode; ++i)
         output[i] = 0;
 
     #pragma omp parallel for schedule(static)
-    for (int i = lastNode; i < nNodes; ++i)
+    for (TreeNodeIndex i = lastNode; i < nNodes; ++i)
         output[i] = 0;
 
     #pragma omp parallel for
-    for (int i = firstNode; i < lastNode; ++i)
+    for (TreeNodeIndex i = firstNode; i < lastNode; ++i)
     {
         I nodeStart = tree[i];
         I nodeEnd   = tree[i+1];
