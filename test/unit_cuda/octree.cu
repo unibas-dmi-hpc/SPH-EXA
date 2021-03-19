@@ -44,13 +44,18 @@ TEST(OctreeGpu, computeNodeCounts)
     using I = unsigned;
 
     // 4096 codes
-    auto codes = makeNLevelGrid<I>(4);
-    thrust::host_vector<I>   h_codes = codes;
+    thrust::host_vector<I> h_codes   = makeNLevelGrid<I>(4);
     thrust::device_vector<I> d_codes = h_codes;
 
-    // tree with 512 nodes
-    auto cstree = makeUniformNLevelTree<I>(8*8*8, 1);
-    thrust::host_vector<I> h_cstree = cstree;
+    // regular level-3 cornerstone tree with 512 leaves
+    thrust::host_vector<I> h_cstree   = makeUniformNLevelTree<I>(8*8*8, 1);
+    // subdivide the first level-3 node
+    for (int octant = 1; octant < 8; ++octant)
+        h_cstree.push_back(octant*nodeRange<I>(4));
+
+    std::sort(begin(h_cstree), end(h_cstree));
+
+    // create + upload tree to the device
     thrust::device_vector<I> d_cstree = h_cstree;
 
     thrust::device_vector<unsigned> d_counts(nNodes(d_cstree));
@@ -63,8 +68,13 @@ TEST(OctreeGpu, computeNodeCounts)
                                                    thrust::raw_pointer_cast(d_codes.data()),
                                                    thrust::raw_pointer_cast(d_codes.data() + d_codes.size()));
 
+    // download counts from device
     thrust::host_vector<unsigned> h_counts = d_counts;
-    thrust::host_vector<unsigned> refCounts(8*8*8, 8);
+
+    thrust::host_vector<unsigned> refCounts(nNodes(d_cstree), 8);
+    // the first 8 nodes are level-4, node count is 1, the other nodes are level-3 with node counts of 8
+    for (int nodeIdx = 0; nodeIdx < 8; ++nodeIdx)
+        refCounts[nodeIdx] = 1;
 
     EXPECT_EQ(h_counts, refCounts);
 }
