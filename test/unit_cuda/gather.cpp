@@ -92,32 +92,40 @@ void reorderCheck(int nElements, bool reallocate = false)
         devGather.setReorderMap(ord.data(), ord.data() + ord.size());
     }
 
-    std::vector<I> codes = makeRandomPermutation<I>(nElements);
+    std::vector<I> origKeys = makeRandomPermutation<I>(nElements);
 
-    std::vector<T> v(nElements);
-    std::iota(begin(v), end(v), 0);
-    std::vector<T> hv = v;
+    // arrays to be reordered, content is irrelevant, as long as host and device matches
+    // we assign a distinct value to each element for best error detection
+    std::vector<T> deviceValues(nElements);
+    std::iota(begin(deviceValues), end(deviceValues), 0);
+    std::vector<T> hostValues = deviceValues;
 
-    std::vector<IndexType> h_order(nElements);
-    std::iota(begin(h_order), end(h_order), 0u);
-    cstone::sort_by_key(begin(codes), end(codes), begin(h_order));
+    std::vector<I> hostKeys = origKeys;
+    std::vector<IndexType> hostOrder(nElements);
+    std::iota(begin(hostOrder), end(hostOrder), 0u);
+    // capture the ordering that sorts origKeys in hostOrder
+    cstone::sort_by_key(begin(hostKeys), end(hostKeys), begin(hostOrder));
 
     auto tcpu0 = std::chrono::high_resolution_clock::now();
-    cstone::reorder(h_order, hv);
+    // apply the hostOrder to the hostValues
+    cstone::reorder(hostOrder, hostValues);
     auto tcpu1 = std::chrono::high_resolution_clock::now();
     std::cout << "cpu gather Melements/s: " << T(nElements)/(1e6 * std::chrono::duration<double>(tcpu1 - tcpu0).count()) << std::endl;
 
-    devGather.setMapFromCodes(codes.data(), codes.data() + codes.size());
+    std::vector<I> deviceKeys = origKeys;
+    devGather.setMapFromCodes(deviceKeys.data(), deviceKeys.data() + deviceKeys.size());
 
-    EXPECT_TRUE(std::is_sorted(begin(codes), end(codes)));
+    EXPECT_TRUE(std::is_sorted(begin(deviceKeys), end(deviceKeys)));
 
     auto tgpu0 = std::chrono::high_resolution_clock::now();
-    devGather(v.data());
+    // apply the order from devGather.setMapFromCodes to the deviceValues
+    devGather(deviceValues.data());
     auto tgpu1 = std::chrono::high_resolution_clock::now();
 
     std::cout << "gpu gather Melements/s: " << T(nElements)/(1e6*std::chrono::duration<double>(tgpu1 - tgpu0).count()) << std::endl;
 
-    EXPECT_EQ(v, hv);
+    // the result of the reordering matches between host and device
+    EXPECT_EQ(deviceValues, hostValues);
 }
 
 TEST(DeviceGather, matchCpu)
