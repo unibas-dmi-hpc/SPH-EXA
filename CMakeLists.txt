@@ -18,6 +18,12 @@ endif()
 
 if(CUDAToolkit_FOUND)
     enable_language(CUDA)
+
+    # does nothing
+    set(CMAKE_CUDA_STANDARD 17)
+    # workaround for CMAKE_CUDA_STANDARD not setting the required flag
+    add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:-std=c++17>)
+
     add_subdirectory(include)
 else()
     message(STATUS "No CUDA support")

@@ -35,8 +35,8 @@ template<class T, class I>
 __global__ void findNeighborsCudaKernel(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
                                         cstone::Box<T> box, const I* codes, int* neighbors, int* neighborsCount, int ngmax)
 {
-    int tid = blockDim.x * blockIdx.x + threadIdx.x;
-    int id = firstId + tid;
+    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
+    unsigned id = firstId + tid;
     if (id < lastId)
     {
         cstone::findNeighbors(id, x, y, z, h, box, codes, neighbors + tid*ngmax, neighborsCount + tid, n, ngmax);
