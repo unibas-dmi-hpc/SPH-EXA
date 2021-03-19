@@ -123,3 +123,23 @@ TEST(OctreeGpu, rebalanceDecision)
     EXPECT_EQ(h_nodeOps, reference);
     EXPECT_NE(0, convergenceFlag[0]);
 }
+
+TEST(OctreeGpu, rebalanceTree)
+{
+    using CodeType = unsigned;
+    constexpr int bucketSize = 8;
+
+    thrust::device_vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(7).makeTree();
+
+    // nodes {7,i} will need to be fused
+    thrust::device_vector<unsigned> counts(nNodes(tree), 1);
+    // node {1} will need to be split
+    counts[1] = bucketSize+1;
+
+    rebalanceTreeGpu(tree, thrust::raw_pointer_cast(counts.data()), nNodes(tree), bucketSize);
+
+    // download tree from host
+    thrust::host_vector<CodeType> h_tree = tree;
+    thrust::host_vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().divide(1).makeTree();
+    EXPECT_EQ(h_tree, reference);
+}
