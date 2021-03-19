@@ -43,6 +43,7 @@
 
 #include <thrust/device_vector.h>
 
+#include "cstone/util.hpp"
 #include "octree.hpp"
 
 namespace cstone
@@ -81,16 +82,18 @@ __global__ void computeNodeCountsKernel(const I* tree, unsigned* counts, TreeNod
  * @param[in] bucketSize   maximum particle count per (leaf) node and
  *                         minimum particle count (strictly >) for (implicit) internal nodes
  * @param[out] nodeOps     stores rebalance decision result for each node, length = @a nNodes
- * @param[out] converged   stores 0 upon return if converged, a non-zero positive integer otherwise
+ * @param[out] converged   stores 0 upon return if converged, a non-zero positive integer otherwise.
+ *                         The storage location is accessed concurrently and cuda-memcheck might detect
+ *                         a data race, but this is irrelevant for correctness.
  *
  * For each node i in the tree, in nodeOps[i], stores
  *  - 0 if to be merged
  *  - 1 if unchanged,
  *  - 8 if to be split.
  */
-template<class I, class LocalIndex>
+template<class I>
 __global__ void rebalanceDecisionKernel(const I* tree, const unsigned* counts, TreeNodeIndex nNodes,
-                                        unsigned bucketSize, LocalIndex* nodeOps, int* converged)
+                                        unsigned bucketSize, TreeNodeIndex* nodeOps, int* converged)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid < nNodes)

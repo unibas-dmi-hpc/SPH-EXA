@@ -61,12 +61,14 @@ TEST(OctreeGpu, computeNodeCounts)
     thrust::device_vector<unsigned> d_counts(nNodes(d_cstree));
 
     constexpr unsigned nThreads = 512;
-    unsigned nBlocks = (nNodes(d_cstree) + nThreads - 1) / nThreads;
-    computeNodeCountsKernel<<<nBlocks, nThreads>>>(thrust::raw_pointer_cast(d_cstree.data()),
-                                                   thrust::raw_pointer_cast(d_counts.data()),
-                                                   nNodes(d_cstree),
-                                                   thrust::raw_pointer_cast(d_codes.data()),
-                                                   thrust::raw_pointer_cast(d_codes.data() + d_codes.size()));
+    computeNodeCountsKernel<<<iceil(nNodes(d_cstree), nThreads), nThreads>>>
+    (
+        thrust::raw_pointer_cast(d_cstree.data()),
+        thrust::raw_pointer_cast(d_counts.data()),
+        nNodes(d_cstree),
+        thrust::raw_pointer_cast(d_codes.data()),
+        thrust::raw_pointer_cast(d_codes.data() + d_codes.size())
+    );
 
     // download counts from device
     thrust::host_vector<unsigned> h_counts = d_counts;
@@ -77,4 +79,47 @@ TEST(OctreeGpu, computeNodeCounts)
         refCounts[nodeIdx] = 1;
 
     EXPECT_EQ(h_counts, refCounts);
+}
+
+TEST(OctreeGpu, rebalanceDecision)
+{
+    using I = unsigned;
+
+    // regular level-3 cornerstone tree with 512 leaves
+    thrust::host_vector<I> h_cstree   = makeUniformNLevelTree<I>(8*8*8, 1);
+    // create + upload tree to the device
+    thrust::device_vector<I> d_cstree = h_cstree;
+
+    thrust::device_vector<unsigned> d_counts(8*8*8, 1);
+    // set first 8 nodes to empty
+    for (int i = 0; i < 8; ++i)
+        d_counts[i] = 0;
+
+    d_counts[9] = 2;
+
+    unsigned bucketSize = 1;
+    thrust::device_vector<int> convergenceFlag(1, 0);
+
+    thrust::device_vector<TreeNodeIndex> d_nodeOps(d_counts.size());
+    constexpr unsigned nThreads = 512;
+    rebalanceDecisionKernel<<<iceil(d_counts.size(), nThreads), nThreads>>>
+    (
+            thrust::raw_pointer_cast(d_cstree.data()),
+            thrust::raw_pointer_cast(d_counts.data()),
+            nNodes(d_cstree),
+            bucketSize,
+            thrust::raw_pointer_cast(d_nodeOps.data()),
+            thrust::raw_pointer_cast(convergenceFlag.data())
+    );
+
+    // download result from device
+    thrust::host_vector<TreeNodeIndex> h_nodeOps = d_nodeOps;
+
+    thrust::host_vector<TreeNodeIndex> reference(d_counts.size(), 1);
+    for (int i = 1; i < 8; ++i)
+        reference[i] = 0; // merge
+    reference[9] = 8; // fuse
+
+    EXPECT_EQ(h_nodeOps, reference);
+    EXPECT_NE(0, convergenceFlag[0]);
 }
