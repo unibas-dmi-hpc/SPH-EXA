@@ -42,6 +42,7 @@
 #include <cuda.h>
 
 #include <thrust/device_vector.h>
+#include <thrust/scan.h>
 
 #include "cstone/util.hpp"
 #include "octree.hpp"
@@ -102,42 +103,63 @@ __global__ void rebalanceDecisionKernel(const I* tree, const unsigned* counts, T
     }
 }
 
+//! @brief construct new nodes in the balanced tree
+template<class I>
+__global__ void processNodes(const I* oldTree, const TreeNodeIndex* nodeOps,
+                             TreeNodeIndex nOldNodes, TreeNodeIndex nNewNodes,
+                             I* newTree)
+{
+    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
+    if (tid < nOldNodes)
+    {
+        processNode(tid, oldTree, nodeOps, newTree);
+    }
+    if (tid == nNewNodes)
+    {
+        newTree[tid] = nodeRange<I>(0);
+    }
+}
+
 /*! @brief split or fuse octree nodes based on node counts relative to bucketSize
  *
  * @tparam I               32- or 64-bit unsigned integer type
  * @param[in] tree         octree nodes given as Morton codes of length @a nNodes
  *                         needs to satisfy the octree invariants
  * @param[in] counts       output particle counts per node, length = @a nNodes
- * @param[in] nNodes       number of nodes in tree
+ * @param[in] nOldNodes       number of nodes in tree
  * @param[in] bucketSize   maximum particle count per (leaf) node and
  *                         minimum particle count (strictly >) for (implicit) internal nodes
  * @param[out] converged   optional boolean flag to indicate convergence
  * @return                 the rebalanced Morton code octree
  */
 template<class SfcVector>
-void rebalanceTreeKernel(SfcVector& tree, const unsigned* counts, int nNodes,
-                         unsigned bucketSize, bool* converged = nullptr)
+void rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, TreeNodeIndex nOldNodes,
+                      unsigned bucketSize, bool* converged = nullptr)
 {
     using I = typename SfcVector::value_type;
-    std::vector<TreeNodeIndex> nodeOps(nNodes + 1);
+    // +1 to store the total sum of the exclusive scan in the last element
+    thrust::device_vector<TreeNodeIndex> nodeOps(nOldNodes + 1);
+    thrust::device_vector<TreeNodeIndex> nodeOffsets(nOldNodes + 1);
 
-    int changeCounter = 0;
-    rebalanceDecision(tree.data(), counts, nNodes, bucketSize, nodeOps.data(), &changeCounter);
+    thrust::device_vector<int> changeCounter(1,0);
+    constexpr unsigned nThreads = 512;
+    rebalanceDecisionKernel<<<iceil(nOldNodes, nThreads), nThreads>>>(
+        thrust::raw_pointer_cast(tree.data()), counts, nOldNodes, bucketSize,
+        thrust::raw_pointer_cast(nodeOps.data()),
+        thrust::raw_pointer_cast(changeCounter.data()));
 
-    exclusiveScan(nodeOps.data(), nNodes + 1);
+    thrust::exclusive_scan(thrust::device, nodeOps.begin(), nodeOps.end(), nodeOffsets.begin());
 
-    SfcVector balancedTree(*nodeOps.rbegin() + 1);
+    // +1 for the end marker (nodeRange<I>(0))
+    SfcVector balancedTree(*nodeOffsets.rbegin() + 1);
 
-    #pragma omp parallel for schedule(static)
-    for (int i = 0; i < nNodes; ++i)
-    {
-        processNode(i, tree.data(), nodeOps.data(), balancedTree.data());
-    }
-    *balancedTree.rbegin() = nodeRange<I>(0);
-
+    TreeNodeIndex nElements = stl::max(tree.size(), balancedTree.size());
+    processNodes<<<iceil(nElements, nThreads), nThreads>>>(thrust::raw_pointer_cast(tree.data()),
+                                                           thrust::raw_pointer_cast(nodeOffsets.data()), nOldNodes, nNodes(balancedTree),
+                                                           thrust::raw_pointer_cast(balancedTree.data()));
     if (converged != nullptr)
     {
-        *converged = (changeCounter == 0);
+        *converged = (changeCounter[0] == 0);
     }
 
     swap(tree, balancedTree);
