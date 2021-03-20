@@ -364,16 +364,6 @@ public:
         std::cout << "number of nodes: " << nNodes(treeML) << std::endl;
 
         checkOctreeWithCounts(treeML, countsML, bucketSize, randomBox.mortonCodes());
-
-        // compute octree starting from just the root node
-        auto [treeRN, countsRN] = computeOctree(randomBox.mortonCodes().data(),
-                                                randomBox.mortonCodes().data() + nParticles,
-                                                bucketSize, std::numeric_limits<unsigned>::max(),
-                                                makeRootNodeTree<I>());
-
-        checkOctreeWithCounts(treeML, countsRN, bucketSize, randomBox.mortonCodes());
-
-        EXPECT_EQ(treeML, treeRN);
     }
 };
 
