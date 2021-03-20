@@ -50,6 +50,25 @@
 #include "octree.hpp"
 
 
+/*! @brief atomically update a maximum value and return the previous maximum value
+ *
+ * @tparam T                     integer type
+ * @param[inout] maximumValue    the maximum value to be atomically updated
+ * @param[in]    newValue        the value with which to compute the new maximum
+ * @return                       the previous maximum value
+ *
+ * Lifted into global namespace to enable correct overload resolution with CUDA builtin atomicMax
+ * in device code.
+ */
+template<typename T>
+inline T atomicMax(std::atomic<T>* maximumValue, const T& newValue) noexcept
+{
+    T previousValue = *maximumValue;
+    while(previousValue < newValue && !maximumValue->compare_exchange_weak(previousValue, newValue))
+    {}
+    return previousValue;
+}
+
 namespace cstone
 {
 
@@ -104,22 +123,6 @@ struct OctreeNode
                eqChild;
     }
 };
-
-/*! @brief atomically update a maximum value and return the previous maximum value
- *
- * @tparam T                     integer type
- * @param[inout] maximumValue    the maximum value to be atomically updated
- * @param[in]    newValue        the value with which to compute the new maximum
- * @return                       the previous maximum value
- */
-template<typename T>
-inline T atomicMax(std::atomic<T>* maximumValue, const T& newValue) noexcept
-{
-    T previousValue = *maximumValue;
-    while(previousValue < newValue && !maximumValue->compare_exchange_weak(previousValue, newValue))
-    {}
-    return previousValue;
-}
 
 template<class I, class AtomicInteger>
 CUDA_HOST_DEVICE_FUN
