@@ -16,7 +16,6 @@ target_link_libraries(octree_perf PUBLIC OpenMP::OpenMP_CXX)
 add_executable(octree_perf_gpu octree.cu)
 target_include_directories(octree_perf_gpu PRIVATE ../../include)
 target_include_directories(octree_perf_gpu PRIVATE ../)
-set_target_properties(octree_perf_gpu PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 add_executable(scan_perf scan.cpp)
 target_include_directories(scan_perf PRIVATE ../../include)

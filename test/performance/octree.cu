@@ -31,7 +31,6 @@
 
 #include <chrono>
 #include <iostream>
-#include <numeric>
 
 #include <thrust/reduce.h>
 
@@ -46,7 +45,7 @@ int main()
     using CodeType = unsigned;
     Box<double> box{-1, 1};
 
-    int nParticles = 2000000;
+    int nParticles = 8000000;
     int bucketSize = 10;
 
     RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);

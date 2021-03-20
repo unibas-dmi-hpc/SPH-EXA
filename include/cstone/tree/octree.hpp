@@ -309,7 +309,7 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
         computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd, maxCount);
         if constexpr (!std::is_same_v<void, Reduce>)
         {
-            (void*)Reduce{}(counts); // void cast to silence "warning: expression has no effect" from nvcc
+            (void)Reduce{}(counts); // void cast to silence "warning: expression has no effect" from nvcc
         }
 
         rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize, &converged);

@@ -42,7 +42,7 @@
 using namespace cstone;
 
 //! @brief direct node count test
-TEST(OctreeGpu, computeNodeCountsCore)
+TEST(OctreeGpu, computeNodeCountsKernel)
 {
     using I = unsigned;
 
@@ -64,14 +64,9 @@ TEST(OctreeGpu, computeNodeCountsCore)
     thrust::device_vector<unsigned> d_counts(nNodes(d_cstree));
 
     constexpr unsigned nThreads = 512;
-    computeNodeCountsCore<<<iceil(nNodes(d_cstree), nThreads), nThreads>>>
-    (
-        thrust::raw_pointer_cast(d_cstree.data()),
-        thrust::raw_pointer_cast(d_counts.data()),
-        nNodes(d_cstree),
-        thrust::raw_pointer_cast(d_codes.data()),
-        thrust::raw_pointer_cast(d_codes.data() + d_codes.size())
-    );
+    computeNodeCountsKernel<<<iceil(nNodes(d_cstree), nThreads), nThreads>>>(
+        thrust::raw_pointer_cast(d_cstree.data()), thrust::raw_pointer_cast(d_counts.data()), nNodes(d_cstree),
+        thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_codes.data() + d_codes.size()));
 
     // download counts from device
     thrust::host_vector<unsigned> h_counts = d_counts;
@@ -84,8 +79,8 @@ TEST(OctreeGpu, computeNodeCountsCore)
     EXPECT_EQ(h_counts, refCounts);
 }
 
-//! @brief dynamically parallel version, counts only tree nodes that cover the supplied particle codes
-TEST(OctreeGpu, computeNodeCountsKernel)
+//! @brief counts only tree nodes that cover the supplied particle codes
+TEST(OctreeGpu, computeNodeCountsGpu)
 {
     using I = unsigned;
 
@@ -103,7 +98,7 @@ TEST(OctreeGpu, computeNodeCountsKernel)
     thrust::host_vector<I> h_codes;
     for (int nodeIdx = 1; nodeIdx < nNodes(h_cstree)-1; ++nodeIdx)
     {
-        // put 2 particles in each tree node
+        // put 2 particles in each tree node, except the first and last node
         h_codes.push_back(h_cstree[nodeIdx]);
         h_codes.push_back(h_cstree[nodeIdx]+1);
     }
@@ -113,15 +108,19 @@ TEST(OctreeGpu, computeNodeCountsKernel)
 
     thrust::device_vector<unsigned> d_counts(nNodes(d_cstree), 1);
 
-    constexpr unsigned nThreads = 512;
-    computeNodeCountsKernel<<<iceil(nNodes(d_cstree), nThreads), nThreads>>>
-        (
-            thrust::raw_pointer_cast(d_cstree.data()),
-            thrust::raw_pointer_cast(d_counts.data()),
-            nNodes(d_cstree),
-            thrust::raw_pointer_cast(d_codes.data()),
-            thrust::raw_pointer_cast(d_codes.data() + d_codes.size())
-        );
+    // findPopulatedNodes check
+    {
+        TreeNodeIndex popNodes[2];
+        findPopulatedNodes<<<1,1>>>(thrust::raw_pointer_cast(d_cstree.data()), nNodes(d_cstree),
+                                    thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_codes.data() + d_codes.size()));
+        cudaMemcpyFromSymbol(popNodes, populatedNodes, 2 * sizeof(TreeNodeIndex));
+        // first and last nodes have no particles
+        EXPECT_EQ(popNodes[0], 1);
+        EXPECT_EQ(popNodes[1], nNodes(d_cstree)-1);
+    }
+
+    computeNodeCountsGpu(thrust::raw_pointer_cast(d_cstree.data()), thrust::raw_pointer_cast(d_counts.data()), nNodes(d_cstree),
+                         thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_codes.data() + d_codes.size()));
 
     // download counts from device
     thrust::host_vector<unsigned> h_counts = d_counts;
@@ -197,7 +196,8 @@ TEST(OctreeGpu, rebalanceTree)
     EXPECT_EQ(h_tree, reference);
 }
 
-TEST(OctreeGpu, computeOctree)
+//! @brief build tree from random particles and compare a against CPU
+TEST(OctreeGpu, computeOctreeRandom)
 {
     using CodeType = unsigned;
     Box<double> box{-1, 1};

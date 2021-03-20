@@ -42,6 +42,7 @@
 #include <cuda.h>
 
 #include <thrust/device_vector.h>
+#include <thrust/reduce.h>
 #include <thrust/scan.h>
 
 #include "cstone/util.hpp"
@@ -50,15 +51,29 @@
 namespace cstone
 {
 
-//! @brief like computeNodeCountsKernel, but counts each node
+//! @brief see computeNodeCounts
 template<class I>
-__global__ void computeNodeCountsCore(const I* tree, unsigned* counts, TreeNodeIndex nNodes, const I* codesStart,
-                                      const I* codesEnd, unsigned maxCount = std::numeric_limits<unsigned>::max())
+__global__ void computeNodeCountsKernel(const I* tree, unsigned* counts, TreeNodeIndex nNodes, const I* codesStart,
+                                        const I* codesEnd, unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid < nNodes)
     {
         counts[tid] = calculateNodeCount(tree, tid, codesStart, codesEnd, maxCount);
+    }
+}
+
+//! @brief used to communicate required node search range for computeNodeCountsKernel back to host
+__device__ TreeNodeIndex populatedNodes[2];
+
+//! @brief compute first and last non-empty nodes in the tree
+template<class I>
+__global__ void findPopulatedNodes(const I* tree, TreeNodeIndex nNodes, const I* codesStart, const I* codesEnd)
+{
+    if (threadIdx.x == 0 && codesStart != codesEnd)
+    {
+        populatedNodes[0] = stl::upper_bound(tree, tree + nNodes, *codesStart) - tree - 1;
+        populatedNodes[1] = stl::upper_bound(tree, tree + nNodes, *(codesEnd - 1)) - tree;
     }
 }
 
@@ -75,24 +90,19 @@ __global__ void computeNodeCountsCore(const I* tree, unsigned* counts, TreeNodeI
  *                          to prevent overflow in MPI_Allreduce
  */
 template<class I>
-__global__ void computeNodeCountsKernel(const I* tree, unsigned* counts, TreeNodeIndex nNodes, const I* codesStart,
-                                        const I* codesEnd, unsigned maxCount = std::numeric_limits<unsigned>::max())
+void computeNodeCountsGpu(const I* tree, unsigned* counts, TreeNodeIndex nNodes, const I* codesStart,
+                          const I* codesEnd, unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
-    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid < nNodes)
-    {
-        counts[tid] = 0;
-    }
+    cudaMemset(counts, 0, nNodes * sizeof(unsigned));
 
-    if (tid == 0 && codesStart != codesEnd)
-    {
-        TreeNodeIndex firstNode = stl::upper_bound(tree, tree + nNodes, *codesStart) - tree - 1;
-        TreeNodeIndex lastNode  = stl::upper_bound(tree, tree + nNodes, *(codesEnd - 1)) - tree;
+    TreeNodeIndex popNodes[2];
 
-        constexpr unsigned nThreads = 512;
-        computeNodeCountsCore<<<iceil(lastNode-firstNode, nThreads), nThreads>>>
-            (tree+firstNode, counts+firstNode, lastNode - firstNode, codesStart, codesEnd, maxCount);
-    }
+    findPopulatedNodes<<<1,1>>>(tree, nNodes, codesStart, codesEnd);
+    cudaMemcpyFromSymbol(popNodes, populatedNodes, 2 * sizeof(TreeNodeIndex));
+
+    constexpr unsigned nThreads = 512;
+    computeNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>
+        (tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
 }
 
 /*! @brief Compute split or fuse decision for each octree node in parallel
@@ -218,18 +228,12 @@ void computeOctreeGpu(const I* codesStart, const I* codesEnd, unsigned bucketSiz
     while (!converged)
     {
         counts.resize(nNodes(tree));
-
-        constexpr unsigned nThreads = 512;
-        computeNodeCountsKernel<<<iceil(nNodes(tree), nThreads), nThreads>>>
-        (
-            thrust::raw_pointer_cast(tree.data()),
-            thrust::raw_pointer_cast(counts.data()),
-            nNodes(tree), codesStart, codesEnd, maxCount
-        );
+        computeNodeCountsGpu(thrust::raw_pointer_cast(tree.data()), thrust::raw_pointer_cast(counts.data()),
+                             nNodes(tree), codesStart, codesEnd, maxCount);
 
         if constexpr (!std::is_same_v<void, Reduce>)
         {
-            (void*)Reduce{}(counts); // void cast to silence "warning: expression has no effect" from nvcc
+            (void)Reduce{}(counts); // void cast to silence "warning: expression has no effect" from nvcc
         }
 
         rebalanceTreeGpu(tree, thrust::raw_pointer_cast(counts.data()), nNodes(tree), bucketSize, &converged);
