@@ -100,7 +100,7 @@ TEST(InternalOctree, nodeDepth)
         {03000000000, 1, 0, {21, 22, 23, 24, 25, 26, 27, 28, }, {l_, l_, l_, l_, l_, l_, l_, l_}}
     };
 
-    std::vector<std::atomic<TreeNodeIndex>> depths(internalTree.size());
+    std::vector<std::atomic<int>> depths(internalTree.size());
     for (auto& d : depths) d = 0;
 
     nodeDepth(internalTree.data(), internalTree.size(), depths.data());
@@ -129,7 +129,7 @@ void nodeDepthThreading()
 
     createInternalOctreeCpu(binaryTree.data(), nNodes(leaves), octree.data(), leafParents.data());
 
-    std::vector<std::atomic<TreeNodeIndex>> depths(octree.size());
+    std::vector<std::atomic<int>> depths(octree.size());
     for (auto& d : depths) d = 0;
 
     nodeDepth(octree.data(), octree.size(), depths.data());
@@ -205,7 +205,7 @@ void decreasingMaxDepthOrderIsSorted()
     std::vector<OctreeNode<I>> newOctree(octree.size());
     rewireInternal(octree.data(), depthOrder.data(), octree.size(), newOctree.data());
 
-    std::vector<std::atomic<TreeNodeIndex>> depths(octree.size());
+    std::vector<std::atomic<int>> depths(octree.size());
     for (auto& d : depths) d = 0;
 
     nodeDepth(newOctree.data(), newOctree.size(), depths.data());
