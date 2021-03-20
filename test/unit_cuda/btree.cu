@@ -76,7 +76,7 @@ void internal4x4x4PrefixTest()
     EXPECT_EQ(internalTree[63].prefix, 0);
 }
 
-TEST(BinaryTreeGPU, internalTree4x4x4PrefixTest)
+TEST(BinaryTreeGpu, internalTree4x4x4PrefixTest)
 {
     internal4x4x4PrefixTest<unsigned>();
     internal4x4x4PrefixTest<uint64_t>();
