@@ -113,12 +113,49 @@ struct OctreeNode
  * @return                       the previous maximum value
  */
 template<typename T>
-T atomicMax(std::atomic<T>& maximumValue, const T& newValue) noexcept
+inline T atomicMax(std::atomic<T>* maximumValue, const T& newValue) noexcept
 {
-    T previousValue = maximumValue;
-    while(previousValue < newValue && !maximumValue.compare_exchange_weak(previousValue, newValue))
+    T previousValue = *maximumValue;
+    while(previousValue < newValue && !maximumValue->compare_exchange_weak(previousValue, newValue))
     {}
     return previousValue;
+}
+
+template<class I, class AtomicInteger>
+CUDA_HOST_DEVICE_FUN
+void nodeDepthElement(TreeNodeIndex i, const OctreeNode<I>* octree, AtomicInteger* depths)
+{
+    int nLeafChildren = 0;
+    for (int octant = 0; octant < 8; ++octant)
+    {
+        if (octree[i].childType[octant] == OctreeNode<I>::leaf)
+        {
+            nLeafChildren++;
+        }
+    }
+
+    if (nLeafChildren == 8) { depths[i] = 1; } // all children are leaves - maximum depth is 1
+    else                    { return; }
+
+    TreeNodeIndex nodeIndex = i;
+    TreeNodeIndex depth = 1;
+
+    // race to the top
+    do
+    {   // ascend one level
+        nodeIndex = octree[nodeIndex].parent;
+        depth++;
+
+        // set depths[nodeIndex] = max(depths[nodeIndex], depths) and store previous value
+        // of depths[nodeIndex] in previousMax
+        TreeNodeIndex previousMax = atomicMax(depths + nodeIndex, depth);
+        if (previousMax >= depth)
+        {
+            // another thread already set a higher value for depths[nodeIndex], drop out of race
+            break;
+        }
+
+    } while (nodeIndex != octree[nodeIndex].parent);
 }
 
 /*! @brief calculate distance to farthest leaf for each internal node in parallel
@@ -136,37 +173,7 @@ void nodeDepth(const OctreeNode<I>* octree, TreeNodeIndex nNodes, std::atomic<Tr
     #pragma omp parallel for
     for (TreeNodeIndex i = 0; i < nNodes; ++i)
     {
-        int nLeafChildren = 0;
-        for (int octant = 0; octant < 8; ++octant)
-        {
-            if (octree[i].childType[octant] == OctreeNode<I>::leaf)
-            {
-                nLeafChildren++;
-            }
-        }
-
-        if (nLeafChildren == 8) { depths[i] = 1; } // all children are leaves - maximum depth is 1
-        else                    { continue; }
-
-        TreeNodeIndex nodeIndex = i;
-        TreeNodeIndex depth = 1;
-
-        // race to the top
-        do
-        {   // ascend one level
-            nodeIndex = octree[nodeIndex].parent;
-            depth++;
-
-            // set depths[nodeIndex] = max(depths[nodeIndex], depths) and store previous value
-            // of depths[nodeIndex] in previousMax
-            TreeNodeIndex previousMax = atomicMax(depths[nodeIndex], depth);
-            if (previousMax >= depth)
-            {
-                // another thread already set a higher value for depths[nodeIndex], drop out of race
-                break;
-            }
-
-        } while (nodeIndex != octree[nodeIndex].parent);
+        nodeDepthElement(i, octree, depths);
     }
 }
 
