@@ -138,7 +138,7 @@ void nodeDepthElement(TreeNodeIndex i, const OctreeNode<I>* octree, AtomicIntege
     else                    { return; }
 
     TreeNodeIndex nodeIndex = i;
-    TreeNodeIndex depth = 1;
+    int depth = 1;
 
     // race to the top
     do
@@ -148,7 +148,7 @@ void nodeDepthElement(TreeNodeIndex i, const OctreeNode<I>* octree, AtomicIntege
 
         // set depths[nodeIndex] = max(depths[nodeIndex], depths) and store previous value
         // of depths[nodeIndex] in previousMax
-        TreeNodeIndex previousMax = atomicMax(depths + nodeIndex, depth);
+        int previousMax = atomicMax(depths + nodeIndex, depth);
         if (previousMax >= depth)
         {
             // another thread already set a higher value for depths[nodeIndex], drop out of race
@@ -168,7 +168,7 @@ void nodeDepthElement(TreeNodeIndex i, const OctreeNode<I>* octree, AtomicIntege
  *                       The distance is equal to 1 for each node whose children are only leaves.
  */
 template<class I>
-void nodeDepth(const OctreeNode<I>* octree, TreeNodeIndex nNodes, std::atomic<TreeNodeIndex>* depths)
+void nodeDepth(const OctreeNode<I>* octree, TreeNodeIndex nNodes, std::atomic<int>* depths)
 {
     #pragma omp parallel for
     for (TreeNodeIndex i = 0; i < nNodes; ++i)
@@ -201,7 +201,7 @@ void decreasingMaxDepthOrder(const OctreeNode<I>* octree,
                              TreeNodeIndex* ordering,
                              TreeNodeIndex* nNodesPerLevel)
 {
-    std::vector<std::atomic<TreeNodeIndex>> depths(nNodes);
+    std::vector<std::atomic<int>> depths(nNodes);
 
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < nNodes; ++i)
@@ -221,7 +221,7 @@ void decreasingMaxDepthOrder(const OctreeNode<I>* octree,
         inverseOrdering[i] = i;
     }
 
-    std::vector<TreeNodeIndex> depths_v(begin(depths), end(depths));
+    std::vector<int> depths_v(begin(depths), end(depths));
     sort_by_key(begin(depths_v), end(depths_v), begin(inverseOrdering), std::greater<TreeNodeIndex>{});
 
     #pragma omp parallel for schedule(static)
