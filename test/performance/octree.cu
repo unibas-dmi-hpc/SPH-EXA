@@ -33,6 +33,8 @@
 #include <iostream>
 #include <numeric>
 
+#include <thrust/reduce.h>
+
 #include "cstone/tree/octree.cuh"
 
 #include "coord_samples/random.hpp"
@@ -65,10 +67,8 @@ int main()
     auto tp1  = std::chrono::high_resolution_clock::now();
 
     double t0 = std::chrono::duration<double>(tp1 - tp0).count();
-    // download counts
-    thrust::host_vector<unsigned> h_counts = counts;
     std::cout << "build time from scratch " << t0 << " nNodes(tree): " << nNodes(tree)
-              << " count: " << std::accumulate(h_counts.begin(), h_counts.end(), 0lu) << std::endl;
+              << " count: " << thrust::reduce(counts.begin(), counts.end(), 0) << std::endl;
 
     tp0  = std::chrono::high_resolution_clock::now();
 
@@ -81,9 +81,6 @@ int main()
 
     double t1 = std::chrono::duration<double>(tp1 - tp0).count();
 
-    // download counts
-    thrust::host_vector<unsigned> h_counts2 = counts;
-
     std::cout << "build time with guess " << t1 << " nNodes(tree): " << nNodes(tree)
-              << " count: " << std::accumulate(h_counts2.begin(), h_counts2.end(), 0lu) << std::endl;
+              << " count: " << thrust::reduce(counts.begin(), counts.end(), 0) << std::endl;
 }
