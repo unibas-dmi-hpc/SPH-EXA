@@ -105,7 +105,7 @@ __global__ void countCollisionsKernel(const BinaryNode<I>* internalRoot, const I
     int tidx = blockDim.x * blockIdx.x + threadIdx.x;
     int tidy = blockDim.y * blockIdx.y + threadIdx.y;
     int tidz = blockDim.z * blockIdx.z + threadIdx.z;
-    int tid = sideLength * sideLength * tidx + sideLength * sideLength * tidy + tidz;
+    int tid = sideLength * sideLength * tidx + sideLength * tidy + tidz;
 
     int cubeLength = 1024 / sideLength;
 
@@ -117,14 +117,17 @@ __global__ void countCollisionsKernel(const BinaryNode<I>* internalRoot, const I
     int izmax = tidz * cubeLength + cubeLength + 1;
 
     IBox ibox(ixmin, ixmax, iymin, iymax, izmin, izmax);
-    nCollisionsPerLeaf[tid] = countCollisions(internalRoot, leafNodes, ibox, {0, 0});
+    unsigned cnt = countCollisions(internalRoot, leafNodes, ibox, {0, 0});
+    nCollisionsPerLeaf[tid] = cnt;
+    //printf("%d| %d, %d, %d: %d\n", tid, tidx, tidy, tidz, cnt);
 }
 
 template <class I>
 void countCollisionsGpu(const BinaryNode<I>* internalRoot, const I* leafNodes,
                         TreeNodeIndex nLeaves, unsigned* nCollisionsPerLeaf)
 {
-    int sideLength = log8ceil(unsigned(nLeaves));
+    int sideLength = 1u << log8ceil(unsigned(nLeaves));
+    std::cout << "nNodes " << nLeaves << " sideLength " << sideLength << std::endl;
 
     dim3 threads(8,8,8);
     dim3 blocks(sideLength/8, sideLength/8, sideLength/8);
@@ -153,13 +156,15 @@ int main()
     //                 bucketSize,
     //                 tree, counts);
 
-    thrust::device_vector<CodeType> tree = makeUniformNLevelTree<CodeType>(4096, 1);
+    thrust::device_vector<CodeType> tree = makeUniformNLevelTree<CodeType>(256*256*256, 1);
+    //thrust::device_vector<CodeType> tree = makeUniformNLevelTree<CodeType>(64, 1);
 
     thrust::device_vector<BinaryNode<CodeType>> binaryTree(nNodes(tree));
 
     auto tp0 = std::chrono::high_resolution_clock::now();
     createBinaryTreeGpu(thrust::raw_pointer_cast(tree.data()), nNodes(tree),
                         thrust::raw_pointer_cast(binaryTree.data()));
+    cudaDeviceSynchronize();
     auto tp1  = std::chrono::high_resolution_clock::now();
 
     double t0 = std::chrono::duration<double>(tp1 - tp0).count();
@@ -172,9 +177,10 @@ int main()
                        thrust::raw_pointer_cast(tree.data()),
                        nNodes(tree),
                        thrust::raw_pointer_cast(collisionCounts.data()));
+    cudaDeviceSynchronize();
     tp1  = std::chrono::high_resolution_clock::now();
     double t1 = std::chrono::duration<double>(tp1 - tp0).count();
-    std::cout << "traversal time " << t1 << " nNodes(tree): " << std::endl;
+    std::cout << "traversal time " << t1 << std::endl;
 
     thrust::host_vector<unsigned> h_collisionCounts = collisionCounts;
     int nfail = 0;
@@ -183,6 +189,7 @@ int main()
         if (h_collisionCounts[i] != 27)
         {
             nfail++;
+            //std::cout << h_collisionCounts[i] << std::endl;
         }
     }
 
