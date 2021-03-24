@@ -47,9 +47,8 @@ void internal4x4x4PrefixTest()
     thrust::device_vector<I> tree = makeUniformNLevelTree<I>(64, 1);
 
     thrust::device_vector<BinaryNode<I>> d_internalTree(nNodes(tree));
-    constexpr int nThreads = 512;
-    createBinaryTreeKernel<<<iceil(nNodes(tree), nThreads), nThreads>>>(thrust::raw_pointer_cast(tree.data()), nNodes(tree),
-                           thrust::raw_pointer_cast(d_internalTree.data()));
+    createBinaryTreeGpu(thrust::raw_pointer_cast(tree.data()), nNodes(tree),
+                        thrust::raw_pointer_cast(d_internalTree.data()));
 
     thrust::host_vector<BinaryNode<I>> internalTree = d_internalTree;
 
