@@ -62,11 +62,12 @@
 
 #pragma once
 
+#include "cstone/cuda/annotation.hpp"
 #include "cstone/sfc/common.hpp"
 
-namespace cstone {
+#include "definitions.h"
 
-using TreeNodeIndex = int;
+namespace cstone {
 
 /*! @brief binary radix tree node
  *
@@ -115,6 +116,7 @@ struct BinaryNode
  * @return                       position of morton
  */
 template<class I>
+CUDA_HOST_DEVICE_FUN
 int findSplit(const I* sortedMortonCodes, int first, int last)
 {
     // Identical Morton codes => split the range in the middle.
@@ -161,6 +163,7 @@ int findSplit(const I* sortedMortonCodes, int first, int last)
  *                            permissible range is 0 <= firstIndex < nCodes-1
  */
 template<class I>
+CUDA_HOST_DEVICE_FUN
 void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNodes, int firstIndex)
 {
     BinaryNode<I>* outputNode = internalNodes + firstIndex;
@@ -202,10 +205,10 @@ void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNo
     outputNode->prefix       = zeroLowBits(codes[firstIndex], outputNode->prefixLength);
 
     // find position of highest differing bit between [firstIndex, secondIndex]
-    int gamma = findSplit(codes, std::min(secondIndex, firstIndex), std::max(secondIndex, firstIndex));
+    int gamma = findSplit(codes, stl::min(secondIndex, firstIndex), stl::max(secondIndex, firstIndex));
 
     // establish child relationships
-    if (std::min(secondIndex, firstIndex) == gamma)
+    if (stl::min(secondIndex, firstIndex) == gamma)
     {
         // left child is a leaf
         outputNode->child[BinaryNode<I>::left]    = nullptr;
@@ -218,7 +221,7 @@ void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNo
         outputNode->leafIndex[BinaryNode<I>::left] = -1;
     }
 
-    if (std::max(secondIndex, firstIndex) == gamma + 1)
+    if (stl::max(secondIndex, firstIndex) == gamma + 1)
     {
         // right child is a leaf
         outputNode->child[BinaryNode<I>::right]    = nullptr;

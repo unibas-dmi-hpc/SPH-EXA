@@ -24,22 +24,17 @@
  */
 
 /*! @file
- * @brief Test morton code implementation
+ * @brief Benchmark cornerstone octree generation on the GPU
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include <chrono>
 #include <iostream>
-#include <numeric>
 
+#include <thrust/reduce.h>
 
-#include "cstone/domain/halodiscovery.hpp"
-#include "cstone/domain/domaindecomp.hpp"
-
-#include "cstone/halos/btreetraversal.hpp"
-
-#include "cstone/tree/octree.hpp"
+#include "cstone/tree/octree.cuh"
 
 #include "coord_samples/random.hpp"
 
@@ -55,44 +50,36 @@ int main()
 
     RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
 
-    std::vector<CodeType> tree;
-    std::vector<unsigned> counts;
+    thrust::device_vector<CodeType> tree;
+    thrust::device_vector<unsigned> counts;
+
+    thrust::device_vector<CodeType> particleCodes(randomBox.mortonCodes().begin(),
+                                                  randomBox.mortonCodes().end());
 
     auto tp0 = std::chrono::high_resolution_clock::now();
 
-    std::tie(tree, counts) = computeOctree(randomBox.mortonCodes().data(),
-                                           randomBox.mortonCodes().data() + nParticles,
-                                           bucketSize);
+    computeOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
+                     thrust::raw_pointer_cast(particleCodes.data() + nParticles),
+                     bucketSize,
+                     tree, counts);
 
     auto tp1  = std::chrono::high_resolution_clock::now();
 
     double t0 = std::chrono::duration<double>(tp1 - tp0).count();
     std::cout << "build time from scratch " << t0 << " nNodes(tree): " << nNodes(tree)
-              << " count: " << std::accumulate(begin(counts), end(counts), 0lu) << std::endl;
+              << " count: " << thrust::reduce(counts.begin(), counts.end(), 0) << std::endl;
 
     tp0  = std::chrono::high_resolution_clock::now();
 
-    std::tie(tree, counts) = computeOctree(randomBox.mortonCodes().data(),
-                                           randomBox.mortonCodes().data() + nParticles,
-                                           bucketSize, std::numeric_limits<unsigned>::max(),
-                                           std::move(tree));
+    computeOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
+                     thrust::raw_pointer_cast(particleCodes.data() + nParticles),
+                     bucketSize,
+                     tree, counts);
 
     tp1  = std::chrono::high_resolution_clock::now();
 
     double t1 = std::chrono::duration<double>(tp1 - tp0).count();
+
     std::cout << "build time with guess " << t1 << " nNodes(tree): " << nNodes(tree)
-              << " count: " << std::accumulate(begin(counts), end(counts), 0lu) << std::endl;
-
-    int nSplits = 4;
-    SpaceCurveAssignment<CodeType> assignment = singleRangeSfcSplit(tree, counts, nSplits);
-    std::vector<double> haloRadii(nNodes(tree), 0.01);
-
-    std::vector<pair<int>> haloPairs;
-    int doSplit = 0;
-    tp0  = std::chrono::high_resolution_clock::now();
-    findHalos(tree, haloRadii, box, assignment, doSplit, haloPairs);
-    tp1  = std::chrono::high_resolution_clock::now();
-
-    double t2 = std::chrono::duration<double>(tp1 - tp0).count();
-    std::cout << "halo discovery: " << t2 << " nPairs: " << haloPairs.size() << std::endl;
+              << " count: " << thrust::reduce(counts.begin(), counts.end(), 0) << std::endl;
 }

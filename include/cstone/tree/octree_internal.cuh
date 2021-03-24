@@ -24,37 +24,27 @@
  */
 
 /*! @file
- * @brief  Find neighbors in Morton code sorted x,y,z arrays
+ * @brief  Compute the internal part of a cornerstone octree on the GPU
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ *
  */
 
-#include "findneighbors.cuh"
+#pragma once
 
-template<class T, class I>
-__global__ void findNeighborsCudaKernel(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                                        cstone::Box<T> box, const I* codes, int* neighbors, int* neighborsCount, int ngmax)
+#include "octree_internal.hpp"
+
+namespace cstone {
+
+//! @brief see nodeDepth, note: depths must be initialized to zero, as in the CPU version
+template<class I>
+__global__ void nodeDepthKernel(const OctreeNode<I>* octree, TreeNodeIndex nNodes, TreeNodeIndex* depths)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    unsigned id = firstId + tid;
-    if (id < lastId)
+    if (tid < nNodes)
     {
-        cstone::findNeighbors(id, x, y, z, h, box, codes, neighbors + tid*ngmax, neighborsCount + tid, n, ngmax);
+        nodeDepthElement(tid, octree, depths);
     }
 }
 
-template<class T, class I>
-void findNeighborsCuda(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                       cstone::Box<T> box, const I* codes, int* neighbors, int* neighborsCount, int ngmax,
-                       cudaStream_t stream)
-{
-    constexpr int threadsPerBlock = 256;
-    int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
-    findNeighborsCudaKernel<<<blocksPerGrid, threadsPerBlock, 0, stream>>>
-        (x, y, z, h, firstId, lastId, n, box, codes, neighbors, neighborsCount, ngmax);
-}
-
-template FIND_NEIGHBORS_CUDA(float,  uint32_t)
-template FIND_NEIGHBORS_CUDA(float,  uint64_t)
-template FIND_NEIGHBORS_CUDA(double, uint32_t)
-template FIND_NEIGHBORS_CUDA(double, uint64_t)
+} // namespace cstone

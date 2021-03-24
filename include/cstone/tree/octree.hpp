@@ -52,7 +52,6 @@
 #pragma once
 
 #include <algorithm>
-#include <atomic>
 #include <cmath>
 #include <numeric>
 #include <vector>
@@ -61,23 +60,41 @@
 #include "cstone/sfc/common.hpp"
 #include "cstone/primitives/scan.hpp"
 
+#include "definitions.h"
+
 namespace cstone
 {
 
 /*! @brief returns the number of nodes in a tree
  *
- * @tparam    I       32- or 64-bit unsigned integer type
+ * @tparam    Vector  a vector-like container that has a .size() member
  * @param[in] tree    input tree
  * @return            the number of nodes
  *
  * This makes it explicit that a vector of n Morton codes
  * corresponds to a tree with n-1 nodes.
  */
-template<class I>
-std::size_t nNodes(const std::vector<I>& tree)
+template<class Vector>
+std::size_t nNodes(const Vector& tree)
 {
     assert(tree.size());
     return tree.size() - 1;
+}
+
+//! @brief count particles in one tree node
+template<class I>
+CUDA_HOST_DEVICE_FUN
+unsigned calculateNodeCount(const I* tree, TreeNodeIndex nodeIdx, const I* codesStart, const I* codesEnd, unsigned maxCount)
+{
+    I nodeStart = tree[nodeIdx];
+    I nodeEnd   = tree[nodeIdx+1];
+
+    // count particles in range
+    auto rangeStart = stl::lower_bound(codesStart, codesEnd, nodeStart);
+    auto rangeEnd   = stl::lower_bound(codesStart, codesEnd, nodeEnd);
+    unsigned count  = rangeEnd - rangeStart;
+
+    return stl::min(count, maxCount);
 }
 
 /*! @brief count number of particles in each octree node
@@ -87,8 +104,8 @@ std::size_t nNodes(const std::vector<I>& tree)
  *                          needs to satisfy the octree invariants
  * @param[out] counts       output particle counts per node, length = @a nNodes
  * @param[in]  nNodes       number of nodes in tree
- * @param[in]  codesStart   Morton code range start of particles to count
- * @param[in]  codesEnd     Morton code range end of particles to count
+ * @param[in]  codesStart   sorted particle SFC code range start
+ * @param[in]  codesEnd     sorted particle SFC code range end
  * @param[in]  maxCount     maximum particle count per node to store, this is used
  *                          to prevent overflow in MPI_Allreduce
  */
@@ -104,30 +121,53 @@ void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* cod
         lastNode  = std::upper_bound(tree, tree + nNodes, *(codesEnd-1)) - tree;
     }
 
-    #pragma omp parallel
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < nNodes; ++i)
+        counts[i] = 0;
+
+    #pragma omp parallel for schedule(static)
+    for (int i = firstNode; i < lastNode; ++i)
     {
-        #pragma omp for schedule(static) nowait
-        for (int i = 0; i < firstNode; ++i)
-            counts[i] = 0;
-
-        #pragma omp for schedule(static) nowait
-        for (int i = lastNode; i < nNodes; ++i)
-            counts[i] = 0;
-
-        #pragma omp for schedule(static)
-        for (int i = firstNode; i < lastNode; ++i)
-        {
-            I nodeStart = tree[i];
-            I nodeEnd   = tree[i+1];
-
-            // count particles in range
-            auto rangeStart = std::lower_bound(codesStart, codesEnd, nodeStart);
-            auto rangeEnd   = std::lower_bound(codesStart, codesEnd, nodeEnd);
-            unsigned count  = std::distance(rangeStart, rangeEnd);
-            counts[i]       = std::min(count, maxCount);
-        }
+        counts[i] = calculateNodeCount(tree, i, codesStart, codesEnd, maxCount);
     }
 }
+
+//! @brief returns 0 for merging, 1 for no-change, 8 for splitting
+template<class I>
+CUDA_HOST_DEVICE_FUN
+int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize, int* changeCount)
+{
+    I thisNode     = tree[nodeIdx];
+    I range        = tree[nodeIdx + 1] - thisNode;
+    unsigned level = treeLevel(range);
+
+    if (counts[nodeIdx] > bucketSize && level < maxTreeLevel<I>{})
+    {
+        (*changeCount)++;
+        return 8; // split
+    }
+    else if (level > 0) // level 0 cannot be fused
+    {
+        TreeNodeIndex pi = parentIndex(thisNode, level);
+        // node's 7 siblings are next to each other
+        bool siblings = (tree[nodeIdx-pi+8] == tree[nodeIdx-pi] + nodeRange<I>(level - 1));
+        if (siblings && pi > 0) // if not first of 8 siblings
+        {
+            #ifdef __CUDA_ARCH__
+            size_t parentCount = thrust::reduce(thrust::seq, counts + nodeIdx - pi, counts + nodeIdx - pi + 8, size_t(0));
+            #else
+            size_t parentCount = std::accumulate(counts + nodeIdx - pi, counts + nodeIdx - pi + 8, size_t(0));
+            #endif
+            if (parentCount <= bucketSize)
+            {
+                (*changeCount)++;
+                return 0; // fuse
+            }
+        }
+    }
+
+    return 1; // default: do nothing
+};
 
 /*! @brief Compute split or fuse decision for each octree node in parallel
  *
@@ -139,7 +179,7 @@ void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* cod
  * @param[in] bucketSize   maximum particle count per (leaf) node and
  *                         minimum particle count (strictly >) for (implicit) internal nodes
  * @param[out] nodeOps     stores rebalance decision result for each node, length = @a nNodes
- * @return                 number of nodes split + fused
+ * @param[out] converged   stores 0 upon return if converged, a non-zero positive integer otherwise
  *
  * For each node i in the tree, in nodeOps[i], stores
  *  - 0 if to be merged
@@ -147,43 +187,46 @@ void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* cod
  *  - 8 if to be split.
  */
 template<class I, class LocalIndex>
-int rebalanceDecision(const I* tree, const unsigned* counts, int nNodes,
-                      unsigned bucketSize, LocalIndex* nodeOps)
+void rebalanceDecision(const I* tree, const unsigned* counts, TreeNodeIndex nNodes,
+                       unsigned bucketSize, LocalIndex* nodeOps, int* converged)
 {
-    std::atomic<int> changes{0};
-
     #pragma omp parallel for
-    for (int i = 0; i < nNodes; ++i)
+    for (TreeNodeIndex i = 0; i < nNodes; ++i)
     {
-        I thisNode     = tree[i];
-        I range        = tree[i+1] - thisNode;
-        unsigned level = treeLevel(range);
+        nodeOps[i] = calculateNodeOp(tree, i, counts, bucketSize, converged);
+    }
+}
 
-        nodeOps[i] = 1; // default: do nothing
+/*! @brief transform old nodes into new nodes based on opcodes
+ *
+ * @tparam I          32- or 64-bit integer
+ * @param nodeIndex   the node to process in @p oldTree
+ * @param oldTree     the old tree
+ * @param nodeOps     opcodes per old tree node
+ * @param newTree     the new tree
+ */
+template<class I>
+CUDA_HOST_DEVICE_FUN
+void processNode(TreeNodeIndex nodeIndex, const I* oldTree, const TreeNodeIndex* nodeOps, I* newTree)
+{
+    I thisNode     = oldTree[nodeIndex];
+    I range        = oldTree[nodeIndex+1] - thisNode;
+    unsigned level = treeLevel(range);
 
-        if (counts[i] > bucketSize && level < maxTreeLevel<I>{})
+    TreeNodeIndex opCode       = nodeOps[nodeIndex+1] - nodeOps[nodeIndex];
+    TreeNodeIndex newNodeIndex = nodeOps[nodeIndex];
+
+    if (opCode == 1)
+    {
+        newTree[newNodeIndex] = thisNode;
+    }
+    else if (opCode == 8)
+    {
+        for (int sibling = 0; sibling < 8; ++sibling)
         {
-            changes++;
-            nodeOps[i] = 8; // split
-        }
-        else if (level > 0) // level 0 cannot be fused
-        {
-            int pi = parentIndex(thisNode, level);
-            // node's 7 siblings are next to each other
-            bool siblings = (tree[i-pi+8] == tree[i-pi] + nodeRange<I>(level - 1));
-            if (siblings && pi > 0) // if not first of 8 siblings
-            {
-                size_t parentCount = std::accumulate(counts + i - pi, counts + i - pi + 8, size_t(0));
-                if (parentCount <= bucketSize)
-                {
-                    nodeOps[i] = 0; // fuse
-                    changes++;
-                }
-            }
+            newTree[newNodeIndex + sibling] = thisNode + sibling * nodeRange<I>(level + 1);
         }
     }
-
-    return changes;
 }
 
 /*! @brief split or fuse octree nodes based on node counts relative to bucketSize
@@ -198,49 +241,33 @@ int rebalanceDecision(const I* tree, const unsigned* counts, int nNodes,
  * @param[out] converged   optional boolean flag to indicate convergence
  * @return                 the rebalanced Morton code octree
  */
-template<class I>
-std::vector<I> rebalanceTree(const I* tree, const unsigned* counts, int nNodes,
-                             unsigned bucketSize, bool* converged = nullptr)
+template<class SfcVector>
+void rebalanceTree(SfcVector& tree, const unsigned* counts, TreeNodeIndex nNodes,
+                   unsigned bucketSize, bool* converged = nullptr)
 {
-    using LocalIndex = unsigned;
-    std::vector<LocalIndex> nodeOps(nNodes + 1);
+    using I = typename SfcVector::value_type;
+    std::vector<TreeNodeIndex> nodeOps(nNodes + 1);
 
-    int changes = rebalanceDecision(tree, counts, nNodes, bucketSize, nodeOps.data());
+    int changeCounter = 0;
+    rebalanceDecision(tree.data(), counts, nNodes, bucketSize, nodeOps.data(), &changeCounter);
 
     exclusiveScan(nodeOps.data(), nNodes + 1);
 
-    std::vector<I> balancedTree(*nodeOps.rbegin() + 1);
+    SfcVector balancedTree(*nodeOps.rbegin() + 1);
 
-    #pragma omp parallel for
-    for (int i = 0; i < nNodes; ++i)
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < nNodes; ++i)
     {
-        I thisNode     = tree[i];
-        I range        = tree[i+1] - thisNode;
-        unsigned level = treeLevel(range);
-
-        LocalIndex opCode       = nodeOps[i+1] - nodeOps[i];
-        LocalIndex newNodeIndex = nodeOps[i];
-
-        if (opCode == 1)
-        {
-            balancedTree[newNodeIndex] = thisNode;
-        }
-        else if (opCode == 8)
-        {
-            for (int sibling = 0; sibling < 8; ++sibling)
-            {
-                balancedTree[newNodeIndex + sibling] = thisNode + sibling * nodeRange<I>(level + 1);
-            }
-        }
+        processNode(i, tree.data(), nodeOps.data(), balancedTree.data());
     }
     *balancedTree.rbegin() = nodeRange<I>(0);
 
     if (converged != nullptr)
     {
-        *converged = (changes == 0);
+        *converged = (changeCounter == 0);
     }
 
-    return balancedTree;
+    swap(tree, balancedTree);
 }
 
 
@@ -280,11 +307,12 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
     while (!converged)
     {
         computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd, maxCount);
-        if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
-        std::vector<I> balancedTree =
-            rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize, &converged);
+        if constexpr (!std::is_same_v<void, Reduce>)
+        {
+            (void)Reduce{}(counts); // void cast to silence "warning: expression has no effect" from nvcc
+        }
 
-        swap(tree, balancedTree);
+        rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize, &converged);
         counts.resize(nNodes(tree));
     }
 
@@ -307,8 +335,7 @@ void updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
                   std::vector<I>& tree, std::vector<unsigned>& counts,
                   unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
-    std::vector<I> balancedTree = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
-    swap(tree, balancedTree);
+    rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize);
     counts.resize(nNodes(tree));
 
     // local node counts
@@ -343,7 +370,7 @@ void updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
  * @param[out] output       Radius per node, length = @a nNodes
  */
 template<class Tin, class Tout, class I, class IndexType>
-void computeHaloRadii(const I* tree, int nNodes, const I* codesStart, const I* codesEnd,
+void computeHaloRadii(const I* tree, TreeNodeIndex nNodes, const I* codesStart, const I* codesEnd,
                       const IndexType* ordering, const Tin* input, Tout* output)
 {
     int firstNode = 0;
@@ -355,15 +382,15 @@ void computeHaloRadii(const I* tree, int nNodes, const I* codesStart, const I* c
     }
 
     #pragma omp parallel for schedule(static)
-    for (int i = 0; i < firstNode; ++i)
+    for (TreeNodeIndex i = 0; i < firstNode; ++i)
         output[i] = 0;
 
     #pragma omp parallel for schedule(static)
-    for (int i = lastNode; i < nNodes; ++i)
+    for (TreeNodeIndex i = lastNode; i < nNodes; ++i)
         output[i] = 0;
 
     #pragma omp parallel for
-    for (int i = firstNode; i < lastNode; ++i)
+    for (TreeNodeIndex i = firstNode; i < lastNode; ++i)
     {
         I nodeStart = tree[i];
         I nodeEnd   = tree[i+1];
