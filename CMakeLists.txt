@@ -7,6 +7,13 @@ find_package(MPI)
 find_package(CUDAToolkit)
 find_package(OpenMP REQUIRED)
 
+if(OpenMP_FOUND)
+    set_property(TARGET OpenMP::OpenMP_CXX PROPERTY INTERFACE_LINK_LIBRARIES "${OpenMP_CXX_FLAGS}")
+    # CMake fails to properly link to OpenMP for cray-clang, see
+    # https://gitlab.kitware.com/cmake/cmake/-/issues/21818#note_903985
+    message(STATUS "setting openmp link library to " ${OpenMP_CXX_FLAGS})
+endif()
+
 include(CTest)
 
 set(default_build_type "Release")
