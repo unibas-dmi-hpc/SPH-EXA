@@ -23,38 +23,27 @@
  * SOFTWARE.
  */
 
-/*! @file
- * @brief  Find neighbors in Morton code sorted x,y,z arrays
+/*! @brief @file parallel binary radix tree construction CUDA kernel
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include "findneighbors.cuh"
+#pragma once
 
-template<class T, class I>
-__global__ void findNeighborsCudaKernel(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                                        cstone::Box<T> box, const I* codes, int* neighbors, int* neighborsCount, int ngmax)
+#include "btree.hpp"
+
+namespace cstone
+{
+
+//! @brief see createBinaryTree
+template <class I>
+__global__ void createBinaryTreeKernel(const I* tree, TreeNodeIndex nNodes, BinaryNode<I>* binaryTree)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    unsigned id = firstId + tid;
-    if (id < lastId)
+    if (tid < nNodes)
     {
-        cstone::findNeighbors(id, x, y, z, h, box, codes, neighbors + tid*ngmax, neighborsCount + tid, n, ngmax);
+        constructInternalNode(tree, nNodes + 1, binaryTree, tid);
     }
 }
 
-template<class T, class I>
-void findNeighborsCuda(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                       cstone::Box<T> box, const I* codes, int* neighbors, int* neighborsCount, int ngmax,
-                       cudaStream_t stream)
-{
-    constexpr int threadsPerBlock = 256;
-    int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
-    findNeighborsCudaKernel<<<blocksPerGrid, threadsPerBlock, 0, stream>>>
-        (x, y, z, h, firstId, lastId, n, box, codes, neighbors, neighborsCount, ngmax);
-}
-
-template FIND_NEIGHBORS_CUDA(float,  uint32_t)
-template FIND_NEIGHBORS_CUDA(float,  uint64_t)
-template FIND_NEIGHBORS_CUDA(double, uint32_t)
-template FIND_NEIGHBORS_CUDA(double, uint64_t)
+} // namespace cstone

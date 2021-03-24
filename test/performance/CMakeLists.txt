@@ -9,14 +9,15 @@ if(CMAKE_CUDA_COMPILER)
 endif()
 
 add_executable(octree_perf octree.cpp)
-
 target_include_directories(octree_perf PRIVATE ../../include)
 target_include_directories(octree_perf PRIVATE ../)
 target_link_libraries(octree_perf PUBLIC OpenMP::OpenMP_CXX)
 
+add_executable(octree_perf_gpu octree.cu)
+target_include_directories(octree_perf_gpu PRIVATE ../../include)
+target_include_directories(octree_perf_gpu PRIVATE ../)
 
 add_executable(scan_perf scan.cpp)
-
 target_include_directories(scan_perf PRIVATE ../../include)
 target_include_directories(scan_perf PRIVATE ../)
 target_link_libraries(scan_perf PUBLIC OpenMP::OpenMP_CXX)
