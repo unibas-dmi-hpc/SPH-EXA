@@ -39,6 +39,7 @@ namespace cstone
 {
 
 //! @brief standard criterion for two ranges a-b and c-d to overlap, a<b and c<d
+CUDA_HOST_DEVICE_FUN
 inline bool overlapTwoRanges(int a, int b, int c, int d)
 {
     assert(a<=b && c<=d);
@@ -54,6 +55,7 @@ inline bool overlapTwoRanges(int a, int b, int c, int d)
  * from the periodic range.
  */
 template<int R>
+CUDA_HOST_DEVICE_FUN
 bool overlapRange(int a, int b, int c, int d)
 {
     assert(a >= -R);
@@ -85,6 +87,7 @@ bool overlapRange(int a, int b, int c, int d)
  *
  */
 template <class I>
+CUDA_HOST_DEVICE_FUN
 bool overlap(I prefix, int length, const IBox& box)
 {
     pair<int> xRange = decodeXRange(prefix, length);
@@ -100,6 +103,7 @@ bool overlap(I prefix, int length, const IBox& box)
 }
 
 template <class I>
+CUDA_HOST_DEVICE_FUN
 bool overlap(I codeStart, I codeEnd, const IBox& box)
 {
     int level = treeLevel(codeEnd - codeStart);
@@ -116,6 +120,7 @@ bool overlap(I codeStart, I codeEnd, const IBox& box)
  */
 template <class I>
 std::enable_if_t<std::is_unsigned_v<I>, bool>
+CUDA_HOST_DEVICE_FUN
 containedIn(I codeStart, I codeEnd, const IBox& box)
 {
     // volume 0 boxes are not possible if makeHaloBox was used to generate it
@@ -124,8 +129,8 @@ containedIn(I codeStart, I codeEnd, const IBox& box)
     assert(box.zmin() < box.zmax());
 
     constexpr int pbcRange = 1u<<maxTreeLevel<I>{};
-    if (std::min({box.xmin(), box.ymin(), box.zmin()}) < 0 ||
-        std::max({box.xmax(), box.ymax(), box.zmax()}) > pbcRange)
+    if (stl::min(stl::min(box.xmin(), box.ymin()), box.zmin()) < 0 ||
+        stl::max(std::max(box.xmax(), box.ymax()), box.zmax()) > pbcRange)
     {
         // any box that wraps around a PBC boundary cannot be contained within
         // any octree node, except the full root node
@@ -152,6 +157,7 @@ containedIn(I codeStart, I codeEnd, const IBox& box)
  */
 template <class I>
 inline std::enable_if_t<std::is_unsigned_v<I>, bool>
+CUDA_HOST_DEVICE_FUN
 containedIn(I prefix, int prefixLength, I codeStart, I codeEnd)
 {
     I nodeEnd = prefix + (I(1) << (3*maxTreeLevel<I>{} - prefixLength));

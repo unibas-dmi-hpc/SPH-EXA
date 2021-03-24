@@ -75,6 +75,7 @@ private:
 };
 
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline bool traverseNode(const BinaryNode<I>* node, const IBox& collisionBox, pair<I> excludeRange)
 {
     return (node != nullptr)
@@ -83,6 +84,7 @@ inline bool traverseNode(const BinaryNode<I>* node, const IBox& collisionBox, pa
 }
 
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline bool leafOverlap(int leafIndex, const I* leafNodes,
                         const IBox& collisionBox, pair<I> excludeRange)
 {
