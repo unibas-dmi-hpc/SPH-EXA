@@ -71,7 +71,7 @@ TEST(BinaryTreeTraversal, collisionList)
 template<class I>
 void pbcCollision()
 {
-    std::vector<I>             tree         = makeUniformNLevelTree<I>(64, 1);
+    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
 
     std::vector<BinaryNode<I>> internalTree(nNodes(tree));
     createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
@@ -143,7 +143,7 @@ template<class I>
 void pbcCollisionWithExclusions()
 {
     constexpr int level2 = 2;
-    std::vector<I>             tree         = makeUniformNLevelTree<I>(64, 1);
+    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
 
     std::vector<BinaryNode<I>> internalTree(nNodes(tree));
     createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
