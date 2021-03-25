@@ -76,11 +76,15 @@ private:
 
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline bool traverseNode(const BinaryNode<I>* node, const IBox& collisionBox, pair<I> excludeRange)
+inline bool traverseNode(const BinaryNode<I>* root, TreeNodeIndex idx,
+                         const IBox& collisionBox, pair<I> excludeRange)
 {
-    return (node != nullptr)
-    && !containedIn(node->prefix, node->prefixLength, excludeRange[0], excludeRange[1])
-    && overlap(node->prefix, node->prefixLength, collisionBox);
+    //return (node != nullptr)
+    //&& !containedIn(node->prefix, node->prefixLength, excludeRange[0], excludeRange[1])
+    //&& overlap(node->prefix, node->prefixLength, collisionBox);
+    return (idx >= 0)
+    && !containedIn(root[idx].prefix, root[idx].prefixLength, excludeRange[0], excludeRange[1])
+    && overlap(root[idx].prefix, root[idx].prefixLength, collisionBox);
 }
 
 template<class I>

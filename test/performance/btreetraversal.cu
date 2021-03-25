@@ -47,53 +47,66 @@ using namespace cstone;
 
 template <class I>
 CUDA_HOST_DEVICE_FUN
-int countCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes,
+int countCollisions(const BinaryNode<I>* root, const I* leafNodes,
                     const IBox& collisionBox, pair<I> excludeRange)
 {
     using Node    = BinaryNode<I>;
-    using NodePtr = const Node*;
+    //using NodePtr = const Node*;
 
-    NodePtr  stack[64];
-    NodePtr* stackPtr = stack;
+    //NodePtr  stack[64];
+    //NodePtr* stackPtr = stack;
+    //*stackPtr++ = nullptr;
+    //const BinaryNode<I>* node = internalRoot;
 
-    *stackPtr++ = nullptr;
+    TreeNodeIndex stack[64];
+    stack[0] = 0;
 
-    const BinaryNode<I>* node = internalRoot;
+    TreeNodeIndex stackPos = 1;
+    TreeNodeIndex node     = 0; // start at the root
 
     int collisionCount = 0;
 
     do
     {
-        bool traverseL = traverseNode(node->child[Node::left], collisionBox, excludeRange);
-        bool traverseR = traverseNode(node->child[Node::right], collisionBox, excludeRange);
+        //bool traverseL = traverseNode(node->child[Node::left], collisionBox, excludeRange);
+        //bool traverseR = traverseNode(node->child[Node::right], collisionBox, excludeRange);
+        TreeNodeIndex leftChild  = root[node].child[Node::left];
+        TreeNodeIndex rightChild = root[node].child[Node::right];
+        bool traverseL = traverseNode(root, leftChild, collisionBox, excludeRange);
+        bool traverseR = traverseNode(root, rightChild, collisionBox, excludeRange);
 
-        bool overlapLeafL = leafOverlap(node->leafIndex[Node::left], leafNodes, collisionBox, excludeRange);
-        bool overlapLeafR = leafOverlap(node->leafIndex[Node::right], leafNodes, collisionBox, excludeRange);
+        bool overlapLeafL = leafOverlap(root[node].leafIndex[Node::left], leafNodes, collisionBox, excludeRange);
+        bool overlapLeafR = leafOverlap(root[node].leafIndex[Node::right], leafNodes, collisionBox, excludeRange);
 
         if (overlapLeafL) collisionCount++;
         if (overlapLeafR) collisionCount++;
 
         if (!traverseL and !traverseR)
         {
-            node = *--stackPtr; // pop
+            //node = *--stackPtr; // pop
+            node = stack[--stackPos];
         }
         else
         {
             if (traverseL && traverseR)
             {
                 #ifndef __CUDA_ARCH__
-                if (stackPtr-stack >= 64)
+                //if (stackPtr-stack >= 64)
+                if (stackPos >= 64)
                 {
                     throw std::runtime_error("btree traversal stack exhausted\n");
                 }
                 #endif
-                *stackPtr++ = node->child[Node::right]; // push
+                //*stackPtr++ = node->child[Node::right]; // push
+                stack[stackPos++] = rightChild; // push
             }
 
-            node = (traverseL) ? node->child[Node::left] : node->child[Node::right];
+            //node = (traverseL) ? node->child[Node::left] : node->child[Node::right];
+            node = (traverseL) ? leftChild : rightChild;
         }
 
-    } while (node != nullptr);
+    } while (node != 0);
+    //} while (node != nullptr);
 
     return collisionCount;
 }
@@ -225,6 +238,7 @@ int main()
 
     testCpu<CodeType>(gridSize);
 
+    /*
     thrust::device_vector<CodeType> tree = makeUniformNLevelTree<CodeType>(gridSize, 1);
 
     thrust::device_vector<BinaryNode<CodeType>> binaryTree(nNodes(tree));
@@ -262,4 +276,5 @@ int main()
     }
 
     std::cout << "fail count " << nfail << std::endl;
+     */
 }
