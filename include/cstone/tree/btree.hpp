@@ -69,6 +69,9 @@
 
 namespace cstone {
 
+CUDA_HOST_DEVICE_FUN
+inline bool btreeIsLeaf(TreeNodeIndex nodeIndex) { return nodeIndex < 0; }
+
 /*! @brief binary radix tree node
  *
  * @tparam I 32- or 64 bit unsigned integer
