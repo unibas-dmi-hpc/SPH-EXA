@@ -86,7 +86,7 @@ struct BinaryNode
      * If the child is an octree node, the pointer is nullptr and left/rightLeafIndex
      * is set instead.
      */
-    BinaryNode* child[2];
+    TreeNodeIndex child[2];
 
     /*! @brief the Morton code prefix
      *
@@ -211,26 +211,26 @@ void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNo
     if (stl::min(secondIndex, firstIndex) == gamma)
     {
         // left child is a leaf
-        outputNode->child[BinaryNode<I>::left]    = nullptr;
+        outputNode->child[BinaryNode<I>::left]     = -1;
         outputNode->leafIndex[BinaryNode<I>::left] = gamma;
     }
     else
     {
         //left child is an internal binary node
-        outputNode->child[BinaryNode<I>::left]    = internalNodes + gamma;
+        outputNode->child[BinaryNode<I>::left]     = gamma;
         outputNode->leafIndex[BinaryNode<I>::left] = -1;
     }
 
     if (stl::max(secondIndex, firstIndex) == gamma + 1)
     {
         // right child is a leaf
-        outputNode->child[BinaryNode<I>::right]    = nullptr;
+        outputNode->child[BinaryNode<I>::right]     = -1;
         outputNode->leafIndex[BinaryNode<I>::right] = gamma + 1;
     }
     else
     {
         // right child is an internal binary node
-        outputNode->child[BinaryNode<I>::right]    = internalNodes + gamma + 1;
+        outputNode->child[BinaryNode<I>::right]     = gamma + 1;
         outputNode->leafIndex[BinaryNode<I>::right] = -1;
     }
 }
