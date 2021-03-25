@@ -31,6 +31,11 @@ if(CUDAToolkit_FOUND)
     # workaround for CMAKE_CUDA_STANDARD not setting the required flag
     add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:-std=c++17>)
 
+    if(OpenMP_FOUND)
+        # another OpenMP workaround
+        set(CMAKE_CUDA_FLAGS "-Xcompiler ${OpenMP_CXX_FLAGS} ${CMAKE_CUDA_FLAGS}")
+    endif()
+
     add_subdirectory(include)
 else()
     message(STATUS "No CUDA support")
