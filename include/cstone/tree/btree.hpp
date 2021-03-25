@@ -43,21 +43,11 @@
  * The reason why the halo search problem differs from the other SFC-based algorithms
  * for neighbor search and domain decomposition is that an octree node that is enlarged
  * by an arbitrary distance in each dimension cannot necessarily be composed from octree
- * nodes of similar size as the query node and therefore also not as a range of Morton codes,
- * or the sum of a small number of Morton code ranges. This is especially true at the boundaries
+ * nodes of similar size as the query node and therefore also not as a range of SFC codes,
+ * or the sum of a small number of SFC code ranges. This is especially true at the boundaries
  * between octree nodes of different division level, i.e. when large nodes are next to
  * very small nodes. For this reason, nodes enlarged by a halo radius are best represented
- * by separate x,y,z coordinate ranges.
- *
- * The best way to implement collision detection for the 3D box defined x,y,z coordinate ranges
- * is by constructing the internal tree part over the
- * global octree leaf nodes as a binary radix tree. Each internal node of the binary
- * radix tree can be constructed independently and thus the algorithm is ideally suited
- * for GPUs. Subsequent tree traversal to detect collisions can also be done for all leaf
- * nodes in parallel. It is possible to convert the internal binary tree into an octree,
- * as 3 levels in the binary tree correspond to one level in the equivalent octree.
- * Doing so could potentially speed up traversal by a bit, but it is not clear whether it
- * would make up for the overhead of constructing the internal octree.
+ * by x,y,z coordinate ranges.
  */
 
 #pragma once
@@ -69,8 +59,29 @@
 
 namespace cstone {
 
+//! @brief checks whether a binary tree index corresponds to a leaf index
 CUDA_HOST_DEVICE_FUN
-inline bool btreeIsLeaf(TreeNodeIndex nodeIndex) { return nodeIndex < 0; }
+constexpr bool btreeIsLeaf(TreeNodeIndex nodeIndex)
+{
+    return nodeIndex < 0;
+}
+
+//! @brief convert a leaf index to the storage format
+CUDA_HOST_DEVICE_FUN
+constexpr TreeNodeIndex btreeStoreLeaf(TreeNodeIndex index)
+{
+    // -2^31 or -2^63
+    constexpr auto offset = TreeNodeIndex(-(1ul << (8*sizeof(TreeNodeIndex)-1)));
+    return index + offset;
+}
+
+//! @brief restore a leaf index from the storage format
+CUDA_HOST_DEVICE_FUN
+constexpr TreeNodeIndex btreeLoadLeaf(TreeNodeIndex index)
+{
+    constexpr auto offset = TreeNodeIndex(-(1ul << (8*sizeof(TreeNodeIndex)-1)));
+    return index - offset;
+}
 
 /*! @brief binary radix tree node
  *
@@ -81,13 +92,15 @@ struct BinaryNode
 {
     enum ChildType{ left = 0, right = 1 };
 
-    /*! @brief pointer to the left and right children nodes
+    /*! @brief indices to the left and right children nodes
      *
      * The left child adds a 0-bit to the prefix, while
      * the right child adds a 1-bit to the prefix.
      *
-     * If the child is an octree node, the pointer is nullptr and left/rightLeafIndex
-     * is set instead.
+     * Leaf indices are stored as negative values to differentiate them
+     * from indices of internal nodes. Use btreeIsLeaf for querying the leaf property
+     * and btreeLoad/StoreLeaf to convert to the actual positive leaf index into
+     * the SFC code array used to construct the binary tree (e.g. the cornerstone tree).
      */
     TreeNodeIndex child[2];
 
@@ -99,14 +112,6 @@ struct BinaryNode
 
     //! @brief number of bits in prefix to interpret
     int prefixLength;
-
-    /*! @brief Indices of leaf codes
-     *
-     * If the left/right child is a leaf code of the tree used to construct the internal binary tree,
-     * this integer stores the index (e.g. the global octree), otherwise it will be set to -1
-     * if the children are also internal binary nodes.
-     */
-    TreeNodeIndex leafIndex[2];
 };
 
 
@@ -167,7 +172,7 @@ int findSplit(const I* sortedMortonCodes, int first, int last)
  */
 template<class I>
 CUDA_HOST_DEVICE_FUN
-void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNodes, int firstIndex)
+void constructInternalNode(const I* codes, TreeNodeIndex nCodes, BinaryNode<I>* internalNodes, TreeNodeIndex firstIndex)
 {
     BinaryNode<I>* outputNode = internalNodes + firstIndex;
 
@@ -182,8 +187,8 @@ void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNo
     }
 
     // determine searchRange, the maximum distance of secondIndex from firstIndex
-    int searchRange = 2;
-    int secondIndex = firstIndex + searchRange * d;
+    TreeNodeIndex searchRange = 2;
+    TreeNodeIndex secondIndex = firstIndex + searchRange * d;
     while(0 <= secondIndex && secondIndex < nCodes
           && commonPrefix(codes[firstIndex], codes[secondIndex]) > minPrefixLength)
     {
@@ -196,7 +201,7 @@ void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNo
     do
     {
         searchRange = (searchRange + 1) / 2;
-        int newJdx = secondIndex + searchRange * d;
+        TreeNodeIndex newJdx = secondIndex + searchRange * d;
         if (0 <= newJdx && newJdx < nCodes
             && commonPrefix(codes[firstIndex], codes[newJdx]) > minPrefixLength)
         {
@@ -208,33 +213,29 @@ void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNo
     outputNode->prefix       = zeroLowBits(codes[firstIndex], outputNode->prefixLength);
 
     // find position of highest differing bit between [firstIndex, secondIndex]
-    int gamma = findSplit(codes, stl::min(secondIndex, firstIndex), stl::max(secondIndex, firstIndex));
+    TreeNodeIndex gamma = findSplit(codes, stl::min(secondIndex, firstIndex), stl::max(secondIndex, firstIndex));
 
     // establish child relationships
     if (stl::min(secondIndex, firstIndex) == gamma)
     {
         // left child is a leaf
-        outputNode->child[BinaryNode<I>::left]     = -1;
-        outputNode->leafIndex[BinaryNode<I>::left] = gamma;
+        outputNode->child[BinaryNode<I>::left] = btreeStoreLeaf(gamma);
     }
     else
     {
         //left child is an internal binary node
-        outputNode->child[BinaryNode<I>::left]     = gamma;
-        outputNode->leafIndex[BinaryNode<I>::left] = -1;
+        outputNode->child[BinaryNode<I>::left] = gamma;
     }
 
     if (stl::max(secondIndex, firstIndex) == gamma + 1)
     {
         // right child is a leaf
-        outputNode->child[BinaryNode<I>::right]     = -1;
-        outputNode->leafIndex[BinaryNode<I>::right] = gamma + 1;
+        outputNode->child[BinaryNode<I>::right] = btreeStoreLeaf(gamma + 1);
     }
     else
     {
         // right child is an internal binary node
-        outputNode->child[BinaryNode<I>::right]     = gamma + 1;
-        outputNode->leafIndex[BinaryNode<I>::right] = -1;
+        outputNode->child[BinaryNode<I>::right] = gamma + 1;
     }
 }
 
@@ -263,8 +264,6 @@ void constructInternalNode(const I* codes, int nCodes, BinaryNode<I>* internalNo
  * One could of course prevent the generation of the last binary node with index N-1,
  * but that would result in loss of generality for arbitrary sorted Morton code sequences
  * without duplicates.
- *
- * A GPU version of this function can launch a thread for each node [0:nNodes] in parallel.
  */
 template<class I>
 void createBinaryTree(const I* tree, TreeNodeIndex nNodes, BinaryNode<I>* binaryTree)

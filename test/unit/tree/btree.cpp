@@ -40,6 +40,16 @@
 
 using namespace cstone;
 
+TEST(BinaryTree, loadStoreIndex)
+{
+    EXPECT_TRUE(btreeStoreLeaf(0) < 0);
+    EXPECT_EQ(btreeLoadLeaf(btreeStoreLeaf(0)), 0);
+
+    TreeNodeIndex maxIndex = (1ul<<(8*sizeof(TreeNodeIndex)-1))-1;
+    EXPECT_TRUE(btreeStoreLeaf(maxIndex) < 0);
+    EXPECT_EQ(btreeLoadLeaf(btreeStoreLeaf(maxIndex)), maxIndex);
+}
+
 //! @brief check binary node prefixes
 template <class I>
 void internal4x4x4PrefixTest()
@@ -141,30 +151,11 @@ void paperExampleTest()
         constructInternalNode(example.data(), example.size(), internalNodes.data(), i);
     }
 
-    std::vector<TreeNodeIndex> refLeft
-        {
-            3,
-            -1,
-            -1,
-            1,
-            -1,
-            6,
-            -1
-        };
+    std::vector<TreeNodeIndex> refLeft{3, btreeStoreLeaf(0), btreeStoreLeaf(2), 1,
+                                       btreeStoreLeaf(4), 6, btreeStoreLeaf(5)};
 
-    std::vector<TreeNodeIndex> refRight
-        {
-            4,
-            -1,
-            -1,
-            2,
-            5,
-            -1,
-            -1
-        };
-
-    std::vector<TreeNodeIndex> refLeftIndices {-1, 0, 2, -1, 4, -1, 5};
-    std::vector<TreeNodeIndex> refRightIndices{-1, 1, 3, -1, -1, 7, 6};
+    std::vector<TreeNodeIndex> refRight{4, btreeStoreLeaf(1), btreeStoreLeaf(3), 2, 5,
+                                        btreeStoreLeaf(7), btreeStoreLeaf(6)};
 
     std::vector<TreeNodeIndex> refPrefixLengths{0, 3, 4, 2, 1, 2, 4};
 
@@ -172,9 +163,7 @@ void paperExampleTest()
     for (std::size_t idx = 0; idx < internalNodes.size(); ++idx)
     {
         EXPECT_EQ(internalNodes[idx].child[Node::left], refLeft[idx]);
-        EXPECT_EQ(internalNodes[idx].leafIndex[Node::left],  refLeftIndices[idx]);
         EXPECT_EQ(internalNodes[idx].child[Node::right], refRight[idx]);
-        EXPECT_EQ(internalNodes[idx].leafIndex[Node::right], refRightIndices[idx]);
         EXPECT_EQ(internalNodes[idx].prefixLength,   refPrefixLengths[idx]);
     }
 }
