@@ -104,32 +104,26 @@ struct BinaryNode
      */
     TreeNodeIndex child[2];
 
-    /*! @brief the Morton code prefix
-     *
-     * Shared among all the node's children. Only the first prefixLength bits are relevant.
-     */
+    //! @brief the SFC key code with placeholder bit (Warren-Salmon 1993)
     I   prefix;
-
-    //! @brief number of bits in prefix to interpret
-    int prefixLength;
 };
 
 
 /*! @brief find position of first differing bit
  *
  * @tparam I                     32 or 64 bit unsigned integer
- * @param[in] sortedMortonCodes  sorted morton Codes
+ * @param[in] sortedSfcCodes     sorted SFC codes
  * @param[in] first              first range index
  * @param[in] last               last rang index
  * @return                       position of morton
  */
 template<class I>
 CUDA_HOST_DEVICE_FUN
-int findSplit(const I* sortedMortonCodes, int first, int last)
+TreeNodeIndex findSplit(const I* sortedSfcCodes, TreeNodeIndex first, TreeNodeIndex last)
 {
     // Identical Morton codes => split the range in the middle.
-    I firstCode = sortedMortonCodes[first];
-    I lastCode  = sortedMortonCodes[last];
+    I firstCode = sortedSfcCodes[first];
+    I lastCode  = sortedSfcCodes[last];
 
     if (firstCode == lastCode)
         return (first + last) >> 1;
@@ -140,18 +134,18 @@ int findSplit(const I* sortedMortonCodes, int first, int last)
     // Use binary search to find where the next bit differs.
     // Specifically, we are looking for the highest Morton code that
     // shares more than commonPrefix bits with the first one.
-    int split = first; // initial guess
-    int step = last - first;
+    TreeNodeIndex split = first; // initial guess
+    TreeNodeIndex step = last - first;
 
     do
     {
         step = (step + 1) / 2;      // exponential decrease
-        int newSplit = split + step; // proposed new position
+        TreeNodeIndex newSplit = split + step; // proposed new position
 
         if (newSplit < last)
         {
-            I splitCode = sortedMortonCodes[newSplit];
-            int splitPrefix = commonPrefix(firstCode, splitCode);
+            I splitCode = sortedSfcCodes[newSplit];
+            TreeNodeIndex splitPrefix = commonPrefix(firstCode, splitCode);
             if (splitPrefix > cpr)
                 split = newSplit; // accept proposal
         }
@@ -209,8 +203,9 @@ void constructInternalNode(const I* codes, TreeNodeIndex nCodes, BinaryNode<I>* 
         }
     } while (searchRange > 1);
 
-    outputNode.prefixLength = commonPrefix(codes[firstIndex], codes[secondIndex]);
-    outputNode.prefix       = zeroLowBits(codes[firstIndex], outputNode.prefixLength);
+    int prefixLength  = commonPrefix(codes[firstIndex], codes[secondIndex]);
+    I   prefix        = zeroLowBits(codes[firstIndex], prefixLength);
+    outputNode.prefix = encodePlaceholderBit(prefix, prefixLength);
 
     // find position of highest differing bit between [firstIndex, secondIndex]
     TreeNodeIndex gamma = findSplit(codes, stl::min(secondIndex, firstIndex), stl::max(secondIndex, firstIndex));

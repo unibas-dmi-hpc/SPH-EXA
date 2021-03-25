@@ -329,8 +329,8 @@ inline void constructOctreeNode(OctreeNode<I>*       internalOctree,
     OctreeNode<I>& octreeNode = internalOctree[nodeIndex];
 
     TreeNodeIndex bi  = scatterMap[nodeIndex]; // binary tree index
-    octreeNode.prefix = binaryTree[bi].prefix;
-    octreeNode.level  = binaryTree[bi].prefixLength / 3;
+    octreeNode.prefix = decodePlaceholderBit(binaryTree[bi].prefix);
+    octreeNode.level  = decodePrefixLength(binaryTree[bi].prefix) / 3;
 
     // the root node is its own parent
     if (octreeNode.level == 0)
@@ -389,7 +389,7 @@ void createInternalOctreeCpu(const BinaryNode<I>* binaryTree, TreeNodeIndex nLea
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < nBinaryNodes; ++i)
     {
-        int  prefixLength = binaryTree[i].prefixLength;
+        int  prefixLength = decodePrefixLength(binaryTree[i].prefix);
         bool divisibleBy3 = prefixLength % 3 == 0;
         prefixes[i] = (divisibleBy3) ? 1 : 0;
     }

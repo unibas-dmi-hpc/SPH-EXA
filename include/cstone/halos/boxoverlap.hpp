@@ -104,7 +104,15 @@ bool overlap(I prefix, int length, const IBox& box)
 
 template <class I>
 CUDA_HOST_DEVICE_FUN
-bool overlap(I codeStart, I codeEnd, const IBox& box)
+inline bool overlap(I prefixBitKey, const IBox& box)
+{
+    int prefixLength = decodePrefixLength(prefixBitKey);
+    return overlap(decodePlaceholderBit(prefixBitKey), prefixLength, box);
+}
+
+template <class I>
+CUDA_HOST_DEVICE_FUN
+inline bool overlap(I codeStart, I codeEnd, const IBox& box)
 {
     int level = treeLevel(codeEnd - codeStart);
     return overlap(codeStart, level*3, box);
@@ -162,6 +170,17 @@ containedIn(I prefix, int prefixLength, I codeStart, I codeEnd)
 {
     I nodeEnd = prefix + (I(1) << (3*maxTreeLevel<I>{} - prefixLength));
     return !(prefix < codeStart || nodeEnd > codeEnd);
+}
+
+template <class I>
+inline std::enable_if_t<std::is_unsigned_v<I>, bool>
+CUDA_HOST_DEVICE_FUN
+containedIn(I prefixBitKey, I codeStart, I codeEnd)
+{
+    int prefixLength = decodePrefixLength(prefixBitKey);
+    I firstPrefix    = decodePlaceholderBit(prefixBitKey);
+    I secondPrefix   = firstPrefix + (I(1) << (3*maxTreeLevel<I>{} - prefixLength));
+    return !(firstPrefix < codeStart || secondPrefix > codeEnd);
 }
 
 /*! @brief Construct a 3D box from an octree node plus halo range
