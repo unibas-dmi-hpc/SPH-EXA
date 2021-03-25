@@ -174,7 +174,7 @@ template<class I>
 CUDA_HOST_DEVICE_FUN
 void constructInternalNode(const I* codes, TreeNodeIndex nCodes, BinaryNode<I>* internalNodes, TreeNodeIndex firstIndex)
 {
-    BinaryNode<I>* outputNode = internalNodes + firstIndex;
+    BinaryNode<I> outputNode;
 
     int d = 1;
     int minPrefixLength = -1;
@@ -209,8 +209,8 @@ void constructInternalNode(const I* codes, TreeNodeIndex nCodes, BinaryNode<I>* 
         }
     } while (searchRange > 1);
 
-    outputNode->prefixLength = commonPrefix(codes[firstIndex], codes[secondIndex]);
-    outputNode->prefix       = zeroLowBits(codes[firstIndex], outputNode->prefixLength);
+    outputNode.prefixLength = commonPrefix(codes[firstIndex], codes[secondIndex]);
+    outputNode.prefix       = zeroLowBits(codes[firstIndex], outputNode.prefixLength);
 
     // find position of highest differing bit between [firstIndex, secondIndex]
     TreeNodeIndex gamma = findSplit(codes, stl::min(secondIndex, firstIndex), stl::max(secondIndex, firstIndex));
@@ -219,24 +219,26 @@ void constructInternalNode(const I* codes, TreeNodeIndex nCodes, BinaryNode<I>* 
     if (stl::min(secondIndex, firstIndex) == gamma)
     {
         // left child is a leaf
-        outputNode->child[BinaryNode<I>::left] = btreeStoreLeaf(gamma);
+        outputNode.child[BinaryNode<I>::left] = btreeStoreLeaf(gamma);
     }
     else
     {
         //left child is an internal binary node
-        outputNode->child[BinaryNode<I>::left] = gamma;
+        outputNode.child[BinaryNode<I>::left] = gamma;
     }
 
     if (stl::max(secondIndex, firstIndex) == gamma + 1)
     {
         // right child is a leaf
-        outputNode->child[BinaryNode<I>::right] = btreeStoreLeaf(gamma + 1);
+        outputNode.child[BinaryNode<I>::right] = btreeStoreLeaf(gamma + 1);
     }
     else
     {
         // right child is an internal binary node
-        outputNode->child[BinaryNode<I>::right] = gamma + 1;
+        outputNode.child[BinaryNode<I>::right] = gamma + 1;
     }
+
+    internalNodes[firstIndex] = outputNode;
 }
 
 
