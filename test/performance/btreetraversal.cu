@@ -31,6 +31,7 @@
 
 #include <chrono>
 #include <iostream>
+#include <vector>
 
 #include <thrust/device_vector.h>
 #include <thrust/reduce.h>
@@ -105,7 +106,7 @@ __global__ void countCollisionsKernel(const BinaryNode<I>* internalRoot, const I
     int tidx = blockDim.x * blockIdx.x + threadIdx.x;
     int tidy = blockDim.y * blockIdx.y + threadIdx.y;
     int tidz = blockDim.z * blockIdx.z + threadIdx.z;
-    int tid = sideLength * sideLength * tidx + sideLength * tidy + tidz;
+    int tid = sideLength * sideLength * tidz + sideLength * tidy + tidx;
 
     int cubeLength = 1024 / sideLength;
 
@@ -129,11 +130,75 @@ void countCollisionsGpu(const BinaryNode<I>* internalRoot, const I* leafNodes,
     int sideLength = 1u << log8ceil(unsigned(nLeaves));
     std::cout << "nNodes " << nLeaves << " sideLength " << sideLength << std::endl;
 
-    dim3 threads(8,8,8);
-    dim3 blocks(sideLength/8, sideLength/8, sideLength/8);
+    int tbl = 8; // thread block cube length
+    dim3 threads(tbl,tbl,tbl);
+    dim3 blocks(sideLength/tbl, sideLength/tbl, sideLength/tbl);
     countCollisionsKernel<<<blocks, threads>>>(internalRoot, leafNodes, sideLength, nCollisionsPerLeaf);
 }
 
+template <class I>
+void countCollisionsCpu(const BinaryNode<I>* internalRoot, const I* leafNodes,
+                        TreeNodeIndex nLeaves, unsigned* nCollisionsPerLeaf)
+{
+    int sideLength = 1u << log8ceil(unsigned(nLeaves));
+    std::cout << "nNodes " << nLeaves << " sideLength " << sideLength << std::endl;
+
+    #pragma omp parallel for schedule(static)
+    for (int tidx = 0; tidx < sideLength; ++tidx)
+    for (int tidy = 0; tidy < sideLength; ++tidy)
+    for (int tidz = 0; tidz < sideLength; ++tidz)
+    {
+        int tid = sideLength * sideLength * tidx + sideLength * tidy + tidz;
+
+        int cubeLength = 1024 / sideLength;
+
+        int ixmin = tidx * cubeLength - 1;
+        int ixmax = tidx * cubeLength + cubeLength + 1;
+        int iymin = tidy * cubeLength - 1;
+        int iymax = tidy * cubeLength + cubeLength + 1;
+        int izmin = tidz * cubeLength - 1;
+        int izmax = tidz * cubeLength + cubeLength + 1;
+
+        IBox ibox(ixmin, ixmax, iymin, iymax, izmin, izmax);
+        unsigned cnt = countCollisions(internalRoot, leafNodes, ibox, {0, 0});
+        nCollisionsPerLeaf[tid] = cnt;
+    }
+}
+
+template<class CodeType>
+void testCpu(unsigned gridSize)
+{
+    std::vector<CodeType> tree = makeUniformNLevelTree<CodeType>(gridSize, 1);
+
+    std::vector<BinaryNode<CodeType>> binaryTree(nNodes(tree));
+
+    auto tp0 = std::chrono::high_resolution_clock::now();
+    createBinaryTree(tree.data(), nNodes(tree), binaryTree.data());
+    auto tp1  = std::chrono::high_resolution_clock::now();
+
+    double t0 = std::chrono::duration<double>(tp1 - tp0).count();
+    std::cout << "cpu binary tree build time " << t0 << std::endl;
+
+    std::vector<unsigned> collisionCounts(nNodes(tree));
+
+    tp0  = std::chrono::high_resolution_clock::now();
+    countCollisionsCpu(binaryTree.data(),
+                       tree.data(),
+                       nNodes(tree), collisionCounts.data());
+    tp1  = std::chrono::high_resolution_clock::now();
+    double t1 = std::chrono::duration<double>(tp1 - tp0).count();
+    std::cout << "cpu traversal time " << t1 << std::endl;
+
+    int nfail = 0;
+    for (size_t i = 0; i < collisionCounts.size(); ++i)
+    {
+        if (collisionCounts[i] != 27)
+        {
+            nfail++;
+        }
+    }
+    std::cout << "cpu fail count " << nfail << std::endl;
+}
 
 int main()
 {
@@ -156,8 +221,11 @@ int main()
     //                 bucketSize,
     //                 tree, counts);
 
-    thrust::device_vector<CodeType> tree = makeUniformNLevelTree<CodeType>(256*256*256, 1);
-    //thrust::device_vector<CodeType> tree = makeUniformNLevelTree<CodeType>(64, 1);
+    unsigned gridSize = 128*128*128;
+
+    testCpu<CodeType>(gridSize);
+
+    thrust::device_vector<CodeType> tree = makeUniformNLevelTree<CodeType>(gridSize, 1);
 
     thrust::device_vector<BinaryNode<CodeType>> binaryTree(nNodes(tree));
 
