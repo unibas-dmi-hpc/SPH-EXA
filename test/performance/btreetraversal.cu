@@ -67,8 +67,8 @@ int countCollisions(const BinaryNode<I>* root, const I* leafNodes,
         bool traverseL = traverseNode(root, leftChild, collisionBox, excludeRange);
         bool traverseR = traverseNode(root, rightChild, collisionBox, excludeRange);
 
-        bool overlapLeafL = leafOverlap(root[node].leafIndex[Node::left], leafNodes, collisionBox, excludeRange);
-        bool overlapLeafR = leafOverlap(root[node].leafIndex[Node::right], leafNodes, collisionBox, excludeRange);
+        bool overlapLeafL = leafOverlap(leftChild, leafNodes, collisionBox, excludeRange);
+        bool overlapLeafR = leafOverlap(rightChild, leafNodes, collisionBox, excludeRange);
 
         if (overlapLeafL) collisionCount++;
         if (overlapLeafR) collisionCount++;
