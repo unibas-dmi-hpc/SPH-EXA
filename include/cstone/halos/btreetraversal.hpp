@@ -80,8 +80,8 @@ inline bool traverseNode(const BinaryNode<I>* root, TreeNodeIndex idx,
                          const IBox& collisionBox, pair<I> excludeRange)
 {
     return (!btreeIsLeaf(idx))
-    && !containedIn(root[idx].prefix, root[idx].prefixLength, excludeRange[0], excludeRange[1])
-    && overlap(root[idx].prefix, root[idx].prefixLength, collisionBox);
+    && !containedIn(root[idx].prefix, excludeRange[0], excludeRange[1])
+    && overlap(root[idx].prefix, collisionBox);
 }
 
 template<class I>

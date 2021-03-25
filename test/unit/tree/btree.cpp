@@ -60,27 +60,27 @@ void internal4x4x4PrefixTest()
     std::vector<BinaryNode<I>> internalTree(nNodes(tree));
     createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
 
-    EXPECT_EQ(internalTree[0].prefixLength, 0);
-    EXPECT_EQ(internalTree[0].prefix, 0);
+    EXPECT_EQ(decodePrefixLength(internalTree[0].prefix), 0);
+    EXPECT_EQ(internalTree[0].prefix, 1);
 
-    EXPECT_EQ(internalTree[31].prefixLength, 1);
-    EXPECT_EQ(internalTree[31].prefix, pad(I(0b0), 1));
-    EXPECT_EQ(internalTree[32].prefixLength, 1);
-    EXPECT_EQ(internalTree[32].prefix, pad(I(0b1), 1));
+    EXPECT_EQ(decodePrefixLength(internalTree[31].prefix), 1);
+    EXPECT_EQ(internalTree[31].prefix, I(0b10));
+    EXPECT_EQ(decodePrefixLength(internalTree[32].prefix), 1);
+    EXPECT_EQ(internalTree[32].prefix, I(0b11));
 
-    EXPECT_EQ(internalTree[15].prefixLength, 2);
-    EXPECT_EQ(internalTree[15].prefix, pad(I(0b00), 2));
-    EXPECT_EQ(internalTree[16].prefixLength, 2);
-    EXPECT_EQ(internalTree[16].prefix, pad(I(0b01), 2));
+    EXPECT_EQ(decodePrefixLength(internalTree[15].prefix), 2);
+    EXPECT_EQ(internalTree[15].prefix, I(0b100));
+    EXPECT_EQ(decodePrefixLength(internalTree[16].prefix), 2);
+    EXPECT_EQ(internalTree[16].prefix, I(0b101));
 
-    EXPECT_EQ(internalTree[7].prefixLength, 3);
-    EXPECT_EQ(internalTree[7].prefix, pad(I(0b000), 3));
-    EXPECT_EQ(internalTree[8].prefixLength, 3);
-    EXPECT_EQ(internalTree[8].prefix, pad(I(0b001), 3));
+    EXPECT_EQ(decodePrefixLength(internalTree[7].prefix), 3);
+    EXPECT_EQ(internalTree[7].prefix, I(0b1000));
+    EXPECT_EQ(decodePrefixLength(internalTree[8].prefix), 3);
+    EXPECT_EQ(internalTree[8].prefix, I(0b1001));
 
     // second (useless) root node
-    EXPECT_EQ(internalTree[63].prefixLength, 0);
-    EXPECT_EQ(internalTree[63].prefix, 0);
+    EXPECT_EQ(decodePrefixLength(internalTree[63].prefix), 0);
+    EXPECT_EQ(internalTree[63].prefix, 1);
 }
 
 TEST(BinaryTree, internalTree4x4x4PrefixTest)
@@ -162,9 +162,9 @@ void paperExampleTest()
     using Node = BinaryNode<I>;
     for (std::size_t idx = 0; idx < internalNodes.size(); ++idx)
     {
-        EXPECT_EQ(internalNodes[idx].child[Node::left], refLeft[idx]);
+        EXPECT_EQ(internalNodes[idx].child[Node::left],  refLeft[idx]);
         EXPECT_EQ(internalNodes[idx].child[Node::right], refRight[idx]);
-        EXPECT_EQ(internalNodes[idx].prefixLength,   refPrefixLengths[idx]);
+        EXPECT_EQ(decodePrefixLength(internalNodes[idx].prefix), refPrefixLengths[idx]);
     }
 }
 
