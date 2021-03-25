@@ -51,12 +51,6 @@ int countCollisions(const BinaryNode<I>* root, const I* leafNodes,
                     const IBox& collisionBox, pair<I> excludeRange)
 {
     using Node    = BinaryNode<I>;
-    //using NodePtr = const Node*;
-
-    //NodePtr  stack[64];
-    //NodePtr* stackPtr = stack;
-    //*stackPtr++ = nullptr;
-    //const BinaryNode<I>* node = internalRoot;
 
     TreeNodeIndex stack[64];
     stack[0] = 0;
@@ -68,8 +62,6 @@ int countCollisions(const BinaryNode<I>* root, const I* leafNodes,
 
     do
     {
-        //bool traverseL = traverseNode(node->child[Node::left], collisionBox, excludeRange);
-        //bool traverseR = traverseNode(node->child[Node::right], collisionBox, excludeRange);
         TreeNodeIndex leftChild  = root[node].child[Node::left];
         TreeNodeIndex rightChild = root[node].child[Node::right];
         bool traverseL = traverseNode(root, leftChild, collisionBox, excludeRange);
@@ -83,7 +75,6 @@ int countCollisions(const BinaryNode<I>* root, const I* leafNodes,
 
         if (!traverseL and !traverseR)
         {
-            //node = *--stackPtr; // pop
             node = stack[--stackPos];
         }
         else
@@ -91,22 +82,18 @@ int countCollisions(const BinaryNode<I>* root, const I* leafNodes,
             if (traverseL && traverseR)
             {
                 #ifndef __CUDA_ARCH__
-                //if (stackPtr-stack >= 64)
                 if (stackPos >= 64)
                 {
                     throw std::runtime_error("btree traversal stack exhausted\n");
                 }
                 #endif
-                //*stackPtr++ = node->child[Node::right]; // push
                 stack[stackPos++] = rightChild; // push
             }
 
-            //node = (traverseL) ? node->child[Node::left] : node->child[Node::right];
             node = (traverseL) ? leftChild : rightChild;
         }
 
-    } while (node != 0);
-    //} while (node != nullptr);
+    } while (node != 0); // the root can only be obtained when the tree has been fully traversed
 
     return collisionCount;
 }

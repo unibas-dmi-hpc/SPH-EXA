@@ -345,11 +345,13 @@ inline void constructOctreeNode(OctreeNode<I>*       internalOctree,
             for (int hz = 0; hz < 2; ++hz)
             {
                 int octant = 4*hx + 2*hy + hz;
-                if (binaryTree[bi].child[hx]->child[hy]->child[hz] != nullptr)
+                TreeNodeIndex binaryChildXY = binaryTree[binaryTree[bi].child[hx]].child[hy];
+                TreeNodeIndex binaryChildXYZ =
+                    binaryTree[binaryTree[binaryTree[bi].child[hx]].child[hy]].child[hz];
+
+                if (!btreeIsLeaf(binaryChildXYZ))
                 {
-                    TreeNodeIndex childBinaryIndex = binaryTree[bi].child[hx]->child[hy]->child[hz]
-                                                     - binaryTree;
-                    TreeNodeIndex childOctreeIndex = binaryToOctreeIndex[childBinaryIndex];
+                    TreeNodeIndex childOctreeIndex = binaryToOctreeIndex[binaryChildXYZ];
 
                     octreeNode.child[octant]     = childOctreeIndex;
                     octreeNode.childType[octant] = OctreeNode<I>::internal;
@@ -358,7 +360,7 @@ inline void constructOctreeNode(OctreeNode<I>*       internalOctree,
                 }
                 else
                 {
-                    TreeNodeIndex octreeLeafIndex = binaryTree[bi].child[hx]->child[hy]->leafIndex[hz];
+                    TreeNodeIndex octreeLeafIndex = binaryTree[binaryChildXY].leafIndex[hz];
                     octreeNode.child[octant]      = octreeLeafIndex;
                     octreeNode.childType[octant]  = OctreeNode<I>::leaf;
                     leafParents[octreeLeafIndex]  = nodeIndex;

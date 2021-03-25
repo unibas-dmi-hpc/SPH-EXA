@@ -110,15 +110,15 @@ void findSplitTest()
     std::vector<I> example = makeExample<I>();
 
     {
-        int split = findSplit(example.data(), 0, 7);
+        TreeNodeIndex split = findSplit(example.data(), 0, 7);
         EXPECT_EQ(split, 3);
     }
     {
-        int split = findSplit(example.data(), 0, 3);
+        TreeNodeIndex split = findSplit(example.data(), 0, 3);
         EXPECT_EQ(split, 1);
     }
     {
-        int split = findSplit(example.data(), 4, 7);
+        TreeNodeIndex split = findSplit(example.data(), 4, 7);
         EXPECT_EQ(split, 4);
     }
 }
@@ -141,32 +141,32 @@ void paperExampleTest()
         constructInternalNode(example.data(), example.size(), internalNodes.data(), i);
     }
 
-    std::vector<BinaryNode<CodeType>*> refLeft
+    std::vector<TreeNodeIndex> refLeft
         {
-            internalNodes.data() + 3,
-            nullptr,
-            nullptr,
-            internalNodes.data() + 1,
-            nullptr,
-            internalNodes.data() + 6,
-            nullptr
+            3,
+            -1,
+            -1,
+            1,
+            -1,
+            6,
+            -1
         };
 
-    std::vector<BinaryNode<CodeType>*> refRight
+    std::vector<TreeNodeIndex> refRight
         {
-            internalNodes.data() + 4,
-            nullptr,
-            nullptr,
-            internalNodes.data() + 2,
-            internalNodes.data() + 5,
-            nullptr,
-            nullptr
+            4,
+            -1,
+            -1,
+            2,
+            5,
+            -1,
+            -1
         };
 
-    std::vector<int> refLeftIndices {-1, 0, 2, -1, 4, -1, 5};
-    std::vector<int> refRightIndices{-1, 1, 3, -1, -1, 7, 6};
+    std::vector<TreeNodeIndex> refLeftIndices {-1, 0, 2, -1, 4, -1, 5};
+    std::vector<TreeNodeIndex> refRightIndices{-1, 1, 3, -1, -1, 7, 6};
 
-    std::vector<int> refPrefixLengths{0, 3, 4, 2, 1, 2, 4};
+    std::vector<TreeNodeIndex> refPrefixLengths{0, 3, 4, 2, 1, 2, 4};
 
     using Node = BinaryNode<I>;
     for (std::size_t idx = 0; idx < internalNodes.size(); ++idx)
