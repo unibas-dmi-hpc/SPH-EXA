@@ -195,6 +195,53 @@ inline unsigned treeLevel(I codeRange)
     return (countLeadingZeros(codeRange - 1) - unusedBits<I>{}) / 3;
 }
 
+/*! @brief convert a plain SFC key into the placeholder bit format (Warren-Salmon 1993)
+ *
+ * @tparam I               32- or 64-bit unsigned integer
+ * @param code             input SFC key
+ * @param prefixLength     number of leading bits which are part of the code
+ * @return                 code shifted by trailing zeros and prepended with 1-bit
+ *
+ * Example: encodePlaceholderBit(06350000000, 9) -> 01635 (in octal)
+ */
+template<class I>
+CUDA_HOST_DEVICE_FUN
+inline I encodePlaceholderBit(I code, int prefixLength)
+{
+    int nShifts = 3*maxTreeLevel<I>{} - prefixLength;
+    I ret = code >> nShifts;
+    I placeHolderMask = I(1) << prefixLength;
+
+    return placeHolderMask | ret;
+}
+
+//! @brief returns the number of key-bits in the input @p code
+template<class I>
+CUDA_HOST_DEVICE_FUN
+inline int decodePrefixLength(I code)
+{
+    return 8*sizeof(I) - 1 - countLeadingZeros(code);
+}
+
+/*! @brief decode an SFC key in Warren-Salmon placeholder bit format
+ *
+ * @tparam I         32- or 64-bit unsigned integer
+ * @param code       input SFC key with 1-bit prepended
+ * @return           SFC-key without 1-bit and shifted to most significant bit
+ *
+ * Inverts encodePlaceholderBit.
+ */
+template<class I>
+CUDA_HOST_DEVICE_FUN
+inline I decodePlaceholderBit(I code)
+{
+    int prefixLength  = decodePrefixLength(code);
+    I placeHolderMask = I(1) << prefixLength;
+    I ret = code ^ placeHolderMask;
+
+    return ret << (3*maxTreeLevel<I>{} - prefixLength);
+}
+
 /*! @brief return the node index between 0-7 of the input code in the parent node
  *
  * @tparam I    32- or 64-bit unsigned integer type
