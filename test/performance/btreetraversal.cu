@@ -238,7 +238,6 @@ int main()
 
     testCpu<CodeType>(gridSize);
 
-    /*
     thrust::device_vector<CodeType> tree = makeUniformNLevelTree<CodeType>(gridSize, 1);
 
     thrust::device_vector<BinaryNode<CodeType>> binaryTree(nNodes(tree));
@@ -276,5 +275,4 @@ int main()
     }
 
     std::cout << "fail count " << nfail << std::endl;
-     */
 }
