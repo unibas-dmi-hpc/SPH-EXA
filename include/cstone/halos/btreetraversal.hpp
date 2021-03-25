@@ -96,10 +96,8 @@ inline bool leafOverlap(int leafIndex, const I* leafNodes,
     I leafCode = leafNodes[effectiveIndex];
     I leafUpperBound = leafNodes[effectiveIndex + 1];
 
-    int prefixNBits = treeLevel(leafUpperBound - leafCode) * 3;
-
-    bool notExcluded = !containedIn(leafCode, prefixNBits, excludeRange[0], excludeRange[1]);
-    return notExcluded && overlap(leafCode, prefixNBits, collisionBox);
+    bool notExcluded = !containedIn(leafCode, leafUpperBound, excludeRange[0], excludeRange[1]);
+    return notExcluded && overlap(leafCode, leafUpperBound, collisionBox);
 }
 
 /*! @brief find all collisions between a leaf node enlarged by (dx,dy,dz) and the rest of the tree

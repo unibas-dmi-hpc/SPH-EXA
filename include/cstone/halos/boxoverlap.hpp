@@ -127,8 +127,8 @@ inline bool overlap(I codeStart, I codeEnd, const IBox& box)
  * @return           true if the box is fully contained within the specified Morton code range
  */
 template <class I>
-std::enable_if_t<std::is_unsigned_v<I>, bool>
 CUDA_HOST_DEVICE_FUN
+std::enable_if_t<std::is_unsigned_v<I>, bool>
 containedIn(I codeStart, I codeEnd, const IBox& box)
 {
     // volume 0 boxes are not possible if makeHaloBox was used to generate it
@@ -164,17 +164,16 @@ containedIn(I codeStart, I codeEnd, const IBox& box)
  * @return
  */
 template <class I>
-inline std::enable_if_t<std::is_unsigned_v<I>, bool>
 CUDA_HOST_DEVICE_FUN
-containedIn(I prefix, int prefixLength, I codeStart, I codeEnd)
+inline std::enable_if_t<std::is_unsigned_v<I>, bool>
+containedIn(I nodeStart, I nodeEnd, I codeStart, I codeEnd)
 {
-    I nodeEnd = prefix + (I(1) << (3*maxTreeLevel<I>{} - prefixLength));
-    return !(prefix < codeStart || nodeEnd > codeEnd);
+    return !(nodeStart < codeStart || nodeEnd > codeEnd);
 }
 
 template <class I>
-inline std::enable_if_t<std::is_unsigned_v<I>, bool>
 CUDA_HOST_DEVICE_FUN
+inline std::enable_if_t<std::is_unsigned_v<I>, bool>
 containedIn(I prefixBitKey, I codeStart, I codeEnd)
 {
     int prefixLength = decodePrefixLength(prefixBitKey);
