@@ -37,13 +37,22 @@ namespace cstone
 
 //! @brief see createBinaryTree
 template <class I>
-__global__ void createBinaryTreeKernel(const I* tree, TreeNodeIndex nNodes, BinaryNode<I>* binaryTree)
+__global__ void createBinaryTreeKernel(const I* cstree, TreeNodeIndex nNodes, BinaryNode<I>* binaryTree)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid < nNodes)
     {
-        constructInternalNode(tree, nNodes + 1, binaryTree, tid);
+        constructInternalNode(cstree, nNodes + 1, binaryTree, tid);
     }
+}
+
+//! @brief convenience kernel wrapper
+template <class I>
+void createBinaryTreeGpu(const I* cstree, TreeNodeIndex nNodes, BinaryNode<I>* binaryTree)
+{
+    constexpr int nThreads = 512;
+    createBinaryTreeKernel<<<iceil(nNodes, nThreads), nThreads>>>
+        (cstree, nNodes, binaryTree);
 }
 
 } // namespace cstone

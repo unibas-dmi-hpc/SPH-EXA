@@ -39,6 +39,7 @@ namespace cstone
 {
 
 //! @brief standard criterion for two ranges a-b and c-d to overlap, a<b and c<d
+CUDA_HOST_DEVICE_FUN
 inline bool overlapTwoRanges(int a, int b, int c, int d)
 {
     assert(a<=b && c<=d);
@@ -54,6 +55,7 @@ inline bool overlapTwoRanges(int a, int b, int c, int d)
  * from the periodic range.
  */
 template<int R>
+CUDA_HOST_DEVICE_FUN
 bool overlapRange(int a, int b, int c, int d)
 {
     assert(a >= -R);
@@ -85,6 +87,7 @@ bool overlapRange(int a, int b, int c, int d)
  *
  */
 template <class I>
+CUDA_HOST_DEVICE_FUN
 bool overlap(I prefix, int length, const IBox& box)
 {
     pair<int> xRange = decodeXRange(prefix, length);
@@ -100,7 +103,16 @@ bool overlap(I prefix, int length, const IBox& box)
 }
 
 template <class I>
-bool overlap(I codeStart, I codeEnd, const IBox& box)
+CUDA_HOST_DEVICE_FUN
+inline bool overlap(I prefixBitKey, const IBox& box)
+{
+    int prefixLength = decodePrefixLength(prefixBitKey);
+    return overlap(decodePlaceholderBit(prefixBitKey), prefixLength, box);
+}
+
+template <class I>
+CUDA_HOST_DEVICE_FUN
+inline bool overlap(I codeStart, I codeEnd, const IBox& box)
 {
     int level = treeLevel(codeEnd - codeStart);
     return overlap(codeStart, level*3, box);
@@ -115,6 +127,7 @@ bool overlap(I codeStart, I codeEnd, const IBox& box)
  * @return           true if the box is fully contained within the specified Morton code range
  */
 template <class I>
+CUDA_HOST_DEVICE_FUN
 std::enable_if_t<std::is_unsigned_v<I>, bool>
 containedIn(I codeStart, I codeEnd, const IBox& box)
 {
@@ -124,8 +137,8 @@ containedIn(I codeStart, I codeEnd, const IBox& box)
     assert(box.zmin() < box.zmax());
 
     constexpr int pbcRange = 1u<<maxTreeLevel<I>{};
-    if (std::min({box.xmin(), box.ymin(), box.zmin()}) < 0 ||
-        std::max({box.xmax(), box.ymax(), box.zmax()}) > pbcRange)
+    if (stl::min(stl::min(box.xmin(), box.ymin()), box.zmin()) < 0 ||
+        stl::max(std::max(box.xmax(), box.ymax()), box.zmax()) > pbcRange)
     {
         // any box that wraps around a PBC boundary cannot be contained within
         // any octree node, except the full root node
@@ -151,11 +164,22 @@ containedIn(I codeStart, I codeEnd, const IBox& box)
  * @return
  */
 template <class I>
+CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned_v<I>, bool>
-containedIn(I prefix, int prefixLength, I codeStart, I codeEnd)
+containedIn(I nodeStart, I nodeEnd, I codeStart, I codeEnd)
 {
-    I nodeEnd = prefix + (I(1) << (3*maxTreeLevel<I>{} - prefixLength));
-    return !(prefix < codeStart || nodeEnd > codeEnd);
+    return !(nodeStart < codeStart || nodeEnd > codeEnd);
+}
+
+template <class I>
+CUDA_HOST_DEVICE_FUN
+inline std::enable_if_t<std::is_unsigned_v<I>, bool>
+containedIn(I prefixBitKey, I codeStart, I codeEnd)
+{
+    int prefixLength = decodePrefixLength(prefixBitKey);
+    I firstPrefix    = decodePlaceholderBit(prefixBitKey);
+    I secondPrefix   = firstPrefix + (I(1) << (3*maxTreeLevel<I>{} - prefixLength));
+    return !(firstPrefix < codeStart || secondPrefix > codeEnd);
 }
 
 /*! @brief Construct a 3D box from an octree node plus halo range
