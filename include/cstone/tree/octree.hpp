@@ -148,7 +148,7 @@ int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts
     }
     else if (level > 0) // level 0 cannot be fused
     {
-        TreeNodeIndex pi = parentIndex(thisNode, level);
+        TreeNodeIndex pi = octalDigit(thisNode, level);
         // node's 7 siblings are next to each other
         bool siblings = (tree[nodeIdx-pi+8] == tree[nodeIdx-pi] + nodeRange<I>(level - 1));
         if (siblings && pi > 0) // if not first of 8 siblings
