@@ -328,9 +328,9 @@ inline void constructOctreeNode(OctreeNode<I>*       internalOctree,
 {
     OctreeNode<I>& octreeNode = internalOctree[nodeIndex];
 
-    TreeNodeIndex bi = scatterMap[nodeIndex]; // binary tree index
-    octreeNode.prefix = binaryTree[bi].prefix;
-    octreeNode.level  = binaryTree[bi].prefixLength / 3;
+    TreeNodeIndex bi  = scatterMap[nodeIndex]; // binary tree index
+    octreeNode.prefix = decodePlaceholderBit(binaryTree[bi].prefix);
+    octreeNode.level  = decodePrefixLength(binaryTree[bi].prefix) / 3;
 
     // the root node is its own parent
     if (octreeNode.level == 0)
@@ -345,20 +345,20 @@ inline void constructOctreeNode(OctreeNode<I>*       internalOctree,
             for (int hz = 0; hz < 2; ++hz)
             {
                 int octant = 4*hx + 2*hy + hz;
-                if (binaryTree[bi].child[hx]->child[hy]->child[hz] != nullptr)
-                {
-                    TreeNodeIndex childBinaryIndex = binaryTree[bi].child[hx]->child[hy]->child[hz]
-                                                     - binaryTree;
-                    TreeNodeIndex childOctreeIndex = binaryToOctreeIndex[childBinaryIndex];
+                TreeNodeIndex childBinaryIndex =
+                    binaryTree[binaryTree[binaryTree[bi].child[hx]].child[hy]].child[hz];
 
-                    octreeNode.child[octant]     = childOctreeIndex;
-                    octreeNode.childType[octant] = OctreeNode<I>::internal;
+                if (!btreeIsLeaf(childBinaryIndex))
+                {
+                    TreeNodeIndex childOctreeIndex = binaryToOctreeIndex[childBinaryIndex];
+                    octreeNode.child[octant]       = childOctreeIndex;
+                    octreeNode.childType[octant]   = OctreeNode<I>::internal;
 
                     internalOctree[childOctreeIndex].parent = nodeIndex;
                 }
                 else
                 {
-                    TreeNodeIndex octreeLeafIndex = binaryTree[bi].child[hx]->child[hy]->leafIndex[hz];
+                    TreeNodeIndex octreeLeafIndex = btreeLoadLeaf(childBinaryIndex);
                     octreeNode.child[octant]      = octreeLeafIndex;
                     octreeNode.childType[octant]  = OctreeNode<I>::leaf;
                     leafParents[octreeLeafIndex]  = nodeIndex;
@@ -389,7 +389,7 @@ void createInternalOctreeCpu(const BinaryNode<I>* binaryTree, TreeNodeIndex nLea
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < nBinaryNodes; ++i)
     {
-        int  prefixLength = binaryTree[i].prefixLength;
+        int  prefixLength = decodePrefixLength(binaryTree[i].prefix);
         bool divisibleBy3 = prefixLength % 3 == 0;
         prefixes[i] = (divisibleBy3) ? 1 : 0;
     }

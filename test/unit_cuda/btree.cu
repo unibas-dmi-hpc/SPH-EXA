@@ -47,33 +47,32 @@ void internal4x4x4PrefixTest()
     thrust::device_vector<I> tree = makeUniformNLevelTree<I>(64, 1);
 
     thrust::device_vector<BinaryNode<I>> d_internalTree(nNodes(tree));
-    constexpr int nThreads = 512;
-    createBinaryTreeKernel<<<iceil(nNodes(tree), nThreads), nThreads>>>(thrust::raw_pointer_cast(tree.data()), nNodes(tree),
-                           thrust::raw_pointer_cast(d_internalTree.data()));
+    createBinaryTreeGpu(thrust::raw_pointer_cast(tree.data()), nNodes(tree),
+                        thrust::raw_pointer_cast(d_internalTree.data()));
 
     thrust::host_vector<BinaryNode<I>> internalTree = d_internalTree;
 
-    EXPECT_EQ(internalTree[0].prefixLength, 0);
-    EXPECT_EQ(internalTree[0].prefix, 0);
+    EXPECT_EQ(decodePrefixLength(internalTree[0].prefix), 0);
+    EXPECT_EQ(internalTree[0].prefix, 1);
 
-    EXPECT_EQ(internalTree[31].prefixLength, 1);
-    EXPECT_EQ(internalTree[31].prefix, pad(I(0b0), 1));
-    EXPECT_EQ(internalTree[32].prefixLength, 1);
-    EXPECT_EQ(internalTree[32].prefix, pad(I(0b1), 1));
+    EXPECT_EQ(decodePrefixLength(internalTree[31].prefix), 1);
+    EXPECT_EQ(internalTree[31].prefix, I(0b10));
+    EXPECT_EQ(decodePrefixLength(internalTree[32].prefix), 1);
+    EXPECT_EQ(internalTree[32].prefix, I(0b11));
 
-    EXPECT_EQ(internalTree[15].prefixLength, 2);
-    EXPECT_EQ(internalTree[15].prefix, pad(I(0b00), 2));
-    EXPECT_EQ(internalTree[16].prefixLength, 2);
-    EXPECT_EQ(internalTree[16].prefix, pad(I(0b01), 2));
+    EXPECT_EQ(decodePrefixLength(internalTree[15].prefix), 2);
+    EXPECT_EQ(internalTree[15].prefix, I(0b100));
+    EXPECT_EQ(decodePrefixLength(internalTree[16].prefix), 2);
+    EXPECT_EQ(internalTree[16].prefix, I(0b101));
 
-    EXPECT_EQ(internalTree[7].prefixLength, 3);
-    EXPECT_EQ(internalTree[7].prefix, pad(I(0b000), 3));
-    EXPECT_EQ(internalTree[8].prefixLength, 3);
-    EXPECT_EQ(internalTree[8].prefix, pad(I(0b001), 3));
+    EXPECT_EQ(decodePrefixLength(internalTree[7].prefix), 3);
+    EXPECT_EQ(internalTree[7].prefix, I(0b1000));
+    EXPECT_EQ(decodePrefixLength(internalTree[8].prefix), 3);
+    EXPECT_EQ(internalTree[8].prefix, I(0b1001));
 
     // second (useless) root node
-    EXPECT_EQ(internalTree[63].prefixLength, 0);
-    EXPECT_EQ(internalTree[63].prefix, 0);
+    EXPECT_EQ(decodePrefixLength(internalTree[63].prefix), 0);
+    EXPECT_EQ(internalTree[63].prefix, 1);
 }
 
 TEST(BinaryTreeGpu, internalTree4x4x4PrefixTest)
