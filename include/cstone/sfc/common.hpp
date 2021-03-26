@@ -242,20 +242,23 @@ inline I decodePlaceholderBit(I code)
     return ret << (3*maxTreeLevel<I>{} - prefixLength);
 }
 
-/*! @brief return the node index between 0-7 of the input code in the parent node
+/*! @brief extract the n-th octal digit from an SFC key, starting from the most significant
  *
- * @tparam I    32- or 64-bit unsigned integer type
- * @param code  input code corresponding to an octree node
- * @param level octree subdivision level to fully specify the octree node together with @a code
- * @return      the index between 0 and 7 that locates @a code in its enclosing parent node
- *              at level - 1. For the root node at level 0 which has no parent, the return value
- *              is 0.
+ * @tparam I         32- or 64-bit unsigned integer type
+ * @param code       Input SFC key code
+ * @param position   Which digit to extract. return values will be meaningful for
+ *                   position in [1:11] for 32-bit keys and in [1:22] for 64-bit keys and
+ *                   will be zero otherwise.
+ * @return           The corresponding digit
+ *
+ * Note that the position argument correspondence to octal digits has been chosen such that
+ * octalDigit(code, pos) returns the octant at octree division level pos.
  */
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline unsigned parentIndex(I code, unsigned level)
+inline unsigned octalDigit(I code, unsigned position)
 {
-    return (code >> (3u * (maxTreeLevel<I>{} - level))) & 7u;
+    return (code >> (3u * (maxTreeLevel<I>{} - position))) & 7u;
 }
 
 //! @brief cut down the input morton code to the start code of the enclosing box at <treeLevel>

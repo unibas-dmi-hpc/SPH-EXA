@@ -197,20 +197,34 @@ TEST(SfcCode, decodePlaceholderbit64)
     EXPECT_EQ(0635000000000000000000ul, decodePlaceholderBit(01635ul));
 }
 
-TEST(SfcCode, parentIndex32)
+TEST(SfcCode, octalDigit32)
 {
-    EXPECT_EQ(6, parentIndex(6u, 10));
-    EXPECT_EQ(1, parentIndex(1u<<24u, 2));
-    EXPECT_EQ(2, parentIndex(1u<<25u, 2));
-    EXPECT_EQ(1, parentIndex(1u<<27u, 1));
+    EXPECT_EQ(1, octalDigit(01234567012, 1));
+    EXPECT_EQ(2, octalDigit(01234567012, 2));
+    EXPECT_EQ(3, octalDigit(01234567012, 3));
+    EXPECT_EQ(4, octalDigit(01234567012, 4));
+    EXPECT_EQ(5, octalDigit(01234567012, 5));
+    EXPECT_EQ(6, octalDigit(01234567012, 6));
+    EXPECT_EQ(7, octalDigit(01234567012, 7));
+    EXPECT_EQ(0, octalDigit(01234567012, 8));
+    EXPECT_EQ(1, octalDigit(01234567012, 9));
+    EXPECT_EQ(2, octalDigit(01234567012, 10));
 }
 
-TEST(SfcCode, parentIndex64)
+TEST(SfcCode, octalDigit64)
 {
-    EXPECT_EQ(6, parentIndex(6ul, 21));
-    EXPECT_EQ(1, parentIndex(1ul<<57u, 2));
-    EXPECT_EQ(2, parentIndex(1ul<<58u, 2));
-    EXPECT_EQ(1, parentIndex(1ul<<60u, 1));
+    EXPECT_EQ(1, octalDigit(0123456701200000000000ul, 1));
+    EXPECT_EQ(2, octalDigit(0123456701200000000000ul, 2));
+    EXPECT_EQ(3, octalDigit(0123456701200000000000ul, 3));
+    EXPECT_EQ(4, octalDigit(0123456701200000000000ul, 4));
+    EXPECT_EQ(5, octalDigit(0123456701200000000000ul, 5));
+    EXPECT_EQ(6, octalDigit(0123456701200000000000ul, 6));
+    EXPECT_EQ(7, octalDigit(0123456701200000000000ul, 7));
+    EXPECT_EQ(0, octalDigit(0123456701200000000000ul, 8));
+    EXPECT_EQ(1, octalDigit(0123456701200000000000ul, 9));
+    EXPECT_EQ(2, octalDigit(0123456701200000000000ul, 10));
+
+    EXPECT_EQ(7, octalDigit(0123456701200000000007ul, 21));
 }
 
 TEST(SfcCode, enclosingBoxTrim)

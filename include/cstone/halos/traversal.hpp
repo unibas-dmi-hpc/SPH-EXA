@@ -75,7 +75,7 @@ void findCollisions(const Octree<I>& octree, CollisionList& collisionList,
 
     //for (int l = 1; l <= iboxLevel; ++l)
     //{
-    //    int octant = parentIndex(commonBox[0], l);
+    //    int octant = octreeDigit(commonBox[0], l);
     //    node = octree.child(node, octant);
     //}
 
