@@ -38,32 +38,29 @@
 
 using namespace cstone;
 
-
 //! @brief test that computeNodeCounts correctly counts the number of codes for each node
 template<class CodeType>
 void checkCountTreeNodes()
 {
-    constexpr unsigned    level = 2;
-    std::vector<CodeType> codes = makeNLevelGrid<CodeType>(level);
-
     std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
+
+    std::vector<CodeType> codes{tree[1], tree[1], tree[1] + 10, tree[1] + 100, tree[2] - 1,
+                                tree[2] + 1,
+                                tree[11], tree[11] + 2,
+                                tree[12], tree[12] + 1000, tree[12] + 2000, tree[13] - 10,
+                                tree[13], tree[13] + 1};
+
+    //  nodeIdx                     0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
+    std::vector<unsigned> reference{0, 5, 1, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 2, 0};
+    // code start location             0  5  6  6  6  6  6  6  6  6  6  8 12
+    // guess start location            0  1  2  3  4  5  6  7  8  9 10 11 12
+    // Ntot: 14, nNonZeroNodes: 13 (first and last node are empty), avgNodeCount: 14/13 = 1
+
     std::vector<unsigned> counts(nNodes(tree));
-
-    // doesn't affect the end result, but makes sure that
-    // binary searching correctly finds the first tree node
-    // with a _lower_ code than the first particle code
-    codes[0]++;
-
     computeNodeCounts(tree.data(), counts.data(), nNodes(tree),
                       codes.data(), codes.data() + codes.size());
 
-    // the level 2 nodes have 1/64 of the total volume/particle count
-    for (std::size_t i = 0; i < 8; ++i)
-        EXPECT_EQ(counts[i], 1);
-
-    // the level 1 nodes have 1/8 of the total
-    for (std::size_t i = 8; i < counts.size(); ++i)
-        EXPECT_EQ(counts[i], 8);
+    EXPECT_EQ(counts, reference);
 }
 
 TEST(CornerstoneOctree, countTreeNodes32)

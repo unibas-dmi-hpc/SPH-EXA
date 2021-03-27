@@ -39,6 +39,7 @@
 #include "cstone/tree/octree.hpp"
 
 #include "coord_samples/random.hpp"
+#include "coord_samples/plummer.hpp"
 
 using namespace cstone;
 
@@ -64,8 +65,11 @@ build_tree(const I* firstCode, const I* lastCode, unsigned bucketSize)
     tp1  = std::chrono::high_resolution_clock::now();
 
     double t1 = std::chrono::duration<double>(tp1 - tp0).count();
+
+    int nEmptyNodes = std::count(begin(counts), end(counts), 0);
     std::cout << "build time with guess " << t1 << " nNodes(tree): " << nNodes(tree)
-              << " count: " << std::accumulate(begin(counts), end(counts), 0lu) << std::endl;
+              << " count: " << std::accumulate(begin(counts), end(counts), 0lu)
+              << " empty nodes: " << nEmptyNodes << std::endl;
 
     return std::make_tuple(tree, counts);
 }
@@ -94,7 +98,7 @@ int main()
     Box<double> box{-1, 1};
 
     int nParticles = 2000000;
-    int bucketSize = 10;
+    int bucketSize = 16;
 
     RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
 
@@ -105,4 +109,23 @@ int main()
     std::tie(tree, counts) = build_tree(randomBox.mortonCodes().data(), randomBox.mortonCodes().data() + nParticles, bucketSize);
     // halo discovery with tree
     halo_discovery(box, tree, counts);
+
+    auto px = plummer<double>(nParticles);
+    std::vector<CodeType> pxCodes(nParticles);
+    Box<double> pBox(*std::min_element(begin(px[0]), end(px[0])),
+                     *std::max_element(begin(px[0]), end(px[0])),
+                     *std::min_element(begin(px[1]), end(px[1])),
+                     *std::max_element(begin(px[1]), end(px[1])),
+                     *std::min_element(begin(px[2]), end(px[2])),
+                     *std::max_element(begin(px[2]), end(px[2]))
+                     );
+
+    std::cout << "plummer box: " << pBox.xmin() << " " << pBox.xmax() << " "
+                                 << pBox.ymin() << " " << pBox.ymax() << " "
+                                 << pBox.zmin() << " " << pBox.zmax() << std::endl;
+
+    computeMortonCodes(begin(px[0]), end(px[0]), begin(px[1]), begin(px[2]), begin(pxCodes), pBox);
+    std::sort(begin(pxCodes), end(pxCodes));
+
+    std::tie(tree, counts) = build_tree(pxCodes.data(), pxCodes.data() + nParticles, bucketSize);
 }
