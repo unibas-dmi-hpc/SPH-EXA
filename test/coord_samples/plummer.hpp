@@ -1,0 +1,8 @@
+//
+// Created by sebkelle on 27.03.21.
+//
+
+#ifndef CORNERSTONE_OCTREE_PLUMMER_HPP
+#define CORNERSTONE_OCTREE_PLUMMER_HPP
+
+#endif // CORNERSTONE_OCTREE_PLUMMER_HPP
