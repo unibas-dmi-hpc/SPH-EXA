@@ -33,37 +33,24 @@
 #include <iostream>
 #include <numeric>
 
-
 #include "cstone/domain/halodiscovery.hpp"
 #include "cstone/domain/domaindecomp.hpp"
-
 #include "cstone/halos/btreetraversal.hpp"
-
 #include "cstone/tree/octree.hpp"
 
 #include "coord_samples/random.hpp"
 
 using namespace cstone;
 
-int main()
+template<class I>
+std::tuple<std::vector<I>, std::vector<unsigned>>
+build_tree(const I* firstCode, const I* lastCode, unsigned bucketSize)
 {
-    using CodeType = unsigned;
-    Box<double> box{-1, 1};
-
-    int nParticles = 8000000;
-    int bucketSize = 10;
-
-    RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
-
-    std::vector<CodeType> tree;
+    std::vector<I> tree;
     std::vector<unsigned> counts;
 
     auto tp0 = std::chrono::high_resolution_clock::now();
-
-    std::tie(tree, counts) = computeOctree(randomBox.mortonCodes().data(),
-                                           randomBox.mortonCodes().data() + nParticles,
-                                           bucketSize);
-
+    std::tie(tree, counts) = computeOctree(firstCode, lastCode, bucketSize);
     auto tp1  = std::chrono::high_resolution_clock::now();
 
     double t0 = std::chrono::duration<double>(tp1 - tp0).count();
@@ -71,28 +58,51 @@ int main()
               << " count: " << std::accumulate(begin(counts), end(counts), 0lu) << std::endl;
 
     tp0  = std::chrono::high_resolution_clock::now();
-
-    std::tie(tree, counts) = computeOctree(randomBox.mortonCodes().data(),
-                                           randomBox.mortonCodes().data() + nParticles,
-                                           bucketSize, std::numeric_limits<unsigned>::max(),
+    std::tie(tree, counts) = computeOctree(firstCode, lastCode, bucketSize,
+                                           std::numeric_limits<unsigned>::max(),
                                            std::move(tree));
-
     tp1  = std::chrono::high_resolution_clock::now();
 
     double t1 = std::chrono::duration<double>(tp1 - tp0).count();
     std::cout << "build time with guess " << t1 << " nNodes(tree): " << nNodes(tree)
               << " count: " << std::accumulate(begin(counts), end(counts), 0lu) << std::endl;
 
+    return std::make_tuple(tree, counts);
+}
+
+template<class I>
+void halo_discovery(Box<double> box, const std::vector<I>& tree, const std::vector<unsigned>& counts)
+{
     int nSplits = 4;
-    SpaceCurveAssignment<CodeType> assignment = singleRangeSfcSplit(tree, counts, nSplits);
-    std::vector<double> haloRadii(nNodes(tree), 0.01);
+    SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree, counts, nSplits);
+    std::vector<float> haloRadii(nNodes(tree), 0.01);
 
     std::vector<pair<int>> haloPairs;
     int doSplit = 0;
-    tp0  = std::chrono::high_resolution_clock::now();
+    auto tp0  = std::chrono::high_resolution_clock::now();
     findHalos(tree, haloRadii, box, assignment, doSplit, haloPairs);
-    tp1  = std::chrono::high_resolution_clock::now();
+    auto tp1  = std::chrono::high_resolution_clock::now();
 
     double t2 = std::chrono::duration<double>(tp1 - tp0).count();
     std::cout << "halo discovery: " << t2 << " nPairs: " << haloPairs.size() << std::endl;
+}
+
+
+int main()
+{
+    using CodeType = unsigned;
+    Box<double> box{-1, 1};
+
+    int nParticles = 2000000;
+    int bucketSize = 10;
+
+    RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
+
+    std::vector<CodeType> tree;
+    std::vector<unsigned> counts;
+
+    // tree build from random gaussian coordinates
+    std::tie(tree, counts) = build_tree(randomBox.mortonCodes().data(), randomBox.mortonCodes().data() + nParticles, bucketSize);
+    // halo discovery with tree
+    halo_discovery(box, tree, counts);
 }
