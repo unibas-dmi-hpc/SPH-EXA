@@ -97,6 +97,48 @@ unsigned calculateNodeCount(const I* tree, TreeNodeIndex nodeIdx, const I* codes
     return stl::min(count, maxCount);
 }
 
+template<class I>
+CUDA_HOST_DEVICE_FUN
+unsigned calculateNodeCountFast(TreeNodeIndex nodeIdx, const I* tree, unsigned avgNodeCount,
+                                const I* codesStart, const I* codesEnd, unsigned maxCount)
+{
+    using SI = std::make_signed_t<I>;
+
+    I nodeStart = tree[nodeIdx];
+    I nodeEnd   = tree[nodeIdx+1];
+
+    // avgNodeCount = nCodes/nNodes;
+    TreeNodeIndex nCodes = codesEnd - codesStart;
+    TreeNodeIndex guess  = nodeIdx * avgNodeCount;
+
+    // d = 1 : search towards codesEnd
+    // d = -1 : search towards codesStart
+    SI d = (codesStart[guess] < nodeStart) ? 1 : -1;
+
+    SI nodeStartTimesD = nodeStart * d;
+
+    // determine search bound
+    TreeNodeIndex searchRange = 2;
+    TreeNodeIndex bound = guess + searchRange * d;
+    while(0 <= bound && bound < nCodes && d*codesStart[bound] < nodeStartTimesD)
+    {
+        searchRange *= 2;
+        bound        = guess + searchRange * d;
+    }
+    bound = stl::max(0, bound);
+    bound = stl::min(nCodes, bound);
+
+    const I* searchStart = codesStart + stl::min(guess, bound);
+    const I* searchEnd   = codesStart + stl::max(guess, bound);
+
+    // count particles in range
+    auto rangeStart = stl::lower_bound(searchStart, searchEnd, nodeStart);
+    auto rangeEnd   = stl::lower_bound(codesStart, codesEnd, nodeEnd);
+    unsigned count  = rangeEnd - rangeStart;
+
+    return stl::min(count, maxCount);
+}
+
 /*! @brief count number of particles in each octree node
  *
  * @tparam I                32- or 64-bit unsigned integer type
@@ -125,10 +167,15 @@ void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* cod
     for (int i = 0; i < nNodes; ++i)
         counts[i] = 0;
 
+    TreeNodeIndex nNonZeroNodes = lastNode - firstNode;
+    //unsigned avgNodeCount = (codesEnd - codesStart) / nNonZeroNodes;
+    const I* populatedTree = tree + firstNode;
+
     #pragma omp parallel for schedule(static)
-    for (int i = firstNode; i < lastNode; ++i)
+    for (TreeNodeIndex i = 0; i < nNonZeroNodes; ++i)
     {
-        counts[i] = calculateNodeCount(tree, i, codesStart, codesEnd, maxCount);
+        counts[i + firstNode] = calculateNodeCount(populatedTree, i, codesStart, codesEnd, maxCount);
+        //counts[i] = calculateNodeCountFast(i, tree, avgNodeCount, codesStart, codesEnd, maxCount);
     }
 }
 
