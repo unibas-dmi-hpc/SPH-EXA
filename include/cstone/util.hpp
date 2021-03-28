@@ -105,6 +105,7 @@ template<class T>
 class pair
 {
 public:
+    pair() = default;
 
     CUDA_HOST_DEVICE_FUN
     pair(T first, T second) : data{first, second} {}
