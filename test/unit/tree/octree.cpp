@@ -38,6 +38,53 @@
 
 using namespace cstone;
 
+template<class CodeType>
+void findSearchBounds()
+{
+    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
+
+    std::vector<CodeType> codes{tree[1], tree[1], tree[1] + 10, tree[1] + 100, tree[2] - 1,
+                                tree[2] + 1,
+                                tree[11], tree[11] + 2,
+                                tree[12], tree[12] + 1000, tree[12] + 2000, tree[13] - 10,
+                                tree[13], tree[13] + 1};
+
+    const CodeType* c = codes.data();
+    std::vector<pair<const CodeType*>> reference{
+        {c+0,c+2}, {c+1,c+5}, {c+2,c+6}, {c+3,c+7}, {c+4,c+6}, {c+5,c+7}, {c+4,c+6}, {c+5,c+7},
+        {c+4,c+8}, {c+5,c+9}, {c+6,c+10}, {c+7,c+11}, {c+12,c+14}
+    };
+
+    //  nodeIdx                    0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
+    //  counts                     0  5  1  0  0  0  0  0  0  0  0  2  4  2  0};
+    // code start location            0  5  6  6  6  6  6  6  6  6  6  8 12
+    // guess start location           0  1  2  3  4  5  6  7  8  9 10 11 12
+    // Ntot: 14, nNonZeroNodes: 13, avgNodeCount: 14/13 = 1
+
+    // first and last nodes are empty, effective number of nodes is nNodes(tree) - 2
+    // nNodes(tree) - 2  corresponds to nNonZeroNodes = lastNode - firstNode in computeNodeCounts
+    unsigned avgNodeCount = codes.size() / (nNodes(tree) - 2);
+    std::vector<pair<const CodeType*>> searchBounds(nNodes(tree) - 2);
+
+    for (int i = 0; i < nNodes(tree)-2; ++i)
+    {
+        TreeNodeIndex guess  = i * avgNodeCount;
+        searchBounds[i] = findSearchBounds(guess, tree[i+1], codes.data(), codes.data() + codes.size());
+    }
+
+    EXPECT_EQ(searchBounds, reference);
+}
+
+TEST(CornerstoneOctree, findSearchBounds32)
+{
+    findSearchBounds<unsigned>();
+}
+
+TEST(CornerstoneOctree, findSearchBounds64)
+{
+    findSearchBounds<uint64_t>();
+}
+
 //! @brief test that computeNodeCounts correctly counts the number of codes for each node
 template<class CodeType>
 void checkCountTreeNodes()
@@ -71,6 +118,43 @@ TEST(CornerstoneOctree, countTreeNodes32)
 TEST(CornerstoneOctree, countTreeNodes64)
 {
     checkCountTreeNodes<uint64_t>();
+}
+
+//! @brief Regression test case: make sure that the 2nd guess is not out of bounds
+template<class CodeType>
+void checkCountTreeNodesRangeEnd()
+{
+    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().makeTree();
+
+    std::vector<CodeType> codes;
+    codes.push_back(0);
+    for (int i = 0; i < 16; ++i)
+    {
+        codes.push_back(tree[6] + i);
+    }
+    codes.push_back(tree[7]);
+
+    //  nodeIdx                     0  1  2  3  4  5   6   7
+    std::vector<unsigned> reference{1, 0, 0, 0, 0, 0, 16,  1};
+    // code start location          0, 1, 1, 1, 1, 1,  1, 17
+    // guess start location         0  2  4  6  8 10  12  14
+    // Ntot: 18, nNonZeroNodes: 8, avgNodeCount: 18/8 = 2
+
+    std::vector<unsigned> counts(nNodes(tree));
+    computeNodeCounts(tree.data(), counts.data(), nNodes(tree),
+                      codes.data(), codes.data() + codes.size());
+
+    EXPECT_EQ(counts, reference);
+}
+
+TEST(CornerstoneOctree, countTreeNodesRangeEnd32)
+{
+    checkCountTreeNodesRangeEnd<unsigned>();
+}
+
+TEST(CornerstoneOctree, countTreeNodesRangeEnd64)
+{
+    checkCountTreeNodesRangeEnd<uint64_t>();
 }
 
 template<class CodeType, class LocalIndex>

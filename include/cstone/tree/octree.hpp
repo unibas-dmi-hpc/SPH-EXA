@@ -99,6 +99,36 @@ unsigned calculateNodeCount(const I* tree, TreeNodeIndex nodeIdx, const I* codes
 
 template<class I>
 CUDA_HOST_DEVICE_FUN
+pair<const I*> findSearchBounds(std::make_signed_t<I> firstIdx, I targetCode,
+                                const I* codesStart, const I* codesEnd)
+{
+    using SI = std::make_signed_t<I>;
+    SI nCodes = codesEnd - codesStart;
+
+    // d = 1 : search towards codesEnd
+    // d = -1 : search towards codesStart
+    SI d = (codesStart[firstIdx] <= targetCode) ? 1 : -1;
+
+    SI nodeStartTimesD = targetCode * d;
+
+    // determine search bound
+    SI searchRange = 2;
+    SI bound = firstIdx + searchRange * d;
+    while(0 <= bound && bound < nCodes && d*codesStart[bound] < nodeStartTimesD)
+    {
+        searchRange *= 2;
+        bound        = firstIdx + searchRange * d;
+    }
+    bound = stl::max(SI(0), bound);
+    bound = stl::min(nCodes, bound);
+
+    pair<const I*> searchBounds{codesStart + stl::min(firstIdx, bound),
+                                codesStart + stl::max(firstIdx, bound)};
+    return searchBounds;
+}
+
+template<class I>
+CUDA_HOST_DEVICE_FUN
 unsigned calculateNodeCountFast(TreeNodeIndex nodeIdx, const I* tree, unsigned avgNodeCount,
                                 const I* codesStart, const I* codesEnd, unsigned maxCount)
 {
@@ -106,36 +136,17 @@ unsigned calculateNodeCountFast(TreeNodeIndex nodeIdx, const I* tree, unsigned a
 
     I nodeStart = tree[nodeIdx];
     I nodeEnd   = tree[nodeIdx+1];
+    SI nCodes   = codesEnd - codesStart;
 
-    // avgNodeCount = nCodes/nNodes;
-    TreeNodeIndex nCodes = codesEnd - codesStart;
-    TreeNodeIndex guess  = nodeIdx * avgNodeCount;
+    SI guess = nodeIdx * avgNodeCount;
+    auto searchBounds   = findSearchBounds(guess, nodeStart, codesStart, codesEnd);
+    auto rangeStart     = stl::lower_bound(searchBounds[0], searchBounds[1], nodeStart);
 
-    // d = 1 : search towards codesEnd
-    // d = -1 : search towards codesStart
-    SI d = (codesStart[guess] < nodeStart) ? 1 : -1;
+    guess         = stl::min(nCodes-1, SI(rangeStart - codesStart + avgNodeCount));
+    searchBounds  = findSearchBounds(guess, nodeEnd, codesStart, codesEnd);
+    auto rangeEnd = stl::lower_bound(searchBounds[0], searchBounds[1], nodeEnd);
 
-    SI nodeStartTimesD = nodeStart * d;
-
-    // determine search bound
-    TreeNodeIndex searchRange = 2;
-    TreeNodeIndex bound = guess + searchRange * d;
-    while(0 <= bound && bound < nCodes && d*codesStart[bound] < nodeStartTimesD)
-    {
-        searchRange *= 2;
-        bound        = guess + searchRange * d;
-    }
-    bound = stl::max(0, bound);
-    bound = stl::min(nCodes, bound);
-
-    const I* searchStart = codesStart + stl::min(guess, bound);
-    const I* searchEnd   = codesStart + stl::max(guess, bound);
-
-    // count particles in range
-    auto rangeStart = stl::lower_bound(searchStart, searchEnd, nodeStart);
-    auto rangeEnd   = stl::lower_bound(codesStart, codesEnd, nodeEnd);
-    unsigned count  = rangeEnd - rangeStart;
-
+    unsigned count = rangeEnd - rangeStart;
     return stl::min(count, maxCount);
 }
 
@@ -168,14 +179,14 @@ void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* cod
         counts[i] = 0;
 
     TreeNodeIndex nNonZeroNodes = lastNode - firstNode;
-    //unsigned avgNodeCount = (codesEnd - codesStart) / nNonZeroNodes;
+    unsigned avgNodeCount = (codesEnd - codesStart) / nNonZeroNodes;
     const I* populatedTree = tree + firstNode;
 
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < nNonZeroNodes; ++i)
     {
         counts[i + firstNode] = calculateNodeCount(populatedTree, i, codesStart, codesEnd, maxCount);
-        //counts[i] = calculateNodeCountFast(i, tree, avgNodeCount, codesStart, codesEnd, maxCount);
+        //counts[i + firstNode] = calculateNodeCountFast(i, populatedTree, avgNodeCount, codesStart, codesEnd, maxCount);
     }
 }
 
