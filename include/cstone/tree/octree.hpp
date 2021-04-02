@@ -146,7 +146,7 @@ pair<const I*> findSearchBounds(std::make_signed_t<I> firstIdx, I targetCode,
  * @tparam I                32- or 64-bit unsigned integer type
  * @param nodeIdx           the index of the node in @p tree to compute
  * @param tree              cornerstone octree
- * @param avgNodeCount      average number of particles per node
+ * @param guess             guess location of @p tree[nodeIdx] in [codesStart:codesEnd]
  * @param codesStart        particle SFC code array start
  * @param codesEnd          particle SFC code array end
  * @param maxCount          maximum particle count to report per node
@@ -155,8 +155,8 @@ pair<const I*> findSearchBounds(std::make_signed_t<I> firstIdx, I targetCode,
  */
 template<class I>
 CUDA_HOST_DEVICE_FUN
-unsigned calculateNodeCountFast(TreeNodeIndex nodeIdx, const I* tree, float avgNodeCount,
-                                const I* codesStart, const I* codesEnd, unsigned maxCount)
+unsigned updateNodeCount(TreeNodeIndex nodeIdx, const I* tree, std::make_signed_t<I> guess,
+                         const I* codesStart, const I* codesEnd, unsigned maxCount)
 {
     using SI = std::make_signed_t<I>;
 
@@ -164,11 +164,10 @@ unsigned calculateNodeCountFast(TreeNodeIndex nodeIdx, const I* tree, float avgN
     I nodeEnd   = tree[nodeIdx+1];
     SI nCodes   = codesEnd - codesStart;
 
-    SI guess = nodeIdx * avgNodeCount;
     auto searchBounds   = findSearchBounds(guess, nodeStart, codesStart, codesEnd);
     auto rangeStart     = stl::lower_bound(searchBounds[0], searchBounds[1], nodeStart);
 
-    guess         = stl::min(nCodes-1, SI(rangeStart - codesStart + avgNodeCount));
+    guess         = stl::min(nCodes-1, SI(rangeStart - codesStart));
     searchBounds  = findSearchBounds(guess, nodeEnd, codesStart, codesEnd);
     auto rangeEnd = stl::lower_bound(searchBounds[0], searchBounds[1], nodeEnd);
 
@@ -190,7 +189,7 @@ unsigned calculateNodeCountFast(TreeNodeIndex nodeIdx, const I* tree, float avgN
  */
 template<class I>
 void computeNodeCounts(const I* tree, unsigned* counts, TreeNodeIndex nNodes, const I* codesStart, const I* codesEnd,
-                       unsigned maxCount = std::numeric_limits<unsigned>::max())
+                       unsigned maxCount)
 {
     TreeNodeIndex firstNode = 0;
     TreeNodeIndex lastNode  = nNodes;
