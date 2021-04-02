@@ -398,7 +398,7 @@ TEST(CornerstoneOctree, rebalanceInsufficientResolution64)
 
 template<class I>
 void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<unsigned>& counts, int bucketSize,
-                           const std::vector<I>& mortonCodes)
+                           const std::vector<I>& mortonCodes, bool relaxBucketCount)
 {
     using CodeType = I;
     EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
@@ -416,7 +416,10 @@ void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<unsigne
 
         // check that counts are correct
         EXPECT_EQ(nodeEnd - nodeStart, counts[nodeIndex]);
-        EXPECT_LE(counts[nodeIndex], bucketSize);
+        if(!relaxBucketCount)
+        {
+            EXPECT_LE(counts[nodeIndex], bucketSize);
+        }
 
         if (counts[nodeIndex])
         {
@@ -444,15 +447,38 @@ public:
         int nParticles = 100000;
 
         CoordinateType<double, CodeType> randomBox(nParticles, box);
+        std::vector<CodeType> codes = randomBox.mortonCodes();
 
         // compute octree starting from default uniform octree
-        auto [treeML, countsML] = computeOctree(randomBox.mortonCodes().data(),
-                                                randomBox.mortonCodes().data() + nParticles,
-                                                bucketSize);
+        auto [tree, counts] = computeOctree(codes.data(),
+                                            codes.data() + nParticles,
+                                            bucketSize);
 
-        std::cout << "number of nodes: " << nNodes(treeML) << std::endl;
+        std::cout << "number of nodes: " << nNodes(tree) << std::endl;
 
-        checkOctreeWithCounts(treeML, countsML, bucketSize, randomBox.mortonCodes());
+        checkOctreeWithCounts(tree, counts, bucketSize, codes, false);
+
+        // update with unchanged particle codes
+        updateOctree(codes.data(), codes.data() + nParticles, bucketSize, tree, counts);
+        checkOctreeWithCounts(tree, counts, bucketSize, codes, false);
+
+        // range of smallest treeNode
+        CodeType minRange = std::numeric_limits<CodeType>::max();
+        for (int i = 0; i < nNodes(tree); ++i)
+            minRange = std::min(minRange, tree[i+1] - tree[i]);
+
+        // change codes a bit
+        std::mt19937 gen(42);
+        std::uniform_int_distribution<std::make_signed_t<CodeType>> displace(-minRange, minRange);
+
+        for (auto& code : codes)
+            code = std::max(std::make_signed_t<I>(0), std::min(std::make_signed_t<I>(code) + displace(gen),
+                                                               std::make_signed_t<I>(nodeRange<I>(0)-1)));
+
+        std::sort(begin(codes), end(codes));
+        updateOctree(codes.data(), codes.data() + nParticles, bucketSize, tree, counts);
+        // count < bucketSize may not be true anymore, but node counts still have to be correct
+        checkOctreeWithCounts(tree, counts, bucketSize, codes, true);
     }
 };
 
