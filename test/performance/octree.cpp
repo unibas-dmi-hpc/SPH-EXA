@@ -59,9 +59,7 @@ build_tree(const I* firstCode, const I* lastCode, unsigned bucketSize)
               << " count: " << std::accumulate(begin(counts), end(counts), 0lu) << std::endl;
 
     tp0  = std::chrono::high_resolution_clock::now();
-    std::tie(tree, counts) = computeOctree(firstCode, lastCode, bucketSize,
-                                           std::numeric_limits<unsigned>::max(),
-                                           std::move(tree));
+    updateOctree(firstCode, lastCode, bucketSize, tree, counts, std::numeric_limits<unsigned>::max());
     tp1  = std::chrono::high_resolution_clock::now();
 
     double t1 = std::chrono::duration<double>(tp1 - tp0).count();
@@ -71,7 +69,7 @@ build_tree(const I* firstCode, const I* lastCode, unsigned bucketSize)
               << " count: " << std::accumulate(begin(counts), end(counts), 0lu)
               << " empty nodes: " << nEmptyNodes << std::endl;
 
-    return std::make_tuple(tree, counts);
+    return std::make_tuple(std::move(tree), std::move(counts));
 }
 
 template<class I>
@@ -94,7 +92,7 @@ void halo_discovery(Box<double> box, const std::vector<I>& tree, const std::vect
 
 int main()
 {
-    using CodeType = unsigned;
+    using CodeType = uint64_t;
     Box<double> box{-1, 1};
 
     int nParticles = 2000000;
