@@ -97,6 +97,16 @@ unsigned calculateNodeCount(const I* tree, TreeNodeIndex nodeIdx, const I* codes
     return stl::min(count, maxCount);
 }
 
+/*! @brief determine search bound for @p targetCode in an array of sorted particle SFC codes
+ *
+ * @tparam I          32- or 64-bit unsigned integer type
+ * @param firstIdx    first (of two) search boundary, permissible range: [0:codesEnd-codesStart-1]
+ *                    (the guess for the location of @p targetCode in [codesStart:codesEnd]
+ * @param targetCode  code in [codesStart:codesEnd] to look for
+ * @param codesStart  particle SFC code array start
+ * @param codesEnd    particle SFC code array end
+ * @return            the sub-range in [codesStart:codesEnd] containing @p targetCode
+ */
 template<class I>
 CUDA_HOST_DEVICE_FUN
 pair<const I*> findSearchBounds(std::make_signed_t<I> firstIdx, I targetCode,
@@ -105,31 +115,47 @@ pair<const I*> findSearchBounds(std::make_signed_t<I> firstIdx, I targetCode,
     using SI = std::make_signed_t<I>;
     SI nCodes = codesEnd - codesStart;
 
+    I firstCode = codesStart[firstIdx];
+    if (firstCode == targetCode)
+        firstIdx++;
+
     // d = 1 : search towards codesEnd
     // d = -1 : search towards codesStart
-    SI d = (codesStart[firstIdx] <= targetCode) ? 1 : -1;
+    SI d = (firstCode < targetCode) ? 1 : -1;
 
-    SI nodeStartTimesD = targetCode * d;
+    SI targetCodeTimesD = targetCode * d;
 
     // determine search bound
-    SI searchRange = 2;
-    SI bound = firstIdx + searchRange * d;
-    while(0 <= bound && bound < nCodes && d*codesStart[bound] < nodeStartTimesD)
+    SI searchRange = 1;
+    SI secondIndex = firstIdx + d;
+    while(0 <= secondIndex && secondIndex < nCodes && d*codesStart[secondIndex] <= targetCodeTimesD)
     {
         searchRange *= 2;
-        bound        = firstIdx + searchRange * d;
+        secondIndex = firstIdx + searchRange * d;
     }
-    bound = stl::max(SI(0), bound);
-    bound = stl::min(nCodes, bound);
+    secondIndex = stl::max(SI(0), secondIndex);
+    secondIndex = stl::min(nCodes, secondIndex);
 
-    pair<const I*> searchBounds{codesStart + stl::min(firstIdx, bound),
-                                codesStart + stl::max(firstIdx, bound)};
+    pair<const I*> searchBounds{codesStart + stl::min(firstIdx, secondIndex),
+                                codesStart + stl::max(firstIdx, secondIndex)};
     return searchBounds;
 }
 
+/*! @brief calculate node counts with a guess to accelerate the binary search
+ *
+ * @tparam I                32- or 64-bit unsigned integer type
+ * @param nodeIdx           the index of the node in @p tree to compute
+ * @param tree              cornerstone octree
+ * @param avgNodeCount      average number of particles per node
+ * @param codesStart        particle SFC code array start
+ * @param codesEnd          particle SFC code array end
+ * @param maxCount          maximum particle count to report per node
+ * @return                  the number of particles in the node at @p nodeIdx or maxCount,
+ *                          whichever is smaller
+ */
 template<class I>
 CUDA_HOST_DEVICE_FUN
-unsigned calculateNodeCountFast(TreeNodeIndex nodeIdx, const I* tree, unsigned avgNodeCount,
+unsigned calculateNodeCountFast(TreeNodeIndex nodeIdx, const I* tree, float avgNodeCount,
                                 const I* codesStart, const I* codesEnd, unsigned maxCount)
 {
     using SI = std::make_signed_t<I>;
@@ -163,11 +189,11 @@ unsigned calculateNodeCountFast(TreeNodeIndex nodeIdx, const I* tree, unsigned a
  *                          to prevent overflow in MPI_Allreduce
  */
 template<class I>
-void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* codesStart, const I* codesEnd,
+void computeNodeCounts(const I* tree, unsigned* counts, TreeNodeIndex nNodes, const I* codesStart, const I* codesEnd,
                        unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
-    int firstNode = 0;
-    int lastNode  = nNodes;
+    TreeNodeIndex firstNode = 0;
+    TreeNodeIndex lastNode  = nNodes;
     if (codesStart != codesEnd)
     {
         firstNode = std::upper_bound(tree, tree + nNodes, *codesStart) - tree - 1;
@@ -175,18 +201,16 @@ void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* cod
     }
 
     #pragma omp parallel for schedule(static)
-    for (int i = 0; i < nNodes; ++i)
+    for (TreeNodeIndex i = 0; i < nNodes; ++i)
         counts[i] = 0;
 
     TreeNodeIndex nNonZeroNodes = lastNode - firstNode;
-    unsigned avgNodeCount = (codesEnd - codesStart) / nNonZeroNodes;
     const I* populatedTree = tree + firstNode;
 
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < nNonZeroNodes; ++i)
     {
         counts[i + firstNode] = calculateNodeCount(populatedTree, i, codesStart, codesEnd, maxCount);
-        //counts[i + firstNode] = calculateNodeCountFast(i, populatedTree, avgNodeCount, codesStart, codesEnd, maxCount);
     }
 }
 
@@ -225,7 +249,7 @@ int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts
     }
 
     return 1; // default: do nothing
-};
+}
 
 /*! @brief Compute split or fuse decision for each octree node in parallel
  *

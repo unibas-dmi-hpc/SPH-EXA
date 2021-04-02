@@ -38,51 +38,95 @@
 
 using namespace cstone;
 
-template<class CodeType>
-void findSearchBounds()
+TEST(CornerstoneOctree, findSearchBounds)
 {
-    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
+    using CodeType = unsigned;
 
-    std::vector<CodeType> codes{tree[1], tree[1], tree[1] + 10, tree[1] + 100, tree[2] - 1,
-                                tree[2] + 1,
-                                tree[11], tree[11] + 2,
-                                tree[12], tree[12] + 1000, tree[12] + 2000, tree[13] - 10,
-                                tree[13], tree[13] + 1};
-
+    //                          0   1   2   3   4   5   6   7   8   9
+    std::vector<CodeType> codes{3, 10, 11, 14, 16, 16, 16, 18, 19, 21};
     const CodeType* c = codes.data();
-    std::vector<pair<const CodeType*>> reference{
-        {c+0,c+2}, {c+1,c+5}, {c+2,c+6}, {c+3,c+7}, {c+4,c+6}, {c+5,c+7}, {c+4,c+6}, {c+5,c+7},
-        {c+4,c+8}, {c+5,c+9}, {c+6,c+10}, {c+7,c+11}, {c+12,c+14}
-    };
 
-    //  nodeIdx                    0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
-    //  counts                     0  5  1  0  0  0  0  0  0  0  0  2  4  2  0};
-    // code start location            0  5  6  6  6  6  6  6  6  6  6  8 12
-    // guess start location           0  1  2  3  4  5  6  7  8  9 10 11 12
-    // Ntot: 14, nNonZeroNodes: 13, avgNodeCount: 14/13 = 1
-
-    // first and last nodes are empty, effective number of nodes is nNodes(tree) - 2
-    // nNodes(tree) - 2  corresponds to nNonZeroNodes = lastNode - firstNode in computeNodeCounts
-    unsigned avgNodeCount = codes.size() / (nNodes(tree) - 2);
-    std::vector<pair<const CodeType*>> searchBounds(nNodes(tree) - 2);
-
-    for (int i = 0; i < nNodes(tree)-2; ++i)
     {
-        TreeNodeIndex guess  = i * avgNodeCount;
-        searchBounds[i] = findSearchBounds(guess, tree[i+1], codes.data(), codes.data() + codes.size());
+        // upward search direction, guess distance from target: 0
+        int guess = 3;
+        auto probe = findSearchBounds(guess, CodeType(14), c, c + codes.size());
+        pair<const CodeType*> reference{c+2, c+4};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // upward search direction, guess distance from target: 1
+        int guess = 3;
+        auto probe = findSearchBounds(guess, CodeType(15), c, c + codes.size());
+        pair<const CodeType*> reference{c+3, c+4};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // upward search direction, guess distance from target: 1
+        int guess = 3;
+        auto probe = findSearchBounds(guess, CodeType(16), c, c + codes.size());
+        pair<const CodeType*> reference{c+3, c+7};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // upward search direction, guess distance from target: 6
+        int guess = 0;
+        auto probe = findSearchBounds(guess, CodeType(17), c, c + codes.size());
+        pair<const CodeType*> reference{c+0, c+8};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // downward search direction
+        int guess = 4;
+        auto probe = findSearchBounds(guess, CodeType(12), c, c + codes.size());
+        pair<const CodeType*> reference{c+2, c+4};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // downward search direction
+        int guess = 4;
+        auto probe = findSearchBounds(guess, CodeType(11), c, c + codes.size());
+        pair<const CodeType*> reference{c+0, c+4};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // downward search direction
+        int guess = 4;
+        auto probe = findSearchBounds(guess, CodeType(10), c, c + codes.size());
+        pair<const CodeType*> reference{c+0, c+4};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // downward search direction
+        int guess = 8;
+        auto probe = findSearchBounds(guess, CodeType(16), c, c + codes.size());
+        pair<const CodeType*> reference{c+0, c+8};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // downward search direction
+        int guess = 6;
+        auto probe = findSearchBounds(guess, CodeType(16), c, c + codes.size());
+        pair<const CodeType*> reference{c+3, c+7};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // direct hit on the last element
+        int guess = 9;
+        auto probe = findSearchBounds(guess, CodeType(21), c, c + codes.size());
+        pair<const CodeType*> reference{c+8, c+10};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
     }
 
-    EXPECT_EQ(searchBounds, reference);
-}
-
-TEST(CornerstoneOctree, findSearchBounds32)
-{
-    findSearchBounds<unsigned>();
-}
-
-TEST(CornerstoneOctree, findSearchBounds64)
-{
-    findSearchBounds<uint64_t>();
 }
 
 //! @brief test that computeNodeCounts correctly counts the number of codes for each node
