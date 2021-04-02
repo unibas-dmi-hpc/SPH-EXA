@@ -45,8 +45,8 @@ int main()
     using CodeType = unsigned;
     Box<double> box{-1, 1};
 
-    int nParticles = 8000000;
-    int bucketSize = 10;
+    int nParticles = 2000000;
+    int bucketSize = 16;
 
     RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
 
@@ -71,10 +71,9 @@ int main()
 
     tp0  = std::chrono::high_resolution_clock::now();
 
-    computeOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
-                     thrust::raw_pointer_cast(particleCodes.data() + nParticles),
-                     bucketSize,
-                     tree, counts);
+    updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
+                    thrust::raw_pointer_cast(particleCodes.data() + nParticles),
+                    bucketSize, tree, counts);
 
     tp1  = std::chrono::high_resolution_clock::now();
 

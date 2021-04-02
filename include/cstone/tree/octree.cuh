@@ -240,4 +240,30 @@ void computeOctreeGpu(const I* codesStart, const I* codesEnd, unsigned bucketSiz
     }
 }
 
+/*! @brief update the octree with a single rebalance/count step
+ *
+ * @tparam I                 32- or 64-bit unsigned integer for morton code
+ * @tparam Reduce            functor for global counts reduction in distributed builds
+ * @param[in]    codesStart  local particle Morton codes start
+ * @param[in]    codesEnd    local particle morton codes end
+ * @param[in]    bucketSize  maximum number of particles per node
+ * @param[inout] tree        the octree leaf nodes (cornerstone format)
+ * @param[inout] counts      the octree leaf node particle count
+ * @param[in]    maxCount    if actual node counts are higher, they will be capped to @p maxCount
+ */
+template<class I, class Reduce = void>
+void updateOctreeGpu(const I* codesStart, const I* codesEnd, unsigned bucketSize,
+                     thrust::device_vector<I>& tree, thrust::device_vector<unsigned>& counts,
+                     unsigned maxCount = std::numeric_limits<unsigned>::max())
+{
+    rebalanceTreeGpu(tree, thrust::raw_pointer_cast(counts.data()), nNodes(tree), bucketSize);
+    counts.resize(nNodes(tree));
+
+    // local node counts
+    computeNodeCountsGpu(thrust::raw_pointer_cast(tree.data()), thrust::raw_pointer_cast(counts.data()),
+                         nNodes(tree), codesStart, codesEnd, maxCount);
+    // global node count sums when using distributed builds
+    if constexpr (!std::is_same_v<void, Reduce>) (void)Reduce{}(counts);
+}
+
 } // namespace cstone
