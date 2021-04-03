@@ -54,12 +54,36 @@ namespace cstone
 //! @brief see computeNodeCounts
 template<class I>
 __global__ void computeNodeCountsKernel(const I* tree, unsigned* counts, TreeNodeIndex nNodes, const I* codesStart,
-                                        const I* codesEnd, unsigned maxCount = std::numeric_limits<unsigned>::max())
+                                        const I* codesEnd, unsigned maxCount)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid < nNodes)
     {
         counts[tid] = calculateNodeCount(tree, tid, codesStart, codesEnd, maxCount);
+    }
+}
+
+//! @brief see updateNodeCounts
+template<class I>
+__global__ void updateNodeCountsKernel(const I* tree, unsigned* counts, TreeNodeIndex nNodes, const I* codesStart,
+                                       const I* codesEnd, unsigned maxCount)
+{
+    extern __shared__ unsigned guesses[];
+
+    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
+    if (tid < nNodes)
+    {
+        unsigned firstGuess  = counts[tid];
+
+        guesses[threadIdx.x] = firstGuess;
+        unsigned secondGuess = firstGuess;
+        __syncthreads();
+        if (threadIdx.x < blockDim.x - 1)
+            secondGuess = guesses[threadIdx.x+1];
+
+        //unsigned secondGuess = __shfl_down_sync(0xffffffff, firstGuess, 1);
+        counts[tid] = updateNodeCount(tid, tree, firstGuess, secondGuess,
+                                      codesStart, codesEnd, maxCount);
     }
 }
 
@@ -91,18 +115,28 @@ __global__ void findPopulatedNodes(const I* tree, TreeNodeIndex nNodes, const I*
  */
 template<class I>
 void computeNodeCountsGpu(const I* tree, unsigned* counts, TreeNodeIndex nNodes, const I* codesStart,
-                          const I* codesEnd, unsigned maxCount = std::numeric_limits<unsigned>::max())
+                          const I* codesEnd, unsigned maxCount, bool useCountsAsGuess = false)
 {
-    cudaMemset(counts, 0, nNodes * sizeof(unsigned));
-
     TreeNodeIndex popNodes[2];
 
     findPopulatedNodes<<<1,1>>>(tree, nNodes, codesStart, codesEnd);
     cudaMemcpyFromSymbol(popNodes, populatedNodes, 2 * sizeof(TreeNodeIndex));
 
-    constexpr unsigned nThreads = 512;
-    computeNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>
-        (tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
+    cudaMemset(counts, 0, popNodes[0] * sizeof(unsigned));
+    cudaMemset(counts + popNodes[1], 0, (nNodes - popNodes[1]) * sizeof(unsigned));
+
+    constexpr unsigned nThreads = 256;
+    if (useCountsAsGuess)
+    {
+        thrust::exclusive_scan(thrust::device, counts + popNodes[0], counts + popNodes[1], counts + popNodes[0], 0);
+        updateNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads, sizeof(unsigned) * nThreads>>>
+            (tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
+    }
+    else
+    {
+        computeNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>
+            (tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
+    }
 }
 
 /*! @brief Compute split or fuse decision for each octree node in parallel
@@ -261,7 +295,7 @@ void updateOctreeGpu(const I* codesStart, const I* codesEnd, unsigned bucketSize
 
     // local node counts
     computeNodeCountsGpu(thrust::raw_pointer_cast(tree.data()), thrust::raw_pointer_cast(counts.data()),
-                         nNodes(tree), codesStart, codesEnd, maxCount);
+                         nNodes(tree), codesStart, codesEnd, maxCount, true);
     // global node count sums when using distributed builds
     if constexpr (!std::is_same_v<void, Reduce>) (void)Reduce{}(counts);
 }
