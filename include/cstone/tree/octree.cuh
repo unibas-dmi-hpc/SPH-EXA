@@ -45,6 +45,7 @@
 #include <thrust/reduce.h>
 #include <thrust/scan.h>
 
+#include "cstone/cuda/errorcheck.cuh"
 #include "cstone/util.hpp"
 #include "octree.hpp"
 
@@ -139,6 +140,9 @@ void computeNodeCountsGpu(const I* tree, unsigned* counts, TreeNodeIndex nNodes,
     }
 }
 
+//! @brief this symbol is used to keep track of octree structure changes and detect convergence
+__device__ int rebalanceChangeCounter;
+
 /*! @brief Compute split or fuse decision for each octree node in parallel
  *
  * @tparam I               32- or 64-bit unsigned integer type
@@ -160,12 +164,12 @@ void computeNodeCountsGpu(const I* tree, unsigned* counts, TreeNodeIndex nNodes,
  */
 template<class I>
 __global__ void rebalanceDecisionKernel(const I* tree, const unsigned* counts, TreeNodeIndex nNodes,
-                                        unsigned bucketSize, TreeNodeIndex* nodeOps, int* converged)
+                                        unsigned bucketSize, TreeNodeIndex* nodeOps)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid < nNodes)
     {
-        nodeOps[tid] = calculateNodeOp(tree, tid, counts, bucketSize, converged);
+        nodeOps[tid] = calculateNodeOp(tree, tid, counts, bucketSize, &rebalanceChangeCounter);
     }
 }
 
@@ -184,6 +188,11 @@ __global__ void processNodes(const I* oldTree, const TreeNodeIndex* nodeOps,
     {
         newTree[tid] = nodeRange<I>(0);
     }
+}
+
+__global__ void resetRebalanceCounter()
+{
+    rebalanceChangeCounter = 0;
 }
 
 /*! @brief split or fuse octree nodes based on node counts relative to bucketSize
@@ -207,12 +216,12 @@ void rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, TreeNodeIndex nOl
     thrust::device_vector<TreeNodeIndex> nodeOps(nOldNodes + 1);
     thrust::device_vector<TreeNodeIndex> nodeOffsets(nOldNodes + 1);
 
-    thrust::device_vector<int> changeCounter(1,0);
+    resetRebalanceCounter<<<1,1>>>();
+
     constexpr unsigned nThreads = 512;
     rebalanceDecisionKernel<<<iceil(nOldNodes, nThreads), nThreads>>>(
         thrust::raw_pointer_cast(tree.data()), counts, nOldNodes, bucketSize,
-        thrust::raw_pointer_cast(nodeOps.data()),
-        thrust::raw_pointer_cast(changeCounter.data()));
+        thrust::raw_pointer_cast(nodeOps.data()));
 
     thrust::exclusive_scan(thrust::device, nodeOps.begin(), nodeOps.end(), nodeOffsets.begin());
 
@@ -223,9 +232,12 @@ void rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, TreeNodeIndex nOl
     processNodes<<<iceil(nElements, nThreads), nThreads>>>(thrust::raw_pointer_cast(tree.data()),
                                                            thrust::raw_pointer_cast(nodeOffsets.data()), nOldNodes, nNodes(balancedTree),
                                                            thrust::raw_pointer_cast(balancedTree.data()));
+
+    int changeCounter;
+    cudaMemcpyFromSymbol(&changeCounter, rebalanceChangeCounter, sizeof(int));
     if (converged != nullptr)
     {
-        *converged = (changeCounter[0] == 0);
+        *converged = (changeCounter == 0);
     }
 
     swap(tree, balancedTree);
