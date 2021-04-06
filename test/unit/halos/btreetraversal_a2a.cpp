@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Binary radix tree traversal tests with naive all-to-all collisions as reference
+/*! @file
+ * @brief Binary radix tree traversal tests with naive all-to-all collisions as reference
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include "gtest/gtest.h"
@@ -37,7 +37,7 @@
 
 using namespace cstone;
 
-/*! \brief compare tree-traversal collision detection with the naive all-to-all algorithm
+/*! @brief compare tree-traversal collision detection with the naive all-to-all algorithm
  *
  * @tparam I           32- or 64-bit unsigned integer
  * @tparam T           float or double
@@ -81,7 +81,7 @@ void generalCollisionTest(const std::vector<I>& tree, const std::vector<T>& halo
     }
 }
 
-//! \brief an irregular tree with level-3 nodes next to level-1 ones
+//! @brief an irregular tree with level-3 nodes next to level-1 ones
 template<class I, class T, bool Pbc>
 void irregularTreeTraversal()
 {
@@ -109,7 +109,7 @@ TEST(Collisions, irregularTreeTraversalPbc)
 }
 
 
-//! \brief a regular tree with level-3 nodes, 8x8x8 grid
+//! @brief a regular tree with level-3 nodes, 8x8x8 grid
 template<class I, class T, bool Pbc>
 void regularTreeTraversal()
 {
@@ -137,7 +137,7 @@ TEST(Collisions, regularTreeTraversalPbc)
     regularTreeTraversal<uint64_t, double, true>();
 }
 
-/*! \brief test tree traversal with anisotropic boxes
+/*! @brief test tree traversal with anisotropic boxes
  *
  * anisotropic boxes with a single halo radius per node
  * results in different x,y,z halo search lengths once

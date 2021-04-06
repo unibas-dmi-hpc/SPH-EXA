@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief  CPU driver for halo discovery using traversal of an internal binary radix tree
+/*! @file
+ * @brief  CPU driver for halo discovery using traversal of an internal binary radix tree
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -40,7 +40,7 @@
 namespace cstone
 {
 
-/*! \brief Compute halo node pairs
+/*! @brief Compute halo node pairs
  *
  * @tparam CoordinateType      float or double
  * @tparam RadiusType          float or double, float is sufficient for 64-bit codes or less
@@ -49,7 +49,7 @@ namespace cstone
  * @param interactionRadii     effective halo search radii per octree (leaf) node
  * @param box                  coordinate bounding box
  * @param assignment           list if Morton code ranges assignments per rank
- * @param rank                 compute pairs from perspective of \a rank
+ * @param rank                 compute pairs from perspective of @p rank
  * @param[out] haloPairs       output list of halo node index pairs
  * @return
  *
@@ -59,10 +59,10 @@ namespace cstone
  *   - tree[i] enlarged by the search radius interactionRadii[i] overlaps with tree[j]
  *   - tree[j] enlarged by the search radius interactionRadii[j] overlaps with tree[i]
  *
- * This means that the first element in each index pair in \a haloPairs is the index of a
- * node (in \a tree) that belongs to rank \a rank and must be sent out to another rank.
+ * This means that the first element in each index pair in @p haloPairs is the index of a
+ * node (in @p tree) that belongs to rank @p rank and must be sent out to another rank.
  *
- * The second element of each pair is the index of a remote node that is a halo for rank \a rank.
+ * The second element of each pair is the index of a remote node that is a halo for rank @p rank.
  * We can easily find the source rank of the halo with binary search in the space curve assignment.
  * The source rank of the halo is also the destination where the internal node referenced in the first
  * pair element must be sent to.
@@ -137,7 +137,7 @@ void findHalos(const std::vector<I>&           tree,
     }
 }
 
-/*! \brief Compute send/receive node lists from halo pair node indices
+/*! @brief Compute send/receive node lists from halo pair node indices
  *
  * @tparam     I                32- or 64-bit unsigned integer
  * @param[in]  tree             cornerstone octree

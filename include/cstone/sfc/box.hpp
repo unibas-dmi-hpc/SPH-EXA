@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief implements a bounding bounding box for floating point coordinates and integer indices
+/*! @file
+ * @brief implements a bounding bounding box for floating point coordinates and integer indices
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -39,7 +39,7 @@
 namespace cstone
 {
 
-/*! \brief normalize a spatial length w.r.t. to a min/max range
+/*! @brief normalize a spatial length w.r.t. to a min/max range
  *
  * @tparam T
  * @param d
@@ -51,7 +51,7 @@ template<class T>
 CUDA_HOST_DEVICE_FUN
 static inline T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
-/*! \brief map x into periodic range 0...R-1
+/*! @brief map x into periodic range 0...R-1
  *
  * @tparam R periodic range
  * @param x  input value
@@ -72,12 +72,12 @@ static int pbcAdjust(int x)
     return x - R * std::floor(double(x)/R);
 }
 
-/*! \brief stores the coordinate bounds
+/*! @brief stores the coordinate bounds
  *
  * Needs a slightly different behavior in the PBC case than the existing BBox
  * to manage morton code based octrees.
  *
- * \tparam T floating point type
+ * @tparam T floating point type
  */
 template<class T>
 class Box
@@ -108,12 +108,12 @@ public:
     CUDA_HOST_DEVICE_FUN T zmin() const { return limits[4]; }
     CUDA_HOST_DEVICE_FUN T zmax() const { return limits[5]; }
 
-    //! \brief return edge lengths
+    //! @brief return edge lengths
     CUDA_HOST_DEVICE_FUN T lx() const { return lengths_[0]; }
     CUDA_HOST_DEVICE_FUN T ly() const { return lengths_[1]; }
     CUDA_HOST_DEVICE_FUN T lz() const { return lengths_[2]; }
 
-    //! \brief return inverse edge lengths
+    //! @brief return inverse edge lengths
     CUDA_HOST_DEVICE_FUN T ilx() const { return inverseLengths_[0]; }
     CUDA_HOST_DEVICE_FUN T ily() const { return inverseLengths_[1]; }
     CUDA_HOST_DEVICE_FUN T ilz() const { return inverseLengths_[2]; }
@@ -122,13 +122,13 @@ public:
     CUDA_HOST_DEVICE_FUN bool pbcY() const { return pbc[1]; } // NOLINT
     CUDA_HOST_DEVICE_FUN bool pbcZ() const { return pbc[2]; } // NOLINT
 
-    //! \brief return the shortest coordinate range in any dimension
+    //! @brief return the shortest coordinate range in any dimension
     CUDA_HOST_DEVICE_FUN T minExtent() const
     {
         return stl::min(stl::min(lengths_[0], lengths_[1]), lengths_[2]);
     }
 
-    //! \brief return the longes coordinate range in any dimension
+    //! @brief return the longes coordinate range in any dimension
     CUDA_HOST_DEVICE_FUN T maxExtent() const
     {
         return stl::max(stl::max(lengths_[0], lengths_[1]), lengths_[2]);
@@ -156,7 +156,7 @@ private:
     bool pbc[3];
 };
 
-/*! \brief stores octree index integer bounds
+/*! @brief stores octree index integer bounds
  */
 class IBox
 {
@@ -179,7 +179,7 @@ public:
     CUDA_HOST_DEVICE_FUN int zmin() const { return limits[4]; } // NOLINT
     CUDA_HOST_DEVICE_FUN int zmax() const { return limits[5]; } // NOLINT
 
-    //! \brief return the shortest coordinate range in any dimension
+    //! @brief return the shortest coordinate range in any dimension
     CUDA_HOST_DEVICE_FUN int minExtent() const // NOLINT
     {
         return stl::min(stl::min(xmax() - xmin(), ymax() - ymin()), zmax() - zmin());

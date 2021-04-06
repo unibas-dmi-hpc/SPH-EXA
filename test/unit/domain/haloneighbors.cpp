@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Tests that halo discovery finds all halos for a complete neighbor search
+/*! @file
+ * @brief Tests that halo discovery finds all halos for a complete neighbor search
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include "gtest/gtest.h"
@@ -37,7 +37,7 @@
 
 #include "coord_samples/random.hpp"
 
-/*! \brief \file Combines halo search with neighbor search
+/*! @brief @file Combines halo search with neighbor search
  *
  * We test that halo search finds all particles required for a complete
  * neighbor search.
@@ -126,7 +126,7 @@ TEST(HaloNeighbors, extractParticlesTest)
 }
 
 
-/*! \brief Test that halo discovery finds all nodes needed for a correct neighbor search
+/*! @brief Test that halo discovery finds all nodes needed for a correct neighbor search
  *
  * @tparam I  unsigned 32- or 64-bit integer
  * @tparam T  float or double

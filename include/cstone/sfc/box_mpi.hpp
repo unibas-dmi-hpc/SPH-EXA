@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief compute global minima and maxima of array ranges
+/*! @file
+ * @brief compute global minima and maxima of array ranges
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  *
  */
 
@@ -45,7 +45,7 @@
 namespace cstone
 {
 
-//! \brief compute global minimum of an array range
+//! @brief compute global minimum of an array range
 template<class Iterator>
 auto globalMin(Iterator start, Iterator end)
 {
@@ -66,7 +66,7 @@ auto globalMin(Iterator start, Iterator end)
     return minimum;
 }
 
-//! \brief compute global maximum of an array range
+//! @brief compute global maximum of an array range
 template<class Iterator>
 auto globalMax(Iterator start, Iterator end)
 {
@@ -87,7 +87,7 @@ auto globalMax(Iterator start, Iterator end)
     return maximum;
 }
 
-/*! \brief compute global bounding box for local x,y,z arrays
+/*! @brief compute global bounding box for local x,y,z arrays
  *
  * @tparam Iterator      coordinate array iterator, providing random access
  * @param  xB            x coordinate array start
