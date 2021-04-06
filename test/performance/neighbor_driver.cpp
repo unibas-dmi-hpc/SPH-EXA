@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief  Find neighbors in Morton code sorted x,y,z arrays
+/*! @file
+ * @brief  Find neighbors in Morton code sorted x,y,z arrays
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include <chrono>

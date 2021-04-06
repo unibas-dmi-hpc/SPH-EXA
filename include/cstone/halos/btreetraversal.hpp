@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief binary tree traversal implementation
+/*! @file
+ * @brief binary tree traversal implementation
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -37,29 +37,29 @@
 namespace cstone
 {
 
-//! \brief stores indices of colliding octree leaf nodes
+//! @brief stores indices of colliding octree leaf nodes
 class CollisionList
 {
 public:
-    //! \brief add an index to the list of colliding leaf tree nodes
+    //! @brief add an index to the list of colliding leaf tree nodes
     void add(int i)
     {
         list_[n_] = i;
         n_ = (n_ < collisionMax-1) ? n_+1 : n_;
     }
 
-    //! \brief access collision list as a range
+    //! @brief access collision list as a range
     [[nodiscard]] const int* begin() const { return list_; }
     [[nodiscard]] const int* end()   const { return list_ + n_; }
 
-    //! \brief access collision list elements
+    //! @brief access collision list elements
     int operator[](int i) const
     {
         assert(i < collisionMax);
         return list_[i];
     }
 
-    /*! \brief returns number of collisions
+    /*! @brief returns number of collisions
      *
      * Can (should) also be used to check whether the internal storage
      * was exhausted during collision detection.
@@ -75,30 +75,32 @@ private:
 };
 
 template<class I>
-inline bool traverseNode(const BinaryNode<I>* node, const IBox& collisionBox, pair<I> excludeRange)
+CUDA_HOST_DEVICE_FUN
+inline bool traverseNode(const BinaryNode<I>* root, TreeNodeIndex idx,
+                         const IBox& collisionBox, pair<I> excludeRange)
 {
-    return (node != nullptr)
-    && !containedIn(node->prefix, node->prefixLength, excludeRange[0], excludeRange[1])
-    && overlap(node->prefix, node->prefixLength, collisionBox);
+    return (!btreeIsLeaf(idx))
+    && !containedIn(root[idx].prefix, excludeRange[0], excludeRange[1])
+    && overlap(root[idx].prefix, collisionBox);
 }
 
 template<class I>
+CUDA_HOST_DEVICE_FUN
 inline bool leafOverlap(int leafIndex, const I* leafNodes,
                         const IBox& collisionBox, pair<I> excludeRange)
 {
-    if (leafIndex < 0)
+    if (!btreeIsLeaf(leafIndex))
         return false;
 
-    I leafCode = leafNodes[leafIndex];
-    I leafUpperBound = leafNodes[leafIndex + 1];
+    TreeNodeIndex effectiveIndex = btreeLoadLeaf(leafIndex);
+    I leafCode = leafNodes[effectiveIndex];
+    I leafUpperBound = leafNodes[effectiveIndex + 1];
 
-    int prefixNBits = treeLevel(leafUpperBound - leafCode) * 3;
-
-    bool notExcluded = !containedIn(leafCode, prefixNBits, excludeRange[0], excludeRange[1]);
-    return notExcluded && overlap(leafCode, prefixNBits, collisionBox);
+    bool notExcluded = !containedIn(leafCode, leafUpperBound, excludeRange[0], excludeRange[1]);
+    return notExcluded && overlap(leafCode, leafUpperBound, collisionBox);
 }
 
-/*! \brief find all collisions between a leaf node enlarged by (dx,dy,dz) and the rest of the tree
+/*! @brief find all collisions between a leaf node enlarged by (dx,dy,dz) and the rest of the tree
  *
  * @tparam I                  32- or 64-bit unsigned integer
  * @param[in]  internalRoot   root of the internal binary radix tree
@@ -130,49 +132,51 @@ inline bool leafOverlap(int leafIndex, const I* leafNodes,
  * the implementation general.
  */
 template <class I>
-void findCollisions(const BinaryNode<I>* internalRoot, const I* leafNodes, CollisionList& collisionList,
+void findCollisions(const BinaryNode<I>* root, const I* leafNodes, CollisionList& collisionList,
                     const IBox& collisionBox, pair<I> excludeRange)
 {
     using Node    = BinaryNode<I>;
-    using NodePtr = const Node*;
 
-    NodePtr  stack[64];
-    NodePtr* stackPtr = stack;
+    TreeNodeIndex stack[64];
+    stack[0] = 0;
 
-    *stackPtr++ = nullptr;
-
-    const BinaryNode<I>* node = internalRoot;
+    TreeNodeIndex stackPos = 1;
+    TreeNodeIndex node     = 0; // start at the root
 
     do
     {
-        bool traverseL = traverseNode(node->child[Node::left], collisionBox, excludeRange);
-        bool traverseR = traverseNode(node->child[Node::right], collisionBox, excludeRange);
+        TreeNodeIndex leftChild  = root[node].child[Node::left];
+        TreeNodeIndex rightChild = root[node].child[Node::right];
+        bool traverseL = traverseNode(root, leftChild, collisionBox, excludeRange);
+        bool traverseR = traverseNode(root, rightChild, collisionBox, excludeRange);
 
-        bool overlapLeafL = leafOverlap(node->leafIndex[Node::left], leafNodes, collisionBox, excludeRange);
-        bool overlapLeafR = leafOverlap(node->leafIndex[Node::right], leafNodes, collisionBox, excludeRange);
+        bool overlapLeafL = leafOverlap(leftChild, leafNodes, collisionBox, excludeRange);
+        bool overlapLeafR = leafOverlap(rightChild, leafNodes, collisionBox, excludeRange);
 
-        if (overlapLeafL) collisionList.add(node->leafIndex[Node::left]);
-        if (overlapLeafR) collisionList.add(node->leafIndex[Node::right]);
+        if (overlapLeafL) collisionList.add(btreeLoadLeaf(leftChild));
+        if (overlapLeafR) collisionList.add(btreeLoadLeaf(rightChild));
 
         if (!traverseL and !traverseR)
         {
-            node = *--stackPtr; // pop
+            node = stack[--stackPos];
         }
         else
         {
             if (traverseL && traverseR)
             {
-                if (stackPtr-stack >= 64)
+                #ifndef __CUDA_ARCH__
+                if (stackPos >= 64)
                 {
                     throw std::runtime_error("btree traversal stack exhausted\n");
                 }
-                *stackPtr++ = node->child[Node::right]; // push
+                #endif
+                stack[stackPos++] = rightChild; // push
             }
 
-            node = (traverseL) ? node->child[Node::left] : node->child[Node::right];
+            node = (traverseL) ? leftChild : rightChild;
         }
 
-    } while (node != nullptr);
+    } while (node != 0); // the root can only be obtained when the tree has been fully traversed
 }
 
 } // namespace cstone

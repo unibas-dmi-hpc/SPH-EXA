@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Test functions used to determine the arrangement of halo and assigned particles
+/*! @file
+ * @brief Test functions used to determine the arrangement of halo and assigned particles
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 

@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief  General purpose utilities
+/*! @file
+ * @brief  General purpose utilities
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -35,7 +35,7 @@
 
 #include "cstone/cuda/annotation.hpp"
 
-/*! \brief A template to create structs as a type-safe version to using declarations
+/*! @brief A template to create structs as a type-safe version to using declarations
  *
  * Used in public API functions where a distinction between different
  * arguments of the same underlying type is desired. This provides a type-safe
@@ -73,7 +73,7 @@ private:
     T value_;
 };
 
-/*! \brief StrongType equality comparison
+/*! @brief StrongType equality comparison
  *
  * Requires that both T and Phantom template parameters match.
  * For the case where a comparison between StrongTypes with matching T, but differing Phantom
@@ -100,7 +100,7 @@ inline bool operator>(const StrongType<T, Phantom>& lhs, const StrongType<T, Pha
 }
 
 
-//! \brief simple pair that's usable in both CPU and GPU code
+//! @brief simple pair that's usable in both CPU and GPU code
 template<class T>
 class pair
 {
@@ -129,3 +129,10 @@ private:
 
     T data[2];
 };
+
+
+//! @brief ceil(divident/divisor) for integers
+CUDA_HOST_DEVICE_FUN constexpr unsigned iceil(size_t dividend, unsigned divisor)
+{
+    return (dividend + divisor - 1) / divisor;
+}

@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief GTest main
+/*! @file
+ * @brief GTest main
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 

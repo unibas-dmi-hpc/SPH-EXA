@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Halo discovery tests
+/*! @file
+ * @brief Halo discovery tests
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include "gtest/gtest.h"
@@ -36,7 +36,7 @@
 
 using namespace cstone;
 
-/*! \brief find halo test
+/*! @brief find halo test
  *
  * A regular 4x4x4 tree with 64 nodes is assigned to 2 ranks,
  * such that nodes 0-32 are on rank 0 and 32-64 on rank 1,
@@ -108,7 +108,7 @@ TEST(HaloDiscovery, findHalos)
 }
 
 
-//! \brief test processing of halo pair nodes into send/receive node lists
+//! @brief test processing of halo pair nodes into send/receive node lists
 template <class I>
 void computeSendRecvNodeList()
 {
@@ -162,7 +162,7 @@ TEST(HaloDiscovery, sendRecvNodeList)
     computeSendRecvNodeList<uint64_t>();
 }
 
-//! \brief an integration test between findHalos, computeSendRecvNodeList and Pbc
+//! @brief an integration test between findHalos, computeSendRecvNodeList and Pbc
 template<class I>
 void findHalosPbc()
 {

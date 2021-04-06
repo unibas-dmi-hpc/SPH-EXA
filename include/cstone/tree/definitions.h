@@ -23,18 +23,11 @@
  * SOFTWARE.
  */
 
-/*! @file
- * @brief GTest driver
- *
- * @author Sebastian Keller <sebastian.f.keller@gmail.com>
- */
+#pragma once
 
+namespace cstone {
 
-#include "gtest/gtest.h"
+//! @brief controls the node index type, change to 64-bit if more than 2 billion tree nodes are required
+using TreeNodeIndex = int;
 
-int main(int argc, char **argv) {
-
-  ::testing::InitGoogleTest(&argc, argv);
-  auto ret = RUN_ALL_TESTS();
-  return ret;
-}
+} // namespace cstone
