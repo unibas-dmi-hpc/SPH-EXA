@@ -38,32 +38,121 @@
 
 using namespace cstone;
 
+TEST(CornerstoneOctree, findSearchBounds)
+{
+    using CodeType = unsigned;
+
+    //                          0   1   2   3   4   5   6   7   8   9
+    std::vector<CodeType> codes{3, 10, 11, 14, 16, 16, 16, 18, 19, 21};
+    const CodeType* c = codes.data();
+
+    {
+        // upward search direction, guess distance from target: 0
+        int guess = 3;
+        auto probe = findSearchBounds(guess, CodeType(14), c, c + codes.size());
+        pair<const CodeType*> reference{c+2, c+4};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // upward search direction, guess distance from target: 1
+        int guess = 3;
+        auto probe = findSearchBounds(guess, CodeType(15), c, c + codes.size());
+        pair<const CodeType*> reference{c+3, c+4};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // upward search direction, guess distance from target: 1
+        int guess = 3;
+        auto probe = findSearchBounds(guess, CodeType(16), c, c + codes.size());
+        pair<const CodeType*> reference{c+3, c+7};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // upward search direction, guess distance from target: 6
+        int guess = 0;
+        auto probe = findSearchBounds(guess, CodeType(17), c, c + codes.size());
+        pair<const CodeType*> reference{c+0, c+8};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // downward search direction
+        int guess = 4;
+        auto probe = findSearchBounds(guess, CodeType(12), c, c + codes.size());
+        pair<const CodeType*> reference{c+2, c+4};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // downward search direction
+        int guess = 4;
+        auto probe = findSearchBounds(guess, CodeType(11), c, c + codes.size());
+        pair<const CodeType*> reference{c+0, c+4};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // downward search direction
+        int guess = 4;
+        auto probe = findSearchBounds(guess, CodeType(10), c, c + codes.size());
+        pair<const CodeType*> reference{c+0, c+4};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // downward search direction
+        int guess = 8;
+        auto probe = findSearchBounds(guess, CodeType(16), c, c + codes.size());
+        pair<const CodeType*> reference{c+0, c+8};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // downward search direction
+        int guess = 6;
+        auto probe = findSearchBounds(guess, CodeType(16), c, c + codes.size());
+        pair<const CodeType*> reference{c+3, c+7};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+    {
+        // direct hit on the last element
+        int guess = 9;
+        auto probe = findSearchBounds(guess, CodeType(21), c, c + codes.size());
+        pair<const CodeType*> reference{c+8, c+10};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
+
+}
 
 //! @brief test that computeNodeCounts correctly counts the number of codes for each node
 template<class CodeType>
 void checkCountTreeNodes()
 {
-    constexpr unsigned    level = 2;
-    std::vector<CodeType> codes = makeNLevelGrid<CodeType>(level);
-
     std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
+
+    std::vector<CodeType> codes{tree[1], tree[1], tree[1] + 10, tree[1] + 100, tree[2] - 1,
+                                tree[2] + 1,
+                                tree[11], tree[11] + 2,
+                                tree[12], tree[12] + 1000, tree[12] + 2000, tree[13] - 10,
+                                tree[13], tree[13] + 1};
+
+    //  nodeIdx                     0  1  2  3  4  5  6  7  8  9 10 11 12 13 14
+    std::vector<unsigned> reference{0, 5, 1, 0, 0, 0, 0, 0, 0, 0, 0, 2, 4, 2, 0};
+    // code start location             0  5  6  6  6  6  6  6  6  6  6  8 12
+    // guess start location            0  1  2  3  4  5  6  7  8  9 10 11 12
+    // Ntot: 14, nNonZeroNodes: 13 (first and last node are empty), avgNodeCount: 14/13 = 1
+
     std::vector<unsigned> counts(nNodes(tree));
-
-    // doesn't affect the end result, but makes sure that
-    // binary searching correctly finds the first tree node
-    // with a _lower_ code than the first particle code
-    codes[0]++;
-
     computeNodeCounts(tree.data(), counts.data(), nNodes(tree),
-                      codes.data(), codes.data() + codes.size());
+                      codes.data(), codes.data() + codes.size(),
+                      std::numeric_limits<unsigned>::max());
 
-    // the level 2 nodes have 1/64 of the total volume/particle count
-    for (std::size_t i = 0; i < 8; ++i)
-        EXPECT_EQ(counts[i], 1);
-
-    // the level 1 nodes have 1/8 of the total
-    for (std::size_t i = 8; i < counts.size(); ++i)
-        EXPECT_EQ(counts[i], 8);
+    EXPECT_EQ(counts, reference);
 }
 
 TEST(CornerstoneOctree, countTreeNodes32)
@@ -309,7 +398,7 @@ TEST(CornerstoneOctree, rebalanceInsufficientResolution64)
 
 template<class I>
 void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<unsigned>& counts, int bucketSize,
-                           const std::vector<I>& mortonCodes)
+                           const std::vector<I>& mortonCodes, bool relaxBucketCount)
 {
     using CodeType = I;
     EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
@@ -327,7 +416,10 @@ void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<unsigne
 
         // check that counts are correct
         EXPECT_EQ(nodeEnd - nodeStart, counts[nodeIndex]);
-        EXPECT_LE(counts[nodeIndex], bucketSize);
+        if(!relaxBucketCount)
+        {
+            EXPECT_LE(counts[nodeIndex], bucketSize);
+        }
 
         if (counts[nodeIndex])
         {
@@ -355,15 +447,38 @@ public:
         int nParticles = 100000;
 
         CoordinateType<double, CodeType> randomBox(nParticles, box);
+        std::vector<CodeType> codes = randomBox.mortonCodes();
 
         // compute octree starting from default uniform octree
-        auto [treeML, countsML] = computeOctree(randomBox.mortonCodes().data(),
-                                                randomBox.mortonCodes().data() + nParticles,
-                                                bucketSize);
+        auto [tree, counts] = computeOctree(codes.data(),
+                                            codes.data() + nParticles,
+                                            bucketSize);
 
-        std::cout << "number of nodes: " << nNodes(treeML) << std::endl;
+        std::cout << "number of nodes: " << nNodes(tree) << std::endl;
 
-        checkOctreeWithCounts(treeML, countsML, bucketSize, randomBox.mortonCodes());
+        checkOctreeWithCounts(tree, counts, bucketSize, codes, false);
+
+        // update with unchanged particle codes
+        updateOctree(codes.data(), codes.data() + nParticles, bucketSize, tree, counts);
+        checkOctreeWithCounts(tree, counts, bucketSize, codes, false);
+
+        // range of smallest treeNode
+        CodeType minRange = std::numeric_limits<CodeType>::max();
+        for (int i = 0; i < nNodes(tree); ++i)
+            minRange = std::min(minRange, tree[i+1] - tree[i]);
+
+        // change codes a bit
+        std::mt19937 gen(42);
+        std::uniform_int_distribution<std::make_signed_t<CodeType>> displace(-minRange, minRange);
+
+        for (auto& code : codes)
+            code = std::max(std::make_signed_t<I>(0), std::min(std::make_signed_t<I>(code) + displace(gen),
+                                                               std::make_signed_t<I>(nodeRange<I>(0)-1)));
+
+        std::sort(begin(codes), end(codes));
+        updateOctree(codes.data(), codes.data() + nParticles, bucketSize, tree, counts);
+        // count < bucketSize may not be true anymore, but node counts still have to be correct
+        checkOctreeWithCounts(tree, counts, bucketSize, codes, true);
     }
 };
 
@@ -430,7 +545,8 @@ TEST(CornerstoneOctree, nodeMaxRegression)
 
     {
         std::vector<unsigned> countsProbe(nNodes(tree));
-        computeNodeCounts(tree.data(), countsProbe.data(), nNodes(tree), codes.data(), codes.data() + codes.size());
+        computeNodeCounts(tree.data(), countsProbe.data(), nNodes(tree), codes.data(), codes.data() + codes.size(),
+                          std::numeric_limits<unsigned>::max());
         EXPECT_EQ(nodeCounts, countsProbe);
     }
 
