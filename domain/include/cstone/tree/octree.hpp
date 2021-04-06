@@ -97,24 +97,101 @@ unsigned calculateNodeCount(const I* tree, TreeNodeIndex nodeIdx, const I* codes
     return stl::min(count, maxCount);
 }
 
-/*! @brief count number of particles in each octree node
+/*! @brief determine search bound for @p targetCode in an array of sorted particle SFC codes
  *
- * @tparam I                32- or 64-bit unsigned integer type
- * @param[in]  tree         octree nodes given as Morton codes of length @a nNodes+1
- *                          needs to satisfy the octree invariants
- * @param[out] counts       output particle counts per node, length = @a nNodes
- * @param[in]  nNodes       number of nodes in tree
- * @param[in]  codesStart   sorted particle SFC code range start
- * @param[in]  codesEnd     sorted particle SFC code range end
- * @param[in]  maxCount     maximum particle count per node to store, this is used
- *                          to prevent overflow in MPI_Allreduce
+ * @tparam I          32- or 64-bit unsigned integer type
+ * @param firstIdx    first (of two) search boundary, permissible range: [0:codesEnd-codesStart-1]
+ *                    (the guess for the location of @p targetCode in [codesStart:codesEnd]
+ * @param targetCode  code in [codesStart:codesEnd] to look for
+ * @param codesStart  particle SFC code array start
+ * @param codesEnd    particle SFC code array end
+ * @return            the sub-range in [codesStart:codesEnd] containing @p targetCode
  */
 template<class I>
-void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* codesStart, const I* codesEnd,
-                       unsigned maxCount = std::numeric_limits<unsigned>::max())
+CUDA_HOST_DEVICE_FUN
+pair<const I*> findSearchBounds(std::make_signed_t<I> firstIdx, I targetCode,
+                                const I* codesStart, const I* codesEnd)
 {
-    int firstNode = 0;
-    int lastNode  = nNodes;
+    using SI = std::make_signed_t<I>;
+    SI nCodes = codesEnd - codesStart;
+
+    I firstCode = codesStart[firstIdx];
+    if (firstCode == targetCode)
+        firstIdx++;
+
+    // d = 1 : search towards codesEnd
+    // d = -1 : search towards codesStart
+    SI d = (firstCode < targetCode) ? 1 : -1;
+
+    SI targetCodeTimesD = targetCode * d;
+
+    // determine search bound
+    SI searchRange = 1;
+    SI secondIndex = firstIdx + d;
+    while(0 <= secondIndex && secondIndex < nCodes && d*codesStart[secondIndex] <= targetCodeTimesD)
+    {
+        searchRange *= 2;
+        secondIndex = firstIdx + searchRange * d;
+    }
+    secondIndex = stl::max(SI(0), secondIndex);
+    secondIndex = stl::min(nCodes, secondIndex);
+
+    pair<const I*> searchBounds{codesStart + stl::min(firstIdx, secondIndex),
+                                codesStart + stl::max(firstIdx, secondIndex)};
+    return searchBounds;
+}
+
+/*! @brief calculate node counts with a guess to accelerate the binary search
+ *
+ * @tparam I                32- or 64-bit unsigned integer type
+ * @param nodeIdx           the index of the node in @p tree to compute
+ * @param tree              cornerstone octree
+ * @param firstGuess        guess location of @p tree[nodeIdx] in [codesStart:codesEnd]
+ * @param secondGuess       guess location of @p tree[nodeIdx+1] in [codesStart:codesEnd]
+ * @param codesStart        particle SFC code array start
+ * @param codesEnd          particle SFC code array end
+ * @param maxCount          maximum particle count to report per node
+ * @return                  the number of particles in the node at @p nodeIdx or maxCount,
+ *                          whichever is smaller
+ */
+template<class I>
+CUDA_HOST_DEVICE_FUN
+unsigned updateNodeCount(TreeNodeIndex nodeIdx, const I* tree,
+                         std::make_signed_t<I> firstGuess,
+                         std::make_signed_t<I> secondGuess,
+                         const I* codesStart, const I* codesEnd, unsigned maxCount)
+{
+    I nodeStart = tree[nodeIdx];
+    I nodeEnd   = tree[nodeIdx+1];
+
+    auto searchBounds   = findSearchBounds(firstGuess, nodeStart, codesStart, codesEnd);
+    auto rangeStart     = stl::lower_bound(searchBounds[0], searchBounds[1], nodeStart);
+
+    searchBounds  = findSearchBounds(secondGuess, nodeEnd, codesStart, codesEnd);
+    auto rangeEnd = stl::lower_bound(searchBounds[0], searchBounds[1], nodeEnd);
+
+    unsigned count = rangeEnd - rangeStart;
+    return stl::min(count, maxCount);
+}
+
+/*! @brief count number of particles in each octree node
+ *
+ * @tparam I                  32- or 64-bit unsigned integer type
+ * @param[in]    tree         octree nodes given as Morton codes of length @a nNodes+1
+ *                            needs to satisfy the octree invariants
+ * @param[inout] counts       output particle counts per node, length = @a nNodes
+ * @param[in]    nNodes       number of nodes in tree
+ * @param[in]    codesStart   sorted particle SFC code range start
+ * @param[in]    codesEnd     sorted particle SFC code range end
+ * @param[in]    maxCount     maximum particle count per node to store, this is used
+ *                            to prevent overflow in MPI_Allreduce
+ */
+template<class I>
+void computeNodeCounts(const I* tree, unsigned* counts, TreeNodeIndex nNodes, const I* codesStart, const I* codesEnd,
+                       unsigned maxCount, bool useCountsAsGuess = false)
+{
+    TreeNodeIndex firstNode = 0;
+    TreeNodeIndex lastNode  = nNodes;
     if (codesStart != codesEnd)
     {
         firstNode = std::upper_bound(tree, tree + nNodes, *codesStart) - tree - 1;
@@ -122,13 +199,33 @@ void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* cod
     }
 
     #pragma omp parallel for schedule(static)
-    for (int i = 0; i < nNodes; ++i)
+    for (TreeNodeIndex i = 0; i < firstNode; ++i)
         counts[i] = 0;
 
     #pragma omp parallel for schedule(static)
-    for (int i = firstNode; i < lastNode; ++i)
+    for (TreeNodeIndex i = lastNode; i < nNodes; ++i)
+        counts[i] = 0;
+
+    TreeNodeIndex nNonZeroNodes = lastNode - firstNode;
+    const I* populatedTree = tree + firstNode;
+
+    if (useCountsAsGuess)
     {
-        counts[i] = calculateNodeCount(tree, i, codesStart, codesEnd, maxCount);
+        exclusiveScan(counts + firstNode, nNonZeroNodes);
+        #pragma omp parallel for schedule(static)
+        for (TreeNodeIndex i = 0; i < nNonZeroNodes; ++i)
+        {
+            counts[i + firstNode] = updateNodeCount(i, populatedTree, counts[i + firstNode], counts[std::min(i+1, nNonZeroNodes-1)],
+                                                    codesStart, codesEnd, maxCount);
+        }
+    }
+    else
+    {
+        #pragma omp parallel for schedule(static)
+        for (TreeNodeIndex i = 0; i < nNonZeroNodes; ++i)
+        {
+            counts[i + firstNode] = calculateNodeCount(populatedTree, i, codesStart, codesEnd, maxCount);
+        }
     }
 }
 
@@ -167,7 +264,7 @@ int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts
     }
 
     return 1; // default: do nothing
-};
+}
 
 /*! @brief Compute split or fuse decision for each octree node in parallel
  *
@@ -339,7 +436,7 @@ void updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
     counts.resize(nNodes(tree));
 
     // local node counts
-    computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd, maxCount);
+    computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd, maxCount, true);
     // global node count sums when using distributed builds
     if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
 }
