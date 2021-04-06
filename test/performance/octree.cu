@@ -48,6 +48,10 @@ int main()
     int nParticles = 2000000;
     int bucketSize = 16;
 
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
     RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
 
     thrust::device_vector<CodeType> tree;
@@ -56,29 +60,35 @@ int main()
     thrust::device_vector<CodeType> particleCodes(randomBox.mortonCodes().begin(),
                                                   randomBox.mortonCodes().end());
 
-    auto tp0 = std::chrono::high_resolution_clock::now();
+    cudaEventRecord(start, cudaStreamDefault);
 
     computeOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
                      thrust::raw_pointer_cast(particleCodes.data() + nParticles),
                      bucketSize,
                      tree, counts);
 
-    auto tp1  = std::chrono::high_resolution_clock::now();
+    cudaEventRecord(stop, cudaStreamDefault);
+    cudaEventSynchronize(stop);
 
-    double t0 = std::chrono::duration<double>(tp1 - tp0).count();
-    std::cout << "build time from scratch " << t0 << " nNodes(tree): " << nNodes(tree)
+    float t0;
+    cudaEventElapsedTime(&t0, start, stop);
+    std::cout << "build time from scratch " << t0/1000 << " nNodes(tree): " << nNodes(tree)
               << " count: " << thrust::reduce(counts.begin(), counts.end(), 0) << std::endl;
 
-    tp0  = std::chrono::high_resolution_clock::now();
+    cudaEventRecord(start, cudaStreamDefault);
 
     updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
                     thrust::raw_pointer_cast(particleCodes.data() + nParticles),
                     bucketSize, tree, counts);
 
-    tp1  = std::chrono::high_resolution_clock::now();
+    cudaEventRecord(stop, cudaStreamDefault);
+    cudaEventSynchronize(stop);
 
-    double t1 = std::chrono::duration<double>(tp1 - tp0).count();
-
-    std::cout << "build time with guess " << t1 << " nNodes(tree): " << nNodes(tree)
+    float t1;
+    cudaEventElapsedTime(&t1, start, stop);
+    std::cout << "build time with guess " << t1/1000 << " nNodes(tree): " << nNodes(tree)
               << " count: " << thrust::reduce(counts.begin(), counts.end(), 0) << std::endl;
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 }
