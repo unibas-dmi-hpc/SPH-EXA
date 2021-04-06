@@ -66,7 +66,8 @@ TEST(OctreeGpu, computeNodeCountsKernel)
     constexpr unsigned nThreads = 512;
     computeNodeCountsKernel<<<iceil(nNodes(d_cstree), nThreads), nThreads>>>(
         thrust::raw_pointer_cast(d_cstree.data()), thrust::raw_pointer_cast(d_counts.data()), nNodes(d_cstree),
-        thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_codes.data() + d_codes.size()));
+        thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_codes.data() + d_codes.size()),
+        std::numeric_limits<unsigned>::max());
 
     // download counts from device
     thrust::host_vector<unsigned> h_counts = d_counts;
@@ -120,7 +121,8 @@ TEST(OctreeGpu, computeNodeCountsGpu)
     }
 
     computeNodeCountsGpu(thrust::raw_pointer_cast(d_cstree.data()), thrust::raw_pointer_cast(d_counts.data()), nNodes(d_cstree),
-                         thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_codes.data() + d_codes.size()));
+                         thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_codes.data() + d_codes.size()),
+                         std::numeric_limits<unsigned>::max());
 
     // download counts from device
     thrust::host_vector<unsigned> h_counts = d_counts;
@@ -150,7 +152,6 @@ TEST(OctreeGpu, rebalanceDecision)
     d_counts[9] = 2;
 
     unsigned bucketSize = 1;
-    thrust::device_vector<int> convergenceFlag(1, 0);
 
     thrust::device_vector<TreeNodeIndex> d_nodeOps(d_counts.size());
     constexpr unsigned nThreads = 512;
@@ -160,8 +161,7 @@ TEST(OctreeGpu, rebalanceDecision)
             thrust::raw_pointer_cast(d_counts.data()),
             nNodes(d_cstree),
             bucketSize,
-            thrust::raw_pointer_cast(d_nodeOps.data()),
-            thrust::raw_pointer_cast(convergenceFlag.data())
+            thrust::raw_pointer_cast(d_nodeOps.data())
     );
 
     // download result from device
@@ -172,8 +172,10 @@ TEST(OctreeGpu, rebalanceDecision)
         reference[i] = 0; // merge
     reference[9] = 8; // fuse
 
+    int changeCounter = 0;
+    cudaMemcpyFromSymbol(&changeCounter, rebalanceChangeCounter, sizeof(int));
     EXPECT_EQ(h_nodeOps, reference);
-    EXPECT_NE(0, convergenceFlag[0]);
+    EXPECT_NE(0, changeCounter);
 }
 
 TEST(OctreeGpu, rebalanceTree)
