@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Traits classes for Domain to manage GPU device acceleration behavior
+/*! @file
+ * @brief Traits classes for Domain to manage GPU device acceleration behavior
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -64,7 +64,7 @@ struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, Cu
 
 } // namespace detail
 
-//! \brief returns reorder functor type to be used, depending on the accelerator
+//! @brief returns reorder functor type to be used, depending on the accelerator
 template<class Accelerator, class ValueType, class CodeType, class IndexType>
 using ReorderFunctor_t = typename detail::ReorderFunctor<Accelerator>::template type<ValueType, CodeType, IndexType>;
 

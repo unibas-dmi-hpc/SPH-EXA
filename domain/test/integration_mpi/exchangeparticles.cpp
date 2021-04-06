@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Tests the particle exchange used for exchanging assigned particles, i.e. not halos.
+/*! @file
+ * @brief Tests the particle exchange used for exchanging assigned particles, i.e. not halos.
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include <vector>
@@ -37,11 +37,11 @@
 
 using namespace cstone;
 
-/*! \brief all-to-all exchange, the most communication possible
+/*! @brief all-to-all exchange, the most communication possible
  *
- * \tparam T       float, double or int
- * \param thisRank executing rank
- * \param nRanks   total number of ranks
+ * @tparam T       float, double or int
+ * @param thisRank executing rank
+ * @param nRanks   total number of ranks
  *
  * Each rank keeps (1/nRanks)-th of its local elements and sends the
  * other nRanks-1 chunks to the other nRanks-1 ranks.
@@ -172,7 +172,7 @@ TEST(GlobalDomain, exchangeCyclicNeighbors)
     exchangeCyclicNeighbors<int>(rank, nRanks);
 }
 
-/*! \brief particle exchange test with offsets
+/*! @brief particle exchange test with offsets
  *
  * Before the exchange, the buffer layout of each rank is
  *

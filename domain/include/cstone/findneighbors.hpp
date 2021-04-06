@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief  Find neighbors in Morton code sorted x,y,z arrays
+/*! @file
+ * @brief  Find neighbors in Morton code sorted x,y,z arrays
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 
@@ -40,7 +40,7 @@
 namespace cstone
 {
 
-/*! \brief compute squared distance, taking PBC into account
+/*! @brief compute squared distance, taking PBC into account
  *
  * Note that if box.pbc{X,Y,Z} is false, the result is identical to distancesq below.
  */
@@ -59,7 +59,7 @@ static inline T distanceSqPbc(T x1, T y1, T z1, T x2, T y2, T z2, const Box<T>& 
     return dx * dx + dy * dy + dz * dz;
 }
 
-//! \brief compute squared distance between to points in 3D
+//! @brief compute squared distance between to points in 3D
 template<class T>
 CUDA_HOST_DEVICE_FUN
 static inline T distancesq(T x1, T y1, T z1, T x2, T y2, T z2)
@@ -71,7 +71,7 @@ static inline T distancesq(T x1, T y1, T z1, T x2, T y2, T z2)
     return xx * xx + yy * yy + zz * zz;
 }
 
-/*! \brief determines the octree subdivision layer at which the node edge length in
+/*! @brief determines the octree subdivision layer at which the node edge length in
  *         one dimension is bigger or equal than the search radius
  */
 template<class T>
@@ -90,17 +90,17 @@ inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, I code, I* boxes)
     else     boxes[(*iNonPbc)++] = code;
 }
 
-/*! \brief find neighbor box codes
+/*! @brief find neighbor box codes
  *
- * @tparam T           float or double
- * @tparam I           32- or 64-bit unsigned integer
- * @param xi[in]       particle x coordinate
- * @param yi[in]       particle y coordinate
- * @param zi[in]       particle z coordinate
- * @param radiusSq[in] squared interaction radius of particle used to calculate d{x,y,z}{0,1}
- * @param bbox[in]     global coordinate bounding box
- * @param nCodes[out]  output array for the neighbor box code, size has to be 27
- * @return             indexPair
+ * @tparam T             float or double
+ * @tparam I             32- or 64-bit unsigned integer
+ * @param[in]  xi        particle x coordinate
+ * @param[in]  yi        particle y coordinate
+ * @param[in]  zi        particle z coordinate
+ * @param[in]  radiusSq  squared interaction radius of particle used to calculate d{x,y,z}{0,1}
+ * @param[in]  bbox      global coordinate bounding box
+ * @param[out] nCodes    output array for the neighbor box code, size has to be 27
+ * @return               indexPair
  *
  * Box codes that were found without PBC are returned in nCodes[0:indexPair[0]],
  * while box codes found with PBC are returned in nCodes[indexPair[1]:27].
@@ -236,22 +236,22 @@ pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, I* n
     return pair<int>(nBoxes, iBoxPbc);
 }
 
-/*! \brief simple version
+/*! @brief simple version
  *
  * @tparam T            float or double
  * @tparam I            32- or 64-bit integer type
- * @param xi            x-coordinate of particle for which to do the neighbor search
- * @param yi            see xi
- * @param zi            see xi
- * @param radius        search radius
- * @param bbox          coordinate bounding box
- * @param nCodes[out]   output for boxes to search for neighbors of (xi, yi, zi), size 27
+ * @param[in]  xi       x-coordinate of particle for which to do the neighbor search
+ * @param[in]  yi       see xi
+ * @param[in]  zi       see xi
+ * @param[in]  radius   search radius
+ * @param[in]  bbox     coordinate bounding box
+ * @param[out] nCodes   output for boxes to search for neighbors of (xi, yi, zi), size 27
  * @return              a pair of indices, pair[0] is unused, pair[1] contains an index
  *                      into nCodes. The elements to search are nCodes[pair[1]:27]
  *
  * This simple version of findNeighborBoxes adds all (up to) 27 neighbor boxes, regardless
  * of whether or not they actually overlap with (xi,yi,zi)+-radius. All boxes are
- * return in the PBC-enabled part of \a nCodes, such that distanceSqPbc will be used to
+ * return in the PBC-enabled part of @p nCodes, such that distanceSqPbc will be used to
  * calculate distances.
  */
 template<class T, class I>
@@ -316,7 +316,7 @@ void searchBoxes(const I* nCodes, int firstBox, int lastBox, const I* mortonCode
 }
 
 
-/*! \brief findNeighbors of particle number \a id within radius
+/*! @brief findNeighbors of particle number @p id within radius
  *
  * Based on the Morton code of the input particle id, morton codes of neighboring
  * (implicit) octree nodes are computed in a first step, where the size of the
@@ -325,19 +325,19 @@ void searchBoxes(const I* nCodes, int firstBox, int lastBox, const I* mortonCode
  * of these ranges are determined by binary search and all particles within those ranges
  * are checked whether they lie within the search radius around the particle at id.
  *
- * \tparam T                   coordinate type, float or double
- * \tparam I                   Morton code type, uint32 uint64
- * \param[in]  id              the index of the particle for which to look for neighbors
- * \param[in]  x               particle x-coordinates in Morton order
- * \param[in]  y               particle y-coordinates in Morton order
- * \param[in]  z               particle z-coordinates in Morton order
- * \param[in]  h               smoothing lengths (1/2 the search radius) in Morton order
- * \param[in]  box             coordinate bounding box that was used to calculate the Morton codes
- * \param[in]  mortonCodes     sorted Morton codes of all particles in x,y,z
- * \param[out] neighbors       output to store the neighbors
- * \param[out] neighborsCount  output to store the number of neighbors
- * \param[in]  n               number of particles in x,y,z
- * \param[in]  ngmax           maximum number of neighbors per particle
+ * @tparam T                   coordinate type, float or double
+ * @tparam I                   Morton code type, uint32 uint64
+ * @param[in]  id              the index of the particle for which to look for neighbors
+ * @param[in]  x               particle x-coordinates in Morton order
+ * @param[in]  y               particle y-coordinates in Morton order
+ * @param[in]  z               particle z-coordinates in Morton order
+ * @param[in]  h               smoothing lengths (1/2 the search radius) in Morton order
+ * @param[in]  box             coordinate bounding box that was used to calculate the Morton codes
+ * @param[in]  mortonCodes     sorted Morton codes of all particles in x,y,z
+ * @param[out] neighbors       output to store the neighbors
+ * @param[out] neighborsCount  output to store the number of neighbors
+ * @param[in]  n               number of particles in x,y,z
+ * @param[in]  ngmax           maximum number of neighbors per particle
  */
 template<class T, class I>
 CUDA_HOST_DEVICE_FUN
@@ -355,68 +355,23 @@ void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const
     // load coordinates for particle #id
     T xi = x[id], yi = y[id], zi = z[id];
 
-    I nCodes[27]; // neighborCodes
-    pair<int> boxCodeIndices = findNeighborBoxes(xi, yi, zi, radius, box, nCodes);
-    //pair<int> boxCodeIndices = findNeighborBoxesSimple(xi, yi, zi, radius, box, nCodes);
+    I neighborCodes[27];
+    pair<int> boxCodeIndices = findNeighborBoxes(xi, yi, zi, radius, box, neighborCodes);
+    //pair<int> boxCodeIndices = findNeighborBoxesSimple(xi, yi, zi, radius, box, neighborCodes);
     int       nBoxes         = boxCodeIndices[0];
     int       iBoxPbc        = boxCodeIndices[1];
 
     *neighborsCount = 0;
 
     // search non-PBC boxes
-    searchBoxes(nCodes, 0, nBoxes, mortonCodes, n, depth, id, x, y, z, radiusSq, neighbors, neighborsCount, ngmax,
-                [](T xi, T yi, T zi, T xj, T yj, T zj) { return distancesq(xi, yi, zi, xj, yj, zj); } );
+    searchBoxes(neighborCodes, 0, nBoxes, mortonCodes, n, depth, id, x, y, z, radiusSq, neighbors, neighborsCount,
+                ngmax, [](T xi, T yi, T zi, T xj, T yj, T zj) { return distancesq(xi, yi, zi, xj, yj, zj); } );
 
     if (*neighborsCount == ngmax) { return; }
 
     // search PBC boxes
-    searchBoxes(nCodes, iBoxPbc, 27, mortonCodes, n, depth, id, x, y, z, radiusSq, neighbors, neighborsCount, ngmax,
+    searchBoxes(neighborCodes, iBoxPbc, 27, mortonCodes, n, depth, id, x, y, z, radiusSq, neighbors, neighborsCount, ngmax,
                 [&box](T xi, T yi, T zi, T xj, T yj, T zj) { return distanceSqPbc(xi, yi, zi, xj, yj, zj, box); } );
-
-
-    //int ngcount = 0;
-
-    //for (int ibox = 0; ibox < nBoxes; ++ibox)
-    //{
-    //    I neighbor     = nCodes[ibox];
-    //    int startIndex = std::lower_bound(mortonCodes, mortonCodes + n, neighbor) - mortonCodes;
-    //    int endIndex   = std::upper_bound(mortonCodes + startIndex, mortonCodes + n,
-    //                                      neighbor + nodeRange<I>(depth)) - mortonCodes;
-
-    //    for (int j = startIndex; j < endIndex; ++j)
-    //    {
-    //        if (j == id) { continue; }
-
-    //        if (distancesq(xi, yi, zi, x[j], y[j], z[j]) < radiusSq)
-    //        {
-    //            neighbors[ngcount++] = j;
-    //        }
-
-    //        if (ngcount == ngmax) { *neighborsCount = ngmax; return; }
-    //    }
-    //}
-
-    //for (int ibox = iBoxPbc; ibox < 27; ++ibox)
-    //{
-    //    I neighbor     = nCodes[ibox];
-    //    int startIndex = stl::lower_bound(mortonCodes, mortonCodes + n, neighbor) - mortonCodes;
-    //    int endIndex   = stl::upper_bound(mortonCodes + startIndex, mortonCodes + n,
-    //                                      neighbor + nodeRange<I>(depth)) - mortonCodes;
-
-    //    for (int j = startIndex; j < endIndex; ++j)
-    //    {
-    //        if (j == id) { continue; }
-
-    //        if (distanceSqPbc(xi, yi, zi, x[j], y[j], z[j], box) < radiusSq)
-    //        {
-    //            neighbors[ngcount++] = j;
-    //        }
-
-    //        if (ngcount == ngmax) { *neighborsCount = ngmax; return; }
-    //    }
-    //}
-
-    //*neighborsCount = ngcount;
 }
 
 } // namespace cstone

@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Binary radix tree creation tests
+/*! @file
+ * @brief Binary radix tree creation tests
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include "gtest/gtest.h"
@@ -35,12 +35,22 @@
 #include "cstone/tree/octree.hpp"
 #include "cstone/tree/octree_util.hpp"
 
-/*! \brief \file tests for binary tree generation
+/*! @brief @file tests for binary tree generation
  */
 
 using namespace cstone;
 
-//! \brief check binary node prefixes
+TEST(BinaryTree, loadStoreIndex)
+{
+    EXPECT_TRUE(btreeStoreLeaf(0) < 0);
+    EXPECT_EQ(btreeLoadLeaf(btreeStoreLeaf(0)), 0);
+
+    TreeNodeIndex maxIndex = (1ul<<(8*sizeof(TreeNodeIndex)-1))-1;
+    EXPECT_TRUE(btreeStoreLeaf(maxIndex) < 0);
+    EXPECT_EQ(btreeLoadLeaf(btreeStoreLeaf(maxIndex)), maxIndex);
+}
+
+//! @brief check binary node prefixes
 template <class I>
 void internal4x4x4PrefixTest()
 {
@@ -50,27 +60,27 @@ void internal4x4x4PrefixTest()
     std::vector<BinaryNode<I>> internalTree(nNodes(tree));
     createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
 
-    EXPECT_EQ(internalTree[0].prefixLength, 0);
-    EXPECT_EQ(internalTree[0].prefix, 0);
+    EXPECT_EQ(decodePrefixLength(internalTree[0].prefix), 0);
+    EXPECT_EQ(internalTree[0].prefix, 1);
 
-    EXPECT_EQ(internalTree[31].prefixLength, 1);
-    EXPECT_EQ(internalTree[31].prefix, pad(I(0b0), 1));
-    EXPECT_EQ(internalTree[32].prefixLength, 1);
-    EXPECT_EQ(internalTree[32].prefix, pad(I(0b1), 1));
+    EXPECT_EQ(decodePrefixLength(internalTree[31].prefix), 1);
+    EXPECT_EQ(internalTree[31].prefix, I(0b10));
+    EXPECT_EQ(decodePrefixLength(internalTree[32].prefix), 1);
+    EXPECT_EQ(internalTree[32].prefix, I(0b11));
 
-    EXPECT_EQ(internalTree[15].prefixLength, 2);
-    EXPECT_EQ(internalTree[15].prefix, pad(I(0b00), 2));
-    EXPECT_EQ(internalTree[16].prefixLength, 2);
-    EXPECT_EQ(internalTree[16].prefix, pad(I(0b01), 2));
+    EXPECT_EQ(decodePrefixLength(internalTree[15].prefix), 2);
+    EXPECT_EQ(internalTree[15].prefix, I(0b100));
+    EXPECT_EQ(decodePrefixLength(internalTree[16].prefix), 2);
+    EXPECT_EQ(internalTree[16].prefix, I(0b101));
 
-    EXPECT_EQ(internalTree[7].prefixLength, 3);
-    EXPECT_EQ(internalTree[7].prefix, pad(I(0b000), 3));
-    EXPECT_EQ(internalTree[8].prefixLength, 3);
-    EXPECT_EQ(internalTree[8].prefix, pad(I(0b001), 3));
+    EXPECT_EQ(decodePrefixLength(internalTree[7].prefix), 3);
+    EXPECT_EQ(internalTree[7].prefix, I(0b1000));
+    EXPECT_EQ(decodePrefixLength(internalTree[8].prefix), 3);
+    EXPECT_EQ(internalTree[8].prefix, I(0b1001));
 
     // second (useless) root node
-    EXPECT_EQ(internalTree[63].prefixLength, 0);
-    EXPECT_EQ(internalTree[63].prefix, 0);
+    EXPECT_EQ(decodePrefixLength(internalTree[63].prefix), 0);
+    EXPECT_EQ(internalTree[63].prefix, 1);
 }
 
 TEST(BinaryTree, internalTree4x4x4PrefixTest)
@@ -110,15 +120,15 @@ void findSplitTest()
     std::vector<I> example = makeExample<I>();
 
     {
-        int split = findSplit(example.data(), 0, 7);
+        TreeNodeIndex split = findSplit(example.data(), 0, 7);
         EXPECT_EQ(split, 3);
     }
     {
-        int split = findSplit(example.data(), 0, 3);
+        TreeNodeIndex split = findSplit(example.data(), 0, 3);
         EXPECT_EQ(split, 1);
     }
     {
-        int split = findSplit(example.data(), 4, 7);
+        TreeNodeIndex split = findSplit(example.data(), 4, 7);
         EXPECT_EQ(split, 4);
     }
 }
@@ -141,41 +151,20 @@ void paperExampleTest()
         constructInternalNode(example.data(), example.size(), internalNodes.data(), i);
     }
 
-    std::vector<BinaryNode<CodeType>*> refLeft
-        {
-            internalNodes.data() + 3,
-            nullptr,
-            nullptr,
-            internalNodes.data() + 1,
-            nullptr,
-            internalNodes.data() + 6,
-            nullptr
-        };
+    std::vector<TreeNodeIndex> refLeft{3, btreeStoreLeaf(0), btreeStoreLeaf(2), 1,
+                                       btreeStoreLeaf(4), 6, btreeStoreLeaf(5)};
 
-    std::vector<BinaryNode<CodeType>*> refRight
-        {
-            internalNodes.data() + 4,
-            nullptr,
-            nullptr,
-            internalNodes.data() + 2,
-            internalNodes.data() + 5,
-            nullptr,
-            nullptr
-        };
+    std::vector<TreeNodeIndex> refRight{4, btreeStoreLeaf(1), btreeStoreLeaf(3), 2, 5,
+                                        btreeStoreLeaf(7), btreeStoreLeaf(6)};
 
-    std::vector<int> refLeftIndices {-1, 0, 2, -1, 4, -1, 5};
-    std::vector<int> refRightIndices{-1, 1, 3, -1, -1, 7, 6};
-
-    std::vector<int> refPrefixLengths{0, 3, 4, 2, 1, 2, 4};
+    std::vector<TreeNodeIndex> refPrefixLengths{0, 3, 4, 2, 1, 2, 4};
 
     using Node = BinaryNode<I>;
     for (std::size_t idx = 0; idx < internalNodes.size(); ++idx)
     {
-        EXPECT_EQ(internalNodes[idx].child[Node::left], refLeft[idx]);
-        EXPECT_EQ(internalNodes[idx].leafIndex[Node::left],  refLeftIndices[idx]);
+        EXPECT_EQ(internalNodes[idx].child[Node::left],  refLeft[idx]);
         EXPECT_EQ(internalNodes[idx].child[Node::right], refRight[idx]);
-        EXPECT_EQ(internalNodes[idx].leafIndex[Node::right], refRightIndices[idx]);
-        EXPECT_EQ(internalNodes[idx].prefixLength,   refPrefixLengths[idx]);
+        EXPECT_EQ(decodePrefixLength(internalNodes[idx].prefix), refPrefixLengths[idx]);
     }
 }
 

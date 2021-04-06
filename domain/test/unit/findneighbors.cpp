@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Neighbor search tests
+/*! @file
+ * @brief Neighbor search tests
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include <iostream>
@@ -38,7 +38,7 @@
 
 #include "coord_samples/random.hpp"
 
-//! \brief simple N^2 all-to-all neighbor search
+//! @brief simple N^2 all-to-all neighbor search
 template<class T>
 void all2allNeighbors(const T* x, const T* y, const T* z, const T* h, int n,
                       int *neighbors, int *neighborsCount, int ngmax, const Box<T>& box)
@@ -93,7 +93,7 @@ TEST(FindNeighbors, treeLevel)
     EXPECT_EQ(2, radiusToTreeLevel(0.126, 1.));
 }
 
-/*! \brief find neighbor boxes around a particles centered in (1,1,1) box
+/*! @brief find neighbor boxes around a particles centered in (1,1,1) box
  *
  * The particles (x,y,z) is centered in the (ix,iy,iz) = (1,1,1) node
  * with i{x,y,z} = coordinates in [0, 2^maxTreeLevel<I>{}]
@@ -146,7 +146,7 @@ TEST(FindNeighbors, findNeighborBoxesInterior)
 }
 
 
-/*! \brief find neighbor boxes around a particles centered in (1,1,1) box
+/*! @brief find neighbor boxes around a particles centered in (1,1,1) box
  *
  * The particles (x,y,z) is centered in the (ix,iy,iz) = (0,0,0) node
  * with i{x,y,z} = coordinates in [0, 2^maxTreeLevel<I>{}]

@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief binary tree traversal implementation
+/*! @file
+ * @brief binary tree traversal implementation
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -75,7 +75,7 @@ void findCollisions(const Octree<I>& octree, CollisionList& collisionList,
 
     //for (int l = 1; l <= iboxLevel; ++l)
     //{
-    //    int octant = parentIndex(commonBox[0], l);
+    //    int octant = octreeDigit(commonBox[0], l);
     //    node = octree.child(node, octant);
     //}
 

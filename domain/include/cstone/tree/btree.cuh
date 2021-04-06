@@ -23,18 +23,36 @@
  * SOFTWARE.
  */
 
-/*! @file
- * @brief GTest driver
+/*! @brief @file parallel binary radix tree construction CUDA kernel
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#pragma once
 
-#include "gtest/gtest.h"
+#include "btree.hpp"
 
-int main(int argc, char **argv) {
+namespace cstone
+{
 
-  ::testing::InitGoogleTest(&argc, argv);
-  auto ret = RUN_ALL_TESTS();
-  return ret;
+//! @brief see createBinaryTree
+template <class I>
+__global__ void createBinaryTreeKernel(const I* cstree, TreeNodeIndex nNodes, BinaryNode<I>* binaryTree)
+{
+    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
+    if (tid < nNodes)
+    {
+        constructInternalNode(cstree, nNodes + 1, binaryTree, tid);
+    }
 }
+
+//! @brief convenience kernel wrapper
+template <class I>
+void createBinaryTreeGpu(const I* cstree, TreeNodeIndex nNodes, BinaryNode<I>* binaryTree)
+{
+    constexpr int nThreads = 512;
+    createBinaryTreeKernel<<<iceil(nNodes, nThreads), nThreads>>>
+        (cstree, nNodes, binaryTree);
+}
+
+} // namespace cstone

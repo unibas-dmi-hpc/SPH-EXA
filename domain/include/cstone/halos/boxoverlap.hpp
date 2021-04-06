@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief (halo-)box overlap functionality
+/*! @file
+ * @brief (halo-)box overlap functionality
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -38,14 +38,15 @@
 namespace cstone
 {
 
-//! \brief standard criterion for two ranges a-b and c-d to overlap, a<b and c<d
+//! @brief standard criterion for two ranges a-b and c-d to overlap, a<b and c<d
+CUDA_HOST_DEVICE_FUN
 inline bool overlapTwoRanges(int a, int b, int c, int d)
 {
     assert(a<=b && c<=d);
     return b > c && d > a;
 }
 
-/*! \brief determine whether two ranges ab and cd overlap
+/*! @brief determine whether two ranges ab and cd overlap
  *
  * @tparam R  periodic range
  * @return    true or false
@@ -54,6 +55,7 @@ inline bool overlapTwoRanges(int a, int b, int c, int d)
  * from the periodic range.
  */
 template<int R>
+CUDA_HOST_DEVICE_FUN
 bool overlapRange(int a, int b, int c, int d)
 {
     assert(a >= -R);
@@ -71,20 +73,21 @@ bool overlapRange(int a, int b, int c, int d)
            overlapTwoRanges(a, b, c+R, d+R);
 }
 
-/*! \brief check for overlap between a binary or octree node and a box in 3D space
+/*! @brief check for overlap between a binary or octree node and a box in 3D space
  *
  * @tparam I
- * @param prefix            Morton code node prefix, defines the corner of node
- *                          closest to origin. Also equals the lower Morton code bound
- *                          of the node.
- * @param length            Number of bits in the prefix to treat as the key. Defines
- *                          the Morton code range of the node.
- * @param [x,y,z][min,max]  3D coordinate range, defines an arbitrary box in space to
- *                          test for overlap.
- * @return                  true or false
+ * @param prefix    Morton code node prefix, defines the corner of node
+ *                  closest to origin. Also equals the lower Morton code bound
+ *                  of the node.
+ * @param length    Number of bits in the prefix to treat as the key. Defines
+ *                  the Morton code range of the node.
+ * @param box       3D coordinate range, defines an arbitrary box in space to
+ *                  test for overlap.
+ * @return          true or false
  *
  */
 template <class I>
+CUDA_HOST_DEVICE_FUN
 bool overlap(I prefix, int length, const IBox& box)
 {
     pair<int> xRange = decodeXRange(prefix, length);
@@ -100,13 +103,22 @@ bool overlap(I prefix, int length, const IBox& box)
 }
 
 template <class I>
-bool overlap(I codeStart, I codeEnd, const IBox& box)
+CUDA_HOST_DEVICE_FUN
+inline bool overlap(I prefixBitKey, const IBox& box)
+{
+    int prefixLength = decodePrefixLength(prefixBitKey);
+    return overlap(decodePlaceholderBit(prefixBitKey), prefixLength, box);
+}
+
+template <class I>
+CUDA_HOST_DEVICE_FUN
+inline bool overlap(I codeStart, I codeEnd, const IBox& box)
 {
     int level = treeLevel(codeEnd - codeStart);
     return overlap(codeStart, level*3, box);
 }
 
-/*! \brief Check whether a coordinate box is fully contained in a Morton code range
+/*! @brief Check whether a coordinate box is fully contained in a Morton code range
  *
  * @tparam I         32- or 64-bit unsigned integer
  * @param codeStart  Morton code range start
@@ -115,6 +127,7 @@ bool overlap(I codeStart, I codeEnd, const IBox& box)
  * @return           true if the box is fully contained within the specified Morton code range
  */
 template <class I>
+CUDA_HOST_DEVICE_FUN
 std::enable_if_t<std::is_unsigned_v<I>, bool>
 containedIn(I codeStart, I codeEnd, const IBox& box)
 {
@@ -124,8 +137,8 @@ containedIn(I codeStart, I codeEnd, const IBox& box)
     assert(box.zmin() < box.zmax());
 
     constexpr int pbcRange = 1u<<maxTreeLevel<I>{};
-    if (std::min({box.xmin(), box.ymin(), box.zmin()}) < 0 ||
-        std::max({box.xmax(), box.ymax(), box.zmax()}) > pbcRange)
+    if (stl::min(stl::min(box.xmin(), box.ymin()), box.zmin()) < 0 ||
+        stl::max(std::max(box.xmax(), box.ymax()), box.zmax()) > pbcRange)
     {
         // any box that wraps around a PBC boundary cannot be contained within
         // any octree node, except the full root node
@@ -140,7 +153,7 @@ containedIn(I codeStart, I codeEnd, const IBox& box)
     return (lowCode >= codeStart) && (highCode < codeEnd);
 }
 
-/*! \brief determine whether a binary/octree node (prefix, prefixLength) is fully contained in an SFC range
+/*! @brief determine whether a binary/octree node (prefix, prefixLength) is fully contained in an SFC range
  *
  * @tparam I            32- or 64-bit unsigned integer
  * @param prefix        lowest SFC code of the tree node
@@ -151,14 +164,25 @@ containedIn(I codeStart, I codeEnd, const IBox& box)
  * @return
  */
 template <class I>
+CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned_v<I>, bool>
-containedIn(I prefix, int prefixLength, I codeStart, I codeEnd)
+containedIn(I nodeStart, I nodeEnd, I codeStart, I codeEnd)
 {
-    I nodeEnd = prefix + (I(1) << (3*maxTreeLevel<I>{} - prefixLength));
-    return !(prefix < codeStart || nodeEnd > codeEnd);
+    return !(nodeStart < codeStart || nodeEnd > codeEnd);
 }
 
-/*! \brief Construct a 3D box from an octree node plus halo range
+template <class I>
+CUDA_HOST_DEVICE_FUN
+inline std::enable_if_t<std::is_unsigned_v<I>, bool>
+containedIn(I prefixBitKey, I codeStart, I codeEnd)
+{
+    int prefixLength = decodePrefixLength(prefixBitKey);
+    I firstPrefix    = decodePlaceholderBit(prefixBitKey);
+    I secondPrefix   = firstPrefix + (I(1) << (3*maxTreeLevel<I>{} - prefixLength));
+    return !(firstPrefix < codeStart || secondPrefix > codeEnd);
+}
+
+/*! @brief Construct a 3D box from an octree node plus halo range
  *
  * @tparam I             32- or 64-bit unsigned integer
  * @param[in] codeStart  octree leaf node lower bound
@@ -192,7 +216,7 @@ IBox makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz,
     return IBox(xmin, xmax, ymin, ymax, zmin, zmax);
 }
 
-//! \brief create a box with specified radius around node delineated by codeStart/End
+//! @brief create a box with specified radius around node delineated by codeStart/End
 template <class CoordinateType, class RadiusType, class I>
 IBox makeHaloBox(I codeStart, I codeEnd, RadiusType radius, const Box<CoordinateType>& box)
 {

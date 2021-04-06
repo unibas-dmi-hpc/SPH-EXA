@@ -24,17 +24,27 @@
  */
 
 /*! @file
- * @brief GTest driver
+ * @brief  Compute the internal part of a cornerstone octree on the GPU
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ *
  */
 
+#pragma once
 
-#include "gtest/gtest.h"
+#include "octree_internal.hpp"
 
-int main(int argc, char **argv) {
+namespace cstone {
 
-  ::testing::InitGoogleTest(&argc, argv);
-  auto ret = RUN_ALL_TESTS();
-  return ret;
+//! @brief see nodeDepth, note: depths must be initialized to zero, as in the CPU version
+template<class I>
+__global__ void nodeDepthKernel(const OctreeNode<I>* octree, TreeNodeIndex nNodes, TreeNodeIndex* depths)
+{
+    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
+    if (tid < nNodes)
+    {
+        nodeDepthElement(tid, octree, depths);
+    }
 }
+
+} // namespace cstone

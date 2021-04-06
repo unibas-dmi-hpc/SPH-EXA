@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Generation of local and global octrees in cornerstone format
+/*! @file
+ * @brief Generation of local and global octrees in cornerstone format
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  *
  * In the cornerstone format, the octree is stored as sequence of Morton codes
  * fulfilling three invariants. Each code in the sequence both signifies the
@@ -52,7 +52,6 @@
 #pragma once
 
 #include <algorithm>
-#include <atomic>
 #include <cmath>
 #include <numeric>
 #include <vector>
@@ -61,36 +60,54 @@
 #include "cstone/sfc/common.hpp"
 #include "cstone/primitives/scan.hpp"
 
+#include "definitions.h"
+
 namespace cstone
 {
 
-/*! \brief returns the number of nodes in a tree
+/*! @brief returns the number of nodes in a tree
  *
- * \tparam I           32- or 64-bit unsigned integer type
- * \param tree         input tree
- * \return             the number of nodes
+ * @tparam    Vector  a vector-like container that has a .size() member
+ * @param[in] tree    input tree
+ * @return            the number of nodes
  *
  * This makes it explicit that a vector of n Morton codes
  * corresponds to a tree with n-1 nodes.
  */
-template<class I>
-std::size_t nNodes(const std::vector<I>& tree)
+template<class Vector>
+std::size_t nNodes(const Vector& tree)
 {
     assert(tree.size());
     return tree.size() - 1;
 }
 
-/*! \brief count number of particles in each octree node
+//! @brief count particles in one tree node
+template<class I>
+CUDA_HOST_DEVICE_FUN
+unsigned calculateNodeCount(const I* tree, TreeNodeIndex nodeIdx, const I* codesStart, const I* codesEnd, unsigned maxCount)
+{
+    I nodeStart = tree[nodeIdx];
+    I nodeEnd   = tree[nodeIdx+1];
+
+    // count particles in range
+    auto rangeStart = stl::lower_bound(codesStart, codesEnd, nodeStart);
+    auto rangeEnd   = stl::lower_bound(codesStart, codesEnd, nodeEnd);
+    unsigned count  = rangeEnd - rangeStart;
+
+    return stl::min(count, maxCount);
+}
+
+/*! @brief count number of particles in each octree node
  *
- * \tparam I           32- or 64-bit unsigned integer type
- * \param tree         octree nodes given as Morton codes of length @a nNodes+1
- *                     needs to satisfy the octree invariants
- * \param counts       output particle counts per node, length = @a nNodes
- * \param nNodes       number of nodes in tree
- * \param codesStart   Morton code range start of particles to count
- * \param codesEnd     Morton code range end of particles to count
- * \param maxCount     maximum particle count per node to store, this is used
- *                     to prevent overflow in MPI_Allreduce
+ * @tparam I                32- or 64-bit unsigned integer type
+ * @param[in]  tree         octree nodes given as Morton codes of length @a nNodes+1
+ *                          needs to satisfy the octree invariants
+ * @param[out] counts       output particle counts per node, length = @a nNodes
+ * @param[in]  nNodes       number of nodes in tree
+ * @param[in]  codesStart   sorted particle SFC code range start
+ * @param[in]  codesEnd     sorted particle SFC code range end
+ * @param[in]  maxCount     maximum particle count per node to store, this is used
+ *                          to prevent overflow in MPI_Allreduce
  */
 template<class I>
 void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* codesStart, const I* codesEnd,
@@ -104,42 +121,65 @@ void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* cod
         lastNode  = std::upper_bound(tree, tree + nNodes, *(codesEnd-1)) - tree;
     }
 
-    #pragma omp parallel
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < nNodes; ++i)
+        counts[i] = 0;
+
+    #pragma omp parallel for schedule(static)
+    for (int i = firstNode; i < lastNode; ++i)
     {
-        #pragma omp for schedule(static) nowait
-        for (int i = 0; i < firstNode; ++i)
-            counts[i] = 0;
-
-        #pragma omp for schedule(static) nowait
-        for (int i = lastNode; i < nNodes; ++i)
-            counts[i] = 0;
-
-        #pragma omp for schedule(static)
-        for (int i = firstNode; i < lastNode; ++i)
-        {
-            I nodeStart = tree[i];
-            I nodeEnd   = tree[i+1];
-
-            // count particles in range
-            auto rangeStart = std::lower_bound(codesStart, codesEnd, nodeStart);
-            auto rangeEnd   = std::lower_bound(codesStart, codesEnd, nodeEnd);
-            unsigned count  = std::distance(rangeStart, rangeEnd);
-            counts[i]       = std::min(count, maxCount);
-        }
+        counts[i] = calculateNodeCount(tree, i, codesStart, codesEnd, maxCount);
     }
 }
 
-/*! \brief Compute split or fuse decision for each octree node in parallel
+//! @brief returns 0 for merging, 1 for no-change, 8 for splitting
+template<class I>
+CUDA_HOST_DEVICE_FUN
+int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize, int* changeCount)
+{
+    I thisNode     = tree[nodeIdx];
+    I range        = tree[nodeIdx + 1] - thisNode;
+    unsigned level = treeLevel(range);
+
+    if (counts[nodeIdx] > bucketSize && level < maxTreeLevel<I>{})
+    {
+        (*changeCount)++;
+        return 8; // split
+    }
+    else if (level > 0) // level 0 cannot be fused
+    {
+        TreeNodeIndex pi = octalDigit(thisNode, level);
+        // node's 7 siblings are next to each other
+        bool siblings = (tree[nodeIdx-pi+8] == tree[nodeIdx-pi] + nodeRange<I>(level - 1));
+        if (siblings && pi > 0) // if not first of 8 siblings
+        {
+            #ifdef __CUDA_ARCH__
+            size_t parentCount = thrust::reduce(thrust::seq, counts + nodeIdx - pi, counts + nodeIdx - pi + 8, size_t(0));
+            #else
+            size_t parentCount = std::accumulate(counts + nodeIdx - pi, counts + nodeIdx - pi + 8, size_t(0));
+            #endif
+            if (parentCount <= bucketSize)
+            {
+                (*changeCount)++;
+                return 0; // fuse
+            }
+        }
+    }
+
+    return 1; // default: do nothing
+};
+
+/*! @brief Compute split or fuse decision for each octree node in parallel
  *
- * \tparam I               32- or 64-bit unsigned integer type
- * \param[in] tree         octree nodes given as Morton codes of length @a nNodes
+ * @tparam I               32- or 64-bit unsigned integer type
+ * @param[in] tree         octree nodes given as Morton codes of length @a nNodes
  *                         needs to satisfy the octree invariants
- * \param[in] counts       output particle counts per node, length = @a nNodes
- * \param[in] nNodes       number of nodes in tree
- * \param[in] bucketSize   maximum particle count per (leaf) node and
+ * @param[in] counts       output particle counts per node, length = @a nNodes
+ * @param[in] nNodes       number of nodes in tree
+ * @param[in] bucketSize   maximum particle count per (leaf) node and
  *                         minimum particle count (strictly >) for (implicit) internal nodes
- * \param[out] nodeOps     stores rebalance decision result for each node, length = @a nNodes
- * \return                 number of nodes split + fused
+ * @param[out] nodeOps     stores rebalance decision result for each node, length = @a nNodes
+ * @param[out] converged   stores 0 upon return if converged, a non-zero positive integer otherwise
  *
  * For each node i in the tree, in nodeOps[i], stores
  *  - 0 if to be merged
@@ -147,112 +187,99 @@ void computeNodeCounts(const I* tree, unsigned* counts, int nNodes, const I* cod
  *  - 8 if to be split.
  */
 template<class I, class LocalIndex>
-int rebalanceDecision(const I* tree, const unsigned* counts, int nNodes,
-                      unsigned bucketSize, LocalIndex* nodeOps)
+void rebalanceDecision(const I* tree, const unsigned* counts, TreeNodeIndex nNodes,
+                       unsigned bucketSize, LocalIndex* nodeOps, int* converged)
 {
-    std::atomic<int> changes{0};
-
     #pragma omp parallel for
-    for (int i = 0; i < nNodes; ++i)
+    for (TreeNodeIndex i = 0; i < nNodes; ++i)
     {
-        I thisNode     = tree[i];
-        I range        = tree[i+1] - thisNode;
-        unsigned level = treeLevel(range);
-
-        nodeOps[i] = 1; // default: do nothing
-
-        if (counts[i] > bucketSize && level < maxTreeLevel<I>{})
-        {
-            changes++;
-            nodeOps[i] = 8; // split
-        }
-        else if (level > 0) // level 0 cannot be fused
-        {
-            int pi = parentIndex(thisNode, level);
-            // node's 7 siblings are next to each other
-            bool siblings = (tree[i-pi+8] == tree[i-pi] + nodeRange<I>(level - 1));
-            if (siblings && pi > 0) // if not first of 8 siblings
-            {
-                size_t parentCount = std::accumulate(counts + i - pi, counts + i - pi + 8, size_t(0));
-                if (parentCount <= bucketSize)
-                {
-                    nodeOps[i] = 0; // fuse
-                    changes++;
-                }
-            }
-        }
+        nodeOps[i] = calculateNodeOp(tree, i, counts, bucketSize, converged);
     }
-
-    return changes;
 }
 
-/*! \brief split or fuse octree nodes based on node counts relative to bucketSize
+/*! @brief transform old nodes into new nodes based on opcodes
  *
- * \tparam I               32- or 64-bit unsigned integer type
- * \param[in] tree         octree nodes given as Morton codes of length @a nNodes
- *                         needs to satisfy the octree invariants
- * \param[in] counts       output particle counts per node, length = @a nNodes
- * \param[in] nNodes       number of nodes in tree
- * \param[in] bucketSize   maximum particle count per (leaf) node and
- *                         minimum particle count (strictly >) for (implicit) internal nodes
- * \param[out] converged   optional boolean flag to indicate convergence
- * \return                 the rebalanced Morton code octree
+ * @tparam I          32- or 64-bit integer
+ * @param nodeIndex   the node to process in @p oldTree
+ * @param oldTree     the old tree
+ * @param nodeOps     opcodes per old tree node
+ * @param newTree     the new tree
  */
 template<class I>
-std::vector<I> rebalanceTree(const I* tree, const unsigned* counts, int nNodes,
-                             unsigned bucketSize, bool* converged = nullptr)
+CUDA_HOST_DEVICE_FUN
+void processNode(TreeNodeIndex nodeIndex, const I* oldTree, const TreeNodeIndex* nodeOps, I* newTree)
 {
-    using LocalIndex = unsigned;
-    std::vector<LocalIndex> nodeOps(nNodes + 1);
+    I thisNode     = oldTree[nodeIndex];
+    I range        = oldTree[nodeIndex+1] - thisNode;
+    unsigned level = treeLevel(range);
 
-    int changes = rebalanceDecision(tree, counts, nNodes, bucketSize, nodeOps.data());
+    TreeNodeIndex opCode       = nodeOps[nodeIndex+1] - nodeOps[nodeIndex];
+    TreeNodeIndex newNodeIndex = nodeOps[nodeIndex];
+
+    if (opCode == 1)
+    {
+        newTree[newNodeIndex] = thisNode;
+    }
+    else if (opCode == 8)
+    {
+        for (int sibling = 0; sibling < 8; ++sibling)
+        {
+            newTree[newNodeIndex + sibling] = thisNode + sibling * nodeRange<I>(level + 1);
+        }
+    }
+}
+
+/*! @brief split or fuse octree nodes based on node counts relative to bucketSize
+ *
+ * @tparam I               32- or 64-bit unsigned integer type
+ * @param[in] tree         octree nodes given as Morton codes of length @a nNodes
+ *                         needs to satisfy the octree invariants
+ * @param[in] counts       output particle counts per node, length = @a nNodes
+ * @param[in] nNodes       number of nodes in tree
+ * @param[in] bucketSize   maximum particle count per (leaf) node and
+ *                         minimum particle count (strictly >) for (implicit) internal nodes
+ * @param[out] converged   optional boolean flag to indicate convergence
+ * @return                 the rebalanced Morton code octree
+ */
+template<class SfcVector>
+void rebalanceTree(SfcVector& tree, const unsigned* counts, TreeNodeIndex nNodes,
+                   unsigned bucketSize, bool* converged = nullptr)
+{
+    using I = typename SfcVector::value_type;
+    std::vector<TreeNodeIndex> nodeOps(nNodes + 1);
+
+    int changeCounter = 0;
+    rebalanceDecision(tree.data(), counts, nNodes, bucketSize, nodeOps.data(), &changeCounter);
 
     exclusiveScan(nodeOps.data(), nNodes + 1);
 
-    std::vector<I> balancedTree(*nodeOps.rbegin() + 1);
+    SfcVector balancedTree(*nodeOps.rbegin() + 1);
 
-    #pragma omp parallel for
-    for (int i = 0; i < nNodes; ++i)
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < nNodes; ++i)
     {
-        I thisNode     = tree[i];
-        I range        = tree[i+1] - thisNode;
-        unsigned level = treeLevel(range);
-
-        LocalIndex opCode       = nodeOps[i+1] - nodeOps[i];
-        LocalIndex newNodeIndex = nodeOps[i];
-
-        if (opCode == 1)
-        {
-            balancedTree[newNodeIndex] = thisNode;
-        }
-        else if (opCode == 8)
-        {
-            for (int sibling = 0; sibling < 8; ++sibling)
-            {
-                balancedTree[newNodeIndex + sibling] = thisNode + sibling * nodeRange<I>(level + 1);
-            }
-        }
+        processNode(i, tree.data(), nodeOps.data(), balancedTree.data());
     }
     *balancedTree.rbegin() = nodeRange<I>(0);
 
     if (converged != nullptr)
     {
-        *converged = (changes == 0);
+        *converged = (changeCounter == 0);
     }
 
-    return balancedTree;
+    swap(tree, balancedTree);
 }
 
 
-/*! \brief compute an octree from morton codes for a specified bucket size
- *
- * \tparam I           32- or 64-bit unsigned integer type
- * \param codesStart   particle morton code sequence start
- * \param codesEnd     particle morton code sequence end
- * \param bucketSize   maximum number of particles/codes per octree leaf node
- * \param maxCount     if actual node counts are higher, they will be capped to \a maxCount
- * \param[inout] tree  initial tree for the first iteration
- * \return             the tree and the node counts
+/*! @brief compute an octree from morton codes for a specified bucket size
+
+ * @tparam I               32- or 64-bit unsigned integer type
+ * @param[in] codesStart   particle morton code sequence start
+ * @param[in] codesEnd     particle morton code sequence end
+ * @param[in] bucketSize   maximum number of particles/codes per octree leaf node
+ * @param[in] maxCount     if actual node counts are higher, they will be capped to @p maxCount
+ * @param[in] tree         initial tree for the first iteration
+ * @return                 the tree and the node counts
  *
  * Remarks:
  *    It is sensible to assume that the bucket size of the tree is much smaller than 2^32,
@@ -280,35 +307,35 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
     while (!converged)
     {
         computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd, maxCount);
-        if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
-        std::vector<I> balancedTree =
-            rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize, &converged);
+        if constexpr (!std::is_same_v<void, Reduce>)
+        {
+            (void)Reduce{}(counts); // void cast to silence "warning: expression has no effect" from nvcc
+        }
 
-        swap(tree, balancedTree);
+        rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize, &converged);
         counts.resize(nNodes(tree));
     }
 
     return std::make_tuple(std::move(tree), std::move(counts));
 }
 
-/*! \brief update the octree with a single rebalance/count step
+/*! @brief update the octree with a single rebalance/count step
  *
- * @tparam I              32- or 64-bit unsigned integer for morton code
- * @tparam Reduce         functor for global counts reduction in distributed builds
- * @param codesStart[in]  local particle Morton codes start
- * @param codesEnd[in]    local particle morton codes end
- * @param bucketSize[in]  maximum number of particles per node
- * @param tree[inout]     the octree leaf nodes (cornerstone format)
- * @param counts[inout]   the octree leaf node particle count
- * @param maxCount[in]    if actual node counts are higher, they will be capped to \a maxCount
+ * @tparam I                 32- or 64-bit unsigned integer for morton code
+ * @tparam Reduce            functor for global counts reduction in distributed builds
+ * @param[in]    codesStart  local particle Morton codes start
+ * @param[in]    codesEnd    local particle morton codes end
+ * @param[in]    bucketSize  maximum number of particles per node
+ * @param[inout] tree        the octree leaf nodes (cornerstone format)
+ * @param[inout] counts      the octree leaf node particle count
+ * @param[in]    maxCount    if actual node counts are higher, they will be capped to @p maxCount
  */
 template<class I, class Reduce = void>
 void updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
                   std::vector<I>& tree, std::vector<unsigned>& counts,
                   unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
-    std::vector<I> balancedTree = rebalanceTree(tree.data(), counts.data(), nNodes(tree), bucketSize);
-    swap(tree, balancedTree);
+    rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize);
     counts.resize(nNodes(tree));
 
     // local node counts
@@ -317,7 +344,7 @@ void updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
     if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
 }
 
-/*! \brief Compute the halo radius of each node in the given octree
+/*! @brief Compute the halo radius of each node in the given octree
  *
  * This is the maximum distance beyond the node boundaries that a particle outside the
  * node could possibly interact with.
@@ -325,25 +352,25 @@ void updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
  * TODO: Don't calculate the maximum smoothing length, calculate the maximum distance by
  *       which any of the particles plus radius protrude outside the node.
  *
- * \tparam Tin         float or double
- * \tparam Tout        float or double, usually float
- * \tparam I           32- or 64-bit unsigned integer type for Morton codes
- * \tparam IndexType   integer type for local particle array indices, 32-bit for fewer than 2^32 local particles
- * \param tree         octree nodes given as Morton codes of length @a nNodes+1
- *                     This function does not rely on octree invariants, sortedness of the nodes
- *                     is the only requirement.
- * \param nNodes       number of nodes in tree
- * \param codesStart   sorted Morton code range start of particles to count
- * \param codesEnd     sorted Morton code range end of particles to count
- * \param ordering     Access input according to \a ordering
- *                     The sequence input[ordering[i]], i=0,...,N must list the elements of input
- *                     (i.e. the smoothing lengths) such that input[i] is a property of the particle
- *                     (x[i], y[i], z[i]), with x,y,z sorted according to Morton ordering.
- * \param input        Radii per particle, i.e. the smoothing lengths in SPH, length = codesEnd - codesStart
- * \param output       Radius per node, length = @a nNodes
+ * @tparam Tin              float or double
+ * @tparam Tout             float or double, usually float
+ * @tparam I                32- or 64-bit unsigned integer type for Morton codes
+ * @tparam IndexType        integer type for local particle array indices, 32-bit for fewer than 2^32 local particles
+ * @param[in]  tree         octree nodes given as Morton codes of length @a nNodes+1
+ *                          This function does not rely on octree invariants, sortedness of the nodes
+ *                          is the only requirement.
+ * @param[in]  nNodes       number of nodes in tree
+ * @param[in]  codesStart   sorted Morton code range start of particles to count
+ * @param[in]  codesEnd     sorted Morton code range end of particles to count
+ * @param[in]  ordering     Access input according to @p ordering
+ *                          The sequence input[ordering[i]], i=0,...,N must list the elements of input
+ *                          (i.e. the smoothing lengths) such that input[i] is a property of the particle
+ *                          (x[i], y[i], z[i]), with x,y,z sorted according to Morton ordering.
+ * @param[in]  input        Radii per particle, i.e. the smoothing lengths in SPH, length = codesEnd - codesStart
+ * @param[out] output       Radius per node, length = @a nNodes
  */
 template<class Tin, class Tout, class I, class IndexType>
-void computeHaloRadii(const I* tree, int nNodes, const I* codesStart, const I* codesEnd,
+void computeHaloRadii(const I* tree, TreeNodeIndex nNodes, const I* codesStart, const I* codesEnd,
                       const IndexType* ordering, const Tin* input, Tout* output)
 {
     int firstNode = 0;
@@ -355,15 +382,15 @@ void computeHaloRadii(const I* tree, int nNodes, const I* codesStart, const I* c
     }
 
     #pragma omp parallel for schedule(static)
-    for (int i = 0; i < firstNode; ++i)
+    for (TreeNodeIndex i = 0; i < firstNode; ++i)
         output[i] = 0;
 
     #pragma omp parallel for schedule(static)
-    for (int i = lastNode; i < nNodes; ++i)
+    for (TreeNodeIndex i = lastNode; i < nNodes; ++i)
         output[i] = 0;
 
     #pragma omp parallel for
-    for (int i = firstNode; i < lastNode; ++i)
+    for (TreeNodeIndex i = firstNode; i < lastNode; ++i)
     {
         I nodeStart = tree[i];
         I nodeEnd   = tree[i+1];

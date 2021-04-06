@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief  Exchange particles between different ranks to satisfy their assignments of the global octree
+/*! @file
+ * @brief  Exchange particles between different ranks to satisfy their assignments of the global octree
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -116,7 +116,7 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, std::size_t n
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
-//! \brief reallocate arrays to the specified size
+//! @brief reallocate arrays to the specified size
 template<class... Arrays>
 void reallocate(std::size_t size, Arrays&... arrays)
 {
@@ -139,35 +139,35 @@ void reallocate(std::size_t size, Arrays&... arrays)
     }
 }
 
-/*! \brief exchange array elements with other ranks according to the specified ranges
+/*! @brief exchange array elements with other ranks according to the specified ranges
  *
- * \tparam T                  double, float or int
- * \tparam Arrays             all std::vector<T>
- * \param sendList[in]        List of index ranges to be sent to each rank, indices
- *                            are valid w.r.t to arrays present on \a thisRank relative to the \a inputOffset.
- * \param thisRank[in]        Rank of the executing process
- * \param nParticlesAssigned  New number of assigned particles for each array on \a thisRank.
- *        [in]                This serves as the stop criterion for listening to incoming particles.
- * \param inputOffset[in]     Access arrays starting from \a inputOffset when extracting particles for sending
- * \param outputOffset[in]    Incoming particles will be added to their destination arrays starting from \a outputOffset
- * \param ordering[in]        Ordering through which to access arrays
- * \param arrays[inout]       T* pointers of identical sizes. The index range based exchange operations
- *                            performed are identical for each input array. Upon completion, arrays will
- *                            contain elements from the specified ranges from all ranks.
- *                            The order in which the incoming ranges are grouped is random.
+ * @tparam T                      double, float or int
+ * @tparam Arrays                 all std::vector<T>
+ * @param[in] sendList            List of index ranges to be sent to each rank, indices
+ *                                are valid w.r.t to arrays present on @p thisRank relative to the @p inputOffset.
+ * @param[in] thisRank            Rank of the executing process
+ * @param[in] nParticlesAssigned  New number of assigned particles for each array on @p thisRank.
+ *                                This serves as the stop criterion for listening to incoming particles.
+ * @param[in] inputOffset         Access arrays starting from @p inputOffset when extracting particles for sending
+ * @param[in] outputOffset        Incoming particles will be added to their destination arrays starting from @p outputOffset
+ * @param[in] ordering            Ordering through which to access arrays
+ * @param[inout] arrays           T* pointers of identical sizes. The index range based exchange operations
+ *                                performed are identical for each input array. Upon completion, arrays will
+ *                                contain elements from the specified ranges from all ranks.
+ *                                The order in which the incoming ranges are grouped is random.
  *
  *  Example: If sendList[ri] contains the range [upper, lower), all elements (arrays+inputOffset)[ordering[upper:lower]]
  *           will be sent to rank ri. At the destination ri, any assigned particles already present,
- *           are moved to their destination arrays, starting from \a outputOffset. The incoming elements to ri
+ *           are moved to their destination arrays, starting from @p outputOffset. The incoming elements to ri
  *           will be appended to the aforementioned elements.
- *           No information about incoming particles to \a thisRank is contained in the function arguments,
- *           only their total number \a nParticlesAssigned, which also includes any assigned particles
- *           already present on \a thisRank.
+ *           No information about incoming particles to @p thisRank is contained in the function arguments,
+ *           only their total number @p nParticlesAssigned, which also includes any assigned particles
+ *           already present on @p thisRank.
  *
- *  A note on the sizes of \a arrays:
+ *  A note on the sizes of @p arrays:
  *  Let's set
  *      int nOldAssignment = the maximum of sendList[rank].rangeEnd(range) for any rank and range combination
- *  Then inputOffset + nOldAssignment is the upper bound for read accesses in \a arrays while sending.
+ *  Then inputOffset + nOldAssignment is the upper bound for read accesses in @p arrays while sending.
  *  This is assuming that ordering.size() == nOldAssignment and that ordering[i] < nOldAssignment, which
  *  is what the Morten (re)order code produces.
  *  While writing during the receive phase, the highest index is outputOffset + nParticlesAssigned and it
@@ -189,19 +189,19 @@ void exchangeParticles(const SendList& sendList, Rank thisRank, IndexType nParti
                           ordering, tempBuffer.data(), arrays...);
 }
 
-/*! \brief exchange array elements with other ranks according to the specified ranges
+/*! @brief exchange array elements with other ranks according to the specified ranges
  *
- * \tparam T                  double, float or int
- * \tparam Arrays             all std::vector<T>
- * \param sendList[in]        List of index ranges assigned to each rank, indices
- *                            are valid w.r.t to arrays present on \a thisRank
- * \param thisRank[in]        Rank of the executing process
- * \param nParticlesAssigned  Number of elements that each array will hold on \a thisRank after the exchange
- * \param ordering[in]        Ordering through which to access arrays
- * \param arrays[inout]       T* pointers of identical sizes, the index range based exchange operations
- *                            performed are identical for each input array. Upon completion, arrays will
- *                            contain elements from the specified ranges from all ranks.
- *                            The order in which the incoming ranges are grouped is random.
+ * @tparam T                         double, float or int
+ * @tparam Arrays                    all std::vector<T>
+ * @param[in]    sendList            List of index ranges assigned to each rank, indices
+ *                                   are valid w.r.t to arrays present on @p thisRank
+ * @param[in]    thisRank            Rank of the executing process
+ * @param[in]    nParticlesAssigned  Number of elements that each array will hold on @p thisRank after the exchange
+ * @param[in]    ordering            Ordering through which to access arrays
+ * @param[inout] arrays              T* pointers of identical sizes, the index range based exchange operations
+ *                                   performed are identical for each input array. Upon completion, arrays will
+ *                                   contain elements from the specified ranges from all ranks.
+ *                                   The order in which the incoming ranges are grouped is random.
  *
  * See documentation of exchangeParticles with the full signature
  */

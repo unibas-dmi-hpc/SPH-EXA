@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Box overlap tests
+/*! @file
+ * @brief Box overlap tests
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 
@@ -74,7 +74,7 @@ TEST(BoxOverlap, overlapRange)
     EXPECT_TRUE (overlapRange<R>(512, 1024, 332, 820));
 }
 
-/*! \brief Test overlap between octree nodes and coordinate ranges
+/*! @brief Test overlap between octree nodes and coordinate ranges
  *
  * The octree node is given as a Morton code plus number of bits
  * and the coordinates as integer ranges.
@@ -125,7 +125,7 @@ TEST(BoxOverlap, overlaps)
     overlapTest<uint64_t>();
 }
 
-//! \brief test overlaps of periodic halo boxes with parts of the SFC tree
+//! @brief test overlaps of periodic halo boxes with parts of the SFC tree
 template<class I>
 void pbcOverlaps()
 {
@@ -157,7 +157,7 @@ TEST(BoxOverlap, pbcOverlaps)
 }
 
 
-//! \brief check halo box ranges in all spatial dimensions
+//! @brief check halo box ranges in all spatial dimensions
 template<class I>
 void makeHaloBoxXYZ()
 {
@@ -191,7 +191,7 @@ TEST(BoxOverlap, makeHaloBoxXYZ)
 }
 
 
-//! \brief underflow check, non-periodic case
+//! @brief underflow check, non-periodic case
 template<class I>
 void makeHaloBoxUnderflow()
 {
@@ -224,7 +224,7 @@ TEST(BoxOverlap, makeHaloBoxUnderflow)
 }
 
 
-//! \brief overflow check, non-periodic case
+//! @brief overflow check, non-periodic case
 template<class I>
 void makeHaloBoxOverflow()
 {
@@ -256,7 +256,7 @@ TEST(BoxOverlap, makeHaloBoxOverflow)
     makeHaloBoxOverflow<uint64_t>();
 }
 
-//! \brief check halo box ranges with periodic boundary conditions
+//! @brief check halo box ranges with periodic boundary conditions
 template<class I>
 void makeHaloBoxPbc()
 {
@@ -365,7 +365,7 @@ void haloBoxContainedIn()
 
 }
 
-//! \brief test containment of a box within a Morton code range
+//! @brief test containment of a box within a Morton code range
 TEST(BoxOverlap, haloBoxContainedIn)
 {
     haloBoxContainedIn<unsigned>();
@@ -379,37 +379,31 @@ void excludeRangeContainedIn()
     I rangeEnd   = pad(I(02), 3);
 
     {
-        I prefix = pad(I(01), 3);
-        int prefixLength = 3;
-        EXPECT_TRUE(containedIn(prefix, prefixLength, rangeStart, rangeEnd));
+        I prefix = 0b1001;
+        EXPECT_TRUE(containedIn(prefix, rangeStart, rangeEnd));
     }
     {
-        I prefix = pad(I(01), 3);
-        int prefixLength = 4;
-        EXPECT_TRUE(containedIn(prefix, prefixLength, rangeStart, rangeEnd));
+        I prefix = 0b10010;
+        EXPECT_TRUE(containedIn(prefix, rangeStart, rangeEnd));
     }
     {
-        I prefix = 0;
-        int prefixLength = 3;
-        EXPECT_FALSE(containedIn(prefix, prefixLength, rangeStart, rangeEnd));
+        I prefix = 0b1000;
+        EXPECT_FALSE(containedIn(prefix, rangeStart, rangeEnd));
     }
     {
-        I prefix = 0;
-        int prefixLength = 0;
-        EXPECT_FALSE(containedIn(prefix, prefixLength, rangeStart, rangeEnd));
+        I prefix = 1;
+        EXPECT_FALSE(containedIn(prefix, rangeStart, rangeEnd));
     }
 
     rangeStart = 0;
     rangeEnd   = pad(I(01), 3);
     {
-        I prefix = 0;
-        int prefixLength = 3;
-        EXPECT_TRUE(containedIn(prefix, prefixLength, rangeStart, rangeEnd));
+        I prefix = 0b1000;
+        EXPECT_TRUE(containedIn(prefix, rangeStart, rangeEnd));
     }
     {
-        I prefix = 0;
-        int prefixLength = 2;
-        EXPECT_FALSE(containedIn(prefix, prefixLength, rangeStart, rangeEnd));
+        I prefix = 0b100;
+        EXPECT_FALSE(containedIn(prefix, rangeStart, rangeEnd));
     }
 
     rangeStart = imorton3D<I>(0,0,3,2);
@@ -417,9 +411,8 @@ void excludeRangeContainedIn()
     EXPECT_EQ(rangeStart, 9 * nodeRange<I>(2));
     EXPECT_EQ(rangeEnd, 10 * nodeRange<I>(2));
     {
-        I prefix = 9 * nodeRange<I>(2);
-        int prefixLength = 6;
-        EXPECT_TRUE(containedIn(prefix, prefixLength, rangeStart, rangeEnd));
+        I prefix = encodePlaceholderBit(9*nodeRange<I>(2), 6);
+        EXPECT_TRUE(containedIn(prefix, rangeStart, rangeEnd));
     }
 }
 
