@@ -198,41 +198,43 @@ __global__ void resetRebalanceCounter()
 /*! @brief split or fuse octree nodes based on node counts relative to bucketSize
  *
  * @tparam I               32- or 64-bit unsigned integer type
- * @param[in] tree         octree nodes given as Morton codes of length @a nNodes
+ * @param[inout] tree      vector of octree nodes in cornerstone format
  *                         needs to satisfy the octree invariants
- * @param[in] counts       output particle counts per node, length = @a nNodes
- * @param[in] nOldNodes       number of nodes in tree
+ * @param[in] counts       output particle counts per node, length = @p tree.size() - 1
  * @param[in] bucketSize   maximum particle count per (leaf) node and
  *                         minimum particle count (strictly >) for (implicit) internal nodes
+ * @param      tmpTree     memory buffer for temporary use, neither input nor output
+ * @param      workArray   memory buffer for temporary use, neither input nor output
  * @param[out] converged   optional boolean flag to indicate convergence
  * @return                 the rebalanced Morton code octree
  */
 template<class SfcVector>
-void rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, TreeNodeIndex nOldNodes,
-                      unsigned bucketSize, bool* converged = nullptr)
+void rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, unsigned bucketSize,
+                      SfcVector& tmpTree, thrust::device_vector<TreeNodeIndex>& workArray,
+                      bool* converged = nullptr)
 {
     using I = typename SfcVector::value_type;
+    TreeNodeIndex nOldNodes = nNodes(tree);
+
     // +1 to store the total sum of the exclusive scan in the last element
-    thrust::device_vector<TreeNodeIndex> nodeOps(nOldNodes + 1);
-    thrust::device_vector<TreeNodeIndex> nodeOffsets(nOldNodes + 1);
+    workArray.resize(tree.size());
 
     resetRebalanceCounter<<<1,1>>>();
 
     constexpr unsigned nThreads = 512;
     rebalanceDecisionKernel<<<iceil(nOldNodes, nThreads), nThreads>>>(
         thrust::raw_pointer_cast(tree.data()), counts, nOldNodes, bucketSize,
-        thrust::raw_pointer_cast(nodeOps.data()));
+        thrust::raw_pointer_cast(workArray.data()));
 
-    thrust::exclusive_scan(thrust::device, nodeOps.begin(), nodeOps.end(), nodeOffsets.begin());
+    thrust::exclusive_scan(thrust::device, workArray.begin(), workArray.end(), workArray.begin());
 
     // +1 for the end marker (nodeRange<I>(0))
-    SfcVector balancedTree(*nodeOffsets.rbegin() + 1);
+    tmpTree.resize(*workArray.rbegin() + 1);
 
-    TreeNodeIndex nElements = stl::max(tree.size(), balancedTree.size());
+    TreeNodeIndex nElements = stl::max(tree.size(), tmpTree.size());
     processNodes<<<iceil(nElements, nThreads), nThreads>>>(thrust::raw_pointer_cast(tree.data()),
-                                                           thrust::raw_pointer_cast(nodeOffsets.data()), nOldNodes, nNodes(balancedTree),
-                                                           thrust::raw_pointer_cast(balancedTree.data()));
-
+                                                           thrust::raw_pointer_cast(workArray.data()), nOldNodes, nNodes(tmpTree),
+                                                           thrust::raw_pointer_cast(tmpTree.data()));
     int changeCounter;
     cudaMemcpyFromSymbol(&changeCounter, rebalanceChangeCounter, sizeof(int));
     if (converged != nullptr)
@@ -240,7 +242,7 @@ void rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, TreeNodeIndex nOl
         *converged = (changeCounter == 0);
     }
 
-    swap(tree, balancedTree);
+    swap(tree, tmpTree);
 }
 
 /*! @brief compute an octree from morton codes for a specified bucket size
@@ -270,6 +272,9 @@ void computeOctreeGpu(const I* codesStart, const I* codesEnd, unsigned bucketSiz
         tree.push_back(nodeRange<I>(0));
     }
 
+    thrust::device_vector<I>             tmpTree(tree.size());
+    thrust::device_vector<TreeNodeIndex> workArray(tree.size());
+
     bool converged = false;
     while (!converged)
     {
@@ -282,7 +287,7 @@ void computeOctreeGpu(const I* codesStart, const I* codesEnd, unsigned bucketSiz
             (void)Reduce{}(counts); // void cast to silence "warning: expression has no effect" from nvcc
         }
 
-        rebalanceTreeGpu(tree, thrust::raw_pointer_cast(counts.data()), nNodes(tree), bucketSize, &converged);
+        rebalanceTreeGpu(tree, thrust::raw_pointer_cast(counts.data()), bucketSize, tmpTree, workArray, &converged);
     }
 }
 
@@ -300,9 +305,11 @@ void computeOctreeGpu(const I* codesStart, const I* codesEnd, unsigned bucketSiz
 template<class I, class Reduce = void>
 void updateOctreeGpu(const I* codesStart, const I* codesEnd, unsigned bucketSize,
                      thrust::device_vector<I>& tree, thrust::device_vector<unsigned>& counts,
+                     thrust::device_vector<I>& tmpTree,
+                     thrust::device_vector<TreeNodeIndex>& workArray,
                      unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
-    rebalanceTreeGpu(tree, thrust::raw_pointer_cast(counts.data()), nNodes(tree), bucketSize);
+    rebalanceTreeGpu(tree, thrust::raw_pointer_cast(counts.data()), bucketSize, tmpTree, workArray);
     counts.resize(nNodes(tree));
 
     // local node counts

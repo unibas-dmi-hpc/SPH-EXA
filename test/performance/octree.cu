@@ -29,13 +29,11 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include <chrono>
 #include <iostream>
 
 #include <thrust/reduce.h>
 
 #include "cstone/tree/octree.cuh"
-
 #include "coord_samples/random.hpp"
 
 using namespace cstone;
@@ -75,11 +73,14 @@ int main()
     std::cout << "build time from scratch " << t0/1000 << " nNodes(tree): " << nNodes(tree)
               << " count: " << thrust::reduce(counts.begin(), counts.end(), 0) << std::endl;
 
+    thrust::device_vector<CodeType>      tmpTree(tree.size());
+    thrust::device_vector<TreeNodeIndex> workArray(tree.size());
+
     cudaEventRecord(start, cudaStreamDefault);
 
     updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
                     thrust::raw_pointer_cast(particleCodes.data() + nParticles),
-                    bucketSize, tree, counts);
+                    bucketSize, tree, counts, tmpTree, workArray);
 
     cudaEventRecord(stop, cudaStreamDefault);
     cudaEventSynchronize(stop);

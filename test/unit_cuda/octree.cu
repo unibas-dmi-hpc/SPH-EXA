@@ -185,12 +185,15 @@ TEST(OctreeGpu, rebalanceTree)
 
     thrust::device_vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(7).makeTree();
 
+    thrust::device_vector<CodeType>      tmpTree;
+    thrust::device_vector<TreeNodeIndex> workArray;
+
     // nodes {7,i} will need to be fused
     thrust::device_vector<unsigned> counts(nNodes(tree), 1);
     // node {1} will need to be split
     counts[1] = bucketSize+1;
 
-    rebalanceTreeGpu(tree, thrust::raw_pointer_cast(counts.data()), nNodes(tree), bucketSize);
+    rebalanceTreeGpu(tree, thrust::raw_pointer_cast(counts.data()), bucketSize, tmpTree, workArray);
 
     // download tree from host
     thrust::host_vector<CodeType> h_tree = tree;
