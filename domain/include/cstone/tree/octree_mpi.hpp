@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief  MPI extension for calculating distributed cornerstone octrees
+/*! @file
+ * @brief  MPI extension for calculating distributed cornerstone octrees
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 
@@ -48,7 +48,7 @@ struct GlobalReduce
     }
 };
 
-/*! \brief compute an octree from morton codes for a specified bucket size
+/*! @brief compute an octree from morton codes for a specified bucket size
  *
  * See documentation of computeOctree
  */
@@ -63,7 +63,7 @@ std::tuple<std::vector<I>, std::vector<unsigned>> computeOctreeGlobal(const I *c
     return computeOctree<I, GlobalReduce>(codesStart, codesEnd, bucketSize, maxCount, std::move(tree));
 }
 
-/*! \brief perform one octree update, consisting of one rebalance and one node counting step
+/*! @brief perform one octree update, consisting of one rebalance and one node counting step
  *
  * See documentation of updateOctree
  */
@@ -78,7 +78,7 @@ void updateOctreeGlobal(const I *codesStart, const I *codesEnd, unsigned bucketS
     updateOctree<I, GlobalReduce>(codesStart, codesEnd, bucketSize, tree, counts, maxCount);
 }
 
-/*! \brief Compute the global maximum value of a given input array for each node in the global or local octree
+/*! @brief Compute the global maximum value of a given input array for each node in the global or local octree
  *
  * See documentation of computeHaloRadii
  */

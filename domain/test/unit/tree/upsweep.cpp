@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief  Octree upsweep tests
+/*! @file
+ * @brief  Octree upsweep tests
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  *
  */
 
@@ -37,7 +37,7 @@
 
 using namespace cstone;
 
-/*! \brief test upsweep sum with a regular 4x4x4 grid of leaves
+/*! @brief test upsweep sum with a regular 4x4x4 grid of leaves
  *
  * This creates 64 level-2 leaf nodes. The resulting internal tree should
  * have 9 nodes, the root node and the 8 level-1 nodes.
@@ -72,7 +72,7 @@ TEST(Upsweep, sum4x4x4)
     upsweepSum4x4x4<uint64_t>();
 }
 
-/*! \brief test upsweep sum with an irregular leaf tree
+/*! @brief test upsweep sum with an irregular leaf tree
  *
  * The leaf tree is the result of subdividing the root node, then further
  * subdividing octant 0. This results in 15 leaves, so the internal tree
@@ -107,7 +107,7 @@ TEST(Upsweep, sumIrregularL2)
     upsweepSumIrregularL2<uint64_t>();
 }
 
-/*! \brief an irregular tree with a max depth of 3
+/*! @brief an irregular tree with a max depth of 3
  *
  *     - total nodes: 33
  *     - leaf nodes: 29

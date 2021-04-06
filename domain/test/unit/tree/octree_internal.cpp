@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief octree utility tests
+/*! @file
+ * @brief octree utility tests
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  *
  * This file implements tests for OctreeMaker.
  * OctreeMaker can be used to generate octrees in cornerstone
@@ -40,7 +40,7 @@
 
 using namespace cstone;
 
-//! \brief test OctreNode equality comparison
+//! @brief test OctreNode equality comparison
 TEST(InternalOctree, OctreeNodeEq)
 {
     using I = unsigned;
@@ -78,7 +78,7 @@ TEST(InternalOctree, OctreeNodeEq)
     EXPECT_FALSE(node1 == node2);
 }
 
-/*! \brief test nodeDepth on a simple, explicitly constructed example
+/*! @brief test nodeDepth on a simple, explicitly constructed example
  *
  * Note: this example is not big enough to detect multithreading bugs, if present
  */
@@ -100,7 +100,7 @@ TEST(InternalOctree, nodeDepth)
         {03000000000, 1, 0, {21, 22, 23, 24, 25, 26, 27, 28, }, {l_, l_, l_, l_, l_, l_, l_, l_}}
     };
 
-    std::vector<std::atomic<TreeNodeIndex>> depths(internalTree.size());
+    std::vector<std::atomic<int>> depths(internalTree.size());
     for (auto& d : depths) d = 0;
 
     nodeDepth(internalTree.data(), internalTree.size(), depths.data());
@@ -111,7 +111,7 @@ TEST(InternalOctree, nodeDepth)
     EXPECT_EQ(depths_v, depths_reference);
 }
 
-/*! \brief larger test case for nodeDepth to detect multithreading issues
+/*! @brief larger test case for nodeDepth to detect multithreading issues
  *
  * Depends on binary/octree generation, so not strictly a unit test
  */
@@ -129,7 +129,7 @@ void nodeDepthThreading()
 
     createInternalOctreeCpu(binaryTree.data(), nNodes(leaves), octree.data(), leafParents.data());
 
-    std::vector<std::atomic<TreeNodeIndex>> depths(octree.size());
+    std::vector<std::atomic<int>> depths(octree.size());
     for (auto& d : depths) d = 0;
 
     nodeDepth(octree.data(), octree.size(), depths.data());
@@ -205,7 +205,7 @@ void decreasingMaxDepthOrderIsSorted()
     std::vector<OctreeNode<I>> newOctree(octree.size());
     rewireInternal(octree.data(), depthOrder.data(), octree.size(), newOctree.data());
 
-    std::vector<std::atomic<TreeNodeIndex>> depths(octree.size());
+    std::vector<std::atomic<int>> depths(octree.size());
     for (auto& d : depths) d = 0;
 
     nodeDepth(newOctree.data(), newOctree.size(), depths.data());
@@ -323,7 +323,7 @@ TEST(InternalOctree, rewire)
     EXPECT_EQ(rewiredTree, reference);
 }
 
-/*! \brief test internal octree creation from a regular 4x4x4 grid of leaves
+/*! @brief test internal octree creation from a regular 4x4x4 grid of leaves
  *
  * This creates 64 level-2 leaf nodes. The resulting internal tree should
  * have 9 nodes, the root node and the 8 level-1 nodes.
@@ -350,7 +350,7 @@ TEST(InternalOctree, octree4x4x4)
     octree4x4x4<uint64_t>();
 }
 
-/*! \brief test internal octree creation with an irregular leaf tree
+/*! @brief test internal octree creation with an irregular leaf tree
  *
  * The leaf tree is the result of subdividing the root node, then further
  * subdividing octant 0. This results in 15 leaves, so the internal tree
@@ -377,7 +377,7 @@ TEST(InternalOctree, irregularL2)
     octreeIrregularL2<uint64_t>();
 }
 
-//! \brief This creates an irregular tree. Checks geometry relations between children and parents.
+//! @brief This creates an irregular tree. Checks geometry relations between children and parents.
 template<class I>
 void octreeIrregularL3()
 {

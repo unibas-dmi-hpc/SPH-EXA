@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Naive collision detection implementation for validation and testing
+/*! @file
+ * @brief Naive collision detection implementation for validation and testing
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -36,7 +36,7 @@
 
 namespace cstone
 {
-/*! \brief to-all implementation of findCollisions
+/*! @brief to-all implementation of findCollisions
  *
  * @tparam I   32- or 64-bit unsigned integer
  * @param[in]  tree           octree leaf nodes in cornerstone format
@@ -59,7 +59,7 @@ void findCollisions2All(const std::vector<I>& tree, CollisionList& collisionList
     }
 }
 
-//! \brief all-to-all implementation of findAllCollisions
+//! @brief all-to-all implementation of findAllCollisions
 template<class I, class T>
 std::vector<CollisionList> findCollisionsAll2all(const std::vector<I>& tree, const std::vector<T>& haloRadii,
                                                  const Box<T>& globalBox)

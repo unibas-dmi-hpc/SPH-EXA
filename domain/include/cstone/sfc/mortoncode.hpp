@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief  3D Morton encoding/decoding in 32- and 64-bit using the magic number method
+/*! @file
+ * @brief  3D Morton encoding/decoding in 32- and 64-bit using the magic number method
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -45,7 +45,7 @@ namespace cstone
 namespace detail
 {
 
-//! \brief Expands a 10-bit integer into 30 bits by inserting 2 zeros after each bit.
+//! @brief Expands a 10-bit integer into 30 bits by inserting 2 zeros after each bit.
 CUDA_HOST_DEVICE_FUN
 inline unsigned expandBits(unsigned v)
 {
@@ -57,7 +57,7 @@ inline unsigned expandBits(unsigned v)
     return v;
 }
 
-/*! \brief Compacts a 30-bit integer into 10 bits by selecting only bits divisible by 3
+/*! @brief Compacts a 30-bit integer into 10 bits by selecting only bits divisible by 3
  *         this inverts expandBits
  */
 CUDA_HOST_DEVICE_FUN
@@ -71,7 +71,7 @@ inline unsigned compactBits(unsigned v)
     return v;
 }
 
-//! \brief Expands a 21-bit integer into 63 bits by inserting 2 zeros after each bit.
+//! @brief Expands a 21-bit integer into 63 bits by inserting 2 zeros after each bit.
 CUDA_HOST_DEVICE_FUN
 inline uint64_t expandBits(uint64_t v)
 {
@@ -84,7 +84,7 @@ inline uint64_t expandBits(uint64_t v)
     return x;
 }
 
-/*! \brief Compacts a 63-bit integer into 21 bits by selecting only bits divisible by 3
+/*! @brief Compacts a 63-bit integer into 21 bits by selecting only bits divisible by 3
  *         this inverts expandBits
  */
 CUDA_HOST_DEVICE_FUN
@@ -101,11 +101,11 @@ inline uint64_t compactBits(uint64_t v)
 
 } // namespace detail
 
-/*! \brief Calculates a Morton code for a 3D point in integer coordinates
+/*! @brief Calculates a Morton code for a 3D point in integer coordinates
  *
- * \tparam I  32- or 64 bit unsigned integer
+ * @tparam I  32- or 64 bit unsigned integer
  *
- * \param[in] ix,iy,iz input coordinates in [0:2^maxTreeLevel<I>{}]
+ * @param[in] ix,iy,iz input coordinates in [0:2^maxTreeLevel<I>{}]
  */
 template <class I>
 CUDA_HOST_DEVICE_FUN
@@ -123,12 +123,14 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> imorton3D(unsigned ix, unsigne
     return xx * 4 + yy * 2 + zz;
 }
 
-/*! \brief Calculate morton code from n-level integer 3D coordinates
+/*! @brief Calculate morton code from n-level integer 3D coordinates
  *
- * \tparam I         32- or 64-bit unsigned integer
- * \param ix,iy,iz   input integer box coordinates, must be in the range [0, 2^treeLevel-1]
- * \param treeLevel  octree subdivison level
- * \return           the morton code
+ * @tparam I         32- or 64-bit unsigned integer
+ * @param ix         input integer box coordinates, must be in the range [0, 2^treeLevel-1]
+ * @param iy
+ * @param iz
+ * @param treeLevel  octree subdivison level
+ * @return           the morton code
  */
 template<class I>
 CUDA_HOST_DEVICE_FUN
@@ -139,14 +141,16 @@ I imorton3D(unsigned ix, unsigned iy, unsigned iz, unsigned treeLevel)
     return imorton3D<I>(ix<<shifts, iy<<shifts, iz<<shifts);
 }
 
-/*! \brief Calculates a Morton code for a 3D point in the unit cube
+/*! @brief Calculates a Morton code for a 3D point in the unit cube
  *
- * \tparam I specify either a 32 or 64 bit unsigned integer to select
+ * @tparam I specify either a 32 or 64 bit unsigned integer to select
  *           the precision.
  *           Note: I needs to be specified explicitly.
  *           Note: not specifying an unsigned type results in a compilation error
  *
- * \param[in] x,y,z input coordinates within the unit cube [0,1]^3
+ * @param[in] x input coordinates within the unit cube [0,1]^3
+ * @param[in] y
+ * @param[in] z
  */
 template <class I, class T>
 CUDA_HOST_DEVICE_FUN
@@ -164,17 +168,17 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3DunitCube(T x, T y, T z
     return imorton3D<I>(ix, iy, iz);
 }
 
-/*! \brief Calculates a Morton code for a 3D point within the specified box
+/*! @brief Calculates a Morton code for a 3D point within the specified box
  *
- * \tparam I specify either a 32 or 64 bit unsigned integer to select
+ * @tparam I specify either a 32 or 64 bit unsigned integer to select
  *           the precision.
  *           Note: I needs to be specified explicitly.
  *           Note: not specifying an unsigned type results in a compilation error
  *
- * \param[in] x,y,z input coordinates within the unit cube [0,1]^3
- * \param[in] box   bounding for coordinates
+ * @param[in] x,y,z input coordinates within the unit cube [0,1]^3
+ * @param[in] box   bounding for coordinates
  *
- * \return          the Morton code
+ * @return          the Morton code
  */
 template <class I, class T>
 CUDA_HOST_DEVICE_FUN
@@ -185,7 +189,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3D(T x, T y, T z, Box<T>
                                normalize(z, box.zmin(), box.zmax()));
 }
 
-//! \brief extract X component from a morton code
+//! @brief extract X component from a morton code
 template<class I>
 CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonX(I code)
@@ -193,7 +197,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonX(I code)
     return detail::compactBits(code >> 2);
 }
 
-//! \brief extract Y component from a morton code
+//! @brief extract Y component from a morton code
 template<class I>
 CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonY(I code)
@@ -201,7 +205,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonY(I code)
     return detail::compactBits(code >> 1);
 }
 
-//! \brief extract Z component from a morton code
+//! @brief extract Z component from a morton code
 template<class I>
 CUDA_HOST_DEVICE_FUN
 inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonZ(I code)
@@ -209,7 +213,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonZ(I code)
     return detail::compactBits(code);
 }
 
-/*! \brief compute range of X values that the given code can cover
+/*! @brief compute range of X values that the given code can cover
  *
  * @tparam I      32- or 64-bit unsigned integer
  * @param code    A morton code, all bits except the first 2 + length
@@ -218,7 +222,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonZ(I code)
  * @param length  Number of bits to consider for calculating the upper range limit
  * @return        The range of possible X values in [0...2^10] (32-bit)
  *                or [0...2^21] (64-bit). The start of the range is the
- *                X-component of the input \a code. The length of the range
+ *                X-component of the input @p code. The length of the range
  *                only depends on the number of bits. For every X-bit, the
  *                range decreases from the maximum by a factor of two.
  */
@@ -234,7 +238,7 @@ inline pair<int> decodeXRange(I code, int length)
     return ret;
 }
 
-//! \brief see decodeXRange
+//! @brief see decodeXRange
 template<class I>
 CUDA_HOST_DEVICE_FUN
 inline pair<int> decodeYRange(I code, int length)
@@ -247,7 +251,7 @@ inline pair<int> decodeYRange(I code, int length)
     return ret;
 }
 
-//! \brief see decodeXRange
+//! @brief see decodeXRange
 template<class I>
 CUDA_HOST_DEVICE_FUN
 inline pair<int> decodeZRange(I code, int length)
@@ -260,19 +264,19 @@ inline pair<int> decodeZRange(I code, int length)
     return ret;
 }
 
-/*! \brief compute morton codes corresponding to neighboring octree nodes
+/*! @brief compute morton codes corresponding to neighboring octree nodes
  *         for a given input code and tree level
  *
- * \tparam I        32- or 64-bit unsigned integer type
- * \param code      input Morton code
- * \param treeLevel octree subdivision level, 0-10 for 32-bit, and 0-21 for 64-bit
- * \param dx        neighbor offset in x direction at \a treeLevel
- * \param dy        neighbor offset in y direction at \a treeLevel
- * \param dz        neighbor offset in z direction at \a treeLevel
- * \param pbcX      apply pbc in X direction
- * \param pbcY      apply pbc in Y direction
- * \param pbcZ      apply pbc in Z direction
- * \return          morton neighbor start code
+ * @tparam I        32- or 64-bit unsigned integer type
+ * @param code      input Morton code
+ * @param treeLevel octree subdivision level, 0-10 for 32-bit, and 0-21 for 64-bit
+ * @param dx        neighbor offset in x direction at @p treeLevel
+ * @param dy        neighbor offset in y direction at @p treeLevel
+ * @param dz        neighbor offset in z direction at @p treeLevel
+ * @param pbcX      apply pbc in X direction
+ * @param pbcY      apply pbc in Y direction
+ * @param pbcZ      apply pbc in Z direction
+ * @return          morton neighbor start code
  *
  * Note that the end of the neighbor range is given by the start code + nodeRange(treeLevel)
  */
@@ -326,11 +330,15 @@ mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz,
 }
 
 
-/*! \brief compute the Morton codes for the input coordinate arrays
+/*! @brief compute the Morton codes for the input coordinate arrays
  *
- * \param[in]  [x,y,z][Begin, End] (const) input iterators for coordinate arrays
- * \param[out] order[Begin, End]  output for morton codes
- * \param[in]  [x,y,z][min, max]  coordinate bounding box
+ * @tparam     T          float or double
+ * @param[in]  xBegin     input iterators for coordinate arrays
+ * @param[in]  xEnd
+ * @param[in]  yBegin
+ * @param[in]  zBegin
+ * @param[out] codeBegin  output for morton codes
+ * @param[in]  box        coordinate bounding box
  */
 template<class InputIterator, class OutputIterator, class T>
 void computeMortonCodes(InputIterator  xBegin,

@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Parallel prefix sum
+/*! @file
+ * @brief Parallel prefix sum
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
@@ -42,6 +42,13 @@
 namespace cstone
 {
 
+/*! @brief multi-threaded exclusive scan (prefix sum) implementation
+ *
+ * @tparam T
+ * @param in            input values, length = @p numElements
+ * @param out           output values, length = @p numElements
+ * @param numElements
+ */
 template<class T>
 void exclusiveScan(const T* in, T* out, size_t numElements)
 {

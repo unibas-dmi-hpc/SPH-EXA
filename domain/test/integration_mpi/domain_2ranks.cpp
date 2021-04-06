@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Various domain tests with 2 ranks
+/*! @file
+ * @brief Various domain tests with 2 ranks
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include "gtest/gtest.h"
@@ -80,7 +80,7 @@ TEST(Domain, noHalos)
     noHalos<uint64_t, float>(rank, nRanks);
 }
 
-/*! \brief a minimal initial domain.sync() test with halos
+/*! @brief a minimal initial domain.sync() test with halos
  *
  * The two global particles at 0.5^3 and 0.6^3 together with a tree
  * bucketSize of 1 is quite nasty, as it maxes out the tree division depth,
@@ -137,7 +137,7 @@ TEST(Domain, halos)
 }
 
 
-/*! \brief A test for one initial domain.sync() with halos
+/*! @brief A test for one initial domain.sync() with halos
  *
  * Tests correct assignment and distribution of the global tree
  * plus halo exchange.
@@ -220,7 +220,7 @@ TEST(Domain, moreHalos)
     moreHalos<uint64_t, float>(rank, nRanks);
 }
 
-/*! \brief A test for one initial domain.sync() with a particle property
+/*! @brief A test for one initial domain.sync() with a particle property
  *
  * Tests correct assignment and distribution of the global tree
  * plus distribution of an additional particle property.
@@ -293,7 +293,7 @@ TEST(Domain, particleProperty)
     particleProperty<uint64_t, float>(rank, nRanks);
 }
 
-/*! \brief tests that after a domain.sync(), the previous halo exchange pattern can be reapplied
+/*! @brief tests that after a domain.sync(), the previous halo exchange pattern can be reapplied
  *
  * E.g. when exchanging densities
  */
@@ -361,7 +361,7 @@ TEST(Domain, postSyncHalos)
     postSyncHalos<uint64_t, float>(rank, nRanks);
 }
 
-/*! \brief Performs twice domain.sync(), with a particle coordinate update in between
+/*! @brief Performs twice domain.sync(), with a particle coordinate update in between
  *
  * This ensures that the domain correctly remembers the array layout from the previous sync,
  * then correctly updates the global tree/assignment to reflect the changed coordinates.

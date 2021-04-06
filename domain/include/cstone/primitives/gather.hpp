@@ -23,10 +23,10 @@
  * SOFTWARE.
  */
 
-/*! \file
- * \brief Functionality for calculating for performing gather operations on the CPU
+/*! @file
+ * @brief Functionality for calculating for performing gather operations on the CPU
  *
- * \author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 
@@ -43,82 +43,56 @@
 namespace cstone
 {
 
-/*! \brief calculate the sortKey that sorts the input sequence
+/*! @brief sort values according to a key
  *
- * \param[in]  inBegin   input sequence start
- * \param[in]  inEnd     input sequence end
- * \param[out] outBegin  integer sortKey output
- * \param[in]  compare   comparison function
+ * @param[inout] keyBegin    key sequence start
+ * @param[inout] keyEnd      key sequence end
+ * @param[inout] valueBegin  values
+ * @param[in]    compare     comparison function
  *
- * Upon completion of this routine, the output sequence contains the sort keys
- * that will access the input sequence in a sorted manner, i.e.
- * the sequence inBegin[outBegin[k]], k=0,1,2,...,n is sorted.
+ * Upon completion of this routine, the key sequence will be sorted and values
+ * will be rearranged to reflect the key ordering
  */
-template <class InputIterator, class OutputIterator, class Compare>
-void sort_invert(InputIterator inBegin, InputIterator inEnd, OutputIterator outBegin, Compare compare)
+template <class InoutIterator, class OutputIterator, class Compare>
+void sort_by_key(InoutIterator keyBegin, InoutIterator keyEnd, OutputIterator valueBegin, Compare compare)
 {
-    using ValueType = std::decay_t<decltype(*inBegin)>;
-    using Integer   = std::decay_t<decltype(*outBegin)>;
-    std::size_t n   = std::distance(inBegin, inEnd);
-
-    // create index sequence 0,1,2,...,n
-    #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < n; ++i)
-        outBegin[i] = i;
+    using KeyType   = std::decay_t<decltype(*keyBegin)>;
+    using ValueType = std::decay_t<decltype(*valueBegin)>;
+    std::size_t n   = std::distance(keyBegin, keyEnd);
 
     // zip the input integer array together with the index sequence
-    std::vector<std::tuple<ValueType, Integer>> keyIndexPairs(n);
+    std::vector<std::tuple<KeyType, ValueType>> keyIndexPairs(n);
     #pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < n; ++i)
-        keyIndexPairs[i] = std::make_tuple(inBegin[i], outBegin[i]);
+        keyIndexPairs[i] = std::make_tuple(keyBegin[i], valueBegin[i]);
 
     // sort, comparing only the first tuple element
     std::sort(begin(keyIndexPairs), end(keyIndexPairs),
               [compare](const auto& t1, const auto& t2){ return compare(std::get<0>(t1), std::get<0>(t2)); });
 
-    // extract the resulting ordering
+    // extract the resulting ordering and store back the sorted keys
     #pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < n; ++i)
-        outBegin[i] = std::get<1>(keyIndexPairs[i]);
+    {
+        keyBegin[i]  = std::get<0>(keyIndexPairs[i]);
+        valueBegin[i] = std::get<1>(keyIndexPairs[i]);
+    }
 }
 
-//! \brief calculate the sortKey that sorts the input sequence, default ascending order
-template <class InputIterator, class OutputIterator>
-void sort_invert(InputIterator inBegin, InputIterator inEnd, OutputIterator outBegin)
+//! @brief calculate the sortKey that sorts the input sequence, default ascending order
+template <class InoutIterator, class OutputIterator>
+void sort_by_key(InoutIterator inBegin, InoutIterator inEnd, OutputIterator outBegin)
 {
-    sort_invert(inBegin, inEnd, outBegin, std::less<std::decay_t<decltype(*inBegin)>>{});
+    sort_by_key(inBegin, inEnd, outBegin, std::less<std::decay_t<decltype(*inBegin)>>{});
 }
 
 
-/*! \brief compute the Morton z-order for the input coordinate arrays
+/*! @brief reorder the input array according to the specified ordering
  *
- * \param[in]  [x,y,z][Begin, End] (const) input iterators for coordinate arrays
- * \param[out] order[Begin, End]  output for z-order
- * \param[in]  [x,y,z][min, max]  coordinate bounding box
- */
-template<class InputIterator, class OutputIterator, class T>
-void computeZorder(InputIterator  xBegin,
-                   InputIterator  xEnd,
-                   InputIterator  yBegin,
-                   InputIterator  zBegin,
-                   OutputIterator orderBegin,
-                   const Box<T>&  box)
-{
-    std::size_t n = std::distance(xBegin, xEnd);
-
-    std::vector<unsigned> mortonCodes(n); 
-    computeMortonCodes(xBegin, xEnd, yBegin, zBegin, begin(mortonCodes), box);
-
-    sort_invert(cbegin(mortonCodes), cend(mortonCodes), orderBegin);
-}
-
-
-/*! \brief reorder the input array according to the specified ordering
- *
- * \tparam I          integer type
- * \tparam ValueType  float or double
- * \param ordering    an ordering
- * \param array       an array, size >= ordering.size(), particles past ordering.size()
+ * @tparam I          integer type
+ * @tparam ValueType  float or double
+ * @param ordering    an ordering
+ * @param array       an array, size >= ordering.size(), particles past ordering.size()
  *                    are copied element by element
  */
 template<class I, class ValueType>
@@ -140,14 +114,14 @@ void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array)
     swap(tmp, array);
 }
 
-/*! \brief reorder the input array according to the specified ordering
+/*! @brief reorder the input array according to the specified ordering
  *
- * \tparam I          integer type
- * \tparam ValueType  float or double
- * \param ordering    an ordering, all indices from 0 to ordering.size() are accessed
- * \param array       an array, indices offset to offset + ordering.size() are reordered.
+ * @tparam I          integer type
+ * @tparam ValueType  float or double
+ * @param ordering    an ordering, all indices from 0 to ordering.size() are accessed
+ * @param array       an array, indices offset to offset + ordering.size() are reordered.
  *                    other elements are copied element by element
- * \param offset      access array with an offset
+ * @param offset      access array with an offset
  */
 template<class I, class ValueType>
 void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array, int offset)
@@ -178,12 +152,12 @@ void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array, int 
 }
 
 
-/*! \brief reorder the input array according to the specified ordering, no reallocation
+/*! @brief reorder the input array according to the specified ordering, no reallocation
  *
- * \tparam LocalIndex    integer type
- * \tparam ValueType     float or double
- * \param ordering       an ordering
- * \param array          an array, size >= ordering.size()
+ * @tparam LocalIndex    integer type
+ * @tparam ValueType     float or double
+ * @param ordering       an ordering
+ * @param array          an array, size >= ordering.size()
  */
 template<class LocalIndex, class ValueType>
 void reorderInPlace(const std::vector<LocalIndex>& ordering, ValueType* array)
@@ -201,14 +175,14 @@ void reorderInPlace(const std::vector<LocalIndex>& ordering, ValueType* array)
     }
 }
 
-//! \brief This class conforms to the same interface as the device version to allow abstraction
+//! @brief This class conforms to the same interface as the device version to allow abstraction
 template<class ValueType, class CodeType, class IndexType>
 class CpuGather
 {
 public:
     CpuGather() = default;
 
-    /*! \brief upload the new reorder map to the device and reallocates buffers if necessary
+    /*! @brief upload the new reorder map to the device and reallocates buffers if necessary
      *
      * If the sequence [map_first:map_last] does not contain each element [0:map_last-map_first]
      * exactly once, the behavior is undefined.
@@ -225,15 +199,15 @@ public:
         std::copy(ordering_.data(), ordering_.data() + mapSize_, map_first);
     }
 
-    /*! \brief sort given Morton codes on the device and determine reorder map based on sort order
+    /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
      *
-     * \param[inout] codes_first   pointer to first Morton code
-     * \param[inout] codes_last    pointer to last Morton code
+     * @param[inout] codes_first   pointer to first Morton code
+     * @param[inout] codes_last    pointer to last Morton code
      *
      * Precondition:
      *   - [codes_first:codes_last] is a continues sequence of accessible elements of size N
      *
-     * Postcondition
+     * Postcondition:
      *   - [codes_first:codes_last] is sorted
      *   - subsequent calls to operator() apply a gather operation to the input sequence
      *     with the map obtained from sort_by_key with [codes_first:codes_last] as the keys
@@ -247,14 +221,14 @@ public:
     {
         mapSize_ = std::size_t(codes_last - codes_first);
         ordering_.resize(mapSize_);
+        std::iota(begin(ordering_), end(ordering_), 0);
 
-        sort_invert(codes_first, codes_last, begin(ordering_));
-        reorderInPlace(ordering_, codes_first);
+        sort_by_key(codes_first, codes_last, begin(ordering_));
     }
 
-    /*! \brief reorder the array \a values according to the reorder map provided previously
+    /*! @brief reorder the array @p values according to the reorder map provided previously
      *
-     * \a values must have at least as many elements as the reorder map provided in the last call
+     * @p values must have at least as many elements as the reorder map provided in the last call
      * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
      */
     void operator()(ValueType* values)
