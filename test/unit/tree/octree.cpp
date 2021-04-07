@@ -126,6 +126,14 @@ TEST(CornerstoneOctree, findSearchBounds)
         EXPECT_EQ(probe[0]-c, reference[0]-c);
         EXPECT_EQ(probe[1]-c, reference[1]-c);
     }
+    {
+        // must be able to handle out-of-bounds guess
+        int guess = 12;
+        auto probe = findSearchBounds(guess, CodeType(16), c, c + codes.size());
+        pair<const CodeType*> reference{c+1, c+9};
+        EXPECT_EQ(probe[0]-c, reference[0]-c);
+        EXPECT_EQ(probe[1]-c, reference[1]-c);
+    }
 
 }
 
