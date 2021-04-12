@@ -218,14 +218,14 @@ void computeNodeCounts(const I* tree, unsigned* counts, TreeNodeIndex nNodes, co
         #pragma omp parallel for schedule(static)
         for (TreeNodeIndex i = 0; i < nNonZeroNodes-1; ++i)
         {
-            unsigned firstGuess  = counts[i + firstNode];
-            unsigned secondGuess = counts[i + firstNode + 1];
+            unsigned firstGuess   = counts[i + firstNode];
+            unsigned secondGuess  = counts[i + firstNode + 1];
             counts[i + firstNode] = updateNodeCount(i, populatedTree, firstGuess, secondGuess,
                                                     codesStart, codesEnd, maxCount);
         }
 
-        TreeNodeIndex lastIdx = nNonZeroNodes-1;
-        unsigned lastGuess    = counts[lastIdx + firstNode];
+        TreeNodeIndex lastIdx       = nNonZeroNodes-1;
+        unsigned lastGuess          = counts[lastIdx + firstNode];
         counts[lastIdx + firstNode] = updateNodeCount(lastIdx, populatedTree, lastGuess, lastGuess,
                                                       codesStart, codesEnd, maxCount);
     }
