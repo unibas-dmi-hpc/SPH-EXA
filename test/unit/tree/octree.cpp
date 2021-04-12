@@ -457,12 +457,7 @@ public:
         CoordinateType<double, CodeType> randomBox(nParticles, box);
         std::vector<CodeType> codes = randomBox.mortonCodes();
 
-        // compute octree starting from default uniform octree
-        auto [tree, counts] = computeOctree(codes.data(),
-                                            codes.data() + nParticles,
-                                            bucketSize);
-
-        std::cout << "number of nodes: " << nNodes(tree) << std::endl;
+        auto [tree, counts] = computeOctree(codes.data(), codes.data() + nParticles, bucketSize);
 
         checkOctreeWithCounts(tree, counts, bucketSize, codes, false);
 
