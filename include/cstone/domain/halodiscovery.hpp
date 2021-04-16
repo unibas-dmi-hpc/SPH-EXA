@@ -48,7 +48,7 @@ namespace cstone
  * @param tree                 cornerstone octree
  * @param interactionRadii     effective halo search radii per octree (leaf) node
  * @param box                  coordinate bounding box
- * @param assignment           list if Morton code ranges assignments per rank
+ * @param assignment           list of Morton code ranges assignments per rank
  * @param rank                 compute pairs from perspective of @p rank
  * @param[out] haloPairs       output list of halo node index pairs
  * @return
