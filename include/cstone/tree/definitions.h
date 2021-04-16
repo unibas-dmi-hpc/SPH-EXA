@@ -30,4 +30,28 @@ namespace cstone {
 //! @brief controls the node index type, change to 64-bit if more than 2 billion tree nodes are required
 using TreeNodeIndex = int;
 
+//! @brief checks whether a binary tree index corresponds to a leaf index
+CUDA_HOST_DEVICE_FUN
+constexpr bool isLeafIndex(TreeNodeIndex nodeIndex)
+{
+    return nodeIndex < 0;
+}
+
+//! @brief convert a leaf index to the storage format
+CUDA_HOST_DEVICE_FUN
+constexpr TreeNodeIndex storeLeafIndex(TreeNodeIndex index)
+{
+    // -2^31 or -2^63
+    constexpr auto offset = TreeNodeIndex(-(1ul << (8*sizeof(TreeNodeIndex)-1)));
+    return index + offset;
+}
+
+//! @brief restore a leaf index from the storage format
+CUDA_HOST_DEVICE_FUN
+constexpr TreeNodeIndex loadLeafIndex(TreeNodeIndex index)
+{
+    constexpr auto offset = TreeNodeIndex(-(1ul << (8*sizeof(TreeNodeIndex)-1)));
+    return index - offset;
+}
+
 } // namespace cstone
