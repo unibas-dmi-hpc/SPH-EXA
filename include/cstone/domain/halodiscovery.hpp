@@ -81,8 +81,8 @@ void findHalos(const std::vector<I>&           tree,
     // go through all ranges assigned to rank
     for (std::size_t range = 0; range < assignment.nRanges(rank); ++range)
     {
-        int firstNode = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeStart(rank, range)) - begin(tree);
-        int lastNode  = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeEnd(rank, range)) - begin(tree);
+        TreeNodeIndex firstNode = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeStart(rank, range)) - begin(tree);
+        TreeNodeIndex lastNode  = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeEnd(rank, range)) - begin(tree);
 
         #pragma omp parallel
         {
@@ -90,7 +90,7 @@ void findHalos(const std::vector<I>&           tree,
 
             // loop over all the nodes in range
             #pragma omp for
-            for (int nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
+            for (TreeNodeIndex nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
             {
                 CollisionList collisions;
                 RadiusType radius = interactionRadii[nodeIdx];
@@ -116,7 +116,7 @@ void findHalos(const std::vector<I>&           tree,
                 // i.e. we make sure that the local node (nodeIdx) is also a halo of the remote node
                 for (std::size_t i = 0; i < collisions.size(); ++i)
                 {
-                    int collidingNodeIdx = collisions[i];
+                    TreeNodeIndex collidingNodeIdx = collisions[i];
 
                     I collidingNodeStart = tree[collidingNodeIdx];
                     I collidingNodeEnd   = tree[collidingNodeIdx + 1];
@@ -151,9 +151,9 @@ void findHalos(const std::vector<I>&           tree,
 template<class I>
 void computeSendRecvNodeList(const std::vector<I>& tree,
                              const SpaceCurveAssignment<I>& assignment,
-                             const std::vector<pair<int>>& haloPairs,
-                             std::vector<std::vector<int>>& incomingNodes,
-                             std::vector<std::vector<int>>& outgoingNodes)
+                             const std::vector<pair<TreeNodeIndex>>& haloPairs,
+                             std::vector<std::vector<TreeNodeIndex>>& incomingNodes,
+                             std::vector<std::vector<TreeNodeIndex>>& outgoingNodes)
 {
     // needed to efficiently look up the assigned rank of a given octree node
     SfcLookupKey<I> sfcLookup(assignment);
@@ -164,8 +164,8 @@ void computeSendRecvNodeList(const std::vector<I>& tree,
     for (auto& p : haloPairs)
     {
         // as defined in findHalos, the internal node index is stored first
-        int internalNodeIdx = p[0];
-        int remoteNodeIdx   = p[1];
+        TreeNodeIndex internalNodeIdx = p[0];
+        TreeNodeIndex remoteNodeIdx   = p[1];
 
         int remoteRank = sfcLookup.findRank(tree[remoteNodeIdx]);
 
