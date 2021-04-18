@@ -30,6 +30,8 @@ namespace cstone {
 //! @brief Controls the node index type, has to be signed. Change to 64-bit if more than 2 billion tree nodes are required.
 using TreeNodeIndex = int;
 
+using LocalParticleIndex = unsigned;
+
 //! @brief checks whether a binary tree index corresponds to a leaf index
 CUDA_HOST_DEVICE_FUN
 constexpr bool isLeafIndex(TreeNodeIndex nodeIndex)
