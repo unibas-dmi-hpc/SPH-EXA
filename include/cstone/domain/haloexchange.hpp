@@ -44,6 +44,8 @@ void haloexchange(const SendList& incomingHalos,
                   const SendList& outgoingHalos,
                   Arrays... arrays)
 {
+    using IndexType = SendManifest::IndexType;
+
     constexpr int nArrays = sizeof...(Arrays);
     std::array<T*, nArrays> data{arrays...};
 
@@ -52,18 +54,18 @@ void haloexchange(const SendList& incomingHalos,
 
     for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
     {
-        int sendCount = outgoingHalos[destinationRank].totalCount();
+        IndexType sendCount = outgoingHalos[destinationRank].totalCount();
         if (sendCount == 0)
             continue;
 
         std::vector<T> buffer(sendCount * nArrays);
         for (int arrayIndex = 0; arrayIndex < nArrays; ++arrayIndex)
         {
-            int outputOffset = sendCount * arrayIndex;
+            IndexType outputOffset = sendCount * arrayIndex;
             for (std::size_t rangeIdx = 0; rangeIdx < outgoingHalos[destinationRank].nRanges(); ++rangeIdx)
             {
-                int lowerIndex = outgoingHalos[destinationRank].rangeStart(rangeIdx);
-                int upperIndex = outgoingHalos[destinationRank].rangeEnd(rangeIdx);
+                IndexType lowerIndex = outgoingHalos[destinationRank].rangeStart(rangeIdx);
+                IndexType upperIndex = outgoingHalos[destinationRank].rangeEnd(rangeIdx);
 
                 std::copy(data[arrayIndex]+lowerIndex, data[arrayIndex]+upperIndex,
                           buffer.data() + outputOffset);
@@ -76,12 +78,12 @@ void haloexchange(const SendList& incomingHalos,
     }
 
     int nMessages = 0;
-    int maxReceiveSize = 0;
+    std::size_t maxReceiveSize = 0;
     for (std::size_t sourceRank = 0; sourceRank < incomingHalos.size(); ++sourceRank)
         if (incomingHalos[sourceRank].totalCount() > 0)
         {
             nMessages++;
-            maxReceiveSize = std::max(maxReceiveSize, (int)incomingHalos[sourceRank].totalCount());
+            maxReceiveSize = std::max(maxReceiveSize, incomingHalos[sourceRank].totalCount());
         }
 
     std::vector<T> receiveBuffer(maxReceiveSize * nArrays);
@@ -91,15 +93,15 @@ void haloexchange(const SendList& incomingHalos,
         MPI_Status status;
         mpiRecvSync(receiveBuffer.data(), receiveBuffer.size(), MPI_ANY_SOURCE, 0, &status);
         int receiveRank = status.MPI_SOURCE;
-        int countPerArray = incomingHalos[receiveRank].totalCount();
+        size_t countPerArray = incomingHalos[receiveRank].totalCount();
 
         for (int arrayIndex = 0; arrayIndex < nArrays; ++arrayIndex)
         {
-            int inputOffset = countPerArray * arrayIndex;
+            size_t inputOffset = countPerArray * arrayIndex;
             for (std::size_t rangeIdx = 0; rangeIdx < incomingHalos[receiveRank].nRanges(); ++rangeIdx)
             {
-                int offset = incomingHalos[receiveRank].rangeStart(rangeIdx);
-                int count  = incomingHalos[receiveRank].count(rangeIdx);
+                IndexType offset = incomingHalos[receiveRank].rangeStart(rangeIdx);
+                size_t count     = incomingHalos[receiveRank].count(rangeIdx);
 
                 std::copy(receiveBuffer.data() + inputOffset, receiveBuffer.data() + inputOffset + count,
                           data[arrayIndex]+offset);
@@ -113,7 +115,7 @@ void haloexchange(const SendList& incomingHalos,
     if (not sendRequests.empty())
     {
         MPI_Status status[sendRequests.size()];
-        MPI_Waitall(sendRequests.size(), sendRequests.data(), status);
+        MPI_Waitall(int(sendRequests.size()), sendRequests.data(), status);
     }
 
     // prevent rank from sending further messages with tag 0 while other ranks
