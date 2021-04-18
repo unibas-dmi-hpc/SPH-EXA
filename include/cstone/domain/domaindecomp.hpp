@@ -161,9 +161,6 @@ public:
 
     [[nodiscard]] I rangeEnd(int rank, int rangeIdx) const { return rankAssignment_[rank].rangeEnd(rangeIdx); }
 
-    //! @brief the number of particles in range rangeIdx of rank @p rank
-    [[nodiscard]] const std::size_t& count(int rank, int rangeIdx) const { return rankAssignment_[rank].count(rangeIdx); }
-
     //! @brief the sum of number of particles in all ranges, i.e. total number of assigned particles per range
     [[nodiscard]] const std::size_t& totalCount(int rank) const { return rankAssignment_[rank].totalCount(); }
 

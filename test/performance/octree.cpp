@@ -79,10 +79,11 @@ void halo_discovery(Box<double> box, const std::vector<I>& tree, const std::vect
     SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree, counts, nSplits);
     std::vector<float> haloRadii(nNodes(tree), 0.01);
 
-    std::vector<pair<int>> haloPairs;
+    std::vector<pair<TreeNodeIndex>> haloPairs;
     int doSplit = 0;
     auto tp0  = std::chrono::high_resolution_clock::now();
-    findHalos(tree, haloRadii, box, assignment, doSplit, haloPairs);
+    TreeNodeIndex upperNode = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeEnd(doSplit, 0)) - begin(tree);
+    findHalos(tree, haloRadii, box, 0, upperNode, haloPairs);
     auto tp1  = std::chrono::high_resolution_clock::now();
 
     double t2 = std::chrono::duration<double>(tp1 - tp0).count();
