@@ -218,28 +218,28 @@ public:
 
         // find outgoing and incoming halo nodes of the tree
         // uses 3D collision detection
-        std::vector<pair<int>> haloPairs;
+        std::vector<pair<TreeNodeIndex>> haloPairs;
         findHalos(tree_, haloRadii, box_, assignment, myRank_, haloPairs);
 
         // group outgoing and incoming halo node indices by destination/source rank
-        std::vector<std::vector<int>> incomingHaloNodes;
-        std::vector<std::vector<int>> outgoingHaloNodes;
+        std::vector<std::vector<TreeNodeIndex>> incomingHaloNodes;
+        std::vector<std::vector<TreeNodeIndex>> outgoingHaloNodes;
         computeSendRecvNodeList(tree_, assignment, haloPairs, incomingHaloNodes, outgoingHaloNodes);
 
         // compute list of local node index ranges
-        std::vector<int> incomingHalosFlattened = flattenNodeList(incomingHaloNodes);
-        std::vector<int> localNodeRanges        = computeLocalNodeRanges(tree_, assignment, myRank_);
+        std::vector<TreeNodeIndex> incomingHalosFlattened = flattenNodeList(incomingHaloNodes);
+        std::vector<TreeNodeIndex> localNodeRanges        = computeLocalNodeRanges(tree_, assignment, myRank_);
 
         // Put all local node indices and incoming halo node indices in one sorted list.
         // and compute an offset for each node into these arrays.
         // This will be the new layout for x,y,z,h arrays.
-        std::vector<int> presentNodes;
+        std::vector<TreeNodeIndex> presentNodes;
         std::vector<LocalIndex> nodeOffsets;
         computeLayoutOffsets(localNodeRanges, incomingHalosFlattened, nodeCounts_, presentNodes, nodeOffsets);
         localNParticles_ = *nodeOffsets.rbegin();
 
-        int firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), localNodeRanges[0])
-                             - begin(presentNodes);
+        TreeNodeIndex firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), localNodeRanges[0])
+                                       - begin(presentNodes);
 
         LocalIndex newParticleStart = nodeOffsets[firstLocalNode];
         LocalIndex newParticleEnd   = newParticleStart + newNParticlesAssigned;
