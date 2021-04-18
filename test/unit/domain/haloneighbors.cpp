@@ -196,25 +196,26 @@ void randomGaussianHaloNeighbors(bool usePbc)
 
     // find halos for rank 0
     int myRank = 0;
-    std::vector<pair<int>> haloPairs;
+    std::vector<pair<TreeNodeIndex>> haloPairs;
 
     //Box<T> box2{-1, 1};
-    findHalos(tree, hNode, box, assignment, myRank, haloPairs);
+    TreeNodeIndex upperNode = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeEnd(myRank, 0)) - begin(tree);
+    findHalos(tree, hNode, box, 0, upperNode, haloPairs);
 
     // group outgoing and incoming halo node indices by destination/source rank
-    std::vector<std::vector<int>> incomingHaloNodes;
-    std::vector<std::vector<int>> outgoingHaloNodes;
+    std::vector<std::vector<TreeNodeIndex>> incomingHaloNodes;
+    std::vector<std::vector<TreeNodeIndex>> outgoingHaloNodes;
     computeSendRecvNodeList(tree, assignment, haloPairs, incomingHaloNodes, outgoingHaloNodes);
 
     // compute list of local node index ranges
-    std::vector<int> incomingHalosFlattened = flattenNodeList(incomingHaloNodes);
-    std::vector<int> localNodeRanges        = computeLocalNodeRanges(tree, assignment, myRank);
+    std::vector<TreeNodeIndex> incomingHalosFlattened = flattenNodeList(incomingHaloNodes);
+    std::vector<TreeNodeIndex> localNodeRanges        = computeLocalNodeRanges(tree, assignment, myRank);
 
-    std::vector<int> presentNodes;
-    std::vector<int> nodeOffsets;
+    std::vector<TreeNodeIndex> presentNodes;
+    std::vector<TreeNodeIndex> nodeOffsets;
     computeLayoutOffsets(localNodeRanges, incomingHalosFlattened, counts, presentNodes, nodeOffsets);
 
-    int firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), localNodeRanges[0])
+    TreeNodeIndex firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), localNodeRanges[0])
                          - begin(presentNodes);
 
     int newParticleStart = nodeOffsets[firstLocalNode];

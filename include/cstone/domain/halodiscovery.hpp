@@ -68,71 +68,65 @@ namespace cstone
  * pair element must be sent to.
  */
 template<class CoordinateType, class RadiusType, class I>
-void findHalos(const std::vector<I>&           tree,
-               const std::vector<RadiusType>&  interactionRadii,
-               const Box<CoordinateType>&      box,
-               const SpaceCurveAssignment<I>&  assignment,
-               int                             rank,
-               std::vector<pair<int>>&         haloPairs)
+void findHalos(const std::vector<I>&             tree,
+               const std::vector<RadiusType>&    interactionRadii,
+               const Box<CoordinateType>&        box,
+               TreeNodeIndex                     firstNode,
+               TreeNodeIndex                     lastNode,
+               std::vector<pair<TreeNodeIndex>>& haloPairs)
 {
     std::vector<BinaryNode<I>> internalTree(nNodes(tree));
     createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
 
-    // go through all ranges assigned to rank
-    for (std::size_t range = 0; range < assignment.nRanges(rank); ++range)
+    I lowestCode  = tree[firstNode];
+    I highestCode = tree[lastNode];
+
+    #pragma omp parallel
     {
-        TreeNodeIndex firstNode = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeStart(rank, range)) - begin(tree);
-        TreeNodeIndex lastNode  = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeEnd(rank, range)) - begin(tree);
+        std::vector<pair<int>> threadHaloPairs;
 
-        #pragma omp parallel
+        // loop over all the nodes in range
+        #pragma omp for
+        for (TreeNodeIndex nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
         {
-            std::vector<pair<int>> threadHaloPairs;
+            CollisionList collisions;
+            RadiusType radius = interactionRadii[nodeIdx];
 
-            // loop over all the nodes in range
-            #pragma omp for
-            for (TreeNodeIndex nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
+            IBox haloBox = makeHaloBox(tree[nodeIdx], tree[nodeIdx + 1], radius, box);
+
+            // if the halo box is fully inside the assigned SFC range, we skip collision detection
+            if (containedIn(lowestCode, highestCode, haloBox))
             {
-                CollisionList collisions;
-                RadiusType radius = interactionRadii[nodeIdx];
+                continue;
+            }
 
-                IBox haloBox = makeHaloBox(tree[nodeIdx], tree[nodeIdx + 1], radius, box);
+            // find out with which other nodes in the octree that the node at nodeIdx
+            // enlarged by the halo radius collides with
+            findCollisions(internalTree.data(), tree.data(), collisions, haloBox, {lowestCode, highestCode});
 
-                // if the halo box is fully inside the assigned SFC range, we skip collision detection
-                if (containedIn(assignment.rangeStart(rank, range),
-                                assignment.rangeEnd(rank, range), haloBox))
+            if (collisions.exhausted()) throw std::runtime_error("collision list exhausted\n");
+
+            // collisions now has all nodes that collide with the haloBox around the node at tree[nodeIdx]
+            // we only mark those nodes in collisions as halos if their haloBox collides with tree[nodeIdx]
+            // i.e. we make sure that the local node (nodeIdx) is also a halo of the remote node
+            for (std::size_t i = 0; i < collisions.size(); ++i)
+            {
+                TreeNodeIndex collidingNodeIdx = collisions[i];
+
+                I collidingNodeStart = tree[collidingNodeIdx];
+                I collidingNodeEnd   = tree[collidingNodeIdx + 1];
+
+                IBox remoteNodeBox = makeHaloBox(collidingNodeStart, collidingNodeEnd,
+                                                 interactionRadii[collidingNodeIdx], box);
+                if (overlap(tree[nodeIdx], tree[nodeIdx + 1], remoteNodeBox))
                 {
-                    continue;
-                }
-
-                // find out with which other nodes in the octree that the node at nodeIdx
-                // enlarged by the halo radius collides with
-                findCollisions(internalTree.data(), tree.data(), collisions, haloBox,
-                               {assignment.rangeStart(rank, range), assignment.rangeEnd(rank, range)});
-
-                if (collisions.exhausted()) throw std::runtime_error("collision list exhausted\n");
-
-                // collisions now has all nodes that collide with the haloBox around the node at tree[nodeIdx]
-                // we only mark those nodes in collisions as halos if their haloBox collides with tree[nodeIdx]
-                // i.e. we make sure that the local node (nodeIdx) is also a halo of the remote node
-                for (std::size_t i = 0; i < collisions.size(); ++i)
-                {
-                    TreeNodeIndex collidingNodeIdx = collisions[i];
-
-                    I collidingNodeStart = tree[collidingNodeIdx];
-                    I collidingNodeEnd   = tree[collidingNodeIdx + 1];
-
-                    IBox remoteNodeBox = makeHaloBox(collidingNodeStart, collidingNodeEnd,
-                                                     interactionRadii[collidingNodeIdx], box);
-                    if (overlap(tree[nodeIdx], tree[nodeIdx + 1], remoteNodeBox))
-                    {
-                        threadHaloPairs.emplace_back(nodeIdx, collidingNodeIdx);
-                    }
+                    threadHaloPairs.emplace_back(nodeIdx, collidingNodeIdx);
                 }
             }
-            #pragma omp critical
-            {
-                std::copy(begin(threadHaloPairs), end(threadHaloPairs), std::back_inserter(haloPairs));
-            }
+        }
+        #pragma omp critical
+        {
+            std::copy(begin(threadHaloPairs), end(threadHaloPairs), std::back_inserter(haloPairs));
         }
     }
 }

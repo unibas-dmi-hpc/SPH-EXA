@@ -219,7 +219,11 @@ public:
         // find outgoing and incoming halo nodes of the tree
         // uses 3D collision detection
         std::vector<pair<TreeNodeIndex>> haloPairs;
-        findHalos(tree_, haloRadii, box_, assignment, myRank_, haloPairs);
+        {
+            TreeNodeIndex firstNode = std::lower_bound(cbegin(tree_), cend(tree_), assignment.rangeStart(myRank_, 0)) - begin(tree_);
+            TreeNodeIndex lastNode  = std::lower_bound(cbegin(tree_), cend(tree_), assignment.rangeEnd(myRank_, 0)) - begin(tree_);
+            findHalos(tree_, haloRadii, box_, firstNode, lastNode, haloPairs);
+        }
 
         // group outgoing and incoming halo node indices by destination/source rank
         std::vector<std::vector<TreeNodeIndex>> incomingHaloNodes;

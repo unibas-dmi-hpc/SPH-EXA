@@ -56,11 +56,6 @@ void findHalos()
     // a tree with 4 subdivisions along each dimension, 64 nodes
     std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
 
-    // two domains
-    SpaceCurveAssignment<I> assignment(2);
-    assignment.addRange(Rank(0), tree[0], tree[32], 64);
-    assignment.addRange(Rank(1), tree[32], tree[64], 64);
-
     Box<double> box(0, 1);
 
     // size of one node is 0.25^3
@@ -80,7 +75,7 @@ void findHalos()
 
     {
         std::vector<pair<int>> testPairs0;
-        findHalos(tree, interactionRadii, box, assignment, 0, testPairs0);
+        findHalos(tree, interactionRadii, box, 0, 32, testPairs0);
         std::sort(begin(testPairs0), end(testPairs0));
 
         EXPECT_EQ(testPairs0.size(), 100);
@@ -94,7 +89,7 @@ void findHalos()
 
     {
         std::vector<pair<int>> testPairs1;
-        findHalos(tree, interactionRadii, box, assignment, 1, testPairs1);
+        findHalos(tree, interactionRadii, box, 32, 64, testPairs1);
         std::sort(begin(testPairs1), end(testPairs1));
         EXPECT_EQ(testPairs1.size(), 100);
         EXPECT_EQ(testPairs1, refPairs1);
@@ -181,7 +176,7 @@ void findHalosPbc()
     {
         int rank = 0;
         std::vector<pair<int>> haloPairs;
-        findHalos(tree, interactionRadii, box, assignment, rank, haloPairs);
+        findHalos(tree, interactionRadii, box, 0, 32, haloPairs);
 
         std::vector<std::vector<int>> incomingHalos;
         std::vector<std::vector<int>> outgoingHalos;
@@ -197,7 +192,7 @@ void findHalosPbc()
     {
         int rank = 1;
         std::vector<pair<int>> haloPairs;
-        findHalos(tree, interactionRadii, box, assignment, rank, haloPairs);
+        findHalos(tree, interactionRadii, box, 32, 64, haloPairs);
 
         std::vector<std::vector<int>> incomingHalos;
         std::vector<std::vector<int>> outgoingHalos;
