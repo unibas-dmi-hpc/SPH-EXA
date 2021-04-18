@@ -92,18 +92,18 @@ public:
         totalCount_ += cnt;
     }
 
-    [[nodiscard]] I rangeStart(int i) const
+    [[nodiscard]] I rangeStart(size_t i) const
     {
         return ranges_[i].start;
     }
 
-    [[nodiscard]] I rangeEnd(int i) const
+    [[nodiscard]] I rangeEnd(size_t i) const
     {
         return ranges_[i].end;
     }
 
     //! @brief the number of particles in range i
-    [[nodiscard]] const std::size_t& count(int i) const { return ranges_[i].count; }
+    [[nodiscard]] const std::size_t& count(size_t i) const { return ranges_[i].count; }
 
     //! @brief the sum of number of particles in all ranges or total send count
     [[nodiscard]] const std::size_t& totalCount() const { return totalCount_; }
@@ -199,7 +199,7 @@ class SfcLookupKey
 public:
     explicit SfcLookupKey(const SpaceCurveAssignment<I>& sfc)
     {
-        for (std::size_t rank = 0; rank < sfc.nRanks(); ++rank)
+        for (int rank = 0; rank < int(sfc.nRanks()); ++rank)
         {
             for (std::size_t range = 0; range < sfc.nRanges(rank); ++range)
             {
@@ -347,7 +347,7 @@ void extractRange(const SendManifest& manifest, const T* source, const IndexType
 {
     int idx = 0;
     for (std::size_t rangeIndex = 0; rangeIndex < manifest.nRanges(); ++rangeIndex)
-        for (int i = manifest.rangeStart(rangeIndex); i < manifest.rangeEnd(rangeIndex); ++i)
+        for (IndexType i = manifest.rangeStart(rangeIndex); i < manifest.rangeEnd(rangeIndex); ++i)
             destination[idx++] = source[ordering[i]];
 }
 
@@ -364,7 +364,7 @@ template<class T, class IndexType>
 std::vector<T> createSendBuffer(const SendManifest& manifest, const T* source,
                                 const IndexType* ordering)
 {
-    int sendSize = manifest.totalCount();
+    IndexType sendSize = manifest.totalCount();
 
     std::vector<T> sendBuffer(sendSize);
     extractRange(manifest, source, ordering, sendBuffer.data());

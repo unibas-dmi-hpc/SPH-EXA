@@ -47,7 +47,7 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, std::size_t n
     std::array<T*, nArrays> sourceArrays{ (arrays + inputOffset)... };
     std::array<T*, nArrays> destinationArrays{ (arrays + outputOffset)... };
 
-    int nRanks = sendList.size();
+    int nRanks = int(sendList.size());
 
     std::vector<std::vector<T>> sendBuffers;
     sendBuffers.reserve(nArrays * (nRanks-1));
@@ -103,7 +103,7 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, std::size_t n
     if (not sendRequests.empty())
     {
         MPI_Status status[sendRequests.size()];
-        MPI_Waitall(sendRequests.size(), sendRequests.data(), status);
+        MPI_Waitall(int(sendRequests.size()), sendRequests.data(), status);
     }
 
     // If this process is going to send messages with rank/tag combinations
@@ -126,7 +126,7 @@ void reallocate(std::size_t size, Arrays&... arrays)
     if (size > current_capacity)
     {
         // limit reallocation growth to 5% instead of 200%
-        size_t reserve_size = double(size) * 1.05;
+        auto reserve_size = static_cast<size_t>(double(size) * 1.05);
         for (auto array : data)
         {
             array->reserve(reserve_size);
