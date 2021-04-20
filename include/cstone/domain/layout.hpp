@@ -115,10 +115,10 @@ static std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& gro
  *                                indicating its position in the particle x,y,z,... buffers
  */
 template<class IndexType>
-static void computeLayoutOffsets(const std::vector<int>& localNodeRanges,
-                                 const std::vector<int>& haloNodes,
+static void computeLayoutOffsets(const std::vector<TreeNodeIndex>& localNodeRanges,
+                                 const std::vector<TreeNodeIndex>& haloNodes,
                                  const std::vector<unsigned>& globalNodeCounts,
-                                 std::vector<int>& presentNodes,
+                                 std::vector<TreeNodeIndex>& presentNodes,
                                  std::vector<IndexType>& offsets)
 {
     // add all halo nodes to present
@@ -127,65 +127,57 @@ static void computeLayoutOffsets(const std::vector<int>& localNodeRanges,
     // add all local nodes to presentNodes
     for (std::size_t rangeIndex = 0; rangeIndex < localNodeRanges.size(); rangeIndex += 2)
     {
-        int lower = localNodeRanges[rangeIndex];
-        int upper = localNodeRanges[rangeIndex+1];
-        for (int i = lower; i < upper; ++i)
+        TreeNodeIndex lower = localNodeRanges[rangeIndex];
+        TreeNodeIndex upper = localNodeRanges[rangeIndex+1];
+        for (TreeNodeIndex i = lower; i < upper; ++i)
             presentNodes.push_back(i);
     }
 
     std::sort(begin(presentNodes), end(presentNodes));
 
     // an extract of globalNodeCounts, containing only nodes listed in localNodes and incomingHalos
-    std::vector<int> nodeCounts(presentNodes.size());
+    std::vector<unsigned> nodeCounts(presentNodes.size());
 
     // extract particle count information for all nodes in nodeList
     for (std::size_t i = 0; i < presentNodes.size(); ++i)
     {
-        int globalNodeIndex = presentNodes[i];
-        nodeCounts[i]       = globalNodeCounts[globalNodeIndex];
+        TreeNodeIndex globalNodeIndex = presentNodes[i];
+        nodeCounts[i]                 = globalNodeCounts[globalNodeIndex];
     }
 
-    offsets.resize(presentNodes.size() + 1);
-    {
-        IndexType offset = 0;
-        for (std::size_t i = 0; i < presentNodes.size(); ++i)
-        {
-            offsets[i] = offset;
-            offset += nodeCounts[i];
-        }
-        // the last element stores the total size of the layout
-        offsets[presentNodes.size()] = offset;
-    }
+    offsets.resize(nodeCounts.size() + 1);
+    stl::exclusive_scan(nodeCounts.begin(), nodeCounts.end(), offsets.begin(), 0);
+    offsets.back() = offsets[nodeCounts.size()-1] + nodeCounts.back();
 }
 
 
 /*! @brief translate global node indices involved in halo exchange to array ranges
  *
- * @param outgoingHaloNodes   For each rank, a list of global node indices to send or receive.
- *                            Each node referenced in these lists must be contained in
- *                            @p presentNodes.
- * @param presentNodes        Sorted unique list of global node indices present on the
- *                            executing rank
- * @param nodeOffsets         nodeOffset[i] stores the location of the node presentNodes[i]
- *                            in the particle arrays. nodeOffset[presentNodes.size()] stores
- *                            the total size of the particle arrays on the executing rank.
- *                            Size is presentNodes.size() + 1
- * @return                    For each rank, the returned sendList has one or multiple ranges of indices
- *                            of local particle arrays to send or receive.
+ * @param haloNodeIndices   For each rank, a list of global node indices to send or receive.
+ *                          Each node referenced in these lists must be contained in
+ *                          @p presentNodes.
+ * @param presentNodes      Sorted unique list of global node indices present on the
+ *                          executing rank
+ * @param nodeOffsets       nodeOffset[i] stores the location of the node presentNodes[i]
+ *                          in the particle arrays. nodeOffset[presentNodes.size()] stores
+ *                          the total size of the particle arrays on the executing rank.
+ *                          Size is presentNodes.size() + 1
+ * @return                  For each rank, the returned sendList has one or multiple ranges of indices
+ *                          of local particle arrays to send or receive.
  */
 template<class IndexType>
-static SendList createHaloExchangeList(const std::vector<std::vector<int>>& outgoingHaloNodes,
-                                       const std::vector<int>& presentNodes,
+static SendList createHaloExchangeList(const std::vector<std::vector<TreeNodeIndex>>& haloNodeIndices,
+                                       const std::vector<TreeNodeIndex>& presentNodes,
                                        const std::vector<IndexType>& nodeOffsets)
 {
-    SendList sendList(outgoingHaloNodes.size());
+    SendList sendList(haloNodeIndices.size());
 
     for (std::size_t rank = 0; rank < sendList.size(); ++rank)
     {
-        for (int globalNodeIndex : outgoingHaloNodes[rank])
+        for (TreeNodeIndex globalNodeIndex : haloNodeIndices[rank])
         {
-            int localNodeIndex = std::lower_bound(begin(presentNodes), end(presentNodes), globalNodeIndex)
-                                - begin(presentNodes);
+            TreeNodeIndex localNodeIndex = std::lower_bound(begin(presentNodes), end(presentNodes), globalNodeIndex)
+                                            - begin(presentNodes);
 
             sendList[rank].addRange(nodeOffsets[localNodeIndex], nodeOffsets[localNodeIndex+1]);
         }
