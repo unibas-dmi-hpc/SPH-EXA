@@ -76,7 +76,7 @@ template<class I>
 void halo_discovery(Box<double> box, const std::vector<I>& tree, const std::vector<unsigned>& counts)
 {
     int nSplits = 4;
-    SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree, counts, nSplits);
+    SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, nSplits);
     std::vector<float> haloRadii(nNodes(tree), 0.01);
 
     std::vector<pair<TreeNodeIndex>> haloPairs;

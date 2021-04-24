@@ -48,24 +48,20 @@ namespace cstone
  * @param tree                 cornerstone octree
  * @param interactionRadii     effective halo search radii per octree (leaf) node
  * @param box                  coordinate bounding box
- * @param assignment           list of Morton code ranges assignments per rank
- * @param rank                 compute pairs from perspective of @p rank
+ * @param firstNode            first node to consider as local
+ * @param lastNode             last node to consider as local
  * @param[out] haloPairs       output list of halo node index pairs
  * @return
  *
  * A pair of indices (i,j) in [0...nNodes(tree)], is a halo pair for rank r if
- *   - tree[i] is assigned to rank r
- *   - tree[j] is not assigned to rank r
+ *   - tree[i] is in [firstNode:lastNode]
+ *   - tree[j] is not in [firstNode:lastNode]
  *   - tree[i] enlarged by the search radius interactionRadii[i] overlaps with tree[j]
  *   - tree[j] enlarged by the search radius interactionRadii[j] overlaps with tree[i]
  *
  * This means that the first element in each index pair in @p haloPairs is the index of a
- * node (in @p tree) that belongs to rank @p rank and must be sent out to another rank.
- *
- * The second element of each pair is the index of a remote node that is a halo for rank @p rank.
- * We can easily find the source rank of the halo with binary search in the space curve assignment.
- * The source rank of the halo is also the destination where the internal node referenced in the first
- * pair element must be sent to.
+ * node (in @p tree) that must be sent out to another rank.
+ * The second element of each pair is the index of a remote node not in [firstNode:lastNode].
  */
 template<class CoordinateType, class RadiusType, class I>
 void findHalos(const std::vector<I>&             tree,
@@ -133,8 +129,6 @@ void findHalos(const std::vector<I>&             tree,
 
 /*! @brief Compute send/receive node lists from halo pair node indices
  *
- * @tparam     I                32- or 64-bit unsigned integer
- * @param[in]  tree             cornerstone octree
  * @param[in]  assignment       stores which rank owns which part of the SFC
  * @param[in]  haloPairs        list of mutually overlapping pairs of local/remote nodes
  * @param[out] incomingNodes    sorted list of halo nodes to be received,
@@ -142,16 +136,12 @@ void findHalos(const std::vector<I>&             tree,
  * @param[out] outgoingNodes    sorted list of internal nodes to be sent,
  *                              grouped by destination rank
  */
-template<class I>
-void computeSendRecvNodeList(const std::vector<I>& tree,
-                             const SpaceCurveAssignment<I>& assignment,
+inline
+void computeSendRecvNodeList(const SpaceCurveAssignment& assignment,
                              const std::vector<pair<TreeNodeIndex>>& haloPairs,
                              std::vector<std::vector<TreeNodeIndex>>& incomingNodes,
                              std::vector<std::vector<TreeNodeIndex>>& outgoingNodes)
 {
-    // needed to efficiently look up the assigned rank of a given octree node
-    SfcLookupKey<I> sfcLookup(assignment);
-
     incomingNodes.resize(assignment.nRanks());
     outgoingNodes.resize(assignment.nRanks());
 
@@ -161,7 +151,7 @@ void computeSendRecvNodeList(const std::vector<I>& tree,
         TreeNodeIndex internalNodeIdx = p[0];
         TreeNodeIndex remoteNodeIdx   = p[1];
 
-        int remoteRank = sfcLookup.findRank(tree[remoteNodeIdx]);
+        int remoteRank = assignment.findRank(remoteNodeIdx);
 
         incomingNodes[remoteRank].push_back(remoteNodeIdx);
         outgoingNodes[remoteRank].push_back(internalNodeIdx);

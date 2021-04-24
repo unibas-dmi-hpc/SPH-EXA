@@ -55,42 +55,13 @@
 namespace cstone
 {
 
-/*! @brief  Finds the ranges of node indices of the tree that are assigned to a given rank
- *
- * @tparam I           32- or 64-bit unsigned integer
- * @param tree         global cornerstone octree
- * @param assignment   assignment of Morton code ranges to ranks
- * @param rank         extract rank's part from assignment
- * @return             ranges of node indices in @p tree that belong to rank @p rank
- */
-template<class I>
-static std::vector<int> computeLocalNodeRanges(const std::vector<I>& tree,
-                                               const SpaceCurveAssignment<I>& assignment,
-                                               int rank)
-{
-    std::vector<int> ret;
-
-    for (std::size_t rangeIndex = 0; rangeIndex < assignment.nRanges(rank); ++rangeIndex)
-    {
-        int firstNodeIndex  = std::lower_bound(begin(tree), end(tree),
-                                               assignment.rangeStart(rank, rangeIndex)) - begin(tree);
-        int secondNodeIndex = std::lower_bound(begin(tree), end(tree),
-                                               assignment.rangeEnd(rank, rangeIndex)) - begin(tree);
-
-        ret.push_back(firstNodeIndex);
-        ret.push_back(secondNodeIndex);
-    }
-
-    return ret;
-}
-
 //! @brief create a sorted list of nodes from the hierarchical per rank node list
-static std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& groupedNodes)
+inline std::vector<TreeNodeIndex> flattenNodeList(const std::vector<std::vector<TreeNodeIndex>>& groupedNodes)
 {
-    int nNodes = 0;
+    TreeNodeIndex nNodes = 0;
     for (auto& v : groupedNodes) nNodes += v.size();
 
-    std::vector<int> nodeList;
+    std::vector<TreeNodeIndex> nodeList;
     nodeList.reserve(nNodes);
 
     // add all halos to nodeList
@@ -104,7 +75,8 @@ static std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& gro
 
 /*! @brief computes the array layout for particle buffers of the executing rank
  *
- * @param[in]  localNodeRanges    Ranges of node indices, assigned to executing rank
+ * @param[in]  firstLocalNode     First tree node index assigned to executing rank
+ * @param[in]  lastLocalNode      Last tree node index assigned to executing rank
  * @param[in]  haloNodes          List of halo node indices without duplicates.
  *                                From the perspective of the
  *                                executing rank, these are incoming halo nodes.
@@ -112,10 +84,12 @@ static std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& gro
  * @param[out] presentNodes       Upon return, will contain a sorted list of global node indices
  *                                present on the executing rank
  * @param[out] offsets            Will contain an offset index for each node in @p presentNodes,
- *                                indicating its position in the particle x,y,z,... buffers
+ *                                indicating its position in the particle x,y,z,... buffers,
+ *                                length @p presentNodes.size() + 1
  */
 template<class IndexType>
-static void computeLayoutOffsets(const std::vector<TreeNodeIndex>& localNodeRanges,
+static void computeLayoutOffsets(TreeNodeIndex firstLocalNode,
+                                 TreeNodeIndex lastLocalNode,
                                  const std::vector<TreeNodeIndex>& haloNodes,
                                  const std::vector<unsigned>& globalNodeCounts,
                                  std::vector<TreeNodeIndex>& presentNodes,
@@ -124,14 +98,8 @@ static void computeLayoutOffsets(const std::vector<TreeNodeIndex>& localNodeRang
     // add all halo nodes to present
     std::copy(begin(haloNodes), end(haloNodes), std::back_inserter(presentNodes));
 
-    // add all local nodes to presentNodes
-    for (std::size_t rangeIndex = 0; rangeIndex < localNodeRanges.size(); rangeIndex += 2)
-    {
-        TreeNodeIndex lower = localNodeRanges[rangeIndex];
-        TreeNodeIndex upper = localNodeRanges[rangeIndex+1];
-        for (TreeNodeIndex i = lower; i < upper; ++i)
-            presentNodes.push_back(i);
-    }
+    for (TreeNodeIndex i = firstLocalNode; i < lastLocalNode; ++i)
+        presentNodes.push_back(i);
 
     std::sort(begin(presentNodes), end(presentNodes));
 
