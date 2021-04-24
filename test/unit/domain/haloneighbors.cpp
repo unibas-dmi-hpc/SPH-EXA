@@ -192,31 +192,29 @@ void randomGaussianHaloNeighbors(bool usePbc)
     computeHaloRadii(tree.data(), nNodes(tree), codes.data(), codes.data() + nParticles, ordering.data(),
                      h.data(), hNode.data());
 
-    SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree, counts, nRanks);
+    SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, nRanks);
 
     // find halos for rank 0
     int myRank = 0;
     std::vector<pair<TreeNodeIndex>> haloPairs;
 
-    //Box<T> box2{-1, 1};
-    TreeNodeIndex upperNode = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeEnd(myRank, 0)) - begin(tree);
-    findHalos(tree, hNode, box, 0, upperNode, haloPairs);
+    findHalos(tree, hNode, box, 0, assignment.rangeEnd(myRank, 0), haloPairs);
 
     // group outgoing and incoming halo node indices by destination/source rank
     std::vector<std::vector<TreeNodeIndex>> incomingHaloNodes;
     std::vector<std::vector<TreeNodeIndex>> outgoingHaloNodes;
-    computeSendRecvNodeList(tree, assignment, haloPairs, incomingHaloNodes, outgoingHaloNodes);
+    computeSendRecvNodeList(assignment, haloPairs, incomingHaloNodes, outgoingHaloNodes);
 
     // compute list of local node index ranges
     std::vector<TreeNodeIndex> incomingHalosFlattened = flattenNodeList(incomingHaloNodes);
-    std::vector<TreeNodeIndex> localNodeRanges        = computeLocalNodeRanges(tree, assignment, myRank);
 
     std::vector<TreeNodeIndex> presentNodes;
     std::vector<TreeNodeIndex> nodeOffsets;
-    computeLayoutOffsets(localNodeRanges, incomingHalosFlattened, counts, presentNodes, nodeOffsets);
+    computeLayoutOffsets(assignment.rangeStart(myRank, 0), assignment.rangeEnd(myRank, 0), incomingHalosFlattened,
+                         counts, presentNodes, nodeOffsets);
 
-    TreeNodeIndex firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), localNodeRanges[0])
-                         - begin(presentNodes);
+    TreeNodeIndex firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), assignment.rangeStart(myRank, 0))
+                                    - begin(presentNodes);
 
     int newParticleStart = nodeOffsets[firstLocalNode];
     int newParticleEnd   = newParticleStart + assignment.totalCount(myRank);

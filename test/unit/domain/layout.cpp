@@ -37,58 +37,24 @@
 
 using namespace cstone;
 
-template<class I>
-void computeLocalNodeRanges()
-{
-    // a tree with 4 subdivisions along each dimension, 64 nodes
-    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
-
-    // two domains
-    SpaceCurveAssignment<I> assignment(2);
-    assignment.addRange(Rank(0), tree[0], tree[32], 64);
-    assignment.addRange(Rank(1), tree[32], tree[64], 64);
-
-    {
-        int rank = 0;
-        std::vector<int> nodeIndexRanges = computeLocalNodeRanges(tree, assignment, rank);
-        std::vector<int> ref{0,32};
-        EXPECT_EQ(nodeIndexRanges, ref);
-    }
-    {
-        int rank = 1;
-        std::vector<int> nodeIndexRanges = computeLocalNodeRanges(tree, assignment, rank);
-        std::vector<int> ref{32,64};
-        EXPECT_EQ(nodeIndexRanges, ref);
-    }
-}
-
-TEST(Layout, LocalLayout)
-{
-    computeLocalNodeRanges<unsigned>();
-    computeLocalNodeRanges<uint64_t>();
-}
-
-
 TEST(Layout, flattenNodeList)
 {
-    std::vector<std::vector<int>> grouped{{0,1,2}, {3,4,5}, {6}, {}};
+    std::vector<std::vector<TreeNodeIndex>> grouped{{0,1,2}, {3,4,5}, {6}, {}};
 
-    std::vector<int> flattened = flattenNodeList(grouped);
+    std::vector<TreeNodeIndex> flattened = flattenNodeList(grouped);
 
-    std::vector<int> ref{0,1,2,3,4,5,6};
+    std::vector<TreeNodeIndex> ref{0,1,2,3,4,5,6};
     EXPECT_EQ(flattened, ref);
 }
 
-
 TEST(Layout, computeLayoutOffsets)
 {
-    int nNodes = 32;
+    std::vector<TreeNodeIndex> localNodes{4,10};
+    std::vector<TreeNodeIndex> halos{1, 3, 14, 15, 16, 21, 30};
+
+    TreeNodeIndex nNodes = 32;
     std::vector<unsigned> nodeCounts(nNodes, 1);
 
-    // nodes 4-9 and 23-27 are local nodes
-    std::vector<int> localNodes{4,10,23,28};
-
-    std::vector<int> halos{1, 3, 14, 15, 16, 21, 30};
     nodeCounts[1]  = 2;
     nodeCounts[3]  = 3;
     nodeCounts[4]  = 5;
@@ -96,27 +62,28 @@ TEST(Layout, computeLayoutOffsets)
     nodeCounts[24] = 8;
     nodeCounts[30] = 9;
 
-    std::vector<int> presentNodes, offsets;
-    computeLayoutOffsets(localNodes, halos, nodeCounts, presentNodes, offsets);
+    std::vector<TreeNodeIndex> presentNodes, offsets;
+    computeLayoutOffsets(localNodes[0], localNodes[1], halos, nodeCounts, presentNodes, offsets);
 
-    std::vector<int> refPresentNodes{1,3,4,5,6,7,8,9,14,15,16,21,23,24,25,26,27,30};
+    std::vector<int> refPresentNodes{1,3,4,5,6,7,8,9,14,15,16,21,30};
+    // counts                        2,3,5,1,1,1,1,1,1, 1, 6, 1, 9
     EXPECT_EQ(presentNodes, refPresentNodes);
 
-    std::vector<int> refOffsets{0,2,5,10,11,12,13,14,15,16,17,23,24,25,33,34,35,36,45};
+    std::vector<int> refOffsets{0,2,5,10,11,12,13,14,15,16,17,23,24,33};
     EXPECT_EQ(offsets, refOffsets);
 }
 
 TEST(Layout, createHaloExchangeList)
 {
     int nRanks = 3;
-    std::vector<std::vector<int>> outgoingHaloNodes(nRanks);
+    std::vector<std::vector<TreeNodeIndex>> outgoingHaloNodes(nRanks);
     outgoingHaloNodes[1].push_back(1);
     outgoingHaloNodes[1].push_back(10);
     outgoingHaloNodes[2].push_back(12);
     outgoingHaloNodes[2].push_back(22);
 
-    std::vector<int> presentNodes{1,2,10,12,20,22};
-    std::vector<int>      offsets{0,1,3, 6, 10,15,21};
+    std::vector<TreeNodeIndex> presentNodes{1,2,10,12,20,22};
+    std::vector<int>           offsets{0,1,3, 6, 10,15,21};
 
     SendList sendList = createHaloExchangeList(outgoingHaloNodes, presentNodes, offsets);
 

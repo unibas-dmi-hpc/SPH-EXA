@@ -206,8 +206,8 @@ public:
         }
 
         // assign one single range of Morton codes each rank
-        SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree_, nodeCounts_, nRanks_);
-        LocalIndex newNParticlesAssigned   = assignment.totalCount(myRank_);
+        SpaceCurveAssignment assignment  = singleRangeSfcSplit(nodeCounts_, nRanks_);
+        LocalIndex newNParticlesAssigned = assignment.totalCount(myRank_);
 
         // Compute the maximum smoothing length (=halo radii) in each global node.
         // Float has a 23-bit mantissa and is therefore sufficiently precise to be normalized
@@ -219,30 +219,26 @@ public:
         // find outgoing and incoming halo nodes of the tree
         // uses 3D collision detection
         std::vector<pair<TreeNodeIndex>> haloPairs;
-        {
-            TreeNodeIndex firstNode = std::lower_bound(cbegin(tree_), cend(tree_), assignment.rangeStart(myRank_, 0)) - begin(tree_);
-            TreeNodeIndex lastNode  = std::lower_bound(cbegin(tree_), cend(tree_), assignment.rangeEnd(myRank_, 0)) - begin(tree_);
-            findHalos(tree_, haloRadii, box_, firstNode, lastNode, haloPairs);
-        }
+        findHalos(tree_, haloRadii, box_, assignment.rangeStart(myRank_, 0), assignment.rangeEnd(myRank_, 0), haloPairs);
 
         // group outgoing and incoming halo node indices by destination/source rank
         std::vector<std::vector<TreeNodeIndex>> incomingHaloNodes;
         std::vector<std::vector<TreeNodeIndex>> outgoingHaloNodes;
-        computeSendRecvNodeList(tree_, assignment, haloPairs, incomingHaloNodes, outgoingHaloNodes);
+        computeSendRecvNodeList(assignment, haloPairs, incomingHaloNodes, outgoingHaloNodes);
 
         // compute list of local node index ranges
         std::vector<TreeNodeIndex> incomingHalosFlattened = flattenNodeList(incomingHaloNodes);
-        std::vector<TreeNodeIndex> localNodeRanges        = computeLocalNodeRanges(tree_, assignment, myRank_);
 
         // Put all local node indices and incoming halo node indices in one sorted list.
         // and compute an offset for each node into these arrays.
         // This will be the new layout for x,y,z,h arrays.
         std::vector<TreeNodeIndex> presentNodes;
         std::vector<LocalIndex> nodeOffsets;
-        computeLayoutOffsets(localNodeRanges, incomingHalosFlattened, nodeCounts_, presentNodes, nodeOffsets);
+        computeLayoutOffsets(assignment.rangeStart(myRank_, 0), assignment.rangeEnd(myRank_, 0),
+                             incomingHalosFlattened, nodeCounts_, presentNodes, nodeOffsets);
         localNParticles_ = *nodeOffsets.rbegin();
 
-        TreeNodeIndex firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), localNodeRanges[0])
+        TreeNodeIndex firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), assignment.rangeStart(myRank_, 0))
                                        - begin(presentNodes);
 
         LocalIndex newParticleStart = nodeOffsets[firstLocalNode];
@@ -252,7 +248,7 @@ public:
         // index ranges in domainExchangeSends are valid relative to the sorted code array mortonCodes
         // note that there is no offset applied to mortonCodes, because it was constructed
         // only with locally assigned particles
-        SendList domainExchangeSends = createSendList(assignment, codes.data(), codes.data() + nParticles);
+        SendList domainExchangeSends = createSendList(assignment, tree_, codes.data(), codes.data() + nParticles);
 
         // resize arrays to new sizes
         reallocate(localNParticles_, x,y,z,h, particleProperties...);

@@ -84,9 +84,9 @@ void globalRandomGaussian(int thisRank, int nRanks)
     // particles are in Morton order
     std::iota(begin(ordering), end(ordering), 0);
 
-    auto assignment        = singleRangeSfcSplit(tree, counts, nRanks);
-    auto sendList          = createSendList(assignment, coords.mortonCodes().data(),
-                                                    coords.mortonCodes().data() + nParticles);
+    auto assignment = singleRangeSfcSplit(counts, nRanks);
+    auto sendList   = createSendList(assignment, tree, coords.mortonCodes().data(),
+                                     coords.mortonCodes().data() + nParticles);
 
     EXPECT_EQ(std::accumulate(begin(counts), end(counts), std::size_t(0)), nParticles * nRanks);
 
@@ -119,7 +119,7 @@ void globalRandomGaussian(int thisRank, int nRanks)
     EXPECT_EQ(tree, newTree);
     EXPECT_EQ(counts, newCounts);
 
-    auto newSendList = createSendList(assignment, newCodes.data(), newCodes.data() + nParticlesAssigned);
+    auto newSendList = createSendList(assignment, newTree, newCodes.data(), newCodes.data() + nParticlesAssigned);
 
     for (int rank = 0; rank < nRanks; ++rank)
     {
