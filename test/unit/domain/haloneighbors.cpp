@@ -198,7 +198,7 @@ void randomGaussianHaloNeighbors(bool usePbc)
     int myRank = 0;
     std::vector<pair<TreeNodeIndex>> haloPairs;
 
-    findHalos(tree, hNode, box, 0, assignment.rangeEnd(myRank, 0), haloPairs);
+    findHalos(tree, hNode, box, 0, assignment.lastNodeIdx(myRank), haloPairs);
 
     // group outgoing and incoming halo node indices by destination/source rank
     std::vector<std::vector<TreeNodeIndex>> incomingHaloNodes;
@@ -210,10 +210,10 @@ void randomGaussianHaloNeighbors(bool usePbc)
 
     std::vector<TreeNodeIndex> presentNodes;
     std::vector<TreeNodeIndex> nodeOffsets;
-    computeLayoutOffsets(assignment.rangeStart(myRank, 0), assignment.rangeEnd(myRank, 0), incomingHalosFlattened,
+    computeLayoutOffsets(assignment.firstNodeIdx(myRank), assignment.lastNodeIdx(myRank), incomingHalosFlattened,
                          counts, presentNodes, nodeOffsets);
 
-    TreeNodeIndex firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), assignment.rangeStart(myRank, 0))
+    TreeNodeIndex firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), assignment.firstNodeIdx(myRank))
                                     - begin(presentNodes);
 
     int newParticleStart = nodeOffsets[firstLocalNode];
