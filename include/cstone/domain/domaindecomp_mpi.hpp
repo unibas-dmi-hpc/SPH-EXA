@@ -166,7 +166,7 @@ void reallocate(std::size_t size, Arrays&... arrays)
  *
  *  A note on the sizes of @p arrays:
  *  Let's set
- *      int nOldAssignment = the maximum of sendList[rank].rangeEnd(range) for any rank and range combination
+ *      int nOldAssignment = the maximum of sendList[rank].lastNodeIdx(range) for any rank and range combination
  *  Then inputOffset + nOldAssignment is the upper bound for read accesses in @p arrays while sending.
  *  This is assuming that ordering.size() == nOldAssignment and that ordering[i] < nOldAssignment, which
  *  is what the Morten (re)order code produces.

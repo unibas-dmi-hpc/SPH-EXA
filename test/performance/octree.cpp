@@ -82,7 +82,7 @@ void halo_discovery(Box<double> box, const std::vector<I>& tree, const std::vect
     std::vector<pair<TreeNodeIndex>> haloPairs;
     int doSplit = 0;
     auto tp0  = std::chrono::high_resolution_clock::now();
-    TreeNodeIndex upperNode = std::lower_bound(cbegin(tree), cend(tree), assignment.rangeEnd(doSplit, 0)) - begin(tree);
+    TreeNodeIndex upperNode = assignment.lastNodeIdx(doSplit);
     findHalos(tree, haloRadii, box, 0, upperNode, haloPairs);
     auto tp1  = std::chrono::high_resolution_clock::now();
 
