@@ -219,7 +219,7 @@ public:
         // find outgoing and incoming halo nodes of the tree
         // uses 3D collision detection
         std::vector<pair<TreeNodeIndex>> haloPairs;
-        findHalos(tree_, haloRadii, box_, assignment.rangeStart(myRank_, 0), assignment.rangeEnd(myRank_, 0), haloPairs);
+        findHalos(tree_, haloRadii, box_, assignment.firstNodeIdx(myRank_), assignment.lastNodeIdx(myRank_), haloPairs);
 
         // group outgoing and incoming halo node indices by destination/source rank
         std::vector<std::vector<TreeNodeIndex>> incomingHaloNodes;
@@ -234,11 +234,11 @@ public:
         // This will be the new layout for x,y,z,h arrays.
         std::vector<TreeNodeIndex> presentNodes;
         std::vector<LocalIndex> nodeOffsets;
-        computeLayoutOffsets(assignment.rangeStart(myRank_, 0), assignment.rangeEnd(myRank_, 0),
+        computeLayoutOffsets(assignment.firstNodeIdx(myRank_), assignment.lastNodeIdx(myRank_),
                              incomingHalosFlattened, nodeCounts_, presentNodes, nodeOffsets);
         localNParticles_ = *nodeOffsets.rbegin();
 
-        TreeNodeIndex firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), assignment.rangeStart(myRank_, 0))
+        TreeNodeIndex firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), assignment.firstNodeIdx(myRank_))
                                        - begin(presentNodes);
 
         LocalIndex newParticleStart = nodeOffsets[firstLocalNode];

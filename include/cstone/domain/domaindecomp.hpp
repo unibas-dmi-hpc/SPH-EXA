@@ -50,10 +50,10 @@ namespace cstone
  * @tparam I  32- or 64-bit signed or unsigned integer to store the indices
  *
  *  Used for SendRanges with index ranges referencing elements in e.g. x,y,z,h arrays.
- *  In this case, count() equals the sum of all range differences computed as rangeEnd() - rangeStart().
+ *  In this case, count() equals the sum of all range differences computed as lastNodeIdx() - firstNodeIdx().
  *
  *  Also used for SfcRanges with index ranges referencing parts of an SFC-octree with Morton codes.
- *  In that case, count() does NOT equal sum(rangeEnd(i) - rangeStart(i), i=0...nRanges)
+ *  In that case, count() does NOT equal sum(lastNodeIdx(i) - firstNodeIdx(i), i=0...nRanges)
  */
 template<class I>
 class IndexRanges
@@ -146,45 +146,46 @@ class SpaceCurveAssignment
 public:
     SpaceCurveAssignment() = default;
 
-    explicit SpaceCurveAssignment(int nRanks) : rankAssignment_(nRanks) {}
+    explicit SpaceCurveAssignment(int nRanks) : rankAssignment_(nRanks+1), counts_(nRanks+1) {}
 
     //! @brief add an index/code range to rank @p rank
     void addRange(Rank rank, TreeNodeIndex lower, TreeNodeIndex upper, std::size_t cnt)
     {
-        rankAssignment_[rank].addRange(lower, upper, cnt);
+        rankAssignment_[rank]   = lower;
+        // will be overwritten by @p lower of rank+1, except if rank == nRanks-1
+        rankAssignment_[rank+1] = upper;
+        counts_[rank]           = cnt;
     }
 
     [[nodiscard]] int nRanks() const { return int(rankAssignment_.size()); }
 
-    [[nodiscard]] TreeNodeIndex rangeStart(int rank, int rangeIdx) const
+    [[nodiscard]] TreeNodeIndex firstNodeIdx(int rank) const
     {
-        assert(rangeIdx == 0);
-        return rankAssignment_[rank].rangeStart(0);
+        return rankAssignment_[rank];
     }
 
-    [[nodiscard]] TreeNodeIndex rangeEnd(int rank, int rangeIdx) const
+    [[nodiscard]] TreeNodeIndex lastNodeIdx(int rank) const
     {
-        assert(rangeIdx == 0);
-        return rankAssignment_[rank].rangeEnd(0);
+        return rankAssignment_[rank+1];
     }
 
     [[nodiscard]] int findRank(TreeNodeIndex nodeIdx) const
     {
-        auto comp = [](TreeNodeIndex a, const IndexRanges<TreeNodeIndex>& b) { return a < b.rangeStart(0); };
-        auto it = std::upper_bound(begin(rankAssignment_), end(rankAssignment_), nodeIdx, comp);
+        auto it = std::upper_bound(begin(rankAssignment_), end(rankAssignment_), nodeIdx);
         return int(it - begin(rankAssignment_)) - 1;
     }
 
     //! @brief the sum of number of particles in all ranges, i.e. total number of assigned particles per range
-    [[nodiscard]] const std::size_t& totalCount(int rank) const { return rankAssignment_[rank].totalCount(); }
+    [[nodiscard]] const std::size_t& totalCount(int rank) const { return counts_[rank]; }
 
 private:
     friend bool operator==(const SpaceCurveAssignment& a, const SpaceCurveAssignment& b)
     {
-        return a.rankAssignment_ == b.rankAssignment_;
+        return a.rankAssignment_ == b.rankAssignment_ && a.counts_ == b.counts_;
     }
 
-    std::vector<IndexRanges<TreeNodeIndex>> rankAssignment_;
+    std::vector<TreeNodeIndex> rankAssignment_;
+    std::vector<size_t>        counts_;
 };
 
 
@@ -281,8 +282,8 @@ SendList createSendList(const SpaceCurveAssignment& assignment, const std::vecto
     {
         SendManifest& manifest = ret[rank];
 
-        I rangeStart = tree[assignment.rangeStart(rank, 0)];
-        I rangeEnd   = tree[assignment.rangeEnd(rank, 0)];
+        I rangeStart = tree[assignment.firstNodeIdx(rank)];
+        I rangeEnd   = tree[assignment.lastNodeIdx(rank)];
 
         auto lit = std::lower_bound(codesStart, codesEnd, rangeStart);
         IndexType lowerParticleIndex = std::distance(codesStart, lit);
