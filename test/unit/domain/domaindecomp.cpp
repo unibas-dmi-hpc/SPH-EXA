@@ -223,9 +223,9 @@ void createSendBuffer()
     std::iota(begin(x), end(x), 0);
 
     SendManifest manifest;
-    manifest.addRange(0, 8, 8);
-    manifest.addRange(40, 42, 2);
-    manifest.addRange(50, 50, 0);
+    manifest.addRange(0, 8);
+    manifest.addRange(40, 42);
+    manifest.addRange(50, 50);
 
     std::vector<int> ordering(bufferSize);
     std::iota(begin(ordering), end(ordering), 0);

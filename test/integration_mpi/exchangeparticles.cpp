@@ -83,7 +83,7 @@ void exchangeAllToAll(int thisRank, int nRanks)
         if (rank == nRanks - 1)
             upper += gridSize % nRanks;
 
-        sendList[rank].addRange(lower, upper, upper - lower);
+        sendList[rank].addRange(lower, upper);
     }
 
     // there's only one range per rank
@@ -143,9 +143,9 @@ void exchangeCyclicNeighbors(int thisRank, int nRanks)
 
     SendList sendList(nRanks);
     // keep all but the last nex elements
-    sendList[thisRank].addRange(0, gridSize - nex, gridSize - nex);
+    sendList[thisRank].addRange(0, gridSize - nex);
     // send last nex to nextRank
-    sendList[nextRank].addRange(gridSize - nex, gridSize, nex);
+    sendList[nextRank].addRange(gridSize - nex, gridSize);
 
     reallocate(gridSize, x, y);
     exchangeParticles<T>(sendList, Rank(thisRank), gridSize, ordering.data(), x.data(), y.data());
@@ -217,9 +217,9 @@ void exchangeCyclicNeighborsOffsets(int thisRank, int nRanks)
     // begin of the x,y arrays
     SendList sendList(nRanks);
     // keep all but the last nex elements
-    sendList[thisRank].addRange(0, assignedSize - nex, assignedSize - nex);
+    sendList[thisRank].addRange(0, assignedSize - nex);
     // send last nex to nextRank
-    sendList[nextRank].addRange(assignedSize - nex, assignedSize, nex);
+    sendList[nextRank].addRange(assignedSize - nex, assignedSize);
 
     reallocate(finalSize, x, y);
     exchangeParticles<T>(sendList, Rank(thisRank), assignedSize,

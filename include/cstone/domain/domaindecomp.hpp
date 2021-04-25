@@ -50,63 +50,38 @@ namespace cstone
  * @tparam I  32- or 64-bit signed or unsigned integer to store the indices
  *
  *  Used for SendRanges with index ranges referencing elements in e.g. x,y,z,h arrays.
- *  In this case, count() equals the sum of all range differences computed as lastNodeIdx() - firstNodeIdx().
- *
- *  Also used for SfcRanges with index ranges referencing parts of an SFC-octree with Morton codes.
- *  In that case, count() does NOT equal sum(lastNodeIdx(i) - firstNodeIdx(i), i=0...nRanges)
  */
-template<class I>
+template<class Index>
 class IndexRanges
 {
-    struct Range
-    {
-        I start;
-        I end;
-        std::size_t count;
-
-        friend bool operator==(const Range& a, const Range& b)
-        {
-            return a.start == b.start && a.end == b.end && a.count == b.count;
-        }
-    };
-
 public:
-    using IndexType = I;
+    using IndexType = Index;
 
     IndexRanges() : totalCount_(0), ranges_{} {}
 
-    //! @brief add a local index range
-    void addRange(I lower, I upper, std::size_t cnt)
-    {
-        assert(lower <= upper);
-        ranges_.push_back({lower, upper, cnt});
-        totalCount_ += cnt;
-    }
-
     //! @brief add a local index range, infer count from difference
-    void addRange(I lower, I upper)
+    void addRange(IndexType lower, IndexType upper)
     {
         assert(lower <= upper);
-        std::size_t cnt = upper - lower;
-        ranges_.push_back({lower, upper, cnt});
-        totalCount_ += cnt;
+        ranges_.emplace_back(lower, upper);
+        totalCount_ += upper - lower;
     }
 
-    [[nodiscard]] I rangeStart(size_t i) const
+    [[nodiscard]] IndexType rangeStart(size_t i) const
     {
-        return ranges_[i].start;
+        return ranges_[i][0];
     }
 
-    [[nodiscard]] I rangeEnd(size_t i) const
+    [[nodiscard]] IndexType rangeEnd(size_t i) const
     {
-        return ranges_[i].end;
+        return ranges_[i][1];
     }
 
     //! @brief the number of particles in range i
-    [[nodiscard]] const std::size_t& count(size_t i) const { return ranges_[i].count; }
+    [[nodiscard]] std::size_t count(size_t i) const { return ranges_[i][1] - ranges_[i][0]; }
 
     //! @brief the sum of number of particles in all ranges or total send count
-    [[nodiscard]] const std::size_t& totalCount() const { return totalCount_; }
+    [[nodiscard]] std::size_t totalCount() const { return totalCount_; }
 
     [[nodiscard]] std::size_t nRanges() const { return ranges_.size(); }
 
@@ -117,7 +92,7 @@ private:
     }
 
     std::size_t totalCount_;
-    std::vector<Range> ranges_;
+    std::vector<pair<IndexType>> ranges_;
 };
 
 
