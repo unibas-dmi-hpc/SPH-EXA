@@ -1,13 +1,13 @@
 
 set(UNIT_TESTS
         domain/domaindecomp.cpp
-        domain/halodiscovery.cpp
         domain/haloneighbors.cpp
         domain/layout.cpp
         findneighbors.cpp
         halos/boxoverlap.cpp
         halos/btreetraversal.cpp
         halos/btreetraversal_a2a.cpp
+        halos/discovery.cpp
         primitives/clz.cpp
         primitives/gather.cpp
         sfc/common.cpp

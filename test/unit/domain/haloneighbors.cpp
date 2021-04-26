@@ -32,7 +32,7 @@
 #include "gtest/gtest.h"
 
 #include "cstone/findneighbors.hpp"
-#include "cstone/domain/halodiscovery.hpp"
+#include "cstone/halos/discovery.hpp"
 #include "cstone/domain/layout.hpp"
 
 #include "coord_samples/random.hpp"
