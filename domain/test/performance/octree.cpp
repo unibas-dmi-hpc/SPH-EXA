@@ -76,13 +76,14 @@ template<class I>
 void halo_discovery(Box<double> box, const std::vector<I>& tree, const std::vector<unsigned>& counts)
 {
     int nSplits = 4;
-    SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree, counts, nSplits);
+    SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, nSplits);
     std::vector<float> haloRadii(nNodes(tree), 0.01);
 
-    std::vector<pair<int>> haloPairs;
+    std::vector<pair<TreeNodeIndex>> haloPairs;
     int doSplit = 0;
     auto tp0  = std::chrono::high_resolution_clock::now();
-    findHalos(tree, haloRadii, box, assignment, doSplit, haloPairs);
+    TreeNodeIndex upperNode = assignment.lastNodeIdx(doSplit);
+    findHalos(tree, haloRadii, box, 0, upperNode, haloPairs);
     auto tp1  = std::chrono::high_resolution_clock::now();
 
     double t2 = std::chrono::duration<double>(tp1 - tp0).count();

@@ -43,15 +43,13 @@ using namespace cstone;
 
 TEST(DomainDecomposition, singleRangeSfcSplit)
 {
-    using CodeType = unsigned;
     {
         int nSplits = 2;
         std::vector<unsigned> counts{5, 5, 5, 5, 5, 6};
-        std::vector<CodeType> tree{0, 1, 2, 3, 4, 5, 6};
 
-        auto splits = singleRangeSfcSplit(tree, counts, nSplits);
+        auto splits = singleRangeSfcSplit(counts, nSplits);
 
-        SpaceCurveAssignment<CodeType> ref(nSplits);
+        SpaceCurveAssignment ref(nSplits);
         ref.addRange(Rank(0),0,3,15);
         ref.addRange(Rank(1),3,6,16);
         EXPECT_EQ(ref, splits);
@@ -59,11 +57,10 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
     {
         int nSplits = 2;
         std::vector<unsigned> counts{5, 5, 5, 15, 1, 0};
-        std::vector<CodeType> tree{0, 1, 2, 3, 4, 5, 6};
 
-        auto splits = singleRangeSfcSplit(tree, counts, nSplits);
+        auto splits = singleRangeSfcSplit(counts, nSplits);
 
-        SpaceCurveAssignment<CodeType> ref(nSplits);
+        SpaceCurveAssignment ref(nSplits);
         ref.addRange(Rank(0),0,3,15);
         ref.addRange(Rank(1),3,6,16);
         EXPECT_EQ(ref, splits);
@@ -71,11 +68,10 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
     {
         int nSplits = 2;
         std::vector<unsigned> counts{15, 0, 1, 5, 5, 5};
-        std::vector<CodeType> tree{0, 1, 2, 3, 4, 5, 6};
 
-        auto splits = singleRangeSfcSplit(tree, counts, nSplits);
+        auto splits = singleRangeSfcSplit(counts, nSplits);
 
-        SpaceCurveAssignment<CodeType> ref(nSplits);
+        SpaceCurveAssignment ref(nSplits);
         ref.addRange(Rank(0),0,3,16);
         ref.addRange(Rank(1),3,6,15);
         EXPECT_EQ(ref, splits);
@@ -84,11 +80,10 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         int nSplits = 7;
         std::vector<unsigned> counts{4, 3, 4, 3, 4, 3, 4, 3, 4, 3};
         // should be grouped |4|7|3|7|4|7|3|
-        std::vector<CodeType> tree{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
 
-        auto splits = singleRangeSfcSplit(tree, counts, nSplits);
+        auto splits = singleRangeSfcSplit(counts, nSplits);
 
-        SpaceCurveAssignment<CodeType> ref(nSplits);
+        SpaceCurveAssignment ref(nSplits);
         ref.addRange(Rank(0),0,1,4);
         ref.addRange(Rank(1),1,3,7);
         ref.addRange(Rank(2),3,4,3);
@@ -101,52 +96,21 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
 }
 
 //! @brief test that the SfcLookupKey can lookup the rank for a given code
-TEST(DomainDecomposition, SfcLookupMinimal)
+TEST(DomainDecomposition, AssignmentFindRank)
 {
-    using I = unsigned;
-
     int nRanks = 4;
-    SpaceCurveAssignment<I> assignment(nRanks);
-    assignment.addRange(Rank(3), 0, 1, 1);
-    assignment.addRange(Rank(2), 3, 4, 1);
-    assignment.addRange(Rank(0), 1, 3, 1);
-    assignment.addRange(Rank(1), 4, 5, 1);
-    assignment.addRange(Rank(3), 5, 7, 1);
+    SpaceCurveAssignment assignment(nRanks);
+    assignment.addRange(Rank(0), 0, 1, 0);
+    assignment.addRange(Rank(1), 1, 3, 0);
+    assignment.addRange(Rank(2), 3, 4, 0);
+    assignment.addRange(Rank(3), 4, 5, 0);
 
-    SfcLookupKey<I> key(assignment);
-
-    EXPECT_EQ(3, key.findRank(0));
-    EXPECT_EQ(2, key.findRank(3));
-    EXPECT_EQ(0, key.findRank(1));
-    EXPECT_EQ(0, key.findRank(2));
-    EXPECT_EQ(1, key.findRank(4));
-    EXPECT_EQ(3, key.findRank(5));
-    EXPECT_EQ(3, key.findRank(6));
+    EXPECT_EQ(0, assignment.findRank(0));
+    EXPECT_EQ(1, assignment.findRank(1));
+    EXPECT_EQ(1, assignment.findRank(2));
+    EXPECT_EQ(2, assignment.findRank(3));
+    EXPECT_EQ(3, assignment.findRank(4));
 }
-
-TEST(DomainDecomposition, SfcLookupGrid)
-{
-    using I = unsigned;
-
-    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
-
-    int nRanks = 2;
-    SpaceCurveAssignment<I> assignment(nRanks);
-    assignment.addRange(Rank(0), tree[0], tree[32], 0);
-    assignment.addRange(Rank(1), tree[32], tree[64], 0);
-
-    SfcLookupKey<I> key(assignment);
-
-    for (int i = 0; i < 32; ++i)
-    {
-        EXPECT_EQ(key.findRank(tree[i]), 0);
-    }
-    for (int i = 32; i < 64; ++i)
-    {
-        EXPECT_EQ(key.findRank(tree[i]), 1);
-    }
-}
-
 
 /*! @brief test SendList creation from a SFC assignment
  *
@@ -158,28 +122,24 @@ TEST(DomainDecomposition, SfcLookupGrid)
 template<class I>
 void createSendList()
 {
-    int nParticles = 10;
-    std::vector<I> codes(nParticles);
-    std::iota(begin(codes), end(codes), 10);
+    std::vector<I> tree {0,    2,    6,  8, 10};
+    std::vector<I> codes{0,0,1,3,4,5,6,6,9};
 
     int nRanks = 2;
-    SpaceCurveAssignment<I> assignment(nRanks);
-    assignment.addRange(Rank(0),9, 11, 1);   // range lower than lowest code
-    assignment.addRange(Rank(0),13, 15, 2);
-    assignment.addRange(Rank(1),17, 1000, 2); // range bigger than highest code
+    SpaceCurveAssignment assignment(nRanks);
+    assignment.addRange(Rank(0), 0, 2, 0);
+    assignment.addRange(Rank(1), 2, 4, 0);
 
     // note: codes input needs to be sorted
-    auto sendList = createSendList(assignment, codes.data(), codes.data() + nParticles);
+    auto sendList = createSendList(assignment, tree, codes.data(), codes.data() + codes.size());
 
-    EXPECT_EQ(sendList[0].totalCount(), 3);
+    EXPECT_EQ(sendList[0].totalCount(), 6);
     EXPECT_EQ(sendList[1].totalCount(), 3);
 
-    SendList refSendList(nRanks);
-    refSendList[0].addRange(0, 1, 1);
-    refSendList[0].addRange(3, 5, 2);
-    refSendList[1].addRange(7, 10, 3);
-
-    EXPECT_EQ(refSendList, sendList);
+    EXPECT_EQ(sendList[0].rangeStart(0), 0);
+    EXPECT_EQ(sendList[0].rangeEnd(0), 6);
+    EXPECT_EQ(sendList[1].rangeStart(0), 6);
+    EXPECT_EQ(sendList[1].rangeEnd(0), 9);
 }
 
 TEST(DomainDecomposition, createSendList)
@@ -214,7 +174,7 @@ void assignSendRandomData()
                                                 bucketSize);
 
     int  nSplits    = 4;
-    auto assignment = singleRangeSfcSplit(tree, counts, nSplits);
+    auto assignment = singleRangeSfcSplit(counts, nSplits);
 
     /// all splits except the last one should at least be assigned nParticles/nSplits
     for (int rank = 0; rank < nSplits; ++rank)
@@ -226,8 +186,8 @@ void assignSendRandomData()
         EXPECT_LE(rankCount, nParticles/nSplits + bucketSize);
     }
 
-    auto sendList = createSendList(assignment, coords.mortonCodes().data(),
-                                           coords.mortonCodes().data() + nParticles);
+    auto sendList = createSendList(assignment, tree, coords.mortonCodes().data(),
+                                   coords.mortonCodes().data() + nParticles);
 
     int particleRecount = 0;
     for (auto& manifest : sendList)
@@ -263,9 +223,9 @@ void createSendBuffer()
     std::iota(begin(x), end(x), 0);
 
     SendManifest manifest;
-    manifest.addRange(0, 8, 8);
-    manifest.addRange(40, 42, 2);
-    manifest.addRange(50, 50, 0);
+    manifest.addRange(0, 8);
+    manifest.addRange(40, 42);
+    manifest.addRange(50, 50);
 
     std::vector<int> ordering(bufferSize);
     std::iota(begin(ordering), end(ordering), 0);

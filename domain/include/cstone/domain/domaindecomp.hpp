@@ -50,63 +50,38 @@ namespace cstone
  * @tparam I  32- or 64-bit signed or unsigned integer to store the indices
  *
  *  Used for SendRanges with index ranges referencing elements in e.g. x,y,z,h arrays.
- *  In this case, count() equals the sum of all range differences computed as rangeEnd() - rangeStart().
- *
- *  Also used for SfcRanges with index ranges referencing parts of an SFC-octree with Morton codes.
- *  In that case, count() does NOT equal sum(rangeEnd(i) - rangeStart(i), i=0...nRanges)
  */
-template<class I>
+template<class Index>
 class IndexRanges
 {
-    struct Range
-    {
-        I start;
-        I end;
-        std::size_t count;
-
-        friend bool operator==(const Range& a, const Range& b)
-        {
-            return a.start == b.start && a.end == b.end && a.count == b.count;
-        }
-    };
-
 public:
-    using IndexType = I;
+    using IndexType = Index;
 
     IndexRanges() : totalCount_(0), ranges_{} {}
 
-    //! @brief add a local index range
-    void addRange(I lower, I upper, std::size_t cnt)
-    {
-        assert(lower <= upper);
-        ranges_.push_back({lower, upper, cnt});
-        totalCount_ += cnt;
-    }
-
     //! @brief add a local index range, infer count from difference
-    void addRange(I lower, I upper)
+    void addRange(IndexType lower, IndexType upper)
     {
         assert(lower <= upper);
-        std::size_t cnt = upper - lower;
-        ranges_.push_back({lower, upper, cnt});
-        totalCount_ += cnt;
+        ranges_.emplace_back(lower, upper);
+        totalCount_ += upper - lower;
     }
 
-    [[nodiscard]] I rangeStart(int i) const
+    [[nodiscard]] IndexType rangeStart(size_t i) const
     {
-        return ranges_[i].start;
+        return ranges_[i][0];
     }
 
-    [[nodiscard]] I rangeEnd(int i) const
+    [[nodiscard]] IndexType rangeEnd(size_t i) const
     {
-        return ranges_[i].end;
+        return ranges_[i][1];
     }
 
     //! @brief the number of particles in range i
-    [[nodiscard]] const std::size_t& count(int i) const { return ranges_[i].count; }
+    [[nodiscard]] std::size_t count(size_t i) const { return ranges_[i][1] - ranges_[i][0]; }
 
     //! @brief the sum of number of particles in all ranges or total send count
-    [[nodiscard]] const std::size_t& totalCount() const { return totalCount_; }
+    [[nodiscard]] std::size_t totalCount() const { return totalCount_; }
 
     [[nodiscard]] std::size_t nRanges() const { return ranges_.size(); }
 
@@ -117,7 +92,7 @@ private:
     }
 
     std::size_t totalCount_;
-    std::vector<Range> ranges_;
+    std::vector<pair<IndexType>> ranges_;
 };
 
 
@@ -141,98 +116,56 @@ using Rank = StrongType<int, struct RankTag>;
  * Note: Assignment of SFC ranges to ranks should be unique, each SFC range should only
  * be assigned to one rank. This is NOT checked.
  */
-template<class I>
 class SpaceCurveAssignment
 {
 public:
     SpaceCurveAssignment() = default;
 
-    explicit SpaceCurveAssignment(int nRanks) : rankAssignment_(nRanks) {}
+    explicit SpaceCurveAssignment(int nRanks) : rankAssignment_(nRanks+1), counts_(nRanks+1) {}
 
     //! @brief add an index/code range to rank @p rank
-    void addRange(Rank rank, I lower, I upper, std::size_t cnt)
+    void addRange(Rank rank, TreeNodeIndex lower, TreeNodeIndex upper, std::size_t cnt)
     {
-        rankAssignment_[rank].addRange(lower, upper, cnt);
+        rankAssignment_[rank]   = lower;
+        // will be overwritten by @p lower of rank+1, except if rank == nRanks-1
+        rankAssignment_[rank+1] = upper;
+        counts_[rank]           = cnt;
     }
 
-    [[nodiscard]] std::size_t nRanks() const { return rankAssignment_.size(); }
+    [[nodiscard]] int nRanks() const { return int(rankAssignment_.size()); }
 
-    [[nodiscard]] I rangeStart(int rank, int rangeIdx) const { return rankAssignment_[rank].rangeStart(rangeIdx); }
+    [[nodiscard]] TreeNodeIndex firstNodeIdx(int rank) const
+    {
+        return rankAssignment_[rank];
+    }
 
-    [[nodiscard]] I rangeEnd(int rank, int rangeIdx) const { return rankAssignment_[rank].rangeEnd(rangeIdx); }
+    [[nodiscard]] TreeNodeIndex lastNodeIdx(int rank) const
+    {
+        return rankAssignment_[rank+1];
+    }
 
-    //! @brief the number of particles in range rangeIdx of rank @p rank
-    [[nodiscard]] const std::size_t& count(int rank, int rangeIdx) const { return rankAssignment_[rank].count(rangeIdx); }
+    [[nodiscard]] int findRank(TreeNodeIndex nodeIdx) const
+    {
+        auto it = std::upper_bound(begin(rankAssignment_), end(rankAssignment_), nodeIdx);
+        return int(it - begin(rankAssignment_)) - 1;
+    }
 
     //! @brief the sum of number of particles in all ranges, i.e. total number of assigned particles per range
-    [[nodiscard]] const std::size_t& totalCount(int rank) const { return rankAssignment_[rank].totalCount(); }
-
-    //! @brief number of ranges per rank
-    [[nodiscard]] std::size_t nRanges(int rank) const { return rankAssignment_[rank].nRanges(); }
+    [[nodiscard]] const std::size_t& totalCount(int rank) const { return counts_[rank]; }
 
 private:
     friend bool operator==(const SpaceCurveAssignment& a, const SpaceCurveAssignment& b)
     {
-        return a.rankAssignment_ == b.rankAssignment_;
+        return a.rankAssignment_ == b.rankAssignment_ && a.counts_ == b.counts_;
     }
 
-    std::vector<IndexRanges<I>> rankAssignment_;
-};
-
-
-/*! @brief Stores the SFC assignment to ranks on a per-code basis
- *
- * @tparam I  32- or 64-bit unsigned integer
- *
- * The stored information is the same as the SpaceCurveAssignment, but
- * in a different layout that allows a fast lookup of the rank that a given
- * Morton code is assigned. Since this kind of lookup is only needed after the
- * SFC has been assigned, this class is non-modifiable after construction.
- *
- * Note: Construction assumes that the provided SpaceCurveAssignment only
- * contains unique assignments where each SFC range is only assigned to a single rank.
- * This is NOT checked.
- */
-template<class I>
-class SfcLookupKey
-{
-public:
-    explicit SfcLookupKey(const SpaceCurveAssignment<I>& sfc)
-    {
-        for (std::size_t rank = 0; rank < sfc.nRanks(); ++rank)
-        {
-            for (std::size_t range = 0; range < sfc.nRanges(rank); ++range)
-            {
-                ranks_.push_back(rank);
-                rangeCodeStarts_.push_back(sfc.rangeStart(rank, range));
-            }
-        }
-
-        std::vector<int> order(rangeCodeStarts_.size());
-        std::iota(begin(order), end(order), 0);
-        sort_by_key(begin(rangeCodeStarts_), end(rangeCodeStarts_), begin(order));
-        reorder(order, ranks_);
-    }
-
-    //! @brief returns the rank that the argument code is assigned to
-    int findRank(I code)
-    {
-        int index = std::upper_bound(begin(rangeCodeStarts_), end(rangeCodeStarts_), code)
-                    - begin(rangeCodeStarts_);
-
-        return ranks_[index-1];
-    }
-
-private:
-    std::vector<I>   rangeCodeStarts_;
-    std::vector<int> ranks_;
+    std::vector<TreeNodeIndex> rankAssignment_;
+    std::vector<size_t>        counts_;
 };
 
 
 /*! @brief assign the global tree/SFC to nSplits ranks, assigning to each rank only a single Morton code range
  *
- * @tparam I                 32- or 64-bit integer
- * @param globalTree         the octree
  * @param globalCounts       counts per leaf
  * @param nSplits            divide the global tree into nSplits pieces, sensible choice e.g.: nSplits == nRanks
  * @return                   a vector with nSplit elements, each element is a vector of SfcRanges of Morton codes
@@ -242,12 +175,11 @@ private:
  * all the ranks are assigned.
  *
  */
-template<class I>
-SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, const std::vector<unsigned>& globalCounts,
-                                            int nSplits)
+inline
+SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& globalCounts, int nSplits)
 {
     // one element per rank
-    SpaceCurveAssignment<I> ret(nSplits);
+    SpaceCurveAssignment ret(nSplits);
 
     std::size_t globalNParticles = std::accumulate(begin(globalCounts), end(globalCounts), std::size_t(0));
 
@@ -259,13 +191,13 @@ SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, co
         nParticlesPerSplit[split]++;
     }
 
-    std::size_t leavesDone = 0;
+    TreeNodeIndex leavesDone = 0;
     for (int split = 0; split < nSplits; ++split)
     {
         std::size_t targetCount = nParticlesPerSplit[split];
-        std::size_t splitCount = 0;
-        std::size_t j = leavesDone;
-        while (splitCount < targetCount && j < nNodes(globalTree))
+        std::size_t splitCount  = 0;
+        TreeNodeIndex j         = leavesDone;
+        while (splitCount < targetCount && j < globalCounts.size())
         {
             // if adding the particles of the next leaf takes us further away from
             // the target count than where we're now, we stop
@@ -285,12 +217,12 @@ SpaceCurveAssignment<I> singleRangeSfcSplit(const std::vector<I>& globalTree, co
         }
         // afaict, j < nNodes(globalTree) can only happen if there are empty nodes at the end
         else {
-            for( ; j < nNodes(globalTree); ++j)
+            for( ; j < globalCounts.size(); ++j)
                 splitCount += globalCounts[j];
         }
 
         // other distribution strategies might have more than one range per rank
-        ret.addRange(Rank(split), globalTree[leavesDone], globalTree[j], splitCount);
+        ret.addRange(Rank(split), leavesDone, j, splitCount);
         leavesDone = j;
     }
 
@@ -304,39 +236,37 @@ using SendList     = std::vector<SendManifest>;
 
 /*! @brief Based on global assignment, create the list of local particle index ranges to send to each rank
  *
- * @tparam I                 32- or 64-bit integer
- * @param assignment         global space curve assignment to ranks
- * @param codesStart         sorted list of morton codes of local particles present on this rank
+ * @tparam I            32- or 64-bit integer
+ * @param assignment    global space curve assignment to ranks
+ * @param tree          global cornerstone octree that matches the node counts used to create @p assignment
+ * @param codesStart    sorted list of morton codes of local particles present on this rank
  * @param codesEnd
- * @return                   for each rank, a list of index ranges into @p mortonCodes to send
+ * @return              for each rank, a list of index ranges into @p mortonCodes to send
  *
  * Converts the global assignment Morton code ranges into particle indices with binary search
  */
 template<class I>
-SendList createSendList(const SpaceCurveAssignment<I>& assignment, const I* codesStart, const I* codesEnd)
+SendList createSendList(const SpaceCurveAssignment& assignment, const std::vector<I>& tree, const I* codesStart, const I* codesEnd)
 {
     using IndexType = SendManifest::IndexType;
-    int nRanks = assignment.nRanks();
+    int nRanks      = assignment.nRanks();
 
     SendList ret(nRanks);
 
     for (int rank = 0; rank < nRanks; ++rank)
     {
         SendManifest& manifest = ret[rank];
-        for (std::size_t rangeIndex = 0; rangeIndex < assignment.nRanges(rank); ++rangeIndex)
-        {
-            I rangeStart = assignment.rangeStart(rank, rangeIndex);
-            I rangeEnd   = assignment.rangeEnd(rank, rangeIndex);
 
-            auto lit = std::lower_bound(codesStart, codesEnd, rangeStart);
-            IndexType lowerParticleIndex = std::distance(codesStart, lit);
+        I rangeStart = tree[assignment.firstNodeIdx(rank)];
+        I rangeEnd   = tree[assignment.lastNodeIdx(rank)];
 
-            auto uit = std::lower_bound(codesStart + lowerParticleIndex, codesEnd, rangeEnd);
-            IndexType upperParticleIndex = std::distance(codesStart, uit);
+        auto lit = std::lower_bound(codesStart, codesEnd, rangeStart);
+        IndexType lowerParticleIndex = std::distance(codesStart, lit);
 
-            IndexType count = std::distance(lit, uit);
-            manifest.addRange(lowerParticleIndex, upperParticleIndex, count);
-        }
+        auto uit = std::lower_bound(codesStart + lowerParticleIndex, codesEnd, rangeEnd);
+        IndexType upperParticleIndex = std::distance(codesStart, uit);
+
+        manifest.addRange(lowerParticleIndex, upperParticleIndex);
     }
 
     return ret;
@@ -347,7 +277,7 @@ void extractRange(const SendManifest& manifest, const T* source, const IndexType
 {
     int idx = 0;
     for (std::size_t rangeIndex = 0; rangeIndex < manifest.nRanges(); ++rangeIndex)
-        for (int i = manifest.rangeStart(rangeIndex); i < manifest.rangeEnd(rangeIndex); ++i)
+        for (IndexType i = manifest.rangeStart(rangeIndex); i < manifest.rangeEnd(rangeIndex); ++i)
             destination[idx++] = source[ordering[i]];
 }
 
@@ -364,7 +294,7 @@ template<class T, class IndexType>
 std::vector<T> createSendBuffer(const SendManifest& manifest, const T* source,
                                 const IndexType* ordering)
 {
-    int sendSize = manifest.totalCount();
+    IndexType sendSize = manifest.totalCount();
 
     std::vector<T> sendBuffer(sendSize);
     extractRange(manifest, source, ordering, sendBuffer.data());

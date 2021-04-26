@@ -55,42 +55,13 @@
 namespace cstone
 {
 
-/*! @brief  Finds the ranges of node indices of the tree that are assigned to a given rank
- *
- * @tparam I           32- or 64-bit unsigned integer
- * @param tree         global cornerstone octree
- * @param assignment   assignment of Morton code ranges to ranks
- * @param rank         extract rank's part from assignment
- * @return             ranges of node indices in @p tree that belong to rank @p rank
- */
-template<class I>
-static std::vector<int> computeLocalNodeRanges(const std::vector<I>& tree,
-                                               const SpaceCurveAssignment<I>& assignment,
-                                               int rank)
-{
-    std::vector<int> ret;
-
-    for (std::size_t rangeIndex = 0; rangeIndex < assignment.nRanges(rank); ++rangeIndex)
-    {
-        int firstNodeIndex  = std::lower_bound(begin(tree), end(tree),
-                                               assignment.rangeStart(rank, rangeIndex)) - begin(tree);
-        int secondNodeIndex = std::lower_bound(begin(tree), end(tree),
-                                               assignment.rangeEnd(rank, rangeIndex)) - begin(tree);
-
-        ret.push_back(firstNodeIndex);
-        ret.push_back(secondNodeIndex);
-    }
-
-    return ret;
-}
-
 //! @brief create a sorted list of nodes from the hierarchical per rank node list
-static std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& groupedNodes)
+inline std::vector<TreeNodeIndex> flattenNodeList(const std::vector<std::vector<TreeNodeIndex>>& groupedNodes)
 {
-    int nNodes = 0;
+    TreeNodeIndex nNodes = 0;
     for (auto& v : groupedNodes) nNodes += v.size();
 
-    std::vector<int> nodeList;
+    std::vector<TreeNodeIndex> nodeList;
     nodeList.reserve(nNodes);
 
     // add all halos to nodeList
@@ -104,7 +75,8 @@ static std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& gro
 
 /*! @brief computes the array layout for particle buffers of the executing rank
  *
- * @param[in]  localNodeRanges    Ranges of node indices, assigned to executing rank
+ * @param[in]  firstLocalNode     First tree node index assigned to executing rank
+ * @param[in]  lastLocalNode      Last tree node index assigned to executing rank
  * @param[in]  haloNodes          List of halo node indices without duplicates.
  *                                From the perspective of the
  *                                executing rank, these are incoming halo nodes.
@@ -112,80 +84,68 @@ static std::vector<int> flattenNodeList(const std::vector<std::vector<int>>& gro
  * @param[out] presentNodes       Upon return, will contain a sorted list of global node indices
  *                                present on the executing rank
  * @param[out] offsets            Will contain an offset index for each node in @p presentNodes,
- *                                indicating its position in the particle x,y,z,... buffers
+ *                                indicating its position in the particle x,y,z,... buffers,
+ *                                length @p presentNodes.size() + 1
  */
 template<class IndexType>
-static void computeLayoutOffsets(const std::vector<int>& localNodeRanges,
-                                 const std::vector<int>& haloNodes,
+static void computeLayoutOffsets(TreeNodeIndex firstLocalNode,
+                                 TreeNodeIndex lastLocalNode,
+                                 const std::vector<TreeNodeIndex>& haloNodes,
                                  const std::vector<unsigned>& globalNodeCounts,
-                                 std::vector<int>& presentNodes,
+                                 std::vector<TreeNodeIndex>& presentNodes,
                                  std::vector<IndexType>& offsets)
 {
     // add all halo nodes to present
     std::copy(begin(haloNodes), end(haloNodes), std::back_inserter(presentNodes));
 
-    // add all local nodes to presentNodes
-    for (std::size_t rangeIndex = 0; rangeIndex < localNodeRanges.size(); rangeIndex += 2)
-    {
-        int lower = localNodeRanges[rangeIndex];
-        int upper = localNodeRanges[rangeIndex+1];
-        for (int i = lower; i < upper; ++i)
-            presentNodes.push_back(i);
-    }
+    for (TreeNodeIndex i = firstLocalNode; i < lastLocalNode; ++i)
+        presentNodes.push_back(i);
 
     std::sort(begin(presentNodes), end(presentNodes));
 
     // an extract of globalNodeCounts, containing only nodes listed in localNodes and incomingHalos
-    std::vector<int> nodeCounts(presentNodes.size());
+    std::vector<unsigned> nodeCounts(presentNodes.size());
 
     // extract particle count information for all nodes in nodeList
     for (std::size_t i = 0; i < presentNodes.size(); ++i)
     {
-        int globalNodeIndex = presentNodes[i];
-        nodeCounts[i]       = globalNodeCounts[globalNodeIndex];
+        TreeNodeIndex globalNodeIndex = presentNodes[i];
+        nodeCounts[i]                 = globalNodeCounts[globalNodeIndex];
     }
 
-    offsets.resize(presentNodes.size() + 1);
-    {
-        IndexType offset = 0;
-        for (std::size_t i = 0; i < presentNodes.size(); ++i)
-        {
-            offsets[i] = offset;
-            offset += nodeCounts[i];
-        }
-        // the last element stores the total size of the layout
-        offsets[presentNodes.size()] = offset;
-    }
+    offsets.resize(nodeCounts.size() + 1);
+    stl::exclusive_scan(nodeCounts.begin(), nodeCounts.end(), offsets.begin(), 0);
+    offsets.back() = offsets[nodeCounts.size()-1] + nodeCounts.back();
 }
 
 
 /*! @brief translate global node indices involved in halo exchange to array ranges
  *
- * @param outgoingHaloNodes   For each rank, a list of global node indices to send or receive.
- *                            Each node referenced in these lists must be contained in
- *                            @p presentNodes.
- * @param presentNodes        Sorted unique list of global node indices present on the
- *                            executing rank
- * @param nodeOffsets         nodeOffset[i] stores the location of the node presentNodes[i]
- *                            in the particle arrays. nodeOffset[presentNodes.size()] stores
- *                            the total size of the particle arrays on the executing rank.
- *                            Size is presentNodes.size() + 1
- * @return                    For each rank, the returned sendList has one or multiple ranges of indices
- *                            of local particle arrays to send or receive.
+ * @param haloNodeIndices   For each rank, a list of global node indices to send or receive.
+ *                          Each node referenced in these lists must be contained in
+ *                          @p presentNodes.
+ * @param presentNodes      Sorted unique list of global node indices present on the
+ *                          executing rank
+ * @param nodeOffsets       nodeOffset[i] stores the location of the node presentNodes[i]
+ *                          in the particle arrays. nodeOffset[presentNodes.size()] stores
+ *                          the total size of the particle arrays on the executing rank.
+ *                          Size is presentNodes.size() + 1
+ * @return                  For each rank, the returned sendList has one or multiple ranges of indices
+ *                          of local particle arrays to send or receive.
  */
 template<class IndexType>
-static SendList createHaloExchangeList(const std::vector<std::vector<int>>& outgoingHaloNodes,
-                                       const std::vector<int>& presentNodes,
+static SendList createHaloExchangeList(const std::vector<std::vector<TreeNodeIndex>>& haloNodeIndices,
+                                       const std::vector<TreeNodeIndex>& presentNodes,
                                        const std::vector<IndexType>& nodeOffsets)
 {
-    SendList sendList(outgoingHaloNodes.size());
+    SendList sendList(haloNodeIndices.size());
 
     for (std::size_t rank = 0; rank < sendList.size(); ++rank)
     {
-        for (int globalNodeIndex : outgoingHaloNodes[rank])
+        for (TreeNodeIndex globalNodeIndex : haloNodeIndices[rank])
         {
-            int localNodeIndex = std::lower_bound(begin(presentNodes), end(presentNodes), globalNodeIndex)
-                                - begin(presentNodes);
+            TreeNodeIndex localNodeIndex = std::lower_bound(begin(presentNodes), end(presentNodes), globalNodeIndex)
+                                            - begin(presentNodes);
 
             sendList[rank].addRange(nodeOffsets[localNodeIndex], nodeOffsets[localNodeIndex+1]);
         }

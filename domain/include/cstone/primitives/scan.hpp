@@ -44,15 +44,15 @@ namespace cstone
 
 /*! @brief multi-threaded exclusive scan (prefix sum) implementation
  *
- * @tparam T
+ * @tparam T1, T2       integer types
  * @param in            input values, length = @p numElements
  * @param out           output values, length = @p numElements
  * @param numElements
  */
-template<class T>
-void exclusiveScan(const T* in, T* out, size_t numElements)
+template<class T1, class T2>
+void exclusiveScan(const T1* in, T2* out, size_t numElements)
 {
-    constexpr int blockSize = (8192 + 16384) / sizeof(T);
+    constexpr int blockSize = (8192 + 16384) / sizeof(T1);
 
     int numThreads = 1;
     #pragma omp parallel
@@ -61,7 +61,7 @@ void exclusiveScan(const T* in, T* out, size_t numElements)
         numThreads = omp_get_num_threads();
     }
 
-    T superBlock[2][numThreads+1];
+    T2 superBlock[2][numThreads+1];
     std::fill(superBlock[0], superBlock[0] + numThreads+1, 0);
     std::fill(superBlock[1], superBlock[1] + numThreads+1, 0);
 
@@ -81,19 +81,19 @@ void exclusiveScan(const T* in, T* out, size_t numElements)
 
             #pragma omp barrier
 
-            T tSum = superBlock[(step+1)%2][numThreads];
+            T2 tSum = superBlock[(step+1)%2][numThreads];
             for (size_t t = 0; t < tid; ++t)
                 tSum += superBlock[step%2][t];
 
             if (tid == numThreads - 1)
                 superBlock[step%2][numThreads] = tSum + superBlock[step%2][numThreads - 1];
 
-            std::for_each(out + stepOffset, out + stepOffset + blockSize, [shift=tSum](T& val){ val += shift; });
+            std::for_each(out + stepOffset, out + stepOffset + blockSize, [shift=tSum](T2& val){ val += shift; });
         }
     }
 
     // remainder
-    T stepSum = superBlock[(nSteps+1)%2][numThreads];
+    T2 stepSum = superBlock[(nSteps+1)%2][numThreads];
     stl::exclusive_scan(in + nSteps*elementsPerStep, in + numElements, out + nSteps*elementsPerStep, stepSum);
 }
 

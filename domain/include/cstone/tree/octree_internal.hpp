@@ -79,13 +79,6 @@ namespace cstone
 template<class I>
 struct OctreeNode
 {
-    //! @brief named bool to tag children of internal octree nodes
-    enum ChildType : bool
-    {
-        internal = true,
-        leaf     = false
-    };
-
     /*! @brief the Morton code prefix
      *
      * Shared among all the node's children. Only the first prefixLength bits are relevant.
@@ -100,21 +93,18 @@ struct OctreeNode
 
     /*! @brief Child node indices
      *
-     *  If childType[i] is ChildType::internal, child[i] is an internal node index,
-     *  If childType[i] is ChildType::leaf, child[i] is the index of an octree leaf node.
+     *  If isLeafIndex(child[i]) is true, loadLeafIndex(child[i]) is a leaf node index.
+     *  Otherwise, child[i] is the index of an octree leaf node.
      *  Note that the indices in these two cases refer to two different arrays!
      */
     TreeNodeIndex child[8];
-    ChildType     childType[8];
 
     friend bool operator==(const OctreeNode<I>& lhs, const OctreeNode<I>& rhs)
     {
         bool eqChild = true;
         for (int i = 0; i < 8; ++i)
         {
-            eqChild = eqChild &&
-                      lhs.child[i]     == rhs.child[i] &&
-                      lhs.childType[i] == rhs.childType[i];
+            eqChild = eqChild && lhs.child[i] == rhs.child[i];
         }
 
         return lhs.prefix == rhs.prefix &&
@@ -131,14 +121,14 @@ void nodeDepthElement(TreeNodeIndex i, const OctreeNode<I>* octree, AtomicIntege
     int nLeafChildren = 0;
     for (int octant = 0; octant < 8; ++octant)
     {
-        if (octree[i].childType[octant] == OctreeNode<I>::leaf)
+        if (isLeafIndex(octree[i].child[octant]))
         {
             nLeafChildren++;
         }
     }
 
     if (nLeafChildren == 8) { depths[i] = 1; } // all children are leaves - maximum depth is 1
-    else                    { return; }
+    else                    { return; } // another thread will climb the tree and set the depth
 
     TreeNodeIndex nodeIndex = i;
     int depth = 1;
@@ -240,7 +230,7 @@ void decreasingMaxDepthOrder(const OctreeNode<I>* octree,
     {
         auto it1 = std::lower_bound(begin(depths_v), end(depths_v), depth, std::greater<TreeNodeIndex>{});
         auto it2 = std::upper_bound(begin(depths_v), end(depths_v), depth, std::greater<TreeNodeIndex>{});
-        nNodesPerLevel[depth] = std::distance(it1, it2);
+        nNodesPerLevel[depth] = TreeNodeIndex(std::distance(it1, it2));
     }
 }
 
@@ -268,10 +258,10 @@ void rewireInternal(const OctreeNode<I>* oldNodes,
         newNode.parent = rewireMap[newNode.parent];
         for (int octant = 0; octant < 8; ++octant)
         {
-            if (newNode.childType[octant] == OctreeNode<I>::internal)
+            if (!isLeafIndex(newNode.child[octant]))
             {
                 TreeNodeIndex oldChild = newNode.child[octant];
-                newNode.child[octant] = rewireMap[oldChild];
+                newNode.child[octant]  = rewireMap[oldChild];
             }
         }
 
@@ -348,19 +338,17 @@ inline void constructOctreeNode(OctreeNode<I>*       internalOctree,
                 TreeNodeIndex childBinaryIndex =
                     binaryTree[binaryTree[binaryTree[bi].child[hx]].child[hy]].child[hz];
 
-                if (!btreeIsLeaf(childBinaryIndex))
+                if (!isLeafIndex(childBinaryIndex))
                 {
                     TreeNodeIndex childOctreeIndex = binaryToOctreeIndex[childBinaryIndex];
                     octreeNode.child[octant]       = childOctreeIndex;
-                    octreeNode.childType[octant]   = OctreeNode<I>::internal;
 
                     internalOctree[childOctreeIndex].parent = nodeIndex;
                 }
                 else
                 {
-                    TreeNodeIndex octreeLeafIndex = btreeLoadLeaf(childBinaryIndex);
-                    octreeNode.child[octant]      = octreeLeafIndex;
-                    octreeNode.childType[octant]  = OctreeNode<I>::leaf;
+                    TreeNodeIndex octreeLeafIndex = loadLeafIndex(childBinaryIndex);
+                    octreeNode.child[octant]      = storeLeafIndex(octreeLeafIndex);
                     leafParents[octreeLeafIndex]  = nodeIndex;
                 }
             }
@@ -448,7 +436,7 @@ public:
 
         // make space for leaf nodes
         TreeNodeIndex treeSize = lastLeaf - firstLeaf;
-        nNodesPerLevel_[0]     = treeSize;
+        nNodesPerLevel_[0]     = treeSize - 1;
         cstoneTree_.resize(treeSize);
         std::copy(firstLeaf, lastLeaf, cstoneTree_.data());
 
@@ -529,7 +517,7 @@ public:
     [[nodiscard]] inline bool isLeafChild(TreeNodeIndex node, int octant) const
     {
         assert(node < internalTree_.size());
-        return internalTree_[node].childType[octant] == OctreeNode<I>::leaf;
+        return isLeafIndex(internalTree_[node].child[octant]);
     }
 
     //! @brief check if node is the root node
@@ -552,9 +540,9 @@ public:
         assert(node < internalTree_.size());
 
         TreeNodeIndex childIndex = internalTree_[node].child[octant];
-        if (internalTree_[node].childType[octant] == OctreeNode<I>::leaf)
+        if (isLeafIndex(childIndex))
         {
-            childIndex += nInternalNodes();
+            childIndex = loadLeafIndex(childIndex) + nInternalNodes();
         }
 
         return childIndex;
@@ -569,11 +557,19 @@ public:
      *
      * If @a node is not internal, behavior is undefined.
      * Note: the indices returned by this function refer to two different arrays, depending on
-     * whether the child specified by @a node and @a octant is a leaf or an internal node.
+     * whether the child specified by @p node and @p octant is a leaf or an internal node.
      */
     [[nodiscard]] inline TreeNodeIndex childDirect(TreeNodeIndex node, int octant) const
     {
-        return internalTree_[node].child[octant];
+        TreeNodeIndex childIndex = internalTree_[node].child[octant];
+        if (isLeafIndex(childIndex))
+        {
+            return loadLeafIndex(childIndex);
+        }
+        else
+        {
+            return childIndex;
+        }
     }
 
     /*! @brief index of parent node

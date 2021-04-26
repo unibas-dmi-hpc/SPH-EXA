@@ -45,36 +45,33 @@ TEST(InternalOctree, OctreeNodeEq)
 {
     using I = unsigned;
 
-    auto i = OctreeNode<I>::internal;
-    auto l = OctreeNode<I>::leaf;
-
-    OctreeNode<I> node1{0, 0, 0, {1,2,3,4,5,6,7,8}, {i, i, i, i, i, i, i, i}};
-    OctreeNode<I> node2{0, 0, 0, {1,2,3,4,5,6,7,8}, {i, i, i, i, i, i, i, i}};
+    OctreeNode<I> node1{0, 0, 0, {1,2,3,4,5,6,7,8}};
+    OctreeNode<I> node2{0, 0, 0, {1,2,3,4,5,6,7,8}};
 
     EXPECT_EQ(node1, node2);
 
-    node2 = OctreeNode<I>{1, 0, 0, {1,2,3,4,5,6,7,8}, {i, i, i, i, i, i, i, i}};
+    node2 = OctreeNode<I>{1, 0, 0, {1,2,3,4,5,6,7,8}};
     EXPECT_FALSE(node1 == node2);
 
-    node2 = OctreeNode<I>{0, 1, 0, {1,2,3,4,5,6,7,8}, {i, i, i, i, i, i, i, i}};
+    node2 = OctreeNode<I>{0, 1, 0, {1,2,3,4,5,6,7,8}};
     EXPECT_FALSE(node1 == node2);
 
-    node2 = OctreeNode<I>{0, 1, 0, {1,2,3,4,5,6,7,8}, {i, i, i, i, i, i, i, i}};
+    node2 = OctreeNode<I>{0, 1, 0, {1,2,3,4,5,6,7,8}};
     EXPECT_FALSE(node1 == node2);
 
-    node2 = OctreeNode<I>{0, 0, 1, {1,2,3,4,5,6,7,8}, {i, i, i, i, i, i, i, i}};
+    node2 = OctreeNode<I>{0, 0, 1, {1,2,3,4,5,6,7,8}};
     EXPECT_FALSE(node1 == node2);
 
-    node2 = OctreeNode<I>{0, 0, 0, {0,2,3,4,5,6,7,8}, {i, i, i, i, i, i, i, i}};
+    node2 = OctreeNode<I>{0, 0, 0, {0,2,3,4,5,6,7,8}};
     EXPECT_FALSE(node1 == node2);
 
-    node2 = OctreeNode<I>{0, 0, 0, {1,2,3,4,5,6,7,9}, {i, i, i, i, i, i, i, i}};
+    node2 = OctreeNode<I>{0, 0, 0, {1,2,3,4,5,6,7,9}};
     EXPECT_FALSE(node1 == node2);
 
-    node2 = OctreeNode<I>{0, 0, 0, {1,2,3,4,5,6,7,8}, {l, i, i, i, i, i, i, i}};
+    node2 = OctreeNode<I>{0, 0, 0, {storeLeafIndex(1),2,3,4,5,6,7,8}};
     EXPECT_FALSE(node1 == node2);
 
-    node2 = OctreeNode<I>{0, 0, 0, {1,2,3,4,5,6,7,8}, {i, i, i, i, i, i, i, l}};
+    node2 = OctreeNode<I>{0, 0, 0, {1,2,3,4,5,6,7,storeLeafIndex(8)}};
     EXPECT_FALSE(node1 == node2);
 }
 
@@ -85,25 +82,22 @@ TEST(InternalOctree, OctreeNodeEq)
 TEST(InternalOctree, nodeDepth)
 {
     using I = unsigned;
-
-    auto i_ = OctreeNode<I>::internal;
-    auto l_ = OctreeNode<I>::leaf;
+    constexpr auto& l_ = storeLeafIndex;
 
     // internal tree, matches leaves for
     // std::vector<I> tree = OctreeMaker<I>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
     std::vector<OctreeNode<I>> internalTree
     {
-        // prefix, level, parent, children, childTypes
-        {          0, 0, 0, {2, 19, 20, 3, 29, 30, 31, 32, }  , {i_, l_, l_, i_, l_, l_, l_, l_}},
-        { 0200000000, 2, 2, {6, 7, 8, 9, 10, 11, 12, 13, }    , {l_, l_, l_, l_, l_, l_, l_, l_}},
-        {          0, 1, 0, {4, 5, 1, 14, 15, 16, 17, 18, }   , {l_, l_, i_, l_, l_, l_, l_, l_}},
-        {03000000000, 1, 0, {21, 22, 23, 24, 25, 26, 27, 28, }, {l_, l_, l_, l_, l_, l_, l_, l_}}
+        {          0, 0, 0, {2, l_(19), l_(20), 3, l_(29), l_(30), l_(31), l_(32), }  },
+        { 0200000000, 2, 2, {l_(6), l_(7), l_(8), l_(9), l_(10), l_(11), l_(12), l_(13), }    },
+        {          0, 1, 0, {l_(4), l_(5), 1, l_(14), l_(15), l_(16), l_(17), l_(18), }   },
+        {03000000000, 1, 0, {l_(21), l_(22), l_(23), l_(24), l_(25), l_(26), l_(27), l_(28), }}
     };
 
     std::vector<std::atomic<int>> depths(internalTree.size());
     for (auto& d : depths) d = 0;
 
-    nodeDepth(internalTree.data(), internalTree.size(), depths.data());
+    nodeDepth(internalTree.data(), TreeNodeIndex(internalTree.size()), depths.data());
 
     std::vector<int> depths_v{begin(depths), end(depths)};
     std::vector<int> depths_reference{3, 1, 2, 1};
@@ -155,19 +149,17 @@ TEST(InternalOctree, nodeDepthsThreading)
 TEST(InternalOctree, calculateInternalOrderExplicit)
 {
     using I = unsigned;
-
-    auto i_ = OctreeNode<I>::internal;
-    auto l_ = OctreeNode<I>::leaf;
+    constexpr auto& l_ = storeLeafIndex;
 
     // internal tree, matches leaves for
     // std::vector<I> tree = OctreeMaker<I>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
     std::vector<OctreeNode<I>> octree
     {
-        // prefix, level, parent, children, childTypes
-        {          0, 0, 0, {2, 19, 20, 3, 29, 30, 31, 32, }  , {i_, l_, l_, i_, l_, l_, l_, l_}},
-        { 0200000000, 2, 2, {6, 7, 8, 9, 10, 11, 12, 13, }    , {l_, l_, l_, l_, l_, l_, l_, l_}},
-        {          0, 1, 0, {4, 5, 1, 14, 15, 16, 17, 18, }   , {l_, l_, i_, l_, l_, l_, l_, l_}},
-        {03000000000, 1, 0, {21, 22, 23, 24, 25, 26, 27, 28, }, {l_, l_, l_, l_, l_, l_, l_, l_}}
+        // prefix, level, parent, children
+        {          0, 0, 0, {2, l_(19), l_(20), 3, l_(29), l_(30), l_(31), l_(32), }  },
+        { 0200000000, 2, 2, {l_(6), l_(7), l_(8), l_(9), l_(10), l_(11), l_(12), l_(13), }    },
+        {          0, 1, 0, {l_(4), l_(5), 1, l_(14), l_(15), l_(16), l_(17), l_(18), }   },
+        {03000000000, 1, 0, {l_(21), l_(22), l_(23), l_(24), l_(25), l_(26), l_(27), l_(28), }}
     };
 
     std::vector<TreeNodeIndex> ordering(octree.size());
@@ -284,26 +276,24 @@ void checkConnectivity(const Octree<I>& fullTree)
 TEST(InternalOctree, rewire)
 {
     using I = unsigned;
-
-    auto i_ = OctreeNode<I>::internal;
-    auto l_ = OctreeNode<I>::leaf;
+    constexpr auto& l_ = storeLeafIndex;
 
     // internal tree, matches leaves for
     // std::vector<I> tree = OctreeMaker<I>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
     std::vector<OctreeNode<I>> internalTree
     {
         // prefix, level, parent, children, childTypes
-        {          0, 0, 0, {2, 19, 20, 3, 29, 30, 31, 32, }  , {i_, l_, l_, i_, l_, l_, l_, l_}},
-        { 0200000000, 2, 2, {6, 7, 8, 9, 10, 11, 12, 13, }    , {l_, l_, l_, l_, l_, l_, l_, l_}},
-        {          0, 1, 0, {4, 5, 1, 14, 15, 16, 17, 18, }   , {l_, l_, i_, l_, l_, l_, l_, l_}},
-        {03000000000, 1, 0, {21, 22, 23, 24, 25, 26, 27, 28, }, {l_, l_, l_, l_, l_, l_, l_, l_}}
+        {          0, 0, 0, {2, l_(19), l_(20), 3, l_(29), l_(30), l_(31), l_(32), }  },
+        { 0200000000, 2, 2, {l_(6), l_(7), l_(8), l_(9), l_(10), l_(11), l_(12), l_(13), }    },
+        {          0, 1, 0, {l_(4), l_(5), 1, l_(14), l_(15), l_(16), l_(17), l_(18), }   },
+        {03000000000, 1, 0, {l_(21), l_(22), l_(23), l_(24), l_(25), l_(26), l_(27), l_(28), }}
     };
 
     // maps oldIndex to rewireMap[oldIndex] (scatter operation)
     std::vector<TreeNodeIndex> rewireMap{0,3,1,2};
 
     std::vector<OctreeNode<I>> rewiredTree(internalTree.size());
-    rewireInternal(internalTree.data(), rewireMap.data(), internalTree.size(),
+    rewireInternal(internalTree.data(), rewireMap.data(), TreeNodeIndex(internalTree.size()),
                    rewiredTree.data());
 
     for (int i = 0; i < rewiredTree.size(); ++i)
@@ -313,11 +303,11 @@ TEST(InternalOctree, rewire)
 
     std::vector<OctreeNode<I>> reference
     {
-        // prefix, level, parent, children, childTypes
-        {          0, 0, 0, {1, 19, 20, 2, 29, 30, 31, 32, }  , {i_, l_, l_, i_, l_, l_, l_, l_}},
-        {          0, 1, 0, {4, 5, 3, 14, 15, 16, 17, 18, }   , {l_, l_, i_, l_, l_, l_, l_, l_}},
-        {03000000000, 1, 0, {21, 22, 23, 24, 25, 26, 27, 28, }, {l_, l_, l_, l_, l_, l_, l_, l_}},
-        { 0200000000, 2, 1, {6, 7, 8, 9, 10, 11, 12, 13, }    , {l_, l_, l_, l_, l_, l_, l_, l_}}
+        // prefix, level, parent, children
+        {          0, 0, 0, {1, l_(19), l_(20), 2, l_(29), l_(30), l_(31), l_(32), }  },
+        {          0, 1, 0, {l_(4), l_(5), 3, l_(14), l_(15), l_(16), l_(17), l_(18), }   },
+        {03000000000, 1, 0, {l_(21), l_(22), l_(23), l_(24), l_(25), l_(26), l_(27), l_(28), }},
+        { 0200000000, 2, 1, {l_(6), l_(7), l_(8), l_(9), l_(10), l_(11), l_(12), l_(13), }    }
     };
 
     EXPECT_EQ(rewiredTree, reference);
@@ -341,6 +331,11 @@ void octree4x4x4()
 
     ASSERT_EQ(fullTree.nInternalNodes(), (64 - 1) / 7);
     ASSERT_EQ(fullTree.nLeafNodes(), 64);
+
+    EXPECT_EQ(fullTree.nTreeNodes(0), 64);
+    EXPECT_EQ(fullTree.nTreeNodes(1), 8);
+    EXPECT_EQ(fullTree.nTreeNodes(2), 1);
+
     checkConnectivity(fullTree);
 }
 
@@ -368,6 +363,11 @@ void octreeIrregularL2()
 
     ASSERT_EQ(fullTree.nInternalNodes(), (15 - 1) / 7);
     ASSERT_EQ(fullTree.nLeafNodes(), 15);
+
+    EXPECT_EQ(fullTree.nTreeNodes(0), 15);
+    EXPECT_EQ(fullTree.nTreeNodes(1), 1);
+    EXPECT_EQ(fullTree.nTreeNodes(2), 1);
+
     checkConnectivity(fullTree);
 }
 
@@ -388,6 +388,11 @@ void octreeIrregularL3()
     EXPECT_EQ(fullTree.nTreeNodes(), 33);
     EXPECT_EQ(fullTree.nLeafNodes(), 29);
     EXPECT_EQ(fullTree.nInternalNodes(), 4);
+
+    EXPECT_EQ(fullTree.nTreeNodes(0), 29);
+    EXPECT_EQ(fullTree.nTreeNodes(1), 2);
+    EXPECT_EQ(fullTree.nTreeNodes(2), 1);
+    EXPECT_EQ(fullTree.nTreeNodes(3), 1);
 
     checkConnectivity(fullTree);
 }

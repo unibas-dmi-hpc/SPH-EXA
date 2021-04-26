@@ -79,7 +79,7 @@ CUDA_HOST_DEVICE_FUN
 inline bool traverseNode(const BinaryNode<I>* root, TreeNodeIndex idx,
                          const IBox& collisionBox, pair<I> excludeRange)
 {
-    return (!btreeIsLeaf(idx))
+    return (!isLeafIndex(idx))
     && !containedIn(root[idx].prefix, excludeRange[0], excludeRange[1])
     && overlap(root[idx].prefix, collisionBox);
 }
@@ -89,10 +89,10 @@ CUDA_HOST_DEVICE_FUN
 inline bool leafOverlap(int leafIndex, const I* leafNodes,
                         const IBox& collisionBox, pair<I> excludeRange)
 {
-    if (!btreeIsLeaf(leafIndex))
+    if (!isLeafIndex(leafIndex))
         return false;
 
-    TreeNodeIndex effectiveIndex = btreeLoadLeaf(leafIndex);
+    TreeNodeIndex effectiveIndex = loadLeafIndex(leafIndex);
     I leafCode = leafNodes[effectiveIndex];
     I leafUpperBound = leafNodes[effectiveIndex + 1];
 
@@ -153,8 +153,8 @@ void findCollisions(const BinaryNode<I>* root, const I* leafNodes, CollisionList
         bool overlapLeafL = leafOverlap(leftChild, leafNodes, collisionBox, excludeRange);
         bool overlapLeafR = leafOverlap(rightChild, leafNodes, collisionBox, excludeRange);
 
-        if (overlapLeafL) collisionList.add(btreeLoadLeaf(leftChild));
-        if (overlapLeafR) collisionList.add(btreeLoadLeaf(rightChild));
+        if (overlapLeafL) collisionList.add(loadLeafIndex(leftChild));
+        if (overlapLeafR) collisionList.add(loadLeafIndex(rightChild));
 
         if (!traverseL and !traverseR)
         {
