@@ -33,7 +33,7 @@
 #include <iostream>
 #include <numeric>
 
-#include "cstone/domain/halodiscovery.hpp"
+#include "cstone/halos/discovery.hpp"
 #include "cstone/domain/domaindecomp.hpp"
 #include "cstone/halos/btreetraversal.hpp"
 #include "cstone/tree/octree.hpp"

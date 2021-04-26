@@ -37,7 +37,7 @@
 #include "cstone/sfc/box_mpi.hpp"
 #include "domain_traits.hpp"
 #include "domaindecomp_mpi.hpp"
-#include "halodiscovery.hpp"
+#include "cstone/halos/discovery.hpp"
 #include "haloexchange.hpp"
 #include "layout.hpp"
 #include "cstone/tree/octree_mpi.hpp"
