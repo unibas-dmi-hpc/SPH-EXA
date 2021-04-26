@@ -35,7 +35,6 @@
 #include <vector>
 
 #include "cstone/halos/btreetraversal.hpp"
-#include "cstone/domain/domaindecomp.hpp"
 
 namespace cstone
 {
@@ -79,7 +78,7 @@ void findHalos(const std::vector<I>&             tree,
 
     #pragma omp parallel
     {
-        std::vector<pair<int>> threadHaloPairs;
+        std::vector<pair<TreeNodeIndex>> threadHaloPairs;
 
         // loop over all the nodes in range
         #pragma omp for
@@ -124,53 +123,6 @@ void findHalos(const std::vector<I>&             tree,
         {
             std::copy(begin(threadHaloPairs), end(threadHaloPairs), std::back_inserter(haloPairs));
         }
-    }
-}
-
-/*! @brief Compute send/receive node lists from halo pair node indices
- *
- * @param[in]  assignment       stores which rank owns which part of the SFC
- * @param[in]  haloPairs        list of mutually overlapping pairs of local/remote nodes
- * @param[out] incomingNodes    sorted list of halo nodes to be received,
- *                              grouped by source rank
- * @param[out] outgoingNodes    sorted list of internal nodes to be sent,
- *                              grouped by destination rank
- */
-inline
-void computeSendRecvNodeList(const SpaceCurveAssignment& assignment,
-                             const std::vector<pair<TreeNodeIndex>>& haloPairs,
-                             std::vector<std::vector<TreeNodeIndex>>& incomingNodes,
-                             std::vector<std::vector<TreeNodeIndex>>& outgoingNodes)
-{
-    incomingNodes.resize(assignment.nRanks());
-    outgoingNodes.resize(assignment.nRanks());
-
-    for (auto& p : haloPairs)
-    {
-        // as defined in findHalos, the internal node index is stored first
-        TreeNodeIndex internalNodeIdx = p[0];
-        TreeNodeIndex remoteNodeIdx   = p[1];
-
-        int remoteRank = assignment.findRank(remoteNodeIdx);
-
-        incomingNodes[remoteRank].push_back(remoteNodeIdx);
-        outgoingNodes[remoteRank].push_back(internalNodeIdx);
-    }
-
-    // remove duplicates in receiver list
-    for (auto& v : incomingNodes)
-    {
-        std::sort(begin(v), end(v));
-        auto unique_end = std::unique(begin(v), end(v));
-        v.erase(unique_end, end(v));
-    }
-
-    // remove duplicates in sender list
-    for (auto& v : outgoingNodes)
-    {
-        std::sort(begin(v), end(v));
-        auto unique_end = std::unique(begin(v), end(v));
-        v.erase(unique_end, end(v));
     }
 }
 

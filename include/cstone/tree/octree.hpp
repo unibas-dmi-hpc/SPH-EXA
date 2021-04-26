@@ -65,22 +65,6 @@
 namespace cstone
 {
 
-/*! @brief returns the number of nodes in a tree
- *
- * @tparam    Vector  a vector-like container that has a .size() member
- * @param[in] tree    input tree
- * @return            the number of nodes
- *
- * This makes it explicit that a vector of n Morton codes
- * corresponds to a tree with n-1 nodes.
- */
-template<class Vector>
-std::size_t nNodes(const Vector& tree)
-{
-    assert(tree.size());
-    return tree.size() - 1;
-}
-
 //! @brief count particles in one tree node
 template<class I>
 CUDA_HOST_DEVICE_FUN

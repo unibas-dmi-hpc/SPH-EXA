@@ -37,6 +37,33 @@
 
 using namespace cstone;
 
+//! @brief test processing of halo pair nodes into send/receive node lists
+TEST(Layout, sendRecvNodeList)
+{
+    // two domains
+    SpaceCurveAssignment assignment(2);
+    assignment.addRange(Rank(0), 0, 10, 0);
+    assignment.addRange(Rank(1), 10, 20, 0);
+
+    std::vector<pair<TreeNodeIndex>> haloPairs{{9, 10}, {9, 11}, {8, 11}};
+
+    std::vector<std::vector<TreeNodeIndex>> incomingHalos;
+    std::vector<std::vector<TreeNodeIndex>> outgoingHalos;
+    computeSendRecvNodeList(assignment, haloPairs, incomingHalos, outgoingHalos);
+
+    std::vector<std::vector<TreeNodeIndex>> refIncomingHalos(assignment.nRanks());
+    std::vector<std::vector<TreeNodeIndex>> refOutgoingHalos(assignment.nRanks());
+
+    std::vector<TreeNodeIndex> frontier0{8, 9};
+    std::vector<TreeNodeIndex> frontier1{10, 11};
+
+    refIncomingHalos[1] = frontier1;
+    refOutgoingHalos[1] = frontier0;
+
+    EXPECT_EQ(incomingHalos, refIncomingHalos);
+    EXPECT_EQ(outgoingHalos, refOutgoingHalos);
+}
+
 TEST(Layout, flattenNodeList)
 {
     std::vector<std::vector<TreeNodeIndex>> grouped{{0,1,2}, {3,4,5}, {6}, {}};
