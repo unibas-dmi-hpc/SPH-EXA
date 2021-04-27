@@ -32,8 +32,7 @@
 #pragma once
 
 #include "cstone/sfc/box.hpp"
-#include "cstone/sfc/mortoncode.hpp"
-
+#include "cstone/sfc/morton.hpp"
 
 namespace cstone
 {

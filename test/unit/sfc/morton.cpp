@@ -35,7 +35,7 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-#include "cstone/sfc/mortoncode.hpp"
+#include "cstone/sfc/morton.hpp"
 
 using namespace cstone;
 

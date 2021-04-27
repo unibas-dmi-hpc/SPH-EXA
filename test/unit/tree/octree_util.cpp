@@ -35,7 +35,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/sfc/mortoncode.hpp"
+#include "cstone/sfc/morton.hpp"
 #include "cstone/tree/octree.hpp"
 #include "cstone/tree/octree_util.hpp"
 
