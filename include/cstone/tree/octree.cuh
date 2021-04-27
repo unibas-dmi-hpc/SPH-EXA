@@ -46,7 +46,7 @@
 #include <thrust/scan.h>
 
 #include "cstone/cuda/errorcheck.cuh"
-#include "cstone/util.hpp"
+#include "cstone/util/util.hpp"
 #include "octree.hpp"
 
 namespace cstone
