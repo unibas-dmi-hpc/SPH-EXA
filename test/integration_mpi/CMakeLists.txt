@@ -18,7 +18,7 @@ target_include_directories(treedomain PRIVATE ${MPI_CXX_INCLUDE_PATH})
 target_link_libraries(treedomain ${MPI_CXX_LIBRARIES} gtest_main)
 add_test(NAME GlobalDomainTreeIntegration COMMAND treedomain)
 
-add_executable(haloexchange haloexchange.cpp test_main.cpp)
+add_executable(haloexchange exchange.cpp test_main.cpp)
 target_include_directories(haloexchange PRIVATE ../../include)
 target_include_directories(haloexchange PRIVATE ${MPI_CXX_INCLUDE_PATH})
 target_link_libraries(haloexchange ${MPI_CXX_LIBRARIES} gtest_main)

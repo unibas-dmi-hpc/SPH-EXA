@@ -31,8 +31,7 @@
 
 #include <gtest/gtest.h>
 
-#include "cstone/domain/haloexchange.hpp"
-
+#include "cstone/halos/exchange.hpp"
 
 using namespace cstone;
 
