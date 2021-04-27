@@ -37,7 +37,7 @@
 
 #include "cstone/primitives/clz.hpp"
 #include "cstone/primitives/stl.hpp"
-#include "cstone/util.hpp"
+#include "cstone/util/util.hpp"
 
 namespace cstone
 {

@@ -38,7 +38,7 @@
 #include <vector>
 
 #include "cstone/tree/octree.hpp"
-#include "cstone/util.hpp"
+#include "cstone/util/util.hpp"
 #include "cstone/primitives/gather.hpp"
 
 
