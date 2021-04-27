@@ -38,7 +38,7 @@
 #include <tuple>
 #include <vector>
 
-#include "cstone/sfc/mortoncode.hpp"
+#include "cstone/sfc/morton.hpp"
 
 namespace cstone
 {
