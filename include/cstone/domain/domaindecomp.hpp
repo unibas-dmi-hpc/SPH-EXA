@@ -37,64 +37,13 @@
 #include <algorithm>
 #include <vector>
 
-#include "cstone/tree/octree.hpp"
-#include "cstone/util/util.hpp"
 #include "cstone/primitives/gather.hpp"
+#include "cstone/tree/octree.hpp"
+#include "cstone/util/index_ranges.hpp"
 
 
 namespace cstone
 {
-
-/*! @brief Stores ranges of local particles to be sent to another rank
- *
- * @tparam I  32- or 64-bit signed or unsigned integer to store the indices
- *
- *  Used for SendRanges with index ranges referencing elements in e.g. x,y,z,h arrays.
- */
-template<class Index>
-class IndexRanges
-{
-public:
-    using IndexType = Index;
-
-    IndexRanges() : totalCount_(0), ranges_{} {}
-
-    //! @brief add a local index range, infer count from difference
-    void addRange(IndexType lower, IndexType upper)
-    {
-        assert(lower <= upper);
-        ranges_.emplace_back(lower, upper);
-        totalCount_ += upper - lower;
-    }
-
-    [[nodiscard]] IndexType rangeStart(size_t i) const
-    {
-        return ranges_[i][0];
-    }
-
-    [[nodiscard]] IndexType rangeEnd(size_t i) const
-    {
-        return ranges_[i][1];
-    }
-
-    //! @brief the number of particles in range i
-    [[nodiscard]] std::size_t count(size_t i) const { return ranges_[i][1] - ranges_[i][0]; }
-
-    //! @brief the sum of number of particles in all ranges or total send count
-    [[nodiscard]] std::size_t totalCount() const { return totalCount_; }
-
-    [[nodiscard]] std::size_t nRanges() const { return ranges_.size(); }
-
-private:
-    friend bool operator==(const IndexRanges& lhs, const IndexRanges& rhs)
-    {
-        return lhs.totalCount_ == rhs.totalCount_ && lhs.ranges_ == rhs.ranges_;
-    }
-
-    std::size_t totalCount_;
-    std::vector<pair<IndexType>> ranges_;
-};
-
 
 /*! @brief a custom type for type safety in function calls
  *
@@ -228,11 +177,6 @@ SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& globalCoun
 
     return ret;
 }
-
-//! @brief stores one or multiple index ranges of local particles to send out to another rank
-using SendManifest = IndexRanges<unsigned>; // works if there are < 2^32 local particles
-//! @brief SendList will contain one manifest per rank
-using SendList     = std::vector<SendManifest>;
 
 /*! @brief Based on global assignment, create the list of local particle index ranges to send to each rank
  *

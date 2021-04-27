@@ -34,7 +34,7 @@
 #include <vector>
 
 #include "cstone/primitives/mpi_wrappers.hpp"
-#include "domaindecomp.hpp"
+#include "cstone/util/index_ranges.hpp"
 
 namespace cstone
 {
