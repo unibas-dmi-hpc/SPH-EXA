@@ -127,9 +127,9 @@ pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, I* n
     I xyzCode = morton3D<I>(xi, yi, zi, bbox);
     I boxCode = enclosingBoxCode(xyzCode, level);
 
-    int ixBox = decodeMortonX(boxCode);
-    int iyBox = decodeMortonY(boxCode);
-    int izBox = decodeMortonZ(boxCode);
+    int ixBox = idecodeMortonX(boxCode);
+    int iyBox = idecodeMortonY(boxCode);
+    int izBox = idecodeMortonZ(boxCode);
     T xBox = bbox.xmin() + ixBox * uL * bbox.lx();
     T yBox = bbox.ymin() + iyBox * uL * bbox.ly();
     T zBox = bbox.zmin() + izBox * uL * bbox.lz();

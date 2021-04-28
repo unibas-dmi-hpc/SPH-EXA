@@ -36,14 +36,20 @@
  * These halo-areas can be defined as the overlap with the smoothing-length spheres around
  * the contained particles in the focus sub-range (SPH) or as the nodes whose opening angle
  * is too big to satisfy a multipole acceptance criterion from any perspective within the
- * focus subrange (N-body).
+ * focus sub-range (N-body).
  */
 
 #pragma once
 
-
+#include <vector>
 
 namespace cstone
 {
+
+template<class I>
+bool mdMac(I targetStart, I targetEnd, I sourceStart, I sourceEnd, float theta)
+{
+
+}
 
 } // namespace cstone
