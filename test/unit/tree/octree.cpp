@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Test morton code implementation
+ * @brief Test cornerstone octree core functionality
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
