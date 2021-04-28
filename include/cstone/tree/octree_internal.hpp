@@ -627,57 +627,6 @@ public:
         }
     }
 
-    //! @brief returns (min,max) x-coordinate pair for @p node
-    template<class T>
-    [[nodiscard]] pair<T> x(TreeNodeIndex node, const Box<T>& box)
-    {
-        constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
-        constexpr T uL = T(1.) / maxCoord;
-
-        I prefix = codeStart(node);
-        int ix = decodeMortonX(prefix);
-        T xBox = box.xmin() + ix * uL * box.lx();
-        int unitsPerBox = 1u<<(maxTreeLevel<I>{} - level(node));
-
-        T uLx = uL * box.lx() * unitsPerBox;
-
-        return {xBox, xBox + uLx};
-    }
-
-    //! @brief returns (min,max) y-coordinate pair for @p node
-    template<class T>
-    [[nodiscard]] pair<T> y(TreeNodeIndex node, const Box<T>& box)
-    {
-        constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
-        constexpr T uL = T(1.) / maxCoord;
-
-        I prefix = codeStart(node);
-        int iy = decodeMortonY(prefix);
-        T yBox = box.ymin() + iy * uL * box.ly();
-        int unitsPerBox = 1u<<(maxTreeLevel<I>{} - level(node));
-
-        T uLy = uL * box.ly() * unitsPerBox;
-
-        return {yBox, yBox + uLy};
-    }
-
-    //! @brief returns (min,max) z-coordinate pair for @p node
-    template<class T>
-    [[nodiscard]] pair<T> z(TreeNodeIndex node, const Box<T>& box)
-    {
-        constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
-        constexpr T uL = T(1.) / maxCoord;
-
-        I prefix = codeStart(node);
-        int iz = decodeMortonZ(prefix);
-        T zBox = box.zmin() + iz * uL * box.lz();
-        int unitsPerBox = 1u<<(maxTreeLevel<I>{} - level(node));
-
-        T uLz = uL * box.lz() * unitsPerBox;
-
-        return {zBox, zBox + uLz};
-    }
-
 private:
 
     //! @brief cornerstone octree, just the leaves

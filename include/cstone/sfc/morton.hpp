@@ -192,7 +192,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3D(T x, T y, T z, Box<T>
 //! @brief extract X component from a morton code
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonX(I code)
+inline std::enable_if_t<std::is_unsigned<I>{}, I> idecodeMortonX(I code)
 {
     return detail::compactBits(code >> 2);
 }
@@ -200,7 +200,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonX(I code)
 //! @brief extract Y component from a morton code
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonY(I code)
+inline std::enable_if_t<std::is_unsigned<I>{}, I> idecodeMortonY(I code)
 {
     return detail::compactBits(code >> 1);
 }
@@ -208,7 +208,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonY(I code)
 //! @brief extract Z component from a morton code
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonZ(I code)
+inline std::enable_if_t<std::is_unsigned<I>{}, I> idecodeMortonZ(I code)
 {
     return detail::compactBits(code);
 }
@@ -228,40 +228,105 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> decodeMortonZ(I code)
  */
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline pair<int> decodeXRange(I code, int length)
+inline pair<int> idecodeMortonXRange(I code, int length)
 {
     pair<int> ret{0, 0};
 
-    ret[0] = decodeMortonX(code);
+    ret[0] = idecodeMortonX(code);
     ret[1] = ret[0] + (I(1) << (maxTreeLevel<I>{} - (length+2)/3));
 
     return ret;
 }
 
-//! @brief see decodeXRange
+//! @brief see idecodeMortonXRange
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline pair<int> decodeYRange(I code, int length)
+inline pair<int> idecodeMortonYRange(I code, int length)
 {
     pair<int> ret{0, 0};
 
-    ret[0] = decodeMortonY(code);
+    ret[0] = idecodeMortonY(code);
     ret[1] = ret[0] + (I(1) << (maxTreeLevel<I>{} - (length+1)/3));
 
     return ret;
 }
 
-//! @brief see decodeXRange
+//! @brief see idecodeMortonXRange
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline pair<int> decodeZRange(I code, int length)
+inline pair<int> idecodeMortonZRange(I code, int length)
 {
     pair<int> ret{0, 0};
 
-    ret[0] = decodeMortonZ(code);
+    ret[0] = idecodeMortonZ(code);
     ret[1] = ret[0] + (I(1) << (maxTreeLevel<I>{} - length/3));
 
     return ret;
+}
+
+/*! @brief returns (min,max) x-coordinate pair for a lower and upper morton code
+ *
+ * @tparam T         float or double
+ * @tparam I         32- or 64-bit unsigned integer
+ * @param prefix     lowest Morton code
+ * @param upperCode  upper Morton code
+ * @param box        floating point coordinate bounding box used to construct
+ *                   @p prefix and @p upper code
+ * @return           floating point coordinate range
+ *
+ * Note that prefix and upperCode are assumed to delineate an octree node.
+ * Therefore upperCode - prefix should be a power of 8. This saves one decode step.
+ * If the difference is not a power of 8, use idecodeMortonXYZ on @p prefix and @p upperCode
+ * separately.
+ */
+template<class T, class I>
+pair<T> decodeMortonXRange(I prefix, I upperCode, const Box<T>& box)
+{
+    assert(isPowerOf8(upperCode - prefix));
+    constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+    constexpr T uL = T(1.) / maxCoord;
+
+    int ix = idecodeMortonX(prefix);
+    T xBox = box.xmin() + ix * uL * box.lx();
+    int unitsPerBox = 1u<<(maxTreeLevel<I>{} - treeLevel(upperCode - prefix));
+
+    T uLx = uL * box.lx() * unitsPerBox;
+
+    return {xBox, xBox + uLx};
+}
+
+//! @brief see decodeMortonXRange
+template<class T, class I>
+pair<T> decodeMortonYRange(I prefix, I upperCode, const Box<T>& box)
+{
+    assert(isPowerOf8(upperCode - prefix));
+    constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+    constexpr T uL = T(1.) / maxCoord;
+
+    int iy = idecodeMortonY(prefix);
+    T yBox = box.ymin() + iy * uL * box.ly();
+    int unitsPerBox = 1u<<(maxTreeLevel<I>{} - treeLevel(upperCode - prefix));
+
+    T uLy = uL * box.ly() * unitsPerBox;
+
+    return {yBox, yBox + uLy};
+}
+
+//! @brief see decodeMortonXRange
+template<class T, class I>
+pair<T> decodeMortonZRange(I prefix, I upperCode, const Box<T>& box)
+{
+    assert(isPowerOf8(upperCode - prefix));
+    constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+    constexpr T uL = T(1.) / maxCoord;
+
+    int iz = idecodeMortonZ(prefix);
+    T zBox = box.zmin() + iz * uL * box.lz();
+    int unitsPerBox = 1u<<(maxTreeLevel<I>{} - treeLevel(upperCode - prefix));
+
+    T uLz = uL * box.lz() * unitsPerBox;
+
+    return {zBox, zBox + uLz};
 }
 
 /*! @brief compute morton codes corresponding to neighboring octree nodes
@@ -296,9 +361,9 @@ mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz,
     // zero out lower tree levels
     code = enclosingBoxCode(code, treeLevel);
 
-    int x = decodeMortonX(code);
-    int y = decodeMortonY(code);
-    int z = decodeMortonZ(code);
+    int x = idecodeMortonX(code);
+    int y = idecodeMortonY(code);
+    int z = idecodeMortonZ(code);
 
     int newX = x + dx * shiftValue;
     if (pbcX) {

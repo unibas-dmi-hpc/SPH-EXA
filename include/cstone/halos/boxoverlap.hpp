@@ -89,9 +89,9 @@ template <class I>
 CUDA_HOST_DEVICE_FUN
 bool overlap(I prefix, int length, const IBox& box)
 {
-    pair<int> xRange = decodeXRange(prefix, length);
-    pair<int> yRange = decodeYRange(prefix, length);
-    pair<int> zRange = decodeZRange(prefix, length);
+    pair<int> xRange = idecodeMortonXRange(prefix, length);
+    pair<int> yRange = idecodeMortonYRange(prefix, length);
+    pair<int> zRange = idecodeMortonZRange(prefix, length);
 
     constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
     bool xOverlap = overlapRange<maxCoord>(xRange[0], xRange[1], box.xmin(), box.xmax());
@@ -198,9 +198,9 @@ IBox makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz,
 {
     int prefixNBits = treeLevel(codeEnd - codeStart) * 3;
 
-    pair<int> xrange = decodeXRange(codeStart, prefixNBits);
-    pair<int> yrange = decodeYRange(codeStart, prefixNBits);
-    pair<int> zrange = decodeZRange(codeStart, prefixNBits);
+    pair<int> xrange = idecodeMortonXRange(codeStart, prefixNBits);
+    pair<int> yrange = idecodeMortonYRange(codeStart, prefixNBits);
+    pair<int> zrange = idecodeMortonZRange(codeStart, prefixNBits);
 
     constexpr int maxCoordinate = (1u << maxTreeLevel<I>{});
 
