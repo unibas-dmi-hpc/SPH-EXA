@@ -14,6 +14,7 @@ set(UNIT_TESTS
         sfc/morton.cpp
         tree/btree.cpp
         tree/octree.cpp
+        tree/octree_essential.cpp
         tree/octree_internal.cpp
         tree/octree_util.cpp
         tree/upsweep.cpp

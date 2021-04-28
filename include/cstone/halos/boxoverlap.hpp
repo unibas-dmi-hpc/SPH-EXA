@@ -181,6 +181,29 @@ containedIn(I prefixBitKey, I codeStart, I codeEnd)
     return !(firstPrefix < codeStart || secondPrefix > codeEnd);
 }
 
+template <class I>
+inline IBox makeIBox(I mortonCodeStart, I mortonCodeEnd)
+{
+    int prefixNBits = treeLevel(mortonCodeEnd -mortonCodeStart) * 3;
+
+    pair<int> xrange = idecodeMortonXRange(mortonCodeStart, prefixNBits);
+    pair<int> yrange = idecodeMortonYRange(mortonCodeStart, prefixNBits);
+    pair<int> zrange = idecodeMortonZRange(mortonCodeStart, prefixNBits);
+
+    return IBox(xrange[0], xrange[1], yrange[0], yrange[1], zrange[0], zrange[1]);
+}
+
+template<class I>
+CUDA_HOST_DEVICE_FUN
+inline int addDelta(int value, int delta, bool pbc)
+{
+    constexpr int maxCoordinate = (1u << maxTreeLevel<I>{});
+
+    int temp = value + delta;
+    if (pbc) return temp;
+    else     return stl::min(stl::max(0, temp), maxCoordinate);
+}
+
 /*! @brief Construct a 3D box from an octree node plus halo range
  *
  * @tparam I             32- or 64-bit unsigned integer
@@ -193,30 +216,20 @@ containedIn(I prefixBitKey, I codeStart, I codeEnd)
  *                       of the input octree node extended by (dx,dy,dz)
  */
 template <class I>
+CUDA_HOST_DEVICE_FUN
 IBox makeHaloBox(I codeStart, I codeEnd, int dx, int dy, int dz,
                  bool pbcX = false, bool pbcY = false, bool pbcZ = false)
 {
-    int prefixNBits = treeLevel(codeEnd - codeStart) * 3;
+    IBox nodeBox = makeIBox(codeStart, codeEnd);
 
-    pair<int> xrange = idecodeMortonXRange(codeStart, prefixNBits);
-    pair<int> yrange = idecodeMortonYRange(codeStart, prefixNBits);
-    pair<int> zrange = idecodeMortonZRange(codeStart, prefixNBits);
-
-    constexpr int maxCoordinate = (1u << maxTreeLevel<I>{});
-
-    // add halo range to the coordinate ranges of the node to be collided
-    int xmin = (pbcX) ? xrange[0] - dx : std::max(0, xrange[0] - dx);
-    int xmax = (pbcX) ? xrange[1] + dx : std::min(maxCoordinate, xrange[1] + dx);
-    int ymin = (pbcY) ? yrange[0] - dy : std::max(0, yrange[0] - dy);
-    int ymax = (pbcY) ? yrange[1] + dy : std::min(maxCoordinate, yrange[1] + dy);
-    int zmin = (pbcZ) ? zrange[0] - dz : std::max(0, zrange[0] - dz);
-    int zmax = (pbcZ) ? zrange[1] + dz : std::min(maxCoordinate, zrange[1] + dz);
-
-    return IBox(xmin, xmax, ymin, ymax, zmin, zmax);
+    return IBox(addDelta<I>(nodeBox.xmin(), -dx, pbcX), addDelta<I>(nodeBox.xmax(), dx, pbcX),
+                addDelta<I>(nodeBox.ymin(), -dy, pbcY), addDelta<I>(nodeBox.ymax(), dy, pbcY),
+                addDelta<I>(nodeBox.zmin(), -dz, pbcZ), addDelta<I>(nodeBox.zmax(), dz, pbcZ));
 }
 
 //! @brief create a box with specified radius around node delineated by codeStart/End
 template <class CoordinateType, class RadiusType, class I>
+CUDA_HOST_DEVICE_FUN
 IBox makeHaloBox(I codeStart, I codeEnd, RadiusType radius, const Box<CoordinateType>& box)
 {
     // disallow boxes with no volume
