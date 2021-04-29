@@ -161,6 +161,8 @@ private:
 class IBox
 {
 public:
+    CUDA_HOST_DEVICE_FUN
+    IBox() : limits{0,0,0,0,0,0} {}
 
     CUDA_HOST_DEVICE_FUN
     IBox(int xyzMin, int xyzMax) :

@@ -49,14 +49,14 @@
 namespace cstone
 {
 
-/*! @brief return the smallest distance between two points on the surface of the AABBs @p a and @p b
+/*! @brief return the smallest distance squared between two points on the surface of the AABBs @p a and @p b
  *
  * @tparam T     float or double
  * @tparam I     32- or 64-bit unsigned integer
  * @param a      a box, specified with integer coordinates in [0:2^21]
  * @param b
  * @param box    floating point coordinate bounding box
- * @return       the smallest distance between a and b
+ * @return       the square of the smallest distance between a and b
  */
 template<class T, class I>
 CUDA_HOST_DEVICE_FUN

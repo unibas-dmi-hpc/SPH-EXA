@@ -32,7 +32,6 @@
 #pragma once
 
 #include "cstone/halos/boxoverlap.hpp"
-#include "cstone/halos/btreetraversal.hpp"
 #include "cstone/tree/octree_internal.hpp"
 
 namespace cstone
@@ -44,13 +43,37 @@ inline bool overlapNode(const Octree<I>& octree, TreeNodeIndex nodeIndex, const 
     return overlap(octree.codeStart(nodeIndex), 3 * octree.level(nodeIndex), collisionBox);
 }
 
-template <class I>
-void findCollisions(const Octree<I>& octree, CollisionList& collisionList,
-                    const IBox& collisionBox)
+//constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+//I iboxStart = imorton3D<I>(collisionBox.xmin(), collisionBox.ymin(), collisionBox.zmin());
+//int xmax = collisionBox.xmax();
+//int ymax = collisionBox.ymax();
+//int zmax = collisionBox.zmax();
+//if (xmax == maxCoord) xmax--;
+//if (ymax == maxCoord) ymax--;
+//if (zmax == maxCoord) zmax--;
+//I iboxEnd   = imorton3D<I>(xmax, ymax, zmax);
+
+//pair<I> commonBox = smallestCommonBox(iboxStart, iboxEnd);
+//int iboxLevel = treeLevel<I>(commonBox[1] - commonBox[0]);
+
+//for (int l = 1; l <= iboxLevel; ++l)
+//{
+//    int octant = octreeDigit(commonBox[0], l);
+//    node = octree.child(node, octant);
+//}
+
+//if (octree.isLeaf(node))
+//{
+//    collisionList.add(node);
+//    return;
+//}
+
+template <class I, class C, class A>
+void traverse(const Octree<I>& octree, C&& continuationCriterion, A&& endpointAction)
 {
     if (octree.isLeaf(0)) // if the root is a leaf
     {
-        collisionList.add(0);
+        endpointAction(0);
         return;
     }
 
@@ -60,43 +83,18 @@ void findCollisions(const Octree<I>& octree, CollisionList& collisionList,
     TreeNodeIndex stackPos = 1;
     TreeNodeIndex node     = 0; // start at the root
 
-    //constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
-    //I iboxStart = imorton3D<I>(collisionBox.xmin(), collisionBox.ymin(), collisionBox.zmin());
-    //int xmax = collisionBox.xmax();
-    //int ymax = collisionBox.ymax();
-    //int zmax = collisionBox.zmax();
-    //if (xmax == maxCoord) xmax--;
-    //if (ymax == maxCoord) ymax--;
-    //if (zmax == maxCoord) zmax--;
-    //I iboxEnd   = imorton3D<I>(xmax, ymax, zmax);
-
-    //pair<I> commonBox = smallestCommonBox(iboxStart, iboxEnd);
-    //int iboxLevel = treeLevel<I>(commonBox[1] - commonBox[0]);
-
-    //for (int l = 1; l <= iboxLevel; ++l)
-    //{
-    //    int octant = octreeDigit(commonBox[0], l);
-    //    node = octree.child(node, octant);
-    //}
-
-    //if (octree.isLeaf(node))
-    //{
-    //    collisionList.add(node);
-    //    return;
-    //}
-
     TreeNodeIndex internalNodes = octree.nInternalNodes();
     do
     {
         for (int octant = 0; octant < 8; ++octant)
         {
             TreeNodeIndex child = octree.child(node, octant);
-            bool overlaps = overlapNode(octree, child, collisionBox);
-            if (overlaps)
+            bool descend = continuationCriterion(child);
+            if (descend)
             {
                 if (octree.isLeaf(child))
                 {
-                    collisionList.add(child - internalNodes);
+                    endpointAction(child - internalNodes);
                 }
                 else
                 {
