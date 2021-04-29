@@ -17,6 +17,7 @@ set(UNIT_TESTS
         tree/octree_essential.cpp
         tree/octree_internal.cpp
         tree/octree_util.cpp
+        tree/traversal.cpp
         tree/upsweep.cpp
         test_main.cpp)
 
