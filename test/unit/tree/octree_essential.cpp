@@ -32,6 +32,7 @@
 #include "gtest/gtest.h"
 
 #include "cstone/tree/octree_essential.hpp"
+#include "cstone/tree/octree_util.hpp"
 
 namespace cstone
 {
@@ -114,6 +115,37 @@ TEST(OctreeEssential, minDistanceMac)
 
     EXPECT_TRUE(probe1);
     EXPECT_FALSE(probe2);
+}
+
+template<class I>
+void markMac()
+{
+    Box<double> box(0,1);
+    std::vector<I> tree = OctreeMaker<I>{}.divide().divide(0).divide(7).makeTree();
+
+    Octree<I> fullTree;
+    fullTree.update(tree.data(), tree.data() + tree.size());
+
+    std::vector<char> markings(nNodes(tree), 0);
+
+    float theta = 0.58;
+    markMac(fullTree, box, 0, 2, 1./(theta*theta), markings.data());
+
+    // first two nodes are in the target range, we don't check any criterion there
+    markings[0] = 0;
+    markings[1] = 0;
+
+    //for (int i = 0; i < nNodes(tree); ++i)
+    //    std::cout << std::dec << i << " " << std::oct << tree[i] << " " << int(markings[i]) << std::endl;
+
+    std::vector<char> reference{0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0};
+    EXPECT_EQ(reference, markings);
+}
+
+TEST(OctreeEssential, markMac)
+{
+    markMac<unsigned>();
+    markMac<uint64_t>();
 }
 
 } // namespace cstone

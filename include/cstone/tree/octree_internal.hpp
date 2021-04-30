@@ -506,6 +506,16 @@ public:
         return node >= internalTree_.size();
     }
 
+    /*! @brief convert a leaf index (indexed from first leaf starting from 0) to 0-indexed from root
+     *
+     * @param[in] node    leaf node index, range [0:nLeafNodes()]
+     * @return            octree index, relative to the root node
+     */
+    [[nodiscard]] inline TreeNodeIndex toInternal(TreeNodeIndex node) const
+    {
+        return node + nInternalNodes();
+    }
+
     /*! @brief check whether child of node is a leaf
      *
      * @param[in] node    node index, range [0:nInternalNodes()]
