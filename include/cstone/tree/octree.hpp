@@ -263,13 +263,13 @@ int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts
 /*! @brief Compute split or fuse decision for each octree node in parallel
  *
  * @tparam I               32- or 64-bit unsigned integer type
- * @param[in] tree         octree nodes given as Morton codes of length @a nNodes
+ * @param[in] tree         octree nodes given as Morton codes of length @p nNodes
  *                         needs to satisfy the octree invariants
- * @param[in] counts       output particle counts per node, length = @a nNodes
+ * @param[in] counts       output particle counts per node, length = @p nNodes
  * @param[in] nNodes       number of nodes in tree
  * @param[in] bucketSize   maximum particle count per (leaf) node and
  *                         minimum particle count (strictly >) for (implicit) internal nodes
- * @param[out] nodeOps     stores rebalance decision result for each node, length = @a nNodes
+ * @param[out] nodeOps     stores rebalance decision result for each node, length = @p nNodes
  * @param[out] converged   stores 0 upon return if converged, a non-zero positive integer otherwise
  *
  * For each node i in the tree, in nodeOps[i], stores

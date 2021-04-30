@@ -71,8 +71,9 @@ inline bool overlapNode(const Octree<I>& octree, TreeNodeIndex nodeIndex, const 
 template <class I, class C, class A>
 void traverse(const Octree<I>& octree, C&& continuationCriterion, A&& endpointAction)
 {
-    if (octree.isLeaf(0)) // if the root is a leaf
+    if (!continuationCriterion(0) || octree.isLeaf(0))
     {
+        // root node is already the endpoint
         endpointAction(0);
         return;
     }

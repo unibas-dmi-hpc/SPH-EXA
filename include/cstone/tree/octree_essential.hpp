@@ -123,14 +123,17 @@ void markMacPerLeaf(TreeNodeIndex leafIdx, const Octree<I>& octree, const IBox* 
 
     IBox target = makeIBox(octree.codeStart(octreeIdx), octree.codeEnd(octreeIdx));
 
-    auto violatesMac = [target, iboxes, invThetaSq, &box](TreeNodeIndex idx)
+    auto checkAndMarkMac = [target, iboxes, invThetaSq, markings, &box](TreeNodeIndex idx)
     {
-        return !minDistanceMac<T, I>(target, iboxes[idx], box, invThetaSq);
+        bool violatesMac = !minDistanceMac<T, I>(target, iboxes[idx], box, invThetaSq);
+        if (violatesMac)
+        {
+            markings[idx] = 1;
+        }
+        return violatesMac;
     };
 
-    auto markIndex = [markings](TreeNodeIndex idx) { markings[idx] = 1; };
-
-    traverse(octree, violatesMac, markIndex);
+    traverse(octree, checkAndMarkMac, [](TreeNodeIndex){});
 }
 
 /*! @brief Mark all leaf nodes that fail the MAC paired with leaf nodes from a given range
@@ -143,9 +146,9 @@ void markMacPerLeaf(TreeNodeIndex leafIdx, const Octree<I>& octree, const IBox* 
  *                          to check for nodes failing the minimum distance Mac
  * @param[in]  lastLeaf     last leaf index
  * @param[in]  invThetaSq   1./theta^2
- * @param[out] markings     array of length @p octree.nLeafNodes, each position i outside [firstLeaf:lastLeaf]
- *                          will be set to 1, if the leaf node with index i fails the MAC paired with any
- *                          of the nodes in [firstLeaf:lastLeaf]
+ * @param[out] markings     array of length @p octree.nTreeNodes(), each position i
+ *                          will be set to 1, if node with index i fails the MAC paired with any
+ *                          of the leaf nodes with leaf index in [firstLeaf:lastLeaf]
  */
 template<class T, class I>
 void markMac(const Octree<I>& octree, const Box<T>& box, TreeNodeIndex firstLeaf, TreeNodeIndex lastLeaf,
@@ -164,6 +167,46 @@ void markMac(const Octree<I>& octree, const Box<T>& box, TreeNodeIndex firstLeaf
     for (TreeNodeIndex i = firstLeaf; i < lastLeaf; ++i)
     {
         markMacPerLeaf(i, octree, treeBoxes.data(), box, invThetaSq, markings);
+    }
+}
+
+/*! @brief Compute locally essential split or fuse decision for each octree node in parallel
+ *
+ * @tparam I                   32- or 64-bit unsigned integer type
+ * @param[in] tree             octree nodes given as Morton codes of length @p nNodes
+ *                             needs to satisfy the octree invariants
+ * @param[in] counts           output particle counts per node, length = @p nNodes
+ * @param[in] macs             multipole pass or fail for non-focus nodes, length = @p nNodes
+ * @param[in] firstFocusNode   first focus node in @p tree
+ * @param[in] lastFocusNode    last focus node in @p tree
+ * @param[in] nNodes           number of nodes in tree
+ * @param[in] bucketSize       maximum particle count per (leaf) node and
+ *                             minimum particle count (strictly >) for (implicit) internal nodes
+ * @param[out] nodeOps         stores rebalance decision result for each node, length = @p nNodes
+ * @param[out] converged       stores 0 upon return if converged, a non-zero positive integer otherwise
+ *
+ * For each node i in the tree, in nodeOps[i], stores
+ *  - 0 if to be merged
+ *  - 1 if unchanged,
+ *  - 8 if to be split.
+ */
+template<class I, class LocalIndex>
+void rebalanceDecisionEssential(const I* tree, const unsigned* counts, const char* macs,
+                                TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode, TreeNodeIndex nNodes,
+                                unsigned bucketSize, LocalIndex* nodeOps, int* converged)
+{
+    #pragma omp parallel for
+    for (TreeNodeIndex i = 0; i < nNodes; ++i)
+    {
+        if (i < firstFocusNode || i >= lastFocusNode)
+        {
+            // node i is outside the focus area, apply MAC-based rebalance decision
+
+        }
+        else {
+            // node i is inside the focus area, apply standard cornerstone rebalance decision
+            nodeOps[i] = calculateNodeOp(tree, i, counts, bucketSize, converged);
+        }
     }
 }
 
