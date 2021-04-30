@@ -126,19 +126,19 @@ void markMac()
     Octree<I> fullTree;
     fullTree.update(tree.data(), tree.data() + tree.size());
 
-    std::vector<char> markings(nNodes(tree), 0);
+    std::vector<char> markings(fullTree.nTreeNodes(), 0);
 
     float theta = 0.58;
     markMac(fullTree, box, 0, 2, 1./(theta*theta), markings.data());
 
-    // first two nodes are in the target range, we don't check any criterion there
-    markings[0] = 0;
-    markings[1] = 0;
+    // first two leaf nodes are in the target range, we don't check any criterion there
+    markings[fullTree.toInternal(0)] = 0;
+    markings[fullTree.toInternal(1)] = 0;
 
-    //for (int i = 0; i < nNodes(tree); ++i)
-    //    std::cout << std::dec << i << " " << std::oct << tree[i] << " " << int(markings[i]) << std::endl;
+    //for (int i = 0; i < fullTree.nTreeNodes(); ++i)
+    //    std::cout << std::dec << i << " " << std::oct << fullTree.codeStart(i) << " " << int(markings[i]) << std::endl;
 
-    std::vector<char> reference{0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0};
+    std::vector<char> reference{1,1,1,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0};
     EXPECT_EQ(reference, markings);
 }
 
