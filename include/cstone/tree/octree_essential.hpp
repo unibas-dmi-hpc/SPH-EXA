@@ -170,16 +170,56 @@ void markMac(const Octree<I>& octree, const Box<T>& box, TreeNodeIndex firstLeaf
     }
 }
 
+/*! @brief Calculate nodeOp based on MACs
+ *
+ * @param leafIdx              leaf node to evaluate
+ * @param cstoneTree           cornerstone tree
+ * @param numInternalNodes     number of internal octree nodes
+ * @param leafParents          leafParents[i] for i in [0:numLeafNodes] returns the parental
+ *                             internal index in [0:numInternalNodes], length = numLeafNodes
+ * @param macs                 MAC result per node, length = numTreeNodes (includes internal nodes)
+ *                             a true-value means the MAC failed
+ * @param changeCount          increment counter for each node change
+ * @return                     0 (merge), 1 (do nothing) or 8 (split)
+ */
+template<class I>
+inline CUDA_HOST_DEVICE_FUN
+int calculateMacOp(TreeNodeIndex leafIdx, const I* cstoneTree, TreeNodeIndex numInternalNodes,
+                   const TreeNodeIndex* leafParents, const char* macs, int* changeCount)
+{
+    if (macs[numInternalNodes + leafIdx])
+    {
+        // argument node failed the MAC
+        (*changeCount)++;
+        return 8; // split
+    }
+
+    I thisNode       = cstoneTree[leafIdx];
+    I range          = cstoneTree[leafIdx + 1] - thisNode;
+    unsigned level   = treeLevel(range);
+    TreeNodeIndex pi = octalDigit(thisNode, level);
+
+    TreeNodeIndex parentIdx = leafParents[leafIdx];
+    if (macs[parentIdx] || pi == 0)
+    {
+        // the argument node (leafIdx) passed the MAC, but its parent didn't
+        // or the node is the first of 8 siblings
+        return 1; // do nothing
+    }
+
+    (*changeCount)++;
+    return 0; // merge
+}
+
 /*! @brief Compute locally essential split or fuse decision for each octree node in parallel
  *
  * @tparam I                   32- or 64-bit unsigned integer type
- * @param[in] tree             octree nodes given as Morton codes of length @p nNodes
+ * @param[in] tree             full octree, including internal part
  *                             needs to satisfy the octree invariants
- * @param[in] counts           output particle counts per node, length = @p nNodes
- * @param[in] macs             multipole pass or fail for non-focus nodes, length = @p nNodes
- * @param[in] firstFocusNode   first focus node in @p tree
- * @param[in] lastFocusNode    last focus node in @p tree
- * @param[in] nNodes           number of nodes in tree
+ * @param[in] leafCounts       output particle counts per leaf node, length = @p octree.nLeafNodes()
+ * @param[in] macs             multipole pass or fail per node, length = @p octree.nTreeNodes()
+ * @param[in] firstFocusNode   first focus LEAF node in @p tree
+ * @param[in] lastFocusNode    last focus LEAF node in @p tree
  * @param[in] bucketSize       maximum particle count per (leaf) node and
  *                             minimum particle count (strictly >) for (implicit) internal nodes
  * @param[out] nodeOps         stores rebalance decision result for each node, length = @p nNodes
@@ -191,22 +231,25 @@ void markMac(const Octree<I>& octree, const Box<T>& box, TreeNodeIndex firstLeaf
  *  - 8 if to be split.
  */
 template<class I, class LocalIndex>
-void rebalanceDecisionEssential(const I* tree, const unsigned* counts, const char* macs,
-                                TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode, TreeNodeIndex nNodes,
+void rebalanceDecisionEssential(const Octree<I>& tree, const unsigned* leafCounts, const char* macs,
+                                TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
                                 unsigned bucketSize, LocalIndex* nodeOps, int* converged)
 {
     #pragma omp parallel for
-    for (TreeNodeIndex i = 0; i < nNodes; ++i)
+    for (TreeNodeIndex leafIdx = 0; leafIdx < tree.nLeafNodes(); ++leafIdx)
     {
-        if (i < firstFocusNode || i >= lastFocusNode)
-        {
-            // node i is outside the focus area, apply MAC-based rebalance decision
+        // standard particle-count based rebalance decision
+        int opDecision = calculateNodeOp(tree.cstoneTree(), leafIdx, leafCounts, bucketSize, converged);
 
+        // a fuse-decision due to low particle counts (opCode 0) overrides any MAC-based criterion
+        if ((leafIdx < firstFocusNode || leafIdx >= lastFocusNode) && opDecision > 0)
+        {
+            // node leafIdx is outside the focus area and not marked for fusion
+            // apply MAC-based rebalance decision
+            opDecision = calculateMacOp(leafIdx, tree.cstoneTree(), tree.nInternalNodes(), tree.leafParents(),
+                                        macs, converged);
         }
-        else {
-            // node i is inside the focus area, apply standard cornerstone rebalance decision
-            nodeOps[i] = calculateNodeOp(tree, i, counts, bucketSize, converged);
-        }
+        nodeOps[leafIdx] = opDecision;
     }
 }
 

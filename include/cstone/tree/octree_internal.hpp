@@ -637,6 +637,16 @@ public:
         }
     }
 
+    [[nodiscard]] const I* cstoneTree() const
+    {
+        return cstoneTree_.data();
+    }
+
+    [[nodiscard]] const TreeNodeIndex* leafParents() const
+    {
+        return leafParents_.data();
+    }
+
 private:
 
     //! @brief cornerstone octree, just the leaves

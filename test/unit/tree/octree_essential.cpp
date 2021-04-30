@@ -148,4 +148,74 @@ TEST(OctreeEssential, markMac)
     markMac<uint64_t>();
 }
 
+//! @brief various tests about merge/split decisions based on node counts and MACs
+template<class I>
+void rebalanceDecision()
+{
+    std::vector<I> tree = OctreeMaker<I>{}.divide().divide(0).divide(7).makeTree();
+
+    Octree<I> fullTree;
+    fullTree.update(tree.data(), tree.data() + tree.size());
+
+    //for (int i = 0; i < fullTree.nTreeNodes(); ++i)
+    //    std::cout << std::dec << i << " " << std::oct << fullTree.codeStart(i) << std::endl;
+
+    unsigned bucketSize = 1;
+
+    {
+        // nodes 14-21 should be fused based on counts, and should stay based on MACs. counts win, nodes are fused
+        int converged = 0;
+        //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
+        std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<char>     macs{1,1,1,0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+
+        std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 8, 8, 8, 1, 0, 0, 0, 0, 0, 0, 0};
+
+        std::vector<int> nodeOps(nNodes(tree));
+        rebalanceDecisionEssential(fullTree, leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data(), &converged);
+
+        EXPECT_EQ(nodeOps, reference);
+        EXPECT_GT(converged, 0);
+    }
+    {
+        // nodes 14-21 should stay based on counts, and should stay based on MACs. nodes stay
+        int converged = 0;
+        //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
+        std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0};
+        std::vector<char>     macs{1,1,1,0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        //                             ^
+        //                             parent of leaf nodes 14-21
+        std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 8, 8, 8, 1, 1, 1, 1, 1, 1, 1, 1};
+
+        std::vector<int> nodeOps(nNodes(tree));
+        rebalanceDecisionEssential(fullTree, leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data(), &converged);
+
+        EXPECT_EQ(nodeOps, reference);
+        EXPECT_GT(converged, 0);
+    }
+    {
+        // nodes 14-21 should stay based on counts, and should be fused based on MACs. MAC wins, nodes are fused
+        EXPECT_EQ(fullTree.parent(fullTree.toInternal(14)), 2);
+        int converged = 0;
+        //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
+        std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0};
+        std::vector<char>     macs{1,1,0,0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        //                             ^
+        //                             parent of leaf nodes 14-21
+        std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 8, 8, 8, 1, 0, 0, 0, 0, 0, 0, 0};
+
+        std::vector<int> nodeOps(nNodes(tree));
+        rebalanceDecisionEssential(fullTree, leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data(), &converged);
+
+        EXPECT_EQ(nodeOps, reference);
+        EXPECT_GT(converged, 0);
+    }
+}
+
+TEST(OctreeEssential, rebalanceDecision)
+{
+    rebalanceDecision<unsigned>();
+    rebalanceDecision<uint64_t>();
+}
+
 } // namespace cstone
