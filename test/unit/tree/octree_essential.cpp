@@ -92,4 +92,28 @@ TEST(OctreeEssential, minDistanceSq)
     }
 }
 
+TEST(OctreeEssential, nodeLengthSq)
+{
+    IBox ibox(0,1);
+    Box<double> box(0,1,0,2,0,3);
+
+    double reference = 1./1024 * 3;
+    double probe     = nodeLength<double, unsigned>(ibox, box);
+    EXPECT_DOUBLE_EQ(reference, probe);
+}
+
+
+TEST(OctreeEssential, minDistanceMac)
+{
+    IBox a(0,1);
+    IBox b(6,8,0,1,0,1);
+    Box<double> box(0,1);
+
+    bool probe1 = minDistanceMac<double, unsigned>(a, b, box, 6.0);
+    bool probe2 = minDistanceMac<double, unsigned>(a, b, box, 6.5);
+
+    EXPECT_TRUE(probe1);
+    EXPECT_FALSE(probe2);
+}
+
 } // namespace cstone

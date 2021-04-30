@@ -78,4 +78,32 @@ T minDistanceSq(IBox a, IBox b, const Box<T>& box)
             (uz*uz + vz*vz)*box.lz()*box.lz()) * unitLengthSq;
 }
 
+//! @brief return longest edge length of box @p b
+template<class T, class I>
+T nodeLength(IBox b, const Box<T>& box)
+{
+    constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+    constexpr T unitLength = T(1.) / maxCoord;
+
+    // IBoxes for octree nodes are assumed cubic, only box can be rectangular
+    return (b.xmax() - b.xmin()) * unitLength * box.maxExtent();
+}
+
+/*! @brief evaluate minimum distance MAC
+ *
+ * @param a            target cell
+ * @param b            source cell
+ * @param box          coordinate bounding box
+ * @param invThetaSq   inverse theta squared
+ * @return             true if MAC fulfilled, false otherwise
+ */
+template<class T, class I>
+bool minDistanceMac(IBox a, IBox b, const Box<T>& box, float invThetaSq)
+{
+    T dsq = minDistanceSq<T, I>(a, b, box);
+    // equivalent to "d > l / theta"
+    T bLength = nodeLength<T, I>(b, box);
+    return dsq > bLength * bLength * invThetaSq;
+}
+
 } // namespace cstone
