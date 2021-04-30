@@ -45,6 +45,9 @@
 
 #include "cstone/cuda/annotation.hpp"
 #include "cstone/sfc/morton.hpp"
+#include "cstone/halos/boxoverlap.hpp"
+#include "octree_internal.hpp"
+#include "traversal.hpp"
 
 namespace cstone
 {
@@ -80,6 +83,7 @@ T minDistanceSq(IBox a, IBox b, const Box<T>& box)
 
 //! @brief return longest edge length of box @p b
 template<class T, class I>
+CUDA_HOST_DEVICE_FUN
 T nodeLength(IBox b, const Box<T>& box)
 {
     constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
@@ -96,14 +100,71 @@ T nodeLength(IBox b, const Box<T>& box)
  * @param box          coordinate bounding box
  * @param invThetaSq   inverse theta squared
  * @return             true if MAC fulfilled, false otherwise
+ *
+ * Note: Mac is valid for any point in a w.r.t to box b, therefore only the
+ * size of b is relevant.
  */
 template<class T, class I>
+CUDA_HOST_DEVICE_FUN
 bool minDistanceMac(IBox a, IBox b, const Box<T>& box, float invThetaSq)
 {
     T dsq = minDistanceSq<T, I>(a, b, box);
     // equivalent to "d > l / theta"
     T bLength = nodeLength<T, I>(b, box);
     return dsq > bLength * bLength * invThetaSq;
+}
+
+template<class T, class I>
+CUDA_HOST_DEVICE_FUN
+void markMacPerLeaf(TreeNodeIndex leafIdx, const Octree<I>& octree, const IBox* iboxes, const Box<T>& box,
+                    float invThetaSq, char* markings)
+{
+    TreeNodeIndex octreeIdx = octree.toInternal(leafIdx);
+
+    IBox target = makeIBox(octree.codeStart(octreeIdx), octree.codeEnd(octreeIdx));
+
+    auto violatesMac = [target, iboxes, invThetaSq, &box](TreeNodeIndex idx)
+    {
+        return !minDistanceMac<T, I>(target, iboxes[idx], box, invThetaSq);
+    };
+
+    auto markIndex = [markings](TreeNodeIndex idx) { markings[idx] = 1; };
+
+    traverse(octree, violatesMac, markIndex);
+}
+
+/*! @brief Mark all leaf nodes that fail the MAC paired with leaf nodes from a given range
+ *
+ * @tparam T                float or double
+ * @tparam I                32- or 64-bit unsigned integer
+ * @param[in]  octree       octree, including internal part
+ * @param[in]  box          global coordinate bounding box
+ * @param[in]  firstLeaf    first leaf index of the cornerstone tree used to build @p octree
+ *                          to check for nodes failing the minimum distance Mac
+ * @param[in]  lastLeaf     last leaf index
+ * @param[in]  invThetaSq   1./theta^2
+ * @param[out] markings     array of length @p octree.nLeafNodes, each position i outside [firstLeaf:lastLeaf]
+ *                          will be set to 1, if the leaf node with index i fails the MAC paired with any
+ *                          of the nodes in [firstLeaf:lastLeaf]
+ */
+template<class T, class I>
+void markMac(const Octree<I>& octree, const Box<T>& box, TreeNodeIndex firstLeaf, TreeNodeIndex lastLeaf,
+             float invThetaSq, char* markings)
+
+{
+    std::vector<IBox> treeBoxes(octree.nTreeNodes());
+
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < octree.nTreeNodes(); ++i)
+    {
+        treeBoxes[i] = makeIBox(octree.codeStart(i), octree.codeEnd(i));
+    }
+
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = firstLeaf; i < lastLeaf; ++i)
+    {
+        markMacPerLeaf(i, octree, treeBoxes.data(), box, invThetaSq, markings);
+    }
 }
 
 } // namespace cstone
