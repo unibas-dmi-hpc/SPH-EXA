@@ -347,60 +347,6 @@ void rebalanceTree(SfcVector& tree, SfcVector& tmpTree, TreeNodeIndex* nodeOps)
     swap(tree, tmpTree);
 }
 
-/*! @brief compute an octree from morton codes for a specified bucket size
-
- * @tparam I               32- or 64-bit unsigned integer type
- * @param[in] codesStart   particle morton code sequence start
- * @param[in] codesEnd     particle morton code sequence end
- * @param[in] bucketSize   maximum number of particles/codes per octree leaf node
- * @param[in] maxCount     if actual node counts are higher, they will be capped to @p maxCount
- * @param[in] tree         initial tree for the first iteration
- * @return                 the tree and the node counts
- *
- * Remarks:
- *    It is sensible to assume that the bucket size of the tree is much smaller than 2^32,
- *    and thus it is ok to use 32-bit integers for the node counts, because if the node count
- *    happens to be bigger than 2^32 for a node, this node will anyway be divided until the
- *    node count is smaller than the bucket size. We just have to make sure to prevent overflow,
- *    in MPI_Allreduce, therefore, maxCount should be set to 2^32/nRanks - 1 for distributed tree builds.
- */
-template<class I, class Reduce = void>
-std::tuple<std::vector<I>, std::vector<unsigned>>
-computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
-              unsigned maxCount = std::numeric_limits<unsigned>::max(),
-              std::vector<I>&& tree = std::vector<I>(0))
-{
-    if (!tree.size())
-    {
-        // tree containing just the root node
-        tree.push_back(0);
-        tree.push_back(nodeRange<I>(0));
-    }
-
-    std::vector<unsigned>      counts(nNodes(tree));
-    std::vector<TreeNodeIndex> nodeOps(nNodes(tree) + 1);
-    std::vector<I>             tmpTree;
-
-    int changeCounter = 1;
-    while (changeCounter != 0)
-    {
-        computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd, maxCount);
-        if constexpr (!std::is_same_v<void, Reduce>)
-        {
-            (void)Reduce{}(counts); // void cast to silence "warning: expression has no effect" from nvcc
-        }
-
-        changeCounter = 0;
-        rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data(), &changeCounter);
-        rebalanceTree(tree, tmpTree, nodeOps.data());
-
-        counts.resize(nNodes(tree));
-        nodeOps.resize(nNodes(tree) + 1);
-    }
-
-    return std::make_tuple(std::move(tree), std::move(counts));
-}
-
 /*! @brief update the octree with a single rebalance/count step
  *
  * @tparam I                 32- or 64-bit unsigned integer for morton code
@@ -411,9 +357,10 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
  * @param[inout] tree        the octree leaf nodes (cornerstone format)
  * @param[inout] counts      the octree leaf node particle count
  * @param[in]    maxCount    if actual node counts are higher, they will be capped to @p maxCount
+ * @return                   true if tree was not modified, false otherwise
  */
 template<class I, class Reduce = void>
-void updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
+bool updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
                   std::vector<I>& tree, std::vector<unsigned>& counts,
                   unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
@@ -430,6 +377,42 @@ void updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
     computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd, maxCount, true);
     // global node count sums when using distributed builds
     if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
+    return changeCounter == 0;
+}
+
+/*! @brief compute an octree from morton codes for a specified bucket size
+
+ * @tparam I               32- or 64-bit unsigned integer type
+ * @param[in] codesStart   particle morton code sequence start
+ * @param[in] codesEnd     particle morton code sequence end
+ * @param[in] bucketSize   maximum number of particles/codes per octree leaf node
+ * @param[in] maxCount     if actual node counts are higher, they will be capped to @p maxCount
+ * @return                 the tree and the node counts
+ *
+ * Remarks:
+ *    It is sensible to assume that the bucket size of the tree is much smaller than 2^32,
+ *    and thus it is ok to use 32-bit integers for the node counts, because if the node count
+ *    happens to be bigger than 2^32 for a node, this node will anyway be divided until the
+ *    node count is smaller than the bucket size. We just have to make sure to prevent overflow,
+ *    in MPI_Allreduce, therefore, maxCount should be set to 2^32/nRanks - 1 for distributed tree builds.
+ */
+template<class I, class Reduce = void>
+std::tuple<std::vector<I>, std::vector<unsigned>>
+computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
+              unsigned maxCount = std::numeric_limits<unsigned>::max())
+{
+    std::vector<I>        tree{0, nodeRange<I>(0)};
+    std::vector<unsigned> counts{unsigned(codesEnd - codesStart)};
+
+    std::vector<TreeNodeIndex> nodeOps(nNodes(tree) + 1);
+
+    bool converged = false;
+    while (!converged)
+    {
+        converged = updateOctree<I, Reduce>(codesStart, codesEnd, bucketSize, tree, counts, maxCount);
+    }
+
+    return std::make_tuple(std::move(tree), std::move(counts));
 }
 
 /*! @brief Compute the halo radius of each node in the given octree

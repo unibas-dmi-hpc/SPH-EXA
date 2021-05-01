@@ -196,7 +196,6 @@ public:
         if (incrementalBuild_)
         {
             updateOctreeGlobal(codes.data(), codes.data() + nParticles, bucketSize_, tree_, nodeCounts_);
-            //std::tie(tree_, nodeCounts_) = computeOctreeGlobal(codes.data(), codes.data() + nParticles, bucketSize_, std::move(tree_));
         }
         else
         {
