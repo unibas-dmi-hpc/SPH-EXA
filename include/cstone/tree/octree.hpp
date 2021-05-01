@@ -326,28 +326,27 @@ void processNode(TreeNodeIndex nodeIndex, const I* oldTree, const TreeNodeIndex*
  * @param[in] tree         octree nodes given as Morton codes of length @a nNodes
  *                         needs to satisfy the octree invariants
  * @param[in] counts       output particle counts per node, length = @a nNodes
- * @param[in] nNodes       number of nodes in tree
  * @param[in] bucketSize   maximum particle count per (leaf) node and
  *                         minimum particle count (strictly >) for (implicit) internal nodes
  * @param[out] converged   optional boolean flag to indicate convergence
  * @return                 the rebalanced Morton code octree
  */
 template<class SfcVector>
-void rebalanceTree(SfcVector& tree, const unsigned* counts, TreeNodeIndex nNodes,
-                   unsigned bucketSize, bool* converged = nullptr)
+void rebalanceTree(SfcVector& tree, const unsigned* counts, unsigned bucketSize, bool* converged = nullptr)
 {
     using I = typename SfcVector::value_type;
-    std::vector<TreeNodeIndex> nodeOps(nNodes + 1);
+    TreeNodeIndex numNodes = nNodes(tree);
+    std::vector<TreeNodeIndex> nodeOps(numNodes + 1);
 
     int changeCounter = 0;
-    rebalanceDecision(tree.data(), counts, nNodes, bucketSize, nodeOps.data(), &changeCounter);
+    rebalanceDecision(tree.data(), counts, numNodes, bucketSize, nodeOps.data(), &changeCounter);
 
-    exclusiveScan(nodeOps.data(), nNodes + 1);
+    exclusiveScan(nodeOps.data(), numNodes + 1);
 
     SfcVector balancedTree(*nodeOps.rbegin() + 1);
 
     #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex i = 0; i < nNodes; ++i)
+    for (TreeNodeIndex i = 0; i < numNodes; ++i)
     {
         processNode(i, tree.data(), nodeOps.data(), balancedTree.data());
     }
@@ -403,7 +402,7 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
             (void)Reduce{}(counts); // void cast to silence "warning: expression has no effect" from nvcc
         }
 
-        rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize, &converged);
+        rebalanceTree(tree, counts.data(), bucketSize, &converged);
         counts.resize(nNodes(tree));
     }
 
@@ -426,7 +425,7 @@ void updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
                   std::vector<I>& tree, std::vector<unsigned>& counts,
                   unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
-    rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize);
+    rebalanceTree(tree, counts.data(), bucketSize);
     counts.resize(nNodes(tree));
 
     // local node counts
