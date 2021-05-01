@@ -152,13 +152,13 @@ TEST(OctreeEssential, markMac)
 template<class I>
 void rebalanceDecision()
 {
-    std::vector<I> tree = OctreeMaker<I>{}.divide().divide(0).divide(7).makeTree();
+    std::vector<I> cstree = OctreeMaker<I>{}.divide().divide(0).divide(7).makeTree();
 
-    Octree<I> fullTree;
-    fullTree.update(tree.data(), tree.data() + tree.size());
+    Octree<I> tree;
+    tree.update(cstree.data(), cstree.data() + cstree.size());
 
-    //for (int i = 0; i < fullTree.nTreeNodes(); ++i)
-    //    std::cout << std::dec << i << " " << std::oct << fullTree.codeStart(i) << std::endl;
+    //for (int i = 0; i < tree.nTreeNodes(); ++i)
+    //    std::cout << std::dec << i << " " << std::oct << tree.codeStart(i) << std::endl;
 
     unsigned bucketSize = 1;
 
@@ -171,8 +171,9 @@ void rebalanceDecision()
 
         std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 8, 8, 8, 1, 0, 0, 0, 0, 0, 0, 0};
 
-        std::vector<int> nodeOps(nNodes(tree));
-        rebalanceDecisionEssential(fullTree, leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data(), &converged);
+        std::vector<int> nodeOps(nNodes(cstree));
+        rebalanceDecisionEssential(tree.cstoneTree(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
+                                   leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data(), &converged);
 
         EXPECT_EQ(nodeOps, reference);
         EXPECT_GT(converged, 0);
@@ -187,15 +188,16 @@ void rebalanceDecision()
         //                             parent of leaf nodes 14-21
         std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 8, 8, 8, 1, 1, 1, 1, 1, 1, 1, 1};
 
-        std::vector<int> nodeOps(nNodes(tree));
-        rebalanceDecisionEssential(fullTree, leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data(), &converged);
+        std::vector<int> nodeOps(nNodes(cstree));
+        rebalanceDecisionEssential(tree.cstoneTree(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
+                                   leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data(), &converged);
 
         EXPECT_EQ(nodeOps, reference);
         EXPECT_GT(converged, 0);
     }
     {
         // nodes 14-21 should stay based on counts, and should be fused based on MACs. MAC wins, nodes are fused
-        EXPECT_EQ(fullTree.parent(fullTree.toInternal(14)), 2);
+        EXPECT_EQ(tree.parent(tree.toInternal(14)), 2);
         int converged = 0;
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0};
@@ -204,8 +206,9 @@ void rebalanceDecision()
         //                             parent of leaf nodes 14-21
         std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 8, 8, 8, 1, 0, 0, 0, 0, 0, 0, 0};
 
-        std::vector<int> nodeOps(nNodes(tree));
-        rebalanceDecisionEssential(fullTree, leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data(), &converged);
+        std::vector<int> nodeOps(nNodes(cstree));
+        rebalanceDecisionEssential(tree.cstoneTree(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
+                                   leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data(), &converged);
 
         EXPECT_EQ(nodeOps, reference);
         EXPECT_GT(converged, 0);
