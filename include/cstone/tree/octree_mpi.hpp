@@ -53,14 +53,13 @@ struct GlobalReduce
  * See documentation of computeOctree
  */
 template <class I>
-std::tuple<std::vector<I>, std::vector<unsigned>> computeOctreeGlobal(const I *codesStart, const I *codesEnd, unsigned bucketSize,
-                                                                      std::vector<I> &&tree = std::vector<I>(0))
+std::tuple<std::vector<I>, std::vector<unsigned>> computeOctreeGlobal(const I *codesStart, const I *codesEnd, unsigned bucketSize)
 {
     int nRanks;
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
     unsigned maxCount = std::numeric_limits<unsigned>::max() / nRanks;
-    return computeOctree<I, GlobalReduce>(codesStart, codesEnd, bucketSize, maxCount, std::move(tree));
+    return computeOctree<I, GlobalReduce>(codesStart, codesEnd, bucketSize, maxCount);
 }
 
 /*! @brief perform one octree update, consisting of one rebalance and one node counting step
