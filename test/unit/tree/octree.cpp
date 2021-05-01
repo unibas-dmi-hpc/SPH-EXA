@@ -196,171 +196,27 @@ TEST(CornerstoneOctree, rebalanceDecision)
     rebalanceDecision<uint64_t, unsigned>();
 }
 
-//! @brief check that nodes can be fused at the start of the tree
-template<class CodeType>
-void rebalanceShrinkStart()
+template<class CodeType, class LocalIndex>
+void rebalanceDecisionSingleRoot()
 {
-    constexpr int bucketSize = 8;
+    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.makeTree();
 
-    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
-    std::vector<unsigned> counts(nNodes(tree), 1);
+    unsigned bucketSize = 4;
+    std::vector<unsigned> counts{1};
 
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
-    rebalanceTree(tree, counts.data(), bucketSize);
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
+    int changeCounter = 0;
+    std::vector<LocalIndex> nodeOps(nNodes(tree));
+    rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data(), &changeCounter);
 
-    std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().makeTree();
-    EXPECT_EQ(tree, reference);
+    std::vector<LocalIndex> reference{1};
+    EXPECT_EQ(nodeOps, reference);
+    EXPECT_EQ(changeCounter, 0);
 }
 
-TEST(CornerstoneOctree, rebalanceShrinkStart32)
+TEST(CornerstoneOctree, rebalanceDecisionSingleRoot)
 {
-    rebalanceShrinkStart<unsigned>();
-}
-
-TEST(CornerstoneOctree, rebalanceShrinkStart64)
-{
-    rebalanceShrinkStart<uint64_t>();
-}
-
-//! @brief check that nodes can be fused in the middle of the tree
-template<class CodeType>
-void rebalanceShrinkMid()
-{
-    constexpr int bucketSize = 8;
-
-    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(1).makeTree();
-
-    std::vector<unsigned> counts(nNodes(tree), 1);
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
-    rebalanceTree(tree, counts.data(), bucketSize);
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
-
-    std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().makeTree();
-    EXPECT_EQ(tree, reference);
-}
-
-TEST(CornerstoneOctree, rebalanceShrinkMid32)
-{
-    rebalanceShrinkMid<unsigned>();
-}
-
-TEST(CornerstoneOctree, rebalanceShrinkMid64)
-{
-    rebalanceShrinkMid<uint64_t>();
-}
-
-//! @brief check that nodes can be fused at the end of the tree
-template<class CodeType>
-void rebalanceShrinkEnd()
-{
-    constexpr int bucketSize = 8;
-
-    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(7).makeTree();
-
-    std::vector<unsigned> counts(nNodes(tree), 1);
-
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
-    rebalanceTree(tree, counts.data(), bucketSize);
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
-
-    std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().makeTree();
-    EXPECT_EQ(tree, reference);
-}
-
-TEST(CornerstoneOctree, rebalanceShrinkEnd32)
-{
-    rebalanceShrinkEnd<unsigned>();
-}
-
-TEST(CornerstoneOctree, rebalanceShrinkEnd64)
-{
-    rebalanceShrinkEnd<uint64_t>();
-}
-
-//! @brief test invariance of a single root node under rebalancing if count < bucketsize
-template<class I>
-void rebalanceRootInvariant()
-{
-    using CodeType = I;
-    constexpr int bucketSize = 8;
-
-    // single root node
-    std::vector<CodeType> tree{0, nodeRange<CodeType>(0)};
-    std::vector<unsigned> counts{7};
-
-    rebalanceTree(tree, counts.data(), bucketSize);
-
-    std::vector<CodeType> reference{0, nodeRange<CodeType>(0)};
-    EXPECT_EQ(tree, reference);
-}
-
-TEST(CornerstoneOctree, rebalanceRootInvariant32)
-{
-    rebalanceRootInvariant<uint64_t>();
-}
-
-TEST(CornerstoneOctree, rebalanceRootInvariant64)
-{
-    rebalanceRootInvariant<uint64_t>();
-}
-
-//! @brief test splitting of a single root node
-template<class I>
-void rebalanceRootSplit()
-{
-    using CodeType = I;
-    constexpr int bucketSize = 8;
-
-    // single root node
-    std::vector<CodeType> tree{0, nodeRange<CodeType>(0)};
-    std::vector<unsigned> counts{9};
-
-    rebalanceTree(tree, counts.data(), bucketSize);
-
-    std::vector<CodeType> reference = OctreeMaker<I>{}.divide().makeTree();
-    EXPECT_EQ(tree, reference);
-}
-
-TEST(CornerstoneOctree, rebalanceRootSplit32)
-{
-    rebalanceRootSplit<unsigned>();
-}
-
-TEST(CornerstoneOctree, rebalanceRootSplit64)
-{
-    rebalanceRootSplit<uint64_t>();
-}
-
-//! @brief test node splitting and fusion simultaneously
-template<class CodeType>
-void rebalanceSplitShrink()
-{
-    constexpr int bucketSize = 8;
-
-    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(7).makeTree();
-
-    // nodes {7,i} will need to be fused
-    std::vector<unsigned> counts(nNodes(tree), 1);
-    // node {1} will need to be split
-    counts[1] = bucketSize+1;
-
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
-    rebalanceTree(tree, counts.data(), bucketSize);
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
-
-    std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().divide(1).makeTree();
-    EXPECT_EQ(tree, reference);
-}
-
-TEST(CornerstoneOctree, rebalanceSplitShrink32)
-{
-    rebalanceSplitShrink<unsigned>();
-}
-
-TEST(CornerstoneOctree, rebalanceSplitShrink64)
-{
-    rebalanceSplitShrink<uint64_t>();
+    rebalanceDecisionSingleRoot<unsigned, unsigned>();
+    rebalanceDecisionSingleRoot<uint64_t, unsigned>();
 }
 
 /*! @brief test behavior of a maximum-depth tree under rebalancing
@@ -380,29 +236,51 @@ void rebalanceInsufficentResolution()
         octreeMaker.divide({}, level);
 
     std::vector<CodeType> tree = octreeMaker.makeTree();
-    std::vector<CodeType> reference = tree;
 
     std::vector<unsigned> counts(nNodes(tree), 1);
     counts[0] = bucketSize + 1;
 
+    std::vector<TreeNodeIndex> nodeOps(tree.size());
     // the first node has two particles, one more than the bucketSize
     // since the first node is at the maximum subdivision layer, the tree
     // can't be further refined to satisfy the bucketSize
-    rebalanceTree(tree, counts.data(), bucketSize);
+    int changeCounter = 0;
+    rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data(), &changeCounter);
 
-    EXPECT_EQ(tree, reference);
+    std::vector<TreeNodeIndex> reference(tree.size(), 1);
+    reference[nNodes(tree)] = 0;
+
+    EXPECT_EQ(nodeOps, reference);
+    EXPECT_EQ(changeCounter, 0);
 }
 
-TEST(CornerstoneOctree, rebalanceInsufficientResolution32)
+TEST(CornerstoneOctree, rebalanceInsufficientResolution)
 {
     rebalanceInsufficentResolution<unsigned>();
-}
-
-TEST(CornerstoneOctree, rebalanceInsufficientResolution64)
-{
     rebalanceInsufficentResolution<uint64_t>();
 }
 
+//! @brief check that nodes can be fused at the start of the tree
+template<class CodeType>
+void rebalanceTree()
+{
+    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
+    std::vector<CodeType> tmpTree;
+
+    std::vector<TreeNodeIndex> nodeOps{1,0,0,0,0,0,0,0,1,8,1,1,1,1,8,0};
+    ASSERT_EQ(nodeOps.size(), tree.size());
+
+    rebalanceTree(tree, tmpTree, nodeOps.data());
+
+    std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().divide(2).divide(7).makeTree();
+    EXPECT_EQ(tree, reference);
+}
+
+TEST(CornerstoneOctree, rebalance)
+{
+    rebalanceTree<unsigned>();
+    rebalanceTree<uint64_t>();
+}
 
 template<class I>
 void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<unsigned>& counts, int bucketSize,
