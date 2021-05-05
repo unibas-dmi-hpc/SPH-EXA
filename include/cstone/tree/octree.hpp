@@ -226,7 +226,7 @@ void computeNodeCounts(const I* tree, unsigned* counts, TreeNodeIndex nNodes, co
 //! @brief returns 0 for merging, 1 for no-change, 8 for splitting
 template<class I>
 CUDA_HOST_DEVICE_FUN
-int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize, int* changeCount)
+int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize)
 {
     I thisNode     = tree[nodeIdx];
     I range        = tree[nodeIdx + 1] - thisNode;
@@ -234,7 +234,6 @@ int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts
 
     if (counts[nodeIdx] > bucketSize && level < maxTreeLevel<I>{})
     {
-        (*changeCount)++;
         return 8; // split
     }
     else if (level > 0) // level 0 cannot be fused
@@ -251,7 +250,6 @@ int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts
             #endif
             if (parentCount <= bucketSize)
             {
-                (*changeCount)++;
                 return 0; // fuse
             }
         }
@@ -270,7 +268,7 @@ int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts
  * @param[in] bucketSize   maximum particle count per (leaf) node and
  *                         minimum particle count (strictly >) for (implicit) internal nodes
  * @param[out] nodeOps     stores rebalance decision result for each node, length = @p nNodes
- * @param[out] converged   stores 0 upon return if converged, a non-zero positive integer otherwise
+ * @return                 true if converged, false
  *
  * For each node i in the tree, in nodeOps[i], stores
  *  - 0 if to be merged
@@ -278,14 +276,25 @@ int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts
  *  - 8 if to be split.
  */
 template<class I, class LocalIndex>
-void rebalanceDecision(const I* tree, const unsigned* counts, TreeNodeIndex nNodes,
-                       unsigned bucketSize, LocalIndex* nodeOps, int* converged)
+bool rebalanceDecision(const I* tree, const unsigned* counts, TreeNodeIndex nNodes,
+                       unsigned bucketSize, LocalIndex* nodeOps)
 {
-    #pragma omp parallel for
-    for (TreeNodeIndex i = 0; i < nNodes; ++i)
+    bool converged = true;
+
+    #pragma omp parallel
     {
-        nodeOps[i] = calculateNodeOp(tree, i, counts, bucketSize, converged);
+        bool convergedThread = true;
+        #pragma omp for
+        for (TreeNodeIndex i = 0; i < nNodes; ++i)
+        {
+            int decision = calculateNodeOp(tree, i, counts, bucketSize);
+            if (decision != 1) { convergedThread = false; }
+
+            nodeOps[i] = decision;
+        }
+        if (!convergedThread) { converged = false; }
     }
+    return converged;
 }
 
 /*! @brief transform old nodes into new nodes based on opcodes
@@ -363,8 +372,7 @@ bool updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
                   unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
     std::vector<TreeNodeIndex> nodeOps(nNodes(tree) + 1);
-    int changeCounter = 0;
-    rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data(), &changeCounter);
+    bool converged = rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data());
 
     std::vector<I> newTree;
     rebalanceTree(tree, newTree, nodeOps.data());
@@ -376,7 +384,7 @@ bool updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
     computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd, maxCount, true);
     // global node count sums when using distributed builds
     if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
-    return changeCounter == 0;
+    return converged;
 }
 
 /*! @brief compute an octree from morton codes for a specified bucket size

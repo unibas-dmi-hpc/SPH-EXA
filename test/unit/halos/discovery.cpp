@@ -152,6 +152,9 @@ void findHalosPbc()
             {30, 33}, {30, 40}, {30, 41}, {30, 49}, {30, 51}, {30, 56}, {30, 57}, {30, 58}, {30, 59},
             {31, 32}, {31, 40}, {31, 41}, {31, 48}, {31, 50}, {31, 56}, {31, 57}, {31, 58}, {31, 59}
         };
+        auto comp = [](auto a, auto b){ return std::tie(a[0], a[1]) < std::tie(b[0], b[1]); };
+        std::sort(begin(haloPairs), end(haloPairs), comp);
+        std::sort(begin(reference), end(reference), comp);
         EXPECT_EQ(haloPairs, reference);
     }
     {
@@ -192,6 +195,9 @@ void findHalosPbc()
             {62, 1}, {62, 8}, {62, 9}, {62, 17}, {62, 19}, {62, 24}, {62, 25}, {62, 26}, {62, 27},
             {63, 0}, {63, 8}, {63, 9}, {63, 16}, {63, 18}, {63, 24}, {63, 25}, {63, 26}, {63, 27},
         };
+        auto comp = [](auto a, auto b){ return std::tie(a[0], a[1]) < std::tie(b[0], b[1]); };
+        std::sort(begin(haloPairs), end(haloPairs), comp);
+        std::sort(begin(reference), end(reference), comp);
         EXPECT_EQ(haloPairs, reference);
     }
 }

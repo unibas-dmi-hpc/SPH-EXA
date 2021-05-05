@@ -166,7 +166,6 @@ void rebalanceDecision()
 
     {
         // nodes 14-21 should be fused based on counts, and 14 should be split based on MACs. counts win, nodes are fused
-        int converged = 0;
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
         std::vector<char>     macs{1,1,1,0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
@@ -174,16 +173,15 @@ void rebalanceDecision()
         std::vector<int>       reference{1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
         std::vector<int> nodeOps(nNodes(cstree));
-        rebalanceDecisionEssential(tree.cstoneTree().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
-                                   leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data(), &converged);
+        bool converged = rebalanceDecisionEssential(tree.cstoneTree().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
+                                                    leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data());
 
         EXPECT_EQ(nodeOps, reference);
-        EXPECT_GT(converged, 0);
+        EXPECT_FALSE(converged);
     }
     {
         // nodes 14-21 should be split/stay based on counts, and should stay based on MACs.
         // MAC wins, nodes stay, but are not split
-        int converged = 0;
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 2, 1, 0, 0, 0, 0};
         std::vector<char>     macs{1,1,1,0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -192,16 +190,15 @@ void rebalanceDecision()
         std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
         std::vector<int> nodeOps(nNodes(cstree));
-        rebalanceDecisionEssential(tree.cstoneTree().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
-                                   leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data(), &converged);
+        bool converged = rebalanceDecisionEssential(tree.cstoneTree().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
+                                                    leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data());
 
         EXPECT_EQ(nodeOps, reference);
-        EXPECT_GT(converged, 0);
+        EXPECT_TRUE(converged);
     }
     {
         // nodes 14-21 should stay based on counts, and should be fused based on MACs. MAC wins, nodes are fused
         EXPECT_EQ(tree.parent(tree.toInternal(14)), 2);
-        int converged = 0;
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 2, 1, 0, 0, 0, 0};
         std::vector<char>     macs{1,1,0,0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -210,11 +207,11 @@ void rebalanceDecision()
         std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
         std::vector<int> nodeOps(nNodes(cstree));
-        rebalanceDecisionEssential(tree.cstoneTree().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
-                                   leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data(), &converged);
+        bool converged = rebalanceDecisionEssential(tree.cstoneTree().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
+                                                    leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data());
 
         EXPECT_EQ(nodeOps, reference);
-        EXPECT_GT(converged, 0);
+        EXPECT_FALSE(converged);
     }
 }
 
