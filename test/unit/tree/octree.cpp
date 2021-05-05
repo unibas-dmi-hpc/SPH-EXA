@@ -181,13 +181,12 @@ void rebalanceDecision()
     unsigned bucketSize = 4;
     std::vector<unsigned> counts{1,1,1,0,0,0,0,0, 2, 3, 4, 5, 6, 7, 8};
 
-    int changeCounter = 0;
     std::vector<LocalIndex> nodeOps(nNodes(tree));
-    rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data(), &changeCounter);
+    bool converged = rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data());
 
     std::vector<LocalIndex> reference{1,0,0,0,0,0,0,0, 1, 1, 1, 8, 8, 8, 8};
     EXPECT_EQ(nodeOps, reference);
-    EXPECT_NE(changeCounter, 0);
+    EXPECT_FALSE(converged);
 }
 
 TEST(CornerstoneOctree, rebalanceDecision)
@@ -204,13 +203,12 @@ void rebalanceDecisionSingleRoot()
     unsigned bucketSize = 4;
     std::vector<unsigned> counts{1};
 
-    int changeCounter = 0;
     std::vector<LocalIndex> nodeOps(nNodes(tree));
-    rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data(), &changeCounter);
+    bool converged = rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data());
 
     std::vector<LocalIndex> reference{1};
     EXPECT_EQ(nodeOps, reference);
-    EXPECT_EQ(changeCounter, 0);
+    EXPECT_TRUE(converged);
 }
 
 TEST(CornerstoneOctree, rebalanceDecisionSingleRoot)
@@ -244,14 +242,13 @@ void rebalanceInsufficentResolution()
     // the first node has two particles, one more than the bucketSize
     // since the first node is at the maximum subdivision layer, the tree
     // can't be further refined to satisfy the bucketSize
-    int changeCounter = 0;
-    rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data(), &changeCounter);
+    bool converged = rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data());
 
     std::vector<TreeNodeIndex> reference(tree.size(), 1);
-    reference[nNodes(tree)] = 0;
+    reference[nNodes(tree)] = 0; // last value is for the scan result, irrelevant here
 
     EXPECT_EQ(nodeOps, reference);
-    EXPECT_EQ(changeCounter, 0);
+    EXPECT_TRUE(converged);
 }
 
 TEST(CornerstoneOctree, rebalanceInsufficientResolution)

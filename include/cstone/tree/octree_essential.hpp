@@ -179,18 +179,16 @@ void markMac(const Octree<I>& octree, const Box<T>& box, TreeNodeIndex firstLeaf
  *                             internal index in [0:numInternalNodes], length = numLeafNodes
  * @param macs                 MAC result per node, length = numTreeNodes (includes internal nodes)
  *                             a true-value means the MAC failed
- * @param changeCount          increment counter for each node change
  * @return                     0 (merge), 1 (do nothing) or 8 (split)
  */
 template<class I>
 inline CUDA_HOST_DEVICE_FUN
 int calculateMacOp(TreeNodeIndex leafIdx, const I* cstoneTree, TreeNodeIndex numInternalNodes,
-                   const TreeNodeIndex* leafParents, const char* macs, int* changeCount)
+                   const TreeNodeIndex* leafParents, const char* macs)
 {
     if (macs[numInternalNodes + leafIdx])
     {
         // argument node failed the MAC
-        (*changeCount)++;
         return 8; // split
     }
 
@@ -207,7 +205,6 @@ int calculateMacOp(TreeNodeIndex leafIdx, const I* cstoneTree, TreeNodeIndex num
         return 1; // do nothing
     }
 
-    (*changeCount)++;
     return 0; // merge
 }
 
@@ -225,7 +222,7 @@ int calculateMacOp(TreeNodeIndex leafIdx, const I* cstoneTree, TreeNodeIndex num
  * @param[in] bucketSize       maximum particle count per (leaf) node and
  *                             minimum particle count (strictly >) for (implicit) internal nodes
  * @param[out] nodeOps         stores rebalance decision result for each node, length = @p nLeafNodes()
- * @param[out] converged       stores 0 upon return if converged, a non-zero positive integer otherwise
+ * @return                     true if converged, false
  *
  * For each node i in the tree, in nodeOps[i], stores
  *  - 0 if to be merged
@@ -233,30 +230,36 @@ int calculateMacOp(TreeNodeIndex leafIdx, const I* cstoneTree, TreeNodeIndex num
  *  - 8 if to be split.
  */
 template<class I, class LocalIndex>
-void rebalanceDecisionEssential(const I* cstoneTree, TreeNodeIndex numInternalNodes, TreeNodeIndex numLeafNodes,
+bool rebalanceDecisionEssential(const I* cstoneTree, TreeNodeIndex numInternalNodes, TreeNodeIndex numLeafNodes,
                                 const TreeNodeIndex* leafParents,
                                 const unsigned* leafCounts, const char* macs,
                                 TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
-                                unsigned bucketSize, LocalIndex* nodeOps, int* changeCounter)
+                                unsigned bucketSize, LocalIndex* nodeOps)
 {
-    int dummy = 0;
-    #pragma omp parallel for
-    for (TreeNodeIndex leafIdx = 0; leafIdx < numLeafNodes; ++leafIdx)
+    bool converged = true;
+    #pragma omp parallel
     {
-        // standard particle-count based rebalance decision
-        int opDecisionCount = calculateNodeOp(cstoneTree, leafIdx, leafCounts, bucketSize, &dummy);
+        bool convergedThread = true;
+        #pragma omp for
+        for (TreeNodeIndex leafIdx = 0; leafIdx < numLeafNodes; ++leafIdx)
+        {
+            // standard particle-count based rebalance decision
+            int opDecisionCount = calculateNodeOp(cstoneTree, leafIdx, leafCounts, bucketSize);
 
-        bool outsideFocus = (leafIdx < firstFocusNode || leafIdx >= lastFocusNode);
-        // MAC-based rebalance decision
-        int opDecisionMac = (outsideFocus) ? calculateMacOp(leafIdx, cstoneTree, numInternalNodes, leafParents, macs, &dummy)
-                                            : opDecisionCount;
+            bool outsideFocus = (leafIdx < firstFocusNode || leafIdx >= lastFocusNode);
+            // MAC-based rebalance decision
+            int opDecisionMac = (outsideFocus) ? calculateMacOp(leafIdx, cstoneTree, numInternalNodes, leafParents, macs)
+                                               : opDecisionCount;
 
-        // a leaf node can only stay or be split if both criteria agree
-        int opDecision = stl::min(opDecisionCount, opDecisionMac);
-        if (opDecision != 1) { *changeCounter = 1; }
+            // a leaf node can only stay or be split if both criteria agree
+            int opDecision = stl::min(opDecisionCount, opDecisionMac);
+            if (opDecision != 1) { convergedThread = false; }
 
-        nodeOps[leafIdx] = opDecision;
+            nodeOps[leafIdx] = opDecision;
+        }
+        if (!convergedThread) { converged = false; }
     }
+    return converged;
 }
 
 template<class T, class I>
@@ -274,9 +277,9 @@ bool updateOctreeEssential(const I* codesStart, const I* codesEnd, I focusStart,
     markMac(tree, box, firstFocusNode, lastFocusNode, 1/(theta*theta), markings.data());
 
     std::vector<TreeNodeIndex> nodeOps(nLeafNodes + 1);
-    int changeCounter = 0;
-    rebalanceDecisionEssential(cstoneTree.data(), tree.nInternalNodes(), nLeafNodes, tree.leafParents(), leafCounts.data(),
-                               markings.data(), firstFocusNode, lastFocusNode, bucketSize, nodeOps.data(), &changeCounter);
+    bool converged = rebalanceDecisionEssential(cstoneTree.data(), tree.nInternalNodes(), nLeafNodes, tree.leafParents(),
+                                                leafCounts.data(), markings.data(), firstFocusNode, lastFocusNode,
+                                                bucketSize, nodeOps.data());
 
     std::vector<I> newCstoneTree;
     rebalanceTree(cstoneTree, newCstoneTree, nodeOps.data());
@@ -288,7 +291,7 @@ bool updateOctreeEssential(const I* codesStart, const I* codesEnd, I focusStart,
                       std::numeric_limits<unsigned>::max(), true);
     // global node count sums when using distributed builds
     //if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
-    return changeCounter == 0;
+    return converged;
 }
 
 template<class T, class I>

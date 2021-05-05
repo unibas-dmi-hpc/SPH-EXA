@@ -169,7 +169,9 @@ __global__ void rebalanceDecisionKernel(const I* tree, const unsigned* counts, T
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid < nNodes)
     {
-        nodeOps[tid] = calculateNodeOp(tree, tid, counts, bucketSize, &rebalanceChangeCounter);
+        int decision = calculateNodeOp(tree, tid, counts, bucketSize);
+        if (decision != 1) { rebalanceChangeCounter = 1;}
+        nodeOps[tid] = decision;
     }
 }
 
