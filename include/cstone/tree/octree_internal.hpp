@@ -430,40 +430,23 @@ public:
      * internal state change:
      *      -full tree update
      */
-    void update(const I* firstLeaf, const I* lastLeaf)
+    template<class InputIterator>
+    void update(InputIterator firstLeaf, InputIterator lastLeaf)
     {
         assert(lastLeaf > firstLeaf);
 
         // make space for leaf nodes
         TreeNodeIndex treeSize = lastLeaf - firstLeaf;
-        nNodesPerLevel_[0]     = treeSize - 1;
         cstoneTree_.resize(treeSize);
         std::copy(firstLeaf, lastLeaf, cstoneTree_.data());
 
-        binaryTree_.resize(nNodes(cstoneTree_));
-        createBinaryTree(cstoneTree_.data(), nNodes(cstoneTree_), binaryTree_.data());
+        updateInternalTree();
+    }
 
-        std::vector<OctreeNode<I>> preTree((nNodes(cstoneTree_) - 1) / 7);
-        std::vector<TreeNodeIndex> preLeafParents(nNodes(cstoneTree_));
-
-        createInternalOctreeCpu(binaryTree_.data(), nNodes(cstoneTree_), preTree.data(), preLeafParents.data());
-
-        // re-sort internal nodes to establish a max-depth ordering
-        std::vector<TreeNodeIndex> ordering(preTree.size());
-        // determine ordering
-        decreasingMaxDepthOrder(preTree.data(), preTree.size(), ordering.data(), nNodesPerLevel_.data());
-        // apply the ordering to the internal tree;
-        internalTree_.resize(preTree.size());
-        rewireInternal(preTree.data(), ordering.data(), preTree.size(), internalTree_.data());
-
-        // apply ordering to leaf parents
-        leafParents_.resize(preLeafParents.size());
-
-        // internal tree is empty if a single leaf node is also the tree-root
-        if (!internalTree_.empty())
-        {
-            rewireIndices(preLeafParents.data(), ordering.data(), preLeafParents.size(), leafParents_.data());
-        }
+    void update(std::vector<I>&& newLeaves)
+    {
+        cstoneTree_ = std::move(newLeaves);
+        updateInternalTree();
     }
 
     //! @brief total number of nodes in the tree
@@ -653,6 +636,38 @@ public:
     }
 
 private:
+
+    //! @brief regenerates the internal tree based on (a changed) cstoneTree_
+    void updateInternalTree()
+    {
+        nNodesPerLevel_[0] = nNodes(cstoneTree_);
+
+        binaryTree_.resize(nNodes(cstoneTree_));
+        createBinaryTree(cstoneTree_.data(), nNodes(cstoneTree_), binaryTree_.data());
+
+        std::vector<OctreeNode<I>> preTree((nNodes(cstoneTree_) - 1) / 7);
+        std::vector<TreeNodeIndex> preLeafParents(nNodes(cstoneTree_));
+
+        createInternalOctreeCpu(binaryTree_.data(), nNodes(cstoneTree_), preTree.data(), preLeafParents.data());
+
+        // re-sort internal nodes to establish a max-depth ordering
+        std::vector<TreeNodeIndex> ordering(preTree.size());
+        // determine ordering
+        decreasingMaxDepthOrder(preTree.data(), preTree.size(), ordering.data(), nNodesPerLevel_.data());
+        // apply the ordering to the internal tree;
+        internalTree_.resize(preTree.size());
+        rewireInternal(preTree.data(), ordering.data(), preTree.size(), internalTree_.data());
+
+        // apply ordering to leaf parents
+        leafParents_.resize(preLeafParents.size());
+
+        // internal tree is empty if a single leaf node is also the tree-root
+        if (!internalTree_.empty())
+        {
+            leafParents_[0] = 0;
+            rewireIndices(preLeafParents.data(), ordering.data(), preLeafParents.size(), leafParents_.data());
+        }
+    }
 
     //! @brief cornerstone octree, just the leaves
     std::vector<I>             cstoneTree_;

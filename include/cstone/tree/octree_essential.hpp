@@ -237,21 +237,24 @@ void rebalanceDecisionEssential(const I* cstoneTree, TreeNodeIndex numInternalNo
                                 const TreeNodeIndex* leafParents,
                                 const unsigned* leafCounts, const char* macs,
                                 TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
-                                unsigned bucketSize, LocalIndex* nodeOps, int* converged)
+                                unsigned bucketSize, LocalIndex* nodeOps, int* changeCounter)
 {
+    int dummy = 0;
     #pragma omp parallel for
     for (TreeNodeIndex leafIdx = 0; leafIdx < numLeafNodes; ++leafIdx)
     {
         // standard particle-count based rebalance decision
-        int opDecision = calculateNodeOp(cstoneTree, leafIdx, leafCounts, bucketSize, converged);
+        int opDecisionCount = calculateNodeOp(cstoneTree, leafIdx, leafCounts, bucketSize, &dummy);
 
-        // a fuse-decision due to low particle counts (opCode 0) overrides any MAC-based criterion
-        if ((leafIdx < firstFocusNode || leafIdx >= lastFocusNode) && opDecision > 0)
-        {
-            // node leafIdx is outside the focus area and not marked for fusion
-            // apply MAC-based rebalance decision
-            opDecision = calculateMacOp(leafIdx, cstoneTree, numInternalNodes, leafParents, macs, converged);
-        }
+        bool outsideFocus = (leafIdx < firstFocusNode || leafIdx >= lastFocusNode);
+        // MAC-based rebalance decision
+        int opDecisionMac = (outsideFocus) ? calculateMacOp(leafIdx, cstoneTree, numInternalNodes, leafParents, macs, &dummy)
+                                            : opDecisionCount;
+
+        // a leaf node can only stay or be split if both criteria agree
+        int opDecision = stl::min(opDecisionCount, opDecisionMac);
+        if (opDecision != 1) { *changeCounter = 1; }
+
         nodeOps[leafIdx] = opDecision;
     }
 }
@@ -264,8 +267,8 @@ bool updateOctreeEssential(const I* codesStart, const I* codesEnd, I focusStart,
     const std::vector<I>& cstoneTree = tree.cstoneTree();
     TreeNodeIndex nLeafNodes         = tree.nLeafNodes();
 
-    TreeNodeIndex firstFocusNode = std::upper_bound(cstoneTree, cstoneTree + nLeafNodes, focusStart) - cstoneTree - 1;
-    TreeNodeIndex lastFocusNode  = std::upper_bound(cstoneTree, cstoneTree + nLeafNodes, focusEnd) - cstoneTree;
+    TreeNodeIndex firstFocusNode = std::upper_bound(cstoneTree.data(), cstoneTree.data() + nLeafNodes, focusStart) - cstoneTree.data() - 1;
+    TreeNodeIndex lastFocusNode  = std::upper_bound(cstoneTree.data(), cstoneTree.data() + nLeafNodes, focusEnd) - cstoneTree.data();
 
     std::vector<char> markings(tree.nTreeNodes());
     markMac(tree, box, firstFocusNode, lastFocusNode, 1/(theta*theta), markings.data());
@@ -294,7 +297,9 @@ computeOctreeEssential(const I* codesStart, const I* codesEnd, I focusStart, I f
                        const Box<T>& box, const std::vector<I>& globalCstoneTree)
 {
     Octree<I> tree;
-    std::vector<unsigned> leafCounts;
+    tree.update(std::vector<I>{0, nodeRange<I>(0)});
+
+    std::vector<unsigned> leafCounts{unsigned(codesEnd - codesStart)};
 
     bool converged = false;
     while (!converged)

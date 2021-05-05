@@ -165,13 +165,13 @@ void rebalanceDecision()
     unsigned bucketSize = 1;
 
     {
-        // nodes 14-21 should be fused based on counts, and should stay based on MACs. counts win, nodes are fused
+        // nodes 14-21 should be fused based on counts, and 14 should be split based on MACs. counts win, nodes are fused
         int converged = 0;
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
-        std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
-        std::vector<char>     macs{1,1,1,0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<unsigned> leafCounts{1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<char>     macs{1,1,1,0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
-        std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 8, 8, 8, 1, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<int>       reference{1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
         std::vector<int> nodeOps(nNodes(cstree));
         rebalanceDecisionEssential(tree.cstoneTree().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
@@ -181,14 +181,15 @@ void rebalanceDecision()
         EXPECT_GT(converged, 0);
     }
     {
-        // nodes 14-21 should stay based on counts, and should stay based on MACs. nodes stay
+        // nodes 14-21 should be split/stay based on counts, and should stay based on MACs.
+        // MAC wins, nodes stay, but are not split
         int converged = 0;
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
-        std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0};
+        std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 2, 1, 0, 0, 0, 0};
         std::vector<char>     macs{1,1,1,0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
         //                             ^
         //                             parent of leaf nodes 14-21
-        std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 8, 8, 8, 1, 1, 1, 1, 1, 1, 1, 1};
+        std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
         std::vector<int> nodeOps(nNodes(cstree));
         rebalanceDecisionEssential(tree.cstoneTree().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
@@ -202,11 +203,11 @@ void rebalanceDecision()
         EXPECT_EQ(tree.parent(tree.toInternal(14)), 2);
         int converged = 0;
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
-        std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 0, 0, 0};
+        std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 2, 1, 0, 0, 0, 0};
         std::vector<char>     macs{1,1,0,0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
         //                             ^
         //                             parent of leaf nodes 14-21
-        std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 8, 8, 8, 1, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
         std::vector<int> nodeOps(nNodes(cstree));
         rebalanceDecisionEssential(tree.cstoneTree().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
@@ -227,11 +228,29 @@ template<class I>
 void computeEssentialTree()
 {
     Box<double> box{-1, 1};
-
     int nParticles = 100000;
+    unsigned csBucketSize = 4000;
 
     RandomCoordinates<double, I> randomBox(nParticles, box);
     std::vector<I> codes = randomBox.mortonCodes();
+
+    auto [csTree, csCounts] = computeOctree(codes.data(), codes.data() + nParticles, csBucketSize);
+
+    unsigned bucketSize = 16;
+    float theta         = 0.5;
+
+    auto [tree, counts] = computeOctreeEssential(codes.data(), codes.data() + nParticles, I(0), pad(I(1), 3), bucketSize,
+                                                 theta, box, csTree);
+
+    std::cout << "nNodes(csTree): " << nNodes(csTree) << std::endl;
+    std::cout << "nNodes(tree): " << tree.nTreeNodes() << std::endl;
+
+    EXPECT_GT(tree.nTreeNodes(), 0);
+}
+
+TEST(OctreeEssential, compute)
+{
+    computeEssentialTree<unsigned>();
 }
 
 } // namespace cstone
