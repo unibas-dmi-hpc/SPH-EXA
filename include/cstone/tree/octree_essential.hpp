@@ -220,8 +220,8 @@ int calculateMacOp(TreeNodeIndex leafIdx, const I* cstoneTree, TreeNodeIndex num
  * @param[in] leafParents      stores the parent node index of each leaf, length = @p numLeafNodes
  * @param[in] leafCounts       output particle counts per leaf node, length = @p numLeafNodes
  * @param[in] macs             multipole pass or fail per node, length = @p numInternalNodes + numLeafNodes
- * @param[in] firstFocusNode   first focus LEAF node in @p tree, range = [0:numLeafNodes]
- * @param[in] lastFocusNode    last focus LEAF node in @p tree, range = [0:numLeafNodes]
+ * @param[in] firstFocusNode   first focus node in @p cstoneTree, range = [0:numLeafNodes]
+ * @param[in] lastFocusNode    last focus node in @p cstoneTree, range = [0:numLeafNodes]
  * @param[in] bucketSize       maximum particle count per (leaf) node and
  *                             minimum particle count (strictly >) for (implicit) internal nodes
  * @param[out] nodeOps         stores rebalance decision result for each node, length = @p nLeafNodes()
@@ -255,5 +255,56 @@ void rebalanceDecisionEssential(const I* cstoneTree, TreeNodeIndex numInternalNo
         nodeOps[leafIdx] = opDecision;
     }
 }
+
+template<class T, class I>
+bool updateOctreeEssential(const I* codesStart, const I* codesEnd, I focusStart, I focusEnd, unsigned bucketSize, float theta,
+                           const Box<T>& box, const std::vector<I>& globalCstoneTree,
+                           Octree<I>& tree, std::vector<unsigned>& leafCounts)
+{
+    const std::vector<I>& cstoneTree = tree.cstoneTree();
+    TreeNodeIndex nLeafNodes         = tree.nLeafNodes();
+
+    TreeNodeIndex firstFocusNode = std::upper_bound(cstoneTree, cstoneTree + nLeafNodes, focusStart) - cstoneTree - 1;
+    TreeNodeIndex lastFocusNode  = std::upper_bound(cstoneTree, cstoneTree + nLeafNodes, focusEnd) - cstoneTree;
+
+    std::vector<char> markings(tree.nTreeNodes());
+    markMac(tree, box, firstFocusNode, lastFocusNode, 1/(theta*theta), markings.data());
+
+    std::vector<TreeNodeIndex> nodeOps(nLeafNodes + 1);
+    int changeCounter = 0;
+    rebalanceDecisionEssential(cstoneTree.data(), tree.nInternalNodes(), nLeafNodes, tree.leafParents(), leafCounts.data(),
+                               markings.data(), firstFocusNode, lastFocusNode, bucketSize, nodeOps.data(), &changeCounter);
+
+    std::vector<I> newCstoneTree;
+    rebalanceTree(cstoneTree, newCstoneTree, nodeOps.data());
+    tree.update(newCstoneTree.data(), newCstoneTree.data() + newCstoneTree.size());
+
+    leafCounts.resize(nNodes(newCstoneTree));
+    // local node counts
+    computeNodeCounts(newCstoneTree.data(), leafCounts.data(), nNodes(newCstoneTree), codesStart, codesEnd,
+                      std::numeric_limits<unsigned>::max(), true);
+    // global node count sums when using distributed builds
+    //if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
+    return changeCounter == 0;
+}
+
+template<class T, class I>
+std::tuple<Octree<I>, std::vector<unsigned>>
+computeOctreeEssential(const I* codesStart, const I* codesEnd, I focusStart, I focusEnd, unsigned bucketSize, float theta,
+                       const Box<T>& box, const std::vector<I>& globalCstoneTree)
+{
+    Octree<I> tree;
+    std::vector<unsigned> leafCounts;
+
+    bool converged = false;
+    while (!converged)
+    {
+        converged = updateOctreeEssential(codesStart, codesEnd, focusStart, focusEnd, bucketSize, theta, box,
+                                          globalCstoneTree, tree, leafCounts);
+    }
+
+    return std::make_tuple(std::move(tree), std::move(leafCounts));
+}
+
 
 } // namespace cstone

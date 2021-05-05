@@ -458,7 +458,12 @@ public:
 
         // apply ordering to leaf parents
         leafParents_.resize(preLeafParents.size());
-        rewireIndices(preLeafParents.data(), ordering.data(), preLeafParents.size(), leafParents_.data());
+
+        // internal tree is empty if a single leaf node is also the tree-root
+        if (!internalTree_.empty())
+        {
+            rewireIndices(preLeafParents.data(), ordering.data(), preLeafParents.size(), leafParents_.data());
+        }
     }
 
     //! @brief total number of nodes in the tree
@@ -637,9 +642,9 @@ public:
         }
     }
 
-    [[nodiscard]] const I* cstoneTree() const
+    [[nodiscard]] const std::vector<I>& cstoneTree() const
     {
-        return cstoneTree_.data();
+        return cstoneTree_;
     }
 
     [[nodiscard]] const TreeNodeIndex* leafParents() const

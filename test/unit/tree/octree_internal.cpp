@@ -313,6 +313,20 @@ TEST(InternalOctree, rewire)
     EXPECT_EQ(rewiredTree, reference);
 }
 
+TEST(InternalOctree, rootNode)
+{
+    auto tree = makeRootNodeTree<unsigned>();
+
+    Octree<unsigned> fullTree;
+    fullTree.update(tree.data(), tree.data() + tree.size());
+
+    EXPECT_EQ(fullTree.nLeafNodes(), 1);
+    EXPECT_EQ(fullTree.nTreeNodes(), 1);
+    EXPECT_EQ(fullTree.nInternalNodes(), 0);
+    EXPECT_EQ(fullTree.codeStart(0), 0);
+    EXPECT_EQ(fullTree.codeEnd(0), nodeRange<unsigned>(0));
+}
+
 /*! @brief test internal octree creation from a regular 4x4x4 grid of leaves
  *
  * This creates 64 level-2 leaf nodes. The resulting internal tree should

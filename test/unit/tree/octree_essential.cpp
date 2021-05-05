@@ -34,6 +34,8 @@
 #include "cstone/tree/octree_essential.hpp"
 #include "cstone/tree/octree_util.hpp"
 
+#include "coord_samples/random.hpp"
+
 namespace cstone
 {
 
@@ -172,7 +174,7 @@ void rebalanceDecision()
         std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 8, 8, 8, 1, 0, 0, 0, 0, 0, 0, 0};
 
         std::vector<int> nodeOps(nNodes(cstree));
-        rebalanceDecisionEssential(tree.cstoneTree(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
+        rebalanceDecisionEssential(tree.cstoneTree().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
                                    leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data(), &converged);
 
         EXPECT_EQ(nodeOps, reference);
@@ -189,7 +191,7 @@ void rebalanceDecision()
         std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 8, 8, 8, 1, 1, 1, 1, 1, 1, 1, 1};
 
         std::vector<int> nodeOps(nNodes(cstree));
-        rebalanceDecisionEssential(tree.cstoneTree(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
+        rebalanceDecisionEssential(tree.cstoneTree().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
                                    leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data(), &converged);
 
         EXPECT_EQ(nodeOps, reference);
@@ -207,7 +209,7 @@ void rebalanceDecision()
         std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 8, 8, 8, 8, 1, 0, 0, 0, 0, 0, 0, 0};
 
         std::vector<int> nodeOps(nNodes(cstree));
-        rebalanceDecisionEssential(tree.cstoneTree(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
+        rebalanceDecisionEssential(tree.cstoneTree().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
                                    leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data(), &converged);
 
         EXPECT_EQ(nodeOps, reference);
@@ -219,6 +221,17 @@ TEST(OctreeEssential, rebalanceDecision)
 {
     rebalanceDecision<unsigned>();
     rebalanceDecision<uint64_t>();
+}
+
+template<class I>
+void computeEssentialTree()
+{
+    Box<double> box{-1, 1};
+
+    int nParticles = 100000;
+
+    RandomCoordinates<double, I> randomBox(nParticles, box);
+    std::vector<I> codes = randomBox.mortonCodes();
 }
 
 } // namespace cstone
