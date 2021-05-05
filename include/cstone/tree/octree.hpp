@@ -324,27 +324,25 @@ void processNode(TreeNodeIndex nodeIndex, const I* oldTree, const TreeNodeIndex*
  *
  * @tparam I                  32- or 64-bit unsigned integer type
  * @param[in]    tree         cornerstone octree
- * @param        tmpTree      workspace for temporary use
- * @param[inout] nodeOps      rebalance decision for each node, length @p numNodes(tree) + 1
+ * @param[out]   newTree      rebalanced cornerstone octree
+ * @param[in]    nodeOps      rebalance decision for each node, length @p numNodes(tree) + 1
  *                            will be overwritten
  */
 template<class SfcVector>
-void rebalanceTree(SfcVector& tree, SfcVector& tmpTree, TreeNodeIndex* nodeOps)
+void rebalanceTree(const SfcVector& tree, SfcVector& newTree, TreeNodeIndex* nodeOps)
 {
     using I = typename SfcVector::value_type;
     TreeNodeIndex numNodes = nNodes(tree);
 
     exclusiveScan(nodeOps, numNodes + 1);
-    tmpTree.resize(nodeOps[numNodes] + 1);
+    newTree.resize(nodeOps[numNodes] + 1);
 
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < numNodes; ++i)
     {
-        processNode(i, tree.data(), nodeOps, tmpTree.data());
+        processNode(i, tree.data(), nodeOps, newTree.data());
     }
-    *tmpTree.rbegin() = nodeRange<I>(0);
-
-    swap(tree, tmpTree);
+    *newTree.rbegin() = nodeRange<I>(0);
 }
 
 /*! @brief update the octree with a single rebalance/count step
@@ -368,8 +366,9 @@ bool updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
     int changeCounter = 0;
     rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data(), &changeCounter);
 
-    std::vector<I> tmpTree;
-    rebalanceTree(tree, tmpTree, nodeOps.data());
+    std::vector<I> newTree;
+    rebalanceTree(tree, newTree, nodeOps.data());
+    swap(tree, newTree);
 
     counts.resize(nNodes(tree));
 
@@ -403,8 +402,6 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
 {
     std::vector<I>        tree{0, nodeRange<I>(0)};
     std::vector<unsigned> counts{unsigned(codesEnd - codesStart)};
-
-    std::vector<TreeNodeIndex> nodeOps(nNodes(tree) + 1);
 
     bool converged = false;
     while (!converged)

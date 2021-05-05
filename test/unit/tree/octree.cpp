@@ -265,15 +265,15 @@ template<class CodeType>
 void rebalanceTree()
 {
     std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
-    std::vector<CodeType> tmpTree;
 
     std::vector<TreeNodeIndex> nodeOps{1,0,0,0,0,0,0,0,1,8,1,1,1,1,8,0};
     ASSERT_EQ(nodeOps.size(), tree.size());
 
-    rebalanceTree(tree, tmpTree, nodeOps.data());
+    std::vector<CodeType> newTree;
+    rebalanceTree(tree, newTree, nodeOps.data());
 
     std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().divide(2).divide(7).makeTree();
-    EXPECT_EQ(tree, reference);
+    EXPECT_EQ(newTree, reference);
 }
 
 TEST(CornerstoneOctree, rebalance)
