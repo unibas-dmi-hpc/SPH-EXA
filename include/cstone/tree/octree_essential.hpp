@@ -197,8 +197,10 @@ int calculateMacOp(TreeNodeIndex leafIdx, const I* cstoneTree, TreeNodeIndex num
     unsigned level   = treeLevel(range);
     TreeNodeIndex pi = octalDigit(thisNode, level);
 
+    bool siblings = (cstoneTree[leafIdx-pi+8] == cstoneTree[leafIdx-pi] + nodeRange<I>(level - 1));
+
     TreeNodeIndex parentIdx = leafParents[leafIdx];
-    if (macs[parentIdx] || pi == 0)
+    if (macs[parentIdx] || pi == 0 || !siblings)
     {
         // the argument node (leafIdx) passed the MAC, but its parent didn't
         // or the node is the first of 8 siblings
@@ -206,6 +208,68 @@ int calculateMacOp(TreeNodeIndex leafIdx, const I* cstoneTree, TreeNodeIndex num
     }
 
     return 0; // merge
+}
+
+template<class I>
+TreeNodeIndex findLowerFringe(TreeNodeIndex firstFocusNode, const I* csTree)
+{
+    I firstCode  = csTree[firstFocusNode];
+    I secondCode = csTree[firstFocusNode+1];
+    unsigned level = treeLevel(secondCode - firstCode);
+    if (level > 0)
+    {
+        TreeNodeIndex sIdx = octalDigit(firstCode, level);
+        // true if 8 nodes of the same level (siblings) are next to each other
+        bool siblings = (csTree[firstFocusNode-sIdx+8] == csTree[firstFocusNode-sIdx] + nodeRange<I>(level - 1));
+
+        if (siblings) { return firstFocusNode - sIdx; }
+        else          { return firstFocusNode; }
+    }
+    else { return 0; }
+}
+
+template<class I>
+TreeNodeIndex findUpperFringe(TreeNodeIndex lastFocusNode, const I* csTree)
+{
+    --lastFocusNode;
+    I firstCode  = csTree[lastFocusNode];
+    I secondCode = csTree[lastFocusNode+1];
+    unsigned level = treeLevel(secondCode - firstCode);
+    if (level > 0)
+    {
+        TreeNodeIndex sIdx = octalDigit(firstCode, level);
+        // true if 8 nodes of the same level (siblings) are next to each other
+        bool siblings = (csTree[lastFocusNode-sIdx+8] == csTree[lastFocusNode-sIdx] + nodeRange<I>(level - 1));
+
+        if (siblings) { return lastFocusNode + 8 - sIdx; }
+        else          { return lastFocusNode + 1; }
+    }
+    else { return 1; }
+}
+
+template<class I>
+inline CUDA_HOST_DEVICE_FUN
+int mergeCountAndMacOp(TreeNodeIndex leafIdx, const I* cstoneTree,
+                       TreeNodeIndex numInternalNodes,
+                       const TreeNodeIndex* leafParents,
+                       const unsigned* leafCounts, const char* macs,
+                       TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
+                       TreeNodeIndex firstFringeNode, TreeNodeIndex lastFringeNode,
+                       unsigned bucketSize)
+{
+    bool inFocus  = (leafIdx >= firstFocusNode && leafIdx < lastFocusNode);
+
+    // standard particle-count based rebalance decision
+    int opDecisionCount = calculateNodeOp(cstoneTree, leafIdx, leafCounts, bucketSize);
+    if (inFocus) { return opDecisionCount; }
+
+    bool inFringe = (leafIdx >= firstFringeNode && leafIdx < lastFringeNode && !inFocus);
+
+    // MAC-based rebalance decision
+    int opDecisionMac = calculateMacOp(leafIdx, cstoneTree, numInternalNodes, leafParents, macs);
+    // nodes in fringe areas can only be merged if both Mac and count criteria agree
+    if (inFringe && opDecisionMac == 0) { return stl::min(opDecisionCount, 1); }
+    else                                { return stl::min(opDecisionCount, opDecisionMac); }
 }
 
 /*! @brief Compute locally essential split or fuse decision for each octree node in parallel
@@ -236,6 +300,9 @@ bool rebalanceDecisionEssential(const I* cstoneTree, TreeNodeIndex numInternalNo
                                 TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
                                 unsigned bucketSize, LocalIndex* nodeOps)
 {
+    TreeNodeIndex firstFringeNode = findLowerFringe(firstFocusNode, cstoneTree);
+    TreeNodeIndex lastFringeNode  = findUpperFringe(lastFocusNode, cstoneTree);
+
     bool converged = true;
     #pragma omp parallel
     {
@@ -243,16 +310,8 @@ bool rebalanceDecisionEssential(const I* cstoneTree, TreeNodeIndex numInternalNo
         #pragma omp for
         for (TreeNodeIndex leafIdx = 0; leafIdx < numLeafNodes; ++leafIdx)
         {
-            // standard particle-count based rebalance decision
-            int opDecisionCount = calculateNodeOp(cstoneTree, leafIdx, leafCounts, bucketSize);
-
-            bool outsideFocus = (leafIdx < firstFocusNode || leafIdx >= lastFocusNode);
-            // MAC-based rebalance decision
-            int opDecisionMac = (outsideFocus) ? calculateMacOp(leafIdx, cstoneTree, numInternalNodes, leafParents, macs)
-                                               : opDecisionCount;
-
-            // a leaf node can only stay or be split if both criteria agree
-            int opDecision = stl::min(opDecisionCount, opDecisionMac);
+            int opDecision = mergeCountAndMacOp(leafIdx, cstoneTree, numInternalNodes, leafParents, leafCounts,
+                                                macs, firstFocusNode, lastFocusNode, firstFringeNode, lastFringeNode, bucketSize);
             if (opDecision != 1) { convergedThread = false; }
 
             nodeOps[leafIdx] = opDecision;
@@ -271,7 +330,7 @@ bool updateOctreeEssential(const I* codesStart, const I* codesEnd, I focusStart,
     TreeNodeIndex nLeafNodes         = tree.nLeafNodes();
 
     TreeNodeIndex firstFocusNode = std::upper_bound(cstoneTree.data(), cstoneTree.data() + nLeafNodes, focusStart) - cstoneTree.data() - 1;
-    TreeNodeIndex lastFocusNode  = std::upper_bound(cstoneTree.data(), cstoneTree.data() + nLeafNodes, focusEnd) - cstoneTree.data();
+    TreeNodeIndex lastFocusNode  = std::lower_bound(cstoneTree.data(), cstoneTree.data() + nLeafNodes, focusEnd) - cstoneTree.data();
 
     std::vector<char> markings(tree.nTreeNodes());
     markMac(tree, box, firstFocusNode, lastFocusNode, 1/(theta*theta), markings.data());
@@ -283,6 +342,7 @@ bool updateOctreeEssential(const I* codesStart, const I* codesEnd, I focusStart,
 
     std::vector<I> newCstoneTree;
     rebalanceTree(cstoneTree, newCstoneTree, nodeOps.data());
+    //assert(checkOctreeInvariants(newCstoneTree.data(), nNodes(newCstoneTree)));
     tree.update(newCstoneTree.data(), newCstoneTree.data() + newCstoneTree.size());
 
     leafCounts.resize(nNodes(newCstoneTree));
