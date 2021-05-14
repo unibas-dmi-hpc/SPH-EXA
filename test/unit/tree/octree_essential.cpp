@@ -150,25 +150,6 @@ TEST(OctreeEssential, markMac)
     markMac<uint64_t>();
 }
 
-TEST(OctreeEssential, findFringe)
-{
-    using I = unsigned;
-    std::vector<I> cstree = OctreeMaker<I>{}.divide().divide(0).divide(1).makeTree();
-
-    EXPECT_EQ(0, findLowerFringe(0, cstree.data()));
-    EXPECT_EQ(0, findLowerFringe(1, cstree.data()));
-    EXPECT_EQ(0, findLowerFringe(2, cstree.data()));
-
-    EXPECT_EQ(17, findLowerFringe(17, cstree.data()));
-
-    EXPECT_EQ(8, findUpperFringe(7, cstree.data()));
-    EXPECT_EQ(8, findUpperFringe(8, cstree.data()));
-    EXPECT_EQ(16, findUpperFringe(9, cstree.data()));
-    EXPECT_EQ(16, findUpperFringe(10, cstree.data()));
-    EXPECT_EQ(16, findUpperFringe(16, cstree.data()));
-    EXPECT_EQ(17, findUpperFringe(17, cstree.data()));
-}
-
 //! @brief various tests about merge/split decisions based on node counts and MACs
 template<class I>
 void rebalanceDecision()
