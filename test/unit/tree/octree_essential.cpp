@@ -223,10 +223,10 @@ void rebalanceDecision()
         EXPECT_EQ(tree.parent(tree.toInternal(14)), 2);
         //                               |                    |  |                    |
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
-        std::vector<unsigned> leafCounts{1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 0, 1, 2, 1, 1, 1, 1, 1};
+        std::vector<unsigned> leafCounts{1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 2, 1, 2, 1, 1, 2, 1, 1};
         std::vector<char>  macs{1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0};
         //                 root ^  ^  ^
-        //   parent of leaves 0-7  |  | parent of leaf nodes 8-15
+        //   parent of leaves 0-7  |  | parent of leaf nodes 8-15                  | here count says split, mac says merge, result: stay
         std::vector<int>       reference{1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1};
         //                                                             ----------------
         //                   these nodes are kept alive because their siblings (8 and 9) are inside the focus and are staying
@@ -246,21 +246,12 @@ TEST(OctreeEssential, rebalanceDecision)
 }
 
 template<class I>
-void printNodes(const Octree<I>& tree)
+TreeNodeIndex numNodesInRange(const Octree<I>& tree, I a, I b)
 {
     auto csFocus = tree.cstoneTree();
 
-    TreeNodeIndex octant1 = std::lower_bound(begin(csFocus), end(csFocus), pad(I(1), 3)) - begin(csFocus);
-    TreeNodeIndex octant2 = std::lower_bound(begin(csFocus), end(csFocus), pad(I(2), 3)) - begin(csFocus);
-    TreeNodeIndex octant3 = std::lower_bound(begin(csFocus), end(csFocus), pad(I(3), 3)) - begin(csFocus);
-    TreeNodeIndex octant4 = std::lower_bound(begin(csFocus), end(csFocus), pad(I(4), 3)) - begin(csFocus);
-    TreeNodeIndex octant7 = std::lower_bound(begin(csFocus), end(csFocus), pad(I(7), 3)) - begin(csFocus);
-    //for (int i = octant7; i < nNodes(csFocus); ++i)
-    //    std::cout << std::oct << csFocus[i] << "\t" << counts[i] << std::endl;
-    std::cout << "total: " << tree.nLeafNodes() << std::endl;
-    std::cout << "octant 1-2 " << octant2 - octant1 << std::endl;
-    std::cout << "octant 3-4 " << octant4 - octant3 << std::endl;
-    std::cout << "octant 7-end " << nNodes(csFocus) - octant7 << std::endl;
+    return std::lower_bound(begin(csFocus), end(csFocus), b)
+           - std::lower_bound(begin(csFocus), end(csFocus), a);
 }
 
 template<class I>
@@ -274,20 +265,23 @@ void computeEssentialTree()
     std::vector<I> codes = randomBox.mortonCodes();
 
     auto [csTree, csCounts] = computeOctree(codes.data(), codes.data() + nParticles, csBucketSize);
-    std::cout << "nNodes(csTree): " << nNodes(csTree) << std::endl;
 
     unsigned bucketSize = 16;
     float theta         = 1.0;
 
-    I focusStart = 0;
+    I focusStart = 1;
     I focusEnd   = pad(I(1), 3);
     auto [tree, counts] = computeOctreeEssential(codes.data(), codes.data() + nParticles, focusStart, focusEnd, bucketSize,
                                                  theta, box, csTree);
-    std::cout << std::dec << "nNodes(csTree): " << nNodes(csTree) << std::endl;
 
-    printNodes(tree);
+    // in the focus area (the first octant) the essential tree and the csTree are identical
+    TreeNodeIndex lastFocusNode = std::lower_bound(begin(tree.cstoneTree()), end(tree.cstoneTree()), focusEnd)
+                                    - begin(tree.cstoneTree());
+    EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, begin(tree.cstoneTree())));
+    EXPECT_EQ(numNodesInRange(tree, pad(I(7), 3), nodeRange<I>(0)), 92);
+
     focusStart = pad(I(6), 3);
-    focusEnd  = pad(I(7), 3);
+    focusEnd   = pad(I(7), 3);
 
     bool converged = false;
     while (!converged)
@@ -296,7 +290,8 @@ void computeEssentialTree()
                                           theta, box, csTree, tree, counts);
     }
 
-    printNodes(tree);
+    EXPECT_EQ(numNodesInRange(tree, pad(I(1), 3), pad(I(2), 3)), 92);
+
     focusStart = 0;
     focusEnd   = pad(I(1), 3);
 
@@ -307,14 +302,15 @@ void computeEssentialTree()
                                           theta, box, csTree, tree, counts);
     }
 
-    printNodes(tree);
-
-    EXPECT_GT(tree.nTreeNodes(), 0);
+    // tree now focused again on first octant
+    EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, begin(tree.cstoneTree())));
+    EXPECT_EQ(numNodesInRange(tree, pad(I(7), 3), nodeRange<I>(0)), 92);
 }
 
 TEST(OctreeEssential, compute)
 {
     computeEssentialTree<unsigned>();
+    computeEssentialTree<uint64_t>();
 }
 
 } // namespace cstone

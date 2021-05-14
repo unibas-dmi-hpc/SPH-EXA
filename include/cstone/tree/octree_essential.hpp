@@ -257,8 +257,8 @@ bool updateOctreeEssential(const I* codesStart, const I* codesEnd, I focusStart,
     const std::vector<I>& cstoneTree = tree.cstoneTree();
     TreeNodeIndex nLeafNodes         = tree.nLeafNodes();
 
-    TreeNodeIndex firstFocusNode = std::upper_bound(cstoneTree.data(), cstoneTree.data() + nLeafNodes, focusStart) - cstoneTree.data() - 1;
-    TreeNodeIndex lastFocusNode  = std::lower_bound(cstoneTree.data(), cstoneTree.data() + nLeafNodes, focusEnd) - cstoneTree.data();
+    TreeNodeIndex firstFocusNode = std::upper_bound(begin(cstoneTree), end(cstoneTree), focusStart) - begin(cstoneTree) - 1;
+    TreeNodeIndex lastFocusNode  = std::lower_bound(begin(cstoneTree), end(cstoneTree), focusEnd) - begin(cstoneTree);
 
     std::vector<char> markings(tree.nTreeNodes());
     markMac(tree, box, firstFocusNode, lastFocusNode, 1/(theta*theta), markings.data());
@@ -270,8 +270,6 @@ bool updateOctreeEssential(const I* codesStart, const I* codesEnd, I focusStart,
 
     std::vector<I> newCstoneTree;
     rebalanceTree(cstoneTree, newCstoneTree, nodeOps.data());
-    //assert(checkOctreeInvariants(newCstoneTree.data(), nNodes(newCstoneTree)));
-    tree.update(newCstoneTree.data(), newCstoneTree.data() + newCstoneTree.size());
 
     leafCounts.resize(nNodes(newCstoneTree));
     // local node counts
@@ -279,6 +277,8 @@ bool updateOctreeEssential(const I* codesStart, const I* codesEnd, I focusStart,
                       std::numeric_limits<unsigned>::max(), true);
     // global node count sums when using distributed builds
     //if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
+
+    tree.update(std::move(newCstoneTree));
     return converged;
 }
 
