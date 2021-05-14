@@ -170,83 +170,6 @@ void markMac(const Octree<I>& octree, const Box<T>& box, TreeNodeIndex firstLeaf
     }
 }
 
-/*! @brief Calculate nodeOp based on MACs
- *
- * @param leafIdx              leaf node to evaluate
- * @param cstoneTree           cornerstone tree
- * @param numInternalNodes     number of internal octree nodes
- * @param leafParents          leafParents[i] for i in [0:numLeafNodes] returns the parental
- *                             internal index in [0:numInternalNodes], length = numLeafNodes
- * @param macs                 MAC result per node, length = numTreeNodes (includes internal nodes)
- *                             a true-value means the MAC failed
- * @return                     0 (merge), 1 (do nothing) or 8 (split)
- */
-template<class I>
-inline CUDA_HOST_DEVICE_FUN
-int calculateMacOp(TreeNodeIndex leafIdx, const I* cstoneTree, TreeNodeIndex numInternalNodes,
-                   const TreeNodeIndex* leafParents, const char* macs)
-{
-    if (macs[numInternalNodes + leafIdx])
-    {
-        // argument node failed the MAC
-        return 8; // split
-    }
-
-    I thisNode       = cstoneTree[leafIdx];
-    I range          = cstoneTree[leafIdx + 1] - thisNode;
-    unsigned level   = treeLevel(range);
-    TreeNodeIndex pi = octalDigit(thisNode, level);
-
-    bool siblings = (cstoneTree[leafIdx-pi+8] == cstoneTree[leafIdx-pi] + nodeRange<I>(level - 1));
-
-    TreeNodeIndex parentIdx = leafParents[leafIdx];
-    if (macs[parentIdx] || pi == 0 || !siblings)
-    {
-        // the argument node (leafIdx) passed the MAC, but its parent didn't
-        // or the node is the first of 8 siblings
-        return 1; // do nothing
-    }
-
-    return 0; // merge
-}
-
-template<class I>
-TreeNodeIndex findLowerFringe(TreeNodeIndex firstFocusNode, const I* csTree)
-{
-    I firstCode  = csTree[firstFocusNode];
-    I secondCode = csTree[firstFocusNode+1];
-    unsigned level = treeLevel(secondCode - firstCode);
-    if (level > 0)
-    {
-        TreeNodeIndex sIdx = octalDigit(firstCode, level);
-        // true if 8 nodes of the same level (siblings) are next to each other
-        bool siblings = (csTree[firstFocusNode-sIdx+8] == csTree[firstFocusNode-sIdx] + nodeRange<I>(level - 1));
-
-        if (siblings) { return firstFocusNode - sIdx; }
-        else          { return firstFocusNode; }
-    }
-    else { return 0; }
-}
-
-template<class I>
-TreeNodeIndex findUpperFringe(TreeNodeIndex lastFocusNode, const I* csTree)
-{
-    --lastFocusNode;
-    I firstCode  = csTree[lastFocusNode];
-    I secondCode = csTree[lastFocusNode+1];
-    unsigned level = treeLevel(secondCode - firstCode);
-    if (level > 0)
-    {
-        TreeNodeIndex sIdx = octalDigit(firstCode, level);
-        // true if 8 nodes of the same level (siblings) are next to each other
-        bool siblings = (csTree[lastFocusNode-sIdx+8] == csTree[lastFocusNode-sIdx] + nodeRange<I>(level - 1));
-
-        if (siblings) { return lastFocusNode + 8 - sIdx; }
-        else          { return lastFocusNode + 1; }
-    }
-    else { return 1; }
-}
-
 template<class I>
 inline CUDA_HOST_DEVICE_FUN
 int mergeCountAndMacOp(TreeNodeIndex leafIdx, const I* cstoneTree,
@@ -254,22 +177,30 @@ int mergeCountAndMacOp(TreeNodeIndex leafIdx, const I* cstoneTree,
                        const TreeNodeIndex* leafParents,
                        const unsigned* leafCounts, const char* macs,
                        TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
-                       TreeNodeIndex firstFringeNode, TreeNodeIndex lastFringeNode,
                        unsigned bucketSize)
 {
+    auto p = siblingAndLevel(cstoneTree, leafIdx);
+    unsigned siblingIdx = p[0];
+    unsigned level      = p[1];
+
+    if (siblingIdx > 0) // 8 siblings next to each other, node can potentially be merged
+    {
+        // pointer to first node in sibling group
+        auto g = leafCounts + leafIdx - siblingIdx;
+
+        bool countMerge = (g[0]+g[1]+g[2]+g[3]+g[4]+g[5]+g[6]+g[7]) <= bucketSize;
+        bool macMerge   = macs[leafParents[leafIdx]] == 0;
+        bool inFringe   = leafIdx - siblingIdx + 8 >= firstFocusNode && leafIdx - siblingIdx < lastFocusNode;
+
+        if (countMerge || (macMerge && !inFringe)) { return 0; } // merge
+    }
+
     bool inFocus  = (leafIdx >= firstFocusNode && leafIdx < lastFocusNode);
+    if (level < maxTreeLevel<I>{} && leafCounts[leafIdx] > bucketSize
+        && (macs[numInternalNodes + leafIdx] || inFocus))
+    { return 8; } // split
 
-    // standard particle-count based rebalance decision
-    int opDecisionCount = calculateNodeOp(cstoneTree, leafIdx, leafCounts, bucketSize);
-    if (inFocus) { return opDecisionCount; }
-
-    bool inFringe = (leafIdx >= firstFringeNode && leafIdx < lastFringeNode && !inFocus);
-
-    // MAC-based rebalance decision
-    int opDecisionMac = calculateMacOp(leafIdx, cstoneTree, numInternalNodes, leafParents, macs);
-    // nodes in fringe areas can only be merged if both Mac and count criteria agree
-    if (inFringe && opDecisionMac == 0) { return stl::min(opDecisionCount, 1); }
-    else                                { return stl::min(opDecisionCount, opDecisionMac); }
+    return 1; // default: do nothing
 }
 
 /*! @brief Compute locally essential split or fuse decision for each octree node in parallel
@@ -300,9 +231,6 @@ bool rebalanceDecisionEssential(const I* cstoneTree, TreeNodeIndex numInternalNo
                                 TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
                                 unsigned bucketSize, LocalIndex* nodeOps)
 {
-    TreeNodeIndex firstFringeNode = findLowerFringe(firstFocusNode, cstoneTree);
-    TreeNodeIndex lastFringeNode  = findUpperFringe(lastFocusNode, cstoneTree);
-
     bool converged = true;
     #pragma omp parallel
     {
@@ -311,7 +239,7 @@ bool rebalanceDecisionEssential(const I* cstoneTree, TreeNodeIndex numInternalNo
         for (TreeNodeIndex leafIdx = 0; leafIdx < numLeafNodes; ++leafIdx)
         {
             int opDecision = mergeCountAndMacOp(leafIdx, cstoneTree, numInternalNodes, leafParents, leafCounts,
-                                                macs, firstFocusNode, lastFocusNode, firstFringeNode, lastFringeNode, bucketSize);
+                                                macs, firstFocusNode, lastFocusNode, bucketSize);
             if (opDecision != 1) { convergedThread = false; }
 
             nodeOps[leafIdx] = opDecision;

@@ -223,6 +223,35 @@ void computeNodeCounts(const I* tree, unsigned* counts, TreeNodeIndex nNodes, co
     }
 }
 
+/*! @brief return the sibling index and level of the specified csTree node
+ *
+ * @tparam I         32- or 64-bit unsigned integer
+ * @param csTree     cornerstone octree, length N
+ * @param nodeIdx    node index in [0:N] of @p csTree to compute sibling index
+ * @return           in first pair element: index in [0:8] if all 8 siblings of the specified
+ *                   node are next to each other and at the same division level.
+ *                   0 otherwise, i.e. if not all the 8 siblings exist in @p csTree
+ *                   at the same division level
+ *                   in second pair element: tree level of node at @p nodeIdx
+ */
+template<class I>
+inline CUDA_HOST_DEVICE_FUN
+pair<unsigned> siblingAndLevel(const I* csTree, TreeNodeIndex nodeIdx)
+{
+    I thisNode     = csTree[nodeIdx];
+    I range        = csTree[nodeIdx + 1] - thisNode;
+    unsigned level = treeLevel(range);
+    unsigned siblingIdx = 0;
+    if (level > 0)
+    {
+        siblingIdx = octalDigit(thisNode, level);
+        bool siblings = (csTree[nodeIdx - siblingIdx + 8] == csTree[nodeIdx - siblingIdx] + nodeRange<I>(level - 1));
+        if (!siblings) { siblingIdx = 0; }
+    }
+
+    return pair<unsigned>{siblingIdx, level};
+}
+
 //! @brief returns 0 for merging, 1 for no-change, 8 for splitting
 template<class I>
 CUDA_HOST_DEVICE_FUN
