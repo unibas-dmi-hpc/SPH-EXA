@@ -42,7 +42,6 @@
 #include <cuda.h>
 
 #include <thrust/device_vector.h>
-#include <thrust/reduce.h>
 #include <thrust/scan.h>
 
 #include "cstone/cuda/errorcheck.cuh"
