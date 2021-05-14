@@ -257,32 +257,19 @@ template<class I>
 CUDA_HOST_DEVICE_FUN
 int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize)
 {
-    I thisNode     = tree[nodeIdx];
-    I range        = tree[nodeIdx + 1] - thisNode;
-    unsigned level = treeLevel(range);
+    auto p = siblingAndLevel(tree, nodeIdx);
+    unsigned siblingIdx = p[0];
+    unsigned level      = p[1];
 
-    if (counts[nodeIdx] > bucketSize && level < maxTreeLevel<I>{})
+    if (siblingIdx > 0) // 8 siblings next to each other, node can potentially be merged
     {
-        return 8; // split
+        // pointer to first node in sibling group
+        auto g = counts + nodeIdx - siblingIdx;
+        bool countMerge = (g[0]+g[1]+g[2]+g[3]+g[4]+g[5]+g[6]+g[7]) <= bucketSize;
+        if (countMerge) { return 0; } // merge
     }
-    else if (level > 0) // level 0 cannot be fused
-    {
-        TreeNodeIndex pi = octalDigit(thisNode, level);
-        // node's 7 siblings are next to each other
-        bool siblings = (tree[nodeIdx-pi+8] == tree[nodeIdx-pi] + nodeRange<I>(level - 1));
-        if (siblings && pi > 0) // if not first of 8 siblings
-        {
-            #ifdef __CUDA_ARCH__
-            size_t parentCount = thrust::reduce(thrust::seq, counts + nodeIdx - pi, counts + nodeIdx - pi + 8, size_t(0));
-            #else
-            size_t parentCount = std::accumulate(counts + nodeIdx - pi, counts + nodeIdx - pi + 8, size_t(0));
-            #endif
-            if (parentCount <= bucketSize)
-            {
-                return 0; // fuse
-            }
-        }
-    }
+
+    if (counts[nodeIdx] > bucketSize && level < maxTreeLevel<I>{}) { return 8; } // split
 
     return 1; // default: do nothing
 }
