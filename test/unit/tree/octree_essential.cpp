@@ -246,9 +246,9 @@ TEST(OctreeEssential, rebalanceDecision)
 }
 
 template<class I>
-TreeNodeIndex numNodesInRange(const Octree<I>& tree, I a, I b)
+TreeNodeIndex numNodesInRange(const FocusedOctree<I>& tree, I a, I b)
 {
-    auto csFocus = tree.cstoneTree();
+    auto csFocus = tree.leafTree();
 
     return std::lower_bound(begin(csFocus), end(csFocus), b)
            - std::lower_bound(begin(csFocus), end(csFocus), a);
@@ -265,45 +265,35 @@ void computeEssentialTree()
     std::vector<I> codes = randomBox.mortonCodes();
 
     auto [csTree, csCounts] = computeOctree(codes.data(), codes.data() + nParticles, csBucketSize);
+    Octree<I> globalTree;
+    globalTree.update(begin(csTree), end(csTree));
 
     unsigned bucketSize = 16;
     float theta         = 1.0;
+    FocusedOctree<I> tree(bucketSize, theta);
 
     I focusStart = 1;
     I focusEnd   = pad(I(1), 3);
-    auto [tree, counts] = computeOctreeEssential(codes.data(), codes.data() + nParticles, focusStart, focusEnd, bucketSize,
-                                                 theta, box, csTree);
+    while(!tree.update(box, codes.data(), codes.data() + nParticles, focusStart, focusEnd, globalTree)) {}
 
     // in the focus area (the first octant) the essential tree and the csTree are identical
-    TreeNodeIndex lastFocusNode = std::lower_bound(begin(tree.cstoneTree()), end(tree.cstoneTree()), focusEnd)
-                                    - begin(tree.cstoneTree());
-    EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, begin(tree.cstoneTree())));
+    TreeNodeIndex lastFocusNode = std::lower_bound(begin(tree.leafTree()), end(tree.leafTree()), focusEnd)
+                                    - begin(tree.leafTree());
+    EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, begin(tree.leafTree())));
     EXPECT_EQ(numNodesInRange(tree, pad(I(7), 3), nodeRange<I>(0)), 92);
 
     focusStart = pad(I(6), 3);
     focusEnd   = pad(I(7), 3);
-
-    bool converged = false;
-    while (!converged)
-    {
-        converged = updateOctreeEssential(codes.data(), codes.data() + nParticles, focusStart, focusEnd, bucketSize,
-                                          theta, box, csTree, tree, counts);
-    }
+    while(!tree.update(box, codes.data(), codes.data() + nParticles, focusStart, focusEnd, globalTree)) {}
 
     EXPECT_EQ(numNodesInRange(tree, pad(I(1), 3), pad(I(2), 3)), 92);
 
     focusStart = 0;
     focusEnd   = pad(I(1), 3);
-
-    converged = false;
-    while (!converged)
-    {
-        converged = updateOctreeEssential(codes.data(), codes.data() + nParticles, focusStart, focusEnd, bucketSize,
-                                          theta, box, csTree, tree, counts);
-    }
+    while(!tree.update(box, codes.data(), codes.data() + nParticles, focusStart, focusEnd, globalTree)) {}
 
     // tree now focused again on first octant
-    EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, begin(tree.cstoneTree())));
+    EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, begin(tree.leafTree())));
     EXPECT_EQ(numNodesInRange(tree, pad(I(7), 3), nodeRange<I>(0)), 92);
 }
 

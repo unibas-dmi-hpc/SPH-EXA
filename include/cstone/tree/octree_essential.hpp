@@ -249,58 +249,61 @@ bool rebalanceDecisionEssential(const I* cstoneTree, TreeNodeIndex numInternalNo
     return converged;
 }
 
-template<class T, class I>
-bool updateOctreeEssential(const I* codesStart, const I* codesEnd, I focusStart, I focusEnd, unsigned bucketSize, float theta,
-                           const Box<T>& box, const std::vector<I>& globalCstoneTree,
-                           Octree<I>& tree, std::vector<unsigned>& leafCounts)
+template<class I>
+class FocusedOctree
 {
-    const std::vector<I>& cstoneTree = tree.cstoneTree();
-    TreeNodeIndex nLeafNodes         = tree.nLeafNodes();
-
-    TreeNodeIndex firstFocusNode = std::upper_bound(begin(cstoneTree), end(cstoneTree), focusStart) - begin(cstoneTree) - 1;
-    TreeNodeIndex lastFocusNode  = std::lower_bound(begin(cstoneTree), end(cstoneTree), focusEnd) - begin(cstoneTree);
-
-    std::vector<char> markings(tree.nTreeNodes());
-    markMac(tree, box, firstFocusNode, lastFocusNode, 1/(theta*theta), markings.data());
-
-    std::vector<TreeNodeIndex> nodeOps(nLeafNodes + 1);
-    bool converged = rebalanceDecisionEssential(cstoneTree.data(), tree.nInternalNodes(), nLeafNodes, tree.leafParents(),
-                                                leafCounts.data(), markings.data(), firstFocusNode, lastFocusNode,
-                                                bucketSize, nodeOps.data());
-
-    std::vector<I> newCstoneTree;
-    rebalanceTree(cstoneTree, newCstoneTree, nodeOps.data());
-
-    leafCounts.resize(nNodes(newCstoneTree));
-    // local node counts
-    computeNodeCounts(newCstoneTree.data(), leafCounts.data(), nNodes(newCstoneTree), codesStart, codesEnd,
-                      std::numeric_limits<unsigned>::max(), true);
-    // global node count sums when using distributed builds
-    //if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
-
-    tree.update(std::move(newCstoneTree));
-    return converged;
-}
-
-template<class T, class I>
-std::tuple<Octree<I>, std::vector<unsigned>>
-computeOctreeEssential(const I* codesStart, const I* codesEnd, I focusStart, I focusEnd, unsigned bucketSize, float theta,
-                       const Box<T>& box, const std::vector<I>& globalCstoneTree)
-{
-    Octree<I> tree;
-    tree.update(std::vector<I>{0, nodeRange<I>(0)});
-
-    std::vector<unsigned> leafCounts{unsigned(codesEnd - codesStart)};
-
-    bool converged = false;
-    while (!converged)
+public:
+    FocusedOctree(unsigned bucketSize, float theta)
+        : bucketSize_(bucketSize), theta_(theta), counts_{bucketSize+1}, macs_{1}
     {
-        converged = updateOctreeEssential(codesStart, codesEnd, focusStart, focusEnd, bucketSize, theta, box,
-                                          globalCstoneTree, tree, leafCounts);
+        tree_.update(std::vector<I>{0, nodeRange<I>(0)});
     }
 
-    return std::make_tuple(std::move(tree), std::move(leafCounts));
-}
+    template<class T>
+    bool update(const Box<T>& box, const I* codesStart, const I* codesEnd, I focusStart, I focusEnd, const Octree<I>& globalTree)
+    {
+        const std::vector<I>& cstoneTree = tree_.cstoneTree();
+        TreeNodeIndex nLeafNodes         = tree_.nLeafNodes();
 
+        TreeNodeIndex firstFocusNode = std::upper_bound(begin(cstoneTree), end(cstoneTree), focusStart) - begin(cstoneTree) - 1;
+        TreeNodeIndex lastFocusNode  = std::lower_bound(begin(cstoneTree), end(cstoneTree), focusEnd) - begin(cstoneTree);
+
+        std::vector<char> markings(tree_.nTreeNodes());
+        markMac(tree_, box, firstFocusNode, lastFocusNode, 1.0/(theta_*theta_), markings.data());
+
+        std::vector<TreeNodeIndex> nodeOps(nLeafNodes + 1);
+        bool converged = rebalanceDecisionEssential(cstoneTree.data(), tree_.nInternalNodes(), nLeafNodes, tree_.leafParents(),
+                                                    counts_.data(), markings.data(), firstFocusNode, lastFocusNode,
+                                                    bucketSize_, nodeOps.data());
+
+        std::vector<I> newCstoneTree;
+        rebalanceTree(cstoneTree, newCstoneTree, nodeOps.data());
+
+        counts_.resize(nNodes(newCstoneTree));
+        // local node counts
+        computeNodeCounts(newCstoneTree.data(), counts_.data(), nNodes(newCstoneTree), codesStart, codesEnd,
+                          std::numeric_limits<unsigned>::max(), true);
+        // global node count sums when using distributed builds
+        //if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
+
+        tree_.update(std::move(newCstoneTree));
+        return converged;
+    }
+
+    const std::vector<I>& leafTree() const { return tree_.cstoneTree(); }
+
+private:
+    //! @brief max number of particles per node in focus
+    unsigned bucketSize_;
+    //! @brief opening angle refinement criterion
+    float theta_;
+
+    //! @brief the focused tree
+    Octree<I> tree_;
+    //! @brief particle counts of the focused tree
+    std::vector<unsigned> counts_;
+    //! @brief mac evaluation result relative to focus area (pass or fail)
+    std::vector<char> macs_;
+};
 
 } // namespace cstone
