@@ -263,30 +263,29 @@ public:
     bool update(const Box<T>& box, const I* codesStart, const I* codesEnd, I focusStart, I focusEnd, const Octree<I>& globalTree)
     {
         const std::vector<I>& cstoneTree = tree_.cstoneTree();
-        TreeNodeIndex nLeafNodes         = tree_.nLeafNodes();
 
         TreeNodeIndex firstFocusNode = std::upper_bound(begin(cstoneTree), end(cstoneTree), focusStart) - begin(cstoneTree) - 1;
         TreeNodeIndex lastFocusNode  = std::lower_bound(begin(cstoneTree), end(cstoneTree), focusEnd) - begin(cstoneTree);
 
-        std::vector<char> markings(tree_.nTreeNodes());
-        markMac(tree_, box, firstFocusNode, lastFocusNode, 1.0/(theta_*theta_), markings.data());
+        macs_.resize(tree_.nTreeNodes());
+        std::fill(begin(macs_), end(macs_), 0);
+        markMac(tree_, box, firstFocusNode, lastFocusNode, 1.0/(theta_*theta_), macs_.data());
 
-        std::vector<TreeNodeIndex> nodeOps(nLeafNodes + 1);
-        bool converged = rebalanceDecisionEssential(cstoneTree.data(), tree_.nInternalNodes(), nLeafNodes, tree_.leafParents(),
-                                                    counts_.data(), markings.data(), firstFocusNode, lastFocusNode,
+        std::vector<TreeNodeIndex> nodeOps(tree_.nLeafNodes() + 1);
+        bool converged = rebalanceDecisionEssential(cstoneTree.data(), tree_.nInternalNodes(), tree_.nLeafNodes(), tree_.leafParents(),
+                                                    counts_.data(), macs_.data(), firstFocusNode, lastFocusNode,
                                                     bucketSize_, nodeOps.data());
-
         std::vector<I> newCstoneTree;
         rebalanceTree(cstoneTree, newCstoneTree, nodeOps.data());
+        tree_.update(std::move(newCstoneTree));
 
-        counts_.resize(nNodes(newCstoneTree));
+        counts_.resize(tree_.nLeafNodes());
         // local node counts
-        computeNodeCounts(newCstoneTree.data(), counts_.data(), nNodes(newCstoneTree), codesStart, codesEnd,
+        computeNodeCounts(cstoneTree.data(), counts_.data(), nNodes(cstoneTree), codesStart, codesEnd,
                           std::numeric_limits<unsigned>::max(), true);
         // global node count sums when using distributed builds
         //if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
 
-        tree_.update(std::move(newCstoneTree));
         return converged;
     }
 
