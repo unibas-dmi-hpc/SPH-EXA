@@ -199,6 +199,7 @@ TEST(SfcCode, decodePlaceholderbit64)
 
 TEST(SfcCode, octalDigit32)
 {
+    EXPECT_EQ(1, octalDigit(010000000000, 0));
     EXPECT_EQ(1, octalDigit(01234567012, 1));
     EXPECT_EQ(2, octalDigit(01234567012, 2));
     EXPECT_EQ(3, octalDigit(01234567012, 3));
@@ -213,6 +214,7 @@ TEST(SfcCode, octalDigit32)
 
 TEST(SfcCode, octalDigit64)
 {
+    EXPECT_EQ(1, octalDigit(01000000000000000000000ul, 0));
     EXPECT_EQ(1, octalDigit(0123456701200000000000ul, 1));
     EXPECT_EQ(2, octalDigit(0123456701200000000000ul, 2));
     EXPECT_EQ(3, octalDigit(0123456701200000000000ul, 3));
@@ -299,99 +301,61 @@ TEST(SfcCode, padUtility)
     EXPECT_EQ(pad(0b011ul, 3), 0b0011ul << 60);
 }
 
-
-/*! @brief return position of last non-zero octal digit place in x
- *
- * @tparam I   32- or 64-bit unsigned integer
- * @param  x   an integer
- * @return     position of the last non-zero octal digit place, starting from
- *             1 (left-most digit place) to 10 or 21 (64-bit), the right-most
- *             digit place. Returns 10 or 21 (64-bit) if x is zero.
- */
-template<class I>
-constexpr int lastNzPlace(I x)
+TEST(SfcCode, lastNzPlace)
 {
-    if (x) return maxTreeLevel<I>{} - __builtin_ctz(x)/3;
-    else   return maxTreeLevel<I>{} - 0;
+    EXPECT_EQ(lastNzPlace(pad(1u, 3)), 1);
+    EXPECT_EQ(lastNzPlace(nodeRange<unsigned>(0)), 0);
+
+    EXPECT_EQ(lastNzPlace(pad(1ul, 3)), 1);
+    EXPECT_EQ(lastNzPlace(nodeRange<uint64_t>(0)), 0);
 }
 
-/*! @brief return the power of 8 for the octal place at position @p pos
- *
- * @tparam I    32- or 64-bit unsigned integer
- * @param  pos  Position counting from left, starting from 1. Maximum value 10 or 21 (64-bit)
- * @return      the power of 8 associated with the indicated octal place
- */
 template<class I>
-constexpr int octalPower(int pos)
+void spanSfcRange()
 {
-    return (I(1) << 3 * (maxTreeLevel<I>{} - pos));
-}
-
-/*! @brief generate SFC codes to cover the range [a:b] with a valid cornerstone sub-octree
- *
- * @tparam I   32- or 64-bit unsigned integer
- * @param  a   first SFC code
- * @param  b   second SFC code
- *
- *                      | a_last_nz_pos (10)
- * Example:       a: 0001
- *                b: 0742
- *  ab_first_diff_pos ^ ^ b_last_nz_pos
- *       (8)                   (10)
- *
- *  output: 1 2 3 4 5 6 7 10 20 30 40 50 60 70 100 200 300 400 500 600 700 710 720 730 740 741
- *
- *  Variables suffixed with "_pos" refer to an octal digit place. The value of 1 is
- *  the position of the left-most digit, and 10 (or 21 for 64-bit) refers to the right-most digit.
- *  This convention is chosen such that the positional value coincides with the corresponding octree
- *  subdivision level.
- */
-template<class I>
-void spanSfcRange(I a, I b)
-{
-    // position of first differing octal digit place
-    int ab_first_diff_pos = stl::min(1 + commonPrefix(a, b)/3, int(maxTreeLevel<I>{}));
-
-    // last non-zero octal digit place position in a and b
-    int a_last_nz_pos = lastNzPlace(a);
-    int b_last_nz_pos = lastNzPlace(b);
-
-    // add SFC codes, increasing power of 8 in each iteration
-    for (int pos = a_last_nz_pos; pos > ab_first_diff_pos; --pos)
     {
-        int numDigits = (8 - octalDigit(a, pos)) % 8;
-        while (numDigits--)
-        {
-            a += octalPower<I>(pos);
-            std::cout << std::oct << a << " ";
-        }
+        std::vector<I> reference{0,     01000, 02000, 03000, 04000, 05000, 06000, 07000, 07100, 07200, 07300, 07400, 07500, 07600,
+                                 07700, 07710, 07720, 07730, 07740, 07750, 07760, 07770, 07771, 07772, 07773, 07774, 07775, 07776};
+        std::vector<I> probe(reference.size());
+
+        EXPECT_EQ(spanSfcRange(I(0), I(07777), probe.data()), 28);
+        EXPECT_EQ(reference, probe);
+    }
+    {
+        std::vector<I> reference{1, 2, 3, 4, 5, 6, 7, 010, 020, 030, 040, 050, 060, 070, 0100, 0200, 0300, 0400, 0500, 0600,
+                                 0700, 0710, 0720, 0730, 0740, 0741};
+        std::vector<I> probe(reference.size());
+
+        EXPECT_EQ(spanSfcRange(I(1), I(0742), probe.data()), 26);
+        EXPECT_EQ(reference, probe);
+    }
+    {
+        std::vector<I> reference{041305, 041306, 041307, 041310, 041320, 041330, 041340, 041350, 041360, 041370,
+                                 041400, 041500, 041600, 041700, 042000, 043000, 044000, 045000};
+        std::vector<I> probe(reference.size());
+
+        EXPECT_EQ(spanSfcRange(I(041305), I(046000), probe.data()), 18);
+        EXPECT_EQ(reference, probe);
     }
 
-    // add SFC codes, decreasing power of 8 in each iteration
-    for (int pos = ab_first_diff_pos; pos <= b_last_nz_pos; ++pos)
+    EXPECT_EQ(spanSfcRange(I(040000), I(050000)), 1);
+    EXPECT_EQ(spanSfcRange(I(040000), I(060000)), 2);
+
     {
-        // Note: octalDigit(a, pos) is guaranteed zero for pos > ab_first_diff_pos
-        int numDigits = octalDigit(b, pos) - octalDigit(a, pos);
-        // suppress outputting b itself, the upper bound
-        if (pos == b_last_nz_pos) { numDigits--; }
-        while (numDigits--)
-        {
-            a += octalPower<I>(pos);
-            std::cout << std::oct << a << " ";
-        }
+        std::vector<I> reference{pad(I(1), 3), pad(I(2), 3), pad(I(3), 3), pad(I(4), 3), pad(I(5), 3), pad(I(6), 3), pad(I(7), 3)};
+        std::vector<I> probe(reference.size());
+
+        EXPECT_EQ(spanSfcRange(pad(I(01), 3), nodeRange<I>(0), probe.data()), 7);
+        EXPECT_EQ(reference, probe);
     }
 }
 
-TEST(SfcCode, spanSfcRange)
+TEST(SfcCode, spanSfcRange32)
 {
-    spanSfcRange(0u, 07777u);
-    std::cout << std::endl;
-    spanSfcRange(1u, 0742u);
-    std::cout << std::endl;
-    spanSfcRange(040375u, 046023u);
-    std::cout << std::endl;
-    spanSfcRange(041305u, 046000u);
-    std::cout << std::endl;
-    spanSfcRange(040000u, 060000u);
-    std::cout << std::endl;
+    spanSfcRange<unsigned>();
+}
+
+TEST(SfcCode, spanSfcRange64)
+{
+    spanSfcRange<uint64_t>();
 }

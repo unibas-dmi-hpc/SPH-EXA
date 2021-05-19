@@ -244,12 +244,14 @@ constexpr I decodePlaceholderBit(I code)
  *
  * @tparam I         32- or 64-bit unsigned integer type
  * @param code       Input SFC key code
- * @param position   Which digit to extract. return values will be meaningful for
- *                   position in [1:11] for 32-bit keys and in [1:22] for 64-bit keys and
- *                   will be zero otherwise.
- * @return           The corresponding digit
+ * @param position   Which digit place to extract. Return values will be meaningful for
+ *                   @p position in [1:11] for 32-bit keys and in [1:22] for 64-bit keys and
+ *                   will be zero otherwise, but a value of 0 for @p position can also be specified
+ *                   to detect whether the 31st or 63rd bit for the last cornerstone is non-zero.
+ *                   (The last cornerstone has a value of nodeRange<I>(0) = 2^31 or 2^63)
+ * @return           The of the digit at place @p position
  *
- * Note that the position argument correspondence to octal digits has been chosen such that
+ * The position argument correspondence to octal digit places has been chosen such that
  * octalDigit(code, pos) returns the octant at octree division level pos.
  */
 template<class I>
@@ -303,6 +305,101 @@ constexpr I zeroLowBits(I code, int nBits)
     I mask = (I(1) << nLowerBits) - 1;
 
     return code & ~mask;
+}
+
+/*! @brief return position of last non-zero octal digit place in x
+ *
+ * @tparam I   32- or 64-bit unsigned integer
+ * @param  x   an integer
+ * @return     position of the last non-zero octal digit place, starting from
+ *             1 (left-most digit place) to 10 or 21 (64-bit), the right-most
+ *             digit place. Returns 10 or 21 (64-bit) if x is zero.
+ */
+template<class I>
+constexpr int lastNzPlace(I x)
+{
+    if (x) return maxTreeLevel<I>{} - __builtin_ctzl(x)/3;
+    else   return maxTreeLevel<I>{} - 0;
+}
+
+/*! @brief return the power of 8 for the octal place at position @p pos
+ *
+ * @tparam I    32- or 64-bit unsigned integer
+ * @param  pos  Position counting from left, starting from 1. Maximum value 10 or 21 (64-bit)
+ * @return      the power of 8 associated with the indicated octal place
+ */
+template<class I>
+constexpr I octalPower(int pos)
+{
+    return (I(1) << 3 * (maxTreeLevel<I>{} - pos));
+}
+
+/*! @brief generate SFC codes to cover the range [a:b] with a valid cornerstone sub-octree
+ *
+ * @tparam     I       32- or 64-bit unsigned integer
+ * @param[in]  a       first SFC code
+ * @param[in]  b       second SFC code, b > a
+ * @param[out] output  output sfc codes
+ * @return             number of values in output
+ *
+ *                      | a_last_nz_pos (10)
+ * Example:       a: 0001
+ *                b: 0742
+ *  ab_first_diff_pos ^ ^ b_last_nz_pos
+ *       (8)                   (10)
+ *
+ *  output: 1 2 3 4 5 6 7 10 20 30 40 50 60 70 100 200 300 400 500 600 700 710 720 730 740 741
+ *
+ *  Variables suffixed with "_pos" refer to an octal digit place. The value of 1 is
+ *  the position of the left-most digit, and 10 (or 21 for 64-bit) refers to the right-most digit.
+ *  This convention is chosen such that the positional value coincides with the corresponding octree
+ *  subdivision level.
+ */
+template<class I, class Store>
+std::enable_if_t<std::is_same_v<Store, std::nullptr_t> || std::is_same_v<Store, I*>, int>
+spanSfcRange(I a, I b, Store output)
+{
+    int numValues = 0;
+    // position of first differing octal digit place
+    int ab_first_diff_pos = (countLeadingZeros(a ^ b) + 3 - unusedBits<I>{}) / 3;
+
+    // last non-zero octal digit place position in a and b
+    int a_last_nz_pos = lastNzPlace(a);
+    int b_last_nz_pos = lastNzPlace(b);
+
+    // add SFC codes, increasing power of 8 in each iteration
+    for (int pos = a_last_nz_pos; pos > ab_first_diff_pos; --pos)
+    {
+        int numDigits = (8 - octalDigit(a, pos)) % 8;
+        numValues += numDigits;
+        while (numDigits--)
+        {
+            if constexpr (!std::is_same_v<Store, std::nullptr_t>) { *output++ = a; }
+            a += octalPower<I>(pos);
+        }
+    }
+
+    // add SFC codes, decreasing power of 8 in each iteration
+    for (int pos = ab_first_diff_pos; pos <= b_last_nz_pos; ++pos)
+    {
+        // Note: octalDigit(a, pos) is guaranteed zero for pos > ab_first_diff_pos
+        int numDigits = octalDigit(b, pos) - octalDigit(a, pos);
+        numValues += numDigits;
+        while (numDigits--)
+        {
+            if constexpr (!std::is_same_v<Store, std::nullptr_t>) { *output++ = a; }
+            a += octalPower<I>(pos);
+        }
+    }
+
+    return numValues;
+}
+
+//! @brief overload to skip storage and just compute number of values, see spanSfcRange(I a, I b, I* output) above
+template<class I>
+int spanSfcRange(I a, I b)
+{
+    return spanSfcRange<I, std::nullptr_t>(a, b, nullptr);
 }
 
 } // namespace cstone
