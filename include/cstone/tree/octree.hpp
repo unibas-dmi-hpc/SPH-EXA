@@ -28,9 +28,9 @@
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  *
- * In the cornerstone format, the octree is stored as sequence of Morton codes
+ * In the cornerstone format, the octree is stored as sequence of SFC codes
  * fulfilling three invariants. Each code in the sequence both signifies the
- * the start Morton code of an octree leaf node and serves as an upper Morton code bound
+ * the start SFC code of an octree leaf node and serves as an upper SFC code bound
  * for the previous node.
  *
  * The invariants of the cornerstone format are:
@@ -42,9 +42,9 @@
  *      - the entire space is covered, i.e. there are no holes in the tree
  *      - only leaf nodes are stored
  *      - for each leaf node, all its siblings (nodes at the same subdivision level with
- *        the same parent) are present in the Morton code sequence
- *      - each node with index i is defined by its lowest possible Morton code at position
- *        i in the vector and the highest possible (excluding) Morton code at position i+1
+ *        the same parent) are present in the SFC code sequence
+ *      - each node with index i is defined by its lowest possible SFC code at position
+ *        i in the vector and the highest possible (excluding) SFC code at position i+1
  *        in the vector
  *      - a vector of length N represents N-1 leaf nodes
  */
@@ -164,7 +164,7 @@ unsigned updateNodeCount(TreeNodeIndex nodeIdx, const I* tree,
 /*! @brief count number of particles in each octree node
  *
  * @tparam I                  32- or 64-bit unsigned integer type
- * @param[in]    tree         octree nodes given as Morton codes of length @a nNodes+1
+ * @param[in]    tree         octree nodes given as SFC codes of length @a nNodes+1
  *                            needs to satisfy the octree invariants
  * @param[inout] counts       output particle counts per node, length = @a nNodes
  * @param[in]    nNodes       number of nodes in tree
@@ -277,7 +277,7 @@ int calculateNodeOp(const I* tree, TreeNodeIndex nodeIdx, const unsigned* counts
 /*! @brief Compute split or fuse decision for each octree node in parallel
  *
  * @tparam I               32- or 64-bit unsigned integer type
- * @param[in] tree         octree nodes given as Morton codes of length @p nNodes
+ * @param[in] tree         octree nodes given as SFC codes of length @p nNodes
  *                         needs to satisfy the octree invariants
  * @param[in] counts       output particle counts per node, length = @p nNodes
  * @param[in] nNodes       number of nodes in tree
@@ -372,10 +372,10 @@ void rebalanceTree(const SfcVector& tree, SfcVector& newTree, TreeNodeIndex* nod
 
 /*! @brief update the octree with a single rebalance/count step
  *
- * @tparam I                 32- or 64-bit unsigned integer for morton code
+ * @tparam I                 32- or 64-bit unsigned integer for SFC code
  * @tparam Reduce            functor for global counts reduction in distributed builds
- * @param[in]    codesStart  local particle Morton codes start
- * @param[in]    codesEnd    local particle morton codes end
+ * @param[in]    codesStart  local particle SFC codes start
+ * @param[in]    codesEnd    local particle SFC codes end
  * @param[in]    bucketSize  maximum number of particles per node
  * @param[inout] tree        the octree leaf nodes (cornerstone format)
  * @param[inout] counts      the octree leaf node particle count
@@ -403,11 +403,11 @@ bool updateOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
     return converged;
 }
 
-/*! @brief compute an octree from morton codes for a specified bucket size
+/*! @brief compute an octree from SFC codes for a specified bucket size
 
  * @tparam I               32- or 64-bit unsigned integer type
- * @param[in] codesStart   particle morton code sequence start
- * @param[in] codesEnd     particle morton code sequence end
+ * @param[in] codesStart   particle SFC code sequence start
+ * @param[in] codesEnd     particle SFC code sequence end
  * @param[in] bucketSize   maximum number of particles/codes per octree leaf node
  * @param[in] maxCount     if actual node counts are higher, they will be capped to @p maxCount
  * @return                 the tree and the node counts
@@ -446,18 +446,18 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
  *
  * @tparam Tin              float or double
  * @tparam Tout             float or double, usually float
- * @tparam I                32- or 64-bit unsigned integer type for Morton codes
+ * @tparam I                32- or 64-bit unsigned integer type for SFC codes
  * @tparam IndexType        integer type for local particle array indices, 32-bit for fewer than 2^32 local particles
- * @param[in]  tree         octree nodes given as Morton codes of length @a nNodes+1
+ * @param[in]  tree         octree nodes given as SFC codes of length @a nNodes+1
  *                          This function does not rely on octree invariants, sortedness of the nodes
  *                          is the only requirement.
  * @param[in]  nNodes       number of nodes in tree
- * @param[in]  codesStart   sorted Morton code range start of particles to count
- * @param[in]  codesEnd     sorted Morton code range end of particles to count
+ * @param[in]  codesStart   sorted SFC code range start of particles to count
+ * @param[in]  codesEnd     sorted SFC code range end of particles to count
  * @param[in]  ordering     Access input according to @p ordering
  *                          The sequence input[ordering[i]], i=0,...,N must list the elements of input
  *                          (i.e. the smoothing lengths) such that input[i] is a property of the particle
- *                          (x[i], y[i], z[i]), with x,y,z sorted according to Morton ordering.
+ *                          (x[i], y[i], z[i]), with x,y,z sorted according to SFC ordering.
  * @param[in]  input        Radii per particle, i.e. the smoothing lengths in SPH, length = codesEnd - codesStart
  * @param[out] output       Radius per node, length = @a nNodes
  */
