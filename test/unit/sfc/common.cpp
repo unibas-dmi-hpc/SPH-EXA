@@ -299,3 +299,99 @@ TEST(SfcCode, padUtility)
     EXPECT_EQ(pad(0b011ul, 3), 0b0011ul << 60);
 }
 
+
+/*! @brief return position of last non-zero octal digit place in x
+ *
+ * @tparam I   32- or 64-bit unsigned integer
+ * @param  x   an integer
+ * @return     position of the last non-zero octal digit place, starting from
+ *             1 (left-most digit place) to 10 or 21 (64-bit), the right-most
+ *             digit place. Returns 10 or 21 (64-bit) if x is zero.
+ */
+template<class I>
+constexpr int lastNzPlace(I x)
+{
+    if (x) return maxTreeLevel<I>{} - __builtin_ctz(x)/3;
+    else   return maxTreeLevel<I>{} - 0;
+}
+
+/*! @brief return the power of 8 for the octal place at position @p pos
+ *
+ * @tparam I    32- or 64-bit unsigned integer
+ * @param  pos  Position counting from left, starting from 1. Maximum value 10 or 21 (64-bit)
+ * @return      the power of 8 associated with the indicated octal place
+ */
+template<class I>
+constexpr int octalPower(int pos)
+{
+    return (I(1) << 3 * (maxTreeLevel<I>{} - pos));
+}
+
+/*! @brief generate SFC codes to cover the range [a:b] with a valid cornerstone sub-octree
+ *
+ * @tparam I   32- or 64-bit unsigned integer
+ * @param  a   first SFC code
+ * @param  b   second SFC code
+ *
+ *                      | a_last_nz_pos (10)
+ * Example:       a: 0001
+ *                b: 0742
+ *  ab_first_diff_pos ^ ^ b_last_nz_pos
+ *       (8)                   (10)
+ *
+ *  output: 1 2 3 4 5 6 7 10 20 30 40 50 60 70 100 200 300 400 500 600 700 710 720 730 740 741
+ *
+ *  Variables suffixed with "_pos" refer to an octal digit place. The value of 1 is
+ *  the position of the left-most digit, and 10 (or 21 for 64-bit) refers to the right-most digit.
+ *  This convention is chosen such that the positional value coincides with the corresponding octree
+ *  subdivision level.
+ */
+template<class I>
+void spanSfcRange(I a, I b)
+{
+    // position of first differing octal digit place
+    int ab_first_diff_pos = stl::min(1 + commonPrefix(a, b)/3, int(maxTreeLevel<I>{}));
+
+    // last non-zero octal digit place position in a and b
+    int a_last_nz_pos = lastNzPlace(a);
+    int b_last_nz_pos = lastNzPlace(b);
+
+    // add SFC codes, increasing power of 8 in each iteration
+    for (int pos = a_last_nz_pos; pos > ab_first_diff_pos; --pos)
+    {
+        int numDigits = (8 - octalDigit(a, pos)) % 8;
+        while (numDigits--)
+        {
+            a += octalPower<I>(pos);
+            std::cout << std::oct << a << " ";
+        }
+    }
+
+    // add SFC codes, decreasing power of 8 in each iteration
+    for (int pos = ab_first_diff_pos; pos <= b_last_nz_pos; ++pos)
+    {
+        // Note: octalDigit(a, pos) is guaranteed zero for pos > ab_first_diff_pos
+        int numDigits = octalDigit(b, pos) - octalDigit(a, pos);
+        // suppress outputting b itself, the upper bound
+        if (pos == b_last_nz_pos) { numDigits--; }
+        while (numDigits--)
+        {
+            a += octalPower<I>(pos);
+            std::cout << std::oct << a << " ";
+        }
+    }
+}
+
+TEST(SfcCode, spanSfcRange)
+{
+    spanSfcRange(0u, 07777u);
+    std::cout << std::endl;
+    spanSfcRange(1u, 0742u);
+    std::cout << std::endl;
+    spanSfcRange(040375u, 046023u);
+    std::cout << std::endl;
+    spanSfcRange(041305u, 046000u);
+    std::cout << std::endl;
+    spanSfcRange(040000u, 060000u);
+    std::cout << std::endl;
+}
