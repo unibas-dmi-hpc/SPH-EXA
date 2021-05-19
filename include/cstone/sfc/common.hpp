@@ -63,7 +63,7 @@ struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21> {};
  * @param x   input floating point number in [0,1]
  * @return    x converted to an 10-bit or 21-bit integer
  *
- * Integer conversion happens with truncation as required for morton code calculations
+ * Integer conversion happens with truncation as required for SFC code calculations
  */
 template <class I, class T>
 CUDA_HOST_DEVICE_FUN
@@ -163,11 +163,11 @@ constexpr std::enable_if_t<std::is_unsigned<I>{}, bool> isPowerOf8(I n)
     return lz % 3 == 0 && !(n & (n-1));
 }
 
-/*! @brief calculate common prefix (cpr) of two morton keys
+/*! @brief calculate common prefix (cpr) of two SFC keys
  *
  * @tparam I    32 or 64 bit unsigned integer
- * @param key1  first morton code key
- * @param key2  second morton code key
+ * @param key1  first SFC code key
+ * @param key2  second SFC code key
  * @return      number of continuous identical bits, counting from MSB
  *              minus the 2 unused bits in 32 bit codes or minus the 1 unused bit
  *              in 64 bit codes.
@@ -261,12 +261,12 @@ constexpr unsigned octalDigit(I code, unsigned position)
     return (code >> (3u * (maxTreeLevel<I>{} - position))) & 7u;
 }
 
-//! @brief cut down the input morton code to the start code of the enclosing box at <treeLevel>
+//! @brief cut down the input SFC code to the start code of the enclosing box at <treeLevel>
 template<class I>
 CUDA_HOST_DEVICE_FUN
 constexpr std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsigned treeLevel)
 {
-    // total usable bits in the morton code, 30 or 63
+    // total usable bits in the SFC code, 30 or 63
     constexpr unsigned nBits = 3 * maxTreeLevel<I>{};
 
     // number of bits to discard, counting from lowest bit
@@ -282,7 +282,7 @@ constexpr std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, un
  * @param[in] firstCode   lower SFC code
  * @param[in] secondCode  upper SFC code
  *
- * @return                two morton codes that delineate the start and end of
+ * @return                two SFC codes that delineate the start and end of
  *                        the smallest octree node that contains both input codes
  */
 template<class I>
