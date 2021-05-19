@@ -46,14 +46,13 @@ struct integral_constant {
     typedef integral_constant<T, v> type;
 
     CUDA_HOST_DEVICE_FUN
-    constexpr operator value_type() const noexcept
-    { return value; } // NOLINT
+    constexpr operator value_type() const noexcept { return value; } // NOLINT
 };
 
 //! @brief This does what you think it does
 template<class T>
 CUDA_HOST_DEVICE_FUN
-inline const T& min(const T& a, const T& b)
+constexpr const T& min(const T& a, const T& b)
 {
   if (b < a)
     return b;
@@ -63,7 +62,7 @@ inline const T& min(const T& a, const T& b)
 //! @brief This does what you think it does
 template<class T>
 CUDA_HOST_DEVICE_FUN
-inline const T& max(const T& a, const T& b)
+constexpr const T& max(const T& a, const T& b)
 {
     if (a < b)
         return b;
@@ -107,7 +106,7 @@ CUDA_HOST_DEVICE_FUN ForwardIt upper_bound(ForwardIt first, ForwardIt last, cons
         it = first;
         step = count / 2;
         it += step;
-        if (!(value < *it))
+        if (!(value < *it)) // NOLINT
         {
             first = ++it;
             count -= step + 1;
