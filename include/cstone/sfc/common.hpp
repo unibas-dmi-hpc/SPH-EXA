@@ -89,7 +89,7 @@ inline unsigned toNBitInt(T x)
  */
 template <class I, class T>
 CUDA_HOST_DEVICE_FUN
-inline unsigned toNBitIntCeil(T x)
+constexpr unsigned toNBitIntCeil(T x)
 {
     // spatial resolution in bits per dimension
     constexpr unsigned nBits = maxTreeLevel<I>{};
@@ -134,8 +134,7 @@ constexpr I pad(I prefix, int length)
  */
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<I>{}, I>
-nodeRange(unsigned treeLevel)
+constexpr std::enable_if_t<std::is_unsigned<I>{}, I> nodeRange(unsigned treeLevel)
 {
     assert (treeLevel <= maxTreeLevel<I>{});
     unsigned shifts = maxTreeLevel<I>{} - treeLevel;
@@ -147,10 +146,9 @@ nodeRange(unsigned treeLevel)
 //! @brief compute ceil(log8(n))
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<I>{}, unsigned> log8ceil(I n)
+constexpr std::enable_if_t<std::is_unsigned<I>{}, unsigned> log8ceil(I n)
 {
-    if (n == 0)
-        return 0;
+    if (n == 0) { return 0; }
 
     unsigned lz = countLeadingZeros(n-1);
     return maxTreeLevel<I>{} - (lz - unusedBits<I>{}) / 3;
@@ -159,7 +157,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, unsigned> log8ceil(I n)
 //! @brief check whether n is a power of 8
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<I>{}, bool> isPowerOf8(I n)
+constexpr std::enable_if_t<std::is_unsigned<I>{}, bool> isPowerOf8(I n)
 {
     unsigned lz = countLeadingZeros(n - 1) - unusedBits<I>{};
     return lz % 3 == 0 && !(n & (n-1));
@@ -176,7 +174,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, bool> isPowerOf8(I n)
  */
 template<class I>
 CUDA_HOST_DEVICE_FUN
-int commonPrefix(I key1, I key2)
+constexpr int commonPrefix(I key1, I key2)
 {
     return int(countLeadingZeros(key1 ^ key2)) - unusedBits<I>{};
 }
@@ -189,7 +187,7 @@ int commonPrefix(I key1, I key2)
  */
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline unsigned treeLevel(I codeRange)
+constexpr unsigned treeLevel(I codeRange)
 {
     assert( isPowerOf8(codeRange) );
     return (countLeadingZeros(codeRange - 1) - unusedBits<I>{}) / 3;
@@ -206,7 +204,7 @@ inline unsigned treeLevel(I codeRange)
  */
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline I encodePlaceholderBit(I code, int prefixLength)
+constexpr I encodePlaceholderBit(I code, int prefixLength)
 {
     int nShifts = 3*maxTreeLevel<I>{} - prefixLength;
     I ret = code >> nShifts;
@@ -218,7 +216,7 @@ inline I encodePlaceholderBit(I code, int prefixLength)
 //! @brief returns the number of key-bits in the input @p code
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline int decodePrefixLength(I code)
+constexpr int decodePrefixLength(I code)
 {
     return 8*sizeof(I) - 1 - countLeadingZeros(code);
 }
@@ -233,7 +231,7 @@ inline int decodePrefixLength(I code)
  */
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline I decodePlaceholderBit(I code)
+constexpr I decodePlaceholderBit(I code)
 {
     int prefixLength  = decodePrefixLength(code);
     I placeHolderMask = I(1) << prefixLength;
@@ -256,7 +254,7 @@ inline I decodePlaceholderBit(I code)
  */
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline unsigned octalDigit(I code, unsigned position)
+constexpr unsigned octalDigit(I code, unsigned position)
 {
     return (code >> (3u * (maxTreeLevel<I>{} - position))) & 7u;
 }
@@ -264,7 +262,7 @@ inline unsigned octalDigit(I code, unsigned position)
 //! @brief cut down the input morton code to the start code of the enclosing box at <treeLevel>
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsigned treeLevel)
+constexpr std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsigned treeLevel)
 {
     // total usable bits in the morton code, 30 or 63
     constexpr unsigned nBits = 3 * maxTreeLevel<I>{};
@@ -286,7 +284,7 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> enclosingBoxCode(I code, unsig
  *                        the smallest octree node that contains both input codes
  */
 template<class I>
-inline pair<I> smallestCommonBox(I firstCode, I secondCode)
+constexpr pair<I> smallestCommonBox(I firstCode, I secondCode)
 {
     assert(firstCode <= secondCode);
 
@@ -299,7 +297,7 @@ inline pair<I> smallestCommonBox(I firstCode, I secondCode)
 //! @brief zero all but the highest nBits in a SFC code
 template<class I>
 CUDA_HOST_DEVICE_FUN
-inline I zeroLowBits(I code, int nBits)
+constexpr I zeroLowBits(I code, int nBits)
 {
     int nLowerBits = sizeof(I) * 8 - unusedBits<I>{} - nBits;
     I mask = (I(1) << nLowerBits) - 1;
