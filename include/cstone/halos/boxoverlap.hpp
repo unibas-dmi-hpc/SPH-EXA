@@ -39,7 +39,7 @@ namespace cstone
 
 //! @brief standard criterion for two ranges a-b and c-d to overlap, a<b and c<d
 CUDA_HOST_DEVICE_FUN
-inline bool overlapTwoRanges(int a, int b, int c, int d)
+constexpr bool overlapTwoRanges(int a, int b, int c, int d)
 {
     assert(a<=b && c<=d);
     return b > c && d > a;
@@ -55,7 +55,7 @@ inline bool overlapTwoRanges(int a, int b, int c, int d)
  */
 template<int R>
 CUDA_HOST_DEVICE_FUN
-bool overlapRange(int a, int b, int c, int d)
+constexpr bool overlapRange(int a, int b, int c, int d)
 {
     assert(a >= -R);
     assert(a < R);
@@ -103,7 +103,7 @@ bool overlap(I prefix, int length, const IBox& box)
 
 template <class I>
 CUDA_HOST_DEVICE_FUN
-inline bool overlap(I prefixBitKey, const IBox& box)
+bool overlap(I prefixBitKey, const IBox& box)
 {
     int prefixLength = decodePrefixLength(prefixBitKey);
     return overlap(decodePlaceholderBit(prefixBitKey), prefixLength, box);
@@ -111,7 +111,7 @@ inline bool overlap(I prefixBitKey, const IBox& box)
 
 template <class I>
 CUDA_HOST_DEVICE_FUN
-inline bool overlap(I codeStart, I codeEnd, const IBox& box)
+bool overlap(I codeStart, I codeEnd, const IBox& box)
 {
     int level = treeLevel(codeEnd - codeStart);
     return overlap(codeStart, level*3, box);

@@ -46,7 +46,7 @@ namespace cstone
  */
 template<class T>
 CUDA_HOST_DEVICE_FUN
-static inline T distanceSqPbc(T x1, T y1, T z1, T x2, T y2, T z2, const Box<T>& box)
+constexpr T distanceSqPbc(T x1, T y1, T z1, T x2, T y2, T z2, const Box<T>& box)
 {
     T dx = x1 - x2;
     T dy = y1 - y2;
@@ -62,7 +62,7 @@ static inline T distanceSqPbc(T x1, T y1, T z1, T x2, T y2, T z2, const Box<T>& 
 //! @brief compute squared distance between to points in 3D
 template<class T>
 CUDA_HOST_DEVICE_FUN
-static inline T distancesq(T x1, T y1, T z1, T x2, T y2, T z2)
+constexpr T distancesq(T x1, T y1, T z1, T x2, T y2, T z2)
 {
     T xx = x1 - x2;
     T yy = y1 - y2;
@@ -76,7 +76,7 @@ static inline T distancesq(T x1, T y1, T z1, T x2, T y2, T z2)
  */
 template<class T>
 CUDA_HOST_DEVICE_FUN
-unsigned radiusToTreeLevel(T radius, T minRange)
+constexpr unsigned radiusToTreeLevel(T radius, T minRange)
 {
     T radiusNormalized = stl::min(radius / minRange, T(1.0));
     return unsigned(-log2(radiusNormalized));
