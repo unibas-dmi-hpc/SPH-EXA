@@ -131,16 +131,13 @@ void markMac()
     std::vector<char> markings(fullTree.nTreeNodes(), 0);
 
     float theta = 0.58;
-    markMac(fullTree, box, 0, 2, 1./(theta*theta), markings.data());
+    I focusStart = tree[0];
+    I focusEnd   = tree[2];
+    markMac(fullTree, box, focusStart, focusEnd, 1./(theta*theta), markings.data());
 
-    // first two leaf nodes are in the target range, we don't check any criterion there
-    markings[fullTree.toInternal(0)] = 0;
-    markings[fullTree.toInternal(1)] = 0;
-
-    //for (int i = 0; i < fullTree.nTreeNodes(); ++i)
-    //    std::cout << std::dec << i << " " << std::oct << fullTree.codeStart(i) << " " << int(markings[i]) << std::endl;
-
-    std::vector<char> reference{1,1,1,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0};
+    //                         internal | leaves
+    //                         0 00 70 | 00 - 07       | 1 - 6     | 70 - 77
+    std::vector<char> reference{1, 1, 1,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,0};
     EXPECT_EQ(reference, markings);
 }
 
