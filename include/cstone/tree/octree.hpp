@@ -436,6 +436,52 @@ computeOctree(const I* codesStart, const I* codesEnd, unsigned bucketSize,
     return std::make_tuple(std::move(tree), std::move(counts));
 }
 
+/*! @brief create a cornerstone octree around a series of given SFC codes
+ *
+ * @tparam InputIterator  iterator to 32- or 64-bit unsigned integer
+ * @param  firstCode      SFC code sequence start
+ * @param  lastCode       SFC code sequence end
+ * @return                the cornerstone octree containing all values in the given code sequence
+ *                        plus any additional intermediate SFC codes between them required to fulfill
+ *                        the cornerstone invariants.
+ *
+ * Typical application: Generation of a minimal global tree where the input code sequence
+ * corresponds to the partitioning of the space filling curve into numMpiRanks intervals.
+ *
+ *  Requirements on the input sequence [firstCode:lastCode]:
+ *      - must start with 0, i.e. *firstCode == 0
+ *      - must end with 2^30 or 2^63, i.e. *(lastCode - 1) == nodeRange<CodeType>(0)
+ *        with CodeType =- std::decay_t<decltype(*firstCode)>
+ *      - must be sorted
+ */
+template<class InputIterator>
+auto computeSpanningTree(InputIterator firstCode, InputIterator lastCode)
+{
+    using CodeType = std::decay_t<decltype(*firstCode)>;
+
+    assert(lastCode - firstCode > 1);
+    assert(*firstCode == 0 && *(lastCode-1) == nodeRange<CodeType>(0));
+
+    TreeNodeIndex numIntervals = lastCode - firstCode - 1;
+
+    std::vector<TreeNodeIndex> offsets(numIntervals + 1);
+    for (TreeNodeIndex i = 0; i < numIntervals; ++i)
+    {
+        offsets[i] = spanSfcRange(firstCode[i], firstCode[i+1]);
+    }
+
+    exclusiveScanSerialInplace(offsets.data(), offsets.size(), 0);
+
+    std::vector<CodeType> spanningTree(offsets.back() + 1);
+    for (TreeNodeIndex i = 0; i < numIntervals; ++i)
+    {
+        spanSfcRange(firstCode[i], firstCode[i+1], spanningTree.data() + offsets[i]);
+    }
+    spanningTree.back() = nodeRange<CodeType>(0);
+
+    return spanningTree;
+}
+
 /*! @brief Compute the halo radius of each node in the given octree
  *
  * This is the maximum distance beyond the node boundaries that a particle outside the
@@ -495,7 +541,7 @@ void computeHaloRadii(const I* tree, TreeNodeIndex nNodes, const I* codesStart, 
         for(IndexType p = startIndex; p < endIndex; ++p)
         {
             Tin nodeElement = input[ordering[p]];
-            nodeMax       = std::max(nodeMax, nodeElement);
+            nodeMax         = std::max(nodeMax, nodeElement);
         }
 
         // note factor of 2 due to SPH conventions
