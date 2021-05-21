@@ -339,7 +339,7 @@ constexpr I octalPower(int pos)
  * @tparam     I       32- or 64-bit unsigned integer
  * @param[in]  a       first SFC code
  * @param[in]  b       second SFC code, b > a
- * @param[out] output  output sfc codes
+ * @param[out] output  output SFC codes, includes a, excludes b
  * @return             number of values in output
  *
  *                      | a_last_nz_pos (10)
@@ -351,7 +351,7 @@ constexpr I octalPower(int pos)
  *  output: 1 2 3 4 5 6 7 10 20 30 40 50 60 70 100 200 300 400 500 600 700 710 720 730 740 741
  *
  *  Variables suffixed with "_pos" refer to an octal digit place. The value of 1 is
- *  the position of the left-most digit, and 10 (or 21 for 64-bit) refers to the right-most digit.
+ *  the position of the left-most digit, and 10 (or 21 for 64-bit) refers to the right-most digit place.
  *  This convention is chosen such that the positional value coincides with the corresponding octree
  *  subdivision level.
  */

@@ -116,15 +116,14 @@ bool minDistanceMac(IBox a, IBox b, const Box<T>& box, float invThetaSq)
 
 template<class T, class I>
 CUDA_HOST_DEVICE_FUN
-void markMacPerLeaf(TreeNodeIndex leafIdx, const Octree<I>& octree, const IBox* iboxes, const Box<T>& box,
-                    float invThetaSq, char* markings)
+void markMacPerBox(IBox target, const Octree<I>& octree, const IBox* iboxes, const Box<T>& box,
+                   float invThetaSq, I focusStart, I focusEnd, char* markings)
 {
-    TreeNodeIndex octreeIdx = octree.toInternal(leafIdx);
-
-    IBox target = makeIBox(octree.codeStart(octreeIdx), octree.codeEnd(octreeIdx));
-
-    auto checkAndMarkMac = [target, iboxes, invThetaSq, markings, &box](TreeNodeIndex idx)
+    auto checkAndMarkMac = [target, iboxes, &box, invThetaSq, focusStart, focusEnd, markings](TreeNodeIndex idx)
     {
+        // if the tree node with index idx is fully contained in the focus, we stop traversal
+        if (containedIn(focusStart, focusEnd, iboxes[idx])) { return false; }
+
         bool violatesMac = !minDistanceMac<T, I>(target, iboxes[idx], box, invThetaSq);
         if (violatesMac)
         {
@@ -151,10 +150,12 @@ void markMacPerLeaf(TreeNodeIndex leafIdx, const Octree<I>& octree, const IBox* 
  *                          of the leaf nodes with leaf index in [firstLeaf:lastLeaf]
  */
 template<class T, class I>
-void markMac(const Octree<I>& octree, const Box<T>& box, TreeNodeIndex firstLeaf, TreeNodeIndex lastLeaf,
+void markMac(const Octree<I>& octree, const Box<T>& box, I focusStart, I focusEnd,
              float invThetaSq, char* markings)
 
 {
+    std::fill(markings, markings + octree.nTreeNodes(), 0);
+
     std::vector<IBox> treeBoxes(octree.nTreeNodes());
 
     #pragma omp parallel for schedule(static)
@@ -163,10 +164,17 @@ void markMac(const Octree<I>& octree, const Box<T>& box, TreeNodeIndex firstLeaf
         treeBoxes[i] = makeIBox(octree.codeStart(i), octree.codeEnd(i));
     }
 
+    // find the minimum possible number of octree node boxes to cover the entire focus
+    TreeNodeIndex numFocusBoxes = spanSfcRange(focusStart, focusEnd);
+    std::vector<I> focusCodes(numFocusBoxes + 1);
+    spanSfcRange(focusStart, focusEnd, focusCodes.data());
+    focusCodes.back() = focusEnd;
+
     #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex i = firstLeaf; i < lastLeaf; ++i)
+    for (TreeNodeIndex i = 0; i < numFocusBoxes; ++i)
     {
-        markMacPerLeaf(i, octree, treeBoxes.data(), box, invThetaSq, markings);
+        IBox target = makeIBox(focusCodes[i], focusCodes[i+1]);
+        markMacPerBox(target, octree, treeBoxes.data(), box, invThetaSq, focusStart, focusEnd, markings);
     }
 }
 
@@ -268,8 +276,7 @@ public:
         TreeNodeIndex lastFocusNode  = std::lower_bound(begin(cstoneTree), end(cstoneTree), focusEnd) - begin(cstoneTree);
 
         macs_.resize(tree_.nTreeNodes());
-        std::fill(begin(macs_), end(macs_), 0);
-        markMac(tree_, box, firstFocusNode, lastFocusNode, 1.0/(theta_*theta_), macs_.data());
+        markMac(tree_, box, focusStart, focusEnd, 1.0/(theta_*theta_), macs_.data());
 
         std::vector<TreeNodeIndex> nodeOps(tree_.nLeafNodes() + 1);
         bool converged = rebalanceDecisionEssential(cstoneTree.data(), tree_.nInternalNodes(), tree_.nLeafNodes(), tree_.leafParents(),
