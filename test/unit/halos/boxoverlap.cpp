@@ -36,22 +36,6 @@
 
 using namespace cstone;
 
-template<class I>
-void pbcAdjust()
-{
-    constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
-    EXPECT_EQ(1,          pbcAdjust<maxCoord>(1));
-    EXPECT_EQ(maxCoord-1, pbcAdjust<maxCoord>(-1));
-    EXPECT_EQ(0,          pbcAdjust<maxCoord>(maxCoord));
-    EXPECT_EQ(maxCoord-1, pbcAdjust<maxCoord>(-maxCoord-1));
-    EXPECT_EQ(2,          pbcAdjust<maxCoord>(4*maxCoord + 2));
-}
-
-TEST(BoxOverlap, pbcAdjust)
-{
-    pbcAdjust<unsigned>();
-    pbcAdjust<uint64_t>();
-}
 
 TEST(BoxOverlap, overlapRange)
 {
