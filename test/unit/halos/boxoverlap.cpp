@@ -140,6 +140,24 @@ TEST(BoxOverlap, pbcOverlaps)
     pbcOverlaps<uint64_t>();
 }
 
+template<class I>
+void makeIBox()
+{
+    int maxCoord = I(1) << maxTreeLevel<I>{};
+    {
+        I nodeStart = nodeRange<I>(0) - 1;
+        I nodeEnd   = nodeRange<I>(0);
+        IBox ibox   = makeIBox(nodeStart, nodeEnd);
+        IBox refBox{maxCoord-1, maxCoord};
+        EXPECT_EQ(ibox, refBox);
+    }
+}
+
+TEST(BoxOverlap, makeIBox)
+{
+    makeIBox<unsigned>();
+    makeIBox<uint64_t>();
+}
 
 //! @brief check halo box ranges in all spatial dimensions
 template<class I>
