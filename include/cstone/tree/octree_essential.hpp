@@ -123,19 +123,21 @@ bool minDistanceMac(IBox a, IBox b, const Box<T>& box, float invThetaSq)
 
 template<class T, class I>
 CUDA_HOST_DEVICE_FUN
-void markMacPerBox(IBox target, const Octree<I>& octree, const IBox* iboxes, const Box<T>& box,
+void markMacPerBox(IBox target, const Octree<I>& octree, const Box<T>& box,
                    float invThetaSq, I focusStart, I focusEnd, char* markings)
 {
-    auto checkAndMarkMac = [target, iboxes, &box, invThetaSq, focusStart, focusEnd, markings](TreeNodeIndex idx)
+    auto checkAndMarkMac = [target, &octree, &box, invThetaSq, focusStart, focusEnd, markings](TreeNodeIndex idx)
     {
+        I nodeStart = octree.codeStart(idx);
+        I nodeEnd   = octree.codeEnd(idx);
         // if the tree node with index idx is fully contained in the focus, we stop traversal
-        if (containedIn(focusStart, focusEnd, iboxes[idx])) { return false; }
+        if (containedIn(nodeStart, nodeEnd, focusStart, focusEnd)) { return false; }
 
-        bool violatesMac = !minDistanceMac<T, I>(target, iboxes[idx], box, invThetaSq);
-        if (violatesMac)
-        {
-            markings[idx] = 1;
-        }
+        IBox sourceBox = makeIBox(nodeStart, nodeEnd);
+
+        bool violatesMac = !minDistanceMac<T, I>(target, sourceBox, box, invThetaSq);
+        if (violatesMac) { markings[idx] = 1; }
+
         return violatesMac;
     };
 
@@ -163,14 +165,6 @@ void markMac(const Octree<I>& octree, const Box<T>& box, I focusStart, I focusEn
 {
     std::fill(markings, markings + octree.nTreeNodes(), 0);
 
-    std::vector<IBox> treeBoxes(octree.nTreeNodes());
-
-    #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex i = 0; i < octree.nTreeNodes(); ++i)
-    {
-        treeBoxes[i] = makeIBox(octree.codeStart(i), octree.codeEnd(i));
-    }
-
     // find the minimum possible number of octree node boxes to cover the entire focus
     TreeNodeIndex numFocusBoxes = spanSfcRange(focusStart, focusEnd);
     std::vector<I> focusCodes(numFocusBoxes + 1);
@@ -181,7 +175,7 @@ void markMac(const Octree<I>& octree, const Box<T>& box, I focusStart, I focusEn
     for (TreeNodeIndex i = 0; i < numFocusBoxes; ++i)
     {
         IBox target = makeIBox(focusCodes[i], focusCodes[i+1]);
-        markMacPerBox(target, octree, treeBoxes.data(), box, invThetaSq, focusStart, focusEnd, markings);
+        markMacPerBox(target, octree, box, invThetaSq, focusStart, focusEnd, markings);
     }
 }
 
