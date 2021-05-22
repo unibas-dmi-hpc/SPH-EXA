@@ -52,6 +52,14 @@
 namespace cstone
 {
 
+CUDA_HOST_DEVICE_FUN
+constexpr int rangeSeparation(int a, int b, int c, int d)
+{
+    int cb = c - b;
+    int ad = a - d;
+    return (cb >= 0 || ad >= 0) * stl::min(stl::abs(cb), stl::abs(ad));
+}
+
 /*! @brief return the smallest distance squared between two points on the surface of the AABBs @p a and @p b
  *
  * @tparam T     float or double
@@ -68,17 +76,12 @@ T minDistanceSq(IBox a, IBox b, const Box<T>& box)
     constexpr size_t maxCoord = 1u<<maxTreeLevel<I>{};
     constexpr T unitLengthSq  = T(1.) / (maxCoord * maxCoord);
 
-    size_t ux = stl::max(0, b.xmin() - a.xmax());
-    size_t uy = stl::max(0, b.ymin() - a.ymax());
-    size_t uz = stl::max(0, b.zmin() - a.zmax());
-
-    size_t vx = stl::max(0, a.xmin() - b.xmax());
-    size_t vy = stl::max(0, a.ymin() - b.ymax());
-    size_t vz = stl::max(0, a.zmin() - b.zmax());
-
+    size_t dx = rangeSeparation(a.xmin(), a.xmax(), b.xmin(), b.xmax());
+    size_t dy = rangeSeparation(a.ymin(), a.ymax(), b.ymin(), b.ymax());
+    size_t dz = rangeSeparation(a.zmin(), a.zmax(), b.zmin(), b.zmax());
     // the maximum for any integer is 2^21-1, so we can safely square each of them
-    return ((ux*ux + vx*vx)*box.lx()*box.lx() + (uy*uy + vy*vy)*box.ly()*box.ly() +
-            (uz*uz + vz*vz)*box.lz()*box.lz()) * unitLengthSq;
+    return ((dx*dx)*box.lx()*box.lx() + (dy*dy)*box.ly()*box.ly() +
+            (dz*dz)*box.lz()*box.lz()) * unitLengthSq;
 }
 
 //! @brief return longest edge length of box @p b
