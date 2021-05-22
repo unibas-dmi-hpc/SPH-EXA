@@ -95,6 +95,60 @@ TEST(OctreeEssential, minDistanceSq)
     }
 }
 
+TEST(OctreeEssential, minDistanceSqPbc)
+{
+    using I = uint64_t;
+    using T = double;
+    constexpr int maxCoord = 1u << maxTreeLevel<I>{};
+    constexpr T unitLengthSq = T(1.) / (T(maxCoord) * T(maxCoord));
+
+    {
+        Box<T> box(0, 1, 0, 1, 0, 1, true, false, false);
+        IBox a(0, 1, 0, 1, 0, 1);
+        IBox b(maxCoord-1, maxCoord, 0, 1, 0, 1);
+
+        T probe1 = minDistanceSq<T, I>(a, b, box);
+        T probe2 = minDistanceSq<T, I>(b, a, box);
+
+        EXPECT_DOUBLE_EQ(probe1, 0.0);
+        EXPECT_DOUBLE_EQ(probe2, 0.0);
+    }
+    {
+        Box<T> box(0, 1, 0, 1, 0, 1, false, true, false);
+        IBox a(0, 1);
+        IBox b(0, 1, maxCoord-1, maxCoord, 0, 1);
+
+        T probe1 = minDistanceSq<T, I>(a, b, box);
+        T probe2 = minDistanceSq<T, I>(b, a, box);
+
+        EXPECT_DOUBLE_EQ(probe1, 0.0);
+        EXPECT_DOUBLE_EQ(probe2, 0.0);
+    }
+    {
+        Box<T> box(0, 1, 0, 1, 0, 1, false, false, true);
+        IBox a(0, 1);
+        IBox b(0, 1, 0, 1, maxCoord-1, maxCoord);
+
+        T probe1 = minDistanceSq<T, I>(a, b, box);
+        T probe2 = minDistanceSq<T, I>(b, a, box);
+
+        EXPECT_DOUBLE_EQ(probe1, 0.0);
+        EXPECT_DOUBLE_EQ(probe2, 0.0);
+    }
+    {
+        Box<T> box(0, 1, 0, 1, 0, 1, true, true, true);
+        IBox a(0, 1);
+        IBox b(maxCoord/2 + 1, maxCoord/2 + 2);
+
+        T probe1 = minDistanceSq<T, I>(a, b, box);
+        T probe2 = minDistanceSq<T, I>(b, a, box);
+        T reference = 3 * T(maxCoord/2-2) * T(maxCoord/2-2) * box.lx() * box.lx() * unitLengthSq;
+
+        EXPECT_DOUBLE_EQ(probe1, reference);
+        EXPECT_DOUBLE_EQ(probe2, reference);
+    }
+}
+
 TEST(OctreeEssential, nodeLengthSq)
 {
     IBox ibox(0,1);
