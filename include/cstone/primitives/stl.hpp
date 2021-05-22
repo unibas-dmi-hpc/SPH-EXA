@@ -55,7 +55,7 @@ CUDA_HOST_DEVICE_FUN
 constexpr const T& min(const T& a, const T& b)
 {
   if (b < a)
-    return b;
+      return b;
   return a;
 }
 
@@ -67,6 +67,20 @@ constexpr const T& max(const T& a, const T& b)
     if (a < b)
         return b;
     return a;
+}
+
+//! @brief the std version is not constexpr, this here requires two's complement
+template<class T>
+CUDA_HOST_DEVICE_FUN
+constexpr std::enable_if_t<std::is_signed_v<T>, T> abs(T a)
+{
+    #ifdef __CUDA_ARCH__
+    if constexpr(std::is_same_v<T, int>) { return ::abs(a); }
+    else { return ::labs(a); }
+    #else
+    T mask = a >> (sizeof(T) * 8 - 1);
+    return (a ^ mask) - mask;
+    #endif
 }
 
 //! @brief a simplified version of std::lower_bound that can be compiled as device code
