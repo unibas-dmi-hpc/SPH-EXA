@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <cassert>
 #include <cmath>
 
 #include "cstone/cuda/annotation.hpp"
@@ -69,7 +70,26 @@ template<int R>
 CUDA_HOST_DEVICE_FUN
 constexpr int pbcAdjust(int x)
 {
-    return x - R * std::floor(double(x)/R);
+    // this version handles x outside -R, 2R
+    //return x - R * std::floor(double(x)/R);
+    assert(x >= -R);
+    assert(x < 2 * R);
+    int ret = (x < 0) ? x + R : x;
+    return (ret >= R) ? ret - R : ret;
+}
+
+//! @brief maps x into the range [-R/2+1: R/2+1] (-511 to 512 with R = 1024)
+template<int R>
+CUDA_HOST_DEVICE_FUN
+constexpr int pbcDistance(int x)
+{
+    // this version handles x outside -R, R
+    //int roundAwayFromZero = (x > 0) ? x + R/2 : x - R/2;
+    //return x -= R * (roundAwayFromZero / R);
+    assert(x >= -R);
+    assert(x <= R);
+    int ret = (x <= -R/2) ? x + R : x;
+    return (ret > R/2) ? ret - R : ret;
 }
 
 /*! @brief stores the coordinate bounds

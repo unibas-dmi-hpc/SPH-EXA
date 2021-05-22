@@ -10,6 +10,7 @@ set(UNIT_TESTS
         halos/discovery.cpp
         primitives/clz.cpp
         primitives/gather.cpp
+        sfc/box.cpp
         sfc/common.cpp
         sfc/morton.cpp
         tree/btree.cpp
