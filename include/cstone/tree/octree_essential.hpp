@@ -53,11 +53,15 @@ namespace cstone
 {
 
 CUDA_HOST_DEVICE_FUN
-constexpr int rangeSeparation(int a, int b, int c, int d)
+template<int Period>
+constexpr int rangeSeparation(int a, int b, int c, int d, bool pbc)
 {
+    assert(a < b && c < d);
     int cb = c - b;
     int ad = a - d;
-    return (cb >= 0 || ad >= 0) * stl::min(stl::abs(cb), stl::abs(ad));
+    int cbPbc = (pbc) ? pbcDistance<Period>(cb) : cb;
+    int adPbc = (pbc) ? pbcDistance<Period>(ad) : ad;
+    return (cb >= 0 || ad >= 0) * stl::min(stl::abs(cbPbc), stl::abs(adPbc));
 }
 
 /*! @brief return the smallest distance squared between two points on the surface of the AABBs @p a and @p b
@@ -76,9 +80,9 @@ T minDistanceSq(IBox a, IBox b, const Box<T>& box)
     constexpr size_t maxCoord = 1u<<maxTreeLevel<I>{};
     constexpr T unitLengthSq  = T(1.) / (maxCoord * maxCoord);
 
-    size_t dx = rangeSeparation(a.xmin(), a.xmax(), b.xmin(), b.xmax());
-    size_t dy = rangeSeparation(a.ymin(), a.ymax(), b.ymin(), b.ymax());
-    size_t dz = rangeSeparation(a.zmin(), a.zmax(), b.zmin(), b.zmax());
+    size_t dx = rangeSeparation<maxCoord>(a.xmin(), a.xmax(), b.xmin(), b.xmax(), box.pbcX());
+    size_t dy = rangeSeparation<maxCoord>(a.ymin(), a.ymax(), b.ymin(), b.ymax(), box.pbcY());
+    size_t dz = rangeSeparation<maxCoord>(a.zmin(), a.zmax(), b.zmin(), b.zmax(), box.pbcZ());
     // the maximum for any integer is 2^21-1, so we can safely square each of them
     return ((dx*dx)*box.lx()*box.lx() + (dy*dy)*box.ly()*box.ly() +
             (dz*dz)*box.lz()*box.lz()) * unitLengthSq;
