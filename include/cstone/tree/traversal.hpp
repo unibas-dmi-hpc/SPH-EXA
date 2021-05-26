@@ -99,7 +99,7 @@ void traverse(const Octree<I>& octree, C&& continuationCriterion, A&& endpointAc
                 }
                 else
                 {
-                    assert (stackPos < 63);
+                    assert (stackPos < 64);
                     stack[stackPos++] = child; // push
                 }
             }
@@ -107,6 +107,58 @@ void traverse(const Octree<I>& octree, C&& continuationCriterion, A&& endpointAc
         node = stack[--stackPos];
 
     } while (node != 0); // the root can only be obtained when the tree has been fully traversed
+}
+
+template <class I, class MAC, class M2L, class P2P>
+void dualTraversal(const Octree<I>& octree, MAC&& continuation, M2L&& m2l, P2P&& p2p)
+{
+    using NodePair = pair<TreeNodeIndex>;
+
+    if (octree.isLeaf(0)) { return; }
+
+    NodePair stack[64];
+    stack[0] = NodePair{0,0};
+
+    int stackPos = 1;
+
+    auto interact = [&octree, &continuation, &m2l, &p2p, &stackPos]
+        (TreeNodeIndex a, TreeNodeIndex b, NodePair* stack_)
+    {
+        if (continuation(a, b))
+        {
+            if (octree.isLeaf(a) && octree.isLeaf(b)) { p2p(a, b); }
+            else {
+                assert(stackPos < 64);
+                stack_[stackPos++] = NodePair{a, b};
+            }
+        }
+        else { m2l(a, b); }
+    };
+
+    while (stackPos > 0)
+    {
+        NodePair nodePair = stack[--stackPos];
+        TreeNodeIndex target = nodePair[0];
+        TreeNodeIndex source = nodePair[1];
+
+        if ((octree.level(target) < octree.level(source) && !octree.isLeaf(target))
+            || octree.isLeaf(source))
+        {
+            int nChildren = (octree.isLeaf(target)) ? 0 : 8;
+            for (int octant = 0; octant < nChildren; ++octant)
+            {
+                interact(octree.child(target, octant), source, stack);
+            }
+        }
+        else
+        {
+            int nChildren = (octree.isLeaf(source)) ? 0 : 8;
+            for (int octant = 0; octant < nChildren; ++octant)
+            {
+                interact(target, octree.child(source, octant), stack);
+            }
+        }
+    }
 }
 
 } // namespace cstone
