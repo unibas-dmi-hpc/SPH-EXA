@@ -77,4 +77,91 @@ TEST(Traversal, surfaceDetection)
     surfaceDetection<uint64_t>();
 }
 
+//! @brief mac criterion refines all nodes, traverses the entire tree and finds all leaf-pairs
+template<class I>
+void dualTraversalAllPairs()
+{
+    Octree<I> fullTree;
+    fullTree.update(OctreeMaker<I>{}.divide().divide(0).divide(0,7).makeTree());
+
+    std::vector<pair<TreeNodeIndex>> pairs;
+
+    auto allPairs = [](TreeNodeIndex a, TreeNodeIndex b) { return true; };
+
+    auto m2l = [](TreeNodeIndex a, TreeNodeIndex b) { };
+    auto p2p = [&pairs](TreeNodeIndex a, TreeNodeIndex b) { pairs.emplace_back(a, b); };
+
+    dualTraversal(fullTree, allPairs, m2l, p2p);
+
+    std::sort(begin(pairs), end(pairs));
+    auto uit = std::unique(begin(pairs), end(pairs));
+    EXPECT_EQ(uit, end(pairs));
+    EXPECT_EQ(pairs.size(), 484); // 22 leaves ^2 = 484
+}
+
+TEST(Traversal, dualTraversalAllPairs)
+{
+    dualTraversalAllPairs<unsigned>();
+    dualTraversalAllPairs<uint64_t>();
+}
+
+/*! @brief dual traversal with A, B across a focus range and touching each other
+ *
+ * This finds all pairs of leaves (a,b) that touch each other and with
+ * a inside the focus and b outside.
+ */
+template<class I>
+void dualTraversalNeighbors()
+{
+    Octree<I> octree;
+    octree.update(makeUniformNLevelTree<I>(64, 1));
+
+    Box<float> box(0,1);
+
+    I focusStart = octree.codeStart(octree.toInternal(0));
+    I focusEnd   = octree.codeStart(octree.toInternal(8));
+
+    auto crossFocusSurfacePairs = [focusStart, focusEnd, &tree = octree, &box]
+        (TreeNodeIndex a, TreeNodeIndex b)
+    {
+        bool aFocusOverlap = overlapTwoRanges(focusStart, focusEnd, tree.codeStart(a), tree.codeEnd(a));
+        bool bInFocus      = containedIn(tree.codeStart(b), tree.codeEnd(b), focusStart, focusEnd);
+        if (!aFocusOverlap || bInFocus) { return false; }
+
+        IBox aBox = makeIBox(tree.codeStart(a), tree.codeEnd(a));
+        IBox bBox = makeIBox(tree.codeStart(b), tree.codeEnd(b));
+        return minDistanceSq<float, I>(aBox, bBox, box) == 0.0;
+    };
+
+    std::vector<pair<TreeNodeIndex>> pairs;
+    auto p2p = [&pairs](TreeNodeIndex a, TreeNodeIndex b) { pairs.emplace_back(a, b); };
+
+    auto m2l = [](TreeNodeIndex a, TreeNodeIndex b) {};
+
+    dualTraversal(octree, crossFocusSurfacePairs, m2l, p2p);
+
+    EXPECT_EQ(pairs.size(), 61);
+    std::sort(begin(pairs), end(pairs));
+    for(auto p : pairs)
+    {
+        auto a = p[0];
+        auto b = p[1];
+        //std::cout << a - octree.nInternalNodes() << " " << b - octree.nInternalNodes() << std::endl;
+        // a in focus
+        EXPECT_TRUE(octree.codeStart(a) >= focusStart && octree.codeEnd(a) <= focusEnd);
+        // b outside focus
+        EXPECT_TRUE(octree.codeStart(b) >= focusEnd || octree.codeEnd(a) <= focusStart);
+        // a and be touch each other
+        IBox aBox = makeIBox(octree.codeStart(a), octree.codeEnd(a));
+        IBox bBox = makeIBox(octree.codeStart(b), octree.codeEnd(b));
+        EXPECT_FLOAT_EQ((minDistanceSq<float, I>(aBox, bBox, box)), 0.0);
+    }
+}
+
+TEST(Traversal, dualTraversalNeighbors)
+{
+    dualTraversalNeighbors<unsigned>();
+    dualTraversalNeighbors<uint64_t>();
+}
+
 } // namespace cstone
