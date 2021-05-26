@@ -110,14 +110,15 @@ void traverse(const Octree<I>& octree, C&& continuationCriterion, A&& endpointAc
 }
 
 template <class I, class MAC, class M2L, class P2P>
-void dualTraversal(const Octree<I>& octree, MAC&& continuation, M2L&& m2l, P2P&& p2p)
+void dualTraversal(const Octree<I>& octree, TreeNodeIndex a, TreeNodeIndex b,
+                   MAC&& continuation, M2L&& m2l, P2P&& p2p)
 {
     using NodePair = pair<TreeNodeIndex>;
 
-    if (octree.isLeaf(0)) { return; }
+    if (octree.isLeaf(a) && octree.isLeaf(b)) { p2p(a, b); return; }
 
     NodePair stack[64];
-    stack[0] = NodePair{0,0};
+    stack[0] = NodePair{a, b};
 
     int stackPos = 1;
 
