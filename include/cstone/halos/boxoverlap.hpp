@@ -38,8 +38,9 @@ namespace cstone
 {
 
 //! @brief standard criterion for two ranges a-b and c-d to overlap, a<b and c<d
+template<class T>
 CUDA_HOST_DEVICE_FUN
-constexpr bool overlapTwoRanges(int a, int b, int c, int d)
+constexpr bool overlapTwoRanges(T a, T b, T c, T d)
 {
     assert(a<=b && c<=d);
     return b > c && d > a;
