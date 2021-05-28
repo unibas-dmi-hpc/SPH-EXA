@@ -131,7 +131,7 @@ std::vector<int> findPeersMacStt(int myRank, const SpaceCurveAssignment& assignm
             peers[peerRank] = 1;
         };
 
-        traverse(octree, violatesMac, markLeafIdx);
+        singleTraversal(octree, violatesMac, markLeafIdx);
     }
 
     std::vector<int> ret;

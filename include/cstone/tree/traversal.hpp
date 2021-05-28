@@ -69,7 +69,7 @@ inline bool overlapNode(const Octree<I>& octree, TreeNodeIndex nodeIndex, const 
 //}
 
 template <class I, class C, class A>
-void traverse(const Octree<I>& octree, C&& continuationCriterion, A&& endpointAction)
+void singleTraversal(const Octree<I>& octree, C&& continuationCriterion, A&& endpointAction)
 {
     if (!continuationCriterion(0) || octree.isLeaf(0))
     {
