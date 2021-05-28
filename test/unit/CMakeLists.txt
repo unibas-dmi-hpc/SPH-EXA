@@ -3,6 +3,7 @@ set(UNIT_TESTS
         domain/domaindecomp.cpp
         domain/haloneighbors.cpp
         domain/layout.cpp
+        domain/peers.cpp
         findneighbors.cpp
         halos/boxoverlap.cpp
         halos/btreetraversal.cpp

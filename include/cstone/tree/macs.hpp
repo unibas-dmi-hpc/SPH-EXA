@@ -98,7 +98,7 @@ T nodeLength(IBox b, const Box<T>& box)
     return (b.xmax() - b.xmin()) * unitLength * box.maxExtent();
 }
 
-/*! @brief evaluate minimum distance MAC
+/*! @brief evaluate minimum distance MAC, non-commutative version
  *
  * @param a            target cell
  * @param b            source cell
@@ -117,6 +117,17 @@ bool minDistanceMac(IBox a, IBox b, const Box<T>& box, float invThetaSq)
     // equivalent to "d > l / theta"
     T bLength = nodeLength<T, I>(b, box);
     return dsq > bLength * bLength * invThetaSq;
+}
+
+//! @brief commutative version
+template<class I, class T>
+CUDA_HOST_DEVICE_FUN
+bool minDistanceMacMutual(IBox a, IBox b, const Box<T>& box, float invThetaSq)
+{
+    T dsq = minDistanceSq<T, I>(a, b, box);
+    // equivalent to "d > l / theta"
+    T boxLength = stl::max(nodeLength<T, I>(a, box), nodeLength<T, I>(b, box));
+    return dsq > boxLength * boxLength * invThetaSq;
 }
 
 template<class T, class I>
