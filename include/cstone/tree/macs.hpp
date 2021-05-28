@@ -150,7 +150,7 @@ void markMacPerBox(IBox target, const Octree<I>& octree, const Box<T>& box,
         return violatesMac;
     };
 
-    traverse(octree, checkAndMarkMac, [](TreeNodeIndex){});
+    singleTraversal(octree, checkAndMarkMac, [](TreeNodeIndex) {});
 }
 
 /*! @brief Mark each node in an octree that fails the MAC paired with any node from a given focus SFC range
