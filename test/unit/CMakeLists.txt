@@ -17,7 +17,7 @@ set(UNIT_TESTS
         tree/btree.cpp
         tree/macs.cpp
         tree/octree.cpp
-        tree/octree_essential.cpp
+        tree/octree_focus.cpp
         tree/octree_internal.cpp
         tree/octree_util.cpp
         tree/traversal.cpp

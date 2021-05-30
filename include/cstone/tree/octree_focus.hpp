@@ -43,6 +43,7 @@
 
 #include <vector>
 
+#include "cstone/domain/domaindecomp.hpp"
 #include "cstone/halos/boxoverlap.hpp"
 #include "macs.hpp"
 #include "octree_internal.hpp"
@@ -50,6 +51,38 @@
 
 namespace cstone
 {
+
+/*! @brief determine indices in local focus tree to send out to peer ranks
+ *
+ * @tparam I                32- or  64-bit unsigned integer
+ * @param peers             list of peer ranks (for point-to-point communication)
+ * @param assignment        assignment of the global SFC to ranks
+ * @param domainTreeLeaves  tree leaves of the global tree in cornerstone format
+ * @param focusTreeLeaves   tree leaves of the locally focused tree in cornerstone format
+ * @return                  a list of pairs (startIdx, endIdx) referring to elements of @p focusTreeLeaves
+ *                          to send out to each peer rank. One of the rare cases where the range has to include
+ *                          the last element. To describe n tree nodes, we need n+1 SFC keys.
+ */
+template<class I>
+std::vector<pair<TreeNodeIndex>> findPeerFocusLeaves(const std::vector<int>& peers, const SpaceCurveAssignment& assignment,
+                                                     const std::vector<I>& domainTreeLeaves, const std::vector<I>& focusTreeLeaves)
+{
+    std::vector<pair<TreeNodeIndex>> ret;
+    ret.reserve(peers.size());
+    for (int peer : peers)
+    {
+        I peerSfcStart = domainTreeLeaves[assignment.firstNodeIdx(peer)];
+        I peerSfcEnd   = domainTreeLeaves[assignment.lastNodeIdx(peer)];
+
+        TreeNodeIndex firstFocusIdx = std::lower_bound(begin(focusTreeLeaves), end(focusTreeLeaves), peerSfcStart)
+                                     - begin(focusTreeLeaves);
+        TreeNodeIndex lastFocusIdx  = std::lower_bound(begin(focusTreeLeaves), end(focusTreeLeaves), peerSfcEnd)
+                                     - begin(focusTreeLeaves);
+        ret.emplace_back(firstFocusIdx, lastFocusIdx);
+    }
+
+    return ret;
+}
 
 template<class I>
 inline CUDA_HOST_DEVICE_FUN
@@ -141,7 +174,7 @@ public:
     }
 
     template<class T>
-    bool update(const Box<T>& box, const I* codesStart, const I* codesEnd, I focusStart, I focusEnd, const Octree<I>& globalTree)
+    bool update(const Box<T>& box, const I* codesStart, const I* codesEnd, I focusStart, I focusEnd)
     {
         const std::vector<I>& cstoneTree = tree_.cstoneTree();
 
@@ -163,8 +196,23 @@ public:
         // local node counts
         computeNodeCounts(cstoneTree.data(), counts_.data(), nNodes(cstoneTree), codesStart, codesEnd,
                           std::numeric_limits<unsigned>::max(), true);
-        // global node count sums when using distributed builds
-        //if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
+
+        return converged;
+    }
+
+    template<class T>
+    bool updateGlobal(const Box<T>& box, const I* codesStart, const I* codesEnd, int myRank, const std::vector<int>& peerRanks,
+                      const SpaceCurveAssignment& assignment, const std::vector<I>& globalTreeLeaves)
+    {
+        bool converged =
+        update(box, codesStart, codesEnd, globalTreeLeaves[assignment.firstNodeIdx(myRank)],
+               globalTreeLeaves[assignment.lastNodeIdx(myRank)]);
+
+        auto peerFocusLeafIndices = findPeerFocusLeaves(peerRanks, assignment, globalTreeLeaves, tree_.cstoneTree());
+
+        std::vector<I>        tmpLeaves(tree_.nLeafNodes() + 1);
+        std::vector<unsigned> tmpCounts(tree_.nLeafNodes());
+        exchangeFocus(peerRanks, peerFocusLeafIndices, tree_.cstoneTree(), counts_, tmpLeaves, tmpCounts);
 
         return converged;
     }
@@ -179,7 +227,7 @@ private:
 
     //! @brief the focused tree
     Octree<I> tree_;
-    //! @brief particle counts of the focused tree
+    //! @brief particle counts of the focused tree leaves
     std::vector<unsigned> counts_;
     //! @brief mac evaluation result relative to focus area (pass or fail)
     std::vector<char> macs_;

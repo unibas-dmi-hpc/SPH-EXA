@@ -31,7 +31,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/tree/octree_essential.hpp"
+#include "cstone/tree/octree_focus.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 #include "coord_samples/random.hpp"
@@ -163,7 +163,7 @@ void computeEssentialTree()
 
     I focusStart = 1;
     I focusEnd   = pad(I(1), 3);
-    while(!tree.update(box, codes.data(), codes.data() + nParticles, focusStart, focusEnd, globalTree)) {}
+    while(!tree.update(box, codes.data(), codes.data() + nParticles, focusStart, focusEnd)) {}
 
     // in the focus area (the first octant) the essential tree and the csTree are identical
     TreeNodeIndex lastFocusNode = std::lower_bound(begin(tree.leafTree()), end(tree.leafTree()), focusEnd)
@@ -173,13 +173,13 @@ void computeEssentialTree()
 
     focusStart = pad(I(6), 3);
     focusEnd   = pad(I(7), 3);
-    while(!tree.update(box, codes.data(), codes.data() + nParticles, focusStart, focusEnd, globalTree)) {}
+    while(!tree.update(box, codes.data(), codes.data() + nParticles, focusStart, focusEnd)) {}
 
     EXPECT_EQ(numNodesInRange(tree, pad(I(1), 3), pad(I(2), 3)), 92);
 
     focusStart = 0;
     focusEnd   = pad(I(1), 3);
-    while(!tree.update(box, codes.data(), codes.data() + nParticles, focusStart, focusEnd, globalTree)) {}
+    while(!tree.update(box, codes.data(), codes.data() + nParticles, focusStart, focusEnd)) {}
 
     // tree now focused again on first octant
     EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, begin(tree.leafTree())));
