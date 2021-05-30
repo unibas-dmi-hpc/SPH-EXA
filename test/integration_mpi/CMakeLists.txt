@@ -43,3 +43,8 @@ target_include_directories(box_mpi PRIVATE ${MPI_CXX_INCLUDE_PATH})
 target_link_libraries(box_mpi ${MPI_CXX_LIBRARIES} gtest_main)
 add_test(NAME GlobalBox COMMAND box_mpi)
 
+add_executable(focusexchange focus_exchange.cpp test_main.cpp)
+target_include_directories(focusexchange PRIVATE ../../include)
+target_include_directories(focusexchange PRIVATE ${MPI_CXX_INCLUDE_PATH})
+target_link_libraries(focusexchange ${MPI_CXX_LIBRARIES} gtest_main)
+add_test(NAME GlobalFocusExchange COMMAND focusexchange)

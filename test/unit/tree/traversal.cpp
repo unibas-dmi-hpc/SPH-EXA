@@ -32,7 +32,7 @@
 #include "gtest/gtest.h"
 
 #include "cstone/tree/octree_internal.hpp"
-#include "cstone/tree/octree_essential.hpp"
+#include "cstone/tree/macs.hpp"
 #include "cstone/tree/octree_util.hpp"
 #include "cstone/tree/traversal.hpp"
 
