@@ -46,7 +46,7 @@ using namespace cstone;
  *
  * 1. Create nParticles randomly
  *
- *    RandomGaussianCoordinates<T, I> coords(nParticles, box):
+ *    RandomGaussianCoordinates<T, KeyType> coords(nParticles, box):
  *    Creates nParticles in the [-1,1]^3 box with random gaussian distribution
  *    centered at (0,0,0), calculate the Morton code for each particle,
  *    reorder codes and x,y,z array of coords according to ascending Morton codes
@@ -67,14 +67,14 @@ using namespace cstone;
  * 6. Repeat 3., the decomposition should now indicate that all particles stay on the
  *    node they currently are and that no rank sends any particles to other ranks.
  */
-template<class I, class T>
+template<class KeyType, class T>
 void globalRandomGaussian(int thisRank, int nRanks)
 {
     int nParticles = 1000;
     int bucketSize = 64;
 
     Box<T> box{-1, 1};
-    RandomGaussianCoordinates<T, I> coords(nParticles, box);
+    RandomGaussianCoordinates<T, KeyType> coords(nParticles, box);
 
     auto [tree, counts] =
         computeOctreeGlobal(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles,
@@ -85,8 +85,7 @@ void globalRandomGaussian(int thisRank, int nRanks)
     std::iota(begin(ordering), end(ordering), 0);
 
     auto assignment = singleRangeSfcSplit(counts, nRanks);
-    auto sendList   = createSendList(assignment, tree, coords.mortonCodes().data(),
-                                     coords.mortonCodes().data() + nParticles);
+    auto sendList   = createSendList<KeyType>(assignment, tree, coords.mortonCodes());
 
     EXPECT_EQ(std::accumulate(begin(counts), end(counts), std::size_t(0)), nParticles * nRanks);
 
@@ -104,7 +103,7 @@ void globalRandomGaussian(int thisRank, int nRanks)
 
     EXPECT_EQ(x.size(), nParticlesAssigned);
 
-    std::vector<I> newCodes(nParticlesAssigned);
+    std::vector<KeyType> newCodes(nParticlesAssigned);
     computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(newCodes), box);
 
     // received particles are not stored in morton order after the exchange
@@ -119,7 +118,7 @@ void globalRandomGaussian(int thisRank, int nRanks)
     EXPECT_EQ(tree, newTree);
     EXPECT_EQ(counts, newCounts);
 
-    auto newSendList = createSendList(assignment, newTree, newCodes.data(), newCodes.data() + nParticlesAssigned);
+    auto newSendList = createSendList<KeyType>(assignment, newTree, newCodes);
 
     for (int rank = 0; rank < nRanks; ++rank)
     {

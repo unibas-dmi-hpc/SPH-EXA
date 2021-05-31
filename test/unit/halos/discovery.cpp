@@ -50,11 +50,11 @@ using namespace cstone;
  * (2, 0-4, 0-4) halos of rank 0
  * (1, 0-4, 0-4) halos of rank 1
  */
-template <class I>
+template <class KeyType>
 void findHalos()
 {
     // a tree with 4 subdivisions along each dimension, 64 nodes
-    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
+    std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
     Box<double> box(0, 1);
 
@@ -75,7 +75,7 @@ void findHalos()
 
     {
         std::vector<pair<int>> testPairs0;
-        findHalos(tree, interactionRadii, box, 0, 32, testPairs0);
+        findHalos<KeyType, double>(tree, interactionRadii, box, 0, 32, testPairs0);
         std::sort(begin(testPairs0), end(testPairs0));
 
         EXPECT_EQ(testPairs0.size(), 100);
@@ -89,7 +89,7 @@ void findHalos()
 
     {
         std::vector<pair<int>> testPairs1;
-        findHalos(tree, interactionRadii, box, 32, 64, testPairs1);
+        findHalos<KeyType, double>(tree, interactionRadii, box, 32, 64, testPairs1);
         std::sort(begin(testPairs1), end(testPairs1));
         EXPECT_EQ(testPairs1.size(), 100);
         EXPECT_EQ(testPairs1, refPairs1);
@@ -104,11 +104,11 @@ TEST(HaloDiscovery, findHalos)
 
 
 //! @brief an integration test between findHalos, computeSendRecvNodeList and Pbc
-template<class I>
+template<class KeyType>
 void findHalosPbc()
 {
     // a tree with 4 subdivisions along each dimension, 64 nodes
-    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
+    std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
     Box<double> box(0, 1, 0, 1, 0, 1, true, true, true);
 
@@ -116,7 +116,7 @@ void findHalosPbc()
     std::vector<double> interactionRadii(nNodes(tree), 0.1);
     {
         std::vector<pair<TreeNodeIndex>> haloPairs;
-        findHalos(tree, interactionRadii, box, 0, 32, haloPairs);
+        findHalos<KeyType, double>(tree, interactionRadii, box, 0, 32, haloPairs);
 
         std::vector<pair<TreeNodeIndex>> reference{
             {0, 36}, {0, 37}, {0, 38}, {0, 39}, {0, 45}, {0, 47}, {0, 54}, {0, 55}, {0, 63},
@@ -159,7 +159,7 @@ void findHalosPbc()
     }
     {
         std::vector<pair<TreeNodeIndex>> haloPairs;
-        findHalos(tree, interactionRadii, box, 32, 64, haloPairs);
+        findHalos<KeyType, double>(tree, interactionRadii, box, 32, 64, haloPairs);
 
         std::vector<pair<TreeNodeIndex>> reference{
             {32, 4}, {32, 5}, {32, 6}, {32, 7}, {32, 13}, {32, 15}, {32, 22}, {32, 23}, {32, 31},

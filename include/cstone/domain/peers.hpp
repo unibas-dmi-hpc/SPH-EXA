@@ -40,7 +40,7 @@ namespace cstone
 /*! @brief find peer ranks based on a multipole acceptance criterion and dual tree traversal
  *
  * @tparam T            float or double
- * @tparam I            32- or 64-bit unsigned integer
+ * @tparam KeyType      32- or 64-bit unsigned integer
  * @param myRank        find peers for the globally assigned SFC segment with index myRank
  * @param assignment    Decomposition of the global SFC into segments
  * @param domainTree    octree built on top of the global cornerstone leaves
@@ -56,13 +56,13 @@ namespace cstone
  * Except for @p myRank, this function acts on data that is identical on all MPI ranks and
  * doesn't need to do any communication.
  */
-template<class T, class I>
+template<class T, class KeyType>
 std::vector<int> findPeersMac(int myRank, const SpaceCurveAssignment& assignment,
-                              const Octree<I>& domainTree, const Box<T>& box, float theta)
+                              const Octree<KeyType>& domainTree, const Box<T>& box, float theta)
 {
     float invThetaSq = 1.0f / (theta * theta);
-    I domainStart = domainTree.codeStart(domainTree.toInternal(assignment.firstNodeIdx(myRank)));
-    I domainEnd   = domainTree.codeStart(domainTree.toInternal(assignment.lastNodeIdx(myRank)));
+    KeyType domainStart = domainTree.codeStart(domainTree.toInternal(assignment.firstNodeIdx(myRank)));
+    KeyType domainEnd   = domainTree.codeStart(domainTree.toInternal(assignment.lastNodeIdx(myRank)));
 
     auto crossFocusPairs = [domainStart, domainEnd, invThetaSq, &tree = domainTree, &box]
         (TreeNodeIndex a, TreeNodeIndex b)
@@ -74,13 +74,13 @@ std::vector<int> findPeersMac(int myRank, const SpaceCurveAssignment& assignment
 
       IBox aBox = makeIBox(tree.codeStart(a), tree.codeEnd(a));
       IBox bBox = makeIBox(tree.codeStart(b), tree.codeEnd(b));
-      return !minDistanceMacMutual<I>(aBox, bBox, box, invThetaSq);
+      return !minDistanceMacMutual<KeyType>(aBox, bBox, box, invThetaSq);
     };
 
     auto m2l = [](TreeNodeIndex a, TreeNodeIndex b) {};
 
-    TreeNodeIndex numInternalNodes = domainTree.nInternalNodes();
-    std::vector<int> peerRanks(assignment.nRanks(), 0);
+    TreeNodeIndex numInternalNodes = domainTree.numInternalNodes();
+    std::vector<int> peerRanks(assignment.numRanks(), 0);
     auto p2p = [numInternalNodes, &assignment, &peerRanks](TreeNodeIndex a, TreeNodeIndex b)
     {
         int peerRank = assignment.findRank(b - numInternalNodes);
@@ -99,15 +99,15 @@ std::vector<int> findPeersMac(int myRank, const SpaceCurveAssignment& assignment
 }
 
 //! @brief Args identical to findPeersMac, but implemented with single tree traversal for comparison
-template<class T, class I>
-std::vector<int> findPeersMacStt(int myRank, const SpaceCurveAssignment& assignment, const Octree<I>& octree,
+template<class T, class KeyType>
+std::vector<int> findPeersMacStt(int myRank, const SpaceCurveAssignment& assignment, const Octree<KeyType>& octree,
                                  const Box<T>& box, float theta)
 {
     float invThetaSq = 1.0f / (theta * theta);
-    I domainStart = octree.codeStart(octree.toInternal(assignment.firstNodeIdx(myRank)));
-    I domainEnd   = octree.codeStart(octree.toInternal(assignment.lastNodeIdx(myRank)));
+    KeyType domainStart = octree.codeStart(octree.toInternal(assignment.firstNodeIdx(myRank)));
+    KeyType domainEnd   = octree.codeStart(octree.toInternal(assignment.lastNodeIdx(myRank)));
 
-    std::vector<int> peers(assignment.nRanks());
+    std::vector<int> peers(assignment.numRanks());
 
     #pragma omp parallel for
     for (TreeNodeIndex i = assignment.firstNodeIdx(myRank); i < assignment.lastNodeIdx(myRank); ++i)
@@ -116,13 +116,13 @@ std::vector<int> findPeersMacStt(int myRank, const SpaceCurveAssignment& assignm
 
         auto violatesMac = [target, &octree, &box, invThetaSq, domainStart, domainEnd](TreeNodeIndex idx)
         {
-            I nodeStart = octree.codeStart(idx);
-            I nodeEnd = octree.codeEnd(idx);
+            KeyType nodeStart = octree.codeStart(idx);
+            KeyType nodeEnd = octree.codeEnd(idx);
             // if the tree node with index idx is fully contained in the focus, we stop traversal
             if (containedIn(nodeStart, nodeEnd, domainStart, domainEnd)) { return false; }
 
             IBox sourceBox = makeIBox(nodeStart, nodeEnd);
-            return !minDistanceMacMutual<I>(target, sourceBox, box, invThetaSq);
+            return !minDistanceMacMutual<KeyType>(target, sourceBox, box, invThetaSq);
         };
 
         auto markLeafIdx = [&peers, &assignment](TreeNodeIndex idx)

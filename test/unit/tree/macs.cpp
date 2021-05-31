@@ -39,9 +39,9 @@ namespace cstone
 
 TEST(Macs, minDistanceSq)
 {
-    using I = uint64_t;
+    using KeyType = uint64_t;
     using T = double;
-    constexpr size_t maxCoord = 1u<<maxTreeLevel<I>{};
+    constexpr size_t maxCoord = 1u<<maxTreeLevel<KeyType>{};
     constexpr T unitLengthSq  = T(1.) / (maxCoord * maxCoord);
 
     Box<T> box(0,2,0,3,0,4);
@@ -50,8 +50,8 @@ TEST(Macs, minDistanceSq)
         IBox a(0, 1, 0, 1, 0, 1);
         IBox b(2, 3, 0, 1, 0, 1);
 
-        T probe1 = minDistanceSq<T, I>(a, b, box);
-        T probe2 = minDistanceSq<T, I>(b, a, box);
+        T probe1 = minDistanceSq<KeyType>(a, b, box);
+        T probe2 = minDistanceSq<KeyType>(b, a, box);
         T reference = box.lx() * box.lx() * unitLengthSq;
 
         EXPECT_DOUBLE_EQ(probe1, reference);
@@ -61,8 +61,8 @@ TEST(Macs, minDistanceSq)
         IBox a(0, 1, 0, 1, 0, 1);
         IBox b(0, 1, 2, 3, 0, 1);
 
-        T probe1 = minDistanceSq<T, I>(a, b, box);
-        T probe2 = minDistanceSq<T, I>(b, a, box);
+        T probe1 = minDistanceSq<KeyType>(a, b, box);
+        T probe2 = minDistanceSq<KeyType>(b, a, box);
         T reference = box.ly() * box.ly() * unitLengthSq;
 
         EXPECT_DOUBLE_EQ(probe1, reference);
@@ -72,8 +72,8 @@ TEST(Macs, minDistanceSq)
         IBox a(0, 1, 0, 1, 0, 1);
         IBox b(0, 1, 0, 1, 2, 3);
 
-        T probe1 = minDistanceSq<T, I>(a, b, box);
-        T probe2 = minDistanceSq<T, I>(b, a, box);
+        T probe1 = minDistanceSq<KeyType>(a, b, box);
+        T probe2 = minDistanceSq<KeyType>(b, a, box);
         T reference = box.lz() * box.lz() * unitLengthSq;
 
         EXPECT_DOUBLE_EQ(probe1, reference);
@@ -84,8 +84,8 @@ TEST(Macs, minDistanceSq)
         IBox a(0, 1, 0, 1, 0, 1);
         IBox b(maxCoord-1, maxCoord, 0, 1, 0, 1);
 
-        T probe1 = minDistanceSq<T, I>(a, b, box);
-        T probe2 = minDistanceSq<T, I>(b, a, box);
+        T probe1 = minDistanceSq<KeyType>(a, b, box);
+        T probe2 = minDistanceSq<KeyType>(b, a, box);
         T reference = box.lx() * box.lx() * T(maxCoord-2) * T(maxCoord-2) * unitLengthSq;
 
         EXPECT_DOUBLE_EQ(probe1, reference);
@@ -95,9 +95,9 @@ TEST(Macs, minDistanceSq)
 
 TEST(Macs, minDistanceSqPbc)
 {
-    using I = uint64_t;
+    using KeyType = uint64_t;
     using T = double;
-    constexpr int maxCoord = 1u << maxTreeLevel<I>{};
+    constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
     constexpr T unitLengthSq = T(1.) / (T(maxCoord) * T(maxCoord));
 
     {
@@ -105,8 +105,8 @@ TEST(Macs, minDistanceSqPbc)
         IBox a(0, 1, 0, 1, 0, 1);
         IBox b(maxCoord-1, maxCoord, 0, 1, 0, 1);
 
-        T probe1 = minDistanceSq<T, I>(a, b, box);
-        T probe2 = minDistanceSq<T, I>(b, a, box);
+        T probe1 = minDistanceSq<KeyType>(a, b, box);
+        T probe2 = minDistanceSq<KeyType>(b, a, box);
 
         EXPECT_DOUBLE_EQ(probe1, 0.0);
         EXPECT_DOUBLE_EQ(probe2, 0.0);
@@ -116,8 +116,8 @@ TEST(Macs, minDistanceSqPbc)
         IBox a(0, 1);
         IBox b(0, 1, maxCoord-1, maxCoord, 0, 1);
 
-        T probe1 = minDistanceSq<T, I>(a, b, box);
-        T probe2 = minDistanceSq<T, I>(b, a, box);
+        T probe1 = minDistanceSq<KeyType>(a, b, box);
+        T probe2 = minDistanceSq<KeyType>(b, a, box);
 
         EXPECT_DOUBLE_EQ(probe1, 0.0);
         EXPECT_DOUBLE_EQ(probe2, 0.0);
@@ -127,8 +127,8 @@ TEST(Macs, minDistanceSqPbc)
         IBox a(0, 1);
         IBox b(0, 1, 0, 1, maxCoord-1, maxCoord);
 
-        T probe1 = minDistanceSq<T, I>(a, b, box);
-        T probe2 = minDistanceSq<T, I>(b, a, box);
+        T probe1 = minDistanceSq<KeyType>(a, b, box);
+        T probe2 = minDistanceSq<KeyType>(b, a, box);
 
         EXPECT_DOUBLE_EQ(probe1, 0.0);
         EXPECT_DOUBLE_EQ(probe2, 0.0);
@@ -138,8 +138,8 @@ TEST(Macs, minDistanceSqPbc)
         IBox a(0, 1);
         IBox b(maxCoord/2 + 1, maxCoord/2 + 2);
 
-        T probe1 = minDistanceSq<T, I>(a, b, box);
-        T probe2 = minDistanceSq<T, I>(b, a, box);
+        T probe1 = minDistanceSq<KeyType>(a, b, box);
+        T probe2 = minDistanceSq<KeyType>(b, a, box);
         T reference = 3 * T(maxCoord/2-2) * T(maxCoord/2-2) * box.lx() * box.lx() * unitLengthSq;
 
         EXPECT_DOUBLE_EQ(probe1, reference);
@@ -153,7 +153,7 @@ TEST(Macs, nodeLengthSq)
     Box<double> box(0,1,0,2,0,3);
 
     double reference = 1./1024 * 3;
-    double probe     = nodeLength<double, unsigned>(ibox, box);
+    double probe     = nodeLength<unsigned>(ibox, box);
     EXPECT_DOUBLE_EQ(reference, probe);
 }
 
@@ -164,27 +164,27 @@ TEST(Macs, minDistanceMac)
     IBox b(6,8,0,1,0,1);
     Box<double> box(0,1);
 
-    bool probe1 = minDistanceMac<double, unsigned>(a, b, box, 6.0);
-    bool probe2 = minDistanceMac<double, unsigned>(a, b, box, 6.5);
+    bool probe1 = minDistanceMac<unsigned>(a, b, box, 6.0);
+    bool probe2 = minDistanceMac<unsigned>(a, b, box, 6.5);
 
     EXPECT_TRUE(probe1);
     EXPECT_FALSE(probe2);
 }
 
-template<class I>
+template<class KeyType>
 void markMac()
 {
     Box<double> box(0,1);
-    std::vector<I> tree = OctreeMaker<I>{}.divide().divide(0).divide(7).makeTree();
+    std::vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(0).divide(7).makeTree();
 
-    Octree<I> fullTree;
+    Octree<KeyType> fullTree;
     fullTree.update(tree.data(), tree.data() + tree.size());
 
-    std::vector<char> markings(fullTree.nTreeNodes(), 0);
+    std::vector<char> markings(fullTree.numTreeNodes(), 0);
 
     float theta = 0.58;
-    I focusStart = tree[0];
-    I focusEnd   = tree[2];
+    KeyType focusStart = tree[0];
+    KeyType focusEnd   = tree[2];
     markMac(fullTree, box, focusStart, focusEnd, 1./(theta*theta), markings.data());
 
     //                         internal | leaves

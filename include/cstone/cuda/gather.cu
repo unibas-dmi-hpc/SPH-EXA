@@ -139,7 +139,7 @@ void DeviceGather<ValueType, CodeType, IndexType>::setMapFromCodes(CodeType* cod
     deviceMemory_->reallocate(mapSize_);
 
     // the deviceBuffer is allocated as a single chunk of size 2 * mapSize_ * sizeof(T)
-    // so we can reuse it for mapSize_ elements of I, as long as the static assert holds
+    // so we can reuse it for mapSize_ elements of KeyType, as long as the static assert holds
     static_assert(sizeof(CodeType) <= 2 * sizeof(ValueType), "buffer size not big enough for codes device array\n");
     CodeType* d_codes = reinterpret_cast<CodeType*>(deviceMemory_->deviceBuffer(0));
 

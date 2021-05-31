@@ -42,57 +42,57 @@
 using namespace cstone;
 
 //! @brief detect missing zero node
-template<class CodeType>
+template<class KeyType>
 void invariantHead()
 {
-    std::vector<CodeType> tree
+    std::vector<KeyType> tree
     {
-        pad(CodeType(01), 3),
-        pad(CodeType(02), 3),
-        pad(CodeType(03), 3),
-        pad(CodeType(04), 3),
-        pad(CodeType(05), 3),
-        pad(CodeType(06), 3),
-        pad(CodeType(07), 3),
-        nodeRange<CodeType>(0)
+        pad(KeyType(01), 3),
+        pad(KeyType(02), 3),
+        pad(KeyType(03), 3),
+        pad(KeyType(04), 3),
+        pad(KeyType(05), 3),
+        pad(KeyType(06), 3),
+        pad(KeyType(07), 3),
+        nodeRange<KeyType>(0)
     };
 
     EXPECT_FALSE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 }
 
 //! @brief detect missing end node
-template<class CodeType>
+template<class KeyType>
 void invariantTail()
 {
-    std::vector<CodeType> tree
+    std::vector<KeyType> tree
     {
-        pad(CodeType(00), 3),
-        pad(CodeType(01), 3),
-        pad(CodeType(02), 3),
-        pad(CodeType(03), 3),
-        pad(CodeType(04), 3),
-        pad(CodeType(05), 3),
-        pad(CodeType(06), 3),
-        pad(CodeType(07), 3),
+        pad(KeyType(00), 3),
+        pad(KeyType(01), 3),
+        pad(KeyType(02), 3),
+        pad(KeyType(03), 3),
+        pad(KeyType(04), 3),
+        pad(KeyType(05), 3),
+        pad(KeyType(06), 3),
+        pad(KeyType(07), 3),
     };
 
     EXPECT_FALSE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 }
 
 //! @brief detect missing siblings
-template<class CodeType>
+template<class KeyType>
 void invariantSiblings()
 {
-    std::vector<CodeType> tree
+    std::vector<KeyType> tree
         {
-            pad(CodeType(00), 3),
-            pad(CodeType(01), 3),
-            pad(CodeType(02), 3),
-            pad(CodeType(03), 3),
-            pad(CodeType(04), 3),
-            pad(CodeType(05), 3),
-            pad(CodeType(06), 3),
-            nodeRange<CodeType>(0)
+            pad(KeyType(00), 3),
+            pad(KeyType(01), 3),
+            pad(KeyType(02), 3),
+            pad(KeyType(03), 3),
+            pad(KeyType(04), 3),
+            pad(KeyType(05), 3),
+            pad(KeyType(06), 3),
+            nodeRange<KeyType>(0)
         };
 
     EXPECT_FALSE(checkOctreeInvariants(tree.data(), nNodes(tree)));
@@ -128,10 +128,10 @@ TEST(CornerstoneUtil, codeFromIndices64)
     EXPECT_EQ(0b0001001111lu << 54u, codeFromIndices<CodeType>({1,1,7}));
 }
 
-template<class CodeType>
+template<class KeyType>
 void codeFromIndices()
 {
-    constexpr unsigned maxLevel = maxTreeLevel<CodeType>{};
+    constexpr unsigned maxLevel = maxTreeLevel<KeyType>{};
 
     std::array<unsigned char, 21> input{0};
     for (unsigned i = 0; i < maxLevel; ++i)
@@ -139,7 +139,7 @@ void codeFromIndices()
         input[i] = 7;
     }
 
-    EXPECT_EQ(nodeRange<CodeType>(0), codeFromIndices<CodeType>(input) + 1);
+    EXPECT_EQ(nodeRange<KeyType>(0), codeFromIndices<KeyType>(input) + 1);
 }
 
 TEST(CornerstoneUtil, codeFromIndices)
@@ -149,10 +149,10 @@ TEST(CornerstoneUtil, codeFromIndices)
 }
 
 //! @brief test OctreeMaker node division
-template<class I>
+template<class KeyType>
 void octreeMakerDivide()
 {
-    using CodeType = I;
+    using CodeType = KeyType;
 
     // divide root node and node {7}
     auto tree = OctreeMaker<CodeType>{}.divide().divide(7).makeTree();
@@ -192,10 +192,10 @@ TEST(CornerstoneUtil, octreeMakerDivide64)
 
 
 //! @brief test OctreeMaker creation of a maximum level tree
-template<class I>
+template<class KeyType>
 void octreeMakerMaxLevel()
 {
-    using CodeType = I;
+    using CodeType = KeyType;
 
     std::vector<CodeType> refTree{0};
     {
@@ -216,7 +216,7 @@ void octreeMakerMaxLevel()
     EXPECT_TRUE(checkOctreeInvariants(refTree.data(), nNodes(refTree)));
 
     OctreeMaker<CodeType> octreeMaker;
-    for (std::size_t level = 0; level < maxTreeLevel<I>{}; ++level)
+    for (std::size_t level = 0; level < maxTreeLevel<KeyType>{}; ++level)
         octreeMaker.divide({}, level);
 
     std::vector<CodeType> tree = octreeMaker.makeTree();

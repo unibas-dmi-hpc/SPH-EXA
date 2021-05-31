@@ -64,18 +64,18 @@ constexpr int rangeSeparation(int a, int b, int c, int d, bool pbc)
 
 /*! @brief return the smallest distance squared between two points on the surface of the AABBs @p a and @p b
  *
- * @tparam T     float or double
- * @tparam I     32- or 64-bit unsigned integer
- * @param a      a box, specified with integer coordinates in [0:2^21]
+ * @tparam T        float or double
+ * @tparam KeyType  32- or 64-bit unsigned integer
+ * @param a         a box, specified with integer coordinates in [0:2^21]
  * @param b
- * @param box    floating point coordinate bounding box
- * @return       the square of the smallest distance between a and b
+ * @param box       floating point coordinate bounding box
+ * @return          the square of the smallest distance between a and b
  */
-template<class T, class I>
+template<class KeyType, class T>
 CUDA_HOST_DEVICE_FUN
 T minDistanceSq(IBox a, IBox b, const Box<T>& box)
 {
-    constexpr size_t maxCoord = 1u<<maxTreeLevel<I>{};
+    constexpr size_t maxCoord = 1u<<maxTreeLevel<KeyType>{};
     constexpr T unitLengthSq  = T(1.) / (maxCoord * maxCoord);
 
     size_t dx = rangeSeparation<maxCoord>(a.xmin(), a.xmax(), b.xmin(), b.xmax(), box.pbcX());
@@ -87,11 +87,11 @@ T minDistanceSq(IBox a, IBox b, const Box<T>& box)
 }
 
 //! @brief return longest edge length of box @p b
-template<class T, class I>
+template<class KeyType, class T>
 CUDA_HOST_DEVICE_FUN
 T nodeLength(IBox b, const Box<T>& box)
 {
-    constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+    constexpr int maxCoord = 1u<<maxTreeLevel<KeyType>{};
     constexpr T unitLength = T(1.) / maxCoord;
 
     // IBoxes for octree nodes are assumed cubic, only box can be rectangular
@@ -109,42 +109,42 @@ T nodeLength(IBox b, const Box<T>& box)
  * Note: Mac is valid for any point in a w.r.t to box b, therefore only the
  * size of b is relevant.
  */
-template<class T, class I>
+template<class KeyType, class T>
 CUDA_HOST_DEVICE_FUN
 bool minDistanceMac(IBox a, IBox b, const Box<T>& box, float invThetaSq)
 {
-    T dsq = minDistanceSq<T, I>(a, b, box);
+    T dsq = minDistanceSq<KeyType>(a, b, box);
     // equivalent to "d > l / theta"
-    T bLength = nodeLength<T, I>(b, box);
+    T bLength = nodeLength<KeyType>(b, box);
     return dsq > bLength * bLength * invThetaSq;
 }
 
 //! @brief commutative version
-template<class I, class T>
+template<class KeyType, class T>
 CUDA_HOST_DEVICE_FUN
 bool minDistanceMacMutual(IBox a, IBox b, const Box<T>& box, float invThetaSq)
 {
-    T dsq = minDistanceSq<T, I>(a, b, box);
+    T dsq = minDistanceSq<KeyType>(a, b, box);
     // equivalent to "d > l / theta"
-    T boxLength = stl::max(nodeLength<T, I>(a, box), nodeLength<T, I>(b, box));
+    T boxLength = stl::max(nodeLength<KeyType>(a, box), nodeLength<KeyType>(b, box));
     return dsq > boxLength * boxLength * invThetaSq;
 }
 
-template<class T, class I>
+template<class T, class KeyType>
 CUDA_HOST_DEVICE_FUN
-void markMacPerBox(IBox target, const Octree<I>& octree, const Box<T>& box,
-                   float invThetaSq, I focusStart, I focusEnd, char* markings)
+void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box,
+                   float invThetaSq, KeyType focusStart, KeyType focusEnd, char* markings)
 {
     auto checkAndMarkMac = [target, &octree, &box, invThetaSq, focusStart, focusEnd, markings](TreeNodeIndex idx)
     {
-        I nodeStart = octree.codeStart(idx);
-        I nodeEnd   = octree.codeEnd(idx);
+        KeyType nodeStart = octree.codeStart(idx);
+        KeyType nodeEnd   = octree.codeEnd(idx);
         // if the tree node with index idx is fully contained in the focus, we stop traversal
         if (containedIn(nodeStart, nodeEnd, focusStart, focusEnd)) { return false; }
 
         IBox sourceBox = makeIBox(nodeStart, nodeEnd);
 
-        bool violatesMac = !minDistanceMac<T, I>(target, sourceBox, box, invThetaSq);
+        bool violatesMac = !minDistanceMac<KeyType>(target, sourceBox, box, invThetaSq);
         if (violatesMac) { markings[idx] = 1; }
 
         return violatesMac;
@@ -156,26 +156,26 @@ void markMacPerBox(IBox target, const Octree<I>& octree, const Box<T>& box,
 /*! @brief Mark each node in an octree that fails the MAC paired with any node from a given focus SFC range
  *
  * @tparam T                float or double
- * @tparam I                32- or 64-bit unsigned integer
+ * @tparam KeyType          32- or 64-bit unsigned integer
  * @param[in]  octree       octree, including internal part
  * @param[in]  box          global coordinate bounding box
  * @param[in]  focusStart   lower SFC focus code
  * @param[in]  focusEnd     upper SFC focus code
  * @param[in]  invThetaSq   1./theta^2
- * @param[out] markings     array of length @p octree.nTreeNodes(), each position i
+ * @param[out] markings     array of length @p octree.numTreeNodes(), each position i
  *                          will be set to 1, if the node of @p octree with index i fails the MAC paired with
  *                          any node contained in the focus range [focusStart:focusEnd]
  */
-template<class T, class I>
-void markMac(const Octree<I>& octree, const Box<T>& box, I focusStart, I focusEnd,
+template<class T, class KeyType>
+void markMac(const Octree<KeyType>& octree, const Box<T>& box, KeyType focusStart, KeyType focusEnd,
              float invThetaSq, char* markings)
 
 {
-    std::fill(markings, markings + octree.nTreeNodes(), 0);
+    std::fill(markings, markings + octree.numTreeNodes(), 0);
 
     // find the minimum possible number of octree node boxes to cover the entire focus
     TreeNodeIndex numFocusBoxes = spanSfcRange(focusStart, focusEnd);
-    std::vector<I> focusCodes(numFocusBoxes + 1);
+    std::vector<KeyType> focusCodes(numFocusBoxes + 1);
     spanSfcRange(focusStart, focusEnd, focusCodes.data());
     focusCodes.back() = focusEnd;
 

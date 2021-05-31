@@ -56,7 +56,7 @@ namespace cstone
 
 /*! @brief determine indices in local focus tree to send out to peer ranks
  *
- * @tparam I                32- or  64-bit unsigned integer
+ * @tparam KeyType          32- or  64-bit unsigned integer
  * @param peers             list of peer ranks (for point-to-point communication)
  * @param assignment        assignment of the global SFC to ranks
  * @param domainTreeLeaves  tree leaves of the global tree in cornerstone format
@@ -65,16 +65,16 @@ namespace cstone
  *                          to send out to each peer rank. One of the rare cases where the range has to include
  *                          the last element. To describe n tree nodes, we need n+1 SFC keys.
  */
-template<class I>
+template<class KeyType>
 std::vector<pair<TreeNodeIndex>> findPeerFocusLeaves(gsl::span<const int> peers, const SpaceCurveAssignment& assignment,
-                                                     gsl::span<const I> domainTreeLeaves, gsl::span<const I> focusTreeLeaves)
+                                                     gsl::span<const KeyType> domainTreeLeaves, gsl::span<const KeyType> focusTreeLeaves)
 {
     std::vector<pair<TreeNodeIndex>> ret;
     ret.reserve(peers.size());
     for (int peer : peers)
     {
-        I peerSfcStart = domainTreeLeaves[assignment.firstNodeIdx(peer)];
-        I peerSfcEnd   = domainTreeLeaves[assignment.lastNodeIdx(peer)];
+        KeyType peerSfcStart = domainTreeLeaves[assignment.firstNodeIdx(peer)];
+        KeyType peerSfcEnd   = domainTreeLeaves[assignment.lastNodeIdx(peer)];
 
         TreeNodeIndex firstFocusIdx = std::lower_bound(begin(focusTreeLeaves), end(focusTreeLeaves), peerSfcStart)
                                      - begin(focusTreeLeaves);
@@ -86,9 +86,9 @@ std::vector<pair<TreeNodeIndex>> findPeerFocusLeaves(gsl::span<const int> peers,
     return ret;
 }
 
-template<class I>
+template<class KeyType>
 inline CUDA_HOST_DEVICE_FUN
-int mergeCountAndMacOp(TreeNodeIndex leafIdx, const I* cstoneTree,
+int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
                        TreeNodeIndex numInternalNodes,
                        const TreeNodeIndex* leafParents,
                        const unsigned* leafCounts, const char* macs,
@@ -112,7 +112,7 @@ int mergeCountAndMacOp(TreeNodeIndex leafIdx, const I* cstoneTree,
     }
 
     bool inFocus  = (leafIdx >= firstFocusNode && leafIdx < lastFocusNode);
-    if (level < maxTreeLevel<I>{} && leafCounts[leafIdx] > bucketSize
+    if (level < maxTreeLevel<KeyType>{} && leafCounts[leafIdx] > bucketSize
         && (macs[numInternalNodes + leafIdx] || inFocus))
     { return 8; } // split
 
@@ -121,7 +121,7 @@ int mergeCountAndMacOp(TreeNodeIndex leafIdx, const I* cstoneTree,
 
 /*! @brief Compute locally essential split or fuse decision for each octree node in parallel
  *
- * @tparam I                   32- or 64-bit unsigned integer type
+ * @tparam KeyType                   32- or 64-bit unsigned integer type
  * @param[in] cstoneTree       cornerstone octree leaves, length = @p numLeafNodes
  * @param[in] numInternalNodes number of internal octree nodes
  * @param[in] numLeafNodes     number of leaf octree nodes
@@ -132,7 +132,7 @@ int mergeCountAndMacOp(TreeNodeIndex leafIdx, const I* cstoneTree,
  * @param[in] lastFocusNode    last focus node in @p cstoneTree, range = [0:numLeafNodes]
  * @param[in] bucketSize       maximum particle count per (leaf) node and
  *                             minimum particle count (strictly >) for (implicit) internal nodes
- * @param[out] nodeOps         stores rebalance decision result for each node, length = @p nLeafNodes()
+ * @param[out] nodeOps         stores rebalance decision result for each node, length = @p numLeafNodes()
  * @return                     true if converged, false
  *
  * For each node i in the tree, in nodeOps[i], stores
@@ -140,8 +140,8 @@ int mergeCountAndMacOp(TreeNodeIndex leafIdx, const I* cstoneTree,
  *  - 1 if unchanged,
  *  - 8 if to be split.
  */
-template<class I, class LocalIndex>
-bool rebalanceDecisionEssential(const I* cstoneTree, TreeNodeIndex numInternalNodes, TreeNodeIndex numLeafNodes,
+template<class KeyType, class LocalIndex>
+bool rebalanceDecisionEssential(const KeyType* cstoneTree, TreeNodeIndex numInternalNodes, TreeNodeIndex numLeafNodes,
                                 const TreeNodeIndex* leafParents,
                                 const unsigned* leafCounts, const char* macs,
                                 TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
@@ -165,63 +165,63 @@ bool rebalanceDecisionEssential(const I* cstoneTree, TreeNodeIndex numInternalNo
     return converged;
 }
 
-template<class I>
+template<class KeyType>
 class FocusedOctree
 {
 public:
     FocusedOctree(unsigned bucketSize, float theta)
         : bucketSize_(bucketSize), theta_(theta), counts_{bucketSize+1}, macs_{1}
     {
-        tree_.update(std::vector<I>{0, nodeRange<I>(0)});
+        tree_.update(std::vector<KeyType>{0, nodeRange<KeyType>(0)});
     }
 
     template<class T>
-    bool update(const Box<T>& box, const I* codesStart, const I* codesEnd, I focusStart, I focusEnd)
+    bool update(const Box<T>& box, gsl::span<const KeyType> particleKeys, KeyType focusStart, KeyType focusEnd)
     {
         auto leaves = tree_.treeLeaves();
 
         TreeNodeIndex firstFocusNode = std::upper_bound(leaves.begin(), leaves.end(), focusStart) - leaves.begin() - 1;
         TreeNodeIndex lastFocusNode  = std::lower_bound(leaves.begin(), leaves.end(), focusEnd) - leaves.begin();
 
-        macs_.resize(tree_.nTreeNodes());
+        macs_.resize(tree_.numTreeNodes());
         markMac(tree_, box, focusStart, focusEnd, 1.0/(theta_*theta_), macs_.data());
 
-        std::vector<TreeNodeIndex> nodeOps(tree_.nLeafNodes() + 1);
-        bool converged = rebalanceDecisionEssential(leaves.data(), tree_.nInternalNodes(), tree_.nLeafNodes(), tree_.leafParents(),
+        std::vector<TreeNodeIndex> nodeOps(tree_.numLeafNodes() + 1);
+        bool converged = rebalanceDecisionEssential(leaves.data(), tree_.numInternalNodes(), tree_.numLeafNodes(), tree_.leafParents(),
                                                     counts_.data(), macs_.data(), firstFocusNode, lastFocusNode,
                                                     bucketSize_, nodeOps.data());
-        std::vector<I> newLeaves;
+        std::vector<KeyType> newLeaves;
         rebalanceTree(leaves, newLeaves, nodeOps.data());
         tree_.update(std::move(newLeaves));
         // update view, because the old one is invalidated by tree_.update()
         leaves = tree_.treeLeaves();
 
-        counts_.resize(tree_.nLeafNodes());
+        counts_.resize(tree_.numLeafNodes());
         // local node counts
-        computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), codesStart, codesEnd,
+        computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), particleKeys.data(), particleKeys.data() + particleKeys.size(),
                           std::numeric_limits<unsigned>::max(), true);
 
         return converged;
     }
 
     template<class T>
-    bool updateGlobal(const Box<T>& box, const I* codesStart, const I* codesEnd, int myRank, gsl::span<const int> peerRanks,
-                      const SpaceCurveAssignment& assignment, gsl::span<const I> globalTreeLeaves)
+    bool updateGlobal(const Box<T>& box, gsl::span<const KeyType> particleKeys, int myRank, gsl::span<const int> peerRanks,
+                      const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves)
     {
         bool converged =
-        update(box, codesStart, codesEnd, globalTreeLeaves[assignment.firstNodeIdx(myRank)],
+        update(box, particleKeys, globalTreeLeaves[assignment.firstNodeIdx(myRank)],
                globalTreeLeaves[assignment.lastNodeIdx(myRank)]);
 
         auto peerFocusLeafIndices = findPeerFocusLeaves(peerRanks, assignment, globalTreeLeaves, tree_.treeLeaves());
 
-        std::vector<I>        tmpLeaves(tree_.nLeafNodes() + 1);
-        std::vector<unsigned> tmpCounts(tree_.nLeafNodes());
+        std::vector<KeyType>  tmpLeaves(tree_.numLeafNodes() + 1);
+        std::vector<unsigned> tmpCounts(tree_.numLeafNodes());
         exchangeFocus(peerRanks, peerFocusLeafIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
 
         return converged;
     }
 
-    gsl::span<const I> treeLeaves() const { return tree_.treeLeaves(); }
+    gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
 
 private:
     //! @brief max number of particles per node in focus
@@ -230,7 +230,7 @@ private:
     float theta_;
 
     //! @brief the focused tree
-    Octree<I> tree_;
+    Octree<KeyType> tree_;
     //! @brief particle counts of the focused tree leaves
     std::vector<unsigned> counts_;
     //! @brief mac evaluation result relative to focus area (pass or fail)

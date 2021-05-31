@@ -71,14 +71,14 @@ TEST(MortonCode, encode64) {
     EXPECT_EQ(reference, morton3DunitCube<std::size_t>(x, y, z));
 }
 
-template<class I>
+template<class KeyType>
 void imorton3D()
 {
     constexpr unsigned treeLevel = 3;
     std::array<unsigned, 3> box{ 5, 3, 6 };
 
-    I testCode = imorton3D<I>(box[0], box[1], box[2], treeLevel);
-    EXPECT_EQ(testCode, pad(I(0b101011110), 9));
+    KeyType testCode = imorton3D<KeyType>(box[0], box[1], box[2], treeLevel);
+    EXPECT_EQ(testCode, pad(KeyType(0b101011110), 9));
 }
 
 TEST(MortonCode, imorton3D)
@@ -216,22 +216,22 @@ TEST(MortonCode, idecodeZRange64)
     EXPECT_EQ( (pair<int>{(1u<<20) + (1u<<19), 1u<<21}), idecodeMortonZRange(0b0001001ul << 57u, 6));
 }
 
-template<class I>
+template<class KeyType>
 void decodeMortonXRange()
 {
     Box<double> box(-1, 1);
 
     {
-        I prefix = pad(I(012), 6); // (1,2)
-        I upper  = pad(I(013), 6); // (1,3)
+        KeyType prefix = pad(KeyType(012), 6); // (1,2)
+        KeyType upper  = pad(KeyType(013), 6); // (1,3)
 
         auto x = decodeMortonXRange(prefix, upper, box);
         EXPECT_DOUBLE_EQ(x[0], -1.0);
         EXPECT_DOUBLE_EQ(x[1], -0.5);
     }
     {
-        I prefix = pad(I(074), 6); // (7,4)
-        I upper  = pad(I(075), 6); // (7,5)
+        KeyType prefix = pad(KeyType(074), 6); // (7,4)
+        KeyType upper  = pad(KeyType(075), 6); // (7,5)
 
         auto x = decodeMortonXRange(prefix, upper, box);
         EXPECT_DOUBLE_EQ(x[0], 0.5);
@@ -245,22 +245,22 @@ TEST(MortonCode, decodeXRange)
     decodeMortonXRange<uint64_t>();
 }
 
-template<class I>
+template<class KeyType>
 void decodeMortonYRange()
 {
     Box<double> box(-1, 1);
 
     {
-        I prefix = pad(I(012), 6); // (1,2)
-        I upper  = pad(I(013), 6); // (1,3)
+        KeyType prefix = pad(KeyType(012), 6); // (1,2)
+        KeyType upper  = pad(KeyType(013), 6); // (1,3)
 
         auto y = decodeMortonYRange(prefix, upper, box);
         EXPECT_DOUBLE_EQ(y[0], -0.5);
         EXPECT_DOUBLE_EQ(y[1], 0.0);
     }
     {
-        I prefix = pad(I(074), 6); // (7,4)
-        I upper  = pad(I(075), 6); // (7,5)
+        KeyType prefix = pad(KeyType(074), 6); // (7,4)
+        KeyType upper  = pad(KeyType(075), 6); // (7,5)
 
         auto y = decodeMortonYRange(prefix, upper, box);
         EXPECT_DOUBLE_EQ(y[0], 0.0);
@@ -274,22 +274,22 @@ TEST(MortonCode, decodeYRange)
     decodeMortonYRange<uint64_t>();
 }
 
-template<class I>
+template<class KeyType>
 void decodeMortonZRange()
 {
     Box<double> box(-1, 1);
 
     {
-        I prefix = pad(I(012), 6); // (1,2)
-        I upper  = pad(I(013), 6); // (1,3)
+        KeyType prefix = pad(KeyType(012), 6); // (1,2)
+        KeyType upper  = pad(KeyType(013), 6); // (1,3)
 
         auto z = decodeMortonZRange(prefix, upper, box);
         EXPECT_DOUBLE_EQ(z[0], 0.0);
         EXPECT_DOUBLE_EQ(z[1], 0.5);
     }
     {
-        I prefix = pad(I(075), 6); // (7,5)
-        I upper  = pad(I(076), 6); // (7,6)
+        KeyType prefix = pad(KeyType(075), 6); // (7,5)
+        KeyType upper  = pad(KeyType(076), 6); // (7,6)
 
         auto z = decodeMortonZRange(prefix, upper, box);
         EXPECT_DOUBLE_EQ(z[0], 0.5);
@@ -303,45 +303,45 @@ TEST(MortonCode, decodeZRange)
     decodeMortonZRange<uint64_t>();
 }
 
-template<class I>
+template<class KeyType>
 void mortonNeighbors()
 {
     //                      input    ref. out  treeLevel dx   dy   dz   PBC
-    std::vector<std::tuple<  I,         I,     unsigned, int, int, int, bool>>
+    std::vector<std::tuple<  KeyType,         KeyType,     unsigned, int, int, int, bool>>
     codes{
-        {pad(I(0b000111111), 9), pad(I(0b000111011), 9), 3, -1,  0,  0, false},
-        {pad(I(0b000111111), 9), pad(I(0b100011011), 9), 3,  1,  0,  0, false},
-        {pad(I(0b000111111), 9), pad(I(0b000111101), 9), 3,  0, -1,  0, false},
-        {pad(I(0b000111111), 9), pad(I(0b010101101), 9), 3,  0,  1,  0, false},
-        {pad(I(0b000111111), 9), pad(I(0b000111110), 9), 3,  0,  0, -1, false},
-        {pad(I(0b000111111), 9), pad(I(0b001110110), 9), 3,  0,  0,  1, false},
+        {pad(KeyType(0b000111111), 9), pad(KeyType(0b000111011), 9), 3, -1,  0,  0, false},
+        {pad(KeyType(0b000111111), 9), pad(KeyType(0b100011011), 9), 3,  1,  0,  0, false},
+        {pad(KeyType(0b000111111), 9), pad(KeyType(0b000111101), 9), 3,  0, -1,  0, false},
+        {pad(KeyType(0b000111111), 9), pad(KeyType(0b010101101), 9), 3,  0,  1,  0, false},
+        {pad(KeyType(0b000111111), 9), pad(KeyType(0b000111110), 9), 3,  0,  0, -1, false},
+        {pad(KeyType(0b000111111), 9), pad(KeyType(0b001110110), 9), 3,  0,  0,  1, false},
         // over/underflow tests
-        {pad(I(0b100111111), 9), pad(I(0b100111111), 9), 3,  1,  0,  0, false}, // overflow
-        {pad(I(0b000011011), 9), pad(I(0b000011011), 9), 3, -1,  0,  0, false}, // underflow
-        {pad(I(0b011), 3),       pad(I(0b111), 3),       1,  1,  0,  0, false},
-        {pad(I(0b111), 3),       pad(I(0b111), 3),       1,  1,  0,  0, false}, // overflow
-        {pad(I(0b011), 3),       pad(I(0b011), 3),       1, -1,  0,  0, false}, // underflow
+        {pad(KeyType(0b100111111), 9), pad(KeyType(0b100111111), 9), 3,  1,  0,  0, false}, // overflow
+        {pad(KeyType(0b000011011), 9), pad(KeyType(0b000011011), 9), 3, -1,  0,  0, false}, // underflow
+        {pad(KeyType(0b011), 3),       pad(KeyType(0b111), 3),       1,  1,  0,  0, false},
+        {pad(KeyType(0b111), 3),       pad(KeyType(0b111), 3),       1,  1,  0,  0, false}, // overflow
+        {pad(KeyType(0b011), 3),       pad(KeyType(0b011), 3),       1, -1,  0,  0, false}, // underflow
         // diagonal offset
-        {pad(I(0b000111111), 9), pad(I(0b000111000), 9), 3, -1, -1, -1, false},
-        {pad(I(0b000111000), 9), pad(I(0b000111111), 9), 3,  1,  1,  1, false},
+        {pad(KeyType(0b000111111), 9), pad(KeyType(0b000111000), 9), 3, -1, -1, -1, false},
+        {pad(KeyType(0b000111000), 9), pad(KeyType(0b000111111), 9), 3,  1,  1,  1, false},
         // PBC cases
-        {pad(I(0b000111111), 9), pad(I(0b000111011), 9), 3, -1,  0,  0, true},
-        {pad(I(0b000111111), 9), pad(I(0b100011011), 9), 3,  1,  0,  0, true},
-        {pad(I(0b000111111), 9), pad(I(0b000111101), 9), 3,  0, -1,  0, true},
-        {pad(I(0b000111111), 9), pad(I(0b010101101), 9), 3,  0,  1,  0, true},
-        {pad(I(0b000111111), 9), pad(I(0b000111110), 9), 3,  0,  0, -1, true},
-        {pad(I(0b000111111), 9), pad(I(0b001110110), 9), 3,  0,  0,  1, true},
+        {pad(KeyType(0b000111111), 9), pad(KeyType(0b000111011), 9), 3, -1,  0,  0, true},
+        {pad(KeyType(0b000111111), 9), pad(KeyType(0b100011011), 9), 3,  1,  0,  0, true},
+        {pad(KeyType(0b000111111), 9), pad(KeyType(0b000111101), 9), 3,  0, -1,  0, true},
+        {pad(KeyType(0b000111111), 9), pad(KeyType(0b010101101), 9), 3,  0,  1,  0, true},
+        {pad(KeyType(0b000111111), 9), pad(KeyType(0b000111110), 9), 3,  0,  0, -1, true},
+        {pad(KeyType(0b000111111), 9), pad(KeyType(0b001110110), 9), 3,  0,  0,  1, true},
         // over/underflow tests
-        {pad(I(0b100111111), 9), pad(I(0b000011011), 9), 3,  1,  0,  0, true}, // PBC sensitive
-        {pad(I(0b000011011), 9), pad(I(0b100111111), 9), 3, -1,  0,  0, true}, // PBC sensitive
-        {pad(I(0b011), 3),       pad(I(0b111), 3),       1,  1,  0,  0, true},
-        {pad(I(0b111), 3),       pad(I(0b011), 3),       1,  1,  0,  0, true}, // PBC sensitive
-        {pad(I(0b011), 3),       pad(I(0b111), 3),       1, -1,  0,  0, true}, // PBC sensitive
+        {pad(KeyType(0b100111111), 9), pad(KeyType(0b000011011), 9), 3,  1,  0,  0, true}, // PBC sensitive
+        {pad(KeyType(0b000011011), 9), pad(KeyType(0b100111111), 9), 3, -1,  0,  0, true}, // PBC sensitive
+        {pad(KeyType(0b011), 3),       pad(KeyType(0b111), 3),       1,  1,  0,  0, true},
+        {pad(KeyType(0b111), 3),       pad(KeyType(0b011), 3),       1,  1,  0,  0, true}, // PBC sensitive
+        {pad(KeyType(0b011), 3),       pad(KeyType(0b111), 3),       1, -1,  0,  0, true}, // PBC sensitive
         // diagonal offset
-        {pad(I(0b000111111), 9), pad(I(0b000111000), 9), 3, -1, -1, -1, true},
-        {pad(I(0b000111000), 9), pad(I(0b000111111), 9), 3,  1,  1,  1, true},
-        {pad(I(0b000111111), 9), pad(I(0b111111111), 9), 3, -4, -4, -4, true}, // PBC sensitive
-        {pad(I(0b000111000), 9), pad(I(0b000000000), 9), 3,  6,  6,  6, true}, // PBC sensitive
+        {pad(KeyType(0b000111111), 9), pad(KeyType(0b000111000), 9), 3, -1, -1, -1, true},
+        {pad(KeyType(0b000111000), 9), pad(KeyType(0b000111111), 9), 3,  1,  1,  1, true},
+        {pad(KeyType(0b000111111), 9), pad(KeyType(0b111111111), 9), 3, -4, -4, -4, true}, // PBC sensitive
+        {pad(KeyType(0b000111000), 9), pad(KeyType(0b000000000), 9), 3,  6,  6,  6, true}, // PBC sensitive
     };
 
     auto computeCode = [](auto t)
@@ -351,7 +351,7 @@ void mortonNeighbors()
                               std::get<4>(t), std::get<5>(t), usePbc, usePbc, usePbc);
     };
 
-    std::vector<I> probes(codes.size());
+    std::vector<KeyType> probes(codes.size());
     std::transform(begin(codes), end(codes), begin(probes), computeCode);
 
     for (std::size_t i = 0; i < codes.size(); ++i)

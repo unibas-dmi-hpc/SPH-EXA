@@ -173,16 +173,16 @@ TEST(CornerstoneOctree, countTreeNodes64)
     checkCountTreeNodes<uint64_t>();
 }
 
-template<class I>
+template<class KeyType>
 void computeNodeCountsSTree()
 {
-    std::vector<I> cornerstones{0, 1, nodeRange<I>(0) - 1, nodeRange<I>(0)};
-    std::vector<I> tree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+    std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
+    std::vector<KeyType> tree = computeSpanningTree(begin(cornerstones), end(cornerstones));
 
     /// 2 particles in the first and last node
 
     /// 2 particles in the first and last node
-    std::vector<I> particleCodes{0, 0, nodeRange<I>(0) - 1, nodeRange<I>(0) - 1};
+    std::vector<KeyType> particleCodes{0, 0, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0) - 1};
 
     std::vector<unsigned> countsReference(nNodes(tree), 0);
     countsReference.front() = countsReference.back() = 2;
@@ -305,11 +305,11 @@ TEST(CornerstoneOctree, rebalance)
     rebalanceTree<uint64_t>();
 }
 
-template<class I>
-void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<unsigned>& counts, int bucketSize,
-                           const std::vector<I>& mortonCodes, bool relaxBucketCount)
+template<class KeyType>
+void checkOctreeWithCounts(const std::vector<KeyType>& tree, const std::vector<unsigned>& counts, int bucketSize,
+                           const std::vector<KeyType>& mortonCodes, bool relaxBucketCount)
 {
-    using CodeType = I;
+    using CodeType = KeyType;
     EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
     int nParticles = mortonCodes.size();
@@ -347,10 +347,10 @@ void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<unsigne
 class ComputeOctreeTester : public testing::TestWithParam<int>
 {
 public:
-    template<class I, template <class...> class CoordinateType>
+    template<class KeyType, template <class...> class CoordinateType>
     void check(int bucketSize)
     {
-        using CodeType = I;
+        using CodeType = KeyType;
         Box<double> box{-1, 1};
 
         int nParticles = 100000;
@@ -376,8 +376,8 @@ public:
         std::uniform_int_distribution<std::make_signed_t<CodeType>> displace(-minRange, minRange);
 
         for (auto& code : codes)
-            code = std::max(std::make_signed_t<I>(0), std::min(std::make_signed_t<I>(code) + displace(gen),
-                                                               std::make_signed_t<I>(nodeRange<I>(0)-1)));
+            code = std::max(std::make_signed_t<KeyType>(0), std::min(std::make_signed_t<KeyType>(code) + displace(gen),
+                                                               std::make_signed_t<KeyType>(nodeRange<KeyType>(0)-1)));
 
         std::sort(begin(codes), end(codes));
         updateOctree(codes.data(), codes.data() + nParticles, bucketSize, tree, counts);
@@ -401,26 +401,26 @@ std::array<int, 3> bucketSizesPP{64, 1024, 10000};
 INSTANTIATE_TEST_SUITE_P(RandomBoxPP, ComputeOctreeTester, testing::ValuesIn(bucketSizesPP));
 
 
-template<class I>
+template<class KeyType>
 void computeSpanningTree()
 {
     {
-        std::vector<I> cornerstones{0, nodeRange<I>(0)};
-        std::vector<I> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
-        std::vector<I> reference{0, nodeRange<I>(0)};
+        std::vector<KeyType> cornerstones{0, nodeRange<KeyType>(0)};
+        std::vector<KeyType> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+        std::vector<KeyType> reference{0, nodeRange<KeyType>(0)};
         EXPECT_EQ(spanningTree, reference);
     }
     {
-        std::vector<I> cornerstones{0, pad(I(1), 3), nodeRange<I>(0)};
-        std::vector<I> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+        std::vector<KeyType> cornerstones{0, pad(KeyType(1), 3), nodeRange<KeyType>(0)};
+        std::vector<KeyType> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
         EXPECT_TRUE(checkOctreeInvariants(spanningTree.data(), nNodes(spanningTree)));
         EXPECT_EQ(spanningTree.size(), 9);
     }
     {
-        std::vector<I> cornerstones{0, 1, nodeRange<I>(0) - 1, nodeRange<I>(0)};
-        std::vector<I> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+        std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
+        std::vector<KeyType> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
         EXPECT_TRUE(checkOctreeInvariants(spanningTree.data(), nNodes(spanningTree)));
-        if constexpr (std::is_same_v<I, unsigned>)
+        if constexpr (std::is_same_v<KeyType, unsigned>)
             EXPECT_EQ(spanningTree.size(), 135);
         else
             EXPECT_EQ(spanningTree.size(), 289);
@@ -455,14 +455,14 @@ TEST(CornerstoneOctree, computeHaloRadii)
     EXPECT_EQ(probe, hMaxPerNode);
 }
 
-template<class I>
+template<class KeyType>
 void computeHaloRadiiSTree()
 {
-    std::vector<I> cornerstones{0, 1, nodeRange<I>(0) - 1, nodeRange<I>(0)};
-    std::vector<I> tree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+    std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
+    std::vector<KeyType> tree = computeSpanningTree(begin(cornerstones), end(cornerstones));
 
     /// 2 particles in the first and last node
-    std::vector<I> particleCodes{0, 0, nodeRange<I>(0) - 1, nodeRange<I>(0) - 1};
+    std::vector<KeyType> particleCodes{0, 0, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0) - 1};
 
     std::vector<double> smoothingLengths{0.21, 0.2, 0.2, 0.22};
     std::vector<TreeNodeIndex> ordering{0, 1, 2, 3};

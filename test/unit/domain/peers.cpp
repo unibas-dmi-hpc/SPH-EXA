@@ -39,15 +39,15 @@
 
 using namespace cstone;
 
-template<class I>
+template<class KeyType>
 void findMacPeers64grid(int rank, float theta, bool pbc, const std::vector<int>& reference)
 {
     Box<double> box{-1, 1, pbc};
-    Octree<I> octree;
-    octree.update(makeUniformNLevelTree<I>(64, 1));
+    Octree<KeyType> octree;
+    octree.update(makeUniformNLevelTree<KeyType>(64, 1));
 
-    SpaceCurveAssignment assignment(octree.nLeafNodes());
-    for (int i = 0; i < octree.nLeafNodes(); ++i) { assignment.addRange(Rank(i), i, i + 1, 1); }
+    SpaceCurveAssignment assignment(octree.numLeafNodes());
+    for (int i = 0; i < octree.numLeafNodes(); ++i) { assignment.addRange(Rank(i), i, i + 1, 1); }
 
     std::vector<int> peers = findPeersMac(rank, assignment, octree, box, theta);
     EXPECT_EQ(peers, reference);
@@ -74,9 +74,9 @@ TEST(Peers, findMacGrid64PBC)
 }
 
 //! @brief reference peer search, all-all leaf comparison
-template<class T, class I>
+template<class T, class KeyType>
 std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assignment,
-                                  gsl::span<const I> tree, const Box<T>& box, float theta)
+                                  gsl::span<const KeyType> tree, const Box<T>& box, float theta)
 {
     TreeNodeIndex firstIdx = assignment.firstNodeIdx(myRank);
     TreeNodeIndex lastIdx  = assignment.lastNodeIdx(myRank);
@@ -86,10 +86,10 @@ std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assign
     for (TreeNodeIndex i = 0; i < nNodes(tree); ++i)
         boxes[i] = makeIBox(tree[i], tree[i+1]);
 
-    std::vector<int> peers(assignment.nRanks());
+    std::vector<int> peers(assignment.numRanks());
     for (TreeNodeIndex i = firstIdx; i < lastIdx; ++i)
         for (TreeNodeIndex j = 0; j < nNodes(tree); ++j)
-            if (!minDistanceMacMutual<I>(boxes[i], boxes[j], box, invThetaSq))
+            if (!minDistanceMacMutual<KeyType>(boxes[i], boxes[j], box, invThetaSq))
                 peers[assignment.findRank(j)] = 1;
 
     std::vector<int> ret;
@@ -99,10 +99,10 @@ std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assign
     return ret;
 }
 
-template<class I>
+template<class KeyType>
 void findPeers()
 {
-    using CodeType = I;
+    using CodeType = KeyType;
     Box<double> box{-1, 1};
     int nParticles = 100000;
     int bucketSize = 64;
@@ -111,7 +111,7 @@ void findPeers()
     RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
     std::vector<CodeType> codes = randomBox.mortonCodes();
 
-    Octree<I> octree;
+    Octree<KeyType> octree;
     auto [tree, counts] = computeOctree(codes.data(), codes.data() + nParticles, bucketSize);
     octree.update(tree.begin(), tree.end());
 

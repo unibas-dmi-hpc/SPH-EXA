@@ -40,15 +40,15 @@ namespace cstone
 {
 
 //! @brief various tests about merge/split decisions based on node counts and MACs
-template<class I>
+template<class KeyType>
 void rebalanceDecision()
 {
-    std::vector<I> cstree = OctreeMaker<I>{}.divide().divide(0).divide(7).makeTree();
+    std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(0).divide(7).makeTree();
 
-    Octree<I> tree;
+    Octree<KeyType> tree;
     tree.update(cstree.data(), cstree.data() + cstree.size());
 
-    //for (int i = 0; i < tree.nTreeNodes(); ++i)
+    //for (int i = 0; i < tree.numTreeNodes(); ++i)
     //    std::cout << std::dec << i << " " << std::oct << tree.codeStart(i) << std::endl;
 
     unsigned bucketSize = 1;
@@ -62,7 +62,7 @@ void rebalanceDecision()
         std::vector<int>       reference{1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
         std::vector<int> nodeOps(nNodes(cstree));
-        bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
+        bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.numInternalNodes(), tree.numLeafNodes(), tree.leafParents(),
                                                     leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data());
 
         EXPECT_EQ(nodeOps, reference);
@@ -79,7 +79,7 @@ void rebalanceDecision()
         std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
         std::vector<int> nodeOps(nNodes(cstree));
-        bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
+        bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.numInternalNodes(), tree.numLeafNodes(), tree.leafParents(),
                                                     leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data());
 
         EXPECT_EQ(nodeOps, reference);
@@ -96,7 +96,7 @@ void rebalanceDecision()
         std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
         std::vector<int> nodeOps(nNodes(cstree));
-        bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
+        bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.numInternalNodes(), tree.numLeafNodes(), tree.leafParents(),
                                                     leafCounts.data(), macs.data(), 0, 8, bucketSize, nodeOps.data());
 
         EXPECT_EQ(nodeOps, reference);
@@ -104,9 +104,9 @@ void rebalanceDecision()
     }
     {
         // this example has a focus area that cuts through sets of 8 neighboring sibling nodes
-        std::vector<I> cstree = OctreeMaker<I>{}.divide().divide(0).divide(1).makeTree();
+        std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(0).divide(1).makeTree();
 
-        Octree<I> tree;
+        Octree<KeyType> tree;
         tree.update(cstree.data(), cstree.data() + cstree.size());
         // nodes 14-21 should stay based on counts, and should be fused based on MACs. MAC wins, nodes are fused
         EXPECT_EQ(tree.parent(tree.toInternal(14)), 2);
@@ -120,7 +120,7 @@ void rebalanceDecision()
         //                                                             ----------------
         //                   these nodes are kept alive because their siblings (8 and 9) are inside the focus and are staying
         std::vector<int> nodeOps(nNodes(cstree));
-        bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.nInternalNodes(), tree.nLeafNodes(), tree.leafParents(),
+        bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.numInternalNodes(), tree.numLeafNodes(), tree.leafParents(),
                                                     leafCounts.data(), macs.data(), 2, 10, bucketSize, nodeOps.data());
 
         EXPECT_EQ(nodeOps, reference);
@@ -134,8 +134,8 @@ TEST(OctreeEssential, rebalanceDecision)
     rebalanceDecision<uint64_t>();
 }
 
-template<class I>
-TreeNodeIndex numNodesInRange(const FocusedOctree<I>& tree, I a, I b)
+template<class KeyType>
+TreeNodeIndex numNodesInRange(const FocusedOctree<KeyType>& tree, KeyType a, KeyType b)
 {
     auto csFocus = tree.treeLeaves();
 
@@ -143,47 +143,47 @@ TreeNodeIndex numNodesInRange(const FocusedOctree<I>& tree, I a, I b)
            - std::lower_bound(csFocus.begin(), csFocus.end(), a);
 }
 
-template<class I>
+template<class KeyType>
 void computeEssentialTree()
 {
     Box<double> box{-1, 1};
     int nParticles = 100000;
     unsigned csBucketSize = 16;
 
-    RandomCoordinates<double, I> randomBox(nParticles, box);
-    std::vector<I> codes = randomBox.mortonCodes();
+    RandomCoordinates<double, KeyType> randomBox(nParticles, box);
+    std::vector<KeyType> codes = randomBox.mortonCodes();
 
     auto [csTree, csCounts] = computeOctree(codes.data(), codes.data() + nParticles, csBucketSize);
-    Octree<I> globalTree;
+    Octree<KeyType> globalTree;
     globalTree.update(begin(csTree), end(csTree));
 
     unsigned bucketSize = 16;
     float theta         = 1.0;
-    FocusedOctree<I> tree(bucketSize, theta);
+    FocusedOctree<KeyType> tree(bucketSize, theta);
 
-    I focusStart = 1;
-    I focusEnd   = pad(I(1), 3);
-    while(!tree.update(box, codes.data(), codes.data() + nParticles, focusStart, focusEnd)) {}
+    KeyType focusStart = 1;
+    KeyType focusEnd   = pad(KeyType(1), 3);
+    while(!tree.update(box, codes, focusStart, focusEnd)) {}
 
     // in the focus area (the first octant) the essential tree and the csTree are identical
     TreeNodeIndex lastFocusNode = std::lower_bound(tree.treeLeaves().begin(), tree.treeLeaves().end(), focusEnd)
                                     - tree.treeLeaves().begin();
     EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, tree.treeLeaves().begin()));
-    EXPECT_EQ(numNodesInRange(tree, pad(I(7), 3), nodeRange<I>(0)), 92);
+    EXPECT_EQ(numNodesInRange(tree, pad(KeyType(7), 3), nodeRange<KeyType>(0)), 92);
 
-    focusStart = pad(I(6), 3);
-    focusEnd   = pad(I(7), 3);
-    while(!tree.update(box, codes.data(), codes.data() + nParticles, focusStart, focusEnd)) {}
+    focusStart = pad(KeyType(6), 3);
+    focusEnd   = pad(KeyType(7), 3);
+    while(!tree.update(box, codes, focusStart, focusEnd)) {}
 
-    EXPECT_EQ(numNodesInRange(tree, pad(I(1), 3), pad(I(2), 3)), 92);
+    EXPECT_EQ(numNodesInRange(tree, pad(KeyType(1), 3), pad(KeyType(2), 3)), 92);
 
     focusStart = 0;
-    focusEnd   = pad(I(1), 3);
-    while(!tree.update(box, codes.data(), codes.data() + nParticles, focusStart, focusEnd)) {}
+    focusEnd   = pad(KeyType(1), 3);
+    while(!tree.update(box, codes, focusStart, focusEnd)) {}
 
     // tree now focused again on first octant
     EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, tree.treeLeaves().begin()));
-    EXPECT_EQ(numNodesInRange(tree, pad(I(7), 3), nodeRange<I>(0)), 92);
+    EXPECT_EQ(numNodesInRange(tree, pad(KeyType(7), 3), nodeRange<KeyType>(0)), 92);
 }
 
 TEST(OctreeEssential, compute)

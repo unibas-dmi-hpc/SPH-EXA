@@ -51,8 +51,8 @@ TEST(Layout, sendRecvNodeList)
     std::vector<std::vector<TreeNodeIndex>> outgoingHalos;
     computeSendRecvNodeList(assignment, haloPairs, incomingHalos, outgoingHalos);
 
-    std::vector<std::vector<TreeNodeIndex>> refIncomingHalos(assignment.nRanks());
-    std::vector<std::vector<TreeNodeIndex>> refOutgoingHalos(assignment.nRanks());
+    std::vector<std::vector<TreeNodeIndex>> refIncomingHalos(assignment.numRanks());
+    std::vector<std::vector<TreeNodeIndex>> refOutgoingHalos(assignment.numRanks());
 
     std::vector<TreeNodeIndex> frontier0{8, 9};
     std::vector<TreeNodeIndex> frontier1{10, 11};
