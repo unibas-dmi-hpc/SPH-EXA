@@ -59,6 +59,7 @@
 
 #include "cstone/sfc/common.hpp"
 #include "cstone/primitives/scan.hpp"
+#include "cstone/util/gsl-lite.hpp"
 
 #include "definitions.h"
 
@@ -353,10 +354,10 @@ void processNode(TreeNodeIndex nodeIndex, const I* oldTree, const TreeNodeIndex*
  * @param[in]    nodeOps      rebalance decision for each node, length @p numNodes(tree) + 1
  *                            will be overwritten
  */
-template<class SfcVector>
-void rebalanceTree(const SfcVector& tree, SfcVector& newTree, TreeNodeIndex* nodeOps)
+template<class InputVector, class OutputVector>
+void rebalanceTree(const InputVector& tree, OutputVector& newTree, TreeNodeIndex* nodeOps)
 {
-    using I = typename SfcVector::value_type;
+    using I = typename InputVector::value_type;
     TreeNodeIndex numNodes = nNodes(tree);
 
     exclusiveScan(nodeOps, numNodes + 1);

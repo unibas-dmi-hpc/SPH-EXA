@@ -76,7 +76,7 @@ TEST(Peers, findMacGrid64PBC)
 //! @brief reference peer search, all-all leaf comparison
 template<class T, class I>
 std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assignment,
-                                  const std::vector<I>& tree, const Box<T>& box, float theta)
+                                  gsl::span<const I> tree, const Box<T>& box, float theta)
 {
     TreeNodeIndex firstIdx = assignment.firstNodeIdx(myRank);
     TreeNodeIndex lastIdx  = assignment.lastNodeIdx(myRank);
@@ -120,7 +120,7 @@ void findPeers()
     int probeRank = numRanks / 2;
     std::vector<int> peersDtt = findPeersMac(probeRank, assignment, octree, box, 0.5);
     std::vector<int> peersStt = findPeersMacStt(probeRank, assignment, octree, box, 0.5);
-    std::vector<int> peersA2A = findPeersAll2All(probeRank, assignment, octree.cstoneTree(), box, 0.5);
+    std::vector<int> peersA2A = findPeersAll2All(probeRank, assignment, octree.treeLeaves(), box, 0.5);
     EXPECT_EQ(peersDtt, peersStt);
     EXPECT_EQ(peersDtt, peersA2A);
 
@@ -129,7 +129,7 @@ void findPeers()
     {
         std::vector<int> peersOfPeerDtt = findPeersMac(peerRank, assignment, octree, box, 0.5);
         //std::vector<int> peersOfPeerStt = findPeersMacStt(peerRank, assignment, octree, box, 0.5);
-        //std::vector<int> peersA2A = findPeersAll2All(rank, assignment, octree.cstoneTree(), box, 0.5);
+        //std::vector<int> peersA2A = findPeersAll2All(rank, assignment, octree.treeLeaves(), box, 0.5);
         //EXPECT_EQ(peersDtt, peersStt);
         //EXPECT_EQ(peersDtt, peersA2A);
 

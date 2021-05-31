@@ -65,7 +65,7 @@ void exchangeFocus(int myRank)
     std::vector<I>        tmpLeaves(32 + 1);
     std::vector<unsigned> tmpCounts(32);
 
-    exchangeFocus(peers, peerFocusIndices, treeLeaves, counts, tmpLeaves, tmpCounts);
+    exchangeFocus<I>(peers, peerFocusIndices, treeLeaves, counts, tmpLeaves, tmpCounts);
 
     std::vector<unsigned> reference(nNodes(treeLeaves), myRank + 1);
     if (myRank == 0)
@@ -162,7 +162,7 @@ void exchangeFocusIrregular(int myRank)
     std::vector<I>        tmpLeaves(numNodesInFocus + 1);
     std::vector<unsigned> tmpCounts(numNodesInFocus);
 
-    exchangeFocus(peers, peerFocusIndices, treeLeaves, counts, tmpLeaves, tmpCounts);
+    exchangeFocus<I>(peers, peerFocusIndices, treeLeaves, counts, tmpLeaves, tmpCounts);
 
     std::vector<unsigned> reference(nNodes(treeLeaves), 1);
     TreeNodeIndex peerStartIdx, peerEndIdx;

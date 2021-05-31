@@ -45,6 +45,7 @@
 #include "cstone/cuda/annotation.hpp"
 #include "cstone/primitives/gather.hpp"
 #include "cstone/sfc/morton.hpp"
+#include "cstone/util/gsl-lite.hpp"
 
 #include "btree.hpp"
 #include "octree.hpp"
@@ -625,7 +626,7 @@ public:
         }
     }
 
-    [[nodiscard]] const std::vector<I>& cstoneTree() const
+    [[nodiscard]] gsl::span<const I> treeLeaves() const
     {
         return cstoneTree_;
     }
