@@ -45,6 +45,8 @@
 
 #include "cstone/domain/domaindecomp.hpp"
 #include "cstone/halos/boxoverlap.hpp"
+#include "cstone/util/gsl-lite.hpp"
+
 #include "macs.hpp"
 #include "octree_internal.hpp"
 #include "traversal.hpp"
@@ -64,8 +66,8 @@ namespace cstone
  *                          the last element. To describe n tree nodes, we need n+1 SFC keys.
  */
 template<class I>
-std::vector<pair<TreeNodeIndex>> findPeerFocusLeaves(const std::vector<int>& peers, const SpaceCurveAssignment& assignment,
-                                                     const std::vector<I>& domainTreeLeaves, const std::vector<I>& focusTreeLeaves)
+std::vector<pair<TreeNodeIndex>> findPeerFocusLeaves(gsl::span<const int> peers, const SpaceCurveAssignment& assignment,
+                                                     gsl::span<const I> domainTreeLeaves, gsl::span<const I> focusTreeLeaves)
 {
     std::vector<pair<TreeNodeIndex>> ret;
     ret.reserve(peers.size());
@@ -176,48 +178,50 @@ public:
     template<class T>
     bool update(const Box<T>& box, const I* codesStart, const I* codesEnd, I focusStart, I focusEnd)
     {
-        const std::vector<I>& cstoneTree = tree_.cstoneTree();
+        auto leaves = tree_.treeLeaves();
 
-        TreeNodeIndex firstFocusNode = std::upper_bound(begin(cstoneTree), end(cstoneTree), focusStart) - begin(cstoneTree) - 1;
-        TreeNodeIndex lastFocusNode  = std::lower_bound(begin(cstoneTree), end(cstoneTree), focusEnd) - begin(cstoneTree);
+        TreeNodeIndex firstFocusNode = std::upper_bound(leaves.begin(), leaves.end(), focusStart) - leaves.begin() - 1;
+        TreeNodeIndex lastFocusNode  = std::lower_bound(leaves.begin(), leaves.end(), focusEnd) - leaves.begin();
 
         macs_.resize(tree_.nTreeNodes());
         markMac(tree_, box, focusStart, focusEnd, 1.0/(theta_*theta_), macs_.data());
 
         std::vector<TreeNodeIndex> nodeOps(tree_.nLeafNodes() + 1);
-        bool converged = rebalanceDecisionEssential(cstoneTree.data(), tree_.nInternalNodes(), tree_.nLeafNodes(), tree_.leafParents(),
+        bool converged = rebalanceDecisionEssential(leaves.data(), tree_.nInternalNodes(), tree_.nLeafNodes(), tree_.leafParents(),
                                                     counts_.data(), macs_.data(), firstFocusNode, lastFocusNode,
                                                     bucketSize_, nodeOps.data());
-        std::vector<I> newCstoneTree;
-        rebalanceTree(cstoneTree, newCstoneTree, nodeOps.data());
-        tree_.update(std::move(newCstoneTree));
+        std::vector<I> newLeaves;
+        rebalanceTree(leaves, newLeaves, nodeOps.data());
+        tree_.update(std::move(newLeaves));
+        // update view, because the old one is invalidated by tree_.update()
+        leaves = tree_.treeLeaves();
 
         counts_.resize(tree_.nLeafNodes());
         // local node counts
-        computeNodeCounts(cstoneTree.data(), counts_.data(), nNodes(cstoneTree), codesStart, codesEnd,
+        computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), codesStart, codesEnd,
                           std::numeric_limits<unsigned>::max(), true);
 
         return converged;
     }
 
     template<class T>
-    bool updateGlobal(const Box<T>& box, const I* codesStart, const I* codesEnd, int myRank, const std::vector<int>& peerRanks,
-                      const SpaceCurveAssignment& assignment, const std::vector<I>& globalTreeLeaves)
+    bool updateGlobal(const Box<T>& box, const I* codesStart, const I* codesEnd, int myRank, gsl::span<const int> peerRanks,
+                      const SpaceCurveAssignment& assignment, gsl::span<const I> globalTreeLeaves)
     {
         bool converged =
         update(box, codesStart, codesEnd, globalTreeLeaves[assignment.firstNodeIdx(myRank)],
                globalTreeLeaves[assignment.lastNodeIdx(myRank)]);
 
-        auto peerFocusLeafIndices = findPeerFocusLeaves(peerRanks, assignment, globalTreeLeaves, tree_.cstoneTree());
+        auto peerFocusLeafIndices = findPeerFocusLeaves(peerRanks, assignment, globalTreeLeaves, tree_.treeLeaves());
 
         std::vector<I>        tmpLeaves(tree_.nLeafNodes() + 1);
         std::vector<unsigned> tmpCounts(tree_.nLeafNodes());
-        exchangeFocus(peerRanks, peerFocusLeafIndices, tree_.cstoneTree(), counts_, tmpLeaves, tmpCounts);
+        exchangeFocus(peerRanks, peerFocusLeafIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
 
         return converged;
     }
 
-    const std::vector<I>& leafTree() const { return tree_.cstoneTree(); }
+    gsl::span<const I> treeLeaves() const { return tree_.treeLeaves(); }
 
 private:
     //! @brief max number of particles per node in focus

@@ -45,31 +45,32 @@
 
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/tree/octree.hpp"
+#include "cstone/util/gsl-lite.hpp"
 
 namespace cstone
 {
 
 template<class I>
-void countFocusParticles(TreeNodeIndex numNodes, const std::vector<I>& leaves, const std::vector<unsigned>& counts,
-                         const std::vector<I>& requestLeaves, std::vector<unsigned>& requestCounts)
+void countFocusParticles(gsl::span<const I> leaves, gsl::span<const unsigned> counts,
+                         gsl::span<const I> requestLeaves, gsl::span<unsigned> requestCounts)
 {
     #pragma omp parallel for
-    for (TreeNodeIndex i = 0; i < numNodes; ++i)
+    for (TreeNodeIndex i = 0; i < requestCounts.size(); ++i)
     {
         I startKey = requestLeaves[i];
         I endKey   = requestLeaves[i+1];
 
-        TreeNodeIndex startIdx = std::lower_bound(begin(leaves), end(leaves), startKey) - begin(leaves);
-        TreeNodeIndex endIdx   = std::lower_bound(begin(leaves), end(leaves), endKey) - begin(leaves);
+        TreeNodeIndex startIdx = std::lower_bound(leaves.begin(), leaves.end(), startKey) - leaves.begin();
+        TreeNodeIndex endIdx   = std::lower_bound(leaves.begin(), leaves.end(), endKey) - leaves.begin();
 
-        requestCounts[i] = std::accumulate(begin(counts) + startIdx, begin(counts) + endIdx, 0u);
+        requestCounts[i] = std::accumulate(counts.begin() + startIdx, counts.begin() + endIdx, 0u);
     }
 }
 
 template<class I>
-void exchangeFocus(const std::vector<int>& peerRanks, const std::vector<pair<TreeNodeIndex>>& exchangeIndices,
-                   const std::vector<I>& focusLeaves, std::vector<unsigned>& focusCounts,
-                   std::vector<I>& tmpLeaves, std::vector<unsigned>& tmpCounts)
+void exchangeFocus(gsl::span<const int> peerRanks, gsl::span<const pair<TreeNodeIndex>> exchangeIndices,
+                   gsl::span<const I> focusLeaves, gsl::span<unsigned> focusCounts,
+                   gsl::span<I> queryLeafBuffer, gsl::span<unsigned> queryCountBuffer)
 
 {
     std::vector<MPI_Request> sendRequests;
@@ -86,7 +87,7 @@ void exchangeFocus(const std::vector<int>& peerRanks, const std::vector<pair<Tre
     {
         MPI_Status status;
         // receive SFC key sequence from remote rank, this defines the remote rank's node structure view of the local domain
-        mpiRecvSync(tmpLeaves.data(), tmpLeaves.size(), MPI_ANY_SOURCE, 0, &status);
+        mpiRecvSync(queryLeafBuffer.data(), queryLeafBuffer.size(), MPI_ANY_SOURCE, 0, &status);
         int receiveRank = status.MPI_SOURCE;
         TreeNodeIndex numKeys;
         MPI_Get_count(&status, MpiType<I>{}, &numKeys);
@@ -94,11 +95,11 @@ void exchangeFocus(const std::vector<int>& peerRanks, const std::vector<pair<Tre
         // compute particle counts for the received node structure.
         // The number of nodes to count is one less the number of received SFC keys
         TreeNodeIndex numNodes = numKeys - 1;
-        countFocusParticles(numNodes, focusLeaves, focusCounts, tmpLeaves, tmpCounts);
+        countFocusParticles<I>(focusLeaves, focusCounts, queryLeafBuffer.first(numKeys), queryCountBuffer.first(numNodes));
 
         // send back answer with the counts for the requested nodes
-        //mpiSendAsync(tmpCounts.data(), numNodes, receiveRank, 1, sendRequests);
-        MPI_Send(tmpCounts.data(), numNodes, MpiType<unsigned>{}, receiveRank, 1, MPI_COMM_WORLD);
+        //mpiSendAsync(queryCountBuffer.data(), numNodes, receiveRank, 1, sendRequests);
+        MPI_Send(queryCountBuffer.data(), numNodes, MpiType<unsigned>{}, receiveRank, 1, MPI_COMM_WORLD);
 
         numMessages--;
     }
@@ -112,7 +113,7 @@ void exchangeFocus(const std::vector<int>& peerRanks, const std::vector<pair<Tre
         TreeNodeIndex receiveCount;
         MPI_Get_count(&status, MpiType<unsigned>{}, &receiveCount);
 
-        size_t receiveRankIndex = std::find(begin(peerRanks), end(peerRanks), receiveRank) - begin(peerRanks);
+        size_t receiveRankIndex = std::find(peerRanks.begin(), peerRanks.end(), receiveRank) - peerRanks.begin();
         mpiRecvSync(focusCounts.data() + exchangeIndices[receiveRankIndex][0], receiveCount, receiveRank, 1, &status);
 
         numMessages--;
