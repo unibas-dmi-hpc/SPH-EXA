@@ -37,24 +37,24 @@
 namespace cstone
 {
 
-template<class I>
-inline bool overlapNode(const Octree<I>& octree, TreeNodeIndex nodeIndex, const IBox& collisionBox)
+template<class KeyType>
+inline bool overlapNode(const Octree<KeyType>& octree, TreeNodeIndex nodeIndex, const IBox& collisionBox)
 {
     return overlap(octree.codeStart(nodeIndex), 3 * octree.level(nodeIndex), collisionBox);
 }
 
-//constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
-//I iboxStart = imorton3D<I>(collisionBox.xmin(), collisionBox.ymin(), collisionBox.zmin());
+//constexpr int maxCoord = 1u<<maxTreeLevel<KeyType>{};
+//KeyType iboxStart = imorton3D<KeyType>(collisionBox.xmin(), collisionBox.ymin(), collisionBox.zmin());
 //int xmax = collisionBox.xmax();
 //int ymax = collisionBox.ymax();
 //int zmax = collisionBox.zmax();
 //if (xmax == maxCoord) xmax--;
 //if (ymax == maxCoord) ymax--;
 //if (zmax == maxCoord) zmax--;
-//I iboxEnd   = imorton3D<I>(xmax, ymax, zmax);
+//KeyType iboxEnd   = imorton3D<KeyType>(xmax, ymax, zmax);
 
-//pair<I> commonBox = smallestCommonBox(iboxStart, iboxEnd);
-//int iboxLevel = treeLevel<I>(commonBox[1] - commonBox[0]);
+//pair<KeyType> commonBox = smallestCommonBox(iboxStart, iboxEnd);
+//int iboxLevel = treeLevel<KeyType>(commonBox[1] - commonBox[0]);
 
 //for (int l = 1; l <= iboxLevel; ++l)
 //{
@@ -68,8 +68,8 @@ inline bool overlapNode(const Octree<I>& octree, TreeNodeIndex nodeIndex, const 
 //    return;
 //}
 
-template <class I, class C, class A>
-void singleTraversal(const Octree<I>& octree, C&& continuationCriterion, A&& endpointAction)
+template <class KeyType, class C, class A>
+void singleTraversal(const Octree<KeyType>& octree, C&& continuationCriterion, A&& endpointAction)
 {
     if (!continuationCriterion(0) || octree.isLeaf(0))
     {
@@ -84,7 +84,7 @@ void singleTraversal(const Octree<I>& octree, C&& continuationCriterion, A&& end
     TreeNodeIndex stackPos = 1;
     TreeNodeIndex node     = 0; // start at the root
 
-    TreeNodeIndex internalNodes = octree.nInternalNodes();
+    TreeNodeIndex internalNodes = octree.numInternalNodes();
     do
     {
         for (int octant = 0; octant < 8; ++octant)
@@ -109,8 +109,8 @@ void singleTraversal(const Octree<I>& octree, C&& continuationCriterion, A&& end
     } while (node != 0); // the root can only be obtained when the tree has been fully traversed
 }
 
-template <class I, class MAC, class M2L, class P2P>
-void dualTraversal(const Octree<I>& octree, TreeNodeIndex a, TreeNodeIndex b,
+template <class KeyType, class MAC, class M2L, class P2P>
+void dualTraversal(const Octree<KeyType>& octree, TreeNodeIndex a, TreeNodeIndex b,
                    MAC&& continuation, M2L&& m2l, P2P&& p2p)
 {
     using NodePair = pair<TreeNodeIndex>;

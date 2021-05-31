@@ -35,15 +35,16 @@
 #include <vector>
 
 #include "cstone/halos/btreetraversal.hpp"
+#include "cstone/util/gsl-lite.hpp"
 
 namespace cstone
 {
 
 /*! @brief Compute halo node pairs
  *
- * @tparam CoordinateType      float or double
+ * @tparam KeyType             32- or 64-bit unsigned integer
  * @tparam RadiusType          float or double, float is sufficient for 64-bit codes or less
- * @tparam I                   32- or 64-bit unsigned integer
+ * @tparam CoordinateType      float or double
  * @param tree                 cornerstone octree
  * @param interactionRadii     effective halo search radii per octree (leaf) node
  * @param box                  coordinate bounding box
@@ -62,19 +63,19 @@ namespace cstone
  * node (in @p tree) that must be sent out to another rank.
  * The second element of each pair is the index of a remote node not in [firstNode:lastNode].
  */
-template<class CoordinateType, class RadiusType, class I>
-void findHalos(const std::vector<I>&             tree,
-               const std::vector<RadiusType>&    interactionRadii,
+template<class KeyType, class RadiusType, class CoordinateType>
+void findHalos(gsl::span<const KeyType>          tree,
+               gsl::span<RadiusType>             interactionRadii,
                const Box<CoordinateType>&        box,
                TreeNodeIndex                     firstNode,
                TreeNodeIndex                     lastNode,
                std::vector<pair<TreeNodeIndex>>& haloPairs)
 {
-    std::vector<BinaryNode<I>> internalTree(nNodes(tree));
+    std::vector<BinaryNode<KeyType>> internalTree(nNodes(tree));
     createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
 
-    I lowestCode  = tree[firstNode];
-    I highestCode = tree[lastNode];
+    KeyType lowestCode  = tree[firstNode];
+    KeyType highestCode = tree[lastNode];
 
     #pragma omp parallel
     {
@@ -108,8 +109,8 @@ void findHalos(const std::vector<I>&             tree,
             {
                 TreeNodeIndex collidingNodeIdx = collisions[i];
 
-                I collidingNodeStart = tree[collidingNodeIdx];
-                I collidingNodeEnd   = tree[collidingNodeIdx + 1];
+                KeyType collidingNodeStart = tree[collidingNodeIdx];
+                KeyType collidingNodeEnd   = tree[collidingNodeIdx + 1];
 
                 IBox remoteNodeBox = makeHaloBox(collidingNodeStart, collidingNodeEnd,
                                                  interactionRadii[collidingNodeIdx], box);

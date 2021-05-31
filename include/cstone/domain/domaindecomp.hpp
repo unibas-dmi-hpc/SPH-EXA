@@ -40,6 +40,7 @@
 #include "cstone/primitives/gather.hpp"
 #include "cstone/tree/octree.hpp"
 #include "cstone/util/index_ranges.hpp"
+#include "cstone/util/gsl-lite.hpp"
 
 
 namespace cstone
@@ -76,12 +77,12 @@ public:
     void addRange(Rank rank, TreeNodeIndex lower, TreeNodeIndex upper, std::size_t cnt)
     {
         rankAssignment_[rank]   = lower;
-        // will be overwritten by @p lower of rank+1, except if rank == nRanks-1
+        // will be overwritten by @p lower of rank+1, except if rank == numRanks-1
         rankAssignment_[rank+1] = upper;
         counts_[rank]           = cnt;
     }
 
-    [[nodiscard]] int nRanks() const { return int(rankAssignment_.size()) - 1; }
+    [[nodiscard]] int numRanks() const { return int(rankAssignment_.size()) - 1; }
 
     [[nodiscard]] TreeNodeIndex firstNodeIdx(int rank) const
     {
@@ -116,7 +117,7 @@ private:
 /*! @brief assign the global tree/SFC to nSplits ranks, assigning to each rank only a single Morton code range
  *
  * @param globalCounts       counts per leaf
- * @param nSplits            divide the global tree into nSplits pieces, sensible choice e.g.: nSplits == nRanks
+ * @param nSplits            divide the global tree into nSplits pieces, sensible choice e.g.: nSplits == numRanks
  * @return                   a vector with nSplit elements, each element is a vector of SfcRanges of Morton codes
  *
  * This function acts on global data. All calling ranks should call this function with identical arguments.
@@ -180,20 +181,19 @@ SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& globalCoun
 
 /*! @brief Based on global assignment, create the list of local particle index ranges to send to each rank
  *
- * @tparam I            32- or 64-bit integer
+ * @tparam KeyType      32- or 64-bit integer
  * @param assignment    global space curve assignment to ranks
  * @param tree          global cornerstone octree that matches the node counts used to create @p assignment
- * @param codesStart    sorted list of morton codes of local particles present on this rank
- * @param codesEnd
- * @return              for each rank, a list of index ranges into @p mortonCodes to send
+ * @param particleKeys  sorted list of SFC keys of local particles present on this rank
+ * @return              for each rank, a list of index ranges into @p particleKeys to send
  *
- * Converts the global assignment Morton code ranges into particle indices with binary search
+ * Converts the global assignment particle keys ranges into particle indices with binary search
  */
-template<class I>
-SendList createSendList(const SpaceCurveAssignment& assignment, const std::vector<I>& tree, const I* codesStart, const I* codesEnd)
+template<class KeyType>
+SendList createSendList(const SpaceCurveAssignment& assignment, gsl::span<const KeyType> treeLeaves, gsl::span<const KeyType> particleKeys)
 {
     using IndexType = SendManifest::IndexType;
-    int nRanks      = assignment.nRanks();
+    int nRanks      = assignment.numRanks();
 
     SendList ret(nRanks);
 
@@ -201,14 +201,14 @@ SendList createSendList(const SpaceCurveAssignment& assignment, const std::vecto
     {
         SendManifest& manifest = ret[rank];
 
-        I rangeStart = tree[assignment.firstNodeIdx(rank)];
-        I rangeEnd   = tree[assignment.lastNodeIdx(rank)];
+        KeyType rangeStart = treeLeaves[assignment.firstNodeIdx(rank)];
+        KeyType rangeEnd   = treeLeaves[assignment.lastNodeIdx(rank)];
 
-        auto lit = std::lower_bound(codesStart, codesEnd, rangeStart);
-        IndexType lowerParticleIndex = std::distance(codesStart, lit);
+        auto lit = std::lower_bound(particleKeys.begin(), particleKeys.end(), rangeStart);
+        IndexType lowerParticleIndex = std::distance(particleKeys.begin(), lit);
 
-        auto uit = std::lower_bound(codesStart + lowerParticleIndex, codesEnd, rangeEnd);
-        IndexType upperParticleIndex = std::distance(codesStart, uit);
+        auto uit = std::lower_bound(particleKeys.begin() + lowerParticleIndex, particleKeys.end(), rangeEnd);
+        IndexType upperParticleIndex = std::distance(particleKeys.begin(), uit);
 
         manifest.addRange(lowerParticleIndex, upperParticleIndex);
     }

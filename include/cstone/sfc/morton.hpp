@@ -103,21 +103,21 @@ inline uint64_t compactBits(uint64_t v)
 
 /*! @brief Calculates a Morton code for a 3D point in integer coordinates
  *
- * @tparam I  32- or 64 bit unsigned integer
+ * @tparam KeyType  32- or 64 bit unsigned integer
  *
- * @param[in] ix,iy,iz input coordinates in [0:2^maxTreeLevel<I>{}]
+ * @param[in] ix,iy,iz input coordinates in [0:2^maxTreeLevel<KeyType>{}]
  */
-template <class I>
+template <class KeyType>
 CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<I>{}, I> imorton3D(unsigned ix, unsigned iy, unsigned iz)
+inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> imorton3D(unsigned ix, unsigned iy, unsigned iz)
 {
-    assert(ix < (1u << maxTreeLevel<I>{}));
-    assert(iy < (1u << maxTreeLevel<I>{}));
-    assert(iz < (1u << maxTreeLevel<I>{}));
+    assert(ix < (1u << maxTreeLevel<KeyType>{}));
+    assert(iy < (1u << maxTreeLevel<KeyType>{}));
+    assert(iz < (1u << maxTreeLevel<KeyType>{}));
 
-    I xx = detail::expandBits(I(ix));
-    I yy = detail::expandBits(I(iy));
-    I zz = detail::expandBits(I(iz));
+    KeyType xx = detail::expandBits(KeyType(ix));
+    KeyType yy = detail::expandBits(KeyType(iy));
+    KeyType zz = detail::expandBits(KeyType(iz));
 
     // interleave the x, y, z components
     return xx * 4 + yy * 2 + zz;
@@ -125,54 +125,53 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> imorton3D(unsigned ix, unsigne
 
 /*! @brief Calculate morton code from n-level integer 3D coordinates
  *
- * @tparam I         32- or 64-bit unsigned integer
+ * @tparam KeyType   32- or 64-bit unsigned integer
  * @param ix         input integer box coordinates, must be in the range [0, 2^treeLevel-1]
  * @param iy
  * @param iz
  * @param treeLevel  octree subdivison level
  * @return           the morton code
  */
-template<class I>
+template<class KeyType>
 CUDA_HOST_DEVICE_FUN
-I imorton3D(unsigned ix, unsigned iy, unsigned iz, unsigned treeLevel)
+KeyType imorton3D(unsigned ix, unsigned iy, unsigned iz, unsigned treeLevel)
 {
-    assert(treeLevel <= maxTreeLevel<I>{});
-    unsigned shifts = maxTreeLevel<I>{} - treeLevel;
-    return imorton3D<I>(ix<<shifts, iy<<shifts, iz<<shifts);
+    assert(treeLevel <= maxTreeLevel<KeyType>{});
+    unsigned shifts = maxTreeLevel<KeyType>{} - treeLevel;
+    return imorton3D<KeyType>(ix<<shifts, iy<<shifts, iz<<shifts);
 }
 
 /*! @brief Calculates a Morton code for a 3D point in the unit cube
  *
- * @tparam I specify either a 32 or 64 bit unsigned integer to select
- *           the precision.
- *           Note: I needs to be specified explicitly.
- *           Note: not specifying an unsigned type results in a compilation error
+ * @tparam KeyType specify either a 32 or 64 bit unsigned integer to select the precision.
+ *                 Note: KeyType needs to be specified explicitly.
+ *                 Note: not specifying an unsigned type results in a compilation error
  *
  * @param[in] x input coordinates within the unit cube [0,1]^3
  * @param[in] y
  * @param[in] z
  */
-template <class I, class T>
+template <class KeyType, class T>
 CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3DunitCube(T x, T y, T z)
+inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> morton3DunitCube(T x, T y, T z)
 {
     assert(x >= 0.0 && x <= 1.0);
     assert(y >= 0.0 && y <= 1.0);
     assert(z >= 0.0 && z <= 1.0);
 
     // normalize floating point numbers
-    unsigned ix = toNBitInt<I>(x);
-    unsigned iy = toNBitInt<I>(y);
-    unsigned iz = toNBitInt<I>(z);
+    unsigned ix = toNBitInt<KeyType>(x);
+    unsigned iy = toNBitInt<KeyType>(y);
+    unsigned iz = toNBitInt<KeyType>(z);
 
-    return imorton3D<I>(ix, iy, iz);
+    return imorton3D<KeyType>(ix, iy, iz);
 }
 
 /*! @brief Calculates a Morton code for a 3D point within the specified box
  *
- * @tparam I specify either a 32 or 64 bit unsigned integer to select
+ * @tparam KeyType specify either a 32 or 64 bit unsigned integer to select
  *           the precision.
- *           Note: I needs to be specified explicitly.
+ *           Note: KeyType needs to be specified explicitly.
  *           Note: not specifying an unsigned type results in a compilation error
  *
  * @param[in] x,y,z input coordinates within the unit cube [0,1]^3
@@ -180,86 +179,86 @@ inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3DunitCube(T x, T y, T z
  *
  * @return          the Morton code
  */
-template <class I, class T>
+template <class KeyType, class T>
 CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<I>{}, I> morton3D(T x, T y, T z, Box<T> box)
+inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> morton3D(T x, T y, T z, Box<T> box)
 {
-    return morton3DunitCube<I>(normalize(x, box.xmin(), box.xmax()),
+    return morton3DunitCube<KeyType>(normalize(x, box.xmin(), box.xmax()),
                                normalize(y, box.ymin(), box.ymax()),
                                normalize(z, box.zmin(), box.zmax()));
 }
 
 //! @brief extract X component from a morton code
-template<class I>
+template<class KeyType>
 CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<I>{}, I> idecodeMortonX(I code)
+inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> idecodeMortonX(KeyType code)
 {
     return detail::compactBits(code >> 2);
 }
 
 //! @brief extract Y component from a morton code
-template<class I>
+template<class KeyType>
 CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<I>{}, I> idecodeMortonY(I code)
+inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> idecodeMortonY(KeyType code)
 {
     return detail::compactBits(code >> 1);
 }
 
 //! @brief extract Z component from a morton code
-template<class I>
+template<class KeyType>
 CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<I>{}, I> idecodeMortonZ(I code)
+inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> idecodeMortonZ(KeyType code)
 {
     return detail::compactBits(code);
 }
 
 /*! @brief compute range of X values that the given code can cover
  *
- * @tparam I      32- or 64-bit unsigned integer
- * @param code    A morton code, all bits except the first 2 + length
- *                bits (32-bit) or the first 1 + length bits (64-bit)
- *                are expected to be zero.
- * @param length  Number of bits to consider for calculating the upper range limit
- * @return        The range of possible X values in [0...2^10] (32-bit)
- *                or [0...2^21] (64-bit). The start of the range is the
- *                X-component of the input @p code. The length of the range
- *                only depends on the number of bits. For every X-bit, the
- *                range decreases from the maximum by a factor of two.
+ * @tparam KeyType  32- or 64-bit unsigned integer
+ * @param code      A morton code, all bits except the first 2 + length
+ *                  bits (32-bit) or the first 1 + length bits (64-bit)
+ *                  are expected to be zero.
+ * @param length    Number of bits to consider for calculating the upper range limit
+ * @return          The range of possible X values in [0...2^10] (32-bit)
+ *                  or [0...2^21] (64-bit). The start of the range is the
+ *                  X-component of the input @p code. The length of the range
+ *                  only depends on the number of bits. For every X-bit, the
+ *                  range decreases from the maximum by a factor of two.
  */
-template<class I>
+template<class KeyType>
 CUDA_HOST_DEVICE_FUN
-inline pair<int> idecodeMortonXRange(I code, int length)
+inline pair<int> idecodeMortonXRange(KeyType code, int length)
 {
     pair<int> ret{0, 0};
 
     ret[0] = idecodeMortonX(code);
-    ret[1] = ret[0] + (I(1) << (maxTreeLevel<I>{} - (length+2)/3));
+    ret[1] = ret[0] + (KeyType(1) << (maxTreeLevel<KeyType>{} - (length+2)/3));
 
     return ret;
 }
 
 //! @brief see idecodeMortonXRange
-template<class I>
+template<class KeyType>
 CUDA_HOST_DEVICE_FUN
-inline pair<int> idecodeMortonYRange(I code, int length)
+inline pair<int> idecodeMortonYRange(KeyType code, int length)
 {
     pair<int> ret{0, 0};
 
     ret[0] = idecodeMortonY(code);
-    ret[1] = ret[0] + (I(1) << (maxTreeLevel<I>{} - (length+1)/3));
+    ret[1] = ret[0] + (KeyType(1) << (maxTreeLevel<KeyType>{} - (length+1)/3));
 
     return ret;
 }
 
 //! @brief see idecodeMortonXRange
-template<class I>
+template<class KeyType>
 CUDA_HOST_DEVICE_FUN
-inline pair<int> idecodeMortonZRange(I code, int length)
+inline pair<int> idecodeMortonZRange(KeyType code, int length)
 {
     pair<int> ret{0, 0};
 
     ret[0] = idecodeMortonZ(code);
-    ret[1] = ret[0] + (I(1) << (maxTreeLevel<I>{} - length/3));
+    ret[1] = ret[0] + (KeyType(1) << (maxTreeLevel<KeyType>{} - length/3));
 
     return ret;
 }
@@ -267,7 +266,7 @@ inline pair<int> idecodeMortonZRange(I code, int length)
 /*! @brief returns (min,max) x-coordinate pair for a lower and upper morton code
  *
  * @tparam T         float or double
- * @tparam I         32- or 64-bit unsigned integer
+ * @tparam KeyType   32- or 64-bit unsigned integer
  * @param prefix     lowest Morton code
  * @param upperCode  upper Morton code
  * @param box        floating point coordinate bounding box used to construct
@@ -279,16 +278,16 @@ inline pair<int> idecodeMortonZRange(I code, int length)
  * If the difference is not a power of 8, use idecodeMortonXYZ on @p prefix and @p upperCode
  * separately.
  */
-template<class T, class I>
-pair<T> decodeMortonXRange(I prefix, I upperCode, const Box<T>& box)
+template<class T, class KeyType>
+pair<T> decodeMortonXRange(KeyType prefix, KeyType upperCode, const Box<T>& box)
 {
     assert(isPowerOf8(upperCode - prefix));
-    constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+    constexpr int maxCoord = 1u<<maxTreeLevel<KeyType>{};
     constexpr T uL = T(1.) / maxCoord;
 
     int ix = idecodeMortonX(prefix);
     T xBox = box.xmin() + ix * uL * box.lx();
-    int unitsPerBox = 1u<<(maxTreeLevel<I>{} - treeLevel(upperCode - prefix));
+    int unitsPerBox = 1u<<(maxTreeLevel<KeyType>{} - treeLevel(upperCode - prefix));
 
     T uLx = uL * box.lx() * unitsPerBox;
 
@@ -296,16 +295,16 @@ pair<T> decodeMortonXRange(I prefix, I upperCode, const Box<T>& box)
 }
 
 //! @brief see decodeMortonXRange
-template<class T, class I>
-pair<T> decodeMortonYRange(I prefix, I upperCode, const Box<T>& box)
+template<class T, class KeyType>
+pair<T> decodeMortonYRange(KeyType prefix, KeyType upperCode, const Box<T>& box)
 {
     assert(isPowerOf8(upperCode - prefix));
-    constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+    constexpr int maxCoord = 1u<<maxTreeLevel<KeyType>{};
     constexpr T uL = T(1.) / maxCoord;
 
     int iy = idecodeMortonY(prefix);
     T yBox = box.ymin() + iy * uL * box.ly();
-    int unitsPerBox = 1u<<(maxTreeLevel<I>{} - treeLevel(upperCode - prefix));
+    int unitsPerBox = 1u<<(maxTreeLevel<KeyType>{} - treeLevel(upperCode - prefix));
 
     T uLy = uL * box.ly() * unitsPerBox;
 
@@ -313,16 +312,16 @@ pair<T> decodeMortonYRange(I prefix, I upperCode, const Box<T>& box)
 }
 
 //! @brief see decodeMortonXRange
-template<class T, class I>
-pair<T> decodeMortonZRange(I prefix, I upperCode, const Box<T>& box)
+template<class T, class KeyType>
+pair<T> decodeMortonZRange(KeyType prefix, KeyType upperCode, const Box<T>& box)
 {
     assert(isPowerOf8(upperCode - prefix));
-    constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
+    constexpr int maxCoord = 1u<<maxTreeLevel<KeyType>{};
     constexpr T uL = T(1.) / maxCoord;
 
     int iz = idecodeMortonZ(prefix);
     T zBox = box.zmin() + iz * uL * box.lz();
-    int unitsPerBox = 1u<<(maxTreeLevel<I>{} - treeLevel(upperCode - prefix));
+    int unitsPerBox = 1u<<(maxTreeLevel<KeyType>{} - treeLevel(upperCode - prefix));
 
     T uLz = uL * box.lz() * unitsPerBox;
 
@@ -332,7 +331,7 @@ pair<T> decodeMortonZRange(I prefix, I upperCode, const Box<T>& box)
 /*! @brief compute morton codes corresponding to neighboring octree nodes
  *         for a given input code and tree level
  *
- * @tparam I        32- or 64-bit unsigned integer type
+ * @tparam KeyType  32- or 64-bit unsigned integer type
  * @param code      input Morton code
  * @param treeLevel octree subdivision level, 0-10 for 32-bit, and 0-21 for 64-bit
  * @param dx        neighbor offset in x direction at @p treeLevel
@@ -345,17 +344,17 @@ pair<T> decodeMortonZRange(I prefix, I upperCode, const Box<T>& box)
  *
  * Note that the end of the neighbor range is given by the start code + nodeRange(treeLevel)
  */
-template<class I>
+template<class KeyType>
 CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<I>{}, I>
-mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz,
+inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType>
+mortonNeighbor(KeyType code, unsigned treeLevel, int dx, int dy, int dz,
                bool pbcX=true, bool pbcY=true, bool pbcZ=true)
 {
     // maximum coordinate value per dimension 2^nBits-1
-    constexpr int pbcRange = 1u << maxTreeLevel<I>{};
+    constexpr int pbcRange = 1u << maxTreeLevel<KeyType>{};
     constexpr int maxCoord = pbcRange - 1;
 
-    unsigned shiftBits  = maxTreeLevel<I>{} - treeLevel;
+    unsigned shiftBits  = maxTreeLevel<KeyType>{} - treeLevel;
     int shiftValue = int(1u << shiftBits);
 
     // zero out lower tree levels
@@ -389,9 +388,9 @@ mortonNeighbor(I code, unsigned treeLevel, int dx, int dy, int dz,
         z = (newZ < 0 || newZ > maxCoord) ? z : newZ;
     }
 
-    return detail::expandBits(I(x)) * I(4)
-         + detail::expandBits(I(y)) * I(2)
-         + detail::expandBits(I(z));
+    return detail::expandBits(KeyType(x)) * KeyType(4)
+         + detail::expandBits(KeyType(y)) * KeyType(2)
+         + detail::expandBits(KeyType(z));
 }
 
 

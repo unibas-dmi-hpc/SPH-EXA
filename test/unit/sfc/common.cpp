@@ -310,9 +310,10 @@ TEST(SfcCode, lastNzPlace)
     EXPECT_EQ(lastNzPlace(nodeRange<uint64_t>(0)), 0);
 }
 
-template<class I>
+template<class KeyType>
 void spanSfcRange()
 {
+    using I = KeyType;
     {
         std::vector<I> reference{0,     01000, 02000, 03000, 04000, 05000, 06000, 07000, 07100, 07200, 07300, 07400, 07500, 07600,
                                  07700, 07710, 07720, 07730, 07740, 07750, 07760, 07770, 07771, 07772, 07773, 07774, 07775, 07776};

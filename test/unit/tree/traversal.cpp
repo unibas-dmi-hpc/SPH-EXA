@@ -39,25 +39,25 @@
 namespace cstone
 {
 
-template<class I>
+template<class KeyType>
 void surfaceDetection()
 {
-    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
+    std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
-    Octree<I> fullTree;
+    Octree<KeyType> fullTree;
     fullTree.update(tree.data(), tree.data() + tree.size());
 
     IBox targetBox = makeIBox(tree[1], tree[2]);
 
-    std::vector<IBox> treeBoxes(fullTree.nTreeNodes());
-    for (TreeNodeIndex i = 0; i < fullTree.nTreeNodes(); ++i)
+    std::vector<IBox> treeBoxes(fullTree.numTreeNodes());
+    for (TreeNodeIndex i = 0; i < fullTree.numTreeNodes(); ++i)
     {
         treeBoxes[i] = makeIBox(fullTree.codeStart(i), fullTree.codeEnd(i));
     }
 
     auto isSurface = [targetBox, bbox = Box<double>(0,1), boxes=treeBoxes.data()](TreeNodeIndex idx)
     {
-        double distance = minDistanceSq<double, I>(targetBox, boxes[idx], bbox);
+        double distance = minDistanceSq<KeyType>(targetBox, boxes[idx], bbox);
         return distance == 0.0;
     };
 
@@ -78,11 +78,11 @@ TEST(Traversal, surfaceDetection)
 }
 
 //! @brief mac criterion refines all nodes, traverses the entire tree and finds all leaf-pairs
-template<class I>
+template<class KeyType>
 void dualTraversalAllPairs()
 {
-    Octree<I> fullTree;
-    fullTree.update(OctreeMaker<I>{}.divide().divide(0).divide(0,7).makeTree());
+    Octree<KeyType> fullTree;
+    fullTree.update(OctreeMaker<KeyType>{}.divide().divide(0).divide(0,7).makeTree());
 
     std::vector<pair<TreeNodeIndex>> pairs;
 
@@ -110,16 +110,16 @@ TEST(Traversal, dualTraversalAllPairs)
  * This finds all pairs of leaves (a,b) that touch each other and with
  * a inside the focus and b outside.
  */
-template<class I>
+template<class KeyType>
 void dualTraversalNeighbors()
 {
-    Octree<I> octree;
-    octree.update(makeUniformNLevelTree<I>(64, 1));
+    Octree<KeyType> octree;
+    octree.update(makeUniformNLevelTree<KeyType>(64, 1));
 
     Box<float> box(0,1);
 
-    I focusStart = octree.codeStart(octree.toInternal(0));
-    I focusEnd   = octree.codeStart(octree.toInternal(8));
+    KeyType focusStart = octree.codeStart(octree.toInternal(0));
+    KeyType focusEnd   = octree.codeStart(octree.toInternal(8));
 
     auto crossFocusSurfacePairs = [focusStart, focusEnd, &tree = octree, &box]
         (TreeNodeIndex a, TreeNodeIndex b)
@@ -130,7 +130,7 @@ void dualTraversalNeighbors()
 
         IBox aBox = makeIBox(tree.codeStart(a), tree.codeEnd(a));
         IBox bBox = makeIBox(tree.codeStart(b), tree.codeEnd(b));
-        return minDistanceSq<float, I>(aBox, bBox, box) == 0.0;
+        return minDistanceSq<KeyType>(aBox, bBox, box) == 0.0;
     };
 
     std::vector<pair<TreeNodeIndex>> pairs;
@@ -146,7 +146,7 @@ void dualTraversalNeighbors()
     {
         auto a = p[0];
         auto b = p[1];
-        //std::cout << a - octree.nInternalNodes() << " " << b - octree.nInternalNodes() << std::endl;
+        //std::cout << a - octree.nInternalNodes() << " " << b - octree.numInternalNodes() << std::endl;
         // a in focus
         EXPECT_TRUE(octree.codeStart(a) >= focusStart && octree.codeEnd(a) <= focusEnd);
         // b outside focus
@@ -154,7 +154,7 @@ void dualTraversalNeighbors()
         // a and be touch each other
         IBox aBox = makeIBox(octree.codeStart(a), octree.codeEnd(a));
         IBox bBox = makeIBox(octree.codeStart(b), octree.codeEnd(b));
-        EXPECT_FLOAT_EQ((minDistanceSq<float, I>(aBox, bBox, box)), 0.0);
+        EXPECT_FLOAT_EQ((minDistanceSq<KeyType>(aBox, bBox, box)), 0.0);
     }
 }
 

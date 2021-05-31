@@ -70,8 +70,8 @@ void computeSendRecvNodeList(const SpaceCurveAssignment& assignment,
                              std::vector<std::vector<TreeNodeIndex>>& incomingNodes,
                              std::vector<std::vector<TreeNodeIndex>>& outgoingNodes)
 {
-    incomingNodes.resize(assignment.nRanks());
-    outgoingNodes.resize(assignment.nRanks());
+    incomingNodes.resize(assignment.numRanks());
+    outgoingNodes.resize(assignment.numRanks());
 
     for (auto& p : haloPairs)
     {

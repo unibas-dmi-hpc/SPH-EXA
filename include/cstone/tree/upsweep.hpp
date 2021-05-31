@@ -42,22 +42,22 @@ namespace cstone
 /*! @brief performs an upsweep operation, calculates quantities for internal nodes, based on given leaf nodes
  *
  * @tparam T                         anything that can be copied
- * @tparam I                         32- or 64-bit unsigned integer
+ * @tparam KeyType                   32- or 64-bit unsigned integer
  * @tparam CombinationFunction       callable with signature T(T,T,T,T,T,T,T,T)
  * @param[in]  octree                the octree
- * @param[in]  leafQuantities        input array of length octree.nLeafNodes()
- * @param[out] internalQuantities    output array of length octree.nInternalNodes()
+ * @param[in]  leafQuantities        input array of length octree.numLeafNodes()
+ * @param[out] internalQuantities    output array of length octree.numInternalNodes()
  * @param[in]  combinationFunction   callable of type @p CombinationFunction
  */
-template<class T, class I, class CombinationFunction>
-void upsweep(const Octree<I>& octree, const T* leafQuantities, T* internalQuantities, CombinationFunction combinationFunction)
+template<class T, class KeyType, class CombinationFunction>
+void upsweep(const Octree<KeyType>& octree, const T* leafQuantities, T* internalQuantities, CombinationFunction combinationFunction)
 {
     int depth = 1;
-    TreeNodeIndex internalNodeIndex = octree.nInternalNodes();
+    TreeNodeIndex internalNodeIndex = octree.numInternalNodes();
 
-    internalNodeIndex -= octree.nTreeNodes(depth);
+    internalNodeIndex -= octree.numTreeNodes(depth);
     #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex i = internalNodeIndex; i < internalNodeIndex + octree.nTreeNodes(depth); ++i)
+    for (TreeNodeIndex i = internalNodeIndex; i < internalNodeIndex + octree.numTreeNodes(depth); ++i)
     {
         internalQuantities[i] = combinationFunction(leafQuantities[octree.childDirect(i, 0)],
                                                     leafQuantities[octree.childDirect(i, 1)],
@@ -71,11 +71,11 @@ void upsweep(const Octree<I>& octree, const T* leafQuantities, T* internalQuanti
 
     depth++;
 
-    while (depth < maxTreeLevel<I>{} && octree.nTreeNodes(depth) > 0)
+    while (depth < maxTreeLevel<KeyType>{} && octree.numTreeNodes(depth) > 0)
     {
-        internalNodeIndex -= octree.nTreeNodes(depth);
+        internalNodeIndex -= octree.numTreeNodes(depth);
         #pragma omp parallel for schedule(static)
-        for (TreeNodeIndex i = internalNodeIndex; i < internalNodeIndex + octree.nTreeNodes(depth); ++i)
+        for (TreeNodeIndex i = internalNodeIndex; i < internalNodeIndex + octree.numTreeNodes(depth); ++i)
         {
             T a = octree.isLeafChild(i, 0) ? leafQuantities[octree.childDirect(i, 0)] : internalQuantities[octree.childDirect(i, 0)];
             T b = octree.isLeafChild(i, 1) ? leafQuantities[octree.childDirect(i, 1)] : internalQuantities[octree.childDirect(i, 1)];
