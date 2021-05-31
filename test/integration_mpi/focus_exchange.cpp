@@ -36,6 +36,12 @@
 
 using namespace cstone;
 
+/*! @brief simple particle count exchange test with 2 ranks
+ *
+ * Each ranks has a regular level-2 grid with 64 elements as tree.
+ * Rank 0 queries Rank 1 for particle counts in the x,y,z = [0.5-1, 0-1, 0-1] half
+ * and vice versa.
+ */
 template<class I>
 void exchangeFocus(int myRank)
 {
@@ -86,4 +92,115 @@ TEST(FocusExchange, simpleTest)
         throw std::runtime_error("this test needs 2 ranks\n");
 
     exchangeFocus<unsigned>(rank);
+    exchangeFocus<uint64_t>(rank);
+}
+
+/*! @brief irregular tree particle count exchange with 2 ranks
+ *
+ * In this test, each rank has a regular level-3 grid in its assigned half
+ * of the cube with 512/2 = 256 elements. Outside the assigned area,
+ * the tree structure is irregular.
+ *
+ * Rank 0 still queries Rank 1 for particle counts in the x,y,z = [0.5-1, 0-1, 0-1] half
+ * and vice versa, but the tree structure that rank 0 has and sends to Rank 1 differs
+ * from the regular grid that rank 1 has in this half.
+ */
+template<class I>
+void exchangeFocusIrregular(int myRank)
+{
+    std::vector<I>                   treeLeaves;
+    std::vector<int>                 peers;
+    std::vector<pair<TreeNodeIndex>> peerFocusIndices;
+
+    OctreeMaker<I> octreeMaker;
+    octreeMaker.divide();
+    if (myRank == 0)
+    {
+        // regular level-3 grid in the half cube with x = 0...0.5
+        for (int i = 0; i < 4; ++i)
+        {
+            octreeMaker.divide({i}, 1);
+            for (int j = 0; j < 8; ++j)
+            {
+                octreeMaker.divide({i,j}, 2);
+            }
+        }
+        // finer resolution at one location outside the regular grid
+        octreeMaker.divide(7).divide(7,0);
+        treeLeaves = octreeMaker.makeTree();
+
+        peers.push_back(1);
+        TreeNodeIndex peerStartIdx = std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4}))
+                                     - begin(treeLeaves);
+        peerFocusIndices.emplace_back(peerStartIdx, nNodes(treeLeaves));
+    }
+    else
+    {
+        // regular level-3 grid in the half cube with x = 0.5...1
+        for (int i = 4; i < 8; ++i)
+        {
+            octreeMaker.divide({i}, 1);
+            for (int j = 0; j < 8; ++j)
+            {
+                octreeMaker.divide({i,j}, 2);
+            }
+        }
+        // finer resolution at one location outside the regular grid
+        octreeMaker.divide(1).divide(1,6);
+        treeLeaves = octreeMaker.makeTree();
+
+        peers.push_back(0);
+        TreeNodeIndex peerEndIdx = std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4}))
+                                   - begin(treeLeaves);
+        peerFocusIndices.emplace_back(0, peerEndIdx);
+    }
+
+    std::vector<unsigned> counts(nNodes(treeLeaves), 1);
+
+    // 256 is the maximum possible size, the actual size of the incoming message is only 18
+    TreeNodeIndex numNodesInFocus = 256;
+    std::vector<I>        tmpLeaves(numNodesInFocus + 1);
+    std::vector<unsigned> tmpCounts(numNodesInFocus);
+
+    exchangeFocus(peers, peerFocusIndices, treeLeaves, counts, tmpLeaves, tmpCounts);
+
+    std::vector<unsigned> reference(nNodes(treeLeaves), 1);
+    TreeNodeIndex peerStartIdx, peerEndIdx;
+    if (myRank == 0)
+    {
+        peerStartIdx = std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4}))
+                       - begin(treeLeaves);
+        peerEndIdx = nNodes(treeLeaves);
+    }
+    else
+    {
+        peerStartIdx = 0;
+        peerEndIdx = std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4}))
+                     - begin(treeLeaves);
+    }
+
+    for (int i = peerStartIdx; i < peerEndIdx; ++i)
+    {
+        int level = treeLevel(treeLeaves[i+1] - treeLeaves[i]);
+        // the particle count per node outside the focus is 8^(3 - level-of-node)
+        unsigned numParticles = 1u << (3 * (3-level));
+        reference[i] = numParticles;
+    }
+
+    EXPECT_EQ(counts, reference);
+}
+
+TEST(FocusExchange, irregularTree)
+{
+    int rank = 0, nRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+
+    constexpr int thisExampleRanks = 2;
+
+    if (nRanks != thisExampleRanks)
+        throw std::runtime_error("this test needs 2 ranks\n");
+
+    exchangeFocusIrregular<unsigned>(rank);
+    exchangeFocusIrregular<uint64_t>(rank);
 }
