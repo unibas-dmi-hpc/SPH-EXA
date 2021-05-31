@@ -69,7 +69,7 @@ void countFocusParticles(TreeNodeIndex numNodes, const std::vector<I>& leaves, c
 template<class I>
 void exchangeFocus(const std::vector<int>& peerRanks, const std::vector<pair<TreeNodeIndex>>& exchangeIndices,
                    const std::vector<I>& focusLeaves, std::vector<unsigned>& focusCounts,
-                   std::vector<I>& tmpLeaves, std::vector<I>& tmpCounts)
+                   std::vector<I>& tmpLeaves, std::vector<unsigned>& tmpCounts)
 
 {
     std::vector<MPI_Request> sendRequests;
