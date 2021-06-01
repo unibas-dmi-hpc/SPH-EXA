@@ -28,6 +28,8 @@ add_executable(component_units ${UNIT_TESTS})
 
 target_include_directories(component_units PRIVATE ../../include)
 target_include_directories(component_units PRIVATE ../)
+#Todo: remove this
+target_include_directories(component_units PRIVATE ${MPI_CXX_INCLUDE_PATH})
 target_link_libraries(component_units PRIVATE gtest_main)
 add_test(NAME ComponentUnits COMMAND component_units)
 
