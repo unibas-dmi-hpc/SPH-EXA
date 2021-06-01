@@ -18,6 +18,13 @@ target_include_directories(treedomain PRIVATE ${MPI_CXX_INCLUDE_PATH})
 target_link_libraries(treedomain ${MPI_CXX_LIBRARIES} gtest_main)
 add_test(NAME GlobalDomainTreeIntegration COMMAND treedomain)
 
+add_executable(focus_tree focus_tree.cpp test_main.cpp)
+target_include_directories(focus_tree PRIVATE ../../include)
+target_include_directories(focus_tree PRIVATE ../)
+target_include_directories(focus_tree PRIVATE ${MPI_CXX_INCLUDE_PATH})
+target_link_libraries(focus_tree ${MPI_CXX_LIBRARIES} gtest_main)
+add_test(NAME FocusTreeIntegration COMMAND focus_tree)
+
 add_executable(haloexchange exchange.cpp test_main.cpp)
 target_include_directories(haloexchange PRIVATE ../../include)
 target_include_directories(haloexchange PRIVATE ${MPI_CXX_INCLUDE_PATH})

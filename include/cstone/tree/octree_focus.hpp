@@ -47,6 +47,7 @@
 #include "cstone/halos/boxoverlap.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
+#include "focus_exchange.hpp"
 #include "macs.hpp"
 #include "octree_internal.hpp"
 #include "traversal.hpp"
@@ -76,10 +77,10 @@ std::vector<pair<TreeNodeIndex>> findPeerFocusLeaves(gsl::span<const int> peers,
         KeyType peerSfcStart = domainTreeLeaves[assignment.firstNodeIdx(peer)];
         KeyType peerSfcEnd   = domainTreeLeaves[assignment.lastNodeIdx(peer)];
 
-        TreeNodeIndex firstFocusIdx = std::lower_bound(begin(focusTreeLeaves), end(focusTreeLeaves), peerSfcStart)
-                                     - begin(focusTreeLeaves);
-        TreeNodeIndex lastFocusIdx  = std::lower_bound(begin(focusTreeLeaves), end(focusTreeLeaves), peerSfcEnd)
-                                     - begin(focusTreeLeaves);
+        TreeNodeIndex firstFocusIdx = std::lower_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), peerSfcStart)
+                                     - focusTreeLeaves.begin();
+        TreeNodeIndex lastFocusIdx  = std::lower_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), peerSfcEnd)
+                                     - focusTreeLeaves.begin();
         ret.emplace_back(firstFocusIdx, lastFocusIdx);
     }
 
@@ -216,7 +217,7 @@ public:
 
         std::vector<KeyType>  tmpLeaves(tree_.numLeafNodes() + 1);
         std::vector<unsigned> tmpCounts(tree_.numLeafNodes());
-        exchangeFocus(peerRanks, peerFocusLeafIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
+        exchangeFocus<KeyType>(peerRanks, peerFocusLeafIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
 
         return converged;
     }
