@@ -1,0 +1,64 @@
+name: Build with CMake
+
+on: [push, pull_request]
+#  push:
+#    branches: [ develop ]
+#  pull_request:
+#    branches: [ develop ]
+
+env:
+  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
+  BUILD_TYPE: Release
+
+jobs:
+  build:
+    name: "Default"
+    runs-on: ${{ matrix.config.os }}
+    strategy:
+      matrix:
+        config:
+        - {
+            name:  "Ubuntu/20.04 & g++/9",
+            os:    "ubuntu-20.04",
+            cxx:   "g++-9",
+            cmake: "3.20.x",
+            mpi:   "OFF",
+            simd:  "OFF"
+          }
+    env:        
+        CXX: ${{ matrix.config.cxx }}
+        # CC: ${{ matrix.config.cc }}
+
+    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Check config
+      run: |
+        $CXX --version
+        cmake --version
+        cat /etc/os-release
+        
+    - name: Configure CMake
+      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+      working-directory: ${{github.workspace}}/domain
+      run: |
+        pwd
+        ls -la        
+        cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_COMPILER=${{env.CXX}}
+
+    - name: Build with CMake
+      working-directory: ${{github.workspace}}/domain
+      # Build your program with the given configuration
+      run: |
+        make component_units VERBOSE=1
+        # cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+
+#    - name: Test
+#      working-directory: ${{github.workspace}}/build
+      # Execute tests defined by the CMake configuration.  
+      # See https://cmake.org/cmake/help/latest/manual/ctest.1.html for more detail
+#      run: ctest -C ${{env.BUILD_TYPE}}
+      
