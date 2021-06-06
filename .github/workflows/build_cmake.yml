@@ -18,7 +18,7 @@ jobs:
       matrix:
         config:
         - {
-            name:  "Ubuntu/20.04 & g++/9",
+            name:  "Ubuntu & g++",
             os:    "ubuntu-20.04",
             cxx:   "g++-9",
             cmake: "3.20.x",
@@ -46,11 +46,13 @@ jobs:
       run: |
         pwd
         ls -la        
-        cmake -B ${{github.workspace}}/build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_COMPILER=${{env.CXX}}
+        cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_COMPILER=${{env.CXX}}
 
     - name: Build with CMake
-      working-directory: ${{github.workspace}}/domain
+      working-directory: ${{github.workspace}}/domain/build
       # Build your program with the given configuration
       run: |
+        pwd
+        ls -la        
         make component_units VERBOSE=1
         # cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
