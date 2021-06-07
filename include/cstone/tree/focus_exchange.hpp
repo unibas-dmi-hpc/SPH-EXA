@@ -96,8 +96,6 @@ bool exchangeConvergence(gsl::span<const int> peerRanks, int converged)
     MPI_Status status[sendRequests.size()];
     MPI_Waitall(int(sendRequests.size()), sendRequests.data(), status);
 
-    //if ( std::adjacent_find(peerConvergence.begin(), peerConvergence.end(), std::not_equal_to<>()) == peerConvergence.end()
-    //    && peerConvergence.)
     return converged && std::accumulate(peerConvergence.begin(), peerConvergence.end(), 0) == peerConvergence.size();
 }
 
@@ -107,6 +105,18 @@ void exchangeFocus(gsl::span<const int> peerRanks, gsl::span<const pair<TreeNode
                    gsl::span<KeyType> queryLeafBuffer, gsl::span<unsigned> queryCountBuffer)
 
 {
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if (peerRanks[0] == 1) // rank 0
+    //{
+    //    std::cout << "tree on rank 0" << std::endl;
+    //    for (int i = 0; i < nNodes(focusLeaves); ++i)
+    //    {
+    //        std::cout << std::oct << focusLeaves[i] << " " << std::dec << focusCounts[i] << std::endl;
+    //    }
+    //    std::cout << std::endl;
+    //}
+    //MPI_Barrier(MPI_COMM_WORLD);
+
     std::vector<MPI_Request> sendRequests;
     for (int rankIndex = 0; rankIndex < int(peerRanks.size()); ++rankIndex)
     {
@@ -130,6 +140,15 @@ void exchangeFocus(gsl::span<const int> peerRanks, gsl::span<const pair<TreeNode
         // The number of nodes to count is one less the number of received SFC keys
         TreeNodeIndex numNodes = numKeys - 1;
         countFocusParticles<KeyType>(focusLeaves, focusCounts, queryLeafBuffer.first(numKeys), queryCountBuffer.first(numNodes));
+
+        //if (peerRanks[0] == 0) // rank 1
+        //{
+        //    for (int i = 0; i < numNodes; ++i)
+        //    {
+        //        std::cout << std::oct << queryLeafBuffer[i] << " " << std::dec << " " << queryCountBuffer[i] << std::endl;
+        //    }
+        //    std::cout << std::dec << " end count send " << std::endl;
+        //}
 
         // send back answer with the counts for the requested nodes
         //mpiSendAsync(queryCountBuffer.data(), numNodes, receiveRank, 1, sendRequests);

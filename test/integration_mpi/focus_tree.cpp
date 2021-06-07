@@ -46,12 +46,21 @@ template<class KeyType, class T>
 FocusedOctree<KeyType> createReferenceFocusTree(const Box<T>& box, gsl::span<const KeyType> particleKeys, int myRank, int numRanks,
                                                 unsigned bucketSize, unsigned bucketSizeLocal, float theta)
 {
-    auto [tree, counts] = computeOctreeGlobal(particleKeys.data(), particleKeys.data() + particleKeys.size(), bucketSize);
+    auto [tree, counts] = computeOctree(particleKeys.data(), particleKeys.data() + particleKeys.size(), bucketSize);
 
     Octree<KeyType> domainTree;
     domainTree.update(begin(tree), end(tree));
 
     auto assignment = singleRangeSfcSplit(counts, numRanks);
+
+    //if (myRank == 0)
+    //{
+    //    std::cout << "total count " << std::accumulate(begin(counts), end(counts), 0u) << std::endl;
+    //    std::cout << "rank 0 count " << std::accumulate(&counts[assignment.firstNodeIdx(0)],
+    //                                                    &counts[assignment.lastNodeIdx(0)], 0u) << std::endl;
+    //    std::cout << "rank 1 count " << std::accumulate(&counts[assignment.firstNodeIdx(1)],
+    //                                                    &counts[assignment.lastNodeIdx(1)], 0u) << std::endl;
+    //}
 
     FocusedOctree<KeyType> focusTree(bucketSizeLocal, theta);
     while(!focusTree.update(box, particleKeys, tree[assignment.firstNodeIdx(myRank)], tree[assignment.lastNodeIdx(myRank)])) {}
@@ -114,13 +123,34 @@ void globalRandomGaussian(int thisRank, int numRanks)
     auto assignment = singleRangeSfcSplit(counts, numRanks);
     auto sendList   = createSendList<KeyType>(assignment, tree, particleKeys);
 
+    //if (thisRank == 0)
+    //{
+    //    std::cout << "dist total count " << std::accumulate(begin(counts), end(counts), 0u) << std::endl;
+    //    std::cout << "dist rank 0 count " << std::accumulate(&counts[assignment.firstNodeIdx(0)],
+    //                                                    &counts[assignment.lastNodeIdx(0)], 0u) << std::endl;
+    //    std::cout << "dist rank 1 count " << std::accumulate(&counts[assignment.firstNodeIdx(1)],
+    //                                                    &counts[assignment.lastNodeIdx(1)], 0u) << std::endl;
+    //    std::cout << "assignment rank 0 start - end " << std::oct <<  tree[assignment.firstNodeIdx(0)]
+    //              << " - " << tree[assignment.lastNodeIdx(0)] << std::dec << std::endl;
+    //    std::cout << "assignment rank 1 start - end " << std::oct <<  tree[assignment.firstNodeIdx(1)]
+    //              << " - " << tree[assignment.lastNodeIdx(1)] << std::dec << std::endl;
+    //}
+
     int nParticlesAssigned = assignment.totalCount(thisRank);
 
     reallocate(nParticlesAssigned, x, y, z);
     exchangeParticles<T>(sendList, Rank(thisRank), nParticlesAssigned, ordering.data(), x.data(), y.data(), z.data());
 
-    std::vector<KeyType> newCodes(nParticlesAssigned);
-    computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(newCodes), box);
+    reallocate(nParticlesAssigned, particleKeys);
+    computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(particleKeys), box);
+
+    // reorder arrays according to ascending SFC after exchangeParticles
+    reallocate(nParticlesAssigned, ordering);
+    std::iota(begin(ordering), end(ordering), 0);
+    sort_by_key(begin(particleKeys), end(particleKeys), begin(ordering));
+    reorder(ordering, x);
+    reorder(ordering, y);
+    reorder(ordering, z);
 
     Octree<KeyType> domainTree;
     domainTree.update(begin(tree), end(tree));
@@ -128,21 +158,24 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
     FocusedOctree<KeyType> focusTree(bucketSizeLocal, theta);
 
-    for (int i = 0; i < 10; ++i)
+    for (int i = 0; i < 2; ++i)
     {
-        bool converged = focusTree.updateGlobal(box, newCodes, thisRank, peers, assignment, tree);
-        bool peersConverged = exchangeConvergence(peers, converged);
-        if (thisRank == 0)
-        std::cout << i << ": " << nNodes(focusTree.treeLeaves()) << " conv " << converged << " peerConv " << peersConverged << std::endl;
+        bool converged = focusTree.updateGlobal(box, particleKeys, thisRank, peers, assignment, tree);
+        //bool peersConverged = exchangeConvergence(peers, converged);
+        //if (thisRank == 0)
+        //std::cout << i << ": " << nNodes(focusTree.treeLeaves()) << " conv " << converged << " peerConv " << peersConverged << std::endl;
     }
 
-    if (thisRank == 0)
-    {
-        for (int i = 0; i < focusTree.treeLeaves().size(); ++i)
-        {
-            std::cout << std::oct << focusTree.treeLeaves()[i] << " " << referenceFocusTree.treeLeaves()[i] << std::endl;
-        }
-    }
+    //if (thisRank == 0)
+    //{
+    //    for (int i = 0; i < referenceFocusTree.treeLeaves().size(); ++i)
+    //    {
+    //        if (i < focusTree.treeLeaves().size())
+    //            std::cout << std::oct << focusTree.treeLeaves()[i];
+
+    //        std::cout << " " << referenceFocusTree.treeLeaves()[i] << std::endl;
+    //    }
+    //}
 
     // the locally built reference tree should be identical to the tree build with distributed particles
     EXPECT_EQ(focusTree.treeLeaves(), referenceFocusTree.treeLeaves());
