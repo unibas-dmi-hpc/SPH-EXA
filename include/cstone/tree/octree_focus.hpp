@@ -55,9 +55,9 @@
 namespace cstone
 {
 
-/*! @brief determine indices in local focus tree to send out to peer ranks
+/*! @brief determine indices in the local focus tree to send out to peer ranks for counting requests
  *
- * @tparam KeyType          32- or  64-bit unsigned integer
+ * @tparam KeyType          32- or 64-bit unsigned integer
  * @param peers             list of peer ranks (for point-to-point communication)
  * @param assignment        assignment of the global SFC to ranks
  * @param domainTreeLeaves  tree leaves of the global tree in cornerstone format
@@ -67,11 +67,11 @@ namespace cstone
  *                          the last element. To describe n tree nodes, we need n+1 SFC keys.
  */
 template<class KeyType>
-std::vector<pair<TreeNodeIndex>> findPeerFocusLeaves(gsl::span<const int> peers, const SpaceCurveAssignment& assignment,
-                                                     gsl::span<const KeyType> domainTreeLeaves, gsl::span<const KeyType> focusTreeLeaves)
+std::vector<pair<TreeNodeIndex>> findRequestIndices(gsl::span<const int> peers, const SpaceCurveAssignment& assignment,
+                                                    gsl::span<const KeyType> domainTreeLeaves, gsl::span<const KeyType> focusTreeLeaves)
 {
-    std::vector<pair<TreeNodeIndex>> ret;
-    ret.reserve(peers.size());
+    std::vector<pair<TreeNodeIndex>> requestIndices;
+    requestIndices.reserve(peers.size());
     for (int peer : peers)
     {
         KeyType peerSfcStart = domainTreeLeaves[assignment.firstNodeIdx(peer)];
@@ -81,11 +81,49 @@ std::vector<pair<TreeNodeIndex>> findPeerFocusLeaves(gsl::span<const int> peers,
                                      - focusTreeLeaves.begin();
         TreeNodeIndex lastFocusIdx  = std::lower_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), peerSfcEnd)
                                      - focusTreeLeaves.begin();
-        ret.emplace_back(firstFocusIdx, lastFocusIdx);
+        requestIndices.emplace_back(firstFocusIdx, lastFocusIdx);
     }
 
-    return ret;
+    return requestIndices;
 }
+
+//template<class KeyType>
+//std::vector<pair<TreeNodeIndex>> findRequestIndices(int myRank, gsl::span<const int> peers, const SpaceCurveAssignment& assignment,
+//                                                    gsl::span<const KeyType> domainTreeLeaves, gsl::span<const KeyType> focusTreeLeaves)
+//{
+//    // the focus of the executing rank
+//    KeyType focusStart = domainTreeLeaves[assignment.firstNodeIdx(myRank)];
+//    KeyType focusEnd   = domainTreeLeaves[assignment.lastNodeIdx(myRank)];
+//    TreeNodeIndex firstFocusIdx = std::upper_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), focusStart)
+//                                      - focusTreeLeaves.begin() - 1;
+//    TreeNodeIndex lastFocusIdx = std::lower_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), focusEnd)
+//                                     - focusTreeLeaves.begin();
+//
+//    std::vector<pair<TreeNodeIndex>> requestIndices;
+//    requestIndices.reserve(peers.size());
+//
+//    for (int peer : peers)
+//    {
+//        KeyType peerSfcStart = domainTreeLeaves[assignment.firstNodeIdx(peer)];
+//        KeyType peerSfcEnd   = domainTreeLeaves[assignment.lastNodeIdx(peer)];
+//
+//        // If the exact peer start/end SFC keys do not exist in the local tree,
+//        // we expand the request in either direction, but...
+//        TreeNodeIndex firstRequestIdx = std::upper_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), peerSfcStart)
+//                                            - focusTreeLeaves.begin() - 1;
+//        TreeNodeIndex lastRequestIdx = std::lower_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), peerSfcEnd)
+//                                            - focusTreeLeaves.begin();
+//
+//        // ... we must not include any tree node in the request that overlaps with the focus of myRank,
+//        // because this would overwrite the local counts with the remote one for that node
+//        if (firstRequestIdx < firstFocusIdx && firstFocusIdx < lastRequestIdx) { lastRequestIdx = firstFocusIdx; }
+//        if (firstFocusIdx < firstRequestIdx && firstRequestIdx < lastFocusIdx) { firstRequestIdx = lastFocusIdx; }
+//
+//        requestIndices.emplace_back(firstRequestIdx, lastRequestIdx);
+//    }
+//
+//    return requestIndices;
+//}
 
 template<class KeyType>
 inline CUDA_HOST_DEVICE_FUN
@@ -179,7 +217,8 @@ public:
     template<class T>
     bool update(const Box<T>& box, gsl::span<const KeyType> particleKeys, KeyType focusStart, KeyType focusEnd)
     {
-        auto leaves = tree_.treeLeaves();
+        assert(std::is_sorted(particleKeys.begin(), particleKeys.end()));
+        gsl::span<const KeyType> leaves = tree_.treeLeaves();
 
         TreeNodeIndex firstFocusNode = std::upper_bound(leaves.begin(), leaves.end(), focusStart) - leaves.begin() - 1;
         TreeNodeIndex lastFocusNode  = std::lower_bound(leaves.begin(), leaves.end(), focusEnd) - leaves.begin();
@@ -213,11 +252,11 @@ public:
         update(box, particleKeys, globalTreeLeaves[assignment.firstNodeIdx(myRank)],
                globalTreeLeaves[assignment.lastNodeIdx(myRank)]);
 
-        auto peerFocusLeafIndices = findPeerFocusLeaves(peerRanks, assignment, globalTreeLeaves, tree_.treeLeaves());
+        auto requestIndices = findRequestIndices(peerRanks, assignment, globalTreeLeaves, tree_.treeLeaves());
 
         std::vector<KeyType>  tmpLeaves(tree_.numLeafNodes() + 1);
         std::vector<unsigned> tmpCounts(tree_.numLeafNodes());
-        exchangeFocus<KeyType>(peerRanks, peerFocusLeafIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
+        exchangeFocus<KeyType>(peerRanks, requestIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
 
         return converged;
     }
