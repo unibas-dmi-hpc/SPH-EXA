@@ -77,53 +77,15 @@ std::vector<pair<TreeNodeIndex>> findRequestIndices(gsl::span<const int> peers, 
         KeyType peerSfcStart = domainTreeLeaves[assignment.firstNodeIdx(peer)];
         KeyType peerSfcEnd   = domainTreeLeaves[assignment.lastNodeIdx(peer)];
 
-        TreeNodeIndex firstFocusIdx = std::lower_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), peerSfcStart)
+        TreeNodeIndex firstRequestIdx = std::upper_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), peerSfcStart)
+                                     - focusTreeLeaves.begin() - 1;
+        TreeNodeIndex lastRequestIdx  = std::lower_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), peerSfcEnd)
                                      - focusTreeLeaves.begin();
-        TreeNodeIndex lastFocusIdx  = std::lower_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), peerSfcEnd)
-                                     - focusTreeLeaves.begin();
-        requestIndices.emplace_back(firstFocusIdx, lastFocusIdx);
+        requestIndices.emplace_back(firstRequestIdx, lastRequestIdx);
     }
 
     return requestIndices;
 }
-
-//template<class KeyType>
-//std::vector<pair<TreeNodeIndex>> findRequestIndices(int myRank, gsl::span<const int> peers, const SpaceCurveAssignment& assignment,
-//                                                    gsl::span<const KeyType> domainTreeLeaves, gsl::span<const KeyType> focusTreeLeaves)
-//{
-//    // the focus of the executing rank
-//    KeyType focusStart = domainTreeLeaves[assignment.firstNodeIdx(myRank)];
-//    KeyType focusEnd   = domainTreeLeaves[assignment.lastNodeIdx(myRank)];
-//    TreeNodeIndex firstFocusIdx = std::upper_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), focusStart)
-//                                      - focusTreeLeaves.begin() - 1;
-//    TreeNodeIndex lastFocusIdx = std::lower_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), focusEnd)
-//                                     - focusTreeLeaves.begin();
-//
-//    std::vector<pair<TreeNodeIndex>> requestIndices;
-//    requestIndices.reserve(peers.size());
-//
-//    for (int peer : peers)
-//    {
-//        KeyType peerSfcStart = domainTreeLeaves[assignment.firstNodeIdx(peer)];
-//        KeyType peerSfcEnd   = domainTreeLeaves[assignment.lastNodeIdx(peer)];
-//
-//        // If the exact peer start/end SFC keys do not exist in the local tree,
-//        // we expand the request in either direction, but...
-//        TreeNodeIndex firstRequestIdx = std::upper_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), peerSfcStart)
-//                                            - focusTreeLeaves.begin() - 1;
-//        TreeNodeIndex lastRequestIdx = std::lower_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), peerSfcEnd)
-//                                            - focusTreeLeaves.begin();
-//
-//        // ... we must not include any tree node in the request that overlaps with the focus of myRank,
-//        // because this would overwrite the local counts with the remote one for that node
-//        if (firstRequestIdx < firstFocusIdx && firstFocusIdx < lastRequestIdx) { lastRequestIdx = firstFocusIdx; }
-//        if (firstFocusIdx < firstRequestIdx && firstRequestIdx < lastFocusIdx) { firstRequestIdx = lastFocusIdx; }
-//
-//        requestIndices.emplace_back(firstRequestIdx, lastRequestIdx);
-//    }
-//
-//    return requestIndices;
-//}
 
 template<class KeyType>
 inline CUDA_HOST_DEVICE_FUN
@@ -248,9 +210,16 @@ public:
     bool updateGlobal(const Box<T>& box, gsl::span<const KeyType> particleKeys, int myRank, gsl::span<const int> peerRanks,
                       const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves)
     {
-        bool converged =
-        update(box, particleKeys, globalTreeLeaves[assignment.firstNodeIdx(myRank)],
-               globalTreeLeaves[assignment.lastNodeIdx(myRank)]);
+        KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank)];
+        KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank)];
+
+        // The locally focused tree has to be able to exactly resolve the requested focus area,
+        // otherwise the particle count exchange with the peer ranks will overwrite local particle counts.
+        // This should only be needed the first time this function is called.
+        resolveFocusArea(focusStart, focusEnd);
+
+        // local update
+        bool converged = update(box, particleKeys, focusStart, focusEnd);
 
         auto requestIndices = findRequestIndices(peerRanks, assignment, globalTreeLeaves, tree_.treeLeaves());
 
@@ -264,6 +233,36 @@ public:
     gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
 
 private:
+
+    void resolveFocusArea(KeyType focusStart, KeyType focusEnd)
+    {
+        gsl::span<const KeyType> leaves = tree_.treeLeaves();
+
+        auto firstFocusIt = std::lower_bound(leaves.begin(), leaves.end(), focusStart);
+        auto lastFocusIt  = std::lower_bound(leaves.begin(), leaves.end(), focusEnd);
+
+        assert(lastFocusIt != leaves.end());
+
+        // test whether the local tree can resolve the focus range
+        if (*firstFocusIt != focusStart || *lastFocusIt != focusEnd)
+        {
+            // compute the minimal tree that can resolve the focus range
+            std::array<KeyType, 4> supportKeys{0, focusStart, focusEnd, nodeRange<KeyType>(0)};
+            auto minimalTree = computeSpanningTree(supportKeys.begin(), supportKeys.end());
+
+            // merge the missing nodes into the local focus tree
+            std::vector<KeyType> mergedTreeLeaves(leaves.size() + minimalTree.size());
+            std::copy(leaves.begin(), leaves.end(), mergedTreeLeaves.begin());
+            std::copy(minimalTree.begin(), minimalTree.end(), mergedTreeLeaves.begin() + leaves.size());
+            std::sort(mergedTreeLeaves.begin(), mergedTreeLeaves.end());
+
+            auto uniqueEnd = std::unique(mergedTreeLeaves.begin(), mergedTreeLeaves.end());
+            mergedTreeLeaves.erase(uniqueEnd, mergedTreeLeaves.end());
+
+            tree_.update(std::move(mergedTreeLeaves));
+        }
+    }
+
     //! @brief max number of particles per node in focus
     unsigned bucketSize_;
     //! @brief opening angle refinement criterion
