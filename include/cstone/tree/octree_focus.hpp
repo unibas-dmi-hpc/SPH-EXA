@@ -216,16 +216,25 @@ public:
         // The locally focused tree has to be able to exactly resolve the requested focus area,
         // otherwise the particle count exchange with the peer ranks will overwrite local particle counts.
         // This should only be needed the first time this function is called.
-        resolveFocusArea(focusStart, focusEnd);
+        if (resolveFocusArea(focusStart, focusEnd))
+        {
+            // need to update counts and macs prior to calling update()
+            macs_.resize(tree_.numTreeNodes());
+            markMac(tree_, box, focusStart, focusEnd, 1.0/(theta_*theta_), macs_.data());
 
-        // local update
+            counts_.resize(tree_.numLeafNodes());
+            // local node counts
+            gsl::span<const KeyType> leaves = tree_.treeLeaves();
+            computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), particleKeys.data(), particleKeys.data() + particleKeys.size(),
+                              std::numeric_limits<unsigned>::max(), true);
+
+            // peer ranks node counts
+            exchangePeerCounts(peerRanks, assignment, globalTreeLeaves);
+        }
+
         bool converged = update(box, particleKeys, focusStart, focusEnd);
 
-        auto requestIndices = findRequestIndices(peerRanks, assignment, globalTreeLeaves, tree_.treeLeaves());
-
-        std::vector<KeyType>  tmpLeaves(tree_.numLeafNodes() + 1);
-        std::vector<unsigned> tmpCounts(tree_.numLeafNodes());
-        exchangeFocus<KeyType>(peerRanks, requestIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
+        exchangePeerCounts(peerRanks, assignment, globalTreeLeaves);
 
         return converged;
     }
@@ -234,7 +243,17 @@ public:
 
 private:
 
-    void resolveFocusArea(KeyType focusStart, KeyType focusEnd)
+    void exchangePeerCounts(gsl::span<const int> peerRanks, const SpaceCurveAssignment& assignment,
+                            gsl::span<const KeyType> globalTreeLeaves)
+    {
+        auto requestIndices = findRequestIndices(peerRanks, assignment, globalTreeLeaves, tree_.treeLeaves());
+
+        std::vector<KeyType>  tmpLeaves(tree_.numLeafNodes() + 1);
+        std::vector<unsigned> tmpCounts(tree_.numLeafNodes());
+        exchangeFocus<KeyType>(peerRanks, requestIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
+    }
+
+    bool resolveFocusArea(KeyType focusStart, KeyType focusEnd)
     {
         gsl::span<const KeyType> leaves = tree_.treeLeaves();
 
@@ -244,7 +263,9 @@ private:
         assert(lastFocusIt != leaves.end());
 
         // test whether the local tree can resolve the focus range
-        if (*firstFocusIt != focusStart || *lastFocusIt != focusEnd)
+        bool addNodes = *firstFocusIt != focusStart || *lastFocusIt != focusEnd;
+
+        if (addNodes)
         {
             // compute the minimal tree that can resolve the focus range
             std::array<KeyType, 4> supportKeys{0, focusStart, focusEnd, nodeRange<KeyType>(0)};
@@ -261,6 +282,8 @@ private:
 
             tree_.update(std::move(mergedTreeLeaves));
         }
+
+        return addNodes;
     }
 
     //! @brief max number of particles per node in focus

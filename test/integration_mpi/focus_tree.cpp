@@ -144,17 +144,6 @@ void globalRandomGaussian(int thisRank, int numRanks)
         peersConverged = exchangeConvergence(peers, converged);
     }
 
-    //if (thisRank == 0)
-    //{
-    //    for (int i = 0; i < referenceFocusTree.treeLeaves().size(); ++i)
-    //    {
-    //        if (i < focusTree.treeLeaves().size())
-    //            std::cout << std::oct << focusTree.treeLeaves()[i];
-
-    //        std::cout << " " << referenceFocusTree.treeLeaves()[i] << std::endl;
-    //    }
-    //}
-
     // the locally built reference tree should be identical to the tree build with distributed particles
     EXPECT_EQ(focusTree.treeLeaves(), referenceFocusTree.treeLeaves());
 }
