@@ -86,6 +86,19 @@ std::vector<pair<TreeNodeIndex>> findRequestIndices(gsl::span<const int> peers, 
     return requestIndices;
 }
 
+std::vector<pair<TreeNodeIndex>> invertRanges(TreeNodeIndex first, gsl::span<const pair<TreeNodeIndex>> ranges, TreeNodeIndex last)
+{
+    std::vector<pair<TreeNodeIndex>> invertedRanges;
+    invertedRanges.emplace_back(first, ranges[0][0]);
+    for (size_t i = 1; i < ranges.size(); ++i)
+    {
+        invertedRanges.emplace_back(ranges[i-1][1], ranges[i][0]);
+    }
+    invertedRanges.emplace_back(ranges.back()[1], last);
+
+    return invertedRanges;
+}
+
 template<class KeyType>
 inline CUDA_HOST_DEVICE_FUN
 int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
@@ -209,7 +222,8 @@ public:
 
     template<class T>
     bool updateGlobal(const Box<T>& box, gsl::span<const KeyType> particleKeys, int myRank, gsl::span<const int> peerRanks,
-                      const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves)
+                      const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves,
+                      gsl::span<const unsigned> globalCounts)
     {
         KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank)];
         KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank)];
@@ -222,8 +236,47 @@ public:
         std::vector<unsigned> tmpCounts(tree_.numLeafNodes());
         exchangeFocus<KeyType>(peerRanks, requestIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
 
-        //TreeNodeIndex firstFocusNode = findNodeBelow(treeLeaves(), focusStart);
-        //TreeNodeIndex lastFocusNode  = findNodeAbove(treeLeaves(), focusEnd);
+        TreeNodeIndex firstFocusNode = findNodeBelow(treeLeaves(), focusStart);
+        TreeNodeIndex lastFocusNode  = findNodeAbove(treeLeaves(), focusEnd);
+
+        auto excludeIndices = requestIndices;
+        excludeIndices.emplace_back(firstFocusNode, lastFocusNode);
+        std::sort(excludeIndices.begin(), excludeIndices.end());
+
+        //if (myRank == 0)
+        //{
+        //    std::cout << "excl ";
+        //    for (auto p : excludeIndices)
+        //        std::cout << p[0] << "-" << p[1] << "  ";
+        //    std::cout << std::endl;
+        //}
+
+        auto includeIndices = invertRanges(0, excludeIndices, tree_.numLeafNodes());
+
+        //if (myRank == 0)
+        //{
+        //    std::cout << "incl ";
+        //    for (auto p : includeIndices)
+        //        std::cout << p[0] << "-" << p[1] << "  ";
+        //    std::cout << std::endl;
+        //}
+
+        for (auto incl : includeIndices)
+        {
+            for (TreeNodeIndex i = incl[0]; i < incl[1]; ++i)
+            {
+                KeyType startKey = tree_.treeLeaves()[i];
+                KeyType endKey   = tree_.treeLeaves()[i+1];
+
+                TreeNodeIndex globalStartIdx = findNodeBelow(globalTreeLeaves, startKey);
+                TreeNodeIndex globalEndIdx   = findNodeAbove(globalTreeLeaves, endKey);
+
+                assert(startKey == globalTreeLeaves[globalStartIdx]);
+                assert(endKey == globalTreeLeaves[globalEndIdx]);
+
+                counts_[i] = std::accumulate(globalCounts.begin() + globalStartIdx, globalCounts.begin() + globalEndIdx, 0u);
+            }
+        }
 
         return converged;
     }

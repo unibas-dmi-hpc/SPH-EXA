@@ -140,7 +140,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     bool peersConverged = false;
     while (!peersConverged)
     {
-        bool converged = focusTree.updateGlobal(box, particleKeys, thisRank, peers, assignment, tree);
+        bool converged = focusTree.updateGlobal(box, particleKeys, thisRank, peers, assignment, tree, counts);
         peersConverged = exchangeConvergence(peers, converged);
     }
 
