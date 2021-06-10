@@ -80,7 +80,7 @@ bool exchangeConvergence(gsl::span<const int> peerRanks, int converged)
         mpiSendAsync(&converged, 1, destinationRank, 3, sendRequests);
     }
 
-    int numMessages = peerRanks.size();
+    size_t numMessages = peerRanks.size();
     while (numMessages > 0)
     {
         MPI_Status status;
@@ -140,13 +140,15 @@ void exchangeFocus(gsl::span<const int> peerRanks, gsl::span<const pair<TreeNode
     while (numMessages > 0)
     {
         MPI_Status status;
-        MPI_Probe(MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &status);
+        mpiRecvSync(queryCountBuffer.data(), int(queryCountBuffer.size()), MPI_ANY_SOURCE, 1, &status);
         int receiveRank = status.MPI_SOURCE;
-        TreeNodeIndex receiveCount;
-        MPI_Get_count(&status, MpiType<unsigned>{}, &receiveCount);
 
         size_t receiveRankIndex = std::find(peerRanks.begin(), peerRanks.end(), receiveRank) - peerRanks.begin();
-        mpiRecvSync(focusCounts.data() + exchangeIndices[receiveRankIndex][0], receiveCount, receiveRank, 1, &status);
+
+        TreeNodeIndex receiveCount = exchangeIndices[receiveRankIndex][1] - exchangeIndices[receiveRankIndex][0];
+        std::transform(queryCountBuffer.begin(), queryCountBuffer.begin() + receiveCount,
+                       focusCounts.begin() + exchangeIndices[receiveRankIndex][0],
+                       focusCounts.begin() + exchangeIndices[receiveRankIndex][0], std::plus<unsigned>{});
 
         numMessages--;
     }
