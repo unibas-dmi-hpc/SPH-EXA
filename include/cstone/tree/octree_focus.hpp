@@ -179,14 +179,10 @@ public:
     template<class T>
     bool update(const Box<T>& box, gsl::span<const KeyType> particleKeys, KeyType focusStart, KeyType focusEnd)
     {
-        assert(std::is_sorted(particleKeys.begin(), particleKeys.end()));
         gsl::span<const KeyType> leaves = tree_.treeLeaves();
 
         TreeNodeIndex firstFocusNode = std::upper_bound(leaves.begin(), leaves.end(), focusStart) - leaves.begin() - 1;
         TreeNodeIndex lastFocusNode  = std::lower_bound(leaves.begin(), leaves.end(), focusEnd) - leaves.begin();
-
-        macs_.resize(tree_.numTreeNodes());
-        markMac(tree_, box, focusStart, focusEnd, 1.0/(theta_*theta_), macs_.data());
 
         std::vector<TreeNodeIndex> nodeOps(tree_.numLeafNodes() + 1);
         bool converged = rebalanceDecisionEssential(leaves.data(), tree_.numInternalNodes(), tree_.numLeafNodes(), tree_.leafParents(),
@@ -195,13 +191,8 @@ public:
         std::vector<KeyType> newLeaves;
         rebalanceTree(leaves, newLeaves, nodeOps.data());
         tree_.update(std::move(newLeaves));
-        // update view, because the old one is invalidated by tree_.update()
-        leaves = tree_.treeLeaves();
 
-        counts_.resize(tree_.numLeafNodes());
-        // local node counts
-        computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), particleKeys.data(), particleKeys.data() + particleKeys.size(),
-                          std::numeric_limits<unsigned>::max(), true);
+        updateLocalCriteria(box, particleKeys, focusStart, focusEnd);
 
         return converged;
     }
@@ -218,17 +209,7 @@ public:
         // This should only be needed the first time this function is called.
         if (resolveFocusArea(focusStart, focusEnd))
         {
-            // need to update counts and macs prior to calling update()
-            macs_.resize(tree_.numTreeNodes());
-            markMac(tree_, box, focusStart, focusEnd, 1.0/(theta_*theta_), macs_.data());
-
-            counts_.resize(tree_.numLeafNodes());
-            // local node counts
-            gsl::span<const KeyType> leaves = tree_.treeLeaves();
-            computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), particleKeys.data(), particleKeys.data() + particleKeys.size(),
-                              std::numeric_limits<unsigned>::max(), true);
-
-            // peer ranks node counts
+            updateLocalCriteria(box, particleKeys, focusStart, focusEnd);
             exchangePeerCounts(peerRanks, assignment, globalTreeLeaves);
         }
 
@@ -242,6 +223,21 @@ public:
     gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
 
 private:
+
+    template<class T>
+    void updateLocalCriteria(const Box<T>& box, gsl::span<const KeyType> particleKeys, KeyType focusStart, KeyType focusEnd)
+    {
+        assert(std::is_sorted(particleKeys.begin(), particleKeys.end()));
+        gsl::span<const KeyType> leaves = tree_.treeLeaves();
+
+        macs_.resize(tree_.numTreeNodes());
+        markMac(tree_, box, focusStart, focusEnd, 1.0/(theta_*theta_), macs_.data());
+
+        counts_.resize(tree_.numLeafNodes());
+        // local node counts
+        computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), particleKeys.data(), particleKeys.data() + particleKeys.size(),
+                          std::numeric_limits<unsigned>::max(), true);
+    }
 
     void exchangePeerCounts(gsl::span<const int> peerRanks, const SpaceCurveAssignment& assignment,
                             gsl::span<const KeyType> globalTreeLeaves)
