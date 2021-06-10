@@ -70,11 +70,11 @@ void exchangeFocus(int myRank)
     std::vector<unsigned> reference(nNodes(treeLeaves), myRank + 1);
     if (myRank == 0)
     {
-        std::fill(begin(reference) + 32, end(reference), 2);
+        std::fill(begin(reference) + 32, end(reference), 3);
     }
     else
     {
-        std::fill(begin(reference), begin(reference) + 32, 1);
+        std::fill(begin(reference), begin(reference) + 32, 3);
     }
 
     EXPECT_EQ(counts, reference);
@@ -184,7 +184,8 @@ void exchangeFocusIrregular(int myRank)
         int level = treeLevel(treeLeaves[i+1] - treeLeaves[i]);
         // the particle count per node outside the focus is 8^(3 - level-of-node)
         unsigned numParticles = 1u << (3 * (3-level));
-        reference[i] = numParticles;
+        // 1 was the particle value before the exchange
+        reference[i] = 1 + numParticles;
     }
 
     EXPECT_EQ(counts, reference);
