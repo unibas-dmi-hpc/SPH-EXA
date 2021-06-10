@@ -77,10 +77,9 @@ std::vector<pair<TreeNodeIndex>> findRequestIndices(gsl::span<const int> peers, 
         KeyType peerSfcStart = domainTreeLeaves[assignment.firstNodeIdx(peer)];
         KeyType peerSfcEnd   = domainTreeLeaves[assignment.lastNodeIdx(peer)];
 
-        TreeNodeIndex firstRequestIdx = std::upper_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), peerSfcStart)
-                                     - focusTreeLeaves.begin() - 1;
-        TreeNodeIndex lastRequestIdx  = std::lower_bound(focusTreeLeaves.begin(), focusTreeLeaves.end(), peerSfcEnd)
-                                     - focusTreeLeaves.begin();
+        TreeNodeIndex firstRequestIdx = findNodeBelow(focusTreeLeaves, peerSfcStart);
+        TreeNodeIndex lastRequestIdx  = findNodeAbove(focusTreeLeaves, peerSfcEnd);
+
         requestIndices.emplace_back(firstRequestIdx, lastRequestIdx);
     }
 
@@ -183,8 +182,8 @@ public:
 
         gsl::span<const KeyType> leaves = tree_.treeLeaves();
 
-        TreeNodeIndex firstFocusNode = std::upper_bound(leaves.begin(), leaves.end(), focusStart) - leaves.begin() - 1;
-        TreeNodeIndex lastFocusNode  = std::lower_bound(leaves.begin(), leaves.end(), focusEnd) - leaves.begin();
+        TreeNodeIndex firstFocusNode = findNodeBelow(leaves, focusStart);
+        TreeNodeIndex lastFocusNode  = findNodeAbove(leaves, focusEnd);
 
         std::vector<TreeNodeIndex> nodeOps(tree_.numLeafNodes() + 1);
         bool converged = rebalanceDecisionEssential(leaves.data(), tree_.numInternalNodes(), tree_.numLeafNodes(), tree_.leafParents(),
@@ -222,6 +221,9 @@ public:
         std::vector<KeyType>  tmpLeaves(tree_.numLeafNodes() + 1);
         std::vector<unsigned> tmpCounts(tree_.numLeafNodes());
         exchangeFocus<KeyType>(peerRanks, requestIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
+
+        //TreeNodeIndex firstFocusNode = findNodeBelow(treeLeaves(), focusStart);
+        //TreeNodeIndex lastFocusNode  = findNodeAbove(treeLeaves(), focusEnd);
 
         return converged;
     }

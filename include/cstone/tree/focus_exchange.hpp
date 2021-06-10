@@ -60,8 +60,8 @@ void countFocusParticles(gsl::span<const KeyType> leaves, gsl::span<const unsign
         KeyType startKey = requestLeaves[i];
         KeyType endKey   = requestLeaves[i+1];
 
-        TreeNodeIndex startIdx = std::lower_bound(leaves.begin(), leaves.end(), startKey) - leaves.begin();
-        TreeNodeIndex endIdx   = std::lower_bound(leaves.begin(), leaves.end(), endKey) - leaves.begin();
+        TreeNodeIndex startIdx = findNodeAbove(leaves, startKey);
+        TreeNodeIndex endIdx   = findNodeAbove(leaves, endKey);
 
         requestCounts[i] = std::accumulate(counts.begin() + startIdx, counts.begin() + endIdx, 0u);
     }
