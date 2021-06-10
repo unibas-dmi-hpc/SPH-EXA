@@ -66,7 +66,7 @@
 namespace cstone
 {
 
-//! @brief return first node that contains key
+//! @brief return first node that starts at or below (contains) key
 template<class KeyType>
 inline TreeNodeIndex findNodeBelow(gsl::span<const KeyType> tree, KeyType key)
 {
