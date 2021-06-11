@@ -26,34 +26,34 @@ jobs:
             cxx:   "g++-9",
             cmake: "3.20.x",
           }
-#         - {
-#             name:  "Ubuntu & g++-10",
-#             os:    "ubuntu-20.04",
-#             cxx:   "g++-10",
-#             # cmake: "3.20.x",
-#             # mpi:   "OFF",
-#             # simd:  "OFF"
-#           }
-#         - {
-#             name:  "Ubuntu & g++-11",
-#             os:    "ubuntu-20.04",
-#             cxx:   "g++-11",
-#           }
-#         - {
-#             name:  "Ubuntu & clang++-10",
-#             os:    "ubuntu-20.04",
-#             cxx:   "clang++-10",
-#           }
-#         - {
-#             name:  "Ubuntu & clang++-11",
-#             os:    "ubuntu-20.04",
-#             cxx:   "clang++-11",
-#           }
-#         - {
-#             name:  "Ubuntu & clang++-12",
-#             os:    "ubuntu-20.04",
-#             cxx:   "clang++-12",
-#           }
+        - {
+            name:  "Ubuntu & g++-10",
+            os:    "ubuntu-20.04",
+            cxx:   "g++-10",
+            # cmake: "3.20.x",
+            # mpi:   "OFF",
+            # simd:  "OFF"
+          }
+        - {
+            name:  "Ubuntu & g++-11",
+            os:    "ubuntu-20.04",
+            cxx:   "g++-11",
+          }
+        - {
+            name:  "Ubuntu & clang++-10",
+            os:    "ubuntu-20.04",
+            cxx:   "clang++-10",
+          }
+        - {
+            name:  "Ubuntu & clang++-11",
+            os:    "ubuntu-20.04",
+            cxx:   "clang++-11",
+          }
+        - {
+            name:  "Ubuntu & clang++-12",
+            os:    "ubuntu-20.04",
+            cxx:   "clang++-12",
+          }
     # TODO: mpi
     # TODO: cuda
     # }}}
