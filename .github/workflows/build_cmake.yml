@@ -1,6 +1,8 @@
-name: Build with CMake
+# author: jgp
+name: SPH-EXA unit testing
 
-on: [push, pull_request]
+on: push
+# on: [push, pull_request]
 #  push:
 #    branches: [ develop ]
 #  pull_request:
@@ -14,45 +16,120 @@ jobs:
   build:
     name: "Default"
     runs-on: ${{ matrix.config.os }}
+    # See: https://github.com/actions/virtual-environments/blob/main/images/
+    # linux/Ubuntu2004-README.md#cached-docker-images
+    # {{{ config matrix
+    #     See: https://docs.github.com/en/free-pro-team@latest/actions/
+    #     learn-github-actions/managing-complex-workflows#using-a-build-matrix
     strategy:
       matrix:
         config:
         - {
-            name:  "Ubuntu & g++",
+            name:  "Ubuntu & g++-9",
             os:    "ubuntu-20.04",
             cxx:   "g++-9",
             cmake: "3.20.x",
-            mpi:   "OFF",
-            simd:  "OFF"
           }
+#         - {
+#             name:  "Ubuntu & g++-10",
+#             os:    "ubuntu-20.04",
+#             cxx:   "g++-10",
+#             # cmake: "3.20.x",
+#             # mpi:   "OFF",
+#             # simd:  "OFF"
+#           }
+#         - {
+#             name:  "Ubuntu & g++-11",
+#             os:    "ubuntu-20.04",
+#             cxx:   "g++-11",
+#           }
+#         - {
+#             name:  "Ubuntu & clang++-10",
+#             os:    "ubuntu-20.04",
+#             cxx:   "clang++-10",
+#           }
+#         - {
+#             name:  "Ubuntu & clang++-11",
+#             os:    "ubuntu-20.04",
+#             cxx:   "clang++-11",
+#           }
+#         - {
+#             name:  "Ubuntu & clang++-12",
+#             os:    "ubuntu-20.04",
+#             cxx:   "clang++-12",
+#           }
+    # TODO: mpi
+    # TODO: cuda
+    # }}}
+    # {{{ env
     env:        
         CXX: ${{ matrix.config.cxx }}
+        TZ: Europe/Zurich
+        DEBIAN_FRONTEND: noninteractive
         # CC: ${{ matrix.config.cc }}
+    # }}}
 
-    # See: https://docs.github.com/en/free-pro-team@latest/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
     steps:
-    - uses: actions/checkout@v2
+      - uses: actions/checkout@v2
+        # with:
+        #   submodules: recursive
 
-    - name: Check config
-      run: |
-        $CXX --version
-        cmake --version
-        cat /etc/os-release
-        
-    - name: Configure CMake
-      # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
-      # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
-      working-directory: ${{github.workspace}}/domain
-      run: |
-        pwd
-        ls -la        
-        cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_COMPILER=${{env.CXX}}
+      - name: setup cmake
+        uses: jwlawson/actions-setup-cmake@v1.9
+        with:
+          cmake-version: ${{ matrix.config.cmake }}
 
-    - name: Build with CMake
-      working-directory: ${{github.workspace}}/domain/build
-      # Build your program with the given configuration
-      run: |
-        pwd
-        ls -la        
-        make component_units VERBOSE=1
-        # cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
+      - name: check config
+        run: |
+          dpkg -l
+          cat /etc/issue
+          $CXX --version
+          cmake --version
+
+      - name: install ReFrame
+        # if: ${{ startsWith(matrix.config.os, 'ubuntu') }}
+        run: |
+          sudo apt update
+          # sudo apt -y upgrade
+          sudo apt -y --no-install-recommends install python3-pip
+          python3 -m pip install -U pip
+          python3 -m pip install setuptools requests ReFrame-HPC
+          reframe --version
+
+      - name: build the unittest
+        run: |
+          # mkdir -p build_
+          # cd build_
+          cmake -B build_ -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_COMPILER=${{env.CXX}} 
+          cd build_
+          make -j component_units
+          find . -name component_units
+          # pwd
+          # ls -la
+
+      - name: run the unittest
+        working-directory: ${{github.workspace}}/build_
+        run: pwd
+          # ./domain/test/unit/component_units
+
+#
+#      - name: install ReFrame
+#     - uses: actions/checkout@v2
+# 
+#     - name: Configure CMake
+#       # Configure CMake in a 'build' subdirectory. `CMAKE_BUILD_TYPE` is only required if you are using a single-configuration generator such as make.
+#       # See https://cmake.org/cmake/help/latest/variable/CMAKE_BUILD_TYPE.html?highlight=cmake_build_type
+#       working-directory: ${{github.workspace}}/domain
+#       run: |
+#         pwd
+#         ls -la        
+#         cmake -B build -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} -DCMAKE_CXX_COMPILER=${{env.CXX}}
+# 
+#     - name: Build with CMake
+#       working-directory: ${{github.workspace}}/domain/build
+#       # Build your program with the given configuration
+#       run: |
+#         pwd
+#         ls -la        
+#         make component_units VERBOSE=1
+#         # cmake --build ${{github.workspace}}/build --config ${{env.BUILD_TYPE}}
