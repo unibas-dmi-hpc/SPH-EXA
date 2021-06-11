@@ -51,7 +51,7 @@ namespace cstone
 {
 
 template<class KeyType>
-void countFocusParticles(gsl::span<const KeyType> leaves, gsl::span<const unsigned> counts,
+void countRequestParticles(gsl::span<const KeyType> leaves, gsl::span<const unsigned> counts,
                          gsl::span<const KeyType> requestLeaves, gsl::span<unsigned> requestCounts)
 {
     #pragma omp parallel for
@@ -67,42 +67,10 @@ void countFocusParticles(gsl::span<const KeyType> leaves, gsl::span<const unsign
     }
 }
 
-bool exchangeConvergence(gsl::span<const int> peerRanks, int converged)
-{
-    if (peerRanks.empty()) { return converged; }
-
-    std::vector<int> peerConvergence(peerRanks.size());
-
-    std::vector<MPI_Request> sendRequests;
-    for (int rankIndex = 0; rankIndex < int(peerRanks.size()); ++rankIndex)
-    {
-        int destinationRank = peerRanks[rankIndex];
-        mpiSendAsync(&converged, 1, destinationRank, 3, sendRequests);
-    }
-
-    size_t numMessages = peerRanks.size();
-    while (numMessages > 0)
-    {
-        MPI_Status status;
-        MPI_Probe(MPI_ANY_SOURCE, 3, MPI_COMM_WORLD, &status);
-        int receiveRank = status.MPI_SOURCE;
-
-        size_t receiveRankIndex = std::find(peerRanks.begin(), peerRanks.end(), receiveRank) - peerRanks.begin();
-        mpiRecvSync(peerConvergence.data() + receiveRankIndex, 1, receiveRank, 3, &status);
-
-        numMessages--;
-    }
-
-    MPI_Status status[sendRequests.size()];
-    MPI_Waitall(int(sendRequests.size()), sendRequests.data(), status);
-
-    return converged && std::accumulate(peerConvergence.begin(), peerConvergence.end(), 0) == peerConvergence.size();
-}
-
 template<class KeyType>
-void exchangeFocus(gsl::span<const int> peerRanks, gsl::span<const pair<TreeNodeIndex>> exchangeIndices,
-                   gsl::span<const KeyType> focusLeaves, gsl::span<unsigned> focusCounts,
-                   gsl::span<KeyType> queryLeafBuffer, gsl::span<unsigned> queryCountBuffer)
+void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const pair<TreeNodeIndex>> exchangeIndices,
+                        gsl::span<const KeyType> focusLeaves, gsl::span<unsigned> focusCounts,
+                        gsl::span<KeyType> queryLeafBuffer, gsl::span<unsigned> queryCountBuffer)
 
 {
     std::vector<MPI_Request> sendRequests;
@@ -127,7 +95,7 @@ void exchangeFocus(gsl::span<const int> peerRanks, gsl::span<const pair<TreeNode
         // compute particle counts for the received node structure.
         // The number of nodes to count is one less the number of received SFC keys
         TreeNodeIndex numNodes = numKeys - 1;
-        countFocusParticles<KeyType>(focusLeaves, focusCounts, queryLeafBuffer.first(numKeys), queryCountBuffer.first(numNodes));
+        countRequestParticles<KeyType>(focusLeaves, focusCounts, queryLeafBuffer.first(numKeys), queryCountBuffer.first(numNodes));
 
         // send back answer with the counts for the requested nodes
         //mpiSendAsync(queryCountBuffer.data(), numNodes, receiveRank, 1, sendRequests);
