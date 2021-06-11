@@ -247,23 +247,7 @@ public:
         excludeIndices.emplace_back(firstFocusNode, lastFocusNode);
         std::sort(excludeIndices.begin(), excludeIndices.end());
 
-        //if (myRank == 0)
-        //{
-        //    std::cout << "excl ";
-        //    for (auto p : excludeIndices)
-        //        std::cout << p[0] << "-" << p[1] << "  ";
-        //    std::cout << std::endl;
-        //}
-
         auto includeIndices = invertRanges(0, excludeIndices, tree_.numLeafNodes());
-
-        //if (myRank == 0)
-        //{
-        //    std::cout << "incl ";
-        //    for (auto p : includeIndices)
-        //        std::cout << p[0] << "-" << p[1] << "  ";
-        //    std::cout << std::endl;
-        //}
 
         for (auto incl : includeIndices)
         {
