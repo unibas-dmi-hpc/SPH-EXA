@@ -35,11 +35,11 @@ jobs:
             # mpi:   "OFF",
             # simd:  "OFF"
           }
-        - {
-            name:  "Ubuntu & g++-11",
-            os:    "ubuntu-20.04",
-            cxx:   "g++-11",
-          }
+        # - {
+        #     name:  "Ubuntu & g++-11",
+        #     os:    "ubuntu-20.04",
+        #     cxx:   "g++-11",
+        #   }
         - {
             name:  "Ubuntu & clang++-10",
             os:    "ubuntu-20.04",
@@ -50,11 +50,13 @@ jobs:
             os:    "ubuntu-20.04",
             cxx:   "clang++-11",
           }
-        - {
-            name:  "Ubuntu & clang++-12",
-            os:    "ubuntu-20.04",
-            cxx:   "clang++-12",
-          }
+        # - {
+        #     name:  "Ubuntu & clang++-12",
+        #     os:    "ubuntu-20.04",
+        #     cxx:   "clang++-12",
+        #   }
+    # TODO: install g++-11
+    # TODO: libomp for clang++-12
     # TODO: mpi
     # TODO: cuda
     # }}}
