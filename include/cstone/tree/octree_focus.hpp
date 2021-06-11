@@ -89,12 +89,15 @@ std::vector<pair<TreeNodeIndex>> findRequestIndices(gsl::span<const int> peers, 
 std::vector<pair<TreeNodeIndex>> invertRanges(TreeNodeIndex first, gsl::span<const pair<TreeNodeIndex>> ranges, TreeNodeIndex last)
 {
     std::vector<pair<TreeNodeIndex>> invertedRanges;
-    invertedRanges.emplace_back(first, ranges[0][0]);
+    if (first < ranges[0][0]) { invertedRanges.emplace_back(first, ranges[0][0]); }
     for (size_t i = 1; i < ranges.size(); ++i)
     {
-        invertedRanges.emplace_back(ranges[i-1][1], ranges[i][0]);
+        if (ranges[i-1][1] < ranges[i][0])
+        {
+            invertedRanges.emplace_back(ranges[i-1][1], ranges[i][0]);
+        }
     }
-    invertedRanges.emplace_back(ranges.back()[1], last);
+    if (ranges.back()[1] < last) { invertedRanges.emplace_back(ranges.back()[1], last); }
 
     return invertedRanges;
 }
@@ -282,6 +285,8 @@ public:
     }
 
     gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
+
+    [[nodiscard]] gsl::span<const unsigned> leafCounts() const { return counts_; }
 
 private:
 
