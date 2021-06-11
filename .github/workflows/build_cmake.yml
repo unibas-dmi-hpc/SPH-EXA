@@ -81,8 +81,8 @@ jobs:
 
       - name: check config
         run: |
-          dpkg -l
-          cat /etc/issue
+          # dpkg -l
+          # cat /etc/issue
           $CXX --version
           cmake --version
 
