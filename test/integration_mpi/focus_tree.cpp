@@ -108,6 +108,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
     auto [tree, counts] =
         computeOctreeGlobal(particleKeys.data(), particleKeys.data() + numParticles, bucketSize);
 
+    EXPECT_EQ(numRanks * numParticles, std::accumulate(counts.begin(), counts.end(), 0lu));
+
     std::vector<int> ordering(numParticles);
     // particles are in Morton order
     std::iota(begin(ordering), end(ordering), 0);
@@ -144,8 +146,58 @@ void globalRandomGaussian(int thisRank, int numRanks)
         peersConverged = exchangeConvergence(peers, converged);
     }
 
+    //if (thisRank == 0)
+    //{
+    //    for (int r = 0; r < numRanks; ++r)
+    //    {
+    //        std::cout << "rank " << r << " "
+    //                  << std::oct << tree[assignment.firstNodeIdx(r)] << " - " << tree[assignment.lastNodeIdx(r)]
+    //                  << std::dec << std::endl;
+    //    }
+    //    std::cout << "peers ";
+    //    for (auto p : peers) std::cout << p << " ";
+    //    std::cout << std::endl;
+    //    std::cout << std::endl;
+    //}
+
+    //if (thisRank == 0 && focusTree.leafCounts() != referenceFocusTree.leafCounts())
+    //{
+    //    for (int i = 0; i < focusTree.leafCounts().size(); ++i)
+    //    {
+    //        unsigned a = focusTree.leafCounts()[i];
+    //        unsigned b = referenceFocusTree.leafCounts()[i];
+    //        if (a != b)
+    //        {
+    //            KeyType focusNodeStart = focusTree.treeLeaves()[i];
+    //            KeyType focusNodeEnd   = focusTree.treeLeaves()[i+1];
+
+    //            std::cout << std::endl;
+    //            std::cout << "local node " << i << " " << std::oct << focusNodeStart << " - " << focusNodeEnd << std::dec
+    //                      << " test " << a << " ref " << b << std::endl;
+
+    //            int globalNodeStart = findNodeBelow<KeyType>(tree, focusNodeStart);
+    //            int globalNodeEnd   = findNodeAbove<KeyType>(tree, focusNodeEnd);
+
+    //            std::cout << "global nodes " << std::oct << tree[globalNodeStart] << " - " << tree[globalNodeEnd]
+    //                      << " indices " << globalNodeStart << " - " << globalNodeEnd << std::dec
+    //                      << " count " << std::accumulate(&counts[globalNodeStart], &counts[globalNodeEnd], 0u)
+    //                      << std::dec << std::endl;
+
+    //            for (int j = globalNodeStart; j < globalNodeEnd; ++j)
+    //            {
+    //                std::cout << "  " << std::oct << tree[j] << " - " << tree[j+1] << std::dec << " count " << counts[j] << std::endl;
+    //            }
+
+    //            std::cout << std::endl;
+    //        }
+
+
+    //    }
+    //}
+
     // the locally built reference tree should be identical to the tree build with distributed particles
     EXPECT_EQ(focusTree.treeLeaves(), referenceFocusTree.treeLeaves());
+    EXPECT_EQ(focusTree.leafCounts(), referenceFocusTree.leafCounts());
 }
 
 TEST(GlobalTreeDomain, randomGaussian)
