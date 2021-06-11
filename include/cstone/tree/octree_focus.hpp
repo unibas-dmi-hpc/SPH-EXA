@@ -77,10 +77,11 @@ std::vector<pair<TreeNodeIndex>> findRequestIndices(gsl::span<const int> peers, 
         KeyType peerSfcStart = domainTreeLeaves[assignment.firstNodeIdx(peer)];
         KeyType peerSfcEnd   = domainTreeLeaves[assignment.lastNodeIdx(peer)];
 
-        TreeNodeIndex firstRequestIdx = findNodeBelow(focusTreeLeaves, peerSfcStart);
-        TreeNodeIndex lastRequestIdx  = findNodeAbove(focusTreeLeaves, peerSfcEnd);
+        TreeNodeIndex firstRequestIdx = findNodeAbove(focusTreeLeaves, peerSfcStart);
+        TreeNodeIndex lastRequestIdx  = findNodeBelow(focusTreeLeaves, peerSfcEnd);
 
-        requestIndices.emplace_back(firstRequestIdx, lastRequestIdx);
+        requestIndices.emplace_back(std::min(firstRequestIdx, lastRequestIdx),
+                                    std::max(firstRequestIdx, lastRequestIdx));
     }
 
     return requestIndices;
@@ -239,8 +240,8 @@ public:
         std::vector<unsigned> tmpCounts(tree_.numLeafNodes());
         exchangeFocus<KeyType>(peerRanks, requestIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
 
-        TreeNodeIndex firstFocusNode = findNodeBelow(treeLeaves(), focusStart);
-        TreeNodeIndex lastFocusNode  = findNodeAbove(treeLeaves(), focusEnd);
+        TreeNodeIndex firstFocusNode = findNodeAbove(treeLeaves(), focusStart);
+        TreeNodeIndex lastFocusNode  = findNodeBelow(treeLeaves(), focusEnd);
 
         auto excludeIndices = requestIndices;
         excludeIndices.emplace_back(firstFocusNode, lastFocusNode);
