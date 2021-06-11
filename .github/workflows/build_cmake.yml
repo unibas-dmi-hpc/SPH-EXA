@@ -117,7 +117,7 @@ jobs:
         env:
           MYEXE: domain/test/unit/component_units
         run: |
-          reframe -c reframe_unittest.py -r --keep-stage-files
+          reframe -c ../.github/workflows/reframe_unittest.py -r --keep-stage-files
       - name: check the unittest
         working-directory: ${{github.workspace}}/build_
         run: cat stage/generic/default/builtin/SPHEXA_Unit_Test/*
