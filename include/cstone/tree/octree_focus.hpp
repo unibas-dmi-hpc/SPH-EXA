@@ -47,7 +47,7 @@
 #include "cstone/halos/boxoverlap.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
-#include "focus_exchange.hpp"
+#include "exchange_focus.hpp"
 #include "macs.hpp"
 #include "octree_internal.hpp"
 #include "traversal.hpp"
@@ -238,7 +238,7 @@ public:
 
         std::vector<KeyType>  tmpLeaves(tree_.numLeafNodes() + 1);
         std::vector<unsigned> tmpCounts(tree_.numLeafNodes());
-        exchangeFocus<KeyType>(peerRanks, requestIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
+        exchangePeerCounts<KeyType>(peerRanks, requestIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
 
         TreeNodeIndex firstFocusNode = findNodeAbove(treeLeaves(), focusStart);
         TreeNodeIndex lastFocusNode  = findNodeBelow(treeLeaves(), focusEnd);

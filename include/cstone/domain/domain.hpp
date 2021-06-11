@@ -38,7 +38,7 @@
 #include "domain_traits.hpp"
 #include "domaindecomp_mpi.hpp"
 #include "cstone/halos/discovery.hpp"
-#include "cstone/halos/exchange.hpp"
+#include "cstone/halos/exchange_halos.hpp"
 #include "layout.hpp"
 #include "cstone/tree/octree_mpi.hpp"
 

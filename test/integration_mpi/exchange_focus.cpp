@@ -31,7 +31,7 @@
 
 #include <gtest/gtest.h>
 
-#include "cstone/tree/focus_exchange.hpp"
+#include "cstone/tree/exchange_focus.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 using namespace cstone;
@@ -65,7 +65,7 @@ void exchangeFocus(int myRank)
     std::vector<I>        tmpLeaves(32 + 1);
     std::vector<unsigned> tmpCounts(32);
 
-    exchangeFocus<I>(peers, peerFocusIndices, treeLeaves, counts, tmpLeaves, tmpCounts);
+    exchangePeerCounts<I>(peers, peerFocusIndices, treeLeaves, counts, tmpLeaves, tmpCounts);
 
     std::vector<unsigned> reference(nNodes(treeLeaves), myRank + 1);
     if (myRank == 0)
@@ -80,7 +80,7 @@ void exchangeFocus(int myRank)
     EXPECT_EQ(counts, reference);
 }
 
-TEST(FocusExchange, simpleTest)
+TEST(PeerExchange, simpleTest)
 {
     int rank = 0, nRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -162,7 +162,7 @@ void exchangeFocusIrregular(int myRank)
     std::vector<I>        tmpLeaves(numNodesInFocus + 1);
     std::vector<unsigned> tmpCounts(numNodesInFocus);
 
-    exchangeFocus<I>(peers, peerFocusIndices, treeLeaves, counts, tmpLeaves, tmpCounts);
+    exchangePeerCounts<I>(peers, peerFocusIndices, treeLeaves, counts, tmpLeaves, tmpCounts);
 
     std::vector<unsigned> reference(nNodes(treeLeaves), 1);
     TreeNodeIndex peerStartIdx, peerEndIdx;
@@ -191,7 +191,7 @@ void exchangeFocusIrregular(int myRank)
     EXPECT_EQ(counts, reference);
 }
 
-TEST(FocusExchange, irregularTree)
+TEST(PeerExchange, irregularTree)
 {
     int rank = 0, nRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
