@@ -115,7 +115,7 @@ jobs:
       - name: run the unittest
         working-directory: ${{github.workspace}}/build_
         env:
-          MYEXE: domain/test/unit/component_units
+          MYEXE: ${{ github.workspace }}/build_/domain/test/unit/component_units
         run: |
           reframe -c ../.github/workflows/reframe_unittest.py -r --keep-stage-files
       - name: check the unittest
