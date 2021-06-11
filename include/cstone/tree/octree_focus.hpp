@@ -87,8 +87,22 @@ std::vector<pair<TreeNodeIndex>> findRequestIndices(gsl::span<const int> peers, 
     return requestIndices;
 }
 
+/*! @brief calculates the complementary range of the input range
+ *
+ * Input:  |      ------    -----   --     ----     --  |
+ * Output: -------      ----     ---  -----    -----  ---
+ *         ^                                            ^
+ *         │                                            │
+ * @param first                                         │
+ * @param ranges   size >= 1, must be sorted            │
+ * @param last    ──────────────────────────────────────˩
+ * @return the output range that covers everything within [first:last]
+ *         that the input ranges did not cover
+ */
 std::vector<pair<TreeNodeIndex>> invertRanges(TreeNodeIndex first, gsl::span<const pair<TreeNodeIndex>> ranges, TreeNodeIndex last)
 {
+    assert(!ranges.empty() && std::is_sorted(ranges.begin(), ranges.end()));
+
     std::vector<pair<TreeNodeIndex>> invertedRanges;
     if (first < ranges[0][0]) { invertedRanges.emplace_back(first, ranges[0][0]); }
     for (size_t i = 1; i < ranges.size(); ++i)
@@ -103,6 +117,13 @@ std::vector<pair<TreeNodeIndex>> invertRanges(TreeNodeIndex first, gsl::span<con
     return invertedRanges;
 }
 
+/*! @brief combines the particle count and multipole criteria for rebalancing
+ *
+ * @return
+ *      - 0 if node to be merged
+ *      - 1 if node to stay unchanged
+ *      - 8 if node to be split
+ */
 template<class KeyType>
 inline CUDA_HOST_DEVICE_FUN
 int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
@@ -182,16 +203,44 @@ bool rebalanceDecisionEssential(const KeyType* cstoneTree, TreeNodeIndex numInte
     return converged;
 }
 
+/*! @brief a fully traversable octree with a local focus
+ *
+ * @tparam KeyType  32- or 64-bit unsigned integer
+ *
+ * The focus area can dynamically change.
+ */
 template<class KeyType>
 class FocusedOctree
 {
 public:
+
+    /*! @brief constructor
+     *
+     * @param bucketSize    maximum number of particles per leaf inside the focus area
+     * @param theta         opening angle parameter for a min-distance MAC criterion
+     *                      to determine the adaptive resolution from the focus area.
+     *                      In a converged FocusedOctree, each node outside the focus area
+     *                      passes the min-distance MAC with theta as the parameter w.r.t
+     *                      to any point inside the focus area.
+     */
     FocusedOctree(unsigned bucketSize, float theta)
         : bucketSize_(bucketSize), theta_(theta), counts_{bucketSize+1}, macs_{1}
     {
         tree_.update(std::vector<KeyType>{0, nodeRange<KeyType>(0)});
     }
 
+    /*! @brief perform a local update step
+     *
+     * @tparam T              float or double
+     * @param box             coordinate bounding box
+     * @param particleKeys    locally present particle SFC keys
+     * @param focusStart      start of the focus area
+     * @param focusEnd        end of the focus area
+     * @return                true if the tree structure did not change
+     *
+     * First rebalances the tree based on previous node counts and MAC evaluations,
+     * then updates the node counts and MACs.
+     */
     template<class T>
     bool update(const Box<T>& box, gsl::span<const KeyType> particleKeys, KeyType focusStart, KeyType focusEnd)
     {
@@ -224,6 +273,31 @@ public:
         return converged;
     }
 
+    /*! @brief perform a global update of the tree structure
+     *
+     * @tparam T                  float or double
+     * @param box                 global coordinate bounding box
+     * @param particleKeys        SFC keys of local particles
+     * @param myRank              ID of the executing rank
+     * @param peerRanks           list of ranks that have nodes that fail the MAC criterion
+     *                            w.r.t to the assigned SFC part of @p myRank
+     *                            use e.g. findPeersMac to calculate this list
+     * @param assignment          assignment of the global leaf tree to ranks
+     * @param globalTreeLeaves    global cornerstone leaf tree
+     * @param globalCounts        global cornerstone leaf tree counts
+     * @return                    true if the tree structure did not change
+     *
+     * The part of the SFC that is assigned to @p myRank is considered as the focus area.
+     *
+     * Preconditions:
+     *  - The provided assignment and globalTreeLeaves are the same as what was used for
+     *    calculating the list of peer ranks with findPeersMac. (not checked)
+     *  - All local particle keys must lie within the assignment of @p myRank (checked)
+     *    and must be sorted in ascending order (checked)
+     *
+     * The global update first performs a local update, then adds the node counts from peer ranks and the
+     * global tree on top.
+     */
     template<class T>
     bool updateGlobal(const Box<T>& box, gsl::span<const KeyType> particleKeys, int myRank, gsl::span<const int> peerRanks,
                       const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves,
@@ -231,6 +305,8 @@ public:
     {
         KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank)];
         KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank)];
+
+        assert(particleKeys.front() >= focusStart && particleKeys.back() < focusEnd);
 
         bool converged = update(box, particleKeys, focusStart, focusEnd);
 
@@ -243,34 +319,29 @@ public:
         TreeNodeIndex firstFocusNode = findNodeAbove(treeLeaves(), focusStart);
         TreeNodeIndex lastFocusNode  = findNodeBelow(treeLeaves(), focusEnd);
 
-        auto excludeIndices = requestIndices;
-        excludeIndices.emplace_back(firstFocusNode, lastFocusNode);
-        std::sort(excludeIndices.begin(), excludeIndices.end());
+        // particle counts for leaf nodes in treeLeaves() / leafCounts():
+        //   Node indices [firstFocusNode:lastFocusNode] got assigned counts from local particles.
+        //   Node index ranges listed in requestIndices got assigned counts from peer ranks.
+        //   All remaining indices need to get their counts from the global tree.
+        //   They are stored in globalCountIndices.
 
-        auto includeIndices = invertRanges(0, excludeIndices, tree_.numLeafNodes());
+        requestIndices.emplace_back(firstFocusNode, lastFocusNode);
+        std::sort(requestIndices.begin(), requestIndices.end());
+        auto globalCountIndices = invertRanges(0, requestIndices, tree_.numLeafNodes());
 
-        for (auto incl : includeIndices)
+        for (auto gp : globalCountIndices)
         {
-            for (TreeNodeIndex i = incl[0]; i < incl[1]; ++i)
-            {
-                KeyType startKey = tree_.treeLeaves()[i];
-                KeyType endKey   = tree_.treeLeaves()[i+1];
-
-                TreeNodeIndex globalStartIdx = findNodeBelow(globalTreeLeaves, startKey);
-                TreeNodeIndex globalEndIdx   = findNodeAbove(globalTreeLeaves, endKey);
-
-                assert(startKey == globalTreeLeaves[globalStartIdx]);
-                assert(endKey == globalTreeLeaves[globalEndIdx]);
-
-                counts_[i] = std::accumulate(globalCounts.begin() + globalStartIdx, globalCounts.begin() + globalEndIdx, 0u);
-            }
+            countRequestParticles(globalTreeLeaves, globalCounts, treeLeaves().subspan(gp[0], gp[1] - gp[0] + 1),
+                                  gsl::span<unsigned>(counts_.data() + gp[0], gp[1] - gp[0]));
         }
 
         return converged;
     }
 
+    //! @brief returns a view of the tree leaves
     gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
 
+    //! @brief returns a view of the leaf particle counts
     [[nodiscard]] gsl::span<const unsigned> leafCounts() const { return counts_; }
 
 private:
