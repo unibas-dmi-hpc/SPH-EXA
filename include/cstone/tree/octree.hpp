@@ -395,6 +395,13 @@ void rebalanceTree(const InputVector& tree, OutputVector& newTree, TreeNodeIndex
  * @param[inout] counts      the octree leaf node particle count
  * @param[in]    maxCount    if actual node counts are higher, they will be capped to @p maxCount
  * @return                   true if tree was not modified, false otherwise
+ *
+ * Remarks:
+ *    It is sensible to assume that the bucket size of the tree is much smaller than 2^32,
+ *    and thus it is ok to use 32-bit integers for the node counts, because if the node count
+ *    happens to be bigger than 2^32 for a node, this node will anyway be divided until the
+ *    node count is smaller than the bucket size. We just have to make sure to prevent overflow,
+ *    in MPI_Allreduce, therefore, maxCount should be set to 2^32/numRanks - 1 for distributed tree builds.
  */
 template<class KeyType>
 bool updateOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucketSize,
@@ -414,22 +421,7 @@ bool updateOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned b
     return converged;
 }
 
-/*! @brief compute an octree from SFC codes for a specified bucket size
-
- * @tparam KeyType         32- or 64-bit unsigned integer type
- * @param[in] codesStart   particle SFC code sequence start
- * @param[in] codesEnd     particle SFC code sequence end
- * @param[in] bucketSize   maximum number of particles/codes per octree leaf node
- * @param[in] maxCount     if actual node counts are higher, they will be capped to @p maxCount
- * @return                 the tree and the node counts
- *
- * Remarks:
- *    It is sensible to assume that the bucket size of the tree is much smaller than 2^32,
- *    and thus it is ok to use 32-bit integers for the node counts, because if the node count
- *    happens to be bigger than 2^32 for a node, this node will anyway be divided until the
- *    node count is smaller than the bucket size. We just have to make sure to prevent overflow,
- *    in MPI_Allreduce, therefore, maxCount should be set to 2^32/numRanks - 1 for distributed tree builds.
- */
+//! @brief convenience wrapper for updateOctree
 template<class KeyType>
 std::tuple<std::vector<KeyType>, std::vector<unsigned>>
 computeOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucketSize,

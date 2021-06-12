@@ -44,9 +44,9 @@ namespace cstone
  *
  * See documentation of updateOctree
  */
-template <class I>
-bool updateOctreeGlobal(const I *codesStart, const I *codesEnd, unsigned bucketSize,
-                        std::vector<I>& tree, std::vector<unsigned>& counts)
+template <class KeyType>
+bool updateOctreeGlobal(const KeyType *codesStart, const KeyType *codesEnd, unsigned bucketSize,
+                        std::vector<KeyType>& tree, std::vector<unsigned>& counts)
 {
     int nRanks;
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
@@ -62,9 +62,9 @@ bool updateOctreeGlobal(const I *codesStart, const I *codesEnd, unsigned bucketS
  *
  * See documentation of computeHaloRadii
  */
-template <class Tin, class Tout, class I, class IndexType>
-void computeHaloRadiiGlobal(const I *tree, int nNodes, const I *codesStart, const I *codesEnd, const IndexType *ordering,
-                            const Tin *input, Tout *output)
+template <class Tin, class Tout, class KeyType, class IndexType>
+void computeHaloRadiiGlobal(const KeyType *tree, int nNodes, const KeyType *codesStart, const KeyType *codesEnd,
+                            const IndexType *ordering, const Tin *input, Tout *output)
 {
     computeHaloRadii(tree, nNodes, codesStart, codesEnd, ordering, input, output);
     MPI_Allreduce(MPI_IN_PLACE, output, nNodes, MpiType<Tout>{}, MPI_MAX, MPI_COMM_WORLD);
