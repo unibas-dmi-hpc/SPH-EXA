@@ -48,6 +48,7 @@
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/tree/octree.hpp"
 #include "cstone/util/gsl-lite.hpp"
+#include "cstone/util/index_ranges.hpp"
 
 namespace cstone
 {
@@ -96,7 +97,7 @@ void countRequestParticles(gsl::span<const KeyType> leaves, gsl::span<const unsi
  *  3. receive answer with the counts for the requested keys
  */
 template<class KeyType>
-void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const pair<TreeNodeIndex>> exchangeIndices,
+void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPair<TreeNodeIndex>> exchangeIndices,
                         gsl::span<const KeyType> localLeaves, gsl::span<unsigned> localCounts,
                         gsl::span<KeyType> queryLeafBuffer, gsl::span<unsigned> queryCountBuffer)
 
@@ -106,8 +107,8 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const pair<Tre
     {
         int destinationRank = peerRanks[rankIndex];
         // +1 to include the upper key boundary for the last node
-        TreeNodeIndex sendCount = exchangeIndices[rankIndex][1] - exchangeIndices[rankIndex][0] + 1;
-        mpiSendAsync(localLeaves.data() + exchangeIndices[rankIndex][0], sendCount, destinationRank, 0, sendRequests);
+        TreeNodeIndex sendCount = exchangeIndices[rankIndex].count() + 1;
+        mpiSendAsync(localLeaves.data() + exchangeIndices[rankIndex].start(), sendCount, destinationRank, 0, sendRequests);
     }
 
     size_t numMessages = peerRanks.size();
@@ -140,8 +141,8 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const pair<Tre
         int receiveRank = status.MPI_SOURCE;
 
         size_t receiveRankIndex    = std::find(peerRanks.begin(), peerRanks.end(), receiveRank) - peerRanks.begin();
-        TreeNodeIndex receiveCount = exchangeIndices[receiveRankIndex][1] - exchangeIndices[receiveRankIndex][0];
-        mpiRecvSync(localCounts.data() + exchangeIndices[receiveRankIndex][0], receiveCount, receiveRank, 1, &status);
+        TreeNodeIndex receiveCount = exchangeIndices[receiveRankIndex].count();
+        mpiRecvSync(localCounts.data() + exchangeIndices[receiveRankIndex].start(), receiveCount, receiveRank, 1, &status);
 
         numMessages--;
     }

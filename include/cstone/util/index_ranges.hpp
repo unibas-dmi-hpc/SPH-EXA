@@ -32,12 +32,24 @@
 #pragma once
 
 #include <cassert>
+#include <tuple>
 #include <vector>
 
 #include "util.hpp"
 
 namespace cstone
 {
+
+template<class T>
+struct IndexPair : public std::tuple<T, T>
+{
+    IndexPair() = default;
+    IndexPair(T a, T b) : std::tuple<T, T>(a, b) {}
+
+    T start() const { return std::get<0>(*this); }
+    T end()   const { return std::get<1>(*this); }
+    T count() const { return end() - start(); }
+};
 
 /*! @brief Stores ranges of local particles to be sent to another rank
  *

@@ -49,7 +49,7 @@ void exchangeFocus(int myRank)
     std::vector<unsigned> counts(nNodes(treeLeaves), myRank + 1);
 
     std::vector<int>                 peers;
-    std::vector<pair<TreeNodeIndex>> peerFocusIndices;
+    std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices;
 
     if (myRank == 0)
     {
@@ -110,7 +110,7 @@ void exchangeFocusIrregular(int myRank)
 {
     std::vector<I>                   treeLeaves;
     std::vector<int>                 peers;
-    std::vector<pair<TreeNodeIndex>> peerFocusIndices;
+    std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices;
 
     OctreeMaker<I> octreeMaker;
     octreeMaker.divide();
