@@ -36,7 +36,6 @@
 
 #include "cstone/domain/domaindecomp.hpp"
 #include "cstone/tree/octree.hpp"
-#include "cstone/tree/octree_util.hpp"
 #include "coord_samples/random.hpp"
 
 using namespace cstone;
@@ -114,16 +113,16 @@ TEST(DomainDecomposition, AssignmentFindRank)
 
 /*! @brief test SendList creation from a SFC assignment
  *
- * This test creates an array with Morton codes and an
- * SFC assignment with Morton code ranges.
+ * This test creates an array with SFC keys and an
+ * SFC assignment with SFC keys ranges.
  * CreateSendList then translates the code ranges into indices
- * valid for the Morton code array.
+ * valid for the SFC key array.
  */
-template<class I>
+template<class KeyType>
 void createSendList()
 {
-    std::vector<I> tree {0,    2,    6,  8, 10};
-    std::vector<I> codes{0,0,1,3,4,5,6,6,9};
+    std::vector<KeyType> tree {0,    2,    6,  8, 10};
+    std::vector<KeyType> codes{0,0,1,3,4,5,6,6,9};
 
     int nRanks = 2;
     SpaceCurveAssignment assignment(nRanks);
@@ -131,7 +130,7 @@ void createSendList()
     assignment.addRange(Rank(1), 2, 4, 0);
 
     // note: codes input needs to be sorted
-    auto sendList = createSendList(assignment, tree, codes.data(), codes.data() + codes.size());
+    auto sendList = createSendList<KeyType>(assignment, tree, codes);
 
     EXPECT_EQ(sendList[0].totalCount(), 6);
     EXPECT_EQ(sendList[1].totalCount(), 3);
@@ -162,12 +161,12 @@ TEST(DomainDecomposition, createSendList)
  * 1. assignment contains nSplit SFC ranges which all contain about nParticles/nSplit +- bucketSize particles
  * 2. each particle appears in the SendList, i.e. each particle did get assigned to some rank
  */
-template<class I>
+template<class KeyType>
 void assignSendRandomData()
 {
     int nParticles = 1003;
     int bucketSize = 64;
-    RandomGaussianCoordinates<double, I> coords(nParticles, {-1,1});
+    RandomGaussianCoordinates<double, KeyType> coords(nParticles, {-1,1});
 
     auto [tree, counts] = computeOctree(coords.mortonCodes().data(),
                                                 coords.mortonCodes().data() + nParticles,
@@ -186,8 +185,7 @@ void assignSendRandomData()
         EXPECT_LE(rankCount, nParticles/nSplits + bucketSize);
     }
 
-    auto sendList = createSendList(assignment, tree, coords.mortonCodes().data(),
-                                   coords.mortonCodes().data() + nParticles);
+    auto sendList = createSendList<KeyType>(assignment, tree, coords.mortonCodes());
 
     int particleRecount = 0;
     for (auto& manifest : sendList)
@@ -206,7 +204,7 @@ TEST(DomainDecomposition, assignSendIntegration)
 
 /*! @brief Test that createSendBuffer can create the correct buffer from a source array
  *
- * @tparam I 32- or 64-bit unsigned integer
+ * @tparam KeyType 32- or 64-bit unsigned integer
  *
  * Precondition: an array, corresponding ordering and SendManifest with valid index ranges into
  *               the array
@@ -214,7 +212,7 @@ TEST(DomainDecomposition, assignSendIntegration)
  * Expected Result: createSendBuffer extracts the elements that fall within the index ranges in the
  *                  sendManifest into the output buffer
  */
-template<class I>
+template<class KeyType>
 void createSendBuffer()
 {
     int bufferSize = 64;

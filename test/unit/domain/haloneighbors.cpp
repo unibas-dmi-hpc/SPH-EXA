@@ -32,7 +32,7 @@
 #include "gtest/gtest.h"
 
 #include "cstone/findneighbors.hpp"
-#include "cstone/domain/halodiscovery.hpp"
+#include "cstone/halos/discovery.hpp"
 #include "cstone/domain/layout.hpp"
 
 #include "coord_samples/random.hpp"
@@ -68,16 +68,16 @@ static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, const 
     neighborsCount[i] = ngcount;
 }
 
-template<class I, class T>
-void extractParticles(const T* source, const I* sourceCodes, int nSourceCodes, const int* ordering,
+template<class KeyType, class T>
+void extractParticles(const T* source, const KeyType* sourceCodes, int nSourceCodes, const int* ordering,
                       const int* nodeList, const int* nodeOffsets, int nNodesPresent,
-                      const I* tree, T* destination)
+                      const KeyType* tree, T* destination)
 {
     for (int i = 0; i < nNodesPresent; ++i)
     {
         int nodeIndex = nodeList[i];
 
-        I nodeCode = tree[nodeIndex];
+        KeyType nodeCode = tree[nodeIndex];
         int offset    = nodeOffsets[i];
         int nodeCount = nodeOffsets[i+1] - offset;
 
@@ -89,7 +89,7 @@ void extractParticles(const T* source, const I* sourceCodes, int nSourceCodes, c
     }
 }
 
-template<class I, class T>
+template<class KeyType, class T>
 void testExtractParticles()
 {
     int nParticles = 20;
@@ -99,11 +99,11 @@ void testExtractParticles()
     std::vector<int> ordering(nParticles);
     std::iota(begin(ordering), end(ordering), 0);
 
-    std::vector<I> codes(nParticles);
+    std::vector<KeyType> codes(nParticles);
     std::iota(begin(codes), end(codes), 0);
 
     //                  0 1 2 3 4 5  6  7  8  9  10
-    std::vector<I> tree{0,2,4,6,8,10,12,14,16,18,20};
+    std::vector<KeyType> tree{0,2,4,6,8,10,12,14,16,18,20};
 
     std::vector<int> presentNodes{0,1,2,3,4, 7, 9};
     std::vector<int> nodeOffsets {0,2,4,6,8,10,12,14};
@@ -128,7 +128,7 @@ TEST(HaloNeighbors, extractParticlesTest)
 
 /*! @brief Test that halo discovery finds all nodes needed for a correct neighbor search
  *
- * @tparam I  unsigned 32- or 64-bit integer
+ * @tparam KeyType  unsigned 32- or 64-bit integer
  * @tparam T  float or double
  *
  * This test creates nParticles gaussian distributed particles in the box [-1,1]^3.
@@ -149,7 +149,7 @@ TEST(HaloNeighbors, extractParticlesTest)
  * enough asymmetry for some nodes (i+maxH_i) to overlap with j, while (j+maxH_j) does
  * not overlap with i.
  */
-template<class I, class T>
+template<class KeyType, class T>
 void randomGaussianHaloNeighbors(bool usePbc)
 {
     int nParticles = 1000;
@@ -159,9 +159,9 @@ void randomGaussianHaloNeighbors(bool usePbc)
     int nRanks     = 2;
 
     Box<T> box{-1, 1, -1, 1, -1, 1, usePbc, usePbc, usePbc};
-    RandomGaussianCoordinates<T, I> coords(nParticles, box);
+    RandomGaussianCoordinates<T, KeyType> coords(nParticles, box);
 
-    std::vector<I> codes = coords.mortonCodes();
+    std::vector<KeyType> codes = coords.mortonCodes();
 
     std::vector<T> x = coords.x();
     std::vector<T> y = coords.y();
@@ -198,7 +198,7 @@ void randomGaussianHaloNeighbors(bool usePbc)
     int myRank = 0;
     std::vector<pair<TreeNodeIndex>> haloPairs;
 
-    findHalos(tree, hNode, box, 0, assignment.lastNodeIdx(myRank), haloPairs);
+    findHalos<KeyType, T>(tree, hNode, box, 0, assignment.lastNodeIdx(myRank), haloPairs);
 
     // group outgoing and incoming halo node indices by destination/source rank
     std::vector<std::vector<TreeNodeIndex>> incomingHaloNodes;
@@ -226,7 +226,7 @@ void randomGaussianHaloNeighbors(bool usePbc)
     std::vector<T> yl(nParticlesExtracted);
     std::vector<T> zl(nParticlesExtracted);
     std::vector<T> hl(nParticlesExtracted);
-    std::vector<I> codesl(nParticlesExtracted);
+    std::vector<KeyType> codesl(nParticlesExtracted);
 
     extractParticles(codes.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(), presentNodes.size(),
                      tree.data(), codesl.data());
@@ -248,7 +248,7 @@ void randomGaussianHaloNeighbors(bool usePbc)
 
     for (int i = newParticleStart; i < newParticleEnd; ++i)
     {
-        I code = codesl[i];
+        KeyType code = codesl[i];
         int iOrig = std::lower_bound(begin(codes), end(codes), code) - begin(codes);
         EXPECT_EQ(code, codes[iOrig]);
 
