@@ -37,10 +37,10 @@ namespace detail
 {
 
 //! @brief count leading zeros, does not handle an input of 0
-[[maybe_unused]] static int clz32(uint32_t x)
+constexpr int clz32(uint32_t x)
 {
-    static const int debruijn32[32] = {0, 31, 9, 30, 3, 8,  13, 29, 2,  5,  7,  21, 12, 24, 28, 19,
-                                       1, 10, 4, 14, 6, 22, 25, 20, 11, 15, 23, 26, 16, 27, 17, 18};
+    constexpr int debruijn32[32] = {0, 31, 9, 30, 3, 8,  13, 29, 2,  5,  7,  21, 12, 24, 28, 19,
+                                    1, 10, 4, 14, 6, 22, 25, 20, 11, 15, 23, 26, 16, 27, 17, 18};
     x |= x >> 1u;
     x |= x >> 2u;
     x |= x >> 4u;
@@ -51,11 +51,11 @@ namespace detail
 }
 
 //! @brief count leading zeros, does not handle an input of 0
-[[maybe_unused]] static int clz64(uint64_t x)
+constexpr int clz64(uint64_t x)
 {
-    static const int debruijn64[64] = {0,  47, 1,  56, 48, 27, 2,  60, 57, 49, 41, 37, 28, 16, 3,  61, 54, 58, 35, 52, 50, 42,
-                                       21, 44, 38, 32, 29, 23, 17, 11, 4,  62, 46, 55, 26, 59, 40, 36, 15, 53, 34, 51, 20, 43,
-                                       31, 22, 10, 45, 25, 39, 14, 33, 19, 30, 9,  24, 13, 18, 8,  12, 7,  6,  5,  63};
+    constexpr int debruijn64[64] = {0,  47, 1,  56, 48, 27, 2,  60, 57, 49, 41, 37, 28, 16, 3,  61, 54, 58, 35, 52, 50, 42,
+                                    21, 44, 38, 32, 29, 23, 17, 11, 4,  62, 46, 55, 26, 59, 40, 36, 15, 53, 34, 51, 20, 43,
+                                    31, 22, 10, 45, 25, 39, 14, 33, 19, 30, 9,  24, 13, 18, 8,  12, 7,  6,  5,  63};
 
     x |= x >> 1u;
     x |= x >> 2u;
@@ -78,7 +78,7 @@ namespace detail
  *            for an input value of 0
  */
 CUDA_HOST_DEVICE_FUN
-inline int countLeadingZeros(uint32_t x)
+constexpr int countLeadingZeros(uint32_t x)
 {
 #ifdef __CUDA_ARCH__
     return __clz(x);
@@ -101,7 +101,7 @@ inline int countLeadingZeros(uint32_t x)
 }
 
 CUDA_HOST_DEVICE_FUN
-inline int countLeadingZeros(uint64_t x)
+constexpr int countLeadingZeros(uint64_t x)
 {
 #ifdef __CUDA_ARCH__
     return __clzll(x);

@@ -36,22 +36,6 @@
 
 using namespace cstone;
 
-template<class I>
-void pbcAdjust()
-{
-    constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
-    EXPECT_EQ(1,          pbcAdjust<maxCoord>(1));
-    EXPECT_EQ(maxCoord-1, pbcAdjust<maxCoord>(-1));
-    EXPECT_EQ(0,          pbcAdjust<maxCoord>(maxCoord));
-    EXPECT_EQ(maxCoord-1, pbcAdjust<maxCoord>(-maxCoord-1));
-    EXPECT_EQ(2,          pbcAdjust<maxCoord>(4*maxCoord + 2));
-}
-
-TEST(BoxOverlap, pbcAdjust)
-{
-    pbcAdjust<unsigned>();
-    pbcAdjust<uint64_t>();
-}
 
 TEST(BoxOverlap, overlapRange)
 {
@@ -156,6 +140,24 @@ TEST(BoxOverlap, pbcOverlaps)
     pbcOverlaps<uint64_t>();
 }
 
+template<class I>
+void makeIBox()
+{
+    int maxCoord = I(1) << maxTreeLevel<I>{};
+    {
+        I nodeStart = nodeRange<I>(0) - 1;
+        I nodeEnd   = nodeRange<I>(0);
+        IBox ibox   = makeIBox(nodeStart, nodeEnd);
+        IBox refBox{maxCoord-1, maxCoord};
+        EXPECT_EQ(ibox, refBox);
+    }
+}
+
+TEST(BoxOverlap, makeIBox)
+{
+    makeIBox<unsigned>();
+    makeIBox<uint64_t>();
+}
 
 //! @brief check halo box ranges in all spatial dimensions
 template<class I>
