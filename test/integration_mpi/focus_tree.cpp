@@ -36,7 +36,7 @@
 #include "cstone/tree/octree_mpi.hpp"
 #include "cstone/domain/domaindecomp_mpi.hpp"
 #include "cstone/domain/peers.hpp"
-#include "cstone/tree/octree_focus.hpp"
+#include "cstone/tree/octree_focus_mpi.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 #include "coord_samples/random.hpp"
