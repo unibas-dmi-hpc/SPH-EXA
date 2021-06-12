@@ -33,7 +33,7 @@
 #include <iostream>
 #include <numeric>
 
-#include "cstone/domain/halodiscovery.hpp"
+#include "cstone/halos/discovery.hpp"
 #include "cstone/domain/domaindecomp.hpp"
 #include "cstone/halos/btreetraversal.hpp"
 #include "cstone/tree/octree.hpp"
@@ -43,11 +43,11 @@
 
 using namespace cstone;
 
-template<class I>
-std::tuple<std::vector<I>, std::vector<unsigned>>
-build_tree(const I* firstCode, const I* lastCode, unsigned bucketSize)
+template<class KeyType>
+std::tuple<std::vector<KeyType>, std::vector<unsigned>>
+build_tree(const KeyType* firstCode, const KeyType* lastCode, unsigned bucketSize)
 {
-    std::vector<I> tree;
+    std::vector<KeyType> tree;
     std::vector<unsigned> counts;
 
     auto tp0 = std::chrono::high_resolution_clock::now();
@@ -72,17 +72,18 @@ build_tree(const I* firstCode, const I* lastCode, unsigned bucketSize)
     return std::make_tuple(std::move(tree), std::move(counts));
 }
 
-template<class I>
-void halo_discovery(Box<double> box, const std::vector<I>& tree, const std::vector<unsigned>& counts)
+template<class KeyType>
+void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std::vector<unsigned>& counts)
 {
     int nSplits = 4;
-    SpaceCurveAssignment<I> assignment = singleRangeSfcSplit(tree, counts, nSplits);
+    SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, nSplits);
     std::vector<float> haloRadii(nNodes(tree), 0.01);
 
-    std::vector<pair<int>> haloPairs;
+    std::vector<pair<TreeNodeIndex>> haloPairs;
     int doSplit = 0;
     auto tp0  = std::chrono::high_resolution_clock::now();
-    findHalos(tree, haloRadii, box, assignment, doSplit, haloPairs);
+    TreeNodeIndex upperNode = assignment.lastNodeIdx(doSplit);
+    findHalos<KeyType, float>(tree, haloRadii, box, 0, upperNode, haloPairs);
     auto tp1  = std::chrono::high_resolution_clock::now();
 
     double t2 = std::chrono::duration<double>(tp1 - tp0).count();
