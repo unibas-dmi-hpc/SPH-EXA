@@ -48,7 +48,6 @@
 #include "cstone/util/gsl-lite.hpp"
 #include "cstone/util/index_ranges.hpp"
 
-#include "exchange_focus.hpp"
 #include "macs.hpp"
 #include "octree_internal.hpp"
 #include "traversal.hpp"
@@ -208,14 +207,48 @@ bool rebalanceDecisionEssential(const KeyType* cstoneTree, TreeNodeIndex numInte
     return converged;
 }
 
+struct NoPeerExchange
+{
+    template<class KeyType>
+    void operator()(gsl::span<const int>, gsl::span<const IndexPair<TreeNodeIndex>>,
+                    gsl::span<const KeyType>, gsl::span<unsigned>,
+                    gsl::span<KeyType>, gsl::span<unsigned>)
+    {
+        throw std::runtime_error("FocusTree without MPI communication cannot perform a global update\n");
+    }
+};
+
+namespace focused_octree_detail
+{
+    struct NoCommTag {};
+}
+
+template<class, class = void>
+struct ExchangePeerCounts
+{};
+
+template<class CommunicationType>
+struct ExchangePeerCounts<CommunicationType, std::enable_if_t<std::is_same_v<focused_octree_detail::NoCommTag, CommunicationType>>>
+{
+    using type = NoPeerExchange;
+};
+
+template<class CommunicationType>
+using ExchangePeerCounts_t = typename ExchangePeerCounts<CommunicationType>::type;
+
+
 /*! @brief a fully traversable octree with a local focus
  *
- * @tparam KeyType  32- or 64-bit unsigned integer
+ * @tparam KeyType             32- or 64-bit unsigned integer
+ * @tparam CommunicationType   NoCommTag or MpiCommTag to enable updateGlobal
+ *
+ * This class is not intended for direct use. Instead use the type aliases
+ * FocusedOctreeSingleNode or FocusedOctree.
  *
  * The focus area can dynamically change.
  */
-template<class KeyType>
-class FocusedOctree
+template<class KeyType, class CommunicationType>
+class FocusedOctreeImpl
 {
 public:
 
@@ -228,7 +261,7 @@ public:
      *                      passes the min-distance MAC with theta as the parameter w.r.t
      *                      to any point inside the focus area.
      */
-    FocusedOctree(unsigned bucketSize, float theta)
+    FocusedOctreeImpl(unsigned bucketSize, float theta)
         : bucketSize_(bucketSize), theta_(theta), counts_{bucketSize+1}, macs_{1}
     {
         tree_.update(std::vector<KeyType>{0, nodeRange<KeyType>(0)});
@@ -319,7 +352,8 @@ public:
 
         std::vector<KeyType>  tmpLeaves(tree_.numLeafNodes() + 1);
         std::vector<unsigned> tmpCounts(tree_.numLeafNodes());
-        exchangePeerCounts<KeyType>(peerRanks, requestIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
+        ExchangePeerCounts_t<CommunicationType>{}.template operator()<KeyType>
+            (peerRanks, requestIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
 
         TreeNodeIndex firstFocusNode = findNodeAbove(treeLeaves(), focusStart);
         TreeNodeIndex lastFocusNode  = findNodeBelow(treeLeaves(), focusEnd);
@@ -363,5 +397,9 @@ private:
     //! @brief mac evaluation result relative to focus area (pass or fail)
     std::vector<char> macs_;
 };
+
+//! @brief Focused octree type for use without MPI (e.g. in unit tests)
+template<class KeyType>
+using FocusedOctreeSingleNode = FocusedOctreeImpl<KeyType, focused_octree_detail::NoCommTag>;
 
 } // namespace cstone

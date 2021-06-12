@@ -135,7 +135,7 @@ TEST(OctreeEssential, rebalanceDecision)
 }
 
 template<class KeyType>
-TreeNodeIndex numNodesInRange(const FocusedOctree<KeyType>& tree, KeyType a, KeyType b)
+TreeNodeIndex numNodesInRange(const FocusedOctreeSingleNode<KeyType>& tree, KeyType a, KeyType b)
 {
     auto csFocus = tree.treeLeaves();
 
@@ -159,7 +159,7 @@ void computeEssentialTree()
 
     unsigned bucketSize = 16;
     float theta         = 1.0;
-    FocusedOctree<KeyType> tree(bucketSize, theta);
+    FocusedOctreeSingleNode<KeyType> tree(bucketSize, theta);
 
     KeyType focusStart = 1;
     KeyType focusEnd   = pad(KeyType(1), 3);
