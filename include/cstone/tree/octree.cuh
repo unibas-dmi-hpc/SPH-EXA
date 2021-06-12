@@ -42,20 +42,19 @@
 #include <cuda.h>
 
 #include <thrust/device_vector.h>
-#include <thrust/reduce.h>
 #include <thrust/scan.h>
 
 #include "cstone/cuda/errorcheck.cuh"
-#include "cstone/util.hpp"
+#include "cstone/util/util.hpp"
 #include "octree.hpp"
 
 namespace cstone
 {
 
 //! @brief see computeNodeCounts
-template<class I>
-__global__ void computeNodeCountsKernel(const I* tree, unsigned* counts, TreeNodeIndex nNodes, const I* codesStart,
-                                        const I* codesEnd, unsigned maxCount)
+template<class KeyType>
+__global__ void computeNodeCountsKernel(const KeyType* tree, unsigned* counts, TreeNodeIndex nNodes, const KeyType* codesStart,
+                                        const KeyType* codesEnd, unsigned maxCount)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid < nNodes)
@@ -65,9 +64,9 @@ __global__ void computeNodeCountsKernel(const I* tree, unsigned* counts, TreeNod
 }
 
 //! @brief see updateNodeCounts
-template<class I>
-__global__ void updateNodeCountsKernel(const I* tree, unsigned* counts, TreeNodeIndex nNodes, const I* codesStart,
-                                       const I* codesEnd, unsigned maxCount)
+template<class KeyType>
+__global__ void updateNodeCountsKernel(const KeyType* tree, unsigned* counts, TreeNodeIndex nNodes, const KeyType* codesStart,
+                                       const KeyType* codesEnd, unsigned maxCount)
 {
     extern __shared__ unsigned guesses[];
 
@@ -92,8 +91,8 @@ __global__ void updateNodeCountsKernel(const I* tree, unsigned* counts, TreeNode
 __device__ TreeNodeIndex populatedNodes[2];
 
 //! @brief compute first and last non-empty nodes in the tree
-template<class I>
-__global__ void findPopulatedNodes(const I* tree, TreeNodeIndex nNodes, const I* codesStart, const I* codesEnd)
+template<class KeyType>
+__global__ void findPopulatedNodes(const KeyType* tree, TreeNodeIndex nNodes, const KeyType* codesStart, const KeyType* codesEnd)
 {
     if (threadIdx.x == 0 && codesStart != codesEnd)
     {
@@ -104,7 +103,7 @@ __global__ void findPopulatedNodes(const I* tree, TreeNodeIndex nNodes, const I*
 
 /*! @brief count number of particles in each octree node
  *
- * @tparam I                32- or 64-bit unsigned integer type
+ * @tparam KeyType          32- or 64-bit unsigned integer type
  * @param[in]  tree         octree nodes given as Morton codes of length @a nNodes+1
  *                          needs to satisfy the octree invariants
  * @param[out] counts       output particle counts per node, length = @a nNodes
@@ -114,9 +113,9 @@ __global__ void findPopulatedNodes(const I* tree, TreeNodeIndex nNodes, const I*
  * @param[in]  maxCount     maximum particle count per node to store, this is used
  *                          to prevent overflow in MPI_Allreduce
  */
-template<class I>
-void computeNodeCountsGpu(const I* tree, unsigned* counts, TreeNodeIndex nNodes, const I* codesStart,
-                          const I* codesEnd, unsigned maxCount, bool useCountsAsGuess = false)
+template<class KeyType>
+void computeNodeCountsGpu(const KeyType* tree, unsigned* counts, TreeNodeIndex nNodes, const KeyType* codesStart,
+                          const KeyType* codesEnd, unsigned maxCount, bool useCountsAsGuess = false)
 {
     TreeNodeIndex popNodes[2];
 
@@ -145,7 +144,7 @@ __device__ int rebalanceChangeCounter;
 
 /*! @brief Compute split or fuse decision for each octree node in parallel
  *
- * @tparam I               32- or 64-bit unsigned integer type
+ * @tparam KeyType         32- or 64-bit unsigned integer type
  * @param[in] tree         octree nodes given as Morton codes of length @a nNodes
  *                         needs to satisfy the octree invariants
  * @param[in] counts       output particle counts per node, length = @a nNodes
@@ -162,22 +161,24 @@ __device__ int rebalanceChangeCounter;
  *  - 1 if unchanged,
  *  - 8 if to be split.
  */
-template<class I>
-__global__ void rebalanceDecisionKernel(const I* tree, const unsigned* counts, TreeNodeIndex nNodes,
+template<class KeyType>
+__global__ void rebalanceDecisionKernel(const KeyType* tree, const unsigned* counts, TreeNodeIndex nNodes,
                                         unsigned bucketSize, TreeNodeIndex* nodeOps)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid < nNodes)
     {
-        nodeOps[tid] = calculateNodeOp(tree, tid, counts, bucketSize, &rebalanceChangeCounter);
+        int decision = calculateNodeOp(tree, tid, counts, bucketSize);
+        if (decision != 1) { rebalanceChangeCounter = 1;}
+        nodeOps[tid] = decision;
     }
 }
 
 //! @brief construct new nodes in the balanced tree
-template<class I>
-__global__ void processNodes(const I* oldTree, const TreeNodeIndex* nodeOps,
+template<class KeyType>
+__global__ void processNodes(const KeyType* oldTree, const TreeNodeIndex* nodeOps,
                              TreeNodeIndex nOldNodes, TreeNodeIndex nNewNodes,
-                             I* newTree)
+                             KeyType* newTree)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid < nOldNodes)
@@ -186,7 +187,7 @@ __global__ void processNodes(const I* oldTree, const TreeNodeIndex* nodeOps,
     }
     if (tid == nNewNodes)
     {
-        newTree[tid] = nodeRange<I>(0);
+        newTree[tid] = nodeRange<KeyType>(0);
     }
 }
 
@@ -197,7 +198,7 @@ __global__ void resetRebalanceCounter()
 
 /*! @brief split or fuse octree nodes based on node counts relative to bucketSize
  *
- * @tparam I               32- or 64-bit unsigned integer type
+ * @tparam KeyType         32- or 64-bit unsigned integer type
  * @param[inout] tree      vector of octree nodes in cornerstone format
  *                         needs to satisfy the octree invariants
  * @param[in] counts       output particle counts per node, length = @p tree.size() - 1
@@ -213,7 +214,7 @@ void rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, unsigned bucketSi
                       SfcVector& tmpTree, thrust::device_vector<TreeNodeIndex>& workArray,
                       bool* converged = nullptr)
 {
-    using I = typename SfcVector::value_type;
+    using KeyType = typename SfcVector::value_type;
     TreeNodeIndex nOldNodes = nNodes(tree);
 
     // +1 to store the total sum of the exclusive scan in the last element
@@ -228,7 +229,7 @@ void rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, unsigned bucketSi
 
     thrust::exclusive_scan(thrust::device, workArray.begin(), workArray.end(), workArray.begin());
 
-    // +1 for the end marker (nodeRange<I>(0))
+    // +1 for the end marker (nodeRange<KeyType>(0))
     tmpTree.resize(*workArray.rbegin() + 1);
 
     TreeNodeIndex nElements = stl::max(tree.size(), tmpTree.size());
@@ -247,7 +248,7 @@ void rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, unsigned bucketSi
 
 /*! @brief compute an octree from morton codes for a specified bucket size
 
- * @tparam I               32- or 64-bit unsigned integer type
+ * @tparam KeyType            32- or 64-bit unsigned integer type
  * @param[in]    codesStart   particle morton code sequence start
  * @param[in]    codesEnd     particle morton code sequence end
  * @param[in]    bucketSize   maximum number of particles/codes per octree leaf node
@@ -257,22 +258,22 @@ void rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, unsigned bucketSi
  *
  * See CPU version for an explanation about @p maxCount
  */
-template<class SfcVector, class CountsVector, class I, class Reduce = void>
-void computeOctreeGpu(const I* codesStart, const I* codesEnd, unsigned bucketSize,
+template<class SfcVector, class CountsVector, class KeyType, class Reduce = void>
+void computeOctreeGpu(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucketSize,
                       SfcVector& tree, CountsVector& counts,
                       unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
-    static_assert(std::is_same_v<typename SfcVector::value_type, I>);
+    static_assert(std::is_same_v<typename SfcVector::value_type, KeyType>);
     static_assert(std::is_same_v<typename CountsVector::value_type, unsigned>);
 
     if (!tree.size())
     {
         // tree containing just the root node
         tree.push_back(0);
-        tree.push_back(nodeRange<I>(0));
+        tree.push_back(nodeRange<KeyType>(0));
     }
 
-    thrust::device_vector<I>             tmpTree(tree.size());
+    thrust::device_vector<KeyType>             tmpTree(tree.size());
     thrust::device_vector<TreeNodeIndex> workArray(tree.size());
 
     bool converged = false;
@@ -293,7 +294,7 @@ void computeOctreeGpu(const I* codesStart, const I* codesEnd, unsigned bucketSiz
 
 /*! @brief update the octree with a single rebalance/count step
  *
- * @tparam I                 32- or 64-bit unsigned integer for morton code
+ * @tparam KeyType           32- or 64-bit unsigned integer for morton code
  * @tparam Reduce            functor for global counts reduction in distributed builds
  * @param[in]    codesStart  local particle Morton codes start
  * @param[in]    codesEnd    local particle morton codes end
@@ -302,10 +303,10 @@ void computeOctreeGpu(const I* codesStart, const I* codesEnd, unsigned bucketSiz
  * @param[inout] counts      the octree leaf node particle count
  * @param[in]    maxCount    if actual node counts are higher, they will be capped to @p maxCount
  */
-template<class I, class Reduce = void>
-void updateOctreeGpu(const I* codesStart, const I* codesEnd, unsigned bucketSize,
-                     thrust::device_vector<I>& tree, thrust::device_vector<unsigned>& counts,
-                     thrust::device_vector<I>& tmpTree,
+template<class KeyType, class Reduce = void>
+void updateOctreeGpu(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucketSize,
+                     thrust::device_vector<KeyType>& tree, thrust::device_vector<unsigned>& counts,
+                     thrust::device_vector<KeyType>& tmpTree,
                      thrust::device_vector<TreeNodeIndex>& workArray,
                      unsigned maxCount = std::numeric_limits<unsigned>::max())
 {

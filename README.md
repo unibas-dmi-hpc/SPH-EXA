@@ -29,7 +29,9 @@ cornerstone-octree
 └───include/cstone/       - folder containing all domain and octree functionality
 └───test/
     └───integration_mpi/  - MPI-enabled integration tests between different units
+    └───performance/      - performance test cases
     └───unit/             - (non-MPI) unit tests
+    └───unit_cuda/        - CUDA unit tests
 ```
 #### Compile
 
@@ -45,20 +47,20 @@ A minimal sketch of what a client program employing the full domain might look l
 ```c++
 #include "domain.hpp"
 
-using Real     = double;
-using CodeType = unsigned;
+using Real    = double;
+using KeyType = unsigned;
 
 int main()
 {
-    int rank = 0, nRanks = 0;
+    int rank = 0, numRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
     
     // fill x,y,z,h with some initial values on each rank
     std::vector<Real> x{/*...*/}, y{/*...*/}, z{/*...*/}, h{/*...*/};
     
     int bucketSize = 10;
-    Domain<CodeType, Real> domain(rank, nRanks, bucketSize) ;
+    Domain<KeyType, Real> domain(rank, numRanks, bucketSize) ;
     
     int nIterations = 10;
     for (int iter = 0; iter < nIterations; ++iter)

@@ -59,30 +59,6 @@
 
 namespace cstone {
 
-//! @brief checks whether a binary tree index corresponds to a leaf index
-CUDA_HOST_DEVICE_FUN
-constexpr bool btreeIsLeaf(TreeNodeIndex nodeIndex)
-{
-    return nodeIndex < 0;
-}
-
-//! @brief convert a leaf index to the storage format
-CUDA_HOST_DEVICE_FUN
-constexpr TreeNodeIndex btreeStoreLeaf(TreeNodeIndex index)
-{
-    // -2^31 or -2^63
-    constexpr auto offset = TreeNodeIndex(-(1ul << (8*sizeof(TreeNodeIndex)-1)));
-    return index + offset;
-}
-
-//! @brief restore a leaf index from the storage format
-CUDA_HOST_DEVICE_FUN
-constexpr TreeNodeIndex btreeLoadLeaf(TreeNodeIndex index)
-{
-    constexpr auto offset = TreeNodeIndex(-(1ul << (8*sizeof(TreeNodeIndex)-1)));
-    return index - offset;
-}
-
 /*! @brief binary radix tree node
  *
  * @tparam I 32- or 64 bit unsigned integer
@@ -98,7 +74,7 @@ struct BinaryNode
      * the right child adds a 1-bit to the prefix.
      *
      * Leaf indices are stored as negative values to differentiate them
-     * from indices of internal nodes. Use btreeIsLeaf for querying the leaf property
+     * from indices of internal nodes. Use isLeafIndex for querying the leaf property
      * and btreeLoad/StoreLeaf to convert to the actual positive leaf index into
      * the SFC code array used to construct the binary tree (e.g. the cornerstone tree).
      */
@@ -214,7 +190,7 @@ void constructInternalNode(const I* codes, TreeNodeIndex nCodes, BinaryNode<I>* 
     if (stl::min(secondIndex, firstIndex) == gamma)
     {
         // left child is a leaf
-        outputNode.child[BinaryNode<I>::left] = btreeStoreLeaf(gamma);
+        outputNode.child[BinaryNode<I>::left] = storeLeafIndex(gamma);
     }
     else
     {
@@ -225,7 +201,7 @@ void constructInternalNode(const I* codes, TreeNodeIndex nCodes, BinaryNode<I>* 
     if (stl::max(secondIndex, firstIndex) == gamma + 1)
     {
         // right child is a leaf
-        outputNode.child[BinaryNode<I>::right] = btreeStoreLeaf(gamma + 1);
+        outputNode.child[BinaryNode<I>::right] = storeLeafIndex(gamma + 1);
     }
     else
     {
