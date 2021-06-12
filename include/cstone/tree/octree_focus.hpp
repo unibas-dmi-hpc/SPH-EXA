@@ -46,6 +46,7 @@
 #include "cstone/domain/domaindecomp.hpp"
 #include "cstone/halos/boxoverlap.hpp"
 #include "cstone/util/gsl-lite.hpp"
+#include "cstone/util/index_ranges.hpp"
 
 #include "exchange_focus.hpp"
 #include "macs.hpp"
@@ -67,10 +68,11 @@ namespace cstone
  *                          the last element. To describe n tree nodes, we need n+1 SFC keys.
  */
 template<class KeyType>
-std::vector<pair<TreeNodeIndex>> findRequestIndices(gsl::span<const int> peers, const SpaceCurveAssignment& assignment,
-                                                    gsl::span<const KeyType> domainTreeLeaves, gsl::span<const KeyType> focusTreeLeaves)
+std::vector<IndexPair<TreeNodeIndex>> findRequestIndices(gsl::span<const int> peers, const SpaceCurveAssignment& assignment,
+                                                         gsl::span<const KeyType> domainTreeLeaves,
+                                                         gsl::span<const KeyType> focusTreeLeaves)
 {
-    std::vector<pair<TreeNodeIndex>> requestIndices;
+    std::vector<IndexPair<TreeNodeIndex>> requestIndices;
     requestIndices.reserve(peers.size());
     for (int peer : peers)
     {
@@ -100,20 +102,22 @@ std::vector<pair<TreeNodeIndex>> findRequestIndices(gsl::span<const int> peers, 
  * @return the output ranges that cover everything within [first:last]
  *         that the input ranges did not cover
  */
-std::vector<pair<TreeNodeIndex>> invertRanges(TreeNodeIndex first, gsl::span<const pair<TreeNodeIndex>> ranges, TreeNodeIndex last)
+std::vector<IndexPair<TreeNodeIndex>> invertRanges(TreeNodeIndex first,
+                                                   gsl::span<const IndexPair<TreeNodeIndex>> ranges,
+                                                   TreeNodeIndex last)
 {
     assert(!ranges.empty() && std::is_sorted(ranges.begin(), ranges.end()));
 
-    std::vector<pair<TreeNodeIndex>> invertedRanges;
-    if (first < ranges[0][0]) { invertedRanges.emplace_back(first, ranges[0][0]); }
+    std::vector<IndexPair<TreeNodeIndex>> invertedRanges;
+    if (first < ranges.front().start()) { invertedRanges.emplace_back(first, ranges.front().start()); }
     for (size_t i = 1; i < ranges.size(); ++i)
     {
-        if (ranges[i-1][1] < ranges[i][0])
+        if (ranges[i-1].end() < ranges[i].start())
         {
-            invertedRanges.emplace_back(ranges[i-1][1], ranges[i][0]);
+            invertedRanges.emplace_back(ranges[i-1].end(), ranges[i].start());
         }
     }
-    if (ranges.back()[1] < last) { invertedRanges.emplace_back(ranges.back()[1], last); }
+    if (ranges.back().end() < last) { invertedRanges.emplace_back(ranges.back().end(), last); }
 
     return invertedRanges;
 }
@@ -330,10 +334,10 @@ public:
         std::sort(requestIndices.begin(), requestIndices.end());
         auto globalCountIndices = invertRanges(0, requestIndices, tree_.numLeafNodes());
 
-        for (auto gp : globalCountIndices)
+        for (auto ip : globalCountIndices)
         {
-            countRequestParticles(globalTreeLeaves, globalCounts, treeLeaves().subspan(gp[0], gp[1] - gp[0] + 1),
-                                  gsl::span<unsigned>(counts_.data() + gp[0], gp[1] - gp[0]));
+            countRequestParticles(globalTreeLeaves, globalCounts, treeLeaves().subspan(ip.start(), ip.count() + 1),
+                                  gsl::span<unsigned>(counts_.data() + ip.start(), ip.count()));
         }
 
         return converged;
