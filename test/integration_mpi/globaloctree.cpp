@@ -49,7 +49,10 @@ void buildTree(int rank)
                          begin(allCodes) + (rank+1) * allCodes.size()/2};
 
     int bucketSize = 8;
-    auto [tree, counts] = computeOctreeGlobal(codes.data(), codes.data() + codes.size(), bucketSize);
+
+    std::vector<I> tree = makeRootNodeTree<I>();
+    std::vector<unsigned> counts{unsigned(codes.size())};
+    while(!updateOctreeGlobal(codes.data(), codes.data() + codes.size(), bucketSize, tree, counts));
 
     std::vector<I> refTree = OctreeMaker<I>{}.divide().makeTree();
 

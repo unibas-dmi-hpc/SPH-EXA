@@ -200,7 +200,9 @@ public:
         else
         {
             // full build on first call
-            std::tie(tree_, nodeCounts_) = computeOctreeGlobal(codes.data(), codes.data() + nParticles, bucketSize_);
+            tree_       = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
+            nodeCounts_ = std::vector<unsigned>{nParticles};
+            while(!updateOctreeGlobal(codes.data(), codes.data() + nParticles, bucketSize_, tree_, nodeCounts_));
             incrementalBuild_ = true;
         }
 
