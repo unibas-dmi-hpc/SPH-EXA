@@ -77,26 +77,27 @@ std::vector<pair<TreeNodeIndex>> findRequestIndices(gsl::span<const int> peers, 
         KeyType peerSfcStart = domainTreeLeaves[assignment.firstNodeIdx(peer)];
         KeyType peerSfcEnd   = domainTreeLeaves[assignment.lastNodeIdx(peer)];
 
+        // only fully contained nodes in [peerSfcStart:peerSfcEnd] will be requested
         TreeNodeIndex firstRequestIdx = findNodeAbove(focusTreeLeaves, peerSfcStart);
         TreeNodeIndex lastRequestIdx  = findNodeBelow(focusTreeLeaves, peerSfcEnd);
 
-        requestIndices.emplace_back(std::min(firstRequestIdx, lastRequestIdx),
-                                    std::max(firstRequestIdx, lastRequestIdx));
+        if (lastRequestIdx < firstRequestIdx) { lastRequestIdx = firstRequestIdx; }
+        requestIndices.emplace_back(firstRequestIdx, lastRequestIdx);
     }
 
     return requestIndices;
 }
 
-/*! @brief calculates the complementary range of the input range
+/*! @brief calculates the complementary range of the input ranges
  *
- * Input:  |      ------    -----   --     ----     --  |
+ * Input:  │      ------    -----   --     ----     --  │
  * Output: -------      ----     ---  -----    -----  ---
  *         ^                                            ^
  *         │                                            │
  * @param first                                         │
  * @param ranges   size >= 1, must be sorted            │
- * @param last    ──────────────────────────────────────˩
- * @return the output range that covers everything within [first:last]
+ * @param last    ──────────────────────────────────────/
+ * @return the output ranges that cover everything within [first:last]
  *         that the input ranges did not cover
  */
 std::vector<pair<TreeNodeIndex>> invertRanges(TreeNodeIndex first, gsl::span<const pair<TreeNodeIndex>> ranges, TreeNodeIndex last)
