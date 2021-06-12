@@ -102,7 +102,7 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const pair<Tre
 
 {
     std::vector<MPI_Request> sendRequests;
-    for (int rankIndex = 0; rankIndex < int(peerRanks.size()); ++rankIndex)
+    for (size_t rankIndex = 0; rankIndex < peerRanks.size(); ++rankIndex)
     {
         int destinationRank = peerRanks[rankIndex];
         // +1 to include the upper key boundary for the last node
@@ -136,15 +136,12 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const pair<Tre
     while (numMessages > 0)
     {
         MPI_Status status;
-        mpiRecvSync(queryCountBuffer.data(), int(queryCountBuffer.size()), MPI_ANY_SOURCE, 1, &status);
+        MPI_Probe(MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &status);
         int receiveRank = status.MPI_SOURCE;
 
-        size_t receiveRankIndex = std::find(peerRanks.begin(), peerRanks.end(), receiveRank) - peerRanks.begin();
-
+        size_t receiveRankIndex    = std::find(peerRanks.begin(), peerRanks.end(), receiveRank) - peerRanks.begin();
         TreeNodeIndex receiveCount = exchangeIndices[receiveRankIndex][1] - exchangeIndices[receiveRankIndex][0];
-        std::transform(queryCountBuffer.begin(), queryCountBuffer.begin() + receiveCount,
-                       localCounts.begin() + exchangeIndices[receiveRankIndex][0],
-                       localCounts.begin() + exchangeIndices[receiveRankIndex][0], std::plus<unsigned>{});
+        mpiRecvSync(localCounts.data() + exchangeIndices[receiveRankIndex][0], receiveCount, receiveRank, 1, &status);
 
         numMessages--;
     }
