@@ -96,16 +96,16 @@ TEST(FindNeighbors, treeLevel)
 /*! @brief find neighbor boxes around a particles centered in (1,1,1) box
  *
  * The particles (x,y,z) is centered in the (ix,iy,iz) = (1,1,1) node
- * with i{x,y,z} = coordinates in [0, 2^maxTreeLevel<I>{}]
+ * with i{x,y,z} = coordinates in [0, 2^maxTreeLevel<KeyType>{}]
  * The minimum radius to hit all neighboring (ix+-1,iy+-1,iz+-1) nodes is sqrt(3/4)
  * and this is checked.
  */
-template<class I>
+template<class KeyType>
 void findNeighborBoxesInterior()
 {
     using T = double;
     // smallest octree cell edge length in unit cube
-    constexpr T uL = T(1.) / (1u<<maxTreeLevel<I>{});
+    constexpr T uL = T(1.) / (1u<<maxTreeLevel<KeyType>{});
 
     Box<T> bbox(0,1);
 
@@ -114,23 +114,23 @@ void findNeighborBoxesInterior()
     T z      = 1.5 * uL;
     T radius = 0.867 * uL;
 
-    I neighborCodes[27];
+    KeyType neighborCodes[27];
     auto pbi = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
     int nBoxes = pbi[0];
 
     EXPECT_EQ(nBoxes, 27);
     std::sort(neighborCodes, neighborCodes + nBoxes);
 
-    std::vector<I> refBoxes;
+    std::vector<KeyType> refBoxes;
     for (int ix = 0; ix < 3; ++ix)
         for (int iy = 0; iy < 3; ++iy)
             for (int iz = 0; iz < 3; ++iz)
             {
-                refBoxes.push_back(imorton3D<I>(ix,iy,iz));
+                refBoxes.push_back(imorton3D<KeyType>(ix,iy,iz));
             }
     std::sort(begin(refBoxes), end(refBoxes));
 
-    std::vector<I> probeBoxes(neighborCodes, neighborCodes + nBoxes);
+    std::vector<KeyType> probeBoxes(neighborCodes, neighborCodes + nBoxes);
     EXPECT_EQ(probeBoxes, refBoxes);
 
     // now, the 8 farthest corners are not hit any more
@@ -149,17 +149,17 @@ TEST(FindNeighbors, findNeighborBoxesInterior)
 /*! @brief find neighbor boxes around a particles centered in (1,1,1) box
  *
  * The particles (x,y,z) is centered in the (ix,iy,iz) = (0,0,0) node
- * with i{x,y,z} = coordinates in [0, 2^maxTreeLevel<I>{}]
+ * with i{x,y,z} = coordinates in [0, 2^maxTreeLevel<KeyType>{}]
  * The minimum radius to hit all neighboring (ix+1,iy+1,iz+1) nodes is sqrt(3/4)
  * and this is checked. All negative offsets correspond to non-existing boxes
  * for this case that doesn't use PBC, such that there are only 8 boxes found.
  */
-template<class I>
+template<class KeyType>
 void findNeighborBoxesCorner()
 {
     using T = double;
     // smallest octree cell edge length in unit cube
-    constexpr T uL = T(1.) / (1u<<maxTreeLevel<I>{});
+    constexpr T uL = T(1.) / (1u<<maxTreeLevel<KeyType>{});
 
     Box<T> bbox(0,1);
 
@@ -168,23 +168,23 @@ void findNeighborBoxesCorner()
     T z      = 0.5 * uL;
     T radius = 0.867 * uL;
 
-    I neighborCodes[27];
+    KeyType neighborCodes[27];
     auto pbi = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
     int nBoxes = pbi[0];
 
     EXPECT_EQ(nBoxes, 8);
     std::sort(neighborCodes, neighborCodes + nBoxes);
 
-    std::vector<I> refBoxes;
+    std::vector<KeyType> refBoxes;
     for (int ix = 0; ix < 2; ++ix)
         for (int iy = 0; iy < 2; ++iy)
             for (int iz = 0; iz < 2; ++iz)
             {
-                refBoxes.push_back(imorton3D<I>(ix,iy,iz));
+                refBoxes.push_back(imorton3D<KeyType>(ix,iy,iz));
             }
     std::sort(begin(refBoxes), end(refBoxes));
 
-    std::vector<I> probeBoxes(neighborCodes, neighborCodes + nBoxes);
+    std::vector<KeyType> probeBoxes(neighborCodes, neighborCodes + nBoxes);
     EXPECT_EQ(probeBoxes, refBoxes);
 }
 
@@ -194,40 +194,40 @@ TEST(FindNeighbors, findNeighborBoxesCorner)
     findNeighborBoxesCorner<uint64_t>();
 }
 
-template<class I>
+template<class KeyType>
 void findNeighborBoxesUpperCorner()
 {
     using T = double;
     // smallest octree cell edge length in unit cube
-    constexpr T uL = T(1.) / (1u<<maxTreeLevel<I>{});
+    constexpr T uL = T(1.) / (1u<<maxTreeLevel<KeyType>{});
 
     Box<T> bbox(0,1);
 
     constexpr int level = 3;
-    constexpr int nUnits = 1u<<(maxTreeLevel<I>{} - level);
+    constexpr int nUnits = 1u<<(maxTreeLevel<KeyType>{} - level);
 
     T x      = nUnits/2 * uL;
     T y      = nUnits/2 * uL;
     T z      = 7.5 * nUnits * uL;
     T radius = 0.867 * nUnits * uL;
 
-    I neighborCodes[27];
+    KeyType neighborCodes[27];
     auto pbi   = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
     int nBoxes = pbi[0];
 
     EXPECT_EQ(nBoxes, 8);
     std::sort(neighborCodes, neighborCodes + nBoxes);
 
-    std::vector<I> refBoxes;
+    std::vector<KeyType> refBoxes;
     for (int ix = 0; ix < 2; ++ix)
         for (int iy = 0; iy < 2; ++iy)
             for (int iz = 6; iz < 8; ++iz)
             {
-                refBoxes.push_back(imorton3D<I>(ix,iy,iz, level));
+                refBoxes.push_back(imorton3D<KeyType>(ix,iy,iz, level));
             }
     std::sort(begin(refBoxes), end(refBoxes));
 
-    std::vector<I> probeBoxes(neighborCodes, neighborCodes + nBoxes);
+    std::vector<KeyType> probeBoxes(neighborCodes, neighborCodes + nBoxes);
     EXPECT_EQ(probeBoxes, refBoxes);
 }
 
@@ -237,12 +237,12 @@ TEST(FindNeighbors, findNeighborBoxesUpperCorner)
     findNeighborBoxesUpperCorner<uint64_t>();
 }
 
-template<class I>
+template<class KeyType>
 void findNeighborBoxesCornerPbc()
 {
     using T = double;
     // smallest octree cell edge length in unit cube
-    constexpr T uL = T(1.) / (1u<<maxTreeLevel<I>{});
+    constexpr T uL = T(1.) / (1u<<maxTreeLevel<KeyType>{});
 
     Box<T> bbox(0,1,true);
 
@@ -251,7 +251,7 @@ void findNeighborBoxesCornerPbc()
     T z      = 0.5 * uL;
     T radius = 0.867 * uL;
 
-    I neighborCodes[27];
+    KeyType neighborCodes[27];
     auto pbi    = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
     int nBoxes  = pbi[0];
     int iBoxPbc = pbi[1];
@@ -296,7 +296,7 @@ void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
 class FindNeighborsRandom : public testing::TestWithParam<std::tuple<double, int, std::array<double,6>, bool>>
 {
 public:
-    template<class I, template<class...> class CoordinateKind>
+    template<class KeyType, template<class...> class CoordinateKind>
     void check()
     {
         double radius                = std::get<0>(GetParam());
@@ -306,7 +306,7 @@ public:
         Box<double> box{limits[0], limits[1], limits[2], limits[3], limits[4], limits[5],
                         usePbc, usePbc, usePbc};
 
-        CoordinateKind<double, I> coords(nParticles, box);
+        CoordinateKind<double, KeyType> coords(nParticles, box);
 
         neighborCheck(coords, radius, box);
     }
