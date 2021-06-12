@@ -388,7 +388,6 @@ void rebalanceTree(const InputVector& tree, OutputVector& newTree, TreeNodeIndex
 /*! @brief update the octree with a single rebalance/count step
  *
  * @tparam KeyType           32- or 64-bit unsigned integer for SFC code
- * @tparam Reduce            functor for global counts reduction in distributed builds
  * @param[in]    codesStart  local particle SFC codes start
  * @param[in]    codesEnd    local particle SFC codes end
  * @param[in]    bucketSize  maximum number of particles per node
@@ -397,7 +396,7 @@ void rebalanceTree(const InputVector& tree, OutputVector& newTree, TreeNodeIndex
  * @param[in]    maxCount    if actual node counts are higher, they will be capped to @p maxCount
  * @return                   true if tree was not modified, false otherwise
  */
-template<class KeyType, class Reduce = void>
+template<class KeyType>
 bool updateOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucketSize,
                   std::vector<KeyType>& tree, std::vector<unsigned>& counts,
                   unsigned maxCount = std::numeric_limits<unsigned>::max())
@@ -410,11 +409,8 @@ bool updateOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned b
     swap(tree, newTree);
 
     counts.resize(nNodes(tree));
-
-    // local node counts
     computeNodeCounts(tree.data(), counts.data(), nNodes(tree), codesStart, codesEnd, maxCount, true);
-    // global node count sums when using distributed builds
-    if constexpr (!std::is_same_v<void, Reduce>) Reduce{}(counts);
+
     return converged;
 }
 
@@ -434,7 +430,7 @@ bool updateOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned b
  *    node count is smaller than the bucket size. We just have to make sure to prevent overflow,
  *    in MPI_Allreduce, therefore, maxCount should be set to 2^32/numRanks - 1 for distributed tree builds.
  */
-template<class KeyType, class Reduce = void>
+template<class KeyType>
 std::tuple<std::vector<KeyType>, std::vector<unsigned>>
 computeOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucketSize,
               unsigned maxCount = std::numeric_limits<unsigned>::max())
@@ -442,11 +438,7 @@ computeOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucke
     std::vector<KeyType>        tree{0, nodeRange<KeyType>(0)};
     std::vector<unsigned> counts{unsigned(codesEnd - codesStart)};
 
-    bool converged = false;
-    while (!converged)
-    {
-        converged = updateOctree<KeyType, Reduce>(codesStart, codesEnd, bucketSize, tree, counts, maxCount);
-    }
+    while (!updateOctree(codesStart, codesEnd, bucketSize, tree, counts, maxCount));
 
     return std::make_tuple(std::move(tree), std::move(counts));
 }
