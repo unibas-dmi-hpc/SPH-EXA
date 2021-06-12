@@ -43,8 +43,8 @@ using namespace cstone;
  * @param thisRank executing rank
  * @param nRanks   total number of ranks
  *
- * Each rank keeps (1/nRanks)-th of its local elements and sends the
- * other nRanks-1 chunks to the other nRanks-1 ranks.
+ * Each rank keeps (1/numRanks)-th of its local elements and sends the
+ * other nRanks-1 chunks to the other numRanks-1 ranks.
  */
 template<class T>
 void exchangeAllToAll(int thisRank, int nRanks)

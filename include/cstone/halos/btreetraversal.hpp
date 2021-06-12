@@ -74,27 +74,27 @@ private:
     int list_[collisionMax]{0};
 };
 
-template<class I>
+template<class KeyType>
 CUDA_HOST_DEVICE_FUN
-inline bool traverseNode(const BinaryNode<I>* root, TreeNodeIndex idx,
-                         const IBox& collisionBox, pair<I> excludeRange)
+inline bool traverseNode(const BinaryNode<KeyType>* root, TreeNodeIndex idx,
+                         const IBox& collisionBox, pair<KeyType> excludeRange)
 {
     return (!isLeafIndex(idx))
     && !containedIn(root[idx].prefix, excludeRange[0], excludeRange[1])
     && overlap(root[idx].prefix, collisionBox);
 }
 
-template<class I>
+template<class KeyType>
 CUDA_HOST_DEVICE_FUN
-inline bool leafOverlap(int leafIndex, const I* leafNodes,
-                        const IBox& collisionBox, pair<I> excludeRange)
+inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
+                        const IBox& collisionBox, pair<KeyType> excludeRange)
 {
     if (!isLeafIndex(leafIndex))
         return false;
 
     TreeNodeIndex effectiveIndex = loadLeafIndex(leafIndex);
-    I leafCode = leafNodes[effectiveIndex];
-    I leafUpperBound = leafNodes[effectiveIndex + 1];
+    KeyType leafCode = leafNodes[effectiveIndex];
+    KeyType leafUpperBound = leafNodes[effectiveIndex + 1];
 
     bool notExcluded = !containedIn(leafCode, leafUpperBound, excludeRange[0], excludeRange[1]);
     return notExcluded && overlap(leafCode, leafUpperBound, collisionBox);
@@ -102,7 +102,7 @@ inline bool leafOverlap(int leafIndex, const I* leafNodes,
 
 /*! @brief find all collisions between a leaf node enlarged by (dx,dy,dz) and the rest of the tree
  *
- * @tparam I                  32- or 64-bit unsigned integer
+ * @tparam KeyType            32- or 64-bit unsigned integer
  * @param[in]  internalRoot   root of the internal binary radix tree
  * @param[in]  leafNodes      octree leaf nodes
  * @param[out] collisionList  output list of indices of colliding nodes
@@ -131,11 +131,11 @@ inline bool leafOverlap(int leafIndex, const I* leafNodes,
  * cost to check all 3 dimensions at each step should not be very high, we keep
  * the implementation general.
  */
-template <class I>
-void findCollisions(const BinaryNode<I>* root, const I* leafNodes, CollisionList& collisionList,
-                    const IBox& collisionBox, pair<I> excludeRange)
+template <class KeyType>
+void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, CollisionList& collisionList,
+                    const IBox& collisionBox, pair<KeyType> excludeRange)
 {
-    using Node    = BinaryNode<I>;
+    using Node    = BinaryNode<KeyType>;
 
     TreeNodeIndex stack[64];
     stack[0] = 0;

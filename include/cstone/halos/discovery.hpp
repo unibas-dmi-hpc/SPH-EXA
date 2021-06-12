@@ -35,16 +35,16 @@
 #include <vector>
 
 #include "cstone/halos/btreetraversal.hpp"
-#include "cstone/domain/domaindecomp.hpp"
+#include "cstone/util/gsl-lite.hpp"
 
 namespace cstone
 {
 
 /*! @brief Compute halo node pairs
  *
- * @tparam CoordinateType      float or double
+ * @tparam KeyType             32- or 64-bit unsigned integer
  * @tparam RadiusType          float or double, float is sufficient for 64-bit codes or less
- * @tparam I                   32- or 64-bit unsigned integer
+ * @tparam CoordinateType      float or double
  * @param tree                 cornerstone octree
  * @param interactionRadii     effective halo search radii per octree (leaf) node
  * @param box                  coordinate bounding box
@@ -63,23 +63,23 @@ namespace cstone
  * node (in @p tree) that must be sent out to another rank.
  * The second element of each pair is the index of a remote node not in [firstNode:lastNode].
  */
-template<class CoordinateType, class RadiusType, class I>
-void findHalos(const std::vector<I>&             tree,
-               const std::vector<RadiusType>&    interactionRadii,
+template<class KeyType, class RadiusType, class CoordinateType>
+void findHalos(gsl::span<const KeyType>          tree,
+               gsl::span<RadiusType>             interactionRadii,
                const Box<CoordinateType>&        box,
                TreeNodeIndex                     firstNode,
                TreeNodeIndex                     lastNode,
                std::vector<pair<TreeNodeIndex>>& haloPairs)
 {
-    std::vector<BinaryNode<I>> internalTree(nNodes(tree));
+    std::vector<BinaryNode<KeyType>> internalTree(nNodes(tree));
     createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
 
-    I lowestCode  = tree[firstNode];
-    I highestCode = tree[lastNode];
+    KeyType lowestCode  = tree[firstNode];
+    KeyType highestCode = tree[lastNode];
 
     #pragma omp parallel
     {
-        std::vector<pair<int>> threadHaloPairs;
+        std::vector<pair<TreeNodeIndex>> threadHaloPairs;
 
         // loop over all the nodes in range
         #pragma omp for
@@ -109,8 +109,8 @@ void findHalos(const std::vector<I>&             tree,
             {
                 TreeNodeIndex collidingNodeIdx = collisions[i];
 
-                I collidingNodeStart = tree[collidingNodeIdx];
-                I collidingNodeEnd   = tree[collidingNodeIdx + 1];
+                KeyType collidingNodeStart = tree[collidingNodeIdx];
+                KeyType collidingNodeEnd   = tree[collidingNodeIdx + 1];
 
                 IBox remoteNodeBox = makeHaloBox(collidingNodeStart, collidingNodeEnd,
                                                  interactionRadii[collidingNodeIdx], box);
@@ -124,53 +124,6 @@ void findHalos(const std::vector<I>&             tree,
         {
             std::copy(begin(threadHaloPairs), end(threadHaloPairs), std::back_inserter(haloPairs));
         }
-    }
-}
-
-/*! @brief Compute send/receive node lists from halo pair node indices
- *
- * @param[in]  assignment       stores which rank owns which part of the SFC
- * @param[in]  haloPairs        list of mutually overlapping pairs of local/remote nodes
- * @param[out] incomingNodes    sorted list of halo nodes to be received,
- *                              grouped by source rank
- * @param[out] outgoingNodes    sorted list of internal nodes to be sent,
- *                              grouped by destination rank
- */
-inline
-void computeSendRecvNodeList(const SpaceCurveAssignment& assignment,
-                             const std::vector<pair<TreeNodeIndex>>& haloPairs,
-                             std::vector<std::vector<TreeNodeIndex>>& incomingNodes,
-                             std::vector<std::vector<TreeNodeIndex>>& outgoingNodes)
-{
-    incomingNodes.resize(assignment.nRanks());
-    outgoingNodes.resize(assignment.nRanks());
-
-    for (auto& p : haloPairs)
-    {
-        // as defined in findHalos, the internal node index is stored first
-        TreeNodeIndex internalNodeIdx = p[0];
-        TreeNodeIndex remoteNodeIdx   = p[1];
-
-        int remoteRank = assignment.findRank(remoteNodeIdx);
-
-        incomingNodes[remoteRank].push_back(remoteNodeIdx);
-        outgoingNodes[remoteRank].push_back(internalNodeIdx);
-    }
-
-    // remove duplicates in receiver list
-    for (auto& v : incomingNodes)
-    {
-        std::sort(begin(v), end(v));
-        auto unique_end = std::unique(begin(v), end(v));
-        v.erase(unique_end, end(v));
-    }
-
-    // remove duplicates in sender list
-    for (auto& v : outgoingNodes)
-    {
-        std::sort(begin(v), end(v));
-        auto unique_end = std::unique(begin(v), end(v));
-        v.erase(unique_end, end(v));
     }
 }
 

@@ -44,7 +44,8 @@
 
 #include "cstone/cuda/annotation.hpp"
 #include "cstone/primitives/gather.hpp"
-#include "cstone/sfc/mortoncode.hpp"
+#include "cstone/sfc/morton.hpp"
+#include "cstone/util/gsl-lite.hpp"
 
 #include "btree.hpp"
 #include "octree.hpp"
@@ -74,16 +75,16 @@ namespace cstone
 
 /*! @brief octree node for the internal part of cornerstone octrees
  *
- * @tparam I  32- or 64 bit unsigned integer
+ * @tparam KeyType  32- or 64 bit unsigned integer
  */
-template<class I>
+template<class KeyType>
 struct OctreeNode
 {
     /*! @brief the Morton code prefix
      *
      * Shared among all the node's children. Only the first prefixLength bits are relevant.
      */
-    I   prefix;
+    KeyType   prefix;
 
     //! @brief octree division level, equals 1/3rd the number of bits in prefix to interpret
     int level;
@@ -99,7 +100,7 @@ struct OctreeNode
      */
     TreeNodeIndex child[8];
 
-    friend bool operator==(const OctreeNode<I>& lhs, const OctreeNode<I>& rhs)
+    friend bool operator==(const OctreeNode<KeyType>& lhs, const OctreeNode<KeyType>& rhs)
     {
         bool eqChild = true;
         for (int i = 0; i < 8; ++i)
@@ -114,9 +115,9 @@ struct OctreeNode
     }
 };
 
-template<class I, class AtomicInteger>
+template<class KeyType, class AtomicInteger>
 CUDA_HOST_DEVICE_FUN
-void nodeDepthElement(TreeNodeIndex i, const OctreeNode<I>* octree, AtomicInteger* depths)
+void nodeDepthElement(TreeNodeIndex i, const OctreeNode<KeyType>* octree, AtomicInteger* depths)
 {
     int nLeafChildren = 0;
     for (int octant = 0; octant < 8; ++octant)
@@ -153,15 +154,15 @@ void nodeDepthElement(TreeNodeIndex i, const OctreeNode<I>* octree, AtomicIntege
 
 /*! @brief calculate distance to farthest leaf for each internal node in parallel
  *
- * @tparam I             32- or 64-bit integer type
+ * @tparam KeyType             32- or 64-bit integer type
  * @param[in]  octree    an octree, length @a nNodes
  * @param[in]  nNodes    number of (internal) nodes
  * @param[out] depths    array of length @a nNodes, contains
  *                       the distance to the farthest leaf for each node.
  *                       The distance is equal to 1 for each node whose children are only leaves.
  */
-template<class I>
-void nodeDepth(const OctreeNode<I>* octree, TreeNodeIndex nNodes, std::atomic<int>* depths)
+template<class KeyType>
+void nodeDepth(const OctreeNode<KeyType>* octree, TreeNodeIndex nNodes, std::atomic<int>* depths)
 {
     #pragma omp parallel for
     for (TreeNodeIndex i = 0; i < nNodes; ++i)
@@ -172,12 +173,12 @@ void nodeDepth(const OctreeNode<I>* octree, TreeNodeIndex nNodes, std::atomic<in
 
 /*! @brief calculates the tree node ordering for descending max leaf distance
  *
- * @tparam I                    32- or 64-bit integer
- * @param[in]  octree           input array of OctreeNode<I>
+ * @tparam KeyType                    32- or 64-bit integer
+ * @param[in]  octree           input array of OctreeNode<KeyType>
  * @param[in]  nNodes           number of input octree nodes
  * @param[out] ordering         output ordering, a permutation of [0:nNodes]
  * @param[out] nNodesPerLevel   number of nodes per value of farthest leaf distance
- *                              length is maxTreeLevel<I>{} (10 or 21)
+ *                              length is maxTreeLevel<KeyType>{} (10 or 21)
  *
  *  nNodesPerLevel[0] --> number of leaf nodes (NOT set in this function)
  *  nNodesPerLevel[1] --> number of nodes with maxDepth = 1, children: only leaves
@@ -188,8 +189,8 @@ void nodeDepth(const OctreeNode<I>* octree, TreeNodeIndex nNodes, std::atomic<in
  * The resulting ordering is valid from a scatter-perspective, i.e.
  * Nodes at <oldIndex> should be moved to @a ordering[<oldIndex>].
  */
-template<class I>
-void decreasingMaxDepthOrder(const OctreeNode<I>* octree,
+template<class KeyType>
+void decreasingMaxDepthOrder(const OctreeNode<KeyType>* octree,
                              TreeNodeIndex nNodes,
                              TreeNodeIndex* ordering,
                              TreeNodeIndex* nNodesPerLevel)
@@ -226,7 +227,7 @@ void decreasingMaxDepthOrder(const OctreeNode<I>* octree,
     sort_by_key(begin(inverseOrdering), end(inverseOrdering), ordering);
 
     // count nodes per value of depth
-    for (TreeNodeIndex depth = 1; depth < maxTreeLevel<I>{}; ++depth)
+    for (TreeNodeIndex depth = 1; depth < maxTreeLevel<KeyType>{}; ++depth)
     {
         auto it1 = std::lower_bound(begin(depths_v), end(depths_v), depth, std::greater<TreeNodeIndex>{});
         auto it2 = std::upper_bound(begin(depths_v), end(depths_v), depth, std::greater<TreeNodeIndex>{});
@@ -236,17 +237,17 @@ void decreasingMaxDepthOrder(const OctreeNode<I>* octree,
 
 /*! @brief reorder internal octree nodes according to a map
  *
- * @tparam I                   32- or 64-bit unsigned integer
- * @param[in]  oldNodes        array of octree nodes, length @a nInternalNodes
- * @param[in]  rewireMap       a permutation of [0:nInternalNodes]
+ * @tparam KeyType                   32- or 64-bit unsigned integer
+ * @param[in]  oldNodes        array of octree nodes, length @a numInternalNodes
+ * @param[in]  rewireMap       a permutation of [0:numInternalNodes]
  * @param[in]  nInternalNodes  number of internal octree nodes
- * @param[out] newNodes        reordered array of octree nodes, length @a nInternalNodes
+ * @param[out] newNodes        reordered array of octree nodes, length @a numInternalNodes
  */
-template<class I>
-void rewireInternal(const OctreeNode<I>* oldNodes,
+template<class KeyType>
+void rewireInternal(const OctreeNode<KeyType>* oldNodes,
                     const TreeNodeIndex* rewireMap,
                     TreeNodeIndex nInternalNodes,
-                    OctreeNode<I>* newNodes)
+                    OctreeNode<KeyType>* newNodes)
 {
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex oldIndex = 0; oldIndex < nInternalNodes; ++oldIndex)
@@ -254,7 +255,7 @@ void rewireInternal(const OctreeNode<I>* oldNodes,
         // node at <oldIndex> moves to <newIndex>
         TreeNodeIndex newIndex = rewireMap[oldIndex];
 
-        OctreeNode<I> newNode = oldNodes[oldIndex];
+        OctreeNode<KeyType> newNode = oldNodes[oldIndex];
         newNode.parent = rewireMap[newNode.parent];
         for (int octant = 0; octant < 8; ++octant)
         {
@@ -292,8 +293,8 @@ void rewireIndices(const Index* input,
 
 /*! @brief construct the internal octree node with index @p nodeIndex
  *
- * @tparam I                         32- or 64-bit unsigned integer type
- * @param[out]  internalOctree       linear array of OctreeNode<I>'s
+ * @tparam KeyType                         32- or 64-bit unsigned integer type
+ * @param[out]  internalOctree       linear array of OctreeNode<KeyType>'s
  * @param[in]   binaryTree           linear array of binary tree nodes
  * @param[in]   nodeIndex            element of @p internalOctree to construct
  * @param[in]   octreeToBinaryIndex  octreeToBinaryIndex[i] stores the index of the binary node in
@@ -307,16 +308,16 @@ void rewireIndices(const Index* input,
  * (Exception: the parent of the root node is set to 0)
  * In addition, it sets the parent member of the child nodes to @p nodeIndex.
  */
-template<class I>
+template<class KeyType>
 CUDA_HOST_DEVICE_FUN
-inline void constructOctreeNode(OctreeNode<I>*       internalOctree,
-                                const BinaryNode<I>* binaryTree,
+inline void constructOctreeNode(OctreeNode<KeyType>*       internalOctree,
+                                const BinaryNode<KeyType>* binaryTree,
                                 TreeNodeIndex        nodeIndex,
                                 const TreeNodeIndex* scatterMap,
                                 const TreeNodeIndex* binaryToOctreeIndex,
                                 TreeNodeIndex*       leafParents)
 {
-    OctreeNode<I>& octreeNode = internalOctree[nodeIndex];
+    OctreeNode<KeyType>& octreeNode = internalOctree[nodeIndex];
 
     TreeNodeIndex bi  = scatterMap[nodeIndex]; // binary tree index
     octreeNode.prefix = decodePlaceholderBit(binaryTree[bi].prefix);
@@ -358,16 +359,16 @@ inline void constructOctreeNode(OctreeNode<I>*       internalOctree,
 
 /*! @brief translate an internal binary radix tree into an internal octree
  *
- * @tparam I                   32- or 64-bit unsigned integer
+ * @tparam KeyType                   32- or 64-bit unsigned integer
  * @param[in]  binaryTree      binary tree nodes
  * @param[in]  nLeafNodes      number of octree leaf nodes used to construct @p binaryTree
- * @param[out] internalOctree  output internal octree nodes, length = (@p nLeafNodes-1) / 7
- * @param[out] leafParents     node index of the parent node for each leaf, length = @p nLeafNodes
+ * @param[out] internalOctree  output internal octree nodes, length = (@p numLeafNodes-1) / 7
+ * @param[out] leafParents     node index of the parent node for each leaf, length = @p numLeafNodes
  *
  */
-template<class I>
-void createInternalOctreeCpu(const BinaryNode<I>* binaryTree, TreeNodeIndex nLeafNodes,
-                             OctreeNode<I>* internalOctree, TreeNodeIndex* leafParents)
+template<class KeyType>
+void createInternalOctreeCpu(const BinaryNode<KeyType>* binaryTree, TreeNodeIndex nLeafNodes,
+                             OctreeNode<KeyType>* internalOctree, TreeNodeIndex* leafParents)
 {
     // we ignore the last binary tree node which is a duplicate root node
     TreeNodeIndex nBinaryNodes = nLeafNodes - 1;
@@ -411,16 +412,16 @@ void createInternalOctreeCpu(const BinaryNode<I>* binaryTree, TreeNodeIndex nLea
 
 /*! @brief This class unifies a cornerstone octree with the internal part
  *
- * @tparam I          32- or 64-bit unsigned integer
+ * @tparam KeyType          32- or 64-bit unsigned integer
  *
  * Leaves are stored separately from the internal nodes. For either type of node, just a single buffer is allocated.
  * All nodes are guaranteed to be stored ordered according to decreasing value of the distance of the farthest leaf.
  * This property is relied upon by the generic upsweep implementation.
  */
-template<class I>
+template<class KeyType>
 class Octree {
 public:
-    Octree() : nNodesPerLevel_(maxTreeLevel<I>{}) {}
+    Octree() : nNodesPerLevel_(maxTreeLevel<KeyType>{}) {}
 
     /*! @brief sets the leaves to the provided ones and updates the internal part based on them
      *
@@ -430,39 +431,27 @@ public:
      * internal state change:
      *      -full tree update
      */
-    void update(const I* firstLeaf, const I* lastLeaf)
+    template<class InputIterator>
+    void update(InputIterator firstLeaf, InputIterator lastLeaf)
     {
         assert(lastLeaf > firstLeaf);
 
         // make space for leaf nodes
         TreeNodeIndex treeSize = lastLeaf - firstLeaf;
-        nNodesPerLevel_[0]     = treeSize - 1;
         cstoneTree_.resize(treeSize);
         std::copy(firstLeaf, lastLeaf, cstoneTree_.data());
 
-        binaryTree_.resize(nNodes(cstoneTree_));
-        createBinaryTree(cstoneTree_.data(), nNodes(cstoneTree_), binaryTree_.data());
+        updateInternalTree();
+    }
 
-        std::vector<OctreeNode<I>> preTree((nNodes(cstoneTree_) - 1) / 7);
-        std::vector<TreeNodeIndex> preLeafParents(nNodes(cstoneTree_));
-
-        createInternalOctreeCpu(binaryTree_.data(), nNodes(cstoneTree_), preTree.data(), preLeafParents.data());
-
-        // re-sort internal nodes to establish a max-depth ordering
-        std::vector<TreeNodeIndex> ordering(preTree.size());
-        // determine ordering
-        decreasingMaxDepthOrder(preTree.data(), preTree.size(), ordering.data(), nNodesPerLevel_.data());
-        // apply the ordering to the internal tree;
-        internalTree_.resize(preTree.size());
-        rewireInternal(preTree.data(), ordering.data(), preTree.size(), internalTree_.data());
-
-        // apply ordering to leaf parents
-        leafParents_.resize(preLeafParents.size());
-        rewireIndices(preLeafParents.data(), ordering.data(), preLeafParents.size(), leafParents_.data());
+    void update(std::vector<KeyType>&& newLeaves)
+    {
+        cstoneTree_ = std::move(newLeaves);
+        updateInternalTree();
     }
 
     //! @brief total number of nodes in the tree
-    [[nodiscard]] inline TreeNodeIndex nTreeNodes() const
+    [[nodiscard]] inline TreeNodeIndex numTreeNodes() const
     {
         return nNodes(cstoneTree_) + internalTree_.size();
     }
@@ -473,42 +462,52 @@ public:
      * @return              number of nodes in the tree with given value for maxDepth
      *
      * Some relations with other node-count functions:
-     *      nTreeNodes(0) == nLeafNodes()
-     *      sum([nTreeNodes(i) for i in [0:maxTreeLevel<I>{}]]) == nTreeNodes()
-     *      sum([nTreeNodes(i) for i in [1:maxTreeLevel<I>{}]]) == nInternalNodes()
+     *      numTreeNodes(0) == numLeafNodes()
+     *      sum([numTreeNodes(i) for i in [0:maxTreeLevel<KeyType>{}]]) == numTreeNodes()
+     *      sum([numTreeNodes(i) for i in [1:maxTreeLevel<KeyType>{}]]) == numInternalNodes()
      */
-    [[nodiscard]] inline TreeNodeIndex nTreeNodes(int maxDepth) const
+    [[nodiscard]] inline TreeNodeIndex numTreeNodes(int maxDepth) const
     {
-        assert(maxDepth < maxTreeLevel<I>{});
+        assert(maxDepth < maxTreeLevel<KeyType>{});
         return nNodesPerLevel_[maxDepth];
     }
 
     //! @brief number of leaf nodes in the tree
-    [[nodiscard]] inline TreeNodeIndex nLeafNodes() const
+    [[nodiscard]] inline TreeNodeIndex numLeafNodes() const
     {
         return nNodes(cstoneTree_);
     }
 
-    //! @brief number of internal nodes in the tree, equal to (nLeafNodes()-1) / 7
-    [[nodiscard]] inline TreeNodeIndex nInternalNodes() const
+    //! @brief number of internal nodes in the tree, equal to (numLeafNodes()-1) / 7
+    [[nodiscard]] inline TreeNodeIndex numInternalNodes() const
     {
         return internalTree_.size();
     }
 
     /*! @brief check whether node is a leaf
      *
-     * @param[in] node    node index, range [0:nTreeNodes()]
+     * @param[in] node    node index, range [0:numTreeNodes()]
      * @return            true or false
      */
     [[nodiscard]] inline bool isLeaf(TreeNodeIndex node) const
     {
-        assert(node < nTreeNodes());
+        assert(node < numTreeNodes());
         return node >= internalTree_.size();
+    }
+
+    /*! @brief convert a leaf index (indexed from first leaf starting from 0) to 0-indexed from root
+     *
+     * @param[in] node    leaf node index, range [0:numLeafNodes()]
+     * @return            octree index, relative to the root node
+     */
+    [[nodiscard]] inline TreeNodeIndex toInternal(TreeNodeIndex node) const
+    {
+        return node + numInternalNodes();
     }
 
     /*! @brief check whether child of node is a leaf
      *
-     * @param[in] node    node index, range [0:nInternalNodes()]
+     * @param[in] node    node index, range [0:numInternalNodes()]
      * @param[in] octant  octant index, range [0:8]
      * @return            true or false
      *
@@ -528,7 +527,7 @@ public:
 
     /*! @brief return child node index
      *
-     * @param[in] node    node index, range [0:nInternalNodes()]
+     * @param[in] node    node index, range [0:numInternalNodes()]
      * @param[in] octant  octant index, range [0:8]
      * @return            child node index, range [0:nNodes()]
      *
@@ -542,7 +541,7 @@ public:
         TreeNodeIndex childIndex = internalTree_[node].child[octant];
         if (isLeafIndex(childIndex))
         {
-            childIndex = loadLeafIndex(childIndex) + nInternalNodes();
+            childIndex = loadLeafIndex(childIndex) + numInternalNodes();
         }
 
         return childIndex;
@@ -550,10 +549,10 @@ public:
 
     /*! @brief return child node indices with leaf indices starting from 0
      *
-     * @param[in] node    node index, range [0:nInternalNodes()]
+     * @param[in] node    node index, range [0:numInternalNodes()]
      * @param[in] octant  octant index, range [0:8]
-     * @return            child node index, range [0:nInternalNodes()] if child is internal
-     *                    or [0:nLeafNodes()] if child is a leaf
+     * @return            child node index, range [0:numInternalNodes()] if child is internal
+     *                    or [0:numLeafNodes()] if child is a leaf
      *
      * If @a node is not internal, behavior is undefined.
      * Note: the indices returned by this function refer to two different arrays, depending on
@@ -578,124 +577,115 @@ public:
      */
     [[nodiscard]] inline TreeNodeIndex parent(TreeNodeIndex node) const
     {
-        if (node < nInternalNodes())
+        if (node < numInternalNodes())
         {
             return internalTree_[node].parent;
         } else
         {
-            return leafParents_[node - nInternalNodes()];
+            return leafParents_[node - numInternalNodes()];
         }
     }
 
     //! @brief lowest SFC key contained int the geometrical box of @p node
-    [[nodiscard]] inline I codeStart(TreeNodeIndex node) const
+    [[nodiscard]] inline KeyType codeStart(TreeNodeIndex node) const
     {
-        if (node < nInternalNodes())
+        if (node < numInternalNodes())
         {
             return internalTree_[node].prefix;
         } else
         {
-            return cstoneTree_[node - nInternalNodes()];
+            return cstoneTree_[node - numInternalNodes()];
         }
     }
 
     //! @brief highest SFC key contained in the geometrical box of @p node
-    [[nodiscard]] inline I codeEnd(TreeNodeIndex node) const
+    [[nodiscard]] inline KeyType codeEnd(TreeNodeIndex node) const
     {
-        if (node < nInternalNodes())
+        if (node < numInternalNodes())
         {
-            return internalTree_[node].prefix + nodeRange<I>(internalTree_[node].level);
+            return internalTree_[node].prefix + nodeRange<KeyType>(internalTree_[node].level);
         } else
         {
-            return cstoneTree_[node - nInternalNodes() + 1];
+            return cstoneTree_[node - numInternalNodes() + 1];
         }
     }
 
     /*! @brief octree subdivision level for @p node
      *
-     * Returns 0 for the root node. Highest value is maxTreeLevel<I>{}.
+     * Returns 0 for the root node. Highest value is maxTreeLevel<KeyType>{}.
      */
     [[nodiscard]] inline int level(TreeNodeIndex node) const
     {
-        if (node < nInternalNodes())
+        if (node < numInternalNodes())
         {
             return internalTree_[node].level;
         } else
         {
-            return treeLevel(cstoneTree_[node - nInternalNodes() + 1] -
-                             cstoneTree_[node - nInternalNodes()]);
+            return treeLevel(cstoneTree_[node - numInternalNodes() + 1] -
+                             cstoneTree_[node - numInternalNodes()]);
         }
     }
 
-    //! @brief returns (min,max) x-coordinate pair for @p node
-    template<class T>
-    [[nodiscard]] pair<T> x(TreeNodeIndex node, const Box<T>& box)
+    [[nodiscard]] gsl::span<const KeyType> treeLeaves() const
     {
-        constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
-        constexpr T uL = T(1.) / maxCoord;
-
-        I prefix = codeStart(node);
-        int ix = decodeMortonX(prefix);
-        T xBox = box.xmin() + ix * uL * box.lx();
-        int unitsPerBox = 1u<<(maxTreeLevel<I>{} - level(node));
-
-        T uLx = uL * box.lx() * unitsPerBox;
-
-        return {xBox, xBox + uLx};
+        return cstoneTree_;
     }
 
-    //! @brief returns (min,max) y-coordinate pair for @p node
-    template<class T>
-    [[nodiscard]] pair<T> y(TreeNodeIndex node, const Box<T>& box)
+    [[nodiscard]] const TreeNodeIndex* leafParents() const
     {
-        constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
-        constexpr T uL = T(1.) / maxCoord;
-
-        I prefix = codeStart(node);
-        int iy = decodeMortonY(prefix);
-        T yBox = box.ymin() + iy * uL * box.ly();
-        int unitsPerBox = 1u<<(maxTreeLevel<I>{} - level(node));
-
-        T uLy = uL * box.ly() * unitsPerBox;
-
-        return {yBox, yBox + uLy};
-    }
-
-    //! @brief returns (min,max) z-coordinate pair for @p node
-    template<class T>
-    [[nodiscard]] pair<T> z(TreeNodeIndex node, const Box<T>& box)
-    {
-        constexpr int maxCoord = 1u<<maxTreeLevel<I>{};
-        constexpr T uL = T(1.) / maxCoord;
-
-        I prefix = codeStart(node);
-        int iz = decodeMortonZ(prefix);
-        T zBox = box.zmin() + iz * uL * box.lz();
-        int unitsPerBox = 1u<<(maxTreeLevel<I>{} - level(node));
-
-        T uLz = uL * box.lz() * unitsPerBox;
-
-        return {zBox, zBox + uLz};
+        return leafParents_.data();
     }
 
 private:
 
+    //! @brief regenerates the internal tree based on (a changed) cstoneTree_
+    void updateInternalTree()
+    {
+        nNodesPerLevel_[0] = nNodes(cstoneTree_);
+
+        binaryTree_.resize(nNodes(cstoneTree_));
+        createBinaryTree(cstoneTree_.data(), nNodes(cstoneTree_), binaryTree_.data());
+
+        std::vector<OctreeNode<KeyType>> preTree((nNodes(cstoneTree_) - 1) / 7);
+        std::vector<TreeNodeIndex> preLeafParents(nNodes(cstoneTree_));
+
+        createInternalOctreeCpu(binaryTree_.data(), nNodes(cstoneTree_), preTree.data(), preLeafParents.data());
+
+        // re-sort internal nodes to establish a max-depth ordering
+        std::vector<TreeNodeIndex> ordering(preTree.size());
+        // determine ordering
+        decreasingMaxDepthOrder(preTree.data(), preTree.size(), ordering.data(), nNodesPerLevel_.data());
+        // apply the ordering to the internal tree;
+        internalTree_.resize(preTree.size());
+        rewireInternal(preTree.data(), ordering.data(), preTree.size(), internalTree_.data());
+
+        // apply ordering to leaf parents
+        leafParents_.resize(preLeafParents.size());
+
+        // internal tree is empty if a single leaf node is also the tree-root
+        if (!internalTree_.empty())
+        {
+            leafParents_[0] = 0;
+            rewireIndices(preLeafParents.data(), ordering.data(), preLeafParents.size(), leafParents_.data());
+        }
+    }
+
     //! @brief cornerstone octree, just the leaves
-    std::vector<I>             cstoneTree_;
+    std::vector<KeyType>       cstoneTree_;
 
     //! @brief indices into internalTree_ to store the parent index of each leaf
     std::vector<TreeNodeIndex> leafParents_;
 
     //! @brief the internal tree
-    std::vector<OctreeNode<I>> internalTree_;
+    std::vector<OctreeNode<KeyType>> internalTree_;
 
     /*! @brief the internal part as binary radix nodes, precursor to internalTree_
      *
      * This is kept here because the binary format is faster for findHalos / collision detection
      */
-    std::vector<BinaryNode<I>> binaryTree_;
+    std::vector<BinaryNode<KeyType>> binaryTree_;
 
-    /*! @brief stores the number of nodes for each of the maxTreeLevel<I>{} possible values of
+    /*! @brief stores the number of nodes for each of the maxTreeLevel<KeyType>{} possible values of
      *
      *  maxDepth is the distance of the farthest leaf, i.e.
      *  nNodesPerLevel[0] --> number of leaf nodes

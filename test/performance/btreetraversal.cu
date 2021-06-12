@@ -45,12 +45,12 @@
 
 using namespace cstone;
 
-template <class I>
+template <class KeyType>
 CUDA_HOST_DEVICE_FUN
-int countCollisions(const BinaryNode<I>* root, const I* leafNodes,
-                    const IBox& collisionBox, pair<I> excludeRange)
+int countCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes,
+                    const IBox& collisionBox, pair<KeyType> excludeRange)
 {
-    using Node    = BinaryNode<I>;
+    using Node    = BinaryNode<KeyType>;
 
     TreeNodeIndex stack[64];
     stack[0] = 0;
@@ -99,8 +99,8 @@ int countCollisions(const BinaryNode<I>* root, const I* leafNodes,
 }
 
 
-template <class I>
-__global__ void countCollisionsKernel(const BinaryNode<I>* internalRoot, const I* leafNodes,
+template <class KeyType>
+__global__ void countCollisionsKernel(const BinaryNode<KeyType>* internalRoot, const KeyType* leafNodes,
                                       int sideLength, unsigned* nCollisionsPerLeaf)
 {
     int tidx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -123,8 +123,8 @@ __global__ void countCollisionsKernel(const BinaryNode<I>* internalRoot, const I
     //printf("%d| %d, %d, %d: %d\n", tid, tidx, tidy, tidz, cnt);
 }
 
-template <class I>
-void countCollisionsGpu(const BinaryNode<I>* internalRoot, const I* leafNodes,
+template <class KeyType>
+void countCollisionsGpu(const BinaryNode<KeyType>* internalRoot, const KeyType* leafNodes,
                         TreeNodeIndex nLeaves, unsigned* nCollisionsPerLeaf)
 {
     int sideLength = 1u << log8ceil(unsigned(nLeaves));
@@ -136,8 +136,8 @@ void countCollisionsGpu(const BinaryNode<I>* internalRoot, const I* leafNodes,
     countCollisionsKernel<<<blocks, threads>>>(internalRoot, leafNodes, sideLength, nCollisionsPerLeaf);
 }
 
-template <class I>
-void countCollisionsCpu(const BinaryNode<I>* internalRoot, const I* leafNodes,
+template <class KeyType>
+void countCollisionsCpu(const BinaryNode<KeyType>* internalRoot, const KeyType* leafNodes,
                         TreeNodeIndex nLeaves, unsigned* nCollisionsPerLeaf)
 {
     int sideLength = 1u << log8ceil(unsigned(nLeaves));
