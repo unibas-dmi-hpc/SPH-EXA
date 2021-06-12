@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Test morton code implementation
+ * @brief Test cornerstone octree core functionality
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -173,6 +173,32 @@ TEST(CornerstoneOctree, countTreeNodes64)
     checkCountTreeNodes<uint64_t>();
 }
 
+template<class KeyType>
+void computeNodeCountsSTree()
+{
+    std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
+    std::vector<KeyType> tree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+
+    /// 2 particles in the first and last node
+
+    /// 2 particles in the first and last node
+    std::vector<KeyType> particleCodes{0, 0, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0) - 1};
+
+    std::vector<unsigned> countsReference(nNodes(tree), 0);
+    countsReference.front() = countsReference.back() = 2;
+
+    std::vector<unsigned> countsProbe(nNodes(tree));
+    computeNodeCounts(tree.data(), countsProbe.data(), nNodes(tree), particleCodes.data(),
+                      particleCodes.data() + particleCodes.size(), std::numeric_limits<unsigned>::max());
+    EXPECT_EQ(countsReference, countsProbe);
+}
+
+TEST(CornerstoneOctree, computeNodeCounts_spanningTree)
+{
+    computeNodeCountsSTree<unsigned>();
+    computeNodeCountsSTree<uint64_t>();
+}
+
 template<class CodeType, class LocalIndex>
 void rebalanceDecision()
 {
@@ -181,13 +207,12 @@ void rebalanceDecision()
     unsigned bucketSize = 4;
     std::vector<unsigned> counts{1,1,1,0,0,0,0,0, 2, 3, 4, 5, 6, 7, 8};
 
-    int changeCounter = 0;
     std::vector<LocalIndex> nodeOps(nNodes(tree));
-    rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data(), &changeCounter);
+    bool converged = rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data());
 
     std::vector<LocalIndex> reference{1,0,0,0,0,0,0,0, 1, 1, 1, 8, 8, 8, 8};
     EXPECT_EQ(nodeOps, reference);
-    EXPECT_NE(changeCounter, 0);
+    EXPECT_FALSE(converged);
 }
 
 TEST(CornerstoneOctree, rebalanceDecision)
@@ -196,171 +221,26 @@ TEST(CornerstoneOctree, rebalanceDecision)
     rebalanceDecision<uint64_t, unsigned>();
 }
 
-//! @brief check that nodes can be fused at the start of the tree
-template<class CodeType>
-void rebalanceShrinkStart()
+template<class CodeType, class LocalIndex>
+void rebalanceDecisionSingleRoot()
 {
-    constexpr int bucketSize = 8;
+    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.makeTree();
 
-    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
-    std::vector<unsigned> counts(nNodes(tree), 1);
+    unsigned bucketSize = 4;
+    std::vector<unsigned> counts{1};
 
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
-    rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize);
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
+    std::vector<LocalIndex> nodeOps(nNodes(tree));
+    bool converged = rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data());
 
-    std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().makeTree();
-    EXPECT_EQ(tree, reference);
+    std::vector<LocalIndex> reference{1};
+    EXPECT_EQ(nodeOps, reference);
+    EXPECT_TRUE(converged);
 }
 
-TEST(CornerstoneOctree, rebalanceShrinkStart32)
+TEST(CornerstoneOctree, rebalanceDecisionSingleRoot)
 {
-    rebalanceShrinkStart<unsigned>();
-}
-
-TEST(CornerstoneOctree, rebalanceShrinkStart64)
-{
-    rebalanceShrinkStart<uint64_t>();
-}
-
-//! @brief check that nodes can be fused in the middle of the tree
-template<class CodeType>
-void rebalanceShrinkMid()
-{
-    constexpr int bucketSize = 8;
-
-    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(1).makeTree();
-
-    std::vector<unsigned> counts(nNodes(tree), 1);
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
-    rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize);
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
-
-    std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().makeTree();
-    EXPECT_EQ(tree, reference);
-}
-
-TEST(CornerstoneOctree, rebalanceShrinkMid32)
-{
-    rebalanceShrinkMid<unsigned>();
-}
-
-TEST(CornerstoneOctree, rebalanceShrinkMid64)
-{
-    rebalanceShrinkMid<uint64_t>();
-}
-
-//! @brief check that nodes can be fused at the end of the tree
-template<class CodeType>
-void rebalanceShrinkEnd()
-{
-    constexpr int bucketSize = 8;
-
-    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(7).makeTree();
-
-    std::vector<unsigned> counts(nNodes(tree), 1);
-
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
-    rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize);
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
-
-    std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().makeTree();
-    EXPECT_EQ(tree, reference);
-}
-
-TEST(CornerstoneOctree, rebalanceShrinkEnd32)
-{
-    rebalanceShrinkEnd<unsigned>();
-}
-
-TEST(CornerstoneOctree, rebalanceShrinkEnd64)
-{
-    rebalanceShrinkEnd<uint64_t>();
-}
-
-//! @brief test invariance of a single root node under rebalancing if count < bucketsize
-template<class I>
-void rebalanceRootInvariant()
-{
-    using CodeType = I;
-    constexpr int bucketSize = 8;
-
-    // single root node
-    std::vector<CodeType> tree{0, nodeRange<CodeType>(0)};
-    std::vector<unsigned> counts{7};
-
-    rebalanceTree(tree,counts.data(), nNodes(tree), bucketSize);
-
-    std::vector<CodeType> reference{0, nodeRange<CodeType>(0)};
-    EXPECT_EQ(tree, reference);
-}
-
-TEST(CornerstoneOctree, rebalanceRootInvariant32)
-{
-    rebalanceRootInvariant<uint64_t>();
-}
-
-TEST(CornerstoneOctree, rebalanceRootInvariant64)
-{
-    rebalanceRootInvariant<uint64_t>();
-}
-
-//! @brief test splitting of a single root node
-template<class I>
-void rebalanceRootSplit()
-{
-    using CodeType = I;
-    constexpr int bucketSize = 8;
-
-    // single root node
-    std::vector<CodeType> tree{0, nodeRange<CodeType>(0)};
-    std::vector<unsigned> counts{9};
-
-    rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize);
-
-    std::vector<CodeType> reference = OctreeMaker<I>{}.divide().makeTree();
-    EXPECT_EQ(tree, reference);
-}
-
-TEST(CornerstoneOctree, rebalanceRootSplit32)
-{
-    rebalanceRootSplit<unsigned>();
-}
-
-TEST(CornerstoneOctree, rebalanceRootSplit64)
-{
-    rebalanceRootSplit<uint64_t>();
-}
-
-//! @brief test node splitting and fusion simultaneously
-template<class CodeType>
-void rebalanceSplitShrink()
-{
-    constexpr int bucketSize = 8;
-
-    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(7).makeTree();
-
-    // nodes {7,i} will need to be fused
-    std::vector<unsigned> counts(nNodes(tree), 1);
-    // node {1} will need to be split
-    counts[1] = bucketSize+1;
-
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
-    rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize);
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
-
-    std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().divide(1).makeTree();
-    EXPECT_EQ(tree, reference);
-}
-
-TEST(CornerstoneOctree, rebalanceSplitShrink32)
-{
-    rebalanceSplitShrink<unsigned>();
-}
-
-TEST(CornerstoneOctree, rebalanceSplitShrink64)
-{
-    rebalanceSplitShrink<uint64_t>();
+    rebalanceDecisionSingleRoot<unsigned, unsigned>();
+    rebalanceDecisionSingleRoot<uint64_t, unsigned>();
 }
 
 /*! @brief test behavior of a maximum-depth tree under rebalancing
@@ -380,35 +260,56 @@ void rebalanceInsufficentResolution()
         octreeMaker.divide({}, level);
 
     std::vector<CodeType> tree = octreeMaker.makeTree();
-    std::vector<CodeType> reference = tree;
 
     std::vector<unsigned> counts(nNodes(tree), 1);
     counts[0] = bucketSize + 1;
 
+    std::vector<TreeNodeIndex> nodeOps(tree.size());
     // the first node has two particles, one more than the bucketSize
     // since the first node is at the maximum subdivision layer, the tree
     // can't be further refined to satisfy the bucketSize
-    rebalanceTree(tree, counts.data(), nNodes(tree), bucketSize);
+    bool converged = rebalanceDecision(tree.data(), counts.data(), nNodes(tree), bucketSize, nodeOps.data());
 
-    EXPECT_EQ(tree, reference);
+    std::vector<TreeNodeIndex> reference(tree.size(), 1);
+    reference[nNodes(tree)] = 0; // last value is for the scan result, irrelevant here
+
+    EXPECT_EQ(nodeOps, reference);
+    EXPECT_TRUE(converged);
 }
 
-TEST(CornerstoneOctree, rebalanceInsufficientResolution32)
+TEST(CornerstoneOctree, rebalanceInsufficientResolution)
 {
     rebalanceInsufficentResolution<unsigned>();
-}
-
-TEST(CornerstoneOctree, rebalanceInsufficientResolution64)
-{
     rebalanceInsufficentResolution<uint64_t>();
 }
 
-
-template<class I>
-void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<unsigned>& counts, int bucketSize,
-                           const std::vector<I>& mortonCodes, bool relaxBucketCount)
+//! @brief check that nodes can be fused at the start of the tree
+template<class CodeType>
+void rebalanceTree()
 {
-    using CodeType = I;
+    std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
+
+    std::vector<TreeNodeIndex> nodeOps{1,0,0,0,0,0,0,0,1,8,1,1,1,1,8,0};
+    ASSERT_EQ(nodeOps.size(), tree.size());
+
+    std::vector<CodeType> newTree;
+    rebalanceTree(tree, newTree, nodeOps.data());
+
+    std::vector<CodeType> reference = OctreeMaker<CodeType>{}.divide().divide(2).divide(7).makeTree();
+    EXPECT_EQ(newTree, reference);
+}
+
+TEST(CornerstoneOctree, rebalance)
+{
+    rebalanceTree<unsigned>();
+    rebalanceTree<uint64_t>();
+}
+
+template<class KeyType>
+void checkOctreeWithCounts(const std::vector<KeyType>& tree, const std::vector<unsigned>& counts, int bucketSize,
+                           const std::vector<KeyType>& mortonCodes, bool relaxBucketCount)
+{
+    using CodeType = KeyType;
     EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 
     int nParticles = mortonCodes.size();
@@ -446,10 +347,10 @@ void checkOctreeWithCounts(const std::vector<I>& tree, const std::vector<unsigne
 class ComputeOctreeTester : public testing::TestWithParam<int>
 {
 public:
-    template<class I, template <class...> class CoordinateType>
+    template<class KeyType, template <class...> class CoordinateType>
     void check(int bucketSize)
     {
-        using CodeType = I;
+        using CodeType = KeyType;
         Box<double> box{-1, 1};
 
         int nParticles = 100000;
@@ -475,8 +376,8 @@ public:
         std::uniform_int_distribution<std::make_signed_t<CodeType>> displace(-minRange, minRange);
 
         for (auto& code : codes)
-            code = std::max(std::make_signed_t<I>(0), std::min(std::make_signed_t<I>(code) + displace(gen),
-                                                               std::make_signed_t<I>(nodeRange<I>(0)-1)));
+            code = std::max(std::make_signed_t<KeyType>(0), std::min(std::make_signed_t<KeyType>(code) + displace(gen),
+                                                               std::make_signed_t<KeyType>(nodeRange<KeyType>(0)-1)));
 
         std::sort(begin(codes), end(codes));
         updateOctree(codes.data(), codes.data() + nParticles, bucketSize, tree, counts);
@@ -500,6 +401,39 @@ std::array<int, 3> bucketSizesPP{64, 1024, 10000};
 INSTANTIATE_TEST_SUITE_P(RandomBoxPP, ComputeOctreeTester, testing::ValuesIn(bucketSizesPP));
 
 
+template<class KeyType>
+void computeSpanningTree()
+{
+    {
+        std::vector<KeyType> cornerstones{0, nodeRange<KeyType>(0)};
+        std::vector<KeyType> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+        std::vector<KeyType> reference{0, nodeRange<KeyType>(0)};
+        EXPECT_EQ(spanningTree, reference);
+    }
+    {
+        std::vector<KeyType> cornerstones{0, pad(KeyType(1), 3), nodeRange<KeyType>(0)};
+        std::vector<KeyType> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+        EXPECT_TRUE(checkOctreeInvariants(spanningTree.data(), nNodes(spanningTree)));
+        EXPECT_EQ(spanningTree.size(), 9);
+    }
+    {
+        std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
+        std::vector<KeyType> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+        EXPECT_TRUE(checkOctreeInvariants(spanningTree.data(), nNodes(spanningTree)));
+        if constexpr (std::is_same_v<KeyType, unsigned>)
+            EXPECT_EQ(spanningTree.size(), 135);
+        else
+            EXPECT_EQ(spanningTree.size(), 289);
+    }
+}
+
+TEST(CornerstoneOctree, computeSpanningTree)
+{
+    computeSpanningTree<unsigned>();
+    computeSpanningTree<uint64_t>();
+}
+
+
 TEST(CornerstoneOctree, computeHaloRadii)
 {
     using CodeType = unsigned;
@@ -521,48 +455,31 @@ TEST(CornerstoneOctree, computeHaloRadii)
     EXPECT_EQ(probe, hMaxPerNode);
 }
 
-TEST(CornerstoneOctree, nodeMaxRegression)
+template<class KeyType>
+void computeHaloRadiiSTree()
 {
-    std::vector<unsigned> tree{0, 1, 2, 3, 4, 5, 6, 7, 8, 16, 24, 32, 40, 48, 56, 64, 128, 192, 256, 320, 384,
-                               448, 512, 1024, 1536, 2048, 2560, 3072, 3584, 4096, 8192, 12288, 16384, 20480, 24576,
-                               28672, 32768, 65536, 98304, 131072, 163840, 196608, 229376, 262144, 524288, 786432, 1048576,
-                               1310720, 1572864, 1835008, 2097152, 4194304, 6291456, 8388608, 10485760, 12582912, 14680064,
-                               16777216, 33554432, 50331648, 67108864, 83886080, 100663296, 117440512, 134217728, 268435456,
-                               402653184, 536870912, 671088640, 805306368, 939524096, 956301312, 973078528, 989855744, 1006632960,
-                               1023410176, 1040187392, 1056964608, 1059061760, 1061158912, 1063256064, 1065353216, 1067450368,
-                               1069547520, 1071644672, 1071906816, 1072168960, 1072431104, 1072693248, 1072955392, 1073217536,
-                               1073479680, 1073512448, 1073545216, 1073577984, 1073610752, 1073643520, 1073676288, 1073709056,
-                               1073713152, 1073717248, 1073721344, 1073725440, 1073729536, 1073733632, 1073737728, 1073738240,
-                               1073738752, 1073739264, 1073739776, 1073740288, 1073740800, 1073741312, 1073741376, 1073741440,
-                               1073741504, 1073741568, 1073741632, 1073741696, 1073741760, 1073741768, 1073741776, 1073741784,
-                               1073741792, 1073741800, 1073741808, 1073741816, 1073741817, 1073741818, 1073741819, 1073741820,
-                               1073741821, 1073741822, 1073741823, 1073741824};
+    std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
+    std::vector<KeyType> tree = computeSpanningTree(begin(cornerstones), end(cornerstones));
 
-    EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));
+    /// 2 particles in the first and last node
+    std::vector<KeyType> particleCodes{0, 0, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0) - 1};
 
-    std::vector<unsigned> nodeCounts(nNodes(tree), 0);
-    nodeCounts[0]        = 2;
-    *nodeCounts.rbegin() = 2;
+    std::vector<double> smoothingLengths{0.21, 0.2, 0.2, 0.22};
+    std::vector<TreeNodeIndex> ordering{0, 1, 2, 3};
 
-    std::vector<unsigned> codes{0, 0, 1073741823, 1073741823};
+    std::vector<double> haloRadii(nNodes(tree), 0);
+    computeHaloRadii(tree.data(), nNodes(tree), particleCodes.data(), particleCodes.data() + particleCodes.size(), ordering.data(),
+                     smoothingLengths.data(), haloRadii.data());
 
-    {
-        std::vector<unsigned> countsProbe(nNodes(tree));
-        computeNodeCounts(tree.data(), countsProbe.data(), nNodes(tree), codes.data(), codes.data() + codes.size(),
-                          std::numeric_limits<unsigned>::max());
-        EXPECT_EQ(nodeCounts, countsProbe);
-    }
+    std::vector<double> referenceHaloRadii(nNodes(tree));
+    referenceHaloRadii.front() = 0.42;
+    referenceHaloRadii.back()  = 0.44;
 
-    std::vector<double> h{0.2, 0.2, 0.2, 0.2};
-    std::vector<int> ordering{0,1,2,3};
+    EXPECT_EQ(referenceHaloRadii, haloRadii);
+}
 
-    std::vector<double> hMaxPerNode(nNodes(tree), 0);
-    computeHaloRadii(tree.data(), nNodes(tree), codes.data(), codes.data() + codes.size(), ordering.data(), h.data(),
-                     hMaxPerNode.data());
-
-    std::vector<double> refhMaxPerNode(nNodes(tree));
-    refhMaxPerNode[0] = 0.4;
-    refhMaxPerNode[nNodes(tree)-1] = 0.4;
-
-    EXPECT_EQ(refhMaxPerNode, hMaxPerNode);
+TEST(CornerstoneOctree, computeHaloRadii_spanningTree)
+{
+    computeHaloRadiiSTree<unsigned>();
+    computeHaloRadiiSTree<uint64_t>();
 }

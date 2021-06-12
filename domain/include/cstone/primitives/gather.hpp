@@ -38,7 +38,7 @@
 #include <tuple>
 #include <vector>
 
-#include "cstone/sfc/mortoncode.hpp"
+#include "cstone/sfc/morton.hpp"
 
 namespace cstone
 {
@@ -215,7 +215,7 @@ public:
      *
      *  Remarks:
      *    - reallocates space on the device if necessary to fit N elements of type LocalIndex
-     *      and a second buffer of size max(2N*sizeof(T), N*sizeof(I))
+     *      and a second buffer of size max(2N*sizeof(T), N*sizeof(KeyType))
      */
     void setMapFromCodes(CodeType* codes_first, CodeType* codes_last)
     {

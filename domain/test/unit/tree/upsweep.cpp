@@ -50,14 +50,14 @@ void upsweepSum4x4x4()
     Octree<I> octree;
     octree.update(cstoneTree.data(), cstoneTree.data() + cstoneTree.size());
 
-    std::vector<unsigned> nodeCounts(octree.nTreeNodes(), 0);
-    for (int i = octree.nInternalNodes(); i < octree.nTreeNodes(); ++i)
+    std::vector<unsigned> nodeCounts(octree.numTreeNodes(), 0);
+    for (int i = octree.numInternalNodes(); i < octree.numTreeNodes(); ++i)
     {
         nodeCounts[i] = 1;
     }
 
     auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h) { return a+b+c+d+e+f+g+h; };
-    upsweep(octree, nodeCounts.data() + octree.nInternalNodes(), nodeCounts.data(), sumFunction);
+    upsweep(octree, nodeCounts.data() + octree.numInternalNodes(), nodeCounts.data(), sumFunction);
 
     std::vector<unsigned> refNodeCounts{64, 8, 8, 8, 8, 8, 8, 8, 8,
                                         1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
@@ -87,14 +87,14 @@ void upsweepSumIrregularL2()
     Octree<I> octree;
     octree.update(cstoneTree.data(), cstoneTree.data() + cstoneTree.size());
 
-    std::vector<unsigned> nodeCounts(octree.nTreeNodes(), 0);
-    for (int i = 0; i < octree.nLeafNodes(); ++i)
+    std::vector<unsigned> nodeCounts(octree.numTreeNodes(), 0);
+    for (int i = 0; i < octree.numLeafNodes(); ++i)
     {
-        nodeCounts[i + octree.nInternalNodes()] = i;
+        nodeCounts[i + octree.numInternalNodes()] = i;
     }
 
     auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h) { return a+b+c+d+e+f+g+h; };
-    upsweep(octree, nodeCounts.data() + octree.nInternalNodes(), nodeCounts.data(), sumFunction);
+    upsweep(octree, nodeCounts.data() + octree.numInternalNodes(), nodeCounts.data(), sumFunction);
 
     std::vector<unsigned> refNodeCounts{105,28,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14};
 
@@ -120,14 +120,14 @@ void upsweepSumIrregularL3()
     Octree<I> octree;
     octree.update(cstoneTree.data(), cstoneTree.data() + cstoneTree.size());
 
-    std::vector<unsigned> nodeCounts(octree.nTreeNodes(), 0);
-    for (int i = octree.nInternalNodes(); i < octree.nTreeNodes(); ++i)
+    std::vector<unsigned> nodeCounts(octree.numTreeNodes(), 0);
+    for (int i = octree.numInternalNodes(); i < octree.numTreeNodes(); ++i)
     {
         nodeCounts[i] = 1;
     }
 
     auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h) { return a+b+c+d+e+f+g+h; };
-    upsweep(octree, nodeCounts.data() + octree.nInternalNodes(), nodeCounts.data(), sumFunction);
+    upsweep(octree, nodeCounts.data() + octree.numInternalNodes(), nodeCounts.data(), sumFunction);
 
     std::vector<unsigned> refNodeCounts{29,15,8,8,
                                         1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};

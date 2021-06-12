@@ -27,7 +27,49 @@
 
 namespace cstone {
 
-//! @brief controls the node index type, change to 64-bit if more than 2 billion tree nodes are required
+//! @brief Controls the node index type, has to be signed. Change to 64-bit if more than 2 billion tree nodes are required.
 using TreeNodeIndex = int;
+
+using LocalParticleIndex = unsigned;
+
+//! @brief checks whether a binary tree index corresponds to a leaf index
+CUDA_HOST_DEVICE_FUN
+constexpr bool isLeafIndex(TreeNodeIndex nodeIndex)
+{
+    return nodeIndex < 0;
+}
+
+//! @brief convert a leaf index to the storage format
+CUDA_HOST_DEVICE_FUN
+constexpr TreeNodeIndex storeLeafIndex(TreeNodeIndex index)
+{
+    // -2^31 or -2^63
+    constexpr auto offset = TreeNodeIndex(-(1ul << (8*sizeof(TreeNodeIndex)-1)));
+    return index + offset;
+}
+
+//! @brief restore a leaf index from the storage format
+CUDA_HOST_DEVICE_FUN
+constexpr TreeNodeIndex loadLeafIndex(TreeNodeIndex index)
+{
+    constexpr auto offset = TreeNodeIndex(-(1ul << (8*sizeof(TreeNodeIndex)-1)));
+    return index - offset;
+}
+
+/*! @brief returns the number of nodes in a tree
+ *
+ * @tparam    Vector  a vector-like container that has a .size() member
+ * @param[in] tree    input tree
+ * @return            the number of nodes
+ *
+ * This makes it explicit that a vector of n Morton codes
+ * corresponds to a tree with n-1 nodes.
+ */
+template<class Vector>
+std::size_t nNodes(const Vector& tree)
+{
+    assert(tree.size());
+    return tree.size() - 1;
+}
 
 } // namespace cstone
