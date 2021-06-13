@@ -68,18 +68,11 @@ template<class KeyType>
 __global__ void updateNodeCountsKernel(const KeyType* tree, unsigned* counts, TreeNodeIndex nNodes, const KeyType* codesStart,
                                        const KeyType* codesEnd, unsigned maxCount)
 {
-    extern __shared__ unsigned guesses[];
-
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid < nNodes)
     {
         unsigned firstGuess  = counts[tid];
-
-        guesses[threadIdx.x] = firstGuess;
-        unsigned secondGuess = firstGuess;
-        __syncthreads();
-        if (threadIdx.x < blockDim.x - 1)
-            secondGuess = guesses[min(threadIdx.x+1, nNodes-1)];
+        unsigned secondGuess = counts[min(tid+1, nNodes-1)];
 
         //unsigned secondGuess = __shfl_down_sync(0xffffffff, firstGuess, 1);
         counts[tid] = updateNodeCount(tid, tree, firstGuess, secondGuess,
@@ -129,7 +122,7 @@ void computeNodeCountsGpu(const KeyType* tree, unsigned* counts, TreeNodeIndex n
     if (useCountsAsGuess)
     {
         thrust::exclusive_scan(thrust::device, counts + popNodes[0], counts + popNodes[1], counts + popNodes[0], 0);
-        updateNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads, sizeof(unsigned) * nThreads>>>
+        updateNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>
             (tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
     }
     else
