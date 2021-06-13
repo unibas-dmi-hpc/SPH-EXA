@@ -299,7 +299,7 @@ int calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, const unsigned* 
  * @param[in] bucketSize   maximum particle count per (leaf) node and
  *                         minimum particle count (strictly >) for (implicit) internal nodes
  * @param[out] nodeOps     stores rebalance decision result for each node, length = @p nNodes
- * @return                 true if converged, false
+ * @return                 true if all nodes are unchanged, false otherwise
  *
  * For each node i in the tree, in nodeOps[i], stores
  *  - 0 if to be merged
@@ -427,7 +427,7 @@ std::tuple<std::vector<KeyType>, std::vector<unsigned>>
 computeOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucketSize,
               unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
-    std::vector<KeyType>        tree{0, nodeRange<KeyType>(0)};
+    std::vector<KeyType>  tree{0, nodeRange<KeyType>(0)};
     std::vector<unsigned> counts{unsigned(codesEnd - codesStart)};
 
     while (!updateOctree(codesStart, codesEnd, bucketSize, tree, counts, maxCount));
