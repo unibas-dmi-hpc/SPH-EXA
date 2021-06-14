@@ -235,56 +235,9 @@ bool rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, unsigned bucketSi
     return changeCounter == 0;
 }
 
-/*! @brief compute an octree from morton codes for a specified bucket size
-
- * @tparam KeyType            32- or 64-bit unsigned integer type
- * @param[in]    codesStart   particle morton code sequence start
- * @param[in]    codesEnd     particle morton code sequence end
- * @param[in]    bucketSize   maximum number of particles/codes per octree leaf node
- * @param[inout] tree         input tree for initial guess and converged output tree
- * @param[out]   counts       particle counts per node in @p tree
- * @param[in]    maxCount     if actual node counts are higher, they will be capped to @p maxCount
- *
- * See CPU version for an explanation about @p maxCount
- */
-template<class SfcVector, class CountsVector, class KeyType, class Reduce = void>
-void computeOctreeGpu(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucketSize,
-                      SfcVector& tree, CountsVector& counts,
-                      unsigned maxCount = std::numeric_limits<unsigned>::max())
-{
-    static_assert(std::is_same_v<typename SfcVector::value_type, KeyType>);
-    static_assert(std::is_same_v<typename CountsVector::value_type, unsigned>);
-
-    if (!tree.size())
-    {
-        // tree containing just the root node
-        tree.push_back(0);
-        tree.push_back(nodeRange<KeyType>(0));
-    }
-
-    thrust::device_vector<KeyType>       tmpTree(tree.size());
-    thrust::device_vector<TreeNodeIndex> workArray(tree.size());
-
-    bool converged = false;
-    while (!converged)
-    {
-        counts.resize(nNodes(tree));
-        computeNodeCountsGpu(thrust::raw_pointer_cast(tree.data()), thrust::raw_pointer_cast(counts.data()),
-                             nNodes(tree), codesStart, codesEnd, maxCount);
-
-        if constexpr (!std::is_same_v<void, Reduce>)
-        {
-            (void)Reduce{}(counts); // void cast to silence "warning: expression has no effect" from nvcc
-        }
-
-        converged = rebalanceTreeGpu(tree, thrust::raw_pointer_cast(counts.data()), bucketSize, tmpTree, workArray);
-    }
-}
-
 /*! @brief update the octree with a single rebalance/count step
  *
  * @tparam KeyType           32- or 64-bit unsigned integer for morton code
- * @tparam Reduce            functor for global counts reduction in distributed builds
  * @param[in]    codesStart  local particle Morton codes start
  * @param[in]    codesEnd    local particle morton codes end
  * @param[in]    bucketSize  maximum number of particles per node
@@ -295,11 +248,10 @@ void computeOctreeGpu(const KeyType* codesStart, const KeyType* codesEnd, unsign
  * @param[in]    maxCount    if actual node counts are higher, they will be capped to @p maxCount
  * @return                   true if converged, false otherwise
  */
-template<class KeyType, class Reduce = void>
+template<class KeyType>
 bool updateOctreeGpu(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucketSize,
                      thrust::device_vector<KeyType>& tree, thrust::device_vector<unsigned>& counts,
-                     thrust::device_vector<KeyType>& tmpTree,
-                     thrust::device_vector<TreeNodeIndex>& workArray,
+                     thrust::device_vector<KeyType>& tmpTree, thrust::device_vector<TreeNodeIndex>& workArray,
                      unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
     bool converged = rebalanceTreeGpu(tree, thrust::raw_pointer_cast(counts.data()), bucketSize, tmpTree, workArray);
@@ -308,8 +260,6 @@ bool updateOctreeGpu(const KeyType* codesStart, const KeyType* codesEnd, unsigne
     // local node counts
     computeNodeCountsGpu(thrust::raw_pointer_cast(tree.data()), thrust::raw_pointer_cast(counts.data()),
                          nNodes(tree), codesStart, codesEnd, maxCount, true);
-    // global node count sums when using distributed builds
-    if constexpr (!std::is_same_v<void, Reduce>) (void)Reduce{}(counts);
 
     return converged;
 }
