@@ -66,9 +66,6 @@ int main()
     while(!updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
                            thrust::raw_pointer_cast(particleCodes.data() + numParticles),
                            bucketSize, tree, counts, tmpTree, workArray));
-    //computeOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
-    //                 thrust::raw_pointer_cast(particleCodes.data() + numParticles),
-    //                 bucketSize, tree, counts);
 
     cudaEventRecord(stop, cudaStreamDefault);
     cudaEventSynchronize(stop);
