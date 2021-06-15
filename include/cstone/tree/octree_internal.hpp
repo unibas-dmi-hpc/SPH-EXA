@@ -634,14 +634,30 @@ public:
 
         if (isLeaf(nodeIdx)) { return numTreeNodes(); } // not found
 
-        // nodeIdx is internal and contains the [startKey:endKey] range
+        // nodeIdx is internal
         while (codeStart(nodeIdx) != startKey)
         {
             nodeIdx = refineIdx(nodeIdx, startKey);
             if (isLeafIndex(nodeIdx))
             {
-                // not found
-                if (cstoneTree_[loadLeafIndex(nodeIdx)] != startKey) { return numTreeNodes(); }
+                if (cstoneTree_[loadLeafIndex(nodeIdx)] != startKey ||
+                    cstoneTree_[loadLeafIndex(nodeIdx) + 1] != endKey)
+                {
+                    // not found
+                    return numTreeNodes();
+                }
+
+                else { return loadLeafIndex(nodeIdx) + numInternalNodes(); }
+            }
+        }
+
+        // nodeIdx is still internal
+        while (codeEnd(nodeIdx) != endKey)
+        {
+            nodeIdx = internalTree_[nodeIdx].child[0];
+            if (isLeafIndex(nodeIdx))
+            {
+                if (cstoneTree_[loadLeafIndex(nodeIdx) + 1] != endKey) { return numTreeNodes(); }
                 else { return loadLeafIndex(nodeIdx) + numInternalNodes(); }
             }
         }
