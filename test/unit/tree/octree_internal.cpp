@@ -426,16 +426,31 @@ void locateTest()
     Octree<KeyType> fullTree;
     fullTree.update(std::move(spanningTree));
 
-    TreeNodeIndex l1 = fullTree.locate(16, 2);
+    std::vector<std::array<KeyType, 2>> inputs{
+        {0, nodeRange<KeyType>(0)},
+        {0, nodeRange<KeyType>(1)},
+        {0, nodeRange<KeyType>(2)},
+        {0, nodeRange<KeyType>(3)},
+        {0, 1},
+        {4 * nodeRange<KeyType>(1), 5 * nodeRange<KeyType>(1)},
+        {nodeRange<KeyType>(0) - 512, nodeRange<KeyType>(0)},
+        {nodeRange<KeyType>(0) - 64, nodeRange<KeyType>(0)},
+        {nodeRange<KeyType>(0) - 8, nodeRange<KeyType>(0)},
+        {nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)}
+    };
 
-    std::cout << l1 << std::endl;
-    if (l1 < fullTree.numTreeNodes())
+    for (auto p : inputs)
     {
-        std::cout << fullTree.codeStart(l1) << std::endl;
+        auto [start, end] = p;
+        TreeNodeIndex nodeIdx = fullTree.locate(start, end);
+        std::cout << nodeIdx << std::endl;
+        EXPECT_EQ(start, fullTree.codeStart(nodeIdx));
+        EXPECT_EQ(end, fullTree.codeEnd(nodeIdx));
     }
 }
 
 TEST(InternalOctree, locate)
 {
     locateTest<unsigned>();
+    locateTest<uint64_t>();
 }
