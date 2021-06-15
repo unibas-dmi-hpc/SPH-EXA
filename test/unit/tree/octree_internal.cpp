@@ -416,3 +416,26 @@ TEST(InternalOctree, irregularL3)
     octreeIrregularL3<unsigned>();
     octreeIrregularL3<uint64_t>();
 }
+
+template<class KeyType>
+void locateTest()
+{
+    std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
+    std::vector<KeyType> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+
+    Octree<KeyType> fullTree;
+    fullTree.update(std::move(spanningTree));
+
+    TreeNodeIndex l1 = fullTree.locate(16, 2);
+
+    std::cout << l1 << std::endl;
+    if (l1 < fullTree.numTreeNodes())
+    {
+        std::cout << fullTree.codeStart(l1) << std::endl;
+    }
+}
+
+TEST(InternalOctree, locate)
+{
+    locateTest<unsigned>();
+}

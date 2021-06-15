@@ -39,6 +39,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <iterator>
 #include <vector>
 
@@ -626,6 +627,28 @@ public:
         }
     }
 
+    TreeNodeIndex locate(KeyType startKey, KeyType endKey) const
+    {
+        TreeNodeIndex nodeIdx = 0;
+        if (codeStart(nodeIdx) == startKey && codeStart(nodeIdx) == endKey) { return nodeIdx; }
+
+        if (isLeaf(nodeIdx)) { return numTreeNodes(); } // not found
+
+        // nodeIdx is internal and contains the [startKey:endKey] range
+        while (codeStart(nodeIdx) != startKey)
+        {
+            nodeIdx = refineIdx(nodeIdx, startKey);
+            if (isLeafIndex(nodeIdx))
+            {
+                // not found
+                if (cstoneTree_[loadLeafIndex(nodeIdx)] != startKey) { return numTreeNodes(); }
+                else { return loadLeafIndex(nodeIdx) + numInternalNodes(); }
+            }
+        }
+
+        return nodeIdx;
+    }
+
     [[nodiscard]] gsl::span<const KeyType> treeLeaves() const
     {
         return cstoneTree_;
@@ -637,6 +660,24 @@ public:
     }
 
 private:
+
+    /*! @brief find the child that contains the given key
+     *
+     * @param nodeIdx has to be internal
+     * @param key     SFC key to look for
+     * @return        the tree node index of the child of nodeIdx that contains key
+     */
+    TreeNodeIndex refineIdx(TreeNodeIndex nodeIdx, KeyType key) const
+    {
+        for (int octant = 1; octant < 8; ++octant)
+        {
+            TreeNodeIndex child = internalTree_[nodeIdx].child[octant];
+            KeyType nodeStart = (isLeafIndex(child)) ? cstoneTree_[loadLeafIndex(child)] :
+                                                       internalTree_[child].prefix;
+            if (key < nodeStart) { return internalTree_[nodeIdx].child[octant - 1]; }
+        }
+        return internalTree_[nodeIdx].child[7];
+    }
 
     //! @brief regenerates the internal tree based on (a changed) cstoneTree_
     void updateInternalTree()
