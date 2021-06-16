@@ -84,10 +84,19 @@ std::vector<int> findPeersMac(int myRank, const SpaceCurveAssignment& assignment
     auto p2p = [numInternalNodes, &assignment, &peerRanks](TreeNodeIndex a, TreeNodeIndex b)
     {
         int peerRank = assignment.findRank(b - numInternalNodes);
-        peerRanks[peerRank] = 1;
+        if (peerRanks[peerRank] == 0) { peerRanks[peerRank] = 1; }
     };
 
-    dualTraversal(domainTree, 0, 0, crossFocusPairs, m2l, p2p);
+    std::vector<KeyType> spanningNodeKeys(spanSfcRange(domainStart, domainEnd) + 1);
+    spanSfcRange(domainStart, domainEnd, spanningNodeKeys.data());
+    spanningNodeKeys.back() = domainEnd;
+
+    #pragma omp parallel for schedule(dynamic)
+    for (TreeNodeIndex i = 0; i < spanningNodeKeys.size() - 1; ++i)
+    {
+        TreeNodeIndex nodeIdx = domainTree.locate(spanningNodeKeys[i], spanningNodeKeys[i+1]);
+        dualTraversal(domainTree, nodeIdx, 0, crossFocusPairs, m2l, p2p);
+    }
 
     std::vector<int> ret;
     for (int i = 0; i < peerRanks.size(); ++i)
