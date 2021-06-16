@@ -137,3 +137,4 @@ CUDA_HOST_DEVICE_FUN constexpr unsigned iceil(size_t dividend, unsigned divisor)
 {
     return (dividend + divisor - 1) / divisor;
 }
+

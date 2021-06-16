@@ -70,3 +70,4 @@ using ReorderFunctor_t = typename detail::ReorderFunctor<Accelerator>::template 
 
 
 } // namespace cstone
+
