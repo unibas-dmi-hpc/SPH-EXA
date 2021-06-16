@@ -627,6 +627,13 @@ public:
         }
     }
 
+    /*! @brief finds the index of the node with SFC key range [startKey:endKey]
+     *
+     * @param startKey   lower SFC key
+     * @param endKey     upper SFC key
+     * @return           The index i of the node that satisfies codeStart(i) == startKey
+     *                   and codeEnd(i) == endKey, or numTreeNodes() if no such node exists.
+     */
     TreeNodeIndex locate(KeyType startKey, KeyType endKey) const
     {
         TreeNodeIndex nodeIdx = 0;
@@ -635,7 +642,7 @@ public:
         if (isLeaf(nodeIdx)) { return numTreeNodes(); } // not found
 
         // nodeIdx is internal
-        while (codeStart(nodeIdx) != startKey)
+        while (internalTree_[nodeIdx].prefix != startKey)
         {
             nodeIdx = refineIdx(nodeIdx, startKey);
             if (isLeafIndex(nodeIdx))
@@ -652,7 +659,7 @@ public:
         }
 
         // nodeIdx is still internal
-        while (codeEnd(nodeIdx) != endKey)
+        while (internalTree_[nodeIdx].prefix + nodeRange<KeyType>(internalTree_[nodeIdx].level) != endKey)
         {
             nodeIdx = internalTree_[nodeIdx].child[0];
             if (isLeafIndex(nodeIdx))

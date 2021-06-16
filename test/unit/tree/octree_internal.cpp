@@ -443,10 +443,11 @@ void locateTest()
     {
         auto [start, end] = p;
         TreeNodeIndex nodeIdx = fullTree.locate(start, end);
-        std::cout << nodeIdx << std::endl;
         EXPECT_EQ(start, fullTree.codeStart(nodeIdx));
         EXPECT_EQ(end, fullTree.codeEnd(nodeIdx));
     }
+
+    EXPECT_EQ(fullTree.locate(0,2), fullTree.numTreeNodes());
 }
 
 TEST(InternalOctree, locate)
