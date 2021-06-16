@@ -61,7 +61,7 @@ int main()
     int probeRank = numRanks / 2;
 
     auto tp0 = std::chrono::high_resolution_clock::now();
-    std::vector<int> peersDtt = findPeersMacStt(probeRank, assignment, octree, box, 0.5);
+    std::vector<int> peersDtt = findPeersMac(probeRank, assignment, octree, box, 0.5);
     auto tp1 = std::chrono::high_resolution_clock::now();
 
     double t2 = std::chrono::duration<double>(tp1 - tp0).count();
