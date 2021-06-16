@@ -6,7 +6,9 @@
 #include "math.hpp"
 #include "kernels.hpp"
 #include "kernel/computeIAD.hpp"
+#ifdef USE_CUDA
 #include "cuda/sph.cuh"
+#endif
 
 namespace sphexa
 {
