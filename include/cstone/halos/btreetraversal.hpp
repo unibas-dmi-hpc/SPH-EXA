@@ -131,11 +131,11 @@ inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
  * cost to check all 3 dimensions at each step should not be very high, we keep
  * the implementation general.
  */
-template <class KeyType>
-void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, CollisionList& collisionList,
+template <class KeyType, class Endpoint>
+void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, Endpoint&& reportCollision,
                     const IBox& collisionBox, pair<KeyType> excludeRange)
 {
-    using Node    = BinaryNode<KeyType>;
+    using Node = BinaryNode<KeyType>;
 
     TreeNodeIndex stack[64];
     stack[0] = 0;
@@ -153,8 +153,8 @@ void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, C
         bool overlapLeafL = leafOverlap(leftChild, leafNodes, collisionBox, excludeRange);
         bool overlapLeafR = leafOverlap(rightChild, leafNodes, collisionBox, excludeRange);
 
-        if (overlapLeafL) collisionList.add(loadLeafIndex(leftChild));
-        if (overlapLeafR) collisionList.add(loadLeafIndex(rightChild));
+        if (overlapLeafL) { reportCollision(loadLeafIndex(leftChild)); }
+        if (overlapLeafR) { reportCollision(loadLeafIndex(rightChild)); }
 
         if (!traverseL and !traverseR)
         {
@@ -178,5 +178,15 @@ void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, C
 
     } while (node != 0); // the root can only be obtained when the tree has been fully traversed
 }
+
+//! @brief convenience overload for storing colliding indices
+template <class KeyType>
+void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, CollisionList& collisions,
+                    const IBox& collisionBox, pair<KeyType> excludeRange)
+{
+    auto storeCollisions = [&collisions](TreeNodeIndex i) { collisions.add(i); };
+    findCollisions(root, leafNodes, storeCollisions, collisionBox, excludeRange);
+}
+
 
 } // namespace cstone
