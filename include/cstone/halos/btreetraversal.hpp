@@ -102,15 +102,16 @@ inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
 
 /*! @brief find all collisions between a leaf node enlarged by (dx,dy,dz) and the rest of the tree
  *
- * @tparam KeyType            32- or 64-bit unsigned integer
- * @param[in]  internalRoot   root of the internal binary radix tree
- * @param[in]  leafNodes      octree leaf nodes
- * @param[out] collisionList  output list of indices of colliding nodes
- * @param[in]  collisionBox   query box to look for collisions
- *                            with leaf nodes
- * @param[in]  excludeRange   range defined by two SFC codes to exclude from collision search
- *                            any leaf nodes fully contained in the specified range will not be
- *                            reported as collisions
+ * @tparam KeyType              32- or 64-bit unsigned integer
+ * @param[in]    internalRoot   root of the internal binary radix tree
+ * @param[in]    leafNodes      octree leaf nodes
+ * @param[inout] collisionList  endpoint action to perform with each colliding leaf node
+ *                              callable with signature void(TreeNodeIndex)
+ * @param[in]    collisionBox   query box to look for collisions
+ *                              with leaf nodes
+ * @param[in]  excludeRange     range defined by two SFC codes to exclude from collision search
+ *                              any leaf nodes fully contained in the specified range will not be
+ *                              reported as collisions
  *
  * At all traversal steps through the hierarchy of the internal binary radix tree,
  * all 3 x,y,z dimensions are checked to determine overlap with a binary node.
@@ -132,6 +133,7 @@ inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
  * the implementation general.
  */
 template <class KeyType, class Endpoint>
+CUDA_HOST_DEVICE_FUN
 void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, Endpoint&& reportCollision,
                     const IBox& collisionBox, pair<KeyType> excludeRange)
 {
