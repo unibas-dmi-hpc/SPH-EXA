@@ -190,5 +190,14 @@ void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, C
     findCollisions(root, leafNodes, storeCollisions, collisionBox, excludeRange);
 }
 
+//! @brief convenience overload for marking colliding node indices
+template <class KeyType>
+void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, int* flags,
+                    const IBox& collisionBox, pair<KeyType> excludeRange)
+{
+    auto markCollisions = [flags](TreeNodeIndex i) { flags[i] = 1; };
+    findCollisions(root, leafNodes, markCollisions, collisionBox, excludeRange);
+}
+
 
 } // namespace cstone

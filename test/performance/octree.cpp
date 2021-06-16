@@ -79,15 +79,33 @@ void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std
     SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, nSplits);
     std::vector<float> haloRadii(nNodes(tree), 0.01);
 
-    std::vector<pair<TreeNodeIndex>> haloPairs;
     int doSplit = 0;
-    auto tp0  = std::chrono::high_resolution_clock::now();
     TreeNodeIndex upperNode = assignment.lastNodeIdx(doSplit);
-    findHalos<KeyType, float>(tree, haloRadii, box, 0, upperNode, haloPairs);
-    auto tp1  = std::chrono::high_resolution_clock::now();
 
-    double t2 = std::chrono::duration<double>(tp1 - tp0).count();
-    std::cout << "halo discovery: " << t2 << " nPairs: " << haloPairs.size() << std::endl;
+    {
+        std::vector<pair<TreeNodeIndex>> haloPairs;
+        auto tp0 = std::chrono::high_resolution_clock::now();
+        findHalos<KeyType, float>(tree, haloRadii, box, 0, upperNode, haloPairs);
+        auto tp1 = std::chrono::high_resolution_clock::now();
+
+        double t2 = std::chrono::duration<double>(tp1 - tp0).count();
+        std::cout << "halo discovery: " << t2 << " nPairs: " << haloPairs.size() << std::endl;
+    }
+
+    {
+        std::vector<BinaryNode<KeyType>> binaryTree(nNodes(tree));
+        createBinaryTree(tree.data(), nNodes(tree), binaryTree.data());
+        std::vector<int> collisionFlags(nNodes(tree), 0);
+
+        auto tp0 = std::chrono::high_resolution_clock::now();
+        findHalos<KeyType, float>(tree, binaryTree, haloRadii, box, 0, upperNode, collisionFlags.data());
+        auto tp1 = std::chrono::high_resolution_clock::now();
+
+        double t2 = std::chrono::duration<double>(tp1 - tp0).count();
+        std::cout << "halo discovery: " << t2 << " collidingNodes: "
+                  << std::accumulate(begin(collisionFlags), end(collisionFlags), 0) << std::endl;
+
+    }
 }
 
 
