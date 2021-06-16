@@ -73,3 +73,4 @@ std::size_t nNodes(const Vector& tree)
 }
 
 } // namespace cstone
+

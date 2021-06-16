@@ -243,3 +243,4 @@ IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, RadiusType radius, const Bo
 }
 
 } // namespace cstone
+

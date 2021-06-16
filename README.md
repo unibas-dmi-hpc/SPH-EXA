@@ -67,19 +67,20 @@ Example usage:
 * ```mpirun bin/mpi+omp+cuda.app -n 500 -s 10``` Runs the Square Patch simulation with 125 million particles for 10 iterations (time-steps) with MPI, OpenMP and CUDA  
 * ```mpirun bin/mpi+omp+target.app -n 100 -s 10000``` Runs the Square Patch simulation with 1 million particles for 10000 iterations (time-steps) with MPI, OpenMP and OpenMP4.5 target offloading  
 
-## Authors
+## Authors (alphabetical order)
 
-* **Danilo Guerrera**
-* **Aurelien Cavelan**
-* **Michal Grabarczyk**
-* **jg piccinali**
-* **David Imbert**
-* **Ruben Cabezon**
-* **Darren Reed**
-* **Lucio Mayer**
-* **Ali Mohammed**
-* **Florina Ciorba**
-* **Tom Quinn**
+* Ruben Cabezon**
+* Aurelien Cavelan**
+* Florina Ciorba**
+* Michal Grabarczyk**
+* Danilo Guerrera**
+* David Imbert**
+* Sebastian Keller**
+* Lucio Mayer**
+* Ali Mohammed**
+* Jg Piccinali**
+* Tom Quinn**
+* Darren Reed**
 
 ## License
 

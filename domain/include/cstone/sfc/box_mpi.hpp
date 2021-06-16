@@ -124,3 +124,4 @@ auto makeGlobalBox(Iterator xB,
 };
 
 } // namespace cstone
+
