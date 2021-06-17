@@ -34,6 +34,7 @@
 #include <gtest/gtest.h>
 
 #include "cstone/tree/octree_mpi.hpp"
+#include "cstone/tree/octree_util.hpp"
 #include "cstone/domain/domaindecomp_mpi.hpp"
 
 #include "coord_samples/random.hpp"
@@ -76,9 +77,11 @@ void globalRandomGaussian(int thisRank, int nRanks)
     Box<T> box{-1, 1};
     RandomGaussianCoordinates<T, KeyType> coords(nParticles, box);
 
-    auto [tree, counts] =
-        computeOctreeGlobal(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles,
-                                    bucketSize);
+    std::vector<KeyType> tree = makeRootNodeTree<KeyType>();
+    std::vector<unsigned> counts{nRanks * unsigned(nParticles)};
+
+    while(!updateOctreeGlobal(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles,
+                        bucketSize, tree, counts));
 
     std::vector<int> ordering(nParticles);
     // particles are in Morton order
@@ -111,8 +114,9 @@ void globalRandomGaussian(int thisRank, int nRanks)
     std::iota(begin(ordering), end(ordering), 0);
     sort_by_key(begin(newCodes), end(newCodes), begin(ordering));
 
-    auto [newTree, newCounts] =
-        computeOctreeGlobal(newCodes.data(), newCodes.data() + newCodes.size(), bucketSize);
+    std::vector<KeyType> newTree = makeRootNodeTree<KeyType>();
+    std::vector<unsigned> newCounts{unsigned(newCodes.size())};
+    while(!updateOctreeGlobal(newCodes.data(), newCodes.data() + newCodes.size(), bucketSize, newTree, newCounts));
 
     // global tree and counts stay the same
     EXPECT_EQ(tree, newTree);
