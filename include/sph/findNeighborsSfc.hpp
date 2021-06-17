@@ -86,3 +86,4 @@ size_t neighborsSum(const std::vector<Task> &taskList)
 
 } // namespace sph
 } // namespace sphexa
+

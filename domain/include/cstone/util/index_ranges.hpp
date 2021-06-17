@@ -105,3 +105,4 @@ using SendManifest = IndexRanges<unsigned>; // works if there are < 2^32 local p
 using SendList     = std::vector<SendManifest>;
 
 } // namespace cstone
+
