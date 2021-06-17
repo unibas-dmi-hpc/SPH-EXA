@@ -209,7 +209,7 @@ template<class T, class IndexType, class... Arrays>
 void exchangeParticles(const SendList& sendList, Rank thisRank, IndexType nParticlesAssigned,
                        const IndexType* ordering, Arrays... arrays)
 {
-    exchangeParticles<T>(sendList, thisRank, nParticlesAssigned, 0, 0, ordering, arrays...);
+    exchangeParticles<T>(sendList, thisRank, nParticlesAssigned, IndexType(0), IndexType(0), ordering, arrays...);
 }
 
 } // namespace cstone
