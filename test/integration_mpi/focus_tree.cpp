@@ -105,8 +105,9 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
     // Now build the trees, using distributed algorithms. Each rank only has its slice, the common pool is gone.
 
-    auto [tree, counts] =
-        computeOctreeGlobal(particleKeys.data(), particleKeys.data() + numParticles, bucketSize);
+    std::vector<KeyType> tree = makeRootNodeTree<KeyType>();
+    std::vector<unsigned> counts{unsigned(numParticles) * numRanks};
+    while(!updateOctreeGlobal(particleKeys.data(), particleKeys.data() + numParticles, bucketSize, tree, counts));
 
     EXPECT_EQ(numRanks * numParticles, std::accumulate(counts.begin(), counts.end(), 0lu));
 

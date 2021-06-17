@@ -35,6 +35,7 @@
 #include <tuple>
 #include <vector>
 
+#include "cstone/tree/definitions.h"
 #include "util.hpp"
 
 namespace cstone
@@ -100,9 +101,8 @@ private:
 };
 
 //! @brief stores one or multiple index ranges of local particles to send out to another rank
-using SendManifest = IndexRanges<unsigned>; // works if there are < 2^32 local particles
+using SendManifest = IndexRanges<LocalParticleIndex>;
 //! @brief SendList will contain one manifest per rank
-using SendList     = std::vector<SendManifest>;
+using SendList = std::vector<SendManifest>;
 
 } // namespace cstone
-
