@@ -25,6 +25,8 @@
 
 #pragma once
 
+#include "cstone/cuda/annotation.hpp"
+
 namespace cstone {
 
 //! @brief Controls the node index type, has to be signed. Change to 64-bit if more than 2 billion tree nodes are required.

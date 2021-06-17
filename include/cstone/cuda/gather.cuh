@@ -77,7 +77,7 @@ public:
      *     and the identity permutation as the values
      *
      *  Remarks:
-     *    - reallocates space on the device if necessary to fit N elements of type LocalIndex
+     *    - reallocates space on the device if necessary to fit N elements of type IndexType
      *      and a second buffer of size max(2N*sizeof(T), N*sizeof(KeyType))
      */
     void setMapFromCodes(CodeType* codes_first, CodeType* codes_last);
