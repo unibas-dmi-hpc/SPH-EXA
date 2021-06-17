@@ -40,30 +40,32 @@ using namespace cstone;
 
 int main()
 {
-    using CodeType = unsigned;
+    using KeyType = unsigned;
     Box<double> box{-1, 1};
 
-    int nParticles = 2000000;
-    int bucketSize = 16;
+    unsigned numParticles = 2000000;
+    unsigned bucketSize = 16;
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
-    RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
+    RandomGaussianCoordinates<double, KeyType> randomBox(numParticles, box);
 
-    thrust::device_vector<CodeType> tree;
-    thrust::device_vector<unsigned> counts;
+    thrust::device_vector<KeyType> tree    = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
+    thrust::device_vector<unsigned> counts = std::vector<unsigned>{numParticles};
 
-    thrust::device_vector<CodeType> particleCodes(randomBox.mortonCodes().begin(),
-                                                  randomBox.mortonCodes().end());
+    thrust::device_vector<KeyType>       tmpTree;
+    thrust::device_vector<TreeNodeIndex> workArray;
+
+    thrust::device_vector<KeyType> particleCodes(randomBox.mortonCodes().begin(),
+                                                 randomBox.mortonCodes().end());
 
     cudaEventRecord(start, cudaStreamDefault);
 
-    computeOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
-                     thrust::raw_pointer_cast(particleCodes.data() + nParticles),
-                     bucketSize,
-                     tree, counts);
+    while(!updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
+                           thrust::raw_pointer_cast(particleCodes.data() + numParticles),
+                           bucketSize, tree, counts, tmpTree, workArray));
 
     cudaEventRecord(stop, cudaStreamDefault);
     cudaEventSynchronize(stop);
@@ -73,13 +75,10 @@ int main()
     std::cout << "build time from scratch " << t0/1000 << " nNodes(tree): " << nNodes(tree)
               << " count: " << thrust::reduce(counts.begin(), counts.end(), 0) << std::endl;
 
-    thrust::device_vector<CodeType>      tmpTree(tree.size());
-    thrust::device_vector<TreeNodeIndex> workArray(tree.size());
-
     cudaEventRecord(start, cudaStreamDefault);
 
     updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
-                    thrust::raw_pointer_cast(particleCodes.data() + nParticles),
+                    thrust::raw_pointer_cast(particleCodes.data() + numParticles),
                     bucketSize, tree, counts, tmpTree, workArray);
 
     cudaEventRecord(stop, cudaStreamDefault);
