@@ -371,3 +371,4 @@ private:
 };
 
 } // namespace cstone
+

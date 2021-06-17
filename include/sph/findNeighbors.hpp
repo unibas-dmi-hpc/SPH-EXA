@@ -6,7 +6,9 @@
 #include "Octree.hpp"
 #include "LinearOctree.hpp"
 #include "kernel/computeFindNeighbors.hpp"
+#ifdef USE_CUDA
 #include "cuda/sph.cuh"
+#endif
 
 namespace sphexa
 {

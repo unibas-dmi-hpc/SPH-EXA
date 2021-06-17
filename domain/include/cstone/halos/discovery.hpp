@@ -128,3 +128,4 @@ void findHalos(gsl::span<const KeyType>          tree,
 }
 
 } // namespace cstone
+
