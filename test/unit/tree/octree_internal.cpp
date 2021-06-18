@@ -416,3 +416,42 @@ TEST(InternalOctree, irregularL3)
     octreeIrregularL3<unsigned>();
     octreeIrregularL3<uint64_t>();
 }
+
+template<class KeyType>
+void locateTest()
+{
+    std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
+    std::vector<KeyType> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+
+    Octree<KeyType> fullTree;
+    fullTree.update(std::move(spanningTree));
+
+    std::vector<std::array<KeyType, 2>> inputs{
+        {0, nodeRange<KeyType>(0)},
+        {0, nodeRange<KeyType>(1)},
+        {0, nodeRange<KeyType>(2)},
+        {0, nodeRange<KeyType>(3)},
+        {0, 1},
+        {4 * nodeRange<KeyType>(1), 5 * nodeRange<KeyType>(1)},
+        {nodeRange<KeyType>(0) - 512, nodeRange<KeyType>(0)},
+        {nodeRange<KeyType>(0) - 64, nodeRange<KeyType>(0)},
+        {nodeRange<KeyType>(0) - 8, nodeRange<KeyType>(0)},
+        {nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)}
+    };
+
+    for (auto p : inputs)
+    {
+        auto [start, end] = p;
+        TreeNodeIndex nodeIdx = fullTree.locate(start, end);
+        EXPECT_EQ(start, fullTree.codeStart(nodeIdx));
+        EXPECT_EQ(end, fullTree.codeEnd(nodeIdx));
+    }
+
+    EXPECT_EQ(fullTree.locate(0,2), fullTree.numTreeNodes());
+}
+
+TEST(InternalOctree, locate)
+{
+    locateTest<unsigned>();
+    locateTest<uint64_t>();
+}
