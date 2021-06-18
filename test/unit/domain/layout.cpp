@@ -29,7 +29,6 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-
 #include "gtest/gtest.h"
 
 #include "cstone/domain/layout.hpp"
@@ -66,25 +65,25 @@ TEST(Layout, sendRecvNodeList)
 
 TEST(Layout, flattenNodeList)
 {
-    std::vector<std::vector<TreeNodeIndex>> grouped{{0,1,2}, {3,4,5}, {6}, {}};
+    std::vector<std::vector<TreeNodeIndex>> grouped{{0, 1, 2}, {3, 4, 5}, {6}, {}};
 
     std::vector<TreeNodeIndex> flattened = flattenNodeList(grouped);
 
-    std::vector<TreeNodeIndex> ref{0,1,2,3,4,5,6};
+    std::vector<TreeNodeIndex> ref{0, 1, 2, 3, 4, 5, 6};
     EXPECT_EQ(flattened, ref);
 }
 
 TEST(Layout, computeLayoutOffsets)
 {
-    std::vector<TreeNodeIndex> localNodes{4,10};
+    std::vector<TreeNodeIndex> localNodes{4, 10};
     std::vector<TreeNodeIndex> halos{1, 3, 14, 15, 16, 21, 30};
 
     TreeNodeIndex nNodes = 32;
     std::vector<unsigned> nodeCounts(nNodes, 1);
 
-    nodeCounts[1]  = 2;
-    nodeCounts[3]  = 3;
-    nodeCounts[4]  = 5;
+    nodeCounts[1] = 2;
+    nodeCounts[3] = 3;
+    nodeCounts[4] = 5;
     nodeCounts[16] = 6;
     nodeCounts[24] = 8;
     nodeCounts[30] = 9;
@@ -92,11 +91,11 @@ TEST(Layout, computeLayoutOffsets)
     std::vector<TreeNodeIndex> presentNodes, offsets;
     computeLayoutOffsets(localNodes[0], localNodes[1], halos, nodeCounts, presentNodes, offsets);
 
-    std::vector<int> refPresentNodes{1,3,4,5,6,7,8,9,14,15,16,21,30};
+    std::vector<int> refPresentNodes{1, 3, 4, 5, 6, 7, 8, 9, 14, 15, 16, 21, 30};
     // counts                        2,3,5,1,1,1,1,1,1, 1, 6, 1, 9
     EXPECT_EQ(presentNodes, refPresentNodes);
 
-    std::vector<int> refOffsets{0,2,5,10,11,12,13,14,15,16,17,23,24,33};
+    std::vector<int> refOffsets{0, 2, 5, 10, 11, 12, 13, 14, 15, 16, 17, 23, 24, 33};
     EXPECT_EQ(offsets, refOffsets);
 }
 
@@ -109,17 +108,16 @@ TEST(Layout, createHaloExchangeList)
     outgoingHaloNodes[2].push_back(12);
     outgoingHaloNodes[2].push_back(22);
 
-    std::vector<TreeNodeIndex> presentNodes{1,2,10,12,20,22};
-    std::vector<int>           offsets{0,1,3, 6, 10,15,21};
+    std::vector<TreeNodeIndex> presentNodes{1, 2, 10, 12, 20, 22};
+    std::vector<int> offsets{0, 1, 3, 6, 10, 15, 21};
 
     SendList sendList = createHaloExchangeList(outgoingHaloNodes, presentNodes, offsets);
 
     SendList refSendList(nRanks);
-    refSendList[1].addRange(0,1);
-    refSendList[1].addRange(3,6);
-    refSendList[2].addRange(6,10);
-    refSendList[2].addRange(15,21);
+    refSendList[1].addRange(0, 1);
+    refSendList[1].addRange(3, 6);
+    refSendList[2].addRange(6, 10);
+    refSendList[2].addRange(15, 21);
 
     EXPECT_EQ(sendList, refSendList);
 }
-

@@ -35,23 +35,22 @@
 
 using namespace cstone;
 
-
 template<class T>
 void simpleTest(int thisRank)
 {
     int nRanks = 2;
-    std::vector<int> nodeList{0,1,10,11};
-    std::vector<int>  offsets{0,1,3,6,10};
+    std::vector<int> nodeList{0, 1, 10, 11};
+    std::vector<int> offsets{0, 1, 3, 6, 10};
 
     int localCount, localOffset;
     if (thisRank == 0)
     {
-        localCount  = 3;
+        localCount = 3;
         localOffset = 0;
     }
     if (thisRank == 1)
     {
-        localCount  = 7;
+        localCount = 7;
         localOffset = 3;
     }
 
@@ -60,17 +59,17 @@ void simpleTest(int thisRank)
 
     if (thisRank == 0)
     {
-        incomingHalos[1].addRange(3,6);
-        incomingHalos[1].addRange(6,10);
-        outgoingHalos[1].addRange(0,1);
-        outgoingHalos[1].addRange(1,3);
+        incomingHalos[1].addRange(3, 6);
+        incomingHalos[1].addRange(6, 10);
+        outgoingHalos[1].addRange(0, 1);
+        outgoingHalos[1].addRange(1, 3);
     }
     if (thisRank == 1)
     {
-        incomingHalos[0].addRange(0,1);
-        incomingHalos[0].addRange(1,3);
-        outgoingHalos[0].addRange(3,6);
-        outgoingHalos[0].addRange(6,10);
+        incomingHalos[0].addRange(0, 1);
+        incomingHalos[0].addRange(1, 3);
+        outgoingHalos[0].addRange(3, 6);
+        outgoingHalos[0].addRange(6, 10);
     }
 
     std::vector<T> x(*offsets.rbegin());
@@ -86,23 +85,23 @@ void simpleTest(int thisRank)
 
     if (thisRank == 0)
     {
-        std::vector<T> xOrig{20,21,22,0,0,0,0,0,0,0};
-        std::vector<T> yOrig{30,31,32,0,0,0,0,0,0,0};
+        std::vector<T> xOrig{20, 21, 22, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<T> yOrig{30, 31, 32, 0, 0, 0, 0, 0, 0, 0};
         EXPECT_EQ(xOrig, x);
         EXPECT_EQ(yOrig, y);
     }
     if (thisRank == 1)
     {
-        std::vector<T> xOrig{0,0,0,23,24,25,26,27,28,29};
-        std::vector<T> yOrig{0,0,0,33,34,35,36,37,38,39};
+        std::vector<T> xOrig{0, 0, 0, 23, 24, 25, 26, 27, 28, 29};
+        std::vector<T> yOrig{0, 0, 0, 33, 34, 35, 36, 37, 38, 39};
         EXPECT_EQ(xOrig, x);
         EXPECT_EQ(yOrig, y);
     }
 
     haloexchange<T>(incomingHalos, outgoingHalos, x.data(), y.data());
 
-    std::vector<T> xRef{20,21,22,23,24,25,26,27,28,29};
-    std::vector<T> yRef{30,31,32,33,34,35,36,37,38,39};
+    std::vector<T> xRef{20, 21, 22, 23, 24, 25, 26, 27, 28, 29};
+    std::vector<T> yRef{30, 31, 32, 33, 34, 35, 36, 37, 38, 39};
     EXPECT_EQ(xRef, x);
     EXPECT_EQ(yRef, y);
 }
@@ -115,8 +114,7 @@ TEST(HaloExchange, simpleTest)
 
     constexpr int thisExampleRanks = 2;
 
-    if (nRanks != thisExampleRanks)
-        throw std::runtime_error("this test needs 2 ranks\n");
+    if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
 
     simpleTest<double>(rank);
 }

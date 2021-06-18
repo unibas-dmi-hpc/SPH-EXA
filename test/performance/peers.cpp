@@ -40,7 +40,6 @@
 
 using namespace cstone;
 
-
 int main()
 {
     using KeyType = uint64_t;

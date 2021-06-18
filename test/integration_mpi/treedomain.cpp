@@ -29,7 +29,6 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-
 #include <mpi.h>
 #include <gtest/gtest.h>
 
@@ -80,15 +79,17 @@ void globalRandomGaussian(int thisRank, int nRanks)
     std::vector<KeyType> tree = makeRootNodeTree<KeyType>();
     std::vector<unsigned> counts{nRanks * unsigned(nParticles)};
 
-    while(!updateOctreeGlobal(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles,
-                        bucketSize, tree, counts));
+    while (!updateOctreeGlobal(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles, bucketSize, tree,
+                               counts))
+    {
+    }
 
     std::vector<int> ordering(nParticles);
     // particles are in Morton order
     std::iota(begin(ordering), end(ordering), 0);
 
     auto assignment = singleRangeSfcSplit(counts, nRanks);
-    auto sendList   = createSendList<KeyType>(assignment, tree, coords.mortonCodes());
+    auto sendList = createSendList<KeyType>(assignment, tree, coords.mortonCodes());
 
     EXPECT_EQ(std::accumulate(begin(counts), end(counts), std::size_t(0)), nParticles * nRanks);
 
@@ -116,7 +117,8 @@ void globalRandomGaussian(int thisRank, int nRanks)
 
     std::vector<KeyType> newTree = makeRootNodeTree<KeyType>();
     std::vector<unsigned> newCounts{unsigned(newCodes.size())};
-    while(!updateOctreeGlobal(newCodes.data(), newCodes.data() + newCodes.size(), bucketSize, newTree, newCounts));
+    while (!updateOctreeGlobal(newCodes.data(), newCodes.data() + newCodes.size(), bucketSize, newTree, newCounts))
+        ;
 
     // global tree and counts stay the same
     EXPECT_EQ(tree, newTree);
@@ -128,8 +130,7 @@ void globalRandomGaussian(int thisRank, int nRanks)
     {
         // the new send list now indicates that all elements on the current rank
         // stay where they are
-        if (rank == thisRank)
-            EXPECT_EQ(newSendList[rank].totalCount(), nParticlesAssigned);
+        if (rank == thisRank) EXPECT_EQ(newSendList[rank].totalCount(), nParticlesAssigned);
         // no particles are sent to other ranks
         else
             EXPECT_EQ(newSendList[rank].totalCount(), 0);
