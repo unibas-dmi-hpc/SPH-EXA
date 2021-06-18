@@ -38,12 +38,12 @@ TEST(SfcBox, pbcAdjust)
 {
     EXPECT_EQ(pbcAdjust<1024>(-1024), 0);
     EXPECT_EQ(pbcAdjust<1024>(-1), 1023);
-    EXPECT_EQ(pbcAdjust<1024>(0),  0);
-    EXPECT_EQ(pbcAdjust<1024>(1),  1);
-    EXPECT_EQ(pbcAdjust<1024>(1023),  1023);
-    EXPECT_EQ(pbcAdjust<1024>(1024),  0);
-    EXPECT_EQ(pbcAdjust<1024>(1025),  1);
-    EXPECT_EQ(pbcAdjust<1024>(2047),  1023);
+    EXPECT_EQ(pbcAdjust<1024>(0), 0);
+    EXPECT_EQ(pbcAdjust<1024>(1), 1);
+    EXPECT_EQ(pbcAdjust<1024>(1023), 1023);
+    EXPECT_EQ(pbcAdjust<1024>(1024), 0);
+    EXPECT_EQ(pbcAdjust<1024>(1025), 1);
+    EXPECT_EQ(pbcAdjust<1024>(2047), 1023);
 }
 
 TEST(SfcBox, pbcDistance)
@@ -51,9 +51,9 @@ TEST(SfcBox, pbcDistance)
     EXPECT_EQ(pbcDistance<1024>(-1024), 0);
     EXPECT_EQ(pbcDistance<1024>(-513), 511);
     EXPECT_EQ(pbcDistance<1024>(-512), 512);
-    EXPECT_EQ(pbcDistance<1024>(-1),  -1);
-    EXPECT_EQ(pbcDistance<1024>(0),   0);
-    EXPECT_EQ(pbcDistance<1024>(1),   1);
+    EXPECT_EQ(pbcDistance<1024>(-1), -1);
+    EXPECT_EQ(pbcDistance<1024>(0), 0);
+    EXPECT_EQ(pbcDistance<1024>(1), 1);
     EXPECT_EQ(pbcDistance<1024>(512), 512);
     EXPECT_EQ(pbcDistance<1024>(513), -511);
     EXPECT_EQ(pbcDistance<1024>(1024), 0);

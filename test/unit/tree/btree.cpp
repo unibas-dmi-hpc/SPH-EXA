@@ -45,13 +45,13 @@ TEST(BinaryTree, loadStoreIndex)
     EXPECT_TRUE(storeLeafIndex(0) < 0);
     EXPECT_EQ(loadLeafIndex(storeLeafIndex(0)), 0);
 
-    TreeNodeIndex maxIndex = (1ul<<(8*sizeof(TreeNodeIndex)-1))-1;
+    TreeNodeIndex maxIndex = (1ul << (8 * sizeof(TreeNodeIndex) - 1)) - 1;
     EXPECT_TRUE(storeLeafIndex(maxIndex) < 0);
     EXPECT_EQ(loadLeafIndex(storeLeafIndex(maxIndex)), maxIndex);
 }
 
 //! @brief check binary node prefixes
-template <class KeyType>
+template<class KeyType>
 void internal4x4x4PrefixTest()
 {
     // a tree with 4 subdivisions along each dimension, 64 nodes
@@ -89,7 +89,6 @@ TEST(BinaryTree, internalTree4x4x4PrefixTest)
     internal4x4x4PrefixTest<uint64_t>();
 }
 
-
 /*! Create a set of irregular octree leaves which do not cover the whole space
  *
  * This example is illustrated in the original paper referenced in sfc/binarytree.hpp.
@@ -100,17 +99,10 @@ TEST(BinaryTree, internalTree4x4x4PrefixTest)
 template<class KeyType>
 std::vector<KeyType> makeExample()
 {
-    std::vector<KeyType> ret
-        {
-            pad(KeyType(0b00001), 5),
-            pad(KeyType(0b00010), 5),
-            pad(KeyType(0b00100), 5),
-            pad(KeyType(0b00101), 5),
-            pad(KeyType(0b10011), 5),
-            pad(KeyType(0b11000), 5),
-            pad(KeyType(0b11001), 5),
-            pad(KeyType(0b11110), 5),
-        };
+    std::vector<KeyType> ret{
+        pad(KeyType(0b00001), 5), pad(KeyType(0b00010), 5), pad(KeyType(0b00100), 5), pad(KeyType(0b00101), 5),
+        pad(KeyType(0b10011), 5), pad(KeyType(0b11000), 5), pad(KeyType(0b11001), 5), pad(KeyType(0b11110), 5),
+    };
     return ret;
 }
 
@@ -151,16 +143,18 @@ void paperExampleTest()
         constructInternalNode(example.data(), example.size(), internalNodes.data(), i);
     }
 
-    std::vector<TreeNodeIndex> refLeft{3, storeLeafIndex(0), storeLeafIndex(2), 1, storeLeafIndex(4), 6, storeLeafIndex(5)};
+    std::vector<TreeNodeIndex> refLeft{3, storeLeafIndex(0), storeLeafIndex(2), 1, storeLeafIndex(4),
+                                       6, storeLeafIndex(5)};
 
-    std::vector<TreeNodeIndex> refRight{4, storeLeafIndex(1), storeLeafIndex(3), 2, 5, storeLeafIndex(7), storeLeafIndex(6)};
+    std::vector<TreeNodeIndex> refRight{4, storeLeafIndex(1), storeLeafIndex(3), 2,
+                                        5, storeLeafIndex(7), storeLeafIndex(6)};
 
     std::vector<TreeNodeIndex> refPrefixLengths{0, 3, 4, 2, 1, 2, 4};
 
     using Node = BinaryNode<KeyType>;
     for (std::size_t idx = 0; idx < internalNodes.size(); ++idx)
     {
-        EXPECT_EQ(internalNodes[idx].child[Node::left],  refLeft[idx]);
+        EXPECT_EQ(internalNodes[idx].child[Node::left], refLeft[idx]);
         EXPECT_EQ(internalNodes[idx].child[Node::right], refRight[idx]);
         EXPECT_EQ(decodePrefixLength(internalNodes[idx].prefix), refPrefixLengths[idx]);
     }

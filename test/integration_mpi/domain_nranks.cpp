@@ -50,8 +50,8 @@ using namespace cstone;
 
 //! @brief simple N^2 all-to-all neighbor search
 template<class T>
-static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, const T* h, int n,
-                               int *neighbors, int *neighborsCount, int ngmax)
+static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, const T* h, int n, int* neighbors,
+                               int* neighborsCount, int ngmax)
 {
     T r2 = h[i] * h[i];
 
@@ -63,28 +63,30 @@ static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, const 
         if (j == i) { continue; }
         // i only interacts with j if j also interacts with i
         T r2mutual = std::min(h[j] * h[j], r2);
-        if (ngcount < ngmax && distancesq(xi, yi, zi, x[j], y[j], z[j]) < r2mutual)
-        {
-            neighbors[ngcount++] = j;
-        }
+        if (ngcount < ngmax && distancesq(xi, yi, zi, x[j], y[j], z[j]) < r2mutual) { neighbors[ngcount++] = j; }
     }
     *neighborsCount = ngcount;
 }
 
-
 template<class T>
 void initCoordinates(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, Box<T>& box)
 {
-    //std::random_device rd;
+    // std::random_device rd;
     std::mt19937 gen(42);
     // random gaussian distribution at the center
-    std::normal_distribution<T> disX((box.xmax() + box.xmin())/2, (box.xmax() - box.xmin())/5);
-    std::normal_distribution<T> disY((box.ymax() + box.ymin())/2, (box.ymax() - box.ymin())/5);
-    std::normal_distribution<T> disZ((box.zmax() + box.zmin())/2, (box.zmax() - box.zmin())/5);
+    std::normal_distribution<T> disX((box.xmax() + box.xmin()) / 2, (box.xmax() - box.xmin()) / 5);
+    std::normal_distribution<T> disY((box.ymax() + box.ymin()) / 2, (box.ymax() - box.ymin()) / 5);
+    std::normal_distribution<T> disZ((box.zmax() + box.zmin()) / 2, (box.zmax() - box.zmin()) / 5);
 
-    auto randX = [cmin=box.xmin(), cmax=box.xmax(), &disX, &gen]() { return std::max(std::min(disX(gen), cmax), cmin); };
-    auto randY = [cmin=box.ymin(), cmax=box.ymax(), &disY, &gen]() { return std::max(std::min(disY(gen), cmax), cmin); };
-    auto randZ = [cmin=box.zmin(), cmax=box.zmax(), &disZ, &gen]() { return std::max(std::min(disZ(gen), cmax), cmin); };
+    auto randX = [cmin = box.xmin(), cmax = box.xmax(), &disX, &gen]() {
+        return std::max(std::min(disX(gen), cmax), cmin);
+    };
+    auto randY = [cmin = box.ymin(), cmax = box.ymax(), &disY, &gen]() {
+        return std::max(std::min(disY(gen), cmax), cmin);
+    };
+    auto randZ = [cmin = box.zmin(), cmax = box.zmax(), &disZ, &gen]() {
+        return std::max(std::min(disZ(gen), cmax), cmin);
+    };
 
     std::generate(begin(x), end(x), randX);
     std::generate(begin(y), end(y), randY);
@@ -94,11 +96,11 @@ void initCoordinates(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, Bo
 template<class I, class T>
 void randomGaussianDomain(int rank, int nRanks)
 {
-    int    nParticles    = 1000;
-    T      smoothingLength = 0.02;
+    int nParticles = 1000;
+    T smoothingLength = 0.02;
     Box<T> box{-1, 1};
-    int    bucketSize = 10;
-    nParticles = (nParticles/nRanks) * nRanks;
+    int bucketSize = 10;
+    nParticles = (nParticles / nRanks) * nRanks;
 
     // nParticles identical coordinates on each rank
     std::vector<T> xGlobal(nParticles);
@@ -110,15 +112,16 @@ void randomGaussianDomain(int rank, int nRanks)
 
     for (std::size_t i = 0; i < hGlobal.size(); ++i)
     {
-        hGlobal[i] = smoothingLength * (0.2 + 30*(xGlobal[i] * xGlobal[i] + yGlobal[i] * yGlobal[i] + zGlobal[i] * zGlobal[i]));
+        hGlobal[i] = smoothingLength *
+                     (0.2 + 30 * (xGlobal[i] * xGlobal[i] + yGlobal[i] * yGlobal[i] + zGlobal[i] * zGlobal[i]));
     }
 
     int nParticlesPerRank = nParticles / nRanks;
 
-    std::vector<T> x{xGlobal.begin() + rank*nParticlesPerRank, xGlobal.begin() + (rank+1)*nParticlesPerRank};
-    std::vector<T> y{yGlobal.begin() + rank*nParticlesPerRank, yGlobal.begin() + (rank+1)*nParticlesPerRank};
-    std::vector<T> z{zGlobal.begin() + rank*nParticlesPerRank, zGlobal.begin() + (rank+1)*nParticlesPerRank};
-    std::vector<T> h{hGlobal.begin() + rank*nParticlesPerRank, hGlobal.begin() + (rank+1)*nParticlesPerRank};
+    std::vector<T> x{xGlobal.begin() + rank * nParticlesPerRank, xGlobal.begin() + (rank + 1) * nParticlesPerRank};
+    std::vector<T> y{yGlobal.begin() + rank * nParticlesPerRank, yGlobal.begin() + (rank + 1) * nParticlesPerRank};
+    std::vector<T> z{zGlobal.begin() + rank * nParticlesPerRank, zGlobal.begin() + (rank + 1) * nParticlesPerRank};
+    std::vector<T> h{hGlobal.begin() + rank * nParticlesPerRank, hGlobal.begin() + (rank + 1) * nParticlesPerRank};
 
     Domain<I, T> domain(rank, nRanks, bucketSize);
 
@@ -144,9 +147,9 @@ void randomGaussianDomain(int rank, int nRanks)
 
     // check that particles are Morton order sorted and the codes are in sync with the x,y,z arrays
     EXPECT_EQ(mortonCodes, codes);
-    for (std::size_t i = 0; i < mortonCodes.size()-1; ++i)
+    for (std::size_t i = 0; i < mortonCodes.size() - 1; ++i)
     {
-        EXPECT_TRUE(mortonCodes[i] <= mortonCodes[i+1]);
+        EXPECT_TRUE(mortonCodes[i] <= mortonCodes[i + 1]);
     }
 
     int ngmax = 200;
@@ -155,10 +158,11 @@ void randomGaussianDomain(int rank, int nRanks)
     for (int i = 0; i < localCount; ++i)
     {
         int particleIndex = i + domain.startIndex();
-        //findNeighbors(particleIndex, x.data(), y.data(), z.data(), h[particleIndex], actualBox.xmax()-actualBox.xmin(),
+        // findNeighbors(particleIndex, x.data(), y.data(), z.data(), h[particleIndex],
+        // actualBox.xmax()-actualBox.xmin(),
         //              mortonCodes.data(), neighbors.data(), neighborsCount.data(), localCount, ngmax);
         findNeighborsNaive(particleIndex, x.data(), y.data(), z.data(), h.data(), extractedCount,
-                           neighbors.data() + i*ngmax, neighborsCount.data() + i, ngmax);
+                           neighbors.data() + i * ngmax, neighborsCount.data() + i, ngmax);
     }
 
     int neighborSum = std::accumulate(begin(neighborsCount), end(neighborsCount), 0);
@@ -166,20 +170,20 @@ void randomGaussianDomain(int rank, int nRanks)
     if (rank == 0)
     {
         std::cout << " neighborSum " << neighborSum << std::endl;
-        //std::cout << "localCount " << localCount << " " << std::endl;
-        //std::cout << "extractedCount " << extractedCount << std::endl;
+        // std::cout << "localCount " << localCount << " " << std::endl;
+        // std::cout << "extractedCount " << extractedCount << std::endl;
     }
 
     {
         // calculate reference neighbor sum from the full arrays
-        std::vector<int> neighborsRef(nParticles*ngmax);
+        std::vector<int> neighborsRef(nParticles * ngmax);
         std::vector<int> neighborsCountRef(nParticles);
         for (int i = 0; i < nParticles; ++i)
         {
-            //findNeighbors(i, xGlobal.data(), yGlobal.data(), zGlobal.data(), h[i], actualBox.xmax()-actualBox.xmin(),
+            // findNeighbors(i, xGlobal.data(), yGlobal.data(), zGlobal.data(), h[i], actualBox.xmax()-actualBox.xmin(),
             //              mortonCodes.data(), neighborsRef.data(), neighborsCountRef.data(), nParticles, ngmax);
             findNeighborsNaive(i, xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), nParticles,
-                               neighborsRef.data() + i*ngmax, neighborsCountRef.data() + i, ngmax);
+                               neighborsRef.data() + i * ngmax, neighborsCountRef.data() + i, ngmax);
         }
         int neighborSumRef = std::accumulate(begin(neighborsCountRef), end(neighborsCountRef), 0);
         EXPECT_EQ(neighborSum, neighborSumRef);
