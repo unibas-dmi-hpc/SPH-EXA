@@ -45,17 +45,8 @@ using namespace cstone;
 template<class KeyType>
 void invariantHead()
 {
-    std::vector<KeyType> tree
-    {
-        pad(KeyType(01), 3),
-        pad(KeyType(02), 3),
-        pad(KeyType(03), 3),
-        pad(KeyType(04), 3),
-        pad(KeyType(05), 3),
-        pad(KeyType(06), 3),
-        pad(KeyType(07), 3),
-        nodeRange<KeyType>(0)
-    };
+    std::vector<KeyType> tree{pad(KeyType(01), 3), pad(KeyType(02), 3), pad(KeyType(03), 3), pad(KeyType(04), 3),
+                              pad(KeyType(05), 3), pad(KeyType(06), 3), pad(KeyType(07), 3), nodeRange<KeyType>(0)};
 
     EXPECT_FALSE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 }
@@ -64,16 +55,9 @@ void invariantHead()
 template<class KeyType>
 void invariantTail()
 {
-    std::vector<KeyType> tree
-    {
-        pad(KeyType(00), 3),
-        pad(KeyType(01), 3),
-        pad(KeyType(02), 3),
-        pad(KeyType(03), 3),
-        pad(KeyType(04), 3),
-        pad(KeyType(05), 3),
-        pad(KeyType(06), 3),
-        pad(KeyType(07), 3),
+    std::vector<KeyType> tree{
+        pad(KeyType(00), 3), pad(KeyType(01), 3), pad(KeyType(02), 3), pad(KeyType(03), 3),
+        pad(KeyType(04), 3), pad(KeyType(05), 3), pad(KeyType(06), 3), pad(KeyType(07), 3),
     };
 
     EXPECT_FALSE(checkOctreeInvariants(tree.data(), nNodes(tree)));
@@ -83,17 +67,8 @@ void invariantTail()
 template<class KeyType>
 void invariantSiblings()
 {
-    std::vector<KeyType> tree
-        {
-            pad(KeyType(00), 3),
-            pad(KeyType(01), 3),
-            pad(KeyType(02), 3),
-            pad(KeyType(03), 3),
-            pad(KeyType(04), 3),
-            pad(KeyType(05), 3),
-            pad(KeyType(06), 3),
-            nodeRange<KeyType>(0)
-        };
+    std::vector<KeyType> tree{pad(KeyType(00), 3), pad(KeyType(01), 3), pad(KeyType(02), 3), pad(KeyType(03), 3),
+                              pad(KeyType(04), 3), pad(KeyType(05), 3), pad(KeyType(06), 3), nodeRange<KeyType>(0)};
 
     EXPECT_FALSE(checkOctreeInvariants(tree.data(), nNodes(tree)));
 }
@@ -116,16 +91,16 @@ TEST(CornerstoneUtil, codeFromIndices32)
 {
     using CodeType = unsigned;
     EXPECT_EQ(0x08000000, codeFromIndices<CodeType>({1}));
-    EXPECT_EQ(0x09000000, codeFromIndices<CodeType>({1,1}));
-    EXPECT_EQ(0x09E00000, codeFromIndices<CodeType>({1,1,7}));
+    EXPECT_EQ(0x09000000, codeFromIndices<CodeType>({1, 1}));
+    EXPECT_EQ(0x09E00000, codeFromIndices<CodeType>({1, 1, 7}));
 }
 
 TEST(CornerstoneUtil, codeFromIndices64)
 {
     using CodeType = uint64_t;
     EXPECT_EQ(0b0001lu << 60u, codeFromIndices<CodeType>({1}));
-    EXPECT_EQ(0b0001001lu << 57u, codeFromIndices<CodeType>({1,1}));
-    EXPECT_EQ(0b0001001111lu << 54u, codeFromIndices<CodeType>({1,1,7}));
+    EXPECT_EQ(0b0001001lu << 57u, codeFromIndices<CodeType>({1, 1}));
+    EXPECT_EQ(0b0001001111lu << 54u, codeFromIndices<CodeType>({1, 1, 7}));
 }
 
 template<class KeyType>
@@ -157,39 +132,18 @@ void octreeMakerDivide()
     // divide root node and node {7}
     auto tree = OctreeMaker<CodeType>{}.divide().divide(7).makeTree();
 
-    std::vector<CodeType> refTree
-    {
-        pad(CodeType(00),  3),
-        pad(CodeType(01),  3),
-        pad(CodeType(02),  3),
-        pad(CodeType(03),  3),
-        pad(CodeType(04),  3),
-        pad(CodeType(05),  3),
-        pad(CodeType(06),  3),
-        pad(CodeType(070), 6),
-        pad(CodeType(071), 6),
-        pad(CodeType(072), 6),
-        pad(CodeType(073), 6),
-        pad(CodeType(074), 6),
-        pad(CodeType(075), 6),
-        pad(CodeType(076), 6),
-        pad(CodeType(077), 6),
-        nodeRange<CodeType>(0)
-    };
+    std::vector<CodeType> refTree{
+        pad(CodeType(00), 3),  pad(CodeType(01), 3),  pad(CodeType(02), 3),  pad(CodeType(03), 3),
+        pad(CodeType(04), 3),  pad(CodeType(05), 3),  pad(CodeType(06), 3),  pad(CodeType(070), 6),
+        pad(CodeType(071), 6), pad(CodeType(072), 6), pad(CodeType(073), 6), pad(CodeType(074), 6),
+        pad(CodeType(075), 6), pad(CodeType(076), 6), pad(CodeType(077), 6), nodeRange<CodeType>(0)};
 
     EXPECT_EQ(tree, refTree);
 }
 
-TEST(CornerstoneUtil, octreeMakerDivide32)
-{
-    octreeMakerDivide<unsigned>();
-}
+TEST(CornerstoneUtil, octreeMakerDivide32) { octreeMakerDivide<unsigned>(); }
 
-TEST(CornerstoneUtil, octreeMakerDivide64)
-{
-    octreeMakerDivide<uint64_t>();
-}
-
+TEST(CornerstoneUtil, octreeMakerDivide64) { octreeMakerDivide<uint64_t>(); }
 
 //! @brief test OctreeMaker creation of a maximum level tree
 template<class KeyType>
@@ -223,12 +177,6 @@ void octreeMakerMaxLevel()
     EXPECT_EQ(tree, refTree);
 }
 
-TEST(CornerstoneUtil, octreeMakerMaxLevel32)
-{
-    octreeMakerMaxLevel<unsigned>();
-}
+TEST(CornerstoneUtil, octreeMakerMaxLevel32) { octreeMakerMaxLevel<unsigned>(); }
 
-TEST(CornerstoneUtil, octreeMakerMaxLevel64)
-{
-    octreeMakerMaxLevel<uint64_t>();
-}
+TEST(CornerstoneUtil, octreeMakerMaxLevel64) { octreeMakerMaxLevel<uint64_t>(); }

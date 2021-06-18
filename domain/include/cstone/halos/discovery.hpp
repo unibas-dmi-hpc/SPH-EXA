@@ -127,4 +127,46 @@ void findHalos(gsl::span<const KeyType>          tree,
     }
 }
 
+/*! @brief mark halo nodes with flags
+ *
+ * @tparam KeyType               32- or 64-bit unsigned integer
+ * @tparam RadiusType            float or double, float is sufficient for 64-bit codes or less
+ * @tparam CoordinateType        float or double
+ * @param[in]  tree              cornerstone octree leaves
+ * @param[in]  binaryTree        matching binary tree on top of @p tree
+ * @param[in]  interactionRadii  effective halo search radii per octree (leaf) node
+ * @param[in]  box               coordinate bounding box
+ * @param[in]  firstNode         first node to consider as local
+ * @param[in]  lastNode          last node to consider as local
+ * @param[out] collisionFlags    array of length nNodes(tree), each node that is a halo
+ *                               from the perspective of [firstNode:lastNode] will be marked
+ *                               with a non-zero value
+ */
+template<class KeyType, class RadiusType, class CoordinateType>
+void findHalos(gsl::span<const KeyType> tree,
+               gsl::span<const BinaryNode<KeyType>> binaryTree,
+               gsl::span<RadiusType> interactionRadii,
+               const Box<CoordinateType>& box,
+               TreeNodeIndex firstNode,
+               TreeNodeIndex lastNode,
+               int* collisionFlags)
+{
+    KeyType lowestCode  = tree[firstNode];
+    KeyType highestCode = tree[lastNode];
+
+    // loop over all the nodes in range
+    #pragma omp parallel for
+    for (TreeNodeIndex nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
+    {
+        RadiusType radius = interactionRadii[nodeIdx];
+        IBox haloBox      = makeHaloBox(tree[nodeIdx], tree[nodeIdx + 1], radius, box);
+
+        // if the halo box is fully inside the assigned SFC range, we skip collision detection
+        if (containedIn(lowestCode, highestCode, haloBox)) { continue; }
+
+        // mark all colliding node indices outside [lowestCode:highestCode]
+        findCollisions(binaryTree.data(), tree.data(), collisionFlags, haloBox, {lowestCode, highestCode});
+    }
+}
+
 } // namespace cstone

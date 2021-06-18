@@ -39,6 +39,7 @@
 
 #pragma once
 
+#include <atomic>
 #include <iterator>
 #include <vector>
 
@@ -626,6 +627,51 @@ public:
         }
     }
 
+    /*! @brief finds the index of the node with SFC key range [startKey:endKey]
+     *
+     * @param startKey   lower SFC key
+     * @param endKey     upper SFC key
+     * @return           The index i of the node that satisfies codeStart(i) == startKey
+     *                   and codeEnd(i) == endKey, or numTreeNodes() if no such node exists.
+     */
+    TreeNodeIndex locate(KeyType startKey, KeyType endKey) const
+    {
+        TreeNodeIndex nodeIdx = 0;
+        if (codeStart(nodeIdx) == startKey && codeStart(nodeIdx) == endKey) { return nodeIdx; }
+
+        if (isLeaf(nodeIdx)) { return numTreeNodes(); } // not found
+
+        // nodeIdx is internal
+        while (internalTree_[nodeIdx].prefix != startKey)
+        {
+            nodeIdx = refineIdx(nodeIdx, startKey);
+            if (isLeafIndex(nodeIdx))
+            {
+                if (cstoneTree_[loadLeafIndex(nodeIdx)] != startKey ||
+                    cstoneTree_[loadLeafIndex(nodeIdx) + 1] != endKey)
+                {
+                    // not found
+                    return numTreeNodes();
+                }
+
+                else { return loadLeafIndex(nodeIdx) + numInternalNodes(); }
+            }
+        }
+
+        // nodeIdx is still internal
+        while (internalTree_[nodeIdx].prefix + nodeRange<KeyType>(internalTree_[nodeIdx].level) != endKey)
+        {
+            nodeIdx = internalTree_[nodeIdx].child[0];
+            if (isLeafIndex(nodeIdx))
+            {
+                if (cstoneTree_[loadLeafIndex(nodeIdx) + 1] != endKey) { return numTreeNodes(); }
+                else { return loadLeafIndex(nodeIdx) + numInternalNodes(); }
+            }
+        }
+
+        return nodeIdx;
+    }
+
     [[nodiscard]] gsl::span<const KeyType> treeLeaves() const
     {
         return cstoneTree_;
@@ -637,6 +683,24 @@ public:
     }
 
 private:
+
+    /*! @brief find the child that contains the given key
+     *
+     * @param nodeIdx has to be internal
+     * @param key     SFC key to look for
+     * @return        the tree node index of the child of nodeIdx that contains key
+     */
+    TreeNodeIndex refineIdx(TreeNodeIndex nodeIdx, KeyType key) const
+    {
+        for (int octant = 1; octant < 8; ++octant)
+        {
+            TreeNodeIndex child = internalTree_[nodeIdx].child[octant];
+            KeyType nodeStart = (isLeafIndex(child)) ? cstoneTree_[loadLeafIndex(child)] :
+                                                       internalTree_[child].prefix;
+            if (key < nodeStart) { return internalTree_[nodeIdx].child[octant - 1]; }
+        }
+        return internalTree_[nodeIdx].child[7];
+    }
 
     //! @brief regenerates the internal tree based on (a changed) cstoneTree_
     void updateInternalTree()

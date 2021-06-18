@@ -4,6 +4,11 @@ target_include_directories(octree_perf PRIVATE ../../include)
 target_include_directories(octree_perf PRIVATE ../)
 target_link_libraries(octree_perf PRIVATE OpenMP::OpenMP_CXX)
 
+add_executable(peers_perf peers.cpp)
+target_include_directories(peers_perf PRIVATE ../../include)
+target_include_directories(peers_perf PRIVATE ../)
+target_link_libraries(peers_perf PRIVATE OpenMP::OpenMP_CXX)
+
 add_executable(scan_perf scan.cpp)
 target_include_directories(scan_perf PRIVATE ../../include)
 target_include_directories(scan_perf PRIVATE ../)

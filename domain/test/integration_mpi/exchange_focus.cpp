@@ -45,10 +45,10 @@ using namespace cstone;
 template<class I>
 void exchangeFocus(int myRank)
 {
-    std::vector<I>        treeLeaves = makeUniformNLevelTree<I>(64, 1);
+    std::vector<I> treeLeaves = makeUniformNLevelTree<I>(64, 1);
     std::vector<unsigned> counts(nNodes(treeLeaves), myRank + 1);
 
-    std::vector<int>                 peers;
+    std::vector<int> peers;
     std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices;
 
     if (myRank == 0)
@@ -62,16 +62,13 @@ void exchangeFocus(int myRank)
         peerFocusIndices.emplace_back(0, 32);
     }
 
-    std::vector<I>        tmpLeaves(32 + 1);
+    std::vector<I> tmpLeaves(32 + 1);
     std::vector<unsigned> tmpCounts(32);
 
     exchangePeerCounts<I>(peers, peerFocusIndices, treeLeaves, counts, tmpLeaves, tmpCounts);
 
     std::vector<unsigned> reference(nNodes(treeLeaves), myRank + 1);
-    if (myRank == 0)
-    {
-        std::fill(begin(reference) + 32, end(reference), 2);
-    }
+    if (myRank == 0) { std::fill(begin(reference) + 32, end(reference), 2); }
     else
     {
         std::fill(begin(reference), begin(reference) + 32, 1);
@@ -88,8 +85,7 @@ TEST(PeerExchange, simpleTest)
 
     constexpr int thisExampleRanks = 2;
 
-    if (nRanks != thisExampleRanks)
-        throw std::runtime_error("this test needs 2 ranks\n");
+    if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
 
     exchangeFocus<unsigned>(rank);
     exchangeFocus<uint64_t>(rank);
@@ -108,8 +104,8 @@ TEST(PeerExchange, simpleTest)
 template<class I>
 void exchangeFocusIrregular(int myRank)
 {
-    std::vector<I>                   treeLeaves;
-    std::vector<int>                 peers;
+    std::vector<I> treeLeaves;
+    std::vector<int> peers;
     std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices;
 
     OctreeMaker<I> octreeMaker;
@@ -122,16 +118,16 @@ void exchangeFocusIrregular(int myRank)
             octreeMaker.divide({i}, 1);
             for (int j = 0; j < 8; ++j)
             {
-                octreeMaker.divide({i,j}, 2);
+                octreeMaker.divide({i, j}, 2);
             }
         }
         // finer resolution at one location outside the regular grid
-        octreeMaker.divide(7).divide(7,0);
+        octreeMaker.divide(7).divide(7, 0);
         treeLeaves = octreeMaker.makeTree();
 
         peers.push_back(1);
-        TreeNodeIndex peerStartIdx = std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4}))
-                                     - begin(treeLeaves);
+        TreeNodeIndex peerStartIdx =
+            std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4})) - begin(treeLeaves);
         peerFocusIndices.emplace_back(peerStartIdx, nNodes(treeLeaves));
     }
     else
@@ -142,16 +138,16 @@ void exchangeFocusIrregular(int myRank)
             octreeMaker.divide({i}, 1);
             for (int j = 0; j < 8; ++j)
             {
-                octreeMaker.divide({i,j}, 2);
+                octreeMaker.divide({i, j}, 2);
             }
         }
         // finer resolution at one location outside the regular grid
-        octreeMaker.divide(1).divide(1,6);
+        octreeMaker.divide(1).divide(1, 6);
         treeLeaves = octreeMaker.makeTree();
 
         peers.push_back(0);
-        TreeNodeIndex peerEndIdx = std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4}))
-                                   - begin(treeLeaves);
+        TreeNodeIndex peerEndIdx =
+            std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4})) - begin(treeLeaves);
         peerFocusIndices.emplace_back(0, peerEndIdx);
     }
 
@@ -159,7 +155,7 @@ void exchangeFocusIrregular(int myRank)
 
     // 256 is the maximum possible size, the actual size of the incoming message is only 18
     TreeNodeIndex numNodesInFocus = 256;
-    std::vector<I>        tmpLeaves(numNodesInFocus + 1);
+    std::vector<I> tmpLeaves(numNodesInFocus + 1);
     std::vector<unsigned> tmpCounts(numNodesInFocus);
 
     exchangePeerCounts<I>(peers, peerFocusIndices, treeLeaves, counts, tmpLeaves, tmpCounts);
@@ -168,22 +164,21 @@ void exchangeFocusIrregular(int myRank)
     TreeNodeIndex peerStartIdx, peerEndIdx;
     if (myRank == 0)
     {
-        peerStartIdx = std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4}))
-                       - begin(treeLeaves);
+        peerStartIdx =
+            std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4})) - begin(treeLeaves);
         peerEndIdx = nNodes(treeLeaves);
     }
     else
     {
         peerStartIdx = 0;
-        peerEndIdx = std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4}))
-                     - begin(treeLeaves);
+        peerEndIdx = std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4})) - begin(treeLeaves);
     }
 
     for (int i = peerStartIdx; i < peerEndIdx; ++i)
     {
-        int level = treeLevel(treeLeaves[i+1] - treeLeaves[i]);
+        int level = treeLevel(treeLeaves[i + 1] - treeLeaves[i]);
         // the particle count per node outside the focus is 8^(3 - level-of-node)
-        unsigned numParticles = 1u << (3 * (3-level));
+        unsigned numParticles = 1u << (3 * (3 - level));
         reference[i] = numParticles;
     }
 
@@ -198,8 +193,7 @@ TEST(PeerExchange, irregularTree)
 
     constexpr int thisExampleRanks = 2;
 
-    if (nRanks != thisExampleRanks)
-        throw std::runtime_error("this test needs 2 ranks\n");
+    if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
 
     exchangeFocusIrregular<unsigned>(rank);
     exchangeFocusIrregular<uint64_t>(rank);

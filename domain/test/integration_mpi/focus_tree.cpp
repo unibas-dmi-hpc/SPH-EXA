@@ -29,7 +29,6 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-
 #include <mpi.h>
 #include <gtest/gtest.h>
 
@@ -44,8 +43,9 @@
 using namespace cstone;
 
 template<class KeyType, class T>
-FocusedOctree<KeyType> createReferenceFocusTree(const Box<T>& box, gsl::span<const KeyType> particleKeys, int myRank, int numRanks,
-                                                unsigned bucketSize, unsigned bucketSizeLocal, float theta)
+FocusedOctree<KeyType> createReferenceFocusTree(const Box<T>& box, gsl::span<const KeyType> particleKeys, int myRank,
+                                                int numRanks, unsigned bucketSize, unsigned bucketSizeLocal,
+                                                float theta)
 {
     auto [tree, counts] = computeOctree(particleKeys.data(), particleKeys.data() + particleKeys.size(), bucketSize);
 
@@ -55,7 +55,10 @@ FocusedOctree<KeyType> createReferenceFocusTree(const Box<T>& box, gsl::span<con
     auto assignment = singleRangeSfcSplit(counts, numRanks);
 
     FocusedOctree<KeyType> focusTree(bucketSizeLocal, theta);
-    while(!focusTree.update(box, particleKeys, tree[assignment.firstNodeIdx(myRank)], tree[assignment.lastNodeIdx(myRank)])) {}
+    while (!focusTree.update(box, particleKeys, tree[assignment.firstNodeIdx(myRank)],
+                             tree[assignment.lastNodeIdx(myRank)]))
+    {
+    }
 
     return focusTree;
 }
@@ -76,14 +79,14 @@ FocusedOctree<KeyType> createReferenceFocusTree(const Box<T>& box, gsl::span<con
 template<class KeyType, class T>
 void globalRandomGaussian(int thisRank, int numRanks)
 {
-    size_t numParticles      = 1000;
-    unsigned bucketSize      = 64;
+    size_t numParticles = 1000;
+    unsigned bucketSize = 64;
     unsigned bucketSizeLocal = 16;
-    float theta              = 1.0;
+    float theta = 1.0;
 
     Box<T> box{-1, 1};
 
-    std::vector<T>       x,y,z;
+    std::vector<T> x, y, z;
     std::vector<KeyType> particleKeys(numParticles);
 
     FocusedOctree<KeyType> referenceFocusTree(bucketSizeLocal, theta);
@@ -97,9 +100,12 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
         // extract a slice of the common pool, each rank takes a different slice, but all slices together
         // are equal to the common pool
-        x = std::vector<T>(coords.x().begin() + thisRank * numParticles, coords.x().begin() + (thisRank+1) * numParticles);
-        y = std::vector<T>(coords.y().begin() + thisRank * numParticles, coords.y().begin() + (thisRank+1) * numParticles);
-        z = std::vector<T>(coords.z().begin() + thisRank * numParticles, coords.z().begin() + (thisRank+1) * numParticles);
+        x = std::vector<T>(coords.x().begin() + thisRank * numParticles,
+                           coords.x().begin() + (thisRank + 1) * numParticles);
+        y = std::vector<T>(coords.y().begin() + thisRank * numParticles,
+                           coords.y().begin() + (thisRank + 1) * numParticles);
+        z = std::vector<T>(coords.z().begin() + thisRank * numParticles,
+                           coords.z().begin() + (thisRank + 1) * numParticles);
     }
     computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(particleKeys), box);
 
@@ -107,7 +113,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
     std::vector<KeyType> tree = makeRootNodeTree<KeyType>();
     std::vector<unsigned> counts{unsigned(numParticles) * numRanks};
-    while(!updateOctreeGlobal(particleKeys.data(), particleKeys.data() + numParticles, bucketSize, tree, counts));
+    while (!updateOctreeGlobal(particleKeys.data(), particleKeys.data() + numParticles, bucketSize, tree, counts))
+        ;
 
     EXPECT_EQ(numRanks * numParticles, std::accumulate(counts.begin(), counts.end(), 0lu));
 
@@ -116,7 +123,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::iota(begin(ordering), end(ordering), 0);
 
     auto assignment = singleRangeSfcSplit(counts, numRanks);
-    auto sendList   = createSendList<KeyType>(assignment, tree, particleKeys);
+    auto sendList = createSendList<KeyType>(assignment, tree, particleKeys);
 
     int nParticlesAssigned = assignment.totalCount(thisRank);
 
@@ -159,7 +166,7 @@ TEST(GlobalTreeDomain, randomGaussian)
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
     globalRandomGaussian<unsigned, double>(rank, nRanks);
-    //globalRandomGaussian<uint64_t, double>(rank, nRanks);
-    //globalRandomGaussian<unsigned, float>(rank, nRanks);
-    //globalRandomGaussian<uint64_t, float>(rank, nRanks);
+    // globalRandomGaussian<uint64_t, double>(rank, nRanks);
+    // globalRandomGaussian<unsigned, float>(rank, nRanks);
+    // globalRandomGaussian<uint64_t, float>(rank, nRanks);
 }

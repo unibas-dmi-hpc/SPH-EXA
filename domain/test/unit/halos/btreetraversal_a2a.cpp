@@ -51,8 +51,7 @@ using namespace cstone;
  * naive all-to-all algorithm and the results are compared.
  */
 template<class I, class T>
-void generalCollisionTest(const std::vector<I>& tree, const std::vector<T>& haloRadii,
-                          const Box<T>& box)
+void generalCollisionTest(const std::vector<I>& tree, const std::vector<T>& haloRadii, const Box<T>& box)
 {
     std::vector<BinaryNode<I>> internalTree(nNodes(tree));
     createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
@@ -62,8 +61,8 @@ void generalCollisionTest(const std::vector<I>& tree, const std::vector<T>& halo
     for (std::size_t leafIdx = 0; leafIdx < internalTree.size(); ++leafIdx)
     {
         T radius = haloRadii[leafIdx];
-        IBox haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx+1], radius, box);
-        findCollisions(internalTree.data(), tree.data(), collisions[leafIdx], haloBox, {0,0});
+        IBox haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx + 1], radius, box);
+        findCollisions(internalTree.data(), tree.data(), collisions[leafIdx], haloBox, {0, 0});
     }
 
     // naive all-to-all algorithm
@@ -85,7 +84,7 @@ void generalCollisionTest(const std::vector<I>& tree, const std::vector<T>& halo
 template<class I, class T, bool Pbc>
 void irregularTreeTraversal()
 {
-    auto tree = OctreeMaker<I>{}.divide().divide(0).divide(0,7).makeTree();
+    auto tree = OctreeMaker<I>{}.divide().divide(0).divide(0, 7).makeTree();
 
     Box<T> box(0, 1, 0, 1, 0, 1, Pbc, Pbc, Pbc);
     std::vector<T> haloRadii(nNodes(tree), 0.1);
@@ -94,20 +93,19 @@ void irregularTreeTraversal()
 
 TEST(Collisions, irregularTreeTraversal)
 {
-    irregularTreeTraversal<unsigned, float , false>();
-    irregularTreeTraversal<uint64_t, float , false>();
+    irregularTreeTraversal<unsigned, float, false>();
+    irregularTreeTraversal<uint64_t, float, false>();
     irregularTreeTraversal<unsigned, double, false>();
     irregularTreeTraversal<uint64_t, double, false>();
 }
 
 TEST(Collisions, irregularTreeTraversalPbc)
 {
-    irregularTreeTraversal<unsigned, float , true>();
-    irregularTreeTraversal<uint64_t, float , true>();
+    irregularTreeTraversal<unsigned, float, true>();
+    irregularTreeTraversal<uint64_t, float, true>();
     irregularTreeTraversal<unsigned, double, true>();
     irregularTreeTraversal<uint64_t, double, true>();
 }
-
 
 //! @brief a regular tree with level-3 nodes, 8x8x8 grid
 template<class I, class T, bool Pbc>
@@ -131,8 +129,8 @@ TEST(Collisions, regularTreeTraversal)
 
 TEST(Collisions, regularTreeTraversalPbc)
 {
-    regularTreeTraversal<unsigned, float , true>();
-    regularTreeTraversal<uint64_t, float , true>();
+    regularTreeTraversal<unsigned, float, true>();
+    regularTreeTraversal<uint64_t, float, true>();
     regularTreeTraversal<unsigned, double, true>();
     regularTreeTraversal<uint64_t, double, true>();
 }
@@ -143,21 +141,17 @@ TEST(Collisions, regularTreeTraversalPbc)
  * results in different x,y,z halo search lengths once
  * the coordinates are normalized to the cubic unit box.
  */
-class AnisotropicBoxTraversal : public testing::TestWithParam<std::array<int,6>>
+class AnisotropicBoxTraversal : public testing::TestWithParam<std::array<int, 6>>
 {
 public:
-    template <class I, class T>
+    template<class I, class T>
     void check()
     {
         // 8x8x8 grid
         auto tree = makeUniformNLevelTree<I>(512, 1);
 
-        Box<T> box(std::get<0>(GetParam()),
-                   std::get<1>(GetParam()),
-                   std::get<2>(GetParam()),
-                   std::get<3>(GetParam()),
-                   std::get<4>(GetParam()),
-                   std::get<5>(GetParam()));
+        Box<T> box(std::get<0>(GetParam()), std::get<1>(GetParam()), std::get<2>(GetParam()), std::get<3>(GetParam()),
+                   std::get<4>(GetParam()), std::get<5>(GetParam()));
 
         // node edge length is 0.125 in the compressed dimension
         // and 0.250 in the other two dimensions
@@ -166,30 +160,14 @@ public:
     }
 };
 
-TEST_P(AnisotropicBoxTraversal, compressedAxis32f)
-{
-    check<unsigned, float>();
-}
+TEST_P(AnisotropicBoxTraversal, compressedAxis32f) { check<unsigned, float>(); }
 
-TEST_P(AnisotropicBoxTraversal, compressedAxis64f)
-{
-    check<uint64_t, float>();
-}
+TEST_P(AnisotropicBoxTraversal, compressedAxis64f) { check<uint64_t, float>(); }
 
-TEST_P(AnisotropicBoxTraversal, compressedAxis32d)
-{
-    check<unsigned, double>();
-}
+TEST_P(AnisotropicBoxTraversal, compressedAxis32d) { check<unsigned, double>(); }
 
-TEST_P(AnisotropicBoxTraversal, compressedAxis64d)
-{
-    check<uint64_t, double>();
-}
+TEST_P(AnisotropicBoxTraversal, compressedAxis64d) { check<uint64_t, double>(); }
 
-std::vector<std::array<int, 6>> boxLimits{{0,1,0,2,0,2},
-                                          {0,2,0,1,0,2},
-                                          {0,2,0,2,0,1}};
+std::vector<std::array<int, 6>> boxLimits{{0, 1, 0, 2, 0, 2}, {0, 2, 0, 1, 0, 2}, {0, 2, 0, 2, 0, 1}};
 
-INSTANTIATE_TEST_SUITE_P(AnisotropicBoxTraversal,
-                         AnisotropicBoxTraversal,
-                         testing::ValuesIn(boxLimits));
+INSTANTIATE_TEST_SUITE_P(AnisotropicBoxTraversal, AnisotropicBoxTraversal, testing::ValuesIn(boxLimits));

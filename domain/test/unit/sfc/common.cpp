@@ -29,7 +29,6 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-
 #include "gtest/gtest.h"
 #include "cstone/sfc/common.hpp"
 
@@ -109,16 +108,16 @@ TEST(SfcCode, normalizationCeil64)
 
 TEST(SfcCode, zeroLowBits32)
 {
-    EXPECT_EQ( (0b00111000u << 24u), zeroLowBits( (0b00111111u << 24u), 3));
-    EXPECT_EQ( (0b00110000u << 24u), zeroLowBits( (0b00111111u << 24u), 2));
-    EXPECT_EQ( (0b00100000u << 24u), zeroLowBits( (0b00111111u << 24u), 1));
+    EXPECT_EQ((0b00111000u << 24u), zeroLowBits((0b00111111u << 24u), 3));
+    EXPECT_EQ((0b00110000u << 24u), zeroLowBits((0b00111111u << 24u), 2));
+    EXPECT_EQ((0b00100000u << 24u), zeroLowBits((0b00111111u << 24u), 1));
 }
 
 TEST(SfcCode, zeroLowBits64)
 {
-    EXPECT_EQ( (0b0111000lu << 57u), zeroLowBits( (0b0111111lu << 57u), 3));
-    EXPECT_EQ( (0b0110000lu << 57u), zeroLowBits( (0b0111111lu << 57u), 2));
-    EXPECT_EQ( (0b0100000lu << 57u), zeroLowBits( (0b0111111lu << 57u), 1));
+    EXPECT_EQ((0b0111000lu << 57u), zeroLowBits((0b0111111lu << 57u), 3));
+    EXPECT_EQ((0b0110000lu << 57u), zeroLowBits((0b0111111lu << 57u), 2));
+    EXPECT_EQ((0b0100000lu << 57u), zeroLowBits((0b0111111lu << 57u), 1));
 }
 
 TEST(SfcCode, log8ceil32)
@@ -136,25 +135,25 @@ TEST(SfcCode, log8ceil64)
 TEST(SfcCode, treeLevel32)
 {
     using CodeType = unsigned;
-    EXPECT_EQ(0, treeLevel<CodeType>(1u<<30u));
-    EXPECT_EQ(1, treeLevel<CodeType>(1u<<27u));
+    EXPECT_EQ(0, treeLevel<CodeType>(1u << 30u));
+    EXPECT_EQ(1, treeLevel<CodeType>(1u << 27u));
     EXPECT_EQ(10, treeLevel<CodeType>(1));
 }
 
 TEST(SfcCode, treeLevel64)
 {
     using CodeType = uint64_t;
-    EXPECT_EQ(0, treeLevel<CodeType>(1ul<<63u));
-    EXPECT_EQ(1, treeLevel<CodeType>(1ul<<60u));
+    EXPECT_EQ(0, treeLevel<CodeType>(1ul << 63u));
+    EXPECT_EQ(1, treeLevel<CodeType>(1ul << 60u));
     EXPECT_EQ(21, treeLevel<CodeType>(1));
 }
 
 TEST(SfcCode, encodePlaceholderBit32)
 {
-    EXPECT_EQ(1,      encodePlaceholderBit(0u, 0));
+    EXPECT_EQ(1, encodePlaceholderBit(0u, 0));
     EXPECT_EQ(0b1000, encodePlaceholderBit(0u, 3));
     EXPECT_EQ(0b1010, encodePlaceholderBit(pad(0b010u, 3), 3));
-    EXPECT_EQ(01635,  encodePlaceholderBit(06350000000u, 9));
+    EXPECT_EQ(01635, encodePlaceholderBit(06350000000u, 9));
 }
 
 TEST(SfcCode, decodePrefixLength32)
@@ -175,10 +174,10 @@ TEST(SfcCode, decodePlaceholderbit32)
 
 TEST(SfcCode, encodePlaceholderBit64)
 {
-    EXPECT_EQ(1,      encodePlaceholderBit(0lu, 0));
+    EXPECT_EQ(1, encodePlaceholderBit(0lu, 0));
     EXPECT_EQ(0b1000, encodePlaceholderBit(0lu, 3));
     EXPECT_EQ(0b1010, encodePlaceholderBit(pad(0b010lu, 3), 3));
-    EXPECT_EQ(01635,  encodePlaceholderBit(0635000000000000000000ul, 9));
+    EXPECT_EQ(01635, encodePlaceholderBit(0635000000000000000000ul, 9));
 }
 
 TEST(SfcCode, decodePrefixLength64)
@@ -231,7 +230,7 @@ TEST(SfcCode, octalDigit64)
 
 TEST(SfcCode, enclosingBoxTrim)
 {
-    std::size_t code      = 0x0FF0000000000001;
+    std::size_t code = 0x0FF0000000000001;
     std::size_t reference = 0x0FC0000000000000;
     EXPECT_EQ(reference, enclosingBoxCode(code, 3));
 
@@ -243,7 +242,7 @@ TEST(SfcCode, enclosingBoxTrim)
 TEST(SfcCode, enclosingBoxMaxLevel32)
 {
     using CodeType = unsigned;
-    CodeType code  = 0x0FF00001;
+    CodeType code = 0x0FF00001;
     CodeType probe = enclosingBoxCode(code, maxTreeLevel<CodeType>{});
     EXPECT_EQ(probe, code);
 }
@@ -251,7 +250,7 @@ TEST(SfcCode, enclosingBoxMaxLevel32)
 TEST(SfcCode, enclosingBoxMaxLevel64)
 {
     using CodeType = uint64_t;
-    CodeType code  = 0x0FF0000000000001;
+    CodeType code = 0x0FF0000000000001;
     CodeType probe = enclosingBoxCode(code, maxTreeLevel<CodeType>{});
     EXPECT_EQ(probe, code);
 }
@@ -271,7 +270,7 @@ TEST(SfcCode, smallestCommonBoxL1)
     CodeType code1 = 0b00001001u << 24u;
     CodeType code2 = 0b00001010u << 24u;
     auto probe = smallestCommonBox(code1, code2);
-    pair<CodeType> reference{0b00001000u<<24u, 0b000010000u << 24u};
+    pair<CodeType> reference{0b00001000u << 24u, 0b000010000u << 24u};
     EXPECT_EQ(probe, reference);
 }
 
@@ -297,7 +296,7 @@ TEST(SfcCode, smallestCommonBoxL0_64)
 
 TEST(SfcCode, padUtility)
 {
-    EXPECT_EQ(pad(0b011,   3), 0b00011 << 27);
+    EXPECT_EQ(pad(0b011, 3), 0b00011 << 27);
     EXPECT_EQ(pad(0b011ul, 3), 0b0011ul << 60);
 }
 
@@ -315,24 +314,25 @@ void spanSfcRange()
 {
     using I = KeyType;
     {
-        std::vector<I> reference{0,     01000, 02000, 03000, 04000, 05000, 06000, 07000, 07100, 07200, 07300, 07400, 07500, 07600,
-                                 07700, 07710, 07720, 07730, 07740, 07750, 07760, 07770, 07771, 07772, 07773, 07774, 07775, 07776};
+        std::vector<I> reference{0,     01000, 02000, 03000, 04000, 05000, 06000, 07000, 07100, 07200,
+                                 07300, 07400, 07500, 07600, 07700, 07710, 07720, 07730, 07740, 07750,
+                                 07760, 07770, 07771, 07772, 07773, 07774, 07775, 07776};
         std::vector<I> probe(reference.size());
 
         EXPECT_EQ(spanSfcRange(I(0), I(07777), probe.data()), 28);
         EXPECT_EQ(reference, probe);
     }
     {
-        std::vector<I> reference{1, 2, 3, 4, 5, 6, 7, 010, 020, 030, 040, 050, 060, 070, 0100, 0200, 0300, 0400, 0500, 0600,
-                                 0700, 0710, 0720, 0730, 0740, 0741};
+        std::vector<I> reference{1,   2,    3,    4,    5,    6,    7,    010,  020,  030,  040,  050,  060,
+                                 070, 0100, 0200, 0300, 0400, 0500, 0600, 0700, 0710, 0720, 0730, 0740, 0741};
         std::vector<I> probe(reference.size());
 
         EXPECT_EQ(spanSfcRange(I(1), I(0742), probe.data()), 26);
         EXPECT_EQ(reference, probe);
     }
     {
-        std::vector<I> reference{041305, 041306, 041307, 041310, 041320, 041330, 041340, 041350, 041360, 041370,
-                                 041400, 041500, 041600, 041700, 042000, 043000, 044000, 045000};
+        std::vector<I> reference{041305, 041306, 041307, 041310, 041320, 041330, 041340, 041350, 041360,
+                                 041370, 041400, 041500, 041600, 041700, 042000, 043000, 044000, 045000};
         std::vector<I> probe(reference.size());
 
         EXPECT_EQ(spanSfcRange(I(041305), I(046000), probe.data()), 18);
@@ -343,7 +343,8 @@ void spanSfcRange()
     EXPECT_EQ(spanSfcRange(I(040000), I(060000)), 2);
 
     {
-        std::vector<I> reference{pad(I(1), 3), pad(I(2), 3), pad(I(3), 3), pad(I(4), 3), pad(I(5), 3), pad(I(6), 3), pad(I(7), 3)};
+        std::vector<I> reference{pad(I(1), 3), pad(I(2), 3), pad(I(3), 3), pad(I(4), 3),
+                                 pad(I(5), 3), pad(I(6), 3), pad(I(7), 3)};
         std::vector<I> probe(reference.size());
 
         EXPECT_EQ(spanSfcRange(pad(I(01), 3), nodeRange<I>(0), probe.data()), 7);
@@ -351,12 +352,6 @@ void spanSfcRange()
     }
 }
 
-TEST(SfcCode, spanSfcRange32)
-{
-    spanSfcRange<unsigned>();
-}
+TEST(SfcCode, spanSfcRange32) { spanSfcRange<unsigned>(); }
 
-TEST(SfcCode, spanSfcRange64)
-{
-    spanSfcRange<uint64_t>();
-}
+TEST(SfcCode, spanSfcRange64) { spanSfcRange<uint64_t>(); }

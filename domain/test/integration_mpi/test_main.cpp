@@ -34,7 +34,7 @@
 #include <gtest/gtest.h>
 #include "gtest-mpi-listener.hpp"
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     ::testing::InitGoogleTest(&argc, argv);
 
@@ -47,8 +47,8 @@ int main(int argc, char **argv)
     ::testing::TestEventListeners& listeners = ::testing::UnitTest::GetInstance()->listeners();
 
     // Remove default listener: the default printer and the default XML printer
-    ::testing::TestEventListener *l = listeners.Release(listeners.default_result_printer());
-    //if (rank != 0) { delete l; }
+    ::testing::TestEventListener* l = listeners.Release(listeners.default_result_printer());
+    // if (rank != 0) { delete l; }
 
     // Adds MPI listener; Google Test owns this pointer
     listeners.Append(new GTestMPIListener::MPIWrapperPrinter(l, MPI_COMM_WORLD));
