@@ -207,3 +207,39 @@ TEST(HaloDiscovery, findHalosPbc)
     findHalosPbc<unsigned>();
     findHalosPbc<uint64_t>();
 }
+
+template<class KeyType>
+void findHalosFlags()
+{
+    std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
+
+    Box<double> box(0, 1);
+
+    // size of one node is 0.25^3
+    std::vector<double> interactionRadii(nNodes(tree), 0.1);
+
+    std::vector<BinaryNode<KeyType>> binaryTree(nNodes(tree));
+    createBinaryTree(tree.data(), nNodes(tree), binaryTree.data());
+
+    {
+        std::vector<int> collisionFlags(nNodes(tree), 0);
+        findHalos<KeyType, double>(tree, binaryTree, interactionRadii, box, 0, 32, collisionFlags.data());
+
+        std::vector<int> reference{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                                   1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0};
+        EXPECT_EQ(collisionFlags, reference);
+    }
+    {
+        std::vector<int> collisionFlags(nNodes(tree), 0);
+        findHalos<KeyType, double>(tree, binaryTree, interactionRadii, box, 32, 64, collisionFlags.data());
+
+        std::vector<int> reference{0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1,
+                                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        EXPECT_EQ(collisionFlags, reference);
+    }
+}
+
+TEST(HaloDiscovery, findHalosFlags)
+{
+    findHalosFlags<unsigned>();
+}
