@@ -45,11 +45,11 @@ void globalMin(int rank, int nRanks)
     std::vector<T> x(nElements);
     std::iota(begin(x), end(x), 1);
     for (auto& val : x)
-        val /= (rank+1);
+        val /= (rank + 1);
 
     T gmin = globalMin(begin(x), end(x));
 
-    EXPECT_EQ(gmin, T(1)/nRanks);
+    EXPECT_EQ(gmin, T(1) / nRanks);
 }
 
 TEST(GlobalBox, globalMin)
@@ -69,7 +69,7 @@ void globalMax(int rank, [[maybe_unused]] int nRanks)
     std::vector<T> x(nElements);
     std::iota(begin(x), end(x), 1);
     for (auto& val : x)
-        val /= (rank+1);
+        val /= (rank + 1);
 
     T gmax = globalMax(begin(x), end(x));
 
@@ -97,21 +97,21 @@ void makeGlobalBox(int rank, int nRanks)
     std::vector<T> z = x;
 
     for (auto& val : x)
-        val *= (rank+1);
+        val *= (rank + 1);
 
     for (auto& val : y)
-        val *= (rank+2);
+        val *= (rank + 2);
 
     for (auto& val : z)
-        val *= (rank+3);
+        val *= (rank + 3);
 
-    Box<T> box = makeGlobalBox(begin(x), end(x), begin(y), begin(z), Box<T>{0,1});
-    Box<T> refBox{1, T(nElements*nRanks), 2, T(nElements*(nRanks+1)), 3, T(nElements*(nRanks+2))};
+    Box<T> box = makeGlobalBox(begin(x), end(x), begin(y), begin(z), Box<T>{0, 1});
+    Box<T> refBox{1, T(nElements * nRanks), 2, T(nElements * (nRanks + 1)), 3, T(nElements * (nRanks + 2))};
 
     EXPECT_EQ(box, refBox);
 
     // PBC case
-    Box<T> pbcBox{0,1,0,1,0,1,true,true,true};
+    Box<T> pbcBox{0, 1, 0, 1, 0, 1, true, true, true};
     Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
 
     EXPECT_EQ(pbcBox, newPbcBox);

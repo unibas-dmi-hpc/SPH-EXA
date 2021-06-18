@@ -39,24 +39,24 @@
 
 using namespace cstone;
 
-
 template<class I>
 void buildTree(int rank)
 {
     constexpr unsigned level = 2;
     std::vector<I> allCodes = makeNLevelGrid<I>(level);
-    std::vector<I> codes{begin(allCodes) + rank     * allCodes.size()/2,
-                         begin(allCodes) + (rank+1) * allCodes.size()/2};
+    std::vector<I> codes{begin(allCodes) + rank * allCodes.size() / 2,
+                         begin(allCodes) + (rank + 1) * allCodes.size() / 2};
 
     int bucketSize = 8;
 
     std::vector<I> tree = makeRootNodeTree<I>();
     std::vector<unsigned> counts{unsigned(codes.size())};
-    while(!updateOctreeGlobal(codes.data(), codes.data() + codes.size(), bucketSize, tree, counts));
+    while (!updateOctreeGlobal(codes.data(), codes.data() + codes.size(), bucketSize, tree, counts))
+        ;
 
     std::vector<I> refTree = OctreeMaker<I>{}.divide().makeTree();
 
-    std::vector<unsigned> refCounts(8,8);
+    std::vector<unsigned> refCounts(8, 8);
 
     EXPECT_EQ(counts, refCounts);
     EXPECT_EQ(tree, refTree);
@@ -70,8 +70,7 @@ TEST(GlobalTree, basicRegularTree32)
 
     constexpr int thisExampleRanks = 2;
 
-    if (nRanks != thisExampleRanks)
-        throw std::runtime_error("this test needs 2 ranks\n");
+    if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
 
     buildTree<unsigned>(rank);
     buildTree<uint64_t>(rank);
@@ -81,20 +80,19 @@ template<class CodeType>
 void computeNodeMax(int rank)
 {
     // an (incomplete) tree with 4 nodes
-    std::vector<CodeType> tree{0,8,16,24,32};
+    std::vector<CodeType> tree{0, 8, 16, 24, 32};
 
     // node boundaries:                 |    |     |   |           |
-    std::vector<CodeType> particleCodes{ 2,4, 8,14, 20, 24,25,26,31 };
+    std::vector<CodeType> particleCodes{2, 4, 8, 14, 20, 24, 25, 26, 31};
 
-    std::vector<std::vector<float>> smoothingLs
-    {
-    //  |    |    |  |       |
-        {1,1, 2,3, 6, 2,9,1,3}, // rank 0 smoothing lengths
-        {1,2, 4,3, 5, 2,8,1,3}, // rank 1 smoothing lengths
+    std::vector<std::vector<float>> smoothingLs{
+        //  |    |    |  |       |
+        {1, 1, 2, 3, 6, 2, 9, 1, 3}, // rank 0 smoothing lengths
+        {1, 2, 4, 3, 5, 2, 8, 1, 3}, // rank 1 smoothing lengths
     };
 
     // expected maximum per node across both ranks searching all nodes
-    std::vector<float>    hMaxPerNode{4, 8, 12, 18};
+    std::vector<float> hMaxPerNode{4, 8, 12, 18};
 
     // trivial ordering
     std::vector<int> ordering(particleCodes.size());
@@ -104,8 +102,8 @@ void computeNodeMax(int rank)
         std::vector<float> probe(hMaxPerNode.size());
 
         computeHaloRadiiGlobal(tree.data(), nNodes(tree), particleCodes.data(),
-                               particleCodes.data() + particleCodes.size(), ordering.data(),
-                               smoothingLs[rank].data(), probe.data());
+                               particleCodes.data() + particleCodes.size(), ordering.data(), smoothingLs[rank].data(),
+                               probe.data());
 
         EXPECT_EQ(probe, hMaxPerNode);
     }
@@ -119,8 +117,7 @@ TEST(GlobalTree, computeNodeMax)
 
     constexpr int thisExampleRanks = 2;
 
-    if (nRanks != thisExampleRanks)
-        throw std::runtime_error("this test needs 2 ranks\n");
+    if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
 
     computeNodeMax<unsigned>(rank);
     computeNodeMax<uint64_t>(rank);

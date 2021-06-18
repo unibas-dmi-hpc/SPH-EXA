@@ -50,50 +50,9 @@ CUDA_HOST_DEVICE_FUN
 int countCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes,
                     const IBox& collisionBox, pair<KeyType> excludeRange)
 {
-    using Node    = BinaryNode<KeyType>;
-
-    TreeNodeIndex stack[64];
-    stack[0] = 0;
-
-    TreeNodeIndex stackPos = 1;
-    TreeNodeIndex node     = 0; // start at the root
-
     int collisionCount = 0;
-
-    do
-    {
-        TreeNodeIndex leftChild  = root[node].child[Node::left];
-        TreeNodeIndex rightChild = root[node].child[Node::right];
-        bool traverseL = traverseNode(root, leftChild, collisionBox, excludeRange);
-        bool traverseR = traverseNode(root, rightChild, collisionBox, excludeRange);
-
-        bool overlapLeafL = leafOverlap(leftChild, leafNodes, collisionBox, excludeRange);
-        bool overlapLeafR = leafOverlap(rightChild, leafNodes, collisionBox, excludeRange);
-
-        if (overlapLeafL) collisionCount++;
-        if (overlapLeafR) collisionCount++;
-
-        if (!traverseL and !traverseR)
-        {
-            node = stack[--stackPos];
-        }
-        else
-        {
-            if (traverseL && traverseR)
-            {
-                #ifndef __CUDA_ARCH__
-                if (stackPos >= 64)
-                {
-                    throw std::runtime_error("btree traversal stack exhausted\n");
-                }
-                #endif
-                stack[stackPos++] = rightChild; // push
-            }
-
-            node = (traverseL) ? leftChild : rightChild;
-        }
-
-    } while (node != 0); // the root can only be obtained when the tree has been fully traversed
+    auto counter = [&collisionCount](TreeNodeIndex i) { collisionCount++; };
+    findCollisions(root, leafNodes, counter, collisionBox, excludeRange);
 
     return collisionCount;
 }

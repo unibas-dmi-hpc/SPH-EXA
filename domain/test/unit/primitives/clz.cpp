@@ -48,8 +48,8 @@ TEST(CLZ, C_clz_32)
 
 TEST(CLZ, C_clz_64)
 {
-    std::vector<uint64_t> inputs{1ul<<63u, (1ul<<62u) + 722302, 5,  4,  2,  1};
-    std::vector<int> references{0,       1,      61, 61, 62, 63};
+    std::vector<uint64_t> inputs{1ul << 63u, (1ul << 62u) + 722302, 5, 4, 2, 1};
+    std::vector<int> references{0, 1, 61, 61, 62, 63};
 
     std::vector<int> probes;
     for (auto i : inputs)
@@ -72,8 +72,8 @@ TEST(CLZ, builtin_clz_32)
 
 TEST(CLZ, builtin_clz_64)
 {
-    std::vector<uint64_t> inputs{1ul<<63u, (1ul<<62u) + 23427, 5,  4,  2,  1, 0};
-    std::vector<int> references{0,       1,      61, 61, 62, 63, 64};
+    std::vector<uint64_t> inputs{1ul << 63u, (1ul << 62u) + 23427, 5, 4, 2, 1, 0};
+    std::vector<int> references{0, 1, 61, 61, 62, 63, 64};
 
     std::vector<int> probes;
     for (auto i : inputs)
