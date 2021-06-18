@@ -180,3 +180,4 @@ void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, C
 }
 
 } // namespace cstone
+
