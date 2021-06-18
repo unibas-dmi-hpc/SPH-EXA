@@ -1386,7 +1386,7 @@ struct identity
 # if gsl_HAVE( ENUM_CLASS )
 enum class endian
 {
-#  if defined( _WIN32 )
+#  if defined( _WIN32 ) || defined( __PGIC__ )
     little = 0,
     big    = 1,
     native = little
