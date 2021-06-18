@@ -8,6 +8,7 @@ find_package(CUDAToolkit)
 find_package(OpenMP REQUIRED)
 
 include(CTest)
+include(CheckLanguage)
 
 set(default_build_type "Release")
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -16,9 +17,16 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-if(CUDAToolkit_FOUND)
-    enable_language(CUDA)
+if(NOT CMAKE_CUDA_COMPILER)
+    check_language(CUDA)
+    if(CMAKE_CUDA_COMPILER)
+        enable_language(CUDA)
+        set(CMAKE_CUDA_ARCHITECTURES OFF)
+    endif()
+endif()
 
+
+if(CMAKE_CUDA_COMPILER)
     set(CMAKE_CUDA_STANDARD 17)
     # use default nvcc cuda architectures
     set(CMAKE_CUDA_ARCHITECTURES OFF)
@@ -28,9 +36,9 @@ if(CUDAToolkit_FOUND)
         #set(CMAKE_CUDA_FLAGS "-Xcompiler ${OpenMP_CXX_FLAGS} ${CMAKE_CUDA_FLAGS}")
     endif()
 
-    add_subdirectory(include)
 else()
     message(STATUS "No CUDA support")
 endif()
 
+add_subdirectory(include)
 add_subdirectory(test)
