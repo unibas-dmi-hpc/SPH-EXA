@@ -60,7 +60,7 @@ using Rank = StrongType<int, struct RankTag>;
  *
  * @tparam I  32- or 64-bit unsigned integer
  *
- * The storage layout allows fast look-up of the Morton code ranges that a given rank
+ * The storage layout allows fast look-up of the SFC code ranges that a given rank
  * was assigned.
  *
  * Note: Assignment of SFC ranges to ranks should be unique, each SFC range should only
@@ -177,6 +177,41 @@ SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& globalCoun
     }
 
     return ret;
+}
+
+template<class KeyType>
+SpaceCurveAssignment translateAssignment(const SpaceCurveAssignment& assignment,
+                                         gsl::span<const KeyType> oldTree,
+                                         gsl::span<const KeyType> newTree,
+                                         gsl::span<const int> peerRanks,
+                                         int myRank)
+{
+    SpaceCurveAssignment newAssignment(assignment.numRanks());
+
+    for (int peer : peerRanks)
+    {
+        KeyType startKey = oldTree[assignment.firstNodeIdx(peer)];
+        KeyType endKey   = oldTree[assignment.lastNodeIdx(peer)];
+
+        TreeNodeIndex newStartIndex = findNodeAbove(newTree, startKey);
+        TreeNodeIndex newEndIndex   = findNodeBelow(newTree, endKey);
+
+        // we assume that the new tree is able to fully resolve the assignment boundaries
+        // of the given peer ranks
+        assert(newTree[newStartIndex] == startKey);
+        assert(newTree[newEndIndex] == endKey);
+
+        newAssignment.addRange(Rank(peer), newStartIndex, newEndIndex, assignment.totalCount(peer));
+    }
+
+    KeyType startKey = oldTree[assignment.firstNodeIdx(myRank)];
+    KeyType endKey   = oldTree[assignment.lastNodeIdx(myRank)];
+
+    TreeNodeIndex newStartIndex = findNodeAbove(newTree, startKey);
+    TreeNodeIndex newEndIndex   = findNodeBelow(newTree, endKey);
+    newAssignment.addRange(Rank(myRank), newStartIndex, newEndIndex, assignment.totalCount(myRank));
+
+    return newAssignment;
 }
 
 /*! @brief Based on global assignment, create the list of local particle index ranges to send to each rank

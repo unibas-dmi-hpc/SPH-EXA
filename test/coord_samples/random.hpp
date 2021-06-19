@@ -46,11 +46,11 @@ class RandomCoordinates
 {
 public:
 
-    RandomCoordinates(unsigned n, Box<T> box)
+    RandomCoordinates(unsigned n, Box<T> box, int seed = 42)
         : box_(std::move(box)), x_(n), y_(n), z_(n), codes_(n)
     {
         //std::random_device rd;
-        std::mt19937 gen(42);
+        std::mt19937 gen(seed);
         std::uniform_real_distribution<T> disX(box_.xmin(), box_.xmax());
         std::uniform_real_distribution<T> disY(box_.ymin(), box_.ymax());
         std::uniform_real_distribution<T> disZ(box_.zmin(), box_.zmax());
@@ -92,11 +92,11 @@ class RandomGaussianCoordinates
 {
 public:
 
-    RandomGaussianCoordinates(unsigned n, Box<T> box)
+    RandomGaussianCoordinates(unsigned n, Box<T> box, int seed = 42)
         : box_(std::move(box)), x_(n), y_(n), z_(n), codes_(n)
     {
         //std::random_device rd;
-        std::mt19937 gen(42);
+        std::mt19937 gen(seed);
         // random gaussian distribution at the center
         std::normal_distribution<T> disX((box_.xmax() + box_.xmin())/2, (box_.xmax() - box_.xmin())/5);
         std::normal_distribution<T> disY((box_.ymax() + box_.ymin())/2, (box_.ymax() - box_.ymin())/5);

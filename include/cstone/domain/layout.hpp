@@ -201,6 +201,34 @@ static SendList createHaloExchangeList(const std::vector<std::vector<TreeNodeInd
     return sendList;
 }
 
+/*! @brief calculate the location (offset) of each focus tree leaf node in the particle arrays
+ *
+ * @param focusLeafCounts   node counts of the focus leaves, size N
+ * @param haloFlags         flag for each node, with a non-zero value if present as halo node, size N
+ * @param firstAssignedIdx  first focus leaf idx to treat as part of the assigned nodes on the executing rank
+ * @param lastAssignedIdx   last focus leaf idx to treat as part of the assigned nodes on the executing rank
+ * @return                  array with offsets, size N+1. The first element is zero, the last element is
+ *                          equal to the sum of all all present (assigned+halo) node counts.
+ */
+inline
+std::vector<LocalParticleIndex> computeNodeLayout(gsl::span<const unsigned> focusLeafCounts,
+                                                  gsl::span<const int> haloFlags,
+                                                  TreeNodeIndex firstAssignedIdx,
+                                                  TreeNodeIndex lastAssignedIdx)
+{
+    std::vector<LocalParticleIndex> layout(focusLeafCounts.size() + 1, 0);
+
+    #pragma omp parallel for
+    for (TreeNodeIndex i = 0; i < focusLeafCounts.size(); ++i)
+    {
+        bool onRank = firstAssignedIdx <= i && i < lastAssignedIdx;
+        if (onRank || haloFlags[i]) { layout[i] = focusLeafCounts[i]; }
+    }
+
+    exclusiveScan(layout.data(), layout.size());
+
+    return layout;
+}
 
 } // namespace cstone
 

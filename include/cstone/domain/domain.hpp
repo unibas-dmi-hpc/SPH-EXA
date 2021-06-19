@@ -233,7 +233,7 @@ public:
         std::vector<LocalParticleIndex> nodeOffsets;
         computeLayoutOffsets(assignment.firstNodeIdx(myRank_), assignment.lastNodeIdx(myRank_),
                              incomingHalosFlattened, nodeCounts_, presentNodes, nodeOffsets);
-        localNParticles_ = *nodeOffsets.rbegin();
+        localNParticles_ = nodeOffsets.back();
 
         TreeNodeIndex firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), assignment.firstNodeIdx(myRank_))
                                        - begin(presentNodes);
