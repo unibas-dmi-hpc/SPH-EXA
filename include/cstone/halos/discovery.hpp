@@ -169,4 +169,44 @@ void findHalos(gsl::span<const KeyType> tree,
     }
 }
 
+/*! @brief extract of SFC keys for all nodes marked as halos within an index range
+ *
+ * @tparam KeyType       32- or 64-bit unsigned integer
+ * @param leaves         cornerstone octree leaves, length N+1
+ * @param haloFlags      0 or 1 flags for each leaf node, length N
+ * @param firstReqIdx    first index, permissible range: [0:N]
+ * @param secondReqIdx   second index, permissible range: [0:N+1]
+ * @return               vector (of pairs) of SFC keys that covers all
+ *                       leaf nodes within [firstReqIdx:secondReqIdx] that are
+ *                       marked as halos.
+ *
+ * Even indices mark the start of a range, uneven indices mark the end of the previous
+ * range start. If two ranges are consecutive, they are fused into a single range.
+ */
+template<class KeyType>
+std::vector<KeyType> computeHaloRequestKeys(gsl::span<const KeyType> leaves,
+                                            gsl::span<const int> haloFlags,
+                                            TreeNodeIndex firstReqIdx,
+                                            TreeNodeIndex secondReqIdx)
+{
+    std::vector<KeyType> requestKeys;
+
+    while (firstReqIdx != secondReqIdx)
+    {
+        // advance to first halo (or to secondReqIdx)
+        while (haloFlags[firstReqIdx] == 0 && firstReqIdx < secondReqIdx) { firstReqIdx++; }
+
+        // add one request key range
+        if (firstReqIdx != secondReqIdx)
+        {
+            requestKeys.push_back(leaves[firstReqIdx]);
+            // advance until not a halo or end of range
+            while (firstReqIdx < secondReqIdx && haloFlags[firstReqIdx] == 1) { firstReqIdx++; }
+            requestKeys.push_back(leaves[firstReqIdx]);
+        }
+    }
+
+    return requestKeys;
+}
+
 } // namespace cstone

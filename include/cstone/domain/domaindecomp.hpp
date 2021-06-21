@@ -179,6 +179,20 @@ SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& globalCoun
     return ret;
 }
 
+/*! @brief translates an assignment of a given tree to a new tree
+ *
+ * @tparam KeyType      32- or 64-bit unsigned integer
+ * @param assignment    (old) assignment
+ * @param oldTree
+ * @param newTree
+ * @param peerRanks     list of peer ranks
+ * @param myRank        executing rank ID
+ * @return              assignment with the same SFC key ranges per
+ *                      peer rank as the original @p assignment,
+ *                      but with indices valid w.r.t @p newTree
+ *
+ * Note: SFC key ranges for non-peer ranks are ignored.
+ */
 template<class KeyType>
 SpaceCurveAssignment translateAssignment(const SpaceCurveAssignment& assignment,
                                          gsl::span<const KeyType> oldTree,
@@ -225,7 +239,9 @@ SpaceCurveAssignment translateAssignment(const SpaceCurveAssignment& assignment,
  * Converts the global assignment particle keys ranges into particle indices with binary search
  */
 template<class KeyType>
-SendList createSendList(const SpaceCurveAssignment& assignment, gsl::span<const KeyType> treeLeaves, gsl::span<const KeyType> particleKeys)
+SendList createSendList(const SpaceCurveAssignment& assignment,
+                        gsl::span<const KeyType> treeLeaves,
+                        gsl::span<const KeyType> particleKeys)
 {
     using IndexType = SendManifest::IndexType;
     int nRanks      = assignment.numRanks();

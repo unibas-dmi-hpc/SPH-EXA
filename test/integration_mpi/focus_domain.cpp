@@ -32,11 +32,12 @@
 #include <mpi.h>
 #include <gtest/gtest.h>
 
-#include "cstone/tree/octree_mpi.hpp"
 #include "cstone/domain/domaindecomp_mpi.hpp"
 #include "cstone/domain/peers.hpp"
 #include "cstone/domain/layout.hpp"
+#include "cstone/halos/discovery.hpp"
 #include "cstone/tree/octree_focus_mpi.hpp"
+#include "cstone/tree/octree_mpi.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 #include "coord_samples/random.hpp"
@@ -49,7 +50,7 @@ using namespace cstone;
 template<class KeyType, class T>
 void focusDomain(int thisRank, int numRanks)
 {
-    size_t numParticles = 1000;
+    size_t numParticles = 10000;
     unsigned bucketSize = 64;
     unsigned bucketSizeLocal = 16;
     float theta = 1.0;
@@ -58,7 +59,7 @@ void focusDomain(int thisRank, int numRanks)
 
     std::vector<T> x, y, z;
     std::vector<KeyType> particleKeys(numParticles);
-    RandomGaussianCoordinates<T, KeyType> coords(numParticles, box, thisRank);
+    RandomCoordinates<T, KeyType> coords(numParticles, box, thisRank);
     x = coords.x();
     y = coords.y();
     z = coords.z();
@@ -106,6 +107,56 @@ void focusDomain(int thisRank, int numRanks)
     {
         converged = focusTree.updateGlobal(box, particleKeys, thisRank, peers, assignment, tree, counts);
         MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+    }
+
+    // halo phase
+    SpaceCurveAssignment focusAssignment = translateAssignment<KeyType>(assignment, tree, focusTree.treeLeaves(),
+                                                                        peers, thisRank);
+
+    std::vector h(x.size(), 0.1);
+    std::iota(begin(ordering), end(ordering), 0);
+
+    std::vector<float> haloRadii(nNodes(focusTree.treeLeaves()));
+    computeHaloRadii(focusTree.treeLeaves().data(),
+                     nNodes(focusTree.treeLeaves()),
+                     particleKeys.data(),
+                     particleKeys.data() + particleKeys.size(),
+                     ordering.data(),
+                     h.data(),
+                     haloRadii.data()
+                     );
+
+    std::vector<int> haloFlags(nNodes(focusTree.treeLeaves()), 0);
+    findHalos<KeyType, float>(focusTree.treeLeaves(),
+                              focusTree.binaryTree(),
+                              haloRadii,
+                              box,
+                              focusAssignment.firstNodeIdx(thisRank),
+                              focusAssignment.lastNodeIdx(thisRank),
+                              haloFlags.data()
+                              );
+
+
+    std::vector<LocalParticleIndex> layout = computeNodeLayout(focusTree.leafCounts(), haloFlags,
+                                                               focusAssignment.firstNodeIdx(thisRank),
+                                                               focusAssignment.lastNodeIdx(thisRank)
+                                                               );
+
+    if (thisRank == 0)
+    {
+        for (TreeNodeIndex i = 0; i < haloFlags.size(); ++i)
+        {
+            if (i == focusAssignment.lastNodeIdx(0))
+            {
+                std::cout << "---------------------------------------\n";
+            }
+            std::cout << i << " " << std::setw(4)
+                      << layout[i] << " " << std::setw(4)
+                      << layout[i+1] - layout[i] << " " << std::setw(4)
+                      << haloFlags[i] << " "
+                      << std::oct << focusTree.treeLeaves()[i] << std::dec
+                      << std::endl;
+        }
     }
 }
 
