@@ -231,4 +231,3 @@ std::vector<LocalParticleIndex> computeNodeLayout(gsl::span<const unsigned> focu
 }
 
 } // namespace cstone
-
