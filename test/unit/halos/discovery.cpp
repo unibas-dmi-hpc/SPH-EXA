@@ -233,4 +233,8 @@ void findHalosFlags()
     }
 }
 
-TEST(HaloDiscovery, findHalosFlags) { findHalosFlags<unsigned>(); }
+TEST(HaloDiscovery, findHalosFlags)
+{
+    findHalosFlags<unsigned>();
+    findHalosFlags<uint64_t>();
+}
