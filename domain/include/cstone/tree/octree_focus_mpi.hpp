@@ -24,50 +24,42 @@
  */
 
 /*! @file
- * @brief Traits classes for Domain to manage GPU device acceleration behavior
+ * @brief Traits and functors for the MPI-enabled FocusedOctree
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include <type_traits>
-
-#include "cstone/primitives/gather.hpp"
-#include "cstone/cuda/gather.cuh"
+#include "cstone/tree/exchange_focus.hpp"
+#include "cstone/tree/octree_focus.hpp"
 
 namespace cstone
 {
 
-struct CpuTag {};
-struct CudaTag {};
-
-namespace detail
+struct MpiPeerExchange
 {
-
-template<class Accelerator, class = void>
-struct ReorderFunctor {};
-
-template<class Accelerator>
-struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, CpuTag>{}>>
-{
-    template<class ValueType, class CodeType, class IndexType>
-    using type = CpuGather<ValueType, CodeType, IndexType>;
+    template <class KeyType>
+    void operator()(gsl::span<const int> peerRanks, gsl::span<const IndexPair<TreeNodeIndex>> exchangeIndices,
+                    gsl::span<const KeyType> localLeaves, gsl::span<unsigned> localCounts,
+                    gsl::span<KeyType> queryLeafBuffer, gsl::span<unsigned> queryCountBuffer)
+    {
+        exchangePeerCounts(peerRanks, exchangeIndices, localLeaves, localCounts, queryLeafBuffer, queryCountBuffer);
+    }
 };
 
-template<class Accelerator>
-struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, CudaTag>{}>>
+namespace focused_octree_detail
 {
-    template<class ValueType, class CodeType, class IndexType>
-    using type = DeviceGather<ValueType, CodeType, IndexType>;
+    struct MpiCommTag {};
+}
+
+template <class CommunicationType>
+struct ExchangePeerCounts<CommunicationType, std::enable_if_t<std::is_same_v<focused_octree_detail::MpiCommTag, CommunicationType>>>
+{
+    using type = MpiPeerExchange;
 };
 
-} // namespace detail
-
-//! @brief returns reorder functor type to be used, depending on the accelerator
-template<class Accelerator, class ValueType, class CodeType, class IndexType>
-using ReorderFunctor_t = typename detail::ReorderFunctor<Accelerator>::template type<ValueType, CodeType, IndexType>;
-
+template<class KeyType>
+using FocusedOctree = FocusedOctreeImpl<KeyType, focused_octree_detail::MpiCommTag>;
 
 } // namespace cstone
-

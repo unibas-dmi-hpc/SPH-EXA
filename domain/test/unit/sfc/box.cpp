@@ -24,50 +24,37 @@
  */
 
 /*! @file
- * @brief Traits classes for Domain to manage GPU device acceleration behavior
+ * @brief Test box functionality
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#pragma once
+#include "gtest/gtest.h"
+#include "cstone/sfc/box.hpp"
 
-#include <type_traits>
+using namespace cstone;
 
-#include "cstone/primitives/gather.hpp"
-#include "cstone/cuda/gather.cuh"
-
-namespace cstone
+TEST(SfcBox, pbcAdjust)
 {
+    EXPECT_EQ(pbcAdjust<1024>(-1024), 0);
+    EXPECT_EQ(pbcAdjust<1024>(-1), 1023);
+    EXPECT_EQ(pbcAdjust<1024>(0),  0);
+    EXPECT_EQ(pbcAdjust<1024>(1),  1);
+    EXPECT_EQ(pbcAdjust<1024>(1023),  1023);
+    EXPECT_EQ(pbcAdjust<1024>(1024),  0);
+    EXPECT_EQ(pbcAdjust<1024>(1025),  1);
+    EXPECT_EQ(pbcAdjust<1024>(2047),  1023);
+}
 
-struct CpuTag {};
-struct CudaTag {};
-
-namespace detail
+TEST(SfcBox, pbcDistance)
 {
-
-template<class Accelerator, class = void>
-struct ReorderFunctor {};
-
-template<class Accelerator>
-struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, CpuTag>{}>>
-{
-    template<class ValueType, class CodeType, class IndexType>
-    using type = CpuGather<ValueType, CodeType, IndexType>;
-};
-
-template<class Accelerator>
-struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, CudaTag>{}>>
-{
-    template<class ValueType, class CodeType, class IndexType>
-    using type = DeviceGather<ValueType, CodeType, IndexType>;
-};
-
-} // namespace detail
-
-//! @brief returns reorder functor type to be used, depending on the accelerator
-template<class Accelerator, class ValueType, class CodeType, class IndexType>
-using ReorderFunctor_t = typename detail::ReorderFunctor<Accelerator>::template type<ValueType, CodeType, IndexType>;
-
-
-} // namespace cstone
-
+    EXPECT_EQ(pbcDistance<1024>(-1024), 0);
+    EXPECT_EQ(pbcDistance<1024>(-513), 511);
+    EXPECT_EQ(pbcDistance<1024>(-512), 512);
+    EXPECT_EQ(pbcDistance<1024>(-1),  -1);
+    EXPECT_EQ(pbcDistance<1024>(0),   0);
+    EXPECT_EQ(pbcDistance<1024>(1),   1);
+    EXPECT_EQ(pbcDistance<1024>(512), 512);
+    EXPECT_EQ(pbcDistance<1024>(513), -511);
+    EXPECT_EQ(pbcDistance<1024>(1024), 0);
+}

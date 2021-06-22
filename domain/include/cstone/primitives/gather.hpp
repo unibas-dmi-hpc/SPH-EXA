@@ -38,7 +38,7 @@
 #include <tuple>
 #include <vector>
 
-#include "cstone/sfc/mortoncode.hpp"
+#include "cstone/sfc/morton.hpp"
 
 namespace cstone
 {
@@ -214,8 +214,8 @@ public:
      *     and the identity permutation as the values
      *
      *  Remarks:
-     *    - reallocates space on the device if necessary to fit N elements of type LocalIndex
-     *      and a second buffer of size max(2N*sizeof(T), N*sizeof(I))
+     *    - reallocates space on the device if necessary to fit N elements of type LocalParticleIndex
+     *      and a second buffer of size max(2N*sizeof(T), N*sizeof(KeyType))
      */
     void setMapFromCodes(CodeType* codes_first, CodeType* codes_last)
     {

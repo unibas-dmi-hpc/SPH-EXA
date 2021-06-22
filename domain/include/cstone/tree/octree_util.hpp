@@ -58,7 +58,7 @@ namespace cstone
 template<class I>
 bool checkOctreeInvariants(const I* tree, int nNodes)
 {
-    // the root node delineated by code 0 and nodeRange<I>(0)
+    // the root node delineated by code 0 and nodeRange<KeyType>(0)
     // must be part of the tree
     if (nNodes < 1)
         return false;
