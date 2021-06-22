@@ -44,30 +44,30 @@
 using namespace cstone;
 
 template<class KeyType>
-std::tuple<std::vector<KeyType>, std::vector<unsigned>>
-build_tree(const KeyType* firstCode, const KeyType* lastCode, unsigned bucketSize)
+std::tuple<std::vector<KeyType>, std::vector<unsigned>> build_tree(const KeyType* firstCode, const KeyType* lastCode,
+                                                                   unsigned bucketSize)
 {
     std::vector<KeyType> tree;
     std::vector<unsigned> counts;
 
     auto tp0 = std::chrono::high_resolution_clock::now();
     std::tie(tree, counts) = computeOctree(firstCode, lastCode, bucketSize);
-    auto tp1  = std::chrono::high_resolution_clock::now();
+    auto tp1 = std::chrono::high_resolution_clock::now();
 
     double t0 = std::chrono::duration<double>(tp1 - tp0).count();
     std::cout << "build time from scratch " << t0 << " nNodes(tree): " << nNodes(tree)
               << " count: " << std::accumulate(begin(counts), end(counts), 0lu) << std::endl;
 
-    tp0  = std::chrono::high_resolution_clock::now();
+    tp0 = std::chrono::high_resolution_clock::now();
     updateOctree(firstCode, lastCode, bucketSize, tree, counts, std::numeric_limits<unsigned>::max());
-    tp1  = std::chrono::high_resolution_clock::now();
+    tp1 = std::chrono::high_resolution_clock::now();
 
     double t1 = std::chrono::duration<double>(tp1 - tp0).count();
 
     int nEmptyNodes = std::count(begin(counts), end(counts), 0);
     std::cout << "build time with guess " << t1 << " nNodes(tree): " << nNodes(tree)
-              << " count: " << std::accumulate(begin(counts), end(counts), 0lu)
-              << " empty nodes: " << nEmptyNodes << std::endl;
+              << " count: " << std::accumulate(begin(counts), end(counts), 0lu) << " empty nodes: " << nEmptyNodes
+              << std::endl;
 
     return std::make_tuple(std::move(tree), std::move(counts));
 }
@@ -79,17 +79,33 @@ void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std
     SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, nSplits);
     std::vector<float> haloRadii(nNodes(tree), 0.01);
 
-    std::vector<pair<TreeNodeIndex>> haloPairs;
     int doSplit = 0;
-    auto tp0  = std::chrono::high_resolution_clock::now();
     TreeNodeIndex upperNode = assignment.lastNodeIdx(doSplit);
-    findHalos<KeyType, float>(tree, haloRadii, box, 0, upperNode, haloPairs);
-    auto tp1  = std::chrono::high_resolution_clock::now();
 
-    double t2 = std::chrono::duration<double>(tp1 - tp0).count();
-    std::cout << "halo discovery: " << t2 << " nPairs: " << haloPairs.size() << std::endl;
+    {
+        std::vector<pair<TreeNodeIndex>> haloPairs;
+        auto tp0 = std::chrono::high_resolution_clock::now();
+        findHalos<KeyType, float>(tree, haloRadii, box, 0, upperNode, haloPairs);
+        auto tp1 = std::chrono::high_resolution_clock::now();
+
+        double t2 = std::chrono::duration<double>(tp1 - tp0).count();
+        std::cout << "halo discovery: " << t2 << " nPairs: " << haloPairs.size() << std::endl;
+    }
+
+    {
+        std::vector<BinaryNode<KeyType>> binaryTree(nNodes(tree));
+        createBinaryTree(tree.data(), nNodes(tree), binaryTree.data());
+        std::vector<int> collisionFlags(nNodes(tree), 0);
+
+        auto tp0 = std::chrono::high_resolution_clock::now();
+        findHalos<KeyType, float>(tree, binaryTree, haloRadii, box, 0, upperNode, collisionFlags.data());
+        auto tp1 = std::chrono::high_resolution_clock::now();
+
+        double t2 = std::chrono::duration<double>(tp1 - tp0).count();
+        std::cout << "halo discovery: " << t2
+                  << " collidingNodes: " << std::accumulate(begin(collisionFlags), end(collisionFlags), 0) << std::endl;
+    }
 }
-
 
 int main()
 {
@@ -105,23 +121,19 @@ int main()
     std::vector<unsigned> counts;
 
     // tree build from random gaussian coordinates
-    std::tie(tree, counts) = build_tree(randomBox.mortonCodes().data(), randomBox.mortonCodes().data() + nParticles, bucketSize);
+    std::tie(tree, counts) =
+        build_tree(randomBox.mortonCodes().data(), randomBox.mortonCodes().data() + nParticles, bucketSize);
     // halo discovery with tree
     halo_discovery(box, tree, counts);
 
     auto px = plummer<double>(nParticles);
     std::vector<CodeType> pxCodes(nParticles);
-    Box<double> pBox(*std::min_element(begin(px[0]), end(px[0])),
-                     *std::max_element(begin(px[0]), end(px[0])),
-                     *std::min_element(begin(px[1]), end(px[1])),
-                     *std::max_element(begin(px[1]), end(px[1])),
-                     *std::min_element(begin(px[2]), end(px[2])),
-                     *std::max_element(begin(px[2]), end(px[2]))
-                     );
+    Box<double> pBox(*std::min_element(begin(px[0]), end(px[0])), *std::max_element(begin(px[0]), end(px[0])),
+                     *std::min_element(begin(px[1]), end(px[1])), *std::max_element(begin(px[1]), end(px[1])),
+                     *std::min_element(begin(px[2]), end(px[2])), *std::max_element(begin(px[2]), end(px[2])));
 
-    std::cout << "plummer box: " << pBox.xmin() << " " << pBox.xmax() << " "
-                                 << pBox.ymin() << " " << pBox.ymax() << " "
-                                 << pBox.zmin() << " " << pBox.zmax() << std::endl;
+    std::cout << "plummer box: " << pBox.xmin() << " " << pBox.xmax() << " " << pBox.ymin() << " " << pBox.ymax() << " "
+              << pBox.zmin() << " " << pBox.zmax() << std::endl;
 
     computeMortonCodes(begin(px[0]), end(px[0]), begin(px[1]), begin(px[2]), begin(pxCodes), pBox);
     std::sort(begin(pxCodes), end(pxCodes));

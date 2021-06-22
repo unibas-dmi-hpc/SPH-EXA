@@ -102,15 +102,16 @@ inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
 
 /*! @brief find all collisions between a leaf node enlarged by (dx,dy,dz) and the rest of the tree
  *
- * @tparam KeyType            32- or 64-bit unsigned integer
- * @param[in]  internalRoot   root of the internal binary radix tree
- * @param[in]  leafNodes      octree leaf nodes
- * @param[out] collisionList  output list of indices of colliding nodes
- * @param[in]  collisionBox   query box to look for collisions
- *                            with leaf nodes
- * @param[in]  excludeRange   range defined by two SFC codes to exclude from collision search
- *                            any leaf nodes fully contained in the specified range will not be
- *                            reported as collisions
+ * @tparam KeyType              32- or 64-bit unsigned integer
+ * @param[in]    internalRoot   root of the internal binary radix tree
+ * @param[in]    leafNodes      octree leaf nodes
+ * @param[inout] collisionList  endpoint action to perform with each colliding leaf node
+ *                              callable with signature void(TreeNodeIndex)
+ * @param[in]    collisionBox   query box to look for collisions
+ *                              with leaf nodes
+ * @param[in]  excludeRange     range defined by two SFC codes to exclude from collision search
+ *                              any leaf nodes fully contained in the specified range will not be
+ *                              reported as collisions
  *
  * At all traversal steps through the hierarchy of the internal binary radix tree,
  * all 3 x,y,z dimensions are checked to determine overlap with a binary node.
@@ -131,11 +132,12 @@ inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
  * cost to check all 3 dimensions at each step should not be very high, we keep
  * the implementation general.
  */
-template <class KeyType>
-void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, CollisionList& collisionList,
+template <class KeyType, class Endpoint>
+CUDA_HOST_DEVICE_FUN
+void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, Endpoint&& reportCollision,
                     const IBox& collisionBox, pair<KeyType> excludeRange)
 {
-    using Node    = BinaryNode<KeyType>;
+    using Node = BinaryNode<KeyType>;
 
     TreeNodeIndex stack[64];
     stack[0] = 0;
@@ -153,8 +155,8 @@ void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, C
         bool overlapLeafL = leafOverlap(leftChild, leafNodes, collisionBox, excludeRange);
         bool overlapLeafR = leafOverlap(rightChild, leafNodes, collisionBox, excludeRange);
 
-        if (overlapLeafL) collisionList.add(loadLeafIndex(leftChild));
-        if (overlapLeafR) collisionList.add(loadLeafIndex(rightChild));
+        if (overlapLeafL) { reportCollision(loadLeafIndex(leftChild)); }
+        if (overlapLeafR) { reportCollision(loadLeafIndex(rightChild)); }
 
         if (!traverseL and !traverseR)
         {
@@ -179,5 +181,23 @@ void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, C
     } while (node != 0); // the root can only be obtained when the tree has been fully traversed
 }
 
-} // namespace cstone
+//! @brief convenience overload for storing colliding indices
+template <class KeyType>
+void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, CollisionList& collisions,
+                    const IBox& collisionBox, pair<KeyType> excludeRange)
+{
+    auto storeCollisions = [&collisions](TreeNodeIndex i) { collisions.add(i); };
+    findCollisions(root, leafNodes, storeCollisions, collisionBox, excludeRange);
+}
 
+//! @brief convenience overload for marking colliding node indices
+template <class KeyType>
+void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, int* flags,
+                    const IBox& collisionBox, pair<KeyType> excludeRange)
+{
+    auto markCollisions = [flags](TreeNodeIndex i) { flags[i] = 1; };
+    findCollisions(root, leafNodes, markCollisions, collisionBox, excludeRange);
+}
+
+
+} // namespace cstone

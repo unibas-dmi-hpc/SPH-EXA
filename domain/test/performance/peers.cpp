@@ -24,17 +24,45 @@
  */
 
 /*! @file
- * @brief GTest driver
+ * @brief Test peer detection performance
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include "gtest/gtest.h"
+#include <chrono>
+#include <iostream>
+#include <numeric>
 
-int main(int argc, char** argv)
+#include "cstone/domain/peers.hpp"
+#include "cstone/tree/octree_internal.hpp"
+
+#include "coord_samples/random.hpp"
+
+using namespace cstone;
+
+int main()
 {
+    using KeyType = uint64_t;
+    Box<double> box{-1, 1};
 
-    ::testing::InitGoogleTest(&argc, argv);
-    auto ret = RUN_ALL_TESTS();
-    return ret;
+    int nParticles = 2000000;
+    int bucketSize = 16;
+    int numRanks = 50;
+
+    RandomGaussianCoordinates<double, KeyType> randomBox(nParticles, box);
+    std::vector<KeyType> codes = randomBox.mortonCodes();
+
+    Octree<KeyType> octree;
+    auto [treeLeaves, counts] = computeOctree(codes.data(), codes.data() + nParticles, bucketSize);
+    octree.update(treeLeaves.begin(), treeLeaves.end());
+
+    SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, numRanks);
+    int probeRank = numRanks / 2;
+
+    auto tp0 = std::chrono::high_resolution_clock::now();
+    std::vector<int> peersDtt = findPeersMac(probeRank, assignment, octree, box, 0.5);
+    auto tp1 = std::chrono::high_resolution_clock::now();
+
+    double t2 = std::chrono::duration<double>(tp1 - tp0).count();
+    std::cout << "find peers: " << t2 << " numPeers: " << peersDtt.size() << std::endl;
 }

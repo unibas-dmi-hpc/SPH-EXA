@@ -49,8 +49,8 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = singleRangeSfcSplit(counts, nSplits);
 
         SpaceCurveAssignment ref(nSplits);
-        ref.addRange(Rank(0),0,3,15);
-        ref.addRange(Rank(1),3,6,16);
+        ref.addRange(Rank(0), 0, 3, 15);
+        ref.addRange(Rank(1), 3, 6, 16);
         EXPECT_EQ(ref, splits);
     }
     {
@@ -60,8 +60,8 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = singleRangeSfcSplit(counts, nSplits);
 
         SpaceCurveAssignment ref(nSplits);
-        ref.addRange(Rank(0),0,3,15);
-        ref.addRange(Rank(1),3,6,16);
+        ref.addRange(Rank(0), 0, 3, 15);
+        ref.addRange(Rank(1), 3, 6, 16);
         EXPECT_EQ(ref, splits);
     }
     {
@@ -71,8 +71,8 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = singleRangeSfcSplit(counts, nSplits);
 
         SpaceCurveAssignment ref(nSplits);
-        ref.addRange(Rank(0),0,3,16);
-        ref.addRange(Rank(1),3,6,15);
+        ref.addRange(Rank(0), 0, 3, 16);
+        ref.addRange(Rank(1), 3, 6, 15);
         EXPECT_EQ(ref, splits);
     }
     {
@@ -83,13 +83,13 @@ TEST(DomainDecomposition, singleRangeSfcSplit)
         auto splits = singleRangeSfcSplit(counts, nSplits);
 
         SpaceCurveAssignment ref(nSplits);
-        ref.addRange(Rank(0),0,1,4);
-        ref.addRange(Rank(1),1,3,7);
-        ref.addRange(Rank(2),3,4,3);
-        ref.addRange(Rank(3),4,6,7);
-        ref.addRange(Rank(4),6,7,4);
-        ref.addRange(Rank(5),7,9,7);
-        ref.addRange(Rank(6),9,10,3);
+        ref.addRange(Rank(0), 0, 1, 4);
+        ref.addRange(Rank(1), 1, 3, 7);
+        ref.addRange(Rank(2), 3, 4, 3);
+        ref.addRange(Rank(3), 4, 6, 7);
+        ref.addRange(Rank(4), 6, 7, 4);
+        ref.addRange(Rank(5), 7, 9, 7);
+        ref.addRange(Rank(6), 9, 10, 3);
         EXPECT_EQ(ref, splits);
     }
 }
@@ -121,8 +121,8 @@ TEST(DomainDecomposition, AssignmentFindRank)
 template<class KeyType>
 void createSendList()
 {
-    std::vector<KeyType> tree {0,    2,    6,  8, 10};
-    std::vector<KeyType> codes{0,0,1,3,4,5,6,6,9};
+    std::vector<KeyType> tree{0, 2, 6, 8, 10};
+    std::vector<KeyType> codes{0, 0, 1, 3, 4, 5, 6, 6, 9};
 
     int nRanks = 2;
     SpaceCurveAssignment assignment(nRanks);
@@ -166,13 +166,12 @@ void assignSendRandomData()
 {
     int nParticles = 1003;
     int bucketSize = 64;
-    RandomGaussianCoordinates<double, KeyType> coords(nParticles, {-1,1});
+    RandomGaussianCoordinates<double, KeyType> coords(nParticles, {-1, 1});
 
-    auto [tree, counts] = computeOctree(coords.mortonCodes().data(),
-                                                coords.mortonCodes().data() + nParticles,
-                                                bucketSize);
+    auto [tree, counts] =
+        computeOctree(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles, bucketSize);
 
-    int  nSplits    = 4;
+    int nSplits = 4;
     auto assignment = singleRangeSfcSplit(counts, nSplits);
 
     /// all splits except the last one should at least be assigned nParticles/nSplits
@@ -181,8 +180,8 @@ void assignSendRandomData()
         std::size_t rankCount = assignment.totalCount(rank);
 
         /// particles in each rank should be within avg per rank +- bucketCount
-        EXPECT_LE(nParticles/nSplits - bucketSize, rankCount);
-        EXPECT_LE(rankCount, nParticles/nSplits + bucketSize);
+        EXPECT_LE(nParticles / nSplits - bucketSize, rankCount);
+        EXPECT_LE(rankCount, nParticles / nSplits + bucketSize);
     }
 
     auto sendList = createSendList<KeyType>(assignment, tree, coords.mortonCodes());
@@ -235,7 +234,7 @@ void createSendBuffer()
     auto buffer = createSendBuffer(manifest, x.data(), ordering.data());
 
     // note sorted reference
-    std::vector<double> ref{0,1,2,3,4,5,6,7,40,41};
+    std::vector<double> ref{0, 1, 2, 3, 4, 5, 6, 7, 40, 41};
     EXPECT_EQ(buffer, ref);
 }
 

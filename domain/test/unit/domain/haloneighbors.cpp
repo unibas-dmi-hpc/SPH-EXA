@@ -47,8 +47,8 @@
 using namespace cstone;
 
 template<class T>
-static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, const T* h, int n,
-                               int *neighbors, int *neighborsCount, int ngmax, const Box<T>& box)
+static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, const T* h, int n, int* neighbors,
+                               int* neighborsCount, int ngmax, const Box<T>& box)
 {
     T r2 = h[i] * h[i];
 
@@ -70,22 +70,21 @@ static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, const 
 
 template<class KeyType, class T>
 void extractParticles(const T* source, const KeyType* sourceCodes, int nSourceCodes, const int* ordering,
-                      const int* nodeList, const int* nodeOffsets, int nNodesPresent,
-                      const KeyType* tree, T* destination)
+                      const int* nodeList, const int* nodeOffsets, int nNodesPresent, const KeyType* tree,
+                      T* destination)
 {
     for (int i = 0; i < nNodesPresent; ++i)
     {
         int nodeIndex = nodeList[i];
 
         KeyType nodeCode = tree[nodeIndex];
-        int offset    = nodeOffsets[i];
-        int nodeCount = nodeOffsets[i+1] - offset;
+        int offset = nodeOffsets[i];
+        int nodeCount = nodeOffsets[i + 1] - offset;
 
-        int sourceLocation = std::lower_bound(sourceCodes, sourceCodes + nSourceCodes, nodeCode)
-                             - sourceCodes;
+        int sourceLocation = std::lower_bound(sourceCodes, sourceCodes + nSourceCodes, nodeCode) - sourceCodes;
 
         for (int j = 0; j < nodeCount; ++j)
-            destination[offset + j] = source[ordering[sourceLocation+j]];
+            destination[offset + j] = source[ordering[sourceLocation + j]];
     }
 }
 
@@ -103,19 +102,18 @@ void testExtractParticles()
     std::iota(begin(codes), end(codes), 0);
 
     //                  0 1 2 3 4 5  6  7  8  9  10
-    std::vector<KeyType> tree{0,2,4,6,8,10,12,14,16,18,20};
+    std::vector<KeyType> tree{0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20};
 
-    std::vector<int> presentNodes{0,1,2,3,4, 7, 9};
-    std::vector<int> nodeOffsets {0,2,4,6,8,10,12,14};
+    std::vector<int> presentNodes{0, 1, 2, 3, 4, 7, 9};
+    std::vector<int> nodeOffsets{0, 2, 4, 6, 8, 10, 12, 14};
 
     std::vector<T> extrX(14);
-    extractParticles(x.data(), codes.data(), x.size(), ordering.data(),
-                     presentNodes.data(), nodeOffsets.data(), presentNodes.size(), tree.data(), extrX.data());
+    extractParticles(x.data(), codes.data(), x.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(),
+                     presentNodes.size(), tree.data(), extrX.data());
 
-    std::vector<T> refX{100,101,102,103,104,105,106,107,108,109, 114, 115, 118, 119};
+    std::vector<T> refX{100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 114, 115, 118, 119};
     EXPECT_EQ(refX, extrX);
 }
-
 
 TEST(HaloNeighbors, extractParticlesTest)
 {
@@ -124,7 +122,6 @@ TEST(HaloNeighbors, extractParticlesTest)
     testExtractParticles<unsigned, float>();
     testExtractParticles<uint64_t, float>();
 }
-
 
 /*! @brief Test that halo discovery finds all nodes needed for a correct neighbor search
  *
@@ -154,9 +151,9 @@ void randomGaussianHaloNeighbors(bool usePbc)
 {
     int nParticles = 1000;
     int bucketSize = 10;
-    T   smoothingL = 0.02;
+    T smoothingL = 0.02;
 
-    int nRanks     = 2;
+    int nRanks = 2;
 
     Box<T> box{-1, 1, -1, 1, -1, 1, usePbc, usePbc, usePbc};
     RandomGaussianCoordinates<T, KeyType> coords(nParticles, box);
@@ -174,10 +171,11 @@ void randomGaussianHaloNeighbors(bool usePbc)
     {
         for (std::size_t i = 0; i < h.size(); ++i)
         {
-            h[i] = smoothingL * (0.2 + 30*(x[i] * x[i] + y[i] * y[i] + z[i] * z[i]));
+            h[i] = smoothingL * (0.2 + 30 * (x[i] * x[i] + y[i] * y[i] + z[i] * z[i]));
         }
     }
-    else {
+    else
+    {
         h = std::vector<T>(nParticles, 0.1);
     }
 
@@ -185,12 +183,11 @@ void randomGaussianHaloNeighbors(bool usePbc)
     std::iota(begin(ordering), end(ordering), 0);
 
     auto [tree, counts] =
-        computeOctree(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles,
-                                    bucketSize);
+        computeOctree(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles, bucketSize);
 
     std::vector<T> hNode(nNodes(tree));
-    computeHaloRadii(tree.data(), nNodes(tree), codes.data(), codes.data() + nParticles, ordering.data(),
-                     h.data(), hNode.data());
+    computeHaloRadii(tree.data(), nNodes(tree), codes.data(), codes.data() + nParticles, ordering.data(), h.data(),
+                     hNode.data());
 
     SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, nRanks);
 
@@ -213,12 +210,13 @@ void randomGaussianHaloNeighbors(bool usePbc)
     computeLayoutOffsets(assignment.firstNodeIdx(myRank), assignment.lastNodeIdx(myRank), incomingHalosFlattened,
                          counts, presentNodes, nodeOffsets);
 
-    TreeNodeIndex firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), assignment.firstNodeIdx(myRank))
-                                    - begin(presentNodes);
+    TreeNodeIndex firstLocalNode =
+        std::lower_bound(cbegin(presentNodes), cend(presentNodes), assignment.firstNodeIdx(myRank)) -
+        begin(presentNodes);
 
     int newParticleStart = nodeOffsets[firstLocalNode];
-    int newParticleEnd   = newParticleStart + assignment.totalCount(myRank);
-    int nParticlesCore   = assignment.totalCount(myRank);
+    int newParticleEnd = newParticleStart + assignment.totalCount(myRank);
+    int nParticlesCore = assignment.totalCount(myRank);
     int nParticlesExtracted = *nodeOffsets.rbegin();
 
     // (x,y,z)l arrays only contain the particles of the first assignment + halos
@@ -228,17 +226,17 @@ void randomGaussianHaloNeighbors(bool usePbc)
     std::vector<T> hl(nParticlesExtracted);
     std::vector<KeyType> codesl(nParticlesExtracted);
 
-    extractParticles(codes.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(), presentNodes.size(),
-                     tree.data(), codesl.data());
+    extractParticles(codes.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(),
+                     presentNodes.size(), tree.data(), codesl.data());
 
-    extractParticles(x.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(), presentNodes.size(),
-                     tree.data(), xl.data());
-    extractParticles(y.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(), presentNodes.size(),
-                     tree.data(), yl.data());
-    extractParticles(z.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(), presentNodes.size(),
-                     tree.data(), zl.data());
-    extractParticles(h.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(), presentNodes.size(),
-                     tree.data(), hl.data());
+    extractParticles(x.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(),
+                     presentNodes.size(), tree.data(), xl.data());
+    extractParticles(y.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(),
+                     presentNodes.size(), tree.data(), yl.data());
+    extractParticles(z.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(),
+                     presentNodes.size(), tree.data(), zl.data());
+    extractParticles(h.data(), codes.data(), codes.size(), ordering.data(), presentNodes.data(), nodeOffsets.data(),
+                     presentNodes.size(), tree.data(), hl.data());
 
     int ngmax = 200;
     std::vector<int> neighbors(nParticles * ngmax);
@@ -262,7 +260,7 @@ void randomGaussianHaloNeighbors(bool usePbc)
         ASSERT_EQ(neighborsCountCore[i], neighborsCount[iOrig]);
         for (int ni = 0; ni < neighborsCountCore[i]; ++ni)
         {
-            EXPECT_EQ(codesl[neighborsCore[i*ngmax + ni]], codes[neighbors[iOrig*ngmax+ni]]);
+            EXPECT_EQ(codesl[neighborsCore[i * ngmax + ni]], codes[neighbors[iOrig * ngmax + ni]]);
         }
     }
 }

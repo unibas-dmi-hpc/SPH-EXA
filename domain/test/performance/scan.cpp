@@ -52,7 +52,7 @@ void exclusiveScanInplace([[maybe_unused]] const T* in, T* out, std::size_t num_
 
 template<class T>
 void test_scan(std::string name, const std::vector<T>& input, std::vector<T>& output, const std::vector<T>& reference,
-               void(*func)(const T*, T*, std::size_t))
+               void (*func)(const T*, T*, std::size_t))
 {
     std::size_t numElements = input.size();
 
@@ -74,8 +74,8 @@ void test_scan(std::string name, const std::vector<T>& input, std::vector<T>& ou
 }
 
 template<class T>
-void benchmark_scan(const std::string& name, const std::vector<T>& input, std::vector<T>& output, const std::vector<T>& reference,
-                    void(*func)(const T*, T*, std::size_t))
+void benchmark_scan(const std::string& name, const std::vector<T>& input, std::vector<T>& output,
+                    const std::vector<T>& reference, void (*func)(const T*, T*, std::size_t))
 {
     std::size_t numElements = input.size();
 
@@ -89,19 +89,18 @@ void benchmark_scan(const std::string& name, const std::vector<T>& input, std::v
     {
         func(input.data(), output.data(), numElements);
     }
-    auto tp1  = std::chrono::high_resolution_clock::now();
+    auto tp1 = std::chrono::high_resolution_clock::now();
 
     double t0 = std::chrono::duration<double>(tp1 - tp0).count();
 
-    std::cout << name << " benchmark bandwidth: " << numElements * sizeof(unsigned) / (t0 * 1e6) * repetitions << " MB/s\n";
+    std::cout << name << " benchmark bandwidth: " << numElements * sizeof(unsigned) / (t0 * 1e6) * repetitions
+              << " MB/s\n";
 }
-
 
 int main(int argc, char** argv)
 {
     std::size_t numElements = 10000000;
-    if (argc > 1)
-        numElements = std::stoi(argv[1]);
+    if (argc > 1) numElements = std::stoi(argv[1]);
 
     std::cout << "scanning " << numElements << " elements\n";
     std::vector<unsigned> input(numElements, 1);
