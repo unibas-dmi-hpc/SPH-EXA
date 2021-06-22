@@ -56,12 +56,14 @@ void upsweepSum4x4x4()
         nodeCounts[i] = 1;
     }
 
-    auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h) { return a+b+c+d+e+f+g+h; };
+    auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h) {
+        return a + b + c + d + e + f + g + h;
+    };
     upsweep(octree, nodeCounts.data() + octree.numInternalNodes(), nodeCounts.data(), sumFunction);
 
-    std::vector<unsigned> refNodeCounts{64, 8, 8, 8, 8, 8, 8, 8, 8,
-                                        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,
-                                        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
+    std::vector<unsigned> refNodeCounts{64, 8, 8, 8, 8, 8, 8, 8, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1,  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1,  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
     EXPECT_EQ(nodeCounts, refNodeCounts);
 }
@@ -93,10 +95,12 @@ void upsweepSumIrregularL2()
         nodeCounts[i + octree.numInternalNodes()] = i;
     }
 
-    auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h) { return a+b+c+d+e+f+g+h; };
+    auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h) {
+        return a + b + c + d + e + f + g + h;
+    };
     upsweep(octree, nodeCounts.data() + octree.numInternalNodes(), nodeCounts.data(), sumFunction);
 
-    std::vector<unsigned> refNodeCounts{105,28,0,1,2,3,4,5,6,7,8,9,10,11,12,13,14};
+    std::vector<unsigned> refNodeCounts{105, 28, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14};
 
     EXPECT_EQ(nodeCounts, refNodeCounts);
 }
@@ -126,11 +130,13 @@ void upsweepSumIrregularL3()
         nodeCounts[i] = 1;
     }
 
-    auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h) { return a+b+c+d+e+f+g+h; };
+    auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h) {
+        return a + b + c + d + e + f + g + h;
+    };
     upsweep(octree, nodeCounts.data() + octree.numInternalNodes(), nodeCounts.data(), sumFunction);
 
-    std::vector<unsigned> refNodeCounts{29,15,8,8,
-                                        1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1};
+    std::vector<unsigned> refNodeCounts{29, 15, 8, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        1,  1,  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
     EXPECT_EQ(nodeCounts, refNodeCounts);
 }
