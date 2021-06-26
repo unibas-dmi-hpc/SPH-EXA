@@ -265,4 +265,19 @@ SendList computeHaloReceiveList(gsl::span<const LocalParticleIndex> layout,
     return ret;
 }
 
+template<class... Arrays>
+void relocate(LocalParticleIndex newSize, LocalParticleIndex offset, Arrays&... arrays)
+{
+    std::array data{(&arrays)...};
+
+    using ArrayType = std::decay_t<decltype(*data[0])>;
+
+    for (auto arrayPtr : data)
+    {
+        ArrayType newArray(newSize);
+        std::copy(arrayPtr->begin(), arrayPtr->end(), newArray.begin() + offset);
+        swap(newArray, *arrayPtr);
+    }
+}
+
 } // namespace cstone

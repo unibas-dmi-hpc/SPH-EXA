@@ -37,6 +37,8 @@
 #include "cstone/domain/peers.hpp"
 #include "cstone/domain/layout.hpp"
 #include "cstone/halos/discovery.hpp"
+// Todo: rename to exchange.hpp
+#include "cstone/halos/exchange_halos.hpp"
 #include "cstone/tree/octree_focus_mpi.hpp"
 #include "cstone/tree/octree_mpi.hpp"
 #include "cstone/tree/octree_util.hpp"
@@ -81,16 +83,16 @@ void focusDomain(int thisRank, int numRanks)
     auto assignment = singleRangeSfcSplit(counts, numRanks);
     auto sendList = createSendList<KeyType>(assignment, tree, particleKeys);
 
-    LocalParticleIndex nParticlesAssigned = assignment.totalCount(thisRank);
+    LocalParticleIndex numParticlesAssigned = assignment.totalCount(thisRank);
 
-    reallocate(nParticlesAssigned, x, y, z);
-    exchangeParticles<T>(sendList, Rank(thisRank), nParticlesAssigned, ordering.data(), x.data(), y.data(), z.data());
+    reallocate(numParticlesAssigned, x, y, z);
+    exchangeParticles<T>(sendList, Rank(thisRank), numParticlesAssigned, ordering.data(), x.data(), y.data(), z.data());
 
-    reallocate(nParticlesAssigned, particleKeys);
+    reallocate(numParticlesAssigned, particleKeys);
     computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(particleKeys), box);
 
     // reorder arrays according to ascending SFC after exchangeParticles
-    reallocate(nParticlesAssigned, ordering);
+    reallocate(numParticlesAssigned, ordering);
     std::iota(begin(ordering), end(ordering), 0);
     sort_by_key(begin(particleKeys), end(particleKeys), begin(ordering));
     reorder(ordering, x);
@@ -113,6 +115,7 @@ void focusDomain(int thisRank, int numRanks)
     // halo phase
     SpaceCurveAssignment focusAssignment = translateAssignment<KeyType>(assignment, tree, focusTree.treeLeaves(),
                                                                         peers, thisRank);
+    assert(focusAssignment.totalCount(thisRank) == assignment.totalCount(thisRank));
 
     std::vector h(x.size(), 0.1);
     std::iota(begin(ordering), end(ordering), 0);
@@ -140,11 +143,35 @@ void focusDomain(int thisRank, int numRanks)
 
     std::vector<LocalParticleIndex> layout = computeNodeLayout(focusTree.leafCounts(), haloFlags,
                                                                focusAssignment.firstNodeIdx(thisRank),
-                                                               focusAssignment.lastNodeIdx(thisRank)
-                                                               );
+                                                               focusAssignment.lastNodeIdx(thisRank));
 
     SendList haloSendList = exchangeRequestKeys<KeyType>(focusTree.treeLeaves(), haloFlags, layout,
                                                          focusAssignment, peers);
+
+    SendList haloReceiveList = computeHaloReceiveList(layout, haloFlags, focusAssignment, peers);
+
+    LocalParticleIndex numParticlesTotal = layout.back();
+    //reallocate(numParticlesTotal, x, y, z, h);
+    LocalParticleIndex haloOffset = layout[focusAssignment.firstNodeIdx(thisRank)];
+
+    relocate(numParticlesTotal, haloOffset, x, y, z, h);
+    relocate(numParticlesTotal, haloOffset, particleKeys);
+
+    haloexchange<T>(haloReceiveList, haloSendList, x.data(), y.data(), z.data(), h.data());
+
+    LocalParticleIndex particleStart_ = haloOffset;
+    LocalParticleIndex particleEnd_ = particleStart_ + numParticlesAssigned;
+    computeMortonCodes(cbegin(x), cbegin(x) + particleStart_,
+                       cbegin(y),
+                       cbegin(z),
+                       begin(particleKeys), box);
+    computeMortonCodes(cbegin(x) + particleEnd_, cend(x),
+                       cbegin(y) + particleEnd_,
+                       cbegin(z) + particleEnd_,
+                       begin(particleKeys) + particleEnd_, box);
+
+    assert(std::is_sorted(begin(particleKeys), end(particleKeys)));
+
     //if (thisRank == 0)
     //{
     //    for (TreeNodeIndex i = 0; i < haloFlags.size(); ++i)
@@ -161,7 +188,17 @@ void focusDomain(int thisRank, int numRanks)
     //            TreeNodeIndex upperIdx = findNodeAbove<LocalParticleIndex>(layout, haloSendList[1].rangeEnd(ir));
     //            //std::cout << haloSendList[1].rangeStart(i) << " "
     //            //          << haloSendList[1].rangeEnd(i) << std::endl;
-    //            if (lowerIdx <= i && i < upperIdx) { sendHalo = "halo"; }
+    //            if (lowerIdx <= i && i < upperIdx) { sendHalo = "outgoing halo"; }
+    //        }
+
+    //        std::string receiveHalo;
+    //        for (int ir = 0; ir < haloReceiveList[1].nRanges(); ++ir)
+    //        {
+    //            TreeNodeIndex lowerIdx = findNodeBelow<LocalParticleIndex>(layout, haloReceiveList[1].rangeStart(ir));
+    //            TreeNodeIndex upperIdx = findNodeAbove<LocalParticleIndex>(layout, haloReceiveList[1].rangeEnd(ir));
+    //            //std::cout << haloSendList[1].rangeStart(i) << " "
+    //            //          << haloSendList[1].rangeEnd(i) << std::endl;
+    //            if (lowerIdx <= i && i < upperIdx) { sendHalo = "incoming halo"; }
     //        }
 
     //        std::cout << i << " " << std::setw(4)
@@ -170,9 +207,19 @@ void focusDomain(int thisRank, int numRanks)
     //                  << haloFlags[i] << " "
     //                  << std::oct << focusTree.treeLeaves()[i] << std::dec << " "
     //                  << sendHalo
+    //                  << receiveHalo
     //                  << std::endl;
     //    }
+
+    //    std::cout << "haloOffset " << haloOffset << std::endl;
+    //    for (int pk = 0; pk < 10; ++pk)
+    //    {
+    //        std::cout << std::oct << particleKeys[particleEnd_ + pk] << " ";
+    //    }
+    //    std::cout << std::dec << std::endl;
+
     //}
+
 }
 
 TEST(GlobalTreeDomain, randomGaussian)
