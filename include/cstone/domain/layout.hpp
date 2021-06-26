@@ -50,7 +50,8 @@
 
 #include <vector>
 
-#include "domaindecomp.hpp"
+#include "cstone/domain/domaindecomp.hpp"
+#include "cstone/halos/discovery.hpp"
 
 namespace cstone
 {
@@ -228,6 +229,40 @@ std::vector<LocalParticleIndex> computeNodeLayout(gsl::span<const unsigned> focu
     exclusiveScan(layout.data(), layout.size());
 
     return layout;
+}
+
+/*! @brief computes a list which local array ranges are going to be filled with halo particles
+ *
+ * @param layout       prefix sum of leaf counts of locally present nodes (see computeNodeLayout)
+ *                     length N+1
+ * @param haloFlags    0 or 1 for each leaf, length N
+ * @param assignment   assignment of leaf nodes to peer ranks
+ * @param peerRanks    list of peer ranks
+ * @return             list of array index ranges for the receiving part in exchangeHalos
+ */
+inline
+SendList computeHaloReceiveList(gsl::span<const LocalParticleIndex> layout,
+                                gsl::span<const int> haloFlags,
+                                const SpaceCurveAssignment& assignment,
+                                gsl::span<const int> peerRanks)
+{
+    SendList ret(assignment.numRanks());
+
+    for (int peer : peerRanks)
+    {
+        TreeNodeIndex peerStartIdx = assignment.firstNodeIdx(peer);
+        TreeNodeIndex peerEndIdx = assignment.lastNodeIdx(peer);
+
+        std::vector<LocalParticleIndex> receiveRanges =
+            extractMarkedElements<LocalParticleIndex>(layout, haloFlags, peerStartIdx, peerEndIdx);
+
+        for (int i = 0; i < receiveRanges.size(); i +=2 )
+        {
+            ret[peer].addRange(receiveRanges[i], receiveRanges[i+1]);
+        }
+    }
+
+    return ret;
 }
 
 } // namespace cstone

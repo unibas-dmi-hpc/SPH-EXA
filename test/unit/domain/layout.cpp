@@ -121,3 +121,27 @@ TEST(Layout, createHaloExchangeList)
 
     EXPECT_EQ(sendList, refSendList);
 }
+
+TEST(Layout, computeHaloReceiveList)
+{
+    std::vector<LocalParticleIndex> layout{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10};
+    std::vector<int> haloFlags{1, 0, 1, 1, 0, 0, 0, 1, 1, 0};
+
+    std::vector<int> peers{0, 2};
+
+    int numRanks = 3;
+    SpaceCurveAssignment assignment(numRanks);
+
+    assignment.addRange(Rank(0), 0, 4, 4);
+    assignment.addRange(Rank(1), 4, 6, 4);
+    assignment.addRange(Rank(2), 6, 10, 4);
+
+    SendList receiveList = computeHaloReceiveList(layout, haloFlags, assignment, peers);
+
+    SendList reference(numRanks);
+    reference[0].addRange(0, 1);
+    reference[0].addRange(2, 4);
+    reference[2].addRange(7, 9);
+
+    EXPECT_EQ(receiveList, reference);
+}

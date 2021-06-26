@@ -74,9 +74,8 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
 
     for (int peer : peerRanks)
     {
-        auto requestKeys = computeHaloRequestKeys(treeLeaves, haloFlags,
-                                                  assignment.firstNodeIdx(peer),
-                                                  assignment.lastNodeIdx(peer));
+        auto requestKeys =
+            extractMarkedElements(treeLeaves, haloFlags, assignment.firstNodeIdx(peer), assignment.lastNodeIdx(peer));
         mpiSendAsync(requestKeys.data(), int(requestKeys.size()), peer, 0, sendRequests);
         sendBuffers.push_back(std::move(requestKeys));
     }
