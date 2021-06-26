@@ -59,24 +59,24 @@ void setFromCodeDemo()
     cstone::DeviceGather<T, I, IndexType> devGather;
     devGather.setMapFromCodes(codes.data(), codes.data() + codes.size());
 
-    std::vector<I> refCodes{0,10,20,30,40,50,60,70,80,90};
+    std::vector<I> refCodes{0, 10, 20, 30, 40, 50, 60, 70, 80, 90};
     EXPECT_EQ(codes, refCodes);
 
-    std::vector<T> values{0,1,2,3,4,5,6,7,8,9};
+    std::vector<T> values{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
     devGather(values.data());
-    std::vector<T> reference{0,2,4,6,8,1,3,5,7,9};
+    std::vector<T> reference{0, 2, 4, 6, 8, 1, 3, 5, 7, 9};
 
     EXPECT_EQ(values, reference);
 }
 
 TEST(DeviceGather, smallDemo)
 {
-    setFromCodeDemo<float, unsigned , unsigned>();
-    setFromCodeDemo<float, uint64_t , unsigned>();
+    setFromCodeDemo<float, unsigned, unsigned>();
+    setFromCodeDemo<float, uint64_t, unsigned>();
     setFromCodeDemo<double, unsigned, unsigned>();
     setFromCodeDemo<double, uint64_t, unsigned>();
-    setFromCodeDemo<float, unsigned , uint64_t>();
-    setFromCodeDemo<float, uint64_t , uint64_t>();
+    setFromCodeDemo<float, unsigned, uint64_t>();
+    setFromCodeDemo<float, uint64_t, uint64_t>();
     setFromCodeDemo<double, unsigned, uint64_t>();
     setFromCodeDemo<double, uint64_t, uint64_t>();
 }
@@ -110,7 +110,8 @@ void reorderCheck(int nElements, bool reallocate = false)
     // apply the hostOrder to the hostValues
     cstone::reorder(hostOrder, hostValues);
     auto tcpu1 = std::chrono::high_resolution_clock::now();
-    std::cout << "cpu gather Melements/s: " << T(nElements)/(1e6 * std::chrono::duration<double>(tcpu1 - tcpu0).count()) << std::endl;
+    std::cout << "cpu gather Melements/s: "
+              << T(nElements) / (1e6 * std::chrono::duration<double>(tcpu1 - tcpu0).count()) << std::endl;
 
     std::vector<I> deviceKeys = origKeys;
     devGather.setMapFromCodes(deviceKeys.data(), deviceKeys.data() + deviceKeys.size());
@@ -122,7 +123,8 @@ void reorderCheck(int nElements, bool reallocate = false)
     devGather(deviceValues.data());
     auto tgpu1 = std::chrono::high_resolution_clock::now();
 
-    std::cout << "gpu gather Melements/s: " << T(nElements)/(1e6*std::chrono::duration<double>(tgpu1 - tgpu0).count()) << std::endl;
+    std::cout << "gpu gather Melements/s: "
+              << T(nElements) / (1e6 * std::chrono::duration<double>(tgpu1 - tgpu0).count()) << std::endl;
 
     // the result of the reordering matches between host and device
     EXPECT_EQ(deviceValues, hostValues);
@@ -132,12 +134,12 @@ TEST(DeviceGather, matchCpu)
 {
     int nElements = 320000;
 
-    reorderCheck<float, unsigned , unsigned>(nElements);
-    reorderCheck<float, uint64_t , unsigned>(nElements);
+    reorderCheck<float, unsigned, unsigned>(nElements);
+    reorderCheck<float, uint64_t, unsigned>(nElements);
     reorderCheck<double, unsigned, unsigned>(nElements);
     reorderCheck<double, uint64_t, unsigned>(nElements);
-    reorderCheck<float, unsigned , uint64_t>(nElements);
-    reorderCheck<float, uint64_t , uint64_t>(nElements);
+    reorderCheck<float, unsigned, uint64_t>(nElements);
+    reorderCheck<float, uint64_t, uint64_t>(nElements);
     reorderCheck<double, unsigned, uint64_t>(nElements);
     reorderCheck<double, uint64_t, uint64_t>(nElements);
 }
@@ -146,12 +148,12 @@ TEST(DeviceGather, reallocate)
 {
     int nElements = 32000;
 
-    reorderCheck<float, unsigned , unsigned>(nElements, true);
-    reorderCheck<float, uint64_t , unsigned>(nElements, true);
+    reorderCheck<float, unsigned, unsigned>(nElements, true);
+    reorderCheck<float, uint64_t, unsigned>(nElements, true);
     reorderCheck<double, unsigned, unsigned>(nElements, true);
     reorderCheck<double, uint64_t, unsigned>(nElements, true);
-    reorderCheck<float, unsigned , uint64_t>(nElements, true);
-    reorderCheck<float, uint64_t , uint64_t>(nElements, true);
+    reorderCheck<float, unsigned, uint64_t>(nElements, true);
+    reorderCheck<float, uint64_t, uint64_t>(nElements, true);
     reorderCheck<double, unsigned, uint64_t>(nElements, true);
     reorderCheck<double, uint64_t, uint64_t>(nElements, true);
 }

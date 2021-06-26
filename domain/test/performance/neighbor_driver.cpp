@@ -43,9 +43,9 @@
 int main()
 {
     using CodeType = unsigned;
-    using T        = float;
+    using T = float;
 
-    Box<T> box{0,1, true};
+    Box<T> box{0, 1, true};
     int n = 2000000;
 
     RandomCoordinates<T, CodeType> coords(n, box);
@@ -68,13 +68,13 @@ int main()
     int* d_neighbors;
     int* d_neighborsCount;
 
-    cudaMalloc((void **)&d_x, sizeof(T) * n);
-    cudaMalloc((void **)&d_y, sizeof(T) * n);
-    cudaMalloc((void **)&d_z, sizeof(T) * n);
-    cudaMalloc((void **)&d_h, sizeof(T) * n);
-    cudaMalloc((void **)&d_codes, sizeof(T) * n);
-    cudaMalloc((void **)&d_neighbors, sizeof(int) * neighborsGPU.size());
-    cudaMalloc((void **)&d_neighborsCount, sizeof(int) * neighborsCountGPU.size());
+    cudaMalloc((void**)&d_x, sizeof(T) * n);
+    cudaMalloc((void**)&d_y, sizeof(T) * n);
+    cudaMalloc((void**)&d_z, sizeof(T) * n);
+    cudaMalloc((void**)&d_h, sizeof(T) * n);
+    cudaMalloc((void**)&d_codes, sizeof(T) * n);
+    cudaMalloc((void**)&d_neighbors, sizeof(int) * neighborsGPU.size());
+    cudaMalloc((void**)&d_neighborsCount, sizeof(int) * neighborsCountGPU.size());
 
     cudaMemcpy(d_x, x, sizeof(T) * n, cudaMemcpyHostToDevice);
     cudaMemcpy(d_y, y, sizeof(T) * n, cudaMemcpyHostToDevice);
@@ -96,7 +96,7 @@ int main()
     float gpuTime;
     cudaEventElapsedTime(&gpuTime, start, stop);
 
-    std::cout << "GPU time " << gpuTime/1000 << " s" << std::endl;
+    std::cout << "GPU time " << gpuTime / 1000 << " s" << std::endl;
     std::copy(neighborsCountGPU.data(), neighborsCountGPU.data() + 10, std::ostream_iterator<int>(std::cout, " "));
     std::cout << std::endl;
 
@@ -105,10 +105,10 @@ int main()
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int id = 0; id < n; ++id)
     {
-        cstone::findNeighbors(id, x, y, z, h.data(), box, codes, neighborsCPU.data() + id*ngmax,
+        cstone::findNeighbors(id, x, y, z, h.data(), box, codes, neighborsCPU.data() + id * ngmax,
                               neighborsCountCPU.data() + id, n, ngmax);
     }
 

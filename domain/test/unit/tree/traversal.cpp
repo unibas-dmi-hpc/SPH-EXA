@@ -55,8 +55,7 @@ void surfaceDetection()
         treeBoxes[i] = makeIBox(fullTree.codeStart(i), fullTree.codeEnd(i));
     }
 
-    auto isSurface = [targetBox, bbox = Box<double>(0,1), boxes=treeBoxes.data()](TreeNodeIndex idx)
-    {
+    auto isSurface = [targetBox, bbox = Box<double>(0, 1), boxes = treeBoxes.data()](TreeNodeIndex idx) {
         double distance = minDistanceSq<KeyType>(targetBox, boxes[idx], bbox);
         return distance == 0.0;
     };
@@ -67,7 +66,7 @@ void surfaceDetection()
     singleTraversal(fullTree, isSurface, saveIndex);
 
     std::sort(begin(surfaceNodes), end(surfaceNodes));
-    std::vector<TreeNodeIndex> reference{0,1,2,3,4,5,6,7,8,10,12,14};
+    std::vector<TreeNodeIndex> reference{0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14};
     EXPECT_EQ(surfaceNodes, reference);
 }
 
@@ -82,13 +81,13 @@ template<class KeyType>
 void dualTraversalAllPairs()
 {
     Octree<KeyType> fullTree;
-    fullTree.update(OctreeMaker<KeyType>{}.divide().divide(0).divide(0,7).makeTree());
+    fullTree.update(OctreeMaker<KeyType>{}.divide().divide(0).divide(0, 7).makeTree());
 
     std::vector<pair<TreeNodeIndex>> pairs;
 
     auto allPairs = [](TreeNodeIndex a, TreeNodeIndex b) { return true; };
 
-    auto m2l = [](TreeNodeIndex a, TreeNodeIndex b) { };
+    auto m2l = [](TreeNodeIndex a, TreeNodeIndex b) {};
     auto p2p = [&pairs](TreeNodeIndex a, TreeNodeIndex b) { pairs.emplace_back(a, b); };
 
     dualTraversal(fullTree, 0, 0, allPairs, m2l, p2p);
@@ -116,16 +115,14 @@ void dualTraversalNeighbors()
     Octree<KeyType> octree;
     octree.update(makeUniformNLevelTree<KeyType>(64, 1));
 
-    Box<float> box(0,1);
+    Box<float> box(0, 1);
 
     KeyType focusStart = octree.codeStart(octree.toInternal(0));
-    KeyType focusEnd   = octree.codeStart(octree.toInternal(8));
+    KeyType focusEnd = octree.codeStart(octree.toInternal(8));
 
-    auto crossFocusSurfacePairs = [focusStart, focusEnd, &tree = octree, &box]
-        (TreeNodeIndex a, TreeNodeIndex b)
-    {
+    auto crossFocusSurfacePairs = [focusStart, focusEnd, &tree = octree, &box](TreeNodeIndex a, TreeNodeIndex b) {
         bool aFocusOverlap = overlapTwoRanges(focusStart, focusEnd, tree.codeStart(a), tree.codeEnd(a));
-        bool bInFocus      = containedIn(tree.codeStart(b), tree.codeEnd(b), focusStart, focusEnd);
+        bool bInFocus = containedIn(tree.codeStart(b), tree.codeEnd(b), focusStart, focusEnd);
         if (!aFocusOverlap || bInFocus) { return false; }
 
         IBox aBox = makeIBox(tree.codeStart(a), tree.codeEnd(a));
@@ -142,11 +139,11 @@ void dualTraversalNeighbors()
 
     EXPECT_EQ(pairs.size(), 61);
     std::sort(begin(pairs), end(pairs));
-    for(auto p : pairs)
+    for (auto p : pairs)
     {
         auto a = p[0];
         auto b = p[1];
-        //std::cout << a - octree.nInternalNodes() << " " << b - octree.numInternalNodes() << std::endl;
+        // std::cout << a - octree.nInternalNodes() << " " << b - octree.numInternalNodes() << std::endl;
         // a in focus
         EXPECT_TRUE(octree.codeStart(a) >= focusStart && octree.codeEnd(a) <= focusEnd);
         // b outside focus

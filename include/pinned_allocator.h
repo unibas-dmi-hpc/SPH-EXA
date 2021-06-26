@@ -37,46 +37,46 @@
  *
  *  \see http://www.sgi.com/tech/stl/Allocators.html
  */
-template<typename T> class pinned_allocator;
+template<typename T>
+class pinned_allocator;
 
 template<>
-  class pinned_allocator<void>
+class pinned_allocator<void>
 {
-  public:
-    typedef void           value_type;
-    typedef void       *   pointer;
-    typedef const void *   const_pointer;
-    typedef std::size_t    size_type;
+public:
+    typedef void value_type;
+    typedef void* pointer;
+    typedef const void* const_pointer;
+    typedef std::size_t size_type;
     typedef std::ptrdiff_t difference_type;
 
     // convert a pinned_allocator<void> to pinned_allocator<U>
     template<typename U>
-      struct rebind
+    struct rebind
     {
-      typedef pinned_allocator<U> other;
+        typedef pinned_allocator<U> other;
     }; // end rebind
-}; // end pinned_allocator
-
+};     // end pinned_allocator
 
 template<typename T>
-  class pinned_allocator
+class pinned_allocator
 {
-  public:
+public:
     //! \{
-    typedef T              value_type;
-    typedef T*             pointer;
-    typedef const T*       const_pointer;
-    typedef T&             reference;
-    typedef const T&       const_reference;
-    typedef std::size_t    size_type;
+    typedef T value_type;
+    typedef T* pointer;
+    typedef const T* const_pointer;
+    typedef T& reference;
+    typedef const T& const_reference;
+    typedef std::size_t size_type;
     typedef std::ptrdiff_t difference_type;
     //! \}
 
     // convert a pinned_allocator<T> to pinned_allocator<U>
     template<typename U>
-      struct rebind
+    struct rebind
     {
-      typedef pinned_allocator<U> other;
+        typedef pinned_allocator<U> other;
     }; // end rebind
 
     /*! \p pinned_allocator's null constructor does nothing.
@@ -89,7 +89,7 @@ template<typename T>
 
     /*! \p pinned_allocator's copy constructor does nothing.
      */
-    inline pinned_allocator(pinned_allocator const &) {}
+    inline pinned_allocator(pinned_allocator const&) {}
 
     /*! This version of \p pinned_allocator's copy constructor
      *  is templated on the \c value_type of the \p pinned_allocator
@@ -97,7 +97,9 @@ template<typename T>
      *  does nothing.
      */
     template<typename U>
-    inline pinned_allocator(pinned_allocator<U> const &) {}
+    inline pinned_allocator(pinned_allocator<U> const&)
+    {
+    }
 
     /*! This method returns the address of a \c reference of
      *  interest.
@@ -124,24 +126,20 @@ template<typename T>
      *        It is the responsibility of the caller to initialize the
      *        objects at the returned \c pointer.
      */
-    inline pointer allocate(size_type cnt,
-                            const_pointer = 0)
+    inline pointer allocate(size_type cnt, const_pointer = 0)
     {
-      if(cnt > this->max_size())
-      {
-        throw std::bad_alloc();
-      } // end if
+        if (cnt > this->max_size()) { throw std::bad_alloc(); } // end if
 
-      pointer result(0);
-      cudaError_t error = cudaMallocHost(reinterpret_cast<void**>(&result), cnt * sizeof(value_type));
+        pointer result(0);
+        cudaError_t error = cudaMallocHost(reinterpret_cast<void**>(&result), cnt * sizeof(value_type));
 
-      if(error)
-      {
-        cudaGetLastError(); // Clear global CUDA error state.
-        throw std::bad_alloc();
-      } // end if
+        if (error)
+        {
+            cudaGetLastError(); // Clear global CUDA error state.
+            throw std::bad_alloc();
+        } // end if
 
-      return result;
+        return result;
     } // end allocate()
 
     /*! This method deallocates pinned host memory previously allocated
@@ -156,16 +154,16 @@ template<typename T>
      */
     inline void deallocate(pointer p, size_type /*cnt*/)
     {
-      cudaError_t error = cudaFreeHost(p);
+        cudaError_t error = cudaFreeHost(p);
 
-      cudaGetLastError(); // Clear global CUDA error state.
-
-      if(error)
-      {
         cudaGetLastError(); // Clear global CUDA error state.
-        throw std::runtime_error("cudaFreeHost error\n");
-      } // end if
-    } // end deallocate()
+
+        if (error)
+        {
+            cudaGetLastError(); // Clear global CUDA error state.
+            throw std::runtime_error("cudaFreeHost error\n");
+        } // end if
+    }     // end deallocate()
 
     /*! This method returns the maximum size of the \c cnt parameter
      *  accepted by the \p allocate() method.
@@ -173,10 +171,7 @@ template<typename T>
      *  \return The maximum number of objects that may be allocated
      *          by a single call to \p allocate().
      */
-    inline size_type max_size() const
-    {
-      return (std::numeric_limits<size_type>::max)() / sizeof(T);
-    } // end max_size()
+    inline size_type max_size() const { return (std::numeric_limits<size_type>::max)() / sizeof(T); } // end max_size()
 
     /*! This method tests this \p pinned_allocator for equality to
      *  another.
@@ -192,9 +187,8 @@ template<typename T>
      *  \param x The other \p pinned_allocator of interest.
      *  \return This method always returns \c false.
      */
-    inline bool operator!=(pinned_allocator const &x) const { return !operator==(x); }
+    inline bool operator!=(pinned_allocator const& x) const { return !operator==(x); }
 }; // end pinned_allocator
 
 /*! \}
  */
-

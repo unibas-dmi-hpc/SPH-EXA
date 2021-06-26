@@ -9,9 +9,9 @@
 
 using namespace sphexa;
 
-void printHelp(char *binName, int rank);
+void printHelp(char* binName, int rank);
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     const int rank = initAndGetRankId();
 
@@ -30,7 +30,7 @@ int main(int argc, char **argv)
     const std::string outDirectory = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
-    std::ostream &output = quiet ? nullOutput : std::cout;
+    std::ostream& output = quiet ? nullOutput : std::cout;
 
     using Real = double;
     using Dataset = ParticlesData<Real>;
@@ -38,10 +38,10 @@ int main(int argc, char **argv)
 
 #ifdef USE_MPI
     DistributedDomain<Real, Dataset, Tree> domain;
-    const IFileWriter<Dataset> &fileWriter = SqPatchMPIFileWriter<Dataset>();
+    const IFileWriter<Dataset>& fileWriter = SqPatchMPIFileWriter<Dataset>();
 #else
     Domain<Real, Dataset, Tree> domain;
-    const IFileWriter<Dataset> &fileWriter = SqPatchFileWriter<Dataset>();
+    const IFileWriter<Dataset>& fileWriter = SqPatchFileWriter<Dataset>();
 #endif
 
     auto d = SqPatchDataGenerator<Real>::generate(cubeSide);
@@ -108,8 +108,10 @@ int main(int argc, char **argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            fileWriter.dumpParticleDataToAsciiFile(d, domain.clist, outDirectory + "dump_sqpatch" + std::to_string(d.iteration) + ".txt");
-            // fileWriter.dumpParticleDataToBinFile(d, outDirectory + "dump_sqpatch" + std::to_string(d.iteration) + ".bin");
+            fileWriter.dumpParticleDataToAsciiFile(
+                d, domain.clist, outDirectory + "dump_sqpatch" + std::to_string(d.iteration) + ".txt");
+            // fileWriter.dumpParticleDataToBinFile(d, outDirectory + "dump_sqpatch" + std::to_string(d.iteration) +
+            // ".bin");
             timer.step("writeFile");
         }
 
@@ -125,7 +127,7 @@ int main(int argc, char **argv)
     return exitSuccess();
 }
 
-void printHelp(char *name, int rank)
+void printHelp(char* name, int rank)
 {
     if (rank == 0)
     {

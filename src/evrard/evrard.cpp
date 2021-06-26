@@ -7,9 +7,9 @@
 
 using namespace sphexa;
 
-void printHelp(char *binName, int rank);
+void printHelp(char* binName, int rank);
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
     const int rank = initAndGetRankId();
 
@@ -32,7 +32,7 @@ int main(int argc, char **argv)
     const std::string outDirectory = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
-    std::ostream &output = quiet ? nullOutput : std::cout;
+    std::ostream& output = quiet ? nullOutput : std::cout;
 
     using Real = double;
     using Dataset = ParticlesDataEvrard<Real>;
@@ -40,12 +40,12 @@ int main(int argc, char **argv)
 
 #ifdef USE_MPI
     DistributedDomain<Real, Dataset, Tree> domain;
-    const IFileReader<Dataset> &fileReader = EvrardCollapseMPIInputFileReader<Dataset>();
-    const IFileWriter<Dataset> &fileWriter = EvrardCollapseMPIFileWriter<Dataset>();
+    const IFileReader<Dataset>& fileReader = EvrardCollapseMPIInputFileReader<Dataset>();
+    const IFileWriter<Dataset>& fileWriter = EvrardCollapseMPIFileWriter<Dataset>();
 #else
     Domain<Real, Dataset, Tree> domain;
-    const IFileReader<Dataset> &fileReader = EvrardCollapseInputFileReader<Dataset>();
-    const IFileWriter<Dataset> &fileWriter = EvrardCollapseFileWriter<Dataset>();
+    const IFileReader<Dataset>& fileReader = EvrardCollapseInputFileReader<Dataset>();
+    const IFileWriter<Dataset>& fileWriter = EvrardCollapseFileWriter<Dataset>();
 #endif
 
     auto d = checkpointInput.empty() ? fileReader.readParticleDataFromBinFile(inputFilePath, nParticles)
@@ -87,7 +87,8 @@ int main(int argc, char **argv)
         timer.step("updateTasks");
         auto rankToParticlesForRemoteGravCalculations = sph::gravityTreeWalk(taskList.tasks, domain.octree, d);
         timer.step("Gravity (self)");
-        sph::remoteGravityTreeWalks<Real>(domain.octree, d, rankToParticlesForRemoteGravCalculations, timeRemoteGravitySteps);
+        sph::remoteGravityTreeWalks<Real>(domain.octree, d, rankToParticlesForRemoteGravCalculations,
+                                          timeRemoteGravitySteps);
         timer.step("Gravity (remote contributions)");
 #ifdef USE_MPI
         // This barrier is only just to check how imbalanced gravity is.
@@ -130,12 +131,14 @@ int main(int argc, char **argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            fileWriter.dumpParticleDataToAsciiFile(d, domain.clist, outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".txt");
+            fileWriter.dumpParticleDataToAsciiFile(d, domain.clist,
+                                                   outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".txt");
             timer.step("writeFile");
         }
         if (checkpointFrequency > 0 && d.iteration % checkpointFrequency == 0)
         {
-            fileWriter.dumpCheckpointDataToBinFile(d, outDirectory + "checkpoint_evrard" + std::to_string(d.iteration) + ".bin");
+            fileWriter.dumpCheckpointDataToBinFile(d, outDirectory + "checkpoint_evrard" + std::to_string(d.iteration) +
+                                                          ".bin");
             timer.step("Save Checkpoint File");
         }
 
@@ -151,7 +154,7 @@ int main(int argc, char **argv)
     return exitSuccess();
 }
 
-void printHelp(char *name, int rank)
+void printHelp(char* name, int rank)
 {
     if (rank == 0)
     {

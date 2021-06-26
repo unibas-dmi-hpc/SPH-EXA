@@ -109,6 +109,29 @@ void singleTraversal(const Octree<KeyType>& octree, C&& continuationCriterion, A
     } while (node != 0); // the root can only be obtained when the tree has been fully traversed
 }
 
+/*! @brief Generic dual-traversal of a tree with pairs of indices. Also called simultaneous traversal.
+ *
+ * Since the continuation criterion and the two endpoint actions for failed/passed criteria are
+ * provided as arguments, this function is completely generic and can be used to evaluate MACs
+ * for FMM, general collision detection for halo discovery and surface detection.
+ *
+ *
+ * @tparam KeyType         32- or 64-bit unsigned integer
+ * @tparam MAC             traversal continuation criterion
+ * @tparam M2L             endpoint action for nodes that passed @p MAC
+ * @tparam P2P             endpoint action for leaf nodes that did not pass @p MAC
+ * @param octree           traversable octree
+ * @param a                first octree node index for starting the traversal
+ * @param b                second start octree node index for starting the traversal
+ * @param continuation     Criterion whether or not to continue traversing two nodes
+ *                         callable with signature bool(TreeNodeIndex, TreeNodeIndex)
+ *                         often, the criterion is some sort of multipole acceptance criterion
+ * @param m2l              Multipole-2-local, called each for each node pair during traversal
+ *                         that passed @p criterion.
+ *                         Callable with signature void(TreeNodeIndex, TreeNodeIndex)
+ * @param p2p              Particle-2-particle, called for each pair of leaf nodes during traversal
+ *                         that did not pass @p continuation
+ */
 template <class KeyType, class MAC, class M2L, class P2P>
 void dualTraversal(const Octree<KeyType>& octree, TreeNodeIndex a, TreeNodeIndex b,
                    MAC&& continuation, M2L&& m2l, P2P&& p2p)

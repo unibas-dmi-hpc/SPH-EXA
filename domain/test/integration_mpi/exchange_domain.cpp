@@ -80,8 +80,7 @@ void exchangeAllToAll(int thisRank, int nRanks)
         int lower = rank * segmentSize;
         int upper = lower + segmentSize;
 
-        if (rank == nRanks - 1)
-            upper += gridSize % nRanks;
+        if (rank == nRanks - 1) upper += gridSize % nRanks;
 
         sendList[rank].addRange(lower, upper);
     }
@@ -103,7 +102,7 @@ void exchangeAllToAll(int thisRank, int nRanks)
     std::vector<T> refY;
     for (int rank = 0; rank < nRanks; ++rank)
     {
-        int seqStart = rank * gridSize + (gridSize/nRanks) * thisRank;
+        int seqStart = rank * gridSize + (gridSize / nRanks) * thisRank;
 
         for (int i = 0; i < segmentSize; ++i)
             refY.push_back(seqStart++);
@@ -155,7 +154,8 @@ void exchangeCyclicNeighbors(int thisRank, int nRanks)
     std::fill(begin(refX) + gridSize - nex, end(refX), incomingRank);
 
     auto refY = refX;
-    for (auto& yi : refY) yi = -yi;
+    for (auto& yi : refY)
+        yi = -yi;
 
     EXPECT_EQ(refX, x);
     EXPECT_EQ(refY, y);
@@ -222,8 +222,8 @@ void exchangeCyclicNeighborsOffsets(int thisRank, int nRanks)
     sendList[nextRank].addRange(assignedSize - nex, assignedSize);
 
     reallocate(finalSize, x, y);
-    exchangeParticles<T>(sendList, Rank(thisRank), assignedSize,
-                         inputOffset, outputOffset, ordering.data(), x.data(), y.data());
+    exchangeParticles<T>(sendList, Rank(thisRank), assignedSize, inputOffset, outputOffset, ordering.data(), x.data(),
+                         y.data());
 
     // the reference covers only the assigned range of 64
     std::vector<T> refX(assignedSize, thisRank);
@@ -231,15 +231,16 @@ void exchangeCyclicNeighborsOffsets(int thisRank, int nRanks)
     std::fill(begin(refX) + assignedSize - nex, end(refX), incomingRank);
 
     auto refY = refX;
-    for (auto& yi : refY) yi = -yi;
+    for (auto& yi : refY)
+        yi = -yi;
 
     EXPECT_EQ(x.size(), finalSize);
     EXPECT_EQ(y.size(), finalSize);
 
     for (std::size_t i = 0; i < refX.size(); ++i)
     {
-        EXPECT_EQ(refX[i], x[i+outputOffset]);
-        EXPECT_EQ(refY[i], y[i+outputOffset]);
+        EXPECT_EQ(refX[i], x[i + outputOffset]);
+        EXPECT_EQ(refY[i], y[i + outputOffset]);
     }
 }
 
