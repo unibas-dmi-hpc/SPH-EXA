@@ -194,7 +194,7 @@ std::vector<KeyType> computeHaloRequestKeys(gsl::span<const KeyType> leaves,
     while (firstReqIdx != secondReqIdx)
     {
         // advance to first halo (or to secondReqIdx)
-        while (haloFlags[firstReqIdx] == 0 && firstReqIdx < secondReqIdx) { firstReqIdx++; }
+        while (firstReqIdx < secondReqIdx && haloFlags[firstReqIdx] == 0) { firstReqIdx++; }
 
         // add one request key range
         if (firstReqIdx != secondReqIdx)

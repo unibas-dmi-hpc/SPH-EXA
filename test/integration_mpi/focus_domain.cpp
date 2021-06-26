@@ -33,6 +33,7 @@
 #include <gtest/gtest.h>
 
 #include "cstone/domain/domaindecomp_mpi.hpp"
+#include "cstone/domain/exchange_keys.hpp"
 #include "cstone/domain/peers.hpp"
 #include "cstone/domain/layout.hpp"
 #include "cstone/halos/discovery.hpp"
@@ -142,22 +143,36 @@ void focusDomain(int thisRank, int numRanks)
                                                                focusAssignment.lastNodeIdx(thisRank)
                                                                );
 
-    if (thisRank == 0)
-    {
-        for (TreeNodeIndex i = 0; i < haloFlags.size(); ++i)
-        {
-            if (i == focusAssignment.lastNodeIdx(0))
-            {
-                std::cout << "---------------------------------------\n";
-            }
-            std::cout << i << " " << std::setw(4)
-                      << layout[i] << " " << std::setw(4)
-                      << layout[i+1] - layout[i] << " " << std::setw(4)
-                      << haloFlags[i] << " "
-                      << std::oct << focusTree.treeLeaves()[i] << std::dec
-                      << std::endl;
-        }
-    }
+    SendList haloSendList = exchangeRequestKeys<KeyType>(focusTree.treeLeaves(), haloFlags, layout,
+                                                         focusAssignment, peers);
+    //if (thisRank == 0)
+    //{
+    //    for (TreeNodeIndex i = 0; i < haloFlags.size(); ++i)
+    //    {
+    //        if (i == focusAssignment.lastNodeIdx(0))
+    //        {
+    //            std::cout << "---------------------------------------\n";
+    //        }
+
+    //        std::string sendHalo;
+    //        for (int ir = 0; ir < haloSendList[1].nRanges(); ++ir)
+    //        {
+    //            TreeNodeIndex lowerIdx = findNodeBelow<LocalParticleIndex>(layout, haloSendList[1].rangeStart(ir));
+    //            TreeNodeIndex upperIdx = findNodeAbove<LocalParticleIndex>(layout, haloSendList[1].rangeEnd(ir));
+    //            //std::cout << haloSendList[1].rangeStart(i) << " "
+    //            //          << haloSendList[1].rangeEnd(i) << std::endl;
+    //            if (lowerIdx <= i && i < upperIdx) { sendHalo = "halo"; }
+    //        }
+
+    //        std::cout << i << " " << std::setw(4)
+    //                  << layout[i] << " " << std::setw(4)
+    //                  << layout[i+1] - layout[i] << " " << std::setw(4)
+    //                  << haloFlags[i] << " "
+    //                  << std::oct << focusTree.treeLeaves()[i] << std::dec << " "
+    //                  << sendHalo
+    //                  << std::endl;
+    //    }
+    //}
 }
 
 TEST(GlobalTreeDomain, randomGaussian)
