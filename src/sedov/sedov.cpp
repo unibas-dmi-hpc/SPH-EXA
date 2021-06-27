@@ -130,8 +130,9 @@ int main(int argc, char** argv)
 
         if (d.rank == 0)
         {
-            printer.printCheck(domain.nParticles(), domain.tree().size(), d.x.size() - domain.nParticles(),
+            printer.printCheck(domain.nParticles(), nNodes(domain.tree()), d.x.size() - domain.nParticles(),
                                totalNeighbors, output);
+            std::cout << "### Check ### Focus Tree Nodes: " << nNodes(domain.focusedTree()) << std::endl;
             printer.printConstants(d.iteration, totalNeighbors, constantsFile);
         }
 
