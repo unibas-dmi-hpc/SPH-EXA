@@ -32,9 +32,9 @@
  * Then each ranks grabs 1/n-th of those particles and uses them
  * to build the global domain, rejoining the same set of particles, but
  * distributed. Neighbors are then calculated for each local particle on each rank
- * and the total number of neighbors is summed up across all all ranks.
+ * and the total number of neighbors is summed up across all ranks.
  *
- * This neighbor sum is then compared again the neighbor sum obtained from the original
+ * This neighbor sum is then compared against the neighbor sum obtained from the original
  * array that has all the global particles and tests that they match.
  *
  * This tests that the domain halo exchange finds all halos needed for a correct neighbor count.
