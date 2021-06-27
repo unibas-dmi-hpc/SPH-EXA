@@ -28,4 +28,6 @@ addMpiTest(exchange_focus.cpp exchange_focus GlobalFocusExchange)
 
 addMpiTest(exchange_keys.cpp exchange_keys GlobalKeyExchange)
 
-addMpiTest(focus_domain.cpp focus_domain GlobalFocusDomain)
+addMpiTest(domain_focus_prototype.cpp domain_focus_prototype GlobalFocusDomain)
+
+addMpiTest(domain_focus_2ranks.cpp domain_focus_2ranks GlobalFocusDomain2Ranks)
