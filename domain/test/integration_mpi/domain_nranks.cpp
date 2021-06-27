@@ -32,9 +32,9 @@
  * Then each ranks grabs 1/n-th of those particles and uses them
  * to build the global domain, rejoining the same set of particles, but
  * distributed. Neighbors are then calculated for each local particle on each rank
- * and the total number of neighbors is summed up across all all ranks.
+ * and the total number of neighbors is summed up across all ranks.
  *
- * This neighbor sum is then compared again the neighbor sum obtained from the original
+ * This neighbor sum is then compared against the neighbor sum obtained from the original
  * array that has all the global particles and tests that they match.
  *
  * This tests that the domain halo exchange finds all halos needed for a correct neighbor count.
@@ -44,30 +44,17 @@
 
 #include "coord_samples/random.hpp"
 #include "cstone/domain/domain.hpp"
+#include "cstone/domain/domain_focus.hpp"
 #include "cstone/findneighbors.hpp"
 
 using namespace cstone;
 
-//! @brief simple N^2 all-to-all neighbor search
-template<class T>
-static void findNeighborsNaive(int i, const T* x, const T* y, const T* z, const T* h, int n, int* neighbors,
-                               int* neighborsCount, int ngmax)
-{
-    T r2 = h[i] * h[i];
 
-    T xi = x[i], yi = y[i], zi = z[i];
-
-    int ngcount = 0;
-    for (int j = 0; j < n; ++j)
-    {
-        if (j == i) { continue; }
-        // i only interacts with j if j also interacts with i
-        T r2mutual = std::min(h[j] * h[j], r2);
-        if (ngcount < ngmax && distancesq(xi, yi, zi, x[j], y[j], z[j]) < r2mutual) { neighbors[ngcount++] = j; }
-    }
-    *neighborsCount = ngcount;
-}
-
+/*! @brief random gaussian coordinate init
+ *
+ * We're not using the coordinates from coord_samples, because we don't
+ * want them sorted in Morton order.
+ */
 template<class T>
 void initCoordinates(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, Box<T>& box)
 {
@@ -93,27 +80,28 @@ void initCoordinates(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, Bo
     std::generate(begin(z), end(z), randZ);
 }
 
-template<class I, class T>
-void randomGaussianDomain(int rank, int nRanks)
+template<class I, class T, class DomainType>
+void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalizeH = false)
 {
-    int nParticles = 1000;
-    T smoothingLength = 0.02;
-    Box<T> box{-1, 1};
-    int bucketSize = 10;
-    nParticles = (nParticles / nRanks) * nRanks;
+    int nParticles = (1000 / nRanks) * nRanks;
+    Box<T> box = domain.box();
 
     // nParticles identical coordinates on each rank
+    // Note: NOT sorted in morton order
     std::vector<T> xGlobal(nParticles);
     std::vector<T> yGlobal(nParticles);
     std::vector<T> zGlobal(nParticles);
     initCoordinates(xGlobal, yGlobal, zGlobal, box);
 
-    std::vector<T> hGlobal(nParticles, smoothingLength);
+    std::vector<T> hGlobal(nParticles, 0.1);
 
-    for (std::size_t i = 0; i < hGlobal.size(); ++i)
+    if (!equalizeH)
     {
-        hGlobal[i] = smoothingLength *
-                     (0.2 + 30 * (xGlobal[i] * xGlobal[i] + yGlobal[i] * yGlobal[i] + zGlobal[i] * zGlobal[i]));
+        for (std::size_t i = 0; i < hGlobal.size(); ++i)
+        {
+            // tuned such that the particles far from the center have a bigger radius to compensate for lower density
+            hGlobal[i] = 0.05 + 0.2 * (xGlobal[i] * xGlobal[i] + yGlobal[i] * yGlobal[i] + zGlobal[i] * zGlobal[i]);
+        }
     }
 
     int nParticlesPerRank = nParticles / nRanks;
@@ -122,8 +110,6 @@ void randomGaussianDomain(int rank, int nRanks)
     std::vector<T> y{yGlobal.begin() + rank * nParticlesPerRank, yGlobal.begin() + (rank + 1) * nParticlesPerRank};
     std::vector<T> z{zGlobal.begin() + rank * nParticlesPerRank, zGlobal.begin() + (rank + 1) * nParticlesPerRank};
     std::vector<T> h{hGlobal.begin() + rank * nParticlesPerRank, hGlobal.begin() + (rank + 1) * nParticlesPerRank};
-
-    Domain<I, T> domain(rank, nRanks, bucketSize);
 
     std::vector<I> codes;
     domain.sync(x, y, z, h, codes);
@@ -134,70 +120,177 @@ void randomGaussianDomain(int rank, int nRanks)
     MPI_Allreduce(MPI_IN_PLACE, &localCountSum, 1, MpiType<int>{}, MPI_SUM, MPI_COMM_WORLD);
     EXPECT_EQ(localCountSum, nParticles);
 
-    // the actual box is not exactly [-1,1], but something very slightly smaller
-    T xmin = *std::min_element(begin(xGlobal), end(xGlobal));
-    T xmax = *std::max_element(begin(xGlobal), end(xGlobal));
-    T ymin = *std::min_element(begin(yGlobal), end(yGlobal));
-    T ymax = *std::max_element(begin(yGlobal), end(yGlobal));
-    T zmin = *std::min_element(begin(zGlobal), end(zGlobal));
-    T zmax = *std::max_element(begin(zGlobal), end(zGlobal));
-    Box<T> actualBox{xmin, xmax, ymin, ymax, zmin, zmax};
+    // box got updated if not using PBC
+    box = domain.box();
     std::vector<I> mortonCodes(x.size());
-    computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(mortonCodes), actualBox);
+    computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(mortonCodes), box);
 
     // check that particles are Morton order sorted and the codes are in sync with the x,y,z arrays
     EXPECT_EQ(mortonCodes, codes);
-    for (std::size_t i = 0; i < mortonCodes.size() - 1; ++i)
-    {
-        EXPECT_TRUE(mortonCodes[i] <= mortonCodes[i + 1]);
-    }
+    EXPECT_TRUE(std::is_sorted(begin(mortonCodes), end(mortonCodes)));
 
-    int ngmax = 200;
+    int ngmax = 300;
     std::vector<int> neighbors(localCount * ngmax);
     std::vector<int> neighborsCount(localCount);
     for (int i = 0; i < localCount; ++i)
     {
         int particleIndex = i + domain.startIndex();
-        // findNeighbors(particleIndex, x.data(), y.data(), z.data(), h[particleIndex],
-        // actualBox.xmax()-actualBox.xmin(),
-        //              mortonCodes.data(), neighbors.data(), neighborsCount.data(), localCount, ngmax);
-        findNeighborsNaive(particleIndex, x.data(), y.data(), z.data(), h.data(), extractedCount,
-                           neighbors.data() + i * ngmax, neighborsCount.data() + i, ngmax);
+        findNeighbors(particleIndex, x.data(), y.data(), z.data(), h.data(), box,
+                      mortonCodes.data(), neighbors.data() + i * ngmax, neighborsCount.data() + i,
+                      extractedCount, ngmax);
     }
 
     int neighborSum = std::accumulate(begin(neighborsCount), end(neighborsCount), 0);
     MPI_Allreduce(MPI_IN_PLACE, &neighborSum, 1, MpiType<int>{}, MPI_SUM, MPI_COMM_WORLD);
-    if (rank == 0)
-    {
-        std::cout << " neighborSum " << neighborSum << std::endl;
-        // std::cout << "localCount " << localCount << " " << std::endl;
-        // std::cout << "extractedCount " << extractedCount << std::endl;
-    }
+    //if (rank == 0)
+    //{
+    //    std::cout << " neighborSum " << neighborSum << std::endl;
+    //    std::cout << "localCount " << localCount << " " << std::endl;
+    //    std::cout << "extractedCount " << extractedCount << std::endl;
+    //}
 
     {
+        // Note: global coordinates are not yet in Morton order
+        std::vector<I> codesGlobal(nParticles);
+        computeMortonCodes(begin(xGlobal), end(xGlobal), begin(yGlobal), begin(zGlobal), begin(codesGlobal), box);
+        std::vector<LocalParticleIndex> ordering(nParticles);
+        std::iota(begin(ordering), end(ordering), LocalParticleIndex(0));
+        sort_by_key(begin(codesGlobal), end(codesGlobal), begin(ordering));
+        reorder(ordering, xGlobal);
+        reorder(ordering, yGlobal);
+        reorder(ordering, zGlobal);
+        reorder(ordering, hGlobal);
+
         // calculate reference neighbor sum from the full arrays
         std::vector<int> neighborsRef(nParticles * ngmax);
         std::vector<int> neighborsCountRef(nParticles);
         for (int i = 0; i < nParticles; ++i)
         {
-            // findNeighbors(i, xGlobal.data(), yGlobal.data(), zGlobal.data(), h[i], actualBox.xmax()-actualBox.xmin(),
-            //              mortonCodes.data(), neighborsRef.data(), neighborsCountRef.data(), nParticles, ngmax);
-            findNeighborsNaive(i, xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), nParticles,
-                               neighborsRef.data() + i * ngmax, neighborsCountRef.data() + i, ngmax);
+            findNeighbors(i, xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), box,
+                          codesGlobal.data(), neighborsRef.data() + i * ngmax, neighborsCountRef.data() + i,
+                          nParticles, ngmax);
         }
+
         int neighborSumRef = std::accumulate(begin(neighborsCountRef), end(neighborsCountRef), 0);
         EXPECT_EQ(neighborSum, neighborSumRef);
     }
 }
 
+
+/*! @brief global-tree based domain with PBC
+ *
+  * This test case and the one below are affected by the mutuality limitation of findHalos based on
+  * the global tree, where two nodes i and j are only halos if i is a halo of j
+  * AND vice versa. This leads to two missing halo particles for at least some values of numRanks between 2 and 5.
+  * The focus-tree based domain overcomes this limitation.
+ */
 TEST(Domain, randomGaussianNeighborSum)
 {
     int rank = 0, nRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
-    randomGaussianDomain<unsigned, double>(rank, nRanks);
-    randomGaussianDomain<uint64_t, double>(rank, nRanks);
-    randomGaussianDomain<unsigned, float>(rank, nRanks);
-    randomGaussianDomain<uint64_t, float>(rank, nRanks);
+    int bucketSize = 10;
+    // avoid halo mutuality limitation
+    bool equalizeH = true;
+
+    {
+        Domain<unsigned, double> domain(rank, nRanks, bucketSize, {-1, 1});
+        randomGaussianDomain<unsigned, double>(domain, rank, nRanks, equalizeH);
+    }
+    {
+        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, {-1, 1});
+        randomGaussianDomain<uint64_t, double>(domain, rank, nRanks, equalizeH);
+    }
+    {
+        Domain<unsigned, float> domain(rank, nRanks, bucketSize, {-1, 1});
+        randomGaussianDomain<unsigned, float>(domain, rank, nRanks, equalizeH);
+    }
+    {
+        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, {-1, 1});
+        randomGaussianDomain<uint64_t, float>(domain, rank, nRanks, equalizeH);
+    }
+}
+
+TEST(Domain, randomGaussianNeighborSumPbc)
+{
+    int rank = 0, nRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+
+    int bucketSize = 10;
+    // avoid halo mutuality limitation
+    bool equalizeH = true;
+
+    {
+        Domain<unsigned, double> domain(rank, nRanks, bucketSize, {-1, 1, true});
+        randomGaussianDomain<unsigned, double>(domain, rank, nRanks, equalizeH);
+    }
+    {
+        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, {-1, 1, true});
+        randomGaussianDomain<uint64_t, double>(domain, rank, nRanks, equalizeH);
+    }
+
+    {
+        Domain<unsigned, float> domain(rank, nRanks, bucketSize, {-1, 1, true});
+        randomGaussianDomain<unsigned, float>(domain, rank, nRanks, equalizeH);
+    }
+    {
+        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, {-1, 1, true});
+        randomGaussianDomain<uint64_t, float>(domain, rank, nRanks, equalizeH);
+    }
+}
+
+TEST(FocusDomain, randomGaussianNeighborSum)
+{
+    int rank = 0, nRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+
+    int bucketSize = 50;
+    int bucketSizeFocus = 10;
+
+    {
+        FocusedDomain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        randomGaussianDomain<unsigned, double>(domain, rank, nRanks);
+    }
+    {
+        FocusedDomain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        randomGaussianDomain<uint64_t, double>(domain, rank, nRanks);
+    }
+    {
+        FocusedDomain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        randomGaussianDomain<unsigned, float>(domain, rank, nRanks);
+    }
+    {
+        FocusedDomain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        randomGaussianDomain<uint64_t, float>(domain, rank, nRanks);
+    }
+}
+
+TEST(FocusDomain, randomGaussianNeighborSumPbc)
+{
+    int rank = 0, nRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+
+    int bucketSize = 50;
+    int bucketSizeFocus = 10;
+
+    {
+        FocusedDomain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        randomGaussianDomain<unsigned, double>(domain, rank, nRanks);
+    }
+    {
+        FocusedDomain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        randomGaussianDomain<uint64_t, double>(domain, rank, nRanks);
+    }
+    {
+        FocusedDomain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        randomGaussianDomain<unsigned, float>(domain, rank, nRanks);
+    }
+    {
+        FocusedDomain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        randomGaussianDomain<uint64_t, float>(domain, rank, nRanks);
+    }
 }

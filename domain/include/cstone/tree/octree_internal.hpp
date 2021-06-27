@@ -677,6 +677,11 @@ public:
         return cstoneTree_;
     }
 
+    gsl::span<const BinaryNode<KeyType>> binaryTree() const
+    {
+        return binaryTree_;
+    }
+
     [[nodiscard]] const TreeNodeIndex* leafParents() const
     {
         return leafParents_.data();
