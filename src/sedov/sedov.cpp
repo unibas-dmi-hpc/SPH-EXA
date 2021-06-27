@@ -8,7 +8,7 @@
 #define USE_MPI
 #endif
 
-#include "cstone/domain/domain.hpp"
+#include "cstone/domain/domain_focus.hpp"
 
 #include "sphexa.hpp"
 #include "SedovDataGenerator.hpp"
@@ -57,14 +57,15 @@ int main(int argc, char** argv)
 
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
-    // -n 350, 42M per node
-    const int bucketSize = 4096;
+    size_t bucketSizeFocus = 64;
+    // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
+    size_t bucketSize = std::max(bucketSizeFocus, (cubeSide * cubeSide * cubeSide) / (100 * d.nrank));
     cstone::Box<Real> box{d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin,
                           d.bbox.zmax, d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz};
 #ifdef USE_CUDA
-    cstone::Domain<CodeType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, box);
+    cstone::FocusedDomain<CodeType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, box);
 #else
-    cstone::Domain<CodeType, Real> domain(rank, d.nrank, bucketSize, box);
+    cstone::FocusedDomain<CodeType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, box);
 #endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
@@ -125,7 +126,7 @@ int main(int argc, char** argv)
         sph::updateSmoothingLength<Real>(taskList.tasks, d);
         timer.step("UpdateSmoothingLength");
 
-        const size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
+        size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
 
         if (d.rank == 0)
         {
