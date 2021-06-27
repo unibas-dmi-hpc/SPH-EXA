@@ -83,8 +83,9 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
     size_t maxReceiveCount = 0;
     for (int peer : peerRanks)
     {
+        // +1 for the last range delimiter
         maxReceiveCount = std::max(maxReceiveCount,
-                                   size_t(assignment.lastNodeIdx(peer) - assignment.firstNodeIdx(peer)));
+                                   size_t(assignment.lastNodeIdx(peer) - assignment.firstNodeIdx(peer)) + 1);
     }
     std::vector<KeyType> receiveBuffer(maxReceiveCount);
 
