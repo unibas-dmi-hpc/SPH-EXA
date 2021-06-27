@@ -354,8 +354,11 @@ public:
     //! @brief return number of locally assigned particles plus number of halos
     [[nodiscard]] LocalParticleIndex nParticlesWithHalos() const { return localNParticles_; }
 
-    //! @brief read only visibility of the octree to the outside
-    const std::vector<KeyType>& tree() const { return tree_; }
+    //! @brief read only visibility of the global octree leaves to the outside
+    gsl::span<const KeyType> tree() const { return tree_; }
+
+    //! @brief read only visibility of the focused octree leaves to the outside
+    gsl::span<const KeyType> focusedTree() const { return focusedTree_.treeLeaves(); }
 
     //! @brief return the coordinate bounding box from the previous sync call
     Box<T> box() const { return box_; }
