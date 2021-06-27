@@ -50,7 +50,8 @@
 
 #include <vector>
 
-#include "domaindecomp.hpp"
+#include "cstone/domain/domaindecomp.hpp"
+#include "cstone/halos/discovery.hpp"
 
 namespace cstone
 {
@@ -201,6 +202,82 @@ static SendList createHaloExchangeList(const std::vector<std::vector<TreeNodeInd
     return sendList;
 }
 
+/*! @brief calculate the location (offset) of each focus tree leaf node in the particle arrays
+ *
+ * @param focusLeafCounts   node counts of the focus leaves, size N
+ * @param haloFlags         flag for each node, with a non-zero value if present as halo node, size N
+ * @param firstAssignedIdx  first focus leaf idx to treat as part of the assigned nodes on the executing rank
+ * @param lastAssignedIdx   last focus leaf idx to treat as part of the assigned nodes on the executing rank
+ * @return                  array with offsets, size N+1. The first element is zero, the last element is
+ *                          equal to the sum of all all present (assigned+halo) node counts.
+ */
+inline
+std::vector<LocalParticleIndex> computeNodeLayout(gsl::span<const unsigned> focusLeafCounts,
+                                                  gsl::span<const int> haloFlags,
+                                                  TreeNodeIndex firstAssignedIdx,
+                                                  TreeNodeIndex lastAssignedIdx)
+{
+    std::vector<LocalParticleIndex> layout(focusLeafCounts.size() + 1, 0);
+
+    #pragma omp parallel for
+    for (TreeNodeIndex i = 0; i < focusLeafCounts.size(); ++i)
+    {
+        bool onRank = firstAssignedIdx <= i && i < lastAssignedIdx;
+        if (onRank || haloFlags[i]) { layout[i] = focusLeafCounts[i]; }
+    }
+
+    exclusiveScan(layout.data(), layout.size());
+
+    return layout;
+}
+
+/*! @brief computes a list which local array ranges are going to be filled with halo particles
+ *
+ * @param layout       prefix sum of leaf counts of locally present nodes (see computeNodeLayout)
+ *                     length N+1
+ * @param haloFlags    0 or 1 for each leaf, length N
+ * @param assignment   assignment of leaf nodes to peer ranks
+ * @param peerRanks    list of peer ranks
+ * @return             list of array index ranges for the receiving part in exchangeHalos
+ */
+inline
+SendList computeHaloReceiveList(gsl::span<const LocalParticleIndex> layout,
+                                gsl::span<const int> haloFlags,
+                                const SpaceCurveAssignment& assignment,
+                                gsl::span<const int> peerRanks)
+{
+    SendList ret(assignment.numRanks());
+
+    for (int peer : peerRanks)
+    {
+        TreeNodeIndex peerStartIdx = assignment.firstNodeIdx(peer);
+        TreeNodeIndex peerEndIdx = assignment.lastNodeIdx(peer);
+
+        std::vector<LocalParticleIndex> receiveRanges =
+            extractMarkedElements<LocalParticleIndex>(layout, haloFlags, peerStartIdx, peerEndIdx);
+
+        for (int i = 0; i < receiveRanges.size(); i +=2 )
+        {
+            ret[peer].addRange(receiveRanges[i], receiveRanges[i+1]);
+        }
+    }
+
+    return ret;
+}
+
+template<class... Arrays>
+void relocate(LocalParticleIndex newSize, LocalParticleIndex offset, Arrays&... arrays)
+{
+    std::array data{(&arrays)...};
+
+    using ArrayType = std::decay_t<decltype(*data[0])>;
+
+    for (auto arrayPtr : data)
+    {
+        ArrayType newArray(newSize);
+        std::copy(arrayPtr->begin(), arrayPtr->end(), newArray.begin() + offset);
+        swap(newArray, *arrayPtr);
+    }
+}
 
 } // namespace cstone
-
