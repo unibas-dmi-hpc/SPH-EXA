@@ -102,6 +102,9 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPai
                         gsl::span<KeyType> queryLeafBuffer, gsl::span<unsigned> queryCountBuffer)
 
 {
+    std::vector<std::vector<unsigned>> sendBuffers;
+    sendBuffers.reserve(peerRanks.size());
+
     std::vector<MPI_Request> sendRequests;
     for (size_t rankIndex = 0; rankIndex < peerRanks.size(); ++rankIndex)
     {
@@ -124,11 +127,12 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPai
         // compute particle counts for the received node structure.
         // The number of nodes to count is one less the number of received SFC keys
         TreeNodeIndex numNodes = numKeys - 1;
-        countRequestParticles<KeyType>(localLeaves, localCounts, queryLeafBuffer.first(numKeys), queryCountBuffer.first(numNodes));
+        std::vector<unsigned> countBuffer(numNodes);
+        countRequestParticles<KeyType>(localLeaves, localCounts, queryLeafBuffer.first(numKeys), countBuffer);
 
         // send back answer with the counts for the requested nodes
-        //mpiSendAsync(queryCountBuffer.data(), numNodes, receiveRank, 1, sendRequests);
-        MPI_Send(queryCountBuffer.data(), numNodes, MpiType<unsigned>{}, receiveRank, 1, MPI_COMM_WORLD);
+        mpiSendAsync(countBuffer.data(), numNodes, receiveRank, 1, sendRequests);
+        sendBuffers.push_back(std::move(countBuffer));
 
         numMessages--;
     }
