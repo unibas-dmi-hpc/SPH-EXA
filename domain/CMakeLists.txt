@@ -7,8 +7,19 @@ find_package(MPI)
 find_package(CUDAToolkit)
 find_package(OpenMP REQUIRED)
 
+# if INTERFACE_LINK_OPTIONS for OpenMP_CXX is not set, we set
+# INTERAFACE_LINK_OPTIONS = INTERFACE_COMPILE_OPTIONS
+# i.e. we add e.g. the -fopenmp flag to the linker
+get_property(OpenMP_CXX_INTERFACE_LINK_OPTIONS TARGET OpenMP::OpenMP_CXX PROPERTY INTERFACE_LINK_OPTIONS)
+if (NOT OpenMP_CXX_INTERFACE_LINK_OPTIONS)
+    # fill in using INTERFACE_COMPILE_OPTIONS
+    get_property(OpenMP_CXX_INTERFACE_LINK_OPTIONS TARGET OpenMP::OpenMP_CXX PROPERTY INTERFACE_COMPILE_OPTIONS)
+    set_property(TARGET OpenMP::OpenMP_CXX PROPERTY INTERFACE_LINK_OPTIONS ${OpenMP_CXX_INTERFACE_LINK_OPTIONS})
+endif()
+
 include(CTest)
 include(CheckLanguage)
+
 
 set(default_build_type "Release")
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
