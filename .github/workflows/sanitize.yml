@@ -77,21 +77,22 @@ jobs:
           -DCMAKE_CXX_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer" \
           -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=${{ matrix.sanitizer }}
           cd build_
-          make -j component_units
-          find . -name component_units
+          make -j VERBOSE=1 sedov
+          find . -name sedov
           # ./domain/test/unit/component_units
           # pwd
           # ls -la
       # }}}
 
       # {{{ run
-      - name: run the unittest
+      - name: run the test
         working-directory: ${{github.workspace}}/build_
         env:
-          MYEXE: ${{ github.workspace }}/build_/domain/test/unit/component_units
+          MYEXE: ${{ github.workspace }}/build_/src/sedov/sedov
+          # MYEXE: ${{ github.workspace }}/build_/domain/test/unit/component_units
         run: |
           reframe -c ../.github/workflows/reframe_unittest.py -r --keep-stage-files
-      - name: check the unittest
-        working-directory: ${{github.workspace}}/build_
-        run: cat stage/generic/default/builtin/SPHEXA_Unit_Test/*
+#       - name: check the unittest
+#         working-directory: ${{github.workspace}}/build_
+#         run: cat stage/generic/default/builtin/SPHEXA_Unit_Test/*
       # }}}
