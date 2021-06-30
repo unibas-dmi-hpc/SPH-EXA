@@ -73,20 +73,20 @@ jobs:
           pwd
           ls -la
           cd
-#debian          # {{{ deps
-#debian          echo "# --- apt update"
-#debian          sudo apt update
-#debian          echo "# --- apt upgrade"
-#debian          sudo apt upgrade -y
-#debian          echo "# --- apt install deps"
-#debian          sudo apt install --no-install-recommends -y gnupg wget \
-#debian          software-properties-common
-#debian          # }}}
-#debian          # {{{ clang++-11:
-#debian          echo "# --- get llvm key"
-#debian          wget https://apt.llvm.org/llvm-snapshot.gpg.key # --no-check-certificate
-#debian          sudo apt-key add llvm-snapshot.gpg.key
-#debian          sudo apt-add-repository 'deb http://apt.llvm.org/buster/ llvm-toolchain-buster-11 main' #11
+          #debian # {{{ deps
+          #debian echo "# --- apt update"
+          #debian sudo apt update
+          #debian echo "# --- apt upgrade"
+          #debian sudo apt upgrade -y
+          #debian echo "# --- apt install deps"
+          #debian sudo apt install --no-install-recommends -y gnupg wget \
+          #debian software-properties-common
+          #debian # }}}
+          #debian # {{{ clang++-11:
+          #debian echo "# --- get llvm key"
+          #debian wget https://apt.llvm.org/llvm-snapshot.gpg.key # --no-check-certificate
+          #debian sudo apt-key add llvm-snapshot.gpg.key
+          #debian sudo apt-add-repository 'deb http://apt.llvm.org/buster/ llvm-toolchain-buster-11 main' #11
           echo "# --- apt update"
           sudo apt update -qq
           echo "# --- apt upgrade"
