@@ -207,13 +207,10 @@ SpaceCurveAssignment translateAssignment(const SpaceCurveAssignment& assignment,
         KeyType startKey = oldTree[assignment.firstNodeIdx(peer)];
         KeyType endKey   = oldTree[assignment.lastNodeIdx(peer)];
 
+        // Note: start-end range is narrowed down if no exact match is found.
+        // the discarded part will not participate in peer/halo exchanges
         TreeNodeIndex newStartIndex = findNodeAbove(newTree, startKey);
         TreeNodeIndex newEndIndex   = findNodeBelow(newTree, endKey);
-
-        // we assume that the new tree is able to fully resolve the assignment boundaries
-        // of the given peer ranks
-        assert(newTree[newStartIndex] == startKey);
-        assert(newTree[newEndIndex] == endKey);
 
         newAssignment.addRange(Rank(peer), newStartIndex, newEndIndex, assignment.totalCount(peer));
     }
