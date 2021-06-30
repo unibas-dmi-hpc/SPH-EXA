@@ -36,6 +36,7 @@ jobs:
         DEBIAN_FRONTEND: noninteractive
         # CMake build type here (Release, Debug, RelWithDebInfo, etc.)
         BUILD_TYPE: Debug
+        MPICH_CXX: clang++-11
     # }}}
 
     steps:
@@ -73,7 +74,8 @@ jobs:
           pwd
           ls -la
           cd
-          #debian # {{{ deps
+          # {{{ debian
+          #debian # deps
           #debian echo "# --- apt update"
           #debian sudo apt update
           #debian echo "# --- apt upgrade"
@@ -81,12 +83,14 @@ jobs:
           #debian echo "# --- apt install deps"
           #debian sudo apt install --no-install-recommends -y gnupg wget \
           #debian software-properties-common
-          #debian # }}}
-          #debian # {{{ clang++-11:
+          #debian #
+          #debian # clang++-11:
           #debian echo "# --- get llvm key"
           #debian wget https://apt.llvm.org/llvm-snapshot.gpg.key # --no-check-certificate
           #debian sudo apt-key add llvm-snapshot.gpg.key
           #debian sudo apt-add-repository 'deb http://apt.llvm.org/buster/ llvm-toolchain-buster-11 main' #11
+          # }}}
+          # {{{ clang++-11
           echo "# --- apt update"
           sudo apt update -qq
           echo "# --- apt upgrade"
@@ -94,20 +98,15 @@ jobs:
           echo "# --- apt install clang-11"
           sudo apt install -y clang-11 -qq
           clang++-11 --version
-          # wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key |apt-key add -
-          # apt install software-properties-common
           # }}}
           # {{{ mpich:
           sudo apt install --no-install-recommends -y -qq mpich libmpich-dev 
-          echo "# --- mpicxx --version"
+          echo "# --- mpicxx --version (with MPICH_CXX)"
           MPICH_CXX=clang++-11 mpicxx --version
+          echo "# --- mpicxx --version (without MPICH_CXX)"
+          mpicxx --version
           cd -
-          # sudo apt install --no-install-recommends -y git
-          # cd
-          # git clone https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app.git
-          # cd SPH-EXA_mini-app
       # }}}
-
       # {{{ OpenMPI
 #       - name: OpenMPI cache
 #         uses: actions/cache@v2
@@ -145,6 +144,7 @@ jobs:
         run: |
           # mkdir -p build_
           # cd build_
+          MPICH_CXX=clang++-11 \
           cmake -B build_ \
           -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
           -DCMAKE_CXX_COMPILER=${{env.CXX}} \
