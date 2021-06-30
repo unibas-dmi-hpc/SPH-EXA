@@ -317,7 +317,6 @@ TEST(FocusDomain, assignmentShift)
     std::vector<Real> h(numParticlesPerRank, 0.1);
 
     FocusedDomain<KeyType, Real> domain(rank, numRanks, bucketSize, bucketSizeFocus, box);
-    std::cout << std::endl;
 
     std::vector<KeyType> particleKeys;
 

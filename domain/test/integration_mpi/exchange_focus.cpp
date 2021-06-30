@@ -42,11 +42,13 @@ using namespace cstone;
  * Rank 0 queries Rank 1 for particle counts in the x,y,z = [0.5-1, 0-1, 0-1] half
  * and vice versa.
  */
-template<class I>
+template<class KeyType>
 void exchangeFocus(int myRank)
 {
-    std::vector<I> treeLeaves = makeUniformNLevelTree<I>(64, 1);
-    std::vector<unsigned> counts(nNodes(treeLeaves), myRank + 1);
+    std::vector<KeyType>  treeLeaves = makeUniformNLevelTree<KeyType>(64, 1);
+    std::vector<unsigned> counts(nNodes(treeLeaves), 0);
+
+    std::vector<KeyType>  particleKeys(treeLeaves.begin(), treeLeaves.begin() + nNodes(treeLeaves));
 
     std::vector<int> peers;
     std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices;
@@ -62,13 +64,13 @@ void exchangeFocus(int myRank)
         peerFocusIndices.emplace_back(0, 32);
     }
 
-    std::vector<I> tmpLeaves(32 + 1);
-    std::vector<unsigned> tmpCounts(32);
+    exchangePeerCounts<KeyType>(peers, peerFocusIndices, particleKeys, treeLeaves, counts);
 
-    exchangePeerCounts<I>(peers, peerFocusIndices, treeLeaves, counts, tmpLeaves, tmpCounts);
-
-    std::vector<unsigned> reference(nNodes(treeLeaves), myRank + 1);
-    if (myRank == 0) { std::fill(begin(reference) + 32, end(reference), 2); }
+    std::vector<unsigned> reference(nNodes(treeLeaves), 0);
+    if (myRank == 0)
+    {
+        std::fill(begin(reference) + 32, end(reference), 1);
+    }
     else
     {
         std::fill(begin(reference), begin(reference) + 32, 1);
@@ -101,14 +103,14 @@ TEST(PeerExchange, simpleTest)
  * and vice versa, but the tree structure that rank 0 has and sends to Rank 1 differs
  * from the regular grid that rank 1 has in this half.
  */
-template<class I>
+template<class KeyType>
 void exchangeFocusIrregular(int myRank)
 {
-    std::vector<I> treeLeaves;
+    std::vector<KeyType> treeLeaves;
     std::vector<int> peers;
     std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices;
 
-    OctreeMaker<I> octreeMaker;
+    OctreeMaker<KeyType> octreeMaker;
     octreeMaker.divide();
     if (myRank == 0)
     {
@@ -127,7 +129,7 @@ void exchangeFocusIrregular(int myRank)
 
         peers.push_back(1);
         TreeNodeIndex peerStartIdx =
-            std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4})) - begin(treeLeaves);
+            std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<KeyType>({4})) - begin(treeLeaves);
         peerFocusIndices.emplace_back(peerStartIdx, nNodes(treeLeaves));
     }
     else
@@ -147,31 +149,38 @@ void exchangeFocusIrregular(int myRank)
 
         peers.push_back(0);
         TreeNodeIndex peerEndIdx =
-            std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4})) - begin(treeLeaves);
+            std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<KeyType>({4})) - begin(treeLeaves);
         peerFocusIndices.emplace_back(0, peerEndIdx);
+    }
+
+    // rank 0 has the first x-half of a level-3 grid, rank 1 gets the second half
+    std::vector<KeyType> particleKeys;
+    std::vector<KeyType> level3grid = makeNLevelGrid<KeyType>(3);
+    if (myRank == 0)
+    {
+        particleKeys = std::vector<KeyType>(level3grid.begin(), level3grid.begin() + 256);
+    }
+    else
+    {
+        particleKeys = std::vector<KeyType>(level3grid.begin() + 256, level3grid.end());
     }
 
     std::vector<unsigned> counts(nNodes(treeLeaves), 1);
 
-    // 256 is the maximum possible size, the actual size of the incoming message is only 18
-    TreeNodeIndex numNodesInFocus = 256;
-    std::vector<I> tmpLeaves(numNodesInFocus + 1);
-    std::vector<unsigned> tmpCounts(numNodesInFocus);
-
-    exchangePeerCounts<I>(peers, peerFocusIndices, treeLeaves, counts, tmpLeaves, tmpCounts);
+    exchangePeerCounts<KeyType>(peers, peerFocusIndices, particleKeys, treeLeaves, counts);
 
     std::vector<unsigned> reference(nNodes(treeLeaves), 1);
     TreeNodeIndex peerStartIdx, peerEndIdx;
     if (myRank == 0)
     {
         peerStartIdx =
-            std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4})) - begin(treeLeaves);
+            std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<KeyType>({4})) - begin(treeLeaves);
         peerEndIdx = nNodes(treeLeaves);
     }
     else
     {
         peerStartIdx = 0;
-        peerEndIdx = std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<I>({4})) - begin(treeLeaves);
+        peerEndIdx = std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<KeyType>({4})) - begin(treeLeaves);
     }
 
     for (int i = peerStartIdx; i < peerEndIdx; ++i)

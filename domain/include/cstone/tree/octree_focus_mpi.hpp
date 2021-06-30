@@ -41,10 +41,10 @@ struct MpiPeerExchange
 {
     template <class KeyType>
     void operator()(gsl::span<const int> peerRanks, gsl::span<const IndexPair<TreeNodeIndex>> exchangeIndices,
-                    gsl::span<const KeyType> localLeaves, gsl::span<unsigned> localCounts,
-                    gsl::span<KeyType> queryLeafBuffer, gsl::span<unsigned> queryCountBuffer)
+                    gsl::span<const KeyType> particleKeys, gsl::span<const KeyType> localLeaves,
+                    gsl::span<unsigned> localCounts)
     {
-        exchangePeerCounts(peerRanks, exchangeIndices, localLeaves, localCounts, queryLeafBuffer, queryCountBuffer);
+        exchangePeerCounts(peerRanks, exchangeIndices, particleKeys, localLeaves, localCounts);
     }
 };
 
