@@ -73,14 +73,16 @@ jobs:
           pwd
           ls -la
           cd
-          # mpich:
+          # {{{ deps
+          echo "# --- apt update"
           sudo apt update
           echo "# --- apt upgrade"
           sudo apt upgrade
-          echo "# --- apt install mpich"
+          echo "# --- apt install deps"
           sudo apt install --no-install-recommends -y gnupg wget \
-          software-properties-common mpich libmpich-dev 
-          # clang++-11:
+          software-properties-common
+          # }}}
+          # {{{ clang++-11:
           echo "# --- get llvm key"
           wget https://apt.llvm.org/llvm-snapshot.gpg.key # --no-check-certificate
           sudo apt-key add llvm-snapshot.gpg.key
@@ -90,11 +92,15 @@ jobs:
           echo "# --- apt upgrade"
           sudo apt upgrade
           echo "# --- apt install clang-11"
-          sudo apt install -y clang-11
+          sudo apt install -y clang-11 libclang-common-11-dev libclang-cpp11
           # wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key |apt-key add -
           # apt install software-properties-common
+          # }}}
+          # {{{ mpich:
+          sudo apt install --no-install-recommends -y mpich libmpich-dev 
           echo "# --- mpicxx --version"
           MPICH_CXX=clang++-11 mpicxx --version
+          # }}}
           cd -
           # sudo apt install --no-install-recommends -y git
           # cd
