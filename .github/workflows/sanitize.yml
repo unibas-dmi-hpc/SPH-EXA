@@ -70,13 +70,15 @@ jobs:
       # {{{ mpich + clang++-11
       - name: mpich & clang++-11
         run: |
+          pwd
+          ls -la
           cd
           # mpich:
           sudo apt update
           echo "# --- apt upgrade"
           sudo apt upgrade
-          sudo apt install --no-install-recommends -y gnupg wget \
           echo "# --- apt install mpich"
+          sudo apt install --no-install-recommends -y gnupg wget \
           software-properties-common mpich libmpich-dev 
           # clang++-11:
           echo "# --- get llvm key"
