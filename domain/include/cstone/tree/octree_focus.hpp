@@ -211,8 +211,7 @@ struct NoPeerExchange
 {
     template<class KeyType>
     void operator()(gsl::span<const int>, gsl::span<const IndexPair<TreeNodeIndex>>,
-                    gsl::span<const KeyType>, gsl::span<unsigned>,
-                    gsl::span<KeyType>, gsl::span<unsigned>)
+                    gsl::span<const KeyType>, gsl::span<const KeyType>, gsl::span<unsigned>)
     {
         throw std::runtime_error("FocusTree without MPI communication cannot perform a global update\n");
     }
@@ -350,10 +349,8 @@ public:
 
         auto requestIndices = findRequestIndices(peerRanks, assignment, globalTreeLeaves, tree_.treeLeaves());
 
-        std::vector<KeyType>  tmpLeaves(tree_.numLeafNodes() + 1);
-        std::vector<unsigned> tmpCounts(tree_.numLeafNodes());
         ExchangePeerCounts_t<CommunicationType>{}.template operator()<KeyType>
-            (peerRanks, requestIndices, tree_.treeLeaves(), counts_, tmpLeaves, tmpCounts);
+            (peerRanks, requestIndices, particleKeys, tree_.treeLeaves(), counts_);
 
         TreeNodeIndex firstFocusNode = findNodeAbove(treeLeaves(), focusStart);
         TreeNodeIndex lastFocusNode  = findNodeBelow(treeLeaves(), focusEnd);

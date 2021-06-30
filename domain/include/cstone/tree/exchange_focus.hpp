@@ -56,6 +56,26 @@ namespace cstone
 /*! @brief count particles inside specified ranges of a cornerstone leaf tree
  *
  * @tparam KeyType             32- or 64-bit unsigned integer
+ * @param[in]  requestLeaves   query cornerstone SFC key sequence
+ * @param[out] requestCounts   output counts for @p requestLeaves, length = length(requestLeaves) - 1
+ * @param[in]  particleKeys    sorted SFC keys of local particles
+ */
+template<class KeyType>
+void countRequestParticles(gsl::span<const KeyType> requestLeaves, gsl::span<unsigned> requestCounts,
+                           gsl::span<const KeyType> particleKeys)
+{
+    #pragma omp parallel for
+    for (TreeNodeIndex i = 0; i < requestCounts.size(); ++i)
+    {
+        requestCounts[i] = calculateNodeCount(requestLeaves.data(), i, particleKeys.data(),
+                                              particleKeys.data() + particleKeys.size(),
+                                              std::numeric_limits<unsigned>::max());
+    }
+}
+
+/*! @brief count particles inside specified ranges of a cornerstone leaf tree
+ *
+ * @tparam KeyType             32- or 64-bit unsigned integer
  * @param[in]  leaves          cornerstone SFC key sequence,
  * @param[in]  counts          particle counts of @p leaves, length = length(leaves) - 1
  * @param[in]  requestLeaves   query cornerstone SFC key sequence
@@ -74,6 +94,13 @@ void countRequestParticles(gsl::span<const KeyType> leaves, gsl::span<const unsi
         TreeNodeIndex startIdx = findNodeBelow(leaves, startKey);
         TreeNodeIndex endIdx   = findNodeAbove(leaves, endKey);
 
+        // Nodes in @p leaves must match the request keys exactly, otherwise counts are wrong.
+        // If this assertion fails, it means that the local leaves/counts does not have the required
+        // resolution to answer the incoming count request of [startKey:endKey] precisely.
+        // In that case the overload above must be used which uses the particle keys directly to get the counts.
+        assert(startKey == leaves[startIdx]);
+        assert(endKey == leaves[endIdx]);
+
         requestCounts[i] = std::accumulate(counts.begin() + startIdx, counts.begin() + endIdx, 0u);
     }
 }
@@ -84,12 +111,11 @@ void countRequestParticles(gsl::span<const KeyType> leaves, gsl::span<const unsi
  * @param[in]  peerRanks            list of peer rank IDs
  * @param[in]  exchangeIndices      contains one range of indices of @p localLeaves to request counts
  *                                  for from each peer rank, length = same as @p peerRanks
+ * @param[in]  particleKeys         sorted SFC keys of local particles
  * @param[in]  localLeaves          cornerstone SFC key sequence of the locally (focused) tree
  *                                  of the executing rank
  * @param[out] localCounts          particle counts associated with @p localLeaves
  *                                  length(localCounts) = length(localLeaves) - 1
- * @param[-]   queryLeafBuffer      temp buffer for MPI p2p, length = same as @p localLeaves
- * @param[-]   queryCountBuffer     temp buffer for MPI p2p, length = same as @p localCounts
  *
  * Procedure on each rank:
  *  1. Send out the SFC keys for which it wants to get particle counts to peer ranks
@@ -98,12 +124,14 @@ void countRequestParticles(gsl::span<const KeyType> leaves, gsl::span<const unsi
  */
 template<class KeyType>
 void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPair<TreeNodeIndex>> exchangeIndices,
-                        gsl::span<const KeyType> localLeaves, gsl::span<unsigned> localCounts,
-                        gsl::span<KeyType> queryLeafBuffer, gsl::span<unsigned> queryCountBuffer)
+                        gsl::span<const KeyType> particleKeys, gsl::span<const KeyType> localLeaves,
+                        gsl::span<unsigned> localCounts)
 
 {
     std::vector<std::vector<unsigned>> sendBuffers;
     sendBuffers.reserve(peerRanks.size());
+
+    std::vector<KeyType> queryLeafBuffer(localLeaves.size());
 
     std::vector<MPI_Request> sendRequests;
     for (size_t rankIndex = 0; rankIndex < peerRanks.size(); ++rankIndex)
@@ -128,7 +156,7 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPai
         // The number of nodes to count is one less the number of received SFC keys
         TreeNodeIndex numNodes = numKeys - 1;
         std::vector<unsigned> countBuffer(numNodes);
-        countRequestParticles<KeyType>(localLeaves, localCounts, queryLeafBuffer.first(numKeys), countBuffer);
+        countRequestParticles<KeyType>(gsl::span(queryLeafBuffer.data(), numKeys), countBuffer, particleKeys);
 
         // send back answer with the counts for the requested nodes
         mpiSendAsync(countBuffer.data(), numNodes, receiveRank, 1, sendRequests);
