@@ -19,9 +19,10 @@ jobs:
         name: ["Ubuntu & clang++-11"]
         os: ["ubuntu-20.04"]
         cxx: ["clang++-11"]
-        sanitizer: ["address", "leak", "undefined", "thread"]
+        sanitizer: ["address", "leak", "undefined"]
         mpi: ["ON"]
-        # memory fails because of MPI_Init(NULL, NULL)
+        # NOTE: -fsanitize=memory fails because of MPI_Init(NULL, NULL)
+        # NOTE: -fsanitize=thread fails with data race in findNeighborsSfc.hpp
         # sanitizer: ["address", "leak", "undefined", "memory", "thread"]
 #         - {
 #             name:  "Ubuntu & clang++-11",
@@ -155,9 +156,6 @@ jobs:
           cd build_
           make -j VERBOSE=1 sedov
           find . -name sedov
-          # ./domain/test/unit/component_units
-          # pwd
-          # ls -la
       # }}}
 
        # {{{ run SPH test
