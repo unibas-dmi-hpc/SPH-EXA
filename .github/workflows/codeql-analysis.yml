@@ -18,7 +18,9 @@ on:
     # The branches below must be a subset of the branches above
     branches: [ develop ]
   schedule:
-    - cron: '40 9 * * 0'
+    - cron: '* * */15 * *'
+  # min/hour/day/month/day_of_week
+  # https://docs.github.com/en/code-security/secure-coding/automatically-scanning-your-code-for-vulnerabilities-and-errors/configuring-code-scanning#example
 
 jobs:
   analyze:
@@ -38,7 +40,7 @@ jobs:
         - {
             name: "Ubuntu & g++-9",
             os: "ubuntu-20.04",
-            # language: ['cpp'],
+            language: [cpp],
             cxx: "g++-9",
             cmake: "3.20.x",
           }
@@ -86,7 +88,8 @@ jobs:
     - name: Initialize CodeQL
       uses: github/codeql-action/init@v1
       with:
-        languages: cpp
+        # languages: cpp
+        languages: ${{ matrix.config.language }}
         # If you wish to specify custom queries, you can do so here or in a config file.
         # By default, queries listed here will override any specified in a config file.
         # Prefix the list here with "+" to use these queries and those in the config file.
