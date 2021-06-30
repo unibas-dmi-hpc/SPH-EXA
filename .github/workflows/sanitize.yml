@@ -80,7 +80,8 @@ jobs:
           sudo apt-key add llvm-snapshot.gpg.key
           sudo apt-add-repository 'deb http://apt.llvm.org/buster/ llvm-toolchain-buster-11 main' #11
           sudo apt update
-          sudo apt install clang-11
+          sudo apt upgrade
+          sudo apt install -y clang-11
           # wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key |apt-key add -
           # apt install software-properties-common
           # check:
@@ -124,7 +125,7 @@ jobs:
 #         run: sudo ldconfig
       # }}}
 
-      # {{{ build
+      # {{{ build SPH test
       - name: build the SPH test
         run: |
           # mkdir -p build_
