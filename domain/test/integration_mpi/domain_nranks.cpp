@@ -294,3 +294,70 @@ TEST(FocusDomain, randomGaussianNeighborSumPbc)
         randomGaussianDomain<uint64_t, float>(domain, rank, nRanks);
     }
 }
+
+TEST(FocusDomain, assignmentShift)
+{
+    int rank = 0, numRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
+
+    using Real = double;
+    using KeyType = unsigned;
+
+    Box<Real> box(0, 1);
+    LocalParticleIndex numParticlesPerRank = 15000;
+    unsigned bucketSize = 1024;
+    unsigned bucketSizeFocus = 8;
+
+    RandomCoordinates<Real, KeyType> coordinates(numParticlesPerRank, box, rank);
+
+    std::vector<Real> x = coordinates.x();
+    std::vector<Real> y = coordinates.y();
+    std::vector<Real> z = coordinates.z();
+    std::vector<Real> h(numParticlesPerRank, 0.1);
+
+    FocusedDomain<KeyType, Real> domain(rank, numRanks, bucketSize, bucketSizeFocus, box);
+    std::cout << std::endl;
+
+    std::vector<KeyType> particleKeys;
+
+    domain.sync(x,y,z,h, particleKeys);
+    //if (rank == 0)
+    //{
+    //    std::cout << "nNodes(globalTree) " << nNodes(domain.tree())
+    //              << " nNodes(focusTree) " << nNodes(domain.focusedTree()) << std::endl;
+    //}
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //for (int r = 0; r < numRanks; ++r)
+    //{
+    //    if (r == rank)
+    //        std::cout << "rank " << rank << " nAssigned/Tot " << domain.nParticles() << " " << domain.nParticlesWithHalos() << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //}
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if (rank == 0) std::cout << std::endl;
+
+    if (rank == 2)
+    {
+        for (int k = 0; k < 700; ++k)
+        {
+            x[k + domain.startIndex()] -= 0.25;
+        }
+    }
+
+    domain.sync(x,y,z,h, particleKeys);
+    //if (rank == 0)
+    //{
+    //    std::cout << "nNodes(globalTree) " << nNodes(domain.tree())
+    //              << " nNodes(focusTree) " << nNodes(domain.focusedTree()) << std::endl;
+    //}
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //for (int r = 0; r < numRanks; ++r)
+    //{
+    //    if (r == rank)
+    //        std::cout << "rank " << rank << " nAssigned/Tot " << domain.nParticles() << " " << domain.nParticlesWithHalos() << std::endl;
+    //    MPI_Barrier(MPI_COMM_WORLD);
+    //}
+    //MPI_Barrier(MPI_COMM_WORLD);
+    //if (rank == 0) std::cout << std::endl;
+}
