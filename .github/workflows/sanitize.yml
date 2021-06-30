@@ -16,9 +16,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        name: ["Ubuntu & clang++-10"]
+        name: ["Ubuntu & clang++-11"]
         os: ["ubuntu-20.04"]
-        cxx: ["clang++-10"]
+        cxx: ["clang++-11"]
         sanitizer: ["address", "leak", "undefined", "thread"]
         mpi: ["ON"]
         # memory fails because of MPI_Init(NULL, NULL)
@@ -37,7 +37,7 @@ jobs:
         DEBIAN_FRONTEND: noninteractive
         # CMake build type here (Release, Debug, RelWithDebInfo, etc.)
         BUILD_TYPE: Debug
-        MPICH_CXX: clang++-11
+        MPICH_CXX: ${{ matrix.cxx }}
     # }}}
 
     steps:
@@ -146,7 +146,7 @@ jobs:
         run: |
           # mkdir -p build_
           # cd build_
-          MPICH_CXX=clang++-11 \
+          MPICH_CXX=${{matrix.cxx}} \
           cmake -B build_ \
           -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
           -DCMAKE_CXX_COMPILER=${{env.CXX}} \
@@ -164,16 +164,4 @@ jobs:
       - if:   ${{ matrix.mpi == 'ON' }}
         name: Run MPI test
         run:  mpirun -np 2 ${{ github.workspace }}/build_/src/sedov/sedov -s 0 -n 30
-
-#       - name: run the test
-#         working-directory: ${{github.workspace}}/build_
-#         env:
-#           MYEXE: ${{ github.workspace }}/build_/src/sedov/sedov
-#           # MYEXE: ${{ github.workspace }}/build_/domain/test/unit/component_units
-#         run: |
-#           reframe -c ../.github/workflows/reframe_unittest.py -r --keep-stage-files
-#
-#       - name: check the unittest
-#         working-directory: ${{github.workspace}}/build_
-#         run: cat stage/generic/default/builtin/SPHEXA_Unit_Test/*
       # }}}
