@@ -40,7 +40,7 @@ jobs:
         - {
             name: "Ubuntu & g++-9",
             os: "ubuntu-20.04",
-            language: [cpp],
+            language: cpp,
             cxx: "g++-9",
             cmake: "3.20.x",
           }
