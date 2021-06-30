@@ -19,8 +19,9 @@ jobs:
         name: ["Ubuntu & clang++-10"]
         os: ["ubuntu-20.04"]
         cxx: ["clang++-10"]
-        sanitizer: ["address", "leak"]
+        sanitizer: ["address", "leak", "undefined", "thread"]
         mpi: ["ON"]
+        # memory fails because of MPI_Init(NULL, NULL)
         # sanitizer: ["address", "leak", "undefined", "memory", "thread"]
 #         - {
 #             name:  "Ubuntu & clang++-11",
@@ -138,6 +139,7 @@ jobs:
 #         if: ${{ startsWith(matrix.os, 'ubuntu') }}
 #         run: sudo ldconfig
       # }}}
+      # }}}
 
       # {{{ build SPH test
       - name: build the SPH test
@@ -158,7 +160,7 @@ jobs:
           # ls -la
       # }}}
 
-       # {{{ run
+       # {{{ run SPH test
       - if:   ${{ matrix.mpi == 'ON' }}
         name: Run MPI test
         run:  mpirun -np 2 ${{ github.workspace }}/build_/src/sedov/sedov -s 0 -n 30
