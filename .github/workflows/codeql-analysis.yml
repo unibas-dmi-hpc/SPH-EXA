@@ -12,11 +12,11 @@
 name: "CodeQL"
 
 on:
-  push:
-    branches: [ develop ]
-  pull_request:
-    # The branches below must be a subset of the branches above
-    branches: [ develop ]
+#   push:
+#     branches: [ develop ]
+#   pull_request:
+#     # The branches below must be a subset of the branches above
+#     branches: [ develop ]
   schedule:
     - cron: '* * */15 * *'
   # min/hour/day/month/day_of_week
