@@ -11,23 +11,16 @@ on: push
 jobs:
   build:
     name: "Sanitize"
-    runs-on: ${{ matrix.config.os }}
+    runs-on: ${{ matrix.os }}
     # {{{ config matrix
-    #     See: https://docs.github.com/en/free-pro-team@latest/actions/
-    #     learn-github-actions/managing-complex-workflows#using-a-build-matrix
-    #     See: https://github.com/actions/virtual-environments/blob/main/
-    #     images/linux/Ubuntu2004-README.md#cached-docker-images
     strategy:
       fail-fast: false
       matrix:
-        config:
-        - {
-            name:  "Ubuntu & clang++-10",
-            os:    "ubuntu-20.04",
-            cxx:   "clang++-10",
-            sanitizer: ["leak"],
-            # sanitizer: ["address", "leak", "undefined", "memory", "thread"]
-          }
+        name:  "Ubuntu & clang++-10 (${{ matrix.sanitizer }})"
+        os:    "ubuntu-20.04"
+        cxx:   "clang++-10"
+        sanitizer: ["leak"]
+        # sanitizer: ["address", "leak", "undefined", "memory", "thread"]
 #         - {
 #             name:  "Ubuntu & clang++-11",
 #             os:    "ubuntu-20.04",
@@ -37,10 +30,9 @@ jobs:
 
     # {{{ env
     env:        
-        CXX: ${{ matrix.config.cxx }}
+        CXX: ${{ matrix.cxx }}
         TZ: Europe/Zurich
         DEBIAN_FRONTEND: noninteractive
-        # CC: ${{ matrix.config.cc }}
         # CMake build type here (Release, Debug, RelWithDebInfo, etc.)
         BUILD_TYPE: Debug
     # }}}
@@ -54,7 +46,7 @@ jobs:
       - name: setup cmake
         uses: jwlawson/actions-setup-cmake@v1.9
         with:
-          cmake-version: ${{ matrix.config.cmake }}
+          cmake-version: ${{ matrix.cmake }}
 
       - name: check config
         run: |
@@ -64,7 +56,7 @@ jobs:
           cmake --version
 
       - name: install ReFrame
-        # if: ${{ startsWith(matrix.config.os, 'ubuntu') }}
+        # if: ${{ startsWith(matrix.os, 'ubuntu') }}
         run: |
           sudo apt update
           # sudo apt -y upgrade
@@ -82,8 +74,8 @@ jobs:
           cmake -B build_ \
           -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}} \
           -DCMAKE_CXX_COMPILER=${{env.CXX}} \
-          -DCMAKE_CXX_FLAGS="-fsanitize=${{ matrix.config.sanitizer }} -fno-omit-frame-pointer" \
-          -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=${{ matrix.config.sanitizer }}
+          -DCMAKE_CXX_FLAGS="-fsanitize=${{ matrix.sanitizer }} -fno-omit-frame-pointer" \
+          -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=${{ matrix.sanitizer }}
           cd build_
           make -j component_units
           find . -name component_units
