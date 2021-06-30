@@ -16,9 +16,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        name:  ["Ubuntu & clang++-10 (${{ matrix.sanitizer }})"]
-        os:    ["ubuntu-20.04"]
-        cxx:   ["clang++-10"]
+        name: ["Ubuntu & clang++-10"]
+        os: ["ubuntu-20.04"]
+        cxx: ["clang++-10"]
         sanitizer: ["leak"]
         # sanitizer: ["address", "leak", "undefined", "memory", "thread"]
 #         - {
