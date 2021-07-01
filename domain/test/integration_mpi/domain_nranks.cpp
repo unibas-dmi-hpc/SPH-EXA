@@ -321,20 +321,6 @@ TEST(FocusDomain, assignmentShift)
     std::vector<KeyType> particleKeys;
 
     domain.sync(x,y,z,h, particleKeys);
-    //if (rank == 0)
-    //{
-    //    std::cout << "nNodes(globalTree) " << nNodes(domain.tree())
-    //              << " nNodes(focusTree) " << nNodes(domain.focusedTree()) << std::endl;
-    //}
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //for (int r = 0; r < numRanks; ++r)
-    //{
-    //    if (r == rank)
-    //        std::cout << "rank " << rank << " nAssigned/Tot " << domain.nParticles() << " " << domain.nParticlesWithHalos() << std::endl;
-    //    MPI_Barrier(MPI_COMM_WORLD);
-    //}
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if (rank == 0) std::cout << std::endl;
 
     if (rank == 2)
     {
@@ -345,18 +331,15 @@ TEST(FocusDomain, assignmentShift)
     }
 
     domain.sync(x,y,z,h, particleKeys);
-    //if (rank == 0)
-    //{
-    //    std::cout << "nNodes(globalTree) " << nNodes(domain.tree())
-    //              << " nNodes(focusTree) " << nNodes(domain.focusedTree()) << std::endl;
-    //}
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //for (int r = 0; r < numRanks; ++r)
-    //{
-    //    if (r == rank)
-    //        std::cout << "rank " << rank << " nAssigned/Tot " << domain.nParticles() << " " << domain.nParticlesWithHalos() << std::endl;
-    //    MPI_Barrier(MPI_COMM_WORLD);
-    //}
-    //MPI_Barrier(MPI_COMM_WORLD);
-    //if (rank == 0) std::cout << std::endl;
+
+    std::vector<Real> property(domain.nParticlesWithHalos(), -1);
+    for (LocalParticleIndex i = domain.startIndex(); i < domain.endIndex(); ++i)
+    {
+        property[i] = rank;
+    }
+
+    domain.exchangeHalos(property);
+
+    EXPECT_TRUE(std::count(property.begin(), property.end(), -1) == 0);
+    EXPECT_TRUE(std::count(property.begin(), property.end(), rank) == domain.nParticles());
 }
