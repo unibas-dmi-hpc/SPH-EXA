@@ -136,14 +136,17 @@ void focusDomain(int thisRank, int numRanks)
                                                                focusAssignment[thisRank].start(),
                                                                focusAssignment[thisRank].end());
 
-    SendList haloSendList = exchangeRequestKeys<KeyType>(focusTree.treeLeaves(), haloFlags, layout,
-                                                         focusAssignment, peers);
-
     SendList haloReceiveList = computeHaloReceiveList(layout, haloFlags, focusAssignment, peers);
 
     LocalParticleIndex numParticlesTotal = layout.back();
     //reallocate(numParticlesTotal, x, y, z, h);
     LocalParticleIndex haloOffset = layout[focusAssignment[thisRank].start()];
+
+    SendList haloSendList = exchangeRequestKeys<KeyType>(focusTree.treeLeaves(), haloFlags,
+                                                         gsl::span<const KeyType>(particleKeys.data(),
+                                                                                  numParticlesAssigned),
+                                                         haloOffset,
+                                                         focusAssignment, peers);
 
     relocate(numParticlesTotal, haloOffset, x, y, z, h);
     relocate(numParticlesTotal, haloOffset, particleKeys);

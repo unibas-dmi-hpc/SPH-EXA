@@ -314,8 +314,10 @@ public:
         particleStart_   = layout[focusAssignment[myRank_].start()];
         particleEnd_     = particleStart_ + newNParticlesAssigned;
 
-        outgoingHaloIndices_ = exchangeRequestKeys<KeyType>(focusedTree_.treeLeaves(), haloFlags, layout,
-                                                            focusAssignment, peers);
+        outgoingHaloIndices_
+            = exchangeRequestKeys<KeyType>(focusedTree_.treeLeaves(), haloFlags,
+                                           gsl::span<const KeyType>(codes.data(), newNParticlesAssigned),
+                                           particleStart_, focusAssignment, peers);
         checkIndices(outgoingHaloIndices_);
 
         incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags, focusAssignment, peers);

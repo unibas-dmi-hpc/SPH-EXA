@@ -73,7 +73,7 @@ void exchangeKeys(int myRank, int numRanks)
     KeyType o = myRank * 4;
     std::vector<KeyType> treeLeaves{o, o+2, o+4, o+5, o+6, o+7, o+8, o+10, o+12};
 
-    std::vector<LocalParticleIndex> layout = computeNodeLayout(counts, haloFlags, 2, 6);
+    std::vector<KeyType> particleKeys{o+4, o+5, o+6, o+7};
 
     std::vector<TreeIndexPair> assignment(numRanks);
     std::vector<int>     peers;
@@ -95,7 +95,7 @@ void exchangeKeys(int myRank, int numRanks)
         reference[myRank + 1].addRange(4, 6);
     }
 
-    SendList probe = exchangeRequestKeys<KeyType>(treeLeaves, haloFlags, layout, assignment, peers);
+    SendList probe = exchangeRequestKeys<KeyType>(treeLeaves, haloFlags, particleKeys, 2, assignment, peers);
 
     EXPECT_EQ(probe, reference);
 }
