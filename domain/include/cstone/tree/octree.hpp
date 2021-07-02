@@ -284,7 +284,10 @@ int calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, const unsigned* 
         if (countMerge) { return 0; } // merge
     }
 
-    if (counts[nodeIdx] > bucketSize && level < maxTreeLevel<KeyType>{}) { return 8; } // split
+    if (counts[nodeIdx] > bucketSize * 512 && level + 3 < maxTreeLevel<KeyType>{}) { return 4096; } // split
+    if (counts[nodeIdx] > bucketSize * 64  && level + 2 < maxTreeLevel<KeyType>{}) { return 512; } // split
+    if (counts[nodeIdx] > bucketSize * 8   && level + 1 < maxTreeLevel<KeyType>{}) { return 64; } // split
+    if (counts[nodeIdx] > bucketSize       && level     < maxTreeLevel<KeyType>{}) { return 8; } // split
 
     return 1; // default: do nothing
 }
@@ -356,6 +359,14 @@ void processNode(TreeNodeIndex nodeIndex, const KeyType* oldTree, const TreeNode
         for (int sibling = 0; sibling < 8; ++sibling)
         {
             newTree[newNodeIndex + sibling] = thisNode + sibling * nodeRange<KeyType>(level + 1);
+        }
+    }
+    else if (opCode > 8)
+    {
+        unsigned levelDiff = log8ceil(unsigned(opCode));
+        for (int sibling = 0; sibling < opCode; ++sibling)
+        {
+            newTree[newNodeIndex + sibling] = thisNode + sibling * nodeRange<KeyType>(level + levelDiff);
         }
     }
 }
