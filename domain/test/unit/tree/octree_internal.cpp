@@ -86,58 +86,15 @@ TEST(InternalOctree, nodeDepth)
 
     // internal tree, matches leaves for
     // std::vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
-    std::vector<OctreeNode<KeyType>> internalTree{{0,
-                                                   0,
-                                                   0,
-                                                   {
-                                                       2,
-                                                       l_(19),
-                                                       l_(20),
-                                                       3,
-                                                       l_(29),
-                                                       l_(30),
-                                                       l_(31),
-                                                       l_(32),
-                                                   }},
-                                                  {0200000000,
-                                                   2,
-                                                   2,
-                                                   {
-                                                       l_(6),
-                                                       l_(7),
-                                                       l_(8),
-                                                       l_(9),
-                                                       l_(10),
-                                                       l_(11),
-                                                       l_(12),
-                                                       l_(13),
-                                                   }},
-                                                  {0,
-                                                   1,
-                                                   0,
-                                                   {
-                                                       l_(4),
-                                                       l_(5),
-                                                       1,
-                                                       l_(14),
-                                                       l_(15),
-                                                       l_(16),
-                                                       l_(17),
-                                                       l_(18),
-                                                   }},
-                                                  {03000000000,
-                                                   1,
-                                                   0,
-                                                   {
-                                                       l_(21),
-                                                       l_(22),
-                                                       l_(23),
-                                                       l_(24),
-                                                       l_(25),
-                                                       l_(26),
-                                                       l_(27),
-                                                       l_(28),
-                                                   }}};
+    // clang-format off
+    std::vector<OctreeNode<KeyType>> internalTree
+    {
+        {          0, 0, 0, {2, l_(19), l_(20), 3, l_(29), l_(30), l_(31), l_(32), }  },
+        { 0200000000, 2, 2, {l_(6), l_(7), l_(8), l_(9), l_(10), l_(11), l_(12), l_(13), }    },
+        {          0, 1, 0, {l_(4), l_(5), 1, l_(14), l_(15), l_(16), l_(17), l_(18), }   },
+        {03000000000, 1, 0, {l_(21), l_(22), l_(23), l_(24), l_(25), l_(26), l_(27), l_(28), }}
+    };
+    // clang-format on
 
     std::vector<std::atomic<int>> depths(internalTree.size());
     for (auto& d : depths)
@@ -200,59 +157,16 @@ TEST(InternalOctree, calculateInternalOrderExplicit)
 
     // internal tree, matches leaves for
     // std::vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
-    std::vector<OctreeNode<KeyType>> octree{// prefix, level, parent, children
-                                            {0,
-                                             0,
-                                             0,
-                                             {
-                                                 2,
-                                                 l_(19),
-                                                 l_(20),
-                                                 3,
-                                                 l_(29),
-                                                 l_(30),
-                                                 l_(31),
-                                                 l_(32),
-                                             }},
-                                            {0200000000,
-                                             2,
-                                             2,
-                                             {
-                                                 l_(6),
-                                                 l_(7),
-                                                 l_(8),
-                                                 l_(9),
-                                                 l_(10),
-                                                 l_(11),
-                                                 l_(12),
-                                                 l_(13),
-                                             }},
-                                            {0,
-                                             1,
-                                             0,
-                                             {
-                                                 l_(4),
-                                                 l_(5),
-                                                 1,
-                                                 l_(14),
-                                                 l_(15),
-                                                 l_(16),
-                                                 l_(17),
-                                                 l_(18),
-                                             }},
-                                            {03000000000,
-                                             1,
-                                             0,
-                                             {
-                                                 l_(21),
-                                                 l_(22),
-                                                 l_(23),
-                                                 l_(24),
-                                                 l_(25),
-                                                 l_(26),
-                                                 l_(27),
-                                                 l_(28),
-                                             }}};
+    // clang-format off
+    std::vector<OctreeNode<KeyType>> octree
+    {
+        // prefix, level, parent, children
+        {          0, 0, 0, {2, l_(19), l_(20), 3, l_(29), l_(30), l_(31), l_(32), }  },
+        { 0200000000, 2, 2, {l_(6), l_(7), l_(8), l_(9), l_(10), l_(11), l_(12), l_(13), }    },
+        {          0, 1, 0, {l_(4), l_(5), 1, l_(14), l_(15), l_(16), l_(17), l_(18), }   },
+        {03000000000, 1, 0, {l_(21), l_(22), l_(23), l_(24), l_(25), l_(26), l_(27), l_(28), }}
+    };
+    // clang-format on
 
     std::vector<TreeNodeIndex> ordering(octree.size());
     std::vector<TreeNodeIndex> nNodesPerLevel(maxTreeLevel<KeyType>{});
@@ -373,59 +287,17 @@ TEST(InternalOctree, rewire)
 
     // internal tree, matches leaves for
     // std::vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
-    std::vector<OctreeNode<KeyType>> internalTree{// prefix, level, parent, children, childTypes
-                                                  {0,
-                                                   0,
-                                                   0,
-                                                   {
-                                                       2,
-                                                       l_(19),
-                                                       l_(20),
-                                                       3,
-                                                       l_(29),
-                                                       l_(30),
-                                                       l_(31),
-                                                       l_(32),
-                                                   }},
-                                                  {0200000000,
-                                                   2,
-                                                   2,
-                                                   {
-                                                       l_(6),
-                                                       l_(7),
-                                                       l_(8),
-                                                       l_(9),
-                                                       l_(10),
-                                                       l_(11),
-                                                       l_(12),
-                                                       l_(13),
-                                                   }},
-                                                  {0,
-                                                   1,
-                                                   0,
-                                                   {
-                                                       l_(4),
-                                                       l_(5),
-                                                       1,
-                                                       l_(14),
-                                                       l_(15),
-                                                       l_(16),
-                                                       l_(17),
-                                                       l_(18),
-                                                   }},
-                                                  {03000000000,
-                                                   1,
-                                                   0,
-                                                   {
-                                                       l_(21),
-                                                       l_(22),
-                                                       l_(23),
-                                                       l_(24),
-                                                       l_(25),
-                                                       l_(26),
-                                                       l_(27),
-                                                       l_(28),
-                                                   }}};
+    // clang-format off
+    std::vector<OctreeNode<KeyType>> internalTree
+    {
+        // prefix, level, parent, children, childTypes
+        {          0, 0, 0, {2, l_(19), l_(20), 3, l_(29), l_(30), l_(31), l_(32), }  },
+        { 0200000000, 2, 2, {l_(6), l_(7), l_(8), l_(9), l_(10), l_(11), l_(12), l_(13), }    },
+        {          0, 1, 0, {l_(4), l_(5), 1, l_(14), l_(15), l_(16), l_(17), l_(18), }   },
+        {03000000000, 1, 0, {l_(21), l_(22), l_(23), l_(24), l_(25), l_(26), l_(27), l_(28), }}
+    };
+    // clang-format on
+
 
     // maps oldIndex to rewireMap[oldIndex] (scatter operation)
     std::vector<TreeNodeIndex> rewireMap{0, 3, 1, 2};
@@ -438,59 +310,16 @@ TEST(InternalOctree, rewire)
         printf("node %3d, prefix %10o, level %1d\n", i, rewiredTree[i].prefix, rewiredTree[i].level);
     }
 
-    std::vector<OctreeNode<KeyType>> reference{// prefix, level, parent, children
-                                               {0,
-                                                0,
-                                                0,
-                                                {
-                                                    1,
-                                                    l_(19),
-                                                    l_(20),
-                                                    2,
-                                                    l_(29),
-                                                    l_(30),
-                                                    l_(31),
-                                                    l_(32),
-                                                }},
-                                               {0,
-                                                1,
-                                                0,
-                                                {
-                                                    l_(4),
-                                                    l_(5),
-                                                    3,
-                                                    l_(14),
-                                                    l_(15),
-                                                    l_(16),
-                                                    l_(17),
-                                                    l_(18),
-                                                }},
-                                               {03000000000,
-                                                1,
-                                                0,
-                                                {
-                                                    l_(21),
-                                                    l_(22),
-                                                    l_(23),
-                                                    l_(24),
-                                                    l_(25),
-                                                    l_(26),
-                                                    l_(27),
-                                                    l_(28),
-                                                }},
-                                               {0200000000,
-                                                2,
-                                                1,
-                                                {
-                                                    l_(6),
-                                                    l_(7),
-                                                    l_(8),
-                                                    l_(9),
-                                                    l_(10),
-                                                    l_(11),
-                                                    l_(12),
-                                                    l_(13),
-                                                }}};
+    // clang-format off
+    std::vector<OctreeNode<KeyType>> reference
+    {
+        // prefix, level, parent, children
+        {          0, 0, 0, {1, l_(19), l_(20), 2, l_(29), l_(30), l_(31), l_(32), }  },
+        {          0, 1, 0, {l_(4), l_(5), 3, l_(14), l_(15), l_(16), l_(17), l_(18), }   },
+        {03000000000, 1, 0, {l_(21), l_(22), l_(23), l_(24), l_(25), l_(26), l_(27), l_(28), }},
+        { 0200000000, 2, 1, {l_(6), l_(7), l_(8), l_(9), l_(10), l_(11), l_(12), l_(13), }    }
+    };
+    // clang-format on
 
     EXPECT_EQ(rewiredTree, reference);
 }
