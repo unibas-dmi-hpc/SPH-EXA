@@ -279,7 +279,7 @@ public:
             firstCall_ = false;
         }
 
-        SpaceCurveAssignment focusAssignment
+        std::vector<TreeIndexPair> focusAssignment
             = translateAssignment<KeyType>(assignment, tree_, focusedTree_.treeLeaves(), peers, myRank_);
 
         /* Halo discovery phase *********************************************************/
@@ -301,17 +301,17 @@ public:
                                   focusedTree_.binaryTree(),
                                   haloRadii,
                                   box_,
-                                  focusAssignment.firstNodeIdx(myRank_),
-                                  focusAssignment.lastNodeIdx(myRank_),
+                                  focusAssignment[myRank_].start(),
+                                  focusAssignment[myRank_].end(),
                                   haloFlags.data());
 
         /* Halo exchange phase *********************************************************/
 
         std::vector<LocalParticleIndex> layout = computeNodeLayout(focusedTree_.leafCounts(), haloFlags,
-                                                                   focusAssignment.firstNodeIdx(myRank_),
-                                                                   focusAssignment.lastNodeIdx(myRank_));
+                                                                   focusAssignment[myRank_].start(),
+                                                                   focusAssignment[myRank_].end());
         localNParticles_ = layout.back();
-        particleStart_   = layout[focusAssignment.firstNodeIdx(myRank_)];
+        particleStart_   = layout[focusAssignment[myRank_].start()];
         particleEnd_     = particleStart_ + newNParticlesAssigned;
 
         outgoingHaloIndices_ = exchangeRequestKeys<KeyType>(focusedTree_.treeLeaves(), haloFlags, layout,

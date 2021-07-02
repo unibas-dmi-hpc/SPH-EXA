@@ -197,16 +197,18 @@ SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& globalCoun
  *                      peer rank as the original @p assignment,
  *                      but with indices valid w.r.t @p newTree
  *
- * Note: SFC key ranges for non-peer ranks are ignored.
+ * The focus assignment is implemented as a plain vector; since only
+ * the ranges of peer ranks (and not all ranks) are set, the requirements
+ * of SpaceCurveAssignment are not met and its findRank() function would not work.
  */
 template<class KeyType>
-SpaceCurveAssignment translateAssignment(const SpaceCurveAssignment& assignment,
-                                         gsl::span<const KeyType> oldTree,
-                                         gsl::span<const KeyType> newTree,
-                                         gsl::span<const int> peerRanks,
-                                         int myRank)
+std::vector<TreeIndexPair> translateAssignment(const SpaceCurveAssignment& assignment,
+                                               gsl::span<const KeyType> oldTree,
+                                               gsl::span<const KeyType> newTree,
+                                               gsl::span<const int> peerRanks,
+                                               int myRank)
 {
-    SpaceCurveAssignment newAssignment(assignment.numRanks());
+    std::vector<TreeIndexPair> newAssignment(assignment.numRanks());
 
     for (int peer : peerRanks)
     {
@@ -220,7 +222,7 @@ SpaceCurveAssignment translateAssignment(const SpaceCurveAssignment& assignment,
         //assert(startKey == newTree[newStartIndex]);
         //assert(endKey == newTree[newEndIndex]);
 
-        newAssignment.addRange(Rank(peer), newStartIndex, newEndIndex, assignment.totalCount(peer));
+        newAssignment[peer] = TreeIndexPair(newStartIndex, newEndIndex);
     }
 
     KeyType startKey = oldTree[assignment.firstNodeIdx(myRank)];
@@ -228,7 +230,7 @@ SpaceCurveAssignment translateAssignment(const SpaceCurveAssignment& assignment,
 
     TreeNodeIndex newStartIndex = findNodeAbove(newTree, startKey);
     TreeNodeIndex newEndIndex   = findNodeBelow(newTree, endKey);
-    newAssignment.addRange(Rank(myRank), newStartIndex, newEndIndex, assignment.totalCount(myRank));
+    newAssignment[myRank] = TreeIndexPair(newStartIndex, newEndIndex);
 
     return newAssignment;
 }
