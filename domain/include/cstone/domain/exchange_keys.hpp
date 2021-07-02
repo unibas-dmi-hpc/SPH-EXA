@@ -44,7 +44,9 @@ namespace cstone
  * @param treeLeaves    cornerstone octree leaves, length N+1
  * @param haloFlags     0 or 1 for each node in @p leaves, length N
  *                      nodes marked with 1 are halos of the executing rank
- * @param layout        location of each node in particle arrays, given as offsets, length N
+ * @param particleKeys  sorted SFC keys of locally assigned particles
+ * @param offset        the start position of the locally assigned particles that they will
+ *                      have in the particles buffers after halo exchange
  * @param assignment    assignment of @p treeLeaves to ranks, only ranks listed in @p peerRanks
  *                      are accessed
  * @param peerRanks     list of peer rank IDs
@@ -63,7 +65,8 @@ namespace cstone
 template<class KeyType>
 SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
                              gsl::span<const int> haloFlags,
-                             gsl::span<const LocalParticleIndex> layout,
+                             gsl::span<const KeyType> particleKeys,
+                             LocalParticleIndex offset,
                              gsl::span<const TreeIndexPair> assignment,
                              gsl::span<const int> peerRanks)
 {
@@ -104,16 +107,10 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
             KeyType lowerKey = receiveBuffer[i];
             KeyType upperKey = receiveBuffer[i+1];
 
-            TreeNodeIndex lowerIdx = findNodeBelow(treeLeaves, lowerKey);
-            TreeNodeIndex upperIdx = findNodeAbove(treeLeaves, upperKey);
+            LocalParticleIndex lowerIdx = findNodeAbove(particleKeys, lowerKey) + offset;
+            LocalParticleIndex upperIdx = findNodeAbove(particleKeys, upperKey) + offset;
 
-            // the sending rank cannot have a higher tree resolution than
-            // the receiving rank in its assigned range, so the received
-            // keys should match exactly with nodes in the local tree
-            assert(treeLeaves[lowerIdx] == lowerKey);
-            assert(treeLeaves[upperIdx] == upperKey);
-
-            ret[receiveRank].addRange(layout[lowerIdx], layout[upperIdx]);
+            ret[receiveRank].addRange(lowerIdx, upperIdx);
         }
 
         numMessages--;
