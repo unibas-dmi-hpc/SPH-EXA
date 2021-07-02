@@ -59,9 +59,9 @@ struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21> {};
 /*! @brief normalize a floating point number in [0,1] to an integer in [0, 2^(10 or 21)-1]
  *
  * @tparam KeyType  32-bit or 64-bit unsigned integer
- * @tparam T  float or double
- * @param x   input floating point number in [0,1]
- * @return    x converted to an 10-bit or 21-bit integer
+ * @tparam T        float or double
+ * @param  x        input floating point number in [0,1]
+ * @return          x converted to an 10-bit or 21-bit integer
  *
  * Integer conversion happens with truncation as required for SFC code calculations
  */
@@ -80,9 +80,9 @@ inline unsigned toNBitInt(T x)
 /*! @brief normalize a floating point number in [0,1] to an integer in [0, 2^(10 or 21)-1]
  *
  * @tparam KeyType  32-bit or 64-bit unsigned integer
- * @tparam T  float or double
- * @param x   input floating point number in [0,1]
- * @return    x converted to an 10-bit or 21-bit integer
+ * @tparam T        float or double
+ * @param  x        input floating point number in [0,1]
+ * @return          x converted to an 10-bit or 21-bit integer
  *
  * Integer conversion happens with ceil() as required for converting halo radii to integers
  * where we must round up to the smallest integer not less than x*2^(10 or 21)
@@ -124,9 +124,9 @@ constexpr KeyType pad(KeyType prefix, int length)
 
 /*! @brief compute the maximum range of an octree node at a given subdivision level
  *
- * @tparam KeyType         32- or 64-bit unsigned integer type
- * @param treeLevel  octree subdivision level
- * @return           the range
+ * @tparam KeyType    32- or 64-bit unsigned integer type
+ * @param  treeLevel  octree subdivision level
+ * @return            the range
  *
  * At treeLevel 0, the range is the entire 30 or 63 bits used in the SFC code.
  * After that, the range decreases by 3 bits for each level.
@@ -165,12 +165,12 @@ constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, bool> isPowerOf8(KeyType
 
 /*! @brief calculate common prefix (cpr) of two SFC keys
  *
- * @tparam KeyType    32 or 64 bit unsigned integer
- * @param key1  first SFC code key
- * @param key2  second SFC code key
- * @return      number of continuous identical bits, counting from MSB
- *              minus the 2 unused bits in 32 bit codes or minus the 1 unused bit
- *              in 64 bit codes.
+ * @tparam KeyType  32 or 64 bit unsigned integer
+ * @param  key1     first SFC code key
+ * @param  key2     second SFC code key
+ * @return          number of continuous identical bits, counting from MSB
+ *                  minus the 2 unused bits in 32 bit codes or minus the 1 unused bit
+ *                  in 64 bit codes.
  */
 template<class KeyType>
 CUDA_HOST_DEVICE_FUN
@@ -181,7 +181,7 @@ constexpr int commonPrefix(KeyType key1, KeyType key2)
 
 /*! @brief return octree subdivision level corresponding to codeRange
  *
- * @tparam KeyType         32- or 64-bit unsigned integer type
+ * @tparam KeyType   32- or 64-bit unsigned integer type
  * @param codeRange  input SFC code range
  * @return           octree subdivision level 0-10 (32-bit) or 0-21 (64-bit)
  */
@@ -223,7 +223,7 @@ constexpr int decodePrefixLength(KeyType code)
 
 /*! @brief decode an SFC key in Warren-Salmon placeholder bit format
  *
- * @tparam KeyType         32- or 64-bit unsigned integer
+ * @tparam KeyType   32- or 64-bit unsigned integer
  * @param code       input SFC key with 1-bit prepended
  * @return           SFC-key without 1-bit and shifted to most significant bit
  *
@@ -278,7 +278,7 @@ constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> enclosingBoxCod
 /*! @brief compute an enclosing envelope corresponding to the smallest possible
  *         octree node for two input SFC codes
  *
- * @tparam KeyType              32- or 64-bit unsigned integer type
+ * @tparam KeyType        32- or 64-bit unsigned integer type
  * @param[in] firstCode   lower SFC code
  * @param[in] secondCode  upper SFC code
  *
@@ -310,10 +310,10 @@ constexpr KeyType zeroLowBits(KeyType code, int nBits)
 /*! @brief return position of last non-zero octal digit place in x
  *
  * @tparam KeyType   32- or 64-bit unsigned integer
- * @param  x   an integer
- * @return     position of the last non-zero octal digit place, starting from
- *             1 (left-most digit place) to 10 or 21 (64-bit), the right-most
- *             digit place. Returns 10 or 21 (64-bit) if x is zero.
+ * @param  x         an integer
+ * @return           position of the last non-zero octal digit place, starting from
+ *                   1 (left-most digit place) to 10 or 21 (64-bit), the right-most
+ *                   digit place. Returns 10 or 21 (64-bit) if x is zero.
  */
 template<class KeyType>
 constexpr int lastNzPlace(KeyType x)
@@ -336,7 +336,7 @@ constexpr KeyType octalPower(int pos)
 
 /*! @brief generate SFC codes to cover the range [a:b] with a valid cornerstone sub-octree
  *
- * @tparam     KeyType       32- or 64-bit unsigned integer
+ * @tparam     KeyType 32- or 64-bit unsigned integer
  * @param[in]  a       first SFC code
  * @param[in]  b       second SFC code, b > a
  * @param[out] output  output SFC codes, includes a, excludes b
