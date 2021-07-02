@@ -75,23 +75,22 @@ void exchangeKeys(int myRank, int numRanks)
 
     std::vector<LocalParticleIndex> layout = computeNodeLayout(counts, haloFlags, 2, 6);
 
-    SpaceCurveAssignment assignment(numRanks);
-    LocalParticleIndex   numParticlesPerAssignment = 4;
+    std::vector<TreeIndexPair> assignment(numRanks);
     std::vector<int>     peers;
     SendList             reference(numRanks);
 
     if (myRank > 0)
     {
-        assignment.addRange(Rank(myRank - 1), 0, 2, numParticlesPerAssignment);
+        assignment[myRank - 1] = TreeIndexPair(0, 2);
         peers.push_back(myRank - 1);
         reference[myRank - 1].addRange(2, 4);
     }
 
-    assignment.addRange(Rank(myRank), 2, 6, numParticlesPerAssignment);
+    assignment[myRank] = TreeIndexPair(2, 6);
 
     if (myRank < numRanks - 1)
     {
-        assignment.addRange(Rank(myRank + 1), 6, 8, numParticlesPerAssignment);
+        assignment[myRank + 1] = TreeIndexPair(6, 8);
         peers.push_back(myRank + 1);
         reference[myRank + 1].addRange(4, 6);
     }

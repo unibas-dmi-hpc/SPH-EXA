@@ -243,15 +243,15 @@ std::vector<LocalParticleIndex> computeNodeLayout(gsl::span<const unsigned> focu
 inline
 SendList computeHaloReceiveList(gsl::span<const LocalParticleIndex> layout,
                                 gsl::span<const int> haloFlags,
-                                const SpaceCurveAssignment& assignment,
+                                gsl::span<const TreeIndexPair> assignment,
                                 gsl::span<const int> peerRanks)
 {
-    SendList ret(assignment.numRanks());
+    SendList ret(assignment.size());
 
     for (int peer : peerRanks)
     {
-        TreeNodeIndex peerStartIdx = assignment.firstNodeIdx(peer);
-        TreeNodeIndex peerEndIdx = assignment.lastNodeIdx(peer);
+        TreeNodeIndex peerStartIdx = assignment[peer].start();
+        TreeNodeIndex peerEndIdx   = assignment[peer].end();
 
         std::vector<LocalParticleIndex> receiveRanges =
             extractMarkedElements<LocalParticleIndex>(layout, haloFlags, peerStartIdx, peerEndIdx);

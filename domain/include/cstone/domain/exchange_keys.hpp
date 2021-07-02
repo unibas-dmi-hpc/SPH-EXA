@@ -64,7 +64,7 @@ template<class KeyType>
 SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
                              gsl::span<const int> haloFlags,
                              gsl::span<const LocalParticleIndex> layout,
-                             const SpaceCurveAssignment& assignment,
+                             gsl::span<const TreeIndexPair> assignment,
                              gsl::span<const int> peerRanks)
 {
     std::vector<std::vector<KeyType>> sendBuffers;
@@ -75,7 +75,7 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
     for (int peer : peerRanks)
     {
         auto requestKeys =
-            extractMarkedElements(treeLeaves, haloFlags, assignment.firstNodeIdx(peer), assignment.lastNodeIdx(peer));
+            extractMarkedElements(treeLeaves, haloFlags, assignment[peer].start(), assignment[peer].end());
         mpiSendAsync(requestKeys.data(), int(requestKeys.size()), peer, 0, sendRequests);
         sendBuffers.push_back(std::move(requestKeys));
     }
@@ -84,12 +84,11 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
     for (int peer : peerRanks)
     {
         // +1 for the last range delimiter
-        maxReceiveCount = std::max(maxReceiveCount,
-                                   size_t(assignment.lastNodeIdx(peer) - assignment.firstNodeIdx(peer)) + 1);
+        maxReceiveCount = std::max(maxReceiveCount, size_t(assignment[peer].count()) + 1);
     }
     std::vector<KeyType> receiveBuffer(maxReceiveCount);
 
-    SendList ret(assignment.numRanks());
+    SendList ret(assignment.size());
 
     size_t numMessages = peerRanks.size();
     while (numMessages > 0)

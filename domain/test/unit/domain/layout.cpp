@@ -130,11 +130,11 @@ TEST(Layout, computeHaloReceiveList)
     std::vector<int> peers{0, 2};
 
     int numRanks = 3;
-    SpaceCurveAssignment assignment(numRanks);
+    std::vector<TreeIndexPair> assignment(numRanks);
 
-    assignment.addRange(Rank(0), 0, 4, 4);
-    assignment.addRange(Rank(1), 4, 6, 4);
-    assignment.addRange(Rank(2), 6, 10, 4);
+    assignment[0] = TreeIndexPair(0, 4);
+    assignment[1] = TreeIndexPair(4, 6);
+    assignment[2] = TreeIndexPair(6, 10);
 
     SendList receiveList = computeHaloReceiveList(layout, haloFlags, assignment, peers);
 

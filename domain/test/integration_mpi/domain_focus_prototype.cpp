@@ -105,9 +105,8 @@ void focusDomain(int thisRank, int numRanks)
     }
 
     // halo phase
-    SpaceCurveAssignment focusAssignment = translateAssignment<KeyType>(assignment, tree, focusTree.treeLeaves(),
-                                                                        peers, thisRank);
-    assert(focusAssignment.totalCount(thisRank) == assignment.totalCount(thisRank));
+    std::vector<TreeIndexPair> focusAssignment
+        = translateAssignment<KeyType>(assignment, tree, focusTree.treeLeaves(), peers, thisRank);
 
     std::vector h(x.size(), 0.1);
     std::iota(begin(ordering), end(ordering), 0);
@@ -127,15 +126,15 @@ void focusDomain(int thisRank, int numRanks)
                               focusTree.binaryTree(),
                               haloRadii,
                               box,
-                              focusAssignment.firstNodeIdx(thisRank),
-                              focusAssignment.lastNodeIdx(thisRank),
+                              focusAssignment[thisRank].start(),
+                              focusAssignment[thisRank].end(),
                               haloFlags.data()
                               );
 
 
     std::vector<LocalParticleIndex> layout = computeNodeLayout(focusTree.leafCounts(), haloFlags,
-                                                               focusAssignment.firstNodeIdx(thisRank),
-                                                               focusAssignment.lastNodeIdx(thisRank));
+                                                               focusAssignment[thisRank].start(),
+                                                               focusAssignment[thisRank].end());
 
     SendList haloSendList = exchangeRequestKeys<KeyType>(focusTree.treeLeaves(), haloFlags, layout,
                                                          focusAssignment, peers);
@@ -144,7 +143,7 @@ void focusDomain(int thisRank, int numRanks)
 
     LocalParticleIndex numParticlesTotal = layout.back();
     //reallocate(numParticlesTotal, x, y, z, h);
-    LocalParticleIndex haloOffset = layout[focusAssignment.firstNodeIdx(thisRank)];
+    LocalParticleIndex haloOffset = layout[focusAssignment[thisRank].start()];
 
     relocate(numParticlesTotal, haloOffset, x, y, z, h);
     relocate(numParticlesTotal, haloOffset, particleKeys);
