@@ -167,7 +167,7 @@ template<class KeyType>
 void computeNodeCountsSTree()
 {
     std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
-    std::vector<KeyType> tree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+    std::vector<KeyType> tree = computeSpanningTree<KeyType>(cornerstones);
 
     /// 2 particles in the first and last node
 
@@ -382,19 +382,19 @@ void computeSpanningTree()
 {
     {
         std::vector<KeyType> cornerstones{0, nodeRange<KeyType>(0)};
-        std::vector<KeyType> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+        std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
         std::vector<KeyType> reference{0, nodeRange<KeyType>(0)};
         EXPECT_EQ(spanningTree, reference);
     }
     {
         std::vector<KeyType> cornerstones{0, pad(KeyType(1), 3), nodeRange<KeyType>(0)};
-        std::vector<KeyType> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+        std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
         EXPECT_TRUE(checkOctreeInvariants(spanningTree.data(), nNodes(spanningTree)));
         EXPECT_EQ(spanningTree.size(), 9);
     }
     {
         std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
-        std::vector<KeyType> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+        std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
         EXPECT_TRUE(checkOctreeInvariants(spanningTree.data(), nNodes(spanningTree)));
         if constexpr (std::is_same_v<KeyType, unsigned>)
             EXPECT_EQ(spanningTree.size(), 135);
@@ -434,7 +434,7 @@ template<class KeyType>
 void computeHaloRadiiSTree()
 {
     std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
-    std::vector<KeyType> tree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+    std::vector<KeyType> tree = computeSpanningTree<KeyType>(cornerstones);
 
     /// 2 particles in the first and last node
     std::vector<KeyType> particleCodes{0, 0, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0) - 1};

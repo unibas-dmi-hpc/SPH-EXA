@@ -449,8 +449,7 @@ computeOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucke
 /*! @brief create a cornerstone octree around a series of given SFC codes
  *
  * @tparam InputIterator  iterator to 32- or 64-bit unsigned integer
- * @param  firstCode      SFC code sequence start
- * @param  lastCode       SFC code sequence end
+ * @param  spanningKeys   input SFC key sequence
  * @return                the cornerstone octree containing all values in the given code sequence
  *                        plus any additional intermediate SFC codes between them required to fulfill
  *                        the cornerstone invariants.
@@ -464,30 +463,28 @@ computeOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucke
  *        with CodeType =- std::decay_t<decltype(*firstCode)>
  *      - must be sorted
  */
-template<class InputIterator>
-auto computeSpanningTree(InputIterator firstCode, InputIterator lastCode)
+template<class KeyType>
+std::vector<KeyType> computeSpanningTree(gsl::span<const KeyType> spanningKeys)
 {
-    using CodeType = std::decay_t<decltype(*firstCode)>;
+    assert(spanningKeys.size() > 1);
+    assert(spanningKeys.front() == 0 && spanningKeys.back() == nodeRange<KeyType>(0));
 
-    assert(lastCode - firstCode > 1);
-    assert(*firstCode == 0 && *(lastCode-1) == nodeRange<CodeType>(0));
-
-    TreeNodeIndex numIntervals = lastCode - firstCode - 1;
+    TreeNodeIndex numIntervals = spanningKeys.size() - 1;
 
     std::vector<TreeNodeIndex> offsets(numIntervals + 1);
     for (TreeNodeIndex i = 0; i < numIntervals; ++i)
     {
-        offsets[i] = spanSfcRange(firstCode[i], firstCode[i+1]);
+        offsets[i] = spanSfcRange(spanningKeys[i], spanningKeys[i+1]);
     }
 
     exclusiveScanSerialInplace(offsets.data(), offsets.size(), 0);
 
-    std::vector<CodeType> spanningTree(offsets.back() + 1);
+    std::vector<KeyType> spanningTree(offsets.back() + 1);
     for (TreeNodeIndex i = 0; i < numIntervals; ++i)
     {
-        spanSfcRange(firstCode[i], firstCode[i+1], spanningTree.data() + offsets[i]);
+        spanSfcRange(spanningKeys[i], spanningKeys[i+1], spanningTree.data() + offsets[i]);
     }
-    spanningTree.back() = nodeRange<CodeType>(0);
+    spanningTree.back() = nodeRange<KeyType>(0);
 
     return spanningTree;
 }
