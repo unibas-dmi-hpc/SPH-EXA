@@ -222,6 +222,14 @@ public:
         SpaceCurveAssignment assignment = singleRangeSfcSplit(nodeCounts_, nRanks_);
         LocalParticleIndex newNParticlesAssigned = assignment.totalCount(myRank_);
 
+        //if (myRank_ == 0)
+        //{
+        //    std::cout << "assignment ";
+        //    for (int rank = 0; rank < nRanks_; ++rank)
+        //        std::cout << std::oct << tree_[assignment.firstNodeIdx(rank)] << " ";
+        //    std::cout << tree_[assignment.lastNodeIdx(nRanks_-1)] << std::dec << std::endl;
+        //}
+
         /* Domain particles update phase *********************************************************/
 
         // compute send array ranges for domain exchange
@@ -256,15 +264,18 @@ public:
         domainTree.update(begin(tree_), end(tree_));
         std::vector<int> peers = findPeersMac(myRank_, assignment, domainTree, box_, theta_);
 
-        focusedTree_.updateGlobal(box_, codes, myRank_, peers, assignment, tree_, nodeCounts_);
+        int converged = focusedTree_.updateGlobal(box_, codes, myRank_, peers, assignment, tree_, nodeCounts_);
         if (firstCall_)
         {
-            int converged = 0;
+            MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+            //int cnt = 1;
             while (converged != nRanks_)
             {
                 converged = focusedTree_.updateGlobal(box_, codes, myRank_, peers, assignment, tree_, nodeCounts_);
                 MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+                //cnt++;
             }
+            //if (myRank_ == 0) { std::cout << "focus converged in " << cnt << std::endl; }
             firstCall_ = false;
         }
 
@@ -305,6 +316,7 @@ public:
 
         outgoingHaloIndices_ = exchangeRequestKeys<KeyType>(focusedTree_.treeLeaves(), haloFlags, layout,
                                                             focusAssignment, peers);
+        checkIndices(outgoingHaloIndices_);
 
         incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags, focusAssignment, peers);
 
@@ -364,6 +376,21 @@ public:
     Box<T> box() const { return box_; }
 
 private:
+
+    //! @brief check that only owned particles in [particleStart_:particleEnd_] are sent out as halos
+    void checkIndices(const SendList& sendList)
+    {
+        for (const auto& manifest : sendList)
+        {
+            for (size_t ri = 0; ri < manifest.nRanges(); ++ri)
+            {
+                assert(!overlapTwoRanges(LocalParticleIndex{0}, particleStart_,
+                                         manifest.rangeStart(ri), manifest.rangeEnd(ri)));
+                assert(!overlapTwoRanges(particleEnd_, localNParticles_,
+                                         manifest.rangeStart(ri), manifest.rangeEnd(ri)));
+            }
+        }
+    }
 
     //! @brief return true if all array sizes are equal to value
     template<class... Arrays>

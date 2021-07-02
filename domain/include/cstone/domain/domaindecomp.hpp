@@ -63,19 +63,25 @@ using Rank = StrongType<int, struct RankTag>;
  * The storage layout allows fast look-up of the SFC code ranges that a given rank
  * was assigned.
  *
- * Note: Assignment of SFC ranges to ranks should be unique, each SFC range should only
- * be assigned to one rank. This is NOT checked.
+ * Usage constraints of this class:
+ *      - Assigned ranges can be empty, but each rank has to be assigned a range (not checked)
+ *      - The ranges of two consecutive ranks must not overlap and must not have holes in between,
+ *        i.e. lastNodeIdx(n) == firstNodeIdx(n+1) for any rank n < nRanks-1 (checked)
  */
 class SpaceCurveAssignment
 {
+    static constexpr TreeNodeIndex untouched = -1;
 public:
     SpaceCurveAssignment() = default;
 
-    explicit SpaceCurveAssignment(int nRanks) : rankAssignment_(nRanks+1), counts_(nRanks+1) {}
+    explicit SpaceCurveAssignment(int numRanks) : rankAssignment_(numRanks+1, untouched), counts_(numRanks) {}
 
     //! @brief add an index/code range to rank @p rank
     void addRange(Rank rank, TreeNodeIndex lower, TreeNodeIndex upper, std::size_t cnt)
     {
+        // make sure that there's no holes or overlap between or with the range of the previous rank
+        assert(rankAssignment_[rank] == lower || rankAssignment_[rank] == untouched);
+
         rankAssignment_[rank]   = lower;
         // will be overwritten by @p lower of rank+1, except if rank == numRanks-1
         rankAssignment_[rank+1] = upper;
@@ -211,6 +217,8 @@ SpaceCurveAssignment translateAssignment(const SpaceCurveAssignment& assignment,
         // the discarded part will not participate in peer/halo exchanges
         TreeNodeIndex newStartIndex = findNodeAbove(newTree, startKey);
         TreeNodeIndex newEndIndex   = findNodeBelow(newTree, endKey);
+        //assert(startKey == newTree[newStartIndex]);
+        //assert(endKey == newTree[newEndIndex]);
 
         newAssignment.addRange(Rank(peer), newStartIndex, newEndIndex, assignment.totalCount(peer));
     }
