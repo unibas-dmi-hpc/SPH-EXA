@@ -107,8 +107,10 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
             KeyType lowerKey = receiveBuffer[i];
             KeyType upperKey = receiveBuffer[i+1];
 
-            LocalParticleIndex lowerIdx = findNodeAbove(particleKeys, lowerKey) + offset;
-            LocalParticleIndex upperIdx = findNodeAbove(particleKeys, upperKey) + offset;
+            LocalParticleIndex lowerIdx = stl::lower_bound(particleKeys.begin(), particleKeys.end(), lowerKey)
+                                          - particleKeys.begin() + offset;
+            LocalParticleIndex upperIdx = stl::lower_bound(particleKeys.begin(), particleKeys.end(), upperKey)
+                                          - particleKeys.begin() + offset;
 
             ret[receiveRank].addRange(lowerIdx, upperIdx);
         }
