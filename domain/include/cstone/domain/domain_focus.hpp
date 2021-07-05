@@ -181,6 +181,8 @@ public:
             throw std::runtime_error("Domain sync: input array sizes are inconsistent\n");
         }
 
+        haloEpoch_ = 0;
+
         /* SFC decomposition phase *********************************************************/
 
         box_ = makeGlobalBox(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
@@ -342,8 +344,8 @@ public:
      *
      * @param[inout] arrays  std::vector<float or double> of size localNParticles_
      *
-     * Arrays are not resized or reallocated.
-     * This is used e.g. for densities.
+     * Arrays are not resized or reallocated. This is used e.g. for densities.
+     * Note: function is const, but modiefies mutable haloEpoch_ counter.
      */
     template<class...Arrays>
     void exchangeHalos(Arrays&... arrays) const
@@ -353,7 +355,7 @@ public:
             throw std::runtime_error("halo exchange array sizes inconsistent with previous sync operation\n");
         }
 
-        haloexchange<T>(incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
+        haloexchange<T>(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
     }
 
     //! @brief return the index of the first particle that's part of the local assignment
@@ -438,6 +440,14 @@ private:
     FocusedOctree<KeyType> focusedTree_;
 
     bool firstCall_{true};
+
+    /*! @brief counter for halo exchange calls between sync() calls
+     *
+     * Gets reset to 0 after every call to sync(). The reason for this setup is that
+     * the multiple client calls to exchangeHalos() before sync() is called again
+     * should get different MPI tags, because there is no global MPI_Barrier or MPI collective in between them.
+     */
+     mutable int haloEpoch_{0};
 
     ReorderFunctor reorderFunctor;
 };

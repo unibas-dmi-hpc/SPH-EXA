@@ -40,7 +40,8 @@ namespace cstone
 {
 
 template<class T, class...Arrays>
-void haloexchange(const SendList& incomingHalos,
+void haloexchange(int epoch,
+                  const SendList& incomingHalos,
                   const SendList& outgoingHalos,
                   Arrays... arrays)
 {
@@ -51,6 +52,8 @@ void haloexchange(const SendList& incomingHalos,
 
     std::vector<std::vector<T>> sendBuffers;
     std::vector<MPI_Request>    sendRequests;
+
+    int haloExchangeTag = static_cast<int>(P2pTags::haloExchange) + epoch;
 
     for (std::size_t destinationRank = 0; destinationRank < outgoingHalos.size(); ++destinationRank)
     {
@@ -73,7 +76,7 @@ void haloexchange(const SendList& incomingHalos,
             }
         }
 
-        mpiSendAsync(buffer.data(), sendCount * nArrays, destinationRank, 0, sendRequests);
+        mpiSendAsync(buffer.data(), sendCount * nArrays, destinationRank, haloExchangeTag, sendRequests);
         sendBuffers.push_back(std::move(buffer));
     }
 
@@ -91,7 +94,7 @@ void haloexchange(const SendList& incomingHalos,
     while (nMessages > 0)
     {
         MPI_Status status;
-        mpiRecvSync(receiveBuffer.data(), receiveBuffer.size(), MPI_ANY_SOURCE, 0, &status);
+        mpiRecvSync(receiveBuffer.data(), receiveBuffer.size(), MPI_ANY_SOURCE, haloExchangeTag, &status);
         int receiveRank = status.MPI_SOURCE;
         size_t countPerArray = incomingHalos[receiveRank].totalCount();
 
@@ -118,9 +121,9 @@ void haloexchange(const SendList& incomingHalos,
         MPI_Waitall(int(sendRequests.size()), sendRequests.data(), status);
     }
 
-    // prevent rank from sending further messages with tag 0 while other ranks
-    // are still listening to the messages sent out here
-    MPI_Barrier(MPI_COMM_WORLD);
+    // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization
+    // across all ranks before calling this function again.
+    //MPI_Barrier(MPI_COMM_WORLD);
 }
 
 } // namespace cstone

@@ -166,6 +166,8 @@ public:
             throw std::runtime_error("Domain sync: input array sizes are inconsistent\n");
         }
 
+        haloEpoch_ = 0;
+
         box_ = makeGlobalBox(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
                              cbegin(y) + particleStart_,
                              cbegin(z) + particleStart_, box_);
@@ -311,7 +313,7 @@ public:
             throw std::runtime_error("halo exchange array sizes inconsistent with previous sync operation\n");
         }
 
-        haloexchange<T>(incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
+        haloexchange<T>(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
     }
 
     //! @brief return the index of the first particle that's part of the local assignment
@@ -364,6 +366,14 @@ private:
     std::vector<KeyType> tree_;
     std::vector<unsigned> nodeCounts_;
     bool firstCall_{true};
+
+    /*! @brief counter for halo exchange calls between sync() calls
+     *
+     * Gets reset to 0 after every call to sync(). The reason for this setup is that
+     * the multiple client calls to exchangeHalos() before sync() is called again
+     * should get different MPI tags, because there is no global MPI_Barrier or MPI collective in between them.
+     */
+     mutable int haloEpoch_{0};
 
     ReorderFunctor reorderFunctor;
 };
