@@ -75,11 +75,13 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
 
     std::vector<MPI_Request> sendRequests;
 
+    constexpr int haloRequestKeyTag = static_cast<int>(P2pTags::haloRequestKeys);
+
     for (int peer : peerRanks)
     {
         auto requestKeys =
             extractMarkedElements(treeLeaves, haloFlags, assignment[peer].start(), assignment[peer].end());
-        mpiSendAsync(requestKeys.data(), int(requestKeys.size()), peer, 0, sendRequests);
+        mpiSendAsync(requestKeys.data(), int(requestKeys.size()), peer, haloRequestKeyTag, sendRequests);
         sendBuffers.push_back(std::move(requestKeys));
     }
 
@@ -97,7 +99,7 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
     while (numMessages > 0)
     {
         MPI_Status status;
-        mpiRecvSync(receiveBuffer.data(), receiveBuffer.size(), MPI_ANY_SOURCE, 0, &status);
+        mpiRecvSync(receiveBuffer.data(), receiveBuffer.size(), MPI_ANY_SOURCE, haloRequestKeyTag, &status);
         int receiveRank = status.MPI_SOURCE;
         TreeNodeIndex numKeys;
         MPI_Get_count(&status, MpiType<KeyType>{}, &numKeys);
@@ -121,7 +123,9 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
     MPI_Status status[sendRequests.size()];
     MPI_Waitall(int(sendRequests.size()), sendRequests.data(), status);
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization
+    // across all ranks before calling this function again
+    //MPI_Barrier(MPI_COMM_WORLD);
 
     return ret;
 }
