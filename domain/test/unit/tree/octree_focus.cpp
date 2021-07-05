@@ -169,23 +169,30 @@ void computeEssentialTree()
 
     KeyType focusStart = 1;
     KeyType focusEnd = pad(KeyType(1), 3);
-    while (!tree.update(box, codes, focusStart, focusEnd)) {}
+    std::vector<KeyType> mandatoryKeys{focusStart, focusEnd};
+    while (!tree.update(box, codes, focusStart, focusEnd, mandatoryKeys)) {}
 
     // in the focus area (the first octant) the essential tree and the csTree are identical
     TreeNodeIndex lastFocusNode =
         std::lower_bound(tree.treeLeaves().begin(), tree.treeLeaves().end(), focusEnd) - tree.treeLeaves().begin();
+    //for (int i = 0; i < 200; ++i)
+    //{
+    //    std::cout << std::oct << csTree[i] << " " << tree.treeLeaves()[i] << std::dec << std::endl;
+    //}
     EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, tree.treeLeaves().begin()));
     EXPECT_EQ(numNodesInRange(tree, pad(KeyType(7), 3), nodeRange<KeyType>(0)), 92);
 
     focusStart = pad(KeyType(6), 3);
     focusEnd = pad(KeyType(7), 3);
-    while (!tree.update(box, codes, focusStart, focusEnd)) {}
+    mandatoryKeys = std::vector<KeyType>{focusStart, focusEnd};
+    while (!tree.update(box, codes, focusStart, focusEnd, mandatoryKeys)) {}
 
     EXPECT_EQ(numNodesInRange(tree, pad(KeyType(1), 3), pad(KeyType(2), 3)), 92);
 
     focusStart = 0;
     focusEnd = pad(KeyType(1), 3);
-    while (!tree.update(box, codes, focusStart, focusEnd)) {}
+    mandatoryKeys = std::vector<KeyType>{focusStart, focusEnd};
+    while (!tree.update(box, codes, focusStart, focusEnd, mandatoryKeys)) {}
 
     // tree now focused again on first octant
     EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, tree.treeLeaves().begin()));

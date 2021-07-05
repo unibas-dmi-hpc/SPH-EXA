@@ -50,6 +50,7 @@
 
 #include "macs.hpp"
 #include "octree_internal.hpp"
+#include "octree_util.hpp"
 #include "traversal.hpp"
 
 namespace cstone
@@ -279,7 +280,8 @@ public:
      * then updates the node counts and MACs.
      */
     template<class T>
-    bool update(const Box<T>& box, gsl::span<const KeyType> particleKeys, KeyType focusStart, KeyType focusEnd)
+    bool update(const Box<T>& box, gsl::span<const KeyType> particleKeys, KeyType focusStart, KeyType focusEnd,
+                gsl::span<const KeyType> mandatoryKeys)
     {
         assert(std::is_sorted(particleKeys.begin(), particleKeys.end()));
 
@@ -292,8 +294,35 @@ public:
         bool converged = rebalanceDecisionEssential(leaves.data(), tree_.numInternalNodes(), tree_.numLeafNodes(), tree_.leafParents(),
                                                     counts_.data(), macs_.data(), firstFocusNode, lastFocusNode,
                                                     bucketSize_, nodeOps.data());
+
+        // make sure all mandatory keys will be present in newLeaves after rebalance
+        enforceKeys<KeyType>(leaves, mandatoryKeys, nodeOps);
+        converged = std::count(begin(nodeOps), end(nodeOps) - 1, 1) == nNodes(leaves);
+
+        auto nodeOpsCopy = nodeOps;
+
         std::vector<KeyType> newLeaves;
         rebalanceTree(leaves, newLeaves, nodeOps.data());
+
+        if (!checkOctreeInvariants(newLeaves.data(), nNodes(newLeaves)))
+        {
+            for (int i = 0; i < 10; ++i)
+            {
+                std::cout << std::oct << leaves[i] << " " << std::dec << nodeOpsCopy[i] << std::endl;
+            }
+
+            for (int i = 0; i < nNodes(newLeaves); ++i)
+            {
+                std::cout << i << " " << std::oct << newLeaves[i] << std::dec << std::endl;
+                if (!isPowerOf8(newLeaves[i+1] - newLeaves[i]))
+                {
+                    std::cout << i+1 << " " << std::oct << newLeaves[i+1] << std::dec << std::endl;
+                    break;
+                }
+            }
+        }
+        assert(checkOctreeInvariants(newLeaves.data(), nNodes(newLeaves)));
+
         tree_.update(std::move(newLeaves));
 
         // tree update invalidates the view, need to update it
@@ -345,7 +374,14 @@ public:
 
         assert(particleKeys.front() >= focusStart && particleKeys.back() < focusEnd);
 
-        bool converged = update(box, particleKeys, focusStart, focusEnd);
+        std::vector<KeyType> peerBoundaries;
+        for (int peer : peerRanks)
+        {
+            peerBoundaries.push_back(globalTreeLeaves[assignment.firstNodeIdx(peer)]);
+            peerBoundaries.push_back(globalTreeLeaves[assignment.lastNodeIdx(peer)]);
+        }
+
+        bool converged = update(box, particleKeys, focusStart, focusEnd, peerBoundaries);
 
         auto requestIndices = findRequestIndices(peerRanks, assignment, globalTreeLeaves, tree_.treeLeaves());
 
