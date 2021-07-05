@@ -133,13 +133,16 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPai
 
     std::vector<KeyType> queryLeafBuffer(localLeaves.size());
 
+    constexpr int keyTag   = static_cast<int>(P2pTags::focusPeerCounts);
+    constexpr int countTag = static_cast<int>(P2pTags::focusPeerCounts) + 1;
+
     std::vector<MPI_Request> sendRequests;
     for (size_t rankIndex = 0; rankIndex < peerRanks.size(); ++rankIndex)
     {
         int destinationRank = peerRanks[rankIndex];
         // +1 to include the upper key boundary for the last node
         TreeNodeIndex sendCount = exchangeIndices[rankIndex].count() + 1;
-        mpiSendAsync(localLeaves.data() + exchangeIndices[rankIndex].start(), sendCount, destinationRank, 0, sendRequests);
+        mpiSendAsync(localLeaves.data() + exchangeIndices[rankIndex].start(), sendCount, destinationRank, keyTag, sendRequests);
     }
 
     size_t numMessages = peerRanks.size();
@@ -147,7 +150,7 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPai
     {
         MPI_Status status;
         // receive SFC key sequence from remote rank, this defines the remote rank's node structure view of the local domain
-        mpiRecvSync(queryLeafBuffer.data(), queryLeafBuffer.size(), MPI_ANY_SOURCE, 0, &status);
+        mpiRecvSync(queryLeafBuffer.data(), queryLeafBuffer.size(), MPI_ANY_SOURCE, keyTag, &status);
         int receiveRank = status.MPI_SOURCE;
         TreeNodeIndex numKeys;
         MPI_Get_count(&status, MpiType<KeyType>{}, &numKeys);
@@ -159,7 +162,7 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPai
         countRequestParticles<KeyType>(gsl::span(queryLeafBuffer.data(), numKeys), countBuffer, particleKeys);
 
         // send back answer with the counts for the requested nodes
-        mpiSendAsync(countBuffer.data(), numNodes, receiveRank, 1, sendRequests);
+        mpiSendAsync(countBuffer.data(), numNodes, receiveRank, countTag, sendRequests);
         sendBuffers.push_back(std::move(countBuffer));
 
         numMessages--;
@@ -169,12 +172,12 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPai
     while (numMessages > 0)
     {
         MPI_Status status;
-        MPI_Probe(MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &status);
+        MPI_Probe(MPI_ANY_SOURCE, countTag, MPI_COMM_WORLD, &status);
         int receiveRank = status.MPI_SOURCE;
 
         size_t receiveRankIndex    = std::find(peerRanks.begin(), peerRanks.end(), receiveRank) - peerRanks.begin();
         TreeNodeIndex receiveCount = exchangeIndices[receiveRankIndex].count();
-        mpiRecvSync(localCounts.data() + exchangeIndices[receiveRankIndex].start(), receiveCount, receiveRank, 1, &status);
+        mpiRecvSync(localCounts.data() + exchangeIndices[receiveRankIndex].start(), receiveCount, receiveRank, countTag, &status);
 
         numMessages--;
     }
@@ -182,7 +185,9 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPai
     MPI_Status status[sendRequests.size()];
     MPI_Waitall(int(sendRequests.size()), sendRequests.data(), status);
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization
+    // across all ranks before calling this function again.
+    //MPI_Barrier(MPI_COMM_WORLD);
 }
 
 } // namespace cstone

@@ -57,6 +57,13 @@ constexpr TreeNodeIndex loadLeafIndex(TreeNodeIndex index)
     return index - offset;
 }
 
+enum class P2pTags : int
+{
+    focusPeerCounts = 1000,
+    haloRequestKeys = 2000,
+    haloExchange    = 3000
+};
+
 /*! @brief returns the number of nodes in a tree
  *
  * @tparam    Vector  a vector-like container that has a .size() member
