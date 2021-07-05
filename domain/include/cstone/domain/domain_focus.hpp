@@ -307,6 +307,8 @@ public:
                                   focusAssignment[myRank_].end(),
                                   haloFlags.data());
 
+        removeUnresolvedHalos<KeyType>(assignment, tree_, focusedTree_.treeLeaves(), peers, haloFlags);
+
         /* Halo exchange phase *********************************************************/
 
         std::vector<LocalParticleIndex> layout = computeNodeLayout(focusedTree_.leafCounts(), haloFlags,
