@@ -151,7 +151,7 @@ void focusDomain(int thisRank, int numRanks)
     relocate(numParticlesTotal, haloOffset, x, y, z, h);
     relocate(numParticlesTotal, haloOffset, particleKeys);
 
-    haloexchange<T>(haloReceiveList, haloSendList, x.data(), y.data(), z.data(), h.data());
+    haloexchange<T>(0, haloReceiveList, haloSendList, x.data(), y.data(), z.data(), h.data());
 
     LocalParticleIndex particleStart_ = haloOffset;
     LocalParticleIndex particleEnd_ = particleStart_ + numParticlesAssigned;
