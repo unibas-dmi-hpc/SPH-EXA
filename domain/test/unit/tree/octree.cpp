@@ -409,6 +409,102 @@ TEST(CornerstoneOctree, computeSpanningTree)
     computeSpanningTree<uint64_t>();
 }
 
+template<class KeyType>
+void enforceKeys()
+{
+    auto tree = OctreeMaker<KeyType>{}.divide().divide(1).makeTree();
+
+    {
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{pad(KeyType(024), 6)};
+
+        enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+        EXPECT_EQ(nodeOps[9], 8);
+    }
+    {
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{pad(KeyType(0241), 9)};
+
+        enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+        EXPECT_EQ(nodeOps[9], 64);
+    }
+    {
+        std::vector<int> nodeOps{1, 1,0,0,0,0,0,0,0, 1,1,1,1,1,1};
+        std::vector<KeyType> injectKeys{pad(KeyType(014), 6)};
+
+        enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference(nNodes(tree), 1);
+        EXPECT_EQ(nodeOps, reference);
+        //EXPECT_TRUE(converged);
+    }
+    {
+        std::vector<int> nodeOps{1, 1,0,0,0,0,0,0,0, 1,1,1,1,1,1};
+        std::vector<KeyType> injectKeys{pad(KeyType(0101), 9)};
+
+        bool converged = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference(nNodes(tree), 1);
+        reference[1] = 8;
+        EXPECT_EQ(nodeOps, reference);
+        EXPECT_FALSE(converged);
+    }
+    {
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{pad(KeyType(014), 6)};
+
+        bool converged = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference(nNodes(tree), 1);
+        EXPECT_EQ(nodeOps, reference);
+        EXPECT_TRUE(converged);
+    }
+    {
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{pad(KeyType(0141), 9)};
+
+        enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference(nNodes(tree), 1);
+        reference[5] = 8;
+        EXPECT_EQ(nodeOps, reference);
+    }
+    {
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{pad(KeyType(0241), 9), pad(KeyType(024), 6)};
+
+        enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+        EXPECT_EQ(nodeOps[9], 64);
+    }
+    {
+        tree = makeRootNodeTree<KeyType>();
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{1};
+
+        bool converged = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+        EXPECT_EQ(nodeOps[0], 4096);
+        EXPECT_FALSE(converged);
+    }
+    {
+        tree = OctreeMaker<KeyType>{}.divide().divide(0).makeTree();
+        std::vector<int> nodeOps{1,0,0,0,0,0,0,0, 1,1,1,1,1,1,1};
+        std::vector<KeyType> injectKeys{1};
+
+        bool converged = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference(nNodes(tree), 1);
+        reference[0] = 4096;
+        EXPECT_EQ(nodeOps, reference);
+        EXPECT_FALSE(converged);
+    }
+}
+
+TEST(CornerstoneOctree, enforceKeys)
+{
+    enforceKeys<unsigned>();
+    enforceKeys<uint64_t>();
+}
+
 TEST(CornerstoneOctree, computeHaloRadii)
 {
     using CodeType = unsigned;
