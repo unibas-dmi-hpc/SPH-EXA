@@ -57,7 +57,7 @@ int main(int argc, char** argv)
 
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
-    size_t bucketSizeFocus = 64;
+    size_t bucketSizeFocus = 1;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
     size_t bucketSize = std::max(bucketSizeFocus, (cubeSide * cubeSide * cubeSide) / (100 * d.nrank));
     cstone::Box<Real> box{d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin,
