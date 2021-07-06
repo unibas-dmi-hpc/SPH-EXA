@@ -169,6 +169,14 @@ void computeEssentialTree()
 
     KeyType focusStart = 1;
     KeyType focusEnd = pad(KeyType(1), 3);
+
+    tree.update(box, codes, focusStart, focusEnd, {});
+    // The focus boundaries have to be contained in the tree, even after just one update step.
+    // This example here is the worst-case scenario with a focus boundary at the highest possible
+    // octree subdivision level. Key-0 is always present, so the node with Key-1 is always at index 1, if present.
+    EXPECT_EQ(tree.treeLeaves()[1], focusStart);
+
+    // update until converged
     while (!tree.update(box, codes, focusStart, focusEnd, {})) {}
 
     {

@@ -50,7 +50,6 @@
 
 #include "macs.hpp"
 #include "octree_internal.hpp"
-#include "octree_util.hpp"
 #include "traversal.hpp"
 
 namespace cstone
@@ -300,19 +299,29 @@ public:
                                                     counts_.data(), macs_.data(), firstFocusNode, lastFocusNode,
                                                     bucketSize_, nodeOps.data());
 
-        // make sure all mandatory keys are going to be present in newLeaves after rebalance
-        KeyType allMandatoryKeys[2 + mandatoryKeys.size()];
-        allMandatoryKeys[0] = focusStart;
-        allMandatoryKeys[1] = focusEnd;
-        std::copy(mandatoryKeys.begin(), mandatoryKeys.end(), allMandatoryKeys + 2);
+        std::vector<KeyType> allMandatoryKeys{focusStart, focusEnd};
+        std::copy(mandatoryKeys.begin(), mandatoryKeys.end(), std::back_inserter(allMandatoryKeys));
 
-        enforceKeys<KeyType>(leaves, gsl::span<const KeyType>(allMandatoryKeys, 2 + mandatoryKeys.size()), nodeOps);
-        converged = std::count(begin(nodeOps), end(nodeOps) - 1, 1) == nNodes(leaves);
+        auto status = enforceKeys<KeyType>(leaves, allMandatoryKeys, nodeOps);
+
+        if (status == ResolutionStatus::cancelMerge)
+        {
+            converged = std::count(begin(nodeOps), end(nodeOps) - 1, 1) == nNodes(leaves);
+        }
+        else if (status == ResolutionStatus::rebalance)
+        {
+            converged = false;
+        }
 
         std::vector<KeyType> newLeaves;
         rebalanceTree(leaves, newLeaves, nodeOps.data());
 
-        assert(checkOctreeInvariants(newLeaves.data(), nNodes(newLeaves)));
+        // if rebalancing couldn't introduce the mandatory keys, we force-inject them now into the tree
+        if (status == ResolutionStatus::failed)
+        {
+            converged = false;
+            injectKeys(newLeaves, allMandatoryKeys);
+        }
 
         tree_.update(std::move(newLeaves));
 
@@ -324,8 +333,8 @@ public:
 
         counts_.resize(tree_.numLeafNodes());
         // local node counts
-        computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), particleKeys.data(), particleKeys.data() + particleKeys.size(),
-                          std::numeric_limits<unsigned>::max(), true);
+        computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), particleKeys.data(),
+                          particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
 
         return converged;
     }

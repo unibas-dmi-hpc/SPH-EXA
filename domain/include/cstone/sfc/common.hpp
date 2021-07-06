@@ -337,6 +337,7 @@ constexpr KeyType octalPower(int pos)
 /*! @brief generate SFC codes to cover the range [a:b] with a valid cornerstone sub-octree
  *
  * @tparam     KeyType 32- or 64-bit unsigned integer
+ * @tparam     Store   either std::nullptr_t or KeyType*
  * @param[in]  a       first SFC code
  * @param[in]  b       second SFC code, b > a
  * @param[out] output  output SFC codes, includes a, excludes b
