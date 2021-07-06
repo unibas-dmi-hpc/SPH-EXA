@@ -274,6 +274,11 @@ public:
      * @param particleKeys    locally present particle SFC keys
      * @param focusStart      start of the focus area
      * @param focusEnd        end of the focus area
+     * @param mandatoryKeys   List of SFC keys that have to be present in the focus tree after this function returns.
+     *                        @p focusStart and @p focusEnd are always mandatory, so they don't need to be
+     *                        specified here. @p mandatoryKeys need not be sorted and can tolerate duplicates.
+     *                        This is used e.g. to guarantee that the assignment boundaries of peer ranks are resolved,
+     *                        even if the update did not converge.
      * @return                true if the tree structure did not change
      *
      * First rebalances the tree based on previous node counts and MAC evaluations,
@@ -295,32 +300,18 @@ public:
                                                     counts_.data(), macs_.data(), firstFocusNode, lastFocusNode,
                                                     bucketSize_, nodeOps.data());
 
-        // make sure all mandatory keys will be present in newLeaves after rebalance
-        enforceKeys<KeyType>(leaves, mandatoryKeys, nodeOps);
-        converged = std::count(begin(nodeOps), end(nodeOps) - 1, 1) == nNodes(leaves);
+        // make sure all mandatory keys are going to be present in newLeaves after rebalance
+        KeyType allMandatoryKeys[2 + mandatoryKeys.size()];
+        allMandatoryKeys[0] = focusStart;
+        allMandatoryKeys[1] = focusEnd;
+        std::copy(mandatoryKeys.begin(), mandatoryKeys.end(), allMandatoryKeys + 2);
 
-        auto nodeOpsCopy = nodeOps;
+        enforceKeys<KeyType>(leaves, gsl::span<const KeyType>(allMandatoryKeys, 2 + mandatoryKeys.size()), nodeOps);
+        converged = std::count(begin(nodeOps), end(nodeOps) - 1, 1) == nNodes(leaves);
 
         std::vector<KeyType> newLeaves;
         rebalanceTree(leaves, newLeaves, nodeOps.data());
 
-        if (!checkOctreeInvariants(newLeaves.data(), nNodes(newLeaves)))
-        {
-            for (int i = 0; i < 10; ++i)
-            {
-                std::cout << std::oct << leaves[i] << " " << std::dec << nodeOpsCopy[i] << std::endl;
-            }
-
-            for (int i = 0; i < nNodes(newLeaves); ++i)
-            {
-                std::cout << i << " " << std::oct << newLeaves[i] << std::dec << std::endl;
-                if (!isPowerOf8(newLeaves[i+1] - newLeaves[i]))
-                {
-                    std::cout << i+1 << " " << std::oct << newLeaves[i+1] << std::dec << std::endl;
-                    break;
-                }
-            }
-        }
         assert(checkOctreeInvariants(newLeaves.data(), nNodes(newLeaves)));
 
         tree_.update(std::move(newLeaves));

@@ -169,34 +169,46 @@ void computeEssentialTree()
 
     KeyType focusStart = 1;
     KeyType focusEnd = pad(KeyType(1), 3);
-    std::vector<KeyType> mandatoryKeys{focusStart, focusEnd};
-    while (!tree.update(box, codes, focusStart, focusEnd, mandatoryKeys)) {}
+    while (!tree.update(box, codes, focusStart, focusEnd, {})) {}
 
-    // in the focus area (the first octant) the essential tree and the csTree are identical
-    TreeNodeIndex lastFocusNode =
-        std::lower_bound(tree.treeLeaves().begin(), tree.treeLeaves().end(), focusEnd) - tree.treeLeaves().begin();
-    //for (int i = 0; i < 200; ++i)
-    //{
-    //    std::cout << std::oct << csTree[i] << " " << tree.treeLeaves()[i] << std::dec << std::endl;
-    //}
-    EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, tree.treeLeaves().begin()));
-    EXPECT_EQ(numNodesInRange(tree, pad(KeyType(7), 3), nodeRange<KeyType>(0)), 92);
+    {
+        // the first node in the cornerstone tree that starts at or above focusStart
+        TreeNodeIndex firstCstoneNode   = findNodeAbove<KeyType>(csTree, focusStart);
+        TreeNodeIndex matchingFocusNode = findNodeAbove(tree.treeLeaves(), csTree[firstCstoneNode]);
+        // in the focus area (the first octant) the essential tree and the csTree are identical
+        TreeNodeIndex lastFocusNode = findNodeAbove(tree.treeLeaves(), focusEnd);
+
+        EXPECT_TRUE(matchingFocusNode >= 1 && matchingFocusNode < lastFocusNode);
+
+        // We have: focusTree[matchingFocusNode] == csTree[firstCstoneNode]
+        // therefore all nodes past matchingFocusNode until lastFocusNode should match those in the csTree
+        EXPECT_TRUE(std::equal(tree.treeLeaves().begin() + matchingFocusNode, tree.treeLeaves().begin() + lastFocusNode,
+                               begin(csTree) + firstCstoneNode));
+
+        // From 0 to matchingFocusNode, the focusTree should be identical to the spanningTree
+        std::vector<KeyType> spanningKeys{0, focusStart, nodeRange<KeyType>(0)};
+        auto spanningTree = computeSpanningTree<KeyType>(spanningKeys);
+        EXPECT_EQ(tree.treeLeaves().first(matchingFocusNode), gsl::span<KeyType>(spanningTree.data(), matchingFocusNode));
+
+        EXPECT_EQ(numNodesInRange(tree, pad(KeyType(7), 3), nodeRange<KeyType>(0)), 92);
+    }
 
     focusStart = pad(KeyType(6), 3);
-    focusEnd = pad(KeyType(7), 3);
-    mandatoryKeys = std::vector<KeyType>{focusStart, focusEnd};
-    while (!tree.update(box, codes, focusStart, focusEnd, mandatoryKeys)) {}
+    focusEnd   = pad(KeyType(7), 3);
+    while (!tree.update(box, codes, focusStart, focusEnd, {})) {}
 
     EXPECT_EQ(numNodesInRange(tree, pad(KeyType(1), 3), pad(KeyType(2), 3)), 92);
 
     focusStart = 0;
-    focusEnd = pad(KeyType(1), 3);
-    mandatoryKeys = std::vector<KeyType>{focusStart, focusEnd};
-    while (!tree.update(box, codes, focusStart, focusEnd, mandatoryKeys)) {}
+    focusEnd   = pad(KeyType(1), 3);
+    while (!tree.update(box, codes, focusStart, focusEnd, {})) {}
 
-    // tree now focused again on first octant
-    EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, tree.treeLeaves().begin()));
-    EXPECT_EQ(numNodesInRange(tree, pad(KeyType(7), 3), nodeRange<KeyType>(0)), 92);
+    {
+        TreeNodeIndex lastFocusNode = findNodeAbove(tree.treeLeaves(), focusEnd);
+        // tree now focused again on first octant
+        EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, tree.treeLeaves().begin()));
+        EXPECT_EQ(numNodesInRange(tree, pad(KeyType(7), 3), nodeRange<KeyType>(0)), 92);
+    }
 }
 
 TEST(OctreeEssential, compute)

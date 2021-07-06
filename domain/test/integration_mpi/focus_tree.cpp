@@ -56,7 +56,7 @@ FocusedOctree<KeyType> createReferenceFocusTree(const Box<T>& box, gsl::span<con
 
     FocusedOctree<KeyType> focusTree(bucketSizeLocal, theta);
     while (!focusTree.update(box, particleKeys, tree[assignment.firstNodeIdx(myRank)],
-                             tree[assignment.lastNodeIdx(myRank)]))
+                             tree[assignment.lastNodeIdx(myRank)], {}))
     {
     }
 
