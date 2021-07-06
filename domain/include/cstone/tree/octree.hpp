@@ -525,6 +525,8 @@ bool enforceKeys(gsl::span<const KeyType> treeLeaves, gsl::span<const KeyType> m
 
     for (KeyType key : mandatoryKeys)
     {
+        if (key == 0 || key == nodeRange<KeyType>(0)) { continue; }
+
         TreeNodeIndex nodeIdx = findNodeBelow(treeLeaves, key);
 
         // closest tree node would be merged on next rebalance
