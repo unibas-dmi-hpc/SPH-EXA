@@ -138,8 +138,8 @@ int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
                        unsigned bucketSize)
 {
     auto p = siblingAndLevel(cstoneTree, leafIdx);
-    unsigned siblingIdx = p[0];
-    unsigned level      = p[1];
+    int siblingIdx = p[0];
+    int level      = p[1];
 
     if (siblingIdx > 0) // 8 siblings next to each other, node can potentially be merged
     {
@@ -273,13 +273,19 @@ public:
      * @param particleKeys    locally present particle SFC keys
      * @param focusStart      start of the focus area
      * @param focusEnd        end of the focus area
+     * @param mandatoryKeys   List of SFC keys that have to be present in the focus tree after this function returns.
+     *                        @p focusStart and @p focusEnd are always mandatory, so they don't need to be
+     *                        specified here. @p mandatoryKeys need not be sorted and can tolerate duplicates.
+     *                        This is used e.g. to guarantee that the assignment boundaries of peer ranks are resolved,
+     *                        even if the update did not converge.
      * @return                true if the tree structure did not change
      *
      * First rebalances the tree based on previous node counts and MAC evaluations,
      * then updates the node counts and MACs.
      */
     template<class T>
-    bool update(const Box<T>& box, gsl::span<const KeyType> particleKeys, KeyType focusStart, KeyType focusEnd)
+    bool update(const Box<T>& box, gsl::span<const KeyType> particleKeys, KeyType focusStart, KeyType focusEnd,
+                gsl::span<const KeyType> mandatoryKeys)
     {
         assert(std::is_sorted(particleKeys.begin(), particleKeys.end()));
 
@@ -292,8 +298,31 @@ public:
         bool converged = rebalanceDecisionEssential(leaves.data(), tree_.numInternalNodes(), tree_.numLeafNodes(), tree_.leafParents(),
                                                     counts_.data(), macs_.data(), firstFocusNode, lastFocusNode,
                                                     bucketSize_, nodeOps.data());
+
+        std::vector<KeyType> allMandatoryKeys{focusStart, focusEnd};
+        std::copy(mandatoryKeys.begin(), mandatoryKeys.end(), std::back_inserter(allMandatoryKeys));
+
+        auto status = enforceKeys<KeyType>(leaves, allMandatoryKeys, nodeOps);
+
+        if (status == ResolutionStatus::cancelMerge)
+        {
+            converged = std::all_of(begin(nodeOps), end(nodeOps) -1, [](TreeNodeIndex i) { return i == 1; });
+        }
+        else if (status == ResolutionStatus::rebalance)
+        {
+            converged = false;
+        }
+
         std::vector<KeyType> newLeaves;
         rebalanceTree(leaves, newLeaves, nodeOps.data());
+
+        // if rebalancing couldn't introduce the mandatory keys, we force-inject them now into the tree
+        if (status == ResolutionStatus::failed)
+        {
+            converged = false;
+            injectKeys(newLeaves, allMandatoryKeys);
+        }
+
         tree_.update(std::move(newLeaves));
 
         // tree update invalidates the view, need to update it
@@ -304,8 +333,8 @@ public:
 
         counts_.resize(tree_.numLeafNodes());
         // local node counts
-        computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), particleKeys.data(), particleKeys.data() + particleKeys.size(),
-                          std::numeric_limits<unsigned>::max(), true);
+        computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), particleKeys.data(),
+                          particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
 
         return converged;
     }
@@ -345,7 +374,14 @@ public:
 
         assert(particleKeys.front() >= focusStart && particleKeys.back() < focusEnd);
 
-        bool converged = update(box, particleKeys, focusStart, focusEnd);
+        std::vector<KeyType> peerBoundaries;
+        for (int peer : peerRanks)
+        {
+            peerBoundaries.push_back(globalTreeLeaves[assignment.firstNodeIdx(peer)]);
+            peerBoundaries.push_back(globalTreeLeaves[assignment.lastNodeIdx(peer)]);
+        }
+
+        bool converged = update(box, particleKeys, focusStart, focusEnd, peerBoundaries);
 
         auto requestIndices = findRequestIndices(peerRanks, assignment, globalTreeLeaves, tree_.treeLeaves());
 
