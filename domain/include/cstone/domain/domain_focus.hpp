@@ -270,14 +270,11 @@ public:
         if (firstCall_)
         {
             MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-            //int cnt = 1;
             while (converged != nRanks_)
             {
                 converged = focusedTree_.updateGlobal(box_, codes, myRank_, peers, assignment, tree_, nodeCounts_);
                 MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-                //cnt++;
             }
-            //if (myRank_ == 0) { std::cout << "focus converged in " << cnt << std::endl; }
             firstCall_ = false;
         }
 
@@ -306,8 +303,6 @@ public:
                                   focusAssignment[myRank_].start(),
                                   focusAssignment[myRank_].end(),
                                   haloFlags.data());
-
-        removeUnresolvedHalos<KeyType>(assignment, tree_, focusedTree_.treeLeaves(), peers, haloFlags);
 
         /* Halo exchange phase *********************************************************/
 
