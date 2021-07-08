@@ -235,55 +235,6 @@ std::vector<TreeIndexPair> translateAssignment(const SpaceCurveAssignment& assig
     return newAssignment;
 }
 
-/*! @brief temporary fix for halo nodes that go across peer assignment boundaries
- *
- * @tparam KeyType
- * @param assignment
- * @param oldTree
- * @param newTree
- * @param peerRanks
- * @param haloFlags
- *
- * This will be unnecessary once the focus tree is built with a guarantee to resolve
- * all peer rank SFC assignment boundaries.
- */
-template<class KeyType>
-void removeUnresolvedHalos(const SpaceCurveAssignment& assignment,
-                           gsl::span<const KeyType> oldTree,
-                           gsl::span<const KeyType> newTree,
-                           gsl::span<const int> peerRanks,
-                           gsl::span<int> haloFlags)
-{
-    for (int peer : peerRanks)
-    {
-        KeyType startKey = oldTree[assignment.firstNodeIdx(peer)];
-        KeyType endKey   = oldTree[assignment.lastNodeIdx(peer)];
-
-        TreeNodeIndex newStartIndex = findNodeBelow(newTree, startKey);
-        TreeNodeIndex newEndIndex   = findNodeBelow(newTree, endKey);
-
-        if (startKey != newTree[newStartIndex])
-        {
-            if (haloFlags[newStartIndex] == 1)
-            {
-                std::cout << "removing halo node " << std::oct << startKey << " " << newTree[newStartIndex]
-                          << std::dec << std::endl;
-                haloFlags[newStartIndex] = 0;
-            }
-        }
-        if (endKey != newTree[newEndIndex])
-        {
-            if (haloFlags[newEndIndex] == 1)
-            {
-                std::cout << "removing halo node " << std::oct << endKey << " " << newTree[newEndIndex]
-                          << std::dec << std::endl;
-                haloFlags[newEndIndex] = 0;
-            }
-        }
-    }
-}
-
-
 /*! @brief Based on global assignment, create the list of local particle index ranges to send to each rank
  *
  * @tparam KeyType      32- or 64-bit integer
