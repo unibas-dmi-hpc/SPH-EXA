@@ -224,18 +224,10 @@ public:
         SpaceCurveAssignment assignment = singleRangeSfcSplit(nodeCounts_, nRanks_);
         LocalParticleIndex newNParticlesAssigned = assignment.totalCount(myRank_);
 
-        //if (myRank_ == 0)
-        //{
-        //    std::cout << "assignment ";
-        //    for (int rank = 0; rank < nRanks_; ++rank)
-        //        std::cout << std::oct << tree_[assignment.firstNodeIdx(rank)] << " ";
-        //    std::cout << tree_[assignment.lastNodeIdx(nRanks_-1)] << std::dec << std::endl;
-        //}
-
         /* Domain particles update phase *********************************************************/
 
         // compute send array ranges for domain exchange
-        // index ranges in domainExchangeSends are valid relative to the sorted code array mortonCodes
+        // index ranges in domainExchangeSends are valid relative to the sorted code array codes
         // note that there is no offset applied to mortonCodes, because it was constructed
         // only with locally assigned particles
         SendList domainExchangeSends = createSendList<KeyType>(assignment, tree_, codes);
