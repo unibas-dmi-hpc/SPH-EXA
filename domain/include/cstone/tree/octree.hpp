@@ -517,23 +517,6 @@ template<class KeyType>
 ResolutionStatus enforceKeys(gsl::span<const KeyType> treeLeaves, gsl::span<const KeyType> mandatoryKeys,
                              gsl::span<TreeNodeIndex> nodeOps)
 {
-    auto cancelMerge = [](const KeyType* leaves, TreeNodeIndex idx, gsl::span<TreeNodeIndex> ops)
-    {
-        auto p = siblingAndLevel(leaves, idx);
-        unsigned siblingIdx = p[0];
-
-        if (siblingIdx >= 8) { return; }
-
-        // pointer to sibling-0 nodeOp
-        auto g = ops.data() + idx - siblingIdx;
-
-        // need to change opcode for all 8 siblings from 0 to 1
-        for (int octant = 0; octant < 8; ++octant)
-        {
-            if (g[octant] == 0) { g[octant] = 1; }
-        }
-    };
-
     ResolutionStatus status = ResolutionStatus::converged;
 
     for (KeyType key : mandatoryKeys)
@@ -542,18 +525,26 @@ ResolutionStatus enforceKeys(gsl::span<const KeyType> treeLeaves, gsl::span<cons
 
         TreeNodeIndex nodeIdx = findNodeBelow(treeLeaves, key);
 
-        // closest tree node would be merged on next rebalance
-        if (nodeOps[nodeIdx] == 0)
+        auto p = siblingAndLevel(treeLeaves.data(), nodeIdx);
+        int siblingIdx = p[0];
+        int level      = p[1];
+
+        bool canCancel = siblingIdx > -1;
+        // need to cancel if the closest tree node would be merged or the mandatory key is not there
+        bool needToCancel = nodeOps[nodeIdx] == 0 || treeLeaves[nodeIdx] != key;
+        if (canCancel && needToCancel)
         {
             status = std::max(status, ResolutionStatus::cancelMerge);
-            cancelMerge(treeLeaves.data(), nodeIdx, nodeOps);
+            // pointer to sibling-0 nodeOp
+            TreeNodeIndex* g = nodeOps.data() + nodeIdx - siblingIdx;
+            for (int octant = 0; octant < 8; ++octant)
+            {
+                if (g[octant] == 0) { g[octant] = 1; } // cancel node merge
+            }
         }
 
         if (treeLeaves[nodeIdx] != key) // mandatory key is not present
         {
-            cancelMerge(treeLeaves.data(), nodeIdx, nodeOps);
-
-            int level  = treeLevel(treeLeaves[nodeIdx+1] - treeLeaves[nodeIdx]);
             int keyPos = lastNzPlace(key);
 
             // add up to 3 levels
