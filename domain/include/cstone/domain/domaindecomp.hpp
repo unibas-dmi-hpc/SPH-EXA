@@ -274,6 +274,15 @@ SendList createSendList(const SpaceCurveAssignment& assignment,
     return ret;
 }
 
+/*! @brief extract elements from the source array through the ordering
+ *
+ * @tparam T           float or double
+ * @param manifest     contains the index ranges of @p source to put into the send buffer
+ * @param source       e.g. x,y,z,h arrays
+ * @param ordering     the space curve ordering to handle unsorted source arrays
+ *                     if source is space-curve-sorted, @p ordering is the trivial 0,1,...,n sequence
+ * @param destination  write buffer for extracted elements
+ */
 template<class T, class IndexType>
 void extractRange(const SendManifest& manifest, const T* source, const IndexType* ordering, T* destination)
 {
@@ -282,27 +291,5 @@ void extractRange(const SendManifest& manifest, const T* source, const IndexType
         for (IndexType i = manifest.rangeStart(rangeIndex); i < manifest.rangeEnd(rangeIndex); ++i)
             destination[idx++] = source[ordering[i]];
 }
-
-/*! @brief create a buffer of elements to send by extracting elements from the source array
- *
- * @tparam T         float or double
- * @param manifest   contains the index ranges of @p source to put into the send buffer
- * @param source     e.g. x,y,z,h arrays
- * @param ordering   the space curve ordering to handle unsorted source arrays
- *                   if source is space-curve-sorted, @p ordering is the trivial 0,1,...,n sequence
- * @return           the send buffer
- */
-template<class T, class IndexType>
-std::vector<T> createSendBuffer(const SendManifest& manifest, const T* source,
-                                const IndexType* ordering)
-{
-    IndexType sendSize = manifest.totalCount();
-
-    std::vector<T> sendBuffer(sendSize);
-    extractRange(manifest, source, ordering, sendBuffer.data());
-
-    return sendBuffer;
-}
-
 
 } // namespace cstone
