@@ -43,32 +43,36 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, std::size_t n
                            IndexType inputOffset, IndexType outputOffset,
                            const IndexType* ordering, T* tempBuffer, Arrays... arrays)
 {
-    constexpr int nArrays = sizeof...(Arrays);
-    std::array<T*, nArrays> sourceArrays{ (arrays + inputOffset)... };
-    std::array<T*, nArrays> destinationArrays{ (arrays + outputOffset)... };
+    constexpr int domainExchangeTag = static_cast<int>(P2pTags::domainExchange);
+    constexpr int numArrays = sizeof...(Arrays);
+    std::array<T*, numArrays> sourceArrays{ (arrays + inputOffset)... };
+    std::array<T*, numArrays> destinationArrays{ (arrays + outputOffset)... };
 
     int nRanks = int(sendList.size());
 
     std::vector<std::vector<T>> sendBuffers;
-    sendBuffers.reserve(nArrays * (nRanks-1));
+    sendBuffers.reserve(27); // 27 = maximum usual number of peers
 
     std::vector<MPI_Request> sendRequests;
-    sendRequests.reserve(nArrays * (nRanks-1));
+    sendRequests.reserve(27);
 
     for (int destinationRank = 0; destinationRank < nRanks; ++destinationRank)
     {
-        if (destinationRank == thisRank || sendList[destinationRank].totalCount() == 0) { continue; }
+        LocalParticleIndex sendCount = sendList[destinationRank].totalCount();
+        if (destinationRank == thisRank || sendCount == 0) { continue; }
 
-        for (int arrayIndex = 0; arrayIndex < nArrays; ++arrayIndex)
+        std::vector<T> sendBuffer(numArrays * sendCount);
+        for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
         {
-            auto arrayBuffer = createSendBuffer(sendList[destinationRank], sourceArrays[arrayIndex], ordering);
-            mpiSendAsync(arrayBuffer.data(), arrayBuffer.size(), destinationRank, arrayIndex, sendRequests);
-            sendBuffers.emplace_back(std::move(arrayBuffer));
+            extractRange(sendList[destinationRank], sourceArrays[arrayIndex], ordering,
+                         sendBuffer.data() + arrayIndex * sendCount);
         }
+        mpiSendAsync(sendBuffer.data(), sendBuffer.size(), destinationRank, domainExchangeTag, sendRequests);
+        sendBuffers.push_back(std::move(sendBuffer));
     }
 
     // handle thisRank
-    for (int arrayIndex = 0; arrayIndex < nArrays; ++arrayIndex)
+    for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
     {
         // TODO: eliminate one copy by swapping the source with tempBuffer
         extractRange(sendList[thisRank], sourceArrays[arrayIndex], ordering, tempBuffer);
@@ -77,24 +81,28 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, std::size_t n
 
     std::size_t nParticlesPresent = sendList[thisRank].totalCount();
 
+    std::vector<T> receiveBuffer;
     while (nParticlesPresent != nParticlesAssigned)
     {
         MPI_Status status;
-        MPI_Probe(MPI_ANY_SOURCE, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-        int receiveRank  = status.MPI_SOURCE;
-        //int receiveTag   = status[0].MPI_TAG;
-        int receiveCount;
-        MPI_Get_count(&status, MpiType<T>{}, &receiveCount);
+        MPI_Probe(MPI_ANY_SOURCE, domainExchangeTag, MPI_COMM_WORLD, &status);
+        int receiveRank = status.MPI_SOURCE;
+        int receiveCountTotal;
+        MPI_Get_count(&status, MpiType<T>{}, &receiveCountTotal);
 
-        if (nParticlesPresent + (std::size_t)receiveCount > nParticlesAssigned)
+        size_t receiveCount = receiveCountTotal / numArrays;
+        if (nParticlesPresent + receiveCount > nParticlesAssigned)
         {
             throw std::runtime_error("Particle exchange: cannot receive more particles than assigned\n");
         }
 
-        for (int arrayIndex = 0; arrayIndex < nArrays; ++arrayIndex)
+        receiveBuffer.resize(receiveCountTotal);
+        mpiRecvSync(receiveBuffer.data(), receiveCountTotal, receiveRank, domainExchangeTag, &status);
+
+        for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
         {
-            mpiRecvSync(destinationArrays[arrayIndex] + nParticlesPresent, receiveCount,
-                        receiveRank, arrayIndex, &status);
+            auto source = receiveBuffer.begin() + arrayIndex * receiveCount;
+            std::copy(source, source + receiveCount, destinationArrays[arrayIndex] + nParticlesPresent);
         }
 
         nParticlesPresent += receiveCount;
