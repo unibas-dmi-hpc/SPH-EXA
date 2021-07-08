@@ -245,26 +245,25 @@ void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNod
  * @param nodeIdx    node index in [0:N] of @p csTree to compute sibling index
  * @return           in first pair element: index in [0:8] if all 8 siblings of the specified
  *                   node are next to each other and at the same division level.
- *                   0 otherwise, i.e. if not all the 8 siblings exist in @p csTree
+ *                   8 otherwise, i.e. if not all the 8 siblings exist in @p csTree
  *                   at the same division level
  *                   in second pair element: tree level of node at @p nodeIdx
  */
 template<class KeyType>
 inline CUDA_HOST_DEVICE_FUN
-pair<unsigned> siblingAndLevel(const KeyType* csTree, TreeNodeIndex nodeIdx)
+pair<int> siblingAndLevel(const KeyType* csTree, TreeNodeIndex nodeIdx)
 {
-    KeyType thisNode     = csTree[nodeIdx];
-    KeyType range        = csTree[nodeIdx + 1] - thisNode;
-    unsigned level = treeLevel(range);
-    unsigned siblingIdx = 0;
-    if (level > 0)
-    {
-        siblingIdx = octalDigit(thisNode, level);
-        bool siblings = (csTree[nodeIdx - siblingIdx + 8] == csTree[nodeIdx - siblingIdx] + nodeRange<KeyType>(level - 1));
-        if (!siblings) { siblingIdx = 0; }
-    }
+    KeyType thisNode = csTree[nodeIdx];
+    KeyType range    = csTree[nodeIdx + 1] - thisNode;
+    int level = treeLevel(range);
 
-    return pair<unsigned>{siblingIdx, level};
+    if (level == 0) { return {-1, level}; }
+
+    int siblingIdx = octalDigit(thisNode, level);
+    bool siblings  = (csTree[nodeIdx - siblingIdx + 8] == csTree[nodeIdx - siblingIdx] + nodeRange<KeyType>(level - 1));
+    if (!siblings) { siblingIdx = -1; }
+
+    return {siblingIdx, level};
 }
 
 //! @brief returns 0 for merging, 1 for no-change, 8 for splitting
@@ -273,8 +272,8 @@ CUDA_HOST_DEVICE_FUN
 int calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize)
 {
     auto p = siblingAndLevel(tree, nodeIdx);
-    unsigned siblingIdx = p[0];
-    unsigned level      = p[1];
+    int siblingIdx = p[0];
+    int level      = p[1];
 
     if (siblingIdx > 0) // 8 siblings next to each other, node can potentially be merged
     {
@@ -510,12 +509,13 @@ bool enforceKeys(gsl::span<const KeyType> treeLeaves, gsl::span<const KeyType> m
         auto p = siblingAndLevel(leaves, idx);
         unsigned siblingIdx = p[0];
 
+        if (siblingIdx >= 8) { return; }
+
         // pointer to sibling-0 nodeOp
         auto g = ops.data() + idx - siblingIdx;
-        size_t groupSize = std::min(8lu, ops.size() - idx + siblingIdx);
 
         // need to change opcode for all 8 siblings from 0 to 1
-        for (int octant = 0; octant < groupSize; ++octant)
+        for (int octant = 0; octant < 8; ++octant)
         {
             if (g[octant] == 0) { g[octant] = 1; }
         }
