@@ -306,7 +306,7 @@ public:
 
         if (status == ResolutionStatus::cancelMerge)
         {
-            converged = std::count(begin(nodeOps), end(nodeOps) - 1, 1) == nNodes(leaves);
+            converged = std::all_of(begin(nodeOps), end(nodeOps) -1, [](TreeNodeIndex i) { return i == 1; });
         }
         else if (status == ResolutionStatus::rebalance)
         {
