@@ -138,8 +138,8 @@ int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
                        unsigned bucketSize)
 {
     auto p = siblingAndLevel(cstoneTree, leafIdx);
-    unsigned siblingIdx = p[0];
-    unsigned level      = p[1];
+    int siblingIdx = p[0];
+    int level      = p[1];
 
     if (siblingIdx > 0) // 8 siblings next to each other, node can potentially be merged
     {
