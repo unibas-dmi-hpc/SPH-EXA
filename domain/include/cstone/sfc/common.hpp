@@ -249,7 +249,7 @@ constexpr KeyType decodePlaceholderBit(KeyType code)
  *                   will be zero otherwise, but a value of 0 for @p position can also be specified
  *                   to detect whether the 31st or 63rd bit for the last cornerstone is non-zero.
  *                   (The last cornerstone has a value of nodeRange<KeyType>(0) = 2^31 or 2^63)
- * @return           The of the digit at place @p position
+ * @return           The value of the digit at place @p position
  *
  * The position argument correspondence to octal digit places has been chosen such that
  * octalDigit(code, pos) returns the octant at octree division level pos.
@@ -337,6 +337,7 @@ constexpr KeyType octalPower(int pos)
 /*! @brief generate SFC codes to cover the range [a:b] with a valid cornerstone sub-octree
  *
  * @tparam     KeyType 32- or 64-bit unsigned integer
+ * @tparam     Store   either std::nullptr_t or KeyType*
  * @param[in]  a       first SFC code
  * @param[in]  b       second SFC code, b > a
  * @param[out] output  output SFC codes, includes a, excludes b
