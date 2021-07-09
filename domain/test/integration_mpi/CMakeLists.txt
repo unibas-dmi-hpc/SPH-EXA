@@ -18,8 +18,6 @@ addMpiTest(focus_tree.cpp focus_tree FocusTreeIntregration)
 
 addMpiTest(exchange_halos.cpp exchange_halos GlobalHaloExchange)
 
-addMpiTest(domain_2ranks.cpp domain_2ranks GlobalDomain2Ranks)
-
 addMpiTest(domain_nranks.cpp domain_nranks GlobalDomainNRanks)
 
 addMpiTest(box_mpi.cpp box_mpi GlobalBox)
@@ -27,7 +25,5 @@ addMpiTest(box_mpi.cpp box_mpi GlobalBox)
 addMpiTest(exchange_focus.cpp exchange_focus GlobalFocusExchange)
 
 addMpiTest(exchange_keys.cpp exchange_keys GlobalKeyExchange)
-
-addMpiTest(domain_focus_prototype.cpp domain_focus_prototype GlobalFocusDomain)
 
 addMpiTest(domain_focus_2ranks.cpp domain_focus_2ranks GlobalFocusDomain2Ranks)

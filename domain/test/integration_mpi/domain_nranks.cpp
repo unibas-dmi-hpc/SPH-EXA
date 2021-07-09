@@ -43,7 +43,6 @@
 #include "gtest/gtest.h"
 
 #include "coord_samples/random.hpp"
-#include "cstone/domain/domain.hpp"
 #include "cstone/domain/domain_focus.hpp"
 #include "cstone/findneighbors.hpp"
 
@@ -176,70 +175,6 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     }
 }
 
-
-/*! @brief global-tree based domain with PBC
- *
-  * This test case and the one below are affected by the mutuality limitation of findHalos based on
-  * the global tree, where two nodes i and j are only halos if i is a halo of j
-  * AND vice versa. This leads to two missing halo particles for at least some values of numRanks between 2 and 5.
-  * The focus-tree based domain overcomes this limitation.
- */
-TEST(Domain, randomGaussianNeighborSum)
-{
-    int rank = 0, nRanks = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
-
-    int bucketSize = 10;
-    // avoid halo mutuality limitation
-    bool equalizeH = true;
-
-    {
-        Domain<unsigned, double> domain(rank, nRanks, bucketSize, {-1, 1});
-        randomGaussianDomain<unsigned, double>(domain, rank, nRanks, equalizeH);
-    }
-    {
-        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, {-1, 1});
-        randomGaussianDomain<uint64_t, double>(domain, rank, nRanks, equalizeH);
-    }
-    {
-        Domain<unsigned, float> domain(rank, nRanks, bucketSize, {-1, 1});
-        randomGaussianDomain<unsigned, float>(domain, rank, nRanks, equalizeH);
-    }
-    {
-        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, {-1, 1});
-        randomGaussianDomain<uint64_t, float>(domain, rank, nRanks, equalizeH);
-    }
-}
-
-TEST(Domain, randomGaussianNeighborSumPbc)
-{
-    int rank = 0, nRanks = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
-
-    int bucketSize = 10;
-    // avoid halo mutuality limitation
-    bool equalizeH = true;
-
-    {
-        Domain<unsigned, double> domain(rank, nRanks, bucketSize, {-1, 1, true});
-        randomGaussianDomain<unsigned, double>(domain, rank, nRanks, equalizeH);
-    }
-    {
-        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, {-1, 1, true});
-        randomGaussianDomain<uint64_t, double>(domain, rank, nRanks, equalizeH);
-    }
-
-    {
-        Domain<unsigned, float> domain(rank, nRanks, bucketSize, {-1, 1, true});
-        randomGaussianDomain<unsigned, float>(domain, rank, nRanks, equalizeH);
-    }
-    {
-        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, {-1, 1, true});
-        randomGaussianDomain<uint64_t, float>(domain, rank, nRanks, equalizeH);
-    }
-}
 
 TEST(FocusDomain, randomGaussianNeighborSum)
 {
