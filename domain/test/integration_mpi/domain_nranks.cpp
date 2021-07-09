@@ -43,7 +43,7 @@
 #include "gtest/gtest.h"
 
 #include "coord_samples/random.hpp"
-#include "cstone/domain/domain_focus.hpp"
+#include "cstone/domain/domain.hpp"
 #include "cstone/findneighbors.hpp"
 
 using namespace cstone;
@@ -186,19 +186,19 @@ TEST(FocusDomain, randomGaussianNeighborSum)
     int bucketSizeFocus = 10;
 
     {
-        FocusedDomain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        Domain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
         randomGaussianDomain<unsigned, double>(domain, rank, nRanks);
     }
     {
-        FocusedDomain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
         randomGaussianDomain<uint64_t, double>(domain, rank, nRanks);
     }
     {
-        FocusedDomain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        Domain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
         randomGaussianDomain<unsigned, float>(domain, rank, nRanks);
     }
     {
-        FocusedDomain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
         randomGaussianDomain<uint64_t, float>(domain, rank, nRanks);
     }
 }
@@ -213,19 +213,19 @@ TEST(FocusDomain, randomGaussianNeighborSumPbc)
     int bucketSizeFocus = 10;
 
     {
-        FocusedDomain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        Domain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
         randomGaussianDomain<unsigned, double>(domain, rank, nRanks);
     }
     {
-        FocusedDomain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
         randomGaussianDomain<uint64_t, double>(domain, rank, nRanks);
     }
     {
-        FocusedDomain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        Domain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
         randomGaussianDomain<unsigned, float>(domain, rank, nRanks);
     }
     {
-        FocusedDomain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
         randomGaussianDomain<uint64_t, float>(domain, rank, nRanks);
     }
 }
@@ -251,7 +251,7 @@ TEST(FocusDomain, assignmentShift)
     std::vector<Real> z = coordinates.z();
     std::vector<Real> h(numParticlesPerRank, 0.1);
 
-    FocusedDomain<KeyType, Real> domain(rank, numRanks, bucketSize, bucketSizeFocus, box);
+    Domain<KeyType, Real> domain(rank, numRanks, bucketSize, bucketSizeFocus, box);
 
     std::vector<KeyType> particleKeys;
 
