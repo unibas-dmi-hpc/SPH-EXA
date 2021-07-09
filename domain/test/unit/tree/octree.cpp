@@ -167,7 +167,7 @@ template<class KeyType>
 void computeNodeCountsSTree()
 {
     std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
-    std::vector<KeyType> tree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+    std::vector<KeyType> tree = computeSpanningTree<KeyType>(cornerstones);
 
     /// 2 particles in the first and last node
 
@@ -382,19 +382,19 @@ void computeSpanningTree()
 {
     {
         std::vector<KeyType> cornerstones{0, nodeRange<KeyType>(0)};
-        std::vector<KeyType> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+        std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
         std::vector<KeyType> reference{0, nodeRange<KeyType>(0)};
         EXPECT_EQ(spanningTree, reference);
     }
     {
         std::vector<KeyType> cornerstones{0, pad(KeyType(1), 3), nodeRange<KeyType>(0)};
-        std::vector<KeyType> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+        std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
         EXPECT_TRUE(checkOctreeInvariants(spanningTree.data(), nNodes(spanningTree)));
         EXPECT_EQ(spanningTree.size(), 9);
     }
     {
         std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
-        std::vector<KeyType> spanningTree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+        std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
         EXPECT_TRUE(checkOctreeInvariants(spanningTree.data(), nNodes(spanningTree)));
         if constexpr (std::is_same_v<KeyType, unsigned>)
             EXPECT_EQ(spanningTree.size(), 135);
@@ -407,6 +407,131 @@ TEST(CornerstoneOctree, computeSpanningTree)
 {
     computeSpanningTree<unsigned>();
     computeSpanningTree<uint64_t>();
+}
+
+template<class KeyType>
+void enforceKeys()
+{
+    auto tree = OctreeMaker<KeyType>{}.divide().divide(1).makeTree();
+
+    {
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{pad(KeyType(024), 6)};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+        EXPECT_EQ(status, ResolutionStatus::rebalance);
+        EXPECT_EQ(nodeOps[9], 8);
+    }
+    {
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{pad(KeyType(0241), 9)};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+        EXPECT_EQ(status, ResolutionStatus::rebalance);
+        EXPECT_EQ(nodeOps[9], 64);
+    }
+    {
+        std::vector<int> nodeOps{1, 1,0,0,0,0,0,0,0, 1,1,1,1,1,1};
+        std::vector<KeyType> injectKeys{pad(KeyType(014), 6)};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference(nNodes(tree), 1);
+        EXPECT_EQ(status, ResolutionStatus::cancelMerge);
+        EXPECT_EQ(nodeOps, reference);
+    }
+    {
+        std::vector<int> nodeOps{1, 1,0,0,0,0,0,0,0, 1,1,1,1,1,1};
+        std::vector<KeyType> injectKeys{pad(KeyType(01), 3)};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference{1, 1,0,0,0,0,0,0,0, 1,1,1,1,1,1};
+        EXPECT_EQ(status, ResolutionStatus::converged);
+        EXPECT_EQ(nodeOps, reference);
+    }
+    {
+        std::vector<int> nodeOps{1, 1,0,0,0,0,0,0,0, 1,1,1,1,1,1};
+        std::vector<KeyType> injectKeys{pad(KeyType(0101), 9)};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference(nNodes(tree), 1);
+        reference[1] = 8;
+        EXPECT_EQ(status, ResolutionStatus::rebalance);
+        EXPECT_EQ(nodeOps, reference);
+    }
+    {
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{pad(KeyType(014), 6)};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference(nNodes(tree), 1);
+        EXPECT_EQ(status, ResolutionStatus::converged);
+        EXPECT_EQ(nodeOps, reference);
+    }
+    {
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{pad(KeyType(0141), 9)};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference(nNodes(tree), 1);
+        reference[5] = 8;
+        EXPECT_EQ(status, ResolutionStatus::rebalance);
+        EXPECT_EQ(nodeOps, reference);
+    }
+    {
+        // this tests that the splitting of node i does not invalidate the merge of node i+1
+        std::vector<int> nodeOps{1, 1,0,0,0,0,0,0,0, 1,1,1,1,1,1};
+        //                       ^ injection splits the first node
+        std::vector<KeyType> injectKeys{pad(KeyType(01), 6)}; // 010000000000
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference{8, 1,0,0,0,0,0,0,0, 1,1,1,1,1,1};
+        EXPECT_EQ(status, ResolutionStatus::rebalance);
+        EXPECT_EQ(nodeOps, reference);
+    }
+    // two injections affection the same node index
+    {
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{pad(KeyType(0241), 9), pad(KeyType(024), 6)};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        EXPECT_EQ(status, ResolutionStatus::rebalance);
+        EXPECT_EQ(nodeOps[9], 64);
+    }
+    {
+        tree = makeRootNodeTree<KeyType>();
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{1};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        EXPECT_EQ(status, ResolutionStatus::failed);
+        EXPECT_EQ(nodeOps[0], 512);
+    }
+    {
+        tree = OctreeMaker<KeyType>{}.divide().divide(0).makeTree();
+        std::vector<int> nodeOps{1,0,0,0,0,0,0,0, 1,1,1,1,1,1,1};
+        std::vector<KeyType> injectKeys{1};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference(nNodes(tree), 1);
+        reference[0] = 512;
+        EXPECT_EQ(status, ResolutionStatus::failed);
+        EXPECT_EQ(nodeOps, reference);
+    }
+}
+
+TEST(CornerstoneOctree, enforceKeys)
+{
+    enforceKeys<unsigned>();
+    enforceKeys<uint64_t>();
 }
 
 TEST(CornerstoneOctree, computeHaloRadii)
@@ -434,7 +559,7 @@ template<class KeyType>
 void computeHaloRadiiSTree()
 {
     std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
-    std::vector<KeyType> tree = computeSpanningTree(begin(cornerstones), end(cornerstones));
+    std::vector<KeyType> tree = computeSpanningTree<KeyType>(cornerstones);
 
     /// 2 particles in the first and last node
     std::vector<KeyType> particleCodes{0, 0, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0) - 1};

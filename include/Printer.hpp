@@ -22,7 +22,7 @@ public:
     */
     void printTree(GravityOctree<double> &octree, [[maybe_unused]] std::ostream &out) { octree.print(); }
 
-    void printConstants(const int iteration, const int nntot, std::ostream &out) const
+    void printConstants(size_t iteration, size_t nntot, std::ostream &out) const
     {
         if (d.rank == 0)
         {

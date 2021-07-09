@@ -56,7 +56,7 @@ FocusedOctree<KeyType> createReferenceFocusTree(const Box<T>& box, gsl::span<con
 
     FocusedOctree<KeyType> focusTree(bucketSizeLocal, theta);
     while (!focusTree.update(box, particleKeys, tree[assignment.firstNodeIdx(myRank)],
-                             tree[assignment.lastNodeIdx(myRank)]))
+                             tree[assignment.lastNodeIdx(myRank)], {}))
     {
     }
 
@@ -166,7 +166,7 @@ TEST(GlobalTreeDomain, randomGaussian)
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
     globalRandomGaussian<unsigned, double>(rank, nRanks);
-    // globalRandomGaussian<uint64_t, double>(rank, nRanks);
-    // globalRandomGaussian<unsigned, float>(rank, nRanks);
-    // globalRandomGaussian<uint64_t, float>(rank, nRanks);
+    globalRandomGaussian<uint64_t, double>(rank, nRanks);
+    globalRandomGaussian<unsigned, float>(rank, nRanks);
+    globalRandomGaussian<uint64_t, float>(rank, nRanks);
 }

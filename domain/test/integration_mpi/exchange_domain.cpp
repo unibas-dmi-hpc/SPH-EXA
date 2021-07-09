@@ -122,8 +122,11 @@ TEST(GlobalDomain, exchangeAllToAll)
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
     exchangeAllToAll<double>(rank, nRanks);
+    MPI_Barrier(MPI_COMM_WORLD);
     exchangeAllToAll<float>(rank, nRanks);
+    MPI_Barrier(MPI_COMM_WORLD);
     exchangeAllToAll<int>(rank, nRanks);
+    MPI_Barrier(MPI_COMM_WORLD);
 }
 
 template<class T>
@@ -168,8 +171,11 @@ TEST(GlobalDomain, exchangeCyclicNeighbors)
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
     exchangeCyclicNeighbors<double>(rank, nRanks);
+    MPI_Barrier(MPI_COMM_WORLD);
     exchangeCyclicNeighbors<float>(rank, nRanks);
+    MPI_Barrier(MPI_COMM_WORLD);
     exchangeCyclicNeighbors<int>(rank, nRanks);
+    MPI_Barrier(MPI_COMM_WORLD);
 }
 
 /*! @brief particle exchange test with offsets
@@ -251,6 +257,9 @@ TEST(GlobalDomain, exchangeCyclicNeighborsOffsets)
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
     exchangeCyclicNeighborsOffsets<double>(rank, nRanks);
+    MPI_Barrier(MPI_COMM_WORLD);
     exchangeCyclicNeighborsOffsets<float>(rank, nRanks);
+    MPI_Barrier(MPI_COMM_WORLD);
     exchangeCyclicNeighborsOffsets<int>(rank, nRanks);
+    MPI_Barrier(MPI_COMM_WORLD);
 }
