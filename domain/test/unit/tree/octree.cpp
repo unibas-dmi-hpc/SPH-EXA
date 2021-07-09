@@ -536,21 +536,17 @@ TEST(CornerstoneOctree, enforceKeys)
 
 TEST(CornerstoneOctree, computeHaloRadii)
 {
-    using CodeType = unsigned;
+    using KeyType = unsigned;
 
-    std::vector<CodeType> tree{0, 8, 16, 24, 32};
+    std::vector<KeyType> tree{0, 8, 16, 24, 32};
 
-    std::vector<CodeType> particleCodes{0, 4, 8, 14, 20, 24, 25, 26, 31};
+    std::vector<KeyType> particleCodes{0, 4, 8, 14, 20, 24, 25, 26, 31};
     std::vector<float> smoothingLs{2, 1, 4, 3, 5, 8, 2, 1, 3};
     std::vector<float> hMaxPerNode{4, 8, 10, 16};
 
-    std::vector<int> ordering(particleCodes.size());
-    std::iota(begin(ordering), end(ordering), 0);
-
     std::vector<float> probe(hMaxPerNode.size());
 
-    computeHaloRadii(tree.data(), nNodes(tree), particleCodes.data(), particleCodes.data() + particleCodes.size(),
-                     ordering.data(), smoothingLs.data(), probe.data());
+    computeHaloRadii<KeyType>(tree.data(), nNodes(tree), particleCodes, smoothingLs.data(), probe.data());
 
     EXPECT_EQ(probe, hMaxPerNode);
 }
@@ -565,11 +561,9 @@ void computeHaloRadiiSTree()
     std::vector<KeyType> particleCodes{0, 0, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0) - 1};
 
     std::vector<double> smoothingLengths{0.21, 0.2, 0.2, 0.22};
-    std::vector<TreeNodeIndex> ordering{0, 1, 2, 3};
 
     std::vector<double> haloRadii(nNodes(tree), 0);
-    computeHaloRadii(tree.data(), nNodes(tree), particleCodes.data(), particleCodes.data() + particleCodes.size(),
-                     ordering.data(), smoothingLengths.data(), haloRadii.data());
+    computeHaloRadii<KeyType>(tree.data(), nNodes(tree), particleCodes, smoothingLengths.data(), haloRadii.data());
 
     std::vector<double> referenceHaloRadii(nNodes(tree));
     referenceHaloRadii.front() = 0.42;

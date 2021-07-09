@@ -611,25 +611,20 @@ void injectKeys(KeyVector& tree, gsl::span<const typename KeyVector::value_type>
  *                          This function does not rely on octree invariants, sortedness of the nodes
  *                          is the only requirement.
  * @param[in]  nNodes       number of nodes in tree
- * @param[in]  codesStart   sorted SFC code range start of particles to count
- * @param[in]  codesEnd     sorted SFC code range end of particles to count
- * @param[in]  ordering     Access input according to @p ordering
- *                          The sequence input[ordering[i]], i=0,...,N must list the elements of input
- *                          (i.e. the smoothing lengths) such that input[i] is a property of the particle
- *                          (x[i], y[i], z[i]), with x,y,z sorted according to SFC ordering.
- * @param[in]  input        Radii per particle, i.e. the smoothing lengths in SPH, length = codesEnd - codesStart
+ * @param[in]  particleKeys sorted SFC particle keys
+ * @param[in]  input        Radii per particle, i.e. the smoothing lengths in SPH, length = particleKeys.size()
  * @param[out] output       Radius per node, length = @a nNodes
  */
-template<class Tin, class Tout, class KeyType, class IndexType>
-void computeHaloRadii(const KeyType* tree, TreeNodeIndex nNodes, const KeyType* codesStart, const KeyType* codesEnd,
-                      const IndexType* ordering, const Tin* input, Tout* output)
+template<class KeyType, class Tin, class Tout>
+void computeHaloRadii(const KeyType* tree, TreeNodeIndex nNodes, gsl::span<const KeyType> particleKeys,
+                      const Tin* input, Tout* output)
 {
     int firstNode = 0;
     int lastNode  = nNodes;
-    if (codesStart != codesEnd)
+    if (!particleKeys.empty())
     {
-        firstNode = std::upper_bound(tree, tree + nNodes, *codesStart) - tree - 1;
-        lastNode  = std::upper_bound(tree, tree + nNodes, *(codesEnd-1)) - tree;
+        firstNode = std::upper_bound(tree, tree + nNodes, particleKeys.front()) - tree - 1;
+        lastNode  = std::upper_bound(tree, tree + nNodes, particleKeys.back()) - tree;
     }
 
     #pragma omp parallel for schedule(static)
@@ -647,14 +642,13 @@ void computeHaloRadii(const KeyType* tree, TreeNodeIndex nNodes, const KeyType* 
         KeyType nodeEnd   = tree[i+1];
 
         // find elements belonging to particles in node i
-        auto startIndex = IndexType(std::lower_bound(codesStart, codesEnd, nodeStart) - codesStart);
-        auto endIndex   = IndexType(std::lower_bound(codesStart, codesEnd, nodeEnd)   - codesStart);
+        LocalParticleIndex startIndex = findNodeAbove(particleKeys, nodeStart);
+        LocalParticleIndex endIndex   = findNodeAbove(particleKeys, nodeEnd);
 
         Tin nodeMax = 0;
-        for(IndexType p = startIndex; p < endIndex; ++p)
+        for (LocalParticleIndex p = startIndex; p < endIndex; ++p)
         {
-            Tin nodeElement = input[ordering[p]];
-            nodeMax         = std::max(nodeMax, nodeElement);
+            nodeMax = std::max(nodeMax, input[p]);
         }
 
         // note factor of 2 due to SPH conventions

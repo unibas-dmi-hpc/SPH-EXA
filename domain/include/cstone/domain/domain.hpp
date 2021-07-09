@@ -275,17 +275,12 @@ public:
 
         /* Halo discovery phase *********************************************************/
 
-        mortonOrder.resize(newNParticlesAssigned);
-        std::iota(begin(mortonOrder), end(mortonOrder), LocalParticleIndex(0));
-
         std::vector<float> haloRadii(nNodes(focusedTree_.treeLeaves()));
-        computeHaloRadii(focusedTree_.treeLeaves().data(),
-                         nNodes(focusedTree_.treeLeaves()),
-                         codes.data(),
-                         codes.data() + codes.size(),
-                         mortonOrder.data(),
-                         h.data(),
-                         haloRadii.data());
+        computeHaloRadii<KeyType>(focusedTree_.treeLeaves().data(),
+                                  nNodes(focusedTree_.treeLeaves()),
+                                  codes,
+                                  h.data(),
+                                  haloRadii.data());
 
         std::vector<int> haloFlags(nNodes(focusedTree_.treeLeaves()), 0);
         findHalos<KeyType, float>(focusedTree_.treeLeaves(),
