@@ -113,7 +113,10 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, std::size_t n
     // If there are no interfering messages going to be sent, it would be possible to
     // remove the barrier. But if that assumption turns out to be wrong, arising bugs
     // will be hard to detect.
-    MPI_Barrier(MPI_COMM_WORLD);
+
+    // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization
+    // across all ranks before calling this function again.
+    //MPI_Barrier(MPI_COMM_WORLD);
 }
 
 //! @brief reallocate arrays to the specified size

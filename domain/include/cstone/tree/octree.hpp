@@ -245,26 +245,25 @@ void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNod
  * @param nodeIdx    node index in [0:N] of @p csTree to compute sibling index
  * @return           in first pair element: index in [0:8] if all 8 siblings of the specified
  *                   node are next to each other and at the same division level.
- *                   0 otherwise, i.e. if not all the 8 siblings exist in @p csTree
+ *                   8 otherwise, i.e. if not all the 8 siblings exist in @p csTree
  *                   at the same division level
  *                   in second pair element: tree level of node at @p nodeIdx
  */
 template<class KeyType>
 inline CUDA_HOST_DEVICE_FUN
-pair<unsigned> siblingAndLevel(const KeyType* csTree, TreeNodeIndex nodeIdx)
+pair<int> siblingAndLevel(const KeyType* csTree, TreeNodeIndex nodeIdx)
 {
-    KeyType thisNode     = csTree[nodeIdx];
-    KeyType range        = csTree[nodeIdx + 1] - thisNode;
-    unsigned level = treeLevel(range);
-    unsigned siblingIdx = 0;
-    if (level > 0)
-    {
-        siblingIdx = octalDigit(thisNode, level);
-        bool siblings = (csTree[nodeIdx - siblingIdx + 8] == csTree[nodeIdx - siblingIdx] + nodeRange<KeyType>(level - 1));
-        if (!siblings) { siblingIdx = 0; }
-    }
+    KeyType thisNode = csTree[nodeIdx];
+    KeyType range    = csTree[nodeIdx + 1] - thisNode;
+    int level = treeLevel(range);
 
-    return pair<unsigned>{siblingIdx, level};
+    if (level == 0) { return {-1, level}; }
+
+    int siblingIdx = octalDigit(thisNode, level);
+    bool siblings  = (csTree[nodeIdx - siblingIdx + 8] == csTree[nodeIdx - siblingIdx] + nodeRange<KeyType>(level - 1));
+    if (!siblings) { siblingIdx = -1; }
+
+    return {siblingIdx, level};
 }
 
 //! @brief returns 0 for merging, 1 for no-change, 8 for splitting
@@ -273,8 +272,8 @@ CUDA_HOST_DEVICE_FUN
 int calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize)
 {
     auto p = siblingAndLevel(tree, nodeIdx);
-    unsigned siblingIdx = p[0];
-    unsigned level      = p[1];
+    int siblingIdx = p[0];
+    int level      = p[1];
 
     if (siblingIdx > 0) // 8 siblings next to each other, node can potentially be merged
     {
@@ -284,7 +283,10 @@ int calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, const unsigned* 
         if (countMerge) { return 0; } // merge
     }
 
-    if (counts[nodeIdx] > bucketSize && level < maxTreeLevel<KeyType>{}) { return 8; } // split
+    if (counts[nodeIdx] > bucketSize * 512 && level + 3 < maxTreeLevel<KeyType>{}) { return 4096; } // split
+    if (counts[nodeIdx] > bucketSize * 64  && level + 2 < maxTreeLevel<KeyType>{}) { return 512; } // split
+    if (counts[nodeIdx] > bucketSize * 8   && level + 1 < maxTreeLevel<KeyType>{}) { return 64; } // split
+    if (counts[nodeIdx] > bucketSize       && level     < maxTreeLevel<KeyType>{}) { return 8; } // split
 
     return 1; // default: do nothing
 }
@@ -340,9 +342,9 @@ template<class KeyType>
 CUDA_HOST_DEVICE_FUN
 void processNode(TreeNodeIndex nodeIndex, const KeyType* oldTree, const TreeNodeIndex* nodeOps, KeyType* newTree)
 {
-    KeyType thisNode     = oldTree[nodeIndex];
-    KeyType range        = oldTree[nodeIndex+1] - thisNode;
-    unsigned level = treeLevel(range);
+    KeyType thisNode = oldTree[nodeIndex];
+    KeyType range    = oldTree[nodeIndex+1] - thisNode;
+    unsigned level   = treeLevel(range);
 
     TreeNodeIndex opCode       = nodeOps[nodeIndex+1] - nodeOps[nodeIndex];
     TreeNodeIndex newNodeIndex = nodeOps[nodeIndex];
@@ -356,6 +358,14 @@ void processNode(TreeNodeIndex nodeIndex, const KeyType* oldTree, const TreeNode
         for (int sibling = 0; sibling < 8; ++sibling)
         {
             newTree[newNodeIndex + sibling] = thisNode + sibling * nodeRange<KeyType>(level + 1);
+        }
+    }
+    else if (opCode > 8)
+    {
+        unsigned levelDiff = log8ceil(unsigned(opCode));
+        for (int sibling = 0; sibling < opCode; ++sibling)
+        {
+            newTree[newNodeIndex + sibling] = thisNode + sibling * nodeRange<KeyType>(level + levelDiff);
         }
     }
 }
@@ -438,8 +448,7 @@ computeOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucke
 /*! @brief create a cornerstone octree around a series of given SFC codes
  *
  * @tparam InputIterator  iterator to 32- or 64-bit unsigned integer
- * @param  firstCode      SFC code sequence start
- * @param  lastCode       SFC code sequence end
+ * @param  spanningKeys   input SFC key sequence
  * @return                the cornerstone octree containing all values in the given code sequence
  *                        plus any additional intermediate SFC codes between them required to fulfill
  *                        the cornerstone invariants.
@@ -453,32 +462,137 @@ computeOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucke
  *        with CodeType =- std::decay_t<decltype(*firstCode)>
  *      - must be sorted
  */
-template<class InputIterator>
-auto computeSpanningTree(InputIterator firstCode, InputIterator lastCode)
+template<class KeyType>
+std::vector<KeyType> computeSpanningTree(gsl::span<const KeyType> spanningKeys)
 {
-    using CodeType = std::decay_t<decltype(*firstCode)>;
+    assert(spanningKeys.size() > 1);
+    assert(spanningKeys.front() == 0 && spanningKeys.back() == nodeRange<KeyType>(0));
 
-    assert(lastCode - firstCode > 1);
-    assert(*firstCode == 0 && *(lastCode-1) == nodeRange<CodeType>(0));
-
-    TreeNodeIndex numIntervals = lastCode - firstCode - 1;
+    TreeNodeIndex numIntervals = spanningKeys.size() - 1;
 
     std::vector<TreeNodeIndex> offsets(numIntervals + 1);
     for (TreeNodeIndex i = 0; i < numIntervals; ++i)
     {
-        offsets[i] = spanSfcRange(firstCode[i], firstCode[i+1]);
+        offsets[i] = spanSfcRange(spanningKeys[i], spanningKeys[i+1]);
     }
 
     exclusiveScanSerialInplace(offsets.data(), offsets.size(), 0);
 
-    std::vector<CodeType> spanningTree(offsets.back() + 1);
+    std::vector<KeyType> spanningTree(offsets.back() + 1);
     for (TreeNodeIndex i = 0; i < numIntervals; ++i)
     {
-        spanSfcRange(firstCode[i], firstCode[i+1], spanningTree.data() + offsets[i]);
+        spanSfcRange(spanningKeys[i], spanningKeys[i+1], spanningTree.data() + offsets[i]);
     }
-    spanningTree.back() = nodeRange<CodeType>(0);
+    spanningTree.back() = nodeRange<KeyType>(0);
 
     return spanningTree;
+}
+
+enum class ResolutionStatus : int
+{
+    //! @brief required SFC keys present in tree, no action needed
+    converged,
+    //! @brief required SFC keys already present in tree, but had to cancel rebalance-merge operations
+    cancelMerge,
+    //! @brief subsequent rebalance can resolve the required SFC key by subdividing the closest node
+    rebalance,
+    //! @brief subsequent rebalance cannot resolve the required SFC key with subdividing the closest node
+    failed
+};
+
+/*! @brief  modify nodeOps, such that the input tree will contain all mandatory keys after rebalancing
+ *
+ * @tparam KeyType                32- or 64-bit unsigned integer type
+ * @param[in]    treeLeaves       cornerstone octree leaves
+ * @param[in]    mandatoryKeys    sequence of keys that @p treeLeaves has to contain when
+ *                                rebalancing with @p nodeOps
+ * @param[inout] nodeOps          rebalance op-code sequence for @p treeLeaves
+ * @return                        resolution status of @p mandatoryKeys
+ *
+ * After this procedure is called, newTreeLeaves generated by
+ *     rebalanceTree(treeLeaves, newTreeLeaves, nodeOps);
+ * will contain all the SFC keys listed in mandatoryKeys.
+ */
+template<class KeyType>
+ResolutionStatus enforceKeys(gsl::span<const KeyType> treeLeaves, gsl::span<const KeyType> mandatoryKeys,
+                             gsl::span<TreeNodeIndex> nodeOps)
+{
+    ResolutionStatus status = ResolutionStatus::converged;
+
+    for (KeyType key : mandatoryKeys)
+    {
+        if (key == 0 || key == nodeRange<KeyType>(0)) { continue; }
+
+        TreeNodeIndex nodeIdx = findNodeBelow(treeLeaves, key);
+
+        auto p = siblingAndLevel(treeLeaves.data(), nodeIdx);
+        int siblingIdx = p[0];
+        int level      = p[1];
+
+        bool canCancel = siblingIdx > -1;
+        // need to cancel if the closest tree node would be merged or the mandatory key is not there
+        bool needToCancel = nodeOps[nodeIdx] == 0 || treeLeaves[nodeIdx] != key;
+        if (canCancel && needToCancel)
+        {
+            status = std::max(status, ResolutionStatus::cancelMerge);
+            // pointer to sibling-0 nodeOp
+            TreeNodeIndex* g = nodeOps.data() + nodeIdx - siblingIdx;
+            for (int octant = 0; octant < 8; ++octant)
+            {
+                if (g[octant] == 0) { g[octant] = 1; } // cancel node merge
+            }
+        }
+
+        if (treeLeaves[nodeIdx] != key) // mandatory key is not present
+        {
+            int keyPos = lastNzPlace(key);
+
+            // add up to 3 levels
+            constexpr int maxAddLevels = 3;
+            int levelDiff = keyPos - level;
+            if (levelDiff > maxAddLevels) { status = ResolutionStatus::failed; }
+            else                          { status = std::max(status, ResolutionStatus::rebalance); }
+
+            levelDiff        = std::min(levelDiff, maxAddLevels);
+            nodeOps[nodeIdx] = std::max(nodeOps[nodeIdx], 1 << (3 * levelDiff));
+        }
+    }
+    return status;
+}
+
+/*! @brief inject specified keys into a cornerstone leaf tree
+ *
+ * @tparam KeyVector    vector of 32- or 64-bit integer
+ * @param[inout] tree   cornerstone octree
+ * @param[in]    keys   list of SFC keys to insert
+ *
+ * This function needs to insert more than just @p keys, due the cornerstone
+ * invariant of consecutive nodes always having a power-of-8 difference.
+ * This means that each subdividing a node, all 8 children always have to be added.
+ */
+template<class KeyVector>
+void injectKeys(KeyVector& tree, gsl::span<const typename KeyVector::value_type> keys)
+{
+    using KeyType = typename KeyVector::value_type;
+
+    std::vector<KeyType> spanningKeys(keys.begin(), keys.end());
+    spanningKeys.push_back(0);
+    spanningKeys.push_back(nodeRange<KeyType>(0));
+    std::sort(begin(spanningKeys), end(spanningKeys));
+    auto uit = std::unique(begin(spanningKeys), end(spanningKeys));
+    spanningKeys.erase(uit, end(spanningKeys));
+
+    // spanningTree is a list of all the missing nodes needed to resolve the mandatory keys
+    auto spanningTree = computeSpanningTree<KeyType>(spanningKeys);
+    tree.reserve(tree.size() + spanningTree.size());
+
+    // spanningTree is now inserted into newLeaves
+    std::copy(begin(spanningTree), end(spanningTree), std::back_inserter(tree));
+
+    // cleanup, restore invariants: sorted-ness, no-duplicates
+    std::sort(begin(tree), end(tree));
+    uit = std::unique(begin(tree), end(tree));
+    tree.erase(uit, end(tree));
 }
 
 /*! @brief Compute the halo radius of each node in the given octree

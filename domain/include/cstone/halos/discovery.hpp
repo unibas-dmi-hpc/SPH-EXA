@@ -169,4 +169,44 @@ void findHalos(gsl::span<const KeyType> tree,
     }
 }
 
+/*! @brief extract ranges of marked indices from a source array
+ *
+ * @tparam IntegralType  an integer type
+ * @param source         array with quantities to extract, length N+1
+ * @param flags          0 or 1 flags for index, length N
+ * @param firstReqIdx    first index, permissible range: [0:N]
+ * @param secondReqIdx   second index, permissible range: [0:N+1]
+ * @return               vector (of pairs) of elements of @p source that span all
+ *                       elements [firstReqIdx:secondReqIdx] of @p source that are
+ *                       marked by @p flags
+ *
+ * Even indices mark the start of a range, uneven indices mark the end of the previous
+ * range start. If two ranges are consecutive, they are fused into a single range.
+ */
+template<class IntegralType>
+std::vector<IntegralType> extractMarkedElements(gsl::span<const IntegralType> source,
+                                                gsl::span<const int> flags,
+                                                TreeNodeIndex firstReqIdx,
+                                                TreeNodeIndex secondReqIdx)
+{
+    std::vector<IntegralType> requestKeys;
+
+    while (firstReqIdx != secondReqIdx)
+    {
+        // advance to first halo (or to secondReqIdx)
+        while (firstReqIdx < secondReqIdx && flags[firstReqIdx] == 0) { firstReqIdx++; }
+
+        // add one request key range
+        if (firstReqIdx != secondReqIdx)
+        {
+            requestKeys.push_back(source[firstReqIdx]);
+            // advance until not a halo or end of range
+            while (firstReqIdx < secondReqIdx && flags[firstReqIdx] == 1) { firstReqIdx++; }
+            requestKeys.push_back(source[firstReqIdx]);
+        }
+    }
+
+    return requestKeys;
+}
+
 } // namespace cstone

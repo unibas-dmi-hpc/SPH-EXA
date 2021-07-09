@@ -52,6 +52,8 @@ struct IndexPair : public std::tuple<T, T>
     T count() const { return end() - start(); }
 };
 
+using TreeIndexPair = IndexPair<TreeNodeIndex>;
+
 /*! @brief Stores ranges of local particles to be sent to another rank
  *
  * @tparam I  32- or 64-bit signed or unsigned integer to store the indices
