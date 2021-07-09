@@ -127,29 +127,6 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, std::size_t n
     //MPI_Barrier(MPI_COMM_WORLD);
 }
 
-//! @brief reallocate arrays to the specified size
-template<class... Arrays>
-void reallocate(std::size_t size, Arrays&... arrays)
-{
-    std::array data{ (&arrays)... };
-
-    size_t current_capacity = data[0]->capacity();
-    if (size > current_capacity)
-    {
-        // limit reallocation growth to 5% instead of 200%
-        auto reserve_size = static_cast<size_t>(double(size) * 1.05);
-        for (auto array : data)
-        {
-            array->reserve(reserve_size);
-        }
-    }
-
-    for (auto array : data)
-    {
-        array->resize(size);
-    }
-}
-
 /*! @brief exchange array elements with other ranks according to the specified ranges
  *
  * @tparam T                      double, float or int

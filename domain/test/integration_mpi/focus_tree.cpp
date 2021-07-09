@@ -33,6 +33,7 @@
 #include <gtest/gtest.h>
 
 #include "cstone/tree/octree_mpi.hpp"
+#include "cstone/domain/layout.hpp"
 #include "cstone/domain/domaindecomp_mpi.hpp"
 #include "cstone/domain/peers.hpp"
 #include "cstone/tree/octree_focus_mpi.hpp"

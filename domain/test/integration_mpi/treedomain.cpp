@@ -34,6 +34,7 @@
 
 #include "cstone/tree/octree_mpi.hpp"
 #include "cstone/tree/octree_util.hpp"
+#include "cstone/domain/layout.hpp"
 #include "cstone/domain/domaindecomp_mpi.hpp"
 
 #include "coord_samples/random.hpp"
