@@ -201,18 +201,8 @@ TEST(DomainDecomposition, assignSendIntegration)
     assignSendRandomData<uint64_t>();
 }
 
-/*! @brief Test that createSendBuffer can create the correct buffer from a source array
- *
- * @tparam KeyType 32- or 64-bit unsigned integer
- *
- * Precondition: an array, corresponding ordering and SendManifest with valid index ranges into
- *               the array
- *
- * Expected Result: createSendBuffer extracts the elements that fall within the index ranges in the
- *                  sendManifest into the output buffer
- */
 template<class KeyType>
-void createSendBuffer()
+void extractRange()
 {
     int bufferSize = 64;
     // the source array from which to extract the buffer
@@ -231,15 +221,16 @@ void createSendBuffer()
     std::swap(x[0], x[1]);
     std::swap(ordering[0], ordering[1]);
 
-    auto buffer = createSendBuffer(manifest, x.data(), ordering.data());
+    std::vector<double> output(manifest.totalCount());
+    extractRange(manifest, x.data(), ordering.data(), output.data());
 
     // note sorted reference
     std::vector<double> ref{0, 1, 2, 3, 4, 5, 6, 7, 40, 41};
-    EXPECT_EQ(buffer, ref);
+    EXPECT_EQ(output, ref);
 }
 
-TEST(DomainDecomposition, createSendBuffer)
+TEST(DomainDecomposition, extractRange)
 {
-    createSendBuffer<unsigned>();
-    createSendBuffer<uint64_t>();
+    extractRange<unsigned>();
+    extractRange<uint64_t>();
 }
