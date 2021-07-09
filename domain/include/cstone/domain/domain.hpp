@@ -52,7 +52,7 @@ namespace cstone
 {
 
 template<class KeyType, class T, class Accelerator = CpuTag>
-class FocusedDomain
+class Domain
 {
     static_assert(std::is_unsigned<KeyType>{}, "SFC key type needs to be an unsigned integer\n");
 
@@ -70,7 +70,7 @@ public:
      *                        limits will never be changed for the lifetime of the Domain
      *
      */
-    explicit FocusedDomain(int rank, int nRanks, unsigned bucketSize, unsigned bucketSizeFocus,
+    explicit Domain(int rank, int nRanks, unsigned bucketSize, unsigned bucketSizeFocus,
                            const Box<T>& box = Box<T>{0,1})
         : myRank_(rank), nRanks_(nRanks), bucketSize_(bucketSize), bucketSizeFocus_(bucketSizeFocus), box_(box),
           focusedTree_(bucketSizeFocus_, theta_)

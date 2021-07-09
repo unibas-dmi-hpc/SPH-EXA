@@ -32,7 +32,7 @@
 #include <mpi.h>
 #include <gtest/gtest.h>
 
-#include "cstone/domain/domain_focus.hpp"
+#include "cstone/domain/domain.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 #include "coord_samples/random.hpp"
@@ -43,7 +43,7 @@ template<class KeyType, class T>
 void noHalos(int rank, int nRanks)
 {
     int bucketSize = 1;
-    FocusedDomain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSize);
+    Domain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSize);
 
     std::vector<T> x{0.5, 0.6};
     std::vector<T> y{0.5, 0.6};
@@ -93,7 +93,7 @@ template<class KeyType, class T>
 void withHalos(int rank, int nRanks)
 {
     int bucketSize = 1;
-    FocusedDomain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSize);
+    Domain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSize);
 
     std::vector<T> x{0.5, 0.6};
     std::vector<T> y{0.5, 0.6};
@@ -147,7 +147,7 @@ template<class KeyType, class T>
 void moreHalos(int rank, int nRanks)
 {
     int bucketSize = 4;
-    FocusedDomain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSize);
+    Domain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSize);
 
     // node boundaries     |--(0,0)----|---------(0,7)-------------|-----(7,0)----------|-------(7,7)------|
     // indices             0    1      2      3      4      5      6      7      8      9      10     11
@@ -230,7 +230,7 @@ template<class KeyType, class T>
 void particleProperty(int rank, int nRanks)
 {
     int bucketSize = 4;
-    FocusedDomain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSize);
+    Domain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSize);
 
     // node boundaries     |--(0,0)----|---------(0,7)-------------|-----(7,0)----------|-------(7,7)------|
     // indices             0    1      2      3      4      5      6      7      8      9      10     11
@@ -299,7 +299,7 @@ void multiStepSync(int rank, int nRanks)
 {
     int bucketSize = 4;
     int bucketSizeFocus = 1;
-    FocusedDomain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSizeFocus);
+    Domain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSizeFocus);
 
     // node boundaries     |--(0,0)----|---------(0,7)-------------|-----(7,0)----------|-------(7,7)------|
     // indices             0    1      2      3      4      5      6      7      8      9      10     11
