@@ -232,25 +232,35 @@ public:
         // only with locally assigned particles
         SendList domainExchangeSends = createSendList<KeyType>(assignment, tree_, codes);
 
-        // resize arrays to new sizes
-        reallocate(newNParticlesAssigned, x,y,z,h, particleProperties...);
-        reallocate(newNParticlesAssigned, codes);
+        reallocate(std::max(newNParticlesAssigned, LocalParticleIndex(x.size())), x,y,z,h, particleProperties...);
+
         // exchange assigned particles
-        exchangeParticles<T>(domainExchangeSends, Rank(myRank_), newNParticlesAssigned,
-                             particleStart_, LocalParticleIndex(0), mortonOrder.data(),
-                             x.data(), y.data(), z.data(), h.data(), particleProperties.data()...);
+        std::tie(particleStart_, particleEnd_) =
+            exchangeParticles<T>(domainExchangeSends, myRank_, particleStart_, particleEnd_,
+                                 x.size(), newNParticlesAssigned,
+                                 mortonOrder.data(),
+                                 x.data(), y.data(), z.data(), h.data(), particleProperties.data()...);
+
+        reallocate(particleEnd_ - particleStart_, codes);
+
+        compactParticles(particleStart_, particleEnd_, newNParticlesAssigned, tree_[assignment.firstNodeIdx(myRank_)],
+                         LocalParticleIndex(0), box_, codes.data(),
+                         x.data(), y.data(), z.data(), h.data(), particleProperties.data()...);
+        reallocate(newNParticlesAssigned, codes);
+        reallocate(newNParticlesAssigned, x,y,z,h, particleProperties...);
+
         // recompute SFC codes
         computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(codes), box_);
         // sort codes and update reorder-map inside the functor
-        reorderFunctor.setMapFromCodes(codes.data(), codes.data() + codes.size());
-        {
-            std::array<std::vector<T>*, 4 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &h, &particleProperties...};
-            for (std::size_t i = 0; i < particleArrays.size(); ++i)
-            {
-                //reorderFunctor(particleArrays[i]->data() + particleStart_) ;
-                reorderFunctor(particleArrays[i]->data()) ;
-            }
-        }
+        //reorderFunctor.setMapFromCodes(codes.data(), codes.data() + codes.size());
+        //{
+        //    std::array<std::vector<T>*, 4 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &h, &particleProperties...};
+        //    for (std::size_t i = 0; i < particleArrays.size(); ++i)
+        //    {
+        //        //reorderFunctor(particleArrays[i]->data() + particleStart_) ;
+        //        reorderFunctor(particleArrays[i]->data()) ;
+        //    }
+        //}
 
         /* Focus tree update phase *********************************************************/
 

@@ -292,4 +292,39 @@ void extractRange(const SendManifest& manifest, const T* source, const IndexType
             destination[idx++] = source[ordering[i]];
 }
 
+
+template<class T, class IndexType, class KeyType, class... Arrays>
+void compactParticles(IndexType particleStart, IndexType particleEnd, IndexType numParticlesAssigned,
+                      KeyType assignmentStart, IndexType outputOffset, const Box<T>& box,
+                      KeyType* particleKeys, T* x, T* y, T* z, Arrays... arrays)
+{
+    std::array data{x, y, z, arrays...};
+
+    computeMortonCodes(x + particleStart, x + particleEnd,
+                       y + particleStart,
+                       z + particleStart, particleKeys, box);
+
+    IndexType numKeys = particleEnd - particleStart;
+    std::vector<IndexType> ordering(numKeys);
+    std::iota(begin(ordering), end(ordering), IndexType(0));
+    sort_by_key(particleKeys, particleKeys + numKeys, ordering.begin()) ;
+
+    for (auto array : data)
+    {
+        reorderInPlace(ordering, array + particleStart);
+    }
+
+    IndexType firstOwned = std::lower_bound(particleKeys, particleKeys + numKeys, assignmentStart) - particleKeys;
+    //if (firstOwned != 0) { std::cout << "firstOwned " << firstOwned << std::endl; }
+
+    std::vector<T> temp(numParticlesAssigned);
+    for (auto array : data)
+    {
+        T* source = array + particleStart + firstOwned;
+        std::copy(source, source + numParticlesAssigned, begin(temp));
+        std::copy(begin(temp), end(temp), array + outputOffset);
+    }
+
+}
+
 } // namespace cstone

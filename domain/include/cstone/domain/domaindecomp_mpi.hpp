@@ -38,6 +38,125 @@
 namespace cstone
 {
 
+template<class T, class... Arrays>
+std::tuple<LocalParticleIndex, LocalParticleIndex>
+exchangeParticles(const SendList& sendList, int thisRank,
+                  LocalParticleIndex particleStart,
+                  LocalParticleIndex particleEnd,
+                  LocalParticleIndex arraySize,
+                  LocalParticleIndex numParticlesAssigned,
+                  const LocalParticleIndex* ordering, Arrays... arrays)
+{
+    constexpr int domainExchangeTag = static_cast<int>(P2pTags::domainExchange);
+    constexpr int numArrays = sizeof...(Arrays);
+    int numRanks = int(sendList.size());
+
+    std::vector<std::vector<T>> sendBuffers;
+    std::vector<MPI_Request>    sendRequests;
+    sendBuffers.reserve(27);
+    sendRequests.reserve(27);
+
+    std::array<T*, numArrays> sourceArrays{ (arrays + particleStart)... };
+    for (int destinationRank = 0; destinationRank < numRanks; ++destinationRank)
+    {
+        LocalParticleIndex sendCount = sendList[destinationRank].totalCount();
+        if (destinationRank == thisRank || sendCount == 0) { continue; }
+
+        std::vector<T> sendBuffer(numArrays * sendCount);
+        for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
+        {
+            extractRange(sendList[destinationRank], sourceArrays[arrayIndex], ordering,
+                         sendBuffer.data() + arrayIndex * sendCount);
+        }
+        mpiSendAsync(sendBuffer.data(), sendBuffer.size(), destinationRank, domainExchangeTag, sendRequests);
+        sendBuffers.push_back(std::move(sendBuffer));
+    }
+
+    LocalParticleIndex numParticlesPresent = sendList[thisRank].totalCount();
+    LocalParticleIndex numIncoming         = numParticlesAssigned - numParticlesPresent;
+
+    bool fitHead = particleStart >= numIncoming;
+    bool fitTail = arraySize - particleEnd >= numIncoming;
+
+    LocalParticleIndex receiveStart, newParticleStart, newParticleEnd;
+    if (fitHead)
+    {
+        receiveStart     = particleStart - numIncoming;
+        newParticleStart = particleStart - numIncoming;
+        newParticleEnd   = particleEnd;
+    }
+    else if (fitTail)
+    {
+        receiveStart     = particleEnd;
+        newParticleStart = particleStart;
+        newParticleEnd   = particleEnd + numIncoming;
+    }
+    else
+    {
+        receiveStart     = 0;
+        newParticleStart = 0;
+        newParticleEnd   = numParticlesAssigned;
+    }
+
+    std::array<T*, numArrays> destinationArrays{ (arrays + receiveStart)... };
+
+    if (!fitHead && !fitTail && numIncoming > 0)
+    {
+        std::vector<T> tempBuffer(numParticlesPresent);
+        // handle thisRank
+        for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
+        {
+            // make space by compacting already present particles
+            extractRange(sendList[thisRank], sourceArrays[arrayIndex], ordering, tempBuffer.data());
+            std::copy(begin(tempBuffer), end(tempBuffer), destinationArrays[arrayIndex]);
+            destinationArrays[arrayIndex] += numParticlesPresent;
+        }
+    }
+
+    std::vector<T> receiveBuffer;
+    while (numParticlesPresent != numParticlesAssigned)
+    {
+        MPI_Status status;
+        MPI_Probe(MPI_ANY_SOURCE, domainExchangeTag, MPI_COMM_WORLD, &status);
+        int receiveRank = status.MPI_SOURCE;
+        int receiveCountTotal;
+        MPI_Get_count(&status, MpiType<T>{}, &receiveCountTotal);
+
+        size_t receiveCount = receiveCountTotal / numArrays;
+        assert(numParticlesPresent + receiveCount <= numParticlesAssigned);
+
+        receiveBuffer.resize(receiveCountTotal);
+        mpiRecvSync(receiveBuffer.data(), receiveCountTotal, receiveRank, domainExchangeTag, &status);
+
+        for (int arrayIndex = 0; arrayIndex < numArrays; ++arrayIndex)
+        {
+            auto source = receiveBuffer.begin() + arrayIndex * receiveCount;
+            std::copy(source, source + receiveCount, destinationArrays[arrayIndex]);
+            destinationArrays[arrayIndex] += receiveCount;
+        }
+
+        numParticlesPresent += receiveCount;
+    }
+
+    if (not sendRequests.empty())
+    {
+        MPI_Status status[sendRequests.size()];
+        MPI_Waitall(int(sendRequests.size()), sendRequests.data(), status);
+    }
+
+    return {newParticleStart, newParticleEnd};
+
+    // If this process is going to send messages with rank/tag combinations
+    // already sent in this function, this can lead to messages being mixed up
+    // on the receiver side. This happens e.g. with repeated consecutive calls of
+    // this function.
+
+    // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization
+    // across all ranks before calling this function again.
+    //MPI_Barrier(MPI_COMM_WORLD);
+}
+
+
 template<class T, class IndexType, class... Arrays>
 void exchangeParticlesImpl(const SendList& sendList, int thisRank, std::size_t nParticlesAssigned,
                            IndexType inputOffset, IndexType outputOffset,
@@ -167,15 +286,15 @@ void exchangeParticlesImpl(const SendList& sendList, int thisRank, std::size_t n
  *      ordering.size() == nOldAssignment
  *      *std::max_element(begin(ordering), end(ordering)) == nOldAssignment - 1
  */
-template<class T, class IndexType, class... Arrays>
-void exchangeParticles(const SendList& sendList, Rank thisRank, IndexType nParticlesAssigned,
-                       IndexType inputOffset, IndexType outputOffset, const IndexType* ordering, Arrays... arrays)
-{
-    IndexType nParticlesAlreadyPresent = sendList[thisRank].totalCount();
-    std::vector<T> tempBuffer(nParticlesAlreadyPresent);
-    exchangeParticlesImpl(sendList, thisRank, nParticlesAssigned, inputOffset, outputOffset,
-                          ordering, tempBuffer.data(), arrays...);
-}
+//template<class T, class IndexType, class... Arrays>
+//void exchangeParticles(const SendList& sendList, Rank thisRank, IndexType nParticlesAssigned,
+//                       IndexType inputOffset, IndexType outputOffset, const IndexType* ordering, Arrays... arrays)
+//{
+//    IndexType nParticlesAlreadyPresent = sendList[thisRank].totalCount();
+//    std::vector<T> tempBuffer(nParticlesAlreadyPresent);
+//    exchangeParticlesImpl(sendList, thisRank, nParticlesAssigned, inputOffset, outputOffset,
+//                          ordering, tempBuffer.data(), arrays...);
+//}
 
 /*! @brief exchange array elements with other ranks according to the specified ranges
  *
@@ -193,11 +312,11 @@ void exchangeParticles(const SendList& sendList, Rank thisRank, IndexType nParti
  *
  * See documentation of exchangeParticles with the full signature
  */
-template<class T, class IndexType, class... Arrays>
-void exchangeParticles(const SendList& sendList, Rank thisRank, IndexType nParticlesAssigned,
-                       const IndexType* ordering, Arrays... arrays)
-{
-    exchangeParticles<T>(sendList, thisRank, nParticlesAssigned, IndexType(0), IndexType(0), ordering, arrays...);
-}
+//template<class T, class IndexType, class... Arrays>
+//void exchangeParticles(const SendList& sendList, Rank thisRank, IndexType nParticlesAssigned,
+//                       const IndexType* ordering, Arrays... arrays)
+//{
+//    exchangeParticles<T>(sendList, thisRank, nParticlesAssigned, IndexType(0), IndexType(0), ordering, arrays...);
+//}
 
 } // namespace cstone

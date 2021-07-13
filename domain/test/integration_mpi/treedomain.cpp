@@ -45,9 +45,9 @@ using namespace cstone;
  *
  * This test performs the following steps on each rank:
  *
- * 1. Create nParticles randomly
+ * 1. Create numParticles randomly
  *
- *    RandomGaussianCoordinates<T, KeyType> coords(nParticles, box):
+ *    RandomGaussianCoordinates<T, KeyType> coords(numParticles, box, thisRank):
  *    Creates nParticles in the [-1,1]^3 box with random gaussian distribution
  *    centered at (0,0,0), calculate the Morton code for each particle,
  *    reorder codes and x,y,z array of coords according to ascending Morton codes
@@ -69,50 +69,53 @@ using namespace cstone;
  *    node they currently are and that no rank sends any particles to other ranks.
  */
 template<class KeyType, class T>
-void globalRandomGaussian(int thisRank, int nRanks)
+void globalRandomGaussian(int thisRank, int numRanks)
 {
-    int nParticles = 1000;
+    int numParticles = 1000;
     int bucketSize = 64;
 
     Box<T> box{-1, 1};
-    RandomGaussianCoordinates<T, KeyType> coords(nParticles, box);
+    RandomGaussianCoordinates<T, KeyType> coords(numParticles, box, thisRank);
 
     std::vector<KeyType> tree = makeRootNodeTree<KeyType>();
-    std::vector<unsigned> counts{nRanks * unsigned(nParticles)};
+    std::vector<unsigned> counts{numRanks * unsigned(numParticles)};
 
-    while (!updateOctreeGlobal(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles, bucketSize, tree,
+    while (!updateOctreeGlobal(coords.mortonCodes().data(), coords.mortonCodes().data() + numParticles, bucketSize, tree,
                                counts))
     {
     }
 
-    std::vector<int> ordering(nParticles);
+    std::vector<LocalParticleIndex> ordering(numParticles);
     // particles are in Morton order
     std::iota(begin(ordering), end(ordering), 0);
 
-    auto assignment = singleRangeSfcSplit(counts, nRanks);
+    auto assignment = singleRangeSfcSplit(counts, numRanks);
     auto sendList = createSendList<KeyType>(assignment, tree, coords.mortonCodes());
 
-    EXPECT_EQ(std::accumulate(begin(counts), end(counts), std::size_t(0)), nParticles * nRanks);
+    EXPECT_EQ(std::accumulate(begin(counts), end(counts), std::size_t(0)), numParticles * numRanks);
 
     std::vector<T> x = coords.x();
     std::vector<T> y = coords.y();
     std::vector<T> z = coords.z();
 
-    int nParticlesAssigned = assignment.totalCount(thisRank);
+    int numParticlesAssigned = assignment.totalCount(thisRank);
 
-    reallocate(nParticlesAssigned, x, y, z);
-    exchangeParticles<T>(sendList, Rank(thisRank), nParticlesAssigned, ordering.data(), x.data(), y.data(), z.data());
+    reallocate(std::max(numParticlesAssigned, numParticles), x, y, z);
+    auto [particleStart, particleEnd] =
+        exchangeParticles<T>(sendList, Rank(thisRank), 0, numParticles, x.size(), numParticlesAssigned,
+                             ordering.data(), x.data(), y.data(), z.data());
 
     /// post-exchange test:
     /// if the global tree build and assignment is repeated, no particles are exchanged anymore
 
-    EXPECT_EQ(x.size(), nParticlesAssigned);
+    EXPECT_EQ(particleEnd - particleStart, numParticlesAssigned);
 
-    std::vector<KeyType> newCodes(nParticlesAssigned);
-    computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(newCodes), box);
+    std::vector<KeyType> newCodes(numParticlesAssigned);
+    computeMortonCodes(begin(x) + particleStart, begin(x) + particleEnd,
+                       begin(y) + particleStart, begin(z) + particleStart, begin(newCodes), box);
 
     // received particles are not stored in morton order after the exchange
-    ordering.resize(nParticlesAssigned);
+    ordering.resize(numParticlesAssigned);
     std::iota(begin(ordering), end(ordering), 0);
     sort_by_key(begin(newCodes), end(newCodes), begin(ordering));
 
@@ -127,11 +130,11 @@ void globalRandomGaussian(int thisRank, int nRanks)
 
     auto newSendList = createSendList<KeyType>(assignment, newTree, newCodes);
 
-    for (int rank = 0; rank < nRanks; ++rank)
+    for (int rank = 0; rank < numRanks; ++rank)
     {
         // the new send list now indicates that all elements on the current rank
         // stay where they are
-        if (rank == thisRank) EXPECT_EQ(newSendList[rank].totalCount(), nParticlesAssigned);
+        if (rank == thisRank) EXPECT_EQ(newSendList[rank].totalCount(), numParticlesAssigned);
         // no particles are sent to other ranks
         else
             EXPECT_EQ(newSendList[rank].totalCount(), 0);

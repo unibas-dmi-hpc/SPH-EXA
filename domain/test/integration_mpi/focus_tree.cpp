@@ -80,7 +80,7 @@ FocusedOctree<KeyType> createReferenceFocusTree(const Box<T>& box, gsl::span<con
 template<class KeyType, class T>
 void globalRandomGaussian(int thisRank, int numRanks)
 {
-    size_t numParticles = 1000;
+    LocalParticleIndex numParticles = 1000;
     unsigned bucketSize = 64;
     unsigned bucketSizeLocal = 16;
     float theta = 1.0;
@@ -119,28 +119,29 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
     EXPECT_EQ(numRanks * numParticles, std::accumulate(counts.begin(), counts.end(), 0lu));
 
-    std::vector<int> ordering(numParticles);
+    std::vector<LocalParticleIndex> ordering(numParticles);
     // particles are in Morton order
     std::iota(begin(ordering), end(ordering), 0);
 
     auto assignment = singleRangeSfcSplit(counts, numRanks);
     auto sendList = createSendList<KeyType>(assignment, tree, particleKeys);
 
-    int nParticlesAssigned = assignment.totalCount(thisRank);
+    LocalParticleIndex numParticlesAssigned = assignment.totalCount(thisRank);
 
-    reallocate(nParticlesAssigned, x, y, z);
-    exchangeParticles<T>(sendList, Rank(thisRank), nParticlesAssigned, ordering.data(), x.data(), y.data(), z.data());
+    reallocate(std::max(numParticlesAssigned, numParticles), x, y, z);
 
-    reallocate(nParticlesAssigned, particleKeys);
-    computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(particleKeys), box);
+    auto [particleStart, particleEnd] =
+    exchangeParticles<T>(sendList, Rank(thisRank), 0, numParticles, numParticles, numParticlesAssigned,
+                         ordering.data(), x.data(), y.data(), z.data());
 
-    // reorder arrays according to ascending SFC after exchangeParticles
-    reallocate(nParticlesAssigned, ordering);
-    std::iota(begin(ordering), end(ordering), 0);
-    sort_by_key(begin(particleKeys), end(particleKeys), begin(ordering));
-    reorder(ordering, x);
-    reorder(ordering, y);
-    reorder(ordering, z);
+    reallocate(particleEnd - particleStart, particleKeys);
+    compactParticles(particleStart, particleEnd, numParticlesAssigned, tree[assignment.firstNodeIdx(thisRank)],
+                     LocalParticleIndex(0), box, particleKeys.data(), x.data(), y.data(), z.data());
+
+    reallocate(numParticlesAssigned, particleKeys);
+    computeMortonCodes(begin(x), begin(x) + numParticlesAssigned, begin(y), begin(z), begin(particleKeys), box);
+
+    std::sort(begin(particleKeys), end(particleKeys));
 
     Octree<KeyType> domainTree;
     domainTree.update(begin(tree), end(tree));
@@ -155,7 +156,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
         MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
     }
 
-    // the locally built reference tree should be identical to the tree build with distributed particles
+    // the locally built reference tree should be identical to the tree built with distributed particles
     EXPECT_EQ(focusTree.treeLeaves(), referenceFocusTree.treeLeaves());
     EXPECT_EQ(focusTree.leafCounts(), referenceFocusTree.leafCounts());
 }
