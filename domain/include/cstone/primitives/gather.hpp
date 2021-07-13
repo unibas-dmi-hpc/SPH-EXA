@@ -39,6 +39,7 @@
 #include <vector>
 
 #include "cstone/sfc/morton.hpp"
+#include "cstone/util/gsl-lite.hpp"
 
 namespace cstone
 {
@@ -149,6 +150,17 @@ void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array, int 
     }
 
     swap(tmp, array);
+}
+
+template<class IndexType, class ValueType>
+void reorder(gsl::span<const IndexType> ordering, const ValueType* source, ValueType* destination,
+             IndexType offset, IndexType numExtract)
+{
+    #pragma omp parallel for schedule(static)
+    for (std::size_t i = 0; i < numExtract; ++i)
+    {
+        destination[i] = source[ordering[i + offset]];
+    }
 }
 
 
