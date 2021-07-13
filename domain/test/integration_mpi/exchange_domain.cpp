@@ -40,20 +40,20 @@ using namespace cstone;
 
 /*! @brief all-to-all exchange, the most communication possible
  *
- * @tparam T       float, double or int
- * @param thisRank executing rank
- * @param nRanks   total number of ranks
+ * @tparam T         float, double or int
+ * @param thisRank   executing rank
+ * @param numRanks   total number of ranks
  *
  * Each rank keeps (1/numRanks)-th of its local elements and sends the
- * other nRanks-1 chunks to the other numRanks-1 ranks.
+ * other numRanks-1 chunks to the other numRanks-1 ranks.
  */
 template<class T>
-void exchangeAllToAll(int thisRank, int nRanks)
+void exchangeAllToAll(int thisRank, int numRanks)
 {
     int gridSize = 64;
 
     std::vector<T> x(gridSize), y(gridSize);
-    std::vector<int> ordering(gridSize);
+    std::vector<LocalParticleIndex> ordering(gridSize);
 
     std::iota(begin(x), end(x), 0);
     // unique element id across all ranks
@@ -73,37 +73,39 @@ void exchangeAllToAll(int thisRank, int nRanks)
         std::swap(ordering[swap1], ordering[swap2]);
     }
 
-    int segmentSize = gridSize / nRanks;
+    int segmentSize = gridSize / numRanks;
 
-    SendList sendList(nRanks);
-    for (int rank = 0; rank < nRanks; ++rank)
+    SendList sendList(numRanks);
+    for (int rank = 0; rank < numRanks; ++rank)
     {
         int lower = rank * segmentSize;
         int upper = lower + segmentSize;
 
-        if (rank == nRanks - 1) upper += gridSize % nRanks;
+        if (rank == numRanks - 1) upper += gridSize % numRanks;
 
         sendList[rank].addRange(lower, upper);
     }
 
     // there's only one range per rank
     segmentSize = sendList[thisRank].count(0);
-    int nParticlesThisRank = segmentSize * nRanks;
+    int numParticlesThisRank = segmentSize * numRanks;
 
-    reallocate(nParticlesThisRank, x, y);
-    exchangeParticles<T>(sendList, Rank(thisRank), nParticlesThisRank, ordering.data(), x.data(), y.data());
+    reallocate(std::max(numParticlesThisRank, int(x.size())), x, y);
+    exchangeParticles<T>(sendList, Rank(thisRank), 0, gridSize, x.size(), numParticlesThisRank,
+                         ordering.data(), x.data(), y.data());
+    reallocate(numParticlesThisRank, x, y);
 
-    std::vector<T> refX(nParticlesThisRank);
-    for (int rank = 0; rank < nRanks; ++rank)
+    std::vector<T> refX(numParticlesThisRank);
+    for (int rank = 0; rank < numRanks; ++rank)
     {
         std::iota(begin(refX) + rank * segmentSize, begin(refX) + rank * segmentSize + segmentSize,
                   sendList[thisRank].rangeStart(0));
     }
 
     std::vector<T> refY;
-    for (int rank = 0; rank < nRanks; ++rank)
+    for (int rank = 0; rank < numRanks; ++rank)
     {
-        int seqStart = rank * gridSize + (gridSize / nRanks) * thisRank;
+        int seqStart = rank * gridSize + (gridSize / numRanks) * thisRank;
 
         for (int i = 0; i < segmentSize; ++i)
             refY.push_back(seqStart++);
@@ -131,29 +133,29 @@ TEST(GlobalDomain, exchangeAllToAll)
 }
 
 template<class T>
-void exchangeCyclicNeighbors(int thisRank, int nRanks)
+void exchangeCyclicNeighbors(int thisRank, int numRanks)
 {
     int gridSize = 64;
 
     // x and y are filled with one value that is different for each rank
     std::vector<T> x(gridSize, thisRank), y(gridSize, -thisRank);
-    std::vector<int> ordering(gridSize);
+    std::vector<LocalParticleIndex> ordering(gridSize);
     std::iota(begin(ordering), end(ordering), 0);
 
     // send the last nex elements to the next rank
     int nex = 10;
-    int nextRank = (thisRank + 1) % nRanks;
+    int nextRank = (thisRank + 1) % numRanks;
 
-    SendList sendList(nRanks);
+    SendList sendList(numRanks);
     // keep all but the last nex elements
     sendList[thisRank].addRange(0, gridSize - nex);
     // send last nex to nextRank
     sendList[nextRank].addRange(gridSize - nex, gridSize);
 
-    reallocate(gridSize, x, y);
-    exchangeParticles<T>(sendList, Rank(thisRank), gridSize, ordering.data(), x.data(), y.data());
+    exchangeParticles<T>(sendList, Rank(thisRank), 0, gridSize, gridSize, gridSize,
+                         ordering.data(), x.data(), y.data());
 
-    int incomingRank = (thisRank - 1 + nRanks) % nRanks;
+    int incomingRank = (thisRank - 1 + numRanks) % numRanks;
     std::vector<T> refX(gridSize, thisRank);
     std::fill(begin(refX) + gridSize - nex, end(refX), incomingRank);
 
@@ -167,15 +169,15 @@ void exchangeCyclicNeighbors(int thisRank, int nRanks)
 
 TEST(GlobalDomain, exchangeCyclicNeighbors)
 {
-    int rank = 0, nRanks = 0;
+    int rank = 0, numRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
-    exchangeCyclicNeighbors<double>(rank, nRanks);
+    exchangeCyclicNeighbors<double>(rank, numRanks);
     MPI_Barrier(MPI_COMM_WORLD);
-    exchangeCyclicNeighbors<float>(rank, nRanks);
+    exchangeCyclicNeighbors<float>(rank, numRanks);
     MPI_Barrier(MPI_COMM_WORLD);
-    exchangeCyclicNeighbors<int>(rank, nRanks);
+    exchangeCyclicNeighbors<int>(rank, numRanks);
     MPI_Barrier(MPI_COMM_WORLD);
 }
 
@@ -197,7 +199,7 @@ TEST(GlobalDomain, exchangeCyclicNeighbors)
  *  Y is the unique number of the preceding rank
  */
 template<class T>
-void exchangeCyclicNeighborsOffsets(int thisRank, int nRanks)
+void exchangeCyclicNeighborsOffsets(int thisRank, int numRanks)
 {
     int originalSize = 65;
     int assignedSize = 64;
@@ -213,36 +215,34 @@ void exchangeCyclicNeighborsOffsets(int thisRank, int nRanks)
     x[0] = pollution;
     y[0] = pollution;
 
-    std::vector<int> ordering(assignedSize);
+    std::vector<LocalParticleIndex> ordering(assignedSize);
     std::iota(begin(ordering), end(ordering), 0);
 
     // send the last nex elements to the next rank
     int nex = 10;
-    int nextRank = (thisRank + 1) % nRanks;
+    int nextRank = (thisRank + 1) % numRanks;
 
     // Note that SendList indices are counted from the offset, not the actual
     // begin of the x,y arrays
-    SendList sendList(nRanks);
+    SendList sendList(numRanks);
     // keep all but the last nex elements
     sendList[thisRank].addRange(0, assignedSize - nex);
     // send last nex to nextRank
     sendList[nextRank].addRange(assignedSize - nex, assignedSize);
 
-    reallocate(finalSize, x, y);
-    exchangeParticles<T>(sendList, Rank(thisRank), assignedSize, inputOffset, outputOffset, ordering.data(), x.data(),
-                         y.data());
+    reallocate(std::max(assignedSize, int(x.size())), x, y);
+    exchangeParticles<T>(sendList, Rank(thisRank), inputOffset, originalSize, originalSize, assignedSize,
+                         ordering.data(), x.data(), y.data());
+    relocate(finalSize, outputOffset, x, y);
 
     // the reference covers only the assigned range of 64
     std::vector<T> refX(assignedSize, thisRank);
-    int incomingRank = (thisRank - 1 + nRanks) % nRanks;
+    int incomingRank = (thisRank - 1 + numRanks) % numRanks;
     std::fill(begin(refX) + assignedSize - nex, end(refX), incomingRank);
 
     auto refY = refX;
     for (auto& yi : refY)
         yi = -yi;
-
-    EXPECT_EQ(x.size(), finalSize);
-    EXPECT_EQ(y.size(), finalSize);
 
     for (std::size_t i = 0; i < refX.size(); ++i)
     {
@@ -253,14 +253,14 @@ void exchangeCyclicNeighborsOffsets(int thisRank, int nRanks)
 
 TEST(GlobalDomain, exchangeCyclicNeighborsOffsets)
 {
-    int rank = 0, nRanks = 0;
+    int rank = 0, numRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
-    exchangeCyclicNeighborsOffsets<double>(rank, nRanks);
+    exchangeCyclicNeighborsOffsets<double>(rank, numRanks);
     MPI_Barrier(MPI_COMM_WORLD);
-    exchangeCyclicNeighborsOffsets<float>(rank, nRanks);
+    exchangeCyclicNeighborsOffsets<float>(rank, numRanks);
     MPI_Barrier(MPI_COMM_WORLD);
-    exchangeCyclicNeighborsOffsets<int>(rank, nRanks);
+    exchangeCyclicNeighborsOffsets<int>(rank, numRanks);
     MPI_Barrier(MPI_COMM_WORLD);
 }
