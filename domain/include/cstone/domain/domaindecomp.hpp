@@ -327,4 +327,21 @@ void compactParticles(IndexType particleStart, IndexType particleEnd, IndexType 
 
 }
 
+template<class T, class IndexType, class KeyType, class... Arrays>
+LocalParticleIndex compactKeys(IndexType particleStart, IndexType particleEnd,
+                               KeyType assignmentStart, const Box<T>& box, KeyType* particleKeys,
+                               LocalParticleIndex* ordering, const T* x, const T* y, const T* z)
+{
+    computeMortonCodes(x + particleStart, x + particleEnd,
+                       y + particleStart,
+                       z + particleStart, particleKeys, box);
+
+    IndexType numKeys = particleEnd - particleStart;
+    std::iota(ordering, ordering + numKeys, IndexType(0));
+    sort_by_key(particleKeys, particleKeys + numKeys, ordering);
+
+    IndexType firstOwned = std::lower_bound(particleKeys, particleKeys + numKeys, assignmentStart) - particleKeys;
+    return firstOwned;
+}
+
 } // namespace cstone

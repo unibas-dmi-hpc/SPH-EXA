@@ -242,25 +242,26 @@ public:
                                  x.data(), y.data(), z.data(), h.data(), particleProperties.data()...);
 
         reallocate(particleEnd_ - particleStart_, codes);
+        reallocate(particleEnd_ - particleStart_, mortonOrder);
 
-        compactParticles(particleStart_, particleEnd_, newNParticlesAssigned, tree_[assignment.firstNodeIdx(myRank_)],
-                         LocalParticleIndex(0), box_, codes.data(),
-                         x.data(), y.data(), z.data(), h.data(), particleProperties.data()...);
-        reallocate(newNParticlesAssigned, codes);
+        auto compactOffset = compactKeys(particleStart_, particleEnd_, tree_[assignment.firstNodeIdx(myRank_)],
+                                         box_, codes.data(), mortonOrder.data(), x.data(), y.data(), z.data());
+        gsl::span<const KeyType> codesView(codes.data() + compactOffset, newNParticlesAssigned);
+
+        {
+            std::vector<T> temp(newNParticlesAssigned);
+            std::array<std::vector<T>*, 4 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &h, &particleProperties...};
+            for (std::size_t i = 0; i < particleArrays.size(); ++i)
+            {
+                reorderInPlace(mortonOrder, particleArrays[i]->data() + particleStart_);
+                T* source = particleArrays[i]->data() + particleStart_ + compactOffset;
+                std::copy(source, source + newNParticlesAssigned, begin(temp));
+                std::copy(begin(temp), end(temp), particleArrays[i]->data());
+            }
+        }
+
+        //reallocate(newNParticlesAssigned, codes);
         reallocate(newNParticlesAssigned, x,y,z,h, particleProperties...);
-
-        // recompute SFC codes
-        computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(codes), box_);
-        // sort codes and update reorder-map inside the functor
-        //reorderFunctor.setMapFromCodes(codes.data(), codes.data() + codes.size());
-        //{
-        //    std::array<std::vector<T>*, 4 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &h, &particleProperties...};
-        //    for (std::size_t i = 0; i < particleArrays.size(); ++i)
-        //    {
-        //        //reorderFunctor(particleArrays[i]->data() + particleStart_) ;
-        //        reorderFunctor(particleArrays[i]->data()) ;
-        //    }
-        //}
 
         /* Focus tree update phase *********************************************************/
 
@@ -268,13 +269,13 @@ public:
         domainTree.update(begin(tree_), end(tree_));
         std::vector<int> peers = findPeersMac(myRank_, assignment, domainTree, box_, theta_);
 
-        int converged = focusedTree_.updateGlobal(box_, codes, myRank_, peers, assignment, tree_, nodeCounts_);
+        int converged = focusedTree_.updateGlobal(box_, codesView, myRank_, peers, assignment, tree_, nodeCounts_);
         if (firstCall_)
         {
             MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
             while (converged != nRanks_)
             {
-                converged = focusedTree_.updateGlobal(box_, codes, myRank_, peers, assignment, tree_, nodeCounts_);
+                converged = focusedTree_.updateGlobal(box_, codesView, myRank_, peers, assignment, tree_, nodeCounts_);
                 MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
             }
             firstCall_ = false;
@@ -288,7 +289,7 @@ public:
         std::vector<float> haloRadii(nNodes(focusedTree_.treeLeaves()));
         computeHaloRadii<KeyType>(focusedTree_.treeLeaves().data(),
                                   nNodes(focusedTree_.treeLeaves()),
-                                  codes,
+                                  codesView,
                                   h.data(),
                                   haloRadii.data());
 
@@ -312,14 +313,17 @@ public:
 
         outgoingHaloIndices_
             = exchangeRequestKeys<KeyType>(focusedTree_.treeLeaves(), haloFlags,
-                                           gsl::span<const KeyType>(codes.data(), newNParticlesAssigned),
+                                           codesView,
                                            particleStart_, focusAssignment, peers);
         checkIndices(outgoingHaloIndices_);
 
         incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags, focusAssignment, peers);
 
         relocate(localNParticles_, particleStart_, x, y, z, h, particleProperties...);
-        relocate(localNParticles_, particleStart_, codes);
+        //relocate(localNParticles_, particleStart_, codes);
+        std::vector<KeyType> newCodes(localNParticles_);
+        std::copy(codesView.begin(), codesView.end(), newCodes.begin() + particleStart_);
+        swap(codes, newCodes);
 
         exchangeHalos(x, y, z, h);
 
