@@ -40,10 +40,10 @@
 using namespace cstone;
 
 template<class KeyType, class T>
-void noHalos(int rank, int nRanks)
+void noHalos(int rank, int numRanks)
 {
     int bucketSize = 1;
-    Domain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSize);
+    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize);
 
     std::vector<T> x{0.5, 0.6};
     std::vector<T> y{0.5, 0.6};
@@ -70,17 +70,17 @@ void noHalos(int rank, int nRanks)
 
 TEST(FocusDomain, noHalos)
 {
-    int rank = 0, nRanks = 0;
+    int rank = 0, numRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
     const int thisExampleRanks = 2;
-    if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
+    if (numRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
 
-    noHalos<unsigned, double>(rank, nRanks);
-    noHalos<uint64_t, double>(rank, nRanks);
-    noHalos<unsigned, float>(rank, nRanks);
-    noHalos<uint64_t, float>(rank, nRanks);
+    noHalos<unsigned, double>(rank, numRanks);
+    noHalos<uint64_t, double>(rank, numRanks);
+    noHalos<unsigned, float>(rank, numRanks);
+    noHalos<uint64_t, float>(rank, numRanks);
 }
 
 /*! @brief a minimal initial domain.sync() test with halos
@@ -90,10 +90,10 @@ TEST(FocusDomain, noHalos)
  * because the two particle always end up in the same node at all division levels.
  */
 template<class KeyType, class T>
-void withHalos(int rank, int nRanks)
+void withHalos(int rank, int numRanks)
 {
     int bucketSize = 1;
-    Domain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSize);
+    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize);
 
     std::vector<T> x{0.5, 0.6};
     std::vector<T> y{0.5, 0.6};
@@ -144,10 +144,10 @@ TEST(FocusDomain, halos)
  * plus halo exchange.
  */
 template<class KeyType, class T>
-void moreHalos(int rank, int nRanks)
+void moreHalos(int rank, int numRanks)
 {
     int bucketSize = 4;
-    Domain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSize);
+    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize);
 
     // node boundaries     |--(0,0)----|---------(0,7)-------------|-----(7,0)----------|-------(7,7)------|
     // indices             0    1      2      3      4      5      6      7      8      9      10     11
@@ -161,7 +161,7 @@ void moreHalos(int rank, int nRanks)
     std::vector<T> x, y, z, h;
     // rank 0 gets particles with even index before the sync
     // rank 1 gets particles with uneven index before the sync
-    for (std::size_t i = rank; i < xGlobal.size(); i += nRanks)
+    for (std::size_t i = rank; i < xGlobal.size(); i += numRanks)
     {
         x.push_back(xGlobal[i]);
         y.push_back(yGlobal[i]);
@@ -207,17 +207,17 @@ void moreHalos(int rank, int nRanks)
 
 TEST(FocusDomain, moreHalos)
 {
-    int rank = 0, nRanks = 0;
+    int rank = 0, numRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
     const int thisExampleRanks = 2;
-    if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
+    if (numRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
 
-    moreHalos<unsigned, double>(rank, nRanks);
-    moreHalos<uint64_t, double>(rank, nRanks);
-    moreHalos<unsigned, float>(rank, nRanks);
-    moreHalos<uint64_t, float>(rank, nRanks);
+    moreHalos<unsigned, double>(rank, numRanks);
+    moreHalos<uint64_t, double>(rank, numRanks);
+    moreHalos<unsigned, float>(rank, numRanks);
+    moreHalos<uint64_t, float>(rank, numRanks);
 }
 
 /*! @brief A test for one initial domain.sync() with a particle property
@@ -227,10 +227,10 @@ TEST(FocusDomain, moreHalos)
  * This could be masses or charges.
  */
 template<class KeyType, class T>
-void particleProperty(int rank, int nRanks)
+void particleProperty(int rank, int numRanks)
 {
     int bucketSize = 4;
-    Domain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSize);
+    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize);
 
     // node boundaries     |--(0,0)----|---------(0,7)-------------|-----(7,0)----------|-------(7,7)------|
     // indices             0    1      2      3      4      5      6      7      8      9      10     11
@@ -246,7 +246,7 @@ void particleProperty(int rank, int nRanks)
     std::vector<T> x, y, z, h, mass;
     // rank 0 gets particles with even index before the sync
     // rank 1 gets particles with uneven index before the sync
-    for (std::size_t i = rank; i < xGlobal.size(); i += nRanks)
+    for (std::size_t i = rank; i < xGlobal.size(); i += numRanks)
     {
         x.push_back(xGlobal[i]);
         y.push_back(yGlobal[i]);
@@ -276,17 +276,17 @@ void particleProperty(int rank, int nRanks)
 
 TEST(FocusDomain, particleProperty)
 {
-    int rank = 0, nRanks = 0;
+    int rank = 0, numRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
     const int thisExampleRanks = 2;
-    if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
+    if (numRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
 
-    particleProperty<unsigned, double>(rank, nRanks);
-    particleProperty<uint64_t, double>(rank, nRanks);
-    particleProperty<unsigned, float>(rank, nRanks);
-    particleProperty<uint64_t, float>(rank, nRanks);
+    particleProperty<unsigned, double>(rank, numRanks);
+    particleProperty<uint64_t, double>(rank, numRanks);
+    particleProperty<unsigned, float>(rank, numRanks);
+    particleProperty<uint64_t, float>(rank, numRanks);
 }
 
 /*! @brief Performs twice domain.sync(), with a particle coordinate update in between
@@ -295,11 +295,11 @@ TEST(FocusDomain, particleProperty)
  * then correctly updates the global tree/assignment to reflect the changed coordinates.
  */
 template<class KeyType, class T>
-void multiStepSync(int rank, int nRanks)
+void multiStepSync(int rank, int numRanks)
 {
     int bucketSize = 4;
     int bucketSizeFocus = 1;
-    Domain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSizeFocus);
+    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSizeFocus);
 
     // node boundaries     |--(0,0)----|---------(0,7)-------------|-----(7,0)----------|-------(7,7)------|
     // indices             0    1      2      3      4      5      6      7      8      9      10     11
@@ -313,7 +313,7 @@ void multiStepSync(int rank, int nRanks)
     std::vector<T> x, y, z, h;
     // rank 0 gets particles with even index before the sync
     // rank 1 gets particles with uneven index before the sync
-    for (std::size_t i = rank; i < xGlobal.size(); i += nRanks)
+    for (std::size_t i = rank; i < xGlobal.size(); i += numRanks)
     {
         x.push_back(xGlobal[i]);
         y.push_back(yGlobal[i]);
@@ -362,15 +362,126 @@ void multiStepSync(int rank, int nRanks)
 
 TEST(FocusDomain, multiStepSync)
 {
-    int rank = 0, nRanks = 0;
+    int rank = 0, numRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
     const int thisExampleRanks = 2;
-    if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
+    if (numRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
 
-    multiStepSync<unsigned, double>(rank, nRanks);
-    multiStepSync<uint64_t, double>(rank, nRanks);
-    multiStepSync<unsigned, float>(rank, nRanks);
-    multiStepSync<uint64_t, float>(rank, nRanks);
+    multiStepSync<unsigned, double>(rank, numRanks);
+    multiStepSync<uint64_t, double>(rank, numRanks);
+    multiStepSync<unsigned, float>(rank, numRanks);
+    multiStepSync<uint64_t, float>(rank, numRanks);
+}
+
+/*! @brief check halo discovery across two sync steps
+ *
+ * Makes sure that the indirect access to the smoothing lengths
+ * via the non-trivial ordering that results from writing
+ * incoming domain-exchange particles into a previous halo area still results
+ * in correct accesses.
+ *
+ *  Geometry:
+ *      - the numbers in the cells denote the smoothing lengths of the corresponding particles
+ *
+ *   rank 0 <- | -> rank 1
+ *     -----------------
+ *  7  | 0 | 0 | 1 | 0 |
+ *     -----------------
+ *  5  | 0 | 0 | 0 | 0 |
+ *     -----------------
+ *  3  | 0 | 0 | 0 | 0 |
+ *     -----------------
+ *  1  | 1 | 0 | 0 | 0 |
+ *     -----------------
+ *       1   3   5   7
+ *
+ *  After the first sync, particles (1,1) and (5,1) are exchanged.
+ *  Since (1,1) as a non-zero smoothing length, rank 1 gains two halos after the
+ *  second sync.
+ */
+template<class KeyType, class T>
+void domainHaloRadii(int rank, int nRanks)
+{
+    int bucketSize = 4;
+    int bucketSizeFocus = 1;
+    Domain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSizeFocus);
+
+    std::vector<T> x, y, z, h;
+    std::vector<KeyType> codes;
+
+    if (rank == 0)
+    {
+        x = std::vector<T>{0, 1, 1, 3, 3, 1, 1, 3, 3};
+        y = std::vector<T>{0, 1, 3, 1, 3, 5, 7, 5, 7};
+        z = std::vector<T>{0, 0, 0, 0, 0, 0, 0, 0, 0};
+        h = std::vector<T>{0, 1, 0, 0, 0, 0, 0, 0, 0};
+    }
+    else
+    {
+        x = std::vector<T>{5, 5, 7, 7, 5, 5, 7, 7, 8};
+        y = std::vector<T>{1, 3, 1, 3, 5, 7, 5, 7, 8};
+        z = std::vector<T>{0, 0, 0, 0, 0, 0, 0, 0, 8};
+        h = std::vector<T>{0, 0, 0, 0, 0, 1, 0, 0, 0};
+    }
+
+    domain.sync(x, y, z, h, codes);
+
+    if (rank == 0)
+    {
+        // no halos on rank 0
+        std::vector<T> xref{0, 1, 1, 3, 3, 1, 1, 3, 3};
+        std::vector<T> yref{0, 1, 3, 1, 3, 5, 7, 5, 7};
+
+        EXPECT_EQ(x, xref);
+        EXPECT_EQ(y, yref);
+
+        x = std::vector<T>{0, 5, 1, 3, 3, 1, 1, 3, 3};
+        y = std::vector<T>{0, 1, 3, 1, 3, 5, 7, 5, 7};
+        //                    ^ move to rank 1 (note: has non-zero h)
+    }
+
+    if (rank == 1)
+    {
+        // 2 halos on rank 1
+        std::vector<T> xref{3, 3, 5, 5, 7, 7, 5, 5, 7, 7, 8};
+        std::vector<T> yref{5, 7, 1, 3, 1, 3, 5, 7, 5, 7, 8};
+        //                  |ha |  assigned                |
+        EXPECT_EQ(x, xref);
+        EXPECT_EQ(y, yref);
+
+        x = std::vector<T>{3, 3, 1, 5, 7, 7, 5, 5, 7, 7, 8};
+        y = std::vector<T>{5, 7, 1, 3, 1, 3, 5, 7, 5, 7, 8};
+        //                       ^ move to rank 0
+    }
+
+    domain.sync(x, y, z, h, codes);
+
+    if (rank == 1)
+    {
+        // the newly acquired particle from rank 1 catches 2 additional halos
+        // this only works if the smoothing lengths are accessed correctly
+        std::vector<T> xref{3, 3, 3, 3, 5, 5, 7, 7, 5, 5, 7, 7, 8};
+        std::vector<T> yref{1, 3, 5, 7, 1, 3, 1, 3, 5, 7, 5, 7, 8};
+        //                 | halo       |   assigned             |
+
+        EXPECT_EQ(x, xref);
+        EXPECT_EQ(y, yref);
+    }
+}
+
+TEST(FocusDomain, haloRadii)
+{
+    int rank = 0, numRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
+
+    const int thisExampleRanks = 2;
+    if (numRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
+
+    domainHaloRadii<unsigned, double>(rank, numRanks);
+    domainHaloRadii<uint64_t, double>(rank, numRanks);
+    domainHaloRadii<unsigned, float>(rank, numRanks);
+    domainHaloRadii<uint64_t, float>(rank, numRanks);
 }

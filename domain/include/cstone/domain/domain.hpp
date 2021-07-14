@@ -271,12 +271,12 @@ public:
 
         /* Halo discovery phase *********************************************************/
 
-        reorderInPlace(mortonOrder, h.data() + particleStart_);
         std::vector<float> haloRadii(nNodes(focusedTree_.treeLeaves()));
         computeHaloRadii<KeyType>(focusedTree_.treeLeaves().data(),
                                   nNodes(focusedTree_.treeLeaves()),
                                   codesView,
-                                  h.data() + particleStart_ + compactOffset,
+                                  mortonOrder.data() + compactOffset,
+                                  h.data() + particleStart_,
                                   haloRadii.data());
 
         std::vector<int> haloFlags(nNodes(focusedTree_.treeLeaves()), 0);
@@ -312,18 +312,13 @@ public:
 
         //reorderFunctor.setMapFromCodes(codes.data(), codes.data() + codes.size());
         //        reorderFunctor(particleArrays[i]->data()) ;
-        std::array<std::vector<T>*, 3 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &particleProperties...};
+        std::array<std::vector<T>*, 4 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &h, &particleProperties...};
         for (std::size_t i = 0; i < particleArrays.size(); ++i)
         {
             reorder<LocalParticleIndex>(mortonOrder, particleArrays[i]->data() + particleStart_,
                                         temp.data() + newParticleStart, compactOffset, newNParticlesAssigned);
             swap(*particleArrays[i], temp);
         }
-
-        std::copy(h.data() + particleStart_ + compactOffset,
-                  h.data() + particleStart_ + compactOffset + newNParticlesAssigned,
-                  temp.data() + newParticleStart);
-        swap(h, temp);
 
         std::vector<KeyType> newCodes(localNParticles_);
         std::copy(codesView.begin(), codesView.end(), newCodes.begin() + newParticleStart);
