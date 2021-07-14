@@ -292,42 +292,7 @@ void extractRange(const SendManifest& manifest, const T* source, const IndexType
             destination[idx++] = source[ordering[i]];
 }
 
-
-template<class T, class IndexType, class KeyType, class... Arrays>
-void compactParticles(IndexType particleStart, IndexType particleEnd, IndexType numParticlesAssigned,
-                      KeyType assignmentStart, IndexType outputOffset, const Box<T>& box,
-                      KeyType* particleKeys, T* x, T* y, T* z, Arrays... arrays)
-{
-    std::array data{x, y, z, arrays...};
-
-    computeMortonCodes(x + particleStart, x + particleEnd,
-                       y + particleStart,
-                       z + particleStart, particleKeys, box);
-
-    IndexType numKeys = particleEnd - particleStart;
-    std::vector<IndexType> ordering(numKeys);
-    std::iota(begin(ordering), end(ordering), IndexType(0));
-    sort_by_key(particleKeys, particleKeys + numKeys, ordering.begin()) ;
-
-    for (auto array : data)
-    {
-        reorderInPlace(ordering, array + particleStart);
-    }
-
-    IndexType firstOwned = std::lower_bound(particleKeys, particleKeys + numKeys, assignmentStart) - particleKeys;
-    //if (firstOwned != 0) { std::cout << "firstOwned " << firstOwned << std::endl; }
-
-    std::vector<T> temp(numParticlesAssigned);
-    for (auto array : data)
-    {
-        T* source = array + particleStart + firstOwned;
-        std::copy(source, source + numParticlesAssigned, begin(temp));
-        std::copy(begin(temp), end(temp), array + outputOffset);
-    }
-
-}
-
-template<class T, class IndexType, class KeyType, class... Arrays>
+template<class T, class IndexType, class KeyType>
 LocalParticleIndex compactKeys(IndexType particleStart, IndexType particleEnd,
                                KeyType assignmentStart, const Box<T>& box, KeyType* particleKeys,
                                LocalParticleIndex* ordering, const T* x, const T* y, const T* z)
@@ -342,6 +307,31 @@ LocalParticleIndex compactKeys(IndexType particleStart, IndexType particleEnd,
 
     IndexType firstOwned = std::lower_bound(particleKeys, particleKeys + numKeys, assignmentStart) - particleKeys;
     return firstOwned;
+}
+
+template<class T, class IndexType, class KeyType, class... Arrays>
+void compactParticles(IndexType particleStart, IndexType particleEnd, IndexType numParticlesAssigned,
+                      KeyType assignmentStart, IndexType outputOffset, const Box<T>& box,
+                      KeyType* particleKeys, T* x, T* y, T* z, Arrays... arrays)
+{
+    std::array data{x, y, z, arrays...};
+    IndexType numKeys = particleEnd - particleStart;
+    std::vector<IndexType> ordering(numKeys);
+
+    IndexType firstOwned = compactKeys(particleStart, particleEnd, assignmentStart, box,
+                                       particleKeys, ordering.data(), x, y, z);
+    for (auto array : data)
+    {
+        reorderInPlace(ordering, array + particleStart);
+    }
+
+    std::vector<T> temp(numParticlesAssigned);
+    for (auto array : data)
+    {
+        T* source = array + particleStart + firstOwned;
+        std::copy(source, source + numParticlesAssigned, begin(temp));
+        std::copy(begin(temp), end(temp), array + outputOffset);
+    }
 }
 
 } // namespace cstone
