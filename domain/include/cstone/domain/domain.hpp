@@ -250,7 +250,7 @@ public:
 
         {
             std::vector<T> temp(newNParticlesAssigned);
-            std::array<std::vector<T>*, 4 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &h, &particleProperties...};
+            std::array<std::vector<T>*, 3 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &particleProperties...};
             for (std::size_t i = 0; i < particleArrays.size(); ++i)
             {
                 reorderInPlace(mortonOrder, particleArrays[i]->data() + particleStart_);
@@ -286,11 +286,12 @@ public:
 
         /* Halo discovery phase *********************************************************/
 
+        reorderInPlace(mortonOrder, h.data() + particleStart_);
         std::vector<float> haloRadii(nNodes(focusedTree_.treeLeaves()));
         computeHaloRadii<KeyType>(focusedTree_.treeLeaves().data(),
                                   nNodes(focusedTree_.treeLeaves()),
                                   codesView,
-                                  h.data(),
+                                  h.data() + particleStart_ + compactOffset,
                                   haloRadii.data());
 
         std::vector<int> haloFlags(nNodes(focusedTree_.treeLeaves()), 0);
@@ -302,28 +303,41 @@ public:
                                   focusAssignment[myRank_].end(),
                                   haloFlags.data());
 
-        /* Halo exchange phase *********************************************************/
+        /* Compute new layout *********************************************************/
 
         std::vector<LocalParticleIndex> layout = computeNodeLayout(focusedTree_.leafCounts(), haloFlags,
                                                                    focusAssignment[myRank_].start(),
                                                                    focusAssignment[myRank_].end());
         localNParticles_ = layout.back();
-        particleStart_   = layout[focusAssignment[myRank_].start()];
-        particleEnd_     = particleStart_ + newNParticlesAssigned;
+        auto newParticleStart = layout[focusAssignment[myRank_].start()];
+        auto newParticleEnd   = newParticleStart + newNParticlesAssigned;
 
         outgoingHaloIndices_
             = exchangeRequestKeys<KeyType>(focusedTree_.treeLeaves(), haloFlags,
-                                           codesView,
-                                           particleStart_, focusAssignment, peers);
-        checkIndices(outgoingHaloIndices_);
+                                           codesView, newParticleStart, focusAssignment, peers);
+        checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd);
 
         incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags, focusAssignment, peers);
 
-        relocate(localNParticles_, particleStart_, x, y, z, h, particleProperties...);
-        //relocate(localNParticles_, particleStart_, codes);
+        /* Rearrange particle buffers *********************************************************/
+
+        relocate(localNParticles_, newParticleStart, x, y, z, particleProperties...);
+        std::vector<T> temp(x.capacity());
+        temp.resize(localNParticles_);
+
+        std::copy(h.data() + particleStart_ + compactOffset,
+                  h.data() + particleStart_ + compactOffset + newNParticlesAssigned,
+                  temp.data() + newParticleStart);
+        swap(h, temp);
+
         std::vector<KeyType> newCodes(localNParticles_);
-        std::copy(codesView.begin(), codesView.end(), newCodes.begin() + particleStart_);
+        std::copy(codesView.begin(), codesView.end(), newCodes.begin() + newParticleStart);
         swap(codes, newCodes);
+
+        particleStart_ = newParticleStart;
+        particleEnd_   = newParticleEnd;
+
+        /* Halo exchange phase *********************************************************/
 
         exchangeHalos(x, y, z, h);
 
@@ -380,15 +394,15 @@ public:
 private:
 
     //! @brief check that only owned particles in [particleStart_:particleEnd_] are sent out as halos
-    void checkIndices(const SendList& sendList)
+    void checkIndices(const SendList& sendList, LocalParticleIndex start, LocalParticleIndex end)
     {
         for (const auto& manifest : sendList)
         {
             for (size_t ri = 0; ri < manifest.nRanges(); ++ri)
             {
-                assert(!overlapTwoRanges(LocalParticleIndex{0}, particleStart_,
+                assert(!overlapTwoRanges(LocalParticleIndex{0}, start,
                                          manifest.rangeStart(ri), manifest.rangeEnd(ri)));
-                assert(!overlapTwoRanges(particleEnd_, localNParticles_,
+                assert(!overlapTwoRanges(end, localNParticles_,
                                          manifest.rangeStart(ri), manifest.rangeEnd(ri)));
             }
         }
