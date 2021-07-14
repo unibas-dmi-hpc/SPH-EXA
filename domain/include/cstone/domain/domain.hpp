@@ -248,21 +248,6 @@ public:
                                          box_, codes.data(), mortonOrder.data(), x.data(), y.data(), z.data());
         gsl::span<const KeyType> codesView(codes.data() + compactOffset, newNParticlesAssigned);
 
-        {
-            std::vector<T> temp(newNParticlesAssigned);
-            std::array<std::vector<T>*, 3 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &particleProperties...};
-            for (std::size_t i = 0; i < particleArrays.size(); ++i)
-            {
-                reorderInPlace(mortonOrder, particleArrays[i]->data() + particleStart_);
-                T* source = particleArrays[i]->data() + particleStart_ + compactOffset;
-                std::copy(source, source + newNParticlesAssigned, begin(temp));
-                std::copy(begin(temp), end(temp), particleArrays[i]->data());
-            }
-        }
-
-        //reallocate(newNParticlesAssigned, codes);
-        reallocate(newNParticlesAssigned, x,y,z,h, particleProperties...);
-
         /* Focus tree update phase *********************************************************/
 
         Octree<KeyType> domainTree;
@@ -321,9 +306,19 @@ public:
 
         /* Rearrange particle buffers *********************************************************/
 
-        relocate(localNParticles_, newParticleStart, x, y, z, particleProperties...);
+        reallocate(localNParticles_, x, y, z, h, particleProperties...);
         std::vector<T> temp(x.capacity());
         temp.resize(localNParticles_);
+
+        //reorderFunctor.setMapFromCodes(codes.data(), codes.data() + codes.size());
+        //        reorderFunctor(particleArrays[i]->data()) ;
+        std::array<std::vector<T>*, 3 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &particleProperties...};
+        for (std::size_t i = 0; i < particleArrays.size(); ++i)
+        {
+            reorder<LocalParticleIndex>(mortonOrder, particleArrays[i]->data() + particleStart_,
+                                        temp.data() + newParticleStart, compactOffset, newNParticlesAssigned);
+            swap(*particleArrays[i], temp);
+        }
 
         std::copy(h.data() + particleStart_ + compactOffset,
                   h.data() + particleStart_ + compactOffset + newNParticlesAssigned,
