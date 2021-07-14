@@ -108,7 +108,7 @@ void reorderCheck(int nElements, bool reallocate = false)
 
     auto tcpu0 = std::chrono::high_resolution_clock::now();
     // apply the hostOrder to the hostValues
-    cstone::reorder(hostOrder, hostValues);
+    cstone::reorderInPlace(hostOrder, hostValues.data());
     auto tcpu1 = std::chrono::high_resolution_clock::now();
     std::cout << "cpu gather Melements/s: "
               << T(nElements) / (1e6 * std::chrono::duration<double>(tcpu1 - tcpu0).count()) << std::endl;

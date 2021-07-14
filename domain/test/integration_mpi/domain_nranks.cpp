@@ -155,10 +155,10 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
         std::vector<LocalParticleIndex> ordering(nParticles);
         std::iota(begin(ordering), end(ordering), LocalParticleIndex(0));
         sort_by_key(begin(codesGlobal), end(codesGlobal), begin(ordering));
-        reorder(ordering, xGlobal);
-        reorder(ordering, yGlobal);
-        reorder(ordering, zGlobal);
-        reorder(ordering, hGlobal);
+        reorderInPlace(ordering, xGlobal.data());
+        reorderInPlace(ordering, yGlobal.data());
+        reorderInPlace(ordering, zGlobal.data());
+        reorderInPlace(ordering, hGlobal.data());
 
         // calculate reference neighbor sum from the full arrays
         std::vector<int> neighborsRef(nParticles * ngmax);
