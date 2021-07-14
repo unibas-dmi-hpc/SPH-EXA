@@ -612,12 +612,13 @@ void injectKeys(KeyVector& tree, gsl::span<const typename KeyVector::value_type>
  *                          is the only requirement.
  * @param[in]  nNodes       number of nodes in tree
  * @param[in]  particleKeys sorted SFC particle keys
+ * @param[in]  ordering     particleKeys[i] <-> input[ordering[i]]
  * @param[in]  input        Radii per particle, i.e. the smoothing lengths in SPH, length = particleKeys.size()
  * @param[out] output       Radius per node, length = @a nNodes
  */
 template<class KeyType, class Tin, class Tout>
 void computeHaloRadii(const KeyType* tree, TreeNodeIndex nNodes, gsl::span<const KeyType> particleKeys,
-                      const Tin* input, Tout* output)
+                      const LocalParticleIndex* ordering, const Tin* input, Tout* output)
 {
     int firstNode = 0;
     int lastNode  = nNodes;
@@ -648,7 +649,7 @@ void computeHaloRadii(const KeyType* tree, TreeNodeIndex nNodes, gsl::span<const
         Tin nodeMax = 0;
         for (LocalParticleIndex p = startIndex; p < endIndex; ++p)
         {
-            nodeMax = std::max(nodeMax, input[p]);
+            nodeMax = std::max(nodeMax, input[ordering[p]]);
         }
 
         // note factor of 2 due to SPH conventions
