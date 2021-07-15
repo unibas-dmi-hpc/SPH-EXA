@@ -66,7 +66,7 @@ void CpuGatherTest()
     }
 
     std::vector<ValueType> values{-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-    cpuGather(values.data() + 2);
+    cpuGather(values.data() + 2, values.data() + 2, 0, codes.size());
     std::vector<ValueType> reference{-2, -1, 0, 2, 4, 6, 8, 1, 3, 5, 7, 9, 10, 11};
 
     EXPECT_EQ(values, reference);
