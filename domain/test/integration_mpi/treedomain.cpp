@@ -71,8 +71,8 @@ using namespace cstone;
 template<class KeyType, class T>
 void globalRandomGaussian(int thisRank, int numRanks)
 {
-    int numParticles = 1000;
-    int bucketSize = 64;
+    LocalParticleIndex numParticles = 1000;
+    unsigned bucketSize = 64;
 
     Box<T> box{-1, 1};
     RandomGaussianCoordinates<T, KeyType> coords(numParticles, box, thisRank);
@@ -98,7 +98,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::vector<T> y = coords.y();
     std::vector<T> z = coords.z();
 
-    int numParticlesAssigned = assignment.totalCount(thisRank);
+    LocalParticleIndex numParticlesAssigned = assignment.totalCount(thisRank);
 
     reallocate(std::max(numParticlesAssigned, numParticles), x, y, z);
     auto [particleStart, particleEnd] =
@@ -115,9 +115,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
                        begin(y) + particleStart, begin(z) + particleStart, begin(newCodes), box);
 
     // received particles are not stored in morton order after the exchange
-    ordering.resize(numParticlesAssigned);
-    std::iota(begin(ordering), end(ordering), 0);
-    sort_by_key(begin(newCodes), end(newCodes), begin(ordering));
+    std::sort(begin(newCodes), end(newCodes));
 
     std::vector<KeyType> newTree = makeRootNodeTree<KeyType>();
     std::vector<unsigned> newCounts{unsigned(newCodes.size())};
