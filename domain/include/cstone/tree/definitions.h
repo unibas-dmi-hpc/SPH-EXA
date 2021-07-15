@@ -61,7 +61,8 @@ enum class P2pTags : int
 {
     focusPeerCounts = 1000,
     haloRequestKeys = 2000,
-    haloExchange    = 3000
+    haloExchange    = 3000,
+    domainExchange  = 4000
 };
 
 /*! @brief returns the number of nodes in a tree
