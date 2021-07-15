@@ -244,13 +244,18 @@ public:
         reallocate(particleEnd_ - particleStart_, codes);
         reallocate(particleEnd_ - particleStart_, mortonOrder);
 
+        // refresh particleKeys and ordering
         computeMortonCodes(begin(x) + particleStart_, begin(x) + particleEnd_,
                            begin(y) + particleStart_,
                            begin(z) + particleStart_, begin(codes), box_);
-        std::iota(begin(mortonOrder), end(mortonOrder), LocalParticleIndex(0));
-        sort_by_key(begin(codes), end(codes), begin(mortonOrder));
+        reorderFunctor.setMapFromCodes(codes.data(), codes.data() + codes.size());
+        reorderFunctor.getReorderMap(mortonOrder.data());
+
         LocalParticleIndex compactOffset = findNodeAbove<KeyType>(codes, tree_[assignment.firstNodeIdx(myRank_)]);
 
+        // the range [particleStart_:particleEnd_] can still contain leftover particles from the previous step
+        // but [particleStart_ + compactOffset : particleStart_ + compactOffset + newNParticlesAssigned]
+        // exclusively refers to locally assigned particles in SFC order when accessed through mortonOrder
         gsl::span<const KeyType> codesView(codes.data() + compactOffset, newNParticlesAssigned);
 
         /* Focus tree update phase *********************************************************/
@@ -312,17 +317,13 @@ public:
         /* Rearrange particle buffers *********************************************************/
 
         reallocate(localNParticles_, x, y, z, h, particleProperties...);
-        std::vector<T> temp(x.capacity());
-        temp.resize(localNParticles_);
 
-        //reorderFunctor.setMapFromCodes(codes.data(), codes.data() + codes.size());
-        //        reorderFunctor(particleArrays[i]->data()) ;
         std::array<std::vector<T>*, 4 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &h, &particleProperties...};
         for (std::size_t i = 0; i < particleArrays.size(); ++i)
         {
-            reorder<LocalParticleIndex>(mortonOrder, particleArrays[i]->data() + particleStart_,
-                                        temp.data() + newParticleStart, compactOffset, newNParticlesAssigned);
-            swap(*particleArrays[i], temp);
+            reorderFunctor(particleArrays[i]->data() + particleStart_,
+                           particleArrays[i]->data() + newParticleStart,
+                           compactOffset, newNParticlesAssigned);
         }
 
         std::vector<KeyType> newCodes(localNParticles_);

@@ -63,7 +63,7 @@ void setFromCodeDemo()
     EXPECT_EQ(codes, refCodes);
 
     std::vector<T> values{0, 1, 2, 3, 4, 5, 6, 7, 8, 9};
-    devGather(values.data());
+    devGather(values.data(), values.data(), 0, codes.size());
     std::vector<T> reference{0, 2, 4, 6, 8, 1, 3, 5, 7, 9};
 
     EXPECT_EQ(values, reference);
@@ -120,7 +120,7 @@ void reorderCheck(int nElements, bool reallocate = false)
 
     auto tgpu0 = std::chrono::high_resolution_clock::now();
     // apply the order from devGather.setMapFromCodes to the deviceValues
-    devGather(deviceValues.data());
+    devGather(deviceValues.data(), deviceValues.data(), 0, nElements);
     auto tgpu1 = std::chrono::high_resolution_clock::now();
 
     std::cout << "gpu gather Melements/s: "

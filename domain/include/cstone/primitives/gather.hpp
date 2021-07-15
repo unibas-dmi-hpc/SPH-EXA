@@ -139,6 +139,8 @@ public:
         mapSize_ = std::size_t(map_last - map_first);
         ordering_.resize(mapSize_);
         std::copy(map_first, map_last, begin(ordering_));
+
+        buffer_.resize(mapSize_);
     }
 
     void getReorderMap(IndexType* map_first)
@@ -171,6 +173,8 @@ public:
         std::iota(begin(ordering_), end(ordering_), 0);
 
         sort_by_key(codes_first, codes_last, begin(ordering_));
+
+        buffer_.resize(mapSize_);
     }
 
     /*! @brief reorder the array @p values according to the reorder map provided previously
@@ -178,14 +182,23 @@ public:
      * @p values must have at least as many elements as the reorder map provided in the last call
      * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
      */
-    void operator()(ValueType* values)
+    void operator()(const ValueType* source, ValueType* destination, IndexType offset, IndexType numExtract)
     {
-        reorderInPlace(ordering_, values);
+        reorder<IndexType>(ordering_, source, buffer_.data(), 0, mapSize_);
+
+        #pragma omp parallel for schedule(static)
+        for (IndexType i = 0; i < numExtract; ++i)
+        {
+            destination[i] = buffer_[i + offset];
+        }
+        //reorderInPlace(ordering_, values);
     }
 
 private:
     std::size_t mapSize_{0};
     std::vector<IndexType> ordering_;
+
+    std::vector<ValueType> buffer_;
 };
 
 } // namespace cstone
