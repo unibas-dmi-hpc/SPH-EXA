@@ -72,7 +72,7 @@ public:
      */
     explicit Domain(int rank, int nRanks, unsigned bucketSize, unsigned bucketSizeFocus,
                            const Box<T>& box = Box<T>{0,1})
-        : myRank_(rank), nRanks_(nRanks), bucketSize_(bucketSize), bucketSizeFocus_(bucketSizeFocus), box_(box),
+        : myRank_(rank), numRanks_(nRanks), bucketSize_(bucketSize), bucketSizeFocus_(bucketSizeFocus), box_(box),
           focusedTree_(bucketSizeFocus_, theta_)
     {
         if (bucketSize_ < bucketSizeFocus_)
@@ -221,7 +221,7 @@ public:
         }
 
         // assign one single range of Morton codes each rank
-        SpaceCurveAssignment assignment = singleRangeSfcSplit(nodeCounts_, nRanks_);
+        SpaceCurveAssignment assignment = singleRangeSfcSplit(nodeCounts_, numRanks_);
         LocalParticleIndex newNParticlesAssigned = assignment.totalCount(myRank_);
 
         /* Domain particles update phase *********************************************************/
@@ -259,11 +259,11 @@ public:
         domainTree.update(begin(tree_), end(tree_));
         std::vector<int> peers = findPeersMac(myRank_, assignment, domainTree, box_, theta_);
 
-        int converged = focusedTree_.updateGlobal(box_, codesView, myRank_, peers, assignment, tree_, nodeCounts_);
+        focusedTree_.updateGlobal(box_, codesView, myRank_, peers, assignment, tree_, nodeCounts_);
         if (firstCall_)
         {
-            MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-            while (converged != nRanks_)
+            int converged = 0;
+            while (converged != numRanks_)
             {
                 converged = focusedTree_.updateGlobal(box_, codesView, myRank_, peers, assignment, tree_, nodeCounts_);
                 MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
@@ -412,7 +412,7 @@ private:
     }
 
     int myRank_;
-    int nRanks_;
+    int numRanks_;
     unsigned bucketSize_;
     unsigned bucketSizeFocus_;
 
