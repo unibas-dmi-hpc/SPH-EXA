@@ -135,11 +135,6 @@ void globalRandomGaussian(int thisRank, int nRanks)
         else
             EXPECT_EQ(newSendList[rank].totalCount(), 0);
     }
-
-    // quick check that send buffers are created w.r.t ordering
-    auto xBuffer = createSendBuffer(newSendList[thisRank], x.data(), ordering.data());
-    reorder(ordering, x);
-    EXPECT_EQ(xBuffer, x);
 }
 
 TEST(GlobalTreeDomain, randomGaussian)
