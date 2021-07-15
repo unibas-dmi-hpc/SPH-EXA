@@ -309,29 +309,4 @@ LocalParticleIndex compactKeys(IndexType particleStart, IndexType particleEnd,
     return firstOwned;
 }
 
-template<class T, class IndexType, class KeyType, class... Arrays>
-void compactParticles(IndexType particleStart, IndexType particleEnd, IndexType numParticlesAssigned,
-                      KeyType assignmentStart, IndexType outputOffset, const Box<T>& box,
-                      KeyType* particleKeys, T* x, T* y, T* z, Arrays... arrays)
-{
-    std::array data{x, y, z, arrays...};
-    IndexType numKeys = particleEnd - particleStart;
-    std::vector<IndexType> ordering(numKeys);
-
-    IndexType firstOwned = compactKeys(particleStart, particleEnd, assignmentStart, box,
-                                       particleKeys, ordering.data(), x, y, z);
-    for (auto array : data)
-    {
-        reorderInPlace(ordering, array + particleStart);
-    }
-
-    std::vector<T> temp(numParticlesAssigned);
-    for (auto array : data)
-    {
-        T* source = array + particleStart + firstOwned;
-        std::copy(source, source + numParticlesAssigned, begin(temp));
-        std::copy(begin(temp), end(temp), array + outputOffset);
-    }
-}
-
 } // namespace cstone

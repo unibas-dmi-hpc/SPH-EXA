@@ -32,37 +32,12 @@
 #include <mpi.h>
 #include <gtest/gtest.h>
 
-#include "cstone/tree/octree_mpi.hpp"
-#include "cstone/domain/layout.hpp"
-#include "cstone/domain/domaindecomp_mpi.hpp"
 #include "cstone/domain/peers.hpp"
 #include "cstone/tree/octree_focus_mpi.hpp"
-#include "cstone/tree/octree_util.hpp"
 
 #include "coord_samples/random.hpp"
 
 using namespace cstone;
-
-template<class KeyType, class T>
-FocusedOctree<KeyType> createReferenceFocusTree(const Box<T>& box, gsl::span<const KeyType> particleKeys, int myRank,
-                                                int numRanks, unsigned bucketSize, unsigned bucketSizeLocal,
-                                                float theta)
-{
-    auto [tree, counts] = computeOctree(particleKeys.data(), particleKeys.data() + particleKeys.size(), bucketSize);
-
-    Octree<KeyType> domainTree;
-    domainTree.update(begin(tree), end(tree));
-
-    auto assignment = singleRangeSfcSplit(counts, numRanks);
-
-    FocusedOctree<KeyType> focusTree(bucketSizeLocal, theta);
-    while (!focusTree.update(box, particleKeys, tree[assignment.firstNodeIdx(myRank)],
-                             tree[assignment.lastNodeIdx(myRank)], {}))
-    {
-    }
-
-    return focusTree;
-}
 
 /*! @brief test for particle-count-exchange of distributed focused octrees
  *
@@ -80,71 +55,62 @@ FocusedOctree<KeyType> createReferenceFocusTree(const Box<T>& box, gsl::span<con
 template<class KeyType, class T>
 void globalRandomGaussian(int thisRank, int numRanks)
 {
-    LocalParticleIndex numParticles = 1000;
+    const LocalParticleIndex numParticles = 1000;
     unsigned bucketSize = 64;
     unsigned bucketSizeLocal = 16;
     float theta = 1.0;
 
     Box<T> box{-1, 1};
 
-    std::vector<T> x, y, z;
-    std::vector<KeyType> particleKeys(numParticles);
+    /*******************************/
+    /* identical data on all ranks */
+    /*******************************/
 
-    FocusedOctree<KeyType> referenceFocusTree(bucketSizeLocal, theta);
-    {
-        // common pool of coordinates, identical on all ranks
-        RandomGaussianCoordinates<T, KeyType> coords(numRanks * numParticles, box);
+    // common pool of coordinates, identical on all ranks
+    RandomGaussianCoordinates<T, KeyType> coords(numRanks * numParticles, box);
 
-        // reference tree built locally from all particles in the common pool, focused on the executing rank
-        referenceFocusTree = createReferenceFocusTree<KeyType>(box, coords.mortonCodes(), thisRank, numRanks,
-                                                               bucketSize, bucketSizeLocal, theta);
-
-        // extract a slice of the common pool, each rank takes a different slice, but all slices together
-        // are equal to the common pool
-        x = std::vector<T>(coords.x().begin() + thisRank * numParticles,
-                           coords.x().begin() + (thisRank + 1) * numParticles);
-        y = std::vector<T>(coords.y().begin() + thisRank * numParticles,
-                           coords.y().begin() + (thisRank + 1) * numParticles);
-        z = std::vector<T>(coords.z().begin() + thisRank * numParticles,
-                           coords.z().begin() + (thisRank + 1) * numParticles);
-    }
-    computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(particleKeys), box);
-
-    // Now build the trees, using distributed algorithms. Each rank only has its slice, the common pool is gone.
-
-    std::vector<KeyType> tree = makeRootNodeTree<KeyType>();
-    std::vector<unsigned> counts{unsigned(numParticles) * numRanks};
-    while (!updateOctreeGlobal(particleKeys.data(), particleKeys.data() + numParticles, bucketSize, tree, counts))
-        ;
-
-    EXPECT_EQ(numRanks * numParticles, std::accumulate(counts.begin(), counts.end(), 0lu));
-
-    std::vector<LocalParticleIndex> ordering(numParticles);
-    // particles are in Morton order
-    std::iota(begin(ordering), end(ordering), 0);
-
-    auto assignment = singleRangeSfcSplit(counts, numRanks);
-    auto sendList = createSendList<KeyType>(assignment, tree, particleKeys);
-
-    LocalParticleIndex numParticlesAssigned = assignment.totalCount(thisRank);
-
-    reallocate(std::max(numParticlesAssigned, numParticles), x, y, z);
-
-    auto [particleStart, particleEnd] =
-    exchangeParticles<T>(sendList, Rank(thisRank), 0, numParticles, numParticles, numParticlesAssigned,
-                         ordering.data(), x.data(), y.data(), z.data());
-
-    reallocate(particleEnd - particleStart, particleKeys);
-    compactParticles(particleStart, particleEnd, numParticlesAssigned, tree[assignment.firstNodeIdx(thisRank)],
-                     LocalParticleIndex(0), box, particleKeys.data(), x.data(), y.data(), z.data());
-
-    reallocate(numParticlesAssigned, particleKeys);
-    computeMortonCodes(begin(x), begin(x) + numParticlesAssigned, begin(y), begin(z), begin(particleKeys), box);
-
-    std::sort(begin(particleKeys), end(particleKeys));
+    auto [tree, counts] = computeOctree(coords.mortonCodes().data(),
+                                        coords.mortonCodes().data() + coords.mortonCodes().size(), bucketSize);
 
     Octree<KeyType> domainTree;
     domainTree.update(begin(tree), end(tree));
+
+    auto assignment = singleRangeSfcSplit(counts, numRanks);
+
+    /*******************************/
+
+    KeyType focusStart = tree[assignment.firstNodeIdx(thisRank)];
+    KeyType focusEnd   = tree[assignment.lastNodeIdx(thisRank)];
+
+    // build the reference focus tree from the common pool of coordinates, focused on the executing rank
+    FocusedOctree<KeyType> referenceFocusTree(bucketSizeLocal, theta);
+    while (!referenceFocusTree.update(box, coords.mortonCodes(), focusStart, focusEnd, {}));
+
+    /*******************************/
+
+    // locate particles assigned to thisRank
+    auto firstAssignedIndex = findNodeAbove<KeyType>(coords.mortonCodes(), focusStart);
+    auto lastAssignedIndex  = findNodeAbove<KeyType>(coords.mortonCodes(), focusEnd);
+
+    // extract a slice of the common pool, each rank takes a different slice, but all slices together
+    // are equal to the common pool
+    std::vector<T> x(coords.x().begin() + firstAssignedIndex, coords.x().begin() + lastAssignedIndex);
+    std::vector<T> y(coords.y().begin() + firstAssignedIndex, coords.y().begin() + lastAssignedIndex);
+    std::vector<T> z(coords.z().begin() + firstAssignedIndex, coords.z().begin() + lastAssignedIndex);
+
+    {
+        // make sure no particles got lost
+        LocalParticleIndex numParticlesLocal = lastAssignedIndex - firstAssignedIndex;
+        LocalParticleIndex numParticlesTotal = numParticlesLocal;
+        MPI_Allreduce(MPI_IN_PLACE, &numParticlesTotal, 1, MpiType<LocalParticleIndex>{}, MPI_SUM, MPI_COMM_WORLD);
+        EXPECT_EQ(numParticlesTotal, numRanks * numParticles);
+    }
+
+    // Now build the focused tree using distributed algorithms. Each rank only uses its slice.
+
+    std::vector<KeyType> particleKeys(lastAssignedIndex - firstAssignedIndex);
+    computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(particleKeys), box);
+
     auto peers = findPeersMac(thisRank, assignment, domainTree, box, theta);
 
     FocusedOctree<KeyType> focusTree(bucketSizeLocal, theta);
