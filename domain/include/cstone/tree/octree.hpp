@@ -547,8 +547,10 @@ ResolutionStatus enforceKeys(gsl::span<const KeyType> treeLeaves, gsl::span<cons
         {
             int keyPos = lastNzPlace(key);
 
-            // add up to 3 levels
-            constexpr int maxAddLevels = 3;
+            // only add 1 level, otherwise nodes can be added in a non-peer area,
+            // exceeding the resolution of the global tree, which will result in a failure to compute
+            // exact particle counts for those nodes
+            constexpr int maxAddLevels = 1;
             int levelDiff = keyPos - level;
             if (levelDiff > maxAddLevels) { status = ResolutionStatus::failed; }
             else                          { status = std::max(status, ResolutionStatus::rebalance); }

@@ -64,7 +64,6 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
     /*******************************/
     /* identical data on all ranks */
-    /*******************************/
 
     // common pool of coordinates, identical on all ranks
     RandomGaussianCoordinates<T, KeyType> coords(numRanks * numParticles, box);
@@ -79,12 +78,22 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
     /*******************************/
 
+    auto peers = findPeersMac(thisRank, assignment, domainTree, box, theta);
+
+    // peer boundaries are required to be present in the focus tree at all times
+    std::vector<KeyType> peerBoundaries;
+    for (auto peer : peers)
+    {
+        peerBoundaries.push_back(tree[assignment.firstNodeIdx(peer)]);
+        peerBoundaries.push_back(tree[assignment.lastNodeIdx(peer)]);
+    }
+
     KeyType focusStart = tree[assignment.firstNodeIdx(thisRank)];
     KeyType focusEnd   = tree[assignment.lastNodeIdx(thisRank)];
 
     // build the reference focus tree from the common pool of coordinates, focused on the executing rank
     FocusedOctree<KeyType> referenceFocusTree(bucketSizeLocal, theta);
-    while (!referenceFocusTree.update(box, coords.mortonCodes(), focusStart, focusEnd, {}));
+    while (!referenceFocusTree.update(box, coords.mortonCodes(), focusStart, focusEnd, peerBoundaries));
 
     /*******************************/
 
@@ -111,8 +120,6 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::vector<KeyType> particleKeys(lastAssignedIndex - firstAssignedIndex);
     computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(particleKeys), box);
 
-    auto peers = findPeersMac(thisRank, assignment, domainTree, box, theta);
-
     FocusedOctree<KeyType> focusTree(bucketSizeLocal, theta);
 
     int converged = 0;
@@ -120,6 +127,18 @@ void globalRandomGaussian(int thisRank, int numRanks)
     {
         converged = focusTree.updateGlobal(box, particleKeys, thisRank, peers, assignment, tree, counts);
         MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+        // particle counts must always be valid, whatever state of convergence
+        auto focusCounts = focusTree.leafCounts();
+        LocalParticleIndex totalCount = std::accumulate(focusCounts.begin(), focusCounts.end(), LocalParticleIndex(0));
+        EXPECT_EQ(totalCount, numParticles * numRanks);
+
+        // peer boundaries must always be resolved at any convergence state
+        for (auto key : peerBoundaries)
+        {
+            LocalParticleIndex idx = findNodeAbove(focusTree.treeLeaves(), key);
+            EXPECT_EQ(key, focusTree.treeLeaves()[idx]);
+        }
     }
 
     // the locally built reference tree should be identical to the tree built with distributed particles
