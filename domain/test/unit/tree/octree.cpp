@@ -423,14 +423,6 @@ void enforceKeys()
         EXPECT_EQ(nodeOps[9], 8);
     }
     {
-        std::vector<int> nodeOps(nNodes(tree), 1);
-        std::vector<KeyType> injectKeys{pad(KeyType(0241), 9)};
-
-        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
-        EXPECT_EQ(status, ResolutionStatus::rebalance);
-        EXPECT_EQ(nodeOps[9], 64);
-    }
-    {
         std::vector<int> nodeOps{1, 1,0,0,0,0,0,0,0, 1,1,1,1,1,1};
         std::vector<KeyType> injectKeys{pad(KeyType(014), 6)};
 
@@ -501,8 +493,8 @@ void enforceKeys()
 
         auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
 
-        EXPECT_EQ(status, ResolutionStatus::rebalance);
-        EXPECT_EQ(nodeOps[9], 64);
+        EXPECT_EQ(status, ResolutionStatus::failed);
+        EXPECT_EQ(nodeOps[9], 8);
     }
     {
         tree = makeRootNodeTree<KeyType>();
@@ -512,7 +504,7 @@ void enforceKeys()
         auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
 
         EXPECT_EQ(status, ResolutionStatus::failed);
-        EXPECT_EQ(nodeOps[0], 512);
+        EXPECT_EQ(nodeOps[0], 8);
     }
     {
         tree = OctreeMaker<KeyType>{}.divide().divide(0).makeTree();
@@ -522,7 +514,7 @@ void enforceKeys()
         auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
 
         std::vector<int> reference(nNodes(tree), 1);
-        reference[0] = 512;
+        reference[0] = 8;
         EXPECT_EQ(status, ResolutionStatus::failed);
         EXPECT_EQ(nodeOps, reference);
     }
