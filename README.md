@@ -21,7 +21,7 @@ Therefore, the goal is to extrapolate their common basic SPH features, which are
 
 # SPH-EXA mini-app
 
-SPH-EXA mini-app is a C++14 headers-only code with no external software dependencies. 
+SPH-EXA mini-app is a C++17 headers-only code with no external software dependencies. 
 The parallelism is currently expressed via following models: MPI, OpenMP, OpenMP4.5 target offloading, OpenACC and CUDA.
 
 [Check our wiki for more details](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/wiki)
@@ -30,13 +30,36 @@ The parallelism is currently expressed via following models: MPI, OpenMP, OpenMP
 
 ```
 SPH-EXA
-|   README.md
-└───include/        - folder containing all sph functions,
-|                     utilities and helpers that are shared between all test cases.
-└───src/            - folder containing test cases
-    └───testcase/   - folder containing test case main function and 
-                      other test case specific functions, 
-                      like reading input data from the file
+├── README.md
+├── docs
+├── domain                            - cornerstone octree and domain
+│   ├── include
+│   │   └── cstone
+│   │       ├── CMakeLists.txt
+│   │       ├── cuda
+│   │       ├── domain
+│   │       ├── findneighbors.hpp
+│   │       ├── halos
+│   │       ├── primitives
+│   │       ├── sfc
+│   │       ├── tree
+│   │       └── util
+│   └── test                         - cornerstone unit- performance-
+│       ├── integration_mpi            and integration tests
+│       ├── performance
+│       ├── unit
+│       └── unit_cuda
+├── include                          - folder containing all sph functions
+│   └─── sph
+│       ├── cuda
+│       └─── kernel
+├── scripts
+├── src                              - folder containing test case main function
+│   ├── evrard
+│   ├── sedov
+│   └── sqpatch
+├── test
+└── tools
 ```
 #### Compile
 
