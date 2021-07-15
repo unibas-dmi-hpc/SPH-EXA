@@ -244,8 +244,13 @@ public:
         reallocate(particleEnd_ - particleStart_, codes);
         reallocate(particleEnd_ - particleStart_, mortonOrder);
 
-        auto compactOffset = compactKeys(particleStart_, particleEnd_, tree_[assignment.firstNodeIdx(myRank_)],
-                                         box_, codes.data(), mortonOrder.data(), x.data(), y.data(), z.data());
+        computeMortonCodes(begin(x) + particleStart_, begin(x) + particleEnd_,
+                           begin(y) + particleStart_,
+                           begin(z) + particleStart_, begin(codes), box_);
+        std::iota(begin(mortonOrder), end(mortonOrder), LocalParticleIndex(0));
+        sort_by_key(begin(codes), end(codes), begin(mortonOrder));
+        LocalParticleIndex compactOffset = findNodeAbove<KeyType>(codes, tree_[assignment.firstNodeIdx(myRank_)]);
+
         gsl::span<const KeyType> codesView(codes.data() + compactOffset, newNParticlesAssigned);
 
         /* Focus tree update phase *********************************************************/
