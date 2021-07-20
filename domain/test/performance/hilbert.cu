@@ -29,6 +29,7 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include <chrono>
 #include <iostream>
 #include <random>
 
@@ -149,4 +150,30 @@ int main()
 
     cudaEventDestroy(start);
     cudaEventDestroy(stop);
+
+    std::vector<KeyType> hostKeys(numKeys);
+
+    auto cpu_t0 = std::chrono::high_resolution_clock::now();
+    #pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < numKeys; ++i)
+    {
+        hostKeys[i] = iHilbert<KeyType>(x[i], y[i], z[i]);
+    }
+    auto cpu_t1 = std::chrono::high_resolution_clock::now();
+    double cpu_time_hilbert = std::chrono::duration<double>(cpu_t1 - cpu_t0).count();
+
+    std::cout << "compute time for " << numKeys << " hilbert keys: " << cpu_time_hilbert
+              << " s on CPU" << std::endl;
+
+    cpu_t0 = std::chrono::high_resolution_clock::now();
+    #pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < numKeys; ++i)
+    {
+        hostKeys[i] = iHilbert<KeyType>(x[i], y[i], z[i]);
+    }
+    cpu_t1 = std::chrono::high_resolution_clock::now();
+    double cpu_time_morton = std::chrono::duration<double>(cpu_t1 - cpu_t0).count();
+
+    std::cout << "compute time for " << numKeys << " morton keys: " << cpu_time_morton
+              << " s on CPU" << std::endl;
 }
