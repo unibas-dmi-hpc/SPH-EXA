@@ -12,6 +12,7 @@ set(UNIT_TESTS
         primitives/gather.cpp
         sfc/box.cpp
         sfc/common.cpp
+        sfc/hilbert.cpp
         sfc/morton.cpp
         tree/btree.cpp
         tree/macs.cpp
