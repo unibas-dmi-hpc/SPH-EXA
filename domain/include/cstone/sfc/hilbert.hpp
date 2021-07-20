@@ -56,24 +56,28 @@ std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert(unsigned px, uns
     assert(py < (1u << maxTreeLevel<KeyType>{}));
     assert(pz < (1u << maxTreeLevel<KeyType>{}));
 
+    constexpr unsigned mortonToHilbert[8] = { 0, 1, 3, 2, 7, 6, 4, 5 };
+
     KeyType key = 0;
+
     for (int level = maxTreeLevel<KeyType>{} - 1; level >= 0; --level)
     {
         unsigned xi = (px >> level) & 1u;
         unsigned yi = (py >> level) & 1u;
         unsigned zi = (pz >> level) & 1u;
 
+        // append 3 bits to the key
+        unsigned octant = (xi << 2) | (yi << 1) | zi;
+        key = (key << 3) + mortonToHilbert[octant];
+
         // turn px, py and pz
         px ^= -( xi & ((!yi) |   zi));
         py ^= -((xi & (  yi  |   zi)) | (yi & (!zi)));
         pz ^= -((xi &  (!yi) & (!zi)) | (yi & (!zi)));
 
-        // append 3 bits to the key
-        key = (key << 3) + ((xi << 2) | ((xi ^ yi) << 1) | ((xi ^ zi) ^ yi));
-
-        // rotate non-cyclic x->z->y->x
         if (zi)
         {
+            // cyclic rotation
             unsigned pt = px;
             px = py;
             py = pz;
@@ -81,6 +85,7 @@ std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert(unsigned px, uns
         }
         else if (!yi)
         {
+            // swap x and z
             unsigned pt = px;
             px = pz;
             pz = pt;
@@ -139,6 +144,7 @@ std::enable_if_t<std::is_unsigned_v<KeyType>> idecodeHilbert(KeyType key, unsign
 }
 
 template<class KeyType>
+CUDA_HOST_DEVICE_FUN inline
 KeyType iHilbert2(unsigned xx, unsigned yy, unsigned zz)
 {
     constexpr unsigned octantMap[8] = {0, 1, 7, 6, 3, 2, 4, 5};
