@@ -161,19 +161,19 @@ KeyType iHilbert2(unsigned xx, unsigned yy, unsigned zz)
         }
         else if (octant == 4 || octant == 6)
         {
-            xx = (xx) ^ (-1);
-            zz = (zz) ^ (-1);
+            xx = (xx) ^ 0xFFFFFFFF;
+            zz = (zz) ^ 0xFFFFFFFF;
         }
         else if (octant == 3 || octant == 7)
         {
-            xx = (xx) ^ (-1);
-            yy = (yy) ^ (-1);
+            xx = (xx) ^ 0xFFFFFFFF;
+            yy = (yy) ^ 0xFFFFFFFF;
             std::swap(xx, yy);
         }
         else
         {
-            yy = (yy) ^ (-1);
-            zz = (zz) ^ (-1);
+            yy = (yy) ^ 0xFFFFFFFF;
+            zz = (zz) ^ 0xFFFFFFFF;
             std::swap(yy, zz);
         }
         key = (key << 3) + octantMap[octant];
