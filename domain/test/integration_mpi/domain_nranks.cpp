@@ -44,7 +44,6 @@
 
 #include "coord_samples/random.hpp"
 #include "cstone/domain/domain.hpp"
-#include "cstone/domain/domain_focus.hpp"
 #include "cstone/findneighbors.hpp"
 
 using namespace cstone;
@@ -156,10 +155,10 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
         std::vector<LocalParticleIndex> ordering(nParticles);
         std::iota(begin(ordering), end(ordering), LocalParticleIndex(0));
         sort_by_key(begin(codesGlobal), end(codesGlobal), begin(ordering));
-        reorder(ordering, xGlobal);
-        reorder(ordering, yGlobal);
-        reorder(ordering, zGlobal);
-        reorder(ordering, hGlobal);
+        reorderInPlace(ordering, xGlobal.data());
+        reorderInPlace(ordering, yGlobal.data());
+        reorderInPlace(ordering, zGlobal.data());
+        reorderInPlace(ordering, hGlobal.data());
 
         // calculate reference neighbor sum from the full arrays
         std::vector<int> neighborsRef(nParticles * ngmax);
@@ -177,70 +176,6 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
 }
 
 
-/*! @brief global-tree based domain with PBC
- *
-  * This test case and the one below are affected by the mutuality limitation of findHalos based on
-  * the global tree, where two nodes i and j are only halos if i is a halo of j
-  * AND vice versa. This leads to two missing halo particles for at least some values of numRanks between 2 and 5.
-  * The focus-tree based domain overcomes this limitation.
- */
-TEST(Domain, randomGaussianNeighborSum)
-{
-    int rank = 0, nRanks = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
-
-    int bucketSize = 10;
-    // avoid halo mutuality limitation
-    bool equalizeH = true;
-
-    {
-        Domain<unsigned, double> domain(rank, nRanks, bucketSize, {-1, 1});
-        randomGaussianDomain<unsigned, double>(domain, rank, nRanks, equalizeH);
-    }
-    {
-        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, {-1, 1});
-        randomGaussianDomain<uint64_t, double>(domain, rank, nRanks, equalizeH);
-    }
-    {
-        Domain<unsigned, float> domain(rank, nRanks, bucketSize, {-1, 1});
-        randomGaussianDomain<unsigned, float>(domain, rank, nRanks, equalizeH);
-    }
-    {
-        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, {-1, 1});
-        randomGaussianDomain<uint64_t, float>(domain, rank, nRanks, equalizeH);
-    }
-}
-
-TEST(Domain, randomGaussianNeighborSumPbc)
-{
-    int rank = 0, nRanks = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
-
-    int bucketSize = 10;
-    // avoid halo mutuality limitation
-    bool equalizeH = true;
-
-    {
-        Domain<unsigned, double> domain(rank, nRanks, bucketSize, {-1, 1, true});
-        randomGaussianDomain<unsigned, double>(domain, rank, nRanks, equalizeH);
-    }
-    {
-        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, {-1, 1, true});
-        randomGaussianDomain<uint64_t, double>(domain, rank, nRanks, equalizeH);
-    }
-
-    {
-        Domain<unsigned, float> domain(rank, nRanks, bucketSize, {-1, 1, true});
-        randomGaussianDomain<unsigned, float>(domain, rank, nRanks, equalizeH);
-    }
-    {
-        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, {-1, 1, true});
-        randomGaussianDomain<uint64_t, float>(domain, rank, nRanks, equalizeH);
-    }
-}
-
 TEST(FocusDomain, randomGaussianNeighborSum)
 {
     int rank = 0, nRanks = 0;
@@ -251,19 +186,19 @@ TEST(FocusDomain, randomGaussianNeighborSum)
     int bucketSizeFocus = 10;
 
     {
-        FocusedDomain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        Domain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
         randomGaussianDomain<unsigned, double>(domain, rank, nRanks);
     }
     {
-        FocusedDomain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
         randomGaussianDomain<uint64_t, double>(domain, rank, nRanks);
     }
     {
-        FocusedDomain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        Domain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
         randomGaussianDomain<unsigned, float>(domain, rank, nRanks);
     }
     {
-        FocusedDomain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
         randomGaussianDomain<uint64_t, float>(domain, rank, nRanks);
     }
 }
@@ -278,19 +213,19 @@ TEST(FocusDomain, randomGaussianNeighborSumPbc)
     int bucketSizeFocus = 10;
 
     {
-        FocusedDomain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        Domain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
         randomGaussianDomain<unsigned, double>(domain, rank, nRanks);
     }
     {
-        FocusedDomain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
         randomGaussianDomain<uint64_t, double>(domain, rank, nRanks);
     }
     {
-        FocusedDomain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        Domain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
         randomGaussianDomain<unsigned, float>(domain, rank, nRanks);
     }
     {
-        FocusedDomain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
         randomGaussianDomain<uint64_t, float>(domain, rank, nRanks);
     }
 }
@@ -316,7 +251,7 @@ TEST(FocusDomain, assignmentShift)
     std::vector<Real> z = coordinates.z();
     std::vector<Real> h(numParticlesPerRank, 0.1);
 
-    FocusedDomain<KeyType, Real> domain(rank, numRanks, bucketSize, bucketSizeFocus, box);
+    Domain<KeyType, Real> domain(rank, numRanks, bucketSize, bucketSizeFocus, box);
 
     std::vector<KeyType> particleKeys;
 

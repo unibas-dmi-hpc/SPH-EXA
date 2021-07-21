@@ -423,14 +423,6 @@ void enforceKeys()
         EXPECT_EQ(nodeOps[9], 8);
     }
     {
-        std::vector<int> nodeOps(nNodes(tree), 1);
-        std::vector<KeyType> injectKeys{pad(KeyType(0241), 9)};
-
-        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
-        EXPECT_EQ(status, ResolutionStatus::rebalance);
-        EXPECT_EQ(nodeOps[9], 64);
-    }
-    {
         std::vector<int> nodeOps{1, 1,0,0,0,0,0,0,0, 1,1,1,1,1,1};
         std::vector<KeyType> injectKeys{pad(KeyType(014), 6)};
 
@@ -501,8 +493,8 @@ void enforceKeys()
 
         auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
 
-        EXPECT_EQ(status, ResolutionStatus::rebalance);
-        EXPECT_EQ(nodeOps[9], 64);
+        EXPECT_EQ(status, ResolutionStatus::failed);
+        EXPECT_EQ(nodeOps[9], 8);
     }
     {
         tree = makeRootNodeTree<KeyType>();
@@ -512,7 +504,7 @@ void enforceKeys()
         auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
 
         EXPECT_EQ(status, ResolutionStatus::failed);
-        EXPECT_EQ(nodeOps[0], 512);
+        EXPECT_EQ(nodeOps[0], 8);
     }
     {
         tree = OctreeMaker<KeyType>{}.divide().divide(0).makeTree();
@@ -522,7 +514,7 @@ void enforceKeys()
         auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
 
         std::vector<int> reference(nNodes(tree), 1);
-        reference[0] = 512;
+        reference[0] = 8;
         EXPECT_EQ(status, ResolutionStatus::failed);
         EXPECT_EQ(nodeOps, reference);
     }
@@ -536,21 +528,21 @@ TEST(CornerstoneOctree, enforceKeys)
 
 TEST(CornerstoneOctree, computeHaloRadii)
 {
-    using CodeType = unsigned;
+    using KeyType = unsigned;
 
-    std::vector<CodeType> tree{0, 8, 16, 24, 32};
+    std::vector<KeyType> tree{0, 8, 16, 24, 32};
 
-    std::vector<CodeType> particleCodes{0, 4, 8, 14, 20, 24, 25, 26, 31};
+    std::vector<KeyType> particleCodes{0, 4, 8, 14, 20, 24, 25, 26, 31};
     std::vector<float> smoothingLs{2, 1, 4, 3, 5, 8, 2, 1, 3};
     std::vector<float> hMaxPerNode{4, 8, 10, 16};
 
-    std::vector<int> ordering(particleCodes.size());
-    std::iota(begin(ordering), end(ordering), 0);
-
     std::vector<float> probe(hMaxPerNode.size());
 
-    computeHaloRadii(tree.data(), nNodes(tree), particleCodes.data(), particleCodes.data() + particleCodes.size(),
-                     ordering.data(), smoothingLs.data(), probe.data());
+    std::vector<LocalParticleIndex> ordering(particleCodes.size());
+    std::iota(begin(ordering), end(ordering), 0);
+
+    computeHaloRadii<KeyType>(tree.data(), nNodes(tree), particleCodes, ordering.data(),
+                              smoothingLs.data(), probe.data());
 
     EXPECT_EQ(probe, hMaxPerNode);
 }
@@ -565,11 +557,13 @@ void computeHaloRadiiSTree()
     std::vector<KeyType> particleCodes{0, 0, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0) - 1};
 
     std::vector<double> smoothingLengths{0.21, 0.2, 0.2, 0.22};
-    std::vector<TreeNodeIndex> ordering{0, 1, 2, 3};
+
+    std::vector<LocalParticleIndex> ordering(particleCodes.size());
+    std::iota(begin(ordering), end(ordering), 0);
 
     std::vector<double> haloRadii(nNodes(tree), 0);
-    computeHaloRadii(tree.data(), nNodes(tree), particleCodes.data(), particleCodes.data() + particleCodes.size(),
-                     ordering.data(), smoothingLengths.data(), haloRadii.data());
+    computeHaloRadii<KeyType>(tree.data(), nNodes(tree), particleCodes, ordering.data(),
+                              smoothingLengths.data(), haloRadii.data());
 
     std::vector<double> referenceHaloRadii(nNodes(tree));
     referenceHaloRadii.front() = 0.42;

@@ -70,9 +70,9 @@ public:
         std::iota(begin(mortonOrder), end(mortonOrder), 0);
         sort_by_key(begin(codes_), end(codes_), begin(mortonOrder));
 
-        reorder(mortonOrder, x_);
-        reorder(mortonOrder, y_);
-        reorder(mortonOrder, z_);
+        reorderInPlace(mortonOrder, x_.data());
+        reorderInPlace(mortonOrder, y_.data());
+        reorderInPlace(mortonOrder, z_.data());
     }
 
     const std::vector<T>& x() const { return x_; }
@@ -117,9 +117,9 @@ public:
         std::iota(begin(mortonOrder), end(mortonOrder), 0);
         sort_by_key(begin(codes_), end(codes_), begin(mortonOrder));
 
-        reorder(mortonOrder, x_);
-        reorder(mortonOrder, y_);
-        reorder(mortonOrder, z_);
+        reorderInPlace(mortonOrder, x_.data());
+        reorderInPlace(mortonOrder, y_.data());
+        reorderInPlace(mortonOrder, z_.data());
     }
 
     const std::vector<T>& x() const { return x_; }

@@ -34,13 +34,19 @@
 
 #pragma once
 
-#include "cstone/sfc/box_mpi.hpp"
-#include "domain_traits.hpp"
-#include "domaindecomp_mpi.hpp"
+#include "cstone/domain/domaindecomp_mpi.hpp"
+#include "cstone/domain/domain_traits.hpp"
+#include "cstone/domain/exchange_keys.hpp"
+#include "cstone/domain/layout.hpp"
+#include "cstone/domain/peers.hpp"
+
 #include "cstone/halos/discovery.hpp"
 #include "cstone/halos/exchange_halos.hpp"
-#include "layout.hpp"
+
 #include "cstone/tree/octree_mpi.hpp"
+#include "cstone/tree/octree_focus_mpi.hpp"
+
+#include "cstone/sfc/box_mpi.hpp"
 
 namespace cstone
 {
@@ -55,17 +61,26 @@ class Domain
 public:
     /*! @brief construct empty Domain
      *
-     * @param rank        executing rank
-     * @param nRanks      number of ranks
-     * @param bucketSize  build tree with max @a bucketSize particles per node
-     * @param box         global bounding box, default is non-pbc box
-     *                    for each periodic dimension in @a box, the coordinate min/max
-     *                    limits will never be changed for the lifetime of the Domain
+     * @param rank            executing rank
+     * @param nRanks          number of ranks
+     * @param bucketSize      build global tree for domain decomposition with max @a bucketSize particles per node
+     * @param bucketSizeFocus maximum number of particles per leaf node inside the assigned part of the SFC
+     * @param box             global bounding box, default is non-pbc box
+     *                        for each periodic dimension in @a box, the coordinate min/max
+     *                        limits will never be changed for the lifetime of the Domain
      *
      */
-    explicit Domain(int rank, int nRanks, int bucketSize, const Box<T>& box = Box<T>{0,1})
-        : myRank_(rank), nRanks_(nRanks), bucketSize_(bucketSize), box_(box)
-    {}
+    explicit Domain(int rank, int nRanks, unsigned bucketSize, unsigned bucketSizeFocus,
+                           const Box<T>& box = Box<T>{0,1})
+        : myRank_(rank), numRanks_(nRanks), bucketSize_(bucketSize), bucketSizeFocus_(bucketSizeFocus), box_(box),
+          focusedTree_(bucketSizeFocus_, theta_)
+    {
+        if (bucketSize_ < bucketSizeFocus_)
+        {
+            throw std::runtime_error("The bucket size of the global tree must not be smaller than the bucket size"
+                                     " of the focused tree\n");
+        }
+    }
 
     /*! @brief Domain update sequence for particles with coordinates x,y,z, interaction radius h and their properties
      *
@@ -168,14 +183,16 @@ public:
 
         haloEpoch_ = 0;
 
+        /* SFC decomposition phase *********************************************************/
+
         box_ = makeGlobalBox(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
                              cbegin(y) + particleStart_,
                              cbegin(z) + particleStart_, box_);
 
         // number of locally assigned particles to consider for global tree building
-        LocalParticleIndex nParticles = particleEnd_ - particleStart_;
+        LocalParticleIndex numParticles = particleEnd_ - particleStart_;
 
-        codes.resize(nParticles);
+        codes.resize(numParticles);
 
         // compute morton codes only for particles participating in tree build
         computeMortonCodes(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
@@ -190,104 +207,137 @@ public:
         reorderFunctor.setMapFromCodes(codes.data(), codes.data() + codes.size());
 
         // extract ordering for use in e.g. exchange particles
-        std::vector<LocalParticleIndex> mortonOrder(nParticles);
+        std::vector<LocalParticleIndex> mortonOrder(numParticles);
         reorderFunctor.getReorderMap(mortonOrder.data());
 
         // compute the global octree in cornerstone format (leaves only)
         // the resulting tree and node counts will be identical on all ranks
-        updateOctreeGlobal(codes.data(), codes.data() + nParticles, bucketSize_, tree_, nodeCounts_);
+        updateOctreeGlobal(codes.data(), codes.data() + numParticles, bucketSize_, tree_, nodeCounts_);
 
         if (firstCall_)
         {
             // full build on first call
-            while(!updateOctreeGlobal(codes.data(), codes.data() + nParticles, bucketSize_, tree_, nodeCounts_));
-            firstCall_ = false;
+            while(!updateOctreeGlobal(codes.data(), codes.data() + numParticles, bucketSize_, tree_, nodeCounts_));
         }
 
         // assign one single range of Morton codes each rank
-        SpaceCurveAssignment assignment  = singleRangeSfcSplit(nodeCounts_, nRanks_);
+        SpaceCurveAssignment assignment = singleRangeSfcSplit(nodeCounts_, numRanks_);
         LocalParticleIndex newNParticlesAssigned = assignment.totalCount(myRank_);
 
-        // Compute the maximum smoothing length (=halo radii) in each global node.
-        // Float has a 23-bit mantissa and is therefore sufficiently precise to be normalized
-        // into the range [0, 2^maxTreelevel<CodeType>{}], which is at most 21-bit for 64-bit Morton codes
-        std::vector<float> haloRadii(nNodes(tree_));
-        computeHaloRadiiGlobal(tree_.data(), nNodes(tree_), codes.data(), codes.data() + nParticles,
-                               mortonOrder.data(), h.data() + particleStart_, haloRadii.data());
-
-        // find outgoing and incoming halo nodes of the tree
-        // uses 3D collision detection
-        std::vector<pair<TreeNodeIndex>> haloPairs;
-        findHalos<KeyType, float>(tree_, haloRadii, box_, assignment.firstNodeIdx(myRank_), assignment.lastNodeIdx(myRank_), haloPairs);
-
-        // group outgoing and incoming halo node indices by destination/source rank
-        std::vector<std::vector<TreeNodeIndex>> incomingHaloNodes;
-        std::vector<std::vector<TreeNodeIndex>> outgoingHaloNodes;
-        computeSendRecvNodeList(assignment, haloPairs, incomingHaloNodes, outgoingHaloNodes);
-
-        // compute list of local node index ranges
-        std::vector<TreeNodeIndex> incomingHalosFlattened = flattenNodeList(incomingHaloNodes);
-
-        // Put all local node indices and incoming halo node indices in one sorted list.
-        // and compute an offset for each node into these arrays.
-        // This will be the new layout for x,y,z,h arrays.
-        std::vector<TreeNodeIndex> presentNodes;
-        std::vector<LocalParticleIndex> nodeOffsets;
-        computeLayoutOffsets(assignment.firstNodeIdx(myRank_), assignment.lastNodeIdx(myRank_),
-                             incomingHalosFlattened, nodeCounts_, presentNodes, nodeOffsets);
-        localNParticles_ = nodeOffsets.back();
-
-        TreeNodeIndex firstLocalNode = std::lower_bound(cbegin(presentNodes), cend(presentNodes), assignment.firstNodeIdx(myRank_))
-                                       - begin(presentNodes);
-
-        LocalParticleIndex newParticleStart = nodeOffsets[firstLocalNode];
-        LocalParticleIndex newParticleEnd   = newParticleStart + newNParticlesAssigned;
+        /* Domain particles update phase *********************************************************/
 
         // compute send array ranges for domain exchange
-        // index ranges in domainExchangeSends are valid relative to the sorted code array mortonCodes
+        // index ranges in domainExchangeSends are valid relative to the sorted code array codes
         // note that there is no offset applied to mortonCodes, because it was constructed
         // only with locally assigned particles
         SendList domainExchangeSends = createSendList<KeyType>(assignment, tree_, codes);
 
-        // resize arrays to new sizes
-        reallocate(localNParticles_, x,y,z,h, particleProperties...);
-        reallocate(localNParticles_, codes);
+        reallocate(std::max(newNParticlesAssigned, LocalParticleIndex(x.size())), x,y,z,h, particleProperties...);
+
         // exchange assigned particles
-        exchangeParticles<T>(domainExchangeSends, Rank(myRank_), newNParticlesAssigned,
-                             particleStart_, newParticleStart, mortonOrder.data(),
-                             x.data(), y.data(), z.data(), h.data(), particleProperties.data()...);
+        std::tie(particleStart_, particleEnd_) =
+            exchangeParticles<T>(domainExchangeSends, myRank_, particleStart_, particleEnd_,
+                                 x.size(), newNParticlesAssigned,
+                                 mortonOrder.data(),
+                                 x.data(), y.data(), z.data(), h.data(), particleProperties.data()...);
 
-        // assigned particles have been moved to their new locations starting at particleStart_
-        // by the domain exchange exchangeParticles
-        std::swap(particleStart_, newParticleStart);
-        std::swap(particleEnd_, newParticleEnd);
+        reallocate(particleEnd_ - particleStart_, codes);
+        reallocate(particleEnd_ - particleStart_, mortonOrder);
 
-        computeMortonCodes(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
-                           cbegin(y) + particleStart_,
-                           cbegin(z) + particleStart_,
-                           begin(codes) + particleStart_, box_);
+        // refresh particleKeys and ordering
+        computeMortonCodes(begin(x) + particleStart_, begin(x) + particleEnd_,
+                           begin(y) + particleStart_,
+                           begin(z) + particleStart_, begin(codes), box_);
+        reorderFunctor.setMapFromCodes(codes.data(), codes.data() + codes.size());
+        reorderFunctor.getReorderMap(mortonOrder.data());
 
-        reorderFunctor.setMapFromCodes(codes.data() + particleStart_, codes.data() + particleEnd_);
+        LocalParticleIndex compactOffset = findNodeAbove<KeyType>(codes, tree_[assignment.firstNodeIdx(myRank_)]);
 
-        // We have to reorder the locally assigned particles in the coordinate and property arrays
-        // which are located in the index range [particleStart_, particleEnd_].
-        // Due to the domain particle exchange, contributions from remote ranks
-        // are received in arbitrary order.
+        // the range [particleStart_:particleEnd_] can still contain leftover particles from the previous step
+        // but [particleStart_ + compactOffset : particleStart_ + compactOffset + newNParticlesAssigned]
+        // exclusively refers to locally assigned particles in SFC order when accessed through mortonOrder
+        gsl::span<const KeyType> codesView(codes.data() + compactOffset, newNParticlesAssigned);
+
+        /* Focus tree update phase *********************************************************/
+
+        Octree<KeyType> domainTree;
+        domainTree.update(begin(tree_), end(tree_));
+        std::vector<int> peers = findPeersMac(myRank_, assignment, domainTree, box_, theta_);
+
+        focusedTree_.updateGlobal(box_, codesView, myRank_, peers, assignment, tree_, nodeCounts_);
+        if (firstCall_)
         {
-            std::array<std::vector<T>*, 4 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &h, &particleProperties...};
-            for (std::size_t i = 0; i < particleArrays.size(); ++i)
+            int converged = 0;
+            while (converged != numRanks_)
             {
-                reorderFunctor(particleArrays[i]->data() + particleStart_) ;
+                converged = focusedTree_.updateGlobal(box_, codesView, myRank_, peers, assignment, tree_, nodeCounts_);
+                MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
             }
+            firstCall_ = false;
         }
 
-        incomingHaloIndices_ = createHaloExchangeList(incomingHaloNodes, presentNodes, nodeOffsets);
-        outgoingHaloIndices_ = createHaloExchangeList(outgoingHaloNodes, presentNodes, nodeOffsets);
+        std::vector<TreeIndexPair> focusAssignment
+            = translateAssignment<KeyType>(assignment, tree_, focusedTree_.treeLeaves(), peers, myRank_);
 
-        exchangeHalos(x,y,z,h);
+        /* Halo discovery phase *********************************************************/
 
-        // compute Morton codes for halo particles just received, from 0 to particleStart_
-        // and from particleEnd_ to localNParticles_
+        std::vector<float> haloRadii(nNodes(focusedTree_.treeLeaves()));
+        computeHaloRadii<KeyType>(focusedTree_.treeLeaves().data(),
+                                  nNodes(focusedTree_.treeLeaves()),
+                                  codesView,
+                                  mortonOrder.data() + compactOffset,
+                                  h.data() + particleStart_,
+                                  haloRadii.data());
+
+        std::vector<int> haloFlags(nNodes(focusedTree_.treeLeaves()), 0);
+        findHalos<KeyType, float>(focusedTree_.treeLeaves(),
+                                  focusedTree_.binaryTree(),
+                                  haloRadii,
+                                  box_,
+                                  focusAssignment[myRank_].start(),
+                                  focusAssignment[myRank_].end(),
+                                  haloFlags.data());
+
+        /* Compute new layout *********************************************************/
+
+        std::vector<LocalParticleIndex> layout = computeNodeLayout(focusedTree_.leafCounts(), haloFlags,
+                                                                   focusAssignment[myRank_].start(),
+                                                                   focusAssignment[myRank_].end());
+        localNParticles_ = layout.back();
+        auto newParticleStart = layout[focusAssignment[myRank_].start()];
+        auto newParticleEnd   = newParticleStart + newNParticlesAssigned;
+
+        outgoingHaloIndices_
+            = exchangeRequestKeys<KeyType>(focusedTree_.treeLeaves(), haloFlags,
+                                           codesView, newParticleStart, focusAssignment, peers);
+        checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd);
+
+        incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags, focusAssignment, peers);
+
+        /* Rearrange particle buffers *********************************************************/
+
+        reallocate(localNParticles_, x, y, z, h, particleProperties...);
+
+        std::array<std::vector<T>*, 4 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &h, &particleProperties...};
+        for (std::size_t i = 0; i < particleArrays.size(); ++i)
+        {
+            reorderFunctor(particleArrays[i]->data() + particleStart_,
+                           particleArrays[i]->data() + newParticleStart,
+                           compactOffset, newNParticlesAssigned);
+        }
+
+        std::vector<KeyType> newCodes(localNParticles_);
+        std::copy(codesView.begin(), codesView.end(), newCodes.begin() + newParticleStart);
+        swap(codes, newCodes);
+
+        particleStart_ = newParticleStart;
+        particleEnd_   = newParticleEnd;
+
+        /* Halo exchange phase *********************************************************/
+
+        exchangeHalos(x, y, z, h);
+
+        // compute SFC keys of received halo particles
         computeMortonCodes(cbegin(x), cbegin(x) + particleStart_,
                            cbegin(y),
                            cbegin(z),
@@ -302,8 +352,8 @@ public:
      *
      * @param[inout] arrays  std::vector<float or double> of size localNParticles_
      *
-     * Arrays are not resized or reallocated.
-     * This is used e.g. for densities.
+     * Arrays are not resized or reallocated. This is used e.g. for densities.
+     * Note: function is const, but modiefies mutable haloEpoch_ counter.
      */
     template<class...Arrays>
     void exchangeHalos(Arrays&... arrays) const
@@ -328,13 +378,31 @@ public:
     //! @brief return number of locally assigned particles plus number of halos
     [[nodiscard]] LocalParticleIndex nParticlesWithHalos() const { return localNParticles_; }
 
-    //! @brief read only visibility of the octree to the outside
-    const std::vector<KeyType>& tree() const { return tree_; }
+    //! @brief read only visibility of the global octree leaves to the outside
+    gsl::span<const KeyType> tree() const { return tree_; }
+
+    //! @brief read only visibility of the focused octree leaves to the outside
+    gsl::span<const KeyType> focusedTree() const { return focusedTree_.treeLeaves(); }
 
     //! @brief return the coordinate bounding box from the previous sync call
     Box<T> box() const { return box_; }
 
 private:
+
+    //! @brief check that only owned particles in [particleStart_:particleEnd_] are sent out as halos
+    void checkIndices(const SendList& sendList, LocalParticleIndex start, LocalParticleIndex end)
+    {
+        for (const auto& manifest : sendList)
+        {
+            for (size_t ri = 0; ri < manifest.nRanges(); ++ri)
+            {
+                assert(!overlapTwoRanges(LocalParticleIndex{0}, start,
+                                         manifest.rangeStart(ri), manifest.rangeEnd(ri)));
+                assert(!overlapTwoRanges(end, localNParticles_,
+                                         manifest.rangeStart(ri), manifest.rangeEnd(ri)));
+            }
+        }
+    }
 
     //! @brief return true if all array sizes are equal to value
     template<class... Arrays>
@@ -345,8 +413,9 @@ private:
     }
 
     int myRank_;
-    int nRanks_;
-    int bucketSize_;
+    int numRanks_;
+    unsigned bucketSize_;
+    unsigned bucketSizeFocus_;
 
     /*! @brief array index of first local particle belonging to the assignment
      *  i.e. the index of the first particle that belongs to this rank and is not a halo.
@@ -363,8 +432,21 @@ private:
     SendList incomingHaloIndices_;
     SendList outgoingHaloIndices_;
 
+    //! @brief cornerstone tree leaves for global domain decomposition
     std::vector<KeyType> tree_;
     std::vector<unsigned> nodeCounts_;
+
+    float theta_{1.0};
+
+    /*! @brief locally focused, fully traversable octree, used for halo discovery and exchange
+     *
+     * -Uses bucketSizeFocus_ as the maximum particle count per leaf within the focused SFC area.
+     * -Outside the focus area, each leaf node with a particle count larger than bucketSizeFocus_
+     *  fulfills a MAC with theta as the opening parameter
+     * -Also contains particle counts.
+     */
+    FocusedOctree<KeyType> focusedTree_;
+
     bool firstCall_{true};
 
     /*! @brief counter for halo exchange calls between sync() calls

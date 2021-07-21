@@ -8,7 +8,7 @@
 #define USE_MPI
 #endif
 
-#include "cstone/domain/domain_focus.hpp"
+#include "cstone/domain/domain.hpp"
 
 #include "sphexa.hpp"
 #include "SedovDataGenerator.hpp"
@@ -63,9 +63,9 @@ int main(int argc, char** argv)
     cstone::Box<Real> box{d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin,
                           d.bbox.zmax, d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz};
 #ifdef USE_CUDA
-    cstone::FocusedDomain<CodeType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, box);
+    cstone::Domain<CodeType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, box);
 #else
-    cstone::FocusedDomain<CodeType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, box);
+    cstone::Domain<CodeType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, box);
 #endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;

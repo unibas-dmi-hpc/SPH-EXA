@@ -58,16 +58,4 @@ bool updateOctreeGlobal(const KeyType *codesStart, const KeyType *codesEnd, unsi
     return converged;
 }
 
-/*! @brief Compute the global maximum value of a given input array for each node in the global or local octree
- *
- * See documentation of computeHaloRadii
- */
-template <class Tin, class Tout, class KeyType, class IndexType>
-void computeHaloRadiiGlobal(const KeyType *tree, int nNodes, const KeyType *codesStart, const KeyType *codesEnd,
-                            const IndexType *ordering, const Tin *input, Tout *output)
-{
-    computeHaloRadii(tree, nNodes, codesStart, codesEnd, ordering, input, output);
-    MPI_Allreduce(MPI_IN_PLACE, output, nNodes, MpiType<Tout>{}, MPI_MAX, MPI_COMM_WORLD);
-}
-
 } // namespace cstone
