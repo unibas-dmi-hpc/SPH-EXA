@@ -39,6 +39,7 @@
 #include <vector>
 
 #include "cstone/sfc/morton.hpp"
+#include "cstone/util/gsl-lite.hpp"
 
 namespace cstone
 {
@@ -86,69 +87,15 @@ void sort_by_key(InoutIterator inBegin, InoutIterator inEnd, OutputIterator outB
     sort_by_key(inBegin, inEnd, outBegin, std::less<std::decay_t<decltype(*inBegin)>>{});
 }
 
-
-/*! @brief reorder the input array according to the specified ordering
- *
- * @tparam I          integer type
- * @tparam ValueType  float or double
- * @param ordering    an ordering
- * @param array       an array, size >= ordering.size(), particles past ordering.size()
- *                    are copied element by element
- */
-template<class I, class ValueType>
-void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array)
+template<class IndexType, class ValueType>
+void reorder(gsl::span<const IndexType> ordering, const ValueType* source, ValueType* destination,
+             IndexType offset, IndexType numExtract)
 {
-    assert(array.size() >= ordering.size());
-
-    std::vector<ValueType> tmp(array.size());
     #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < ordering.size(); ++i)
+    for (std::size_t i = 0; i < numExtract; ++i)
     {
-        tmp[i] = array[ordering[i]];
+        destination[i] = source[ordering[i + offset]];
     }
-    #pragma omp parallel for schedule(static)
-    for (std::size_t i = ordering.size(); i < array.size(); ++i)
-    {
-        tmp[i] = array[i];
-    }
-    swap(tmp, array);
-}
-
-/*! @brief reorder the input array according to the specified ordering
- *
- * @tparam I          integer type
- * @tparam ValueType  float or double
- * @param ordering    an ordering, all indices from 0 to ordering.size() are accessed
- * @param array       an array, indices offset to offset + ordering.size() are reordered.
- *                    other elements are copied element by element
- * @param offset      access array with an offset
- */
-template<class I, class ValueType>
-void reorder(const std::vector<I>& ordering, std::vector<ValueType>& array, int offset)
-{
-    assert(array.size() >= ordering.size() + offset);
-
-    std::vector<ValueType> tmp(array.size());
-
-    #pragma omp parallel for schedule(static)
-    for (int i = 0; i < offset; ++i)
-    {
-        tmp[i] = array[i];
-    }
-
-    #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < ordering.size(); ++i)
-    {
-        tmp[i+offset] = array[ordering[i]+offset];
-    }
-
-    #pragma omp parallel for schedule(static)
-    for (size_t i = ordering.size()+offset; i < array.size(); ++i)
-    {
-        tmp[i] = array[i];
-    }
-
-    swap(tmp, array);
 }
 
 
@@ -192,6 +139,8 @@ public:
         mapSize_ = std::size_t(map_last - map_first);
         ordering_.resize(mapSize_);
         std::copy(map_first, map_last, begin(ordering_));
+
+        buffer_.resize(mapSize_);
     }
 
     void getReorderMap(IndexType* map_first)
@@ -224,6 +173,8 @@ public:
         std::iota(begin(ordering_), end(ordering_), 0);
 
         sort_by_key(codes_first, codes_last, begin(ordering_));
+
+        buffer_.resize(mapSize_);
     }
 
     /*! @brief reorder the array @p values according to the reorder map provided previously
@@ -231,14 +182,23 @@ public:
      * @p values must have at least as many elements as the reorder map provided in the last call
      * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
      */
-    void operator()(ValueType* values)
+    void operator()(const ValueType* source, ValueType* destination, IndexType offset, IndexType numExtract)
     {
-        reorderInPlace(ordering_, values);
+        reorder<IndexType>(ordering_, source, buffer_.data(), 0, mapSize_);
+
+        #pragma omp parallel for schedule(static)
+        for (IndexType i = 0; i < numExtract; ++i)
+        {
+            destination[i] = buffer_[i + offset];
+        }
+        //reorderInPlace(ordering_, values);
     }
 
 private:
     std::size_t mapSize_{0};
     std::vector<IndexType> ordering_;
+
+    std::vector<ValueType> buffer_;
 };
 
 } // namespace cstone

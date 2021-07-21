@@ -81,17 +81,6 @@ void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std
 
     int doSplit = 0;
     TreeNodeIndex upperNode = assignment.lastNodeIdx(doSplit);
-
-    {
-        std::vector<pair<TreeNodeIndex>> haloPairs;
-        auto tp0 = std::chrono::high_resolution_clock::now();
-        findHalos<KeyType, float>(tree, haloRadii, box, 0, upperNode, haloPairs);
-        auto tp1 = std::chrono::high_resolution_clock::now();
-
-        double t2 = std::chrono::duration<double>(tp1 - tp0).count();
-        std::cout << "halo discovery: " << t2 << " nPairs: " << haloPairs.size() << std::endl;
-    }
-
     {
         std::vector<BinaryNode<KeyType>> binaryTree(nNodes(tree));
         createBinaryTree(tree.data(), nNodes(tree), binaryTree.data());

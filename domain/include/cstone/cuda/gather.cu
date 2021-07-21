@@ -180,7 +180,8 @@ __global__ void reorder(I* map, T* source, T* destination, size_t n)
 }
 
 template<class ValueType, class CodeType, class IndexType>
-void DeviceGather<ValueType, CodeType, IndexType>::operator()(ValueType* values)
+void DeviceGather<ValueType, CodeType, IndexType>::operator()(const ValueType* values, ValueType* destination,
+                                                              IndexType offset, IndexType numExtract)
 {
     constexpr int nThreads = 256;
     int nBlocks = (mapSize_ + nThreads - 1) / nThreads;
@@ -197,7 +198,8 @@ void DeviceGather<ValueType, CodeType, IndexType>::operator()(ValueType* values)
     checkCudaErrors(cudaGetLastError());
 
     // download to host
-    cudaMemcpy(values, deviceMemory_->deviceBuffer(1), mapSize_ * sizeof(ValueType), cudaMemcpyDeviceToHost);
+    cudaMemcpy(destination, deviceMemory_->deviceBuffer(1) + offset,
+               numExtract * sizeof(ValueType), cudaMemcpyDeviceToHost);
     checkCudaErrors(cudaGetLastError());
 }
 

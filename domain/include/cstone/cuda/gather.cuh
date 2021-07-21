@@ -87,7 +87,7 @@ public:
      * \a values must have at least as many elements as the reorder map provided in the last call
      * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
      */
-    void operator()(ValueType* values);
+    void operator()(const ValueType* values, ValueType* destination, IndexType offset, IndexType numExtract);
 
 private:
     std::size_t mapSize_{0};

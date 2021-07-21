@@ -51,20 +51,6 @@ TEST(GatherCpu, sortInvert)
     EXPECT_EQ(values, reference);
 }
 
-TEST(GatherCpu, reorder)
-{
-    std::vector<int> ordering{1, 0, 4, 3, 2};
-
-    std::vector<double> x(10);
-    std::iota(begin(x), end(x), 0);
-
-    int offset = 2;
-
-    reorder(ordering, x, offset);
-
-    std::vector<double> refX{0, 1, 3, 2, 6, 5, 4, 7, 8, 9};
-    EXPECT_EQ(x, refX);
-}
 
 template<class ValueType, class CodeType, class IndexType>
 void CpuGatherTest()
@@ -80,7 +66,7 @@ void CpuGatherTest()
     }
 
     std::vector<ValueType> values{-2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11};
-    cpuGather(values.data() + 2);
+    cpuGather(values.data() + 2, values.data() + 2, 0, codes.size());
     std::vector<ValueType> reference{-2, -1, 0, 2, 4, 6, 8, 1, 3, 5, 7, 9, 10, 11};
 
     EXPECT_EQ(values, reference);
