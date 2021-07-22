@@ -117,8 +117,7 @@ struct OctreeNode
 };
 
 template<class KeyType, class AtomicInteger>
-CUDA_HOST_DEVICE_FUN
-void nodeDepthElement(TreeNodeIndex i, const OctreeNode<KeyType>* octree, AtomicInteger* depths)
+HOST_DEVICE_FUN void nodeDepthElement(TreeNodeIndex i, const OctreeNode<KeyType>* octree, AtomicInteger* depths)
 {
     int nLeafChildren = 0;
     for (int octant = 0; octant < 8; ++octant)
@@ -310,8 +309,7 @@ void rewireIndices(const Index* input,
  * In addition, it sets the parent member of the child nodes to @p nodeIndex.
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline void constructOctreeNode(OctreeNode<KeyType>*       internalOctree,
+HOST_DEVICE_FUN inline void constructOctreeNode(OctreeNode<KeyType>*       internalOctree,
                                 const BinaryNode<KeyType>* binaryTree,
                                 TreeNodeIndex        nodeIndex,
                                 const TreeNodeIndex* scatterMap,

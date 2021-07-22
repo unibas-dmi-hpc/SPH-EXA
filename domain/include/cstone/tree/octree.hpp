@@ -82,8 +82,7 @@ inline TreeNodeIndex findNodeAbove(gsl::span<const KeyType> tree, KeyType key)
 
 //! @brief count particles in one tree node
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-unsigned calculateNodeCount(const KeyType* tree, TreeNodeIndex nodeIdx, const KeyType* codesStart, const KeyType* codesEnd, unsigned maxCount)
+HOST_DEVICE_FUN unsigned calculateNodeCount(const KeyType* tree, TreeNodeIndex nodeIdx, const KeyType* codesStart, const KeyType* codesEnd, unsigned maxCount)
 {
     KeyType nodeStart = tree[nodeIdx];
     KeyType nodeEnd   = tree[nodeIdx+1];
@@ -107,8 +106,7 @@ unsigned calculateNodeCount(const KeyType* tree, TreeNodeIndex nodeIdx, const Ke
  * @return            the sub-range in [codesStart:codesEnd] containing @p targetCode
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-pair<const KeyType*> findSearchBounds(std::make_signed_t<KeyType> firstIdx, KeyType targetCode,
+HOST_DEVICE_FUN pair<const KeyType*> findSearchBounds(std::make_signed_t<KeyType> firstIdx, KeyType targetCode,
                                       const KeyType* codesStart, const KeyType* codesEnd)
 {
     using SI = std::make_signed_t<KeyType>;
@@ -157,8 +155,7 @@ pair<const KeyType*> findSearchBounds(std::make_signed_t<KeyType> firstIdx, KeyT
  *                          whichever is smaller
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-unsigned updateNodeCount(TreeNodeIndex nodeIdx, const KeyType* tree,
+HOST_DEVICE_FUN unsigned updateNodeCount(TreeNodeIndex nodeIdx, const KeyType* tree,
                          std::make_signed_t<KeyType> firstGuess,
                          std::make_signed_t<KeyType> secondGuess,
                          const KeyType* codesStart, const KeyType* codesEnd, unsigned maxCount)
@@ -250,8 +247,7 @@ void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNod
  *                   in second pair element: tree level of node at @p nodeIdx
  */
 template<class KeyType>
-inline CUDA_HOST_DEVICE_FUN
-pair<int> siblingAndLevel(const KeyType* csTree, TreeNodeIndex nodeIdx)
+inline HOST_DEVICE_FUN pair<int> siblingAndLevel(const KeyType* csTree, TreeNodeIndex nodeIdx)
 {
     KeyType thisNode = csTree[nodeIdx];
     KeyType range    = csTree[nodeIdx + 1] - thisNode;
@@ -268,8 +264,7 @@ pair<int> siblingAndLevel(const KeyType* csTree, TreeNodeIndex nodeIdx)
 
 //! @brief returns 0 for merging, 1 for no-change, 8 for splitting
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-int calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize)
+HOST_DEVICE_FUN int calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize)
 {
     auto p = siblingAndLevel(tree, nodeIdx);
     int siblingIdx = p[0];
@@ -339,8 +334,7 @@ bool rebalanceDecision(const KeyType* tree, const unsigned* counts, TreeNodeInde
  * @param newTree     the new tree
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-void processNode(TreeNodeIndex nodeIndex, const KeyType* oldTree, const TreeNodeIndex* nodeOps, KeyType* newTree)
+HOST_DEVICE_FUN void processNode(TreeNodeIndex nodeIndex, const KeyType* oldTree, const TreeNodeIndex* nodeOps, KeyType* newTree)
 {
     KeyType thisNode = oldTree[nodeIndex];
     KeyType range    = oldTree[nodeIndex+1] - thisNode;

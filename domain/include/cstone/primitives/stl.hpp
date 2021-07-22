@@ -45,14 +45,13 @@ struct integral_constant {
     typedef T value_type;
     typedef integral_constant<T, v> type;
 
-    CUDA_HOST_DEVICE_FUN
+    HOST_DEVICE_FUN
     constexpr operator value_type() const noexcept { return value; } // NOLINT
 };
 
 //! @brief This does what you think it does
 template<class T>
-CUDA_HOST_DEVICE_FUN
-constexpr const T& min(const T& a, const T& b)
+HOST_DEVICE_FUN constexpr const T& min(const T& a, const T& b)
 {
   if (b < a)
       return b;
@@ -61,8 +60,7 @@ constexpr const T& min(const T& a, const T& b)
 
 //! @brief This does what you think it does
 template<class T>
-CUDA_HOST_DEVICE_FUN
-constexpr const T& max(const T& a, const T& b)
+HOST_DEVICE_FUN constexpr const T& max(const T& a, const T& b)
 {
     if (a < b)
         return b;
@@ -71,8 +69,7 @@ constexpr const T& max(const T& a, const T& b)
 
 //! @brief the std version is not constexpr, this here requires two's complement
 template<class T>
-CUDA_HOST_DEVICE_FUN
-constexpr std::enable_if_t<std::is_signed_v<T>, T> abs(T a)
+HOST_DEVICE_FUN constexpr std::enable_if_t<std::is_signed_v<T>, T> abs(T a)
 {
     #ifdef __CUDA_ARCH__
     if constexpr(std::is_same_v<T, int>) { return ::abs(a); }
@@ -85,7 +82,7 @@ constexpr std::enable_if_t<std::is_signed_v<T>, T> abs(T a)
 
 //! @brief a simplified version of std::lower_bound that can be compiled as device code
 template <class ForwardIt, class T>
-CUDA_HOST_DEVICE_FUN ForwardIt lower_bound(ForwardIt first, ForwardIt last, const T& value)
+HOST_DEVICE_FUN ForwardIt lower_bound(ForwardIt first, ForwardIt last, const T& value)
 {
     ForwardIt it;
     long long int step;
@@ -109,7 +106,7 @@ CUDA_HOST_DEVICE_FUN ForwardIt lower_bound(ForwardIt first, ForwardIt last, cons
 
 //! @brief a simplified version of std::upper_bound that can be compiled as device code
 template<class ForwardIt, class T>
-CUDA_HOST_DEVICE_FUN ForwardIt upper_bound(ForwardIt first, ForwardIt last, const T& value)
+HOST_DEVICE_FUN ForwardIt upper_bound(ForwardIt first, ForwardIt last, const T& value)
 {
     ForwardIt it;
     long long int step;

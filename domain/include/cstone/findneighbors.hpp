@@ -45,8 +45,7 @@ namespace cstone
  * Note that if box.pbc{X,Y,Z} is false, the result is identical to distancesq below.
  */
 template<class T>
-CUDA_HOST_DEVICE_FUN
-constexpr T distanceSqPbc(T x1, T y1, T z1, T x2, T y2, T z2, const Box<T>& box)
+HOST_DEVICE_FUN constexpr T distanceSqPbc(T x1, T y1, T z1, T x2, T y2, T z2, const Box<T>& box)
 {
     T dx = x1 - x2;
     T dy = y1 - y2;
@@ -61,8 +60,7 @@ constexpr T distanceSqPbc(T x1, T y1, T z1, T x2, T y2, T z2, const Box<T>& box)
 
 //! @brief compute squared distance between to points in 3D
 template<class T>
-CUDA_HOST_DEVICE_FUN
-constexpr T distancesq(T x1, T y1, T z1, T x2, T y2, T z2)
+HOST_DEVICE_FUN constexpr T distancesq(T x1, T y1, T z1, T x2, T y2, T z2)
 {
     T xx = x1 - x2;
     T yy = y1 - y2;
@@ -75,16 +73,14 @@ constexpr T distancesq(T x1, T y1, T z1, T x2, T y2, T z2)
  *         one dimension is bigger or equal than the search radius
  */
 template<class T>
-CUDA_HOST_DEVICE_FUN
-constexpr unsigned radiusToTreeLevel(T radius, T minRange)
+HOST_DEVICE_FUN constexpr unsigned radiusToTreeLevel(T radius, T minRange)
 {
     T radiusNormalized = stl::min(radius / minRange, T(1.0));
     return unsigned(-log2(radiusNormalized));
 }
 
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, KeyType code, KeyType* boxes)
+HOST_DEVICE_FUN inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, KeyType code, KeyType* boxes)
 {
     if (pbc) boxes[--(*iPbc)]    = code;
     else     boxes[(*iNonPbc)++] = code;
@@ -113,8 +109,7 @@ inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, KeyType code, KeyType* 
  * with said box, which means that there are 26 different overlap checks.
  */
 template<class T, class KeyType>
-CUDA_HOST_DEVICE_FUN
-pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, KeyType* nCodes)
+HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, KeyType* nCodes)
 {
     constexpr int maxCoord = 1u<<maxTreeLevel<KeyType>{};
     // smallest octree cell edge length in unit cube
@@ -255,8 +250,7 @@ pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, KeyT
  * calculate distances.
  */
 template<class T, class KeyType>
-CUDA_HOST_DEVICE_FUN
-pair<int> findNeighborBoxesSimple(T xi, T yi, T zi, T radius, const Box<T>& bbox, KeyType* nCodes)
+HOST_DEVICE_FUN pair<int> findNeighborBoxesSimple(T xi, T yi, T zi, T radius, const Box<T>& bbox, KeyType* nCodes)
 {
     // level is the smallest tree subdivision level at which the node edge length is still bigger than radius
     unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
@@ -284,8 +278,7 @@ pair<int> findNeighborBoxesSimple(T xi, T yi, T zi, T radius, const Box<T>& bbox
 }
 
 template<class KeyType, class T, class F>
-CUDA_HOST_DEVICE_FUN
-void searchBoxes(const KeyType* nCodes, int firstBox, int lastBox, const KeyType* mortonCodes, int n, int depth, int id,
+HOST_DEVICE_FUN void searchBoxes(const KeyType* nCodes, int firstBox, int lastBox, const KeyType* mortonCodes, int n, int depth, int id,
                  const T* x, const T* y, const T* z, T radiusSq, int* neighbors, int* neighborsCount, int ngmax, F&& distance)
 {
     T xi = x[id];
@@ -340,8 +333,7 @@ void searchBoxes(const KeyType* nCodes, int firstBox, int lastBox, const KeyType
  * @param[in]  ngmax           maximum number of neighbors per particle
  */
 template<class T, class KeyType>
-CUDA_HOST_DEVICE_FUN
-void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const Box<T>& box,
+HOST_DEVICE_FUN void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const Box<T>& box,
                    const KeyType* mortonCodes, int *neighbors, int *neighborsCount,
                    int n, int ngmax)
 {

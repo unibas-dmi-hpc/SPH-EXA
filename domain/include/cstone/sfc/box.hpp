@@ -49,8 +49,7 @@ namespace cstone
  * @return
  */
 template<class T>
-CUDA_HOST_DEVICE_FUN
-constexpr T normalize(T d, T min, T max) { return (d - min) / (max - min); }
+HOST_DEVICE_FUN constexpr T normalize(T d, T min, T max) { return (d - min) / (max - min); }
 
 /*! @brief map x into periodic range 0...R-1
  *
@@ -67,8 +66,7 @@ constexpr T normalize(T d, T min, T max) { return (d - min) / (max - min); }
  *  R+1 -> 1
  */
 template<int R>
-CUDA_HOST_DEVICE_FUN
-constexpr int pbcAdjust(int x)
+HOST_DEVICE_FUN constexpr int pbcAdjust(int x)
 {
     // this version handles x outside -R, 2R
     //return x - R * std::floor(double(x)/R);
@@ -80,8 +78,7 @@ constexpr int pbcAdjust(int x)
 
 //! @brief maps x into the range [-R/2+1: R/2+1] (-511 to 512 with R = 1024)
 template<int R>
-CUDA_HOST_DEVICE_FUN
-constexpr int pbcDistance(int x)
+HOST_DEVICE_FUN constexpr int pbcDistance(int x)
 {
     // this version handles x outside -R, R
     //int roundAwayFromZero = (x > 0) ? x + R/2 : x - R/2;
@@ -103,8 +100,7 @@ template<class T>
 class Box
 {
 public:
-
-    CUDA_HOST_DEVICE_FUN constexpr
+    HOST_DEVICE_FUN constexpr
     Box(T xyzMin, T xyzMax, bool hasPbc = false) :
         limits{xyzMin, xyzMax, xyzMin, xyzMax, xyzMin, xyzMax},
         lengths_{xyzMax-xyzMin, xyzMax-xyzMin, xyzMax-xyzMin},
@@ -112,7 +108,7 @@ public:
         pbc{hasPbc, hasPbc, hasPbc}
     {}
 
-    CUDA_HOST_DEVICE_FUN constexpr
+    HOST_DEVICE_FUN constexpr
     Box(T xmin, T xmax, T ymin, T ymax, T zmin, T zmax,
         bool pbcX = false, bool pbcY = false, bool pbcZ = false)
     : limits{xmin, xmax, ymin, ymax, zmin, zmax},
@@ -121,42 +117,41 @@ public:
       pbc{pbcX, pbcY, pbcZ}
     {}
 
-    CUDA_HOST_DEVICE_FUN constexpr T xmin() const { return limits[0]; }
-    CUDA_HOST_DEVICE_FUN constexpr T xmax() const { return limits[1]; }
-    CUDA_HOST_DEVICE_FUN constexpr T ymin() const { return limits[2]; }
-    CUDA_HOST_DEVICE_FUN constexpr T ymax() const { return limits[3]; }
-    CUDA_HOST_DEVICE_FUN constexpr T zmin() const { return limits[4]; }
-    CUDA_HOST_DEVICE_FUN constexpr T zmax() const { return limits[5]; }
+    HOST_DEVICE_FUN constexpr T xmin() const { return limits[0]; }
+    HOST_DEVICE_FUN constexpr T xmax() const { return limits[1]; }
+    HOST_DEVICE_FUN constexpr T ymin() const { return limits[2]; }
+    HOST_DEVICE_FUN constexpr T ymax() const { return limits[3]; }
+    HOST_DEVICE_FUN constexpr T zmin() const { return limits[4]; }
+    HOST_DEVICE_FUN constexpr T zmax() const { return limits[5]; }
 
     //! @brief return edge lengths
-    CUDA_HOST_DEVICE_FUN constexpr T lx() const { return lengths_[0]; }
-    CUDA_HOST_DEVICE_FUN constexpr T ly() const { return lengths_[1]; }
-    CUDA_HOST_DEVICE_FUN constexpr T lz() const { return lengths_[2]; }
+    HOST_DEVICE_FUN constexpr T lx() const { return lengths_[0]; }
+    HOST_DEVICE_FUN constexpr T ly() const { return lengths_[1]; }
+    HOST_DEVICE_FUN constexpr T lz() const { return lengths_[2]; }
 
     //! @brief return inverse edge lengths
-    CUDA_HOST_DEVICE_FUN constexpr T ilx() const { return inverseLengths_[0]; }
-    CUDA_HOST_DEVICE_FUN constexpr T ily() const { return inverseLengths_[1]; }
-    CUDA_HOST_DEVICE_FUN constexpr T ilz() const { return inverseLengths_[2]; }
+    HOST_DEVICE_FUN constexpr T ilx() const { return inverseLengths_[0]; }
+    HOST_DEVICE_FUN constexpr T ily() const { return inverseLengths_[1]; }
+    HOST_DEVICE_FUN constexpr T ilz() const { return inverseLengths_[2]; }
 
-    CUDA_HOST_DEVICE_FUN constexpr bool pbcX() const { return pbc[0]; } // NOLINT
-    CUDA_HOST_DEVICE_FUN constexpr bool pbcY() const { return pbc[1]; } // NOLINT
-    CUDA_HOST_DEVICE_FUN constexpr bool pbcZ() const { return pbc[2]; } // NOLINT
+    HOST_DEVICE_FUN constexpr bool pbcX() const { return pbc[0]; } // NOLINT
+    HOST_DEVICE_FUN constexpr bool pbcY() const { return pbc[1]; } // NOLINT
+    HOST_DEVICE_FUN constexpr bool pbcZ() const { return pbc[2]; } // NOLINT
 
     //! @brief return the shortest coordinate range in any dimension
-    CUDA_HOST_DEVICE_FUN constexpr T minExtent() const
+    HOST_DEVICE_FUN constexpr T minExtent() const
     {
         return stl::min(stl::min(lengths_[0], lengths_[1]), lengths_[2]);
     }
 
     //! @brief return the longes coordinate range in any dimension
-    CUDA_HOST_DEVICE_FUN constexpr T maxExtent() const
+    HOST_DEVICE_FUN constexpr T maxExtent() const
     {
         return stl::max(stl::max(lengths_[0], lengths_[1]), lengths_[2]);
     }
 
 private:
-
-    CUDA_HOST_DEVICE_FUN
+    HOST_DEVICE_FUN
     friend constexpr bool operator==(const Box<T>& a, const Box<T>& b)
     {
         return    a.limits[0] == b.limits[0]
@@ -181,35 +176,34 @@ private:
 class IBox
 {
 public:
-    CUDA_HOST_DEVICE_FUN constexpr
+    HOST_DEVICE_FUN constexpr
     IBox() : limits{0,0,0,0,0,0} {}
 
-    CUDA_HOST_DEVICE_FUN constexpr
+    HOST_DEVICE_FUN constexpr
     IBox(int xyzMin, int xyzMax) :
         limits{xyzMin, xyzMax, xyzMin, xyzMax, xyzMin, xyzMax}
     {}
 
-    CUDA_HOST_DEVICE_FUN constexpr
+    HOST_DEVICE_FUN constexpr
     IBox(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
         : limits{xmin, xmax, ymin, ymax, zmin, zmax}
     {}
 
-    CUDA_HOST_DEVICE_FUN constexpr int xmin() const { return limits[0]; } // NOLINT
-    CUDA_HOST_DEVICE_FUN constexpr int xmax() const { return limits[1]; } // NOLINT
-    CUDA_HOST_DEVICE_FUN constexpr int ymin() const { return limits[2]; } // NOLINT
-    CUDA_HOST_DEVICE_FUN constexpr int ymax() const { return limits[3]; } // NOLINT
-    CUDA_HOST_DEVICE_FUN constexpr int zmin() const { return limits[4]; } // NOLINT
-    CUDA_HOST_DEVICE_FUN constexpr int zmax() const { return limits[5]; } // NOLINT
+    HOST_DEVICE_FUN constexpr int xmin() const { return limits[0]; } // NOLINT
+    HOST_DEVICE_FUN constexpr int xmax() const { return limits[1]; } // NOLINT
+    HOST_DEVICE_FUN constexpr int ymin() const { return limits[2]; } // NOLINT
+    HOST_DEVICE_FUN constexpr int ymax() const { return limits[3]; } // NOLINT
+    HOST_DEVICE_FUN constexpr int zmin() const { return limits[4]; } // NOLINT
+    HOST_DEVICE_FUN constexpr int zmax() const { return limits[5]; } // NOLINT
 
     //! @brief return the shortest coordinate range in any dimension
-    CUDA_HOST_DEVICE_FUN constexpr int minExtent() const // NOLINT
+    HOST_DEVICE_FUN constexpr int minExtent() const // NOLINT
     {
         return stl::min(stl::min(xmax() - xmin(), ymax() - ymin()), zmax() - zmin());
     }
 
 private:
-
-    CUDA_HOST_DEVICE_FUN
+    HOST_DEVICE_FUN
     friend constexpr bool operator==(const IBox& a, const IBox& b)
     {
         return    a.limits[0] == b.limits[0]

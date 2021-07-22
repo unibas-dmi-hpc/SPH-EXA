@@ -39,8 +39,7 @@ namespace cstone
 
 //! @brief standard criterion for two ranges a-b and c-d to overlap, a<b and c<d
 template<class T>
-CUDA_HOST_DEVICE_FUN
-constexpr bool overlapTwoRanges(T a, T b, T c, T d)
+HOST_DEVICE_FUN constexpr bool overlapTwoRanges(T a, T b, T c, T d)
 {
     assert(a<=b && c<=d);
     return b > c && d > a;
@@ -55,8 +54,7 @@ constexpr bool overlapTwoRanges(T a, T b, T c, T d)
  * from the periodic range.
  */
 template<int R>
-CUDA_HOST_DEVICE_FUN
-constexpr bool overlapRange(int a, int b, int c, int d)
+HOST_DEVICE_FUN constexpr bool overlapRange(int a, int b, int c, int d)
 {
     assert(a >= -R);
     assert(a < R);
@@ -87,8 +85,7 @@ constexpr bool overlapRange(int a, int b, int c, int d)
  *
  */
 template <class KeyType>
-CUDA_HOST_DEVICE_FUN
-bool overlap(KeyType prefix, int length, const IBox& box)
+HOST_DEVICE_FUN bool overlap(KeyType prefix, int length, const IBox& box)
 {
     pair<int> xRange = idecodeMortonXRange(prefix, length);
     pair<int> yRange = idecodeMortonYRange(prefix, length);
@@ -103,16 +100,14 @@ bool overlap(KeyType prefix, int length, const IBox& box)
 }
 
 template <class KeyType>
-CUDA_HOST_DEVICE_FUN
-bool overlap(KeyType prefixBitKey, const IBox& box)
+HOST_DEVICE_FUN bool overlap(KeyType prefixBitKey, const IBox& box)
 {
     int prefixLength = decodePrefixLength(prefixBitKey);
     return overlap(decodePlaceholderBit(prefixBitKey), prefixLength, box);
 }
 
 template <class KeyType>
-CUDA_HOST_DEVICE_FUN
-bool overlap(KeyType codeStart, KeyType codeEnd, const IBox& box)
+HOST_DEVICE_FUN bool overlap(KeyType codeStart, KeyType codeEnd, const IBox& box)
 {
     int level = treeLevel(codeEnd - codeStart);
     return overlap(codeStart, level*3, box);
@@ -127,8 +122,7 @@ bool overlap(KeyType codeStart, KeyType codeEnd, const IBox& box)
  * @return           true if the box is fully contained within the specified Morton code range
  */
 template <class KeyType>
-CUDA_HOST_DEVICE_FUN
-std::enable_if_t<std::is_unsigned_v<KeyType>, bool>
+HOST_DEVICE_FUN std::enable_if_t<std::is_unsigned_v<KeyType>, bool>
 containedIn(KeyType codeStart, KeyType codeEnd, const IBox& box)
 {
     // volume 0 boxes are not possible if makeHaloBox was used to generate it
@@ -164,16 +158,14 @@ containedIn(KeyType codeStart, KeyType codeEnd, const IBox& box)
  * @return
  */
 template <class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned_v<KeyType>, bool>
+HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned_v<KeyType>, bool>
 containedIn(KeyType nodeStart, KeyType nodeEnd, KeyType codeStart, KeyType codeEnd)
 {
     return !(nodeStart < codeStart || nodeEnd > codeEnd);
 }
 
 template <class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned_v<KeyType>, bool>
+HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned_v<KeyType>, bool>
 containedIn(KeyType prefixBitKey, KeyType codeStart, KeyType codeEnd)
 {
     int prefixLength = decodePrefixLength(prefixBitKey);
@@ -195,8 +187,7 @@ inline IBox makeIBox(KeyType mortonCodeStart, KeyType mortonCodeEnd)
 }
 
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline int addDelta(int value, int delta, bool pbc)
+HOST_DEVICE_FUN inline int addDelta(int value, int delta, bool pbc)
 {
     constexpr int maxCoordinate = (1u << maxTreeLevel<KeyType>{});
 
@@ -217,8 +208,7 @@ inline int addDelta(int value, int delta, bool pbc)
  *                       of the input octree node extended by (dx,dy,dz)
  */
 template <class KeyType>
-CUDA_HOST_DEVICE_FUN
-IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, int dx, int dy, int dz,
+HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, int dx, int dy, int dz,
                  bool pbcX = false, bool pbcY = false, bool pbcZ = false)
 {
     IBox nodeBox = makeIBox(codeStart, codeEnd);
@@ -230,8 +220,7 @@ IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, int dx, int dy, int dz,
 
 //! @brief create a box with specified radius around node delineated by codeStart/End
 template <class CoordinateType, class RadiusType, class KeyType>
-CUDA_HOST_DEVICE_FUN
-IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, RadiusType radius, const Box<CoordinateType>& box)
+HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, RadiusType radius, const Box<CoordinateType>& box)
 {
     // disallow boxes with no volume
     assert(codeEnd > codeStart);

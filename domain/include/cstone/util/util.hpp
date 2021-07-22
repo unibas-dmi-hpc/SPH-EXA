@@ -107,20 +107,19 @@ class pair
 public:
     constexpr pair() = default;
 
-    CUDA_HOST_DEVICE_FUN constexpr
+    HOST_DEVICE_FUN constexpr
     pair(T first, T second) : data{first, second} {}
 
-    CUDA_HOST_DEVICE_FUN constexpr       T& operator[](int i)       { return data[i]; }
-    CUDA_HOST_DEVICE_FUN constexpr const T& operator[](int i) const { return data[i]; }
+    HOST_DEVICE_FUN constexpr       T& operator[](int i)       { return data[i]; }
+    HOST_DEVICE_FUN constexpr const T& operator[](int i) const { return data[i]; }
 
 private:
-
-    CUDA_HOST_DEVICE_FUN friend constexpr bool operator==(const pair& a, const pair& b)
+    HOST_DEVICE_FUN friend constexpr bool operator==(const pair& a, const pair& b)
     {
         return a.data[0] == b.data[0] && a.data[1] == b.data[1];
     }
 
-    CUDA_HOST_DEVICE_FUN friend constexpr bool operator<(const pair& a, const pair& b)
+    HOST_DEVICE_FUN friend constexpr bool operator<(const pair& a, const pair& b)
     {
         bool c0 = a.data[0] < b.data[0];
         bool e0 = a.data[0] == b.data[0];
@@ -133,7 +132,7 @@ private:
 
 
 //! @brief ceil(divident/divisor) for integers
-CUDA_HOST_DEVICE_FUN constexpr unsigned iceil(size_t dividend, unsigned divisor)
+HOST_DEVICE_FUN constexpr unsigned iceil(size_t dividend, unsigned divisor)
 {
     return (dividend + divisor - 1) / divisor;
 }

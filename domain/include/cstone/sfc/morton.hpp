@@ -46,7 +46,7 @@ namespace detail
 {
 
 //! @brief Expands a 10-bit integer into 30 bits by inserting 2 zeros after each bit.
-CUDA_HOST_DEVICE_FUN
+HOST_DEVICE_FUN
 inline unsigned expandBits(unsigned v)
 {
     v &= 0x000003ffu; // discard bit higher 10
@@ -60,7 +60,7 @@ inline unsigned expandBits(unsigned v)
 /*! @brief Compacts a 30-bit integer into 10 bits by selecting only bits divisible by 3
  *         this inverts expandBits
  */
-CUDA_HOST_DEVICE_FUN
+HOST_DEVICE_FUN
 inline unsigned compactBits(unsigned v)
 {
     v &= 0x09249249u;
@@ -72,7 +72,7 @@ inline unsigned compactBits(unsigned v)
 }
 
 //! @brief Expands a 21-bit integer into 63 bits by inserting 2 zeros after each bit.
-CUDA_HOST_DEVICE_FUN
+HOST_DEVICE_FUN
 inline uint64_t expandBits(uint64_t v)
 {
     uint64_t x = v & 0x1fffffu; // discard bits higher 21
@@ -87,7 +87,7 @@ inline uint64_t expandBits(uint64_t v)
 /*! @brief Compacts a 63-bit integer into 21 bits by selecting only bits divisible by 3
  *         this inverts expandBits
  */
-CUDA_HOST_DEVICE_FUN
+HOST_DEVICE_FUN
 inline uint64_t compactBits(uint64_t v)
 {
     v &= 0x1249249249249249lu;
@@ -108,8 +108,7 @@ inline uint64_t compactBits(uint64_t v)
  * @param[in] ix,iy,iz input coordinates in [0:2^maxTreeLevel<KeyType>{}]
  */
 template <class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> imorton3D(unsigned ix, unsigned iy, unsigned iz)
+HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> imorton3D(unsigned ix, unsigned iy, unsigned iz)
 {
     assert(ix < (1u << maxTreeLevel<KeyType>{}));
     assert(iy < (1u << maxTreeLevel<KeyType>{}));
@@ -133,8 +132,7 @@ inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> imorton3D(unsigned
  * @return           the morton code
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-KeyType imorton3D(unsigned ix, unsigned iy, unsigned iz, unsigned treeLevel)
+HOST_DEVICE_FUN KeyType imorton3D(unsigned ix, unsigned iy, unsigned iz, unsigned treeLevel)
 {
     assert(treeLevel <= maxTreeLevel<KeyType>{});
     unsigned shifts = maxTreeLevel<KeyType>{} - treeLevel;
@@ -152,8 +150,7 @@ KeyType imorton3D(unsigned ix, unsigned iy, unsigned iz, unsigned treeLevel)
  * @param[in] z
  */
 template <class KeyType, class T>
-CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> morton3DunitCube(T x, T y, T z)
+HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> morton3DunitCube(T x, T y, T z)
 {
     assert(x >= 0.0 && x <= 1.0);
     assert(y >= 0.0 && y <= 1.0);
@@ -180,8 +177,7 @@ inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> morton3DunitCube(T
  * @return          the Morton code
  */
 template <class KeyType, class T>
-CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> morton3D(T x, T y, T z, Box<T> box)
+HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> morton3D(T x, T y, T z, Box<T> box)
 {
     return morton3DunitCube<KeyType>(normalize(x, box.xmin(), box.xmax()),
                                normalize(y, box.ymin(), box.ymax()),
@@ -190,24 +186,21 @@ inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> morton3D(T x, T y,
 
 //! @brief extract X component from a morton code
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> idecodeMortonX(KeyType code)
+HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> idecodeMortonX(KeyType code)
 {
     return detail::compactBits(code >> 2);
 }
 
 //! @brief extract Y component from a morton code
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> idecodeMortonY(KeyType code)
+HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> idecodeMortonY(KeyType code)
 {
     return detail::compactBits(code >> 1);
 }
 
 //! @brief extract Z component from a morton code
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> idecodeMortonZ(KeyType code)
+HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> idecodeMortonZ(KeyType code)
 {
     return detail::compactBits(code);
 }
@@ -226,8 +219,7 @@ inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> idecodeMortonZ(Key
  *                  range decreases from the maximum by a factor of two.
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline pair<int> idecodeMortonXRange(KeyType code, int length)
+HOST_DEVICE_FUN inline pair<int> idecodeMortonXRange(KeyType code, int length)
 {
     pair<int> ret{0, 0};
 
@@ -239,8 +231,7 @@ inline pair<int> idecodeMortonXRange(KeyType code, int length)
 
 //! @brief see idecodeMortonXRange
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline pair<int> idecodeMortonYRange(KeyType code, int length)
+HOST_DEVICE_FUN inline pair<int> idecodeMortonYRange(KeyType code, int length)
 {
     pair<int> ret{0, 0};
 
@@ -252,8 +243,7 @@ inline pair<int> idecodeMortonYRange(KeyType code, int length)
 
 //! @brief see idecodeMortonXRange
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline pair<int> idecodeMortonZRange(KeyType code, int length)
+HOST_DEVICE_FUN inline pair<int> idecodeMortonZRange(KeyType code, int length)
 {
     pair<int> ret{0, 0};
 
@@ -345,8 +335,7 @@ pair<T> decodeMortonZRange(KeyType prefix, KeyType upperCode, const Box<T>& box)
  * Note that the end of the neighbor range is given by the start code + nodeRange(treeLevel)
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType>
+HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType>
 mortonNeighbor(KeyType code, unsigned treeLevel, int dx, int dy, int dz,
                bool pbcX=true, bool pbcY=true, bool pbcZ=true)
 {

@@ -94,8 +94,7 @@ struct BinaryNode
  * @return                       position of morton
  */
 template<class I>
-CUDA_HOST_DEVICE_FUN
-TreeNodeIndex findSplit(const I* sortedSfcCodes, TreeNodeIndex first, TreeNodeIndex last)
+HOST_DEVICE_FUN TreeNodeIndex findSplit(const I* sortedSfcCodes, TreeNodeIndex first, TreeNodeIndex last)
 {
     // Identical Morton codes => split the range in the middle.
     I firstCode = sortedSfcCodes[first];
@@ -141,8 +140,7 @@ TreeNodeIndex findSplit(const I* sortedSfcCodes, TreeNodeIndex first, TreeNodeIn
  *                            permissible range is 0 <= firstIndex < nCodes-1
  */
 template<class I>
-CUDA_HOST_DEVICE_FUN
-void constructInternalNode(const I* codes, TreeNodeIndex nCodes, BinaryNode<I>* internalNodes, TreeNodeIndex firstIndex)
+HOST_DEVICE_FUN void constructInternalNode(const I* codes, TreeNodeIndex nCodes, BinaryNode<I>* internalNodes, TreeNodeIndex firstIndex)
 {
     BinaryNode<I> outputNode;
 
