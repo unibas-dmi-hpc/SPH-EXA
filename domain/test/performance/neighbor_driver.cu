@@ -33,7 +33,7 @@
 #include <iostream>
 #include <iterator>
 
-#include <cuda_runtime.h>
+#include <thrust/device_vector.h>
 
 #include "../coord_samples/random.hpp"
 #include "cstone/findneighbors.hpp"
@@ -60,38 +60,33 @@ int main()
     const T* z = coords.z().data();
     const CodeType* codes = coords.mortonCodes().data();
 
-    T* d_x;
-    T* d_y;
-    T* d_z;
-    T* d_h;
-    CodeType* d_codes;
-    int* d_neighbors;
-    int* d_neighborsCount;
+    thrust::device_vector<T> d_x = coords.x();
+    thrust::device_vector<T> d_y = coords.y();
+    thrust::device_vector<T> d_z = coords.z();
+    thrust::device_vector<T> d_h = h;
+    thrust::device_vector<CodeType> d_codes = coords.mortonCodes();
 
-    cudaMalloc((void**)&d_x, sizeof(T) * n);
-    cudaMalloc((void**)&d_y, sizeof(T) * n);
-    cudaMalloc((void**)&d_z, sizeof(T) * n);
-    cudaMalloc((void**)&d_h, sizeof(T) * n);
-    cudaMalloc((void**)&d_codes, sizeof(T) * n);
-    cudaMalloc((void**)&d_neighbors, sizeof(int) * neighborsGPU.size());
-    cudaMalloc((void**)&d_neighborsCount, sizeof(int) * neighborsCountGPU.size());
-
-    cudaMemcpy(d_x, x, sizeof(T) * n, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_y, y, sizeof(T) * n, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_z, z, sizeof(T) * n, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_h, h.data(), sizeof(T) * n, cudaMemcpyHostToDevice);
-    cudaMemcpy(d_codes, codes, sizeof(T) * n, cudaMemcpyHostToDevice);
+    thrust::device_vector<int> d_neighbors(neighborsGPU.size());
+    thrust::device_vector<int> d_neighborsCount(neighborsCountGPU.size());
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
 
     cudaEventRecord(start, cudaStreamDefault);
-    findNeighborsCuda(d_x, d_y, d_z, d_h, 0, n, n, box, d_codes, d_neighbors, d_neighborsCount, ngmax);
+    findNeighborsCuda(thrust::raw_pointer_cast(d_x.data()),
+                      thrust::raw_pointer_cast(d_y.data()),
+                      thrust::raw_pointer_cast(d_z.data()),
+                      thrust::raw_pointer_cast(d_h.data()),
+                      0, n, n, box,
+                      thrust::raw_pointer_cast(d_codes.data()),
+                      thrust::raw_pointer_cast(d_neighbors.data()),
+                      thrust::raw_pointer_cast(d_neighborsCount.data()),
+                      ngmax);
     cudaEventRecord(stop, cudaStreamDefault);
     cudaEventSynchronize(stop);
 
-    cudaMemcpy(neighborsCountGPU.data(), d_neighborsCount, n * sizeof(int), cudaMemcpyDeviceToHost);
+    thrust::copy(d_neighborsCount.begin(), d_neighborsCount.end(), neighborsCountGPU.begin());
 
     float gpuTime;
     cudaEventElapsedTime(&gpuTime, start, stop);
@@ -105,7 +100,7 @@ int main()
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int id = 0; id < n; ++id)
     {
         cstone::findNeighbors(id, x, y, z, h.data(), box, codes, neighborsCPU.data() + id * ngmax,
@@ -124,13 +119,6 @@ int main()
         std::cout << "Neighbor counts: PASS\n";
     else
         std::cout << "Neighbor counts: FAIL\n";
-
-    cudaFree(d_x);
-    cudaFree(d_y);
-    cudaFree(d_z);
-    cudaFree(d_h);
-    cudaFree(d_neighbors);
-    cudaFree(d_neighborsCount);
 
     cudaEventDestroy(start);
     cudaEventDestroy(stop);

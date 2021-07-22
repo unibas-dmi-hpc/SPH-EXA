@@ -20,7 +20,7 @@ target_include_directories(hilbert_perf PRIVATE ../)
 target_link_libraries(hilbert_perf PRIVATE OpenMP::OpenMP_CXX)
 
 if(CMAKE_CUDA_COMPILER)
-    add_executable(cudaNeighborsTest $<TARGET_OBJECTS:cuda_find_neighbors_obj> neighbor_driver.cpp)
+    add_executable(cudaNeighborsTest $<TARGET_OBJECTS:cuda_find_neighbors_obj> neighbor_driver.cu)
     target_include_directories(cudaNeighborsTest PRIVATE ../../include)
     target_include_directories(cudaNeighborsTest PRIVATE ../)
 
