@@ -76,7 +76,7 @@ private:
 
 template<class KeyType>
 HOST_DEVICE_FUN inline bool traverseNode(const BinaryNode<KeyType>* root, TreeNodeIndex idx,
-                         const IBox& collisionBox, pair<KeyType> excludeRange)
+                                         const IBox& collisionBox, pair<KeyType> excludeRange)
 {
     return (!isLeafIndex(idx))
     && !containedIn(root[idx].prefix, excludeRange[0], excludeRange[1])
@@ -85,10 +85,9 @@ HOST_DEVICE_FUN inline bool traverseNode(const BinaryNode<KeyType>* root, TreeNo
 
 template<class KeyType>
 HOST_DEVICE_FUN inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
-                        const IBox& collisionBox, pair<KeyType> excludeRange)
+                                        const IBox& collisionBox, pair<KeyType> excludeRange)
 {
-    if (!isLeafIndex(leafIndex))
-        return false;
+    if (!isLeafIndex(leafIndex)) { return false; }
 
     TreeNodeIndex effectiveIndex = loadLeafIndex(leafIndex);
     KeyType leafCode = leafNodes[effectiveIndex];
@@ -164,12 +163,11 @@ HOST_DEVICE_FUN void findCollisions(const BinaryNode<KeyType>* root, const KeyTy
         {
             if (traverseL && traverseR)
             {
-                #ifndef __CUDA_ARCH__
                 if (stackPos >= 64)
                 {
-                    throw std::runtime_error("btree traversal stack exhausted\n");
+                    printf("btree traversal stack exhausted\n");
+                    return;
                 }
-                #endif
                 stack[stackPos++] = rightChild; // push
             }
 
@@ -190,6 +188,7 @@ void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, C
 
 //! @brief convenience overload for marking colliding node indices
 template <class KeyType>
+HOST_DEVICE_FUN inline
 void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, int* flags,
                     const IBox& collisionBox, pair<KeyType> excludeRange)
 {

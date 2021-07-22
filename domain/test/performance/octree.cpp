@@ -34,8 +34,6 @@
 #include <numeric>
 
 #include "cstone/halos/discovery.hpp"
-#include "cstone/domain/domaindecomp.hpp"
-#include "cstone/halos/btreetraversal.hpp"
 #include "cstone/tree/octree.hpp"
 
 #include "coord_samples/random.hpp"
@@ -75,19 +73,17 @@ std::tuple<std::vector<KeyType>, std::vector<unsigned>> build_tree(const KeyType
 template<class KeyType>
 void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std::vector<unsigned>& counts)
 {
-    int nSplits = 4;
-    SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, nSplits);
     std::vector<float> haloRadii(nNodes(tree), 0.01);
 
-    int doSplit = 0;
-    TreeNodeIndex upperNode = assignment.lastNodeIdx(doSplit);
+    TreeNodeIndex lowerNode = 0;
+    TreeNodeIndex upperNode = nNodes(tree) / 4;
     {
         std::vector<BinaryNode<KeyType>> binaryTree(nNodes(tree));
         createBinaryTree(tree.data(), nNodes(tree), binaryTree.data());
         std::vector<int> collisionFlags(nNodes(tree), 0);
 
         auto tp0 = std::chrono::high_resolution_clock::now();
-        findHalos<KeyType, float>(tree, binaryTree, haloRadii, box, 0, upperNode, collisionFlags.data());
+        findHalos<KeyType, float>(tree, binaryTree, haloRadii, box, lowerNode, upperNode, collisionFlags.data());
         auto tp1 = std::chrono::high_resolution_clock::now();
 
         double t2 = std::chrono::duration<double>(tp1 - tp0).count();
