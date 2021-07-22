@@ -19,7 +19,7 @@ if(CMAKE_CUDA_COMPILER)
     target_include_directories(cudaNeighborsTest PRIVATE ../../include)
     target_include_directories(cudaNeighborsTest PRIVATE ../)
 
-    target_link_libraries(cudaNeighborsTest PRIVATE CUDA_RUNTIME_LIBRARY OpenMP::OpenMP_CXX)
+    target_link_libraries(cudaNeighborsTest PRIVATE ${CUDA_RUNTIME_LIBRARY} OpenMP::OpenMP_CXX)
 
     add_executable(octree_perf_gpu octree.cu)
     target_include_directories(octree_perf_gpu PRIVATE ../../include)
