@@ -4,7 +4,6 @@ project(cornerstone-octree CXX)
 set(CMAKE_CXX_STANDARD 17)
 
 find_package(MPI)
-find_package(CUDAToolkit)
 find_package(OpenMP REQUIRED)
 
 # if INTERFACE_LINK_OPTIONS for OpenMP_CXX is not set, we set
