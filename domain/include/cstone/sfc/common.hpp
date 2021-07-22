@@ -66,8 +66,7 @@ struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21> {};
  * Integer conversion happens with truncation as required for SFC code calculations
  */
 template <class KeyType, class T>
-CUDA_HOST_DEVICE_FUN
-inline unsigned toNBitInt(T x)
+HOST_DEVICE_FUN inline unsigned toNBitInt(T x)
 {
     // spatial resolution in bits per dimension
     constexpr unsigned nBits = maxTreeLevel<KeyType>{};
@@ -88,8 +87,7 @@ inline unsigned toNBitInt(T x)
  * where we must round up to the smallest integer not less than x*2^(10 or 21)
  */
 template <class KeyType, class T>
-CUDA_HOST_DEVICE_FUN
-constexpr unsigned toNBitIntCeil(T x)
+HOST_DEVICE_FUN constexpr unsigned toNBitIntCeil(T x)
 {
     // spatial resolution in bits per dimension
     constexpr unsigned nBits = maxTreeLevel<KeyType>{};
@@ -133,8 +131,7 @@ constexpr KeyType pad(KeyType prefix, int length)
  *
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> nodeRange(unsigned treeLevel)
+HOST_DEVICE_FUN constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> nodeRange(unsigned treeLevel)
 {
     assert (treeLevel <= maxTreeLevel<KeyType>{});
     unsigned shifts = maxTreeLevel<KeyType>{} - treeLevel;
@@ -145,8 +142,7 @@ constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> nodeRange(unsig
 
 //! @brief compute ceil(log8(n))
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, unsigned> log8ceil(KeyType n)
+HOST_DEVICE_FUN constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, unsigned> log8ceil(KeyType n)
 {
     if (n == 0) { return 0; }
 
@@ -156,8 +152,7 @@ constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, unsigned> log8ceil(KeyTy
 
 //! @brief check whether n is a power of 8
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, bool> isPowerOf8(KeyType n)
+HOST_DEVICE_FUN constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, bool> isPowerOf8(KeyType n)
 {
     unsigned lz = countLeadingZeros(n - 1) - unusedBits<KeyType>{};
     return lz % 3 == 0 && !(n & (n-1));
@@ -173,8 +168,7 @@ constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, bool> isPowerOf8(KeyType
  *                  in 64 bit codes.
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-constexpr int commonPrefix(KeyType key1, KeyType key2)
+HOST_DEVICE_FUN constexpr int commonPrefix(KeyType key1, KeyType key2)
 {
     return int(countLeadingZeros(key1 ^ key2)) - unusedBits<KeyType>{};
 }
@@ -186,8 +180,7 @@ constexpr int commonPrefix(KeyType key1, KeyType key2)
  * @return           octree subdivision level 0-10 (32-bit) or 0-21 (64-bit)
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-constexpr unsigned treeLevel(KeyType codeRange)
+HOST_DEVICE_FUN constexpr unsigned treeLevel(KeyType codeRange)
 {
     assert( isPowerOf8(codeRange) );
     return (countLeadingZeros(codeRange - 1) - unusedBits<KeyType>{}) / 3;
@@ -203,8 +196,7 @@ constexpr unsigned treeLevel(KeyType codeRange)
  * Example: encodePlaceholderBit(06350000000, 9) -> 01635 (in octal)
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-constexpr KeyType encodePlaceholderBit(KeyType code, int prefixLength)
+HOST_DEVICE_FUN constexpr KeyType encodePlaceholderBit(KeyType code, int prefixLength)
 {
     int nShifts = 3*maxTreeLevel<KeyType>{} - prefixLength;
     KeyType ret = code >> nShifts;
@@ -215,8 +207,7 @@ constexpr KeyType encodePlaceholderBit(KeyType code, int prefixLength)
 
 //! @brief returns the number of key-bits in the input @p code
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-constexpr int decodePrefixLength(KeyType code)
+HOST_DEVICE_FUN constexpr int decodePrefixLength(KeyType code)
 {
     return 8*sizeof(KeyType) - 1 - countLeadingZeros(code);
 }
@@ -230,8 +221,7 @@ constexpr int decodePrefixLength(KeyType code)
  * Inverts encodePlaceholderBit.
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-constexpr KeyType decodePlaceholderBit(KeyType code)
+HOST_DEVICE_FUN constexpr KeyType decodePlaceholderBit(KeyType code)
 {
     int prefixLength  = decodePrefixLength(code);
     KeyType placeHolderMask = KeyType(1) << prefixLength;
@@ -255,16 +245,14 @@ constexpr KeyType decodePlaceholderBit(KeyType code)
  * octalDigit(code, pos) returns the octant at octree division level pos.
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-constexpr unsigned octalDigit(KeyType code, unsigned position)
+HOST_DEVICE_FUN constexpr unsigned octalDigit(KeyType code, unsigned position)
 {
     return (code >> (3u * (maxTreeLevel<KeyType>{} - position))) & 7u;
 }
 
 //! @brief cut down the input SFC code to the start code of the enclosing box at <treeLevel>
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> enclosingBoxCode(KeyType code, unsigned treeLevel)
+HOST_DEVICE_FUN constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> enclosingBoxCode(KeyType code, unsigned treeLevel)
 {
     // total usable bits in the SFC code, 30 or 63
     constexpr unsigned nBits = 3 * maxTreeLevel<KeyType>{};
@@ -298,8 +286,7 @@ constexpr pair<KeyType> smallestCommonBox(KeyType firstCode, KeyType secondCode)
 
 //! @brief zero all but the highest nBits in a SFC code
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-constexpr KeyType zeroLowBits(KeyType code, int nBits)
+HOST_DEVICE_FUN constexpr KeyType zeroLowBits(KeyType code, int nBits)
 {
     int nLowerBits = sizeof(KeyType) * 8 - unusedBits<KeyType>{} - nBits;
     KeyType mask = (KeyType(1) << nLowerBits) - 1;

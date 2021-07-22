@@ -129,8 +129,7 @@ std::vector<IndexPair<TreeNodeIndex>> invertRanges(TreeNodeIndex first,
  *      - 8 if node to be split
  */
 template<class KeyType>
-inline CUDA_HOST_DEVICE_FUN
-int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
+inline HOST_DEVICE_FUN int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
                        TreeNodeIndex numInternalNodes,
                        const TreeNodeIndex* leafParents,
                        const unsigned* leafCounts, const char* macs,

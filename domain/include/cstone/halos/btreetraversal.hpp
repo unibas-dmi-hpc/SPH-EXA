@@ -75,8 +75,7 @@ private:
 };
 
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline bool traverseNode(const BinaryNode<KeyType>* root, TreeNodeIndex idx,
+HOST_DEVICE_FUN inline bool traverseNode(const BinaryNode<KeyType>* root, TreeNodeIndex idx,
                          const IBox& collisionBox, pair<KeyType> excludeRange)
 {
     return (!isLeafIndex(idx))
@@ -85,8 +84,7 @@ inline bool traverseNode(const BinaryNode<KeyType>* root, TreeNodeIndex idx,
 }
 
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
+HOST_DEVICE_FUN inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
                         const IBox& collisionBox, pair<KeyType> excludeRange)
 {
     if (!isLeafIndex(leafIndex))
@@ -133,9 +131,9 @@ inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
  * the implementation general.
  */
 template <class KeyType, class Endpoint>
-CUDA_HOST_DEVICE_FUN
-void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, Endpoint&& reportCollision,
-                    const IBox& collisionBox, pair<KeyType> excludeRange)
+HOST_DEVICE_FUN void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes,
+                                    Endpoint&& reportCollision,
+                                    const IBox& collisionBox, pair<KeyType> excludeRange)
 {
     using Node = BinaryNode<KeyType>;
 

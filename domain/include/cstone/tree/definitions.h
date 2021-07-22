@@ -37,11 +37,11 @@ using TreeNodeIndex = int;
 using LocalParticleIndex = unsigned;
 
 //! @brief checks whether a binary tree index corresponds to a leaf index
-CUDA_HOST_DEVICE_FUN
+HOST_DEVICE_FUN
 constexpr bool isLeafIndex(TreeNodeIndex nodeIndex) { return nodeIndex < 0; }
 
 //! @brief convert a leaf index to the storage format
-CUDA_HOST_DEVICE_FUN
+HOST_DEVICE_FUN
 constexpr TreeNodeIndex storeLeafIndex(TreeNodeIndex index)
 {
     // -2^31 or -2^63
@@ -50,7 +50,7 @@ constexpr TreeNodeIndex storeLeafIndex(TreeNodeIndex index)
 }
 
 //! @brief restore a leaf index from the storage format
-CUDA_HOST_DEVICE_FUN
+HOST_DEVICE_FUN
 constexpr TreeNodeIndex loadLeafIndex(TreeNodeIndex index)
 {
     constexpr auto offset = TreeNodeIndex(-(1ul << (8 * sizeof(TreeNodeIndex) - 1)));

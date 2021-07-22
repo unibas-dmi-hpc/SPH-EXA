@@ -49,7 +49,7 @@ namespace cstone
  * @return               the Hilbert key
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN inline
+HOST_DEVICE_FUN inline
 std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert(unsigned px, unsigned py, unsigned pz)
 {
     assert(px < (1u << maxTreeLevel<KeyType>{}));
@@ -97,7 +97,7 @@ std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert(unsigned px, uns
 
 //! @brief inverse function of iHilbert
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN inline
+HOST_DEVICE_FUN inline
 std::enable_if_t<std::is_unsigned_v<KeyType>> idecodeHilbert(KeyType key, unsigned* rx, unsigned* ry, unsigned* rz)
 {
    unsigned px = 0;
@@ -144,7 +144,7 @@ std::enable_if_t<std::is_unsigned_v<KeyType>> idecodeHilbert(KeyType key, unsign
 }
 
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN inline
+HOST_DEVICE_FUN inline
 KeyType iHilbert2(unsigned xx, unsigned yy, unsigned zz)
 {
     constexpr unsigned octantMap[8] = {0, 1, 7, 6, 3, 2, 4, 5};

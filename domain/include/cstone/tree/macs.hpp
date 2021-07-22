@@ -50,7 +50,7 @@
 namespace cstone
 {
 
-CUDA_HOST_DEVICE_FUN
+HOST_DEVICE_FUN
 template<int Period>
 constexpr int rangeSeparation(int a, int b, int c, int d, bool pbc)
 {
@@ -72,8 +72,7 @@ constexpr int rangeSeparation(int a, int b, int c, int d, bool pbc)
  * @return          the square of the smallest distance between a and b
  */
 template<class KeyType, class T>
-CUDA_HOST_DEVICE_FUN
-T minDistanceSq(IBox a, IBox b, const Box<T>& box)
+HOST_DEVICE_FUN T minDistanceSq(IBox a, IBox b, const Box<T>& box)
 {
     constexpr size_t maxCoord = 1u<<maxTreeLevel<KeyType>{};
     constexpr T unitLengthSq  = T(1.) / (maxCoord * maxCoord);
@@ -88,8 +87,7 @@ T minDistanceSq(IBox a, IBox b, const Box<T>& box)
 
 //! @brief return longest edge length of box @p b
 template<class KeyType, class T>
-CUDA_HOST_DEVICE_FUN
-T nodeLength(IBox b, const Box<T>& box)
+HOST_DEVICE_FUN T nodeLength(IBox b, const Box<T>& box)
 {
     constexpr int maxCoord = 1u<<maxTreeLevel<KeyType>{};
     constexpr T unitLength = T(1.) / maxCoord;
@@ -110,8 +108,7 @@ T nodeLength(IBox b, const Box<T>& box)
  * size of b is relevant.
  */
 template<class KeyType, class T>
-CUDA_HOST_DEVICE_FUN
-bool minDistanceMac(IBox a, IBox b, const Box<T>& box, float invThetaSq)
+HOST_DEVICE_FUN bool minDistanceMac(IBox a, IBox b, const Box<T>& box, float invThetaSq)
 {
     T dsq = minDistanceSq<KeyType>(a, b, box);
     // equivalent to "d > l / theta"
@@ -121,8 +118,7 @@ bool minDistanceMac(IBox a, IBox b, const Box<T>& box, float invThetaSq)
 
 //! @brief commutative version
 template<class KeyType, class T>
-CUDA_HOST_DEVICE_FUN
-bool minDistanceMacMutual(IBox a, IBox b, const Box<T>& box, float invThetaSq)
+HOST_DEVICE_FUN bool minDistanceMacMutual(IBox a, IBox b, const Box<T>& box, float invThetaSq)
 {
     T dsq = minDistanceSq<KeyType>(a, b, box);
     // equivalent to "d > l / theta"
@@ -131,8 +127,7 @@ bool minDistanceMacMutual(IBox a, IBox b, const Box<T>& box, float invThetaSq)
 }
 
 template<class T, class KeyType>
-CUDA_HOST_DEVICE_FUN
-void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box,
+HOST_DEVICE_FUN void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box,
                    float invThetaSq, KeyType focusStart, KeyType focusEnd, char* markings)
 {
     auto checkAndMarkMac = [target, &octree, &box, invThetaSq, focusStart, focusEnd, markings](TreeNodeIndex idx)
