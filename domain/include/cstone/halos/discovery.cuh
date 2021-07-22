@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief  CPU driver for halo discovery using traversal of an internal binary radix tree
+ * @brief  GPU driver for halo discovery using traversal of an internal binary radix tree
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -96,8 +96,8 @@ void findHalosGpu(const KeyType* leaves,
                   TreeNodeIndex lastNode,
                   int* collisionFlags)
 {
-    constexpr int numThreads = 128;
-    int numBlocks = iceil(lastNode - firstNode, numThreads);
+    constexpr unsigned numThreads = 128;
+    unsigned numBlocks = iceil(lastNode - firstNode, numThreads);
 
     findHalosKernel<<<numBlocks, numThreads>>>
         (leaves, binaryTree, interactionRadii, box, firstNode, lastNode, collisionFlags);

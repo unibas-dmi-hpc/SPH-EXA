@@ -290,13 +290,13 @@ public:
                                   haloRadii.data());
 
         std::vector<int> haloFlags(nNodes(focusedTree_.treeLeaves()), 0);
-        findHalos<KeyType, float>(focusedTree_.treeLeaves(),
-                                  focusedTree_.binaryTree(),
-                                  haloRadii,
-                                  box_,
-                                  focusAssignment[myRank_].start(),
-                                  focusAssignment[myRank_].end(),
-                                  haloFlags.data());
+        findHalos(focusedTree_.treeLeaves().data(),
+                  focusedTree_.binaryTree().data(),
+                  haloRadii.data(),
+                  box_,
+                  focusAssignment[myRank_].start(),
+                  focusAssignment[myRank_].end(),
+                  haloFlags.data());
 
         /* Compute new layout *********************************************************/
 
