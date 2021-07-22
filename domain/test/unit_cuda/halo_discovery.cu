@@ -51,7 +51,7 @@ void findHalosTest()
     // host input data
 
     auto [tree, counts] =
-        computeOctree(randomBox.mortonCodes().data(), randomBox.mortonCodes().data() + numParticles, bucketSize);
+        computeOctree(randomBox.particleKeys().data(), randomBox.particleKeys().data() + numParticles, bucketSize);
 
     std::vector<BinaryNode<KeyType>> binaryTree(nNodes(tree));
     createBinaryTree(tree.data(), nNodes(tree), binaryTree.data());

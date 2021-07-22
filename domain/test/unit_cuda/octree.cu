@@ -221,7 +221,7 @@ public:
         Box<double> box{-1, 1};
 
         CoordinateType<double, KeyType> randomBox(numParticles, box);
-        d_codes = randomBox.mortonCodes();
+        d_codes = randomBox.particleKeys();
 
         d_tree   = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
         d_counts = std::vector<unsigned>{numParticles};
@@ -250,7 +250,7 @@ TEST(OctreeGpu, computeOctreeRandom)
     RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
 
     // compute octree starting from default uniform octree
-    auto [treeCpu, countsCpu] = computeOctree(randomBox.mortonCodes().data(), randomBox.mortonCodes().data() + nParticles,
+    auto [treeCpu, countsCpu] = computeOctree(randomBox.particleKeys().data(), randomBox.particleKeys().data() + nParticles,
                                               bucketSize);
 
     OctreeFixtureGpu<CodeType, RandomGaussianCoordinates> fixt(nParticles, bucketSize);

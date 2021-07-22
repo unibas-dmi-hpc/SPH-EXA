@@ -169,7 +169,7 @@ void assignSendRandomData()
     RandomGaussianCoordinates<double, KeyType> coords(nParticles, {-1, 1});
 
     auto [tree, counts] =
-        computeOctree(coords.mortonCodes().data(), coords.mortonCodes().data() + nParticles, bucketSize);
+        computeOctree(coords.particleKeys().data(), coords.particleKeys().data() + nParticles, bucketSize);
 
     int nSplits = 4;
     auto assignment = singleRangeSfcSplit(counts, nSplits);
@@ -184,7 +184,7 @@ void assignSendRandomData()
         EXPECT_LE(rankCount, nParticles / nSplits + bucketSize);
     }
 
-    auto sendList = createSendList<KeyType>(assignment, tree, coords.mortonCodes());
+    auto sendList = createSendList<KeyType>(assignment, tree, coords.particleKeys());
 
     int particleRecount = 0;
     for (auto& manifest : sendList)

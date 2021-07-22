@@ -80,7 +80,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::vector<KeyType> tree = makeRootNodeTree<KeyType>();
     std::vector<unsigned> counts{numRanks * unsigned(numParticles)};
 
-    while (!updateOctreeGlobal(coords.mortonCodes().data(), coords.mortonCodes().data() + numParticles, bucketSize, tree,
+    while (!updateOctreeGlobal(coords.particleKeys().data(), coords.particleKeys().data() + numParticles, bucketSize, tree,
                                counts))
     {
     }
@@ -90,7 +90,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::iota(begin(ordering), end(ordering), 0);
 
     auto assignment = singleRangeSfcSplit(counts, numRanks);
-    auto sendList = createSendList<KeyType>(assignment, tree, coords.mortonCodes());
+    auto sendList = createSendList<KeyType>(assignment, tree, coords.particleKeys());
 
     EXPECT_EQ(std::accumulate(begin(counts), end(counts), std::size_t(0)), numParticles * numRanks);
 

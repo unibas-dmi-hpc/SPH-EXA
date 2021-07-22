@@ -338,7 +338,7 @@ public:
         int nParticles = 100000;
 
         CoordinateType<double, CodeType> randomBox(nParticles, box);
-        std::vector<CodeType> codes = randomBox.mortonCodes();
+        std::vector<CodeType> codes = randomBox.particleKeys();
 
         auto [tree, counts] = computeOctree(codes.data(), codes.data() + nParticles, bucketSize);
 

@@ -293,7 +293,7 @@ void rewireIndices(const Index* input,
 
 /*! @brief construct the internal octree node with index @p nodeIndex
  *
- * @tparam KeyType                         32- or 64-bit unsigned integer type
+ * @tparam KeyType                   32- or 64-bit unsigned integer type
  * @param[out]  internalOctree       linear array of OctreeNode<KeyType>'s
  * @param[in]   binaryTree           linear array of binary tree nodes
  * @param[in]   nodeIndex            element of @p internalOctree to construct
@@ -309,12 +309,13 @@ void rewireIndices(const Index* input,
  * In addition, it sets the parent member of the child nodes to @p nodeIndex.
  */
 template<class KeyType>
-HOST_DEVICE_FUN inline void constructOctreeNode(OctreeNode<KeyType>*       internalOctree,
-                                const BinaryNode<KeyType>* binaryTree,
-                                TreeNodeIndex        nodeIndex,
-                                const TreeNodeIndex* scatterMap,
-                                const TreeNodeIndex* binaryToOctreeIndex,
-                                TreeNodeIndex*       leafParents)
+HOST_DEVICE_FUN inline
+void constructOctreeNode(OctreeNode<KeyType>*       internalOctree,
+                         const BinaryNode<KeyType>* binaryTree,
+                         TreeNodeIndex        nodeIndex,
+                         const TreeNodeIndex* scatterMap,
+                         const TreeNodeIndex* binaryToOctreeIndex,
+                         TreeNodeIndex*       leafParents)
 {
     OctreeNode<KeyType>& octreeNode = internalOctree[nodeIndex];
 

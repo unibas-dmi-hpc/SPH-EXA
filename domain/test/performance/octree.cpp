@@ -104,7 +104,7 @@ int main()
 
     // tree build from random gaussian coordinates
     auto [tree, counts] =
-        build_tree(randomBox.mortonCodes().data(), randomBox.mortonCodes().data() + numParticles, bucketSize);
+        build_tree(randomBox.particleKeys().data(), randomBox.particleKeys().data() + numParticles, bucketSize);
     // halo discovery with tree
     halo_discovery(box, tree, counts);
 

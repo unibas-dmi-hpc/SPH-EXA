@@ -66,19 +66,19 @@ public:
         computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_),
                                    begin(codes_), box);
 
-        std::vector<I> mortonOrder(n);
-        std::iota(begin(mortonOrder), end(mortonOrder), 0);
-        sort_by_key(begin(codes_), end(codes_), begin(mortonOrder));
+        std::vector<I> sfcOrder(n);
+        std::iota(begin(sfcOrder), end(sfcOrder), 0);
+        sort_by_key(begin(codes_), end(codes_), begin(sfcOrder));
 
-        reorderInPlace(mortonOrder, x_.data());
-        reorderInPlace(mortonOrder, y_.data());
-        reorderInPlace(mortonOrder, z_.data());
+        reorderInPlace(sfcOrder, x_.data());
+        reorderInPlace(sfcOrder, y_.data());
+        reorderInPlace(sfcOrder, z_.data());
     }
 
     const std::vector<T>& x() const { return x_; }
     const std::vector<T>& y() const { return y_; }
     const std::vector<T>& z() const { return z_; }
-    const std::vector<I>& mortonCodes() const { return codes_; }
+    const std::vector<I>& particleKeys() const { return codes_; }
 
 private:
 
@@ -98,34 +98,44 @@ public:
         //std::random_device rd;
         std::mt19937 gen(seed);
         // random gaussian distribution at the center
-        std::normal_distribution<T> disX((box_.xmax() + box_.xmin())/2, (box_.xmax() - box_.xmin())/5);
-        std::normal_distribution<T> disY((box_.ymax() + box_.ymin())/2, (box_.ymax() - box_.ymin())/5);
-        std::normal_distribution<T> disZ((box_.zmax() + box_.zmin())/2, (box_.zmax() - box_.zmin())/5);
+        std::normal_distribution<T> disX((box_.xmax() + box_.xmin()) / 2, (box_.xmax() - box_.xmin()) / 5);
+        std::normal_distribution<T> disY((box_.ymax() + box_.ymin()) / 2, (box_.ymax() - box_.ymin()) / 5);
+        std::normal_distribution<T> disZ((box_.zmax() + box_.zmin()) / 2, (box_.zmax() - box_.zmin()) / 5);
 
-        auto randX = [cmin=box_.xmin(), cmax=box_.xmax(), &disX, &gen]() { return std::max(std::min(disX(gen), cmax), cmin); };
-        auto randY = [cmin=box_.ymin(), cmax=box_.ymax(), &disY, &gen]() { return std::max(std::min(disY(gen), cmax), cmin); };
-        auto randZ = [cmin=box_.zmin(), cmax=box_.zmax(), &disZ, &gen]() { return std::max(std::min(disZ(gen), cmax), cmin); };
+        auto randX = [cmin=box_.xmin(), cmax=box_.xmax(), &disX, &gen]()
+        {
+            return std::max(std::min(disX(gen), cmax), cmin);
+        };
+
+        auto randY = [cmin=box_.ymin(), cmax=box_.ymax(), &disY, &gen]()
+        {
+            return std::max(std::min(disY(gen), cmax), cmin);
+        };
+
+        auto randZ = [cmin=box_.zmin(), cmax=box_.zmax(), &disZ, &gen]()
+        {
+            return std::max(std::min(disZ(gen), cmax), cmin);
+        };
 
         std::generate(begin(x_), end(x_), randX);
         std::generate(begin(y_), end(y_), randY);
         std::generate(begin(z_), end(z_), randZ);
 
-        computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_),
-                                   begin(codes_), box);
+        computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_), begin(codes_), box);
 
-        std::vector<I> mortonOrder(n);
-        std::iota(begin(mortonOrder), end(mortonOrder), 0);
-        sort_by_key(begin(codes_), end(codes_), begin(mortonOrder));
+        std::vector<I> sfcOrder(n);
+        std::iota(begin(sfcOrder), end(sfcOrder), 0);
+        sort_by_key(begin(codes_), end(codes_), begin(sfcOrder));
 
-        reorderInPlace(mortonOrder, x_.data());
-        reorderInPlace(mortonOrder, y_.data());
-        reorderInPlace(mortonOrder, z_.data());
+        reorderInPlace(sfcOrder, x_.data());
+        reorderInPlace(sfcOrder, y_.data());
+        reorderInPlace(sfcOrder, z_.data());
     }
 
     const std::vector<T>& x() const { return x_; }
     const std::vector<T>& y() const { return y_; }
     const std::vector<T>& z() const { return z_; }
-    const std::vector<I>& mortonCodes() const { return codes_; }
+    const std::vector<I>& particleKeys() const { return codes_; }
 
 private:
 
