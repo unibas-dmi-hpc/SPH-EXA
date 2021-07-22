@@ -33,7 +33,9 @@
 
 #include <thrust/reduce.h>
 
+#include "cstone/halos/discovery.cuh"
 #include "cstone/tree/octree.cuh"
+
 #include "coord_samples/random.hpp"
 
 using namespace cstone;
@@ -88,6 +90,31 @@ int main()
     cudaEventElapsedTime(&t1, start, stop);
     std::cout << "build time with guess " << t1/1000 << " nNodes(tree): " << nNodes(tree)
               << " count: " << thrust::reduce(counts.begin(), counts.end(), 0) << std::endl;
+
+    // halo discovery benchmark
+
+    thrust::device_vector<BinaryNode<KeyType>> binaryTree(nNodes(tree));
+    createBinaryTreeGpu(thrust::raw_pointer_cast(tree.data()), nNodes(tree),
+                        thrust::raw_pointer_cast(binaryTree.data()));
+
+    thrust::device_vector<float> haloRadii(nNodes(tree), 0.01);
+    thrust::device_vector<int>   flags(nNodes(tree), 0);
+
+    cudaEventRecord(start, cudaStreamDefault);
+    findHalosGpu(thrust::raw_pointer_cast(tree.data()),
+                 thrust::raw_pointer_cast(binaryTree.data()),
+                 thrust::raw_pointer_cast(haloRadii.data()),
+                 box, 0, nNodes(tree) / 4,
+                 thrust::raw_pointer_cast(flags.data())
+                 );
+
+    cudaEventRecord(stop, cudaStreamDefault);
+    cudaEventSynchronize(stop);
+
+    float t2;
+    cudaEventElapsedTime(&t2, start, stop);
+    std::cout << "halo discovery " << t2/1000 << " nNodes(tree): " << nNodes(tree)
+              << " count: " << thrust::reduce(flags.begin(), flags.end(), 0) << std::endl;
 
     cudaEventDestroy(start);
     cudaEventDestroy(stop);

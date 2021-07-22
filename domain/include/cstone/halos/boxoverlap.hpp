@@ -132,7 +132,7 @@ containedIn(KeyType codeStart, KeyType codeEnd, const IBox& box)
 
     constexpr int pbcRange = 1u<<maxTreeLevel<KeyType>{};
     if (stl::min(stl::min(box.xmin(), box.ymin()), box.zmin()) < 0 ||
-        stl::max(std::max(box.xmax(), box.ymax()), box.zmax()) > pbcRange)
+        stl::max(stl::max(box.xmax(), box.ymax()), box.zmax()) > pbcRange)
     {
         // any box that wraps around a PBC boundary cannot be contained within
         // any octree node, except the full root node
@@ -175,7 +175,7 @@ containedIn(KeyType prefixBitKey, KeyType codeStart, KeyType codeEnd)
 }
 
 template <class KeyType>
-inline IBox makeIBox(KeyType mortonCodeStart, KeyType mortonCodeEnd)
+HOST_DEVICE_FUN inline IBox makeIBox(KeyType mortonCodeStart, KeyType mortonCodeEnd)
 {
     int prefixNBits = treeLevel(mortonCodeEnd -mortonCodeStart) * 3;
 

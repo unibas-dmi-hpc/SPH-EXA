@@ -34,8 +34,8 @@
 #include <algorithm>
 #include <vector>
 
-#include "cstone/halos/btreetraversal.hpp"
-#include "cstone/util/gsl-lite.hpp"
+#include "cstone/halos/discovery.hpp"
+#include "cstone/tree/btree.cuh"
 
 namespace cstone
 {
@@ -45,8 +45,8 @@ namespace cstone
  * @tparam KeyType               32- or 64-bit unsigned integer
  * @tparam RadiusType            float or double, float is sufficient for 64-bit codes or less
  * @tparam CoordinateType        float or double
- * @param[in]  leaves            cornerstone octree leaves
  * @param[in]  binaryTree        matching binary tree on top of @p leaves
+ * @param[in]  leaves            cornerstone octree leaves
  * @param[in]  interactionRadii  effective halo search radii per octree (leaf) node
  * @param[in]  box               coordinate bounding box
  * @param[in]  firstNode         first leaf node index of @p leaves to consider as local
@@ -58,70 +58,49 @@ namespace cstone
  *                               should be zero-initialized prior to calling this function.
  */
 template<class KeyType, class RadiusType, class CoordinateType>
-void findHalos(gsl::span<const KeyType> leaves,
-               gsl::span<const BinaryNode<KeyType>> binaryTree,
-               gsl::span<RadiusType> interactionRadii,
-               const Box<CoordinateType>& box,
-               TreeNodeIndex firstNode,
-               TreeNodeIndex lastNode,
-               int* collisionFlags)
+__global__ void
+findHalosKernel(const KeyType* leaves,
+                const BinaryNode<KeyType>* binaryTree,
+                const RadiusType* interactionRadii,
+                const Box<CoordinateType> box,
+                TreeNodeIndex firstNode,
+                TreeNodeIndex lastNode,
+                int* collisionFlags)
 {
-    KeyType lowestCode  = leaves[firstNode];
-    KeyType highestCode = leaves[lastNode];
+    unsigned tid = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned nodeIdx = firstNode + tid;
 
-    // loop over all the nodes in range
-    #pragma omp parallel for
-    for (TreeNodeIndex nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
+    if (tid < lastNode - firstNode)
     {
+        KeyType lowestCode  = leaves[firstNode];
+        KeyType highestCode = leaves[lastNode];
+
         RadiusType radius = interactionRadii[nodeIdx];
         IBox haloBox      = makeHaloBox(leaves[nodeIdx], leaves[nodeIdx + 1], radius, box);
 
         // if the halo box is fully inside the assigned SFC range, we skip collision detection
-        if (containedIn(lowestCode, highestCode, haloBox)) { continue; }
+        if (containedIn(lowestCode, highestCode, haloBox)) { return; }
 
         // mark all colliding node indices outside [lowestCode:highestCode]
-        findCollisions(binaryTree.data(), leaves.data(), collisionFlags, haloBox, {lowestCode, highestCode});
+        findCollisions(binaryTree, leaves, collisionFlags, haloBox, {lowestCode, highestCode});
     }
 }
 
-/*! @brief extract ranges of marked indices from a source array
- *
- * @tparam IntegralType  an integer type
- * @param source         array with quantities to extract, length N+1
- * @param flags          0 or 1 flags for index, length N
- * @param firstReqIdx    first index, permissible range: [0:N]
- * @param secondReqIdx   second index, permissible range: [0:N+1]
- * @return               vector (of pairs) of elements of @p source that span all
- *                       elements [firstReqIdx:secondReqIdx] of @p source that are
- *                       marked by @p flags
- *
- * Even indices mark the start of a range, uneven indices mark the end of the previous
- * range start. If two ranges are consecutive, they are fused into a single range.
- */
-template<class IntegralType>
-std::vector<IntegralType> extractMarkedElements(gsl::span<const IntegralType> source,
-                                                gsl::span<const int> flags,
-                                                TreeNodeIndex firstReqIdx,
-                                                TreeNodeIndex secondReqIdx)
+//! @brief convenience kernel wrapper
+template<class KeyType, class RadiusType, class CoordinateType>
+void findHalosGpu(const KeyType* leaves,
+                  const BinaryNode<KeyType>* binaryTree,
+                  const RadiusType* interactionRadii,
+                  const Box<CoordinateType>& box,
+                  TreeNodeIndex firstNode,
+                  TreeNodeIndex lastNode,
+                  int* collisionFlags)
 {
-    std::vector<IntegralType> requestKeys;
+    constexpr int numThreads = 128;
+    int numBlocks = iceil(lastNode - firstNode, numThreads);
 
-    while (firstReqIdx != secondReqIdx)
-    {
-        // advance to first halo (or to secondReqIdx)
-        while (firstReqIdx < secondReqIdx && flags[firstReqIdx] == 0) { firstReqIdx++; }
-
-        // add one request key range
-        if (firstReqIdx != secondReqIdx)
-        {
-            requestKeys.push_back(source[firstReqIdx]);
-            // advance until not a halo or end of range
-            while (firstReqIdx < secondReqIdx && flags[firstReqIdx] == 1) { firstReqIdx++; }
-            requestKeys.push_back(source[firstReqIdx]);
-        }
-    }
-
-    return requestKeys;
+    findHalosKernel<<<numBlocks, numThreads>>>
+        (leaves, binaryTree, interactionRadii, box, firstNode, lastNode, collisionFlags);
 }
 
 } // namespace cstone
