@@ -51,7 +51,7 @@ void findHalosFlags()
 
     {
         std::vector<int> collisionFlags(nNodes(tree), 0);
-        findHalos<KeyType, double>(tree, binaryTree, interactionRadii, box, 0, 32, collisionFlags.data());
+        findHalos(tree.data(), binaryTree.data(), interactionRadii.data(), box, 0, 32, collisionFlags.data());
 
         std::vector<int> reference{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1,
@@ -60,7 +60,7 @@ void findHalosFlags()
     }
     {
         std::vector<int> collisionFlags(nNodes(tree), 0);
-        findHalos<KeyType, double>(tree, binaryTree, interactionRadii, box, 32, 64, collisionFlags.data());
+        findHalos(tree.data(), binaryTree.data(), interactionRadii.data(), box, 32, 64, collisionFlags.data());
 
         std::vector<int> reference{0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1,
                                    1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

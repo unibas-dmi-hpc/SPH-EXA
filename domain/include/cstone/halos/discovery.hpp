@@ -58,9 +58,9 @@ namespace cstone
  *                               should be zero-initialized prior to calling this function.
  */
 template<class KeyType, class RadiusType, class CoordinateType>
-void findHalos(gsl::span<const KeyType> leaves,
-               gsl::span<const BinaryNode<KeyType>> binaryTree,
-               gsl::span<RadiusType> interactionRadii,
+void findHalos(const KeyType* leaves,
+               const BinaryNode<KeyType>* binaryTree,
+               const RadiusType* interactionRadii,
                const Box<CoordinateType>& box,
                TreeNodeIndex firstNode,
                TreeNodeIndex lastNode,
@@ -80,7 +80,7 @@ void findHalos(gsl::span<const KeyType> leaves,
         if (containedIn(lowestCode, highestCode, haloBox)) { continue; }
 
         // mark all colliding node indices outside [lowestCode:highestCode]
-        findCollisions(binaryTree.data(), leaves.data(), collisionFlags, haloBox, {lowestCode, highestCode});
+        findCollisions(binaryTree, leaves, collisionFlags, haloBox, {lowestCode, highestCode});
     }
 }
 

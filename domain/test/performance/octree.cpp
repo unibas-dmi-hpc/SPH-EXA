@@ -83,7 +83,7 @@ void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std
         std::vector<int> collisionFlags(nNodes(tree), 0);
 
         auto tp0 = std::chrono::high_resolution_clock::now();
-        findHalos<KeyType, float>(tree, binaryTree, haloRadii, box, lowerNode, upperNode, collisionFlags.data());
+        findHalos(tree.data(), binaryTree.data(), haloRadii.data(), box, lowerNode, upperNode, collisionFlags.data());
         auto tp1 = std::chrono::high_resolution_clock::now();
 
         double t2 = std::chrono::duration<double>(tp1 - tp0).count();
@@ -94,25 +94,22 @@ void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std
 
 int main()
 {
-    using CodeType = uint64_t;
+    using KeyType = uint64_t;
     Box<double> box{-1, 1};
 
-    int nParticles = 2000000;
-    int bucketSize = 16;
+    int numParticles = 2000000;
+    int bucketSize   = 16;
 
-    RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
-
-    std::vector<CodeType> tree;
-    std::vector<unsigned> counts;
+    RandomGaussianCoordinates<double, KeyType> randomBox(numParticles, box);
 
     // tree build from random gaussian coordinates
-    std::tie(tree, counts) =
-        build_tree(randomBox.mortonCodes().data(), randomBox.mortonCodes().data() + nParticles, bucketSize);
+    auto [tree, counts] =
+        build_tree(randomBox.mortonCodes().data(), randomBox.mortonCodes().data() + numParticles, bucketSize);
     // halo discovery with tree
     halo_discovery(box, tree, counts);
 
-    auto px = plummer<double>(nParticles);
-    std::vector<CodeType> pxCodes(nParticles);
+    auto px = plummer<double>(numParticles);
+    std::vector<KeyType> pxCodes(numParticles);
     Box<double> pBox(*std::min_element(begin(px[0]), end(px[0])), *std::max_element(begin(px[0]), end(px[0])),
                      *std::min_element(begin(px[1]), end(px[1])), *std::max_element(begin(px[1]), end(px[1])),
                      *std::min_element(begin(px[2]), end(px[2])), *std::max_element(begin(px[2]), end(px[2])));
@@ -123,5 +120,5 @@ int main()
     computeMortonCodes(begin(px[0]), end(px[0]), begin(px[1]), begin(px[2]), begin(pxCodes), pBox);
     std::sort(begin(pxCodes), end(pxCodes));
 
-    std::tie(tree, counts) = build_tree(pxCodes.data(), pxCodes.data() + nParticles, bucketSize);
+    std::tie(tree, counts) = build_tree(pxCodes.data(), pxCodes.data() + numParticles, bucketSize);
 }
