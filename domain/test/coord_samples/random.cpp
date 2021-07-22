@@ -47,7 +47,7 @@ TEST(CoordinateSamples, randomContainerIsSorted)
     std::vector<CodeType> testCodes(n);
     computeMortonCodes(begin(c.x()), end(c.x()), begin(c.y()), begin(c.z()), begin(testCodes), box);
 
-    EXPECT_EQ(testCodes, c.mortonCodes());
+    EXPECT_EQ(testCodes, c.particleKeys());
 
     std::vector<CodeType> testCodesSorted = testCodes;
     std::sort(begin(testCodesSorted), end(testCodesSorted));

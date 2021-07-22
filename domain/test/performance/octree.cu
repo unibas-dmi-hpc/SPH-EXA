@@ -60,8 +60,7 @@ int main()
     thrust::device_vector<KeyType>       tmpTree;
     thrust::device_vector<TreeNodeIndex> workArray;
 
-    thrust::device_vector<KeyType> particleCodes(randomBox.mortonCodes().begin(),
-                                                 randomBox.mortonCodes().end());
+    thrust::device_vector<KeyType> particleCodes(randomBox.particleKeys().begin(), randomBox.particleKeys().end());
 
     cudaEventRecord(start, cudaStreamDefault);
 

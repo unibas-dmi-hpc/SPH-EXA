@@ -68,8 +68,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
     // common pool of coordinates, identical on all ranks
     RandomGaussianCoordinates<T, KeyType> coords(numRanks * numParticles, box);
 
-    auto [tree, counts] = computeOctree(coords.mortonCodes().data(),
-                                        coords.mortonCodes().data() + coords.mortonCodes().size(), bucketSize);
+    auto [tree, counts] = computeOctree(coords.particleKeys().data(),
+                                        coords.particleKeys().data() + coords.particleKeys().size(), bucketSize);
 
     Octree<KeyType> domainTree;
     domainTree.update(begin(tree), end(tree));
@@ -93,13 +93,13 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
     // build the reference focus tree from the common pool of coordinates, focused on the executing rank
     FocusedOctree<KeyType> referenceFocusTree(bucketSizeLocal, theta);
-    while (!referenceFocusTree.update(box, coords.mortonCodes(), focusStart, focusEnd, peerBoundaries));
+    while (!referenceFocusTree.update(box, coords.particleKeys(), focusStart, focusEnd, peerBoundaries));
 
     /*******************************/
 
     // locate particles assigned to thisRank
-    auto firstAssignedIndex = findNodeAbove<KeyType>(coords.mortonCodes(), focusStart);
-    auto lastAssignedIndex  = findNodeAbove<KeyType>(coords.mortonCodes(), focusEnd);
+    auto firstAssignedIndex = findNodeAbove<KeyType>(coords.particleKeys(), focusStart);
+    auto lastAssignedIndex  = findNodeAbove<KeyType>(coords.particleKeys(), focusEnd);
 
     // extract a slice of the common pool, each rank takes a different slice, but all slices together
     // are equal to the common pool

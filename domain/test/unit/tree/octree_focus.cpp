@@ -157,7 +157,7 @@ void computeEssentialTree()
     unsigned csBucketSize = 16;
 
     RandomCoordinates<double, KeyType> randomBox(nParticles, box);
-    std::vector<KeyType> codes = randomBox.mortonCodes();
+    std::vector<KeyType> codes = randomBox.particleKeys();
 
     auto [csTree, csCounts] = computeOctree(codes.data(), codes.data() + nParticles, csBucketSize);
     Octree<KeyType> globalTree;

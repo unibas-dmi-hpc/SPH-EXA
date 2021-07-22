@@ -112,7 +112,7 @@ void findPeers()
     int numRanks = 50;
 
     RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
-    std::vector<CodeType> codes = randomBox.mortonCodes();
+    std::vector<CodeType> codes = randomBox.particleKeys();
 
     Octree<KeyType> octree;
     auto [tree, counts] = computeOctree(codes.data(), codes.data() + nParticles, bucketSize);
