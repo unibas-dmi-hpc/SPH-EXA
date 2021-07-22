@@ -7,7 +7,6 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O2 -march=native -DNDEBUG")
 set(CMAKE_CUDA_FLAGS_RELEASE "-O2 -DNDEBUG")
 
 find_package(MPI)
-find_package(CUDAToolkit)
 find_package(OpenMP REQUIRED)
 
 # if INTERFACE_LINK_OPTIONS for OpenMP_CXX is not set, we set
