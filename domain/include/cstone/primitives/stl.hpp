@@ -31,10 +31,8 @@
 
 #pragma once
 
-#include <cmath> // for std::ceil
 
 #include "cstone/cuda/annotation.hpp"
-
 
 namespace stl
 {
