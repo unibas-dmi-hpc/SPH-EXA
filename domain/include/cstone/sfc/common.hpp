@@ -32,6 +32,7 @@
 #pragma once
 
 #include <cassert>
+#include <cmath>
 #include <cstdint>
 #include <type_traits>
 
@@ -56,12 +57,13 @@ template<>
 struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21> {};
 
 
-/*! @brief normalize a floating point number in [0,1] to an integer in [0, 2^(10 or 21)-1]
+/*! @brief normalize a floating point number in [0,1] to an integer in [0 : 2^(10 or 21)]
  *
  * @tparam KeyType  32-bit or 64-bit unsigned integer
  * @tparam T        float or double
  * @param  x        input floating point number in [0,1]
  * @return          x converted to an 10-bit or 21-bit integer
+ *                  maximum return value is 1023 or 2097151
  *
  * Integer conversion happens with truncation as required for SFC code calculations
  */
@@ -71,17 +73,19 @@ HOST_DEVICE_FUN inline unsigned toNBitInt(T x)
     // spatial resolution in bits per dimension
     constexpr unsigned nBits = maxTreeLevel<KeyType>{};
 
-    // [0,1] to [0,1023] and convert to integer (32-bit) or
-    // [0,1] to [0,2097151] and convert to integer (64-bit)
-    return stl::min(stl::max(x * T(1u<<nBits), T(0.0)), T((1u<<nBits)-1u));
+    // [0,1] to [0:1024] and convert to integer (32-bit) or
+    // [0,1] to [0:2097152] and convert to integer (64-bit)
+    unsigned result = x * T(1u << nBits);
+    return stl::min(result, (1u << nBits) - 1u);
 }
 
-/*! @brief normalize a floating point number in [0,1] to an integer in [0, 2^(10 or 21)-1]
+/*! @brief normalize a floating point number in [0,1] to an integer in [0 : 2^(10 or 21)]
  *
  * @tparam KeyType  32-bit or 64-bit unsigned integer
  * @tparam T        float or double
  * @param  x        input floating point number in [0,1]
  * @return          x converted to an 10-bit or 21-bit integer
+ *                  maximum return value is 1023 or 2097151
  *
  * Integer conversion happens with ceil() as required for converting halo radii to integers
  * where we must round up to the smallest integer not less than x*2^(10 or 21)
@@ -94,7 +98,8 @@ HOST_DEVICE_FUN constexpr unsigned toNBitIntCeil(T x)
 
     // [0,1] to [0,1023] and convert to integer (32-bit) or
     // [0,1] to [0,2097151] and convert to integer (64-bit)
-    return stl::min(stl::max(std::ceil(x * T(1u<<nBits)), T(0.0)), T((1u<<nBits)-1u));
+    unsigned result = std::ceil(x * T(1u << nBits));
+    return stl::min(result, (1u << nBits) - 1u);
 }
 
 /*! @brief add (binary) zeros behind a prefix
