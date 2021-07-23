@@ -36,6 +36,8 @@
 #include <cstdint>     // for uint32_t and uint64_t
 #include <type_traits> // for std::enable_if_t
 
+#include "cstone/util/tuple.hpp"
+
 #include "box.hpp"
 #include "common.hpp"
 
@@ -186,23 +188,30 @@ HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> mo
 
 //! @brief extract X component from a morton code
 template<class KeyType>
-HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> idecodeMortonX(KeyType code)
+HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, unsigned> idecodeMortonX(KeyType code)
 {
     return detail::compactBits(code >> 2);
 }
 
 //! @brief extract Y component from a morton code
 template<class KeyType>
-HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> idecodeMortonY(KeyType code)
+HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, unsigned> idecodeMortonY(KeyType code)
 {
     return detail::compactBits(code >> 1);
 }
 
 //! @brief extract Z component from a morton code
 template<class KeyType>
-HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> idecodeMortonZ(KeyType code)
+HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, unsigned> idecodeMortonZ(KeyType code)
 {
     return detail::compactBits(code);
+}
+
+//! @brief decode X,Y,Z components of a Morton key into a tuple
+template<class KeyType>
+HOST_DEVICE_FUN inline util::tuple<unsigned, unsigned, unsigned> decodeMorton(KeyType code)
+{
+    return {idecodeMortonX(code), idecodeMortonY(code), idecodeMortonZ(code)};
 }
 
 /*! @brief compute range of X values that the given code can cover
@@ -340,18 +349,16 @@ mortonNeighbor(KeyType code, unsigned treeLevel, int dx, int dy, int dz,
                bool pbcX=true, bool pbcY=true, bool pbcZ=true)
 {
     // maximum coordinate value per dimension 2^nBits-1
-    constexpr int pbcRange = 1u << maxTreeLevel<KeyType>{};
-    constexpr int maxCoord = pbcRange - 1;
+    constexpr unsigned pbcRange = 1u << maxTreeLevel<KeyType>{};
+    constexpr unsigned maxCoord = pbcRange - 1;
 
     unsigned shiftBits  = maxTreeLevel<KeyType>{} - treeLevel;
-    int shiftValue = int(1u << shiftBits);
+    unsigned shiftValue = 1u << shiftBits;
 
     // zero out lower tree levels
     code = enclosingBoxCode(code, treeLevel);
 
-    int x = idecodeMortonX(code);
-    int y = idecodeMortonY(code);
-    int z = idecodeMortonZ(code);
+    auto [x, y, z] = decodeMorton(code);
 
     int newX = x + dx * shiftValue;
     if (pbcX) {
@@ -377,9 +384,7 @@ mortonNeighbor(KeyType code, unsigned treeLevel, int dx, int dy, int dz,
         z = (newZ < 0 || newZ > maxCoord) ? z : newZ;
     }
 
-    return detail::expandBits(KeyType(x)) * KeyType(4)
-         + detail::expandBits(KeyType(y)) * KeyType(2)
-         + detail::expandBits(KeyType(z));
+    return imorton3D<KeyType>(x, y, z);
 }
 
 
