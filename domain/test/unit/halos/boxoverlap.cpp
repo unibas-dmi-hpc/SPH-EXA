@@ -69,36 +69,36 @@ void overlapTest()
 
     // node range: [r,2r]^3
     I prefix = pad(I(0b000111), 6);
-    int prefixLength = 6;
+    unsigned level = 2;
 
     I bound = pad(I(0b001), 3);
 
-    EXPECT_EQ(prefixLength, treeLevel(bound - prefix) * 3);
+    EXPECT_EQ(level, treeLevel(bound - prefix));
 
     /// Each test is a separate case
 
-    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{0, r, 0, r, 0, r}));
+    EXPECT_FALSE(overlap_(prefix, level, IBox{0, r, 0, r, 0, r}));
     EXPECT_FALSE(overlap(prefix, bound, IBox{0, r, 0, r, 0, r}));
 
     // exact match
-    EXPECT_TRUE(overlap(prefix, prefixLength, IBox{r, 2 * r, r, 2 * r, r, 2 * r}));
+    EXPECT_TRUE(overlap_(prefix, level, IBox{r, 2 * r, r, 2 * r, r, 2 * r}));
     // contained within (1,1,1) corner of node
-    EXPECT_TRUE(overlap(prefix, prefixLength, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
+    EXPECT_TRUE(overlap_(prefix, level, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
     // contained and exceeding (1,1,1) corner by 1 in all dimensions
-    EXPECT_TRUE(overlap(prefix, prefixLength, IBox{2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1}));
+    EXPECT_TRUE(overlap_(prefix, level, IBox{2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1}));
 
     // all of these miss the (1,1,1) corner by 1 in one of the three dimensions
-    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{2 * r, 2 * r + 1, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
-    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{2 * r - 1, 2 * r, 2 * r, 2 * r + 1, 2 * r - 1, 2 * r}));
-    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r, 2 * r + 1}));
+    EXPECT_FALSE(overlap_(prefix, level, IBox{2 * r, 2 * r + 1, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
+    EXPECT_FALSE(overlap_(prefix, level, IBox{2 * r - 1, 2 * r, 2 * r, 2 * r + 1, 2 * r - 1, 2 * r}));
+    EXPECT_FALSE(overlap_(prefix, level, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r, 2 * r + 1}));
 
     // contained within (0,0,0) corner of node
-    EXPECT_TRUE(overlap(prefix, prefixLength, IBox{r, r + 1, r, r + 1, r, r + 1}));
+    EXPECT_TRUE(overlap_(prefix, level, IBox{r, r + 1, r, r + 1, r, r + 1}));
 
     // all of these miss the (0,0,0) corner by 1 in one of the three dimensions
-    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{r - 1, r, r, r + 1, r, r + 1}));
-    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{r, r + 1, r - 1, r, r, r + 1}));
-    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{r, r + 1, r, r + 1, r - 1, r}));
+    EXPECT_FALSE(overlap_(prefix, level, IBox{r - 1, r, r, r + 1, r, r + 1}));
+    EXPECT_FALSE(overlap_(prefix, level, IBox{r, r + 1, r - 1, r, r, r + 1}));
+    EXPECT_FALSE(overlap_(prefix, level, IBox{r, r + 1, r, r + 1, r - 1, r}));
 }
 
 TEST(BoxOverlap, overlaps)

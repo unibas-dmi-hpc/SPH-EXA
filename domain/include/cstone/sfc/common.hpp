@@ -212,7 +212,7 @@ HOST_DEVICE_FUN constexpr KeyType encodePlaceholderBit(KeyType code, int prefixL
 
 //! @brief returns the number of key-bits in the input @p code
 template<class KeyType>
-HOST_DEVICE_FUN constexpr int decodePrefixLength(KeyType code)
+HOST_DEVICE_FUN constexpr unsigned decodePrefixLength(KeyType code)
 {
     return 8*sizeof(KeyType) - 1 - countLeadingZeros(code);
 }

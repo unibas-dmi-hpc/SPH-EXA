@@ -53,8 +53,7 @@ void findCollisions2All(const std::vector<I>& tree, CollisionList& collisionList
 {
     for (std::size_t nodeIndex = 0; nodeIndex < nNodes(tree); ++nodeIndex)
     {
-        int prefixBits = treeLevel(tree[nodeIndex+1] - tree[nodeIndex]) * 3;
-        if (overlap(tree[nodeIndex], prefixBits, collisionBox))
+        if (overlap(tree[nodeIndex], tree[nodeIndex + 1], collisionBox))
             collisionList.add((int)nodeIndex);
     }
 }
