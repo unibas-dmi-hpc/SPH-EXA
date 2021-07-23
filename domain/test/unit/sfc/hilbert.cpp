@@ -91,17 +91,15 @@ void continuityTest()
             KeyType lastKey = (octant + 1) * nodeRange<KeyType>(level) - 1;
             KeyType firstNextKey = lastKey + 1;
 
-            unsigned lastPoint[3];
-            idecodeHilbert(lastKey, lastPoint, lastPoint + 1, lastPoint + 2);
+            auto [x, y, z] = decodeHilbert(lastKey);
 
-            unsigned firstNextPoint[3];
-            idecodeHilbert(firstNextKey, firstNextPoint, firstNextPoint + 1, firstNextPoint + 2);
+            auto [xnext, ynext, znext] = decodeHilbert(firstNextKey);
 
             // the points in 3D space should be right next to each other, i.e. delta == 1
             // this is a property that the Z-curve does not have
-            int delta = std::abs(int(lastPoint[0]) - int(firstNextPoint[0])) +
-                        std::abs(int(lastPoint[1]) - int(firstNextPoint[1])) +
-                        std::abs(int(lastPoint[2]) - int(firstNextPoint[2]));
+            int delta = std::abs(int(x) - int(xnext)) +
+                        std::abs(int(y) - int(ynext)) +
+                        std::abs(int(z) - int(znext));
 
             EXPECT_EQ(delta, 1);
         }
@@ -138,11 +136,10 @@ void inversionTest()
     {
         KeyType hilbertKey = iHilbert<KeyType>(x[i], y[i], z[i]);
 
-        unsigned decodedKey[3];
-        idecodeHilbert(hilbertKey, decodedKey, decodedKey + 1, decodedKey + 2);
-        EXPECT_EQ(x[i], decodedKey[0]) ;
-        EXPECT_EQ(y[i], decodedKey[1]) ;
-        EXPECT_EQ(z[i], decodedKey[2]) ;
+        auto [a, b, c] = decodeHilbert(hilbertKey);
+        EXPECT_EQ(x[i], a) ;
+        EXPECT_EQ(y[i], b) ;
+        EXPECT_EQ(z[i], c) ;
     }
 }
 

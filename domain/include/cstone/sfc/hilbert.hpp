@@ -98,7 +98,7 @@ std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert(unsigned px, uns
 //! @brief inverse function of iHilbert
 template<class KeyType>
 HOST_DEVICE_FUN inline
-std::enable_if_t<std::is_unsigned_v<KeyType>> idecodeHilbert(KeyType key, unsigned* rx, unsigned* ry, unsigned* rz)
+util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key)
 {
    unsigned px = 0;
    unsigned py = 0;
@@ -138,55 +138,7 @@ std::enable_if_t<std::is_unsigned_v<KeyType>> idecodeHilbert(KeyType key, unsign
        pz |= ((yi ^ zi) << level);
    }
 
-   *rx = px;
-   *ry = py;
-   *rz = pz;
-}
-
-template<class KeyType>
-HOST_DEVICE_FUN inline
-KeyType iHilbert2(unsigned xx, unsigned yy, unsigned zz)
-{
-    constexpr unsigned octantMap[8] = {0, 1, 7, 6, 3, 2, 4, 5};
-    unsigned mask = 1 << (maxTreeLevel<KeyType>{} - 1);
-    KeyType key = 0;
-
-    for (int i = 0; i < maxTreeLevel<KeyType>{}; i++)
-    {
-        unsigned ix = (xx & mask) ? 1 : 0;
-        unsigned iy = (yy & mask) ? 1 : 0;
-        unsigned iz = (zz & mask) ? 1 : 0;
-        unsigned octant = (ix << 2) + (iy << 1) + iz;
-        if (octant == 0)
-        {
-            std::swap(yy, zz);
-        }
-        else if (octant == 1 || octant == 5)
-        {
-            std::swap(xx, yy);
-        }
-        else if (octant == 4 || octant == 6)
-        {
-            xx = (xx) ^ 0xFFFFFFFF;
-            zz = (zz) ^ 0xFFFFFFFF;
-        }
-        else if (octant == 3 || octant == 7)
-        {
-            xx = (xx) ^ 0xFFFFFFFF;
-            yy = (yy) ^ 0xFFFFFFFF;
-            std::swap(xx, yy);
-        }
-        else
-        {
-            yy = (yy) ^ 0xFFFFFFFF;
-            zz = (zz) ^ 0xFFFFFFFF;
-            std::swap(yy, zz);
-        }
-        key = (key << 3) + octantMap[octant];
-        mask >>= 1;
-    }
-
-    return key;
+   return {px, py, pz};
 }
 
 } // namespace cstone
