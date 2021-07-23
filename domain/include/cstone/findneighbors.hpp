@@ -122,9 +122,7 @@ HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Bo
     KeyType xyzCode = morton3D<KeyType>(xi, yi, zi, bbox);
     KeyType boxCode = enclosingBoxCode(xyzCode, level);
 
-    int ixBox = idecodeMortonX(boxCode);
-    int iyBox = idecodeMortonY(boxCode);
-    int izBox = idecodeMortonZ(boxCode);
+    auto [ixBox, iyBox, izBox] = decodeMorton(boxCode);
     T xBox = bbox.xmin() + ixBox * uL * bbox.lx();
     T yBox = bbox.ymin() + iyBox * uL * bbox.ly();
     T zBox = bbox.zmin() + izBox * uL * bbox.lz();
