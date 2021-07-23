@@ -211,55 +211,7 @@ HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, unsigned> i
 template<class KeyType>
 HOST_DEVICE_FUN inline util::tuple<unsigned, unsigned, unsigned> decodeMorton(KeyType code)
 {
-    return {idecodeMortonX(code), idecodeMortonY(code), idecodeMortonZ(code)};
-}
-
-/*! @brief compute range of X values that the given code can cover
- *
- * @tparam KeyType  32- or 64-bit unsigned integer
- * @param code      A morton code, all bits except the first 2 + length
- *                  bits (32-bit) or the first 1 + length bits (64-bit)
- *                  are expected to be zero.
- * @param length    Number of bits to consider for calculating the upper range limit
- * @return          The range of possible X values in [0...2^10] (32-bit)
- *                  or [0...2^21] (64-bit). The start of the range is the
- *                  X-component of the input @p code. The length of the range
- *                  only depends on the number of bits. For every X-bit, the
- *                  range decreases from the maximum by a factor of two.
- */
-template<class KeyType>
-HOST_DEVICE_FUN inline pair<int> idecodeMortonXRange(KeyType code, int length)
-{
-    pair<int> ret{0, 0};
-
-    ret[0] = idecodeMortonX(code);
-    ret[1] = ret[0] + (KeyType(1) << (maxTreeLevel<KeyType>{} - (length+2)/3));
-
-    return ret;
-}
-
-//! @brief see idecodeMortonXRange
-template<class KeyType>
-HOST_DEVICE_FUN inline pair<int> idecodeMortonYRange(KeyType code, int length)
-{
-    pair<int> ret{0, 0};
-
-    ret[0] = idecodeMortonY(code);
-    ret[1] = ret[0] + (KeyType(1) << (maxTreeLevel<KeyType>{} - (length+1)/3));
-
-    return ret;
-}
-
-//! @brief see idecodeMortonXRange
-template<class KeyType>
-HOST_DEVICE_FUN inline pair<int> idecodeMortonZRange(KeyType code, int length)
-{
-    pair<int> ret{0, 0};
-
-    ret[0] = idecodeMortonZ(code);
-    ret[1] = ret[0] + (KeyType(1) << (maxTreeLevel<KeyType>{} - length/3));
-
-    return ret;
+    return { idecodeMortonX(code), idecodeMortonY(code), idecodeMortonZ(code) };
 }
 
 /*! @brief returns (min,max) x-coordinate pair for a lower and upper morton code
