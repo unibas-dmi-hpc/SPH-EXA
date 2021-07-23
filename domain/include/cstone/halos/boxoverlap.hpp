@@ -85,32 +85,31 @@ HOST_DEVICE_FUN constexpr bool overlapRange(int a, int b, int c, int d)
  *
  */
 template <class KeyType>
-HOST_DEVICE_FUN bool overlap(KeyType prefix, int length, const IBox& box)
+HOST_DEVICE_FUN inline bool overlap_(KeyType prefix, unsigned level, const IBox& box)
 {
-    pair<int> xRange = idecodeMortonXRange(prefix, length);
-    pair<int> yRange = idecodeMortonYRange(prefix, length);
-    pair<int> zRange = idecodeMortonZRange(prefix, length);
+    constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
+    unsigned range = 1u << (maxTreeLevel<KeyType>{} - level);
+    auto [x0, y0, z0] = decodeMorton(prefix);
 
-    constexpr int maxCoord = 1u<<maxTreeLevel<KeyType>{};
-    bool xOverlap = overlapRange<maxCoord>(xRange[0], xRange[1], box.xmin(), box.xmax());
-    bool yOverlap = overlapRange<maxCoord>(yRange[0], yRange[1], box.ymin(), box.ymax());
-    bool zOverlap = overlapRange<maxCoord>(zRange[0], zRange[1], box.zmin(), box.zmax());
+    bool xOverlap = overlapRange<maxCoord>(x0, x0 + range, box.xmin(), box.xmax());
+    bool yOverlap = overlapRange<maxCoord>(y0, y0 + range, box.ymin(), box.ymax());
+    bool zOverlap = overlapRange<maxCoord>(z0, z0 + range, box.zmin(), box.zmax());
 
     return xOverlap && yOverlap && zOverlap;
 }
 
 template <class KeyType>
-HOST_DEVICE_FUN bool overlap(KeyType prefixBitKey, const IBox& box)
+HOST_DEVICE_FUN inline bool overlap(KeyType prefixBitKey, const IBox& box)
 {
-    int prefixLength = decodePrefixLength(prefixBitKey);
-    return overlap(decodePlaceholderBit(prefixBitKey), prefixLength, box);
+    unsigned level = decodePrefixLength(prefixBitKey) / 3;
+    return overlap_(decodePlaceholderBit(prefixBitKey), level, box);
 }
 
 template <class KeyType>
-HOST_DEVICE_FUN bool overlap(KeyType codeStart, KeyType codeEnd, const IBox& box)
+HOST_DEVICE_FUN inline bool overlap(KeyType codeStart, KeyType codeEnd, const IBox& box)
 {
-    int level = treeLevel(codeEnd - codeStart);
-    return overlap(codeStart, level*3, box);
+    unsigned level = treeLevel(codeEnd - codeStart);
+    return overlap_(codeStart, level, box);
 }
 
 /*! @brief Check whether a coordinate box is fully contained in a Morton code range
@@ -175,15 +174,14 @@ containedIn(KeyType prefixBitKey, KeyType codeStart, KeyType codeEnd)
 }
 
 template <class KeyType>
-HOST_DEVICE_FUN inline IBox makeIBox(KeyType mortonCodeStart, KeyType mortonCodeEnd)
+HOST_DEVICE_FUN inline IBox makeIBox(KeyType keyStart, KeyType keyEnd)
 {
-    int prefixNBits = treeLevel(mortonCodeEnd -mortonCodeStart) * 3;
+    unsigned level = treeLevel(keyEnd - keyStart);
+    unsigned unitsPerBox = 1u << (maxTreeLevel<KeyType>{} - level);
 
-    pair<int> xrange = idecodeMortonXRange(mortonCodeStart, prefixNBits);
-    pair<int> yrange = idecodeMortonYRange(mortonCodeStart, prefixNBits);
-    pair<int> zrange = idecodeMortonZRange(mortonCodeStart, prefixNBits);
+    auto [x0, y0, z0] = decodeMorton(keyStart);
 
-    return IBox(xrange[0], xrange[1], yrange[0], yrange[1], zrange[0], zrange[1]);
+    return IBox(x0, x0 + unitsPerBox, y0, y0 + unitsPerBox, z0, z0 + unitsPerBox);
 }
 
 template<class KeyType>
