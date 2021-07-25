@@ -87,9 +87,9 @@ HOST_DEVICE_FUN inline KeyType sfc3DunitCube(T x, T y, T z)
     assert(z >= 0.0 && z <= 1.0);
 
     // normalize floating point numbers
-    unsigned ix = toNBitInt<KeyType>(x);
-    unsigned iy = toNBitInt<KeyType>(y);
-    unsigned iz = toNBitInt<KeyType>(z);
+    unsigned ix = toNBitInt<typename KeyType::ValueType>(x);
+    unsigned iy = toNBitInt<typename KeyType::ValueType>(y);
+    unsigned iz = toNBitInt<typename KeyType::ValueType>(z);
 
     return iSfcKey<KeyType>(ix, iy, iz);
 }

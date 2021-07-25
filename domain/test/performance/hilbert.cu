@@ -61,20 +61,28 @@ inline void computeSfcKeys(KeyType* keys, const unsigned* x, const unsigned* y, 
 
 template<class KeyType, class T>
 __global__ void
-computeSfcKeysKernel(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, Box<T> box)
+computeSfcKeysRealKernel(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, Box<T> box)
 {
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid < numKeys)
     {
+        //T xn = normalize(x[tid], box.xmin(), box.xmax());
+        //T yn = normalize(y[tid], box.ymin(), box.ymax());
+        //T zn = normalize(z[tid], box.zmin(), box.zmax());
+        //unsigned ix = toNBitInt<KeyType>(xn);
+        //unsigned iy = toNBitInt<KeyType>(yn);
+        //unsigned iz = toNBitInt<KeyType>(zn);
+        //keys[tid] = iSfcKey<KeyType>(ix, iy, iz);
+
         keys[tid] = sfc3D<KeyType>(x[tid], y[tid], z[tid], box);
     }
 }
 
 template<class KeyType, class T>
-inline void computeSfcKeys(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T>& box)
+inline void computeSfcRealKeys(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T>& box)
 {
     constexpr int threadsPerBlock = 256;
-    computeSfcKeysKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys, box);
+    computeSfcKeysRealKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys, box);
 }
 
 int main()
@@ -82,27 +90,39 @@ int main()
     using IntegerType = uint64_t;
     unsigned numKeys  = 32000000;
 
-    unsigned maxCoord = (1 << maxTreeLevel<IntegerType>{}) - 1;
+    using Real = double;
+    Box<Real> box(-1, 1);
+
     std::mt19937 gen;
+    std::uniform_real_distribution<Real> distribution(box.xmin(), box.xmax());
+    auto getRand = [&distribution, &gen]() { return distribution(gen); };
+
+    std::vector<Real> x(numKeys);
+    std::vector<Real> y(numKeys);
+    std::vector<Real> z(numKeys);
+
+    std::generate(begin(x), end(x), getRand);
+    std::generate(begin(y), end(y), getRand);
+    std::generate(begin(z), end(z), getRand);
 
     thrust::device_vector<MortonKey<IntegerType>>  mortonKeys(numKeys);
     thrust::device_vector<HilbertKey<IntegerType>> hilbertKeys(numKeys);
 
     {
-        std::uniform_int_distribution<unsigned> distribution(0, maxCoord);
-        auto getRand = [&distribution, &gen]() { return distribution(gen); };
+        std::vector<unsigned> ix(numKeys);
+        std::vector<unsigned> iy(numKeys);
+        std::vector<unsigned> iz(numKeys);
 
-        std::vector<unsigned> x(numKeys);
-        std::vector<unsigned> y(numKeys);
-        std::vector<unsigned> z(numKeys);
+        auto normIntX = [&box](Real a) { return toNBitInt<IntegerType>(normalize(a, box.xmin(), box.xmax())); };
+        auto normIntY = [&box](Real a) { return toNBitInt<IntegerType>(normalize(a, box.ymin(), box.ymax())); };
+        auto normIntZ = [&box](Real a) { return toNBitInt<IntegerType>(normalize(a, box.zmin(), box.zmax())); };
+        std::transform(begin(x), end(x), begin(ix), normIntX);
+        std::transform(begin(y), end(y), begin(iy), normIntY);
+        std::transform(begin(z), end(z), begin(iz), normIntZ);
 
-        std::generate(begin(x), end(x), getRand);
-        std::generate(begin(y), end(y), getRand);
-        std::generate(begin(z), end(z), getRand);
-
-        thrust::device_vector<unsigned> dx = x;
-        thrust::device_vector<unsigned> dy = y;
-        thrust::device_vector<unsigned> dz = z;
+        thrust::device_vector<unsigned> dx = ix;
+        thrust::device_vector<unsigned> dy = iy;
+        thrust::device_vector<unsigned> dz = iz;
 
         auto computeHilbert = [&]()
         {
@@ -122,35 +142,24 @@ int main()
         std::cout << "compute time for " << numKeys << " morton keys: " << t_morton / 1000 << " s" << std::endl;
     }
 
+    thrust::device_vector<MortonKey<IntegerType>>  mortonKeys2(numKeys);
+    thrust::device_vector<HilbertKey<IntegerType>> hilbertKeys2(numKeys);
+
     {
-        using Real = double;
-        Box<Real> box(-1, 1);
-
-        std::uniform_real_distribution<double> distribution(box.xmin(), box.xmax());
-        auto getRand = [&distribution, &gen]() { return distribution(gen); };
-
-        std::vector<Real> x(numKeys);
-        std::vector<Real> y(numKeys);
-        std::vector<Real> z(numKeys);
-
-        std::generate(begin(x), end(x), getRand);
-        std::generate(begin(y), end(y), getRand);
-        std::generate(begin(z), end(z), getRand);
-
         thrust::device_vector<Real> dx = x;
         thrust::device_vector<Real> dy = y;
         thrust::device_vector<Real> dz = z;
 
         auto computeHilbert = [&]()
         {
-            computeSfcKeys(thrust::raw_pointer_cast(hilbertKeys.data()), thrust::raw_pointer_cast(dx.data()),
-                           thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys, box);
+            computeSfcRealKeys(thrust::raw_pointer_cast(hilbertKeys2.data()), thrust::raw_pointer_cast(dx.data()),
+                               thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys, box);
         };
 
         auto computeMorton = [&]()
         {
-            computeSfcKeys(thrust::raw_pointer_cast(mortonKeys.data()), thrust::raw_pointer_cast(dx.data()),
-                           thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys, box);
+            computeSfcRealKeys(thrust::raw_pointer_cast(mortonKeys2.data()), thrust::raw_pointer_cast(dx.data()),
+                               thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys, box);
         };
 
         float t_hilbert = timeGpu(computeHilbert);

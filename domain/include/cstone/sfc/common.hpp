@@ -51,7 +51,10 @@ template<>
 struct unusedBits<uint64_t> : stl::integral_constant<unsigned, 1> {};
 
 template<class KeyType>
-struct maxTreeLevel : stl::integral_constant<unsigned, 10> {};
+struct maxTreeLevel {};
+
+template<>
+struct maxTreeLevel<unsigned> : stl::integral_constant<unsigned, 10> {};
 
 template<>
 struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21> {};
