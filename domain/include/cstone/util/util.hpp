@@ -51,7 +51,7 @@
 template<class T, class Phantom>
 struct StrongType
 {
-    using ValueType = T;
+    using ValueType [[maybe_unused]] = T;
 
     //! default ctor
     constexpr HOST_DEVICE_FUN StrongType() : value_{} {}
