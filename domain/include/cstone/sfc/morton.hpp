@@ -105,8 +105,7 @@ inline uint64_t compactBits(uint64_t v)
 
 /*! @brief Calculates a Morton code for a 3D point in integer coordinates
  *
- * @tparam KeyType  32- or 64 bit unsigned integer
- *
+ * @tparam    KeyType  32- or 64 bit unsigned integer
  * @param[in] ix,iy,iz input coordinates in [0:2^maxTreeLevel<KeyType>{}]
  */
 template <class KeyType>
@@ -127,9 +126,7 @@ HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> im
 /*! @brief Calculate morton code from n-level integer 3D coordinates
  *
  * @tparam KeyType   32- or 64-bit unsigned integer
- * @param ix         input integer box coordinates, must be in the range [0, 2^treeLevel-1]
- * @param iy
- * @param iz
+ * @param ix,iy,iz   input integer box coordinates, must be in the range [0, 2^treeLevel-1]
  * @param treeLevel  octree subdivison level
  * @return           the morton code
  */
@@ -143,13 +140,11 @@ HOST_DEVICE_FUN KeyType imorton3D(unsigned ix, unsigned iy, unsigned iz, unsigne
 
 /*! @brief Calculates a Morton code for a 3D point in the unit cube
  *
- * @tparam KeyType specify either a 32 or 64 bit unsigned integer to select the precision.
- *                 Note: KeyType needs to be specified explicitly.
- *                 Note: not specifying an unsigned type results in a compilation error
+ * @tparam    KeyType specify either a 32 or 64 bit unsigned integer to select the precision.
+ * @param[in] x,y,z   input coordinates within the unit cube [0,1]^3
  *
- * @param[in] x input coordinates within the unit cube [0,1]^3
- * @param[in] y
- * @param[in] z
+ * Note: -KeyType needs to be specified explicitly.
+ *       -not specifying an unsigned type results in a compilation error
  */
 template <class KeyType, class T>
 HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> morton3DunitCube(T x, T y, T z)
@@ -182,8 +177,8 @@ template <class KeyType, class T>
 HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> morton3D(T x, T y, T z, Box<T> box)
 {
     return morton3DunitCube<KeyType>(normalize(x, box.xmin(), box.xmax()),
-                               normalize(y, box.ymin(), box.ymax()),
-                               normalize(z, box.zmin(), box.zmax()));
+                                     normalize(y, box.ymin(), box.ymax()),
+                                     normalize(z, box.zmin(), box.zmax()));
 }
 
 //! @brief extract X component from a morton code
