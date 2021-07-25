@@ -29,11 +29,10 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <random>
-
-#include <thrust/device_vector.h>
 
 #include "cstone/sfc/hilbert.hpp"
 
