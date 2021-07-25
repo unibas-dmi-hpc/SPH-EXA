@@ -198,17 +198,17 @@ TEST(SfcCode, decodePlaceholderbit64)
 
 TEST(SfcCode, octalDigit32)
 {
-    EXPECT_EQ(1, octalDigit(010000000000, 0));
-    EXPECT_EQ(1, octalDigit(01234567012, 1));
-    EXPECT_EQ(2, octalDigit(01234567012, 2));
-    EXPECT_EQ(3, octalDigit(01234567012, 3));
-    EXPECT_EQ(4, octalDigit(01234567012, 4));
-    EXPECT_EQ(5, octalDigit(01234567012, 5));
-    EXPECT_EQ(6, octalDigit(01234567012, 6));
-    EXPECT_EQ(7, octalDigit(01234567012, 7));
-    EXPECT_EQ(0, octalDigit(01234567012, 8));
-    EXPECT_EQ(1, octalDigit(01234567012, 9));
-    EXPECT_EQ(2, octalDigit(01234567012, 10));
+    EXPECT_EQ(1, octalDigit(010000000000u, 0));
+    EXPECT_EQ(1, octalDigit(01234567012u, 1));
+    EXPECT_EQ(2, octalDigit(01234567012u, 2));
+    EXPECT_EQ(3, octalDigit(01234567012u, 3));
+    EXPECT_EQ(4, octalDigit(01234567012u, 4));
+    EXPECT_EQ(5, octalDigit(01234567012u, 5));
+    EXPECT_EQ(6, octalDigit(01234567012u, 6));
+    EXPECT_EQ(7, octalDigit(01234567012u, 7));
+    EXPECT_EQ(0, octalDigit(01234567012u, 8));
+    EXPECT_EQ(1, octalDigit(01234567012u, 9));
+    EXPECT_EQ(2, octalDigit(01234567012u, 10));
 }
 
 TEST(SfcCode, octalDigit64)
@@ -296,7 +296,7 @@ TEST(SfcCode, smallestCommonBoxL0_64)
 
 TEST(SfcCode, padUtility)
 {
-    EXPECT_EQ(pad(0b011, 3), 0b00011 << 27);
+    EXPECT_EQ(pad(0b011u, 3), 0b00011 << 27);
     EXPECT_EQ(pad(0b011ul, 3), 0b0011ul << 60);
 }
 

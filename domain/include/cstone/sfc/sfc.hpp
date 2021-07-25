@@ -71,25 +71,14 @@ iSfcKey(unsigned ix, unsigned iy, unsigned iz)
     return KeyType{iHilbert<typename KeyType::ValueType>(ix, iy, iz)};
 }
 
-/*! @brief Calculates a SFC key for a 3D point in the unit cube
- *
- * @tparam    KeyType specify either a 32 or 64 bit unsigned integer Morton or Hilbert key type.
- * @param[in] x,y,z   input coordinates within the unit cube [0,1]^3
- *
- * Note: -KeyType needs to be specified explicitly.
- *       -not specifying an unsigned type results in a compilation error
- */
 template <class KeyType, class T>
-HOST_DEVICE_FUN inline KeyType sfc3DunitCube(T x, T y, T z)
+HOST_DEVICE_FUN inline KeyType sfc3D(T x, T y, T z, T xmin, T ymin, T zmin, T mx, T my, T mz)
 {
-    assert(x >= 0.0 && x <= 1.0);
-    assert(y >= 0.0 && y <= 1.0);
-    assert(z >= 0.0 && z <= 1.0);
+    constexpr unsigned mcoord = (1u << maxTreeLevel<typename KeyType::ValueType>{}) - 1;
 
-    // normalize floating point numbers
-    unsigned ix = toNBitInt<typename KeyType::ValueType>(x);
-    unsigned iy = toNBitInt<typename KeyType::ValueType>(y);
-    unsigned iz = toNBitInt<typename KeyType::ValueType>(z);
+    unsigned ix = stl::min(unsigned((x - xmin) * mx), mcoord);
+    unsigned iy = stl::min(unsigned((y - ymin) * my), mcoord);
+    unsigned iz = stl::min(unsigned((z - zmin) * mz), mcoord);
 
     return iSfcKey<KeyType>(ix, iy, iz);
 }
@@ -107,9 +96,10 @@ HOST_DEVICE_FUN inline KeyType sfc3DunitCube(T x, T y, T z)
 template <class KeyType, class T>
 HOST_DEVICE_FUN inline KeyType sfc3D(T x, T y, T z, const Box<T>& box)
 {
-    return sfc3DunitCube<KeyType>(normalize(x, box.xmin(), box.xmax()),
-                                  normalize(y, box.ymin(), box.ymax()),
-                                  normalize(z, box.zmin(), box.zmax()));
+    constexpr unsigned cubeLength = (1u << maxTreeLevel<typename KeyType::ValueType>{});
+
+    return sfc3D<KeyType>(x, y, z, box.xmin(), box.ymin(), box.zmin(),
+                          cubeLength * box.ilx(), cubeLength * box.ily(), cubeLength * box.ilz());
 }
 
 } // namespace cstone
