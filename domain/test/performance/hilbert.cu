@@ -43,11 +43,7 @@ using namespace cstone;
 
 template<class KeyType>
 __global__ void
-computeSfcKeysKernel(KeyType* keys,
-                     const unsigned* x,
-                     const unsigned* y,
-                     const unsigned* z,
-                     size_t numKeys)
+computeSfcKeysKernel(KeyType* keys, const unsigned* x, const unsigned* y, const unsigned* z, size_t numKeys)
 {
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid < numKeys)
@@ -57,14 +53,28 @@ computeSfcKeysKernel(KeyType* keys,
 }
 
 template<class KeyType>
-inline void computeSfcKeys(KeyType* keys,
-                           const unsigned* x,
-                           const unsigned* y,
-                           const unsigned* z,
-                           size_t numKeys)
+inline void computeSfcKeys(KeyType* keys, const unsigned* x, const unsigned* y, const unsigned* z, size_t numKeys)
 {
     constexpr int threadsPerBlock = 256;
     computeSfcKeysKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys);
+}
+
+template<class KeyType, class T>
+__global__ void
+computeSfcKeysKernel(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, Box<T> box)
+{
+    size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid < numKeys)
+    {
+        keys[tid] = sfc3D<KeyType>(x[tid], y[tid], z[tid], box);
+    }
+}
+
+template<class KeyType, class T>
+inline void computeSfcKeys(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T>& box)
+{
+    constexpr int threadsPerBlock = 256;
+    computeSfcKeysKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys, box);
 }
 
 int main()
@@ -74,38 +84,81 @@ int main()
 
     unsigned maxCoord = (1 << maxTreeLevel<IntegerType>{}) - 1;
     std::mt19937 gen;
-    std::uniform_int_distribution<unsigned> distribution(0, maxCoord);
-    auto getRand = [&distribution, &gen](){ return distribution(gen); };
-
-    std::vector<unsigned> x(numKeys);
-    std::vector<unsigned> y(numKeys);
-    std::vector<unsigned> z(numKeys);
-
-    std::generate(begin(x), end(x), getRand);
-    std::generate(begin(y), end(y), getRand);
-    std::generate(begin(z), end(z), getRand);
-
-    thrust::device_vector<unsigned> dx = x;
-    thrust::device_vector<unsigned> dy = y;
-    thrust::device_vector<unsigned> dz = z;
 
     thrust::device_vector<MortonKey<IntegerType>>  mortonKeys(numKeys);
     thrust::device_vector<HilbertKey<IntegerType>> hilbertKeys(numKeys);
 
-    auto computeHilbert = [&]()
     {
-        computeSfcKeys(thrust::raw_pointer_cast(hilbertKeys.data()), thrust::raw_pointer_cast(dx.data()),
-                       thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys);
-    };
+        std::uniform_int_distribution<unsigned> distribution(0, maxCoord);
+        auto getRand = [&distribution, &gen]() { return distribution(gen); };
 
-    auto computeMorton = [&]()
+        std::vector<unsigned> x(numKeys);
+        std::vector<unsigned> y(numKeys);
+        std::vector<unsigned> z(numKeys);
+
+        std::generate(begin(x), end(x), getRand);
+        std::generate(begin(y), end(y), getRand);
+        std::generate(begin(z), end(z), getRand);
+
+        thrust::device_vector<unsigned> dx = x;
+        thrust::device_vector<unsigned> dy = y;
+        thrust::device_vector<unsigned> dz = z;
+
+        auto computeHilbert = [&]()
+        {
+            computeSfcKeys(thrust::raw_pointer_cast(hilbertKeys.data()), thrust::raw_pointer_cast(dx.data()),
+                           thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys);
+        };
+
+        auto computeMorton = [&]()
+        {
+            computeSfcKeys(thrust::raw_pointer_cast(mortonKeys.data()), thrust::raw_pointer_cast(dx.data()),
+                           thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys);
+        };
+
+        float t_hilbert = timeGpu(computeHilbert);
+        float t_morton = timeGpu(computeMorton);
+        std::cout << "compute time for " << numKeys << " hilbert keys: " << t_hilbert / 1000 << " s" << std::endl;
+        std::cout << "compute time for " << numKeys << " morton keys: " << t_morton / 1000 << " s" << std::endl;
+    }
+
     {
-        computeSfcKeys(thrust::raw_pointer_cast(mortonKeys.data()), thrust::raw_pointer_cast(dx.data()),
-                       thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys);
-    };
+        using Real = double;
+        Box<Real> box(-1, 1);
 
-    float t_hilbert = timeGpu(computeHilbert);
-    float t_morton  = timeGpu(computeMorton);
-    std::cout << "compute time for " << numKeys << " hilbert keys: " << t_hilbert / 1000 << " s" << std::endl;
-    std::cout << "compute time for " << numKeys << " morton keys: " << t_morton / 1000 << " s" << std::endl;
+        std::uniform_real_distribution<double> distribution(box.xmin(), box.xmax());
+        auto getRand = [&distribution, &gen]() { return distribution(gen); };
+
+        std::vector<Real> x(numKeys);
+        std::vector<Real> y(numKeys);
+        std::vector<Real> z(numKeys);
+
+        std::generate(begin(x), end(x), getRand);
+        std::generate(begin(y), end(y), getRand);
+        std::generate(begin(z), end(z), getRand);
+
+        thrust::device_vector<Real> dx = x;
+        thrust::device_vector<Real> dy = y;
+        thrust::device_vector<Real> dz = z;
+
+        auto computeHilbert = [&]()
+        {
+            computeSfcKeys(thrust::raw_pointer_cast(hilbertKeys.data()), thrust::raw_pointer_cast(dx.data()),
+                           thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys, box);
+        };
+
+        auto computeMorton = [&]()
+        {
+            computeSfcKeys(thrust::raw_pointer_cast(mortonKeys.data()), thrust::raw_pointer_cast(dx.data()),
+                           thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys, box);
+        };
+
+        float t_hilbert = timeGpu(computeHilbert);
+        float t_morton  = timeGpu(computeMorton);
+        std::cout << "compute time for " << numKeys << " hilbert keys from doubles : "
+                  << t_hilbert / 1000 << " s" << std::endl;
+        std::cout << "compute time for " << numKeys << " morton keys from doubles: "
+                  << t_morton / 1000 << " s" << std::endl;
+    }
+
 }
