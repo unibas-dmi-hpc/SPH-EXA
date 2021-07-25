@@ -35,10 +35,11 @@
 
 #include <thrust/device_vector.h>
 
-#include "../coord_samples/random.hpp"
 #include "cstone/findneighbors.hpp"
-
 #include "cstone/cuda/findneighbors.cuh"
+
+#include "../coord_samples/random.hpp"
+#include "timing.cuh"
 
 int main()
 {
@@ -69,27 +70,17 @@ int main()
     thrust::device_vector<int> d_neighbors(neighborsGPU.size());
     thrust::device_vector<int> d_neighborsCount(neighborsCountGPU.size());
 
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
+    auto findNeighborsLambda = [&]()
+    {
+        findNeighborsCuda(thrust::raw_pointer_cast(d_x.data()), thrust::raw_pointer_cast(d_y.data()),
+                          thrust::raw_pointer_cast(d_z.data()), thrust::raw_pointer_cast(d_h.data()), 0, n, n, box,
+                          thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_neighbors.data()),
+                          thrust::raw_pointer_cast(d_neighborsCount.data()), ngmax);
+    };
 
-    cudaEventRecord(start, cudaStreamDefault);
-    findNeighborsCuda(thrust::raw_pointer_cast(d_x.data()),
-                      thrust::raw_pointer_cast(d_y.data()),
-                      thrust::raw_pointer_cast(d_z.data()),
-                      thrust::raw_pointer_cast(d_h.data()),
-                      0, n, n, box,
-                      thrust::raw_pointer_cast(d_codes.data()),
-                      thrust::raw_pointer_cast(d_neighbors.data()),
-                      thrust::raw_pointer_cast(d_neighborsCount.data()),
-                      ngmax);
-    cudaEventRecord(stop, cudaStreamDefault);
-    cudaEventSynchronize(stop);
+    float gpuTime = timeGpu(findNeighborsLambda);
 
     thrust::copy(d_neighborsCount.begin(), d_neighborsCount.end(), neighborsCountGPU.begin());
-
-    float gpuTime;
-    cudaEventElapsedTime(&gpuTime, start, stop);
 
     std::cout << "GPU time " << gpuTime / 1000 << " s" << std::endl;
     std::copy(neighborsCountGPU.data(), neighborsCountGPU.data() + 10, std::ostream_iterator<int>(std::cout, " "));
@@ -119,7 +110,4 @@ int main()
         std::cout << "Neighbor counts: PASS\n";
     else
         std::cout << "Neighbor counts: FAIL\n";
-
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
 }

@@ -37,6 +37,8 @@
 #include "cstone/sfc/sfc.hpp"
 #include "cstone/util/util.hpp"
 
+#include "timing.cuh"
+
 using namespace cstone;
 
 template<class KeyType>
@@ -65,33 +67,10 @@ inline void computeSfcKeys(KeyType* keys,
     computeSfcKeysKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys);
 }
 
-template<class F>
-float timeGpu(F&& f)
-{
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-
-    cudaEventRecord(start, cudaStreamDefault);
-
-    f();
-
-    cudaEventRecord(stop, cudaStreamDefault);
-    cudaEventSynchronize(stop);
-
-    float t0;
-    cudaEventElapsedTime(&t0, start, stop);
-
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
-
-    return t0;
-}
-
 int main()
 {
     using IntegerType = uint64_t;
-    unsigned numKeys = 32000000;
+    unsigned numKeys  = 32000000;
 
     unsigned maxCoord = (1 << maxTreeLevel<IntegerType>{}) - 1;
     std::mt19937 gen;
@@ -126,7 +105,7 @@ int main()
     };
 
     float t_hilbert = timeGpu(computeHilbert);
-    float t_morton = timeGpu(computeMorton);
-    std::cout << "compute time for " << numKeys << " hilbert keys: " << t_hilbert/1000 << " s" << std::endl;
-    std::cout << "compute time for " << numKeys << " morton keys: " << t_morton/1000 << " s" << std::endl;
+    float t_morton  = timeGpu(computeMorton);
+    std::cout << "compute time for " << numKeys << " hilbert keys: " << t_hilbert / 1000 << " s" << std::endl;
+    std::cout << "compute time for " << numKeys << " morton keys: " << t_morton / 1000 << " s" << std::endl;
 }
