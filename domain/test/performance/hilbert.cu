@@ -65,6 +65,29 @@ inline void computeSfcKeys(KeyType* keys,
     computeSfcKeysKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys);
 }
 
+template<class F>
+float timeGpu(F&& f)
+{
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+
+    cudaEventRecord(start, cudaStreamDefault);
+
+    f();
+
+    cudaEventRecord(stop, cudaStreamDefault);
+    cudaEventSynchronize(stop);
+
+    float t0;
+    cudaEventElapsedTime(&t0, start, stop);
+
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+
+    return t0;
+}
+
 int main()
 {
     using IntegerType = uint64_t;
@@ -90,39 +113,20 @@ int main()
     thrust::device_vector<MortonKey<IntegerType>>  mortonKeys(numKeys);
     thrust::device_vector<HilbertKey<IntegerType>> hilbertKeys(numKeys);
 
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
+    auto computeHilbert = [&]()
+    {
+        computeSfcKeys(thrust::raw_pointer_cast(hilbertKeys.data()), thrust::raw_pointer_cast(dx.data()),
+                       thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys);
+    };
 
-    cudaEventRecord(start, cudaStreamDefault);
+    auto computeMorton = [&]()
+    {
+        computeSfcKeys(thrust::raw_pointer_cast(mortonKeys.data()), thrust::raw_pointer_cast(dx.data()),
+                       thrust::raw_pointer_cast(dy.data()), thrust::raw_pointer_cast(dz.data()), numKeys);
+    };
 
-    computeSfcKeys(thrust::raw_pointer_cast(hilbertKeys.data()),
-                   thrust::raw_pointer_cast(dx.data()),
-                   thrust::raw_pointer_cast(dy.data()),
-                   thrust::raw_pointer_cast(dz.data()),
-                   numKeys);
-
-    cudaEventRecord(stop, cudaStreamDefault);
-    cudaEventSynchronize(stop);
-
-    float t0;
-    cudaEventElapsedTime(&t0, start, stop);
-    std::cout << "compute time for " << numKeys << " hilbert keys: " << t0/1000 << " s" << std::endl;
-
-    cudaEventRecord(start, cudaStreamDefault);
-
-    computeSfcKeys(thrust::raw_pointer_cast(mortonKeys.data()),
-                   thrust::raw_pointer_cast(dx.data()),
-                   thrust::raw_pointer_cast(dy.data()),
-                   thrust::raw_pointer_cast(dz.data()),
-                   numKeys);
-
-    cudaEventRecord(stop, cudaStreamDefault);
-    cudaEventSynchronize(stop);
-
-    cudaEventElapsedTime(&t0, start, stop);
-    std::cout << "compute time for " << numKeys << " morton keys: " << t0/1000 << " s" << std::endl;
-
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
+    float t_hilbert = timeGpu(computeHilbert);
+    float t_morton = timeGpu(computeMorton);
+    std::cout << "compute time for " << numKeys << " hilbert keys: " << t_hilbert/1000 << " s" << std::endl;
+    std::cout << "compute time for " << numKeys << " morton keys: " << t_morton/1000 << " s" << std::endl;
 }
