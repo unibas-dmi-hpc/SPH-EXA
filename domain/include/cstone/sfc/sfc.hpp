@@ -80,7 +80,7 @@ iSfcKey(unsigned ix, unsigned iy, unsigned iz)
  *       -not specifying an unsigned type results in a compilation error
  */
 template <class KeyType, class T>
-HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> sfc3DunitCube(T x, T y, T z)
+HOST_DEVICE_FUN inline KeyType sfc3DunitCube(T x, T y, T z)
 {
     assert(x >= 0.0 && x <= 1.0);
     assert(y >= 0.0 && y <= 1.0);
@@ -105,7 +105,7 @@ HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> sf
  *       -not specifying an unsigned type results in a compilation error
  */
 template <class KeyType, class T>
-HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> sfc3D(T x, T y, T z, Box<T> box)
+HOST_DEVICE_FUN inline KeyType sfc3D(T x, T y, T z, const Box<T>& box)
 {
     return sfc3DunitCube<KeyType>(normalize(x, box.xmin(), box.xmax()),
                                   normalize(y, box.ymin(), box.ymax()),

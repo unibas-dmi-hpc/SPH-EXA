@@ -147,7 +147,7 @@ HOST_DEVICE_FUN KeyType imorton3D(unsigned ix, unsigned iy, unsigned iz, unsigne
  *       -not specifying an unsigned type results in a compilation error
  */
 template <class KeyType, class T>
-HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> morton3DunitCube(T x, T y, T z)
+HOST_DEVICE_FUN inline KeyType morton3DunitCube(T x, T y, T z)
 {
     assert(x >= 0.0 && x <= 1.0);
     assert(y >= 0.0 && y <= 1.0);
@@ -174,7 +174,7 @@ HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> mo
  * @return          the Morton code
  */
 template <class KeyType, class T>
-HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> morton3D(T x, T y, T z, Box<T> box)
+HOST_DEVICE_FUN inline KeyType morton3D(T x, T y, T z, const Box<T>& box)
 {
     return morton3DunitCube<KeyType>(normalize(x, box.xmin(), box.xmax()),
                                      normalize(y, box.ymin(), box.ymax()),
