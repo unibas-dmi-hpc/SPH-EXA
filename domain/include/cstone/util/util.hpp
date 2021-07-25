@@ -51,23 +51,25 @@
 template<class T, class Phantom>
 struct StrongType
 {
+    using ValueType = T;
+
     //! default ctor
-    constexpr StrongType() : value_{} {}
+    constexpr HOST_DEVICE_FUN StrongType() : value_{} {}
     //! construction from the underlying type T, implicit conversions disabled
-    explicit constexpr StrongType(T v) : value_(std::move(v)) {}
+    explicit constexpr HOST_DEVICE_FUN StrongType(T v) : value_(std::move(v)) {}
 
     //! assignment from T
-    constexpr StrongType& operator=(T v)
+    constexpr HOST_DEVICE_FUN StrongType& operator=(T v)
     {
         value_ = std::move(v);
         return *this;
     }
 
     //! conversion to T
-    constexpr operator T() const { return value_; } // NOLINT
+    constexpr HOST_DEVICE_FUN operator T() const { return value_; } // NOLINT
 
     //! access the underlying value
-    constexpr T value() const { return value_; }
+    constexpr HOST_DEVICE_FUN T value() const { return value_; }
 
 private:
     T value_;

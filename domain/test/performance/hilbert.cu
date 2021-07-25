@@ -34,68 +34,43 @@
 
 #include <thrust/device_vector.h>
 
-#include "cstone/sfc/hilbert.hpp"
+#include "cstone/sfc/sfc.hpp"
+#include "cstone/util/util.hpp"
 
 using namespace cstone;
 
 template<class KeyType>
 __global__ void
-computeHilbertKeysKernel(KeyType* keys,
-                         const unsigned* x,
-                         const unsigned* y,
-                         const unsigned* z,
-                         size_t numKeys)
+computeSfcKeysKernel(KeyType* keys,
+                     const unsigned* x,
+                     const unsigned* y,
+                     const unsigned* z,
+                     size_t numKeys)
 {
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid < numKeys)
     {
-        keys[tid] = iHilbert<KeyType>(x[tid], y[tid], z[tid]);
+        keys[tid] = iSfcKey<KeyType>(x[tid], y[tid], z[tid]);
     }
 }
 
 template<class KeyType>
-inline void computeHilbertKeys(KeyType* keys,
-                               const unsigned* x,
-                               const unsigned* y,
-                               const unsigned* z,
-                               size_t numKeys)
+inline void computeSfcKeys(KeyType* keys,
+                           const unsigned* x,
+                           const unsigned* y,
+                           const unsigned* z,
+                           size_t numKeys)
 {
     constexpr int threadsPerBlock = 256;
-    computeHilbertKeysKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys);
-}
-
-template<class KeyType>
-__global__ void
-computeMortonKeysKernel(KeyType* keys,
-                        const unsigned* x,
-                        const unsigned* y,
-                        const unsigned* z,
-                        size_t numKeys)
-{
-    size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid < numKeys)
-    {
-        keys[tid] = imorton3D<KeyType>(x[tid], y[tid], z[tid]);
-    }
-}
-
-template<class KeyType>
-inline void computeMortonKeys(KeyType* keys,
-                              const unsigned* x,
-                              const unsigned* y,
-                              const unsigned* z,
-                              size_t numKeys)
-{
-    constexpr int threadsPerBlock = 256;
-    computeMortonKeysKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys);
+    computeSfcKeysKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys);
 }
 
 int main()
 {
-    using KeyType = uint64_t;
+    using IntegerType = uint64_t;
     unsigned numKeys = 32000000;
 
-    int maxCoord = (1 << maxTreeLevel<KeyType>{}) - 1;
+    unsigned maxCoord = (1 << maxTreeLevel<IntegerType>{}) - 1;
     std::mt19937 gen;
     std::uniform_int_distribution<unsigned> distribution(0, maxCoord);
     auto getRand = [&distribution, &gen](){ return distribution(gen); };
@@ -112,7 +87,8 @@ int main()
     thrust::device_vector<unsigned> dy = y;
     thrust::device_vector<unsigned> dz = z;
 
-    thrust::device_vector<KeyType> sfcKeys(numKeys);
+    thrust::device_vector<MortonKey<IntegerType>>  mortonKeys(numKeys);
+    thrust::device_vector<HilbertKey<IntegerType>> hilbertKeys(numKeys);
 
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -120,11 +96,11 @@ int main()
 
     cudaEventRecord(start, cudaStreamDefault);
 
-    computeHilbertKeys(thrust::raw_pointer_cast(sfcKeys.data()),
-                       thrust::raw_pointer_cast(dx.data()),
-                       thrust::raw_pointer_cast(dy.data()),
-                       thrust::raw_pointer_cast(dz.data()),
-                       numKeys);
+    computeSfcKeys(thrust::raw_pointer_cast(hilbertKeys.data()),
+                   thrust::raw_pointer_cast(dx.data()),
+                   thrust::raw_pointer_cast(dy.data()),
+                   thrust::raw_pointer_cast(dz.data()),
+                   numKeys);
 
     cudaEventRecord(stop, cudaStreamDefault);
     cudaEventSynchronize(stop);
@@ -135,11 +111,11 @@ int main()
 
     cudaEventRecord(start, cudaStreamDefault);
 
-    computeMortonKeys(thrust::raw_pointer_cast(sfcKeys.data()),
-                      thrust::raw_pointer_cast(dx.data()),
-                      thrust::raw_pointer_cast(dy.data()),
-                      thrust::raw_pointer_cast(dz.data()),
-                      numKeys);
+    computeSfcKeys(thrust::raw_pointer_cast(mortonKeys.data()),
+                   thrust::raw_pointer_cast(dx.data()),
+                   thrust::raw_pointer_cast(dy.data()),
+                   thrust::raw_pointer_cast(dz.data()),
+                   numKeys);
 
     cudaEventRecord(stop, cudaStreamDefault);
     cudaEventSynchronize(stop);
