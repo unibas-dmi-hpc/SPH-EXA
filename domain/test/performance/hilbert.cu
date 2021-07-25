@@ -61,30 +61,20 @@ inline void computeSfcKeys(KeyType* keys, const unsigned* x, const unsigned* y, 
 
 template<class KeyType, class T>
 __global__ void
-computeSfcKeysRealKernel(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys,
-                         T xmin, T ymin, T zmin, T multx, T multy, T multz)
+computeSfcKeysRealKernel(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T> box)
 {
-    constexpr unsigned mc = (1u << maxTreeLevel<typename KeyType::ValueType>{}) - 1;
-
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid < numKeys)
     {
-        unsigned ix = stl::min(unsigned((x[tid] - xmin) * multx), mc);
-        unsigned iy = stl::min(unsigned((y[tid] - ymin) * multy), mc);
-        unsigned iz = stl::min(unsigned((z[tid] - zmin) * multz), mc);
-        keys[tid] = iSfcKey<KeyType>(ix, iy, iz);
-
-        //keys[tid] = sfc3D<KeyType>(x[tid], y[tid], z[tid], box);
+        keys[tid] = sfc3D<KeyType>(x[tid], y[tid], z[tid], box);
     }
 }
 
 template<class KeyType, class T>
 inline void computeSfcRealKeys(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T>& box)
 {
-    constexpr int mc = 1u << maxTreeLevel<typename KeyType::ValueType>{};
     constexpr int threadsPerBlock = 256;
-    computeSfcKeysRealKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>
-        (keys, x, y, z, numKeys, box.xmin(), box.ymin(), box.zmin(), mc * box.ilx(), mc * box.ily(), mc * box.ilz());
+    computeSfcKeysRealKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys, box);
 }
 
 int main()
