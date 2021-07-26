@@ -106,9 +106,10 @@ util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key)
 
    for (int level = 0; level < maxTreeLevel<KeyType>{}; ++level)
    {
-       unsigned xi = (key >> (3 * level + 2)) & 1u;
-       unsigned yi = (key >> (3 * level + 1)) & 1u;
-       unsigned zi = (key >> (3 * level    )) & 1u;
+       unsigned digit = (key >> (3 * level)) & 7u;
+       const unsigned xi = digit >> 2u;
+       const unsigned yi = (digit >> 1u) & 1u;
+       const unsigned zi = digit & 1u;
 
        if (yi ^ zi)
        {
@@ -138,7 +139,7 @@ util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key)
        pz |= ((yi ^ zi) << level);
    }
 
-   return {px, py, pz};
+   return { px, py, pz };
 }
 
 template<class KeyType>
