@@ -106,10 +106,10 @@ util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key)
 
    for (int level = 0; level < maxTreeLevel<KeyType>{}; ++level)
    {
-       unsigned digit = (key >> (3 * level)) & 7u;
-       const unsigned xi = digit >> 2u;
-       const unsigned yi = (digit >> 1u) & 1u;
-       const unsigned zi = digit & 1u;
+       unsigned octant = (key >> (3 * level)) & 7u;
+       const unsigned xi = octant >> 2u;
+       const unsigned yi = (octant >> 1u) & 1u;
+       const unsigned zi = octant & 1u;
 
        if (yi ^ zi)
        {
@@ -151,17 +151,22 @@ IBox makeHilbertIBox(KeyType keyStart, KeyType keyEnd)
 
     auto [ix, iy, iz] = decodeHilbert(keyStart);
 
-    KeyType mortonKey = imorton3D<KeyType>(ix, iy, iz);
+    // the opposite corner
+    unsigned ix2 = ix, iy2 = iy, iz2 = iz;
 
-    unsigned orientation = octalDigit(mortonKey, level + 1);
+    if (level < maxTreeLevel<KeyType>{})
+    {
+        KeyType mortonKey    = imorton3D<KeyType>(ix, iy, iz);
+        unsigned orientation = octalDigit(mortonKey, level + 1);
 
-    int dx = (orientation & 4) ? -1 : 1;
-    int dy = (orientation & 2) ? -1 : 1;
-    int dz = (orientation & 1) ? -1 : 1;
+        int dx = (orientation & 4) ? -1 : 1;
+        int dy = (orientation & 2) ? -1 : 1;
+        int dz = (orientation & 1) ? -1 : 1;
 
-    unsigned ix2 = ix + dx * cubeLengthDelta;
-    unsigned iy2 = iy + dy * cubeLengthDelta;
-    unsigned iz2 = iz + dz * cubeLengthDelta;
+        ix2 = ix + dx * cubeLengthDelta;
+        iy2 = iy + dy * cubeLengthDelta;
+        iz2 = iz + dz * cubeLengthDelta;
+    }
 
     return IBox(stl::min(ix, ix2), stl::max(ix, ix2) + 1,
                 stl::min(iy, iy2), stl::max(iy, iy2) + 1,

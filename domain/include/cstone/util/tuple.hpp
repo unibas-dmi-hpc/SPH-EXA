@@ -49,9 +49,15 @@ template<class... Ts>
 using tuple = thrust::tuple<Ts...>;
 
 template<size_t N, class T>
-constexpr __host__ __device__ auto get(T&& tup)
+constexpr __host__ __device__ auto get(T&& tup) noexcept
 {
     return thrust::get<N>(tup);
+}
+
+template<class... Ts>
+constexpr __host__ __device__ tuple<Ts&...> tie(Ts&... args) noexcept
+{
+    return thrust::tuple<Ts&...>(args...);
 }
 
 } // namespace util
@@ -83,9 +89,15 @@ template<class... Ts>
 using tuple = std::tuple<Ts...>;
 
 template<size_t N, class T>
-constexpr auto get(T&& tup)
+constexpr auto get(T&& tup) noexcept
 {
     return std::get<N>(tup);
+}
+
+template<class... Ts>
+constexpr tuple<Ts&...> tie(Ts&... args) noexcept
+{
+    return std::tuple<Ts&...>(args...);
 }
 
 } // namespace util
