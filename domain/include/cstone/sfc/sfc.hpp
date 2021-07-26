@@ -102,4 +102,20 @@ HOST_DEVICE_FUN inline KeyType sfc3D(T x, T y, T z, const Box<T>& box)
                           cubeLength * box.ilx(), cubeLength * box.ily(), cubeLength * box.ilz());
 }
 
+//! @brief decode a Morton key
+template<class KeyType>
+HOST_DEVICE_FUN inline std::enable_if_t<IsMorton<KeyType>{}, util::tuple<unsigned, unsigned, unsigned>>
+decodeSfc(KeyType key)
+{
+    return decodeMorton<typename KeyType::ValueType>(key);
+}
+
+//! @brief decode a Hilbert key
+template<class KeyType>
+HOST_DEVICE_FUN inline std::enable_if_t<IsHilbert<KeyType>{}, util::tuple<unsigned, unsigned, unsigned>>
+decodeSfc(KeyType key)
+{
+    return decodeHilbert<typename KeyType::ValueType>(key);
+}
+
 } // namespace cstone
