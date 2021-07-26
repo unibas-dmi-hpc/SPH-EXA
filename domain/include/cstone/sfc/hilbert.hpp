@@ -141,4 +141,30 @@ util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key)
    return {px, py, pz};
 }
 
+template<class KeyType>
+HOST_DEVICE_FUN
+IBox makeHilbertIBox(KeyType keyStart, KeyType keyEnd)
+{
+    unsigned level = treeLevel(keyEnd - keyStart);
+    unsigned cubeLengthDelta = (1u << (maxTreeLevel<KeyType>{} - level)) - 1u;
+
+    auto [ix, iy, iz] = decodeHilbert(keyStart);
+
+    KeyType mortonKey = imorton3D<KeyType>(ix, iy, iz);
+
+    unsigned orientation = octalDigit(mortonKey, level + 1);
+
+    int dx = (orientation & 4) ? -1 : 1;
+    int dy = (orientation & 2) ? -1 : 1;
+    int dz = (orientation & 1) ? -1 : 1;
+
+    unsigned ix2 = ix + dx * cubeLengthDelta;
+    unsigned iy2 = iy + dy * cubeLengthDelta;
+    unsigned iz2 = iz + dz * cubeLengthDelta;
+
+    return IBox(stl::min(ix, ix2), stl::max(ix, ix2) + 1,
+                stl::min(iy, iy2), stl::max(iy, iy2) + 1,
+                stl::min(iz, iz2), stl::max(iz, iz2) + 1);
+}
+
 } // namespace cstone
