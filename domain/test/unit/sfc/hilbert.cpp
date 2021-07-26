@@ -36,6 +36,7 @@
 
 #include "gtest/gtest.h"
 #include "cstone/sfc/hilbert.hpp"
+#include "cstone/sfc/sfc.hpp"
 
 using namespace cstone;
 
@@ -148,3 +149,71 @@ TEST(HilbertCode, inversion)
     inversionTest<unsigned>();
     inversionTest<uint64_t>();
 }
+
+template<class KeyType>
+std::tuple<KeyType, KeyType> findMinMaxKey(const IBox& ibox)
+{
+    std::vector<KeyType> cornerKeys;
+
+    int cubeLength = ibox.xmax() - ibox.xmin() - 1;
+    for (int hx = 0; hx < 2; ++hx)
+        for (int hy = 0; hy < 2; ++hy)
+            for (int hz = 0; hz < 2; ++hz)
+            {
+                cornerKeys.push_back(iHilbert<KeyType>(ibox.xmin() + hx * cubeLength,
+                                                       ibox.ymin() + hy * cubeLength,
+                                                       ibox.zmin() + hz * cubeLength));
+            }
+
+    return {*std::min_element(cornerKeys.begin(), cornerKeys.end()),
+            *std::max_element(cornerKeys.begin(), cornerKeys.end()) + 1};
+}
+
+template<class KeyType>
+void makeHilbertIBox()
+{
+    {
+        constexpr unsigned cubeLength = 1u << maxTreeLevel<KeyType>{};
+        KeyType start = pad(KeyType(03), 3);
+        KeyType end   = pad(KeyType(04), 3);
+
+        IBox box = makeHilbertIBox(start, end);
+
+        IBox reference(0, cubeLength / 2, cubeLength / 2, cubeLength, 0, cubeLength / 2);
+
+        EXPECT_EQ(box, reference);
+    }
+
+    int level = 4;
+    {
+        int maxL = 1 << maxTreeLevel<KeyType>{};
+        int L = 1 << (maxTreeLevel<KeyType>{} - level);
+
+        for (int ix = 0; ix < maxL; ix += L)
+            for (int iy = 0; iy < maxL; iy += L)
+                for (int iz = 0; iz < maxL; iz += L)
+                {
+                    {
+                        IBox reference(ix, ix + L, iy, iy + L, iz, iz + L);
+                        auto [start, end] = findMinMaxKey<KeyType>(reference);
+                        IBox testBox = makeHilbertIBox(start, end);
+                        EXPECT_EQ(testBox, reference);
+                    }
+                    {
+                        IBox reference(ix, ix + 1, iy, iy + 1, iz, iz + 1);
+                        auto [start, end] = findMinMaxKey<KeyType>(reference);
+                        EXPECT_EQ(start + 1, end);
+
+                        IBox testBox = makeHilbertIBox(start, end);
+                        EXPECT_EQ(testBox, reference);
+                    }
+                }
+    }
+}
+
+TEST(Hilbertcode, makeIBox)
+{
+    makeHilbertIBox<unsigned>();
+    makeHilbertIBox<uint64_t>();
+}
+
