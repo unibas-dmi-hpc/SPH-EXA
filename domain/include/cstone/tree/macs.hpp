@@ -137,7 +137,7 @@ HOST_DEVICE_FUN void markMacPerBox(IBox target, const Octree<KeyType>& octree, c
         // if the tree node with index idx is fully contained in the focus, we stop traversal
         if (containedIn(nodeStart, nodeEnd, focusStart, focusEnd)) { return false; }
 
-        IBox sourceBox = makeIBox(nodeStart, nodeEnd);
+        IBox sourceBox = mortonIBox(nodeStart, nodeEnd);
 
         bool violatesMac = !minDistanceMac<KeyType>(target, sourceBox, box, invThetaSq);
         if (violatesMac) { markings[idx] = 1; }
@@ -177,7 +177,7 @@ void markMac(const Octree<KeyType>& octree, const Box<T>& box, KeyType focusStar
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < numFocusBoxes; ++i)
     {
-        IBox target = makeIBox(focusCodes[i], focusCodes[i+1]);
+        IBox target = mortonIBox(focusCodes[i], focusCodes[i+1]);
         markMacPerBox(target, octree, box, invThetaSq, focusStart, focusEnd, markings);
     }
 }

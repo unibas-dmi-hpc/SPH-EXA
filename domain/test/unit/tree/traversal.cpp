@@ -47,12 +47,12 @@ void surfaceDetection()
     Octree<KeyType> fullTree;
     fullTree.update(tree.data(), tree.data() + tree.size());
 
-    IBox targetBox = makeIBox(tree[1], tree[2]);
+    IBox targetBox = mortonIBox(tree[1], tree[2]);
 
     std::vector<IBox> treeBoxes(fullTree.numTreeNodes());
     for (TreeNodeIndex i = 0; i < fullTree.numTreeNodes(); ++i)
     {
-        treeBoxes[i] = makeIBox(fullTree.codeStart(i), fullTree.codeEnd(i));
+        treeBoxes[i] = mortonIBox(fullTree.codeStart(i), fullTree.codeEnd(i));
     }
 
     auto isSurface = [targetBox, bbox = Box<double>(0, 1), boxes = treeBoxes.data()](TreeNodeIndex idx) {
@@ -125,8 +125,8 @@ void dualTraversalNeighbors()
         bool bInFocus = containedIn(tree.codeStart(b), tree.codeEnd(b), focusStart, focusEnd);
         if (!aFocusOverlap || bInFocus) { return false; }
 
-        IBox aBox = makeIBox(tree.codeStart(a), tree.codeEnd(a));
-        IBox bBox = makeIBox(tree.codeStart(b), tree.codeEnd(b));
+        IBox aBox = mortonIBox(tree.codeStart(a), tree.codeEnd(a));
+        IBox bBox = mortonIBox(tree.codeStart(b), tree.codeEnd(b));
         return minDistanceSq<KeyType>(aBox, bBox, box) == 0.0;
     };
 
@@ -149,8 +149,8 @@ void dualTraversalNeighbors()
         // b outside focus
         EXPECT_TRUE(octree.codeStart(b) >= focusEnd || octree.codeEnd(a) <= focusStart);
         // a and be touch each other
-        IBox aBox = makeIBox(octree.codeStart(a), octree.codeEnd(a));
-        IBox bBox = makeIBox(octree.codeStart(b), octree.codeEnd(b));
+        IBox aBox = mortonIBox(octree.codeStart(a), octree.codeEnd(a));
+        IBox bBox = mortonIBox(octree.codeStart(b), octree.codeEnd(b));
         EXPECT_FLOAT_EQ((minDistanceSq<KeyType>(aBox, bBox, box)), 0.0);
     }
 }

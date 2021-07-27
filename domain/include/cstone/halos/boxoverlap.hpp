@@ -173,17 +173,6 @@ containedIn(KeyType prefixBitKey, KeyType codeStart, KeyType codeEnd)
     return !(firstPrefix < codeStart || secondPrefix > codeEnd);
 }
 
-template <class KeyType>
-HOST_DEVICE_FUN inline IBox makeIBox(KeyType keyStart, KeyType keyEnd)
-{
-    unsigned level = treeLevel(keyEnd - keyStart);
-    unsigned unitsPerBox = 1u << (maxTreeLevel<KeyType>{} - level);
-
-    auto [x0, y0, z0] = decodeMorton(keyStart);
-
-    return IBox(x0, x0 + unitsPerBox, y0, y0 + unitsPerBox, z0, z0 + unitsPerBox);
-}
-
 template<class KeyType>
 HOST_DEVICE_FUN inline int addDelta(int value, int delta, bool pbc)
 {
@@ -209,7 +198,7 @@ template <class KeyType>
 HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, int dx, int dy, int dz,
                  bool pbcX = false, bool pbcY = false, bool pbcZ = false)
 {
-    IBox nodeBox = makeIBox(codeStart, codeEnd);
+    IBox nodeBox = mortonIBox(codeStart, codeEnd);
 
     return IBox(addDelta<KeyType>(nodeBox.xmin(), -dx, pbcX), addDelta<KeyType>(nodeBox.xmax(), dx, pbcX),
                 addDelta<KeyType>(nodeBox.ymin(), -dy, pbcY), addDelta<KeyType>(nodeBox.ymax(), dy, pbcY),

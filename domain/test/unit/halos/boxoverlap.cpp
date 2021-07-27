@@ -138,33 +138,14 @@ TEST(BoxOverlap, pbcOverlaps)
     pbcOverlaps<uint64_t>();
 }
 
-template<class I>
-void makeIBox()
-{
-    int maxCoord = I(1) << maxTreeLevel<I>{};
-    {
-        I nodeStart = nodeRange<I>(0) - 1;
-        I nodeEnd = nodeRange<I>(0);
-        IBox ibox = makeIBox(nodeStart, nodeEnd);
-        IBox refBox{maxCoord - 1, maxCoord};
-        EXPECT_EQ(ibox, refBox);
-    }
-}
-
-TEST(BoxOverlap, makeIBox)
-{
-    makeIBox<unsigned>();
-    makeIBox<uint64_t>();
-}
-
 //! @brief check halo box ranges in all spatial dimensions
-template<class I>
+template<class KeyType>
 void makeHaloBoxXYZ()
 {
-    int r = I(1) << (maxTreeLevel<I>{} - 3);
+    int r = KeyType(1) << (maxTreeLevel<KeyType>{} - 3);
     // node range: [r,2r]^3
-    I nodeStart = pad(I(0b000000111), 9);
-    I nodeEnd = pad(I(0b000001000), 9);
+    KeyType nodeStart = pad(KeyType(0b000000111), 9);
+    KeyType nodeEnd   = pad(KeyType(0b000001000), 9);
 
     /// internal node check
     {

@@ -268,3 +268,22 @@ TEST(MortonCode, mortonNeighbor32)
     mortonNeighbors<unsigned>();
     mortonNeighbors<uint64_t>();
 }
+
+template<class I>
+void mortonIBox()
+{
+    int maxCoord = I(1) << maxTreeLevel<I>{};
+    {
+        I nodeStart = nodeRange<I>(0) - 1;
+        I nodeEnd = nodeRange<I>(0);
+        IBox ibox = mortonIBox(nodeStart, nodeEnd);
+        IBox refBox{maxCoord - 1, maxCoord};
+        EXPECT_EQ(ibox, refBox);
+    }
+}
+
+TEST(MortonCode, makeIBox)
+{
+    mortonIBox<unsigned>();
+    mortonIBox<uint64_t>();
+}
