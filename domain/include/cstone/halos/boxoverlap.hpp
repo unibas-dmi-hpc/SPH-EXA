@@ -138,10 +138,10 @@ containedIn(KeyType codeStart, KeyType codeEnd, const IBox& box)
         return codeStart == 0 && codeEnd == nodeRange<KeyType>(0);
     }
 
-    KeyType lowCode  = imorton3D<KeyType>(box.xmin(), box.ymin(), box.zmin());
+    KeyType lowCode  = iMorton<KeyType>(box.xmin(), box.ymin(), box.zmin());
     // we have to subtract 1 and use strict <, because we cannot generate
     // Morton codes for x,y,z >= 2^maxTreeLevel<KeyType>{} (2^10 or 2^21)
-    KeyType highCode = imorton3D<KeyType>(box.xmax()-1, box.ymax()-1, box.zmax()-1);
+    KeyType highCode = iMorton<KeyType>(box.xmax() - 1, box.ymax() - 1, box.zmax() - 1);
 
     return (lowCode >= codeStart) && (highCode < codeEnd);
 }

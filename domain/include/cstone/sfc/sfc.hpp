@@ -60,7 +60,7 @@ template<class KeyType>
 HOST_DEVICE_FUN inline std::enable_if_t<IsMorton<KeyType>{}, KeyType>
 iSfcKey(unsigned ix, unsigned iy, unsigned iz)
 {
-    return KeyType{imorton3D<typename KeyType::ValueType>(ix, iy, iz)};
+    return KeyType{iMorton<typename KeyType::ValueType>(ix, iy, iz)};
 }
 
 //! @brief Key encode overload for Hilbert keys

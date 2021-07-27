@@ -126,7 +126,7 @@ void findNeighborBoxesInterior()
         for (int iy = 0; iy < 3; ++iy)
             for (int iz = 0; iz < 3; ++iz)
             {
-                refBoxes.push_back(imorton3D<KeyType>(ix, iy, iz));
+                refBoxes.push_back(iMorton<KeyType>(ix, iy, iz));
             }
     std::sort(begin(refBoxes), end(refBoxes));
 
@@ -179,7 +179,7 @@ void findNeighborBoxesCorner()
         for (int iy = 0; iy < 2; ++iy)
             for (int iz = 0; iz < 2; ++iz)
             {
-                refBoxes.push_back(imorton3D<KeyType>(ix, iy, iz));
+                refBoxes.push_back(iMorton<KeyType>(ix, iy, iz));
             }
     std::sort(begin(refBoxes), end(refBoxes));
 
@@ -222,7 +222,7 @@ void findNeighborBoxesUpperCorner()
         for (int iy = 0; iy < 2; ++iy)
             for (int iz = 6; iz < 8; ++iz)
             {
-                refBoxes.push_back(imorton3D<KeyType>(ix, iy, iz, level));
+                refBoxes.push_back(iMorton<KeyType>(ix, iy, iz, level));
             }
     std::sort(begin(refBoxes), end(refBoxes));
 

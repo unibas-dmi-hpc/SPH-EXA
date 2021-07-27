@@ -74,7 +74,7 @@ int main()
     #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < numKeys; ++i)
     {
-        sfcKeys[i] = imorton3D<KeyType>(x[i], y[i], z[i]);
+        sfcKeys[i] = iMorton<KeyType>(x[i], y[i], z[i]);
     }
     cpu_t1 = std::chrono::high_resolution_clock::now();
     double cpu_time_morton = std::chrono::duration<double>(cpu_t1 - cpu_t0).count();

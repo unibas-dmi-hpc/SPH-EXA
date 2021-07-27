@@ -38,47 +38,13 @@
 
 using namespace cstone;
 
-TEST(MortonCode, encode32)
-{
-
-    double x = 0.00489; // 5 on the scale 0-1023
-    double y = 0.00196; // 2
-    double z = 0.00391; // 4
-
-    // binary representation:
-    // x = 101
-    // y = 010
-    // z = 100
-    // Morton code is 101010100 = 340
-
-    EXPECT_EQ(340, morton3DunitCube<unsigned>(float(x), float(y), float(z)));
-    EXPECT_EQ(340, morton3DunitCube<unsigned>(x, y, z));
-}
-
-TEST(MortonCode, encode64)
-{
-
-    double x = 0.5;
-    double y = 0.5;
-    double z = 0.5;
-
-    // 21 bit inputs:
-    // (2**20, 2**20, 2**20)
-    // Morton code is box number 7 (=111) on the first split level, so
-    // 0b0(111)(000)(000)...(000) = 0x7000000000000000lu
-
-    std::size_t reference = 0x7000000000000000lu;
-    EXPECT_EQ(reference, morton3DunitCube<std::size_t>(float(x), float(y), float(z)));
-    EXPECT_EQ(reference, morton3DunitCube<std::size_t>(x, y, z));
-}
-
 template<class KeyType>
 void imorton3D()
 {
     constexpr unsigned treeLevel = 3;
     std::array<unsigned, 3> box{5, 3, 6};
 
-    KeyType testCode = imorton3D<KeyType>(box[0], box[1], box[2], treeLevel);
+    KeyType testCode = iMorton<KeyType>(box[0], box[1], box[2], treeLevel);
     EXPECT_EQ(testCode, pad(KeyType(0b101011110), 9));
 }
 
