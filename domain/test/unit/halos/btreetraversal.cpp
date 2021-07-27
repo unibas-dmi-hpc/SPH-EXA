@@ -91,10 +91,10 @@ void pbcCollision()
         I nLevel2Codes = 1ul << (3 * (maxTreeLevel<I>{} - level2)); // 8^(maxLevel - 2)
         // reference from level-2 ix,iy,iz coordinates in [0:4], illustrates that all 8 corners collide
         std::vector<int> refCollided{
-            int(imorton3D<I>(0, 0, 0, level2) / nLevel2Codes), int(imorton3D<I>(0, 0, 3, level2) / nLevel2Codes),
-            int(imorton3D<I>(0, 3, 0, level2) / nLevel2Codes), int(imorton3D<I>(0, 3, 3, level2) / nLevel2Codes),
-            int(imorton3D<I>(3, 0, 0, level2) / nLevel2Codes), int(imorton3D<I>(3, 0, 3, level2) / nLevel2Codes),
-            int(imorton3D<I>(3, 3, 0, level2) / nLevel2Codes), int(imorton3D<I>(3, 3, 3, level2) / nLevel2Codes),
+            int(iMorton<I>(0, 0, 0, level2) / nLevel2Codes), int(iMorton<I>(0, 0, 3, level2) / nLevel2Codes),
+            int(iMorton<I>(0, 3, 0, level2) / nLevel2Codes), int(iMorton<I>(0, 3, 3, level2) / nLevel2Codes),
+            int(iMorton<I>(3, 0, 0, level2) / nLevel2Codes), int(iMorton<I>(3, 0, 3, level2) / nLevel2Codes),
+            int(iMorton<I>(3, 3, 0, level2) / nLevel2Codes), int(iMorton<I>(3, 3, 3, level2) / nLevel2Codes),
         };
         // node indices of the 8 corners in a level-2 tree with 4x4x4=64 nodes
         // explicitly specified
@@ -159,7 +159,7 @@ void pbcCollisionWithExclusions()
     {
         CollisionList collisions;
         findCollisions(internalTree.data(), tree.data(), collisions, haloBox,
-                       {imorton3D<I>(0, 0, 3, level2), imorton3D<I>(0, 0, 3, level2) + nodeRange<I>(level2)});
+                       {iMorton<I>(0, 0, 3, level2), iMorton<I>(0, 0, 3, level2) + nodeRange<I>(level2)});
 
         std::vector<int> collided(collisions.begin(), collisions.end());
         std::sort(begin(collided), end(collided));
@@ -172,7 +172,7 @@ void pbcCollisionWithExclusions()
     {
         CollisionList collisions;
         findCollisions(internalTree.data(), tree.data(), collisions, haloBox,
-                       {imorton3D<I>(3, 3, 3, level2), imorton3D<I>(3, 3, 3, level2) + nodeRange<I>(level2)});
+                       {iMorton<I>(3, 3, 3, level2), iMorton<I>(3, 3, 3, level2) + nodeRange<I>(level2)});
 
         std::vector<int> collided(collisions.begin(), collisions.end());
         std::sort(begin(collided), end(collided));

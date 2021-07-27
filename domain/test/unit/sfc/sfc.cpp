@@ -33,26 +33,3 @@
 #include "cstone/sfc/sfc.hpp"
 
 using namespace cstone;
-
-TEST(SfcCode, mortonCodesSequence)
-{
-    constexpr double boxMin = -1;
-    constexpr double boxMax = 1;
-    Box<double> box(boxMin, boxMax);
-
-    std::vector<double> x{-0.5, 0.5, -0.5, 0.5};
-    std::vector<double> y{-0.5, 0.5, 0.5, -0.5};
-    std::vector<double> z{-0.5, 0.5, 0.5, 0.5};
-
-    std::vector<unsigned> reference;
-    for (std::size_t i = 0; i < x.size(); ++i)
-    {
-        reference.push_back(morton3DunitCube<unsigned>(normalize(x[i], boxMin, boxMax), normalize(y[i], boxMin, boxMax),
-                                                       normalize(z[i], boxMin, boxMax)));
-    }
-
-    std::vector<unsigned> probe(x.size());
-    computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(probe), box);
-
-    EXPECT_EQ(probe, reference);
-}

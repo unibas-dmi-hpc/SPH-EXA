@@ -54,7 +54,7 @@
  * @param[in]  stream          execute on cuda stream @p stream
  *
  * Preconditions:
- *      - codes[i] = morton3D(x[i], y[i], z[i], box);
+ *      - codes[i] = sfc3D(x[i], y[i], z[i], box);
  *      - codes[i] <= codes[j], i < j
  *
  * Postconditions:
@@ -62,15 +62,15 @@
  *        the neighbors of id are stored in
  *        neighbors[(id-firstId)*ngmax, (id-firstId)*ngmax + neighborsCount[id-firstId]]
  */
-template<class T, class I>
+template<class T, class KeyType>
 void findNeighborsCuda(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                       cstone::Box<T> box, const I* codes, int* neighbors, int* neighborsCount, int ngmax,
+                       cstone::Box<T> box, const KeyType* codes, int* neighbors, int* neighborsCount, int ngmax,
                        cudaStream_t stream = cudaStreamDefault);
 
 
-#define FIND_NEIGHBORS_CUDA(T, I) \
+#define FIND_NEIGHBORS_CUDA(T, KeyType) \
 void findNeighborsCuda(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n, \
-                       cstone::Box<T> box, const I* codes, int* neighbors, int* neighborsCount, int ngmax, \
+                       cstone::Box<T> box, const KeyType* codes, int* neighbors, int* neighborsCount, int ngmax, \
                        cudaStream_t stream);
 
 extern template FIND_NEIGHBORS_CUDA(float, uint32_t )

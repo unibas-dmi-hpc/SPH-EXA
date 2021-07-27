@@ -44,14 +44,14 @@ inline bool overlapNode(const Octree<KeyType>& octree, TreeNodeIndex nodeIndex, 
 }
 
 //constexpr int maxCoord = 1u<<maxTreeLevel<KeyType>{};
-//KeyType iboxStart = imorton3D<KeyType>(collisionBox.xmin(), collisionBox.ymin(), collisionBox.zmin());
+//KeyType iboxStart = iMorton<KeyType>(collisionBox.xmin(), collisionBox.ymin(), collisionBox.zmin());
 //int xmax = collisionBox.xmax();
 //int ymax = collisionBox.ymax();
 //int zmax = collisionBox.zmax();
 //if (xmax == maxCoord) xmax--;
 //if (ymax == maxCoord) ymax--;
 //if (zmax == maxCoord) zmax--;
-//KeyType iboxEnd   = imorton3D<KeyType>(xmax, ymax, zmax);
+//KeyType iboxEnd   = iMorton<KeyType>(xmax, ymax, zmax);
 
 //pair<KeyType> commonBox = smallestCommonBox(iboxStart, iboxEnd);
 //int iboxLevel = treeLevel<KeyType>(commonBox[1] - commonBox[0]);
