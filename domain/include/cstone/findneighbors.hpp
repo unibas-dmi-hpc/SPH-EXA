@@ -111,7 +111,7 @@ HOST_DEVICE_FUN inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, KeyType
 template<class T, class KeyType>
 HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, KeyType* nCodes)
 {
-    constexpr int maxCoord = 1u<<maxTreeLevel<KeyType>{};
+    constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
     // smallest octree cell edge length in unit cube
     constexpr T uL = T(1.) / maxCoord;
 
@@ -119,32 +119,36 @@ HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Bo
 
     // level is the smallest tree subdivision level at which the node edge length is still bigger than radius
     unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
-    KeyType xyzCode = morton3D<KeyType>(xi, yi, zi, bbox);
+    KeyType xyzCode = sfc3D<MortonKey<KeyType>>(xi, yi, zi, bbox);
     KeyType boxCode = enclosingBoxCode(xyzCode, level);
 
-    auto [ixBox, iyBox, izBox] = decodeMorton(boxCode);
-    T xBox = bbox.xmin() + ixBox * uL * bbox.lx();
-    T yBox = bbox.ymin() + iyBox * uL * bbox.ly();
-    T zBox = bbox.zmin() + izBox * uL * bbox.lz();
+    IBox ibox = mortonIBox(boxCode, boxCode + nodeRange<KeyType>(level));
+    T unitLengthX = uL * bbox.lx();
+    T unitLengthY = uL * bbox.ly();
+    T unitLengthZ = uL * bbox.lz();
+    T xBox    = bbox.xmin() + ibox.xmin() * unitLengthX;
+    T yBox    = bbox.ymin() + ibox.ymin() * unitLengthY;
+    T zBox    = bbox.zmin() + ibox.zmin() * unitLengthZ;
+    T xBoxMax = bbox.xmin() + ibox.xmax() * unitLengthX;
+    T yBoxMax = bbox.ymin() + ibox.ymax() * unitLengthY;
+    T zBoxMax = bbox.zmin() + ibox.zmax() * unitLengthZ;
 
     int unitsPerBox = 1u<<(maxTreeLevel<KeyType>{} - level);
-    T uLx = uL * bbox.lx() * unitsPerBox; // box length in x
-    T uLy = uL * bbox.ly() * unitsPerBox; // box length in y
-    T uLz = uL * bbox.lz() * unitsPerBox; // box length in z
 
-    T dx0 = (xi - xBox) * (xi - xBox);
-    T dx1 = (xi - xBox - uLx) * (xi - xBox - uLx);
-    T dy0 = (yi - yBox) * (yi - yBox);
-    T dy1 = (yi - yBox - uLy) * (yi - yBox - uLy);
-    T dz0 = (zi - zBox) * (zi - zBox);
-    T dz1 = (zi - (zBox + uLz)) * (zi - (zBox + uLz));
+    auto square = [](T x) { return x * x; };
+    T dx0 = square(xi - xBox);
+    T dx1 = square(xi - xBoxMax);
+    T dy0 = square(yi - yBox);
+    T dy1 = square(yi - yBoxMax);
+    T dz0 = square(zi - zBox);
+    T dz1 = square(zi - zBoxMax);
 
-    bool hxd  = ixBox == 0;
-    bool hxu  = ixBox >= maxCoord-unitsPerBox;
-    bool hyd  = iyBox == 0;
-    bool hyu  = iyBox >= maxCoord-unitsPerBox;
-    bool hzd  = izBox == 0;
-    bool hzu  = izBox >= maxCoord-unitsPerBox;
+    bool hxd = ibox.xmin() == 0;
+    bool hxu = ibox.xmin() >= maxCoord - unitsPerBox;
+    bool hyd = ibox.ymin() == 0;
+    bool hyu = ibox.ymin() >= maxCoord - unitsPerBox;
+    bool hzd = ibox.zmin() == 0;
+    bool hzu = ibox.zmin() >= maxCoord - unitsPerBox;
     bool stepXdown = !hxd || (bbox.pbcX() && level > 1);
     bool stepXup   = !hxu || (bbox.pbcX() && level > 1);
     bool stepYdown = !hyd || (bbox.pbcY() && level > 1);
@@ -251,8 +255,8 @@ template<class T, class KeyType>
 HOST_DEVICE_FUN pair<int> findNeighborBoxesSimple(T xi, T yi, T zi, T radius, const Box<T>& bbox, KeyType* nCodes)
 {
     // level is the smallest tree subdivision level at which the node edge length is still bigger than radius
-    unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
-    KeyType xyzCode = morton3D<KeyType>(xi, yi, zi, bbox);
+    unsigned level  = radiusToTreeLevel(radius, bbox.minExtent());
+    KeyType xyzCode = sfc3D<MortonKey<KeyType>>(xi, yi, zi, bbox);
     KeyType boxCode = enclosingBoxCode(xyzCode, level);
 
     int ibox = 27;
