@@ -49,7 +49,7 @@ namespace detail
 
 //! @brief Expands a 10-bit integer into 30 bits by inserting 2 zeros after each bit.
 HOST_DEVICE_FUN
-inline unsigned expandBits(unsigned v)
+constexpr unsigned expandBits(unsigned v)
 {
     v &= 0x000003ffu; // discard bit higher 10
     v = (v * 0x00010001u) & 0xFF0000FFu;
@@ -63,7 +63,7 @@ inline unsigned expandBits(unsigned v)
  *         this inverts expandBits
  */
 HOST_DEVICE_FUN
-inline unsigned compactBits(unsigned v)
+constexpr unsigned compactBits(unsigned v)
 {
     v &= 0x09249249u;
     v = (v ^ (v >>  2u)) & 0x030c30c3u;
@@ -75,7 +75,7 @@ inline unsigned compactBits(unsigned v)
 
 //! @brief Expands a 21-bit integer into 63 bits by inserting 2 zeros after each bit.
 HOST_DEVICE_FUN
-inline uint64_t expandBits(uint64_t v)
+constexpr uint64_t expandBits(uint64_t v)
 {
     uint64_t x = v & 0x1fffffu; // discard bits higher 21
     x = (x | x << 32u) & 0x001f00000000fffflu;
@@ -90,7 +90,7 @@ inline uint64_t expandBits(uint64_t v)
  *         this inverts expandBits
  */
 HOST_DEVICE_FUN
-inline uint64_t compactBits(uint64_t v)
+constexpr uint64_t compactBits(uint64_t v)
 {
     v &= 0x1249249249249249lu;
     v = (v ^ (v >>  2u)) & 0x10c30c30c30c30c3lu;
@@ -109,7 +109,8 @@ inline uint64_t compactBits(uint64_t v)
  * @param[in] ix,iy,iz input coordinates in [0:2^maxTreeLevel<KeyType>{}]
  */
 template <class KeyType>
-HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> imorton3D(unsigned ix, unsigned iy, unsigned iz)
+constexpr HOST_DEVICE_FUN std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType>
+imorton3D(unsigned ix, unsigned iy, unsigned iz) noexcept
 {
     assert(ix < (1u << maxTreeLevel<KeyType>{}));
     assert(iy < (1u << maxTreeLevel<KeyType>{}));
@@ -131,7 +132,7 @@ HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> im
  * @return           the morton code
  */
 template<class KeyType>
-HOST_DEVICE_FUN KeyType imorton3D(unsigned ix, unsigned iy, unsigned iz, unsigned treeLevel)
+constexpr HOST_DEVICE_FUN KeyType imorton3D(unsigned ix, unsigned iy, unsigned iz, unsigned treeLevel)
 {
     assert(treeLevel <= maxTreeLevel<KeyType>{});
     unsigned shifts = maxTreeLevel<KeyType>{} - treeLevel;
@@ -147,7 +148,7 @@ HOST_DEVICE_FUN KeyType imorton3D(unsigned ix, unsigned iy, unsigned iz, unsigne
  *       -not specifying an unsigned type results in a compilation error
  */
 template <class KeyType, class T>
-HOST_DEVICE_FUN inline KeyType morton3DunitCube(T x, T y, T z)
+constexpr HOST_DEVICE_FUN KeyType morton3DunitCube(T x, T y, T z)
 {
     assert(x >= 0.0 && x <= 1.0);
     assert(y >= 0.0 && y <= 1.0);
@@ -174,7 +175,7 @@ HOST_DEVICE_FUN inline KeyType morton3DunitCube(T x, T y, T z)
  * @return          the Morton code
  */
 template <class KeyType, class T>
-HOST_DEVICE_FUN inline KeyType morton3D(T x, T y, T z, const Box<T>& box)
+constexpr HOST_DEVICE_FUN KeyType morton3D(T x, T y, T z, const Box<T>& box)
 {
     return morton3DunitCube<KeyType>(normalize(x, box.xmin(), box.xmax()),
                                      normalize(y, box.ymin(), box.ymax()),
@@ -183,31 +184,52 @@ HOST_DEVICE_FUN inline KeyType morton3D(T x, T y, T z, const Box<T>& box)
 
 //! @brief extract X component from a morton code
 template<class KeyType>
-HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, unsigned> idecodeMortonX(KeyType code)
+constexpr HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, unsigned> idecodeMortonX(KeyType code)
 {
     return detail::compactBits(code >> 2);
 }
 
 //! @brief extract Y component from a morton code
 template<class KeyType>
-HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, unsigned> idecodeMortonY(KeyType code)
+constexpr HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, unsigned> idecodeMortonY(KeyType code)
 {
     return detail::compactBits(code >> 1);
 }
 
 //! @brief extract Z component from a morton code
 template<class KeyType>
-HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, unsigned> idecodeMortonZ(KeyType code)
+constexpr HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, unsigned> idecodeMortonZ(KeyType code)
 {
     return detail::compactBits(code);
 }
 
 //! @brief decode X,Y,Z components of a Morton key into a tuple
 template<class KeyType>
-HOST_DEVICE_FUN inline util::tuple<unsigned, unsigned, unsigned> decodeMorton(KeyType code)
+HOST_DEVICE_FUN inline util::tuple<unsigned, unsigned, unsigned> decodeMorton(KeyType code) noexcept
 {
     return { idecodeMortonX(code), idecodeMortonY(code), idecodeMortonZ(code) };
 }
+
+/*! @brief compute the 3D integer coordinate box that contains the key range
+ *
+ * @tparam KeyType   32- or 64-bit unsigned integer
+ * @param keyStart   lower Morton key
+ * @param keyEnd     upper Morton key
+ * @return           the integer box that contains the given key range
+ */
+template<class KeyType>
+HOST_DEVICE_FUN IBox mortonIBox(KeyType keyStart, KeyType keyEnd) noexcept
+{
+    assert(isPowerOf8(keyEnd - keyStart));
+
+    unsigned level = treeLevel(keyEnd - keyStart);
+    unsigned cubeLength = (1u << (maxTreeLevel<KeyType>{} - level));
+
+    auto [ix, iy, iz] = decodeMorton(keyStart);
+
+    return IBox(ix, ix + cubeLength, iy, iy + cubeLength, iz, iz + cubeLength);
+}
+
 
 /*! @brief returns (min,max) x-coordinate pair for a lower and upper morton code
  *
@@ -332,35 +354,6 @@ mortonNeighbor(KeyType code, unsigned treeLevel, int dx, int dy, int dz,
     }
 
     return imorton3D<KeyType>(x, y, z);
-}
-
-
-/*! @brief compute the Morton codes for the input coordinate arrays
- *
- * @tparam     T          float or double
- * @param[in]  xBegin     input iterators for coordinate arrays
- * @param[in]  xEnd
- * @param[in]  yBegin
- * @param[in]  zBegin
- * @param[out] codeBegin  output for morton codes
- * @param[in]  box        coordinate bounding box
- */
-template<class InputIterator, class OutputIterator, class T>
-void computeMortonCodes(InputIterator  xBegin,
-                        InputIterator  xEnd,
-                        InputIterator  yBegin,
-                        InputIterator  zBegin,
-                        OutputIterator codesBegin,
-                        const Box<T>& box)
-{
-    assert(xEnd >= xBegin);
-    using CodeType = std::decay_t<decltype(*codesBegin)>;
-
-    #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < std::size_t(xEnd-xBegin); ++i)
-    {
-        codesBegin[i] = morton3D<CodeType>(xBegin[i], yBegin[i], zBegin[i], box);
-    }
 }
 
 } // namespace cstone

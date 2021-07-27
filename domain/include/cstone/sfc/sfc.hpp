@@ -118,4 +118,32 @@ decodeSfc(KeyType key)
     return decodeHilbert<typename KeyType::ValueType>(key);
 }
 
+/*! @brief compute the Morton codes for the input coordinate arrays
+ *
+ * @tparam     T          float or double
+ * @param[in]  xBegin     input iterators for coordinate arrays
+ * @param[in]  xEnd
+ * @param[in]  yBegin
+ * @param[in]  zBegin
+ * @param[out] codeBegin  output for morton codes
+ * @param[in]  box        coordinate bounding box
+ */
+template<class InputIterator, class OutputIterator, class T>
+void computeMortonCodes(InputIterator  xBegin,
+                        InputIterator  xEnd,
+                        InputIterator  yBegin,
+                        InputIterator  zBegin,
+                        OutputIterator codesBegin,
+                        const Box<T>& box)
+{
+    assert(xEnd >= xBegin);
+    using KeyType = std::decay_t<decltype(*codesBegin)>;
+
+    #pragma omp parallel for schedule(static)
+    for (std::size_t i = 0; i < std::size_t(xEnd-xBegin); ++i)
+    {
+        codesBegin[i] = sfc3D<MortonKey<KeyType>>(xBegin[i], yBegin[i], zBegin[i], box);
+    }
+}
+
 } // namespace cstone
