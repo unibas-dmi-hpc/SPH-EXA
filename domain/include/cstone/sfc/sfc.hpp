@@ -39,14 +39,6 @@
 namespace cstone
 {
 
-//! @brief Strong type for Morton keys
-template<class IntegerType>
-using MortonKey = StrongType<IntegerType, struct MortonKeyTag>;
-
-//! @brief Strong type for Hilbert keys
-template<class IntegerType>
-using HilbertKey = StrongType<IntegerType, struct HilbertKeyTag>;
-
 //! @brief Meta function to detect Morton key types
 template<class KeyType>
 struct IsMorton : std::bool_constant<std::is_same_v<KeyType, MortonKey<typename KeyType::ValueType>>> {};
@@ -116,6 +108,20 @@ HOST_DEVICE_FUN inline std::enable_if_t<IsHilbert<KeyType>{}, util::tuple<unsign
 decodeSfc(KeyType key)
 {
     return decodeHilbert<typename KeyType::ValueType>(key);
+}
+
+//! @brief create and integer box from Morton keys
+template<class KeyType>
+HOST_DEVICE_FUN inline std::enable_if_t<IsMorton<KeyType>{}, IBox> sfcIBox(KeyType keyStart, KeyType keyEnd) noexcept
+{
+    return mortonIBox<typename KeyType::ValueType>(keyStart, keyEnd);
+}
+
+//! @brief create and integer box from Hilbert keys
+template<class KeyType>
+HOST_DEVICE_FUN inline std::enable_if_t<IsHilbert<KeyType>{}, IBox> sfcIBox(KeyType keyStart, KeyType keyEnd) noexcept
+{
+    return hilbertIBox<typename KeyType::ValueType>(keyStart, keyEnd);
 }
 
 /*! @brief compute the Morton codes for the input coordinate arrays

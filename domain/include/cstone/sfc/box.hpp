@@ -37,6 +37,8 @@
 #include "cstone/cuda/annotation.hpp"
 #include "cstone/primitives/stl.hpp"
 
+#include "common.hpp"
+
 namespace cstone
 {
 
@@ -173,38 +175,39 @@ private:
 
 /*! @brief stores octree index integer bounds
  */
-class IBox
+template<class T>
+class SimpleBox
 {
 public:
     HOST_DEVICE_FUN constexpr
-    IBox() : limits{0,0,0,0,0,0} {}
+    SimpleBox() : limits{0,0,0,0,0,0} {}
 
     HOST_DEVICE_FUN constexpr
-    IBox(int xyzMin, int xyzMax) :
+    SimpleBox(T xyzMin, T xyzMax) :
         limits{xyzMin, xyzMax, xyzMin, xyzMax, xyzMin, xyzMax}
     {}
 
     HOST_DEVICE_FUN constexpr
-    IBox(int xmin, int xmax, int ymin, int ymax, int zmin, int zmax)
+    SimpleBox(T xmin, T xmax, T ymin, T ymax, T zmin, T zmax)
         : limits{xmin, xmax, ymin, ymax, zmin, zmax}
     {}
 
-    HOST_DEVICE_FUN constexpr int xmin() const { return limits[0]; } // NOLINT
-    HOST_DEVICE_FUN constexpr int xmax() const { return limits[1]; } // NOLINT
-    HOST_DEVICE_FUN constexpr int ymin() const { return limits[2]; } // NOLINT
-    HOST_DEVICE_FUN constexpr int ymax() const { return limits[3]; } // NOLINT
-    HOST_DEVICE_FUN constexpr int zmin() const { return limits[4]; } // NOLINT
-    HOST_DEVICE_FUN constexpr int zmax() const { return limits[5]; } // NOLINT
+    HOST_DEVICE_FUN constexpr T xmin() const { return limits[0]; } // NOLINT
+    HOST_DEVICE_FUN constexpr T xmax() const { return limits[1]; } // NOLINT
+    HOST_DEVICE_FUN constexpr T ymin() const { return limits[2]; } // NOLINT
+    HOST_DEVICE_FUN constexpr T ymax() const { return limits[3]; } // NOLINT
+    HOST_DEVICE_FUN constexpr T zmin() const { return limits[4]; } // NOLINT
+    HOST_DEVICE_FUN constexpr T zmax() const { return limits[5]; } // NOLINT
 
     //! @brief return the shortest coordinate range in any dimension
-    HOST_DEVICE_FUN constexpr int minExtent() const // NOLINT
+    HOST_DEVICE_FUN constexpr T minExtent() const // NOLINT
     {
         return stl::min(stl::min(xmax() - xmin(), ymax() - ymin()), zmax() - zmin());
     }
 
 private:
     HOST_DEVICE_FUN
-    friend constexpr bool operator==(const IBox& a, const IBox& b)
+    friend constexpr bool operator==(const SimpleBox& a, const SimpleBox& b)
     {
         return    a.limits[0] == b.limits[0]
                   && a.limits[1] == b.limits[1]
@@ -214,7 +217,40 @@ private:
                   && a.limits[5] == b.limits[5];
     }
 
-    int limits[6];
+    T limits[6];
 };
+
+using IBox = SimpleBox<int>;
+
+template<class T>
+using FBox = SimpleBox<T>;
+
+/*! @brief create a floating point box from and integer box
+ *
+ * @tparam T         float or double
+ * @tparam KeyType   32- or 64-bit unsigned integer
+ * @param ibox       integer box
+ * @param box        global coordinate bounding box
+ * @return           the floating point box
+ */
+template<class KeyType, class T>
+constexpr HOST_DEVICE_FUN FBox<T> createFpBox(const IBox& ibox, const Box<T>& box)
+{
+    constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
+    // smallest octree cell edge length in unit cube
+    constexpr T uL = T(1.) / maxCoord;
+
+    T unitLengthX = uL * box.lx();
+    T unitLengthY = uL * box.ly();
+    T unitLengthZ = uL * box.lz();
+    T xMin = box.xmin() + ibox.xmin() * unitLengthX;
+    T yMin = box.ymin() + ibox.ymin() * unitLengthY;
+    T zMin = box.zmin() + ibox.zmin() * unitLengthZ;
+    T xMax = box.xmin() + ibox.xmax() * unitLengthX;
+    T yMax = box.ymin() + ibox.ymax() * unitLengthY;
+    T zMax = box.zmin() + ibox.zmax() * unitLengthZ;
+
+    return {xMin, xMax, yMin, yMax, zMin, zMax};
+}
 
 } // namespace cstone
