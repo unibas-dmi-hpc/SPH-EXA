@@ -272,7 +272,7 @@ pair<T> decodeMortonZRange(KeyType prefix, KeyType upperCode, const Box<T>& box)
 template<class KeyType>
 HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType>
 mortonNeighbor(KeyType code, unsigned treeLevel, int dx, int dy, int dz,
-               bool pbcX=true, bool pbcY=true, bool pbcZ=true)
+               bool pbcX = true, bool pbcY = true, bool pbcZ = true)
 {
     // maximum coordinate value per dimension 2^nBits-1
     constexpr unsigned pbcRange = 1u << maxTreeLevel<KeyType>{};
@@ -309,6 +309,20 @@ mortonNeighbor(KeyType code, unsigned treeLevel, int dx, int dy, int dz,
     else {
         z = (newZ < 0 || newZ > maxCoord) ? z : newZ;
     }
+
+    return iMorton<KeyType>(x, y, z);
+}
+
+template<class KeyType>
+HOST_DEVICE_FUN inline KeyType mortonNeighbor(const IBox& ibox, int dx, int dy, int dz)
+{
+    constexpr unsigned pbcRange = 1u << maxTreeLevel<KeyType>{};
+
+    unsigned shiftValue = ibox.xmax() - ibox.xmin();
+
+    int x = pbcAdjust<pbcRange>(ibox.xmin() + dx * shiftValue);
+    int y = pbcAdjust<pbcRange>(ibox.ymin() + dy * shiftValue);
+    int z = pbcAdjust<pbcRange>(ibox.zmin() + dz * shiftValue);
 
     return iMorton<KeyType>(x, y, z);
 }

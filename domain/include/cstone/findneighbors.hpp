@@ -160,66 +160,66 @@ HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Bo
 
     // X,Y,Z face touch
     if (dx0 < radiusSq && stepXdown)
-        storeCode(hxd, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level, -1, 0, 0), nCodes);
+        storeCode(hxd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1, 0, 0), nCodes);
     if (dx1 < radiusSq && stepXup)
-        storeCode(hxu, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level,  1, 0, 0), nCodes);
+        storeCode(hxu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1, 0, 0), nCodes);
     if (dy0 < radiusSq && stepYdown)
-        storeCode(hyd, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level, 0, -1, 0), nCodes);
+        storeCode(hyd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, 0, -1, 0), nCodes);
     if (dy1 < radiusSq && stepYup)
-        storeCode(hyu, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level, 0,  1, 0), nCodes);
+        storeCode(hyu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, 0,  1, 0), nCodes);
     if (dz0 < radiusSq && stepZdown)
-        storeCode(hzd, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level, 0, 0, -1), nCodes);
+        storeCode(hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, 0, 0, -1), nCodes);
     if (dz1 < radiusSq && stepZup)
-        storeCode(hzu, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level, 0, 0, 1), nCodes);
+        storeCode(hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, 0, 0, 1), nCodes);
 
     // XY edge touch
     if (dx0 + dy0 < radiusSq && stepXdown && stepYdown)
-        storeCode(hxd || hyd, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level, -1, -1, 0), nCodes);
+        storeCode(hxd || hyd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1, -1, 0), nCodes);
     if (dx0 + dy1 < radiusSq && stepXdown && stepYup)
-        storeCode(hxd || hyu, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level, -1,  1, 0), nCodes);
+        storeCode(hxd || hyu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1,  1, 0), nCodes);
     if (dx1 + dy0 < radiusSq && stepXup && stepYdown)
-        storeCode(hxu || hyd, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level,  1, -1, 0), nCodes);
+        storeCode(hxu || hyd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1, -1, 0), nCodes);
     if (dx1 + dy1 < radiusSq && stepXup && stepYup)
-        storeCode(hxu || hyu, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level,  1,  1, 0), nCodes);
+        storeCode(hxu || hyu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1,  1, 0), nCodes);
 
     // XZ edge touch
     if (dx0 + dz0 < radiusSq && stepXdown && stepZdown)
-        storeCode(hxd || hzd, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level, -1, 0, -1), nCodes);
+        storeCode(hxd || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1, 0, -1), nCodes);
     if (dx0 + dz1 < radiusSq && stepXdown && stepZup)
-        storeCode(hxd || hzu, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level, -1,  0, 1), nCodes);
+        storeCode(hxd || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1,  0, 1), nCodes);
     if (dx1 + dz0 < radiusSq && stepXup && stepZdown)
-        storeCode(hxu || hzd, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level,  1, 0, -1), nCodes);
+        storeCode(hxu || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1, 0, -1), nCodes);
     if (dx1 + dz1 < radiusSq && stepXup && stepZup)
-        storeCode(hxu || hzu, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level,  1,  0, 1), nCodes);
+        storeCode(hxu || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1,  0, 1), nCodes);
 
     // YZ edge touch
     if (dy0 + dz0 < radiusSq && stepYdown && stepZdown)
-        storeCode(hyd || hzd, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level, 0, -1, -1), nCodes);
+        storeCode(hyd || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, 0, -1, -1), nCodes);
     if (dy0 + dz1 < radiusSq && stepYdown && stepZup)
-        storeCode(hyd || hzu, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level,  0, -1, 1), nCodes);
+        storeCode(hyd || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  0, -1, 1), nCodes);
     if (dy1 + dz0 < radiusSq && stepYup && stepZdown)
-        storeCode(hyu || hzd, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level,  0, 1, -1), nCodes);
+        storeCode(hyu || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  0, 1, -1), nCodes);
     if (dy1 + dz1 < radiusSq && stepYup && stepZup)
-        storeCode(hyu || hzu, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level,  0,  1, 1), nCodes);
+        storeCode(hyu || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  0,  1, 1), nCodes);
 
     // corner touches
     if (dx0 + dy0 + dz0 < radiusSq && stepXdown && stepYdown && stepZdown)
-        storeCode(hxd || hyd || hzd, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level, -1, -1, -1), nCodes);
+        storeCode(hxd || hyd || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1, -1, -1), nCodes);
     if (dx0 + dy0 + dz1 < radiusSq && stepXdown && stepYdown && stepZup)
-        storeCode(hxd || hyd || hzu, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level, -1, -1,  1), nCodes);
+        storeCode(hxd || hyd || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1, -1,  1), nCodes);
     if (dx0 + dy1 + dz0 < radiusSq && stepXdown && stepYup && stepZdown)
-        storeCode(hxd || hyu || hzd, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level, -1,  1, -1), nCodes);
+        storeCode(hxd || hyu || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1,  1, -1), nCodes);
     if (dx0 + dy1 + dz1 < radiusSq && stepXdown && stepYup && stepZup)
-        storeCode(hxd || hyu || hzu, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level, -1,  1,  1), nCodes);
+        storeCode(hxd || hyu || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1,  1,  1), nCodes);
 
     if (dx1 + dy0 + dz0 < radiusSq && stepXup && stepYdown && stepZdown)
-        storeCode(hxu || hyd || hzd, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level,  1, -1, -1), nCodes);
+        storeCode(hxu || hyd || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1, -1, -1), nCodes);
     if (dx1 + dy0 + dz1 < radiusSq && stepXup && stepYdown && stepZup)
-        storeCode(hxu || hyd || hzu, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level,  1, -1,  1), nCodes);
+        storeCode(hxu || hyd || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1, -1,  1), nCodes);
     if (dx1 + dy1 + dz0 < radiusSq && stepXup && stepYup && stepZdown)
-        storeCode(hxu || hyu || hzd, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level,  1,  1, -1), nCodes);
+        storeCode(hxu || hyu || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1,  1, -1), nCodes);
     if (dx1 + dy1 + dz1 < radiusSq && stepXup && stepYup && stepZup)
-        storeCode(hxu || hyu || hzu, &nBoxes, &iBoxPbc, mortonNeighbor(boxCode, level,  1,  1,  1), nCodes);
+        storeCode(hxu || hyu || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1,  1,  1), nCodes);
 
     return pair<int>(nBoxes, iBoxPbc);
 }
