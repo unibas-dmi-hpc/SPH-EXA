@@ -142,10 +142,19 @@ util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key)
    return { px, py, pz };
 }
 
+/*! @brief compute the 3D integer coordinate box that contains the key range
+ *
+ * @tparam KeyType   32- or 64-bit unsigned integer
+ * @param keyStart   lower Hilbert key
+ * @param keyEnd     upper Hilbert key
+ * @return           the integer box that contains the given key range
+ */
 template<class KeyType>
 HOST_DEVICE_FUN
-IBox makeHilbertIBox(KeyType keyStart, KeyType keyEnd)
+IBox hilbertIBox(KeyType keyStart, KeyType keyEnd)
 {
+    assert(isPowerOf8(keyEnd - keyStart));
+
     unsigned level = treeLevel(keyEnd - keyStart);
     unsigned cubeLengthDelta = (1u << (maxTreeLevel<KeyType>{} - level)) - 1u;
 
@@ -156,16 +165,16 @@ IBox makeHilbertIBox(KeyType keyStart, KeyType keyEnd)
 
     if (level < maxTreeLevel<KeyType>{})
     {
-        KeyType mortonKey    = imorton3D<KeyType>(ix, iy, iz);
-        unsigned orientation = octalDigit(mortonKey, level + 1);
+        unsigned levelP1 = level + 1;
+        // (dx<<2 + dy<<1 + dz) is the levelP1-th octal digit of the morton key of the point (ix, iy, iz)
+        // by looking at the morton digit, we can deduce the orientation of the hilbert curve
+        int dx = (ix >> levelP1) & 1u;
+        int dy = (iy >> levelP1) & 1u;
+        int dz = (iz >> levelP1) & 1u;
 
-        int dx = (orientation & 4) ? -1 : 1;
-        int dy = (orientation & 2) ? -1 : 1;
-        int dz = (orientation & 1) ? -1 : 1;
-
-        ix2 = ix + dx * cubeLengthDelta;
-        iy2 = iy + dy * cubeLengthDelta;
-        iz2 = iz + dz * cubeLengthDelta;
+        ix2 += (dx) ? -cubeLengthDelta : cubeLengthDelta;
+        iy2 += (dy) ? -cubeLengthDelta : cubeLengthDelta;
+        iz2 += (dz) ? -cubeLengthDelta : cubeLengthDelta;
     }
 
     return IBox(stl::min(ix, ix2), stl::max(ix, ix2) + 1,
