@@ -42,6 +42,15 @@
 
 namespace cstone
 {
+
+//! @brief Strong type for Morton keys
+template<class IntegerType>
+using MortonKey = StrongType<IntegerType, struct MortonKeyTag>;
+
+//! @brief Strong type for Hilbert keys
+template<class IntegerType>
+using HilbertKey = StrongType<IntegerType, struct HilbertKeyTag>;
+
 //! @brief number of unused leading zeros in a 32-bit SFC code
 template<class KeyType>
 struct unusedBits : stl::integral_constant<unsigned, 2> {};
@@ -55,9 +64,17 @@ struct maxTreeLevel {};
 
 template<>
 struct maxTreeLevel<unsigned> : stl::integral_constant<unsigned, 10> {};
+template<>
+struct maxTreeLevel<MortonKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
+template<>
+struct maxTreeLevel<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
 
 template<>
 struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21> {};
+template<>
+struct maxTreeLevel<MortonKey<uint64_t>> : stl::integral_constant<unsigned, 21> {};
+template<>
+struct maxTreeLevel<HilbertKey<uint64_t>> : stl::integral_constant<unsigned, 21> {};
 
 
 /*! @brief normalize a floating point number in [0,1] to an integer in [0 : 2^(10 or 21)]
@@ -260,7 +277,7 @@ HOST_DEVICE_FUN constexpr unsigned octalDigit(KeyType code, unsigned position)
 
 //! @brief cut down the input SFC code to the start code of the enclosing box at <treeLevel>
 template<class KeyType>
-HOST_DEVICE_FUN constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> enclosingBoxCode(KeyType code, unsigned treeLevel)
+HOST_DEVICE_FUN constexpr KeyType enclosingBoxCode(KeyType code, unsigned treeLevel)
 {
     // total usable bits in the SFC code, 30 or 63
     constexpr unsigned nBits = 3 * maxTreeLevel<KeyType>{};
@@ -268,7 +285,7 @@ HOST_DEVICE_FUN constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType>
     // number of bits to discard, counting from lowest bit
     unsigned discardedBits = nBits - 3 * treeLevel;
     code = code >> discardedBits;
-    return code << discardedBits;
+    return KeyType(code << discardedBits);
 }
 
 /*! @brief compute an enclosing envelope corresponding to the smallest possible

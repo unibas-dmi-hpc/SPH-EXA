@@ -89,7 +89,7 @@ HOST_DEVICE_FUN inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, KeyType
 /*! @brief find neighbor box codes
  *
  * @tparam T             float or double
- * @tparam KeyType             32- or 64-bit unsigned integer
+ * @tparam IntegerType   32- or 64-bit unsigned integer
  * @param[in]  xi        particle x coordinate
  * @param[in]  yi        particle y coordinate
  * @param[in]  zi        particle z coordinate
@@ -108,40 +108,31 @@ HOST_DEVICE_FUN inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, KeyType
  * This function only adds a neighbor box if the sphere (xi,yi,zi)+-radius actually overlaps
  * with said box, which means that there are 26 different overlap checks.
  */
-template<class T, class KeyType>
-HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, KeyType* nCodes)
+template<class T, class IntegerType>
+HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, IntegerType* nCodes)
 {
-    constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
-    // smallest octree cell edge length in unit cube
-    constexpr T uL = T(1.) / maxCoord;
+    using KeyType = MortonKey<IntegerType>;
+    constexpr int maxCoord = 1u << maxTreeLevel<IntegerType>{};
 
     T radiusSq = radius * radius;
 
     // level is the smallest tree subdivision level at which the node edge length is still bigger than radius
     unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
-    KeyType xyzCode = sfc3D<MortonKey<KeyType>>(xi, yi, zi, bbox);
-    KeyType boxCode = enclosingBoxCode(xyzCode, level);
+    KeyType xyzCode = sfc3D<KeyType>(xi, yi, zi, bbox);
+    IntegerType boxCode = enclosingBoxCode(xyzCode, level);
 
-    IBox ibox = mortonIBox(boxCode, boxCode + nodeRange<KeyType>(level));
-    T unitLengthX = uL * bbox.lx();
-    T unitLengthY = uL * bbox.ly();
-    T unitLengthZ = uL * bbox.lz();
-    T xBox    = bbox.xmin() + ibox.xmin() * unitLengthX;
-    T yBox    = bbox.ymin() + ibox.ymin() * unitLengthY;
-    T zBox    = bbox.zmin() + ibox.zmin() * unitLengthZ;
-    T xBoxMax = bbox.xmin() + ibox.xmax() * unitLengthX;
-    T yBoxMax = bbox.ymin() + ibox.ymax() * unitLengthY;
-    T zBoxMax = bbox.zmin() + ibox.zmax() * unitLengthZ;
+    IBox ibox = sfcIBox(KeyType(boxCode), KeyType(boxCode + nodeRange<IntegerType>(level)));
+    FBox<T> nodeBox = createFpBox<KeyType>(ibox, bbox);
 
-    int unitsPerBox = 1u<<(maxTreeLevel<KeyType>{} - level);
+    int unitsPerBox = 1u<<(maxTreeLevel<IntegerType>{} - level);
 
     auto square = [](T x) { return x * x; };
-    T dx0 = square(xi - xBox);
-    T dx1 = square(xi - xBoxMax);
-    T dy0 = square(yi - yBox);
-    T dy1 = square(yi - yBoxMax);
-    T dz0 = square(zi - zBox);
-    T dz1 = square(zi - zBoxMax);
+    T dx0 = square(xi - nodeBox.xmin());
+    T dx1 = square(xi - nodeBox.xmax());
+    T dy0 = square(yi - nodeBox.ymin());
+    T dy1 = square(yi - nodeBox.ymax());
+    T dz0 = square(zi - nodeBox.zmin());
+    T dz1 = square(zi - nodeBox.zmax());
 
     bool hxd = ibox.xmin() == 0;
     bool hxu = ibox.xmin() >= maxCoord - unitsPerBox;
