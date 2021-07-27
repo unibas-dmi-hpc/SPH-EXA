@@ -35,7 +35,7 @@
 #include <cmath>
 
 #include "cstone/primitives/stl.hpp"
-#include "cstone/sfc/morton.hpp"
+#include "cstone/sfc/sfc.hpp"
 
 namespace cstone
 {

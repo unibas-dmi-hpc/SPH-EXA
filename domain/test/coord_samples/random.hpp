@@ -36,8 +36,8 @@
 #include <random>
 #include <vector>
 
-#include "cstone/sfc/morton.hpp"
 #include "cstone/primitives/gather.hpp"
+#include "cstone/sfc/sfc.hpp"
 
 using namespace cstone;
 
@@ -63,8 +63,7 @@ public:
         std::generate(begin(y_), end(y_), randY);
         std::generate(begin(z_), end(z_), randZ);
 
-        computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_),
-                                   begin(codes_), box);
+        computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_), begin(codes_), box);
 
         std::vector<I> sfcOrder(n);
         std::iota(begin(sfcOrder), end(sfcOrder), 0);

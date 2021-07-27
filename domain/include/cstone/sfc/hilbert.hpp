@@ -49,8 +49,8 @@ namespace cstone
  * @return               the Hilbert key
  */
 template<class KeyType>
-HOST_DEVICE_FUN inline
-std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert(unsigned px, unsigned py, unsigned pz)
+constexpr HOST_DEVICE_FUN inline
+std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert(unsigned px, unsigned py, unsigned pz) noexcept
 {
     assert(px < (1u << maxTreeLevel<KeyType>{}));
     assert(py < (1u << maxTreeLevel<KeyType>{}));
@@ -98,7 +98,7 @@ std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert(unsigned px, uns
 //! @brief inverse function of iHilbert
 template<class KeyType>
 HOST_DEVICE_FUN inline
-util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key)
+util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key) noexcept
 {
    unsigned px = 0;
    unsigned py = 0;
@@ -150,8 +150,7 @@ util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key)
  * @return           the integer box that contains the given key range
  */
 template<class KeyType>
-HOST_DEVICE_FUN
-IBox hilbertIBox(KeyType keyStart, KeyType keyEnd)
+HOST_DEVICE_FUN IBox hilbertIBox(KeyType keyStart, KeyType keyEnd) noexcept
 {
     assert(isPowerOf8(keyEnd - keyStart));
 
