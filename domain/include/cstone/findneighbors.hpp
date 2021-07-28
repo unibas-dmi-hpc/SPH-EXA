@@ -36,6 +36,7 @@
 
 #include "cstone/primitives/stl.hpp"
 #include "cstone/sfc/sfc.hpp"
+#include "cstone/tree/definitions.h"
 
 namespace cstone
 {
@@ -109,22 +110,17 @@ HOST_DEVICE_FUN inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, KeyType
  * with said box, which means that there are 26 different overlap checks.
  */
 template<class T, class IntegerType>
-HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Box<T>& bbox, IntegerType* nCodes)
+HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radiusSq, unsigned level,
+                                            const Box<T>& bbox, IntegerType* nCodes)
 {
     using KeyType = MortonKey<IntegerType>;
     constexpr int maxCoord = 1u << maxTreeLevel<IntegerType>{};
 
-    T radiusSq = radius * radius;
-
-    // level is the smallest tree subdivision level at which the node edge length is still bigger than radius
-    unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
     KeyType xyzCode = sfc3D<KeyType>(xi, yi, zi, bbox);
     IntegerType boxCode = enclosingBoxCode(xyzCode, level);
 
     IBox ibox = sfcIBox(KeyType(boxCode), KeyType(boxCode + nodeRange<IntegerType>(level)));
     FBox<T> nodeBox = createFpBox<KeyType>(ibox, bbox);
-
-    int unitsPerBox = 1u<<(maxTreeLevel<IntegerType>{} - level);
 
     auto square = [](T x) { return x * x; };
     T dx0 = square(xi - nodeBox.xmin());
@@ -135,11 +131,11 @@ HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Bo
     T dz1 = square(zi - nodeBox.zmax());
 
     bool hxd = ibox.xmin() == 0;
-    bool hxu = ibox.xmin() >= maxCoord - unitsPerBox;
+    bool hxu = ibox.xmax() == maxCoord;
     bool hyd = ibox.ymin() == 0;
-    bool hyu = ibox.ymin() >= maxCoord - unitsPerBox;
+    bool hyu = ibox.ymax() == maxCoord;
     bool hzd = ibox.zmin() == 0;
-    bool hzu = ibox.zmin() >= maxCoord - unitsPerBox;
+    bool hzu = ibox.zmax() == maxCoord;
     bool stepXdown = !hxd || (bbox.pbcX() && level > 1);
     bool stepXup   = !hxu || (bbox.pbcX() && level > 1);
     bool stepYdown = !hyd || (bbox.pbcY() && level > 1);
@@ -152,8 +148,10 @@ HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Bo
 
     // If the radius is longer than the shortest bbox edge, but shorter than the longest
     // we have to look for neighbors with PBC if enabled.
-    // This is a rare corner case that will never occur for sensible input data.
-    bool periodicHomeBox = level == 0 && radius < bbox.maxExtent();
+    // This is a rare corner case that will never occur for sensible input data, therefore we enable this,
+    // as soon as the search box is the whole root node (level == 0), even though only required
+    // if also radius < box.maxExtent()
+    bool periodicHomeBox = level == 0;
 
     // home box
     storeCode(periodicHomeBox, &nBoxes, &iBoxPbc, boxCode, nCodes);
@@ -243,10 +241,9 @@ HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radius, const Bo
  * calculate distances.
  */
 template<class T, class KeyType>
-HOST_DEVICE_FUN pair<int> findNeighborBoxesSimple(T xi, T yi, T zi, T radius, const Box<T>& bbox, KeyType* nCodes)
+HOST_DEVICE_FUN pair<int> findNeighborBoxesSimple(T xi, T yi, T zi, unsigned level, const Box<T>& bbox, KeyType* nCodes)
 {
     // level is the smallest tree subdivision level at which the node edge length is still bigger than radius
-    unsigned level  = radiusToTreeLevel(radius, bbox.minExtent());
     KeyType xyzCode = sfc3D<MortonKey<KeyType>>(xi, yi, zi, bbox);
     KeyType boxCode = enclosingBoxCode(xyzCode, level);
 
@@ -271,34 +268,35 @@ HOST_DEVICE_FUN pair<int> findNeighborBoxesSimple(T xi, T yi, T zi, T radius, co
 }
 
 template<class KeyType, class T, class F>
-HOST_DEVICE_FUN void searchBoxes(const KeyType* nCodes, int firstBox, int lastBox, const KeyType* mortonCodes, int n, int depth, int id,
-                 const T* x, const T* y, const T* z, T radiusSq, int* neighbors, int* neighborsCount, int ngmax, F&& distance)
+HOST_DEVICE_FUN void searchBoxes(const KeyType* searchKeys, int firstBox, int lastBox, int level,
+                                 const KeyType* particleKeys, LocalParticleIndex numParticleKeys,
+                                 LocalParticleIndex particleIndex,
+                                 const T* x, const T* y, const T* z, T radiusSq,
+                                 int* neighbors, int* neighborsCount, int ngmax, F&& distance)
 {
-    T xi = x[id];
-    T yi = y[id];
-    T zi = z[id];
-
-    int ngcount = *neighborsCount;
+    int numNeighbors = *neighborsCount;
     for (int ibox = firstBox; ibox < lastBox; ++ibox)
     {
-        KeyType neighbor = nCodes[ibox];
-        int startIndex = stl::lower_bound(mortonCodes, mortonCodes + n, neighbor) - mortonCodes;
-        int endIndex = stl::upper_bound(mortonCodes + startIndex, mortonCodes + n, neighbor + nodeRange<KeyType>(depth)) - mortonCodes;
+        KeyType searchBox = searchKeys[ibox];
+        LocalParticleIndex startIndex = stl::lower_bound(particleKeys, particleKeys + numParticleKeys, searchBox)
+                                        - particleKeys;
+        LocalParticleIndex endIndex   = stl::upper_bound(particleKeys + startIndex, particleKeys + numParticleKeys,
+                                                         searchBox + nodeRange<KeyType>(level)) - particleKeys;
 
-        for (int j = startIndex; j < endIndex; ++j)
+        for (LocalParticleIndex j = startIndex; j < endIndex; ++j)
         {
-            if (j == id) { continue; }
+            if (j == particleIndex) { continue; }
 
-            if (ngcount == ngmax)
+            if (numNeighbors == ngmax)
             {
                 *neighborsCount = ngmax;
                 return;
             }
 
-            if (distance(xi, yi, zi, x[j], y[j], z[j]) < radiusSq) { neighbors[ngcount++] = j; }
+            if (distance(x[j], y[j], z[j]) < radiusSq) { neighbors[numNeighbors++] = int(j); }
         }
     }
-    *neighborsCount = ngcount;
+    *neighborsCount = numNeighbors;
 }
 
 
@@ -319,44 +317,50 @@ HOST_DEVICE_FUN void searchBoxes(const KeyType* nCodes, int firstBox, int lastBo
  * @param[in]  z               particle z-coordinates in Morton order
  * @param[in]  h               smoothing lengths (1/2 the search radius) in Morton order
  * @param[in]  box             coordinate bounding box that was used to calculate the Morton codes
- * @param[in]  mortonCodes     sorted Morton codes of all particles in x,y,z
+ * @param[in]  particleKeys    sorted Morton codes of all particles in x,y,z
  * @param[out] neighbors       output to store the neighbors
  * @param[out] neighborsCount  output to store the number of neighbors
- * @param[in]  n               number of particles in x,y,z
+ * @param[in]  numParticleKeys number of particles in x,y,z
  * @param[in]  ngmax           maximum number of neighbors per particle
  */
 template<class T, class KeyType>
-HOST_DEVICE_FUN void findNeighbors(int id, const T* x, const T* y, const T* z, const T* h, const Box<T>& box,
-                   const KeyType* mortonCodes, int *neighbors, int *neighborsCount,
-                   int n, int ngmax)
+HOST_DEVICE_FUN void findNeighbors(LocalParticleIndex id, const T* x, const T* y, const T* z, const T* h,
+                                   const Box<T>& box, const KeyType* particleKeys,
+                                   int* neighbors, int* neighborsCount, LocalParticleIndex numParticleKeys, int ngmax)
 {
     // SPH convention is search radius = 2 * h
-    T radius       = 2 * h[id];
-    T radiusSq     = radius * radius;
+    T radius   = 2 * h[id];
+    T radiusSq = radius * radius;
 
     // level is the smallest tree subdivision level at which the node edge length is still bigger than radius
-    unsigned depth = radiusToTreeLevel(radius, box.minExtent());
+    unsigned level = radiusToTreeLevel(radius, box.minExtent());
 
-    // load coordinates for particle #id
-    T xi = x[id], yi = y[id], zi = z[id];
+    T xi = x[id];
+    T yi = y[id];
+    T zi = z[id];
 
     KeyType neighborCodes[27];
-    pair<int> boxCodeIndices = findNeighborBoxes(xi, yi, zi, radius, box, neighborCodes);
-    //pair<int> boxCodeIndices = findNeighborBoxesSimple(xi, yi, zi, radius, box, neighborCodes);
-    int       nBoxes         = boxCodeIndices[0];
-    int       iBoxPbc        = boxCodeIndices[1];
+    pair<int> boxCodeIndices = findNeighborBoxes(xi, yi, zi, radiusSq, level, box, neighborCodes);
+    //pair<int> boxCodeIndices = findNeighborBoxesSimple(xi, yi, zi, level, box, neighborCodes);
 
-    *neighborsCount = 0;
+    int nBoxes  = boxCodeIndices[0];
+    int iBoxPbc = boxCodeIndices[1];
+
+    int numNeighbors = 0;
 
     // search non-PBC boxes
-    searchBoxes(neighborCodes, 0, nBoxes, mortonCodes, n, depth, id, x, y, z, radiusSq, neighbors, neighborsCount,
-                ngmax, [](T xi, T yi, T zi, T xj, T yj, T zj) { return distancesq(xi, yi, zi, xj, yj, zj); } );
+    searchBoxes(neighborCodes, 0, nBoxes, level, particleKeys, numParticleKeys, id, x, y, z, radiusSq,
+                neighbors, &numNeighbors, ngmax,
+                [xi, yi, zi](T xj, T yj, T zj) { return distancesq(xi, yi, zi, xj, yj, zj); } );
 
-    if (*neighborsCount == ngmax) { return; }
+    if (numNeighbors == ngmax) { return; }
 
     // search PBC boxes
-    searchBoxes(neighborCodes, iBoxPbc, 27, mortonCodes, n, depth, id, x, y, z, radiusSq, neighbors, neighborsCount, ngmax,
-                [&box](T xi, T yi, T zi, T xj, T yj, T zj) { return distanceSqPbc(xi, yi, zi, xj, yj, zj, box); } );
+    searchBoxes(neighborCodes, iBoxPbc, 27, level, particleKeys, numParticleKeys, id, x, y, z, radiusSq,
+                neighbors, &numNeighbors, ngmax,
+                [xi, yi, zi, &box](T xj, T yj, T zj) { return distanceSqPbc(xi, yi, zi, xj, yj, zj, box); });
+
+    *neighborsCount = numNeighbors;
 }
 
 } // namespace cstone
