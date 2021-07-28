@@ -122,7 +122,7 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     // box got updated if not using PBC
     box = domain.box();
     std::vector<I> mortonCodes(x.size());
-    computeMortonCodes(begin(x), end(x), begin(y), begin(z), begin(mortonCodes), box);
+    computeSfcKeys(begin(x), end(x), begin(y), begin(z), begin(mortonCodes), box);
 
     // check that particles are Morton order sorted and the codes are in sync with the x,y,z arrays
     EXPECT_EQ(mortonCodes, codes);
@@ -151,7 +151,7 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     {
         // Note: global coordinates are not yet in Morton order
         std::vector<I> codesGlobal(nParticles);
-        computeMortonCodes(begin(xGlobal), end(xGlobal), begin(yGlobal), begin(zGlobal), begin(codesGlobal), box);
+        computeSfcKeys(begin(xGlobal), end(xGlobal), begin(yGlobal), begin(zGlobal), begin(codesGlobal), box);
         std::vector<LocalParticleIndex> ordering(nParticles);
         std::iota(begin(ordering), end(ordering), LocalParticleIndex(0));
         sort_by_key(begin(codesGlobal), end(codesGlobal), begin(ordering));

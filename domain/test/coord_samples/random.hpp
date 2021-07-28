@@ -38,10 +38,11 @@
 
 #include "cstone/primitives/gather.hpp"
 #include "cstone/sfc/sfc.hpp"
+#include "cstone/tree/definitions.h"
 
 using namespace cstone;
 
-template<class T, class I>
+template<class T, class KeyType>
 class RandomCoordinates
 {
 public:
@@ -63,10 +64,10 @@ public:
         std::generate(begin(y_), end(y_), randY);
         std::generate(begin(z_), end(z_), randZ);
 
-        computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_), begin(codes_), box);
+        computeSfcKeys(begin(x_), end(x_), begin(y_), begin(z_), begin(codes_), box);
 
-        std::vector<I> sfcOrder(n);
-        std::iota(begin(sfcOrder), end(sfcOrder), 0);
+        std::vector<LocalParticleIndex> sfcOrder(n);
+        std::iota(begin(sfcOrder), end(sfcOrder), LocalParticleIndex(0));
         sort_by_key(begin(codes_), end(codes_), begin(sfcOrder));
 
         reorderInPlace(sfcOrder, x_.data());
@@ -77,16 +78,16 @@ public:
     const std::vector<T>& x() const { return x_; }
     const std::vector<T>& y() const { return y_; }
     const std::vector<T>& z() const { return z_; }
-    const std::vector<I>& particleKeys() const { return codes_; }
+    const std::vector<KeyType>& particleKeys() const { return codes_; }
 
 private:
 
     Box<T> box_;
     std::vector<T> x_, y_, z_;
-    std::vector<I> codes_;
+    std::vector<KeyType> codes_;
 };
 
-template<class T, class I>
+template<class T, class KeyType>
 class RandomGaussianCoordinates
 {
 public:
@@ -120,10 +121,10 @@ public:
         std::generate(begin(y_), end(y_), randY);
         std::generate(begin(z_), end(z_), randZ);
 
-        computeMortonCodes(begin(x_), end(x_), begin(y_), begin(z_), begin(codes_), box);
+        computeSfcKeys(begin(x_), end(x_), begin(y_), begin(z_), begin(codes_), box);
 
-        std::vector<I> sfcOrder(n);
-        std::iota(begin(sfcOrder), end(sfcOrder), 0);
+        std::vector<LocalParticleIndex> sfcOrder(n);
+        std::iota(begin(sfcOrder), end(sfcOrder), LocalParticleIndex(0));
         sort_by_key(begin(codes_), end(codes_), begin(sfcOrder));
 
         reorderInPlace(sfcOrder, x_.data());
@@ -134,11 +135,11 @@ public:
     const std::vector<T>& x() const { return x_; }
     const std::vector<T>& y() const { return y_; }
     const std::vector<T>& z() const { return z_; }
-    const std::vector<I>& particleKeys() const { return codes_; }
+    const std::vector<KeyType>& particleKeys() const { return codes_; }
 
 private:
 
     Box<T> box_;
     std::vector<T> x_, y_, z_;
-    std::vector<I> codes_;
+    std::vector<KeyType> codes_;
 };
