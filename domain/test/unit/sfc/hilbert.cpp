@@ -211,9 +211,50 @@ void makeHilbertIBox()
     }
 }
 
-TEST(Hilbertcode, makeIBox)
+TEST(HilbertCode, makeIBox)
 {
     makeHilbertIBox<unsigned>();
     makeHilbertIBox<uint64_t>();
 }
 
+template<class KeyType>
+void hilbertNeighbor()
+{
+    using Integer = typename KeyType::ValueType;
+    {
+        unsigned level = 1;
+        int coordRange = 1u << (maxTreeLevel<KeyType>{} - level);
+        IBox ibox(0, coordRange, 0, coordRange, 0, coordRange);
+        EXPECT_EQ(sfcNeighbor<KeyType>(ibox, level, 0, 0, 0), 0);
+    }
+    {
+        unsigned level = 1;
+        int coordRange = 1u << (maxTreeLevel<KeyType>{} - level);
+        IBox ibox(0, coordRange, 0, coordRange, 0, coordRange);
+        EXPECT_EQ(sfcNeighbor<KeyType>(ibox, level, 0, 1, 1), pad(Integer(02), 3));
+    }
+    {
+        unsigned level = 1;
+        int coordRange = 1u << (maxTreeLevel<KeyType>{} - level);
+        IBox ibox(0, coordRange, 0, coordRange, 0, coordRange);
+        EXPECT_EQ(sfcNeighbor<KeyType>(ibox, level, 0, 1, 0), pad(Integer(03), 3));
+    }
+    {
+        unsigned level = 1;
+        int coordRange = 1u << (maxTreeLevel<KeyType>{} - level);
+        IBox ibox(0, coordRange, 0, coordRange, 0, coordRange);
+        EXPECT_EQ(sfcNeighbor<KeyType>(ibox, level, 1, 1, 1), pad(Integer(05), 3));
+    }
+    {
+        unsigned level = 1;
+        int coordRange = 1u << (maxTreeLevel<KeyType>{} - level);
+        IBox ibox(0, coordRange, 0, coordRange, 0, coordRange);
+        EXPECT_EQ(sfcNeighbor<KeyType>(ibox, level, -1, -1, -1), pad(Integer(05), 3));
+    }
+}
+
+TEST(HilbertCode, neighbor)
+{
+    hilbertNeighbor<HilbertKey<unsigned>>();
+    hilbertNeighbor<HilbertKey<uint64_t>>();
+}

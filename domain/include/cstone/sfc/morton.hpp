@@ -187,66 +187,6 @@ HOST_DEVICE_FUN IBox mortonIBox(KeyType keyStart, KeyType keyEnd) noexcept
     return IBox(ix, ix + cubeLength, iy, iy + cubeLength, iz, iz + cubeLength);
 }
 
-/*! @brief compute morton codes corresponding to neighboring octree nodes
- *         for a given input code and tree level
- *
- * @tparam KeyType  32- or 64-bit unsigned integer type
- * @param code      input Morton code
- * @param treeLevel octree subdivision level, 0-10 for 32-bit, and 0-21 for 64-bit
- * @param dx        neighbor offset in x direction at @p treeLevel
- * @param dy        neighbor offset in y direction at @p treeLevel
- * @param dz        neighbor offset in z direction at @p treeLevel
- * @param pbcX      apply pbc in X direction
- * @param pbcY      apply pbc in Y direction
- * @param pbcZ      apply pbc in Z direction
- * @return          morton neighbor start code
- *
- * Note that the end of the neighbor range is given by the start code + nodeRange(treeLevel)
- */
-template<class KeyType>
-HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType>
-mortonNeighbor(KeyType code, unsigned treeLevel, int dx, int dy, int dz,
-               bool pbcX = true, bool pbcY = true, bool pbcZ = true)
-{
-    // maximum coordinate value per dimension 2^nBits-1
-    constexpr unsigned pbcRange = 1u << maxTreeLevel<KeyType>{};
-    constexpr unsigned maxCoord = pbcRange - 1;
-
-    unsigned shiftBits  = maxTreeLevel<KeyType>{} - treeLevel;
-    unsigned shiftValue = 1u << shiftBits;
-
-    // zero out lower tree levels
-    code = enclosingBoxCode(code, treeLevel);
-
-    auto [x, y, z] = decodeMorton(code);
-
-    int newX = x + dx * shiftValue;
-    if (pbcX) {
-        x = pbcAdjust<pbcRange>(newX);
-    }
-    else {
-        x = (newX < 0 || newX > maxCoord) ? x : newX;
-    }
-
-    int newY = y + dy * shiftValue;
-    if (pbcY) {
-        y = pbcAdjust<pbcRange>(newY);
-    }
-    else {
-        y = (newY < 0 || newY > maxCoord) ? y : newY;
-    }
-
-    int newZ = z + dz * shiftValue;
-    if (pbcZ) {
-        z = pbcAdjust<pbcRange>(newZ);
-    }
-    else {
-        z = (newZ < 0 || newZ > maxCoord) ? z : newZ;
-    }
-
-    return iMorton<KeyType>(x, y, z);
-}
-
 template<class KeyType>
 HOST_DEVICE_FUN inline KeyType mortonNeighbor(const IBox& ibox, int dx, int dy, int dz)
 {

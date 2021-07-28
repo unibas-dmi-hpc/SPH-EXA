@@ -124,6 +124,35 @@ HOST_DEVICE_FUN inline std::enable_if_t<IsHilbert<KeyType>{}, IBox> sfcIBox(KeyT
     return hilbertIBox<typename KeyType::ValueType>(keyStart, keyEnd);
 }
 
+
+/*! @brief returns the smallest Hilbert key contained in the shifted box
+ *
+ * @tparam KeyType  32- or 64-bit unsigned integer
+ * @param ibox      cubic integer coordinate box, edge length is a power of 2
+ * @param dx        x-shift, in units of the ibox edge length
+ * @param dy        y-shift, in units of the ibox edge length
+ * @param dz        z-shift, in units of the ibox edge length
+ * @return          the smallest key part of ibox shifted by (dx, dy, dz)
+ */
+template<class KeyType>
+HOST_DEVICE_FUN inline KeyType sfcNeighbor(const IBox& ibox, unsigned level, int dx, int dy, int dz)
+{
+    constexpr unsigned pbcRange = 1u << maxTreeLevel<KeyType>{};
+
+    unsigned shiftValue = ibox.xmax() - ibox.xmin();
+
+    // lower corner of shifted box
+    int x = pbcAdjust<pbcRange>(ibox.xmin() + dx * shiftValue);
+    int y = pbcAdjust<pbcRange>(ibox.ymin() + dy * shiftValue);
+    int z = pbcAdjust<pbcRange>(ibox.zmin() + dz * shiftValue);
+
+    KeyType key  = iSfcKey<KeyType>(x, y, z);
+    KeyType mask = KeyType(nodeRange<typename KeyType::ValueType>(level) - 1);
+
+    // round down to multiple of nodeRange(level) (set last 2^level - 1 bits to 0)
+    return KeyType(~mask & key);
+}
+
 /*! @brief compute the Morton codes for the input coordinate arrays
  *
  * @tparam     T          float or double
