@@ -128,7 +128,7 @@ void findNeighborBoxesInterior()
         for (int iy = 0; iy < 3; ++iy)
             for (int iz = 0; iz < 3; ++iz)
             {
-                refBoxes.push_back(iMorton<KeyType>(ix, iy, iz));
+                refBoxes.push_back(iSfcKey<KeyType>(ix, iy, iz));
             }
     std::sort(begin(refBoxes), end(refBoxes));
 
@@ -145,13 +145,13 @@ void findNeighborBoxesInterior()
 
 TEST(FindNeighbors, findNeighborBoxesInterior)
 {
-    findNeighborBoxesInterior<unsigned>();
-    findNeighborBoxesInterior<uint64_t>();
+    findNeighborBoxesInterior<MortonKey<unsigned>>();
+    findNeighborBoxesInterior<MortonKey<uint64_t>>();
 }
 
 /*! @brief find neighbor boxes around a particles centered in (1,1,1) box
  *
- * The particles (x,y,z) is centered in the (ix,iy,iz) = (0,0,0) node
+ * The particle (x,y,z) is centered in the (ix,iy,iz) = (0,0,0) node
  * with i{x,y,z} = coordinates in [0, 2^maxTreeLevel<KeyType>{}]
  * The minimum radius to hit all neighboring (ix+1,iy+1,iz+1) nodes is sqrt(3/4)
  * and this is checked. All negative offsets correspond to non-existing boxes
@@ -165,11 +165,12 @@ void findNeighborBoxesCorner()
     constexpr T uL = T(1.) / (1u << maxTreeLevel<KeyType>{});
 
     Box<T> bbox(0, 1);
+    T halfUnitDiagonal = 0.867; // slightly more than sqrt(3) / 2
 
     T x = 0.5 * uL;
     T y = 0.5 * uL;
     T z = 0.5 * uL;
-    T radius = 0.867 * uL;
+    T radius = halfUnitDiagonal * uL;
     unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
 
     KeyType neighborCodes[27];
@@ -184,7 +185,7 @@ void findNeighborBoxesCorner()
         for (int iy = 0; iy < 2; ++iy)
             for (int iz = 0; iz < 2; ++iz)
             {
-                refBoxes.push_back(iMorton<KeyType>(ix, iy, iz));
+                refBoxes.push_back(iSfcKey<KeyType>(ix, iy, iz));
             }
     std::sort(begin(refBoxes), end(refBoxes));
 
@@ -194,8 +195,8 @@ void findNeighborBoxesCorner()
 
 TEST(FindNeighbors, findNeighborBoxesCorner)
 {
-    findNeighborBoxesCorner<unsigned>();
-    findNeighborBoxesCorner<uint64_t>();
+    findNeighborBoxesCorner<MortonKey<unsigned>>();
+    findNeighborBoxesCorner<MortonKey<uint64_t>>();
 }
 
 template<class KeyType>
@@ -206,14 +207,17 @@ void findNeighborBoxesUpperCorner()
     constexpr T uL = T(1.) / (1u << maxTreeLevel<KeyType>{});
 
     Box<T> bbox(0, 1);
+    T halfUnitDiagonal = 0.867; // slightly more than sqrt(3) / 2
 
-    constexpr unsigned level = 3;
-    constexpr unsigned nUnits = 1u << (maxTreeLevel<KeyType>{} - level);
+    unsigned level = 3;
+    unsigned nodeEdge = 1u << (maxTreeLevel<KeyType>{} - level);
+    T nodeEdgeF = nodeEdge * uL;
 
-    T x = nUnits / 2 * uL;
-    T y = nUnits / 2 * uL;
-    T z = 7.5 * nUnits * uL;
-    T radius = 0.867 * nUnits * uL;
+    // point centered in the level-3 box with coordinates (0, 0, 7)
+    T x = nodeEdgeF / 2;
+    T y = nodeEdgeF / 2;
+    T z = 7.5 * nodeEdgeF;
+    T radius = halfUnitDiagonal * nodeEdgeF;
 
     KeyType neighborCodes[27];
     auto pbi = findNeighborBoxes(x, y, z, radius * radius, level, bbox, neighborCodes);
@@ -222,12 +226,14 @@ void findNeighborBoxesUpperCorner()
     EXPECT_EQ(nBoxes, 8);
     std::sort(neighborCodes, neighborCodes + nBoxes);
 
+    // all level-3 boxes that touch (0, 0, 7)
     std::vector<KeyType> refBoxes;
     for (int ix = 0; ix < 2; ++ix)
         for (int iy = 0; iy < 2; ++iy)
             for (int iz = 6; iz < 8; ++iz)
             {
-                refBoxes.push_back(iMorton<KeyType>(ix, iy, iz, level));
+                KeyType refKey = enclosingBoxCode(iSfcKey<KeyType>(ix * nodeEdge, iy * nodeEdge, iz * nodeEdge), level);
+                refBoxes.push_back(refKey);
             }
     std::sort(begin(refBoxes), end(refBoxes));
 
@@ -237,8 +243,8 @@ void findNeighborBoxesUpperCorner()
 
 TEST(FindNeighbors, findNeighborBoxesUpperCorner)
 {
-    findNeighborBoxesUpperCorner<unsigned>();
-    findNeighborBoxesUpperCorner<uint64_t>();
+    findNeighborBoxesUpperCorner<MortonKey<unsigned>>();
+    findNeighborBoxesUpperCorner<MortonKey<uint64_t>>();
 }
 
 template<class KeyType>
@@ -267,8 +273,8 @@ void findNeighborBoxesCornerPbc()
 
 TEST(FindNeighbors, findNeighborBoxesCornerPbc)
 {
-    findNeighborBoxesCornerPbc<unsigned>();
-    findNeighborBoxesCornerPbc<uint64_t>();
+    findNeighborBoxesCornerPbc<MortonKey<unsigned>>();
+    findNeighborBoxesCornerPbc<MortonKey<uint64_t>>();
 }
 
 template<class Coordinates, class T>

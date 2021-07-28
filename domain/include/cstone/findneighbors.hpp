@@ -109,17 +109,16 @@ HOST_DEVICE_FUN inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, KeyType
  * This function only adds a neighbor box if the sphere (xi,yi,zi)+-radius actually overlaps
  * with said box, which means that there are 26 different overlap checks.
  */
-template<class T, class IntegerType>
+template<class T, class KeyType>
 HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radiusSq, unsigned level,
-                                            const Box<T>& bbox, IntegerType* nCodes)
+                                            const Box<T>& bbox, KeyType* nCodes)
 {
-    using KeyType = MortonKey<IntegerType>;
-    constexpr int maxCoord = 1u << maxTreeLevel<IntegerType>{};
+    constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
 
     KeyType xyzCode = sfc3D<KeyType>(xi, yi, zi, bbox);
-    IntegerType boxCode = enclosingBoxCode(xyzCode, level);
+    KeyType boxCode = enclosingBoxCode(xyzCode, level);
 
-    IBox ibox = sfcIBox(KeyType(boxCode), KeyType(boxCode + nodeRange<IntegerType>(level)));
+    IBox ibox = sfcIBox(boxCode, boxCode + nodeRange<KeyType>(level));
     FBox<T> nodeBox = createFpBox<KeyType>(ibox, bbox);
 
     auto square = [](T x) { return x * x; };
@@ -158,66 +157,66 @@ HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radiusSq, unsign
 
     // X,Y,Z face touch
     if (dx0 < radiusSq && stepXdown)
-        storeCode(hxd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1, 0, 0), nCodes);
+        storeCode(hxd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1, 0, 0), nCodes);
     if (dx1 < radiusSq && stepXup)
-        storeCode(hxu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1, 0, 0), nCodes);
+        storeCode(hxu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1, 0, 0), nCodes);
     if (dy0 < radiusSq && stepYdown)
-        storeCode(hyd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, 0, -1, 0), nCodes);
+        storeCode(hyd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  0, -1, 0), nCodes);
     if (dy1 < radiusSq && stepYup)
-        storeCode(hyu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, 0,  1, 0), nCodes);
+        storeCode(hyu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  0,  1, 0), nCodes);
     if (dz0 < radiusSq && stepZdown)
-        storeCode(hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, 0, 0, -1), nCodes);
+        storeCode(hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  0, 0, -1), nCodes);
     if (dz1 < radiusSq && stepZup)
-        storeCode(hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, 0, 0, 1), nCodes);
+        storeCode(hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  0, 0, 1), nCodes);
 
     // XY edge touch
     if (dx0 + dy0 < radiusSq && stepXdown && stepYdown)
-        storeCode(hxd || hyd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1, -1, 0), nCodes);
+        storeCode(hxd || hyd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1, -1, 0), nCodes);
     if (dx0 + dy1 < radiusSq && stepXdown && stepYup)
-        storeCode(hxd || hyu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1,  1, 0), nCodes);
+        storeCode(hxd || hyu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1,  1, 0), nCodes);
     if (dx1 + dy0 < radiusSq && stepXup && stepYdown)
-        storeCode(hxu || hyd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1, -1, 0), nCodes);
+        storeCode(hxu || hyd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1, -1, 0), nCodes);
     if (dx1 + dy1 < radiusSq && stepXup && stepYup)
-        storeCode(hxu || hyu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1,  1, 0), nCodes);
+        storeCode(hxu || hyu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1,  1, 0), nCodes);
 
     // XZ edge touch
     if (dx0 + dz0 < radiusSq && stepXdown && stepZdown)
-        storeCode(hxd || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1, 0, -1), nCodes);
+        storeCode(hxd || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1, 0, -1), nCodes);
     if (dx0 + dz1 < radiusSq && stepXdown && stepZup)
-        storeCode(hxd || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1,  0, 1), nCodes);
+        storeCode(hxd || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1,  0, 1), nCodes);
     if (dx1 + dz0 < radiusSq && stepXup && stepZdown)
-        storeCode(hxu || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1, 0, -1), nCodes);
+        storeCode(hxu || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1, 0, -1), nCodes);
     if (dx1 + dz1 < radiusSq && stepXup && stepZup)
-        storeCode(hxu || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1,  0, 1), nCodes);
+        storeCode(hxu || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1,  0, 1), nCodes);
 
     // YZ edge touch
     if (dy0 + dz0 < radiusSq && stepYdown && stepZdown)
-        storeCode(hyd || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, 0, -1, -1), nCodes);
+        storeCode(hyd || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 0, -1, -1), nCodes);
     if (dy0 + dz1 < radiusSq && stepYdown && stepZup)
-        storeCode(hyd || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  0, -1, 1), nCodes);
+        storeCode(hyd || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 0, -1, 1), nCodes);
     if (dy1 + dz0 < radiusSq && stepYup && stepZdown)
-        storeCode(hyu || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  0, 1, -1), nCodes);
+        storeCode(hyu || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 0, 1, -1), nCodes);
     if (dy1 + dz1 < radiusSq && stepYup && stepZup)
-        storeCode(hyu || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  0,  1, 1), nCodes);
+        storeCode(hyu || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 0,  1, 1), nCodes);
 
     // corner touches
     if (dx0 + dy0 + dz0 < radiusSq && stepXdown && stepYdown && stepZdown)
-        storeCode(hxd || hyd || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1, -1, -1), nCodes);
+        storeCode(hxd || hyd || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1, -1, -1), nCodes);
     if (dx0 + dy0 + dz1 < radiusSq && stepXdown && stepYdown && stepZup)
-        storeCode(hxd || hyd || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1, -1,  1), nCodes);
+        storeCode(hxd || hyd || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1, -1,  1), nCodes);
     if (dx0 + dy1 + dz0 < radiusSq && stepXdown && stepYup && stepZdown)
-        storeCode(hxd || hyu || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1,  1, -1), nCodes);
+        storeCode(hxd || hyu || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1,  1, -1), nCodes);
     if (dx0 + dy1 + dz1 < radiusSq && stepXdown && stepYup && stepZup)
-        storeCode(hxd || hyu || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox, -1,  1,  1), nCodes);
+        storeCode(hxd || hyu || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1,  1,  1), nCodes);
 
     if (dx1 + dy0 + dz0 < radiusSq && stepXup && stepYdown && stepZdown)
-        storeCode(hxu || hyd || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1, -1, -1), nCodes);
+        storeCode(hxu || hyd || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1, -1, -1), nCodes);
     if (dx1 + dy0 + dz1 < radiusSq && stepXup && stepYdown && stepZup)
-        storeCode(hxu || hyd || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1, -1,  1), nCodes);
+        storeCode(hxu || hyd || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1, -1,  1), nCodes);
     if (dx1 + dy1 + dz0 < radiusSq && stepXup && stepYup && stepZdown)
-        storeCode(hxu || hyu || hzd, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1,  1, -1), nCodes);
+        storeCode(hxu || hyu || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1,  1, -1), nCodes);
     if (dx1 + dy1 + dz1 < radiusSq && stepXup && stepYup && stepZup)
-        storeCode(hxu || hyu || hzu, &nBoxes, &iBoxPbc, mortonNeighbor<IntegerType>(ibox,  1,  1,  1), nCodes);
+        storeCode(hxu || hyu || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1,  1,  1), nCodes);
 
     return pair<int>(nBoxes, iBoxPbc);
 }
@@ -225,7 +224,7 @@ HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radiusSq, unsign
 /*! @brief simple version
  *
  * @tparam T            float or double
- * @tparam KeyType            32- or 64-bit integer type
+ * @tparam KeyType      32- or 64-bit integer type
  * @param[in]  xi       x-coordinate of particle for which to do the neighbor search
  * @param[in]  yi       see xi
  * @param[in]  zi       see xi
@@ -244,15 +243,16 @@ template<class T, class KeyType>
 HOST_DEVICE_FUN pair<int> findNeighborBoxesSimple(T xi, T yi, T zi, unsigned level, const Box<T>& bbox, KeyType* nCodes)
 {
     // level is the smallest tree subdivision level at which the node edge length is still bigger than radius
-    KeyType xyzCode = sfc3D<MortonKey<KeyType>>(xi, yi, zi, bbox);
+    KeyType xyzCode = sfc3D<KeyType>(xi, yi, zi, bbox);
     KeyType boxCode = enclosingBoxCode(xyzCode, level);
+    IBox nodeBox = sfcIBox(boxCode, boxCode + nodeRange<KeyType>(level));
 
     int ibox = 27;
     for (int dx = -1; dx < 2; ++dx)
         for (int dy = -1; dy < 2; ++dy)
             for (int dz = -1; dz < 2; ++dz)
             {
-                KeyType searchBoxCode = mortonNeighbor(boxCode, level, dx, dy, dz);
+                KeyType searchBoxCode = sfcNeighbor<KeyType>(nodeBox, level, dx, dy, dz);
                 bool alreadyThere = false;
                 for (int i = ibox; i < 27; ++i)
                 {
@@ -267,9 +267,9 @@ HOST_DEVICE_FUN pair<int> findNeighborBoxesSimple(T xi, T yi, T zi, unsigned lev
     return {0, ibox};
 }
 
-template<class KeyType, class T, class F>
+template<class KeyType, class Integer, class T, class F>
 HOST_DEVICE_FUN void searchBoxes(const KeyType* searchKeys, int firstBox, int lastBox, int level,
-                                 const KeyType* particleKeys, LocalParticleIndex numParticleKeys,
+                                 const Integer* particleKeys, LocalParticleIndex numParticleKeys,
                                  LocalParticleIndex particleIndex,
                                  const T* x, const T* y, const T* z, T radiusSq,
                                  int* neighbors, int* neighborsCount, int ngmax, F&& distance)
@@ -323,11 +323,12 @@ HOST_DEVICE_FUN void searchBoxes(const KeyType* searchKeys, int firstBox, int la
  * @param[in]  numParticleKeys number of particles in x,y,z
  * @param[in]  ngmax           maximum number of neighbors per particle
  */
-template<class T, class KeyType>
+template<class T, class Integer>
 HOST_DEVICE_FUN void findNeighbors(LocalParticleIndex id, const T* x, const T* y, const T* z, const T* h,
-                                   const Box<T>& box, const KeyType* particleKeys,
+                                   const Box<T>& box, const Integer* particleKeys,
                                    int* neighbors, int* neighborsCount, LocalParticleIndex numParticleKeys, int ngmax)
 {
+    using KeyType = MortonKey<Integer>;
     // SPH convention is search radius = 2 * h
     T radius   = 2 * h[id];
     T radiusSq = radius * radius;
@@ -340,8 +341,8 @@ HOST_DEVICE_FUN void findNeighbors(LocalParticleIndex id, const T* x, const T* y
     T zi = z[id];
 
     KeyType neighborCodes[27];
-    pair<int> boxCodeIndices = findNeighborBoxes(xi, yi, zi, radiusSq, level, box, neighborCodes);
-    //pair<int> boxCodeIndices = findNeighborBoxesSimple(xi, yi, zi, level, box, neighborCodes);
+    //pair<int> boxCodeIndices = findNeighborBoxes(xi, yi, zi, radiusSq, level, box, neighborCodes);
+    pair<int> boxCodeIndices = findNeighborBoxesSimple(xi, yi, zi, level, box, neighborCodes);
 
     int nBoxes  = boxCodeIndices[0];
     int iBoxPbc = boxCodeIndices[1];
