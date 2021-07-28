@@ -113,9 +113,11 @@ void findNeighborBoxesInterior()
     T y = 1.5 * uL;
     T z = 1.5 * uL;
     T radius = 0.867 * uL;
+    T radiusSq = radius * radius;
+    unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
 
     KeyType neighborCodes[27];
-    auto pbi = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
+    auto pbi = findNeighborBoxes(x, y, z, radiusSq, level, bbox, neighborCodes);
     int nBoxes = pbi[0];
 
     EXPECT_EQ(nBoxes, 27);
@@ -135,7 +137,9 @@ void findNeighborBoxesInterior()
 
     // now, the 8 farthest corners are not hit any more
     radius = 0.866 * uL;
-    pbi = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
+    radiusSq = radius * radius;
+    level = radiusToTreeLevel(radius, bbox.minExtent());
+    pbi = findNeighborBoxes(x, y, z, radiusSq, level, bbox, neighborCodes);
     EXPECT_EQ(pbi[0], 19);
 }
 
@@ -166,9 +170,10 @@ void findNeighborBoxesCorner()
     T y = 0.5 * uL;
     T z = 0.5 * uL;
     T radius = 0.867 * uL;
+    unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
 
     KeyType neighborCodes[27];
-    auto pbi = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
+    auto pbi = findNeighborBoxes(x, y, z, radius * radius, level, bbox, neighborCodes);
     int nBoxes = pbi[0];
 
     EXPECT_EQ(nBoxes, 8);
@@ -202,8 +207,8 @@ void findNeighborBoxesUpperCorner()
 
     Box<T> bbox(0, 1);
 
-    constexpr int level = 3;
-    constexpr int nUnits = 1u << (maxTreeLevel<KeyType>{} - level);
+    constexpr unsigned level = 3;
+    constexpr unsigned nUnits = 1u << (maxTreeLevel<KeyType>{} - level);
 
     T x = nUnits / 2 * uL;
     T y = nUnits / 2 * uL;
@@ -211,7 +216,7 @@ void findNeighborBoxesUpperCorner()
     T radius = 0.867 * nUnits * uL;
 
     KeyType neighborCodes[27];
-    auto pbi = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
+    auto pbi = findNeighborBoxes(x, y, z, radius * radius, level, bbox, neighborCodes);
     int nBoxes = pbi[0];
 
     EXPECT_EQ(nBoxes, 8);
@@ -249,9 +254,10 @@ void findNeighborBoxesCornerPbc()
     T y = 0.5 * uL;
     T z = 0.5 * uL;
     T radius = 0.867 * uL;
+    unsigned level = radiusToTreeLevel(radius, bbox.minExtent());
 
     KeyType neighborCodes[27];
-    auto pbi = findNeighborBoxes(x, y, z, radius, bbox, neighborCodes);
+    auto pbi = findNeighborBoxes(x, y, z, radius * radius, level, bbox, neighborCodes);
     int nBoxes = pbi[0];
     int iBoxPbc = pbi[1];
 
