@@ -147,6 +147,8 @@ TEST(FindNeighbors, findNeighborBoxesInterior)
 {
     findNeighborBoxesInterior<MortonKey<unsigned>>();
     findNeighborBoxesInterior<MortonKey<uint64_t>>();
+    findNeighborBoxesInterior<HilbertKey<unsigned>>();
+    findNeighborBoxesInterior<HilbertKey<uint64_t>>();
 }
 
 /*! @brief find neighbor boxes around a particles centered in (1,1,1) box
@@ -197,6 +199,8 @@ TEST(FindNeighbors, findNeighborBoxesCorner)
 {
     findNeighborBoxesCorner<MortonKey<unsigned>>();
     findNeighborBoxesCorner<MortonKey<uint64_t>>();
+    findNeighborBoxesCorner<HilbertKey<unsigned>>();
+    findNeighborBoxesCorner<HilbertKey<uint64_t>>();
 }
 
 template<class KeyType>
@@ -245,6 +249,8 @@ TEST(FindNeighbors, findNeighborBoxesUpperCorner)
 {
     findNeighborBoxesUpperCorner<MortonKey<unsigned>>();
     findNeighborBoxesUpperCorner<MortonKey<uint64_t>>();
+    findNeighborBoxesUpperCorner<HilbertKey<unsigned>>();
+    findNeighborBoxesUpperCorner<HilbertKey<uint64_t>>();
 }
 
 template<class KeyType>
@@ -275,6 +281,8 @@ TEST(FindNeighbors, findNeighborBoxesCornerPbc)
 {
     findNeighborBoxesCornerPbc<MortonKey<unsigned>>();
     findNeighborBoxesCornerPbc<MortonKey<uint64_t>>();
+    findNeighborBoxesCornerPbc<HilbertKey<unsigned>>();
+    findNeighborBoxesCornerPbc<HilbertKey<uint64_t>>();
 }
 
 template<class Coordinates, class T>
