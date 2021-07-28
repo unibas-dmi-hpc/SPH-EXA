@@ -187,18 +187,4 @@ HOST_DEVICE_FUN IBox mortonIBox(KeyType keyStart, KeyType keyEnd) noexcept
     return IBox(ix, ix + cubeLength, iy, iy + cubeLength, iz, iz + cubeLength);
 }
 
-template<class KeyType>
-HOST_DEVICE_FUN inline KeyType mortonNeighbor(const IBox& ibox, int dx, int dy, int dz)
-{
-    constexpr unsigned pbcRange = 1u << maxTreeLevel<KeyType>{};
-
-    unsigned shiftValue = ibox.xmax() - ibox.xmin();
-
-    int x = pbcAdjust<pbcRange>(ibox.xmin() + dx * shiftValue);
-    int y = pbcAdjust<pbcRange>(ibox.ymin() + dy * shiftValue);
-    int z = pbcAdjust<pbcRange>(ibox.zmin() + dz * shiftValue);
-
-    return iMorton<KeyType>(x, y, z);
-}
-
 } // namespace cstone

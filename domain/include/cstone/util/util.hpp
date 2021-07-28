@@ -82,23 +82,34 @@ private:
  * parameters is desired, the underlying value attribute should be compared instead
  */
 template<class T, class Phantom>
-constexpr bool operator==(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+constexpr HOST_DEVICE_FUN
+bool operator==(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
 {
     return lhs.value() == rhs.value();
 }
 
-//! comparison function <
+//! @brief comparison function <
 template<class T, class Phantom>
-constexpr bool operator<(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+constexpr HOST_DEVICE_FUN
+bool operator<(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
 {
     return lhs.value() < rhs.value();
 }
 
-//! comparison function >
+//! @brief comparison function >
 template<class T, class Phantom>
-constexpr bool operator>(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+constexpr HOST_DEVICE_FUN
+bool operator>(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
 {
     return lhs.value() > rhs.value();
+}
+
+//! @brief addition
+template<class T, class Phantom>
+constexpr HOST_DEVICE_FUN
+StrongType<T, Phantom> operator+(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+{
+    return StrongType<T, Phantom>(lhs.value() + rhs.value());
 }
 
 

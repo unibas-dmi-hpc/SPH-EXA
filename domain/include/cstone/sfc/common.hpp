@@ -156,13 +156,12 @@ constexpr KeyType pad(KeyType prefix, int length)
  *
  */
 template<class KeyType>
-HOST_DEVICE_FUN constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, KeyType> nodeRange(unsigned treeLevel)
+HOST_DEVICE_FUN constexpr KeyType nodeRange(unsigned treeLevel)
 {
     assert (treeLevel <= maxTreeLevel<KeyType>{});
     unsigned shifts = maxTreeLevel<KeyType>{} - treeLevel;
 
-    KeyType ret = KeyType(1) << (3u * shifts);
-    return ret;
+    return KeyType(1ul << (3u * shifts));
 }
 
 //! @brief compute ceil(log8(n))
