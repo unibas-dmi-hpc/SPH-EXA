@@ -146,11 +146,9 @@ HOST_DEVICE_FUN inline KeyType sfcNeighbor(const IBox& ibox, unsigned level, int
     int y = pbcAdjust<pbcRange>(ibox.ymin() + dy * shiftValue);
     int z = pbcAdjust<pbcRange>(ibox.zmin() + dz * shiftValue);
 
-    KeyType key  = iSfcKey<KeyType>(x, y, z);
-    KeyType mask = KeyType(nodeRange<typename KeyType::ValueType>(level) - 1);
+    KeyType key = iSfcKey<KeyType>(x, y, z);
 
-    // round down to multiple of nodeRange(level) (set last 2^level - 1 bits to 0)
-    return KeyType(~mask & key);
+    return KeyType(enclosingBoxCode(key, level));
 }
 
 /*! @brief compute the Morton codes for the input coordinate arrays

@@ -276,15 +276,11 @@ HOST_DEVICE_FUN constexpr unsigned octalDigit(KeyType code, unsigned position)
 
 //! @brief cut down the input SFC code to the start code of the enclosing box at <treeLevel>
 template<class KeyType>
-HOST_DEVICE_FUN constexpr KeyType enclosingBoxCode(KeyType code, unsigned treeLevel)
+HOST_DEVICE_FUN constexpr KeyType enclosingBoxCode(KeyType key, unsigned treeLevel)
 {
-    // total usable bits in the SFC code, 30 or 63
-    constexpr unsigned nBits = 3 * maxTreeLevel<KeyType>{};
+    KeyType mask = KeyType(nodeRange<KeyType>(treeLevel) - 1);
 
-    // number of bits to discard, counting from lowest bit
-    unsigned discardedBits = nBits - 3 * treeLevel;
-    code = code >> discardedBits;
-    return KeyType(code << discardedBits);
+    return KeyType(key & ~mask);
 }
 
 /*! @brief compute an enclosing envelope corresponding to the smallest possible
