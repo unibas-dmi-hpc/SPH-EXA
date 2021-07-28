@@ -45,7 +45,7 @@ TEST(CoordinateSamples, randomContainerIsSorted)
     RandomCoordinates<real, CodeType> c(n, box);
 
     std::vector<CodeType> testCodes(n);
-    computeMortonCodes(begin(c.x()), end(c.x()), begin(c.y()), begin(c.z()), begin(testCodes), box);
+    computeSfcKeys(begin(c.x()), end(c.x()), begin(c.y()), begin(c.z()), begin(testCodes), box);
 
     EXPECT_EQ(testCodes, c.particleKeys());
 

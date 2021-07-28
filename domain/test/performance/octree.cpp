@@ -117,7 +117,7 @@ int main()
     std::cout << "plummer box: " << pBox.xmin() << " " << pBox.xmax() << " " << pBox.ymin() << " " << pBox.ymax() << " "
               << pBox.zmin() << " " << pBox.zmax() << std::endl;
 
-    computeMortonCodes(begin(px[0]), end(px[0]), begin(px[1]), begin(px[2]), begin(pxCodes), pBox);
+    computeSfcKeys(begin(px[0]), end(px[0]), begin(px[1]), begin(px[2]), begin(pxCodes), pBox);
     std::sort(begin(pxCodes), end(pxCodes));
 
     std::tie(tree, counts) = build_tree(pxCodes.data(), pxCodes.data() + numParticles, bucketSize);

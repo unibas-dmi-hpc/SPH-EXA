@@ -111,8 +111,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
     EXPECT_EQ(particleEnd - particleStart, numParticlesAssigned);
 
     std::vector<KeyType> newCodes(numParticlesAssigned);
-    computeMortonCodes(begin(x) + particleStart, begin(x) + particleEnd,
-                       begin(y) + particleStart, begin(z) + particleStart, begin(newCodes), box);
+    computeSfcKeys(begin(x) + particleStart, begin(x) + particleEnd, begin(y) + particleStart, begin(z) + particleStart,
+                   begin(newCodes), box);
 
     // received particles are not stored in morton order after the exchange
     std::sort(begin(newCodes), end(newCodes));

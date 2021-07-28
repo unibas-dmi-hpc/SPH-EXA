@@ -341,8 +341,8 @@ HOST_DEVICE_FUN void findNeighbors(LocalParticleIndex id, const T* x, const T* y
     T zi = z[id];
 
     KeyType neighborCodes[27];
-    //pair<int> boxCodeIndices = findNeighborBoxes(xi, yi, zi, radiusSq, level, box, neighborCodes);
-    pair<int> boxCodeIndices = findNeighborBoxesSimple(xi, yi, zi, level, box, neighborCodes);
+    pair<int> boxCodeIndices = findNeighborBoxes(xi, yi, zi, radiusSq, level, box, neighborCodes);
+    //pair<int> boxCodeIndices = findNeighborBoxesSimple(xi, yi, zi, level, box, neighborCodes);
 
     int nBoxes  = boxCodeIndices[0];
     int iBoxPbc = boxCodeIndices[1];

@@ -151,23 +151,23 @@ HOST_DEVICE_FUN inline KeyType sfcNeighbor(const IBox& ibox, unsigned level, int
     return KeyType(enclosingBoxCode(key, level));
 }
 
-/*! @brief compute the Morton codes for the input coordinate arrays
+/*! @brief compute the SFC keys for the input coordinate arrays
  *
  * @tparam     T          float or double
  * @param[in]  xBegin     input iterators for coordinate arrays
  * @param[in]  xEnd
  * @param[in]  yBegin
  * @param[in]  zBegin
- * @param[out] codeBegin  output for morton codes
+ * @param[out] codeBegin  output for SFC keys
  * @param[in]  box        coordinate bounding box
  */
 template<class InputIterator, class OutputIterator, class T>
-void computeMortonCodes(InputIterator  xBegin,
-                        InputIterator  xEnd,
-                        InputIterator  yBegin,
-                        InputIterator  zBegin,
-                        OutputIterator codesBegin,
-                        const Box<T>& box)
+void computeSfcKeys(InputIterator  xBegin,
+                    InputIterator  xEnd,
+                    InputIterator  yBegin,
+                    InputIterator  zBegin,
+                    OutputIterator codesBegin,
+                    const Box<T>& box)
 {
     assert(xEnd >= xBegin);
     using KeyType = std::decay_t<decltype(*codesBegin)>;
