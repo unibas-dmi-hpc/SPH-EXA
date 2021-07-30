@@ -39,6 +39,7 @@
 #include "cstone/primitives/gather.hpp"
 #include "cstone/sfc/sfc.hpp"
 #include "cstone/tree/definitions.h"
+#include "cstone/util/gsl-lite.hpp"
 
 using namespace cstone;
 
@@ -64,7 +65,7 @@ public:
         std::generate(begin(y_), end(y_), randY);
         std::generate(begin(z_), end(z_), randZ);
 
-        computeSfcKeys(begin(x_), end(x_), begin(y_), begin(z_), begin(codes_), box);
+        computeMortonKeys(begin(x_), end(x_), begin(y_), begin(z_), begin(codes_), box);
 
         std::vector<LocalParticleIndex> sfcOrder(n);
         std::iota(begin(sfcOrder), end(sfcOrder), LocalParticleIndex(0));
@@ -121,7 +122,7 @@ public:
         std::generate(begin(y_), end(y_), randY);
         std::generate(begin(z_), end(z_), randZ);
 
-        computeSfcKeys(begin(x_), end(x_), begin(y_), begin(z_), begin(codes_), box);
+        computeMortonKeys(begin(x_), end(x_), begin(y_), begin(z_), begin(codes_), box);
 
         std::vector<LocalParticleIndex> sfcOrder(n);
         std::iota(begin(sfcOrder), end(sfcOrder), LocalParticleIndex(0));

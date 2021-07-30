@@ -249,8 +249,8 @@ TEST(OctreeGpu, computeOctreeRandom)
     RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
 
     // compute octree starting from default uniform octree
-    auto [treeCpu, countsCpu] = computeOctree(randomBox.particleKeys().data(), randomBox.particleKeys().data() + nParticles,
-                                              bucketSize);
+    auto particleKeys = randomBox.particleKeys();
+    auto [treeCpu, countsCpu] = computeOctree(particleKeys.data(), particleKeys.data() + nParticles, bucketSize);
 
     OctreeFixtureGpu<CodeType, RandomGaussianCoordinates> fixt(nParticles, bucketSize);
 
