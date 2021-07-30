@@ -63,11 +63,11 @@ int main()
     const T* z = coords.z().data();
     const KeyType* codes = coords.particleKeys().data();
 
-    thrust::device_vector<T> d_x = coords.x();
-    thrust::device_vector<T> d_y = coords.y();
-    thrust::device_vector<T> d_z = coords.z();
+    thrust::device_vector<T> d_x(coords.x().begin(), coords.x().end());
+    thrust::device_vector<T> d_y(coords.y().begin(), coords.y().end());
+    thrust::device_vector<T> d_z(coords.z().begin(), coords.z().end());
     thrust::device_vector<T> d_h = h;
-    thrust::device_vector<KeyType> d_codes = coords.particleKeys();
+    thrust::device_vector<KeyType> d_codes(coords.particleKeys().begin(), coords.particleKeys().end());
 
     thrust::device_vector<int> d_neighbors(neighborsGPU.size());
     thrust::device_vector<int> d_neighborsCount(neighborsCountGPU.size());

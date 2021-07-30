@@ -198,10 +198,10 @@ public:
         particleKeys.resize(numParticles);
 
         // compute morton particleKeys only for particles participating in tree build
-        computeSfcKeys(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
-                       cbegin(y) + particleStart_,
-                       cbegin(z) + particleStart_,
-                       begin(particleKeys), box_);
+        computeMortonKeys(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
+                          cbegin(y) + particleStart_,
+                          cbegin(z) + particleStart_,
+                          begin(particleKeys), box_);
 
         // reorder the particleKeys according to the ordering
         // has the same net effect as std::sort(begin(particleKeys), end(particleKeys)),
@@ -241,17 +241,16 @@ public:
         // exchange assigned particles
         std::tie(particleStart_, particleEnd_) =
             exchangeParticles<T>(domainExchangeSends, myRank_, particleStart_, particleEnd_,
-                                 x.size(), newNParticlesAssigned,
-            sfcOrder.data(),
+                                 x.size(), newNParticlesAssigned, sfcOrder.data(),
                                  x.data(), y.data(), z.data(), h.data(), particleProperties.data()...);
 
         reallocate(particleEnd_ - particleStart_, particleKeys);
         reallocate(particleEnd_ - particleStart_, sfcOrder);
 
         // refresh particleKeys and ordering
-        computeSfcKeys(begin(x) + particleStart_, begin(x) + particleEnd_,
-                       begin(y) + particleStart_,
-                       begin(z) + particleStart_, begin(particleKeys), box_);
+        computeMortonKeys(begin(x) + particleStart_, begin(x) + particleEnd_,
+                          begin(y) + particleStart_,
+                          begin(z) + particleStart_, begin(particleKeys), box_);
         reorderFunctor.setMapFromCodes(particleKeys.data(), particleKeys.data() + particleKeys.size());
         reorderFunctor.getReorderMap(sfcOrder.data());
 
@@ -287,12 +286,12 @@ public:
         /* Halo discovery phase *********************************************************/
 
         std::vector<float> haloRadii(nNodes(focusedTree_.treeLeaves()));
-        computeHaloRadii<KeyType>(focusedTree_.treeLeaves().data(),
-                                  nNodes(focusedTree_.treeLeaves()),
-                                  codesView,
-                                  sfcOrder.data() + compactOffset,
-                                  h.data() + particleStart_,
-                                  haloRadii.data());
+        computeHaloRadii(focusedTree_.treeLeaves().data(),
+                         nNodes(focusedTree_.treeLeaves()),
+                         codesView,
+                         sfcOrder.data() + compactOffset,
+                         h.data() + particleStart_,
+                         haloRadii.data());
 
         std::vector<int> haloFlags(nNodes(focusedTree_.treeLeaves()), 0);
         findHalos(focusedTree_.treeLeaves().data(),
@@ -343,14 +342,14 @@ public:
         exchangeHalos(x, y, z, h);
 
         // compute SFC keys of received halo particles
-        computeSfcKeys(cbegin(x), cbegin(x) + particleStart_,
-                       cbegin(y),
-                       cbegin(z),
-                       begin(particleKeys), box_);
-        computeSfcKeys(cbegin(x) + particleEnd_, cend(x),
-                       cbegin(y) + particleEnd_,
-                       cbegin(z) + particleEnd_,
-                       begin(particleKeys) + particleEnd_, box_);
+        computeMortonKeys(cbegin(x), cbegin(x) + particleStart_,
+                          cbegin(y),
+                          cbegin(z),
+                          begin(particleKeys), box_);
+        computeMortonKeys(cbegin(x) + particleEnd_, cend(x),
+                          cbegin(y) + particleEnd_,
+                          cbegin(z) + particleEnd_,
+                          begin(particleKeys) + particleEnd_, box_);
     }
 
     /*! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays

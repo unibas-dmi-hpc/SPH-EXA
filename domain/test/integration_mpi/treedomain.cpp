@@ -94,9 +94,9 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
     EXPECT_EQ(std::accumulate(begin(counts), end(counts), std::size_t(0)), numParticles * numRanks);
 
-    std::vector<T> x = coords.x();
-    std::vector<T> y = coords.y();
-    std::vector<T> z = coords.z();
+    std::vector<T> x(coords.x().begin(), coords.x().end());
+    std::vector<T> y(coords.y().begin(), coords.y().end());
+    std::vector<T> z(coords.z().begin(), coords.z().end());
 
     LocalParticleIndex numParticlesAssigned = assignment.totalCount(thisRank);
 
@@ -111,8 +111,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
     EXPECT_EQ(particleEnd - particleStart, numParticlesAssigned);
 
     std::vector<KeyType> newCodes(numParticlesAssigned);
-    computeSfcKeys(begin(x) + particleStart, begin(x) + particleEnd, begin(y) + particleStart, begin(z) + particleStart,
-                   begin(newCodes), box);
+    computeMortonKeys(begin(x) + particleStart, begin(x) + particleEnd, begin(y) + particleStart,
+                      begin(z) + particleStart, begin(newCodes), box);
 
     // received particles are not stored in morton order after the exchange
     std::sort(begin(newCodes), end(newCodes));

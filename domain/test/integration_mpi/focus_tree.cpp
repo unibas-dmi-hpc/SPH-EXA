@@ -118,7 +118,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     // Now build the focused tree using distributed algorithms. Each rank only uses its slice.
 
     std::vector<KeyType> particleKeys(lastAssignedIndex - firstAssignedIndex);
-    computeSfcKeys(begin(x), end(x), begin(y), begin(z), begin(particleKeys), box);
+    computeMortonKeys(begin(x), end(x), begin(y), begin(z), begin(particleKeys), box);
 
     FocusedOctree<KeyType> focusTree(bucketSizeLocal, theta);
 

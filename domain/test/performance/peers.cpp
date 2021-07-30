@@ -50,7 +50,7 @@ int main()
     int numRanks = 50;
 
     RandomGaussianCoordinates<double, KeyType> randomBox(nParticles, box);
-    std::vector<KeyType> codes = randomBox.particleKeys();
+    auto codes = randomBox.particleKeys();
 
     Octree<KeyType> octree;
     auto [treeLeaves, counts] = computeOctree(codes.data(), codes.data() + nParticles, bucketSize);

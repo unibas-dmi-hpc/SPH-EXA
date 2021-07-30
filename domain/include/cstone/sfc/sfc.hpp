@@ -175,6 +175,25 @@ void computeSfcKeys(InputIterator  xBegin,
     #pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < std::size_t(xEnd-xBegin); ++i)
     {
+        codesBegin[i] = sfc3D<KeyType>(xBegin[i], yBegin[i], zBegin[i], box);
+    }
+}
+
+//! @brief compute Morton Keys
+template<class InputIterator, class OutputIterator, class T>
+void computeMortonKeys(InputIterator  xBegin,
+                       InputIterator  xEnd,
+                       InputIterator  yBegin,
+                       InputIterator  zBegin,
+                       OutputIterator codesBegin,
+                       const Box<T>& box)
+{
+    assert(xEnd >= xBegin);
+    using KeyType = std::decay_t<decltype(*codesBegin)>;
+
+    #pragma omp parallel for schedule(static)
+    for (std::size_t i = 0; i < std::size_t(xEnd-xBegin); ++i)
+    {
         codesBegin[i] = sfc3D<MortonKey<KeyType>>(xBegin[i], yBegin[i], zBegin[i], box);
     }
 }
