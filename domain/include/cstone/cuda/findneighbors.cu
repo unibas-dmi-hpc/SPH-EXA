@@ -31,23 +31,26 @@
 
 #include "findneighbors.cuh"
 
-template<class T, class Integer>
+using namespace cstone;
+
+template<class T, class KeyType>
 __global__ void findNeighborsKernel(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                                    cstone::Box<T> box, const Integer* particleKeys,
+                                    cstone::Box<T> box, const KeyType* particleKeys,
                                     int* neighbors, int* neighborsCount, int ngmax)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned id = firstId + tid;
-    if (id < lastId)
-    {
-        cstone::findNeighbors(id, x, y, z, h, box, particleKeys, neighbors + tid*ngmax, neighborsCount + tid, n, ngmax);
-    }
+    if (id >= lastId) { return; }
+
+    findNeighbors(id, x, y, z, h, box, particleKeys, neighbors + tid*ngmax, neighborsCount + tid, n, ngmax);
 }
 
+//! @brief generic version
 template<class T, class Integer>
+inline
 void findNeighborsGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                       cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount, int ngmax,
-                       cudaStream_t stream)
+                      cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount,
+                      int ngmax, cudaStream_t stream)
 {
     unsigned numThreads = 256;
     unsigned numBlocks  = iceil(n, numThreads);
@@ -55,7 +58,32 @@ void findNeighborsGpu(const T* x, const T* y, const T* z, const T* h, int firstI
         (x, y, z, h, firstId, lastId, n, box, particleKeys, neighbors, neighborsCount, ngmax);
 }
 
-template FIND_NEIGHBORS_GPU(float,  uint32_t)
-template FIND_NEIGHBORS_GPU(float,  uint64_t)
-template FIND_NEIGHBORS_GPU(double, uint32_t)
-template FIND_NEIGHBORS_GPU(double, uint64_t)
+//! @brief Morton key based algorithm
+template<class T, class Integer>
+void findNeighborsMortonGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
+                            cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount,
+                            int ngmax, cudaStream_t stream)
+{
+    const MortonKey<Integer>* mortonKeys = (MortonKey<Integer>*)(particleKeys);
+    findNeighborsGpu(x, y, z, h, firstId, lastId, n, box, mortonKeys, neighbors, neighborsCount, ngmax, stream);
+}
+
+//! @brief Hilbert key based algorithm
+template<class T, class Integer>
+void findNeighborsHilbertGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
+                             cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount,
+                             int ngmax, cudaStream_t stream)
+{
+    const HilbertKey<Integer>* hilbertKeys = (HilbertKey<Integer>*)(particleKeys);
+    findNeighborsGpu(x, y, z, h, firstId, lastId, n, box, hilbertKeys, neighbors, neighborsCount, ngmax, stream);
+}
+
+template FIND_NEIGHBORS_MORTON_GPU(float,  uint32_t)
+template FIND_NEIGHBORS_MORTON_GPU(float,  uint64_t)
+template FIND_NEIGHBORS_MORTON_GPU(double, uint32_t)
+template FIND_NEIGHBORS_MORTON_GPU(double, uint64_t)
+
+template FIND_NEIGHBORS_HILBERT_GPU(float,  uint32_t)
+template FIND_NEIGHBORS_HILBERT_GPU(float,  uint64_t)
+template FIND_NEIGHBORS_HILBERT_GPU(double, uint32_t)
+template FIND_NEIGHBORS_HILBERT_GPU(double, uint64_t)

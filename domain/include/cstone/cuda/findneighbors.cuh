@@ -55,7 +55,7 @@
  *
  * Preconditions:
  *      - codes[i] = sfc3D(x[i], y[i], z[i], box);
- *      - codes[i] <= codes[j], i < j
+ *      - codes is sorted
  *
  * Postconditions:
  *      - If id is the index of the particle (x[id], y[id], z[id), and if id is in [firstId:lastId], then
@@ -63,18 +63,35 @@
  *        neighbors[(id-firstId)*ngmax, (id-firstId)*ngmax + neighborsCount[id-firstId]]
  */
 template<class T, class Integer>
-void findNeighborsGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                       cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount, int ngmax,
-                       cudaStream_t stream = cudaStreamDefault);
+void findNeighborsMortonGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
+                            cstone::Box<T> box, const Integer* particleKeys,
+                            int* neighbors, int* neighborsCount, int ngmax,
+                            cudaStream_t stream = cudaStreamDefault);
 
 
-#define FIND_NEIGHBORS_GPU(T, Integer) \
-void findNeighborsGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n, \
-                      cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount, int ngmax, \
-                      cudaStream_t stream);
+#define FIND_NEIGHBORS_MORTON_GPU(T, Integer) \
+void findNeighborsMortonGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n, \
+                            cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount, \
+                            int ngmax, cudaStream_t stream);
 
-extern template FIND_NEIGHBORS_GPU(float,  uint32_t)
-extern template FIND_NEIGHBORS_GPU(float,  uint64_t)
-extern template FIND_NEIGHBORS_GPU(double, uint32_t)
-extern template FIND_NEIGHBORS_GPU(double, uint64_t)
+template<class T, class Integer>
+void findNeighborsHilbertGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
+                             cstone::Box<T> box, const Integer* particleKeys,
+                             int* neighbors, int* neighborsCount, int ngmax,
+                             cudaStream_t stream = cudaStreamDefault);
 
+
+#define FIND_NEIGHBORS_HILBERT_GPU(T, Integer) \
+void findNeighborsHilbertGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n, \
+cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount, \
+int ngmax, cudaStream_t stream);
+
+extern template FIND_NEIGHBORS_MORTON_GPU(float,  uint32_t)
+extern template FIND_NEIGHBORS_MORTON_GPU(float,  uint64_t)
+extern template FIND_NEIGHBORS_MORTON_GPU(double, uint32_t)
+extern template FIND_NEIGHBORS_MORTON_GPU(double, uint64_t)
+
+extern template FIND_NEIGHBORS_HILBERT_GPU(float,  uint32_t)
+extern template FIND_NEIGHBORS_HILBERT_GPU(float,  uint64_t)
+extern template FIND_NEIGHBORS_HILBERT_GPU(double, uint32_t)
+extern template FIND_NEIGHBORS_HILBERT_GPU(double, uint64_t)

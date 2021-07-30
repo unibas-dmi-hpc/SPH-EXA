@@ -82,8 +82,9 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d)
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, cudaMemcpyHostToDevice, stream));
 
-        findNeighborsGpu(d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, t.clist[0], t.clist[n - 1] + 1, np,
-                         cstoneBox, d.devPtrs.d_codes, d_neighbors_use, d_neighborsCount_use, ngmax, stream);
+        findNeighborsMortonGpu(d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h,
+                               t.clist[0], t.clist[n - 1] + 1, np, cstoneBox, d.devPtrs.d_codes,
+                               d_neighbors_use, d_neighborsCount_use, ngmax, stream);
         CHECK_CUDA_ERR(cudaGetLastError());
 
         unsigned numThreads = 256;

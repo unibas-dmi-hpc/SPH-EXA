@@ -309,8 +309,8 @@ HOST_DEVICE_FUN void searchBoxes(const KeyType* searchKeys, int firstBox, int la
  * of these ranges are determined by binary search and all particles within those ranges
  * are checked whether they lie within the search radius around the particle at id.
  *
- * @tparam T                   coordinate type, float or double
- * @tparam KeyType             Morton code type, uint32 uint64
+ * @tparam     T               coordinate type, float or double
+ * @tparam     KeyType         32- or 64-bit Morton or Hilbert key type
  * @param[in]  id              the index of the particle for which to look for neighbors
  * @param[in]  x               particle x-coordinates in Morton order
  * @param[in]  y               particle y-coordinates in Morton order
@@ -323,12 +323,11 @@ HOST_DEVICE_FUN void searchBoxes(const KeyType* searchKeys, int firstBox, int la
  * @param[in]  numParticleKeys number of particles in x,y,z
  * @param[in]  ngmax           maximum number of neighbors per particle
  */
-template<class T, class Integer>
+template<class T, class KeyType>
 HOST_DEVICE_FUN void findNeighbors(LocalParticleIndex id, const T* x, const T* y, const T* z, const T* h,
-                                   const Box<T>& box, const Integer* particleKeys,
+                                   const Box<T>& box, const KeyType* particleKeys,
                                    int* neighbors, int* neighborsCount, LocalParticleIndex numParticleKeys, int ngmax)
 {
-    using KeyType = MortonKey<Integer>;
     // SPH convention is search radius = 2 * h
     T radius   = 2 * h[id];
     T radiusSq = radius * radius;
@@ -362,6 +361,44 @@ HOST_DEVICE_FUN void findNeighbors(LocalParticleIndex id, const T* x, const T* y
                 [xi, yi, zi, &box](T xj, T yj, T zj) { return distanceSqPbc(xi, yi, zi, xj, yj, zj, box); });
 
     *neighborsCount = numNeighbors;
+}
+
+//! @brief generic version for Morton and Hilbert keys
+template<class T, class KeyType>
+void findNeighbors(const T* x, const T* y, const T* z, const T* h,
+                   LocalParticleIndex firstId, LocalParticleIndex lastId, LocalParticleIndex numParticles,
+                   const Box<T>& box, const KeyType* particleKeys, int* neighbors, int* neighborsCount, int ngmax)
+{
+    LocalParticleIndex numWork = lastId - firstId;
+
+    #pragma omp parallel for
+    for (LocalParticleIndex i = 0; i < numWork; ++i)
+    {
+        LocalParticleIndex id = i + firstId;
+        findNeighbors(id, x, y, z, h, box, particleKeys, neighbors + i * ngmax, neighborsCount + i,
+                      numParticles, ngmax);
+    }
+}
+
+//! @brief find neighbors based on Morton keys
+template<class T, class Integer>
+void findNeighborsMorton(const T* x, const T* y, const T* z, const T* h,
+                         LocalParticleIndex firstId, LocalParticleIndex lastId, LocalParticleIndex numParticles,
+                         const Box<T>& box, const Integer* particleKeys, int* neighbors, int* neighborsCount, int ngmax)
+{
+    const MortonKey<Integer>* mortonKeys = (MortonKey<Integer>*)(particleKeys);
+    findNeighbors(x, y, z, h, firstId, lastId, numParticles, box, mortonKeys, neighbors, neighborsCount, ngmax);
+}
+
+//! @brief find neighbors based on Hilbert keys
+template<class T, class Integer>
+void findNeighborsHilbert(const T* x, const T* y, const T* z, const T* h,
+                          LocalParticleIndex firstId, LocalParticleIndex lastId, LocalParticleIndex numParticles,
+                          const Box<T>& box, const Integer* particleKeys, int* neighbors, int* neighborsCount,
+                          int ngmax)
+{
+    const HilbertKey<Integer>* hilbertKeys = (HilbertKey<Integer>*)(particleKeys);
+    findNeighbors(x, y, z, h, firstId, lastId, numParticles, box, hilbertKeys, neighbors, neighborsCount, ngmax);
 }
 
 } // namespace cstone
