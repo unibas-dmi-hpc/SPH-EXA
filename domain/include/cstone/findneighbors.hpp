@@ -110,24 +110,29 @@ HOST_DEVICE_FUN inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, KeyType
  * with said box, which means that there are 26 different overlap checks.
  */
 template<class T, class KeyType>
-HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radiusSq, unsigned level,
+HOST_DEVICE_FUN pair<int> findNeighborBoxes(T x, T y, T z, T radiusSq, unsigned level,
                                             const Box<T>& bbox, KeyType* nCodes)
 {
     constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
+    int cubeLength = maxCoord >> level;
 
-    KeyType xyzCode = sfc3D<KeyType>(xi, yi, zi, bbox);
-    KeyType boxCode = enclosingBoxCode(xyzCode, level);
+    int mask = ~(cubeLength - 1);
+    int ix = stl::min(int((x - bbox.xmin()) * maxCoord * bbox.ilx()), maxCoord - 1) & mask;
+    int iy = stl::min(int((y - bbox.ymin()) * maxCoord * bbox.ily()), maxCoord - 1) & mask;
+    int iz = stl::min(int((z - bbox.zmin()) * maxCoord * bbox.ilz()), maxCoord - 1) & mask;
 
-    IBox ibox = sfcIBox(boxCode, boxCode + nodeRange<KeyType>(level));
+    KeyType boxCode = enclosingBoxCode(iSfcKey<KeyType>(ix, iy, iz), level);
+
+    IBox ibox(ix, ix + cubeLength, iy, iy + cubeLength, iz, iz + cubeLength);
     FBox<T> nodeBox = createFpBox<KeyType>(ibox, bbox);
 
     auto square = [](T x) { return x * x; };
-    T dx0 = square(xi - nodeBox.xmin());
-    T dx1 = square(xi - nodeBox.xmax());
-    T dy0 = square(yi - nodeBox.ymin());
-    T dy1 = square(yi - nodeBox.ymax());
-    T dz0 = square(zi - nodeBox.zmin());
-    T dz1 = square(zi - nodeBox.zmax());
+    T dx0 = square(x - nodeBox.xmin());
+    T dx1 = square(x - nodeBox.xmax());
+    T dy0 = square(y - nodeBox.ymin());
+    T dy1 = square(y - nodeBox.ymax());
+    T dz0 = square(z - nodeBox.zmin());
+    T dz1 = square(z - nodeBox.zmax());
 
     bool hxd = ibox.xmin() == 0;
     bool hxu = ibox.xmax() == maxCoord;

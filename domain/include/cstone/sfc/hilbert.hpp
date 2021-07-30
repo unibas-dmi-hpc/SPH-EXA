@@ -28,7 +28,7 @@
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  *
- * This code is based on the implementation of the Hilbert curves presented in:
+ * This code is based on the implementation of the Hilbert curve presented in:
  *
  * Yohei Miki, Masayuki Umemura
  * GOTHIC: Gravitational oct-tree code accelerated by hierarchical time step controlling
@@ -42,9 +42,13 @@
 namespace cstone
 {
 
+#if defined(__CUDACC__) || defined(__HIPCC__)
+__device__ unsigned mortonToHilbertDevice[8] = { 0, 1, 3, 2, 7, 6, 4, 5 };
+#endif
+
 /*! @brief compute the Hilbert key for a 3D point of integer coordinates
  *
- * @tparam KeyType       32- or 64-bit unsigned integer
+ * @tparam     KeyType   32- or 64-bit unsigned integer
  * @param[in]  px,py,pz  input coordinates in [0:2^maxTreeLevel<KeyType>{}]
  * @return               the Hilbert key
  */
@@ -56,7 +60,9 @@ std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert(unsigned px, uns
     assert(py < (1u << maxTreeLevel<KeyType>{}));
     assert(pz < (1u << maxTreeLevel<KeyType>{}));
 
+    #if !defined(__CUDA_ARCH__) && !defined(__HIP_DEVICE_COMPILE__)
     constexpr unsigned mortonToHilbert[8] = { 0, 1, 3, 2, 7, 6, 4, 5 };
+    #endif
 
     KeyType key = 0;
 
@@ -68,7 +74,11 @@ std::enable_if_t<std::is_unsigned_v<KeyType>, KeyType> iHilbert(unsigned px, uns
 
         // append 3 bits to the key
         unsigned octant = (xi << 2) | (yi << 1) | zi;
+        #if defined(__CUDA_ARCH__) || defined(__HIP_DEVICE_COMPILE__)
+        key = (key << 3) + mortonToHilbertDevice[octant];
+        #else
         key = (key << 3) + mortonToHilbert[octant];
+        #endif
 
         // turn px, py and pz
         px ^= -( xi & ((!yi) |   zi));
@@ -145,8 +155,8 @@ util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key) noexcept
 /*! @brief compute the 3D integer coordinate box that contains the key range
  *
  * @tparam KeyType   32- or 64-bit unsigned integer
- * @param keyStart   lower Hilbert key
- * @param keyEnd     upper Hilbert key
+ * @param  keyStart  lower Hilbert key
+ * @param  keyEnd    upper Hilbert key
  * @return           the integer box that contains the given key range
  */
 template<class KeyType>
