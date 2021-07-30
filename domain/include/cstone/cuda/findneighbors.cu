@@ -78,12 +78,12 @@ void findNeighborsHilbertGpu(const T* x, const T* y, const T* z, const T* h, int
     findNeighborsGpu(x, y, z, h, firstId, lastId, n, box, hilbertKeys, neighbors, neighborsCount, ngmax, stream);
 }
 
-template FIND_NEIGHBORS_MORTON_GPU(float,  uint32_t)
-template FIND_NEIGHBORS_MORTON_GPU(float,  uint64_t)
-template FIND_NEIGHBORS_MORTON_GPU(double, uint32_t)
-template FIND_NEIGHBORS_MORTON_GPU(double, uint64_t)
+template FIND_NEIGHBORS_MORTON_GPU(float,  uint32_t);
+template FIND_NEIGHBORS_MORTON_GPU(float,  uint64_t);
+template FIND_NEIGHBORS_MORTON_GPU(double, uint32_t);
+template FIND_NEIGHBORS_MORTON_GPU(double, uint64_t);
 
-template FIND_NEIGHBORS_HILBERT_GPU(float,  uint32_t)
-template FIND_NEIGHBORS_HILBERT_GPU(float,  uint64_t)
-template FIND_NEIGHBORS_HILBERT_GPU(double, uint32_t)
-template FIND_NEIGHBORS_HILBERT_GPU(double, uint64_t)
+template FIND_NEIGHBORS_HILBERT_GPU(float,  uint32_t);
+template FIND_NEIGHBORS_HILBERT_GPU(float,  uint64_t);
+template FIND_NEIGHBORS_HILBERT_GPU(double, uint32_t);
+template FIND_NEIGHBORS_HILBERT_GPU(double, uint64_t);

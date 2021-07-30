@@ -29,7 +29,6 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include <chrono>
 #include <iostream>
 #include <iterator>
 
@@ -43,42 +42,39 @@
 
 using namespace cstone;
 
-int main()
+template<class T, class KeyType>
+void benchmarkGpu()
 {
-    using KeyType = unsigned;
-    using T = float;
+    using Integer = typename KeyType::ValueType;
 
     Box<T> box{0, 1, true};
     int n = 2000000;
 
-    RandomCoordinates<T, MortonKey<KeyType>> coords(n, box);
+    RandomCoordinates<T, KeyType> coords(n, box);
     std::vector<T> h(n, 0.006);
 
     int ngmax = 100;
     std::vector<int> neighborsGPU(ngmax * n);
     std::vector<int> neighborsCountGPU(n);
 
-    const T* x = coords.x().data();
-    const T* y = coords.y().data();
-    const T* z = coords.z().data();
-    const KeyType* codes = coords.particleKeys().data();
-
     thrust::device_vector<T> d_x(coords.x().begin(), coords.x().end());
     thrust::device_vector<T> d_y(coords.y().begin(), coords.y().end());
     thrust::device_vector<T> d_z(coords.z().begin(), coords.z().end());
     thrust::device_vector<T> d_h = h;
-    thrust::device_vector<KeyType> d_codes(coords.particleKeys().begin(), coords.particleKeys().end());
+    thrust::device_vector<Integer> d_codes(coords.particleKeys().begin(), coords.particleKeys().end());
 
     thrust::device_vector<int> d_neighbors(neighborsGPU.size());
     thrust::device_vector<int> d_neighborsCount(neighborsCountGPU.size());
 
+    const auto* deviceKeys = (const KeyType*)(thrust::raw_pointer_cast(d_codes.data()));
+
     auto findNeighborsLambda = [&]()
     {
-        findNeighborsMortonGpu(
-            thrust::raw_pointer_cast(d_x.data()), thrust::raw_pointer_cast(d_y.data()),
-            thrust::raw_pointer_cast(d_z.data()), thrust::raw_pointer_cast(d_h.data()), 0, n, n, box,
-            thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_neighbors.data()),
-            thrust::raw_pointer_cast(d_neighborsCount.data()), ngmax);
+      findNeighborsSfcGpu(
+          thrust::raw_pointer_cast(d_x.data()), thrust::raw_pointer_cast(d_y.data()),
+          thrust::raw_pointer_cast(d_z.data()), thrust::raw_pointer_cast(d_h.data()), 0, n, n, box,
+          deviceKeys, thrust::raw_pointer_cast(d_neighbors.data()),
+          thrust::raw_pointer_cast(d_neighborsCount.data()), ngmax);
     };
 
     float gpuTime = timeGpu(findNeighborsLambda);
@@ -92,12 +88,17 @@ int main()
     std::vector<int> neighborsCPU(ngmax * n);
     std::vector<int> neighborsCountCPU(n);
 
-    auto t0 = std::chrono::high_resolution_clock::now();
+    const T* x = coords.x().data();
+    const T* y = coords.y().data();
+    const T* z = coords.z().data();
+    const auto* codes = (KeyType*)(coords.particleKeys().data());
 
-    findNeighborsMorton(x, y, z, h.data(), 0, n, n, box, codes, neighborsCPU.data(), neighborsCountCPU.data(), ngmax);
+    auto findNeighborsCpu = [&]()
+    {
+        findNeighbors(x, y, z, h.data(), 0, n, n, box, codes, neighborsCPU.data(), neighborsCountCPU.data(), ngmax);
+    };
 
-    auto t1 = std::chrono::high_resolution_clock::now();
-    double cpuTime = std::chrono::duration<double>(t1 - t0).count();
+    float cpuTime = timeCpu(findNeighborsCpu);
 
     std::cout << "CPU time " << cpuTime << " s" << std::endl;
     std::copy(neighborsCountCPU.data(), neighborsCountCPU.data() + 10, std::ostream_iterator<int>(std::cout, " "));
@@ -108,4 +109,11 @@ int main()
         std::cout << "Neighbor counts: PASS\n";
     else
         std::cout << "Neighbor counts: FAIL\n";
+
+}
+
+int main()
+{
+    benchmarkGpu<double, MortonKey<uint64_t>>();
+    benchmarkGpu<double, HilbertKey<uint64_t>>();
 }
