@@ -41,6 +41,8 @@
 #include "../coord_samples/random.hpp"
 #include "timing.cuh"
 
+using namespace cstone;
+
 int main()
 {
     using KeyType = unsigned;
@@ -72,10 +74,11 @@ int main()
 
     auto findNeighborsLambda = [&]()
     {
-        findNeighborsGpu(thrust::raw_pointer_cast(d_x.data()), thrust::raw_pointer_cast(d_y.data()),
-                         thrust::raw_pointer_cast(d_z.data()), thrust::raw_pointer_cast(d_h.data()), 0, n, n, box,
-                         thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_neighbors.data()),
-                         thrust::raw_pointer_cast(d_neighborsCount.data()), ngmax);
+        findNeighborsMortonGpu(
+            thrust::raw_pointer_cast(d_x.data()), thrust::raw_pointer_cast(d_y.data()),
+            thrust::raw_pointer_cast(d_z.data()), thrust::raw_pointer_cast(d_h.data()), 0, n, n, box,
+            thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_neighbors.data()),
+            thrust::raw_pointer_cast(d_neighborsCount.data()), ngmax);
     };
 
     float gpuTime = timeGpu(findNeighborsLambda);
@@ -91,12 +94,7 @@ int main()
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
-    #pragma omp parallel for
-    for (int id = 0; id < n; ++id)
-    {
-        cstone::findNeighbors(id, x, y, z, h.data(), box, codes, neighborsCPU.data() + id * ngmax,
-                              neighborsCountCPU.data() + id, n, ngmax);
-    }
+    findNeighborsMorton(x, y, z, h.data(), 0, n, n, box, codes, neighborsCPU.data(), neighborsCountCPU.data(), ngmax);
 
     auto t1 = std::chrono::high_resolution_clock::now();
     double cpuTime = std::chrono::duration<double>(t1 - t0).count();

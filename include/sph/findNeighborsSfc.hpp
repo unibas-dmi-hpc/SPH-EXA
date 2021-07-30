@@ -12,16 +12,16 @@ namespace sph
 
 #ifndef USE_CUDA
 
-template<class T, class I>
+template<class T, class KeyType>
 void findNeighborsSfc(std::vector<Task>& taskList,
                       const std::vector<T>& x,
                       const std::vector<T>& y,
                       const std::vector<T>& z,
                       const std::vector<T>& h,
-                      const std::vector<I>& codes,
+                      const std::vector<KeyType>& particleKeys,
                       const cstone::Box<T>& box)
 {
-    std::array<std::size_t, 5> sizes{x.size(), y.size(), z.size(), h.size(), codes.size()};
+    std::array<std::size_t, 5> sizes{x.size(), y.size(), z.size(), h.size(), particleKeys.size()};
     if (std::count(begin(sizes), end(sizes), x.size()) != 5)
         throw std::runtime_error("findNeighborsSfc: input array sizes inconsistent\n");
 
@@ -29,30 +29,22 @@ void findNeighborsSfc(std::vector<Task>& taskList,
 
     for (auto &t : taskList)
     {
-        const int* clist = t.clist.data();
         int* neighbors = t.neighbors.data();
         int* neighborsCount = t.neighborsCount.data();
 
-        const size_t n = t.clist.size();
-
-        #pragma omp parallel for
-        for (size_t pi = 0; pi < n; pi++)
-        {
-            int i = clist[pi];
-            cstone::findNeighbors(i, x.data(), y.data(), z.data(), h.data(), box, codes.data(),
-                                  neighbors + pi*ngmax, neighborsCount + pi, x.size(), ngmax);
-        }
+        cstone::findNeighborsMorton(x.data(), y.data(), z.data(), h.data(), t.clist.front(), t.clist.back() + 1,
+                                    x.size(), box, particleKeys.data(), neighbors, neighborsCount, ngmax);
     }
 }
 #else
 
-template<class T, class I>
+template<class T, class KeyType>
 void findNeighborsSfc([[maybe_unused]] std::vector<Task>& taskList,
                       [[maybe_unused]] const std::vector<T>& x,
                       [[maybe_unused]] const std::vector<T>& y,
                       [[maybe_unused]] const std::vector<T>& z,
                       [[maybe_unused]] const std::vector<T>& h,
-                      [[maybe_unused]] const std::vector<I>& codes,
+                      [[maybe_unused]] const std::vector<KeyType>& codes,
                       [[maybe_unused]] const cstone::Box<T>& box)
 {
 

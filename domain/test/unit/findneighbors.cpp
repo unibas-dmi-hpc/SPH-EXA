@@ -299,12 +299,8 @@ void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
     sortNeighbors(neighborsRef.data(), neighborsCountRef.data(), n, ngmax);
 
     std::vector<int> neighborsProbe(n * ngmax), neighborsCountProbe(n);
-    for (int i = 0; i < n; ++i)
-    {
-        findNeighbors(i, coords.x().data(), coords.y().data(), coords.z().data(), h.data(), box,
-                      coords.particleKeys().data(), neighborsProbe.data() + i * ngmax, neighborsCountProbe.data() + i, n,
-                      ngmax);
-    }
+    findNeighborsMorton(coords.x().data(), coords.y().data(), coords.z().data(), h.data(), 0, n, n, box,
+                        coords.particleKeys().data(), neighborsProbe.data(), neighborsCountProbe.data(), ngmax);
     sortNeighbors(neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
 
     EXPECT_EQ(neighborsRef, neighborsProbe);

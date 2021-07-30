@@ -82,17 +82,17 @@ void initCoordinates(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, Bo
 template<class I, class T, class DomainType>
 void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalizeH = false)
 {
-    int nParticles = (1000 / nRanks) * nRanks;
+    LocalParticleIndex numParticles = (1000 / nRanks) * nRanks;
     Box<T> box = domain.box();
 
-    // nParticles identical coordinates on each rank
+    // numParticles identical coordinates on each rank
     // Note: NOT sorted in morton order
-    std::vector<T> xGlobal(nParticles);
-    std::vector<T> yGlobal(nParticles);
-    std::vector<T> zGlobal(nParticles);
+    std::vector<T> xGlobal(numParticles);
+    std::vector<T> yGlobal(numParticles);
+    std::vector<T> zGlobal(numParticles);
     initCoordinates(xGlobal, yGlobal, zGlobal, box);
 
-    std::vector<T> hGlobal(nParticles, 0.1);
+    std::vector<T> hGlobal(numParticles, 0.1);
 
     if (!equalizeH)
     {
@@ -103,7 +103,7 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
         }
     }
 
-    int nParticlesPerRank = nParticles / nRanks;
+    LocalParticleIndex nParticlesPerRank = numParticles / nRanks;
 
     std::vector<T> x{xGlobal.begin() + rank * nParticlesPerRank, xGlobal.begin() + (rank + 1) * nParticlesPerRank};
     std::vector<T> y{yGlobal.begin() + rank * nParticlesPerRank, yGlobal.begin() + (rank + 1) * nParticlesPerRank};
@@ -113,11 +113,11 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     std::vector<I> codes;
     domain.sync(x, y, z, h, codes);
 
-    int localCount = domain.endIndex() - domain.startIndex();
-    int localCountSum = localCount;
-    int extractedCount = x.size();
+    LocalParticleIndex localCount = domain.endIndex() - domain.startIndex();
+    LocalParticleIndex localCountSum = localCount;
+    //int extractedCount = x.size();
     MPI_Allreduce(MPI_IN_PLACE, &localCountSum, 1, MpiType<int>{}, MPI_SUM, MPI_COMM_WORLD);
-    EXPECT_EQ(localCountSum, nParticles);
+    EXPECT_EQ(localCountSum, numParticles);
 
     // box got updated if not using PBC
     box = domain.box();
@@ -131,13 +131,8 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     int ngmax = 300;
     std::vector<int> neighbors(localCount * ngmax);
     std::vector<int> neighborsCount(localCount);
-    for (int i = 0; i < localCount; ++i)
-    {
-        int particleIndex = i + domain.startIndex();
-        findNeighbors(particleIndex, x.data(), y.data(), z.data(), h.data(), box,
-                      mortonCodes.data(), neighbors.data() + i * ngmax, neighborsCount.data() + i,
-                      extractedCount, ngmax);
-    }
+    findNeighborsMorton(x.data(), y.data(), z.data(), h.data(), domain.startIndex(), domain.endIndex(), x.size(),
+                        box, mortonCodes.data(), neighbors.data(), neighborsCount.data(), ngmax);
 
     int neighborSum = std::accumulate(begin(neighborsCount), end(neighborsCount), 0);
     MPI_Allreduce(MPI_IN_PLACE, &neighborSum, 1, MpiType<int>{}, MPI_SUM, MPI_COMM_WORLD);
@@ -150,9 +145,9 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
 
     {
         // Note: global coordinates are not yet in Morton order
-        std::vector<I> codesGlobal(nParticles);
+        std::vector<I> codesGlobal(numParticles);
         computeSfcKeys(begin(xGlobal), end(xGlobal), begin(yGlobal), begin(zGlobal), begin(codesGlobal), box);
-        std::vector<LocalParticleIndex> ordering(nParticles);
+        std::vector<LocalParticleIndex> ordering(numParticles);
         std::iota(begin(ordering), end(ordering), LocalParticleIndex(0));
         sort_by_key(begin(codesGlobal), end(codesGlobal), begin(ordering));
         reorderInPlace(ordering, xGlobal.data());
@@ -161,14 +156,11 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
         reorderInPlace(ordering, hGlobal.data());
 
         // calculate reference neighbor sum from the full arrays
-        std::vector<int> neighborsRef(nParticles * ngmax);
-        std::vector<int> neighborsCountRef(nParticles);
-        for (int i = 0; i < nParticles; ++i)
-        {
-            findNeighbors(i, xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), box,
-                          codesGlobal.data(), neighborsRef.data() + i * ngmax, neighborsCountRef.data() + i,
-                          nParticles, ngmax);
-        }
+        std::vector<int> neighborsRef(numParticles * ngmax);
+        std::vector<int> neighborsCountRef(numParticles);
+        findNeighborsMorton(xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), 0, numParticles,
+                            numParticles, box, codesGlobal.data(), neighborsRef.data(), neighborsCountRef.data(),
+                            ngmax);
 
         int neighborSumRef = std::accumulate(begin(neighborsCountRef), end(neighborsCountRef), 0);
         EXPECT_EQ(neighborSum, neighborSumRef);
