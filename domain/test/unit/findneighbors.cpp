@@ -299,8 +299,10 @@ void neighborCheck(const Coordinates& coords, T radius, const Box<T>& box)
     sortNeighbors(neighborsRef.data(), neighborsCountRef.data(), n, ngmax);
 
     std::vector<int> neighborsProbe(n * ngmax), neighborsCountProbe(n);
-    findNeighborsMorton(coords.x().data(), coords.y().data(), coords.z().data(), h.data(), 0, n, n, box,
-                        coords.particleKeys().data(), neighborsProbe.data(), neighborsCountProbe.data(), ngmax);
+
+    auto particleKeys = (typename Coordinates::KeyType*)(coords.particleKeys().data());
+    findNeighbors(coords.x().data(), coords.y().data(), coords.z().data(), h.data(), 0, n, n, box,
+                  particleKeys, neighborsProbe.data(), neighborsCountProbe.data(), ngmax);
     sortNeighbors(neighborsProbe.data(), neighborsCountProbe.data(), n, ngmax);
 
     EXPECT_EQ(neighborsRef, neighborsProbe);
@@ -325,10 +327,14 @@ public:
     }
 };
 
-TEST_P(FindNeighborsRandom, MortonUniform32)  { check<MortonKey<uint32_t>, RandomCoordinates>(); }
-TEST_P(FindNeighborsRandom, MortonUniform64)  { check<MortonKey<uint64_t>, RandomCoordinates>(); }
-TEST_P(FindNeighborsRandom, MortonGaussian32) { check<MortonKey<uint32_t>, RandomGaussianCoordinates>(); }
-TEST_P(FindNeighborsRandom, MortonGaussian64) { check<MortonKey<uint64_t>, RandomGaussianCoordinates>(); }
+TEST_P(FindNeighborsRandom, MortonUniform32)   { check<MortonKey<uint32_t>, RandomCoordinates>(); }
+TEST_P(FindNeighborsRandom, MortonUniform64)   { check<MortonKey<uint64_t>, RandomCoordinates>(); }
+TEST_P(FindNeighborsRandom, MortonGaussian32)  { check<MortonKey<uint32_t>, RandomGaussianCoordinates>(); }
+TEST_P(FindNeighborsRandom, MortonGaussian64)  { check<MortonKey<uint64_t>, RandomGaussianCoordinates>(); }
+TEST_P(FindNeighborsRandom, HilbertUniform32)  { check<HilbertKey<uint32_t>, RandomCoordinates>(); }
+TEST_P(FindNeighborsRandom, HilbertUniform64)  { check<HilbertKey<uint64_t>, RandomCoordinates>(); }
+TEST_P(FindNeighborsRandom, HilbertGaussian32) { check<HilbertKey<uint32_t>, RandomGaussianCoordinates>(); }
+TEST_P(FindNeighborsRandom, HilbertGaussian64) { check<HilbertKey<uint64_t>, RandomGaussianCoordinates>(); }
 
 std::array<double, 2> radii{0.124, 0.0624};
 std::array<int, 1> nParticles{2500};
