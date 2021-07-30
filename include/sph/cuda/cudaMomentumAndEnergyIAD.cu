@@ -15,23 +15,28 @@ namespace sph
 namespace cuda
 {
 
-template <typename T>
-__global__ void computeMomentumAndEnergyIAD(const int n, const T sincIndex, const T K, const int ngmax, const BBox<T> *bbox,
-                                            const int *clist, const int *neighbors, const int *neighborsCount, const T *x, const T *y,
-                                            const T *z, const T *vx, const T *vy, const T *vz, const T *h, const T *m, const T *ro,
-                                            const T *p, const T *c, const T *c11, const T *c12, const T *c13, const T *c22, const T *c23,
-                                            const T *c33, const T *wh, const T *whd, const size_t ltsize, T *grad_P_x, T *grad_P_y, T *grad_P_z, T *du, T *maxvsignal)
+template<class T>
+__global__ void computeMomentumAndEnergyIAD(int n, T sincIndex, T K, int ngmax, const BBox<T>* bbox,
+                                            const int* clist, const int* neighbors, const int* neighborsCount,
+                                            const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz,
+                                            const T* h, const T* m, const T* ro, const T* p, const T* c,
+                                            const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
+                                            const T* c33, const T* wh, const T* whd, size_t ltsize,
+                                            T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du, T* maxvsignal)
 {
-    const int tid = blockDim.x * blockIdx.x + threadIdx.x;
+    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
 
-    sph::kernels::momentumAndEnergyJLoop(tid, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, vx, vy, vz, h, m, ro,
-                            p, c, c11, c12, c13, c22, c23, c33, wh, whd, ltsize, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
+    sph::kernels::momentumAndEnergyJLoop(tid, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount,
+                                         x, y, z, vx, vy, vz, h, m, ro, p, c, c11, c12, c13, c22, c23, c33,
+                                         wh, whd, ltsize, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
 }
 
-template <typename T, class Dataset>
+template <class Dataset>
 void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
 {
+    using T = typename Dataset::RealType;
+
     size_t np = d.x.size();
     size_t size_np_T = np * sizeof(T);
     T ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
@@ -66,30 +71,34 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
 
     for (int i = 0; i < taskList.size(); ++i)
     {
-        const auto &t = taskList[i];
+        const auto& t = taskList[i];
 
         int sIdx = i % NST;
         cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
 
-        int *d_clist_use = d.devPtrs.d_stream[sIdx].d_clist;
-        int *d_neighbors_use = d.devPtrs.d_stream[sIdx].d_neighbors;
-        int *d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
+        int* d_clist_use = d.devPtrs.d_stream[sIdx].d_clist;
+        int* d_neighbors_use = d.devPtrs.d_stream[sIdx].d_neighbors;
+        int* d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
 
         size_t n = t.clist.size();
         size_t size_n_int = n * sizeof(int);
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, cudaMemcpyHostToDevice, stream));
 
-        constexpr int threadsPerBlock = 256;
-        int           blocksPerGrid   = (n + threadsPerBlock - 1) / threadsPerBlock;
+        findNeighborsGpu(d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, t.clist[0], t.clist[n - 1] + 1, np,
+                         cstoneBox, d.devPtrs.d_codes, d_neighbors_use, d_neighborsCount_use, ngmax, stream);
+        CHECK_CUDA_ERR(cudaGetLastError());
 
-        findNeighborsCuda(d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, t.clist[0], t.clist[n-1] + 1, np, cstoneBox,
-                          d.devPtrs.d_codes, d_neighbors_use, d_neighborsCount_use, ngmax, stream);
-        CHECK_CUDA_ERR(cudaGetLastError())
+        unsigned numThreads = 256;
+        unsigned numBlocks  = (n + numThreads - 1) / numThreads;
 
-        computeMomentumAndEnergyIAD<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
-            n, d.sincIndex, d.K, ngmax, d.devPtrs.d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use, d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_vx, d.devPtrs.d_vy, d.devPtrs.d_vz, d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_ro,
-            d.devPtrs.d_p, d.devPtrs.d_c, d.devPtrs.d_c11, d.devPtrs.d_c12, d.devPtrs.d_c13, d.devPtrs.d_c22, d.devPtrs.d_c23, d.devPtrs.d_c33, d.devPtrs.d_wh, d.devPtrs.d_whd, ltsize, d.devPtrs.d_grad_P_x, d.devPtrs.d_grad_P_y, d.devPtrs.d_grad_P_z, d.devPtrs.d_du, d.devPtrs.d_maxvsignal);
+        computeMomentumAndEnergyIAD<<<numBlocks, numThreads, 0, stream>>>(
+            n, d.sincIndex, d.K, ngmax, d.devPtrs.d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
+            d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_vx, d.devPtrs.d_vy, d.devPtrs.d_vz,
+            d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_ro, d.devPtrs.d_p, d.devPtrs.d_c,
+            d.devPtrs.d_c11, d.devPtrs.d_c12, d.devPtrs.d_c13, d.devPtrs.d_c22, d.devPtrs.d_c23, d.devPtrs.d_c33,
+            d.devPtrs.d_wh, d.devPtrs.d_whd, ltsize, d.devPtrs.d_grad_P_x, d.devPtrs.d_grad_P_y, d.devPtrs.d_grad_P_z,
+            d.devPtrs.d_du, d.devPtrs.d_maxvsignal);
 
         CHECK_CUDA_ERR(cudaGetLastError());
     }
@@ -101,10 +110,10 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
     CHECK_CUDA_ERR(cudaMemcpy(d.maxvsignal.data(), d.devPtrs.d_maxvsignal, size_np_T, cudaMemcpyDeviceToHost));
 }
 
-template void computeMomentumAndEnergyIAD<double, ParticlesData<double, unsigned>>(const std::vector<Task> &taskList, ParticlesData<double, unsigned> &d);
-template void computeMomentumAndEnergyIAD<double, ParticlesDataEvrard<double, unsigned>>(const std::vector<Task> &taskList, ParticlesDataEvrard<double, unsigned> &d);
-template void computeMomentumAndEnergyIAD<double, ParticlesData<double, uint64_t>>(const std::vector<Task> &taskList, ParticlesData<double, uint64_t> &d);
-template void computeMomentumAndEnergyIAD<double, ParticlesDataEvrard<double, uint64_t>>(const std::vector<Task> &taskList, ParticlesDataEvrard<double, uint64_t> &d);
+template void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, ParticlesData<double, unsigned>& d);
+template void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, ParticlesDataEvrard<double, unsigned>& d);
+template void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, ParticlesData<double, uint64_t>& d);
+template void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, ParticlesDataEvrard<double, uint64_t>& d);
 
 } // namespace cuda
 } // namespace sph

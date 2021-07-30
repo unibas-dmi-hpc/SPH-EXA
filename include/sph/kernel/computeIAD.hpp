@@ -11,9 +11,10 @@ namespace kernels
 
 template <typename T>
 CUDA_DEVICE_HOST_FUN inline
-void IADJLoop(int pi, const T sincIndex, const T K, const int ngmax, const BBox<T> *bbox, const int *clist,
-                const int *neighbors, const int *neighborsCount, const T *x, const T *y, const T *z, const T *h, const T *m, 
-                const T *ro, const T *wh, const T *whd, const size_t ltsize, T *c11, T *c12, T *c13, T *c22, T *c23, T *c33)
+void IADJLoop(int pi, T sincIndex, T K, int ngmax, const BBox<T>* bbox, const int* clist,
+              const int* neighbors, const int* neighborsCount,
+              const T* x, const T* y, const T* z, const T* h, const T* m,
+              const T* ro, const T* wh, const T* whd, size_t ltsize, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
 {
     const int i = clist[pi];
     const int nn = neighborsCount[pi];

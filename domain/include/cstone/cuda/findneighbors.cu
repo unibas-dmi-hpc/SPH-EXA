@@ -31,30 +31,31 @@
 
 #include "findneighbors.cuh"
 
-template<class T, class I>
-__global__ void findNeighborsCudaKernel(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                                        cstone::Box<T> box, const I* codes, int* neighbors, int* neighborsCount, int ngmax)
+template<class T, class Integer>
+__global__ void findNeighborsKernel(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
+                                    cstone::Box<T> box, const Integer* particleKeys,
+                                    int* neighbors, int* neighborsCount, int ngmax)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned id = firstId + tid;
     if (id < lastId)
     {
-        cstone::findNeighbors(id, x, y, z, h, box, codes, neighbors + tid*ngmax, neighborsCount + tid, n, ngmax);
+        cstone::findNeighbors(id, x, y, z, h, box, particleKeys, neighbors + tid*ngmax, neighborsCount + tid, n, ngmax);
     }
 }
 
-template<class T, class I>
-void findNeighborsCuda(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                       cstone::Box<T> box, const I* codes, int* neighbors, int* neighborsCount, int ngmax,
+template<class T, class Integer>
+void findNeighborsGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
+                       cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount, int ngmax,
                        cudaStream_t stream)
 {
-    constexpr int threadsPerBlock = 256;
-    int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
-    findNeighborsCudaKernel<<<blocksPerGrid, threadsPerBlock, 0, stream>>>
-        (x, y, z, h, firstId, lastId, n, box, codes, neighbors, neighborsCount, ngmax);
+    unsigned numThreads = 256;
+    unsigned numBlocks  = iceil(n, numThreads);
+    findNeighborsKernel<<<numBlocks, numThreads, 0, stream>>>
+        (x, y, z, h, firstId, lastId, n, box, particleKeys, neighbors, neighborsCount, ngmax);
 }
 
-template FIND_NEIGHBORS_CUDA(float,  uint32_t)
-template FIND_NEIGHBORS_CUDA(float,  uint64_t)
-template FIND_NEIGHBORS_CUDA(double, uint32_t)
-template FIND_NEIGHBORS_CUDA(double, uint64_t)
+template FIND_NEIGHBORS_GPU(float,  uint32_t)
+template FIND_NEIGHBORS_GPU(float,  uint64_t)
+template FIND_NEIGHBORS_GPU(double, uint32_t)
+template FIND_NEIGHBORS_GPU(double, uint64_t)

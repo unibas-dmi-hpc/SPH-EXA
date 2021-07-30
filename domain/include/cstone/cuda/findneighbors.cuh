@@ -37,8 +37,8 @@
 
 /*! @brief find neighbors on the GPU
  *
- * @tparam T                   float or double
- * @tparam I                   32- or 64-bit unsigned integer
+ * @tparam     T               float or double
+ * @tparam     Integer         32- or 64-bit unsigned integer
  * @param[in]  x               device x-coords, size @p n, order consistent with @p coords
  * @param[in]  y               device y-coords, size @p n, order consistent with @p coords
  * @param[in]  z               device z-coords, size @p n, order consistent with @p coords
@@ -47,7 +47,7 @@
  * @param[in]  lastId          last particle indes in [0:n] for which to compute neighbors
  * @param[in]  n               number of coordinates in x,y,z,h
  * @param[in]  box             coordinate bounding box used to calculate codes
- * @param[in]  codes           device morton codes of particles, sorted, size @p n
+ * @param[in]  particleKeys    device particle SFC keys, sorted, size @p n
  * @param[out] neighbors       device neighbor indices found per particle
  * @param[out] neighborsCount  device number of neighbors found per particles
  * @param[in]  ngmax           maximum number of neighbors to store in @p neighbors
@@ -62,19 +62,19 @@
  *        the neighbors of id are stored in
  *        neighbors[(id-firstId)*ngmax, (id-firstId)*ngmax + neighborsCount[id-firstId]]
  */
-template<class T, class KeyType>
-void findNeighborsCuda(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
-                       cstone::Box<T> box, const KeyType* codes, int* neighbors, int* neighborsCount, int ngmax,
+template<class T, class Integer>
+void findNeighborsGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
+                       cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount, int ngmax,
                        cudaStream_t stream = cudaStreamDefault);
 
 
-#define FIND_NEIGHBORS_CUDA(T, KeyType) \
-void findNeighborsCuda(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n, \
-                       cstone::Box<T> box, const KeyType* codes, int* neighbors, int* neighborsCount, int ngmax, \
-                       cudaStream_t stream);
+#define FIND_NEIGHBORS_GPU(T, Integer) \
+void findNeighborsGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n, \
+                      cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount, int ngmax, \
+                      cudaStream_t stream);
 
-extern template FIND_NEIGHBORS_CUDA(float, uint32_t )
-extern template FIND_NEIGHBORS_CUDA(float, uint64_t )
-extern template FIND_NEIGHBORS_CUDA(double, uint32_t)
-extern template FIND_NEIGHBORS_CUDA(double, uint64_t)
+extern template FIND_NEIGHBORS_GPU(float,  uint32_t)
+extern template FIND_NEIGHBORS_GPU(float,  uint64_t)
+extern template FIND_NEIGHBORS_GPU(double, uint32_t)
+extern template FIND_NEIGHBORS_GPU(double, uint64_t)
 

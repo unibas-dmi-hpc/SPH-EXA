@@ -77,10 +77,10 @@ HOST_DEVICE_FUN inline KeyType sfc3D(T x, T y, T z, T xmin, T ymin, T zmin, T mx
 
 /*! @brief Calculates a Hilbert key for a 3D point within the specified box
  *
- * @tparam    KeyType specify either a 32 or 64 bit unsigned integer Morton or Hilbert key type.
- * @param[in] x,y,z   input coordinates within the unit cube [0,1]^3
- * @param[in] box     bounding for coordinates
- * @return            the SFC key
+ * @tparam    KeyType  32- or 64-bit Morton or Hilbert key type.
+ * @param[in] x,y,z    input coordinates within the unit cube [0,1]^3
+ * @param[in] box      bounding for coordinates
+ * @return             the SFC key
  *
  * Note: -KeyType needs to be specified explicitly.
  *       -not specifying an unsigned type results in a compilation error
