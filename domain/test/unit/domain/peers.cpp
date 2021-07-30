@@ -105,14 +105,12 @@ std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assign
 template<class KeyType>
 void findPeers()
 {
-    using CodeType = KeyType;
     Box<double> box{-1, 1};
     int nParticles = 100000;
     int bucketSize = 64;
     int numRanks = 50;
 
-    RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
-    auto codes = randomBox.particleKeys();
+    auto codes = makeRandomGaussianKeys<KeyType>(nParticles);
 
     Octree<KeyType> octree;
     auto [tree, counts] = computeOctree(codes.data(), codes.data() + nParticles, bucketSize);
@@ -131,10 +129,11 @@ void findPeers()
     for (int peerRank : peersDtt)
     {
         std::vector<int> peersOfPeerDtt = findPeersMac(peerRank, assignment, octree, box, 0.5);
+
         // std::vector<int> peersOfPeerStt = findPeersMacStt(peerRank, assignment, octree, box, 0.5);
-        // std::vector<int> peersA2A = findPeersAll2All(rank, assignment, octree.treeLeaves(), box, 0.5);
         // EXPECT_EQ(peersDtt, peersStt);
-        // EXPECT_EQ(peersDtt, peersA2A);
+        std::vector<int> peersOfPeerA2A = findPeersAll2All(peerRank, assignment, octree.treeLeaves(), box, 0.5);
+        EXPECT_EQ(peersOfPeerDtt, peersOfPeerA2A);
 
         // the peers of the peers of the probeRank have to have probeRank as peer
         EXPECT_TRUE(std::find(begin(peersOfPeerDtt), end(peersOfPeerDtt), probeRank) != end(peersOfPeerDtt));

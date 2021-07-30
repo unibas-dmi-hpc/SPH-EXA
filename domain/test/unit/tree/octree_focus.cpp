@@ -156,7 +156,7 @@ void computeEssentialTree()
     int nParticles = 100000;
     unsigned csBucketSize = 16;
 
-    RandomCoordinates<double, KeyType> randomBox(nParticles, box);
+    RandomCoordinates<double, MortonKey<KeyType>> randomBox(nParticles, box);
     auto codes = randomBox.particleKeys();
 
     auto [csTree, csCounts] = computeOctree(codes.data(), codes.data() + nParticles, csBucketSize);

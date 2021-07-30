@@ -112,6 +112,14 @@ StrongType<T, Phantom> operator+(const StrongType<T, Phantom>& lhs, const Strong
     return StrongType<T, Phantom>(lhs.value() + rhs.value());
 }
 
+//! @brief subtraction
+template<class T, class Phantom>
+constexpr HOST_DEVICE_FUN
+StrongType<T, Phantom> operator-(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+{
+    return StrongType<T, Phantom>(lhs.value() - rhs.value());
+    }
+
 
 //! @brief simple pair that's usable in both CPU and GPU code
 template<class T>

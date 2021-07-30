@@ -66,7 +66,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     /* identical data on all ranks */
 
     // common pool of coordinates, identical on all ranks
-    RandomGaussianCoordinates<T, KeyType> coords(numRanks * numParticles, box);
+    RandomGaussianCoordinates<T, MortonKey<KeyType>> coords(numRanks * numParticles, box);
 
     auto [tree, counts] = computeOctree(coords.particleKeys().data(),
                                         coords.particleKeys().data() + coords.particleKeys().size(), bucketSize);

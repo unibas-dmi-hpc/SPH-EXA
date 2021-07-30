@@ -204,23 +204,19 @@ TEST(OctreeGpu, rebalanceTree)
 /*! @brief fixture for octree tests based on random particle distributions
  *
  * @tparam KeyType         32- or 64-bit unsigned integer
- * @tparam CoordinateType  random uniform or random gaussian coordinates
  *
  * These tests are already integration tests strictly speaking. They can be seen
  * as the second line of defense in case the unit tests above (with minimal and explict reference data)
  * fail to catch an error.
  */
-template<class KeyType, template<class...> class CoordinateType>
+template<class KeyType>
 class OctreeFixtureGpu
 {
 public:
 
     OctreeFixtureGpu(unsigned numParticles, unsigned bucketSize)
     {
-        Box<double> box{-1, 1};
-
-        CoordinateType<double, KeyType> randomBox(numParticles, box);
-        d_codes = randomBox.particleKeys();
+        d_codes = makeRandomGaussianKeys<KeyType>(numParticles);
 
         d_tree   = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
         d_counts = std::vector<unsigned>{numParticles};
@@ -228,8 +224,9 @@ public:
         thrust::device_vector<KeyType>       tmpTree;
         thrust::device_vector<TreeNodeIndex> workArray;
 
-        while(!updateOctreeGpu(thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_codes.data() + d_codes.size()),
-                        bucketSize, d_tree, d_counts, tmpTree, workArray));
+        while(!updateOctreeGpu(thrust::raw_pointer_cast(d_codes.data()),
+                               thrust::raw_pointer_cast(d_codes.data() + d_codes.size()),
+                               bucketSize, d_tree, d_counts, tmpTree, workArray));
     }
 
     thrust::device_vector<KeyType>  d_tree;
@@ -237,29 +234,26 @@ public:
     thrust::device_vector<unsigned> d_counts;
 };
 
-//! @brief build tree from random particles and compare a against CPU
+//! @brief build tree from random particles and compare against CPU
 TEST(OctreeGpu, computeOctreeRandom)
 {
-    using CodeType = unsigned;
-    Box<double> box{-1, 1};
+    using Integer = unsigned;
 
     int nParticles = 100000;
     int bucketSize = 64;
 
-    RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
-
     // compute octree starting from default uniform octree
-    auto particleKeys = randomBox.particleKeys();
+    auto particleKeys = makeRandomGaussianKeys<Integer>(nParticles);
     auto [treeCpu, countsCpu] = computeOctree(particleKeys.data(), particleKeys.data() + nParticles, bucketSize);
 
-    OctreeFixtureGpu<CodeType, RandomGaussianCoordinates> fixt(nParticles, bucketSize);
+    OctreeFixtureGpu<Integer> fixt(nParticles, bucketSize);
 
     // download tree from device
-    thrust::host_vector<CodeType> h_tree     = fixt.d_tree;
-    thrust::host_vector<CodeType> refTreeCpu = treeCpu;
+    thrust::host_vector<Integer> h_tree     = fixt.d_tree;
+    thrust::host_vector<Integer> refTreeCpu = treeCpu;
 
-    thrust::host_vector<CodeType> h_counts     = fixt.d_counts;
-    thrust::host_vector<CodeType> refCountsCpu = countsCpu;
+    thrust::host_vector<Integer> h_counts     = fixt.d_counts;
+    thrust::host_vector<Integer> refCountsCpu = countsCpu;
 
     EXPECT_EQ(h_tree, refTreeCpu);
     EXPECT_EQ(h_counts, refCountsCpu);
@@ -278,14 +272,14 @@ TEST(OctreeGpu, distributedMockUp)
     int nParticles = 100000;
     int bucketSize = 64;
 
-    OctreeFixtureGpu<CodeType, RandomGaussianCoordinates> fixt(nParticles, bucketSize);
+    OctreeFixtureGpu<CodeType> fixt(nParticles, bucketSize);
 
     thrust::device_vector<CodeType> d_counts_orig = fixt.d_counts;
 
     // omit first and last tenth of nodes
     TreeNodeIndex Nodes     = nNodes(fixt.d_tree);
     TreeNodeIndex firstNode = Nodes / 10;
-    TreeNodeIndex lastNode  = Nodes - Nodes/10;
+    TreeNodeIndex lastNode  = Nodes - Nodes / 10;
 
     // determine the part of the tree that will be empty
     thrust::host_vector<CodeType> h_codes  = fixt.d_codes;

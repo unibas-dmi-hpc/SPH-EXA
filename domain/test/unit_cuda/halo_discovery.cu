@@ -46,7 +46,7 @@ void findHalosTest()
     unsigned numParticles = 100000;
     unsigned bucketSize = 16;
     Box<double> box{-1, 1};
-    RandomGaussianCoordinates<double, KeyType> randomBox(numParticles, box);
+    RandomGaussianCoordinates<double, MortonKey<KeyType>> randomBox(numParticles, box);
 
     // host input data
 

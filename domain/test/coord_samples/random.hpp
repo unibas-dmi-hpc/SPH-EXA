@@ -43,10 +43,42 @@
 
 using namespace cstone;
 
-template<class T, class KeyType>
+template<class Integer>
+std::vector<Integer> makeRandomUniformKeys(size_t numKeys, int seed = 42)
+{
+    Integer maxCoord = nodeRange<Integer>(0) - 1;
+    std::mt19937 gen(seed);
+    std::uniform_int_distribution<Integer> distribution(0, maxCoord);
+
+    auto randInt = [&distribution, &gen]() { return distribution(gen); };
+    std::vector<Integer> ret(numKeys);
+    std::generate(ret.begin(), ret.end(), randInt);
+    std::sort(ret.begin(), ret.end());
+
+    return ret;
+}
+
+template<class Integer>
+std::vector<Integer> makeRandomGaussianKeys(size_t numKeys, int seed = 42)
+{
+    Integer maxCoord = nodeRange<Integer>(0) - 1;
+    std::mt19937 gen(seed);
+    std::normal_distribution<float> distribution(float(maxCoord) / 2, float(maxCoord) / 5);
+
+    auto randInt = [&distribution, &gen]() { return Integer(distribution(gen)); };
+    std::vector<Integer> ret(numKeys);
+    std::generate(ret.begin(), ret.end(), randInt);
+    std::sort(ret.begin(), ret.end());
+
+    return ret;
+}
+
+template<class T, class KeyType_>
 class RandomCoordinates
 {
 public:
+    using KeyType = KeyType_;
+    using Integer = typename KeyType::ValueType;
 
     RandomCoordinates(unsigned n, Box<T> box, int seed = 42)
         : box_(std::move(box)), x_(n), y_(n), z_(n), codes_(n)
@@ -65,7 +97,8 @@ public:
         std::generate(begin(y_), end(y_), randY);
         std::generate(begin(z_), end(z_), randZ);
 
-        computeMortonKeys(begin(x_), end(x_), begin(y_), begin(z_), begin(codes_), box);
+        auto keyData = (KeyType*)(codes_.data());
+        computeSfcKeys(begin(x_), end(x_), begin(y_), begin(z_), keyData, box);
 
         std::vector<LocalParticleIndex> sfcOrder(n);
         std::iota(begin(sfcOrder), end(sfcOrder), LocalParticleIndex(0));
@@ -79,19 +112,21 @@ public:
     const std::vector<T>& x() const { return x_; }
     const std::vector<T>& y() const { return y_; }
     const std::vector<T>& z() const { return z_; }
-    const std::vector<KeyType>& particleKeys() const { return codes_; }
+    const std::vector<Integer>& particleKeys() const { return codes_; }
 
 private:
 
     Box<T> box_;
     std::vector<T> x_, y_, z_;
-    std::vector<KeyType> codes_;
+    std::vector<Integer> codes_;
 };
 
-template<class T, class KeyType>
+template<class T, class KeyType_>
 class RandomGaussianCoordinates
 {
 public:
+    using KeyType = KeyType_;
+    using Integer = typename KeyType::ValueType;
 
     RandomGaussianCoordinates(unsigned n, Box<T> box, int seed = 42)
         : box_(std::move(box)), x_(n), y_(n), z_(n), codes_(n)
@@ -122,7 +157,8 @@ public:
         std::generate(begin(y_), end(y_), randY);
         std::generate(begin(z_), end(z_), randZ);
 
-        computeMortonKeys(begin(x_), end(x_), begin(y_), begin(z_), begin(codes_), box);
+        auto keyData = (KeyType*)(codes_.data());
+        computeSfcKeys(begin(x_), end(x_), begin(y_), begin(z_), keyData, box);
 
         std::vector<LocalParticleIndex> sfcOrder(n);
         std::iota(begin(sfcOrder), end(sfcOrder), LocalParticleIndex(0));
@@ -136,11 +172,11 @@ public:
     const std::vector<T>& x() const { return x_; }
     const std::vector<T>& y() const { return y_; }
     const std::vector<T>& z() const { return z_; }
-    const std::vector<KeyType>& particleKeys() const { return codes_; }
+    const std::vector<Integer>& particleKeys() const { return codes_; }
 
 private:
 
     Box<T> box_;
     std::vector<T> x_, y_, z_;
-    std::vector<KeyType> codes_;
+    std::vector<Integer> codes_;
 };
