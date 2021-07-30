@@ -180,7 +180,7 @@ unsigned updateNodeCount(TreeNodeIndex nodeIdx, const KeyType* tree,
 
 /*! @brief count number of particles in each octree node
  *
- * @tparam KeyType            32- or 64-bit unsigned integer type
+ * @tparam       KeyType      32- or 64-bit unsigned integer type
  * @param[in]    tree         octree nodes given as SFC codes of length @a nNodes+1
  *                            needs to satisfy the octree invariants
  * @param[inout] counts       output particle counts per node, length = @a nNodes
@@ -245,8 +245,8 @@ void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNod
 /*! @brief return the sibling index and level of the specified csTree node
  *
  * @tparam KeyType   32- or 64-bit unsigned integer
- * @param csTree     cornerstone octree, length N
- * @param nodeIdx    node index in [0:N] of @p csTree to compute sibling index
+ * @param  csTree    cornerstone octree, length N
+ * @param  nodeIdx   node index in [0:N] of @p csTree to compute sibling index
  * @return           in first pair element: index in [0:8] if all 8 siblings of the specified
  *                   node are next to each other and at the same division level.
  *                   8 otherwise, i.e. if not all the 8 siblings exist in @p csTree
@@ -293,7 +293,7 @@ HOST_DEVICE_FUN int calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, 
 
 /*! @brief Compute split or fuse decision for each octree node in parallel
  *
- * @tparam KeyType         32- or 64-bit unsigned integer type
+ * @tparam    KeyType      32- or 64-bit unsigned integer type
  * @param[in] tree         octree nodes given as SFC codes of length @p nNodes
  *                         needs to satisfy the octree invariants
  * @param[in] counts       output particle counts per node, length = @p nNodes
@@ -333,10 +333,10 @@ bool rebalanceDecision(const KeyType* tree, const unsigned* counts, TreeNodeInde
 /*! @brief transform old nodes into new nodes based on opcodes
  *
  * @tparam KeyType    32- or 64-bit integer
- * @param nodeIndex   the node to process in @p oldTree
- * @param oldTree     the old tree
- * @param nodeOps     opcodes per old tree node
- * @param newTree     the new tree
+ * @param  nodeIndex  the node to process in @p oldTree
+ * @param  oldTree    the old tree
+ * @param  nodeOps    opcodes per old tree node
+ * @param  newTree    the new tree
  */
 template<class KeyType>
 HOST_DEVICE_FUN void processNode(TreeNodeIndex nodeIndex, const KeyType* oldTree, const TreeNodeIndex* nodeOps, KeyType* newTree)
@@ -371,7 +371,7 @@ HOST_DEVICE_FUN void processNode(TreeNodeIndex nodeIndex, const KeyType* oldTree
 
 /*! @brief split or fuse octree nodes based on node counts relative to bucketSize
  *
- * @tparam KeyType             32- or 64-bit unsigned integer type
+ * @tparam       KeyType      32- or 64-bit unsigned integer type
  * @param[in]    tree         cornerstone octree
  * @param[out]   newTree      rebalanced cornerstone octree
  * @param[in]    nodeOps      rebalance decision for each node, length @p numNodes(tree) + 1
@@ -396,7 +396,7 @@ void rebalanceTree(const InputVector& tree, OutputVector& newTree, TreeNodeIndex
 
 /*! @brief update the octree with a single rebalance/count step
  *
- * @tparam KeyType           32- or 64-bit unsigned integer for SFC code
+ * @tparam       KeyType     32- or 64-bit unsigned integer for SFC code
  * @param[in]    codesStart  local particle SFC codes start
  * @param[in]    codesEnd    local particle SFC codes end
  * @param[in]    bucketSize  maximum number of particles per node
