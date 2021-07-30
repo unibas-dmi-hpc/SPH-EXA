@@ -129,16 +129,15 @@ std::vector<IndexPair<TreeNodeIndex>> invertRanges(TreeNodeIndex first,
  *      - 8 if node to be split
  */
 template<class KeyType>
-inline HOST_DEVICE_FUN int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
+inline HOST_DEVICE_FUN
+int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
                        TreeNodeIndex numInternalNodes,
                        const TreeNodeIndex* leafParents,
                        const unsigned* leafCounts, const char* macs,
                        TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
                        unsigned bucketSize)
 {
-    auto p = siblingAndLevel(cstoneTree, leafIdx);
-    int siblingIdx = p[0];
-    int level      = p[1];
+    auto [siblingIdx, level] = siblingAndLevel(cstoneTree, leafIdx);
 
     if (siblingIdx > 0) // 8 siblings next to each other, node can potentially be merged
     {

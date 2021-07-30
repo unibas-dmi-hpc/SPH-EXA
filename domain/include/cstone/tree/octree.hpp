@@ -60,6 +60,7 @@
 #include "cstone/sfc/common.hpp"
 #include "cstone/primitives/scan.hpp"
 #include "cstone/util/gsl-lite.hpp"
+#include "cstone/util/tuple.hpp"
 
 #include "definitions.h"
 
@@ -253,7 +254,7 @@ void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNod
  *                   in second pair element: tree level of node at @p nodeIdx
  */
 template<class KeyType>
-inline HOST_DEVICE_FUN pair<int> siblingAndLevel(const KeyType* csTree, TreeNodeIndex nodeIdx)
+inline HOST_DEVICE_FUN util::tuple<int, int> siblingAndLevel(const KeyType* csTree, TreeNodeIndex nodeIdx)
 {
     KeyType thisNode = csTree[nodeIdx];
     KeyType range    = csTree[nodeIdx + 1] - thisNode;
@@ -272,9 +273,7 @@ inline HOST_DEVICE_FUN pair<int> siblingAndLevel(const KeyType* csTree, TreeNode
 template<class KeyType>
 HOST_DEVICE_FUN int calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize)
 {
-    auto p = siblingAndLevel(tree, nodeIdx);
-    int siblingIdx = p[0];
-    int level      = p[1];
+    auto [siblingIdx, level] = siblingAndLevel(tree, nodeIdx);
 
     if (siblingIdx > 0) // 8 siblings next to each other, node can potentially be merged
     {
@@ -525,9 +524,7 @@ ResolutionStatus enforceKeys(gsl::span<const KeyType> treeLeaves, gsl::span<cons
 
         TreeNodeIndex nodeIdx = findNodeBelow(treeLeaves, key);
 
-        auto p = siblingAndLevel(treeLeaves.data(), nodeIdx);
-        int siblingIdx = p[0];
-        int level      = p[1];
+        auto [siblingIdx, level] = siblingAndLevel(treeLeaves.data(), nodeIdx);
 
         bool canCancel = siblingIdx > -1;
         // need to cancel if the closest tree node would be merged or the mandatory key is not there
