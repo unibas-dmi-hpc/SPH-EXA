@@ -82,7 +82,9 @@ inline TreeNodeIndex findNodeAbove(gsl::span<const KeyType> tree, KeyType key)
 
 //! @brief count particles in one tree node
 template<class KeyType>
-HOST_DEVICE_FUN unsigned calculateNodeCount(const KeyType* tree, TreeNodeIndex nodeIdx, const KeyType* codesStart, const KeyType* codesEnd, unsigned maxCount)
+HOST_DEVICE_FUN
+unsigned calculateNodeCount(const KeyType* tree, TreeNodeIndex nodeIdx,
+                            const KeyType* codesStart, const KeyType* codesEnd, unsigned maxCount)
 {
     KeyType nodeStart = tree[nodeIdx];
     KeyType nodeEnd   = tree[nodeIdx+1];
@@ -106,7 +108,8 @@ HOST_DEVICE_FUN unsigned calculateNodeCount(const KeyType* tree, TreeNodeIndex n
  * @return            the sub-range in [codesStart:codesEnd] containing @p targetCode
  */
 template<class KeyType>
-HOST_DEVICE_FUN pair<const KeyType*> findSearchBounds(std::make_signed_t<KeyType> firstIdx, KeyType targetCode,
+HOST_DEVICE_FUN
+pair<const KeyType*> findSearchBounds(std::make_signed_t<KeyType> firstIdx, KeyType targetCode,
                                       const KeyType* codesStart, const KeyType* codesEnd)
 {
     using SI = std::make_signed_t<KeyType>;
@@ -137,7 +140,7 @@ HOST_DEVICE_FUN pair<const KeyType*> findSearchBounds(std::make_signed_t<KeyType
     secondIndex = stl::min(nCodes, secondIndex);
 
     pair<const KeyType*> searchBounds{codesStart + stl::min(firstIdx, secondIndex),
-                                codesStart + stl::max(firstIdx, secondIndex)};
+                                      codesStart + stl::max(firstIdx, secondIndex)};
     return searchBounds;
 }
 
@@ -155,7 +158,8 @@ HOST_DEVICE_FUN pair<const KeyType*> findSearchBounds(std::make_signed_t<KeyType
  *                          whichever is smaller
  */
 template<class KeyType>
-HOST_DEVICE_FUN unsigned updateNodeCount(TreeNodeIndex nodeIdx, const KeyType* tree,
+HOST_DEVICE_FUN
+unsigned updateNodeCount(TreeNodeIndex nodeIdx, const KeyType* tree,
                          std::make_signed_t<KeyType> firstGuess,
                          std::make_signed_t<KeyType> secondGuess,
                          const KeyType* codesStart, const KeyType* codesEnd, unsigned maxCount)
@@ -163,8 +167,8 @@ HOST_DEVICE_FUN unsigned updateNodeCount(TreeNodeIndex nodeIdx, const KeyType* t
     KeyType nodeStart = tree[nodeIdx];
     KeyType nodeEnd   = tree[nodeIdx+1];
 
-    auto searchBounds   = findSearchBounds(firstGuess, nodeStart, codesStart, codesEnd);
-    auto rangeStart     = stl::lower_bound(searchBounds[0], searchBounds[1], nodeStart);
+    auto searchBounds = findSearchBounds(firstGuess, nodeStart, codesStart, codesEnd);
+    auto rangeStart   = stl::lower_bound(searchBounds[0], searchBounds[1], nodeStart);
 
     searchBounds  = findSearchBounds(secondGuess, nodeEnd, codesStart, codesEnd);
     auto rangeEnd = stl::lower_bound(searchBounds[0], searchBounds[1], nodeEnd);
@@ -186,7 +190,8 @@ HOST_DEVICE_FUN unsigned updateNodeCount(TreeNodeIndex nodeIdx, const KeyType* t
  *                            to prevent overflow in MPI_Allreduce
  */
 template<class KeyType>
-void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNodes, const KeyType* codesStart, const KeyType* codesEnd,
+void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNodes,
+                       const KeyType* codesStart, const KeyType* codesEnd,
                        unsigned maxCount, bool useCountsAsGuess = false)
 {
     TreeNodeIndex firstNode = 0;
@@ -195,6 +200,7 @@ void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNod
     {
         firstNode = std::upper_bound(tree, tree + nNodes, *codesStart) - tree - 1;
         lastNode  = std::upper_bound(tree, tree + nNodes, *(codesEnd-1)) - tree;
+        assert(firstNode <= lastNode && "Are your particle codes sorted?");
     }
 
     #pragma omp parallel for schedule(static)

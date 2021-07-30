@@ -50,7 +50,7 @@ int main()
     unsigned numParticles = 2000000;
     unsigned bucketSize   = 16;
 
-    RandomGaussianCoordinates<double, KeyType> randomBox(numParticles, box);
+    RandomGaussianCoordinates<double, MortonKey<KeyType>> randomBox(numParticles, box);
 
     thrust::device_vector<KeyType> tree    = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
     thrust::device_vector<unsigned> counts = std::vector<unsigned>{numParticles};

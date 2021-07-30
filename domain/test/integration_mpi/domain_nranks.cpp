@@ -236,7 +236,7 @@ TEST(FocusDomain, assignmentShift)
     unsigned bucketSize = 1024;
     unsigned bucketSizeFocus = 8;
 
-    RandomCoordinates<Real, KeyType> coordinates(numParticlesPerRank, box, rank);
+    RandomCoordinates<Real, MortonKey<KeyType>> coordinates(numParticlesPerRank, box, rank);
 
     std::vector<Real> x(coordinates.x().begin(), coordinates.x().end());
     std::vector<Real> y(coordinates.y().begin(), coordinates.y().end());

@@ -31,7 +31,6 @@
 
 #include <chrono>
 #include <iostream>
-#include <numeric>
 
 #include "cstone/domain/peers.hpp"
 #include "cstone/tree/octree_internal.hpp"
@@ -45,12 +44,11 @@ int main()
     using KeyType = uint64_t;
     Box<double> box{-1, 1};
 
-    int nParticles = 2000000;
-    int bucketSize = 16;
+    LocalParticleIndex nParticles = 20000;
+    int bucketSize = 1;
     int numRanks = 50;
 
-    RandomGaussianCoordinates<double, KeyType> randomBox(nParticles, box);
-    auto codes = randomBox.particleKeys();
+    auto codes = makeRandomGaussianKeys<KeyType>(nParticles);
 
     Octree<KeyType> octree;
     auto [treeLeaves, counts] = computeOctree(codes.data(), codes.data() + nParticles, bucketSize);

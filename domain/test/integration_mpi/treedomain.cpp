@@ -75,13 +75,13 @@ void globalRandomGaussian(int thisRank, int numRanks)
     unsigned bucketSize = 64;
 
     Box<T> box{-1, 1};
-    RandomGaussianCoordinates<T, KeyType> coords(numParticles, box, thisRank);
+    RandomGaussianCoordinates<T, MortonKey<KeyType>> coords(numParticles, box, thisRank);
 
     std::vector<KeyType> tree = makeRootNodeTree<KeyType>();
     std::vector<unsigned> counts{numRanks * unsigned(numParticles)};
 
-    while (!updateOctreeGlobal(coords.particleKeys().data(), coords.particleKeys().data() + numParticles, bucketSize, tree,
-                               counts))
+    while (!updateOctreeGlobal(coords.particleKeys().data(), coords.particleKeys().data() + numParticles,
+                               bucketSize, tree, counts))
     {
     }
 

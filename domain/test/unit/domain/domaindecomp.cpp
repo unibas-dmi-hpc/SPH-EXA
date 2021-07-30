@@ -147,60 +147,6 @@ TEST(DomainDecomposition, createSendList)
     createSendList<uint64_t>();
 }
 
-/*! @brief This test integrates octree generation, SFC assignment and SendList creation
- *
- * Test procedure:
- *
- * 1. create nParticles random gaussian distributed x,y,z coordinates in a box
- * 2. create (local) sfc-octree
- * 3. create sfc assignment based on octree from 2.
- * 4. create sendList from assignment
- *
- * Expected results:
- *
- * 1. assignment contains nSplit SFC ranges which all contain about nParticles/nSplit +- bucketSize particles
- * 2. each particle appears in the SendList, i.e. each particle did get assigned to some rank
- */
-template<class KeyType>
-void assignSendRandomData()
-{
-    int nParticles = 1003;
-    int bucketSize = 64;
-    RandomGaussianCoordinates<double, KeyType> coords(nParticles, {-1, 1});
-
-    auto [tree, counts] =
-        computeOctree(coords.particleKeys().data(), coords.particleKeys().data() + nParticles, bucketSize);
-
-    int nSplits = 4;
-    auto assignment = singleRangeSfcSplit(counts, nSplits);
-
-    /// all splits except the last one should at least be assigned nParticles/nSplits
-    for (int rank = 0; rank < nSplits; ++rank)
-    {
-        std::size_t rankCount = assignment.totalCount(rank);
-
-        /// particles in each rank should be within avg per rank +- bucketCount
-        EXPECT_LE(nParticles / nSplits - bucketSize, rankCount);
-        EXPECT_LE(rankCount, nParticles / nSplits + bucketSize);
-    }
-
-    auto sendList = createSendList<KeyType>(assignment, tree, coords.particleKeys());
-
-    int particleRecount = 0;
-    for (auto& manifest : sendList)
-        for (std::size_t rangeIndex = 0; rangeIndex < manifest.nRanges(); ++rangeIndex)
-            particleRecount += manifest.rangeEnd(rangeIndex) - manifest.rangeStart(rangeIndex);
-
-    /// make sure that all particles present on the node got assigned to some rank
-    EXPECT_EQ(nParticles, particleRecount);
-}
-
-TEST(DomainDecomposition, assignSendIntegration)
-{
-    assignSendRandomData<unsigned>();
-    assignSendRandomData<uint64_t>();
-}
-
 template<class KeyType>
 void extractRange()
 {

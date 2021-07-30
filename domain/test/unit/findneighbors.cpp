@@ -325,13 +325,10 @@ public:
     }
 };
 
-TEST_P(FindNeighborsRandom, 32bitUniform) { check<uint32_t, RandomCoordinates>(); }
-
-TEST_P(FindNeighborsRandom, 64bitUniform) { check<uint64_t, RandomCoordinates>(); }
-
-TEST_P(FindNeighborsRandom, 32bitGaussian) { check<uint32_t, RandomGaussianCoordinates>(); }
-
-TEST_P(FindNeighborsRandom, 64bitGaussian) { check<uint64_t, RandomGaussianCoordinates>(); }
+TEST_P(FindNeighborsRandom, MortonUniform32)  { check<MortonKey<uint32_t>, RandomCoordinates>(); }
+TEST_P(FindNeighborsRandom, MortonUniform64)  { check<MortonKey<uint64_t>, RandomCoordinates>(); }
+TEST_P(FindNeighborsRandom, MortonGaussian32) { check<MortonKey<uint32_t>, RandomGaussianCoordinates>(); }
+TEST_P(FindNeighborsRandom, MortonGaussian64) { check<MortonKey<uint64_t>, RandomGaussianCoordinates>(); }
 
 std::array<double, 2> radii{0.124, 0.0624};
 std::array<int, 1> nParticles{2500};

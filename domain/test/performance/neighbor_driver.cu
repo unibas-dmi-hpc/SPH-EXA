@@ -51,7 +51,7 @@ int main()
     Box<T> box{0, 1, true};
     int n = 2000000;
 
-    RandomCoordinates<T, KeyType> coords(n, box);
+    RandomCoordinates<T, MortonKey<KeyType>> coords(n, box);
     std::vector<T> h(n, 0.006);
 
     int ngmax = 100;

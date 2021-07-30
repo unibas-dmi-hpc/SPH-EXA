@@ -166,17 +166,17 @@ HOST_DEVICE_FUN constexpr KeyType nodeRange(unsigned treeLevel)
 
 //! @brief compute ceil(log8(n))
 template<class KeyType>
-HOST_DEVICE_FUN constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, unsigned> log8ceil(KeyType n)
+HOST_DEVICE_FUN constexpr unsigned log8ceil(KeyType n)
 {
     if (n == 0) { return 0; }
 
-    unsigned lz = countLeadingZeros(n-1);
+    unsigned lz = countLeadingZeros(n - 1);
     return maxTreeLevel<KeyType>{} - (lz - unusedBits<KeyType>{}) / 3;
 }
 
 //! @brief check whether n is a power of 8
 template<class KeyType>
-HOST_DEVICE_FUN constexpr std::enable_if_t<std::is_unsigned<KeyType>{}, bool> isPowerOf8(KeyType n)
+HOST_DEVICE_FUN constexpr bool isPowerOf8(KeyType n)
 {
     unsigned lz = countLeadingZeros(n - 1) - unusedBits<KeyType>{};
     return lz % 3 == 0 && !(n & (n-1));

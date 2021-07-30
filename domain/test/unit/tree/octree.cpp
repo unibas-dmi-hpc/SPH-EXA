@@ -329,16 +329,12 @@ void checkOctreeWithCounts(const std::vector<KeyType>& tree, const std::vector<u
 class ComputeOctreeTester : public testing::TestWithParam<int>
 {
 public:
-    template<class KeyType, template<class...> class CoordinateType>
+    template<class KeyType>
     void check(int bucketSize)
     {
-        using CodeType = KeyType;
-        Box<double> box{-1, 1};
-
         int nParticles = 100000;
 
-        CoordinateType<double, CodeType> randomBox(nParticles, box);
-        std::vector<CodeType> codes(randomBox.particleKeys().begin(), randomBox.particleKeys().end());
+        std::vector<KeyType> codes = makeRandomGaussianKeys<KeyType>(nParticles);
 
         auto [tree, counts] = computeOctree(codes.data(), codes.data() + nParticles, bucketSize);
 
@@ -349,13 +345,13 @@ public:
         checkOctreeWithCounts(tree, counts, bucketSize, codes, false);
 
         // range of smallest treeNode
-        CodeType minRange = std::numeric_limits<CodeType>::max();
+        KeyType minRange = std::numeric_limits<KeyType>::max();
         for (int i = 0; i < nNodes(tree); ++i)
             minRange = std::min(minRange, tree[i + 1] - tree[i]);
 
         // change codes a bit
         std::mt19937 gen(42);
-        std::uniform_int_distribution<std::make_signed_t<CodeType>> displace(-minRange, minRange);
+        std::uniform_int_distribution<std::make_signed_t<KeyType>> displace(-minRange, minRange);
 
         for (auto& code : codes)
             code = std::max(std::make_signed_t<KeyType>(0),
@@ -369,9 +365,9 @@ public:
     }
 };
 
-TEST_P(ComputeOctreeTester, pingPongRandomNormal32) { check<unsigned, RandomGaussianCoordinates>(GetParam()); }
+TEST_P(ComputeOctreeTester, pingPongRandomNormal32) { check<unsigned>(GetParam()); }
 
-TEST_P(ComputeOctreeTester, pingPongRandomNormal64) { check<uint64_t, RandomGaussianCoordinates>(GetParam()); }
+TEST_P(ComputeOctreeTester, pingPongRandomNormal64) { check<uint64_t>(GetParam()); }
 
 std::array<int, 3> bucketSizesPP{64, 1024, 10000};
 
