@@ -218,7 +218,7 @@ HOST_DEVICE_FUN pair<int> findNeighborBoxes(T xi, T yi, T zi, T radiusSq, unsign
     if (dx1 + dy1 + dz1 < radiusSq && stepXup && stepYup && stepZup)
         storeCode(hxu || hyu || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1,  1,  1), nCodes);
 
-    return pair<int>(nBoxes, iBoxPbc);
+    return {nBoxes, iBoxPbc};
 }
 
 /*! @brief simple version

@@ -18,45 +18,45 @@ namespace sph
 template <typename T, class Dataset>
 void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
 {
-    const size_t n = t.clist.size();
-    const size_t ngmax = t.ngmax;
-    const int *clist = t.clist.data();
-    const int *neighbors = t.neighbors.data();
-    const int *neighborsCount = t.neighborsCount.data();
+    size_t n = t.clist.size();
+    size_t ngmax = t.ngmax;
+    const int* clist = t.clist.data();
+    const int* neighbors = t.neighbors.data();
+    const int* neighborsCount = t.neighborsCount.data();
 
-    const T *h = d.h.data();
-    const T *m = d.m.data();
-    const T *x = d.x.data();
-    const T *y = d.y.data();
-    const T *z = d.z.data();
-    const T *vx = d.vx.data();
-    const T *vy = d.vy.data();
-    const T *vz = d.vz.data();
-    const T *ro = d.ro.data();
-    const T *c = d.c.data();
-    const T *p = d.p.data();
+    const T* h = d.h.data();
+    const T* m = d.m.data();
+    const T* x = d.x.data();
+    const T* y = d.y.data();
+    const T* z = d.z.data();
+    const T* vx = d.vx.data();
+    const T* vy = d.vy.data();
+    const T* vz = d.vz.data();
+    const T* ro = d.ro.data();
+    const T* c = d.c.data();
+    const T* p = d.p.data();
 
-    const T *c11 = d.c11.data();
-    const T *c12 = d.c12.data();
-    const T *c13 = d.c13.data();
-    const T *c22 = d.c22.data();
-    const T *c23 = d.c23.data();
-    const T *c33 = d.c33.data();
+    const T* c11 = d.c11.data();
+    const T* c12 = d.c12.data();
+    const T* c13 = d.c13.data();
+    const T* c22 = d.c22.data();
+    const T* c23 = d.c23.data();
+    const T* c33 = d.c33.data();
 
-    T *du = d.du.data();
-    T *grad_P_x = d.grad_P_x.data();
-    T *grad_P_y = d.grad_P_y.data();
-    T *grad_P_z = d.grad_P_z.data();
-    T *maxvsignal = d.maxvsignal.data();
+    T* du = d.du.data();
+    T* grad_P_x = d.grad_P_x.data();
+    T* grad_P_y = d.grad_P_y.data();
+    T* grad_P_z = d.grad_P_z.data();
+    T* maxvsignal = d.maxvsignal.data();
 
-    const T *wh = d.wh.data();
-    const T *whd = d.whd.data();
-    const size_t ltsize = d.wh.size();
+    const T* wh = d.wh.data();
+    const T* whd = d.whd.data();
+    size_t ltsize = d.wh.size();
 
-    const BBox<T> *bbox = &d.bbox;
+    const BBox<T>* bbox = &d.bbox;
 
-    const T K = d.K;
-    const T sincIndex = d.sincIndex;
+    T K = d.K;
+    T sincIndex = d.sincIndex;
 
 #if defined(USE_OMP_TARGET)
     // Apparently Cray with -O2 has a bug when calling target regions in a loop. (and computeMomentumAndEnergyIADImpl can be called in a
@@ -88,8 +88,10 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
 #endif
     for (size_t pi = 0; pi < n; ++pi)
     {
-        kernels::momentumAndEnergyJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, vx, vy, vz, h, m, ro,
-                                p, c, c11, c12, c13, c22, c23, c33, wh, whd, ltsize, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
+        kernels::momentumAndEnergyJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount,
+                                        x, y, z, vx, vy, vz, h, m, ro, p, c,
+                                        c11, c12, c13, c22, c23, c33,
+                                        wh, whd, ltsize, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
     }
 }
 
@@ -97,7 +99,7 @@ template <typename T, class Dataset>
 void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
 {
 #if defined(USE_CUDA)
-    cuda::computeMomentumAndEnergyIAD<T>(taskList, d);
+    cuda::computeMomentumAndEnergyIAD(taskList, d);
 #else
     for (const auto &task : taskList)
     {

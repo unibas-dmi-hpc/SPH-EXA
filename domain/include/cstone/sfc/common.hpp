@@ -306,9 +306,9 @@ constexpr pair<KeyType> smallestCommonBox(KeyType firstCode, KeyType secondCode)
 
 //! @brief zero all but the highest nBits in a SFC code
 template<class KeyType>
-HOST_DEVICE_FUN constexpr KeyType zeroLowBits(KeyType code, int nBits)
+HOST_DEVICE_FUN constexpr KeyType zeroLowBits(KeyType code, unsigned nBits)
 {
-    int nLowerBits = sizeof(KeyType) * 8 - unusedBits<KeyType>{} - nBits;
+    unsigned nLowerBits = 3 * maxTreeLevel<KeyType>{} - nBits;
     KeyType mask = (KeyType(1) << nLowerBits) - 1;
 
     return code & ~mask;

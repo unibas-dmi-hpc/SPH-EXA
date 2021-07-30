@@ -43,13 +43,13 @@
 
 int main()
 {
-    using CodeType = unsigned;
+    using KeyType = unsigned;
     using T = float;
 
     Box<T> box{0, 1, true};
     int n = 2000000;
 
-    RandomCoordinates<T, CodeType> coords(n, box);
+    RandomCoordinates<T, KeyType> coords(n, box);
     std::vector<T> h(n, 0.006);
 
     int ngmax = 100;
@@ -59,23 +59,23 @@ int main()
     const T* x = coords.x().data();
     const T* y = coords.y().data();
     const T* z = coords.z().data();
-    const CodeType* codes = coords.particleKeys().data();
+    const KeyType* codes = coords.particleKeys().data();
 
     thrust::device_vector<T> d_x = coords.x();
     thrust::device_vector<T> d_y = coords.y();
     thrust::device_vector<T> d_z = coords.z();
     thrust::device_vector<T> d_h = h;
-    thrust::device_vector<CodeType> d_codes = coords.particleKeys();
+    thrust::device_vector<KeyType> d_codes = coords.particleKeys();
 
     thrust::device_vector<int> d_neighbors(neighborsGPU.size());
     thrust::device_vector<int> d_neighborsCount(neighborsCountGPU.size());
 
     auto findNeighborsLambda = [&]()
     {
-        findNeighborsCuda(thrust::raw_pointer_cast(d_x.data()), thrust::raw_pointer_cast(d_y.data()),
-                          thrust::raw_pointer_cast(d_z.data()), thrust::raw_pointer_cast(d_h.data()), 0, n, n, box,
-                          thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_neighbors.data()),
-                          thrust::raw_pointer_cast(d_neighborsCount.data()), ngmax);
+        findNeighborsGpu(thrust::raw_pointer_cast(d_x.data()), thrust::raw_pointer_cast(d_y.data()),
+                         thrust::raw_pointer_cast(d_z.data()), thrust::raw_pointer_cast(d_h.data()), 0, n, n, box,
+                         thrust::raw_pointer_cast(d_codes.data()), thrust::raw_pointer_cast(d_neighbors.data()),
+                         thrust::raw_pointer_cast(d_neighborsCount.data()), ngmax);
     };
 
     float gpuTime = timeGpu(findNeighborsLambda);

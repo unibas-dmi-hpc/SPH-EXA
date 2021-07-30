@@ -85,11 +85,13 @@ public:
 
     struct neighbors_stream d_stream[NST];
 
-    T *d_x, *d_y, *d_z, *d_vx, *d_vy, *d_vz, *d_m, *d_h, *d_ro, *d_p, *d_c, *d_c11, *d_c12, *d_c13, *d_c22, *d_c23, *d_c33, *d_wh, *d_whd;
-    BBox<T> *d_bbox;
-    T *d_grad_P_x, *d_grad_P_y, *d_grad_P_z, *d_du, *d_maxvsignal;
+    T *d_x, *d_y, *d_z, *d_vx, *d_vy, *d_vz, *d_m, *d_h, *d_ro, *d_p, *d_c,
+      *d_c11, *d_c12, *d_c13, *d_c22, *d_c23, *d_c33, *d_wh, *d_whd,
+      *d_grad_P_x, *d_grad_P_y, *d_grad_P_z, *d_du, *d_maxvsignal;
 
-    typename ParticleData::CodeType *d_codes;
+    BBox<T> *d_bbox;
+
+    typename ParticleData::KeyType *d_codes;
 
 
     void resize(size_t size)
@@ -101,20 +103,22 @@ public:
             {
                 CHECK_CUDA_ERR(utils::cudaFree(d_x, d_y, d_z, d_h, d_m, d_ro));
                 CHECK_CUDA_ERR(utils::cudaFree(d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
-                CHECK_CUDA_ERR(utils::cudaFree(d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal));
+                CHECK_CUDA_ERR(utils::cudaFree(d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du,
+                                               d_maxvsignal));
 
-                CHECK_CUDA_ERR(utils::cudaFree(d_codes))
+                CHECK_CUDA_ERR(utils::cudaFree(d_codes));
             }
 
             size *= 1.05; // allocate 5% extra to avoid reallocation on small size increase
 
             size_t size_np_T        = size * sizeof(T);
-            size_t size_np_CodeType = size * sizeof(typename ParticleData::CodeType);
+            size_t size_np_KeyType = size * sizeof(typename ParticleData::KeyType);
 
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m, d_ro));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
-            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal));
-            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_CodeType, d_codes))
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y,
+                                             d_grad_P_z, d_du, d_maxvsignal));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_KeyType, d_codes));
             CHECK_CUDA_ERR(cudaGetLastError());
             allocated_device_memory = size;
         }
@@ -127,13 +131,15 @@ public:
         {
             //printf("[D] increased stream size from %ld to %ld\n", largerNChunk, size_largerNChunk_int);
             for (int i = 0; i < NST; ++i)
-                CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_stream[i].d_clist, d_stream[i].d_neighborsCount));
+                CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_stream[i].d_clist,
+                                                 d_stream[i].d_neighborsCount));
             largerNChunk = size_largerNChunk_int;
         }
         const size_t size_largerNeighborsChunk_int = largestChunkSize * ngmax * sizeof(int);
         if (size_largerNeighborsChunk_int > largerNeighborsChunk)
         {
-            //printf("[D] increased stream size from %ld to %ld\n", largerNeighborsChunk, size_largerNeighborsChunk_int);
+            //printf("[D] increased stream size from %ld to %ld\n", largerNeighborsChunk,
+            // size_largerNeighborsChunk_int);
             for (int i = 0; i < NST; ++i)
                 CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_stream[i].d_neighbors));
             largerNeighborsChunk = size_largerNeighborsChunk_int;
@@ -142,7 +148,7 @@ public:
 
     DeviceParticlesData() = delete;
 
-    DeviceParticlesData(const ParticleData &pd)
+    DeviceParticlesData(const ParticleData& pd)
     {
         const size_t size_bbox = sizeof(BBox<T>);
 
@@ -160,9 +166,10 @@ public:
 
     ~DeviceParticlesData()
     {
-        CHECK_CUDA_ERR(utils::cudaFree(d_bbox, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c, d_c11, d_c12, d_c13, d_c22,
-                                           d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal, d_wh, d_whd));
-        CHECK_CUDA_ERR(utils::cudaFree(d_codes))
+        CHECK_CUDA_ERR(utils::cudaFree(d_bbox, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c,
+                                       d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z,
+                                       d_du, d_maxvsignal, d_wh, d_whd));
+        CHECK_CUDA_ERR(utils::cudaFree(d_codes));
         CHECK_CUDA_ERR(cudaGetLastError());
 
         for (int i = 0; i < NST; ++i)
