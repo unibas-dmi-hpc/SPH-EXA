@@ -51,9 +51,9 @@ void benchmarkGpu()
     int n = 2000000;
 
     RandomCoordinates<T, KeyType> coords(n, box);
-    std::vector<T> h(n, 0.006);
+    std::vector<T> h(n, 0.012);
 
-    int ngmax = 100;
+    int ngmax = 200;
     std::vector<int> neighborsGPU(ngmax * n);
     std::vector<int> neighborsCountGPU(n);
 
