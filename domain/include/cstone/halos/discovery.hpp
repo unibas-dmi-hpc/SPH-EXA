@@ -35,6 +35,7 @@
 #include <vector>
 
 #include "cstone/halos/btreetraversal.hpp"
+#include "cstone/tree/traversal.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
 namespace cstone
@@ -122,6 +123,60 @@ std::vector<IntegralType> extractMarkedElements(gsl::span<const IntegralType> so
     }
 
     return requestKeys;
+}
+
+/*! @brief mark halo nodes with flags
+ *
+ * @tparam KeyType               32- or 64-bit unsigned integer
+ * @tparam RadiusType            float or double, float is sufficient for 64-bit codes or less
+ * @tparam CoordinateType        float or double
+ * @param[in]  leaves            cornerstone octree leaves
+ * @param[in]  binaryTree        matching binary tree on top of @p leaves
+ * @param[in]  interactionRadii  effective halo search radii per octree (leaf) node
+ * @param[in]  box               coordinate bounding box
+ * @param[in]  firstNode         first leaf node index of @p leaves to consider as local
+ * @param[in]  lastNode          last leaf node index of @p leaves to consider as local
+ * @param[out] collisionFlags    array of length nNodes(leaves), each node that is a halo
+ *                               from the perspective of [firstNode:lastNode] will be marked
+ *                               with a non-zero value.
+ *                               Note: does NOT reset non-colliding indices to 0, so @p collisionFlags
+ *                               should be zero-initialized prior to calling this function.
+ */
+template<class KeyType, class RadiusType, class CoordinateType>
+void findHalos(const Octree<KeyType>& octree,
+               const RadiusType* interactionRadii,
+               const Box<CoordinateType>& box,
+               TreeNodeIndex firstNode,
+               TreeNodeIndex lastNode,
+               int* collisionFlags)
+{
+    auto leaves = octree.treeLeaves();
+    KeyType lowestCode  = leaves[firstNode];
+    KeyType highestCode = leaves[lastNode];
+
+    auto markCollisions = [flags = collisionFlags](TreeNodeIndex i) { flags[i] = 1; };
+
+    // loop over all the nodes in range
+    #pragma omp parallel for
+    for (TreeNodeIndex nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
+    {
+        RadiusType radius = interactionRadii[nodeIdx];
+        IBox haloBox      = makeHaloBox(leaves[nodeIdx], leaves[nodeIdx + 1], radius, box);
+
+        // if the halo box is fully inside the assigned SFC range, we skip collision detection
+        if (containedIn(lowestCode, highestCode, haloBox)) { continue; }
+
+        auto overlaps = [lowestCode, highestCode, &octree, &haloBox](TreeNodeIndex idx)
+        {
+            KeyType octreeNode = octree.codeStart(idx);
+            int level = octree.level(idx);
+            return !containedIn(octreeNode, octreeNode + nodeRange<KeyType>(level), lowestCode, highestCode)
+                   && overlap_(octreeNode, level, haloBox);
+        };
+
+        // mark all colliding node indices outside [lowestCode:highestCode]
+        singleTraversal(octree, overlaps, markCollisions);
+    }
 }
 
 } // namespace cstone

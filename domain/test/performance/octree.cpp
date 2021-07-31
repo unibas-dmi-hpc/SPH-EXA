@@ -87,8 +87,23 @@ void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std
         auto tp1 = std::chrono::high_resolution_clock::now();
 
         double t2 = std::chrono::duration<double>(tp1 - tp0).count();
-        std::cout << "halo discovery: " << t2
+        std::cout << "binary tree halo discovery: " << t2
                   << " collidingNodes: " << std::accumulate(begin(collisionFlags), end(collisionFlags), 0) << std::endl;
+    }
+    {
+        Octree<KeyType> octree;
+        octree.update(tree.begin(), tree.end());
+
+        std::vector<int> collisionFlags(nNodes(tree), 0);
+
+        auto tp0 = std::chrono::high_resolution_clock::now();
+        findHalos(octree, haloRadii.data(), box, lowerNode, upperNode, collisionFlags.data());
+        auto tp1 = std::chrono::high_resolution_clock::now();
+
+        double t2 = std::chrono::duration<double>(tp1 - tp0).count();
+        std::cout << "octree halo discovery: " << t2
+                  << " collidingNodes: " << std::accumulate(begin(collisionFlags), end(collisionFlags), 0) << std::endl;
+
     }
 }
 
