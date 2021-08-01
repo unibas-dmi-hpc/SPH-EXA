@@ -40,19 +40,27 @@ namespace cstone
 {
 
 template<class KeyType>
+IBox makeLevelBox(unsigned ix, unsigned iy, unsigned iz, unsigned level)
+{
+    unsigned L = 1u << (maxTreeLevel<KeyType>{} - level);
+    return IBox(ix * L,  ix * L + L, iy * L, iy * L + L, iz * L, iz * L + L);
+}
+
+template<class KeyType>
 void surfaceDetection()
 {
+    unsigned level = 2;
     std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
     Octree<KeyType> fullTree;
     fullTree.update(tree.data(), tree.data() + tree.size());
 
-    IBox targetBox = mortonIBox(tree[1], treeLevel(tree[2] - tree[1]));
+    IBox targetBox = makeLevelBox<KeyType>(0, 0, 1, level);
 
     std::vector<IBox> treeBoxes(fullTree.numTreeNodes());
     for (TreeNodeIndex i = 0; i < fullTree.numTreeNodes(); ++i)
     {
-        treeBoxes[i] = mortonIBox(fullTree.codeStart(i), fullTree.level(i));
+        treeBoxes[i] = hilbertIBox(fullTree.codeStart(i), fullTree.level(i));
     }
 
     auto isSurface = [targetBox, bbox = Box<double>(0, 1), boxes = treeBoxes.data()](TreeNodeIndex idx) {
@@ -60,14 +68,38 @@ void surfaceDetection()
         return distance == 0.0;
     };
 
-    std::vector<TreeNodeIndex> surfaceNodes;
-    auto saveIndex = [&surfaceNodes](TreeNodeIndex idx) { surfaceNodes.push_back(idx); };
+    std::vector<IBox> surfaceBoxes;
+    auto saveBox = [numInternalNodes = fullTree.numInternalNodes(), &surfaceBoxes, &treeBoxes](TreeNodeIndex idx)
+    {
+        surfaceBoxes.push_back(treeBoxes[idx + numInternalNodes]);
+    };
 
-    singleTraversal(fullTree, isSurface, saveIndex);
+    singleTraversal(fullTree, isSurface, saveBox);
 
-    std::sort(begin(surfaceNodes), end(surfaceNodes));
-    std::vector<TreeNodeIndex> reference{0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14};
-    EXPECT_EQ(surfaceNodes, reference);
+    std::sort(begin(surfaceBoxes), end(surfaceBoxes));
+
+    // Morton node indices at surface:  {0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14};
+    // Hilbert node indices at surface: {0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 15};
+
+    // coordinates of 3D-node boxes that touch targetBox
+    std::vector<IBox> reference
+        {
+            makeLevelBox<KeyType>(0, 0, 0, 2),
+            makeLevelBox<KeyType>(0, 0, 1, 2),
+            makeLevelBox<KeyType>(0, 1, 0, 2),
+            makeLevelBox<KeyType>(0, 1, 1, 2),
+            makeLevelBox<KeyType>(1, 0, 0, 2),
+            makeLevelBox<KeyType>(1, 0, 1, 2),
+            makeLevelBox<KeyType>(1, 1, 0, 2),
+            makeLevelBox<KeyType>(1, 1, 1, 2),
+            makeLevelBox<KeyType>(0, 0, 2, 2),
+            makeLevelBox<KeyType>(0, 1, 2, 2),
+            makeLevelBox<KeyType>(1, 0, 2, 2),
+            makeLevelBox<KeyType>(1, 1, 2, 2),
+        };
+
+    std::sort(begin(reference), end(reference));
+    EXPECT_EQ(surfaceBoxes, reference);
 }
 
 TEST(Traversal, surfaceDetection)

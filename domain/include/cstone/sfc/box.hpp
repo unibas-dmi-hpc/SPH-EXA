@@ -217,6 +217,13 @@ private:
                   && a.limits[5] == b.limits[5];
     }
 
+    HOST_DEVICE_FUN
+    friend bool operator<(const SimpleBox& a, const SimpleBox& b)
+    {
+        return util::tie(a.limits[0], a.limits[1], a.limits[2], a.limits[3], a.limits[4], a.limits[5]) <
+               util::tie(b.limits[0], b.limits[1], b.limits[2], b.limits[3], b.limits[4], b.limits[5]);
+    }
+
     T limits[6];
 };
 

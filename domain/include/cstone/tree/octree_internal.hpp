@@ -45,7 +45,7 @@
 
 #include "cstone/cuda/annotation.hpp"
 #include "cstone/primitives/gather.hpp"
-#include "cstone/sfc/morton.hpp"
+#include "cstone/sfc/sfc.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
 #include "btree.hpp"
