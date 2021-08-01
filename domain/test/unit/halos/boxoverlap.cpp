@@ -278,7 +278,7 @@ void haloBoxContainedIn()
     }
     {
         IBox haloBox{0, 1, 0, 1, 0, 2};
-        EXPECT_TRUE(containedIn(I(0), I(2), haloBox));
+        EXPECT_TRUE(containedIn(I(0), I(8), haloBox));
     }
     {
         IBox haloBox{0, 1, 0, 2, 0, 2};
@@ -286,7 +286,7 @@ void haloBoxContainedIn()
     }
     {
         IBox haloBox{0, 1, 0, 2, 0, 2};
-        EXPECT_TRUE(containedIn(I(0), I(4), haloBox));
+        EXPECT_TRUE(containedIn(I(0), I(8), haloBox));
     }
     {
         IBox haloBox{0, 2, 0, 2, 0, 2};
@@ -317,8 +317,8 @@ void haloBoxContainedIn()
         EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));
     }
     {
-        I firstCode = iMorton<I>(0, 0, maxCoord);
-        I secondCode = firstCode + 3;
+        I firstCode = iMorton<I>(0, 0, maxCoord - 1);
+        I secondCode = firstCode + 8;
         IBox haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
         EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
     }

@@ -38,6 +38,7 @@
 
 #include "cstone/primitives/clz.hpp"
 #include "cstone/primitives/stl.hpp"
+#include "cstone/util/tuple.hpp"
 #include "cstone/util/util.hpp"
 
 namespace cstone
@@ -286,22 +287,21 @@ HOST_DEVICE_FUN constexpr KeyType enclosingBoxCode(KeyType key, unsigned treeLev
 /*! @brief compute an enclosing envelope corresponding to the smallest possible
  *         octree node for two input SFC codes
  *
- * @tparam KeyType        32- or 64-bit unsigned integer type
- * @param[in] firstCode   lower SFC code
- * @param[in] secondCode  upper SFC code
- *
- * @return                two SFC codes that delineate the start and end of
- *                        the smallest octree node that contains both input codes
+ * @tparam    KeyType    32- or 64-bit unsigned integer type
+ * @param[in] firstKey   lower SFC key
+ * @param[in] secondKey  upper SFC key
+ * @return               two SFC keys that delineate the start and end of
+ *                       the smallest octree node that contains both input keys
  */
 template<class KeyType>
-constexpr pair<KeyType> smallestCommonBox(KeyType firstCode, KeyType secondCode)
+HOST_DEVICE_FUN util::tuple<KeyType, KeyType> smallestCommonBox(KeyType firstKey, KeyType secondKey)
 {
-    assert(firstCode <= secondCode);
+    assert(firstKey <= secondKey);
 
-    unsigned commonLevel = commonPrefix(firstCode, secondCode) / 3;
-    KeyType  nodeStart   = enclosingBoxCode(firstCode, commonLevel);
+    unsigned commonLevel = commonPrefix(firstKey, secondKey) / 3;
+    KeyType  nodeStart   = enclosingBoxCode(firstKey, commonLevel);
 
-    return pair<KeyType>(nodeStart, nodeStart + nodeRange<KeyType>(commonLevel));
+    return {nodeStart, nodeStart + nodeRange<KeyType>(commonLevel)};
 }
 
 //! @brief zero all but the highest nBits in a SFC code

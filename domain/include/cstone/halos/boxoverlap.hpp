@@ -128,7 +128,7 @@ containedIn(KeyType codeStart, KeyType codeEnd, const IBox& box)
     assert(box.ymin() < box.ymax());
     assert(box.zmin() < box.zmax());
 
-    constexpr int pbcRange = 1u << maxTreeLevel<KeyType>{};
+    constexpr unsigned pbcRange = 1u << maxTreeLevel<KeyType>{};
     if (stl::min(stl::min(box.xmin(), box.ymin()), box.zmin()) < 0 ||
         stl::max(stl::max(box.xmax(), box.ymax()), box.zmax()) > pbcRange)
     {
@@ -138,11 +138,10 @@ containedIn(KeyType codeStart, KeyType codeEnd, const IBox& box)
     }
 
     KeyType lowCode  = iMorton<KeyType>(box.xmin(), box.ymin(), box.zmin());
-    // we have to subtract 1 and use strict <, because we cannot generate
-    // Morton codes for x,y,z >= 2^maxTreeLevel<KeyType>{} (2^10 or 2^21)
     KeyType highCode = iMorton<KeyType>(box.xmax() - 1, box.ymax() - 1, box.zmax() - 1);
+    auto envelope = smallestCommonBox(lowCode, highCode);
 
-    return (lowCode >= codeStart) && (highCode < codeEnd);
+    return (util::get<0>(envelope) >= codeStart) && (util::get<1>(envelope) <= codeEnd);
 }
 
 /*! @brief determine whether a binary/octree node (prefix, prefixLength) is fully contained in an SFC range
