@@ -170,20 +170,15 @@ HOST_DEVICE_FUN inline util::tuple<unsigned, unsigned, unsigned> decodeMorton(Ke
 /*! @brief compute the 3D integer coordinate box that contains the key range
  *
  * @tparam KeyType   32- or 64-bit unsigned integer
- * @param keyStart   lower Morton key
- * @param keyEnd     upper Morton key
+ * @param keyStart   lower Morton key of the tree cell
+ * @param level      octree subdivision level of the tree cell
  * @return           the integer box that contains the given key range
  */
 template<class KeyType>
-HOST_DEVICE_FUN IBox mortonIBox(KeyType keyStart, KeyType keyEnd) noexcept
+HOST_DEVICE_FUN IBox mortonIBox(KeyType keyStart, unsigned level) noexcept
 {
-    assert(isPowerOf8(keyEnd - keyStart));
-
-    unsigned level = treeLevel(keyEnd - keyStart);
     unsigned cubeLength = (1u << (maxTreeLevel<KeyType>{} - level));
-
     auto [ix, iy, iz] = decodeMorton(keyStart);
-
     return IBox(ix, ix + cubeLength, iy, iy + cubeLength, iz, iz + cubeLength);
 }
 

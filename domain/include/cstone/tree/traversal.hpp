@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief binary tree traversal implementation
+ * @brief Generic octree traversal methods
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -36,12 +36,6 @@
 
 namespace cstone
 {
-
-template<class KeyType>
-inline bool overlapNode(const Octree<KeyType>& octree, TreeNodeIndex nodeIndex, const IBox& collisionBox)
-{
-    return overlap(octree.codeStart(nodeIndex), 3 * octree.level(nodeIndex), collisionBox);
-}
 
 //constexpr int maxCoord = 1u<<maxTreeLevel<KeyType>{};
 //KeyType iboxStart = iMorton<KeyType>(collisionBox.xmin(), collisionBox.ymin(), collisionBox.zmin());

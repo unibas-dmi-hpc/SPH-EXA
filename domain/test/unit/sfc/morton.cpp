@@ -115,7 +115,7 @@ void mortonNeighbors()
 
     auto computeCode = [](auto t) {
         auto [input, reference, level, dx, dy, dz] = t;
-        IBox ibox = mortonIBox(input, input + nodeRange<KeyType>(level));
+        IBox ibox = mortonIBox(input, level);
         return sfcNeighbor<MortonKey<KeyType>>(ibox, level, dx, dy, dz);
     };
 
@@ -134,14 +134,14 @@ TEST(MortonCode, mortonNeighbor)
     mortonNeighbors<uint64_t>();
 }
 
-template<class I>
+template<class KeyType>
 void mortonIBox()
 {
-    int maxCoord = I(1) << maxTreeLevel<I>{};
+    constexpr unsigned maxCoord = 1u << maxTreeLevel<KeyType>{};
     {
-        I nodeStart = nodeRange<I>(0) - 1;
-        I nodeEnd = nodeRange<I>(0);
-        IBox ibox = mortonIBox(nodeStart, nodeEnd);
+        KeyType nodeStart = nodeRange<KeyType>(0) - 1;
+        KeyType nodeEnd   = nodeRange<KeyType>(0);
+        IBox ibox = mortonIBox(nodeStart, treeLevel(nodeEnd - nodeStart));
         IBox refBox{maxCoord - 1, maxCoord};
         EXPECT_EQ(ibox, refBox);
     }

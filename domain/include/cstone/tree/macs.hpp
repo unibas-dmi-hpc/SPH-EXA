@@ -126,8 +126,9 @@ HOST_DEVICE_FUN bool minDistanceMacMutual(IBox a, IBox b, const Box<T>& box, flo
     return dsq > boxLength * boxLength * invThetaSq;
 }
 
+//! @brief mark all nodes of @p octree (leaves and internal) that fail the MAC w.r.t to @p target
 template<class T, class KeyType>
-HOST_DEVICE_FUN void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box,
+void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box,
                    float invThetaSq, KeyType focusStart, KeyType focusEnd, char* markings)
 {
     auto checkAndMarkMac = [target, &octree, &box, invThetaSq, focusStart, focusEnd, markings](TreeNodeIndex idx)
@@ -137,7 +138,7 @@ HOST_DEVICE_FUN void markMacPerBox(IBox target, const Octree<KeyType>& octree, c
         // if the tree node with index idx is fully contained in the focus, we stop traversal
         if (containedIn(nodeStart, nodeEnd, focusStart, focusEnd)) { return false; }
 
-        IBox sourceBox = mortonIBox(nodeStart, nodeEnd);
+        IBox sourceBox = mortonIBox(nodeStart, octree.level(idx));
 
         bool violatesMac = !minDistanceMac<KeyType>(target, sourceBox, box, invThetaSq);
         if (violatesMac) { markings[idx] = 1; }
@@ -150,8 +151,8 @@ HOST_DEVICE_FUN void markMacPerBox(IBox target, const Octree<KeyType>& octree, c
 
 /*! @brief Mark each node in an octree that fails the MAC paired with any node from a given focus SFC range
  *
- * @tparam T                float or double
- * @tparam KeyType          32- or 64-bit unsigned integer
+ * @tparam     T            float or double
+ * @tparam     KeyType      32- or 64-bit unsigned integer
  * @param[in]  octree       octree, including internal part
  * @param[in]  box          global coordinate bounding box
  * @param[in]  focusStart   lower SFC focus code
@@ -177,7 +178,9 @@ void markMac(const Octree<KeyType>& octree, const Box<T>& box, KeyType focusStar
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < numFocusBoxes; ++i)
     {
-        IBox target = mortonIBox(focusCodes[i], focusCodes[i+1]);
+        KeyType key1 = focusCodes[i];
+        KeyType key2 = focusCodes[i+1];
+        IBox target  = mortonIBox(key1, treeLevel(key2 - key1));
         markMacPerBox(target, octree, box, invThetaSq, focusStart, focusEnd, markings);
     }
 }

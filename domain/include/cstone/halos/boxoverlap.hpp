@@ -71,6 +71,18 @@ HOST_DEVICE_FUN constexpr bool overlapRange(int a, int b, int c, int d)
            overlapTwoRanges(a, b, c+R, d+R);
 }
 
+template<class KeyType>
+HOST_DEVICE_FUN inline bool overlap(const IBox& a, const IBox& b)
+{
+    constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
+
+    bool xOverlap = overlapRange<maxCoord>(a.xmin(), a.xmax(), b.xmin(), b.xmax());
+    bool yOverlap = overlapRange<maxCoord>(a.ymin(), a.ymax(), b.ymin(), b.ymax());
+    bool zOverlap = overlapRange<maxCoord>(a.zmin(), a.zmax(), b.zmin(), b.zmax());
+
+    return xOverlap && yOverlap && zOverlap;
+}
+
 /*! @brief check for overlap between a binary or octree node and a box in 3D space
  *
  * @tparam KeyType
@@ -84,32 +96,19 @@ HOST_DEVICE_FUN constexpr bool overlapRange(int a, int b, int c, int d)
  * @return          true or false
  *
  */
-template <class KeyType>
-HOST_DEVICE_FUN inline bool overlap_(KeyType prefix, unsigned level, const IBox& box)
+template<class KeyType>
+HOST_DEVICE_FUN inline bool overlap(KeyType prefix, unsigned level, const IBox& box)
 {
-    constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
-    unsigned range = 1u << (maxTreeLevel<KeyType>{} - level);
-    auto [x0, y0, z0] = decodeMorton(prefix);
-
-    bool xOverlap = overlapRange<maxCoord>(x0, x0 + range, box.xmin(), box.xmax());
-    bool yOverlap = overlapRange<maxCoord>(y0, y0 + range, box.ymin(), box.ymax());
-    bool zOverlap = overlapRange<maxCoord>(z0, z0 + range, box.zmin(), box.zmax());
-
-    return xOverlap && yOverlap && zOverlap;
+    assert(level <= maxTreeLevel<KeyType>{});
+    IBox nodeBox = mortonIBox(prefix, level);
+    return overlap<KeyType>(nodeBox, box) ;
 }
 
-template <class KeyType>
+template<class KeyType>
 HOST_DEVICE_FUN inline bool overlap(KeyType prefixBitKey, const IBox& box)
 {
     unsigned level = decodePrefixLength(prefixBitKey) / 3;
-    return overlap_(decodePlaceholderBit(prefixBitKey), level, box);
-}
-
-template <class KeyType>
-HOST_DEVICE_FUN inline bool overlap(KeyType codeStart, KeyType codeEnd, const IBox& box)
-{
-    unsigned level = treeLevel(codeEnd - codeStart);
-    return overlap_(codeStart, level, box);
+    return overlap(decodePlaceholderBit(prefixBitKey), level, box);
 }
 
 /*! @brief Check whether a coordinate box is fully contained in a Morton code range
@@ -120,7 +119,7 @@ HOST_DEVICE_FUN inline bool overlap(KeyType codeStart, KeyType codeEnd, const IB
  * @param box        3D box with x,y,z integer coordinates in [0,2^maxTreeLevel<KeyType>{}-1]
  * @return           true if the box is fully contained within the specified Morton code range
  */
-template <class KeyType>
+template<class KeyType>
 HOST_DEVICE_FUN std::enable_if_t<std::is_unsigned_v<KeyType>, bool>
 containedIn(KeyType codeStart, KeyType codeEnd, const IBox& box)
 {
@@ -129,7 +128,7 @@ containedIn(KeyType codeStart, KeyType codeEnd, const IBox& box)
     assert(box.ymin() < box.ymax());
     assert(box.zmin() < box.zmax());
 
-    constexpr int pbcRange = 1u<<maxTreeLevel<KeyType>{};
+    constexpr int pbcRange = 1u << maxTreeLevel<KeyType>{};
     if (stl::min(stl::min(box.xmin(), box.ymin()), box.zmin()) < 0 ||
         stl::max(stl::max(box.xmax(), box.ymax()), box.zmax()) > pbcRange)
     {
@@ -149,27 +148,27 @@ containedIn(KeyType codeStart, KeyType codeEnd, const IBox& box)
 /*! @brief determine whether a binary/octree node (prefix, prefixLength) is fully contained in an SFC range
  *
  * @tparam KeyType       32- or 64-bit unsigned integer
- * @param prefix        lowest SFC code of the tree node
- * @param prefixLength  range of the tree node in bits,
- *                      corresponding SFC range is 2^(3*maxTreeLevel<KeyType>{} - prefixLength)
- * @param codeStart     start of the SFC range
- * @param codeEnd       end of the SFC range
+ * @param  prefix        lowest SFC code of the tree node
+ * @param  prefixLength  range of the tree node in bits,
+ *                       corresponding SFC range is 2^(3*maxTreeLevel<KeyType>{} - prefixLength)
+ * @param  codeStart     start of the SFC range
+ * @param  codeEnd       end of the SFC range
  * @return
  */
-template <class KeyType>
+template<class KeyType>
 HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned_v<KeyType>, bool>
 containedIn(KeyType nodeStart, KeyType nodeEnd, KeyType codeStart, KeyType codeEnd)
 {
     return !(nodeStart < codeStart || nodeEnd > codeEnd);
 }
 
-template <class KeyType>
+template<class KeyType>
 HOST_DEVICE_FUN inline std::enable_if_t<std::is_unsigned_v<KeyType>, bool>
 containedIn(KeyType prefixBitKey, KeyType codeStart, KeyType codeEnd)
 {
-    int prefixLength = decodePrefixLength(prefixBitKey);
-    KeyType firstPrefix    = decodePlaceholderBit(prefixBitKey);
-    KeyType secondPrefix   = firstPrefix + (KeyType(1) << (3*maxTreeLevel<KeyType>{} - prefixLength));
+    unsigned prefixLength = decodePrefixLength(prefixBitKey);
+    KeyType firstPrefix   = decodePlaceholderBit(prefixBitKey);
+    KeyType secondPrefix  = firstPrefix + (KeyType(1) << (3*maxTreeLevel<KeyType>{} - prefixLength));
     return !(firstPrefix < codeStart || secondPrefix > codeEnd);
 }
 
@@ -194,11 +193,11 @@ HOST_DEVICE_FUN inline int addDelta(int value, int delta, bool pbc)
  * @return               a box containing the integer coordinate ranges
  *                       of the input octree node extended by (dx,dy,dz)
  */
-template <class KeyType>
+template<class KeyType>
 HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, int dx, int dy, int dz,
-                 bool pbcX = false, bool pbcY = false, bool pbcZ = false)
+                                 bool pbcX = false, bool pbcY = false, bool pbcZ = false)
 {
-    IBox nodeBox = mortonIBox(codeStart, codeEnd);
+    IBox nodeBox = mortonIBox(codeStart, treeLevel(codeEnd - codeStart));
 
     return IBox(addDelta<KeyType>(nodeBox.xmin(), -dx, pbcX), addDelta<KeyType>(nodeBox.xmax(), dx, pbcX),
                 addDelta<KeyType>(nodeBox.ymin(), -dy, pbcY), addDelta<KeyType>(nodeBox.ymax(), dy, pbcY),
@@ -206,14 +205,14 @@ HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, int dx, int
 }
 
 //! @brief create a box with specified radius around node delineated by codeStart/End
-template <class CoordinateType, class RadiusType, class KeyType>
+template<class CoordinateType, class RadiusType, class KeyType>
 HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, RadiusType radius, const Box<CoordinateType>& box)
 {
     // disallow boxes with no volume
     assert(codeEnd > codeStart);
-    int dx = toNBitIntCeil<KeyType>(radius / (box.xmax() - box.xmin()));
-    int dy = toNBitIntCeil<KeyType>(radius / (box.ymax() - box.ymin()));
-    int dz = toNBitIntCeil<KeyType>(radius / (box.zmax() - box.zmin()));
+    int dx = toNBitIntCeil<KeyType>(radius * box.ilx());
+    int dy = toNBitIntCeil<KeyType>(radius * box.ily());
+    int dz = toNBitIntCeil<KeyType>(radius * box.ilz());
 
     return makeHaloBox(codeStart, codeEnd, dx, dy, dz, box.pbcX(), box.pbcY(), box.pbcZ());
 }

@@ -72,8 +72,8 @@ std::vector<int> findPeersMac(int myRank, const SpaceCurveAssignment& assignment
       // node a has to overlap/be contained in the focus, while b must not be inside it
       if (!aFocusOverlap || bInFocus) { return false; }
 
-      IBox aBox = mortonIBox(tree.codeStart(a), tree.codeEnd(a));
-      IBox bBox = mortonIBox(tree.codeStart(b), tree.codeEnd(b));
+      IBox aBox = mortonIBox(tree.codeStart(a), tree.level(a));
+      IBox bBox = mortonIBox(tree.codeStart(b), tree.level(b));
       return !minDistanceMacMutual<KeyType>(aBox, bBox, box, invThetaSq);
     };
 
@@ -113,24 +113,27 @@ std::vector<int> findPeersMacStt(int myRank, const SpaceCurveAssignment& assignm
                                  const Box<T>& box, float theta)
 {
     float invThetaSq = 1.0f / (theta * theta);
-    KeyType domainStart = octree.codeStart(octree.toInternal(assignment.firstNodeIdx(myRank)));
-    KeyType domainEnd   = octree.codeStart(octree.toInternal(assignment.lastNodeIdx(myRank)));
+    auto treeLeaves = octree.treeLeaves();
+    KeyType domainStart = treeLeaves[assignment.firstNodeIdx(myRank)];
+    KeyType domainEnd   = treeLeaves[assignment.lastNodeIdx(myRank)];
 
     std::vector<int> peers(assignment.numRanks());
 
     #pragma omp parallel for
     for (TreeNodeIndex i = assignment.firstNodeIdx(myRank); i < assignment.lastNodeIdx(myRank); ++i)
     {
-        IBox target = mortonIBox(octree.codeStart(octree.toInternal(i)), octree.codeEnd(octree.toInternal(i)));
+        KeyType leafStart = treeLeaves[i];
+        KeyType leafEnd   = treeLeaves[i+1];
+        IBox target = mortonIBox(leafStart, treeLevel(leafEnd - leafStart));
 
         auto violatesMac = [target, &octree, &box, invThetaSq, domainStart, domainEnd](TreeNodeIndex idx)
         {
             KeyType nodeStart = octree.codeStart(idx);
-            KeyType nodeEnd = octree.codeEnd(idx);
+            KeyType nodeEnd   = octree.codeEnd(idx);
             // if the tree node with index idx is fully contained in the focus, we stop traversal
             if (containedIn(nodeStart, nodeEnd, domainStart, domainEnd)) { return false; }
 
-            IBox sourceBox = mortonIBox(nodeStart, nodeEnd);
+            IBox sourceBox = mortonIBox(nodeStart, octree.level(idx));
             return !minDistanceMacMutual<KeyType>(target, sourceBox, box, invThetaSq);
         };
 

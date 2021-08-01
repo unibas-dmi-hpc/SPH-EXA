@@ -94,7 +94,7 @@ HOST_DEVICE_FUN inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
     KeyType leafUpperBound = leafNodes[effectiveIndex + 1];
 
     bool notExcluded = !containedIn(leafCode, leafUpperBound, excludeRange[0], excludeRange[1]);
-    return notExcluded && overlap(leafCode, leafUpperBound, collisionBox);
+    return notExcluded && overlap(leafCode, treeLevel(leafUpperBound - leafCode), collisionBox);
 }
 
 /*! @brief find all collisions between a leaf node enlarged by (dx,dy,dz) and the rest of the tree
