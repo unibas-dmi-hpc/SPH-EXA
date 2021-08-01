@@ -183,7 +183,7 @@ HOST_DEVICE_FUN inline int addDelta(int value, int delta, bool pbc)
 
 /*! @brief Construct a 3D box from an octree node plus halo range
  *
- * @tparam KeyType       32- or 64-bit unsigned integer
+ * @tparam    KeyType    32- or 64-bit unsigned integer
  * @param[in] codeStart  octree leaf node lower bound
  * @param[in] codeEnd    octree leaf node upper bound
  * @param[in] dx         extend X range by +- dx
