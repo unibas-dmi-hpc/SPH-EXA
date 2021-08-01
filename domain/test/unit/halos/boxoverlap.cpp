@@ -77,28 +77,27 @@ void overlapTest()
 
     /// Each test is a separate case
 
-    EXPECT_FALSE(overlap_(prefix, level, IBox{0, r, 0, r, 0, r}));
-    EXPECT_FALSE(overlap(prefix, bound, IBox{0, r, 0, r, 0, r}));
+    EXPECT_FALSE(overlap(prefix, level, IBox{0, r, 0, r, 0, r}));
 
     // exact match
-    EXPECT_TRUE(overlap_(prefix, level, IBox{r, 2 * r, r, 2 * r, r, 2 * r}));
+    EXPECT_TRUE(overlap(prefix, level, IBox{r, 2 * r, r, 2 * r, r, 2 * r}));
     // contained within (1,1,1) corner of node
-    EXPECT_TRUE(overlap_(prefix, level, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
+    EXPECT_TRUE(overlap(prefix, level, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
     // contained and exceeding (1,1,1) corner by 1 in all dimensions
-    EXPECT_TRUE(overlap_(prefix, level, IBox{2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1}));
+    EXPECT_TRUE(overlap(prefix, level, IBox{2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1}));
 
     // all of these miss the (1,1,1) corner by 1 in one of the three dimensions
-    EXPECT_FALSE(overlap_(prefix, level, IBox{2 * r, 2 * r + 1, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
-    EXPECT_FALSE(overlap_(prefix, level, IBox{2 * r - 1, 2 * r, 2 * r, 2 * r + 1, 2 * r - 1, 2 * r}));
-    EXPECT_FALSE(overlap_(prefix, level, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r, 2 * r + 1}));
+    EXPECT_FALSE(overlap(prefix, level, IBox{2 * r, 2 * r + 1, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
+    EXPECT_FALSE(overlap(prefix, level, IBox{2 * r - 1, 2 * r, 2 * r, 2 * r + 1, 2 * r - 1, 2 * r}));
+    EXPECT_FALSE(overlap(prefix, level, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r, 2 * r + 1}));
 
     // contained within (0,0,0) corner of node
-    EXPECT_TRUE(overlap_(prefix, level, IBox{r, r + 1, r, r + 1, r, r + 1}));
+    EXPECT_TRUE(overlap(prefix, level, IBox{r, r + 1, r, r + 1, r, r + 1}));
 
     // all of these miss the (0,0,0) corner by 1 in one of the three dimensions
-    EXPECT_FALSE(overlap_(prefix, level, IBox{r - 1, r, r, r + 1, r, r + 1}));
-    EXPECT_FALSE(overlap_(prefix, level, IBox{r, r + 1, r - 1, r, r, r + 1}));
-    EXPECT_FALSE(overlap_(prefix, level, IBox{r, r + 1, r, r + 1, r - 1, r}));
+    EXPECT_FALSE(overlap(prefix, level, IBox{r - 1, r, r, r + 1, r, r + 1}));
+    EXPECT_FALSE(overlap(prefix, level, IBox{r, r + 1, r - 1, r, r, r + 1}));
+    EXPECT_FALSE(overlap(prefix, level, IBox{r, r + 1, r, r + 1, r - 1, r}));
 }
 
 TEST(BoxOverlap, overlaps)
@@ -120,15 +119,15 @@ void pbcOverlaps()
         I firstCode = iMorton<I>(maxCoord, 0, 0);
         I secondCode = firstCode + 1;
         IBox haloBox{-1, 1, 0, 1, 0, 1};
-        EXPECT_TRUE(overlap(firstCode, secondCode, haloBox));
+        EXPECT_TRUE(overlap(firstCode, treeLevel(secondCode - firstCode), haloBox));
     }
     {
         IBox haloBox{maxCoord, maxCoord + 2, 0, 1, 0, 1};
-        EXPECT_TRUE(overlap(I(0), I(1), haloBox));
+        EXPECT_TRUE(overlap(I(0), treeLevel(I(1) - I(0)), haloBox));
     }
     {
         IBox haloBox{-1, 1, -1, 1, -1, 1};
-        EXPECT_TRUE(overlap(nodeRange<I>(0) - 1, nodeRange<I>(0), haloBox));
+        EXPECT_TRUE(overlap(nodeRange<I>(0) - 1, treeLevel(I(1)), haloBox));
     }
 }
 

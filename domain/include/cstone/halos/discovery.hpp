@@ -130,8 +130,7 @@ std::vector<IntegralType> extractMarkedElements(gsl::span<const IntegralType> so
  * @tparam KeyType               32- or 64-bit unsigned integer
  * @tparam RadiusType            float or double, float is sufficient for 64-bit codes or less
  * @tparam CoordinateType        float or double
- * @param[in]  leaves            cornerstone octree leaves
- * @param[in]  binaryTree        matching binary tree on top of @p leaves
+ * @param[in]  octree            fully linked octree
  * @param[in]  interactionRadii  effective halo search radii per octree (leaf) node
  * @param[in]  box               coordinate bounding box
  * @param[in]  firstNode         first leaf node index of @p leaves to consider as local
@@ -168,10 +167,11 @@ void findHalos(const Octree<KeyType>& octree,
 
         auto overlaps = [lowestCode, highestCode, &octree, &haloBox](TreeNodeIndex idx)
         {
-            KeyType octreeNode = octree.codeStart(idx);
+            KeyType nodeKey = octree.codeStart(idx);
             int level = octree.level(idx);
-            return !containedIn(octreeNode, octreeNode + nodeRange<KeyType>(level), lowestCode, highestCode)
-                   && overlap_(octreeNode, level, haloBox);
+            IBox sourceBox = mortonIBox(nodeKey, level);
+            return !containedIn(nodeKey, nodeKey + nodeRange<KeyType>(level), lowestCode, highestCode)
+                   && overlap<KeyType>(sourceBox, haloBox);
         };
 
         // mark all colliding node indices outside [lowestCode:highestCode]

@@ -43,7 +43,7 @@ namespace cstone
 {
 
 #if defined(__CUDACC__) || defined(__HIPCC__)
-__device__ unsigned mortonToHilbertDevice[8] = { 0, 1, 3, 2, 7, 6, 4, 5 };
+__device__ static unsigned mortonToHilbertDevice[8] = { 0, 1, 3, 2, 7, 6, 4, 5 };
 #endif
 
 /*! @brief compute the Hilbert key for a 3D point of integer coordinates
@@ -160,11 +160,8 @@ util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key) noexcept
  * @return           the integer box that contains the given key range
  */
 template<class KeyType>
-HOST_DEVICE_FUN IBox hilbertIBox(KeyType keyStart, KeyType keyEnd) noexcept
+HOST_DEVICE_FUN IBox hilbertIBox(KeyType keyStart, unsigned level) noexcept
 {
-    assert(isPowerOf8(keyEnd - keyStart));
-
-    unsigned level = treeLevel(keyEnd - keyStart);
     unsigned cubeLengthDelta = (1u << (maxTreeLevel<KeyType>{} - level)) - 1u;
 
     auto [ix, iy, iz] = decodeHilbert(keyStart);

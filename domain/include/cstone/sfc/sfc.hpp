@@ -112,16 +112,16 @@ decodeSfc(KeyType key)
 
 //! @brief create and integer box from Morton keys
 template<class KeyType>
-HOST_DEVICE_FUN inline std::enable_if_t<IsMorton<KeyType>{}, IBox> sfcIBox(KeyType keyStart, KeyType keyEnd) noexcept
+HOST_DEVICE_FUN inline std::enable_if_t<IsMorton<KeyType>{}, IBox> sfcIBox(KeyType keyStart, unsigned level) noexcept
 {
-    return mortonIBox<typename KeyType::ValueType>(keyStart, keyEnd);
+    return mortonIBox<typename KeyType::ValueType>(keyStart, level);
 }
 
 //! @brief create and integer box from Hilbert keys
 template<class KeyType>
-HOST_DEVICE_FUN inline std::enable_if_t<IsHilbert<KeyType>{}, IBox> sfcIBox(KeyType keyStart, KeyType keyEnd) noexcept
+HOST_DEVICE_FUN inline std::enable_if_t<IsHilbert<KeyType>{}, IBox> sfcIBox(KeyType keyStart, unsigned level) noexcept
 {
-    return hilbertIBox<typename KeyType::ValueType>(keyStart, keyEnd);
+    return hilbertIBox<typename KeyType::ValueType>(keyStart, level);
 }
 
 
