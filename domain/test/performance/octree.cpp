@@ -34,6 +34,7 @@
 #include <numeric>
 
 #include "cstone/halos/discovery.hpp"
+#include "cstone/traversal/collisions.hpp"
 #include "cstone/tree/octree.hpp"
 
 #include "coord_samples/random.hpp"

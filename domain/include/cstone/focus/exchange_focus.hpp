@@ -55,7 +55,7 @@ namespace cstone
 
 /*! @brief count particles inside specified ranges of a cornerstone leaf tree
  *
- * @tparam KeyType             32- or 64-bit unsigned integer
+ * @tparam     KeyType         32- or 64-bit unsigned integer
  * @param[in]  requestLeaves   query cornerstone SFC key sequence
  * @param[out] requestCounts   output counts for @p requestLeaves, length = length(requestLeaves) - 1
  * @param[in]  particleKeys    sorted SFC keys of local particles

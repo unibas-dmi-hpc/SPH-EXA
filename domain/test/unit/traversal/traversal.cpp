@@ -31,10 +31,9 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/tree/octree_internal.hpp"
-#include "cstone/tree/macs.hpp"
 #include "cstone/tree/octree_util.hpp"
-#include "cstone/tree/traversal.hpp"
+#include "cstone/traversal/macs.hpp"
+#include "cstone/traversal/traversal.hpp"
 
 namespace cstone
 {

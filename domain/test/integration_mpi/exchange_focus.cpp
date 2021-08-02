@@ -31,7 +31,7 @@
 
 #include <gtest/gtest.h>
 
-#include "cstone/tree/exchange_focus.hpp"
+#include "cstone/focus/exchange_focus.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 using namespace cstone;

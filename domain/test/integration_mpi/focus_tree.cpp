@@ -32,8 +32,8 @@
 #include <mpi.h>
 #include <gtest/gtest.h>
 
-#include "cstone/domain/peers.hpp"
-#include "cstone/tree/octree_focus_mpi.hpp"
+#include "cstone/traversal/peers.hpp"
+#include "cstone/focus/octree_focus_mpi.hpp"
 
 #include "coord_samples/random.hpp"
 

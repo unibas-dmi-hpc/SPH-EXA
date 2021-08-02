@@ -38,13 +38,13 @@
 #include "cstone/domain/domain_traits.hpp"
 #include "cstone/domain/exchange_keys.hpp"
 #include "cstone/domain/layout.hpp"
-#include "cstone/domain/peers.hpp"
+#include "cstone/traversal/peers.hpp"
 
 #include "cstone/halos/discovery.hpp"
 #include "cstone/halos/exchange_halos.hpp"
 
 #include "cstone/tree/octree_mpi.hpp"
-#include "cstone/tree/octree_focus_mpi.hpp"
+#include "cstone/focus/octree_focus_mpi.hpp"
 
 #include "cstone/sfc/box_mpi.hpp"
 

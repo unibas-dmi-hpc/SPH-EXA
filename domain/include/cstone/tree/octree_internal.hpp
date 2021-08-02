@@ -54,7 +54,7 @@
 
 /*! @brief atomically update a maximum value and return the previous maximum value
  *
- * @tparam T                     integer type
+ * @tparam       T               integer type
  * @param[inout] maximumValue    the maximum value to be atomically updated
  * @param[in]    newValue        the value with which to compute the new maximum
  * @return                       the previous maximum value

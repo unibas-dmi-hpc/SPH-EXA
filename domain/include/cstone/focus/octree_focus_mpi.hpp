@@ -31,8 +31,8 @@
 
 #pragma once
 
-#include "cstone/tree/exchange_focus.hpp"
-#include "cstone/tree/octree_focus.hpp"
+#include "cstone/focus/exchange_focus.hpp"
+#include "cstone/focus/octree_focus.hpp"
 
 namespace cstone
 {

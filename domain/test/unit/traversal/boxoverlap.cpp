@@ -31,7 +31,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/halos/boxoverlap.hpp"
+#include "cstone/traversal/boxoverlap.hpp"
 
 using namespace cstone;
 
