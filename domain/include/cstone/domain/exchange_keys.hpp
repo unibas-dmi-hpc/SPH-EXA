@@ -31,8 +31,7 @@
 
 #pragma once
 
-#include "cstone/domain/domaindecomp.hpp"
-#include "cstone/halos/discovery.hpp"
+#include "cstone/domain/layout.hpp"
 #include "cstone/primitives/mpi_wrappers.hpp"
 
 namespace cstone

@@ -27,11 +27,14 @@
  * @brief Generic octree traversal methods
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ *
+ * Single and dual tree traversal methods are the base algorithms for implementing
+ * MAC evaluations, collision and surface detection etc.
  */
 
 #pragma once
 
-#include "cstone/halos/boxoverlap.hpp"
+#include "boxoverlap.hpp"
 #include "cstone/tree/octree_internal.hpp"
 
 namespace cstone

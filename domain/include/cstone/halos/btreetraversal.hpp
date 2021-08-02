@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "cstone/halos/boxoverlap.hpp"
+#include "cstone/traversal/boxoverlap.hpp"
 #include "cstone/tree/btree.hpp"
 
 namespace cstone

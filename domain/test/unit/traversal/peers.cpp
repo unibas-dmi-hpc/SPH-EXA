@@ -31,7 +31,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/domain/peers.hpp"
+#include "cstone/traversal/peers.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 #include "coord_samples/random.hpp"

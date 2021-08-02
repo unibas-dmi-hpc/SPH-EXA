@@ -32,7 +32,7 @@
 #include <chrono>
 #include <iostream>
 
-#include "cstone/domain/peers.hpp"
+#include "cstone/traversal/peers.hpp"
 #include "cstone/tree/octree_internal.hpp"
 
 #include "coord_samples/random.hpp"

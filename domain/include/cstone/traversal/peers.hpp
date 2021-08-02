@@ -31,8 +31,8 @@
 
 #pragma once
 
-#include "cstone/tree/macs.hpp"
-#include "domaindecomp.hpp"
+#include "cstone/traversal/macs.hpp"
+#include "cstone/domain/domaindecomp.hpp"
 
 namespace cstone
 {

@@ -32,7 +32,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/tree/upsweep.hpp"
+#include "cstone/traversal/upsweep.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 using namespace cstone;
