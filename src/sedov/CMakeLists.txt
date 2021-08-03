@@ -16,3 +16,5 @@ if(CMAKE_CUDA_COMPILER)
     target_link_libraries(sedov-cuda ${MPI_CXX_LIBRARIES})
     target_link_libraries(sedov-cuda OpenMP::OpenMP_CXX)
 endif()
+
+install(TARGETS sedov RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
