@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "cstone/halos/btreetraversal.hpp"
+#include "cstone/traversal/boxoverlap.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 namespace cstone
@@ -48,22 +48,23 @@ namespace cstone
  * and testing purposes
  */
 template <class KeyType>
-void findCollisions2All(const std::vector<KeyType>& tree, CollisionList& collisionList,
+void findCollisions2All(const std::vector<KeyType>& tree, std::vector<TreeNodeIndex>& collisionList,
                         const IBox& collisionBox)
 {
     for (TreeNodeIndex idx = 0; idx < nNodes(tree); ++idx)
     {
         if (overlap(tree[idx], treeLevel(tree[idx + 1] - tree[idx]), collisionBox))
-            collisionList.add((int)idx);
+            collisionList.push_back(idx);
     }
 }
 
 //! @brief all-to-all implementation of findAllCollisions
 template<class KeyType, class T>
-std::vector<CollisionList> findCollisionsAll2all(const std::vector<KeyType>& tree, const std::vector<T>& haloRadii,
-                                                 const Box<T>& globalBox)
+std::vector<std::vector<TreeNodeIndex>> findCollisionsAll2all(const std::vector<KeyType>& tree,
+                                                              const std::vector<T>& haloRadii,
+                                                              const Box<T>& globalBox)
 {
-    std::vector<CollisionList> collisions(tree.size() - 1);
+    std::vector<std::vector<TreeNodeIndex>> collisions(tree.size() - 1);
 
     for (TreeNodeIndex leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
     {

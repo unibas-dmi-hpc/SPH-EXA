@@ -39,25 +39,30 @@
 
 using namespace cstone;
 
-//! @brief test add(), operator[] and begin()/end() of the CollisionList class
-TEST(BinaryTreeTraversal, collisionList)
+template<class KeyType>
+IBox makeLevelBox(unsigned ix, unsigned iy, unsigned iz, unsigned level)
 {
+    unsigned L = 1u << (maxTreeLevel<KeyType>{} - level);
+    return IBox(ix * L,  ix * L + L, iy * L, iy * L + L, iz * L, iz * L + L);
+}
+
+template<class KeyType>
+std::vector<IBox> findCollidingBoxes(IBox target, gsl::span<const KeyType> leaves, KeyType exclStart, KeyType exclEnd)
+{
+    std::vector<BinaryNode<KeyType>> internalTree(nNodes(leaves));
+    createBinaryTree(leaves.data(), nNodes(leaves), internalTree.data());
+
     CollisionList collisions;
-    collisions.add(3);
-    collisions.add(7);
-    collisions.add(10);
-    collisions.add(0);
+    findCollisions(internalTree.data(), leaves.data(), collisions, target, {exclStart, exclEnd});
 
-    EXPECT_EQ(collisions.size(), 4);
-    EXPECT_EQ(collisions[0], 3);
-    EXPECT_EQ(collisions[1], 7);
-    EXPECT_EQ(collisions[2], 10);
-    EXPECT_EQ(collisions[3], 0);
+    std::vector<IBox> collidedNodeBoxes;
+    for (auto cidx : collisions)
+    {
+        collidedNodeBoxes.push_back(mortonIBox<KeyType>(leaves[cidx], treeLevel(leaves[cidx + 1] - leaves[cidx])));
+    }
+    std::sort(begin(collidedNodeBoxes), end(collidedNodeBoxes));
 
-    std::vector<int> refValues{3, 7, 10, 0};
-    std::vector<int> probe{collisions.begin(), collisions.end()};
-
-    EXPECT_EQ(refValues, probe);
+    return collidedNodeBoxes;
 }
 
 /*! @brief test findCollisions with pbc halo boxes
@@ -67,58 +72,26 @@ TEST(BinaryTreeTraversal, collisionList)
  * The same happens for a haloBox at the opposite diagonal end with
  * coordinates [2^(10 or 21)-1, 2^(10 or 21)+1]^3.
  */
-template<class I>
+template<class KeyType>
 void pbcCollision()
 {
-    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
-
-    std::vector<BinaryNode<I>> internalTree(nNodes(tree));
-    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
+    std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
     // halo box around coordinate origin
-    {
-        IBox haloBox{-1, 1, -1, 1, -1, 1};
+    IBox haloBox{-1, 1, -1, 1, -1, 1};
 
-        CollisionList collisions;
-        findCollisions(internalTree.data(), tree.data(), collisions, haloBox, {0, 0});
+    auto probe = findCollidingBoxes<KeyType>(haloBox, tree, 0, 0);
 
-        std::vector<int> collided(collisions.begin(), collisions.end());
-        std::sort(begin(collided), end(collided));
+    constexpr unsigned L2 = 2;
+    // all 8 corners collide
+    std::vector<IBox> refCollided{
+        makeLevelBox<KeyType>(0, 0, 0, L2), makeLevelBox<KeyType>(0, 0, 3, L2),
+        makeLevelBox<KeyType>(0, 3, 0, L2), makeLevelBox<KeyType>(0, 3, 3, L2),
+        makeLevelBox<KeyType>(3, 0, 0, L2), makeLevelBox<KeyType>(3, 0, 3, L2),
+        makeLevelBox<KeyType>(3, 3, 0, L2), makeLevelBox<KeyType>(3, 3, 3, L2),
+    };
 
-        constexpr int level2 = 2;
-        // nLevel2Codes is the number of Morton codes that a level2 node can cover,
-        // corresponding to the number of contained octree leaf nodes at the maximum division level
-        I nLevel2Codes = 1ul << (3 * (maxTreeLevel<I>{} - level2)); // 8^(maxLevel - 2)
-        // reference from level-2 ix,iy,iz coordinates in [0:4], illustrates that all 8 corners collide
-        std::vector<int> refCollided{
-            int(iMorton<I>(0, 0, 0, level2) / nLevel2Codes), int(iMorton<I>(0, 0, 3, level2) / nLevel2Codes),
-            int(iMorton<I>(0, 3, 0, level2) / nLevel2Codes), int(iMorton<I>(0, 3, 3, level2) / nLevel2Codes),
-            int(iMorton<I>(3, 0, 0, level2) / nLevel2Codes), int(iMorton<I>(3, 0, 3, level2) / nLevel2Codes),
-            int(iMorton<I>(3, 3, 0, level2) / nLevel2Codes), int(iMorton<I>(3, 3, 3, level2) / nLevel2Codes),
-        };
-        // node indices of the 8 corners in a level-2 tree with 4x4x4=64 nodes
-        // explicitly specified
-        std::vector<int> refCollidedExplicit{0, 9, 18, 27, 36, 45, 54, 63};
-
-        EXPECT_EQ(collided, refCollided);
-        EXPECT_EQ(refCollided, refCollidedExplicit);
-    }
-
-    // halo box around far corner
-    {
-        int maxCoord = 1u << maxTreeLevel<I>{};
-        IBox haloBox{maxCoord - 1, maxCoord + 1, maxCoord - 1, maxCoord + 1, maxCoord - 1, maxCoord + 1};
-
-        CollisionList collisions;
-        findCollisions(internalTree.data(), tree.data(), collisions, haloBox, {0, 0});
-
-        std::vector<int> collided(collisions.begin(), collisions.end());
-        std::sort(begin(collided), end(collided));
-        // 8 corners
-        std::vector<int> refCollided{0, 9, 18, 27, 36, 45, 54, 63};
-
-        EXPECT_EQ(collided, refCollided);
-    }
+    EXPECT_EQ(probe, refCollided);
 }
 
 TEST(BinaryTreeTraversal, pbcCollision)
@@ -134,60 +107,31 @@ TEST(BinaryTreeTraversal, pbcCollision)
  * The same happens for a haloBox at the opposite diagonal end with
  * coordinates [2^(10 or 21)-1, 2^(10 or 21)+1]^3.
  */
-template<class I>
+template<class KeyType>
 void pbcCollisionWithExclusions()
 {
-    constexpr int level2 = 2;
-    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
-
-    std::vector<BinaryNode<I>> internalTree(nNodes(tree));
-    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
+    constexpr int L2 = 2;
+    std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
     IBox haloBox{-1, 1, -1, 1, -1, 1};
-    {
-        CollisionList collisions;
-        findCollisions(internalTree.data(), tree.data(), collisions, haloBox, {0, nodeRange<I>(level2)});
 
-        std::vector<int> collided(collisions.begin(), collisions.end());
-        std::sort(begin(collided), end(collided));
+    auto probe = findCollidingBoxes<KeyType>(haloBox, tree, 0, nodeRange<KeyType>(L2));
 
-        // node 0 gets excluded
-        std::vector<int> refCollided{0, 9, 18, 27, 36, 45, 54, 63};
+    // the (0,0,0) corner gets excluded
+    std::vector<IBox> refCollided{
+        makeLevelBox<KeyType>(0, 0, 3, L2),
+        makeLevelBox<KeyType>(0, 3, 0, L2), makeLevelBox<KeyType>(0, 3, 3, L2),
+        makeLevelBox<KeyType>(3, 0, 0, L2), makeLevelBox<KeyType>(3, 0, 3, L2),
+        makeLevelBox<KeyType>(3, 3, 0, L2), makeLevelBox<KeyType>(3, 3, 3, L2),
+    };
 
-        EXPECT_EQ(collided, refCollided);
-    }
-    {
-        CollisionList collisions;
-        findCollisions(internalTree.data(), tree.data(), collisions, haloBox,
-                       {iMorton<I>(0, 0, 3, level2), iMorton<I>(0, 0, 3, level2) + nodeRange<I>(level2)});
-
-        std::vector<int> collided(collisions.begin(), collisions.end());
-        std::sort(begin(collided), end(collided));
-
-        // node 9 gets excluded
-        std::vector<int> refCollided{0, 18, 27, 36, 45, 54, 63};
-
-        EXPECT_EQ(collided, refCollided);
-    }
-    {
-        CollisionList collisions;
-        findCollisions(internalTree.data(), tree.data(), collisions, haloBox,
-                       {iMorton<I>(3, 3, 3, level2), iMorton<I>(3, 3, 3, level2) + nodeRange<I>(level2)});
-
-        std::vector<int> collided(collisions.begin(), collisions.end());
-        std::sort(begin(collided), end(collided));
-
-        // node 63 gets excluded
-        std::vector<int> refCollided{0, 9, 18, 27, 36, 45, 54};
-
-        EXPECT_EQ(collided, refCollided);
-    }
+    EXPECT_EQ(probe, refCollided);
 }
 
 TEST(BinaryTreeTraversal, pbcCollisionWithExclusions)
 {
-    pbcCollision<unsigned>();
-    pbcCollision<uint64_t>();
+    pbcCollisionWithExclusions<unsigned>();
+    pbcCollisionWithExclusions<uint64_t>();
 }
 
 /*! @brief test collision detection with anisotropic halo ranges
@@ -197,31 +141,26 @@ TEST(BinaryTreeTraversal, pbcCollisionWithExclusions)
  * to an anisotropic range in the Morton code SFC which always gets mapped
  * to an unit cube.
  */
-template<class I>
+template<class KeyType>
 void anisotropicHaloBox()
 {
-    // a tree with 4 subdivisions along each dimension, 64 nodes
-    // node range in each dimension is 2^(10 or 21 - 2)
-    std::vector<I> tree = makeUniformNLevelTree<I>(64, 1);
+    std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
-    std::vector<BinaryNode<I>> internalTree(nNodes(tree));
-    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
-
-    int r = 1u << (maxTreeLevel<I>{} - 2);
-
-    int queryIdx = 7;
+    int r = 1u << (maxTreeLevel<KeyType>{} - 2);
 
     // this will hit two nodes in +x direction, not just one neighbor node
-    IBox haloBox = makeHaloBox(tree[queryIdx], tree[queryIdx + 1], 2 * r, 0, 0);
+    IBox haloBox(0, 4*r, r, 2*r, r, 2*r);
 
-    CollisionList collisions;
-    findCollisions(internalTree.data(), tree.data(), collisions, haloBox, {0, 0});
+    auto probe = findCollidingBoxes<KeyType>(haloBox, tree, 0, 0);
 
-    std::vector<int> collisionsSorted(collisions.begin(), collisions.end());
-    std::sort(begin(collisionsSorted), end(collisionsSorted));
+    constexpr unsigned L2 = 2;
+    // the (0,0,0) corner gets excluded
+    std::vector<IBox> refCollided{
+        makeLevelBox<KeyType>(0, 1, 1, L2), makeLevelBox<KeyType>(1, 1, 1, L2),
+        makeLevelBox<KeyType>(2, 1, 1, L2), makeLevelBox<KeyType>(3, 1, 1, L2),
+    };
 
-    std::vector<int> collisionsReference{3, 7, 35, 39};
-    EXPECT_EQ(collisionsSorted, collisionsReference);
+    EXPECT_EQ(probe, refCollided);
 }
 
 TEST(BinaryTreeTraversal, anisotropicHalo)
@@ -340,18 +279,4 @@ TEST(Collisions, adjacentEdgeLastNode)
 
     std::vector<int> refNodes{133};
     EXPECT_EQ(cnodes, refNodes);
-}
-
-TEST(Collisions, regularLastNode)
-{
-    // a tree with 4 subdivisions along each dimension, 64 nodes
-    std::vector<unsigned> tree = makeUniformNLevelTree<unsigned>(64, 1);
-    std::vector<BinaryNode<unsigned>> internalTree(nNodes(tree));
-    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
-
-    IBox haloBox{1022, 1023, 1022, 1023, 1022, 1023};
-    CollisionList collisions;
-    findCollisions(internalTree.data(), tree.data(), collisions, haloBox, {0, 0});
-    EXPECT_EQ(collisions.size(), 1);
-    EXPECT_EQ(collisions[0], 63);
 }
