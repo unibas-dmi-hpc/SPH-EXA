@@ -36,6 +36,12 @@
 namespace cstone
 {
 
+template<class KeyType, class Endpoint>
+void findCollisions(const Octree<KeyType>& octree, Endpoint&& endpointAction, const IBox& target, KeyType excludeStart,
+                    KeyType excludeEnd)
+{
+}
+
 /*! @brief mark halo nodes with flags
  *
  * @tparam KeyType               32- or 64-bit unsigned integer
