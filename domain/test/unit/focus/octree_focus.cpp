@@ -31,7 +31,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/tree/octree_focus.hpp"
+#include "cstone/focus/octree_focus.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 #include "coord_samples/random.hpp"
@@ -156,8 +156,8 @@ void computeEssentialTree()
     int nParticles = 100000;
     unsigned csBucketSize = 16;
 
-    RandomCoordinates<double, KeyType> randomBox(nParticles, box);
-    std::vector<KeyType> codes = randomBox.mortonCodes();
+    RandomCoordinates<double, MortonKey<KeyType>> randomBox(nParticles, box);
+    auto codes = randomBox.particleKeys();
 
     auto [csTree, csCounts] = computeOctree(codes.data(), codes.data() + nParticles, csBucketSize);
     Octree<KeyType> globalTree;

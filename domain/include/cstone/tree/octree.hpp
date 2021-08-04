@@ -60,6 +60,7 @@
 #include "cstone/sfc/common.hpp"
 #include "cstone/primitives/scan.hpp"
 #include "cstone/util/gsl-lite.hpp"
+#include "cstone/util/tuple.hpp"
 
 #include "definitions.h"
 
@@ -82,8 +83,9 @@ inline TreeNodeIndex findNodeAbove(gsl::span<const KeyType> tree, KeyType key)
 
 //! @brief count particles in one tree node
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-unsigned calculateNodeCount(const KeyType* tree, TreeNodeIndex nodeIdx, const KeyType* codesStart, const KeyType* codesEnd, unsigned maxCount)
+HOST_DEVICE_FUN
+unsigned calculateNodeCount(const KeyType* tree, TreeNodeIndex nodeIdx,
+                            const KeyType* codesStart, const KeyType* codesEnd, unsigned maxCount)
 {
     KeyType nodeStart = tree[nodeIdx];
     KeyType nodeEnd   = tree[nodeIdx+1];
@@ -107,7 +109,7 @@ unsigned calculateNodeCount(const KeyType* tree, TreeNodeIndex nodeIdx, const Ke
  * @return            the sub-range in [codesStart:codesEnd] containing @p targetCode
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
+HOST_DEVICE_FUN
 pair<const KeyType*> findSearchBounds(std::make_signed_t<KeyType> firstIdx, KeyType targetCode,
                                       const KeyType* codesStart, const KeyType* codesEnd)
 {
@@ -139,7 +141,7 @@ pair<const KeyType*> findSearchBounds(std::make_signed_t<KeyType> firstIdx, KeyT
     secondIndex = stl::min(nCodes, secondIndex);
 
     pair<const KeyType*> searchBounds{codesStart + stl::min(firstIdx, secondIndex),
-                                codesStart + stl::max(firstIdx, secondIndex)};
+                                      codesStart + stl::max(firstIdx, secondIndex)};
     return searchBounds;
 }
 
@@ -157,7 +159,7 @@ pair<const KeyType*> findSearchBounds(std::make_signed_t<KeyType> firstIdx, KeyT
  *                          whichever is smaller
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
+HOST_DEVICE_FUN
 unsigned updateNodeCount(TreeNodeIndex nodeIdx, const KeyType* tree,
                          std::make_signed_t<KeyType> firstGuess,
                          std::make_signed_t<KeyType> secondGuess,
@@ -166,8 +168,8 @@ unsigned updateNodeCount(TreeNodeIndex nodeIdx, const KeyType* tree,
     KeyType nodeStart = tree[nodeIdx];
     KeyType nodeEnd   = tree[nodeIdx+1];
 
-    auto searchBounds   = findSearchBounds(firstGuess, nodeStart, codesStart, codesEnd);
-    auto rangeStart     = stl::lower_bound(searchBounds[0], searchBounds[1], nodeStart);
+    auto searchBounds = findSearchBounds(firstGuess, nodeStart, codesStart, codesEnd);
+    auto rangeStart   = stl::lower_bound(searchBounds[0], searchBounds[1], nodeStart);
 
     searchBounds  = findSearchBounds(secondGuess, nodeEnd, codesStart, codesEnd);
     auto rangeEnd = stl::lower_bound(searchBounds[0], searchBounds[1], nodeEnd);
@@ -178,7 +180,7 @@ unsigned updateNodeCount(TreeNodeIndex nodeIdx, const KeyType* tree,
 
 /*! @brief count number of particles in each octree node
  *
- * @tparam KeyType            32- or 64-bit unsigned integer type
+ * @tparam       KeyType      32- or 64-bit unsigned integer type
  * @param[in]    tree         octree nodes given as SFC codes of length @a nNodes+1
  *                            needs to satisfy the octree invariants
  * @param[inout] counts       output particle counts per node, length = @a nNodes
@@ -189,7 +191,8 @@ unsigned updateNodeCount(TreeNodeIndex nodeIdx, const KeyType* tree,
  *                            to prevent overflow in MPI_Allreduce
  */
 template<class KeyType>
-void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNodes, const KeyType* codesStart, const KeyType* codesEnd,
+void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNodes,
+                       const KeyType* codesStart, const KeyType* codesEnd,
                        unsigned maxCount, bool useCountsAsGuess = false)
 {
     TreeNodeIndex firstNode = 0;
@@ -198,6 +201,7 @@ void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNod
     {
         firstNode = std::upper_bound(tree, tree + nNodes, *codesStart) - tree - 1;
         lastNode  = std::upper_bound(tree, tree + nNodes, *(codesEnd-1)) - tree;
+        assert(firstNode <= lastNode && "Are your particle codes sorted?");
     }
 
     #pragma omp parallel for schedule(static)
@@ -241,8 +245,8 @@ void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNod
 /*! @brief return the sibling index and level of the specified csTree node
  *
  * @tparam KeyType   32- or 64-bit unsigned integer
- * @param csTree     cornerstone octree, length N
- * @param nodeIdx    node index in [0:N] of @p csTree to compute sibling index
+ * @param  csTree    cornerstone octree, length N
+ * @param  nodeIdx   node index in [0:N] of @p csTree to compute sibling index
  * @return           in first pair element: index in [0:8] if all 8 siblings of the specified
  *                   node are next to each other and at the same division level.
  *                   8 otherwise, i.e. if not all the 8 siblings exist in @p csTree
@@ -250,8 +254,7 @@ void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNod
  *                   in second pair element: tree level of node at @p nodeIdx
  */
 template<class KeyType>
-inline CUDA_HOST_DEVICE_FUN
-pair<int> siblingAndLevel(const KeyType* csTree, TreeNodeIndex nodeIdx)
+inline HOST_DEVICE_FUN util::tuple<int, int> siblingAndLevel(const KeyType* csTree, TreeNodeIndex nodeIdx)
 {
     KeyType thisNode = csTree[nodeIdx];
     KeyType range    = csTree[nodeIdx + 1] - thisNode;
@@ -268,12 +271,9 @@ pair<int> siblingAndLevel(const KeyType* csTree, TreeNodeIndex nodeIdx)
 
 //! @brief returns 0 for merging, 1 for no-change, 8 for splitting
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-int calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize)
+HOST_DEVICE_FUN int calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize)
 {
-    auto p = siblingAndLevel(tree, nodeIdx);
-    int siblingIdx = p[0];
-    int level      = p[1];
+    auto [siblingIdx, level] = siblingAndLevel(tree, nodeIdx);
 
     if (siblingIdx > 0) // 8 siblings next to each other, node can potentially be merged
     {
@@ -293,7 +293,7 @@ int calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, const unsigned* 
 
 /*! @brief Compute split or fuse decision for each octree node in parallel
  *
- * @tparam KeyType         32- or 64-bit unsigned integer type
+ * @tparam    KeyType      32- or 64-bit unsigned integer type
  * @param[in] tree         octree nodes given as SFC codes of length @p nNodes
  *                         needs to satisfy the octree invariants
  * @param[in] counts       output particle counts per node, length = @p nNodes
@@ -333,14 +333,13 @@ bool rebalanceDecision(const KeyType* tree, const unsigned* counts, TreeNodeInde
 /*! @brief transform old nodes into new nodes based on opcodes
  *
  * @tparam KeyType    32- or 64-bit integer
- * @param nodeIndex   the node to process in @p oldTree
- * @param oldTree     the old tree
- * @param nodeOps     opcodes per old tree node
- * @param newTree     the new tree
+ * @param  nodeIndex  the node to process in @p oldTree
+ * @param  oldTree    the old tree
+ * @param  nodeOps    opcodes per old tree node
+ * @param  newTree    the new tree
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-void processNode(TreeNodeIndex nodeIndex, const KeyType* oldTree, const TreeNodeIndex* nodeOps, KeyType* newTree)
+HOST_DEVICE_FUN void processNode(TreeNodeIndex nodeIndex, const KeyType* oldTree, const TreeNodeIndex* nodeOps, KeyType* newTree)
 {
     KeyType thisNode = oldTree[nodeIndex];
     KeyType range    = oldTree[nodeIndex+1] - thisNode;
@@ -372,7 +371,7 @@ void processNode(TreeNodeIndex nodeIndex, const KeyType* oldTree, const TreeNode
 
 /*! @brief split or fuse octree nodes based on node counts relative to bucketSize
  *
- * @tparam KeyType             32- or 64-bit unsigned integer type
+ * @tparam       KeyType      32- or 64-bit unsigned integer type
  * @param[in]    tree         cornerstone octree
  * @param[out]   newTree      rebalanced cornerstone octree
  * @param[in]    nodeOps      rebalance decision for each node, length @p numNodes(tree) + 1
@@ -397,7 +396,7 @@ void rebalanceTree(const InputVector& tree, OutputVector& newTree, TreeNodeIndex
 
 /*! @brief update the octree with a single rebalance/count step
  *
- * @tparam KeyType           32- or 64-bit unsigned integer for SFC code
+ * @tparam       KeyType     32- or 64-bit unsigned integer for SFC code
  * @param[in]    codesStart  local particle SFC codes start
  * @param[in]    codesEnd    local particle SFC codes end
  * @param[in]    bucketSize  maximum number of particles per node
@@ -525,9 +524,7 @@ ResolutionStatus enforceKeys(gsl::span<const KeyType> treeLeaves, gsl::span<cons
 
         TreeNodeIndex nodeIdx = findNodeBelow(treeLeaves, key);
 
-        auto p = siblingAndLevel(treeLeaves.data(), nodeIdx);
-        int siblingIdx = p[0];
-        int level      = p[1];
+        auto [siblingIdx, level] = siblingAndLevel(treeLeaves.data(), nodeIdx);
 
         bool canCancel = siblingIdx > -1;
         // need to cancel if the closest tree node would be merged or the mandatory key is not there

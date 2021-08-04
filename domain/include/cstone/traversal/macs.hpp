@@ -43,14 +43,14 @@
 
 #include <vector>
 
-#include "cstone/halos/boxoverlap.hpp"
-#include "octree_internal.hpp"
-#include "traversal.hpp"
+#include "boxoverlap.hpp"
+#include "cstone/tree/octree_internal.hpp"
+#include "cstone/traversal/traversal.hpp"
 
 namespace cstone
 {
 
-CUDA_HOST_DEVICE_FUN
+HOST_DEVICE_FUN
 template<int Period>
 constexpr int rangeSeparation(int a, int b, int c, int d, bool pbc)
 {
@@ -72,8 +72,7 @@ constexpr int rangeSeparation(int a, int b, int c, int d, bool pbc)
  * @return          the square of the smallest distance between a and b
  */
 template<class KeyType, class T>
-CUDA_HOST_DEVICE_FUN
-T minDistanceSq(IBox a, IBox b, const Box<T>& box)
+HOST_DEVICE_FUN T minDistanceSq(IBox a, IBox b, const Box<T>& box)
 {
     constexpr size_t maxCoord = 1u<<maxTreeLevel<KeyType>{};
     constexpr T unitLengthSq  = T(1.) / (maxCoord * maxCoord);
@@ -88,8 +87,7 @@ T minDistanceSq(IBox a, IBox b, const Box<T>& box)
 
 //! @brief return longest edge length of box @p b
 template<class KeyType, class T>
-CUDA_HOST_DEVICE_FUN
-T nodeLength(IBox b, const Box<T>& box)
+HOST_DEVICE_FUN T nodeLength(IBox b, const Box<T>& box)
 {
     constexpr int maxCoord = 1u<<maxTreeLevel<KeyType>{};
     constexpr T unitLength = T(1.) / maxCoord;
@@ -110,8 +108,7 @@ T nodeLength(IBox b, const Box<T>& box)
  * size of b is relevant.
  */
 template<class KeyType, class T>
-CUDA_HOST_DEVICE_FUN
-bool minDistanceMac(IBox a, IBox b, const Box<T>& box, float invThetaSq)
+HOST_DEVICE_FUN bool minDistanceMac(IBox a, IBox b, const Box<T>& box, float invThetaSq)
 {
     T dsq = minDistanceSq<KeyType>(a, b, box);
     // equivalent to "d > l / theta"
@@ -121,8 +118,7 @@ bool minDistanceMac(IBox a, IBox b, const Box<T>& box, float invThetaSq)
 
 //! @brief commutative version
 template<class KeyType, class T>
-CUDA_HOST_DEVICE_FUN
-bool minDistanceMacMutual(IBox a, IBox b, const Box<T>& box, float invThetaSq)
+HOST_DEVICE_FUN bool minDistanceMacMutual(IBox a, IBox b, const Box<T>& box, float invThetaSq)
 {
     T dsq = minDistanceSq<KeyType>(a, b, box);
     // equivalent to "d > l / theta"
@@ -130,8 +126,8 @@ bool minDistanceMacMutual(IBox a, IBox b, const Box<T>& box, float invThetaSq)
     return dsq > boxLength * boxLength * invThetaSq;
 }
 
+//! @brief mark all nodes of @p octree (leaves and internal) that fail the MAC w.r.t to @p target
 template<class T, class KeyType>
-CUDA_HOST_DEVICE_FUN
 void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box,
                    float invThetaSq, KeyType focusStart, KeyType focusEnd, char* markings)
 {
@@ -142,7 +138,7 @@ void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box
         // if the tree node with index idx is fully contained in the focus, we stop traversal
         if (containedIn(nodeStart, nodeEnd, focusStart, focusEnd)) { return false; }
 
-        IBox sourceBox = makeIBox(nodeStart, nodeEnd);
+        IBox sourceBox = mortonIBox(nodeStart, octree.level(idx));
 
         bool violatesMac = !minDistanceMac<KeyType>(target, sourceBox, box, invThetaSq);
         if (violatesMac) { markings[idx] = 1; }
@@ -155,8 +151,8 @@ void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box
 
 /*! @brief Mark each node in an octree that fails the MAC paired with any node from a given focus SFC range
  *
- * @tparam T                float or double
- * @tparam KeyType          32- or 64-bit unsigned integer
+ * @tparam     T            float or double
+ * @tparam     KeyType      32- or 64-bit unsigned integer
  * @param[in]  octree       octree, including internal part
  * @param[in]  box          global coordinate bounding box
  * @param[in]  focusStart   lower SFC focus code
@@ -182,7 +178,9 @@ void markMac(const Octree<KeyType>& octree, const Box<T>& box, KeyType focusStar
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < numFocusBoxes; ++i)
     {
-        IBox target = makeIBox(focusCodes[i], focusCodes[i+1]);
+        KeyType key1 = focusCodes[i];
+        KeyType key2 = focusCodes[i+1];
+        IBox target  = mortonIBox(key1, treeLevel(key2 - key1));
         markMacPerBox(target, octree, box, invThetaSq, focusStart, focusEnd, markings);
     }
 }

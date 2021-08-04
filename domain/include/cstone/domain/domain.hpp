@@ -38,13 +38,13 @@
 #include "cstone/domain/domain_traits.hpp"
 #include "cstone/domain/exchange_keys.hpp"
 #include "cstone/domain/layout.hpp"
-#include "cstone/domain/peers.hpp"
+#include "cstone/traversal/peers.hpp"
 
 #include "cstone/halos/discovery.hpp"
 #include "cstone/halos/exchange_halos.hpp"
 
 #include "cstone/tree/octree_mpi.hpp"
-#include "cstone/tree/octree_focus_mpi.hpp"
+#include "cstone/focus/octree_focus_mpi.hpp"
 
 #include "cstone/sfc/box_mpi.hpp"
 
@@ -84,11 +84,12 @@ public:
 
     /*! @brief Domain update sequence for particles with coordinates x,y,z, interaction radius h and their properties
      *
-     * @param[inout] x      floating point coordinates
+     * @param[inout] x             floating point coordinates
      * @param[inout] y
      * @param[inout] z
-     * @param[inout] h      interaction radii in SPH convention, actual interaction radius is twice the value in h
-     * @param[out]   codes  Morton codes
+     * @param[inout] h             interaction radii in SPH convention, actual interaction radius
+     *                             is twice the value in h
+     * @param[out]   particleKeys  SFC particleKeys
      *
      * @param[inout] particleProperties  particle properties to distribute along with the coordinates
      *                                   e.g. mass or charge
@@ -108,7 +109,7 @@ public:
      *
      *   - The particle order is irrelevant
      *
-     *   - Content of codes is irrelevant as it will be resized to fit x,y,z,h and particleProperties
+     *   - Content of particleKeys is irrelevant as it will be resized to fit x,y,z,h and particleProperties
      *
      * ============================================================================================================
      * Postconditions:
@@ -116,26 +117,27 @@ public:
      *
      *   Array sizes:
      *   ------------
-     *   - All arrays, x,y,z,h, codes and particleProperties are resized with space for the newly assigned particles
-     *     AND their halos.
+     *   - All arrays, x,y,z,h, particleKeys and particleProperties are resized with space for the newly assigned
+     *     particles AND their halos.
      *
      *   Content of x,y,z and h
      *   ----------------------------
      *   - x,y,z,h at indices from startIndex() to endIndex() contain assigned particles that the executing rank owns,
-     *     all other elements are _halos_ of the assigned particles, i.e. the halos for x,y,z,h and codes are already
-     *     in place post-call.
+     *     all other elements are _halos_ of the assigned particles, i.e. the halos for x,y,z,h and particleKeys are
+     *     already in place post-call.
      *
      *   Content of particleProperties
      *   ----------------------------
      *   - particleProperties arrays contain the updated properties at indices from startIndex() to endIndex(),
      *     i.e. index i refers to a property of the particle with coordinates (x[i], y[i], z[i]).
      *     Content of elements outside this range is _undefined_, but can be filled with the corresponding halo data
-     *     by a subsequent call to exchangeHalos(particleProperty), such that also for i outside [startIndex():endIndex()],
-     *     particleProperty[i] is a property of the halo particle with coordinates (x[i], y[i], z[i]).
+     *     by a subsequent call to exchangeHalos(particleProperty), such that also for i outside
+     *     [startIndex():endIndex()], particleProperty[i] is a property of the halo particle with
+     *     coordinates (x[i], y[i], z[i]).
      *
-     *   Content of codes
+     *   Content of particleKeys
      *   ----------------
-     *   - The codes output is sorted and contains the Morton codes of assigned _and_ halo particles,
+     *   - The particleKeys output is sorted and contains the Morton particleKeys of assigned _and_ halo particles,
      *     i.e. all arrays will be output in Morton order.
      *
      *   Internal state of the domain
@@ -157,13 +159,14 @@ public:
      *      5. discover halos
      *      6. compute particle layout, i.e. count number of halos and assigned particles
      *         and compute halo send and receive index ranges
-     *      7. resize x,y,z,h,codes and properties to new number of assigned + halo particles
+     *      7. resize x,y,z,h,particleKeys and properties to new number of assigned + halo particles
      *      8. exchange coordinates, h, and properties of assigned particles
      *      9. morton sort exchanged assigned particles
      *     10. exchange halo particles
      */
     template<class... Vectors>
-    void sync(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, std::vector<T>& h, std::vector<KeyType>& codes,
+    void sync(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, std::vector<T>& h,
+              std::vector<KeyType>& particleKeys,
               Vectors&... particleProperties)
     {
         // bounds initialization on first call, use all particles
@@ -192,71 +195,72 @@ public:
         // number of locally assigned particles to consider for global tree building
         LocalParticleIndex numParticles = particleEnd_ - particleStart_;
 
-        codes.resize(numParticles);
+        particleKeys.resize(numParticles);
 
-        // compute morton codes only for particles participating in tree build
-        computeMortonCodes(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
-                           cbegin(y) + particleStart_,
-                           cbegin(z) + particleStart_,
-                           begin(codes), box_);
+        // compute morton particleKeys only for particles participating in tree build
+        computeMortonKeys(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
+                          cbegin(y) + particleStart_,
+                          cbegin(z) + particleStart_,
+                          begin(particleKeys), box_);
 
-        // reorder the codes according to the ordering
-        // has the same net effect as std::sort(begin(mortonCodes), end(mortonCodes)),
+        // reorder the particleKeys according to the ordering
+        // has the same net effect as std::sort(begin(particleKeys), end(particleKeys)),
         // but with the difference that we explicitly know the ordering, such
         // that we can later apply it to the x,y,z,h arrays or to access them in the Morton order
-        reorderFunctor.setMapFromCodes(codes.data(), codes.data() + codes.size());
+        reorderFunctor.setMapFromCodes(particleKeys.data(), particleKeys.data() + particleKeys.size());
 
         // extract ordering for use in e.g. exchange particles
-        std::vector<LocalParticleIndex> mortonOrder(numParticles);
-        reorderFunctor.getReorderMap(mortonOrder.data());
+        std::vector<LocalParticleIndex> sfcOrder(numParticles);
+        reorderFunctor.getReorderMap(sfcOrder.data());
 
         // compute the global octree in cornerstone format (leaves only)
         // the resulting tree and node counts will be identical on all ranks
-        updateOctreeGlobal(codes.data(), codes.data() + numParticles, bucketSize_, tree_, nodeCounts_);
+        updateOctreeGlobal(particleKeys.data(), particleKeys.data() + numParticles, bucketSize_, tree_, nodeCounts_);
 
         if (firstCall_)
         {
             // full build on first call
-            while(!updateOctreeGlobal(codes.data(), codes.data() + numParticles, bucketSize_, tree_, nodeCounts_));
+            while(!updateOctreeGlobal(particleKeys.data(), particleKeys.data() + numParticles,
+                                      bucketSize_, tree_, nodeCounts_));
         }
 
-        // assign one single range of Morton codes each rank
+        // assign one single range of Morton particleKeys each rank
         SpaceCurveAssignment assignment = singleRangeSfcSplit(nodeCounts_, numRanks_);
         LocalParticleIndex newNParticlesAssigned = assignment.totalCount(myRank_);
 
         /* Domain particles update phase *********************************************************/
 
         // compute send array ranges for domain exchange
-        // index ranges in domainExchangeSends are valid relative to the sorted code array codes
-        // note that there is no offset applied to mortonCodes, because it was constructed
+        // index ranges in domainExchangeSends are valid relative to the sorted code array particleKeys
+        // note that there is no offset applied to particleKeys, because it was constructed
         // only with locally assigned particles
-        SendList domainExchangeSends = createSendList<KeyType>(assignment, tree_, codes);
+        SendList domainExchangeSends = createSendList<KeyType>(assignment, tree_, particleKeys);
 
         reallocate(std::max(newNParticlesAssigned, LocalParticleIndex(x.size())), x,y,z,h, particleProperties...);
 
         // exchange assigned particles
         std::tie(particleStart_, particleEnd_) =
             exchangeParticles<T>(domainExchangeSends, myRank_, particleStart_, particleEnd_,
-                                 x.size(), newNParticlesAssigned,
-                                 mortonOrder.data(),
+                                 x.size(), newNParticlesAssigned, sfcOrder.data(),
                                  x.data(), y.data(), z.data(), h.data(), particleProperties.data()...);
 
-        reallocate(particleEnd_ - particleStart_, codes);
-        reallocate(particleEnd_ - particleStart_, mortonOrder);
+        reallocate(particleEnd_ - particleStart_, particleKeys);
+        reallocate(particleEnd_ - particleStart_, sfcOrder);
 
         // refresh particleKeys and ordering
-        computeMortonCodes(begin(x) + particleStart_, begin(x) + particleEnd_,
-                           begin(y) + particleStart_,
-                           begin(z) + particleStart_, begin(codes), box_);
-        reorderFunctor.setMapFromCodes(codes.data(), codes.data() + codes.size());
-        reorderFunctor.getReorderMap(mortonOrder.data());
+        computeMortonKeys(begin(x) + particleStart_, begin(x) + particleEnd_,
+                          begin(y) + particleStart_,
+                          begin(z) + particleStart_, begin(particleKeys), box_);
+        reorderFunctor.setMapFromCodes(particleKeys.data(), particleKeys.data() + particleKeys.size());
+        reorderFunctor.getReorderMap(sfcOrder.data());
 
-        LocalParticleIndex compactOffset = findNodeAbove<KeyType>(codes, tree_[assignment.firstNodeIdx(myRank_)]);
+        LocalParticleIndex compactOffset = findNodeAbove<KeyType>(particleKeys,
+                                                                  tree_[assignment.firstNodeIdx(myRank_)]);
 
         // the range [particleStart_:particleEnd_] can still contain leftover particles from the previous step
         // but [particleStart_ + compactOffset : particleStart_ + compactOffset + newNParticlesAssigned]
-        // exclusively refers to locally assigned particles in SFC order when accessed through mortonOrder
-        gsl::span<const KeyType> codesView(codes.data() + compactOffset, newNParticlesAssigned);
+        // exclusively refers to locally assigned particles in SFC order when accessed through sfcOrder
+        gsl::span<const KeyType> codesView(particleKeys.data() + compactOffset, newNParticlesAssigned);
 
         /* Focus tree update phase *********************************************************/
 
@@ -282,21 +286,21 @@ public:
         /* Halo discovery phase *********************************************************/
 
         std::vector<float> haloRadii(nNodes(focusedTree_.treeLeaves()));
-        computeHaloRadii<KeyType>(focusedTree_.treeLeaves().data(),
-                                  nNodes(focusedTree_.treeLeaves()),
-                                  codesView,
-                                  mortonOrder.data() + compactOffset,
-                                  h.data() + particleStart_,
-                                  haloRadii.data());
+        computeHaloRadii(focusedTree_.treeLeaves().data(),
+                         nNodes(focusedTree_.treeLeaves()),
+                         codesView,
+                         sfcOrder.data() + compactOffset,
+                         h.data() + particleStart_,
+                         haloRadii.data());
 
         std::vector<int> haloFlags(nNodes(focusedTree_.treeLeaves()), 0);
-        findHalos<KeyType, float>(focusedTree_.treeLeaves(),
-                                  focusedTree_.binaryTree(),
-                                  haloRadii,
-                                  box_,
-                                  focusAssignment[myRank_].start(),
-                                  focusAssignment[myRank_].end(),
-                                  haloFlags.data());
+        findHalos(focusedTree_.treeLeaves().data(),
+                  focusedTree_.binaryTree().data(),
+                  haloRadii.data(),
+                  box_,
+                  focusAssignment[myRank_].start(),
+                  focusAssignment[myRank_].end(),
+                  haloFlags.data());
 
         /* Compute new layout *********************************************************/
 
@@ -326,9 +330,9 @@ public:
                            compactOffset, newNParticlesAssigned);
         }
 
-        std::vector<KeyType> newCodes(localNParticles_);
-        std::copy(codesView.begin(), codesView.end(), newCodes.begin() + newParticleStart);
-        swap(codes, newCodes);
+        std::vector<KeyType> newKeys(localNParticles_);
+        std::copy(codesView.begin(), codesView.end(), newKeys.begin() + newParticleStart);
+        swap(particleKeys, newKeys);
 
         particleStart_ = newParticleStart;
         particleEnd_   = newParticleEnd;
@@ -338,14 +342,14 @@ public:
         exchangeHalos(x, y, z, h);
 
         // compute SFC keys of received halo particles
-        computeMortonCodes(cbegin(x), cbegin(x) + particleStart_,
-                           cbegin(y),
-                           cbegin(z),
-                           begin(codes), box_);
-        computeMortonCodes(cbegin(x) + particleEnd_, cend(x),
-                           cbegin(y) + particleEnd_,
-                           cbegin(z) + particleEnd_,
-                           begin(codes) + particleEnd_, box_);
+        computeMortonKeys(cbegin(x), cbegin(x) + particleStart_,
+                          cbegin(y),
+                          cbegin(z),
+                          begin(particleKeys), box_);
+        computeMortonKeys(cbegin(x) + particleEnd_, cend(x),
+                          cbegin(y) + particleEnd_,
+                          cbegin(z) + particleEnd_,
+                          begin(particleKeys) + particleEnd_, box_);
     }
 
     /*! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays

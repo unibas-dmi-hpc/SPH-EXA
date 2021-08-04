@@ -31,28 +31,35 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/tree/octree_internal.hpp"
-#include "cstone/tree/macs.hpp"
 #include "cstone/tree/octree_util.hpp"
-#include "cstone/tree/traversal.hpp"
+#include "cstone/traversal/macs.hpp"
+#include "cstone/traversal/traversal.hpp"
 
 namespace cstone
 {
 
 template<class KeyType>
+IBox makeLevelBox(unsigned ix, unsigned iy, unsigned iz, unsigned level)
+{
+    unsigned L = 1u << (maxTreeLevel<KeyType>{} - level);
+    return IBox(ix * L,  ix * L + L, iy * L, iy * L + L, iz * L, iz * L + L);
+}
+
+template<class KeyType>
 void surfaceDetection()
 {
+    unsigned level = 2;
     std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
     Octree<KeyType> fullTree;
     fullTree.update(tree.data(), tree.data() + tree.size());
 
-    IBox targetBox = makeIBox(tree[1], tree[2]);
+    IBox targetBox = makeLevelBox<KeyType>(0, 0, 1, level);
 
     std::vector<IBox> treeBoxes(fullTree.numTreeNodes());
     for (TreeNodeIndex i = 0; i < fullTree.numTreeNodes(); ++i)
     {
-        treeBoxes[i] = makeIBox(fullTree.codeStart(i), fullTree.codeEnd(i));
+        treeBoxes[i] = hilbertIBox(fullTree.codeStart(i), fullTree.level(i));
     }
 
     auto isSurface = [targetBox, bbox = Box<double>(0, 1), boxes = treeBoxes.data()](TreeNodeIndex idx) {
@@ -60,14 +67,38 @@ void surfaceDetection()
         return distance == 0.0;
     };
 
-    std::vector<TreeNodeIndex> surfaceNodes;
-    auto saveIndex = [&surfaceNodes](TreeNodeIndex idx) { surfaceNodes.push_back(idx); };
+    std::vector<IBox> surfaceBoxes;
+    auto saveBox = [numInternalNodes = fullTree.numInternalNodes(), &surfaceBoxes, &treeBoxes](TreeNodeIndex idx)
+    {
+        surfaceBoxes.push_back(treeBoxes[idx + numInternalNodes]);
+    };
 
-    singleTraversal(fullTree, isSurface, saveIndex);
+    singleTraversal(fullTree, isSurface, saveBox);
 
-    std::sort(begin(surfaceNodes), end(surfaceNodes));
-    std::vector<TreeNodeIndex> reference{0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14};
-    EXPECT_EQ(surfaceNodes, reference);
+    std::sort(begin(surfaceBoxes), end(surfaceBoxes));
+
+    // Morton node indices at surface:  {0, 1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14};
+    // Hilbert node indices at surface: {0, 1, 2, 3, 4, 5, 6, 7, 8, 11, 12, 15};
+
+    // coordinates of 3D-node boxes that touch targetBox
+    std::vector<IBox> reference
+        {
+            makeLevelBox<KeyType>(0, 0, 0, 2),
+            makeLevelBox<KeyType>(0, 0, 1, 2),
+            makeLevelBox<KeyType>(0, 1, 0, 2),
+            makeLevelBox<KeyType>(0, 1, 1, 2),
+            makeLevelBox<KeyType>(1, 0, 0, 2),
+            makeLevelBox<KeyType>(1, 0, 1, 2),
+            makeLevelBox<KeyType>(1, 1, 0, 2),
+            makeLevelBox<KeyType>(1, 1, 1, 2),
+            makeLevelBox<KeyType>(0, 0, 2, 2),
+            makeLevelBox<KeyType>(0, 1, 2, 2),
+            makeLevelBox<KeyType>(1, 0, 2, 2),
+            makeLevelBox<KeyType>(1, 1, 2, 2),
+        };
+
+    std::sort(begin(reference), end(reference));
+    EXPECT_EQ(surfaceBoxes, reference);
 }
 
 TEST(Traversal, surfaceDetection)
@@ -125,8 +156,8 @@ void dualTraversalNeighbors()
         bool bInFocus = containedIn(tree.codeStart(b), tree.codeEnd(b), focusStart, focusEnd);
         if (!aFocusOverlap || bInFocus) { return false; }
 
-        IBox aBox = makeIBox(tree.codeStart(a), tree.codeEnd(a));
-        IBox bBox = makeIBox(tree.codeStart(b), tree.codeEnd(b));
+        IBox aBox = mortonIBox(tree.codeStart(a), tree.level(a));
+        IBox bBox = mortonIBox(tree.codeStart(b), tree.level(b));
         return minDistanceSq<KeyType>(aBox, bBox, box) == 0.0;
     };
 
@@ -149,8 +180,8 @@ void dualTraversalNeighbors()
         // b outside focus
         EXPECT_TRUE(octree.codeStart(b) >= focusEnd || octree.codeEnd(a) <= focusStart);
         // a and be touch each other
-        IBox aBox = makeIBox(octree.codeStart(a), octree.codeEnd(a));
-        IBox bBox = makeIBox(octree.codeStart(b), octree.codeEnd(b));
+        IBox aBox = mortonIBox(octree.codeStart(a), octree.level(a));
+        IBox bBox = mortonIBox(octree.codeStart(b), octree.level(b));
         EXPECT_FLOAT_EQ((minDistanceSq<KeyType>(aBox, bBox, box)), 0.0);
     }
 }

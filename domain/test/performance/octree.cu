@@ -33,8 +33,12 @@
 
 #include <thrust/reduce.h>
 
+#include "cstone/halos/discovery.cuh"
 #include "cstone/tree/octree.cuh"
+
 #include "coord_samples/random.hpp"
+
+#include "timing.cuh"
 
 using namespace cstone;
 
@@ -44,13 +48,9 @@ int main()
     Box<double> box{-1, 1};
 
     unsigned numParticles = 2000000;
-    unsigned bucketSize = 16;
+    unsigned bucketSize   = 16;
 
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-
-    RandomGaussianCoordinates<double, KeyType> randomBox(numParticles, box);
+    RandomGaussianCoordinates<double, MortonKey<KeyType>> randomBox(numParticles, box);
 
     thrust::device_vector<KeyType> tree    = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
     thrust::device_vector<unsigned> counts = std::vector<unsigned>{numParticles};
@@ -58,37 +58,49 @@ int main()
     thrust::device_vector<KeyType>       tmpTree;
     thrust::device_vector<TreeNodeIndex> workArray;
 
-    thrust::device_vector<KeyType> particleCodes(randomBox.mortonCodes().begin(),
-                                                 randomBox.mortonCodes().end());
+    thrust::device_vector<KeyType> particleCodes(randomBox.particleKeys().begin(), randomBox.particleKeys().end());
 
-    cudaEventRecord(start, cudaStreamDefault);
+    auto fullBuild = [&]()
+    {
+        while(!updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
+                               thrust::raw_pointer_cast(particleCodes.data() + numParticles),
+                               bucketSize, tree, counts, tmpTree, workArray));
+    };
 
-    while(!updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
-                           thrust::raw_pointer_cast(particleCodes.data() + numParticles),
-                           bucketSize, tree, counts, tmpTree, workArray));
-
-    cudaEventRecord(stop, cudaStreamDefault);
-    cudaEventSynchronize(stop);
-
-    float t0;
-    cudaEventElapsedTime(&t0, start, stop);
-    std::cout << "build time from scratch " << t0/1000 << " nNodes(tree): " << nNodes(tree)
+    float buildTime = timeGpu(fullBuild);
+    std::cout << "build time from scratch " << buildTime / 1000 << " nNodes(tree): " << nNodes(tree)
               << " count: " << thrust::reduce(counts.begin(), counts.end(), 0) << std::endl;
 
-    cudaEventRecord(start, cudaStreamDefault);
+    auto updateTree = [&]()
+    {
+        updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
+                        thrust::raw_pointer_cast(particleCodes.data() + numParticles),
+                        bucketSize, tree, counts, tmpTree, workArray);
+    };
 
-    updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
-                    thrust::raw_pointer_cast(particleCodes.data() + numParticles),
-                    bucketSize, tree, counts, tmpTree, workArray);
-
-    cudaEventRecord(stop, cudaStreamDefault);
-    cudaEventSynchronize(stop);
-
-    float t1;
-    cudaEventElapsedTime(&t1, start, stop);
-    std::cout << "build time with guess " << t1/1000 << " nNodes(tree): " << nNodes(tree)
+    float updateTime = timeGpu(updateTree);
+    std::cout << "build time with guess " << updateTime / 1000 << " nNodes(tree): " << nNodes(tree)
               << " count: " << thrust::reduce(counts.begin(), counts.end(), 0) << std::endl;
 
-    cudaEventDestroy(start);
-    cudaEventDestroy(stop);
+    // halo discovery benchmark
+
+    thrust::device_vector<BinaryNode<KeyType>> binaryTree(nNodes(tree));
+    createBinaryTreeGpu(thrust::raw_pointer_cast(tree.data()), nNodes(tree),
+                        thrust::raw_pointer_cast(binaryTree.data()));
+
+    thrust::device_vector<float> haloRadii(nNodes(tree), 0.01);
+    thrust::device_vector<int>   flags(nNodes(tree), 0);
+
+    auto findHalosLambda = [&]()
+    {
+        findHalosGpu(thrust::raw_pointer_cast(tree.data()),
+                     thrust::raw_pointer_cast(binaryTree.data()),
+                     thrust::raw_pointer_cast(haloRadii.data()),
+                     box, 0, nNodes(tree) / 4,
+                     thrust::raw_pointer_cast(flags.data()));
+    };
+
+    float findTime = timeGpu(findHalosLambda);
+    std::cout << "halo discovery " << findTime / 1000 << " nNodes(tree): " << nNodes(tree)
+              << " count: " << thrust::reduce(flags.begin(), flags.end(), 0) << std::endl;
 }

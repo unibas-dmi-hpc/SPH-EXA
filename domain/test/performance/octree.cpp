@@ -34,8 +34,7 @@
 #include <numeric>
 
 #include "cstone/halos/discovery.hpp"
-#include "cstone/domain/domaindecomp.hpp"
-#include "cstone/halos/btreetraversal.hpp"
+#include "cstone/traversal/collisions.hpp"
 #include "cstone/tree/octree.hpp"
 
 #include "coord_samples/random.hpp"
@@ -75,48 +74,58 @@ std::tuple<std::vector<KeyType>, std::vector<unsigned>> build_tree(const KeyType
 template<class KeyType>
 void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std::vector<unsigned>& counts)
 {
-    int nSplits = 4;
-    SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, nSplits);
     std::vector<float> haloRadii(nNodes(tree), 0.01);
 
-    int doSplit = 0;
-    TreeNodeIndex upperNode = assignment.lastNodeIdx(doSplit);
+    TreeNodeIndex lowerNode = 0;
+    TreeNodeIndex upperNode = nNodes(tree) / 4;
     {
         std::vector<BinaryNode<KeyType>> binaryTree(nNodes(tree));
         createBinaryTree(tree.data(), nNodes(tree), binaryTree.data());
         std::vector<int> collisionFlags(nNodes(tree), 0);
 
         auto tp0 = std::chrono::high_resolution_clock::now();
-        findHalos<KeyType, float>(tree, binaryTree, haloRadii, box, 0, upperNode, collisionFlags.data());
+        findHalos(tree.data(), binaryTree.data(), haloRadii.data(), box, lowerNode, upperNode, collisionFlags.data());
         auto tp1 = std::chrono::high_resolution_clock::now();
 
         double t2 = std::chrono::duration<double>(tp1 - tp0).count();
-        std::cout << "halo discovery: " << t2
+        std::cout << "binary tree halo discovery: " << t2
                   << " collidingNodes: " << std::accumulate(begin(collisionFlags), end(collisionFlags), 0) << std::endl;
+    }
+    {
+        Octree<KeyType> octree;
+        octree.update(tree.begin(), tree.end());
+
+        std::vector<int> collisionFlags(nNodes(tree), 0);
+
+        auto tp0 = std::chrono::high_resolution_clock::now();
+        findHalos(octree, haloRadii.data(), box, lowerNode, upperNode, collisionFlags.data());
+        auto tp1 = std::chrono::high_resolution_clock::now();
+
+        double t2 = std::chrono::duration<double>(tp1 - tp0).count();
+        std::cout << "octree halo discovery: " << t2
+                  << " collidingNodes: " << std::accumulate(begin(collisionFlags), end(collisionFlags), 0) << std::endl;
+
     }
 }
 
 int main()
 {
-    using CodeType = uint64_t;
+    using KeyType = uint64_t;
     Box<double> box{-1, 1};
 
-    int nParticles = 2000000;
-    int bucketSize = 16;
+    int numParticles = 2000000;
+    int bucketSize   = 16;
 
-    RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
-
-    std::vector<CodeType> tree;
-    std::vector<unsigned> counts;
+    RandomGaussianCoordinates<double, MortonKey<KeyType>> randomBox(numParticles, box);
 
     // tree build from random gaussian coordinates
-    std::tie(tree, counts) =
-        build_tree(randomBox.mortonCodes().data(), randomBox.mortonCodes().data() + nParticles, bucketSize);
+    auto [tree, counts] =
+        build_tree(randomBox.particleKeys().data(), randomBox.particleKeys().data() + numParticles, bucketSize);
     // halo discovery with tree
     halo_discovery(box, tree, counts);
 
-    auto px = plummer<double>(nParticles);
-    std::vector<CodeType> pxCodes(nParticles);
+    auto px = plummer<double>(numParticles);
+    std::vector<KeyType> pxCodes(numParticles);
     Box<double> pBox(*std::min_element(begin(px[0]), end(px[0])), *std::max_element(begin(px[0]), end(px[0])),
                      *std::min_element(begin(px[1]), end(px[1])), *std::max_element(begin(px[1]), end(px[1])),
                      *std::min_element(begin(px[2]), end(px[2])), *std::max_element(begin(px[2]), end(px[2])));
@@ -124,8 +133,8 @@ int main()
     std::cout << "plummer box: " << pBox.xmin() << " " << pBox.xmax() << " " << pBox.ymin() << " " << pBox.ymax() << " "
               << pBox.zmin() << " " << pBox.zmax() << std::endl;
 
-    computeMortonCodes(begin(px[0]), end(px[0]), begin(px[1]), begin(px[2]), begin(pxCodes), pBox);
+    computeMortonKeys(begin(px[0]), end(px[0]), begin(px[1]), begin(px[2]), begin(pxCodes), pBox);
     std::sort(begin(pxCodes), end(pxCodes));
 
-    std::tie(tree, counts) = build_tree(pxCodes.data(), pxCodes.data() + nParticles, bucketSize);
+    std::tie(tree, counts) = build_tree(pxCodes.data(), pxCodes.data() + numParticles, bucketSize);
 }

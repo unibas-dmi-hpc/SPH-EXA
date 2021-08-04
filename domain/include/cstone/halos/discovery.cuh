@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief  CPU driver for halo discovery using traversal of an internal binary radix tree
+ * @brief  GPU driver for halo discovery using traversal of an internal binary radix tree
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -34,8 +34,8 @@
 #include <algorithm>
 #include <vector>
 
-#include "cstone/halos/btreetraversal.hpp"
-#include "cstone/util/gsl-lite.hpp"
+#include "cstone/halos/discovery.hpp"
+#include "cstone/tree/btree.cuh"
 
 namespace cstone
 {
@@ -45,8 +45,8 @@ namespace cstone
  * @tparam KeyType               32- or 64-bit unsigned integer
  * @tparam RadiusType            float or double, float is sufficient for 64-bit codes or less
  * @tparam CoordinateType        float or double
- * @param[in]  leaves            cornerstone octree leaves
  * @param[in]  binaryTree        matching binary tree on top of @p leaves
+ * @param[in]  leaves            cornerstone octree leaves
  * @param[in]  interactionRadii  effective halo search radii per octree (leaf) node
  * @param[in]  box               coordinate bounding box
  * @param[in]  firstNode         first leaf node index of @p leaves to consider as local
@@ -58,30 +58,49 @@ namespace cstone
  *                               should be zero-initialized prior to calling this function.
  */
 template<class KeyType, class RadiusType, class CoordinateType>
-void findHalos(const KeyType* leaves,
-               const BinaryNode<KeyType>* binaryTree,
-               const RadiusType* interactionRadii,
-               const Box<CoordinateType>& box,
-               TreeNodeIndex firstNode,
-               TreeNodeIndex lastNode,
-               int* collisionFlags)
+__global__ void
+findHalosKernel(const KeyType* leaves,
+                const BinaryNode<KeyType>* binaryTree,
+                const RadiusType* interactionRadii,
+                const Box<CoordinateType> box,
+                TreeNodeIndex firstNode,
+                TreeNodeIndex lastNode,
+                int* collisionFlags)
 {
-    KeyType lowestCode  = leaves[firstNode];
-    KeyType highestCode = leaves[lastNode];
+    unsigned tid = blockIdx.x * blockDim.x + threadIdx.x;
+    unsigned nodeIdx = firstNode + tid;
 
-    // loop over all the nodes in range
-    #pragma omp parallel for
-    for (TreeNodeIndex nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
+    if (tid < lastNode - firstNode)
     {
+        KeyType lowestCode  = leaves[firstNode];
+        KeyType highestCode = leaves[lastNode];
+
         RadiusType radius = interactionRadii[nodeIdx];
         IBox haloBox      = makeHaloBox(leaves[nodeIdx], leaves[nodeIdx + 1], radius, box);
 
         // if the halo box is fully inside the assigned SFC range, we skip collision detection
-        if (containedIn(lowestCode, highestCode, haloBox)) { continue; }
+        if (containedIn(lowestCode, highestCode, haloBox)) { return; }
 
         // mark all colliding node indices outside [lowestCode:highestCode]
         findCollisions(binaryTree, leaves, collisionFlags, haloBox, {lowestCode, highestCode});
     }
+}
+
+//! @brief convenience kernel wrapper
+template<class KeyType, class RadiusType, class CoordinateType>
+void findHalosGpu(const KeyType* leaves,
+                  const BinaryNode<KeyType>* binaryTree,
+                  const RadiusType* interactionRadii,
+                  const Box<CoordinateType>& box,
+                  TreeNodeIndex firstNode,
+                  TreeNodeIndex lastNode,
+                  int* collisionFlags)
+{
+    constexpr unsigned numThreads = 128;
+    unsigned numBlocks = iceil(lastNode - firstNode, numThreads);
+
+    findHalosKernel<<<numBlocks, numThreads>>>
+        (leaves, binaryTree, interactionRadii, box, firstNode, lastNode, collisionFlags);
 }
 
 } // namespace cstone
