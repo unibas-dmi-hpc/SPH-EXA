@@ -15,6 +15,7 @@ if(CMAKE_CUDA_COMPILER)
     set_target_properties(sedov-cuda PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
     target_link_libraries(sedov-cuda ${MPI_CXX_LIBRARIES})
     target_link_libraries(sedov-cuda OpenMP::OpenMP_CXX)
+    install(TARGETS sedov-cuda RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 
 install(TARGETS sedov RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
