@@ -51,23 +51,25 @@
 template<class T, class Phantom>
 struct StrongType
 {
+    using ValueType [[maybe_unused]] = T;
+
     //! default ctor
-    constexpr StrongType() : value_{} {}
+    constexpr HOST_DEVICE_FUN StrongType() : value_{} {}
     //! construction from the underlying type T, implicit conversions disabled
-    explicit constexpr StrongType(T v) : value_(std::move(v)) {}
+    explicit constexpr HOST_DEVICE_FUN StrongType(T v) : value_(std::move(v)) {}
 
     //! assignment from T
-    constexpr StrongType& operator=(T v)
+    constexpr HOST_DEVICE_FUN StrongType& operator=(T v)
     {
         value_ = std::move(v);
         return *this;
     }
 
     //! conversion to T
-    constexpr operator T() const { return value_; } // NOLINT
+    constexpr HOST_DEVICE_FUN operator T() const { return value_; } // NOLINT
 
     //! access the underlying value
-    constexpr T value() const { return value_; }
+    constexpr HOST_DEVICE_FUN T value() const { return value_; }
 
 private:
     T value_;
@@ -80,24 +82,43 @@ private:
  * parameters is desired, the underlying value attribute should be compared instead
  */
 template<class T, class Phantom>
-constexpr bool operator==(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+constexpr HOST_DEVICE_FUN
+bool operator==(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
 {
     return lhs.value() == rhs.value();
 }
 
-//! comparison function <
+//! @brief comparison function <
 template<class T, class Phantom>
-constexpr bool operator<(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+constexpr HOST_DEVICE_FUN
+bool operator<(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
 {
     return lhs.value() < rhs.value();
 }
 
-//! comparison function >
+//! @brief comparison function >
 template<class T, class Phantom>
-constexpr bool operator>(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+constexpr HOST_DEVICE_FUN
+bool operator>(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
 {
     return lhs.value() > rhs.value();
 }
+
+//! @brief addition
+template<class T, class Phantom>
+constexpr HOST_DEVICE_FUN
+StrongType<T, Phantom> operator+(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+{
+    return StrongType<T, Phantom>(lhs.value() + rhs.value());
+}
+
+//! @brief subtraction
+template<class T, class Phantom>
+constexpr HOST_DEVICE_FUN
+StrongType<T, Phantom> operator-(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
+{
+    return StrongType<T, Phantom>(lhs.value() - rhs.value());
+    }
 
 
 //! @brief simple pair that's usable in both CPU and GPU code
@@ -107,20 +128,19 @@ class pair
 public:
     constexpr pair() = default;
 
-    CUDA_HOST_DEVICE_FUN constexpr
+    HOST_DEVICE_FUN constexpr
     pair(T first, T second) : data{first, second} {}
 
-    CUDA_HOST_DEVICE_FUN constexpr       T& operator[](int i)       { return data[i]; }
-    CUDA_HOST_DEVICE_FUN constexpr const T& operator[](int i) const { return data[i]; }
+    HOST_DEVICE_FUN constexpr       T& operator[](int i)       { return data[i]; }
+    HOST_DEVICE_FUN constexpr const T& operator[](int i) const { return data[i]; }
 
 private:
-
-    CUDA_HOST_DEVICE_FUN friend constexpr bool operator==(const pair& a, const pair& b)
+    HOST_DEVICE_FUN friend constexpr bool operator==(const pair& a, const pair& b)
     {
         return a.data[0] == b.data[0] && a.data[1] == b.data[1];
     }
 
-    CUDA_HOST_DEVICE_FUN friend constexpr bool operator<(const pair& a, const pair& b)
+    HOST_DEVICE_FUN friend constexpr bool operator<(const pair& a, const pair& b)
     {
         bool c0 = a.data[0] < b.data[0];
         bool e0 = a.data[0] == b.data[0];
@@ -133,7 +153,7 @@ private:
 
 
 //! @brief ceil(divident/divisor) for integers
-CUDA_HOST_DEVICE_FUN constexpr unsigned iceil(size_t dividend, unsigned divisor)
+HOST_DEVICE_FUN constexpr unsigned iceil(size_t dividend, unsigned divisor)
 {
     return (dividend + divisor - 1) / divisor;
 }

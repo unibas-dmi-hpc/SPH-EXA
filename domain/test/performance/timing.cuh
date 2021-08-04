@@ -24,43 +24,74 @@
  */
 
 /*! @file
- * @brief Test peer detection performance
+ * @brief GPU timing utility
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
+#pragma once
+
 #include <chrono>
-#include <iostream>
 
-#include "cstone/traversal/peers.hpp"
-#include "cstone/tree/octree_internal.hpp"
+#ifdef __CUDACC__
 
-#include "coord_samples/random.hpp"
-
-using namespace cstone;
-
-int main()
+//! @brief time a generic unary function
+template<class F>
+float timeGpu(F&& f)
 {
-    using KeyType = uint64_t;
-    Box<double> box{-1, 1};
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
 
-    LocalParticleIndex nParticles = 20000;
-    int bucketSize = 1;
-    int numRanks = 50;
+    cudaEventRecord(start, cudaStreamDefault);
 
-    auto codes = makeRandomGaussianKeys<KeyType>(nParticles);
+    f();
 
-    Octree<KeyType> octree;
-    auto [treeLeaves, counts] = computeOctree(codes.data(), codes.data() + nParticles, bucketSize);
-    octree.update(treeLeaves.begin(), treeLeaves.end());
+    cudaEventRecord(stop, cudaStreamDefault);
+    cudaEventSynchronize(stop);
 
-    SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, numRanks);
-    int probeRank = numRanks / 2;
+    float t0;
+    cudaEventElapsedTime(&t0, start, stop);
 
-    auto tp0 = std::chrono::high_resolution_clock::now();
-    std::vector<int> peersDtt = findPeersMac(probeRank, assignment, octree, box, 0.5);
-    auto tp1 = std::chrono::high_resolution_clock::now();
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
 
-    double t2 = std::chrono::duration<double>(tp1 - tp0).count();
-    std::cout << "find peers: " << t2 << " numPeers: " << peersDtt.size() << std::endl;
+    return t0;
+}
+
+#elif defined(__HIPCC__)
+
+//! @brief time a generic unary function
+template<class F>
+float timeGpu(F&& f)
+{
+    hipEvent_t start, stop;
+    hipEventCreate(&start);
+    hipEventCreate(&stop);
+
+    hipEventRecord(start, hipStreamDefault);
+
+    f();
+
+    hipEventRecord(stop, hipStreamDefault);
+    hipEventSynchronize(stop);
+
+    float t0;
+    hipEventElapsedTime(&t0, start, stop);
+
+    hipEventDestroy(start);
+    hipEventDestroy(stop);
+
+    return t0;
+}
+
+#endif
+
+template<class F>
+float timeCpu(F&& f)
+{
+   auto t0 = std::chrono::high_resolution_clock::now();
+   f();
+   auto t1 = std::chrono::high_resolution_clock::now();
+   return std::chrono::duration<float>(t1 - t0).count();
 }

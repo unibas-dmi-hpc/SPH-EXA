@@ -24,43 +24,42 @@
  */
 
 /*! @file
- * @brief Test peer detection performance
+ * @brief Traits and functors for the MPI-enabled FocusedOctree
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include <chrono>
-#include <iostream>
+#pragma once
 
-#include "cstone/traversal/peers.hpp"
-#include "cstone/tree/octree_internal.hpp"
+#include "cstone/focus/exchange_focus.hpp"
+#include "cstone/focus/octree_focus.hpp"
 
-#include "coord_samples/random.hpp"
-
-using namespace cstone;
-
-int main()
+namespace cstone
 {
-    using KeyType = uint64_t;
-    Box<double> box{-1, 1};
 
-    LocalParticleIndex nParticles = 20000;
-    int bucketSize = 1;
-    int numRanks = 50;
+struct MpiPeerExchange
+{
+    template <class KeyType>
+    void operator()(gsl::span<const int> peerRanks, gsl::span<const IndexPair<TreeNodeIndex>> exchangeIndices,
+                    gsl::span<const KeyType> particleKeys, gsl::span<const KeyType> localLeaves,
+                    gsl::span<unsigned> localCounts)
+    {
+        exchangePeerCounts(peerRanks, exchangeIndices, particleKeys, localLeaves, localCounts);
+    }
+};
 
-    auto codes = makeRandomGaussianKeys<KeyType>(nParticles);
-
-    Octree<KeyType> octree;
-    auto [treeLeaves, counts] = computeOctree(codes.data(), codes.data() + nParticles, bucketSize);
-    octree.update(treeLeaves.begin(), treeLeaves.end());
-
-    SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, numRanks);
-    int probeRank = numRanks / 2;
-
-    auto tp0 = std::chrono::high_resolution_clock::now();
-    std::vector<int> peersDtt = findPeersMac(probeRank, assignment, octree, box, 0.5);
-    auto tp1 = std::chrono::high_resolution_clock::now();
-
-    double t2 = std::chrono::duration<double>(tp1 - tp0).count();
-    std::cout << "find peers: " << t2 << " numPeers: " << peersDtt.size() << std::endl;
+namespace focused_octree_detail
+{
+    struct MpiCommTag {};
 }
+
+template <class CommunicationType>
+struct ExchangePeerCounts<CommunicationType, std::enable_if_t<std::is_same_v<focused_octree_detail::MpiCommTag, CommunicationType>>>
+{
+    using type = MpiPeerExchange;
+};
+
+template<class KeyType>
+using FocusedOctree = FocusedOctreeImpl<KeyType, focused_octree_detail::MpiCommTag>;
+
+} // namespace cstone

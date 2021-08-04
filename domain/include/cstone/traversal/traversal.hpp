@@ -24,34 +24,31 @@
  */
 
 /*! @file
- * @brief binary tree traversal implementation
+ * @brief Generic octree traversal methods
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ *
+ * Single and dual tree traversal methods are the base algorithms for implementing
+ * MAC evaluations, collision and surface detection etc.
  */
 
 #pragma once
 
-#include "cstone/halos/boxoverlap.hpp"
+#include "boxoverlap.hpp"
 #include "cstone/tree/octree_internal.hpp"
 
 namespace cstone
 {
 
-template<class KeyType>
-inline bool overlapNode(const Octree<KeyType>& octree, TreeNodeIndex nodeIndex, const IBox& collisionBox)
-{
-    return overlap(octree.codeStart(nodeIndex), 3 * octree.level(nodeIndex), collisionBox);
-}
-
 //constexpr int maxCoord = 1u<<maxTreeLevel<KeyType>{};
-//KeyType iboxStart = imorton3D<KeyType>(collisionBox.xmin(), collisionBox.ymin(), collisionBox.zmin());
+//KeyType iboxStart = iMorton<KeyType>(collisionBox.xmin(), collisionBox.ymin(), collisionBox.zmin());
 //int xmax = collisionBox.xmax();
 //int ymax = collisionBox.ymax();
 //int zmax = collisionBox.zmax();
 //if (xmax == maxCoord) xmax--;
 //if (ymax == maxCoord) ymax--;
 //if (zmax == maxCoord) zmax--;
-//KeyType iboxEnd   = imorton3D<KeyType>(xmax, ymax, zmax);
+//KeyType iboxEnd   = iMorton<KeyType>(xmax, ymax, zmax);
 
 //pair<KeyType> commonBox = smallestCommonBox(iboxStart, iboxEnd);
 //int iboxLevel = treeLevel<KeyType>(commonBox[1] - commonBox[0]);

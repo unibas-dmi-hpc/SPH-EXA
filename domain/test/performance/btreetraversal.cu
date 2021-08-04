@@ -38,16 +38,12 @@
 
 #include "cstone/halos/btreetraversal.hpp"
 #include "cstone/tree/btree.cuh"
-#include "cstone/tree/octree.cuh"
 #include "cstone/tree/octree_util.hpp"
-
-#include "coord_samples/random.hpp"
 
 using namespace cstone;
 
 template <class KeyType>
-CUDA_HOST_DEVICE_FUN
-int countCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes,
+HOST_DEVICE_FUN int countCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes,
                     const IBox& collisionBox, pair<KeyType> excludeRange)
 {
     int collisionCount = 0;
@@ -162,23 +158,6 @@ void testCpu(unsigned gridSize)
 int main()
 {
     using CodeType = unsigned;
-    //Box<double> box{-1, 1};
-
-    //int nParticles = 8000000;
-    //int bucketSize = 10;
-
-    //RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
-
-    //thrust::device_vector<CodeType> tree;
-    //thrust::device_vector<unsigned> counts;
-
-    //thrust::device_vector<CodeType> particleCodes(randomBox.mortonCodes().begin(),
-    //                                              randomBox.mortonCodes().end());
-
-    //computeOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
-    //                 thrust::raw_pointer_cast(particleCodes.data() + nParticles),
-    //                 bucketSize,
-    //                 tree, counts);
 
     unsigned gridSize = 128*128*128;
 

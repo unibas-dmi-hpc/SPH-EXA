@@ -34,7 +34,7 @@
 
 #pragma once
 
-#include "octree_internal.hpp"
+#include "cstone/tree/octree_internal.hpp"
 
 namespace cstone
 {

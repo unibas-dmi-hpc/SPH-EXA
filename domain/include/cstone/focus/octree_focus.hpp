@@ -44,13 +44,13 @@
 #include <vector>
 
 #include "cstone/domain/domaindecomp.hpp"
-#include "cstone/halos/boxoverlap.hpp"
+#include "cstone/traversal/boxoverlap.hpp"
 #include "cstone/util/gsl-lite.hpp"
 #include "cstone/util/index_ranges.hpp"
 
-#include "macs.hpp"
-#include "octree_internal.hpp"
-#include "traversal.hpp"
+#include "cstone/traversal/macs.hpp"
+#include "cstone/tree/octree_internal.hpp"
+#include "cstone/traversal/traversal.hpp"
 
 namespace cstone
 {
@@ -129,7 +129,7 @@ std::vector<IndexPair<TreeNodeIndex>> invertRanges(TreeNodeIndex first,
  *      - 8 if node to be split
  */
 template<class KeyType>
-inline CUDA_HOST_DEVICE_FUN
+inline HOST_DEVICE_FUN
 int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
                        TreeNodeIndex numInternalNodes,
                        const TreeNodeIndex* leafParents,
@@ -137,9 +137,7 @@ int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
                        TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
                        unsigned bucketSize)
 {
-    auto p = siblingAndLevel(cstoneTree, leafIdx);
-    int siblingIdx = p[0];
-    int level      = p[1];
+    auto [siblingIdx, level] = siblingAndLevel(cstoneTree, leafIdx);
 
     if (siblingIdx > 0) // 8 siblings next to each other, node can potentially be merged
     {
@@ -163,7 +161,7 @@ int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
 
 /*! @brief Compute locally essential split or fuse decision for each octree node in parallel
  *
- * @tparam KeyType                   32- or 64-bit unsigned integer type
+ * @tparam    KeyType          32- or 64-bit unsigned integer type
  * @param[in] cstoneTree       cornerstone octree leaves, length = @p numLeafNodes
  * @param[in] numInternalNodes number of internal octree nodes
  * @param[in] numLeafNodes     number of leaf octree nodes

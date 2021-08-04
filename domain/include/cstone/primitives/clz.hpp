@@ -77,7 +77,7 @@ constexpr int clz64(uint64_t x)
  * @return    number of leading zeros, or the number of bits in the input type
  *            for an input value of 0
  */
-CUDA_HOST_DEVICE_FUN
+HOST_DEVICE_FUN
 constexpr int countLeadingZeros(uint32_t x)
 {
 #ifdef __CUDA_ARCH__
@@ -100,7 +100,7 @@ constexpr int countLeadingZeros(uint32_t x)
 #endif
 }
 
-CUDA_HOST_DEVICE_FUN
+HOST_DEVICE_FUN
 constexpr int countLeadingZeros(uint64_t x)
 {
 #ifdef __CUDA_ARCH__

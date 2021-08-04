@@ -18,36 +18,34 @@ namespace sph
 template <typename T, class Dataset>
 void computeIADImpl(const Task &t, Dataset &d)
 {
-    const size_t n = t.clist.size();
-    const size_t ngmax = t.ngmax;
-    const int *clist = t.clist.data();
-    const int *neighbors = t.neighbors.data();
-    const int *neighborsCount = t.neighborsCount.data();
+    size_t n = t.clist.size();
+    size_t ngmax = t.ngmax;
+    const int* clist = t.clist.data();
+    const int* neighbors = t.neighbors.data();
+    const int* neighborsCount = t.neighborsCount.data();
 
-    const T *h = d.h.data();
-    const T *m = d.m.data();
-    const T *x = d.x.data();
-    const T *y = d.y.data();
-    const T *z = d.z.data();
-    const T *ro = d.ro.data();
+    const T* h = d.h.data();
+    const T* m = d.m.data();
+    const T* x = d.x.data();
+    const T* y = d.y.data();
+    const T* z = d.z.data();
+    const T* ro = d.ro.data();
 
-    T *c11 = d.c11.data();
-    T *c12 = d.c12.data();
-    T *c13 = d.c13.data();
-    T *c22 = d.c22.data();
-    T *c23 = d.c23.data();
-    T *c33 = d.c33.data();
+    T* c11 = d.c11.data();
+    T* c12 = d.c12.data();
+    T* c13 = d.c13.data();
+    T* c22 = d.c22.data();
+    T* c23 = d.c23.data();
+    T* c33 = d.c33.data();
 
-    const T *wh = d.wh.data();
-    const T *whd = d.whd.data();
-    const size_t ltsize = d.wh.size();
+    const T* wh = d.wh.data();
+    const T* whd = d.whd.data();
+    size_t ltsize = d.wh.size();
 
-    const BBox<T> *bbox = &d.bbox;
+    const BBox<T>* bbox = &d.bbox;
 
-    const T K = d.K;
-    const T sincIndex = d.sincIndex;
-
-    // std::vector<T> checkImem(n, 0), checkDeltaX(n, 0), checkDeltaY(n, 0), checkDeltaZ(n, 0);
+    T K = d.K;
+    T sincIndex = d.sincIndex;
 
 #if defined(USE_OMP_TARGET)
     // Apparently Cray with -O2 has a bug when calling target regions in a loop. (and computeIADImpl can be called in a loop).
@@ -80,7 +78,8 @@ void computeIADImpl(const Task &t, Dataset &d)
 #endif
     for (size_t pi = 0; pi < n; ++pi)
     {
-        kernels::IADJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, h, m, ro, wh, whd, ltsize, c11, c12, c13, c22, c23, c33);
+        kernels::IADJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount,
+                          x, y, z, h, m, ro, wh, whd, ltsize, c11, c12, c13, c22, c23, c33);
     }
 }
 
@@ -88,7 +87,7 @@ template <typename T, class Dataset>
 void computeIAD(const std::vector<Task> &taskList, Dataset &d)
 {
 #if defined(USE_CUDA)
-    cuda::computeIAD<T>(taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
+    cuda::computeIAD(taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
 #else
     for (const auto &task : taskList)
     {

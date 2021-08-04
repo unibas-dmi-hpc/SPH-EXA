@@ -75,13 +75,13 @@ void globalRandomGaussian(int thisRank, int numRanks)
     unsigned bucketSize = 64;
 
     Box<T> box{-1, 1};
-    RandomGaussianCoordinates<T, KeyType> coords(numParticles, box, thisRank);
+    RandomGaussianCoordinates<T, MortonKey<KeyType>> coords(numParticles, box, thisRank);
 
     std::vector<KeyType> tree = makeRootNodeTree<KeyType>();
     std::vector<unsigned> counts{numRanks * unsigned(numParticles)};
 
-    while (!updateOctreeGlobal(coords.mortonCodes().data(), coords.mortonCodes().data() + numParticles, bucketSize, tree,
-                               counts))
+    while (!updateOctreeGlobal(coords.particleKeys().data(), coords.particleKeys().data() + numParticles,
+                               bucketSize, tree, counts))
     {
     }
 
@@ -90,13 +90,13 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::iota(begin(ordering), end(ordering), 0);
 
     auto assignment = singleRangeSfcSplit(counts, numRanks);
-    auto sendList = createSendList<KeyType>(assignment, tree, coords.mortonCodes());
+    auto sendList = createSendList<KeyType>(assignment, tree, coords.particleKeys());
 
     EXPECT_EQ(std::accumulate(begin(counts), end(counts), std::size_t(0)), numParticles * numRanks);
 
-    std::vector<T> x = coords.x();
-    std::vector<T> y = coords.y();
-    std::vector<T> z = coords.z();
+    std::vector<T> x(coords.x().begin(), coords.x().end());
+    std::vector<T> y(coords.y().begin(), coords.y().end());
+    std::vector<T> z(coords.z().begin(), coords.z().end());
 
     LocalParticleIndex numParticlesAssigned = assignment.totalCount(thisRank);
 
@@ -111,8 +111,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
     EXPECT_EQ(particleEnd - particleStart, numParticlesAssigned);
 
     std::vector<KeyType> newCodes(numParticlesAssigned);
-    computeMortonCodes(begin(x) + particleStart, begin(x) + particleEnd,
-                       begin(y) + particleStart, begin(z) + particleStart, begin(newCodes), box);
+    computeMortonKeys(begin(x) + particleStart, begin(x) + particleEnd, begin(y) + particleStart,
+                      begin(z) + particleStart, begin(newCodes), box);
 
     // received particles are not stored in morton order after the exchange
     std::sort(begin(newCodes), end(newCodes));

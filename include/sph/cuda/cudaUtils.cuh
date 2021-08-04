@@ -10,7 +10,7 @@ namespace sph
 {
 namespace cuda
 {
-#define CHECK_CUDA_ERR(errcode) sphexa::sph::cuda::utils::checkErr((errcode), __FILE__, __LINE__, #errcode);
+#define CHECK_CUDA_ERR(errcode) sphexa::sph::cuda::utils::checkErr((errcode), __FILE__, __LINE__, #errcode)
 
 namespace utils
 {

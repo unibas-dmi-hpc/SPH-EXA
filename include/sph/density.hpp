@@ -78,7 +78,7 @@ template <typename T, class Dataset>
 void computeDensity(std::vector<Task> &taskList, Dataset &d)
 {
 #if defined(USE_CUDA)
-    cuda::computeDensity<T, Dataset>(taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
+    cuda::computeDensity<Dataset>(taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
 #else
     for (const auto &task : taskList)
     {

@@ -198,17 +198,17 @@ TEST(SfcCode, decodePlaceholderbit64)
 
 TEST(SfcCode, octalDigit32)
 {
-    EXPECT_EQ(1, octalDigit(010000000000, 0));
-    EXPECT_EQ(1, octalDigit(01234567012, 1));
-    EXPECT_EQ(2, octalDigit(01234567012, 2));
-    EXPECT_EQ(3, octalDigit(01234567012, 3));
-    EXPECT_EQ(4, octalDigit(01234567012, 4));
-    EXPECT_EQ(5, octalDigit(01234567012, 5));
-    EXPECT_EQ(6, octalDigit(01234567012, 6));
-    EXPECT_EQ(7, octalDigit(01234567012, 7));
-    EXPECT_EQ(0, octalDigit(01234567012, 8));
-    EXPECT_EQ(1, octalDigit(01234567012, 9));
-    EXPECT_EQ(2, octalDigit(01234567012, 10));
+    EXPECT_EQ(1, octalDigit(010000000000u, 0));
+    EXPECT_EQ(1, octalDigit(01234567012u, 1));
+    EXPECT_EQ(2, octalDigit(01234567012u, 2));
+    EXPECT_EQ(3, octalDigit(01234567012u, 3));
+    EXPECT_EQ(4, octalDigit(01234567012u, 4));
+    EXPECT_EQ(5, octalDigit(01234567012u, 5));
+    EXPECT_EQ(6, octalDigit(01234567012u, 6));
+    EXPECT_EQ(7, octalDigit(01234567012u, 7));
+    EXPECT_EQ(0, octalDigit(01234567012u, 8));
+    EXPECT_EQ(1, octalDigit(01234567012u, 9));
+    EXPECT_EQ(2, octalDigit(01234567012u, 10));
 }
 
 TEST(SfcCode, octalDigit64)
@@ -259,9 +259,10 @@ TEST(SfcCode, smallestCommonBoxEqualCode)
 {
     using CodeType = unsigned;
     CodeType code = 0;
-    auto probe = smallestCommonBox(code, code);
-    pair<CodeType> reference{code, code + 1};
-    EXPECT_EQ(probe, reference);
+    auto [k1, k2] = smallestCommonBox(code, code);
+    util::tuple<CodeType, CodeType> reference{code, code + 1};
+    EXPECT_EQ(k1, code);
+    EXPECT_EQ(k2, code + 1);
 }
 
 TEST(SfcCode, smallestCommonBoxL1)
@@ -269,9 +270,9 @@ TEST(SfcCode, smallestCommonBoxL1)
     using CodeType = unsigned;
     CodeType code1 = 0b00001001u << 24u;
     CodeType code2 = 0b00001010u << 24u;
-    auto probe = smallestCommonBox(code1, code2);
-    pair<CodeType> reference{0b00001000u << 24u, 0b000010000u << 24u};
-    EXPECT_EQ(probe, reference);
+    auto [k1, k2] = smallestCommonBox(code1, code2);
+    EXPECT_EQ(k1, 0b00001000u << 24u);
+    EXPECT_EQ(k2, 0b000010000u << 24u);
 }
 
 TEST(SfcCode, smallestCommonBoxL0_32)
@@ -279,9 +280,9 @@ TEST(SfcCode, smallestCommonBoxL0_32)
     using CodeType = unsigned;
     CodeType code1 = 0b00000001u << 24u;
     CodeType code2 = 0b00001010u << 24u;
-    auto probe = smallestCommonBox(code1, code2);
-    pair<CodeType> reference{0u, 0b01u << 30u};
-    EXPECT_EQ(probe, reference);
+    auto [k1, k2] = smallestCommonBox(code1, code2);
+    EXPECT_EQ(k1, 0);
+    EXPECT_EQ(k2, 0b01u << 30u);
 }
 
 TEST(SfcCode, smallestCommonBoxL0_64)
@@ -289,14 +290,14 @@ TEST(SfcCode, smallestCommonBoxL0_64)
     using CodeType = uint64_t;
     CodeType code1 = 0b0000001lu << 57u;
     CodeType code2 = 0b0001010lu << 57u;
-    auto probe = smallestCommonBox(code1, code2);
-    pair<CodeType> reference{0lu, 1lu << 63u};
-    EXPECT_EQ(probe, reference);
+    auto [k1, k2] = smallestCommonBox(code1, code2);
+    EXPECT_EQ(k1, 0lu);
+    EXPECT_EQ(k2, 1lu << 63u);
 }
 
 TEST(SfcCode, padUtility)
 {
-    EXPECT_EQ(pad(0b011, 3), 0b00011 << 27);
+    EXPECT_EQ(pad(0b011u, 3), 0b00011 << 27);
     EXPECT_EQ(pad(0b011ul, 3), 0b0011ul << 60);
 }
 

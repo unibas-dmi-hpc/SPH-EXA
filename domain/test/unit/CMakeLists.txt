@@ -2,9 +2,8 @@
 set(UNIT_TESTS
         domain/domaindecomp.cpp
         domain/layout.cpp
-        domain/peers.cpp
         findneighbors.cpp
-        halos/boxoverlap.cpp
+        focus/octree_focus.cpp
         halos/btreetraversal.cpp
         halos/btreetraversal_a2a.cpp
         halos/discovery.cpp
@@ -12,15 +11,18 @@ set(UNIT_TESTS
         primitives/gather.cpp
         sfc/box.cpp
         sfc/common.cpp
+        sfc/hilbert.cpp
         sfc/morton.cpp
+        sfc/sfc.cpp
+        traversal/boxoverlap.cpp
+        traversal/macs.cpp
+        traversal/peers.cpp
+        traversal/traversal.cpp
+        traversal/upsweep.cpp
         tree/btree.cpp
-        tree/macs.cpp
         tree/octree.cpp
-        tree/octree_focus.cpp
         tree/octree_internal.cpp
         tree/octree_util.cpp
-        tree/traversal.cpp
-        tree/upsweep.cpp
         test_main.cpp)
 
 add_executable(component_units ${UNIT_TESTS})

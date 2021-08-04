@@ -24,42 +24,12 @@
  */
 
 /*! @file
- * @brief Traits and functors for the MPI-enabled FocusedOctree
+ * @brief Test generic SFC functionality
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#pragma once
+#include "gtest/gtest.h"
+#include "cstone/sfc/sfc.hpp"
 
-#include "cstone/tree/exchange_focus.hpp"
-#include "cstone/tree/octree_focus.hpp"
-
-namespace cstone
-{
-
-struct MpiPeerExchange
-{
-    template <class KeyType>
-    void operator()(gsl::span<const int> peerRanks, gsl::span<const IndexPair<TreeNodeIndex>> exchangeIndices,
-                    gsl::span<const KeyType> particleKeys, gsl::span<const KeyType> localLeaves,
-                    gsl::span<unsigned> localCounts)
-    {
-        exchangePeerCounts(peerRanks, exchangeIndices, particleKeys, localLeaves, localCounts);
-    }
-};
-
-namespace focused_octree_detail
-{
-    struct MpiCommTag {};
-}
-
-template <class CommunicationType>
-struct ExchangePeerCounts<CommunicationType, std::enable_if_t<std::is_same_v<focused_octree_detail::MpiCommTag, CommunicationType>>>
-{
-    using type = MpiPeerExchange;
-};
-
-template<class KeyType>
-using FocusedOctree = FocusedOctreeImpl<KeyType, focused_octree_detail::MpiCommTag>;
-
-} // namespace cstone
+using namespace cstone;

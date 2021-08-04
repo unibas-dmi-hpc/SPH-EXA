@@ -31,14 +31,14 @@
 
 #pragma once
 
-#include "cstone/halos/btreetraversal.hpp"
+#include "cstone/traversal/boxoverlap.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 namespace cstone
 {
 /*! @brief to-all implementation of findCollisions
  *
- * @tparam I   32- or 64-bit unsigned integer
+ * @tparam     KeyType        32- or 64-bit unsigned integer
  * @param[in]  tree           octree leaf nodes in cornerstone format
  * @param[out] collisionList  output list of indices of colliding nodes
  * @param[in]  collisionBox   query box to look for collisions
@@ -47,26 +47,26 @@ namespace cstone
  * Naive implementation without tree traversal for reference
  * and testing purposes
  */
-template <class I>
-void findCollisions2All(const std::vector<I>& tree, CollisionList& collisionList,
+template <class KeyType>
+void findCollisions2All(const std::vector<KeyType>& tree, std::vector<TreeNodeIndex>& collisionList,
                         const IBox& collisionBox)
 {
-    for (std::size_t nodeIndex = 0; nodeIndex < nNodes(tree); ++nodeIndex)
+    for (TreeNodeIndex idx = 0; idx < nNodes(tree); ++idx)
     {
-        int prefixBits = treeLevel(tree[nodeIndex+1] - tree[nodeIndex]) * 3;
-        if (overlap(tree[nodeIndex], prefixBits, collisionBox))
-            collisionList.add((int)nodeIndex);
+        if (overlap(tree[idx], treeLevel(tree[idx + 1] - tree[idx]), collisionBox))
+            collisionList.push_back(idx);
     }
 }
 
 //! @brief all-to-all implementation of findAllCollisions
-template<class I, class T>
-std::vector<CollisionList> findCollisionsAll2all(const std::vector<I>& tree, const std::vector<T>& haloRadii,
-                                                 const Box<T>& globalBox)
+template<class KeyType, class T>
+std::vector<std::vector<TreeNodeIndex>> findCollisionsAll2all(const std::vector<KeyType>& tree,
+                                                              const std::vector<T>& haloRadii,
+                                                              const Box<T>& globalBox)
 {
-    std::vector<CollisionList> collisions(tree.size() - 1);
+    std::vector<std::vector<TreeNodeIndex>> collisions(tree.size() - 1);
 
-    for (std::size_t leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
+    for (TreeNodeIndex leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
     {
         T radius = haloRadii[leafIdx];
 

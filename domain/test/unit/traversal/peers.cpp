@@ -31,7 +31,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/domain/peers.hpp"
+#include "cstone/traversal/peers.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 #include "coord_samples/random.hpp"
@@ -83,12 +83,12 @@ std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assign
                                   const Box<T>& box, float theta)
 {
     TreeNodeIndex firstIdx = assignment.firstNodeIdx(myRank);
-    TreeNodeIndex lastIdx = assignment.lastNodeIdx(myRank);
+    TreeNodeIndex lastIdx  = assignment.lastNodeIdx(myRank);
     float invThetaSq = 1.0f / (theta * theta);
 
     std::vector<IBox> boxes(nNodes(tree));
     for (TreeNodeIndex i = 0; i < nNodes(tree); ++i)
-        boxes[i] = makeIBox(tree[i], tree[i + 1]);
+        boxes[i] = mortonIBox(tree[i], treeLevel(tree[i + 1] - tree[i]));
 
     std::vector<int> peers(assignment.numRanks());
     for (TreeNodeIndex i = firstIdx; i < lastIdx; ++i)
@@ -105,14 +105,12 @@ std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assign
 template<class KeyType>
 void findPeers()
 {
-    using CodeType = KeyType;
     Box<double> box{-1, 1};
     int nParticles = 100000;
     int bucketSize = 64;
     int numRanks = 50;
 
-    RandomGaussianCoordinates<double, CodeType> randomBox(nParticles, box);
-    std::vector<CodeType> codes = randomBox.mortonCodes();
+    auto codes = makeRandomGaussianKeys<KeyType>(nParticles);
 
     Octree<KeyType> octree;
     auto [tree, counts] = computeOctree(codes.data(), codes.data() + nParticles, bucketSize);
@@ -131,10 +129,11 @@ void findPeers()
     for (int peerRank : peersDtt)
     {
         std::vector<int> peersOfPeerDtt = findPeersMac(peerRank, assignment, octree, box, 0.5);
+
         // std::vector<int> peersOfPeerStt = findPeersMacStt(peerRank, assignment, octree, box, 0.5);
-        // std::vector<int> peersA2A = findPeersAll2All(rank, assignment, octree.treeLeaves(), box, 0.5);
         // EXPECT_EQ(peersDtt, peersStt);
-        // EXPECT_EQ(peersDtt, peersA2A);
+        std::vector<int> peersOfPeerA2A = findPeersAll2All(peerRank, assignment, octree.treeLeaves(), box, 0.5);
+        EXPECT_EQ(peersOfPeerDtt, peersOfPeerA2A);
 
         // the peers of the peers of the probeRank have to have probeRank as peer
         EXPECT_TRUE(std::find(begin(peersOfPeerDtt), end(peersOfPeerDtt), probeRank) != end(peersOfPeerDtt));

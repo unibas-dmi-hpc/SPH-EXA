@@ -31,7 +31,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/halos/boxoverlap.hpp"
+#include "cstone/traversal/boxoverlap.hpp"
 
 using namespace cstone;
 
@@ -69,36 +69,35 @@ void overlapTest()
 
     // node range: [r,2r]^3
     I prefix = pad(I(0b000111), 6);
-    int prefixLength = 6;
+    unsigned level = 2;
 
     I bound = pad(I(0b001), 3);
 
-    EXPECT_EQ(prefixLength, treeLevel(bound - prefix) * 3);
+    EXPECT_EQ(level, treeLevel(bound - prefix));
 
     /// Each test is a separate case
 
-    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{0, r, 0, r, 0, r}));
-    EXPECT_FALSE(overlap(prefix, bound, IBox{0, r, 0, r, 0, r}));
+    EXPECT_FALSE(overlap(prefix, level, IBox{0, r, 0, r, 0, r}));
 
     // exact match
-    EXPECT_TRUE(overlap(prefix, prefixLength, IBox{r, 2 * r, r, 2 * r, r, 2 * r}));
+    EXPECT_TRUE(overlap(prefix, level, IBox{r, 2 * r, r, 2 * r, r, 2 * r}));
     // contained within (1,1,1) corner of node
-    EXPECT_TRUE(overlap(prefix, prefixLength, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
+    EXPECT_TRUE(overlap(prefix, level, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
     // contained and exceeding (1,1,1) corner by 1 in all dimensions
-    EXPECT_TRUE(overlap(prefix, prefixLength, IBox{2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1}));
+    EXPECT_TRUE(overlap(prefix, level, IBox{2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1}));
 
     // all of these miss the (1,1,1) corner by 1 in one of the three dimensions
-    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{2 * r, 2 * r + 1, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
-    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{2 * r - 1, 2 * r, 2 * r, 2 * r + 1, 2 * r - 1, 2 * r}));
-    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r, 2 * r + 1}));
+    EXPECT_FALSE(overlap(prefix, level, IBox{2 * r, 2 * r + 1, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
+    EXPECT_FALSE(overlap(prefix, level, IBox{2 * r - 1, 2 * r, 2 * r, 2 * r + 1, 2 * r - 1, 2 * r}));
+    EXPECT_FALSE(overlap(prefix, level, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r, 2 * r + 1}));
 
     // contained within (0,0,0) corner of node
-    EXPECT_TRUE(overlap(prefix, prefixLength, IBox{r, r + 1, r, r + 1, r, r + 1}));
+    EXPECT_TRUE(overlap(prefix, level, IBox{r, r + 1, r, r + 1, r, r + 1}));
 
     // all of these miss the (0,0,0) corner by 1 in one of the three dimensions
-    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{r - 1, r, r, r + 1, r, r + 1}));
-    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{r, r + 1, r - 1, r, r, r + 1}));
-    EXPECT_FALSE(overlap(prefix, prefixLength, IBox{r, r + 1, r, r + 1, r - 1, r}));
+    EXPECT_FALSE(overlap(prefix, level, IBox{r - 1, r, r, r + 1, r, r + 1}));
+    EXPECT_FALSE(overlap(prefix, level, IBox{r, r + 1, r - 1, r, r, r + 1}));
+    EXPECT_FALSE(overlap(prefix, level, IBox{r, r + 1, r, r + 1, r - 1, r}));
 }
 
 TEST(BoxOverlap, overlaps)
@@ -117,18 +116,18 @@ void pbcOverlaps()
         EXPECT_TRUE(overlap(I(0), I(1), haloBox));
     }
     {
-        I firstCode = imorton3D<I>(maxCoord, 0, 0);
+        I firstCode = iMorton<I>(maxCoord, 0, 0);
         I secondCode = firstCode + 1;
         IBox haloBox{-1, 1, 0, 1, 0, 1};
-        EXPECT_TRUE(overlap(firstCode, secondCode, haloBox));
+        EXPECT_TRUE(overlap(firstCode, treeLevel(secondCode - firstCode), haloBox));
     }
     {
         IBox haloBox{maxCoord, maxCoord + 2, 0, 1, 0, 1};
-        EXPECT_TRUE(overlap(I(0), I(1), haloBox));
+        EXPECT_TRUE(overlap(I(0), treeLevel(I(1) - I(0)), haloBox));
     }
     {
         IBox haloBox{-1, 1, -1, 1, -1, 1};
-        EXPECT_TRUE(overlap(nodeRange<I>(0) - 1, nodeRange<I>(0), haloBox));
+        EXPECT_TRUE(overlap(nodeRange<I>(0) - 1, treeLevel(I(1)), haloBox));
     }
 }
 
@@ -138,33 +137,14 @@ TEST(BoxOverlap, pbcOverlaps)
     pbcOverlaps<uint64_t>();
 }
 
-template<class I>
-void makeIBox()
-{
-    int maxCoord = I(1) << maxTreeLevel<I>{};
-    {
-        I nodeStart = nodeRange<I>(0) - 1;
-        I nodeEnd = nodeRange<I>(0);
-        IBox ibox = makeIBox(nodeStart, nodeEnd);
-        IBox refBox{maxCoord - 1, maxCoord};
-        EXPECT_EQ(ibox, refBox);
-    }
-}
-
-TEST(BoxOverlap, makeIBox)
-{
-    makeIBox<unsigned>();
-    makeIBox<uint64_t>();
-}
-
 //! @brief check halo box ranges in all spatial dimensions
-template<class I>
+template<class KeyType>
 void makeHaloBoxXYZ()
 {
-    int r = I(1) << (maxTreeLevel<I>{} - 3);
+    int r = KeyType(1) << (maxTreeLevel<KeyType>{} - 3);
     // node range: [r,2r]^3
-    I nodeStart = pad(I(0b000000111), 9);
-    I nodeEnd = pad(I(0b000001000), 9);
+    KeyType nodeStart = pad(KeyType(0b000000111), 9);
+    KeyType nodeEnd   = pad(KeyType(0b000001000), 9);
 
     /// internal node check
     {
@@ -298,7 +278,7 @@ void haloBoxContainedIn()
     }
     {
         IBox haloBox{0, 1, 0, 1, 0, 2};
-        EXPECT_TRUE(containedIn(I(0), I(2), haloBox));
+        EXPECT_TRUE(containedIn(I(0), I(8), haloBox));
     }
     {
         IBox haloBox{0, 1, 0, 2, 0, 2};
@@ -306,7 +286,7 @@ void haloBoxContainedIn()
     }
     {
         IBox haloBox{0, 1, 0, 2, 0, 2};
-        EXPECT_TRUE(containedIn(I(0), I(4), haloBox));
+        EXPECT_TRUE(containedIn(I(0), I(8), haloBox));
     }
     {
         IBox haloBox{0, 2, 0, 2, 0, 2};
@@ -319,31 +299,31 @@ void haloBoxContainedIn()
 
     int maxCoord = (1u << maxTreeLevel<I>{}) - 1;
     {
-        I firstCode = imorton3D<I>(0, 0, maxCoord);
+        I firstCode = iMorton<I>(0, 0, maxCoord);
         I secondCode = firstCode + 1;
         IBox haloBox{0, 1, 0, 1, maxCoord, maxCoord + 1};
         EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
     }
     {
-        I firstCode = imorton3D<I>(0, 0, maxCoord);
+        I firstCode = iMorton<I>(0, 0, maxCoord);
         I secondCode = firstCode + 1;
         IBox haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
         EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));
     }
     {
-        I firstCode = imorton3D<I>(0, 0, maxCoord);
+        I firstCode = iMorton<I>(0, 0, maxCoord);
         I secondCode = firstCode + 2;
         IBox haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
         EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));
     }
     {
-        I firstCode = imorton3D<I>(0, 0, maxCoord);
-        I secondCode = firstCode + 3;
+        I firstCode = iMorton<I>(0, 0, maxCoord - 1);
+        I secondCode = firstCode + 8;
         IBox haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
         EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
     }
     {
-        I firstCode = imorton3D<I>(maxCoord, maxCoord, maxCoord);
+        I firstCode = iMorton<I>(maxCoord, maxCoord, maxCoord);
         I secondCode = firstCode + 1;
         IBox haloBox{maxCoord, maxCoord + 1, maxCoord, maxCoord + 1, maxCoord, maxCoord + 1};
         EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
@@ -355,7 +335,7 @@ void haloBoxContainedIn()
         EXPECT_FALSE(containedIn(I(0), I(1), haloBox));
     }
     {
-        I firstCode = imorton3D<I>(0, 0, maxCoord);
+        I firstCode = iMorton<I>(0, 0, maxCoord);
         I secondCode = firstCode + 3;
         IBox haloBox{0, 1, 0, 1, maxCoord, maxCoord + 2};
         EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));
@@ -403,8 +383,8 @@ void excludeRangeContainedIn()
         EXPECT_FALSE(containedIn(prefix, rangeStart, rangeEnd));
     }
 
-    rangeStart = imorton3D<I>(0, 0, 3, 2);
-    rangeEnd = imorton3D<I>(0, 1, 2, 2);
+    rangeStart = iMorton<I>(0, 0, 3, 2);
+    rangeEnd = iMorton<I>(0, 1, 2, 2);
     EXPECT_EQ(rangeStart, 9 * nodeRange<I>(2));
     EXPECT_EQ(rangeEnd, 10 * nodeRange<I>(2));
     {

@@ -31,6 +31,7 @@
 
 #include "gtest/gtest.h"
 
+#include "cstone/halos/btreetraversal.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 #include "collision_reference/collisions_a2a.hpp"
@@ -39,21 +40,21 @@ using namespace cstone;
 
 /*! @brief compare tree-traversal collision detection with the naive all-to-all algorithm
  *
- * @tparam I           32- or 64-bit unsigned integer
+ * @tparam KeyType     32- or 64-bit unsigned integer
  * @tparam T           float or double
- * @param tree         cornerstone octree leaves
- * @param haloRadii    floating point collision radius per octree leaf
- * @param box          bounding box used to construct the octree
+ * @param  tree        cornerstone octree leaves
+ * @param  haloRadii   floating point collision radius per octree leaf
+ * @param  box         bounding box used to construct the octree
  *
  * This test goes through all leaf nodes of the input octree and computes
  * a list of all other leaves that overlap with the first one.
  * The computation is done with both the tree-traversal algorithm and the
  * naive all-to-all algorithm and the results are compared.
  */
-template<class I, class T>
-void generalCollisionTest(const std::vector<I>& tree, const std::vector<T>& haloRadii, const Box<T>& box)
+template<class KeyType, class T>
+void generalCollisionTest(const std::vector<KeyType>& tree, const std::vector<T>& haloRadii, const Box<T>& box)
 {
-    std::vector<BinaryNode<I>> internalTree(nNodes(tree));
+    std::vector<BinaryNode<KeyType>> internalTree(nNodes(tree));
     createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
 
     // tree traversal collision detection
@@ -66,12 +67,12 @@ void generalCollisionTest(const std::vector<I>& tree, const std::vector<T>& halo
     }
 
     // naive all-to-all algorithm
-    std::vector<CollisionList> refCollisions = findCollisionsAll2all(tree, haloRadii, box);
+    std::vector<std::vector<TreeNodeIndex>> refCollisions = findCollisionsAll2all(tree, haloRadii, box);
 
     for (std::size_t nodeIndex = 0; nodeIndex < nNodes(tree); ++nodeIndex)
     {
-        std::vector<int> c{collisions[nodeIndex].begin(), collisions[nodeIndex].end()};
-        std::vector<int> ref{refCollisions[nodeIndex].begin(), refCollisions[nodeIndex].end()};
+        std::vector<TreeNodeIndex> c{collisions[nodeIndex].begin(), collisions[nodeIndex].end()};
+        std::vector<TreeNodeIndex> ref{refCollisions[nodeIndex].begin(), refCollisions[nodeIndex].end()};
 
         std::sort(begin(c), end(c));
         std::sort(begin(ref), end(ref));

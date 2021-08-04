@@ -45,7 +45,7 @@
 
 #include "cstone/cuda/annotation.hpp"
 #include "cstone/primitives/gather.hpp"
-#include "cstone/sfc/morton.hpp"
+#include "cstone/sfc/sfc.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
 #include "btree.hpp"
@@ -54,7 +54,7 @@
 
 /*! @brief atomically update a maximum value and return the previous maximum value
  *
- * @tparam T                     integer type
+ * @tparam       T               integer type
  * @param[inout] maximumValue    the maximum value to be atomically updated
  * @param[in]    newValue        the value with which to compute the new maximum
  * @return                       the previous maximum value
@@ -117,8 +117,7 @@ struct OctreeNode
 };
 
 template<class KeyType, class AtomicInteger>
-CUDA_HOST_DEVICE_FUN
-void nodeDepthElement(TreeNodeIndex i, const OctreeNode<KeyType>* octree, AtomicInteger* depths)
+HOST_DEVICE_FUN void nodeDepthElement(TreeNodeIndex i, const OctreeNode<KeyType>* octree, AtomicInteger* depths)
 {
     int nLeafChildren = 0;
     for (int octant = 0; octant < 8; ++octant)
@@ -294,7 +293,7 @@ void rewireIndices(const Index* input,
 
 /*! @brief construct the internal octree node with index @p nodeIndex
  *
- * @tparam KeyType                         32- or 64-bit unsigned integer type
+ * @tparam KeyType                   32- or 64-bit unsigned integer type
  * @param[out]  internalOctree       linear array of OctreeNode<KeyType>'s
  * @param[in]   binaryTree           linear array of binary tree nodes
  * @param[in]   nodeIndex            element of @p internalOctree to construct
@@ -310,13 +309,13 @@ void rewireIndices(const Index* input,
  * In addition, it sets the parent member of the child nodes to @p nodeIndex.
  */
 template<class KeyType>
-CUDA_HOST_DEVICE_FUN
-inline void constructOctreeNode(OctreeNode<KeyType>*       internalOctree,
-                                const BinaryNode<KeyType>* binaryTree,
-                                TreeNodeIndex        nodeIndex,
-                                const TreeNodeIndex* scatterMap,
-                                const TreeNodeIndex* binaryToOctreeIndex,
-                                TreeNodeIndex*       leafParents)
+HOST_DEVICE_FUN inline
+void constructOctreeNode(OctreeNode<KeyType>*       internalOctree,
+                         const BinaryNode<KeyType>* binaryTree,
+                         TreeNodeIndex        nodeIndex,
+                         const TreeNodeIndex* scatterMap,
+                         const TreeNodeIndex* binaryToOctreeIndex,
+                         TreeNodeIndex*       leafParents)
 {
     OctreeNode<KeyType>& octreeNode = internalOctree[nodeIndex];
 
