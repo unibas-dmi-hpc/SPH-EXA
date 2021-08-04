@@ -6,6 +6,7 @@ function(addMpiTest source exename testname)
     target_include_directories(${exename} PRIVATE ${MPI_CXX_INCLUDE_PATH})
     target_link_libraries(${exename} ${MPI_CXX_LIBRARIES} gtest_main)
     add_test(NAME ${testname} COMMAND ${exename})
+    install(TARGETS ${exename} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/integration_mpi)
 endfunction()
 
 addMpiTest(globaloctree.cpp globaloctree GlobalTreeTests)
