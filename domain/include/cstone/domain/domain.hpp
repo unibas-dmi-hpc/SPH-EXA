@@ -38,9 +38,9 @@
 #include "cstone/domain/domain_traits.hpp"
 #include "cstone/domain/exchange_keys.hpp"
 #include "cstone/domain/layout.hpp"
+#include "cstone/traversal/collisions.hpp"
 #include "cstone/traversal/peers.hpp"
 
-#include "cstone/halos/discovery.hpp"
 #include "cstone/halos/exchange_halos.hpp"
 
 #include "cstone/tree/octree_mpi.hpp"
@@ -294,8 +294,7 @@ public:
                          haloRadii.data());
 
         std::vector<int> haloFlags(nNodes(focusedTree_.treeLeaves()), 0);
-        findHalos(focusedTree_.treeLeaves().data(),
-                  focusedTree_.binaryTree().data(),
+        findHalos(focusedTree_.octree(),
                   haloRadii.data(),
                   box_,
                   focusAssignment[myRank_].start(),
