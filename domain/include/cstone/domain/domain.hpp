@@ -271,6 +271,9 @@ public:
         focusedTree_.updateGlobal(box_, codesView, myRank_, peers, assignment, tree_, nodeCounts_);
         if (firstCall_)
         {
+            // we must not call updateGlobal again before all ranks have completed the previous call,
+            // otherwise point-2-point messages from different updateGlobal calls can get mixed up
+            MPI_Barrier(MPI_COMM_WORLD);
             int converged = 0;
             while (converged != numRanks_)
             {
