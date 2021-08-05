@@ -34,7 +34,7 @@
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/tree/octree_util.hpp"
 
-#include "collision_reference/collisions_a2a.hpp"
+#include "unit/traversal/collisions_a2a.hpp"
 
 using namespace cstone;
 
