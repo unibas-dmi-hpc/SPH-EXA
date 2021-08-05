@@ -149,15 +149,15 @@ void dualTraversalNeighbors()
     Box<float> box(0, 1);
 
     KeyType focusStart = octree.codeStart(octree.toInternal(0));
-    KeyType focusEnd = octree.codeStart(octree.toInternal(8));
+    KeyType focusEnd   = octree.codeStart(octree.toInternal(8));
 
     auto crossFocusSurfacePairs = [focusStart, focusEnd, &tree = octree, &box](TreeNodeIndex a, TreeNodeIndex b) {
         bool aFocusOverlap = overlapTwoRanges(focusStart, focusEnd, tree.codeStart(a), tree.codeEnd(a));
-        bool bInFocus = containedIn(tree.codeStart(b), tree.codeEnd(b), focusStart, focusEnd);
+        bool bInFocus      = containedIn(tree.codeStart(b), tree.codeEnd(b), focusStart, focusEnd);
         if (!aFocusOverlap || bInFocus) { return false; }
 
-        IBox aBox = mortonIBox(tree.codeStart(a), tree.level(a));
-        IBox bBox = mortonIBox(tree.codeStart(b), tree.level(b));
+        IBox aBox = hilbertIBox(tree.codeStart(a), tree.level(a));
+        IBox bBox = hilbertIBox(tree.codeStart(b), tree.level(b));
         return minDistanceSq<KeyType>(aBox, bBox, box) == 0.0;
     };
 
@@ -174,14 +174,13 @@ void dualTraversalNeighbors()
     {
         auto a = p[0];
         auto b = p[1];
-        // std::cout << a - octree.nInternalNodes() << " " << b - octree.numInternalNodes() << std::endl;
         // a in focus
         EXPECT_TRUE(octree.codeStart(a) >= focusStart && octree.codeEnd(a) <= focusEnd);
         // b outside focus
         EXPECT_TRUE(octree.codeStart(b) >= focusEnd || octree.codeEnd(a) <= focusStart);
         // a and be touch each other
-        IBox aBox = mortonIBox(octree.codeStart(a), octree.level(a));
-        IBox bBox = mortonIBox(octree.codeStart(b), octree.level(b));
+        IBox aBox = hilbertIBox(octree.codeStart(a), octree.level(a));
+        IBox bBox = hilbertIBox(octree.codeStart(b), octree.level(b));
         EXPECT_FLOAT_EQ((minDistanceSq<KeyType>(aBox, bBox, box)), 0.0);
     }
 }
