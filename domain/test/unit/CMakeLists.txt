@@ -39,3 +39,6 @@ target_include_directories(component_units_omp PRIVATE ../)
 target_link_libraries(component_units_omp PRIVATE gtest_main)
 target_link_libraries(component_units_omp PUBLIC OpenMP::OpenMP_CXX)
 add_test(NAME ComponentUnitsOmp COMMAND component_units_omp)
+
+install(TARGETS component_units RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/unit)
+install(TARGETS component_units_omp RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/unit)
