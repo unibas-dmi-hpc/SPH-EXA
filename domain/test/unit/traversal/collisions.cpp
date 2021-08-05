@@ -33,7 +33,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/halos/btreetraversal.hpp"
+#include "cstone/traversal/collisions.hpp"
 #include "cstone/tree/octree.hpp"
 #include "cstone/tree/octree_util.hpp"
 
@@ -47,13 +47,25 @@ IBox makeLevelBox(unsigned ix, unsigned iy, unsigned iz, unsigned level)
 }
 
 template<class KeyType>
+std::vector<TreeNodeIndex>
+findCollidingIndices(IBox target, gsl::span<const KeyType> leaves, KeyType exclStart, KeyType exclEnd)
+{
+    Octree<KeyType> octree;
+    octree.update(leaves.begin(), leaves.end());
+
+    std::vector<TreeNodeIndex> collisions;
+    auto storeCollisions = [&collisions](TreeNodeIndex i) { collisions.push_back(i); };
+
+    findCollisions(octree, storeCollisions, target, exclStart, exclEnd);
+    std::sort(collisions.begin(), collisions.end());
+
+    return collisions;
+}
+
+template<class KeyType>
 std::vector<IBox> findCollidingBoxes(IBox target, gsl::span<const KeyType> leaves, KeyType exclStart, KeyType exclEnd)
 {
-    std::vector<BinaryNode<KeyType>> internalTree(nNodes(leaves));
-    createBinaryTree(leaves.data(), nNodes(leaves), internalTree.data());
-
-    CollisionList collisions;
-    findCollisions(internalTree.data(), leaves.data(), collisions, target, {exclStart, exclEnd});
+    std::vector<TreeNodeIndex> collisions = findCollidingIndices(target, leaves, exclStart, exclEnd);
 
     std::vector<IBox> collidedNodeBoxes;
     for (auto cidx : collisions)
@@ -200,32 +212,26 @@ std::vector<unsigned> makeEdgeTree()
  */
 TEST(Collisions, adjacentEdgeRegression)
 {
-    std::vector<unsigned> tree = makeEdgeTree();
-    std::vector<BinaryNode<unsigned>> internalTree(nNodes(tree));
-    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
+    std::vector<unsigned> leaves = makeEdgeTree();
 
     Box<double> box(0.5, 0.6);
 
-    std::vector<double> haloRadii(nNodes(tree), 0);
+    std::vector<double> haloRadii(nNodes(leaves), 0);
     haloRadii[0] = 0.2;
     *haloRadii.rbegin() = 0.2;
 
-    std::vector<int> allNodes(nNodes(tree));
+    std::vector<TreeNodeIndex> allNodes(nNodes(leaves));
     std::iota(begin(allNodes), end(allNodes), 0);
 
-    for (std::size_t i = 0; i < nNodes(tree); ++i)
+    for (std::size_t i = 0; i < nNodes(leaves); ++i)
     {
-        IBox haloBox = makeHaloBox(tree[i], tree[i + 1], haloRadii[i], box);
-        CollisionList collisions;
-        findCollisions(internalTree.data(), tree.data(), collisions, haloBox, {0, 0});
+        IBox haloBox = makeHaloBox(leaves[i], leaves[i + 1], haloRadii[i], box);
+        auto collisions = findCollidingIndices<unsigned>(haloBox, leaves, 0u, 0u);
 
-        std::vector<int> cnodes{collisions.begin(), collisions.end()};
-        std::sort(begin(cnodes), end(cnodes));
-
-        if (i == 0 || i == nNodes(tree) - 1) { EXPECT_EQ(cnodes, allNodes); }
+        if (i == 0 || i == nNodes(leaves) - 1) { EXPECT_EQ(collisions, allNodes); }
         else
         {
-            EXPECT_EQ(cnodes, std::vector<int>(1, i));
+            EXPECT_EQ(collisions, std::vector<TreeNodeIndex>(1, i));
         }
     }
 }
@@ -237,46 +243,36 @@ TEST(Collisions, adjacentEdgeRegression)
  */
 TEST(Collisions, adjacentEdgeSmallRadius)
 {
-    std::vector<unsigned> tree = makeEdgeTree();
-    std::vector<BinaryNode<unsigned>> internalTree(nNodes(tree));
-    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
-
+    std::vector<unsigned> leaves = makeEdgeTree();
     Box<double> box(0, 1);
 
     // nNodes is 134
-    int secondLastNode = 132;
+    TreeNodeIndex secondLastNode = 132;
     double radius = 0.0001;
-    IBox haloBox = makeHaloBox(tree[secondLastNode], tree[secondLastNode + 1], radius, box);
+    IBox haloBox = makeHaloBox(leaves[secondLastNode], leaves[secondLastNode + 1], radius, box);
 
-    CollisionList collisions;
-    findCollisions(internalTree.data(), tree.data(), collisions, haloBox, {0, 0});
+    auto collisions = findCollidingBoxes<unsigned>(haloBox, leaves, 0u, 0u);
 
-    std::vector<int> cnodes{collisions.begin(), collisions.end()};
-    std::sort(begin(cnodes), end(cnodes));
-
-    std::vector<int> refNodes{125, 126, 127, 128, 129, 130, 131, 132, 133};
-    EXPECT_EQ(cnodes, refNodes);
+    EXPECT_TRUE(std::unique(collisions.begin(), collisions.end()) == collisions.end());
+    EXPECT_EQ(collisions.size(), 9);
+    for (auto cbox : collisions)
+    {
+        EXPECT_TRUE(overlap<unsigned>(cbox, haloBox));
+    }
 }
 
 TEST(Collisions, adjacentEdgeLastNode)
 {
-    std::vector<unsigned> tree = makeEdgeTree();
-    std::vector<BinaryNode<unsigned>> internalTree(nNodes(tree));
-    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
-
+    std::vector<unsigned> leaves = makeEdgeTree();
     Box<double> box(0, 1);
 
     // nNodes is 134
     int lastNode = 133;
     double radius = 0.0;
-    IBox haloBox = makeHaloBox(tree[lastNode], tree[lastNode + 1], radius, box);
+    IBox haloBox = makeHaloBox(leaves[lastNode], leaves[lastNode + 1], radius, box);
 
-    CollisionList collisions;
-    findCollisions(internalTree.data(), tree.data(), collisions, haloBox, {0, 0});
+    auto collisions = findCollidingIndices<unsigned>(haloBox, leaves, 0u, 0u);
 
-    std::vector<int> cnodes{collisions.begin(), collisions.end()};
-    std::sort(begin(cnodes), end(cnodes));
-
-    std::vector<int> refNodes{133};
-    EXPECT_EQ(cnodes, refNodes);
+    std::vector<TreeNodeIndex> refNodes{133};
+    EXPECT_EQ(collisions, refNodes);
 }
