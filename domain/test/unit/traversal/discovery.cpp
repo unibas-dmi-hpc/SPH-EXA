@@ -31,7 +31,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/halos/discovery.hpp"
+#include "cstone/traversal/collisions.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 using namespace cstone;
@@ -46,12 +46,12 @@ void findHalosFlags()
     // size of one node is 0.25^3
     std::vector<double> interactionRadii(nNodes(tree), 0.1);
 
-    std::vector<BinaryNode<KeyType>> binaryTree(nNodes(tree));
-    createBinaryTree(tree.data(), nNodes(tree), binaryTree.data());
+    Octree<KeyType> octree;
+    octree.update(tree.begin(), tree.end());
 
     {
         std::vector<int> collisionFlags(nNodes(tree), 0);
-        findHalos(tree.data(), binaryTree.data(), interactionRadii.data(), box, 0, 32, collisionFlags.data());
+        findHalos(octree, interactionRadii.data(), box, 0, 32, collisionFlags.data());
 
         std::vector<int> reference{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
                                    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1,
@@ -60,7 +60,7 @@ void findHalosFlags()
     }
     {
         std::vector<int> collisionFlags(nNodes(tree), 0);
-        findHalos(tree.data(), binaryTree.data(), interactionRadii.data(), box, 32, 64, collisionFlags.data());
+        findHalos(octree, interactionRadii.data(), box, 32, 64, collisionFlags.data());
 
         std::vector<int> reference{0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1,
                                    1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,

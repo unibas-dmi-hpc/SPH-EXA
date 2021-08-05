@@ -5,7 +5,7 @@ set(UNIT_TESTS
         findneighbors.cpp
         focus/octree_focus.cpp
         halos/btreetraversal.cpp
-        halos/discovery.cpp
+        traversal/discovery.cpp
         primitives/clz.cpp
         primitives/gather.cpp
         sfc/box.cpp
