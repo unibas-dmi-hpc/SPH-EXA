@@ -162,28 +162,18 @@ util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key) noexcept
 template<class KeyType>
 HOST_DEVICE_FUN IBox hilbertIBox(KeyType keyStart, unsigned level) noexcept
 {
-    unsigned cubeLengthDelta = (1u << (maxTreeLevel<KeyType>{} - level)) - 1u;
+    constexpr unsigned maxCoord = 1u << maxTreeLevel<KeyType>{};
+    unsigned cubeLength = maxCoord >> level;
+    unsigned mask = ~(cubeLength - 1);
 
     auto [ix, iy, iz] = decodeHilbert(keyStart);
 
-    // the opposite corner
-    unsigned ix2 = ix, iy2 = iy, iz2 = iz;
+    // round integer coordinates down to corner closest to origin
+    ix &= mask;
+    iy &= mask;
+    iz &= mask;
 
-    // if level == maxTreeLevel, cubeLengthDelta is 0
-    unsigned levelP1 = level + 1;
-    // (dx<<2 + dy<<1 + dz) is the levelP1-th octal digit of the morton key of the point (ix, iy, iz)
-    // by looking at the morton digit, we can deduce the orientation of the hilbert curve
-    int dx = (ix >> levelP1) & 1u;
-    int dy = (iy >> levelP1) & 1u;
-    int dz = (iz >> levelP1) & 1u;
-
-    ix2 += (dx) ? -cubeLengthDelta : cubeLengthDelta;
-    iy2 += (dy) ? -cubeLengthDelta : cubeLengthDelta;
-    iz2 += (dz) ? -cubeLengthDelta : cubeLengthDelta;
-
-    return IBox(stl::min(ix, ix2), stl::max(ix, ix2) + 1,
-                stl::min(iy, iy2), stl::max(iy, iy2) + 1,
-                stl::min(iz, iz2), stl::max(iz, iz2) + 1);
+    return IBox(ix, ix + cubeLength, iy, iy + cubeLength, iz, iz + cubeLength);
 }
 
 } // namespace cstone
