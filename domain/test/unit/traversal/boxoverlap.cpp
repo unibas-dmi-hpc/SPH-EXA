@@ -61,43 +61,39 @@ TEST(BoxOverlap, overlapRange)
  * The octree node is given as a Morton code plus number of bits
  * and the coordinates as integer ranges.
  */
-template<class I>
+template<class KeyType>
 void overlapTest()
 {
+    unsigned level = 2;
     // range of a level-2 node
-    int r = I(1) << (maxTreeLevel<I>{} - 2);
+    int r = KeyType(1) << (maxTreeLevel<KeyType>{} - level);
 
     // node range: [r,2r]^3
-    I prefix = pad(I(0b000111), 6);
-    unsigned level = 2;
-
-    I bound = pad(I(0b001), 3);
-
-    EXPECT_EQ(level, treeLevel(bound - prefix));
+    IBox target(r, 2*r, r, 2*r, r, 2*r);
 
     /// Each test is a separate case
 
-    EXPECT_FALSE(overlap(prefix, level, IBox{0, r, 0, r, 0, r}));
+    EXPECT_FALSE(overlap<KeyType>(target, IBox{0, r, 0, r, 0, r}));
 
     // exact match
-    EXPECT_TRUE(overlap(prefix, level, IBox{r, 2 * r, r, 2 * r, r, 2 * r}));
+    EXPECT_TRUE(overlap<KeyType>(target, IBox{r, 2 * r, r, 2 * r, r, 2 * r}));
     // contained within (1,1,1) corner of node
-    EXPECT_TRUE(overlap(prefix, level, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
+    EXPECT_TRUE(overlap<KeyType>(target, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
     // contained and exceeding (1,1,1) corner by 1 in all dimensions
-    EXPECT_TRUE(overlap(prefix, level, IBox{2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1}));
+    EXPECT_TRUE(overlap<KeyType>(target, IBox{2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1, 2 * r - 1, 2 * r + 1}));
 
     // all of these miss the (1,1,1) corner by 1 in one of the three dimensions
-    EXPECT_FALSE(overlap(prefix, level, IBox{2 * r, 2 * r + 1, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
-    EXPECT_FALSE(overlap(prefix, level, IBox{2 * r - 1, 2 * r, 2 * r, 2 * r + 1, 2 * r - 1, 2 * r}));
-    EXPECT_FALSE(overlap(prefix, level, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r, 2 * r + 1}));
+    EXPECT_FALSE(overlap<KeyType>(target, IBox{2 * r, 2 * r + 1, 2 * r - 1, 2 * r, 2 * r - 1, 2 * r}));
+    EXPECT_FALSE(overlap<KeyType>(target, IBox{2 * r - 1, 2 * r, 2 * r, 2 * r + 1, 2 * r - 1, 2 * r}));
+    EXPECT_FALSE(overlap<KeyType>(target, IBox{2 * r - 1, 2 * r, 2 * r - 1, 2 * r, 2 * r, 2 * r + 1}));
 
     // contained within (0,0,0) corner of node
-    EXPECT_TRUE(overlap(prefix, level, IBox{r, r + 1, r, r + 1, r, r + 1}));
+    EXPECT_TRUE(overlap<KeyType>(target, IBox{r, r + 1, r, r + 1, r, r + 1}));
 
     // all of these miss the (0,0,0) corner by 1 in one of the three dimensions
-    EXPECT_FALSE(overlap(prefix, level, IBox{r - 1, r, r, r + 1, r, r + 1}));
-    EXPECT_FALSE(overlap(prefix, level, IBox{r, r + 1, r - 1, r, r, r + 1}));
-    EXPECT_FALSE(overlap(prefix, level, IBox{r, r + 1, r, r + 1, r - 1, r}));
+    EXPECT_FALSE(overlap<KeyType>(target, IBox{r - 1, r, r, r + 1, r, r + 1}));
+    EXPECT_FALSE(overlap<KeyType>(target, IBox{r, r + 1, r - 1, r, r, r + 1}));
+    EXPECT_FALSE(overlap<KeyType>(target, IBox{r, r + 1, r, r + 1, r - 1, r}));
 }
 
 TEST(BoxOverlap, overlaps)
@@ -107,27 +103,29 @@ TEST(BoxOverlap, overlaps)
 }
 
 //! @brief test overlaps of periodic halo boxes with parts of the SFC tree
-template<class I>
+template<class KeyType>
 void pbcOverlaps()
 {
-    int maxCoord = (1u << maxTreeLevel<I>{}) - 1;
+    int maxCoord = 1u << maxTreeLevel<KeyType>{};
     {
-        IBox haloBox{-1, 1, 0, 1, 0, 1};
-        EXPECT_TRUE(overlap(I(0), I(1), haloBox));
+        IBox boxA{-1, 1, 0, 1, 0, 1};
+        IBox boxB{0, 1, 0, 1, 0, 1};
+        EXPECT_TRUE(overlap<KeyType>(boxA, boxB));
     }
     {
-        I firstCode = iMorton<I>(maxCoord, 0, 0);
-        I secondCode = firstCode + 1;
         IBox haloBox{-1, 1, 0, 1, 0, 1};
-        EXPECT_TRUE(overlap(firstCode, treeLevel(secondCode - firstCode), haloBox));
+        IBox corner{maxCoord - 1, maxCoord, 0, 1, 0, 1};
+        EXPECT_TRUE(overlap<KeyType>(corner, haloBox));
     }
     {
-        IBox haloBox{maxCoord, maxCoord + 2, 0, 1, 0, 1};
-        EXPECT_TRUE(overlap(I(0), treeLevel(I(1) - I(0)), haloBox));
+        IBox haloBox{maxCoord - 1, maxCoord + 2, 0, 1, 0, 1};
+        IBox corner{0, 1, 0, 1, 0, 1};
+        EXPECT_TRUE(overlap<KeyType>(corner, haloBox));
     }
     {
         IBox haloBox{-1, 1, -1, 1, -1, 1};
-        EXPECT_TRUE(overlap(nodeRange<I>(0) - 1, treeLevel(I(1)), haloBox));
+        IBox corner{maxCoord - 1, maxCoord};
+        EXPECT_TRUE(overlap<KeyType>(corner, haloBox));
     }
 }
 
