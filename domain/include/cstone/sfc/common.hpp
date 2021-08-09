@@ -288,16 +288,14 @@ HOST_DEVICE_FUN constexpr KeyType enclosingBoxCode(KeyType key, unsigned treeLev
  *         octree node for two input SFC codes
  *
  * @tparam    KeyType    32- or 64-bit unsigned integer type
- * @param[in] firstKey   lower SFC key
- * @param[in] secondKey  upper SFC key
+ * @param[in] firstKey   first SFC key
+ * @param[in] secondKey  second SFC key
  * @return               two SFC keys that delineate the start and end of
  *                       the smallest octree node that contains both input keys
  */
 template<class KeyType>
 HOST_DEVICE_FUN util::tuple<KeyType, KeyType> smallestCommonBox(KeyType firstKey, KeyType secondKey)
 {
-    assert(firstKey <= secondKey);
-
     unsigned commonLevel = commonPrefix(firstKey, secondKey) / 3;
     KeyType  nodeStart   = enclosingBoxCode(firstKey, commonLevel);
 
