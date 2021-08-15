@@ -182,4 +182,10 @@ HOST_DEVICE_FUN IBox mortonIBox(KeyType keyStart, unsigned level) noexcept
     return IBox(ix, ix + cubeLength, iy, iy + cubeLength, iz, iz + cubeLength);
 }
 
+template<class KeyType>
+HOST_DEVICE_FUN inline IBox mortonIBoxKeys(KeyType keyStart, KeyType keyEnd) noexcept
+{
+    return mortonIBox(keyStart, treeLevel(keyEnd - keyStart));
+}
+
 } // namespace cstone
