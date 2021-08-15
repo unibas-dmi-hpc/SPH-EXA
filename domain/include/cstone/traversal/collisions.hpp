@@ -47,7 +47,7 @@ void findCollisions(const Octree<KeyType>& octree,
     {
       KeyType nodeKey = octree.codeStart(idx);
       int level = octree.level(idx);
-      IBox sourceBox = mortonIBox(nodeKey, level);
+      IBox sourceBox = hilbertIBox(nodeKey, level);
       return !containedIn(nodeKey, nodeKey + nodeRange<KeyType>(level), excludeStart, excludeEnd)
              && overlap<KeyType>(sourceBox, target);
     };

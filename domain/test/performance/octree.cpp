@@ -116,7 +116,7 @@ int main()
     int numParticles = 2000000;
     int bucketSize   = 16;
 
-    RandomGaussianCoordinates<double, MortonKey<KeyType>> randomBox(numParticles, box);
+    RandomGaussianCoordinates<double, HilbertKey<KeyType>> randomBox(numParticles, box);
 
     // tree build from random gaussian coordinates
     auto [tree, counts] =

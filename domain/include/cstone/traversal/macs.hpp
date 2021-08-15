@@ -138,7 +138,7 @@ void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box
         // if the tree node with index idx is fully contained in the focus, we stop traversal
         if (containedIn(nodeStart, nodeEnd, focusStart, focusEnd)) { return false; }
 
-        IBox sourceBox = mortonIBox(nodeStart, octree.level(idx));
+        IBox sourceBox = hilbertIBox(nodeStart, octree.level(idx));
 
         bool violatesMac = !minDistanceMac<KeyType>(target, sourceBox, box, invThetaSq);
         if (violatesMac) { markings[idx] = 1; }
@@ -180,7 +180,7 @@ void markMac(const Octree<KeyType>& octree, const Box<T>& box, KeyType focusStar
     {
         KeyType key1 = focusCodes[i];
         KeyType key2 = focusCodes[i+1];
-        IBox target  = mortonIBox(key1, treeLevel(key2 - key1));
+        IBox target  = hilbertIBox(key1, treeLevel(key2 - key1));
         markMacPerBox(target, octree, box, invThetaSq, focusStart, focusEnd, markings);
     }
 }
