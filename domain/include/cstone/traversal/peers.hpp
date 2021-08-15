@@ -122,9 +122,7 @@ std::vector<int> findPeersMacStt(int myRank, const SpaceCurveAssignment& assignm
     #pragma omp parallel for
     for (TreeNodeIndex i = assignment.firstNodeIdx(myRank); i < assignment.lastNodeIdx(myRank); ++i)
     {
-        KeyType leafStart = treeLeaves[i];
-        KeyType leafEnd   = treeLeaves[i+1];
-        IBox target = mortonIBox(leafStart, treeLevel(leafEnd - leafStart));
+        IBox target = mortonIBoxKeys(treeLeaves[i], treeLeaves[i + 1]);
 
         auto violatesMac = [target, &octree, &box, invThetaSq, domainStart, domainEnd](TreeNodeIndex idx)
         {

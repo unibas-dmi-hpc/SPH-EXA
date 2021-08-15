@@ -88,7 +88,7 @@ std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assign
 
     std::vector<IBox> boxes(nNodes(tree));
     for (TreeNodeIndex i = 0; i < nNodes(tree); ++i)
-        boxes[i] = mortonIBox(tree[i], treeLevel(tree[i + 1] - tree[i]));
+        boxes[i] = mortonIBoxKeys(tree[i], tree[i + 1]);
 
     std::vector<int> peers(assignment.numRanks());
     for (TreeNodeIndex i = firstIdx; i < lastIdx; ++i)
