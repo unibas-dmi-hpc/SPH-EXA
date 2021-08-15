@@ -139,27 +139,15 @@ TEST(BoxOverlap, pbcOverlaps)
 template<class KeyType>
 void makeHaloBoxXYZ()
 {
+    constexpr int maxCoord = 1 << maxTreeLevel<KeyType>{};
     int r = KeyType(1) << (maxTreeLevel<KeyType>{} - 3);
-    // node range: [r,2r]^3
-    KeyType nodeStart = pad(KeyType(0b000000111), 9);
-    KeyType nodeEnd   = pad(KeyType(0b000001000), 9);
 
-    /// internal node check
-    {
-        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
-        IBox refBox{r - 1, 2 * r + 1, r, 2 * r, r, 2 * r};
-        EXPECT_EQ(haloBox, refBox);
-    }
-    {
-        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
-        IBox refBox{r, 2 * r, r - 1, 2 * r + 1, r, 2 * r};
-        EXPECT_EQ(haloBox, refBox);
-    }
-    {
-        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
-        IBox refBox{r, 2 * r, r, 2 * r, r - 1, 2 * r + 1};
-        EXPECT_EQ(haloBox, refBox);
-    }
+    Box<float> box(0, 1, 0, 0.5, 0, 1.0/3);
+    IBox nodeBox(r, 2*r, r, 2*r, r, 2*r);
+
+    IBox haloBox = makeHaloBox<KeyType>(nodeBox, 1.0/maxCoord, box);
+    IBox refBox{r - 1, 2 * r + 1, r - 2, 2 * r + 2, r - 3, 2 * r + 3};
+    EXPECT_EQ(haloBox, refBox);
 }
 
 TEST(BoxOverlap, makeHaloBoxXYZ)
@@ -169,29 +157,18 @@ TEST(BoxOverlap, makeHaloBoxXYZ)
 }
 
 //! @brief underflow check, non-periodic case
-template<class I>
+template<class KeyType>
 void makeHaloBoxUnderflow()
 {
-    int r = I(1) << (maxTreeLevel<I>{} - 1);
-    // node range: [r,2r]^3
-    I nodeStart = pad(I(0b000), 3);
-    I nodeEnd = pad(I(0b001), 3);
+    constexpr int maxCoord = 1 << maxTreeLevel<KeyType>{};
+    int r = KeyType(1) << (maxTreeLevel<KeyType>{} - 1);
 
-    {
-        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
-        IBox refBox{0, r + 1, 0, r, 0, r};
-        EXPECT_EQ(haloBox, refBox);
-    }
-    {
-        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
-        IBox refBox{0, r, 0, r + 1, 0, r};
-        EXPECT_EQ(haloBox, refBox);
-    }
-    {
-        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
-        IBox refBox{0, r, 0, r, 0, r + 1};
-        EXPECT_EQ(haloBox, refBox);
-    }
+    Box<float> box(0, 1);
+    IBox nodeBox(0, r);
+
+    IBox haloBox = makeHaloBox<KeyType>(nodeBox, 0.99/maxCoord, box);
+    IBox refBox{0, r + 1, 0, r + 1, 0, r + 1};
+    EXPECT_EQ(haloBox, refBox);
 }
 
 TEST(BoxOverlap, makeHaloBoxUnderflow)
@@ -201,29 +178,18 @@ TEST(BoxOverlap, makeHaloBoxUnderflow)
 }
 
 //! @brief overflow check, non-periodic case
-template<class I>
+template<class KeyType>
 void makeHaloBoxOverflow()
 {
-    int r = I(1) << (maxTreeLevel<I>{} - 1);
-    // node range: [r,2r]^3
-    I nodeStart = pad(I(0b111), 3);
-    I nodeEnd = nodeRange<I>(0);
+    constexpr int maxCoord = 1 << maxTreeLevel<KeyType>{};
+    int r = KeyType(1) << (maxTreeLevel<KeyType>{} - 1);
 
-    {
-        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 1, 0, 0);
-        IBox refBox{r - 1, 2 * r, r, 2 * r, r, 2 * r};
-        EXPECT_EQ(haloBox, refBox);
-    }
-    {
-        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 1, 0);
-        IBox refBox{r, 2 * r, r - 1, 2 * r, r, 2 * r};
-        EXPECT_EQ(haloBox, refBox);
-    }
-    {
-        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, 0, 0, 1);
-        IBox refBox{r, 2 * r, r, 2 * r, r - 1, 2 * r};
-        EXPECT_EQ(haloBox, refBox);
-    }
+    IBox nodeBox(r, 2 * r, r, 2 * r, r, 2 * r);
+    Box<float> box(0, 1);
+
+    IBox haloBox = makeHaloBox<KeyType>(nodeBox, 0.99/maxCoord, box);
+    IBox refBox{r - 1, 2 * r, r - 1, 2 * r, r - 1, 2 * r};
+    EXPECT_EQ(haloBox, refBox);
 }
 
 TEST(BoxOverlap, makeHaloBoxOverflow)
@@ -233,25 +199,23 @@ TEST(BoxOverlap, makeHaloBoxOverflow)
 }
 
 //! @brief check halo box ranges with periodic boundary conditions
-template<class I>
+template<class KeyType>
 void makeHaloBoxPbc()
 {
-    int r = I(1) << (maxTreeLevel<I>{} - 3);
-    // node range: [r,2r]^3
-    I nodeStart = pad(I(0b000000111), 9);
-    I nodeEnd = pad(I(0b000001000), 9);
+    int r = 1 << (maxTreeLevel<KeyType>{} - 3);
 
-    Box<double> bbox(0., 1., 0., 1., 0., 1., true, true, true);
+    IBox nodeBox(r, 2*r, r, 2*r, r, 2*r);
+    Box<double> bbox(0, 1, true);
 
     {
         double radius = 0.999 / r; // normalize(radius) = 7.992
-        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, radius, bbox);
+        IBox haloBox = makeHaloBox<KeyType>(nodeBox, radius, bbox);
         IBox refBox{r - 8, 2 * r + 8, r - 8, 2 * r + 8, r - 8, 2 * r + 8};
         EXPECT_EQ(haloBox, refBox);
     }
     {
         double radius = 1.000001 / 8; // normalize(radius) = r + epsilon
-        IBox haloBox = makeHaloBox(nodeStart, nodeEnd, radius, bbox);
+        IBox haloBox = makeHaloBox<KeyType>(nodeBox, radius, bbox);
         IBox refBox{-1, 3 * r + 1, -1, 3 * r + 1, -1, 3 * r + 1};
         EXPECT_EQ(haloBox, refBox);
     }
@@ -296,47 +260,11 @@ void haloBoxContainedIn()
     }
 
     int maxCoord = (1u << maxTreeLevel<I>{}) - 1;
-    {
-        I firstCode = iMorton<I>(0, 0, maxCoord);
-        I secondCode = firstCode + 1;
-        IBox haloBox{0, 1, 0, 1, maxCoord, maxCoord + 1};
-        EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
-    }
-    {
-        I firstCode = iMorton<I>(0, 0, maxCoord);
-        I secondCode = firstCode + 1;
-        IBox haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
-        EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));
-    }
-    {
-        I firstCode = iMorton<I>(0, 0, maxCoord);
-        I secondCode = firstCode + 2;
-        IBox haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
-        EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));
-    }
-    {
-        I firstCode = iMorton<I>(0, 0, maxCoord - 1);
-        I secondCode = firstCode + 8;
-        IBox haloBox{0, 1, 0, 2, maxCoord, maxCoord + 1};
-        EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
-    }
-    {
-        I firstCode = iMorton<I>(maxCoord, maxCoord, maxCoord);
-        I secondCode = firstCode + 1;
-        IBox haloBox{maxCoord, maxCoord + 1, maxCoord, maxCoord + 1, maxCoord, maxCoord + 1};
-        EXPECT_TRUE(containedIn(firstCode, secondCode, haloBox));
-    }
 
-    /// PBC cases
+    /// PBC
     {
         IBox haloBox{-1, 1, 0, 1, 0, 1};
         EXPECT_FALSE(containedIn(I(0), I(1), haloBox));
-    }
-    {
-        I firstCode = iMorton<I>(0, 0, maxCoord);
-        I secondCode = firstCode + 3;
-        IBox haloBox{0, 1, 0, 1, maxCoord, maxCoord + 2};
-        EXPECT_FALSE(containedIn(firstCode, secondCode, haloBox));
     }
 }
 
@@ -347,47 +275,38 @@ TEST(BoxOverlap, haloBoxContainedIn)
     haloBoxContainedIn<uint64_t>();
 }
 
-template<class I>
+template<class KeyType>
 void excludeRangeContainedIn()
 {
-    I rangeStart = pad(I(01), 3);
-    I rangeEnd = pad(I(02), 3);
+    KeyType rangeStart = pad(KeyType(01), 3);
+    KeyType rangeEnd = pad(KeyType(02), 3);
 
     {
-        I prefix = 0b1001;
+        KeyType prefix = 0b1001;
         EXPECT_TRUE(containedIn(prefix, rangeStart, rangeEnd));
     }
     {
-        I prefix = 0b10010;
+        KeyType prefix = 0b10010;
         EXPECT_TRUE(containedIn(prefix, rangeStart, rangeEnd));
     }
     {
-        I prefix = 0b1000;
+        KeyType prefix = 0b1000;
         EXPECT_FALSE(containedIn(prefix, rangeStart, rangeEnd));
     }
     {
-        I prefix = 1;
+        KeyType prefix = 1;
         EXPECT_FALSE(containedIn(prefix, rangeStart, rangeEnd));
     }
 
     rangeStart = 0;
-    rangeEnd = pad(I(01), 3);
+    rangeEnd = pad(KeyType(01), 3);
     {
-        I prefix = 0b1000;
+        KeyType prefix = 0b1000;
         EXPECT_TRUE(containedIn(prefix, rangeStart, rangeEnd));
     }
     {
-        I prefix = 0b100;
+        KeyType prefix = 0b100;
         EXPECT_FALSE(containedIn(prefix, rangeStart, rangeEnd));
-    }
-
-    rangeStart = iMorton<I>(0, 0, 3, 2);
-    rangeEnd = iMorton<I>(0, 1, 2, 2);
-    EXPECT_EQ(rangeStart, 9 * nodeRange<I>(2));
-    EXPECT_EQ(rangeEnd, 10 * nodeRange<I>(2));
-    {
-        I prefix = encodePlaceholderBit(9 * nodeRange<I>(2), 6);
-        EXPECT_TRUE(containedIn(prefix, rangeStart, rangeEnd));
     }
 }
 
