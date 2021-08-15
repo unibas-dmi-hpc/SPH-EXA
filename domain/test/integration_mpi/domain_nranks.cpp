@@ -122,7 +122,7 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     // box got updated if not using PBC
     box = domain.box();
     std::vector<I> mortonCodes(x.size());
-    computeMortonKeys(begin(x), end(x), begin(y), begin(z), begin(mortonCodes), box);
+    computeHilbertKeys(begin(x), end(x), begin(y), begin(z), begin(mortonCodes), box);
 
     // check that particles are Morton order sorted and the codes are in sync with the x,y,z arrays
     EXPECT_EQ(mortonCodes, codes);
@@ -131,8 +131,8 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     int ngmax = 300;
     std::vector<int> neighbors(localCount * ngmax);
     std::vector<int> neighborsCount(localCount);
-    findNeighborsMorton(x.data(), y.data(), z.data(), h.data(), domain.startIndex(), domain.endIndex(), x.size(),
-                        box, mortonCodes.data(), neighbors.data(), neighborsCount.data(), ngmax);
+    findNeighborsHilbert(x.data(), y.data(), z.data(), h.data(), domain.startIndex(), domain.endIndex(), x.size(),
+                         box, mortonCodes.data(), neighbors.data(), neighborsCount.data(), ngmax);
 
     int neighborSum = std::accumulate(begin(neighborsCount), end(neighborsCount), 0);
     MPI_Allreduce(MPI_IN_PLACE, &neighborSum, 1, MpiType<int>{}, MPI_SUM, MPI_COMM_WORLD);
@@ -146,7 +146,7 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     {
         // Note: global coordinates are not yet in Morton order
         std::vector<I> codesGlobal(numParticles);
-        computeMortonKeys(begin(xGlobal), end(xGlobal), begin(yGlobal), begin(zGlobal), begin(codesGlobal), box);
+        computeHilbertKeys(begin(xGlobal), end(xGlobal), begin(yGlobal), begin(zGlobal), begin(codesGlobal), box);
         std::vector<LocalParticleIndex> ordering(numParticles);
         std::iota(begin(ordering), end(ordering), LocalParticleIndex(0));
         sort_by_key(begin(codesGlobal), end(codesGlobal), begin(ordering));
@@ -158,9 +158,9 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
         // calculate reference neighbor sum from the full arrays
         std::vector<int> neighborsRef(numParticles * ngmax);
         std::vector<int> neighborsCountRef(numParticles);
-        findNeighborsMorton(xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), 0, numParticles,
-                            numParticles, box, codesGlobal.data(), neighborsRef.data(), neighborsCountRef.data(),
-                            ngmax);
+        findNeighborsHilbert(xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), 0, numParticles,
+                             numParticles, box, codesGlobal.data(), neighborsRef.data(), neighborsCountRef.data(),
+                             ngmax);
 
         int neighborSumRef = std::accumulate(begin(neighborsCountRef), end(neighborsCountRef), 0);
         EXPECT_EQ(neighborSum, neighborSumRef);
@@ -236,7 +236,7 @@ TEST(FocusDomain, assignmentShift)
     unsigned bucketSize = 1024;
     unsigned bucketSizeFocus = 8;
 
-    RandomCoordinates<Real, MortonKey<KeyType>> coordinates(numParticlesPerRank, box, rank);
+    RandomCoordinates<Real, HilbertKey<KeyType>> coordinates(numParticlesPerRank, box, rank);
 
     std::vector<Real> x(coordinates.x().begin(), coordinates.x().end());
     std::vector<Real> y(coordinates.y().begin(), coordinates.y().end());

@@ -198,10 +198,10 @@ public:
         particleKeys.resize(numParticles);
 
         // compute morton particleKeys only for particles participating in tree build
-        computeMortonKeys(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
-                          cbegin(y) + particleStart_,
-                          cbegin(z) + particleStart_,
-                          begin(particleKeys), box_);
+        computeHilbertKeys(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
+                           cbegin(y) + particleStart_,
+                           cbegin(z) + particleStart_,
+                           begin(particleKeys), box_);
 
         // reorder the particleKeys according to the ordering
         // has the same net effect as std::sort(begin(particleKeys), end(particleKeys)),
@@ -248,9 +248,9 @@ public:
         reallocate(particleEnd_ - particleStart_, sfcOrder);
 
         // refresh particleKeys and ordering
-        computeMortonKeys(begin(x) + particleStart_, begin(x) + particleEnd_,
-                          begin(y) + particleStart_,
-                          begin(z) + particleStart_, begin(particleKeys), box_);
+        computeHilbertKeys(begin(x) + particleStart_, begin(x) + particleEnd_,
+                           begin(y) + particleStart_,
+                           begin(z) + particleStart_, begin(particleKeys), box_);
         reorderFunctor.setMapFromCodes(particleKeys.data(), particleKeys.data() + particleKeys.size());
         reorderFunctor.getReorderMap(sfcOrder.data());
 
@@ -344,14 +344,14 @@ public:
         exchangeHalos(x, y, z, h);
 
         // compute SFC keys of received halo particles
-        computeMortonKeys(cbegin(x), cbegin(x) + particleStart_,
-                          cbegin(y),
-                          cbegin(z),
-                          begin(particleKeys), box_);
-        computeMortonKeys(cbegin(x) + particleEnd_, cend(x),
-                          cbegin(y) + particleEnd_,
-                          cbegin(z) + particleEnd_,
-                          begin(particleKeys) + particleEnd_, box_);
+        computeHilbertKeys(cbegin(x), cbegin(x) + particleStart_,
+                           cbegin(y),
+                           cbegin(z),
+                           begin(particleKeys), box_);
+        computeHilbertKeys(cbegin(x) + particleEnd_, cend(x),
+                           cbegin(y) + particleEnd_,
+                           cbegin(z) + particleEnd_,
+                           begin(particleKeys) + particleEnd_, box_);
     }
 
     /*! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays

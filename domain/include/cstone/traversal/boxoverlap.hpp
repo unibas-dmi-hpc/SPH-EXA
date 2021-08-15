@@ -100,7 +100,7 @@ template<class KeyType>
 HOST_DEVICE_FUN inline bool overlap(KeyType prefix, unsigned level, const IBox& box)
 {
     assert(level <= maxTreeLevel<KeyType>{});
-    IBox nodeBox = mortonIBox(prefix, level);
+    IBox nodeBox = hilbertIBox(prefix, level);
     return overlap<KeyType>(nodeBox, box) ;
 }
 
@@ -137,9 +137,9 @@ containedIn(KeyType codeStart, KeyType codeEnd, const IBox& box)
         return codeStart == 0 && codeEnd == nodeRange<KeyType>(0);
     }
 
-    KeyType lowCode  = iMorton<KeyType>(box.xmin(), box.ymin(), box.zmin());
-    KeyType highCode = iMorton<KeyType>(box.xmax() - 1, box.ymax() - 1, box.zmax() - 1);
-    auto envelope = smallestCommonBox(lowCode, highCode);
+    KeyType lowCode  = iHilbert<KeyType>(box.xmin(), box.ymin(), box.zmin());
+    KeyType highCode = iHilbert<KeyType>(box.xmax() - 1, box.ymax() - 1, box.zmax() - 1);
+    auto envelope    = smallestCommonBox(lowCode, highCode);
 
     return (util::get<0>(envelope) >= codeStart) && (util::get<1>(envelope) <= codeEnd);
 }
@@ -196,7 +196,7 @@ template<class KeyType>
 HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, int dx, int dy, int dz,
                                  bool pbcX = false, bool pbcY = false, bool pbcZ = false)
 {
-    IBox nodeBox = mortonIBox(codeStart, treeLevel(codeEnd - codeStart));
+    IBox nodeBox = hilbertIBox(codeStart, treeLevel(codeEnd - codeStart));
 
     return IBox(addDelta<KeyType>(nodeBox.xmin(), -dx, pbcX), addDelta<KeyType>(nodeBox.xmax(), dx, pbcX),
                 addDelta<KeyType>(nodeBox.ymin(), -dy, pbcY), addDelta<KeyType>(nodeBox.ymax(), dy, pbcY),
