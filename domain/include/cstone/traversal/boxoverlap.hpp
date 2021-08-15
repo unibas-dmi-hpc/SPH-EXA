@@ -216,5 +216,20 @@ HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, RadiusType 
     return makeHaloBox(codeStart, codeEnd, dx, dy, dz, box.pbcX(), box.pbcY(), box.pbcZ());
 }
 
+//! @brief create a box with specified radius around node delineated by codeStart/End
+template<class KeyType, class CoordinateType, class RadiusType>
+HOST_DEVICE_FUN IBox makeHaloBox(const IBox& nodeBox, RadiusType radius, const Box<CoordinateType>& box)
+{
+    // disallow boxes with no volume
+    assert(codeEnd > codeStart);
+    int dx = toNBitIntCeil<KeyType>(radius * box.ilx());
+    int dy = toNBitIntCeil<KeyType>(radius * box.ily());
+    int dz = toNBitIntCeil<KeyType>(radius * box.ilz());
+
+    return IBox(addDelta<KeyType>(nodeBox.xmin(), -dx, box.pbcX()), addDelta<KeyType>(nodeBox.xmax(), dx, box.pbcX()),
+                addDelta<KeyType>(nodeBox.ymin(), -dy, box.pbcY()), addDelta<KeyType>(nodeBox.ymax(), dy, box.pbcY()),
+                addDelta<KeyType>(nodeBox.zmin(), -dz, box.pbcZ()), addDelta<KeyType>(nodeBox.zmax(), dz, box.pbcZ()));
+}
+
 } // namespace cstone
 
