@@ -66,7 +66,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     /* identical data on all ranks */
 
     // common pool of coordinates, identical on all ranks
-    RandomGaussianCoordinates<T, MortonKey<KeyType>> coords(numRanks * numParticles, box);
+    RandomGaussianCoordinates<T, SfcKind<KeyType>> coords(numRanks * numParticles, box);
 
     auto [tree, counts] = computeOctree(coords.particleKeys().data(),
                                         coords.particleKeys().data() + coords.particleKeys().size(), bucketSize);
@@ -118,7 +118,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     // Now build the focused tree using distributed algorithms. Each rank only uses its slice.
 
     std::vector<KeyType> particleKeys(lastAssignedIndex - firstAssignedIndex);
-    computeMortonKeys(begin(x), end(x), begin(y), begin(z), begin(particleKeys), box);
+    computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
 
     FocusedOctree<KeyType> focusTree(bucketSizeLocal, theta);
 

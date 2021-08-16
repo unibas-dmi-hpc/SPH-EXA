@@ -79,7 +79,7 @@ void initCoordinates(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, Bo
     std::generate(begin(z), end(z), randZ);
 }
 
-template<class I, class T, class DomainType>
+template<class KeyType, class T, class DomainType>
 void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalizeH = false)
 {
     LocalParticleIndex numParticles = (1000 / nRanks) * nRanks;
@@ -110,7 +110,7 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     std::vector<T> z{zGlobal.begin() + rank * nParticlesPerRank, zGlobal.begin() + (rank + 1) * nParticlesPerRank};
     std::vector<T> h{hGlobal.begin() + rank * nParticlesPerRank, hGlobal.begin() + (rank + 1) * nParticlesPerRank};
 
-    std::vector<I> codes;
+    std::vector<KeyType> codes;
     domain.sync(x, y, z, h, codes);
 
     LocalParticleIndex localCount = domain.endIndex() - domain.startIndex();
@@ -121,32 +121,27 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
 
     // box got updated if not using PBC
     box = domain.box();
-    std::vector<I> mortonCodes(x.size());
-    computeHilbertKeys(begin(x), end(x), begin(y), begin(z), begin(mortonCodes), box);
+    std::vector<KeyType> particleKeys(x.size());
+    computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
 
     // check that particles are Morton order sorted and the codes are in sync with the x,y,z arrays
-    EXPECT_EQ(mortonCodes, codes);
-    EXPECT_TRUE(std::is_sorted(begin(mortonCodes), end(mortonCodes)));
+    EXPECT_EQ(particleKeys, codes);
+    EXPECT_TRUE(std::is_sorted(begin(particleKeys), end(particleKeys)));
 
     int ngmax = 300;
     std::vector<int> neighbors(localCount * ngmax);
     std::vector<int> neighborsCount(localCount);
     findNeighborsHilbert(x.data(), y.data(), z.data(), h.data(), domain.startIndex(), domain.endIndex(), x.size(),
-                         box, mortonCodes.data(), neighbors.data(), neighborsCount.data(), ngmax);
+                         box, particleKeys.data(), neighbors.data(), neighborsCount.data(), ngmax);
 
     int neighborSum = std::accumulate(begin(neighborsCount), end(neighborsCount), 0);
     MPI_Allreduce(MPI_IN_PLACE, &neighborSum, 1, MpiType<int>{}, MPI_SUM, MPI_COMM_WORLD);
-    //if (rank == 0)
-    //{
-    //    std::cout << " neighborSum " << neighborSum << std::endl;
-    //    std::cout << "localCount " << localCount << " " << std::endl;
-    //    std::cout << "extractedCount " << extractedCount << std::endl;
-    //}
 
     {
         // Note: global coordinates are not yet in Morton order
-        std::vector<I> codesGlobal(numParticles);
-        computeHilbertKeys(begin(xGlobal), end(xGlobal), begin(yGlobal), begin(zGlobal), begin(codesGlobal), box);
+        std::vector<KeyType> codesGlobal(numParticles);
+        computeSfcKeys(xGlobal.data(), yGlobal.data(), zGlobal.data(), sfcKindPointer(codesGlobal.data()),
+                       numParticles, box);
         std::vector<LocalParticleIndex> ordering(numParticles);
         std::iota(begin(ordering), end(ordering), LocalParticleIndex(0));
         sort_by_key(begin(codesGlobal), end(codesGlobal), begin(ordering));
