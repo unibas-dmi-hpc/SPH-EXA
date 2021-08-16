@@ -51,6 +51,20 @@ using HilbertKey = StrongType<IntegerType, struct HilbertKeyTag>;
 template<class IntegerType>
 using SfcKind = HilbertKey<IntegerType>;
 
+//! @brief convert an integer pointer to the corresponding strongly typed SFC key pointer
+template<class KeyType>
+SfcKind<KeyType>* sfcKindPointer(KeyType* ptr)
+{
+    return reinterpret_cast<SfcKind<KeyType>*>(ptr);
+}
+
+//! @brief convert a integer pointer to the corresponding strongly typed SFC key pointer
+template<class KeyType>
+const SfcKind<KeyType>* sfcKindPointer(const KeyType* ptr)
+{
+    return reinterpret_cast<const SfcKind<KeyType>*>(ptr);
+}
+
 template<>
 struct maxTreeLevel<MortonKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
 template<>
@@ -146,6 +160,12 @@ HOST_DEVICE_FUN inline std::enable_if_t<IsHilbert<KeyType>{}, IBox> sfcIBox(KeyT
     return hilbertIBox<typename KeyType::ValueType>(keyStart, level);
 }
 
+//! @brief convenience overload
+template<class KeyType>
+HOST_DEVICE_FUN inline IBox sfcIBox(KeyType keyStart, KeyType keyEnd) noexcept
+{
+    return sfcIBox(keyStart, treeLevel(keyEnd - keyStart));
+}
 
 /*! @brief returns the smallest Hilbert key contained in the shifted box
  *
@@ -191,43 +211,6 @@ void computeSfcKeys(const T* x, const T* y, const T* z, KeyType* particleKeys, s
     for (std::size_t i = 0; i < n; ++i)
     {
         particleKeys[i] = sfc3D<KeyType>(x[i], y[i], z[i], box);
-    }
-}
-
-template<class InputIterator, class OutputIterator, class T>
-void computeHilbertKeys(InputIterator  xBegin,
-                        InputIterator  xEnd,
-                        InputIterator  yBegin,
-                        InputIterator  zBegin,
-                        OutputIterator codesBegin,
-                        const Box<T>& box)
-{
-    assert(xEnd >= xBegin);
-    using KeyType = std::decay_t<decltype(*codesBegin)>;
-
-    #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < std::size_t(xEnd - xBegin); ++i)
-    {
-        codesBegin[i] = sfc3D<HilbertKey<KeyType>>(xBegin[i], yBegin[i], zBegin[i], box);
-    }
-}
-
-//! @brief compute Morton Keys
-template<class InputIterator, class OutputIterator, class T>
-void computeMortonKeys(InputIterator  xBegin,
-                       InputIterator  xEnd,
-                       InputIterator  yBegin,
-                       InputIterator  zBegin,
-                       OutputIterator codesBegin,
-                       const Box<T>& box)
-{
-    assert(xEnd >= xBegin);
-    using KeyType = std::decay_t<decltype(*codesBegin)>;
-
-    #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < std::size_t(xEnd - xBegin); ++i)
-    {
-        codesBegin[i] = sfc3D<MortonKey<KeyType>>(xBegin[i], yBegin[i], zBegin[i], box);
     }
 }
 

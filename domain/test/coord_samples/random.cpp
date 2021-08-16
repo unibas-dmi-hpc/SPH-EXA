@@ -42,10 +42,10 @@ TEST(CoordinateSamples, randomContainerIsSorted)
     int n = 10;
 
     Box<real> box{0, 1, -1, 2, 0, 5};
-    RandomCoordinates<real, MortonKey<IntegerType>> c(n, box);
+    RandomCoordinates<real, SfcKind<IntegerType>> c(n, box);
 
     std::vector<IntegerType> testCodes(n);
-    computeMortonKeys(c.x().begin(), c.x().end(), c.y().begin(), c.z().begin(), testCodes.begin(), box);
+    computeSfcKeys(c.x().data(), c.y().data(), c.z().data(), sfcKindPointer(testCodes.data()), n, box);
 
     EXPECT_TRUE(std::is_sorted(testCodes.begin(), testCodes.end()));
 }

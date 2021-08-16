@@ -75,7 +75,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     unsigned bucketSize = 64;
 
     Box<T> box{-1, 1};
-    RandomGaussianCoordinates<T, MortonKey<KeyType>> coords(numParticles, box, thisRank);
+    RandomGaussianCoordinates<T, SfcKind<KeyType>> coords(numParticles, box, thisRank);
 
     std::vector<KeyType> tree = makeRootNodeTree<KeyType>();
     std::vector<unsigned> counts{numRanks * unsigned(numParticles)};
@@ -111,8 +111,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
     EXPECT_EQ(particleEnd - particleStart, numParticlesAssigned);
 
     std::vector<KeyType> newCodes(numParticlesAssigned);
-    computeMortonKeys(begin(x) + particleStart, begin(x) + particleEnd, begin(y) + particleStart,
-                      begin(z) + particleStart, begin(newCodes), box);
+    computeSfcKeys(x.data() + particleStart, y.data() + particleStart, z.data() + particleStart,
+                   sfcKindPointer(newCodes.data()), particleEnd - particleStart, box);
 
     // received particles are not stored in morton order after the exchange
     std::sort(begin(newCodes), end(newCodes));
