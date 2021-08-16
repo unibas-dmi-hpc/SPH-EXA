@@ -44,14 +44,6 @@
 namespace cstone
 {
 
-//! @brief Strong type for Morton keys
-template<class IntegerType>
-using MortonKey = StrongType<IntegerType, struct MortonKeyTag>;
-
-//! @brief Strong type for Hilbert keys
-template<class IntegerType>
-using HilbertKey = StrongType<IntegerType, struct HilbertKeyTag>;
-
 //! @brief number of unused leading zeros in a 32-bit SFC code
 template<class KeyType>
 struct unusedBits : stl::integral_constant<unsigned, 2> {};
@@ -65,17 +57,9 @@ struct maxTreeLevel {};
 
 template<>
 struct maxTreeLevel<unsigned> : stl::integral_constant<unsigned, 10> {};
-template<>
-struct maxTreeLevel<MortonKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
-template<>
-struct maxTreeLevel<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
 
 template<>
 struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21> {};
-template<>
-struct maxTreeLevel<MortonKey<uint64_t>> : stl::integral_constant<unsigned, 21> {};
-template<>
-struct maxTreeLevel<HilbertKey<uint64_t>> : stl::integral_constant<unsigned, 21> {};
 
 
 /*! @brief normalize a floating point number in [0,1] to an integer in [0 : 2^(10 or 21)]

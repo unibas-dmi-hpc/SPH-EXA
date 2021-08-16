@@ -80,7 +80,7 @@ public:
     using KeyType = KeyType_;
     using Integer = typename KeyType::ValueType;
 
-    RandomCoordinates(unsigned n, Box<T> box, int seed = 42)
+    RandomCoordinates(size_t n, Box<T> box, int seed = 42)
         : box_(std::move(box)), x_(n), y_(n), z_(n), codes_(n)
     {
         //std::random_device rd;
@@ -98,7 +98,7 @@ public:
         std::generate(begin(z_), end(z_), randZ);
 
         auto keyData = (KeyType*)(codes_.data());
-        computeSfcKeys(begin(x_), end(x_), begin(y_), begin(z_), keyData, box);
+        computeSfcKeys(x_.data(), y_.data(), z_.data(), keyData, n, box);
 
         std::vector<LocalParticleIndex> sfcOrder(n);
         std::iota(begin(sfcOrder), end(sfcOrder), LocalParticleIndex(0));
@@ -158,7 +158,7 @@ public:
         std::generate(begin(z_), end(z_), randZ);
 
         auto keyData = (KeyType*)(codes_.data());
-        computeSfcKeys(begin(x_), end(x_), begin(y_), begin(z_), keyData, box);
+        computeSfcKeys(x_.data(), y_.data(), z_.data(), keyData, n, box);
 
         std::vector<LocalParticleIndex> sfcOrder(n);
         std::iota(begin(sfcOrder), end(sfcOrder), LocalParticleIndex(0));
