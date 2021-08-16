@@ -259,8 +259,6 @@ void haloBoxContainedIn()
         EXPECT_TRUE(containedIn(I(0), I(8), haloBox));
     }
 
-    int maxCoord = (1u << maxTreeLevel<I>{}) - 1;
-
     /// PBC
     {
         IBox haloBox{-1, 1, 0, 1, 0, 1};

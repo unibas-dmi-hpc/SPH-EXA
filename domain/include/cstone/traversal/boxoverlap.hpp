@@ -181,47 +181,10 @@ HOST_DEVICE_FUN inline int addDelta(int value, int delta, bool pbc)
     else     return stl::min(stl::max(0, temp), maxCoordinate);
 }
 
-/*! @brief Construct a 3D box from an octree node plus halo range
- *
- * @tparam    KeyType    32- or 64-bit unsigned integer
- * @param[in] codeStart  octree leaf node lower bound
- * @param[in] codeEnd    octree leaf node upper bound
- * @param[in] dx         extend X range by +- dx
- * @param[in] dy         extend Y range by +- dy
- * @param[in] dz         extend Z range by +- dz
- * @return               a box containing the integer coordinate ranges
- *                       of the input octree node extended by (dx,dy,dz)
- */
-template<class KeyType>
-HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, int dx, int dy, int dz,
-                                 bool pbcX = false, bool pbcY = false, bool pbcZ = false)
-{
-    IBox nodeBox = hilbertIBox(codeStart, treeLevel(codeEnd - codeStart));
-
-    return IBox(addDelta<KeyType>(nodeBox.xmin(), -dx, pbcX), addDelta<KeyType>(nodeBox.xmax(), dx, pbcX),
-                addDelta<KeyType>(nodeBox.ymin(), -dy, pbcY), addDelta<KeyType>(nodeBox.ymax(), dy, pbcY),
-                addDelta<KeyType>(nodeBox.zmin(), -dz, pbcZ), addDelta<KeyType>(nodeBox.zmax(), dz, pbcZ));
-}
-
-//! @brief create a box with specified radius around node delineated by codeStart/End
-template<class CoordinateType, class RadiusType, class KeyType>
-HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, RadiusType radius, const Box<CoordinateType>& box)
-{
-    // disallow boxes with no volume
-    assert(codeEnd > codeStart);
-    int dx = toNBitIntCeil<KeyType>(radius * box.ilx());
-    int dy = toNBitIntCeil<KeyType>(radius * box.ily());
-    int dz = toNBitIntCeil<KeyType>(radius * box.ilz());
-
-    return makeHaloBox(codeStart, codeEnd, dx, dy, dz, box.pbcX(), box.pbcY(), box.pbcZ());
-}
-
 //! @brief create a box with specified radius around node delineated by codeStart/End
 template<class KeyType, class CoordinateType, class RadiusType>
 HOST_DEVICE_FUN IBox makeHaloBox(const IBox& nodeBox, RadiusType radius, const Box<CoordinateType>& box)
 {
-    // disallow boxes with no volume
-    assert(codeEnd > codeStart);
     int dx = toNBitIntCeil<KeyType>(radius * box.ilx());
     int dy = toNBitIntCeil<KeyType>(radius * box.ily());
     int dz = toNBitIntCeil<KeyType>(radius * box.ilz());
@@ -229,6 +192,16 @@ HOST_DEVICE_FUN IBox makeHaloBox(const IBox& nodeBox, RadiusType radius, const B
     return IBox(addDelta<KeyType>(nodeBox.xmin(), -dx, box.pbcX()), addDelta<KeyType>(nodeBox.xmax(), dx, box.pbcX()),
                 addDelta<KeyType>(nodeBox.ymin(), -dy, box.pbcY()), addDelta<KeyType>(nodeBox.ymax(), dy, box.pbcY()),
                 addDelta<KeyType>(nodeBox.zmin(), -dz, box.pbcZ()), addDelta<KeyType>(nodeBox.zmax(), dz, box.pbcZ()));
+}
+
+//! @brief create a box with specified radius around node delineated by codeStart/End
+template<class KeyType, class CoordinateType, class RadiusType>
+HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, RadiusType radius, const Box<CoordinateType>& box)
+{
+    // disallow boxes with no volume
+    assert(codeEnd > codeStart);
+    IBox nodeBox = hilbertIBoxKeys(codeStart, codeEnd);
+    return makeHaloBox<KeyType>(nodeBox, radius, box);
 }
 
 } // namespace cstone

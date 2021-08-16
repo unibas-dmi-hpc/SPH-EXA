@@ -178,9 +178,7 @@ void markMac(const Octree<KeyType>& octree, const Box<T>& box, KeyType focusStar
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < numFocusBoxes; ++i)
     {
-        KeyType key1 = focusCodes[i];
-        KeyType key2 = focusCodes[i+1];
-        IBox target  = hilbertIBox(key1, treeLevel(key2 - key1));
+        IBox target = hilbertIBoxKeys(focusCodes[i], focusCodes[i + 1]);
         markMacPerBox(target, octree, box, invThetaSq, focusStart, focusEnd, markings);
     }
 }
