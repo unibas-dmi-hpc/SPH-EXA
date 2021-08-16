@@ -91,8 +91,7 @@ void findHalos(const Octree<KeyType>& octree,
     {
         RadiusType radius = interactionRadii[nodeIdx];
 
-        IBox nodeBox = mortonIBoxKeys(leaves[nodeIdx], leaves[nodeIdx + 1]);
-        IBox haloBox = makeHaloBox<KeyType>(nodeBox, radius, box);
+        IBox haloBox = makeHaloBox<KeyType>(leaves[nodeIdx], leaves[nodeIdx + 1], radius, box);
 
         // if the halo box is fully inside the assigned SFC range, we skip collision detection
         if (containedIn(lowestCode, highestCode, haloBox)) { continue; }

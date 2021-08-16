@@ -162,6 +162,7 @@ util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key) noexcept
 template<class KeyType>
 HOST_DEVICE_FUN IBox hilbertIBox(KeyType keyStart, unsigned level) noexcept
 {
+    assert(level <= maxTreeLevel<KeyType>{});
     constexpr unsigned maxCoord = 1u << maxTreeLevel<KeyType>{};
     unsigned cubeLength = maxCoord >> level;
     unsigned mask = ~(cubeLength - 1);
@@ -174,6 +175,14 @@ HOST_DEVICE_FUN IBox hilbertIBox(KeyType keyStart, unsigned level) noexcept
     iz &= mask;
 
     return IBox(ix, ix + cubeLength, iy, iy + cubeLength, iz, iz + cubeLength);
+}
+
+//! @brief convenience wrapper
+template<class KeyType>
+HOST_DEVICE_FUN IBox hilbertIBoxKeys(KeyType keyStart, KeyType keyEnd) noexcept
+{
+    assert(keyStart <= keyEnd);
+    return hilbertIBox(keyStart, treeLevel(keyEnd - keyStart));
 }
 
 } // namespace cstone
