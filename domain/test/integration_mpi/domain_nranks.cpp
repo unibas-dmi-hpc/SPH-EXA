@@ -131,8 +131,8 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     int ngmax = 300;
     std::vector<int> neighbors(localCount * ngmax);
     std::vector<int> neighborsCount(localCount);
-    findNeighborsHilbert(x.data(), y.data(), z.data(), h.data(), domain.startIndex(), domain.endIndex(), x.size(),
-                         box, particleKeys.data(), neighbors.data(), neighborsCount.data(), ngmax);
+    findNeighbors(x.data(), y.data(), z.data(), h.data(), domain.startIndex(), domain.endIndex(), x.size(),
+                  box, sfcKindPointer(particleKeys.data()), neighbors.data(), neighborsCount.data(), ngmax);
 
     int neighborSum = std::accumulate(begin(neighborsCount), end(neighborsCount), 0);
     MPI_Allreduce(MPI_IN_PLACE, &neighborSum, 1, MpiType<int>{}, MPI_SUM, MPI_COMM_WORLD);
@@ -153,9 +153,9 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
         // calculate reference neighbor sum from the full arrays
         std::vector<int> neighborsRef(numParticles * ngmax);
         std::vector<int> neighborsCountRef(numParticles);
-        findNeighborsHilbert(xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), 0, numParticles,
-                             numParticles, box, codesGlobal.data(), neighborsRef.data(), neighborsCountRef.data(),
-                             ngmax);
+        findNeighbors(xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), 0, numParticles,
+                      numParticles, box, sfcKindPointer(codesGlobal.data()), neighborsRef.data(),
+                      neighborsCountRef.data(), ngmax);
 
         int neighborSumRef = std::accumulate(begin(neighborsCountRef), end(neighborsCountRef), 0);
         EXPECT_EQ(neighborSum, neighborSumRef);
@@ -231,7 +231,7 @@ TEST(FocusDomain, assignmentShift)
     unsigned bucketSize = 1024;
     unsigned bucketSizeFocus = 8;
 
-    RandomCoordinates<Real, HilbertKey<KeyType>> coordinates(numParticlesPerRank, box, rank);
+    RandomCoordinates<Real, SfcKind<KeyType>> coordinates(numParticlesPerRank, box, rank);
 
     std::vector<Real> x(coordinates.x().begin(), coordinates.x().end());
     std::vector<Real> y(coordinates.y().begin(), coordinates.y().end());
