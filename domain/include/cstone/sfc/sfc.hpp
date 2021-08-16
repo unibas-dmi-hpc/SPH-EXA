@@ -39,6 +39,28 @@
 namespace cstone
 {
 
+//! @brief Strong type for Morton keys
+template<class IntegerType>
+using MortonKey = StrongType<IntegerType, struct MortonKeyTag>;
+
+//! @brief Strong type for Hilbert keys
+template<class IntegerType>
+using HilbertKey = StrongType<IntegerType, struct HilbertKeyTag>;
+
+//! @brief use this definition to select the kind of space filling curve to use
+template<class IntegerType>
+using SfcKind = HilbertKey<IntegerType>;
+
+template<>
+struct maxTreeLevel<MortonKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
+template<>
+struct maxTreeLevel<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
+
+template<>
+struct maxTreeLevel<MortonKey<uint64_t>> : stl::integral_constant<unsigned, 21> {};
+template<>
+struct maxTreeLevel<HilbertKey<uint64_t>> : stl::integral_constant<unsigned, 21> {};
+
 //! @brief Meta function to detect Morton key types
 template<class KeyType>
 struct IsMorton : std::bool_constant<std::is_same_v<KeyType, MortonKey<typename KeyType::ValueType>>> {};
@@ -154,28 +176,21 @@ HOST_DEVICE_FUN inline KeyType sfcNeighbor(const IBox& ibox, unsigned level, int
 /*! @brief compute the SFC keys for the input coordinate arrays
  *
  * @tparam     T          float or double
- * @param[in]  xBegin     input iterators for coordinate arrays
- * @param[in]  xEnd
- * @param[in]  yBegin
- * @param[in]  zBegin
+ * @tparam     KeyType    HilbertKey or MortonKey
+ * @param[in]  x          coordinate input arrays
+ * @param[in]  y
+ * @param[in]  z
  * @param[out] codeBegin  output for SFC keys
+ * @param[in]  n          number of particles, size of input and output arrays
  * @param[in]  box        coordinate bounding box
  */
-template<class InputIterator, class OutputIterator, class T>
-void computeSfcKeys(InputIterator  xBegin,
-                    InputIterator  xEnd,
-                    InputIterator  yBegin,
-                    InputIterator  zBegin,
-                    OutputIterator codesBegin,
-                    const Box<T>& box)
+template<class T, class KeyType>
+void computeSfcKeys(const T* x, const T* y, const T* z, KeyType* particleKeys, size_t n, const Box<T>& box)
 {
-    assert(xEnd >= xBegin);
-    using KeyType = std::decay_t<decltype(*codesBegin)>;
-
     #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < std::size_t(xEnd-xBegin); ++i)
+    for (std::size_t i = 0; i < n; ++i)
     {
-        codesBegin[i] = sfc3D<KeyType>(xBegin[i], yBegin[i], zBegin[i], box);
+        particleKeys[i] = sfc3D<KeyType>(x[i], y[i], z[i], box);
     }
 }
 
