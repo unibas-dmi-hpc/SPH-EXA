@@ -170,7 +170,6 @@ void computeEssentialTree()
     int nParticles = 200000;
     unsigned csBucketSize = 16;
 
-    //RandomCoordinates<double, MortonKey<KeyType>> randomBox(nParticles, box);
     auto codes = makeRandomUniformKeys<KeyType>(nParticles);
 
     auto [csTree, csCounts] = computeOctree(codes.data(), codes.data() + nParticles, csBucketSize);
