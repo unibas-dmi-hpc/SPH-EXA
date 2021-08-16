@@ -142,22 +142,36 @@ TEST(OctreeEssential, rebalanceDecision)
 }
 
 template<class KeyType>
-TreeNodeIndex numNodesInRange(const FocusedOctreeSingleNode<KeyType>& tree, KeyType a, KeyType b)
+TreeNodeIndex numNodesInRange(gsl::span<const KeyType> tree, KeyType a, KeyType b)
 {
-    auto csFocus = tree.treeLeaves();
+    return std::lower_bound(tree.begin(), tree.end(), b) - std::lower_bound(tree.begin(), tree.end(), a);
+}
 
-    return std::lower_bound(csFocus.begin(), csFocus.end(), b) - std::lower_bound(csFocus.begin(), csFocus.end(), a);
+template<class KeyType>
+std::vector<TreeNodeIndex> octantNodeCount(gsl::span<const KeyType> tree)
+{
+    std::vector<TreeNodeIndex> counts;
+    for (int octant = 0; octant < 8; ++octant)
+    {
+        KeyType range = nodeRange<KeyType>(1);
+        counts.push_back(numNodesInRange(tree, octant * range, octant * range + range));
+    }
+
+    std::sort(begin(counts), end(counts));
+
+    // omit the last octant with the highest node count (the focused octant)
+    return {counts.begin(), counts.begin() + 7};
 }
 
 template<class KeyType>
 void computeEssentialTree()
 {
     Box<double> box{-1, 1};
-    int nParticles = 100000;
+    int nParticles = 200000;
     unsigned csBucketSize = 16;
 
-    RandomCoordinates<double, MortonKey<KeyType>> randomBox(nParticles, box);
-    auto codes = randomBox.particleKeys();
+    //RandomCoordinates<double, MortonKey<KeyType>> randomBox(nParticles, box);
+    auto codes = makeRandomUniformKeys<KeyType>(nParticles);
 
     auto [csTree, csCounts] = computeOctree(codes.data(), codes.data() + nParticles, csBucketSize);
     Octree<KeyType> globalTree;
@@ -166,6 +180,9 @@ void computeEssentialTree()
     unsigned bucketSize = 16;
     float theta = 1.0;
     FocusedOctreeSingleNode<KeyType> tree(bucketSize, theta);
+
+    // sorted reference tree node counts in each (except focus) octant at the 1st division level
+    std::vector<TreeNodeIndex> refCounts{92, 302, 302, 302, 1184, 1184, 1184, /*4131*/};
 
     KeyType focusStart = 1;
     KeyType focusEnd = pad(KeyType(1), 3);
@@ -198,16 +215,20 @@ void computeEssentialTree()
         auto spanningTree = computeSpanningTree<KeyType>(spanningKeys);
         EXPECT_EQ(tree.treeLeaves().first(matchingFocusNode), gsl::span<KeyType>(spanningTree.data(), matchingFocusNode));
 
-        EXPECT_EQ(numNodesInRange(tree, pad(KeyType(7), 3), nodeRange<KeyType>(0)), 92);
+        auto nodeCounts = octantNodeCount<KeyType>(tree.treeLeaves());
+        EXPECT_EQ(nodeCounts, refCounts);
     }
 
-    focusStart = pad(KeyType(6), 3);
-    focusEnd   = pad(KeyType(7), 3);
+    focusStart = pad(KeyType(7), 3);
+    focusEnd   = nodeRange<KeyType>(0) - 1;
     while (!tree.update(box, codes, focusStart, focusEnd, {})) {}
 
-    EXPECT_EQ(numNodesInRange(tree, pad(KeyType(1), 3), pad(KeyType(2), 3)), 92);
+    {
+        auto nodeCounts = octantNodeCount<KeyType>(tree.treeLeaves());
+        EXPECT_EQ(nodeCounts, refCounts);
+    }
 
-    focusStart = 0;
+    focusStart = 0; // slight variation; start from zero instead of 1
     focusEnd   = pad(KeyType(1), 3);
     while (!tree.update(box, codes, focusStart, focusEnd, {})) {}
 
@@ -215,7 +236,9 @@ void computeEssentialTree()
         TreeNodeIndex lastFocusNode = findNodeAbove(tree.treeLeaves(), focusEnd);
         // tree now focused again on first octant
         EXPECT_TRUE(std::equal(begin(csTree), begin(csTree) + lastFocusNode, tree.treeLeaves().begin()));
-        EXPECT_EQ(numNodesInRange(tree, pad(KeyType(7), 3), nodeRange<KeyType>(0)), 92);
+
+        auto nodeCounts = octantNodeCount<KeyType>(tree.treeLeaves());
+        EXPECT_EQ(nodeCounts, refCounts);
     }
 }
 
