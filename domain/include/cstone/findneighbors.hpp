@@ -385,25 +385,4 @@ void findNeighbors(const T* x, const T* y, const T* z, const T* h,
     }
 }
 
-//! @brief find neighbors based on Morton keys
-template<class T, class Integer>
-void findNeighborsMorton(const T* x, const T* y, const T* z, const T* h,
-                         LocalParticleIndex firstId, LocalParticleIndex lastId, LocalParticleIndex numParticles,
-                         const Box<T>& box, const Integer* particleKeys, int* neighbors, int* neighborsCount, int ngmax)
-{
-    const MortonKey<Integer>* mortonKeys = (MortonKey<Integer>*)(particleKeys);
-    findNeighbors(x, y, z, h, firstId, lastId, numParticles, box, mortonKeys, neighbors, neighborsCount, ngmax);
-}
-
-//! @brief find neighbors based on Hilbert keys
-template<class T, class Integer>
-void findNeighborsHilbert(const T* x, const T* y, const T* z, const T* h,
-                          LocalParticleIndex firstId, LocalParticleIndex lastId, LocalParticleIndex numParticles,
-                          const Box<T>& box, const Integer* particleKeys, int* neighbors, int* neighborsCount,
-                          int ngmax)
-{
-    const HilbertKey<Integer>* hilbertKeys = (HilbertKey<Integer>*)(particleKeys);
-    findNeighbors(x, y, z, h, firstId, lastId, numParticles, box, hilbertKeys, neighbors, neighborsCount, ngmax);
-}
-
 } // namespace cstone
