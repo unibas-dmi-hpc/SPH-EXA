@@ -199,6 +199,12 @@ void moreHalos(int rank, int numRanks)
     std::vector<T> zref{zGlobal.begin() + gstart, zGlobal.begin() + gend};
     std::vector<T> href{hGlobal.begin() + gstart, hGlobal.begin() + gend};
 
+    // the order of particles on the node depends on the SFC algorithm
+    std::sort(begin(x), end(x));
+    std::sort(begin(y), end(y));
+    std::sort(begin(z), end(z));
+    std::sort(begin(h), end(h));
+
     EXPECT_EQ(x, xref);
     EXPECT_EQ(y, yref);
     EXPECT_EQ(z, zref);
@@ -258,6 +264,9 @@ void particleProperty(int rank, int numRanks)
     std::vector<KeyType> codes;
     domain.sync(x, y, z, h, codes, mass);
 
+    // the order of particles on the node depends on the SFC algorithm
+    std::sort(mass.begin() + domain.startIndex(), mass.begin() + domain.endIndex());
+
     std::vector<T> refMass;
     if (rank == 0) { refMass = std::vector<T>{1, 2, 3, 4, 5, 6, 0, 0, 0}; }
     else if (rank == 1)
@@ -306,9 +315,11 @@ void multiStepSync(int rank, int numRanks)
     std::vector<T> xGlobal{0.0, 0.11, 0.261, 0.281, 0.301, 0.321, 0.521, 0.541, 0.561, 0.761, 0.781, 1.000};
     std::vector<T> yGlobal{0.0, 0.12, 0.262, 0.282, 0.302, 0.322, 0.522, 0.542, 0.562, 0.762, 0.781, 1.000};
     std::vector<T> zGlobal{0.0, 0.13, 0.263, 0.283, 0.303, 0.323, 0.523, 0.543, 0.563, 0.763, 0.781, 1.000};
-    std::vector<T> hGlobal{0.1, 0.101, 0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108, 0.109, 0.110, 0.111};
+    std::vector<T> hGlobal{0.1, 0.101, 0.102, 0.103, 0.104, 0.105, 0.156, 0.107, 0.108, 0.109, 0.110, 0.111};
     // sync result rank 0: |---------assignment-------------------|------halos---------|
     // sync result rank 1:             |-----halos----------------|-----------assignment-------------------|
+
+    // particle 6 has bigger h to include particles 2 and 3
 
     std::vector<T> x, y, z, h;
     // rank 0 gets particles with even index before the sync
@@ -334,13 +345,21 @@ void multiStepSync(int rank, int numRanks)
 
     domain.sync(x, y, z, h, codes);
 
+    // the order of particles on the node depends on the SFC algorithm
+    std::sort(begin(x), end(x));
+    std::sort(begin(y), end(y));
+    std::sort(begin(z), end(z));
+    std::sort(begin(h), end(h));
+
     if (rank == 0)
     {
         //                 |--------assignment--------------|-------halos-------|
         std::vector<T> xref{0.0, 0.261, 0.281, 0.301, 0.321, 0.521, 0.541, 0.561};
         std::vector<T> yref{0.0, 0.262, 0.282, 0.302, 0.322, 0.522, 0.542, 0.562};
         std::vector<T> zref{0.0, 0.263, 0.283, 0.303, 0.323, 0.523, 0.543, 0.563};
-        std::vector<T> href{0.1, 0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108};
+        std::vector<T> href{0.1, 0.102, 0.103, 0.104, 0.105, 0.156, 0.107, 0.108};
+
+        std::sort(begin(href), end(href));
 
         EXPECT_EQ(x, xref);
         EXPECT_EQ(y, yref);
@@ -350,11 +369,19 @@ void multiStepSync(int rank, int numRanks)
         EXPECT_EQ(domain.endIndex(), 5);
     }
     if (rank == 1)
-    { //                 |--------halos--------------|---------assignment----------------------------|
+    {
+        //                 |--------halos--------------|---------assignment----------------------------|
         std::vector<T> xref{0.261, 0.281, 0.301, 0.321, 0.521, 0.541, 0.561, 0.761, 0.781, 0.811, 1.000};
         std::vector<T> yref{0.262, 0.282, 0.302, 0.322, 0.522, 0.542, 0.562, 0.762, 0.781, 0.812, 1.000};
         std::vector<T> zref{0.263, 0.283, 0.303, 0.323, 0.523, 0.543, 0.563, 0.763, 0.781, 0.813, 1.000};
-        std::vector<T> href{0.102, 0.103, 0.104, 0.105, 0.106, 0.107, 0.108, 0.109, 0.110, 0.101, 0.111};
+        std::vector<T> href{0.102, 0.103, 0.104, 0.105, 0.156, 0.107, 0.108, 0.109, 0.110, 0.101, 0.111};
+
+        std::sort(begin(href), end(href));
+
+        EXPECT_EQ(x, xref);
+        EXPECT_EQ(y, yref);
+        EXPECT_EQ(z, zref);
+        EXPECT_EQ(h, href);
         EXPECT_EQ(domain.startIndex(), 4);
         EXPECT_EQ(domain.endIndex(), 11);
     }
@@ -375,6 +402,19 @@ TEST(FocusDomain, multiStepSync)
     multiStepSync<uint64_t, float>(rank, numRanks);
 }
 
+template<class T>
+void zipSort(std::vector<T>& x, std::vector<T>& y)
+{
+    std::vector<std::tuple<T, T>> xyZip;
+    std::transform(begin(x), end(x), begin(y), std::back_inserter(xyZip),
+                   [](T i, T j) { return std::make_tuple(i, j); });
+
+    std::sort(begin(xyZip), end(xyZip));
+
+    std::transform(begin(xyZip), end(xyZip), begin(x), [](auto tup) { return std::get<0>(tup); });
+    std::transform(begin(xyZip), end(xyZip), begin(y), [](auto tup) { return std::get<1>(tup); });
+}
+
 /*! @brief check halo discovery across two sync steps
  *
  * Makes sure that the indirect access to the smoothing lengths
@@ -385,17 +425,19 @@ TEST(FocusDomain, multiStepSync)
  *  Geometry:
  *      - the numbers in the cells denote the smoothing lengths of the corresponding particles
  *
- *   rank 0 <- | -> rank 1
- *     -----------------
- *  7  | 0 | 0 | 1 | 0 |
- *     -----------------
- *  5  | 0 | 0 | 0 | 0 |
- *     -----------------
- *  3  | 0 | 0 | 0 | 0 |
- *     -----------------
- *  1  | 1 | 0 | 0 | 0 |
- *     -----------------
- *       1   3   5   7
+ *         rank 0 <- | -> rank 1
+ *           -----------------
+ *        7  | 0 | 0 | 1 | 0 |
+ *           -----------------
+ *        5  | 0 | 0 | 0 | 0 |
+ *           -----------------
+ *        3  | 0 | 0 | 0 | 0 |
+ *           -----------------
+ *        1  | 1 | 0 | 0 | 0 |
+ *  y        -----------------
+ *  ^          1   3   5   7
+ *  |
+ *  ---> x
  *
  *  After the first sync, particles (1,1) and (5,1) are exchanged.
  *  Since (1,1) as a non-zero smoothing length, rank 1 gains two halos after the
@@ -413,17 +455,19 @@ void domainHaloRadii(int rank, int nRanks)
 
     if (rank == 0)
     {
+        // includes (0,0,0) to set the lower corner
         x = std::vector<T>{0, 1, 1, 3, 3, 1, 1, 3, 3};
         y = std::vector<T>{0, 1, 3, 1, 3, 5, 7, 5, 7};
         z = std::vector<T>{0, 0, 0, 0, 0, 0, 0, 0, 0};
-        h = std::vector<T>{0, 1, 0, 0, 0, 0, 0, 0, 0};
+        h = std::vector<T>{0, 0.1, 0, 0, 0, 0, 0, 0, 0};
     }
     else
     {
+        // includes (8,8,8) to set the upper corner
         x = std::vector<T>{5, 5, 7, 7, 5, 5, 7, 7, 8};
         y = std::vector<T>{1, 3, 1, 3, 5, 7, 5, 7, 8};
         z = std::vector<T>{0, 0, 0, 0, 0, 0, 0, 0, 8};
-        h = std::vector<T>{0, 0, 0, 0, 0, 1, 0, 0, 0};
+        h = std::vector<T>{0, 0, 0, 0, 0, 0.1, 0, 0, 0};
     }
 
     domain.sync(x, y, z, h, codes);
@@ -434,11 +478,15 @@ void domainHaloRadii(int rank, int nRanks)
         std::vector<T> xref{0, 1, 1, 3, 3, 1, 1, 3, 3};
         std::vector<T> yref{0, 1, 3, 1, 3, 5, 7, 5, 7};
 
+        zipSort(x, y);
+        zipSort(xref, yref);
+
         EXPECT_EQ(x, xref);
         EXPECT_EQ(y, yref);
 
         x = std::vector<T>{0, 5, 1, 3, 3, 1, 1, 3, 3};
         y = std::vector<T>{0, 1, 3, 1, 3, 5, 7, 5, 7};
+        h = std::vector<T>{0, 0.1, 0, 0, 0, 0, 0, 0, 0};
         //                    ^ move to rank 1 (note: has non-zero h)
     }
 
@@ -448,11 +496,16 @@ void domainHaloRadii(int rank, int nRanks)
         std::vector<T> xref{3, 3, 5, 5, 7, 7, 5, 5, 7, 7, 8};
         std::vector<T> yref{5, 7, 1, 3, 1, 3, 5, 7, 5, 7, 8};
         //                  |ha |  assigned                |
+
+        zipSort(x, y);
+        zipSort(xref, yref);
+
         EXPECT_EQ(x, xref);
         EXPECT_EQ(y, yref);
 
         x = std::vector<T>{3, 3, 1, 5, 7, 7, 5, 5, 7, 7, 8};
         y = std::vector<T>{5, 7, 1, 3, 1, 3, 5, 7, 5, 7, 8};
+        h = std::vector<T>{0, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0};
         //                       ^ move to rank 0
     }
 
@@ -465,6 +518,9 @@ void domainHaloRadii(int rank, int nRanks)
         std::vector<T> xref{3, 3, 3, 3, 5, 5, 7, 7, 5, 5, 7, 7, 8};
         std::vector<T> yref{1, 3, 5, 7, 1, 3, 1, 3, 5, 7, 5, 7, 8};
         //                 | halo       |   assigned             |
+
+        zipSort(x, y);
+        zipSort(xref, yref);
 
         EXPECT_EQ(x, xref);
         EXPECT_EQ(y, yref);
