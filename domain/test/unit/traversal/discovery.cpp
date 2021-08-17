@@ -34,7 +34,27 @@
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/tree/octree_util.hpp"
 
+#include "collisions_a2a.hpp"
+
 using namespace cstone;
+
+template<class KeyType, class T>
+std::vector<int> findHalosAll2All(gsl::span<const KeyType> tree, const std::vector<T>& haloRadii, const Box<T>& box,
+                                  TreeNodeIndex firstNode, TreeNodeIndex lastNode)
+{
+    std::vector<int> flags(nNodes(tree));
+    auto collisions = findCollisionsAll2all(tree, haloRadii, box);
+
+    for (TreeNodeIndex i = firstNode; i < lastNode; ++i)
+    {
+        for (TreeNodeIndex cidx : collisions[i])
+        {
+            if (cidx < firstNode || cidx >= lastNode) { flags[cidx] = 1; }
+        }
+    }
+
+    return flags;
+}
 
 template<class KeyType>
 void findHalosFlags()
@@ -53,18 +73,20 @@ void findHalosFlags()
         std::vector<int> collisionFlags(nNodes(tree), 0);
         findHalos(octree, interactionRadii.data(), box, 0, 32, collisionFlags.data());
 
-        std::vector<int> reference{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1,
-                                   0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0};
+        std::vector<int> reference = findHalosAll2All<KeyType>(tree, interactionRadii, box, 0, 32);
+
+        // consistency check: the surface of the first 32 nodes with the last 32 nodes is 16 nodes
+        EXPECT_EQ(16, std::accumulate(collisionFlags.begin(), collisionFlags.end(), 0));
         EXPECT_EQ(collisionFlags, reference);
     }
     {
         std::vector<int> collisionFlags(nNodes(tree), 0);
         findHalos(octree, interactionRadii.data(), box, 32, 64, collisionFlags.data());
 
-        std::vector<int> reference{0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 1, 1,
-                                   1, 1, 0, 0, 0, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                                   0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<int> reference = findHalosAll2All<KeyType>(tree, interactionRadii, box, 32, 64);
+
+        // consistency check: the surface of the first 32 nodes with the last 32 nodes is 16 nodes
+        EXPECT_EQ(16, std::accumulate(collisionFlags.begin(), collisionFlags.end(), 0));
         EXPECT_EQ(collisionFlags, reference);
     }
 }

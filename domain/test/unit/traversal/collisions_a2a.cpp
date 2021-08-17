@@ -70,7 +70,7 @@ void generalCollisionTest(const std::vector<KeyType>& tree, const std::vector<T>
     }
 
     // naive all-to-all algorithm
-    std::vector<std::vector<TreeNodeIndex>> refCollisions = findCollisionsAll2all(tree, haloRadii, box);
+    std::vector<std::vector<TreeNodeIndex>> refCollisions = findCollisionsAll2all<KeyType>(tree, haloRadii, box);
 
     for (std::size_t nodeIndex = 0; nodeIndex < nNodes(tree); ++nodeIndex)
     {

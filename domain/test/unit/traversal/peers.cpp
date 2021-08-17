@@ -38,45 +38,6 @@
 
 using namespace cstone;
 
-template<class KeyType>
-void findMacPeers64grid(int rank, float theta, bool pbc, const std::vector<int>& reference)
-{
-    Box<double> box{-1, 1, pbc};
-    Octree<KeyType> octree;
-    octree.update(makeUniformNLevelTree<KeyType>(64, 1));
-
-    SpaceCurveAssignment assignment(octree.numLeafNodes());
-    for (int i = 0; i < octree.numLeafNodes(); ++i)
-    {
-        assignment.addRange(Rank(i), i, i + 1, 1);
-    }
-
-    std::vector<int> peers = findPeersMac(rank, assignment, octree, box, theta);
-    EXPECT_EQ(peers, reference);
-}
-
-TEST(Peers, findMacGrid64)
-{
-    // just the surface
-    findMacPeers64grid<unsigned>(0, 1.1, false, {1, 2, 3, 4, 5, 6, 7});
-    findMacPeers64grid<uint64_t>(0, 1.1, false, {1, 2, 3, 4, 5, 6, 7});
-}
-
-TEST(Peers, findMacGrid64Narrow)
-{
-    findMacPeers64grid<unsigned>(0, 1.0, false, {1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 17, 20, 21, 32, 33, 34, 35});
-    findMacPeers64grid<uint64_t>(0, 1.0, false, {1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 17, 20, 21, 32, 33, 34, 35});
-}
-
-TEST(Peers, findMacGrid64PBC)
-{
-    // just the surface + PBC
-    findMacPeers64grid<unsigned>(
-        0, 1.1, true, {1, 2, 3, 4, 5, 6, 7, 9, 11, 13, 15, 18, 19, 22, 23, 27, 31, 36, 37, 38, 39, 45, 47, 54, 55, 63});
-    findMacPeers64grid<uint64_t>(
-        0, 1.1, true, {1, 2, 3, 4, 5, 6, 7, 9, 11, 13, 15, 18, 19, 22, 23, 27, 31, 36, 37, 38, 39, 45, 47, 54, 55, 63});
-}
-
 //! @brief reference peer search, all-all leaf comparison
 template<class T, class KeyType>
 std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> tree,
@@ -84,7 +45,7 @@ std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assign
 {
     TreeNodeIndex firstIdx = assignment.firstNodeIdx(myRank);
     TreeNodeIndex lastIdx  = assignment.lastNodeIdx(myRank);
-    float invThetaSq = 1.0f / (theta * theta);
+    float invThetaSq       = 1.0f / (theta * theta);
 
     std::vector<IBox> boxes(nNodes(tree));
     for (TreeNodeIndex i = 0; i < nNodes(tree); ++i)
@@ -105,6 +66,46 @@ std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assign
         if (peers[i] && i != myRank) { ret.push_back(i); }
 
     return ret;
+}
+
+template<class KeyType>
+void findMacPeers64grid(int rank, float theta, bool pbc, int refNumPeers)
+{
+    Box<double> box{-1, 1, pbc};
+    Octree<KeyType> octree;
+    octree.update(makeUniformNLevelTree<KeyType>(64, 1));
+
+    SpaceCurveAssignment assignment(octree.numLeafNodes());
+    for (int i = 0; i < octree.numLeafNodes(); ++i)
+    {
+        assignment.addRange(Rank(i), i, i + 1, 1);
+    }
+
+    std::vector<int> peers     = findPeersMac(rank, assignment, octree, box, theta);
+    std::vector<int> reference = findPeersAll2All(rank, assignment, octree.treeLeaves(), box, theta);
+
+    EXPECT_EQ(refNumPeers, peers.size());
+    EXPECT_EQ(peers, reference);
+}
+
+TEST(Peers, findMacGrid64)
+{
+    // just the surface
+    findMacPeers64grid<unsigned>(0, 1.1, false, 7);
+    findMacPeers64grid<uint64_t>(0, 1.1, false, 7);
+}
+
+TEST(Peers, findMacGrid64Narrow)
+{
+    findMacPeers64grid<unsigned>(0, 1.0, false, 19);
+    findMacPeers64grid<uint64_t>(0, 1.0, false, 19);
+}
+
+TEST(Peers, findMacGrid64PBC)
+{
+    // just the surface + PBC, 26 six peers at the surface
+    findMacPeers64grid<unsigned>(0, 1.1, true, 26);
+    findMacPeers64grid<uint64_t>(0, 1.1, true, 26);
 }
 
 template<class KeyType>
