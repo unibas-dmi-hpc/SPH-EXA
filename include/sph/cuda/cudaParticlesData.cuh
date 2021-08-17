@@ -93,6 +93,7 @@ public:
 
     typename ParticleData::KeyType *d_codes;
 
+    size_t capacity() const { return allocated_device_memory; }
 
     void resize(size_t size)
     {
