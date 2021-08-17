@@ -45,11 +45,11 @@ void findCollisions(const Octree<KeyType>& octree,
 {
     auto overlaps = [excludeStart, excludeEnd, &octree, &target](TreeNodeIndex idx)
     {
-      KeyType nodeKey = octree.codeStart(idx);
-      int level = octree.level(idx);
-      IBox sourceBox = hilbertIBox(nodeKey, level);
-      return !containedIn(nodeKey, nodeKey + nodeRange<KeyType>(level), excludeStart, excludeEnd)
-             && overlap<KeyType>(sourceBox, target);
+        KeyType nodeKey = octree.codeStart(idx);
+        int level       = octree.level(idx);
+        IBox sourceBox  = sfcIBox(sfcKey(nodeKey), level);
+        return !containedIn(nodeKey, nodeKey + nodeRange<KeyType>(level), excludeStart, excludeEnd) &&
+               overlap<KeyType>(sourceBox, target);
     };
 
     singleTraversal(octree, overlaps, endpointAction);

@@ -53,8 +53,8 @@ void findCollisions2All(const std::vector<KeyType>& tree, std::vector<TreeNodeIn
 {
     for (TreeNodeIndex idx = 0; idx < nNodes(tree); ++idx)
     {
-        if (overlap(tree[idx], treeLevel(tree[idx + 1] - tree[idx]), collisionBox))
-            collisionList.push_back(idx);
+        IBox nodeBox = sfcIBox(sfcKey(tree[idx]), sfcKey(tree[idx + 1]));
+        if (overlap<KeyType>(nodeBox, collisionBox)) { collisionList.push_back(idx); }
     }
 }
 

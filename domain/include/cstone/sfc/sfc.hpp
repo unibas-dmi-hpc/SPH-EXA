@@ -51,19 +51,35 @@ using HilbertKey = StrongType<IntegerType, struct HilbertKeyTag>;
 template<class IntegerType>
 using SfcKind = HilbertKey<IntegerType>;
 
+template<class KeyType>
+HOST_DEVICE_FUN SfcKind<KeyType> sfcKey(KeyType key)
+{
+    return SfcKind<KeyType>(key);
+}
+
 //! @brief convert an integer pointer to the corresponding strongly typed SFC key pointer
 template<class KeyType>
-SfcKind<KeyType>* sfcKindPointer(KeyType* ptr)
+HOST_DEVICE_FUN SfcKind<KeyType>* sfcKindPointer(KeyType* ptr)
 {
     return reinterpret_cast<SfcKind<KeyType>*>(ptr);
 }
 
 //! @brief convert a integer pointer to the corresponding strongly typed SFC key pointer
 template<class KeyType>
-const SfcKind<KeyType>* sfcKindPointer(const KeyType* ptr)
+HOST_DEVICE_FUN const SfcKind<KeyType>* sfcKindPointer(const KeyType* ptr)
 {
     return reinterpret_cast<const SfcKind<KeyType>*>(ptr);
 }
+
+template<>
+struct unusedBits<MortonKey<unsigned>> : stl::integral_constant<unsigned, 2> {};
+template<>
+struct unusedBits<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 2> {};
+
+template<>
+struct unusedBits<MortonKey<uint64_t>> : stl::integral_constant<unsigned, 1> {};
+template<>
+struct unusedBits<HilbertKey<uint64_t>> : stl::integral_constant<unsigned, 1> {};
 
 template<>
 struct maxTreeLevel<MortonKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
