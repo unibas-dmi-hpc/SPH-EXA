@@ -44,9 +44,12 @@
 namespace cstone
 {
 
-//! @brief number of unused leading zeros in a 32-bit SFC code
 template<class KeyType>
-struct unusedBits : stl::integral_constant<unsigned, 2> {};
+struct unusedBits {};
+
+//! @brief number of unused leading zeros in a 32-bit SFC code
+template<>
+struct unusedBits<unsigned> : stl::integral_constant<unsigned, 2> {};
 
 //! @brief number of unused leading zeros in a 64-bit SFC code
 template<>

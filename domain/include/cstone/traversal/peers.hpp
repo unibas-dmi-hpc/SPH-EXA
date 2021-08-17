@@ -72,8 +72,8 @@ std::vector<int> findPeersMac(int myRank, const SpaceCurveAssignment& assignment
       // node a has to overlap/be contained in the focus, while b must not be inside it
       if (!aFocusOverlap || bInFocus) { return false; }
 
-      IBox aBox = hilbertIBox(tree.codeStart(a), tree.level(a));
-      IBox bBox = hilbertIBox(tree.codeStart(b), tree.level(b));
+      IBox aBox = sfcIBox(sfcKey(tree.codeStart(a)), tree.level(a));
+      IBox bBox = sfcIBox(sfcKey(tree.codeStart(b)), tree.level(b));
       return !minDistanceMacMutual<KeyType>(aBox, bBox, box, invThetaSq);
     };
 
@@ -122,7 +122,7 @@ std::vector<int> findPeersMacStt(int myRank, const SpaceCurveAssignment& assignm
     #pragma omp parallel for
     for (TreeNodeIndex i = assignment.firstNodeIdx(myRank); i < assignment.lastNodeIdx(myRank); ++i)
     {
-        IBox target = hilbertIBoxKeys(treeLeaves[i], treeLeaves[i + 1]);
+        IBox target = sfcIBox(sfcKey(treeLeaves[i]), sfcKey(treeLeaves[i + 1]));
 
         auto violatesMac = [target, &octree, &box, invThetaSq, domainStart, domainEnd](TreeNodeIndex idx)
         {
@@ -131,7 +131,7 @@ std::vector<int> findPeersMacStt(int myRank, const SpaceCurveAssignment& assignm
             // if the tree node with index idx is fully contained in the focus, we stop traversal
             if (containedIn(nodeStart, nodeEnd, domainStart, domainEnd)) { return false; }
 
-            IBox sourceBox = hilbertIBox(nodeStart, octree.level(idx));
+            IBox sourceBox = sfcIBox(sfcKey(nodeStart), octree.level(idx));
             return !minDistanceMacMutual<KeyType>(target, sourceBox, box, invThetaSq);
         };
 

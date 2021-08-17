@@ -59,7 +59,7 @@ void surfaceDetection()
     std::vector<IBox> treeBoxes(fullTree.numTreeNodes());
     for (TreeNodeIndex i = 0; i < fullTree.numTreeNodes(); ++i)
     {
-        treeBoxes[i] = hilbertIBox(fullTree.codeStart(i), fullTree.level(i));
+        treeBoxes[i] = sfcIBox(sfcKey(fullTree.codeStart(i)), fullTree.level(i));
     }
 
     auto isSurface = [targetBox, bbox = Box<double>(0, 1), boxes = treeBoxes.data()](TreeNodeIndex idx) {
@@ -156,8 +156,8 @@ void dualTraversalNeighbors()
         bool bInFocus      = containedIn(tree.codeStart(b), tree.codeEnd(b), focusStart, focusEnd);
         if (!aFocusOverlap || bInFocus) { return false; }
 
-        IBox aBox = hilbertIBox(tree.codeStart(a), tree.level(a));
-        IBox bBox = hilbertIBox(tree.codeStart(b), tree.level(b));
+        IBox aBox = sfcIBox(sfcKey(tree.codeStart(a)), tree.level(a));
+        IBox bBox = sfcIBox(sfcKey(tree.codeStart(b)), tree.level(b));
         return minDistanceSq<KeyType>(aBox, bBox, box) == 0.0;
     };
 
@@ -179,8 +179,8 @@ void dualTraversalNeighbors()
         // b outside focus
         EXPECT_TRUE(octree.codeStart(b) >= focusEnd || octree.codeEnd(a) <= focusStart);
         // a and be touch each other
-        IBox aBox = hilbertIBox(octree.codeStart(a), octree.level(a));
-        IBox bBox = hilbertIBox(octree.codeStart(b), octree.level(b));
+        IBox aBox = sfcIBox(sfcKey(octree.codeStart(a)), octree.level(a));
+        IBox bBox = sfcIBox(sfcKey(octree.codeStart(b)), octree.level(b));
         EXPECT_FLOAT_EQ((minDistanceSq<KeyType>(aBox, bBox, box)), 0.0);
     }
 }

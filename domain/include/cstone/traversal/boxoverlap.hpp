@@ -71,6 +71,7 @@ HOST_DEVICE_FUN constexpr bool overlapRange(int a, int b, int c, int d)
            overlapTwoRanges(a, b, c+R, d+R);
 }
 
+//! @brief check whether two boxes overlap. takes PBC into account, boxes can wrap around
 template<class KeyType>
 HOST_DEVICE_FUN inline bool overlap(const IBox& a, const IBox& b)
 {
@@ -81,34 +82,6 @@ HOST_DEVICE_FUN inline bool overlap(const IBox& a, const IBox& b)
     bool zOverlap = overlapRange<maxCoord>(a.zmin(), a.zmax(), b.zmin(), b.zmax());
 
     return xOverlap && yOverlap && zOverlap;
-}
-
-/*! @brief check for overlap between a binary or octree node and a box in 3D space
- *
- * @tparam KeyType
- * @param prefix    Morton code node prefix, defines the corner of node
- *                  closest to origin. Also equals the lower Morton code bound
- *                  of the node.
- * @param length    Number of bits in the prefix to treat as the key. Defines
- *                  the Morton code range of the node.
- * @param box       3D coordinate range, defines an arbitrary box in space to
- *                  test for overlap.
- * @return          true or false
- *
- */
-template<class KeyType>
-HOST_DEVICE_FUN inline bool overlap(KeyType prefix, unsigned level, const IBox& box)
-{
-    assert(level <= maxTreeLevel<KeyType>{});
-    IBox nodeBox = hilbertIBox(prefix, level);
-    return overlap<KeyType>(nodeBox, box) ;
-}
-
-template<class KeyType>
-HOST_DEVICE_FUN inline bool overlap(KeyType prefixBitKey, const IBox& box)
-{
-    unsigned level = decodePrefixLength(prefixBitKey) / 3;
-    return overlap(decodePlaceholderBit(prefixBitKey), level, box);
 }
 
 /*! @brief Check whether a coordinate box is fully contained in a Morton code range
@@ -137,8 +110,8 @@ containedIn(KeyType codeStart, KeyType codeEnd, const IBox& box)
         return codeStart == 0 && codeEnd == nodeRange<KeyType>(0);
     }
 
-    KeyType lowCode  = iHilbert<KeyType>(box.xmin(), box.ymin(), box.zmin());
-    KeyType highCode = iHilbert<KeyType>(box.xmax() - 1, box.ymax() - 1, box.zmax() - 1);
+    KeyType lowCode  = iSfcKey<SfcKind<KeyType>>(box.xmin(), box.ymin(), box.zmin());
+    KeyType highCode = iSfcKey<SfcKind<KeyType>>(box.xmax() - 1, box.ymax() - 1, box.zmax() - 1);
     auto envelope    = smallestCommonBox(lowCode, highCode);
 
     return (util::get<0>(envelope) >= codeStart) && (util::get<1>(envelope) <= codeEnd);
@@ -200,7 +173,7 @@ HOST_DEVICE_FUN IBox makeHaloBox(KeyType codeStart, KeyType codeEnd, RadiusType 
 {
     // disallow boxes with no volume
     assert(codeEnd > codeStart);
-    IBox nodeBox = hilbertIBoxKeys(codeStart, codeEnd);
+    IBox nodeBox = sfcIBox(sfcKey(codeStart), sfcKey(codeEnd));
     return makeHaloBox<KeyType>(nodeBox, radius, box);
 }
 

@@ -70,7 +70,7 @@ std::vector<IBox> findCollidingBoxes(IBox target, gsl::span<const KeyType> leave
     std::vector<IBox> collidedNodeBoxes;
     for (auto cidx : collisions)
     {
-        collidedNodeBoxes.push_back(hilbertIBoxKeys(leaves[cidx], leaves[cidx + 1]));
+        collidedNodeBoxes.push_back(sfcIBox(sfcKey(leaves[cidx]), sfcKey(leaves[cidx + 1])));
     }
     std::sort(begin(collidedNodeBoxes), end(collidedNodeBoxes));
 
