@@ -75,7 +75,7 @@ void singleTraversal(const Octree<KeyType>& octree, C&& continuationCriterion, A
         return;
     }
 
-    TreeNodeIndex stack[64];
+    TreeNodeIndex stack[128];
     stack[0] = 0;
 
     TreeNodeIndex stackPos = 1;
@@ -96,7 +96,7 @@ void singleTraversal(const Octree<KeyType>& octree, C&& continuationCriterion, A
                 }
                 else
                 {
-                    assert (stackPos < 64);
+                    assert (stackPos < 128);
                     stack[stackPos++] = child; // push
                 }
             }
@@ -137,7 +137,7 @@ void dualTraversal(const Octree<KeyType>& octree, TreeNodeIndex a, TreeNodeIndex
 
     if (octree.isLeaf(a) && octree.isLeaf(b)) { p2p(a, b); return; }
 
-    NodePair stack[64];
+    NodePair stack[128];
     stack[0] = NodePair{a, b};
 
     int stackPos = 1;
@@ -149,7 +149,7 @@ void dualTraversal(const Octree<KeyType>& octree, TreeNodeIndex a, TreeNodeIndex
         {
             if (octree.isLeaf(a) && octree.isLeaf(b)) { p2p(a, b); }
             else {
-                assert(stackPos < 64);
+                assert(stackPos < 128);
                 stack_[stackPos++] = NodePair{a, b};
             }
         }
