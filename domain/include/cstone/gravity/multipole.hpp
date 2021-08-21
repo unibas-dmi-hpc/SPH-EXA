@@ -66,10 +66,16 @@ struct GravityMultipole
  * @param  numParticles   number of particles to read from coordinate arrays
  */
 template<class T>
-GravityMultipole<T> particle2Multipole(const T* x, const T* y, const T* z, const T* m, LocalParticleIndex numParticles,
-                                       T xce, T yce, T zce)
+GravityMultipole<T> particle2Multipole(const T* x, const T* y, const T* z, const T* m, LocalParticleIndex numParticles)
 {
     GravityMultipole<T> gv;
+
+    if (numParticles == 0) { return gv; }
+
+    // choose position of the first source particle as the expansion center
+    T xce = x[0];
+    T yce = y[0];
+    T zce = z[0];
 
     for (LocalParticleIndex i = 0; i < numParticles; ++i)
     {
@@ -191,8 +197,8 @@ void particle2particle(T xt, T yt, T zt, const T* xs, const T* ys, const T* zs, 
  *
  * Direct implementation of the formulae in Hernquist, 1987 (complete reference in file docstring):
  *
- *  monopole:   -M/r^3 * vec(r)
- *  quadrupole: Q*vec(r) / r^5 - 5/2 * vec(r)*Q*vec(r) * vec(r) / r^7
+ * monopole:   -M/r^3 * vec(r)
+ * quadrupole: Q*vec(r) / r^5 - 5/2 * vec(r)*Q*vec(r) * vec(r) / r^7
  */
 template<class T>
 void multipole2particle(T xt, T yt, T zt, const GravityMultipole<T>& multipole, T eps2, T* ax, T* ay, T* az)

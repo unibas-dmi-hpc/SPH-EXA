@@ -81,7 +81,7 @@ TEST(GravityKernel, M2P)
     std::vector<T> masses(numParticles);
     std::generate(begin(masses), end(masses), drand48);
 
-    GravityMultipole<T> multipole = particle2Multipole(x, y, z, masses.data(), numParticles, 0.5, 0.5, 0.5);
+    GravityMultipole<T> multipole = particle2Multipole(x, y, z, masses.data(), numParticles);
 
     std::array<T, 3> target    = {-8, 0, 0};
     std::array<T, 3> accDirect = {0, 0, 0};
@@ -99,6 +99,6 @@ TEST(GravityKernel, M2P)
     std::cout << "approx: " << accApprox[0] << " " << accApprox[1] << " " << accApprox[2] << std::endl;
 
     EXPECT_DOUBLE_EQ(accApprox[0], 0.74353865168750355);
-    EXPECT_DOUBLE_EQ(accApprox[1], 9.1291665752567133e-05);
-    EXPECT_DOUBLE_EQ(accApprox[2], 0.0095245840058577);
+    EXPECT_DOUBLE_EQ(accApprox[1], 9.1291665752567323e-05);
+    EXPECT_DOUBLE_EQ(accApprox[2], 0.009524584005857711);
 }
