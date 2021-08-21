@@ -197,50 +197,40 @@ void particle2particle(T xt, T yt, T zt, const T* xs, const T* ys, const T* zs, 
 template<class T>
 void multipole2particle(T xt, T yt, T zt, const GravityMultipole<T>& multipole, T eps2, T* xacc, T* yacc, T* zacc)
 {
-    // monopole
+    // monopole: -M/r^3 * vec(r)
 
-    T dx = multipole.xcm - xt;
-    T dy = multipole.ycm - yt;
-    T dz = multipole.zcm - zt;
+    T r1 = xt - multipole.xcm;
+    T r2 = yt - multipole.ycm;
+    T r3 = zt - multipole.zcm;
 
-    T denom2 = dx*dx + dy*dy + dz*dz + eps2;
-    T invDenom = 1.0 / std::sqrt(denom2);
-    T invDenom2 = invDenom * invDenom;
+    T r_2      = r1*r1 + r2*r2 + r3*r3 + eps2;
+    T r_minus1 = 1.0 / std::sqrt(r_2);
+    T r_minus2 = r_minus1 * r_minus1;
 
-    // prefactor is mj / (r^2 + eps^2)^(3/2)
-    T prefactor = multipole.mass * invDenom * invDenom2;
+    T Mr_minus3 = multipole.mass * r_minus1 * r_minus2;
 
-    *xacc += prefactor * dx;
-    *yacc += prefactor * dy;
-    *zacc += prefactor * dz;
+    *xacc -= Mr_minus3 * r1;
+    *yacc -= Mr_minus3 * r2;
+    *zacc -= Mr_minus3 * r3;
 
-    // quadrupole
-    {
-        T r1 = xt - multipole.xcm;
-        T r2 = yt - multipole.ycm;
-        T r3 = zt - multipole.zcm;
-        T dr2 = r1 * r1 + r2 * r2 + r3 * r3;
-        T dr  = std::sqrt(dr2);
-        //T d32 = 1.0 / dr / dr2;
+    // quadrupole: Q*vec(r)/r^5 * vec(r) - 5/2 * vec(r)*Q*vec(r) * vec(r) / r^7
 
-        T r5 = dr2 * dr2 * dr;
-        T r7 = r5 * dr2;
+    T r_minus5 = r_minus2 * r_minus2 * r_minus1;
+    T r_minus7 = r_minus5 * r_minus2;
 
-        T qr1 = r1 * multipole.qxx + r2 * multipole.qxy + r3 * multipole.qxz;
-        T qr2 = r1 * multipole.qxy + r2 * multipole.qyy + r3 * multipole.qyz;
-        T qr3 = r1 * multipole.qxz + r2 * multipole.qyz + r3 * multipole.qzz;
+    T Qr1 = r1 * multipole.qxx + r2 * multipole.qxy + r3 * multipole.qxz;
+    T Qr2 = r1 * multipole.qxy + r2 * multipole.qyy + r3 * multipole.qyz;
+    T Qr3 = r1 * multipole.qxz + r2 * multipole.qyz + r3 * multipole.qzz;
 
-        T rqr = r1 * qr1 + r2 * qr2 + r3 * qr3;
+    T rQr = r1 * Qr1 + r2 * Qr2 + r3 * Qr3;
 
-        T c1 = (-7.5 / r7) * rqr;
-        T c2 = 3.0 / r5;
-        T c3 = 0.5 * (multipole.qxx + multipole.qyy + multipole.qzz);
+    T c1 = -7.5 * r_minus7 * rQr;
+    T c2 = 3.0 * r_minus5;
+    T c3 = 0.5 * (multipole.qxx + multipole.qyy + multipole.qzz);
 
-        *xacc += c1 * r1 + c2 * (qr1 + c3 * r1);
-        *yacc += c1 * r2 + c2 * (qr2 + c3 * r2);
-        *zacc += c1 * r3 + c2 * (qr3 + c3 * r3);
-    }
-
+    *xacc += c1 * r1 + c2 * (Qr1 + c3 * r1);
+    *yacc += c1 * r2 + c2 * (Qr2 + c3 * r2);
+    *zacc += c1 * r3 + c2 * (Qr3 + c3 * r3);
 }
 
 //template <class I, class T>
