@@ -91,9 +91,14 @@ TEST(GravityKernel, M2P)
                       &accDirect[0], &accDirect[1], &accDirect[2]);
 
     std::cout << std::fixed;
+    std::cout.precision(8);
     std::cout << "direct: " << accDirect[0] << " " << accDirect[1] << " " << accDirect[2] << std::endl;
 
     multipole2particle(target[0], target[1], target[2], multipole, eps2, &accApprox[0], &accApprox[1], &accApprox[2]);
 
     std::cout << "approx: " << accApprox[0] << " " << accApprox[1] << " " << accApprox[2] << std::endl;
+
+    EXPECT_DOUBLE_EQ(accApprox[0], 0.74353865168750355);
+    EXPECT_DOUBLE_EQ(accApprox[1], 9.1291665752567133e-05);
+    EXPECT_DOUBLE_EQ(accApprox[2], 0.0095245840058577);
 }

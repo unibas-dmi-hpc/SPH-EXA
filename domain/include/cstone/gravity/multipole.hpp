@@ -44,27 +44,16 @@ namespace cstone
 template <class T>
 struct GravityMultipole
 {
-    //! @brief geometric center
-    T xce = 0.0 , yce = 0.0, zce = 0.0;
-
-    // monopole
-
     //! @brief total mass
     T mass = 0.0;
+
     //! @brief center of mass
     T xcm = 0.0, ycm = 0.0, zcm = 0.0;
 
-    // quadrupole
-
-    //! @brief quadrupole moments w.r.t to center of mass
+    //! @brief quadrupole moments
     T qxx = 0.0, qxy = 0.0, qxz = 0.0;
     T qyy = 0.0, qyz = 0.0;
     T qzz = 0.0;
-
-    //! @brief quadrupole moments w.r.t to geometric center
-    T qxxa = 0.0, qxya = 0.0, qxza = 0.0;
-    T qyya = 0.0, qyza = 0.0;
-    T qzza = 0.0;
 };
 
 /*! @brief Compute the monopole and quadruple moments from particle coordinates
@@ -82,10 +71,6 @@ GravityMultipole<T> particle2Multipole(const T* x, const T* y, const T* z, const
 {
     GravityMultipole<T> gv;
 
-    gv.xce = xce;
-    gv.yce = yce;
-    gv.zce = zce;
-
     for (LocalParticleIndex i = 0; i < numParticles; ++i)
     {
         T xx = x[i];
@@ -100,50 +85,62 @@ GravityMultipole<T> particle2Multipole(const T* x, const T* y, const T* z, const
 
         gv.mass += m_i;
 
-        T rx = xx - gv.xce;
-        T ry = yy - gv.yce;
-        T rz = zz - gv.zce;
+        T rx = xx - xce;
+        T ry = yy - yce;
+        T rz = zz - zce;
 
-        gv.qxxa += rx * rx * m_i;
-        gv.qxya += rx * ry * m_i;
-        gv.qxza += rx * rz * m_i;
-        gv.qyya += ry * ry * m_i;
-        gv.qyza += ry * rz * m_i;
-        gv.qzza += rz * rz * m_i;
+        gv.qxx += rx * rx * m_i;
+        gv.qxy += rx * ry * m_i;
+        gv.qxz += rx * rz * m_i;
+        gv.qyy += ry * ry * m_i;
+        gv.qyz += ry * rz * m_i;
+        gv.qzz += rz * rz * m_i;
     }
 
     gv.xcm /= gv.mass;
     gv.ycm /= gv.mass;
     gv.zcm /= gv.mass;
 
-    T rx = gv.xce - gv.xcm;
-    T ry = gv.yce - gv.ycm;
-    T rz = gv.zce - gv.zcm;
-    gv.qxx = gv.qxxa - rx * rx * gv.mass;
-    gv.qxy = gv.qxya - rx * ry * gv.mass;
-    gv.qxz = gv.qxza - rx * rz * gv.mass;
-    gv.qyy = gv.qyya - ry * ry * gv.mass;
-    gv.qyz = gv.qyza - ry * rz * gv.mass;
-    gv.qzz = gv.qzza - rz * rz * gv.mass;
+    T rx = xce - gv.xcm;
+    T ry = yce - gv.ycm;
+    T rz = zce - gv.zcm;
+
+    // move expansion center to center of mass
+    gv.qxx = gv.qxx - rx * rx * gv.mass;
+    gv.qxy = gv.qxy - rx * ry * gv.mass;
+    gv.qxz = gv.qxz - rx * rz * gv.mass;
+    gv.qyy = gv.qyy - ry * ry * gv.mass;
+    gv.qyz = gv.qyz - ry * rz * gv.mass;
+    gv.qzz = gv.qzz - rz * rz * gv.mass;
+
+    T traceQ = gv.qxx + gv.qyy + gv.qzz;
+
+    // remove trace
+    gv.qxx = 3 * gv.qxx - traceQ;
+    gv.qyy = 3 * gv.qyy - traceQ;
+    gv.qzz = 3 * gv.qzz - traceQ;
+    gv.qxy *= 3;
+    gv.qxz *= 3;
+    gv.qyz *= 3;
 
     return gv;
 }
 
 /*! @brief direct gravity calculation with particle-particle interactions
  *
- * @tparam       T             float or double
- * @param[in]    xt            target particle x coordinate
- * @param[in]    yt            target particle y coordinate
- * @param[in]    zt            target particle z coordinate
- * @param[in]    xs            source particle x coordinates
- * @param[in]    ys            source particle y coordinates
- * @param[in]    zs            source particle z coordinates
+ * @tparam       T           float or double
+ * @param[in]    xt          target particle x coordinate
+ * @param[in]    yt          target particle y coordinate
+ * @param[in]    zt          target particle z coordinate
+ * @param[in]    xs          source particle x coordinates
+ * @param[in]    ys          source particle y coordinates
+ * @param[in]    zs          source particle z coordinates
  * @param[in]    m
- * @param[in]    numSources    number of source particles
- * @param[in]    eps2          square of softening parameter epsilon
- * @param[inout] xacc          location to add x-acceleration to
- * @param[inout] yacc          location to add y-acceleration to
- * @param[inout] zacc          location to add z-acceleration to
+ * @param[in]    numSources  number of source particles
+ * @param[in]    eps2        square of softening parameter epsilon
+ * @param[inout] ax          location to add x-acceleration to
+ * @param[inout] ay          location to add y-acceleration to
+ * @param[inout] az          location to add z-acceleration to
  *
  * Computes direct particle-particle gravitational interaction according to
  *
@@ -153,7 +150,7 @@ GravityMultipole<T> particle2Multipole(const T* x, const T* y, const T* z, const
  */
 template<class T>
 void particle2particle(T xt, T yt, T zt, const T* xs, const T* ys, const T* zs, const T* m,
-                       LocalParticleIndex numSources, T eps2, T* xacc, T* yacc, T* zacc)
+                       LocalParticleIndex numSources, T eps2, T* ax, T* ay, T* az)
 {
     for (LocalParticleIndex j = 0; j < numSources; ++j)
     {
@@ -172,9 +169,9 @@ void particle2particle(T xt, T yt, T zt, const T* xs, const T* ys, const T* zs, 
         // prefactor is mj / (r^2 + eps^2)^(3/2)
         T prefactor = m[j] * invDenom * invDenom2;
 
-        *xacc += prefactor * dx;
-        *yacc += prefactor * dy;
-        *zacc += prefactor * dz;
+        *ax += prefactor * dx;
+        *ay += prefactor * dy;
+        *az += prefactor * dz;
     }
 }
 
@@ -186,9 +183,9 @@ void particle2particle(T xt, T yt, T zt, const T* xs, const T* ys, const T* zs, 
  * @param[in]     zt         target particle z coordinate
  * @param[in]     multipole  multipole source
  * @param[in]     eps2       square of softening parameter epsilon
- * @param[inout]  xacc       location to add x-acceleration to
- * @param[inout]  yacc       location to add y-acceleration to
- * @param[inout]  zacc       location to add z-acceleration to
+ * @param[inout]  ax         location to add x-acceleration to
+ * @param[inout]  ay         location to add y-acceleration to
+ * @param[inout]  az         location to add z-acceleration to
  *
  * Note: contribution is added to output
  *
@@ -198,7 +195,7 @@ void particle2particle(T xt, T yt, T zt, const T* xs, const T* ys, const T* zs, 
  *  quadrupole: Q*vec(r) / r^5 - 5/2 * vec(r)*Q*vec(r) * vec(r) / r^7
  */
 template<class T>
-void multipole2particle(T xt, T yt, T zt, const GravityMultipole<T>& multipole, T eps2, T* xacc, T* yacc, T* zacc)
+void multipole2particle(T xt, T yt, T zt, const GravityMultipole<T>& multipole, T eps2, T* ax, T* ay, T* az)
 {
     T r1 = xt - multipole.xcm;
     T r2 = yt - multipole.ycm;
@@ -209,21 +206,19 @@ void multipole2particle(T xt, T yt, T zt, const GravityMultipole<T>& multipole, 
     T r_minus2 = r_minus1 * r_minus1;
     T r_minus5 = r_minus2 * r_minus2 * r_minus1;
 
-    T trace = multipole.qxx + multipole.qyy + multipole.qzz;
-    T Qr1 = r1 * (3*multipole.qxx - trace) + r2 * (3*multipole.qxy)         + r3 * (3*multipole.qxz);
-    T Qr2 = r1 * (3*multipole.qxy)         + r2 * (3*multipole.qyy - trace) + r3 * (3*multipole.qyz);
-    T Qr3 = r1 * (3*multipole.qxz)         + r2 * (3*multipole.qyz)         + r3 * (3*multipole.qzz - trace);
+    T Qr1 = r1 * multipole.qxx + r2 * multipole.qxy + r3 * multipole.qxz;
+    T Qr2 = r1 * multipole.qxy + r2 * multipole.qyy + r3 * multipole.qyz;
+    T Qr3 = r1 * multipole.qxz + r2 * multipole.qyz + r3 * multipole.qzz;
 
     T rQr = r1 * Qr1 + r2 * Qr2 + r3 * Qr3;
-
-    //                  rQr Quad-term           mono-term
+    //                  rQr quad-term           mono-term
     //                      |                     |
     T rQrAndMonopole = (-2.5 * rQr * r_minus5 - multipole.mass * r_minus1) * r_minus2;
 
     //       Qr Quad-term
-    *xacc += r_minus5 * Qr1 + rQrAndMonopole * r1;
-    *yacc += r_minus5 * Qr2 + rQrAndMonopole * r2;
-    *zacc += r_minus5 * Qr3 + rQrAndMonopole * r3;
+    *ax += r_minus5 * Qr1 + rQrAndMonopole * r1;
+    *ay += r_minus5 * Qr2 + rQrAndMonopole * r2;
+    *az += r_minus5 * Qr3 + rQrAndMonopole * r3;
 }
 
 //template <class I, class T>
