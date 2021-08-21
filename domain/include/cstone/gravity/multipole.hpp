@@ -27,11 +27,9 @@
  * @brief implements elementary gravity data structures for octree nodes
  *
  * @author Sebastian Keller        <sebastian.f.keller@gmail.com>
- * @author Mohamed Ayoub Neggaz
  *
  * See for example Hernquist 1987, Performance Characteristics of Tree Codes,
  * https://ui.adsabs.harvard.edu/abs/1987ApJS...64..715H
- *
  */
 
 #pragma once
@@ -193,12 +191,15 @@ void particle2particle(T xt, T yt, T zt, const T* xs, const T* ys, const T* zs, 
  * @param[inout]  zacc       location to add z-acceleration to
  *
  * Note: contribution is added to output
+ *
+ * Direct implementation of the formulae in Hernquist, 1987 (complete reference in file docstring):
+ *
+ *  monopole:   -M/r^3 * vec(r)
+ *  quadrupole: Q*vec(r) / r^5 - 5/2 * vec(r)*Q*vec(r) * vec(r) / r^7
  */
 template<class T>
 void multipole2particle(T xt, T yt, T zt, const GravityMultipole<T>& multipole, T eps2, T* xacc, T* yacc, T* zacc)
 {
-    // monopole: -M/r^3 * vec(r)
-
     T r1 = xt - multipole.xcm;
     T r2 = yt - multipole.ycm;
     T r3 = zt - multipole.zcm;
@@ -206,31 +207,23 @@ void multipole2particle(T xt, T yt, T zt, const GravityMultipole<T>& multipole, 
     T r_2      = r1*r1 + r2*r2 + r3*r3 + eps2;
     T r_minus1 = 1.0 / std::sqrt(r_2);
     T r_minus2 = r_minus1 * r_minus1;
-
-    T Mr_minus3 = multipole.mass * r_minus1 * r_minus2;
-
-    *xacc -= Mr_minus3 * r1;
-    *yacc -= Mr_minus3 * r2;
-    *zacc -= Mr_minus3 * r3;
-
-    // quadrupole: Q*vec(r)/r^5 * vec(r) - 5/2 * vec(r)*Q*vec(r) * vec(r) / r^7
-
     T r_minus5 = r_minus2 * r_minus2 * r_minus1;
-    T r_minus7 = r_minus5 * r_minus2;
 
-    T Qr1 = r1 * multipole.qxx + r2 * multipole.qxy + r3 * multipole.qxz;
-    T Qr2 = r1 * multipole.qxy + r2 * multipole.qyy + r3 * multipole.qyz;
-    T Qr3 = r1 * multipole.qxz + r2 * multipole.qyz + r3 * multipole.qzz;
+    T trace = multipole.qxx + multipole.qyy + multipole.qzz;
+    T Qr1 = r1 * (3*multipole.qxx - trace) + r2 * (3*multipole.qxy)         + r3 * (3*multipole.qxz);
+    T Qr2 = r1 * (3*multipole.qxy)         + r2 * (3*multipole.qyy - trace) + r3 * (3*multipole.qyz);
+    T Qr3 = r1 * (3*multipole.qxz)         + r2 * (3*multipole.qyz)         + r3 * (3*multipole.qzz - trace);
 
     T rQr = r1 * Qr1 + r2 * Qr2 + r3 * Qr3;
 
-    T c1 = -7.5 * r_minus7 * rQr;
-    T c2 = 3.0 * r_minus5;
-    T c3 = 0.5 * (multipole.qxx + multipole.qyy + multipole.qzz);
+    //                  rQr Quad-term           mono-term
+    //                      |                     |
+    T rQrAndMonopole = (-2.5 * rQr * r_minus5 - multipole.mass * r_minus1) * r_minus2;
 
-    *xacc += c1 * r1 + c2 * (Qr1 + c3 * r1);
-    *yacc += c1 * r2 + c2 * (Qr2 + c3 * r2);
-    *zacc += c1 * r3 + c2 * (Qr3 + c3 * r3);
+    //       Qr Quad-term
+    *xacc += r_minus5 * Qr1 + rQrAndMonopole * r1;
+    *yacc += r_minus5 * Qr2 + rQrAndMonopole * r2;
+    *zacc += r_minus5 * Qr3 + rQrAndMonopole * r3;
 }
 
 //template <class I, class T>
