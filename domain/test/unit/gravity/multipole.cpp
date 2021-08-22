@@ -63,7 +63,11 @@ TEST(GravityKernel, P2P)
 }
 
 
-//! @brief Tests the gravity interaction of a multipole with a particle
+/*! @brief Tests the gravity interaction of a multipole with a target particle
+ *
+ * The gravity on the target particle is first evaluated with the direct P2P sum as a reference.
+ * This is compared to the gravity on the target particle that arises from the M2P operation.
+ */
 TEST(GravityKernel, M2P)
 {
     using T = double;
@@ -83,22 +87,75 @@ TEST(GravityKernel, M2P)
 
     GravityMultipole<T> multipole = particle2Multipole(x, y, z, masses.data(), numParticles);
 
+    // target particle coordinates
     std::array<T, 3> target    = {-8, 0, 0};
-    std::array<T, 3> accDirect = {0, 0, 0};
-    std::array<T, 3> accApprox = {0, 0, 0};
 
+    // reference direct gravity on target
+    std::array<T, 3> accDirect = {0, 0, 0};
     particle2particle(target[0], target[1], target[2], x, y, z, masses.data(), numParticles, eps2,
                       &accDirect[0], &accDirect[1], &accDirect[2]);
 
-    std::cout << std::fixed;
-    std::cout.precision(8);
-    std::cout << "direct: " << accDirect[0] << " " << accDirect[1] << " " << accDirect[2] << std::endl;
-
+    // approximate gravity with multipole interaction
+    std::array<T, 3> accApprox = {0, 0, 0};
     multipole2particle(target[0], target[1], target[2], multipole, eps2, &accApprox[0], &accApprox[1], &accApprox[2]);
 
-    std::cout << "approx: " << accApprox[0] << " " << accApprox[1] << " " << accApprox[2] << std::endl;
+    //std::cout << std::fixed;
+    //std::cout.precision(8);
+    //std::cout << "direct: " << accDirect[0] << " " << accDirect[1] << " " << accDirect[2] << std::endl;
+    //std::cout << "approx: " << accApprox[0] << " " << accApprox[1] << " " << accApprox[2] << std::endl;
+
+    EXPECT_TRUE(std::abs(accApprox[0] - accDirect[0]) < 1e-3);
+    EXPECT_TRUE(std::abs(accApprox[1] - accDirect[1]) < 1e-3);
+    EXPECT_TRUE(std::abs(accApprox[2] - accDirect[2]) < 1e-3);
 
     EXPECT_DOUBLE_EQ(accApprox[0], 0.74353865168750355);
     EXPECT_DOUBLE_EQ(accApprox[1], 9.1291665752567323e-05);
     EXPECT_DOUBLE_EQ(accApprox[2], 0.009524584005857711);
+}
+
+/*! @brief tests aggregation of multipoles into a composite multipole
+ *
+ * The reference multipole is directly constructed from all particles,
+ * while the subcell multipoles are constructed from 1/8th of the particles each.
+ * The subcells are then aggregated with the M2M operation and compared to the reference.
+ */
+TEST(GravityKernel, M2M)
+{
+    using T = double;
+
+    Box<T> box(-1, 1);
+    LocalParticleIndex numParticles = 160;
+
+    RandomCoordinates<T, SfcKind<unsigned>> coordinates(numParticles, box);
+
+    const T* x = coordinates.x().data();
+    const T* y = coordinates.y().data();
+    const T* z = coordinates.z().data();
+
+    std::vector<T> masses(numParticles);
+    std::generate(begin(masses), end(masses), drand48);
+
+    // reference directly constructed from particles
+    GravityMultipole<T> reference = particle2Multipole(x, y, z, masses.data(), numParticles);
+
+    LocalParticleIndex eighth = numParticles / 8;
+    GravityMultipole<T> sc[8];
+    for (int i = 0; i < 8; ++i)
+    {
+        sc[i] = particle2Multipole(x + i*eighth, y + i*eighth, z + i*eighth, masses.data() + i*eighth, eighth);
+    }
+
+    // aggregate subcell multipoles
+    GravityMultipole<T> composite = multipole2multipole(sc[0], sc[1], sc[2], sc[3], sc[4], sc[5], sc[6], sc[7]);
+
+    EXPECT_TRUE(std::abs(reference.mass - composite.mass) < 1e-10);
+    EXPECT_TRUE(std::abs(reference.xcm  - composite.xcm ) < 1e-10);
+    EXPECT_TRUE(std::abs(reference.ycm  - composite.ycm ) < 1e-10);
+    EXPECT_TRUE(std::abs(reference.zcm  - composite.zcm ) < 1e-10);
+    EXPECT_TRUE(std::abs(reference.qxx  - composite.qxx ) < 1e-10);
+    EXPECT_TRUE(std::abs(reference.qxy  - composite.qxy ) < 1e-10);
+    EXPECT_TRUE(std::abs(reference.qxz  - composite.qxz ) < 1e-10);
+    EXPECT_TRUE(std::abs(reference.qyy  - composite.qyy ) < 1e-10);
+    EXPECT_TRUE(std::abs(reference.qyz  - composite.qyz ) < 1e-10);
+    EXPECT_TRUE(std::abs(reference.qzz  - composite.qzz ) < 1e-10);
 }
