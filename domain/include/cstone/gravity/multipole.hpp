@@ -37,6 +37,7 @@
 #include <cmath>
 
 #include "cstone/tree/definitions.h"
+#include "cstone/util/tuple.hpp"
 
 namespace cstone
 {
@@ -152,7 +153,11 @@ GravityMultipole<T> particle2Multipole(const T* x, const T* y, const T* z, const
  *
  *      a_t = - sum_{j} m_j / (r_tj^2 + eps2)^(3/2)) * (r_t - r_j)
  *
- * Note: contribution is added to output
+ * Notes:
+ *  - Contribution is added to output
+ *  - Source particles MUST NOT contain the target. If the source is a cell that contains the target,
+ *    the target must be located and this function called twice, with all particles before target and
+ *    all particles that follow it.
  */
 template<class T>
 void particle2particle(T tx, T ty, T tz, const T* sx, const T* sy, const T* sz, const T* m,
@@ -222,83 +227,80 @@ void multipole2particle(T tx, T ty, T tz, const GravityMultipole<T>& multipole, 
     *az += r_minus5 * Qrz + rQrAndMonopole * rz;
 }
 
-//template <class I, class T>
-//void multipole2multipole(const std::vector<I> &tree, const GravityOctree<I, T> &octree, cstone::TreeNodeIndex i,
-//                         GravityTree<T> &gravityLeafData, GravityTree<T> &gravityInternalData, const std::vector<T> &x,
-//                         const std::vector<T> &y, const std::vector<T> &z, const std::vector<T> &m, const std::vector<I> &codes,
-//                         const cstone::Box<T> &box)
-//{
-//    // cstone::OctreeNode<I> node = localTree.internalTree()[i];
-//
-//    GravityData<T> gv;
-//
-//    pair<T> xrange = octree.x(i, box);
-//    pair<T> yrange = octree.y(i, box);
-//    pair<T> zrange = octree.z(i, box);
-//    gv.xce = (xrange[1] + xrange[0]) / 2.0;
-//    gv.yce = (yrange[1] + yrange[0]) / 2.0;
-//    gv.zce = (zrange[1] + zrange[0]) / 2.0;
-//    gv.dx = abs(xrange[1] - xrange[0]);
-//
-//    for (int j = 0; j < 8; ++j)
-//    {
-//        // cstone::TreeNodeIndex child = node.child[j];
-//        cstone::TreeNodeIndex child = octree.childDirect(i, j);
-//        GravityData<T> current;
-//        // if (node.childType[j] == cstone::OctreeNode<I>::ChildType::internal) { current = gravityInternalData[child]; }
-//        if (!octree.isLeafChild(i, j)) { current = gravityInternalData[child]; }
-//        else
-//        {
-//            current = gravityLeafData[child];
-//        }
-//        gv.mTot += current.mTot;
-//        gv.xcm += current.xcm * current.mTot;
-//        gv.ycm += current.ycm * current.mTot;
-//        gv.zcm += current.zcm * current.mTot;
-//    }
-//    gv.xcm /= gv.mTot;
-//    gv.ycm /= gv.mTot;
-//    gv.zcm /= gv.mTot;
-//
-//    size_t n = codes.size();
-//
-//    for (int j = 0; j < 8; ++j)
-//    {
-//        // cstone::TreeNodeIndex child = node.child[j];
-//        cstone::TreeNodeIndex child = octree.childDirect(i, j);
-//        GravityData<T> partialGravity;
-//        // if (node.childType[j] == cstone::OctreeNode<I>::ChildType::internal) { partialGravity = gravityInternalData[child]; }
-//        if (!octree.isLeafChild(i, j)) { partialGravity = gravityInternalData[child]; }
-//        else
-//        {
-//            partialGravity = gravityLeafData[child];
-//        }
-//
-//        T rx = partialGravity.xcm - gv.xcm;
-//        T ry = partialGravity.ycm - gv.ycm;
-//        T rz = partialGravity.zcm - gv.zcm;
-//
-//        gv.qxxa += partialGravity.qxx + rx * rx * partialGravity.mTot;
-//        gv.qxya += partialGravity.qxy + rx * ry * partialGravity.mTot;
-//        gv.qxza += partialGravity.qxz + rx * rz * partialGravity.mTot;
-//        gv.qyya += partialGravity.qyy + ry * ry * partialGravity.mTot;
-//        gv.qyza += partialGravity.qyz + ry * rz * partialGravity.mTot;
-//        gv.qzza += partialGravity.qzz + rz * rz * partialGravity.mTot;
-//
-//        gv.pcount += partialGravity.pcount;
-//    }
-//
-//    if (gv.pcount == 1) gv.dx = 0;
-//
-//    gv.qxx = gv.qxxa;
-//    gv.qxy = gv.qxya;
-//    gv.qxz = gv.qxza;
-//    gv.qyy = gv.qyya;
-//    gv.qyz = gv.qyza;
-//    gv.qzz = gv.qzza;
-//
-//    gv.trq = gv.qxx + gv.qyy + gv.qzz;
-//    gravityInternalData[i] = gv;
-//}
+/*! @brief add a multipole contribution to the composite multipole
+ *
+ * @tparam        T           float or double
+ * @param[inout]  composite   the composite multipole
+ * @param[in]     addend      the multipole to add
+ *
+ * Implements formula (2.5) from Hernquist 1987 (parallel axis theorem)
+ */
+template<class T>
+void addQuadrupole(GravityMultipole<T>* composite, const GravityMultipole<T>& addend)
+{
+    // displacement vector from subcell c-o-m to composite cell c-o-m
+    T rx = addend.xcm - composite->xcm;
+    T ry = addend.ycm - composite->ycm;
+    T rz = addend.zcm - composite->zcm;
+
+    T rx_2 = rx * rx;
+    T ry_2 = ry * ry;
+    T rz_2 = rz * rz;
+    T r_2  = (rx_2 + ry_2 + rz_2) * (1.0/3.0);
+
+    T ml = addend.mass * 3;
+
+    composite->qxx += addend.qxx + ml * (rx_2 - r_2);
+    composite->qxy += addend.qxy + ml * rx * ry;
+    composite->qxz += addend.qxz + ml * rx * rz;
+    composite->qyy += addend.qyy + ml * (ry_2 - r_2);
+    composite->qyz += addend.qyz + ml * ry * rz;
+    composite->qzz += addend.qzz + ml * (rz_2 - r_2);
+}
+
+/*! @brief aggregate multipoles into a composite multipole
+ *
+ * @tparam T     float or double
+ * @param  a..h  subcell multipoles
+ * @return       the composite multipole
+ *
+ * Works for any number of subcell multipoles, but we only need to combine 8 at a time
+ */
+template<class T>
+GravityMultipole<T> multipole2multipole(const GravityMultipole<T>& a,
+                                        const GravityMultipole<T>& b,
+                                        const GravityMultipole<T>& c,
+                                        const GravityMultipole<T>& d,
+                                        const GravityMultipole<T>& e,
+                                        const GravityMultipole<T>& f,
+                                        const GravityMultipole<T>& g,
+                                        const GravityMultipole<T>& h)
+{
+    GravityMultipole<T> gv;
+
+    gv.mass = a.mass + b.mass + c.mass + d.mass + e.mass + f.mass + g.mass + h.mass;
+
+    gv.xcm  = a.xcm * a.mass + b.xcm * b.mass + c.xcm * c.mass + d.xcm * d.mass;
+    gv.ycm  = a.ycm * a.mass + b.ycm * b.mass + c.ycm * c.mass + d.ycm * d.mass;
+    gv.zcm  = a.zcm * a.mass + b.zcm * b.mass + c.zcm * c.mass + d.zcm * d.mass;
+    gv.xcm += e.xcm * e.mass + f.xcm * f.mass + g.xcm * g.mass + h.xcm * h.mass;
+    gv.ycm += e.ycm * e.mass + f.ycm * f.mass + g.ycm * g.mass + h.ycm * h.mass;
+    gv.zcm += e.zcm * e.mass + f.zcm * f.mass + g.zcm * g.mass + h.zcm * h.mass;
+
+    gv.xcm /= gv.mass;
+    gv.ycm /= gv.mass;
+    gv.zcm /= gv.mass;
+
+    addQuadrupole(&gv, a);
+    addQuadrupole(&gv, b);
+    addQuadrupole(&gv, c);
+    addQuadrupole(&gv, d);
+    addQuadrupole(&gv, e);
+    addQuadrupole(&gv, f);
+    addQuadrupole(&gv, g);
+    addQuadrupole(&gv, h);
+
+    return gv;
+}
 
 } // namespace cstone
