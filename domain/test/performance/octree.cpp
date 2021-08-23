@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Test morton code implementation
+ * @brief Octree performance test
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */

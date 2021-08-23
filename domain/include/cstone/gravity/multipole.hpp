@@ -59,32 +59,35 @@ struct GravityMultipole
 
 /*! @brief Compute the monopole and quadruple moments from particle coordinates
  *
- * @tparam T              float or double
+ * @tparam T1             float or double
+ * @tparam T2             float or double
+ * @tparam T3             float or double
  * @param  x              x coordinate array
  * @param  y              y coordinate array
  * @param  z              z coordinate array
  * @param  m              Vector of masses.
  * @param  numParticles   number of particles to read from coordinate arrays
  */
-template<class T>
-GravityMultipole<T> particle2Multipole(const T* x, const T* y, const T* z, const T* m, LocalParticleIndex numParticles)
+template<class T1, class T2, class T3>
+GravityMultipole<T1>
+particle2Multipole(const T2* x, const T2* y, const T2* z, const T3* m, LocalParticleIndex numParticles)
 {
-    GravityMultipole<T> gv;
+    GravityMultipole<T1> gv;
 
     if (numParticles == 0) { return gv; }
 
     // choose position of the first source particle as the expansion center
-    T xce = x[0];
-    T yce = y[0];
-    T zce = z[0];
+    T1 xce = x[0];
+    T1 yce = y[0];
+    T1 zce = z[0];
 
     for (LocalParticleIndex i = 0; i < numParticles; ++i)
     {
-        T xx = x[i];
-        T yy = y[i];
-        T zz = z[i];
+        T1 xx = x[i];
+        T1 yy = y[i];
+        T1 zz = z[i];
 
-        T m_i = m[i];
+        T1 m_i = m[i];
 
         gv.xcm += xx * m_i;
         gv.ycm += yy * m_i;
@@ -92,9 +95,9 @@ GravityMultipole<T> particle2Multipole(const T* x, const T* y, const T* z, const
 
         gv.mass += m_i;
 
-        T rx = xx - xce;
-        T ry = yy - yce;
-        T rz = zz - zce;
+        T1 rx = xx - xce;
+        T1 ry = yy - yce;
+        T1 rz = zz - zce;
 
         gv.qxx += rx * rx * m_i;
         gv.qxy += rx * ry * m_i;
@@ -108,9 +111,9 @@ GravityMultipole<T> particle2Multipole(const T* x, const T* y, const T* z, const
     gv.ycm /= gv.mass;
     gv.zcm /= gv.mass;
 
-    T rx = xce - gv.xcm;
-    T ry = yce - gv.ycm;
-    T rz = zce - gv.zcm;
+    T1 rx = xce - gv.xcm;
+    T1 ry = yce - gv.ycm;
+    T1 rz = zce - gv.zcm;
 
     // move expansion center to center of mass
     gv.qxx = gv.qxx - rx * rx * gv.mass;
@@ -120,7 +123,7 @@ GravityMultipole<T> particle2Multipole(const T* x, const T* y, const T* z, const
     gv.qyz = gv.qyz - ry * rz * gv.mass;
     gv.qzz = gv.qzz - rz * rz * gv.mass;
 
-    T traceQ = gv.qxx + gv.qyy + gv.qzz;
+    T1 traceQ = gv.qxx + gv.qyy + gv.qzz;
 
     // remove trace
     gv.qxx = 3 * gv.qxx - traceQ;
@@ -135,7 +138,8 @@ GravityMultipole<T> particle2Multipole(const T* x, const T* y, const T* z, const
 
 /*! @brief direct gravity calculation with particle-particle interactions
  *
- * @tparam       T           float or double
+ * @tparam       T1          float or double
+ * @tparam       T2          float or double
  * @param[in]    tx          target particle x coordinate
  * @param[in]    ty          target particle y coordinate
  * @param[in]    tz          target particle z coordinate
@@ -159,21 +163,21 @@ GravityMultipole<T> particle2Multipole(const T* x, const T* y, const T* z, const
  *    the target must be located and this function called twice, with all particles before target and
  *    all particles that follow it.
  */
-template<class T>
-void particle2particle(T tx, T ty, T tz, const T* sx, const T* sy, const T* sz, const T* m,
-                       LocalParticleIndex numSources, T eps2, T* ax, T* ay, T* az)
+template<class T1, class T2>
+void particle2particle(T1 tx, T1 ty, T1 tz, const T1* sx, const T1* sy, const T1* sz, const T2* m,
+                       LocalParticleIndex numSources, T1 eps2, T1* ax, T1* ay, T1* az)
 {
     for (LocalParticleIndex j = 0; j < numSources; ++j)
     {
-        T rx = sx[j] - tx;
-        T ry = sy[j] - ty;
-        T rz = sz[j] - tz;
+        T1 rx = sx[j] - tx;
+        T1 ry = sy[j] - ty;
+        T1 rz = sz[j] - tz;
 
-        T r_2 = rx * rx + ry * ry + rz * rz + eps2;
-        T r_minus1 = 1.0 / std::sqrt(r_2);
-        T r_minus2 = r_minus1 * r_minus1;
+        T1 r_2 = rx * rx + ry * ry + rz * rz + eps2;
+        T1 r_minus1 = 1.0 / std::sqrt(r_2);
+        T1 r_minus2 = r_minus1 * r_minus1;
 
-        T Mr_minus3 = m[j] * r_minus1 * r_minus2;
+        T1 Mr_minus3 = m[j] * r_minus1 * r_minus2;
 
         *ax += Mr_minus3 * rx;
         *ay += Mr_minus3 * ry;

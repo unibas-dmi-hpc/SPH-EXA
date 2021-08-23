@@ -5,6 +5,7 @@ set(UNIT_TESTS
         findneighbors.cpp
         focus/octree_focus.cpp
         gravity/multipole.cpp
+        gravity/upsweep.cpp
         primitives/clz.cpp
         primitives/gather.cpp
         sfc/box.cpp
