@@ -187,7 +187,8 @@ void particle2particle(T1 tx, T1 ty, T1 tz, const T1* sx, const T1* sy, const T1
 
 /*! @brief apply gravitational interaction with a multipole to a particle
  *
- * @tparam        T          float or double
+ * @tparam        T1         float or double
+ * @tparam        T2         float or double
  * @param[in]     tx         target particle x coordinate
  * @param[in]     ty         target particle y coordinate
  * @param[in]     tz         target particle z coordinate
@@ -204,26 +205,26 @@ void particle2particle(T1 tx, T1 ty, T1 tz, const T1* sx, const T1* sy, const T1
  * monopole:   -M/r^3 * vec(r)
  * quadrupole: Q*vec(r) / r^5 - 5/2 * vec(r)*Q*vec(r) * vec(r) / r^7
  */
-template<class T>
-void multipole2particle(T tx, T ty, T tz, const GravityMultipole<T>& multipole, T eps2, T* ax, T* ay, T* az)
+template<class T1, class T2>
+void multipole2particle(T1 tx, T1 ty, T1 tz, const GravityMultipole<T2>& multipole, T1 eps2, T1* ax, T1* ay, T1* az)
 {
-    T rx = tx - multipole.xcm;
-    T ry = ty - multipole.ycm;
-    T rz = tz - multipole.zcm;
+    T2 rx = tx - multipole.xcm;
+    T2 ry = ty - multipole.ycm;
+    T2 rz = tz - multipole.zcm;
 
-    T r_2      = rx * rx + ry * ry + rz * rz + eps2;
-    T r_minus1 = 1.0 / std::sqrt(r_2);
-    T r_minus2 = r_minus1 * r_minus1;
-    T r_minus5 = r_minus2 * r_minus2 * r_minus1;
+    T2 r_2      = rx * rx + ry * ry + rz * rz + eps2;
+    T2 r_minus1 = 1.0 / std::sqrt(r_2);
+    T2 r_minus2 = r_minus1 * r_minus1;
+    T2 r_minus5 = r_minus2 * r_minus2 * r_minus1;
 
-    T Qrx = rx * multipole.qxx + ry * multipole.qxy + rz * multipole.qxz;
-    T Qry = rx * multipole.qxy + ry * multipole.qyy + rz * multipole.qyz;
-    T Qrz = rx * multipole.qxz + ry * multipole.qyz + rz * multipole.qzz;
+    T2 Qrx = rx * multipole.qxx + ry * multipole.qxy + rz * multipole.qxz;
+    T2 Qry = rx * multipole.qxy + ry * multipole.qyy + rz * multipole.qyz;
+    T2 Qrz = rx * multipole.qxz + ry * multipole.qyz + rz * multipole.qzz;
 
-    T rQr = rx * Qrx + ry * Qry + rz * Qrz;
+    T2 rQr = rx * Qrx + ry * Qry + rz * Qrz;
     //                  rQr quad-term           mono-term
     //                      |                     |
-    T rQrAndMonopole = (-2.5 * rQr * r_minus5 - multipole.mass * r_minus1) * r_minus2;
+    T2 rQrAndMonopole = (-2.5 * rQr * r_minus5 - multipole.mass * r_minus1) * r_minus2;
 
     //       Qr Quad-term
     *ax += r_minus5 * Qrx + rQrAndMonopole * rx;
@@ -268,7 +269,7 @@ void addQuadrupole(GravityMultipole<T>* composite, const GravityMultipole<T>& ad
  * @param  a..h  subcell multipoles
  * @return       the composite multipole
  *
- * Works for any number of subcell multipoles, but we only need to combine 8 at a time
+ * Works for any number of subcell multipoles, but we only need to combine 8 at a time.
  */
 template<class T>
 GravityMultipole<T> multipole2multipole(const GravityMultipole<T>& a,
