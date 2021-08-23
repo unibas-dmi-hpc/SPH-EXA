@@ -31,6 +31,7 @@
 
 #include "gtest/gtest.h"
 
+#include "cstone/gravity/treewalk.hpp"
 #include "cstone/gravity/upsweep.hpp"
 #include "cstone/sfc/box.hpp"
 #include "coord_samples/random.hpp"
@@ -72,4 +73,26 @@ TEST(Gravity, upsweep)
     std::cout << multipoles[0].mass << std::endl;
     std::cout << totalMass << std::endl;
     EXPECT_TRUE(std::abs(totalMass - multipoles[0].mass) < 1e-6);
+
+
+    std::vector<T> ax(numParticles, 0);
+    std::vector<T> ay(numParticles, 0);
+    std::vector<T> az(numParticles, 0);
+
+    float theta = 0.75;
+    T eps2 = 0.05 * 0.05;
+
+    computeGravityGroup(0, octree, multipoles.data(), layout.data(), x, y, z, masses.data(), box, theta, eps2,
+                        ax.data(), ay.data(), az.data());
+
+    std::cout << ax[0] << " " << ay[0] << " " << az[0] << std::endl;
+
+    T ax_ref = 0.0;
+    T ay_ref = 0.0;
+    T az_ref = 0.0;
+
+    particle2particle(x[0], y[0], z[0], x + 1, y + 1, z + 1, masses.data() + 1, numParticles -1, eps2,
+                      &ax_ref, &ay_ref, &az_ref);
+
+    std::cout << ax_ref << " " << ay_ref << " " << az_ref << std::endl;
 }

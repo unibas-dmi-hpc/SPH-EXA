@@ -24,53 +24,108 @@
  */
 
 /*! @file
- * @brief construction of gravity data for a given octree and particle coordinates
+ * @brief Barnes-Hut tree walk to compute gravity forces on single particles
  *
- * @author Sebastian Keller        <sebastian.f.keller@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
+#include "cstone/traversal/macs.hpp"
 #include "cstone/traversal/upsweep.hpp"
 #include "cstone/gravity/multipole.hpp"
 
 namespace cstone
 {
 
-/*! @brief compute multipoles from particle data for the entire tree hierarchy
- *
- * @tparam     KeyType    32- or 64-bit unsigned integer
- * @tparam     T1         float or double
- * @tparam     T2         float or double
- * @tparam     T3         float or double
- * @param[in]  octree     full linked octree
- * @param[in]  layout     array of length @p octree.numLeafNodes()+1, layout[i] is the start offset
- *                        into the x,y,z,m arrays for the leaf node with index i. The last element
- *                        is equal to the length of the x,y,z,m arrays.
- * @param[in]  x          local particle x-coordinates
- * @param[in]  y          local particle y-coordinates
- * @param[in]  z          local particle z-coordinates
- * @param[in]  m          local particle masses
- * @param[out] multipoles output multipole moments
- */
 template<class KeyType, class T1, class T2, class T3>
-void computeMultipoles(const Octree<KeyType>& octree, gsl::span<const LocalParticleIndex> layout,
-                       const T1* x, const T1* y, const T1* z, const T2* m, GravityMultipole<T3>* multipoles)
+void computeGravityGroup(TreeNodeIndex groupIdx,
+                         const Octree<KeyType>& octree, const GravityMultipole<T1>* multipoles,
+                         const LocalParticleIndex* layout,
+                         const T2* x, const T2* y, const T2* z, const T3* m,
+                         const Box<T2>& box, float theta, T2 eps2,
+                         T2* ax, T2* ay, T2* az)
 {
-    // calculate multipoles for leaf cells
-    #pragma omp parallel schedule(static)
-    for (TreeNodeIndex i = 0; i < octree.numLeafNodes(); ++i)
+    auto treeLeaves     = octree.treeLeaves();
+    KeyType groupKey    = treeLeaves[groupIdx];
+    unsigned groupLevel = treeLevel(treeLeaves[groupIdx + 1] - groupKey);
+    IBox groupBox       = sfcIBox(sfcKey(groupKey), groupLevel);
+
+    float invThetaSq = 1.0 / (theta * theta);
+
+    auto descendOrM2P = [groupIdx, multipoles, x, y, z, layout, invThetaSq, eps2, ax, ay, az, &octree, &groupBox,
+                         &box](TreeNodeIndex idx)
     {
-        LocalParticleIndex startIndex   = layout[i];
-        LocalParticleIndex numParticles = layout[i+1] - startIndex;
+        // idx relative to root node
+        KeyType nodeStart = octree.codeStart(idx);
+        IBox sourceBox    = sfcIBox(sfcKey(nodeStart), octree.level(idx));
 
-        TreeNodeIndex fullIndex = i + octree.numInternalNodes();
-        multipoles[fullIndex] = particle2Multipole<T3>(x + startIndex, y + startIndex, z + startIndex,
-                                                       m + startIndex, numParticles);
+        bool violatesMac = !minDistanceMac<KeyType>(groupBox, sourceBox, box, invThetaSq);
+        if (!violatesMac)
+        {
+            LocalParticleIndex firstTarget = layout[groupIdx];
+            LocalParticleIndex lastTarget  = layout[groupIdx + 1];
+
+            // apply multipole to all particles in group
+            for (LocalParticleIndex t = firstTarget; t < lastTarget; ++t)
+            {
+                multipole2particle(x[t], y[t], z[t], multipoles[idx], eps2, ax + t, ay + t, az + t);
+            }
+        }
+
+        return violatesMac;
+    };
+
+    auto leafP2P = [groupIdx, x, y, z, m, layout, eps2, ax, ay, az](TreeNodeIndex idx)
+    {
+        // idx relative to first leaf
+        LocalParticleIndex firstTarget = layout[groupIdx];
+        LocalParticleIndex lastTarget  = layout[groupIdx + 1];
+
+        LocalParticleIndex firstSource = layout[idx];
+        LocalParticleIndex numSources  = layout[idx + 1] - firstSource;
+
+        if (groupIdx != idx)
+        {
+            // source node != target node
+            for (LocalParticleIndex t = firstTarget; t < lastTarget; ++t)
+            {
+                particle2particle(x[t], y[t], z[t], x + firstSource, y + firstSource, z + firstSource, m + firstSource,
+                                  numSources, eps2, ax + t, ay + t, az + t);
+            }
+        }
+        else
+        {
+            assert(firstTarget == firstSource);
+            // source node == target node -> source contains target, avoid self gravity
+            for (LocalParticleIndex t = firstTarget; t < lastTarget; ++t)
+            {
+                // 2 splits: [firstSource:t] and [t+1:lastSource]
+                particle2particle(x[t], y[t], z[t], x + firstSource, y + firstSource, z + firstSource, m + firstSource,
+                                  t - firstSource, eps2, ax + t, ay + t, az + t);
+
+                LocalParticleIndex tp1 = t + 1;
+                particle2particle(x[t], y[t], z[t], x + tp1, y + tp1, z + tp1, m + tp1,
+                                  numSources - tp1, eps2, ax + t, ay + t, az + t);
+            }
+        }
+    };
+
+    singleTraversal(octree, descendOrM2P, leafP2P);
+}
+
+template<class KeyType, class T1, class T2, class T3>
+void computeGravity(const Octree<KeyType>& octree, const GravityMultipole<T1>* multipoles,
+                    const LocalParticleIndex* layout, TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex,
+                    const T2* x, const T2* y, const T2* z, const T3* m,
+                    const Box<T2>& box, float theta, T2 eps2,
+                    T2* ax, T2* ay, T2* az)
+{
+    #pragma omp parallel for
+    for (TreeNodeIndex leafIdx = firstLeafIndex; leafIdx < lastLeafIndex; ++leafIdx)
+    {
+        computeGravityGroup(leafIdx, octree, multipoles, layout, x, y, z, m, box, theta, eps2, ax, ay, az);
     }
-
-    // calculate internal cells from leaf cells
-    upsweep(octree, multipoles, multipole2multipole<T3>);
 }
 
 } // namespace cstone
