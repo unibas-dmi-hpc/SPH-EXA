@@ -34,7 +34,7 @@
 using namespace cstone;
 
 //! @brief Tests direct particle-to-particle gravity interactions
-TEST(GravityKernel, P2P)
+TEST(Gravity, P2P)
 {
     using T = double;
 
@@ -68,7 +68,7 @@ TEST(GravityKernel, P2P)
  * The gravity on the target particle is first evaluated with the direct P2P sum as a reference.
  * This is compared to the gravity on the target particle that arises from the M2P operation.
  */
-TEST(GravityKernel, M2P)
+TEST(Gravity, M2P)
 {
     using T = double;
 
@@ -85,7 +85,7 @@ TEST(GravityKernel, M2P)
     std::vector<T> masses(numParticles);
     std::generate(begin(masses), end(masses), drand48);
 
-    GravityMultipole<T> multipole = particle2Multipole(x, y, z, masses.data(), numParticles);
+    GravityMultipole<T> multipole = particle2Multipole<T>(x, y, z, masses.data(), numParticles);
 
     // target particle coordinates
     std::array<T, 3> target    = {-8, 0, 0};
@@ -119,7 +119,7 @@ TEST(GravityKernel, M2P)
  * while the subcell multipoles are constructed from 1/8th of the particles each.
  * The subcells are then aggregated with the M2M operation and compared to the reference.
  */
-TEST(GravityKernel, M2M)
+TEST(Gravity, M2M)
 {
     using T = double;
 
@@ -136,13 +136,13 @@ TEST(GravityKernel, M2M)
     std::generate(begin(masses), end(masses), drand48);
 
     // reference directly constructed from particles
-    GravityMultipole<T> reference = particle2Multipole(x, y, z, masses.data(), numParticles);
+    GravityMultipole<T> reference = particle2Multipole<T>(x, y, z, masses.data(), numParticles);
 
     LocalParticleIndex eighth = numParticles / 8;
     GravityMultipole<T> sc[8];
     for (int i = 0; i < 8; ++i)
     {
-        sc[i] = particle2Multipole(x + i*eighth, y + i*eighth, z + i*eighth, masses.data() + i*eighth, eighth);
+        sc[i] = particle2Multipole<T>(x + i*eighth, y + i*eighth, z + i*eighth, masses.data() + i*eighth, eighth);
     }
 
     // aggregate subcell multipoles
