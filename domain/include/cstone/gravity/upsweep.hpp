@@ -58,7 +58,7 @@ void computeMultipoles(const Octree<KeyType>& octree, gsl::span<const LocalParti
                        const T1* x, const T1* y, const T1* z, const T2* m, GravityMultipole<T3>* multipoles)
 {
     // calculate multipoles for leaf cells
-    #pragma omp parallel schedule(static)
+    #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < octree.numLeafNodes(); ++i)
     {
         LocalParticleIndex startIndex   = layout[i];

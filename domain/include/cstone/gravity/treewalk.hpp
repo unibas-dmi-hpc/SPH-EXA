@@ -173,7 +173,7 @@ template<class T1, class T2>
 void directSum(const T1* x, const T1* y, const T1* z, const T2* m, LocalParticleIndex numParticles, T1 eps2,
                T1* ax, T1* ay, T1* az)
 {
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static)
     for (LocalParticleIndex t = 0; t < numParticles; ++t)
     {
         // 2 splits: [0:t] and [t+1:numParticles]
