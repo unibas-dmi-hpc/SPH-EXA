@@ -119,6 +119,31 @@ HOST_DEVICE_FUN T minDistance(T x, T y, T z, IBox b, const Box<T>& box)
     return sqrt(stl::min(dxa*dxa, dxb*dxb) + stl::min(dya*dya, dyb*dyb) + stl::min(dza*dza, dzb*dzb));
 }
 
+template<class KeyType, class T>
+HOST_DEVICE_FUN bool vectorMac(T comx, T comy, T comz, const IBox& source, const IBox& target, const Box<T>& box,
+                               float theta)
+{
+    constexpr T uL = T(1.) / maxCoord<KeyType>{};
+
+    // minimal distance from source-center-mass to target box
+    T distanceToCom = minDistance(comx, comy, comz, target, box);
+    T sourceLength  = nodeLength(source, box);
+
+    // geometric center of source
+    int halfCube = (source.xmax() - source.xmin()) / 2;
+    T xsc = (source.xmin() + halfCube) * uL * box.lx();
+    T ysc = (source.ymin() + halfCube) * uL * box.ly();
+    T zsc = (source.zmin() + halfCube) * uL * box.lz();
+
+    T dxsc = xsc - comx;
+    T dysc = ysc - comy;
+    T dzsc = zsc - comz;
+
+    T distanceCom2SourceCenter = sqrt(dxsc * dxsc + dysc * dysc + dzsc * dzsc);
+
+    return distanceToCom > sourceLength/theta + distanceCom2SourceCenter;
+}
+
 /*! @brief evaluate minimum distance MAC, non-commutative version
  *
  * @param a            target cell
@@ -131,7 +156,7 @@ HOST_DEVICE_FUN T minDistance(T x, T y, T z, IBox b, const Box<T>& box)
  * size of b is relevant.
  */
 template<class KeyType, class T>
-HOST_DEVICE_FUN bool minDistanceMac(IBox a, IBox b, const Box<T>& box, float invThetaSq)
+HOST_DEVICE_FUN bool minDistanceMac(const IBox& a, const IBox& b, const Box<T>& box, float invThetaSq)
 {
     T dsq = minDistanceSq<KeyType>(a, b, box);
     // equivalent to "d > l / theta"
@@ -141,7 +166,7 @@ HOST_DEVICE_FUN bool minDistanceMac(IBox a, IBox b, const Box<T>& box, float inv
 
 //! @brief commutative version
 template<class KeyType, class T>
-HOST_DEVICE_FUN bool minDistanceMacMutual(IBox a, IBox b, const Box<T>& box, float invThetaSq)
+HOST_DEVICE_FUN bool minDistanceMacMutual(const IBox& a, const IBox& b, const Box<T>& box, float invThetaSq)
 {
     T dsq = minDistanceSq<KeyType>(a, b, box);
     // equivalent to "d > l / theta"
