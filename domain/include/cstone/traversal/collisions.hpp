@@ -36,6 +36,25 @@
 namespace cstone
 {
 
+template<class KeyType, class F>
+void findCollisions(const Octree<KeyType>& octree,
+                    F&& endpointAction,
+                    const IBox& target,
+                    KeyType excludeStart,
+                    KeyType excludeEnd)
+{
+    auto overlaps = [excludeStart, excludeEnd, &octree, &target](TreeNodeIndex idx)
+    {
+        KeyType nodeKey = octree.codeStart(idx);
+        int level       = octree.level(idx);
+        IBox sourceBox  = sfcIBox(sfcKey(nodeKey), level);
+        return !containedIn(nodeKey, nodeKey + nodeRange<KeyType>(level), excludeStart, excludeEnd) &&
+               overlap<KeyType>(sourceBox, target);
+    };
+
+    singleTraversal(octree, overlaps, endpointAction);
+}
+
 /*! @brief mark halo nodes with flags
  *
  * @tparam KeyType               32- or 64-bit unsigned integer
@@ -71,22 +90,13 @@ void findHalos(const Octree<KeyType>& octree,
     for (TreeNodeIndex nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
     {
         RadiusType radius = interactionRadii[nodeIdx];
-        IBox haloBox      = makeHaloBox(leaves[nodeIdx], leaves[nodeIdx + 1], radius, box);
+
+        IBox haloBox = makeHaloBox<KeyType>(leaves[nodeIdx], leaves[nodeIdx + 1], radius, box);
 
         // if the halo box is fully inside the assigned SFC range, we skip collision detection
         if (containedIn(lowestCode, highestCode, haloBox)) { continue; }
 
-        auto overlaps = [lowestCode, highestCode, &octree, &haloBox](TreeNodeIndex idx)
-        {
-            KeyType nodeKey = octree.codeStart(idx);
-            int level = octree.level(idx);
-            IBox sourceBox = mortonIBox(nodeKey, level);
-            return !containedIn(nodeKey, nodeKey + nodeRange<KeyType>(level), lowestCode, highestCode)
-                   && overlap<KeyType>(sourceBox, haloBox);
-        };
-
-        // mark all colliding node indices outside [lowestCode:highestCode]
-        singleTraversal(octree, overlaps, markCollisions);
+        findCollisions(octree, markCollisions, haloBox, lowestCode, highestCode);
     }
 }
 

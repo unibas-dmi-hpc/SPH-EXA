@@ -4,9 +4,6 @@ set(UNIT_TESTS
         domain/layout.cpp
         findneighbors.cpp
         focus/octree_focus.cpp
-        halos/btreetraversal.cpp
-        halos/btreetraversal_a2a.cpp
-        halos/discovery.cpp
         primitives/clz.cpp
         primitives/gather.cpp
         sfc/box.cpp
@@ -15,6 +12,9 @@ set(UNIT_TESTS
         sfc/morton.cpp
         sfc/sfc.cpp
         traversal/boxoverlap.cpp
+        traversal/collisions.cpp
+        traversal/collisions_a2a.cpp
+        traversal/discovery.cpp
         traversal/macs.cpp
         traversal/peers.cpp
         traversal/traversal.cpp

@@ -32,8 +32,8 @@ void findNeighborsSfc(std::vector<Task>& taskList,
         int* neighbors = t.neighbors.data();
         int* neighborsCount = t.neighborsCount.data();
 
-        cstone::findNeighborsMorton(x.data(), y.data(), z.data(), h.data(), t.clist.front(), t.clist.back() + 1,
-                                    x.size(), box, particleKeys.data(), neighbors, neighborsCount, ngmax);
+        cstone::findNeighbors(x.data(), y.data(), z.data(), h.data(), t.clist.front(), t.clist.back() + 1, x.size(),
+                              box, cstone::sfcKindPointer(particleKeys.data()), neighbors, neighborsCount, ngmax);
     }
 }
 #else

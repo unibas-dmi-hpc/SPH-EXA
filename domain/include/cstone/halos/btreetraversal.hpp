@@ -78,9 +78,10 @@ template<class KeyType>
 HOST_DEVICE_FUN inline bool traverseNode(const BinaryNode<KeyType>* root, TreeNodeIndex idx,
                                          const IBox& collisionBox, pair<KeyType> excludeRange)
 {
-    return (!isLeafIndex(idx))
-    && !containedIn(root[idx].prefix, excludeRange[0], excludeRange[1])
-    && overlap(root[idx].prefix, collisionBox);
+    return (!isLeafIndex(idx)) && !containedIn(root[idx].prefix, excludeRange[0], excludeRange[1]) &&
+           overlap<KeyType>(
+               sfcIBox(sfcKey(decodePlaceholderBit(root[idx].prefix)), decodePrefixLength(root[idx].prefix) / 3),
+               collisionBox);
 }
 
 template<class KeyType>
@@ -90,11 +91,12 @@ HOST_DEVICE_FUN inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
     if (!isLeafIndex(leafIndex)) { return false; }
 
     TreeNodeIndex effectiveIndex = loadLeafIndex(leafIndex);
-    KeyType leafCode = leafNodes[effectiveIndex];
-    KeyType leafUpperBound = leafNodes[effectiveIndex + 1];
+    KeyType leafCode             = leafNodes[effectiveIndex];
+    KeyType leafUpperBound       = leafNodes[effectiveIndex + 1];
 
     bool notExcluded = !containedIn(leafCode, leafUpperBound, excludeRange[0], excludeRange[1]);
-    return notExcluded && overlap(leafCode, treeLevel(leafUpperBound - leafCode), collisionBox);
+    return notExcluded &&
+           overlap<KeyType>(sfcIBox(sfcKey(leafCode), treeLevel(leafUpperBound - leafCode)), collisionBox);
 }
 
 /*! @brief find all collisions between a leaf node enlarged by (dx,dy,dz) and the rest of the tree

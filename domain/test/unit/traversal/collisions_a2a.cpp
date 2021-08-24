@@ -31,10 +31,10 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/halos/btreetraversal.hpp"
+#include "cstone/traversal/collisions.hpp"
 #include "cstone/tree/octree_util.hpp"
 
-#include "collision_reference/collisions_a2a.hpp"
+#include "unit/traversal/collisions_a2a.hpp"
 
 using namespace cstone;
 
@@ -54,30 +54,30 @@ using namespace cstone;
 template<class KeyType, class T>
 void generalCollisionTest(const std::vector<KeyType>& tree, const std::vector<T>& haloRadii, const Box<T>& box)
 {
-    std::vector<BinaryNode<KeyType>> internalTree(nNodes(tree));
-    createBinaryTree(tree.data(), nNodes(tree), internalTree.data());
+    Octree<KeyType> octree;
+    octree.update(tree.begin(), tree.end());
 
     // tree traversal collision detection
-    std::vector<CollisionList> collisions(nNodes(tree));
-    for (std::size_t leafIdx = 0; leafIdx < internalTree.size(); ++leafIdx)
+    std::vector<std::vector<TreeNodeIndex>> collisions(nNodes(tree));
+    for (std::size_t leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
     {
         T radius = haloRadii[leafIdx];
         IBox haloBox = makeHaloBox(tree[leafIdx], tree[leafIdx + 1], radius, box);
-        findCollisions(internalTree.data(), tree.data(), collisions[leafIdx], haloBox, {0, 0});
+
+        auto storeCollisions = [&collisionList = collisions[leafIdx]](TreeNodeIndex i) { collisionList.push_back(i); };
+
+        findCollisions(octree, storeCollisions, haloBox, KeyType(0), KeyType(0));
     }
 
     // naive all-to-all algorithm
-    std::vector<std::vector<TreeNodeIndex>> refCollisions = findCollisionsAll2all(tree, haloRadii, box);
+    std::vector<std::vector<TreeNodeIndex>> refCollisions = findCollisionsAll2all<KeyType>(tree, haloRadii, box);
 
     for (std::size_t nodeIndex = 0; nodeIndex < nNodes(tree); ++nodeIndex)
     {
-        std::vector<TreeNodeIndex> c{collisions[nodeIndex].begin(), collisions[nodeIndex].end()};
-        std::vector<TreeNodeIndex> ref{refCollisions[nodeIndex].begin(), refCollisions[nodeIndex].end()};
+        std::sort(begin(collisions[nodeIndex]), end(collisions[nodeIndex]));
+        std::sort(begin(refCollisions[nodeIndex]), end(refCollisions[nodeIndex]));
 
-        std::sort(begin(c), end(c));
-        std::sort(begin(ref), end(ref));
-
-        EXPECT_EQ(c, ref);
+        EXPECT_EQ(collisions[nodeIndex], refCollisions[nodeIndex]);
     }
 }
 

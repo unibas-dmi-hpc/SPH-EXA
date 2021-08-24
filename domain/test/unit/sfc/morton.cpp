@@ -141,7 +141,7 @@ void mortonIBox()
     {
         KeyType nodeStart = nodeRange<KeyType>(0) - 1;
         KeyType nodeEnd   = nodeRange<KeyType>(0);
-        IBox ibox = mortonIBox(nodeStart, treeLevel(nodeEnd - nodeStart));
+        IBox ibox = mortonIBoxKeys(nodeStart, nodeEnd);
         IBox refBox{maxCoord - 1, maxCoord};
         EXPECT_EQ(ibox, refBox);
     }

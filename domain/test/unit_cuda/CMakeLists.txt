@@ -3,7 +3,6 @@ if(CMAKE_CUDA_COMPILER)
 
     add_executable(component_units_cuda
             btree.cu
-            halo_discovery.cu
             octree.cu
             octree_internal.cu
             $<TARGET_OBJECTS:gather_obj> gather.cpp test_main.cpp)

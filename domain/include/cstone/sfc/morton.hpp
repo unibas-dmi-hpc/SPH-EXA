@@ -177,9 +177,17 @@ HOST_DEVICE_FUN inline util::tuple<unsigned, unsigned, unsigned> decodeMorton(Ke
 template<class KeyType>
 HOST_DEVICE_FUN IBox mortonIBox(KeyType keyStart, unsigned level) noexcept
 {
+    assert(level <= maxTreeLevel<KeyType>{});
     unsigned cubeLength = (1u << (maxTreeLevel<KeyType>{} - level));
     auto [ix, iy, iz] = decodeMorton(keyStart);
     return IBox(ix, ix + cubeLength, iy, iy + cubeLength, iz, iz + cubeLength);
+}
+
+template<class KeyType>
+HOST_DEVICE_FUN inline IBox mortonIBoxKeys(KeyType keyStart, KeyType keyEnd) noexcept
+{
+    assert(keyStart <= keyEnd);
+    return mortonIBox(keyStart, treeLevel(keyEnd - keyStart));
 }
 
 } // namespace cstone

@@ -34,12 +34,6 @@ if(CMAKE_CUDA_COMPILER)
     target_include_directories(octree_perf_gpu PRIVATE ../)
     install(TARGETS octree_perf_gpu RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/performance)
 
-    add_executable(binary_perf_gpu btreetraversal.cu)
-    target_include_directories(binary_perf_gpu PRIVATE ../../include)
-    target_include_directories(binary_perf_gpu PRIVATE ../)
-    target_link_libraries(binary_perf_gpu PRIVATE OpenMP::OpenMP_CXX)
-    install(TARGETS binary_perf_gpu RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/performance)
-
     add_executable(hilbert_perf_gpu hilbert.cu)
     target_include_directories(hilbert_perf_gpu PRIVATE ../../include)
     target_include_directories(hilbert_perf_gpu PRIVATE ../)
