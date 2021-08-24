@@ -28,15 +28,6 @@
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  *
- * A locally essential octree has a certain global resolution specified by a maximum
- * particle count per leaf node. In addition, it features a focus area defined as a
- * sub-range of the global space filling curve. In this focus sub-range, the resolution
- * can be higher, expressed through a smaller maximum particle count per leaf node.
- * Crucially, the resolution is also higher in the halo-areas of the focus sub-range.
- * These halo-areas can be defined as the overlap with the smoothing-length spheres around
- * the contained particles in the focus sub-range (SPH) or as the nodes whose opening angle
- * is too big to satisfy a multipole acceptance criterion from any perspective within the
- * focus sub-range (N-body).
  */
 
 #pragma once
@@ -119,6 +110,24 @@ HOST_DEVICE_FUN T minDistance(T x, T y, T z, IBox b, const Box<T>& box)
     return sqrt(stl::min(dxa*dxa, dxb*dxb) + stl::min(dya*dya, dyb*dyb) + stl::min(dza*dza, dzb*dzb));
 }
 
+/*! @brief vector multipole acceptance criterion
+ *
+ * @tparam KeyType   unsigned 32- or 64-bit integer type
+ * @tparam T         float or double
+ * @param  comx      center of gravity x-coordinate
+ * @param  comy      center of gravity y-coordinate
+ * @param  comz      center of gravity z-coordinate
+ * @param  source    source integer coordinate box
+ * @param  target    target integer coordinate box
+ * @param  box       global coordinate bounding box, contains PBC information
+ * @param  theta     accuracy parameter
+ * @return           true if criterion fulfilled (cell does not need to be opened)
+ *
+ * Evaluates  d > l/theta + delta with:
+ *  d     -> minimal distance of target box to source center of mass
+ *  l     -> edge length of source box
+ *  delta -> distance from geometric source center to source center mass
+ */
 template<class KeyType, class T>
 HOST_DEVICE_FUN bool vectorMac(T comx, T comy, T comz, const IBox& source, const IBox& target, const Box<T>& box,
                                float theta)
@@ -126,8 +135,8 @@ HOST_DEVICE_FUN bool vectorMac(T comx, T comy, T comz, const IBox& source, const
     constexpr T uL = T(1.) / maxCoord<KeyType>{};
 
     // minimal distance from source-center-mass to target box
-    T distanceToCom = minDistance(comx, comy, comz, target, box);
-    T sourceLength  = nodeLength(source, box);
+    T distanceToCom = minDistance<KeyType>(comx, comy, comz, target, box);
+    T sourceLength  = nodeLength<KeyType>(source, box);
 
     // geometric center of source
     int halfCube = (source.xmax() - source.xmin()) / 2;
