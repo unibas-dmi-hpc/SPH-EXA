@@ -44,17 +44,12 @@
 namespace cstone
 {
 
-//! @brief Strong type for Morton keys
-template<class IntegerType>
-using MortonKey = StrongType<IntegerType, struct MortonKeyTag>;
-
-//! @brief Strong type for Hilbert keys
-template<class IntegerType>
-using HilbertKey = StrongType<IntegerType, struct HilbertKeyTag>;
+template<class KeyType>
+struct unusedBits {};
 
 //! @brief number of unused leading zeros in a 32-bit SFC code
-template<class KeyType>
-struct unusedBits : stl::integral_constant<unsigned, 2> {};
+template<>
+struct unusedBits<unsigned> : stl::integral_constant<unsigned, 2> {};
 
 //! @brief number of unused leading zeros in a 64-bit SFC code
 template<>
@@ -65,17 +60,9 @@ struct maxTreeLevel {};
 
 template<>
 struct maxTreeLevel<unsigned> : stl::integral_constant<unsigned, 10> {};
-template<>
-struct maxTreeLevel<MortonKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
-template<>
-struct maxTreeLevel<HilbertKey<unsigned>> : stl::integral_constant<unsigned, 10> {};
 
 template<>
 struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21> {};
-template<>
-struct maxTreeLevel<MortonKey<uint64_t>> : stl::integral_constant<unsigned, 21> {};
-template<>
-struct maxTreeLevel<HilbertKey<uint64_t>> : stl::integral_constant<unsigned, 21> {};
 
 
 /*! @brief normalize a floating point number in [0,1] to an integer in [0 : 2^(10 or 21)]
@@ -288,16 +275,14 @@ HOST_DEVICE_FUN constexpr KeyType enclosingBoxCode(KeyType key, unsigned treeLev
  *         octree node for two input SFC codes
  *
  * @tparam    KeyType    32- or 64-bit unsigned integer type
- * @param[in] firstKey   lower SFC key
- * @param[in] secondKey  upper SFC key
+ * @param[in] firstKey   first SFC key
+ * @param[in] secondKey  second SFC key
  * @return               two SFC keys that delineate the start and end of
  *                       the smallest octree node that contains both input keys
  */
 template<class KeyType>
 HOST_DEVICE_FUN util::tuple<KeyType, KeyType> smallestCommonBox(KeyType firstKey, KeyType secondKey)
 {
-    assert(firstKey <= secondKey);
-
     unsigned commonLevel = commonPrefix(firstKey, secondKey) / 3;
     KeyType  nodeStart   = enclosingBoxCode(firstKey, commonLevel);
 

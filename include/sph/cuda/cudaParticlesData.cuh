@@ -71,7 +71,8 @@ struct DeviceLinearOctree
 template <typename T, class ParticleData>
 class DeviceParticlesData
 {
-    size_t allocated_device_memory = 0, largerNeighborsChunk = 0, largerNChunk = 0;
+    size_t allocatedDeviceMemory = 0;
+    size_t allocatedTaskSize = 0;
 
 public:
     // number of CUDA streams to use
@@ -93,13 +94,14 @@ public:
 
     typename ParticleData::KeyType *d_codes;
 
+    [[nodiscard]] size_t capacity() const { return allocatedDeviceMemory; }
 
     void resize(size_t size)
     {
-        if (size > allocated_device_memory)
+        if (size > allocatedDeviceMemory)
         {
             // TODO: Investigate benefits of low-level reallocate
-            if (allocated_device_memory)
+            if (allocatedDeviceMemory)
             {
                 CHECK_CUDA_ERR(utils::cudaFree(d_x, d_y, d_z, d_h, d_m, d_ro));
                 CHECK_CUDA_ERR(utils::cudaFree(d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
@@ -109,9 +111,9 @@ public:
                 CHECK_CUDA_ERR(utils::cudaFree(d_codes));
             }
 
-            size *= 1.05; // allocate 5% extra to avoid reallocation on small size increase
+            size = size_t(double(size) * 1.01); // allocate 1% extra to avoid reallocation on small size increase
 
-            size_t size_np_T        = size * sizeof(T);
+            size_t size_np_T       = size * sizeof(T);
             size_t size_np_KeyType = size * sizeof(typename ParticleData::KeyType);
 
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m, d_ro));
@@ -119,36 +121,41 @@ public:
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y,
                                              d_grad_P_z, d_du, d_maxvsignal));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_KeyType, d_codes));
-            CHECK_CUDA_ERR(cudaGetLastError());
-            allocated_device_memory = size;
+
+            allocatedDeviceMemory = size;
         }
     }
 
-    void resize_streams(const size_t largestChunkSize, const size_t ngmax)
+    void resize_streams(size_t taskSize, size_t ngmax)
     {
-        const size_t size_largerNChunk_int = largestChunkSize * sizeof(int);
-        if (size_largerNChunk_int > largerNChunk)
+        if (taskSize > allocatedTaskSize)
         {
-            //printf("[D] increased stream size from %ld to %ld\n", largerNChunk, size_largerNChunk_int);
+            if (allocatedTaskSize)
+            {
+                //printf("[D] increased stream size from %ld to %ld\n", allocatedTaskSize, taskSize);
+                for (int i = 0; i < NST; ++i)
+                {
+                    CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_clist, d_stream[i].d_neighborsCount));
+                    CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_neighbors));
+                }
+            }
+
+            taskSize = size_t(double(taskSize) * 1.01); // allocate 1% extra to avoid reallocation on small size increase
+
             for (int i = 0; i < NST; ++i)
-                CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_stream[i].d_clist,
-                                                 d_stream[i].d_neighborsCount));
-            largerNChunk = size_largerNChunk_int;
-        }
-        const size_t size_largerNeighborsChunk_int = largestChunkSize * ngmax * sizeof(int);
-        if (size_largerNeighborsChunk_int > largerNeighborsChunk)
-        {
-            //printf("[D] increased stream size from %ld to %ld\n", largerNeighborsChunk,
-            // size_largerNeighborsChunk_int);
-            for (int i = 0; i < NST; ++i)
-                CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_stream[i].d_neighbors));
-            largerNeighborsChunk = size_largerNeighborsChunk_int;
+            {
+                CHECK_CUDA_ERR(
+                    utils::cudaMalloc(taskSize * sizeof(int), d_stream[i].d_clist, d_stream[i].d_neighborsCount));
+                CHECK_CUDA_ERR(utils::cudaMalloc(taskSize * ngmax * sizeof(int), d_stream[i].d_neighbors));
+            }
+
+            allocatedTaskSize = taskSize;
         }
     }
 
     DeviceParticlesData() = delete;
 
-    DeviceParticlesData(const ParticleData& pd)
+    explicit DeviceParticlesData(const ParticleData& pd)
     {
         const size_t size_bbox = sizeof(BBox<T>);
 
@@ -157,11 +164,11 @@ public:
 
         CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
         CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d_bbox));
-        CHECK_CUDA_ERR(cudaGetLastError());
 
         for (int i = 0; i < NST; ++i)
+        {
             CHECK_CUDA_ERR(cudaStreamCreate(&d_stream[i].stream));
-        CHECK_CUDA_ERR(cudaGetLastError());
+        }
     }
 
     ~DeviceParticlesData()
@@ -170,15 +177,16 @@ public:
                                        d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z,
                                        d_du, d_maxvsignal, d_wh, d_whd));
         CHECK_CUDA_ERR(utils::cudaFree(d_codes));
-        CHECK_CUDA_ERR(cudaGetLastError());
 
         for (int i = 0; i < NST; ++i)
+        {
             CHECK_CUDA_ERR(cudaStreamDestroy(d_stream[i].stream));
-        CHECK_CUDA_ERR(cudaGetLastError());
+        }
 
         for (int i = 0; i < NST; ++i)
+        {
             CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_clist, d_stream[i].d_neighbors, d_stream[i].d_neighborsCount));
-        CHECK_CUDA_ERR(cudaGetLastError());
+        }
     }
 };
 } // namespace cuda

@@ -408,6 +408,9 @@ public:
         return converged;
     }
 
+    //! @brief provide access to the linked octree
+    const Octree<KeyType>& octree() const { return tree_; }
+
     //! @brief returns a view of the tree leaves
     gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
 

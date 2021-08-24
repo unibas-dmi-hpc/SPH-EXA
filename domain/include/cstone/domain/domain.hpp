@@ -38,9 +38,9 @@
 #include "cstone/domain/domain_traits.hpp"
 #include "cstone/domain/exchange_keys.hpp"
 #include "cstone/domain/layout.hpp"
+#include "cstone/traversal/collisions.hpp"
 #include "cstone/traversal/peers.hpp"
 
-#include "cstone/halos/discovery.hpp"
 #include "cstone/halos/exchange_halos.hpp"
 
 #include "cstone/tree/octree_mpi.hpp"
@@ -197,11 +197,9 @@ public:
 
         particleKeys.resize(numParticles);
 
-        // compute morton particleKeys only for particles participating in tree build
-        computeMortonKeys(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
-                          cbegin(y) + particleStart_,
-                          cbegin(z) + particleStart_,
-                          begin(particleKeys), box_);
+        // compute sfc particleKeys only for particles participating in tree build
+        computeSfcKeys(x.data() + particleStart_, y.data() + particleStart_, z.data() + particleStart_,
+                       sfcKindPointer(particleKeys.data()), numParticles, box_);
 
         // reorder the particleKeys according to the ordering
         // has the same net effect as std::sort(begin(particleKeys), end(particleKeys)),
@@ -238,19 +236,19 @@ public:
 
         reallocate(std::max(newNParticlesAssigned, LocalParticleIndex(x.size())), x,y,z,h, particleProperties...);
 
-        // exchange assigned particles
+        // exchange assigned particles, note: changes particleStart_ and End_ positions
         std::tie(particleStart_, particleEnd_) =
             exchangeParticles<T>(domainExchangeSends, myRank_, particleStart_, particleEnd_,
                                  x.size(), newNParticlesAssigned, sfcOrder.data(),
                                  x.data(), y.data(), z.data(), h.data(), particleProperties.data()...);
 
-        reallocate(particleEnd_ - particleStart_, particleKeys);
-        reallocate(particleEnd_ - particleStart_, sfcOrder);
+        numParticles = particleEnd_ - particleStart_;
+        reallocate(numParticles, particleKeys);
+        reallocate(numParticles, sfcOrder);
 
         // refresh particleKeys and ordering
-        computeMortonKeys(begin(x) + particleStart_, begin(x) + particleEnd_,
-                          begin(y) + particleStart_,
-                          begin(z) + particleStart_, begin(particleKeys), box_);
+        computeSfcKeys(x.data() + particleStart_, y.data() + particleStart_, z.data() + particleStart_,
+                       sfcKindPointer(particleKeys.data()), numParticles, box_);
         reorderFunctor.setMapFromCodes(particleKeys.data(), particleKeys.data() + particleKeys.size());
         reorderFunctor.getReorderMap(sfcOrder.data());
 
@@ -297,8 +295,7 @@ public:
                          haloRadii.data());
 
         std::vector<int> haloFlags(nNodes(focusedTree_.treeLeaves()), 0);
-        findHalos(focusedTree_.treeLeaves().data(),
-                  focusedTree_.binaryTree().data(),
+        findHalos(focusedTree_.octree(),
                   haloRadii.data(),
                   box_,
                   focusAssignment[myRank_].start(),
@@ -345,14 +342,10 @@ public:
         exchangeHalos(x, y, z, h);
 
         // compute SFC keys of received halo particles
-        computeMortonKeys(cbegin(x), cbegin(x) + particleStart_,
-                          cbegin(y),
-                          cbegin(z),
-                          begin(particleKeys), box_);
-        computeMortonKeys(cbegin(x) + particleEnd_, cend(x),
-                          cbegin(y) + particleEnd_,
-                          cbegin(z) + particleEnd_,
-                          begin(particleKeys) + particleEnd_, box_);
+        computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()),
+                       particleStart_, box_);
+        computeSfcKeys(x.data() + particleEnd_, y.data() + particleEnd_, z.data() + particleEnd_,
+                       sfcKindPointer(particleKeys.data()) + particleEnd_, x.size() - particleEnd_, box_);
     }
 
     /*! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays

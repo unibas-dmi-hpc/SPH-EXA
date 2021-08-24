@@ -116,7 +116,7 @@ int main()
     int numParticles = 2000000;
     int bucketSize   = 16;
 
-    RandomGaussianCoordinates<double, MortonKey<KeyType>> randomBox(numParticles, box);
+    RandomGaussianCoordinates<double, HilbertKey<KeyType>> randomBox(numParticles, box);
 
     // tree build from random gaussian coordinates
     auto [tree, counts] =
@@ -133,7 +133,7 @@ int main()
     std::cout << "plummer box: " << pBox.xmin() << " " << pBox.xmax() << " " << pBox.ymin() << " " << pBox.ymax() << " "
               << pBox.zmin() << " " << pBox.zmax() << std::endl;
 
-    computeMortonKeys(begin(px[0]), end(px[0]), begin(px[1]), begin(px[2]), begin(pxCodes), pBox);
+    computeSfcKeys(px[0].data(), px[1].data(), px[2].data(), sfcKindPointer(pxCodes.data()), numParticles, pBox);
     std::sort(begin(pxCodes), end(pxCodes));
 
     std::tie(tree, counts) = build_tree(pxCodes.data(), pxCodes.data() + numParticles, bucketSize);

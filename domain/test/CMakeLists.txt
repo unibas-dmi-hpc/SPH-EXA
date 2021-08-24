@@ -26,7 +26,6 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
 
 
 add_subdirectory(coord_samples)
-add_subdirectory(collision_reference)
 add_subdirectory(integration_mpi)
 add_subdirectory(performance)
 add_subdirectory(unit)

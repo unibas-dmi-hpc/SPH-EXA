@@ -38,8 +38,38 @@
 
 using namespace cstone;
 
+//! @brief reference peer search, all-all leaf comparison
+template<class T, class KeyType>
+std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> tree,
+                                  const Box<T>& box, float theta)
+{
+    TreeNodeIndex firstIdx = assignment.firstNodeIdx(myRank);
+    TreeNodeIndex lastIdx  = assignment.lastNodeIdx(myRank);
+    float invThetaSq       = 1.0f / (theta * theta);
+
+    std::vector<IBox> boxes(nNodes(tree));
+    for (TreeNodeIndex i = 0; i < nNodes(tree); ++i)
+    {
+        boxes[i] = sfcIBox(sfcKey(tree[i]), sfcKey(tree[i + 1]));
+    }
+
+    std::vector<int> peers(assignment.numRanks());
+    for (TreeNodeIndex i = firstIdx; i < lastIdx; ++i)
+        for (TreeNodeIndex j = 0; j < nNodes(tree); ++j)
+            if (!minDistanceMacMutual<KeyType>(boxes[i], boxes[j], box, invThetaSq))
+            {
+                peers[assignment.findRank(j)] = 1;
+            }
+
+    std::vector<int> ret;
+    for (int i = 0; i < peers.size(); ++i)
+        if (peers[i] && i != myRank) { ret.push_back(i); }
+
+    return ret;
+}
+
 template<class KeyType>
-void findMacPeers64grid(int rank, float theta, bool pbc, const std::vector<int>& reference)
+void findMacPeers64grid(int rank, float theta, bool pbc, int refNumPeers)
 {
     Box<double> box{-1, 1, pbc};
     Octree<KeyType> octree;
@@ -51,55 +81,31 @@ void findMacPeers64grid(int rank, float theta, bool pbc, const std::vector<int>&
         assignment.addRange(Rank(i), i, i + 1, 1);
     }
 
-    std::vector<int> peers = findPeersMac(rank, assignment, octree, box, theta);
+    std::vector<int> peers     = findPeersMac(rank, assignment, octree, box, theta);
+    std::vector<int> reference = findPeersAll2All(rank, assignment, octree.treeLeaves(), box, theta);
+
+    EXPECT_EQ(refNumPeers, peers.size());
     EXPECT_EQ(peers, reference);
 }
 
 TEST(Peers, findMacGrid64)
 {
     // just the surface
-    findMacPeers64grid<unsigned>(0, 1.1, false, {1, 2, 3, 4, 5, 6, 7});
-    findMacPeers64grid<uint64_t>(0, 1.1, false, {1, 2, 3, 4, 5, 6, 7});
+    findMacPeers64grid<unsigned>(0, 1.1, false, 7);
+    findMacPeers64grid<uint64_t>(0, 1.1, false, 7);
 }
 
 TEST(Peers, findMacGrid64Narrow)
 {
-    findMacPeers64grid<unsigned>(0, 1.0, false, {1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 17, 20, 21, 32, 33, 34, 35});
-    findMacPeers64grid<uint64_t>(0, 1.0, false, {1, 2, 3, 4, 5, 6, 7, 8, 10, 12, 14, 16, 17, 20, 21, 32, 33, 34, 35});
+    findMacPeers64grid<unsigned>(0, 1.0, false, 19);
+    findMacPeers64grid<uint64_t>(0, 1.0, false, 19);
 }
 
 TEST(Peers, findMacGrid64PBC)
 {
-    // just the surface + PBC
-    findMacPeers64grid<unsigned>(
-        0, 1.1, true, {1, 2, 3, 4, 5, 6, 7, 9, 11, 13, 15, 18, 19, 22, 23, 27, 31, 36, 37, 38, 39, 45, 47, 54, 55, 63});
-    findMacPeers64grid<uint64_t>(
-        0, 1.1, true, {1, 2, 3, 4, 5, 6, 7, 9, 11, 13, 15, 18, 19, 22, 23, 27, 31, 36, 37, 38, 39, 45, 47, 54, 55, 63});
-}
-
-//! @brief reference peer search, all-all leaf comparison
-template<class T, class KeyType>
-std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> tree,
-                                  const Box<T>& box, float theta)
-{
-    TreeNodeIndex firstIdx = assignment.firstNodeIdx(myRank);
-    TreeNodeIndex lastIdx  = assignment.lastNodeIdx(myRank);
-    float invThetaSq = 1.0f / (theta * theta);
-
-    std::vector<IBox> boxes(nNodes(tree));
-    for (TreeNodeIndex i = 0; i < nNodes(tree); ++i)
-        boxes[i] = mortonIBox(tree[i], treeLevel(tree[i + 1] - tree[i]));
-
-    std::vector<int> peers(assignment.numRanks());
-    for (TreeNodeIndex i = firstIdx; i < lastIdx; ++i)
-        for (TreeNodeIndex j = 0; j < nNodes(tree); ++j)
-            if (!minDistanceMacMutual<KeyType>(boxes[i], boxes[j], box, invThetaSq)) peers[assignment.findRank(j)] = 1;
-
-    std::vector<int> ret;
-    for (int i = 0; i < peers.size(); ++i)
-        if (peers[i] && i != myRank) { ret.push_back(i); }
-
-    return ret;
+    // just the surface + PBC, 26 six peers at the surface
+    findMacPeers64grid<unsigned>(0, 1.1, true, 26);
+    findMacPeers64grid<uint64_t>(0, 1.1, true, 26);
 }
 
 template<class KeyType>
