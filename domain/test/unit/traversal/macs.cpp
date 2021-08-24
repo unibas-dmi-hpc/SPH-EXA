@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Test locally essential octree
+ * @brief Test multipole acceptance criteria
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -36,6 +36,37 @@
 
 namespace cstone
 {
+
+TEST(Macs, minPointDistance)
+{
+    using T = double;
+    using KeyType = unsigned;
+
+    constexpr unsigned mc = maxCoord<KeyType>{};
+
+    {
+        Box<T> box(0, 1);
+        IBox ibox(0, mc / 2);
+
+        T px = (mc/2.0 + 1) / mc;
+        T py = (mc/2.0 + 1) / mc;
+        T pz = (mc/2.0 + 1) / mc;
+
+        T probe = minDistance<KeyType>(px, py, pz, ibox, box);
+        EXPECT_TRUE(std::abs(std::sqrt(3)/mc - probe) < 1e-10);
+    }
+    {
+        Box<T> box(0, 1, true);
+        IBox ibox(0, mc / 2);
+
+        T px = (mc - 1.0) / mc;
+        T py = (mc - 1.0) / mc;
+        T pz = (mc - 1.0) / mc;
+
+        T probe = minDistance<KeyType>(px, py, pz, ibox, box);
+        EXPECT_TRUE(std::abs(std::sqrt(3)/mc - probe) < 1e-10);
+    }
+}
 
 TEST(Macs, minDistanceSq)
 {
