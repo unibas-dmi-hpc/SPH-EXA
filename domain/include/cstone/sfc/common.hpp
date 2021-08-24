@@ -64,6 +64,10 @@ struct maxTreeLevel<unsigned> : stl::integral_constant<unsigned, 10> {};
 template<>
 struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21> {};
 
+//! @brief maximum integer coordinate
+template<class KeyType>
+struct maxCoord : stl::integral_constant<unsigned, 1u << maxTreeLevel<KeyType>{}> {};
+
 
 /*! @brief normalize a floating point number in [0,1] to an integer in [0 : 2^(10 or 21)]
  *

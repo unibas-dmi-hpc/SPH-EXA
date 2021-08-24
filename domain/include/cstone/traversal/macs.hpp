@@ -74,12 +74,12 @@ constexpr int rangeSeparation(int a, int b, int c, int d, bool pbc)
 template<class KeyType, class T>
 HOST_DEVICE_FUN T minDistanceSq(IBox a, IBox b, const Box<T>& box)
 {
-    constexpr size_t maxCoord = 1u<<maxTreeLevel<KeyType>{};
-    constexpr T unitLengthSq  = T(1.) / (maxCoord * maxCoord);
+    constexpr size_t mc = maxCoord<KeyType>{};
+    constexpr T unitLengthSq  = T(1.) / (mc * mc);
 
-    size_t dx = rangeSeparation<maxCoord>(a.xmin(), a.xmax(), b.xmin(), b.xmax(), box.pbcX());
-    size_t dy = rangeSeparation<maxCoord>(a.ymin(), a.ymax(), b.ymin(), b.ymax(), box.pbcY());
-    size_t dz = rangeSeparation<maxCoord>(a.zmin(), a.zmax(), b.zmin(), b.zmax(), box.pbcZ());
+    size_t dx = rangeSeparation<mc>(a.xmin(), a.xmax(), b.xmin(), b.xmax(), box.pbcX());
+    size_t dy = rangeSeparation<mc>(a.ymin(), a.ymax(), b.ymin(), b.ymax(), box.pbcY());
+    size_t dz = rangeSeparation<mc>(a.zmin(), a.zmax(), b.zmin(), b.zmax(), box.pbcZ());
     // the maximum for any integer is 2^21-1, so we can safely square each of them
     return ((dx*dx)*box.lx()*box.lx() + (dy*dy)*box.ly()*box.ly() +
             (dz*dz)*box.lz()*box.lz()) * unitLengthSq;
@@ -89,11 +89,34 @@ HOST_DEVICE_FUN T minDistanceSq(IBox a, IBox b, const Box<T>& box)
 template<class KeyType, class T>
 HOST_DEVICE_FUN T nodeLength(IBox b, const Box<T>& box)
 {
-    constexpr int maxCoord = 1u<<maxTreeLevel<KeyType>{};
-    constexpr T unitLength = T(1.) / maxCoord;
+    constexpr T unitLength = T(1.) / maxCoord<KeyType>{};
 
     // IBoxes for octree nodes are assumed cubic, only box can be rectangular
     return (b.xmax() - b.xmin()) * unitLength * box.maxExtent();
+}
+
+//! @brief returns the smallest PBC distance of point (x,y,z) to box b
+template<class KeyType, class T>
+HOST_DEVICE_FUN T minDistance(T x, T y, T z, IBox b, const Box<T>& box)
+{
+    constexpr T uL = T(1.) / maxCoord<KeyType>{};
+
+    T dxa = x - b.xmin() * uL * box.lx();
+    T dxb = x - b.xmax() * uL * box.lx();
+    T dya = y - b.ymin() * uL * box.ly();
+    T dyb = y - b.ymax() * uL * box.ly();
+    T dza = z - b.zmin() * uL * box.lz();
+    T dzb = z - b.zmax() * uL * box.lz();
+
+    // this folds d into the periodic range [-l/2, l/2] if enabled
+    dxa -= box.pbcX() * box.lx() * std::rint(dxa * box.ilx());
+    dxb -= box.pbcX() * box.lx() * std::rint(dxb * box.ilx());
+    dya -= box.pbcY() * box.ly() * std::rint(dya * box.ily());
+    dyb -= box.pbcY() * box.ly() * std::rint(dyb * box.ily());
+    dza -= box.pbcZ() * box.lz() * std::rint(dza * box.ilz());
+    dzb -= box.pbcZ() * box.lz() * std::rint(dzb * box.ilz());
+
+    return sqrt(stl::min(dxa*dxa, dxb*dxb) + stl::min(dya*dya, dyb*dyb) + stl::min(dza*dza, dzb*dzb));
 }
 
 /*! @brief evaluate minimum distance MAC, non-commutative version
