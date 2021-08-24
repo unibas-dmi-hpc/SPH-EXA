@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Barnes-Hut tree walk to compute gravity forces on single particles
+ * @brief Barnes-Hut tree walk to compute gravity forces on particles in leaf cells
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -38,6 +38,31 @@
 namespace cstone
 {
 
+/*! @brief computes gravitational acceleration for all particles in the specified group
+ *
+ * @tparam KeyType            unsigned 32- or 64-bit integer type
+ * @tparam T1                 float or double
+ * @tparam T2                 float or double
+ * @tparam T3                 float or double
+ * @param[in]    groupIdx     leaf cell index in [0:octree.numLeafNodes()] to compute accelerations for
+ * @param[in]    octree       fully linked octree
+ * @param[in]    multipoles   array of length @p octree.numTreeNodes() with the multipole moments for all nodes
+ * @param[in]    layout       array of length @p octree.numLeafNodes()+1, layout[i] is the start offset
+ *                            into the x,y,z,m arrays for the leaf node with index i. The last element
+ *                            is equal to the length of the x,y,z,m arrays.
+ * @param[in]    x            x-coordinates
+ * @param[in]    y            y-coordinates
+ * @param[in]    z            z-coordinates
+ * @param[in]    m            masses
+ * @param[in]    box          global coordinate bounding box
+ * @param[in]    theta        accuracy parameter
+ * @param[in]    eps2         gravitational softening parameter
+ * @param[inout] ax           location to add x-acceleration to
+ * @param[inout] ay           location to add y-acceleration to
+ * @param[inout] az           location to add z-acceleration to
+ *
+ * Note: acceleration output is added to destination
+ */
 template<class KeyType, class T1, class T2, class T3>
 void computeGravityGroup(TreeNodeIndex groupIdx,
                          const Octree<KeyType>& octree, const GravityMultipole<T1>* multipoles,
@@ -51,16 +76,23 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
     unsigned groupLevel = treeLevel(treeLeaves[groupIdx + 1] - groupKey);
     IBox targetBox      = sfcIBox(sfcKey(groupKey), groupLevel);
 
-    float invThetaSq = 1.0 / (theta * theta);
-
-    auto descendOrM2P = [groupIdx, multipoles, x, y, z, layout, invThetaSq, eps2, ax, ay, az, &octree, &targetBox,
+    /*! @brief octree traversal continuation criterion
+     *
+     * This functor takes an octree node index as argument. It then evaluates the MAC between
+     * the targetBox and the argument octree node. Returns true if the MAC failed to signal
+     * the traversal routine to keep going. If the MAC passed, the multipole moments are applied
+     * to the particles in the target box and traversal is stopped.
+     */
+    auto descendOrM2P = [groupIdx, multipoles, x, y, z, layout, theta, eps2, ax, ay, az, &octree, &targetBox,
                          &box](TreeNodeIndex idx)
     {
         // idx relative to root node
         KeyType nodeStart = octree.codeStart(idx);
         IBox sourceBox    = sfcIBox(sfcKey(nodeStart), octree.level(idx));
 
-        bool violatesMac = !minDistanceMac<KeyType>(targetBox, sourceBox, box, invThetaSq);
+        const auto& p = multipoles[idx];
+
+        bool violatesMac = !vectorMac<KeyType>(p.xcm, p.ycm, p.zcm, sourceBox, targetBox, box, theta);
         if (!violatesMac)
         {
             LocalParticleIndex firstTarget = layout[groupIdx];
@@ -69,13 +101,19 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
             // apply multipole to all particles in group
             for (LocalParticleIndex t = firstTarget; t < lastTarget; ++t)
             {
-                multipole2particle(x[t], y[t], z[t], multipoles[idx], eps2, ax + t, ay + t, az + t);
+                multipole2particle(x[t], y[t], z[t], p, eps2, ax + t, ay + t, az + t);
             }
         }
 
         return violatesMac;
     };
 
+    /*! @brief traversal endpoint action
+     *
+     * This functor gets called with an octree leaf node index whenever traversal hits a leaf node
+     * and the leaf failed the MAC w.r.t to the target box. In that case, direct particle-particle
+     * interactions need to be computed.
+     */
     auto leafP2P = [groupIdx, x, y, z, m, layout, eps2, ax, ay, az](TreeNodeIndex idx)
     {
         // idx relative to first leaf
@@ -115,6 +153,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
     singleTraversal(octree, descendOrM2P, leafP2P);
 }
 
+//! @brief repeats computeGravityGroup for all leaf node indices specified
 template<class KeyType, class T1, class T2, class T3>
 void computeGravity(const Octree<KeyType>& octree, const GravityMultipole<T1>* multipoles,
                     const LocalParticleIndex* layout, TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex,
@@ -129,7 +168,7 @@ void computeGravity(const Octree<KeyType>& octree, const GravityMultipole<T1>* m
     }
 }
 
-//! @brief compute directly gravity sum for all particles [0:numParticles]
+//! @brief compute direct gravity sum for all particles [0:numParticles]
 template<class T1, class T2>
 void directSum(const T1* x, const T1* y, const T1* z, const T2* m, LocalParticleIndex numParticles, T1 eps2,
                T1* ax, T1* ay, T1* az)

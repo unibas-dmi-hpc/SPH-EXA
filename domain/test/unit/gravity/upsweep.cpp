@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Gravity multipole upsweep and treewalk test
+ * @brief Integration test between gravity multipole upsweep and tree walk
  *
  * @author Sebastian Keller        <sebastian.f.keller@gmail.com>
  */
@@ -38,7 +38,7 @@
 
 using namespace cstone;
 
-TEST(Gravity, upsweep)
+TEST(Gravity, TreeWalk)
 {
     using T = double;
     using KeyType = uint64_t;
