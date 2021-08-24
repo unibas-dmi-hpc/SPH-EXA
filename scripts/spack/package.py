@@ -41,21 +41,13 @@ class SphExaMiniApp(CMakePackage, CudaPackage):
     depends_on('cuda@10:', when='+cuda')
     variant('mpi', default=True, description='Enable MPI support')
     variant('cuda', default=False, description='Enable CUDA support')
-    # patch: temp. wkaround for "CollisionList not declared" build error
-    patch(
-        'collisions.patch',
-        sha256=('ba14f265ce0e03ad4909503797e250e53f4a95a46c2da1b422787b5cb303'
-                '4b90')
-    )
     sanity_check_is_file = [join_path('bin', 'sedov')]
 
     def cmake_args(self):
         # Add arguments other than CMAKE_INSTALL_PREFIX and CMAKE_BUILD_TYPE
         args = ['-DCMAKE_VERBOSE_MAKEFILE=ON']
         args.append(f'-DCMAKE_CXX_COMPILER={self.compiler.cxx}')
-        # -DUSE_CUDA not needed, keeping as reminder:
-        # if '+cuda' in self.spec:
-        #     args.append('-DUSE_CUDA')
+        # -DUSE_CUDA set in src/sedov/CMakeLists.txt target_compile_definitions
         if '+cuda' in self.spec:
             sanity_check_is_file = [join_path('bin', 'sedov-cuda')]
 
