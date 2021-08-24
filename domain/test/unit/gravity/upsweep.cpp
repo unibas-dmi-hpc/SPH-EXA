@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief gravity multipole upsweep test
+ * @brief Gravity multipole upsweep and treewalk test
  *
  * @author Sebastian Keller        <sebastian.f.keller@gmail.com>
  */
@@ -69,9 +69,6 @@ TEST(Gravity, upsweep)
     computeMultipoles(octree, layout, x, y, z, masses.data(), multipoles.data());
 
     T totalMass = std::accumulate(masses.begin(), masses.end(), 0.0);
-    std::cout.precision(10);
-    std::cout << multipoles[0].mass << std::endl;
-    std::cout << totalMass << std::endl;
     EXPECT_TRUE(std::abs(totalMass - multipoles[0].mass) < 1e-6);
 
 
@@ -79,20 +76,39 @@ TEST(Gravity, upsweep)
     std::vector<T> ay(numParticles, 0);
     std::vector<T> az(numParticles, 0);
 
+    // direct sum reference
+    std::vector<T> Ax(numParticles, 0);
+    std::vector<T> Ay(numParticles, 0);
+    std::vector<T> Az(numParticles, 0);
+
     float theta = 0.75;
-    T eps2 = 0.05 * 0.05;
+    //T eps2 = 0.05 * 0.05;
+    T eps2 = 0;
 
-    computeGravityGroup(0, octree, multipoles.data(), layout.data(), x, y, z, masses.data(), box, theta, eps2,
-                        ax.data(), ay.data(), az.data());
+    computeGravity(octree, multipoles.data(), layout.data(), 0, octree.numLeafNodes(),
+                   x, y, z, masses.data(), box, theta, eps2, ax.data(), ay.data(), az.data());
 
-    std::cout << ax[0] << " " << ay[0] << " " << az[0] << std::endl;
+    directSum(x, y, z, masses.data(), numParticles, eps2, Ax.data(), Ay.data(), Az.data());
 
-    T ax_ref = 0.0;
-    T ay_ref = 0.0;
-    T az_ref = 0.0;
+    std::vector<T> delta(numParticles);
+    for (LocalParticleIndex i = 0; i < numParticles; ++i)
+    {
+        T dx = ax[i] - Ax[i];
+        T dy = ay[i] - Ay[i];
+        T dz = az[i] - Az[i];
 
-    particle2particle(x[0], y[0], z[0], x + 1, y + 1, z + 1, masses.data() + 1, numParticles -1, eps2,
-                      &ax_ref, &ay_ref, &az_ref);
+        delta[i] = std::sqrt( (dx*dx + dy*dy + dz*dz) / (Ax[i]*Ax[i] + Ay[i]*Ay[i] + Az[i]*Az[i]));
+    }
 
-    std::cout << ax_ref << " " << ay_ref << " " << az_ref << std::endl;
+    std::sort(begin(delta), end(delta));
+
+    EXPECT_TRUE(delta[numParticles*0.99] < 2e-3);
+    EXPECT_TRUE(delta[numParticles-1] < 1e-2);
+
+    std::cout.precision(10);
+    std::cout << "min Error: "       << delta[0] << std::endl;
+    std::cout << "50th percentile: " << delta[numParticles/2] << std::endl;
+    std::cout << "10th percentile: " << delta[numParticles*0.9] << std::endl;
+    std::cout << "1st percentile: "  << delta[numParticles*0.99] << std::endl;
+    std::cout << "max Error: "       << delta[numParticles-1] << std::endl;
 }

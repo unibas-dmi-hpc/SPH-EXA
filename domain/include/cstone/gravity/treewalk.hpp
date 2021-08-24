@@ -49,18 +49,18 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
     auto treeLeaves     = octree.treeLeaves();
     KeyType groupKey    = treeLeaves[groupIdx];
     unsigned groupLevel = treeLevel(treeLeaves[groupIdx + 1] - groupKey);
-    IBox groupBox       = sfcIBox(sfcKey(groupKey), groupLevel);
+    IBox targetBox      = sfcIBox(sfcKey(groupKey), groupLevel);
 
     float invThetaSq = 1.0 / (theta * theta);
 
-    auto descendOrM2P = [groupIdx, multipoles, x, y, z, layout, invThetaSq, eps2, ax, ay, az, &octree, &groupBox,
+    auto descendOrM2P = [groupIdx, multipoles, x, y, z, layout, invThetaSq, eps2, ax, ay, az, &octree, &targetBox,
                          &box](TreeNodeIndex idx)
     {
         // idx relative to root node
         KeyType nodeStart = octree.codeStart(idx);
         IBox sourceBox    = sfcIBox(sfcKey(nodeStart), octree.level(idx));
 
-        bool violatesMac = !minDistanceMac<KeyType>(groupBox, sourceBox, box, invThetaSq);
+        bool violatesMac = !minDistanceMac<KeyType>(targetBox, sourceBox, box, invThetaSq);
         if (!violatesMac)
         {
             LocalParticleIndex firstTarget = layout[groupIdx];
@@ -83,7 +83,8 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
         LocalParticleIndex lastTarget  = layout[groupIdx + 1];
 
         LocalParticleIndex firstSource = layout[idx];
-        LocalParticleIndex numSources  = layout[idx + 1] - firstSource;
+        LocalParticleIndex lastSource  = layout[idx + 1];
+        LocalParticleIndex numSources  = lastSource - firstSource;
 
         if (groupIdx != idx)
         {
@@ -106,7 +107,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
 
                 LocalParticleIndex tp1 = t + 1;
                 particle2particle(x[t], y[t], z[t], x + tp1, y + tp1, z + tp1, m + tp1,
-                                  numSources - tp1, eps2, ax + t, ay + t, az + t);
+                                  lastSource - tp1, eps2, ax + t, ay + t, az + t);
             }
         }
     };
@@ -125,6 +126,24 @@ void computeGravity(const Octree<KeyType>& octree, const GravityMultipole<T1>* m
     for (TreeNodeIndex leafIdx = firstLeafIndex; leafIdx < lastLeafIndex; ++leafIdx)
     {
         computeGravityGroup(leafIdx, octree, multipoles, layout, x, y, z, m, box, theta, eps2, ax, ay, az);
+    }
+}
+
+//! @brief compute directly gravity sum for all particles [0:numParticles]
+template<class T1, class T2>
+void directSum(const T1* x, const T1* y, const T1* z, const T2* m, LocalParticleIndex numParticles, T1 eps2,
+               T1* ax, T1* ay, T1* az)
+{
+    #pragma omp parallel for
+    for (LocalParticleIndex t = 0; t < numParticles; ++t)
+    {
+        // 2 splits: [0:t] and [t+1:numParticles]
+        particle2particle(x[t], y[t], z[t], x, y, z, m,
+                          t, eps2, ax + t, ay + t, az + t);
+
+        LocalParticleIndex tp1 = t + 1;
+        particle2particle(x[t], y[t], z[t], x + tp1, y + tp1, z + tp1, m + tp1,
+                          numParticles - tp1, eps2, ax + t, ay + t, az + t);
     }
 }
 
