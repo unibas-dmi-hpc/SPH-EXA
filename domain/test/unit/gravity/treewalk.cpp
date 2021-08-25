@@ -56,12 +56,16 @@ TEST(Gravity, TreeWalk)
     std::vector<T> masses(numParticles);
     std::generate(begin(masses), end(masses), drand48);
 
-    auto [tree, counts] = computeOctree(coordinates.particleKeys().data(),
-                                        coordinates.particleKeys().data() + numParticles,
-                                        bucketSize);
-    Octree<KeyType> octree;
-    octree.update(std::move(tree));
+    // the leaf cells and leaf particle counts
+    auto [treeLeaves, counts] = computeOctree(coordinates.particleKeys().data(),
+                                              coordinates.particleKeys().data() + numParticles,
+                                              bucketSize);
 
+    // fully linked octree, including internal part
+    Octree<KeyType> octree;
+    octree.update(std::move(treeLeaves));
+
+    // layout[i] is equal to the index in (x,y,z,m) of the first particle in leaf cell with index i
     std::vector<LocalParticleIndex> layout(octree.numLeafNodes() + 1);
     stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalParticleIndex(0));
 
@@ -90,6 +94,7 @@ TEST(Gravity, TreeWalk)
 
     directSum(x, y, z, masses.data(), numParticles, eps2, Ax.data(), Ay.data(), Az.data());
 
+    // relative errors
     std::vector<T> delta(numParticles);
     for (LocalParticleIndex i = 0; i < numParticles; ++i)
     {
@@ -100,6 +105,7 @@ TEST(Gravity, TreeWalk)
         delta[i] = std::sqrt( (dx*dx + dy*dy + dz*dz) / (Ax[i]*Ax[i] + Ay[i]*Ay[i] + Az[i]*Az[i]));
     }
 
+    // sort errors in ascending order to infer the error distribution
     std::sort(begin(delta), end(delta));
 
     EXPECT_TRUE(delta[numParticles*0.99] < 2e-3);
@@ -107,8 +113,11 @@ TEST(Gravity, TreeWalk)
 
     std::cout.precision(10);
     std::cout << "min Error: "       << delta[0] << std::endl;
+    // 50% of particles have an error smaller than this
     std::cout << "50th percentile: " << delta[numParticles/2] << std::endl;
+    // 90% of particles have an error smaller than this
     std::cout << "10th percentile: " << delta[numParticles*0.9] << std::endl;
+    // 99% of particles have an error smaller than this
     std::cout << "1st percentile: "  << delta[numParticles*0.99] << std::endl;
     std::cout << "max Error: "       << delta[numParticles-1] << std::endl;
 }
