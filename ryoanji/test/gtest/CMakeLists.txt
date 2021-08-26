@@ -26,9 +26,3 @@ if(NOT TARGET gtest_main)
                    ${CMAKE_CURRENT_BINARY_DIR}/googletest-build
                    EXCLUDE_FROM_ALL)
 endif()
-
-add_subdirectory(coord_samples)
-add_subdirectory(integration_mpi)
-add_subdirectory(performance)
-add_subdirectory(unit)
-add_subdirectory(unit_cuda)

@@ -41,4 +41,10 @@ endif()
 
 add_subdirectory(include)
 add_subdirectory(domain)
+
+if (CMAKE_CUDA_COMPILER)
+    add_subdirectory(ryoanji)
+endif()
+
 add_subdirectory(src)
+add_subdirectory(test)
