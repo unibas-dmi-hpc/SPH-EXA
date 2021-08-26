@@ -4,6 +4,8 @@
 #include <cstdlib>
 #include <fstream>
 
+#include "types.h"
+
 class Dataset
 {
 private:
@@ -116,3 +118,18 @@ public:
 #endif
     }
 };
+
+std::vector<fvec4> makeCubeBodies(size_t n)
+{
+    std::vector<fvec4> bodies(n);
+
+    for (size_t i = 0; i < n; i++)
+    {
+        bodies[i][0] = drand48() * 2 * M_PI - M_PI;
+        bodies[i][1] = drand48() * 2 * M_PI - M_PI;
+        bodies[i][2] = drand48() * 2 * M_PI - M_PI;
+        bodies[i][3] = drand48() / n;
+    }
+
+    return bodies;
+}

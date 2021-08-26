@@ -41,8 +41,8 @@
 namespace cstone
 {
 
-HOST_DEVICE_FUN
 template<int Period>
+HOST_DEVICE_FUN
 constexpr int rangeSeparation(int a, int b, int c, int d, bool pbc)
 {
     assert(a < b && c < d);
