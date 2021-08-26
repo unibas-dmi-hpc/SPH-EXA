@@ -30,9 +30,11 @@ __global__ void directKernel(int numSource, float eps2, fvec4* bodyAcc)
 
             for (int j = 0; j < WARP_SIZE; j++)
             {
-                fvec3 pos_j(__shfl(pos[0], j), __shfl(pos[1], j), __shfl(pos[2], j));
+                fvec3 pos_j(__shfl_sync(0xFFFFFFFF, pos[0], j),
+                            __shfl_sync(0xFFFFFFFF, pos[1], j),
+                            __shfl_sync(0xFFFFFFFF, pos[2], j));
 
-                float q_j = __shfl(pos[3], j);
+                float q_j = __shfl_sync(0xFFFFFFFF, pos[3], j);
                 fvec3 dX = pos_j - pos_i;
 
                 float R2    = norm(dX) + eps2;
@@ -50,7 +52,10 @@ __global__ void directKernel(int numSource, float eps2, fvec4* bodyAcc)
         }
     }
 
-    bodyAcc[targetIdx] = fvec4(acc[0], acc[1], acc[2], acc[3]);
+    if (targetIdx < numSource)
+    {
+        bodyAcc[targetIdx] = fvec4(acc[0], acc[1], acc[2], acc[3]);
+    }
 }
 
 void directSum(float eps, cudaVec<fvec4>& bodyPos, cudaVec<fvec4>& bodyAcc)
