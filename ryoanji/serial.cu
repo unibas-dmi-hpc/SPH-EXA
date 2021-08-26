@@ -1,11 +1,12 @@
 #include <chrono>
 
-#include "types.h"
-#include "buildtree.h"
-#include "dataset.h"
-#include "grouptargets.h"
-#include "traversal.h"
-#include "upwardpass.h"
+#include "ryoanji/types.h"
+#include "ryoanji/buildtree.h"
+#include "ryoanji/dataset.h"
+#include "ryoanji/grouptargets.h"
+#include "ryoanji/traversal.h"
+#include "ryoanji/direct.cuh"
+#include "ryoanji/upwardpass.h"
 
 int main(int argc, char** argv)
 {
@@ -89,7 +90,7 @@ int main(int argc, char** argv)
     const int numBlock  = std::min(128, (numBodies - 1) / numTarget + 1);
 
     t0 = std::chrono::high_resolution_clock::now();
-    Traversal::direct(numTarget, numBlock, images, eps, cycle, bodyPos2, bodyAcc2);
+    directSum(numTarget, numBlock, images, eps, cycle, bodyPos2, bodyAcc2);
     t1 = std::chrono::high_resolution_clock::now();
     dt = std::chrono::duration<double>(t1 - t0).count();
 
