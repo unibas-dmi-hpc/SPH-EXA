@@ -11,11 +11,8 @@
 #include "kahan.h"
 #include "vec.h"
 
-#if MASS
 const int P = 4;
-#else
-const int P = 4;
-#endif
+
 #define WARP_PER_CELL 0
 const int NTERM = P * (P + 1) * (P + 2) / 6;
 const int NVEC4 = (NTERM - 1) / 4 + 1;
@@ -24,10 +21,10 @@ typedef vec<4, float> fvec4;
 typedef vec<NTERM, float> fvecP;
 typedef vec<4, kahan<float>> kvec4;
 
-texture<uint4, 1, cudaReadModeElementType> texCell;
-texture<float4, 1, cudaReadModeElementType> texCellCenter;
-texture<float4, 1, cudaReadModeElementType> texMultipole;
-texture<float4, 1, cudaReadModeElementType> texBody;
+static texture<uint4, 1, cudaReadModeElementType> texCell;
+static texture<float4, 1, cudaReadModeElementType> texCellCenter;
+static texture<float4, 1, cudaReadModeElementType> texMultipole;
+static texture<float4, 1, cudaReadModeElementType> texBody;
 
 //! Center and radius of bounding box
 struct Box
@@ -76,7 +73,7 @@ public:
     __host__ __device__ void setChild(const unsigned int child) { data.y = child | (nchild() - 1 << CHILD_SHIFT); }
 };
 
-__host__ __device__ fvec3 make_fvec3(fvec4 v)
+inline __host__ __device__ fvec3 make_fvec3(fvec4 v)
 {
     fvec3 data;
     data[0] = v[0];
@@ -85,7 +82,7 @@ __host__ __device__ fvec3 make_fvec3(fvec4 v)
     return data;
 }
 
-__host__ void kernelSuccess(const char kernel[] = "kernel")
+static void kernelSuccess(const char kernel[] = "kernel")
 {
     cudaDeviceSynchronize();
     const cudaError_t err = cudaGetLastError();
@@ -96,7 +93,7 @@ __host__ void kernelSuccess(const char kernel[] = "kernel")
     }
 }
 
-__host__ __forceinline__ void cudaSafeCall(cudaError err, const char* file, const int line)
+static __forceinline__ void cudaSafeCall(cudaError err, const char* file, const int line)
 {
     if (err != cudaSuccess)
     {

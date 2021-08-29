@@ -119,7 +119,7 @@ public:
     }
 };
 
-std::vector<fvec4> makeCubeBodies(size_t n)
+static std::vector<fvec4> makeCubeBodies(size_t n)
 {
     std::vector<fvec4> bodies(n);
 
