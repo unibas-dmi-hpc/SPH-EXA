@@ -1,51 +1,55 @@
 #pragma once
+
+#include <chrono>
+
 #include "kernel.h"
 
 namespace
 {
+
+//! @brief computes the center of mass for the bodies in the specified range
 __device__ __forceinline__ fvec4 setCenter(const int begin, const int end)
 {
     fvec4 center;
     for (int i = begin; i < end; i++)
     {
         const fvec4 pos = tex1Dfetch(texBody, i);
-#if MASS
-        float weight = pos[3];
-#else
-        float weight = 1;
-#endif
+        float weight    = pos[3];
+
         center[0] += weight * pos[0];
         center[1] += weight * pos[1];
         center[2] += weight * pos[2];
         center[3] += weight;
     }
-    const float invM = 1.0f / center[3];
+
+    float invM = 1.0f / center[3];
     center[0] *= invM;
     center[1] *= invM;
     center[2] *= invM;
+
     return center;
 }
 
-__device__ __forceinline__ fvec4 setCenter(const int begin, const int end, fvec4* posGlob)
+//! @brief computes the center of mass for the bodies in the specified range
+__host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int end, fvec4* posGlob)
 {
     fvec4 center;
     for (int i = begin; i < end; i++)
     {
-        const fvec4 pos = posGlob[i];
-#if MASS
+        fvec4 pos    = posGlob[i];
         float weight = pos[3];
-#else
-        float weight = 1;
-#endif
+
         center[0] += weight * pos[0];
         center[1] += weight * pos[1];
         center[2] += weight * pos[2];
         center[3] += weight;
     }
-    const float invM = 1.0f / center[3];
+
+    float invM = 1.0f / center[3];
     center[0] *= invM;
     center[1] *= invM;
     center[2] *= invM;
+
     return center;
 }
 

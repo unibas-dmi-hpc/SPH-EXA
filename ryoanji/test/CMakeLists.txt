@@ -3,6 +3,7 @@ add_subdirectory(gtest)
 
 add_executable(ryoanji_unit_tests
         direct.cu
+        multipole.cu
         test_main.cpp)
 
 target_include_directories(ryoanji_unit_tests PRIVATE ../include)
