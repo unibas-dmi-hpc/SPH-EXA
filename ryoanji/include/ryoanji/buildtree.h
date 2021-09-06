@@ -118,6 +118,14 @@ __device__ fvec3 maxBlock(fvec3 Xmax)
     return Xmax;
 }
 
+/*! @brief compute coordinate bounds of given bodies
+ *
+ * @param[in]  numBodies
+ * @param[out] bounds     array of length 2 * NTHREADS, final result returned in element 0
+ * @param[in]  bodyPos
+ *
+ * performs a (min/max)-reduction
+ */
 __global__ void getBounds(const int numBodies, Bounds* bounds, const fvec4* bodyPos)
 {
     const int NBLOCK = NTHREAD;
@@ -174,6 +182,23 @@ __global__ void getBounds(const int numBodies, Bounds* bounds, const fvec4* body
     }
 }
 
+/*! @brief recurse down octree level by level
+ *
+ * @tparam      NCRIT
+ * @tparam      ISROOT
+ * @param[in]   box4                   global coordinate bounding box
+ * @param[in]   cellParentIndex        (0 on first call)
+ * @param[in]   cellIndexBase          (0 on first call)
+ * @param[in]   packedOctant           (0 on first call)
+ * @param[in]   octantSizeBase         body octant counts, length 8
+ * @param[in]   octantSizeScanBase     scanned body counts, length 8
+ * @param[out]  subOctantSizeScanBase  length 64
+ * @param[in]   blockCounterBase       length 1
+ * @param[in]   bodyRangeBase          length 1
+ * @param[in]   bodyPos
+ * @param[out]  bodyPos2
+ * @param[in]   level
+ */
 template<int NCRIT, bool ISROOT>
 __global__ __launch_bounds__(NTHREAD, 8)
 void buildOctant(float4 box4, const int cellParentIndex, const int cellIndexBase,
@@ -440,6 +465,12 @@ void buildOctant(float4 box4, const int cellParentIndex, const int cellIndexBase
     }
 }
 
+/*! @brief calculate particle count of the 8 children of the root octant
+ *
+ * @param[in]  numBodies   length of @p bodyPos
+ * @param[out] octantSize  array of length 8 * maxNode, first 8 elements are set
+ * @param[in]  bodyPos     body positions
+ */
 __global__ void getRootOctantSize(const int numBodies, int* octantSize, const fvec4* bodyPos)
 {
     const int laneIdx     = threadIdx.x & (WARP_SIZE - 1);
@@ -469,6 +500,19 @@ __global__ void getRootOctantSize(const int numBodies, int* octantSize, const fv
     }
 }
 
+/*! @brief
+ *
+ * @tparam       NCRIT
+ * @param[in]    numBodies
+ * @param[in]    d_sourceCells
+ * @param[inout] d_octantSizePool
+ * @param[out]   d_octantSizeScanPool
+ * @param[out]   d_subOctantSizeScanPool
+ * @param[out]   d_blockCounterPool
+ * @param[out]   d_bodyRangePool
+ * @param[in]    d_bodyPos
+ * @param[out]   d_bodyPos2
+ */
 template<int NCRIT>
 __global__ void buildOctree(const int numBodies, CellData* d_sourceCells, int* d_octantSizePool,
                             int* d_octantSizeScanPool, int* d_subOctantSizeScanPool, int* d_blockCounterPool,
@@ -486,10 +530,12 @@ __global__ void buildOctree(const int numBodies, CellData* d_sourceCells, int* d
     numLevelsGlob = 0;
     numCellsGlob  = 0;
 
+    //! root octant counts
     int* octantSize = new int[8];
     for (int k = 0; k < 8; k++)
         octantSize[k] = octantSizePool[k];
 
+    //! scan of root octant counts
     int* octantSizeScan = new int[8];
     for (int k = 0; k < 8; k++)
         octantSizeScan[k] = k == 0 ? 0 : octantSizeScan[k - 1] + octantSize[k - 1];
@@ -563,13 +609,28 @@ __global__ void permuteCells(const int numCells, const int* value, const int* ke
 class Build
 {
 public:
+    /*! @brief launch tree build kernels
+     *
+     * @tparam     NCRIT         max number of particles per leaf
+     * @param[in]  bodyPos       input particle positions
+     * @param[out] bodyPos2
+     * @param[out] box
+     * @param[out] levelRange
+     * @param[out] sourceCells
+     * @return
+     */
     template<int NCRIT>
     static int3 tree(cudaVec<fvec4>& bodyPos, cudaVec<fvec4>& bodyPos2, Box& box, cudaVec<int2>& levelRange,
                      cudaVec<CellData>& sourceCells)
     {
         const int numBodies = bodyPos.size();
+
+        //! maximum estimated number of nodes
         const int maxNode   = numBodies / 10;
+
+        //! space (plus temp space) for global bounds computation
         cudaVec<Bounds> bounds(2 * NTHREAD);
+
         cudaVec<int> octantSizePool(8 * maxNode);
         cudaVec<int> octantSizeScanPool(8 * maxNode);
         cudaVec<int> subOctantSizeScanPool(64 * maxNode);
@@ -578,7 +639,9 @@ public:
         cudaVec<int> key(numBodies);
         cudaVec<int> value(numBodies);
 
+        //! Stack size ~ maxNode
         fprintf(stdout, "Stack size           : %g MB\n", 83 * maxNode * sizeof(int) / 1024.0 / 1024.0);
+        //! Cell data ~ numBodies
         fprintf(stdout, "Cell data            : %g MB\n", numBodies * sizeof(CellData) / 1024.0 / 1024.0);
         cudaDeviceSynchronize();
 
@@ -598,11 +661,16 @@ public:
         cudaDeviceSynchronize();
 
         t0 = std::chrono::high_resolution_clock::now();
+
+        //! count bodies in first 8 octants (children of root)
         getRootOctantSize<<<NTHREAD, NTHREAD>>>(numBodies, octantSizePool.d(), bodyPos.d());
+
+        //! optimized kernel config
         CUDA_SAFE_CALL(cudaDeviceSetLimit(cudaLimitDevRuntimePendingLaunchCount, 16384));
         CUDA_SAFE_CALL(cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte));
         CUDA_SAFE_CALL(cudaFuncSetCacheConfig(&buildOctant<NCRIT, true>, cudaFuncCachePreferShared));
         CUDA_SAFE_CALL(cudaFuncSetCacheConfig(&buildOctant<NCRIT, false>, cudaFuncCachePreferShared));
+
         buildOctree<NCRIT><<<1, 1>>>(numBodies,
                                      sourceCells.d(),
                                      octantSizePool.d(),
