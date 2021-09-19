@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 #include <algorithm>
 
 #include "sph.cuh"
@@ -56,25 +57,25 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
     cstone::Box<T> cstoneBox{d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax,
                              d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz};
 
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vx, d.vx.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vy, d.vy.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vz, d.vz.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_p, d.p.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c, d.c.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_vx, d.vx.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_vy, d.vy.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_vz, d.vz.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_p, d.p.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_c, d.c.data(), size_np_T, hipMemcpyHostToDevice));
 
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c11, d.c11.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c12, d.c12.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c13, d.c13.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c22, d.c22.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c23, d.c23.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c33, d.c33.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_c11, d.c11.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_c12, d.c12.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_c13, d.c13.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_c22, d.c22.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_c23, d.c23.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_c33, d.c33.data(), size_np_T, hipMemcpyHostToDevice));
 
     for (int i = 0; i < taskList.size(); ++i)
     {
         const auto& t = taskList[i];
 
         int sIdx = i % NST;
-        cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
+        hipStream_t stream = d.devPtrs.d_stream[sIdx].stream;
 
         int* d_clist_use = d.devPtrs.d_stream[sIdx].d_clist;
         int* d_neighbors_use = d.devPtrs.d_stream[sIdx].d_neighbors;
@@ -83,17 +84,17 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
         size_t n = t.clist.size();
         size_t size_n_int = n * sizeof(int);
 
-        CHECK_CUDA_ERR(cudaMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, cudaMemcpyHostToDevice, stream));
+        CHECK_CUDA_ERR(hipMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, hipMemcpyHostToDevice, stream));
 
         findNeighborsHilbertGpu(d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h,
                                 t.clist[0], t.clist[n - 1] + 1, np, cstoneBox, d.devPtrs.d_codes,
                                 d_neighbors_use, d_neighborsCount_use, ngmax, stream);
-        CHECK_CUDA_ERR(cudaGetLastError());
+        CHECK_CUDA_ERR(hipGetLastError());
 
         unsigned numThreads = 256;
         unsigned numBlocks  = (n + numThreads - 1) / numThreads;
 
-        computeMomentumAndEnergyIAD<<<numBlocks, numThreads, 0, stream>>>(
+        hipLaunchKernelGGL(computeMomentumAndEnergyIAD, dim3(numBlocks), dim3(numThreads), 0, stream, 
             n, d.sincIndex, d.K, ngmax, d.devPtrs.d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
             d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_vx, d.devPtrs.d_vy, d.devPtrs.d_vz,
             d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_ro, d.devPtrs.d_p, d.devPtrs.d_c,
@@ -101,14 +102,14 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
             d.devPtrs.d_wh, d.devPtrs.d_whd, ltsize, d.devPtrs.d_grad_P_x, d.devPtrs.d_grad_P_y, d.devPtrs.d_grad_P_z,
             d.devPtrs.d_du, d.devPtrs.d_maxvsignal);
 
-        CHECK_CUDA_ERR(cudaGetLastError());
+        CHECK_CUDA_ERR(hipGetLastError());
     }
 
-    CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data(), d.devPtrs.d_grad_P_x, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data(), d.devPtrs.d_grad_P_y, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data(), d.devPtrs.d_grad_P_z, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.du.data(), d.devPtrs.d_du, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.maxvsignal.data(), d.devPtrs.d_maxvsignal, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(hipMemcpy(d.grad_P_x.data(), d.devPtrs.d_grad_P_x, size_np_T, hipMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(hipMemcpy(d.grad_P_y.data(), d.devPtrs.d_grad_P_y, size_np_T, hipMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(hipMemcpy(d.grad_P_z.data(), d.devPtrs.d_grad_P_z, size_np_T, hipMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(hipMemcpy(d.du.data(), d.devPtrs.d_du, size_np_T, hipMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(hipMemcpy(d.maxvsignal.data(), d.devPtrs.d_maxvsignal, size_np_T, hipMemcpyDeviceToHost));
 }
 
 template void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, ParticlesData<double, unsigned>& d);

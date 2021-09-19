@@ -1,7 +1,7 @@
 #pragma once
 
-#include <cuda.h>
-#include <cuda_runtime_api.h>
+#include <hip/hip_runtime.h>
+#include <hip/hip_runtime_api.h>
 #include <type_traits>
 
 namespace sphexa
@@ -15,38 +15,38 @@ namespace cuda
 namespace utils
 {
 
-inline void checkErr(cudaError_t err, const char *filename, int lineno, const char *funcName)
+inline void checkErr(hipError_t err, const char *filename, int lineno, const char *funcName)
 {
-    if (err != cudaSuccess)
+    if (err != hipSuccess)
     {
-        const char *errName = cudaGetErrorName(err);
-        const char *errStr = cudaGetErrorString(err);
+        const char *errName = hipGetErrorName(err);
+        const char *errStr = hipGetErrorString(err);
         fprintf(stderr, "CUDA Error at %s:%d. Function %s returned err %d: %s - %s\n", filename, lineno, funcName, err, errName, errStr);
     }
 }
 
-inline cudaError_t cudaFree() { return cudaSuccess; }
+inline hipError_t hipFree() { return hipSuccess; }
 
 template <typename Ptr, typename... Ptrs>
-inline cudaError_t cudaFree(Ptr first, Ptrs... ptrs)
+inline hipError_t hipFree(Ptr first, Ptrs... ptrs)
 {
-    static_assert(std::is_pointer<Ptr>::value, "Parameter passed to cudaFree must be a pointer type");
+    static_assert(std::is_pointer<Ptr>::value, "Parameter passed to hipFree must be a pointer type");
 
-    const auto ret = ::cudaFree(first);
-    if (ret == cudaSuccess) return cudaFree(ptrs...);
+    const auto ret = ::hipFree(first);
+    if (ret == hipSuccess) return hipFree(ptrs...);
 
     return ret;
 }
 
-inline cudaError_t cudaMalloc(size_t) { return cudaSuccess; }
+inline hipError_t hipMalloc(size_t) { return hipSuccess; }
 
 template <typename Ptr, typename... Ptrs>
-inline cudaError_t cudaMalloc(size_t bytes, Ptr &devptr, Ptrs &&... ptrs)
+inline hipError_t hipMalloc(size_t bytes, Ptr &devptr, Ptrs &&... ptrs)
 {
-    static_assert(std::is_pointer<Ptr>::value, "Parameter passed to cudaMalloc must be a pointer type");
+    static_assert(std::is_pointer<Ptr>::value, "Parameter passed to hipMalloc must be a pointer type");
 
-    const auto ret = ::cudaMalloc((void **)&devptr, bytes);
-    if (ret == cudaSuccess) return cudaMalloc(bytes, ptrs...);
+    const auto ret = ::hipMalloc((void **)&devptr, bytes);
+    if (ret == hipSuccess) return hipMalloc(bytes, ptrs...);
 
     return ret;
 }

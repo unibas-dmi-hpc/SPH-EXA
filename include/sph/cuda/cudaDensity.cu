@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 #include <algorithm>
 
 #include "sph.cuh"
@@ -55,23 +56,23 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d)
     size_t ltsize = d.wh.size();
     size_t size_lt_T = ltsize * sizeof(T);
 
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_z, d.z.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_wh, d.wh.data(), size_lt_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_whd, d.whd.data(), size_lt_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_x, d.x.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_y, d.y.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_z, d.z.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_h, d.h.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_m, d.m.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_wh, d.wh.data(), size_lt_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_whd, d.whd.data(), size_lt_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_bbox, &d.bbox, size_bbox, hipMemcpyHostToDevice));
 
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_codes, d.codes.data(), size_np_CodeType, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d.devPtrs.d_codes, d.codes.data(), size_np_CodeType, hipMemcpyHostToDevice));
 
     for (int i = 0; i < taskList.size(); ++i)
     {
         auto &t = taskList[i];
 
         int sIdx = i % NST;
-        cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
+        hipStream_t stream = d.devPtrs.d_stream[sIdx].stream;
 
         int* d_clist_use = d.devPtrs.d_stream[sIdx].d_clist;
         int* d_neighbors_use = d.devPtrs.d_stream[sIdx].d_neighbors;
@@ -80,30 +81,30 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d)
         size_t n = t.clist.size();
         size_t size_n_int = n * sizeof(int);
 
-        CHECK_CUDA_ERR(cudaMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, cudaMemcpyHostToDevice, stream));
+        CHECK_CUDA_ERR(hipMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, hipMemcpyHostToDevice, stream));
 
         findNeighborsHilbertGpu(d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h,
                                 t.clist[0], t.clist[n - 1] + 1, np, cstoneBox, d.devPtrs.d_codes,
                                 d_neighbors_use, d_neighborsCount_use, ngmax, stream);
-        CHECK_CUDA_ERR(cudaGetLastError());
+        CHECK_CUDA_ERR(hipGetLastError());
 
         unsigned numThreads = 256;
         unsigned numBlocks  = (n + numThreads - 1) / numThreads;
 
         // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
-        density<<<numBlocks, numThreads, 0, stream>>>(
+        hipLaunchKernelGGL(density, dim3(numBlocks), dim3(numThreads), 0, stream, 
             n, d.sincIndex, d.K, t.ngmax, d.devPtrs.d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
             d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_wh, d.devPtrs.d_whd,
             ltsize, d.devPtrs.d_ro);
-        CHECK_CUDA_ERR(cudaGetLastError());
+        CHECK_CUDA_ERR(hipGetLastError());
 
-        CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighborsCount.data(), d_neighborsCount_use,
-                                       size_n_int, cudaMemcpyDeviceToHost, stream));
+        CHECK_CUDA_ERR(hipMemcpyAsync(t.neighborsCount.data(), d_neighborsCount_use,
+                                       size_n_int, hipMemcpyDeviceToHost, stream));
     }
 
     // Memcpy in default stream synchronizes all other streams
-    CHECK_CUDA_ERR(cudaMemcpy(d.ro.data(), d.devPtrs.d_ro, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(hipMemcpy(d.ro.data(), d.devPtrs.d_ro, size_np_T, hipMemcpyDeviceToHost));
 
 }
 

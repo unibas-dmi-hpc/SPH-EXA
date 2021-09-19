@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -50,19 +51,18 @@ template<class T, class Integer>
 inline
 void findNeighborsGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
                       cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount,
-                      int ngmax, cudaStream_t stream)
+                      int ngmax, hipStream_t stream)
 {
     unsigned numThreads = 256;
     unsigned numBlocks  = iceil(n, numThreads);
-    findNeighborsKernel<<<numBlocks, numThreads, 0, stream>>>
-        (x, y, z, h, firstId, lastId, n, box, particleKeys, neighbors, neighborsCount, ngmax);
+    hipLaunchKernelGGL(findNeighborsKernel, dim3(numBlocks), dim3(numThreads), 0, stream, x, y, z, h, firstId, lastId, n, box, particleKeys, neighbors, neighborsCount, ngmax);
 }
 
 //! @brief Morton key based algorithm
 template<class T, class Integer>
 void findNeighborsMortonGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
                             cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount,
-                            int ngmax, cudaStream_t stream)
+                            int ngmax, hipStream_t stream)
 {
     const MortonKey<Integer>* mortonKeys = (MortonKey<Integer>*)(particleKeys);
     findNeighborsGpu(x, y, z, h, firstId, lastId, n, box, mortonKeys, neighbors, neighborsCount, ngmax, stream);
@@ -72,7 +72,7 @@ void findNeighborsMortonGpu(const T* x, const T* y, const T* z, const T* h, int 
 template<class T, class Integer>
 void findNeighborsHilbertGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
                              cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount,
-                             int ngmax, cudaStream_t stream)
+                             int ngmax, hipStream_t stream)
 {
     const HilbertKey<Integer>* hilbertKeys = (HilbertKey<Integer>*)(particleKeys);
     findNeighborsGpu(x, y, z, h, firstId, lastId, n, box, hilbertKeys, neighbors, neighborsCount, ngmax, stream);

@@ -35,21 +35,21 @@ struct DeviceLinearOctree
 
         size = o.size;
 
-        CHECK_CUDA_ERR(sphexa::sph::cuda::utils::cudaMalloc(size_int * 8, cells));
-        CHECK_CUDA_ERR(sphexa::sph::cuda::utils::cudaMalloc(size_int, ncells, localPadding, localParticleCount));
-        CHECK_CUDA_ERR(sphexa::sph::cuda::utils::cudaMalloc(size_T, xmin, xmax, ymin, ymax, zmin, zmax));
+        CHECK_CUDA_ERR(sphexa::sph::cuda::utils::hipMalloc(size_int * 8, cells));
+        CHECK_CUDA_ERR(sphexa::sph::cuda::utils::hipMalloc(size_int, ncells, localPadding, localParticleCount));
+        CHECK_CUDA_ERR(sphexa::sph::cuda::utils::hipMalloc(size_T, xmin, xmax, ymin, ymax, zmin, zmax));
 
-        CHECK_CUDA_ERR(cudaMemcpy(cells, o.cells.data(), size_int * 8, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERR(cudaMemcpy(ncells, o.ncells.data(), size_int, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERR(cudaMemcpy(localPadding, o.localPadding.data(), size_int, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERR(cudaMemcpy(localParticleCount, o.localParticleCount.data(), size_int, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(hipMemcpy(cells, o.cells.data(), size_int * 8, hipMemcpyHostToDevice));
+        CHECK_CUDA_ERR(hipMemcpy(ncells, o.ncells.data(), size_int, hipMemcpyHostToDevice));
+        CHECK_CUDA_ERR(hipMemcpy(localPadding, o.localPadding.data(), size_int, hipMemcpyHostToDevice));
+        CHECK_CUDA_ERR(hipMemcpy(localParticleCount, o.localParticleCount.data(), size_int, hipMemcpyHostToDevice));
 
-        CHECK_CUDA_ERR(cudaMemcpy(xmin, o.xmin.data(), size_T, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERR(cudaMemcpy(xmax, o.xmax.data(), size_T, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERR(cudaMemcpy(ymin, o.ymin.data(), size_T, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERR(cudaMemcpy(ymax, o.ymax.data(), size_T, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERR(cudaMemcpy(zmin, o.zmin.data(), size_T, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERR(cudaMemcpy(zmax, o.zmax.data(), size_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(hipMemcpy(xmin, o.xmin.data(), size_T, hipMemcpyHostToDevice));
+        CHECK_CUDA_ERR(hipMemcpy(xmax, o.xmax.data(), size_T, hipMemcpyHostToDevice));
+        CHECK_CUDA_ERR(hipMemcpy(ymin, o.ymin.data(), size_T, hipMemcpyHostToDevice));
+        CHECK_CUDA_ERR(hipMemcpy(ymax, o.ymax.data(), size_T, hipMemcpyHostToDevice));
+        CHECK_CUDA_ERR(hipMemcpy(zmin, o.zmin.data(), size_T, hipMemcpyHostToDevice));
+        CHECK_CUDA_ERR(hipMemcpy(zmax, o.zmax.data(), size_T, hipMemcpyHostToDevice));
 
         xmin0 = o.xmin[0];
         xmax0 = o.xmax[0];
@@ -62,9 +62,9 @@ struct DeviceLinearOctree
 
     void unmapLinearOctreeFromDevice()
     {
-        CHECK_CUDA_ERR(sphexa::sph::cuda::utils::cudaFree(cells));
-        CHECK_CUDA_ERR(sphexa::sph::cuda::utils::cudaFree(ncells, localPadding, localParticleCount));
-        CHECK_CUDA_ERR(sphexa::sph::cuda::utils::cudaFree(xmin, xmax, ymin, ymax, zmin, zmax));
+        CHECK_CUDA_ERR(sphexa::sph::cuda::utils::hipFree(cells));
+        CHECK_CUDA_ERR(sphexa::sph::cuda::utils::hipFree(ncells, localPadding, localParticleCount));
+        CHECK_CUDA_ERR(sphexa::sph::cuda::utils::hipFree(xmin, xmax, ymin, ymax, zmin, zmax));
     }
 };
 
@@ -80,7 +80,7 @@ public:
 
     struct neighbors_stream
     {
-        cudaStream_t stream;
+        hipStream_t stream;
         int *d_clist, *d_neighbors, *d_neighborsCount;
     };
 
@@ -103,12 +103,12 @@ public:
             // TODO: Investigate benefits of low-level reallocate
             if (allocatedDeviceMemory)
             {
-                CHECK_CUDA_ERR(utils::cudaFree(d_x, d_y, d_z, d_h, d_m, d_ro));
-                CHECK_CUDA_ERR(utils::cudaFree(d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
-                CHECK_CUDA_ERR(utils::cudaFree(d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du,
+                CHECK_CUDA_ERR(utils::hipFree(d_x, d_y, d_z, d_h, d_m, d_ro));
+                CHECK_CUDA_ERR(utils::hipFree(d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
+                CHECK_CUDA_ERR(utils::hipFree(d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du,
                                                d_maxvsignal));
 
-                CHECK_CUDA_ERR(utils::cudaFree(d_codes));
+                CHECK_CUDA_ERR(utils::hipFree(d_codes));
             }
 
             size = size_t(double(size) * 1.01); // allocate 1% extra to avoid reallocation on small size increase
@@ -116,11 +116,11 @@ public:
             size_t size_np_T       = size * sizeof(T);
             size_t size_np_KeyType = size * sizeof(typename ParticleData::KeyType);
 
-            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m, d_ro));
-            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
-            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y,
+            CHECK_CUDA_ERR(utils::hipMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m, d_ro));
+            CHECK_CUDA_ERR(utils::hipMalloc(size_np_T, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
+            CHECK_CUDA_ERR(utils::hipMalloc(size_np_T, d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y,
                                              d_grad_P_z, d_du, d_maxvsignal));
-            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_KeyType, d_codes));
+            CHECK_CUDA_ERR(utils::hipMalloc(size_np_KeyType, d_codes));
 
             allocatedDeviceMemory = size;
         }
@@ -135,8 +135,8 @@ public:
                 //printf("[D] increased stream size from %ld to %ld\n", allocatedTaskSize, taskSize);
                 for (int i = 0; i < NST; ++i)
                 {
-                    CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_clist, d_stream[i].d_neighborsCount));
-                    CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_neighbors));
+                    CHECK_CUDA_ERR(utils::hipFree(d_stream[i].d_clist, d_stream[i].d_neighborsCount));
+                    CHECK_CUDA_ERR(utils::hipFree(d_stream[i].d_neighbors));
                 }
             }
 
@@ -145,8 +145,8 @@ public:
             for (int i = 0; i < NST; ++i)
             {
                 CHECK_CUDA_ERR(
-                    utils::cudaMalloc(taskSize * sizeof(int), d_stream[i].d_clist, d_stream[i].d_neighborsCount));
-                CHECK_CUDA_ERR(utils::cudaMalloc(taskSize * ngmax * sizeof(int), d_stream[i].d_neighbors));
+                    utils::hipMalloc(taskSize * sizeof(int), d_stream[i].d_clist, d_stream[i].d_neighborsCount));
+                CHECK_CUDA_ERR(utils::hipMalloc(taskSize * ngmax * sizeof(int), d_stream[i].d_neighbors));
             }
 
             allocatedTaskSize = taskSize;
@@ -162,30 +162,30 @@ public:
         const size_t ltsize = pd.wh.size();
         const size_t size_lt_T = ltsize * sizeof(T);
 
-        CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
-        CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d_bbox));
+        CHECK_CUDA_ERR(utils::hipMalloc(size_lt_T, d_wh, d_whd));
+        CHECK_CUDA_ERR(utils::hipMalloc(size_bbox, d_bbox));
 
         for (int i = 0; i < NST; ++i)
         {
-            CHECK_CUDA_ERR(cudaStreamCreate(&d_stream[i].stream));
+            CHECK_CUDA_ERR(hipStreamCreate(&d_stream[i].stream));
         }
     }
 
     ~DeviceParticlesData()
     {
-        CHECK_CUDA_ERR(utils::cudaFree(d_bbox, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c,
+        CHECK_CUDA_ERR(utils::hipFree(d_bbox, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c,
                                        d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z,
                                        d_du, d_maxvsignal, d_wh, d_whd));
-        CHECK_CUDA_ERR(utils::cudaFree(d_codes));
+        CHECK_CUDA_ERR(utils::hipFree(d_codes));
 
         for (int i = 0; i < NST; ++i)
         {
-            CHECK_CUDA_ERR(cudaStreamDestroy(d_stream[i].stream));
+            CHECK_CUDA_ERR(hipStreamDestroy(d_stream[i].stream));
         }
 
         for (int i = 0; i < NST; ++i)
         {
-            CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_clist, d_stream[i].d_neighbors, d_stream[i].d_neighborsCount));
+            CHECK_CUDA_ERR(utils::hipFree(d_stream[i].d_clist, d_stream[i].d_neighbors, d_stream[i].d_neighborsCount));
         }
     }
 };

@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include <cuda_runtime.h>
+#include <hip/hip_runtime.h>
 
 #include "cstone/findneighbors.hpp"
 
@@ -66,25 +66,25 @@ template<class T, class Integer>
 void findNeighborsMortonGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
                             cstone::Box<T> box, const Integer* particleKeys,
                             int* neighbors, int* neighborsCount, int ngmax,
-                            cudaStream_t stream = cudaStreamDefault);
+                            hipStream_t stream = hipStreamDefault);
 
 
 #define FIND_NEIGHBORS_MORTON_GPU(T, Integer) \
 void findNeighborsMortonGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n, \
                             cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount, \
-                            int ngmax, cudaStream_t stream)
+                            int ngmax, hipStream_t stream)
 
 template<class T, class Integer>
 void findNeighborsHilbertGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
                              cstone::Box<T> box, const Integer* particleKeys,
                              int* neighbors, int* neighborsCount, int ngmax,
-                             cudaStream_t stream = cudaStreamDefault);
+                             hipStream_t stream = hipStreamDefault);
 
 
 #define FIND_NEIGHBORS_HILBERT_GPU(T, Integer) \
 void findNeighborsHilbertGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n, \
 cstone::Box<T> box, const Integer* particleKeys, int* neighbors, int* neighborsCount, \
-int ngmax, cudaStream_t stream)
+int ngmax, hipStream_t stream)
 
 extern template FIND_NEIGHBORS_MORTON_GPU(float,  uint32_t);
 extern template FIND_NEIGHBORS_MORTON_GPU(float,  uint64_t);
@@ -102,7 +102,7 @@ inline std::enable_if_t<cstone::IsMorton<KeyType>{}>
 findNeighborsSfcGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
                     cstone::Box<T> box, const KeyType* particleKeys,
                     int* neighbors, int* neighborsCount, int ngmax,
-                    cudaStream_t stream = cudaStreamDefault)
+                    hipStream_t stream = hipStreamDefault)
 {
     const auto* mortonKeys = (const typename KeyType::ValueType*)(particleKeys);
     findNeighborsMortonGpu(x, y, z, h, firstId, lastId, n, box, mortonKeys, neighbors, neighborsCount,
@@ -115,7 +115,7 @@ inline std::enable_if_t<cstone::IsHilbert<KeyType>{}>
 findNeighborsSfcGpu(const T* x, const T* y, const T* z, const T* h, int firstId, int lastId, int n,
                     cstone::Box<T> box, const KeyType* particleKeys,
                     int* neighbors, int* neighborsCount, int ngmax,
-                    cudaStream_t stream = cudaStreamDefault)
+                    hipStream_t stream = hipStreamDefault)
 {
     const auto* hilbertKeys = (const typename KeyType::ValueType*)(particleKeys);
     findNeighborsHilbertGpu(x, y, z, h, firstId, lastId, n, box, hilbertKeys, neighbors, neighborsCount,

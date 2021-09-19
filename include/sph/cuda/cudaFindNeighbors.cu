@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 #include <vector>
 #include "Task.hpp"
 #include "LinearOctree.hpp"
@@ -72,30 +73,30 @@ void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList,
     int *d_clist[NST], *d_neighbors[NST], *d_neighborsCount[NST]; // work arrays per stream
     T *d_x, *d_y, *d_z, *d_h;
 
-    CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h));
+    CHECK_CUDA_ERR(utils::hipMalloc(size_np_T, d_x, d_y, d_z, d_h));
     for (int i = 0; i < NST; ++i)
-        CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNChunk_int, d_clist[i], d_neighborsCount[i]));
+        CHECK_CUDA_ERR(utils::hipMalloc(size_largerNChunk_int, d_clist[i], d_neighborsCount[i]));
     for (int i = 0; i < NST; ++i)
-        CHECK_CUDA_ERR(utils::cudaMalloc(size_largerNeighborsChunk_int, d_neighbors[i]));
+        CHECK_CUDA_ERR(utils::hipMalloc(size_largerNeighborsChunk_int, d_neighbors[i]));
 
-    CHECK_CUDA_ERR(cudaMemcpy(d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d_z, d.z.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d_x, d.x.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d_y, d.y.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d_z, d.z.data(), size_np_T, hipMemcpyHostToDevice));
+    CHECK_CUDA_ERR(hipMemcpy(d_h, d.h.data(), size_np_T, hipMemcpyHostToDevice));
 
     DeviceLinearOctree<T> d_o;
     d_o.mapLinearOctreeToDevice(o);
 
-    cudaStream_t streams[NST];
+    hipStream_t streams[NST];
     for (int i = 0; i < NST; ++i)
-        CHECK_CUDA_ERR(cudaStreamCreate(&streams[i]));
+        CHECK_CUDA_ERR(hipStreamCreate(&streams[i]));
 
     for (int i = 0; i < taskList.size(); ++i)
     {
         auto &t = taskList[i];
 
         const int sIdx = i % NST;
-        cudaStream_t stream = streams[sIdx];
+        hipStream_t stream = streams[sIdx];
 
         int *d_clist_use = d_clist[sIdx];
         int *d_neighbors_use = d_neighbors[sIdx];
@@ -105,33 +106,33 @@ void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList,
         const size_t size_n_int = n * sizeof(int);
         const size_t size_nNeighbors = n * ngmax * sizeof(int);
 
-        //CHECK_CUDA_ERR(cudaMemcpy(d_clist, t.clist.data(), size_n_int, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERR(cudaMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, cudaMemcpyHostToDevice, stream));
+        //CHECK_CUDA_ERR(hipMemcpy(d_clist, t.clist.data(), size_n_int, hipMemcpyHostToDevice));
+        CHECK_CUDA_ERR(hipMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, hipMemcpyHostToDevice, stream));
 
         const int threadsPerBlock = 256;
         const int blocksPerGrid = (n + threadsPerBlock - 1) / threadsPerBlock;
 
         // printf("CUDA Density kernel launch with %d blocks of %d threads\n", blocksPerGrid, threadsPerBlock);
 
-        findNeighbors<<<blocksPerGrid, threadsPerBlock, 0, stream>>>(
+        hipLaunchKernelGGL(findNeighbors, dim3(blocksPerGrid), dim3(threadsPerBlock), 0, stream, 
             d_o, d_clist_use, n, d_x, d_y, d_z, d_h, displx, disply, displz, max, may, maz, ngmax, d_neighbors_use, d_neighborsCount_use
         );
 
-        CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighbors.data(), d_neighbors_use, size_nNeighbors, cudaMemcpyDeviceToHost, stream));
-        CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighborsCount.data(), d_neighborsCount_use, size_n_int, cudaMemcpyDeviceToHost, stream));
+        CHECK_CUDA_ERR(hipMemcpyAsync(t.neighbors.data(), d_neighbors_use, size_nNeighbors, hipMemcpyDeviceToHost, stream));
+        CHECK_CUDA_ERR(hipMemcpyAsync(t.neighborsCount.data(), d_neighborsCount_use, size_n_int, hipMemcpyDeviceToHost, stream));
     }
 
     for (int i = 0; i < NST; ++i)
-        CHECK_CUDA_ERR(cudaStreamSynchronize(streams[i]));
+        CHECK_CUDA_ERR(hipStreamSynchronize(streams[i]));
 
     d_o.unmapLinearOctreeFromDevice();
 
     for (int i = 0; i < NST; ++i)
-        CHECK_CUDA_ERR(cudaStreamDestroy(streams[i]));
+        CHECK_CUDA_ERR(hipStreamDestroy(streams[i]));
 
-    CHECK_CUDA_ERR(utils::cudaFree(d_x, d_y, d_z, d_h));
+    CHECK_CUDA_ERR(utils::hipFree(d_x, d_y, d_z, d_h));
     for (int i = 0; i < NST; ++i)
-        CHECK_CUDA_ERR(utils::cudaFree(d_clist[i], d_neighbors[i], d_neighborsCount[i]));
+        CHECK_CUDA_ERR(utils::hipFree(d_clist[i], d_neighbors[i], d_neighborsCount[i]));
 }
 
 template void computeFindNeighbors<double, ParticlesData<double>>(const LinearOctree<double> &o, std::vector<Task> &taskList, ParticlesData<double> &d);

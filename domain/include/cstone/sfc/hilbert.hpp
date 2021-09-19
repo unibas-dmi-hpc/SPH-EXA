@@ -42,7 +42,7 @@
 namespace cstone
 {
 
-#if defined(__CUDACC__) || defined(__HIPCC__)
+#if defined(__HIPCC__) || defined(__HIPCC__)
 __device__ static unsigned mortonToHilbertDevice[8] = { 0, 1, 3, 2, 7, 6, 4, 5 };
 #endif
 

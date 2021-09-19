@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -51,8 +52,7 @@ template <class I>
 void createBinaryTreeGpu(const I* cstree, TreeNodeIndex nNodes, BinaryNode<I>* binaryTree)
 {
     constexpr int nThreads = 512;
-    createBinaryTreeKernel<<<iceil(nNodes, nThreads), nThreads>>>
-        (cstree, nNodes, binaryTree);
+    hipLaunchKernelGGL(createBinaryTreeKernel, dim3(iceil(nNodes), dim3(nThreads)), nThreads, 0, cstree, nNodes, binaryTree);
 }
 
 } // namespace cstone

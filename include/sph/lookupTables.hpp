@@ -4,7 +4,7 @@
 #include "../cudaFunctionAnnotation.hpp"
 #include "kernels.hpp"
 
-#ifdef __CUDACC__
+#ifdef __HIPCC__
 #include "cuda/cudaUtils.cuh"
 #endif
 

@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -39,7 +40,7 @@
 #include <vector>
 #include <tuple>
 
-#include <cuda.h>
+#include <hip/hip_runtime.h>
 
 #include <thrust/device_vector.h>
 #include <thrust/scan.h>
@@ -112,23 +113,21 @@ void computeNodeCountsGpu(const KeyType* tree, unsigned* counts, TreeNodeIndex n
 {
     TreeNodeIndex popNodes[2];
 
-    findPopulatedNodes<<<1,1>>>(tree, nNodes, codesStart, codesEnd);
-    cudaMemcpyFromSymbol(popNodes, populatedNodes, 2 * sizeof(TreeNodeIndex));
+    hipLaunchKernelGGL(findPopulatedNodes, dim3(1), dim3(1), 0, 0, tree, nNodes, codesStart, codesEnd);
+    hipMemcpyFromSymbol(popNodes, HIP_SYMBOL(populatedNodes), 2 * sizeof(TreeNodeIndex));
 
-    cudaMemset(counts, 0, popNodes[0] * sizeof(unsigned));
-    cudaMemset(counts + popNodes[1], 0, (nNodes - popNodes[1]) * sizeof(unsigned));
+    hipMemset(counts, 0, popNodes[0] * sizeof(unsigned));
+    hipMemset(counts + popNodes[1], 0, (nNodes - popNodes[1]) * sizeof(unsigned));
 
     constexpr unsigned nThreads = 256;
     if (useCountsAsGuess)
     {
         thrust::exclusive_scan(thrust::device, counts + popNodes[0], counts + popNodes[1], counts + popNodes[0], 0);
-        updateNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>
-            (tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
+        hipLaunchKernelGGL(updateNodeCountsKernel, dim3(iceil(popNodes[1] - popNodes[0]), dim3(nThreads)), nThreads, 0, tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
     }
     else
     {
-        computeNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>
-            (tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
+        hipLaunchKernelGGL(computeNodeCountsKernel, dim3(iceil(popNodes[1] - popNodes[0]), dim3(nThreads)), nThreads, 0, tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
     }
 }
 
@@ -211,10 +210,10 @@ bool rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, unsigned bucketSi
     // +1 to store the total sum of the exclusive scan in the last element
     workArray.resize(tree.size());
 
-    resetRebalanceCounter<<<1,1>>>();
+    hipLaunchKernelGGL(resetRebalanceCounter, dim3(1), dim3(1), 0, 0);
 
     constexpr unsigned nThreads = 512;
-    rebalanceDecisionKernel<<<iceil(nOldNodes, nThreads), nThreads>>>(
+    hipLaunchKernelGGL(rebalanceDecisionKernel, dim3(iceil(nOldNodes), dim3(nThreads)), nThreads, 0, 
         thrust::raw_pointer_cast(tree.data()), counts, nOldNodes, bucketSize,
         thrust::raw_pointer_cast(workArray.data()));
 
@@ -224,11 +223,11 @@ bool rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, unsigned bucketSi
     tmpTree.resize(*workArray.rbegin() + 1);
 
     TreeNodeIndex nElements = stl::max(tree.size(), tmpTree.size());
-    processNodes<<<iceil(nElements, nThreads), nThreads>>>(thrust::raw_pointer_cast(tree.data()),
+    hipLaunchKernelGGL(processNodes, dim3(iceil(nElements), dim3(nThreads)), nThreads, 0, thrust::raw_pointer_cast(tree.data()),
                                                            thrust::raw_pointer_cast(workArray.data()), nOldNodes, nNodes(tmpTree),
                                                            thrust::raw_pointer_cast(tmpTree.data()));
     int changeCounter;
-    cudaMemcpyFromSymbol(&changeCounter, rebalanceChangeCounter, sizeof(int));
+    hipMemcpyFromSymbol(&changeCounter, HIP_SYMBOL(rebalanceChangeCounter), sizeof(int));
 
     swap(tree, tmpTree);
 

@@ -1,3 +1,4 @@
+#include "hip/hip_runtime.h"
 /*
  * MIT License
  *
@@ -99,8 +100,7 @@ void findHalosGpu(const KeyType* leaves,
     constexpr unsigned numThreads = 128;
     unsigned numBlocks = iceil(lastNode - firstNode, numThreads);
 
-    findHalosKernel<<<numBlocks, numThreads>>>
-        (leaves, binaryTree, interactionRadii, box, firstNode, lastNode, collisionFlags);
+    hipLaunchKernelGGL(findHalosKernel, dim3(numBlocks), dim3(numThreads), 0, 0, leaves, binaryTree, interactionRadii, box, firstNode, lastNode, collisionFlags);
 }
 
 } // namespace cstone

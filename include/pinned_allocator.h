@@ -15,7 +15,7 @@
  */
 
 /*! \file thrust/system/cuda/experimental/pinned_allocator.h
- *  \brief An allocator which creates new elements in "pinned" memory with \p cudaMallocHost
+ *  \brief An allocator which creates new elements in "pinned" memory with \p hipHostMalloc
  */
 
 #pragma once
@@ -24,8 +24,8 @@
 #include <limits>
 #include <string>
 
-#include <cuda.h>
-#include <cuda_runtime.h>
+#include <hip/hip_runtime.h>
+#include <hip/hip_runtime.h>
 
 /*! \addtogroup memory_management_classes
  *  \ingroup memory_management
@@ -33,7 +33,7 @@
  */
 
 /*! \p pinned_allocator is a CUDA-specific host memory allocator
- *  that employs \c cudaMallocHost for allocation.
+ *  that employs \c hipHostMalloc for allocation.
  *
  *  \see http://www.sgi.com/tech/stl/Allocators.html
  */
@@ -131,11 +131,11 @@ public:
         if (cnt > this->max_size()) { throw std::bad_alloc(); } // end if
 
         pointer result(0);
-        cudaError_t error = cudaMallocHost(reinterpret_cast<void**>(&result), cnt * sizeof(value_type));
+        hipError_t error = hipHostMalloc(reinterpret_cast<void**>(&result), cnt * sizeof(value_type));
 
         if (error)
         {
-            cudaGetLastError(); // Clear global CUDA error state.
+            hipGetLastError(); // Clear global CUDA error state.
             throw std::bad_alloc();
         } // end if
 
@@ -154,14 +154,14 @@ public:
      */
     inline void deallocate(pointer p, size_type /*cnt*/)
     {
-        cudaError_t error = cudaFreeHost(p);
+        hipError_t error = hipHostFree(p);
 
-        cudaGetLastError(); // Clear global CUDA error state.
+        hipGetLastError(); // Clear global CUDA error state.
 
         if (error)
         {
-            cudaGetLastError(); // Clear global CUDA error state.
-            throw std::runtime_error("cudaFreeHost error\n");
+            hipGetLastError(); // Clear global CUDA error state.
+            throw std::runtime_error("hipHostFree error\n");
         } // end if
     }     // end deallocate()
 

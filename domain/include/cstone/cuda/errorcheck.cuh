@@ -25,14 +25,14 @@
 
 #pragma once
 
-#include <cuda_runtime.h>
+#include <hip/hip_runtime.h>
 
-inline void checkErr(cudaError_t err, const char *filename, int lineno, const char *funcName)
+inline void checkErr(hipError_t err, const char *filename, int lineno, const char *funcName)
 {
-    if (err != cudaSuccess)
+    if (err != hipSuccess)
     {
-        const char *errName = cudaGetErrorName(err);
-        const char *errStr = cudaGetErrorString(err);
+        const char *errName = hipGetErrorName(err);
+        const char *errStr = hipGetErrorString(err);
         fprintf(stderr, "CUDA Error at %s:%d. Function %s returned err %d: %s - %s\n", filename, lineno, funcName, err, errName, errStr);
         exit(EXIT_FAILURE);
     }
