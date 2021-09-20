@@ -1,4 +1,9 @@
 #pragma once
+
+#include <chrono>
+
+#include "cudavec.h"
+#include "types.h"
 #include "warpscan.h"
 
 extern void sort(const int size, int* key, int* value);
@@ -46,9 +51,9 @@ __device__ fvec3 minBlock(fvec3 Xmin)
     {
         const int offset = 1 << i;
 
-        Xmin[0] = min(Xmin[0], __shfl_xor(Xmin[0], offset));
-        Xmin[1] = min(Xmin[1], __shfl_xor(Xmin[1], offset));
-        Xmin[2] = min(Xmin[2], __shfl_xor(Xmin[2], offset));
+        Xmin[0] = min(Xmin[0], __shfl_xor_sync(0xFFFFFFFF, Xmin[0], offset));
+        Xmin[1] = min(Xmin[1], __shfl_xor_sync(0xFFFFFFFF, Xmin[1], offset));
+        Xmin[2] = min(Xmin[2], __shfl_xor_sync(0xFFFFFFFF, Xmin[2], offset));
     }
 
     const int NWARP2 = NTHREAD2 - WARP_SIZE2;
@@ -68,9 +73,9 @@ __device__ fvec3 minBlock(fvec3 Xmin)
         {
             const int offset = 1 << i;
 
-            Xmin[0] = min(Xmin[0], __shfl_xor(Xmin[0], offset));
-            Xmin[1] = min(Xmin[1], __shfl_xor(Xmin[1], offset));
-            Xmin[2] = min(Xmin[2], __shfl_xor(Xmin[2], offset));
+            Xmin[0] = min(Xmin[0], __shfl_xor_sync(0xFFFFFFFF, Xmin[0], offset));
+            Xmin[1] = min(Xmin[1], __shfl_xor_sync(0xFFFFFFFF, Xmin[1], offset));
+            Xmin[2] = min(Xmin[2], __shfl_xor_sync(0xFFFFFFFF, Xmin[2], offset));
         }
     }
 
@@ -87,9 +92,9 @@ __device__ fvec3 maxBlock(fvec3 Xmax)
     {
         const int offset = 1 << i;
 
-        Xmax[0] = max(Xmax[0], __shfl_xor(Xmax[0], offset));
-        Xmax[1] = max(Xmax[1], __shfl_xor(Xmax[1], offset));
-        Xmax[2] = max(Xmax[2], __shfl_xor(Xmax[2], offset));
+        Xmax[0] = max(Xmax[0], __shfl_xor_sync(0xFFFFFFFF, Xmax[0], offset));
+        Xmax[1] = max(Xmax[1], __shfl_xor_sync(0xFFFFFFFF, Xmax[1], offset));
+        Xmax[2] = max(Xmax[2], __shfl_xor_sync(0xFFFFFFFF, Xmax[2], offset));
     }
 
     const int NWARP2 = NTHREAD2 - WARP_SIZE2;
@@ -109,9 +114,9 @@ __device__ fvec3 maxBlock(fvec3 Xmax)
         {
             const int offset = 1 << i;
 
-            Xmax[0] = max(Xmax[0], __shfl_xor(Xmax[0], offset));
-            Xmax[1] = max(Xmax[1], __shfl_xor(Xmax[1], offset));
-            Xmax[2] = max(Xmax[2], __shfl_xor(Xmax[2], offset));
+            Xmax[0] = max(Xmax[0], __shfl_xor_sync(0xFFFFFFFF, Xmax[0], offset));
+            Xmax[1] = max(Xmax[1], __shfl_xor_sync(0xFFFFFFFF, Xmax[1], offset));
+            Xmax[2] = max(Xmax[2], __shfl_xor_sync(0xFFFFFFFF, Xmax[2], offset));
         }
     }
 
@@ -260,11 +265,11 @@ void buildOctant(float4 box4, const int cellParentIndex, const int cellIndexBase
         {
             const int sumLane = reduceBool(bodyOctant == octant);
             if (sumLane > 0)
-            {                                                               // Avoid redundant instructions
-                const int index  = exclusiveScanBool(bodyOctant == octant); // Sparse lane index
-                const int offset = __shfl(octantOffset, octant);            // Global offset
-                if (bodyOctant == octant)                                   // Prevent overwrite
-                    bodyIdx2 = offset + index;                              // Sorted index
+            {                                                                     // Avoid redundant instructions
+                const int index  = exclusiveScanBool(bodyOctant == octant);       // Sparse lane index
+                const int offset = __shfl_sync(0xFFFFFFFF, octantOffset, octant); // Global offset
+                if (bodyOctant == octant)                                         // Prevent overwrite
+                    bodyIdx2 = offset + index;                                    // Sorted index
             }
         }
 
@@ -313,10 +318,10 @@ void buildOctant(float4 box4, const int cellParentIndex, const int cellIndexBase
         #pragma unroll
         for (int i = NWARP2 - 1; i >= 0; i--)
         {
-            subOctantTemp.x += __shfl_xor(subOctantTemp.x, 1 << i, NWARP);
-            subOctantTemp.y += __shfl_xor(subOctantTemp.y, 1 << i, NWARP);
-            subOctantTemp.z += __shfl_xor(subOctantTemp.z, 1 << i, NWARP);
-            subOctantTemp.w += __shfl_xor(subOctantTemp.w, 1 << i, NWARP);
+            subOctantTemp.x += __shfl_xor_sync(0xFFFFFFFF, subOctantTemp.x, 1 << i, NWARP);
+            subOctantTemp.y += __shfl_xor_sync(0xFFFFFFFF, subOctantTemp.y, 1 << i, NWARP);
+            subOctantTemp.z += __shfl_xor_sync(0xFFFFFFFF, subOctantTemp.z, 1 << i, NWARP);
+            subOctantTemp.w += __shfl_xor_sync(0xFFFFFFFF, subOctantTemp.w, 1 << i, NWARP);
         }
         if (laneIdx == 0) *(int4*)&subOctantSize[warpIdx * 8 + k] = subOctantTemp;
     }
@@ -366,7 +371,7 @@ void buildOctant(float4 box4, const int cellParentIndex, const int cellIndexBase
 
     #pragma unroll
     for (int i = 2; i >= 0; i--)
-        maxBodiesOctant = max(maxBodiesOctant, __shfl_xor(maxBodiesOctant, 1 << i));
+        maxBodiesOctant = max(maxBodiesOctant, __shfl_xor_sync(0xFFFFFFFF, maxBodiesOctant, 1 << i));
 
     const int numNodesWarp = reduceBool(numBodiesOctantLane > NCRIT);
 
@@ -424,7 +429,7 @@ void buildOctant(float4 box4, const int cellParentIndex, const int cellIndexBase
         int packedOctant = numBodiesOctantLane > NCRIT ? laneIdx << (3 * numNodesLane) : 0;
         #pragma unroll
         for (int i = 4; i >= 0; i--)
-            packedOctant |= __shfl_xor(packedOctant, 1 << i);
+            packedOctant |= __shfl_xor_sync(0xFFFFFFFF, packedOctant, 1 << i);
 
         if (threadIdx.x == 0)
         {
@@ -495,7 +500,7 @@ __global__ void getRootOctantSize(const int numBodies, int* octantSize, const fv
         int octantSizeTemp = octantSizeLane[k];
         #pragma unroll
         for (int i = 4; i >= 0; i--)
-            octantSizeTemp += __shfl_xor(octantSizeTemp, 1 << i);
+            octantSizeTemp += __shfl_xor_sync(0xFFFFFFFF, octantSizeTemp, 1 << i);
         if (laneIdx == 0) atomicAdd(&octantSize[k], octantSizeTemp);
     }
 }
@@ -563,6 +568,14 @@ __global__ void buildOctree(const int numBodies, CellData* d_sourceCells, int* d
     delete bodyRange;
 }
 
+/*! @brief store tree level of each cell into separate array
+ *
+ * @param[in]  numCells
+ * @param[in]  sourceCells
+ * @param[out] sourceCells2  copy of @p sourceCells
+ * @param[out] key           tree level of each cell
+ * @param[out] value         enumeration of cell indices (std::iota)
+ */
 __global__ void getKeys(const int numCells, const CellData* sourceCells, CellData* sourceCells2, int* key, int* value)
 {
     const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -573,6 +586,12 @@ __global__ void getKeys(const int numCells, const CellData* sourceCells, CellDat
     sourceCells2[cellIdx] = cell;
 }
 
+/*! @brief compute first and last cell index for each tree level
+ *
+ * @param[in]  numCells
+ * @param[in]  levels
+ * @param[out] levelRange
+ */
 __global__ void getLevelRange(const int numCells, const int* levels, int2* levelRange)
 {
     const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -584,6 +603,12 @@ __global__ void getLevelRange(const int numCells, const int* levels, int2* level
     if (level < levels[nextCellIdx] || cellIdx == numCells - 1) levelRange[level].y = cellIdx + 1;
 }
 
+/*! @brief invert the given permutation
+ *
+ * @param[in]  numCells
+ * @param[in]  value     input permutation
+ * @param[out] key       output for the inverse permutation
+ */
 __global__ void getPermutation(const int numCells, const int* value, int* key)
 {
     const int newIdx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -592,6 +617,14 @@ __global__ void getPermutation(const int numCells, const int* value, int* key)
     key[oldIdx]      = newIdx;
 }
 
+/*! @brief gather/scatter sourceCells2 into sourceCells
+ *
+ * @param[in]  numCells
+ * @param[in]  value          forward reording (scatter)
+ * @param[in]  key            inverse ordering (gather)
+ * @param[in]  sourceCells2
+ * @param[out] sourceCells
+ */
 __global__ void permuteCells(const int numCells, const int* value, const int* key, const CellData* sourceCells2,
                              CellData* sourceCells)
 {
@@ -701,7 +734,10 @@ public:
         getKeys<<<NBLOCK, NTHREAD>>>(numCells, sourceCells.d(), sourceCells2.d(), key.d(), value.d());
         kernelSuccess("getKeys");
 
+        //! key:   contains level of each cell, will be sorted
+        //! value: will contain the ordering that sorts key
         sort(numCells, key.d(), value.d());
+
         getLevelRange<<<NBLOCK, NTHREAD>>>(numCells, key.d(), levelRange.d());
         kernelSuccess("getLevelRange");
 

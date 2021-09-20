@@ -1,5 +1,7 @@
 #pragma once
 
+#include "types.h"
+
 template<typename T>
 class cudaVec {
 private:
