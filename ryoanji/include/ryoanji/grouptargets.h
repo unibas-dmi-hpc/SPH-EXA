@@ -9,16 +9,17 @@ extern void scan(const int size, uint64_t* key, int* value);
 
 namespace
 {
+
 __device__ unsigned int numTargetGlob = 0;
 
-__device__ void swap(int& a, int& b)
+__host__ __device__ void swap(int& a, int& b)
 {
     int c(a);
     a = b;
     b = c;
-};
+}
 
-__device__ uint64_t getHilbert(int3 iX)
+__host__ __device__ uint64_t getHilbert(int3 iX)
 {
     const int octantMap[8] = {0, 1, 7, 6, 3, 2, 4, 5};
     int mask               = 1 << (NBITS - 1);
