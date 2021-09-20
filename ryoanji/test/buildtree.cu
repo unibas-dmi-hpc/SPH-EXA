@@ -1,50 +1,17 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/gravity/treewalk.hpp"
-
+#include "ryoanji/buildtree.h"
 #include "ryoanji/dataset.h"
-#include "ryoanji/direct.cuh"
 
-std::vector<fvec4> cpuReference(const std::vector<fvec4>& bodies, double eps)
+TEST(Buildtree, bounds)
 {
-    size_t numBodies = bodies.size();
-
-    std::vector<double> x(numBodies);
-    std::vector<double> y(numBodies);
-    std::vector<double> z(numBodies);
-    std::vector<double> m(numBodies);
-
-    for (size_t i = 0; i < numBodies; ++i)
-    {
-        x[i] = bodies[i][0];
-        y[i] = bodies[i][1];
-        z[i] = bodies[i][2];
-        m[i] = bodies[i][3];
-    }
-
-    std::vector<double> ax(numBodies);
-    std::vector<double> ay(numBodies);
-    std::vector<double> az(numBodies);
-
-    cstone::directSum(x.data(), y.data(), z.data(), m.data(), numBodies, eps*eps, ax.data(), ay.data(), az.data());
-
-    std::vector<fvec4> acc(numBodies, fvec4(0));
-
-    for (size_t i = 0; i < numBodies; ++i)
-    {
-        acc[i] = fvec4(0, ax[i], ay[i], az[i]);
-    }
-
-    return acc;
-}
-
-TEST(DirectSum, MatchCpu)
-{
+    constexpr int ncrit = 64;
     int numBodies = 1023;
-    float eps     = 0.05;
 
-    auto bodies = makeCubeBodies(numBodies);
+    //! particles in [-3, 3]^3
+    double extent = 3;
+    auto bodies = makeCubeBodies(numBodies, extent);
 
     cudaVec<fvec4> bodyPos(numBodies, true);
     for (size_t i = 0; i < numBodies; ++i)
@@ -53,23 +20,19 @@ TEST(DirectSum, MatchCpu)
     }
     bodyPos.h2d();
 
-    cudaVec<fvec4> bodyAcc(numBodies, true);
-    bodyAcc.zeros();
+    cudaVec<fvec4> bodyPos2(numBodies, true);
 
-    directSum(eps, bodyPos, bodyAcc);
+    Box box;
+    cudaVec<int2> levelRange(32, true);
+    cudaVec<CellData> sourceCells(numBodies);
 
-    bodyAcc.d2h();
+    int3 counts = Build::tree<ncrit>(bodyPos, bodyPos2, box, levelRange, sourceCells);
 
-    auto refAcc = cpuReference(bodies, eps);
+    std::cout << "numLevels: " << counts.x << " numSources " << counts.y
+              << " numLeaves " << counts.z << std::endl;
 
-    for (int i = 0; i < numBodies; ++i)
-    {
-        fvec3 ref   = {refAcc[i][1], refAcc[i][2], refAcc[i][3]};
-        fvec3 probe = {bodyAcc[i][1], bodyAcc[i][2], bodyAcc[i][3]};
+    std::cout << "box: " << box.X[0] << " " << box.X[1] << " " << box.X[2] << ", radius: " << box.R << std::endl;
 
-        EXPECT_TRUE(std::sqrt(norm(ref-probe)/norm(probe)) < 1e-6);
-
-        //printf("%f %f %f\n", ref[1], ref[2], ref[3]);
-        //printf("%f %f %f\n", probe[1], probe[2], probe[3]);
-    }
+    bodyPos.d2h();
+    bodyPos2.d2h();
 }

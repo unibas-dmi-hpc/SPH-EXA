@@ -2,8 +2,10 @@
 add_subdirectory(gtest)
 
 add_executable(ryoanji_unit_tests
+        buildtree.cu
         direct.cu
         multipole.cu
+        ../thrust.cu
         test_main.cpp)
 
 target_include_directories(ryoanji_unit_tests PRIVATE ../include)
