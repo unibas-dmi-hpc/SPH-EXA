@@ -460,7 +460,7 @@ void buildOctant(float4 box4, const int cellParentIndex, const int cellIndexBase
                 level + 1, cellIndexBase + blockIdx.y, bodyBeginOctant, bodyEndOctant - bodyBeginOctant);
             sourceCells[numCellsScan + numNodesWarp + leafOffset] = leafData;
         }
-        if (!(level & 1))
+        if (!(level & 1)) // if tree depth is even
         {
             for (int bodyIdx = bodyBeginOctant + laneIdx; bodyIdx < bodyEndOctant; bodyIdx += WARP_SIZE)
             {
