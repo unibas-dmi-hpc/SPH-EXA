@@ -44,7 +44,7 @@ using namespace cstone;
 
 int main()
 {
-    using KeyType = unsigned;
+    using KeyType = uint64_t;
     Box<double> box{-1, 1};
 
     unsigned numParticles = 2000000;

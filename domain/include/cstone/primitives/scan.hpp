@@ -82,7 +82,7 @@ void exclusiveScan(const T1* in, T2* out, size_t numElements)
             #pragma omp barrier
 
             T2 tSum = superBlock[(step+1)%2][numThreads];
-            for (size_t t = 0; t < tid; ++t)
+            for (int t = 0; t < tid; ++t)
                 tSum += superBlock[step%2][t];
 
             if (tid == numThreads - 1)
@@ -144,7 +144,7 @@ void exclusiveScan(T* out, size_t numElements)
             #pragma omp barrier
 
             T tSum = superBlock[(step+1)%2][numThreads];
-            for (size_t t = 0; t < tid; ++t)
+            for (int t = 0; t < tid; ++t)
                 tSum += superBlock[step%2][t];
 
             if (tid == numThreads - 1)
