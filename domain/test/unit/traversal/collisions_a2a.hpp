@@ -51,7 +51,7 @@ template <class KeyType>
 void findCollisions2All(gsl::span<const KeyType> tree, std::vector<TreeNodeIndex>& collisionList,
                         const IBox& collisionBox)
 {
-    for (TreeNodeIndex idx = 0; idx < nNodes(tree); ++idx)
+    for (TreeNodeIndex idx = 0; idx < TreeNodeIndex(nNodes(tree)); ++idx)
     {
         IBox nodeBox = sfcIBox(sfcKey(tree[idx]), sfcKey(tree[idx + 1]));
         if (overlap<KeyType>(nodeBox, collisionBox)) { collisionList.push_back(idx); }
@@ -66,7 +66,7 @@ std::vector<std::vector<TreeNodeIndex>> findCollisionsAll2all(gsl::span<const Ke
 {
     std::vector<std::vector<TreeNodeIndex>> collisions(tree.size() - 1);
 
-    for (TreeNodeIndex leafIdx = 0; leafIdx < nNodes(tree); ++leafIdx)
+    for (TreeNodeIndex leafIdx = 0; leafIdx < TreeNodeIndex(nNodes(tree)); ++leafIdx)
     {
         T radius = haloRadii[leafIdx];
 

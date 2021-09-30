@@ -227,7 +227,7 @@ void decreasingMaxDepthOrder(const OctreeNode<KeyType>* octree,
     sort_by_key(begin(inverseOrdering), end(inverseOrdering), ordering);
 
     // count nodes per value of depth
-    for (TreeNodeIndex depth = 1; depth < maxTreeLevel<KeyType>{}; ++depth)
+    for (unsigned depth = 1; depth < maxTreeLevel<KeyType>{}; ++depth)
     {
         auto it1 = std::lower_bound(begin(depths_v), end(depths_v), depth, std::greater<TreeNodeIndex>{});
         auto it2 = std::upper_bound(begin(depths_v), end(depths_v), depth, std::greater<TreeNodeIndex>{});
@@ -466,7 +466,7 @@ public:
      *      sum([numTreeNodes(i) for i in [0:maxTreeLevel<KeyType>{}]]) == numTreeNodes()
      *      sum([numTreeNodes(i) for i in [1:maxTreeLevel<KeyType>{}]]) == numInternalNodes()
      */
-    [[nodiscard]] inline TreeNodeIndex numTreeNodes(int maxDepth) const
+    [[nodiscard]] inline TreeNodeIndex numTreeNodes(unsigned maxDepth) const
     {
         assert(maxDepth < maxTreeLevel<KeyType>{});
         return nNodesPerLevel_[maxDepth];
@@ -492,7 +492,7 @@ public:
     [[nodiscard]] inline bool isLeaf(TreeNodeIndex node) const
     {
         assert(node < numTreeNodes());
-        return node >= internalTree_.size();
+        return node >= TreeNodeIndex(internalTree_.size());
     }
 
     /*! @brief convert a leaf index (indexed from first leaf starting from 0) to 0-indexed from root
@@ -515,7 +515,7 @@ public:
      */
     [[nodiscard]] inline bool isLeafChild(TreeNodeIndex node, int octant) const
     {
-        assert(node < internalTree_.size());
+        assert(node < TreeNodeIndex(internalTree_.size()));
         return isLeafIndex(internalTree_[node].child[octant]);
     }
 
@@ -536,7 +536,7 @@ public:
      */
     [[nodiscard]] inline TreeNodeIndex child(TreeNodeIndex node, int octant) const
     {
-        assert(node < internalTree_.size());
+        assert(node < TreeNodeIndex(internalTree_.size()));
 
         TreeNodeIndex childIndex = internalTree_[node].child[octant];
         if (isLeafIndex(childIndex))
