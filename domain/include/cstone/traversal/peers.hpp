@@ -77,11 +77,11 @@ std::vector<int> findPeersMac(int myRank, const SpaceCurveAssignment& assignment
       return !minDistanceMacMutual<KeyType>(aBox, bBox, box, invThetaSq);
     };
 
-    auto m2l = [](TreeNodeIndex a, TreeNodeIndex b) {};
+    auto m2l = [](TreeNodeIndex, TreeNodeIndex) {};
 
     TreeNodeIndex numInternalNodes = domainTree.numInternalNodes();
     std::vector<int> peerRanks(assignment.numRanks(), 0);
-    auto p2p = [numInternalNodes, &assignment, &peerRanks](TreeNodeIndex a, TreeNodeIndex b)
+    auto p2p = [numInternalNodes, &assignment, &peerRanks](TreeNodeIndex /*a*/, TreeNodeIndex b)
     {
         int peerRank = assignment.findRank(b - numInternalNodes);
         if (peerRanks[peerRank] == 0) { peerRanks[peerRank] = 1; }
@@ -92,14 +92,14 @@ std::vector<int> findPeersMac(int myRank, const SpaceCurveAssignment& assignment
     spanningNodeKeys.back() = domainEnd;
 
     #pragma omp parallel for schedule(dynamic)
-    for (TreeNodeIndex i = 0; i < spanningNodeKeys.size() - 1; ++i)
+    for (std::size_t i = 0; i < spanningNodeKeys.size() - 1; ++i)
     {
         TreeNodeIndex nodeIdx = domainTree.locate(spanningNodeKeys[i], spanningNodeKeys[i+1]);
         dualTraversal(domainTree, nodeIdx, 0, crossFocusPairs, m2l, p2p);
     }
 
     std::vector<int> ret;
-    for (int i = 0; i < peerRanks.size(); ++i)
+    for (int i = 0; i < int(peerRanks.size()); ++i)
     {
         if (peerRanks[i]) { ret.push_back(i); }
     }
@@ -145,7 +145,7 @@ std::vector<int> findPeersMacStt(int myRank, const SpaceCurveAssignment& assignm
     }
 
     std::vector<int> ret;
-    for (int i = 0; i < peers.size(); ++i)
+    for (int i = 0; i < int(peers.size()); ++i)
     {
         if (peers[i]) { ret.push_back(i); }
     }

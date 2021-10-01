@@ -213,7 +213,7 @@ std::vector<char> markMacAll2All(gsl::span<const KeyType> leaves, TreeNodeIndex 
         IBox targetBox = sfcIBox(sfcKey(leaves[i]), sfcKey(leaves[i + 1]));
 
         // loop over source cells
-        for (TreeNodeIndex j = 0; j < nNodes(leaves); ++j)
+        for (TreeNodeIndex j = 0; j < TreeNodeIndex(nNodes(leaves)); ++j)
         {
             // source cells must not be in target cell range
             if (firstNode <= j && j < lastNode) { continue; }

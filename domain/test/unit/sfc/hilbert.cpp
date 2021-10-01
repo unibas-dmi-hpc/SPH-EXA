@@ -82,7 +82,7 @@ TEST(HilbertCode, firstOrderCurve)
 template<class KeyType>
 void continuityTest()
 {
-    for (int level = 1; level < maxTreeLevel<KeyType>{}; ++level)
+    for (unsigned level = 1; level < maxTreeLevel<KeyType>{}; ++level)
     {
         // on the highest level, we can only check 7 octant crossings
         int maxOctant = (level > 1) ? 8 : 7;

@@ -135,7 +135,7 @@ void nodeDepthThreading()
 
     constexpr int maxTreeLevel = 4; // tree has 4 layers of subdivisions
     std::vector<int> depths_reference(octree.size());
-    for (TreeNodeIndex i = 0; i < octree.size(); ++i)
+    for (TreeNodeIndex i = 0; i < TreeNodeIndex(octree.size()); ++i)
     {
         // in a uniform tree, level + depth == maxTreeLevel is constant for all nodes
         depths_reference[i] = maxTreeLevel - octree[i].level;
@@ -305,10 +305,10 @@ TEST(InternalOctree, rewire)
     std::vector<OctreeNode<KeyType>> rewiredTree(internalTree.size());
     rewireInternal(internalTree.data(), rewireMap.data(), TreeNodeIndex(internalTree.size()), rewiredTree.data());
 
-    for (int i = 0; i < rewiredTree.size(); ++i)
-    {
-        printf("node %3d, prefix %10o, level %1d\n", i, rewiredTree[i].prefix, rewiredTree[i].level);
-    }
+    //for (int i = 0; i < rewiredTree.size(); ++i)
+    //{
+    //    printf("node %3d, prefix %10o, level %1d\n", i, rewiredTree[i].prefix, rewiredTree[i].level);
+    //}
 
     // clang-format off
     std::vector<OctreeNode<KeyType>> reference

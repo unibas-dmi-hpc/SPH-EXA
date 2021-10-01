@@ -117,7 +117,7 @@ std::vector<LocalParticleIndex> computeNodeLayout(gsl::span<const unsigned> focu
     std::vector<LocalParticleIndex> layout(focusLeafCounts.size() + 1, 0);
 
     #pragma omp parallel for
-    for (TreeNodeIndex i = 0; i < focusLeafCounts.size(); ++i)
+    for (TreeNodeIndex i = 0; i < TreeNodeIndex(focusLeafCounts.size()); ++i)
     {
         bool onRank = firstAssignedIdx <= i && i < lastAssignedIdx;
         if (onRank || haloFlags[i]) { layout[i] = focusLeafCounts[i]; }
@@ -153,7 +153,7 @@ SendList computeHaloReceiveList(gsl::span<const LocalParticleIndex> layout,
         std::vector<LocalParticleIndex> receiveRanges =
             extractMarkedElements<LocalParticleIndex>(layout, haloFlags, peerStartIdx, peerEndIdx);
 
-        for (int i = 0; i < receiveRanges.size(); i +=2 )
+        for (std::size_t i = 0; i < receiveRanges.size(); i +=2 )
         {
             ret[peer].addRange(receiveRanges[i], receiveRanges[i+1]);
         }
