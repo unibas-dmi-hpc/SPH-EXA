@@ -48,21 +48,21 @@ std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assign
     float invThetaSq       = 1.0f / (theta * theta);
 
     std::vector<IBox> boxes(nNodes(tree));
-    for (TreeNodeIndex i = 0; i < nNodes(tree); ++i)
+    for (TreeNodeIndex i = 0; i < TreeNodeIndex(nNodes(tree)); ++i)
     {
         boxes[i] = sfcIBox(sfcKey(tree[i]), sfcKey(tree[i + 1]));
     }
 
     std::vector<int> peers(assignment.numRanks());
     for (TreeNodeIndex i = firstIdx; i < lastIdx; ++i)
-        for (TreeNodeIndex j = 0; j < nNodes(tree); ++j)
+        for (TreeNodeIndex j = 0; j < TreeNodeIndex(nNodes(tree)); ++j)
             if (!minDistanceMacMutual<KeyType>(boxes[i], boxes[j], box, invThetaSq))
             {
                 peers[assignment.findRank(j)] = 1;
             }
 
     std::vector<int> ret;
-    for (int i = 0; i < peers.size(); ++i)
+    for (int i = 0; i < int(peers.size()); ++i)
         if (peers[i] && i != myRank) { ret.push_back(i); }
 
     return ret;

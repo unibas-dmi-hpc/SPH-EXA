@@ -103,7 +103,7 @@ unsigned calculateNodeCount(const KeyType* tree, TreeNodeIndex nodeIdx,
  * @tparam KeyType    32- or 64-bit unsigned integer type
  * @param firstIdx    first (of two) search boundary, must be non-negative, but can exceed the codes range
  *                    (the guess for the location of @p targetCode in [codesStart:codesEnd]
- * @param targetCode  code in [codesStart:codesEnd] to look for
+ * @param targetCode  code to look for in [codesStart:codesEnd]
  * @param codesStart  particle SFC code array start
  * @param codesEnd    particle SFC code array end
  * @return            the sub-range in [codesStart:codesEnd] containing @p targetCode
@@ -113,15 +113,22 @@ HOST_DEVICE_FUN
 pair<const KeyType*> findSearchBounds(std::make_signed_t<KeyType> firstIdx, KeyType targetCode,
                                       const KeyType* codesStart, const KeyType* codesEnd)
 {
+    assert(firstIdx >= 0);
+
     using SI = std::make_signed_t<KeyType>;
     SI nCodes = codesEnd - codesStart;
 
     // firstIdx must be an accessible index
-    firstIdx = stl::min(nCodes-1, firstIdx);
+    firstIdx = stl::min(nCodes - 1, firstIdx);
+
+    // the last node in 64-bit is 2^63, which can't be represented as a negative number
+    if (targetCode == nodeRange<KeyType>(0))
+    {
+        return {codesStart + firstIdx, codesEnd};
+    }
 
     KeyType firstCode = codesStart[firstIdx];
-    if (firstCode == targetCode)
-        firstIdx++;
+    if (firstCode == targetCode) { firstIdx++; }
 
     // d = 1 : search towards codesEnd
     // d = -1 : search towards codesStart
@@ -132,7 +139,7 @@ pair<const KeyType*> findSearchBounds(std::make_signed_t<KeyType> firstIdx, KeyT
     // determine search bound
     SI searchRange = 1;
     SI secondIndex = firstIdx + d;
-    while(0 <= secondIndex && secondIndex < nCodes && d*codesStart[secondIndex] <= targetCodeTimesD)
+    while (0 <= secondIndex && secondIndex < nCodes && d * SI(codesStart[secondIndex]) <= targetCodeTimesD)
     {
         searchRange *= 2;
         secondIndex = firstIdx + searchRange * d;
@@ -140,9 +147,7 @@ pair<const KeyType*> findSearchBounds(std::make_signed_t<KeyType> firstIdx, KeyT
     secondIndex = stl::max(SI(0), secondIndex);
     secondIndex = stl::min(nCodes, secondIndex);
 
-    pair<const KeyType*> searchBounds{codesStart + stl::min(firstIdx, secondIndex),
-                                      codesStart + stl::max(firstIdx, secondIndex)};
-    return searchBounds;
+    return {codesStart + stl::min(firstIdx, secondIndex), codesStart + stl::max(firstIdx, secondIndex)};
 }
 
 /*! @brief calculate node counts with a guess to accelerate the binary search
@@ -249,16 +254,16 @@ void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNod
  * @param  nodeIdx   node index in [0:N] of @p csTree to compute sibling index
  * @return           in first pair element: index in [0:8] if all 8 siblings of the specified
  *                   node are next to each other and at the same division level.
- *                   8 otherwise, i.e. if not all the 8 siblings exist in @p csTree
+ *                   -1 otherwise, i.e. if not all the 8 siblings exist in @p csTree
  *                   at the same division level
  *                   in second pair element: tree level of node at @p nodeIdx
  */
 template<class KeyType>
-inline HOST_DEVICE_FUN util::tuple<int, int> siblingAndLevel(const KeyType* csTree, TreeNodeIndex nodeIdx)
+inline HOST_DEVICE_FUN util::tuple<int, unsigned> siblingAndLevel(const KeyType* csTree, TreeNodeIndex nodeIdx)
 {
     KeyType thisNode = csTree[nodeIdx];
     KeyType range    = csTree[nodeIdx + 1] - thisNode;
-    int level = treeLevel(range);
+    unsigned level   = treeLevel(range);
 
     if (level == 0) { return {-1, level}; }
 
