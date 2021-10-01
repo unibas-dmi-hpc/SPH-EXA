@@ -52,7 +52,7 @@ namespace cstone
 template<class T, class KeyType, class CombinationFunction>
 void upsweep(const Octree<KeyType>& octree, const T* leafQuantities, T* internalQuantities, CombinationFunction combinationFunction)
 {
-    int depth = 1;
+    unsigned depth = 1;
     TreeNodeIndex internalNodeIndex = octree.numInternalNodes();
 
     internalNodeIndex -= octree.numTreeNodes(depth);

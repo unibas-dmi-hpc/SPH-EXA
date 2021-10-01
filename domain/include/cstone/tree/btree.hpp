@@ -240,7 +240,7 @@ template<class I>
 void createBinaryTree(const I* tree, TreeNodeIndex nNodes, BinaryNode<I>* binaryTree)
 {
     #pragma omp parallel for
-    for (std::size_t idx = 0; idx < nNodes; ++idx)
+    for (TreeNodeIndex idx = 0; idx < nNodes; ++idx)
     {
         constructInternalNode(tree, nNodes+1, binaryTree, idx);
     }

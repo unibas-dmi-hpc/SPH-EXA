@@ -153,7 +153,7 @@ SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& globalCoun
         std::size_t targetCount = nParticlesPerSplit[split];
         std::size_t splitCount  = 0;
         TreeNodeIndex j         = leavesDone;
-        while (splitCount < targetCount && j < globalCounts.size())
+        while (splitCount < targetCount && j < TreeNodeIndex(globalCounts.size()))
         {
             // if adding the particles of the next leaf takes us further away from
             // the target count than where we're now, we stop
@@ -173,7 +173,7 @@ SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& globalCoun
         }
         // afaict, j < nNodes(globalTree) can only happen if there are empty nodes at the end
         else {
-            for( ; j < globalCounts.size(); ++j)
+            for( ; j < TreeNodeIndex(globalCounts.size()); ++j)
                 splitCount += globalCounts[j];
         }
 
@@ -288,7 +288,7 @@ void extractRange(const SendManifest& manifest, const T* source, const IndexType
 {
     int idx = 0;
     for (std::size_t rangeIndex = 0; rangeIndex < manifest.nRanges(); ++rangeIndex)
-        for (IndexType i = manifest.rangeStart(rangeIndex); i < manifest.rangeEnd(rangeIndex); ++i)
+        for (IndexType i = manifest.rangeStart(rangeIndex); i < IndexType(manifest.rangeEnd(rangeIndex)); ++i)
             destination[idx++] = source[ordering[i]];
 }
 

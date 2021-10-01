@@ -116,9 +116,9 @@ void dualTraversalAllPairs()
 
     std::vector<pair<TreeNodeIndex>> pairs;
 
-    auto allPairs = [](TreeNodeIndex a, TreeNodeIndex b) { return true; };
+    auto allPairs = [](TreeNodeIndex, TreeNodeIndex) { return true; };
 
-    auto m2l = [](TreeNodeIndex a, TreeNodeIndex b) {};
+    auto m2l = [](TreeNodeIndex, TreeNodeIndex) {};
     auto p2p = [&pairs](TreeNodeIndex a, TreeNodeIndex b) { pairs.emplace_back(a, b); };
 
     dualTraversal(fullTree, 0, 0, allPairs, m2l, p2p);
@@ -164,7 +164,7 @@ void dualTraversalNeighbors()
     std::vector<pair<TreeNodeIndex>> pairs;
     auto p2p = [&pairs](TreeNodeIndex a, TreeNodeIndex b) { pairs.emplace_back(a, b); };
 
-    auto m2l = [](TreeNodeIndex a, TreeNodeIndex b) {};
+    auto m2l = [](TreeNodeIndex, TreeNodeIndex) {};
 
     dualTraversal(octree, 0, 0, crossFocusSurfacePairs, m2l, p2p);
 

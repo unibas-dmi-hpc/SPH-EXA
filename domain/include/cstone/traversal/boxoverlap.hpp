@@ -101,7 +101,7 @@ containedIn(KeyType codeStart, KeyType codeEnd, const IBox& box)
     assert(box.ymin() < box.ymax());
     assert(box.zmin() < box.zmax());
 
-    constexpr unsigned pbcRange = 1u << maxTreeLevel<KeyType>{};
+    constexpr int pbcRange = 1 << maxTreeLevel<KeyType>{};
     if (stl::min(stl::min(box.xmin(), box.ymin()), box.zmin()) < 0 ||
         stl::max(stl::max(box.xmax(), box.ymax()), box.zmax()) > pbcRange)
     {
