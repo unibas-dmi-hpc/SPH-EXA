@@ -114,7 +114,7 @@ util::tuple<unsigned, unsigned, unsigned> decodeHilbert(KeyType key) noexcept
    unsigned py = 0;
    unsigned pz = 0;
 
-   for (int level = 0; level < maxTreeLevel<KeyType>{}; ++level)
+   for (unsigned level = 0; level < maxTreeLevel<KeyType>{}; ++level)
    {
        unsigned octant = (key >> (3 * level)) & 7u;
        const unsigned xi = octant >> 2u;

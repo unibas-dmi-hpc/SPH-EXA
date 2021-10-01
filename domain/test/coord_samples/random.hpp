@@ -63,9 +63,16 @@ std::vector<Integer> makeRandomGaussianKeys(size_t numKeys, int seed = 42)
 {
     Integer maxCoord = nodeRange<Integer>(0) - 1;
     std::mt19937 gen(seed);
-    std::normal_distribution<float> distribution(float(maxCoord) / 2, float(maxCoord) / 5);
+    std::normal_distribution<double> distribution(double(maxCoord) / 2, double(maxCoord) / 5);
 
-    auto randInt = [&distribution, &gen]() { return Integer(distribution(gen)); };
+    auto randInt = [&distribution, &gen, maxCoord]()
+    {
+        auto x = Integer(distribution(gen));
+        // we can't cut down x to maxCoord in case it's too big, otherwise there will be too many keys in the last cell
+        while (x > maxCoord) { x = Integer(distribution(gen)); }
+        return x;
+    };
+
     std::vector<Integer> ret(numKeys);
     std::generate(ret.begin(), ret.end(), randInt);
     std::sort(ret.begin(), ret.end());
