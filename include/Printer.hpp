@@ -60,10 +60,11 @@ public:
     void printMemory(size_t halos, std::ostream& out) const
     {
         size_t mem = d.x.capacity();
+#ifdef USE_MPI
         MPI_Allreduce(MPI_IN_PLACE, &mem, 1, MPI_UNSIGNED_LONG, MPI_MAX, MPI_COMM_WORLD);
 
         MPI_Allreduce(MPI_IN_PLACE, &halos, 1, MPI_UNSIGNED_LONG, MPI_MAX, MPI_COMM_WORLD);
-
+#endif
         if (d.rank == 0)
         {
             out << "### Check ### Array sizes: " << mem << " Max halos: " << halos << std::endl;
