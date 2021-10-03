@@ -4,7 +4,7 @@ MPICXX ?= mpic++
 ENV ?= gnu
 NVCC ?= $(CUDA_PATH)/bin/nvcc
 
-CUDA_PATH = /usr/local/cuda
+CUDA_PATH ?= /usr/local/cuda
 
 # CXX := clang --analyze # and comment out the linker last line for sanity
 SRCDIR := src
@@ -23,11 +23,11 @@ $(foreach sm,$(SMS),$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_
 
 INC += -Isrc -Iinclude -Idomain/include -I$(CUDA_PATH)/include
 CXXFLAGS += $(RELEASE)
-NVCCFLAGS := -std=c++14 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS) -Wno-deprecated-gpu-targets -g
+NVCCFLAGS := -std=c++17 -O3 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS) -Wno-deprecated-gpu-targets
 NVCCLDFLAGS := $(GENCODE_FLAGS) -rdc=true
 
 ifeq ($(ENV),gnu)
-	CXXFLAGS += -std=c++17 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native -g
+	CXXFLAGS += -std=c++17 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native
 endif
 
 ifeq ($(ENV),pgi)
@@ -35,15 +35,15 @@ ifeq ($(ENV),pgi)
 endif
 
 ifeq ($(ENV),cray)
-	CXXFLAGS += -O2 -hstd=c++17 -homp -hacc -dynamic -g
+	CXXFLAGS += -O2 -hstd=c++17 -homp -hacc -dynamic
 endif
 
 ifeq ($(ENV),intel)
-	CXXFLAGS += -O2 -std=c++17 -qopenmp -dynamic -g
+	CXXFLAGS += -O2 -std=c++17 -qopenmp -dynamic
 endif
 
 ifeq ($(ENV),clang)
-	CXXFLAGS += -O2 -march=native -std=c++17 -fopenmp -g
+	CXXFLAGS += -O2 -march=native -std=c++17 -fopenmp
 endif
 
 TESTCASE ?= sedov
