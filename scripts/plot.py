@@ -57,6 +57,7 @@ plt.title('Density')
 # ax.scatter(x[mask], y[mask], z[mask], c=ro[mask], s=10.0, label="Sedov", vmin=min(ro[mask]), vmax=max(ro[mask]), cmap=cm)
 
 plt.savefig('file.eps')
+# plt.savefig(file+sys.argv[2]+'.png')
 
 plt.show()
 #raw_input('press return to continue')
