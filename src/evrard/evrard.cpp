@@ -2,6 +2,7 @@
 #include <string>
 
 #include "sphexa.hpp"
+#include "sph/findNeighbors.hpp"
 #include "EvrardCollapseInputFileReader.hpp"
 #include "EvrardCollapseFileWriter.hpp"
 
@@ -34,9 +35,10 @@ int main(int argc, char** argv)
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
 
-    using Real = double;
-    using Dataset = ParticlesDataEvrard<Real>;
-    using Tree = GravityOctree<Real>;
+    using Real    = double;
+    using KeyType = uint64_t;
+    using Dataset = ParticlesDataEvrard<Real, KeyType>;
+    using Tree    = GravityOctree<Real>;
 
 #ifdef USE_MPI
     DistributedDomain<Real, Dataset, Tree> domain;
