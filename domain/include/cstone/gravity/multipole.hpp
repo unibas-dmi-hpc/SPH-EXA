@@ -152,6 +152,7 @@ particle2Multipole(const T2* x, const T2* y, const T2* z, const T3* m, LocalPart
  * @param[inout] ax          location to add x-acceleration to
  * @param[inout] ay          location to add y-acceleration to
  * @param[inout] az          location to add z-acceleration to
+ * @param[inout] ugrav       location to add gravitational potential to
  *
  * Computes direct particle-particle gravitational interaction according to
  *
@@ -165,7 +166,7 @@ particle2Multipole(const T2* x, const T2* y, const T2* z, const T3* m, LocalPart
  */
 template<class T1, class T2>
 void particle2particle(T1 tx, T1 ty, T1 tz, const T1* sx, const T1* sy, const T1* sz, const T2* m,
-                       LocalParticleIndex numSources, T1 eps2, T1* ax, T1* ay, T1* az)
+                       LocalParticleIndex numSources, T1 eps2, T1* ax, T1* ay, T1* az, T1* ugrav)
 {
     for (LocalParticleIndex j = 0; j < numSources; ++j)
     {
@@ -182,6 +183,8 @@ void particle2particle(T1 tx, T1 ty, T1 tz, const T1* sx, const T1* sy, const T1
         *ax += Mr_minus3 * rx;
         *ay += Mr_minus3 * ry;
         *az += Mr_minus3 * rz;
+
+        *ugrav -= Mr_minus3 * r_2;
     }
 }
 

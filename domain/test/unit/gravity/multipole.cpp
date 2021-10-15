@@ -38,7 +38,7 @@ TEST(Gravity, P2P)
 {
     using T = double;
 
-    T eps2 = 0.05 * 0.05;
+    T eps2 = 0;
 
     // target
     T x = 1;
@@ -54,12 +54,14 @@ TEST(Gravity, P2P)
     T xacc = 0;
     T yacc = 0;
     T zacc = 0;
+    T pot  = 0;
 
-    particle2particle(x, y, z, xs, ys, zs, m, 2, eps2, &xacc, &yacc, &zacc);
+    particle2particle(x, y, z, xs, ys, zs, m, 2, eps2, &xacc, &yacc, &zacc, &pot);
 
-    EXPECT_DOUBLE_EQ(xacc, 0.17082940372214045);
-    EXPECT_DOUBLE_EQ(yacc, 0.17082940372214045);
-    EXPECT_DOUBLE_EQ(zacc, 0.17082940372214045);
+    EXPECT_DOUBLE_EQ(xacc, 0.17106674642655587);
+    EXPECT_DOUBLE_EQ(yacc, 0.17106674642655587);
+    EXPECT_DOUBLE_EQ(zacc, 0.17106674642655587);
+    EXPECT_DOUBLE_EQ(pot, -0.76980035891950138);
 }
 
 
@@ -91,8 +93,9 @@ TEST(Gravity, M2P)
 
     // reference direct gravity on target
     std::array<T, 3> accDirect = {0, 0, 0};
+    T potential = 0;
     particle2particle(target[0], target[1], target[2], x, y, z, masses.data(), numParticles, 0.0,
-                      &accDirect[0], &accDirect[1], &accDirect[2]);
+                      &accDirect[0], &accDirect[1], &accDirect[2], &potential);
 
     // approximate gravity with multipole interaction
     std::array<T, 3> accApprox = {0, 0, 0};

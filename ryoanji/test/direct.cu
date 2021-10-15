@@ -26,14 +26,16 @@ std::vector<fvec4> cpuReference(const std::vector<fvec4>& bodies, double eps)
     std::vector<double> ax(numBodies);
     std::vector<double> ay(numBodies);
     std::vector<double> az(numBodies);
+    std::vector<double> pot(numBodies);
 
-    cstone::directSum(x.data(), y.data(), z.data(), m.data(), numBodies, eps*eps, ax.data(), ay.data(), az.data());
+    cstone::directSum(x.data(), y.data(), z.data(), m.data(), numBodies, eps*eps, ax.data(), ay.data(), az.data(),
+                      pot.data());
 
     std::vector<fvec4> acc(numBodies, fvec4(0));
 
     for (size_t i = 0; i < numBodies; ++i)
     {
-        acc[i] = fvec4(0, ax[i], ay[i], az[i]);
+        acc[i] = fvec4(pot[i], ax[i], ay[i], az[i]);
     }
 
     return acc;
@@ -68,6 +70,8 @@ TEST(DirectSum, MatchCpu)
         fvec3 probe = {bodyAcc[i][1], bodyAcc[i][2], bodyAcc[i][3]};
 
         EXPECT_TRUE(std::sqrt(norm(ref-probe)/norm(probe)) < 1e-6);
+        // the potential
+        EXPECT_NEAR(refAcc[i][0], bodyAcc[i][0], 1e-6);
 
         //printf("%f %f %f\n", ref[1], ref[2], ref[3]);
         //printf("%f %f %f\n", probe[1], probe[2], probe[3]);

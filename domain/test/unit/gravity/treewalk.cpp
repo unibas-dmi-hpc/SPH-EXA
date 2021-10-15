@@ -79,19 +79,21 @@ TEST(Gravity, TreeWalk)
     std::vector<T> ax(numParticles, 0);
     std::vector<T> ay(numParticles, 0);
     std::vector<T> az(numParticles, 0);
+    std::vector<T> potential(numParticles, 0);
 
     // direct sum reference
     std::vector<T> Ax(numParticles, 0);
     std::vector<T> Ay(numParticles, 0);
     std::vector<T> Az(numParticles, 0);
+    std::vector<T> potentialReference(numParticles, 0);
 
     float theta = 0.75;
     T eps2 = 0;
 
     computeGravity(octree, multipoles.data(), layout.data(), 0, octree.numLeafNodes(),
-                   x, y, z, masses.data(), box, theta, eps2, ax.data(), ay.data(), az.data());
+                   x, y, z, masses.data(), box, theta, eps2, ax.data(), ay.data(), az.data(), potential.data());
 
-    directSum(x, y, z, masses.data(), numParticles, eps2, Ax.data(), Ay.data(), Az.data());
+    directSum(x, y, z, masses.data(), numParticles, eps2, Ax.data(), Ay.data(), Az.data(), potentialReference.data());
 
     // relative errors
     std::vector<T> delta(numParticles);

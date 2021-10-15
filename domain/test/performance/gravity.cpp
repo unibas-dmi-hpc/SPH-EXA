@@ -73,15 +73,17 @@ int main()
     std::vector<T> ax(numParticles, 0);
     std::vector<T> ay(numParticles, 0);
     std::vector<T> az(numParticles, 0);
+    std::vector<T> pot(numParticles, 0);
 
     // direct sum reference
     std::vector<double> Ax(numParticles, 0);
     std::vector<double> Ay(numParticles, 0);
     std::vector<double> Az(numParticles, 0);
+    std::vector<double> potRef(numParticles, 0);
 
     auto t0 = std::chrono::high_resolution_clock::now();
     computeGravity(octree, multipoles.data(), layout.data(), 0, octree.numLeafNodes(),
-                   x, y, z, masses.data(), box, theta, eps2, ax.data(), ay.data(), az.data());
+                   x, y, z, masses.data(), box, theta, eps2, ax.data(), ay.data(), az.data(), pot.data());
     auto t1 = std::chrono::high_resolution_clock::now();
     float elapsed = std::chrono::duration<double>(t1 - t0).count();
 
@@ -94,7 +96,7 @@ int main()
         std::vector<double> zd(z, z + numParticles);
         auto t0 = std::chrono::high_resolution_clock::now();
         directSum(xd.data(), yd.data(), zd.data(), masses.data(), numParticles, double(eps2),
-                  Ax.data(), Ay.data(), Az.data());
+                  Ax.data(), Ay.data(), Az.data(), potRef.data());
         auto t1 = std::chrono::high_resolution_clock::now();
         float elapsed = std::chrono::duration<double>(t1 - t0).count();
         std::cout << "Time elapsed for direct sum: " << elapsed << " s, "
