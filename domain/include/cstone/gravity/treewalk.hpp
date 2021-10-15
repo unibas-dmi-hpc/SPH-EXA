@@ -83,7 +83,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
      * the traversal routine to keep going. If the MAC passed, the multipole moments are applied
      * to the particles in the target box and traversal is stopped.
      */
-    auto descendOrM2P = [groupIdx, multipoles, x, y, z, layout, theta, eps2, ax, ay, az, &octree, &targetBox,
+    auto descendOrM2P = [groupIdx, multipoles, x, y, z, layout, theta, ax, ay, az, &octree, &targetBox,
                          &box](TreeNodeIndex idx)
     {
         // idx relative to root node
@@ -101,7 +101,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
             // apply multipole to all particles in group
             for (LocalParticleIndex t = firstTarget; t < lastTarget; ++t)
             {
-                multipole2particle(x[t], y[t], z[t], p, eps2, ax + t, ay + t, az + t);
+                multipole2particle(x[t], y[t], z[t], p, ax + t, ay + t, az + t);
             }
         }
 

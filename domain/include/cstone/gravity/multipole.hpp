@@ -206,13 +206,13 @@ void particle2particle(T1 tx, T1 ty, T1 tz, const T1* sx, const T1* sy, const T1
  * quadrupole: Q*vec(r) / r^5 - 5/2 * vec(r)*Q*vec(r) * vec(r) / r^7
  */
 template<class T1, class T2>
-void multipole2particle(T1 tx, T1 ty, T1 tz, const GravityMultipole<T2>& multipole, T1 eps2, T1* ax, T1* ay, T1* az)
+void multipole2particle(T1 tx, T1 ty, T1 tz, const GravityMultipole<T2>& multipole, T1* ax, T1* ay, T1* az)
 {
     T2 rx = tx - multipole.xcm;
     T2 ry = ty - multipole.ycm;
     T2 rz = tz - multipole.zcm;
 
-    T2 r_2      = rx * rx + ry * ry + rz * rz + eps2;
+    T2 r_2      = rx * rx + ry * ry + rz * rz;
     T2 r_minus1 = 1.0 / std::sqrt(r_2);
     T2 r_minus2 = r_minus1 * r_minus1;
     T2 r_minus5 = r_minus2 * r_minus2 * r_minus1;
