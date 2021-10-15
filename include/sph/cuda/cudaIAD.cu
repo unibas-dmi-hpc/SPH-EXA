@@ -19,13 +19,13 @@ template<class T>
 __global__ void computeIAD(int n, T sincIndex, T K, int ngmax, const BBox<T>* bbox, const int* clist,
                            const int* neighbors, const int* neighborsCount,
                            const T* x, const T* y, const T* z, const T* h, const T* m, const T* ro,
-                           const T* wh, const T* whd, size_t ltsize, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
+                           const T* wh, const T* whd, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
 {
     const unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
 
     sph::kernels::IADJLoop(tid, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount,
-                           x, y, z, h, m, ro, wh, whd, ltsize, c11, c12, c13, c22, c23, c33);
+                           x, y, z, h, m, ro, wh, whd, c11, c12, c13, c22, c23, c33);
 }
 
 template <class Dataset>
@@ -88,7 +88,7 @@ void computeIAD(const std::vector<Task>& taskList, Dataset& d)
         computeIAD<<<numBlocks, numThreads, 0, stream>>>(
             n, d.sincIndex, d.K, ngmax, d.devPtrs.d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
             d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_ro,
-            d.devPtrs.d_wh, d.devPtrs.d_whd, ltsize,
+            d.devPtrs.d_wh, d.devPtrs.d_whd,
             d.devPtrs.d_c11, d.devPtrs.d_c12, d.devPtrs.d_c13, d.devPtrs.d_c22, d.devPtrs.d_c23, d.devPtrs.d_c33);
         CHECK_CUDA_ERR(cudaGetLastError());
     }

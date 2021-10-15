@@ -14,7 +14,7 @@ CUDA_DEVICE_HOST_FUN inline
 void IADJLoop(int pi, T sincIndex, T K, int ngmax, const BBox<T>* bbox, const int* clist,
               const int* neighbors, const int* neighborsCount,
               const T* x, const T* y, const T* z, const T* h, const T* m,
-              const T* ro, const T* wh, const T* whd, size_t ltsize, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
+              const T* ro, const T* wh, const T* whd, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
 {
     const int i = clist[pi];
     const int nn = neighborsCount[pi];
@@ -29,7 +29,7 @@ void IADJLoop(int pi, T sincIndex, T K, int ngmax, const BBox<T>* bbox, const in
         const T dist = distancePBC(*bbox, h[i], x[i], y[i], z[i], x[j], y[j], z[j]); // store the distance from each neighbor
         // calculate the v as ratio between the distance and the smoothing length
         const T vloc = dist / h[i];
-        const T w = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, vloc), (int)sincIndex);
+        const T w = K * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
         const T W = w / (h[i] * h[i] * h[i]);
 
         T r_ijx = (x[i] - x[j]);
