@@ -60,6 +60,7 @@ namespace cstone
  * @param[inout] ax           location to add x-acceleration to
  * @param[inout] ay           location to add y-acceleration to
  * @param[inout] az           location to add z-acceleration to
+ * @param[inout] ugrav        location to add gravitational potential to
  *
  * Note: acceleration output is added to destination
  */
@@ -69,7 +70,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
                          const LocalParticleIndex* layout,
                          const T2* x, const T2* y, const T2* z, const T3* m,
                          const Box<T2>& box, float theta, T2 eps2,
-                         T2* ax, T2* ay, T2* az)
+                         T2* ax, T2* ay, T2* az, T2* ugrav)
 {
     auto treeLeaves     = octree.treeLeaves();
     KeyType groupKey    = treeLeaves[groupIdx];
@@ -83,7 +84,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
      * the traversal routine to keep going. If the MAC passed, the multipole moments are applied
      * to the particles in the target box and traversal is stopped.
      */
-    auto descendOrM2P = [groupIdx, multipoles, x, y, z, layout, theta, ax, ay, az, &octree, &targetBox,
+    auto descendOrM2P = [groupIdx, multipoles, x, y, z, layout, theta, ax, ay, az, ugrav, &octree, &targetBox,
                          &box](TreeNodeIndex idx)
     {
         // idx relative to root node
@@ -114,7 +115,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
      * and the leaf failed the MAC w.r.t to the target box. In that case, direct particle-particle
      * interactions need to be computed.
      */
-    auto leafP2P = [groupIdx, x, y, z, m, layout, eps2, ax, ay, az](TreeNodeIndex idx)
+    auto leafP2P = [groupIdx, x, y, z, m, layout, eps2, ax, ay, az, ugrav](TreeNodeIndex idx)
     {
         // idx relative to first leaf
         LocalParticleIndex firstTarget = layout[groupIdx];
@@ -130,7 +131,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
             for (LocalParticleIndex t = firstTarget; t < lastTarget; ++t)
             {
                 particle2particle(x[t], y[t], z[t], x + firstSource, y + firstSource, z + firstSource, m + firstSource,
-                                  numSources, eps2, ax + t, ay + t, az + t);
+                                  numSources, eps2, ax + t, ay + t, az + t, ugrav + t);
             }
         }
         else
@@ -141,11 +142,11 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
             {
                 // 2 splits: [firstSource:t] and [t+1:lastSource]
                 particle2particle(x[t], y[t], z[t], x + firstSource, y + firstSource, z + firstSource, m + firstSource,
-                                  t - firstSource, eps2, ax + t, ay + t, az + t);
+                                  t - firstSource, eps2, ax + t, ay + t, az + t, ugrav + t);
 
                 LocalParticleIndex tp1 = t + 1;
                 particle2particle(x[t], y[t], z[t], x + tp1, y + tp1, z + tp1, m + tp1,
-                                  lastSource - tp1, eps2, ax + t, ay + t, az + t);
+                                  lastSource - tp1, eps2, ax + t, ay + t, az + t, ugrav + t);
             }
         }
     };
@@ -159,30 +160,30 @@ void computeGravity(const Octree<KeyType>& octree, const GravityMultipole<T1>* m
                     const LocalParticleIndex* layout, TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex,
                     const T2* x, const T2* y, const T2* z, const T3* m,
                     const Box<T2>& box, float theta, T2 eps2,
-                    T2* ax, T2* ay, T2* az)
+                    T2* ax, T2* ay, T2* az, T2* ugrav)
 {
     #pragma omp parallel for
     for (TreeNodeIndex leafIdx = firstLeafIndex; leafIdx < lastLeafIndex; ++leafIdx)
     {
-        computeGravityGroup(leafIdx, octree, multipoles, layout, x, y, z, m, box, theta, eps2, ax, ay, az);
+        computeGravityGroup(leafIdx, octree, multipoles, layout, x, y, z, m, box, theta, eps2, ax, ay, az, ugrav);
     }
 }
 
 //! @brief compute direct gravity sum for all particles [0:numParticles]
 template<class T1, class T2>
 void directSum(const T1* x, const T1* y, const T1* z, const T2* m, LocalParticleIndex numParticles, T1 eps2,
-               T1* ax, T1* ay, T1* az)
+               T1* ax, T1* ay, T1* az, T1* ugrav)
 {
     #pragma omp parallel for schedule(static)
     for (LocalParticleIndex t = 0; t < numParticles; ++t)
     {
         // 2 splits: [0:t] and [t+1:numParticles]
         particle2particle(x[t], y[t], z[t], x, y, z, m,
-                          t, eps2, ax + t, ay + t, az + t);
+                          t, eps2, ax + t, ay + t, az + t, ugrav + t);
 
         LocalParticleIndex tp1 = t + 1;
         particle2particle(x[t], y[t], z[t], x + tp1, y + tp1, z + tp1, m + tp1,
-                          numParticles - tp1, eps2, ax + t, ay + t, az + t);
+                          numParticles - tp1, eps2, ax + t, ay + t, az + t, ugrav + t);
     }
 }
 
