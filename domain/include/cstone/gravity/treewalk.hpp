@@ -102,7 +102,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
             // apply multipole to all particles in group
             for (LocalParticleIndex t = firstTarget; t < lastTarget; ++t)
             {
-                multipole2particle(x[t], y[t], z[t], p, ax + t, ay + t, az + t);
+                multipole2particle(x[t], y[t], z[t], p, ax + t, ay + t, az + t, ugrav + t);
             }
         }
 
