@@ -19,18 +19,28 @@ CUDA_DEVICE_HOST_FUN inline void densityJLoop(int pi, T sincIndex, T K, int ngma
     const int i  = clist[pi];
     const int nn = neighborsCount[pi];
 
+    T xi = x[i];
+    T yi = y[i];
+    T zi = z[i];
+    T hi = h[i];
+
+    T hInv      = 1.0 / hi;
+    T volumeInv = hInv * hInv * hInv;
+
+    const int* neighborsOfI = neighbors + pi * ngmax;
+
     T roloc = 0.0;
     for (int pj = 0; pj < nn; ++pj)
     {
-        const int j  = neighbors[pi * ngmax + pj];
-        const T dist = distancePBC(*bbox, h[i], x[i], y[i], z[i], x[j], y[j], z[j]);
-        const T vloc = dist / h[i];
-        const T w    = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, vloc), (int)sincIndex);
-        const T value = w / (h[i] * h[i] * h[i]);
-        roloc += value * m[j];
+        int j  = neighborsOfI[pj];
+        T dist = distancePBC(*bbox, hi, xi, yi, zi, x[j], y[j], z[j]);
+        T vloc = dist * hInv;
+        T w    = math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, vloc), (int)sincIndex);
+
+        roloc += w * m[j];
     }
 
-    ro[i] = roloc + m[i] * K / (h[i] * h[i] * h[i]);
+    ro[i] = K * (roloc + m[i]) * volumeInv;
 }
 
 } // namespace kernels
