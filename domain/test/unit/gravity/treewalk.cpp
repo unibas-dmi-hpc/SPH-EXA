@@ -86,7 +86,6 @@ TEST(Gravity, TreeWalk)
     std::vector<T> Az(numParticles, 0);
 
     float theta = 0.75;
-    //T eps2 = 0.05 * 0.05;
     T eps2 = 0;
 
     computeGravity(octree, multipoles.data(), layout.data(), 0, octree.numLeafNodes(),
@@ -109,7 +108,7 @@ TEST(Gravity, TreeWalk)
     std::sort(begin(delta), end(delta));
 
     EXPECT_TRUE(delta[numParticles*0.99] < 2e-3);
-    EXPECT_TRUE(delta[numParticles-1] < 1e-2);
+    EXPECT_TRUE(delta[numParticles-1] < 2e-2);
 
     std::cout.precision(10);
     std::cout << "min Error: "       << delta[0] << std::endl;

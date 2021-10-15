@@ -74,7 +74,6 @@ TEST(Gravity, M2P)
 
     Box<T> box(-1, 1);
     LocalParticleIndex numParticles = 100;
-    T eps2 = 0.05 * 0.05;
 
     RandomCoordinates<T, SfcKind<unsigned>> coordinates(numParticles, box);
 
@@ -92,12 +91,12 @@ TEST(Gravity, M2P)
 
     // reference direct gravity on target
     std::array<T, 3> accDirect = {0, 0, 0};
-    particle2particle(target[0], target[1], target[2], x, y, z, masses.data(), numParticles, eps2,
+    particle2particle(target[0], target[1], target[2], x, y, z, masses.data(), numParticles, 0.0,
                       &accDirect[0], &accDirect[1], &accDirect[2]);
 
     // approximate gravity with multipole interaction
     std::array<T, 3> accApprox = {0, 0, 0};
-    multipole2particle(target[0], target[1], target[2], multipole, eps2, &accApprox[0], &accApprox[1], &accApprox[2]);
+    multipole2particle(target[0], target[1], target[2], multipole, &accApprox[0], &accApprox[1], &accApprox[2]);
 
     //std::cout << std::fixed;
     //std::cout.precision(8);
@@ -108,9 +107,9 @@ TEST(Gravity, M2P)
     EXPECT_TRUE(std::abs(accApprox[1] - accDirect[1]) < 1e-3);
     EXPECT_TRUE(std::abs(accApprox[2] - accDirect[2]) < 1e-3);
 
-    EXPECT_DOUBLE_EQ(accApprox[0], 0.74353865168750355);
-    EXPECT_DOUBLE_EQ(accApprox[1], 9.1291665752567323e-05);
-    EXPECT_DOUBLE_EQ(accApprox[2], 0.009524584005857711);
+    EXPECT_DOUBLE_EQ(accApprox[0], 0.74358243303934313);
+    EXPECT_DOUBLE_EQ(accApprox[1], 9.1306187450872109e-05);
+    EXPECT_DOUBLE_EQ(accApprox[2], 0.0095252528595820823);
 }
 
 /*! @brief tests aggregation of multipoles into a composite multipole
