@@ -51,7 +51,6 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
 
     const T* wh = d.wh.data();
     const T* whd = d.whd.data();
-    size_t ltsize = d.wh.size();
 
     const BBox<T>* bbox = &d.bbox;
 
@@ -91,7 +90,7 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
         kernels::momentumAndEnergyJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount,
                                         x, y, z, vx, vy, vz, h, m, ro, p, c,
                                         c11, c12, c13, c22, c23, c33,
-                                        wh, whd, ltsize, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
+                                        wh, whd, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
     }
 }
 

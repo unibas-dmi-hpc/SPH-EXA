@@ -14,7 +14,7 @@ template<typename T>
 CUDA_DEVICE_HOST_FUN inline void densityJLoop(int pi, T sincIndex, T K, int ngmax, const BBox<T>* bbox,
                                               const int* clist, const int* neighbors, const int* neighborsCount,
                                               const T* x, const T* y, const T* z, const T* h, const T* m, const T* wh,
-                                              const T* whd, size_t ltsize, T* ro)
+                                              const T* whd, T* ro)
 {
     const int i  = clist[pi];
     const int nn = neighborsCount[pi];
@@ -35,7 +35,7 @@ CUDA_DEVICE_HOST_FUN inline void densityJLoop(int pi, T sincIndex, T K, int ngma
         int j  = neighborsOfI[pj];
         T dist = distancePBC(*bbox, hi, xi, yi, zi, x[j], y[j], z[j]);
         T vloc = dist * hInv;
-        T w    = math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, vloc), (int)sincIndex);
+        T w    = ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
 
         roloc += w * m[j];
     }
