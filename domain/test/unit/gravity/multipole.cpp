@@ -93,19 +93,22 @@ TEST(Gravity, M2P)
 
     // reference direct gravity on target
     std::array<T, 3> accDirect = {0, 0, 0};
-    T potential = 0;
+    T potDirect = 0;
     particle2particle(target[0], target[1], target[2], x, y, z, masses.data(), numParticles, 0.0,
-                      &accDirect[0], &accDirect[1], &accDirect[2], &potential);
+                      &accDirect[0], &accDirect[1], &accDirect[2], &potDirect);
 
     // approximate gravity with multipole interaction
     std::array<T, 3> accApprox = {0, 0, 0};
-    multipole2particle(target[0], target[1], target[2], multipole, &accApprox[0], &accApprox[1], &accApprox[2]);
+    T potApprox = 0;
+    multipole2particle(target[0], target[1], target[2], multipole, &accApprox[0], &accApprox[1], &accApprox[2],
+                       &potApprox);
 
     //std::cout << std::fixed;
     //std::cout.precision(8);
     //std::cout << "direct: " << accDirect[0] << " " << accDirect[1] << " " << accDirect[2] << std::endl;
     //std::cout << "approx: " << accApprox[0] << " " << accApprox[1] << " " << accApprox[2] << std::endl;
 
+    EXPECT_NEAR(potDirect, potApprox, 1e-3);
     EXPECT_TRUE(std::abs(accApprox[0] - accDirect[0]) < 1e-3);
     EXPECT_TRUE(std::abs(accApprox[1] - accDirect[1]) < 1e-3);
     EXPECT_TRUE(std::abs(accApprox[2] - accDirect[2]) < 1e-3);

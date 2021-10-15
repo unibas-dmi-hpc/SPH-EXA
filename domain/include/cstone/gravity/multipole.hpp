@@ -200,6 +200,7 @@ void particle2particle(T1 tx, T1 ty, T1 tz, const T1* sx, const T1* sy, const T1
  * @param[inout]  ax         location to add x-acceleration to
  * @param[inout]  ay         location to add y-acceleration to
  * @param[inout]  az         location to add z-acceleration to
+ * @param[inout]  ugrav      location to add gravitational potential to
  *
  * Note: contribution is added to output
  *
@@ -209,7 +210,7 @@ void particle2particle(T1 tx, T1 ty, T1 tz, const T1* sx, const T1* sy, const T1
  * quadrupole: Q*vec(r) / r^5 - 5/2 * vec(r)*Q*vec(r) * vec(r) / r^7
  */
 template<class T1, class T2>
-void multipole2particle(T1 tx, T1 ty, T1 tz, const GravityMultipole<T2>& multipole, T1* ax, T1* ay, T1* az)
+void multipole2particle(T1 tx, T1 ty, T1 tz, const GravityMultipole<T2>& multipole, T1* ax, T1* ay, T1* az, T1* ugrav)
 {
     T2 rx = tx - multipole.xcm;
     T2 ry = ty - multipole.ycm;
@@ -233,6 +234,7 @@ void multipole2particle(T1 tx, T1 ty, T1 tz, const GravityMultipole<T2>& multipo
     *ax += r_minus5 * Qrx + rQrAndMonopole * rx;
     *ay += r_minus5 * Qry + rQrAndMonopole * ry;
     *az += r_minus5 * Qrz + rQrAndMonopole * rz;
+    *ugrav -= (multipole.mass * r_minus1 + 0.5 * r_minus5 * rQr);
 }
 
 /*! @brief add a multipole contribution to the composite multipole
