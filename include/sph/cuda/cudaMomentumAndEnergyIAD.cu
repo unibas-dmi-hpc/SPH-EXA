@@ -21,7 +21,7 @@ __global__ void computeMomentumAndEnergyIAD(int n, T sincIndex, T K, int ngmax, 
                                             const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz,
                                             const T* h, const T* m, const T* ro, const T* p, const T* c,
                                             const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
-                                            const T* c33, const T* wh, const T* whd, size_t ltsize,
+                                            const T* c33, const T* wh, const T* whd,
                                             T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du, T* maxvsignal)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
@@ -29,7 +29,7 @@ __global__ void computeMomentumAndEnergyIAD(int n, T sincIndex, T K, int ngmax, 
 
     sph::kernels::momentumAndEnergyJLoop(tid, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount,
                                          x, y, z, vx, vy, vz, h, m, ro, p, c, c11, c12, c13, c22, c23, c33,
-                                         wh, whd, ltsize, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
+                                         wh, whd, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
 }
 
 template <class Dataset>
@@ -98,7 +98,7 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
             d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_vx, d.devPtrs.d_vy, d.devPtrs.d_vz,
             d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_ro, d.devPtrs.d_p, d.devPtrs.d_c,
             d.devPtrs.d_c11, d.devPtrs.d_c12, d.devPtrs.d_c13, d.devPtrs.d_c22, d.devPtrs.d_c23, d.devPtrs.d_c33,
-            d.devPtrs.d_wh, d.devPtrs.d_whd, ltsize, d.devPtrs.d_grad_P_x, d.devPtrs.d_grad_P_y, d.devPtrs.d_grad_P_z,
+            d.devPtrs.d_wh, d.devPtrs.d_whd, d.devPtrs.d_grad_P_x, d.devPtrs.d_grad_P_y, d.devPtrs.d_grad_P_z,
             d.devPtrs.d_du, d.devPtrs.d_maxvsignal);
 
         CHECK_CUDA_ERR(cudaGetLastError());
