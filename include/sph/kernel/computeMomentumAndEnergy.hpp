@@ -15,7 +15,7 @@ void momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngma
                                 const int *clist, const int *neighbors, const int *neighborsCount, const T *x, const T *y,
                                 const T *z, const T *vx, const T *vy, const T *vz, const T *h, const T *m, const T *ro,
                                 const T *p, const T *c, const T *c11, const T *c12, const T *c13, const T *c22, const T *c23,
-                                const T *c33, const T *wh, const T *whd, const size_t ltsize, T *grad_P_x, T *grad_P_y, T *grad_P_z, T *du, T *maxvsignal)
+                                const T *c33, const T *wh, const T *whd, T *grad_P_x, T *grad_P_y, T *grad_P_z, T *du, T *maxvsignal)
 {
     const T gradh_i = 1.0;
     const T gradh_j = 1.0;
@@ -51,8 +51,8 @@ void momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngma
 
         const T rv = r_ijx * v_ijx + r_ijy * v_ijy + r_ijz * v_ijz;
 
-        const T w1 = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, v1), (int)sincIndex);
-        const T w2 = K * math_namespace::pow(lt::wharmonic_lt_with_derivative(wh, whd, ltsize, v2), (int)sincIndex);
+        const T w1 = K * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
+        const T w2 = K * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v2), (int)sincIndex);
 
         const T W1 = w1 / (h[i] * h[i] * h[i]);
         const T W2 = w2 / (h[j] * h[j] * h[j]);

@@ -53,11 +53,13 @@ std::array<T, N> createWharmonicDerivativeLookupTable()
 // }
 
 template <typename T>
-CUDA_DEVICE_FUN inline T wharmonic_lt_with_derivative(const T *wh, const T *whd, const size_t ltsize, const T v)
+CUDA_DEVICE_FUN inline T wharmonic_lt_with_derivative(const T *wh, const T *whd, T v)
 {
-    const size_t halfTableSize = ltsize / 2.0;
+    constexpr size_t halfTableSize = size / 2;
+    constexpr double inverseHalfSize = 1.0 / halfTableSize;
+
     const size_t idx = v * halfTableSize;
-    return (idx >= ltsize) ? 0.0 : wh[idx] + whd[idx] * (v - (T)idx / halfTableSize);
+    return (idx >= size) ? 0.0 : wh[idx] + whd[idx] * (v - T(idx) * inverseHalfSize);
 }
 
 // template <typename T>
