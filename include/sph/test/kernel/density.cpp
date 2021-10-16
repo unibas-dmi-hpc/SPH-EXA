@@ -128,3 +128,4 @@ TEST(Density, JLoopPBC)
 
     EXPECT_DOUBLE_EQ(rho[0], 0.17929212293724384);
 }
+
