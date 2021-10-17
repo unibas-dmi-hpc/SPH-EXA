@@ -45,7 +45,6 @@ int main()
 
     unsigned bucketSize             = 64;
     float theta                     = 0.75;
-    T eps2                          = 0;
     LocalParticleIndex numParticles = 100000;
     Box<T> box(-1, 1);
 
@@ -55,6 +54,7 @@ int main()
     const T* y = coordinates.y().data();
     const T* z = coordinates.z().data();
 
+    std::vector<T> h(numParticles, 0.01);
     std::vector<T> masses(numParticles);
     std::generate(begin(masses), end(masses), drand48);
 
@@ -83,7 +83,8 @@ int main()
 
     auto t0 = std::chrono::high_resolution_clock::now();
     computeGravity(octree, multipoles.data(), layout.data(), 0, octree.numLeafNodes(),
-                   x, y, z, masses.data(), box, theta, eps2, ax.data(), ay.data(), az.data(), pot.data());
+                   x, y, z, h.data(), masses.data(), box, theta, ax.data(), ay.data(), az.data(),
+                   pot.data());
     auto t1 = std::chrono::high_resolution_clock::now();
     float elapsed = std::chrono::duration<double>(t1 - t0).count();
 
@@ -95,7 +96,7 @@ int main()
         std::vector<double> yd(y, y + numParticles);
         std::vector<double> zd(z, z + numParticles);
         auto t0 = std::chrono::high_resolution_clock::now();
-        directSum(xd.data(), yd.data(), zd.data(), masses.data(), numParticles, double(eps2),
+        directSum(xd.data(), yd.data(), zd.data(), h.data(), masses.data(), numParticles,
                   Ax.data(), Ay.data(), Az.data(), potRef.data());
         auto t1 = std::chrono::high_resolution_clock::now();
         float elapsed = std::chrono::duration<double>(t1 - t0).count();

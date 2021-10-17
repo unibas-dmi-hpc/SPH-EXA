@@ -6,13 +6,14 @@
 #include "ryoanji/dataset.h"
 #include "ryoanji/direct.cuh"
 
-std::vector<fvec4> cpuReference(const std::vector<fvec4>& bodies, double eps)
+std::vector<fvec4> cpuReference(const std::vector<fvec4>& bodies)
 {
     size_t numBodies = bodies.size();
 
     std::vector<double> x(numBodies);
     std::vector<double> y(numBodies);
     std::vector<double> z(numBodies);
+    std::vector<double> h(numBodies, 0.001);
     std::vector<double> m(numBodies);
 
     for (size_t i = 0; i < numBodies; ++i)
@@ -28,8 +29,8 @@ std::vector<fvec4> cpuReference(const std::vector<fvec4>& bodies, double eps)
     std::vector<double> az(numBodies);
     std::vector<double> pot(numBodies);
 
-    cstone::directSum(x.data(), y.data(), z.data(), m.data(), numBodies, eps*eps, ax.data(), ay.data(), az.data(),
-                      pot.data());
+    cstone::directSum(x.data(), y.data(), z.data(), h.data(), m.data(), numBodies,
+                      ax.data(), ay.data(), az.data(), pot.data());
 
     std::vector<fvec4> acc(numBodies, fvec4(0));
 
@@ -44,7 +45,7 @@ std::vector<fvec4> cpuReference(const std::vector<fvec4>& bodies, double eps)
 TEST(DirectSum, MatchCpu)
 {
     int numBodies = 1023;
-    float eps     = 0.05;
+    float eps     = 0.0;
 
     auto bodies = makeCubeBodies(numBodies);
 
@@ -62,7 +63,7 @@ TEST(DirectSum, MatchCpu)
 
     bodyAcc.d2h();
 
-    auto refAcc = cpuReference(bodies, eps);
+    auto refAcc = cpuReference(bodies);
 
     for (int i = 0; i < numBodies; ++i)
     {

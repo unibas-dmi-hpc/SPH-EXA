@@ -190,7 +190,7 @@ void particle2particle(T1 tx, T1 ty, T1 tz, const T1* sx, const T1* sy, const T1
 
 //! \brief same as above, but mass softening
 template<class T1, class T2>
-void particle2particle(T1 tx, T1 ty, T1 tz, T1 hi, const T1* sx, const T1* sy, const T1* sz, const T1* h, const T2* m,
+void particle2particle(T1 tx, T1 ty, T1 tz, T2 hi, const T1* sx, const T1* sy, const T1* sz, const T2* h, const T2* m,
                        LocalParticleIndex numSources, T1* ax, T1* ay, T1* az, T1* ugrav)
 {
     for (LocalParticleIndex j = 0; j < numSources; ++j)
