@@ -188,6 +188,42 @@ void particle2particle(T1 tx, T1 ty, T1 tz, const T1* sx, const T1* sy, const T1
     }
 }
 
+//! \brief same as above, but mass softening
+template<class T1, class T2>
+void particle2particle(T1 tx, T1 ty, T1 tz, T1 hi, const T1* sx, const T1* sy, const T1* sz, const T1* h, const T2* m,
+                       LocalParticleIndex numSources, T1* ax, T1* ay, T1* az, T1* ugrav)
+{
+    for (LocalParticleIndex j = 0; j < numSources; ++j)
+    {
+        T1 rx = sx[j] - tx;
+        T1 ry = sy[j] - ty;
+        T1 rz = sz[j] - tz;
+
+        T1 r_2 = rx * rx + ry * ry + rz * rz;
+        T1 r = std::sqrt(r_2);
+        T1 r_minus1 = 1.0 / r;
+        T1 r_minus2 = r_minus1 * r_minus1;
+
+        T1 mEffective = m[j];
+
+        T1 hij = hi + h[j];
+        if (r < hij)
+        {
+            // apply mass softening correction
+            T1 vgr = r / hij;
+            mEffective *= vgr * vgr * vgr;
+        }
+
+        T1 Mr_minus3 = mEffective * r_minus1 * r_minus2;
+
+        *ax += Mr_minus3 * rx;
+        *ay += Mr_minus3 * ry;
+        *az += Mr_minus3 * rz;
+
+        *ugrav -= Mr_minus3 * r_2;
+    }
+}
+
 /*! @brief apply gravitational interaction with a multipole to a particle
  *
  * @tparam        T1         float or double
