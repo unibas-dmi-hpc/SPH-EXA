@@ -64,6 +64,72 @@ TEST(Gravity, P2P)
     EXPECT_DOUBLE_EQ(pot, -0.76980035891950138);
 }
 
+//! @brief Tests direct particle-to-particle gravity interactions with mass softening
+TEST(Gravity, P2PmsoftBase)
+{
+    using T = double;
+
+    // target
+    T x = 1;
+    T y = 1;
+    T z = 1;
+    T h = std::sqrt(3) / 2 - 0.001;
+
+    // source
+    T xs[2] = {2, -2};
+    T ys[2] = {2, -2};
+    T zs[2] = {2, -2};
+    T hs[2] = {h, h};
+    T m[2]  = {1, 1};
+
+
+    T xacc = 0;
+    T yacc = 0;
+    T zacc = 0;
+    T pot  = 0;
+
+    particle2particle(x, y, z, h, xs, ys, zs, hs, m, 2, &xacc, &yacc, &zacc, &pot);
+
+    // h too small to trigger softening, so results should match the non-softened numbers
+    EXPECT_DOUBLE_EQ(xacc, 0.17106674642655587);
+    EXPECT_DOUBLE_EQ(yacc, 0.17106674642655587);
+    EXPECT_DOUBLE_EQ(zacc, 0.17106674642655587);
+    EXPECT_DOUBLE_EQ(pot, -0.76980035891950138);
+}
+
+//! @brief Tests direct particle-to-particle gravity interactions with mass softening
+TEST(Gravity, P2PmsoftH)
+{
+    using T = double;
+    constexpr int numSources = 2;
+
+    // target
+    T x = 1;
+    T y = 1;
+    T z = 1;
+    // distance to first source is sqrt(3)/2, so here r < hi + hj
+    T h = std::sqrt(3)/2 + 0.001;
+
+    // source
+    T xs[numSources] = {2, -2};
+    T ys[numSources] = {2, -2};
+    T zs[numSources] = {2, -2};
+    T hs[numSources] = {h, h};
+    T m[numSources]  = {1, 1};
+
+    T xacc = 0;
+    T yacc = 0;
+    T zacc = 0;
+    T pot  = 0;
+
+    particle2particle(x, y, z, h, xs, ys, zs, hs, m, numSources, &xacc, &yacc, &zacc, &pot);
+
+    EXPECT_DOUBLE_EQ(xacc, 0.1704016164027678);
+    EXPECT_DOUBLE_EQ(yacc, 0.1704016164027678);
+    EXPECT_DOUBLE_EQ(zacc, 0.1704016164027678);
+    EXPECT_DOUBLE_EQ(pot, -0.7678049688481372);
+}
+
 
 /*! @brief Tests the gravity interaction of a multipole with a target particle
  *
