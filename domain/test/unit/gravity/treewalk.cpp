@@ -53,6 +53,7 @@ TEST(Gravity, TreeWalk)
     const T* y = coordinates.y().data();
     const T* z = coordinates.z().data();
 
+    std::vector<T> h(numParticles, 0.01);
     std::vector<T> masses(numParticles);
     std::generate(begin(masses), end(masses), drand48);
 
@@ -75,7 +76,6 @@ TEST(Gravity, TreeWalk)
     T totalMass = std::accumulate(masses.begin(), masses.end(), 0.0);
     EXPECT_TRUE(std::abs(totalMass - multipoles[0].mass) < 1e-6);
 
-
     std::vector<T> ax(numParticles, 0);
     std::vector<T> ay(numParticles, 0);
     std::vector<T> az(numParticles, 0);
@@ -88,12 +88,12 @@ TEST(Gravity, TreeWalk)
     std::vector<T> potentialReference(numParticles, 0);
 
     float theta = 0.75;
-    T eps2 = 0;
 
     computeGravity(octree, multipoles.data(), layout.data(), 0, octree.numLeafNodes(),
-                   x, y, z, masses.data(), box, theta, eps2, ax.data(), ay.data(), az.data(), potential.data());
+                   x, y, z, h.data(), masses.data(), box, theta, ax.data(), ay.data(), az.data(),
+                   potential.data());
 
-    directSum(x, y, z, masses.data(), numParticles, eps2, Ax.data(), Ay.data(), Az.data(), potentialReference.data());
+    directSum(x, y, z, h.data(), masses.data(), numParticles, Ax.data(), Ay.data(), Az.data(), potentialReference.data());
 
     // relative errors
     std::vector<T> delta(numParticles);
