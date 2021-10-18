@@ -37,6 +37,7 @@ TEST(Multipole, P2M)
     std::vector<double> x(numBodies);
     std::vector<double> y(numBodies);
     std::vector<double> z(numBodies);
+    std::vector<double> h(numBodies, 0.0);
     std::vector<double> m(numBodies);
 
     for (size_t i = 0; i < numBodies; ++i)
@@ -96,15 +97,16 @@ TEST(Multipole, P2M)
         double ayd = 0;
         double azd = 0;
         double pot = 0;
-        cstone::particle2particle(double(testTarget[0]), double(testTarget[1]), double(testTarget[2]),
-                                  x.data(), y.data(), z.data(), m.data(), numBodies, double(eps2), &axd, &ayd, &azd,
-                                  &pot);
+        cstone::particle2particle(double(testTarget[0]), double(testTarget[1]), double(testTarget[2]), 0.0,
+                                  x.data(), y.data(), z.data(), h.data(), m.data(), numBodies,
+                                  &axd, &ayd, &azd, &pot);
         //printf("direct acceleration: %f %f %f\n", axd, ayd, azd);
 
         // compare ryoanji against the direct sum reference
-        EXPECT_NEAR(acc[0], pot, 2e-5);
+        EXPECT_NEAR(acc[0], pot, 3e-5);
         EXPECT_NEAR(acc[1], axd, 1e-5);
         EXPECT_NEAR(acc[2], ayd, 1e-5);
         EXPECT_NEAR(acc[3], azd, 1e-5);
     }
 }
+
