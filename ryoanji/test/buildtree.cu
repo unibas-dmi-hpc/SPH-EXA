@@ -64,11 +64,11 @@ TEST(Buildtree, bounds)
         uint64_t key = getHilbert(make_int3(iX[0], iX[1], iX[2]));
 
         //std::cout << bodies[i] << " " << bodyPos[i] << " " << bodyPos2[i] << std::endl;
-        printf("%5f, %5f, %5f\n", bodies[i][0], bodies[i][1], bodies[i][2]);
-        printf("%5f, %5f, %5f, %021lo\n", bodyPos[i][0], bodyPos[i][1], bodyPos[i][2], key);
-        printf("%5f, %5f, %5f\n", bodyPos2[i][0], bodyPos2[i][1], bodyPos2[i][2]);
+        //printf("%5f, %5f, %5f\n", bodies[i][0], bodies[i][1], bodies[i][2]);
+        //printf("%5f, %5f, %5f, %021lo\n", bodyPos[i][0], bodyPos[i][1], bodyPos[i][2], key);
+        //printf("%5f, %5f, %5f\n", bodyPos2[i][0], bodyPos2[i][1], bodyPos2[i][2]);
         //std::cout << bodies[i][j] << " " << bodyPos[i][j] << " " << bodyPos2[i][j] << std::endl;
-        std::cout << std::endl;
+        //std::cout << std::endl;
     }
 
 }
