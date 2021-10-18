@@ -13,7 +13,7 @@ std::vector<fvec4> cpuReference(const std::vector<fvec4>& bodies)
     std::vector<double> x(numBodies);
     std::vector<double> y(numBodies);
     std::vector<double> z(numBodies);
-    std::vector<double> h(numBodies, 0.001);
+    std::vector<double> h(numBodies, 0.0);
     std::vector<double> m(numBodies);
 
     for (size_t i = 0; i < numBodies; ++i)
@@ -44,15 +44,21 @@ std::vector<fvec4> cpuReference(const std::vector<fvec4>& bodies)
 
 TEST(DirectSum, MatchCpu)
 {
-    int numBodies = 1023;
-    float eps     = 0.0;
+    int npOnEdge  = 10;
+    int numBodies = npOnEdge * npOnEdge * npOnEdge;
 
-    auto bodies = makeCubeBodies(numBodies);
+    // the CPU reference uses mass softening, while the GPU P2P kernel still uses plummer softening
+    // so the only way to compare is without softening in both versions and make sure that
+    // particles are not on top of each other
+    float eps = 0.0;
+
+    auto bodies = makeGridBodies(npOnEdge, 0.5);
 
     cudaVec<fvec4> bodyPos(numBodies, true);
     for (size_t i = 0; i < numBodies; ++i)
     {
         bodyPos[i] = bodies[i];
+        //printf("%f %f %f %f\n", bodyPos[i][0], bodyPos[i][1], bodyPos[i][2], bodyPos[i][3]);
     }
     bodyPos.h2d();
 
@@ -70,7 +76,7 @@ TEST(DirectSum, MatchCpu)
         fvec3 ref   = {refAcc[i][1], refAcc[i][2], refAcc[i][3]};
         fvec3 probe = {bodyAcc[i][1], bodyAcc[i][2], bodyAcc[i][3]};
 
-        EXPECT_TRUE(std::sqrt(norm(ref-probe)/norm(probe)) < 1e-6);
+        EXPECT_NEAR(std::sqrt(norm(ref-probe)/norm(probe)), 0, 1e-6);
         // the potential
         EXPECT_NEAR(refAcc[i][0], bodyAcc[i][0], 1e-6);
 

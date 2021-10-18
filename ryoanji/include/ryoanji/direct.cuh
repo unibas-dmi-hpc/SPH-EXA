@@ -10,9 +10,13 @@ __global__ void directKernel(int numSource, float eps2, fvec4* bodyAcc)
     unsigned numWarps    = (blockDim.x - 1) / WARP_SIZE + 1;
     unsigned targetIdx   = blockDim.x * blockIdx.x + threadIdx.x;
 
-    fvec4 pos = tex1Dfetch(texBody, targetIdx);
-
+    fvec4 pos = {0.0, 0.0, 0.0, 0.0};
+    if (targetIdx < numSource)
+    {
+        pos = tex1Dfetch(texBody, targetIdx);
+    }
     const fvec3 pos_i(pos[0], pos[1], pos[2]);
+
     kvec4 acc = {0.0, 0.0, 0.0, 0.0};
 
     for (int block = 0; block < gridDim.x; ++block)
@@ -44,10 +48,14 @@ __global__ void directKernel(int numSource, float eps2, fvec4* bodyAcc)
 
                 dX *= invR1 * invR2;
 
-                acc[0] -= invR1;
-                acc[1] += dX[0];
-                acc[2] += dX[1];
-                acc[3] += dX[2];
+                // avoid self-gravity and interaction with padding threads
+                if (R2 != 0.0)
+                {
+                    acc[0] -= invR1;
+                    acc[1] += dX[0];
+                    acc[2] += dX[1];
+                    acc[3] += dX[2];
+                }
             }
         }
     }
@@ -61,7 +69,7 @@ __global__ void directKernel(int numSource, float eps2, fvec4* bodyAcc)
 void directSum(float eps, cudaVec<fvec4>& bodyPos, cudaVec<fvec4>& bodyAcc)
 {
     int numBodies  = bodyPos.size();
-    int numThreads = std::min(512, numBodies);
+    int numThreads = 512;
     int numBlock   = (numBodies - 1) / numThreads + 1;
 
     bodyPos.bind(texBody);
@@ -69,3 +77,4 @@ void directSum(float eps, cudaVec<fvec4>& bodyPos, cudaVec<fvec4>& bodyAcc)
     bodyPos.unbind(texBody);
     cudaDeviceSynchronize();
 }
+

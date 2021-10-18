@@ -142,11 +142,11 @@ static std::vector<fvec4> makeGridBodies(size_t npOnEdge, double spacing)
         for (size_t j = 0; j < npOnEdge; j++)
             for (size_t k = 0; k < npOnEdge; k++)
     {
-        size_t linIdx = i * npOnEdge* npOnEdge + j * npOnEdge + k;
+        size_t linIdx = i * npOnEdge * npOnEdge + j * npOnEdge + k;
         bodies[linIdx][0] = i * spacing;
         bodies[linIdx][1] = j * spacing;
         bodies[linIdx][2] = k * spacing;
-        bodies[linIdx][3] = drand48() / (npOnEdge * npOnEdge * npOnEdge);
+        bodies[linIdx][3] = 1.0 / (npOnEdge * npOnEdge * npOnEdge);
     }
 
     return bodies;
