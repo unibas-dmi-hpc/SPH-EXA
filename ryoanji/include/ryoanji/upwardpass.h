@@ -33,7 +33,7 @@ __device__ __forceinline__ fvec4 setCenter(const int begin, const int end)
 //! @brief computes the center of mass for the bodies in the specified range
 __host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int end, fvec4* posGlob)
 {
-    fvec4 center;
+    fvec4 center(0);
     for (int i = begin; i < end; i++)
     {
         fvec4 pos    = posGlob[i];

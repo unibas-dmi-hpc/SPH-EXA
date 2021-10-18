@@ -52,12 +52,12 @@ TEST(Multipole, P2M)
     fvec4 centerMass       = setCenter(0, numBodies, bodies.data());
     fvecP ryoanjiMultipole = P2Mhost(0, numBodies, bodies.data(), centerMass);
 
-    EXPECT_TRUE(std::abs(ryoanjiMultipole[0] - cstoneMultipole.mass) < 1e-6);
+    EXPECT_NEAR(ryoanjiMultipole[0], cstoneMultipole.mass, 1e-6);
 
-    EXPECT_TRUE(std::abs(centerMass[0] - cstoneMultipole.xcm) < 1e-6);
-    EXPECT_TRUE(std::abs(centerMass[1] - cstoneMultipole.ycm) < 1e-6);
-    EXPECT_TRUE(std::abs(centerMass[2] - cstoneMultipole.zcm) < 1e-6);
-    EXPECT_TRUE(std::abs(centerMass[3] - cstoneMultipole.mass) < 1e-6);
+    EXPECT_NEAR(centerMass[0], cstoneMultipole.xcm , 1e-6);
+    EXPECT_NEAR(centerMass[1], cstoneMultipole.ycm , 1e-6);
+    EXPECT_NEAR(centerMass[2], cstoneMultipole.zcm , 1e-6);
+    EXPECT_NEAR(centerMass[3], cstoneMultipole.mass, 1e-6);
 
     // the two multipoles are not directly comparable
     {
@@ -75,7 +75,7 @@ TEST(Multipole, P2M)
         //}
     }
 
-    // compare result M2P results on a test target
+    // compare M2P results on a test target
     {
         float eps2 = 0;
         fvec3 testTarget(-8, -8, -8);
