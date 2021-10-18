@@ -51,4 +51,6 @@ else()
 endif()
 
 add_subdirectory(include)
-add_subdirectory(test)
+if(BUILD_TESTING)
+  add_subdirectory(test)
+endif()
