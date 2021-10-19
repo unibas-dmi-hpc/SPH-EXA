@@ -62,10 +62,12 @@ int main(int argc, char** argv)
     size_t bucketSize = std::max(bucketSizeFocus, (cubeSide * cubeSide * cubeSide) / (100 * d.nrank));
     cstone::Box<Real> box{d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin,
                           d.bbox.zmax, d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz};
+    float theta = 1.0;
+
 #ifdef USE_CUDA
-    cstone::Domain<CodeType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, box);
+    cstone::Domain<CodeType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #else
-    cstone::Domain<CodeType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, box);
+    cstone::Domain<CodeType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;

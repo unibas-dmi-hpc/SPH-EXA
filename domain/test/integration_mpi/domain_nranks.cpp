@@ -171,21 +171,22 @@ TEST(FocusDomain, randomGaussianNeighborSum)
 
     int bucketSize = 50;
     int bucketSizeFocus = 10;
+    float theta = 1.0;
 
     {
-        Domain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        Domain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1});
         randomGaussianDomain<unsigned, double>(domain, rank, nRanks);
     }
     {
-        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1});
         randomGaussianDomain<uint64_t, double>(domain, rank, nRanks);
     }
     {
-        Domain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        Domain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1});
         randomGaussianDomain<unsigned, float>(domain, rank, nRanks);
     }
     {
-        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1});
+        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1});
         randomGaussianDomain<uint64_t, float>(domain, rank, nRanks);
     }
 }
@@ -198,21 +199,22 @@ TEST(FocusDomain, randomGaussianNeighborSumPbc)
 
     int bucketSize = 50;
     int bucketSizeFocus = 10;
+    float theta = 1.0;
 
     {
-        Domain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        Domain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1, true});
         randomGaussianDomain<unsigned, double>(domain, rank, nRanks);
     }
     {
-        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        Domain<uint64_t, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1, true});
         randomGaussianDomain<uint64_t, double>(domain, rank, nRanks);
     }
     {
-        Domain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        Domain<unsigned, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1, true});
         randomGaussianDomain<unsigned, float>(domain, rank, nRanks);
     }
     {
-        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, {-1, 1, true});
+        Domain<uint64_t, float> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1, true});
         randomGaussianDomain<uint64_t, float>(domain, rank, nRanks);
     }
 }
@@ -230,6 +232,7 @@ TEST(FocusDomain, assignmentShift)
     LocalParticleIndex numParticlesPerRank = 15000;
     unsigned bucketSize = 1024;
     unsigned bucketSizeFocus = 8;
+    float theta = 1.0;
 
     RandomCoordinates<Real, SfcKind<KeyType>> coordinates(numParticlesPerRank, box, rank);
 
@@ -238,7 +241,7 @@ TEST(FocusDomain, assignmentShift)
     std::vector<Real> z(coordinates.z().begin(), coordinates.z().end());
     std::vector<Real> h(numParticlesPerRank, 0.1);
 
-    Domain<KeyType, Real> domain(rank, numRanks, bucketSize, bucketSizeFocus, box);
+    Domain<KeyType, Real> domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
 
     std::vector<KeyType> particleKeys;
 

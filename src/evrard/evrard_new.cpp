@@ -70,12 +70,14 @@ int main(int argc, char** argv)
     size_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
     size_t bucketSize = std::max(bucketSizeFocus, nParticles / (100 * d.nrank));
-    cstone::Box<Real> box{d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin,
-                          d.bbox.zmax, d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz};
+    // no PBC, global box will be recomputed every step
+    cstone::Box<Real> box(0, 1, false);
+    float theta = 0.75;
+
 #ifdef USE_CUDA
-    cstone::Domain<CodeType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, box);
+    cstone::Domain<CodeType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #else
-    cstone::Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, box);
+    cstone::Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
