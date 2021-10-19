@@ -30,7 +30,6 @@ void computeDensityImpl(const Task &t, Dataset &d)
 
     const T *wh = d.wh.data();
     const T *whd = d.whd.data();
-    const size_t ltsize = d.wh.size();
 
     T *ro = d.ro.data();
 
@@ -67,7 +66,7 @@ void computeDensityImpl(const Task &t, Dataset &d)
     for (size_t pi = 0; pi < n; pi++)
     {
         // computes ro[i]
-        kernels::densityJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ltsize, ro);
+        kernels::densityJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ro);
 #ifndef NDEBUG
         if (std::isnan(ro[pi])) printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", pi, ro[pi], x[pi], y[pi], z[pi], h[pi]);
 #endif

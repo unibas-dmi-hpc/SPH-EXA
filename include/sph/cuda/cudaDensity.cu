@@ -18,15 +18,14 @@ namespace cuda
 template<class T>
 __global__ void density(int n, T sincIndex, T K, int ngmax, const BBox<T>* bbox, const int* clist,
                         const int* neighbors, const int* neighborsCount,
-                        const T* x, const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd,
-                        size_t ltsize, T* ro)
+                        const T* x, const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, T* ro)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
 
     // computes ro[clist[tid]]
     sph::kernels::densityJLoop(tid, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount,
-                               x, y, z, h, m, wh, whd, ltsize, ro);
+                               x, y, z, h, m, wh, whd, ro);
 }
 
 template<class Dataset>
@@ -95,7 +94,7 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d)
         density<<<numBlocks, numThreads, 0, stream>>>(
             n, d.sincIndex, d.K, t.ngmax, d.devPtrs.d_bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
             d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_wh, d.devPtrs.d_whd,
-            ltsize, d.devPtrs.d_ro);
+            d.devPtrs.d_ro);
         CHECK_CUDA_ERR(cudaGetLastError());
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighborsCount.data(), d_neighborsCount_use,
