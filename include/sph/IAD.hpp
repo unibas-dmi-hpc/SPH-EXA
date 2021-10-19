@@ -40,7 +40,6 @@ void computeIADImpl(const Task &t, Dataset &d)
 
     const T* wh = d.wh.data();
     const T* whd = d.whd.data();
-    size_t ltsize = d.wh.size();
 
     const BBox<T>* bbox = &d.bbox;
 
@@ -79,7 +78,7 @@ void computeIADImpl(const Task &t, Dataset &d)
     for (size_t pi = 0; pi < n; ++pi)
     {
         kernels::IADJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount,
-                          x, y, z, h, m, ro, wh, whd, ltsize, c11, c12, c13, c22, c23, c33);
+                          x, y, z, h, m, ro, wh, whd, c11, c12, c13, c22, c23, c33);
     }
 }
 
