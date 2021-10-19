@@ -75,12 +75,6 @@ int main()
     std::vector<T> az(numParticles, 0);
     std::vector<T> pot(numParticles, 0);
 
-    // direct sum reference
-    std::vector<double> Ax(numParticles, 0);
-    std::vector<double> Ay(numParticles, 0);
-    std::vector<double> Az(numParticles, 0);
-    std::vector<double> potRef(numParticles, 0);
-
     auto t0 = std::chrono::high_resolution_clock::now();
     computeGravity(octree, multipoles.data(), layout.data(), 0, octree.numLeafNodes(),
                    x, y, z, h.data(), masses.data(), box, theta, ax.data(), ay.data(), az.data(),
@@ -90,6 +84,12 @@ int main()
 
     std::cout << "Time elapsed for " << numParticles << " particles: " << elapsed << " s, "
               << double(numParticles) / 1e6 / elapsed << " million particles/second" << std::endl;
+
+    // direct sum reference
+    std::vector<double> Ax(numParticles, 0);
+    std::vector<double> Ay(numParticles, 0);
+    std::vector<double> Az(numParticles, 0);
+    std::vector<double> potRef(numParticles, 0);
 
     {
         std::vector<double> xd(x, x + numParticles);

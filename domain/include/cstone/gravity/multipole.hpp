@@ -168,6 +168,11 @@ template<class T1, class T2>
 void particle2particle(T1 tx, T1 ty, T1 tz, const T1* sx, const T1* sy, const T1* sz, const T2* m,
                        LocalParticleIndex numSources, T1 eps2, T1* ax, T1* ay, T1* az, T1* ugrav)
 {
+    T1 axLoc    = 0;
+    T1 ayLoc    = 0;
+    T1 azLoc    = 0;
+    T1 ugravLoc = 0;
+
     for (LocalParticleIndex j = 0; j < numSources; ++j)
     {
         T1 rx = sx[j] - tx;
@@ -180,12 +185,17 @@ void particle2particle(T1 tx, T1 ty, T1 tz, const T1* sx, const T1* sy, const T1
 
         T1 Mr_minus3 = m[j] * r_minus1 * r_minus2;
 
-        *ax += Mr_minus3 * rx;
-        *ay += Mr_minus3 * ry;
-        *az += Mr_minus3 * rz;
+        axLoc += Mr_minus3 * rx;
+        ayLoc += Mr_minus3 * ry;
+        azLoc += Mr_minus3 * rz;
 
-        *ugrav -= Mr_minus3 * r_2;
+        ugravLoc -= Mr_minus3 * r_2;
     }
+
+    *ax    += axLoc;
+    *ay    += ayLoc;
+    *az    += azLoc;
+    *ugrav += ugravLoc;
 }
 
 //! \brief same as above, but mass softening
@@ -193,6 +203,11 @@ template<class T1, class T2>
 void particle2particle(T1 tx, T1 ty, T1 tz, T2 hi, const T1* sx, const T1* sy, const T1* sz, const T2* h, const T2* m,
                        LocalParticleIndex numSources, T1* ax, T1* ay, T1* az, T1* ugrav)
 {
+    T1 axLoc    = 0;
+    T1 ayLoc    = 0;
+    T1 azLoc    = 0;
+    T1 ugravLoc = 0;
+
     for (LocalParticleIndex j = 0; j < numSources; ++j)
     {
         T1 rx = sx[j] - tx;
@@ -216,12 +231,17 @@ void particle2particle(T1 tx, T1 ty, T1 tz, T2 hi, const T1* sx, const T1* sy, c
 
         T1 Mr_minus3 = mEffective * r_minus1 * r_minus2;
 
-        *ax += Mr_minus3 * rx;
-        *ay += Mr_minus3 * ry;
-        *az += Mr_minus3 * rz;
+        axLoc += Mr_minus3 * rx;
+        ayLoc += Mr_minus3 * ry;
+        azLoc += Mr_minus3 * rz;
 
-        *ugrav -= Mr_minus3 * r_2;
+        ugravLoc -= Mr_minus3 * r_2;
     }
+
+    *ax    += axLoc;
+    *ay    += ayLoc;
+    *az    += azLoc;
+    *ugrav += ugravLoc;
 }
 
 /*! @brief apply gravitational interaction with a multipole to a particle
