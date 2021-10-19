@@ -65,15 +65,25 @@ public:
      * @param nRanks          number of ranks
      * @param bucketSize      build global tree for domain decomposition with max @a bucketSize particles per node
      * @param bucketSizeFocus maximum number of particles per leaf node inside the assigned part of the SFC
+     * @param theta           angle parameter to control focus resolution and gravity accuracy
      * @param box             global bounding box, default is non-pbc box
      *                        for each periodic dimension in @a box, the coordinate min/max
      *                        limits will never be changed for the lifetime of the Domain
      *
      */
-    explicit Domain(int rank, int nRanks, unsigned bucketSize, unsigned bucketSizeFocus,
-                           const Box<T>& box = Box<T>{0,1})
-        : myRank_(rank), numRanks_(nRanks), bucketSize_(bucketSize), bucketSizeFocus_(bucketSizeFocus), box_(box),
-          focusedTree_(bucketSizeFocus_, theta_)
+    explicit Domain(int rank,
+                    int nRanks,
+                    unsigned bucketSize,
+                    unsigned bucketSizeFocus,
+                    float theta,
+                    const Box<T>& box = Box<T>{0, 1})
+        : myRank_(rank)
+        , numRanks_(nRanks)
+        , bucketSize_(bucketSize)
+        , bucketSizeFocus_(bucketSizeFocus)
+        , theta_(theta)
+        , box_(box)
+        , focusedTree_(bucketSizeFocus_, theta_)
     {
         if (bucketSize_ < bucketSizeFocus_)
         {
@@ -366,6 +376,12 @@ public:
         haloexchange<T>(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
     }
 
+    T computeGravity(gsl::span<const T> x, gsl::span<const T> y, gsl::span<const T> z, gsl::span<const T> h,
+                     gsl::span<const T> m, gsl::span<T> ax, gsl::span<T> ay, gsl::span<T> az)
+    {
+
+    }
+
     //! @brief return the index of the first particle that's part of the local assignment
     [[nodiscard]] LocalParticleIndex startIndex() const { return particleStart_; }
 
@@ -417,6 +433,9 @@ private:
     unsigned bucketSize_;
     unsigned bucketSizeFocus_;
 
+    //! @brief MAC parameter for focus resolution and gravity treewalk
+    float theta_;
+
     /*! @brief array index of first local particle belonging to the assignment
      *  i.e. the index of the first particle that belongs to this rank and is not a halo.
      */
@@ -435,8 +454,6 @@ private:
     //! @brief cornerstone tree leaves for global domain decomposition
     std::vector<KeyType> tree_;
     std::vector<unsigned> nodeCounts_;
-
-    float theta_{1.0};
 
     /*! @brief locally focused, fully traversable octree, used for halo discovery and exchange
      *
