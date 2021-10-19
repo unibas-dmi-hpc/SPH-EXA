@@ -41,6 +41,8 @@
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/traversal/peers.hpp"
 
+#include "cstone/gravity/treewalk.hpp"
+#include "cstone/gravity/upsweep.hpp"
 #include "cstone/halos/exchange_halos.hpp"
 
 #include "cstone/tree/octree_mpi.hpp"
@@ -314,11 +316,11 @@ public:
 
         /* Compute new layout *********************************************************/
 
-        std::vector<LocalParticleIndex> layout = computeNodeLayout(focusedTree_.leafCounts(), haloFlags,
-                                                                   focusAssignment[myRank_].start(),
-                                                                   focusAssignment[myRank_].end());
-        localNParticles_ = layout.back();
-        auto newParticleStart = layout[focusAssignment[myRank_].start()];
+        layout_ = computeNodeLayout(focusedTree_.leafCounts(), haloFlags,
+                                    focusAssignment[myRank_].start(),
+                                    focusAssignment[myRank_].end());
+        localNParticles_ = layout_.back();
+        auto newParticleStart = layout_[focusAssignment[myRank_].start()];
         auto newParticleEnd   = newParticleStart + newNParticlesAssigned;
 
         outgoingHaloIndices_
@@ -326,7 +328,7 @@ public:
                                            codesView, newParticleStart, focusAssignment, peers);
         checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd);
 
-        incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags, focusAssignment, peers);
+        incomingHaloIndices_ = computeHaloReceiveList(layout_, haloFlags, focusAssignment, peers);
 
         /* Rearrange particle buffers *********************************************************/
 
@@ -376,10 +378,16 @@ public:
         haloexchange<T>(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
     }
 
-    T computeGravity(gsl::span<const T> x, gsl::span<const T> y, gsl::span<const T> z, gsl::span<const T> h,
-                     gsl::span<const T> m, gsl::span<T> ax, gsl::span<T> ay, gsl::span<T> az)
+    T addGravityAcceleration(gsl::span<const T> x, gsl::span<const T> y, gsl::span<const T> z, gsl::span<const T> h,
+                             gsl::span<const T> m, gsl::span<T> ax, gsl::span<T> ay, gsl::span<T> az)
     {
+        const Octree<KeyType>& octree = focusedTree_.octree();
+        std::vector<GravityMultipole<T>> multipoles(octree.numTreeNodes());
+        computeMultipoles(octree, layout_, x.data(), y.data(), z.data(), m.data(), multipoles.data());
 
+        return computeGravity(octree, bucketSizeFocus_, multipoles.data(), layout_.data(), 0, octree.numLeafNodes(),
+                              x.data(), y.data(), z.data(), h.data(), m.data(), box_, theta_,
+                              ax.data(), ay.data(), az.data());
     }
 
     //! @brief return the index of the first particle that's part of the local assignment
@@ -463,6 +471,9 @@ private:
      * -Also contains particle counts.
      */
     FocusedOctree<KeyType> focusedTree_;
+
+    //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
+    std::vector<LocalParticleIndex> layout_;
 
     bool firstCall_{true};
 

@@ -129,11 +129,14 @@ int main(int argc, char** argv)
         timer.step("mpi::synchronizeHalos");
         if (!clist.empty()) sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d);
         timer.step("MomentumEnergyIAD");
+        d.egrav = domain.addGravityAcceleration(d.x, d.y, d.z, d.h, d.m, d.grad_P_x, d.grad_P_y, d.grad_P_z);
+        timer.step("Gravity");
         sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
         timer.step("Timestep"); // AllReduce(min:dt)
         sph::computePositions<Real, sph::computeAcceleration<Real, Dataset>>(taskList.tasks, d);
         timer.step("UpdateQuantities");
         sph::computeTotalEnergy<Real>(taskList.tasks, d);
+        d.etot += d.egrav;
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
         sph::updateSmoothingLength<Real>(taskList.tasks, d);
         timer.step("UpdateSmoothingLength");
