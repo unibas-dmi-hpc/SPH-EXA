@@ -188,7 +188,6 @@ void computeGravity(const Octree<KeyType>& octree, const GravityMultipole<T1>* m
  * @tparam T2                    float or double
  * @tparam T3                    float or double
  * @param[in]    octree          fully linked octree
- * @param[in]    bucketSize
  * @param[in]    multipoles      array of length @p octree.numTreeNodes() with the multipole moments for all nodes
  * @param[in]    layout          array of length @p octree.numLeafNodes()+1, layout[i] is the start offset
  *                               into the x,y,z,m arrays for the leaf node with index i. The last element
@@ -208,7 +207,7 @@ void computeGravity(const Octree<KeyType>& octree, const GravityMultipole<T1>* m
  * @return                       total gravitational energy
  */
 template<class KeyType, class T1, class T2, class T3>
-T2 computeGravity(const Octree<KeyType>& octree, unsigned bucketSize,
+T2 computeGravity(const Octree<KeyType>& octree,
                   const GravityMultipole<T1>* multipoles,
                   const LocalParticleIndex* layout, TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex,
                   const T2* x, const T2* y, const T2* z, const T3* h, const T3* m,
@@ -216,9 +215,17 @@ T2 computeGravity(const Octree<KeyType>& octree, unsigned bucketSize,
 {
     T2 egravTot = 0.0;
 
+    // determine maximum leaf particle count, bucketSize does not work, since octree might not be converged
+    std::size_t maxNodeCount = 0;
+    #pragma omp parallel for reduction (max : maxNodeCount)
+    for (TreeNodeIndex i = 0; i < octree.numLeafNodes(); ++i)
+    {
+        maxNodeCount = std::max(maxNodeCount, std::size_t(layout[i+1] - layout[i]));
+    }
+
     #pragma omp parallel
     {
-        T2 ugravThread[bucketSize];
+        T2 ugravThread[maxNodeCount];
         T2 egravThread = 0.0;
 
         #pragma omp for
@@ -227,7 +234,7 @@ T2 computeGravity(const Octree<KeyType>& octree, unsigned bucketSize,
             LocalParticleIndex firstTarget = layout[leafIdx];
             LocalParticleIndex numTargets  = layout[leafIdx + 1] - firstTarget;
 
-            std::fill(ugravThread, ugravThread + bucketSize, 0)     ;
+            std::fill(ugravThread, ugravThread + maxNodeCount, 0);
             computeGravityGroup(leafIdx, octree, multipoles, layout, x, y, z, h, m, box, theta,
                                 ax + firstTarget, ay + firstTarget, az + firstTarget, ugravThread);
 
