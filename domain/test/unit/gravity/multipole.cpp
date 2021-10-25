@@ -83,12 +83,7 @@ TEST(Gravity, P2PmsoftBase)
     T m[2]  = {1, 1};
 
 
-    T xacc = 0;
-    T yacc = 0;
-    T zacc = 0;
-    T pot  = 0;
-
-    particle2particle(x, y, z, h, xs, ys, zs, hs, m, 2, &xacc, &yacc, &zacc, &pot);
+    auto [xacc, yacc, zacc, pot] = particle2particle(x, y, z, h, xs, ys, zs, hs, m, 2);
 
     // h too small to trigger softening, so results should match the non-softened numbers
     EXPECT_DOUBLE_EQ(xacc, 0.17106674642655587);
@@ -117,12 +112,7 @@ TEST(Gravity, P2PmsoftH)
     T hs[numSources] = {h, h};
     T m[numSources]  = {1, 1};
 
-    T xacc = 0;
-    T yacc = 0;
-    T zacc = 0;
-    T pot  = 0;
-
-    particle2particle(x, y, z, h, xs, ys, zs, hs, m, numSources, &xacc, &yacc, &zacc, &pot);
+    auto [xacc, yacc, zacc, pot] = particle2particle(x, y, z, h, xs, ys, zs, hs, m, numSources);
 
     EXPECT_DOUBLE_EQ(xacc, 0.1704016164027678);
     EXPECT_DOUBLE_EQ(yacc, 0.1704016164027678);
@@ -160,10 +150,8 @@ TEST(Gravity, M2P)
     std::array<T, 3> target    = {-8, 0, 0};
 
     // reference direct gravity on target
-    std::array<T, 3> accDirect = {0, 0, 0};
-    T potDirect = 0;
-    particle2particle(target[0], target[1], target[2], 0.0, x, y, z, h.data(), masses.data(), numParticles,
-                      &accDirect[0], &accDirect[1], &accDirect[2], &potDirect);
+    auto [axDirect, ayDirect, azDirect, potDirect] =
+        particle2particle(target[0], target[1], target[2], 0.0, x, y, z, h.data(), masses.data(), numParticles);
 
     // approximate gravity with multipole interaction
     auto [axApprox, ayApprox, azApprox, potApprox] =
@@ -175,9 +163,9 @@ TEST(Gravity, M2P)
     //std::cout << "approx: " << accApprox[0] << " " << accApprox[1] << " " << accApprox[2] << std::endl;
 
     EXPECT_NEAR(potDirect, potApprox, 1e-3);
-    EXPECT_TRUE(std::abs(axApprox - accDirect[0]) < 1e-3);
-    EXPECT_TRUE(std::abs(ayApprox - accDirect[1]) < 1e-3);
-    EXPECT_TRUE(std::abs(azApprox - accDirect[2]) < 1e-3);
+    EXPECT_TRUE(std::abs(axApprox - axDirect) < 1e-3);
+    EXPECT_TRUE(std::abs(ayApprox - ayDirect) < 1e-3);
+    EXPECT_TRUE(std::abs(azApprox - azDirect) < 1e-3);
 
     EXPECT_DOUBLE_EQ(axApprox, 0.74358243303934313);
     EXPECT_DOUBLE_EQ(ayApprox, 9.1306187450872109e-05);

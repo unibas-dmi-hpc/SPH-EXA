@@ -193,56 +193,45 @@ particle2particle(T1 tx, T1 ty, T1 tz, T2 th, T1 sx, T1 sy, T1 sz, T2 sh, T2 sm)
  * @param[in]    h           source particle smoothing lengths
  * @param[in]    m           source particle masses
  * @param[in]    numSources  number of source particles
- * @param[inout] ax          location to add x-acceleration to
- * @param[inout] ay          location to add y-acceleration to
- * @param[inout] az          location to add z-acceleration to
- * @param[inout] ugrav       location to add gravitational potential to
+ * @return                   tuple(ax, ay, az, ugrav)
  *
  * Computes direct particle-particle gravitational interaction according to
  *
- *      a_t = - sum_{j} m_j / (r_tj^2 + eps2)^(3/2)) * (r_t - r_j)
+ *      vec(a_t) = - sum_{j} m_j / (r_tj^2 + eps2)^(3/2)) * (r_t - r_j)
  *
  * Notes:
- *  - Contribution is added to output
  *  - Source particles MUST NOT contain the target. If the source is a cell that contains the target,
  *    the target must be located and this function called twice, with all particles before target and
  *    all particles that follow it.
  */
 template<class T1, class T2>
-void particle2particle(T1 tx,
-                       T1 ty,
-                       T1 tz,
-                       T2 hi,
-                       const T1* sx,
-                       const T1* sy,
-                       const T1* sz,
-                       const T2* h,
-                       const T2* m,
-                       LocalParticleIndex numSources,
-                       T1* ax,
-                       T1* ay,
-                       T1* az,
-                       T1* ugrav)
+util::tuple<T1, T1, T1, T1> particle2particle(T1 tx,
+                                              T1 ty,
+                                              T1 tz,
+                                              T2 hi,
+                                              const T1* sx,
+                                              const T1* sy,
+                                              const T1* sz,
+                                              const T2* h,
+                                              const T2* m,
+                                              LocalParticleIndex numSources)
 {
-    T1 axLoc    = 0;
-    T1 ayLoc    = 0;
-    T1 azLoc    = 0;
-    T1 ugravLoc = 0;
+    T1 axLoc = 0;
+    T1 ayLoc = 0;
+    T1 azLoc = 0;
+    T1 uLoc  = 0;
 
     for (LocalParticleIndex j = 0; j < numSources; ++j)
     {
         auto [ax_, ay_, az_, u_] = particle2particle(tx, ty, tz, hi, sx[j], sy[j], sz[j], h[j], m[j]);
 
-        axLoc    += ax_;
-        ayLoc    += ay_;
-        azLoc    += az_;
-        ugravLoc += u_;
+        axLoc += ax_;
+        ayLoc += ay_;
+        azLoc += az_;
+        uLoc  += u_;
     }
 
-    *ax    += axLoc;
-    *ay    += ayLoc;
-    *az    += azLoc;
-    *ugrav += ugravLoc;
+    return {axLoc, ayLoc, azLoc, uLoc};
 }
 
 /*! @brief apply gravitational interaction with a multipole to a particle
