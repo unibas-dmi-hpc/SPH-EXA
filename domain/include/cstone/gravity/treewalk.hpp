@@ -66,11 +66,20 @@ namespace cstone
  */
 template<class KeyType, class T1, class T2, class T3>
 void computeGravityGroup(TreeNodeIndex groupIdx,
-                         const Octree<KeyType>& octree, const GravityMultipole<T1>* multipoles,
+                         const Octree<KeyType>& octree,
+                         const GravityMultipole<T1>* multipoles,
                          const LocalParticleIndex* layout,
-                         const T2* x, const T2* y, const T2* z, const T3* h, const T3* m,
-                         const Box<T2>& box, float theta,
-                         T2* ax, T2* ay, T2* az, T2* ugrav)
+                         const T2* x,
+                         const T2* y,
+                         const T2* z,
+                         const T3* h,
+                         const T3* m,
+                         const Box<T2>& box,
+                         float theta,
+                         T2* ax,
+                         T2* ay,
+                         T2* az,
+                         T2* ugrav)
 {
     auto treeLeaves     = octree.treeLeaves();
     KeyType groupKey    = treeLeaves[groupIdx];
@@ -104,7 +113,11 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
             for (LocalParticleIndex t = 0; t < numTargets; ++t)
             {
                 LocalParticleIndex offset = t + firstTarget;
-                multipole2particle(x[offset], y[offset], z[offset], p, ax + t, ay + t, az + t, ugrav + t);
+                auto [ax_, ay_, az_, u_] = multipole2particle(x[offset], y[offset], z[offset], p);
+                *(ax + t) += ax_;
+                *(ay + t) += ay_;
+                *(az + t) += az_;
+                *(ugrav + t) += u_;
             }
         }
 
