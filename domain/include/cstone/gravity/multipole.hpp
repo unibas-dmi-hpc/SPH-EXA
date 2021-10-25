@@ -198,6 +198,49 @@ void particle2particle(T1 tx, T1 ty, T1 tz, const T1* sx, const T1* sy, const T1
     *ugrav += ugravLoc;
 }
 
+/*! @brief compute a single particle-particle gravitational interaction
+ *
+ * @tparam T1   float or double
+ * @tparam T2   float or double
+ * @param tx    target x coord
+ * @param ty    target y coord
+ * @param tz    target z coord
+ * @param th    target h smoothing length
+ * @param sx    source x coord
+ * @param sy    source y coord
+ * @param sz    source z coord
+ * @param sh    source h coord
+ * @param sm    source mass
+ * @return      tuple(ax, ay, az, ugrav)
+ */
+template<class T1, class T2>
+inline __attribute__((always_inline)) util::tuple<T1, T1, T1, T1>
+particle2particle(T1 tx, T1 ty, T1 tz, T2 th, T1 sx, T1 sy, T1 sz, T2 sh, T2 sm)
+{
+    T1 rx = sx - tx;
+    T1 ry = sy - ty;
+    T1 rz = sz - tz;
+
+    T1 r_2 = rx * rx + ry * ry + rz * rz;
+    T1 r = std::sqrt(r_2);
+    T1 r_minus1 = 1.0 / r;
+    T1 r_minus2 = r_minus1 * r_minus1;
+
+    T1 mEffective = sm;
+
+    T1 h_ts = th + sh;
+    if (r < h_ts)
+    {
+        // apply mass softening correction
+        T1 vgr = r / h_ts;
+        mEffective *= vgr * vgr * vgr;
+    }
+
+    T1 Mr_minus3 = mEffective * r_minus1 * r_minus2;
+
+    return {Mr_minus3 * rx, Mr_minus3 * ry, Mr_minus3 * rz, -Mr_minus3 * r_2};
+}
+
 //! \brief same as above, but mass softening
 template<class T1, class T2>
 void particle2particle(T1 tx, T1 ty, T1 tz, T2 hi, const T1* sx, const T1* sy, const T1* sz, const T2* h, const T2* m,
@@ -210,32 +253,12 @@ void particle2particle(T1 tx, T1 ty, T1 tz, T2 hi, const T1* sx, const T1* sy, c
 
     for (LocalParticleIndex j = 0; j < numSources; ++j)
     {
-        T1 rx = sx[j] - tx;
-        T1 ry = sy[j] - ty;
-        T1 rz = sz[j] - tz;
+        auto [ax_, ay_, az_, u_] = particle2particle(tx, ty, tz, hi, sx[j], sy[j], sz[j], h[j], m[j]);
 
-        T1 r_2 = rx * rx + ry * ry + rz * rz;
-        T1 r = std::sqrt(r_2);
-        T1 r_minus1 = 1.0 / r;
-        T1 r_minus2 = r_minus1 * r_minus1;
-
-        T1 mEffective = m[j];
-
-        T1 hij = hi + h[j];
-        if (r < hij)
-        {
-            // apply mass softening correction
-            T1 vgr = r / hij;
-            mEffective *= vgr * vgr * vgr;
-        }
-
-        T1 Mr_minus3 = mEffective * r_minus1 * r_minus2;
-
-        axLoc += Mr_minus3 * rx;
-        ayLoc += Mr_minus3 * ry;
-        azLoc += Mr_minus3 * rz;
-
-        ugravLoc -= Mr_minus3 * r_2;
+        axLoc    += ax_;
+        ayLoc    += ay_;
+        azLoc    += az_;
+        ugravLoc += u_;
     }
 
     *ax    += axLoc;
