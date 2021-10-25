@@ -385,7 +385,7 @@ public:
         std::vector<GravityMultipole<T>> multipoles(octree.numTreeNodes());
         computeMultipoles(octree, layout_, x.data(), y.data(), z.data(), m.data(), multipoles.data());
 
-        return computeGravity(octree, bucketSizeFocus_, multipoles.data(), layout_.data(), 0, octree.numLeafNodes(),
+        return computeGravity(octree, multipoles.data(), layout_.data(), 0, octree.numLeafNodes(),
                               x.data(), y.data(), z.data(), h.data(), m.data(), box_, theta_,
                               ax.data(), ay.data(), az.data());
     }
