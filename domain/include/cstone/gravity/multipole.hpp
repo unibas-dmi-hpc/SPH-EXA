@@ -252,11 +252,8 @@ void particle2particle(T1 tx, T1 ty, T1 tz, T2 hi, const T1* sx, const T1* sy, c
  * @param[in]     ty         target particle y coordinate
  * @param[in]     tz         target particle z coordinate
  * @param[in]     multipole  multipole source
- * @param[in]     eps2       square of softening parameter epsilon
- * @param[inout]  ax         location to add x-acceleration to
- * @param[inout]  ay         location to add y-acceleration to
- * @param[inout]  az         location to add z-acceleration to
  * @param[inout]  ugrav      location to add gravitational potential to
+ * @return                   tuple(ax, ay, az, u)
  *
  * Note: contribution is added to output
  *
@@ -266,7 +263,8 @@ void particle2particle(T1 tx, T1 ty, T1 tz, T2 hi, const T1* sx, const T1* sy, c
  * quadrupole: Q*vec(r) / r^5 - 5/2 * vec(r)*Q*vec(r) * vec(r) / r^7
  */
 template<class T1, class T2>
-void multipole2particle(T1 tx, T1 ty, T1 tz, const GravityMultipole<T2>& multipole, T1* ax, T1* ay, T1* az, T1* ugrav)
+inline util::tuple<T1, T1, T1, T1>
+multipole2particle(T1 tx, T1 ty, T1 tz, const GravityMultipole<T2>& multipole)
 {
     T2 rx = tx - multipole.xcm;
     T2 ry = ty - multipole.ycm;
@@ -287,10 +285,10 @@ void multipole2particle(T1 tx, T1 ty, T1 tz, const GravityMultipole<T2>& multipo
     T2 rQrAndMonopole = (-2.5 * rQr * r_minus5 - multipole.mass * r_minus1) * r_minus2;
 
     //       Qr Quad-term
-    *ax += r_minus5 * Qrx + rQrAndMonopole * rx;
-    *ay += r_minus5 * Qry + rQrAndMonopole * ry;
-    *az += r_minus5 * Qrz + rQrAndMonopole * rz;
-    *ugrav -= (multipole.mass * r_minus1 + 0.5 * r_minus5 * rQr);
+    return {r_minus5 * Qrx + rQrAndMonopole * rx,
+            r_minus5 * Qry + rQrAndMonopole * ry,
+            r_minus5 * Qrz + rQrAndMonopole * rz,
+            -(multipole.mass * r_minus1 + 0.5 * r_minus5 * rQr)};
 }
 
 /*! @brief add a multipole contribution to the composite multipole

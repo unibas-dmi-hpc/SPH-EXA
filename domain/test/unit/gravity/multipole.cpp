@@ -164,10 +164,8 @@ TEST(Gravity, M2P)
                       &accDirect[0], &accDirect[1], &accDirect[2], &potDirect);
 
     // approximate gravity with multipole interaction
-    std::array<T, 3> accApprox = {0, 0, 0};
-    T potApprox = 0;
-    multipole2particle(target[0], target[1], target[2], multipole, &accApprox[0], &accApprox[1], &accApprox[2],
-                       &potApprox);
+    auto [axApprox, ayApprox, azApprox, potApprox] =
+        multipole2particle(target[0], target[1], target[2], multipole);
 
     //std::cout << std::fixed;
     //std::cout.precision(8);
@@ -175,13 +173,13 @@ TEST(Gravity, M2P)
     //std::cout << "approx: " << accApprox[0] << " " << accApprox[1] << " " << accApprox[2] << std::endl;
 
     EXPECT_NEAR(potDirect, potApprox, 1e-3);
-    EXPECT_TRUE(std::abs(accApprox[0] - accDirect[0]) < 1e-3);
-    EXPECT_TRUE(std::abs(accApprox[1] - accDirect[1]) < 1e-3);
-    EXPECT_TRUE(std::abs(accApprox[2] - accDirect[2]) < 1e-3);
+    EXPECT_TRUE(std::abs(axApprox - accDirect[0]) < 1e-3);
+    EXPECT_TRUE(std::abs(ayApprox - accDirect[1]) < 1e-3);
+    EXPECT_TRUE(std::abs(azApprox - accDirect[2]) < 1e-3);
 
-    EXPECT_DOUBLE_EQ(accApprox[0], 0.74358243303934313);
-    EXPECT_DOUBLE_EQ(accApprox[1], 9.1306187450872109e-05);
-    EXPECT_DOUBLE_EQ(accApprox[2], 0.0095252528595820823);
+    EXPECT_DOUBLE_EQ(axApprox, 0.74358243303934313);
+    EXPECT_DOUBLE_EQ(ayApprox, 9.1306187450872109e-05);
+    EXPECT_DOUBLE_EQ(azApprox, 0.0095252528595820823);
 }
 
 /*! @brief tests aggregation of multipoles into a composite multipole

@@ -99,7 +99,7 @@ TEST(Gravity, TreeWalk)
         std::vector<T> ax2(numParticles, 0);
         std::vector<T> ay2(numParticles, 0);
         std::vector<T> az2(numParticles, 0);
-        double egravTot2 = computeGravity(octree, bucketSize, multipoles.data(), layout.data(), 0,
+        double egravTot2 = computeGravity(octree, multipoles.data(), layout.data(), 0,
                                           octree.numLeafNodes(), x, y, z,
                                           h.data(), masses.data(), box, theta, ax2.data(), ay2.data(), az2.data());
         std::cout << "total gravitational energy: " << egravTot << std::endl;
