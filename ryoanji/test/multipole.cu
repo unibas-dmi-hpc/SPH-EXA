@@ -93,13 +93,9 @@ TEST(Multipole, P2M)
         //    testTarget[0], testTarget[1], testTarget[2], cstoneMultipole, eps2, &ax, &ay, &az);
         //printf("cstone test acceleration: %f %f %f\n", ax, ay, az);
 
-        double axd = 0;
-        double ayd = 0;
-        double azd = 0;
-        double pot = 0;
+        auto [axd, ayd, azd, pot] =
         cstone::particle2particle(double(testTarget[0]), double(testTarget[1]), double(testTarget[2]), 0.0,
-                                  x.data(), y.data(), z.data(), h.data(), m.data(), numBodies,
-                                  &axd, &ayd, &azd, &pot);
+                                  x.data(), y.data(), z.data(), h.data(), m.data(), numBodies);
         //printf("direct acceleration: %f %f %f\n", axd, ayd, azd);
 
         // compare ryoanji against the direct sum reference

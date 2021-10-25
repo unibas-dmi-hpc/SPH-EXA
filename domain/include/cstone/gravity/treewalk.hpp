@@ -147,10 +147,14 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
             for (LocalParticleIndex t = 0; t < numTargets; ++t)
             {
                 LocalParticleIndex offset = t + firstTarget;
+                auto [ax_, ay_, az_, u_] =
                 particle2particle(x[offset], y[offset], z[offset], h[offset],
                                   x + firstSource, y + firstSource, z + firstSource, h + firstSource,
-                                  m + firstSource, numSources,
-                                  ax + t, ay + t, az + t, ugrav + t);
+                                  m + firstSource, numSources);
+                *(ax + t) += ax_;
+                *(ay + t) += ay_;
+                *(az + t) += az_;
+                *(ugrav + t) += u_;
             }
         }
         else
@@ -161,14 +165,19 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
             {
                 LocalParticleIndex offset = t + firstTarget;
                 // 2 splits: [firstSource:t] and [t+1:lastSource]
+                auto [ax_, ay_, az_, u_] =
                 particle2particle(x[offset], y[offset], z[offset], h[offset],
                                   x + firstSource, y + firstSource, z + firstSource, h + firstSource,
-                                  m + firstSource, offset - firstSource, ax + t, ay + t, az + t, ugrav + t);
+                                  m + firstSource, offset - firstSource);
 
                 LocalParticleIndex tp1 = offset + 1;
+                auto [ax2_, ay2_, az2_, u2_] =
                 particle2particle(x[offset], y[offset], z[offset], h[offset],
-                                  x + tp1, y + tp1, z + tp1, h + tp1, m + tp1, lastSource - tp1,
-                                  ax + t, ay + t, az + t, ugrav + t);
+                                  x + tp1, y + tp1, z + tp1, h + tp1, m + tp1, lastSource - tp1);
+                *(ax + t)    += ax_ + ax2_;
+                *(ay + t)    += ay_ + ay2_;
+                *(az + t)    += az_ + az2_;
+                *(ugrav + t) += u_  + u2_;
             }
         }
     };
@@ -273,12 +282,16 @@ void directSum(const T1* x, const T1* y, const T1* z, const T2* h, const T2* m, 
     for (LocalParticleIndex t = 0; t < numParticles; ++t)
     {
         // 2 splits: [0:t] and [t+1:numParticles]
-        particle2particle(x[t], y[t], z[t], h[t], x, y, z, h, m,
-                          t, ax + t, ay + t, az + t, ugrav + t);
+        auto [ax_, ay_, az_, u_] = particle2particle(x[t], y[t], z[t], h[t], x, y, z, h, m, t);
 
         LocalParticleIndex tp1 = t + 1;
-        particle2particle(x[t], y[t], z[t], h[t], x + tp1, y + tp1, z + tp1, h + tp1, m + tp1,
-                          numParticles - tp1, ax + t, ay + t, az + t, ugrav + t);
+        auto [ax2_, ay2_, az2_, u2_] =
+            particle2particle(x[t], y[t], z[t], h[t], x + tp1, y + tp1, z + tp1, h + tp1, m + tp1, numParticles - tp1);
+
+        *(ax + t) += ax_ + ax2_;
+        *(ay + t) += ay_ + ay2_;
+        *(az + t) += az_ + az2_;
+        *(ugrav + t) += u_  + u2_;
     }
 }
 
