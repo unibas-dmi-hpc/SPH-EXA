@@ -136,68 +136,6 @@ particle2Multipole(const T2* x, const T2* y, const T2* z, const T3* m, LocalPart
     return gv;
 }
 
-/*! @brief direct gravity calculation with particle-particle interactions
- *
- * @tparam       T1          float or double
- * @tparam       T2          float or double
- * @param[in]    tx          target particle x coordinate
- * @param[in]    ty          target particle y coordinate
- * @param[in]    tz          target particle z coordinate
- * @param[in]    sx          source particle x coordinates
- * @param[in]    sy          source particle y coordinates
- * @param[in]    sz          source particle z coordinates
- * @param[in]    m
- * @param[in]    numSources  number of source particles
- * @param[in]    eps2        square of softening parameter epsilon
- * @param[inout] ax          location to add x-acceleration to
- * @param[inout] ay          location to add y-acceleration to
- * @param[inout] az          location to add z-acceleration to
- * @param[inout] ugrav       location to add gravitational potential to
- *
- * Computes direct particle-particle gravitational interaction according to
- *
- *      a_t = - sum_{j} m_j / (r_tj^2 + eps2)^(3/2)) * (r_t - r_j)
- *
- * Notes:
- *  - Contribution is added to output
- *  - Source particles MUST NOT contain the target. If the source is a cell that contains the target,
- *    the target must be located and this function called twice, with all particles before target and
- *    all particles that follow it.
- */
-template<class T1, class T2>
-void particle2particle(T1 tx, T1 ty, T1 tz, const T1* sx, const T1* sy, const T1* sz, const T2* m,
-                       LocalParticleIndex numSources, T1 eps2, T1* ax, T1* ay, T1* az, T1* ugrav)
-{
-    T1 axLoc    = 0;
-    T1 ayLoc    = 0;
-    T1 azLoc    = 0;
-    T1 ugravLoc = 0;
-
-    for (LocalParticleIndex j = 0; j < numSources; ++j)
-    {
-        T1 rx = sx[j] - tx;
-        T1 ry = sy[j] - ty;
-        T1 rz = sz[j] - tz;
-
-        T1 r_2 = rx * rx + ry * ry + rz * rz + eps2;
-        T1 r_minus1 = 1.0 / std::sqrt(r_2);
-        T1 r_minus2 = r_minus1 * r_minus1;
-
-        T1 Mr_minus3 = m[j] * r_minus1 * r_minus2;
-
-        axLoc += Mr_minus3 * rx;
-        ayLoc += Mr_minus3 * ry;
-        azLoc += Mr_minus3 * rz;
-
-        ugravLoc -= Mr_minus3 * r_2;
-    }
-
-    *ax    += axLoc;
-    *ay    += ayLoc;
-    *az    += azLoc;
-    *ugrav += ugravLoc;
-}
-
 /*! @brief compute a single particle-particle gravitational interaction
  *
  * @tparam T1   float or double
@@ -241,10 +179,50 @@ particle2particle(T1 tx, T1 ty, T1 tz, T2 th, T1 sx, T1 sy, T1 sz, T2 sh, T2 sm)
     return {Mr_minus3 * rx, Mr_minus3 * ry, Mr_minus3 * rz, -Mr_minus3 * r_2};
 }
 
-//! \brief same as above, but mass softening
+/*! @brief direct gravity calculation with particle-particle interactions
+ *
+ * @tparam       T1          float or double
+ * @tparam       T2          float or double
+ * @param[in]    tx          target particle x coordinate
+ * @param[in]    ty          target particle y coordinate
+ * @param[in]    tz          target particle z coordinate
+ * @param[in]    hi          target particle smoothing length
+ * @param[in]    sx          source particle x coordinates
+ * @param[in]    sy          source particle y coordinates
+ * @param[in]    sz          source particle z coordinates
+ * @param[in]    h           source particle smoothing lengths
+ * @param[in]    m           source particle masses
+ * @param[in]    numSources  number of source particles
+ * @param[inout] ax          location to add x-acceleration to
+ * @param[inout] ay          location to add y-acceleration to
+ * @param[inout] az          location to add z-acceleration to
+ * @param[inout] ugrav       location to add gravitational potential to
+ *
+ * Computes direct particle-particle gravitational interaction according to
+ *
+ *      a_t = - sum_{j} m_j / (r_tj^2 + eps2)^(3/2)) * (r_t - r_j)
+ *
+ * Notes:
+ *  - Contribution is added to output
+ *  - Source particles MUST NOT contain the target. If the source is a cell that contains the target,
+ *    the target must be located and this function called twice, with all particles before target and
+ *    all particles that follow it.
+ */
 template<class T1, class T2>
-void particle2particle(T1 tx, T1 ty, T1 tz, T2 hi, const T1* sx, const T1* sy, const T1* sz, const T2* h, const T2* m,
-                       LocalParticleIndex numSources, T1* ax, T1* ay, T1* az, T1* ugrav)
+void particle2particle(T1 tx,
+                       T1 ty,
+                       T1 tz,
+                       T2 hi,
+                       const T1* sx,
+                       const T1* sy,
+                       const T1* sz,
+                       const T2* h,
+                       const T2* m,
+                       LocalParticleIndex numSources,
+                       T1* ax,
+                       T1* ay,
+                       T1* az,
+                       T1* ugrav)
 {
     T1 axLoc    = 0;
     T1 ayLoc    = 0;
