@@ -115,17 +115,17 @@ int main(int argc, char** argv)
         timer.step("updateTasks");
         sph::findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, domain.box());
         timer.step("FindNeighbors");
-        if (!clist.empty()) sph::computeDensity<Real>(taskList.tasks, d);
+        if (!clist.empty()) sph::computeDensity<Real>(taskList.tasks, d, domain.box());
         timer.step("Density");
         sph::computeEquationOfStateEvrard<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
-        if (!clist.empty()) sph::computeIAD<Real>(taskList.tasks, d);
+        if (!clist.empty()) sph::computeIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("IAD");
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33);
         timer.step("mpi::synchronizeHalos");
-        if (!clist.empty()) sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d);
+        if (!clist.empty()) sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("MomentumEnergyIAD");
         d.egrav = domain.addGravityAcceleration(d.x, d.y, d.z, d.h, d.m, d.g, d.grad_P_x, d.grad_P_y, d.grad_P_z);
         // temporary sign fix, see note in ParticlesData
@@ -133,7 +133,7 @@ int main(int argc, char** argv)
         timer.step("Gravity");
         sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
         timer.step("Timestep"); // AllReduce(min:dt)
-        sph::computePositions<Real, sph::computeAcceleration<Real, Dataset>>(taskList.tasks, d);
+        sph::computePositions<Real, sph::computeAcceleration<Real, Dataset>>(taskList.tasks, d, domain.box());
         timer.step("UpdateQuantities");
         sph::computeTotalEnergy<Real>(taskList.tasks, d);
         d.etot += d.egrav;
