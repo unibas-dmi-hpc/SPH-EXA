@@ -102,9 +102,7 @@ void computeIAD(const std::vector<Task>& taskList, Dataset& d)
 }
 
 template void computeIAD(const std::vector<Task>& taskList, ParticlesData<double, unsigned>& d);
-template void computeIAD(const std::vector<Task>& taskList, ParticlesDataEvrard<double, unsigned>& d);
 template void computeIAD(const std::vector<Task>& taskList, ParticlesData<double, uint64_t>& d);
-template void computeIAD(const std::vector<Task>& taskList, ParticlesDataEvrard<double, uint64_t>& d);
 
 } // namespace cuda
 } // namespace sph

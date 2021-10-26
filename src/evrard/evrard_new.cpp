@@ -47,7 +47,7 @@ int main(int argc, char** argv)
 
     using Real = double;
     using KeyType = uint64_t;
-    using Dataset = ParticlesDataEvrard<Real, KeyType>;
+    using Dataset = ParticlesData<Real, KeyType>;
 
     const IFileReader<Dataset>& fileReader = EvrardCollapseMPIInputFileReader<Dataset>();
     const IFileWriter<Dataset>& fileWriter = EvrardCollapseMPIFileWriter<Dataset>();

@@ -135,7 +135,6 @@ void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList,
 }
 
 template void computeFindNeighbors<double, ParticlesData<double>>(const LinearOctree<double> &o, std::vector<Task> &taskList, ParticlesData<double> &d);
-template void computeFindNeighbors<double, ParticlesDataEvrard<double>>(const LinearOctree<double> &o, std::vector<Task> &taskList, ParticlesDataEvrard<double> &d);
 
 } // namespace cuda
 } // namespace sph
