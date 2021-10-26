@@ -221,6 +221,7 @@ util::tuple<T1, T1, T1, T1> particle2particle(T1 tx,
     T1 azLoc = 0;
     T1 uLoc  = 0;
 
+    #pragma clang loop vectorize(enable)
     for (LocalParticleIndex j = 0; j < numSources; ++j)
     {
         auto [ax_, ay_, az_, u_] = particle2particle(tx, ty, tz, hi, sx[j], sy[j], sz[j], h[j], m[j]);
