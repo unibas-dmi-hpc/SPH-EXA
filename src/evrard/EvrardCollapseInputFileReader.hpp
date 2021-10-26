@@ -61,11 +61,6 @@ struct EvrardCollapseInputFileReader : IFileReader<Dataset>
             std::fill(pd.grad_P_y.begin(), pd.grad_P_y.end(), 0.0);
             std::fill(pd.grad_P_z.begin(), pd.grad_P_z.end(), 0.0);
 
-            std::fill(pd.fx.begin(), pd.fx.end(), 0);
-            std::fill(pd.fy.begin(), pd.fy.end(), 0);
-            std::fill(pd.fz.begin(), pd.fz.end(), 0);
-            std::fill(pd.ugrav.begin(), pd.ugrav.end(), 0);
-
             pd.etot = pd.ecin = pd.eint = pd.egrav = 0.0;
 
             printf("OK\n");
@@ -92,11 +87,6 @@ protected:
         std::fill(pd.du_m1.begin(), pd.du_m1.end(), 0.0);
         std::fill(pd.dt.begin(), pd.dt.end(), 0.0001);
         std::fill(pd.dt_m1.begin(), pd.dt_m1.end(), 0.0001);
-
-        std::fill(pd.fx.begin(), pd.fx.end(), 0);
-        std::fill(pd.fy.begin(), pd.fy.end(), 0);
-        std::fill(pd.fz.begin(), pd.fz.end(), 0);
-        std::fill(pd.ugrav.begin(), pd.ugrav.end(), 0);
 
         for (size_t i = 0; i < pd.count; ++i)
         {
@@ -156,11 +146,6 @@ struct EvrardCollapseMPIInputFileReader : EvrardCollapseInputFileReader<Dataset>
         std::fill(d.grad_P_x.begin(), d.grad_P_x.end(), 0.0);
         std::fill(d.grad_P_y.begin(), d.grad_P_y.end(), 0.0);
         std::fill(d.grad_P_z.begin(), d.grad_P_z.end(), 0.0);
-
-        std::fill(d.fx.begin(), d.fx.end(), 0);
-        std::fill(d.fy.begin(), d.fy.end(), 0);
-        std::fill(d.fz.begin(), d.fz.end(), 0);
-        std::fill(d.ugrav.begin(), d.ugrav.end(), 0);
 
         d.etot = d.ecin = d.eint = d.egrav = 0.0;
 

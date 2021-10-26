@@ -43,6 +43,7 @@ TEST(Gravity, TreeWalk)
     using T = double;
     using KeyType = uint64_t;
 
+    float G = 1.0;
     unsigned bucketSize = 64;
     Box<T> box(-1, 1);
     LocalParticleIndex numParticles = 10000;
@@ -84,7 +85,7 @@ TEST(Gravity, TreeWalk)
     float theta = 0.75;
 
     computeGravity(octree, multipoles.data(), layout.data(), 0, octree.numLeafNodes(),
-                   x, y, z, h.data(), masses.data(), box, theta, ax.data(), ay.data(), az.data(),
+                   x, y, z, h.data(), masses.data(), box, theta, G, ax.data(), ay.data(), az.data(),
                    potential.data());
 
     // test version that computes total grav energy only instead of per particle
@@ -101,7 +102,7 @@ TEST(Gravity, TreeWalk)
         std::vector<T> az2(numParticles, 0);
         double egravTot2 = computeGravity(octree, multipoles.data(), layout.data(), 0,
                                           octree.numLeafNodes(), x, y, z,
-                                          h.data(), masses.data(), box, theta, ax2.data(), ay2.data(), az2.data());
+                                          h.data(), masses.data(), box, theta, G, ax2.data(), ay2.data(), az2.data());
         std::cout << "total gravitational energy: " << egravTot << std::endl;
         EXPECT_NEAR((egravTot-egravTot2)/egravTot, 0, 1e-4);
     }
@@ -112,7 +113,8 @@ TEST(Gravity, TreeWalk)
     std::vector<T> Az(numParticles, 0);
     std::vector<T> potentialReference(numParticles, 0);
 
-    directSum(x, y, z, h.data(), masses.data(), numParticles, Ax.data(), Ay.data(), Az.data(), potentialReference.data());
+    directSum(x, y, z, h.data(), masses.data(), numParticles, G, Ax.data(), Ay.data(), Az.data(),
+              potentialReference.data());
 
     // relative errors
     std::vector<T> delta(numParticles);

@@ -1,15 +1,4 @@
 
-set(exename evrard)
-add_executable(${exename} evrard.cpp)
-target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
-target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/include)
-target_include_directories(${exename} PRIVATE ${MPI_CXX_INCLUDE_PATH})
-target_compile_definitions(${exename} PRIVATE USE_MPI GRAVITY)
-target_link_libraries(${exename} ${MPI_CXX_LIBRARIES})
-target_link_libraries(${exename} OpenMP::OpenMP_CXX)
-
-install(TARGETS ${exename} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-
 set(exename evrard_new)
 add_executable(${exename} evrard_new.cpp)
 target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
@@ -18,3 +7,4 @@ target_include_directories(${exename} PRIVATE ${MPI_CXX_INCLUDE_PATH})
 target_compile_definitions(${exename} PRIVATE USE_MPI GRAVITY)
 target_link_libraries(${exename} ${MPI_CXX_LIBRARIES})
 target_link_libraries(${exename} OpenMP::OpenMP_CXX)
+unset(exename)

@@ -378,8 +378,21 @@ public:
         haloexchange<T>(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
     }
 
+    /*! @brief compute gravitational accelerations
+     *
+     * @param[in]    x    x-coordinates
+     * @param[in]    y    y-coordinates
+     * @param[in]    z    z-coordinates
+     * @param[in]    h    smoothing lengths
+     * @param[in]    m    particle masses
+     * @param[in]    G    gravitational constant
+     * @param[inout] ax   x-acceleration to add to
+     * @param[inout] ay   y-acceleration to add to
+     * @param[inout] az   z-acceleration to add to
+     * @return            total gravitational potential energy
+     */
     T addGravityAcceleration(gsl::span<const T> x, gsl::span<const T> y, gsl::span<const T> z, gsl::span<const T> h,
-                             gsl::span<const T> m, gsl::span<T> ax, gsl::span<T> ay, gsl::span<T> az)
+                             gsl::span<const T> m, float G, gsl::span<T> ax, gsl::span<T> ay, gsl::span<T> az)
     {
         const Octree<KeyType>& octree = focusedTree_.octree();
         std::vector<GravityMultipole<T>> multipoles(octree.numTreeNodes());
@@ -387,7 +400,7 @@ public:
 
         return computeGravity(octree, multipoles.data(), layout_.data(), 0, octree.numLeafNodes(),
                               x.data(), y.data(), z.data(), h.data(), m.data(), box_, theta_,
-                              ax.data(), ay.data(), az.data());
+                              G, ax.data(), ay.data(), az.data());
     }
 
     //! @brief return the index of the first particle that's part of the local assignment
