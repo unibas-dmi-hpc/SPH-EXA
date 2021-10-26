@@ -110,6 +110,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
             LocalParticleIndex numTargets  = lastTarget - firstTarget;
 
             // apply multipole to all particles in group
+            #pragma clang loop vectorize(enable)
             for (LocalParticleIndex t = 0; t < numTargets; ++t)
             {
                 LocalParticleIndex offset = t + firstTarget;
@@ -144,6 +145,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
         if (groupIdx != idx)
         {
             // source node != target node
+            #pragma clang loop vectorize(enable)
             for (LocalParticleIndex t = 0; t < numTargets; ++t)
             {
                 LocalParticleIndex offset = t + firstTarget;
