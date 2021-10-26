@@ -42,7 +42,7 @@ endif()
 add_subdirectory(include)
 add_subdirectory(domain)
 
-if (CMAKE_CUDA_COMPILER)
+if (CMAKE_CUDA_COMPILER AND BUILD_RYOANJI)
     add_subdirectory(ryoanji)
 endif()
 
