@@ -16,7 +16,7 @@ namespace sph
 {
 
 template <typename T, class Dataset>
-void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
+void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 {
     size_t n = t.clist.size();
     size_t ngmax = t.ngmax;
@@ -52,7 +52,8 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
     const T* wh = d.wh.data();
     const T* whd = d.whd.data();
 
-    const BBox<T>* bbox = &d.bbox;
+    BBox<T> bbox{
+        box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax(), box.pbcX(), box.pbcY(), box.pbcZ()};
 
     T K = d.K;
     T sincIndex = d.sincIndex;
@@ -95,14 +96,14 @@ void computeMomentumAndEnergyIADImpl(const Task &t, Dataset &d)
 }
 
 template <typename T, class Dataset>
-void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d)
+void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<T>& box)
 {
 #if defined(USE_CUDA)
-    cuda::computeMomentumAndEnergyIAD(taskList, d);
+    cuda::computeMomentumAndEnergyIAD(taskList, d, box);
 #else
     for (const auto &task : taskList)
     {
-        computeMomentumAndEnergyIADImpl<T>(task, d);
+        computeMomentumAndEnergyIADImpl<T>(task, d, box);
     }
 #endif
 }

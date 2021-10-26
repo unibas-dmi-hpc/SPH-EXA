@@ -75,7 +75,7 @@ TEST(Density, JLoop)
     // fill with invalid result to make sure that the kernel overwrites it instead of add to it
     rho[0] = -1;
 
-    sph::kernels::densityJLoop(0, sincIndex, K, ngmax, &box, clist.data(), neighbors.data(), neighborsCount.data(),
+    sph::kernels::densityJLoop(0, sincIndex, K, ngmax, box, clist.data(), neighbors.data(), neighborsCount.data(),
                                x.data(), y.data(), z.data(), h.data(), m.data(), wh.data(), whd.data(), rho.data());
 
     EXPECT_DOUBLE_EQ(rho[0], 0.014286303130604867);
@@ -121,7 +121,7 @@ TEST(Density, JLoopPBC)
     // fill with invalid result to make sure that the kernel overwrites it instead of add to it
     rho[0] = -1;
 
-    sph::kernels::densityJLoop(0, sincIndex, K, ngmax, &box, clist.data(), neighbors.data(), neighborsCount.data(),
+    sph::kernels::densityJLoop(0, sincIndex, K, ngmax, box, clist.data(), neighbors.data(), neighborsCount.data(),
                                x.data(), y.data(), z.data(), h.data(), m.data(), wh.data(), whd.data(), rho.data());
 
     EXPECT_DOUBLE_EQ(rho[0], 0.17929212293724384);

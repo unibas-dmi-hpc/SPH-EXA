@@ -4,6 +4,7 @@
 
 #include "Task.hpp"
 #include "cudaParticlesData.cuh"
+#include "cstone/sfc/box.hpp"
 
 namespace sphexa
 {
@@ -12,17 +13,14 @@ namespace sph
 namespace cuda
 {
 
-template <typename T, class Dataset>
-extern void computeFindNeighbors(const LinearOctree<T> &o, std::vector<Task> &taskList, Dataset &d);
+template <class Dataset>
+extern void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<double>&);
 
 template <class Dataset>
-extern void computeDensity(std::vector<Task>& taskList, Dataset& d);
+extern void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<double>&);
 
 template <class Dataset>
-extern void computeIAD(const std::vector<Task>& taskList, Dataset& d);
-
-template <class Dataset>
-extern void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, Dataset& d);
+extern void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<double>&);
 
 } // namespace cuda
 } // namespace sph

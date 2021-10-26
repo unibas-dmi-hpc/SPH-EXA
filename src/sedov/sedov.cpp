@@ -59,8 +59,19 @@ int main(int argc, char** argv)
     size_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
     size_t bucketSize = std::max(bucketSizeFocus, (cubeSide * cubeSide * cubeSide) / (100 * d.nrank));
-    cstone::Box<Real> box{d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin,
-                          d.bbox.zmax, d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz};
+
+    cstone::Box<double> box(0, 1);
+    {
+        box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
+
+        Real dx = 0.5 / cubeSide;
+
+        // enable PBC and enlarge bounds
+        box = cstone::Box<double>(box.xmin() - dx, box.xmax() + dx,
+                                  box.ymin() - dx, box.ymax() + dx,
+                                  box.zmin() - dx, box.zmax() + dx, true, true, true);
+    }
+
     float theta = 1.0;
 
 #ifdef USE_CUDA
@@ -106,21 +117,21 @@ int main(int argc, char** argv)
         timer.step("updateTasks");
         sph::findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, domain.box());
         timer.step("FindNeighbors");
-        if (!clist.empty()) sph::computeDensity<Real>(taskList.tasks, d);
+        if (!clist.empty()) sph::computeDensity<Real>(taskList.tasks, d, domain.box());
         timer.step("Density");
         sph::computeEquationOfStateEvrard<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
-        if (!clist.empty()) sph::computeIAD<Real>(taskList.tasks, d);
+        if (!clist.empty()) sph::computeIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("IAD");
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33);
         timer.step("mpi::synchronizeHalos");
-        if (!clist.empty()) sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d);
+        if (!clist.empty()) sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("MomentumEnergyIAD");
         sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
         timer.step("Timestep"); // AllReduce(min:dt)
-        sph::computePositions<Real, sph::computeAcceleration<Real, Dataset>>(taskList.tasks, d);
+        sph::computePositions<Real, sph::computeAcceleration<Real, Dataset>>(taskList.tasks, d, domain.box());
         timer.step("UpdateQuantities");
         sph::computeTotalEnergy<Real>(taskList.tasks, d);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
