@@ -53,7 +53,7 @@ TEST(Macs, minPointDistance)
         T pz = (mc/2.0 + 1) / mc;
 
         T probe = minDistance<KeyType>(px, py, pz, ibox, box);
-        EXPECT_TRUE(std::abs(std::sqrt(3)/mc - probe) < 1e-10);
+        EXPECT_NEAR(std::sqrt(3)/mc, probe, 1e-10);
     }
     {
         Box<T> box(0, 1, true);
@@ -64,7 +64,7 @@ TEST(Macs, minPointDistance)
         T pz = (mc - 1.0) / mc;
 
         T probe = minDistance<KeyType>(px, py, pz, ibox, box);
-        EXPECT_TRUE(std::abs(std::sqrt(3)/mc - probe) < 1e-10);
+        EXPECT_NEAR(std::sqrt(3)/mc, probe, 1e-10);
     }
 }
 
