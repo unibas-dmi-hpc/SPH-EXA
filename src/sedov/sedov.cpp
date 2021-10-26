@@ -49,7 +49,6 @@ int main(int argc, char** argv)
     const IFileWriter<Dataset>& fileWriter = SedovMPIFileWriter<Dataset>();
 
     auto d = SedovDataGenerator<Real, CodeType>::generate(cubeSide);
-    const Printer<Dataset> printer(d);
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
@@ -132,10 +131,22 @@ int main(int argc, char** argv)
 
         if (d.rank == 0)
         {
-            printer.printCheck(domain.nParticles(), nNodes(domain.tree()), d.x.size() - domain.nParticles(),
-                               totalNeighbors, output);
+            Printer::printCheck(d.ttot,
+                                d.minDt,
+                                d.etot,
+                                d.eint,
+                                d.ecin,
+                                d.egrav,
+                                domain.box(),
+                                d.n,
+                                domain.nParticles(),
+                                nNodes(domain.tree()),
+                                d.x.size() - domain.nParticles(),
+                                totalNeighbors,
+                                output);
             std::cout << "### Check ### Focus Tree Nodes: " << nNodes(domain.focusedTree()) << std::endl;
-            printer.printConstants(d.iteration, totalNeighbors, constantsFile);
+            Printer::printConstants(
+                d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, totalNeighbors, constantsFile);
         }
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
@@ -148,7 +159,10 @@ int main(int argc, char** argv)
 
         timer.stop();
 
-        if (d.rank == 0) printer.printTotalIterationTime(timer.duration(), output);
+        if (d.rank == 0)
+        {
+            Printer::printTotalIterationTime(d.iteration, timer.duration(), output);
+        }
     }
 
     totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Sedov");
