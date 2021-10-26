@@ -29,7 +29,9 @@ std::vector<fvec4> cpuReference(const std::vector<fvec4>& bodies)
     std::vector<double> az(numBodies);
     std::vector<double> pot(numBodies);
 
-    cstone::directSum(x.data(), y.data(), z.data(), h.data(), m.data(), numBodies,
+    float G = 1.0;
+
+    cstone::directSum(x.data(), y.data(), z.data(), h.data(), m.data(), numBodies, G,
                       ax.data(), ay.data(), az.data(), pot.data());
 
     std::vector<fvec4> acc(numBodies, fvec4(0));

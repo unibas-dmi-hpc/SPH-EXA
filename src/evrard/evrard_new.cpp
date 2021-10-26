@@ -72,7 +72,7 @@ int main(int argc, char** argv)
     size_t bucketSize = std::max(bucketSizeFocus, nParticles / (100 * d.nrank));
     // no PBC, global box will be recomputed every step
     cstone::Box<Real> box(0, 1, false);
-    float theta = 0.75;
+    float theta = 0.5;
 
 #ifdef USE_CUDA
     cstone::Domain<CodeType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
@@ -129,7 +129,9 @@ int main(int argc, char** argv)
         timer.step("mpi::synchronizeHalos");
         if (!clist.empty()) sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d);
         timer.step("MomentumEnergyIAD");
-        d.egrav = domain.addGravityAcceleration(d.x, d.y, d.z, d.h, d.m, d.grad_P_x, d.grad_P_y, d.grad_P_z);
+        d.egrav = domain.addGravityAcceleration(d.x, d.y, d.z, d.h, d.m, d.g, d.grad_P_x, d.grad_P_y, d.grad_P_z);
+        // temporary sign fix, see note in ParticlesData
+        d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
         timer.step("Gravity");
         sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
         timer.step("Timestep"); // AllReduce(min:dt)

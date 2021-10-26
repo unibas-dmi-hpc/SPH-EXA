@@ -144,13 +144,13 @@ struct ParticlesDataEvrard
     std::vector<T> h;                            // Smoothing Length
     std::vector<T> m;                            // Mass
     std::vector<T> c;                            // Speed of sound
-    std::vector<T> grad_P_x, grad_P_y, grad_P_z; // gradient of the pressure
+    std::vector<T> grad_P_x, grad_P_y, grad_P_z; // gradient of the pressure (should be changed to acceleration)
     std::vector<T> du, du_m1;                    // variation of the energy
     std::vector<T> dt, dt_m1;
     std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T> maxvsignal;
 
-    std::vector<T> fx, fy, fz, ugrav; // Gravity
+    //std::vector<T> fx, fy, fz, ugrav; // Gravity
     std::vector<T> cv;                // Specific heat
     std::vector<T> temp;              // Temperature
     std::vector<T> mue;               // Mean molecular weigh of electrons
@@ -165,7 +165,7 @@ struct ParticlesDataEvrard
 
     std::vector<std::vector<T> *> data{&x,   &y,   &z,   &x_m1, &y_m1,       &z_m1,     &vx,       &vy, &vz,    &ro, &ro_0,  &u,   &p,
                                        &p_0, &h,   &m,   &c,    &grad_P_x,   &grad_P_y, &grad_P_z, &du, &du_m1, &dt, &dt_m1, &c11, &c12,
-                                       &c13, &c22, &c23, &c33,  &maxvsignal, &fx,       &fy,       &fz, &ugrav, &cv, &temp,  &mue, &mui};
+                                       &c13, &c22, &c23, &c33,  &maxvsignal, &cv, &temp,  &mue, &mui};
 
     const std::array<double, lt::size> wh = lt::createWharmonicLookupTable<double, lt::size>();
     const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
@@ -185,7 +185,11 @@ struct ParticlesDataEvrard
     int rank = 0;
     int nrank = 1;
 
-    constexpr static T g = 1.0; // for Evrard Collapse Gravity.
+    // TODO: unify this with computePosition/Acceleration:
+    // from SPH we have acceleration = -grad_P, so computePosition adds a factor of -1 to the pressure gradients
+    // instead, the pressure gradients should be renamed to acceleration and computeMomentumAndEnergy should directly
+    // set this to -grad_P, such that we don't need to add the gravitational acceleration with a factor of -1 on top
+    constexpr static T g = -1.0; // for Evrard Collapse Gravity.
     // constexpr static T g = 6.6726e-8; // the REAL value of g. g is 1.0 for Evrard mainly
 
     constexpr static T sincIndex = 5.0;

@@ -43,6 +43,7 @@ int main()
     using T = float;
     using KeyType = uint64_t;
 
+    float G                         = 1.0;
     unsigned bucketSize             = 64;
     float theta                     = 0.75;
     LocalParticleIndex numParticles = 100000;
@@ -76,10 +77,9 @@ int main()
     std::vector<T> pot(numParticles, 0);
 
     auto t0 = std::chrono::high_resolution_clock::now();
-    computeGravity(octree, multipoles.data(), layout.data(), 0, octree.numLeafNodes(),
-                   x, y, z, h.data(), masses.data(), box, theta, ax.data(), ay.data(), az.data(),
-                   pot.data());
-    auto t1 = std::chrono::high_resolution_clock::now();
+    computeGravity(octree, multipoles.data(), layout.data(), 0, octree.numLeafNodes(), x, y, z, h.data(), masses.data(),
+                   box, theta, G, ax.data(), ay.data(), az.data(), pot.data());
+    auto t1       = std::chrono::high_resolution_clock::now();
     float elapsed = std::chrono::duration<double>(t1 - t0).count();
 
     std::cout << "Time elapsed for " << numParticles << " particles: " << elapsed << " s, "
@@ -95,13 +95,17 @@ int main()
         std::vector<double> xd(x, x + numParticles);
         std::vector<double> yd(y, y + numParticles);
         std::vector<double> zd(z, z + numParticles);
+
         auto t0 = std::chrono::high_resolution_clock::now();
-        directSum(xd.data(), yd.data(), zd.data(), h.data(), masses.data(), numParticles,
-                  Ax.data(), Ay.data(), Az.data(), potRef.data());
-        auto t1 = std::chrono::high_resolution_clock::now();
+
+        directSum(xd.data(), yd.data(), zd.data(), h.data(), masses.data(), numParticles, G, Ax.data(), Ay.data(),
+                  Az.data(), potRef.data());
+
+        auto t1       = std::chrono::high_resolution_clock::now();
         float elapsed = std::chrono::duration<double>(t1 - t0).count();
-        std::cout << "Time elapsed for direct sum: " << elapsed << " s, "
-                  << double(numParticles) / 1e6 / elapsed << " million particles/second" << std::endl;
+
+        std::cout << "Time elapsed for direct sum: " << elapsed << " s, " << double(numParticles) / 1e6 / elapsed
+                  << " million particles/second" << std::endl;
     }
 
     std::vector<T> delta(numParticles);
