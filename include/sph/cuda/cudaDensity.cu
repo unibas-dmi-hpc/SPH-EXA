@@ -107,9 +107,7 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d)
 }
 
 template void computeDensity(std::vector<Task>&, ParticlesData<double, unsigned>&);
-template void computeDensity(std::vector<Task>&, ParticlesDataEvrard<double, unsigned>&);
 template void computeDensity(std::vector<Task>&, ParticlesData<double, uint64_t>&);
-template void computeDensity(std::vector<Task>&, ParticlesDataEvrard<double, uint64_t>&);
 
 } // namespace cuda
 } // namespace sph
