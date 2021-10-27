@@ -1,6 +1,7 @@
 
 set(UNIT_TESTS
         density.cpp
+        iad.cpp
         test_main.cpp
         )
 

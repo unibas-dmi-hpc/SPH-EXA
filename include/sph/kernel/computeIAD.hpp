@@ -44,24 +44,10 @@ void IADJLoop(int pi, T sincIndex, T K, int ngmax, const BBox<T>& bbox, const in
         tau22 += r_ijy * r_ijy * m[j] / ro[j] * W;
         tau23 += r_ijy * r_ijz * m[j] / ro[j] * W;
         tau33 += r_ijz * r_ijz * m[j] / ro[j] * W;
-
-        /*
-        checkImem[i] += m[j] / ro[j] * W;
-        checkDeltaX[i] += m[j] / ro[j] * (r_ijx) * W;
-        checkDeltaY[i] += m[j] / ro[j] * (r_ijy) * W;
-        checkDeltaZ[i] += m[j] / ro[j] * (r_ijz) * W;
-        */
     }
 
     const T det =
         tau11 * tau22 * tau33 + 2.0 * tau12 * tau23 * tau13 - tau11 * tau23 * tau23 - tau22 * tau13 * tau13 - tau33 * tau12 * tau12;
-
-    // c11[pi] = (tau22 * tau33 - tau23 * tau23) / det;
-    // c12[pi] = (tau13 * tau23 - tau33 * tau12) / det;
-    // c13[pi] = (tau12 * tau23 - tau22 * tau13) / det;
-    // c22[pi] = (tau11 * tau33 - tau13 * tau13) / det;
-    // c23[pi] = (tau13 * tau12 - tau11 * tau23) / det;
-    // c33[pi] = (tau11 * tau22 - tau12 * tau12) / det;
 
     c11[i] = (tau22 * tau33 - tau23 * tau23) / det;
     c12[i] = (tau13 * tau23 - tau33 * tau12) / det;
