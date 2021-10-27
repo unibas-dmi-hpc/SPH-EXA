@@ -16,7 +16,7 @@ namespace sph
 {
 
 template <typename T, class Dataset>
-void computeIADImpl(const Task &t, Dataset &d)
+void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 {
     size_t n = t.clist.size();
     size_t ngmax = t.ngmax;
@@ -41,7 +41,8 @@ void computeIADImpl(const Task &t, Dataset &d)
     const T* wh = d.wh.data();
     const T* whd = d.whd.data();
 
-    const BBox<T>* bbox = &d.bbox;
+    BBox<T> bbox{
+        box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax(), box.pbcX(), box.pbcY(), box.pbcZ()};
 
     T K = d.K;
     T sincIndex = d.sincIndex;
@@ -83,14 +84,14 @@ void computeIADImpl(const Task &t, Dataset &d)
 }
 
 template <typename T, class Dataset>
-void computeIAD(const std::vector<Task> &taskList, Dataset &d)
+void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<T>& box)
 {
 #if defined(USE_CUDA)
-    cuda::computeIAD(taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
+    cuda::computeIAD(taskList, d, box);
 #else
     for (const auto &task : taskList)
     {
-        computeIADImpl<T>(task, d);
+        computeIADImpl<T>(task, d, box);
     }
 #endif
 }

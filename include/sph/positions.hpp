@@ -32,7 +32,7 @@ struct computeAcceleration
 };
 
 template <typename T, class FunctAccel, class Dataset>
-void computePositionsImpl(const Task &t, Dataset &d)
+void computePositionsImpl(const Task &t, Dataset &d, const cstone::Box<T>& box)
 {
     FunctAccel accelFunct;
 
@@ -55,7 +55,9 @@ void computePositionsImpl(const Task &t, Dataset &d)
     T *du_m1 = d.du_m1.data();
     T *dt_m1 = d.dt_m1.data();
 
-    const BBox<T> &bbox = d.bbox;
+    //const BBox<T> &bbox = d.bbox;
+    BBox<T> bbox{
+        box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax(), box.pbcX(), box.pbcY(), box.pbcZ()};
 
 #pragma omp parallel for
     for (size_t pi = 0; pi < n; pi++)
@@ -151,11 +153,11 @@ void computePositionsImpl(const Task &t, Dataset &d)
 }
 
 template <typename T, class FunctAccel, class Dataset>
-void computePositions(const std::vector<Task> &taskList, Dataset &d)
+void computePositions(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<T>& box)
 {
     for (const auto &task : taskList)
     {
-        computePositionsImpl<T, FunctAccel>(task, d);
+        computePositionsImpl<T, FunctAccel>(task, d, box);
     }
 }
 

@@ -11,7 +11,7 @@ namespace kernels
 
 template <typename T>
 CUDA_DEVICE_HOST_FUN inline
-void momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, const BBox<T> *bbox,
+void momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, const BBox<T>& bbox,
                                 const int *clist, const int *neighbors, const int *neighborsCount, const T *x, const T *y,
                                 const T *z, const T *vx, const T *vy, const T *vz, const T *h, const T *m, const T *ro,
                                 const T *p, const T *c, const T *c11, const T *c12, const T *c13, const T *c22, const T *c23,
@@ -37,8 +37,8 @@ void momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngma
         T r_jiy = (y[j] - y[i]);
         T r_jiz = (z[j] - z[i]);
 
-        applyPBC(*bbox, 2.0 * h[i], r_ijx, r_ijy, r_ijz);
-        applyPBC(*bbox, 2.0 * h[i], r_jix, r_jiy, r_jiz);
+        applyPBC(bbox, 2.0 * h[i], r_ijx, r_ijy, r_ijz);
+        applyPBC(bbox, 2.0 * h[i], r_jix, r_jiy, r_jiz);
 
         const T dist = std::sqrt(r_ijx * r_ijx + r_ijy * r_ijy + r_ijz * r_ijz);
 
