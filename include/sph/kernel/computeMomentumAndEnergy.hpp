@@ -29,18 +29,13 @@ void momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngma
     {
         const int j = neighbors[pi * ngmax + pj];
 
-        T r_ijx = (x[i] - x[j]);
-        T r_ijy = (y[i] - y[j]);
-        T r_ijz = (z[i] - z[j]);
-
         T r_jix = (x[j] - x[i]);
         T r_jiy = (y[j] - y[i]);
         T r_jiz = (z[j] - z[i]);
 
-        applyPBC(bbox, 2.0 * h[i], r_ijx, r_ijy, r_ijz);
         applyPBC(bbox, 2.0 * h[i], r_jix, r_jiy, r_jiz);
 
-        const T dist = std::sqrt(r_ijx * r_ijx + r_ijy * r_ijy + r_ijz * r_ijz);
+        const T dist = std::sqrt(r_jix * r_jix + r_jiy * r_jiy + r_jiz * r_jiz);
 
         const T v_ijx = (vx[i] - vx[j]);
         const T v_ijy = (vy[i] - vy[j]);
@@ -49,7 +44,7 @@ void momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngma
         const T v1 = dist / h[i];
         const T v2 = dist / h[j];
 
-        const T rv = r_ijx * v_ijx + r_ijy * v_ijy + r_ijz * v_ijz;
+        const T rv = -(r_jix * v_ijx + r_jiy * v_ijy + r_jiz * v_ijz);
 
         const T w1 = K * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
         const T w2 = K * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v2), (int)sincIndex);
