@@ -1,4 +1,3 @@
-
 add_executable(sedov sedov.cpp)
 target_include_directories(sedov PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
 target_include_directories(sedov PRIVATE ${PROJECT_SOURCE_DIR}/include)
