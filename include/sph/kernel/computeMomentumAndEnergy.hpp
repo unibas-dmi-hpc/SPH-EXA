@@ -43,6 +43,13 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
     T maxvsignali = 0.0;
     T momentum_x = 0.0, momentum_y = 0.0, momentum_z = 0.0, energy = 0.0, energyAV = 0.0;
 
+    T c11i = c11[i];
+    T c12i = c12[i];
+    T c13i = c13[i];
+    T c22i = c22[i];
+    T c23i = c23[i];
+    T c33i = c33[i];
+
     for (int pj = 0; pj < nn; ++pj)
     {
         const int j = neighbors[pi * ngmax + pj];
@@ -71,33 +78,20 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         T W1 = hiInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
         T W2 = hjInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v2), (int)sincIndex);
 
-        const T kern11_i = c11[i] * rx;
-        const T kern12_i = c12[i] * ry;
-        const T kern13_i = c13[i] * rz;
-        const T kern21_i = c12[i] * rx;
-        const T kern22_i = c22[i] * ry;
-        const T kern23_i = c23[i] * rz;
-        const T kern31_i = c13[i] * rx;
-        const T kern32_i = c23[i] * ry;
-        const T kern33_i = c33[i] * rz;
+        T termA1_i = (c11i * rx + c12i * ry + c13i * rz) * W1;
+        T termA2_i = (c12i * rx + c22i * ry + c23i * rz) * W1;
+        T termA3_i = (c13i * rx + c23i * ry + c33i * rz) * W1;
 
-        const T kern11_j = c11[j] * rx;
-        const T kern12_j = c12[j] * ry;
-        const T kern13_j = c13[j] * rz;
-        const T kern21_j = c12[j] * rx;
-        const T kern22_j = c22[j] * ry;
-        const T kern23_j = c23[j] * rz;
-        const T kern31_j = c13[j] * rx;
-        const T kern32_j = c23[j] * ry;
-        const T kern33_j = c33[j] * rz;
+        T c11j = c11[j];
+        T c12j = c12[j];
+        T c13j = c13[j];
+        T c22j = c22[j];
+        T c23j = c23[j];
+        T c33j = c33[j];
 
-        const T termA1_i = (kern11_i + kern12_i + kern13_i) * W1;
-        const T termA2_i = (kern21_i + kern22_i + kern23_i) * W1;
-        const T termA3_i = (kern31_i + kern32_i + kern33_i) * W1;
-
-        const T termA1_j = (kern11_j + kern12_j + kern13_j) * W2;
-        const T termA2_j = (kern21_j + kern22_j + kern23_j) * W2;
-        const T termA3_j = (kern31_j + kern32_j + kern33_j) * W2;
+        T termA1_j = (c11j * rx + c12j * ry + c13j * rz) * W2;
+        T termA2_j = (c12j * rx + c22j * ry + c23j * rz) * W2;
+        T termA3_j = (c13j * rx + c23j * ry + c33j * rz) * W2;
 
         T roj = ro[j];
 
