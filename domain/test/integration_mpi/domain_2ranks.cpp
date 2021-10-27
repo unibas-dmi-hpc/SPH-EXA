@@ -43,7 +43,8 @@ template<class KeyType, class T>
 void noHalos(int rank, int numRanks)
 {
     int bucketSize = 1;
-    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize);
+    float theta = 1.0;
+    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize, theta);
 
     std::vector<T> x{0.5, 0.6};
     std::vector<T> y{0.5, 0.6};
@@ -93,7 +94,8 @@ template<class KeyType, class T>
 void withHalos(int rank, int numRanks)
 {
     int bucketSize = 1;
-    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize);
+    float theta = 1.0;
+    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize, theta);
 
     std::vector<T> x{0.5, 0.6};
     std::vector<T> y{0.5, 0.6};
@@ -147,7 +149,8 @@ template<class KeyType, class T>
 void moreHalos(int rank, int numRanks)
 {
     int bucketSize = 4;
-    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize);
+    float theta = 1.0;
+    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize, theta);
 
     // node boundaries     |--(0,0)----|---------(0,7)-------------|-----(7,0)----------|-------(7,7)------|
     // indices             0    1      2      3      4      5      6      7      8      9      10     11
@@ -236,7 +239,8 @@ template<class KeyType, class T>
 void particleProperty(int rank, int numRanks)
 {
     int bucketSize = 4;
-    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize);
+    float theta = 1.0;
+    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSize, theta);
 
     // node boundaries     |--(0,0)----|---------(0,7)-------------|-----(7,0)----------|-------(7,7)------|
     // indices             0    1      2      3      4      5      6      7      8      9      10     11
@@ -308,7 +312,8 @@ void multiStepSync(int rank, int numRanks)
 {
     int bucketSize = 4;
     int bucketSizeFocus = 1;
-    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSizeFocus);
+    float theta = 1.0;
+    Domain<KeyType, T> domain(rank, numRanks, bucketSize, bucketSizeFocus, theta);
 
     // node boundaries     |--(0,0)----|---------(0,7)-------------|-----(7,0)----------|-------(7,7)------|
     // indices             0    1      2      3      4      5      6      7      8      9      10     11
@@ -448,7 +453,8 @@ void domainHaloRadii(int rank, int nRanks)
 {
     int bucketSize = 4;
     int bucketSizeFocus = 1;
-    Domain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSizeFocus);
+    float theta = 1.0;
+    Domain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta);
 
     std::vector<T> x, y, z, h;
     std::vector<KeyType> codes;

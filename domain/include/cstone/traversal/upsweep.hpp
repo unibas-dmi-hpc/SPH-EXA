@@ -41,9 +41,9 @@ namespace cstone
 
 /*! @brief performs an upsweep operation, calculates quantities for internal nodes, based on given leaf nodes
  *
- * @tparam T                         anything that can be copied
- * @tparam KeyType                   32- or 64-bit unsigned integer
- * @tparam CombinationFunction       callable with signature T(T,T,T,T,T,T,T,T)
+ * @tparam     T                     anything that can be copied
+ * @tparam     KeyType               32- or 64-bit unsigned integer
+ * @tparam     CombinationFunction   callable with signature T(T,T,T,T,T,T,T,T)
  * @param[in]  octree                the octree
  * @param[in]  leafQuantities        input array of length octree.numLeafNodes()
  * @param[out] internalQuantities    output array of length octree.numInternalNodes()
@@ -77,20 +77,42 @@ void upsweep(const Octree<KeyType>& octree, const T* leafQuantities, T* internal
         #pragma omp parallel for schedule(static)
         for (TreeNodeIndex i = internalNodeIndex; i < internalNodeIndex + octree.numTreeNodes(depth); ++i)
         {
-            T a = octree.isLeafChild(i, 0) ? leafQuantities[octree.childDirect(i, 0)] : internalQuantities[octree.childDirect(i, 0)];
-            T b = octree.isLeafChild(i, 1) ? leafQuantities[octree.childDirect(i, 1)] : internalQuantities[octree.childDirect(i, 1)];
-            T c = octree.isLeafChild(i, 2) ? leafQuantities[octree.childDirect(i, 2)] : internalQuantities[octree.childDirect(i, 2)];
-            T d = octree.isLeafChild(i, 3) ? leafQuantities[octree.childDirect(i, 3)] : internalQuantities[octree.childDirect(i, 3)];
-            T e = octree.isLeafChild(i, 4) ? leafQuantities[octree.childDirect(i, 4)] : internalQuantities[octree.childDirect(i, 4)];
-            T f = octree.isLeafChild(i, 5) ? leafQuantities[octree.childDirect(i, 5)] : internalQuantities[octree.childDirect(i, 5)];
-            T g = octree.isLeafChild(i, 6) ? leafQuantities[octree.childDirect(i, 6)] : internalQuantities[octree.childDirect(i, 6)];
-            T h = octree.isLeafChild(i, 7) ? leafQuantities[octree.childDirect(i, 7)] : internalQuantities[octree.childDirect(i, 7)];
+            const T& a = octree.isLeafChild(i, 0) ? leafQuantities[octree.childDirect(i, 0)]
+                                                  : internalQuantities[octree.childDirect(i, 0)];
+            const T& b = octree.isLeafChild(i, 1) ? leafQuantities[octree.childDirect(i, 1)]
+                                                  : internalQuantities[octree.childDirect(i, 1)];
+            const T& c = octree.isLeafChild(i, 2) ? leafQuantities[octree.childDirect(i, 2)]
+                                                  : internalQuantities[octree.childDirect(i, 2)];
+            const T& d = octree.isLeafChild(i, 3) ? leafQuantities[octree.childDirect(i, 3)]
+                                                  : internalQuantities[octree.childDirect(i, 3)];
+            const T& e = octree.isLeafChild(i, 4) ? leafQuantities[octree.childDirect(i, 4)]
+                                                  : internalQuantities[octree.childDirect(i, 4)];
+            const T& f = octree.isLeafChild(i, 5) ? leafQuantities[octree.childDirect(i, 5)]
+                                                  : internalQuantities[octree.childDirect(i, 5)];
+            const T& g = octree.isLeafChild(i, 6) ? leafQuantities[octree.childDirect(i, 6)]
+                                                  : internalQuantities[octree.childDirect(i, 6)];
+            const T& h = octree.isLeafChild(i, 7) ? leafQuantities[octree.childDirect(i, 7)]
+                                                  : internalQuantities[octree.childDirect(i, 7)];
 
             internalQuantities[i] = combinationFunction(a, b, c, d, e, f, g, h);
         }
 
         depth++;
     }
+}
+
+/*! @brief convenience wrapper for contiguous property arrays
+ *
+ * @param property  array of length octree.numTreeNodes(), with elements corresponding to leaf cells
+ *                  (in the range [octree.numInternalNodes():octree.numTreeNodes()]) already computed.
+ *
+ * Upon return, internal cells (in the range [0:octree.numInternalNodes()]) of @p property are computed
+ * with an upsweep using the supplied combination function.
+ */
+template<class T, class KeyType, class CombinationFunction>
+inline void upsweep(const Octree<KeyType>& octree, T* property, CombinationFunction combinationFunction)
+{
+    upsweep(octree, property + octree.numInternalNodes(), property, combinationFunction);
 }
 
 } // namespace cstone

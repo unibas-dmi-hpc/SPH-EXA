@@ -11,7 +11,7 @@ namespace kernels
 
 template <typename T>
 CUDA_DEVICE_HOST_FUN inline
-void IADJLoop(int pi, T sincIndex, T K, int ngmax, const BBox<T>* bbox, const int* clist,
+void IADJLoop(int pi, T sincIndex, T K, int ngmax, const BBox<T>& bbox, const int* clist,
               const int* neighbors, const int* neighborsCount,
               const T* x, const T* y, const T* z, const T* h, const T* m,
               const T* ro, const T* wh, const T* whd, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
@@ -26,7 +26,7 @@ void IADJLoop(int pi, T sincIndex, T K, int ngmax, const BBox<T>* bbox, const in
         const int j = neighbors[pi * ngmax + pj];
 
         // later can be stored into an array per particle
-        const T dist = distancePBC(*bbox, h[i], x[i], y[i], z[i], x[j], y[j], z[j]); // store the distance from each neighbor
+        const T dist = distancePBC(bbox, h[i], x[i], y[i], z[i], x[j], y[j], z[j]); // store the distance from each neighbor
         // calculate the v as ratio between the distance and the smoothing length
         const T vloc = dist / h[i];
         const T w = K * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
@@ -36,7 +36,7 @@ void IADJLoop(int pi, T sincIndex, T K, int ngmax, const BBox<T>* bbox, const in
         T r_ijy = (y[i] - y[j]);
         T r_ijz = (z[i] - z[j]);
 
-        applyPBC(*bbox, 2.0 * h[i], r_ijx, r_ijy, r_ijz);
+        applyPBC(bbox, 2.0 * h[i], r_ijx, r_ijy, r_ijz);
 
         tau11 += r_ijx * r_ijx * m[j] / ro[j] * W;
         tau12 += r_ijx * r_ijy * m[j] / ro[j] * W;

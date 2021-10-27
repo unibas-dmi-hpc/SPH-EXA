@@ -14,7 +14,7 @@ namespace sphexa
 namespace sph
 {
 template <typename T, class Dataset>
-void computeDensityImpl(const Task &t, Dataset &d)
+void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 {
     const size_t n = t.clist.size();
     const size_t ngmax = t.ngmax;
@@ -33,7 +33,8 @@ void computeDensityImpl(const Task &t, Dataset &d)
 
     T *ro = d.ro.data();
 
-    const BBox<T> *bbox = &d.bbox;
+    BBox<T> bbox{
+        box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax(), box.pbcX(), box.pbcY(), box.pbcZ()};
 
     const T K = d.K;
     const T sincIndex = d.sincIndex;
@@ -74,14 +75,14 @@ void computeDensityImpl(const Task &t, Dataset &d)
 }
 
 template <typename T, class Dataset>
-void computeDensity(std::vector<Task> &taskList, Dataset &d)
+void computeDensity(std::vector<Task> &taskList, Dataset &d, const cstone::Box<T>& box)
 {
 #if defined(USE_CUDA)
-    cuda::computeDensity<Dataset>(taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
+    cuda::computeDensity<Dataset>(taskList, d, box);
 #else
     for (const auto &task : taskList)
     {
-        computeDensityImpl<T>(task, d);
+        computeDensityImpl<T>(task, d, box);
     }
 #endif
 }
