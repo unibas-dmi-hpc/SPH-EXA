@@ -7,7 +7,6 @@ namespace sphexa
 template <typename Dataset>
 struct SedovFileWriter : IFileWriter<Dataset>
 {
-// {{{ dumpParticleDataToBinFile
     void dumpParticleDataToBinFile(const Dataset &d, const std::string &path) const override
     {
         try
@@ -22,9 +21,7 @@ struct SedovFileWriter : IFileWriter<Dataset>
             exit(EXIT_FAILURE);
         }
     }
-// }}}
 
-// {{{ dumpParticleDataToAsciiFile
     void dumpParticleDataToAsciiFile(const Dataset &d, const std::vector<int> &clist, const std::string &path) const override
     {
         try
@@ -41,7 +38,24 @@ struct SedovFileWriter : IFileWriter<Dataset>
             exit(EXIT_FAILURE);
         }
     }
-// }}}
+
+    #ifdef SPH_EXA_HAVE_H5PART
+        void dumpParticleDataToH5File(const Dataset &d, const std::vector<int> &clist, const std::string &path) const override
+        {
+            try
+            {
+                fileutils::writeParticleDataToBinFileWithH5Part(d, clist, path, \
+                    d.x, d.y, d.z, d.h, d.ro);
+    //             d.vx, d.vy, d.vz, d.h, d.ro, d.u, d.p, d.c, d.grad_P_x,
+    //             d.grad_P_y, d.grad_P_z /*, d.radius*/);
+            }
+            catch (MPIFileNotOpenedException &ex)
+            {
+                if (d.rank == 0) fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
+                MPI_Abort(d.comm, ex.mpierr);
+            }
+        };
+    #endif
 
 // {{{ dumpCheckpointDataToBinFile
     void dumpCheckpointDataToBinFile(const Dataset &, const std::string &) const override
@@ -57,6 +71,13 @@ struct SedovFileWriter : IFileWriter<Dataset>
 template <typename Dataset>
 struct SedovMPIFileWriter : IFileWriter<Dataset>
 {
+#ifdef SPH_EXA_HAVE_H5PART
+    void dumpParticleDataToH5File(const Dataset& d, const std::vector<int> &clist, const std::string &path) const override
+    {
+        fileutils::writeParticleDataToBinFileWithH5Part(d, clist, path);
+    }
+#endif
+
 // {{{ dumpParticleDataToBinFile
     void dumpParticleDataToBinFile(const Dataset &d, const std::string &path) const override
     {
@@ -101,26 +122,6 @@ struct SedovMPIFileWriter : IFileWriter<Dataset>
             }
         }
     }
-// }}}
-
-// {{{ dumpParticleDataToH5File
-#ifdef USE_H5
-    void dumpParticleDataToH5File(const Dataset &d, const std::vector<int> &clist, const std::string &path) const override
-    {
-        try
-        {
-            fileutils::writeParticleDataToBinFileWithH5Part(d, clist, path, \
-                d.x, d.y, d.z, d.h, d.ro);
-//             d.vx, d.vy, d.vz, d.h, d.ro, d.u, d.p, d.c, d.grad_P_x,
-//             d.grad_P_y, d.grad_P_z /*, d.radius*/);
-        }
-        catch (MPIFileNotOpenedException &ex)
-        {
-            if (d.rank == 0) fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
-            MPI_Abort(d.comm, ex.mpierr);
-        }
-    };
-#endif
 // }}}
 
 // {{{ dumpCheckpointDataToBinFile

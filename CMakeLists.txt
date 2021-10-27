@@ -41,6 +41,12 @@ else()
     message(STATUS "No CUDA support")
 endif()
 
+option(SPH_EXA_WITH_H5PART "Enable HDF5 IO using H5Part library" OFF)
+if (SPH_EXA_WITH_H5PART)
+    find_package(HDF5)
+    add_subdirectory(./extern/h5part)
+endif()
+
 add_subdirectory(include)
 add_subdirectory(domain)
 
