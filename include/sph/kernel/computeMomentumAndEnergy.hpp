@@ -37,6 +37,9 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
 
     T mi_roi  = m[i] / ro[i];
 
+    T hiInv = 1.0 / hi;
+    T hiInv3 = hiInv * hiInv * hiInv;
+
     T maxvsignali = 0.0;
     T momentum_x = 0.0, momentum_y = 0.0, momentum_z = 0.0, energy = 0.0, energyAV = 0.0;
 
@@ -56,16 +59,17 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         const T v_ijy = (vyi - vy[j]);
         const T v_ijz = (vzi - vz[j]);
 
-        const T v1 = dist / hi;
-        const T v2 = dist / h[j];
+        const T hj    = h[j];
+        const T hjInv = 1.0 / hj;
+
+        const T v1 = dist * hiInv;
+        const T v2 = dist * hjInv;
 
         const T rv = -(rx * v_ijx + ry * v_ijy + rz * v_ijz);
 
-        const T w1 = K * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
-        const T w2 = K * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v2), (int)sincIndex);
-
-        const T W1 = w1 / (hi * hi * hi);
-        const T W2 = w2 / (h[j] * h[j] * h[j]);
+        T hjInv3 = hjInv * hjInv * hjInv;
+        T W1 = hiInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
+        T W2 = hjInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v2), (int)sincIndex);
 
         const T kern11_i = c11[i] * rx;
         const T kern12_i = c12[i] * ry;
@@ -95,34 +99,42 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         const T termA2_j = (kern21_j + kern22_j + kern23_j) * W2;
         const T termA3_j = (kern31_j + kern32_j + kern33_j) * W2;
 
-        const T pro_i = pri  / (gradh_i * roi * roi);
-        const T pro_j = p[j] / (gradh_j * ro[j] * ro[j]);
+        T roj = ro[j];
 
-        const T r_square = dist * dist;
-        const T viscosity_ij = artificial_viscosity(roi, ro[j], hi, h[j], ci, c[j], rv, r_square);
+        T pro_i = pri  / (gradh_i * roi * roi);
+        T pro_j = p[j] / (gradh_j * roj * roj);
+
+        T r_square = dist * dist;
+        T viscosity_ij = artificial_viscosity(roi, roj, hi, hj, ci, c[j], rv, r_square);
 
         // For time-step calculations
-        const T wij = rv / dist;
-        const T vijsignal = ci + c[j] - 3.0 * wij;
-        if (vijsignal > maxvsignali) maxvsignali = vijsignal;
+        T wij = rv / dist;
+        T vijsignal = ci + c[j] - 3.0 * wij;
 
-        T mj_roj = m[j] / ro[j];
-        const T grad_Px_AV = 0.5 * viscosity_ij * (mi_roi * termA1_i + mj_roj * termA1_j);
-        const T grad_Py_AV = 0.5 * viscosity_ij * (mi_roi * termA2_i + mj_roj * termA2_j);
-        const T grad_Pz_AV = 0.5 * viscosity_ij * (mi_roi * termA3_i + mj_roj * termA3_j);
+        if (vijsignal > maxvsignali)
+        {
+            maxvsignali = vijsignal;
+        }
 
-        momentum_x += m[j] * (pro_i * termA1_i + pro_j * termA1_j) + grad_Px_AV;
-        momentum_y += m[j] * (pro_i * termA2_i + pro_j * termA2_j) + grad_Py_AV;
-        momentum_z += m[j] * (pro_i * termA3_i + pro_j * termA3_j) + grad_Pz_AV;
+        T mj     = m[j];
+        T mj_roj = mj / roj;
 
-        energy += m[j] * 2.0 * pro_i * (v_ijx * termA1_i + v_ijy * termA2_i + v_ijz * termA3_i);
+        T grad_Px_AV = T(0.5) * viscosity_ij * (mi_roi * termA1_i + mj_roj * termA1_j);
+        T grad_Py_AV = T(0.5) * viscosity_ij * (mi_roi * termA2_i + mj_roj * termA2_j);
+        T grad_Pz_AV = T(0.5) * viscosity_ij * (mi_roi * termA3_i + mj_roj * termA3_j);
+
+        momentum_x += mj * (pro_i * termA1_i + pro_j * termA1_j) + grad_Px_AV;
+        momentum_y += mj * (pro_i * termA2_i + pro_j * termA2_j) + grad_Py_AV;
+        momentum_z += mj * (pro_i * termA3_i + pro_j * termA3_j) + grad_Pz_AV;
+
+        energy   += mj * 2.0 * pro_i * (v_ijx * termA1_i + v_ijy * termA2_i + v_ijz * termA3_i);
         energyAV += grad_Px_AV * v_ijx + grad_Py_AV * v_ijy + grad_Pz_AV * v_ijz;
     }
 
-    du[i] = 0.5 * (energy + energyAV);
-    grad_P_x[i] = momentum_x;
-    grad_P_y[i] = momentum_y;
-    grad_P_z[i] = momentum_z;
+    du[i]         = K * 0.5 * (energy + energyAV);
+    grad_P_x[i]   = K * momentum_x;
+    grad_P_y[i]   = K * momentum_y;
+    grad_P_z[i]   = K * momentum_z;
     maxvsignal[i] = maxvsignali;
 }
 
