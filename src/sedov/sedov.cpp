@@ -162,9 +162,13 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
+#ifdef SPH_EXA_HAVE_H5PART
+            fileWriter.dumpParticleDataToH5File(d, clist, outDirectory + "dump_Sedov.h5part");
+#else
             fileWriter.dumpParticleDataToAsciiFile(d, clist,
                                                    outDirectory + "dump_Sedov" + std::to_string(d.iteration) + ".txt");
             fileWriter.dumpParticleDataToBinFile(d, outDirectory + "dump_Sedov" + std::to_string(d.iteration) + ".bin");
+#endif
             timer.step("writeFile");
         }
 
