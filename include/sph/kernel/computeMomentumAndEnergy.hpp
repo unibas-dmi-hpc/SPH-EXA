@@ -54,9 +54,9 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
     {
         int j = neighbors[pi * ngmax + pj];
 
-        T rx    = x[j] - xi;
-        T ry    = y[j] - yi;
-        T rz    = z[j] - zi;
+        T rx    = xi - x[j];
+        T ry    = yi - y[j];
+        T rz    = zi - z[j];
 
         applyPBC(bbox, 2.0 * hi, rx, ry, rz);
 
@@ -73,7 +73,7 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         T v1 = dist * hiInv;
         T v2 = dist * hjInv;
 
-        T rv = rx * vx_ji + ry * vy_ji + rz * vz_ji;
+        T rv = -(rx * vx_ji + ry * vy_ji + rz * vz_ji);
 
         T hjInv3 = hjInv * hjInv * hjInv;
         T W1 = hiInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
@@ -131,10 +131,10 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         }
     }
 
-    du[i]         = -K * 0.5 * energy;
-    grad_P_x[i]   = K * momentum_x;
-    grad_P_y[i]   = K * momentum_y;
-    grad_P_z[i]   = K * momentum_z;
+    du[i]         = K * 0.5 * energy;
+    grad_P_x[i]   = -K * momentum_x;
+    grad_P_y[i]   = -K * momentum_y;
+    grad_P_z[i]   = -K * momentum_z;
     maxvsignal[i] = maxvsignali;
 }
 
