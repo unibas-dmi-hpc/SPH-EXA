@@ -41,7 +41,7 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
     T hiInv3 = hiInv * hiInv * hiInv;
 
     T maxvsignali = 0.0;
-    T momentum_x = 0.0, momentum_y = 0.0, momentum_z = 0.0, energy = 0.0, energyAV = 0.0;
+    T momentum_x = 0.0, momentum_y = 0.0, momentum_z = 0.0, energy = 0.0;
 
     T c11i = c11[i];
     T c12i = c12[i];
@@ -97,7 +97,7 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         T roj = ro[j];
         T cj  = c[j];
 
-        T viscosity_ij = artificial_viscosity(roi, roj, hi, hj, ci, cj, rv, r2);
+        T viscosity_ij = T(0.5) * artificial_viscosity(roi, roj, hi, hj, ci, cj, rv, r2);
 
         // For time-step calculations
         T wij = rv / dist;
@@ -111,22 +111,27 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         T mj     = m[j];
         T mj_roj = mj / roj;
 
-        T grad_Px_AV = T(0.5) * viscosity_ij * (mi_roi * termA1_i + mj_roj * termA1_j);
-        T grad_Py_AV = T(0.5) * viscosity_ij * (mi_roi * termA2_i + mj_roj * termA2_j);
-        T grad_Pz_AV = T(0.5) * viscosity_ij * (mi_roi * termA3_i + mj_roj * termA3_j);
-
         T pro_i = mj * pri  / (gradh_i * roi * roi);
-        T pro_j = mj * p[j] / (gradh_j * roj * roj);
 
-        momentum_x += pro_i * termA1_i + pro_j * termA1_j + grad_Px_AV;
-        momentum_y += pro_i * termA2_i + pro_j * termA2_j + grad_Py_AV;
-        momentum_z += pro_i * termA3_i + pro_j * termA3_j + grad_Pz_AV;
+        {
+            T a = pro_i + viscosity_ij * mi_roi;
+            T b = mj_roj * (p[j] / (roj * gradh_j) + viscosity_ij);
 
-        energy   += 2.0 * pro_i * (vx_ji * termA1_i + vy_ji * termA2_i + vz_ji * termA3_i);
-        energyAV += grad_Px_AV * vx_ji + grad_Py_AV * vy_ji + grad_Pz_AV * vz_ji;
+            momentum_x += a * termA1_i + b * termA1_j;
+            momentum_y += a * termA2_i + b * termA2_j;
+            momentum_z += a * termA3_i + b * termA3_j;
+        }
+        {
+            T a = 2.0 * pro_i + viscosity_ij * mi_roi;
+            T b = viscosity_ij * mj_roj;
+
+            energy += vx_ji * (a * termA1_i + b * termA1_j)
+                    + vy_ji * (a * termA2_i + b * termA2_j)
+                    + vz_ji * (a * termA3_i + b * termA3_j);
+        }
     }
 
-    du[i]         = -K * 0.5 * (energy + energyAV);
+    du[i]         = -K * 0.5 * energy;
     grad_P_x[i]   = K * momentum_x;
     grad_P_y[i]   = K * momentum_y;
     grad_P_z[i]   = K * momentum_z;
