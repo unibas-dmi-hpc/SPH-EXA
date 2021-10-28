@@ -26,7 +26,8 @@ __global__ void computeMomentumAndEnergyIAD(int n, T sincIndex, T K, int ngmax, 
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
 
-    sph::kernels::momentumAndEnergyJLoop(tid, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount,
+    int i = clist[tid];
+    sph::kernels::momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors + ngmax * tid, neighborsCount[tid],
                                          x, y, z, vx, vy, vz, h, m, ro, p, c, c11, c12, c13, c22, c23, c33,
                                          wh, whd, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
 }
