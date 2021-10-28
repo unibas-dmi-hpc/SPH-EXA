@@ -13,17 +13,14 @@ namespace kernels
 
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline void
-momentumAndEnergyJLoop(int pi, T sincIndex, T K, int ngmax, const cstone::Box<T>& box, const int* clist,
-                       const int* neighbors, const int* neighborsCount, const T* x, const T* y, const T* z, const T* vx,
-                       const T* vy, const T* vz, const T* h, const T* m, const T* ro, const T* p, const T* c,
-                       const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T* wh,
-                       const T* whd, T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du, T* maxvsignal)
+momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount,
+                       const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h,
+                       const T* m, const T* ro, const T* p, const T* c, const T* c11, const T* c12, const T* c13,
+                       const T* c22, const T* c23, const T* c33, const T* wh, const T* whd, T* grad_P_x, T* grad_P_y,
+                       T* grad_P_z, T* du, T* maxvsignal)
 {
     constexpr T gradh_i = 1.0;
     constexpr T gradh_j = 1.0;
-
-    int i = clist[pi];
-    int nn = neighborsCount[pi];
 
     T xi = x[i];
     T yi = y[i];
@@ -52,9 +49,9 @@ momentumAndEnergyJLoop(int pi, T sincIndex, T K, int ngmax, const cstone::Box<T>
     T c23i = c23[i];
     T c33i = c33[i];
 
-    for (int pj = 0; pj < nn; ++pj)
+    for (int pj = 0; pj < neighborsCount; ++pj)
     {
-        int j = neighbors[pi * ngmax + pj];
+        int j = neighbors[pj];
 
         T rx    = xi - x[j];
         T ry    = yi - y[j];
