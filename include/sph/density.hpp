@@ -70,14 +70,12 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
         //cstone::findNeighbors(
         //    pi, x, y, z, h, box, cstone::sfcKindPointer(d.codes.data()), neighLoc, &count, d.codes.size(), ngmax);
 
-        //kernels::densityJLoop(
-        //    pi, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ro);
-
-        // computes ro[i]
-        kernels::densityJLoop(
-            pi, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ro);
+        int i = clist[pi];
+        ro[i] = kernels::densityJLoop(
+            i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi], x, y, z, h, m, wh, whd);
 #ifndef NDEBUG
-        if (std::isnan(ro[pi])) printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", pi, ro[pi], x[pi], y[pi], z[pi], h[pi]);
+        if (std::isnan(ro[i]))
+            printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", pi, ro[i], x[i], y[i], z[i], h[i]);
 #endif
     }
 }

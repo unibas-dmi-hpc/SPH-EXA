@@ -22,9 +22,9 @@ __global__ void density(int n, T sincIndex, T K, int ngmax, cstone::Box<T> box, 
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
 
-    // computes ro[clist[tid]]
-    sph::kernels::densityJLoop(tid, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount,
-                               x, y, z, h, m, wh, whd, ro);
+    int i = clist[tid];
+    ro[i] = sph::kernels::densityJLoop(
+        i, sincIndex, K, box, neighbors + ngmax * tid, neighborsCount[tid], x, y, z, h, m, wh, whd);
 }
 
 template<class Dataset>
