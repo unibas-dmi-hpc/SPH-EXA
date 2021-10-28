@@ -44,7 +44,6 @@ TEST(IAD, JLoop)
 
     T sincIndex = 6.0;
     T K = compute_3d_k(sincIndex);
-    int ngmax = 10;
 
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
@@ -52,9 +51,8 @@ TEST(IAD, JLoop)
     cstone::Box<T> box(0, 6, 0, 6, 0, 6, false, false, false);
 
     // particle 0 has 4 neighbors
-    std::vector<int> clist{0};
     std::vector<int> neighbors{1, 2, 3, 4};
-    std::vector<int> neighborsCount{4};
+    int neighborsCount = 4;
 
     std::vector<T> x{1.0, 1.1, 3.2, 1.3, 2.4};
     std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
@@ -75,7 +73,7 @@ TEST(IAD, JLoop)
     std::vector<T> iad(6, -1);
 
     // compute the 6 tensor components for particle 0
-    sph::kernels::IADJLoop(0, sincIndex, K, ngmax, box, clist.data(), neighbors.data(), neighborsCount.data(),
+    sph::kernels::IADJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount,
                            x.data(), y.data(), z.data(), h.data(), m.data(), rho.data(), wh.data(), whd.data(),
                            &iad[0], &iad[1], &iad[2], &iad[3], &iad[4], &iad[5]);
 
@@ -93,7 +91,6 @@ TEST(IAD, JLoopPBC)
 
     T sincIndex = 6.0;
     T K = compute_3d_k(sincIndex);
-    int ngmax = 10;
 
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
@@ -103,9 +100,8 @@ TEST(IAD, JLoopPBC)
     cstone::Box<T> box(0, 10.5, 0, 10.5, 0, 10.5, true, true, true);
 
     // particle 0 has 4 neighbors
-    std::vector<int> clist{0};
     std::vector<int> neighbors{1, 2, 3, 4};
-    std::vector<int> neighborsCount{4};
+    int neighborsCount = 4;
 
     std::vector<T> x{1.0, 1.1, 3.2, 1.3, 9.4};
     std::vector<T> y{1.1, 1.2, 1.3, 8.4, 9.5};
@@ -126,7 +122,7 @@ TEST(IAD, JLoopPBC)
     // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
     std::vector<T> iad(6, -1);
 
-    sph::kernels::IADJLoop(0, sincIndex, K, ngmax, box, clist.data(), neighbors.data(), neighborsCount.data(),
+    sph::kernels::IADJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount,
                            x.data(), y.data(), z.data(), h.data(), m.data(), rho.data(), wh.data(), whd.data(),
                            &iad[0], &iad[1], &iad[2], &iad[3], &iad[4], &iad[5]);
 

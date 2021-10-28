@@ -75,7 +75,8 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 #endif
     for (size_t pi = 0; pi < n; ++pi)
     {
-        kernels::IADJLoop(pi, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount,
+        int i = clist[pi];
+        kernels::IADJLoop(i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi],
                           x, y, z, h, m, ro, wh, whd, c11, c12, c13, c22, c23, c33);
     }
 }

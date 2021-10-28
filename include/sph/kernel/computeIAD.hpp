@@ -12,14 +12,11 @@ namespace kernels
 {
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline void IADJLoop(int pi, T sincIndex, T K, int ngmax, const cstone::Box<T>& box,
-                                          const int* clist, const int* neighbors, const int* neighborsCount, const T* x,
-                                          const T* y, const T* z, const T* h, const T* m, const T* ro, const T* wh,
-                                          const T* whd, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
+CUDA_DEVICE_HOST_FUN inline void IADJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
+                                          int neighborsCount, const T* x, const T* y, const T* z, const T* h,
+                                          const T* m, const T* ro, const T* wh, const T* whd, T* c11, T* c12, T* c13,
+                                          T* c22, T* c23, T* c33)
 {
-    int i  = clist[pi];
-    int nn = neighborsCount[pi];
-
     T tau11 = 0.0, tau12 = 0.0, tau13 = 0.0, tau22 = 0.0, tau23 = 0.0, tau33 = 0.0;
 
     T xi = x[i];
@@ -29,9 +26,9 @@ CUDA_DEVICE_HOST_FUN inline void IADJLoop(int pi, T sincIndex, T K, int ngmax, c
     T hi    = h[i];
     T hiInv = 1.0 / hi;
 
-    for (int pj = 0; pj < nn; ++pj)
+    for (int pj = 0; pj < neighborsCount; ++pj)
     {
-        int j = neighbors[pi * ngmax + pj];
+        int j = neighbors[pj];
 
         T rx = (xi - x[j]);
         T ry = (yi - y[j]);

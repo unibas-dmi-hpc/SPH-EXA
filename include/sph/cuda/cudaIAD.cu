@@ -23,7 +23,8 @@ __global__ void computeIAD(int n, T sincIndex, T K, int ngmax, cstone::Box<T> bo
     const unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
 
-    sph::kernels::IADJLoop(tid, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount,
+    int i = clist[tid];
+    sph::kernels::IADJLoop(i, sincIndex, K, box, neighbors + ngmax * tid, neighborsCount[tid],
                            x, y, z, h, m, ro, wh, whd, c11, c12, c13, c22, c23, c33);
 }
 
