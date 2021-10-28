@@ -33,12 +33,13 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/kernel/computeDensity.hpp"
+#include "BBox.hpp"
+#include "sph/kernel/computeIAD.hpp"
 #include "sph/lookupTables.hpp"
 
 using namespace sphexa;
 
-TEST(Density, JLoop)
+TEST(IAD, JLoop)
 {
     using T = double;
 
@@ -56,32 +57,38 @@ TEST(Density, JLoop)
     std::vector<int> neighbors{1, 2, 3, 4};
     std::vector<int> neighborsCount{4};
 
-    std::vector<T> x{1.0, 2.1, 3.2, 4.3, 5.4};
-    std::vector<T> y{1.1, 2.2, 3.3, 4.4, 5.5};
-    std::vector<T> z{1.2, 2.3, 3.4, 4.5, 5.6};
+    std::vector<T> x{1.0, 1.1, 3.2, 1.3, 2.4};
+    std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
+    std::vector<T> z{1.2, 2.3, 1.4, 1.5, 1.6};
     std::vector<T> h{5.0, 5.1, 5.2, 5.3, 5.4};
     std::vector<T> m{1.1, 1.2, 1.3, 1.4, 1.5};
+    std::vector<T> rho{0.014, 0.015, 0.016, 0.017, 0.018};
 
     /* distances of particle zero to particle j
      *
-     * j = 1   1.90526
-     * j = 2   3.81051
-     * j = 3   5.71577
-     * j = 4   7.62102
+     * j = 1   1.10905
+     * j = 2   2.21811
+     * j = 3   3.32716
+     * j = 4   4.63465
      */
 
-    std::vector<T> rho(1);
+    // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
+    std::vector<T> iad(6, -1);
 
-    // fill with invalid result to make sure that the kernel overwrites it instead of add to it
-    rho[0] = -1;
+    // compute the 6 tensor components for particle 0
+    sph::kernels::IADJLoop(0, sincIndex, K, ngmax, box, clist.data(), neighbors.data(), neighborsCount.data(),
+                           x.data(), y.data(), z.data(), h.data(), m.data(), rho.data(), wh.data(), whd.data(),
+                           &iad[0], &iad[1], &iad[2], &iad[3], &iad[4], &iad[5]);
 
-    sph::kernels::densityJLoop(0, sincIndex, K, ngmax, box, clist.data(), neighbors.data(), neighborsCount.data(),
-                               x.data(), y.data(), z.data(), h.data(), m.data(), wh.data(), whd.data(), rho.data());
-
-    EXPECT_NEAR(rho[0], 0.014286303130604867, 1e-10);
+    EXPECT_NEAR(iad[0], 0.68826690705820426,  1e-10);
+    EXPECT_NEAR(iad[1], -0.12963692749098227, 1e-10);
+    EXPECT_NEAR(iad[2], -0.20435302529035185, 1e-10);
+    EXPECT_NEAR(iad[3], 0.39616100615949118,  1e-10);
+    EXPECT_NEAR(iad[4], -0.16797800818772629, 1e-10);
+    EXPECT_NEAR(iad[5], 1.9055087808073545,   1e-10);
 }
 
-TEST(Density, JLoopPBC)
+TEST(IAD, JLoopPBC)
 {
     using T = double;
 
@@ -101,29 +108,34 @@ TEST(Density, JLoopPBC)
     std::vector<int> neighbors{1, 2, 3, 4};
     std::vector<int> neighborsCount{4};
 
-    std::vector<T> x{1.0, 1.1, 1.4, 9.9, 10.4};
-    std::vector<T> y{1.1, 1.2, 1.5, 9.8, 10.2};
-    std::vector<T> z{1.2, 1.3, 1.6, 9.7, 10.3};
+    std::vector<T> x{1.0, 1.1, 3.2, 1.3, 9.4};
+    std::vector<T> y{1.1, 1.2, 1.3, 8.4, 9.5};
+    std::vector<T> z{1.2, 2.3, 1.4, 1.5, 9.6};
     std::vector<T> h{2.5, 2.51, 2.52, 2.53, 2.54};
     std::vector<T> m{1.1, 1.2, 1.3, 1.4, 1.5};
+    std::vector<T> rho{0.014, 0.015, 0.016, 0.017, 0.018};
 
     /* distances of particle 0 to particle j
      *
-     *         direct      PBC
-     * j = 1  0.173205   0.173205
-     * j = 2  0.69282    0.69282
-     * j = 3  15.0715    3.1305
-     * j = 4  15.9367    2.26495
+     *          PBC
+     * j = 1    1.10905
+     * j = 2    2.21811
+     * j = 3    3.22800
+     * j = 4    3.63731
      */
 
-    std::vector<T> rho(1);
+    // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
+    std::vector<T> iad(6, -1);
 
-    // fill with invalid result to make sure that the kernel overwrites it instead of add to it
-    rho[0] = -1;
+    sph::kernels::IADJLoop(0, sincIndex, K, ngmax, box, clist.data(), neighbors.data(), neighborsCount.data(),
+                           x.data(), y.data(), z.data(), h.data(), m.data(), rho.data(), wh.data(), whd.data(),
+                           &iad[0], &iad[1], &iad[2], &iad[3], &iad[4], &iad[5]);
 
-    sph::kernels::densityJLoop(0, sincIndex, K, ngmax, box, clist.data(), neighbors.data(), neighborsCount.data(),
-                               x.data(), y.data(), z.data(), h.data(), m.data(), wh.data(), whd.data(), rho.data());
+    EXPECT_NEAR(iad[0], 0.42970014180599519,   1e-10);
+    EXPECT_NEAR(iad[1], -0.2304555811353339,   1e-10);
+    EXPECT_NEAR(iad[2], -0.052317231832885822, 1e-10);
+    EXPECT_NEAR(iad[3], 2.8861688071845268,    1e-10);
+    EXPECT_NEAR(iad[4], -0.23251632520430554,  1e-10);
+    EXPECT_NEAR(iad[5], 0.36028770403046995, 1e-10);
 
-    EXPECT_NEAR(rho[0], 0.17929212293724384, 1e-10);
 }
-
