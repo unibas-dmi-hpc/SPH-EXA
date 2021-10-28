@@ -41,9 +41,6 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     const T* wh = d.wh.data();
     const T* whd = d.whd.data();
 
-    BBox<T> bbox{
-        box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax(), box.pbcX(), box.pbcY(), box.pbcZ()};
-
     T K = d.K;
     T sincIndex = d.sincIndex;
 
@@ -78,7 +75,7 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 #endif
     for (size_t pi = 0; pi < n; ++pi)
     {
-        kernels::IADJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount,
+        kernels::IADJLoop(pi, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount,
                           x, y, z, h, m, ro, wh, whd, c11, c12, c13, c22, c23, c33);
     }
 }

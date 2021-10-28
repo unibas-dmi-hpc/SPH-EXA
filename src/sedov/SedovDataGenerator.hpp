@@ -3,7 +3,6 @@
 #include <cmath>
 #include <vector>
 
-#include "BBox.hpp"
 #include "sph/kernels.hpp"
 #include "ParticlesData.hpp"
 

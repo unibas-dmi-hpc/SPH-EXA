@@ -1,7 +1,6 @@
 #include <algorithm>
 
 #include "sph.cuh"
-#include "BBox.hpp"
 #include "ParticlesData.hpp"
 #include "cudaUtils.cuh"
 #include "../kernel/computeIAD.hpp"
@@ -16,7 +15,7 @@ namespace cuda
 {
 
 template<class T>
-__global__ void computeIAD(int n, T sincIndex, T K, int ngmax, BBox<T> bbox, const int* clist,
+__global__ void computeIAD(int n, T sincIndex, T K, int ngmax, cstone::Box<T> box, const int* clist,
                            const int* neighbors, const int* neighborsCount,
                            const T* x, const T* y, const T* z, const T* h, const T* m, const T* ro,
                            const T* wh, const T* whd, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
@@ -24,7 +23,7 @@ __global__ void computeIAD(int n, T sincIndex, T K, int ngmax, BBox<T> bbox, con
     const unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
 
-    sph::kernels::IADJLoop(tid, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount,
+    sph::kernels::IADJLoop(tid, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount,
                            x, y, z, h, m, ro, wh, whd, c11, c12, c13, c22, c23, c33);
 }
 
@@ -47,9 +46,6 @@ void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box
 
     // number of CUDA streams to use
     constexpr int NST = DeviceParticlesData<T, Dataset>::NST;
-
-    BBox<T> bbox{
-        box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax(), box.pbcX(), box.pbcY(), box.pbcZ()};
 
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_ro, d.ro.data(), size_np_T, cudaMemcpyHostToDevice));
 
@@ -78,7 +74,7 @@ void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box
         unsigned numBlocks  = (n + numThreads - 1) / numThreads;
 
         computeIAD<<<numBlocks, numThreads, 0, stream>>>(
-            n, d.sincIndex, d.K, ngmax, bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
+            n, d.sincIndex, d.K, ngmax, box, d_clist_use, d_neighbors_use, d_neighborsCount_use,
             d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_ro,
             d.devPtrs.d_wh, d.devPtrs.d_whd,
             d.devPtrs.d_c11, d.devPtrs.d_c12, d.devPtrs.d_c13, d.devPtrs.d_c22, d.devPtrs.d_c23, d.devPtrs.d_c33);

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "cstone/sfc/box.hpp"
+
 #include "../lookupTables.hpp"
 
 namespace sphexa
@@ -10,10 +12,10 @@ namespace kernels
 {
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline void IADJLoop(int pi, T sincIndex, T K, int ngmax, const BBox<T>& bbox, const int* clist,
-                                          const int* neighbors, const int* neighborsCount, const T* x, const T* y,
-                                          const T* z, const T* h, const T* m, const T* ro, const T* wh, const T* whd,
-                                          T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
+CUDA_DEVICE_HOST_FUN inline void IADJLoop(int pi, T sincIndex, T K, int ngmax, const cstone::Box<T>& box,
+                                          const int* clist, const int* neighbors, const int* neighborsCount, const T* x,
+                                          const T* y, const T* z, const T* h, const T* m, const T* ro, const T* wh,
+                                          const T* whd, T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
 {
     int i  = clist[pi];
     int nn = neighborsCount[pi];
@@ -35,7 +37,7 @@ CUDA_DEVICE_HOST_FUN inline void IADJLoop(int pi, T sincIndex, T K, int ngmax, c
         T ry = (yi - y[j]);
         T rz = (zi - z[j]);
 
-        applyPBC(bbox, 2.0 * hi, rx, ry, rz);
+        applyPBC(box, 2.0 * hi, rx, ry, rz);
 
         T dist = std::sqrt(rx * rx + ry * ry + rz * rz);
 
