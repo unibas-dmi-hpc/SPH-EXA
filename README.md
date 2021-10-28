@@ -1,5 +1,6 @@
-[![Build Status](https://api.travis-ci.org/unibas-dmi-hpc/SPH-EXA_mini-app.svg?branch=develop)](https://travis-ci.org/unibas-dmi-hpc/SPH-EXA_mini-app)
-
+![License](https://img.shields.io/github/license/unibas-dmi-hpc/SPH-EXA_mini-app)
+[![Unit tests](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/actions/workflows/unittest.yml/badge.svg?branch=develop)](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/actions/workflows/unittest.yml)
+![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/unibas-dmi-hpc/SPH-EXA_mini-app?include_prereleases)
 
 # SPH
 

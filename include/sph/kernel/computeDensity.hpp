@@ -24,8 +24,8 @@ CUDA_DEVICE_HOST_FUN inline void densityJLoop(int pi, T sincIndex, T K, int ngma
     T zi = z[i];
     T hi = h[i];
 
-    T hInv      = 1.0 / hi;
-    T volumeInv = hInv * hInv * hInv;
+    T hInv  = 1.0 / hi;
+    T h3Inv = hInv * hInv * hInv;
 
     const int* neighborsOfI = neighbors + pi * ngmax;
 
@@ -40,7 +40,7 @@ CUDA_DEVICE_HOST_FUN inline void densityJLoop(int pi, T sincIndex, T K, int ngma
         roloc += w * m[j];
     }
 
-    ro[i] = K * (roloc + m[i]) * volumeInv;
+    ro[i] = K * (roloc + m[i]) * h3Inv;
 }
 
 } // namespace kernels

@@ -1,6 +1,7 @@
-
 set(UNIT_TESTS
         density.cpp
+        iad.cpp
+        momentum_energy.cpp
         test_main.cpp
         )
 
