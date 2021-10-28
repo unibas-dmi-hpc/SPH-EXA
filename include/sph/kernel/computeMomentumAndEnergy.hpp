@@ -63,9 +63,9 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         T r2   = rx * rx + ry * ry + rz * rz;
         T dist = std::sqrt(r2);
 
-        T vx_ji = vx[j] - vxi;
-        T vy_ji = vy[j] - vyi;
-        T vz_ji = vz[j] - vzi;
+        T vx_ij = vxi - vx[j];
+        T vy_ij = vyi - vy[j];
+        T vz_ij = vzi - vz[j];
 
         T hj    = h[j];
         T hjInv = 1.0 / hj;
@@ -73,7 +73,7 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         T v1 = dist * hiInv;
         T v2 = dist * hjInv;
 
-        T rv = -(rx * vx_ji + ry * vy_ji + rz * vz_ji);
+        T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
 
         T hjInv3 = hjInv * hjInv * hjInv;
         T W1 = hiInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
@@ -102,11 +102,7 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         // For time-step calculations
         T wij = rv / dist;
         T vijsignal = ci + cj - 3.0 * wij;
-
-        if (vijsignal > maxvsignali)
-        {
-            maxvsignali = vijsignal;
-        }
+        maxvsignali = (vijsignal > maxvsignali) ? vijsignal : maxvsignali;
 
         T mj     = m[j];
         T mj_roj = W2 * mj / roj;
@@ -125,13 +121,12 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
             T a = W1 * (2.0 * pro_i + viscosity_ij * mi_roi);
             T b = viscosity_ij * mj_roj;
 
-            energy += vx_ji * (a * termA1_i + b * termA1_j)
-                    + vy_ji * (a * termA2_i + b * termA2_j)
-                    + vz_ji * (a * termA3_i + b * termA3_j);
+            energy += vx_ij * (a * termA1_i + b * termA1_j) + vy_ij * (a * termA2_i + b * termA2_j) +
+                      vz_ij * (a * termA3_i + b * termA3_j);
         }
     }
 
-    du[i]         = K * 0.5 * energy;
+    du[i]         = -K * 0.5 * energy;
     grad_P_x[i]   = -K * momentum_x;
     grad_P_y[i]   = -K * momentum_y;
     grad_P_z[i]   = -K * momentum_z;
