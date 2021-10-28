@@ -115,14 +115,14 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         T grad_Py_AV = T(0.5) * viscosity_ij * (mi_roi * termA2_i + mj_roj * termA2_j);
         T grad_Pz_AV = T(0.5) * viscosity_ij * (mi_roi * termA3_i + mj_roj * termA3_j);
 
-        T pro_i = pri  / (gradh_i * roi * roi);
-        T pro_j = p[j] / (gradh_j * roj * roj);
+        T pro_i = mj * pri  / (gradh_i * roi * roi);
+        T pro_j = mj * p[j] / (gradh_j * roj * roj);
 
-        momentum_x += mj * (pro_i * termA1_i + pro_j * termA1_j) + grad_Px_AV;
-        momentum_y += mj * (pro_i * termA2_i + pro_j * termA2_j) + grad_Py_AV;
-        momentum_z += mj * (pro_i * termA3_i + pro_j * termA3_j) + grad_Pz_AV;
+        momentum_x += pro_i * termA1_i + pro_j * termA1_j + grad_Px_AV;
+        momentum_y += pro_i * termA2_i + pro_j * termA2_j + grad_Py_AV;
+        momentum_z += pro_i * termA3_i + pro_j * termA3_j + grad_Pz_AV;
 
-        energy   += mj * 2.0 * pro_i * (vx_ji * termA1_i + vy_ji * termA2_i + vz_ji * termA3_i);
+        energy   += 2.0 * pro_i * (vx_ji * termA1_i + vy_ji * termA2_i + vz_ji * termA3_i);
         energyAV += grad_Px_AV * vx_ji + grad_Py_AV * vy_ji + grad_Pz_AV * vz_ji;
     }
 
