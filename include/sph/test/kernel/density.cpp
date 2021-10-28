@@ -49,7 +49,7 @@ TEST(Density, JLoop)
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
 
-    BBox<T> box(0, 6, 0, 6, 0, 6, false, false, false);
+    cstone::Box<T> box(0, 6, 0, 6, 0, 6, false, false, false);
 
     // particle 0 has 4 neighbors
     std::vector<int> clist{0};
@@ -94,7 +94,7 @@ TEST(Density, JLoopPBC)
 
     // box length in any dimension must be bigger than 4*h for any particle
     // otherwise the PBC evaluation does not select the closest image
-    BBox<T> box(0, 10.5, 0, 10.5, 0, 10.5, true, true, true);
+    cstone::Box<T> box(0, 10.5, 0, 10.5, 0, 10.5, true, true, true);
 
     // particle 0 has 4 neighbors
     std::vector<int> clist{0};
