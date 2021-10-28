@@ -79,9 +79,9 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         T W1 = hiInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
         T W2 = hjInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v2), (int)sincIndex);
 
-        T termA1_i = (c11i * rx + c12i * ry + c13i * rz) * W1;
-        T termA2_i = (c12i * rx + c22i * ry + c23i * rz) * W1;
-        T termA3_i = (c13i * rx + c23i * ry + c33i * rz) * W1;
+        T termA1_i = c11i * rx + c12i * ry + c13i * rz;
+        T termA2_i = c12i * rx + c22i * ry + c23i * rz;
+        T termA3_i = c13i * rx + c23i * ry + c33i * rz;
 
         T c11j = c11[j];
         T c12j = c12[j];
@@ -90,9 +90,9 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         T c23j = c23[j];
         T c33j = c33[j];
 
-        T termA1_j = (c11j * rx + c12j * ry + c13j * rz) * W2;
-        T termA2_j = (c12j * rx + c22j * ry + c23j * rz) * W2;
-        T termA3_j = (c13j * rx + c23j * ry + c33j * rz) * W2;
+        T termA1_j = c11j * rx + c12j * ry + c13j * rz;
+        T termA2_j = c12j * rx + c22j * ry + c23j * rz;
+        T termA3_j = c13j * rx + c23j * ry + c33j * rz;
 
         T roj = ro[j];
         T cj  = c[j];
@@ -109,12 +109,12 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         }
 
         T mj     = m[j];
-        T mj_roj = mj / roj;
+        T mj_roj = W2 * mj / roj;
 
         T pro_i = mj * pri  / (gradh_i * roi * roi);
 
         {
-            T a = pro_i + viscosity_ij * mi_roi;
+            T a = W1 * (pro_i + viscosity_ij * mi_roi);
             T b = mj_roj * (p[j] / (roj * gradh_j) + viscosity_ij);
 
             momentum_x += a * termA1_i + b * termA1_j;
@@ -122,7 +122,7 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
             momentum_z += a * termA3_i + b * termA3_j;
         }
         {
-            T a = 2.0 * pro_i + viscosity_ij * mi_roi;
+            T a = W1 * (2.0 * pro_i + viscosity_ij * mi_roi);
             T b = viscosity_ij * mj_roj;
 
             energy += vx_ji * (a * termA1_i + b * termA1_j)
