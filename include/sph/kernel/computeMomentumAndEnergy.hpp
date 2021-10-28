@@ -76,8 +76,8 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
 
         T hjInv3 = hjInv * hjInv * hjInv;
-        T W1 = hiInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
-        T W2 = hjInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v2), (int)sincIndex);
+        T Wi     = hiInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
+        T Wj     = hjInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v2), (int)sincIndex);
 
         T termA1_i = c11i * rx + c12i * ry + c13i * rz;
         T termA2_i = c12i * rx + c22i * ry + c23i * rz;
@@ -104,22 +104,22 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         T vijsignal = ci + cj - 3.0 * wij;
         maxvsignali = (vijsignal > maxvsignali) ? vijsignal : maxvsignali;
 
-        T mj     = m[j];
-        T mj_roj = W2 * mj / roj;
+        T mj        = m[j];
+        T mj_roj_Wj = mj / roj * Wj;
 
-        T pro_i = mj * pri  / (gradh_i * roi * roi);
+        T mj_pro_i = mj * pri  / (gradh_i * roi * roi);
 
         {
-            T a = W1 * (pro_i + viscosity_ij * mi_roi);
-            T b = mj_roj * (p[j] / (roj * gradh_j) + viscosity_ij);
+            T a = Wi * (mj_pro_i + viscosity_ij * mi_roi);
+            T b = mj_roj_Wj * (p[j] / (roj * gradh_j) + viscosity_ij);
 
             momentum_x += a * termA1_i + b * termA1_j;
             momentum_y += a * termA2_i + b * termA2_j;
             momentum_z += a * termA3_i + b * termA3_j;
         }
         {
-            T a = W1 * (2.0 * pro_i + viscosity_ij * mi_roi);
-            T b = viscosity_ij * mj_roj;
+            T a = Wi * (2.0 * mj_pro_i + viscosity_ij * mi_roi);
+            T b = viscosity_ij * mj_roj_Wj;
 
             energy += vx_ij * (a * termA1_i + b * termA1_j) + vy_ij * (a * termA2_i + b * termA2_j) +
                       vz_ij * (a * termA3_i + b * termA3_j);
