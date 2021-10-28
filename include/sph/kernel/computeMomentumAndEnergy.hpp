@@ -17,8 +17,8 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
                        const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T* wh,
                        const T* whd, T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du, T* maxvsignal)
 {
-    const T gradh_i = 1.0;
-    const T gradh_j = 1.0;
+    constexpr T gradh_i = 1.0;
+    constexpr T gradh_j = 1.0;
 
     int i = clist[pi];
     int nn = neighborsCount[pi];
@@ -52,27 +52,28 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
 
     for (int pj = 0; pj < nn; ++pj)
     {
-        const int j = neighbors[pi * ngmax + pj];
+        int j = neighbors[pi * ngmax + pj];
 
-        T rx    = (x[j] - xi);
-        T ry    = (y[j] - yi);
-        T rz    = (z[j] - zi);
+        T rx    = x[j] - xi;
+        T ry    = y[j] - yi;
+        T rz    = z[j] - zi;
 
         applyPBC(bbox, 2.0 * hi, rx, ry, rz);
 
-        const T dist = std::sqrt(rx * rx + ry * ry + rz * rz);
+        T r2   = rx * rx + ry * ry + rz * rz;
+        T dist = std::sqrt(r2);
 
-        const T v_ijx = (vxi - vx[j]);
-        const T v_ijy = (vyi - vy[j]);
-        const T v_ijz = (vzi - vz[j]);
+        T vx_ji = vx[j] - vxi;
+        T vy_ji = vy[j] - vyi;
+        T vz_ji = vz[j] - vzi;
 
-        const T hj    = h[j];
-        const T hjInv = 1.0 / hj;
+        T hj    = h[j];
+        T hjInv = 1.0 / hj;
 
-        const T v1 = dist * hiInv;
-        const T v2 = dist * hjInv;
+        T v1 = dist * hiInv;
+        T v2 = dist * hjInv;
 
-        const T rv = -(rx * v_ijx + ry * v_ijy + rz * v_ijz);
+        T rv = rx * vx_ji + ry * vy_ji + rz * vz_ji;
 
         T hjInv3 = hjInv * hjInv * hjInv;
         T W1 = hiInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
@@ -94,16 +95,13 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         T termA3_j = (c13j * rx + c23j * ry + c33j * rz) * W2;
 
         T roj = ro[j];
+        T cj  = c[j];
 
-        T pro_i = pri  / (gradh_i * roi * roi);
-        T pro_j = p[j] / (gradh_j * roj * roj);
-
-        T r_square = dist * dist;
-        T viscosity_ij = artificial_viscosity(roi, roj, hi, hj, ci, c[j], rv, r_square);
+        T viscosity_ij = artificial_viscosity(roi, roj, hi, hj, ci, cj, rv, r2);
 
         // For time-step calculations
         T wij = rv / dist;
-        T vijsignal = ci + c[j] - 3.0 * wij;
+        T vijsignal = ci + cj - 3.0 * wij;
 
         if (vijsignal > maxvsignali)
         {
@@ -117,15 +115,18 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         T grad_Py_AV = T(0.5) * viscosity_ij * (mi_roi * termA2_i + mj_roj * termA2_j);
         T grad_Pz_AV = T(0.5) * viscosity_ij * (mi_roi * termA3_i + mj_roj * termA3_j);
 
+        T pro_i = pri  / (gradh_i * roi * roi);
+        T pro_j = p[j] / (gradh_j * roj * roj);
+
         momentum_x += mj * (pro_i * termA1_i + pro_j * termA1_j) + grad_Px_AV;
         momentum_y += mj * (pro_i * termA2_i + pro_j * termA2_j) + grad_Py_AV;
         momentum_z += mj * (pro_i * termA3_i + pro_j * termA3_j) + grad_Pz_AV;
 
-        energy   += mj * 2.0 * pro_i * (v_ijx * termA1_i + v_ijy * termA2_i + v_ijz * termA3_i);
-        energyAV += grad_Px_AV * v_ijx + grad_Py_AV * v_ijy + grad_Pz_AV * v_ijz;
+        energy   += mj * 2.0 * pro_i * (vx_ji * termA1_i + vy_ji * termA2_i + vz_ji * termA3_i);
+        energyAV += grad_Px_AV * vx_ji + grad_Py_AV * vy_ji + grad_Pz_AV * vz_ji;
     }
 
-    du[i]         = K * 0.5 * (energy + energyAV);
+    du[i]         = -K * 0.5 * (energy + energyAV);
     grad_P_x[i]   = K * momentum_x;
     grad_P_y[i]   = K * momentum_y;
     grad_P_z[i]   = K * momentum_z;
