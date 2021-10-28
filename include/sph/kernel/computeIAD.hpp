@@ -56,8 +56,9 @@ CUDA_DEVICE_HOST_FUN inline void IADJLoop(int pi, T sincIndex, T K, int ngmax, c
     T det = tau11 * tau22 * tau33 + 2.0 * tau12 * tau23 * tau13 - tau11 * tau23 * tau23 - tau22 * tau13 * tau13 -
             tau33 * tau12 * tau12;
 
-    T hi3    = hi * hi * hi;
-    T factor = hi3 / (det * K);
+    // note normalization factor: cij have units of 1/tau because det is proportional to tau^3 so we have to
+    // divide by K/h^3
+    T factor = (hi * hi * hi) / (det * K);
 
     c11[i] = (tau22 * tau33 - tau23 * tau23) * factor;
     c12[i] = (tau13 * tau23 - tau33 * tau12) * factor;
