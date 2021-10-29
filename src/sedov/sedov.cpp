@@ -162,7 +162,7 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            fileWriter.dumpParticleDataToAsciiFile(d, clist,
+            fileWriter.dumpParticleDataToAsciiFile(d, domain.startIndex(), domain.endIndex(),
                                                    outDirectory + "dump_Sedov" + std::to_string(d.iteration) + ".txt");
             fileWriter.dumpParticleDataToBinFile(d, outDirectory + "dump_Sedov" + std::to_string(d.iteration) + ".bin");
             timer.step("writeFile");
