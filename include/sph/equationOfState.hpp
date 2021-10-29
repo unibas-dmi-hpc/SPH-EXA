@@ -11,7 +11,7 @@ namespace sph
 template <typename T, class Dataset>
 void computeEquationOfStateImpl(const Task &t, Dataset &d)
 {
-    int numParticles = t.clist.size();
+    int numParticles = t.size();
 
     const T *ro = d.ro.data();
     const T *ro_0 = d.ro_0.data();
@@ -31,7 +31,7 @@ void computeEquationOfStateImpl(const Task &t, Dataset &d)
 #pragma omp parallel for
     for (size_t pi = 0; pi < numParticles; pi++)
     {
-        int i = pi + t.clist.front();
+        int i = pi + t.firstParticle;
 
         p[i] = chi * (pow(ro[i] / ro_0[i], heatCapacityRatio) - 1.0) + p_0[i];
         c[i] = speedOfSound0; // * sqrt(pow(ro[i]/ro_0[i], heatCapacityRatio-1.));
@@ -53,7 +53,7 @@ void computeEquationOfState(const std::vector<Task> &taskList, Dataset &d)
 template <typename T, typename Dataset>
 void computeEquationOfStateEvrardImpl(const Task &t, Dataset &d)
 {
-    int numParticles = t.clist.size();
+    int numParticles = t.size();
 
     const T R = 8.317e7, gamma = (5.0 / 3.0);
 
@@ -69,7 +69,7 @@ void computeEquationOfStateEvrardImpl(const Task &t, Dataset &d)
     #pragma omp parallel for
     for (size_t pi = 0; pi < numParticles; ++pi)
     {
-        int i = pi + t.clist.front();
+        int i = pi + t.firstParticle;
 
         cv[i] = 1.5 * R / mui[i];
         temp[i] = u[i] / cv[i];

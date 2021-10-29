@@ -41,14 +41,14 @@ template <typename T, class TimestepFunct, class Dataset>
 void computeMinTimestepImpl(const Task &t, Dataset &d, T &minDt)
 {
     TimestepFunct functTimestep;
-    int numParticles = t.clist.size();
+    int numParticles = t.size();
 
     T minDtTmp = INFINITY;
 
     #pragma omp parallel for reduction(min : minDtTmp)
     for (size_t pi = 0; pi < numParticles; pi++)
     {
-        int i = pi + t.clist.front();
+        int i = pi + t.firstParticle;
         const T dt_i = functTimestep(i, d);
 
         minDtTmp = std::min(minDtTmp, dt_i);
@@ -60,14 +60,14 @@ void computeMinTimestepImpl(const Task &t, Dataset &d, T &minDt)
 template <typename T, class Dataset>
 void setMinTimestepImpl(const Task &t, Dataset &d, const T minDt)
 {
-    int numParticles = t.clist.size();
+    int numParticles = t.size();
 
     T* dt = d.dt.data();
 
     #pragma omp parallel for
     for (size_t pi = 0; pi < numParticles; pi++)
     {
-        int i = pi + t.clist.front();
+        int i = pi + t.firstParticle;
         dt[i] = minDt;
     }
 }

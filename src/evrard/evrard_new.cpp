@@ -83,15 +83,12 @@ int main(int argc, char** argv)
     domain.sync(d.x, d.y, d.z, d.h, d.codes, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,
                 d.dt_m1);
 
-    std::vector<int> clist(domain.nParticles());
-    std::iota(begin(clist), end(clist), domain.startIndex());
-
     if (d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
     const size_t nTasks = 64;
     const size_t ngmax = 150;
     const size_t ng0 = 100;
-    TaskList taskList = TaskList(clist, nTasks, ngmax, ng0);
+    TaskList taskList = TaskList(0, domain.nParticles(), nTasks, ngmax, ng0);
 
     if (d.rank == 0) std::cout << "Starting main loop." << std::endl;
 
@@ -105,27 +102,25 @@ int main(int argc, char** argv)
 
         d.resize(domain.nParticlesWithHalos()); // also resize arrays not listed in sync, even though space for halos is
                                                 // not needed
-        clist.resize(domain.nParticles());
-        std::iota(begin(clist), end(clist), domain.startIndex());
         // domain.exchangeHalos(d.m);
         std::fill(begin(d.m), begin(d.m) + domain.startIndex(), d.m[domain.startIndex()]);
         std::fill(begin(d.m) + domain.endIndex(), begin(d.m) + domain.nParticlesWithHalos(), d.m[domain.startIndex()]);
 
-        taskList.update(clist);
+        taskList.update(domain.startIndex(), domain.endIndex());
         timer.step("updateTasks");
         sph::findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, domain.box());
         timer.step("FindNeighbors");
-        if (!clist.empty()) sph::computeDensity<Real>(taskList.tasks, d, domain.box());
+        sph::computeDensity<Real>(taskList.tasks, d, domain.box());
         timer.step("Density");
         sph::computeEquationOfStateEvrard<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
-        if (!clist.empty()) sph::computeIAD<Real>(taskList.tasks, d, domain.box());
+        sph::computeIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("IAD");
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33);
         timer.step("mpi::synchronizeHalos");
-        if (!clist.empty()) sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d, domain.box());
+        sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("MomentumEnergyIAD");
         d.egrav = domain.addGravityAcceleration(d.x, d.y, d.z, d.h, d.m, d.g, d.grad_P_x, d.grad_P_y, d.grad_P_z);
         // temporary sign fix, see note in ParticlesData
