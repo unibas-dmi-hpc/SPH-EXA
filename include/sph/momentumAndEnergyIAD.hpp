@@ -52,9 +52,6 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     const T* wh = d.wh.data();
     const T* whd = d.whd.data();
 
-    BBox<T> bbox{
-        box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax(), box.pbcX(), box.pbcY(), box.pbcZ()};
-
     T K = d.K;
     T sincIndex = d.sincIndex;
 
@@ -88,7 +85,7 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
 #endif
     for (size_t pi = 0; pi < n; ++pi)
     {
-        kernels::momentumAndEnergyJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount,
+        kernels::momentumAndEnergyJLoop(pi, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount,
                                         x, y, z, vx, vy, vz, h, m, ro, p, c,
                                         c11, c12, c13, c22, c23, c33,
                                         wh, whd, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
