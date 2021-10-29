@@ -15,6 +15,7 @@ namespace sphexa
 namespace sph
 {
 
+// TODO: rename into KCourant
 template <typename T, class Dataset>
 struct TimestepPress2ndOrder
 {
@@ -23,12 +24,6 @@ struct TimestepPress2ndOrder
         const T maxvsignal = d.maxvsignal[i];
         return maxvsignal > 0.0 ? d.Kcour * d.h[i] / d.maxvsignal[i] : d.Kcour * d.h[i] / d.c[i];
     }
-};
-
-template <typename T, class Dataset>
-struct TimestepKCourant
-{
-    T operator()(const int i, const Dataset &d) { return d.Kcour * d.h[i] / d.c[i]; }
 };
 
 template <typename T, class Dataset>
@@ -46,15 +41,14 @@ template <typename T, class TimestepFunct, class Dataset>
 void computeMinTimestepImpl(const Task &t, Dataset &d, T &minDt)
 {
     TimestepFunct functTimestep;
-    const size_t n = t.clist.size();
-    const int *clist = t.clist.data();
+    int numParticles = t.clist.size();
 
     T minDtTmp = INFINITY;
 
-#pragma omp parallel for reduction(min : minDtTmp)
-    for (size_t pi = 0; pi < n; pi++)
+    #pragma omp parallel for reduction(min : minDtTmp)
+    for (size_t pi = 0; pi < numParticles; pi++)
     {
-        int i = clist[pi];
+        int i = pi + t.clist.front();
         const T dt_i = functTimestep(i, d);
 
         minDtTmp = std::min(minDtTmp, dt_i);
@@ -66,15 +60,14 @@ void computeMinTimestepImpl(const Task &t, Dataset &d, T &minDt)
 template <typename T, class Dataset>
 void setMinTimestepImpl(const Task &t, Dataset &d, const T minDt)
 {
-    const size_t n = t.clist.size();
-    const int *clist = t.clist.data();
+    int numParticles = t.clist.size();
 
-    T *dt = d.dt.data();
+    T* dt = d.dt.data();
 
-#pragma omp parallel for
-    for (size_t pi = 0; pi < n; pi++)
+    #pragma omp parallel for
+    for (size_t pi = 0; pi < numParticles; pi++)
     {
-        int i = clist[pi];
+        int i = pi + t.clist.front();
         dt[i] = minDt;
     }
 }
