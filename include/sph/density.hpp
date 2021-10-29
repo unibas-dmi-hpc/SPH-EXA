@@ -18,9 +18,10 @@ namespace sph
 template <typename T, class Dataset>
 void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 {
-    const size_t n = t.clist.size();
+    // number of particles in task
+    int numParticles = t.clist.size();
+
     const size_t ngmax = t.ngmax;
-    const int *clist = t.clist.data();
     const int *neighbors = t.neighbors.data();
     const int *neighborsCount = t.neighborsCount.data();
 
@@ -63,16 +64,18 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 #else
 #pragma omp parallel for
 #endif
-    for (size_t pi = 0; pi < n; pi++)
+    for (size_t pi = 0; pi < numParticles; pi++)
     {
         //int neighLoc[ngmax];
         //int count;
         //cstone::findNeighbors(
         //    pi, x, y, z, h, box, cstone::sfcKindPointer(d.codes.data()), neighLoc, &count, d.codes.size(), ngmax);
 
-        int i = clist[pi];
+        int i = pi + t.clist.front();
+
         ro[i] = kernels::densityJLoop(
             i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi], x, y, z, h, m, wh, whd);
+
 #ifndef NDEBUG
         if (std::isnan(ro[i]))
             printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", pi, ro[i], x[i], y[i], z[i], h[i]);
