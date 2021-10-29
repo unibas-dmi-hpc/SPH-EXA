@@ -1,7 +1,6 @@
 #include <algorithm>
 
 #include "sph.cuh"
-#include "BBox.hpp"
 #include "ParticlesData.hpp"
 #include "cudaUtils.cuh"
 #include "../kernel/computeDensity.hpp"
@@ -16,7 +15,7 @@ namespace cuda
 {
 
 template<class T>
-__global__ void density(int n, T sincIndex, T K, int ngmax, BBox<T> bbox, const int* clist,
+__global__ void density(int n, T sincIndex, T K, int ngmax, cstone::Box<T> box, const int* clist,
                         const int* neighbors, const int* neighborsCount,
                         const T* x, const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, T* ro)
 {
@@ -24,7 +23,7 @@ __global__ void density(int n, T sincIndex, T K, int ngmax, BBox<T> bbox, const 
     if (tid >= n) return;
 
     // computes ro[clist[tid]]
-    sph::kernels::densityJLoop(tid, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount,
+    sph::kernels::densityJLoop(tid, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount,
                                x, y, z, h, m, wh, whd, ro);
 }
 
@@ -44,11 +43,6 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<d
             ->clist.size();
 
     d.devPtrs.resize_streams(largestChunkSize, ngmax);
-    //size_t size_bbox = sizeof(BBox<T>);
-    //cstone::Box<T> cstoneBox{d.bbox.xmin, d.bbox.xmax, d.bbox.ymin, d.bbox.ymax, d.bbox.zmin, d.bbox.zmax,
-    //                         d.bbox.PBCx, d.bbox.PBCy, d.bbox.PBCz};
-    BBox<T> bbox{
-        box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax(), box.pbcX(), box.pbcY(), box.pbcZ()};
 
     // number of CUDA streams to use
     constexpr int NST = DeviceParticlesData<T, Dataset>::NST;
@@ -63,7 +57,6 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<d
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_wh, d.wh.data(), size_lt_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_whd, d.whd.data(), size_lt_T, cudaMemcpyHostToDevice));
-    //CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_bbox, &d.bbox, size_bbox, cudaMemcpyHostToDevice));
 
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_codes, d.codes.data(), size_np_CodeType, cudaMemcpyHostToDevice));
 
@@ -92,7 +85,7 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<d
         unsigned numBlocks  = (n + numThreads - 1) / numThreads;
 
         density<<<numBlocks, numThreads, 0, stream>>>(
-            n, d.sincIndex, d.K, t.ngmax, bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
+            n, d.sincIndex, d.K, t.ngmax, box, d_clist_use, d_neighbors_use, d_neighborsCount_use,
             d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_wh, d.devPtrs.d_whd,
             d.devPtrs.d_ro);
         CHECK_CUDA_ERR(cudaGetLastError());

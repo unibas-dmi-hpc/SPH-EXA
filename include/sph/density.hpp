@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include "cstone/findneighbors.hpp"
+
 #include "kernels.hpp"
 #include "Task.hpp"
 #include "kernel/computeDensity.hpp"
@@ -33,9 +35,6 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 
     T *ro = d.ro.data();
 
-    BBox<T> bbox{
-        box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax(), box.pbcX(), box.pbcY(), box.pbcZ()};
-
     const T K = d.K;
     const T sincIndex = d.sincIndex;
 
@@ -66,8 +65,17 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 #endif
     for (size_t pi = 0; pi < n; pi++)
     {
+        //int neighLoc[ngmax];
+        //int count;
+        //cstone::findNeighbors(
+        //    pi, x, y, z, h, box, cstone::sfcKindPointer(d.codes.data()), neighLoc, &count, d.codes.size(), ngmax);
+
+        //kernels::densityJLoop(
+        //    pi, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ro);
+
         // computes ro[i]
-        kernels::densityJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ro);
+        kernels::densityJLoop(
+            pi, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ro);
 #ifndef NDEBUG
         if (std::isnan(ro[pi])) printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", pi, ro[pi], x[pi], y[pi], z[pi], h[pi]);
 #endif

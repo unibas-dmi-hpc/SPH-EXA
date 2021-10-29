@@ -2,7 +2,6 @@
 
 #include <cstdio>
 #include <vector>
-#include "BBox.hpp"
 #include "sph/kernels.hpp"
 #include "sph/lookupTables.hpp"
 

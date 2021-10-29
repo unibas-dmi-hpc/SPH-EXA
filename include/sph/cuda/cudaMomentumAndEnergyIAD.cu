@@ -1,7 +1,6 @@
 #include <algorithm>
 
 #include "sph.cuh"
-#include "BBox.hpp"
 #include "ParticlesData.hpp"
 #include "cudaUtils.cuh"
 #include "../kernel/computeMomentumAndEnergy.hpp"
@@ -16,7 +15,7 @@ namespace cuda
 {
 
 template<class T>
-__global__ void computeMomentumAndEnergyIAD(int n, T sincIndex, T K, int ngmax, BBox<T> bbox,
+__global__ void computeMomentumAndEnergyIAD(int n, T sincIndex, T K, int ngmax, cstone::Box<T> box,
                                             const int* clist, const int* neighbors, const int* neighborsCount,
                                             const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz,
                                             const T* h, const T* m, const T* ro, const T* p, const T* c,
@@ -27,7 +26,7 @@ __global__ void computeMomentumAndEnergyIAD(int n, T sincIndex, T K, int ngmax, 
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
 
-    sph::kernels::momentumAndEnergyJLoop(tid, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount,
+    sph::kernels::momentumAndEnergyJLoop(tid, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount,
                                          x, y, z, vx, vy, vz, h, m, ro, p, c, c11, c12, c13, c22, c23, c33,
                                          wh, whd, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
 }
@@ -52,9 +51,6 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d, 
     constexpr int NST = DeviceParticlesData<T, Dataset>::NST;
 
     size_t ltsize = d.wh.size();
-
-    BBox<T> bbox{
-        box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax(), box.pbcX(), box.pbcY(), box.pbcZ()};
 
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vx, d.vx.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vy, d.vy.data(), size_np_T, cudaMemcpyHostToDevice));
@@ -94,7 +90,7 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d, 
         unsigned numBlocks  = (n + numThreads - 1) / numThreads;
 
         computeMomentumAndEnergyIAD<<<numBlocks, numThreads, 0, stream>>>(
-            n, d.sincIndex, d.K, ngmax, bbox, d_clist_use, d_neighbors_use, d_neighborsCount_use,
+            n, d.sincIndex, d.K, ngmax, box, d_clist_use, d_neighbors_use, d_neighborsCount_use,
             d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_vx, d.devPtrs.d_vy, d.devPtrs.d_vz,
             d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_ro, d.devPtrs.d_p, d.devPtrs.d_c,
             d.devPtrs.d_c11, d.devPtrs.d_c12, d.devPtrs.d_c13, d.devPtrs.d_c22, d.devPtrs.d_c23, d.devPtrs.d_c33,

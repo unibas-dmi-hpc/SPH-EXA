@@ -4,7 +4,6 @@
 #include "mpi.h"
 #endif
 
-#include "BBox.hpp"
 #include "Task.hpp"
 #include "ArgParser.hpp"
 #include "Timer.hpp"

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "cstone/sfc/box.hpp"
+
 #include "../lookupTables.hpp"
 
 namespace sphexa
@@ -11,7 +13,7 @@ namespace kernels
 
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline void
-momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, const BBox<T>& bbox, const int* clist,
+momentumAndEnergyJLoop(int pi, T sincIndex, T K, int ngmax, const cstone::Box<T>& box, const int* clist,
                        const int* neighbors, const int* neighborsCount, const T* x, const T* y, const T* z, const T* vx,
                        const T* vy, const T* vz, const T* h, const T* m, const T* ro, const T* p, const T* c,
                        const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T* wh,
@@ -58,7 +60,7 @@ momentumAndEnergyJLoop(int pi, const T sincIndex, const T K, const int ngmax, co
         T ry    = yi - y[j];
         T rz    = zi - z[j];
 
-        applyPBC(bbox, 2.0 * hi, rx, ry, rz);
+        applyPBC(box, 2.0 * hi, rx, ry, rz);
 
         T r2   = rx * rx + ry * ry + rz * rz;
         T dist = std::sqrt(r2);
