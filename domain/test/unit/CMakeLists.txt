@@ -4,6 +4,8 @@ set(UNIT_TESTS
         domain/layout.cpp
         findneighbors.cpp
         focus/octree_focus.cpp
+        gravity/multipole.cpp
+        gravity/treewalk.cpp
         primitives/clz.cpp
         primitives/gather.cpp
         sfc/box.cpp

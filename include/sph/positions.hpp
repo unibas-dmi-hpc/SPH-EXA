@@ -32,7 +32,7 @@ struct computeAcceleration
 };
 
 template <typename T, class FunctAccel, class Dataset>
-void computePositionsImpl(const Task &t, Dataset &d)
+void computePositionsImpl(const Task &t, Dataset &d, const cstone::Box<T>& box)
 {
     FunctAccel accelFunct;
 
@@ -54,8 +54,6 @@ void computePositionsImpl(const Task &t, Dataset &d)
     T *u = d.u.data();
     T *du_m1 = d.du_m1.data();
     T *dt_m1 = d.dt_m1.data();
-
-    const BBox<T> &bbox = d.bbox;
 
 #pragma omp parallel for
     for (size_t pi = 0; pi < n; pi++)
@@ -98,39 +96,35 @@ void computePositionsImpl(const Task &t, Dataset &d)
         y[i] += dt[i] * valy + (vy[i] - valy) * dt[i] * deltaB / deltaA;
         z[i] += dt[i] * valz + (vz[i] - valz) * dt[i] * deltaB / deltaA;
 
-        const T xw = (bbox.xmax - bbox.xmin);
-        const T yw = (bbox.ymax - bbox.ymin);
-        const T zw = (bbox.zmax - bbox.zmin);
-
-        if (bbox.PBCx && x[i] < bbox.xmin)
+        if (box.pbcX() && x[i] < box.xmin())
         {
-            x[i] += xw;
-            x_m1[i] += xw;
+            x[i] += box.lx();
+            x_m1[i] += box.lx();
         }
-        else if (bbox.PBCx && x[i] > bbox.xmax)
+        else if (box.pbcX() && x[i] > box.xmax())
         {
-            x[i] -= xw;
-            x_m1[i] -= xw;
+            x[i] -= box.lx();
+            x_m1[i] -= box.lx();
         }
-        if (bbox.PBCy && y[i] < bbox.ymin)
+        if (box.pbcY() && y[i] < box.ymin())
         {
-            y[i] += yw;
-            y_m1[i] += yw;
+            y[i] += box.ly();
+            y_m1[i] += box.ly();
         }
-        else if (bbox.PBCy && y[i] > bbox.ymax)
+        else if (box.pbcY() && y[i] > box.ymax())
         {
-            y[i] -= yw;
-            y_m1[i] -= yw;
+            y[i] -= box.ly();
+            y_m1[i] -= box.ly();
         }
-        if (bbox.PBCz && z[i] < bbox.zmin)
+        if (box.pbcZ() && z[i] < box.zmin())
         {
-            z[i] += zw;
-            z_m1[i] += zw;
+            z[i] += box.lz();
+            z_m1[i] += box.lz();
         }
-        else if (bbox.PBCz && z[i] > bbox.zmax)
+        else if (box.pbcZ() && z[i] > box.zmax())
         {
-            z[i] -= zw;
-            z_m1[i] -= zw;
+            z[i] -= box.lz();
+            z_m1[i] -= box.lz();
         }
 
         // Update the energy according to Adams-Bashforth (2nd order)
@@ -151,11 +145,11 @@ void computePositionsImpl(const Task &t, Dataset &d)
 }
 
 template <typename T, class FunctAccel, class Dataset>
-void computePositions(const std::vector<Task> &taskList, Dataset &d)
+void computePositions(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<T>& box)
 {
     for (const auto &task : taskList)
     {
-        computePositionsImpl<T, FunctAccel>(task, d);
+        computePositionsImpl<T, FunctAccel>(task, d, box);
     }
 }
 

@@ -11,8 +11,8 @@
 #include "cstone/domain/domain.hpp"
 
 #include "sphexa.hpp"
-#include "SedovDataGenerator.hpp"
-#include "SedovDataFileWriter.hpp"
+#include "EvrardCollapseInputFileReader.hpp"
+#include "EvrardCollapseFileWriter.hpp"
 
 #include "sph/findNeighborsSfc.hpp"
 
@@ -33,22 +33,31 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t cubeSide = parser.getInt("-n", 50);
     const size_t maxStep = parser.getInt("-s", 10);
+    const size_t nParticles = parser.getInt("-n", 65536);
     const int writeFrequency = parser.getInt("-w", -1);
+    const int checkpointFrequency = parser.getInt("-c", -1);
     const bool quiet = parser.exists("--quiet");
+    const std::string checkpointInput = parser.getString("--cinput");
+    const std::string inputFilePath = parser.getString("--input", "bigfiles/Test3DEvrardRel.bin");
     const std::string outDirectory = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
 
     using Real = double;
-    using CodeType = uint64_t;
-    using Dataset = ParticlesData<Real, CodeType>;
+    using KeyType = uint64_t;
+    using Dataset = ParticlesData<Real, KeyType>;
 
-    const IFileWriter<Dataset>& fileWriter = SedovMPIFileWriter<Dataset>();
+    const IFileReader<Dataset>& fileReader = EvrardCollapseMPIInputFileReader<Dataset>();
+    const IFileWriter<Dataset>& fileWriter = EvrardCollapseMPIFileWriter<Dataset>();
 
-    auto d = SedovDataGenerator<Real, CodeType>::generate(cubeSide);
+    auto d = checkpointInput.empty() ? fileReader.readParticleDataFromBinFile(inputFilePath, nParticles)
+                                 : fileReader.readParticleDataFromCheckpointBinFile(checkpointInput);
+
+    std::cout << d.x[0] << " " << d.y[0] << " " << d.z[0] << std::endl;
+    std::cout << d.x[1] << " " << d.y[1] << " " << d.z[1] << std::endl;
+    std::cout << d.x[2] << " " << d.y[2] << " " << d.z[2] << std::endl;
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
@@ -58,26 +67,15 @@ int main(int argc, char** argv)
 
     size_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
-    size_t bucketSize = std::max(bucketSizeFocus, (cubeSide * cubeSide * cubeSide) / (100 * d.nrank));
-
-    cstone::Box<double> box(0, 1);
-    {
-        box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
-
-        Real dx = 0.5 / cubeSide;
-
-        // enable PBC and enlarge bounds
-        box = cstone::Box<double>(box.xmin() - dx, box.xmax() + dx,
-                                  box.ymin() - dx, box.ymax() + dx,
-                                  box.zmin() - dx, box.zmax() + dx, true, true, true);
-    }
-
-    float theta = 1.0;
+    size_t bucketSize = std::max(bucketSizeFocus, nParticles / (100 * d.nrank));
+    // no PBC, global box will be recomputed every step
+    cstone::Box<Real> box(0, 1, false);
+    float theta = 0.5;
 
 #ifdef USE_CUDA
     cstone::Domain<CodeType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #else
-    cstone::Domain<CodeType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    cstone::Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
@@ -129,11 +127,16 @@ int main(int argc, char** argv)
         timer.step("mpi::synchronizeHalos");
         if (!clist.empty()) sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("MomentumEnergyIAD");
+        d.egrav = domain.addGravityAcceleration(d.x, d.y, d.z, d.h, d.m, d.g, d.grad_P_x, d.grad_P_y, d.grad_P_z);
+        // temporary sign fix, see note in ParticlesData
+        d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
+        timer.step("Gravity");
         sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
         timer.step("Timestep"); // AllReduce(min:dt)
         sph::computePositions<Real, sph::computeAcceleration<Real, Dataset>>(taskList.tasks, d, domain.box());
         timer.step("UpdateQuantities");
         sph::computeTotalEnergy<Real>(taskList.tasks, d);
+        d.etot += d.egrav;
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
         sph::updateSmoothingLength<Real>(taskList.tasks, d);
         timer.step("UpdateSmoothingLength");
@@ -166,6 +169,12 @@ int main(int argc, char** argv)
                                                    outDirectory + "dump_Sedov" + std::to_string(d.iteration) + ".txt");
             fileWriter.dumpParticleDataToBinFile(d, outDirectory + "dump_Sedov" + std::to_string(d.iteration) + ".bin");
             timer.step("writeFile");
+        }
+        if (checkpointFrequency > 0 && d.iteration % checkpointFrequency == 0)
+        {
+            fileWriter.dumpCheckpointDataToBinFile(d, outDirectory + "checkpoint_evrard" + std::to_string(d.iteration) +
+                                                          ".bin");
+            timer.step("Save Checkpoint File");
         }
 
         timer.stop();

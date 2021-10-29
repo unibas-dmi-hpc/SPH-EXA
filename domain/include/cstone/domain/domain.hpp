@@ -41,6 +41,8 @@
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/traversal/peers.hpp"
 
+#include "cstone/gravity/treewalk.hpp"
+#include "cstone/gravity/upsweep.hpp"
 #include "cstone/halos/exchange_halos.hpp"
 
 #include "cstone/tree/octree_mpi.hpp"
@@ -65,15 +67,25 @@ public:
      * @param nRanks          number of ranks
      * @param bucketSize      build global tree for domain decomposition with max @a bucketSize particles per node
      * @param bucketSizeFocus maximum number of particles per leaf node inside the assigned part of the SFC
+     * @param theta           angle parameter to control focus resolution and gravity accuracy
      * @param box             global bounding box, default is non-pbc box
      *                        for each periodic dimension in @a box, the coordinate min/max
      *                        limits will never be changed for the lifetime of the Domain
      *
      */
-    explicit Domain(int rank, int nRanks, unsigned bucketSize, unsigned bucketSizeFocus,
-                           const Box<T>& box = Box<T>{0,1})
-        : myRank_(rank), numRanks_(nRanks), bucketSize_(bucketSize), bucketSizeFocus_(bucketSizeFocus), box_(box),
-          focusedTree_(bucketSizeFocus_, theta_)
+    explicit Domain(int rank,
+                    int nRanks,
+                    unsigned bucketSize,
+                    unsigned bucketSizeFocus,
+                    float theta,
+                    const Box<T>& box = Box<T>{0, 1})
+        : myRank_(rank)
+        , numRanks_(nRanks)
+        , bucketSize_(bucketSize)
+        , bucketSizeFocus_(bucketSizeFocus)
+        , theta_(theta)
+        , box_(box)
+        , focusedTree_(bucketSizeFocus_, theta_)
     {
         if (bucketSize_ < bucketSizeFocus_)
         {
@@ -304,11 +316,11 @@ public:
 
         /* Compute new layout *********************************************************/
 
-        std::vector<LocalParticleIndex> layout = computeNodeLayout(focusedTree_.leafCounts(), haloFlags,
-                                                                   focusAssignment[myRank_].start(),
-                                                                   focusAssignment[myRank_].end());
-        localNParticles_ = layout.back();
-        auto newParticleStart = layout[focusAssignment[myRank_].start()];
+        layout_ = computeNodeLayout(focusedTree_.leafCounts(), haloFlags,
+                                    focusAssignment[myRank_].start(),
+                                    focusAssignment[myRank_].end());
+        localNParticles_ = layout_.back();
+        auto newParticleStart = layout_[focusAssignment[myRank_].start()];
         auto newParticleEnd   = newParticleStart + newNParticlesAssigned;
 
         outgoingHaloIndices_
@@ -316,7 +328,7 @@ public:
                                            codesView, newParticleStart, focusAssignment, peers);
         checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd);
 
-        incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags, focusAssignment, peers);
+        incomingHaloIndices_ = computeHaloReceiveList(layout_, haloFlags, focusAssignment, peers);
 
         /* Rearrange particle buffers *********************************************************/
 
@@ -364,6 +376,31 @@ public:
         }
 
         haloexchange<T>(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
+    }
+
+    /*! @brief compute gravitational accelerations
+     *
+     * @param[in]    x    x-coordinates
+     * @param[in]    y    y-coordinates
+     * @param[in]    z    z-coordinates
+     * @param[in]    h    smoothing lengths
+     * @param[in]    m    particle masses
+     * @param[in]    G    gravitational constant
+     * @param[inout] ax   x-acceleration to add to
+     * @param[inout] ay   y-acceleration to add to
+     * @param[inout] az   z-acceleration to add to
+     * @return            total gravitational potential energy
+     */
+    T addGravityAcceleration(gsl::span<const T> x, gsl::span<const T> y, gsl::span<const T> z, gsl::span<const T> h,
+                             gsl::span<const T> m, float G, gsl::span<T> ax, gsl::span<T> ay, gsl::span<T> az)
+    {
+        const Octree<KeyType>& octree = focusedTree_.octree();
+        std::vector<GravityMultipole<T>> multipoles(octree.numTreeNodes());
+        computeMultipoles(octree, layout_, x.data(), y.data(), z.data(), m.data(), multipoles.data());
+
+        return computeGravity(octree, multipoles.data(), layout_.data(), 0, octree.numLeafNodes(),
+                              x.data(), y.data(), z.data(), h.data(), m.data(), box_, theta_,
+                              G, ax.data(), ay.data(), az.data());
     }
 
     //! @brief return the index of the first particle that's part of the local assignment
@@ -417,6 +454,9 @@ private:
     unsigned bucketSize_;
     unsigned bucketSizeFocus_;
 
+    //! @brief MAC parameter for focus resolution and gravity treewalk
+    float theta_;
+
     /*! @brief array index of first local particle belonging to the assignment
      *  i.e. the index of the first particle that belongs to this rank and is not a halo.
      */
@@ -436,8 +476,6 @@ private:
     std::vector<KeyType> tree_;
     std::vector<unsigned> nodeCounts_;
 
-    float theta_{1.0};
-
     /*! @brief locally focused, fully traversable octree, used for halo discovery and exchange
      *
      * -Uses bucketSizeFocus_ as the maximum particle count per leaf within the focused SFC area.
@@ -446,6 +484,9 @@ private:
      * -Also contains particle counts.
      */
     FocusedOctree<KeyType> focusedTree_;
+
+    //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
+    std::vector<LocalParticleIndex> layout_;
 
     bool firstCall_{true};
 

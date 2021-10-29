@@ -40,25 +40,24 @@ CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative_std(T v)
     return sincv * (PI / 2.0) * ((std::cos(Pv) / std::sin(Pv)) - 1.0 / Pv);
 }
 
-template <typename T>
-CUDA_DEVICE_FUN inline T artificial_viscosity(const T ro_i, const T ro_j, const T h_i, const T h_j, const T c_i, const T c_j, const T rv,
-                                              const T r_square)
+template<typename T>
+CUDA_DEVICE_FUN inline T artificial_viscosity(T ro_i, T ro_j, T h_i, T h_j, T c_i, T c_j, T rv, T r_square)
 {
-    const T alpha = 1.0;
-    const T beta = 2.0;
-    const T epsilon = 0.01;
+    constexpr T alpha   = 1.0;
+    constexpr T beta    = 2.0;
+    constexpr T epsilon = 0.01;
 
-    const T ro_ij = (ro_i + ro_j) / 2.0;
-    const T c_ij = (c_i + c_j) / 2.0;
-    const T h_ij = (h_i + h_j) / 2.0;
+    T ro_ij = (ro_i + ro_j) * T(0.5);
+    T c_ij  = (c_i + c_j) * T(0.5);
+    T h_ij  = (h_i + h_j) * T(0.5);
 
     // calculate viscosity_ij according to Monaghan & Gringold 1983
     T viscosity_ij = 0.0;
     if (rv < 0.0)
     {
         // calculate muij
-        const T mu_ij = (h_ij * rv) / (r_square + epsilon * h_ij * h_ij);
-        viscosity_ij = (-alpha * c_ij * mu_ij + beta * mu_ij * mu_ij) / ro_ij;
+        T mu_ij = (h_ij * rv) / (r_square + epsilon * h_ij * h_ij);
+        viscosity_ij  = (-alpha * c_ij * mu_ij + beta * mu_ij * mu_ij) / ro_ij;
     }
 
     return viscosity_ij;

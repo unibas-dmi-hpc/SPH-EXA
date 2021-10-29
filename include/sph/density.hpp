@@ -2,6 +2,8 @@
 
 #include <vector>
 
+#include "cstone/findneighbors.hpp"
+
 #include "kernels.hpp"
 #include "Task.hpp"
 #include "kernel/computeDensity.hpp"
@@ -14,7 +16,7 @@ namespace sphexa
 namespace sph
 {
 template <typename T, class Dataset>
-void computeDensityImpl(const Task &t, Dataset &d)
+void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 {
     const size_t n = t.clist.size();
     const size_t ngmax = t.ngmax;
@@ -30,11 +32,8 @@ void computeDensityImpl(const Task &t, Dataset &d)
 
     const T *wh = d.wh.data();
     const T *whd = d.whd.data();
-    const size_t ltsize = d.wh.size();
 
     T *ro = d.ro.data();
-
-    const BBox<T> *bbox = &d.bbox;
 
     const T K = d.K;
     const T sincIndex = d.sincIndex;
@@ -66,8 +65,17 @@ void computeDensityImpl(const Task &t, Dataset &d)
 #endif
     for (size_t pi = 0; pi < n; pi++)
     {
+        //int neighLoc[ngmax];
+        //int count;
+        //cstone::findNeighbors(
+        //    pi, x, y, z, h, box, cstone::sfcKindPointer(d.codes.data()), neighLoc, &count, d.codes.size(), ngmax);
+
+        //kernels::densityJLoop(
+        //    pi, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ro);
+
         // computes ro[i]
-        kernels::densityJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ltsize, ro);
+        kernels::densityJLoop(
+            pi, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ro);
 #ifndef NDEBUG
         if (std::isnan(ro[pi])) printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", pi, ro[pi], x[pi], y[pi], z[pi], h[pi]);
 #endif
@@ -75,14 +83,14 @@ void computeDensityImpl(const Task &t, Dataset &d)
 }
 
 template <typename T, class Dataset>
-void computeDensity(std::vector<Task> &taskList, Dataset &d)
+void computeDensity(std::vector<Task> &taskList, Dataset &d, const cstone::Box<T>& box)
 {
 #if defined(USE_CUDA)
-    cuda::computeDensity<Dataset>(taskList, d); // utils::partition(l, d.noOfGpuLoopSplits), d);
+    cuda::computeDensity<Dataset>(taskList, d, box);
 #else
     for (const auto &task : taskList)
     {
-        computeDensityImpl<T>(task, d);
+        computeDensityImpl<T>(task, d, box);
     }
 #endif
 }

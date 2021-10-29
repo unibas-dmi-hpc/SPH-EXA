@@ -3,8 +3,10 @@ cmake_minimum_required(VERSION 3.17)
 project(sphexa CXX)
 set(CMAKE_CXX_STANDARD 17)
 
-set(CMAKE_CXX_FLAGS_RELEASE "-O2 -march=native -DNDEBUG")
-set(CMAKE_CUDA_FLAGS_RELEASE "-O2 -DNDEBUG")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fno-math-errno -march=native -DNDEBUG")
+set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
+
+option(BUILD_TESTING "build unit and integration tests" ON)
 
 find_package(MPI)
 find_package(OpenMP REQUIRED)
@@ -29,10 +31,10 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-
 check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
+    find_package(CUDAToolkit)
     set(CMAKE_CUDA_STANDARD 17)
     set(CMAKE_CUDA_ARCHITECTURES OFF)
 else()
@@ -41,4 +43,8 @@ endif()
 
 add_subdirectory(include)
 add_subdirectory(domain)
+
 add_subdirectory(src)
+if (BUILD_TESTING)
+    add_subdirectory(test)
+endif()

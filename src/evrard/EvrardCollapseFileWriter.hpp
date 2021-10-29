@@ -15,8 +15,7 @@ struct EvrardCollapseFileWriter : public IFileWriter<Dataset>
         {
             printf("Dumping particles data to file at path: %s\n", path.c_str());
 
-            fileutils::writeParticleDataToBinFile(path, d.x, d.y, d.z, d.vx, d.vy, d.vz, d.h, d.ro, d.u, d.p, d.c, d.fx, d.fy, d.fz,
-                                                  d.ugrav /*, d.radius*/);
+            fileutils::writeParticleDataToBinFile(path, d.x, d.y, d.z, d.vx, d.vy, d.vz, d.h, d.ro, d.u, d.p, d.c /*, d.radius*/);
         }
         catch (FileNotOpenedException &ex)
         {
@@ -33,7 +32,7 @@ struct EvrardCollapseFileWriter : public IFileWriter<Dataset>
 
             printf("Dumping particles data to ASCII file at path: %s\n", path.c_str());
             fileutils::writeParticleDataToAsciiFile(clist, path, separator, d.x, d.y, d.z, d.vx, d.vy, d.vz, d.h, d.ro, d.u, d.p, d.c,
-                                                    d.grad_P_x, d.grad_P_y, d.grad_P_z /*, d.radius*/, d.fx, d.fy, d.fz, d.ugrav);
+                                                    d.grad_P_x, d.grad_P_y, d.grad_P_z /*, d.radius*/);
         }
         catch (FileNotOpenedException &ex)
         {
@@ -89,8 +88,7 @@ struct EvrardCollapseMPIFileWriter : IFileWriter<Dataset>
                 try
                 {
                     fileutils::writeParticleDataToAsciiFile(clist, path, d.rank != 0, separator, d.x, d.y, d.z, d.vx, d.vy, d.vz, d.h, d.ro, d.u, d.p,
-                                                            d.c, d.grad_P_x, d.grad_P_y, d.grad_P_z /*, d.radius*/, d.fx, d.fy, d.fz,
-                                                            d.ugrav);
+                                                            d.c, d.grad_P_x, d.grad_P_y, d.grad_P_z /*, d.radius*/);
                 }
                 catch (MPIFileNotOpenedException &ex)
                 {
