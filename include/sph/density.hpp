@@ -19,7 +19,7 @@ template <typename T, class Dataset>
 void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 {
     // number of particles in task
-    int numParticles = t.clist.size();
+    int numParticles = t.size();
 
     const size_t ngmax = t.ngmax;
     const int *neighbors = t.neighbors.data();
@@ -71,7 +71,7 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
         //cstone::findNeighbors(
         //    pi, x, y, z, h, box, cstone::sfcKindPointer(d.codes.data()), neighLoc, &count, d.codes.size(), ngmax);
 
-        int i = pi + t.clist.front();
+        int i = pi + t.firstParticle;
 
         ro[i] = kernels::densityJLoop(
             i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi], x, y, z, h, m, wh, whd);
@@ -99,16 +99,15 @@ void computeDensity(std::vector<Task> &taskList, Dataset &d, const cstone::Box<T
 template <typename T, class Dataset>
 void initFluidDensityAtRestImpl(const Task &t, Dataset &d)
 {
-    const size_t n = t.clist.size();
-    const int *clist = t.clist.data();
+    int numParticles = t.size();
 
     const T *ro = d.ro.data();
     T *ro_0 = d.ro_0.data();
 
-#pragma omp parallel for
-    for (size_t pi = 0; pi < n; ++pi)
+    #pragma omp parallel for
+    for (size_t pi = 0; pi < numParticles; ++pi)
     {
-        const int i = clist[pi];
+        int i = pi + t.firstParticle;
         ro_0[i] = ro[i];
     }
 }

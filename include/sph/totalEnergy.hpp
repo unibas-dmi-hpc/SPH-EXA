@@ -14,7 +14,7 @@ namespace sph
 template <typename T, class Dataset>
 void computeTotalEnergyImpl(const Task &t, Dataset &d, T &ecin, T &eint)
 {
-    int numParticles = t.clist.size();
+    int numParticles = t.size();
 
     const T *u = d.u.data();
     const T *vx = d.vx.data();
@@ -26,7 +26,7 @@ void computeTotalEnergyImpl(const Task &t, Dataset &d, T &ecin, T &eint)
 #pragma omp parallel for reduction(+ : ecintmp, einttmp)
     for (size_t pi = 0; pi < numParticles; pi++)
     {
-        int i = pi + t.clist.front();
+        int i = pi + t.firstParticle;
 
         T vmod2 = vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i];
 
@@ -72,7 +72,7 @@ void computeTotalEnergy(const std::vector<Task> &taskList, Dataset &d)
 template <typename T, class Dataset>
 void computeTotalEnergyWithGravityImpl(const Task &t, Dataset &d, T &ecin, T &eint, T &egrav)
 {
-    int numParticles = t.clist.size();
+    int numParticles = t.size();
 
     const T *u = d.u.data();
     const T *vx = d.vx.data();
@@ -88,7 +88,7 @@ void computeTotalEnergyWithGravityImpl(const Task &t, Dataset &d, T &ecin, T &ei
     #pragma omp parallel for reduction(+ : ecintmp, einttmp) reduction(- : egravtmp)
     for (size_t pi = 0; pi < numParticles; pi++)
     {
-        int i = pi + t.clist.front();
+        int i = pi + t.firstParticle;
 
         T vmod2 = vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i];
 

@@ -18,12 +18,12 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
     const int* neighborsCount = t.neighborsCount.data();
     T* h = d.h.data();
 
-    int numParticles = t.clist.size();
+    int numParticles = t.size();
 
     #pragma omp parallel for schedule(guided)
     for (size_t pi = 0; pi < numParticles; pi++)
     {
-        int i = pi + t.clist.front();
+        int i = pi + t.firstParticle;
         int nn = neighborsCount[pi];
 
         h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp);
