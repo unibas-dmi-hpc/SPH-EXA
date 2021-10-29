@@ -14,25 +14,25 @@ namespace sph
 namespace cuda
 {
 
-template<class T, class KeyType>
+template<class T/*, class KeyType*/>
 __global__ void density(int n, T sincIndex, T K, int ngmax, cstone::Box<T> box, const int* clist,
                         const int* neighbors, const int* neighborsCount,
-                        const KeyType* particleKeys, int numKeys,
+                        //const KeyType* particleKeys, int numKeys,
                         const T* x, const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, T* ro)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid >= n) return;
 
-    int nLoc[150];
-    int nCount;
+    //int nLoc[150];
+    //int nCount;
 
     int i = clist[tid];
 
-    cstone::findNeighbors(i, x, y ,z, h, box, cstone::sfcKindPointer(particleKeys), nLoc, &nCount, numKeys, ngmax);
+    //cstone::findNeighbors(i, x, y ,z, h, box, cstone::sfcKindPointer(particleKeys), nLoc, &nCount, numKeys, ngmax);
 
-    ro[i] = sph::kernels::densityJLoop(i, sincIndex, K, box, nLoc, nCount, x, y, z, h, m, wh, whd);
-    //ro[i] = sph::kernels::densityJLoop(
-    //    i, sincIndex, K, box, neighbors + ngmax * tid, neighborsCount[tid], x, y, z, h, m, wh, whd);
+    //ro[i] = sph::kernels::densityJLoop(i, sincIndex, K, box, nLoc, nCount, x, y, z, h, m, wh, whd);
+    ro[i] = sph::kernels::densityJLoop(
+        i, sincIndex, K, box, neighbors + ngmax * tid, neighborsCount[tid], x, y, z, h, m, wh, whd);
 }
 
 template<class Dataset>
@@ -84,17 +84,17 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<d
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, cudaMemcpyHostToDevice, stream));
 
-        //findNeighborsHilbertGpu(d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h,
-        //                        t.clist[0], t.clist[n - 1] + 1, np, box, d.devPtrs.d_codes,
-        //                        d_neighbors_use, d_neighborsCount_use, ngmax, stream);
-        //CHECK_CUDA_ERR(cudaGetLastError());
+        findNeighborsHilbertGpu(d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h,
+                                t.clist[0], t.clist[n - 1] + 1, np, box, d.devPtrs.d_codes,
+                                d_neighbors_use, d_neighborsCount_use, ngmax, stream);
+        CHECK_CUDA_ERR(cudaGetLastError());
 
         unsigned numThreads = 256;
         unsigned numBlocks  = (n + numThreads - 1) / numThreads;
 
         density<<<numBlocks, numThreads, 0, stream>>>(
             n, d.sincIndex, d.K, t.ngmax, box, d_clist_use, d_neighbors_use, d_neighborsCount_use,
-            d.devPtrs.d_codes, np,
+            //d.devPtrs.d_codes, np,
             d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_wh, d.devPtrs.d_whd,
             d.devPtrs.d_ro);
         CHECK_CUDA_ERR(cudaGetLastError());
