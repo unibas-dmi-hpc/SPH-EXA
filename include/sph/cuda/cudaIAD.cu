@@ -53,13 +53,12 @@ __global__ void computeIAD(T sincIndex, T K, int ngmax, cstone::Box<T> box,
     if (i >= lastParticle) return;
 
     // need to hard-code ngmax stack allocation for now
-    assert(ngmax <= NGMAX && "ngmax too big, please adjust allocation size here to desired value of ngmax");
+    assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired size");
     int neighbors[NGMAX];
+    int neighborsCount;
 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
-
-    int neighborsCount;
 
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);

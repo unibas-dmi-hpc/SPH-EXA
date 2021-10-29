@@ -14,9 +14,11 @@ namespace sph
 namespace cuda
 {
 
-template<class T>
-__global__ void computeMomentumAndEnergyIAD(int n, T sincIndex, T K, int ngmax, cstone::Box<T> box,
-                                            const int* clist, const int* neighbors, const int* neighborsCount,
+template<class T, class KeyType>
+__global__ void computeMomentumAndEnergyIAD(T sincIndex, T K, int ngmax, cstone::Box<T> box,
+                                            //const int* neighbors, const int* neighborsCount,
+                                            int firstParticle, int lastParticle, int numParticles,
+                                            const KeyType* particleKeys,
                                             const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz,
                                             const T* h, const T* m, const T* ro, const T* p, const T* c,
                                             const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
@@ -24,10 +26,21 @@ __global__ void computeMomentumAndEnergyIAD(int n, T sincIndex, T K, int ngmax, 
                                             T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du, T* maxvsignal)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid >= n) return;
+    unsigned i = tid + firstParticle;
+    if (i >= lastParticle) return;
 
-    int i = clist[tid];
-    sph::kernels::momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors + ngmax * tid, neighborsCount[tid],
+    // need to hard-code ngmax stack allocation for now
+    assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired value");
+    int neighbors[NGMAX];
+    int neighborsCount;
+
+    // starting from CUDA 11.3, dynamic stack allocation is available with the following command
+    // int* neighbors = (int*)alloca(ngmax * sizeof(int));
+
+    cstone::findNeighbors(
+        i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
+
+    sph::kernels::momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors, neighborsCount,
                                          x, y, z, vx, vy, vz, h, m, ro, p, c, c11, c12, c13, c22, c23, c33,
                                          wh, whd, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
 }
@@ -37,8 +50,8 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d, 
 {
     using T = typename Dataset::RealType;
 
-    size_t np = d.x.size();
-    size_t size_np_T = np * sizeof(T);
+    size_t numParticles = d.x.size();
+    size_t size_np_T = numParticles * sizeof(T);
     T ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
 
     auto largestChunkSize =
@@ -50,8 +63,6 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d, 
 
     // number of CUDA streams to use
     constexpr int NST = DeviceParticlesData<T, Dataset>::NST;
-
-    size_t ltsize = d.wh.size();
 
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vx, d.vx.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vy, d.vy.data(), size_np_T, cudaMemcpyHostToDevice));
@@ -73,25 +84,18 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d, 
         int sIdx = i % NST;
         cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
 
-        int* d_clist_use = d.devPtrs.d_stream[sIdx].d_clist;
-        int* d_neighbors_use = d.devPtrs.d_stream[sIdx].d_neighbors;
-        int* d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
+        //int* d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
 
-        size_t n = t.clist.size();
-        size_t size_n_int = n * sizeof(int);
+        unsigned firstParticle = t.clist.front();
+        unsigned lastParticle  = t.clist.back() + 1;
+        unsigned numParticlesCompute = lastParticle - firstParticle;
 
-        CHECK_CUDA_ERR(cudaMemcpyAsync(d_clist_use, t.clist.data(), size_n_int, cudaMemcpyHostToDevice, stream));
-
-        findNeighborsHilbertGpu(d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_h,
-                                t.clist[0], t.clist[n - 1] + 1, np, box, d.devPtrs.d_codes,
-                                d_neighbors_use, d_neighborsCount_use, ngmax, stream);
-        CHECK_CUDA_ERR(cudaGetLastError());
-
-        unsigned numThreads = 256;
-        unsigned numBlocks  = (n + numThreads - 1) / numThreads;
+        unsigned numThreads = 128;
+        unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
         computeMomentumAndEnergyIAD<<<numBlocks, numThreads, 0, stream>>>(
-            n, d.sincIndex, d.K, ngmax, box, d_clist_use, d_neighbors_use, d_neighborsCount_use,
+            d.sincIndex, d.K, ngmax, box, //d_neighbors_use, d_neighborsCount_use,
+            firstParticle, lastParticle, numParticles, d.devPtrs.d_codes,
             d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_vx, d.devPtrs.d_vy, d.devPtrs.d_vz,
             d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_ro, d.devPtrs.d_p, d.devPtrs.d_c,
             d.devPtrs.d_c11, d.devPtrs.d_c12, d.devPtrs.d_c13, d.devPtrs.d_c22, d.devPtrs.d_c23, d.devPtrs.d_c33,
