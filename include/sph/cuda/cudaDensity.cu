@@ -51,10 +51,10 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<d
     size_t size_np_CodeType = numParticles * sizeof(typename Dataset::KeyType);
     T ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
 
-    auto largestChunkSize =
-        std::max_element(taskList.cbegin(), taskList.cend(),
-                         [](const Task &lhs, const Task &rhs) { return lhs.clist.size() < rhs.clist.size(); })
-            ->clist.size();
+    auto largestChunkSize = std::max_element(taskList.cbegin(),
+                                             taskList.cend(),
+                                             [](const Task& lhs, const Task& rhs) { return lhs.size() < rhs.size(); })
+                                ->size();
 
     d.devPtrs.resize_streams(largestChunkSize, ngmax);
 
@@ -83,8 +83,8 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<d
 
         int* d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
 
-        unsigned firstParticle = t.clist.front();
-        unsigned lastParticle  = t.clist.back() + 1;
+        unsigned firstParticle = t.firstParticle;
+        unsigned lastParticle  = t.lastParticle;
         unsigned numParticlesCompute = lastParticle - firstParticle;
 
         unsigned numThreads = 256;

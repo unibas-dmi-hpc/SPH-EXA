@@ -22,7 +22,7 @@ public:
     struct neighbors_stream
     {
         cudaStream_t stream;
-        int *d_clist, *d_neighbors, *d_neighborsCount;
+        int *d_neighborsCount;
     };
 
     struct neighbors_stream d_stream[NST];
@@ -74,8 +74,7 @@ public:
                 //printf("[D] increased stream size from %ld to %ld\n", allocatedTaskSize, taskSize);
                 for (int i = 0; i < NST; ++i)
                 {
-                    CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_clist, d_stream[i].d_neighborsCount));
-                    CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_neighbors));
+                    CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_neighborsCount));
                 }
             }
 
@@ -83,9 +82,7 @@ public:
 
             for (int i = 0; i < NST; ++i)
             {
-                CHECK_CUDA_ERR(
-                    utils::cudaMalloc(taskSize * sizeof(int), d_stream[i].d_clist, d_stream[i].d_neighborsCount));
-                CHECK_CUDA_ERR(utils::cudaMalloc(taskSize * ngmax * sizeof(int), d_stream[i].d_neighbors));
+                CHECK_CUDA_ERR(utils::cudaMalloc(taskSize * sizeof(int), d_stream[i].d_neighborsCount));
             }
 
             allocatedTaskSize = taskSize;
@@ -96,8 +93,8 @@ public:
 
     explicit DeviceParticlesData(const ParticleData& pd)
     {
-        const size_t ltsize = pd.wh.size();
-        const size_t size_lt_T = ltsize * sizeof(T);
+        size_t ltsize = pd.wh.size();
+        size_t size_lt_T = ltsize * sizeof(T);
 
         CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
 
@@ -117,11 +114,7 @@ public:
         for (int i = 0; i < NST; ++i)
         {
             CHECK_CUDA_ERR(cudaStreamDestroy(d_stream[i].stream));
-        }
-
-        for (int i = 0; i < NST; ++i)
-        {
-            CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_clist, d_stream[i].d_neighbors, d_stream[i].d_neighborsCount));
+            CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_neighborsCount));
         }
     }
 };
