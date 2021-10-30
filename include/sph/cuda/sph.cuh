@@ -28,3 +28,4 @@ extern void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, Datas
 } // namespace cuda
 } // namespace sph
 } // namespace sphexa
+
