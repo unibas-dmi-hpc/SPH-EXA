@@ -86,8 +86,9 @@ void writeParticleDataToBinFile(const std::string &path, Args &&... data)
     }
 }
 
-template <typename... Args>
-void writeParticleDataToAsciiFile(const std::vector<int> &clist, const std::string &path, const bool append, const char separator, Args &&... data)
+template<typename... Args>
+void writeParticleDataToAsciiFile(int firstIndex, int lastIndex, const std::string& path, const bool append,
+                                  const char separator, Args&&... data)
 {
     std::ios_base::openmode mode;
     if (append)
@@ -99,9 +100,8 @@ void writeParticleDataToAsciiFile(const std::vector<int> &clist, const std::stri
 
     if (dump.is_open())
     {
-        for (size_t pi = 0; pi < clist.size(); ++pi)
+        for (size_t i = firstIndex; i < lastIndex; ++i)
         {
-            const int i = clist[pi];
             details::writeParticleDataToAsciiFile(dump, i, separator, data...);
             dump << std::endl;
         }
