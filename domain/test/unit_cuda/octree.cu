@@ -33,6 +33,7 @@
 #include "gtest/gtest.h"
 
 #include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
 
 #include "coord_samples/random.hpp"
 
