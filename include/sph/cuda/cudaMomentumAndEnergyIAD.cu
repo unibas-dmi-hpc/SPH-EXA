@@ -120,3 +120,4 @@ template void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, Par
 } // namespace cuda
 } // namespace sph
 } // namespace sphexa
+

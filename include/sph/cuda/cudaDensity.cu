@@ -112,3 +112,4 @@ template void computeDensity(std::vector<Task>&, ParticlesData<double, uint64_t>
 } // namespace cuda
 } // namespace sph
 } // namespace sphexa
+

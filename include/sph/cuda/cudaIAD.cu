@@ -110,3 +110,4 @@ template void computeIAD(const std::vector<Task>& taskList, ParticlesData<double
 } // namespace cuda
 } // namespace sph
 } // namespace sphexa
+
