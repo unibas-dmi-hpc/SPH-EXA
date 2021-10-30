@@ -80,8 +80,8 @@ void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box
 
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_ro, d.ro.data(), size_np_T, cudaMemcpyHostToDevice));
 
-    unsigned firstParticle = taskList.front().clist.front();
-    unsigned lastParticle  = taskList.back().clist.back() + 1;
+    unsigned firstParticle = taskList.front().firstParticle;
+    unsigned lastParticle  = taskList.back().lastParticle;
     unsigned numParticlesCompute = lastParticle - firstParticle;
 
     unsigned numThreads = 128;
@@ -110,3 +110,4 @@ template void computeIAD(const std::vector<Task>& taskList, ParticlesData<double
 } // namespace cuda
 } // namespace sph
 } // namespace sphexa
+

@@ -54,10 +54,10 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d, 
     size_t size_np_T = numParticles * sizeof(T);
     T ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
 
-    auto largestChunkSize =
-        std::max_element(taskList.cbegin(), taskList.cend(),
-                         [](const Task &lhs, const Task &rhs) { return lhs.clist.size() < rhs.clist.size(); })
-            ->clist.size();
+    auto largestChunkSize = std::max_element(taskList.cbegin(),
+                                             taskList.cend(),
+                                             [](const Task& lhs, const Task& rhs) { return lhs.size() < rhs.size(); })
+                                ->size();
 
     d.devPtrs.resize_streams(largestChunkSize, ngmax);
 
@@ -86,15 +86,15 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d, 
 
         //int* d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
 
-        unsigned firstParticle = t.clist.front();
-        unsigned lastParticle  = t.clist.back() + 1;
+        unsigned firstParticle = t.firstParticle;
+        unsigned lastParticle  = t.lastParticle;
         unsigned numParticlesCompute = lastParticle - firstParticle;
 
         unsigned numThreads = 128;
         unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
         computeMomentumAndEnergyIAD<<<numBlocks, numThreads, 0, stream>>>(
-            d.sincIndex, d.K, ngmax, box, //d_neighbors_use, d_neighborsCount_use,
+            d.sincIndex, d.K, ngmax, box, //d_neighborsCount_use,
             firstParticle, lastParticle, numParticles, d.devPtrs.d_codes,
             d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_vx, d.devPtrs.d_vy, d.devPtrs.d_vz,
             d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_ro, d.devPtrs.d_p, d.devPtrs.d_c,
@@ -120,3 +120,4 @@ template void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, Par
 } // namespace cuda
 } // namespace sph
 } // namespace sphexa
+
