@@ -18,9 +18,10 @@ namespace sph
 template <typename T, class Dataset>
 void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 {
-    const size_t n = t.clist.size();
+    // number of particles in task
+    int numParticles = t.size();
+
     const size_t ngmax = t.ngmax;
-    const int *clist = t.clist.data();
     const int *neighbors = t.neighbors.data();
     const int *neighborsCount = t.neighborsCount.data();
 
@@ -63,21 +64,21 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 #else
 #pragma omp parallel for
 #endif
-    for (size_t pi = 0; pi < n; pi++)
+    for (size_t pi = 0; pi < numParticles; pi++)
     {
         //int neighLoc[ngmax];
         //int count;
         //cstone::findNeighbors(
         //    pi, x, y, z, h, box, cstone::sfcKindPointer(d.codes.data()), neighLoc, &count, d.codes.size(), ngmax);
 
-        //kernels::densityJLoop(
-        //    pi, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ro);
+        int i = pi + t.firstParticle;
 
-        // computes ro[i]
-        kernels::densityJLoop(
-            pi, sincIndex, K, ngmax, box, clist, neighbors, neighborsCount, x, y, z, h, m, wh, whd, ro);
+        ro[i] = kernels::densityJLoop(
+            i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi], x, y, z, h, m, wh, whd);
+
 #ifndef NDEBUG
-        if (std::isnan(ro[pi])) printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", pi, ro[pi], x[pi], y[pi], z[pi], h[pi]);
+        if (std::isnan(ro[i]))
+            printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", pi, ro[i], x[i], y[i], z[i], h[i]);
 #endif
     }
 }
@@ -98,16 +99,15 @@ void computeDensity(std::vector<Task> &taskList, Dataset &d, const cstone::Box<T
 template <typename T, class Dataset>
 void initFluidDensityAtRestImpl(const Task &t, Dataset &d)
 {
-    const size_t n = t.clist.size();
-    const int *clist = t.clist.data();
+    int numParticles = t.size();
 
     const T *ro = d.ro.data();
     T *ro_0 = d.ro_0.data();
 
-#pragma omp parallel for
-    for (size_t pi = 0; pi < n; ++pi)
+    #pragma omp parallel for
+    for (size_t pi = 0; pi < numParticles; ++pi)
     {
-        const int i = clist[pi];
+        int i = pi + t.firstParticle;
         ro_0[i] = ro[i];
     }
 }

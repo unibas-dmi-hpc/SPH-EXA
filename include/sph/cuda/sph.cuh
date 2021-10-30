@@ -6,6 +6,9 @@
 #include "cudaParticlesData.cuh"
 #include "cstone/sfc/box.hpp"
 
+//! @brief maximum number of neighbors supported in GPU kernels
+#define NGMAX 150
+
 namespace sphexa
 {
 namespace sph

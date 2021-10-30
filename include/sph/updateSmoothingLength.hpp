@@ -15,22 +15,22 @@ void updateSmoothingLengthImpl(Task &t, Dataset &d)
     const T exp = 1.0 / 3.0;
 
     const int ng0 = t.ng0;
-    const int *neighborsCount = t.neighborsCount.data();
-    T *h = d.h.data();
+    const int* neighborsCount = t.neighborsCount.data();
+    T* h = d.h.data();
 
-    size_t n = t.clist.size();
+    int numParticles = t.size();
 
-#pragma omp parallel for schedule(guided)
-    for (size_t pi = 0; pi < n; pi++)
+    #pragma omp parallel for schedule(guided)
+    for (size_t pi = 0; pi < numParticles; pi++)
     {
-        int i = t.clist[pi];
-        const int nn = neighborsCount[pi];
+        int i = pi + t.firstParticle;
+        int nn = neighborsCount[pi];
 
         h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp);
 
-#ifndef NDEBUG
+        #ifndef NDEBUG
         if (std::isinf(h[i]) || std::isnan(h[i])) printf("ERROR::h(%d) ngi %d h %f\n", i, nn, h[i]);
-#endif
+        #endif
     }
 }
 

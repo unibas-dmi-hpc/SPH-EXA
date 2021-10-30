@@ -36,8 +36,7 @@ void computePositionsImpl(const Task &t, Dataset &d, const cstone::Box<T>& box)
 {
     FunctAccel accelFunct;
 
-    const size_t n = t.clist.size();
-    const int *clist = t.clist.data();
+    int numParticles = t.size();
 
     const T *dt = d.dt.data();
     const T *du = d.du.data();
@@ -56,9 +55,9 @@ void computePositionsImpl(const Task &t, Dataset &d, const cstone::Box<T>& box)
     T *dt_m1 = d.dt_m1.data();
 
 #pragma omp parallel for
-    for (size_t pi = 0; pi < n; pi++)
+    for (size_t pi = 0; pi < numParticles; pi++)
     {
-        const int i = clist[pi];
+        int i = pi + t.firstParticle;
         T ax, ay, az;
         std::tie(ax, ay, az) = accelFunct(i, d);
 

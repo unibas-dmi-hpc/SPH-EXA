@@ -77,7 +77,7 @@ struct EvrardCollapseMPIFileWriter : IFileWriter<Dataset>
         }
     }
 
-    void dumpParticleDataToAsciiFile(const Dataset &d, const std::vector<int> &clist, const std::string &path) const override
+    void dumpParticleDataToAsciiFile(const Dataset &d, int firstIndex, int lastIndex, const std::string &path) const override
     {
         const char separator = ' ';
 
@@ -87,8 +87,25 @@ struct EvrardCollapseMPIFileWriter : IFileWriter<Dataset>
             {
                 try
                 {
-                    fileutils::writeParticleDataToAsciiFile(clist, path, d.rank != 0, separator, d.x, d.y, d.z, d.vx, d.vy, d.vz, d.h, d.ro, d.u, d.p,
-                                                            d.c, d.grad_P_x, d.grad_P_y, d.grad_P_z /*, d.radius*/);
+                    fileutils::writeParticleDataToAsciiFile(firstIndex,
+                                                            lastIndex,
+                                                            path,
+                                                            d.rank != 0,
+                                                            separator,
+                                                            d.x,
+                                                            d.y,
+                                                            d.z,
+                                                            d.vx,
+                                                            d.vy,
+                                                            d.vz,
+                                                            d.h,
+                                                            d.ro,
+                                                            d.u,
+                                                            d.p,
+                                                            d.c,
+                                                            d.grad_P_x,
+                                                            d.grad_P_y,
+                                                            d.grad_P_z);
                 }
                 catch (MPIFileNotOpenedException &ex)
                 {
