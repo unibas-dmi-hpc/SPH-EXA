@@ -60,18 +60,6 @@ public:
         int partitionSize = numParticles / nTasks;
         int remainder = numParticles % nTasks;
 
-        initTasks(firstIndex, partitionSize, remainder);
-    }
-
-    const size_t ngmax;
-    const size_t ng0;
-    const size_t nTasks;
-    std::vector<Task> tasks;
-
-private:
-
-    void initTasks(int firstIndex, int partitionSize, int remainder)
-    {
         for (size_t i = 0; i < nTasks; ++i)
         {
             tasks[i].firstParticle = firstIndex + i * partitionSize;
@@ -79,5 +67,11 @@ private:
             tasks[i].resize(tasks[i].size());
         }
     }
+
+    const size_t ngmax;
+    const size_t ng0;
+    const size_t nTasks;
+    std::vector<Task> tasks;
+
 };
 } // namespace sphexa
