@@ -173,7 +173,16 @@ TEST(InternalOctree, topsort)
         levels[i + numInternalNodes] = level;
     }
 
-    // prefix, levels now in unsorted layout A
+    /*! prefix and levels now in unsorted layout A
+     *
+     * binaryTree |---------------------------------------------------|
+     *                    ^                      |
+     *   octToBinary   |--|  |-------------------|  binaryToOct
+     *                 |     |
+     * prefixes   |------------|--------------------------------|
+     * levels     |------------|--------------------------------|
+     *              internal        leaves
+     */
 
     sort_by_key(begin(levels), end(levels), begin(nodeOrder));
     reorderInPlace(nodeOrder, prefixes.data());
@@ -194,50 +203,40 @@ TEST(InternalOctree, topsort)
         sort_by_key(begin(prefixes) + lvlStart, begin(prefixes) + levelOffsets[level + 1], begin(nodeOrder) + lvlStart);
     }
 
-    // prefix, levels now in sorted layout B, nodeOrder[i] = old location of node i in new layout
+    /*! prefix and levels now in sorted layout B
+     *
+     *  -levels is sorted in ascending order
+     *  -prefix is first sorted by level, then by ascening key
+     *  -nodeOrder goes from layout B to layout A (nodeOrder[i] is i's location in A)
+     */
 
     std::vector<TreeNodeIndex> inverseNodeOrder(numNodes);
     std::iota(begin(inverseNodeOrder), end(inverseNodeOrder), 0);
-    {
-        auto orderCpy = nodeOrder;
-        sort_by_key(begin(orderCpy), end(orderCpy), begin(inverseNodeOrder));
-    }
+
+    // compute inverse of nodeOrder, invalidates nodeOrder
+    sort_by_key(begin(nodeOrder), end(nodeOrder), begin(inverseNodeOrder));
 
     std::vector<TreeNodeIndex> childOffsets(numNodes, 0);
     std::vector<TreeNodeIndex> parents( (numNodes - 1) / 8);
 
-    for (TreeNodeIndex i = 0; i < numNodes; ++i)
+    // loop over octree nodes index in layout A
+    for (TreeNodeIndex idxA = 0; idxA < numInternalNodes; ++idxA)
     {
-        // node location in layout A
-        TreeNodeIndex orig = nodeOrder[i];
+        TreeNodeIndex binaryIndex = octToBinary[idxA];
+        TreeNodeIndex firstChild  = binaryTree[binaryTree[binaryTree[binaryIndex].child[0]].child[0]].child[0];
 
-        if (orig < numInternalNodes)
-        {
-            TreeNodeIndex binaryIndex = octToBinary[orig];
-            TreeNodeIndex firstChild = binaryTree[binaryTree[binaryTree[binaryIndex].child[0]].child[0]].child[0];
+        // octree node index in layout B
+        TreeNodeIndex idxB = inverseNodeOrder[idxA];
 
-            if (!isLeafIndex(firstChild))
-            {
-                // node index in layout A
-                TreeNodeIndex octreeChildIndex = binaryToOct[firstChild];
+        // child node index in layout A
+        TreeNodeIndex childA =
+            (isLeafIndex(firstChild)) ? loadLeafIndex(firstChild) + numInternalNodes : binaryToOct[firstChild];
 
-                // node index in layout B
-                TreeNodeIndex orderedOctreeChildIndex = inverseNodeOrder[octreeChildIndex];
+        // node index in layout B
+        TreeNodeIndex childB = inverseNodeOrder[childA];
 
-                childOffsets[i] = orderedOctreeChildIndex;
-                parents[(orderedOctreeChildIndex-1)/8] = i;
-            }
-            else
-            {
-                // node index in layout A
-                TreeNodeIndex idxA = loadLeafIndex(firstChild) + numInternalNodes;
-
-                // node index in layout B
-                TreeNodeIndex idxB = inverseNodeOrder[idxA];
-                childOffsets[i] = idxB;
-                parents[(idxB-1)/8] = i;
-            }
-        }
+        childOffsets[idxB]        = childB;
+        parents[(childB - 1) / 8] = idxB;
     }
 
     TreeNodeIndex numLeavesControl = std::count(begin(childOffsets), end(childOffsets), 0);
