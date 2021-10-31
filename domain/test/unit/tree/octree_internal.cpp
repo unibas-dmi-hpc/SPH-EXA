@@ -108,6 +108,158 @@ TEST(InternalOctree, nodeDepth)
     EXPECT_EQ(depths_v, depths_reference);
 }
 
+TEST(InternalOctree, topsort)
+{
+    using KeyType = uint32_t;
+
+    std::vector<KeyType> leaves = makeUniformNLevelTree<KeyType>(512, 1);
+
+    std::vector<BinaryNode<KeyType>> binaryTree(nNodes(leaves));
+    createBinaryTree(leaves.data(), nNodes(leaves), binaryTree.data());
+
+    TreeNodeIndex numLeafNodes = nNodes(leaves);
+    // we ignore the last binary tree node which is a duplicate root node
+    TreeNodeIndex nBinaryNodes = numLeafNodes - 1;
+
+    // one extra element to store the total sum of the exclusive scan
+    std::vector<TreeNodeIndex> binaryToOct(nBinaryNodes + 1);
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < nBinaryNodes; ++i)
+    {
+        int  prefixLength = decodePrefixLength(binaryTree[i].prefix);
+        bool divisibleBy3 = prefixLength % 3 == 0;
+        binaryToOct[i] = (divisibleBy3) ? 1 : 0;
+    }
+
+    // stream compaction: scan and scatter
+    exclusiveScan(binaryToOct.data(), binaryToOct.size());
+
+    // nInternalOctreeNodes is also equal to prefixes[nBinaryNodes]
+    TreeNodeIndex numInternalNodes = (numLeafNodes - 1) / 7;
+    std::vector<TreeNodeIndex> octToBinary(numInternalNodes);
+
+    // compaction step, scatterMap -> compacted list of binary nodes that correspond to octree nodes
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < nBinaryNodes; ++i)
+    {
+        bool isOctreeNode = (binaryToOct[i+1] - binaryToOct[i]) == 1;
+        if (isOctreeNode)
+        {
+            int octreeNodeIndex = binaryToOct[i];
+            octToBinary[octreeNodeIndex] = i;
+        }
+    }
+
+    TreeNodeIndex numNodes = numInternalNodes + numLeafNodes;
+    std::vector<KeyType> prefixes(numNodes);
+    std::vector<unsigned> levels(numNodes);
+    std::vector<TreeNodeIndex> nodeOrder(numNodes);
+    std::vector<TreeNodeIndex> levelOffsets(maxTreeLevel<KeyType>{} + 2);
+    std::iota(begin(nodeOrder), end(nodeOrder), 0);
+
+    for (TreeNodeIndex i = 0; i < numInternalNodes; ++i)
+    {
+        TreeNodeIndex binaryIndex = octToBinary[i];
+        levels[i]   = decodePrefixLength(binaryTree[binaryIndex].prefix) / 3;
+        prefixes[i] = decodePlaceholderBit(binaryTree[binaryIndex].prefix);
+    }
+
+    std::copy(begin(leaves), begin(leaves) + numLeafNodes, begin(prefixes) + numInternalNodes);
+
+    // compute leaf node tree levels
+    for (TreeNodeIndex i = 0; i < numLeafNodes; ++i)
+    {
+        unsigned level = treeLevel(leaves[i+1] - leaves[i]);
+        levels[i + numInternalNodes] = level;
+    }
+
+    // prefix, levels now in unsorted layout A
+
+    sort_by_key(begin(levels), end(levels), begin(nodeOrder));
+    reorderInPlace(nodeOrder, prefixes.data());
+
+    for (unsigned level = 0; level < maxTreeLevel<KeyType>{} + 1; ++level)
+    {
+        auto it1 = std::lower_bound(begin(levels), end(levels), level);
+        auto it2 = std::upper_bound(begin(levels), end(levels), level);
+        levelOffsets[level] = it2 - it1;
+    }
+
+    exclusiveScan(levelOffsets.data(), levelOffsets.size());
+
+    for (unsigned level = 0; level < maxTreeLevel<KeyType>{} + 1; ++level)
+    {
+        //std::cout << level << " levelSize " << levelOffsets[level] << std::endl;
+        TreeNodeIndex lvlStart = levelOffsets[level];
+        sort_by_key(begin(prefixes) + lvlStart, begin(prefixes) + levelOffsets[level + 1], begin(nodeOrder) + lvlStart);
+    }
+
+    // prefix, levels now in sorted layout B, nodeOrder[i] = old location of node i in new layout
+
+    std::vector<TreeNodeIndex> inverseNodeOrder(numNodes);
+    std::iota(begin(inverseNodeOrder), end(inverseNodeOrder), 0);
+    {
+        auto orderCpy = nodeOrder;
+        sort_by_key(begin(orderCpy), end(orderCpy), begin(inverseNodeOrder));
+    }
+
+    std::vector<TreeNodeIndex> childOffsets(numNodes, 0);
+    std::vector<TreeNodeIndex> parents( (numNodes - 1) / 8);
+
+    for (TreeNodeIndex i = 0; i < numNodes; ++i)
+    {
+        // node location in layout A
+        TreeNodeIndex orig = nodeOrder[i];
+
+        if (orig < numInternalNodes)
+        {
+            TreeNodeIndex binaryIndex = octToBinary[orig];
+            TreeNodeIndex firstChild = binaryTree[binaryTree[binaryTree[binaryIndex].child[0]].child[0]].child[0];
+
+            if (!isLeafIndex(firstChild))
+            {
+                // node index in layout A
+                TreeNodeIndex octreeChildIndex = binaryToOct[firstChild];
+
+                // node index in layout B
+                TreeNodeIndex orderedOctreeChildIndex = inverseNodeOrder[octreeChildIndex];
+
+                childOffsets[i] = orderedOctreeChildIndex;
+                parents[(orderedOctreeChildIndex-1)/8] = i;
+            }
+            else
+            {
+                // node index in layout A
+                TreeNodeIndex idxA = loadLeafIndex(firstChild) + numInternalNodes;
+
+                // node index in layout B
+                TreeNodeIndex idxB = inverseNodeOrder[idxA];
+                childOffsets[i] = idxB;
+                parents[(idxB-1)/8] = i;
+            }
+        }
+    }
+
+    TreeNodeIndex numLeavesControl = std::count(begin(childOffsets), end(childOffsets), 0);
+    EXPECT_EQ(numLeavesControl, numLeafNodes);
+
+    for (TreeNodeIndex i = 0; i < numNodes; ++i)
+    {
+        TreeNodeIndex childIdx = childOffsets[i];
+        EXPECT_TRUE(childIdx == 0 || levels[childIdx] == levels[i] + 1);
+
+        if (childIdx != 0)
+        {
+            EXPECT_EQ(i, parents[(childIdx - 1) / 8]);
+            for (int octant = 0; octant < 8; ++octant)
+            {
+                EXPECT_EQ(prefixes[i] + octant * nodeRange<KeyType>(levels[childIdx]), prefixes[childIdx + octant]);
+            }
+        }
+    }
+}
+
+
 /*! @brief larger test case for nodeDepth to detect multithreading issues
  *
  * Depends on binary/octree generation, so not strictly a unit test
