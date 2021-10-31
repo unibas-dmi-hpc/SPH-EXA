@@ -74,6 +74,143 @@ inline T atomicMax(std::atomic<T>* maximumValue, const T& newValue) noexcept
 namespace cstone
 {
 
+/*! @brief construct internal octree from given leaves
+ *
+ * @tparam KeyType
+ * @param[in]  leaves           cornerstone leaf cell array, length @p numLeafNodes + 1
+ * @param[in]  numLeafNodes
+ * @param[in]  binaryTree       binary radix tree node array, length @p numLeafNodes - 1
+ * @param[out] prefixes         output octree SFC node kyes, length = numLeafNodes + (numLeafNodes-1)/7
+ * @param[out] levels           output octree levels, length same as @p prefixes
+ * @param[out] childOffsets     child index per node, length same as @p prefixes
+ * @param[out] parents          parent index per group of 8 nodes, length is (len(prefixes) - 1) / 8
+ *                              the parent index of node i is stored at parents[(i-1)/8]
+ * @param[out] levelOffsets     location of first node of each level, length maxTreeLevel<KeyType>{} + 2
+ *                              +1 to store the root and another +1 to store the total number of nodes
+ *                              in the last element. levelOffsets[0] = 0 is the root (zero) offset,
+ *                              levelOffsets[i] is the index of the first level-i node.
+ */
+template<class KeyType>
+void constructOctree(const KeyType* leaves, TreeNodeIndex numLeafNodes, const BinaryNode<KeyType>* binaryTree,
+                     KeyType* prefixes, unsigned* levels, TreeNodeIndex* childOffsets, TreeNodeIndex* parents,
+                     TreeNodeIndex* levelOffsets)
+{
+    // we ignore the last binary tree node which is a duplicate root node
+    TreeNodeIndex nBinaryNodes = numLeafNodes - 1;
+
+    // one extra element to store the total sum of the exclusive scan
+    std::vector<TreeNodeIndex> binaryToOct(nBinaryNodes + 1);
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < nBinaryNodes; ++i)
+    {
+        int  prefixLength = decodePrefixLength(binaryTree[i].prefix);
+        bool divisibleBy3 = prefixLength % 3 == 0;
+        binaryToOct[i] = (divisibleBy3) ? 1 : 0;
+    }
+
+    // stream compaction: scan and scatter
+    exclusiveScan(binaryToOct.data(), binaryToOct.size());
+
+    // nInternalOctreeNodes is also equal to prefixes[nBinaryNodes]
+    TreeNodeIndex numInternalNodes = (numLeafNodes - 1) / 7;
+    std::vector<TreeNodeIndex> octToBinary(numInternalNodes);
+
+    // compaction step, scatterMap -> compacted list of binary nodes that correspond to octree nodes
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < nBinaryNodes; ++i)
+    {
+        bool isOctreeNode = (binaryToOct[i+1] - binaryToOct[i]) == 1;
+        if (isOctreeNode)
+        {
+            int octreeNodeIndex = binaryToOct[i];
+            octToBinary[octreeNodeIndex] = i;
+        }
+    }
+
+    TreeNodeIndex numNodes = numInternalNodes + numLeafNodes;
+
+    std::vector<TreeNodeIndex> nodeOrder(numNodes);
+    std::iota(begin(nodeOrder), end(nodeOrder), 0);
+
+    for (TreeNodeIndex i = 0; i < numInternalNodes; ++i)
+    {
+        TreeNodeIndex binaryIndex = octToBinary[i];
+        levels[i]   = decodePrefixLength(binaryTree[binaryIndex].prefix) / 3;
+        prefixes[i] = decodePlaceholderBit(binaryTree[binaryIndex].prefix);
+    }
+
+    std::copy(leaves, leaves + numLeafNodes, prefixes + numInternalNodes);
+
+    for (TreeNodeIndex i = 0; i < numLeafNodes; ++i)
+    {
+        unsigned level = treeLevel(leaves[i+1] - leaves[i]);
+        levels[i + numInternalNodes] = level;
+    }
+
+    /*! prefix and levels now in unsorted layout A
+     *
+     * binaryTree |---------------------------------------------------|
+     *                    ^                      |
+     *   octToBinary   |--|  |-------------------|  binaryToOct
+     *                 |     |
+     * prefixes   |------------|--------------------------------|
+     * levels     |------------|--------------------------------|
+     *              internal        leaves
+     */
+
+    sort_by_key(levels, levels + numNodes, begin(nodeOrder));
+    reorderInPlace(nodeOrder, prefixes);
+
+    for (unsigned level = 0; level < maxTreeLevel<KeyType>{} + 1; ++level)
+    {
+        auto it1 = std::lower_bound(levels, levels + numNodes, level);
+        auto it2 = std::upper_bound(levels, levels + numNodes, level);
+        levelOffsets[level] = it2 - it1;
+    }
+
+    exclusiveScan(levelOffsets, maxTreeLevel<KeyType>{} + 2);
+
+    for (unsigned level = 0; level < maxTreeLevel<KeyType>{} + 1; ++level)
+    {
+        TreeNodeIndex lvlStart = levelOffsets[level];
+        sort_by_key(prefixes + lvlStart, prefixes + levelOffsets[level + 1], begin(nodeOrder) + lvlStart);
+    }
+
+    /*! prefix and levels now in sorted layout B
+     *
+     *  -levels is sorted in ascending order
+     *  -prefix is first sorted by level, then by ascening key
+     *  -nodeOrder goes from layout B to layout A (nodeOrder[i] is i's location in A)
+     */
+
+    std::vector<TreeNodeIndex> inverseNodeOrder(numNodes);
+    std::iota(begin(inverseNodeOrder), end(inverseNodeOrder), 0);
+
+    // compute inverse of nodeOrder, invalidates nodeOrder
+    sort_by_key(begin(nodeOrder), end(nodeOrder), begin(inverseNodeOrder));
+
+    // loop over octree nodes index in layout A
+    for (TreeNodeIndex idxA = 0; idxA < numInternalNodes; ++idxA)
+    {
+        TreeNodeIndex binaryIndex = octToBinary[idxA];
+        TreeNodeIndex firstChild  = binaryTree[binaryTree[binaryTree[binaryIndex].child[0]].child[0]].child[0];
+
+        // octree node index in layout B
+        TreeNodeIndex idxB = inverseNodeOrder[idxA];
+
+        // child node index in layout A
+        TreeNodeIndex childA =
+            (isLeafIndex(firstChild)) ? loadLeafIndex(firstChild) + numInternalNodes : binaryToOct[firstChild];
+
+        // node index in layout B
+        TreeNodeIndex childB = inverseNodeOrder[childA];
+
+        childOffsets[idxB]        = childB;
+        parents[(childB - 1) / 8] = idxB;
+    }
+
+}
+
 /*! @brief octree node for the internal part of cornerstone octrees
  *
  * @tparam KeyType  32- or 64 bit unsigned integer
