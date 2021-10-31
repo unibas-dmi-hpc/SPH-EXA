@@ -33,37 +33,6 @@
 
 using namespace cstone;
 
-//! @brief Tests direct particle-to-particle gravity interactions
-//TEST(Gravity, P2P)
-//{
-//    using T = double;
-//
-//    T eps2 = 0;
-//
-//    // target
-//    T x = 1;
-//    T y = 1;
-//    T z = 1;
-//
-//    // source
-//    T xs[2] = {2, -2};
-//    T ys[2] = {2, -2};
-//    T zs[2] = {2, -2};
-//    T m[2]  = {1, 1};
-//
-//    T xacc = 0;
-//    T yacc = 0;
-//    T zacc = 0;
-//    T pot  = 0;
-//
-//    particle2particle(x, y, z, xs, ys, zs, m, 2, eps2, &xacc, &yacc, &zacc, &pot);
-//
-//    EXPECT_DOUBLE_EQ(xacc, 0.17106674642655587);
-//    EXPECT_DOUBLE_EQ(yacc, 0.17106674642655587);
-//    EXPECT_DOUBLE_EQ(zacc, 0.17106674642655587);
-//    EXPECT_DOUBLE_EQ(pot, -0.76980035891950138);
-//}
-
 //! @brief Tests direct particle-to-particle gravity interactions with mass softening
 TEST(Gravity, P2PmsoftBase)
 {
@@ -86,10 +55,10 @@ TEST(Gravity, P2PmsoftBase)
     auto [xacc, yacc, zacc, pot] = particle2particle(x, y, z, h, xs, ys, zs, hs, m, 2);
 
     // h too small to trigger softening, so results should match the non-softened numbers
-    EXPECT_DOUBLE_EQ(xacc, 0.17106674642655587);
-    EXPECT_DOUBLE_EQ(yacc, 0.17106674642655587);
-    EXPECT_DOUBLE_EQ(zacc, 0.17106674642655587);
-    EXPECT_DOUBLE_EQ(pot, -0.76980035891950138);
+    EXPECT_NEAR(xacc, 0.17106674642655587, 1e-10);
+    EXPECT_NEAR(yacc, 0.17106674642655587, 1e-10);
+    EXPECT_NEAR(zacc, 0.17106674642655587, 1e-10);
+    EXPECT_NEAR(pot, -0.76980035891950138, 1e-10);
 }
 
 //! @brief Tests direct particle-to-particle gravity interactions with mass softening
@@ -114,10 +83,10 @@ TEST(Gravity, P2PmsoftH)
 
     auto [xacc, yacc, zacc, pot] = particle2particle(x, y, z, h, xs, ys, zs, hs, m, numSources);
 
-    EXPECT_DOUBLE_EQ(xacc, 0.1704016164027678);
-    EXPECT_DOUBLE_EQ(yacc, 0.1704016164027678);
-    EXPECT_DOUBLE_EQ(zacc, 0.1704016164027678);
-    EXPECT_DOUBLE_EQ(pot, -0.7678049688481372);
+    EXPECT_NEAR(xacc, 0.1704016164027678, 1e-10);
+    EXPECT_NEAR(yacc, 0.1704016164027678, 1e-10);
+    EXPECT_NEAR(zacc, 0.1704016164027678, 1e-10);
+    EXPECT_NEAR(pot, -0.7678049688481372, 1e-10);
 }
 
 
@@ -167,9 +136,9 @@ TEST(Gravity, M2P)
     EXPECT_TRUE(std::abs(ayApprox - ayDirect) < 1e-3);
     EXPECT_TRUE(std::abs(azApprox - azDirect) < 1e-3);
 
-    EXPECT_DOUBLE_EQ(axApprox, 0.74358243303934313);
-    EXPECT_DOUBLE_EQ(ayApprox, 9.1306187450872109e-05);
-    EXPECT_DOUBLE_EQ(azApprox, 0.0095252528595820823);
+    EXPECT_NEAR(axApprox, 0.74358243303934313,    1e-10);
+    EXPECT_NEAR(ayApprox, 9.1306187450872109e-05, 1e-10);
+    EXPECT_NEAR(azApprox, 0.0095252528595820823,  1e-10);
 }
 
 /*! @brief tests aggregation of multipoles into a composite multipole
@@ -207,14 +176,14 @@ TEST(Gravity, M2M)
     // aggregate subcell multipoles
     GravityMultipole<T> composite = multipole2multipole(sc[0], sc[1], sc[2], sc[3], sc[4], sc[5], sc[6], sc[7]);
 
-    EXPECT_TRUE(std::abs(reference.mass - composite.mass) < 1e-10);
-    EXPECT_TRUE(std::abs(reference.xcm  - composite.xcm ) < 1e-10);
-    EXPECT_TRUE(std::abs(reference.ycm  - composite.ycm ) < 1e-10);
-    EXPECT_TRUE(std::abs(reference.zcm  - composite.zcm ) < 1e-10);
-    EXPECT_TRUE(std::abs(reference.qxx  - composite.qxx ) < 1e-10);
-    EXPECT_TRUE(std::abs(reference.qxy  - composite.qxy ) < 1e-10);
-    EXPECT_TRUE(std::abs(reference.qxz  - composite.qxz ) < 1e-10);
-    EXPECT_TRUE(std::abs(reference.qyy  - composite.qyy ) < 1e-10);
-    EXPECT_TRUE(std::abs(reference.qyz  - composite.qyz ) < 1e-10);
-    EXPECT_TRUE(std::abs(reference.qzz  - composite.qzz ) < 1e-10);
+    EXPECT_NEAR(reference.mass ,composite.mass, 1e-10);
+    EXPECT_NEAR(reference.xcm  ,composite.xcm , 1e-10);
+    EXPECT_NEAR(reference.ycm  ,composite.ycm , 1e-10);
+    EXPECT_NEAR(reference.zcm  ,composite.zcm , 1e-10);
+    EXPECT_NEAR(reference.qxx  ,composite.qxx , 1e-10);
+    EXPECT_NEAR(reference.qxy  ,composite.qxy , 1e-10);
+    EXPECT_NEAR(reference.qxz  ,composite.qxz , 1e-10);
+    EXPECT_NEAR(reference.qyy  ,composite.qyy , 1e-10);
+    EXPECT_NEAR(reference.qyz  ,composite.qyz , 1e-10);
+    EXPECT_NEAR(reference.qzz  ,composite.qzz , 1e-10);
 }

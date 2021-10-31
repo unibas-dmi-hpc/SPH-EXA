@@ -18,7 +18,6 @@ struct Task
 
     void resize(const size_t size)
     {
-        clist.resize(size);
 #ifndef USE_CUDA
         neighbors.resize(size * ngmax);
 #endif
@@ -28,7 +27,13 @@ struct Task
     const size_t ngmax;
     const size_t ng0;
 
-    std::vector<int> clist;
+    //! @brief first particle owned by rank, everything below is halos
+    int firstParticle;
+    //! @brief last particle owned by rank, everything above is halos
+    int lastParticle;
+
+    int size() const { return lastParticle - firstParticle; }
+
     std::vector<int> neighbors;
 #ifdef USE_CUDA
     std::vector<int, pinned_allocator<int>> neighborsCount;
@@ -40,20 +45,27 @@ struct Task
 class TaskList
 {
 public:
-    TaskList(const std::vector<int> &clist, const size_t nTasks, const size_t ngmax, const size_t ng0)
+    TaskList(int firstIndex, int lastIndex, size_t nTasks, size_t ngmax, size_t ng0)
         : ngmax(ngmax)
         , ng0(ng0)
         , nTasks(nTasks)
-        , tasks(create(clist, nTasks, ngmax, ng0))
+        , tasks(nTasks, Task(ngmax, ng0))
     {
+        update(firstIndex, lastIndex);
     }
 
-    void update(const std::vector<int> &clist)
+    void update(int firstIndex, int lastIndex)
     {
-        const int partitionSize = clist.size() / nTasks;
-        const int lastPartitionOffset = clist.size() - nTasks * partitionSize;
+        int numParticles = lastIndex - firstIndex;
+        int partitionSize = numParticles / nTasks;
+        int remainder = numParticles % nTasks;
 
-        initTasks(clist, partitionSize, lastPartitionOffset, tasks);
+        for (size_t i = 0; i < nTasks; ++i)
+        {
+            tasks[i].firstParticle = firstIndex + i * partitionSize;
+            tasks[i].lastParticle  = firstIndex + (i + 1) * partitionSize + (i == nTasks - 1 ? remainder : 0);
+            tasks[i].resize(tasks[i].size());
+        }
     }
 
     const size_t ngmax;
@@ -61,33 +73,5 @@ public:
     const size_t nTasks;
     std::vector<Task> tasks;
 
-private:
-    std::vector<Task> create(const std::vector<int> &clist, const size_t nTasks, const size_t ngmax, const size_t ng0)
-    {
-        const int partitionSize = clist.size() / nTasks;
-        const int lastPartitionOffset = clist.size() - nTasks * partitionSize;
-
-        std::vector<Task> taskList(nTasks, Task(ngmax, ng0));
-
-        initTasks(clist, partitionSize, lastPartitionOffset, taskList);
-
-        return taskList;
-    }
-
-    void initTasks(const std::vector<int> clist, const size_t partitionSize, const size_t lastPartitionOffset,
-                   std::vector<Task> &tasksToInit)
-    {
-#pragma omp parallel for
-        for (size_t i = 0; i < nTasks; ++i)
-        {
-            const size_t begin = i * partitionSize;
-            const size_t end = (i + 1) * partitionSize + (i == nTasks - 1 ? lastPartitionOffset : 0);
-            const size_t size = end - begin;
-
-            tasksToInit[i].resize(size);
-            for (size_t j = 0; j < size; j++)
-                tasksToInit[i].clist[j] = clist[j + begin];
-        }
-    }
 };
 } // namespace sphexa

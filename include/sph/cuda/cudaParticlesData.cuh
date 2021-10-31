@@ -1,7 +1,6 @@
 #pragma once
 
 #include "cudaUtils.cuh"
-#include "BBox.hpp"
 
 namespace sphexa
 {
@@ -23,7 +22,7 @@ public:
     struct neighbors_stream
     {
         cudaStream_t stream;
-        int *d_clist, *d_neighbors, *d_neighborsCount;
+        int *d_neighborsCount;
     };
 
     struct neighbors_stream d_stream[NST];
@@ -31,8 +30,6 @@ public:
     T *d_x, *d_y, *d_z, *d_vx, *d_vy, *d_vz, *d_m, *d_h, *d_ro, *d_p, *d_c,
       *d_c11, *d_c12, *d_c13, *d_c22, *d_c23, *d_c33, *d_wh, *d_whd,
       *d_grad_P_x, *d_grad_P_y, *d_grad_P_z, *d_du, *d_maxvsignal;
-
-    BBox<T> *d_bbox;
 
     typename ParticleData::KeyType *d_codes;
 
@@ -77,8 +74,7 @@ public:
                 //printf("[D] increased stream size from %ld to %ld\n", allocatedTaskSize, taskSize);
                 for (int i = 0; i < NST; ++i)
                 {
-                    CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_clist, d_stream[i].d_neighborsCount));
-                    CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_neighbors));
+                    CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_neighborsCount));
                 }
             }
 
@@ -86,9 +82,7 @@ public:
 
             for (int i = 0; i < NST; ++i)
             {
-                CHECK_CUDA_ERR(
-                    utils::cudaMalloc(taskSize * sizeof(int), d_stream[i].d_clist, d_stream[i].d_neighborsCount));
-                CHECK_CUDA_ERR(utils::cudaMalloc(taskSize * ngmax * sizeof(int), d_stream[i].d_neighbors));
+                CHECK_CUDA_ERR(utils::cudaMalloc(taskSize * sizeof(int), d_stream[i].d_neighborsCount));
             }
 
             allocatedTaskSize = taskSize;
@@ -99,13 +93,10 @@ public:
 
     explicit DeviceParticlesData(const ParticleData& pd)
     {
-        const size_t size_bbox = sizeof(BBox<T>);
-
-        const size_t ltsize = pd.wh.size();
-        const size_t size_lt_T = ltsize * sizeof(T);
+        size_t ltsize = pd.wh.size();
+        size_t size_lt_T = ltsize * sizeof(T);
 
         CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
-        CHECK_CUDA_ERR(utils::cudaMalloc(size_bbox, d_bbox));
 
         for (int i = 0; i < NST; ++i)
         {
@@ -115,7 +106,7 @@ public:
 
     ~DeviceParticlesData()
     {
-        CHECK_CUDA_ERR(utils::cudaFree(d_bbox, d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c,
+        CHECK_CUDA_ERR(utils::cudaFree(d_x, d_y, d_z, d_vx, d_vy, d_vz, d_h, d_m, d_ro, d_p, d_c,
                                        d_c11, d_c12, d_c13, d_c22, d_c23, d_c33, d_grad_P_x, d_grad_P_y, d_grad_P_z,
                                        d_du, d_maxvsignal, d_wh, d_whd));
         CHECK_CUDA_ERR(utils::cudaFree(d_codes));
@@ -123,11 +114,7 @@ public:
         for (int i = 0; i < NST; ++i)
         {
             CHECK_CUDA_ERR(cudaStreamDestroy(d_stream[i].stream));
-        }
-
-        for (int i = 0; i < NST; ++i)
-        {
-            CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_clist, d_stream[i].d_neighbors, d_stream[i].d_neighborsCount));
+            CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_neighborsCount));
         }
     }
 };
