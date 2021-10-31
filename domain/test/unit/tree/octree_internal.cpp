@@ -274,51 +274,49 @@ void checkConnectivity(const Octree<KeyType>& fullTree)
     ASSERT_TRUE(fullTree.isRoot(0));
 
     // check all internal nodes
-    for (TreeNodeIndex nodeIdx = 0; nodeIdx < fullTree.numInternalNodes(); ++nodeIdx)
+    for (TreeNodeIndex nodeIdx = 0; nodeIdx < fullTree.numTreeNodes(); ++nodeIdx)
     {
-        ASSERT_FALSE(fullTree.isLeaf(nodeIdx));
-
-        KeyType prefix = fullTree.codeStart(nodeIdx);
-        int level = fullTree.level(nodeIdx);
-
-        EXPECT_EQ(fullTree.codeEnd(nodeIdx), prefix + nodeRange<KeyType>(level));
-
-        for (int octant = 0; octant < 8; ++octant)
+        if (!fullTree.isLeaf(nodeIdx))
         {
-            TreeNodeIndex child = fullTree.child(nodeIdx, octant);
-            EXPECT_EQ(prefix + octant * nodeRange<KeyType>(level + 1), fullTree.codeStart(child));
+            KeyType prefix = fullTree.codeStart(nodeIdx);
+            int level      = fullTree.level(nodeIdx);
+
+            EXPECT_EQ(fullTree.codeEnd(nodeIdx), prefix + nodeRange<KeyType>(level));
+
+            for (int octant = 0; octant < 8; ++octant)
+            {
+                TreeNodeIndex child = fullTree.child(nodeIdx, octant);
+                EXPECT_EQ(prefix + octant * nodeRange<KeyType>(level + 1), fullTree.codeStart(child));
+            }
+
+            if (!fullTree.isRoot(nodeIdx))
+            {
+                TreeNodeIndex parent = fullTree.parent(nodeIdx);
+                EXPECT_EQ(fullTree.level(parent), level - 1);
+
+                KeyType parentPrefix = fullTree.codeStart(parent);
+                EXPECT_EQ(parentPrefix, enclosingBoxCode(prefix, level - 1));
+            }
+            else
+            {
+                EXPECT_EQ(fullTree.codeStart(nodeIdx), 0);
+                EXPECT_EQ(fullTree.level(nodeIdx), 0);
+            }
+
         }
-
-        if (!fullTree.isRoot(nodeIdx))
+        else
         {
+            KeyType prefix = fullTree.codeStart(nodeIdx);
+            int level      = fullTree.level(nodeIdx);
+
+            EXPECT_EQ(fullTree.codeEnd(nodeIdx), prefix + nodeRange<KeyType>(level));
+
             TreeNodeIndex parent = fullTree.parent(nodeIdx);
             EXPECT_EQ(fullTree.level(parent), level - 1);
 
             KeyType parentPrefix = fullTree.codeStart(parent);
             EXPECT_EQ(parentPrefix, enclosingBoxCode(prefix, level - 1));
         }
-        else
-        {
-            EXPECT_EQ(fullTree.codeStart(nodeIdx), 0);
-            EXPECT_EQ(fullTree.level(nodeIdx), 0);
-        }
-    }
-
-    // check all leaf nodes
-    for (TreeNodeIndex nodeIdx = fullTree.numInternalNodes(); nodeIdx < fullTree.numTreeNodes(); ++nodeIdx)
-    {
-        ASSERT_TRUE(fullTree.isLeaf(nodeIdx));
-
-        KeyType prefix = fullTree.codeStart(nodeIdx);
-        int level = fullTree.level(nodeIdx);
-
-        EXPECT_EQ(fullTree.codeEnd(nodeIdx), prefix + nodeRange<KeyType>(level));
-
-        TreeNodeIndex parent = fullTree.parent(nodeIdx);
-        EXPECT_EQ(fullTree.level(parent), level - 1);
-
-        KeyType parentPrefix = fullTree.codeStart(parent);
-        EXPECT_EQ(parentPrefix, enclosingBoxCode(prefix, level - 1));
     }
 }
 
