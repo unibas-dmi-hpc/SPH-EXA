@@ -417,8 +417,6 @@ public:
     //! @brief returns a view of the leaf particle counts
     [[nodiscard]] gsl::span<const unsigned> leafCounts() const { return counts_; }
 
-    gsl::span<const BinaryNode<KeyType>> binaryTree() const { return tree_.binaryTree(); }
-
 private:
 
     //! @brief max number of particles per node in focus

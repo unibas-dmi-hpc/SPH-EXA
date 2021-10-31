@@ -132,6 +132,7 @@ void constructOctree(const KeyType* leaves, TreeNodeIndex numLeafNodes, const Bi
     std::vector<TreeNodeIndex> nodeOrder(numNodes);
     std::iota(begin(nodeOrder), end(nodeOrder), 0);
 
+    #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < numInternalNodes; ++i)
     {
         TreeNodeIndex binaryIndex = octToBinary[i];
@@ -141,6 +142,7 @@ void constructOctree(const KeyType* leaves, TreeNodeIndex numLeafNodes, const Bi
 
     std::copy(leaves, leaves + numLeafNodes, prefixes + numInternalNodes);
 
+    #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < numLeafNodes; ++i)
     {
         unsigned level = treeLevel(leaves[i+1] - leaves[i]);
@@ -170,6 +172,7 @@ void constructOctree(const KeyType* leaves, TreeNodeIndex numLeafNodes, const Bi
 
     exclusiveScan(levelOffsets, maxTreeLevel<KeyType>{} + 2);
 
+    #pragma omp parallel for schedule(dynamic)
     for (unsigned level = 0; level < maxTreeLevel<KeyType>{} + 1; ++level)
     {
         TreeNodeIndex lvlStart = levelOffsets[level];
@@ -190,6 +193,7 @@ void constructOctree(const KeyType* leaves, TreeNodeIndex numLeafNodes, const Bi
     sort_by_key(begin(nodeOrder), end(nodeOrder), begin(inverseNodeOrder));
 
     // loop over octree nodes index in layout A
+    #pragma omp parallel for schedule(static)
     for (TreeNodeIndex idxA = 0; idxA < numInternalNodes; ++idxA)
     {
         TreeNodeIndex binaryIndex = octToBinary[idxA];
@@ -811,11 +815,6 @@ public:
     [[nodiscard]] gsl::span<const KeyType> treeLeaves() const
     {
         return cstoneTree_;
-    }
-
-    gsl::span<const BinaryNode<KeyType>> binaryTree() const
-    {
-        return binaryTree_;
     }
 
     [[nodiscard]] const TreeNodeIndex* leafParents() const
