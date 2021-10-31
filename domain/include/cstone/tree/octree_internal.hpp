@@ -900,5 +900,156 @@ private:
      std::vector<TreeNodeIndex> nNodesPerLevel_;
 };
 
+template<class KeyType>
+class TdOctree
+{
+public:
+    TdOctree()
+        : levelOffsets_(maxTreeLevel<KeyType>{} + 2)
+    {
+    }
+
+    void update(const KeyType* firstLeaf, TreeNodeIndex newNumLeafNodes)
+    {
+        updateInternalTree(firstLeaf, newNumLeafNodes);
+    }
+
+    //! @brief total number of nodes in the tree
+    [[nodiscard]] inline TreeNodeIndex numTreeNodes() const
+    {
+        return levelOffsets_.back();
+    }
+
+    [[nodiscard]] inline TreeNodeIndex numTreeNodes(unsigned level) const
+    {
+        assert(level <= maxTreeLevel<KeyType>{});
+        return levelOffsets_[level + 1] - levelOffsets_[level];
+    }
+
+    //! @brief number of leaf nodes in the tree
+    [[nodiscard]] inline TreeNodeIndex numLeafNodes() const
+    {
+        return numLeafNodes_;
+    }
+
+    //! @brief number of internal nodes in the tree, equal to (numLeafNodes()-1) / 7
+    [[nodiscard]] inline TreeNodeIndex numInternalNodes() const
+    {
+        return numInternalNodes_;
+    }
+
+    /*! @brief check whether node is a leaf
+     *
+     * @param[in] node    node index, range [0:numTreeNodes()]
+     * @return            true or false
+     */
+    [[nodiscard]] inline bool isLeaf(TreeNodeIndex node) const
+    {
+        assert(node < numTreeNodes());
+        return childOffsets_[node] == 0;
+    }
+
+    //! @brief check if node is the root node
+    [[nodiscard]] inline bool isRoot(TreeNodeIndex node) const
+    {
+        return node == 0;
+    }
+
+    /*! @brief return child node index
+     *
+     * @param[in] node    node index, range [0:numInternalNodes()]
+     * @param[in] octant  octant index, range [0:8]
+     * @return            child node index, range [0:nNodes()]
+     *
+     * If @p node is not internal, behavior is undefined.
+     * Query with isLeaf(node) before calling this function.
+     */
+    [[nodiscard]] inline TreeNodeIndex child(TreeNodeIndex node, int octant) const
+    {
+        assert(node < TreeNodeIndex(childOffsets_.size()));
+
+        return childOffsets_[node] + octant;
+    }
+
+    /*! @brief index of parent node
+     *
+     * Note: the root node is its own parent
+     */
+    [[nodiscard]] inline TreeNodeIndex parent(TreeNodeIndex node) const
+    {
+        return parents_[(node -1) / 8];
+    }
+
+    //! @brief lowest SFC key contained int the geometrical box of @p node
+    [[nodiscard]] inline KeyType codeStart(TreeNodeIndex node) const
+    {
+        return prefixes_[node];
+    }
+
+    //! @brief highest SFC key contained in the geometrical box of @p node
+    [[nodiscard]] inline KeyType codeEnd(TreeNodeIndex node) const
+    {
+        return prefixes_[node] + nodeRange<KeyType>(levels_[node]);
+    }
+
+    /*! @brief octree subdivision level for @p node
+     *
+     * Returns 0 for the root node. Highest value is maxTreeLevel<KeyType>{}.
+     */
+    [[nodiscard]] inline int level(TreeNodeIndex node) const
+    {
+        return levels_[node];
+    }
+
+    /*! @brief finds the index of the node with SFC key range [startKey:endKey]
+     *
+     * @param startKey   lower SFC key
+     * @param endKey     upper SFC key
+     * @return           The index i of the node that satisfies codeStart(i) == startKey
+     *                   and codeEnd(i) == endKey, or numTreeNodes() if no such node exists.
+     */
+    TreeNodeIndex locate(KeyType startKey, KeyType endKey) const
+    {
+        unsigned level = treeLevel(endKey - startKey);
+
+        return std::lower_bound(prefixes_.begin() + levelOffsets_[level],
+                                prefixes_.begin() + levelOffsets_[level + 1], startKey) -
+               prefixes_.begin();
+    }
+
+private:
+
+    //! @brief regenerates the internal tree based on (a changed) cstoneTree_
+    void updateInternalTree(const KeyType* leaves, TreeNodeIndex numLeafNodes)
+    {
+        numLeafNodes_          = numLeafNodes;
+        numInternalNodes_      = (numLeafNodes - 1) / 7;
+        TreeNodeIndex numNodes = numInternalNodes_ + numLeafNodes_;
+
+        std::vector<BinaryNode<KeyType>> binaryTree(numLeafNodes);
+        createBinaryTree(leaves, numLeafNodes, binaryTree.data());
+
+        prefixes_.resize(numNodes);
+        levels_.resize(numNodes);
+        childOffsets_.resize(numNodes);
+        parents_.resize((numNodes - 1) / 8);
+
+        constructOctree(leaves, numLeafNodes, binaryTree.data(), prefixes_.data(), levels_.data(), childOffsets_.data(),
+                        parents_.data(), levelOffsets_.data());
+    }
+
+    TreeNodeIndex numLeafNodes_{0};
+    TreeNodeIndex numInternalNodes_{0};
+
+    std::vector<KeyType> prefixes_;
+
+    std::vector<unsigned> levels_;
+
+    std::vector<TreeNodeIndex> childOffsets_;
+
+    std::vector<TreeNodeIndex> parents_;
+
+    std::vector<TreeNodeIndex> levelOffsets_;
+};
 
 } // namespace cstone

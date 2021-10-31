@@ -108,48 +108,6 @@ TEST(InternalOctree, nodeDepth)
     EXPECT_EQ(depths_v, depths_reference);
 }
 
-TEST(InternalOctree, topsort)
-{
-    using KeyType = uint32_t;
-
-    std::vector<KeyType> leaves = makeUniformNLevelTree<KeyType>(512, 1);
-
-    std::vector<BinaryNode<KeyType>> binaryTree(nNodes(leaves));
-    createBinaryTree(leaves.data(), nNodes(leaves), binaryTree.data());
-
-    TreeNodeIndex numLeafNodes     = nNodes(leaves);
-    TreeNodeIndex numInternalNodes = (numLeafNodes - 1) / 7;
-    TreeNodeIndex numNodes         = numInternalNodes + numLeafNodes;
-
-    std::vector<KeyType>       prefixes(numNodes);
-    std::vector<unsigned>      levels(numNodes);
-    std::vector<TreeNodeIndex> levelOffsets(maxTreeLevel<KeyType>{} + 2);
-    std::vector<TreeNodeIndex> childOffsets(numNodes, 0);
-    std::vector<TreeNodeIndex> parents( (numNodes - 1) / 8);
-
-    constructOctree(leaves.data(), numLeafNodes, binaryTree.data(), prefixes.data(), levels.data(), childOffsets.data(),
-                    parents.data(), levelOffsets.data());
-
-    TreeNodeIndex numLeavesControl = std::count(begin(childOffsets), end(childOffsets), 0);
-    EXPECT_EQ(numLeavesControl, numLeafNodes);
-
-    for (TreeNodeIndex i = 0; i < numNodes; ++i)
-    {
-        TreeNodeIndex childIdx = childOffsets[i];
-        EXPECT_TRUE(childIdx == 0 || levels[childIdx] == levels[i] + 1);
-
-        if (childIdx != 0)
-        {
-            EXPECT_EQ(i, parents[(childIdx - 1) / 8]);
-            for (int octant = 0; octant < 8; ++octant)
-            {
-                EXPECT_EQ(prefixes[i] + octant * nodeRange<KeyType>(levels[childIdx]), prefixes[childIdx + octant]);
-            }
-        }
-    }
-}
-
-
 /*! @brief larger test case for nodeDepth to detect multithreading issues
  *
  * Depends on binary/octree generation, so not strictly a unit test
@@ -268,8 +226,52 @@ TEST(InternalOctree, decreasingMaxDepthOrderIsSorted)
     decreasingMaxDepthOrderIsSorted<uint64_t>();
 }
 
+TEST(InternalOctree, rewire)
+{
+    using KeyType = unsigned;
+    constexpr auto& l_ = storeLeafIndex;
+
+    // internal tree, matches leaves for
+    // std::vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
+    // clang-format off
+    std::vector<OctreeNode<KeyType>> internalTree
+    {
+        // prefix, level, parent, children, childTypes
+        {          0, 0, 0, {2, l_(19), l_(20), 3, l_(29), l_(30), l_(31), l_(32), }  },
+        { 0200000000, 2, 2, {l_(6), l_(7), l_(8), l_(9), l_(10), l_(11), l_(12), l_(13), }    },
+        {          0, 1, 0, {l_(4), l_(5), 1, l_(14), l_(15), l_(16), l_(17), l_(18), }   },
+        {03000000000, 1, 0, {l_(21), l_(22), l_(23), l_(24), l_(25), l_(26), l_(27), l_(28), }}
+    };
+    // clang-format on
+
+
+    // maps oldIndex to rewireMap[oldIndex] (scatter operation)
+    std::vector<TreeNodeIndex> rewireMap{0, 3, 1, 2};
+
+    std::vector<OctreeNode<KeyType>> rewiredTree(internalTree.size());
+    rewireInternal(internalTree.data(), rewireMap.data(), TreeNodeIndex(internalTree.size()), rewiredTree.data());
+
+    //for (int i = 0; i < rewiredTree.size(); ++i)
+    //{
+    //    printf("node %3d, prefix %10o, level %1d\n", i, rewiredTree[i].prefix, rewiredTree[i].level);
+    //}
+
+    // clang-format off
+    std::vector<OctreeNode<KeyType>> reference
+    {
+        // prefix, level, parent, children
+        {          0, 0, 0, {1, l_(19), l_(20), 2, l_(29), l_(30), l_(31), l_(32), }  },
+        {          0, 1, 0, {l_(4), l_(5), 3, l_(14), l_(15), l_(16), l_(17), l_(18), }   },
+        {03000000000, 1, 0, {l_(21), l_(22), l_(23), l_(24), l_(25), l_(26), l_(27), l_(28), }},
+        { 0200000000, 2, 1, {l_(6), l_(7), l_(8), l_(9), l_(10), l_(11), l_(12), l_(13), }    }
+    };
+    // clang-format on
+
+    EXPECT_EQ(rewiredTree, reference);
+}
+
 template<class KeyType>
-void checkConnectivity(const Octree<KeyType>& fullTree)
+void checkConnectivity(const TdOctree<KeyType>& fullTree)
 {
     ASSERT_TRUE(fullTree.isRoot(0));
 
@@ -315,61 +317,17 @@ void checkConnectivity(const Octree<KeyType>& fullTree)
             EXPECT_EQ(fullTree.level(parent), level - 1);
 
             KeyType parentPrefix = fullTree.codeStart(parent);
-            EXPECT_EQ(parentPrefix, enclosingBoxCode(prefix, level - 1));
+                EXPECT_EQ(parentPrefix, enclosingBoxCode(prefix, level - 1));
+            }
         }
     }
-}
-
-TEST(InternalOctree, rewire)
-{
-    using KeyType = unsigned;
-    constexpr auto& l_ = storeLeafIndex;
-
-    // internal tree, matches leaves for
-    // std::vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0,2).divide(3).makeTree();
-    // clang-format off
-    std::vector<OctreeNode<KeyType>> internalTree
-    {
-        // prefix, level, parent, children, childTypes
-        {          0, 0, 0, {2, l_(19), l_(20), 3, l_(29), l_(30), l_(31), l_(32), }  },
-        { 0200000000, 2, 2, {l_(6), l_(7), l_(8), l_(9), l_(10), l_(11), l_(12), l_(13), }    },
-        {          0, 1, 0, {l_(4), l_(5), 1, l_(14), l_(15), l_(16), l_(17), l_(18), }   },
-        {03000000000, 1, 0, {l_(21), l_(22), l_(23), l_(24), l_(25), l_(26), l_(27), l_(28), }}
-    };
-    // clang-format on
-
-
-    // maps oldIndex to rewireMap[oldIndex] (scatter operation)
-    std::vector<TreeNodeIndex> rewireMap{0, 3, 1, 2};
-
-    std::vector<OctreeNode<KeyType>> rewiredTree(internalTree.size());
-    rewireInternal(internalTree.data(), rewireMap.data(), TreeNodeIndex(internalTree.size()), rewiredTree.data());
-
-    //for (int i = 0; i < rewiredTree.size(); ++i)
-    //{
-    //    printf("node %3d, prefix %10o, level %1d\n", i, rewiredTree[i].prefix, rewiredTree[i].level);
-    //}
-
-    // clang-format off
-    std::vector<OctreeNode<KeyType>> reference
-    {
-        // prefix, level, parent, children
-        {          0, 0, 0, {1, l_(19), l_(20), 2, l_(29), l_(30), l_(31), l_(32), }  },
-        {          0, 1, 0, {l_(4), l_(5), 3, l_(14), l_(15), l_(16), l_(17), l_(18), }   },
-        {03000000000, 1, 0, {l_(21), l_(22), l_(23), l_(24), l_(25), l_(26), l_(27), l_(28), }},
-        { 0200000000, 2, 1, {l_(6), l_(7), l_(8), l_(9), l_(10), l_(11), l_(12), l_(13), }    }
-    };
-    // clang-format on
-
-    EXPECT_EQ(rewiredTree, reference);
-}
 
 TEST(InternalOctree, rootNode)
 {
     auto tree = makeRootNodeTree<unsigned>();
 
-    Octree<unsigned> fullTree;
-    fullTree.update(tree.data(), tree.data() + tree.size());
+    TdOctree<unsigned> fullTree;
+    fullTree.update(tree.data(), nNodes(tree));
 
     EXPECT_EQ(fullTree.numLeafNodes(), 1);
     EXPECT_EQ(fullTree.numTreeNodes(), 1);
@@ -391,17 +349,17 @@ void octree4x4x4()
 {
     std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
-    Octree<KeyType> fullTree;
-    fullTree.update(tree.data(), tree.data() + tree.size());
+    TdOctree<KeyType> fullTree;
+    fullTree.update(tree.data(), nNodes(tree));
 
     ASSERT_EQ(fullTree.numInternalNodes(), (64 - 1) / 7);
     ASSERT_EQ(fullTree.numLeafNodes(), 64);
 
-    EXPECT_EQ(fullTree.numTreeNodes(0), 64);
+    EXPECT_EQ(fullTree.numTreeNodes(0), 1);
     EXPECT_EQ(fullTree.numTreeNodes(1), 8);
-    EXPECT_EQ(fullTree.numTreeNodes(2), 1);
+    EXPECT_EQ(fullTree.numTreeNodes(2), 64);
 
-    checkConnectivity(fullTree);
+    checkConnectivity<KeyType>(fullTree);
 }
 
 TEST(InternalOctree, octree4x4x4)
@@ -423,17 +381,17 @@ void octreeIrregularL2()
 {
     std::vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(0).makeTree();
 
-    Octree<KeyType> fullTree;
-    fullTree.update(tree.data(), tree.data() + tree.size());
+    TdOctree<KeyType> fullTree;
+    fullTree.update(tree.data(), nNodes(tree));
 
     ASSERT_EQ(fullTree.numInternalNodes(), (15 - 1) / 7);
     ASSERT_EQ(fullTree.numLeafNodes(), 15);
 
-    EXPECT_EQ(fullTree.numTreeNodes(0), 15);
-    EXPECT_EQ(fullTree.numTreeNodes(1), 1);
-    EXPECT_EQ(fullTree.numTreeNodes(2), 1);
+    EXPECT_EQ(fullTree.numTreeNodes(0), 1);
+    EXPECT_EQ(fullTree.numTreeNodes(1), 8);
+    EXPECT_EQ(fullTree.numTreeNodes(2), 8);
 
-    checkConnectivity(fullTree);
+    checkConnectivity<KeyType>(fullTree);
 }
 
 TEST(InternalOctree, irregularL2)
@@ -448,18 +406,18 @@ void octreeIrregularL3()
 {
     std::vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0, 2).divide(3).makeTree();
 
-    Octree<KeyType> fullTree;
-    fullTree.update(tree.data(), tree.data() + tree.size());
+    TdOctree<KeyType> fullTree;
+    fullTree.update(tree.data(), nNodes(tree));
     EXPECT_EQ(fullTree.numTreeNodes(), 33);
     EXPECT_EQ(fullTree.numLeafNodes(), 29);
     EXPECT_EQ(fullTree.numInternalNodes(), 4);
 
-    EXPECT_EQ(fullTree.numTreeNodes(0), 29);
-    EXPECT_EQ(fullTree.numTreeNodes(1), 2);
-    EXPECT_EQ(fullTree.numTreeNodes(2), 1);
-    EXPECT_EQ(fullTree.numTreeNodes(3), 1);
+    EXPECT_EQ(fullTree.numTreeNodes(0), 1);
+    EXPECT_EQ(fullTree.numTreeNodes(1), 8);
+    EXPECT_EQ(fullTree.numTreeNodes(2), 16);
+    EXPECT_EQ(fullTree.numTreeNodes(3), 8);
 
-    checkConnectivity(fullTree);
+    checkConnectivity<KeyType>(fullTree);
 }
 
 TEST(InternalOctree, irregularL3)
@@ -474,29 +432,16 @@ void locateTest()
     std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
     std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
 
-    Octree<KeyType> fullTree;
-    fullTree.update(std::move(spanningTree));
+    TdOctree<KeyType> fullTree;
+    fullTree.update(spanningTree.data(), nNodes(spanningTree));
 
-    std::vector<std::array<KeyType, 2>> inputs{{0, nodeRange<KeyType>(0)},
-                                               {0, nodeRange<KeyType>(1)},
-                                               {0, nodeRange<KeyType>(2)},
-                                               {0, nodeRange<KeyType>(3)},
-                                               {0, 1},
-                                               {4 * nodeRange<KeyType>(1), 5 * nodeRange<KeyType>(1)},
-                                               {nodeRange<KeyType>(0) - 512, nodeRange<KeyType>(0)},
-                                               {nodeRange<KeyType>(0) - 64, nodeRange<KeyType>(0)},
-                                               {nodeRange<KeyType>(0) - 8, nodeRange<KeyType>(0)},
-                                               {nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)}};
-
-    for (auto p : inputs)
+    for (TreeNodeIndex i = 0; i < fullTree.numTreeNodes(); ++i)
     {
-        auto [start, end] = p;
-        TreeNodeIndex nodeIdx = fullTree.locate(start, end);
-        EXPECT_EQ(start, fullTree.codeStart(nodeIdx));
-        EXPECT_EQ(end, fullTree.codeEnd(nodeIdx));
-    }
+        KeyType key1 = fullTree.codeStart(i);
+        KeyType key2 = fullTree.codeEnd(i);
 
-    EXPECT_EQ(fullTree.locate(0, 2), fullTree.numTreeNodes());
+        EXPECT_EQ(i, fullTree.locate(key1, key2));
+    }
 }
 
 TEST(InternalOctree, locate)
