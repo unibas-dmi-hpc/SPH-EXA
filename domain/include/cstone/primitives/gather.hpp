@@ -92,7 +92,7 @@ void reorder(gsl::span<const IndexType> ordering, const ValueType* source, Value
              IndexType offset, IndexType numExtract)
 {
     #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < numExtract; ++i)
+    for (IndexType i = 0; i < numExtract; ++i)
     {
         destination[i] = source[ordering[i + offset]];
     }

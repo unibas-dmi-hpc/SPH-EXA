@@ -778,7 +778,7 @@ private:
 template<class KeyType>
 void constructOctree(const KeyType* leaves, TreeNodeIndex numLeafNodes, const BinaryNode<KeyType>* binaryTree,
                      KeyType* prefixes, unsigned* levels, TreeNodeIndex* childOffsets, TreeNodeIndex* parents,
-                     TreeNodeIndex* levelOffsets)
+                     TreeNodeIndex* levelOffsets, TreeNodeIndex* nodeOrder)
 {
     // we ignore the last binary tree node which is a duplicate root node
     TreeNodeIndex nBinaryNodes = numLeafNodes - 1;
@@ -814,8 +814,8 @@ void constructOctree(const KeyType* leaves, TreeNodeIndex numLeafNodes, const Bi
 
     TreeNodeIndex numNodes = numInternalNodes + numLeafNodes;
 
-    std::vector<TreeNodeIndex> nodeOrder(numNodes);
-    std::iota(begin(nodeOrder), end(nodeOrder), 0);
+    //std::vector<TreeNodeIndex> nodeOrder(numNodes);
+    std::iota(nodeOrder, nodeOrder + numNodes, 0);
 
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < numInternalNodes; ++i)
@@ -845,8 +845,11 @@ void constructOctree(const KeyType* leaves, TreeNodeIndex numLeafNodes, const Bi
      *              internal        leaves
      */
 
-    sort_by_key(levels, levels + numNodes, begin(nodeOrder));
-    reorderInPlace(nodeOrder, prefixes);
+    sort_by_key(levels, levels + numNodes, nodeOrder);
+    {
+        std::vector<KeyType> tmpPrefixes(prefixes, prefixes + numNodes);
+        reorder(gsl::span<const TreeNodeIndex>(nodeOrder, numNodes), tmpPrefixes.data(), prefixes, 0, numNodes);
+    }
 
     for (unsigned level = 0; level < maxTreeLevel<KeyType>{} + 1; ++level)
     {
@@ -861,7 +864,7 @@ void constructOctree(const KeyType* leaves, TreeNodeIndex numLeafNodes, const Bi
     for (unsigned level = 0; level < maxTreeLevel<KeyType>{} + 1; ++level)
     {
         TreeNodeIndex lvlStart = levelOffsets[level];
-        sort_by_key(prefixes + lvlStart, prefixes + levelOffsets[level + 1], begin(nodeOrder) + lvlStart);
+        sort_by_key(prefixes + lvlStart, prefixes + levelOffsets[level + 1], nodeOrder + lvlStart);
     }
 
     /*! prefix and levels now in sorted layout B
@@ -874,8 +877,10 @@ void constructOctree(const KeyType* leaves, TreeNodeIndex numLeafNodes, const Bi
     std::vector<TreeNodeIndex> inverseNodeOrder(numNodes);
     std::iota(begin(inverseNodeOrder), end(inverseNodeOrder), 0);
 
-    // compute inverse of nodeOrder, invalidates nodeOrder
-    sort_by_key(begin(nodeOrder), end(nodeOrder), begin(inverseNodeOrder));
+    // temporarily repurpose childOffsets as sort key
+    std::copy(nodeOrder, nodeOrder + numNodes, childOffsets);
+    sort_by_key(childOffsets, childOffsets + numNodes, begin(inverseNodeOrder));
+    std::fill(childOffsets, childOffsets + numNodes, 0);
 
     // loop over octree nodes index in layout A
     #pragma omp parallel for schedule(static)
@@ -995,9 +1000,21 @@ public:
      *
      * Returns 0 for the root node. Highest value is maxTreeLevel<KeyType>{}.
      */
-    [[nodiscard]] inline int level(TreeNodeIndex node) const
+    [[nodiscard]] inline unsigned level(TreeNodeIndex node) const
     {
         return levels_[node];
+    }
+
+    /*! @brief returns index of @p node in the cornerstone tree used for construction
+     *
+     * @param node  node in [0:numTreeNodes()]
+     * @return      the index in the cornerstone tree used for construction if @p node is a leaf
+     *              such that this->codeStart(node) == cstoneTree[this->cstoneIndex(node)]
+     *              If node is not a leaf, the return value is negative.
+     */
+    [[nodiscard]] inline TreeNodeIndex cstoneIndex(TreeNodeIndex node) const
+    {
+        return nodeOrder_[node] - numInternalNodes_;
     }
 
     /*! @brief finds the index of the node with SFC key range [startKey:endKey]
@@ -1031,11 +1048,12 @@ private:
         prefixes_.resize(numNodes);
         levels_.resize(numNodes);
         childOffsets_.resize(numNodes);
+        nodeOrder_.resize(numNodes);
 
         parents_.resize((numNodes - 1) / 8);
 
         constructOctree(leaves, numLeafNodes, binaryTree.data(), prefixes_.data(), levels_.data(), childOffsets_.data(),
-                        parents_.data(), levelOffsets_.data());
+                        parents_.data(), levelOffsets_.data(), nodeOrder_.data());
     }
 
     TreeNodeIndex numLeafNodes_{0};
@@ -1043,13 +1061,19 @@ private:
 
     std::vector<KeyType> prefixes_;
 
+    //! @brief subdivision level of each node
     std::vector<unsigned> levels_;
 
+    //! @brief node offsets of first child for each node
     std::vector<TreeNodeIndex> childOffsets_;
 
     std::vector<TreeNodeIndex> parents_;
 
+    //! @brief stores index of first node for each level
     std::vector<TreeNodeIndex> levelOffsets_;
+
+    //! @brief stores node locations in the cornerstone leaf array
+    std::vector<TreeNodeIndex> nodeOrder_;
 };
 
 } // namespace cstone

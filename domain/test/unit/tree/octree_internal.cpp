@@ -426,6 +426,26 @@ TEST(InternalOctree, irregularL3)
     octreeIrregularL3<uint64_t>();
 }
 
+
+//! @brief this generates a max-depth cornerstone tree
+template<class KeyType>
+void spanningTreeTest()
+{
+    std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
+    std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
+
+    TdOctree<KeyType> fullTree;
+    fullTree.update(spanningTree.data(), nNodes(spanningTree));
+
+    checkConnectivity(fullTree);
+}
+
+TEST(InternalOctree, spanningTree)
+{
+    spanningTreeTest<unsigned>();
+    spanningTreeTest<uint64_t>();
+}
+
 template<class KeyType>
 void locateTest()
 {
@@ -448,4 +468,31 @@ TEST(InternalOctree, locate)
 {
     locateTest<unsigned>();
     locateTest<uint64_t>();
+}
+
+template<class KeyType>
+void cstoneIndexTest()
+{
+    std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
+    std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
+
+    TdOctree<KeyType> fullTree;
+    fullTree.update(spanningTree.data(), nNodes(spanningTree));
+
+    for (TreeNodeIndex i = 0; i < fullTree.numTreeNodes(); ++i)
+    {
+        if (fullTree.isLeaf(i))
+        {
+            KeyType internalKey = fullTree.codeStart(i);
+
+            TreeNodeIndex cstoneIndex = fullTree.cstoneIndex(i);
+            EXPECT_EQ(internalKey, spanningTree[cstoneIndex]);
+        }
+    }
+}
+
+TEST(InternalOctree, cstoneIndex)
+{
+    cstoneIndexTest<unsigned>();
+    cstoneIndexTest<uint64_t>();
 }
