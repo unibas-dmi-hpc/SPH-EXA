@@ -301,6 +301,11 @@ public:
         return levels_[node];
     }
 
+    [[nodiscard]] inline TreeNodeIndex levelOffset(unsigned level) const
+    {
+        return levelOffsets_[level];
+    }
+
     /*! @brief returns index of @p node in the cornerstone tree used for construction
      *
      * @param node  node in [0:numTreeNodes()]
@@ -371,5 +376,31 @@ private:
     //! @brief stores node locations in the cornerstone leaf array
     std::vector<TreeNodeIndex> nodeOrder_;
 };
+
+template<class T, class KeyType, class CombinationFunction>
+void upsweep(const TdOctree<KeyType>& octree, T* quantities, CombinationFunction combinationFunction)
+{
+    unsigned currentLevel = octree.level(octree.numTreeNodes() - 1);
+
+    for ( ; currentLevel >= 0; --currentLevel)
+    {
+        TreeNodeIndex start = octree.levelOffset(currentLevel);
+        TreeNodeIndex end   = octree.levelOffset(currentLevel + 1);
+        for (TreeNodeIndex i = start; i < end; ++i)
+        {
+            if (!octree.isLeaf(i))
+            {
+                 quantities[i] = combinationFunction(quantities[octree.child(i, 0)],
+                                                     quantities[octree.child(i, 1)],
+                                                     quantities[octree.child(i, 2)],
+                                                     quantities[octree.child(i, 3)],
+                                                     quantities[octree.child(i, 4)],
+                                                     quantities[octree.child(i, 5)],
+                                                     quantities[octree.child(i, 6)],
+                                                     quantities[octree.child(i, 7)]);
+            }
+        }
+    }
+}
 
 } // namespace cstone

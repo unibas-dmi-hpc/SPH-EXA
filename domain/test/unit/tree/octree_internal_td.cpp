@@ -266,3 +266,37 @@ TEST(InternalOctreeTd, cstoneIndex)
     cstoneIndexTest<unsigned>();
     cstoneIndexTest<uint64_t>();
 }
+
+template<class I>
+void upsweepSumIrregularL3()
+{
+    std::vector<I> cstoneTree = OctreeMaker<I>{}.divide().divide(0).divide(0, 2).divide(3).makeTree();
+    TdOctree<I> octree;
+    octree.update(cstoneTree.data(), nNodes(cstoneTree));
+
+    std::vector<unsigned> nodeCounts(octree.numTreeNodes(), 0);
+    for (int i = 0; i < octree.numTreeNodes(); ++i)
+    {
+        if (octree.isLeaf(i))
+        {
+            nodeCounts[i] = 1;
+        }
+    }
+
+    auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h) {
+        return a + b + c + d + e + f + g + h;
+    };
+    upsweep(octree, nodeCounts.data(), sumFunction);
+
+    //std::vector<unsigned> refNodeCounts{29, 15, 8, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    //                                    1,  1,  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+
+    //EXPECT_EQ(nodeCounts, refNodeCounts);
+    EXPECT_EQ(nodeCounts[0], 29);
+}
+
+TEST(UpsweepTd, sumIrregularL3)
+{
+    upsweepSumIrregularL3<unsigned>();
+    upsweepSumIrregularL3<uint64_t>();
+}
