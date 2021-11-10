@@ -1,0 +1,212 @@
+include:
+  - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.cscs.yml'
+
+stages:
+  - build
+  - run
+
+variables:
+  PERSIST_IMAGE_NAME: ${CI_PROJECT_NAME}:1.0
+
+build:
+  tags:
+    - sphjg
+  stage: build
+  image: nvidia/cuda:11.4.2-devel-ubuntu20.04
+  script:
+    # - apt update
+    - pwd
+    - ls -la
+
+run:
+  extends: .dom
+  stage: run
+  image: art.cscs.ch/contbuild/testing/anfink/${PERSIST_IMAGE_NAME}
+  script:
+    - pwd
+    - ls -la
+  variables:
+    PULL_IMAGE: 'YES'
+    CSCS_REGISTRY_LOGIN: 'YES'
+    SLURM_PARTITION: debug
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 1
+
+# {{{ old
+# # https://git.cscs.ch/piccinal/SPH-EXA_mini-app/-/pipelines
+# # author: jgp
+# stages:
+#     - PrgEnv-gnu
+# 
+# default:
+#     tags: ['dom']
+# 
+# variables:
+#   GIT_SUBMODULE_STRATEGY: recursive
+#   # CXX: CC
+# 
+# # {{{ check-git
+# .check-git: &check-git
+#     - export TOPDIR=$PWD
+#     - cd $TOPDIR/clone/SPH-EXA_mini-app.git
+#     - git log -n1
+#     - cd $TOPDIR
+# # }}}
+# 
+# # {{{ setup-cmake
+# .setup-cmake: &setup-cmake
+#     - echo "# --- install cmake:"
+#     - cd $TOPDIR/deps/cmake
+#     - pwd
+#     - tar xf cmake.tgz
+#     - export CMAKEROOT=$TOPDIR/deps/cmake/cmake-3.21.0-linux-x86_64
+#     - export CMAKE=$CMAKEROOT/bin/cmake
+#     - $CMAKE --version
+#     - cd $TOPDIR
+# # }}}
+# 
+# # {{{ run-reframe
+# .run-reframe: &run-reframe
+#     - module load reframe
+#     - reframe --version
+#     - echo "rfm_check=$rfm_check" 
+#     - echo "rfm_system=$rfm_system"
+#     - echo "rfm_pe=$rfm_pe"
+#     - echo "rfm_xml=$rfm_xml"
+#     - echo "rmf_mapping=$rmf_mapping"
+#     - echo "rmf_mod=$rmf_mod"
+#     # - echo "RFM_EXE=$RFM_EXE"
+#     - cd $TOPDIR/reframe
+#     - reframe -c ${rfm_check} --system ${rfm_system} -p ${rfm_pe}
+#         --report-junit ${rfm_xml}
+#         ${rfm_mod} ${rmf_mapping}
+#         --prefix=$SCRATCH/rfm-gitlab/${CI_COMMIT_SHORT_SHA}
+#         --keep-stage-files --failure-stats
+#         -r
+# # }}}
+# 
+# # {{{ PrgEnv-gnu
+# PrgEnv-gnu:
+#     stage: PrgEnv-gnu
+#     script:
+#         - *check-git
+#         - *setup-cmake
+#         # {{{ old stuff
+#         # - echo "# --- load some modulefiles:"
+#         # - module swap PrgEnv-cray PrgEnv-gnu
+#         # - module load cdt-cuda/21.05
+#         # - module load craype-accel-nvidia60
+#         # - module swap cudatoolkit cudatoolkit/11.2.0_3.39-2.1__gf93aa1c
+#         # - module list
+#         # - $CXX --version  
+#         # - echo "# --- cmake build:"
+#         # - $CMAKE -DCMAKE_CXX_COMPILER=$CXX clone/SPH-EXA_mini-app.git/domain/
+#         # - echo "# --- make:"
+#         # - make -j collisions_a2a_test
+#         # - make -j component_units
+#         # }}}
+#         # - echo "# --- run:"
+#         # $RFM_CONFIG_FILE
+#         - export rfm_check=reframe_unittest.py
+#         - export rfm_system=dom:gpu
+#         - export rfm_pe=PrgEnv-gnu
+#         - export rfm_xml=$CI_PROJECT_DIR/run-report-gnu.xml
+#         - export rmf_mapping='-M cudatoolkit:cudatoolkit/11.2.0_3.39-2.1__gf93aa1c -M cdt-cuda:cdt-cuda/21.05'
+#         - export rfm_mod=
+#         # - export RFM_EXE=$TOPDIR/test/collision_reference/collisions_a2a_test
+#         - *run-reframe
+#     artifacts:
+#         when: always
+#         paths:
+#           - $CI_PROJECT_DIR/run-report-gnu.xml
+#           # - ${rfm_xml}
+#         reports:
+#             junit: $CI_PROJECT_DIR/run-report-gnu.xml
+#             # junit: ${rfm_xml}
+# # }}}
+# 
+# # {{{ crap:
+# #     - reframe -c $RFM_CHECK
+# #       ${rfm_system}
+# #       ${rfm_pe}
+# #       ${rfm_pattern}
+# #       --prefix=rfm-stage/${CI_COMMIT_SHORT_SHA}
+# #       --keep-stage-files --failure-stats
+# #       -r
+# #       --module-path +$RFM_MPATH
+# #       -M gromacs:$RFM_MFILE
+# #       --report-junit run-report.xml;
+# #       # --module `module avail $RFM_MFILE -t 2>&1 |grep $RFM_MFIL    E` ;
+# #     # TODO: --report-file=$RFM_REPORT
+# 
+# # # {{{ serial
+# # # S ./test/collision_reference/collisions_a2a_test
+# # [  PASSED  ] 4 tests.
+# # 
+# # # S ./test/performance/scan_perf
+# # scanning 10000000 elements
+# # serial scan test: PASS
+# # parallel scan test: PASS
+# # parallel inplace scan test: PASS
+# # serial benchmark bandwidth: 4701.82 MB/s
+# # parallel benchmark bandwidth: 4310.2 MB/s
+# # parallel inplace benchmark bandwidth: 9385.91 MB/s
+# # 
+# # # S ./test/performance/octree_perf
+# # build time from scratch 0.141761 nNodes(tree): 441365 count: 2000000
+# # build time with guess 0.00588171 nNodes(tree): 441365 count: 2000000 empty nodes: 16309
+# # halo discovery: 0.0159573 nPairs: 67054
+# # plummer box: -55.4645 56.2188 -54.7943 53.6066 -56.9695 57.3319
+# # build time from scratch 0.572571 nNodes(tree): 434211 count: 2000000
+# # build time with guess 0.0503294 nNodes(tree): 434211 count: 2000000 empty nodes: 15510
+# # 
+# # # S ./test/coord_samples/coordinate_test
+# # [  PASSED  ] 1 test.
+# # # S ./test/unit/component_units
+# # [  PASSED  ] 213 tests.
+# # # S+omp ./test/unit/component_units_omp
+# # [  PASSED  ] 213 tests.
+# # # }}}
+# # 
+# # # {{{ mpi
+# # # 2 ./test/integration_mpi/exchange_focus
+# # [  PASSED  ] 2 tests.
+# # # 2 ./test/integration_mpi/box_mpi
+# # [  PASSED  ] 3 tests.
+# # # 2 ./test/integration_mpi/focus_tree
+# # [  PASSED  ] 1 test.
+# # # 2 ./test/integration_mpi/exchange_halos
+# # [  PASSED  ] 1 test.
+# # # 2 ./test/integration_mpi/exchange_domain
+# # [  PASSED  ] 3 tests.
+# # # 2 ./test/integration_mpi/globaloctree
+# # [  PASSED  ] 2 tests.
+# # # 2 ./test/integration_mpi/treedomain
+# # [  PASSED  ] 1 test.
+# # # 2 ./test/integration_mpi/domain_2ranks
+# # [  PASSED  ] 6 tests.
+# # # 2 ./test/integration_mpi/domain_nranks
+# # [  PASSED  ] 1 test.
+# # # }}}
+# # 
+# # # {{{ gpu
+# # # G ./test/unit_cuda/component_units_cuda
+# # [  PASSED  ] 11 tests.
+# # 
+# # # G ./test/performance/binary_perf_gpu
+# # cpu fail count 0
+# # fail count 0
+# # 
+# # # G ./test/performance/octree_perf_gpu
+# # build time from scratch 0.00339504 nNodes(tree): 441365 count: 2000000
+# # build time with guess 0.0001736 nNodes(tree): 441365 count: 2000000
+# # 
+# # # G ./test/performance/cudaNeighborsTest
+# # GPU time 0.024474 s
+# # 16 12 20 8 10 19 14 14 17 21
+# # CPU time 0.226923 s
+# # 16 12 20 8 10 19 14 14 17 21
+# # Neighbor counts: PASS
+# # # }}}
+# # }}}
+# }}}
