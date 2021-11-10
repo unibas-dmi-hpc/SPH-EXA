@@ -160,9 +160,13 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
+#ifdef SPH_EXA_HAVE_H5PART
+            fileWriter.dumpParticleDataToH5File(d, domain.startIndex(), domain.endIndex(),
+                                                   outDirectory + "dump_evrard.h5part");
+#else
             fileWriter.dumpParticleDataToAsciiFile(d, domain.startIndex(), domain.endIndex(),
-                                                   outDirectory + "dump_Sedov" + std::to_string(d.iteration) + ".txt");
-            fileWriter.dumpParticleDataToBinFile(d, outDirectory + "dump_Sedov" + std::to_string(d.iteration) + ".bin");
+                                                   outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".txt");
+#endif
             timer.step("writeFile");
         }
         if (checkpointFrequency > 0 && d.iteration % checkpointFrequency == 0)

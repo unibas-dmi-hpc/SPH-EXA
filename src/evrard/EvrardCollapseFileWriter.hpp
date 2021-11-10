@@ -63,6 +63,13 @@ struct EvrardCollapseFileWriter : public IFileWriter<Dataset>
 template <typename Dataset>
 struct EvrardCollapseMPIFileWriter : IFileWriter<Dataset>
 {
+#ifdef SPH_EXA_HAVE_H5PART
+    void dumpParticleDataToH5File(const Dataset& d, int firstIndex, int lastIndex, const std::string &path) const override
+    {
+        fileutils::writeParticleDataToBinFileWithH5Part(d, firstIndex, lastIndex, path);
+    }
+#endif
+
     void dumpParticleDataToBinFile(const Dataset &d, const std::string &path) const override
     {
         try
