@@ -3,7 +3,6 @@
 #include <cmath>
 #include <vector>
 
-#include "BBox.hpp"
 #include "sph/kernels.hpp"
 #include "ParticlesData.hpp"
 
@@ -127,12 +126,6 @@ public:
             pd.y_m1[i] = pd.y[i] - pd.vy[i] * firstTimeStep;
             pd.z_m1[i] = pd.z[i] - pd.vz[i] * firstTimeStep;
         }
-
-        pd.bbox.computeGlobal(pd.x, pd.y, pd.z);
-
-        pd.bbox.zmax += dx / 2.0;
-        pd.bbox.zmin -= dx / 2.0;
-        pd.bbox.setBox(0, 0, 0, 0, pd.bbox.zmin, pd.bbox.zmax, false, false, true);
 
         pd.etot = pd.ecin = pd.eint = 0.0;
         pd.ttot = 0.0;

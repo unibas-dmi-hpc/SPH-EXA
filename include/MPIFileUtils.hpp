@@ -105,8 +105,9 @@ void writeParticleDataToBinFileWithMPI(const Dataset &d, const std::string &path
 
 // {{{ writeParticleDataToBinFileWithH5Part
 #ifdef SPH_EXA_HAVE_H5PART
-template <typename Dataset, typename... Args>
-void writeParticleDataToBinFileWithH5Part(const Dataset &d, const std::vector<int> &clist, const std::string &path, Args &&... data)
+template<typename Dataset, typename... Args>
+void writeParticleDataToBinFileWithH5Part(const Dataset& d, int firstIndex, int lastIndex, const std::string& path,
+                                          Args&&... data)
 {
     using h5_int64_t = h5part_int64_t;
     using h5_id_t    = h5part_int64_t;
@@ -130,8 +131,8 @@ void writeParticleDataToBinFileWithH5Part(const Dataset &d, const std::vector<in
     H5PartSetStep(h5_file, h5_step);
 
     // get number of particles that each rank will write
-    const int h5_begin = *min_element(clist.begin(), clist.end());
-    const int h5_end   = *max_element(clist.begin(), clist.end());
+    const int h5_begin = firstIndex;
+    const int h5_end   = lastIndex;
     const h5_int64_t h5_num_particles = h5_end - h5_begin + 1;
 
     // set number of particles that each rank will write

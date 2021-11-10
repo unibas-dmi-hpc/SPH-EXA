@@ -173,6 +173,42 @@ private:
     bool pbc[3];
 };
 
+
+template<class T>
+HOST_DEVICE_FUN inline void applyPBC(const cstone::Box<T>& box, T r, T& xx, T& yy, T& zz)
+{
+    if (box.pbcX() && xx > r)
+        xx -= box.lx();
+    else if (box.pbcX() && xx < -r)
+        xx += box.lx();
+
+    if (box.pbcY() && yy > r)
+        yy -= box.ly();
+    else if (box.pbcY() && yy < -r)
+        yy += box.ly();
+
+    if (box.pbcZ() && zz > r)
+        zz -= box.lz();
+    else if (box.pbcZ() && zz < -r)
+        zz += box.lz();
+
+    // xx += bbox.PBCx * ((xx < -r) - (xx > r)) * (bbox.xmax-bbox.xmin);
+    // yy += bbox.PBCy * ((yy < -r) - (yy > r)) * (bbox.ymax-bbox.ymin);
+    // zz += bbox.PBCz * ((zz < -r) - (zz > r)) * (bbox.zmax-bbox.zmin);
+}
+
+template<class T>
+HOST_DEVICE_FUN inline T distancePBC(const cstone::Box<T>& box, T hi, T x1, T y1, T z1, T x2, T y2, T z2)
+{
+    T xx = x1 - x2;
+    T yy = y1 - y2;
+    T zz = z1 - z2;
+
+    applyPBC<T>(box, 2.0 * hi, xx, yy, zz);
+
+    return std::sqrt(xx * xx + yy * yy + zz * zz);
+}
+
 /*! @brief stores octree index integer bounds
  */
 template<class T>

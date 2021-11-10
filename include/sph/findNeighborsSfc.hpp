@@ -27,12 +27,12 @@ void findNeighborsSfc(std::vector<Task>& taskList,
 
     int ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
 
-    for (auto &t : taskList)
+    for (auto& t : taskList)
     {
         int* neighbors = t.neighbors.data();
         int* neighborsCount = t.neighborsCount.data();
 
-        cstone::findNeighbors(x.data(), y.data(), z.data(), h.data(), t.clist.front(), t.clist.back() + 1, x.size(),
+        cstone::findNeighbors(x.data(), y.data(), z.data(), h.data(), t.firstParticle, t.lastParticle, x.size(),
                               box, cstone::sfcKindPointer(particleKeys.data()), neighbors, neighborsCount, ngmax);
     }
 }
@@ -52,18 +52,23 @@ void findNeighborsSfc([[maybe_unused]] std::vector<Task>& taskList,
 
 #endif
 
-size_t neighborsSumImpl(const Task &t)
+size_t neighborsSumImpl(const Task& t)
 {
     size_t sum = 0;
-#pragma omp parallel for reduction(+ : sum)
-    for (unsigned int i = 0; i < t.clist.size(); i++)
+
+    #pragma omp parallel for reduction(+ : sum)
+    for (unsigned int i = 0; i < t.size(); i++)
+    {
         sum += t.neighborsCount[i];
+    }
+
     return sum;
 }
 
-size_t neighborsSum(const std::vector<Task> &taskList)
+size_t neighborsSum(const std::vector<Task>& taskList)
 {
     size_t sum = 0;
+
     for (const auto &task : taskList)
     {
         sum += neighborsSumImpl(task);

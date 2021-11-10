@@ -18,9 +18,8 @@ namespace sph
 template <typename T, class Dataset>
 void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 {
-    size_t n = t.clist.size();
+    int numParticles = t.size();
     size_t ngmax = t.ngmax;
-    const int* clist = t.clist.data();
     const int* neighbors = t.neighbors.data();
     const int* neighborsCount = t.neighborsCount.data();
 
@@ -40,9 +39,6 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 
     const T* wh = d.wh.data();
     const T* whd = d.whd.data();
-
-    BBox<T> bbox{
-        box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax(), box.pbcX(), box.pbcY(), box.pbcZ()};
 
     T K = d.K;
     T sincIndex = d.sincIndex;
@@ -76,9 +72,10 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 #else
 #pragma omp parallel for schedule(guided)
 #endif
-    for (size_t pi = 0; pi < n; ++pi)
+    for (size_t pi = 0; pi < numParticles; ++pi)
     {
-        kernels::IADJLoop(pi, sincIndex, K, ngmax, bbox, clist, neighbors, neighborsCount,
+        int i = pi + t.firstParticle;
+        kernels::IADJLoop(i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi],
                           x, y, z, h, m, ro, wh, whd, c11, c12, c13, c22, c23, c33);
     }
 }
@@ -99,3 +96,4 @@ void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box
 } // namespace sph
 
 } // namespace sphexa
+
