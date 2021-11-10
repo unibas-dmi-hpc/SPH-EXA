@@ -31,6 +31,7 @@
 
 #include <iostream>
 
+#include <thrust/device_vector.h>
 #include <thrust/reduce.h>
 
 #include "cstone/halos/discovery.cuh"

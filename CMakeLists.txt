@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.17)
 
-project(sphexa CXX)
+project(sphexa CXX C)
 set(CMAKE_CXX_STANDARD 17)
 
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fno-math-errno -march=native -DNDEBUG")
@@ -43,7 +43,7 @@ endif()
 
 option(SPH_EXA_WITH_H5PART "Enable HDF5 IO using H5Part library" OFF)
 if (SPH_EXA_WITH_H5PART)
-    find_package(HDF5)
+    find_package(HDF5 REQUIRED)
     add_subdirectory(./extern/h5part)
 endif()
 
