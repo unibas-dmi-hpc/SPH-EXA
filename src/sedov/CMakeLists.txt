@@ -1,11 +1,19 @@
 add_executable(sedov sedov.cpp)
+
 target_include_directories(sedov PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
 target_include_directories(sedov PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(sedov PRIVATE ${MPI_CXX_INCLUDE_PATH})
+
 target_link_libraries(sedov PRIVATE ${MPI_CXX_LIBRARIES})
 target_link_libraries(sedov PRIVATE OpenMP::OpenMP_CXX)
 
 install(TARGETS sedov RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
+if (SPH_EXA_WITH_H5PART)
+    target_compile_definitions(sedov PUBLIC SPH_EXA_HAVE_H5PART)
+    target_include_directories(sedov PUBLIC ${PROJECT_SOURCE_DIR}/extern/h5part)
+    target_link_libraries(sedov PRIVATE H5Part ${HDF5_LIBRARIES})
+endif()
 
 if(CMAKE_CUDA_COMPILER)
     add_executable(sedov-cuda $<TARGET_OBJECTS:gather_obj> $<TARGET_OBJECTS:cuda_find_neighbors_obj> $<TARGET_OBJECTS:cuda_sph> sedov.cpp)
