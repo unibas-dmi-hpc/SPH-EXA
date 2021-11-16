@@ -17,4 +17,5 @@ if (SPH_EXA_WITH_H5PART)
     target_link_libraries(${exename} PRIVATE H5Part ${HDF5_LIBRARIES})
 endif()
 
+install(TARGETS ${exename} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 unset(exename)
