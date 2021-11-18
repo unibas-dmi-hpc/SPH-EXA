@@ -63,4 +63,28 @@ CUDA_DEVICE_FUN inline T artificial_viscosity(T ro_i, T ro_j, T h_i, T h_j, T c_
     return viscosity_ij;
 }
 
+template<typename T>
+CUDA_DEVICE_FUN inline T artificial_viscosity_sphynx(T ro_i, T ro_j, T h_i, T h_j, T c_i, T c_j, T rv,
+                                                     T r_square)
+{
+    constexpr T alpha   = 1.0;
+    constexpr T beta    = 2.0;
+    constexpr T epsilon = 0.01;
+
+    //T ro_ij = (ro_i + ro_j) * T(0.5);
+    //T c_ij  = (c_i + c_j) * T(0.5);
+    //T h_ij  = (h_i + h_j) * T(0.5);
+
+    // calculate viscosity_ij according to Monaghan & Gringold 1983
+    T viscosity_ij = 0.0;
+    if (rv < 0.0)
+    {
+        T wij = rv / std::sqrt(r_square);
+        T vij_signal = (alpha + alpha) / 4 * (c_i + c_j) - beta * wij;
+        viscosity_ij  = -vij_signal * wij;
+    }
+
+    return viscosity_ij;
+}
+
 } // namespace sphexa

@@ -96,7 +96,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T roj = ro[j];
         T cj  = c[j];
 
-        T viscosity_ij = T(0.5) * artificial_viscosity(roi, roj, hi, hj, ci, cj, rv, r2);
+        T viscosity_ij = T(0.5) * artificial_viscosity_sphynx(roi, roj, hi, hj, ci, cj, rv, r2);
 
         // For time-step calculations
         T wij = rv / dist;

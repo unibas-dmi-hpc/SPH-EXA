@@ -58,7 +58,7 @@ TEST(MomentumEnergy, JLoop)
     std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
     std::vector<T> z{1.2, 2.3, 1.4, 1.5, 1.6};
     std::vector<T> h{5.0, 5.1, 5.2, 5.3, 5.4};
-    std::vector<T> m{1.1, 1.2, 1.3, 1.4, 1.5};
+    std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
     std::vector<T> rho{0.014, 0.015, 0.016, 0.017, 0.018};
 
     std::vector<T> vx{0.010, -0.020, 0.030, -0.040,  0.050};
