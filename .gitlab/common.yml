@@ -12,9 +12,7 @@ variables:
   # docker pull art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
   # NOTE: see vars in https://gitlab.com/cscs-ci/gitlab-runner-slurm-sarus
 # {{{ list of tests:
-# TODO:
-# bin/evrard_new
-# /kernel/kernel_tests -> /usr/local/bin/kernel/kernel_tests
+# TODO: /kernel/kernel_tests -> /usr/local/bin/kernel/kernel_tests
 
 # .bin/sedov
 # .bin/sedov-cuda
@@ -285,9 +283,12 @@ variables:
     - if [ "$cpe" = "true" ]; then
         echo "/usr/local/sbin/integration_mpi/exchange_domain skipped because cpe=$cpe";
         echo "/usr/local/sbin/integration_mpi/domain_nranks skipped because cpe=$cpe";
+        echo "/usr/local/bin/evrard_new skipped";
       else
         /usr/local/sbin/integration_mpi/exchange_domain;
         /usr/local/sbin/integration_mpi/domain_nranks;
+        wget --quiet $JG_DEPS_PATH/in/Test3DEvrardRel.bin;
+        /usr/local/bin/evrard_new -s 0 --input ./Test3DEvrardRel.bin ;
       fi
     - /usr/local/sbin/integration_mpi/treedomain
     - /usr/local/sbin/integration_mpi/focus_tree
@@ -295,8 +296,6 @@ variables:
     - /usr/local/sbin/integration_mpi/exchange_keys
     # tests -n12 (or -n1 if cpe)
     - /usr/local/bin/sedov -s 0 -n 40
-    - wget --quiet $JG_DEPS_PATH/in/Test3DEvrardRel.bin
-    - /usr/local/bin/evrard_new -s 0 --input ./Test3DEvrardRel.bin
 # }}}
 
 # {{{ run/gpu
