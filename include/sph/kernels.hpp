@@ -40,8 +40,13 @@ CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative_std(T v)
     return sincv * (PI / 2.0) * ((std::cos(Pv) / std::sin(Pv)) - 1.0 / Pv);
 }
 
+/*! @brief Old viscosity according to Monaghan & Gringold 1983
+ *
+ * We found that this leads to way too much noise in the radial velocity and radial pressure gradients
+ * in the Evrard collapse test case in the wake of the shock wave.
+ */
 template<typename T>
-CUDA_DEVICE_FUN inline T artificial_viscosity(T ro_i, T ro_j, T h_i, T h_j, T c_i, T c_j, T rv, T r_square)
+CUDA_DEVICE_FUN inline T artificial_viscosity_old(T ro_i, T ro_j, T h_i, T h_j, T c_i, T c_j, T rv, T r_square)
 {
     constexpr T alpha   = 1.0;
     constexpr T beta    = 2.0;
@@ -51,7 +56,6 @@ CUDA_DEVICE_FUN inline T artificial_viscosity(T ro_i, T ro_j, T h_i, T h_j, T c_
     T c_ij  = (c_i + c_j) * T(0.5);
     T h_ij  = (h_i + h_j) * T(0.5);
 
-    // calculate viscosity_ij according to Monaghan & Gringold 1983
     T viscosity_ij = 0.0;
     if (rv < 0.0)
     {
@@ -63,25 +67,28 @@ CUDA_DEVICE_FUN inline T artificial_viscosity(T ro_i, T ro_j, T h_i, T h_j, T c_
     return viscosity_ij;
 }
 
+/*! @brief calculate the artificial viscosity between a pair of two particles
+ *
+ * @tparam T    float or double
+ * @param c_i   speed of sound particle i
+ * @param c_j   speed of sound particle j
+ * @param rv    relative velocity (v_i - v_j), projected onto the connecting axis (r_i - r_j)
+ * @param dist  scalar (positive) distance between i and j
+ * @return      the viscosity
+ */
 template<typename T>
-CUDA_DEVICE_FUN inline T artificial_viscosity_sphynx(T ro_i, T ro_j, T h_i, T h_j, T c_i, T c_j, T rv,
-                                                     T r_square)
+CUDA_DEVICE_FUN inline T artificial_viscosity(T c_i, T c_j, T rv, T r_square)
 {
-    constexpr T alpha   = 1.0;
-    constexpr T beta    = 2.0;
-    constexpr T epsilon = 0.01;
+    // these are const now, but will be different for each particle when using viscosity switching
+    constexpr T alpha = 1.0;
+    constexpr T beta  = 2.0;
 
-    //T ro_ij = (ro_i + ro_j) * T(0.5);
-    //T c_ij  = (c_i + c_j) * T(0.5);
-    //T h_ij  = (h_i + h_j) * T(0.5);
-
-    // calculate viscosity_ij according to Monaghan & Gringold 1983
     T viscosity_ij = 0.0;
     if (rv < 0.0)
     {
-        T wij = rv / std::sqrt(r_square);
+        T wij        = rv / std::sqrt(r_square);
         T vij_signal = (alpha + alpha) / 4 * (c_i + c_j) - beta * wij;
-        viscosity_ij  = -vij_signal * wij;
+        viscosity_ij = -vij_signal * wij;
     }
 
     return viscosity_ij;
