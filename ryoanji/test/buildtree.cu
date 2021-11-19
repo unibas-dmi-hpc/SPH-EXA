@@ -36,9 +36,9 @@ TEST(Buildtree, bounds)
 
     Box box;
     cudaVec<int2> levelRange(32, true);
-    cudaVec<CellData> sourceCells(numBodies);
+    cudaVec<CellData> sourceCellsLoc(numBodies, true);
 
-    int3 counts = Build::tree<ncrit>(bodyPos, bodyPos2, box, levelRange, sourceCells);
+    int3 counts = Build::tree<ncrit>(bodyPos, bodyPos2, box, levelRange, sourceCellsLoc);
 
     //! tree depth
     EXPECT_EQ(counts.x, 2);
@@ -57,7 +57,7 @@ TEST(Buildtree, bounds)
     //! download bodies and tree cells
     bodyPos.d2h();
     bodyPos2.d2h();
-    sourceCells.d2h();
+    sourceCellsLoc.d2h();
 
     float diameter = 2 * box.R / (1 << NBITS);
     fvec3 Xmin     = box.X - box.R;

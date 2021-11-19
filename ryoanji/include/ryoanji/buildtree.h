@@ -135,8 +135,9 @@ __global__ void getBounds(const int numBodies, Bounds* bounds, const fvec4* body
 {
     const int NBLOCK = NTHREAD;
     const int begin  = blockIdx.x * blockDim.x + threadIdx.x;
-    fvec3 Xmin       = make_fvec3(bodyPos[begin]);
-    fvec3 Xmax       = Xmin;
+
+    fvec3 Xmin       = INFINITY;
+    fvec3 Xmax       = -INFINITY;
 
     for (int i = begin; i < numBodies; i += NBLOCK * NTHREAD)
     {
@@ -205,7 +206,7 @@ __global__ void getBounds(const int numBodies, Bounds* bounds, const fvec4* body
  * @param[in]   level
  */
 template<int NCRIT, bool ISROOT>
-__global__ __launch_bounds__(NTHREAD, 8)
+__global__ /*__launch_bounds__(NTHREAD, 8)*/
 void buildOctant(float4 box4, const int cellParentIndex, const int cellIndexBase,
                  const int packedOctant, int* octantSizeBase, int* octantSizeScanBase,
                  int* subOctantSizeScanBase, int* blockCounterBase, int2* bodyRangeBase,
@@ -760,3 +761,4 @@ public:
         return counts;
     }
 };
+

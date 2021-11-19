@@ -58,6 +58,7 @@ int main(int argc, char** argv)
     cudaVec<fvec4> Multipole(NVEC4 * numSources);
     Group group;
     int numTargets = group.targets(bodyPos, bodyPos2, box, targetRange, 5);
+    fprintf(stdout, "num targets: %d\n", numTargets);
 
     Pass::upward(numLeafs, numLevels, theta, levelRange, bodyPos, sourceCells, sourceCenter, Multipole);
 
