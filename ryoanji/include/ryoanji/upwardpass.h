@@ -55,6 +55,8 @@ __host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int e
 
 /*! @brief perform multipole upward sweep for one tree level
  *
+ * launch config: one thread per cell of the current level
+ *
  * @param[in]  level            current level to process
  * @param[in]  levelRange       first and lasst node in @p cells of @p level
  * @param[in]  cells            the tree cells
@@ -75,6 +77,12 @@ __global__ __launch_bounds__(NTHREAD) void upwardPass(const int level, int2* lev
     fvec3 Xmax          = -huge;
     fvec4 center;
     float M[4 * NVEC4];
+
+    for (int k = 0; k < 4 * NVEC4; ++k)
+    {
+        M[k] = 0;
+    }
+
     if (cell.isLeaf())
     {
         const int begin = cell.body();
@@ -180,3 +188,4 @@ public:
         bodyPos.unbind(texBody);
     }
 };
+

@@ -747,7 +747,7 @@ public:
         getPermutation<<<NBLOCK, NTHREAD>>>(numCells, value.d(), key.d());
         kernelSuccess("getPermutation");
 
-        sourceCells.alloc(numCells);
+        sourceCells.alloc(numCells, true);
 
         permuteCells<<<NBLOCK, NTHREAD>>>(numCells, value.d(), key.d(), sourceCells2.d(), sourceCells.d());
         kernelSuccess("permuteCells");
