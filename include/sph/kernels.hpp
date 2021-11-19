@@ -59,7 +59,6 @@ CUDA_DEVICE_FUN inline T artificial_viscosity_old(T ro_i, T ro_j, T h_i, T h_j, 
     T viscosity_ij = 0.0;
     if (rv < 0.0)
     {
-        // calculate muij
         T mu_ij = (h_ij * rv) / (r_square + epsilon * h_ij * h_ij);
         viscosity_ij  = (-alpha * c_ij * mu_ij + beta * mu_ij * mu_ij) / ro_ij;
     }
@@ -72,23 +71,21 @@ CUDA_DEVICE_FUN inline T artificial_viscosity_old(T ro_i, T ro_j, T h_i, T h_j, 
  * @tparam T    float or double
  * @param c_i   speed of sound particle i
  * @param c_j   speed of sound particle j
- * @param rv    relative velocity (v_i - v_j), projected onto the connecting axis (r_i - r_j)
- * @param dist  scalar (positive) distance between i and j
+ * @param w_ij  relative velocity (v_i - v_j), projected onto the connecting axis (r_i - r_j)
  * @return      the viscosity
  */
 template<typename T>
-CUDA_DEVICE_FUN inline T artificial_viscosity(T c_i, T c_j, T rv, T r_square)
+CUDA_DEVICE_FUN inline T artificial_viscosity(T c_i, T c_j, T w_ij)
 {
     // these are const now, but will be different for each particle when using viscosity switching
     constexpr T alpha = 1.0;
     constexpr T beta  = 2.0;
 
     T viscosity_ij = 0.0;
-    if (rv < 0.0)
+    if (w_ij < 0.0)
     {
-        T wij        = rv / std::sqrt(r_square);
-        T vij_signal = (alpha + alpha) / 4 * (c_i + c_j) - beta * wij;
-        viscosity_ij = -vij_signal * wij;
+        T vij_signal = (alpha + alpha) / 4 * (c_i + c_j) - beta * w_ij;
+        viscosity_ij = -vij_signal * w_ij;
     }
 
     return viscosity_ij;
