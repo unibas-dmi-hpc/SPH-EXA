@@ -96,10 +96,10 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T roj = ro[j];
         T cj  = c[j];
 
-        T viscosity_ij = T(0.5) * artificial_viscosity(ci, cj, rv, r2);
+        T wij = rv / dist;
+        T viscosity_ij = T(0.5) * artificial_viscosity(ci, cj, wij);
 
         // For time-step calculations
-        T wij = rv / dist;
         T vijsignal = ci + cj - 3.0 * wij;
         maxvsignali = (vijsignal > maxvsignali) ? vijsignal : maxvsignali;
 
