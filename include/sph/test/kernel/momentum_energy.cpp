@@ -58,7 +58,7 @@ TEST(MomentumEnergy, JLoop)
     std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
     std::vector<T> z{1.2, 2.3, 1.4, 1.5, 1.6};
     std::vector<T> h{5.0, 5.1, 5.2, 5.3, 5.4};
-    std::vector<T> m{1.1, 1.2, 1.3, 1.4, 1.5};
+    std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
     std::vector<T> rho{0.014, 0.015, 0.016, 0.017, 0.018};
 
     std::vector<T> vx{0.010, -0.020, 0.030, -0.040,  0.050};
@@ -122,10 +122,10 @@ TEST(MomentumEnergy, JLoop)
                                          &du,
                                          &maxvsignal);
 
-    EXPECT_NEAR(grad_Px, -24.369373231955663, 1e-10);
-    EXPECT_NEAR(grad_Py, -9.1586017679548988, 1e-10);
-    EXPECT_NEAR(grad_Pz, -6.679391391396285, 1e-10);
-    EXPECT_NEAR(du, 0.39423512851556625, 1e-10);
+    EXPECT_NEAR(grad_Px, -10.483775138679292, 1e-10);
+    EXPECT_NEAR(grad_Py, -0.090944092644194813, 1e-10);
+    EXPECT_NEAR(grad_Pz, -10.561586270570247, 1e-10);
+    EXPECT_NEAR(du, -0.26313730882245978, 1e-10);
     EXPECT_NEAR(maxvsignal, 1.4112466828564338, 1e-10);
 }
 
@@ -216,9 +216,9 @@ TEST(MomentumEnergy, JLoopPBC)
                                          &du,
                                          &maxvsignal);
 
-    EXPECT_NEAR(grad_Px, -19.352619275074883, 1e-10);
-    EXPECT_NEAR(grad_Py, -37.488912172925971, 1e-10);
-    EXPECT_NEAR(grad_Pz, 19.075426805668563, 1e-10);
-    EXPECT_NEAR(du, 0.24531258386430324, 1e-10);
+    EXPECT_NEAR(grad_Px, -18.964174134069442, 1e-10);
+    EXPECT_NEAR(grad_Py, -37.008899054154412, 1e-10);
+    EXPECT_NEAR(grad_Pz, 18.654914156760281, 1e-10);
+    EXPECT_NEAR(du, 0.23856924628683882, 1e-10);
     EXPECT_NEAR(maxvsignal, 1.2762102355330307, 1e-10);
 }
