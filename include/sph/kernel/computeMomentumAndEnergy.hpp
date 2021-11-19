@@ -22,9 +22,9 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
     constexpr T gradh_i = 1.0;
     constexpr T gradh_j = 1.0;
 
-    T xi = x[i];
-    T yi = y[i];
-    T zi = z[i];
+    T xi  = x[i];
+    T yi  = y[i];
+    T zi  = z[i];
     T vxi = vx[i];
     T vyi = vy[i];
     T vzi = vz[i];
@@ -34,9 +34,9 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
     T pri = p[i];
     T ci  = c[i];
 
-    T mi_roi  = m[i] / ro[i];
+    T mi_roi = m[i] / ro[i];
 
-    T hiInv = 1.0 / hi;
+    T hiInv  = 1.0 / hi;
     T hiInv3 = hiInv * hiInv * hiInv;
 
     T maxvsignali = 0.0;
@@ -53,9 +53,9 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
     {
         int j = neighbors[pj];
 
-        T rx    = xi - x[j];
-        T ry    = yi - y[j];
-        T rz    = zi - z[j];
+        T rx = xi - x[j];
+        T ry = yi - y[j];
+        T rz = zi - z[j];
 
         applyPBC(box, 2.0 * hi, rx, ry, rz);
 
@@ -96,10 +96,10 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T roj = ro[j];
         T cj  = c[j];
 
-        T viscosity_ij = T(0.5) * artificial_viscosity(roi, roj, hi, hj, ci, cj, rv, r2);
+        T wij = rv / dist;
+        T viscosity_ij = T(0.5) * artificial_viscosity(ci, cj, wij);
 
         // For time-step calculations
-        T wij = rv / dist;
         T vijsignal = ci + cj - 3.0 * wij;
         maxvsignali = (vijsignal > maxvsignali) ? vijsignal : maxvsignali;
 
