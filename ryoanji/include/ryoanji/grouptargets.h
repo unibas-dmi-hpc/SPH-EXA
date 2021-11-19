@@ -12,6 +12,11 @@ namespace
 
 __device__ unsigned int numTargetGlob = 0;
 
+__global__ void resetNumTargets()
+{
+    numTargetGlob = 0;
+}
+
 __host__ __device__ void swap(int& a, int& b)
 {
     int c(a);
@@ -60,6 +65,14 @@ __host__ __device__ uint64_t getHilbert(int3 iX)
     return key;
 }
 
+/*! @brief calculate hilbert key for each body
+ *
+ * @param[in]  numBodies
+ * @param[in]  box      global bounding box, for body coordinate normalization
+ * @param[in]  bodyPos  bodies
+ * @param[out] keys     output hilbert keys
+ * @param[out] values   iota sequence 0...numBodies
+ */
 __global__ void getKeys(const int numBodies, const Box box, const fvec4* bodyPos, uint64_t* keys, int* values)
 {
     const int bodyIdx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -72,6 +85,7 @@ __global__ void getKeys(const int numBodies, const Box box, const fvec4* bodyPos
     values[bodyIdx]      = bodyIdx;
 }
 
+//! @brief gather bodyPos into bodyPos2 through new order given by @p value
 __global__ void permuteBodies(const int numBodies, const int* value, const fvec4* bodyPos, fvec4* bodyPos2)
 {
     const int bodyIdx = blockDim.x * blockIdx.x + threadIdx.x;
@@ -79,11 +93,24 @@ __global__ void permuteBodies(const int numBodies, const int* value, const fvec4
     bodyPos2[bodyIdx] = bodyPos[value[bodyIdx]];
 }
 
+/*! @brief determine which body indices mark start and ends of <levelrange> nodes
+ *
+ * launch config: one thread per body
+ *
+ * @param[in]  numBodies   number of bodies, length of the input arrays @p keys @p keys2 @p bodyBegin @p bodyEnd
+ * @param[in]  mask        one-bits set for the first <levelrange> levels
+ * @param[in]  keys        body hilbert keys
+ * @param[out] keys2       reflected & masked keys
+ * @param[out] bodyBegin   bodyBegin[i] = i if keys[i] is first body in a <levelrange> node, 0 otherwise
+ * @param[out] bodyEnd     bodyEnd[numBodies - 1 - i] = i + 1 if keys[i] is the last body in a <levelrange> node,
+ *                         0 otherwise
+ */
 __global__ void maskKeys(const int numBodies, const uint64_t mask, uint64_t* keys, uint64_t* keys2, int* bodyBegin,
                          int* bodyEnd)
 {
     const int bodyIdx = blockIdx.x * blockDim.x + threadIdx.x;
     if (bodyIdx >= numBodies) return;
+
     keys2[numBodies - bodyIdx - 1] = keys[bodyIdx] & mask;
     const int nextIdx              = min(bodyIdx + 1, numBodies - 1);
     const int prevIdx              = max(bodyIdx - 1, 0);
@@ -100,15 +127,33 @@ __global__ void maskKeys(const int numBodies, const uint64_t mask, uint64_t* key
         bodyEnd[numBodies - 1 - bodyIdx] = 0;
 }
 
+/*! @brief calculate target ranges
+ *
+ * launch config: one thread per body
+ *
+ * @param[in]  numBodies         number of bodies
+ * @param[in]  bodyBeginGlob
+ * @param[in]  bodyEndGlob
+ * @param[out] targetRange
+ *
+ * A target is a group of consecutive bodies in the same tree cell of at most WARP_SIZE * 2 bodies
+ *
+ */
 __global__ void getTargetRange(const int numBodies, const int* bodyBeginGlob, const int* bodyEndGlob, int2* targetRange)
 {
     const int groupSize = WARP_SIZE * 2;
     const int bodyIdx   = blockDim.x * blockIdx.x + threadIdx.x;
     if (bodyIdx >= numBodies) return;
+
     const int bodyBegin = bodyBeginGlob[bodyIdx];
     assert(bodyIdx >= bodyBegin);
-    const int groupIdx   = (bodyIdx - bodyBegin) / groupSize;
+
+    //! if there are more than groupSize particles in the tree cell, the cell is split into several groups
+    //! groupIdx is
+    const int groupIdx = (bodyIdx - bodyBegin) / groupSize;
+
     const int groupBegin = bodyBegin + groupIdx * groupSize;
+
     if (bodyIdx == groupBegin)
     {
         const int targetIdx    = atomicAdd(&numTargetGlob, 1);
@@ -131,9 +176,12 @@ public:
 
         auto t0 = std::chrono::high_resolution_clock::now();
 
+        //! calculate hilbert key for each particle
         getKeys<<<NBLOCK, NTHREAD>>>(numBodies, box, bodyPos.d(), key.d(), value.d());
 
+        //! sort_by_key
         sort(numBodies, key.d(), value.d());
+        //! reorder bodies into hilbert order from bodyPos into bodyPos2
         permuteBodies<<<NBLOCK, NTHREAD>>>(numBodies, value.d(), bodyPos.d(), bodyPos2.d());
 
         cudaVec<int> bodyBegin(numBodies);
@@ -150,6 +198,8 @@ public:
         maskKeys<<<NBLOCK, NTHREAD>>>(numBodies, mask, key.d(), key2.d(), bodyBegin.d(), bodyEnd.d());
         scan(numBodies, key.d(), bodyBegin.d());
         scan(numBodies, key2.d(), bodyEnd.d());
+
+        resetNumTargets<<<1,1>>>();
         getTargetRange<<<NBLOCK, NTHREAD>>>(numBodies, bodyBegin.d(), bodyEnd.d(), targetRange.d());
         kernelSuccess("groupTargets");
 

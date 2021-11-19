@@ -53,6 +53,16 @@ __host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int e
     return center;
 }
 
+/*! @brief perform multipole upward sweep for one tree level
+ *
+ * @param[in]  level            current level to process
+ * @param[in]  levelRange       first and lasst node in @p cells of @p level
+ * @param[in]  cells            the tree cells
+ * @param[out] sourceCenter     the center of mass of each tree cell
+ * @param[out] cellXmin         coordinate minimum of each cell
+ * @param[out] cellXmax         coordinate maximum of each cell
+ * @param[out] Multipole        output multipole of each cell
+ */
 __global__ __launch_bounds__(NTHREAD) void upwardPass(const int level, int2* levelRange, CellData* cells,
                                                       fvec4* sourceCenter, fvec3* cellXmin, fvec3* cellXmax,
                                                       fvec4* Multipole)

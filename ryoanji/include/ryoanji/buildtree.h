@@ -647,9 +647,10 @@ public:
      * @tparam     NCRIT         max number of particles per leaf
      * @param[in]  bodyPos       input particle positions
      * @param[out] bodyPos2
-     * @param[out] box
-     * @param[out] levelRange
-     * @param[out] sourceCells
+     * @param[out] box          coordinate bounding box, will be calculated from bodies
+     * @param[out] levelRange   contains a pair of first and last cell for each tree level
+     * @param[out] sourceCells  Array of tree cells, sorted according to subdivision level, then SFC key.
+     *                          For each cell: contains level, parent, child, numChildren, first body, numBodies.
      * @return
      */
     template<int NCRIT>
@@ -679,6 +680,7 @@ public:
         cudaDeviceSynchronize();
 
         auto t0 = std::chrono::high_resolution_clock::now();
+        //! compute coordinate bounding box
         getBounds<<<NTHREAD, NTHREAD>>>(numBodies, bounds.d(), bodyPos.d());
         kernelSuccess("getBounds");
         auto t1 = std::chrono::high_resolution_clock::now();

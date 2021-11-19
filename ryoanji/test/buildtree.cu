@@ -29,6 +29,7 @@ TEST(Buildtree, bounds)
         bodyPos[i] = bodies[i];
     }
 
+    //! upload bodies to device
     bodyPos.h2d();
 
     cudaVec<fvec4> bodyPos2(numBodies, true);
@@ -46,14 +47,17 @@ TEST(Buildtree, bounds)
     //! leaf cell count
     EXPECT_EQ(counts.z, 64);
 
+    //! check that the correct bounding box was calculated
     Box refBox{{0.0f, 0.0f, 0.0f}, extent*1.1f};
     EXPECT_EQ(refBox.X[0], box.X[0]);
     EXPECT_EQ(refBox.X[1], box.X[1]);
     EXPECT_EQ(refBox.X[2], box.X[2]);
     EXPECT_EQ(refBox.R, box.R);
 
+    //! download bodies and tree cells
     bodyPos.d2h();
     bodyPos2.d2h();
+    sourceCells.d2h();
 
     float diameter = 2 * box.R / (1 << NBITS);
     fvec3 Xmin     = box.X - box.R;
