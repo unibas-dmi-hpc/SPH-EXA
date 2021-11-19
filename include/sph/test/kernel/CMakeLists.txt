@@ -15,3 +15,5 @@ target_include_directories(${kernel_target} PRIVATE ${PROJECT_SOURCE_DIR}/includ
 
 target_link_libraries(${kernel_target} PRIVATE gtest_main)
 add_test(NAME KernelTests COMMAND ${kernel_target})
+
+install(TARGETS ${kernel_target} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/kernel)

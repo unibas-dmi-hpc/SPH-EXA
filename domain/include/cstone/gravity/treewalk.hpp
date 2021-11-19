@@ -147,7 +147,6 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
         if (groupIdx != idx)
         {
             // source node != target node
-            #pragma clang loop vectorize(enable)
             for (LocalParticleIndex t = 0; t < numTargets; ++t)
             {
                 LocalParticleIndex offset = t + firstTarget;

@@ -66,6 +66,8 @@ ADD_LIBRARY(H5Part STATIC
   ${H5Part_SRCS}
 )
 
+target_compile_definitions(H5Part PUBLIC H5_USE_110_API)
+
 TARGET_LINK_LIBRARIES(H5Part
   PUBLIC
     ${H5Part_LIBS}
