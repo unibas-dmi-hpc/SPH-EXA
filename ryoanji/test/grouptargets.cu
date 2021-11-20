@@ -61,8 +61,14 @@ TEST(GroupTargets, construct)
     bodyPos2.d2h();
     sourceCellsLoc.d2h();
     levelRange.d2h();
+    targetRange.d2h();
 
     EXPECT_FALSE(isKeySorted(bodyPos, box));
     EXPECT_TRUE(isKeySorted(bodyPos2, box));
 
+    for (int i = 0; i < numTargets; ++i)
+    {
+        std::cout << targetRange[i].x << " " << targetRange[i].y << std::endl;
+    }
 }
+

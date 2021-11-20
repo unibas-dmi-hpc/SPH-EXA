@@ -99,7 +99,7 @@ __global__ void permuteBodies(const int numBodies, const int* value, const fvec4
  *
  * @param[in]  numBodies   number of bodies, length of the input arrays @p keys @p keys2 @p bodyBegin @p bodyEnd
  * @param[in]  mask        one-bits set for the first <levelrange> levels
- * @param[in]  keys        body hilbert keys
+ * @param[in]  keys        sorted body hilbert keys
  * @param[out] keys2       reflected & masked keys
  * @param[out] bodyBegin   bodyBegin[i] = i if keys[i] is first body in a <levelrange> node, 0 otherwise
  * @param[out] bodyEnd     bodyEnd[numBodies - 1 - i] = i + 1 if keys[i] is the last body in a <levelrange> node,
@@ -166,6 +166,17 @@ __global__ void getTargetRange(const int numBodies, const int* bodyBeginGlob, co
 class Group
 {
 public:
+    /*! @brief find groups of up to 64 key-consecutive bodies that are contained within a level-@p levelSplit cell
+     *
+     * @param[in]  bodyPos       input bodies
+     * @param[out] bodyPos2      key-sorted bodies
+     * @param[in]  box           coordinate bounding box
+     * @param[out] targetRange   (index, count) pairs, containing the first body of the group in bodyPos2, i.e.
+     *                           the sorted body array and the number of bodies in the group
+     * @param[in]  levelSplit    the number of levels that the bodies in each group are guaranteed to have in common,
+     *                           i.e with 3*levelSplit bits matching in the SFC keys
+     * @return                   the number of groups
+     */
     int targets(cudaVec<fvec4>& bodyPos, cudaVec<fvec4>& bodyPos2, Box box, cudaVec<int2>& targetRange, int levelSplit)
     {
         const int numBodies = bodyPos.size();
@@ -214,3 +225,4 @@ public:
         return numTargets;
     }
 };
+

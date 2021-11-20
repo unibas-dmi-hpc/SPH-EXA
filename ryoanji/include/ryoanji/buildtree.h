@@ -737,6 +737,7 @@ public:
         getKeys<<<NBLOCK, NTHREAD>>>(numCells, sourceCells.d(), sourceCells2.d(), key.d(), value.d());
         kernelSuccess("getKeys");
 
+        //! sort according to tree level
         //! key:   contains level of each cell, will be sorted
         //! value: will contain the ordering that sorts key
         sort(numCells, key.d(), value.d());

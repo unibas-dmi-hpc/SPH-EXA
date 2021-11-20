@@ -1,10 +1,22 @@
 
 #include "gtest/gtest.h"
 
+#include "cstone/sfc/common.hpp"
+
 #include "ryoanji/buildtree.h"
 #include "ryoanji/dataset.h"
 #include "ryoanji/grouptargets.h"
 #include "ryoanji/upwardpass.h"
+
+
+uint64_t calcKey(const fvec3& pos, const Box& box)
+{
+    float diameter = 2 * box.R / (1 << NBITS);
+
+    const fvec3 Xmin = box.X - box.R;
+    const fvec3 iX   = (pos - Xmin) / diameter;
+    return getHilbert(make_int3(iX[0], iX[1], iX[2]));
+}
 
 TEST(Buildtree, upsweep)
 {
@@ -67,6 +79,16 @@ TEST(Buildtree, upsweep)
     sourceCenter.d2h();
     Multipole.d2h();
 
+    std::vector<uint64_t> level2keys(64);
+    for (int i = levelRange[2].x; i < levelRange[2].y; ++i)
+    {
+        uint64_t key = calcKey(make_fvec3(sourceCenter[i]), box);
+        key = cstone::enclosingBoxCode(key, 2);
+        level2keys[i - levelRange[2].x] = key;
+    }
+    // level 2 cell keys should be unique
+    EXPECT_TRUE(std::unique(level2keys.begin(), level2keys.end()) == level2keys.end());
+
     std::vector<int> bodyIndexed(numBodies, 0);
     for (size_t i = levelRange[2].x; i < levelRange[2].y; ++i)
     {
@@ -79,12 +101,19 @@ TEST(Buildtree, upsweep)
     // each body should be referenced exactly once by all level-2 nodes together
     EXPECT_EQ(std::count(begin(bodyIndexed), end(bodyIndexed), 1), numBodies);
 
-    for (size_t i = 0; i < numSources; ++i)
+    for (int i = 0; i < numSources; ++i)
     {
+        uint64_t cellKey = cstone::enclosingBoxCode(calcKey(make_fvec3(sourceCenter[i]), box), sourceCellsLoc[i].level());
+
         float cellMass = 0;
-        for (size_t j = sourceCellsLoc[i].body(); j < sourceCellsLoc[i].body() + sourceCellsLoc[i].nbody(); ++j)
+        for (int j = sourceCellsLoc[i].body(); j < sourceCellsLoc[i].body() + sourceCellsLoc[i].nbody(); ++j)
         {
             cellMass += bodyPos[j][3];
+
+            uint64_t bodyKey = calcKey(make_fvec3(bodyPos[j]), box);
+            // check that the referenced body really lies inside the cell
+            // this is true if the keys, truncated to the first key-in-cell match
+            EXPECT_EQ(cellKey, cstone::enclosingBoxCode(bodyKey, sourceCellsLoc[i].level()));
         }
 
         // each multipole should have the total mass of referenced bodies in the first entry
