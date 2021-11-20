@@ -105,7 +105,7 @@ __global__ void permuteBodies(const int numBodies, const int* value, const fvec4
  * @param[out] bodyEnd     bodyEnd[numBodies - 1 - i] = i + 1 if keys[i] is the last body in a <levelrange> node,
  *                         0 otherwise
  */
-__global__ void maskKeys(const int numBodies, const uint64_t mask, uint64_t* keys, uint64_t* keys2, int* bodyBegin,
+__global__ void maskKeys(const int numBodies, const uint64_t mask, const uint64_t* keys, uint64_t* keys2, int* bodyBegin,
                          int* bodyEnd)
 {
     const int bodyIdx = blockIdx.x * blockDim.x + threadIdx.x;
