@@ -131,6 +131,15 @@ static std::vector<fvec4> makeCubeBodies(size_t n, double extent = 3)
         bodies[i][3] = drand48() / n;
     }
 
+    // set non-random corners
+    bodies[0][0] = -extent;
+    bodies[0][1] = -extent;
+    bodies[0][2] = -extent;
+
+    bodies[n - 1][0] = extent;
+    bodies[n - 1][1] = extent;
+    bodies[n - 1][2] = extent;
+
     return bodies;
 }
 

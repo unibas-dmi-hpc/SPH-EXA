@@ -15,27 +15,11 @@ TEST(Buildtree, upsweep)
     float extent = 3;
     auto bodies = makeCubeBodies(numBodies, extent);
 
-    // set non-random corners
-    bodies[0][0] = -extent;
-    bodies[0][1] = -extent;
-    bodies[0][2] = -extent;
-
-    bodies[numBodies - 1][0] = extent;
-    bodies[numBodies - 1][1] = extent;
-    bodies[numBodies - 1][2] = extent;
-
     cudaVec<fvec4> bodyPos(numBodies, true);
-    for (size_t i = 0; i < numBodies; ++i)
+    for (int i = 0; i < numBodies; ++i)
     {
         bodyPos[i] = bodies[i];
     }
-
-    float totalMass = 0;
-    for (size_t i = 0; i < numBodies; ++i)
-    {
-        totalMass += bodies[i][3];
-    }
-    std::cout << "totalMass " << totalMass << std::endl;
 
     //! upload bodies to device
     bodyPos.h2d();
@@ -57,17 +41,15 @@ TEST(Buildtree, upsweep)
     float theta = 0.5;
     Pass::upward(numLeafs, numLevels, theta, levelRange, bodyPos, sourceCellsLoc, sourceCenter, Multipole);
 
-    cudaVec<int2> targetRange(numBodies, true);
-    Group group;
-    int numTargets = group.targets(bodyPos, bodyPos2, box, targetRange, 1);
-    fprintf(stdout, "num targets: %d\n", numTargets);
-
-    //! tree depth
-    EXPECT_EQ(counts.x, 2);
-    //! total tree cell count
-    EXPECT_EQ(counts.y, 72);
-    //! leaf cell count
-    EXPECT_EQ(counts.z, 64);
+    if (numBodies <= 1024)
+    {
+        //! tree depth
+        EXPECT_EQ(counts.x, 2);
+        //! total tree cell count
+        EXPECT_EQ(counts.y, 72);
+        //! leaf cell count
+        EXPECT_EQ(counts.z, 64);
+    }
 
     //! check that the correct bounding box was calculated
     Box refBox{{0.0f, 0.0f, 0.0f}, extent*1.1f};
