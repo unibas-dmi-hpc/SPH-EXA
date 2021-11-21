@@ -119,13 +119,29 @@ __device__ __forceinline__ int inclusiveSegscan(int value, const int distance)
     return value;
 }
 
+/*! @brief performs an inclusive warp prefix scan
+ *
+ * @param[in] packedValue input value per lane
+ * @param[in] carryValue  offset for first prefix sum segment
+ * @return                the prefix sum value per lane
+ *
+ * If packedValue is positive, behavior is like a usual prefix sum
+ * Each negative packedValue will restart the prefix sum with a value of -packedValue - 1
+ */
 __device__ __forceinline__ int inclusiveSegscanInt(const int packedValue, const int carryValue)
 {
     const int flag       = packedValue < 0;
     const int mask       = -flag;
+
+    // value = packedValue if packedValue >= 0
+    // value = -packedValue - 1 if packedValue < 0
     const int value      = (~mask & packedValue) + (mask & (-1 - packedValue));
+
     const int flags      = __ballot_sync(0xFFFFFFFF, flag);
+
+    // dist_block = the highest lane for which packedValue was negative
     const int dist_block = __clz(__brev(flags));
+
     const int laneIdx    = threadIdx.x & (WARP_SIZE - 1);
     const int distance   = __clz(flags & lanemask_le()) + laneIdx - 31;
     const int val =
@@ -134,3 +150,4 @@ __device__ __forceinline__ int inclusiveSegscanInt(const int packedValue, const 
 }
 
 } // namespace
+
