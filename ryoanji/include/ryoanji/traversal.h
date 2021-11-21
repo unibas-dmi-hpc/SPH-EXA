@@ -179,7 +179,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, fvec4* M4, float* M, const fvec3 pos
             }                                              //   End if for direct flag
             const int bodyQueue =
                 inclusiveSegscanInt(tempQueue[laneIdx], tempOffset); //  Inclusive segmented scan of temp queue
-            tempOffset = __shfl_sync(0xFFFFFFFF, bodyQueue, WARP_SIZE - 1);           //   Last lane has the temp queue offset
+            tempOffset = __shfl_sync(0xFFFFFFFF, bodyQueue, WARP_SIZE - 1); //   Last lane has the temp queue offset
             if (numBodiesWarp >= WARP_SIZE)
             {                                                     //   If warp is full of bodies
                 const fvec4 pos = tex1Dfetch(texBody, bodyQueue); //    Load position of source bodies
@@ -270,50 +270,79 @@ __device__ unsigned int maxP2PGlob = 0;
 __device__ uint64_t sumM2PGlob     = 0;
 __device__ unsigned int maxM2PGlob = 0;
 
+/*! @brief tree traversal
+ *
+ * @param[in]  numTargets    number of targets
+ * @param[in]  images        number of periodic images to include
+ * @param[in]  EPS2          Plummer softening
+ * @param[in]  cycle         2 * M_PI
+ * @param[in]  levelRange    (start,end) index pairs into texCell, texCenter and texSource for each tree level
+ * @param[in]  bodyPos       pointer to SFC-sorted bodies as referenced by @p targetRange
+ * @param[out] bodyAcc       body accelerations
+ * @param[in]  targetRange   (offset,count) pair for each target, length @p numTargets
+ * @param[in]  globalPool    length proportional to number of warps in the launch grid
+ */
 __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, const int images, const float EPS2,
                                                        const float cycle, const int2* levelRange, const fvec4* bodyPos,
                                                        fvec4* bodyAcc, const int2* targetRange, int* globalPool)
 {
     const int laneIdx = threadIdx.x & (WARP_SIZE - 1);
     const int warpIdx = threadIdx.x >> WARP_SIZE2;
+
     const int NWARP2  = NTHREAD2 - WARP_SIZE2;
+
     __shared__ int sharedPool[NTHREAD];
     __shared__ float4 sharedM4[NVEC4 << NWARP2];
     __shared__ float sharedM[NVEC4 << (NWARP2 + 2)];
+
     int* tempQueue = sharedPool + WARP_SIZE * warpIdx;
     int* cellQueue = globalPool + MEM_PER_WARP * ((blockIdx.x << NWARP2) + warpIdx);
-    fvec4* M4      = reinterpret_cast<fvec4*>(sharedM4 + NVEC4 * warpIdx);
-    float* M       = sharedM + 4 * NVEC4 * warpIdx;
-    while (1)
+
+    fvec4* M4 = reinterpret_cast<fvec4*>(sharedM4 + NVEC4 * warpIdx);
+    float* M  = sharedM + 4 * NVEC4 * warpIdx;
+
+    while (true)
     {
+        // first thread in warp grabs next target
         int targetIdx = 0;
-        if (laneIdx == 0) targetIdx = atomicAdd(&counterGlob, 1);
+        if (laneIdx == 0)
+        {
+            targetIdx = atomicAdd(&counterGlob, 1);
+        }
         targetIdx = __shfl_sync(0xFFFFFFFF, targetIdx, 0, WARP_SIZE);
+
         if (targetIdx >= numTargets) return;
 
         const int2 target   = targetRange[targetIdx];
         const int bodyBegin = target.x;
         const int bodyEnd   = target.x + target.y;
+
         fvec3 pos_i[2], pos_p[2];
         for (int i = 0; i < 2; i++)
         {
             const int bodyIdx = min(bodyBegin + i * WARP_SIZE + laneIdx, bodyEnd - 1);
             pos_i[i]          = make_fvec3(fvec4(bodyPos[bodyIdx]));
         }
+
         fvec3 Xmin = pos_i[0];
         fvec3 Xmax = Xmin;
         for (int i = 0; i < 2; i++)
+        {
             getMinMax(Xmin, Xmax, pos_i[i]);
-        Xmin[0]                  = __shfl_sync(0xFFFFFFFF, Xmin[0], 0);
-        Xmin[1]                  = __shfl_sync(0xFFFFFFFF, Xmin[1], 0);
-        Xmin[2]                  = __shfl_sync(0xFFFFFFFF, Xmin[2], 0);
-        Xmax[0]                  = __shfl_sync(0xFFFFFFFF, Xmax[0], 0);
-        Xmax[1]                  = __shfl_sync(0xFFFFFFFF, Xmax[1], 0);
-        Xmax[2]                  = __shfl_sync(0xFFFFFFFF, Xmax[2], 0);
+        }
+
+        Xmin[0] = __shfl_sync(0xFFFFFFFF, Xmin[0], 0);
+        Xmin[1] = __shfl_sync(0xFFFFFFFF, Xmin[1], 0);
+        Xmin[2] = __shfl_sync(0xFFFFFFFF, Xmin[2], 0);
+        Xmax[0] = __shfl_sync(0xFFFFFFFF, Xmax[0], 0);
+        Xmax[1] = __shfl_sync(0xFFFFFFFF, Xmax[1], 0);
+        Xmax[2] = __shfl_sync(0xFFFFFFFF, Xmax[2], 0);
+
         const fvec3 targetCenter = (Xmax + Xmin) * 0.5f;
         const fvec3 targetSize   = (Xmax - Xmin) * 0.5f;
         fvec4 acc_i[2]           = {0.0f, 0.0f};
         fvec3 Xperiodic          = 0.0f;
+
         int numP2P = 0, numM2P = 0;
         for (int ix = -images; ix <= images; ix++)
         {
@@ -335,10 +364,12 @@ __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, con
                 }
             }
         }
+
         int maxP2P        = numP2P;
         int sumP2P        = 0;
         int maxM2P        = numM2P;
         int sumM2P        = 0;
+
         const int bodyIdx = bodyBegin + laneIdx;
         for (int i = 0; i < 2; i++)
         {
@@ -363,9 +394,13 @@ __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, con
             atomicMax(&maxM2PGlob, maxM2P);
             atomicAdd((unsigned long long*)&sumM2PGlob, (unsigned long long)sumM2P);
         }
+
         for (int i = 0; i < 2; i++)
         {
-            if (bodyIdx + i * WARP_SIZE < bodyEnd) bodyAcc[i * WARP_SIZE + bodyIdx] = acc_i[i];
+            if (bodyIdx + i * WARP_SIZE < bodyEnd)
+            {
+                bodyAcc[i * WARP_SIZE + bodyIdx] = acc_i[i];
+            }
         }
     }
 }
@@ -375,8 +410,24 @@ __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, con
 class Traversal
 {
 public:
+    /*! @brief
+     *
+     * @param[in]  numTargets
+     * @param[in]  images        number of periodic images (per direction per dimension)
+     * @param[in]  eps           plummer softening parameter
+     * @param[in]  cycle         2 * M_PI
+     * @param[in]  bodyPos       bodies, in order referenced by sourceCells
+     * @param[in]  bodyPos2      bodies, in SFC order
+     * @param[out] bodyAcc       output body acceleration in SFC order
+     * @param[in]  targetRange   offset into bodyPos2 for each target
+     * @param[in]  sourceCells   tree connectivity and body location cell data
+     * @param[in]  sourceCenter  center-of-mass and MAC radius^2 for each cell
+     * @param[in]  Multipole     cell multipoles
+     * @param[in]  levelRange
+     * @return
+     */
     static fvec4 approx(const int numTargets, const int images, const float eps, const float cycle,
-                        cudaVec<fvec4>& bodyPos, cudaVec<fvec4>& bodyPos2, cudaVec<fvec4>& bodyAcc,
+                        cudaVec<fvec4>& bodyPos, const cudaVec<fvec4>& bodyPos2, cudaVec<fvec4>& bodyAcc,
                         cudaVec<int2>& targetRange, cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
                         cudaVec<fvec4>& Multipole, cudaVec<int2>& levelRange)
     {
@@ -434,3 +485,4 @@ public:
         return interactions;
     }
 };
+
