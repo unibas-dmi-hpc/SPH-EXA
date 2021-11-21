@@ -90,6 +90,20 @@ __device__ void approxAcc(fvec4 acc_i[2], fvec4 M4[NVEC4], float M[4 * NVEC4], c
     }
 }
 
+/*! @brief traverse one warp with up to 64 target bodies down the tree
+ *
+ * @param[inout] acc_i         acceleration to add to
+ * @param[-]     M4            shared mem for 1 multipole in fvec4 format, uninitialized
+ * @param[-]     M             shared mem for 1 multipole in float format, uninitialized
+ * @param[in]    pos_i         target positions, 2 per thread
+ * @param[in]    targetCenter  geometrical target center
+ * @param[in]    targetSize    geometrical target bounding box size
+ * @param[in]    EPS2          plummer softening
+ * @param[in]    rootRange     source cell indices indices of the top 8 octants
+ * @param[in]    tempQueue     shared mem int pointer to 32 ints
+ * @param[in]    cellQueue     shared mem int pointer to global memory, 4096 ints per thread
+ * @return
+ */
 __device__ uint2 traverseWarp(fvec4* acc_i, fvec4* M4, float* M, const fvec3 pos_i[2], const fvec3 targetCenter,
                               const fvec3 targetSize, const float EPS2, const int2 rootRange, volatile int* tempQueue,
                               int* cellQueue)
@@ -280,7 +294,7 @@ __device__ unsigned int maxM2PGlob = 0;
  * @param[in]  bodyPos       pointer to SFC-sorted bodies as referenced by @p targetRange
  * @param[out] bodyAcc       body accelerations
  * @param[in]  targetRange   (offset,count) pair for each target, length @p numTargets
- * @param[in]  globalPool    length proportional to number of warps in the launch grid
+ * @param[-]  globalPool     length proportional to number of warps in the launch grid, uninitialized
  */
 __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, const int images, const float EPS2,
                                                        const float cycle, const int2* levelRange, const fvec4* bodyPos,
@@ -292,12 +306,17 @@ __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, con
     const int NWARP2  = NTHREAD2 - WARP_SIZE2;
 
     __shared__ int sharedPool[NTHREAD];
+    // 8 multipoles (P=4), one for each warp in the block
     __shared__ float4 sharedM4[NVEC4 << NWARP2];
+    // 8 multipoles (P=4), one for each warp in the block
     __shared__ float sharedM[NVEC4 << (NWARP2 + 2)];
 
+    // warp-common shared mem, 1 int per thread
     int* tempQueue = sharedPool + WARP_SIZE * warpIdx;
+    // warp-common global mem storage, 4096 ints per thread
     int* cellQueue = globalPool + MEM_PER_WARP * ((blockIdx.x << NWARP2) + warpIdx);
 
+    // pointer to shared memory multipole for each warp
     fvec4* M4 = reinterpret_cast<fvec4*>(sharedM4 + NVEC4 * warpIdx);
     float* M  = sharedM + 4 * NVEC4 * warpIdx;
 
@@ -317,6 +336,7 @@ __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, con
         const int bodyBegin = target.x;
         const int bodyEnd   = target.x + target.y;
 
+        // load target coordinates, up to 64 targets per group
         fvec3 pos_i[2], pos_p[2];
         for (int i = 0; i < 2; i++)
         {
