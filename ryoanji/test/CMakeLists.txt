@@ -6,6 +6,7 @@ add_executable(ryoanji_unit_tests
         direct.cu
         grouptargets.cu
         multipole.cu
+        warpscan.cu
         ../thrust.cu
         test_main.cpp)
 

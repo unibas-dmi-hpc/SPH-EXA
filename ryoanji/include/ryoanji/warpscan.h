@@ -29,35 +29,52 @@ __device__ __forceinline__ void getMinMax(fvec3& _Xmin, fvec3& _Xmax, const fvec
 
 // Scan int
 
-__device__ __forceinline__ uint shflScan(uint partial, uint offset)
-{
-    uint result;
-    asm("{.reg .u32 r0;"
-        ".reg .pred p;"
-        "shfl.up.b32 r0|p, %1, %2, 0;"
-        "@p add.u32 r0, r0, %3;"
-        "mov.u32 %0, r0;}"
-        : "=r"(result)
-        : "r"(partial), "r"(offset), "r"(partial));
-    return result;
-}
+//__device__ __forceinline__ uint shflScan(uint partial, uint offset)
+//{
+//    uint result;
+//    asm("{.reg .u32 r0;"
+//        ".reg .pred p;"
+//        "shfl.up.b32 r0|p, %1, %2, 0;"
+//        "@p add.u32 r0, r0, %3;"
+//        "mov.u32 %0, r0;}"
+//        : "=r"(result)
+//        : "r"(partial), "r"(offset), "r"(partial));
+//    return result;
+//}
+//
+//__device__ __forceinline__ uint inclusiveScanInt(const int value)
+//{
+//    uint sum = value;
+//#pragma unroll
+//    for (int i = 0; i < WARP_SIZE2; ++i)
+//        sum = shflScan(sum, 1 << i);
+//    return sum;
+//}
 
-__device__ __forceinline__ uint inclusiveScanInt(const int value)
+__device__ __forceinline__ uint inclusiveScanInt(int value)
 {
-    uint sum = value;
+    unsigned lane = threadIdx.x & (WARP_SIZE - 1);
 #pragma unroll
-    for (int i = 0; i < WARP_SIZE2; ++i)
-        sum = shflScan(sum, 1 << i);
-    return sum;
+    for (int i = 1; i < WARP_SIZE; i *= 2)
+    {
+        unsigned partial = __shfl_up_sync(0xFFFFFFFF, value, i);
+        if (lane >= i)
+        {
+            value += partial;
+        }
+    }
+    return value;
 }
 
 // Scan bool
 
 __device__ __forceinline__ int lanemask_lt()
 {
-    int mask;
-    asm("mov.u32 %0, %lanemask_lt;" : "=r"(mask));
-    return mask;
+    unsigned lane = threadIdx.x & (WARP_SIZE - 1);
+    return (1 << lane) - 1;
+    //int mask;
+    //asm("mov.u32 %0, %lanemask_lt;" : "=r"(mask));
+    //return mask;
 }
 
 __device__ __forceinline__ int exclusiveScanBool(const bool p)
