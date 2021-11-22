@@ -90,7 +90,6 @@ variables:
     - reframe --version
     # }}}
 # }}}
-
 # {{{ deps-ubu-gnu
 .deps-ubu-gnu: &deps-ubu-gnu
   # tag must be 'docker_jfrog'
@@ -197,7 +196,7 @@ variables:
     # }}}
     - make help
     # - make -j3 all
-    - make -j3 install
+    - make -j `grep processor /proc/cpuinfo | wc -l` install
     - which sedov
 # }}}
 
@@ -255,7 +254,7 @@ variables:
 # }}}
 
 # {{{ run/12
-.run-12: &run-12
+.run-10: &run-10
   extends: .dom
   # tags is set in .dom
   # tags: ['dom-container']
