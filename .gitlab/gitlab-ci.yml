@@ -15,134 +15,6 @@ variables:
 # default:
 #     tags: ['dom']
 
-# {{{ cpe_gnu:
-# {{{ deps:cpe (comment/uncomment out if needed)
-deps:cpe:
-  stage: deps
-  extends: .deps-cpe-gnu
-  image: art.cscs.ch/cray-ccpe/cray/ccpe-devel-sles15sp2-x86_64:21.09-101921
-  tags:
-    - $jfrogtag
-  script:
-    - which cmake
-  variables:
-    PERSIST_IMAGE_NAME: sph-exa_cpe_base:1.0
-# TODO: build image if true/false
-# }}}
-
-# {{{ build:cpe:gnu:
-build:cpe:gnu:
-  stage: build
-  extends: .build
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_cpe_base:1.0
-  tags:
-    - $jfrogtag
-  needs: ['deps:cpe']
-  script:
-    - ls -l /usr/local/sbin/
-  variables:
-    cpe: 'true'
-    pe: 'gnu'
-    PERSIST_IMAGE_NAME: 'sph-exa_cpe_gnu:1.0'
-    NVHPC: '/opt/nvidia'
-    NVIDIA_PATH: '/opt/nvidia/Linux_x86_64/21.9'
-    CRAY_NVIDIA_PREFIX: '/opt/nvidia/Linux_x86_64/21.9'
-    NVIDIA_VERSION: '21.9'
-    CRAY_NVIDIA_VERSION: '21.9'
-# }}}
-
-# {{{ test:cpe:
-test:cpe:1:
-  stage: test
-  extends: .run-1
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_cpe_gnu:1.0
-  # tags: ['dom']
-  needs: ['build:cpe:gnu']
-  script:
-    - echo
-  variables:
-    cpe: 'true'
-    pe: 'gnu'
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 1
-    SLURM_CONSTRAINT: 'gpu'
-    # FIXME: can't use mpi for now because of sarus
-    USE_MPI: 'NO'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-
-#cant {{{
-#cant test:cpe:2:
-#cant   stage: test
-#cant   extends: .run-2
-#cant   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_cpe_gnu:1.0
-#cant   # tags: ['dom']
-#cant   needs: ['build:cpe:gnu']
-#cant   script:
-#cant     - echo
-#cant   variables:
-#cant     PULL_IMAGE: 'YES'
-#cant     CSCS_REGISTRY_LOGIN: 'YES'
-#cant     SLURM_PARTITION: cscsci
-#cant     SLURM_JOB_NUM_NODES: 1
-#cant     SLURM_NTASKS: 2
-#cant     SLURM_CONSTRAINT: 'gpu'
-#cant     USE_MPI: 'YES'
-#cant     # SLURM_TIMELIMIT=15:00
-#cant     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-# }}}
-
-test:cpe:12:
-  stage: test
-  extends: .run-12
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_cpe_gnu:1.0
-  # tags: ['dom']
-  needs: ['build:cpe:gnu']
-  variables:
-    cpe: 'true'
-    pe: 'gnu'
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 1
-    USE_MPI: 'NO'
-    # FIXME: can't use mpi for now because of sarus
-    # SLURM_NTASKS: 12
-    # USE_MPI: 'YES'
-    SLURM_CONSTRAINT: 'gpu'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-  script:
-    - echo
-
-test:cpe:p100:
-  stage: test
-  extends: .run-p100
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_cpe_gnu:1.0
-  # tags: ['dom']
-  needs: ['build:cpe:gnu']
-  script:
-    - echo
-  variables:
-    cpe: 'true'
-    pe: 'gnu'
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 1
-    SLURM_CONSTRAINT: 'gpu'
-    # FIXME: can't use mpi for now because of sarus
-    USE_MPI: 'NO'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-# }}}
-# }}}
-
 # {{{ ubuntu:gnu:
 # {{{ ubu:deps
 ubu:deps:
@@ -228,9 +100,9 @@ ubu:test_2:
     # SLURM_TIMELIMIT=15:00
     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
 
-ubu:test_12:
+ubu:test_10:
   stage: test
-  extends: .run-12
+  extends: .run-10
   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
   # tags: ['dom']
   needs: ['build:ubu:gnu']
@@ -241,7 +113,7 @@ ubu:test_12:
     CSCS_REGISTRY_LOGIN: 'YES'
     SLURM_PARTITION: cscsci
     SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 12
+    SLURM_NTASKS: 10
     SLURM_CONSTRAINT: 'gpu'
     USE_MPI: 'YES'
     # SLURM_TIMELIMIT=15:00
@@ -271,4 +143,7 @@ ubu:test_p100:
 #   stage: deploy
 #   needs: ['ubu:test_1', 'ubu:test_2', 'ubu:test_12', 'ubu:test_p100']
 #   script: echo
+# }}}
+
+# {{{ cpe_gnu: see commit ab188771
 # }}}
