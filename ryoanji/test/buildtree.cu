@@ -22,6 +22,7 @@ TEST(Buildtree, upsweep)
 {
     constexpr int ncrit = 64;
     int numBodies = 8191;
+    float theta = 0.75;
 
     //! particles in [-3, 3]^3
     float extent = 3;
@@ -50,7 +51,6 @@ TEST(Buildtree, upsweep)
     cudaVec<fvec4> sourceCenter(numSources, true);
     cudaVec<fvec4> Multipole(NVEC4 * numSources, true);
 
-    float theta = 0.5;
     Pass::upward(numLeafs, numLevels, theta, levelRange, bodyPos, sourceCellsLoc, sourceCenter, Multipole);
 
     if (numBodies <= 1024)

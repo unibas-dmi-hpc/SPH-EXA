@@ -122,6 +122,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, fvec4* /*M4*/, float* /*M*/, const f
         }
     }
 
+    // these variables are always identical on all warp lanes
     int numSources   = rootRange.y - rootRange.x; // current stack size
     int newSources   = 0; // stack size for next level
     int oldSources   = 0; // cell indices done
@@ -164,10 +165,12 @@ __device__ uint2 traverseWarp(fvec4* acc_i, fvec4* /*M4*/, float* /*M*/, const f
         const int numApproxWarp = __popc(approxBallot);                 // Total isApprox for current warp
         int approxIdx           = approxOffset + numApproxLane;         // Approx cell index of current lane
         tempQueue[laneIdx]      = approxQueue;                          // Fill queue with remaining sources for approx
+        __syncwarp();
         if (isApprox && approxIdx < WARP_SIZE)         // If approx flag is true and index is within bounds
         {
             tempQueue[approxIdx] = sourceQueue;        // Fill approx queue with current sources
         }
+        __syncwarp();
         if (approxOffset + numApproxWarp >= WARP_SIZE) // If approx queue is larger than the warp size
         {
             #if WARP_PER_CELL
@@ -181,6 +184,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, fvec4* /*M4*/, float* /*M*/, const f
                 tempQueue[approxIdx] = sourceQueue;   // Fill approx queue with current sources
             counters.x += WARP_SIZE;                  // Increment M2P counter
         }                                             // End if for approx queue size
+        __syncwarp();
         approxQueue = tempQueue[laneIdx];             // Free temp queue for use in direct
         approxOffset += numApproxWarp;                // Increment approx queue offset
 
