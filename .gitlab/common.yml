@@ -253,7 +253,7 @@ variables:
     - /usr/local/sbin/integration_mpi/globaloctree
 # }}}
 
-# {{{ run/12
+# {{{ run/10
 .run-10: &run-10
   extends: .dom
   # tags is set in .dom
@@ -279,6 +279,7 @@ variables:
         fi;
       fi
     # }}}
+    - export OMP_NUM_THREADS=2
     - if [ "$cpe" = "true" ]; then
         echo "/usr/local/sbin/integration_mpi/exchange_domain skipped because cpe=$cpe";
         echo "/usr/local/sbin/integration_mpi/domain_nranks skipped because cpe=$cpe";
