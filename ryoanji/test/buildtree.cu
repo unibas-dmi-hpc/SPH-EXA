@@ -21,7 +21,7 @@ uint64_t calcKey(const fvec3& pos, const Box& box)
 TEST(Buildtree, upsweep)
 {
     constexpr int ncrit = 64;
-    int numBodies = 1023;
+    int numBodies = 8191;
 
     //! particles in [-3, 3]^3
     float extent = 3;
@@ -101,8 +101,16 @@ TEST(Buildtree, upsweep)
     // each body should be referenced exactly once by all level-2 nodes together
     EXPECT_EQ(std::count(begin(bodyIndexed), end(bodyIndexed), 1), numBodies);
 
+    std::cout << "num cells " << counts.y << std::endl;
     for (int i = 0; i < numSources; ++i)
     {
+        for (int d = 0; d < 3; ++d)
+        {
+            EXPECT_GT(sourceCenter[i][d], box.X[d] - box.R);
+            EXPECT_LT(sourceCenter[i][d], box.X[d] + box.R);
+        }
+        EXPECT_TRUE(sourceCenter[i][3] < 4 * box.R * box.R);
+
         uint64_t cellKey = cstone::enclosingBoxCode(calcKey(make_fvec3(sourceCenter[i]), box), sourceCellsLoc[i].level());
 
         float cellMass = 0;
