@@ -1,7 +1,3 @@
-# To run on dom cn:
-# include:
-#   - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.cscs.yml'
-
 variables:
   JG_DEPS_PATH: ftp://ftp.cscs.ch/out/jgp/hpc/containers
   # export JG_DEPS_PATH='ftp://ftp.cscs.ch/out/jgp/hpc/containers'
