@@ -51,6 +51,7 @@ private:
 
 public:
     CellData() = default;
+
     __host__ __device__ CellData(const unsigned int level, const unsigned int parent, const unsigned int body,
                                  const unsigned int nbody, const unsigned int child = 0, const unsigned int nchild = 1)
     {
@@ -58,10 +59,7 @@ public:
         unsigned childPack  = child | ((nchild - 1) << CHILD_SHIFT);
         data                = make_uint4(parentPack, childPack, body, nbody);
     }
-    __host__ __device__ CellData(const uint4 data)
-        : data(data)
-    {
-    }
+
     __host__ __device__ int level() const { return data.x >> LEVEL_SHIFT; }
     __host__ __device__ int parent() const { return data.x & LEVEL_MASK; }
     __host__ __device__ int child() const { return data.y & CHILD_MASK; }

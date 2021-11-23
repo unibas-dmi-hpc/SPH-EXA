@@ -24,100 +24,111 @@
  */
 
 /*! @file
- * @brief  Build a tree for Ryoanji with the cornerstone framework
+ * @brief  Tests the Ryoanji-converted tree and upsweep
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#include <numeric>
-#include <vector>
-
 #include "gtest/gtest.h"
 
-#include "cstone/tree/octree_internal_td.hpp"
-
+#include "ryoanji/buildtree_cs.hpp"
 #include "ryoanji/dataset.h"
-#include "ryoanji/kernel.h"
 #include "ryoanji/types.h"
+#include "ryoanji/upwardpass.h"
 
 
-template<class T>
-std::vector<CellData> buildCstoneTree(std::vector<vec<4,T>>& bodies, const Box& box)
+void checkBodyIndexing(int numBodies, const std::vector<CellData>& tree)
 {
-    int numParticles = bodies.size();
-    unsigned bucketSize = 64;
-
-    static_assert(std::is_same_v<float, T>);
-
-    std::vector<T> x(numParticles);
-    std::vector<T> y(numParticles);
-    std::vector<T> z(numParticles);
-    std::vector<T> m(numParticles);
-    std::vector<uint64_t> keys(numParticles);
-
-    for (int i = 0; i < numParticles; ++i)
+    std::vector<int> bodyIndexed(numBodies, 0);
+    for (size_t i = 0; i < tree.size(); ++i)
     {
-        x[i] = bodies[i][0];
-        y[i] = bodies[i][1];
-        z[i] = bodies[i][2];
-        m[i] = bodies[i][3];
-    }
-
-    cstone::Box<T> csBox(box.X[0] - box.R, box.X[0] + box.R,
-                         box.X[1] - box.R, box.X[1] + box.R,
-                         box.X[2] - box.R, box.X[2] + box.R,
-                         false, false, false);
-
-    cstone::computeSfcKeys(x.data(), y.data(), z.data(), cstone::sfcKindPointer(keys.data()), numParticles, csBox);
-
-    std::vector<int> ordering(numParticles);
-    std::iota(ordering.begin(), ordering.end(), 0);
-    cstone::sort_by_key(keys.begin(), keys.end(), ordering.begin());
-
-    cstone::reorderInPlace(ordering, x.data());
-    cstone::reorderInPlace(ordering, y.data());
-    cstone::reorderInPlace(ordering, z.data());
-    cstone::reorderInPlace(ordering, m.data());
-
-    cstone::reorderInPlace(ordering, bodies.data());
-
-    auto [tree, counts] = cstone::computeOctree(keys.data(), keys.data() + numParticles, bucketSize);
-
-    cstone::TdOctree<uint64_t> octree;
-    octree.update(tree.data(), cstone::nNodes(tree));
-
-    std::vector<CellData> ryoanjiTree(octree.numTreeNodes());
-
-    for (int i = 0; i < octree.numTreeNodes(); ++i)
-    {
-        int firstParticle = std::lower_bound(keys.begin(), keys.end(), octree.codeStart(i)) - keys.begin();
-        int lastParticle  = std::upper_bound(keys.begin(), keys.end(), octree.codeEnd(i)) - keys.begin();
-        int child = 0;
-        int numChildren = 0;
-        if (!octree.isLeaf(i))
+        if (tree[i].isLeaf())
         {
-            child = octree.child(i, 0);
-            numChildren = 8;
+            for (size_t j = tree[i].body(); j < tree[i].body() + tree[i].nbody(); ++j)
+            {
+                bodyIndexed[j]++;
+            }
         }
-        CellData cell(
-            octree.level(i), octree.parent(i), firstParticle, lastParticle - firstParticle, child, numChildren);
-        ryoanjiTree[i] = cell;
     }
 
-    return ryoanjiTree;
+    // each body should be referenced exactly once by all leaves put together
+    EXPECT_EQ(std::count(begin(bodyIndexed), end(bodyIndexed), 1), numBodies);
 }
 
+void checkUpsweep(const Box& box, const cudaVec<CellData>& sources, const cudaVec<fvec4>& sourceCenter,
+                  const cudaVec<fvec4>& bodyPos, const cudaVec<fvec4>& Multipole)
+{
+    cstone::Box<float> csBox(box.X[0] - box.R, box.X[0] + box.R,
+                             box.X[1] - box.R, box.X[1] + box.R,
+                             box.X[2] - box.R, box.X[2] + box.R,
+                             false, false, false);
 
+    int numSources = sources.size();
+    // the root is not set by the upsweep, so start from 1
+    for (int i = 1; i < numSources; ++i)
+    {
+        for (int d = 0; d < 3; ++d)
+        {
+            EXPECT_GT(sourceCenter[i][d], box.X[d] - box.R);
+            EXPECT_LT(sourceCenter[i][d], box.X[d] + box.R);
+        }
+        EXPECT_TRUE(sourceCenter[i][3] < 4 * box.R * box.R);
+
+        uint64_t cellKey = cstone::enclosingBoxCode(
+            cstone::sfc3D<cstone::SfcKind<uint64_t>>(sourceCenter[i][0], sourceCenter[i][1], sourceCenter[i][2], csBox),
+            sources[i].level());
+
+        float cellMass = 0;
+        for (int j = sources[i].body(); j < sources[i].body() + sources[i].nbody(); ++j)
+        {
+            cellMass += bodyPos[j][3];
+
+            uint64_t bodyKey =
+                cstone::sfc3D<cstone::SfcKind<uint64_t>>(bodyPos[j][0], bodyPos[j][1], bodyPos[j][2], csBox);
+            // check that the referenced body really lies inside the cell
+            // this is true if the keys, truncated to the first key-in-cell match
+            EXPECT_EQ(cellKey, cstone::enclosingBoxCode(bodyKey, sources[i].level()));
+        }
+
+        // each multipole should have the total mass of referenced bodies in the first entry
+        EXPECT_NEAR(cellMass, Multipole[i * NVEC4][0], 1e-5);
+    }
+}
 
 TEST(Buildtree, cstone)
 {
     int numBodies = 8191;
     float extent = 3;
+    float theta = 0.75;
+
     auto bodies = makeCubeBodies(numBodies, extent);
 
     Box box{ {0.0f}, extent * 1.1f };
 
-    auto tree = buildCstoneTree(bodies, box);
+    auto [highestLevel, tree, levelRangeCs] = buildFromCstone(bodies, box);
+    checkBodyIndexing(numBodies, tree);
 
-    std::cout << tree.size() << std::endl;
+    int numSources = tree.size();
+
+    cudaVec<fvec4> bodyPos(numBodies, true);
+    std::copy(bodies.begin(), bodies.end(), bodyPos.h());
+    bodyPos.h2d();
+
+    cudaVec<int2> levelRange(levelRangeCs.size(), true);
+    std::copy(levelRangeCs.begin(), levelRangeCs.end(), levelRange.h());
+    levelRange.h2d();
+
+    cudaVec<CellData> sources(numSources, true);
+    std::copy(tree.begin(), tree.end(), sources.h());
+    sources.h2d();
+
+    cudaVec<fvec4> sourceCenter(numSources, true);
+    cudaVec<fvec4> Multipole(NVEC4 * numSources, true);
+
+    int numLeaves = -1;
+    Pass::upward(numLeaves, highestLevel, theta, levelRange, bodyPos, sources, sourceCenter, Multipole);
+    sourceCenter.d2h();
+    Multipole.d2h();
+
+    checkUpsweep(box, sources, sourceCenter, bodyPos, Multipole);
 }
