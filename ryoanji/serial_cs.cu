@@ -1,18 +1,18 @@
 #include <chrono>
 
 #include "ryoanji/types.h"
-#include "ryoanji/buildtree.h"
+#include "ryoanji/buildtree_cs.hpp"
 #include "ryoanji/dataset.h"
-#include "ryoanji/grouptargets.h"
 #include "ryoanji/traversal.h"
 #include "ryoanji/direct.cuh"
 #include "ryoanji/upwardpass.h"
 
 int main(int argc, char** argv)
 {
-    const int numBodies = (1 << 10) - 1;
-    const int images    = 0;
-    const float theta   = 0.75;
+    int numBodies = (1 << 13) - 1;
+    int images    = 0;
+    float theta   = 0.5;
+    float boxSize = 3;
 
     const float eps   = 0.05;
     const int ncrit   = 64;
@@ -24,53 +24,65 @@ int main(int argc, char** argv)
     fprintf(stdout, "theta                : %f\n", theta);
     fprintf(stdout, "ncrit                : %d\n", ncrit);
 
-    auto data = makeCubeBodies(numBodies);
+    auto bodies = makeCubeBodies(numBodies, boxSize);
+
+    Box box{ {0.0f}, boxSize * 1.1f };
+
+    auto [highestLevel, tree, levelRangeCs] = buildFromCstone(bodies, box);
+
+    int numSources = tree.size();
 
     cudaVec<fvec4> bodyPos(numBodies, true);
-    cudaVec<fvec4> bodyPos2(numBodies);
-    cudaVec<fvec4> bodyAcc(numBodies, true);
-    cudaVec<fvec4> bodyAcc2(numBodies, true);
-
-    for (int i = 0; i < numBodies; i++)
-    {
-        bodyPos[i] = data[i];
-    }
-
+    std::copy(bodies.begin(), bodies.end(), bodyPos.h());
     bodyPos.h2d();
-    bodyAcc.h2d();
+
+    cudaVec<int2> levelRange(levelRangeCs.size(), true);
+    std::copy(levelRangeCs.begin(), levelRangeCs.end(), levelRange.h());
+    levelRange.h2d();
+
+    cudaVec<CellData> sources(numSources, true);
+    std::copy(tree.begin(), tree.end(), sources.h());
+    sources.h2d();
+
+    cudaVec<fvec4> sourceCenter(numSources, true);
+    cudaVec<fvec4> Multipole(NVEC4 * numSources, true);
+
+    int numLeaves = -1;
+    Pass::upward(numLeaves, highestLevel, theta, levelRange, bodyPos, sources, sourceCenter, Multipole);
+    sourceCenter.d2h();
+    Multipole.d2h();
+
+    cudaVec<fvec4> bodyAcc(numBodies, true);
 
     fprintf(stdout, "--- FMM Profiling ----------------\n");
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
-    Box box;
-    cudaVec<int2> levelRange(32, true);
-    cudaVec<CellData> sourceCells(numBodies);
+    // the groupSize cannot be changed as it is hard-coded in the traversal function
+    constexpr int groupSize = 2 * WARP_SIZE;
+    int numTargets = (numBodies - 1) / groupSize + 1;
+    cudaVec<int2> targetRange(numBodies, true);
 
-    int3 counts = Build::tree<ncrit>(bodyPos, bodyPos2, box, levelRange, sourceCells);
-
-    int numLevels  = counts.x;
-    int numSources = counts.y;
-    int numLeafs   = counts.z;
-
-    cudaVec<int2> targetRange(numBodies);
-    cudaVec<fvec4> sourceCenter(numSources);
-    cudaVec<fvec4> Multipole(NVEC4 * numSources);
-    Group group;
-    int numTargets = group.targets(bodyPos, bodyPos2, box, targetRange, 1);
-    fprintf(stdout, "num targets: %d\n", numTargets);
-
-    Pass::upward(numLeafs, numLevels, theta, levelRange, bodyPos, sourceCells, sourceCenter, Multipole);
+    for (int target = 0; target < numTargets; ++target)
+    {
+        targetRange[target] = {target * groupSize, groupSize};
+    }
+    // if numBodies is not a multiple of the groupSize, the last target only gets the remainder
+    if (numBodies % groupSize != 0)
+    {
+        targetRange[numTargets - 1].y = numBodies % groupSize;
+    }
+    targetRange.h2d();
 
     fvec4 interactions = Traversal::approx(numTargets,
                                            images,
                                            eps,
                                            cycle,
                                            bodyPos,
-                                           bodyPos2,
+                                           bodyPos,
                                            bodyAcc,
                                            targetRange,
-                                           sourceCells,
+                                           sources,
                                            sourceCenter,
                                            Multipole,
                                            levelRange);
@@ -82,8 +94,10 @@ int main(int argc, char** argv)
     fprintf(stdout, "--- Total runtime ----------------\n");
     fprintf(stdout, "Total FMM            : %.7f s (%.7f TFlops)\n", dt, flops);
 
+    cudaVec<fvec4> bodyAccDirect(numBodies, true);
+
     t0 = std::chrono::high_resolution_clock::now();
-    directSum(eps, bodyPos2, bodyAcc2);
+    directSum(eps, bodyPos, bodyAccDirect);
     t1 = std::chrono::high_resolution_clock::now();
     dt = std::chrono::duration<double>(t1 - t0).count();
 
@@ -91,13 +105,13 @@ int main(int argc, char** argv)
     fprintf(stdout, "Total Direct         : %.7f s (%.7f TFlops)\n", dt, flops);
 
     bodyAcc.d2h();
-    bodyAcc2.d2h();
+    bodyAccDirect.d2h();
 
     std::vector<double> delta(numBodies);
 
     for (int i = 0; i < numBodies; i++)
     {
-        fvec3 ref   = {bodyAcc2[i][1], bodyAcc2[i][2], bodyAcc2[i][3]};
+        fvec3 ref   = {bodyAccDirect[i][1], bodyAccDirect[i][2], bodyAccDirect[i][3]};
         fvec3 probe = {bodyAcc[i][1], bodyAcc[i][2], bodyAcc[i][3]};
         delta[i]    = std::sqrt(norm(ref - probe) / norm(ref));
     }
@@ -119,7 +133,7 @@ int main(int argc, char** argv)
     fprintf(stdout, "--- Tree stats -------------------\n");
     fprintf(stdout, "Bodies               : %d\n", numBodies);
     fprintf(stdout, "Cells                : %d\n", numSources);
-    fprintf(stdout, "Tree depth           : %d\n", numLevels);
+    fprintf(stdout, "Tree depth           : %d\n", 0);
     fprintf(stdout, "--- Traversal stats --------------\n");
     fprintf(stdout, "P2P mean list length : %d (max %d)\n", int(interactions[0]), int(interactions[1]));
     fprintf(stdout, "M2P mean list length : %d (max %d)\n", int(interactions[2]), int(interactions[3]));

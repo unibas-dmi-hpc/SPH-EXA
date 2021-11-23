@@ -17,4 +17,9 @@ add_executable(ryoanji thrust.cu serial.cu)
 target_include_directories(ryoanji PRIVATE include)
 set_target_properties(ryoanji PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
+add_executable(ryoanji_cs thrust.cu serial_cs.cu)
+target_include_directories(ryoanji_cs PRIVATE include)
+target_include_directories(ryoanji_cs PRIVATE ../domain/include)
+set_target_properties(ryoanji_cs PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
 add_subdirectory(test)
