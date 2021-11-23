@@ -49,6 +49,11 @@ void checkBodyIndexing(int numBodies, const std::vector<CellData>& tree)
                 bodyIndexed[j]++;
             }
         }
+        else
+        {
+            EXPECT_EQ(tree[i].nchild(), 8);
+            EXPECT_TRUE(tree[i].nbody() > 0);
+        }
     }
 
     // each body should be referenced exactly once by all leaves put together
@@ -67,37 +72,47 @@ void checkUpsweep(const Box& box, const cudaVec<CellData>& sources, const cudaVe
     // the root is not set by the upsweep, so start from 1
     for (int i = 1; i < numSources; ++i)
     {
-        for (int d = 0; d < 3; ++d)
+        if (sources[i].nbody())
         {
-            EXPECT_GT(sourceCenter[i][d], box.X[d] - box.R);
-            EXPECT_LT(sourceCenter[i][d], box.X[d] + box.R);
+            for (int d = 0; d < 3; ++d)
+            {
+                EXPECT_GT(sourceCenter[i][d], box.X[d] - box.R);
+                EXPECT_LT(sourceCenter[i][d], box.X[d] + box.R);
+            }
+            EXPECT_TRUE(sourceCenter[i][3] < 4 * box.R * box.R);
+
+            uint64_t cellKey =
+                cstone::enclosingBoxCode(cstone::sfc3D<cstone::SfcKind<uint64_t>>(
+                                             sourceCenter[i][0], sourceCenter[i][1], sourceCenter[i][2], csBox),
+                                         sources[i].level());
+
+            float cellMass = 0;
+            for (int j = sources[i].body(); j < sources[i].body() + sources[i].nbody(); ++j)
+            {
+                cellMass += bodyPos[j][3];
+
+                uint64_t bodyKey =
+                    cstone::sfc3D<cstone::SfcKind<uint64_t>>(bodyPos[j][0], bodyPos[j][1], bodyPos[j][2], csBox);
+                // check that the referenced body really lies inside the cell
+                // this is true if the keys, truncated to the first key-in-cell match
+                EXPECT_EQ(cellKey, cstone::enclosingBoxCode(bodyKey, sources[i].level()));
+            }
+
+            // each multipole should have the total mass of referenced bodies in the first entry
+            EXPECT_NEAR(cellMass, Multipole[i * NVEC4][0], 1e-5);
         }
-        EXPECT_TRUE(sourceCenter[i][3] < 4 * box.R * box.R);
-
-        uint64_t cellKey = cstone::enclosingBoxCode(
-            cstone::sfc3D<cstone::SfcKind<uint64_t>>(sourceCenter[i][0], sourceCenter[i][1], sourceCenter[i][2], csBox),
-            sources[i].level());
-
-        float cellMass = 0;
-        for (int j = sources[i].body(); j < sources[i].body() + sources[i].nbody(); ++j)
+        else
         {
-            cellMass += bodyPos[j][3];
-
-            uint64_t bodyKey =
-                cstone::sfc3D<cstone::SfcKind<uint64_t>>(bodyPos[j][0], bodyPos[j][1], bodyPos[j][2], csBox);
-            // check that the referenced body really lies inside the cell
-            // this is true if the keys, truncated to the first key-in-cell match
-            EXPECT_EQ(cellKey, cstone::enclosingBoxCode(bodyKey, sources[i].level()));
+            EXPECT_EQ(sourceCenter[i][0], 0.0f);
+            EXPECT_EQ(sourceCenter[i][1], 0.0f);
+            EXPECT_EQ(sourceCenter[i][2], 0.0f);
         }
-
-        // each multipole should have the total mass of referenced bodies in the first entry
-        EXPECT_NEAR(cellMass, Multipole[i * NVEC4][0], 1e-5);
     }
 }
 
 TEST(Buildtree, cstone)
 {
-    int numBodies = 8191;
+    int numBodies = (1 << 16) - 1;
     float extent = 3;
     float theta = 0.75;
 

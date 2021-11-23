@@ -10,7 +10,7 @@ namespace
 //! @brief computes the center of mass for the bodies in the specified range
 __device__ __forceinline__ fvec4 setCenter(const int begin, const int end)
 {
-    fvec4 center;
+    fvec4 center(0);
     for (int i = begin; i < end; i++)
     {
         const fvec4 pos = tex1Dfetch(texBody, i);
@@ -22,7 +22,7 @@ __device__ __forceinline__ fvec4 setCenter(const int begin, const int end)
         center[3] += weight;
     }
 
-    float invM = 1.0f / center[3];
+    float invM = (center[3] != 0.0f) ? 1.0f / center[3] : 0.0f;
     center[0] *= invM;
     center[1] *= invM;
     center[2] *= invM;
@@ -33,6 +33,8 @@ __device__ __forceinline__ fvec4 setCenter(const int begin, const int end)
 //! @brief computes the center of mass for the bodies in the specified range
 __host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int end, fvec4* posGlob)
 {
+    assert(begin < end);
+
     fvec4 center(0);
     for (int i = begin; i < end; i++)
     {
@@ -45,7 +47,7 @@ __host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int e
         center[3] += weight;
     }
 
-    float invM = 1.0f / center[3];
+    float invM = (center[3] != 0.0f) ? 1.0f / center[3] : 0.0f;
     center[0] *= invM;
     center[1] *= invM;
     center[2] *= invM;
@@ -137,10 +139,14 @@ __global__ __launch_bounds__(NTHREAD) void normalize(const int numCells, fvec4* 
 {
     const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x;
     if (cellIdx >= numCells) return;
-    const float invM = 1.0 / Multipole[NVEC4 * cellIdx][0];
+
+    float mass = Multipole[NVEC4 * cellIdx][0];
+    float invM = (mass != 0.0f) ? 1.0 / mass : 0.0f;
+
     Multipole[NVEC4 * cellIdx][1] *= invM;
     Multipole[NVEC4 * cellIdx][2] *= invM;
     Multipole[NVEC4 * cellIdx][3] *= invM;
+
     for (int i = 1; i < NVEC4; i++)
     {
         Multipole[NVEC4 * cellIdx + i] *= invM;

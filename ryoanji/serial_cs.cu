@@ -9,7 +9,7 @@
 
 int main(int argc, char** argv)
 {
-    int numBodies = (1 << 13) - 1;
+    int numBodies = (1 << 16) - 1;
     int images    = 0;
     float theta   = 0.5;
     float boxSize = 3;
