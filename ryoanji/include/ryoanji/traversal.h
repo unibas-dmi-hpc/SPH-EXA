@@ -304,6 +304,18 @@ __device__ unsigned int maxP2PGlob = 0;
 __device__ uint64_t sumM2PGlob     = 0;
 __device__ unsigned int maxM2PGlob = 0;
 
+__device__ unsigned int targetCounterGlob = 0;
+
+__global__ void resetTraversalCounters()
+{
+    sumP2PGlob = 0;
+    maxP2PGlob = 0;
+    sumM2PGlob = 0;
+    maxM2PGlob = 0;
+
+    targetCounterGlob = 0;
+}
+
 /*! @brief tree traversal
  *
  * @param[in]  numTargets    number of targets
@@ -346,7 +358,7 @@ __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, con
         int targetIdx = 0;
         if (laneIdx == 0)
         {
-            targetIdx = atomicAdd(&counterGlob, 1);
+            targetIdx = atomicAdd(&targetCounterGlob, 1);
         }
         targetIdx = __shfl_sync(0xFFFFFFFF, targetIdx, 0, WARP_SIZE);
 
@@ -483,6 +495,8 @@ public:
         cudaVec<int> globalPool(poolSize);
 
         cudaDeviceSynchronize();
+
+        resetTraversalCounters<<<1,1>>>();
 
         auto t0 = std::chrono::high_resolution_clock::now();
         CUDA_SAFE_CALL(cudaFuncSetCacheConfig(&traverse, cudaFuncCachePreferL1));

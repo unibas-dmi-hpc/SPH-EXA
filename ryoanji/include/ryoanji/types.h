@@ -60,6 +60,11 @@ public:
         data                = make_uint4(parentPack, childPack, body, nbody);
     }
 
+    __host__ __device__ CellData(uint4 data_)
+        : data(data_)
+    {
+    }
+
     __host__ __device__ int level() const { return data.x >> LEVEL_SHIFT; }
     __host__ __device__ int parent() const { return data.x & LEVEL_MASK; }
     __host__ __device__ int child() const { return data.y & CHILD_MASK; }
