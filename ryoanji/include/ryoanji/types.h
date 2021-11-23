@@ -50,6 +50,7 @@ private:
     uint4 data;
 
 public:
+    CellData() = default;
     __host__ __device__ CellData(const unsigned int level, const unsigned int parent, const unsigned int body,
                                  const unsigned int nbody, const unsigned int child = 0, const unsigned int nchild = 1)
     {
