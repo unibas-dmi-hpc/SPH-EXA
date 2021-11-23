@@ -204,6 +204,13 @@ template<class KeyType>
 class TdOctree
 {
 public:
+    /*! @brief default ctor
+     *
+     * Apart from the root at level 0, there are maxTreeLevel<KeyType>{} non-trivial levels.
+     * For convenience, we also store the root offset, even though the root is always a single node
+     * at offset 0. So in total there are maxTreeLevel<KeyType>{}+1 levels and we need
+     * another +1 to store the last upper bound which is equal to the total number of nodes in the tree.
+     */
     TdOctree()
         : levelOffsets_(maxTreeLevel<KeyType>{} + 2)
     {
@@ -382,7 +389,7 @@ void upsweep(const TdOctree<KeyType>& octree, T* quantities, CombinationFunction
 {
     unsigned currentLevel = octree.level(octree.numTreeNodes() - 1);
 
-    for ( ; currentLevel >= 0; --currentLevel)
+    for ( ; currentLevel != 0; --currentLevel)
     {
         TreeNodeIndex start = octree.levelOffset(currentLevel);
         TreeNodeIndex end   = octree.levelOffset(currentLevel + 1);
