@@ -10,8 +10,8 @@ namespace
 {
 __device__ __forceinline__ int ringAddr(const int i) { return i & (MEM_PER_WARP - 1); }
 
-__device__ __forceinline__ bool applyMAC(const fvec3 sourceCenter, const float MAC, const CellData sourceData,
-                                         const fvec3 targetCenter, const fvec3 targetSize)
+__host__ __device__ __forceinline__ bool applyMAC(fvec3 sourceCenter, float MAC, CellData sourceData,
+                                                  fvec3 targetCenter, fvec3 targetSize)
 {
     fvec3 dX = abs(targetCenter - sourceCenter) - targetSize;
     dX += abs(dX);

@@ -435,7 +435,7 @@ class vec {
     for (int i=0; i<N; i++) temp = temp > v[i] ? temp : v[i];
     return temp;
   }
-  __device__ __forceinline__
+  __host__ __device__ __forceinline__
   friend vec abs(const vec &v) {                                // Absolute value
     vec temp;
     Unroll<Ops::Abs<T>,T,N>::loop(temp,v);

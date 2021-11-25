@@ -2,6 +2,7 @@
 
 #include "ryoanji/types.h"
 #include "ryoanji/buildtree_cs.hpp"
+#include "ryoanji/traversal_cpu.hpp"
 #include "ryoanji/dataset.h"
 #include "ryoanji/traversal.h"
 #include "ryoanji/direct.cuh"
@@ -26,7 +27,7 @@ int main(int argc, char** argv)
 
     auto bodies = makeCubeBodies(numBodies, boxSize);
 
-    Box box{ {0.0f}, boxSize * 1.1f };
+    Box box{ {0.0f}, boxSize * 1.0f };
 
     auto [highestLevel, tree, levelRangeCs] = buildFromCstone(bodies, box);
 
@@ -115,6 +116,10 @@ int main(int argc, char** argv)
         fvec3 probe = {bodyAcc[i][1], bodyAcc[i][2], bodyAcc[i][3]};
         delta[i]    = std::sqrt(norm(ref - probe) / norm(ref));
     }
+
+    //int mei = std::max_element(delta.begin(), delta.end()) - delta.begin();
+    //fvec4 test = walkParticle(mei, eps, sources, sourceCenter, Multipole, bodyPos);
+    //std::cout << bodyAcc[mei][1] << " " << test[1] << std::endl;
 
     std::sort(begin(delta), end(delta));
 
