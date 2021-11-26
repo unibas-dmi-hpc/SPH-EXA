@@ -67,7 +67,6 @@ int main(int argc, char** argv)
                                            eps,
                                            cycle,
                                            bodyPos,
-                                           bodyPos2,
                                            bodyAcc,
                                            targetRange,
                                            sourceCells,

@@ -80,7 +80,6 @@ int main(int argc, char** argv)
                                            eps,
                                            cycle,
                                            bodyPos,
-                                           bodyPos,
                                            bodyAcc,
                                            targetRange,
                                            sources,

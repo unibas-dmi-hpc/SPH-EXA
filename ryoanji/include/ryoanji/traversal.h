@@ -98,6 +98,7 @@ __device__ void approxAcc(fvec4 acc_i[2], fvec4 M4[NVEC4], float M[4 * NVEC4], c
  * @param[in]    pos_i         target positions, 2 per lane
  * @param[in]    targetCenter  geometrical target center
  * @param[in]    targetSize    geometrical target bounding box size
+ * @param[in]    bodyPos       source bodies as referenced by tree cells
  * @param[in]    EPS2          plummer softening
  * @param[in]    rootRange     source cell indices indices of the top 8 octants
  * @param[-]     tempQueue     shared mem int pointer to 32 ints, uninitialized
@@ -105,8 +106,8 @@ __device__ void approxAcc(fvec4 acc_i[2], fvec4 M4[NVEC4], float M[4 * NVEC4], c
  * @return
  */
 __device__ uint2 traverseWarp(fvec4* acc_i, fvec4* /*M4*/, float* /*M*/, const fvec3 pos_i[2], const fvec3 targetCenter,
-                              const fvec3 targetSize, const float EPS2, const int2 rootRange, volatile int* tempQueue,
-                              int* cellQueue)
+                              const fvec3 targetSize, const fvec4* bodyPos, float EPS2, int2 rootRange,
+                              volatile int* tempQueue, int* cellQueue)
 {
     const int laneIdx = threadIdx.x & (WARP_SIZE - 1);
 
@@ -212,7 +213,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, fvec4* /*M4*/, float* /*M*/, const f
 
             if (numBodiesWarp >= WARP_SIZE) // If warp is full of bodies
             {
-                const fvec4 pos = tex1Dfetch(texBody, bodyQueue); // Load position of source bodies
+                const fvec4 pos = bodyPos[bodyQueue]; // Load position of source bodies
                 for (int j = 0; j < WARP_SIZE; j++)
                 {                                                             // Loop over the warp size
                     const fvec3 pos_j(__shfl_sync(0xFFFFFFFF, pos[0], j),     // Get source x value from lane j
@@ -236,7 +237,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, fvec4* /*M4*/, float* /*M*/, const f
                 bodyOffset += numBodiesWarp;               // Increment body queue offset
                 if (bodyOffset >= WARP_SIZE)               // If this causes the body queue to spill
                 {
-                    const fvec4 pos = tex1Dfetch(texBody, tempQueue[laneIdx]); // Load position of source bodies
+                    const fvec4 pos = bodyPos[tempQueue[laneIdx]]; // Load position of source bodies
                     for (int j = 0; j < WARP_SIZE; j++)
                     {                                                          // Loop over the warp size
                         const fvec3 pos_j(__shfl_sync(0xFFFFFFFF, pos[0], j),  // Get source x value from lane j
@@ -281,7 +282,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, fvec4* /*M4*/, float* /*M*/, const f
     if (bodyOffset > 0) // If there are leftover direct cells
     {
         const int bodyQueue = laneIdx < bodyOffset ? directQueue : -1;          // Get body index
-        const fvec4 pos     = bodyQueue >= 0 ? tex1Dfetch(texBody, bodyQueue) : // Load position of source bodies
+        const fvec4 pos     = bodyQueue >= 0 ? bodyPos[bodyQueue] : // Load position of source bodies
                               make_float4(0.0f, 0.0f, 0.0f, 0.0f);              // With padding for invalid lanes
         for (int j = 0; j < WARP_SIZE; j++)
         {                                                             // Loop over the warp size
@@ -327,11 +328,12 @@ __global__ void resetTraversalCounters()
  * @param[in]  bodyPos       pointer to SFC-sorted bodies as referenced by @p targetRange
  * @param[out] bodyAcc       body accelerations
  * @param[in]  targetRange   (offset,count) pair for each target, length @p numTargets
- * @param[-]  globalPool     length proportional to number of warps in the launch grid, uninitialized
+ * @param[-]   globalPool    length proportional to number of warps in the launch grid, uninitialized
  */
-__global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, const int images, const float EPS2,
-                                                       const float cycle, const int2* levelRange, const fvec4* bodyPos,
-                                                       fvec4* bodyAcc, const int2* targetRange, int* globalPool)
+__global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, const int images,
+                                                       float EPS2, const float cycle, const int2* levelRange,
+                                                       const fvec4* bodyPos, fvec4* bodyAcc, const int2* targetRange,
+                                                       int* globalPool)
 {
     const int laneIdx = threadIdx.x & (WARP_SIZE - 1);
     const int warpIdx = threadIdx.x >> WARP_SIZE2;
@@ -410,7 +412,7 @@ __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, con
                     for (int i = 0; i < 2; i++)
                         pos_p[i] = pos_i[i] - Xperiodic;
                     const uint2 counters = traverseWarp(
-                        acc_i, M4, M, pos_p, targetPeriodic, targetSize, EPS2, levelRange[1], tempQueue, cellQueue);
+                        acc_i, M4, M, pos_p, targetPeriodic, targetSize, bodyPos, EPS2, levelRange[1], tempQueue, cellQueue);
                     assert(!(counters.x == 0xFFFFFFFF && counters.y == 0xFFFFFFFF));
                     numM2P += counters.x;
                     numP2P += counters.y;
@@ -469,8 +471,7 @@ public:
      * @param[in]  images        number of periodic images (per direction per dimension)
      * @param[in]  eps           plummer softening parameter
      * @param[in]  cycle         2 * M_PI
-     * @param[in]  bodyPos       bodies, in order referenced by sourceCells
-     * @param[in]  bodyPos2      bodies, in SFC order
+     * @param[in]  bodyPos       bodies, in SFC order and as referenced by sourceCells
      * @param[out] bodyAcc       output body acceleration in SFC order
      * @param[in]  targetRange   offset into bodyPos2 for each target
      * @param[in]  sourceCells   tree connectivity and body location cell data
@@ -480,7 +481,7 @@ public:
      * @return
      */
     static fvec4 approx(const int numTargets, const int images, const float eps, const float cycle,
-                        cudaVec<fvec4>& bodyPos, const cudaVec<fvec4>& bodyPos2, cudaVec<fvec4>& bodyAcc,
+                        cudaVec<fvec4>& bodyPos, cudaVec<fvec4>& bodyAcc,
                         cudaVec<int2>& targetRange, cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
                         cudaVec<fvec4>& Multipole, cudaVec<int2>& levelRange)
     {
@@ -492,7 +493,6 @@ public:
         sourceCells.bind(texCell);
         sourceCenter.bind(texCellCenter);
         Multipole.bind(texMultipole);
-        bodyPos.bind(texBody);
         cudaVec<int> globalPool(poolSize);
 
         cudaDeviceSynchronize();
@@ -506,7 +506,7 @@ public:
                                       eps * eps,
                                       cycle,
                                       levelRange.d(),
-                                      bodyPos2.d(),
+                                      bodyPos.d(),
                                       bodyAcc.d(),
                                       targetRange.d(),
                                       globalPool.d());
@@ -536,7 +536,6 @@ public:
         sourceCells.unbind(texCell);
         sourceCenter.unbind(texCellCenter);
         Multipole.unbind(texMultipole);
-        bodyPos.unbind(texBody);
         return interactions;
     }
 };
