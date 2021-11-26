@@ -20,14 +20,15 @@ __host__ __device__ __forceinline__ bool applyMAC(fvec3 sourceCenter, float MAC,
     return R2 < fabsf(MAC) || sourceData.nbody() < 3;
 }
 
-__device__ void approxAcc(fvec4 acc_i[2], const fvec3 pos_i[2], const int cellIdx, const fvec4* srcCenter,
-                          const fvec4* Multipoles, float EPS2)
+__device__ void approxAcc(fvec4 acc_i[2], const fvec3 pos_i[2], const int cellIdx, const fvec4* __restrict__ srcCenter,
+                          const fvec4* __restrict__ Multipoles, float EPS2)
 {
     fvec4 M4[NVEC4];
     float M[4 * NVEC4];
-    const fvec4 Xj = srcCenter[cellIdx];
+    fvec4 Xj(0.0f);
     if (cellIdx >= 0)
     {
+        Xj = srcCenter[cellIdx];
         #pragma unroll
         for (int i = 0; i < NVEC4; i++)
             M4[i] = Multipoles[NVEC4 * cellIdx + i];
@@ -75,8 +76,8 @@ __device__ void approxAcc(fvec4 acc_i[2], const fvec3 pos_i[2], const int cellId
  * @return
  */
 __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 targetCenter, const fvec3 targetSize,
-                              const fvec4* bodyPos, const CellData* srcCells, const fvec4* srcCenter,
-                              const fvec4* Multipoles, float EPS2, int2 rootRange, volatile int* tempQueue,
+                              const fvec4* __restrict__ bodyPos, const CellData* __restrict__ srcCells, const fvec4* __restrict__ srcCenter,
+                              const fvec4* __restrict__ Multipoles, float EPS2, int2 rootRange, volatile int* tempQueue,
                               int* cellQueue)
 {
     const int laneIdx = threadIdx.x & (WARP_SIZE - 1);
@@ -300,9 +301,9 @@ __global__ void resetTraversalCounters()
  * @param[-]   globalPool    length proportional to number of warps in the launch grid, uninitialized
  */
 __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, const int images, float EPS2,
-                                                       const float cycle, const int2* levelRange, const fvec4* bodyPos,
-                                                       const CellData* srcCells, const fvec4* srcCenter,
-                                                       const fvec4* Multipoles, fvec4* bodyAcc, const int2* targetRange,
+                                                       const float cycle, const int2* levelRange, const fvec4* __restrict__ bodyPos,
+                                                       const CellData* __restrict__ srcCells, const fvec4* __restrict__ srcCenter,
+                                                       const fvec4* __restrict__ Multipoles, fvec4* bodyAcc, const int2* targetRange,
                                                        int* globalPool)
 {
     const int laneIdx = threadIdx.x & (WARP_SIZE - 1);
