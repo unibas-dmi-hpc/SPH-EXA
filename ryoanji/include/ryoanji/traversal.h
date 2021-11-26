@@ -20,20 +20,21 @@ __host__ __device__ __forceinline__ bool applyMAC(fvec3 sourceCenter, float MAC,
     return R2 < fabsf(MAC) || sourceData.nbody() < 3;
 }
 
-__device__ void approxAcc(fvec4 acc_i[2], const fvec3 pos_i[2], const int cellIdx, const float EPS2)
+__device__ void approxAcc(fvec4 acc_i[2], const fvec3 pos_i[2], const int cellIdx, const fvec4* srcCenter,
+                          const fvec4* Multipoles, float EPS2)
 {
     fvec4 M4[NVEC4];
     float M[4 * NVEC4];
-    const fvec4 Xj = tex1Dfetch(texCellCenter, cellIdx);
+    const fvec4 Xj = srcCenter[cellIdx];
     if (cellIdx >= 0)
     {
-#pragma unroll
+        #pragma unroll
         for (int i = 0; i < NVEC4; i++)
-            M4[i] = tex1Dfetch(texMultipole, NVEC4 * cellIdx + i);
+            M4[i] = Multipoles[NVEC4 * cellIdx + i];
     }
     else
     {
-#pragma unroll
+        #pragma unroll
         for (int i = 0; i < NVEC4; i++)
             M4[i] = 0.0f;
     }
@@ -42,48 +43,13 @@ __device__ void approxAcc(fvec4 acc_i[2], const fvec3 pos_i[2], const int cellId
         const fvec3 pos_j(__shfl_sync(0xFFFFFFFF, Xj[0], j),
                           __shfl_sync(0xFFFFFFFF, Xj[1], j),
                           __shfl_sync(0xFFFFFFFF, Xj[2], j));
-#pragma unroll
+        #pragma unroll
         for (int i = 0; i < NVEC4; i++)
         {
             M[4 * i + 0] = __shfl_sync(0xFFFFFFFF, M4[i][0], j);
             M[4 * i + 1] = __shfl_sync(0xFFFFFFFF, M4[i][1], j);
             M[4 * i + 2] = __shfl_sync(0xFFFFFFFF, M4[i][2], j);
             M[4 * i + 3] = __shfl_sync(0xFFFFFFFF, M4[i][3], j);
-        }
-        for (int k = 0; k < 2; k++)
-            acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(fvecP*)M, EPS2);
-    }
-}
-
-__device__ void approxAcc(fvec4 acc_i[2], fvec4 M4[NVEC4], float M[4 * NVEC4], const fvec3 pos_i[2], const int cellIdx,
-                          const float EPS2)
-{
-    const fvec4 Xj = tex1Dfetch(texCellCenter, cellIdx);
-    for (int j = 0; j < WARP_SIZE; j++)
-    {
-        const fvec3 pos_j(__shfl_sync(0xFFFFFFFF, Xj[0], j),
-                          __shfl_sync(0xFFFFFFFF, Xj[1], j),
-                          __shfl_sync(0xFFFFFFFF, Xj[2], j));
-        const int cellIdxWarp = __shfl_sync(0xFFFFFFFF, cellIdx, j);
-        if (cellIdxWarp >= 0)
-        {
-#pragma unroll
-            for (int i = 0; i < NVEC4; i++)
-                M4[i] = tex1Dfetch(texMultipole, NVEC4 * cellIdxWarp + i);
-        }
-        else
-        {
-#pragma unroll
-            for (int i = 0; i < NVEC4; i++)
-                M4[i] = 0.0f;
-        }
-#pragma unroll
-        for (int i = 0; i < NVEC4; i++)
-        {
-            M[4 * i + 0] = M4[i][0];
-            M[4 * i + 1] = M4[i][1];
-            M[4 * i + 2] = M4[i][2];
-            M[4 * i + 3] = M4[i][3];
         }
         for (int k = 0; k < 2; k++)
             acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(fvecP*)M, EPS2);
@@ -99,15 +65,19 @@ __device__ void approxAcc(fvec4 acc_i[2], fvec4 M4[NVEC4], float M[4 * NVEC4], c
  * @param[in]    targetCenter  geometrical target center
  * @param[in]    targetSize    geometrical target bounding box size
  * @param[in]    bodyPos       source bodies as referenced by tree cells
+ * @param[in]    srcCells      source cell data
+ * @param[in]    srcCenter     source center data, x,y,z location and square of MAC radius, same order as srcCells
+ * @param[in]    Multipoles    the multipole expansions in the same order as srcCells
  * @param[in]    EPS2          plummer softening
  * @param[in]    rootRange     source cell indices indices of the top 8 octants
  * @param[-]     tempQueue     shared mem int pointer to 32 ints, uninitialized
  * @param[-]     cellQueue     shared mem int pointer to global memory, 4096 ints per thread, uninitialized
  * @return
  */
-__device__ uint2 traverseWarp(fvec4* acc_i, fvec4* /*M4*/, float* /*M*/, const fvec3 pos_i[2], const fvec3 targetCenter,
-                              const fvec3 targetSize, const fvec4* bodyPos, float EPS2, int2 rootRange,
-                              volatile int* tempQueue, int* cellQueue)
+__device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 targetCenter, const fvec3 targetSize,
+                              const fvec4* bodyPos, const CellData* srcCells, const fvec4* srcCenter,
+                              const fvec4* Multipoles, float EPS2, int2 rootRange, volatile int* tempQueue,
+                              int* cellQueue)
 {
     const int laneIdx = threadIdx.x & (WARP_SIZE - 1);
 
@@ -135,9 +105,9 @@ __device__ uint2 traverseWarp(fvec4* acc_i, fvec4* /*M4*/, float* /*M*/, const f
     {
         const int sourceIdx   = sourceOffset + laneIdx;                      // Source cell index of current lane
         const int sourceQueue = cellQueue[ringAddr(oldSources + sourceIdx)]; // Global source cell index in queue
-        const fvec4 MAC       = tex1Dfetch(texCellCenter, sourceQueue);      // Source cell center + MAC
+        const fvec4 MAC       = srcCenter[sourceQueue];                      // load source cell center + MAC
         const fvec3 sourceCenter(MAC[0], MAC[1], MAC[2]);                    // Source cell center
-        const CellData sourceData = tex1Dfetch(texCell, sourceQueue);        // Source cell data
+        const CellData sourceData = srcCells[sourceQueue];                   // load source cell data
         const bool isNode         = sourceData.isNode();                     // Is non-leaf cell
         const bool isClose =
             applyMAC(sourceCenter, MAC[3], sourceData, targetCenter, targetSize); // Is too close for MAC
@@ -174,11 +144,9 @@ __device__ uint2 traverseWarp(fvec4* acc_i, fvec4* /*M4*/, float* /*M*/, const f
         __syncwarp();
         if (approxOffset + numApproxWarp >= WARP_SIZE) // If approx queue is larger than the warp size
         {
-            #if WARP_PER_CELL
-            approxAcc(acc_i, M4, M, pos_i, tempQueue[laneIdx], EPS2); //  Call M2P kernel
-            #else
-            approxAcc(acc_i, pos_i, tempQueue[laneIdx], EPS2); // Call M2P kernel
-            #endif
+            // Call M2P kernel
+            approxAcc(acc_i, pos_i, tempQueue[laneIdx], srcCenter, Multipoles, EPS2);
+
             approxOffset -= WARP_SIZE;                // Decrement approx queue size
             approxIdx = approxOffset + numApproxLane; // Update approx index using new queue size
             if (isApprox && approxIdx >= 0)           // If approx flag is true and index is within bounds
@@ -270,11 +238,9 @@ __device__ uint2 traverseWarp(fvec4* acc_i, fvec4* /*M4*/, float* /*M*/, const f
 
     if (approxOffset > 0) // If there are leftover approx cells
     {
-        #if WARP_PER_CELL
-        approxAcc(acc_i, M4, M, pos_i, laneIdx < approxOffset ? approxQueue : -1, EPS2); // Call M2P kernel
-        #else
-        approxAcc(acc_i, pos_i, laneIdx < approxOffset ? approxQueue : -1, EPS2); // Call M2P kernel
-        #endif
+        // Call M2P kernel
+        approxAcc(acc_i, pos_i, laneIdx < approxOffset ? approxQueue : -1, srcCenter, Multipoles, EPS2);
+
         counters.x += approxOffset; //  Increment M2P counter
         approxOffset = 0;           //  Reset offset for approx
     }                               // End if for leftover approx cells
@@ -326,13 +292,17 @@ __global__ void resetTraversalCounters()
  * @param[in]  cycle         2 * M_PI
  * @param[in]  levelRange    (start,end) index pairs into texCell, texCenter and texSource for each tree level
  * @param[in]  bodyPos       pointer to SFC-sorted bodies as referenced by @p targetRange
+ * @param[in]  srcCells      source cell data
+ * @param[in]  srcCenter     source center data, x,y,z location and square of MAC radius, same order as srcCells
+ * @param[in]  Multipoles    the multipole expansions in the same order as srcCells
  * @param[out] bodyAcc       body accelerations
  * @param[in]  targetRange   (offset,count) pair for each target, length @p numTargets
  * @param[-]   globalPool    length proportional to number of warps in the launch grid, uninitialized
  */
-__global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, const int images,
-                                                       float EPS2, const float cycle, const int2* levelRange,
-                                                       const fvec4* bodyPos, fvec4* bodyAcc, const int2* targetRange,
+__global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, const int images, float EPS2,
+                                                       const float cycle, const int2* levelRange, const fvec4* bodyPos,
+                                                       const CellData* srcCells, const fvec4* srcCenter,
+                                                       const fvec4* Multipoles, fvec4* bodyAcc, const int2* targetRange,
                                                        int* globalPool)
 {
     const int laneIdx = threadIdx.x & (WARP_SIZE - 1);
@@ -341,19 +311,11 @@ __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, con
     const int NWARP2  = NTHREAD2 - WARP_SIZE2;
 
     __shared__ int sharedPool[NTHREAD];
-    // 8 multipoles (P=4), one for each warp in the block
-    __shared__ float4 sharedM4[NVEC4 << NWARP2];
-    // 8 multipoles (P=4), one for each warp in the block
-    __shared__ float sharedM[NVEC4 << (NWARP2 + 2)];
 
     // warp-common shared mem, 1 int per thread
     int* tempQueue = sharedPool + WARP_SIZE * warpIdx;
     // warp-common global mem storage, 4096 ints per thread
     int* cellQueue = globalPool + MEM_PER_WARP * ((blockIdx.x << NWARP2) + warpIdx);
-
-    // pointer to shared memory multipole for each warp
-    fvec4* M4 = reinterpret_cast<fvec4*>(sharedM4 + NVEC4 * warpIdx);
-    float* M  = sharedM + 4 * NVEC4 * warpIdx;
 
     while (true)
     {
@@ -411,8 +373,18 @@ __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, con
                     const fvec3 targetPeriodic = targetCenter - Xperiodic;
                     for (int i = 0; i < 2; i++)
                         pos_p[i] = pos_i[i] - Xperiodic;
-                    const uint2 counters = traverseWarp(
-                        acc_i, M4, M, pos_p, targetPeriodic, targetSize, bodyPos, EPS2, levelRange[1], tempQueue, cellQueue);
+                    const uint2 counters = traverseWarp(acc_i,
+                                                        pos_p,
+                                                        targetPeriodic,
+                                                        targetSize,
+                                                        bodyPos,
+                                                        srcCells,
+                                                        srcCenter,
+                                                        Multipoles,
+                                                        EPS2,
+                                                        levelRange[1],
+                                                        tempQueue,
+                                                        cellQueue);
                     assert(!(counters.x == 0xFFFFFFFF && counters.y == 0xFFFFFFFF));
                     numM2P += counters.x;
                     numP2P += counters.y;
@@ -490,9 +462,6 @@ public:
         const int poolSize  = MEM_PER_WARP * NWARP * NBLOCK;
         const int numBodies = bodyPos.size();
 
-        sourceCells.bind(texCell);
-        sourceCenter.bind(texCellCenter);
-        Multipole.bind(texMultipole);
         cudaVec<int> globalPool(poolSize);
 
         cudaDeviceSynchronize();
@@ -507,6 +476,9 @@ public:
                                       cycle,
                                       levelRange.d(),
                                       bodyPos.d(),
+                                      sourceCells.d(),
+                                      sourceCenter.d(),
+                                      Multipole.d(),
                                       bodyAcc.d(),
                                       targetRange.d(),
                                       globalPool.d());
@@ -533,10 +505,6 @@ public:
 
         fprintf(stdout, "Traverse             : %.7f s (%.7f TFlops)\n", dt, flops);
 
-        sourceCells.unbind(texCell);
-        sourceCenter.unbind(texCellCenter);
-        Multipole.unbind(texMultipole);
         return interactions;
     }
 };
-
