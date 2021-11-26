@@ -10,8 +10,8 @@ namespace
 {
 __device__ __forceinline__ int ringAddr(const int i) { return i & (MEM_PER_WARP - 1); }
 
-__device__ __forceinline__ bool applyMAC(const fvec3 sourceCenter, const float MAC, const CellData sourceData,
-                                         const fvec3 targetCenter, const fvec3 targetSize)
+__host__ __device__ __forceinline__ bool applyMAC(fvec3 sourceCenter, float MAC, CellData sourceData,
+                                                  fvec3 targetCenter, fvec3 targetSize)
 {
     fvec3 dX = abs(targetCenter - sourceCenter) - targetSize;
     dX += abs(dX);
@@ -209,7 +209,8 @@ __device__ uint2 traverseWarp(fvec4* acc_i, fvec4* /*M4*/, float* /*M*/, const f
             const int bodyQueue =
                 inclusiveSegscanInt(tempQueue[laneIdx], tempOffset);        // Inclusive segmented scan of temp queue
             tempOffset = __shfl_sync(0xFFFFFFFF, bodyQueue, WARP_SIZE - 1); // Last lane has the temp queue offset
-            if (numBodiesWarp >= WARP_SIZE)                                 // If warp is full of bodies
+
+            if (numBodiesWarp >= WARP_SIZE) // If warp is full of bodies
             {
                 const fvec4 pos = tex1Dfetch(texBody, bodyQueue); // Load position of source bodies
                 for (int j = 0; j < WARP_SIZE; j++)
@@ -226,8 +227,8 @@ __device__ uint2 traverseWarp(fvec4* acc_i, fvec4* /*M4*/, float* /*M*/, const f
                 numBodiesLane -= WARP_SIZE;                                   // Derecment lane offset of body index
                 counters.y += WARP_SIZE;                                      // Increment P2P counter
             }
-            else
-            {                                              // If warp is not entirely full of bodies
+            else // If warp is not entirely full of bodies
+            {
                 int bodyIdx        = bodyOffset + laneIdx; // Body index of current lane
                 tempQueue[laneIdx] = directQueue;          // Initialize body queue with saved values
                 if (bodyIdx < WARP_SIZE)                   // If body index is less than the warp size
