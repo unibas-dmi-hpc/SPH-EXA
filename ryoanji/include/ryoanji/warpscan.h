@@ -29,36 +29,15 @@ __device__ __forceinline__ void getMinMax(fvec3& _Xmin, fvec3& _Xmax, const fvec
 
 // Scan int
 
-//__device__ __forceinline__ uint shflScan(uint partial, uint offset)
-//{
-//    uint result;
-//    asm("{.reg .u32 r0;"
-//        ".reg .pred p;"
-//        "shfl.up.b32 r0|p, %1, %2, 0;"
-//        "@p add.u32 r0, r0, %3;"
-//        "mov.u32 %0, r0;}"
-//        : "=r"(result)
-//        : "r"(partial), "r"(offset), "r"(partial));
-//    return result;
-//}
-//
-//__device__ __forceinline__ uint inclusiveScanInt(const int value)
-//{
-//    uint sum = value;
-//#pragma unroll
-//    for (int i = 0; i < WARP_SIZE2; ++i)
-//        sum = shflScan(sum, 1 << i);
-//    return sum;
-//}
-
-__device__ __forceinline__ uint inclusiveScanInt(int value)
+//! @brief standard inclusive warp-scan
+__device__ __forceinline__ int inclusiveScanInt(int value)
 {
     unsigned lane = threadIdx.x & (WARP_SIZE - 1);
-#pragma unroll
+    #pragma unroll
     for (int i = 1; i < WARP_SIZE; i *= 2)
     {
-        unsigned partial = __shfl_up_sync(0xFFFFFFFF, value, i);
-        if (lane >= i)
+        int partial = __shfl_up_sync(0xFFFFFFFF, value, i);
+        if (i <= lane)
         {
             value += partial;
         }
@@ -80,13 +59,13 @@ __device__ __forceinline__ int lanemask_lt()
 
 __device__ __forceinline__ int exclusiveScanBool(const bool p)
 {
-    const uint b = __ballot_sync(0xFFFFFFFF, p);
+    unsigned b = __ballot_sync(0xFFFFFFFF, p);
     return __popc(b & lanemask_lt());
 }
 
 __device__ __forceinline__ int reduceBool(const bool p)
 {
-    const uint b = __ballot_sync(0xFFFFFFFF, p);
+    unsigned b = __ballot_sync(0xFFFFFFFF, p);
     return __popc(b);
 }
 
@@ -102,55 +81,67 @@ __device__ __forceinline__ int lanemask_le()
     //return mask;
 }
 
-__device__ __forceinline__ int shflSegScan(int partial, uint offset, uint distance)
+/*! @brief perform range-limited inclusive warp scan
+ *
+ * @param value     scan input per lane
+ * @param distance  number of preceding lanes to include in scanned result
+ *                  distance has to be <= the current laneIdx
+ * @return          the scanned value
+ *
+ * Due to the @p distance argument, the values of preceding lanes are only added
+ * to the current lane if the source lane is less than @p distance away from the current lane.
+ * If distance == current laneIdx, then the result is the same as a normal inclusive scan.
+ */
+__device__ __forceinline__ int inclusiveSegscan(int value, int distance)
 {
-    asm("{.reg .u32 r0;"
-        ".reg .pred p;"
-        "shfl.up.b32 r0, %1, %2, 0;"
-        "setp.le.u32 p, %2, %3;"
-        "@p add.u32 %1, r0, %1;"
-        "mov.u32 %0, %1;}"
-        : "=r"(partial)
-        : "r"(partial), "r"(offset), "r"(distance));
-    return partial;
-}
+    // distance should be less-equal the lane index
+    assert (distance <= (threadIdx.x & (WARP_SIZE- 1)));
+    #pragma unroll
+    for (int i = 1; i < WARP_SIZE; i *= 2)
+    {
+        int partial = __shfl_up_sync(0xFFFFFFFF, value, i);
+        if (i <= distance)
+        {
+            value += partial;
+        }
+    }
 
-template<const int SIZE2>
-__device__ __forceinline__ int inclusiveSegscan(int value, const int distance)
-{
-    for (int i = 0; i < SIZE2; i++)
-        value = shflSegScan(value, 1 << i, distance);
     return value;
 }
 
-/*! @brief performs an inclusive warp prefix scan
+/*! @brief performs an inclusive segmented warp prefix scan
  *
  * @param[in] packedValue input value per lane
  * @param[in] carryValue  offset for first prefix sum segment
  * @return                the prefix sum value per lane
  *
  * If packedValue is positive, behavior is like a usual prefix sum
- * Each negative packedValue will restart the prefix sum with a value of -packedValue - 1
+ * Each negative packedValue will start a new prefix sum segment with a value of -packedValue - 1
  */
 __device__ __forceinline__ int inclusiveSegscanInt(const int packedValue, const int carryValue)
 {
-    const int isNegative = packedValue < 0;
-    const int mask = -isNegative;
+    int laneIdx  = int(threadIdx.x) & (WARP_SIZE - 1);
+
+    int isNegative = packedValue < 0;
+    int mask = -isNegative;
 
     // value = packedValue if packedValue >= 0
     // value = -packedValue - 1 if packedValue < 0
-    const int value = (~mask & packedValue) + (mask & (-1 - packedValue));
+    int value = (~mask & packedValue) + (mask & (-1 - packedValue));
 
-    const int flags = __ballot_sync(0xFFFFFFFF, isNegative);
+    int flags = int(__ballot_sync(0xFFFFFFFF, isNegative));
 
-    // dist_block = the highest lane for which packedValue was negative
-    const int dist_block = __clz(__brev(flags));
+    // distance = number of preceding lanes to include in scanned value
+    // e.g. if distance = 0, then no preceding lane value will be added to scannedValue
+    int distance     = __clz(flags & lanemask_le()) + laneIdx - (WARP_SIZE - 1);
+    int scannedValue = inclusiveSegscan(value, min(distance, laneIdx));
 
-    const int laneIdx  = threadIdx.x & (WARP_SIZE - 1);
-    const int distance = __clz(flags & lanemask_le()) + laneIdx - 31;
-    const int val =
-        inclusiveSegscan<WARP_SIZE2>(value, min(distance, laneIdx)) + (carryValue & (-(laneIdx < dist_block)));
-    return val;
+    // the lowest lane index for which packedValue was negative, WARP_SIZE if all were positive
+    // __brev reverses the bit order
+    int firstNegativeLane = __clz(int(__brev(flags)));
+    int addCarry          = -(laneIdx < firstNegativeLane);
+
+    return scannedValue + (carryValue & addCarry);
 }
 
 } // namespace
