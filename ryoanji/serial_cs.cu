@@ -9,16 +9,16 @@
 
 int main(int argc, char** argv)
 {
-    int numBodies = (1 << 16) - 1;
+    int numBodies = (1 << 21) - 1;
     int images    = 0;
-    float theta   = 0.5;
+    float theta   = 0.6;
     float boxSize = 3;
 
     const float eps   = 0.05;
     const int ncrit   = 64;
     const float cycle = 2 * M_PI;
 
-    fprintf(stdout, "--- FMM Parameters ---------------\n");
+    fprintf(stdout, "--- BH Parameters ---------------\n");
     fprintf(stdout, "numBodies            : %d\n", numBodies);
     fprintf(stdout, "P                    : %d\n", P);
     fprintf(stdout, "theta                : %f\n", theta);
@@ -26,7 +26,7 @@ int main(int argc, char** argv)
 
     auto bodies = makeCubeBodies(numBodies, boxSize);
 
-    Box box{ {0.0f}, boxSize * 1.1f };
+    Box box{ {0.0f}, boxSize * 1.00f};
 
     auto [highestLevel, tree, levelRangeCs] = buildFromCstone(bodies, box);
 
@@ -54,7 +54,7 @@ int main(int argc, char** argv)
 
     cudaVec<fvec4> bodyAcc(numBodies, true);
 
-    fprintf(stdout, "--- FMM Profiling ----------------\n");
+    fprintf(stdout, "--- BH Profiling ----------------\n");
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
@@ -92,7 +92,7 @@ int main(int argc, char** argv)
     double flops = (interactions[0] * 20 + interactions[2] * 2 * pow(P, 3)) * numBodies / dt / 1e12;
 
     fprintf(stdout, "--- Total runtime ----------------\n");
-    fprintf(stdout, "Total FMM            : %.7f s (%.7f TFlops)\n", dt, flops);
+    fprintf(stdout, "Total BH            : %.7f s (%.7f TFlops)\n", dt, flops);
 
     cudaVec<fvec4> bodyAccDirect(numBodies, true);
 
@@ -118,7 +118,7 @@ int main(int argc, char** argv)
 
     std::sort(begin(delta), end(delta));
 
-    fprintf(stdout, "--- FMM vs. direct ---------------\n");
+    fprintf(stdout, "--- BH vs. direct ---------------\n");
 
     std::cout << "min Error: "       << delta[0] << std::endl;
     std::cout << "50th percentile: " << delta[numBodies/2] << std::endl;
@@ -140,3 +140,4 @@ int main(int argc, char** argv)
 
     return 0;
 }
+
