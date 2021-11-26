@@ -68,6 +68,7 @@ __device__ __forceinline__ uint inclusiveScanInt(int value)
 
 // Scan bool
 
+//! @brief returns a mask with bits set for each warp lane before the calling lane
 __device__ __forceinline__ int lanemask_lt()
 {
     unsigned lane = threadIdx.x & (WARP_SIZE - 1);
@@ -91,11 +92,14 @@ __device__ __forceinline__ int reduceBool(const bool p)
 
 // Segmented scan int
 
+//! @brief returns a mask with bits set for each warp lane before and including the calling lane
 __device__ __forceinline__ int lanemask_le()
 {
-    int mask;
-    asm("mov.u32 %0, %lanemask_le;" : "=r"(mask));
-    return mask;
+    unsigned lane = threadIdx.x & (WARP_SIZE - 1);
+    return (2 << lane) - 1;
+    //int mask;
+    //asm("mov.u32 %0, %lanemask_le;" : "=r"(mask));
+    //return mask;
 }
 
 __device__ __forceinline__ int shflSegScan(int partial, uint offset, uint distance)
@@ -130,20 +134,20 @@ __device__ __forceinline__ int inclusiveSegscan(int value, const int distance)
  */
 __device__ __forceinline__ int inclusiveSegscanInt(const int packedValue, const int carryValue)
 {
-    const int flag       = packedValue < 0;
-    const int mask       = -flag;
+    const int isNegative = packedValue < 0;
+    const int mask = -isNegative;
 
     // value = packedValue if packedValue >= 0
     // value = -packedValue - 1 if packedValue < 0
-    const int value      = (~mask & packedValue) + (mask & (-1 - packedValue));
+    const int value = (~mask & packedValue) + (mask & (-1 - packedValue));
 
-    const int flags      = __ballot_sync(0xFFFFFFFF, flag);
+    const int flags = __ballot_sync(0xFFFFFFFF, isNegative);
 
     // dist_block = the highest lane for which packedValue was negative
     const int dist_block = __clz(__brev(flags));
 
-    const int laneIdx    = threadIdx.x & (WARP_SIZE - 1);
-    const int distance   = __clz(flags & lanemask_le()) + laneIdx - 31;
+    const int laneIdx  = threadIdx.x & (WARP_SIZE - 1);
+    const int distance = __clz(flags & lanemask_le()) + laneIdx - 31;
     const int val =
         inclusiveSegscan<WARP_SIZE2>(value, min(distance, laneIdx)) + (carryValue & (-(laneIdx < dist_block)));
     return val;
