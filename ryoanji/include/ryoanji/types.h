@@ -13,7 +13,6 @@
 
 const int P = 4;
 
-#define WARP_PER_CELL 0
 const int NTERM = P * (P + 1) * (P + 2) / 6; // 20 for P=4
 const int NVEC4 = (NTERM - 1) / 4 + 1;       // 5 for P=4
 typedef vec<3, float> fvec3;

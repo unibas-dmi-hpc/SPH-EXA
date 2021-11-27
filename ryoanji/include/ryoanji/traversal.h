@@ -3,12 +3,29 @@
 #include "kernel.h"
 #include "warpscan.h"
 
-#define MEM_PER_WARP (4096 * WARP_SIZE)
 #define IF(x) (-(int)(x))
+
+struct GpuConfig
+{
+    //! @brief number of threads per warp
+    static constexpr int warpSize = 32;
+    //! @brief log2(warpSize)
+    static constexpr int warpSizeLog2 = 5;
+    //! @brief size of global workspace memory per warp
+    static constexpr int memPerWarp = 4096 * warpSize;
+    //! @brief number of threads per block for the traversal kernel
+    static constexpr int numThreadsTraversal = 256;
+    //! @brief log2(numThreadsTraversal)
+    static constexpr int numThreadsTraversalLog2 = 8;
+    //! @brief maximum number of simultaneously active blocks
+    static int maxNumActiveBlocks;// = 64 * 8;
+};
+
+int GpuConfig::maxNumActiveBlocks = 64 * 8;
 
 namespace
 {
-__device__ __forceinline__ int ringAddr(const int i) { return i & (MEM_PER_WARP - 1); }
+__device__ __forceinline__ int ringAddr(const int i) { return i & (GpuConfig::memPerWarp - 1); }
 
 __host__ __device__ __forceinline__ bool applyMAC(fvec3 sourceCenter, float MAC, CellData sourceData,
                                                   fvec3 targetCenter, fvec3 targetSize)
@@ -39,7 +56,7 @@ __device__ void approxAcc(fvec4 acc_i[2], const fvec3 pos_i[2], const int cellId
         for (int i = 0; i < NVEC4; i++)
             M4[i] = 0.0f;
     }
-    for (int j = 0; j < WARP_SIZE; j++)
+    for (int j = 0; j < GpuConfig::warpSize; j++)
     {
         const fvec3 pos_j(__shfl_sync(0xFFFFFFFF, Xj[0], j),
                           __shfl_sync(0xFFFFFFFF, Xj[1], j),
@@ -80,13 +97,13 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 ta
                               const fvec4* __restrict__ Multipoles, float EPS2, int2 rootRange, volatile int* tempQueue,
                               int* cellQueue)
 {
-    const int laneIdx = threadIdx.x & (WARP_SIZE - 1);
+    const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
 
     uint2 counters = {0, 0};
     int approxQueue, directQueue;
 
     // populate initial cell queue
-    for (int root = rootRange.x; root < rootRange.y; root += WARP_SIZE)
+    for (int root = rootRange.x; root < rootRange.y; root += GpuConfig::warpSize)
     {
         if (root + laneIdx < rootRange.y)
         {
@@ -121,9 +138,9 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 ta
         const int numChildScan = inclusiveScanInt(numChild);           // Inclusive scan of numChild
         const int numChildLane = numChildScan - numChild;              // Exclusive scan of numChild
         const int numChildWarp = __shfl_sync(0xFFFFFFFF, numChildScan, // Total numChild of current warp
-                                             WARP_SIZE - 1);
-        sourceOffset += min(WARP_SIZE, numSources - sourceOffset);     // advance current level stack pointer
-        if (numChildWarp + numSources - sourceOffset > MEM_PER_WARP)   // If cell queue overflows
+                                             GpuConfig::warpSize - 1);
+        sourceOffset += min(GpuConfig::warpSize, numSources - sourceOffset);     // advance current level stack pointer
+        if (numChildWarp + numSources - sourceOffset > GpuConfig::memPerWarp)    // If cell queue overflows
             return make_uint2(0xFFFFFFFF, 0xFFFFFFFF);                 // Exit kernel
         int childIdx = oldSources + numSources + newSources + numChildLane; // Child index of current lane
         for (int i = 0; i < numChild; i++)                                  // Loop over child cells for each lane
@@ -138,21 +155,21 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 ta
         int approxIdx           = approxOffset + numApproxLane;         // Approx cell index of current lane
         tempQueue[laneIdx]      = approxQueue;                          // Fill queue with remaining sources for approx
         __syncwarp();
-        if (isApprox && approxIdx < WARP_SIZE)         // If approx flag is true and index is within bounds
+        if (isApprox && approxIdx < GpuConfig::warpSize)         // If approx flag is true and index is within bounds
         {
             tempQueue[approxIdx] = sourceQueue;        // Fill approx queue with current sources
         }
         __syncwarp();
-        if (approxOffset + numApproxWarp >= WARP_SIZE) // If approx queue is larger than the warp size
+        if (approxOffset + numApproxWarp >= GpuConfig::warpSize) // If approx queue is larger than the warp size
         {
             // Call M2P kernel
             approxAcc(acc_i, pos_i, tempQueue[laneIdx], srcCenter, Multipoles, EPS2);
 
-            approxOffset -= WARP_SIZE;                // Decrement approx queue size
+            approxOffset -= GpuConfig::warpSize;      // Decrement approx queue size
             approxIdx = approxOffset + numApproxLane; // Update approx index using new queue size
             if (isApprox && approxIdx >= 0)           // If approx flag is true and index is within bounds
                 tempQueue[approxIdx] = sourceQueue;   // Fill approx queue with current sources
-            counters.x += WARP_SIZE;                  // Increment M2P counter
+            counters.x += GpuConfig::warpSize;        // Increment M2P counter
         }                                             // End if for approx queue size
         __syncwarp();
         approxQueue = tempQueue[laneIdx];             // Free temp queue for use in direct
@@ -166,24 +183,24 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 ta
         const int numBodiesScan = inclusiveScanInt(numBodies);           // Inclusive scan of numBodies
         int numBodiesLane       = numBodiesScan - numBodies;             // Exclusive scan of numBodies
         int numBodiesWarp       = __shfl_sync(0xFFFFFFFF, numBodiesScan, // Total numBodies of current warp
-                                              WARP_SIZE - 1);
+                                              GpuConfig::warpSize - 1);
         int tempOffset = 0;         //  Initialize temp queue offset
         while (numBodiesWarp > 0)   // While there are bodies to process
         {
             tempQueue[laneIdx] = 1; // Initialize body queue
-            if (isDirect && (numBodiesLane < WARP_SIZE))
+            if (isDirect && (numBodiesLane < GpuConfig::warpSize))
             {                                              // If direct flag is true and index is within bounds
                 isDirect                 = false;          // Set flag as processed
                 tempQueue[numBodiesLane] = -1 - bodyBegin; // Put body in queue
             }                                              // End if for direct flag
             const int bodyQueue =
                 inclusiveSegscanInt(tempQueue[laneIdx], tempOffset);        // Inclusive segmented scan of temp queue
-            tempOffset = __shfl_sync(0xFFFFFFFF, bodyQueue, WARP_SIZE - 1); // Last lane has the temp queue offset
+            tempOffset = __shfl_sync(0xFFFFFFFF, bodyQueue, GpuConfig::warpSize - 1); // Last lane has the temp queue offset
 
-            if (numBodiesWarp >= WARP_SIZE) // If warp is full of bodies
+            if (numBodiesWarp >= GpuConfig::warpSize) // If warp is full of bodies
             {
                 const fvec4 pos = bodyPos[bodyQueue]; // Load position of source bodies
-                for (int j = 0; j < WARP_SIZE; j++)
+                for (int j = 0; j < GpuConfig::warpSize; j++)
                 {                                                             // Loop over the warp size
                     const fvec3 pos_j(__shfl_sync(0xFFFFFFFF, pos[0], j),     // Get source x value from lane j
                                       __shfl_sync(0xFFFFFFFF, pos[1], j),     // Get source y value from lane j
@@ -193,21 +210,21 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 ta
                     for (int k = 0; k < 2; k++)                               // Loop over two targets
                         acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2); // Call P2P kernel
                 }                                                             // End loop over the warp size
-                numBodiesWarp -= WARP_SIZE;                                   // Decrement body queue size
-                numBodiesLane -= WARP_SIZE;                                   // Derecment lane offset of body index
-                counters.y += WARP_SIZE;                                      // Increment P2P counter
+                numBodiesWarp -= GpuConfig::warpSize;                                   // Decrement body queue size
+                numBodiesLane -= GpuConfig::warpSize;                                   // Derecment lane offset of body index
+                counters.y += GpuConfig::warpSize;                                      // Increment P2P counter
             }
             else // If warp is not entirely full of bodies
             {
                 int bodyIdx        = bodyOffset + laneIdx; // Body index of current lane
                 tempQueue[laneIdx] = directQueue;          // Initialize body queue with saved values
-                if (bodyIdx < WARP_SIZE)                   // If body index is less than the warp size
+                if (bodyIdx < GpuConfig::warpSize)         // If body index is less than the warp size
                     tempQueue[bodyIdx] = bodyQueue;        // Push bodies into queue
                 bodyOffset += numBodiesWarp;               // Increment body queue offset
-                if (bodyOffset >= WARP_SIZE)               // If this causes the body queue to spill
+                if (bodyOffset >= GpuConfig::warpSize)               // If this causes the body queue to spill
                 {
                     const fvec4 pos = bodyPos[tempQueue[laneIdx]]; // Load position of source bodies
-                    for (int j = 0; j < WARP_SIZE; j++)
+                    for (int j = 0; j < GpuConfig::warpSize; j++)
                     {                                                          // Loop over the warp size
                         const fvec3 pos_j(__shfl_sync(0xFFFFFFFF, pos[0], j),  // Get source x value from lane j
                                           __shfl_sync(0xFFFFFFFF, pos[1], j),  // Get source y value from lane j
@@ -217,11 +234,11 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 ta
                         for (int k = 0; k < 2; k++)                               // Loop over two targets
                             acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2); // Call P2P kernel
                     }                                                             // End loop over the warp size
-                    bodyOffset -= WARP_SIZE;                                      // Decrement body queue size
-                    bodyIdx -= WARP_SIZE;               // Decrement body index of current lane
+                    bodyOffset -= GpuConfig::warpSize;                            // Decrement body queue size
+                    bodyIdx -= GpuConfig::warpSize;     // Decrement body index of current lane
                     if (bodyIdx >= 0)                   // If body index is valid
                         tempQueue[bodyIdx] = bodyQueue; // Push bodies into queue
-                    counters.y += WARP_SIZE;            // Increment P2P counter
+                    counters.y += GpuConfig::warpSize;  // Increment P2P counter
                 }                                       // End if for body queue spill
                 directQueue   = tempQueue[laneIdx];     // Free temp queue for use in approx
                 numBodiesWarp = 0;                      // Reset numBodies of current warp
@@ -242,16 +259,16 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 ta
         // Call M2P kernel
         approxAcc(acc_i, pos_i, laneIdx < approxOffset ? approxQueue : -1, srcCenter, Multipoles, EPS2);
 
-        counters.x += approxOffset; //  Increment M2P counter
-        approxOffset = 0;           //  Reset offset for approx
+        counters.x += approxOffset; // Increment M2P counter
+        approxOffset = 0;           // Reset offset for approx
     }                               // End if for leftover approx cells
 
     if (bodyOffset > 0) // If there are leftover direct cells
     {
-        const int bodyQueue = laneIdx < bodyOffset ? directQueue : -1;          // Get body index
-        const fvec4 pos     = bodyQueue >= 0 ? bodyPos[bodyQueue] : // Load position of source bodies
-                              make_float4(0.0f, 0.0f, 0.0f, 0.0f);              // With padding for invalid lanes
-        for (int j = 0; j < WARP_SIZE; j++)
+        const int bodyQueue = laneIdx < bodyOffset ? directQueue : -1;  // Get body index
+        const fvec4 pos     = bodyQueue >= 0 ? bodyPos[bodyQueue] :     // Load position of source bodies
+                              make_float4(0.0f, 0.0f, 0.0f, 0.0f);      // With padding for invalid lanes
+        for (int j = 0; j < GpuConfig::warpSize; j++)
         {                                                             // Loop over the warp size
             const fvec3 pos_j(__shfl_sync(0xFFFFFFFF, pos[0], j),     // Get source x value from lane j
                               __shfl_sync(0xFFFFFFFF, pos[1], j),     // Get source y value from lane j
@@ -300,23 +317,24 @@ __global__ void resetTraversalCounters()
  * @param[in]  targetRange   (offset,count) pair for each target, length @p numTargets
  * @param[-]   globalPool    length proportional to number of warps in the launch grid, uninitialized
  */
-__global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, const int images, float EPS2,
-                                                       const float cycle, const int2* levelRange, const fvec4* __restrict__ bodyPos,
-                                                       const CellData* __restrict__ srcCells, const fvec4* __restrict__ srcCenter,
-                                                       const fvec4* __restrict__ Multipoles, fvec4* bodyAcc, const int2* targetRange,
-                                                       int* globalPool)
+__global__ __launch_bounds__(GpuConfig::numThreadsTraversal,4)
+void traverse(const int numTargets, const int images, float EPS2, const float cycle,
+              const int2* levelRange, const fvec4* __restrict__ bodyPos,
+              const CellData* __restrict__ srcCells,
+              const fvec4* __restrict__ srcCenter, const fvec4* __restrict__ Multipoles,
+              fvec4* bodyAcc, const int2* targetRange, int* globalPool)
 {
-    const int laneIdx = threadIdx.x & (WARP_SIZE - 1);
-    const int warpIdx = threadIdx.x >> WARP_SIZE2;
+    const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
+    const int warpIdx = threadIdx.x >> GpuConfig::warpSizeLog2;
 
-    const int NWARP2  = NTHREAD2 - WARP_SIZE2;
+    const int numWarpsLog2  = GpuConfig::numThreadsTraversalLog2 - GpuConfig::warpSizeLog2;
 
-    __shared__ int sharedPool[NTHREAD];
+    __shared__ int sharedPool[GpuConfig::numThreadsTraversal];
 
     // warp-common shared mem, 1 int per thread
-    int* tempQueue = sharedPool + WARP_SIZE * warpIdx;
+    int* tempQueue = sharedPool + GpuConfig::warpSize * warpIdx;
     // warp-common global mem storage, 4096 ints per thread
-    int* cellQueue = globalPool + MEM_PER_WARP * ((blockIdx.x << NWARP2) + warpIdx);
+    int* cellQueue = globalPool + GpuConfig::memPerWarp * ((blockIdx.x << numWarpsLog2) + warpIdx);
 
     while (true)
     {
@@ -326,7 +344,7 @@ __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, con
         {
             targetIdx = atomicAdd(&targetCounterGlob, 1);
         }
-        targetIdx = __shfl_sync(0xFFFFFFFF, targetIdx, 0, WARP_SIZE);
+        targetIdx = __shfl_sync(0xFFFFFFFF, targetIdx, 0, GpuConfig::warpSize);
 
         if (targetIdx >= numTargets) return;
 
@@ -338,7 +356,7 @@ __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, con
         fvec3 pos_i[2], pos_p[2];
         for (int i = 0; i < 2; i++)
         {
-            const int bodyIdx = min(bodyBegin + i * WARP_SIZE + laneIdx, bodyEnd - 1);
+            const int bodyIdx = min(bodyBegin + i * GpuConfig::warpSize + laneIdx, bodyEnd - 1);
             pos_i[i]          = make_fvec3(fvec4(bodyPos[bodyIdx]));
         }
 
@@ -401,14 +419,14 @@ __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, con
         const int bodyIdx = bodyBegin + laneIdx;
         for (int i = 0; i < 2; i++)
         {
-            if (i * WARP_SIZE + bodyIdx < bodyEnd)
+            if (i * GpuConfig::warpSize + bodyIdx < bodyEnd)
             {
                 sumM2P += numM2P;
                 sumP2P += numP2P;
             }
         }
         #pragma unroll
-        for (int i = 0; i < WARP_SIZE2; i++)
+        for (int i = 0; i < GpuConfig::warpSizeLog2; i++)
         {
             maxP2P = max(maxP2P, __shfl_xor_sync(0xFFFFFFFF, maxP2P, 1 << i));
             sumP2P += __shfl_xor_sync(0xFFFFFFFF, sumP2P, 1 << i);
@@ -425,9 +443,9 @@ __global__ __launch_bounds__(NTHREAD, 4) void traverse(const int numTargets, con
 
         for (int i = 0; i < 2; i++)
         {
-            if (bodyIdx + i * WARP_SIZE < bodyEnd)
+            if (bodyIdx + i * GpuConfig::warpSize < bodyEnd)
             {
-                bodyAcc[i * WARP_SIZE + bodyIdx] = acc_i[i];
+                bodyAcc[i * GpuConfig::warpSize + bodyIdx] = acc_i[i];
             }
         }
     }
@@ -458,9 +476,9 @@ public:
                         cudaVec<int2>& targetRange, cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
                         cudaVec<fvec4>& Multipole, cudaVec<int2>& levelRange)
     {
-        const int NWARP     = 1 << (NTHREAD2 - WARP_SIZE2);
-        const int NBLOCK    = (numTargets - 1) / NTHREAD + 1;
-        const int poolSize  = MEM_PER_WARP * NWARP * NBLOCK;
+        constexpr int numWarpsPerBlock = 1 << (GpuConfig::numThreadsTraversalLog2 - GpuConfig::warpSizeLog2);
+        const int numBlocks = (numTargets - 1) / GpuConfig::numThreadsTraversal + 1;
+        const int poolSize  = GpuConfig::memPerWarp * numWarpsPerBlock * numBlocks;
         const int numBodies = bodyPos.size();
 
         cudaVec<int> globalPool(poolSize);
@@ -471,18 +489,18 @@ public:
 
         auto t0 = std::chrono::high_resolution_clock::now();
         CUDA_SAFE_CALL(cudaFuncSetCacheConfig(&traverse, cudaFuncCachePreferL1));
-        traverse<<<NBLOCK, NTHREAD>>>(numTargets,
-                                      images,
-                                      eps * eps,
-                                      cycle,
-                                      levelRange.d(),
-                                      bodyPos.d(),
-                                      sourceCells.d(),
-                                      sourceCenter.d(),
-                                      Multipole.d(),
-                                      bodyAcc.d(),
-                                      targetRange.d(),
-                                      globalPool.d());
+        traverse<<<numBlocks, GpuConfig::numThreadsTraversal>>>(numTargets,
+                                                             images,
+                                                             eps * eps,
+                                                             cycle,
+                                                             levelRange.d(),
+                                                             bodyPos.d(),
+                                                             sourceCells.d(),
+                                                             sourceCenter.d(),
+                                                             Multipole.d(),
+                                                             bodyAcc.d(),
+                                                             targetRange.d(),
+                                                             globalPool.d());
         kernelSuccess("traverse");
 
         auto t1  = std::chrono::high_resolution_clock::now();
