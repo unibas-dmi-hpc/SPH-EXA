@@ -57,23 +57,9 @@ int main(int argc, char** argv)
 
     fprintf(stdout, "--- BH Profiling ----------------\n");
 
+    int numTargets = (bodyPos.size() - 1) / GpuConfig::targetSize + 1;
+
     auto t0 = std::chrono::high_resolution_clock::now();
-
-    // the groupSize cannot be changed as it is hard-coded in the traversal function
-    constexpr int groupSize = 2 * WARP_SIZE;
-    int numTargets = (numBodies - 1) / groupSize + 1;
-    cudaVec<int2> targetRange(numBodies, true);
-
-    for (int target = 0; target < numTargets; ++target)
-    {
-        targetRange[target] = {target * groupSize, groupSize};
-    }
-    // if numBodies is not a multiple of the groupSize, the last target only gets the remainder
-    if (numBodies % groupSize != 0)
-    {
-        targetRange[numTargets - 1].y = numBodies % groupSize;
-    }
-    targetRange.h2d();
 
     fvec4 interactions = Traversal::approx(numTargets,
                                            images,
@@ -81,7 +67,6 @@ int main(int argc, char** argv)
                                            cycle,
                                            bodyPos,
                                            bodyAcc,
-                                           targetRange,
                                            sources,
                                            sourceCenter,
                                            Multipole,

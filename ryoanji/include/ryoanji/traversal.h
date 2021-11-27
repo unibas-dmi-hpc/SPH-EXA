@@ -12,16 +12,19 @@ struct GpuConfig
     //! @brief log2(warpSize)
     static constexpr int warpSizeLog2 = 5;
     //! @brief size of global workspace memory per warp
-    static constexpr int memPerWarp = 4096 * warpSize;
+    static constexpr int memPerWarp = 2048 * warpSize;
     //! @brief number of threads per block for the traversal kernel
     static constexpr int numThreadsTraversal = 256;
     //! @brief log2(numThreadsTraversal)
     static constexpr int numThreadsTraversalLog2 = 8;
     //! @brief maximum number of simultaneously active blocks
     static int maxNumActiveBlocks;// = 64 * 8;
+
+    //! @brief number of particles per target, i.e. per warp
+    static constexpr int targetSize = 64;
 };
 
-int GpuConfig::maxNumActiveBlocks = 64 * 8;
+int GpuConfig::maxNumActiveBlocks = 56 * 2;
 
 namespace
 {
@@ -309,20 +312,19 @@ __global__ void resetTraversalCounters()
  * @param[in]  EPS2          Plummer softening
  * @param[in]  cycle         2 * M_PI
  * @param[in]  levelRange    (start,end) index pairs into texCell, texCenter and texSource for each tree level
- * @param[in]  bodyPos       pointer to SFC-sorted bodies as referenced by @p targetRange
+ * @param[in]  bodyPos       pointer to SFC-sorted bodies
  * @param[in]  srcCells      source cell data
  * @param[in]  srcCenter     source center data, x,y,z location and square of MAC radius, same order as srcCells
  * @param[in]  Multipoles    the multipole expansions in the same order as srcCells
  * @param[out] bodyAcc       body accelerations
- * @param[in]  targetRange   (offset,count) pair for each target, length @p numTargets
  * @param[-]   globalPool    length proportional to number of warps in the launch grid, uninitialized
  */
-__global__ __launch_bounds__(GpuConfig::numThreadsTraversal,4)
-void traverse(const int numTargets, const int images, float EPS2, const float cycle,
+__global__ __launch_bounds__(GpuConfig::numThreadsTraversal)
+void traverse(const int numTargets, const int lastBody, const int images, float EPS2, const float cycle,
               const int2* levelRange, const fvec4* __restrict__ bodyPos,
               const CellData* __restrict__ srcCells,
               const fvec4* __restrict__ srcCenter, const fvec4* __restrict__ Multipoles,
-              fvec4* bodyAcc, const int2* targetRange, int* globalPool)
+              fvec4* bodyAcc, int* globalPool)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
     const int warpIdx = threadIdx.x >> GpuConfig::warpSizeLog2;
@@ -336,10 +338,13 @@ void traverse(const int numTargets, const int images, float EPS2, const float cy
     // warp-common global mem storage, 4096 ints per thread
     int* cellQueue = globalPool + GpuConfig::memPerWarp * ((blockIdx.x << numWarpsLog2) + warpIdx);
 
+    //int targetIdx = (blockIdx.x << numWarpsLog2) + warpIdx;
+    int targetIdx = 0;
+
     while (true)
+    //for(; targetIdx < numTargets; targetIdx += (gridDim.x << numWarpsLog2))
     {
         // first thread in warp grabs next target
-        int targetIdx = 0;
         if (laneIdx == 0)
         {
             targetIdx = atomicAdd(&targetCounterGlob, 1);
@@ -348,16 +353,15 @@ void traverse(const int numTargets, const int images, float EPS2, const float cy
 
         if (targetIdx >= numTargets) return;
 
-        const int2 target   = targetRange[targetIdx];
-        const int bodyBegin = target.x;
-        const int bodyEnd   = target.x + target.y;
+        const int bodyBegin = targetIdx * GpuConfig::targetSize;
+        const int bodyEnd   = min(bodyBegin + GpuConfig::targetSize, lastBody);
 
-        // load target coordinates, up to 64 targets per group
+        // load target coordinates
         fvec3 pos_i[2], pos_p[2];
         for (int i = 0; i < 2; i++)
         {
-            const int bodyIdx = min(bodyBegin + i * GpuConfig::warpSize + laneIdx, bodyEnd - 1);
-            pos_i[i]          = make_fvec3(fvec4(bodyPos[bodyIdx]));
+            int bodyIdx = min(bodyBegin + i * GpuConfig::warpSize + laneIdx, bodyEnd - 1);
+            pos_i[i]    = make_fvec3(fvec4(bodyPos[bodyIdx]));
         }
 
         fvec3 Xmin = pos_i[0];
@@ -411,10 +415,10 @@ void traverse(const int numTargets, const int images, float EPS2, const float cy
             }
         }
 
-        int maxP2P        = numP2P;
-        int sumP2P        = 0;
-        int maxM2P        = numM2P;
-        int sumM2P        = 0;
+        int maxP2P = numP2P;
+        int sumP2P = 0;
+        int maxM2P = numM2P;
+        int sumM2P = 0;
 
         const int bodyIdx = bodyBegin + laneIdx;
         for (int i = 0; i < 2; i++)
@@ -464,7 +468,6 @@ public:
      * @param[in]  cycle         2 * M_PI
      * @param[in]  bodyPos       bodies, in SFC order and as referenced by sourceCells
      * @param[out] bodyAcc       output body acceleration in SFC order
-     * @param[in]  targetRange   offset into bodyPos2 for each target
      * @param[in]  sourceCells   tree connectivity and body location cell data
      * @param[in]  sourceCenter  center-of-mass and MAC radius^2 for each cell
      * @param[in]  Multipole     cell multipoles
@@ -473,13 +476,19 @@ public:
      */
     static fvec4 approx(const int numTargets, const int images, const float eps, const float cycle,
                         cudaVec<fvec4>& bodyPos, cudaVec<fvec4>& bodyAcc,
-                        cudaVec<int2>& targetRange, cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
+                        cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
                         cudaVec<fvec4>& Multipole, cudaVec<int2>& levelRange)
     {
         constexpr int numWarpsPerBlock = 1 << (GpuConfig::numThreadsTraversalLog2 - GpuConfig::warpSizeLog2);
-        const int numBlocks = (numTargets - 1) / GpuConfig::numThreadsTraversal + 1;
+
+        int numBodies = bodyPos.size();
+
+        // each target gets a warp (numWarps == numTargets)
+        int numWarps  = (numBodies - 1) / GpuConfig::targetSize + 1;
+        int numBlocks = (numWarps - 1) / numWarpsPerBlock + 1;
+        numBlocks = std::min(numBlocks, GpuConfig::maxNumActiveBlocks);
+
         const int poolSize  = GpuConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-        const int numBodies = bodyPos.size();
 
         cudaVec<int> globalPool(poolSize);
 
@@ -490,17 +499,17 @@ public:
         auto t0 = std::chrono::high_resolution_clock::now();
         CUDA_SAFE_CALL(cudaFuncSetCacheConfig(&traverse, cudaFuncCachePreferL1));
         traverse<<<numBlocks, GpuConfig::numThreadsTraversal>>>(numTargets,
-                                                             images,
-                                                             eps * eps,
-                                                             cycle,
-                                                             levelRange.d(),
-                                                             bodyPos.d(),
-                                                             sourceCells.d(),
-                                                             sourceCenter.d(),
-                                                             Multipole.d(),
-                                                             bodyAcc.d(),
-                                                             targetRange.d(),
-                                                             globalPool.d());
+                                                                bodyPos.size(),
+                                                                images,
+                                                                eps * eps,
+                                                                cycle,
+                                                                levelRange.d(),
+                                                                bodyPos.d(),
+                                                                sourceCells.d(),
+                                                                sourceCenter.d(),
+                                                                Multipole.d(),
+                                                                bodyAcc.d(),
+                                                                globalPool.d());
         kernelSuccess("traverse");
 
         auto t1  = std::chrono::high_resolution_clock::now();
@@ -527,3 +536,4 @@ public:
         return interactions;
     }
 };
+
