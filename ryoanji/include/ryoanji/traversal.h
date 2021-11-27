@@ -307,7 +307,8 @@ __global__ void resetTraversalCounters()
 
 /*! @brief tree traversal
  *
- * @param[in]  numTargets    number of targets
+ * @param[in]  firstBody     index of first body in bodyPos to compute acceleration for
+ * @param[in]  lastBody      index (exclusive) of last body in @p bodyPos to compute acceleration for
  * @param[in]  images        number of periodic images to include
  * @param[in]  EPS2          Plummer softening
  * @param[in]  cycle         2 * M_PI
@@ -320,7 +321,7 @@ __global__ void resetTraversalCounters()
  * @param[-]   globalPool    length proportional to number of warps in the launch grid, uninitialized
  */
 __global__ __launch_bounds__(GpuConfig::numThreadsTraversal)
-void traverse(const int numTargets, const int lastBody, const int images, float EPS2, const float cycle,
+void traverse(int firstBody, int lastBody, int images, float EPS2, float cycle,
               const int2* levelRange, const fvec4* __restrict__ bodyPos,
               const CellData* __restrict__ srcCells,
               const fvec4* __restrict__ srcCenter, const fvec4* __restrict__ Multipoles,
@@ -330,6 +331,7 @@ void traverse(const int numTargets, const int lastBody, const int images, float 
     const int warpIdx = threadIdx.x >> GpuConfig::warpSizeLog2;
 
     const int numWarpsLog2  = GpuConfig::numThreadsTraversalLog2 - GpuConfig::warpSizeLog2;
+    const int numTargets    = (lastBody - firstBody - 1) / GpuConfig::targetSize + 1;
 
     __shared__ int sharedPool[GpuConfig::numThreadsTraversal];
 
@@ -353,7 +355,7 @@ void traverse(const int numTargets, const int lastBody, const int images, float 
 
         if (targetIdx >= numTargets) return;
 
-        const int bodyBegin = targetIdx * GpuConfig::targetSize;
+        const int bodyBegin = firstBody + targetIdx * GpuConfig::targetSize;
         const int bodyEnd   = min(bodyBegin + GpuConfig::targetSize, lastBody);
 
         // load target coordinates
@@ -462,7 +464,8 @@ class Traversal
 public:
     /*! @brief
      *
-     * @param[in]  numTargets
+     * @param[in]  firstBody     index of first body in @p bodyPos to compute acceleration for
+     * @param[in]  lastBody      index (exclusive) of last body in @p bodyPos to compute acceleration for
      * @param[in]  images        number of periodic images (per direction per dimension)
      * @param[in]  eps           plummer softening parameter
      * @param[in]  cycle         2 * M_PI
@@ -474,14 +477,14 @@ public:
      * @param[in]  levelRange
      * @return
      */
-    static fvec4 approx(const int numTargets, const int images, const float eps, const float cycle,
+    static fvec4 approx(int firstBody, int lastBody, int images, float eps, float cycle,
                         cudaVec<fvec4>& bodyPos, cudaVec<fvec4>& bodyAcc,
                         cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
                         cudaVec<fvec4>& Multipole, cudaVec<int2>& levelRange)
     {
         constexpr int numWarpsPerBlock = 1 << (GpuConfig::numThreadsTraversalLog2 - GpuConfig::warpSizeLog2);
 
-        int numBodies = bodyPos.size();
+        int numBodies = lastBody - firstBody;
 
         // each target gets a warp (numWarps == numTargets)
         int numWarps  = (numBodies - 1) / GpuConfig::targetSize + 1;
@@ -498,8 +501,8 @@ public:
 
         auto t0 = std::chrono::high_resolution_clock::now();
         CUDA_SAFE_CALL(cudaFuncSetCacheConfig(&traverse, cudaFuncCachePreferL1));
-        traverse<<<numBlocks, GpuConfig::numThreadsTraversal>>>(numTargets,
-                                                                bodyPos.size(),
+        traverse<<<numBlocks, GpuConfig::numThreadsTraversal>>>(firstBody,
+                                                                lastBody,
                                                                 images,
                                                                 eps * eps,
                                                                 cycle,

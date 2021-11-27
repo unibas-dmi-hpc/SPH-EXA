@@ -57,11 +57,10 @@ int main(int argc, char** argv)
 
     fprintf(stdout, "--- BH Profiling ----------------\n");
 
-    int numTargets = (bodyPos.size() - 1) / GpuConfig::targetSize + 1;
-
     auto t0 = std::chrono::high_resolution_clock::now();
 
-    fvec4 interactions = Traversal::approx(numTargets,
+    fvec4 interactions = Traversal::approx(0,
+                                           bodyPos.size(),
                                            images,
                                            eps,
                                            cycle,
