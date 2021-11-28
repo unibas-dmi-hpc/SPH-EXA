@@ -11,24 +11,35 @@ struct GpuConfig
     static constexpr int warpSize = 32;
     //! @brief log2(warpSize)
     static constexpr int warpSizeLog2 = 5;
+    //! @brief number of multiprocessors
+    static int smCount;
+};
+
+int GpuConfig::smCount = 56;
+
+struct TravConfig
+{
     //! @brief size of global workspace memory per warp
-    static constexpr int memPerWarp = 2048 * warpSize;
+    static constexpr int memPerWarp = 2048 * GpuConfig::warpSize;
     //! @brief number of threads per block for the traversal kernel
     static constexpr int numThreadsTraversal = 256;
     //! @brief log2(numThreadsTraversal)
     static constexpr int numThreadsTraversalLog2 = 8;
+
+    static constexpr int numWarpsPerSm = 16;
     //! @brief maximum number of simultaneously active blocks
-    static int maxNumActiveBlocks;// = 64 * 8;
+    static int maxNumActiveBlocks;
 
     //! @brief number of particles per target, i.e. per warp
     static constexpr int targetSize = 64;
 };
 
-int GpuConfig::maxNumActiveBlocks = 56 * 2;
+int TravConfig::maxNumActiveBlocks =
+    GpuConfig::smCount * TravConfig::numWarpsPerSm / (TravConfig::numThreadsTraversal / GpuConfig::warpSize);
 
 namespace
 {
-__device__ __forceinline__ int ringAddr(const int i) { return i & (GpuConfig::memPerWarp - 1); }
+__device__ __forceinline__ int ringAddr(const int i) { return i & (TravConfig::memPerWarp - 1); }
 
 __host__ __device__ __forceinline__ bool applyMAC(fvec3 sourceCenter, float MAC, CellData sourceData,
                                                   fvec3 targetCenter, fvec3 targetSize)
@@ -143,7 +154,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 ta
         const int numChildWarp = __shfl_sync(0xFFFFFFFF, numChildScan, // Total numChild of current warp
                                              GpuConfig::warpSize - 1);
         sourceOffset += min(GpuConfig::warpSize, numSources - sourceOffset);     // advance current level stack pointer
-        if (numChildWarp + numSources - sourceOffset > GpuConfig::memPerWarp)    // If cell queue overflows
+        if (numChildWarp + numSources - sourceOffset > TravConfig::memPerWarp)   // If cell queue overflows
             return make_uint2(0xFFFFFFFF, 0xFFFFFFFF);                 // Exit kernel
         int childIdx = oldSources + numSources + newSources + numChildLane; // Child index of current lane
         for (int i = 0; i < numChild; i++)                                  // Loop over child cells for each lane
@@ -320,7 +331,7 @@ __global__ void resetTraversalCounters()
  * @param[out] bodyAcc       body accelerations
  * @param[-]   globalPool    length proportional to number of warps in the launch grid, uninitialized
  */
-__global__ __launch_bounds__(GpuConfig::numThreadsTraversal)
+__global__ __launch_bounds__(TravConfig::numThreadsTraversal)
 void traverse(int firstBody, int lastBody, int images, float EPS2, float cycle,
               const int2* levelRange, const fvec4* __restrict__ bodyPos,
               const CellData* __restrict__ srcCells,
@@ -330,15 +341,15 @@ void traverse(int firstBody, int lastBody, int images, float EPS2, float cycle,
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
     const int warpIdx = threadIdx.x >> GpuConfig::warpSizeLog2;
 
-    const int numWarpsLog2  = GpuConfig::numThreadsTraversalLog2 - GpuConfig::warpSizeLog2;
-    const int numTargets    = (lastBody - firstBody - 1) / GpuConfig::targetSize + 1;
+    const int numWarpsLog2  = TravConfig::numThreadsTraversalLog2 - GpuConfig::warpSizeLog2;
+    const int numTargets    = (lastBody - firstBody - 1) / TravConfig::targetSize + 1;
 
-    __shared__ int sharedPool[GpuConfig::numThreadsTraversal];
+    __shared__ int sharedPool[TravConfig::numThreadsTraversal];
 
     // warp-common shared mem, 1 int per thread
     int* tempQueue = sharedPool + GpuConfig::warpSize * warpIdx;
     // warp-common global mem storage, 4096 ints per thread
-    int* cellQueue = globalPool + GpuConfig::memPerWarp * ((blockIdx.x << numWarpsLog2) + warpIdx);
+    int* cellQueue = globalPool + TravConfig::memPerWarp * ((blockIdx.x << numWarpsLog2) + warpIdx);
 
     //int targetIdx = (blockIdx.x << numWarpsLog2) + warpIdx;
     int targetIdx = 0;
@@ -355,8 +366,8 @@ void traverse(int firstBody, int lastBody, int images, float EPS2, float cycle,
 
         if (targetIdx >= numTargets) return;
 
-        const int bodyBegin = firstBody + targetIdx * GpuConfig::targetSize;
-        const int bodyEnd   = min(bodyBegin + GpuConfig::targetSize, lastBody);
+        const int bodyBegin = firstBody + targetIdx * TravConfig::targetSize;
+        const int bodyEnd   = min(bodyBegin + TravConfig::targetSize, lastBody);
 
         // load target coordinates
         fvec3 pos_i[2], pos_p[2];
@@ -482,16 +493,16 @@ public:
                         cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
                         cudaVec<fvec4>& Multipole, cudaVec<int2>& levelRange)
     {
-        constexpr int numWarpsPerBlock = 1 << (GpuConfig::numThreadsTraversalLog2 - GpuConfig::warpSizeLog2);
+        constexpr int numWarpsPerBlock = 1 << (TravConfig::numThreadsTraversalLog2 - GpuConfig::warpSizeLog2);
 
         int numBodies = lastBody - firstBody;
 
         // each target gets a warp (numWarps == numTargets)
-        int numWarps  = (numBodies - 1) / GpuConfig::targetSize + 1;
+        int numWarps  = (numBodies - 1) / TravConfig::targetSize + 1;
         int numBlocks = (numWarps - 1) / numWarpsPerBlock + 1;
-        numBlocks = std::min(numBlocks, GpuConfig::maxNumActiveBlocks);
+        numBlocks = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
 
-        const int poolSize  = GpuConfig::memPerWarp * numWarpsPerBlock * numBlocks;
+        const int poolSize  = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
 
         cudaVec<int> globalPool(poolSize);
 
@@ -501,7 +512,7 @@ public:
 
         auto t0 = std::chrono::high_resolution_clock::now();
         CUDA_SAFE_CALL(cudaFuncSetCacheConfig(&traverse, cudaFuncCachePreferL1));
-        traverse<<<numBlocks, GpuConfig::numThreadsTraversal>>>(firstBody,
+        traverse<<<numBlocks, TravConfig::numThreadsTraversal>>>(firstBody,
                                                                 lastBody,
                                                                 images,
                                                                 eps * eps,
