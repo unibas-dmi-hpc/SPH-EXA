@@ -24,16 +24,19 @@ struct TravConfig
     //! @brief number of threads per block for the traversal kernel
     static constexpr int numThreadsTraversal = 256;
 
-    static constexpr int numWarpsPerSm = 16;
+    static constexpr int numWarpsPerSm = 20;
     //! @brief maximum number of simultaneously active blocks
     static int maxNumActiveBlocks;
 
     //! @brief number of particles per target, i.e. per warp
     static constexpr int targetSize = 64;
+
+    //! @brief number of warps per target, used all over the place, hence the short name
+    static constexpr int nwt = targetSize / GpuConfig::warpSize;
 };
 
 int TravConfig::maxNumActiveBlocks =
-    GpuConfig::smCount * TravConfig::numWarpsPerSm / (TravConfig::numThreadsTraversal / GpuConfig::warpSize);
+    GpuConfig::smCount * (TravConfig::numWarpsPerSm / (TravConfig::numThreadsTraversal / GpuConfig::warpSize));
 
 namespace
 {
@@ -86,7 +89,8 @@ __host__ __device__ __forceinline__ bool applyMAC(fvec3 sourceCenter, float MAC,
 //    }
 //}
 
-__device__ void approxAcc(fvec4 acc_i[2], const fvec3 pos_i[2], const int cellIdx, const fvec4* __restrict__ srcCenter,
+__device__ void approxAcc(fvec4 acc_i[TravConfig::nwt], const fvec3 pos_i[TravConfig::nwt], const int cellIdx,
+                          const fvec4* __restrict__ srcCenter,
                           const fvec4* __restrict__ Multipoles, const float EPS2, volatile int* warpSpace)
 {
     auto warpM = reinterpret_cast<volatile float*>(warpSpace);
@@ -107,7 +111,7 @@ __device__ void approxAcc(fvec4 acc_i[2], const fvec3 pos_i[2], const int cellId
         }
         __syncwarp();
 
-        for (int k = 0; k < 2; k++)
+        for (int k = 0; k < TravConfig::nwt; k++)
             acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(fvecP*)warpM, EPS2);
     }
 }
@@ -130,7 +134,7 @@ __device__ void approxAcc(fvec4 acc_i[2], const fvec3 pos_i[2], const int cellId
  * @param[-]     cellQueue     shared mem int pointer to global memory, 4096 ints per thread, uninitialized
  * @return
  */
-__device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 targetCenter, const fvec3 targetSize,
+__device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], const fvec3 targetCenter, const fvec3 targetSize,
                               const fvec4* __restrict__ bodyPos, const CellData* __restrict__ srcCells, const fvec4* __restrict__ srcCenter,
                               const fvec4* __restrict__ Multipoles, const float EPS2, int2 rootRange, volatile int* tempQueue,
                               int* cellQueue)
@@ -248,7 +252,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 ta
                                       __shfl_sync(0xFFFFFFFF, pos[2], j));    // Get source z value from lane j
                     const float q_j = __shfl_sync(0xFFFFFFFF, pos[3], j);     // Get source w value from lane j
                     #pragma unroll                                            // Unroll loop
-                    for (int k = 0; k < 2; k++)                               // Loop over two targets
+                    for (int k = 0; k < TravConfig::nwt; k++)                 // Loop over nwt targets
                         acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2); // Call P2P kernel
                 }                                                             // End loop over the warp size
                 numBodiesWarp -= GpuConfig::warpSize;                                   // Decrement body queue size
@@ -272,7 +276,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 ta
                                           __shfl_sync(0xFFFFFFFF, pos[2], j)); // Get source z value from lane j
                         const float q_j = __shfl_sync(0xFFFFFFFF, pos[3], j);  // Get source w value from lane j
                         #pragma unroll
-                        for (int k = 0; k < 2; k++)                               // Loop over two targets
+                        for (int k = 0; k < TravConfig::nwt; k++)                 // Loop over nwt targets
                             acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2); // Call P2P kernel
                     }                                                             // End loop over the warp size
                     bodyOffset -= GpuConfig::warpSize;                            // Decrement body queue size
@@ -316,7 +320,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 ta
                               __shfl_sync(0xFFFFFFFF, pos[2], j));    // Get source z value from lane j
             const float q_j = __shfl_sync(0xFFFFFFFF, pos[3], j);     // Get source w value from lane j
             #pragma unroll                                            // Unroll loop
-            for (int k = 0; k < 2; k++)                               // Loop over two targets
+            for (int k = 0; k < TravConfig::nwt; k++)                 // Loop over nwt targets
                 acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2); // Call P2P kernel
         }                                                             // End loop over the warp size
         counters.y += bodyOffset;                                     // Increment P2P counter
@@ -400,9 +404,9 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
         const int bodyBegin = firstBody + targetIdx * TravConfig::targetSize;
         const int bodyEnd   = min(bodyBegin + TravConfig::targetSize, lastBody);
 
-        // load target coordinates
-        fvec3 pos_i[2], pos_p[2];
-        for (int i = 0; i < 2; i++)
+        // load target coordinates, pos_p for periodic position
+        fvec3 pos_i[TravConfig::nwt], pos_p[TravConfig::nwt];
+        for (int i = 0; i < TravConfig::nwt; i++)
         {
             int bodyIdx = min(bodyBegin + i * GpuConfig::warpSize + laneIdx, bodyEnd - 1);
             pos_i[i]    = make_fvec3(fvec4(bodyPos[bodyIdx]));
@@ -410,7 +414,7 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
 
         fvec3 Xmin = pos_i[0];
         fvec3 Xmax = Xmin;
-        for (int i = 0; i < 2; i++)
+        for (int i = 0; i < TravConfig::nwt; i++)
         {
             getMinMax(Xmin, Xmax, pos_i[i]);
         }
@@ -424,7 +428,13 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
 
         const fvec3 targetCenter = (Xmax + Xmin) * 0.5f;
         const fvec3 targetSize   = (Xmax - Xmin) * 0.5f;
-        fvec4 acc_i[2]           = {0.0f, 0.0f};
+
+        fvec4 acc_i[TravConfig::nwt];
+        for (int i = 0; i < TravConfig::nwt; i++)
+        {
+            acc_i[i] = fvec4(0.0f);
+        }
+
         fvec3 Xperiodic          = 0.0f;
 
         int numP2P = 0, numM2P = 0;
@@ -438,7 +448,7 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
                     Xperiodic[1]               = iy * cycle;
                     Xperiodic[2]               = iz * cycle;
                     const fvec3 targetPeriodic = targetCenter - Xperiodic;
-                    for (int i = 0; i < 2; i++)
+                    for (int i = 0; i < TravConfig::nwt; i++)
                         pos_p[i] = pos_i[i] - Xperiodic;
                     const uint2 counters = traverseWarp(acc_i,
                                                         pos_p,
@@ -465,7 +475,7 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
         int sumM2P = 0;
 
         const int bodyIdx = bodyBegin + laneIdx;
-        for (int i = 0; i < 2; i++)
+        for (int i = 0; i < TravConfig::nwt; i++)
         {
             if (i * GpuConfig::warpSize + bodyIdx < bodyEnd)
             {
@@ -489,7 +499,7 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
             atomicAdd((unsigned long long*)&sumM2PGlob, (unsigned long long)sumM2P);
         }
 
-        for (int i = 0; i < 2; i++)
+        for (int i = 0; i < TravConfig::nwt; i++)
         {
             if (bodyIdx + i * GpuConfig::warpSize < bodyEnd)
             {
