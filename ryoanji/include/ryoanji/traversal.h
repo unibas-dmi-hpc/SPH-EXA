@@ -49,40 +49,66 @@ __host__ __device__ __forceinline__ bool applyMAC(fvec3 sourceCenter, float MAC,
     return R2 < fabsf(MAC) || sourceData.nbody() < 3;
 }
 
+//__device__ void approxAcc(fvec4 acc_i[2], const fvec3 pos_i[2], const int cellIdx, const fvec4* __restrict__ srcCenter,
+//                          const fvec4* __restrict__ Multipoles, const float EPS2)
+//{
+//    fvec4 M4[NVEC4];
+//    float M[4 * NVEC4];
+//    fvec4 Xj(0.0f);
+//    if (cellIdx >= 0)
+//    {
+//        Xj = srcCenter[cellIdx];
+//        #pragma unroll
+//        for (int i = 0; i < NVEC4; i++)
+//            M4[i] = Multipoles[NVEC4 * cellIdx + i];
+//    }
+//    else
+//    {
+//        #pragma unroll
+//        for (int i = 0; i < NVEC4; i++)
+//            M4[i] = 0.0f;
+//    }
+//    for (int j = 0; j < GpuConfig::warpSize; j++)
+//    {
+//        const fvec3 pos_j(__shfl_sync(0xFFFFFFFF, Xj[0], j),
+//                          __shfl_sync(0xFFFFFFFF, Xj[1], j),
+//                          __shfl_sync(0xFFFFFFFF, Xj[2], j));
+//        #pragma unroll
+//        for (int i = 0; i < NVEC4; i++)
+//        {
+//            M[4 * i + 0] = __shfl_sync(0xFFFFFFFF, M4[i][0], j);
+//            M[4 * i + 1] = __shfl_sync(0xFFFFFFFF, M4[i][1], j);
+//            M[4 * i + 2] = __shfl_sync(0xFFFFFFFF, M4[i][2], j);
+//            M[4 * i + 3] = __shfl_sync(0xFFFFFFFF, M4[i][3], j);
+//        }
+//        for (int k = 0; k < 2; k++)
+//            acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(fvecP*)M, EPS2);
+//    }
+//}
+
 __device__ void approxAcc(fvec4 acc_i[2], const fvec3 pos_i[2], const int cellIdx, const fvec4* __restrict__ srcCenter,
-                          const fvec4* __restrict__ Multipoles, float EPS2)
+                          const fvec4* __restrict__ Multipoles, const float EPS2, volatile int* warpSpace)
 {
-    fvec4 M4[NVEC4];
-    float M[4 * NVEC4];
-    fvec4 Xj(0.0f);
-    if (cellIdx >= 0)
-    {
-        Xj = srcCenter[cellIdx];
-        #pragma unroll
-        for (int i = 0; i < NVEC4; i++)
-            M4[i] = Multipoles[NVEC4 * cellIdx + i];
-    }
-    else
-    {
-        #pragma unroll
-        for (int i = 0; i < NVEC4; i++)
-            M4[i] = 0.0f;
-    }
+    auto warpM = reinterpret_cast<volatile float*>(warpSpace);
+    const float* __restrict__ gm_M = reinterpret_cast<const float*>(Multipoles);
+
+    const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
+
     for (int j = 0; j < GpuConfig::warpSize; j++)
     {
-        const fvec3 pos_j(__shfl_sync(0xFFFFFFFF, Xj[0], j),
-                          __shfl_sync(0xFFFFFFFF, Xj[1], j),
-                          __shfl_sync(0xFFFFFFFF, Xj[2], j));
-        #pragma unroll
-        for (int i = 0; i < NVEC4; i++)
+        int currentCell = __shfl_sync(0xFFFFFFFF, cellIdx, j);
+        if (currentCell < 0) { continue; }
+
+        fvec3 pos_j = make_fvec3(srcCenter[currentCell]);
+
+        if (laneIdx < NTERM)
         {
-            M[4 * i + 0] = __shfl_sync(0xFFFFFFFF, M4[i][0], j);
-            M[4 * i + 1] = __shfl_sync(0xFFFFFFFF, M4[i][1], j);
-            M[4 * i + 2] = __shfl_sync(0xFFFFFFFF, M4[i][2], j);
-            M[4 * i + 3] = __shfl_sync(0xFFFFFFFF, M4[i][3], j);
+            warpM[laneIdx] = gm_M[currentCell * NTERM + laneIdx];
         }
+        __syncwarp();
+
         for (int k = 0; k < 2; k++)
-            acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(fvecP*)M, EPS2);
+            acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(fvecP*)warpM, EPS2);
     }
 }
 
@@ -106,7 +132,7 @@ __device__ void approxAcc(fvec4 acc_i[2], const fvec3 pos_i[2], const int cellId
  */
 __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 targetCenter, const fvec3 targetSize,
                               const fvec4* __restrict__ bodyPos, const CellData* __restrict__ srcCells, const fvec4* __restrict__ srcCenter,
-                              const fvec4* __restrict__ Multipoles, float EPS2, int2 rootRange, volatile int* tempQueue,
+                              const fvec4* __restrict__ Multipoles, const float EPS2, int2 rootRange, volatile int* tempQueue,
                               int* cellQueue)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
@@ -174,8 +200,11 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 ta
         __syncwarp();
         if (approxOffset + numApproxWarp >= GpuConfig::warpSize) // If approx queue is larger than the warp size
         {
+            approxQueue = tempQueue[laneIdx];        // free queue
+            __syncwarp();
+
             // Call M2P kernel
-            approxAcc(acc_i, pos_i, tempQueue[laneIdx], srcCenter, Multipoles, EPS2);
+            approxAcc(acc_i, pos_i, approxQueue, srcCenter, Multipoles, EPS2, tempQueue);
 
             approxOffset -= GpuConfig::warpSize;      // Decrement approx queue size
             approxIdx = approxOffset + numApproxLane; // Update approx index using new queue size
@@ -269,7 +298,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[2], const fvec3 ta
     if (approxOffset > 0) // If there are leftover approx cells
     {
         // Call M2P kernel
-        approxAcc(acc_i, pos_i, laneIdx < approxOffset ? approxQueue : -1, srcCenter, Multipoles, EPS2);
+        approxAcc(acc_i, pos_i, laneIdx < approxOffset ? approxQueue : -1, srcCenter, Multipoles, EPS2, tempQueue);
 
         counters.x += approxOffset; // Increment M2P counter
         approxOffset = 0;           // Reset offset for approx
@@ -330,7 +359,7 @@ __global__ void resetTraversalCounters()
  * @param[-]   globalPool    length proportional to number of warps in the launch grid, uninitialized
  */
 __global__ __launch_bounds__(TravConfig::numThreadsTraversal)
-void traverse(int firstBody, int lastBody, int images, float EPS2, float cycle,
+void traverse(int firstBody, int lastBody, int images, const float EPS2, float cycle,
               const int2* levelRange, const fvec4* __restrict__ bodyPos,
               const CellData* __restrict__ srcCells,
               const fvec4* __restrict__ srcCenter, const fvec4* __restrict__ Multipoles,
@@ -343,7 +372,10 @@ void traverse(int firstBody, int lastBody, int images, float EPS2, float cycle,
 
     const int numTargets = (lastBody - firstBody - 1) / TravConfig::targetSize + 1;
 
-    __shared__ int sharedPool[TravConfig::numThreadsTraversal];
+    static_assert(NTERM <= GpuConfig::warpSize, "review approxAcc function before disabling this check");
+    constexpr int smSize = (TravConfig::numThreadsTraversal > NTERM * numWarpsPerBlock) ? TravConfig::numThreadsTraversal
+                            : NTERM * numWarpsPerBlock;
+    __shared__ int sharedPool[smSize];
 
     // warp-common shared mem, 1 int per thread
     int* tempQueue = sharedPool + GpuConfig::warpSize * warpIdx;
