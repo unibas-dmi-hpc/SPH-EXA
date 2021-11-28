@@ -23,8 +23,6 @@ struct TravConfig
     static constexpr int memPerWarp = 2048 * GpuConfig::warpSize;
     //! @brief number of threads per block for the traversal kernel
     static constexpr int numThreadsTraversal = 256;
-    //! @brief log2(numThreadsTraversal)
-    static constexpr int numThreadsTraversalLog2 = 8;
 
     static constexpr int numWarpsPerSm = 16;
     //! @brief maximum number of simultaneously active blocks
@@ -341,21 +339,22 @@ void traverse(int firstBody, int lastBody, int images, float EPS2, float cycle,
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
     const int warpIdx = threadIdx.x >> GpuConfig::warpSizeLog2;
 
-    const int numWarpsLog2  = TravConfig::numThreadsTraversalLog2 - GpuConfig::warpSizeLog2;
-    const int numTargets    = (lastBody - firstBody - 1) / TravConfig::targetSize + 1;
+    constexpr int numWarpsPerBlock = TravConfig::numThreadsTraversal / GpuConfig::warpSize;
+
+    const int numTargets = (lastBody - firstBody - 1) / TravConfig::targetSize + 1;
 
     __shared__ int sharedPool[TravConfig::numThreadsTraversal];
 
     // warp-common shared mem, 1 int per thread
     int* tempQueue = sharedPool + GpuConfig::warpSize * warpIdx;
-    // warp-common global mem storage, 4096 ints per thread
-    int* cellQueue = globalPool + TravConfig::memPerWarp * ((blockIdx.x << numWarpsLog2) + warpIdx);
+    // warp-common global mem storage
+    int* cellQueue = globalPool + TravConfig::memPerWarp * ((blockIdx.x * numWarpsPerBlock) + warpIdx);
 
-    //int targetIdx = (blockIdx.x << numWarpsLog2) + warpIdx;
+    //int targetIdx = (blockIdx.x * numWarpsPerBlock) + warpIdx;
     int targetIdx = 0;
 
     while (true)
-    //for(; targetIdx < numTargets; targetIdx += (gridDim.x << numWarpsLog2))
+    //for(; targetIdx < numTargets; targetIdx += (gridDim.x * numWarpsPerBlock))
     {
         // first thread in warp grabs next target
         if (laneIdx == 0)
@@ -493,7 +492,7 @@ public:
                         cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
                         cudaVec<fvec4>& Multipole, cudaVec<int2>& levelRange)
     {
-        constexpr int numWarpsPerBlock = 1 << (TravConfig::numThreadsTraversalLog2 - GpuConfig::warpSizeLog2);
+        constexpr int numWarpsPerBlock = TravConfig::numThreadsTraversal / GpuConfig::warpSize;
 
         int numBodies = lastBody - firstBody;
 
@@ -501,6 +500,8 @@ public:
         int numWarps  = (numBodies - 1) / TravConfig::targetSize + 1;
         int numBlocks = (numWarps - 1) / numWarpsPerBlock + 1;
         numBlocks = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
+
+        printf("launching %d blocks\n", numBlocks);
 
         const int poolSize  = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
 
