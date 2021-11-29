@@ -190,35 +190,25 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         newSources += numChildWarp; //  Increment source cell count for next loop
 
         // Approx
-        const bool isApprox     = !isClose && isSource;                 // Source cell can be used for M2P
-        const uint approxBallot = __ballot_sync(0xFFFFFFFF, isApprox);  // Gather approx flags
-        const int numApproxLane = __popc(approxBallot & lanemask_lt()); // Exclusive scan of approx flags
-        const int numApproxWarp = __popc(approxBallot);                 // Total isApprox for current warp
-        int approxIdx           = approxOffset + numApproxLane;         // Approx cell index of current lane
-        tempQueue[laneIdx]      = approxQueue;                          // Fill queue with remaining sources for approx
-        __syncwarp();
-        if (isApprox && approxIdx < GpuConfig::warpSize)         // If approx flag is true and index is within bounds
-        {
-            tempQueue[approxIdx] = sourceQueue;        // Fill approx queue with current sources
-        }
-        __syncwarp();
-        if (approxOffset + numApproxWarp >= GpuConfig::warpSize) // If approx queue is larger than the warp size
-        {
-            approxQueue = tempQueue[laneIdx];        // free queue
-            __syncwarp();
+        const bool isApprox = !isClose && isSource;  // Source cell can be used for M2P
 
+        int numKeepWarp; // number of valid isApprox flags in the warp
+        int laneCompacted = warpCompact(isApprox, approxOffset, &numKeepWarp);
+        warpExchange(&approxQueue, &sourceQueue, isApprox, laneCompacted, approxOffset, tempQueue);
+        approxOffset += numKeepWarp;
+
+        if (approxOffset >= GpuConfig::warpSize) // If queue is larger than warp size,
+        {
             // Call M2P kernel
             approxAcc(acc_i, pos_i, approxQueue, srcCenter, Multipoles, EPS2, tempQueue);
+            counters.x += warpSize;
 
-            approxOffset -= GpuConfig::warpSize;      // Decrement approx queue size
-            approxIdx = approxOffset + numApproxLane; // Update approx index using new queue size
-            if (isApprox && approxIdx >= 0)           // If approx flag is true and index is within bounds
-                tempQueue[approxIdx] = sourceQueue;   // Fill approx queue with current sources
-            counters.x += GpuConfig::warpSize;        // Increment M2P counter
-        }                                             // End if for approx queue size
-        __syncwarp();
-        approxQueue = tempQueue[laneIdx];             // Free temp queue for use in direct
-        approxOffset += numApproxWarp;                // Increment approx queue offset
+            laneCompacted -= GpuConfig::warpSize;
+            // pull down remaining elements that didn't fit onto the now empty queue
+            warpExchange(&approxQueue, &sourceQueue, isApprox, laneCompacted, 0, tempQueue);
+
+            approxOffset -= GpuConfig::warpSize;
+        }
 
         // Direct
         const bool isLeaf       = !isNode;                               // Is leaf cell

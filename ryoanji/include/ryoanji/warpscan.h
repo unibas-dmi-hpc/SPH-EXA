@@ -144,5 +144,55 @@ __device__ __forceinline__ int inclusiveSegscanInt(const int packedValue, const 
     return scannedValue + (carryValue & addCarry);
 }
 
-} // namespace
+/*! @brief warp stream compaction, warp-vote part
+ *
+ * @param[in]  flag            compaction flag, keep laneVal yes/no
+ * @param[in]  fillLevel       current fill level of @p queue
+ * @param[out] numElementsKeep output for number of valid flags in the warp
+ * @return                     the new queue storage position for laneVal, can exceed warp size
+ *                             due to non-zero fillLevel prior to call
+ *
+ * Note: incrementing fillLevel by numElementsKeep has to happen after calling warpExchange
+ * to allow warp exchange for multiple queues.
+ */
+__device__ __forceinline__ int warpCompact(bool flag, const int fillLevel, int* numElementsKeep)
+{
+    unsigned keepBallot = __ballot_sync(0xFFFFFFFF, flag);
+    int laneCompacted   = fillLevel + __popc(keepBallot & lanemask_lt()); // exclusive scan of keepBallot
+    *numElementsKeep    = __popc(keepBallot);
 
+    return laneCompacted;
+}
+
+/*! @brief warp stream compaction
+ *
+ * @tparam       T             a builtin type like int or float
+ * @param[inout] queue         the warp queue, distinct T element for each lane
+ * @param[in]    laneVal       input value per lane
+ * @param[in]    flag          compaction flag, keep laneVal yes/no
+ * @param[in]    laneCompacted new lane position for @p laneVal if @p flag is true
+ * @param[in]    fillLevel     current fill level of @p queue, lanes below already have valid elements in @p queue
+ * @param[-]     sm_exchange   shared memory buffer for intra warp-exchange, length=WarpSize, uninitialized
+ *
+ * This moves laneVal elements inside the warp into queue via the shared sm_exchange buffer
+ */
+template<class T>
+__device__ __forceinline__ void warpExchange(T* queue, const T* laneVal, bool flag, int laneCompacted,
+                                             const int fillLevel, volatile T* sm_exchange)
+{
+    constexpr int GpuConfigWarpSize = 32;
+
+    int laneIdx = threadIdx.x & (GpuConfigWarpSize - 1);
+
+    // if laneVal is valid and queue has space
+    if (flag && laneCompacted >= 0 && laneCompacted < GpuConfigWarpSize) { sm_exchange[laneCompacted] = *laneVal; }
+    __syncwarp();
+
+    // pull newly compacted elements into the queue
+    // note sm_exchange is uninitialized, therefore we cannot pull down lanes that we did not set above
+    // i.e. below the current fill level
+    if (laneIdx >= fillLevel) { *queue = sm_exchange[laneIdx]; }
+    __syncwarp();
+}
+
+} // namespace
