@@ -344,8 +344,8 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
         const int bodyBegin = firstBody + targetIdx * TravConfig::targetSize;
         const int bodyEnd   = min(bodyBegin + TravConfig::targetSize, lastBody);
 
-        // load target coordinates, pos_p for periodic position
-        fvec3 pos_i[TravConfig::nwt], pos_p[TravConfig::nwt];
+        // load target coordinates
+        fvec3 pos_i[TravConfig::nwt];
         for (int i = 0; i < TravConfig::nwt; i++)
         {
             int bodyIdx = min(bodyBegin + i * GpuConfig::warpSize + laneIdx, bodyEnd - 1);
@@ -366,16 +366,14 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
         Xmax[1] = __shfl_sync(0xFFFFFFFF, Xmax[1], 0);
         Xmax[2] = __shfl_sync(0xFFFFFFFF, Xmax[2], 0);
 
-        const fvec3 targetCenter = (Xmax + Xmin) * 0.5f;
-        const fvec3 targetSize   = (Xmax - Xmin) * 0.5f;
+        fvec3 targetCenter     = (Xmax + Xmin) * 0.5f;
+        const fvec3 targetSize = (Xmax - Xmin) * 0.5f;
 
         fvec4 acc_i[TravConfig::nwt];
         for (int i = 0; i < TravConfig::nwt; i++)
         {
             acc_i[i] = fvec4(0.0f);
         }
-
-        fvec3 Xperiodic          = 0.0f;
 
         int numP2P = 0, numM2P = 0;
         for (int ix = -images; ix <= images; ix++)
@@ -384,15 +382,21 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
             {
                 for (int iz = -images; iz <= images; iz++)
                 {
-                    Xperiodic[0]               = ix * cycle;
-                    Xperiodic[1]               = iy * cycle;
-                    Xperiodic[2]               = iz * cycle;
-                    const fvec3 targetPeriodic = targetCenter - Xperiodic;
+                    fvec3 Xperiodic;
+                    Xperiodic[0] = ix * cycle;
+                    Xperiodic[1] = iy * cycle;
+                    Xperiodic[2] = iz * cycle;
+
+                    // apply periodic shift
+                    targetCenter -= Xperiodic;
                     for (int i = 0; i < TravConfig::nwt; i++)
-                        pos_p[i] = pos_i[i] - Xperiodic;
+                    {
+                        pos_i[i] -= Xperiodic;
+                    }
+
                     const uint2 counters = traverseWarp(acc_i,
-                                                        pos_p,
-                                                        targetPeriodic,
+                                                        pos_i,
+                                                        targetCenter,
                                                         targetSize,
                                                         bodyPos,
                                                         srcCells,
@@ -403,6 +407,14 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
                                                         tempQueue,
                                                         cellQueue);
                     assert(!(counters.x == 0xFFFFFFFF && counters.y == 0xFFFFFFFF));
+
+                    // revert periodic shift
+                    targetCenter += Xperiodic;
+                    for (int i = 0; i < TravConfig::nwt; i++)
+                    {
+                        pos_i[i] += Xperiodic;
+                    }
+
                     numM2P += counters.x;
                     numP2P += counters.y;
                 }

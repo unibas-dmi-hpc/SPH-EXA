@@ -32,10 +32,8 @@ struct GpuConfig
     //! @brief log2(warpSize)
     static constexpr int warpSizeLog2 = 5;
     //! @brief number of multiprocessors
-    static int smCount;
+    inline static int smCount = 56;
 };
-
-int GpuConfig::smCount = 56;
 
 //! Center and radius of bounding box
 struct Box
