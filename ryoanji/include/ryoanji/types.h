@@ -25,6 +25,18 @@ static texture<float4, 1, cudaReadModeElementType> texCellCenter;
 static texture<float4, 1, cudaReadModeElementType> texMultipole;
 static texture<float4, 1, cudaReadModeElementType> texBody;
 
+struct GpuConfig
+{
+    //! @brief number of threads per warp
+    static constexpr int warpSize = 32;
+    //! @brief log2(warpSize)
+    static constexpr int warpSizeLog2 = 5;
+    //! @brief number of multiprocessors
+    static int smCount;
+};
+
+int GpuConfig::smCount = 56;
+
 //! Center and radius of bounding box
 struct Box
 {

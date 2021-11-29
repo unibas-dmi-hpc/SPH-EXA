@@ -5,18 +5,6 @@
 
 #define IF(x) (-(int)(x))
 
-struct GpuConfig
-{
-    //! @brief number of threads per warp
-    static constexpr int warpSize = 32;
-    //! @brief log2(warpSize)
-    static constexpr int warpSizeLog2 = 5;
-    //! @brief number of multiprocessors
-    static int smCount;
-};
-
-int GpuConfig::smCount = 56;
-
 struct TravConfig
 {
     //! @brief size of global workspace memory per warp
@@ -52,48 +40,14 @@ __host__ __device__ __forceinline__ bool applyMAC(fvec3 sourceCenter, float MAC,
     return R2 < fabsf(MAC) || sourceData.nbody() < 3;
 }
 
-//__device__ void approxAcc(fvec4 acc_i[2], const fvec3 pos_i[2], const int cellIdx, const fvec4* __restrict__ srcCenter,
-//                          const fvec4* __restrict__ Multipoles, const float EPS2)
-//{
-//    fvec4 M4[NVEC4];
-//    float M[4 * NVEC4];
-//    fvec4 Xj(0.0f);
-//    if (cellIdx >= 0)
-//    {
-//        Xj = srcCenter[cellIdx];
-//        #pragma unroll
-//        for (int i = 0; i < NVEC4; i++)
-//            M4[i] = Multipoles[NVEC4 * cellIdx + i];
-//    }
-//    else
-//    {
-//        #pragma unroll
-//        for (int i = 0; i < NVEC4; i++)
-//            M4[i] = 0.0f;
-//    }
-//    for (int j = 0; j < GpuConfig::warpSize; j++)
-//    {
-//        const fvec3 pos_j(__shfl_sync(0xFFFFFFFF, Xj[0], j),
-//                          __shfl_sync(0xFFFFFFFF, Xj[1], j),
-//                          __shfl_sync(0xFFFFFFFF, Xj[2], j));
-//        #pragma unroll
-//        for (int i = 0; i < NVEC4; i++)
-//        {
-//            M[4 * i + 0] = __shfl_sync(0xFFFFFFFF, M4[i][0], j);
-//            M[4 * i + 1] = __shfl_sync(0xFFFFFFFF, M4[i][1], j);
-//            M[4 * i + 2] = __shfl_sync(0xFFFFFFFF, M4[i][2], j);
-//            M[4 * i + 3] = __shfl_sync(0xFFFFFFFF, M4[i][3], j);
-//        }
-//        for (int k = 0; k < 2; k++)
-//            acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(fvecP*)M, EPS2);
-//    }
-//}
-
+//! @brief apply M2P kernel for WarpSize different multipoles to the warp-owned target bodies
 __device__ void approxAcc(fvec4 acc_i[TravConfig::nwt], const fvec3 pos_i[TravConfig::nwt], const int cellIdx,
-                          const fvec4* __restrict__ srcCenter,
-                          const fvec4* __restrict__ Multipoles, const float EPS2, volatile int* warpSpace)
+                          const fvec4* __restrict__ srcCenter, const fvec4* __restrict__ Multipoles, const float EPS2,
+                          volatile int* warpSpace)
 {
-    auto warpM = reinterpret_cast<volatile float*>(warpSpace);
+    static_assert(NTERM <= GpuConfig::warpSize, "needs adaptation to work beyond octopoles");
+
+    auto sm_Multipole              = reinterpret_cast<volatile float*>(warpSpace);
     const float* __restrict__ gm_M = reinterpret_cast<const float*>(Multipoles);
 
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
@@ -105,14 +59,11 @@ __device__ void approxAcc(fvec4 acc_i[TravConfig::nwt], const fvec3 pos_i[TravCo
 
         fvec3 pos_j = make_fvec3(srcCenter[currentCell]);
 
-        if (laneIdx < NTERM)
-        {
-            warpM[laneIdx] = gm_M[currentCell * NTERM + laneIdx];
-        }
+        if (laneIdx < NTERM) { sm_Multipole[laneIdx] = gm_M[currentCell * NTERM + laneIdx]; }
         __syncwarp();
 
         for (int k = 0; k < TravConfig::nwt; k++)
-            acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(fvecP*)warpM, EPS2);
+            acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(fvecP*)sm_Multipole, EPS2);
     }
 }
 
@@ -142,7 +93,8 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
 
     uint2 counters = {0, 0};
-    int approxQueue, directQueue;
+    int approxQueue; // multipole approximation queue for cell indices
+    int directQueue; // direct queue for body indices
 
     // populate initial cell queue
     for (int root = rootRange.x; root < rootRange.y; root += GpuConfig::warpSize)
@@ -158,7 +110,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
     int newSources   = 0; // stack size for next level
     int oldSources   = 0; // cell indices done
     int sourceOffset = 0; // current level stack pointer, once this reaches numSources, the level is done
-    int approxOffset = 0;
+    int apxFillLevel = 0; // fill level of the multipole approximation queue
     int bodyOffset   = 0;
 
     while (numSources > 0) // While there are source cells to traverse
@@ -193,11 +145,11 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         const bool isApprox = !isClose && isSource;  // Source cell can be used for M2P
 
         int numKeepWarp; // number of valid isApprox flags in the warp
-        int laneCompacted = warpCompact(isApprox, approxOffset, &numKeepWarp);
-        warpExchange(&approxQueue, &sourceQueue, isApprox, laneCompacted, approxOffset, tempQueue);
-        approxOffset += numKeepWarp;
+        int laneCompacted = warpCompact(isApprox, apxFillLevel, &numKeepWarp);
+        warpExchange(&approxQueue, &sourceQueue, isApprox, laneCompacted, apxFillLevel, tempQueue);
+        apxFillLevel += numKeepWarp;
 
-        if (approxOffset >= GpuConfig::warpSize) // If queue is larger than warp size,
+        if (apxFillLevel >= GpuConfig::warpSize) // If queue is larger than warp size,
         {
             // Call M2P kernel
             approxAcc(acc_i, pos_i, approxQueue, srcCenter, Multipoles, EPS2, tempQueue);
@@ -207,7 +159,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
             // pull down remaining elements that didn't fit onto the now empty queue
             warpExchange(&approxQueue, &sourceQueue, isApprox, laneCompacted, 0, tempQueue);
 
-            approxOffset -= GpuConfig::warpSize;
+            apxFillLevel -= GpuConfig::warpSize;
         }
 
         // Direct
@@ -289,13 +241,12 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         }                                  // End if for level finalization
     }                                      // End while for source cells to traverse
 
-    if (approxOffset > 0) // If there are leftover approx cells
+    if (apxFillLevel > 0) // If there are leftover approx cells
     {
         // Call M2P kernel
-        approxAcc(acc_i, pos_i, laneIdx < approxOffset ? approxQueue : -1, srcCenter, Multipoles, EPS2, tempQueue);
+        approxAcc(acc_i, pos_i, laneIdx < apxFillLevel ? approxQueue : -1, srcCenter, Multipoles, EPS2, tempQueue);
 
-        counters.x += approxOffset; // Increment M2P counter
-        approxOffset = 0;           // Reset offset for approx
+        counters.x += apxFillLevel; // Increment M2P counter
     }                               // End if for leftover approx cells
 
     if (bodyOffset > 0) // If there are leftover direct cells
@@ -314,7 +265,6 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
                 acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2); // Call P2P kernel
         }                                                             // End loop over the warp size
         counters.y += bodyOffset;                                     // Increment P2P counter
-        bodyOffset = 0;                                               // Reset offset for direct
     }                                                                 // End if for leftover direct cells
 
     return counters; // Return M2P & P2P counters

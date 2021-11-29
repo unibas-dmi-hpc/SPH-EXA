@@ -180,12 +180,10 @@ template<class T>
 __device__ __forceinline__ void warpExchange(T* queue, const T* laneVal, bool flag, int laneCompacted,
                                              const int fillLevel, volatile T* sm_exchange)
 {
-    constexpr int GpuConfigWarpSize = 32;
-
-    int laneIdx = threadIdx.x & (GpuConfigWarpSize - 1);
+    int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
 
     // if laneVal is valid and queue has space
-    if (flag && laneCompacted >= 0 && laneCompacted < GpuConfigWarpSize) { sm_exchange[laneCompacted] = *laneVal; }
+    if (flag && laneCompacted >= 0 && laneCompacted < GpuConfig::warpSize) { sm_exchange[laneCompacted] = *laneVal; }
     __syncwarp();
 
     // pull newly compacted elements into the queue
