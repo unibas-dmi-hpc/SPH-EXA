@@ -29,6 +29,17 @@ __device__ __forceinline__ int popCount(long long int x)
 
 //! @brief Compatibility wrapper for AMD. Note: do not HIPify!
 template<class T>
+__device__ __forceinline__ T shflSync(T value, int srcLane)
+{
+#ifdef __CUDACC__
+    return __shfl_sync(0xFFFFFFFF, value, srcLane);
+#else
+    return __shfl(value, distance);
+#endif
+}
+
+//! @brief Compatibility wrapper for AMD. Note: do not HIPify!
+template<class T>
 __device__ __forceinline__ T shflXorSync(T value, int width)
 {
 #ifdef __CUDACC__

@@ -54,7 +54,7 @@ __device__ void approxAcc(fvec4 acc_i[TravConfig::nwt], const fvec3 pos_i[TravCo
 
     for (int j = 0; j < GpuConfig::warpSize; j++)
     {
-        int currentCell = __shfl_sync(0xFFFFFFFF, cellIdx, j);
+        int currentCell = shflSync(cellIdx, j);
         if (currentCell < 0) { continue; }
 
         fvec3 pos_j = make_fvec3(srcCenter[currentCell]);
@@ -135,11 +135,10 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         const int numChild     = sourceData.nchild() & IF(isSplit);    // Number of child cells (masked by split flag)
         const int numChildScan = inclusiveScanInt(numChild);           // Inclusive scan of numChild
         const int numChildLane = numChildScan - numChild;              // Exclusive scan of numChild
-        const int numChildWarp = __shfl_sync(0xFFFFFFFF, numChildScan, // Total numChild of current warp
-                                             GpuConfig::warpSize - 1);
-        sourceOffset += min(GpuConfig::warpSize, numSources - sourceOffset);     // advance current level stack pointer
-        if (numChildWarp + numSources - sourceOffset > TravConfig::memPerWarp)   // If cell queue overflows
-            return make_uint2(0xFFFFFFFF, 0xFFFFFFFF);                 // Exit kernel
+        const int numChildWarp = shflSync(numChildScan, GpuConfig::warpSize - 1); // Total numChild of current warp
+        sourceOffset += min(GpuConfig::warpSize, numSources - sourceOffset);      // advance current level stack pointer
+        if (numChildWarp + numSources - sourceOffset > TravConfig::memPerWarp)    // If cell queue overflows
+            return make_uint2(0xFFFFFFFF, 0xFFFFFFFF);                       // Exit kernel
         int childIdx = oldSources + numSources + newSources + numChildLane; // Child index of current lane
         for (int i = 0; i < numChild; i++)                                  // Loop over child cells for each lane
             cellQueue[ringAddr(childIdx + i)] = childBegin + i;             // Queue child cells for next level
@@ -173,10 +172,9 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         const int numBodies     = sourceData.nbody() & IF(isDirect);     // Number of bodies in cell
         const int numBodiesScan = inclusiveScanInt(numBodies);           // Inclusive scan of numBodies
         int numBodiesLane       = numBodiesScan - numBodies;             // Exclusive scan of numBodies
-        int numBodiesWarp       = __shfl_sync(0xFFFFFFFF, numBodiesScan, // Total numBodies of current warp
-                                              GpuConfig::warpSize - 1);
-        int tempOffset = 0;         //  Initialize temp queue offset
-        while (numBodiesWarp > 0)   // While there are bodies to process
+        int numBodiesWarp       = shflSync(numBodiesScan, GpuConfig::warpSize - 1); // Total numBodies of current warp
+        int tempOffset = 0;                                              // Initialize temp queue offset
+        while (numBodiesWarp > 0)                                        // While there are bodies to process
         {
             tempQueue[laneIdx] = 1; // Initialize body queue
             if (isDirect && (numBodiesLane < GpuConfig::warpSize))
@@ -186,17 +184,17 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
             }                                              // End if for direct flag
             const int bodyQueue =
                 inclusiveSegscanInt(tempQueue[laneIdx], tempOffset);        // Inclusive segmented scan of temp queue
-            tempOffset = __shfl_sync(0xFFFFFFFF, bodyQueue, GpuConfig::warpSize - 1); // Last lane has the temp queue offset
+            tempOffset = shflSync(bodyQueue, GpuConfig::warpSize - 1); // Last lane has the temp queue offset
 
             if (numBodiesWarp >= GpuConfig::warpSize) // If warp is full of bodies
             {
                 const fvec4 pos = bodyPos[bodyQueue]; // Load position of source bodies
                 for (int j = 0; j < GpuConfig::warpSize; j++)
                 {                                                             // Loop over the warp size
-                    const fvec3 pos_j{__shfl_sync(0xFFFFFFFF, pos[0], j),     // Get source x value from lane j
-                                      __shfl_sync(0xFFFFFFFF, pos[1], j),     // Get source y value from lane j
-                                      __shfl_sync(0xFFFFFFFF, pos[2], j)};    // Get source z value from lane j
-                    const float q_j = __shfl_sync(0xFFFFFFFF, pos[3], j);     // Get source w value from lane j
+                    const fvec3 pos_j{shflSync(pos[0], j),     // Get source x value from lane j
+                                      shflSync(pos[1], j),     // Get source y value from lane j
+                                      shflSync(pos[2], j)};    // Get source z value from lane j
+                    const float q_j = shflSync(pos[3], j);     // Get source w value from lane j
                     #pragma unroll                                            // Unroll loop
                     for (int k = 0; k < TravConfig::nwt; k++)                 // Loop over nwt targets
                         acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2); // Call P2P kernel
@@ -217,10 +215,10 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
                     const fvec4 pos = bodyPos[tempQueue[laneIdx]]; // Load position of source bodies
                     for (int j = 0; j < GpuConfig::warpSize; j++)
                     {                                                          // Loop over the warp size
-                        const fvec3 pos_j{__shfl_sync(0xFFFFFFFF, pos[0], j),  // Get source x value from lane j
-                                          __shfl_sync(0xFFFFFFFF, pos[1], j),  // Get source y value from lane j
-                                          __shfl_sync(0xFFFFFFFF, pos[2], j)}; // Get source z value from lane j
-                        const float q_j = __shfl_sync(0xFFFFFFFF, pos[3], j);  // Get source w value from lane j
+                        const fvec3 pos_j{shflSync(pos[0], j),  // Get source x value from lane j
+                                          shflSync(pos[1], j),  // Get source y value from lane j
+                                          shflSync(pos[2], j)}; // Get source z value from lane j
+                        const float q_j = shflSync(pos[3], j);  // Get source w value from lane j
                         #pragma unroll
                         for (int k = 0; k < TravConfig::nwt; k++)                 // Loop over nwt targets
                             acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2); // Call P2P kernel
@@ -260,10 +258,10 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
                               fvec4{0.0f, 0.0f, 0.0f, 0.0f};      // With padding for invalid lanes
         for (int j = 0; j < GpuConfig::warpSize; j++)
         {                                                             // Loop over the warp size
-            const fvec3 pos_j{__shfl_sync(0xFFFFFFFF, pos[0], j),     // Get source x value from lane j
-                              __shfl_sync(0xFFFFFFFF, pos[1], j),     // Get source y value from lane j
-                              __shfl_sync(0xFFFFFFFF, pos[2], j)};    // Get source z value from lane j
-            const float q_j = __shfl_sync(0xFFFFFFFF, pos[3], j);     // Get source w value from lane j
+            const fvec3 pos_j{shflSync(pos[0], j),     // Get source x value from lane j
+                              shflSync(pos[1], j),     // Get source y value from lane j
+                              shflSync(pos[2], j)};    // Get source z value from lane j
+            const float q_j = shflSync(pos[3], j);     // Get source w value from lane j
             #pragma unroll                                            // Unroll loop
             for (int k = 0; k < TravConfig::nwt; k++)                 // Loop over nwt targets
                 acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2); // Call P2P kernel
@@ -343,7 +341,7 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
             // the load imbalance between different targets compared to static assignment
             targetIdx = atomicAdd(&targetCounterGlob, 1);
         }
-        targetIdx = __shfl_sync(0xFFFFFFFF, targetIdx, 0, GpuConfig::warpSize);
+        targetIdx = shflSync(targetIdx, 0);
 
         if (targetIdx >= numTargets) return;
 
