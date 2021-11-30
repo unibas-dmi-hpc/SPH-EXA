@@ -8,34 +8,11 @@ namespace
 {
 
 //! @brief computes the center of mass for the bodies in the specified range
-__device__ __forceinline__ fvec4 setCenter(const int begin, const int end)
-{
-    fvec4 center(0);
-    for (int i = begin; i < end; i++)
-    {
-        const fvec4 pos = tex1Dfetch(texBody, i);
-        float weight    = pos[3];
-
-        center[0] += weight * pos[0];
-        center[1] += weight * pos[1];
-        center[2] += weight * pos[2];
-        center[3] += weight;
-    }
-
-    float invM = (center[3] != 0.0f) ? 1.0f / center[3] : 0.0f;
-    center[0] *= invM;
-    center[1] *= invM;
-    center[2] *= invM;
-
-    return center;
-}
-
-//! @brief computes the center of mass for the bodies in the specified range
-__host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int end, fvec4* posGlob)
+__host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int end, const fvec4* posGlob)
 {
     assert(begin < end);
 
-    fvec4 center(0);
+    fvec4 center{0, 0, 0, 0};
     for (int i = begin; i < end; i++)
     {
         fvec4 pos    = posGlob[i];
@@ -60,14 +37,15 @@ __host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int e
  * launch config: one thread per cell of the current level
  *
  * @param[in]  level            current level to process
- * @param[in]  levelRange       first and lasst node in @p cells of @p level
+ * @param[in]  levelRange       first and last node in @p cells of @p level
  * @param[in]  cells            the tree cells
+ * @param[in]  bodyPos          SFC sorted bodies as referenced by @p cells
  * @param[out] sourceCenter     the center of mass of each tree cell
  * @param[out] cellXmin         coordinate minimum of each cell
  * @param[out] cellXmax         coordinate maximum of each cell
  * @param[out] Multipole        output multipole of each cell
  */
-__global__ void upwardPass(const int level, int2* levelRange, CellData* cells,
+__global__ void upwardPass(const int level, const int2* levelRange, const CellData* cells, const fvec4* bodyPos,
                            fvec4* sourceCenter, fvec3* cellXmin, fvec3* cellXmax,
                            fvec4* Multipole)
 {
@@ -75,8 +53,8 @@ __global__ void upwardPass(const int level, int2* levelRange, CellData* cells,
     if (cellIdx >= levelRange[level].y) return;
     const CellData cell = cells[cellIdx];
     const float huge    = 1e10f;
-    fvec3 Xmin          = +huge;
-    fvec3 Xmax          = -huge;
+    fvec3 Xmin{+huge, +huge, +huge};
+    fvec3 Xmax{-huge, -huge, -huge};
     fvec4 center;
     float M[4 * NVEC4];
 
@@ -89,14 +67,14 @@ __global__ void upwardPass(const int level, int2* levelRange, CellData* cells,
     {
         const int begin = cell.body();
         const int end   = begin + cell.nbody();
-        center          = setCenter(begin, end);
+        center          = setCenter(begin, end, bodyPos);
         for (int i = begin; i < end; i++)
         {
-            fvec3 pos = make_fvec3(fvec4(tex1Dfetch(texBody, i)));
+            fvec3 pos = make_fvec3(bodyPos[i]);
             Xmin      = min(Xmin, pos);
             Xmax      = max(Xmax, pos);
         }
-        P2M(begin, end, center, *(fvecP*)M);
+        P2M(begin, end, center, bodyPos, *(fvecP*)M);
     }
     else
     {
@@ -114,7 +92,7 @@ __global__ void upwardPass(const int level, int2* levelRange, CellData* cells,
     cellXmin[cellIdx]     = Xmin;
     cellXmax[cellIdx]     = Xmax;
     for (int i = 0; i < NVEC4; i++)
-        Multipole[NVEC4 * cellIdx + i] = fvec4(M[4 * i + 0], M[4 * i + 1], M[4 * i + 2], M[4 * i + 3]);
+        Multipole[NVEC4 * cellIdx + i] = fvec4{M[4 * i + 0], M[4 * i + 1], M[4 * i + 2], M[4 * i + 3]};
 }
 
 __global__ void setMAC(const int numCells, const float invTheta, fvec4* sourceCenter,
@@ -128,7 +106,7 @@ __global__ void setMAC(const int numCells, const float invTheta, fvec4* sourceCe
     const fvec3 X            = (Xmax + Xmin) * 0.5f;
     const fvec3 R            = (Xmax - Xmin) * 0.5f;
     const fvec3 dX           = X - Xi;
-    const float s            = sqrt(norm(dX));
+    const float s            = sqrt(norm2(dX));
     const float l            = max(2.0f * max(R), 1.0e-6f);
     const float MAC          = l * invTheta + s;
     const float MAC2         = MAC * MAC;
@@ -163,7 +141,6 @@ public:
     {
         int numCells = sourceCells.size();
         int NBLOCK   = (numCells - 1) / NTHREAD + 1;
-        bodyPos.bind(texBody);
 
         auto t0 = std::chrono::high_resolution_clock::now();
 
@@ -176,8 +153,14 @@ public:
         {
             numCells = levelRange[level].y - levelRange[level].x;
             NBLOCK   = (numCells - 1) / NTHREAD + 1;
-            upwardPass<<<NBLOCK, NTHREAD>>>(
-                level, levelRange.d(), sourceCells.d(), sourceCenter.d(), cellXmin.d(), cellXmax.d(), Multipole.d());
+            upwardPass<<<NBLOCK, NTHREAD>>>(level,
+                                            levelRange.d(),
+                                            sourceCells.d(),
+                                            bodyPos.d(),
+                                            sourceCenter.d(),
+                                            cellXmin.d(),
+                                            cellXmax.d(),
+                                            Multipole.d());
             kernelSuccess("upwardPass");
         }
 
@@ -190,8 +173,6 @@ public:
         double dt = std::chrono::duration<double>(t1 - t0).count();
 
         fprintf(stdout, "Upward pass          : %.7f s\n", dt);
-
-        bodyPos.unbind(texBody);
     }
 };
 

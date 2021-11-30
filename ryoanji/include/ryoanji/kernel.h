@@ -356,19 +356,18 @@ struct Kernels<0, 0, 0>
 
 /*! @brief calculate multipole from particles
  *
- * @param[in]  begin    first particle index of texBody texture
- * @param[in]  end      last particles index of texBody texture
+ * @param[in]  begin    first particle index of bodyPos
+ * @param[in]  end      last particles index of bodyPos
  * @param[in]  center   multipole center of gravity
+ * @param[in]  bodyPos  body position and mass
  * @param[out] Mi       output multipole to add contributions to
  *
- * Note: bodies are loaded from the texture texBody which has to be bound to the
- *       GPU array with the body data.
  */
-__device__ __forceinline__ void P2M(int begin, int end, const fvec4& center, fvecP& Mi)
+__device__ __forceinline__ void P2M(int begin, int end, const fvec4& center, const fvec4* bodyPos, fvecP& Mi)
 {
     for (int i = begin; i < end; i++)
     {
-        fvec4 body = tex1Dfetch(texBody, i);
+        fvec4 body = bodyPos[i];
         fvec3 dX   = make_fvec3(center - body);
         fvecP M;
         M[0] = body[3];
@@ -401,7 +400,7 @@ __host__ __device__ __forceinline__ void M2M(int begin, int end, const fvec4& Xi
 __host__ __device__ __forceinline__ fvec4 P2P(fvec4 acc, const fvec3& pos_i, const fvec3& pos_j, float q_j, float EPS2)
 {
     fvec3 dX    = pos_j - pos_i;
-    float R2    = norm(dX) + EPS2;
+    float R2    = norm2(dX) + EPS2;
     float invR  = rsqrtf(R2);
     float invR2 = invR * invR;
     float invR1 = q_j * invR;
@@ -428,7 +427,7 @@ __host__ __device__ __forceinline__ fvec4 P2P(fvec4 acc, const fvec3& pos_i, con
 __host__ __device__ __forceinline__ fvec4 M2P(fvec4 acc, const fvec3& pos_i, const fvec3& pos_j, fvecP& M, float EPS2)
 {
     const fvec3 dX    = pos_i - pos_j;
-    const float R2    = norm(dX) + EPS2;
+    const float R2    = norm2(dX) + EPS2;
     const float invR  = rsqrtf(R2);
     const float invR2 = invR * invR;
 

@@ -39,7 +39,7 @@
 
 
 template<class T>
-auto buildFromCstone(std::vector<vec<4,T>>& bodies, const Box& box)
+auto buildFromCstone(std::vector<util::array<T, 4>>& bodies, const Box& box)
 {
     int numParticles = bodies.size();
     unsigned bucketSize = 64;

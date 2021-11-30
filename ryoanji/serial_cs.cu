@@ -97,7 +97,7 @@ int main(int argc, char** argv)
     {
         fvec3 ref   = {bodyAccDirect[i][1], bodyAccDirect[i][2], bodyAccDirect[i][3]};
         fvec3 probe = {bodyAcc[i][1], bodyAcc[i][2], bodyAcc[i][3]};
-        delta[i]    = std::sqrt(norm(ref - probe) / norm(ref));
+        delta[i]    = std::sqrt(norm2(ref - probe) / norm2(ref));
     }
 
     //int mei = std::max_element(delta.begin(), delta.end()) - delta.begin();

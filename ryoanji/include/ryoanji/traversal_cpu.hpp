@@ -43,7 +43,7 @@ fvec4 walkParticle(int targetIndex, float eps, const cudaVec<CellData>& sources,
                    const cudaVec<fvec4>& Multipole, const cudaVec<fvec4>& bodyPos)
 {
     float EPS2 = eps * eps;
-    fvec4 acc(0.0f);
+    fvec4 acc{0, 0, 0, 0};
 
     fvec3 targetX    = make_fvec3(bodyPos[targetIndex]);
     float targetMass = bodyPos[targetIndex][3];
@@ -52,8 +52,8 @@ fvec4 walkParticle(int targetIndex, float eps, const cudaVec<CellData>& sources,
     std::vector<int> stack{1, 2, 3, 4, 5, 6, 7, 8};
     stack.reserve(128);
 
-    fvec3 gmin(1e10f);
-    fvec3 gmax(-1e10f);
+    fvec3 gmin{1e10, 1e10, 1e10};
+    fvec3 gmax{-1e10, -1e10, -1e10};
 
     int groupStart = targetIndex & ~63;
     int groupEnd = std::min(groupStart + 64, bodyPos.size());
@@ -75,7 +75,7 @@ fvec4 walkParticle(int targetIndex, float eps, const cudaVec<CellData>& sources,
         int ni = stack.back(); stack.pop_back();
 
         fvec4 MAC = sourceCenter[ni];
-        fvec3 srcCenter(MAC[0], MAC[1], MAC[2]);
+        fvec3 srcCenter{MAC[0], MAC[1], MAC[2]};
         CellData srcData = sources[ni];
         bool isNode  = srcData.isNode();
         bool isClose = applyMAC(srcCenter, MAC[3], srcData, targetCenter, targetSize);

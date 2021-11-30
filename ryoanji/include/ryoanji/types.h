@@ -9,21 +9,17 @@
 #include <cassert>
 #include "cudavec.h"
 #include "kahan.h"
-#include "vec.h"
+#include "array.hpp"
 
 const int P = 4;
 
 const int NTERM = P * (P + 1) * (P + 2) / 6; // 20 for P=4
 const int NVEC4 = (NTERM - 1) / 4 + 1;       // 5 for P=4
-typedef vec<3, float> fvec3;
-typedef vec<4, float> fvec4;
-typedef vec<NTERM, float> fvecP;
-typedef vec<4, kahan<float>> kvec4;
+typedef util::array<float, 3> fvec3;
+typedef util::array<float, 4> fvec4;
+typedef util::array<float, NTERM> fvecP;
+typedef util::array<kahan<float>, 4> kvec4;
 
-static texture<uint4, 1, cudaReadModeElementType> texCell;
-static texture<float4, 1, cudaReadModeElementType> texCellCenter;
-static texture<float4, 1, cudaReadModeElementType> texMultipole;
-static texture<float4, 1, cudaReadModeElementType> texBody;
 
 struct GpuConfig
 {

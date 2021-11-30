@@ -11,7 +11,8 @@
 fvecP P2Mhost(int begin, int end, const fvec4* bodies, const fvec4& center)
 {
     // the output multipole
-    fvecP Mout(0);
+    fvecP Mout;
+    std::fill(Mout.begin(), Mout.end(), 0);
 
     for (int i = begin; i < end; ++i)
     {
@@ -79,9 +80,9 @@ TEST(Multipole, P2M)
     // compare M2P results on a test target
     {
         float eps2 = 0;
-        fvec3 testTarget(-8, -8, -8);
+        fvec3 testTarget{-8, -8, -8};
 
-        fvec4 acc(0, 0, 0, 0);
+        fvec4 acc{0, 0, 0, 0};
         acc = M2P(acc, testTarget, make_fvec3(centerMass), ryoanjiMultipole, eps2);
         //printf("test acceleration: %f %f %f %f\n", acc[0], acc[1], acc[2], acc[3]);
 

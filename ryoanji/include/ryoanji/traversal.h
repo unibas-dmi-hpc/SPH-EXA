@@ -36,7 +36,7 @@ __host__ __device__ __forceinline__ bool applyMAC(fvec3 sourceCenter, float MAC,
     fvec3 dX = abs(targetCenter - sourceCenter) - targetSize;
     dX += abs(dX);
     dX *= 0.5f;
-    const float R2 = norm(dX);
+    const float R2 = norm2(dX);
     return R2 < fabsf(MAC) || sourceData.nbody() < 3;
 }
 
@@ -118,7 +118,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         const int sourceIdx   = sourceOffset + laneIdx;                      // Source cell index of current lane
         const int sourceQueue = cellQueue[ringAddr(oldSources + sourceIdx)]; // Global source cell index in queue
         const fvec4 MAC       = srcCenter[sourceQueue];                      // load source cell center + MAC
-        const fvec3 sourceCenter(MAC[0], MAC[1], MAC[2]);                    // Source cell center
+        const fvec3 sourceCenter{MAC[0], MAC[1], MAC[2]};                    // Source cell center
         const CellData sourceData = srcCells[sourceQueue];                   // load source cell data
         const bool isNode         = sourceData.isNode();                     // Is non-leaf cell
         const bool isClose =
@@ -189,9 +189,9 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
                 const fvec4 pos = bodyPos[bodyQueue]; // Load position of source bodies
                 for (int j = 0; j < GpuConfig::warpSize; j++)
                 {                                                             // Loop over the warp size
-                    const fvec3 pos_j(__shfl_sync(0xFFFFFFFF, pos[0], j),     // Get source x value from lane j
+                    const fvec3 pos_j{__shfl_sync(0xFFFFFFFF, pos[0], j),     // Get source x value from lane j
                                       __shfl_sync(0xFFFFFFFF, pos[1], j),     // Get source y value from lane j
-                                      __shfl_sync(0xFFFFFFFF, pos[2], j));    // Get source z value from lane j
+                                      __shfl_sync(0xFFFFFFFF, pos[2], j)};    // Get source z value from lane j
                     const float q_j = __shfl_sync(0xFFFFFFFF, pos[3], j);     // Get source w value from lane j
                     #pragma unroll                                            // Unroll loop
                     for (int k = 0; k < TravConfig::nwt; k++)                 // Loop over nwt targets
@@ -213,9 +213,9 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
                     const fvec4 pos = bodyPos[tempQueue[laneIdx]]; // Load position of source bodies
                     for (int j = 0; j < GpuConfig::warpSize; j++)
                     {                                                          // Loop over the warp size
-                        const fvec3 pos_j(__shfl_sync(0xFFFFFFFF, pos[0], j),  // Get source x value from lane j
+                        const fvec3 pos_j{__shfl_sync(0xFFFFFFFF, pos[0], j),  // Get source x value from lane j
                                           __shfl_sync(0xFFFFFFFF, pos[1], j),  // Get source y value from lane j
-                                          __shfl_sync(0xFFFFFFFF, pos[2], j)); // Get source z value from lane j
+                                          __shfl_sync(0xFFFFFFFF, pos[2], j)}; // Get source z value from lane j
                         const float q_j = __shfl_sync(0xFFFFFFFF, pos[3], j);  // Get source w value from lane j
                         #pragma unroll
                         for (int k = 0; k < TravConfig::nwt; k++)                 // Loop over nwt targets
@@ -253,12 +253,12 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
     {
         const int bodyQueue = laneIdx < bodyOffset ? directQueue : -1;  // Get body index
         const fvec4 pos     = bodyQueue >= 0 ? bodyPos[bodyQueue] :     // Load position of source bodies
-                              make_float4(0.0f, 0.0f, 0.0f, 0.0f);      // With padding for invalid lanes
+                              fvec4{0.0f, 0.0f, 0.0f, 0.0f};      // With padding for invalid lanes
         for (int j = 0; j < GpuConfig::warpSize; j++)
         {                                                             // Loop over the warp size
-            const fvec3 pos_j(__shfl_sync(0xFFFFFFFF, pos[0], j),     // Get source x value from lane j
+            const fvec3 pos_j{__shfl_sync(0xFFFFFFFF, pos[0], j),     // Get source x value from lane j
                               __shfl_sync(0xFFFFFFFF, pos[1], j),     // Get source y value from lane j
-                              __shfl_sync(0xFFFFFFFF, pos[2], j));    // Get source z value from lane j
+                              __shfl_sync(0xFFFFFFFF, pos[2], j)};    // Get source z value from lane j
             const float q_j = __shfl_sync(0xFFFFFFFF, pos[3], j);     // Get source w value from lane j
             #pragma unroll                                            // Unroll loop
             for (int k = 0; k < TravConfig::nwt; k++)                 // Loop over nwt targets
@@ -372,7 +372,7 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
         fvec4 acc_i[TravConfig::nwt];
         for (int i = 0; i < TravConfig::nwt; i++)
         {
-            acc_i[i] = fvec4(0.0f);
+            acc_i[i] = fvec4{0, 0, 0, 0};
         }
 
         int numP2P = 0, numM2P = 0;

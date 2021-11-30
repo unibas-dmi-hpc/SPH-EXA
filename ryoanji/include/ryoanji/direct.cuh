@@ -3,7 +3,7 @@
 
 #include "types.h"
 
-__global__ void directKernel(int numSource, float eps2, fvec4* bodyAcc)
+__global__ void directKernel(int numSource, float eps2, const fvec4* bodyPos, fvec4* bodyAcc)
 {
     unsigned laneIdx      = threadIdx.x & (WARP_SIZE - 1);
     // number of warps in the block
@@ -13,9 +13,9 @@ __global__ void directKernel(int numSource, float eps2, fvec4* bodyAcc)
     fvec4 pos = {0.0, 0.0, 0.0, 0.0};
     if (targetIdx < numSource)
     {
-        pos = tex1Dfetch(texBody, targetIdx);
+        pos = bodyPos[targetIdx];
     }
-    const fvec3 pos_i(pos[0], pos[1], pos[2]);
+    const fvec3 pos_i{pos[0], pos[1], pos[2]};
 
     kvec4 acc = {0.0, 0.0, 0.0, 0.0};
 
@@ -29,19 +29,19 @@ __global__ void directKernel(int numSource, float eps2, fvec4* bodyAcc)
 
             if (sourceIdx < numSource)
             {
-                pos = tex1Dfetch(texBody, sourceIdx);
+                pos = bodyPos[sourceIdx];
             }
 
             for (int j = 0; j < WARP_SIZE; j++)
             {
-                fvec3 pos_j(__shfl_sync(0xFFFFFFFF, pos[0], j),
+                fvec3 pos_j{__shfl_sync(0xFFFFFFFF, pos[0], j),
                             __shfl_sync(0xFFFFFFFF, pos[1], j),
-                            __shfl_sync(0xFFFFFFFF, pos[2], j));
+                            __shfl_sync(0xFFFFFFFF, pos[2], j)};
 
                 float q_j = __shfl_sync(0xFFFFFFFF, pos[3], j);
                 fvec3 dX = pos_j - pos_i;
 
-                float R2    = norm(dX) + eps2;
+                float R2    = norm2(dX) + eps2;
                 float invR  = rsqrtf(R2);
                 float invR2 = invR * invR;
                 float invR1 = q_j * invR;
@@ -62,7 +62,7 @@ __global__ void directKernel(int numSource, float eps2, fvec4* bodyAcc)
 
     if (targetIdx < numSource)
     {
-        bodyAcc[targetIdx] = fvec4(acc[0], acc[1], acc[2], acc[3]);
+        bodyAcc[targetIdx] = fvec4{acc[0], acc[1], acc[2], acc[3]};
     }
 }
 
@@ -72,9 +72,7 @@ void directSum(float eps, cudaVec<fvec4>& bodyPos, cudaVec<fvec4>& bodyAcc)
     int numThreads = 512;
     int numBlock   = (numBodies - 1) / numThreads + 1;
 
-    bodyPos.bind(texBody);
-    directKernel<<<numBlock, numThreads>>>(numBodies, eps * eps, bodyAcc.d());
-    bodyPos.unbind(texBody);
+    directKernel<<<numBlock, numThreads>>>(numBodies, eps * eps, bodyPos.d(), bodyAcc.d());
     cudaDeviceSynchronize();
 }
 

@@ -6,7 +6,8 @@
 #include "ryoanji/dataset.h"
 #include "ryoanji/direct.cuh"
 
-std::vector<fvec4> cpuReference(const std::vector<fvec4>& bodies)
+template<class T>
+std::vector<fvec4> cpuReference(const std::vector<util::array<T, 4>>& bodies)
 {
     size_t numBodies = bodies.size();
 
@@ -34,11 +35,11 @@ std::vector<fvec4> cpuReference(const std::vector<fvec4>& bodies)
     cstone::directSum(x.data(), y.data(), z.data(), h.data(), m.data(), numBodies, G,
                       ax.data(), ay.data(), az.data(), pot.data());
 
-    std::vector<fvec4> acc(numBodies, fvec4(0));
+    std::vector<fvec4> acc(numBodies, fvec4{0, 0, 0, 0});
 
     for (size_t i = 0; i < numBodies; ++i)
     {
-        acc[i] = fvec4(pot[i], ax[i], ay[i], az[i]);
+        acc[i] = fvec4{T(pot[i]), T(ax[i]), T(ay[i]), T(az[i])};
     }
 
     return acc;
@@ -78,7 +79,7 @@ TEST(DirectSum, MatchCpu)
         fvec3 ref   = {refAcc[i][1], refAcc[i][2], refAcc[i][3]};
         fvec3 probe = {bodyAcc[i][1], bodyAcc[i][2], bodyAcc[i][3]};
 
-        EXPECT_NEAR(std::sqrt(norm(ref-probe)/norm(probe)), 0, 1e-6);
+        EXPECT_NEAR(std::sqrt(norm2(ref-probe)/norm2(probe)), 0, 1e-6);
         // the potential
         EXPECT_NEAR(refAcc[i][0], bodyAcc[i][0], 1e-6);
 
