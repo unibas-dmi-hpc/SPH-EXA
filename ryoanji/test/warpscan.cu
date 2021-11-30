@@ -49,7 +49,7 @@ TEST(WarpScan, min)
     thrust::host_vector<int>   h_v(GpuConfig::warpSize);
     thrust::device_vector<int> d_v = h_v;
 
-    testMin<<<1,32>>>(thrust::raw_pointer_cast(d_v.data()));
+    testMin<<<1, GpuConfig::warpSize>>>(thrust::raw_pointer_cast(d_v.data()));
 
     h_v = d_v;
     thrust::host_vector<int> reference(GpuConfig::warpSize, 0);
@@ -69,7 +69,7 @@ TEST(WarpScan, max)
     thrust::host_vector<int>   h_v(GpuConfig::warpSize);
     thrust::device_vector<int> d_v = h_v;
 
-    testMax<<<1,32>>>(thrust::raw_pointer_cast(d_v.data()));
+    testMax<<<1, GpuConfig::warpSize>>>(thrust::raw_pointer_cast(d_v.data()));
 
     h_v = d_v;
     thrust::host_vector<int> reference(GpuConfig::warpSize, GpuConfig::warpSize - 1);
@@ -87,8 +87,8 @@ __global__ void testScan(int* values)
 
 TEST(WarpScan, inclusiveInt)
 {
-    cudaVec<int> values(64, true);
-    testScan<<<1,64>>>(values.d());
+    cudaVec<int> values(2 * GpuConfig::warpSize, true);
+    testScan<<<1, 2 * GpuConfig::warpSize>>>(values.d());
     values.d2h();
 
     for (int i = 0; i < 64; ++i)
@@ -105,8 +105,8 @@ __global__ void testScanBool(int* result)
 
 TEST(WarpScan, bools)
 {
-    cudaVec<int> values(64, true);
-    testScanBool<<<1,64>>>(values.d());
+    cudaVec<int> values(2 * GpuConfig::warpSize, true);
+    testScanBool<<<1, 2 * GpuConfig::warpSize>>>(values.d());
     values.d2h();
 
     for (int i = 0; i < 64; ++i)

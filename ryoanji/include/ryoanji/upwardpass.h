@@ -7,6 +7,11 @@
 namespace
 {
 
+struct UpsweepConfig
+{
+    static constexpr int numThreads = 256;
+};
+
 //! @brief computes the center of mass for the bodies in the specified range
 __host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int end, const fvec4* posGlob)
 {
@@ -139,8 +144,9 @@ public:
                        cudaVec<fvec4>& bodyPos, cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
                        cudaVec<fvec4>& Multipole)
     {
+        constexpr int numThreads = UpsweepConfig::numThreads;
         int numCells = sourceCells.size();
-        int NBLOCK   = (numCells - 1) / NTHREAD + 1;
+        int NBLOCK   = (numCells - 1) / numThreads + 1;
 
         auto t0 = std::chrono::high_resolution_clock::now();
 
@@ -152,22 +158,22 @@ public:
         for (int level = numLevels; level >= 1; level--)
         {
             numCells = levelRange[level].y - levelRange[level].x;
-            NBLOCK   = (numCells - 1) / NTHREAD + 1;
-            upwardPass<<<NBLOCK, NTHREAD>>>(level,
-                                            levelRange.d(),
-                                            sourceCells.d(),
-                                            bodyPos.d(),
-                                            sourceCenter.d(),
-                                            cellXmin.d(),
-                                            cellXmax.d(),
-                                            Multipole.d());
+            NBLOCK   = (numCells - 1) / numThreads + 1;
+            upwardPass<<<NBLOCK, numThreads>>>(level,
+                                               levelRange.d(),
+                                               sourceCells.d(),
+                                               bodyPos.d(),
+                                               sourceCenter.d(),
+                                               cellXmin.d(),
+                                               cellXmax.d(),
+                                               Multipole.d());
             kernelSuccess("upwardPass");
         }
 
         numCells = sourceCells.size();
-        NBLOCK   = (numCells - 1) / NTHREAD + 1;
-        setMAC<<<NBLOCK, NTHREAD>>>(numCells, 1.0 / theta, sourceCenter.d(), cellXmin.d(), cellXmax.d());
-        normalize<<<NBLOCK, NTHREAD>>>(numCells, Multipole.d());
+        NBLOCK   = (numCells - 1) / numThreads + 1;
+        setMAC<<<NBLOCK, numThreads>>>(numCells, 1.0 / theta, sourceCenter.d(), cellXmin.d(), cellXmax.d());
+        normalize<<<NBLOCK, numThreads>>>(numCells, Multipole.d());
 
         auto t1   = std::chrono::high_resolution_clock::now();
         double dt = std::chrono::duration<double>(t1 - t0).count();

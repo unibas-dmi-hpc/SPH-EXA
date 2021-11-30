@@ -38,17 +38,21 @@ __global__ void directKernel(int numSource, float eps2, const fvec4* __restrict_
             float q_j = sm_bodytile[j][3];
             fvec3 dX = pos_j - pos_i;
 
-            float R2    = norm2(dX) + eps2;
-            float invR  = rsqrtf(R2);
+            float R2    = norm2(dX);
+            float invR  = rsqrtf(R2 + eps2);
             float invR2 = invR * invR;
             float invR1 = q_j * invR;
 
             dX *= invR1 * invR2;
 
-            acc[0] -= invR1;
-            acc[1] += dX[0];
-            acc[2] += dX[1];
-            acc[3] += dX[2];
+            // avoid self gravity
+            if (R2 != 0.0f)
+            {
+                acc[0] -= invR1;
+                acc[1] += dX[0];
+                acc[2] += dX[1];
+                acc[3] += dX[2];
+            }
         }
 
         __syncthreads();

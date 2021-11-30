@@ -1,5 +1,7 @@
 #pragma once
 
+#include "types.h"
+
 namespace
 {
 
@@ -34,9 +36,9 @@ __device__ __forceinline__ T warpMax(T laneVal)
 //! @brief standard inclusive warp-scan
 __device__ __forceinline__ int inclusiveScanInt(int value)
 {
-    unsigned lane = threadIdx.x & (WARP_SIZE - 1);
+    unsigned lane = threadIdx.x & (GpuConfig::warpSize - 1);
     #pragma unroll
-    for (int i = 1; i < WARP_SIZE; i *= 2)
+    for (int i = 1; i < GpuConfig::warpSize; i *= 2)
     {
         int partial = __shfl_up_sync(0xFFFFFFFF, value, i);
         if (i <= lane)
@@ -52,7 +54,7 @@ __device__ __forceinline__ int inclusiveScanInt(int value)
 //! @brief returns a mask with bits set for each warp lane before the calling lane
 __device__ __forceinline__ int lanemask_lt()
 {
-    unsigned lane = threadIdx.x & (WARP_SIZE - 1);
+    unsigned lane = threadIdx.x & (GpuConfig::warpSize - 1);
     return (1 << lane) - 1;
     //int mask;
     //asm("mov.u32 %0, %lanemask_lt;" : "=r"(mask));
@@ -76,7 +78,7 @@ __device__ __forceinline__ int reduceBool(const bool p)
 //! @brief returns a mask with bits set for each warp lane before and including the calling lane
 __device__ __forceinline__ int lanemask_le()
 {
-    unsigned lane = threadIdx.x & (WARP_SIZE - 1);
+    unsigned lane = threadIdx.x & (GpuConfig::warpSize - 1);
     return (2 << lane) - 1;
     //int mask;
     //asm("mov.u32 %0, %lanemask_le;" : "=r"(mask));
@@ -99,7 +101,7 @@ __device__ __forceinline__ int inclusiveSegscan(int value, int distance)
     // distance should be less-equal the lane index
     assert (distance <= (threadIdx.x & (WARP_SIZE- 1)));
     #pragma unroll
-    for (int i = 1; i < WARP_SIZE; i *= 2)
+    for (int i = 1; i < GpuConfig::warpSize; i *= 2)
     {
         int partial = __shfl_up_sync(0xFFFFFFFF, value, i);
         if (i <= distance)
@@ -122,7 +124,7 @@ __device__ __forceinline__ int inclusiveSegscan(int value, int distance)
  */
 __device__ __forceinline__ int inclusiveSegscanInt(const int packedValue, const int carryValue)
 {
-    int laneIdx  = int(threadIdx.x) & (WARP_SIZE - 1);
+    int laneIdx  = int(threadIdx.x) & (GpuConfig::warpSize - 1);
 
     int isNegative = packedValue < 0;
     int mask = -isNegative;
@@ -135,7 +137,7 @@ __device__ __forceinline__ int inclusiveSegscanInt(const int packedValue, const 
 
     // distance = number of preceding lanes to include in scanned value
     // e.g. if distance = 0, then no preceding lane value will be added to scannedValue
-    int distance     = __clz(flags & lanemask_le()) + laneIdx - (WARP_SIZE - 1);
+    int distance     = __clz(flags & lanemask_le()) + laneIdx - (GpuConfig::warpSize - 1);
     int scannedValue = inclusiveSegscan(value, min(distance, laneIdx));
 
     // the lowest lane index for which packedValue was negative, WARP_SIZE if all were positive

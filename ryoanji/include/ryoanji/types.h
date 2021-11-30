@@ -2,8 +2,6 @@
 
 #define WARP_SIZE2 5
 #define WARP_SIZE 32
-#define NTHREAD2 8
-#define NTHREAD 256
 #define CUDA_SAFE_CALL(err) cudaSafeCall(err, __FILE__, __LINE__)
 
 #include <cassert>

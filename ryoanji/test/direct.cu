@@ -79,11 +79,11 @@ TEST(DirectSum, MatchCpu)
         fvec3 ref   = {refAcc[i][1], refAcc[i][2], refAcc[i][3]};
         fvec3 probe = {bodyAcc[i][1], bodyAcc[i][2], bodyAcc[i][3]};
 
-        EXPECT_NEAR(std::sqrt(norm2(ref-probe)/norm2(probe)), 0, 1e-6);
+        EXPECT_NEAR(std::sqrt(norm2(ref - probe) / norm2(probe)), 0, 1e-6);
         // the potential
         EXPECT_NEAR(refAcc[i][0], bodyAcc[i][0], 1e-6);
 
-        //printf("%f %f %f\n", ref[1], ref[2], ref[3]);
-        //printf("%f %f %f\n", probe[1], probe[2], probe[3]);
+        // printf("%f %f %f\n", ref[1], ref[2], ref[3]);
+        // printf("%f %f %f\n", probe[1], probe[2], probe[3]);
     }
 }
