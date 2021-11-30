@@ -29,13 +29,12 @@
  * \author Sebastian Keller <keller@cscs.ch>
  */
 
-#ifndef NBLIB_UTIL_ARRAY_HPP
-#define NBLIB_UTIL_ARRAY_HPP
+#pragma once
 
 #include <cmath>
 #include <utility>
 
-#define HOST_DEVICE_FUN __host__ __device__
+#include "cstone/cuda/annotation.hpp"
 
 namespace util
 {
@@ -371,5 +370,3 @@ HOST_DEVICE_FUN constexpr array<T, 3> cross(const array<T, 3>& a, const array<T,
 }
 
 } // namespace util
-
-#endif // NBLIB_UTIL_ARRAY_HPP

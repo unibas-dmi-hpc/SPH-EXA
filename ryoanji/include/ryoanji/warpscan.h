@@ -1,9 +1,63 @@
 #pragma once
 
+#include "cstone/primitives/clz.hpp"
+
 #include "types.h"
 
 namespace
 {
+
+__device__ __forceinline__ uint32_t reverseBits(uint32_t x)
+{
+    return __brev(x);
+}
+
+__device__ __forceinline__ uint64_t reverseBits(uint64_t x)
+{
+    return __brevll(x);
+}
+
+__device__ __forceinline__ int popCount(int x)
+{
+    return __popc(x);
+}
+
+__device__ __forceinline__ int popCount(long long int x)
+{
+    return __popcll(x);
+}
+
+//! @brief Compatibility wrapper for AMD. Note: do not HIPify!
+template<class T>
+__device__ __forceinline__ T shflXorSync(T value, int width)
+{
+#ifdef __CUDACC__
+    return __shfl_xor_sync(0xFFFFFFFF, value, width);
+#else
+    return __shfl_xor(value, width);
+#endif
+}
+
+//! @brief Compatibility wrapper for AMD. Note: do not HIPify!
+template<class T>
+__device__ __forceinline__ T shflUpSync(T value, int distance)
+{
+#ifdef __CUDACC__
+    return __shfl_up_sync(0xFFFFFFFF, value, distance);
+#else
+    return __shfl_up(value, distance);
+#endif
+}
+
+//! @brief Compatibility wrapper for AMD. Note: do not HIPify!
+__device__ __forceinline__ GpuConfig::ThreadMask ballotSync(bool flag)
+{
+#ifdef __CUDACC__
+    return __ballot_sync(0xFFFFFFFF, flag);
+#else
+    return __ballot(flag);
+#endif
+}
 
 //! @brief compute warp-wide min
 template<class T>
@@ -12,7 +66,7 @@ __device__ __forceinline__ T warpMin(T laneVal)
     #pragma unroll
     for (int i = 0; i < GpuConfig::warpSizeLog2; i++)
     {
-        laneVal = min(laneVal, __shfl_xor_sync(0xFFFFFFFF, laneVal, 1 << i));
+        laneVal = min(laneVal, shflXorSync(laneVal, 1 << i));
     }
 
     return laneVal;
@@ -25,7 +79,7 @@ __device__ __forceinline__ T warpMax(T laneVal)
     #pragma unroll
     for (int i = 0; i < GpuConfig::warpSizeLog2; i++)
     {
-        laneVal = max(laneVal, __shfl_xor_sync(0xFFFFFFFF, laneVal, 1 << i));
+        laneVal = max(laneVal, shflXorSync(laneVal, 1 << i));
     }
 
     return laneVal;
@@ -40,7 +94,7 @@ __device__ __forceinline__ int inclusiveScanInt(int value)
     #pragma unroll
     for (int i = 1; i < GpuConfig::warpSize; i *= 2)
     {
-        int partial = __shfl_up_sync(0xFFFFFFFF, value, i);
+        int partial = shflUpSync(value, i);
         if (i <= lane)
         {
             value += partial;
@@ -52,9 +106,9 @@ __device__ __forceinline__ int inclusiveScanInt(int value)
 // Scan bool
 
 //! @brief returns a mask with bits set for each warp lane before the calling lane
-__device__ __forceinline__ int lanemask_lt()
+__device__ __forceinline__ GpuConfig::ThreadMask lanemask_lt()
 {
-    unsigned lane = threadIdx.x & (GpuConfig::warpSize - 1);
+    GpuConfig::ThreadMask lane = threadIdx.x & (GpuConfig::warpSize - 1);
     return (1 << lane) - 1;
     //int mask;
     //asm("mov.u32 %0, %lanemask_lt;" : "=r"(mask));
@@ -63,22 +117,24 @@ __device__ __forceinline__ int lanemask_lt()
 
 __device__ __forceinline__ int exclusiveScanBool(const bool p)
 {
-    unsigned b = __ballot_sync(0xFFFFFFFF, p);
-    return __popc(b & lanemask_lt());
+    using SignedMask = std::make_signed_t<GpuConfig::ThreadMask>;
+    GpuConfig::ThreadMask b = ballotSync(p);
+    return popCount(SignedMask(b & lanemask_lt()));
 }
 
 __device__ __forceinline__ int reduceBool(const bool p)
 {
-    unsigned b = __ballot_sync(0xFFFFFFFF, p);
-    return __popc(b);
+    using SignedMask = std::make_signed_t<GpuConfig::ThreadMask>;
+    GpuConfig::ThreadMask b = ballotSync(p);
+    return popCount(SignedMask(b));
 }
 
 // Segmented scan int
 
 //! @brief returns a mask with bits set for each warp lane before and including the calling lane
-__device__ __forceinline__ int lanemask_le()
+__device__ __forceinline__ GpuConfig::ThreadMask lanemask_le()
 {
-    unsigned lane = threadIdx.x & (GpuConfig::warpSize - 1);
+    GpuConfig::ThreadMask lane = threadIdx.x & (GpuConfig::warpSize - 1);
     return (2 << lane) - 1;
     //int mask;
     //asm("mov.u32 %0, %lanemask_le;" : "=r"(mask));
@@ -99,11 +155,11 @@ __device__ __forceinline__ int lanemask_le()
 __device__ __forceinline__ int inclusiveSegscan(int value, int distance)
 {
     // distance should be less-equal the lane index
-    assert (distance <= (threadIdx.x & (WARP_SIZE- 1)));
+    assert (distance <= (threadIdx.x & (GpuConfig::warpSize - 1)));
     #pragma unroll
     for (int i = 1; i < GpuConfig::warpSize; i *= 2)
     {
-        int partial = __shfl_up_sync(0xFFFFFFFF, value, i);
+        int partial = shflUpSync(value, i);
         if (i <= distance)
         {
             value += partial;
@@ -133,16 +189,16 @@ __device__ __forceinline__ int inclusiveSegscanInt(const int packedValue, const 
     // value = -packedValue - 1 if packedValue < 0
     int value = (~mask & packedValue) + (mask & (-1 - packedValue));
 
-    int flags = int(__ballot_sync(0xFFFFFFFF, isNegative));
+    GpuConfig::ThreadMask flags = ballotSync(isNegative);
 
     // distance = number of preceding lanes to include in scanned value
     // e.g. if distance = 0, then no preceding lane value will be added to scannedValue
-    int distance     = __clz(flags & lanemask_le()) + laneIdx - (GpuConfig::warpSize - 1);
+    int distance     = countLeadingZeros(flags & lanemask_le()) + laneIdx - (GpuConfig::warpSize - 1);
     int scannedValue = inclusiveSegscan(value, min(distance, laneIdx));
 
-    // the lowest lane index for which packedValue was negative, WARP_SIZE if all were positive
+    // the lowest lane index for which packedValue was negative, warpSize if all were positive
     // __brev reverses the bit order
-    int firstNegativeLane = __clz(int(__brev(flags)));
+    int firstNegativeLane = countLeadingZeros(reverseBits(flags));
     int addCarry          = -(laneIdx < firstNegativeLane);
 
     return scannedValue + (carryValue & addCarry);
@@ -161,9 +217,11 @@ __device__ __forceinline__ int inclusiveSegscanInt(const int packedValue, const 
  */
 __device__ __forceinline__ int warpCompact(bool flag, const int fillLevel, int* numElementsKeep)
 {
-    unsigned keepBallot = __ballot_sync(0xFFFFFFFF, flag);
-    int laneCompacted   = fillLevel + __popc(keepBallot & lanemask_lt()); // exclusive scan of keepBallot
-    *numElementsKeep    = __popc(keepBallot);
+    using SignedMask = std::make_signed_t<GpuConfig::ThreadMask>;
+
+    GpuConfig::ThreadMask keepBallot = ballotSync(flag);
+    int laneCompacted   = fillLevel + popCount(SignedMask(keepBallot & lanemask_lt())); // exclusive scan of keepBallot
+    *numElementsKeep    = popCount(SignedMask(keepBallot));
 
     return laneCompacted;
 }

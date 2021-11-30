@@ -91,9 +91,9 @@ TEST(WarpScan, inclusiveInt)
     testScan<<<1, 2 * GpuConfig::warpSize>>>(values.d());
     values.d2h();
 
-    for (int i = 0; i < 64; ++i)
+    for (int i = 0; i < 2 * GpuConfig::warpSize; ++i)
     {
-        EXPECT_EQ(values[i], i % WARP_SIZE + 1);
+        EXPECT_EQ(values[i], i % GpuConfig::warpSize + 1);
     }
 }
 
@@ -109,9 +109,9 @@ TEST(WarpScan, bools)
     testScanBool<<<1, 2 * GpuConfig::warpSize>>>(values.d());
     values.d2h();
 
-    for (int i = 0; i < 64; ++i)
+    for (int i = 0; i < 2 * GpuConfig::warpSize; ++i)
     {
-        EXPECT_EQ(values[i], (i % WARP_SIZE) / 2);
+        EXPECT_EQ(values[i], (i % GpuConfig::warpSize) / 2);
     }
 }
 

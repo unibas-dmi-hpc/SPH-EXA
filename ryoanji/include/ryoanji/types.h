@@ -1,7 +1,5 @@
 #pragma once
 
-#define WARP_SIZE2 5
-#define WARP_SIZE 32
 #define CUDA_SAFE_CALL(err) cudaSafeCall(err, __FILE__, __LINE__)
 
 #include <cassert>
@@ -21,12 +19,22 @@ typedef util::array<kahan<float>, 4> kvec4;
 
 struct GpuConfig
 {
-    //! @brief number of threads per warp
+    //! @brief number of threads per warp, adapt to actual hardware
     static constexpr int warpSize = 32;
+
+    static_assert(warpSize == 32 || warpSize == 64, "warp size has to be 32 or 64");
+
     //! @brief log2(warpSize)
-    static constexpr int warpSizeLog2 = 5;
-    //! @brief number of multiprocessors
+    static constexpr int warpSizeLog2 = (warpSize == 32) ? 5 : 6;
+
+    //! @brief number of multiprocessors, set based on cudaGetDeviceProp
     inline static int smCount = 56;
+
+    /*! @brief integer type for representing a thread mask, e.g. return value of __ballot_sync()
+     *
+     * This will automatically pick the right type based on the warpSize choice. Do not adapt.
+     */
+    using ThreadMask = std::conditional_t<warpSize == 32, unsigned, uint64_t>;
 };
 
 //! Center and radius of bounding box
