@@ -1,14 +1,15 @@
 #pragma once
-#include <algorithm>
 
 #include "types.h"
 
-__global__ void directKernel(int numSource, float eps2, const fvec4* bodyPos, fvec4* bodyAcc)
+struct DirectConfig
 {
-    unsigned laneIdx      = threadIdx.x & (WARP_SIZE - 1);
-    // number of warps in the block
-    unsigned numWarps    = (blockDim.x - 1) / WARP_SIZE + 1;
-    unsigned targetIdx   = blockDim.x * blockIdx.x + threadIdx.x;
+    static constexpr int numThreads = 256;
+};
+
+__global__ void directKernel(int numSource, float eps2, const fvec4* __restrict__ bodyPos, fvec4* bodyAcc)
+{
+    unsigned targetIdx = blockDim.x * blockIdx.x + threadIdx.x;
 
     fvec4 pos = {0.0, 0.0, 0.0, 0.0};
     if (targetIdx < numSource)
@@ -17,59 +18,52 @@ __global__ void directKernel(int numSource, float eps2, const fvec4* bodyPos, fv
     }
     const fvec3 pos_i{pos[0], pos[1], pos[2]};
 
-    kvec4 acc = {0.0, 0.0, 0.0, 0.0};
+    //kvec4 acc = {0.0, 0.0, 0.0, 0.0};
+    util::array<double, 4> acc{0, 0, 0, 0};
 
-    for (int block = 0; block < gridDim.x; ++block)
+    __shared__ fvec4 sm_bodytile[DirectConfig::numThreads];
+    for (int tile = 0; tile < gridDim.x; ++tile)
     {
-        unsigned blockOffset = block * blockDim.x;
-        for (int jb = 0; jb < numWarps; jb++)
+        int sourceIdx = tile * blockDim.x + threadIdx.x;
+        if (sourceIdx < numSource)
+            sm_bodytile[threadIdx.x] = bodyPos[sourceIdx];
+        else
+            sm_bodytile[threadIdx.x] = fvec4{0, 0, 0, 0};
+
+        __syncthreads();
+
+        for (int j = 0; j < blockDim.x; ++j)
         {
-            pos[3] = 0;
-            unsigned sourceIdx = blockOffset + jb * WARP_SIZE + laneIdx;
+            fvec3 pos_j = make_fvec3(sm_bodytile[j]);
+            float q_j = sm_bodytile[j][3];
+            fvec3 dX = pos_j - pos_i;
 
-            if (sourceIdx < numSource)
-            {
-                pos = bodyPos[sourceIdx];
-            }
+            float R2    = norm2(dX) + eps2;
+            float invR  = rsqrtf(R2);
+            float invR2 = invR * invR;
+            float invR1 = q_j * invR;
 
-            for (int j = 0; j < WARP_SIZE; j++)
-            {
-                fvec3 pos_j{__shfl_sync(0xFFFFFFFF, pos[0], j),
-                            __shfl_sync(0xFFFFFFFF, pos[1], j),
-                            __shfl_sync(0xFFFFFFFF, pos[2], j)};
+            dX *= invR1 * invR2;
 
-                float q_j = __shfl_sync(0xFFFFFFFF, pos[3], j);
-                fvec3 dX = pos_j - pos_i;
-
-                float R2    = norm2(dX) + eps2;
-                float invR  = rsqrtf(R2);
-                float invR2 = invR * invR;
-                float invR1 = q_j * invR;
-
-                dX *= invR1 * invR2;
-
-                // avoid self-gravity and interaction with padding threads
-                if (R2 != 0.0)
-                {
-                    acc[0] -= invR1;
-                    acc[1] += dX[0];
-                    acc[2] += dX[1];
-                    acc[3] += dX[2];
-                }
-            }
+            acc[0] -= invR1;
+            acc[1] += dX[0];
+            acc[2] += dX[1];
+            acc[3] += dX[2];
         }
+
+        __syncthreads();
     }
 
     if (targetIdx < numSource)
     {
-        bodyAcc[targetIdx] = fvec4{acc[0], acc[1], acc[2], acc[3]};
+        bodyAcc[targetIdx] = fvec4{float(acc[0]), float(acc[1]), float(acc[2]), float(acc[3])};
     }
 }
 
 void directSum(float eps, cudaVec<fvec4>& bodyPos, cudaVec<fvec4>& bodyAcc)
 {
     int numBodies  = bodyPos.size();
-    int numThreads = 512;
+    int numThreads = DirectConfig::numThreads;
     int numBlock   = (numBodies - 1) / numThreads + 1;
 
     directKernel<<<numBlock, numThreads>>>(numBodies, eps * eps, bodyPos.d(), bodyAcc.d());
