@@ -339,6 +339,8 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
         // first thread in warp grabs next target
         if (laneIdx == 0)
         {
+            // this effectively randomizes which warp gets which targets, which better balances out
+            // the load imbalance between different targets compared to static assignment
             targetIdx = atomicAdd(&targetCounterGlob, 1);
         }
         targetIdx = __shfl_sync(0xFFFFFFFF, targetIdx, 0, GpuConfig::warpSize);
@@ -357,18 +359,15 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
         }
 
         fvec3 Xmin = pos_i[0];
-        fvec3 Xmax = Xmin;
-        for (int i = 0; i < TravConfig::nwt; i++)
+        fvec3 Xmax = pos_i[0];
+        for (int i = 1; i < TravConfig::nwt; i++)
         {
-            getMinMax(Xmin, Xmax, pos_i[i]);
+            Xmin = min(Xmin, pos_i[i]);
+            Xmax = max(Xmax, pos_i[i]);
         }
 
-        Xmin[0] = __shfl_sync(0xFFFFFFFF, Xmin[0], 0);
-        Xmin[1] = __shfl_sync(0xFFFFFFFF, Xmin[1], 0);
-        Xmin[2] = __shfl_sync(0xFFFFFFFF, Xmin[2], 0);
-        Xmax[0] = __shfl_sync(0xFFFFFFFF, Xmax[0], 0);
-        Xmax[1] = __shfl_sync(0xFFFFFFFF, Xmax[1], 0);
-        Xmax[2] = __shfl_sync(0xFFFFFFFF, Xmax[2], 0);
+        Xmin = { warpMin(Xmin[0]), warpMin(Xmin[1]), warpMin(Xmin[2]) };
+        Xmax = { warpMax(Xmax[0]), warpMax(Xmax[1]), warpMax(Xmax[2]) };
 
         fvec3 targetCenter     = (Xmax + Xmin) * 0.5f;
         const fvec3 targetSize = (Xmax - Xmin) * 0.5f;
@@ -510,7 +509,6 @@ public:
         resetTraversalCounters<<<1,1>>>();
 
         auto t0 = std::chrono::high_resolution_clock::now();
-        CUDA_SAFE_CALL(cudaFuncSetCacheConfig(&traverse, cudaFuncCachePreferL1));
         traverse<<<numBlocks, TravConfig::numThreadsTraversal>>>(firstBody,
                                                                 lastBody,
                                                                 images,

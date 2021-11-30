@@ -3,28 +3,30 @@
 namespace
 {
 
-__device__ __forceinline__ void getMinMax(fvec3& _Xmin, fvec3& _Xmax, const fvec3& pos)
+//! @brief compute warp-wide min
+template<class T>
+__device__ __forceinline__ T warpMin(T laneVal)
 {
-    fvec3 Xmin = pos;
-    fvec3 Xmax = Xmin;
-
-#pragma unroll
-    for (int i = 0; i < WARP_SIZE2; i++)
+    #pragma unroll
+    for (int i = 0; i < GpuConfig::warpSizeLog2; i++)
     {
-        Xmin[0] = min(Xmin[0], __shfl_xor_sync(0xFFFFFFFF, Xmin[0], 1 << i));
-        Xmin[1] = min(Xmin[1], __shfl_xor_sync(0xFFFFFFFF, Xmin[1], 1 << i));
-        Xmin[2] = min(Xmin[2], __shfl_xor_sync(0xFFFFFFFF, Xmin[2], 1 << i));
-        Xmax[0] = max(Xmax[0], __shfl_xor_sync(0xFFFFFFFF, Xmax[0], 1 << i));
-        Xmax[1] = max(Xmax[1], __shfl_xor_sync(0xFFFFFFFF, Xmax[1], 1 << i));
-        Xmax[2] = max(Xmax[2], __shfl_xor_sync(0xFFFFFFFF, Xmax[2], 1 << i));
+        laneVal = min(laneVal, __shfl_xor_sync(0xFFFFFFFF, laneVal, 1 << i));
     }
 
-    _Xmin[0] = min(_Xmin[0], Xmin[0]);
-    _Xmin[1] = min(_Xmin[1], Xmin[1]);
-    _Xmin[2] = min(_Xmin[2], Xmin[2]);
-    _Xmax[0] = max(_Xmax[0], Xmax[0]);
-    _Xmax[1] = max(_Xmax[1], Xmax[1]);
-    _Xmax[2] = max(_Xmax[2], Xmax[2]);
+    return laneVal;
+}
+
+//! @brief compute warp-wide max
+template<class T>
+__device__ __forceinline__ T warpMax(T laneVal)
+{
+    #pragma unroll
+    for (int i = 0; i < GpuConfig::warpSizeLog2; i++)
+    {
+        laneVal = max(laneVal, __shfl_xor_sync(0xFFFFFFFF, laneVal, 1 << i));
+    }
+
+    return laneVal;
 }
 
 // Scan int
