@@ -67,9 +67,9 @@ __host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int e
  * @param[out] cellXmax         coordinate maximum of each cell
  * @param[out] Multipole        output multipole of each cell
  */
-__global__ __launch_bounds__(NTHREAD) void upwardPass(const int level, int2* levelRange, CellData* cells,
-                                                      fvec4* sourceCenter, fvec3* cellXmin, fvec3* cellXmax,
-                                                      fvec4* Multipole)
+__global__ void upwardPass(const int level, int2* levelRange, CellData* cells,
+                           fvec4* sourceCenter, fvec3* cellXmin, fvec3* cellXmax,
+                           fvec4* Multipole)
 {
     const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x + levelRange[level].x;
     if (cellIdx >= levelRange[level].y) return;
@@ -117,8 +117,8 @@ __global__ __launch_bounds__(NTHREAD) void upwardPass(const int level, int2* lev
         Multipole[NVEC4 * cellIdx + i] = fvec4(M[4 * i + 0], M[4 * i + 1], M[4 * i + 2], M[4 * i + 3]);
 }
 
-__global__ __launch_bounds__(NTHREAD) void setMAC(const int numCells, const float invTheta, fvec4* sourceCenter,
-                                                  fvec3* cellXmin, fvec3* cellXmax)
+__global__ void setMAC(const int numCells, const float invTheta, fvec4* sourceCenter,
+                       fvec3* cellXmin, fvec3* cellXmax)
 {
     const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x;
     if (cellIdx >= numCells) return;
@@ -135,7 +135,7 @@ __global__ __launch_bounds__(NTHREAD) void setMAC(const int numCells, const floa
     sourceCenter[cellIdx][3] = MAC2;
 }
 
-__global__ __launch_bounds__(NTHREAD) void normalize(const int numCells, fvec4* Multipole)
+__global__ void normalize(const int numCells, fvec4* Multipole)
 {
     const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x;
     if (cellIdx >= numCells) return;
