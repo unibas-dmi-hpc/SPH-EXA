@@ -10,7 +10,10 @@
 
 int main(int argc, char** argv)
 {
-    int numBodies = (1 << 21) - 1;
+    int power = argc > 1 ? std::stoi(argv[1]) : 17;
+    int directRef = argc > 2 ? std::stoi(argv[2]) : 1;
+
+    int numBodies = (1 << power) - 1;
     int images    = 0;
     float theta   = 0.6;
     float boxSize = 3;
@@ -77,6 +80,8 @@ int main(int argc, char** argv)
 
     fprintf(stdout, "--- Total runtime ----------------\n");
     fprintf(stdout, "Total BH            : %.7f s (%.7f TFlops)\n", dt, flops);
+
+    if (!directRef) { return 0; }
 
     cudaVec<fvec4> bodyAccDirect(numBodies, true);
 
