@@ -10,7 +10,7 @@ struct TravConfig
     //! @brief size of global workspace memory per warp
     static constexpr int memPerWarp = 2048 * GpuConfig::warpSize;
     //! @brief number of threads per block for the traversal kernel
-    static constexpr int numThreadsTraversal = 256;
+    static constexpr int numThreads = 256;
 
     static constexpr int numWarpsPerSm = 20;
     //! @brief maximum number of simultaneously active blocks
@@ -24,7 +24,7 @@ struct TravConfig
 };
 
 int TravConfig::maxNumActiveBlocks =
-    GpuConfig::smCount * (TravConfig::numWarpsPerSm / (TravConfig::numThreadsTraversal / GpuConfig::warpSize));
+    GpuConfig::smCount * (TravConfig::numWarpsPerSm / (TravConfig::numThreads / GpuConfig::warpSize));
 
 namespace
 {
@@ -304,7 +304,7 @@ __global__ void resetTraversalCounters()
  * @param[out] bodyAcc       body accelerations
  * @param[-]   globalPool    length proportional to number of warps in the launch grid, uninitialized
  */
-__global__ __launch_bounds__(TravConfig::numThreadsTraversal)
+__global__ __launch_bounds__(TravConfig::numThreads)
 void traverse(int firstBody, int lastBody, int images, const float EPS2, float cycle,
               const int2* levelRange, const fvec4* __restrict__ bodyPos,
               const CellData* __restrict__ srcCells,
@@ -314,13 +314,12 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
     const int warpIdx = threadIdx.x >> GpuConfig::warpSizeLog2;
 
-    constexpr int numWarpsPerBlock = TravConfig::numThreadsTraversal / GpuConfig::warpSize;
+    constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
 
     const int numTargets = (lastBody - firstBody - 1) / TravConfig::targetSize + 1;
 
     static_assert(NTERM <= GpuConfig::warpSize, "review approxAcc function before disabling this check");
-    constexpr int smSize = (TravConfig::numThreadsTraversal > NTERM * numWarpsPerBlock) ? TravConfig::numThreadsTraversal
-                            : NTERM * numWarpsPerBlock;
+    constexpr int smSize = (TravConfig::numThreads > NTERM * numWarpsPerBlock) ? TravConfig::numThreads : NTERM * numWarpsPerBlock;
     __shared__ int sharedPool[smSize];
 
     // warp-common shared mem, 1 int per thread
@@ -487,7 +486,7 @@ public:
                         cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
                         cudaVec<fvec4>& Multipole, cudaVec<int2>& levelRange)
     {
-        constexpr int numWarpsPerBlock = TravConfig::numThreadsTraversal / GpuConfig::warpSize;
+        constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
 
         int numBodies = lastBody - firstBody;
 
@@ -507,7 +506,7 @@ public:
         resetTraversalCounters<<<1,1>>>();
 
         auto t0 = std::chrono::high_resolution_clock::now();
-        traverse<<<numBlocks, TravConfig::numThreadsTraversal>>>(firstBody,
+        traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody,
                                                                 lastBody,
                                                                 images,
                                                                 eps * eps,
