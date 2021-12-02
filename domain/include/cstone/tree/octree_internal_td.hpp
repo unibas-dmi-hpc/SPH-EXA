@@ -135,7 +135,7 @@ void constructOctree(const KeyType* leaves, TreeNodeIndex numLeafNodes, const Bi
      * binaryTree |---------------------------------------------------|
      *                    ^                      |
      *   octToBinary   |--|  |-------------------|  binaryToOct
-     *                 |     |
+     *                 |     V
      * prefixes   |------------|--------------------------------|
      * levels     |------------|--------------------------------|
      *              internal        leaves
@@ -166,7 +166,7 @@ void constructOctree(const KeyType* leaves, TreeNodeIndex numLeafNodes, const Bi
     /*! prefix and levels now in sorted layout B
      *
      *  -levels is sorted in ascending order
-     *  -prefix is first sorted by level, then by ascening key
+     *  -prefix is first sorted by level, then by ascending key
      *  -nodeOrder goes from layout B to layout A (nodeOrder[i] is i's location in A)
      */
 

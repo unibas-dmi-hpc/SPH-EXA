@@ -44,22 +44,22 @@ using namespace cstone;
  *
  * Depends on binary/octree generation, so not strictly a unit test
  */
-template<class I>
+template<class KeyType>
 void nodeDepthThreading()
 {
     // uniform level-7 tree with 2097152 nodes
-    std::vector<I> leaves = makeUniformNLevelTree<I>(128*128*128, 1);
+    std::vector<KeyType> leaves = makeUniformNLevelTree<KeyType>(128*128*128, 1);
 
-    std::vector<BinaryNode<I>> binaryTree(nNodes(leaves));
+    std::vector<BinaryNode<KeyType>> binaryTree(nNodes(leaves));
     createBinaryTree(leaves.data(), nNodes(leaves), binaryTree.data());
 
-    std::vector<OctreeNode<I>> octree((nNodes(leaves)-1)/7);
+    std::vector<OctreeNode<KeyType>> octree((nNodes(leaves)-1)/7);
     std::vector<TreeNodeIndex> leafParents(nNodes(leaves));
 
     createInternalOctreeCpu(binaryTree.data(), nNodes(leaves), octree.data(), leafParents.data());
 
     // upload octree to device
-    thrust::device_vector<OctreeNode<I>> d_octree = octree;
+    thrust::device_vector<OctreeNode<KeyType>> d_octree = octree;
 
     thrust::device_vector<TreeNodeIndex> d_depths(octree.size(), 0);
 
@@ -85,4 +85,37 @@ TEST(InternalOctreeGpu, nodeDepthsThreading)
 {
     nodeDepthThreading<unsigned>();
     nodeDepthThreading<uint64_t>();
+}
+
+template<class KeyType>
+void constructInternalOctree()
+{
+    // uniform level-7 tree with 2097152 nodes
+    std::vector<KeyType> leaves = makeUniformNLevelTree<KeyType>(128 * 128 * 128, 1);
+
+    // upload cornerstone tree to device
+    thrust::device_vector<KeyType> d_leaves = leaves;
+
+    OctreeGpuDataAnchor<KeyType> treeDataGpu;
+    treeDataGpu.resize(nNodes(leaves));
+
+    buildInternalOctreeGpu(thrust::raw_pointer_cast(d_leaves.data()), treeDataGpu.getData());
+
+    thrust::host_vector<TreeNodeIndex> h_children = treeDataGpu.childOffsets;
+    std::cout << h_children[0] << std::endl;
+    std::cout << h_children[1] << std::endl;
+    std::cout << h_children[2] << std::endl;
+    std::cout << h_children[3] << std::endl;
+    std::cout << h_children[4] << std::endl;
+    std::cout << h_children[5] << std::endl;
+    std::cout << h_children[6] << std::endl;
+    std::cout << h_children[7] << std::endl;
+    std::cout << h_children[8] << std::endl;
+    EXPECT_EQ(h_children[0], 1);
+}
+
+TEST(InternalOctreeGpu, construct)
+{
+    constructInternalOctree<unsigned>();
+    //constructInternalOctree<uint64_t>();
 }

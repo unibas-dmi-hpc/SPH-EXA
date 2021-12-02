@@ -36,23 +36,19 @@ namespace cstone
 {
 
 //! @brief see createBinaryTree
-template <class I>
-__global__ void createBinaryTreeKernel(const I* cstree, TreeNodeIndex nNodes, BinaryNode<I>* binaryTree)
+template<class KeyType>
+__global__ void createBinaryTreeKernel(const KeyType* cstree, TreeNodeIndex numNodes, BinaryNode<KeyType>* binaryTree)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid < nNodes)
-    {
-        constructInternalNode(cstree, nNodes + 1, binaryTree, tid);
-    }
+    if (tid < numNodes) { constructInternalNode(cstree, numNodes + 1, binaryTree, tid); }
 }
 
 //! @brief convenience kernel wrapper
-template <class I>
-void createBinaryTreeGpu(const I* cstree, TreeNodeIndex nNodes, BinaryNode<I>* binaryTree)
+template<class KeyType>
+void createBinaryTreeGpu(const KeyType* cstree, TreeNodeIndex numNodes, BinaryNode<KeyType>* binaryTree)
 {
-    constexpr int nThreads = 512;
-    createBinaryTreeKernel<<<iceil(nNodes, nThreads), nThreads>>>
-        (cstree, nNodes, binaryTree);
+    constexpr int numThreads = 256;
+    createBinaryTreeKernel<<<iceil(numNodes, numThreads), numThreads>>>(cstree, numNodes, binaryTree);
 }
 
 } // namespace cstone
