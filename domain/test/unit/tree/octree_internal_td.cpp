@@ -74,7 +74,6 @@ void checkConnectivity(const TdOctree<KeyType>& fullTree)
                 EXPECT_EQ(fullTree.codeStart(nodeIdx), 0);
                 EXPECT_EQ(fullTree.level(nodeIdx), 0);
             }
-
         }
         else
         {
@@ -87,10 +86,10 @@ void checkConnectivity(const TdOctree<KeyType>& fullTree)
             EXPECT_EQ(fullTree.level(parent), level - 1);
 
             KeyType parentPrefix = fullTree.codeStart(parent);
-                EXPECT_EQ(parentPrefix, enclosingBoxCode(prefix, level - 1));
-            }
+            EXPECT_EQ(parentPrefix, enclosingBoxCode(prefix, level - 1));
         }
     }
+}
 
 TEST(InternalOctreeTd, rootNode)
 {

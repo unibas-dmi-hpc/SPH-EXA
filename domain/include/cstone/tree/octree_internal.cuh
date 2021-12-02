@@ -63,13 +63,13 @@ struct OctreeGpuDataView
     BinaryNode<KeyType>* binaryTree;
 
     KeyType*       prefixes;
-    unsigned*      levels;
     TreeNodeIndex* binaryToOct;
     TreeNodeIndex* octToBinary;
     TreeNodeIndex* nodeOrder;
     TreeNodeIndex* inverseNodeOrder;
     TreeNodeIndex* childOffsets;
     TreeNodeIndex* parents;
+    TreeNodeIndex* levelRange;
 };
 
 template<class KeyType>
@@ -127,9 +127,13 @@ __global__ void createUnsortedLayout(const BinaryNode<KeyType>* binaryTree, int 
 }
 
 template<class KeyType>
-__global__ void linkTree(const BinaryNode<KeyType>* binaryTree, TreeNodeIndex numInternalNodes, const TreeNodeIndex* octToBinary,
-                         const TreeNodeIndex* binaryToOct, const TreeNodeIndex* inverseNodeOrder,
-                         TreeNodeIndex* childOffsets, TreeNodeIndex* parents)
+__global__ void linkTree(const BinaryNode<KeyType>* binaryTree,
+                         TreeNodeIndex numInternalNodes,
+                         const TreeNodeIndex* octToBinary,
+                         const TreeNodeIndex* binaryToOct,
+                         const TreeNodeIndex* inverseNodeOrder,
+                         TreeNodeIndex* childOffsets,
+                         TreeNodeIndex* parents)
 {
     // loop over octree nodes index in unsorted layout A
     unsigned idxA = blockDim.x * blockIdx.x + threadIdx.x;
@@ -154,9 +158,27 @@ __global__ void linkTree(const BinaryNode<KeyType>* binaryTree, TreeNodeIndex nu
 }
 
 template<class KeyType>
+__global__ void getLevelRange(const KeyType* nodeKeys, TreeNodeIndex numNodes, TreeNodeIndex* levelRange)
+{
+    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
+    if (tid < numNodes - 1)
+    {
+        unsigned l1 = decodePrefixLength(nodeKeys[tid]);
+        unsigned l2 = decodePrefixLength(nodeKeys[tid + 1]);
+
+        if (l1 != l2) { levelRange[l2 / 3] = tid + 1; }
+    }
+    if (tid == numNodes - 1)
+    {
+        unsigned l1        = decodePrefixLength(nodeKeys[tid]);
+        levelRange[l1 / 3 + 1] = tid + 1;
+    }
+}
+
+template<class KeyType>
 struct compareLevelThenPrefix
 {
-    __thrust_exec_check_disable__ HOST_DEVICE_FUN bool operator()(KeyType a, KeyType b) const
+    HOST_DEVICE_FUN bool operator()(KeyType a, KeyType b) const
     {
         unsigned prefix_a = decodePrefixLength(a);
         unsigned prefix_b = decodePrefixLength(b);
@@ -208,6 +230,9 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeGpuDataView<KeyType
 
     linkTree<<<iceil(d.numInternalNodes, numThreads), numThreads>>>(
         d.binaryTree, d.numInternalNodes, d.octToBinary, d.binaryToOct, d.inverseNodeOrder, d.childOffsets, d.parents);
+
+    thrust::fill(thrust::device, d.levelRange, d.levelRange + maxTreeLevel<KeyType>{} + 2, 0);
+    getLevelRange<<<iceil(numNodes, numThreads), numThreads>>>(d.prefixes, numNodes, d.levelRange);
 }
 
 template<class KeyType>
@@ -223,7 +248,6 @@ public:
         binaryTree.resize(numLeafNodes);
 
         prefixes.resize(numNodes);
-        levels.resize(numNodes);
 
         binaryToOct.resize(numLeafNodes);
         octToBinary.resize(numInternalNodes);
@@ -233,6 +257,9 @@ public:
         inverseNodeOrder.resize(numNodes);
 
         parents.resize((numNodes - 1) / 8);
+
+        //+1 due to level 0 and +1 due to the upper bound for the last level
+        levelRange.resize(maxTreeLevel<KeyType>{} + 2);
     }
 
     OctreeGpuDataView<KeyType> getData()
@@ -241,13 +268,13 @@ public:
                 numInternalNodes,
                 thrust::raw_pointer_cast(binaryTree.data()),
                 thrust::raw_pointer_cast(prefixes.data()),
-                thrust::raw_pointer_cast(levels.data()),
                 thrust::raw_pointer_cast(binaryToOct.data()),
                 thrust::raw_pointer_cast(octToBinary.data()),
                 thrust::raw_pointer_cast(nodeOrder.data()),
                 thrust::raw_pointer_cast(inverseNodeOrder.data()),
                 thrust::raw_pointer_cast(childOffsets.data()),
                 thrust::raw_pointer_cast(parents.data()),
+                thrust::raw_pointer_cast(levelRange.data()),
         };
     }
 
@@ -257,13 +284,13 @@ public:
     thrust::device_vector<BinaryNode<KeyType>> binaryTree;
 
     thrust::device_vector<KeyType>  prefixes;
-    thrust::device_vector<unsigned> levels;
     thrust::device_vector<TreeNodeIndex> binaryToOct;
     thrust::device_vector<TreeNodeIndex> octToBinary;
     thrust::device_vector<TreeNodeIndex> nodeOrder;
     thrust::device_vector<TreeNodeIndex> inverseNodeOrder;
     thrust::device_vector<TreeNodeIndex> childOffsets;
     thrust::device_vector<TreeNodeIndex> parents;
+    thrust::device_vector<TreeNodeIndex> levelRange;
 };
 
 } // namespace cstone
