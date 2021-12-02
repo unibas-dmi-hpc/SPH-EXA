@@ -53,12 +53,13 @@ __global__ void nodeDepthKernel(const OctreeNode<I>* octree, TreeNodeIndex nNode
     }
 }
 
+//! Octree GPU data view for use in kernel code
 template<class KeyType>
 struct OctreeGpuDataView
 {
 
-    TreeNodeIndex numLeafNodes{0};
-    TreeNodeIndex numInternalNodes{0};
+    TreeNodeIndex numLeafNodes;
+    TreeNodeIndex numInternalNodes;
 
     BinaryNode<KeyType>* binaryTree;
 
@@ -72,6 +73,13 @@ struct OctreeGpuDataView
     TreeNodeIndex* levelRange;
 };
 
+/*! @brief determine which binary nodes correspond to octree nodes
+ *
+ * @tparam KeyType         unsigned 32- or 64-bit integer
+ * @param[in]  binaryTree  binary radix tree nodes, length @p numNodes
+ * @param[in]  numNodes    number of binary radix tree nodes
+ * @param[out] binaryToOct for each binary node, store 1 if prefix bit length is divisible by 3
+ */
 template<class KeyType>
 __global__ void
 enumeratePrefixes(const BinaryNode<KeyType>* binaryTree, TreeNodeIndex numNodes, TreeNodeIndex* binaryToOct)
@@ -85,9 +93,15 @@ enumeratePrefixes(const BinaryNode<KeyType>* binaryTree, TreeNodeIndex numNodes,
     }
 }
 
+/*! @brief map octree nodes back to binary nodes
+ *
+ * @param[in]  binaryToOct     translation map from binary to octree nodes, length @p numBinaryNodes
+ * @param[in]  numBinaryNodes  number of binary tree nodes
+ * @param[out] octToBinary     the inversion of binaryToOct, octToBinary[binaryToOct[i]] == i
+ */
 __global__ void translateToOct(const TreeNodeIndex* binaryToOct, int numBinaryNodes, TreeNodeIndex* octToBinary)
 {
-    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
+    int tid = int(blockDim.x * blockIdx.x + threadIdx.x);
     if (tid < numBinaryNodes)
     {
         bool isOctreeNode = (binaryToOct[tid+1] - binaryToOct[tid]) == 1;
@@ -99,12 +113,35 @@ __global__ void translateToOct(const TreeNodeIndex* binaryToOct, int numBinaryNo
     }
 }
 
+/*! @brief combine internal and leaf tree parts into single arrays in the binary tree order
+ *
+ * @tparam KeyType               unsigned 32- or 64-bit integer
+ * @param[in]  binaryTree        binary radix tree nodes, length numNodes - numInternalNodes - 1
+ * @param[in]  numInternalNodes  number of internal (output) octree nodes
+ * @param[in]  numNodes          total number of nodes
+ * @param[in]  leaves            cornerstone SFC keys used to compute binaryTree, length numNodes - numInternalNodes + 1
+ * @param[in]  octToBinary       translation map from octree to binary node indices
+ * @param[out] prefixes          output octree SFC keys, length @p numNodes
+ *                               NOTE: keys are prefixed with Warren-Salmon placeholder bits!
+ * @param[out] nodeOrder         iota 0,1,2,3,... sequence for later use, length @p numNodes
+ * @param[out] inverseNodeOrder  iota 0,1,2,3,... sequence for later use, length @p numNodes
+ *
+ * Unsorted binary radix tree ordering: first all internal nodes, then leaf nodes
+ *
+ *    binaryTree |---------------------------------------------------|
+ *                       ^                      |
+ *      octToBinary   |--|  |-------------------|  binaryToOct
+ *                    |     V
+ *    prefixes   |------------|--------------------------------|
+ *    levels     |------------|--------------------------------|
+ *                 internal        leaves
+ */
 template<class KeyType>
 __global__ void createUnsortedLayout(const BinaryNode<KeyType>* binaryTree, int numInternalNodes, int numNodes,
                                      const KeyType* leaves, const TreeNodeIndex* octToBinary,
                                      KeyType* prefixes, TreeNodeIndex* nodeOrder, TreeNodeIndex* inverseNodeOrder)
 {
-    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
+    int tid = int(blockDim.x * blockIdx.x + threadIdx.x);
     // internal node
     if (tid < numInternalNodes)
     {
@@ -126,6 +163,19 @@ __global__ void createUnsortedLayout(const BinaryNode<KeyType>* binaryTree, int 
     }
 }
 
+/*! @brief extract parent/child relationships from binary tree and translate to sorted order
+ *
+ * @tparam KeyType               unsigned 32- or 64-bit integer
+ * @param[in]  binaryTree        binary radix tree nodes
+ * @param[in]  numInternalNodes  number of internal octree nodes
+ * @param[in]  octToBinary       internal octree to binary node index translation map, length @p numInternalNodes
+ * @param[in]  binaryToOct       binary node to internal octree node index translation map
+ * @param[in]  inverseNodeOrder  translation map from unsorted layout to level/SFC sorted octree layout
+ *                               length is total number of octree nodes, internal + leaves
+ * @param[out] childOffsets      octree node index of first child for each node, length is total number of nodes
+ * @param[out] parents           parent index of for each node which is the first of 8 siblings
+ *                               i.e. the parent of node i is stored at parents[(i - 1)/8]
+ */
 template<class KeyType>
 __global__ void linkTree(const BinaryNode<KeyType>* binaryTree,
                          TreeNodeIndex numInternalNodes,
@@ -157,10 +207,11 @@ __global__ void linkTree(const BinaryNode<KeyType>* binaryTree,
     }
 }
 
+//! @brief determine the octree subdivision level boundaries
 template<class KeyType>
 __global__ void getLevelRange(const KeyType* nodeKeys, TreeNodeIndex numNodes, TreeNodeIndex* levelRange)
 {
-    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
+    int tid = int(blockDim.x * blockIdx.x + threadIdx.x);
     if (tid < numNodes - 1)
     {
         unsigned l1 = decodePrefixLength(nodeKeys[tid]);
@@ -175,6 +226,10 @@ __global__ void getLevelRange(const KeyType* nodeKeys, TreeNodeIndex numNodes, T
     }
 }
 
+/*! @brief functor to sort octree nodes first according to level, then by SFC key
+ *
+ * Note: takes SFC keys with Warren-Salmon placeholder bits in place as arguments
+ */
 template<class KeyType>
 struct compareLevelThenPrefix
 {
@@ -198,6 +253,15 @@ struct compareLevelThenPrefix
     }
 };
 
+/*! @brief construct the internal octree part of a given octree leaf cell array on the GPU
+ *
+ * @tparam       KeyType     unsigned 32- or 64-bit integer
+ * @param[in]    cstoneTree  GPU buffer with the SFC leaf cell keys
+ * @param[inout] d           input:  pointers to pre-allocated GPU buffers for octree cells
+ *                           ouptut: fully linked octree
+ *
+ * This does not allocate memory on the GPU, (except thrust temp buffers for scans and sorting)
+ */
 template<class KeyType>
 void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeGpuDataView<KeyType> d)
 {
@@ -235,6 +299,7 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeGpuDataView<KeyType
     getLevelRange<<<iceil(numNodes, numThreads), numThreads>>>(d.prefixes, numNodes, d.levelRange);
 }
 
+//! @brief provides a place to live for GPU resident octree data
 template<class KeyType>
 class OctreeGpuDataAnchor
 {

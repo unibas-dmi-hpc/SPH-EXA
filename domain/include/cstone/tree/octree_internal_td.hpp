@@ -151,7 +151,7 @@ void constructOctree(const KeyType* leaves, TreeNodeIndex numLeafNodes, const Bi
     {
         auto it1 = std::lower_bound(levels, levels + numNodes, level);
         auto it2 = std::upper_bound(levels, levels + numNodes, level);
-        levelOffsets[level] = it2 - it1;
+        levelOffsets[level] = TreeNodeIndex(it2 - it1);
     }
 
     exclusiveScan(levelOffsets, maxTreeLevel<KeyType>{} + 2);
