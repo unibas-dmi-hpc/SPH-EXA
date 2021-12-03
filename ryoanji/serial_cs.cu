@@ -32,9 +32,11 @@ int main(int argc, char** argv)
 
     Box box{ {0.0f}, boxSize * 1.00f};
 
-    auto [highestLevel, tree, levelRangeCs] = buildFromCstone(bodies, box);
+    cudaVec<CellData> sources(0, true);
 
-    int numSources = tree.size();
+    auto [highestLevel, levelRangeCs] = buildFromCstone(bodies, box, sources);
+
+    int numSources = sources.size();
 
     cudaVec<fvec4> bodyPos(numBodies, true);
     std::copy(bodies.begin(), bodies.end(), bodyPos.h());
@@ -43,10 +45,6 @@ int main(int argc, char** argv)
     cudaVec<int2> levelRange(levelRangeCs.size(), true);
     std::copy(levelRangeCs.begin(), levelRangeCs.end(), levelRange.h());
     levelRange.h2d();
-
-    cudaVec<CellData> sources(numSources, true);
-    std::copy(tree.begin(), tree.end(), sources.h());
-    sources.h2d();
 
     cudaVec<fvec4> sourceCenter(numSources, true);
     cudaVec<fvec4> Multipole(NVEC4 * numSources, true);

@@ -34,14 +34,42 @@
 #include <vector>
 
 #include "cstone/tree/octree_internal_td.hpp"
+#include "cstone/tree/octree.cuh"
+#include "cstone/tree/octree_internal.cuh"
 
 #include "ryoanji/types.h"
 
+template<class KeyType>
+__global__ void convertTree(cstone::OctreeGpuDataView<KeyType> cstoneTree, const cstone::LocalParticleIndex* layout,
+                            CellData* ryoanjiTree)
+{
+    unsigned tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid < cstoneTree.numInternalNodes + cstoneTree.numLeafNodes)
+    {
+        cstone::LocalParticleIndex firstParticle = layout[tid];
+        cstone::LocalParticleIndex lastParticle  = layout[tid + 1];
+
+        cstone::TreeNodeIndex child = 0;
+        int numChildren             = 1;
+
+        bool isLeaf = (cstoneTree.childOffsets[tid] == 0);
+        if (!isLeaf)
+        {
+            child       = cstoneTree.childOffsets[tid];
+            numChildren = 8;
+        }
+
+        unsigned level = cstone::decodePrefixLength(cstoneTree.prefixes[tid]) / 3;
+        ryoanjiTree[tid] =
+            CellData(level, cstoneTree.parents[tid], firstParticle, lastParticle - firstParticle, child, numChildren);
+    }
+}
 
 template<class T>
-auto buildFromCstone(std::vector<util::array<T, 4>>& bodies, const Box& box)
+auto buildFromCstone(std::vector<util::array<T, 4>>& bodies, const Box& box, cudaVec<CellData>& ryoanjiTree)
 {
-    int numParticles = bodies.size();
+    using KeyType = uint64_t;
+    unsigned numParticles = bodies.size();
     unsigned bucketSize = 64;
 
     static_assert(std::is_same_v<float, T>);
@@ -50,7 +78,7 @@ auto buildFromCstone(std::vector<util::array<T, 4>>& bodies, const Box& box)
     std::vector<T> y(numParticles);
     std::vector<T> z(numParticles);
     std::vector<T> m(numParticles);
-    std::vector<uint64_t> keys(numParticles);
+    std::vector<KeyType> keys(numParticles);
 
     for (int i = 0; i < numParticles; ++i)
     {
@@ -73,12 +101,35 @@ auto buildFromCstone(std::vector<util::array<T, 4>>& bodies, const Box& box)
 
     cstone::reorderInPlace(ordering, bodies.data());
 
-    auto [tree, counts] = cstone::computeOctree(keys.data(), keys.data() + numParticles, bucketSize);
+    thrust::device_vector<KeyType> d_particleKeys = keys;
+    thrust::device_vector<KeyType> d_tree = std::vector<KeyType>{0, cstone::nodeRange<KeyType>(0)};
+    thrust::device_vector<unsigned> d_counts = std::vector<unsigned>{numParticles};
 
-    cstone::TdOctree<uint64_t> octree;
+    {
+        thrust::device_vector<KeyType> tmpTree;
+        thrust::device_vector<cstone::TreeNodeIndex> workArray;
+
+        while (!cstone::updateOctreeGpu(thrust::raw_pointer_cast(d_particleKeys.data()),
+                                        thrust::raw_pointer_cast(d_particleKeys.data()) + d_particleKeys.size(),
+                                        bucketSize,
+                                        d_tree,
+                                        d_counts,
+                                        tmpTree,
+                                        workArray));
+    }
+    std::cout << "numNodes " << d_tree.size() << std::endl;
+
+    thrust::host_vector<KeyType> tree = d_tree;
+    thrust::host_vector<unsigned> counts = d_counts;
+
+    std::vector<cstone::LocalParticleIndex> layout(counts.size() + 1);
+    std::copy(counts.begin(), counts.end(), layout.begin());
+    cstone::exclusiveScan(layout.data(), layout.size());
+
+    cstone::TdOctree<KeyType> octree;
     octree.update(tree.data(), cstone::nNodes(tree));
 
-    std::vector<CellData> ryoanjiTree(octree.numTreeNodes());
+    ryoanjiTree.alloc(octree.numTreeNodes(), true);
 
     for (int i = 0; i < octree.numTreeNodes(); ++i)
     {
@@ -95,9 +146,10 @@ auto buildFromCstone(std::vector<util::array<T, 4>>& bodies, const Box& box)
             octree.level(i), octree.parent(i), firstParticle, lastParticle - firstParticle, child, numChildren);
         ryoanjiTree[i] = cell;
     }
+    ryoanjiTree.h2d();
 
-    std::vector<int2> levelRange(cstone::maxTreeLevel<uint64_t>{} + 1);
-    for (int level = 0; level <= cstone::maxTreeLevel<uint64_t>{}; ++level)
+    std::vector<int2> levelRange(cstone::maxTreeLevel<KeyType>{} + 1);
+    for (int level = 0; level <= cstone::maxTreeLevel<KeyType>{}; ++level)
     {
         levelRange[level].x = octree.levelOffset(level);
         levelRange[level].y = octree.levelOffset(level + 1);
@@ -105,5 +157,5 @@ auto buildFromCstone(std::vector<util::array<T, 4>>& bodies, const Box& box)
 
     int numLevels = octree.level(octree.numTreeNodes() - 1);
 
-    return std::make_tuple(numLevels, std::move(ryoanjiTree), std::move(levelRange));
+    return std::make_tuple(numLevels, std::move(levelRange));
 }
