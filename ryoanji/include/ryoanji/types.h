@@ -84,8 +84,11 @@ public:
     __host__ __device__ int nbody() const { return data.w; }
     __host__ __device__ bool isLeaf() const { return data.y == 0; }
     __host__ __device__ bool isNode() const { return !isLeaf(); }
-    __host__ __device__ void setParent(const unsigned int parent) { data.x = parent | (level() << LEVEL_SHIFT); }
-    __host__ __device__ void setChild(const unsigned int child) { data.y = child | (nchild() - 1 << CHILD_SHIFT); }
+
+    __host__ __device__ void setParent(unsigned parent) { data.x = parent | (level() << LEVEL_SHIFT); }
+    __host__ __device__ void setChild(unsigned child) { data.y = child | (nchild() - 1 << CHILD_SHIFT); }
+    __host__ __device__ void setBody(unsigned body_) { data.z = body_; }
+    __host__ __device__ void setNBody(unsigned nbody_) { data.w = nbody_; }
 };
 
 inline __host__ __device__ fvec3 make_fvec3(fvec4 v)

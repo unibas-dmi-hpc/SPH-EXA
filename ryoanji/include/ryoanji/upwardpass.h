@@ -15,7 +15,7 @@ struct UpsweepConfig
 //! @brief computes the center of mass for the bodies in the specified range
 __host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int end, const fvec4* posGlob)
 {
-    assert(begin < end);
+    assert(begin <= end);
 
     fvec4 center{0, 0, 0, 0};
     for (int i = begin; i < end; i++)
@@ -50,13 +50,13 @@ __host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int e
  * @param[out] cellXmax         coordinate maximum of each cell
  * @param[out] Multipole        output multipole of each cell
  */
-__global__ void upwardPass(const int level, const int2* levelRange, const CellData* cells, const fvec4* bodyPos,
+__global__ void upwardPass(const int level, const int2* levelRange, CellData* cells, const fvec4* bodyPos,
                            fvec4* sourceCenter, fvec3* cellXmin, fvec3* cellXmax,
                            fvec4* Multipole)
 {
     const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x + levelRange[level].x;
     if (cellIdx >= levelRange[level].y) return;
-    const CellData cell = cells[cellIdx];
+    CellData& cell = cells[cellIdx];
     const float huge    = 1e10f;
     fvec3 Xmin{+huge, +huge, +huge};
     fvec3 Xmax{-huge, -huge, -huge};
@@ -86,11 +86,18 @@ __global__ void upwardPass(const int level, const int2* levelRange, const CellDa
         const int begin = cell.child();
         const int end   = begin + cell.nchild();
         center          = setCenter(begin, end, sourceCenter);
+
+        unsigned numBodiesChildren = 0;
         for (int i = begin; i < end; i++)
         {
             Xmin = min(Xmin, cellXmin[i]);
             Xmax = max(Xmax, cellXmax[i]);
+            numBodiesChildren += cells[i].nbody();
         }
+
+        cell.setBody(cells[begin].body());
+        cell.setNBody(numBodiesChildren);
+
         M2M(begin, end, center, sourceCenter, Multipole, *(fvecP*)M);
     }
     sourceCenter[cellIdx] = center;

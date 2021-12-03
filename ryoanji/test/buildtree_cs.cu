@@ -37,10 +37,10 @@
 #include "ryoanji/upwardpass.h"
 
 
-void checkBodyIndexing(int numBodies, const std::vector<CellData>& tree)
+void checkBodyIndexing(int numBodies, CellData* tree, int numSources)
 {
     std::vector<int> bodyIndexed(numBodies, 0);
-    for (size_t i = 0; i < tree.size(); ++i)
+    for (size_t i = 1; i < numSources; ++i) // we don't check the root
     {
         if (tree[i].isLeaf())
         {
@@ -120,10 +120,9 @@ TEST(Buildtree, cstone)
 
     Box box{ {0.0f}, extent * 1.1f };
 
-    auto [highestLevel, tree, levelRangeCs] = buildFromCstone(bodies, box);
-    checkBodyIndexing(numBodies, tree);
+    cudaVec<CellData> sources(0, true);
 
-    int numSources = tree.size();
+    auto [highestLevel, levelRangeCs] = buildFromCstone(bodies, box, sources);
 
     cudaVec<fvec4> bodyPos(numBodies, true);
     std::copy(bodies.begin(), bodies.end(), bodyPos.h());
@@ -133,17 +132,16 @@ TEST(Buildtree, cstone)
     std::copy(levelRangeCs.begin(), levelRangeCs.end(), levelRange.h());
     levelRange.h2d();
 
-    cudaVec<CellData> sources(numSources, true);
-    std::copy(tree.begin(), tree.end(), sources.h());
-    sources.h2d();
-
+    int numSources = sources.size();
     cudaVec<fvec4> sourceCenter(numSources, true);
     cudaVec<fvec4> Multipole(NVEC4 * numSources, true);
 
     int numLeaves = -1;
     Pass::upward(numLeaves, highestLevel, theta, levelRange, bodyPos, sources, sourceCenter, Multipole);
+    sources.d2h();
     sourceCenter.d2h();
     Multipole.d2h();
 
+    checkBodyIndexing(numBodies, sources.h(), numSources);
     checkUpsweep(box, sources, sourceCenter, bodyPos, Multipole);
 }

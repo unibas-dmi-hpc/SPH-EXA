@@ -133,14 +133,19 @@ auto buildFromCstone(std::vector<util::array<T, 4>>& bodies, const Box& box, cud
 
     for (int i = 0; i < octree.numTreeNodes(); ++i)
     {
-        int firstParticle = std::lower_bound(keys.begin(), keys.end(), octree.codeStart(i)) - keys.begin();
-        int lastParticle  = std::upper_bound(keys.begin(), keys.end(), octree.codeEnd(i)) - keys.begin();
+        int firstParticle = 0;
+        int lastParticle  = 0;
         int child = 0;
         int numChildren = 1;
         if (!octree.isLeaf(i))
         {
             child = octree.child(i, 0);
             numChildren = 8;
+        }
+        else
+        {
+            firstParticle = layout[octree.cstoneIndex(i)];
+            lastParticle  = layout[octree.cstoneIndex(i) + 1];
         }
         CellData cell(
             octree.level(i), octree.parent(i), firstParticle, lastParticle - firstParticle, child, numChildren);
