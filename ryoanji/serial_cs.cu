@@ -28,19 +28,17 @@ int main(int argc, char** argv)
     fprintf(stdout, "theta                : %f\n", theta);
     fprintf(stdout, "ncrit                : %d\n", ncrit);
 
-    auto bodies = makeCubeBodies(numBodies, boxSize);
+    cudaVec<fvec4> bodyPos(numBodies, true);
+    makeCubeBodies(bodyPos, numBodies, boxSize);
+    bodyPos.h2d();
 
     Box box{ {0.0f}, boxSize * 1.00f};
 
     cudaVec<CellData> sources(0, true);
 
-    auto [highestLevel, levelRangeCs] = buildFromCstone(bodies, box, sources);
+    auto [highestLevel, levelRangeCs] = buildFromCstone(bodyPos, box, sources);
 
     int numSources = sources.size();
-
-    cudaVec<fvec4> bodyPos(numBodies, true);
-    std::copy(bodies.begin(), bodies.end(), bodyPos.h());
-    bodyPos.h2d();
 
     cudaVec<int2> levelRange(levelRangeCs.size(), true);
     std::copy(levelRangeCs.begin(), levelRangeCs.end(), levelRange.h());

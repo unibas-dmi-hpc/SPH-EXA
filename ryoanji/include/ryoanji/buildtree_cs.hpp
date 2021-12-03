@@ -70,43 +70,41 @@ __global__ void convertTree(cstone::OctreeGpuDataView<KeyType> cstoneTree, const
     }
 }
 
-template<class T>
-auto buildFromCstone(std::vector<util::array<T, 4>>& bodies, const Box& box, cudaVec<CellData>& ryoanjiTree)
+template<class KeyType, class T>
+__global__ void
+computeSfcKeysRealKernel(KeyType* keys, const fvec4* bodies, size_t numKeys, const cstone::Box<T> box)
+{
+    size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid < numKeys)
+    {
+        keys[tid] = cstone::sfc3D<cstone::HilbertKey<KeyType>>(bodies[tid][0], bodies[tid][1], bodies[tid][2], box);
+    }
+}
+
+auto buildFromCstone(cudaVec<fvec4>& bodies, const Box& box, cudaVec<CellData>& ryoanjiTree)
 {
     using KeyType = uint64_t;
     unsigned numParticles = bodies.size();
     unsigned bucketSize = 64;
 
-    static_assert(std::is_same_v<float, T>);
+    using T = fvec4::value_type;
 
-    std::vector<T> x(numParticles);
-    std::vector<T> y(numParticles);
-    std::vector<T> z(numParticles);
-    std::vector<T> m(numParticles);
-    std::vector<KeyType> keys(numParticles);
-
-    for (int i = 0; i < numParticles; ++i)
-    {
-        x[i] = bodies[i][0];
-        y[i] = bodies[i][1];
-        z[i] = bodies[i][2];
-        m[i] = bodies[i][3];
-    }
+    thrust::device_vector<KeyType> d_keys(numParticles);
 
     cstone::Box<T> csBox(box.X[0] - box.R, box.X[0] + box.R,
                          box.X[1] - box.R, box.X[1] + box.R,
                          box.X[2] - box.R, box.X[2] + box.R,
                          false, false, false);
 
-    cstone::computeSfcKeys(x.data(), y.data(), z.data(), cstone::sfcKindPointer(keys.data()), numParticles, csBox);
+    {
+        constexpr unsigned numThreads = 256;
+        unsigned numBlocks            = (numParticles - 1) / numThreads + 1;
+        computeSfcKeysRealKernel<<<numBlocks, numThreads>>>(
+            thrust::raw_pointer_cast(d_keys.data()), bodies.d(), numParticles, csBox);
+    }
 
-    std::vector<int> ordering(numParticles);
-    std::iota(ordering.begin(), ordering.end(), 0);
-    cstone::sort_by_key(keys.begin(), keys.end(), ordering.begin());
+    thrust::sort_by_key(thrust::device, d_keys.begin(), d_keys.end(), bodies.d());
 
-    cstone::reorderInPlace(ordering, bodies.data());
-
-    thrust::device_vector<KeyType> d_particleKeys = keys;
     thrust::device_vector<KeyType> d_tree = std::vector<KeyType>{0, cstone::nodeRange<KeyType>(0)};
     thrust::device_vector<unsigned> d_counts = std::vector<unsigned>{numParticles};
 
@@ -114,8 +112,8 @@ auto buildFromCstone(std::vector<util::array<T, 4>>& bodies, const Box& box, cud
         thrust::device_vector<KeyType> tmpTree;
         thrust::device_vector<cstone::TreeNodeIndex> workArray;
 
-        while (!cstone::updateOctreeGpu(thrust::raw_pointer_cast(d_particleKeys.data()),
-                                        thrust::raw_pointer_cast(d_particleKeys.data()) + d_particleKeys.size(),
+        while (!cstone::updateOctreeGpu(thrust::raw_pointer_cast(d_keys.data()),
+                                        thrust::raw_pointer_cast(d_keys.data()) + d_keys.size(),
                                         bucketSize,
                                         d_tree,
                                         d_counts,

@@ -119,10 +119,8 @@ public:
     }
 };
 
-static std::vector<fvec4> makeCubeBodies(size_t n, double extent = 3)
+static void makeCubeBodies(cudaVec<fvec4>& bodies, size_t n, double extent = 3)
 {
-    std::vector<fvec4> bodies(n);
-
     for (size_t i = 0; i < n; i++)
     {
         bodies[i][0] = drand48() * 2 * extent - extent;
@@ -139,8 +137,6 @@ static std::vector<fvec4> makeCubeBodies(size_t n, double extent = 3)
     bodies[n - 1][0] = extent;
     bodies[n - 1][1] = extent;
     bodies[n - 1][2] = extent;
-
-    return bodies;
 }
 
 static std::vector<fvec4> makeGridBodies(size_t npOnEdge, double spacing)
