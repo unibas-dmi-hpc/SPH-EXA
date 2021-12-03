@@ -33,7 +33,6 @@
 
 #include <vector>
 
-#include "cstone/tree/octree_internal_td.hpp"
 #include "cstone/tree/octree.cuh"
 #include "cstone/tree/octree_internal.cuh"
 
@@ -46,8 +45,8 @@ __global__ void convertTree(cstone::OctreeGpuDataView<KeyType> cstoneTree, const
     unsigned tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid < cstoneTree.numInternalNodes + cstoneTree.numLeafNodes)
     {
-        cstone::LocalParticleIndex firstParticle = layout[tid];
-        cstone::LocalParticleIndex lastParticle  = layout[tid + 1];
+        cstone::LocalParticleIndex firstParticle = 0;
+        cstone::LocalParticleIndex lastParticle  = 0;
 
         cstone::TreeNodeIndex child = 0;
         int numChildren             = 1;
@@ -57,6 +56,12 @@ __global__ void convertTree(cstone::OctreeGpuDataView<KeyType> cstoneTree, const
         {
             child       = cstoneTree.childOffsets[tid];
             numChildren = 8;
+        }
+        else
+        {
+            cstone::TreeNodeIndex leafIndex = cstoneTree.nodeOrder[tid] - cstoneTree.numInternalNodes;
+            firstParticle = layout[leafIndex];
+            lastParticle  = layout[leafIndex + 1];
         }
 
         unsigned level = cstone::decodePrefixLength(cstoneTree.prefixes[tid]) / 3;
@@ -117,50 +122,43 @@ auto buildFromCstone(std::vector<util::array<T, 4>>& bodies, const Box& box, cud
                                         tmpTree,
                                         workArray));
     }
-    std::cout << "numNodes " << d_tree.size() << std::endl;
 
-    thrust::host_vector<KeyType> tree = d_tree;
-    thrust::host_vector<unsigned> counts = d_counts;
+    cstone::OctreeGpuDataAnchor<KeyType> octreeGpuData;
+    octreeGpuData.resize(cstone::nNodes(d_tree));
+    cstone::buildInternalOctreeGpu(thrust::raw_pointer_cast(d_tree.data()), octreeGpuData.getData());
 
-    std::vector<cstone::LocalParticleIndex> layout(counts.size() + 1);
-    std::copy(counts.begin(), counts.end(), layout.begin());
-    cstone::exclusiveScan(layout.data(), layout.size());
+    cstone::TreeNodeIndex numNodes = octreeGpuData.numInternalNodes + octreeGpuData.numLeafNodes;
 
-    cstone::TdOctree<KeyType> octree;
-    octree.update(tree.data(), cstone::nNodes(tree));
+    ryoanjiTree.alloc(numNodes, true);
 
-    ryoanjiTree.alloc(octree.numTreeNodes(), true);
+    thrust::device_vector<cstone::LocalParticleIndex> d_layout(d_counts.size() + 1);
+    thrust::copy(d_counts.begin(), d_counts.end(), d_layout.begin());
+    thrust_exclusive_scan(thrust::raw_pointer_cast(d_layout.data()),
+                          thrust::raw_pointer_cast(d_layout.data()) + d_layout.size(),
+                          thrust::raw_pointer_cast(d_layout.data()));
 
-    for (int i = 0; i < octree.numTreeNodes(); ++i)
     {
-        int firstParticle = 0;
-        int lastParticle  = 0;
-        int child = 0;
-        int numChildren = 1;
-        if (!octree.isLeaf(i))
-        {
-            child = octree.child(i, 0);
-            numChildren = 8;
-        }
-        else
-        {
-            firstParticle = layout[octree.cstoneIndex(i)];
-            lastParticle  = layout[octree.cstoneIndex(i) + 1];
-        }
-        CellData cell(
-            octree.level(i), octree.parent(i), firstParticle, lastParticle - firstParticle, child, numChildren);
-        ryoanjiTree[i] = cell;
+        constexpr unsigned numThreads = 256;
+        unsigned numBlocks = (numNodes - 1) / numThreads + 1;
+        convertTree<<<numBlocks, numThreads>>>(octreeGpuData.getData(), thrust::raw_pointer_cast(d_layout.data()),
+                                               ryoanjiTree.d());
     }
-    ryoanjiTree.h2d();
 
+    thrust::host_vector<int> h_levelRange = octreeGpuData.levelRange;
+
+    int numLevels = 0;
     std::vector<int2> levelRange(cstone::maxTreeLevel<KeyType>{} + 1);
-    for (int level = 0; level <= cstone::maxTreeLevel<KeyType>{}; ++level)
+    for (int level = 1; level <= cstone::maxTreeLevel<KeyType>{}; ++level)
     {
-        levelRange[level].x = octree.levelOffset(level);
-        levelRange[level].y = octree.levelOffset(level + 1);
-    }
+        if (h_levelRange[level + 1] == 0)
+        {
+            numLevels = level - 1;
+            break;
+        }
 
-    int numLevels = octree.level(octree.numTreeNodes() - 1);
+        levelRange[level].x = h_levelRange[level];
+        levelRange[level].y = h_levelRange[level + 1];
+    }
 
     return std::make_tuple(numLevels, std::move(levelRange));
 }
