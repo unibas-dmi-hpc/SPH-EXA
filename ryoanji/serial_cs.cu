@@ -29,28 +29,22 @@ int main(int argc, char** argv)
     fprintf(stdout, "ncrit                : %d\n", ncrit);
 
     cudaVec<fvec4> bodyPos(numBodies, true);
-    makeCubeBodies(bodyPos, numBodies, boxSize);
+    makeCubeBodies(bodyPos.h(), numBodies, boxSize);
     bodyPos.h2d();
 
     Box box{ {0.0f}, boxSize * 1.00f};
 
-    cudaVec<CellData> sources(0, true);
-
-    auto [highestLevel, levelRangeCs] = buildFromCstone(bodyPos, box, sources);
-
+    cudaVec<CellData> sources;
+    cudaVec<int2> levelRange(cstone::maxTreeLevel<uint64_t>{} + 1, true);
+    int highestLevel = buildTree(bodyPos, box, sources, levelRange);
+    levelRange.h2d();
     int numSources = sources.size();
 
-    cudaVec<int2> levelRange(levelRangeCs.size(), true);
-    std::copy(levelRangeCs.begin(), levelRangeCs.end(), levelRange.h());
-    levelRange.h2d();
-
-    cudaVec<fvec4> sourceCenter(numSources, true);
-    cudaVec<fvec4> Multipole(NVEC4 * numSources, true);
+    cudaVec<fvec4> sourceCenter(numSources);
+    cudaVec<fvec4> Multipole(NVEC4 * numSources);
 
     int numLeaves = -1;
     Pass::upward(numLeaves, highestLevel, theta, levelRange, bodyPos, sources, sourceCenter, Multipole);
-    sourceCenter.d2h();
-    Multipole.d2h();
 
     cudaVec<fvec4> bodyAcc(numBodies, true);
 

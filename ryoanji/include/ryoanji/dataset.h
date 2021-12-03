@@ -119,7 +119,7 @@ public:
     }
 };
 
-static void makeCubeBodies(cudaVec<fvec4>& bodies, size_t n, double extent = 3)
+static void makeCubeBodies(fvec4* bodies, size_t n, double extent = 3)
 {
     for (size_t i = 0; i < n; i++)
     {

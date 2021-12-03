@@ -81,7 +81,7 @@ computeSfcKeysRealKernel(KeyType* keys, const fvec4* bodies, size_t numKeys, con
     }
 }
 
-auto buildFromCstone(cudaVec<fvec4>& bodies, const Box& box, cudaVec<CellData>& ryoanjiTree)
+int buildTree(cudaVec<fvec4>& bodies, const Box& box, cudaVec<CellData>& ryoanjiTree, cudaVec<int2>& levelRange)
 {
     using KeyType = uint64_t;
     unsigned numParticles = bodies.size();
@@ -145,7 +145,6 @@ auto buildFromCstone(cudaVec<fvec4>& bodies, const Box& box, cudaVec<CellData>& 
     thrust::host_vector<int> h_levelRange = octreeGpuData.levelRange;
 
     int numLevels = 0;
-    std::vector<int2> levelRange(cstone::maxTreeLevel<KeyType>{} + 1);
     for (int level = 1; level <= cstone::maxTreeLevel<KeyType>{}; ++level)
     {
         if (h_levelRange[level + 1] == 0)
@@ -158,5 +157,5 @@ auto buildFromCstone(cudaVec<fvec4>& bodies, const Box& box, cudaVec<CellData>& 
         levelRange[level].y = h_levelRange[level + 1];
     }
 
-    return std::make_tuple(numLevels, std::move(levelRange));
+    return numLevels;
 }

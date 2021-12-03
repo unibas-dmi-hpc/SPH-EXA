@@ -116,20 +116,16 @@ TEST(Buildtree, cstone)
     float extent = 3;
     float theta = 0.75;
 
-    auto bodies = makeCubeBodies(numBodies, extent);
+    cudaVec<fvec4> bodyPos(numBodies, true);
+    makeCubeBodies(bodyPos.h(), numBodies, extent);
+    bodyPos.h2d();
 
     Box box{ {0.0f}, extent * 1.1f };
 
-    cudaVec<CellData> sources(0, true);
-
-    auto [highestLevel, levelRangeCs] = buildFromCstone(bodies, box, sources);
-
-    cudaVec<fvec4> bodyPos(numBodies, true);
-    std::copy(bodies.begin(), bodies.end(), bodyPos.h());
-    bodyPos.h2d();
-
-    cudaVec<int2> levelRange(levelRangeCs.size(), true);
-    std::copy(levelRangeCs.begin(), levelRangeCs.end(), levelRange.h());
+    cudaVec<CellData> sources;
+    cudaVec<int2> levelRange(cstone::maxTreeLevel<uint64_t>{} + 1, true);
+    int highestLevel = buildTree(bodyPos, box, sources, levelRange);
+    bodyPos.d2h();
     levelRange.h2d();
 
     int numSources = sources.size();

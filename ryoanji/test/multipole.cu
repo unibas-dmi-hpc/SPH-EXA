@@ -33,7 +33,8 @@ TEST(Multipole, P2M)
 {
     int numBodies = 1023;
 
-    std::vector<fvec4> bodies = makeCubeBodies(numBodies);
+    std::vector<fvec4> bodies(numBodies);
+    makeCubeBodies(bodies.data(), numBodies);
 
     std::vector<double> x(numBodies);
     std::vector<double> y(numBodies);
