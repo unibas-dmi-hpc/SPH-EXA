@@ -34,11 +34,10 @@
 
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
-#include <thrust/scan.h>
-#include <thrust/sort.h>
 
 #include "octree_internal.hpp"
 #include "cstone/tree/btree.cuh"
+#include "cstone/cuda/thrust_sort_scan.cuh"
 
 namespace cstone {
 
@@ -226,33 +225,6 @@ __global__ void getLevelRange(const KeyType* nodeKeys, TreeNodeIndex numNodes, T
     }
 }
 
-/*! @brief functor to sort octree nodes first according to level, then by SFC key
- *
- * Note: takes SFC keys with Warren-Salmon placeholder bits in place as arguments
- */
-template<class KeyType>
-struct compareLevelThenPrefix
-{
-    HOST_DEVICE_FUN bool operator()(KeyType a, KeyType b) const
-    {
-        unsigned prefix_a = decodePrefixLength(a);
-        unsigned prefix_b = decodePrefixLength(b);
-
-        if (prefix_a < prefix_b)
-        {
-            return true;
-        }
-        else if (prefix_b < prefix_a)
-        {
-            return false;
-        }
-        else
-        {
-            return decodePlaceholderBit(a) < decodePlaceholderBit(b);
-        }
-    }
-};
-
 /*! @brief construct the internal octree part of a given octree leaf cell array on the GPU
  *
  * @tparam       KeyType     unsigned 32- or 64-bit integer
@@ -274,7 +246,7 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeGpuDataView<KeyType
 
     enumeratePrefixes<<<iceil(numBinaryNodes, numThreads), numThreads>>>(d.binaryTree, numBinaryNodes, d.binaryToOct);
 
-    thrust::exclusive_scan(thrust::device, d.binaryToOct, d.binaryToOct + d.numLeafNodes, d.binaryToOct);
+    thrust_exclusive_scan(d.binaryToOct, d.binaryToOct + d.numLeafNodes, d.binaryToOct);
 
     translateToOct<<<iceil(numBinaryNodes, numThreads), numThreads>>>(d.binaryToOct, numBinaryNodes, d.octToBinary);
 
@@ -283,13 +255,12 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeGpuDataView<KeyType
                                                                       cstoneTree, d.octToBinary, d.prefixes,
                                                                       d.nodeOrder, d.inverseNodeOrder);
 
-    thrust::sort_by_key(thrust::device, d.prefixes, d.prefixes + numNodes, d.nodeOrder,
-                        compareLevelThenPrefix<KeyType>{});
+    thrust_sort_by_level_and_key(d.prefixes, d.prefixes + numNodes, d.nodeOrder);
     // arrays now in sorted layout B
 
     // temporarily repurpose childOffsets as space for sort key
     thrust::copy(thrust::device, d.nodeOrder, d.nodeOrder + numNodes, d.childOffsets);
-    thrust::sort_by_key(thrust::device, d.childOffsets, d.childOffsets + numNodes, d.inverseNodeOrder);
+    thrust_sort_by_key(d.childOffsets, d.childOffsets + numNodes, d.inverseNodeOrder);
     thrust::fill(thrust::device, d.childOffsets, d.childOffsets + numNodes, 0);
 
     linkTree<<<iceil(d.numInternalNodes, numThreads), numThreads>>>(
