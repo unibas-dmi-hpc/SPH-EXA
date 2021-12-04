@@ -13,7 +13,6 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-#add_executable(ryoanji_cs $<TARGET_OBJECTS:thrust_sort_scan_obj> serial_cs.cu)
 add_executable(ryoanji_cs serial_cs.cu)
 target_include_directories(ryoanji_cs PRIVATE include)
 target_include_directories(ryoanji_cs PRIVATE ../domain/include)

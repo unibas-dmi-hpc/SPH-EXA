@@ -37,7 +37,6 @@
 
 #include "octree_internal.hpp"
 #include "cstone/tree/btree.cuh"
-//#include "cstone/cuda/thrust_sort_scan.cuh"
 
 namespace cstone {
 
@@ -282,7 +281,6 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeGpuDataView<KeyType
                                                                       cstoneTree, d.octToBinary, d.prefixes,
                                                                       d.nodeOrder, d.inverseNodeOrder);
 
-    //thrust_sort_by_level_and_key(d.prefixes, d.prefixes + numNodes, d.nodeOrder);
     thrust::sort_by_key(thrust::device, d.prefixes, d.prefixes + numNodes, d.nodeOrder, compareLevelThenPrefix<KeyType>{});
     // arrays now in sorted layout B
 

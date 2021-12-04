@@ -42,7 +42,6 @@
 #include <thrust/device_vector.h>
 
 #include "cstone/cuda/errorcheck.cuh"
-//#include "cstone/cuda/thrust_sort_scan.cuh"
 #include "cstone/util/util.hpp"
 #include "octree.hpp"
 
