@@ -54,6 +54,13 @@ void checkBodyIndexing(int numBodies, CellData* tree, int numSources)
             EXPECT_EQ(tree[i].nchild(), 8);
             EXPECT_TRUE(tree[i].nbody() > 0);
         }
+
+        if (tree[i].level() > 1)
+        {
+            int parent = tree[i].parent();
+            EXPECT_LE(tree[parent].child(), i);
+            EXPECT_LT(i, tree[parent].child() + 8);
+        }
     }
 
     // each body should be referenced exactly once by all leaves put together

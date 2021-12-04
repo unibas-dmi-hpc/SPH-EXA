@@ -60,13 +60,15 @@ __global__ void convertTree(cstone::OctreeGpuDataView<KeyType> cstoneTree, const
         else
         {
             cstone::TreeNodeIndex leafIndex = cstoneTree.nodeOrder[tid] - cstoneTree.numInternalNodes;
+            assert(leafIndex >= 0);
             firstParticle = layout[leafIndex];
             lastParticle  = layout[leafIndex + 1];
         }
 
         unsigned level = cstone::decodePrefixLength(cstoneTree.prefixes[tid]) / 3;
+        unsigned parentIdx = (tid == 0) ? 0 : cstoneTree.parents[(tid - 1) / 8];
         ryoanjiTree[tid] =
-            CellData(level, cstoneTree.parents[tid], firstParticle, lastParticle - firstParticle, child, numChildren);
+            CellData(level, parentIdx, firstParticle, lastParticle - firstParticle, child, numChildren);
     }
 }
 

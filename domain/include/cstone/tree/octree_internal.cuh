@@ -199,8 +199,12 @@ __global__ void linkTree(const BinaryNode<KeyType>* binaryTree,
 
         // node index in layout B
         TreeNodeIndex childB = inverseNodeOrder[childA];
+        // an internal node must have a valid child
+        assert(childB > 0);
 
         childOffsets[idxB]        = childB;
+        // We only store the parent once for every group of 8 siblings. This works as long as each node always has
+        // 8 siblings. Subtract one because the root has no siblings.
         parents[(childB - 1) / 8] = idxB;
     }
 }
