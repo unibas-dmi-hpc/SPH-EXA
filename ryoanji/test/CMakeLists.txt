@@ -2,7 +2,7 @@
 add_subdirectory(gtest)
 
 add_executable(ryoanji_unit_tests
-        $<TARGET_OBJECTS:thrust_sort_scan_obj>
+        #$<TARGET_OBJECTS:thrust_sort_scan_obj>
         buildtree_cs.cu
         direct.cu
         multipole.cu

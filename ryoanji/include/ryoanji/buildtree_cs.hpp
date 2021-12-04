@@ -131,7 +131,7 @@ int buildTree(cudaVec<fvec4>& bodies, const Box& box, cudaVec<CellData>& ryoanji
 
     thrust::device_vector<cstone::LocalParticleIndex> d_layout(d_counts.size() + 1);
     thrust::copy(d_counts.begin(), d_counts.end(), d_layout.begin());
-    thrust_exclusive_scan(thrust::raw_pointer_cast(d_layout.data()),
+    thrust::exclusive_scan(thrust::device, thrust::raw_pointer_cast(d_layout.data()),
                           thrust::raw_pointer_cast(d_layout.data()) + d_layout.size(),
                           thrust::raw_pointer_cast(d_layout.data()));
 

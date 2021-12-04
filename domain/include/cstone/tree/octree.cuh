@@ -42,7 +42,7 @@
 #include <thrust/device_vector.h>
 
 #include "cstone/cuda/errorcheck.cuh"
-#include "cstone/cuda/thrust_sort_scan.cuh"
+//#include "cstone/cuda/thrust_sort_scan.cuh"
 #include "cstone/util/util.hpp"
 #include "octree.hpp"
 
@@ -119,7 +119,7 @@ void computeNodeCountsGpu(const KeyType* tree, unsigned* counts, TreeNodeIndex n
     constexpr unsigned nThreads = 256;
     if (useCountsAsGuess)
     {
-        thrust_exclusive_scan(counts + popNodes[0], counts + popNodes[1], counts + popNodes[0]);
+        thrust::exclusive_scan(thrust::device, counts + popNodes[0], counts + popNodes[1], counts + popNodes[0]);
         updateNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>
             (tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
     }
@@ -216,7 +216,7 @@ bool rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, unsigned bucketSi
         thrust::raw_pointer_cast(tree.data()), counts, nOldNodes, bucketSize,
         thrust::raw_pointer_cast(workArray.data()));
 
-    thrust_exclusive_scan(thrust::raw_pointer_cast(workArray.data()),
+    thrust::exclusive_scan(thrust::device, thrust::raw_pointer_cast(workArray.data()),
                           thrust::raw_pointer_cast(workArray.data()) + workArray.size(),
                           thrust::raw_pointer_cast(workArray.data()));
 
