@@ -38,7 +38,9 @@ int main(int argc, char** argv)
 
     cudaVec<CellData> sources;
     cudaVec<int2> levelRange(cstone::maxTreeLevel<uint64_t>{} + 1, true);
-    int highestLevel = buildTree(rawPtr(d_bodies.data()), d_bodies.size(), box, sources, levelRange);
+
+    TreeBuilder<uint64_t> treeBuilder;
+    int highestLevel = treeBuilder.update(rawPtr(d_bodies.data()), d_bodies.size(), box, sources, levelRange);
     levelRange.h2d();
     int numSources = sources.size();
 

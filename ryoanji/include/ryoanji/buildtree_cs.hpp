@@ -83,81 +83,103 @@ computeSfcKeysRealKernel(KeyType* keys, const fvec4* bodies, size_t numKeys, con
     }
 }
 
-int buildTree(fvec4* bodies, size_t numBodies, const Box& box, cudaVec<CellData>& ryoanjiTree,
-              cudaVec<int2>& levelRange)
+template<class KeyType>
+class TreeBuilder
 {
-    using KeyType       = uint64_t;
-    unsigned bucketSize = 64;
+public:
+    TreeBuilder() : bucketSize_(64) { }
 
-    using T = fvec4::value_type;
+    TreeBuilder(unsigned ncrit) : bucketSize_(ncrit) { }
 
-    thrust::device_vector<KeyType> d_keys(numBodies);
-
-    cstone::Box<T> csBox(box.X[0] - box.R, box.X[0] + box.R,
-                         box.X[1] - box.R, box.X[1] + box.R,
-                         box.X[2] - box.R, box.X[2] + box.R,
-                         false, false, false);
-
+    cstone::TreeNodeIndex update(fvec4* bodies, size_t numBodies, const Box& box, cudaVec<CellData>& ryoanjiTree,
+                                 cudaVec<int2>& levelRange)
     {
-        constexpr unsigned numThreads = 256;
-        unsigned numBlocks            = (numBodies - 1) / numThreads + 1;
-        computeSfcKeysRealKernel<<<numBlocks, numThreads>>>(
-            thrust::raw_pointer_cast(d_keys.data()), bodies, numBodies, csBox);
-    }
+        unsigned bucketSize = 64;
 
-    thrust::sort_by_key(thrust::device, d_keys.begin(), d_keys.end(), bodies);
+        using T = fvec4::value_type;
 
-    thrust::device_vector<KeyType> d_tree = std::vector<KeyType>{0, cstone::nodeRange<KeyType>(0)};
-    thrust::device_vector<unsigned> d_counts = std::vector<unsigned>{unsigned(numBodies)};
+        thrust::device_vector<KeyType> d_keys(numBodies);
 
-    {
-        thrust::device_vector<KeyType> tmpTree;
-        thrust::device_vector<cstone::TreeNodeIndex> workArray;
+        cstone::Box<T> csBox(box.X[0] - box.R,
+                             box.X[0] + box.R,
+                             box.X[1] - box.R,
+                             box.X[1] + box.R,
+                             box.X[2] - box.R,
+                             box.X[2] + box.R,
+                             false,
+                             false,
+                             false);
+
+        {
+            constexpr unsigned numThreads = 256;
+            unsigned numBlocks            = (numBodies - 1) / numThreads + 1;
+            computeSfcKeysRealKernel<<<numBlocks, numThreads>>>(
+                thrust::raw_pointer_cast(d_keys.data()), bodies, numBodies, csBox);
+        }
+
+        thrust::sort_by_key(thrust::device, d_keys.begin(), d_keys.end(), bodies);
+
+        if (d_tree_.size() == 0)
+        {
+            // initial guess on first call. use previous tree as guess on subsequent calls
+            d_tree_   = std::vector<KeyType>{0, cstone::nodeRange<KeyType>(0)};
+            d_counts_ = std::vector<unsigned>{unsigned(numBodies)};
+        }
 
         while (!cstone::updateOctreeGpu(thrust::raw_pointer_cast(d_keys.data()),
                                         thrust::raw_pointer_cast(d_keys.data()) + d_keys.size(),
                                         bucketSize,
-                                        d_tree,
-                                        d_counts,
-                                        tmpTree,
-                                        workArray));
-    }
+                                        d_tree_,
+                                        d_counts_,
+                                        tmpTree_,
+                                        workArray_));
 
-    cstone::OctreeGpuDataAnchor<KeyType> octreeGpuData;
-    octreeGpuData.resize(cstone::nNodes(d_tree));
-    cstone::buildInternalOctreeGpu(thrust::raw_pointer_cast(d_tree.data()), octreeGpuData.getData());
+        cstone::OctreeGpuDataAnchor<KeyType> octreeGpuData;
+        octreeGpuData.resize(cstone::nNodes(d_tree_));
+        cstone::buildInternalOctreeGpu(thrust::raw_pointer_cast(d_tree_.data()), octreeGpuData.getData());
 
-    cstone::TreeNodeIndex numNodes = octreeGpuData.numInternalNodes + octreeGpuData.numLeafNodes;
+        cstone::TreeNodeIndex numNodes = octreeGpuData.numInternalNodes + octreeGpuData.numLeafNodes;
 
-    ryoanjiTree.alloc(numNodes, true);
+        ryoanjiTree.alloc(numNodes, true);
 
-    thrust::device_vector<cstone::LocalParticleIndex> d_layout(d_counts.size() + 1);
-    thrust::copy(d_counts.begin(), d_counts.end(), d_layout.begin());
-    thrust::exclusive_scan(thrust::device, thrust::raw_pointer_cast(d_layout.data()),
-                          thrust::raw_pointer_cast(d_layout.data()) + d_layout.size(),
-                          thrust::raw_pointer_cast(d_layout.data()));
+        thrust::device_vector<cstone::LocalParticleIndex> d_layout(d_counts_.size() + 1);
+        thrust::copy(d_counts_.begin(), d_counts_.end(), d_layout.begin());
+        thrust::exclusive_scan(thrust::device,
+                               thrust::raw_pointer_cast(d_layout.data()),
+                               thrust::raw_pointer_cast(d_layout.data()) + d_layout.size(),
+                               thrust::raw_pointer_cast(d_layout.data()));
 
-    {
-        constexpr unsigned numThreads = 256;
-        unsigned numBlocks = (numNodes - 1) / numThreads + 1;
-        convertTree<<<numBlocks, numThreads>>>(octreeGpuData.getData(), thrust::raw_pointer_cast(d_layout.data()),
-                                               ryoanjiTree.d());
-    }
-
-    thrust::host_vector<int> h_levelRange = octreeGpuData.levelRange;
-
-    int numLevels = 0;
-    for (int level = 1; level <= cstone::maxTreeLevel<KeyType>{}; ++level)
-    {
-        if (h_levelRange[level + 1] == 0)
         {
-            numLevels = level - 1;
-            break;
+            constexpr unsigned numThreads = 256;
+            unsigned numBlocks            = (numNodes - 1) / numThreads + 1;
+            convertTree<<<numBlocks, numThreads>>>(
+                octreeGpuData.getData(), thrust::raw_pointer_cast(d_layout.data()), ryoanjiTree.d());
         }
 
-        levelRange[level].x = h_levelRange[level];
-        levelRange[level].y = h_levelRange[level + 1];
+        thrust::host_vector<int> h_levelRange = octreeGpuData.levelRange;
+
+        int numLevels = 0;
+        for (int level = 1; level <= cstone::maxTreeLevel<KeyType>{}; ++level)
+        {
+            if (h_levelRange[level + 1] == 0)
+            {
+                numLevels = level - 1;
+                break;
+            }
+
+            levelRange[level].x = h_levelRange[level];
+            levelRange[level].y = h_levelRange[level + 1];
+        }
+
+        return numLevels;
     }
 
-    return numLevels;
-}
+private:
+    unsigned bucketSize_;
+
+    thrust::device_vector<KeyType> d_tree_;
+    thrust::device_vector<unsigned> d_counts_;
+
+    thrust::device_vector<KeyType> tmpTree_;
+    thrust::device_vector<cstone::TreeNodeIndex> workArray_;
+};

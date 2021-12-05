@@ -132,7 +132,8 @@ TEST(Buildtree, cstone)
 
     cudaVec<CellData> sources;
     cudaVec<int2> levelRange(cstone::maxTreeLevel<uint64_t>{} + 1, true);
-    int highestLevel = buildTree(rawPtr(bodyPos.data()), numBodies, box, sources, levelRange);
+    TreeBuilder<uint64_t> treeBuilder;
+    int highestLevel = treeBuilder.update(rawPtr(bodyPos.data()), numBodies, box, sources, levelRange);
     // download from device
     h_bodies = bodyPos;
     levelRange.h2d();
