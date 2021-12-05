@@ -63,24 +63,23 @@ TEST(DirectSum, MatchCpu)
 
     // upload to device
     thrust::device_vector<fvec4> bodyPos = h_bodies;
+    thrust::device_vector<fvec4> bodyAcc(numBodies, fvec4{0, 0, 0, 0});
 
-    cudaVec<fvec4> bodyAcc(numBodies, true);
-    bodyAcc.zeros();
+    directSum(numBodies, rawPtr(bodyPos.data()), rawPtr(bodyAcc.data()), eps);
 
-    directSum(numBodies, thrust::raw_pointer_cast(bodyPos.data()), bodyAcc, eps);
-
-    bodyAcc.d2h();
+    // download body accelerations
+    thrust::host_vector<fvec4> h_acc = bodyAcc;
 
     auto refAcc = cpuReference(h_bodies);
 
     for (int i = 0; i < numBodies; ++i)
     {
         fvec3 ref   = {refAcc[i][1], refAcc[i][2], refAcc[i][3]};
-        fvec3 probe = {bodyAcc[i][1], bodyAcc[i][2], bodyAcc[i][3]};
+        fvec3 probe = {h_acc[i][1], h_acc[i][2], h_acc[i][3]};
 
         EXPECT_NEAR(std::sqrt(norm2(ref - probe) / norm2(probe)), 0, 1e-6);
         // the potential
-        EXPECT_NEAR(refAcc[i][0], bodyAcc[i][0], 1e-6);
+        EXPECT_NEAR(refAcc[i][0], h_acc[i][0], 1e-6);
 
         // printf("%f %f %f\n", ref[1], ref[2], ref[3]);
         // printf("%f %f %f\n", probe[1], probe[2], probe[3]);

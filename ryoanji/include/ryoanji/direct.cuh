@@ -64,12 +64,12 @@ __global__ void directKernel(int numSource, float eps2, const fvec4* __restrict_
     }
 }
 
-void directSum(std::size_t numBodies, const fvec4* bodyPos, cudaVec<fvec4>& bodyAcc, float eps)
+void directSum(std::size_t numBodies, const fvec4* bodyPos, fvec4* bodyAcc, float eps)
 {
     int numThreads = DirectConfig::numThreads;
     int numBlock   = (numBodies - 1) / numThreads + 1;
 
-    directKernel<<<numBlock, numThreads>>>(numBodies, eps * eps, bodyPos, bodyAcc.d());
+    directKernel<<<numBlock, numThreads>>>(numBodies, eps * eps, bodyPos, bodyAcc);
     cudaDeviceSynchronize();
 }
 

@@ -74,10 +74,10 @@ int main(int argc, char** argv)
 
     if (!directRef) { return 0; }
 
-    cudaVec<fvec4> bodyAccDirect(numBodies, true);
+    thrust::device_vector<fvec4> bodyAccDirect(numBodies, fvec4{0, 0, 0, 0});
 
     t0 = std::chrono::high_resolution_clock::now();
-    directSum(numBodies, rawPtr(d_bodies.data()), bodyAccDirect, eps);
+    directSum(numBodies, rawPtr(d_bodies.data()), rawPtr(bodyAccDirect.data()), eps);
     t1 = std::chrono::high_resolution_clock::now();
     dt = std::chrono::duration<double>(t1 - t0).count();
 
@@ -85,13 +85,13 @@ int main(int argc, char** argv)
     fprintf(stdout, "Total Direct         : %.7f s (%.7f TFlops)\n", dt, flops);
 
     bodyAcc.d2h();
-    bodyAccDirect.d2h();
+    thrust::host_vector<fvec4> h_bodyAccDirect = bodyAccDirect;
 
     std::vector<double> delta(numBodies);
 
     for (int i = 0; i < numBodies; i++)
     {
-        fvec3 ref   = {bodyAccDirect[i][1], bodyAccDirect[i][2], bodyAccDirect[i][3]};
+        fvec3 ref   = {h_bodyAccDirect[i][1], h_bodyAccDirect[i][2], h_bodyAccDirect[i][3]};
         fvec3 probe = {bodyAcc[i][1], bodyAcc[i][2], bodyAcc[i][3]};
         delta[i]    = std::sqrt(norm2(ref - probe) / norm2(ref));
     }
