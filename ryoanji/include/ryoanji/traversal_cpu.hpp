@@ -39,8 +39,8 @@
 #include "ryoanji/traversal.h"
 #include "ryoanji/types.h"
 
-fvec4 walkParticle(int targetIndex, float eps, const cudaVec<CellData>& sources, const cudaVec<fvec4>& sourceCenter,
-                   const cudaVec<fvec4>& Multipole, const cudaVec<fvec4>& bodyPos)
+fvec4 walkParticle(int targetIndex, std::size_t numBodies, float eps, const CellData* sources,
+                   const fvec4* sourceCenter, const fvec4* Multipole, const fvec4* bodyPos)
 {
     float EPS2 = eps * eps;
     fvec4 acc{0, 0, 0, 0};
@@ -56,7 +56,7 @@ fvec4 walkParticle(int targetIndex, float eps, const cudaVec<CellData>& sources,
     fvec3 gmax{-1e10, -1e10, -1e10};
 
     int groupStart = targetIndex & ~63;
-    int groupEnd = std::min(groupStart + 64, bodyPos.size());
+    int groupEnd = std::min(groupStart + 64lu, numBodies);
     for (int i = groupStart; i < groupEnd; ++i)
     {
         gmin[0] = std::min(bodyPos[i][0], gmin[0]);
@@ -95,7 +95,7 @@ fvec4 walkParticle(int targetIndex, float eps, const cudaVec<CellData>& sources,
         // MAC passed, can apply M2P
         if (!isClose)
         {
-            fvec4* M = &Multipole[NVEC4 * ni];
+            const fvec4* M = &Multipole[NVEC4 * ni];
             acc = M2P(acc, targetX, srcCenter, *(fvecP*)M, EPS2);
 
             /*

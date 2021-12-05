@@ -5,7 +5,6 @@
 #include <cassert>
 #include <thrust/device_vector.h>
 
-#include "cudavec.h"
 #include "kahan.h"
 #include "array.hpp"
 

@@ -87,13 +87,13 @@ __global__ void testScan(int* values)
 
 TEST(WarpScan, inclusiveInt)
 {
-    cudaVec<int> values(2 * GpuConfig::warpSize, true);
-    testScan<<<1, 2 * GpuConfig::warpSize>>>(values.d());
-    values.d2h();
+    thrust::device_vector<int> d_values(2 * GpuConfig::warpSize);
+    testScan<<<1, 2 * GpuConfig::warpSize>>>(rawPtr(d_values.data()));
+    thrust::host_vector<int> h_values = d_values;
 
     for (int i = 0; i < 2 * GpuConfig::warpSize; ++i)
     {
-        EXPECT_EQ(values[i], i % GpuConfig::warpSize + 1);
+        EXPECT_EQ(h_values[i], i % GpuConfig::warpSize + 1);
     }
 }
 
@@ -105,13 +105,13 @@ __global__ void testScanBool(int* result)
 
 TEST(WarpScan, bools)
 {
-    cudaVec<int> values(2 * GpuConfig::warpSize, true);
-    testScanBool<<<1, 2 * GpuConfig::warpSize>>>(values.d());
-    values.d2h();
+    thrust::device_vector<int> d_values(2 * GpuConfig::warpSize);
+    testScanBool<<<1, 2 * GpuConfig::warpSize>>>(rawPtr(d_values.data()));
+    thrust::host_vector<int> h_values = d_values;
 
     for (int i = 0; i < 2 * GpuConfig::warpSize; ++i)
     {
-        EXPECT_EQ(values[i], (i % GpuConfig::warpSize) / 2);
+        EXPECT_EQ(h_values[i], (i % GpuConfig::warpSize) / 2);
     }
 }
 
@@ -133,21 +133,20 @@ __global__ void testSegScan(int* values)
     values[threadIdx.x] = scan;
 }
 
-
 TEST(WarpScan, inclusiveSegInt)
 {
-    cudaVec<int> values(32, true);
-    testSegScan<<<1,32>>>(values.d());
-    values.d2h();
+    thrust::device_vector<int> d_values(32);
+    testSegScan<<<1, 32>>>(rawPtr(d_values.data()));
+    thrust::host_vector<int> h_values = d_values;
 
     //                         carry is one, first segment starts with offset of 1
     //                         |                                        | value(16) = -2, so scan restarts at 2 - 1
-    std::vector<int> reference{2,3,4,5,6,7,8,9,11,12,13,14,15,16,17,18, 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,2};
+    std::vector<int> reference{2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18,
+                               1, 2, 3, 4, 5, 6, 7, 8, 9,  10, 11, 12, 13, 14, 15, 2};
     //                                                              value(31) = -3, scan restarts at 3 - 1  ^
 
     for (int i = 0; i < 32; ++i)
     {
-        EXPECT_EQ(values[i], reference[i]);
+        EXPECT_EQ(h_values[i], reference[i]);
     }
 }
-
