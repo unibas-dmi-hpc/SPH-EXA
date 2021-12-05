@@ -148,8 +148,7 @@ class Pass
 {
 public:
     static void upward(const int numSources, const int numLevels, const float theta, cudaVec<int2>& levelRange,
-                       const fvec4* bodyPos, cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
-                       cudaVec<fvec4>& Multipole)
+                       const fvec4* bodyPos, cudaVec<CellData>& sourceCells, fvec4* sourceCenter, fvec4* Multipole)
     {
         constexpr int numThreads = UpsweepConfig::numThreads;
 
@@ -166,13 +165,13 @@ public:
             int numCellsLevel = levelRange[level].y - levelRange[level].x;
             int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
             upwardPass<<<numBlocks, numThreads>>>(
-                level, levelRange.d(), sourceCells.d(), bodyPos, sourceCenter.d(), cellXmin, cellXmax, Multipole.d());
+                level, levelRange.d(), sourceCells.d(), bodyPos, sourceCenter, cellXmin, cellXmax, Multipole);
             kernelSuccess("upwardPass");
         }
 
         int numBlocks = (numSources - 1) / numThreads + 1;
-        setMAC<<<numBlocks, numThreads>>>(numSources, 1.0 / theta, sourceCenter.d(), cellXmin, cellXmax);
-        normalize<<<numBlocks, numThreads>>>(numSources, Multipole.d());
+        setMAC<<<numBlocks, numThreads>>>(numSources, 1.0 / theta, sourceCenter, cellXmin, cellXmax);
+        normalize<<<numBlocks, numThreads>>>(numSources, Multipole);
 
         auto t1   = std::chrono::high_resolution_clock::now();
         double dt = std::chrono::duration<double>(t1 - t0).count();

@@ -42,12 +42,13 @@ int main(int argc, char** argv)
     levelRange.h2d();
     int numSources = sources.size();
 
-    cudaVec<fvec4> sourceCenter(numSources);
-    cudaVec<fvec4> Multipole(NVEC4 * numSources);
+    thrust::device_vector<fvec4> sourceCenter(numSources);
+    thrust::device_vector<fvec4> Multipole(NVEC4 * numSources);
 
-    Pass::upward(sources.size(), highestLevel, theta, levelRange, rawPtr(d_bodies.data()), sources, sourceCenter, Multipole);
+    Pass::upward(sources.size(), highestLevel, theta, levelRange, rawPtr(d_bodies.data()), sources,
+                 rawPtr(sourceCenter.data()), rawPtr(Multipole.data()));
 
-    cudaVec<fvec4> bodyAcc(numBodies, true);
+    thrust::device_vector<fvec4> bodyAcc(numBodies);
 
     fprintf(stdout, "--- BH Profiling ----------------\n");
 
@@ -59,10 +60,10 @@ int main(int argc, char** argv)
                                            eps,
                                            cycle,
                                            rawPtr(d_bodies.data()),
-                                           bodyAcc,
+                                           rawPtr(bodyAcc.data()),
                                            sources,
-                                           sourceCenter,
-                                           Multipole,
+                                           rawPtr(sourceCenter.data()),
+                                           rawPtr(Multipole.data()),
                                            levelRange);
 
     auto t1      = std::chrono::high_resolution_clock::now();
@@ -84,7 +85,7 @@ int main(int argc, char** argv)
     flops = 24. * numBodies * numBodies / dt / 1e12;
     fprintf(stdout, "Total Direct         : %.7f s (%.7f TFlops)\n", dt, flops);
 
-    bodyAcc.d2h();
+    thrust::host_vector<fvec4> h_bodyAcc       = bodyAcc;
     thrust::host_vector<fvec4> h_bodyAccDirect = bodyAccDirect;
 
     std::vector<double> delta(numBodies);
@@ -92,7 +93,7 @@ int main(int argc, char** argv)
     for (int i = 0; i < numBodies; i++)
     {
         fvec3 ref   = {h_bodyAccDirect[i][1], h_bodyAccDirect[i][2], h_bodyAccDirect[i][3]};
-        fvec3 probe = {bodyAcc[i][1], bodyAcc[i][2], bodyAcc[i][3]};
+        fvec3 probe = {h_bodyAcc[i][1], h_bodyAcc[i][2], h_bodyAcc[i][3]};
         delta[i]    = std::sqrt(norm2(ref - probe) / norm2(ref));
     }
 

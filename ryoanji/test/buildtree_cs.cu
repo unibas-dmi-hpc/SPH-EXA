@@ -67,8 +67,8 @@ void checkBodyIndexing(int numBodies, CellData* tree, int numSources)
     EXPECT_EQ(std::count(begin(bodyIndexed), end(bodyIndexed), 1), numBodies);
 }
 
-void checkUpsweep(const Box& box, const cudaVec<CellData>& sources, const cudaVec<fvec4>& sourceCenter,
-                  const thrust::host_vector<fvec4>& h_boides, const cudaVec<fvec4>& Multipole)
+void checkUpsweep(const Box& box, const cudaVec<CellData>& sources, const thrust::host_vector<fvec4>& sourceCenter,
+                  const thrust::host_vector<fvec4>& h_bodies, const thrust::host_vector<fvec4>& Multipole)
 {
     cstone::Box<float> csBox(box.X[0] - box.R, box.X[0] + box.R,
                              box.X[1] - box.R, box.X[1] + box.R,
@@ -96,10 +96,10 @@ void checkUpsweep(const Box& box, const cudaVec<CellData>& sources, const cudaVe
             float cellMass = 0;
             for (int j = sources[i].body(); j < sources[i].body() + sources[i].nbody(); ++j)
             {
-                cellMass += h_boides[j][3];
+                cellMass += h_bodies[j][3];
 
                 uint64_t bodyKey =
-                    cstone::sfc3D<cstone::SfcKind<uint64_t>>(h_boides[j][0], h_boides[j][1], h_boides[j][2], csBox);
+                    cstone::sfc3D<cstone::SfcKind<uint64_t>>(h_bodies[j][0], h_bodies[j][1], h_bodies[j][2], csBox);
                 // check that the referenced body really lies inside the cell
                 // this is true if the keys, truncated to the first key-in-cell match
                 EXPECT_EQ(cellKey, cstone::enclosingBoxCode(bodyKey, sources[i].level()));
@@ -138,8 +138,8 @@ TEST(Buildtree, cstone)
     levelRange.h2d();
 
     int numSources = sources.size();
-    cudaVec<fvec4> sourceCenter(numSources, true);
-    cudaVec<fvec4> Multipole(NVEC4 * numSources, true);
+    thrust::device_vector<fvec4> sourceCenter(numSources);
+    thrust::device_vector<fvec4> Multipole(NVEC4 * numSources);
 
     Pass::upward(numSources,
                  highestLevel,
@@ -147,12 +147,12 @@ TEST(Buildtree, cstone)
                  levelRange,
                  rawPtr(bodyPos.data()),
                  sources,
-                 sourceCenter,
-                 Multipole);
+                 rawPtr(sourceCenter.data()),
+                 rawPtr(Multipole.data()));
     sources.d2h();
-    sourceCenter.d2h();
-    Multipole.d2h();
+    thrust::host_vector<fvec4> h_sourceCenter = sourceCenter;
+    thrust::host_vector<fvec4> h_Multipole = Multipole;
 
     checkBodyIndexing(numBodies, sources.h(), numSources);
-    checkUpsweep(box, sources, sourceCenter, h_bodies, Multipole);
+    checkUpsweep(box, sources, h_sourceCenter, h_bodies, h_Multipole);
 }

@@ -482,8 +482,8 @@ public:
      * @return
      */
     static fvec4 approx(int firstBody, int lastBody, int images, float eps, float cycle, const fvec4* bodyPos,
-                        cudaVec<fvec4>& bodyAcc, cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
-                        cudaVec<fvec4>& Multipole, cudaVec<int2>& levelRange)
+                        fvec4* bodyAcc, cudaVec<CellData>& sourceCells, const fvec4* sourceCenter,
+                        const fvec4* Multipole, cudaVec<int2>& levelRange)
     {
         constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
 
@@ -498,7 +498,7 @@ public:
 
         const int poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
 
-        cudaVec<int> globalPool(poolSize);
+        thrust::device_vector<int> globalPool(poolSize);
 
         cudaDeviceSynchronize();
 
@@ -513,10 +513,10 @@ public:
                                                         levelRange.d(),
                                                         bodyPos,
                                                         sourceCells.d(),
-                                                        sourceCenter.d(),
-                                                        Multipole.d(),
-                                                        bodyAcc.d(),
-                                                        globalPool.d());
+                                                        sourceCenter,
+                                                        Multipole,
+                                                        bodyAcc,
+                                                        rawPtr(globalPool.data()));
         kernelSuccess("traverse");
 
         auto t1  = std::chrono::high_resolution_clock::now();
