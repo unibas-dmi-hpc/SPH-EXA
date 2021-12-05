@@ -50,12 +50,12 @@ __host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int e
  * @param[out] cellXmax         coordinate maximum of each cell
  * @param[out] Multipole        output multipole of each cell
  */
-__global__ void upwardPass(const int level, const int2* levelRange, CellData* cells, const fvec4* bodyPos,
+__global__ void upwardPass(const int firstCell, const int lastCell, CellData* cells, const fvec4* bodyPos,
                            fvec4* sourceCenter, fvec3* cellXmin, fvec3* cellXmax,
                            fvec4* Multipole)
 {
-    const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x + levelRange[level].x;
-    if (cellIdx >= levelRange[level].y) return;
+    const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x + firstCell;
+    if (cellIdx >= lastCell) return;
     CellData& cell = cells[cellIdx];
     const float huge    = 1e10f;
     fvec3 Xmin{+huge, +huge, +huge};
@@ -147,8 +147,8 @@ __global__ void normalize(const int numCells, fvec4* Multipole)
 class Pass
 {
 public:
-    static void upward(const int numSources, const int numLevels, const float theta, cudaVec<int2>& levelRange,
-                       const fvec4* bodyPos, cudaVec<CellData>& sourceCells, fvec4* sourceCenter, fvec4* Multipole)
+    static void upward(const int numSources, const int numLevels, const float theta, const int2* levelRange,
+                       const fvec4* bodyPos, CellData* sourceCells, fvec4* sourceCenter, fvec4* Multipole)
     {
         constexpr int numThreads = UpsweepConfig::numThreads;
 
@@ -156,16 +156,20 @@ public:
         fvec3* cellXmin = rawPtr(d_cellXminmax.data());
         fvec3* cellXmax = cellXmin + numSources;
 
-        levelRange.d2h();
-
         auto t0 = std::chrono::high_resolution_clock::now();
 
         for (int level = numLevels; level >= 1; level--)
         {
             int numCellsLevel = levelRange[level].y - levelRange[level].x;
             int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
-            upwardPass<<<numBlocks, numThreads>>>(
-                level, levelRange.d(), sourceCells.d(), bodyPos, sourceCenter, cellXmin, cellXmax, Multipole);
+            upwardPass<<<numBlocks, numThreads>>>(levelRange[level].x,
+                                                  levelRange[level].y,
+                                                  sourceCells,
+                                                  bodyPos,
+                                                  sourceCenter,
+                                                  cellXmin,
+                                                  cellXmax,
+                                                  Multipole);
             kernelSuccess("upwardPass");
         }
 

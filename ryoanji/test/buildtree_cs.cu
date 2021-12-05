@@ -67,8 +67,9 @@ void checkBodyIndexing(int numBodies, CellData* tree, int numSources)
     EXPECT_EQ(std::count(begin(bodyIndexed), end(bodyIndexed), 1), numBodies);
 }
 
-void checkUpsweep(const Box& box, const cudaVec<CellData>& sources, const thrust::host_vector<fvec4>& sourceCenter,
-                  const thrust::host_vector<fvec4>& h_bodies, const thrust::host_vector<fvec4>& Multipole)
+void checkUpsweep(const Box& box, const thrust::host_vector<CellData>& sources,
+                  const thrust::host_vector<fvec4>& sourceCenter, const thrust::host_vector<fvec4>& h_bodies,
+                  const thrust::host_vector<fvec4>& Multipole)
 {
     cstone::Box<float> csBox(box.X[0] - box.R, box.X[0] + box.R,
                              box.X[1] - box.R, box.X[1] + box.R,
@@ -130,30 +131,32 @@ TEST(Buildtree, cstone)
 
     Box box{ {0.0f}, extent * 1.1f };
 
-    cudaVec<CellData> sources;
-    cudaVec<int2> levelRange(cstone::maxTreeLevel<uint64_t>{} + 1, true);
     TreeBuilder<uint64_t> treeBuilder;
-    int highestLevel = treeBuilder.update(rawPtr(bodyPos.data()), numBodies, box, sources, levelRange);
+    int numSources = treeBuilder.update(rawPtr(bodyPos.data()), numBodies, box);
+
+    thrust::device_vector<CellData> sources(numSources);
+    std::vector<int2> levelRange(cstone::maxTreeLevel<uint64_t>{} + 1);
+
+    int highestLevel = treeBuilder.extract(rawPtr(sources.data()), levelRange.data());
     // download from device
     h_bodies = bodyPos;
-    levelRange.h2d();
 
-    int numSources = sources.size();
     thrust::device_vector<fvec4> sourceCenter(numSources);
     thrust::device_vector<fvec4> Multipole(NVEC4 * numSources);
 
     Pass::upward(numSources,
                  highestLevel,
                  theta,
-                 levelRange,
+                 levelRange.data(),
                  rawPtr(bodyPos.data()),
-                 sources,
+                 rawPtr(sources.data()),
                  rawPtr(sourceCenter.data()),
                  rawPtr(Multipole.data()));
-    sources.d2h();
+
+    thrust::host_vector<CellData> h_sources = sources;
     thrust::host_vector<fvec4> h_sourceCenter = sourceCenter;
     thrust::host_vector<fvec4> h_Multipole = Multipole;
 
-    checkBodyIndexing(numBodies, sources.h(), numSources);
-    checkUpsweep(box, sources, h_sourceCenter, h_bodies, h_Multipole);
+    checkBodyIndexing(numBodies, h_sources.data(), numSources);
+    checkUpsweep(box, h_sources, h_sourceCenter, h_bodies, h_Multipole);
 }

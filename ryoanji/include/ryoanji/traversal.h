@@ -294,9 +294,9 @@ __global__ void resetTraversalCounters()
  * @param[in]  firstBody     index of first body in bodyPos to compute acceleration for
  * @param[in]  lastBody      index (exclusive) of last body in @p bodyPos to compute acceleration for
  * @param[in]  images        number of periodic images to include
- * @param[in]  EPS2          Plummer softening
+ * @param[in]  EPS2          Plummer softening parameter
  * @param[in]  cycle         2 * M_PI
- * @param[in]  levelRange    (start,end) index pairs into texCell, texCenter and texSource for each tree level
+ * @param[in]  rootRange     (start,end) index pair of cell indices to start traversal from
  * @param[in]  bodyPos       pointer to SFC-sorted bodies
  * @param[in]  srcCells      source cell data
  * @param[in]  srcCenter     source center data, x,y,z location and square of MAC radius, same order as srcCells
@@ -306,7 +306,7 @@ __global__ void resetTraversalCounters()
  */
 __global__ __launch_bounds__(TravConfig::numThreads)
 void traverse(int firstBody, int lastBody, int images, const float EPS2, float cycle,
-              const int2* levelRange, const fvec4* __restrict__ bodyPos,
+              const int2 rootRange, const fvec4* __restrict__ bodyPos,
               const CellData* __restrict__ srcCells,
               const fvec4* __restrict__ srcCenter, const fvec4* __restrict__ Multipoles,
               fvec4* bodyAcc, int* globalPool)
@@ -403,7 +403,7 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
                                                         srcCenter,
                                                         Multipoles,
                                                         EPS2,
-                                                        levelRange[1],
+                                                        rootRange,
                                                         tempQueue,
                                                         cellQueue);
                     assert(!(counters.x == 0xFFFFFFFF && counters.y == 0xFFFFFFFF));
@@ -482,8 +482,8 @@ public:
      * @return
      */
     static fvec4 approx(int firstBody, int lastBody, int images, float eps, float cycle, const fvec4* bodyPos,
-                        fvec4* bodyAcc, cudaVec<CellData>& sourceCells, const fvec4* sourceCenter,
-                        const fvec4* Multipole, cudaVec<int2>& levelRange)
+                        fvec4* bodyAcc, const CellData* sourceCells, const fvec4* sourceCenter,
+                        const fvec4* Multipole, const int2* levelRange)
     {
         constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
 
@@ -510,9 +510,9 @@ public:
                                                         images,
                                                         eps * eps,
                                                         cycle,
-                                                        levelRange.d(),
+                                                        {levelRange[1].x, levelRange[1].y},
                                                         bodyPos,
-                                                        sourceCells.d(),
+                                                        sourceCells,
                                                         sourceCenter,
                                                         Multipole,
                                                         bodyAcc,

@@ -36,19 +36,26 @@ int main(int argc, char** argv)
 
     Box box{ {0.0f}, boxSize * 1.00f};
 
-    cudaVec<CellData> sources;
-    cudaVec<int2> levelRange(cstone::maxTreeLevel<uint64_t>{} + 1, true);
 
     TreeBuilder<uint64_t> treeBuilder;
-    int highestLevel = treeBuilder.update(rawPtr(d_bodies.data()), d_bodies.size(), box, sources, levelRange);
-    levelRange.h2d();
-    int numSources = sources.size();
+    int numSources = treeBuilder.update(rawPtr(d_bodies.data()), d_bodies.size(), box);
+
+    thrust::device_vector<CellData> sources(numSources);
+    std::vector<int2>               levelRange(cstone::maxTreeLevel<uint64_t>{} + 1);
+
+    int highestLevel = treeBuilder.extract(rawPtr(sources.data()), levelRange.data()) ;
 
     thrust::device_vector<fvec4> sourceCenter(numSources);
     thrust::device_vector<fvec4> Multipole(NVEC4 * numSources);
 
-    Pass::upward(sources.size(), highestLevel, theta, levelRange, rawPtr(d_bodies.data()), sources,
-                 rawPtr(sourceCenter.data()), rawPtr(Multipole.data()));
+    Pass::upward(sources.size(),
+                 highestLevel,
+                 theta,
+                 levelRange.data(),
+                 rawPtr(d_bodies.data()),
+                 rawPtr(sources.data()),
+                 rawPtr(sourceCenter.data()),
+                 rawPtr(Multipole.data()));
 
     thrust::device_vector<fvec4> bodyAcc(numBodies);
 
@@ -63,10 +70,10 @@ int main(int argc, char** argv)
                                            cycle,
                                            rawPtr(d_bodies.data()),
                                            rawPtr(bodyAcc.data()),
-                                           sources,
+                                           rawPtr(sources.data()),
                                            rawPtr(sourceCenter.data()),
                                            rawPtr(Multipole.data()),
-                                           levelRange);
+                                           levelRange.data());
 
     auto t1      = std::chrono::high_resolution_clock::now();
     double dt    = std::chrono::duration<double>(t1 - t0).count();
