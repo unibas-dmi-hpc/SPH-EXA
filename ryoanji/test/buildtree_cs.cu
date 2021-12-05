@@ -132,7 +132,7 @@ TEST(Buildtree, cstone)
 
     cudaVec<CellData> sources;
     cudaVec<int2> levelRange(cstone::maxTreeLevel<uint64_t>{} + 1, true);
-    int highestLevel = buildTree(thrust::raw_pointer_cast(bodyPos.data()), numBodies, box, sources, levelRange);
+    int highestLevel = buildTree(rawPtr(bodyPos.data()), numBodies, box, sources, levelRange);
     // download from device
     h_bodies = bodyPos;
     levelRange.h2d();
@@ -141,12 +141,11 @@ TEST(Buildtree, cstone)
     cudaVec<fvec4> sourceCenter(numSources, true);
     cudaVec<fvec4> Multipole(NVEC4 * numSources, true);
 
-    int numLeaves = -1;
-    Pass::upward(numLeaves,
+    Pass::upward(numSources,
                  highestLevel,
                  theta,
                  levelRange,
-                 thrust::raw_pointer_cast(bodyPos.data()),
+                 rawPtr(bodyPos.data()),
                  sources,
                  sourceCenter,
                  Multipole);

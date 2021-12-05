@@ -8,11 +8,6 @@
 #include "ryoanji/direct.cuh"
 #include "ryoanji/upwardpass.h"
 
-template<class T>
-T* rawPtr(thrust::device_ptr<T> p)
-{
-    return thrust::raw_pointer_cast(p);
-}
 
 int main(int argc, char** argv)
 {
@@ -50,8 +45,7 @@ int main(int argc, char** argv)
     cudaVec<fvec4> sourceCenter(numSources);
     cudaVec<fvec4> Multipole(NVEC4 * numSources);
 
-    int numLeaves = -1;
-    Pass::upward(numLeaves, highestLevel, theta, levelRange, rawPtr(d_bodies.data()), sources, sourceCenter, Multipole);
+    Pass::upward(sources.size(), highestLevel, theta, levelRange, rawPtr(d_bodies.data()), sources, sourceCenter, Multipole);
 
     cudaVec<fvec4> bodyAcc(numBodies, true);
 

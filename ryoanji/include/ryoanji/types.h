@@ -3,6 +3,8 @@
 #define CUDA_SAFE_CALL(err) cudaSafeCall(err, __FILE__, __LINE__)
 
 #include <cassert>
+#include <thrust/device_vector.h>
+
 #include "cudavec.h"
 #include "kahan.h"
 #include "array.hpp"
@@ -50,6 +52,12 @@ struct Bounds
     fvec3 Xmin; //!< Minimum value of coordinates
     fvec3 Xmax; //!< Maximum value of coordinates
 };
+
+template<class T>
+T* rawPtr(thrust::device_ptr<T> p)
+{
+    return thrust::raw_pointer_cast(p);
+}
 
 class CellData
 {

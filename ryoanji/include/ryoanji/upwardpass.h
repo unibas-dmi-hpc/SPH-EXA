@@ -147,40 +147,32 @@ __global__ void normalize(const int numCells, fvec4* Multipole)
 class Pass
 {
 public:
-    static void upward(const int numLeafs, const int numLevels, const float theta, cudaVec<int2>& levelRange,
+    static void upward(const int numSources, const int numLevels, const float theta, cudaVec<int2>& levelRange,
                        const fvec4* bodyPos, cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
                        cudaVec<fvec4>& Multipole)
     {
         constexpr int numThreads = UpsweepConfig::numThreads;
-        int numCells = sourceCells.size();
-        int NBLOCK   = (numCells - 1) / numThreads + 1;
 
-        auto t0 = std::chrono::high_resolution_clock::now();
-
-        cudaVec<fvec3> cellXmin(numCells);
-        cudaVec<fvec3> cellXmax(numCells);
+        thrust::device_vector<fvec3> d_cellXminmax(2 * numSources);
+        fvec3* cellXmin = rawPtr(d_cellXminmax.data());
+        fvec3* cellXmax = cellXmin + numSources;
 
         levelRange.d2h();
 
+        auto t0 = std::chrono::high_resolution_clock::now();
+
         for (int level = numLevels; level >= 1; level--)
         {
-            numCells = levelRange[level].y - levelRange[level].x;
-            NBLOCK   = (numCells - 1) / numThreads + 1;
-            upwardPass<<<NBLOCK, numThreads>>>(level,
-                                               levelRange.d(),
-                                               sourceCells.d(),
-                                               bodyPos,
-                                               sourceCenter.d(),
-                                               cellXmin.d(),
-                                               cellXmax.d(),
-                                               Multipole.d());
+            int numCellsLevel = levelRange[level].y - levelRange[level].x;
+            int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
+            upwardPass<<<numBlocks, numThreads>>>(
+                level, levelRange.d(), sourceCells.d(), bodyPos, sourceCenter.d(), cellXmin, cellXmax, Multipole.d());
             kernelSuccess("upwardPass");
         }
 
-        numCells = sourceCells.size();
-        NBLOCK   = (numCells - 1) / numThreads + 1;
-        setMAC<<<NBLOCK, numThreads>>>(numCells, 1.0 / theta, sourceCenter.d(), cellXmin.d(), cellXmax.d());
-        normalize<<<NBLOCK, numThreads>>>(numCells, Multipole.d());
+        int numBlocks = (numSources - 1) / numThreads + 1;
+        setMAC<<<numBlocks, numThreads>>>(numSources, 1.0 / theta, sourceCenter.d(), cellXmin, cellXmax);
+        normalize<<<numBlocks, numThreads>>>(numSources, Multipole.d());
 
         auto t1   = std::chrono::high_resolution_clock::now();
         double dt = std::chrono::duration<double>(t1 - t0).count();
