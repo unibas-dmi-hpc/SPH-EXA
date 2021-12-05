@@ -83,15 +83,15 @@ computeSfcKeysRealKernel(KeyType* keys, const fvec4* bodies, size_t numKeys, con
     }
 }
 
-int buildTree(cudaVec<fvec4>& bodies, const Box& box, cudaVec<CellData>& ryoanjiTree, cudaVec<int2>& levelRange)
+int buildTree(fvec4* bodies, size_t numBodies, const Box& box, cudaVec<CellData>& ryoanjiTree,
+              cudaVec<int2>& levelRange)
 {
-    using KeyType = uint64_t;
-    unsigned numParticles = bodies.size();
+    using KeyType       = uint64_t;
     unsigned bucketSize = 64;
 
     using T = fvec4::value_type;
 
-    thrust::device_vector<KeyType> d_keys(numParticles);
+    thrust::device_vector<KeyType> d_keys(numBodies);
 
     cstone::Box<T> csBox(box.X[0] - box.R, box.X[0] + box.R,
                          box.X[1] - box.R, box.X[1] + box.R,
@@ -100,15 +100,15 @@ int buildTree(cudaVec<fvec4>& bodies, const Box& box, cudaVec<CellData>& ryoanji
 
     {
         constexpr unsigned numThreads = 256;
-        unsigned numBlocks            = (numParticles - 1) / numThreads + 1;
+        unsigned numBlocks            = (numBodies - 1) / numThreads + 1;
         computeSfcKeysRealKernel<<<numBlocks, numThreads>>>(
-            thrust::raw_pointer_cast(d_keys.data()), bodies.d(), numParticles, csBox);
+            thrust::raw_pointer_cast(d_keys.data()), bodies, numBodies, csBox);
     }
 
-    thrust::sort_by_key(thrust::device, d_keys.begin(), d_keys.end(), bodies.d());
+    thrust::sort_by_key(thrust::device, d_keys.begin(), d_keys.end(), bodies);
 
     thrust::device_vector<KeyType> d_tree = std::vector<KeyType>{0, cstone::nodeRange<KeyType>(0)};
-    thrust::device_vector<unsigned> d_counts = std::vector<unsigned>{numParticles};
+    thrust::device_vector<unsigned> d_counts = std::vector<unsigned>{unsigned(numBodies)};
 
     {
         thrust::device_vector<KeyType> tmpTree;

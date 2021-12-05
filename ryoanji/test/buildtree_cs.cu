@@ -68,7 +68,7 @@ void checkBodyIndexing(int numBodies, CellData* tree, int numSources)
 }
 
 void checkUpsweep(const Box& box, const cudaVec<CellData>& sources, const cudaVec<fvec4>& sourceCenter,
-                  const cudaVec<fvec4>& bodyPos, const cudaVec<fvec4>& Multipole)
+                  const thrust::host_vector<fvec4>& h_boides, const cudaVec<fvec4>& Multipole)
 {
     cstone::Box<float> csBox(box.X[0] - box.R, box.X[0] + box.R,
                              box.X[1] - box.R, box.X[1] + box.R,
@@ -96,10 +96,10 @@ void checkUpsweep(const Box& box, const cudaVec<CellData>& sources, const cudaVe
             float cellMass = 0;
             for (int j = sources[i].body(); j < sources[i].body() + sources[i].nbody(); ++j)
             {
-                cellMass += bodyPos[j][3];
+                cellMass += h_boides[j][3];
 
                 uint64_t bodyKey =
-                    cstone::sfc3D<cstone::SfcKind<uint64_t>>(bodyPos[j][0], bodyPos[j][1], bodyPos[j][2], csBox);
+                    cstone::sfc3D<cstone::SfcKind<uint64_t>>(h_boides[j][0], h_boides[j][1], h_boides[j][2], csBox);
                 // check that the referenced body really lies inside the cell
                 // this is true if the keys, truncated to the first key-in-cell match
                 EXPECT_EQ(cellKey, cstone::enclosingBoxCode(bodyKey, sources[i].level()));
@@ -123,16 +123,18 @@ TEST(Buildtree, cstone)
     float extent = 3;
     float theta = 0.75;
 
-    cudaVec<fvec4> bodyPos(numBodies, true);
-    makeCubeBodies(bodyPos.h(), numBodies, extent);
-    bodyPos.h2d();
+    thrust::host_vector<fvec4> h_bodies(numBodies);
+    makeCubeBodies(h_bodies.data(), numBodies, extent);
+    // upload to device
+    thrust::device_vector<fvec4> bodyPos = h_bodies;
 
     Box box{ {0.0f}, extent * 1.1f };
 
     cudaVec<CellData> sources;
     cudaVec<int2> levelRange(cstone::maxTreeLevel<uint64_t>{} + 1, true);
-    int highestLevel = buildTree(bodyPos, box, sources, levelRange);
-    bodyPos.d2h();
+    int highestLevel = buildTree(thrust::raw_pointer_cast(bodyPos.data()), numBodies, box, sources, levelRange);
+    // download from device
+    h_bodies = bodyPos;
     levelRange.h2d();
 
     int numSources = sources.size();
@@ -140,11 +142,18 @@ TEST(Buildtree, cstone)
     cudaVec<fvec4> Multipole(NVEC4 * numSources, true);
 
     int numLeaves = -1;
-    Pass::upward(numLeaves, highestLevel, theta, levelRange, bodyPos, sources, sourceCenter, Multipole);
+    Pass::upward(numLeaves,
+                 highestLevel,
+                 theta,
+                 levelRange,
+                 thrust::raw_pointer_cast(bodyPos.data()),
+                 sources,
+                 sourceCenter,
+                 Multipole);
     sources.d2h();
     sourceCenter.d2h();
     Multipole.d2h();
 
     checkBodyIndexing(numBodies, sources.h(), numSources);
-    checkUpsweep(box, sources, sourceCenter, bodyPos, Multipole);
+    checkUpsweep(box, sources, sourceCenter, h_bodies, Multipole);
 }

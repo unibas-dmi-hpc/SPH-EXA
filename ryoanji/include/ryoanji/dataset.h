@@ -139,10 +139,9 @@ static void makeCubeBodies(fvec4* bodies, size_t n, double extent = 3)
     bodies[n - 1][2] = extent;
 }
 
-static std::vector<fvec4> makeGridBodies(size_t npOnEdge, double spacing)
+//! generate a grid with npOnEdge^3 bodies
+static void makeGridBodies(fvec4* bodies, int npOnEdge, double spacing)
 {
-    std::vector<fvec4> bodies(npOnEdge * npOnEdge * npOnEdge);
-
     for (size_t i = 0; i < npOnEdge; i++)
         for (size_t j = 0; j < npOnEdge; j++)
             for (size_t k = 0; k < npOnEdge; k++)
@@ -153,6 +152,4 @@ static std::vector<fvec4> makeGridBodies(size_t npOnEdge, double spacing)
         bodies[linIdx][2] = k * spacing;
         bodies[linIdx][3] = 1.0 / (npOnEdge * npOnEdge * npOnEdge);
     }
-
-    return bodies;
 }

@@ -8,12 +8,18 @@
 #include "ryoanji/direct.cuh"
 #include "ryoanji/upwardpass.h"
 
+template<class T>
+T* rawPtr(thrust::device_ptr<T> p)
+{
+    return thrust::raw_pointer_cast(p);
+}
+
 int main(int argc, char** argv)
 {
     int power = argc > 1 ? std::stoi(argv[1]) : 17;
     int directRef = argc > 2 ? std::stoi(argv[2]) : 1;
 
-    int numBodies = (1 << power) - 1;
+    std::size_t numBodies = (1 << power) - 1;
     int images    = 0;
     float theta   = 0.6;
     float boxSize = 3;
@@ -23,20 +29,21 @@ int main(int argc, char** argv)
     const float cycle = 2 * M_PI;
 
     fprintf(stdout, "--- BH Parameters ---------------\n");
-    fprintf(stdout, "numBodies            : %d\n", numBodies);
+    fprintf(stdout, "numBodies            : %lu\n", numBodies);
     fprintf(stdout, "P                    : %d\n", P);
     fprintf(stdout, "theta                : %f\n", theta);
     fprintf(stdout, "ncrit                : %d\n", ncrit);
 
-    cudaVec<fvec4> bodyPos(numBodies, true);
-    makeCubeBodies(bodyPos.h(), numBodies, boxSize);
-    bodyPos.h2d();
+    std::vector<fvec4> h_bodies(numBodies);
+    makeCubeBodies(h_bodies.data(), numBodies, boxSize);
+    // upload bodies to device
+    thrust::device_vector<fvec4> d_bodies = h_bodies;
 
     Box box{ {0.0f}, boxSize * 1.00f};
 
     cudaVec<CellData> sources;
     cudaVec<int2> levelRange(cstone::maxTreeLevel<uint64_t>{} + 1, true);
-    int highestLevel = buildTree(bodyPos, box, sources, levelRange);
+    int highestLevel = buildTree(rawPtr(d_bodies.data()), d_bodies.size(), box, sources, levelRange);
     levelRange.h2d();
     int numSources = sources.size();
 
@@ -44,7 +51,7 @@ int main(int argc, char** argv)
     cudaVec<fvec4> Multipole(NVEC4 * numSources);
 
     int numLeaves = -1;
-    Pass::upward(numLeaves, highestLevel, theta, levelRange, bodyPos, sources, sourceCenter, Multipole);
+    Pass::upward(numLeaves, highestLevel, theta, levelRange, rawPtr(d_bodies.data()), sources, sourceCenter, Multipole);
 
     cudaVec<fvec4> bodyAcc(numBodies, true);
 
@@ -53,11 +60,11 @@ int main(int argc, char** argv)
     auto t0 = std::chrono::high_resolution_clock::now();
 
     fvec4 interactions = Traversal::approx(0,
-                                           bodyPos.size(),
+                                           numBodies,
                                            images,
                                            eps,
                                            cycle,
-                                           bodyPos,
+                                           rawPtr(d_bodies.data()),
                                            bodyAcc,
                                            sources,
                                            sourceCenter,
@@ -76,7 +83,7 @@ int main(int argc, char** argv)
     cudaVec<fvec4> bodyAccDirect(numBodies, true);
 
     t0 = std::chrono::high_resolution_clock::now();
-    directSum(eps, bodyPos, bodyAccDirect);
+    directSum(numBodies, rawPtr(d_bodies.data()), bodyAccDirect, eps);
     t1 = std::chrono::high_resolution_clock::now();
     dt = std::chrono::duration<double>(t1 - t0).count();
 
@@ -114,7 +121,7 @@ int main(int argc, char** argv)
     //fprintf(stdout, "Rel. L2 Error (acc)  : %.7e\n", sqrt(diffa / norma));
 
     fprintf(stdout, "--- Tree stats -------------------\n");
-    fprintf(stdout, "Bodies               : %d\n", numBodies);
+    fprintf(stdout, "Bodies               : %lu\n", numBodies);
     fprintf(stdout, "Cells                : %d\n", numSources);
     fprintf(stdout, "Tree depth           : %d\n", 0);
     fprintf(stdout, "--- Traversal stats --------------\n");

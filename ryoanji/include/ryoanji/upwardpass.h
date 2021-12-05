@@ -148,7 +148,7 @@ class Pass
 {
 public:
     static void upward(const int numLeafs, const int numLevels, const float theta, cudaVec<int2>& levelRange,
-                       cudaVec<fvec4>& bodyPos, cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
+                       const fvec4* bodyPos, cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
                        cudaVec<fvec4>& Multipole)
     {
         constexpr int numThreads = UpsweepConfig::numThreads;
@@ -169,7 +169,7 @@ public:
             upwardPass<<<NBLOCK, numThreads>>>(level,
                                                levelRange.d(),
                                                sourceCells.d(),
-                                               bodyPos.d(),
+                                               bodyPos,
                                                sourceCenter.d(),
                                                cellXmin.d(),
                                                cellXmax.d(),

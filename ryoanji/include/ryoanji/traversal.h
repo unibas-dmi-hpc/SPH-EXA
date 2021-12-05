@@ -481,9 +481,8 @@ public:
      * @param[in]  levelRange
      * @return
      */
-    static fvec4 approx(int firstBody, int lastBody, int images, float eps, float cycle,
-                        cudaVec<fvec4>& bodyPos, cudaVec<fvec4>& bodyAcc,
-                        cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
+    static fvec4 approx(int firstBody, int lastBody, int images, float eps, float cycle, const fvec4* bodyPos,
+                        cudaVec<fvec4>& bodyAcc, cudaVec<CellData>& sourceCells, cudaVec<fvec4>& sourceCenter,
                         cudaVec<fvec4>& Multipole, cudaVec<int2>& levelRange)
     {
         constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
@@ -493,31 +492,31 @@ public:
         // each target gets a warp (numWarps == numTargets)
         int numWarps  = (numBodies - 1) / TravConfig::targetSize + 1;
         int numBlocks = (numWarps - 1) / numWarpsPerBlock + 1;
-        numBlocks = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
+        numBlocks     = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
 
         printf("launching %d blocks\n", numBlocks);
 
-        const int poolSize  = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
+        const int poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
 
         cudaVec<int> globalPool(poolSize);
 
         cudaDeviceSynchronize();
 
-        resetTraversalCounters<<<1,1>>>();
+        resetTraversalCounters<<<1, 1>>>();
 
         auto t0 = std::chrono::high_resolution_clock::now();
         traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody,
-                                                                lastBody,
-                                                                images,
-                                                                eps * eps,
-                                                                cycle,
-                                                                levelRange.d(),
-                                                                bodyPos.d(),
-                                                                sourceCells.d(),
-                                                                sourceCenter.d(),
-                                                                Multipole.d(),
-                                                                bodyAcc.d(),
-                                                                globalPool.d());
+                                                        lastBody,
+                                                        images,
+                                                        eps * eps,
+                                                        cycle,
+                                                        levelRange.d(),
+                                                        bodyPos,
+                                                        sourceCells.d(),
+                                                        sourceCenter.d(),
+                                                        Multipole.d(),
+                                                        bodyAcc.d(),
+                                                        globalPool.d());
         kernelSuccess("traverse");
 
         auto t1  = std::chrono::high_resolution_clock::now();

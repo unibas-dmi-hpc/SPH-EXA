@@ -1,6 +1,9 @@
 
 #include "gtest/gtest.h"
 
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
+
 #include "cstone/gravity/treewalk.hpp"
 
 #include "ryoanji/dataset.h"
@@ -55,24 +58,20 @@ TEST(DirectSum, MatchCpu)
     // particles are not on top of each other
     float eps = 0.0;
 
-    auto bodies = makeGridBodies(npOnEdge, 0.5);
+    std::vector<fvec4> h_bodies(numBodies);
+    makeGridBodies(h_bodies.data(), npOnEdge, 0.5);
 
-    cudaVec<fvec4> bodyPos(numBodies, true);
-    for (size_t i = 0; i < numBodies; ++i)
-    {
-        bodyPos[i] = bodies[i];
-        //printf("%f %f %f %f\n", bodyPos[i][0], bodyPos[i][1], bodyPos[i][2], bodyPos[i][3]);
-    }
-    bodyPos.h2d();
+    // upload to device
+    thrust::device_vector<fvec4> bodyPos = h_bodies;
 
     cudaVec<fvec4> bodyAcc(numBodies, true);
     bodyAcc.zeros();
 
-    directSum(eps, bodyPos, bodyAcc);
+    directSum(numBodies, thrust::raw_pointer_cast(bodyPos.data()), bodyAcc, eps);
 
     bodyAcc.d2h();
 
-    auto refAcc = cpuReference(bodies);
+    auto refAcc = cpuReference(h_bodies);
 
     for (int i = 0; i < numBodies; ++i)
     {
