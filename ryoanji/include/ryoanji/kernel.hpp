@@ -1,13 +1,19 @@
 #pragma once
 
+/*! @file
+ * @brief  EXA-FMM multipole kernels
+ *
+ * @author Rio Yokota <rioyokota@gsic.titech.ac.jp>
+ */
+
 namespace
 {
 
 template<int nx, int ny, int nz>
 struct Index
 {
-    static const int I      = Index<nx, ny + 1, nz - 1>::I + 1;
-    static const uint64_t F = Index<nx, ny, nz - 1>::F * nz;
+    static constexpr int I      = Index<nx, ny + 1, nz - 1>::I + 1;
+    static constexpr uint64_t F = Index<nx, ny, nz - 1>::F * nz;
     static __host__ __device__ __forceinline__ float power(const fvec3& dX)
     {
         return Index<nx, ny, nz - 1>::power(dX) * dX[2];
@@ -17,8 +23,8 @@ struct Index
 template<int nx, int ny>
 struct Index<nx, ny, 0>
 {
-    static const int I      = Index<nx + 1, 0, ny - 1>::I + 1;
-    static const uint64_t F = Index<nx, ny - 1, 0>::F * ny;
+    static constexpr int I      = Index<nx + 1, 0, ny - 1>::I + 1;
+    static constexpr uint64_t F = Index<nx, ny - 1, 0>::F * ny;
 
     static __host__ __device__ __forceinline__ float power(const fvec3& dX)
     {
@@ -29,8 +35,8 @@ struct Index<nx, ny, 0>
 template<int nx>
 struct Index<nx, 0, 0>
 {
-    static const int I      = Index<0, 0, nx - 1>::I + 1;
-    static const uint64_t F = Index<nx - 1, 0, 0>::F * nx;
+    static constexpr int I      = Index<0, 0, nx - 1>::I + 1;
+    static constexpr uint64_t F = Index<nx - 1, 0, 0>::F * nx;
 
     static __host__ __device__ __forceinline__ float power(const fvec3& dX)
     {
@@ -41,8 +47,8 @@ struct Index<nx, 0, 0>
 template<>
 struct Index<0, 0, 0>
 {
-    static const int I      = 0;
-    static const uint64_t F = 1;
+    static constexpr int I      = 0;
+    static constexpr uint64_t F = 1;
 
     static __host__ __device__ __forceinline__ float power(const fvec3&) { return 1.0f; }
 };
@@ -50,7 +56,7 @@ struct Index<0, 0, 0>
 template<int n>
 struct DerivativeTerm
 {
-    static const int c = 1 - 2 * n;
+    static constexpr int c = 1 - 2 * n;
 
     static __host__ __device__ __forceinline__ void invR(float* invRN, const float& invR2)
     {
@@ -68,11 +74,11 @@ struct DerivativeTerm<0>
 template<int depth, int nx, int ny, int nz, int flag>
 struct DerivativeSum
 {
-    static const int cx = nx * (nx - 1) / 2;
-    static const int cy = ny * (ny - 1) / 2;
-    static const int cz = nz * (nz - 1) / 2;
-    static const int n  = nx + ny + nz;
-    static const int d  = depth > 0 ? depth : 1;
+    static constexpr int cx = nx * (nx - 1) / 2;
+    static constexpr int cy = ny * (ny - 1) / 2;
+    static constexpr int cz = nz * (nz - 1) / 2;
+    static constexpr int n  = nx + ny + nz;
+    static constexpr int d  = depth > 0 ? depth : 1;
 
     static __host__ __device__ __forceinline__ float loop(float* invRN, const fvec3& dX)
     {
@@ -86,10 +92,10 @@ struct DerivativeSum
 template<int depth, int nx, int ny, int nz>
 struct DerivativeSum<depth, nx, ny, nz, 6>
 {
-    static const int cx = nx * (nx - 1) / 2;
-    static const int cy = ny * (ny - 1) / 2;
-    static const int n  = nx + ny + nz;
-    static const int d  = depth > 0 ? depth : 1;
+    static constexpr int cx = nx * (nx - 1) / 2;
+    static constexpr int cy = ny * (ny - 1) / 2;
+    static constexpr int n  = nx + ny + nz;
+    static constexpr int d  = depth > 0 ? depth : 1;
 
     static __host__ __device__ __forceinline__ float loop(float* invRN, const fvec3& dX)
     {
@@ -102,10 +108,10 @@ struct DerivativeSum<depth, nx, ny, nz, 6>
 template<int depth, int nx, int ny, int nz>
 struct DerivativeSum<depth, nx, ny, nz, 5>
 {
-    static const int cx = nx * (nx - 1) / 2;
-    static const int cz = nz * (nz - 1) / 2;
-    static const int n  = nx + ny + nz;
-    static const int d  = depth > 0 ? depth : 1;
+    static constexpr int cx = nx * (nx - 1) / 2;
+    static constexpr int cz = nz * (nz - 1) / 2;
+    static constexpr int n  = nx + ny + nz;
+    static constexpr int d  = depth > 0 ? depth : 1;
 
     static __host__ __device__ __forceinline__ float loop(float* invRN, const fvec3& dX)
     {
@@ -118,9 +124,9 @@ struct DerivativeSum<depth, nx, ny, nz, 5>
 template<int depth, int nx, int ny, int nz>
 struct DerivativeSum<depth, nx, ny, nz, 4>
 {
-    static const int cx = nx * (nx - 1) / 2;
-    static const int n  = nx + ny + nz;
-    static const int d  = depth > 0 ? depth : 1;
+    static constexpr int cx = nx * (nx - 1) / 2;
+    static constexpr int n  = nx + ny + nz;
+    static constexpr int d  = depth > 0 ? depth : 1;
 
     static __host__ __device__ __forceinline__ float loop(float* invRN, const fvec3& dX)
     {
@@ -132,10 +138,10 @@ struct DerivativeSum<depth, nx, ny, nz, 4>
 template<int depth, int nx, int ny, int nz>
 struct DerivativeSum<depth, nx, ny, nz, 3>
 {
-    static const int cy = ny * (ny - 1) / 2;
-    static const int cz = nz * (nz - 1) / 2;
-    static const int n  = nx + ny + nz;
-    static const int d  = depth > 0 ? depth : 1;
+    static constexpr int cy = ny * (ny - 1) / 2;
+    static constexpr int cz = nz * (nz - 1) / 2;
+    static constexpr int n  = nx + ny + nz;
+    static constexpr int d  = depth > 0 ? depth : 1;
 
     static __host__ __device__ __forceinline__ float loop(float* invRN, const fvec3& dX)
     {
@@ -148,9 +154,9 @@ struct DerivativeSum<depth, nx, ny, nz, 3>
 template<int depth, int nx, int ny, int nz>
 struct DerivativeSum<depth, nx, ny, nz, 2>
 {
-    static const int cy = ny * (ny - 1) / 2;
-    static const int n  = nx + ny + nz;
-    static const int d  = depth > 0 ? depth : 1;
+    static constexpr int cy = ny * (ny - 1) / 2;
+    static constexpr int n  = nx + ny + nz;
+    static constexpr int d  = depth > 0 ? depth : 1;
 
     static __host__ __device__ __forceinline__ float loop(float* invRN, const fvec3& dX)
     {
@@ -162,9 +168,9 @@ struct DerivativeSum<depth, nx, ny, nz, 2>
 template<int depth, int nx, int ny, int nz>
 struct DerivativeSum<depth, nx, ny, nz, 1>
 {
-    static const int cz = nz * (nz - 1) / 2;
-    static const int n  = nx + ny + nz;
-    static const int d  = depth > 0 ? depth : 1;
+    static constexpr int cz = nz * (nz - 1) / 2;
+    static constexpr int n  = nx + ny + nz;
+    static constexpr int d  = depth > 0 ? depth : 1;
 
     static __host__ __device__ __forceinline__ float loop(float* invRN, const fvec3& dX)
     {
@@ -176,8 +182,8 @@ struct DerivativeSum<depth, nx, ny, nz, 1>
 template<int depth, int nx, int ny, int nz>
 struct DerivativeSum<depth, nx, ny, nz, 0>
 {
-    static const int n = nx + ny + nz;
-    static const int d = depth > 0 ? depth : 1;
+    static constexpr int n = nx + ny + nz;
+    static constexpr int d = depth > 0 ? depth : 1;
 
     static __host__ __device__ __forceinline__ float loop(const float* invRN, const fvec3& dX)
     {
@@ -228,11 +234,11 @@ struct MultipoleSum<nx, ny, nz, 0, 0, 0>
 template<int nx, int ny, int nz>
 struct Kernels
 {
-    static const int n    = nx + ny + nz;
-    static const int x    = nx > 0;
-    static const int y    = ny > 0;
-    static const int z    = nz > 0;
-    static const int flag = (nx > 1) * 4 + (ny > 1) * 2 + (nz > 1);
+    static constexpr int n    = nx + ny + nz;
+    static constexpr int x    = nx > 0;
+    static constexpr int y    = ny > 0;
+    static constexpr int z    = nz > 0;
+    static constexpr int flag = (nx > 1) * 4 + (ny > 1) * 2 + (nz > 1);
 
     static __host__ __device__ __forceinline__ void P2M(fvecP& M, const fvec3& dX)
     {
@@ -260,10 +266,10 @@ struct Kernels
 template<int nx, int ny>
 struct Kernels<nx, ny, 0>
 {
-    static const int n    = nx + ny;
-    static const int x    = nx > 0;
-    static const int y    = ny > 0;
-    static const int flag = (nx > 1) * 4 + (ny > 1) * 2;
+    static constexpr int n    = nx + ny;
+    static constexpr int x    = nx > 0;
+    static constexpr int y    = ny > 0;
+    static constexpr int flag = (nx > 1) * 4 + (ny > 1) * 2;
 
     static __host__ __device__ __forceinline__ void P2M(fvecP& M, const fvec3& dX)
     {
@@ -290,8 +296,8 @@ struct Kernels<nx, ny, 0>
 template<int nx>
 struct Kernels<nx, 0, 0>
 {
-    static const int n    = nx;
-    static const int flag = (nx > 1) * 4;
+    static constexpr int n    = nx;
+    static constexpr int flag = (nx > 1) * 4;
 
     static __host__ __device__ __forceinline__ void P2M(fvecP& M, const fvec3& dX)
     {
