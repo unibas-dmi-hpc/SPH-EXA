@@ -31,6 +31,8 @@
 
 #include "gtest/gtest.h"
 
+#include "cstone/sfc/sfc.hpp"
+
 #include "ryoanji/treebuilder.cuh"
 #include "ryoanji/dataset.hpp"
 #include "ryoanji/types.h"

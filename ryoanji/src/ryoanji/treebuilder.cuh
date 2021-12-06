@@ -31,157 +31,31 @@
 
 #pragma once
 
-#include <vector>
+#include <memory>
 
-#include "cstone/tree/octree.cuh"
-#include "cstone/tree/octree_internal.cuh"
+#include "cstone/sfc/common.hpp"
+#include "cstone/tree/definitions.h"
 
 #include "ryoanji/types.h"
-
-template<class KeyType>
-__global__ void convertTree(cstone::OctreeGpuDataView<KeyType> cstoneTree, const cstone::LocalParticleIndex* layout,
-                            ryoanji::CellData* ryoanjiTree)
-{
-    unsigned tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid < cstoneTree.numInternalNodes + cstoneTree.numLeafNodes)
-    {
-        cstone::LocalParticleIndex firstParticle = 0;
-        cstone::LocalParticleIndex lastParticle  = 0;
-
-        cstone::TreeNodeIndex child = 0;
-        int numChildren             = 1;
-
-        bool isLeaf = (cstoneTree.childOffsets[tid] == 0);
-        if (!isLeaf)
-        {
-            child       = cstoneTree.childOffsets[tid];
-            numChildren = 8;
-        }
-        else
-        {
-            cstone::TreeNodeIndex leafIndex = cstoneTree.nodeOrder[tid] - cstoneTree.numInternalNodes;
-            assert(leafIndex >= 0);
-            firstParticle = layout[leafIndex];
-            lastParticle  = layout[leafIndex + 1];
-        }
-
-        unsigned level = cstone::decodePrefixLength(cstoneTree.prefixes[tid]) / 3;
-        unsigned parentIdx = (tid == 0) ? 0 : cstoneTree.parents[(tid - 1) / 8];
-        ryoanjiTree[tid] =
-            ryoanji::CellData(level, parentIdx, firstParticle, lastParticle - firstParticle, child, numChildren);
-    }
-}
-
-template<class KeyType, class T>
-__global__ void
-computeSfcKeysRealKernel(KeyType* keys, const fvec4* bodies, size_t numKeys, const cstone::Box<T> box)
-{
-    size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid < numKeys)
-    {
-        keys[tid] = cstone::sfc3D<cstone::HilbertKey<KeyType>>(bodies[tid][0], bodies[tid][1], bodies[tid][2], box);
-    }
-}
 
 template<class KeyType>
 class TreeBuilder
 {
 public:
-    TreeBuilder() : bucketSize_(64) { }
+    TreeBuilder();
 
-    TreeBuilder(unsigned ncrit) : bucketSize_(ncrit) { }
+    ~TreeBuilder();
 
-    cstone::TreeNodeIndex update(fvec4* bodies, size_t numBodies, const ryoanji::Box& box)
-    {
-        using T = fvec4::value_type;
+    TreeBuilder(unsigned ncrit);
 
-        thrust::device_vector<KeyType> d_keys(numBodies);
+    cstone::TreeNodeIndex update(fvec4* bodies, size_t numBodies, const ryoanji::Box& box);
 
-        cstone::Box<T> csBox(box.X[0] - box.R,
-                             box.X[0] + box.R,
-                             box.X[1] - box.R,
-                             box.X[1] + box.R,
-                             box.X[2] - box.R,
-                             box.X[2] + box.R,
-                             false,
-                             false,
-                             false);
-
-        {
-            constexpr unsigned numThreads = 256;
-            unsigned numBlocks            = (numBodies - 1) / numThreads + 1;
-            computeSfcKeysRealKernel<<<numBlocks, numThreads>>>(
-                thrust::raw_pointer_cast(d_keys.data()), bodies, numBodies, csBox);
-        }
-
-        thrust::sort_by_key(thrust::device, d_keys.begin(), d_keys.end(), bodies);
-
-        if (d_tree_.size() == 0)
-        {
-            // initial guess on first call. use previous tree as guess on subsequent calls
-            d_tree_   = std::vector<KeyType>{0, cstone::nodeRange<KeyType>(0)};
-            d_counts_ = std::vector<unsigned>{unsigned(numBodies)};
-        }
-
-        while (!cstone::updateOctreeGpu(thrust::raw_pointer_cast(d_keys.data()),
-                                        thrust::raw_pointer_cast(d_keys.data()) + d_keys.size(),
-                                        bucketSize_,
-                                        d_tree_,
-                                        d_counts_,
-                                        tmpTree_,
-                                        workArray_));
-
-        octreeGpuData_.resize(cstone::nNodes(d_tree_));
-        cstone::buildInternalOctreeGpu(thrust::raw_pointer_cast(d_tree_.data()), octreeGpuData_.getData());
-
-        return octreeGpuData_.numInternalNodes + octreeGpuData_.numLeafNodes;
-    }
-
-    int extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange)
-    {
-        cstone::TreeNodeIndex numNodes = octreeGpuData_.numInternalNodes + octreeGpuData_.numLeafNodes;
-
-        d_layout_.resize(d_counts_.size() + 1);
-        thrust::copy(d_counts_.begin(), d_counts_.end(), d_layout_.begin());
-        thrust::exclusive_scan(thrust::device,
-                               thrust::raw_pointer_cast(d_layout_.data()),
-                               thrust::raw_pointer_cast(d_layout_.data()) + d_layout_.size(),
-                               thrust::raw_pointer_cast(d_layout_.data()));
-
-        {
-            constexpr unsigned numThreads = 256;
-            unsigned numBlocks            = (numNodes - 1) / numThreads + 1;
-            convertTree<<<numBlocks, numThreads>>>(
-                octreeGpuData_.getData(), thrust::raw_pointer_cast(d_layout_.data()), d_ryoanjiTree);
-        }
-
-        thrust::host_vector<int> cs_levelRange = octreeGpuData_.levelRange;
-
-        int numLevels = 0;
-        for (int level = 1; level <= cstone::maxTreeLevel<KeyType>{}; ++level)
-        {
-            if (cs_levelRange[level + 1] == 0)
-            {
-                numLevels = level - 1;
-                break;
-            }
-
-            h_levelRange[level].x = cs_levelRange[level];
-            h_levelRange[level].y = cs_levelRange[level + 1];
-        }
-
-        return numLevels;
-    }
+    int extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange);
 
 private:
-    unsigned bucketSize_;
-
-    thrust::device_vector<KeyType> d_tree_;
-    thrust::device_vector<unsigned> d_counts_;
-
-    thrust::device_vector<KeyType> tmpTree_;
-    thrust::device_vector<cstone::TreeNodeIndex> workArray_;
-
-    cstone::OctreeGpuDataAnchor<KeyType> octreeGpuData_;
-    thrust::device_vector<cstone::LocalParticleIndex> d_layout_;
+    class Impl;
+    std::unique_ptr<Impl> impl_;
 };
+
+extern template class TreeBuilder<uint32_t>;
+extern template class TreeBuilder<uint64_t>;

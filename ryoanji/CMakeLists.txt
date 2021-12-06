@@ -13,11 +13,11 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+add_subdirectory(src)
+add_subdirectory(test)
+
 add_executable(ryoanji serial.cu)
-target_include_directories(ryoanji PRIVATE src)
-target_include_directories(ryoanji PRIVATE ../domain/include)
+target_link_libraries(ryoanji PUBLIC cstone_tree)
 set_target_properties(ryoanji PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 set_source_files_properties(serial.cu PROPERTIES COMPILE_FLAGS "-Xptxas -v")
-
-add_subdirectory(test)
