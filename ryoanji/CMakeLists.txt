@@ -15,9 +15,3 @@ endif()
 
 add_subdirectory(src)
 add_subdirectory(test)
-
-add_executable(ryoanji serial.cu)
-target_link_libraries(ryoanji PUBLIC cstone_tree)
-set_target_properties(ryoanji PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
-
-set_source_files_properties(serial.cu PROPERTIES COMPILE_FLAGS "-Xptxas -v")

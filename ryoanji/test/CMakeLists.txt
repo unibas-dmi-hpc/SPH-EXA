@@ -17,3 +17,10 @@ set_source_files_properties(direct.cu PROPERTIES COMPILE_FLAGS -G)
 set_source_files_properties(multipole.cu PROPERTIES COMPILE_FLAGS -G)
 
 install(TARGETS ryoanji_unit_tests RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji/unit_tests)
+
+add_executable(ryoanji demo.cu)
+
+target_link_libraries(ryoanji PUBLIC cstone_tree)
+set_target_properties(ryoanji PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
+
+set_source_files_properties(test/serial.cu PROPERTIES COMPILE_FLAGS "-Xptxas -v")
