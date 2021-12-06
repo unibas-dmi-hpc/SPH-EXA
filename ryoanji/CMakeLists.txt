@@ -14,7 +14,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 add_executable(ryoanji serial.cu)
-target_include_directories(ryoanji PRIVATE include)
+target_include_directories(ryoanji PRIVATE src)
 target_include_directories(ryoanji PRIVATE ../domain/include)
 set_target_properties(ryoanji PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
