@@ -354,6 +354,11 @@ struct Kernels<0, 0, 0>
     }
 };
 
+} // namespace
+
+namespace ryoanji
+{
+
 /*! @brief calculate multipole from particles
  *
  * @param[in]  begin    first particle index of bodyPos
@@ -376,8 +381,8 @@ __device__ __forceinline__ void P2M(int begin, int end, const fvec4& center, con
     }
 }
 
-__host__ __device__ __forceinline__ void M2M(int begin, int end, const fvec4& Xi, fvec4* sourceCenter,
-                                             fvec4* Multipole, fvecP& Mi)
+__host__ __device__ __forceinline__ void M2M(int begin, int end, const fvec4& Xi, fvec4* sourceCenter, fvec4* Multipole,
+                                             fvecP& Mi)
 {
     for (int i = begin; i < end; i++)
     {
@@ -443,4 +448,4 @@ __host__ __device__ __forceinline__ fvec4 M2P(fvec4 acc, const fvec3& pos_i, con
     return acc;
 }
 
-} // namespace
+} // namespace ryoanji

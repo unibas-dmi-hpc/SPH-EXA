@@ -4,7 +4,7 @@
 
 #include "kernel.h"
 
-namespace
+namespace ryoanji
 {
 
 struct UpsweepConfig
@@ -142,45 +142,41 @@ __global__ void normalize(const int numCells, fvec4* Multipole)
         Multipole[NVEC4 * cellIdx + i] *= invM;
     }
 }
-} // namespace
 
-class Pass
+void upsweep(const int numSources, const int numLevels, const float theta, const int2* levelRange,
+             const fvec4* bodyPos, CellData* sourceCells, fvec4* sourceCenter, fvec4* Multipole)
 {
-public:
-    static void upward(const int numSources, const int numLevels, const float theta, const int2* levelRange,
-                       const fvec4* bodyPos, CellData* sourceCells, fvec4* sourceCenter, fvec4* Multipole)
+    constexpr int numThreads = UpsweepConfig::numThreads;
+
+    thrust::device_vector<fvec3> d_cellXminmax(2 * numSources);
+    fvec3* cellXmin = rawPtr(d_cellXminmax.data());
+    fvec3* cellXmax = cellXmin + numSources;
+
+    auto t0 = std::chrono::high_resolution_clock::now();
+
+    for (int level = numLevels; level >= 1; level--)
     {
-        constexpr int numThreads = UpsweepConfig::numThreads;
-
-        thrust::device_vector<fvec3> d_cellXminmax(2 * numSources);
-        fvec3* cellXmin = rawPtr(d_cellXminmax.data());
-        fvec3* cellXmax = cellXmin + numSources;
-
-        auto t0 = std::chrono::high_resolution_clock::now();
-
-        for (int level = numLevels; level >= 1; level--)
-        {
-            int numCellsLevel = levelRange[level].y - levelRange[level].x;
-            int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
-            upwardPass<<<numBlocks, numThreads>>>(levelRange[level].x,
-                                                  levelRange[level].y,
-                                                  sourceCells,
-                                                  bodyPos,
-                                                  sourceCenter,
-                                                  cellXmin,
-                                                  cellXmax,
-                                                  Multipole);
-            kernelSuccess("upwardPass");
-        }
-
-        int numBlocks = (numSources - 1) / numThreads + 1;
-        setMAC<<<numBlocks, numThreads>>>(numSources, 1.0 / theta, sourceCenter, cellXmin, cellXmax);
-        normalize<<<numBlocks, numThreads>>>(numSources, Multipole);
-
-        auto t1   = std::chrono::high_resolution_clock::now();
-        double dt = std::chrono::duration<double>(t1 - t0).count();
-
-        fprintf(stdout, "Upward pass          : %.7f s\n", dt);
+        int numCellsLevel = levelRange[level].y - levelRange[level].x;
+        int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
+        upwardPass<<<numBlocks, numThreads>>>(levelRange[level].x,
+                                              levelRange[level].y,
+                                              sourceCells,
+                                              bodyPos,
+                                              sourceCenter,
+                                              cellXmin,
+                                              cellXmax,
+                                              Multipole);
+        kernelSuccess("upwardPass");
     }
-};
 
+    int numBlocks = (numSources - 1) / numThreads + 1;
+    setMAC<<<numBlocks, numThreads>>>(numSources, 1.0 / theta, sourceCenter, cellXmin, cellXmax);
+    normalize<<<numBlocks, numThreads>>>(numSources, Multipole);
+
+    auto t1   = std::chrono::high_resolution_clock::now();
+    double dt = std::chrono::duration<double>(t1 - t0).count();
+
+    fprintf(stdout, "Upward pass          : %.7f s\n", dt);
+}
+
+} // namespace ryoanji

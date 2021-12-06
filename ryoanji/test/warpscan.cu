@@ -37,6 +37,8 @@
 #include "ryoanji/types.h"
 #include "ryoanji/warpscan.h"
 
+using namespace ryoanji;
+
 __global__ void testMin(int* values)
 {
     int laneValue = threadIdx.x;

@@ -40,7 +40,7 @@
 
 template<class KeyType>
 __global__ void convertTree(cstone::OctreeGpuDataView<KeyType> cstoneTree, const cstone::LocalParticleIndex* layout,
-                            CellData* ryoanjiTree)
+                            ryoanji::CellData* ryoanjiTree)
 {
     unsigned tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid < cstoneTree.numInternalNodes + cstoneTree.numLeafNodes)
@@ -68,7 +68,7 @@ __global__ void convertTree(cstone::OctreeGpuDataView<KeyType> cstoneTree, const
         unsigned level = cstone::decodePrefixLength(cstoneTree.prefixes[tid]) / 3;
         unsigned parentIdx = (tid == 0) ? 0 : cstoneTree.parents[(tid - 1) / 8];
         ryoanjiTree[tid] =
-            CellData(level, parentIdx, firstParticle, lastParticle - firstParticle, child, numChildren);
+            ryoanji::CellData(level, parentIdx, firstParticle, lastParticle - firstParticle, child, numChildren);
     }
 }
 
@@ -91,7 +91,7 @@ public:
 
     TreeBuilder(unsigned ncrit) : bucketSize_(ncrit) { }
 
-    cstone::TreeNodeIndex update(fvec4* bodies, size_t numBodies, const Box& box)
+    cstone::TreeNodeIndex update(fvec4* bodies, size_t numBodies, const ryoanji::Box& box)
     {
         using T = fvec4::value_type;
 
@@ -137,7 +137,7 @@ public:
         return octreeGpuData_.numInternalNodes + octreeGpuData_.numLeafNodes;
     }
 
-    int extract(CellData* d_ryoanjiTree, int2* h_levelRange)
+    int extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange)
     {
         cstone::TreeNodeIndex numNodes = octreeGpuData_.numInternalNodes + octreeGpuData_.numLeafNodes;
 

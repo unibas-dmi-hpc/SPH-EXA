@@ -1,6 +1,9 @@
 #pragma once
 
 #include "types.h"
+#include "kahan.h"
+
+typedef util::array<kahan<float>, 4> kvec4;
 
 struct DirectConfig
 {
@@ -34,9 +37,9 @@ __global__ void directKernel(int numSource, float eps2, const fvec4* __restrict_
 
         for (int j = 0; j < blockDim.x; ++j)
         {
-            fvec3 pos_j = make_fvec3(sm_bodytile[j]);
+            fvec3 pos_j{sm_bodytile[j][0], sm_bodytile[j][1], sm_bodytile[j][2]};
             float q_j = sm_bodytile[j][3];
-            fvec3 dX = pos_j - pos_i;
+            fvec3 dX  = pos_j - pos_i;
 
             float R2    = norm2(dX);
             float invR  = rsqrtf(R2 + eps2);

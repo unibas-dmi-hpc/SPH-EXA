@@ -39,6 +39,9 @@
 #include "ryoanji/traversal.h"
 #include "ryoanji/types.h"
 
+namespace ryoanji
+{
+
 fvec4 walkParticle(int targetIndex, std::size_t numBodies, float eps, const CellData* sources,
                    const fvec4* sourceCenter, const fvec4* Multipole, const fvec4* bodyPos)
 {
@@ -56,7 +59,7 @@ fvec4 walkParticle(int targetIndex, std::size_t numBodies, float eps, const Cell
     fvec3 gmax{-1e10, -1e10, -1e10};
 
     int groupStart = targetIndex & ~63;
-    int groupEnd = std::min(groupStart + 64lu, numBodies);
+    int groupEnd   = std::min(groupStart + 64lu, numBodies);
     for (int i = groupStart; i < groupEnd; ++i)
     {
         gmin[0] = std::min(bodyPos[i][0], gmin[0]);
@@ -68,20 +71,21 @@ fvec4 walkParticle(int targetIndex, std::size_t numBodies, float eps, const Cell
     }
 
     fvec3 targetCenter = (gmax + gmin) * 0.5f;
-    fvec3 targetSize = (gmax - gmin) * 0.5f;
+    fvec3 targetSize   = (gmax - gmin) * 0.5f;
 
-    while(!stack.empty())
+    while (!stack.empty())
     {
-        int ni = stack.back(); stack.pop_back();
+        int ni = stack.back();
+        stack.pop_back();
 
         fvec4 MAC = sourceCenter[ni];
         fvec3 srcCenter{MAC[0], MAC[1], MAC[2]};
         CellData srcData = sources[ni];
-        bool isNode  = srcData.isNode();
-        bool isClose = applyMAC(srcCenter, MAC[3], srcData, targetCenter, targetSize);
-        bool isSplit = isNode && isClose;
-        bool isLeaf  = !isNode;
-        bool isDirect = isLeaf && isClose;
+        bool isNode      = srcData.isNode();
+        bool isClose     = applyMAC(srcCenter, MAC[3], srcData, targetCenter, targetSize);
+        bool isSplit     = isNode && isClose;
+        bool isLeaf      = !isNode;
+        bool isDirect    = isLeaf && isClose;
 
         // MAC failed and not a leaf, push children on stack
         if (isSplit)
@@ -96,7 +100,7 @@ fvec4 walkParticle(int targetIndex, std::size_t numBodies, float eps, const Cell
         if (!isClose)
         {
             const fvec4* M = &Multipole[NVEC4 * ni];
-            acc = M2P(acc, targetX, srcCenter, *(fvecP*)M, EPS2);
+            acc            = M2P(acc, targetX, srcCenter, *(fvecP*)M, EPS2);
 
             /*
             fvec4 orig(0.0f);
@@ -220,12 +224,14 @@ fvec4 walkParticle(int targetIndex, std::size_t numBodies, float eps, const Cell
             for (int si = srcData.body(); si < srcData.body() + srcData.nbody(); ++si)
             {
                 fvec4 srcBody = bodyPos[si];
-                fvec3 srcX = make_fvec3(srcBody);
-                float mass = srcBody[3];
-                acc = P2P(acc, targetX, srcX, mass, EPS2);
+                fvec3 srcX    = make_fvec3(srcBody);
+                float mass    = srcBody[3];
+                acc           = P2P(acc, targetX, srcX, mass, EPS2);
             }
         }
     }
 
     return acc;
 }
+
+} // namespace ryoanji

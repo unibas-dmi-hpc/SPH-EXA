@@ -1,9 +1,11 @@
 #pragma once
+
 #include <algorithm>
 #include "kernel.h"
 #include "warpscan.h"
 
-#define IF(x) (-(int)(x))
+namespace ryoanji
+{
 
 struct TravConfig
 {
@@ -14,7 +16,8 @@ struct TravConfig
 
     static constexpr int numWarpsPerSm = 20;
     //! @brief maximum number of simultaneously active blocks
-    static int maxNumActiveBlocks;
+    inline static int maxNumActiveBlocks =
+        GpuConfig::smCount * (TravConfig::numWarpsPerSm / (TravConfig::numThreads / GpuConfig::warpSize));
 
     //! @brief number of particles per target, i.e. per warp
     static constexpr int targetSize = 64;
@@ -23,11 +26,6 @@ struct TravConfig
     static constexpr int nwt = targetSize / GpuConfig::warpSize;
 };
 
-int TravConfig::maxNumActiveBlocks =
-    GpuConfig::smCount * (TravConfig::numWarpsPerSm / (TravConfig::numThreads / GpuConfig::warpSize));
-
-namespace
-{
 __device__ __forceinline__ int ringAddr(const int i) { return i & (TravConfig::memPerWarp - 1); }
 
 __host__ __device__ __forceinline__ bool applyMAC(fvec3 sourceCenter, float MAC, CellData sourceData,
@@ -132,7 +130,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         // Split
         const bool isSplit     = isNode && isClose && isSource;        // Source cell must be split
         const int childBegin   = sourceData.child();                   // First child cell
-        const int numChild     = sourceData.nchild() & IF(isSplit);    // Number of child cells (masked by split flag)
+        const int numChild     = sourceData.nchild() & -int(isSplit);  // Number of child cells (masked by split flag)
         const int numChildScan = inclusiveScanInt(numChild);           // Inclusive scan of numChild
         const int numChildLane = numChildScan - numChild;              // Exclusive scan of numChild
         const int numChildWarp = shflSync(numChildScan, GpuConfig::warpSize - 1); // Total numChild of current warp
@@ -169,7 +167,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         const bool isLeaf       = !isNode;                               // Is leaf cell
         bool isDirect           = isClose && isLeaf && isSource;         // Source cell can be used for P2P
         const int bodyBegin     = sourceData.body();                     // First body in cell
-        const int numBodies     = sourceData.nbody() & IF(isDirect);     // Number of bodies in cell
+        const int numBodies     = sourceData.nbody() & -int(isDirect);   // Number of bodies in cell
         const int numBodiesScan = inclusiveScanInt(numBodies);           // Inclusive scan of numBodies
         int numBodiesLane       = numBodiesScan - numBodies;             // Exclusive scan of numBodies
         int numBodiesWarp       = shflSync(numBodiesScan, GpuConfig::warpSize - 1); // Total numBodies of current warp
@@ -461,86 +459,82 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
     }
 }
 
-} // namespace
-
-class Traversal
+/*! @brief Compute approximate body accelerations with Barnes-Hut
+ *
+ * @param[in]  firstBody     index of first body in @p bodyPos to compute acceleration for
+ * @param[in]  lastBody      index (exclusive) of last body in @p bodyPos to compute acceleration for
+ * @param[in]  images        number of periodic images (per direction per dimension)
+ * @param[in]  eps           plummer softening parameter
+ * @param[in]  cycle         2 * M_PI
+ * @param[in]  bodyPos       bodies, in SFC order and as referenced by sourceCells, on device
+ * @param[out] bodyAcc       output body acceleration in SFC order, on device
+ * @param[in]  sourceCells   tree connectivity and body location cell data, on device
+ * @param[in]  sourceCenter  center-of-mass and MAC radius^2 for each cell, on device
+ * @param[in]  Multipole     cell multipoles, on device
+ * @param[in]  levelRange    first and last cell of each level in the source tree, on host
+ * @return                   P2P and M2P interaction statistics
+ */
+fvec4 computeAcceleration(int firstBody, int lastBody, int images, float eps, float cycle, const fvec4* bodyPos,
+                          fvec4* bodyAcc, const CellData* sourceCells, const fvec4* sourceCenter,
+                          const fvec4* Multipole, const int2* levelRange)
 {
-public:
-    /*! @brief
-     *
-     * @param[in]  firstBody     index of first body in @p bodyPos to compute acceleration for
-     * @param[in]  lastBody      index (exclusive) of last body in @p bodyPos to compute acceleration for
-     * @param[in]  images        number of periodic images (per direction per dimension)
-     * @param[in]  eps           plummer softening parameter
-     * @param[in]  cycle         2 * M_PI
-     * @param[in]  bodyPos       bodies, in SFC order and as referenced by sourceCells
-     * @param[out] bodyAcc       output body acceleration in SFC order
-     * @param[in]  sourceCells   tree connectivity and body location cell data
-     * @param[in]  sourceCenter  center-of-mass and MAC radius^2 for each cell
-     * @param[in]  Multipole     cell multipoles
-     * @param[in]  levelRange
-     * @return
-     */
-    static fvec4 approx(int firstBody, int lastBody, int images, float eps, float cycle, const fvec4* bodyPos,
-                        fvec4* bodyAcc, const CellData* sourceCells, const fvec4* sourceCenter,
-                        const fvec4* Multipole, const int2* levelRange)
-    {
-        constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
+    constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
 
-        int numBodies = lastBody - firstBody;
+    int numBodies = lastBody - firstBody;
 
-        // each target gets a warp (numWarps == numTargets)
-        int numWarps  = (numBodies - 1) / TravConfig::targetSize + 1;
-        int numBlocks = (numWarps - 1) / numWarpsPerBlock + 1;
-        numBlocks     = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
+    // each target gets a warp (numWarps == numTargets)
+    int numWarps  = (numBodies - 1) / TravConfig::targetSize + 1;
+    int numBlocks = (numWarps - 1) / numWarpsPerBlock + 1;
+    numBlocks     = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
 
-        printf("launching %d blocks\n", numBlocks);
+    printf("launching %d blocks\n", numBlocks);
 
-        const int poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
+    const int poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
 
-        thrust::device_vector<int> globalPool(poolSize);
+    thrust::device_vector<int> globalPool(poolSize);
 
-        cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
 
-        resetTraversalCounters<<<1, 1>>>();
+    resetTraversalCounters<<<1, 1>>>();
 
-        auto t0 = std::chrono::high_resolution_clock::now();
-        traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody,
-                                                        lastBody,
-                                                        images,
-                                                        eps * eps,
-                                                        cycle,
-                                                        {levelRange[1].x, levelRange[1].y},
-                                                        bodyPos,
-                                                        sourceCells,
-                                                        sourceCenter,
-                                                        Multipole,
-                                                        bodyAcc,
-                                                        rawPtr(globalPool.data()));
-        kernelSuccess("traverse");
+    auto t0 = std::chrono::high_resolution_clock::now();
+    traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody,
+                                                    lastBody,
+                                                    images,
+                                                    eps * eps,
+                                                    cycle,
+                                                    {levelRange[1].x, levelRange[1].y},
+                                                    bodyPos,
+                                                    sourceCells,
+                                                    sourceCenter,
+                                                    Multipole,
+                                                    bodyAcc,
+                                                    rawPtr(globalPool.data()));
+    kernelSuccess("traverse");
 
-        auto t1  = std::chrono::high_resolution_clock::now();
-        float dt = std::chrono::duration<float>(t1 - t0).count();
+    auto t1  = std::chrono::high_resolution_clock::now();
+    float dt = std::chrono::duration<float>(t1 - t0).count();
 
-        uint64_t sumP2P, sumM2P;
-        unsigned int maxP2P, maxM2P;
+    uint64_t sumP2P, sumM2P;
+    unsigned int maxP2P, maxM2P;
 
-        CUDA_SAFE_CALL(cudaMemcpyFromSymbol(&sumP2P, sumP2PGlob, sizeof(uint64_t)));
-        CUDA_SAFE_CALL(cudaMemcpyFromSymbol(&maxP2P, maxP2PGlob, sizeof(unsigned int)));
-        CUDA_SAFE_CALL(cudaMemcpyFromSymbol(&sumM2P, sumM2PGlob, sizeof(uint64_t)));
-        CUDA_SAFE_CALL(cudaMemcpyFromSymbol(&maxM2P, maxM2PGlob, sizeof(unsigned int)));
+    CUDA_SAFE_CALL(cudaMemcpyFromSymbol(&sumP2P, sumP2PGlob, sizeof(uint64_t)));
+    CUDA_SAFE_CALL(cudaMemcpyFromSymbol(&maxP2P, maxP2PGlob, sizeof(unsigned int)));
+    CUDA_SAFE_CALL(cudaMemcpyFromSymbol(&sumM2P, sumM2PGlob, sizeof(uint64_t)));
+    CUDA_SAFE_CALL(cudaMemcpyFromSymbol(&maxM2P, maxM2PGlob, sizeof(unsigned int)));
 
-        fvec4 interactions;
-        interactions[0] = float(sumP2P) * 1.0f / float(numBodies);
-        interactions[1] = float(maxP2P);
-        interactions[2] = float(sumM2P) * 1.0f / float(numBodies);
-        interactions[3] = float(maxM2P);
+    fvec4 interactions;
+    interactions[0] = float(sumP2P) * 1.0f / float(numBodies);
+    interactions[1] = float(maxP2P);
+    interactions[2] = float(sumM2P) * 1.0f / float(numBodies);
+    interactions[3] = float(maxM2P);
 
-        float flops = (interactions[0] * 20.0f + interactions[2] * 2.0f * powf(P, 3)) * float(numBodies) / dt / 1e12f;
+    float flops = (interactions[0] * 20.0f + interactions[2] * 2.0f * powf(P, 3)) * float(numBodies) / dt / 1e12f;
 
-        fprintf(stdout, "Traverse             : %.7f s (%.7f TFlops)\n", dt, flops);
+    fprintf(stdout, "Traverse             : %.7f s (%.7f TFlops)\n", dt, flops);
 
-        return interactions;
-    }
-};
+    return interactions;
+}
+
+} // namespace ryoanji
 

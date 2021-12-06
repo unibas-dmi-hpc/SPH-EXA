@@ -1,11 +1,19 @@
 #pragma once
 
-#include "cstone/primitives/clz.hpp"
-
 #include "types.h"
 
-namespace
+namespace ryoanji
 {
+
+__device__ __forceinline__ int countLeadingZeros(uint32_t x)
+{
+    return __clz(x);
+}
+
+__device__ __forceinline__ int countLeadingZeros(uint64_t x)
+{
+    return __clzll(x);
+}
 
 __device__ __forceinline__ uint32_t reverseBits(uint32_t x)
 {
@@ -96,8 +104,6 @@ __device__ __forceinline__ T warpMax(T laneVal)
     return laneVal;
 }
 
-// Scan int
-
 //! @brief standard inclusive warp-scan
 __device__ __forceinline__ int inclusiveScanInt(int value)
 {
@@ -113,8 +119,6 @@ __device__ __forceinline__ int inclusiveScanInt(int value)
     }
     return value;
 }
-
-// Scan bool
 
 //! @brief returns a mask with bits set for each warp lane before the calling lane
 __device__ __forceinline__ GpuConfig::ThreadMask lanemask_lt()
@@ -266,4 +270,4 @@ __device__ __forceinline__ void warpExchange(T* queue, const T* laneVal, bool fl
     __syncwarp();
 }
 
-} // namespace
+} // namespace ryoanji

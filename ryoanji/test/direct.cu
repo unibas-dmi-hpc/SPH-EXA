@@ -9,6 +9,8 @@
 #include "ryoanji/dataset.h"
 #include "ryoanji/direct.cuh"
 
+using ryoanji::rawPtr;
+
 template<class T>
 std::vector<fvec4> cpuReference(const std::vector<util::array<T, 4>>& bodies)
 {
@@ -59,7 +61,7 @@ TEST(DirectSum, MatchCpu)
     float eps = 0.0;
 
     std::vector<fvec4> h_bodies(numBodies);
-    makeGridBodies(h_bodies.data(), npOnEdge, 0.5);
+    ryoanji::makeGridBodies(h_bodies.data(), npOnEdge, 0.5);
 
     // upload to device
     thrust::device_vector<fvec4> bodyPos = h_bodies;

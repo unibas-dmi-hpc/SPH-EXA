@@ -5,7 +5,6 @@
 
 #include "ryoanji/dataset.h"
 #include "ryoanji/kernel.h"
-#include "ryoanji/upwardpass.h"
 
 //! @brief little P2M wrapper for the host without GPU textures
 fvecP P2Mhost(int begin, int end, const fvec4* bodies, const fvec4& center)
@@ -18,7 +17,7 @@ fvecP P2Mhost(int begin, int end, const fvec4* bodies, const fvec4& center)
     {
         // body and distance from center-mass
         fvec4 body = bodies[i];
-        fvec3 dx   = make_fvec3(center - body);
+        fvec3 dx   = ryoanji::make_fvec3(center - body);
 
         fvecP M;
         M[0] = body[3];
@@ -29,12 +28,37 @@ fvecP P2Mhost(int begin, int end, const fvec4* bodies, const fvec4& center)
     return Mout;
 }
 
+//! @brief computes the center of mass for the bodies in the specified range
+fvec4 setCenter(const int begin, const int end, const fvec4* posGlob)
+{
+    assert(begin <= end);
+
+    fvec4 center{0, 0, 0, 0};
+    for (int i = begin; i < end; i++)
+    {
+        fvec4 pos    = posGlob[i];
+        float weight = pos[3];
+
+        center[0] += weight * pos[0];
+        center[1] += weight * pos[1];
+        center[2] += weight * pos[2];
+        center[3] += weight;
+    }
+
+    float invM = (center[3] != 0.0f) ? 1.0f / center[3] : 0.0f;
+    center[0] *= invM;
+    center[1] *= invM;
+    center[2] *= invM;
+
+    return center;
+}
+
 TEST(Multipole, P2M)
 {
     int numBodies = 1023;
 
     std::vector<fvec4> bodies(numBodies);
-    makeCubeBodies(bodies.data(), numBodies);
+    ryoanji::makeCubeBodies(bodies.data(), numBodies);
 
     std::vector<double> x(numBodies);
     std::vector<double> y(numBodies);
@@ -84,7 +108,7 @@ TEST(Multipole, P2M)
         fvec3 testTarget{-8, -8, -8};
 
         fvec4 acc{0, 0, 0, 0};
-        acc = M2P(acc, testTarget, make_fvec3(centerMass), ryoanjiMultipole, eps2);
+        acc = ryoanji::M2P(acc, testTarget, ryoanji::make_fvec3(centerMass), ryoanjiMultipole, eps2);
         //printf("test acceleration: %f %f %f %f\n", acc[0], acc[1], acc[2], acc[3]);
 
         // cstone is less precise

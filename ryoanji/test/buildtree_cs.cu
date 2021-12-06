@@ -36,6 +36,7 @@
 #include "ryoanji/types.h"
 #include "ryoanji/upwardpass.h"
 
+using namespace ryoanji;
 
 void checkBodyIndexing(int numBodies, CellData* tree, int numSources)
 {
@@ -144,14 +145,14 @@ TEST(Buildtree, cstone)
     thrust::device_vector<fvec4> sourceCenter(numSources);
     thrust::device_vector<fvec4> Multipole(NVEC4 * numSources);
 
-    Pass::upward(numSources,
-                 highestLevel,
-                 theta,
-                 levelRange.data(),
-                 rawPtr(bodyPos.data()),
-                 rawPtr(sources.data()),
-                 rawPtr(sourceCenter.data()),
-                 rawPtr(Multipole.data()));
+    ryoanji::upsweep(numSources,
+                     highestLevel,
+                     theta,
+                     levelRange.data(),
+                     rawPtr(bodyPos.data()),
+                     rawPtr(sources.data()),
+                     rawPtr(sourceCenter.data()),
+                     rawPtr(Multipole.data()));
 
     thrust::host_vector<CellData> h_sources = sources;
     thrust::host_vector<fvec4> h_sourceCenter = sourceCenter;

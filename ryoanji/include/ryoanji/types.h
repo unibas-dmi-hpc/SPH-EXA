@@ -15,8 +15,9 @@ const int NVEC4 = (NTERM - 1) / 4 + 1;       // 5 for P=4
 typedef util::array<float, 3> fvec3;
 typedef util::array<float, 4> fvec4;
 typedef util::array<float, NTERM> fvecP;
-typedef util::array<kahan<float>, 4> kvec4;
 
+namespace ryoanji
+{
 
 struct GpuConfig
 {
@@ -126,3 +127,5 @@ static __forceinline__ void cudaSafeCall(cudaError err, const char* file, const 
         exit(EXIT_FAILURE);
     }
 }
+
+} // namespace ryoanji
