@@ -15,6 +15,21 @@ if (SPH_EXA_WITH_H5PART)
     target_link_libraries(sedov PRIVATE H5Part ${HDF5_LIBRARIES})
 endif()
 
+if(INSITU STREQUAL "Catalyst")
+    target_include_directories(sedov PRIVATE ..)
+    target_compile_definitions(sedov
+	    PRIVATE
+	    "PARAVIEW_IMPL_DIR=\"${ParaView_CATALYST_DIR}\""
+	    SPH_EXA_USE_CATALYST2)
+    target_link_libraries(sedov PRIVATE catalyst::catalyst)
+elseif(INSITU STREQUAL "Ascent")
+    target_include_directories(sedov PRIVATE ..)
+    target_compile_definitions(sedov
+	    PRIVATE
+	    SPH_EXA_USE_ASCENT)
+    target_link_libraries(sedov PRIVATE ascent::ascent_mpi)
+endif()
+
 if(CMAKE_CUDA_COMPILER)
     add_executable(sedov-cuda $<TARGET_OBJECTS:gather_obj> $<TARGET_OBJECTS:cuda_find_neighbors_obj> $<TARGET_OBJECTS:cuda_sph> sedov.cpp)
     target_include_directories(sedov-cuda PRIVATE  ${PROJECT_SOURCE_DIR}/domain/include)

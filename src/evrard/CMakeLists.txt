@@ -17,5 +17,14 @@ if (SPH_EXA_WITH_H5PART)
     target_link_libraries(${exename} PRIVATE H5Part ${HDF5_LIBRARIES})
 endif()
 
+if (SPH_EXA_WITH_CATALYST2)
+    target_include_directories(${exename} PRIVATE ..)
+    target_compile_definitions(${exename}
+	    PRIVATE
+	    "PARAVIEW_IMPL_DIR=\"${ParaView_CATALYST_DIR}\""
+	    SPH_EXA_USE_CATALYST2)
+    target_link_libraries(${exename} PRIVATE catalyst::catalyst)
+endif()
+
 install(TARGETS ${exename} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 unset(exename)
