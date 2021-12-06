@@ -1,7 +1,8 @@
 #!/bin/sh
 
 prgenv:
-  module load daint-gpu cudatoolkit CMake/3.21.1 ParaView/5.10.0-CrayGNU-20.11-RC2-EGL-python3
+  module load daint-gpu cudatoolkit CMake/3.21.1
+  module load ParaView/5.10.0-CrayGNU-20.11-RC2-EGL-python3 (not yet in production)
 
 build wth ParaView Catalyst on Piz Daint:
   mkdir buildCatalystDaint
