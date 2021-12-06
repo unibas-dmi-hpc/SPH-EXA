@@ -2,7 +2,7 @@
 add_subdirectory(gtest)
 
 add_executable(ryoanji_unit_tests
-        buildtree_cs.cu
+        treebuilder.cu
         direct.cu
         multipole.cu
         warpscan.cu

@@ -35,7 +35,7 @@
 #include <thrust/host_vector.h>
 
 #include "ryoanji/types.h"
-#include "ryoanji/warpscan.h"
+#include "ryoanji/warpscan.cuh"
 
 using namespace ryoanji;
 

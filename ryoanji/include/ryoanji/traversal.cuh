@@ -1,8 +1,8 @@
 #pragma once
 
 #include <algorithm>
-#include "kernel.h"
-#include "warpscan.h"
+#include "kernel.hpp"
+#include "warpscan.cuh"
 
 namespace ryoanji
 {

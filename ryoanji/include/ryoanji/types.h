@@ -5,7 +5,7 @@
 #include <cassert>
 #include <thrust/device_vector.h>
 
-#include "kahan.h"
+#include "kahan.hpp"
 #include "array.hpp"
 
 const int P = 4;

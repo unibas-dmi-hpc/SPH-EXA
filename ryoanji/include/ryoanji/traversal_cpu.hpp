@@ -35,8 +35,8 @@
 
 #include "cstone/gravity/multipole.hpp"
 
-#include "ryoanji/kernel.h"
-#include "ryoanji/traversal.h"
+#include "ryoanji/kernel.hpp"
+#include "ryoanji/traversal.cuh"
 #include "ryoanji/types.h"
 
 namespace ryoanji

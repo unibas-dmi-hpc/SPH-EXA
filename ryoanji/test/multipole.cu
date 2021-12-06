@@ -3,8 +3,8 @@
 
 #include "cstone/gravity/treewalk.hpp"
 
-#include "ryoanji/dataset.h"
-#include "ryoanji/kernel.h"
+#include "ryoanji/dataset.hpp"
+#include "ryoanji/kernel.hpp"
 
 //! @brief little P2M wrapper for the host without GPU textures
 fvecP P2Mhost(int begin, int end, const fvec4* bodies, const fvec4& center)

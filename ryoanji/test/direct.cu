@@ -6,7 +6,7 @@
 
 #include "cstone/gravity/treewalk.hpp"
 
-#include "ryoanji/dataset.h"
+#include "ryoanji/dataset.hpp"
 #include "ryoanji/direct.cuh"
 
 using ryoanji::rawPtr;

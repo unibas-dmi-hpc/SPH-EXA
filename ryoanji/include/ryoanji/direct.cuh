@@ -1,7 +1,7 @@
 #pragma once
 
 #include "types.h"
-#include "kahan.h"
+#include "kahan.hpp"
 
 typedef util::array<kahan<float>, 4> kvec4;
 

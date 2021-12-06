@@ -31,10 +31,10 @@
 
 #include "gtest/gtest.h"
 
-#include "ryoanji/buildtree_cs.hpp"
-#include "ryoanji/dataset.h"
+#include "ryoanji/treebuilder.cuh"
+#include "ryoanji/dataset.hpp"
 #include "ryoanji/types.h"
-#include "ryoanji/upwardpass.h"
+#include "ryoanji/upwardpass.cuh"
 
 using namespace ryoanji;
 

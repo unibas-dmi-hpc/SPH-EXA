@@ -2,7 +2,7 @@
 
 #include <chrono>
 
-#include "kernel.h"
+#include "kernel.hpp"
 
 namespace ryoanji
 {
