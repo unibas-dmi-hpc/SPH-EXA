@@ -191,11 +191,11 @@ int main(int argc, char** argv)
             Printer::printTotalIterationTime(d.iteration, timer.duration(), output);
         }
 #ifdef SPH_EXA_USE_CATALYST2
-        CatalystAdaptor::Execute(d, domain.startIndex());
+        CatalystAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
 #endif
 #ifdef SPH_EXA_USE_ASCENT
 	if((d.iteration % 5) == 0)
-          AscentAdaptor::Execute(d, domain.startIndex());
+          AscentAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
 #endif
     }
 

@@ -192,7 +192,7 @@ int main(int argc, char** argv)
             Printer::printTotalIterationTime(d.iteration, timer.duration(), output);
         }
 #ifdef SPH_EXA_USE_CATALYST2
-        CatalystAdaptor::Execute(d, domain.startIndex());
+        CatalystAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
 #endif
     }
 

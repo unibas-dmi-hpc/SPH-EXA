@@ -87,26 +87,26 @@ void Initialize(Dataset d, long startIndex)
   */
 }
 
-void Execute(Dataset d, long startIndex)
+void Execute(Dataset d, long startIndex, long endIndex)
 {
   conduit::Node mesh;
   mesh["state/cycle"].set_external(&d.iteration);
   mesh["state/time"].set_external(&d.ttot);
 
   mesh["coordsets/coords/type"] = "explicit";
-  mesh["coordsets/coords/values/x"].set_external(&d.x[startIndex], d.count);
-  mesh["coordsets/coords/values/y"].set_external(&d.y[startIndex], d.count);
-  mesh["coordsets/coords/values/z"].set_external(&d.z[startIndex], d.count);
+  mesh["coordsets/coords/values/x"].set_external(&d.x[startIndex], endIndex - startIndex);
+  mesh["coordsets/coords/values/y"].set_external(&d.y[startIndex], endIndex - startIndex);
+  mesh["coordsets/coords/values/z"].set_external(&d.z[startIndex], endIndex - startIndex);
 
   mesh["topologies/mesh/type"] = "unstructured";
   mesh["topologies/mesh/coordset"] = "coords";
 
   mesh["fields/Density/association"] = "vertex";
   mesh["fields/Density/topology"] = "mesh";
-  mesh["fields/Density/values"].set_external(&d.ro[startIndex], d.count);
+  mesh["fields/Density/values"].set_external(&d.ro[startIndex], endIndex - startIndex);
   mesh["fields/Density/volume_dependent"].set("false");
   
-  std::vector<conduit_int64> conn(d.count);
+  std::vector<conduit_int64> conn(endIndex - startIndex);
   std::iota(conn.begin(), conn.end(), 0);
   mesh["topologies/mesh/elements/connectivity"].set_external(conn);
   mesh["topologies/mesh/elements/shape"] = "point";

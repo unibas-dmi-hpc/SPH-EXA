@@ -44,7 +44,7 @@ using Real = double;
 using CodeType = uint64_t;
 using Dataset = ParticlesData<Real, CodeType>;
 
-void Execute(Dataset d, long startIndex)
+void Execute(Dataset d, long startIndex, long endIndex)
 {
   conduit_cpp::Node exec_params;
   // add time/cycle information
@@ -65,16 +65,16 @@ void Execute(Dataset d, long startIndex)
   // start with coordsets (of course, the sequence is not important, just make
   // it easier to think in this order).
   mesh["coordsets/coords/type"].set("explicit");
-  mesh["coordsets/coords/values/x"].set_external(&d.x[startIndex], d.count);
-  mesh["coordsets/coords/values/y"].set_external(&d.y[startIndex], d.count);
-  mesh["coordsets/coords/values/z"].set_external(&d.z[startIndex], d.count);
+  mesh["coordsets/coords/values/x"].set_external(&d.x[startIndex], endIndex - startIndex);
+  mesh["coordsets/coords/values/y"].set_external(&d.y[startIndex], endIndex - startIndex);
+  mesh["coordsets/coords/values/z"].set_external(&d.z[startIndex], endIndex - startIndex);
 
   // Next, add topology
   mesh["topologies/mesh/type"].set("unstructured");
   mesh["topologies/mesh/elements/shape"].set("point");
   mesh["topologies/mesh/coordset"].set("coords");
   
-  std::vector<int> conn(d.count);
+  std::vector<int> conn(endIndex - startIndex);
   std::iota(conn.begin(), conn.end(), 0);
   mesh["topologies/mesh/elements/connectivity"].set(conn);
 
@@ -84,42 +84,42 @@ void Execute(Dataset d, long startIndex)
   fields["Density/association"].set("vertex");
   fields["Density/topology"].set("mesh");
   fields["Density/volume_dependent"].set("false");
-  fields["Density/values"].set_external(&d.ro[startIndex], d.count); // zero-copy
+  fields["Density/values"].set_external(&d.ro[startIndex], endIndex - startIndex); // zero-copy
   // vx is vertex-data.
   fields["vx/association"].set("vertex");
   fields["vx/topology"].set("mesh");
   fields["vx/volume_dependent"].set("false");
-  fields["vx/values"].set_external(&d.vx[startIndex], d.count); // zero-copy
+  fields["vx/values"].set_external(&d.vx[startIndex], endIndex - startIndex); // zero-copy
   // vy is vertex-data.
   fields["vy/association"].set("vertex");
   fields["vy/topology"].set("mesh");
   fields["vy/volume_dependent"].set("false");
-  fields["vy/values"].set_external(&d.vy[startIndex], d.count); // zero-copy
+  fields["vy/values"].set_external(&d.vy[startIndex], endIndex - startIndex); // zero-copy
   // vz is vertex-data.
   fields["vz/association"].set("vertex");
   fields["vz/topology"].set("mesh");
   fields["vz/volume_dependent"].set("false");
-  fields["vz/values"].set_external(&d.vz[startIndex], d.count); // zero-copy
+  fields["vz/values"].set_external(&d.vz[startIndex], endIndex - startIndex); // zero-copy
   // u is vertex-data.
   fields["Internal Energy/association"].set("vertex");
   fields["Internal Energy/topology"].set("mesh");
   fields["Internal Energy/volume_dependent"].set("false");
-  fields["Internal Energy/values"].set_external(&d.u[startIndex], d.count); // zero-copy
+  fields["Internal Energy/values"].set_external(&d.u[startIndex], endIndex - startIndex); // zero-copy
   // p is vertex-data.
   fields["Pressure/association"].set("vertex");
   fields["Pressure/topology"].set("mesh");
   fields["Pressure/volume_dependent"].set("false");
-  fields["Pressure/values"].set_external(&d.p[startIndex], d.count); // zero-copy
+  fields["Pressure/values"].set_external(&d.p[startIndex], endIndex - startIndex); // zero-copy
   // h is vertex-data.
   fields["h/association"].set("vertex");
   fields["h/topology"].set("mesh");
   fields["h/volume_dependent"].set("false");
-  fields["h/values"].set_external(&d.h[startIndex], d.count); // zero-copy
+  fields["h/values"].set_external(&d.h[startIndex], endIndex - startIndex); // zero-copy
   // c is vertex-data.
   fields["Speed of sound/association"].set("vertex");
   fields["Speed of sound/topology"].set("mesh");
   fields["Speed of sound/volume_dependent"].set("false");
-  fields["Speed of sound/values"].set_external(&d.c[startIndex], d.count); // zero-copy
+  fields["Speed of sound/values"].set_external(&d.c[startIndex], endIndex - startIndex); // zero-copy
   
   catalyst_status err = catalyst_execute(conduit_cpp::c_node(&exec_params));
   if (err != catalyst_status_ok)
