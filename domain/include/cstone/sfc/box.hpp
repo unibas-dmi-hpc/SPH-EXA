@@ -36,6 +36,7 @@
 
 #include "cstone/cuda/annotation.hpp"
 #include "cstone/primitives/stl.hpp"
+#include "cstone/tree/definitions.h"
 
 #include "common.hpp"
 
@@ -267,6 +268,26 @@ using IBox = SimpleBox<int>;
 
 template<class T>
 using FBox = SimpleBox<T>;
+
+template<class KeyType, class T>
+constexpr HOST_DEVICE_FUN util::tuple<Vec3<T>, Vec3<T>> centerAndSize(const IBox& ibox, const Box<T>& box)
+{
+    constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
+    // smallest octree cell edge length in unit cube
+    constexpr T uL = T(1.) / maxCoord;
+
+    T halfUnitLengthX = T(0.5) * uL * box.lx();
+    T halfUnitLengthY = T(0.5) * uL * box.ly();
+    T halfUnitLengthZ = T(0.5) * uL * box.lz();
+    Vec3<T> boxCenter = {box.xmin() + (ibox.xmax() + ibox.xmin()) * halfUnitLengthX,
+                         box.ymin() + (ibox.ymax() + ibox.ymin()) * halfUnitLengthY,
+                         box.zmin() + (ibox.zmax() + ibox.zmin()) * halfUnitLengthZ};
+    Vec3<T> boxSize = {(ibox.xmax() - ibox.xmin()) * halfUnitLengthX,
+                       (ibox.ymax() - ibox.ymin()) * halfUnitLengthY,
+                       (ibox.zmax() - ibox.zmin()) * halfUnitLengthZ};
+
+    return { boxCenter, boxSize };
+}
 
 /*! @brief create a floating point box from and integer box
  *

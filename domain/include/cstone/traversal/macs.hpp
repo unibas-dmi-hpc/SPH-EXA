@@ -86,28 +86,17 @@ HOST_DEVICE_FUN T nodeLength(IBox b, const Box<T>& box)
     return (b.xmax() - b.xmin()) * unitLength * box.maxExtent();
 }
 
-//! @brief returns the smallest PBC distance of point (x,y,z) to box b
+//! @brief returns the smallest distance of point X to box b
 template<class KeyType, class T>
-HOST_DEVICE_FUN T minDistance(T x, T y, T z, IBox b, const Box<T>& box)
+HOST_DEVICE_FUN T minDistance(Vec3<T> X, IBox b, const Box<T>& box)
 {
-    constexpr T uL = T(1.) / maxCoord<KeyType>{};
+    auto [bCenter, bSize] = centerAndSize<KeyType>(b, box);
 
-    T dxa = x - b.xmin() * uL * box.lx();
-    T dxb = x - b.xmax() * uL * box.lx();
-    T dya = y - b.ymin() * uL * box.ly();
-    T dyb = y - b.ymax() * uL * box.ly();
-    T dza = z - b.zmin() * uL * box.lz();
-    T dzb = z - b.zmax() * uL * box.lz();
+    Vec3<T> dX = abs(bCenter - X) - bSize;
+    dX += abs(dX);
+    dX *= T(0.5);
 
-    // this folds d into the periodic range [-l/2, l/2] if enabled
-    dxa -= box.pbcX() * box.lx() * std::rint(dxa * box.ilx());
-    dxb -= box.pbcX() * box.lx() * std::rint(dxb * box.ilx());
-    dya -= box.pbcY() * box.ly() * std::rint(dya * box.ily());
-    dyb -= box.pbcY() * box.ly() * std::rint(dyb * box.ily());
-    dza -= box.pbcZ() * box.lz() * std::rint(dza * box.ilz());
-    dzb -= box.pbcZ() * box.lz() * std::rint(dzb * box.ilz());
-
-    return sqrt(stl::min(dxa*dxa, dxb*dxb) + stl::min(dya*dya, dyb*dyb) + stl::min(dza*dza, dzb*dzb));
+    return std::sqrt(norm2(dX));
 }
 
 /*! @brief vector multipole acceptance criterion
@@ -135,7 +124,7 @@ HOST_DEVICE_FUN bool vectorMac(T comx, T comy, T comz, const IBox& source, const
     constexpr T uL = T(1.) / maxCoord<KeyType>{};
 
     // minimal distance from source-center-mass to target box
-    T distanceToCom = minDistance<KeyType>(comx, comy, comz, target, box);
+    T distanceToCom = minDistance<KeyType>({comx, comy, comz}, target, box);
     T sourceLength  = nodeLength<KeyType>(source, box);
 
     // geometric center of source

@@ -49,21 +49,9 @@ TEST(Macs, minPointDistance)
         IBox ibox(0, mc / 2);
 
         T px = (mc/2.0 + 1) / mc;
-        T py = (mc/2.0 + 1) / mc;
-        T pz = (mc/2.0 + 1) / mc;
+        Vec3<T> X{px, px, px};
 
-        T probe = minDistance<KeyType>(px, py, pz, ibox, box);
-        EXPECT_NEAR(std::sqrt(3)/mc, probe, 1e-10);
-    }
-    {
-        Box<T> box(0, 1, true);
-        IBox ibox(0, mc / 2);
-
-        T px = (mc - 1.0) / mc;
-        T py = (mc - 1.0) / mc;
-        T pz = (mc - 1.0) / mc;
-
-        T probe = minDistance<KeyType>(px, py, pz, ibox, box);
+        T probe = minDistance<KeyType>(X, ibox, box);
         EXPECT_NEAR(std::sqrt(3)/mc, probe, 1e-10);
     }
 }

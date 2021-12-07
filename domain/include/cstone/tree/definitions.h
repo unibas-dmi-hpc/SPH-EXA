@@ -27,6 +27,8 @@
 
 #include "cstone/cuda/annotation.hpp"
 
+#include "cstone/util/array.hpp"
+
 namespace cstone
 {
 
@@ -35,6 +37,11 @@ namespace cstone
 using TreeNodeIndex = int;
 
 using LocalParticleIndex = unsigned;
+
+template<class T>
+using Vec3 = util::array<T, 3>;
+
+using TestType = float;
 
 //! @brief checks whether a binary tree index corresponds to a leaf index
 HOST_DEVICE_FUN
