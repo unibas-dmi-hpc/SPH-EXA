@@ -19,11 +19,20 @@
 using namespace sphexa;
 using namespace cstone;
 
+#ifdef SPH_EXA_USE_CATALYST2
+#include "CatalystAdaptor.h"
+#endif
+
 void printHelp(char* binName, int rank);
 
 int main(int argc, char** argv)
 {
     const int rank = initAndGetRankId();
+
+#ifdef SPH_EXA_USE_CATALYST2
+    CatalystAdaptor::Initialize(argc, argv);
+    std::cout << "CatalystInitialize\n";
+#endif
 
     const ArgParser parser(argc, argv);
 
@@ -182,11 +191,17 @@ int main(int argc, char** argv)
         {
             Printer::printTotalIterationTime(d.iteration, timer.duration(), output);
         }
+#ifdef SPH_EXA_USE_CATALYST2
+        CatalystAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
+#endif
     }
 
     totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Sedov");
 
     constantsFile.close();
+#ifdef SPH_EXA_USE_CATALYST2
+    CatalystAdaptor::Finalize();
+#endif
 
     return exitSuccess();
 }

@@ -1,0 +1,21 @@
+#!/bin/sh
+
+prgenv:
+  module load daint-gpu cudatoolkit CMake/3.21.1
+  module load ParaView/5.10.0-CrayGNU-20.11-RC2-EGL-python3 (not yet in production)
+
+build wth ParaView Catalyst on Piz Daint:
+  mkdir buildCatalystDaint
+  cd buildCatalystDaint
+  cmake -DCMAKE_CXX_COMPILER=CC -DINSITU=Catalyst ..
+
+############
+
+prgenv:
+  module load daint-gpu cudatoolkit CMake/3.21.1 cray-hdf5-parallel
+
+build with ASCENT on Piz Daint:
+  mkdir buildAscentDaint
+  cd buildAscentDaint
+  cmake -C /users/jfavre/Projects/Ascent/daint106.cmake -DCMAKE_CXX_COMPILER=CC -DINSITU=Ascent ..
+  
