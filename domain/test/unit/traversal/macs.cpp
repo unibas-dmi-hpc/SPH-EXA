@@ -180,15 +180,44 @@ TEST(Macs, nodeLengthSq)
 
 TEST(Macs, minMac)
 {
-    IBox a(0, 1);
-    IBox b(6, 8, 0, 1, 0, 1);
-    Box<double> box(0, 1);
+    using T = double;
 
-    bool probe1 = minMac<unsigned>(a, b, box, 6.0);
-    bool probe2 = minMac<unsigned>(a, b, box, 6.5);
+    {
+        Vec3<T> cA{0.5, 0.5, 0.5};
+        Vec3<T> sA{0.5, 0.5, 0.5};
 
-    EXPECT_TRUE(probe1);
-    EXPECT_FALSE(probe2);
+        Vec3<T> cB{3.5, 3.5, 3.5};
+        Vec3<T> sB{0.5, 0.5, 0.5};
+
+        EXPECT_TRUE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.29));
+        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.28));
+
+        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, true), 1.0));
+    }
+    {
+        Vec3<T> cA{0.5, 0.5, 0.5};
+        Vec3<T> sA{1.0, 1.0, 1.0};
+
+        Vec3<T> cB{3.5, 3.5, 3.5};
+        Vec3<T> sB{0.5, 0.5, 0.5};
+
+        EXPECT_TRUE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.39));
+        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.38));
+
+        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, true), 1.0));
+    }
+    {
+        Vec3<T> cA{0.5, 0.5, 0.5};
+        Vec3<T> sA{0.5, 0.5, 0.5};
+
+        Vec3<T> cB{3.5, 3.5, 3.5};
+        Vec3<T> sB{1.0, 1.0, 1.0};
+
+        EXPECT_TRUE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.78));
+        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.76));
+
+        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, true), 1.0));
+    }
 }
 
 TEST(Macs, minMacMutual)
@@ -228,11 +257,13 @@ std::vector<char> markMacAll2All(gsl::span<const KeyType> leaves, TreeNodeIndex 
                                  float theta, const Box<T>& box)
 {
     std::vector<char> markings(nNodes(leaves));
+    float invTheta = 1.0 / theta;
 
     // loop over target cells
     for (TreeNodeIndex i = firstNode; i < lastNode; ++i)
     {
         IBox targetBox = sfcIBox(sfcKey(leaves[i]), sfcKey(leaves[i + 1]));
+        auto [targetCenter, targetSize] = centerAndSize<KeyType>(targetBox, box);
 
         // loop over source cells
         for (TreeNodeIndex j = 0; j < TreeNodeIndex(nNodes(leaves)); ++j)
@@ -240,9 +271,10 @@ std::vector<char> markMacAll2All(gsl::span<const KeyType> leaves, TreeNodeIndex 
             // source cells must not be in target cell range
             if (firstNode <= j && j < lastNode) { continue; }
             IBox sourceBox = sfcIBox(sfcKey(leaves[j]), sfcKey(leaves[j + 1]));
+            auto [sourceCenter, sourceSize] = centerAndSize<KeyType>(sourceBox, box);
 
             // if source cell fails MAC w.r.t to current target, it gets marked
-            bool violatesMac = !minMac<KeyType>(targetBox, sourceBox, box, 1.0 / (theta * theta));
+            bool violatesMac = !minMac(targetCenter, targetSize, sourceCenter, sourceSize, box, invTheta);
             if (violatesMac) { markings[j] = 1; }
         }
     }
@@ -264,7 +296,7 @@ void markMac()
     float theta = 0.58;
     KeyType focusStart = treeLeaves[0];
     KeyType focusEnd   = treeLeaves[2];
-    markMac(fullTree, box, focusStart, focusEnd, 1. / (theta * theta), markings.data());
+    markMac(fullTree, box, focusStart, focusEnd, 1. / theta, markings.data());
 
     // Morton explicit reference:
     //                            internal | leaves

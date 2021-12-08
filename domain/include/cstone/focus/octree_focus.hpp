@@ -327,7 +327,7 @@ public:
         leaves = tree_.treeLeaves();
 
         macs_.resize(tree_.numTreeNodes());
-        markMac(tree_, box, focusStart, focusEnd, 1.0/(theta_*theta_), macs_.data());
+        markMac(tree_, box, focusStart, focusEnd, 1.0 / theta_, macs_.data());
 
         counts_.resize(tree_.numLeafNodes());
         // local node counts

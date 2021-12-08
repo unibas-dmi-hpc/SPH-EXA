@@ -90,23 +90,27 @@ HOST_DEVICE_FUN T nodeLength(IBox b, const Box<T>& box)
 
 /*! @brief evaluate minimum distance MAC, non-commutative version
  *
- * @param a            target cell
- * @param b            source cell
- * @param box          coordinate bounding box
- * @param invThetaSq   inverse theta squared
- * @return             true if MAC fulfilled, false otherwise
+ * @param a        target cell
+ * @param b        source cell
+ * @param box      coordinate bounding box
+ * @param invTheta inverse theta
+ * @return         true if MAC fulfilled, false otherwise
  *
  * Note: Mac is valid for any point in a w.r.t to box b
  */
-template<class KeyType, class T>
-HOST_DEVICE_FUN bool minMac(const IBox& a, const IBox& b, const Box<T>& box, float invThetaSq)
+template<class T>
+HOST_DEVICE_FUN bool minMac(const Vec3<T>& aCenter,
+                            const Vec3<T>& aSize,
+                            const Vec3<T>& bCenter,
+                            const Vec3<T>& bSize,
+                            const Box<T>& box,
+                            float invTheta)
 {
-    auto [aCenter, aSize] = centerAndSize<KeyType>(a, box);
-    auto [bCenter, bSize] = centerAndSize<KeyType>(b, box);
-    T dsq = norm2(minDistance(aCenter, aSize, bCenter, bSize, box));
-    // equivalent to "d > l / theta"
-    T bLength = nodeLength<KeyType>(b, box);
-    return dsq > bLength * bLength * invThetaSq;
+    T dsq     = norm2(minDistance(aCenter, aSize, bCenter, bSize, box));
+    T bLength = T(2.0) * max(bSize);
+    T mac     = bLength * invTheta;
+
+    return dsq > (mac * mac);
 }
 
 /*! @brief vector multipole acceptance criterion
@@ -203,10 +207,11 @@ HOST_DEVICE_FUN bool minVecMacMutual(const Vec3<T>& centerA,
 
 //! @brief mark all nodes of @p octree (leaves and internal) that fail the MAC w.r.t to @p target
 template<class T, class KeyType>
-void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box,
-                   float invThetaSq, KeyType focusStart, KeyType focusEnd, char* markings)
+void markMacPerBox(const Vec3<T>& targetCenter, const Vec3<T>& targetSize, const Octree<KeyType>& octree, const Box<T>& box,
+                   float invTheta, KeyType focusStart, KeyType focusEnd, char* markings)
 {
-    auto checkAndMarkMac = [target, &octree, &box, invThetaSq, focusStart, focusEnd, markings](TreeNodeIndex idx)
+    auto checkAndMarkMac =
+        [&targetCenter, &targetSize, &octree, &box, invTheta, focusStart, focusEnd, markings](TreeNodeIndex idx)
     {
         KeyType nodeStart = octree.codeStart(idx);
         KeyType nodeEnd   = octree.codeEnd(idx);
@@ -214,8 +219,9 @@ void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box
         if (containedIn(nodeStart, nodeEnd, focusStart, focusEnd)) { return false; }
 
         IBox sourceBox = sfcIBox(sfcKey(nodeStart), octree.level(idx));
+        auto [sourceCenter, sourceSize] = centerAndSize<KeyType>(sourceBox, box);
 
-        bool violatesMac = !minMac<KeyType>(target, sourceBox, box, invThetaSq);
+        bool violatesMac = !minMac(targetCenter, targetSize, sourceCenter, sourceSize, box, invTheta);
         if (violatesMac) { markings[idx] = 1; }
 
         return violatesMac;
@@ -239,7 +245,7 @@ void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box
  */
 template<class T, class KeyType>
 void markMac(const Octree<KeyType>& octree, const Box<T>& box, KeyType focusStart, KeyType focusEnd,
-             float invThetaSq, char* markings)
+             float invTheta, char* markings)
 
 {
     std::fill(markings, markings + octree.numTreeNodes(), 0);
@@ -254,7 +260,8 @@ void markMac(const Octree<KeyType>& octree, const Box<T>& box, KeyType focusStar
     for (TreeNodeIndex i = 0; i < numFocusBoxes; ++i)
     {
         IBox target = sfcIBox(sfcKey(focusCodes[i]), sfcKey(focusCodes[i + 1]));
-        markMacPerBox(target, octree, box, invThetaSq, focusStart, focusEnd, markings);
+        auto [targetCenter, targetSize] = centerAndSize<KeyType>(target, box);
+        markMacPerBox(targetCenter, targetSize, octree, box, invTheta, focusStart, focusEnd, markings);
     }
 }
 
