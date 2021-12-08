@@ -104,7 +104,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
 
         const auto& p = multipoles[idx];
 
-        bool violatesMac = !vectorMac<KeyType>(p.xcm, p.ycm, p.zcm, sourceBox, targetBox, box, theta);
+        bool violatesMac = !vectorMac<KeyType>({p.xcm, p.ycm, p.zcm}, sourceBox, targetBox, box, theta);
         if (!violatesMac)
         {
             LocalParticleIndex firstTarget = layout[groupIdx];

@@ -168,16 +168,6 @@ TEST(Macs, minDistanceSqPbc)
     }
 }
 
-TEST(Macs, nodeLengthSq)
-{
-    IBox ibox(0, 1);
-    Box<double> box(0, 1, 0, 2, 0, 3);
-
-    double reference = 1. / 1024 * 3;
-    double probe = nodeLength<unsigned>(ibox, box);
-    EXPECT_DOUBLE_EQ(reference, probe);
-}
-
 TEST(Macs, minMac)
 {
     using T = double;

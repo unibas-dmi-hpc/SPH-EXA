@@ -78,16 +78,6 @@ HOST_DEVICE_FUN T minDistanceSq(IBox a, IBox b, const Box<T>& box)
     return norm2(minDistance(aCenter, aSize, bCenter, bSize, box));
 }
 
-//! @brief return longest edge length of box @p b
-template<class KeyType, class T>
-HOST_DEVICE_FUN T nodeLength(IBox b, const Box<T>& box)
-{
-    constexpr T unitLength = T(1.) / maxCoord<KeyType>{};
-
-    // IBoxes for octree nodes are assumed cubic, only box can be rectangular
-    return (b.xmax() - b.xmin()) * unitLength * box.maxExtent();
-}
-
 /*! @brief evaluate minimum distance MAC, non-commutative version
  *
  * @param a        target cell
@@ -132,28 +122,17 @@ HOST_DEVICE_FUN bool minMac(const Vec3<T>& aCenter,
  *  s -> distance from geometric source center to source center mass
  */
 template<class KeyType, class T>
-HOST_DEVICE_FUN bool vectorMac(T comx, T comy, T comz, const IBox& source, const IBox& target, const Box<T>& box,
+HOST_DEVICE_FUN bool vectorMac(const Vec3<T>& sourceCom, const IBox& source, const IBox& target, const Box<T>& box,
                                float theta)
 {
-    constexpr T uL = T(1.) / maxCoord<KeyType>{};
-
+    auto [sCenter, sSize] = centerAndSize<KeyType>(source, box);
     auto [tCenter, tSize] = centerAndSize<KeyType>(target, box);
 
     // minimal distance^2 from source-center-mass to target box
-    T distanceToCom2 = norm2(minDistance({comx, comy, comz}, tCenter, tSize, box));
-    T sourceLength   = nodeLength<KeyType>(source, box);
+    T distanceToCom2 = norm2(minDistance(sourceCom, tCenter, tSize, box));
+    T sourceLength   = T(2.0) * max(sSize);
 
-    // geometric center of source
-    int halfCube = (source.xmax() - source.xmin()) / 2;
-    T xsc = (source.xmin() + halfCube) * uL * box.lx();
-    T ysc = (source.ymin() + halfCube) * uL * box.ly();
-    T zsc = (source.zmin() + halfCube) * uL * box.lz();
-
-    T dxsc = xsc - comx;
-    T dysc = ysc - comy;
-    T dzsc = zsc - comz;
-
-    T s = sqrt(dxsc * dxsc + dysc * dysc + dzsc * dzsc);
+    T s = std::sqrt(norm2(sourceCom - sCenter));
     T mac = sourceLength/theta + s;
 
     return distanceToCom2 > (mac * mac);
