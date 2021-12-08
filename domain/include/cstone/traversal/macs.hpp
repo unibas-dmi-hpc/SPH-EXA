@@ -105,16 +105,16 @@ HOST_DEVICE_FUN bool minMac(const Vec3<T>& aCenter,
 
 /*! @brief vector multipole acceptance criterion
  *
- * @tparam KeyType   unsigned 32- or 64-bit integer type
- * @tparam T         float or double
- * @param  comx      center of gravity x-coordinate
- * @param  comy      center of gravity y-coordinate
- * @param  comz      center of gravity z-coordinate
- * @param  source    source integer coordinate box
- * @param  target    target integer coordinate box
- * @param  box       global coordinate bounding box, contains PBC information
- * @param  theta     accuracy parameter
- * @return           true if criterion fulfilled (cell does not need to be opened)
+ * @tparam KeyType       unsigned 32- or 64-bit integer type
+ * @tparam T             float or double
+ * @param  sourceCom     source center of gravity
+ * @param  sourceCenter  geometrical center of source cell
+ * @param  sourceSize    size of source cel
+ * @param  targetCenter  geometrical center of target group bounding box
+ * @param  targetSize    size of target group bounding box
+ * @param  box           global coordinate bounding box, contains PBC information
+ * @param  invTheta      reciprocal accuracy parameter
+ * @return               true if criterion fulfilled (cell does not need to be opened)
  *
  * Evaluates  d > l/theta + s with:
  *  d -> minimal distance of target box to source center of mass
@@ -122,18 +122,20 @@ HOST_DEVICE_FUN bool minMac(const Vec3<T>& aCenter,
  *  s -> distance from geometric source center to source center mass
  */
 template<class KeyType, class T>
-HOST_DEVICE_FUN bool vectorMac(const Vec3<T>& sourceCom, const IBox& source, const IBox& target, const Box<T>& box,
-                               float theta)
+HOST_DEVICE_FUN bool vectorMac(const Vec3<T>& sourceCom,
+                               const Vec3<T>& sourceCenter,
+                               const Vec3<T>& sourceSize,
+                               const Vec3<T>& targetCenter,
+                               const Vec3<T>& targetSize,
+                               const Box<T>& box,
+                               float invTheta)
 {
-    auto [sCenter, sSize] = centerAndSize<KeyType>(source, box);
-    auto [tCenter, tSize] = centerAndSize<KeyType>(target, box);
-
     // minimal distance^2 from source-center-mass to target box
-    T distanceToCom2 = norm2(minDistance(sourceCom, tCenter, tSize, box));
-    T sourceLength   = T(2.0) * max(sSize);
+    T distanceToCom2 = norm2(minDistance(sourceCom, targetCenter, targetSize, box));
+    T sourceLength   = T(2.0) * max(sourceSize);
 
-    T s = std::sqrt(norm2(sourceCom - sCenter));
-    T mac = sourceLength/theta + s;
+    T s = std::sqrt(norm2(sourceCom - sourceCenter));
+    T mac = sourceLength * invTheta + s;
 
     return distanceToCom2 > (mac * mac);
 }
