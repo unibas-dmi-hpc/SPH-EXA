@@ -162,14 +162,64 @@ HOST_DEVICE_FUN bool minDistanceMac(const IBox& a, const IBox& b, const Box<T>& 
     return dsq > bLength * bLength * invThetaSq;
 }
 
-//! @brief commutative version
-template<class KeyType, class T>
-HOST_DEVICE_FUN bool minDistanceMacMutual(const IBox& a, const IBox& b, const Box<T>& box, float invThetaSq)
+//! @brief commutative version of the min-distance mac, based on floating point math
+template<class T>
+HOST_DEVICE_FUN bool minMacMutual(const Vec3<T>& centerA,
+                                  const Vec3<T>& sizeA,
+                                  const Vec3<T>& centerB,
+                                  const Vec3<T>& sizeB,
+                                  const Box<T>& box,
+                                  float invTheta)
 {
-    T dsq = minDistanceSq<KeyType>(a, b, box);
-    // equivalent to "d > l / theta"
-    T boxLength = stl::max(nodeLength<KeyType>(a, box), nodeLength<KeyType>(b, box));
-    return dsq > boxLength * boxLength * invThetaSq;
+    Vec3<T> dX = abs(centerA - centerB);
+
+    dX = applyPbc(dX, box);
+    dX -= sizeA;
+    dX -= sizeB;
+
+    dX += abs(dX);
+    dX *= T(0.5);
+
+    T distSq = norm2(dX);
+    T sizeAB = 2 * stl::max(max(sizeA), max(sizeB));
+
+    T mac = sizeAB * invTheta;
+
+    return distSq > (mac * mac);
+}
+
+/*! @brief commutative combination of min-distance and vector map
+ *
+ * This MAC doesn't pass any A-B pairs that would fail either the min-distance
+ * or vector MAC. Can be used instead of the vector mac when the mass center locations
+ * are not known.
+ */
+template<class T>
+HOST_DEVICE_FUN bool minVecMacMutual(const Vec3<T>& centerA,
+                                     const Vec3<T>& sizeA,
+                                     const Vec3<T>& centerB,
+                                     const Vec3<T>& sizeB,
+                                     const Box<T>& box,
+                                     float invTheta)
+{
+    Vec3<T> dX = abs(centerA - centerB);
+
+    dX = applyPbc(dX, box);
+    dX -= sizeA;
+    dX -= sizeB;
+
+    dX += abs(dX);
+    dX *= T(0.5);
+
+    T distSq = norm2(dX);
+    T sizeAB = 2 * stl::max(max(sizeA), max(sizeB));
+
+    Vec3<T> maxComOffset = max(sizeA, sizeB);
+    // s is the worst-case distance of the c.o.m from the geometrical center
+    T s   = std::sqrt(norm2(maxComOffset));
+    T mac = sizeAB * invTheta + s;
+
+    return distSq > (mac * mac);
 }
 
 //! @brief mark all nodes of @p octree (leaves and internal) that fail the MAC w.r.t to @p target

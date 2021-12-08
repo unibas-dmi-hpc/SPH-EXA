@@ -174,7 +174,18 @@ private:
     bool pbc[3];
 };
 
+//! @brief Fold X into periodic boundaries,
+template<class T>
+HOST_DEVICE_FUN inline Vec3<T> applyPbc(Vec3<T> X, const Box<T>& box)
+{
+    X[0] -= box.pbcX() * box.lx() * std::rint(X[0] * box.ilx());
+    X[1] -= box.pbcY() * box.ly() * std::rint(X[1] * box.ily());
+    X[2] -= box.pbcZ() * box.lz() * std::rint(X[2] * box.ilz());
 
+    return X;
+}
+
+//! @brief Legacy PBC
 template<class T>
 HOST_DEVICE_FUN inline void applyPBC(const cstone::Box<T>& box, T r, T& xx, T& yy, T& zz)
 {

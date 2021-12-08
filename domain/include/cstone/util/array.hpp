@@ -355,7 +355,7 @@ HOST_DEVICE_FUN constexpr T max(const array<T, N>& a)
 {
     T ret = a[0];
 
-    for (int i = 1; i < N; i++)
+    for (std::size_t i = 1; i < N; i++)
     {
         ret = ret > a[i] ? ret : a[i];
     }

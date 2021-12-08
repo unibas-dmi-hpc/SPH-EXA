@@ -53,6 +53,9 @@ namespace cstone
  *                      segments for low opening angles and/or low global resolution in
  *                      @p domainTree.
  *
+ * Note: This function guarantees mutuality, if rank A identifies B as peer, then also
+ *       rank B will have A as peer
+ *
  * Except for @p myRank, this function acts on data that is identical on all MPI ranks and
  * doesn't need to do any communication.
  */
@@ -60,11 +63,11 @@ template<class T, class KeyType>
 std::vector<int> findPeersMac(int myRank, const SpaceCurveAssignment& assignment,
                               const Octree<KeyType>& domainTree, const Box<T>& box, float theta)
 {
-    float invThetaSq = 1.0f / (theta * theta);
+    float invTheta = 1.0f / theta;
     KeyType domainStart = domainTree.codeStart(domainTree.toInternal(assignment.firstNodeIdx(myRank)));
     KeyType domainEnd   = domainTree.codeStart(domainTree.toInternal(assignment.lastNodeIdx(myRank)));
 
-    auto crossFocusPairs = [domainStart, domainEnd, invThetaSq, &tree = domainTree, &box]
+    auto crossFocusPairs = [domainStart, domainEnd, invTheta, &tree = domainTree, &box]
         (TreeNodeIndex a, TreeNodeIndex b)
     {
       bool aFocusOverlap = overlapTwoRanges(domainStart, domainEnd, tree.codeStart(a), tree.codeEnd(a));
@@ -74,7 +77,9 @@ std::vector<int> findPeersMac(int myRank, const SpaceCurveAssignment& assignment
 
       IBox aBox = sfcIBox(sfcKey(tree.codeStart(a)), tree.level(a));
       IBox bBox = sfcIBox(sfcKey(tree.codeStart(b)), tree.level(b));
-      return !minDistanceMacMutual<KeyType>(aBox, bBox, box, invThetaSq);
+      auto [aCenter, aSize] = centerAndSize<KeyType>(aBox, box);
+      auto [bCenter, bSize] = centerAndSize<KeyType>(bBox, box);
+      return !minMacMutual(aCenter, aSize, bCenter, bSize, box, invTheta);
     };
 
     auto m2l = [](TreeNodeIndex, TreeNodeIndex) {};
@@ -112,7 +117,7 @@ template<class T, class KeyType>
 std::vector<int> findPeersMacStt(int myRank, const SpaceCurveAssignment& assignment, const Octree<KeyType>& octree,
                                  const Box<T>& box, float theta)
 {
-    float invThetaSq = 1.0f / (theta * theta);
+    float invTheta = 1.0f / theta;
     auto treeLeaves = octree.treeLeaves();
     KeyType domainStart = treeLeaves[assignment.firstNodeIdx(myRank)];
     KeyType domainEnd   = treeLeaves[assignment.lastNodeIdx(myRank)];
@@ -123,8 +128,10 @@ std::vector<int> findPeersMacStt(int myRank, const SpaceCurveAssignment& assignm
     for (TreeNodeIndex i = assignment.firstNodeIdx(myRank); i < assignment.lastNodeIdx(myRank); ++i)
     {
         IBox target = sfcIBox(sfcKey(treeLeaves[i]), sfcKey(treeLeaves[i + 1]));
+        Vec3<T> targetCenter, targetSize;
+        std::tie(targetCenter, targetSize) = centerAndSize<KeyType>(target, box);
 
-        auto violatesMac = [target, &octree, &box, invThetaSq, domainStart, domainEnd](TreeNodeIndex idx)
+        auto violatesMac = [&targetCenter, &targetSize, &octree, &box, invTheta, domainStart, domainEnd](TreeNodeIndex idx)
         {
             KeyType nodeStart = octree.codeStart(idx);
             KeyType nodeEnd   = octree.codeEnd(idx);
@@ -132,7 +139,8 @@ std::vector<int> findPeersMacStt(int myRank, const SpaceCurveAssignment& assignm
             if (containedIn(nodeStart, nodeEnd, domainStart, domainEnd)) { return false; }
 
             IBox sourceBox = sfcIBox(sfcKey(nodeStart), octree.level(idx));
-            return !minDistanceMacMutual<KeyType>(target, sourceBox, box, invThetaSq);
+            auto [sourceCenter, sourceSize] = centerAndSize<KeyType>(sourceBox, box);
+            return !minMacMutual(targetCenter, targetSize, sourceCenter, sourceSize, box, invTheta);
         };
 
         auto markLeafIdx = [&peers, &assignment](TreeNodeIndex idx)

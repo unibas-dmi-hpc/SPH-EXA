@@ -189,6 +189,38 @@ TEST(Macs, minDistanceMac)
     EXPECT_FALSE(probe2);
 }
 
+TEST(Macs, minMacMutual)
+{
+    using T = double;
+
+    Vec3<T> cA{0.5, 0.5, 0.5};
+    Vec3<T> sA{0.5, 0.5, 0.5};
+
+    Vec3<T> cB{3.5, 3.5, 3.5};
+    Vec3<T> sB{0.5, 0.5, 0.5};
+
+    EXPECT_TRUE(minMacMutual(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.29));
+    EXPECT_FALSE(minMacMutual(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.28));
+
+    EXPECT_FALSE(minMacMutual(cA, sA, cB, sB, Box<T>(0, 4, true), 1.0));
+}
+
+TEST(Macs, minVecMacMutual)
+{
+    using T = double;
+
+    Vec3<T> cA{0.5, 0.5, 0.5};
+    Vec3<T> sA{0.5, 0.5, 0.5};
+
+    Vec3<T> cB{3.5, 3.5, 3.5};
+    Vec3<T> sB{0.5, 0.5, 0.5};
+
+    EXPECT_TRUE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.39));
+    EXPECT_FALSE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.38));
+
+    EXPECT_FALSE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, true), 1.0));
+}
+
 template<class KeyType, class T>
 std::vector<char> markMacAll2All(gsl::span<const KeyType> leaves, TreeNodeIndex firstNode, TreeNodeIndex lastNode,
                                  float theta, const Box<T>& box)
