@@ -51,7 +51,9 @@ TEST(Macs, minPointDistance)
         T px = (mc/2.0 + 1) / mc;
         Vec3<T> X{px, px, px};
 
-        T probe = minDistance<KeyType>(X, ibox, box);
+        auto [center, size] = centerAndSize<KeyType>(ibox, box);
+
+        T probe = std::sqrt(norm2(minDistance(X, center, size)));
         EXPECT_NEAR(std::sqrt(3)/mc, probe, 1e-10);
     }
 }

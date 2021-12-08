@@ -87,59 +87,14 @@ HOST_DEVICE_FUN T nodeLength(IBox b, const Box<T>& box)
 }
 
 //! @brief returns the smallest distance of point X to box b
-template<class KeyType, class T>
-HOST_DEVICE_FUN T minDistance(Vec3<T> X, IBox b, const Box<T>& box)
+template<class T>
+HOST_DEVICE_FUN Vec3<T> minDistance(const Vec3<T>& X, const Vec3<T>& bCenter, const Vec3<T>& bSize)
 {
-    auto [bCenter, bSize] = centerAndSize<KeyType>(b, box);
-
     Vec3<T> dX = abs(bCenter - X) - bSize;
     dX += abs(dX);
     dX *= T(0.5);
 
-    return std::sqrt(norm2(dX));
-}
-
-/*! @brief vector multipole acceptance criterion
- *
- * @tparam KeyType   unsigned 32- or 64-bit integer type
- * @tparam T         float or double
- * @param  comx      center of gravity x-coordinate
- * @param  comy      center of gravity y-coordinate
- * @param  comz      center of gravity z-coordinate
- * @param  source    source integer coordinate box
- * @param  target    target integer coordinate box
- * @param  box       global coordinate bounding box, contains PBC information
- * @param  theta     accuracy parameter
- * @return           true if criterion fulfilled (cell does not need to be opened)
- *
- * Evaluates  d > l/theta + delta with:
- *  d     -> minimal distance of target box to source center of mass
- *  l     -> edge length of source box
- *  delta -> distance from geometric source center to source center mass
- */
-template<class KeyType, class T>
-HOST_DEVICE_FUN bool vectorMac(T comx, T comy, T comz, const IBox& source, const IBox& target, const Box<T>& box,
-                               float theta)
-{
-    constexpr T uL = T(1.) / maxCoord<KeyType>{};
-
-    // minimal distance from source-center-mass to target box
-    T distanceToCom = minDistance<KeyType>({comx, comy, comz}, target, box);
-    T sourceLength  = nodeLength<KeyType>(source, box);
-
-    // geometric center of source
-    int halfCube = (source.xmax() - source.xmin()) / 2;
-    T xsc = (source.xmin() + halfCube) * uL * box.lx();
-    T ysc = (source.ymin() + halfCube) * uL * box.ly();
-    T zsc = (source.zmin() + halfCube) * uL * box.lz();
-
-    T dxsc = xsc - comx;
-    T dysc = ysc - comy;
-    T dzsc = zsc - comz;
-
-    T distanceCom2SourceCenter = sqrt(dxsc * dxsc + dysc * dysc + dzsc * dzsc);
-
-    return distanceToCom > sourceLength/theta + distanceCom2SourceCenter;
+    return dX;
 }
 
 /*! @brief evaluate minimum distance MAC, non-commutative version
@@ -160,6 +115,52 @@ HOST_DEVICE_FUN bool minDistanceMac(const IBox& a, const IBox& b, const Box<T>& 
     // equivalent to "d > l / theta"
     T bLength = nodeLength<KeyType>(b, box);
     return dsq > bLength * bLength * invThetaSq;
+}
+
+/*! @brief vector multipole acceptance criterion
+ *
+ * @tparam KeyType   unsigned 32- or 64-bit integer type
+ * @tparam T         float or double
+ * @param  comx      center of gravity x-coordinate
+ * @param  comy      center of gravity y-coordinate
+ * @param  comz      center of gravity z-coordinate
+ * @param  source    source integer coordinate box
+ * @param  target    target integer coordinate box
+ * @param  box       global coordinate bounding box, contains PBC information
+ * @param  theta     accuracy parameter
+ * @return           true if criterion fulfilled (cell does not need to be opened)
+ *
+ * Evaluates  d > l/theta + s with:
+ *  d -> minimal distance of target box to source center of mass
+ *  l -> edge length of source box
+ *  s -> distance from geometric source center to source center mass
+ */
+template<class KeyType, class T>
+HOST_DEVICE_FUN bool vectorMac(T comx, T comy, T comz, const IBox& source, const IBox& target, const Box<T>& box,
+                               float theta)
+{
+    constexpr T uL = T(1.) / maxCoord<KeyType>{};
+
+    auto [tCenter, tSize] = centerAndSize<KeyType>(target, box);
+
+    // minimal distance^2 from source-center-mass to target box
+    T distanceToCom2 = norm2(minDistance({comx, comy, comz}, tCenter, tSize));
+    T sourceLength   = nodeLength<KeyType>(source, box);
+
+    // geometric center of source
+    int halfCube = (source.xmax() - source.xmin()) / 2;
+    T xsc = (source.xmin() + halfCube) * uL * box.lx();
+    T ysc = (source.ymin() + halfCube) * uL * box.ly();
+    T zsc = (source.zmin() + halfCube) * uL * box.lz();
+
+    T dxsc = xsc - comx;
+    T dysc = ysc - comy;
+    T dzsc = zsc - comz;
+
+    T s = sqrt(dxsc * dxsc + dysc * dysc + dzsc * dzsc);
+    T mac = sourceLength/theta + s;
+
+    return distanceToCom2 > (mac * mac);
 }
 
 //! @brief commutative version of the min-distance mac, based on floating point math
