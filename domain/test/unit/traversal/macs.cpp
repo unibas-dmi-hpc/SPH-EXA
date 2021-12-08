@@ -53,7 +53,7 @@ TEST(Macs, minPointDistance)
 
         auto [center, size] = centerAndSize<KeyType>(ibox, box);
 
-        T probe = std::sqrt(norm2(minDistance(X, center, size)));
+        T probe = std::sqrt(norm2(minDistance(X, center, size, box)));
         EXPECT_NEAR(std::sqrt(3)/mc, probe, 1e-10);
     }
 }
@@ -178,14 +178,14 @@ TEST(Macs, nodeLengthSq)
     EXPECT_DOUBLE_EQ(reference, probe);
 }
 
-TEST(Macs, minDistanceMac)
+TEST(Macs, minMac)
 {
     IBox a(0, 1);
     IBox b(6, 8, 0, 1, 0, 1);
     Box<double> box(0, 1);
 
-    bool probe1 = minDistanceMac<unsigned>(a, b, box, 6.0);
-    bool probe2 = minDistanceMac<unsigned>(a, b, box, 6.5);
+    bool probe1 = minMac<unsigned>(a, b, box, 6.0);
+    bool probe2 = minMac<unsigned>(a, b, box, 6.5);
 
     EXPECT_TRUE(probe1);
     EXPECT_FALSE(probe2);
@@ -242,7 +242,7 @@ std::vector<char> markMacAll2All(gsl::span<const KeyType> leaves, TreeNodeIndex 
             IBox sourceBox = sfcIBox(sfcKey(leaves[j]), sfcKey(leaves[j + 1]));
 
             // if source cell fails MAC w.r.t to current target, it gets marked
-            bool violatesMac = !minDistanceMac<KeyType>(targetBox, sourceBox, box, 1.0 / (theta * theta));
+            bool violatesMac = !minMac<KeyType>(targetBox, sourceBox, box, 1.0 / (theta * theta));
             if (violatesMac) { markings[j] = 1; }
         }
     }

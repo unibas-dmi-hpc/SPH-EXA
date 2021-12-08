@@ -41,39 +41,41 @@
 namespace cstone
 {
 
-template<int Period>
-HOST_DEVICE_FUN
-constexpr int rangeSeparation(int a, int b, int c, int d, bool pbc)
+//! @brief returns the smallest distance vector of point X to box b, 0 if X is in b
+template<class T>
+HOST_DEVICE_FUN Vec3<T> minDistance(const Vec3<T>& X, const Vec3<T>& bCenter, const Vec3<T>& bSize, const Box<T>& box)
 {
-    assert(a < b && c < d);
-    int cb = c - b;
-    int ad = a - d;
-    int cbPbc = (pbc) ? pbcDistance<Period>(cb) : cb;
-    int adPbc = (pbc) ? pbcDistance<Period>(ad) : ad;
-    return (cb >= 0 || ad >= 0) * stl::min(stl::abs(cbPbc), stl::abs(adPbc));
+    Vec3<T> dX = bCenter - X;
+    dX         = abs(applyPbc(dX, box));
+    dX -= bSize;
+    dX += abs(dX);
+    dX *= T(0.5);
+
+    return dX;
 }
 
-/*! @brief return the smallest distance squared between two points on the surface of the AABBs @p a and @p b
- *
- * @tparam T        float or double
- * @tparam KeyType  32- or 64-bit unsigned integer
- * @param a         a box, specified with integer coordinates in [0:2^21]
- * @param b
- * @param box       floating point coordinate bounding box
- * @return          the square of the smallest distance between a and b
- */
+//! @brief returns the smallest distance vector between two boxes, 0 if they overlap
+template<class T>
+HOST_DEVICE_FUN Vec3<T> minDistance(const Vec3<T>& aCenter, const Vec3<T>& aSize, const Vec3<T>& bCenter,
+                                    const Vec3<T>& bSize, const Box<T>& box)
+{
+    Vec3<T> dX = bCenter - aCenter;
+    dX         = abs(applyPbc(dX, box));
+    dX -= aSize;
+    dX -= bSize;
+    dX += abs(dX);
+    dX *= T(0.5);
+
+    return dX;
+}
+
+//! @brief Convenience wrapper to minDistance. This should only be used for testing.
 template<class KeyType, class T>
 HOST_DEVICE_FUN T minDistanceSq(IBox a, IBox b, const Box<T>& box)
 {
-    constexpr size_t mc = maxCoord<KeyType>{};
-    constexpr T unitLengthSq  = T(1.) / (mc * mc);
-
-    size_t dx = rangeSeparation<mc>(a.xmin(), a.xmax(), b.xmin(), b.xmax(), box.pbcX());
-    size_t dy = rangeSeparation<mc>(a.ymin(), a.ymax(), b.ymin(), b.ymax(), box.pbcY());
-    size_t dz = rangeSeparation<mc>(a.zmin(), a.zmax(), b.zmin(), b.zmax(), box.pbcZ());
-    // the maximum for any integer is 2^21-1, so we can safely square each of them
-    return ((dx*dx)*box.lx()*box.lx() + (dy*dy)*box.ly()*box.ly() +
-            (dz*dz)*box.lz()*box.lz()) * unitLengthSq;
+    auto [aCenter, aSize] = centerAndSize<KeyType>(a, box);
+    auto [bCenter, bSize] = centerAndSize<KeyType>(b, box);
+    return norm2(minDistance(aCenter, aSize, bCenter, bSize, box));
 }
 
 //! @brief return longest edge length of box @p b
@@ -86,17 +88,6 @@ HOST_DEVICE_FUN T nodeLength(IBox b, const Box<T>& box)
     return (b.xmax() - b.xmin()) * unitLength * box.maxExtent();
 }
 
-//! @brief returns the smallest distance of point X to box b
-template<class T>
-HOST_DEVICE_FUN Vec3<T> minDistance(const Vec3<T>& X, const Vec3<T>& bCenter, const Vec3<T>& bSize)
-{
-    Vec3<T> dX = abs(bCenter - X) - bSize;
-    dX += abs(dX);
-    dX *= T(0.5);
-
-    return dX;
-}
-
 /*! @brief evaluate minimum distance MAC, non-commutative version
  *
  * @param a            target cell
@@ -105,13 +96,14 @@ HOST_DEVICE_FUN Vec3<T> minDistance(const Vec3<T>& X, const Vec3<T>& bCenter, co
  * @param invThetaSq   inverse theta squared
  * @return             true if MAC fulfilled, false otherwise
  *
- * Note: Mac is valid for any point in a w.r.t to box b, therefore only the
- * size of b is relevant.
+ * Note: Mac is valid for any point in a w.r.t to box b
  */
 template<class KeyType, class T>
-HOST_DEVICE_FUN bool minDistanceMac(const IBox& a, const IBox& b, const Box<T>& box, float invThetaSq)
+HOST_DEVICE_FUN bool minMac(const IBox& a, const IBox& b, const Box<T>& box, float invThetaSq)
 {
-    T dsq = minDistanceSq<KeyType>(a, b, box);
+    auto [aCenter, aSize] = centerAndSize<KeyType>(a, box);
+    auto [bCenter, bSize] = centerAndSize<KeyType>(b, box);
+    T dsq = norm2(minDistance(aCenter, aSize, bCenter, bSize, box));
     // equivalent to "d > l / theta"
     T bLength = nodeLength<KeyType>(b, box);
     return dsq > bLength * bLength * invThetaSq;
@@ -144,7 +136,7 @@ HOST_DEVICE_FUN bool vectorMac(T comx, T comy, T comz, const IBox& source, const
     auto [tCenter, tSize] = centerAndSize<KeyType>(target, box);
 
     // minimal distance^2 from source-center-mass to target box
-    T distanceToCom2 = norm2(minDistance({comx, comy, comz}, tCenter, tSize));
+    T distanceToCom2 = norm2(minDistance({comx, comy, comz}, tCenter, tSize, box));
     T sourceLength   = nodeLength<KeyType>(source, box);
 
     // geometric center of source
@@ -172,14 +164,7 @@ HOST_DEVICE_FUN bool minMacMutual(const Vec3<T>& centerA,
                                   const Box<T>& box,
                                   float invTheta)
 {
-    Vec3<T> dX = abs(centerA - centerB);
-
-    dX = applyPbc(dX, box);
-    dX -= sizeA;
-    dX -= sizeB;
-
-    dX += abs(dX);
-    dX *= T(0.5);
+    Vec3<T> dX = minDistance(centerA, sizeA, centerB, sizeB, box);
 
     T distSq = norm2(dX);
     T sizeAB = 2 * stl::max(max(sizeA), max(sizeB));
@@ -203,14 +188,7 @@ HOST_DEVICE_FUN bool minVecMacMutual(const Vec3<T>& centerA,
                                      const Box<T>& box,
                                      float invTheta)
 {
-    Vec3<T> dX = abs(centerA - centerB);
-
-    dX = applyPbc(dX, box);
-    dX -= sizeA;
-    dX -= sizeB;
-
-    dX += abs(dX);
-    dX *= T(0.5);
+    Vec3<T> dX = minDistance(centerA, sizeA, centerB, sizeB, box);
 
     T distSq = norm2(dX);
     T sizeAB = 2 * stl::max(max(sizeA), max(sizeB));
@@ -237,7 +215,7 @@ void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box
 
         IBox sourceBox = sfcIBox(sfcKey(nodeStart), octree.level(idx));
 
-        bool violatesMac = !minDistanceMac<KeyType>(target, sourceBox, box, invThetaSq);
+        bool violatesMac = !minMac<KeyType>(target, sourceBox, box, invThetaSq);
         if (violatesMac) { markings[idx] = 1; }
 
         return violatesMac;
