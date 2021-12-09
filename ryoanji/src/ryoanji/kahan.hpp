@@ -1,36 +1,34 @@
 #pragma once
 
 #include <iostream>
-#ifndef __CUDACC__
-#define __host__
-#define __device__
-#define __forceinline__
-#endif
+
+#include "cstone/cuda/annotation.hpp"
+
 //! Operator overloading for Kahan summation
 template<typename T>
 struct kahan
 {
     T s;
     T c;
-    __host__ __device__ __forceinline__ kahan() {} // Default constructor
-    __host__ __device__ __forceinline__ kahan(const T& v)
+    HOST_DEVICE_FUN __forceinline__ kahan() {} // Default constructor
+    HOST_DEVICE_FUN __forceinline__ kahan(const T& v)
     { // Copy constructor (scalar)
         s = v;
         c = 0;
     }
-    __host__ __device__ __forceinline__ kahan(const kahan& v)
+    HOST_DEVICE_FUN kahan(const kahan& v)
     { // Copy constructor (structure)
         s = v.s;
         c = v.c;
     }
-    __host__ __device__ __forceinline__ ~kahan() {} // Destructor
-    __host__ __device__ __forceinline__ const kahan& operator=(const T v)
+    HOST_DEVICE_FUN ~kahan() {} // Destructor
+    HOST_DEVICE_FUN const kahan& operator=(const T v)
     { // Scalar assignment
         s = v;
         c = 0;
         return *this;
     }
-    __host__ __device__ __forceinline__ const kahan& operator+=(const T v)
+    HOST_DEVICE_FUN const kahan& operator+=(const T v)
     { // Scalar compound assignment (add)
         T y = v - c;
         T t = s + y;
@@ -38,7 +36,7 @@ struct kahan
         s   = t;
         return *this;
     }
-    __host__ __device__ __forceinline__ const kahan& operator-=(const T v)
+    HOST_DEVICE_FUN const kahan& operator-=(const T v)
     { // Scalar compound assignment (subtract)
         T y = -v - c;
         T t = s + y;
@@ -46,25 +44,25 @@ struct kahan
         s   = t;
         return *this;
     }
-    __host__ __device__ __forceinline__ const kahan& operator*=(const T v)
+    HOST_DEVICE_FUN const kahan& operator*=(const T v)
     { // Scalar compound assignment (multiply)
         c *= v;
         s *= v;
         return *this;
     }
-    __host__ __device__ __forceinline__ const kahan& operator/=(const T v)
+    HOST_DEVICE_FUN const kahan& operator/=(const T v)
     { // Scalar compound assignment (divide)
         c /= v;
         s /= v;
         return *this;
     }
-    __host__ __device__ __forceinline__ const kahan& operator=(const kahan& v)
+    HOST_DEVICE_FUN const kahan& operator=(const kahan& v)
     { // Vector assignment
         s = v.s;
         c = v.c;
         return *this;
     }
-    __host__ __device__ __forceinline__ const kahan& operator+=(const kahan& v)
+    HOST_DEVICE_FUN const kahan& operator+=(const kahan& v)
     { // Vector compound assignment (add)
         T y = v.s - c;
         T t = s + y;
@@ -76,7 +74,7 @@ struct kahan
         s   = t;
         return *this;
     }
-    __host__ __device__ __forceinline__ const kahan& operator-=(const kahan& v)
+    HOST_DEVICE_FUN const kahan& operator-=(const kahan& v)
     { // Vector compound assignment (subtract)
         T y = -v.s - c;
         T t = s + y;
@@ -88,27 +86,27 @@ struct kahan
         s   = t;
         return *this;
     }
-    __host__ __device__ __forceinline__ const kahan& operator*=(const kahan& v)
+    HOST_DEVICE_FUN const kahan& operator*=(const kahan& v)
     { // Vector compound assignment (multiply)
         c *= (v.c + v.s);
         s *= (v.c + v.s);
         return *this;
     }
-    __host__ __device__ __forceinline__ const kahan& operator/=(const kahan& v)
+    HOST_DEVICE_FUN const kahan& operator/=(const kahan& v)
     { // Vector compound assignment (divide)
         c /= (v.c + v.s);
         s /= (v.c + v.s);
         return *this;
     }
-    __host__ __device__ __forceinline__ kahan operator-() const
+    HOST_DEVICE_FUN kahan operator-() const
     { // Vector arithmetic (negation)
         kahan temp;
         temp.s = -s;
         temp.c = -c;
         return temp;
     }
-    __host__ __device__ __forceinline__ operator T() { return s + c; }             // Type-casting (lvalue)
-    __host__ __device__ __forceinline__ operator const T() const { return s + c; } // Type-casting (rvalue)
+    HOST_DEVICE_FUN operator T() { return s + c; }             // Type-casting (lvalue)
+    HOST_DEVICE_FUN operator const T() const { return s + c; } // Type-casting (rvalue)
     friend std::ostream& operator<<(std::ostream& s, const kahan& v)
     { // Output stream
         s << (v.s + v.c);

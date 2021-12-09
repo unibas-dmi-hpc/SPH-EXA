@@ -9,6 +9,24 @@
 namespace
 {
 
+__host__ __device__ __forceinline__ float inverseSquareRoot(float x)
+{
+#if defined(__HIP_DEVICE_COMPILE__) || defined (__CUDA_ARCH__)
+    return rsqrtf(x);
+#else
+    return 1.0f / std::sqrt(x);
+#endif
+}
+
+__host__ __device__ __forceinline__ double inverseSquareRoot(double x)
+{
+#if defined(__HIP_DEVICE_COMPILE__) || defined (__CUDA_ARCH__)
+    return rsqrt(x);
+#else
+    return 1.0 / std::sqrt(x);
+#endif
+}
+
 template<int nx, int ny, int nz>
 struct Index
 {
@@ -412,7 +430,7 @@ __host__ __device__ __forceinline__ fvec4 P2P(fvec4 acc, const fvec3& pos_i, con
 {
     fvec3 dX    = pos_j - pos_i;
     float R2    = norm2(dX) + EPS2;
-    float invR  = rsqrtf(R2);
+    float invR  = inverseSquareRoot(R2);
     float invR2 = invR * invR;
     float invR1 = q_j * invR;
 
@@ -437,10 +455,10 @@ __host__ __device__ __forceinline__ fvec4 P2P(fvec4 acc, const fvec3& pos_i, con
  */
 __host__ __device__ __forceinline__ fvec4 M2P(fvec4 acc, const fvec3& pos_i, const fvec3& pos_j, fvecP& M, float EPS2)
 {
-    const fvec3 dX    = pos_i - pos_j;
-    const float R2    = norm2(dX) + EPS2;
-    const float invR  = rsqrtf(R2);
-    const float invR2 = invR * invR;
+    fvec3 dX    = pos_i - pos_j;
+    float R2    = norm2(dX) + EPS2;
+    float invR  = inverseSquareRoot(R2);
+    float invR2 = invR * invR;
 
     float invRN[P];
     invRN[0] = M[0] * invR;

@@ -58,7 +58,7 @@ __device__ void approxAcc(fvec4 acc_i[TravConfig::nwt], const fvec3 pos_i[TravCo
         fvec3 pos_j = make_fvec3(srcCenter[currentCell]);
 
         if (laneIdx < NTERM) { sm_Multipole[laneIdx] = gm_M[currentCell * NTERM + laneIdx]; }
-        __syncwarp();
+        syncWarp();
 
         for (int k = 0; k < TravConfig::nwt; k++)
             acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(fvecP*)sm_Multipole, EPS2);
@@ -134,7 +134,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         const int numChildScan = inclusiveScanInt(numChild);           // Inclusive scan of numChild
         const int numChildLane = numChildScan - numChild;              // Exclusive scan of numChild
         const int numChildWarp = shflSync(numChildScan, GpuConfig::warpSize - 1); // Total numChild of current warp
-        sourceOffset += min(GpuConfig::warpSize, numSources - sourceOffset);      // advance current level stack pointer
+        sourceOffset += imin(GpuConfig::warpSize, numSources - sourceOffset);     // advance current level stack pointer
         if (numChildWarp + numSources - sourceOffset > TravConfig::memPerWarp)    // If cell queue overflows
             return make_uint2(0xFFFFFFFF, 0xFFFFFFFF);                       // Exit kernel
         int childIdx = oldSources + numSources + newSources + numChildLane; // Child index of current lane
@@ -343,13 +343,13 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
         if (targetIdx >= numTargets) return;
 
         const int bodyBegin = firstBody + targetIdx * TravConfig::targetSize;
-        const int bodyEnd   = min(bodyBegin + TravConfig::targetSize, lastBody);
+        const int bodyEnd   = imin(bodyBegin + TravConfig::targetSize, lastBody);
 
         // load target coordinates
         fvec3 pos_i[TravConfig::nwt];
         for (int i = 0; i < TravConfig::nwt; i++)
         {
-            int bodyIdx = min(bodyBegin + i * GpuConfig::warpSize + laneIdx, bodyEnd - 1);
+            int bodyIdx = imin(bodyBegin + i * GpuConfig::warpSize + laneIdx, bodyEnd - 1);
             pos_i[i]    = make_fvec3(fvec4(bodyPos[bodyIdx]));
         }
 
@@ -436,10 +436,10 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
         #pragma unroll
         for (int i = 0; i < GpuConfig::warpSizeLog2; i++)
         {
-            maxP2P = max(maxP2P, __shfl_xor_sync(0xFFFFFFFF, maxP2P, 1 << i));
-            sumP2P += __shfl_xor_sync(0xFFFFFFFF, sumP2P, 1 << i);
-            maxM2P = max(maxM2P, __shfl_xor_sync(0xFFFFFFFF, maxM2P, 1 << i));
-            sumM2P += __shfl_xor_sync(0xFFFFFFFF, sumM2P, 1 << i);
+            maxP2P = max(maxP2P, shflXorSync(maxP2P, 1 << i));
+            sumP2P += shflXorSync(sumP2P, 1 << i);
+            maxM2P = max(maxM2P, shflXorSync(maxM2P, 1 << i));
+            sumM2P += shflXorSync(sumM2P, 1 << i);
         }
         if (laneIdx == 0)
         {

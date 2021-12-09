@@ -5,6 +5,12 @@
 namespace ryoanji
 {
 
+//! @brief there's no int overload for min in AMD rocM
+__device__ __forceinline__ int imin(int a, int b)
+{
+    return a < b ? a : b;
+}
+
 __device__ __forceinline__ int countLeadingZeros(uint32_t x)
 {
     return __clz(x);
@@ -25,14 +31,23 @@ __device__ __forceinline__ uint64_t reverseBits(uint64_t x)
     return __brevll(x);
 }
 
-__device__ __forceinline__ int popCount(int x)
+template<class T, std::enable_if_t<sizeof(T) == 4 && std::is_integral_v<T>, int> = 0>
+__device__ __forceinline__ int popCount(T x)
 {
     return __popc(x);
 }
 
-__device__ __forceinline__ int popCount(long long int x)
+template<class T, std::enable_if_t<sizeof(T) == 8 && std::is_integral_v<T>, int> = 0>
+__device__ __forceinline__ int popCount(T x)
 {
     return __popcll(x);
+}
+
+__device__ __forceinline__ void syncWarp()
+{
+#ifdef __CUDACC__
+    __syncwarp();
+#endif
 }
 
 //! @brief Compatibility wrapper for AMD. Note: do not HIPify!
@@ -42,7 +57,7 @@ __device__ __forceinline__ T shflSync(T value, int srcLane)
 #ifdef __CUDACC__
     return __shfl_sync(0xFFFFFFFF, value, srcLane);
 #else
-    return __shfl(value, distance);
+    return __shfl(value, srcLane);
 #endif
 }
 
@@ -124,7 +139,7 @@ __device__ __forceinline__ int inclusiveScanInt(int value)
 __device__ __forceinline__ GpuConfig::ThreadMask lanemask_lt()
 {
     GpuConfig::ThreadMask lane = threadIdx.x & (GpuConfig::warpSize - 1);
-    return (1 << lane) - 1;
+    return (GpuConfig::ThreadMask(1) << lane) - 1;
     //int mask;
     //asm("mov.u32 %0, %lanemask_lt;" : "=r"(mask));
     //return mask;
@@ -150,7 +165,7 @@ __device__ __forceinline__ int reduceBool(const bool p)
 __device__ __forceinline__ GpuConfig::ThreadMask lanemask_le()
 {
     GpuConfig::ThreadMask lane = threadIdx.x & (GpuConfig::warpSize - 1);
-    return (2 << lane) - 1;
+    return (GpuConfig::ThreadMask(2) << lane) - 1;
     //int mask;
     //asm("mov.u32 %0, %lanemask_le;" : "=r"(mask));
     //return mask;
@@ -209,7 +224,8 @@ __device__ __forceinline__ int inclusiveSegscanInt(const int packedValue, const 
     // distance = number of preceding lanes to include in scanned value
     // e.g. if distance = 0, then no preceding lane value will be added to scannedValue
     int distance     = countLeadingZeros(flags & lanemask_le()) + laneIdx - (GpuConfig::warpSize - 1);
-    int scannedValue = inclusiveSegscan(value, min(distance, laneIdx));
+    assert(distance >= 0);
+    int scannedValue = inclusiveSegscan(value, imin(distance, laneIdx));
 
     // the lowest lane index for which packedValue was negative, warpSize if all were positive
     // __brev reverses the bit order
@@ -261,13 +277,13 @@ __device__ __forceinline__ void warpExchange(T* queue, const T* laneVal, bool fl
 
     // if laneVal is valid and queue has space
     if (flag && laneCompacted >= 0 && laneCompacted < GpuConfig::warpSize) { sm_exchange[laneCompacted] = *laneVal; }
-    __syncwarp();
+    syncWarp();
 
     // pull newly compacted elements into the queue
     // note sm_exchange is uninitialized, therefore we cannot pull down lanes that we did not set above
     // i.e. below the current fill level
     if (laneIdx >= fillLevel) { *queue = sm_exchange[laneIdx]; }
-    __syncwarp();
+    syncWarp();
 }
 
 } // namespace ryoanji
