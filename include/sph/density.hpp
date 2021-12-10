@@ -47,11 +47,13 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     std::vector<T> imHereBecauseOfCrayCompilerO2Bug(4, 10);
 
     const size_t np = d.x.size();
+    const size_t ltsize = d.wh.size();
+    const size_t n = numParticles;
     const size_t allNeighbors = n * ngmax;
 
 // clang-format off
 #pragma omp target map(to                                                                                                                  \
-                       : n, clist [0:n], neighbors [:allNeighbors], neighborsCount [:n], m [0:np], h [0:np], x [0:np], y [0:np], z [0:np],  wh [0:ltsize], whd [0:ltsize])    \
+                       : n, neighbors [:allNeighbors], neighborsCount [:n], m [0:np], h [0:np], x [0:np], y [0:np], z [0:np],  wh [0:ltsize], whd [0:ltsize])    \
                    map(from                                                                                                                \
                        : ro [:n])
 #pragma omp teams distribute parallel for

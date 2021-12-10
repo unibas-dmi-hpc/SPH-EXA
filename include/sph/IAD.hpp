@@ -50,11 +50,13 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     // Tested with Cray 8.7.3 with NVIDIA Tesla P100 on PizDaint
     std::vector<T> imHereBecauseOfCrayCompilerO2Bug(4, 10);
     const int np = d.x.size();
+    const size_t ltsize = d.wh.size();
+    const size_t n = numParticles;
     const size_t allNeighbors = n * ngmax;
 
 // clang-format off
 #pragma omp target map(to                                                                                                                  \
-		       : clist [:n], neighbors[:allNeighbors], neighborsCount[:n],                                                         \
+		       : neighbors[:allNeighbors], neighborsCount[:n],                                                         \
                        x [0:np], y [0:np], z [0:np], h [0:np], m [0:np], ro [0:np], wh[0:ltsize], whd[0:ltsize])                                                        \
                    map(from                                                                                                                \
                        : c11[:n], c12[:n], c13[:n], c22[:n], c23[:n], c33[:n])
