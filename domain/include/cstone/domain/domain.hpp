@@ -439,6 +439,10 @@ private:
                                          manifest.rangeStart(ri), manifest.rangeEnd(ri)));
             }
         }
+
+		#define _unused(x) ((void)(x))
+		_unused(start);
+		_unused(end);
     }
 
     //! @brief return true if all array sizes are equal to value
