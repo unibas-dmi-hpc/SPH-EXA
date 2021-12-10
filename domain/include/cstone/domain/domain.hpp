@@ -191,7 +191,7 @@ public:
             nodeCounts_ = std::vector<unsigned>{localNParticles_};
         }
 
-        if (!sizesAllEqualTo(localNParticles_, x, y, z, h, particleProperties...))
+        if (!sizesAllEqualTo(localNParticles_, particleKeys, x, y, z, h, particleProperties...))
         {
             throw std::runtime_error("Domain sync: input array sizes are inconsistent\n");
         }
@@ -207,17 +207,17 @@ public:
         // number of locally assigned particles to consider for global tree building
         LocalParticleIndex numParticles = particleEnd_ - particleStart_;
 
-        particleKeys.resize(numParticles);
+        gsl::span<KeyType> keyView(particleKeys.data() + particleStart_, numParticles);
 
         // compute sfc particleKeys only for particles participating in tree build
         computeSfcKeys(x.data() + particleStart_, y.data() + particleStart_, z.data() + particleStart_,
-                       sfcKindPointer(particleKeys.data()), numParticles, box_);
+                       sfcKindPointer(keyView.data()), numParticles, box_);
 
         // reorder the particleKeys according to the ordering
         // has the same net effect as std::sort(begin(particleKeys), end(particleKeys)),
         // but with the difference that we explicitly know the ordering, such
         // that we can later apply it to the x,y,z,h arrays or to access them in the Morton order
-        reorderFunctor.setMapFromCodes(particleKeys.data(), particleKeys.data() + particleKeys.size());
+        reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
 
         // extract ordering for use in e.g. exchange particles
         std::vector<LocalParticleIndex> sfcOrder(numParticles);
@@ -225,13 +225,12 @@ public:
 
         // compute the global octree in cornerstone format (leaves only)
         // the resulting tree and node counts will be identical on all ranks
-        updateOctreeGlobal(particleKeys.data(), particleKeys.data() + numParticles, bucketSize_, tree_, nodeCounts_);
+        updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_);
 
         if (firstCall_)
         {
             // full build on first call
-            while(!updateOctreeGlobal(particleKeys.data(), particleKeys.data() + numParticles,
-                                      bucketSize_, tree_, nodeCounts_));
+            while(!updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_));
         }
 
         // assign one single range of Morton particleKeys each rank
@@ -244,9 +243,11 @@ public:
         // index ranges in domainExchangeSends are valid relative to the sorted code array particleKeys
         // note that there is no offset applied to particleKeys, because it was constructed
         // only with locally assigned particles
-        SendList domainExchangeSends = createSendList<KeyType>(assignment, tree_, particleKeys);
+        SendList domainExchangeSends = createSendList<KeyType>(assignment, tree_, keyView);
 
         reallocate(std::max(newNParticlesAssigned, LocalParticleIndex(x.size())), x,y,z,h, particleProperties...);
+        reallocate(std::max(newNParticlesAssigned, LocalParticleIndex(x.size())), particleKeys);
+        reallocate(std::max(newNParticlesAssigned, LocalParticleIndex(x.size())), sfcOrder);
 
         // exchange assigned particles, note: changes particleStart_ and End_ positions
         std::tie(particleStart_, particleEnd_) =
@@ -255,22 +256,20 @@ public:
                                  x.data(), y.data(), z.data(), h.data(), particleProperties.data()...);
 
         numParticles = particleEnd_ - particleStart_;
-        reallocate(numParticles, particleKeys);
-        reallocate(numParticles, sfcOrder);
+        keyView = gsl::span<KeyType>(particleKeys.data() + particleStart_, numParticles);
 
         // refresh particleKeys and ordering
         computeSfcKeys(x.data() + particleStart_, y.data() + particleStart_, z.data() + particleStart_,
-                       sfcKindPointer(particleKeys.data()), numParticles, box_);
-        reorderFunctor.setMapFromCodes(particleKeys.data(), particleKeys.data() + particleKeys.size());
+                       sfcKindPointer(keyView.begin()), numParticles, box_);
+        reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
         reorderFunctor.getReorderMap(sfcOrder.data());
 
-        LocalParticleIndex compactOffset = findNodeAbove<KeyType>(particleKeys,
-                                                                  tree_[assignment.firstNodeIdx(myRank_)]);
+        LocalParticleIndex compactOffset = findNodeAbove<KeyType>(keyView, tree_[assignment.firstNodeIdx(myRank_)]);
 
         // the range [particleStart_:particleEnd_] can still contain leftover particles from the previous step
         // but [particleStart_ + compactOffset : particleStart_ + compactOffset + newNParticlesAssigned]
         // exclusively refers to locally assigned particles in SFC order when accessed through sfcOrder
-        gsl::span<const KeyType> codesView(particleKeys.data() + compactOffset, newNParticlesAssigned);
+        keyView = gsl::span<KeyType>(particleKeys.data() + particleStart_ + compactOffset, newNParticlesAssigned);
 
         /* Focus tree update phase *********************************************************/
 
@@ -278,7 +277,7 @@ public:
         domainTree.update(begin(tree_), end(tree_));
         std::vector<int> peers = findPeersMac(myRank_, assignment, domainTree, box_, theta_);
 
-        focusedTree_.updateGlobal(box_, codesView, myRank_, peers, assignment, tree_, nodeCounts_);
+        focusedTree_.updateGlobal(box_, keyView, myRank_, peers, assignment, tree_, nodeCounts_);
         if (firstCall_)
         {
             // we must not call updateGlobal again before all ranks have completed the previous call,
@@ -287,7 +286,7 @@ public:
             int converged = 0;
             while (converged != numRanks_)
             {
-                converged = focusedTree_.updateGlobal(box_, codesView, myRank_, peers, assignment, tree_, nodeCounts_);
+                converged = focusedTree_.updateGlobal(box_, keyView, myRank_, peers, assignment, tree_, nodeCounts_);
                 MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
             }
             firstCall_ = false;
@@ -301,7 +300,7 @@ public:
         std::vector<float> haloRadii(nNodes(focusedTree_.treeLeaves()));
         computeHaloRadii(focusedTree_.treeLeaves().data(),
                          nNodes(focusedTree_.treeLeaves()),
-                         codesView,
+                         {keyView.data(), keyView.size()},
                          sfcOrder.data() + compactOffset,
                          h.data() + particleStart_,
                          haloRadii.data());
@@ -325,7 +324,7 @@ public:
 
         outgoingHaloIndices_
             = exchangeRequestKeys<KeyType>(focusedTree_.treeLeaves(), haloFlags,
-                                           codesView, newParticleStart, focusAssignment, peers);
+                                           keyView, newParticleStart, focusAssignment, peers);
         checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd);
 
         incomingHaloIndices_ = computeHaloReceiveList(layout_, haloFlags, focusAssignment, peers);
@@ -343,7 +342,7 @@ public:
         }
 
         std::vector<KeyType> newKeys(localNParticles_);
-        std::copy(codesView.begin(), codesView.end(), newKeys.begin() + newParticleStart);
+        std::copy(keyView.begin(), keyView.end(), newKeys.begin() + newParticleStart);
         swap(particleKeys, newKeys);
 
         particleStart_ = newParticleStart;

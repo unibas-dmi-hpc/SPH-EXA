@@ -52,7 +52,7 @@ void noHalos(int rank, int numRanks)
     // radii around 0.5 and 0.6 don't overlap
     std::vector<T> h{0.005, 0.005};
 
-    std::vector<KeyType> codes;
+    std::vector<KeyType> codes(x.size());
     domain.sync(x, y, z, h, codes);
 
     EXPECT_EQ(domain.startIndex(), 0);
@@ -102,7 +102,7 @@ void withHalos(int rank, int numRanks)
     std::vector<T> z{0.5, 0.6};
     std::vector<T> h{0.2, 0.22}; // in range
 
-    std::vector<KeyType> codes;
+    std::vector<KeyType> codes(x.size());
     domain.sync(x, y, z, h, codes);
 
     if (rank == 0)
@@ -172,7 +172,7 @@ void moreHalos(int rank, int numRanks)
         h.push_back(hGlobal[i]);
     }
 
-    std::vector<KeyType> codes;
+    std::vector<KeyType> codes(x.size());
     domain.sync(x, y, z, h, codes);
 
     if (rank == 0)
@@ -265,7 +265,7 @@ void particleProperty(int rank, int numRanks)
         mass.push_back(massGlobal[i]);
     }
 
-    std::vector<KeyType> codes;
+    std::vector<KeyType> codes(x.size());
     domain.sync(x, y, z, h, codes, mass);
 
     // the order of particles on the node depends on the SFC algorithm
@@ -337,7 +337,7 @@ void multiStepSync(int rank, int numRanks)
         h.push_back(hGlobal[i]);
     }
 
-    std::vector<KeyType> codes;
+    std::vector<KeyType> codes(x.size());
     domain.sync(x, y, z, h, codes);
 
     // now a particle on rank 0 gets moved into an area of the global tree that's on rank 1
@@ -445,7 +445,7 @@ void zipSort(std::vector<T>& x, std::vector<T>& y)
  *  ---> x
  *
  *  After the first sync, particles (1,1) and (5,1) are exchanged.
- *  Since (1,1) as a non-zero smoothing length, rank 1 gains two halos after the
+ *  Since (1,1) has a non-zero smoothing length, rank 1 gains two halos after the
  *  second sync.
  */
 template<class KeyType, class T>
@@ -476,6 +476,7 @@ void domainHaloRadii(int rank, int nRanks)
         h = std::vector<T>{0, 0, 0, 0, 0, 0.1, 0, 0, 0};
     }
 
+    codes.resize(x.size());
     domain.sync(x, y, z, h, codes);
 
     if (rank == 0)
