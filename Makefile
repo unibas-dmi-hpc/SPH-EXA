@@ -21,7 +21,7 @@ DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
 SMS ?= 35 60 70 75
 $(foreach sm,$(SMS),$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
 
-INC += -Isrc -Iinclude -Idomain/include -I$(CUDA_PATH)/include
+INC += -Isrc -Iinclude -Idomain/include -I$(CUDA_PATH)/include -I$(PGI_PATH)/include
 CXXFLAGS += $(RELEASE)
 NVCCFLAGS := -std=c++17 -O3 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS) -Wno-deprecated-gpu-targets
 NVCCLDFLAGS := $(GENCODE_FLAGS) -rdc=true
