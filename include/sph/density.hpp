@@ -19,7 +19,7 @@ template <typename T, class Dataset>
 void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 {
     // number of particles in task
-    int numParticles = t.size();
+    size_t numParticles = t.size();
 
     const size_t ngmax = t.ngmax;
     const int *neighbors = t.neighbors.data();

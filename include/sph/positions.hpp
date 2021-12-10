@@ -36,7 +36,7 @@ void computePositionsImpl(const Task &t, Dataset &d, const cstone::Box<T>& box)
 {
     FunctAccel accelFunct;
 
-    int numParticles = t.size();
+    size_t numParticles = t.size();
 
     const T *dt = d.dt.data();
     const T *du = d.du.data();

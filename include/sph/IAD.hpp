@@ -18,7 +18,7 @@ namespace sph
 template <typename T, class Dataset>
 void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 {
-    int numParticles = t.size();
+    size_t numParticles = t.size();
     size_t ngmax = t.ngmax;
     const int* neighbors = t.neighbors.data();
     const int* neighborsCount = t.neighborsCount.data();
