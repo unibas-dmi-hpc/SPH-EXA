@@ -356,9 +356,10 @@ public:
 
         /* Domain particles update phase *********************************************************/
 
-        LocalParticleIndex newSize = std::max(newNParticlesAssigned, LocalParticleIndex(x.size()));
-        reallocate(newSize, x, y, z, h, particleProperties...);
-        reallocate(newSize, particleKeys);
+        if (newNParticlesAssigned > x.size())
+        {
+            reallocate(newNParticlesAssigned, particleKeys, x, y, z, h, particleProperties...);
+        }
         std::vector<LocalParticleIndex> sfcOrder(x.size());
 
         LocalParticleIndex compactOffset;
@@ -439,13 +440,12 @@ public:
 
         reallocate(localNParticles_, x, y, z, h, particleProperties...);
 
-        std::array<std::vector<T>*, 4 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &h, &particleProperties...};
-        for (std::size_t i = 0; i < particleArrays.size(); ++i)
+        auto reorderArray = [this, newParticleStart, compactOffset, newNParticlesAssigned](auto ptr)
         {
-            reorderFunctor(particleArrays[i]->data() + particleStart_,
-                           particleArrays[i]->data() + newParticleStart,
-                           compactOffset, newNParticlesAssigned);
-        }
+            reorderFunctor(ptr + this->particleStart_, ptr + newParticleStart, compactOffset, newNParticlesAssigned);
+        };
+        std::tuple particleArrays{x.data(), y.data(), z.data(), h.data(), particleProperties.data()...};
+        for_each_tuple(reorderArray, particleArrays);
 
         std::vector<KeyType> newKeys(localNParticles_);
         std::copy(keyView.begin(), keyView.end(), newKeys.begin() + newParticleStart);

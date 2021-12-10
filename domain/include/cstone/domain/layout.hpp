@@ -166,23 +166,16 @@ SendList computeHaloReceiveList(gsl::span<const LocalParticleIndex> layout,
 template<class... Arrays>
 void reallocate(std::size_t size, Arrays&... arrays)
 {
-    std::array data{ (&arrays)... };
+    std::array capacities{ arrays.capacity()... };
 
-    size_t current_capacity = data[0]->capacity();
+    size_t current_capacity = capacities[0];
     if (size > current_capacity)
     {
         // limit reallocation growth to 5% instead of 200%
         auto reserve_size = static_cast<size_t>(double(size) * 1.05);
-        for (auto array : data)
-        {
-            array->reserve(reserve_size);
-        }
+        [[maybe_unused]] std::initializer_list<int> list{ (arrays.reserve(reserve_size), 0)... };
     }
-
-    for (auto array : data)
-    {
-        array->resize(size);
-    }
+    [[maybe_unused]] std::initializer_list<int> list{ (arrays.resize(size), 0)... };
 }
 
 } // namespace cstone
