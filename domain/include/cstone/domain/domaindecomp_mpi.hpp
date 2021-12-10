@@ -43,7 +43,7 @@ namespace cstone
  * @tparam T                      double, float or int
  * @tparam Arrays                 all std::vector<T>
  * @param[in] sendList            List of index ranges to be sent to each rank, indices
- *                                are valid w.r.t to arrays present on @p thisRank relative to the @p inputOffset.
+ *                                are valid w.r.t to arrays present on @p thisRank relative to @p particleStart.
  * @param[in] thisRank            Rank of the executing process
  * @param[in] particleStart       start index of locally owned particles prior to exchange
  * @param[in] particleEnd         end index of locally owned particles prior to exchange

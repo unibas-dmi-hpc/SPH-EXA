@@ -88,7 +88,7 @@ TEST(FocusDomain, noHalos)
  *
  * The two global particles at 0.5^3 and 0.6^3 together with a tree
  * bucketSize of 1 is quite nasty, as it maxes out the tree division depth,
- * because the two particle always end up in the same node at all division levels.
+ * because the two particles always end up in the same node at all division levels.
  */
 template<class KeyType, class T>
 void withHalos(int rank, int numRanks)
