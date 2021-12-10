@@ -166,14 +166,14 @@ int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
  * @param[in] numInternalNodes number of internal octree nodes
  * @param[in] numLeafNodes     number of leaf octree nodes
  * @param[in] leafParents      stores the parent node index of each leaf, length = @p numLeafNodes
- * @param[in] leafCounts       output particle counts per leaf node, length = @p numLeafNodes
+ * @param[in] leafCounts       particle counts per leaf node, length = @p numLeafNodes
  * @param[in] macs             multipole pass or fail per node, length = @p numInternalNodes + numLeafNodes
  * @param[in] firstFocusNode   first focus node in @p cstoneTree, range = [0:numLeafNodes]
  * @param[in] lastFocusNode    last focus node in @p cstoneTree, range = [0:numLeafNodes]
  * @param[in] bucketSize       maximum particle count per (leaf) node and
  *                             minimum particle count (strictly >) for (implicit) internal nodes
  * @param[out] nodeOps         stores rebalance decision result for each node, length = @p numLeafNodes()
- * @return                     true if converged, false
+ * @return                     true if converged, false otherwise
  *
  * For each node i in the tree, in nodeOps[i], stores
  *  - 0 if to be merged

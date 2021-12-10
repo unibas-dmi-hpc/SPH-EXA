@@ -62,18 +62,21 @@ __global__ void computeNodeCountsKernel(const KeyType* tree, unsigned* counts, T
 
 //! @brief see updateNodeCounts
 template<class KeyType>
-__global__ void updateNodeCountsKernel(const KeyType* tree, unsigned* counts, TreeNodeIndex nNodes, const KeyType* codesStart,
-                                       const KeyType* codesEnd, unsigned maxCount)
+__global__ void updateNodeCountsKernel(const KeyType* tree,
+                                       unsigned* counts,
+                                       TreeNodeIndex numNodes,
+                                       const KeyType* codesStart,
+                                       const KeyType* codesEnd,
+                                       unsigned maxCount)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid < nNodes)
+    if (tid < numNodes)
     {
-        unsigned firstGuess  = counts[tid];
-        unsigned secondGuess = counts[min(tid+1, nNodes-1)];
+        unsigned firstGuess     = counts[tid];
+        TreeNodeIndex secondIdx = (tid + 1 < numNodes - 1) ? tid + 1 : numNodes - 1;
+        unsigned secondGuess    = counts[secondIdx];
 
-        //unsigned secondGuess = __shfl_down_sync(0xffffffff, firstGuess, 1);
-        counts[tid] = updateNodeCount(tid, tree, firstGuess, secondGuess,
-                                      codesStart, codesEnd, maxCount);
+        counts[tid] = updateNodeCount(tid, tree, firstGuess, secondGuess, codesStart, codesEnd, maxCount);
     }
 }
 
