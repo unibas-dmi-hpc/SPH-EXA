@@ -13,6 +13,8 @@ struct Task
     Task(const size_t ngmax, const size_t ng0)
         : ngmax(ngmax)
         , ng0(ng0)
+        , firstParticle(0)
+        , lastParticle(ngmax-1)
     {
     }
 
