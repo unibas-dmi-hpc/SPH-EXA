@@ -1,28 +1,32 @@
 ![License](https://img.shields.io/github/license/unibas-dmi-hpc/SPH-EXA_mini-app)
 [![Unit tests](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/actions/workflows/unittest.yml/badge.svg?branch=develop)](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/actions/workflows/unittest.yml)
 ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/unibas-dmi-hpc/SPH-EXA_mini-app?include_prereleases)
+<p align="center">
+  <img src="https://github.com/unibas-dmi-hpc/SPH-EXA/blob/master/docs/artwork/SPH-EXA_logo.png?raw=true" alt="SPH-EXA logo"/>
+</p>
 
 # SPH
 
-The smooth particle hydrodynamics (SPH) technique is a purely Lagrangian method.
-SPH discretizes a fluid in a series of interpolation points (SPH particles) 
-whose distribution follows the mass density of the fluid and their evolution relies 
+The smoothed particle hydrodynamics (SPH) technique is a purely Lagrangian method.
+SPH discretizes a fluid in a series of interpolation points (SPH particles)
+whose distribution follows the mass density of the fluid and their evolution relies
 on a weighted interpolation over close neighboring particles.
 
-SPH simulations represent computationally demanding calculations. 
-Therefore, trade-offs are made between temporal and spatial scales, resolution, 
-dimensionality (3-D or 2-D), and approximated versions of the physics involved. 
-The parallelization of SPH codes is not trivial due to their boundless nature 
-and the absence of a structured particle grid. 
-[SPHYNX](https://astro.physik.unibas.ch/sphynx/), 
-[ChaNGa](http://faculty.washington.edu/trq/hpcc/tools/changa.html), 
-and [SPH-flow](http://www.sph-flow.com) are the three SPH codes selected in the PASC SPH-EXA project proposal. 
-The performance of these codes is negatively impacted by factors, such as multiple time-stepping and gravity. 
-Therefore, the goal is to extrapolate their common basic SPH features, which are consolidated in a fully optimized, Exascale-ready, MPI+X, pure-SPH, mini-app. 
+SPH simulations represent computationally demanding calculations.
+Therefore, trade-offs are made between temporal and spatial scales, resolution,
+dimensionality (3-D or 2-D), and approximated versions of the physics involved.
+The parallelization of SPH codes is not trivial due to their boundless nature
+and the absence of a structured grid.
+[SPHYNX](https://astro.physik.unibas.ch/sphynx/),
+[ChaNGa](http://faculty.washington.edu/trq/hpcc/tools/changa.html),
+and [SPH-flow](http://www.sph-flow.com) are the three SPH codes selected in the PASC SPH-EXA project to
+act as parent and reference codes to SPH-EXA.
+The performance of these three codes is negatively impacted by factors such as imbalanced multi-scale physics, individual time-stepping, halos exchange, and long-range forces.
+Therefore, the goal is to extrapolate their common basic SPH features, and consolidate them in a fully optimized, Exascale-ready, MPI+X, SPH code: SPH-EXA.
 
-# SPH-EXA mini-app
+# SPH-EXA
 
-SPH-EXA mini-app is a C++17 headers-only code with no external software dependencies. 
+SPH-EXA is a C++17 headers-only code with no external software dependencies.
 The parallelism is currently expressed via the following models: MPI, OpenMP, CUDA and HIP.
 
 [Check our wiki for more details](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/wiki)
@@ -118,8 +122,8 @@ Example usage:
   threads each. Works when using MPICH. For OpenMPI, use ```mpirun```  instead.
 * ```OMP_NUM_THREADS=12 srun -Cgpu -A<your account> -n<nnodes> -c12 ./src/sedov/sedov-cuda -n 100 -s 1000 -w 10```
   Optimal runtime configuration on Piz Daint for `nnodes` GPU compute nodes. Launches 1 MPI rank with
-  12 OpenMP threads per node. 
-  
+  12 OpenMP threads per node.
+
 #### Running the tests
 
 Currently, only the cornerstone octree and domain are fully unit tested:
@@ -148,20 +152,23 @@ mpiexec -np 5 ./domain/test/integration_mpi/focus_tree
 mpiexec -np 5 ./domain/test/integration_mpi/treedomain
 ```
 
-## Authors (alphabetical order)
+## Authors (in alphabetical order)
 
-* Ruben Cabezon**
-* Aurelien Cavelan**
-* Florina Ciorba**
-* Michal Grabarczyk**
-* Danilo Guerrera**
-* David Imbert**
-* Sebastian Keller**
-* Lucio Mayer**
-* Ali Mohammed**
-* Jg Piccinali**
-* Tom Quinn**
-* Darren Reed**
+* Ruben Cabezon
+* Aurelien Cavelan
+* Florina Ciorba
+* Michal Grabarczyk
+* Danilo Guerrera
+* David Imbert
+* Sebastian Keller
+* Lucio Mayer
+* Ali Mohammed
+* Jg Piccinali
+* Tom Quinn
+* Darren Reed
+
+## Paper references
+[Cavelan, A., Cabezon, R. M., Grabarczyk, M., Ciorba, F. M. (2020). A Smoothed Particle Hydrodynamics Mini-App for Exascale. Proceedings of the Platform for Advanced Scientific Computing Conference (PASC '20). Association for Computing Machinery. DOI: 10.1145/3394277.3401855](https://dl.acm.org/doi/10.1145/3394277.3401855)
 
 ## License
 
@@ -169,4 +176,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-* PASC SPH-EXA project
+* [Platform for Advanced Scientific Computing (PASC)](https://www.pasc-ch.org/)
+   * [SPH-EXA project 1](https://www.pasc-ch.org/projects/2017-2020/sph-exa/)
+   * [SPH-EXA project 2](https://www.pasc-ch.org/projects/2021-2024/sph-exa2/)
+* [Swiss National Supercomputing Center (CSCS)](https://www.cscs.ch/)
+* [Scientific Computing Center of the University of Basel (sciCORE)](https://scicore.unibas.ch/)
