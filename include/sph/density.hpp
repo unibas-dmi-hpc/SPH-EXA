@@ -60,8 +60,10 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 // clang-format on
 #elif defined(USE_ACC)
     const size_t np = d.x.size();
+    const size_t ltsize = d.wh.size();
+    const size_t n = numParticles;
     const size_t allNeighbors = n * ngmax;
-#pragma acc parallel loop copyin(n, clist [0:n], neighbors [0:allNeighbors], neighborsCount [0:n], m [0:np], h [0:np], x [0:np], y [0:np], \
+#pragma acc parallel loop copyin(n, neighbors [0:allNeighbors], neighborsCount [0:n], m [0:np], h [0:np], x [0:np], y [0:np], \
                                  z [0:np], wh [0:ltsize], whd [0:ltsize]) copyout(ro[:n])
 #else
 #pragma omp parallel for

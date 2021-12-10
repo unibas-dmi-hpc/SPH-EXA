@@ -64,9 +64,11 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 #pragma omp teams distribute parallel for // dist_schedule(guided)
 #elif defined(USE_ACC)
     const int np = d.x.size();
+    const size_t ltsize = d.wh.size();
+    const size_t n = numParticles;
     const size_t allNeighbors = n * ngmax;
 // clang-format off
-#pragma acc parallel loop copyin(clist [0:n], neighbors [0:allNeighbors], neighborsCount [0:n],                                            \
+#pragma acc parallel loop copyin(neighbors [0:allNeighbors], neighborsCount [0:n],                                            \
                                   x [0:np], y [0:np], z [0:np], h [0:np], m [0:np], ro [0:np], wh[0:ltsize], whd[0:ltsize])                                             \
                            copyout(c11 [:n], c12 [:n], c13 [:n], c22 [:n], c23 [:n],                                                       \
                                    c33 [:n])
