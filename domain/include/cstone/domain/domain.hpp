@@ -383,7 +383,7 @@ public:
         domainTree.update(globalTree.begin(), globalTree.end());
         std::vector<int> peers = findPeersMac(myRank_, assignment, domainTree, box, theta_);
 
-        focusedTree_.updateGlobal(box, keyView, myRank_, peers, assignment, globalTree, globalCounts);
+        focusedTree_.update(box, keyView, myRank_, peers, assignment, globalTree, globalCounts);
         if (firstCall_)
         {
             // we must not call updateGlobal again before all ranks have completed the previous call,
@@ -392,8 +392,7 @@ public:
             int converged = 0;
             while (converged != numRanks_)
             {
-                converged =
-                    focusedTree_.updateGlobal(box, keyView, myRank_, peers, assignment, globalTree, globalCounts);
+                converged = focusedTree_.update(box, keyView, myRank_, peers, assignment, globalTree, globalCounts);
                 MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
             }
             firstCall_ = false;
