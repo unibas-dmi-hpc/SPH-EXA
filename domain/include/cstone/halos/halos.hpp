@@ -46,51 +46,74 @@ template<class KeyType>
 class Halos
 {
 public:
-    Halos() = default;
+    Halos(int myRank) : myRank_(myRank)
+    {
+    }
 
+    /*! @brief Discover which cells outside myRank's assignment are halos
+     *
+     * @param[in] focusedTree      Fully linked octree, focused on the assignment of the executing rank
+     * @param[in] focusAssignment  Assignment of leaf tree cells to ranks
+     * @param[in] particleKeys     Sorted view of locally owned particle keys, no halos
+     * @param[in] box              Global coordinate bounding box
+     * @param[in] h                smoothing lengths of locally owned particles
+     * @param[in] sfcOrder         order to access smoothing lengths with, such that
+     *                             particleKeys[i] <-> h[sfcOrder[i]]
+     */
     template<class T, class Th>
     void discover(const Octree<KeyType>& focusedTree,
-                  gsl::span<const unsigned> focusLeafCounts,
                   gsl::span<const TreeIndexPair> focusAssignment,
                   gsl::span<const KeyType> particleKeys,
-                  int myRank,
-                  gsl::span<const int> peers,
                   const Box<T> box,
                   const Th* h,
-                  const LocalParticleIndex* sfcOrder,
-                  LocalParticleIndex compactOffset,
-                  gsl::span<LocalParticleIndex> layout)
+                  gsl::span<const LocalParticleIndex> sfcOrder)
     {
+        assert(particleKeys.size() == sfcOrder.size());
+
         gsl::span<const KeyType> leaves = focusedTree.treeLeaves();
-        TreeNodeIndex firstAssignedNode = focusAssignment[myRank].start();
-        TreeNodeIndex lastAssignedNode = focusAssignment[myRank].end();
+        TreeNodeIndex firstAssignedNode = focusAssignment[myRank_].start();
+        TreeNodeIndex lastAssignedNode  = focusAssignment[myRank_].end();
 
         std::vector<float> haloRadii(nNodes(leaves));
-        computeHaloRadii(leaves.data(),
-                         nNodes(leaves),
-                         particleKeys,
-                         sfcOrder + compactOffset,
-                         h,
-                         haloRadii.data());
+        computeHaloRadii(leaves.data(), nNodes(leaves), particleKeys, sfcOrder.data(), h, haloRadii.data());
 
-        std::vector<int> haloFlags(nNodes(leaves), 0);
-        findHalos(focusedTree,
-                  haloRadii.data(),
-                  box,
-                  firstAssignedNode,
-                  lastAssignedNode,
-                  haloFlags.data());
+        reallocate(nNodes(leaves), haloFlags_);
+        std::fill(begin(haloFlags_), end(haloFlags_), 0);
+        findHalos(focusedTree, haloRadii.data(), box, firstAssignedNode, lastAssignedNode, haloFlags_.data());
+    }
 
-        layout = computeNodeLayout(focusLeafCounts, haloFlags, firstAssignedNode, lastAssignedNode);
+    /*! @brief Compute particle offsets of each tree node and determine halo send/receive indices
+     *
+     * @param[in]  leaves          (focus) tree leaves
+     * @param[in]  counts          (focus) tree counts
+     * @param[in]  assignment      assignment of @p leaves to ranks
+     * @param[in]  particleKeys    sorted view of locally owned keys, without halos
+     * @param[in]  peers           list of peer ranks
+     * @param[out] layout          Particle offsets for each node in @p leaves w.r.t to the final particle buffers,
+     *                             including the halos, length = counts.size() + 1. The last element contains
+     *                             the total number of locally present particles, i.e. assigned + halos.
+     *                             [layout[i]:layout[i+1]] indexes particles in the i-th leaf cell.
+     *                             If the i-th cell is not a halo and not locally owned, its particles are not present
+     *                             and the corresponding layout range has length zero.
+     */
+    void computeLayout(gsl::span<const KeyType> leaves,
+                       gsl::span<const unsigned> counts,
+                       gsl::span<const TreeIndexPair> assignment,
+                       gsl::span<const KeyType> particleKeys,
+                       gsl::span<const int> peers,
+                       gsl::span<LocalParticleIndex> layout)
+    {
+        computeNodeLayout(counts, haloFlags_, assignment[myRank_].start(), assignment[myRank_].end(), layout);
+        auto newParticleStart = layout[assignment[myRank_].start()];
+        auto newParticleEnd   = layout[assignment[myRank_].end()];
 
-        auto newParticleStart = layout[firstAssignedNode];
-        auto newParticleEnd   = newParticleStart + newNParticlesAssigned;
+        particleBufferSize_ = layout.back();
 
-        outgoingHaloIndices_ = exchangeRequestKeys<KeyType>(leaves, haloFlags, particleKeys,
-                                                            newParticleStart, focusAssignment, peers);
+        outgoingHaloIndices_ =
+            exchangeRequestKeys<KeyType>(leaves, haloFlags_, particleKeys, newParticleStart, assignment, peers);
         checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd);
 
-        incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags, focusAssignment, peers);
+        incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags_, assignment, peers);
     }
 
     /*! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
@@ -103,7 +126,7 @@ public:
     template<class... Arrays>
     void exchangeHalos(Arrays&... arrays) const
     {
-        if (!sizesAllEqualTo(localNParticles_, arrays...))
+        if (!sizesAllEqualTo(particleBufferSize_, arrays...))
         {
             throw std::runtime_error("halo exchange array sizes inconsistent with previous sync operation\n");
         }
@@ -111,9 +134,16 @@ public:
         haloexchange(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
     }
 
-    void resetEpochs() { haloEpoch_ = 0; }
-
 private:
+
+    //! @brief return true if all array sizes are equal to value
+    template<class... Arrays>
+    static bool sizesAllEqualTo(std::size_t value, Arrays&... arrays)
+    {
+        std::array<std::size_t, sizeof...(Arrays)> sizes{arrays.size()...};
+        return std::count(begin(sizes), end(sizes), value) == sizes.size();
+    }
+
     //! @brief check that only owned particles in [particleStart_:particleEnd_] are sent out as halos
     void checkIndices(const SendList& sendList, LocalParticleIndex start, LocalParticleIndex end)
     {
@@ -122,21 +152,25 @@ private:
             for (size_t ri = 0; ri < manifest.nRanges(); ++ri)
             {
                 assert(!overlapTwoRanges(LocalParticleIndex{0}, start, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
-                assert(!overlapTwoRanges(end, localNParticles_, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
+                assert(!overlapTwoRanges(end, particleBufferSize_, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
             }
         }
     }
 
+    int myRank_;
+
+    LocalParticleIndex particleBufferSize_{0};
+
     SendList incomingHaloIndices_;
     SendList outgoingHaloIndices_;
 
-    /*! @brief counter for halo exchange calls between sync() calls
-     *
-     * Gets reset to 0 after every call to sync(). The reason for this setup is that
-     * the multiple client calls to exchangeHalos() before sync() is called again
+    std::vector<int> haloFlags_;
+
+    /*! @brief Counter for halo exchange calls
+     * Multiple client calls to domain::exchangeHalos() during a time-step
      * should get different MPI tags, because there is no global MPI_Barrier or MPI collective in between them.
      */
     mutable int haloEpoch_{0};
-}
+};
 
 } // namespace cstone

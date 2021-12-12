@@ -44,6 +44,7 @@
 #include "cstone/gravity/treewalk.hpp"
 #include "cstone/gravity/upsweep.hpp"
 #include "cstone/halos/exchange_halos.hpp"
+#include "cstone/halos/halos.hpp"
 
 #include "cstone/tree/octree_mpi.hpp"
 #include "cstone/focus/octree_focus_mpi.hpp"
@@ -347,8 +348,6 @@ public:
             throw std::runtime_error("Domain sync: input array sizes are inconsistent\n");
         }
 
-        haloEpoch_ = 0;
-
         /* SFC decomposition phase *********************************************************/
 
         LocalParticleIndex newNParticlesAssigned = globalTree_.assign(
@@ -370,7 +369,7 @@ public:
         // the range [particleStart_:particleEnd_] can still contain leftover particles from the previous step
         // but [particleStart_ + compactOffset : particleStart_ + compactOffset + newNParticlesAssigned]
         // exclusively refers to locally assigned particles in SFC order when accessed through sfcOrder
-        gsl::span<KeyType> keyView(particleKeys.data() + particleStart_ + compactOffset, newNParticlesAssigned);
+        gsl::span<const KeyType> keyView(particleKeys.data() + particleStart_ + compactOffset, newNParticlesAssigned);
 
         Box<T> box                             = globalTree_.box();
         const SpaceCurveAssignment& assignment = globalTree_.assignment();
@@ -403,37 +402,19 @@ public:
 
         /* Halo discovery phase *********************************************************/
 
-        std::vector<float> haloRadii(nNodes(focusedTree_.treeLeaves()));
-        computeHaloRadii(focusedTree_.treeLeaves().data(),
-                         nNodes(focusedTree_.treeLeaves()),
-                         {keyView.data(), keyView.size()},
-                         sfcOrder.data() + compactOffset,
-                         h.data() + particleStart_,
-                         haloRadii.data());
-
-        std::vector<int> haloFlags(nNodes(focusedTree_.treeLeaves()), 0);
-        findHalos(focusedTree_.octree(),
-                  haloRadii.data(),
-                  box,
-                  focusAssignment[myRank_].start(),
-                  focusAssignment[myRank_].end(),
-                  haloFlags.data());
+        halos_.discover(focusedTree_.octree(), focusAssignment, keyView, box, h.data() + particleStart_,
+                        {sfcOrder.data() + compactOffset, keyView.size()});
 
         /* Compute new layout *********************************************************/
 
         reallocate(nNodes(focusedTree_.treeLeaves()) + 1, layout_);
-        computeNodeLayout(focusedTree_.leafCounts(), haloFlags, focusAssignment[myRank_].start(),
-                          focusAssignment[myRank_].end(), layout_);
+
+        halos_.computeLayout(focusedTree_.treeLeaves(), focusedTree_.leafCounts(), focusAssignment,
+                             keyView, peers, layout_);
+
         auto newParticleStart = layout_[focusAssignment[myRank_].start()];
         auto newParticleEnd   = layout_[focusAssignment[myRank_].end()];
         auto numParticles     = layout_.back();
-
-        outgoingHaloIndices_
-            = exchangeRequestKeys<KeyType>(focusedTree_.treeLeaves(), haloFlags,
-                                           keyView, newParticleStart, focusAssignment, peers);
-        checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd);
-
-        incomingHaloIndices_ = computeHaloReceiveList(layout_, haloFlags, focusAssignment, peers);
 
         /* Rearrange particle buffers *********************************************************/
 
@@ -474,12 +455,7 @@ public:
     template<class...Arrays>
     void exchangeHalos(Arrays&... arrays) const
     {
-        if (!sizesAllEqualTo(layout_.back(), arrays...))
-        {
-            throw std::runtime_error("halo exchange array sizes inconsistent with previous sync operation\n");
-        }
-
-        haloexchange(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
+        halos_.exchangeHalos(arrays...);
     }
 
     /*! @brief compute gravitational accelerations
@@ -530,21 +506,6 @@ public:
 
 private:
 
-    //! @brief check that only owned particles in [particleStart_:particleEnd_] are sent out as halos
-    void checkIndices(const SendList& sendList, LocalParticleIndex start, LocalParticleIndex end)
-    {
-        for (const auto& manifest : sendList)
-        {
-            for (size_t ri = 0; ri < manifest.nRanges(); ++ri)
-            {
-                assert(!overlapTwoRanges(LocalParticleIndex{0}, start,
-                                         manifest.rangeStart(ri), manifest.rangeEnd(ri)));
-                assert(!overlapTwoRanges(end, layout_.back(),
-                                         manifest.rangeStart(ri), manifest.rangeEnd(ri)));
-            }
-        }
-    }
-
     //! @brief return true if all array sizes are equal to value
     template<class... Arrays>
     static bool sizesAllEqualTo(std::size_t value, Arrays&... arrays)
@@ -567,9 +528,6 @@ private:
     //! @brief index (upper bound) of last particle that belongs to the assignment
     LocalParticleIndex particleEnd_{0};
 
-    SendList incomingHaloIndices_;
-    SendList outgoingHaloIndices_;
-
     /*! @brief locally focused, fully traversable octree, used for halo discovery and exchange
      *
      * -Uses bucketSizeFocus_ as the maximum particle count per leaf within the focused SFC area.
@@ -584,15 +542,9 @@ private:
     //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
     std::vector<LocalParticleIndex> layout_;
 
-    bool firstCall_{true};
+    Halos<KeyType> halos_{myRank_};
 
-    /*! @brief counter for halo exchange calls between sync() calls
-     *
-     * Gets reset to 0 after every call to sync(). The reason for this setup is that
-     * the multiple client calls to exchangeHalos() before sync() is called again
-     * should get different MPI tags, because there is no global MPI_Barrier or MPI collective in between them.
-     */
-    mutable int haloEpoch_{0};
+    bool firstCall_{true};
 
     ReorderFunctor reorderFunctor;
 };
