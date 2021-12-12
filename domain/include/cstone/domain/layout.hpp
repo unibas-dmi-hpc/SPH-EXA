@@ -101,31 +101,27 @@ std::vector<IntegralType> extractMarkedElements(gsl::span<const IntegralType> so
 
 /*! @brief calculate the location (offset) of each focus tree leaf node in the particle arrays
  *
- * @param focusLeafCounts   node counts of the focus leaves, size N
- * @param haloFlags         flag for each node, with a non-zero value if present as halo node, size N
- * @param firstAssignedIdx  first focus leaf idx to treat as part of the assigned nodes on the executing rank
- * @param lastAssignedIdx   last focus leaf idx to treat as part of the assigned nodes on the executing rank
- * @return                  array with offsets, size N+1. The first element is zero, the last element is
- *                          equal to the sum of all all present (assigned+halo) node counts.
+ * @param[in]  focusLeafCounts   node counts of the focus leaves, size N
+ * @param[in]  haloFlags         flag for each node, with a non-zero value if present as halo node, size N
+ * @param[in]  firstAssignedIdx  first focus leaf idx to treat as part of the assigned nodes on the executing rank
+ * @param[in]  lastAssignedIdx   last focus leaf idx to treat as part of the assigned nodes on the executing rank
+ * @param[out] layout            length N+1. The first element is zero, the last element is
+ *                               equal to the sum of all all present (assigned+halo) node counts.
  */
-inline
-std::vector<LocalParticleIndex> computeNodeLayout(gsl::span<const unsigned> focusLeafCounts,
-                                                  gsl::span<const int> haloFlags,
-                                                  TreeNodeIndex firstAssignedIdx,
-                                                  TreeNodeIndex lastAssignedIdx)
+inline void computeNodeLayout(gsl::span<const unsigned> focusLeafCounts,
+                              gsl::span<const int> haloFlags,
+                              TreeNodeIndex firstAssignedIdx,
+                              TreeNodeIndex lastAssignedIdx,
+                              gsl::span<LocalParticleIndex> layout)
 {
-    std::vector<LocalParticleIndex> layout(focusLeafCounts.size() + 1, 0);
-
     #pragma omp parallel for
     for (TreeNodeIndex i = 0; i < TreeNodeIndex(focusLeafCounts.size()); ++i)
     {
-        bool onRank = firstAssignedIdx <= i && i < lastAssignedIdx;
-        if (onRank || haloFlags[i]) { layout[i] = focusLeafCounts[i]; }
+        bool haveParticles = (firstAssignedIdx <= i && i < lastAssignedIdx) || haloFlags[i];
+        layout[i]          = -int(haveParticles) & focusLeafCounts[i];
     }
 
     exclusiveScan(layout.data(), layout.size());
-
-    return layout;
 }
 
 /*! @brief computes a list which local array ranges are going to be filled with halo particles

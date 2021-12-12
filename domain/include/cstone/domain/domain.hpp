@@ -195,7 +195,7 @@ private:
     int numRanks_;
     unsigned bucketSize_;
 
-    //! @brief coordinate bounding box, each non-periodic dimension is at a sync call
+    //! @brief global coordinate bounding box
     Box<T> box_;
 
     SpaceCurveAssignment assignment_;
@@ -337,12 +337,12 @@ public:
         // bounds initialization on first call, use all particles
         if (firstCall_)
         {
-            particleStart_   = 0;
-            particleEnd_     = x.size();
-            localNParticles_ = x.size();
+            particleStart_ = 0;
+            particleEnd_   = x.size();
+            layout_        = {0, LocalParticleIndex(x.size())};
         }
 
-        if (!sizesAllEqualTo(localNParticles_, particleKeys, x, y, z, h, particleProperties...))
+        if (!sizesAllEqualTo(layout_.back(), particleKeys, x, y, z, h, particleProperties...))
         {
             throw std::runtime_error("Domain sync: input array sizes are inconsistent\n");
         }
@@ -421,12 +421,12 @@ public:
 
         /* Compute new layout *********************************************************/
 
-        layout_ = computeNodeLayout(focusedTree_.leafCounts(), haloFlags,
-                                    focusAssignment[myRank_].start(),
-                                    focusAssignment[myRank_].end());
-        localNParticles_ = layout_.back();
+        reallocate(nNodes(focusedTree_.treeLeaves()) + 1, layout_);
+        computeNodeLayout(focusedTree_.leafCounts(), haloFlags, focusAssignment[myRank_].start(),
+                          focusAssignment[myRank_].end(), layout_);
         auto newParticleStart = layout_[focusAssignment[myRank_].start()];
-        auto newParticleEnd   = newParticleStart + newNParticlesAssigned;
+        auto newParticleEnd   = layout_[focusAssignment[myRank_].end()];
+        auto numParticles     = layout_.back();
 
         outgoingHaloIndices_
             = exchangeRequestKeys<KeyType>(focusedTree_.treeLeaves(), haloFlags,
@@ -437,7 +437,7 @@ public:
 
         /* Rearrange particle buffers *********************************************************/
 
-        reallocate(localNParticles_, x, y, z, h, particleProperties...);
+        reallocate(numParticles, x, y, z, h, particleProperties...);
 
         auto reorderArray = [this, newParticleStart, compactOffset, newNParticlesAssigned](auto ptr)
         {
@@ -446,7 +446,7 @@ public:
         std::tuple particleArrays{x.data(), y.data(), z.data(), h.data(), particleProperties.data()...};
         for_each_tuple(reorderArray, particleArrays);
 
-        std::vector<KeyType> newKeys(localNParticles_);
+        std::vector<KeyType> newKeys(numParticles);
         std::copy(keyView.begin(), keyView.end(), newKeys.begin() + newParticleStart);
         swap(particleKeys, newKeys);
 
@@ -474,12 +474,12 @@ public:
     template<class...Arrays>
     void exchangeHalos(Arrays&... arrays) const
     {
-        if (!sizesAllEqualTo(localNParticles_, arrays...))
+        if (!sizesAllEqualTo(layout_.back(), arrays...))
         {
             throw std::runtime_error("halo exchange array sizes inconsistent with previous sync operation\n");
         }
 
-        haloexchange<T>(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
+        haloexchange(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
     }
 
     /*! @brief compute gravitational accelerations
@@ -517,7 +517,7 @@ public:
     [[nodiscard]] LocalParticleIndex nParticles() const { return endIndex() - startIndex(); }
 
     //! @brief return number of locally assigned particles plus number of halos
-    [[nodiscard]] LocalParticleIndex nParticlesWithHalos() const { return localNParticles_; }
+    [[nodiscard]] LocalParticleIndex nParticlesWithHalos() const { return layout_.back(); }
 
     //! @brief read only visibility of the global octree leaves to the outside
     gsl::span<const KeyType> tree() const { return globalTree_.tree(); }
@@ -539,7 +539,7 @@ private:
             {
                 assert(!overlapTwoRanges(LocalParticleIndex{0}, start,
                                          manifest.rangeStart(ri), manifest.rangeEnd(ri)));
-                assert(!overlapTwoRanges(end, localNParticles_,
+                assert(!overlapTwoRanges(end, layout_.back(),
                                          manifest.rangeStart(ri), manifest.rangeEnd(ri)));
             }
         }
@@ -555,7 +555,6 @@ private:
 
     int myRank_;
     int numRanks_;
-    //unsigned bucketSize_;
     unsigned bucketSizeFocus_;
 
     //! @brief MAC parameter for focus resolution and gravity treewalk
@@ -567,8 +566,6 @@ private:
     LocalParticleIndex particleStart_{0};
     //! @brief index (upper bound) of last particle that belongs to the assignment
     LocalParticleIndex particleEnd_{0};
-    //! @brief number of locally present particles, = number of halos + assigned particles
-    LocalParticleIndex localNParticles_{0};
 
     SendList incomingHaloIndices_;
     SendList outgoingHaloIndices_;
@@ -581,6 +578,8 @@ private:
      * -Also contains particle counts.
      */
     FocusedOctree<KeyType> focusedTree_;
+
+    GlobalTree<KeyType, T> globalTree_;
 
     //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
     std::vector<LocalParticleIndex> layout_;
@@ -596,8 +595,6 @@ private:
     mutable int haloEpoch_{0};
 
     ReorderFunctor reorderFunctor;
-
-    GlobalTree<KeyType, T> globalTree_;
 };
 
 } // namespace cstone
