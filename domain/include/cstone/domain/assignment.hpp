@@ -32,6 +32,7 @@
 #pragma once
 
 #include "cstone/domain/domaindecomp_mpi.hpp"
+#include "cstone/tree/octree_internal.hpp"
 #include "cstone/tree/octree_mpi.hpp"
 
 #include "cstone/sfc/box_mpi.hpp"
@@ -163,6 +164,14 @@ public:
         LocalParticleIndex compactOffset = findNodeAbove<KeyType>(keyView, tree_[assignment_.firstNodeIdx(myRank_)]);
 
         return {particleStart_, particleEnd_, compactOffset};
+    }
+
+    std::vector<int> findPeers(float theta)
+    {
+        Octree<KeyType> domainTree;
+        domainTree.update(tree_.begin(), tree_.end());
+        std::vector<int> peers = findPeersMac(myRank_, assignment_, domainTree, box_, theta);
+        return peers;
     }
 
     //! @brief read only visibility of the global octree leaves to the outside

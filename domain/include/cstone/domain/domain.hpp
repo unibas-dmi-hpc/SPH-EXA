@@ -223,9 +223,7 @@ public:
 
         /* Focus tree update phase *********************************************************/
 
-        Octree<KeyType> domainTree;
-        domainTree.update(globalTree.begin(), globalTree.end());
-        std::vector<int> peers = findPeersMac(myRank_, assignment, domainTree, box, theta_);
+        std::vector<int> peers = globalAssignment_.findPeers(theta_);
 
         focusedTree_.update(box, keyView, myRank_, peers, assignment, globalTree, globalCounts);
         if (firstCall_)
