@@ -1,0 +1,197 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2021 CSCS, ETH Zurich
+ *               2021 University of Basel
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/*! @file
+ * @brief Implementation of global particle assignment and distribution
+ *
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ */
+
+#pragma once
+
+#include "cstone/domain/domaindecomp_mpi.hpp"
+#include "cstone/tree/octree_mpi.hpp"
+
+#include "cstone/sfc/box_mpi.hpp"
+#include "cstone/sfc/sfc.hpp"
+
+namespace cstone
+{
+
+/*! @brief A class for global domain assignment and distribution
+ *
+ * @tparam KeyType  32- or 64-bit unsigned integer
+ * @tparam T        float or double
+ *
+ * This class holds a low-res global octree which is replicated across all ranks and it presides over
+ * the assignment of that tree to the ranks and performs the necessary point-2-point data exchanges
+ * to send all particles to their owning ranks.
+ */
+template<class KeyType, class T>
+class GlobalAssignment
+{
+public:
+    GlobalAssignment(int rank, int nRanks, unsigned bucketSize, const Box<T>& box = Box<T>{0, 1})
+        : myRank_(rank)
+        , numRanks_(nRanks)
+        , bucketSize_(bucketSize)
+        , box_(box)
+    {
+        tree_       = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
+        nodeCounts_ = std::vector<unsigned>{bucketSize_ + 1};
+    }
+
+    /*! @brief Update the global tree
+     *
+     * @param[in]  particleStart_  first owned particle in x,y,z
+     * @param[in]  particleEnd_    last owned particle in x,y,z
+     * @param[in]  reorderFunctor  records the SFC order of the owned input coordinates
+     * @param[out] particleKeys    will contain sorted particle SFC keys in the range [particleStart:particleEnd]
+     * @param[in]  x               x coordinates
+     * @param[in]  y               y coordinates
+     * @param[in]  z               z coordinates
+     * @return                     number of assigned particles
+     *
+     * This function does not modify / communicate any particle data.
+     */
+    template<class Tc, class Reorderer>
+    LocalParticleIndex assign(LocalParticleIndex particleStart_, LocalParticleIndex particleEnd_,
+                              Reorderer& reorderFunctor, KeyType* particleKeys, const Tc* x, const Tc* y, const Tc* z)
+    {
+        box_ = makeGlobalBox(x + particleStart_, x + particleEnd_, y + particleStart_, z + particleStart_, box_);
+
+        // number of locally assigned particles to consider for global tree building
+        LocalParticleIndex numParticles = particleEnd_ - particleStart_;
+
+        gsl::span<KeyType> keyView(particleKeys + particleStart_, numParticles);
+
+        // compute SFC particle keys only for particles participating in tree build
+        computeSfcKeys(x + particleStart_, y + particleStart_, z + particleStart_,
+                       sfcKindPointer(keyView.data()), numParticles, box_);
+
+        // sort keys and keep track of ordering for later use
+        reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
+
+        updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_);
+
+        if (firstCall_)
+        {
+            firstCall_ = false;
+            // full build on first call
+            while(!updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_));
+        }
+
+        assignment_ = singleRangeSfcSplit(nodeCounts_, numRanks_);
+        return assignment_.totalCount(myRank_);
+    }
+
+    /*! @brief Distribute particles to their assigned ranks based on previous assignment
+     *
+     * @param[in]    particleStart_        first valid particle index before the exchange
+     * @param[in]    particleEnd_          last valid particle index before the exchange
+     * @param[in]    bufferSize            size of particle buffers x,y,z and particleProperties
+     * @param[inout] reorderFunctor        contains the ordering that accesses the range [particleStart:particleEnd]
+     *                                     in SFC order
+     * @param[out]   sfcOrder              If using the CPU reorderer, this is a duplicate copy. Otherwise provides
+     *                                     the host space to download the ordering from the device.
+     * @param[in]    particleKeys          Sorted particle keys in [particleStart:particleEnd]
+     * @param[inout] x                     particle x-coordinates
+     * @param[inout] y                     particle y-coordinates
+     * @param[inout] z                     particle z-coordinates
+     * @param[inout] particleProperties    remaining particle properties, h, m, etc.
+     * @return                             index pair denoting the index range of particles post-exchange
+     *                                     plus the number of particles from before the exchange that have
+     *                                     a lower SFC key than the first assigned particle
+     */
+    template<class Reorderer, class Tc, class... Arrays>
+    std::tuple<LocalParticleIndex, LocalParticleIndex, LocalParticleIndex>
+    distribute(LocalParticleIndex particleStart_,
+               LocalParticleIndex particleEnd_,
+               LocalParticleIndex bufferSize,
+               Reorderer& reorderFunctor,
+               LocalParticleIndex* sfcOrder,
+               KeyType* particleKeys,
+               Tc* x,
+               Tc* y,
+               Tc* z,
+               Arrays... particleProperties) const
+    {
+        LocalParticleIndex numParticles          = particleEnd_ - particleStart_;
+        LocalParticleIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
+
+        reorderFunctor.getReorderMap(sfcOrder);
+
+        gsl::span<KeyType> keyView(particleKeys + particleStart_, numParticles);
+
+        SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_, keyView);
+
+        std::tie(particleStart_, particleEnd_) =
+            exchangeParticles<T>(domainExchangeSends, myRank_, particleStart_, particleEnd_, bufferSize,
+                                 newNParticlesAssigned, sfcOrder, x, y, z, particleProperties...);
+
+        numParticles = particleEnd_ - particleStart_;
+        keyView      = gsl::span<KeyType>(particleKeys + particleStart_, numParticles);
+
+        // refresh particleKeys and ordering
+        computeSfcKeys(x + particleStart_, y + particleStart_, z + particleStart_, sfcKindPointer(keyView.begin()),
+                       numParticles, box_);
+        reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
+        reorderFunctor.getReorderMap(sfcOrder);
+
+        LocalParticleIndex compactOffset = findNodeAbove<KeyType>(keyView, tree_[assignment_.firstNodeIdx(myRank_)]);
+
+        return {particleStart_, particleEnd_, compactOffset};
+    }
+
+    //! @brief read only visibility of the global octree leaves to the outside
+    gsl::span<const KeyType> tree() const { return tree_; }
+
+    //! @brief read only visibility of the global octree leaf counts to the outside
+    gsl::span<const unsigned> nodeCounts() const { return nodeCounts_; }
+
+    //! @brief the global coordinate bounding box
+    const Box<T>& box() const { return box_; }
+
+    //! @brief return the space filling curve rank assignment
+    const SpaceCurveAssignment& assignment() const { return assignment_; }
+
+private:
+    int myRank_;
+    int numRanks_;
+    unsigned bucketSize_;
+
+    //! @brief global coordinate bounding box
+    Box<T> box_;
+
+    SpaceCurveAssignment assignment_;
+
+    //! @brief cornerstone tree leaves for global domain decomposition
+    std::vector<KeyType> tree_;
+    std::vector<unsigned> nodeCounts_;
+
+    bool firstCall_{true};
+};
+
+} // namespace cstone
