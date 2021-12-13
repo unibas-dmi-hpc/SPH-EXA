@@ -451,7 +451,7 @@ private:
     {
         std::array<std::size_t, sizeof...(Arrays)> sizes{arrays.size()...};
 
-        return (size_t)std::count(begin(sizes), end(sizes), value) == sizes.size();
+        return size_t(std::count(begin(sizes), end(sizes), value)) == sizes.size();
     }
 
     int myRank_;
