@@ -29,7 +29,7 @@ set(UNIT_TESTS
         test_main.cpp)
 
 add_executable(component_units ${UNIT_TESTS})
-target_compile_options(component_units PRIVATE -Wall -Wextra)
+target_compile_options(component_units PRIVATE -Wall -Wextra -Wno-unknown-pragmas)
 
 target_include_directories(component_units PRIVATE ../../include)
 target_include_directories(component_units PRIVATE ../)

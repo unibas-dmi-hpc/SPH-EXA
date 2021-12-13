@@ -91,7 +91,7 @@ template<class IndexType, class ValueType>
 void reorder(gsl::span<const IndexType> ordering, const ValueType* source, ValueType* destination)
 {
     #pragma omp parallel for schedule(static)
-    for (IndexType i = 0; i < ordering.size(); ++i)
+    for (size_t i = 0; i < ordering.size(); ++i)
     {
         destination[i] = source[ordering[i]];
     }

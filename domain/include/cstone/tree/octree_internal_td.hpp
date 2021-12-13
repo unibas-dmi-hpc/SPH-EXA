@@ -144,7 +144,7 @@ void constructOctree(const KeyType* leaves, TreeNodeIndex numLeafNodes, const Bi
     sort_by_key(levels, levels + numNodes, nodeOrder);
     {
         std::vector<KeyType> tmpPrefixes(prefixes, prefixes + numNodes);
-        reorder(gsl::span<const TreeNodeIndex>(nodeOrder, numNodes), tmpPrefixes.data(), prefixes, 0, numNodes);
+        reorder(gsl::span<const TreeNodeIndex>(nodeOrder, numNodes), tmpPrefixes.data(), prefixes);
     }
 
     for (unsigned level = 0; level < maxTreeLevel<KeyType>{} + 1; ++level)

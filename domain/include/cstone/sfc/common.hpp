@@ -354,7 +354,7 @@ constexpr KeyType octalPower(int pos)
  */
 template<class KeyType, class Store>
 std::enable_if_t<std::is_same_v<Store, std::nullptr_t> || std::is_same_v<Store, KeyType*>, int>
-spanSfcRange(KeyType a, KeyType b, Store output)
+spanSfcRange(KeyType a, KeyType b, [[maybe_unused]] Store output)
 {
     int numValues = 0;
     // position of first differing octal digit place
