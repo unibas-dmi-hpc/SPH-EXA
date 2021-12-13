@@ -195,12 +195,17 @@ public:
         }
     }
 
-    void restrictRange(std::size_t offset, std::size_t numElements)
+    void operator()(const ValueType* source, ValueType* destination)
     {
-        assert(offset + numElements <= mapSize_);
+        this->operator()(source, destination, offset_, numExtract_);
+    }
+
+    void restrictRange(std::size_t offset, std::size_t numExtract)
+    {
+        assert(offset + numExtract <= mapSize_);
 
         offset_     = offset;
-        numExtract_ = numElements;
+        numExtract_ = numExtract;
     }
 
 private:

@@ -161,6 +161,8 @@ public:
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
 
         LocalParticleIndex compactOffset = findNodeAbove<KeyType>(keyView, tree_[assignment_.firstNodeIdx(myRank_)]);
+        reorderFunctor.restrictRange(compactOffset, newNParticlesAssigned);
+
         reorderFunctor.getReorderMap(sfcOrder, compactOffset, compactOffset + newNParticlesAssigned);
 
         return {particleStart, particleEnd, compactOffset};

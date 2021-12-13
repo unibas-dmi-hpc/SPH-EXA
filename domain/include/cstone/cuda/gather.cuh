@@ -89,7 +89,13 @@ public:
      */
     void operator()(const ValueType* values, ValueType* destination, IndexType offset, IndexType numExtract);
 
+    void operator()(const ValueType* values, ValueType* destination);
+
+    void restrictRange(std::size_t offset, std::size_t numExtract);
+
 private:
+    std::size_t offset_{0};
+    std::size_t numExtract_{0};
     std::size_t mapSize_{0};
 
     std::unique_ptr<DeviceMemory<ValueType, IndexType>> deviceMemory_;

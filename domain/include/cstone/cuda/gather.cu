@@ -136,7 +136,9 @@ __global__ void iotaKernel(I* buffer, size_t n, size_t offset)
 template<class ValueType, class CodeType, class IndexType>
 void DeviceGather<ValueType, CodeType, IndexType>::setMapFromCodes(CodeType* codes_first, CodeType* codes_last)
 {
-    mapSize_      = codes_last - codes_first;
+    offset_     = 0;
+    mapSize_    = codes_last - codes_first;
+    numExtract_ = mapSize_;
     deviceMemory_->reallocate(mapSize_);
 
     // the deviceBuffer is allocated as a single chunk of size 2 * mapSize_ * sizeof(T)
@@ -202,6 +204,21 @@ void DeviceGather<ValueType, CodeType, IndexType>::operator()(const ValueType* v
     cudaMemcpy(destination, deviceMemory_->deviceBuffer(1),
                numExtract * sizeof(ValueType), cudaMemcpyDeviceToHost);
     checkCudaErrors(cudaGetLastError());
+}
+
+template<class ValueType, class CodeType, class IndexType>
+void DeviceGather<ValueType, CodeType, IndexType>::operator()(const ValueType* values, ValueType* destination)
+{
+    this->operator()(values, destination, offset_, numExtract_);
+}
+
+template<class ValueType, class CodeType, class IndexType>
+void DeviceGather<ValueType, CodeType, IndexType>::restrictRange(std::size_t offset, std::size_t numExtract)
+{
+    assert(offset + numExtract <= mapSize_);
+
+    offset_     = offset;
+    numExtract_ = numExtract;
 }
 
 template class DeviceGather<float,  unsigned, unsigned>;

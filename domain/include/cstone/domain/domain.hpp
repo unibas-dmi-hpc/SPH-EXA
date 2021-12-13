@@ -248,9 +248,9 @@ public:
 
         reallocate(numParticles, x, y, z, h, particleProperties...);
 
-        auto reorderArray = [this, newParticleStart, compactOffset, newNParticlesAssigned](auto ptr)
+        auto reorderArray = [this, newParticleStart](auto ptr)
         {
-            reorderFunctor(ptr + this->particleStart_, ptr + newParticleStart, compactOffset, newNParticlesAssigned);
+            reorderFunctor(ptr + this->particleStart_, ptr + newParticleStart);
         };
         std::tuple particleArrays{x.data(), y.data(), z.data(), h.data(), particleProperties.data()...};
         for_each_tuple(reorderArray, particleArrays);
