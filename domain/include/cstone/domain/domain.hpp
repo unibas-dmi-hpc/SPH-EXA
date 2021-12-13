@@ -188,13 +188,9 @@ public:
             layout_        = {0, LocalParticleIndex(x.size())};
             firstCall_     = false;
         }
+        checkSizesEqual(layout_.back(), particleKeys, x, y, z, h, particleProperties...);
 
-        if (!sizesAllEqualTo(layout_.back(), particleKeys, x, y, z, h, particleProperties...))
-        {
-            throw std::runtime_error("Domain sync: input array sizes are inconsistent\n");
-        }
-
-        /* SFC decomposition phase *********************************************************/
+        /* Global tree build and assignment ******************************************************/
 
         LocalParticleIndex newNParticlesAssigned = globalAssignment_.assign(
             particleStart_, particleEnd_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data());
@@ -215,7 +211,7 @@ public:
         gsl::span<const KeyType> globalTree    = globalAssignment_.tree();
         gsl::span<const unsigned> globalCounts = globalAssignment_.nodeCounts();
 
-        /* Focus tree update phase *********************************************************/
+        /* Focused tree build ********************************************************************/
 
         std::vector<int> peers = globalAssignment_.findPeers(theta_);
 
@@ -224,20 +220,18 @@ public:
         std::vector<TreeIndexPair> focusAssignment
             = translateAssignment<KeyType>(assignment, globalTree, focusedTree_.treeLeaves(), peers, myRank_);
 
-        /* Halo discovery phase *********************************************************/
+        /* Halo discovery ***********************************************************************/
 
         halos_.discover(focusedTree_.octree(), focusAssignment, keyView, box, h.data() + particleStart_, sfcOrder);
 
         reallocate(nNodes(focusedTree_.treeLeaves()) + 1, layout_);
-
         halos_.computeLayout(focusedTree_.treeLeaves(), focusedTree_.leafCounts(), focusAssignment,
                              keyView, peers, layout_);
 
         auto newParticleStart = layout_[focusAssignment[myRank_].start()];
-        auto newParticleEnd   = layout_[focusAssignment[myRank_].end()];
         auto numParticles     = layout_.back();
 
-        /* Rearrange particle buffers *********************************************************/
+        /* Rearrange particle buffers ************************************************************/
 
         reallocate(numParticles, x, y, z, h, particleProperties...);
         reorderArrays(reorderFunctor, particleStart_, newParticleStart, x.data(), y.data(), z.data(), h.data(),
@@ -248,9 +242,9 @@ public:
         swap(particleKeys, newKeys);
 
         particleStart_ = newParticleStart;
-        particleEnd_   = newParticleEnd;
+        particleEnd_   = layout_[focusAssignment[myRank_].end()];
 
-        /* Halo exchange phase *********************************************************/
+        /* Halo exchange *************************************************************************/
 
         exchangeHalos(x, y, z, h);
 
@@ -261,13 +255,7 @@ public:
                        sfcKindPointer(particleKeys.data()) + particleEnd_, x.size() - particleEnd_, box);
     }
 
-    /*! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
-     *
-     * @param[inout] arrays  std::vector<float or double> of size localNParticles_
-     *
-     * Arrays are not resized or reallocated. This is used e.g. for densities.
-     * Note: function is const, but modiefies mutable haloEpoch_ counter.
-     */
+    //! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
     template<class...Arrays>
     void exchangeHalos(Arrays&... arrays) const
     {
@@ -322,12 +310,16 @@ public:
 
 private:
 
-    //! @brief return true if all array sizes are equal to value
+    //! @brief make sure all array sizes are equal to @p value
     template<class... Arrays>
-    static bool sizesAllEqualTo(std::size_t value, Arrays&... arrays)
+    static void checkSizesEqual(std::size_t value, Arrays&... arrays)
     {
         std::array<std::size_t, sizeof...(Arrays)> sizes{arrays.size()...};
-        return std::count(begin(sizes), end(sizes), value) == sizes.size();
+        bool allEqual = std::count(begin(sizes), end(sizes), value) == sizes.size();
+        if (!allEqual)
+        {
+            throw std::runtime_error("Domain sync: input array sizes are inconsistent\n");
+        }
     }
 
     int myRank_;

@@ -118,10 +118,9 @@ public:
 
     /*! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
      *
-     * @param[inout] arrays  std::vector<float or double> of size localNParticles_
+     * @param[inout] arrays  std::vector<float or double> of size particleBufferSize_
      *
-     * Arrays are not resized or reallocated. This is used e.g. for densities.
-     * Note: function is const, but modiefies mutable haloEpoch_ counter.
+     * Arrays are not resized or reallocated. Function is const, but modifies mutable haloEpoch_ counter.
      */
     template<class... Arrays>
     void exchangeHalos(Arrays&... arrays) const
