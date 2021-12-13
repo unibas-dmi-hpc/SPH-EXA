@@ -88,13 +88,12 @@ void sort_by_key(InoutIterator inBegin, InoutIterator inEnd, OutputIterator outB
 }
 
 template<class IndexType, class ValueType>
-void reorder(gsl::span<const IndexType> ordering, const ValueType* source, ValueType* destination,
-             IndexType offset, IndexType numExtract)
+void reorder(gsl::span<const IndexType> ordering, const ValueType* source, ValueType* destination)
 {
     #pragma omp parallel for schedule(static)
-    for (IndexType i = 0; i < numExtract; ++i)
+    for (IndexType i = 0; i < ordering.size(); ++i)
     {
-        destination[i] = source[ordering[i + offset]];
+        destination[i] = source[ordering[i]];
     }
 }
 
@@ -168,6 +167,7 @@ public:
      */
     void setMapFromCodes(CodeType* codes_first, CodeType* codes_last)
     {
+        offset_ = 0;
         mapSize_ = std::size_t(codes_last - codes_first);
         ordering_.resize(mapSize_);
         std::iota(begin(ordering_), end(ordering_), 0);
@@ -184,17 +184,27 @@ public:
      */
     void operator()(const ValueType* source, ValueType* destination, IndexType offset, IndexType numExtract)
     {
-        reorder<IndexType>(ordering_, source, buffer_.data(), 0, mapSize_);
+        reorder<IndexType>({ordering_.data() + offset, numExtract}, source, buffer_.data());
 
         #pragma omp parallel for schedule(static)
         for (IndexType i = 0; i < numExtract; ++i)
         {
-            destination[i] = buffer_[i + offset];
+            destination[i] = buffer_[i];
         }
     }
 
+    void restrictRange(std::size_t offset, std::size_t numElements)
+    {
+        assert(offset + numElements <= buffer_.size());
+
+        offset_  = offset;
+        mapSize_ = numElements;
+    }
+
 private:
+    std::size_t offset_{0};
     std::size_t mapSize_{0};
+
     std::vector<IndexType> ordering_;
 
     std::vector<ValueType> buffer_;
