@@ -87,7 +87,7 @@ void writeParticleDataToBinFile(const std::string &path, Args &&... data)
 }
 
 template<typename... Args>
-void writeParticleDataToAsciiFile(int firstIndex, int lastIndex, const std::string& path, const bool append,
+void writeParticleDataToAsciiFile(size_t firstIndex, size_t lastIndex, const std::string& path, const bool append,
                                   const char separator, Args&&... data)
 {
     std::ios_base::openmode mode;

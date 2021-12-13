@@ -439,6 +439,10 @@ private:
                                          manifest.rangeStart(ri), manifest.rangeEnd(ri)));
             }
         }
+
+		#define _unused(x) ((void)(x))
+		_unused(start);
+		_unused(end);
     }
 
     //! @brief return true if all array sizes are equal to value
@@ -446,7 +450,8 @@ private:
     static bool sizesAllEqualTo(std::size_t value, Arrays&... arrays)
     {
         std::array<std::size_t, sizeof...(Arrays)> sizes{arrays.size()...};
-        return std::count(begin(sizes), end(sizes), value) == sizes.size();
+
+        return size_t(std::count(begin(sizes), end(sizes), value)) == sizes.size();
     }
 
     int myRank_;

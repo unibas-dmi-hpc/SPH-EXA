@@ -21,29 +21,31 @@ DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
 SMS ?= 35 60 70 75
 $(foreach sm,$(SMS),$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
 
-INC += -Isrc -Iinclude -Idomain/include -I$(CUDA_PATH)/include
+INC += -Isrc -Iinclude -Idomain/include -I$(CUDA_PATH)/include -I$(PGI_PATH)/include
 CXXFLAGS += $(RELEASE)
 NVCCFLAGS := -std=c++17 -O3 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS) -Wno-deprecated-gpu-targets
 NVCCLDFLAGS := $(GENCODE_FLAGS) -rdc=true
 
+CXXFLAGS += -O3 -Wall -Wextra -Wno-unknown-pragmas
+
 ifeq ($(ENV),gnu)
-	CXXFLAGS += -std=c++17 -O2 -Wall -Wextra -fopenmp -fopenacc -march=native -mtune=native
+	CXXFLAGS += -std=c++17 -fopenmp -fopenacc -march=native -mtune=native
 endif
 
 ifeq ($(ENV),pgi)
-	CXXFLAGS += -O2 -std=c++17 -mp -dynamic -acc -ta=tesla,cc60 -mp=nonuma -Mcuda -g #-g -Minfo=accel # prints generated accel functions
+	CXXFLAGS += -std=c++17 -mp -dynamic -acc -ta=tesla,cc60 -mp=nonuma -Mcuda -g #-g -Minfo=accel # prints generated accel functions
 endif
 
 ifeq ($(ENV),cray)
-	CXXFLAGS += -O2 -hstd=c++17 -homp -hacc -dynamic
+	CXXFLAGS += -hstd=c++17 -homp -hacc -dynamic
 endif
 
 ifeq ($(ENV),intel)
-	CXXFLAGS += -O2 -std=c++17 -qopenmp -dynamic
+	CXXFLAGS += -std=c++17 -qopenmp -dynamic
 endif
 
 ifeq ($(ENV),clang)
-	CXXFLAGS += -O2 -march=native -std=c++17 -fopenmp
+	CXXFLAGS += -march=native -std=c++17 -fopenmp
 endif
 
 TESTCASE ?= sedov

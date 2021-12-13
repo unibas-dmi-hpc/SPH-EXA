@@ -5,8 +5,6 @@
 #include <mutex>
 #include <unordered_set>
 
-#include "../Octree.hpp"
-
 namespace sphexa
 {
 namespace sph

@@ -11,7 +11,7 @@ namespace sph
 template <typename T, class Dataset>
 void computeEquationOfStateImpl(const Task &t, Dataset &d)
 {
-    int numParticles = t.size();
+    size_t numParticles = t.size();
 
     const T *ro = d.ro.data();
     const T *ro_0 = d.ro_0.data();
@@ -53,7 +53,7 @@ void computeEquationOfState(const std::vector<Task> &taskList, Dataset &d)
 template <typename T, typename Dataset>
 void computeEquationOfStateEvrardImpl(const Task &t, Dataset &d)
 {
-    int numParticles = t.size();
+    size_t numParticles = t.size();
 
     const T R = 8.317e7, gamma = (5.0 / 3.0);
 
