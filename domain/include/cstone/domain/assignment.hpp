@@ -149,8 +149,8 @@ public:
         SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_, keyView);
 
         std::tie(particleStart, particleEnd) =
-            exchangeParticles<T>(domainExchangeSends, myRank_, particleStart, particleEnd, bufferSize,
-                                 newNParticlesAssigned, sfcOrder, x, y, z, particleProperties...);
+            exchangeParticles(domainExchangeSends, myRank_, particleStart, particleEnd, bufferSize,
+                              newNParticlesAssigned, sfcOrder, x, y, z, particleProperties...);
 
         numParticles = particleEnd - particleStart;
         keyView      = gsl::span<KeyType>(particleKeys + particleStart, numParticles);

@@ -40,8 +40,7 @@ namespace cstone
 
 /*! @brief exchange array elements with other ranks according to the specified ranges
  *
- * @tparam T                      double, float or int
- * @tparam Arrays                 all std::vector<T>
+ * @tparam Arrays                 pointers to particles buffers
  * @param[in] sendList            List of index ranges to be sent to each rank, indices
  *                                are valid w.r.t to arrays present on @p thisRank relative to @p particleStart.
  * @param[in] thisRank            Rank of the executing process
@@ -66,7 +65,7 @@ namespace cstone
  *           only their total number @p nParticlesAssigned, which also includes any assigned particles
  *           already present on @p thisRank.
  */
-template<class T, class... Arrays>
+template<class... Arrays>
 std::tuple<LocalParticleIndex, LocalParticleIndex>
 exchangeParticles(const SendList& sendList, int thisRank,
                   LocalParticleIndex particleStart,
@@ -75,6 +74,8 @@ exchangeParticles(const SendList& sendList, int thisRank,
                   LocalParticleIndex numParticlesAssigned,
                   const LocalParticleIndex* ordering, Arrays... arrays)
 {
+    using T = std::common_type_t<std::decay_t<decltype(*arrays)>...>;
+
     constexpr int domainExchangeTag = static_cast<int>(P2pTags::domainExchange);
     constexpr int numArrays = sizeof...(Arrays);
     int numRanks = int(sendList.size());

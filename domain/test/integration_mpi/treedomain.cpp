@@ -102,8 +102,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
     reallocate(std::max(numParticlesAssigned, numParticles), x, y, z);
     auto [particleStart, particleEnd] =
-        exchangeParticles<T>(sendList, Rank(thisRank), 0, numParticles, x.size(), numParticlesAssigned,
-                             ordering.data(), x.data(), y.data(), z.data());
+        exchangeParticles(sendList, Rank(thisRank), 0, numParticles, x.size(), numParticlesAssigned,
+                          ordering.data(), x.data(), y.data(), z.data());
 
     /// post-exchange test:
     /// if the global tree build and assignment is repeated, no particles are exchanged anymore
