@@ -201,21 +201,14 @@ public:
 
         /* Domain particles update phase *********************************************************/
 
-        if (newNParticlesAssigned > x.size())
-        {
-            reallocate(newNParticlesAssigned, particleKeys, x, y, z, h, particleProperties...);
-        }
+        size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
+        reallocate(exchangeSize, particleKeys, x, y, z, h, particleProperties...);
         std::vector<LocalParticleIndex> sfcOrder(x.size());
 
-        LocalParticleIndex compactOffset;
-        std::tie(particleStart_, particleEnd_, compactOffset) = globalAssignment_.distribute(
+        gsl::span<const KeyType> keyView;
+        std::tie(particleStart_, keyView) = globalAssignment_.distribute(
             particleStart_, particleEnd_, x.size(), reorderFunctor, sfcOrder.data(), particleKeys.data(), x.data(),
             y.data(), z.data(), h.data(), particleProperties.data()...);
-
-        // the range [particleStart_:particleEnd_] can still contain leftover particles from the previous step
-        // but [particleStart_ + compactOffset : particleStart_ + compactOffset + newNParticlesAssigned]
-        // exclusively refers to locally assigned particles in SFC order when accessed through sfcOrder
-        gsl::span<const KeyType> keyView(particleKeys.data() + particleStart_ + compactOffset, newNParticlesAssigned);
 
         Box<T> box                             = globalAssignment_.box();
         const SpaceCurveAssignment& assignment = globalAssignment_.assignment();
@@ -247,13 +240,8 @@ public:
         /* Rearrange particle buffers *********************************************************/
 
         reallocate(numParticles, x, y, z, h, particleProperties...);
-
-        auto reorderArray = [this, newParticleStart](auto ptr)
-        {
-            reorderFunctor(ptr + this->particleStart_, ptr + newParticleStart);
-        };
-        std::tuple particleArrays{x.data(), y.data(), z.data(), h.data(), particleProperties.data()...};
-        for_each_tuple(reorderArray, particleArrays);
+        reorderArrays(reorderFunctor, particleStart_, newParticleStart, x.data(), y.data(), z.data(), h.data(),
+                      particleProperties.data()...) ;
 
         std::vector<KeyType> newKeys(numParticles);
         std::copy(keyView.begin(), keyView.end(), newKeys.begin() + newParticleStart);

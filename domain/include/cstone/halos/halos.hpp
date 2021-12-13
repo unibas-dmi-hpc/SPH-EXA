@@ -145,7 +145,8 @@ private:
     }
 
     //! @brief check that only owned particles in [particleStart_:particleEnd_] are sent out as halos
-    void checkIndices(const SendList& sendList, LocalParticleIndex start, LocalParticleIndex end)
+    void checkIndices(const SendList& sendList, [[maybe_unused]] LocalParticleIndex start,
+                      [[maybe_unused]] LocalParticleIndex end)
     {
         for (const auto& manifest : sendList)
         {

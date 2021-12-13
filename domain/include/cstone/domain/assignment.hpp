@@ -122,22 +122,26 @@ public:
      * @param[inout] y                  particle y-coordinates
      * @param[inout] z                  particle z-coordinates
      * @param[inout] particleProperties remaining particle properties, h, m, etc.
-     * @return                          index pair denoting the index range of particles post-exchange
-     *                                  plus the number of particles from before the exchange that have
-     *                                  a lower SFC key than the first assigned particle
+     * @return                          index denoting the index range start of particles post-exchange
+     *                                  plus a span with a view of the assigned particle keys
+     *
+     * Note: Instead of reordering the particle buffers right here after the exchange, we only keep track
+     * of the reorder map that is required to transform the particle buffers into SFC-order. This allows us
+     * to defer the reordering until we have done halo discovery. At that time, we know the final location
+     * where to put the assigned particles inside the buffer, such that we can reorder directly to the final
+     * location. This saves us from having to move around data inside the buffers for a second time.
      */
     template<class Reorderer, class Tc, class... Arrays>
-    std::tuple<LocalParticleIndex, LocalParticleIndex, LocalParticleIndex>
-    distribute(LocalParticleIndex particleStart,
-               LocalParticleIndex particleEnd,
-               LocalParticleIndex bufferSize,
-               Reorderer& reorderFunctor,
-               LocalParticleIndex* sfcOrder,
-               KeyType* particleKeys,
-               Tc* x,
-               Tc* y,
-               Tc* z,
-               Arrays... particleProperties) const
+    std::tuple<LocalParticleIndex, gsl::span<const KeyType>> distribute(LocalParticleIndex particleStart,
+                                                                        LocalParticleIndex particleEnd,
+                                                                        LocalParticleIndex bufferSize,
+                                                                        Reorderer& reorderFunctor,
+                                                                        LocalParticleIndex* sfcOrder,
+                                                                        KeyType* particleKeys,
+                                                                        Tc* x,
+                                                                        Tc* y,
+                                                                        Tc* z,
+                                                                        Arrays... particleProperties) const
     {
         LocalParticleIndex numParticles          = particleEnd - particleStart;
         LocalParticleIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
@@ -148,6 +152,8 @@ public:
 
         SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_, keyView);
 
+        // Assigned particles are now inside the [particleStart:particleEnd] range, but not exclusively.
+        // Leftover particles from the previous step can also be contained in the range.
         std::tie(particleStart, particleEnd) =
             exchangeParticles(domainExchangeSends, myRank_, particleStart, particleEnd, bufferSize,
                               newNParticlesAssigned, sfcOrder, x, y, z, particleProperties...);
@@ -155,17 +161,21 @@ public:
         numParticles = particleEnd - particleStart;
         keyView      = gsl::span<KeyType>(particleKeys + particleStart, numParticles);
 
-        // refresh particleKeys and ordering
         computeSfcKeys(x + particleStart, y + particleStart, z + particleStart, sfcKindPointer(keyView.begin()),
                        numParticles, box_);
+        // sort keys and keep track of the ordering
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
 
-        LocalParticleIndex compactOffset = findNodeAbove<KeyType>(keyView, tree_[assignment_.firstNodeIdx(myRank_)]);
-        reorderFunctor.restrictRange(compactOffset, newNParticlesAssigned);
+        // thanks to the sorting, we now know the exact range of the assigned particles:
+        // [particleStart + offset, particleStart + offset + newNParticlesAssigned]
+        LocalParticleIndex offset = findNodeAbove<KeyType>(keyView, tree_[assignment_.firstNodeIdx(myRank_)]);
+        // restrict the reordering to take only the assigned particles into account and ignore the others in
+        // [particleStart:particleEnd]
+        reorderFunctor.restrictRange(offset, newNParticlesAssigned);
 
-        reorderFunctor.getReorderMap(sfcOrder, compactOffset, compactOffset + newNParticlesAssigned);
+        reorderFunctor.getReorderMap(sfcOrder, offset, offset + newNParticlesAssigned);
 
-        return {particleStart, particleEnd, compactOffset};
+        return {particleStart, gsl::span<const KeyType>{particleKeys + particleStart + offset, newNParticlesAssigned}};
     }
 
     std::vector<int> findPeers(float theta)

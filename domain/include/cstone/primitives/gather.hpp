@@ -184,7 +184,7 @@ public:
      * @p values must have at least as many elements as the reorder map provided in the last call
      * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
      */
-    void operator()(const ValueType* source, ValueType* destination, IndexType offset, IndexType numExtract)
+    void operator()(const ValueType* source, ValueType* destination, IndexType offset, IndexType numExtract) const
     {
         reorder<IndexType>({ordering_.data() + offset, numExtract}, source, buffer_.data());
 
@@ -195,7 +195,7 @@ public:
         }
     }
 
-    void operator()(const ValueType* source, ValueType* destination)
+    void operator()(const ValueType* source, ValueType* destination) const
     {
         this->operator()(source, destination, offset_, numExtract_);
     }
@@ -215,7 +215,7 @@ private:
 
     std::vector<IndexType> ordering_;
 
-    std::vector<ValueType> buffer_;
+    mutable std::vector<ValueType> buffer_;
 };
 
 } // namespace cstone

@@ -87,9 +87,9 @@ public:
      * \a values must have at least as many elements as the reorder map provided in the last call
      * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
      */
-    void operator()(const ValueType* values, ValueType* destination, IndexType offset, IndexType numExtract);
+    void operator()(const ValueType* values, ValueType* destination, IndexType offset, IndexType numExtract) const;
 
-    void operator()(const ValueType* values, ValueType* destination);
+    void operator()(const ValueType* values, ValueType* destination) const;
 
     void restrictRange(std::size_t offset, std::size_t numExtract);
 

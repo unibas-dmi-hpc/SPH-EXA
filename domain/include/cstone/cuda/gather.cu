@@ -184,7 +184,7 @@ __global__ void reorder(I* map, T* source, T* destination, size_t n)
 
 template<class ValueType, class CodeType, class IndexType>
 void DeviceGather<ValueType, CodeType, IndexType>::operator()(const ValueType* values, ValueType* destination,
-                                                              IndexType offset, IndexType numExtract)
+                                                              IndexType offset, IndexType numExtract) const
 {
     constexpr int nThreads = 256;
     int nBlocks = (numExtract + nThreads - 1) / nThreads;
@@ -207,7 +207,7 @@ void DeviceGather<ValueType, CodeType, IndexType>::operator()(const ValueType* v
 }
 
 template<class ValueType, class CodeType, class IndexType>
-void DeviceGather<ValueType, CodeType, IndexType>::operator()(const ValueType* values, ValueType* destination)
+void DeviceGather<ValueType, CodeType, IndexType>::operator()(const ValueType* values, ValueType* destination) const
 {
     this->operator()(values, destination, offset_, numExtract_);
 }

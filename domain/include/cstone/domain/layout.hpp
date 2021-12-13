@@ -174,4 +174,16 @@ void reallocate(std::size_t size, Arrays&... arrays)
     [[maybe_unused]] std::initializer_list<int> list{ (arrays.resize(size), 0)... };
 }
 
+template<class R, class... Arrays>
+void reorderArrays(const R& reorderFunctor, size_t inputOffset, size_t outputOffset, Arrays... arrays)
+{
+    auto reorderArray = [inputOffset, outputOffset, &reorderFunctor](auto ptr)
+    {
+        reorderFunctor(ptr + inputOffset, ptr + outputOffset);
+    };
+
+    std::tuple particleArrays{arrays...};
+    for_each_tuple(reorderArray, particleArrays);
+}
+
 } // namespace cstone
