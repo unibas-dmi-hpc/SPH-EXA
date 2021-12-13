@@ -185,21 +185,21 @@ void DeviceGather<ValueType, CodeType, IndexType>::operator()(const ValueType* v
                                                               IndexType offset, IndexType numExtract)
 {
     constexpr int nThreads = 256;
-    int nBlocks = (mapSize_ + nThreads - 1) / nThreads;
+    int nBlocks = (numExtract + nThreads - 1) / nThreads;
 
     // upload to device
     cudaMemcpy(deviceMemory_->deviceBuffer(0), values, mapSize_ * sizeof(ValueType), cudaMemcpyHostToDevice);
     checkCudaErrors(cudaGetLastError());
 
     // reorder on device
-    reorder<<<nBlocks, nThreads>>>(deviceMemory_->ordering(),
+    reorder<<<nBlocks, nThreads>>>(deviceMemory_->ordering() + offset,
                                    deviceMemory_->deviceBuffer(0),
                                    deviceMemory_->deviceBuffer(1),
-                                   mapSize_);
+                                   numExtract);
     checkCudaErrors(cudaGetLastError());
 
     // download to host
-    cudaMemcpy(destination, deviceMemory_->deviceBuffer(1) + offset,
+    cudaMemcpy(destination, deviceMemory_->deviceBuffer(1),
                numExtract * sizeof(ValueType), cudaMemcpyDeviceToHost);
     checkCudaErrors(cudaGetLastError());
 }

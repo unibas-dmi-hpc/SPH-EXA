@@ -167,8 +167,10 @@ public:
      */
     void setMapFromCodes(CodeType* codes_first, CodeType* codes_last)
     {
-        offset_ = 0;
-        mapSize_ = std::size_t(codes_last - codes_first);
+        offset_     = 0;
+        mapSize_    = std::size_t(codes_last - codes_first);
+        numExtract_ = mapSize_;
+
         ordering_.resize(mapSize_);
         std::iota(begin(ordering_), end(ordering_), 0);
 
@@ -195,14 +197,15 @@ public:
 
     void restrictRange(std::size_t offset, std::size_t numElements)
     {
-        assert(offset + numElements <= buffer_.size());
+        assert(offset + numElements <= mapSize_);
 
-        offset_  = offset;
-        mapSize_ = numElements;
+        offset_     = offset;
+        numExtract_ = numElements;
     }
 
 private:
     std::size_t offset_{0};
+    std::size_t numExtract_{0};
     std::size_t mapSize_{0};
 
     std::vector<IndexType> ordering_;
