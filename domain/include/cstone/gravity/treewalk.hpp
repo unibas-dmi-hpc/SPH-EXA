@@ -112,9 +112,9 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
             LocalParticleIndex numTargets  = lastTarget - firstTarget;
 
             // apply multipole to all particles in group
-			#if defined(__llvm__) || defined(__clang__)
-				#pragma clang loop vectorize(enable)
-			#endif
+            #if defined(__llvm__) || defined(__clang__)
+                #pragma clang loop vectorize(enable)
+            #endif
             for (LocalParticleIndex t = 0; t < numTargets; ++t)
             {
                 LocalParticleIndex offset = t + firstTarget;
