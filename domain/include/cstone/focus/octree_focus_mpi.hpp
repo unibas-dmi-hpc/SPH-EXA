@@ -138,6 +138,35 @@ public:
         return converged;
     }
 
+    //! @brief like update, but repeat until converged on first call
+    template<class T>
+    void initAndUpdate(const Box<T>& box,
+                       gsl::span<const KeyType> particleKeys,
+                       int myRank,
+                       gsl::span<const int> peers,
+                       const SpaceCurveAssignment& assignment,
+                       gsl::span<const KeyType> globalTreeLeaves,
+                       gsl::span<const unsigned> globalCounts)
+    {
+        update(box, particleKeys, myRank, peers, assignment, globalTreeLeaves, globalCounts);
+
+        if (firstCall_)
+        {
+            int numRanks;
+            MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
+            // we must not call updateGlobal again before all ranks have completed the previous call,
+            // otherwise point-2-point messages from different updateGlobal calls can get mixed up
+            MPI_Barrier(MPI_COMM_WORLD);
+            int converged = 0;
+            while (converged != numRanks)
+            {
+                converged = update(box, particleKeys, myRank, peers, assignment, globalTreeLeaves, globalCounts);
+                MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+            }
+            firstCall_ = false;
+        }
+    }
+
     const Octree<KeyType>& octree() const { return tree_.octree(); }
 
     gsl::span<const KeyType>  treeLeaves() const { return tree_.treeLeaves(); }
@@ -154,6 +183,8 @@ private:
     std::vector<unsigned> counts_;
     //! @brief mac evaluation result relative to focus area (pass or fail)
     std::vector<char> macs_;
+
+    bool firstCall_{true};
 };
 
 } // namespace cstone

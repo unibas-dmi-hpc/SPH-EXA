@@ -186,6 +186,7 @@ public:
             particleStart_ = 0;
             particleEnd_   = x.size();
             layout_        = {0, LocalParticleIndex(x.size())};
+            firstCall_     = false;
         }
 
         if (!sizesAllEqualTo(layout_.back(), particleKeys, x, y, z, h, particleProperties...))
@@ -225,20 +226,7 @@ public:
 
         std::vector<int> peers = globalAssignment_.findPeers(theta_);
 
-        focusedTree_.update(box, keyView, myRank_, peers, assignment, globalTree, globalCounts);
-        if (firstCall_)
-        {
-            // we must not call updateGlobal again before all ranks have completed the previous call,
-            // otherwise point-2-point messages from different updateGlobal calls can get mixed up
-            MPI_Barrier(MPI_COMM_WORLD);
-            int converged = 0;
-            while (converged != numRanks_)
-            {
-                converged = focusedTree_.update(box, keyView, myRank_, peers, assignment, globalTree, globalCounts);
-                MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-            }
-            firstCall_ = false;
-        }
+        focusedTree_.initAndUpdate(box, keyView, myRank_, peers, assignment, globalTree, globalCounts);
 
         std::vector<TreeIndexPair> focusAssignment
             = translateAssignment<KeyType>(assignment, globalTree, focusedTree_.treeLeaves(), peers, myRank_);
@@ -247,8 +235,6 @@ public:
 
         halos_.discover(focusedTree_.octree(), focusAssignment, keyView, box, h.data() + particleStart_,
                         {sfcOrder.data() + compactOffset, keyView.size()});
-
-        /* Compute new layout *********************************************************/
 
         reallocate(nNodes(focusedTree_.treeLeaves()) + 1, layout_);
 
