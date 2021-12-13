@@ -116,9 +116,10 @@ void DeviceGather<ValueType, CodeType, IndexType>::setReorderMap(const IndexType
 }
 
 template<class ValueType, class CodeType, class IndexType>
-void DeviceGather<ValueType, CodeType, IndexType>::getReorderMap(IndexType* map_first)
+void DeviceGather<ValueType, CodeType, IndexType>::getReorderMap(IndexType* map_first, IndexType first, IndexType last)
 {
-    cudaMemcpy(map_first, deviceMemory_->ordering(), mapSize_ * sizeof(IndexType), cudaMemcpyDeviceToHost);
+    cudaMemcpy(map_first, deviceMemory_->ordering() + first, (last - first) * sizeof(IndexType),
+               cudaMemcpyDeviceToHost);
 }
 
 template<class I>

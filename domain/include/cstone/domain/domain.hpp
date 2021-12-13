@@ -233,8 +233,7 @@ public:
 
         /* Halo discovery phase *********************************************************/
 
-        halos_.discover(focusedTree_.octree(), focusAssignment, keyView, box, h.data() + particleStart_,
-                        {sfcOrder.data() + compactOffset, keyView.size()});
+        halos_.discover(focusedTree_.octree(), focusAssignment, keyView, box, h.data() + particleStart_, sfcOrder);
 
         reallocate(nNodes(focusedTree_.treeLeaves()) + 1, layout_);
 

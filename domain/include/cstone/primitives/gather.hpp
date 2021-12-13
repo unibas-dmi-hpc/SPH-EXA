@@ -143,9 +143,9 @@ public:
         buffer_.resize(mapSize_);
     }
 
-    void getReorderMap(IndexType* map_first)
+    void getReorderMap(IndexType* map_first, LocalParticleIndex first, LocalParticleIndex last)
     {
-        std::copy(ordering_.data(), ordering_.data() + mapSize_, map_first);
+        std::copy(ordering_.data() + first, ordering_.data() + last, map_first);
     }
 
     /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
@@ -191,7 +191,6 @@ public:
         {
             destination[i] = buffer_[i + offset];
         }
-        //reorderInPlace(ordering_, values);
     }
 
 private:

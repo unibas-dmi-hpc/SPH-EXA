@@ -110,26 +110,26 @@ public:
 
     /*! @brief Distribute particles to their assigned ranks based on previous assignment
      *
-     * @param[in]    particleStart_        first valid particle index before the exchange
-     * @param[in]    particleEnd_          last valid particle index before the exchange
-     * @param[in]    bufferSize            size of particle buffers x,y,z and particleProperties
-     * @param[inout] reorderFunctor        contains the ordering that accesses the range [particleStart:particleEnd]
-     *                                     in SFC order
-     * @param[out]   sfcOrder              If using the CPU reorderer, this is a duplicate copy. Otherwise provides
-     *                                     the host space to download the ordering from the device.
-     * @param[in]    particleKeys          Sorted particle keys in [particleStart:particleEnd]
-     * @param[inout] x                     particle x-coordinates
-     * @param[inout] y                     particle y-coordinates
-     * @param[inout] z                     particle z-coordinates
-     * @param[inout] particleProperties    remaining particle properties, h, m, etc.
-     * @return                             index pair denoting the index range of particles post-exchange
-     *                                     plus the number of particles from before the exchange that have
-     *                                     a lower SFC key than the first assigned particle
+     * @param[in]    particleStart      first valid particle index before the exchange
+     * @param[in]    particleEnd        last valid particle index before the exchange
+     * @param[in]    bufferSize         size of particle buffers x,y,z and particleProperties
+     * @param[inout] reorderFunctor     contains the ordering that accesses the range [particleStart:particleEnd]
+     *                                  in SFC order
+     * @param[out]   sfcOrder           If using the CPU reorderer, this is a duplicate copy. Otherwise provides
+     *                                  the host space to download the ordering from the device.
+     * @param[in]    particleKeys       Sorted particle keys in [particleStart:particleEnd]
+     * @param[inout] x                  particle x-coordinates
+     * @param[inout] y                  particle y-coordinates
+     * @param[inout] z                  particle z-coordinates
+     * @param[inout] particleProperties remaining particle properties, h, m, etc.
+     * @return                          index pair denoting the index range of particles post-exchange
+     *                                  plus the number of particles from before the exchange that have
+     *                                  a lower SFC key than the first assigned particle
      */
     template<class Reorderer, class Tc, class... Arrays>
     std::tuple<LocalParticleIndex, LocalParticleIndex, LocalParticleIndex>
-    distribute(LocalParticleIndex particleStart_,
-               LocalParticleIndex particleEnd_,
+    distribute(LocalParticleIndex particleStart,
+               LocalParticleIndex particleEnd,
                LocalParticleIndex bufferSize,
                Reorderer& reorderFunctor,
                LocalParticleIndex* sfcOrder,
@@ -139,31 +139,31 @@ public:
                Tc* z,
                Arrays... particleProperties) const
     {
-        LocalParticleIndex numParticles          = particleEnd_ - particleStart_;
+        LocalParticleIndex numParticles          = particleEnd - particleStart;
         LocalParticleIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
 
-        reorderFunctor.getReorderMap(sfcOrder);
+        reorderFunctor.getReorderMap(sfcOrder, 0, numParticles);
 
-        gsl::span<KeyType> keyView(particleKeys + particleStart_, numParticles);
+        gsl::span<KeyType> keyView(particleKeys + particleStart, numParticles);
 
         SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_, keyView);
 
-        std::tie(particleStart_, particleEnd_) =
-            exchangeParticles<T>(domainExchangeSends, myRank_, particleStart_, particleEnd_, bufferSize,
+        std::tie(particleStart, particleEnd) =
+            exchangeParticles<T>(domainExchangeSends, myRank_, particleStart, particleEnd, bufferSize,
                                  newNParticlesAssigned, sfcOrder, x, y, z, particleProperties...);
 
-        numParticles = particleEnd_ - particleStart_;
-        keyView      = gsl::span<KeyType>(particleKeys + particleStart_, numParticles);
+        numParticles = particleEnd - particleStart;
+        keyView      = gsl::span<KeyType>(particleKeys + particleStart, numParticles);
 
         // refresh particleKeys and ordering
-        computeSfcKeys(x + particleStart_, y + particleStart_, z + particleStart_, sfcKindPointer(keyView.begin()),
+        computeSfcKeys(x + particleStart, y + particleStart, z + particleStart, sfcKindPointer(keyView.begin()),
                        numParticles, box_);
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
-        reorderFunctor.getReorderMap(sfcOrder);
 
         LocalParticleIndex compactOffset = findNodeAbove<KeyType>(keyView, tree_[assignment_.firstNodeIdx(myRank_)]);
+        reorderFunctor.getReorderMap(sfcOrder, compactOffset, compactOffset + newNParticlesAssigned);
 
-        return {particleStart_, particleEnd_, compactOffset};
+        return {particleStart, particleEnd, compactOffset};
     }
 
     std::vector<int> findPeers(float theta)

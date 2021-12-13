@@ -60,7 +60,7 @@ public:
     void setReorderMap(const IndexType* map_first, const IndexType* map_last);
 
     //! @brief download the reorder map from the device
-    void getReorderMap(IndexType* map_first);
+    void getReorderMap(IndexType* map_first, IndexType first, IndexType last);
 
     /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
      *

@@ -68,7 +68,7 @@ public:
                   const Th* h,
                   gsl::span<const LocalParticleIndex> sfcOrder)
     {
-        assert(particleKeys.size() == sfcOrder.size());
+        assert(particleKeys.size() <= sfcOrder.size());
 
         gsl::span<const KeyType> leaves = focusedTree.treeLeaves();
         TreeNodeIndex firstAssignedNode = focusAssignment[myRank_].start();
