@@ -30,11 +30,11 @@ struct Task
     const size_t ng0;
 
     //! @brief first particle owned by rank, everything below is halos
-    int firstParticle;
+    size_t firstParticle;
     //! @brief last particle owned by rank, everything above is halos
-    int lastParticle;
+    size_t lastParticle;
 
-    int size() const { return lastParticle - firstParticle; }
+    size_t size() const { return lastParticle - firstParticle; }
 
     std::vector<int> neighbors;
 #ifdef USE_CUDA
