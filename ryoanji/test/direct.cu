@@ -36,7 +36,7 @@
 
 #include "cstone/gravity/treewalk.hpp"
 
-#include "ryoanji/dataset.hpp"
+#include "dataset.hpp"
 #include "ryoanji/direct.cuh"
 
 using ryoanji::rawPtr;

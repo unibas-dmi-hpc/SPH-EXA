@@ -33,7 +33,7 @@
 
 #include "cstone/gravity/treewalk.hpp"
 
-#include "ryoanji/dataset.hpp"
+#include "dataset.hpp"
 #include "ryoanji/kernel.hpp"
 
 //! @brief little P2M wrapper for the host without GPU textures

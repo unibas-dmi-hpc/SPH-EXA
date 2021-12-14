@@ -31,10 +31,7 @@
 
 #pragma once
 
-#include <cmath>
-#include <cstdlib>
-
-#include "types.h"
+#include "ryoanji/types.h"
 
 namespace ryoanji
 {

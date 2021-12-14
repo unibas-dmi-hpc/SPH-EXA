@@ -26,10 +26,10 @@
 
 #include <chrono>
 
+#include "dataset.hpp"
 #include "ryoanji/types.h"
 #include "ryoanji/treebuilder.cuh"
 #include "ryoanji/traversal_cpu.hpp"
-#include "ryoanji/dataset.hpp"
 #include "ryoanji/traversal.cuh"
 #include "ryoanji/direct.cuh"
 #include "ryoanji/upwardpass.cuh"

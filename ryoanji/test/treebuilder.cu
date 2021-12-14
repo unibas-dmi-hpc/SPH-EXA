@@ -33,8 +33,9 @@
 
 #include "cstone/sfc/sfc.hpp"
 
+#include "dataset.hpp"
+
 #include "ryoanji/treebuilder.cuh"
-#include "ryoanji/dataset.hpp"
 #include "ryoanji/types.h"
 #include "ryoanji/upwardpass.cuh"
 
