@@ -146,7 +146,13 @@ int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
 
         bool countMerge = (g[0]+g[1]+g[2]+g[3]+g[4]+g[5]+g[6]+g[7]) <= bucketSize;
         bool macMerge   = macs[leafParents[leafIdx]] == 0;
-        bool inFringe   = leafIdx - siblingIdx + 8 >= firstFocusNode && leafIdx - siblingIdx < lastFocusNode;
+
+        TreeNodeIndex firstSibling = leafIdx - siblingIdx;
+        TreeNodeIndex lastSibling  = firstSibling + 8;
+
+        // inFringe: leadIdx not in focus, but at least one sibling is in the focus
+        // in that case we cannot remove the nodes based on a MAC criterion
+        bool inFringe = overlapTwoRanges(firstSibling, lastSibling, firstFocusNode, lastFocusNode);
 
         if (countMerge || (macMerge && !inFringe)) { return 0; } // merge
     }

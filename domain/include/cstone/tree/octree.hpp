@@ -257,6 +257,8 @@ void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNod
  *                   -1 otherwise, i.e. if not all the 8 siblings exist in @p csTree
  *                   at the same division level
  *                   in second pair element: tree level of node at @p nodeIdx
+ *
+ * Sibling nodes are group of 8 leaf nodes that have the same parent node.
  */
 template<class KeyType>
 inline HOST_DEVICE_FUN util::tuple<int, unsigned> siblingAndLevel(const KeyType* csTree, TreeNodeIndex nodeIdx)
