@@ -137,16 +137,17 @@ __global__ void testSegScan(int* values)
 
 TEST(WarpScan, inclusiveSegInt)
 {
-    thrust::device_vector<int> d_values(32);
-    testSegScan<<<1, 32>>>(rawPtr(d_values.data()));
+    thrust::device_vector<int> d_values(GpuConfig::warpSize);
+    testSegScan<<<1, GpuConfig::warpSize>>>(rawPtr(d_values.data()));
     thrust::host_vector<int> h_values = d_values;
 
     //                         carry is one, first segment starts with offset of 1
-    //                         |                                        | value(16) = -2, so scan restarts at 2 - 1
+    //                         |                                           | value(16) = -2, scan restarts at 2 - 1
     std::vector<int> reference{2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17, 18,
                                1, 2, 3, 4, 5, 6, 7, 8, 9,  10, 11, 12, 13, 14, 15, 2};
     //                                                              value(31) = -3, scan restarts at 3 - 1  ^
 
+    // we only check the first 32
     for (int i = 0; i < 32; ++i)
     {
         EXPECT_EQ(h_values[i], reference[i]);

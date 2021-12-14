@@ -1,3 +1,34 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2021 CSCS, ETH Zurich
+ *               2021 University of Basel
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/*! @file
+ * @brief Warp-level primitives
+ *
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ */
+
 #pragma once
 
 #include "types.h"
@@ -5,7 +36,7 @@
 namespace ryoanji
 {
 
-//! @brief there's no int overload for min in AMD rocM
+//! @brief there's no int overload for min in AMD ROCM
 __device__ __forceinline__ int imin(int a, int b)
 {
     return a < b ? a : b;
@@ -45,48 +76,48 @@ __device__ __forceinline__ int popCount(T x)
 
 __device__ __forceinline__ void syncWarp()
 {
-#ifdef __CUDACC__
+#if defined(__CUDACC__) && !defined(__HIPCC__)
     __syncwarp();
 #endif
 }
 
-//! @brief Compatibility wrapper for AMD. Note: do not HIPify!
+//! @brief Compatibility wrapper for AMD.
 template<class T>
 __device__ __forceinline__ T shflSync(T value, int srcLane)
 {
-#ifdef __CUDACC__
+#if defined(__CUDACC__) && !defined(__HIPCC__)
     return __shfl_sync(0xFFFFFFFF, value, srcLane);
 #else
     return __shfl(value, srcLane);
 #endif
 }
 
-//! @brief Compatibility wrapper for AMD. Note: do not HIPify!
+//! @brief Compatibility wrapper for AMD.
 template<class T>
 __device__ __forceinline__ T shflXorSync(T value, int width)
 {
-#ifdef __CUDACC__
+#if defined(__CUDACC__) && !defined(__HIPCC__)
     return __shfl_xor_sync(0xFFFFFFFF, value, width);
 #else
     return __shfl_xor(value, width);
 #endif
 }
 
-//! @brief Compatibility wrapper for AMD. Note: do not HIPify!
+//! @brief Compatibility wrapper for AMD.
 template<class T>
 __device__ __forceinline__ T shflUpSync(T value, int distance)
 {
-#ifdef __CUDACC__
+#if defined(__CUDACC__) && !defined(__HIPCC__)
     return __shfl_up_sync(0xFFFFFFFF, value, distance);
 #else
     return __shfl_up(value, distance);
 #endif
 }
 
-//! @brief Compatibility wrapper for AMD. Note: do not HIPify!
+//! @brief Compatibility wrapper for AMD.
 __device__ __forceinline__ GpuConfig::ThreadMask ballotSync(bool flag)
 {
-#ifdef __CUDACC__
+#if defined(__CUDACC__) && !defined(__HIPCC__)
     return __ballot_sync(0xFFFFFFFF, flag);
 #else
     return __ballot(flag);
@@ -140,9 +171,6 @@ __device__ __forceinline__ GpuConfig::ThreadMask lanemask_lt()
 {
     GpuConfig::ThreadMask lane = threadIdx.x & (GpuConfig::warpSize - 1);
     return (GpuConfig::ThreadMask(1) << lane) - 1;
-    //int mask;
-    //asm("mov.u32 %0, %lanemask_lt;" : "=r"(mask));
-    //return mask;
 }
 
 __device__ __forceinline__ int exclusiveScanBool(const bool p)
@@ -166,9 +194,6 @@ __device__ __forceinline__ GpuConfig::ThreadMask lanemask_le()
 {
     GpuConfig::ThreadMask lane = threadIdx.x & (GpuConfig::warpSize - 1);
     return (GpuConfig::ThreadMask(2) << lane) - 1;
-    //int mask;
-    //asm("mov.u32 %0, %lanemask_le;" : "=r"(mask));
-    //return mask;
 }
 
 /*! @brief perform range-limited inclusive warp scan
