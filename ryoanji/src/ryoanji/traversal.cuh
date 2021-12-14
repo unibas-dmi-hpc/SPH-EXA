@@ -198,7 +198,6 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         // Direct
         const bool isLeaf       = !isNode;                               // Is leaf cell
         bool isDirect           = isClose && isLeaf && isSource;         // Source cell can be used for P2P
-        const int bodyBegin     = sourceData.body();                     // First body in cell
         const int numBodies     = sourceData.nbody() & -int(isDirect);   // Number of bodies in cell
         const int numBodiesScan = inclusiveScanInt(numBodies);           // Inclusive scan of numBodies
         int numBodiesLane       = numBodiesScan - numBodies;             // Exclusive scan of numBodies
@@ -208,29 +207,28 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         {
             tempQueue[laneIdx] = 1; // Default scan input is 1, such that consecutive lanes load consecutive bodies
             if (isDirect && (numBodiesLane < GpuConfig::warpSize))
-            {                                              // If direct flag is true and index is within bounds
-                isDirect                 = false;          // Set flag as processed
-                tempQueue[numBodiesLane] = -1 - bodyBegin; // Put body in queue
-            }                                              // End if for direct flag
-            const int bodyQueue =
-                inclusiveSegscanInt(tempQueue[laneIdx], tempOffset);    // Inclusive segmented scan of temp queue
+            {
+                isDirect                 = false;                  // Set cell as processed
+                tempQueue[numBodiesLane] = -1 - sourceData.body(); // Put first source cell body index into the queue
+            }
+            const int bodyQueue = inclusiveSegscanInt(tempQueue[laneIdx], tempOffset);
             tempOffset = shflSync(bodyQueue, GpuConfig::warpSize - 1);  // Last lane has the temp queue offset
 
             if (numBodiesWarp >= GpuConfig::warpSize) // If warp is full of bodies
             {
-                const fvec4 pos = bodyPos[bodyQueue]; // Load position of source bodies
+                const fvec4 sourceBody = bodyPos[bodyQueue];       // Load position of source bodies
                 for (int j = 0; j < GpuConfig::warpSize; j++)
                 {
-                    const fvec3 pos_j{shflSync(pos[0], j),     // Get source x value from lane j
-                                      shflSync(pos[1], j),     // Get source y value from lane j
-                                      shflSync(pos[2], j)};    // Get source z value from lane j
-                    const float q_j = shflSync(pos[3], j);     // Get source w value from lane j
+                    const fvec3 pos_j{shflSync(sourceBody[0], j),  // Get source x-coord from lane j
+                                      shflSync(sourceBody[1], j),  // Get source y-coord from lane j
+                                      shflSync(sourceBody[2], j)}; // Get source z-coord from lane j
+                    const float q_j = shflSync(sourceBody[3], j);  // Get source mass from lane j
                     #pragma unroll
-                    for (int k = 0; k < TravConfig::nwt; k++)                 // Loop over nwt targets
-                        acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2); // Call P2P kernel
-                }                                                             // End loop over the warp size
+                    for (int k = 0; k < TravConfig::nwt; k++)
+                        acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2); // Compute body-body interactions
+                }
                 numBodiesWarp -= GpuConfig::warpSize;                         // Decrement body queue size
-                numBodiesLane -= GpuConfig::warpSize;                         // Derecment lane offset of body index
+                numBodiesLane -= GpuConfig::warpSize;                         // Decrement lane offset of body index
                 counters.y += GpuConfig::warpSize;                            // Increment P2P counter
             }
             else // If warp is not entirely full of bodies
