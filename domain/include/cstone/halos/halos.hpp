@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief  CPU driver for halo discovery using traversal of an internal binary radix tree
+ * @brief  Implementation of halo discovery and halo exchange
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -35,6 +35,7 @@
 
 #include "cstone/domain/layout.hpp"
 #include "cstone/halos/exchange_halos.hpp"
+#include "cstone/halos/radii.hpp"
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/util/gsl-lite.hpp"
 #include "cstone/util/index_ranges.hpp"

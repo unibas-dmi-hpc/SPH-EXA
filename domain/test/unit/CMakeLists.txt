@@ -6,6 +6,7 @@ set(UNIT_TESTS
         focus/octree_focus.cpp
         gravity/multipole.cpp
         gravity/treewalk.cpp
+        halos/radii.cpp
         primitives/clz.cpp
         primitives/gather.cpp
         sfc/box.cpp
