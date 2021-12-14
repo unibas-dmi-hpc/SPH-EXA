@@ -33,6 +33,7 @@
 
 #include "cstone/focus/exchange_focus.hpp"
 #include "cstone/focus/octree_focus.hpp"
+#include "cstone/focus/request_indices.hpp"
 
 namespace cstone
 {
