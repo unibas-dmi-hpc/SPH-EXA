@@ -128,7 +128,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
 
     uint2 counters = {0, 0};
     int approxQueue; // warp queue for multipole approximation cell indices
-    int directQueue; // warp queue for source body indices
+    int bodyQueue;   // warp queue for source body indices
 
     // populate initial cell queue
     for (int root = rootRange.x; root < rootRange.y; root += GpuConfig::warpSize)
@@ -189,7 +189,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
             counters.x += warpSize;
 
             laneCompacted -= GpuConfig::warpSize;
-            // pull down remaining elements that didn't fit onto the now empty queue
+            // pull down remaining elements that didn't fit onto the now empty approxQueue
             warpExchange(&approxQueue, &sourceQueue, isApprox, laneCompacted, 0, tempQueue);
 
             apxFillLevel -= GpuConfig::warpSize;
@@ -202,8 +202,8 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         const int numBodiesScan = inclusiveScanInt(numBodies);           // Inclusive scan of numBodies
         int numBodiesLane       = numBodiesScan - numBodies;             // Exclusive scan of numBodies
         int numBodiesWarp       = shflSync(numBodiesScan, GpuConfig::warpSize - 1); // Total numBodies of current warp
-        int tempOffset = 0;                                              // Initialize temp queue offset
-        while (numBodiesWarp > 0)                                        // While there are bodies to process
+        int prevBodyIdx         = 0;
+        while (numBodiesWarp > 0) // While there are bodies to process
         {
             tempQueue[laneIdx] = 1; // Default scan input is 1, such that consecutive lanes load consecutive bodies
             if (isDirect && (numBodiesLane < GpuConfig::warpSize))
@@ -211,12 +211,13 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
                 isDirect                 = false;                  // Set cell as processed
                 tempQueue[numBodiesLane] = -1 - sourceData.body(); // Put first source cell body index into the queue
             }
-            const int bodyQueue = inclusiveSegscanInt(tempQueue[laneIdx], tempOffset);
-            tempOffset = shflSync(bodyQueue, GpuConfig::warpSize - 1);  // Last lane has the temp queue offset
+            const int bodyIdx = inclusiveSegscanInt(tempQueue[laneIdx], prevBodyIdx);
+            // broadcast last processed bodyIdx from the last lane to restart the scan in the next iteration
+            prevBodyIdx = shflSync(bodyIdx, GpuConfig::warpSize - 1);
 
             if (numBodiesWarp >= GpuConfig::warpSize) // If warp is full of bodies
             {
-                const fvec4 sourceBody = bodyPos[bodyQueue];       // Load position of source bodies
+                const fvec4 sourceBody = bodyPos[bodyIdx];         // Load source body coordinates
                 for (int j = 0; j < GpuConfig::warpSize; j++)
                 {
                     const fvec3 pos_j{shflSync(sourceBody[0], j),  // Get source x-coord from lane j
@@ -233,11 +234,11 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
             }
             else // If warp is not entirely full of bodies
             {
-                int bodyIdx        = bdyFillLevel + laneIdx; // Body index of current lane
-                tempQueue[laneIdx] = directQueue;            // Initialize body queue with saved values
-                if (bodyIdx < GpuConfig::warpSize)           // If body index is less than the warp size
-                    tempQueue[bodyIdx] = bodyQueue;          // Push bodies into queue
-                bdyFillLevel += numBodiesWarp;               // Increment body queue offset
+                int bodyQueueIdx   = bdyFillLevel + laneIdx; // Body queue index of current lane
+                tempQueue[laneIdx] = bodyQueue;              // Initialize body queue with saved values
+                if (bodyQueueIdx < GpuConfig::warpSize)
+                    tempQueue[bodyQueueIdx] = bodyIdx;       // Push bodies into queue
+                bdyFillLevel += numBodiesWarp;
                 if (bdyFillLevel >= GpuConfig::warpSize)     // If this causes the body queue to spill
                 {
                     const fvec4 pos = bodyPos[tempQueue[laneIdx]]; // Load position of source bodies
@@ -248,19 +249,19 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
                                           shflSync(pos[2], j)}; // Get source z value from lane j
                         const float q_j = shflSync(pos[3], j);  // Get source w value from lane j
                         #pragma unroll
-                        for (int k = 0; k < TravConfig::nwt; k++)                 // Loop over nwt targets
+                        for (int k = 0; k < TravConfig::nwt; k++)
                             acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2); // Call P2P kernel
-                    }                                                             // End loop over the warp size
-                    bdyFillLevel -= GpuConfig::warpSize;                          // Decrement body queue size
-                    bodyIdx -= GpuConfig::warpSize;     // Decrement body index of current lane
-                    if (bodyIdx >= 0)                   // If body index is valid
-                        tempQueue[bodyIdx] = bodyQueue; // Push bodies into queue
-                    counters.y += GpuConfig::warpSize;  // Increment P2P counter
-                }                                       // End if for body queue spill
-                directQueue   = tempQueue[laneIdx];     // Free temp queue for use in approx
-                numBodiesWarp = 0;                      // Reset numBodies of current warp
-            }                                           // End if for warp full of bodies
-        }                                               // End while loop for bodies to process
+                    }
+                    bdyFillLevel -= GpuConfig::warpSize;
+                    bodyQueueIdx -= GpuConfig::warpSize;
+                    if (bodyQueueIdx >= 0)                  // If body index is valid
+                        tempQueue[bodyQueueIdx] = bodyIdx;  // Push bodies into queue
+                    counters.y += GpuConfig::warpSize;   // Increment P2P counter
+                }                                        // End if for body queue spill
+                bodyQueue     = tempQueue[laneIdx];      // Free temp queue for use in approx
+                numBodiesWarp = 0;                       // Reset numBodies of current warp
+            }
+        }
 
         //  If the current level is done
         if (sourceOffset >= numSources)
@@ -277,13 +278,13 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         approxAcc(acc_i, pos_i, laneIdx < apxFillLevel ? approxQueue : -1, sourceCenter, Multipoles, EPS2, tempQueue);
 
         counters.x += apxFillLevel; // Increment M2P counter
-    }                               // End if for leftover approx cells
+    }
 
     if (bdyFillLevel > 0) // If there are leftover direct cells
     {
-        const int bodyQueue = laneIdx < bdyFillLevel ? directQueue : -1;  // Get body index
-        const fvec4 pos     = bodyQueue >= 0 ? bodyPos[bodyQueue] :       // Load position of source bodies,
-                              fvec4{0.0f, 0.0f, 0.0f, 0.0f};              // with padding for invalid lanes
+        const int bodyIdx = laneIdx < bdyFillLevel ? bodyQueue : -1;
+        // Load position of source bodies, with padding for invalid lanes
+        const fvec4 pos   = bodyIdx >= 0 ? bodyPos[bodyIdx] : fvec4{0.0f, 0.0f, 0.0f, 0.0f};
         for (int j = 0; j < GpuConfig::warpSize; j++)
         {
             const fvec3 pos_j{shflSync(pos[0], j),     // Get source x value from lane j
@@ -297,7 +298,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         counters.y += bdyFillLevel;                                   // Increment P2P counter
     }
 
-    return counters; // Return M2P & P2P counters
+    return counters;
 }
 
 __device__ uint64_t sumP2PGlob     = 0;

@@ -23,4 +23,4 @@ add_executable(ryoanji demo.cu)
 target_link_libraries(ryoanji PUBLIC cstone_tree)
 set_target_properties(ryoanji PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
-set_source_files_properties(test/serial.cu PROPERTIES COMPILE_FLAGS "-Xptxas -v")
+set_source_files_properties(demo.cu PROPERTIES COMPILE_FLAGS "-Xptxas -v")

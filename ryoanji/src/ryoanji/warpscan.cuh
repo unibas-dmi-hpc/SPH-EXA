@@ -253,7 +253,6 @@ __device__ __forceinline__ int inclusiveSegscanInt(const int packedValue, const 
     int scannedValue = inclusiveSegscan(value, imin(distance, laneIdx));
 
     // the lowest lane index for which packedValue was negative, warpSize if all were positive
-    // __brev reverses the bit order
     int firstNegativeLane = countLeadingZeros(reverseBits(flags));
     int addCarry          = -(laneIdx < firstNegativeLane);
 
