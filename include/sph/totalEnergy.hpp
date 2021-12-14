@@ -14,7 +14,7 @@ namespace sph
 template <typename T, class Dataset>
 void computeTotalEnergyImpl(const Task &t, Dataset &d, T &ecin, T &eint)
 {
-    int numParticles = t.size();
+    size_t numParticles = t.size();
 
     const T *u = d.u.data();
     const T *vx = d.vx.data();

@@ -57,7 +57,7 @@ size_t neighborsSumImpl(const Task& t)
     size_t sum = 0;
 
     #pragma omp parallel for reduction(+ : sum)
-    for (unsigned int i = 0; i < t.size(); i++)
+    for (size_t i = 0; i < t.size(); i++)
     {
         sum += t.neighborsCount[i];
     }

@@ -41,7 +41,7 @@ template <typename T, class TimestepFunct, class Dataset>
 void computeMinTimestepImpl(const Task &t, Dataset &d, T &minDt)
 {
     TimestepFunct functTimestep;
-    int numParticles = t.size();
+    size_t numParticles = t.size();
 
     T minDtTmp = INFINITY;
 
@@ -60,7 +60,7 @@ void computeMinTimestepImpl(const Task &t, Dataset &d, T &minDt)
 template <typename T, class Dataset>
 void setMinTimestepImpl(const Task &t, Dataset &d, const T minDt)
 {
-    int numParticles = t.size();
+    size_t numParticles = t.size();
 
     T* dt = d.dt.data();
 
