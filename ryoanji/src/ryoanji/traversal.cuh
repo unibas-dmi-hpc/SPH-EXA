@@ -97,6 +97,23 @@ __device__ void approxAcc(fvec4 acc_i[TravConfig::nwt], const fvec3 pos_i[TravCo
     }
 }
 
+//! @brief compute body-body interactions
+__device__ void directAcc(fvec4 sourceBody, fvec4 acc_i[TravConfig::nwt], const fvec3 pos_i[TravConfig::nwt],
+                          const float EPS2)
+{
+    for (int j = 0; j < GpuConfig::warpSize; j++)
+    {
+        fvec3 pos_j{shflSync(sourceBody[0], j), shflSync(sourceBody[1], j), shflSync(sourceBody[2], j)};
+        float q_j = shflSync(sourceBody[3], j);
+
+        #pragma unroll
+        for (int k = 0; k < TravConfig::nwt; k++)
+        {
+            acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2);
+        }
+    }
+}
+
 /*! @brief traverse one warp with up to 64 target bodies down the tree
  *
  * @param[inout] acc_i         acceleration to add to, two fvec4 per lane
@@ -217,22 +234,13 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
 
             if (numBodiesWarp >= GpuConfig::warpSize) // If warp is full of bodies
             {
-                const fvec4 sourceBody = bodyPos[bodyIdx];         // Load source body coordinates
-                for (int j = 0; j < GpuConfig::warpSize; j++)
-                {
-                    const fvec3 pos_j{shflSync(sourceBody[0], j),  // Get source x-coord from lane j
-                                      shflSync(sourceBody[1], j),  // Get source y-coord from lane j
-                                      shflSync(sourceBody[2], j)}; // Get source z-coord from lane j
-                    const float q_j = shflSync(sourceBody[3], j);  // Get source mass from lane j
-                    #pragma unroll
-                    for (int k = 0; k < TravConfig::nwt; k++)
-                        acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2); // Compute body-body interactions
-                }
-                numBodiesWarp -= GpuConfig::warpSize;                         // Decrement body queue size
-                numBodiesLane -= GpuConfig::warpSize;                         // Decrement lane offset of body index
-                counters.y += GpuConfig::warpSize;                            // Increment P2P counter
+                const fvec4 sourceBody = bodyPos[bodyIdx];  // Load source body coordinates
+                directAcc(sourceBody, acc_i, pos_i, EPS2);
+                numBodiesWarp -= GpuConfig::warpSize;       // Decrement body queue size
+                numBodiesLane -= GpuConfig::warpSize;       // Decrement lane offset of body index
+                counters.y += GpuConfig::warpSize;          // Increment P2P counter
             }
-            else // If warp is not entirely full of bodies
+            else
             {
                 int bodyQueueIdx   = bdyFillLevel + laneIdx; // Body queue index of current lane
                 tempQueue[laneIdx] = bodyQueue;              // Initialize body queue with saved values
@@ -241,25 +249,16 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
                 bdyFillLevel += numBodiesWarp;
                 if (bdyFillLevel >= GpuConfig::warpSize)     // If this causes the body queue to spill
                 {
-                    const fvec4 pos = bodyPos[tempQueue[laneIdx]]; // Load position of source bodies
-                    for (int j = 0; j < GpuConfig::warpSize; j++)
-                    {
-                        const fvec3 pos_j{shflSync(pos[0], j),  // Get source x value from lane j
-                                          shflSync(pos[1], j),  // Get source y value from lane j
-                                          shflSync(pos[2], j)}; // Get source z value from lane j
-                        const float q_j = shflSync(pos[3], j);  // Get source w value from lane j
-                        #pragma unroll
-                        for (int k = 0; k < TravConfig::nwt; k++)
-                            acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2); // Call P2P kernel
-                    }
+                    const fvec4 sourceBody = bodyPos[tempQueue[laneIdx]]; // Load position of source bodies
+                    directAcc(sourceBody, acc_i, pos_i, EPS2);
                     bdyFillLevel -= GpuConfig::warpSize;
                     bodyQueueIdx -= GpuConfig::warpSize;
                     if (bodyQueueIdx >= 0)                  // If body index is valid
                         tempQueue[bodyQueueIdx] = bodyIdx;  // Push bodies into queue
-                    counters.y += GpuConfig::warpSize;   // Increment P2P counter
-                }                                        // End if for body queue spill
-                bodyQueue     = tempQueue[laneIdx];      // Free temp queue for use in approx
-                numBodiesWarp = 0;                       // Reset numBodies of current warp
+                    counters.y += GpuConfig::warpSize;      // Increment P2P counter
+                }                                           // End if for body queue spill
+                bodyQueue     = tempQueue[laneIdx];         // Free temp queue for use in approx
+                numBodiesWarp = 0;                          // Reset numBodies of current warp
             }
         }
 
@@ -269,8 +268,8 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
             oldSources += numSources;      // Update finished source size
             numSources   = newSources;     // Update current source size
             sourceOffset = newSources = 0; // Initialize next source size and offset
-        }                                  // End if for level finalization
-    }                                      // End while for source cells to traverse
+        }
+    }
 
     if (apxFillLevel > 0) // If there are leftover approx cells
     {
@@ -284,18 +283,9 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
     {
         const int bodyIdx = laneIdx < bdyFillLevel ? bodyQueue : -1;
         // Load position of source bodies, with padding for invalid lanes
-        const fvec4 pos   = bodyIdx >= 0 ? bodyPos[bodyIdx] : fvec4{0.0f, 0.0f, 0.0f, 0.0f};
-        for (int j = 0; j < GpuConfig::warpSize; j++)
-        {
-            const fvec3 pos_j{shflSync(pos[0], j),     // Get source x value from lane j
-                              shflSync(pos[1], j),     // Get source y value from lane j
-                              shflSync(pos[2], j)};    // Get source z value from lane j
-            const float q_j = shflSync(pos[3], j);     // Get source w value from lane j
-            #pragma unroll
-            for (int k = 0; k < TravConfig::nwt; k++)                 // Loop over nwt targets
-                acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2); // Call P2P kernel
-        }                                                             // End loop over the warp size
-        counters.y += bdyFillLevel;                                   // Increment P2P counter
+        const fvec4 sourceBody = bodyIdx >= 0 ? bodyPos[bodyIdx] : fvec4{0.0f, 0.0f, 0.0f, 0.0f};
+        directAcc(sourceBody, acc_i, pos_i, EPS2);
+        counters.y += bdyFillLevel; // Increment P2P counter
     }
 
     return counters;
