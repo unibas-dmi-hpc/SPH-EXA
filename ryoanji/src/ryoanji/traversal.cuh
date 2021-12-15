@@ -191,9 +191,8 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
             cellQueue[ringAddr(childIdx + i)] = childBegin + i;             // Queue child cells for next level
         newSources += numChildWarp; //  Increment source cell count for next loop
 
-        // Approx
+        // Multipole approximation
         const bool isApprox = !isClose && isSource;  // Source cell can be used for M2P
-
         int numKeepWarp; // number of valid isApprox flags in the warp
         int laneCompacted = warpCompact(isApprox, apxFillLevel, &numKeepWarp);
         warpExchange(&approxQueue, &sourceQueue, isApprox, laneCompacted, apxFillLevel, tempQueue);
@@ -206,7 +205,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
             counters.x += warpSize;
 
             laneCompacted -= GpuConfig::warpSize;
-            // pull down remaining elements that didn't fit onto the now empty approxQueue
+            // pull down remaining elements that didn't fit into the now empty approxQueue
             warpExchange(&approxQueue, &sourceQueue, isApprox, laneCompacted, 0, tempQueue);
 
             apxFillLevel -= GpuConfig::warpSize;
@@ -220,7 +219,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         int numBodiesLane       = numBodiesScan - numBodies;             // Exclusive scan of numBodies
         int numBodiesWarp       = shflSync(numBodiesScan, GpuConfig::warpSize - 1); // Total numBodies of current warp
         int prevBodyIdx         = 0;
-        while (numBodiesWarp > 0) // While there are bodies to process
+        while (numBodiesWarp > 0) // While there are bodies to process from current source cell set
         {
             tempQueue[laneIdx] = 1; // Default scan input is 1, such that consecutive lanes load consecutive bodies
             if (isDirect && (numBodiesLane < GpuConfig::warpSize))
@@ -232,33 +231,31 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
             // broadcast last processed bodyIdx from the last lane to restart the scan in the next iteration
             prevBodyIdx = shflSync(bodyIdx, GpuConfig::warpSize - 1);
 
-            if (numBodiesWarp >= GpuConfig::warpSize) // If warp is full of bodies
+            if (numBodiesWarp >= GpuConfig::warpSize) // Process bodies from current set of source cells
             {
                 const fvec4 sourceBody = bodyPos[bodyIdx];  // Load source body coordinates
                 directAcc(sourceBody, acc_i, pos_i, EPS2);
-                numBodiesWarp -= GpuConfig::warpSize;       // Decrement body queue size
-                numBodiesLane -= GpuConfig::warpSize;       // Decrement lane offset of body index
+                numBodiesWarp -= GpuConfig::warpSize;
+                numBodiesLane -= GpuConfig::warpSize;
                 counters.y += GpuConfig::warpSize;          // Increment P2P counter
             }
-            else
+            else // Fewer than warpSize bodies remaining from current source cell set
             {
-                int bodyQueueIdx   = bdyFillLevel + laneIdx; // Body queue index of current lane
-                tempQueue[laneIdx] = bodyQueue;              // Initialize body queue with saved values
-                if (bodyQueueIdx < GpuConfig::warpSize)
-                    tempQueue[bodyQueueIdx] = bodyIdx;       // Push bodies into queue
+                // push the remaining bodies onto bodyQueue
+                int topUp = shflUpSync(bodyIdx, bdyFillLevel);
+                bodyQueue = (laneIdx < bdyFillLevel) ? bodyQueue : topUp;
+
                 bdyFillLevel += numBodiesWarp;
-                if (bdyFillLevel >= GpuConfig::warpSize)     // If this causes the body queue to spill
+                if (bdyFillLevel >= GpuConfig::warpSize) // If this causes bodyQueue to spill
                 {
-                    const fvec4 sourceBody = bodyPos[tempQueue[laneIdx]]; // Load position of source bodies
+                    const fvec4 sourceBody = bodyPos[bodyQueue]; // Load source body coordinates
                     directAcc(sourceBody, acc_i, pos_i, EPS2);
                     bdyFillLevel -= GpuConfig::warpSize;
-                    bodyQueueIdx -= GpuConfig::warpSize;
-                    if (bodyQueueIdx >= 0)                  // If body index is valid
-                        tempQueue[bodyQueueIdx] = bodyIdx;  // Push bodies into queue
-                    counters.y += GpuConfig::warpSize;      // Increment P2P counter
-                }                                           // End if for body queue spill
-                bodyQueue     = tempQueue[laneIdx];         // Free temp queue for use in approx
-                numBodiesWarp = 0;                          // Reset numBodies of current warp
+                    // bodyQueue is now empty; put body indices that spilled into the queue
+                    bodyQueue = shflDownSync(bodyIdx, numBodiesWarp - bdyFillLevel);
+                    counters.y += GpuConfig::warpSize; // Increment P2P counter
+                }
+                numBodiesWarp = 0; // No more bodies to process from current source cells
             }
         }
 
@@ -279,7 +276,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         counters.x += apxFillLevel; // Increment M2P counter
     }
 
-    if (bdyFillLevel > 0) // If there are leftover direct cells
+    if (bdyFillLevel > 0) // If there are leftover direct bodies
     {
         const int bodyIdx = laneIdx < bdyFillLevel ? bodyQueue : -1;
         // Load position of source bodies, with padding for invalid lanes

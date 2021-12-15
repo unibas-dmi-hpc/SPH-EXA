@@ -115,6 +115,17 @@ __device__ __forceinline__ T shflUpSync(T value, int distance)
 }
 
 //! @brief Compatibility wrapper for AMD.
+template<class T>
+__device__ __forceinline__ T shflDownSync(T value, int distance)
+{
+#if defined(__CUDACC__) && !defined(__HIPCC__)
+    return __shfl_down_sync(0xFFFFFFFF, value, distance);
+#else
+    return __shfl_down(value, distance);
+#endif
+}
+
+//! @brief Compatibility wrapper for AMD.
 __device__ __forceinline__ GpuConfig::ThreadMask ballotSync(bool flag)
 {
 #if defined(__CUDACC__) && !defined(__HIPCC__)
