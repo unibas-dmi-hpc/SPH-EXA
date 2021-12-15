@@ -101,17 +101,11 @@ auto globalMax(Iterator start, Iterator end)
  * For each periodic dimension, limits are fixed and will not be modified.
  * For non-periodic dimensions, limits are determined by global min/max.
  */
-template<class Iterator>
-auto makeGlobalBox(Iterator xB,
-                   Iterator xE,
-                   Iterator yB,
-                   Iterator zB,
-                   const Box<std::decay_t<decltype(*xB)>>& previousBox =
-                       Box<std::decay_t<decltype(*xB)>>{0,1})
+template<class Iterator, class T = std::decay_t<decltype(*std::declval<Iterator>)>>
+auto makeGlobalBox(Iterator xB, Iterator xE, Iterator yB, Iterator zB, const Box<T>& previousBox = Box<T>(0, 1))
 {
-    using T = std::decay_t<decltype(*xB)>;
-
     std::size_t nElements = xE - xB;
+
     T newXmin = (previousBox.pbcX()) ? previousBox.xmin() : globalMin(xB, xB + nElements);
     T newYmin = (previousBox.pbcY()) ? previousBox.ymin() : globalMin(yB, yB + nElements);
     T newZmin = (previousBox.pbcZ()) ? previousBox.zmin() : globalMin(zB, zB + nElements);

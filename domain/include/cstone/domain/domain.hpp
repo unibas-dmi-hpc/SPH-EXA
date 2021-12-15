@@ -315,7 +315,7 @@ private:
     static void checkSizesEqual(std::size_t value, Arrays&... arrays)
     {
         std::array<std::size_t, sizeof...(Arrays)> sizes{arrays.size()...};
-        bool allEqual = std::count(begin(sizes), end(sizes), value) == sizes.size();
+        bool allEqual = size_t(std::count(begin(sizes), end(sizes), value)) == sizes.size();
         if (!allEqual)
         {
             throw std::runtime_error("Domain sync: input array sizes are inconsistent\n");

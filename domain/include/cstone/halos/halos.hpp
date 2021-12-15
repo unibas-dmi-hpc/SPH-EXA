@@ -141,7 +141,7 @@ private:
     static bool sizesAllEqualTo(std::size_t value, Arrays&... arrays)
     {
         std::array<std::size_t, sizeof...(Arrays)> sizes{arrays.size()...};
-        return std::count(begin(sizes), end(sizes), value) == sizes.size();
+        return size_t(std::count(begin(sizes), end(sizes), value)) == sizes.size();
     }
 
     //! @brief check that only owned particles in [particleStart_:particleEnd_] are sent out as halos

@@ -279,7 +279,7 @@ void particleProperty(int rank, int numRanks)
     }
 
     EXPECT_EQ(mass.size(), refMass.size());
-    for (int i = domain.startIndex(); i < domain.endIndex(); ++i)
+    for (LocalParticleIndex i = domain.startIndex(); i < domain.endIndex(); ++i)
     {
         // we can only compare the assigned range from startIndex() to endIndex(),
         // the other elements are undefined
