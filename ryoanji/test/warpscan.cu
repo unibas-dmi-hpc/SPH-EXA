@@ -153,3 +153,26 @@ TEST(WarpScan, inclusiveSegInt)
         EXPECT_EQ(h_values[i], reference[i]);
     }
 }
+
+__global__ void streamCompactTest(int* result)
+{
+    __shared__ int exchange[GpuConfig::warpSize];
+
+    int val     = threadIdx.x;
+    bool keep   = threadIdx.x % 2 == 0;
+    int numKeep = streamCompact(&val, keep, exchange);
+
+    result[threadIdx.x] = val;
+}
+
+TEST(WarpScan, streamCompact)
+{
+    thrust::device_vector<int> d_values(GpuConfig::warpSize);
+    streamCompactTest<<<1, GpuConfig::warpSize>>>(rawPtr(d_values.data()));
+    thrust::host_vector<int> h_values = d_values;
+
+    for (int i = 0; i < GpuConfig::warpSize/2; ++i)
+    {
+        EXPECT_EQ(h_values[i], 2*i);
+    }
+}

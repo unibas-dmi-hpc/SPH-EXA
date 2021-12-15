@@ -270,55 +270,39 @@ __device__ __forceinline__ int inclusiveSegscanInt(const int packedValue, const 
     return scannedValue + (carryValue & addCarry);
 }
 
-/*! @brief warp stream compaction, warp-vote part
+/*! @brief warp-level stream compaction
  *
- * @param[in]  flag            compaction flag, keep laneVal yes/no
- * @param[in]  fillLevel       current fill level of @p queue
- * @param[out] numElementsKeep output for number of valid flags in the warp
- * @return                     the new queue storage position for laneVal, can exceed warp size
- *                             due to non-zero fillLevel prior to call
+ * @tparam       T            an elementary type
+ * @param[inout] value        input value per lane
+ * @param[in]    keep         keep value of current lane yes/no
+ * @param[-]     sm_exchange  temporary work space, uninitialized
+ * @return                    number of keep flags with a value of true within the warp
  *
- * Note: incrementing fillLevel by numElementsKeep has to happen after calling warpExchange
- * to allow warp exchange for multiple queues.
- */
-__device__ __forceinline__ int warpCompact(bool flag, const int fillLevel, int* numElementsKeep)
-{
-    using SignedMask = std::make_signed_t<GpuConfig::ThreadMask>;
-
-    GpuConfig::ThreadMask keepBallot = ballotSync(flag);
-    int laneCompacted   = fillLevel + popCount(SignedMask(keepBallot & lanemask_lt())); // exclusive scan of keepBallot
-    *numElementsKeep    = popCount(SignedMask(keepBallot));
-
-    return laneCompacted;
-}
-
-/*! @brief warp stream compaction
- *
- * @tparam       T             a builtin type like int or float
- * @param[inout] queue         the warp queue, distinct T element for each lane
- * @param[in]    laneVal       input value per lane
- * @param[in]    flag          compaction flag, keep laneVal yes/no
- * @param[in]    laneCompacted new lane position for @p laneVal if @p flag is true
- * @param[in]    fillLevel     current fill level of @p queue, lanes below already have valid elements in @p queue
- * @param[-]     sm_exchange   shared memory buffer for intra warp-exchange, length=WarpSize, uninitialized
- *
- * This moves laneVal elements inside the warp into queue via the shared sm_exchange buffer
+ * Discards values of lanes for which keep=false and move the valid values to the first numKeep lanes.
+ * Example:
+ *  lane   0  1  2  3  4  5  6  7
+ *  value  0 10 20 30 40 50 60 70
+ *  keep   1  0  1  0  1  0  1  0
+ *  -----------------------------
+ *  return:
+ *  value  0 20 40 60  0  0  0  0
  */
 template<class T>
-__device__ __forceinline__ void warpExchange(T* queue, const T* laneVal, bool flag, int laneCompacted,
-                                             const int fillLevel, volatile T* sm_exchange)
+__device__ __forceinline__ int streamCompact(T* value, bool keep, volatile T* sm_exchange)
 {
+    using SignedMask = std::make_signed_t<GpuConfig::ThreadMask>;
+    GpuConfig::ThreadMask keepBallot = ballotSync(keep);
+    // exclusive scan of keepBallot
+    int laneCompacted = popCount(SignedMask(keepBallot & lanemask_lt()));
+
+    if (keep) { sm_exchange[laneCompacted] = *value; }
+    syncWarp();
+
     int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
+    *value = sm_exchange[laneIdx];
 
-    // if laneVal is valid and queue has space
-    if (flag && laneCompacted >= 0 && laneCompacted < GpuConfig::warpSize) { sm_exchange[laneCompacted] = *laneVal; }
-    syncWarp();
-
-    // pull newly compacted elements into the queue
-    // note sm_exchange is uninitialized, therefore we cannot pull down lanes that we did not set above
-    // i.e. below the current fill level
-    if (laneIdx >= fillLevel) { *queue = sm_exchange[laneIdx]; }
-    syncWarp();
+    int numKeep = popCount(SignedMask(keepBallot));
+    return numKeep;
 }
 
 } // namespace ryoanji

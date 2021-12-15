@@ -116,10 +116,8 @@ __device__ void directAcc(fvec4 sourceBody, fvec4 acc_i[TravConfig::nwt], const 
 
 /*! @brief traverse one warp with up to 64 target bodies down the tree
  *
- * @param[inout] acc_i         acceleration to add to, two fvec4 per lane
- * @param[-]     M4            shared mem for 1 multipole in fvec4 format, uninitialized
- * @param[-]     M             shared mem for 1 multipole in float format, uninitialized
- * @param[in]    pos_i         target positions, 2 per lane
+ * @param[inout] acc_i         acceleration to add to, TravConfig::nwt fvec4 per lane
+ * @param[in]    pos_i         target positions, TravConfig::nwt per lane
  * @param[in]    targetCenter  geometrical target center
  * @param[in]    targetSize    geometrical target bounding box size
  * @param[in]    bodyPos       source bodies as referenced by tree cells
@@ -168,9 +166,9 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
 
     while (numSources > 0) // While there are source cells to traverse
     {
-        const int sourceIdx   = sourceOffset + laneIdx;                      // Source cell index of current lane
-        const int sourceQueue = cellQueue[ringAddr(oldSources + sourceIdx)]; // Global source cell index in queue
-        const fvec4 MAC       = sourceCenter[sourceQueue];                   // load source cell center + MAC
+        const int sourceIdx = sourceOffset + laneIdx;                      // Source cell index of current lane
+        int sourceQueue     = cellQueue[ringAddr(oldSources + sourceIdx)]; // Global source cell index in queue
+        const fvec4 MAC     = sourceCenter[sourceQueue];                   // load source cell center + MAC
         const fvec3 curSrcCenter{MAC[0], MAC[1], MAC[2]};                    // Current source cell center
         const CellData sourceData = sourceCells[sourceQueue];                // load source cell data
         const bool isNode         = sourceData.isNode();                     // Is non-leaf cell
@@ -194,23 +192,21 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         newSources += numChildWarp; //  Increment source cell count for next loop
 
         // Multipole approximation
-        const bool isApprox = !isClose && isSource;  // Source cell can be used for M2P
-        int numKeepWarp; // number of valid isApprox flags in the warp
-        int laneCompacted = warpCompact(isApprox, apxFillLevel, &numKeepWarp);
-        warpExchange(&approxQueue, &sourceQueue, isApprox, laneCompacted, apxFillLevel, tempQueue);
+        const bool isApprox = !isClose && isSource; // Source cell can be used for M2P
+        int numKeepWarp     = streamCompact(&sourceQueue, isApprox, tempQueue);
+        // push valid approx source cell indices into approxQueue
+        const int apxTopUp = shflUpSync(sourceQueue, apxFillLevel);
+        approxQueue        = (laneIdx < apxFillLevel) ? approxQueue : apxTopUp;
         apxFillLevel += numKeepWarp;
 
         if (apxFillLevel >= GpuConfig::warpSize) // If queue is larger than warp size,
         {
             // Call M2P kernel
             approxAcc(acc_i, pos_i, approxQueue, sourceCenter, Multipoles, EPS2, tempQueue);
-            m2pCounter += warpSize;
-
-            laneCompacted -= GpuConfig::warpSize;
-            // pull down remaining elements that didn't fit into the now empty approxQueue
-            warpExchange(&approxQueue, &sourceQueue, isApprox, laneCompacted, 0, tempQueue);
-
             apxFillLevel -= GpuConfig::warpSize;
+            // pull down remaining source cell indices into now empty approxQueue
+            approxQueue = shflDownSync(sourceQueue, numKeepWarp - apxFillLevel);
+            m2pCounter += warpSize;
         }
 
         // Direct
