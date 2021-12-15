@@ -143,7 +143,9 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
 
-    uint2 counters = {0, 0};
+    unsigned p2pCounter = 0;
+    unsigned m2pCounter = 0;
+
     int approxQueue; // warp queue for multipole approximation cell indices
     int bodyQueue;   // warp queue for source body indices
 
@@ -202,7 +204,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         {
             // Call M2P kernel
             approxAcc(acc_i, pos_i, approxQueue, sourceCenter, Multipoles, EPS2, tempQueue);
-            counters.x += warpSize;
+            m2pCounter += warpSize;
 
             laneCompacted -= GpuConfig::warpSize;
             // pull down remaining elements that didn't fit into the now empty approxQueue
@@ -237,7 +239,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
                 directAcc(sourceBody, acc_i, pos_i, EPS2);
                 numBodiesWarp -= GpuConfig::warpSize;
                 numBodiesLane -= GpuConfig::warpSize;
-                counters.y += GpuConfig::warpSize;          // Increment P2P counter
+                p2pCounter += GpuConfig::warpSize;
             }
             else // Fewer than warpSize bodies remaining from current source cell set
             {
@@ -253,7 +255,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
                     bdyFillLevel -= GpuConfig::warpSize;
                     // bodyQueue is now empty; put body indices that spilled into the queue
                     bodyQueue = shflDownSync(bodyIdx, numBodiesWarp - bdyFillLevel);
-                    counters.y += GpuConfig::warpSize; // Increment P2P counter
+                    p2pCounter += GpuConfig::warpSize;
                 }
                 numBodiesWarp = 0; // No more bodies to process from current source cells
             }
@@ -273,7 +275,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         // Call M2P kernel
         approxAcc(acc_i, pos_i, laneIdx < apxFillLevel ? approxQueue : -1, sourceCenter, Multipoles, EPS2, tempQueue);
 
-        counters.x += apxFillLevel; // Increment M2P counter
+        m2pCounter += apxFillLevel;
     }
 
     if (bdyFillLevel > 0) // If there are leftover direct bodies
@@ -282,10 +284,10 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
         // Load position of source bodies, with padding for invalid lanes
         const fvec4 sourceBody = bodyIdx >= 0 ? bodyPos[bodyIdx] : fvec4{0.0f, 0.0f, 0.0f, 0.0f};
         directAcc(sourceBody, acc_i, pos_i, EPS2);
-        counters.y += bdyFillLevel; // Increment P2P counter
+        p2pCounter += bdyFillLevel;
     }
 
-    return counters;
+    return {m2pCounter, p2pCounter};
 }
 
 __device__ uint64_t sumP2PGlob     = 0;
