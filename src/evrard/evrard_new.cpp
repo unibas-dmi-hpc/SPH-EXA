@@ -67,7 +67,7 @@ int main(int argc, char** argv)
     const IFileWriter<Dataset>& fileWriter = EvrardCollapseMPIFileWriter<Dataset>();
 
     auto d = checkpointInput.empty() ? fileReader.readParticleDataFromBinFile(inputFilePath, nParticles)
-                                 : fileReader.readParticleDataFromCheckpointBinFile(checkpointInput);
+                                     : fileReader.readParticleDataFromCheckpointBinFile(checkpointInput);
 
     std::cout << d.x[0] << " " << d.y[0] << " " << d.z[0] << std::endl;
     std::cout << d.x[1] << " " << d.y[1] << " " << d.z[1] << std::endl;
@@ -231,13 +231,20 @@ void printHelp(char* name, int rank)
         printf("\nUsage:\n\n");
         printf("%s [OPTIONS]\n", name);
         printf("\nWhere possible options are:\n");
-        printf("\t-n NUM \t\t\t NUM^3 Number of particles\n");
-        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps)\n");
-        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps)\n\n");
 
-        printf("\t--quiet \t\t Don't print anything to stdout\n\n");
+        printf("\t-n NUM \t\t\t NUM^3 Number of particles [65536]\n");
+        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [10]\n");
+        printf("\t-w NUM \t\t\t Dump Frequency data every NUM iterations (time-steps) [-1]\n\n");
+        printf("\t-c NUM \t\t\t Check point Frequency [-1]\n");
 
-        printf("\t--outDir PATH \t\t Path to directory where output will be saved.\
+        printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
+
+        printf("\t--cinput \t\tRead ParticleData from CheckpointBinFile [false]\n\n");
+
+        printf("\t--input PATH \t\t Path to directory where input BinFile is storaged [bigfiles/Test3DEvrardRel.bin].\
+                    \n\t\t\t\t Example: --input ../../../bigfiles/Test3DEvrardRel.bin\n");
+
+        printf("\t--outDir PATH \t\t Path to directory where output will be saved [./].\
                     \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
                     \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n");
     }

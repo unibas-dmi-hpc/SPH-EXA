@@ -75,16 +75,13 @@ int main(int argc, char** argv)
     size_t bucketSize = std::max(bucketSizeFocus, (cubeSide * cubeSide * cubeSide) / (100 * d.nrank));
 
     Box<Real> box(0, 1);
-    {
-        box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
+    box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
 
-        Real dx = 0.5 / cubeSide;
-
-        // enable PBC and enlarge bounds
-        box = Box<Real>(box.xmin() - dx, box.xmax() + dx,
-                        box.ymin() - dx, box.ymax() + dx,
-                        box.zmin() - dx, box.zmax() + dx, true, true, true);
-    }
+	// enable PBC and enlarge bounds
+    Real dx = 0.5 / cubeSide;
+    box = Box<Real>(box.xmin() - dx, box.xmax() + dx,
+                    box.ymin() - dx, box.ymax() + dx,
+                    box.zmin() - dx, box.zmax() + dx, true, true, true);
 
     float theta = 1.0;
 
@@ -220,13 +217,14 @@ void printHelp(char* name, int rank)
         printf("\nUsage:\n\n");
         printf("%s [OPTIONS]\n", name);
         printf("\nWhere possible options are:\n");
-        printf("\t-n NUM \t\t\t NUM^3 Number of particles\n");
-        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps)\n");
-        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps)\n\n");
 
-        printf("\t--quiet \t\t Don't print anything to stdout\n\n");
+        printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
+        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [10]\n");
+        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
 
-        printf("\t--outDir PATH \t\t Path to directory where output will be saved.\
+        printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
+
+        printf("\t--outDir PATH \t\t Path to directory where output will be saved [./].\
                     \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
                     \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n");
     }
