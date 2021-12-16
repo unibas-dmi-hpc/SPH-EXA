@@ -236,13 +236,13 @@ void printHelp(char* name, int rank)
         printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [10]\n\n");
 
         printf("\t-w NUM \t\t\t Dump Frequency data every NUM iterations (time-steps) [-1]\n");
-        printf("\t-c NUM \t\t\t Check point Frequency [-1]\n\n");
+        printf("\t-c NUM \t\t\t Create checkpoint every NUM iterations (time-steps) [-1]\n\n");
 
         printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
 
-        printf("\t--cinput \t\t Read ParticleData from CheckpointBinFile [false]\n\n");
+        printf("\t--cinput \t\t Read ParticleData from CheckpointBinFile input [false]\n\n");
 
-        printf("\t--input  PATH \t\t Path to directory where input BinFile is storaged [bigfiles/Test3DEvrardRel.bin].\
+        printf("\t--input  PATH \t\t Path to input file [bigfiles/Test3DEvrardRel.bin].\
                     \n\t\t\t\t Example: --input ../../../bigfiles/Test3DEvrardRel.bin\n");
 
         printf("\t--outDir PATH \t\t Path to directory where output will be saved [./].\
