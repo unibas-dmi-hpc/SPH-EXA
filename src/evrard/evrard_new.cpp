@@ -53,7 +53,7 @@ int main(int argc, char** argv)
     const int checkpointFrequency = parser.getInt("-c", -1);
     const bool quiet = parser.exists("--quiet");
     const std::string checkpointInput = parser.getString("--cinput");
-    const std::string inputFilePath = parser.getString("--input", "bigfiles/Test3DEvrardRel.bin");
+    const std::string inputFilePath = parser.getString("--input", "../../../src/evrard/bigfiles/Test3DEvrardRel.bin");
     const std::string outDirectory = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
@@ -242,8 +242,7 @@ void printHelp(char* name, int rank)
 
         printf("\t--cinput \t\t Read ParticleData from CheckpointBinFile input [false]\n\n");
 
-        printf("\t--input  PATH \t\t Path to input file [bigfiles/Test3DEvrardRel.bin].\
-                    \n\t\t\t\t Example: --input ../../../bigfiles/Test3DEvrardRel.bin\n");
+        printf("\t--input  PATH \t\t Path to input file [../../../src/evrard/bigfiles/Test3DEvrardRel.bin]\n");
 
         printf("\t--outDir PATH \t\t Path to directory where output will be saved [./].\
                     \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
