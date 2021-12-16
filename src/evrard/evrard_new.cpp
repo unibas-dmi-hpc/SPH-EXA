@@ -16,8 +16,9 @@
 
 #include "sph/findNeighborsSfc.hpp"
 
-using namespace sphexa;
 using namespace cstone;
+using namespace sphexa;
+using namespace sphexa::sph;
 
 #ifdef SPH_EXA_USE_CATALYST2
 #include "CatalystAdaptor.h"
@@ -46,8 +47,8 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t maxStep = parser.getInt("-s", 10);
     const size_t nParticles = parser.getInt("-n", 65536);
+    const size_t maxStep = parser.getInt("-s", 10);
     const int writeFrequency = parser.getInt("-w", -1);
     const int checkpointFrequency = parser.getInt("-c", -1);
     const bool quiet = parser.exists("--quiet");
@@ -83,14 +84,14 @@ int main(int argc, char** argv)
     size_t bucketSize = std::max(bucketSizeFocus, nParticles / (100 * d.nrank));
 
     // no PBC, global box will be recomputed every step
-    cstone::Box<Real> box(0, 1, false);
+    Box<Real> box(0, 1, false);
 
     float theta = 0.5;
 
 #ifdef USE_CUDA
-    cstone::Domain<KeyType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    Domain<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #else
-    cstone::Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
@@ -127,35 +128,35 @@ int main(int argc, char** argv)
 
         taskList.update(domain.startIndex(), domain.endIndex());
         timer.step("updateTasks");
-        sph::findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, domain.box());
+        findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, domain.box());
         timer.step("FindNeighbors");
-        sph::computeDensity<Real>(taskList.tasks, d, domain.box());
+        computeDensity<Real>(taskList.tasks, d, domain.box());
         timer.step("Density");
-        sph::computeEquationOfStateEvrard<Real>(taskList.tasks, d);
+        computeEquationOfStateEvrard<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
-        sph::computeIAD<Real>(taskList.tasks, d, domain.box());
+        computeIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("IAD");
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33);
         timer.step("mpi::synchronizeHalos");
-        sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d, domain.box());
+        computeMomentumAndEnergyIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("MomentumEnergyIAD");
         d.egrav = domain.addGravityAcceleration(d.x, d.y, d.z, d.h, d.m, d.g, d.grad_P_x, d.grad_P_y, d.grad_P_z);
         // temporary sign fix, see note in ParticlesData
         d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
         timer.step("Gravity");
-        sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
+        computeTimestep<Real, TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
         timer.step("Timestep"); // AllReduce(min:dt)
-        sph::computePositions<Real, sph::computeAcceleration<Real, Dataset>>(taskList.tasks, d, domain.box());
+        computePositions<Real, computeAcceleration<Real, Dataset>>(taskList.tasks, d, domain.box());
         timer.step("UpdateQuantities");
-        sph::computeTotalEnergy<Real>(taskList.tasks, d);
+        computeTotalEnergy<Real>(taskList.tasks, d);
         d.etot += d.egrav;
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
-        sph::updateSmoothingLength<Real>(taskList.tasks, d);
+        updateSmoothingLength<Real>(taskList.tasks, d);
         timer.step("UpdateSmoothingLength");
 
-        size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
+        size_t totalNeighbors = neighborsSum(taskList.tasks);
 
         if (d.rank == 0)
         {
