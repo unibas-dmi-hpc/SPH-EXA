@@ -59,12 +59,12 @@ else ifeq ($(TESTCASE),evrard)
 	TESTCODE = src/evrard/evrard_new.cpp
 endif
 
-#omp: 
+#omp: $(HPP)
 #	@mkdir -p $(BINDIR)
 #	$(info Linking the executable:)
 #	$(CXX) $(CXXFLAGS) $(INC) $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 
-mpi+omp: 
+mpi+omp: $(HPP)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
@@ -76,17 +76,17 @@ mpi+omp:
 #	$(CXX) $(CXXFLAGS) -o $(BINDIR)/$@.app cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudart -lcudadevrt
 ##	$(CXX) -o $(BINDIR)/$@.app $+ -L$(CUDA_PATH)/lib64 -lcudart -fopenmp
 
-#omp+target: 
+#omp+target: $(HPP)
 #	@mkdir -p $(BINDIR)
 #	$(info Linking the executable:)
 #	$(CXX) $(CXXFLAGS) $(INC) -DUSE_OMP_TARGET $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 
-mpi+omp+target: 
+mpi+omp+target: $(HPP)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 
-mpi+omp+acc: 
+mpi+omp+acc: $(HPP)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(TESTCASE_FLAGS) -DUSE_ACC $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
