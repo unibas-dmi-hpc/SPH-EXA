@@ -33,25 +33,26 @@ endif()
 
 # {{{ HIP
 if(NOT DEFINED HIP_PATH)
-    if(DEFINED ENV{HIP_PATH})
-        set(HIP_PATH $ENV{HIP_PATH} CACHE PATH "Path to which HIP has been installed")
-    else()
+    if(NOT DEFINED ENV{HIP_PATH})
         set(HIP_PATH "/opt/rocm/hip" CACHE PATH "Path to which HIP has been installed")
+    else()
+        set(HIP_PATH $ENV{HIP_PATH} CACHE PATH "Path to which HIP has been installed")
     endif()
 endif()
 set(CMAKE_MODULE_PATH "${HIP_PATH}/cmake" ${CMAKE_MODULE_PATH})
-find_package(HIP)
+# set(HIP_CLANG_NUM_PARALLEL_JOBS 2)
+find_package(HIP QUIET)
 if(HIP_FOUND)
     message(STATUS "Found HIP: " ${HIP_VERSION})
     check_language(HIP)
+    # find_package(HIP)
     if(CMAKE_HIP_COMPILER)
         enable_language(HIP)
         set(CMAKE_HIP_FLAGS "-fPIC -fgpu-rdc -w")
     endif()
-else()
-    message(FATAL_ERROR "Could not find HIP. Ensure that HIP is either \
-installed in /opt/rocm/hip or the variable HIP_PATH is set to point to the \
-right location.")
+# else()
+#     message(FATAL_ERROR "Could not find HIP. Ensure that HIP is either installed in /opt/rocm/hip or the variable HIP_P
+# ATH is set to point to the right location.")
 endif()
 # }}}
 

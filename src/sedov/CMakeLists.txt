@@ -5,7 +5,6 @@ target_include_directories(sedov PRIVATE ${MPI_CXX_INCLUDE_PATH})
 target_link_libraries(sedov PRIVATE ${MPI_CXX_LIBRARIES})
 target_link_libraries(sedov PRIVATE OpenMP::OpenMP_CXX)
 install(TARGETS sedov RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-
 # {{{ i/o
 if (SPH_EXA_WITH_H5PART)
     target_compile_definitions(sedov PUBLIC SPH_EXA_HAVE_H5PART)
@@ -40,9 +39,8 @@ if(CMAKE_CUDA_COMPILER)
     target_link_libraries(sedov-cuda PRIVATE OpenMP::OpenMP_CXX)
     target_link_libraries(sedov-cuda PRIVATE CUDA::cudart)
     install(TARGETS sedov-cuda RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-endif()
 
-if(CMAKE_HIP_COMPILER)
+elseif(CMAKE_HIP_COMPILER)
     set_source_files_properties(sedov.cpp PROPERTIES LANGUAGE HIP)
     add_executable(sedov-hip $<TARGET_OBJECTS:gather_obj> $<TARGET_OBJECTS:cuda_find_neighbors_obj> $<TARGET_OBJECTS:cuda_sph> sedov.cpp)
     set_property(TARGET sedov-hip PROPERTY HIP_ARCHITECTURES gfx908)
