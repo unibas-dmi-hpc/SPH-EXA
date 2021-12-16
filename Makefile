@@ -20,10 +20,11 @@ DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
 # cuda architecture targets
 SMS ?= 35 60 70 75
 $(foreach sm,$(SMS),$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
+GENCODE_FLAGS += -Wno-deprecated-gpu-targets
 
 INC += -Isrc -Iinclude -Idomain/include -I$(CUDA_PATH)/include -I$(PGI_PATH)/include
 CXXFLAGS += $(RELEASE)
-NVCCFLAGS := -std=c++17 -O3 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS) -Wno-deprecated-gpu-targets
+NVCCFLAGS := -std=c++17 -O3 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS)
 NVCCLDFLAGS := $(GENCODE_FLAGS) -rdc=true
 
 CXXFLAGS += -O3 -Wall -Wextra -Wno-unknown-pragmas
