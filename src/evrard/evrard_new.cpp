@@ -210,7 +210,7 @@ int main(int argc, char** argv)
 #endif
     }
 
-    totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Sedov");
+    totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Evrard");
 
     constantsFile.close();
 
