@@ -232,7 +232,7 @@ void printHelp(char* name, int rank)
         printf("%s [OPTIONS]\n", name);
         printf("\nWhere possible options are:\n");
 
-        printf("\t-n NUM \t\t\t NUM^3 Number of particles [65536]\n");
+        printf("\t-n NUM \t\t\t NUM Number of particles [65536]\n");
         printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [10]\n");
         printf("\t-w NUM \t\t\t Dump Frequency data every NUM iterations (time-steps) [-1]\n\n");
         printf("\t-c NUM \t\t\t Check point Frequency [-1]\n");
