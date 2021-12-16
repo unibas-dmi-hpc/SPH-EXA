@@ -23,6 +23,10 @@ using namespace cstone;
 #include "CatalystAdaptor.h"
 #endif
 
+#ifdef SPH_EXA_USE_ASCENT
+#include "AscentAdaptor.h"
+#endif
+
 void printHelp(char* binName, int rank);
 
 int main(int argc, char** argv)
@@ -77,12 +81,14 @@ int main(int argc, char** argv)
     size_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
     size_t bucketSize = std::max(bucketSizeFocus, nParticles / (100 * d.nrank));
+
     // no PBC, global box will be recomputed every step
     cstone::Box<Real> box(0, 1, false);
+
     float theta = 0.5;
 
 #ifdef USE_CUDA
-    cstone::Domain<CodeType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    cstone::Domain<KeyType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #else
     cstone::Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #endif
@@ -99,6 +105,10 @@ int main(int argc, char** argv)
     const size_t ng0 = 100;
     TaskList taskList = TaskList(0, domain.nParticles(), nTasks, ngmax, ng0);
 
+#ifdef SPH_EXA_USE_ASCENT
+    AscentAdaptor::Initialize(d, domain.startIndex());
+    std::cout << "AscentInitialize\n";
+#endif
     if (d.rank == 0) std::cout << "Starting main loop." << std::endl;
 
     totalTimer.start();
@@ -194,15 +204,22 @@ int main(int argc, char** argv)
 #ifdef SPH_EXA_USE_CATALYST2
         CatalystAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
 #endif
+#ifdef SPH_EXA_USE_ASCENT
+	if((d.iteration % 5) == 0)
+          AscentAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
+#endif
     }
 
     totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Sedov");
 
     constantsFile.close();
-#ifdef SPH_EXA_USE_CATALYST2
-    CatalystAdaptor::Finalize();
-#endif
 
+#ifdef SPH_EXA_USE_CATALYST2
+  CatalystAdaptor::Finalize();
+#endif
+#ifdef SPH_EXA_USE_ASCENT
+  AscentAdaptor::Finalize();
+#endif
     return exitSuccess();
 }
 
