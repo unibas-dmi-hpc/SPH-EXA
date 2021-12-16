@@ -50,20 +50,24 @@ ifeq ($(ENV),clang)
 endif
 
 TESTCASE ?= sedov
+#TESTCASE ?= evard
 
-ifeq ($(TESTCASE),evrard)
+ifeq ($(TESTCASE),sedov)
+	TESTCODE = src/sedov/sedov.cpp
+else ifeq ($(TESTCASE),evrard)
 	TESTCASE_FLAGS = -DGRAVITY
+	TESTCODE = src/evard/evard_new.cpp
 endif
 
 #omp: $(HPP)
 #	@mkdir -p $(BINDIR)
 #	$(info Linking the executable:)
-#	$(CXX) $(CXXFLAGS) $(INC) $(TESTCASE_FLAGS) src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
+#	$(CXX) $(CXXFLAGS) $(INC) $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 
 mpi+omp: $(HPP)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(TESTCASE_FLAGS) src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 
 #omp+cuda: $(BUILDDIR)/cuda_no_mpi.o $(CUDA_OBJS)
 #	@mkdir -p $(BINDIR)
@@ -75,17 +79,17 @@ mpi+omp: $(HPP)
 #omp+target: $(HPP)
 #	@mkdir -p $(BINDIR)
 #	$(info Linking the executable:)
-#	$(CXX) $(CXXFLAGS) $(INC) -DUSE_OMP_TARGET $(TESTCASE_FLAGS) src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
+#	$(CXX) $(CXXFLAGS) $(INC) -DUSE_OMP_TARGET $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 
 mpi+omp+target: $(HPP)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(TESTCASE_FLAGS) src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 
 mpi+omp+acc: $(HPP)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(TESTCASE_FLAGS) -DUSE_ACC src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(TESTCASE_FLAGS) -DUSE_ACC $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 
 mpi+omp+cuda: $(BUILDDIR)/cuda_mpi.o $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)
@@ -96,11 +100,11 @@ mpi+omp+cuda: $(BUILDDIR)/cuda_mpi.o $(CUDA_OBJS)
 #all: omp mpi+omp omp+cuda mpi+omp+cuda omp+target mpi+omp+target mpi+omp+acc
 all: mpi+omp mpi+omp+cuda mpi+omp+target mpi+omp+acc
 
-$(BUILDDIR)/cuda_mpi.o: src/$(TESTCASE)/$(TESTCASE).cpp
+$(BUILDDIR)/cuda_mpi.o: $(TESTCODE)
 	@mkdir -p $(BUILDDIR)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_CUDA $(TESTCASE_FLAGS) -o $@ -c $<
 
-$(BUILDDIR)/cuda_no_mpi.o: src/$(TESTCASE)/$(TESTCASE).cpp
+$(BUILDDIR)/cuda_no_mpi.o: $(TESTCODE)
 	@mkdir -p $(BUILDDIR)
 	$(CXX) $(CXXFLAGS) $(INC) -DUSE_CUDA $(TESTCASE_FLAGS) -o $@ -c $<
 
