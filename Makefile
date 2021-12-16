@@ -1,6 +1,6 @@
 CXX ?= g++ # This is the main compiler
 CC ?= gcc
-MPICXX ?= mpic++
+MPICXX ?= mpic++ -DOMPI_SKIP_MPICXX
 ENV ?= gnu
 NVCC ?= $(CUDA_PATH)/bin/nvcc
 
