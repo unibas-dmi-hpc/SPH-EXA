@@ -216,10 +216,11 @@ void printHelp(char* name, int rank)
     {
         printf("\nUsage:\n\n");
         printf("%s [OPTIONS]\n", name);
-        printf("\nWhere possible options are:\n");
+        printf("\nWhere possible options are:\n\n");
 
         printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
-        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [10]\n");
+        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [10]\n\n");
+
         printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
 
         printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
