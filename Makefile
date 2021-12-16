@@ -49,14 +49,14 @@ ifeq ($(ENV),clang)
 	CXXFLAGS += -march=native -std=c++17 -fopenmp
 endif
 
-TESTCASE ?= sedov
-#TESTCASE ?= evard
+#TESTCASE ?= sedov
+TESTCASE ?= evrard
 
 ifeq ($(TESTCASE),sedov)
 	TESTCODE = src/sedov/sedov.cpp
 else ifeq ($(TESTCASE),evrard)
 	TESTCASE_FLAGS = -DGRAVITY
-	TESTCODE = src/evard/evard_new.cpp
+	TESTCODE = src/evrard/evrard_new.cpp
 endif
 
 #omp: $(HPP)
