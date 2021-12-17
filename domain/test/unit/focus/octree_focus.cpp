@@ -48,9 +48,6 @@ void rebalanceDecision()
     Octree<KeyType> tree;
     tree.update(cstree.data(), cstree.data() + cstree.size());
 
-    // for (int i = 0; i < tree.numTreeNodes(); ++i)
-    //    std::cout << std::dec << i << " " << std::oct << tree.codeStart(i) << std::endl;
-
     unsigned bucketSize = 1;
 
     {
@@ -58,9 +55,9 @@ void rebalanceDecision()
         // fused
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
-        std::vector<char> macs{1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<char>  macs{1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
-        std::vector<int> reference{1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<int>       reference{1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
         std::vector<int> nodeOps(nNodes(cstree));
         bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.numInternalNodes(),
@@ -75,10 +72,10 @@ void rebalanceDecision()
         // MAC wins, nodes stay, but are not split
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 2, 1, 0, 0, 0, 0};
-        std::vector<char> macs{1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
-        //                             ^
-        //                             parent of leaf nodes 14-21
-        std::vector<int> reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+        std::vector<char>  macs{1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        //                            ^
+        //                            parent of leaf nodes 14-21
+        std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
         std::vector<int> nodeOps(nNodes(cstree));
         bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.numInternalNodes(),
@@ -93,10 +90,10 @@ void rebalanceDecision()
         EXPECT_EQ(tree.parent(tree.toInternal(14)), 2);
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 2, 1, 0, 0, 0, 0};
-        std::vector<char> macs{1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
-        //                             ^
-        //                             parent of leaf nodes 14-21
-        std::vector<int> reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<char>  macs{1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        //                            ^
+        //                            parent of leaf nodes 14-21
+        std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
         std::vector<int> nodeOps(nNodes(cstree));
         bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.numInternalNodes(),
@@ -112,16 +109,14 @@ void rebalanceDecision()
 
         Octree<KeyType> tree;
         tree.update(cstree.data(), cstree.data() + cstree.size());
-        // nodes 14-21 should stay based on counts, and should be fused based on MACs. MAC wins, nodes are fused
-        EXPECT_EQ(tree.parent(tree.toInternal(14)), 2);
-        //                               |                    |  |                    |
+        //                               |                     |                       |
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 2, 1, 2, 1, 1, 2, 1, 1};
-        std::vector<char> macs{1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0};
+        std::vector<char>  macs{1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0};
         //                 root ^  ^  ^
-        //   parent of leaves 0-7  |  | parent of leaf nodes 8-15                  | here count says split, mac says
-        //   merge, result: stay
-        std::vector<int> reference{1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1};
+        //   parent of leaves 0-7  |  | parent of leaf nodes 8-15                  ^ here count says split, mac says
+        //                                                                           merge, result: stay
+        std::vector<int>       reference{1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1};
         //                                                             ----------------
         //                   these nodes are kept alive because their siblings (8 and 9) are inside the focus and are
         //                   staying
@@ -133,12 +128,154 @@ void rebalanceDecision()
         EXPECT_EQ(nodeOps, reference);
         EXPECT_FALSE(converged);
     }
+    {
+        std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(6).divide(7).makeTree();
+
+        Octree<KeyType> tree;
+        tree.update(cstree.data(), cstree.data() + cstree.size());
+
+        EXPECT_EQ(tree.parent(tree.toInternal(6)), 1);
+        EXPECT_EQ(tree.parent(tree.toInternal(14)), 2);
+        //                                                                        focus
+        //                               |                |                      |-----------------------
+        //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
+        std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+        std::vector<char>  macs{1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+
+        std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1};
+        // Check that nodes 6-13, directly adjacent to the focus area can be merged
+
+        std::vector<int> nodeOps(nNodes(cstree));
+        bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.numInternalNodes(),
+                                                    tree.numLeafNodes(), tree.leafParents(), leafCounts.data(),
+                                                    macs.data(), 14, 22, bucketSize, nodeOps.data());
+
+        EXPECT_EQ(nodeOps, reference);
+        EXPECT_FALSE(converged);
+    }
 }
 
-TEST(OctreeEssential, rebalanceDecision)
+TEST(FocusedOctree, rebalanceDecision)
 {
     rebalanceDecision<unsigned>();
     rebalanceDecision<uint64_t>();
+}
+
+template<class KeyType>
+void enforceKeys()
+{
+    auto tree = OctreeMaker<KeyType>{}.divide().divide(1).makeTree();
+
+    {
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{pad(KeyType(024), 6)};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+        EXPECT_EQ(status, ResolutionStatus::rebalance);
+        EXPECT_EQ(nodeOps[9], 8);
+    }
+    {
+        std::vector<int> nodeOps{1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
+        std::vector<KeyType> injectKeys{pad(KeyType(014), 6)};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference(nNodes(tree), 1);
+        EXPECT_EQ(status, ResolutionStatus::cancelMerge);
+        EXPECT_EQ(nodeOps, reference);
+    }
+    {
+        std::vector<int> nodeOps{1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
+        std::vector<KeyType> injectKeys{pad(KeyType(01), 3)};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference{1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
+        EXPECT_EQ(status, ResolutionStatus::converged);
+        EXPECT_EQ(nodeOps, reference);
+    }
+    {
+        std::vector<int> nodeOps{1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
+        std::vector<KeyType> injectKeys{pad(KeyType(0101), 9)};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference(nNodes(tree), 1);
+        reference[1] = 8;
+        EXPECT_EQ(status, ResolutionStatus::rebalance);
+        EXPECT_EQ(nodeOps, reference);
+    }
+    {
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{pad(KeyType(014), 6)};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference(nNodes(tree), 1);
+        EXPECT_EQ(status, ResolutionStatus::converged);
+        EXPECT_EQ(nodeOps, reference);
+    }
+    {
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{pad(KeyType(0141), 9)};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference(nNodes(tree), 1);
+        reference[5] = 8;
+        EXPECT_EQ(status, ResolutionStatus::rebalance);
+        EXPECT_EQ(nodeOps, reference);
+    }
+    {
+        // this tests that the splitting of node i does not invalidate the merge of node i+1
+        std::vector<int> nodeOps{1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
+        //                       ^ injection splits the first node
+        std::vector<KeyType> injectKeys{pad(KeyType(01), 6)}; // 010000000000
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference{8, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1};
+        EXPECT_EQ(status, ResolutionStatus::rebalance);
+        EXPECT_EQ(nodeOps, reference);
+    }
+    // two injections affection the same node index
+    {
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{pad(KeyType(0241), 9), pad(KeyType(024), 6)};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        EXPECT_EQ(status, ResolutionStatus::failed);
+        EXPECT_EQ(nodeOps[9], 8);
+    }
+    {
+        tree = makeRootNodeTree<KeyType>();
+        std::vector<int> nodeOps(nNodes(tree), 1);
+        std::vector<KeyType> injectKeys{1};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        EXPECT_EQ(status, ResolutionStatus::failed);
+        EXPECT_EQ(nodeOps[0], 8);
+    }
+    {
+        tree = OctreeMaker<KeyType>{}.divide().divide(0).makeTree();
+        std::vector<int> nodeOps{1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1};
+        std::vector<KeyType> injectKeys{1};
+
+        auto status = enforceKeys<KeyType>(tree, injectKeys, nodeOps);
+
+        std::vector<int> reference(nNodes(tree), 1);
+        reference[0] = 8;
+        EXPECT_EQ(status, ResolutionStatus::failed);
+        EXPECT_EQ(nodeOps, reference);
+    }
+}
+
+TEST(FocusedOctree, enforceKeys)
+{
+    enforceKeys<unsigned>();
+    enforceKeys<uint64_t>();
 }
 
 template<class KeyType>
@@ -241,7 +378,7 @@ void computeEssentialTree()
     }
 }
 
-TEST(OctreeEssential, compute)
+TEST(FocusedOctree, compute)
 {
     computeEssentialTree<unsigned>();
     computeEssentialTree<uint64_t>();

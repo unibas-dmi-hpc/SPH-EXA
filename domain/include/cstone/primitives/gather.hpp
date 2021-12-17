@@ -88,13 +88,12 @@ void sort_by_key(InoutIterator inBegin, InoutIterator inEnd, OutputIterator outB
 }
 
 template<class IndexType, class ValueType>
-void reorder(gsl::span<const IndexType> ordering, const ValueType* source, ValueType* destination,
-             IndexType offset, IndexType numExtract)
+void reorder(gsl::span<const IndexType> ordering, const ValueType* source, ValueType* destination)
 {
     #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < numExtract; ++i)
+    for (size_t i = 0; i < ordering.size(); ++i)
     {
-        destination[i] = source[ordering[i + offset]];
+        destination[i] = source[ordering[i]];
     }
 }
 
@@ -143,9 +142,9 @@ public:
         buffer_.resize(mapSize_);
     }
 
-    void getReorderMap(IndexType* map_first)
+    void getReorderMap(IndexType* map_first, LocalParticleIndex first, LocalParticleIndex last)
     {
-        std::copy(ordering_.data(), ordering_.data() + mapSize_, map_first);
+        std::copy(ordering_.data() + first, ordering_.data() + last, map_first);
     }
 
     /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
@@ -168,7 +167,10 @@ public:
      */
     void setMapFromCodes(CodeType* codes_first, CodeType* codes_last)
     {
-        mapSize_ = std::size_t(codes_last - codes_first);
+        offset_     = 0;
+        mapSize_    = std::size_t(codes_last - codes_first);
+        numExtract_ = mapSize_;
+
         ordering_.resize(mapSize_);
         std::iota(begin(ordering_), end(ordering_), 0);
 
@@ -182,23 +184,38 @@ public:
      * @p values must have at least as many elements as the reorder map provided in the last call
      * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
      */
-    void operator()(const ValueType* source, ValueType* destination, IndexType offset, IndexType numExtract)
+    void operator()(const ValueType* source, ValueType* destination, IndexType offset, IndexType numExtract) const
     {
-        reorder<IndexType>(ordering_, source, buffer_.data(), 0, mapSize_);
+        reorder<IndexType>({ordering_.data() + offset, numExtract}, source, buffer_.data());
 
         #pragma omp parallel for schedule(static)
         for (IndexType i = 0; i < numExtract; ++i)
         {
-            destination[i] = buffer_[i + offset];
+            destination[i] = buffer_[i];
         }
-        //reorderInPlace(ordering_, values);
+    }
+
+    void operator()(const ValueType* source, ValueType* destination) const
+    {
+        this->operator()(source, destination, offset_, numExtract_);
+    }
+
+    void restrictRange(std::size_t offset, std::size_t numExtract)
+    {
+        assert(offset + numExtract <= mapSize_);
+
+        offset_     = offset;
+        numExtract_ = numExtract;
     }
 
 private:
+    std::size_t offset_{0};
+    std::size_t numExtract_{0};
     std::size_t mapSize_{0};
+
     std::vector<IndexType> ordering_;
 
-    std::vector<ValueType> buffer_;
+    mutable std::vector<ValueType> buffer_;
 };
 
 } // namespace cstone

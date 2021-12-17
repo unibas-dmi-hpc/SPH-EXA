@@ -91,8 +91,8 @@ void exchangeAllToAll(int thisRank, int numRanks)
     int numParticlesThisRank = segmentSize * numRanks;
 
     reallocate(std::max(numParticlesThisRank, int(x.size())), x, y);
-    exchangeParticles<T>(sendList, Rank(thisRank), 0, gridSize, x.size(), numParticlesThisRank,
-                         ordering.data(), x.data(), y.data());
+    exchangeParticles(sendList, Rank(thisRank), 0, gridSize, x.size(), numParticlesThisRank,
+                      ordering.data(), x.data(), y.data());
     reallocate(numParticlesThisRank, x, y);
 
     std::vector<T> refX(numParticlesThisRank);
@@ -152,8 +152,8 @@ void exchangeCyclicNeighbors(int thisRank, int numRanks)
     // send last nex to nextRank
     sendList[nextRank].addRange(gridSize - nex, gridSize);
 
-    exchangeParticles<T>(sendList, Rank(thisRank), 0, gridSize, gridSize, gridSize,
-                         ordering.data(), x.data(), y.data());
+    exchangeParticles(sendList, Rank(thisRank), 0, gridSize, gridSize, gridSize,
+                      ordering.data(), x.data(), y.data());
 
     int incomingRank = (thisRank - 1 + numRanks) % numRanks;
     std::vector<T> refX(gridSize, thisRank);

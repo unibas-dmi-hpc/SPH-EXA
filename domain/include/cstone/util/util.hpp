@@ -118,8 +118,23 @@ constexpr HOST_DEVICE_FUN
 StrongType<T, Phantom> operator-(const StrongType<T, Phantom>& lhs, const StrongType<T, Phantom>& rhs)
 {
     return StrongType<T, Phantom>(lhs.value() - rhs.value());
-    }
+}
 
+//! \brief Utility to call function with each element in tuple_
+template<class F, class... Ts>
+void for_each_tuple(F&& func, std::tuple<Ts...>& tuple_)
+{
+    std::apply([f = func](auto&... args) { [[maybe_unused]] auto list = std::initializer_list<int>{(f(args), 0)...}; },
+               tuple_);
+}
+
+//! \brief Utility to call function with each element in tuple_ with const guarantee
+template<class F, class... Ts>
+void for_each_tuple(F&& func, const std::tuple<Ts...>& tuple_)
+{
+    std::apply([f = func](auto&... args) { [[maybe_unused]] auto list = std::initializer_list<int>{(f(args), 0)...}; },
+               tuple_);
+}
 
 //! @brief simple pair that's usable in both CPU and GPU code
 template<class T>

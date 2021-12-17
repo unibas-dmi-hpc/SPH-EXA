@@ -27,6 +27,8 @@
 
 #include "cstone/cuda/annotation.hpp"
 
+#include "cstone/util/array.hpp"
+
 namespace cstone
 {
 
@@ -35,6 +37,11 @@ namespace cstone
 using TreeNodeIndex = int;
 
 using LocalParticleIndex = unsigned;
+
+template<class T>
+using Vec3 = util::array<T, 3>;
+
+using TestType = float;
 
 //! @brief checks whether a binary tree index corresponds to a leaf index
 HOST_DEVICE_FUN
@@ -61,8 +68,8 @@ enum class P2pTags : int
 {
     focusPeerCounts = 1000,
     haloRequestKeys = 2000,
-    haloExchange    = 3000,
-    domainExchange  = 4000
+    domainExchange  = 3000,
+    haloExchange    = 4000
 };
 
 /*! @brief returns the number of nodes in a tree

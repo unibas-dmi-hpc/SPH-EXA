@@ -45,18 +45,20 @@ std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assign
 {
     TreeNodeIndex firstIdx = assignment.firstNodeIdx(myRank);
     TreeNodeIndex lastIdx  = assignment.lastNodeIdx(myRank);
-    float invThetaSq       = 1.0f / (theta * theta);
+    float invTheta         = 1.0f / theta;
 
-    std::vector<IBox> boxes(nNodes(tree));
+    std::vector<Vec3<T>> boxCenter(nNodes(tree));
+    std::vector<Vec3<T>> boxSize(nNodes(tree));
     for (TreeNodeIndex i = 0; i < TreeNodeIndex(nNodes(tree)); ++i)
     {
-        boxes[i] = sfcIBox(sfcKey(tree[i]), sfcKey(tree[i + 1]));
+        IBox ibox = sfcIBox(sfcKey(tree[i]), sfcKey(tree[i + 1]));
+        std::tie(boxCenter[i], boxSize[i]) = centerAndSize<KeyType>(ibox, box);
     }
 
     std::vector<int> peers(assignment.numRanks());
     for (TreeNodeIndex i = firstIdx; i < lastIdx; ++i)
         for (TreeNodeIndex j = 0; j < TreeNodeIndex(nNodes(tree)); ++j)
-            if (!minDistanceMacMutual<KeyType>(boxes[i], boxes[j], box, invThetaSq))
+            if (!minMacMutual(boxCenter[i], boxSize[i], boxCenter[j], boxSize[j], box, invTheta))
             {
                 peers[assignment.findRank(j)] = 1;
             }

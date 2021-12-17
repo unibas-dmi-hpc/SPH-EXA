@@ -86,7 +86,12 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
     auto treeLeaves     = octree.treeLeaves();
     KeyType groupKey    = treeLeaves[groupIdx];
     unsigned groupLevel = treeLevel(treeLeaves[groupIdx + 1] - groupKey);
-    IBox targetBox      = sfcIBox(sfcKey(groupKey), groupLevel);
+
+    IBox targetBox = sfcIBox(sfcKey(groupKey), groupLevel);
+    Vec3<T2> targetCenter, targetSize;
+    std::tie(targetCenter, targetSize) = centerAndSize<KeyType>(targetBox, box);
+
+    float invTheta = 1.0 / theta;
 
     /*! @brief octree traversal continuation criterion
      *
@@ -95,16 +100,18 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
      * the traversal routine to keep going. If the MAC passed, the multipole moments are applied
      * to the particles in the target box and traversal is stopped.
      */
-    auto descendOrM2P = [groupIdx, multipoles, x, y, z, layout, theta, G, ax, ay, az, ugrav, &octree, &targetBox,
-                         &box](TreeNodeIndex idx)
+    auto descendOrM2P = [groupIdx, multipoles, x, y, z, layout, invTheta, G, ax, ay, az, ugrav, &octree, &targetCenter,
+                         &targetSize, &box](TreeNodeIndex idx)
     {
         // idx relative to root node
         KeyType nodeStart = octree.codeStart(idx);
         IBox sourceBox    = sfcIBox(sfcKey(nodeStart), octree.level(idx));
+        auto [sourceCenter, sourceSize] = centerAndSize<KeyType>(sourceBox, box);
 
         const auto& p = multipoles[idx];
 
-        bool violatesMac = !vectorMac<KeyType>(p.xcm, p.ycm, p.zcm, sourceBox, targetBox, box, theta);
+        bool violatesMac = !vectorMac<KeyType>({p.xcm, p.ycm, p.zcm}, sourceCenter, sourceSize, targetCenter,
+                                               targetSize, box, invTheta);
         if (!violatesMac)
         {
             LocalParticleIndex firstTarget = layout[groupIdx];

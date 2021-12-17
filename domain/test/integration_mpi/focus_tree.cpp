@@ -92,7 +92,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     KeyType focusEnd   = tree[assignment.lastNodeIdx(thisRank)];
 
     // build the reference focus tree from the common pool of coordinates, focused on the executing rank
-    FocusedOctree<KeyType> referenceFocusTree(bucketSizeLocal, theta);
+    FocusedOctreeSingleNode<KeyType> referenceFocusTree(bucketSizeLocal, theta);
     while (!referenceFocusTree.update(box, coords.particleKeys(), focusStart, focusEnd, peerBoundaries));
 
     /*******************************/
@@ -125,7 +125,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     int converged = 0;
     while (converged != numRanks)
     {
-        converged = focusTree.updateGlobal(box, particleKeys, thisRank, peers, assignment, tree, counts);
+        converged = focusTree.update(box, particleKeys, thisRank, peers, assignment, tree, counts);
         MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
         // particle counts must always be valid, whatever state of convergence
