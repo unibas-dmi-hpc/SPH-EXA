@@ -1,10 +1,16 @@
+if(CMAKE_HIP_COMPILER)
+    set_source_files_properties(cudaDensity.cu cudaIAD.cu cudaMomentumAndEnergyIAD.cu PROPERTIES LANGUAGE HIP)
+endif()
 
-if(CMAKE_CUDA_COMPILER)
+if(CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
     add_library(cuda_sph OBJECT cudaDensity.cu cudaIAD.cu cudaMomentumAndEnergyIAD.cu)
     target_include_directories(cuda_sph PRIVATE ${PROJECT_SOURCE_DIR}/include)
     target_include_directories(cuda_sph PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
-
     target_compile_definitions(cuda_sph PRIVATE USE_CUDA)
+    # set_property(TARGET cuda_sph PROPERTY HIP_ARCHITECTURES gfx908)
+endif()
+
+if(CMAKE_CUDA_COMPILER)
     target_compile_options(cuda_sph PRIVATE --expt-relaxed-constexpr)
     set_target_properties(cuda_sph PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 endif()

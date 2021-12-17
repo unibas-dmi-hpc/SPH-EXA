@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.17)
+cmake_minimum_required(VERSION 3.21)
 
 project(sphexa CXX C)
 set(CMAKE_CXX_STANDARD 17)
@@ -7,6 +7,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fno-math-errno -march=native -DNDEBUG")
 set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 option(BUILD_TESTING "build unit and integration tests" ON)
+option(SPH_EXA_WITH_HIP "Build SPH-EXA with HIP" OFF)
 
 find_package(MPI)
 find_package(OpenMP REQUIRED)
@@ -31,6 +32,30 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+if(SPH_EXA_WITH_HIP)
+# {{{ HIP
+if(NOT DEFINED HIP_PATH)
+    if(NOT DEFINED ENV{HIP_PATH})
+        set(HIP_PATH "/opt/rocm/hip" CACHE PATH "Path to which HIP has been installed")
+    else()
+        set(HIP_PATH $ENV{HIP_PATH} CACHE PATH "Path to which HIP has been installed")
+    endif()
+endif()
+set(CMAKE_MODULE_PATH "${HIP_PATH}/cmake" ${CMAKE_MODULE_PATH})
+# set(HIP_CLANG_NUM_PARALLEL_JOBS 2)
+find_package(HIP QUIET)
+if(HIP_FOUND)
+    message(STATUS "Found HIP: " ${HIP_VERSION})
+    check_language(HIP)
+    # find_package(HIP)
+    if(CMAKE_HIP_COMPILER)
+        enable_language(HIP)
+        set(CMAKE_HIP_FLAGS "-fPIC -fgpu-rdc -w")
+    endif()
+endif()
+# }}}
+endif()
+
 check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
     enable_language(CUDA)
@@ -41,6 +66,7 @@ else()
     message(STATUS "No CUDA support")
 endif()
 
+# {{{ i/o
 option(SPH_EXA_WITH_H5PART "Enable HDF5 IO using H5Part library" OFF)
 if (SPH_EXA_WITH_H5PART)
     find_package(HDF5 REQUIRED)
@@ -55,6 +81,7 @@ if(INSITU STREQUAL "Catalyst")
 elseif(INSITU STREQUAL "Ascent")
     find_package(Ascent REQUIRED PATHS "/apps/daint/UES/Ascent/ascent-install/lib/cmake/ascent")
 endif()
+# }}}
 
 add_subdirectory(include)
 add_subdirectory(domain)
