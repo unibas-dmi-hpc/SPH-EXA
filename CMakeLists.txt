@@ -7,6 +7,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fno-math-errno -march=native -DNDEBUG")
 set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 option(BUILD_TESTING "build unit and integration tests" ON)
+option(SPH_EXA_WITH_HIP "Build SPH-EXA with HIP" OFF)
 
 find_package(MPI)
 find_package(OpenMP REQUIRED)
@@ -31,6 +32,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+if(SPH_EXA_WITH_HIP)
 # {{{ HIP
 if(NOT DEFINED HIP_PATH)
     if(NOT DEFINED ENV{HIP_PATH})
@@ -50,11 +52,9 @@ if(HIP_FOUND)
         enable_language(HIP)
         set(CMAKE_HIP_FLAGS "-fPIC -fgpu-rdc -w")
     endif()
-# else()
-#     message(FATAL_ERROR "Could not find HIP. Ensure that HIP is either installed in /opt/rocm/hip or the variable HIP_P
-# ATH is set to point to the right location.")
 endif()
 # }}}
+endif()
 
 check_language(CUDA)
 if(CMAKE_CUDA_COMPILER)
