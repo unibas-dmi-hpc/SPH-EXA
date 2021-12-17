@@ -1,6 +1,6 @@
 
-set(exename evrard_new)
-add_executable(${exename} evrard_new.cpp)
+set(exename evrard)
+add_executable(${exename} evrard.cpp)
 
 target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
 target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/include)
