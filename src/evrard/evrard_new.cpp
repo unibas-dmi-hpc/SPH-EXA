@@ -53,7 +53,7 @@ int main(int argc, char** argv)
     const int checkpointFrequency = parser.getInt("-c", -1);
     const bool quiet = parser.exists("--quiet");
     const std::string checkpointInput = parser.getString("--cinput");
-    const std::string inputFilePath = parser.getString("--input", "../../../src/evrard/bigfiles/Test3DEvrardRel.bin");
+    const std::string inputFilePath = parser.getString("--input", "./Test3DEvrardRel.bin");
     const std::string outDirectory = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
