@@ -17,27 +17,28 @@ variables:
 
 # {{{ ubuntu:gnu:
 # {{{ ubu:deps
+# ubu:deps:
+#   stage: deps
+#   extends: .deps-ubu-gnu_fake
+#   image: debian:testing-slim
+#   tags: 
+#     - $jfrogtag
+#   script:
+#     - echo "empty stage for a better display of deps"
+#   variables:
+#     PERSIST_IMAGE_NAME: debian:testing-slim
+
+# {{{ # uncomment to rebuild the base image
 ubu:deps:
   stage: deps
-  extends: .deps-ubu-gnu_fake
-  image: debian:testing-slim
-  tags: 
+  extends: .deps-ubu-gnu
+  image: nvidia/cuda:11.4.2-devel-ubuntu20.04
+  tags:
     - $jfrogtag
   script:
-    - echo "empty stage for a better display of deps"
+    - which cmake
   variables:
-    PERSIST_IMAGE_NAME: debian:testing-slim
-#ok {{{ # uncomment to rebuild the base image
-#ok ubu:deps:
-#ok   stage: deps
-#ok   extends: .deps-ubu-gnu
-#ok   image: nvidia/cuda:11.4.2-devel-ubuntu20.04
-#ok   tags:
-#ok     - $jfrogtag
-#ok   script:
-#ok     - which cmake
-#ok   variables:
-#ok     PERSIST_IMAGE_NAME: sph-exa_base:1.0
+    PERSIST_IMAGE_NAME: sph-exa_base:1.0
 # TODO: build image if true/false
 # }}}
 # }}}
@@ -60,84 +61,85 @@ build:ubu:gnu:
     # container with a usable version.
     # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
 # }}}
-
-# {{{ test:ubu:
-ubu:test_1:
-  stage: test
-  extends: .run-1
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-  # tags: ['dom']
-  needs: ['build:ubu:gnu']
-  script:
-    - echo
-  variables:
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 1
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-
-ubu:test_2:
-  stage: test
-  extends: .run-2
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-  # tags: ['dom']
-  needs: ['build:ubu:gnu']
-  script:
-    - echo
-  variables:
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 2
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-
-ubu:test_10:
-  stage: test
-  extends: .run-10
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-  # tags: ['dom']
-  needs: ['build:ubu:gnu']
-  script:
-    - echo
-  variables:
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 10
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-
-ubu:test_p100:
-  stage: test
-  extends: .run-p100
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-  # tags: ['dom']
-  needs: ['build:ubu:gnu']
-  script:
-    - echo
-  variables:
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 1
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-# }}}
+# 
+# # {{{ test:ubu:
+# ubu:test_1:
+#   stage: test
+#   extends: .run-1
+#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
+#   # tags: ['dom']
+#   needs: ['build:ubu:gnu']
+#   script:
+#     - echo
+#   variables:
+#     PULL_IMAGE: 'YES'
+#     CSCS_REGISTRY_LOGIN: 'YES'
+#     SLURM_PARTITION: cscsci
+#     SLURM_JOB_NUM_NODES: 1
+#     SLURM_NTASKS: 1
+#     SLURM_CONSTRAINT: 'gpu'
+#     USE_MPI: 'YES'
+#     # SLURM_TIMELIMIT=15:00
+#     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+# 
+# ubu:test_2:
+#   stage: test
+#   extends: .run-2
+#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
+#   # tags: ['dom']
+#   needs: ['build:ubu:gnu']
+#   script:
+#     - echo
+#   variables:
+#     PULL_IMAGE: 'YES'
+#     CSCS_REGISTRY_LOGIN: 'YES'
+#     SLURM_PARTITION: cscsci
+#     SLURM_JOB_NUM_NODES: 1
+#     SLURM_NTASKS: 2
+#     SLURM_CONSTRAINT: 'gpu'
+#     USE_MPI: 'YES'
+#     # SLURM_TIMELIMIT=15:00
+#     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+# 
+# ubu:test_10:
+#   stage: test
+#   extends: .run-10
+#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
+#   # tags: ['dom']
+#   needs: ['build:ubu:gnu']
+#   script:
+#     - echo
+#   variables:
+#     PULL_IMAGE: 'YES'
+#     CSCS_REGISTRY_LOGIN: 'YES'
+#     SLURM_PARTITION: cscsci
+#     SLURM_JOB_NUM_NODES: 1
+#     SLURM_NTASKS: 10
+#     SLURM_CONSTRAINT: 'gpu'
+#     USE_MPI: 'YES'
+#     # SLURM_TIMELIMIT=15:00
+#     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+# 
+# ubu:test_p100:
+#   stage: test
+#   extends: .run-p100
+#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
+#   # tags: ['dom']
+#   needs: ['build:ubu:gnu']
+#   script:
+#     - echo
+#   variables:
+#     PULL_IMAGE: 'YES'
+#     CSCS_REGISTRY_LOGIN: 'YES'
+#     SLURM_PARTITION: cscsci
+#     SLURM_JOB_NUM_NODES: 1
+#     SLURM_NTASKS: 1
+#     SLURM_CONSTRAINT: 'gpu'
+#     USE_MPI: 'YES'
+#     # SLURM_TIMELIMIT=15:00
+#     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+# # }}}
+# 
 
 # TODO: ubu:deploy:
 #   stage: deploy
