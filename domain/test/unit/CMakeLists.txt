@@ -6,6 +6,7 @@ set(UNIT_TESTS
         focus/octree_focus.cpp
         gravity/multipole.cpp
         gravity/treewalk.cpp
+        halos/radii.cpp
         primitives/clz.cpp
         primitives/gather.cpp
         sfc/box.cpp
@@ -24,11 +25,12 @@ set(UNIT_TESTS
         tree/btree.cpp
         tree/octree.cpp
         tree/octree_internal.cpp
+        tree/octree_internal_td.cpp
         tree/octree_util.cpp
         test_main.cpp)
 
 add_executable(component_units ${UNIT_TESTS})
-target_compile_options(component_units PRIVATE -Wall -Wextra)
+target_compile_options(component_units PRIVATE -Wall -Wextra -Wno-unknown-pragmas)
 
 target_include_directories(component_units PRIVATE ../../include)
 target_include_directories(component_units PRIVATE ../)

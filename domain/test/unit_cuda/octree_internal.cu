@@ -36,6 +36,7 @@
 #include "gtest/gtest.h"
 
 #include "cstone/tree/octree_internal.cuh"
+#include "cstone/tree/octree_internal_td.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 using namespace cstone;
@@ -44,22 +45,22 @@ using namespace cstone;
  *
  * Depends on binary/octree generation, so not strictly a unit test
  */
-template<class I>
+template<class KeyType>
 void nodeDepthThreading()
 {
     // uniform level-7 tree with 2097152 nodes
-    std::vector<I> leaves = makeUniformNLevelTree<I>(128*128*128, 1);
+    std::vector<KeyType> leaves = makeUniformNLevelTree<KeyType>(128*128*128, 1);
 
-    std::vector<BinaryNode<I>> binaryTree(nNodes(leaves));
+    std::vector<BinaryNode<KeyType>> binaryTree(nNodes(leaves));
     createBinaryTree(leaves.data(), nNodes(leaves), binaryTree.data());
 
-    std::vector<OctreeNode<I>> octree((nNodes(leaves)-1)/7);
+    std::vector<OctreeNode<KeyType>> octree((nNodes(leaves)-1)/7);
     std::vector<TreeNodeIndex> leafParents(nNodes(leaves));
 
     createInternalOctreeCpu(binaryTree.data(), nNodes(leaves), octree.data(), leafParents.data());
 
     // upload octree to device
-    thrust::device_vector<OctreeNode<I>> d_octree = octree;
+    thrust::device_vector<OctreeNode<KeyType>> d_octree = octree;
 
     thrust::device_vector<TreeNodeIndex> d_depths(octree.size(), 0);
 
@@ -85,4 +86,82 @@ TEST(InternalOctreeGpu, nodeDepthsThreading)
 {
     nodeDepthThreading<unsigned>();
     nodeDepthThreading<uint64_t>();
+}
+
+template<class KeyType>
+void compareAgainstCpu(const std::vector<KeyType>& tree)
+{
+    // upload cornerstone tree to device
+    thrust::device_vector<KeyType> d_leaves = tree;
+
+    OctreeGpuDataAnchor<KeyType> gpuTree;
+    gpuTree.resize(nNodes(tree));
+
+    buildInternalOctreeGpu(thrust::raw_pointer_cast(d_leaves.data()), gpuTree.getData());
+
+    TdOctree<KeyType> cpuTree;
+    cpuTree.update(tree.data(), nNodes(tree));
+
+    thrust::host_vector<KeyType> h_prefixes = gpuTree.prefixes;
+    for (auto& p : h_prefixes)
+    {
+        p = decodePlaceholderBit(p);
+    }
+
+    EXPECT_EQ(cpuTree.numTreeNodes(), gpuTree.numLeafNodes + gpuTree.numInternalNodes);
+    for (TreeNodeIndex i = 0; i < cpuTree.numTreeNodes(); ++i)
+    {
+        EXPECT_EQ(h_prefixes[i], cpuTree.codeStart(i));
+    }
+
+    thrust::host_vector<TreeNodeIndex> h_children = gpuTree.childOffsets;
+    for (TreeNodeIndex i = 0; i < cpuTree.numTreeNodes(); ++i)
+    {
+        EXPECT_EQ(h_children[i], cpuTree.child(i, 0));
+    }
+
+    thrust::host_vector<TreeNodeIndex> h_parents = gpuTree.parents;
+    for (TreeNodeIndex i = 0; i < cpuTree.numTreeNodes(); ++i)
+    {
+        EXPECT_EQ(h_parents[(i - 1) / 8], cpuTree.parent(i));
+    }
+
+    thrust::host_vector<TreeNodeIndex> h_levelRange = gpuTree.levelRange;
+    for (unsigned level = 1; level <= maxTreeLevel<KeyType>{}; ++level)
+    {
+        if (cpuTree.numTreeNodes(level-1) > 0)
+        {
+            EXPECT_EQ(h_levelRange[level], cpuTree.levelOffset(level));
+        }
+    }
+}
+
+//! @brief This creates an irregular tree. Checks geometry relations between children and parents.
+template<class KeyType>
+void octreeIrregularL3()
+{
+    std::vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0, 2).divide(3).makeTree();
+
+    compareAgainstCpu(tree);
+}
+
+TEST(InternalOctreeGpu, irregularL3)
+{
+    octreeIrregularL3<unsigned>();
+    octreeIrregularL3<uint64_t>();
+}
+
+template<class KeyType>
+void octreeRegularL6()
+{
+    // uniform level-6 tree with 262144
+    std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64 * 64 * 64, 1);
+
+    compareAgainstCpu(tree);
+}
+
+TEST(InternalOctreeGpu, regularL6)
+{
+    octreeRegularL6<unsigned>();
+    octreeRegularL6<uint64_t>();
 }

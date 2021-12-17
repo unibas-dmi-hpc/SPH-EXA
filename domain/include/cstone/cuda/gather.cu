@@ -116,9 +116,10 @@ void DeviceGather<ValueType, CodeType, IndexType>::setReorderMap(const IndexType
 }
 
 template<class ValueType, class CodeType, class IndexType>
-void DeviceGather<ValueType, CodeType, IndexType>::getReorderMap(IndexType* map_first)
+void DeviceGather<ValueType, CodeType, IndexType>::getReorderMap(IndexType* map_first, IndexType first, IndexType last)
 {
-    cudaMemcpy(map_first, deviceMemory_->ordering(), mapSize_ * sizeof(IndexType), cudaMemcpyDeviceToHost);
+    cudaMemcpy(map_first, deviceMemory_->ordering() + first, (last - first) * sizeof(IndexType),
+               cudaMemcpyDeviceToHost);
 }
 
 template<class I>
@@ -135,7 +136,9 @@ __global__ void iotaKernel(I* buffer, size_t n, size_t offset)
 template<class ValueType, class CodeType, class IndexType>
 void DeviceGather<ValueType, CodeType, IndexType>::setMapFromCodes(CodeType* codes_first, CodeType* codes_last)
 {
-    mapSize_      = codes_last - codes_first;
+    offset_     = 0;
+    mapSize_    = codes_last - codes_first;
+    numExtract_ = mapSize_;
     deviceMemory_->reallocate(mapSize_);
 
     // the deviceBuffer is allocated as a single chunk of size 2 * mapSize_ * sizeof(T)
@@ -181,26 +184,41 @@ __global__ void reorder(I* map, T* source, T* destination, size_t n)
 
 template<class ValueType, class CodeType, class IndexType>
 void DeviceGather<ValueType, CodeType, IndexType>::operator()(const ValueType* values, ValueType* destination,
-                                                              IndexType offset, IndexType numExtract)
+                                                              IndexType offset, IndexType numExtract) const
 {
     constexpr int nThreads = 256;
-    int nBlocks = (mapSize_ + nThreads - 1) / nThreads;
+    int nBlocks = (numExtract + nThreads - 1) / nThreads;
 
     // upload to device
     cudaMemcpy(deviceMemory_->deviceBuffer(0), values, mapSize_ * sizeof(ValueType), cudaMemcpyHostToDevice);
     checkCudaErrors(cudaGetLastError());
 
     // reorder on device
-    reorder<<<nBlocks, nThreads>>>(deviceMemory_->ordering(),
+    reorder<<<nBlocks, nThreads>>>(deviceMemory_->ordering() + offset,
                                    deviceMemory_->deviceBuffer(0),
                                    deviceMemory_->deviceBuffer(1),
-                                   mapSize_);
+                                   numExtract);
     checkCudaErrors(cudaGetLastError());
 
     // download to host
-    cudaMemcpy(destination, deviceMemory_->deviceBuffer(1) + offset,
+    cudaMemcpy(destination, deviceMemory_->deviceBuffer(1),
                numExtract * sizeof(ValueType), cudaMemcpyDeviceToHost);
     checkCudaErrors(cudaGetLastError());
+}
+
+template<class ValueType, class CodeType, class IndexType>
+void DeviceGather<ValueType, CodeType, IndexType>::operator()(const ValueType* values, ValueType* destination) const
+{
+    this->operator()(values, destination, offset_, numExtract_);
+}
+
+template<class ValueType, class CodeType, class IndexType>
+void DeviceGather<ValueType, CodeType, IndexType>::restrictRange(std::size_t offset, std::size_t numExtract)
+{
+    assert(offset + numExtract <= mapSize_);
+
+    offset_     = offset;
+    numExtract_ = numExtract;
 }
 
 template class DeviceGather<float,  unsigned, unsigned>;

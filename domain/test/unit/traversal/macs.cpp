@@ -49,21 +49,11 @@ TEST(Macs, minPointDistance)
         IBox ibox(0, mc / 2);
 
         T px = (mc/2.0 + 1) / mc;
-        T py = (mc/2.0 + 1) / mc;
-        T pz = (mc/2.0 + 1) / mc;
+        Vec3<T> X{px, px, px};
 
-        T probe = minDistance<KeyType>(px, py, pz, ibox, box);
-        EXPECT_NEAR(std::sqrt(3)/mc, probe, 1e-10);
-    }
-    {
-        Box<T> box(0, 1, true);
-        IBox ibox(0, mc / 2);
+        auto [center, size] = centerAndSize<KeyType>(ibox, box);
 
-        T px = (mc - 1.0) / mc;
-        T py = (mc - 1.0) / mc;
-        T pz = (mc - 1.0) / mc;
-
-        T probe = minDistance<KeyType>(px, py, pz, ibox, box);
+        T probe = std::sqrt(norm2(minDistance(X, center, size, box)));
         EXPECT_NEAR(std::sqrt(3)/mc, probe, 1e-10);
     }
 }
@@ -178,27 +168,78 @@ TEST(Macs, minDistanceSqPbc)
     }
 }
 
-TEST(Macs, nodeLengthSq)
+TEST(Macs, minMac)
 {
-    IBox ibox(0, 1);
-    Box<double> box(0, 1, 0, 2, 0, 3);
+    using T = double;
 
-    double reference = 1. / 1024 * 3;
-    double probe = nodeLength<unsigned>(ibox, box);
-    EXPECT_DOUBLE_EQ(reference, probe);
+    {
+        Vec3<T> cA{0.5, 0.5, 0.5};
+        Vec3<T> sA{0.5, 0.5, 0.5};
+
+        Vec3<T> cB{3.5, 3.5, 3.5};
+        Vec3<T> sB{0.5, 0.5, 0.5};
+
+        EXPECT_TRUE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.29));
+        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.28));
+
+        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, true), 1.0));
+    }
+    {
+        Vec3<T> cA{0.5, 0.5, 0.5};
+        Vec3<T> sA{1.0, 1.0, 1.0};
+
+        Vec3<T> cB{3.5, 3.5, 3.5};
+        Vec3<T> sB{0.5, 0.5, 0.5};
+
+        EXPECT_TRUE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.39));
+        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.38));
+
+        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, true), 1.0));
+    }
+    {
+        Vec3<T> cA{0.5, 0.5, 0.5};
+        Vec3<T> sA{0.5, 0.5, 0.5};
+
+        Vec3<T> cB{3.5, 3.5, 3.5};
+        Vec3<T> sB{1.0, 1.0, 1.0};
+
+        EXPECT_TRUE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.78));
+        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.76));
+
+        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, true), 1.0));
+    }
 }
 
-TEST(Macs, minDistanceMac)
+TEST(Macs, minMacMutual)
 {
-    IBox a(0, 1);
-    IBox b(6, 8, 0, 1, 0, 1);
-    Box<double> box(0, 1);
+    using T = double;
 
-    bool probe1 = minDistanceMac<unsigned>(a, b, box, 6.0);
-    bool probe2 = minDistanceMac<unsigned>(a, b, box, 6.5);
+    Vec3<T> cA{0.5, 0.5, 0.5};
+    Vec3<T> sA{0.5, 0.5, 0.5};
 
-    EXPECT_TRUE(probe1);
-    EXPECT_FALSE(probe2);
+    Vec3<T> cB{3.5, 3.5, 3.5};
+    Vec3<T> sB{0.5, 0.5, 0.5};
+
+    EXPECT_TRUE(minMacMutual(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.29));
+    EXPECT_FALSE(minMacMutual(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.28));
+
+    EXPECT_FALSE(minMacMutual(cA, sA, cB, sB, Box<T>(0, 4, true), 1.0));
+}
+
+TEST(Macs, minVecMacMutual)
+{
+    using T = double;
+
+    Vec3<T> cA{0.5, 0.5, 0.5};
+    Vec3<T> sA{0.5, 0.5, 0.5};
+
+    Vec3<T> cB{3.5, 3.5, 3.5};
+    Vec3<T> sB{0.5, 0.5, 0.5};
+
+    EXPECT_TRUE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.39));
+    EXPECT_FALSE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.38));
+
+    EXPECT_FALSE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, true), 1.0));
 }
 
 template<class KeyType, class T>
@@ -206,11 +247,13 @@ std::vector<char> markMacAll2All(gsl::span<const KeyType> leaves, TreeNodeIndex 
                                  float theta, const Box<T>& box)
 {
     std::vector<char> markings(nNodes(leaves));
+    float invTheta = 1.0 / theta;
 
     // loop over target cells
     for (TreeNodeIndex i = firstNode; i < lastNode; ++i)
     {
         IBox targetBox = sfcIBox(sfcKey(leaves[i]), sfcKey(leaves[i + 1]));
+        auto [targetCenter, targetSize] = centerAndSize<KeyType>(targetBox, box);
 
         // loop over source cells
         for (TreeNodeIndex j = 0; j < TreeNodeIndex(nNodes(leaves)); ++j)
@@ -218,9 +261,10 @@ std::vector<char> markMacAll2All(gsl::span<const KeyType> leaves, TreeNodeIndex 
             // source cells must not be in target cell range
             if (firstNode <= j && j < lastNode) { continue; }
             IBox sourceBox = sfcIBox(sfcKey(leaves[j]), sfcKey(leaves[j + 1]));
+            auto [sourceCenter, sourceSize] = centerAndSize<KeyType>(sourceBox, box);
 
             // if source cell fails MAC w.r.t to current target, it gets marked
-            bool violatesMac = !minDistanceMac<KeyType>(targetBox, sourceBox, box, 1.0 / (theta * theta));
+            bool violatesMac = !minMac(targetCenter, targetSize, sourceCenter, sourceSize, box, invTheta);
             if (violatesMac) { markings[j] = 1; }
         }
     }
@@ -242,7 +286,7 @@ void markMac()
     float theta = 0.58;
     KeyType focusStart = treeLeaves[0];
     KeyType focusEnd   = treeLeaves[2];
-    markMac(fullTree, box, focusStart, focusEnd, 1. / (theta * theta), markings.data());
+    markMac(fullTree, box, focusStart, focusEnd, 1. / theta, markings.data());
 
     // Morton explicit reference:
     //                            internal | leaves

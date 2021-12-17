@@ -39,10 +39,7 @@
 #include <vector>
 #include <tuple>
 
-#include <cuda.h>
-
 #include <thrust/device_vector.h>
-#include <thrust/scan.h>
 
 #include "cstone/cuda/errorcheck.cuh"
 #include "cstone/util/util.hpp"
@@ -65,18 +62,21 @@ __global__ void computeNodeCountsKernel(const KeyType* tree, unsigned* counts, T
 
 //! @brief see updateNodeCounts
 template<class KeyType>
-__global__ void updateNodeCountsKernel(const KeyType* tree, unsigned* counts, TreeNodeIndex nNodes, const KeyType* codesStart,
-                                       const KeyType* codesEnd, unsigned maxCount)
+__global__ void updateNodeCountsKernel(const KeyType* tree,
+                                       unsigned* counts,
+                                       TreeNodeIndex numNodes,
+                                       const KeyType* codesStart,
+                                       const KeyType* codesEnd,
+                                       unsigned maxCount)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid < nNodes)
+    if (tid < numNodes)
     {
-        unsigned firstGuess  = counts[tid];
-        unsigned secondGuess = counts[min(tid+1, nNodes-1)];
+        unsigned firstGuess     = counts[tid];
+        TreeNodeIndex secondIdx = (tid + 1 < numNodes - 1) ? tid + 1 : numNodes - 1;
+        unsigned secondGuess    = counts[secondIdx];
 
-        //unsigned secondGuess = __shfl_down_sync(0xffffffff, firstGuess, 1);
-        counts[tid] = updateNodeCount(tid, tree, firstGuess, secondGuess,
-                                      codesStart, codesEnd, maxCount);
+        counts[tid] = updateNodeCount(tid, tree, firstGuess, secondGuess, codesStart, codesEnd, maxCount);
     }
 }
 
@@ -121,7 +121,7 @@ void computeNodeCountsGpu(const KeyType* tree, unsigned* counts, TreeNodeIndex n
     constexpr unsigned nThreads = 256;
     if (useCountsAsGuess)
     {
-        thrust::exclusive_scan(thrust::device, counts + popNodes[0], counts + popNodes[1], counts + popNodes[0], 0);
+        thrust::exclusive_scan(thrust::device, counts + popNodes[0], counts + popNodes[1], counts + popNodes[0]);
         updateNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>
             (tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
     }
@@ -218,7 +218,9 @@ bool rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, unsigned bucketSi
         thrust::raw_pointer_cast(tree.data()), counts, nOldNodes, bucketSize,
         thrust::raw_pointer_cast(workArray.data()));
 
-    thrust::exclusive_scan(thrust::device, workArray.begin(), workArray.end(), workArray.begin());
+    thrust::exclusive_scan(thrust::device, thrust::raw_pointer_cast(workArray.data()),
+                          thrust::raw_pointer_cast(workArray.data()) + workArray.size(),
+                          thrust::raw_pointer_cast(workArray.data()));
 
     // +1 for the end marker (nodeRange<KeyType>(0))
     tmpTree.resize(*workArray.rbegin() + 1);

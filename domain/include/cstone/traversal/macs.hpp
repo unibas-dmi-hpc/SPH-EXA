@@ -41,154 +41,158 @@
 namespace cstone
 {
 
-template<int Period>
-HOST_DEVICE_FUN
-constexpr int rangeSeparation(int a, int b, int c, int d, bool pbc)
+//! @brief returns the smallest distance vector of point X to box b, 0 if X is in b
+template<class T>
+HOST_DEVICE_FUN Vec3<T> minDistance(const Vec3<T>& X, const Vec3<T>& bCenter, const Vec3<T>& bSize, const Box<T>& box)
 {
-    assert(a < b && c < d);
-    int cb = c - b;
-    int ad = a - d;
-    int cbPbc = (pbc) ? pbcDistance<Period>(cb) : cb;
-    int adPbc = (pbc) ? pbcDistance<Period>(ad) : ad;
-    return (cb >= 0 || ad >= 0) * stl::min(stl::abs(cbPbc), stl::abs(adPbc));
+    Vec3<T> dX = bCenter - X;
+    dX         = abs(applyPbc(dX, box));
+    dX -= bSize;
+    dX += abs(dX);
+    dX *= T(0.5);
+
+    return dX;
 }
 
-/*! @brief return the smallest distance squared between two points on the surface of the AABBs @p a and @p b
- *
- * @tparam T        float or double
- * @tparam KeyType  32- or 64-bit unsigned integer
- * @param a         a box, specified with integer coordinates in [0:2^21]
- * @param b
- * @param box       floating point coordinate bounding box
- * @return          the square of the smallest distance between a and b
- */
+//! @brief returns the smallest distance vector between two boxes, 0 if they overlap
+template<class T>
+HOST_DEVICE_FUN Vec3<T> minDistance(const Vec3<T>& aCenter, const Vec3<T>& aSize, const Vec3<T>& bCenter,
+                                    const Vec3<T>& bSize, const Box<T>& box)
+{
+    Vec3<T> dX = bCenter - aCenter;
+    dX         = abs(applyPbc(dX, box));
+    dX -= aSize;
+    dX -= bSize;
+    dX += abs(dX);
+    dX *= T(0.5);
+
+    return dX;
+}
+
+//! @brief Convenience wrapper to minDistance. This should only be used for testing.
 template<class KeyType, class T>
 HOST_DEVICE_FUN T minDistanceSq(IBox a, IBox b, const Box<T>& box)
 {
-    constexpr size_t mc = maxCoord<KeyType>{};
-    constexpr T unitLengthSq  = T(1.) / (mc * mc);
-
-    size_t dx = rangeSeparation<mc>(a.xmin(), a.xmax(), b.xmin(), b.xmax(), box.pbcX());
-    size_t dy = rangeSeparation<mc>(a.ymin(), a.ymax(), b.ymin(), b.ymax(), box.pbcY());
-    size_t dz = rangeSeparation<mc>(a.zmin(), a.zmax(), b.zmin(), b.zmax(), box.pbcZ());
-    // the maximum for any integer is 2^21-1, so we can safely square each of them
-    return ((dx*dx)*box.lx()*box.lx() + (dy*dy)*box.ly()*box.ly() +
-            (dz*dz)*box.lz()*box.lz()) * unitLengthSq;
-}
-
-//! @brief return longest edge length of box @p b
-template<class KeyType, class T>
-HOST_DEVICE_FUN T nodeLength(IBox b, const Box<T>& box)
-{
-    constexpr T unitLength = T(1.) / maxCoord<KeyType>{};
-
-    // IBoxes for octree nodes are assumed cubic, only box can be rectangular
-    return (b.xmax() - b.xmin()) * unitLength * box.maxExtent();
-}
-
-//! @brief returns the smallest PBC distance of point (x,y,z) to box b
-template<class KeyType, class T>
-HOST_DEVICE_FUN T minDistance(T x, T y, T z, IBox b, const Box<T>& box)
-{
-    constexpr T uL = T(1.) / maxCoord<KeyType>{};
-
-    T dxa = x - b.xmin() * uL * box.lx();
-    T dxb = x - b.xmax() * uL * box.lx();
-    T dya = y - b.ymin() * uL * box.ly();
-    T dyb = y - b.ymax() * uL * box.ly();
-    T dza = z - b.zmin() * uL * box.lz();
-    T dzb = z - b.zmax() * uL * box.lz();
-
-    // this folds d into the periodic range [-l/2, l/2] if enabled
-    dxa -= box.pbcX() * box.lx() * std::rint(dxa * box.ilx());
-    dxb -= box.pbcX() * box.lx() * std::rint(dxb * box.ilx());
-    dya -= box.pbcY() * box.ly() * std::rint(dya * box.ily());
-    dyb -= box.pbcY() * box.ly() * std::rint(dyb * box.ily());
-    dza -= box.pbcZ() * box.lz() * std::rint(dza * box.ilz());
-    dzb -= box.pbcZ() * box.lz() * std::rint(dzb * box.ilz());
-
-    return sqrt(stl::min(dxa*dxa, dxb*dxb) + stl::min(dya*dya, dyb*dyb) + stl::min(dza*dza, dzb*dzb));
-}
-
-/*! @brief vector multipole acceptance criterion
- *
- * @tparam KeyType   unsigned 32- or 64-bit integer type
- * @tparam T         float or double
- * @param  comx      center of gravity x-coordinate
- * @param  comy      center of gravity y-coordinate
- * @param  comz      center of gravity z-coordinate
- * @param  source    source integer coordinate box
- * @param  target    target integer coordinate box
- * @param  box       global coordinate bounding box, contains PBC information
- * @param  theta     accuracy parameter
- * @return           true if criterion fulfilled (cell does not need to be opened)
- *
- * Evaluates  d > l/theta + delta with:
- *  d     -> minimal distance of target box to source center of mass
- *  l     -> edge length of source box
- *  delta -> distance from geometric source center to source center mass
- */
-template<class KeyType, class T>
-HOST_DEVICE_FUN bool vectorMac(T comx, T comy, T comz, const IBox& source, const IBox& target, const Box<T>& box,
-                               float theta)
-{
-    constexpr T uL = T(1.) / maxCoord<KeyType>{};
-
-    // minimal distance from source-center-mass to target box
-    T distanceToCom = minDistance<KeyType>(comx, comy, comz, target, box);
-    T sourceLength  = nodeLength<KeyType>(source, box);
-
-    // geometric center of source
-    int halfCube = (source.xmax() - source.xmin()) / 2;
-    T xsc = (source.xmin() + halfCube) * uL * box.lx();
-    T ysc = (source.ymin() + halfCube) * uL * box.ly();
-    T zsc = (source.zmin() + halfCube) * uL * box.lz();
-
-    T dxsc = xsc - comx;
-    T dysc = ysc - comy;
-    T dzsc = zsc - comz;
-
-    T distanceCom2SourceCenter = sqrt(dxsc * dxsc + dysc * dysc + dzsc * dzsc);
-
-    return distanceToCom > sourceLength/theta + distanceCom2SourceCenter;
+    auto [aCenter, aSize] = centerAndSize<KeyType>(a, box);
+    auto [bCenter, bSize] = centerAndSize<KeyType>(b, box);
+    return norm2(minDistance(aCenter, aSize, bCenter, bSize, box));
 }
 
 /*! @brief evaluate minimum distance MAC, non-commutative version
  *
- * @param a            target cell
- * @param b            source cell
- * @param box          coordinate bounding box
- * @param invThetaSq   inverse theta squared
- * @return             true if MAC fulfilled, false otherwise
+ * @param a        target cell
+ * @param b        source cell
+ * @param box      coordinate bounding box
+ * @param invTheta inverse theta
+ * @return         true if MAC fulfilled, false otherwise
  *
- * Note: Mac is valid for any point in a w.r.t to box b, therefore only the
- * size of b is relevant.
+ * Note: Mac is valid for any point in a w.r.t to box b
  */
-template<class KeyType, class T>
-HOST_DEVICE_FUN bool minDistanceMac(const IBox& a, const IBox& b, const Box<T>& box, float invThetaSq)
+template<class T>
+HOST_DEVICE_FUN bool minMac(const Vec3<T>& aCenter,
+                            const Vec3<T>& aSize,
+                            const Vec3<T>& bCenter,
+                            const Vec3<T>& bSize,
+                            const Box<T>& box,
+                            float invTheta)
 {
-    T dsq = minDistanceSq<KeyType>(a, b, box);
-    // equivalent to "d > l / theta"
-    T bLength = nodeLength<KeyType>(b, box);
-    return dsq > bLength * bLength * invThetaSq;
+    T dsq     = norm2(minDistance(aCenter, aSize, bCenter, bSize, box));
+    T bLength = T(2.0) * max(bSize);
+    T mac     = bLength * invTheta;
+
+    return dsq > (mac * mac);
 }
 
-//! @brief commutative version
+/*! @brief vector multipole acceptance criterion
+ *
+ * @tparam KeyType       unsigned 32- or 64-bit integer type
+ * @tparam T             float or double
+ * @param  sourceCom     source center of gravity
+ * @param  sourceCenter  geometrical center of source cell
+ * @param  sourceSize    size of source cel
+ * @param  targetCenter  geometrical center of target group bounding box
+ * @param  targetSize    size of target group bounding box
+ * @param  box           global coordinate bounding box, contains PBC information
+ * @param  invTheta      reciprocal accuracy parameter
+ * @return               true if criterion fulfilled (cell does not need to be opened)
+ *
+ * Evaluates  d > l/theta + s with:
+ *  d -> minimal distance of target box to source center of mass
+ *  l -> edge length of source box
+ *  s -> distance from geometric source center to source center mass
+ */
 template<class KeyType, class T>
-HOST_DEVICE_FUN bool minDistanceMacMutual(const IBox& a, const IBox& b, const Box<T>& box, float invThetaSq)
+HOST_DEVICE_FUN bool vectorMac(const Vec3<T>& sourceCom,
+                               const Vec3<T>& sourceCenter,
+                               const Vec3<T>& sourceSize,
+                               const Vec3<T>& targetCenter,
+                               const Vec3<T>& targetSize,
+                               const Box<T>& box,
+                               float invTheta)
 {
-    T dsq = minDistanceSq<KeyType>(a, b, box);
-    // equivalent to "d > l / theta"
-    T boxLength = stl::max(nodeLength<KeyType>(a, box), nodeLength<KeyType>(b, box));
-    return dsq > boxLength * boxLength * invThetaSq;
+    // minimal distance^2 from source-center-mass to target box
+    T distanceToCom2 = norm2(minDistance(sourceCom, targetCenter, targetSize, box));
+    T sourceLength   = T(2.0) * max(sourceSize);
+
+    T s = std::sqrt(norm2(sourceCom - sourceCenter));
+    T mac = sourceLength * invTheta + s;
+
+    return distanceToCom2 > (mac * mac);
+}
+
+//! @brief commutative version of the min-distance mac, based on floating point math
+template<class T>
+HOST_DEVICE_FUN bool minMacMutual(const Vec3<T>& centerA,
+                                  const Vec3<T>& sizeA,
+                                  const Vec3<T>& centerB,
+                                  const Vec3<T>& sizeB,
+                                  const Box<T>& box,
+                                  float invTheta)
+{
+    Vec3<T> dX = minDistance(centerA, sizeA, centerB, sizeB, box);
+
+    T distSq = norm2(dX);
+    T sizeAB = 2 * stl::max(max(sizeA), max(sizeB));
+
+    T mac = sizeAB * invTheta;
+
+    return distSq > (mac * mac);
+}
+
+/*! @brief commutative combination of min-distance and vector map
+ *
+ * This MAC doesn't pass any A-B pairs that would fail either the min-distance
+ * or vector MAC. Can be used instead of the vector mac when the mass center locations
+ * are not known.
+ */
+template<class T>
+HOST_DEVICE_FUN bool minVecMacMutual(const Vec3<T>& centerA,
+                                     const Vec3<T>& sizeA,
+                                     const Vec3<T>& centerB,
+                                     const Vec3<T>& sizeB,
+                                     const Box<T>& box,
+                                     float invTheta)
+{
+    Vec3<T> dX = minDistance(centerA, sizeA, centerB, sizeB, box);
+
+    T distSq = norm2(dX);
+    T sizeAB = 2 * stl::max(max(sizeA), max(sizeB));
+
+    Vec3<T> maxComOffset = max(sizeA, sizeB);
+    // s is the worst-case distance of the c.o.m from the geometrical center
+    T s   = std::sqrt(norm2(maxComOffset));
+    T mac = sizeAB * invTheta + s;
+
+    return distSq > (mac * mac);
 }
 
 //! @brief mark all nodes of @p octree (leaves and internal) that fail the MAC w.r.t to @p target
 template<class T, class KeyType>
-void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box,
-                   float invThetaSq, KeyType focusStart, KeyType focusEnd, char* markings)
+void markMacPerBox(const Vec3<T>& targetCenter, const Vec3<T>& targetSize, const Octree<KeyType>& octree, const Box<T>& box,
+                   float invTheta, KeyType focusStart, KeyType focusEnd, char* markings)
 {
-    auto checkAndMarkMac = [target, &octree, &box, invThetaSq, focusStart, focusEnd, markings](TreeNodeIndex idx)
+    auto checkAndMarkMac =
+        [&targetCenter, &targetSize, &octree, &box, invTheta, focusStart, focusEnd, markings](TreeNodeIndex idx)
     {
         KeyType nodeStart = octree.codeStart(idx);
         KeyType nodeEnd   = octree.codeEnd(idx);
@@ -196,8 +200,9 @@ void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box
         if (containedIn(nodeStart, nodeEnd, focusStart, focusEnd)) { return false; }
 
         IBox sourceBox = sfcIBox(sfcKey(nodeStart), octree.level(idx));
+        auto [sourceCenter, sourceSize] = centerAndSize<KeyType>(sourceBox, box);
 
-        bool violatesMac = !minDistanceMac<KeyType>(target, sourceBox, box, invThetaSq);
+        bool violatesMac = !minMac(targetCenter, targetSize, sourceCenter, sourceSize, box, invTheta);
         if (violatesMac) { markings[idx] = 1; }
 
         return violatesMac;
@@ -221,7 +226,7 @@ void markMacPerBox(IBox target, const Octree<KeyType>& octree, const Box<T>& box
  */
 template<class T, class KeyType>
 void markMac(const Octree<KeyType>& octree, const Box<T>& box, KeyType focusStart, KeyType focusEnd,
-             float invThetaSq, char* markings)
+             float invTheta, char* markings)
 
 {
     std::fill(markings, markings + octree.numTreeNodes(), 0);
@@ -236,7 +241,8 @@ void markMac(const Octree<KeyType>& octree, const Box<T>& box, KeyType focusStar
     for (TreeNodeIndex i = 0; i < numFocusBoxes; ++i)
     {
         IBox target = sfcIBox(sfcKey(focusCodes[i]), sfcKey(focusCodes[i + 1]));
-        markMacPerBox(target, octree, box, invThetaSq, focusStart, focusEnd, markings);
+        auto [targetCenter, targetSize] = centerAndSize<KeyType>(target, box);
+        markMacPerBox(targetCenter, targetSize, octree, box, invTheta, focusStart, focusEnd, markings);
     }
 }
 
