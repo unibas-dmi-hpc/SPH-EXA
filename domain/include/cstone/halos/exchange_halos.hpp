@@ -39,12 +39,13 @@
 namespace cstone
 {
 
-template<class T, class...Arrays>
+template<class...Arrays>
 void haloexchange(int epoch,
                   const SendList& incomingHalos,
                   const SendList& outgoingHalos,
                   Arrays... arrays)
 {
+    using T = std::common_type_t<std::decay_t<decltype(*arrays)>...>;
     using IndexType = SendManifest::IndexType;
 
     constexpr int nArrays = sizeof...(Arrays);

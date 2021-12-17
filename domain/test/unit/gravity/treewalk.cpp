@@ -82,7 +82,7 @@ TEST(Gravity, TreeWalk)
     std::vector<T> az(numParticles, 0);
     std::vector<T> potential(numParticles, 0);
 
-    float theta = 0.75;
+    float theta = 0.6;
 
     computeGravity(octree, multipoles.data(), layout.data(), 0, octree.numLeafNodes(),
                    x, y, z, h.data(), masses.data(), box, theta, G, ax.data(), ay.data(), az.data(),

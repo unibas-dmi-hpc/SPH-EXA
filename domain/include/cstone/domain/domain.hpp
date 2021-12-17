@@ -34,7 +34,7 @@
 
 #pragma once
 
-#include "cstone/domain/domaindecomp_mpi.hpp"
+#include "cstone/domain/assignment.hpp"
 #include "cstone/domain/domain_traits.hpp"
 #include "cstone/domain/exchange_keys.hpp"
 #include "cstone/domain/layout.hpp"
@@ -44,8 +44,8 @@
 #include "cstone/gravity/treewalk.hpp"
 #include "cstone/gravity/upsweep.hpp"
 #include "cstone/halos/exchange_halos.hpp"
+#include "cstone/halos/halos.hpp"
 
-#include "cstone/tree/octree_mpi.hpp"
 #include "cstone/focus/octree_focus_mpi.hpp"
 
 #include "cstone/sfc/box_mpi.hpp"
@@ -73,21 +73,20 @@ public:
      *                        limits will never be changed for the lifetime of the Domain
      *
      */
-    explicit Domain(int rank,
-                    int nRanks,
-                    unsigned bucketSize,
-                    unsigned bucketSizeFocus,
-                    float theta,
-                    const Box<T>& box = Box<T>{0, 1})
+    Domain(int rank,
+           int nRanks,
+           unsigned bucketSize,
+           unsigned bucketSizeFocus,
+           float theta,
+           const Box<T>& box = Box<T>{0, 1})
         : myRank_(rank)
         , numRanks_(nRanks)
-        , bucketSize_(bucketSize)
         , bucketSizeFocus_(bucketSizeFocus)
         , theta_(theta)
-        , box_(box)
         , focusedTree_(bucketSizeFocus_, theta_)
+        , globalAssignment_(rank, nRanks, bucketSize, box)
     {
-        if (bucketSize_ < bucketSizeFocus_)
+        if (bucketSize < bucketSizeFocus_)
         {
             throw std::runtime_error("The bucket size of the global tree must not be smaller than the bucket size"
                                      " of the focused tree\n");
@@ -184,198 +183,83 @@ public:
         // bounds initialization on first call, use all particles
         if (firstCall_)
         {
-            particleStart_   = 0;
-            particleEnd_     = x.size();
-            localNParticles_ = x.size();
-            tree_       = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
-            nodeCounts_ = std::vector<unsigned>{localNParticles_};
+            particleStart_ = 0;
+            particleEnd_   = x.size();
+            layout_        = {0, LocalParticleIndex(x.size())};
+            firstCall_     = false;
         }
+        checkSizesEqual(layout_.back(), particleKeys, x, y, z, h, particleProperties...);
 
-        if (!sizesAllEqualTo(localNParticles_, x, y, z, h, particleProperties...))
-        {
-            throw std::runtime_error("Domain sync: input array sizes are inconsistent\n");
-        }
+        /* Global tree build and assignment ******************************************************/
 
-        haloEpoch_ = 0;
-
-        /* SFC decomposition phase *********************************************************/
-
-        box_ = makeGlobalBox(cbegin(x) + particleStart_, cbegin(x) + particleEnd_,
-                             cbegin(y) + particleStart_,
-                             cbegin(z) + particleStart_, box_);
-
-        // number of locally assigned particles to consider for global tree building
-        LocalParticleIndex numParticles = particleEnd_ - particleStart_;
-
-        particleKeys.resize(numParticles);
-
-        // compute sfc particleKeys only for particles participating in tree build
-        computeSfcKeys(x.data() + particleStart_, y.data() + particleStart_, z.data() + particleStart_,
-                       sfcKindPointer(particleKeys.data()), numParticles, box_);
-
-        // reorder the particleKeys according to the ordering
-        // has the same net effect as std::sort(begin(particleKeys), end(particleKeys)),
-        // but with the difference that we explicitly know the ordering, such
-        // that we can later apply it to the x,y,z,h arrays or to access them in the Morton order
-        reorderFunctor.setMapFromCodes(particleKeys.data(), particleKeys.data() + particleKeys.size());
-
-        // extract ordering for use in e.g. exchange particles
-        std::vector<LocalParticleIndex> sfcOrder(numParticles);
-        reorderFunctor.getReorderMap(sfcOrder.data());
-
-        // compute the global octree in cornerstone format (leaves only)
-        // the resulting tree and node counts will be identical on all ranks
-        updateOctreeGlobal(particleKeys.data(), particleKeys.data() + numParticles, bucketSize_, tree_, nodeCounts_);
-
-        if (firstCall_)
-        {
-            // full build on first call
-            while(!updateOctreeGlobal(particleKeys.data(), particleKeys.data() + numParticles,
-                                      bucketSize_, tree_, nodeCounts_));
-        }
-
-        // assign one single range of Morton particleKeys each rank
-        SpaceCurveAssignment assignment = singleRangeSfcSplit(nodeCounts_, numRanks_);
-        LocalParticleIndex newNParticlesAssigned = assignment.totalCount(myRank_);
+        LocalParticleIndex newNParticlesAssigned = globalAssignment_.assign(
+            particleStart_, particleEnd_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data());
 
         /* Domain particles update phase *********************************************************/
 
-        // compute send array ranges for domain exchange
-        // index ranges in domainExchangeSends are valid relative to the sorted code array particleKeys
-        // note that there is no offset applied to particleKeys, because it was constructed
-        // only with locally assigned particles
-        SendList domainExchangeSends = createSendList<KeyType>(assignment, tree_, particleKeys);
+        size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
+        reallocate(exchangeSize, particleKeys, x, y, z, h, particleProperties...);
+        std::vector<LocalParticleIndex> sfcOrder(x.size());
 
-        reallocate(std::max(newNParticlesAssigned, LocalParticleIndex(x.size())), x,y,z,h, particleProperties...);
+        gsl::span<const KeyType> keyView;
+        std::tie(particleStart_, keyView) = globalAssignment_.distribute(
+            particleStart_, particleEnd_, x.size(), reorderFunctor, sfcOrder.data(), particleKeys.data(), x.data(),
+            y.data(), z.data(), h.data(), particleProperties.data()...);
 
-        // exchange assigned particles, note: changes particleStart_ and End_ positions
-        std::tie(particleStart_, particleEnd_) =
-            exchangeParticles<T>(domainExchangeSends, myRank_, particleStart_, particleEnd_,
-                                 x.size(), newNParticlesAssigned, sfcOrder.data(),
-                                 x.data(), y.data(), z.data(), h.data(), particleProperties.data()...);
+        Box<T> box                             = globalAssignment_.box();
+        const SpaceCurveAssignment& assignment = globalAssignment_.assignment();
+        gsl::span<const KeyType> globalTree    = globalAssignment_.tree();
+        gsl::span<const unsigned> globalCounts = globalAssignment_.nodeCounts();
 
-        numParticles = particleEnd_ - particleStart_;
-        reallocate(numParticles, particleKeys);
-        reallocate(numParticles, sfcOrder);
+        /* Focused tree build ********************************************************************/
 
-        // refresh particleKeys and ordering
-        computeSfcKeys(x.data() + particleStart_, y.data() + particleStart_, z.data() + particleStart_,
-                       sfcKindPointer(particleKeys.data()), numParticles, box_);
-        reorderFunctor.setMapFromCodes(particleKeys.data(), particleKeys.data() + particleKeys.size());
-        reorderFunctor.getReorderMap(sfcOrder.data());
+        std::vector<int> peers = globalAssignment_.findPeers(theta_);
 
-        LocalParticleIndex compactOffset = findNodeAbove<KeyType>(particleKeys,
-                                                                  tree_[assignment.firstNodeIdx(myRank_)]);
-
-        // the range [particleStart_:particleEnd_] can still contain leftover particles from the previous step
-        // but [particleStart_ + compactOffset : particleStart_ + compactOffset + newNParticlesAssigned]
-        // exclusively refers to locally assigned particles in SFC order when accessed through sfcOrder
-        gsl::span<const KeyType> codesView(particleKeys.data() + compactOffset, newNParticlesAssigned);
-
-        /* Focus tree update phase *********************************************************/
-
-        Octree<KeyType> domainTree;
-        domainTree.update(begin(tree_), end(tree_));
-        std::vector<int> peers = findPeersMac(myRank_, assignment, domainTree, box_, theta_);
-
-        focusedTree_.updateGlobal(box_, codesView, myRank_, peers, assignment, tree_, nodeCounts_);
-        if (firstCall_)
-        {
-            // we must not call updateGlobal again before all ranks have completed the previous call,
-            // otherwise point-2-point messages from different updateGlobal calls can get mixed up
-            MPI_Barrier(MPI_COMM_WORLD);
-            int converged = 0;
-            while (converged != numRanks_)
-            {
-                converged = focusedTree_.updateGlobal(box_, codesView, myRank_, peers, assignment, tree_, nodeCounts_);
-                MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-            }
-            firstCall_ = false;
-        }
+        focusedTree_.initAndUpdate(box, keyView, myRank_, peers, assignment, globalTree, globalCounts);
 
         std::vector<TreeIndexPair> focusAssignment
-            = translateAssignment<KeyType>(assignment, tree_, focusedTree_.treeLeaves(), peers, myRank_);
+            = translateAssignment<KeyType>(assignment, globalTree, focusedTree_.treeLeaves(), peers, myRank_);
 
-        /* Halo discovery phase *********************************************************/
+        /* Halo discovery ***********************************************************************/
 
-        std::vector<float> haloRadii(nNodes(focusedTree_.treeLeaves()));
-        computeHaloRadii(focusedTree_.treeLeaves().data(),
-                         nNodes(focusedTree_.treeLeaves()),
-                         codesView,
-                         sfcOrder.data() + compactOffset,
-                         h.data() + particleStart_,
-                         haloRadii.data());
+        halos_.discover(focusedTree_.octree(), focusAssignment, keyView, box, h.data() + particleStart_, sfcOrder);
 
-        std::vector<int> haloFlags(nNodes(focusedTree_.treeLeaves()), 0);
-        findHalos(focusedTree_.octree(),
-                  haloRadii.data(),
-                  box_,
-                  focusAssignment[myRank_].start(),
-                  focusAssignment[myRank_].end(),
-                  haloFlags.data());
+        reallocate(nNodes(focusedTree_.treeLeaves()) + 1, layout_);
+        halos_.computeLayout(focusedTree_.treeLeaves(), focusedTree_.leafCounts(), focusAssignment,
+                             keyView, peers, layout_);
 
-        /* Compute new layout *********************************************************/
-
-        layout_ = computeNodeLayout(focusedTree_.leafCounts(), haloFlags,
-                                    focusAssignment[myRank_].start(),
-                                    focusAssignment[myRank_].end());
-        localNParticles_ = layout_.back();
         auto newParticleStart = layout_[focusAssignment[myRank_].start()];
-        auto newParticleEnd   = newParticleStart + newNParticlesAssigned;
+        auto numParticles     = layout_.back();
 
-        outgoingHaloIndices_
-            = exchangeRequestKeys<KeyType>(focusedTree_.treeLeaves(), haloFlags,
-                                           codesView, newParticleStart, focusAssignment, peers);
-        checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd);
+        /* Rearrange particle buffers ************************************************************/
 
-        incomingHaloIndices_ = computeHaloReceiveList(layout_, haloFlags, focusAssignment, peers);
+        reallocate(numParticles, x, y, z, h, particleProperties...);
+        reorderArrays(reorderFunctor, particleStart_, newParticleStart, x.data(), y.data(), z.data(), h.data(),
+                      particleProperties.data()...) ;
 
-        /* Rearrange particle buffers *********************************************************/
-
-        reallocate(localNParticles_, x, y, z, h, particleProperties...);
-
-        std::array<std::vector<T>*, 4 + sizeof...(Vectors)> particleArrays{&x, &y, &z, &h, &particleProperties...};
-        for (std::size_t i = 0; i < particleArrays.size(); ++i)
-        {
-            reorderFunctor(particleArrays[i]->data() + particleStart_,
-                           particleArrays[i]->data() + newParticleStart,
-                           compactOffset, newNParticlesAssigned);
-        }
-
-        std::vector<KeyType> newKeys(localNParticles_);
-        std::copy(codesView.begin(), codesView.end(), newKeys.begin() + newParticleStart);
+        std::vector<KeyType> newKeys(numParticles);
+        std::copy(keyView.begin(), keyView.end(), newKeys.begin() + newParticleStart);
         swap(particleKeys, newKeys);
 
         particleStart_ = newParticleStart;
-        particleEnd_   = newParticleEnd;
+        particleEnd_   = layout_[focusAssignment[myRank_].end()];
 
-        /* Halo exchange phase *********************************************************/
+        /* Halo exchange *************************************************************************/
 
         exchangeHalos(x, y, z, h);
 
         // compute SFC keys of received halo particles
         computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()),
-                       particleStart_, box_);
+                       particleStart_, box);
         computeSfcKeys(x.data() + particleEnd_, y.data() + particleEnd_, z.data() + particleEnd_,
-                       sfcKindPointer(particleKeys.data()) + particleEnd_, x.size() - particleEnd_, box_);
+                       sfcKindPointer(particleKeys.data()) + particleEnd_, x.size() - particleEnd_, box);
     }
 
-    /*! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
-     *
-     * @param[inout] arrays  std::vector<float or double> of size localNParticles_
-     *
-     * Arrays are not resized or reallocated. This is used e.g. for densities.
-     * Note: function is const, but modiefies mutable haloEpoch_ counter.
-     */
+    //! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
     template<class...Arrays>
     void exchangeHalos(Arrays&... arrays) const
     {
-        if (!sizesAllEqualTo(localNParticles_, arrays...))
-        {
-            throw std::runtime_error("halo exchange array sizes inconsistent with previous sync operation\n");
-        }
-
-        haloexchange<T>(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
+        halos_.exchangeHalos(arrays...);
     }
 
     /*! @brief compute gravitational accelerations
@@ -399,7 +283,7 @@ public:
         computeMultipoles(octree, layout_, x.data(), y.data(), z.data(), m.data(), multipoles.data());
 
         return computeGravity(octree, multipoles.data(), layout_.data(), 0, octree.numLeafNodes(),
-                              x.data(), y.data(), z.data(), h.data(), m.data(), box_, theta_,
+                              x.data(), y.data(), z.data(), h.data(), m.data(), globalAssignment_.box(), theta_,
                               G, ax.data(), ay.data(), az.data());
     }
 
@@ -413,47 +297,33 @@ public:
     [[nodiscard]] LocalParticleIndex nParticles() const { return endIndex() - startIndex(); }
 
     //! @brief return number of locally assigned particles plus number of halos
-    [[nodiscard]] LocalParticleIndex nParticlesWithHalos() const { return localNParticles_; }
+    [[nodiscard]] LocalParticleIndex nParticlesWithHalos() const { return layout_.back(); }
 
     //! @brief read only visibility of the global octree leaves to the outside
-    gsl::span<const KeyType> tree() const { return tree_; }
+    gsl::span<const KeyType> tree() const { return globalAssignment_.tree(); }
 
     //! @brief read only visibility of the focused octree leaves to the outside
     gsl::span<const KeyType> focusedTree() const { return focusedTree_.treeLeaves(); }
 
     //! @brief return the coordinate bounding box from the previous sync call
-    Box<T> box() const { return box_; }
+    Box<T> box() const { return globalAssignment_.box(); }
 
 private:
 
-    //! @brief check that only owned particles in [particleStart_:particleEnd_] are sent out as halos
-    void checkIndices(const SendList& sendList, [[maybe_unused]] LocalParticleIndex start,
-                      [[maybe_unused]] LocalParticleIndex end)
-    {
-        for (const auto& manifest : sendList)
-        {
-            for (size_t ri = 0; ri < manifest.nRanges(); ++ri)
-            {
-                assert(!overlapTwoRanges(LocalParticleIndex{0}, start,
-                                         manifest.rangeStart(ri), manifest.rangeEnd(ri)));
-                assert(!overlapTwoRanges(end, localNParticles_,
-                                         manifest.rangeStart(ri), manifest.rangeEnd(ri)));
-            }
-        }
-    }
-
-    //! @brief return true if all array sizes are equal to value
+    //! @brief make sure all array sizes are equal to @p value
     template<class... Arrays>
-    static bool sizesAllEqualTo(std::size_t value, Arrays&... arrays)
+    static void checkSizesEqual(std::size_t value, Arrays&... arrays)
     {
         std::array<std::size_t, sizeof...(Arrays)> sizes{arrays.size()...};
-
-        return size_t(std::count(begin(sizes), end(sizes), value)) == sizes.size();
+        bool allEqual = size_t(std::count(begin(sizes), end(sizes), value)) == sizes.size();
+        if (!allEqual)
+        {
+            throw std::runtime_error("Domain sync: input array sizes are inconsistent\n");
+        }
     }
 
     int myRank_;
     int numRanks_;
-    unsigned bucketSize_;
     unsigned bucketSizeFocus_;
 
     //! @brief MAC parameter for focus resolution and gravity treewalk
@@ -465,18 +335,6 @@ private:
     LocalParticleIndex particleStart_{0};
     //! @brief index (upper bound) of last particle that belongs to the assignment
     LocalParticleIndex particleEnd_{0};
-    //! @brief number of locally present particles, = number of halos + assigned particles
-    LocalParticleIndex localNParticles_{0};
-
-    //! @brief coordinate bounding box, each non-periodic dimension is at a sync call
-    Box<T> box_;
-
-    SendList incomingHaloIndices_;
-    SendList outgoingHaloIndices_;
-
-    //! @brief cornerstone tree leaves for global domain decomposition
-    std::vector<KeyType> tree_;
-    std::vector<unsigned> nodeCounts_;
 
     /*! @brief locally focused, fully traversable octree, used for halo discovery and exchange
      *
@@ -487,18 +345,14 @@ private:
      */
     FocusedOctree<KeyType> focusedTree_;
 
+    GlobalAssignment<KeyType, T> globalAssignment_;
+
     //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
     std::vector<LocalParticleIndex> layout_;
 
-    bool firstCall_{true};
+    Halos<KeyType> halos_{myRank_};
 
-    /*! @brief counter for halo exchange calls between sync() calls
-     *
-     * Gets reset to 0 after every call to sync(). The reason for this setup is that
-     * the multiple client calls to exchangeHalos() before sync() is called again
-     * should get different MPI tags, because there is no global MPI_Barrier or MPI collective in between them.
-     */
-     mutable int haloEpoch_{0};
+    bool firstCall_{true};
 
     ReorderFunctor reorderFunctor;
 };

@@ -110,7 +110,7 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     std::vector<T> z{zGlobal.begin() + rank * nParticlesPerRank, zGlobal.begin() + (rank + 1) * nParticlesPerRank};
     std::vector<T> h{hGlobal.begin() + rank * nParticlesPerRank, hGlobal.begin() + (rank + 1) * nParticlesPerRank};
 
-    std::vector<KeyType> codes;
+    std::vector<KeyType> codes(x.size());
     domain.sync(x, y, z, h, codes);
 
     LocalParticleIndex localCount = domain.endIndex() - domain.startIndex();
@@ -243,7 +243,7 @@ TEST(FocusDomain, assignmentShift)
 
     Domain<KeyType, Real> domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
 
-    std::vector<KeyType> particleKeys;
+    std::vector<KeyType> particleKeys(x.size());
 
     domain.sync(x,y,z,h, particleKeys);
 

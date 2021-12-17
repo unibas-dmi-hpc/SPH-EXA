@@ -60,7 +60,7 @@ public:
     void setReorderMap(const IndexType* map_first, const IndexType* map_last);
 
     //! @brief download the reorder map from the device
-    void getReorderMap(IndexType* map_first);
+    void getReorderMap(IndexType* map_first, IndexType first, IndexType last);
 
     /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
      *
@@ -87,9 +87,15 @@ public:
      * \a values must have at least as many elements as the reorder map provided in the last call
      * to setReorderMap or setMapFromCodes, otherwise the behavior is undefined.
      */
-    void operator()(const ValueType* values, ValueType* destination, IndexType offset, IndexType numExtract);
+    void operator()(const ValueType* values, ValueType* destination, IndexType offset, IndexType numExtract) const;
+
+    void operator()(const ValueType* values, ValueType* destination) const;
+
+    void restrictRange(std::size_t offset, std::size_t numExtract);
 
 private:
+    std::size_t offset_{0};
+    std::size_t numExtract_{0};
     std::size_t mapSize_{0};
 
     std::unique_ptr<DeviceMemory<ValueType, IndexType>> deviceMemory_;
