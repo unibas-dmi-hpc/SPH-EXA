@@ -1,6 +1,6 @@
 CXX ?= g++ # This is the main compiler
 CC ?= gcc
-MPICXX ?= mpic++
+MPICXX ?= mpic++ -DOMPI_SKIP_MPICXX
 ENV ?= gnu
 NVCC ?= $(CUDA_PATH)/bin/nvcc
 
@@ -20,10 +20,11 @@ DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
 # cuda architecture targets
 SMS ?= 35 60 70 75
 $(foreach sm,$(SMS),$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
+GENCODE_FLAGS += -Wno-deprecated-gpu-targets
 
 INC += -Isrc -Iinclude -Idomain/include -I$(CUDA_PATH)/include -I$(PGI_PATH)/include
 CXXFLAGS += $(RELEASE)
-NVCCFLAGS := -std=c++17 -O3 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS) -Wno-deprecated-gpu-targets
+NVCCFLAGS := -std=c++17 -O3 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS)
 NVCCLDFLAGS := $(GENCODE_FLAGS) -rdc=true
 
 CXXFLAGS += -O3 -Wall -Wextra -Wno-unknown-pragmas
@@ -49,20 +50,24 @@ ifeq ($(ENV),clang)
 endif
 
 TESTCASE ?= sedov
+#TESTCASE ?= evrard
 
-ifeq ($(TESTCASE),evrard)
+ifeq ($(TESTCASE),sedov)
+	TESTCODE = src/sedov/sedov.cpp
+else ifeq ($(TESTCASE),evrard)
 	TESTCASE_FLAGS = -DGRAVITY
+	TESTCODE = src/evrard/evrard.cpp
 endif
 
-#omp: $(HPP)
+#omp:
 #	@mkdir -p $(BINDIR)
 #	$(info Linking the executable:)
-#	$(CXX) $(CXXFLAGS) $(INC) $(TESTCASE_FLAGS) src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
+#	$(CXX) $(CXXFLAGS) $(INC) $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 
-mpi+omp: $(HPP)
+mpi+omp:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(TESTCASE_FLAGS) src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 
 #omp+cuda: $(BUILDDIR)/cuda_no_mpi.o $(CUDA_OBJS)
 #	@mkdir -p $(BINDIR)
@@ -71,20 +76,20 @@ mpi+omp: $(HPP)
 #	$(CXX) $(CXXFLAGS) -o $(BINDIR)/$@.app cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudart -lcudadevrt
 ##	$(CXX) -o $(BINDIR)/$@.app $+ -L$(CUDA_PATH)/lib64 -lcudart -fopenmp
 
-#omp+target: $(HPP)
+#omp+target:
 #	@mkdir -p $(BINDIR)
 #	$(info Linking the executable:)
-#	$(CXX) $(CXXFLAGS) $(INC) -DUSE_OMP_TARGET $(TESTCASE_FLAGS) src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
+#	$(CXX) $(CXXFLAGS) $(INC) -DUSE_OMP_TARGET $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 
-mpi+omp+target: $(HPP)
+mpi+omp+target:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(TESTCASE_FLAGS) src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 
-mpi+omp+acc: $(HPP)
+mpi+omp+acc:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(TESTCASE_FLAGS) -DUSE_ACC src/$(TESTCASE)/$(TESTCASE).cpp -o $(BINDIR)/$@.app $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(TESTCASE_FLAGS) -DUSE_ACC $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 
 mpi+omp+cuda: $(BUILDDIR)/cuda_mpi.o $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)
@@ -95,11 +100,11 @@ mpi+omp+cuda: $(BUILDDIR)/cuda_mpi.o $(CUDA_OBJS)
 #all: omp mpi+omp omp+cuda mpi+omp+cuda omp+target mpi+omp+target mpi+omp+acc
 all: mpi+omp mpi+omp+cuda mpi+omp+target mpi+omp+acc
 
-$(BUILDDIR)/cuda_mpi.o: src/$(TESTCASE)/$(TESTCASE).cpp
+$(BUILDDIR)/cuda_mpi.o: $(TESTCODE)
 	@mkdir -p $(BUILDDIR)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_CUDA $(TESTCASE_FLAGS) -o $@ -c $<
 
-$(BUILDDIR)/cuda_no_mpi.o: src/$(TESTCASE)/$(TESTCASE).cpp
+$(BUILDDIR)/cuda_no_mpi.o: $(TESTCODE)
 	@mkdir -p $(BUILDDIR)
 	$(CXX) $(CXXFLAGS) $(INC) -DUSE_CUDA $(TESTCASE_FLAGS) -o $@ -c $<
 

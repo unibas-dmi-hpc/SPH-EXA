@@ -16,8 +16,9 @@
 
 #include "sph/findNeighborsSfc.hpp"
 
-using namespace sphexa;
 using namespace cstone;
+using namespace sphexa;
+using namespace sphexa::sph;
 
 #ifdef SPH_EXA_USE_CATALYST2
 #include "CatalystAdaptor.h"
@@ -56,12 +57,12 @@ int main(int argc, char** argv)
     std::ostream& output = quiet ? nullOutput : std::cout;
 
     using Real = double;
-    using CodeType = uint64_t;
-    using Dataset = ParticlesData<Real, CodeType>;
+    using KeyType = uint64_t;
+    using Dataset = ParticlesData<Real, KeyType>;
 
     const IFileWriter<Dataset>& fileWriter = SedovMPIFileWriter<Dataset>();
 
-    auto d = SedovDataGenerator<Real, CodeType>::generate(cubeSide);
+    auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
@@ -73,24 +74,21 @@ int main(int argc, char** argv)
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
     size_t bucketSize = std::max(bucketSizeFocus, (cubeSide * cubeSide * cubeSide) / (100 * d.nrank));
 
-    cstone::Box<double> box(0, 1);
-    {
-        box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
+    Box<Real> box(0, 1);
+    box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
 
-        Real dx = 0.5 / cubeSide;
-
-        // enable PBC and enlarge bounds
-        box = cstone::Box<double>(box.xmin() - dx, box.xmax() + dx,
-                                  box.ymin() - dx, box.ymax() + dx,
-                                  box.zmin() - dx, box.zmax() + dx, true, true, true);
-    }
+	// enable PBC and enlarge bounds
+    Real dx = 0.5 / cubeSide;
+    box = Box<Real>(box.xmin() - dx, box.xmax() + dx,
+                    box.ymin() - dx, box.ymax() + dx,
+                    box.zmin() - dx, box.zmax() + dx, true, true, true);
 
     float theta = 1.0;
 
 #ifdef USE_CUDA
-    cstone::Domain<CodeType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    Domain<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #else
-    cstone::Domain<CodeType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
@@ -127,30 +125,30 @@ int main(int argc, char** argv)
 
         taskList.update(domain.startIndex(), domain.endIndex());
         timer.step("updateTasks");
-        sph::findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, domain.box());
+        findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, domain.box());
         timer.step("FindNeighbors");
-        sph::computeDensity<Real>(taskList.tasks, d, domain.box());
+        computeDensity<Real>(taskList.tasks, d, domain.box());
         timer.step("Density");
-        sph::computeEquationOfStateEvrard<Real>(taskList.tasks, d);
+        computeEquationOfStateEvrard<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
-        sph::computeIAD<Real>(taskList.tasks, d, domain.box());
+        computeIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("IAD");
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33);
         timer.step("mpi::synchronizeHalos");
-        sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d, domain.box());
+        computeMomentumAndEnergyIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("MomentumEnergyIAD");
-        sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
+        computeTimestep<Real, TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
         timer.step("Timestep"); // AllReduce(min:dt)
-        sph::computePositions<Real, sph::computeAcceleration<Real, Dataset>>(taskList.tasks, d, domain.box());
+        computePositions<Real, computeAcceleration<Real, Dataset>>(taskList.tasks, d, domain.box());
         timer.step("UpdateQuantities");
-        sph::computeTotalEnergy<Real>(taskList.tasks, d);
+        computeTotalEnergy<Real>(taskList.tasks, d);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
-        sph::updateSmoothingLength<Real>(taskList.tasks, d);
+        updateSmoothingLength<Real>(taskList.tasks, d);
         timer.step("UpdateSmoothingLength");
 
-        size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
+        size_t totalNeighbors = neighborsSum(taskList.tasks);
 
         if (d.rank == 0)
         {
@@ -176,7 +174,7 @@ int main(int argc, char** argv)
         {
 #ifdef SPH_EXA_HAVE_H5PART
             fileWriter.dumpParticleDataToH5File(
-                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_Sedov.h5part");
+                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov.h5part");
 #else
             fileWriter.dumpParticleDataToAsciiFile(
                 d, domain.startIndex(), domain.endIndex(), "dump_sedov" + std::to_string(d.iteration) + ".txt");
@@ -218,14 +216,16 @@ void printHelp(char* name, int rank)
     {
         printf("\nUsage:\n\n");
         printf("%s [OPTIONS]\n", name);
-        printf("\nWhere possible options are:\n");
-        printf("\t-n NUM \t\t\t NUM^3 Number of particles\n");
-        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps)\n");
-        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps)\n\n");
+        printf("\nWhere possible options are:\n\n");
 
-        printf("\t--quiet \t\t Don't print anything to stdout\n\n");
+        printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
+        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [10]\n\n");
 
-        printf("\t--outDir PATH \t\t Path to directory where output will be saved.\
+        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
+
+        printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
+
+        printf("\t--outDir PATH \t\t Path to directory where output will be saved [./].\
                     \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
                     \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n");
     }
