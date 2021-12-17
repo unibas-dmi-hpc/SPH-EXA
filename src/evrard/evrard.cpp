@@ -242,7 +242,7 @@ void printHelp(char* name, int rank)
 
         printf("\t--cinput \t\t Read ParticleData from CheckpointBinFile input [false]\n\n");
 
-        printf("\t--input  PATH \t\t Path to input file [../../../src/evrard/bigfiles/Test3DEvrardRel.bin]\n");
+        printf("\t--input  PATH \t\t Path to input file [./Test3DEvrardRel.bin]\n");
 
         printf("\t--outDir PATH \t\t Path to directory where output will be saved [./].\
                     \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
