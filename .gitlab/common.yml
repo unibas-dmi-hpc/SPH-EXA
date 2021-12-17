@@ -144,9 +144,8 @@ variables:
     - reframe --version
     # }}}
     # {{{ thrust:
-    - apt install -y --no-install-recommends cuda-thrust-11-3
+    - apt install -y --no-install-recommends cuda-thrust-11-3 > /dev/null
     # }}}
-    # TODO: ./ryoanji/test/ryoanji_unit_tests ./ryoanji/test/ryoanji
 # }}}
 # {{{ deps-ubu-gnu_fake
 .deps-ubu-gnu_fake: &deps-ubu-gnu_fake
@@ -158,7 +157,7 @@ variables:
 # }}}
 # }}}
 
-# {{{ build:
+# {{{ build: -DCMAKE_BUILD_TYPE=Release
 .build: &build
   # tag must be 'docker_jfrog'
   # tags:
@@ -189,7 +188,7 @@ variables:
       fi
     # - echo "$PATH" | tr ':' '\n' | sort
     - nvcc --version
-    - cmake -S . -B build -DCMAKE_CXX_FLAGS=-w $cpe_cmake_flags
+    - cmake -S . -B build -DCMAKE_CXX_FLAGS=-w $cpe_cmake_flags -DCMAKE_BUILD_TYPE=Release -DBUILD_RYOANJI=ON
     - cd build/
     # {{{ debug with:
     # - make -j3 coordinate_test domain_2ranks
@@ -204,8 +203,8 @@ variables:
     - which sedov
 # }}}
 
-# {{{ build: CMAKE_BUILD_TYPE=Debug
-.build: &build
+# {{{ build-debug: -DCMAKE_BUILD_TYPE=Debug
+.build-debug: &build-debug
   before_script:
     # {{{ NOTE: for cpe only
     - if [ "$cpe" = "true" ] ;then
@@ -231,7 +230,7 @@ variables:
       fi
     # - echo "$PATH" | tr ':' '\n' | sort
     - nvcc --version
-    - cmake -S . -B build -DCMAKE_CXX_FLAGS=-w $cpe_cmake_flags
+    - cmake -S . -B build -DCMAKE_CXX_FLAGS=-w $cpe_cmake_flags -DCMAKE_BUILD_TYPE=Debug -DBUILD_RYOANJI=ON
     - cd build/
     # {{{ debug with:
     # - make -j3 coordinate_test domain_2ranks
@@ -372,6 +371,7 @@ variables:
     # gpu_tests -n1
     - /usr/local/bin/sedov-cuda -s 0 -n 50
     # gpu_unittests -n1
+    - /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests
     - /usr/local/sbin/unit_cuda/component_units_cuda
     - /usr/local/sbin/performance/cudaNeighborsTest
     - /usr/local/sbin/performance/octree_perf_gpu
