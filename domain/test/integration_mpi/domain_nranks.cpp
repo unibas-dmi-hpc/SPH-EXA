@@ -79,6 +79,61 @@ void initCoordinates(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, Bo
     std::generate(begin(z), end(z), randZ);
 }
 
+//! @brief can be used to calculate reasonable smoothing lengths for each particle
+template<class KeyType, class Tc, class Th>
+void adjustSmoothingLength(LocalParticleIndex numParticles,
+                           int ng0,
+                           int ngmax,
+                           const std::vector<Tc>& xGlob,
+                           const std::vector<Tc>& yGlob,
+                           const std::vector<Tc>& zGlob,
+                           std::vector<Th>& hGlob,
+                           const Box<Tc>& box)
+{
+    std::vector<KeyType> codesGlobal(numParticles);
+
+    std::vector<Tc> x = xGlob;
+    std::vector<Tc> y = yGlob;
+    std::vector<Tc> z = zGlob;
+    std::vector<Tc> h = hGlob;
+
+    computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(codesGlobal.data()), numParticles, box);
+    std::vector<LocalParticleIndex> ordering(numParticles);
+    std::iota(begin(ordering), end(ordering), LocalParticleIndex(0));
+    sort_by_key(begin(codesGlobal), end(codesGlobal), begin(ordering));
+    reorderInPlace(ordering, x.data());
+    reorderInPlace(ordering, y.data());
+    reorderInPlace(ordering, z.data());
+    reorderInPlace(ordering, h.data());
+
+    std::vector<LocalParticleIndex> inverseOrdering(numParticles);
+    std::iota(begin(inverseOrdering), end(inverseOrdering), 0);
+    std::vector orderCpy = ordering;
+    sort_by_key(begin(orderCpy), end(orderCpy), begin(inverseOrdering));
+
+    std::vector<int> neighbors(numParticles * ngmax);
+    std::vector<int> neighborCounts(numParticles);
+
+    // adjust h[i] such that each particle has between ng0/2 and ngmax neighbors
+    for (LocalParticleIndex i = 0; i < numParticles; ++i)
+    {
+        do
+        {
+            findNeighbors(i, x.data(), y.data(), z.data(), h.data(), box, sfcKindPointer(codesGlobal.data()),
+                          neighbors.data() + i * ngmax, neighborCounts.data() + i, numParticles, ngmax);
+
+            const Tc c0 = 7.0;
+            int nn      = std::max(neighborCounts[i], 1);
+            h[i]        = h[i] * 0.5 * pow(1.0 + (c0 * ng0) / nn, 1.0 / 3.0);
+        } while (neighborCounts[i] < ng0/2 || neighborCounts[i] >= ngmax);
+    }
+
+    for (LocalParticleIndex i = 0; i < numParticles; ++i)
+    {
+        hGlob[i] = h[inverseOrdering[i]];
+    }
+}
+
 template<class KeyType, class T, class DomainType>
 void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalizeH = false)
 {
@@ -171,7 +226,9 @@ TEST(FocusDomain, randomGaussianNeighborSum)
 
     int bucketSize = 50;
     int bucketSizeFocus = 10;
-    float theta = 1.0;
+    // theta = 1.0 triggers the invalid case where smoothing lengths interact with domains further away
+    // than the multipole criterion
+    float theta = 0.75;
 
     {
         Domain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1});
@@ -199,7 +256,7 @@ TEST(FocusDomain, randomGaussianNeighborSumPbc)
 
     int bucketSize = 50;
     int bucketSizeFocus = 10;
-    float theta = 1.0;
+    float theta = 0.75;
 
     {
         Domain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1, true});
@@ -232,14 +289,14 @@ TEST(FocusDomain, assignmentShift)
     LocalParticleIndex numParticlesPerRank = 15000;
     unsigned bucketSize = 1024;
     unsigned bucketSizeFocus = 8;
-    float theta = 1.0;
+    float theta = 0.5;
 
     RandomCoordinates<Real, SfcKind<KeyType>> coordinates(numParticlesPerRank, box, rank);
 
     std::vector<Real> x(coordinates.x().begin(), coordinates.x().end());
     std::vector<Real> y(coordinates.y().begin(), coordinates.y().end());
     std::vector<Real> z(coordinates.z().begin(), coordinates.z().end());
-    std::vector<Real> h(numParticlesPerRank, 0.1);
+    std::vector<Real> h(numParticlesPerRank, 0.1 / std::cbrt(numRanks));
 
     Domain<KeyType, Real> domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
 
