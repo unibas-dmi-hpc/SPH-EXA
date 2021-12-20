@@ -81,6 +81,7 @@ public:
         reallocate(nNodes(leaves), haloFlags_);
         std::fill(begin(haloFlags_), end(haloFlags_), 0);
         findHalos(focusedTree, haloRadii.data(), box, firstAssignedNode, lastAssignedNode, haloFlags_.data());
+        checkHalos(focusAssignment);
     }
 
     /*! @brief Compute particle offsets of each tree node and determine halo send/receive indices
@@ -154,6 +155,44 @@ private:
             {
                 assert(!overlapTwoRanges(LocalParticleIndex{0}, start, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
                 assert(!overlapTwoRanges(end, particleBufferSize_, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
+            }
+        }
+    }
+
+    //! @brief check halo discovery for sanity
+    void checkHalos(gsl::span<const TreeIndexPair> focusAssignment)
+    {
+        TreeNodeIndex firstAssignedNode = focusAssignment[myRank_].start();
+        TreeNodeIndex lastAssignedNode  = focusAssignment[myRank_].end();
+
+        std::array<TreeNodeIndex, 2> checkRanges[2] = {{0, firstAssignedNode},
+                                                       {lastAssignedNode, TreeNodeIndex(haloFlags_.size())}};
+
+        for (int range = 0; range < 2; ++range)
+        {
+            #pragma omp parallel for
+            for (TreeNodeIndex i = checkRanges[range][0]; i < checkRanges[range][1]; ++i)
+            {
+                if (haloFlags_[i])
+                {
+                    bool peerFound = false;
+                    for (auto peerRange : focusAssignment)
+                    {
+                        if (peerRange.start() <= i && i < peerRange.end())
+                        {
+                            peerFound = true;
+                        }
+                    }
+                    if (!peerFound)
+                    {
+                        std::cout << "Detected halo cells not belonging to peer ranks. This usually happens"
+                                  << " when some particles have smoothing length interaction sphere volumes"
+                                  << " of similar magnitude than the rank domain volume. In that case, either"
+                                  << " the number of ranks needs to be decreased or the number of particles"
+                                  << " increased, leading to shorter smoothing lengths\n";
+                        MPI_Abort(MPI_COMM_WORLD, 1);
+                    }
+                }
             }
         }
     }
