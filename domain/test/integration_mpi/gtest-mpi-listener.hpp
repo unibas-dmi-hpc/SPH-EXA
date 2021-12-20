@@ -474,7 +474,8 @@ virtual void OnTestPartResult
 virtual void OnEnvironmentsTearDownStart(const ::testing::UnitTest &unit_test)
 {
     int is_mpi_finalized;
-    assert(MPI_Finalized(&is_mpi_finalized) == MPI_SUCCESS);
+    int mpi_finalized_ret = MPI_Finalized(&is_mpi_finalized);
+    assert(mpi_finalized_ret == MPI_SUCCESS);
     if (!is_mpi_finalized) {
         MPI_Comm_free(&comm);
     }
