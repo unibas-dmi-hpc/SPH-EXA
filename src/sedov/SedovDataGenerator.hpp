@@ -12,6 +12,14 @@ template <typename T, typename I>
 class SedovDataGenerator
 {
 public:
+
+    static constexpr double gamma         = 5.0/3.0;
+    static constexpr double energytot     = 1.0;
+    static constexpr double width         = 0.10;
+    static constexpr double rho0          = 1.0;
+    static constexpr double ener0         = energytot / std::pow(M_PI,(3.0/2.0)) / 1.0 / std::pow(width,3);
+    static constexpr T      firstTimeStep = 1e-6;
+
     static ParticlesData<T, I> generate(const size_t side)
     {
         ParticlesData<T, I> pd;
@@ -54,7 +62,8 @@ public:
         pd.resize(pd.count);
 
         if(pd.rank == 0)
-            std::cout << "Approx: " << pd.count * (pd.data.size() * 64.0) / (8.0 * 1000.0 * 1000.0 * 1000.0) << "GB allocated on rank 0." << std::endl; 
+            std::cout << "Approx: " << pd.count * (pd.data.size() * 64.0) / (8.0 * 1000.0 * 1000.0 * 1000.0)
+                      << "GB allocated on rank 0." << std::endl;
 
         size_t offset = pd.rank * split;
         if (pd.rank > 0) offset += remaining;
@@ -88,36 +97,21 @@ public:
 
     static void init(ParticlesData<T, I> &pd)
     {
-        const T firstTimeStep = 1e-6;
         const T dx = 1.0 / pd.side;
-
-        const double myPI = std::acos(-1.0);
-
-        double energytot=1.0;
-        double width=0.10;
-        double ener0=energytot / std::pow(myPI,(3.0/2.0)) / 1.0 / std::pow(width,3);
 
         #pragma omp parallel for
         for (size_t i = 0; i < pd.count; i++)
         {
-            //pd.u[i]=ener0*exp(-(radius(i)**2/width**2))+1.d-08
-            //pd.p[i]=u(i)*1.d0*(gamma-1.d0)
-
-            // CGS
-            //pd.vx[i] = pd.vx[i] * 100.0;
-            //pd.vy[i] = pd.vy[i] * 100.0;
-            //pd.vz[i] = pd.vz[i] * 100.0;
-
             double radius = sqrt(pd.x[i] * pd.x[i] +  pd.y[i] * pd.y[i]+ pd.z[i] * pd.z[i]);
 
             pd.u[i] = ener0 * exp(-(std::pow(radius,2) / std::pow(width,2))) + 1.e-08;
 
-            pd.p[i] = pd.u[i]*1.0*((5.0/3.0)-1.0);
+            pd.p[i] = pd.u[i]*1.0*(gamma-1.0);
 
             pd.m[i] = 1.0 / pd.n; // 1.0;//1000000.0/n;//1.0;//0.001;//0.001;//0.001;//1.0;
             //pd.c[i] = 3500.0;           // 35.0;//35.0;//35000
             pd.h[i] = 1.5 * dx;//0.28577500E-01 / 2.0; //2.0 * dx;         // 0.02;//0.02;
-            pd.ro[i] = 1.0;             // 1.0e3;//.0;//1e3;//1e3;
+            pd.ro[i] = rho0;  // 1.0 // 1.0e3;//.0;//1e3;//1e3;
 
             pd.mui[i] = 10.0;
 

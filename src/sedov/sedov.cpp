@@ -2,6 +2,7 @@
 #include <fstream>
 #include <string>
 #include <vector>
+#include <limits>
 
 // hard code MPI for now
 #ifndef USE_MPI
@@ -13,6 +14,7 @@
 #include "sphexa.hpp"
 #include "SedovDataGenerator.hpp"
 #include "SedovDataFileWriter.hpp"
+#include "SedovAnalyticalSolution.hpp"
 
 #include "sph/findNeighborsSfc.hpp"
 
@@ -50,6 +52,7 @@ int main(int argc, char** argv)
     const size_t cubeSide = parser.getInt("-n", 50);
     const size_t maxStep = parser.getInt("-s", 10);
     const int writeFrequency = parser.getInt("-w", -1);
+    const bool solution = parser.exists("--sol");
     const bool quiet = parser.exists("--quiet");
     const std::string outDirectory = parser.getString("--outDir");
 
@@ -63,6 +66,25 @@ int main(int argc, char** argv)
     const IFileWriter<Dataset>& fileWriter = SedovMPIFileWriter<Dataset>();
 
     auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
+
+    double r0 = __DBL_MAX__;
+    double r1 = __DBL_MIN__;
+    for (size_t i = 0; i < d.count; i++)
+    {
+        double radius = std::sqrt( std::pow(d.x[i], 2.) + std::pow(d.y[i], 2.) + std::pow(d.z[i], 2.) );
+        if (radius < r0) r0 = radius;
+        if (radius > r1) r1 = radius;
+    }
+
+    const size_t dim    = 3;
+    const double eblast = SedovDataGenerator<Real, KeyType>::ener0;
+    const double omega  = 0.0;
+    const double gamma  = SedovDataGenerator<Real, KeyType>::gamma;
+    const double rho0   = SedovDataGenerator<Real, KeyType>::rho0;
+    const double u0     = 0.0;
+    const double p0     = 0.0;
+    const double vr0    = 0.0;
+    const double cs0    = 0.0;
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
@@ -172,13 +194,30 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
+            std::string solutionFilename;
+
 #ifdef SPH_EXA_HAVE_H5PART
             fileWriter.dumpParticleDataToH5File(
                 d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov.h5part");
+            solutionFilename = outDirectory + "dump_sedov_sol.h5part";
 #else
             fileWriter.dumpParticleDataToAsciiFile(
                 d, domain.startIndex(), domain.endIndex(), "dump_sedov" + std::to_string(d.iteration) + ".txt");
+            solutionFilename = "dump_sedov" + std::to_string(d.iteration) + "_sol.txt";
 #endif
+
+            if (solution)
+            {
+                SedovAnalyticalSolution::create(dim,
+                                                r0, r1,
+                                                domain.nParticles(),
+                                                d.ttot,
+                                                eblast,
+                                                omega, gamma,
+                                                rho0, u0, p0, vr0, cs0,
+                                                solutionFilename);
+            }
+
             timer.step("writeFile");
         }
 
@@ -221,7 +260,8 @@ void printHelp(char* name, int rank)
         printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
         printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [10]\n\n");
 
-        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
+        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n");
+        printf("\t--sol   \t\t Print anytical solution every dump [false]\n\n");
 
         printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
 
