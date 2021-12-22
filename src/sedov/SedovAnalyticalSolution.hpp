@@ -61,20 +61,20 @@ class SedovAnalyticalSolution
 {
 public:
 
-    static void create(const size_t dim,         // Dimensions
-                       const double r0,          // Initial radio
-                       const double r1,          // End radio
-                       const size_t rPoints,     // Number of points between r0-r1
-                       const double time,        // Time at solution
-                       const double eblast,      // Energy blast in the wave front
-                       const double omega_i,     // Energy blast in the wave front
-                       const double gamma_i,     // Adiabatic coeficient
-                       const double rho0,        // Initial density
-                       const double u0,          // Initial internal energy
-                       const double p0,          // Initial pressure
-                       const double vr0,         // Initial radial velocity
-                       const double cs0,         // Initial sound speed
-                       const string outfile)     // Output solution filename
+    static void create(const size_t dim,              // Dimensions
+                       const double r0,               // Initial radio
+                       const double r1,               // End radio
+                       const size_t rPoints,          // Number of points between r0-r1
+                       const double time,             // Time at solution
+                       const double eblast,           // Energy blast in the wave front
+                       const double omega_i,          // Energy blast in the wave front
+                       const double gamma_i,          // Adiabatic coeficient
+                       const double rho0,             // Initial density
+                       const double u0,               // Initial internal energy
+                       const double p0,               // Initial pressure
+                       const double vr0,              // Initial radial velocity
+                       const double cs0,              // Initial sound speed
+                       const string outfile)          // Output solution filename
     {
 
         double rStep = (r1 - r0) / rPoints;
@@ -97,69 +97,73 @@ public:
 
         ofstream out(outfile);
 
-        out <<        setw(15) << "i"              //
-            << " " << setw(15) << "r[i]"           //
-            << " " << setw(15) << "rho[i]"         //
-            << " " << setw(15) << "u[i]"           //
-            << " " << setw(15) << "p[i]"           //
-            << " " << setw(15) << "vr[i]"          //
-            << " " << setw(15) << "cs[i]"          //
+        out <<        setw(15) << "i"                 //
+            << " " << setw(15) << "r[i]"              //
+            << " " << setw(15) << "rho[i]"            //
+            << " " << setw(15) << "u[i]"              //
+            << " " << setw(15) << "p[i]"              //
+            << " " << setw(15) << "vr[i]"             //
+            << " " << setw(15) << "cs[i]"             //
             << endl;
 
         for(size_t i = 0; i < rPoints; i++)
         {
-            out <<        setw(15) << i            //
-                << " " << setw(15) << r[i]         //
-                << " " << setw(15) << rho[i]       //
-                << " " << setw(15) << u[i]         //
-                << " " << setw(15) << p[i]         //
-                << " " << setw(15) << vr[i]        //
-                << " " << setw(15) << cs[i]        //
+            out <<        setw(15) << i               //
+                << " " << setw(15) << r[i]            //
+                << " " << setw(15) << rho[i]          //
+                << " " << setw(15) << u[i]            //
+                << " " << setw(15) << p[i]            //
+                << " " << setw(15) << vr[i]           //
+                << " " << setw(15) << cs[i]           //
                 << endl;
         }
     }
 
+
 private:
 
     // Constants
-    static const double eps    = 1.e-10;                  //  eps controls the integration accuracy, don't get too greedy or the number of function evaluations required kills.
-    static const double eps2   = 1.e-30;                  //  eps2 controls the root find accuracy
-    static const double osmall = 1.e-4;                   //  osmall controls the size of transition regions
+    static constexpr double eps    = 1.e-10;          //  eps controls the integration accuracy, don't get too greedy or the number of function evaluations required kills.
+    static constexpr double eps2   = 1.e-30;          //  eps2 controls the root find accuracy
+    static constexpr double osmall = 1.e-4;           //  osmall controls the size of transition regions
 
     // Global variables
-    static double xgeom, omega, gamma;                    //
-    static double gamm1,gamp1, gpogm, xg2;                //
-    static bool   lsingular,lstandard,lvacuum;            //
-    static bool   lomega2,lomega3;                        //
-    static double a0,a1,a2,a3,a4,a5;                      //
-    static double a_val, b_val, c_val, d_val, e_val;      //
-    static double rwant, vwant;                           //
-    static double r2,    v0,vv,rvv;                       //
-    static double gam_int;                                //
+    static double xgeom, omega, gamma;                //
+    static double gamm1,gamp1, gpogm, xg2;            //
+    static bool   lsingular,lstandard,lvacuum;        //
+    static bool   lomega2,lomega3;                    //
+    static double a0,a1,a2,a3,a4,a5;                  //
+    static double a_val, b_val, c_val, d_val, e_val;  //
+    static double rwant, vwant;                       //
+    static double r2,    v0,vv,rvv;                   //
+    static double gam_int;                            //
 
 
-    static void sedovSol(const size_t dim,         // geometry factor: 1=planar, 2=cylindircal, 3=spherical
-                         const size_t rPoints,     // Number of points between r0-r1
-                         const double time,        // temporal point where solution is desired [seconds]
-                         const double eblast,      // energy of blast in the wave front [erg]
-                         const double omega_i,     // density power law exponent in 'rho = rho0 * r**(-omega)'
-                         const double gamma_i,     // gamma law equation of state
-                         const double rho0,        // ambient density g/cm**3 in 'rho = rho0 * r**(-omega)'
-                         const double u0,          // ambient internal energy [erg/g]
-                         const double p0,          // ambient pressure [erg/cm**3]
-                         const double vr0,         // ambient material speed [cm/s]
-                         const double cs0,         // ambient sound speed [cm/s]
-                         double *     r,           // out: spatial points where solution is desired [cm]
-                         double *     rho,         // out: density  [g/cm**3]
-                         double *     u,           // out: specific internal energy [erg/g]
-                         double *     p,           // out: presssure [erg/cm**3]
-                         double *     vr,          // out: velocity [cm/s]
-                         double *     cs)          // out: sound speed [cm/s]
+    static void sedovSol(const size_t dim,            // geometry factor: 1=planar, 2=cylindircal, 3=spherical
+                         const size_t rPoints,        // Number of points between r0-r1
+                         const double time,           // temporal point where solution is desired [seconds]
+                         const double eblast,         // energy of blast in the wave front [erg]
+                         const double omega_i,        // density power law exponent in 'rho = rho0 * r**(-omega)'
+                         const double gamma_i,        // gamma law equation of state
+                         const double rho0,           // ambient density g/cm**3 in 'rho = rho0 * r**(-omega)'
+                         const double u0,             // ambient internal energy [erg/g]
+                         const double p0,             // ambient pressure [erg/cm**3]
+                         const double vr0,            // ambient material speed [cm/s]
+                         const double cs0,            // ambient sound speed [cm/s]
+                         double *     r,              // out: spatial points where solution is desired [cm]
+                         double *     rho,            // out: density  [g/cm**3]
+                         double *     u,              // out: specific internal energy [erg/g]
+                         double *     p,              // out: presssure [erg/cm**3]
+                         double *     vr,             // out: velocity [cm/s]
+                         double *     cs)             // out: sound speed [cm/s]
     {
         // Local variables
-        double alpha, eval1,eval2, vmin;
+        double alpha, vmin;
         double us, rho1, u2, rho2, p2, e2, cs2;
         double vat, l_fun, dlamdv, f_fun, g_fun, h_fun;
+
+        double eval1 = 0.;
+        double eval2 = 0.;
 
         // Set global input parameters
         omega = omega_i;  //
@@ -314,6 +318,15 @@ private:
         e2    = p2 / (gamm1 * rho2);                                           // post-shoock specific internal energy
         cs2   = sqrt(gamma * p2 / rho2);                                       // post-shock sound speed
 
+        cout << "r2   : " << r2   << endl;
+        cout << "u2   : " << u2   << endl;
+        cout << "rho1 : " << rho1 << endl;
+        cout << "u2   : " << u2   << endl;
+        cout << "rho2 : " << rho2 << endl;
+        cout << "p2   : " << p2   << endl;
+        cout << "e2   : " << e2   << endl;
+        cout << "cs2  : " << cs2  << endl;
+
         // Find the radius corresponding to vv
         if (lvacuum){
             vwant = vv;
@@ -339,6 +352,10 @@ private:
                 // If we are between the origin and the shock front find the correct similarity value for this radius in the standard or vacuum cases
                 if      (lstandard) vat = zeroin(0.9 * v0,       v2, sed_v_find, eps2);
                 else if (lvacuum)   vat = zeroin(      v2, 1.2 * vv, sed_v_find, eps2);
+                else{
+                    cout << "Error: lsingular case not expected" << endl;
+                    exit(-1);
+                }
 
                 // The physical solution
                 sedov_funcs(vat, l_fun, dlamdv, f_fun, g_fun, h_fun);
@@ -358,12 +375,12 @@ private:
 
     }
 
-    static void sedov_funcs(const double v,       // Similarity variable v
-                            double &     l_fun,   // out: l_fun is book's zeta
-                            double &     dlamdv,  // out: l_fun derivative
-                            double &     f_fun,   // out: f_fun is book's V
-                            double &     g_fun,   // out: g_fun is book's D
-                            double &     h_fun)   // out: h_fun is book's P
+    static void sedov_funcs(const double v,           // Similarity variable v
+                            double &     l_fun,       // out: l_fun is book's zeta
+                            double &     dlamdv,      // out: l_fun derivative
+                            double &     f_fun,       // out: f_fun is book's V
+                            double &     g_fun,       // out: g_fun is book's D
+                            double &     h_fun)       // out: h_fun is book's P
     {
         // Given the similarity variable v, returns functions: ' l_func: lambda', 'lambda_derivative', 'f', 'g', and 'h'
         // Although the ordinary differential equations are analytic, the sedov expressions appear to become singular for various combinations of parameters and at the lower limits of the integration range.
@@ -519,7 +536,8 @@ private:
 
         if (n == 1)
         {
-            s = (b - a) * func(0.5 * (a + b));
+            double x = 0.5 * (a + b);
+            s = (b - a) * func(x);
         }
         else
         {
@@ -545,26 +563,29 @@ private:
         }
     }
 
-    static void midpowl(const size_t                   n,      //
-                        function<double(const double)> funk,   //
-                        const double                   aa,     //
-                        const double                   bb,     //
-                        double &                       s)      //
+    static double midpowl_func(function<double(const double)> funk,   //
+                               const double                   x,      //
+                               const double                   aa)     //
+    {
+        // A little conversion, recipe equation 4.4.3
+
+        double p1 =                       (1. - gam_int);
+        double p2 =      pow(x, gam_int / (1. - gam_int));
+        double p3 = funk(pow(x,      1. / (1. - gam_int)) + aa);
+
+        return (1. / p1 * p2 * p3);
+    }
+
+    static void midpowl(const size_t                   n,             //
+                        function<double(const double)> funk,          //
+                        const double                   aa,            //
+                        const double                   bb,            //
+                        double &                       s)             //
     {
         // This routine is an exact replacement for midpnt,
         // except that it allows for an integrable power-law singularity
         // of the form pow(x - a, -gam_int)
         // at the lower limit aa for 0 < gam_int < 1.
-
-        // A little conversion, recipe equation 4.4.3
-        double func = {funk, [](double x){
-
-            double p1 =                       (1. - gam_int);
-            double p2 =      pow(x, gam_int / (1. - gam_int));
-            double p3 = funk(pow(x,      1. / (1. - gam_int)) + aa);
-
-            return (1. / p1 * p2 * p3);
-        }};
 
         double b = pow(bb - aa, 1. - gam_int);
         double a = 0.;
@@ -574,7 +595,7 @@ private:
         {
             double x = 0.5 * (a + b);
 
-            s = (b - a) * func(x);
+            s = (b - a) * midpowl_func(funk, x, aa);
         }
         else
         {
@@ -589,10 +610,10 @@ private:
 
             for (size_t i = 0; i < i_max; i++)
             {
-                sum = sum + func(x);
+                sum = sum + midpowl_func(funk, x, aa);
                 x   =   x + ddel;
 
-                sum = sum + func(x);
+                sum = sum + midpowl_func(funk, x, aa);
                 x   =   x + del;
             }
 
@@ -600,26 +621,29 @@ private:
         }
     }
 
-    static void midpowl2(const size_t                   n,      //
-                         function<double(const double)> funk,   //
-                         const double                   aa,     //
-                         const double                   bb,     //
-                         double &                       s)      //
+    static double midpowl2_func(function<double(const double)> funk,  //
+                              const double                     x,     //
+                              const double                     aa)    //
+    {
+        // A little conversion, module recipe equation 4.4.3
+
+        double p1 =                            (gam_int - 1.);
+        double p2 =           pow(x, gam_int / (1. - gam_int));
+        double p3 = funk(aa - pow(x,      1. / (1. - gam_int)));
+
+        return (1. / p1 * p2 * p3);
+    }
+
+    static void midpowl2(const size_t                   n,            //
+                         function<double(const double)> funk,         //
+                         const double                   aa,           //
+                         const double                   bb,           //
+                         double &                       s)            //
     {
         // This routine is an exact replacement for midpnt,
         // except that it allows for an integrable power-law singularity
         // of the form pow(a - x, -gam_int)
         // at the lower limit aa for 0 < gam_int < 1.
-
-        // a little conversion, modulo recipe equation 4.4.3
-        double func = {funk, [](double x){
-
-            double p1 =                            (gam_int - 1.);
-            double p2 =           pow(x, gam_int / (1. - gam_int));
-            double p3 = funk(aa - pow(x,      1. / (1. - gam_int)));
-
-            return (1. / p1 * p2 * p3);
-        }};
 
         double b = pow(aa - bb, 1. - gam_int);
         double a = 0.;
@@ -629,7 +653,7 @@ private:
         {
             double x = 0.5 * (a + b);
 
-            s = (b - a) * func(x);
+            s = (b - a) * midpowl2_func(funk, x, aa);
         }
         else
         {
@@ -644,10 +668,10 @@ private:
 
             for (size_t i = 0; i < i_max; i++)
             {
-                sum = sum + func(x);
+                sum = sum + midpowl2_func(funk, x, aa);
                 x   =   x + ddel;
 
-                sum = sum + func(x);
+                sum = sum + midpowl2_func(funk, x, aa);
                 x   =   x + del;
             }
 
@@ -665,13 +689,13 @@ private:
         // Given arrays xa and ya of length n and a value x, this routine returns a value y and an error estimate dy.
         // if p(x) is the polynomial of degree n-1 such that ya = p(xa) ya then the returned value is y = p(x)
 
-        const double nmax = 20;
+        const size_t nmax = 20;
 
         double c[nmax];
         double d[nmax];
 
         // Find the index ns of the closest table entry; initialize the c and d tables
-        double ns  = 0;
+        size_t ns  = 0;
         double dif = abs(x - xa[0]);
 
         for(size_t i = 0; i < n; i++)
@@ -736,7 +760,7 @@ private:
                       const double b,
                       const double eps,
                       double &     ss,
-                      function<void(const size_t, double(const double), const double, const double, double &)> choose)
+                      function<void(const size_t, function<double(const double)>, const double, const double, double &)> choose)
     {
         // This routine returns as 's' the integral of the function 'func'
         // from 'a' to 'b' with fractional accuracy 'eps'.
@@ -769,7 +793,7 @@ private:
 
             if (i >= j + 1)
             {
-                double ss, dss;
+                double dss;
 
                 polint( &h[i - jm - 1],  // array pointer 'xa'
                         &s[i - jm - 1],  // array pointer 'ya'
