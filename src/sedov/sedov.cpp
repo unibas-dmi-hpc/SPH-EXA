@@ -208,6 +208,7 @@ int main(int argc, char** argv)
 
             if (solution)
             {
+                /*
                 SedovAnalyticalSolution::create(dim,
                                                 r0, r1,
                                                 domain.nParticles(),
@@ -216,6 +217,40 @@ int main(int argc, char** argv)
                                                 omega, gamma,
                                                 rho0, u0, p0, vr0, cs0,
                                                 solutionFilename);
+                */
+
+                // Test Sedov solution in 2D with the original fortran values
+
+                size_t xgeom = 2;
+
+                double r0     = 0.;
+                double r1     = 1.;
+
+                size_t nstep  = 1000;
+
+                double time   = 0.00879;
+
+                double eblast = 1000.;
+
+                double omega  = 0.;
+                double gamma  = 5./3.;
+
+                double rho0   = 9801.89;
+                double u0     = 0.;
+                double p0     = 0.;
+                double vr0    = 0.;
+                double cs0    = 0.;
+
+                std::string outfile = "sedov_theorical.dat";
+
+                SedovAnalyticalSolution::create(xgeom,
+                                                r0, r1,
+                                                nstep,
+                                                time,
+                                                eblast,
+                                                omega, gamma,
+                                                rho0, u0, p0, vr0, cs0,
+                                                outfile);
             }
 
             timer.step("writeFile");
