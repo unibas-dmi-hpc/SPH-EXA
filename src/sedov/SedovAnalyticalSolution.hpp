@@ -53,7 +53,6 @@
 
 #include <string>
 
-
 using namespace std;
 
 
@@ -118,7 +117,6 @@ public:
                 << endl;
         }
     }
-
 
 private:
 
@@ -951,3 +949,43 @@ private:
         }
     }
 };
+
+double SedovAnalyticalSolution::xgeom;
+double SedovAnalyticalSolution::omega;
+double SedovAnalyticalSolution::gamma;
+
+double SedovAnalyticalSolution::gamm1;
+double SedovAnalyticalSolution::gamp1;
+double SedovAnalyticalSolution::gpogm;
+double SedovAnalyticalSolution::xg2;
+
+bool   SedovAnalyticalSolution::lsingular;
+bool   SedovAnalyticalSolution::lstandard;
+bool   SedovAnalyticalSolution::lvacuum;
+
+bool   SedovAnalyticalSolution::lomega2;
+bool   SedovAnalyticalSolution::lomega3;
+
+double SedovAnalyticalSolution::a0;
+double SedovAnalyticalSolution::a1;
+double SedovAnalyticalSolution::a2;
+double SedovAnalyticalSolution::a3;
+double SedovAnalyticalSolution::a4;
+double SedovAnalyticalSolution::a5;
+
+double SedovAnalyticalSolution::a_val;
+double SedovAnalyticalSolution::b_val;
+double SedovAnalyticalSolution::c_val;
+double SedovAnalyticalSolution::d_val;
+double SedovAnalyticalSolution::e_val;
+
+double SedovAnalyticalSolution::rwant;
+double SedovAnalyticalSolution::vwant;
+
+double SedovAnalyticalSolution::r2;
+double SedovAnalyticalSolution::v0;
+double SedovAnalyticalSolution::vv;
+double SedovAnalyticalSolution::rvv;
+
+double SedovAnalyticalSolution::gam_int;
+
