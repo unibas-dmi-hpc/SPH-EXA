@@ -726,7 +726,10 @@ private:
                 double w  =  c[i + 1] - d[i];
 
                 double den  = ho - hp;
-                if (den == 0.) exit(-1);        // Two 'xa' positions are the same in polint'
+                if (den == 0.){
+                    cout << "Two 'xa' positions are the same in polint" << endl;
+                    exit(-1);
+                }
 
                 den  =  w / den;
 
