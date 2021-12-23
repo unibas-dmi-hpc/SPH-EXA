@@ -228,7 +228,7 @@ int main(int argc, char** argv)
 
                 size_t nstep  = 1000;
 
-                double time   = 0.00879;
+                double time   = 0.2;
 
                 double eblast = 1000.;
 
@@ -241,7 +241,7 @@ int main(int argc, char** argv)
                 double vr0    = 0.;
                 double cs0    = 0.;
 
-                std::string outfile = "sedov_theorical.dat";
+                std::string outfile = "theoretical.dat";
 
                 SedovAnalyticalSolution::create(xgeom,
                                                 r0, r1,
