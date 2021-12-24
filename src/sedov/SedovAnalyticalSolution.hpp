@@ -156,10 +156,6 @@ private:
                          double *     cs)             // out: sound speed [cm/s]
     {
         // Local variables
-        double alpha, vmin;
-        double us, rho1, u2, rho2, p2, e2, cs2;
-        double vat, l_fun, dlamdv, f_fun, g_fun, h_fun;
-
         double eval1 = 0.;
         double eval2 = 0.;
 
@@ -233,11 +229,14 @@ private:
         e_val = 0.5 * (2. + (xgeom * gamm1));                                                                                 //
 
         //  Evaluate the energy integrals.
+        double alpha, vmin;
+
         if (lsingular)
         {
             // The singular case can be done by hand. It save some cpu cycles: Kamm equations 80, 81, and 85
             eval2 = gamp1 / (xgeom * pow((gamm1 * xgeom) + 2., 2.) );
             eval1 = 2. / gamm1 * eval2;
+
             alpha = (gpogm * pow(2.,xgeom)) / (xgeom * pow((gamm1 * xgeom) + 2., 2.));
 
             if (int(xgeom) != 1) alpha = M_PI * alpha;
@@ -307,23 +306,25 @@ private:
         }
 
         // Immediate post-shock values: Kamm page 14, equations 14, 16, 5, 13
-        r2    = pow(eblast / (alpha * rho0), 1. / xg2) * pow(time, 2. / xg2);  // shock position
-        us    = (2. / xg2) * r2 / time;                                        // shock speed
-        rho1  = rho0 * pow(r2, -omega);                                        // pre-shock density
-        u2    = 2. * us / gamp1;                                               // post-shock material speed
-        rho2  = gpogm * rho1;                                                  // post-shock density
-        p2    = 2. * rho1 * pow(us, 2.) / gamp1;                               // post-shock pressure
-        e2    = p2 / (gamm1 * rho2);                                           // post-shoock specific internal energy
-        cs2   = sqrt(gamma * p2 / rho2);                                       // post-shock sound speed
+        r2          = pow(eblast / (alpha * rho0), 1. / xg2) * pow(time, 2. / xg2);  // shock position
+        double us   = (2. / xg2) * r2 / time;                                        // shock speed
+        double rho1 = rho0 * pow(r2, -omega);                                        // pre-shock density
+        double u2   = 2. * us / gamp1;                                               // post-shock material speed
+        double rho2 = gpogm * rho1;                                                  // post-shock density
+        double p2   = 2. * rho1 * pow(us, 2.) / gamp1;                               // post-shock pressure
+        double e2   = p2 / (gamm1 * rho2);                                           // post-shoock specific internal energy
+        double cs2  = sqrt(gamma * p2 / rho2);                                       // post-shock sound speed
 
-        cout << "r2   : " << r2   << endl;
-        cout << "u2   : " << u2   << endl;
-        cout << "rho1 : " << rho1 << endl;
-        cout << "u2   : " << u2   << endl;
-        cout << "rho2 : " << rho2 << endl;
-        cout << "p2   : " << p2   << endl;
-        cout << "e2   : " << e2   << endl;
-        cout << "cs2  : " << cs2  << endl;
+        cout << endl;
+        cout << "r2    = " << r2   << endl;
+        cout << "us    = " << us   << endl;
+        cout << "rho1  = " << rho1 << endl;
+        cout << "u2    = " << us   << endl;
+        cout << "rho2  = " << rho2 << endl;
+        cout << "p2    = " << p2   << endl;
+        cout << "e2    = " << e2   << endl;
+        cout << "cs2   = " << cs2  << endl;
+        cout << endl;
 
         // Find the radius corresponding to vv
         if (lvacuum){
@@ -348,15 +349,19 @@ private:
             else
             {
                 // If we are between the origin and the shock front find the correct similarity value for this radius in the standard or vacuum cases
-                if      (lstandard) vat = zeroin(0.9 * v0,       v2, sed_v_find, eps2);
-                else if (lvacuum)   vat = zeroin(      v2, 1.2 * vv, sed_v_find, eps2);
+                double v;
+
+                if      (lstandard) v = zeroin(0.9 * v0,       v2, sed_v_find, eps2);
+                else if (lvacuum)   v = zeroin(      v2, 1.2 * vv, sed_v_find, eps2);
                 else{
                     cout << "Error: lsingular case not expected" << endl;
                     exit(-1);
                 }
 
                 // The physical solution
-                sedov_funcs(vat, l_fun, dlamdv, f_fun, g_fun, h_fun);
+                double l_fun, dlamdv, f_fun, g_fun, h_fun;
+
+                sedov_funcs(v, l_fun, dlamdv, f_fun, g_fun, h_fun);
 
                 rho[i] = rho2 * g_fun;
                 vr[i]  = u2   * f_fun;
@@ -370,7 +375,6 @@ private:
                 }
             }
         }
-
     }
 
     static void sedov_funcs(const double v,           // Similarity variable v
@@ -716,18 +720,19 @@ private:
         // for each column of the table, loop over the c's and d's and update them
         ns = ns - 1;
 
-        for (size_t m = 0; m < n - 2; m++)
+        for (size_t m = 0; m < n - 1; m++)
         {
             for (size_t i = 0; i < n - m - 1; i++)
             {
-                double ho = xa[i    ] - x;
-                double hp = xa[i + m] - x;
+                double ho = xa[i        ] - x;
+                double hp = xa[i + m + 1] - x;
 
                 double w  =  c[i + 1] - d[i];
 
                 double den  = ho - hp;
+
                 if (den == 0.){
-                    cout << "Two 'xa' positions are the same in polint" << endl;
+                    cout << "Error: Two 'xa' positions are the same in polint" << endl;
                     exit(-1);
                 }
 
@@ -739,7 +744,7 @@ private:
 
             // After each column is completed, decide which correction c or d, to add to the accumulating value of y,
             // that is, which path to take in the table by forking up or down.
-            if (2 * ns < n - m)
+            if (2 * (ns + 1) < n - m - 1)
             {
                 dy = c[ns + 1];
             }
@@ -792,12 +797,12 @@ private:
                    b,                    // top    limit             'b'
                    s[i]);                // Out: integration value   's'
 
-            if (i >= j + 1)
+            if (i >= j - 1)
             {
                 double dss;
 
-                polint( &h[i - jm - 1],  // array pointer 'xa'
-                        &s[i - jm - 1],  // array pointer 'ya'
+                polint( &h[i - jm],  // array pointer 'xa'
+                        &s[i - jm],  // array pointer 'ya'
                         j,               // size          'n'
                         0.,              // value         'x'
                         ss,              // Out: value    'y'
@@ -810,7 +815,7 @@ private:
             h[i + 1] = h[i] / 9.;
         }
 
-        cout << "Too many steps in qromo" << endl;
+        cout << "Error: Too many steps in qromo" << endl;
     }
 
     static double zeroin(const double                   ax,   // Left endpoint of initial interval
