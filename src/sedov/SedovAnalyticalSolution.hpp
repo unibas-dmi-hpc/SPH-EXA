@@ -96,13 +96,20 @@ public:
 
         ofstream out(outfile);
 
-        out <<        setw( 5) << "i"                 //
-            << " " << setw(13) << "r[i]"              //
-            << " " << setw(13) << "rho[i]/rho0"       //
-            << " " << setw(13) << "u[i]"              //
-            << " " << setw(13) << "p[i]"              //
-            << " " << setw(13) << "vel[i]"            //
-            << " " << setw(13) << "cs[i]"             //
+        out <<        setw( 5) << "i"                 // Column 01 : index
+
+            << " " << setw(13) << "r[i]"              // Column 02 : position 1D
+
+            << " " << setw(13) << "rho[i]"            // Column 03 : density         (Real value)
+            << " " << setw(13) << "u[i]"              // Column 04 : internal energy (Real value)
+            << " " << setw(13) << "p[i]"              // Column 05 : pressure        (Real value)
+            << " " << setw(13) << "vel[i]"            // Column 06 : velocity 1D     (Real value)
+            << " " << setw(13) << "cs[i]"             // Column 07 : sound speed     (Real value)
+
+            << " " << setw(13) << "rho[i]/rho_shock"  // Column 08 : density         (Normalized)
+            << " " << setw(13) << "p[i]/p_shock"      // Column 09 : pressure        (Normalized)
+            << " " << setw(13) << "vel[i]/vel_shock"  // Column 10 : velocity        (Normalized)
+
             << endl;
 
         for(size_t i = 0; i < rPoints; i++)
@@ -119,13 +126,16 @@ public:
                 cout << "cs[i]       = " << cs[i]       << endl;
             }
 
-            out <<        setw( 5) << i                                                 //
-                << " " << setw(13) << setprecision(6) << std::scientific << r[i]        //
-                << " " << setw(13) << setprecision(6) << std::scientific << rho[i]/rho0 //
-                << " " << setw(13) << setprecision(6) << std::scientific << u[i]        //
-                << " " << setw(13) << setprecision(6) << std::scientific << p[i]        //
-                << " " << setw(13) << setprecision(6) << std::scientific << vel[i]      //
-                << " " << setw(13) << setprecision(6) << std::scientific << cs[i]       //
+            out <<        setw( 5) << i                                                      //
+                << " " << setw(13) << setprecision(6) << std::scientific << r[i]             //
+                << " " << setw(13) << setprecision(6) << std::scientific << rho[i]           //
+                << " " << setw(13) << setprecision(6) << std::scientific << u[i]             //
+                << " " << setw(13) << setprecision(6) << std::scientific << p[i]             //
+                << " " << setw(13) << setprecision(6) << std::scientific << vel[i]           //
+                << " " << setw(13) << setprecision(6) << std::scientific << cs[i]            //
+                << " " << setw(13) << setprecision(6) << std::scientific << rho[i]/rho_shock //
+                << " " << setw(13) << setprecision(6) << std::scientific << p[i]/p_shock     //
+                << " " << setw(13) << setprecision(6) << std::scientific << vel[i]/vel_shock //
                 << endl;
         }
     }
@@ -147,6 +157,7 @@ private:
     static double rwant, vwant;                       //
     static double r2,    v0,vv,rvv;                   //
     static double gam_int;                            //
+    static double rho_shock, p_shock, vel_shock;      // Values in the shock peak
 
 
     static void sedovSol(const size_t dim,            // geometry factor: 1=planar, 2=cylindircal, 3=spherical
@@ -318,24 +329,27 @@ private:
         }
 
         // Immediate post-shock values: Kamm page 14, equations 14, 16, 5, 13
-        r2          = pow(eblast / (alpha * rho0), 1. / xg2) * pow(time, 2. / xg2);  // shock position
-        double us   = (2. / xg2) * r2 / time;                                        // shock speed
-        double rho1 = rho0 * pow(r2, -omega);                                        // pre-shock density
-        double u2   = 2. * us / gamp1;                                               // post-shock material speed
-        double rho2 = gpogm * rho1;                                                  // post-shock density
-        double p2   = 2. * rho1 * pow(us, 2.) / gamp1;                               // post-shock pressure
-        double e2   = p2 / (gamm1 * rho2);                                           // post-shoock specific internal energy
-        double cs2  = sqrt(gamma * p2 / rho2);                                       // post-shock sound speed
+        r2              = pow(eblast / (alpha * rho0), 1. / xg2) * pow(time, 2. / xg2);  // shock position
+
+        double us       = (2. / xg2) * r2 / time;                                        // shock speed
+        double rho1     = rho0 * pow(r2, -omega);                                        // pre-shock density
+
+        rho_shock       = gpogm * rho1;                                                  // post-shock density
+        p_shock         = 2. * rho1 * pow(us, 2.) / gamp1;                               // post-shock pressure
+        vel_shock       = 2. * us / gamp1;                                               // post-shock material speed
+
+        double u_shock  = p_shock / (gamm1 * rho_shock);                                 // post-shoock specific internal energy
+        double cs_shock = sqrt(gamma * p_shock / rho_shock);                             // post-shock sound speed
 
         cout << endl;
-        cout << "r2    = " << setw(39) << setprecision(38) << r2   << endl;
-        cout << "us    = " << setw(39) << setprecision(38) << us   << endl;
-        cout << "rho1  = " << setw(39) << setprecision(38) << rho1 << endl;
-        cout << "u2    = " << setw(39) << setprecision(38) << us   << endl;
-        cout << "rho2  = " << setw(39) << setprecision(38) << rho2 << endl;
-        cout << "p2    = " << setw(39) << setprecision(38) << p2   << endl;
-        cout << "e2    = " << setw(39) << setprecision(38) << e2   << endl;
-        cout << "cs2   = " << setw(39) << setprecision(38) << cs2  << endl;
+        cout << "r2        = " << setw(39) << setprecision(38) << r2        << endl;
+        cout << "us        = " << setw(39) << setprecision(38) << us        << endl;
+        cout << "rho1      = " << setw(39) << setprecision(38) << rho1      << endl;
+        cout << "rho_shock = " << setw(39) << setprecision(38) << rho_shock << endl;
+        cout << "p_shock   = " << setw(39) << setprecision(38) << p_shock   << endl;
+        cout << "vel_shock = " << setw(39) << setprecision(38) << vel_shock << endl;
+        cout << "u_shock   = " << setw(39) << setprecision(38) << u_shock   << endl;
+        cout << "cs_shock  = " << setw(39) << setprecision(38) << cs_shock  << endl;
         cout << endl;
 
         // Find the radius corresponding to vv
@@ -400,9 +414,9 @@ private:
                     cout << "h_fun  = " << setw(39) << setprecision(38) << std::scientific << h_fun  << endl;
                 }*/
 
-                rho[i] = rho2 * g_fun;
-                vel[i] = u2   * f_fun;
-                p[i]   = p2   * h_fun;
+                rho[i] = rho_shock * g_fun;
+                vel[i] = vel_shock * f_fun;
+                p[i]   = p_shock   * h_fun;
                 u[i]   = 0.;
                 cs[i]  = 0.;
 
@@ -1059,4 +1073,8 @@ double SedovAnalyticalSolution::vv;
 double SedovAnalyticalSolution::rvv;
 
 double SedovAnalyticalSolution::gam_int;
+
+double SedovAnalyticalSolution::rho_shock;
+double SedovAnalyticalSolution::p_shock;
+double SedovAnalyticalSolution::vel_shock;
 
