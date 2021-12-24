@@ -96,24 +96,24 @@ public:
 
         ofstream out(outfile);
 
-        out <<        setw(15) << "i"                 //
-            << " " << setw(15) << "r[i]"              //
-            << " " << setw(15) << "rho[i]"            //
-            << " " << setw(15) << "u[i]"              //
-            << " " << setw(15) << "p[i]"              //
-            << " " << setw(15) << "vr[i]"             //
-            << " " << setw(15) << "cs[i]"             //
+        out <<        setw( 5) << "i"                 //
+            << " " << setw(13) << "r[i]"              //
+            << " " << setw(13) << "rho[i]"            //
+            << " " << setw(13) << "u[i]"              //
+            << " " << setw(13) << "p[i]"              //
+            << " " << setw(13) << "vr[i]"             //
+            << " " << setw(13) << "cs[i]"             //
             << endl;
 
         for(size_t i = 0; i < rPoints; i++)
         {
-            out <<        setw(15) << i                                            //
-                << " " << setw(15) << setprecision(6) << std::scientific << r[i]   //
-                << " " << setw(15) << setprecision(6) << std::scientific << rho[i] //
-                << " " << setw(15) << setprecision(6) << std::scientific << u[i]   //
-                << " " << setw(15) << setprecision(6) << std::scientific << p[i]   //
-                << " " << setw(15) << setprecision(6) << std::scientific << vr[i]  //
-                << " " << setw(15) << setprecision(6) << std::scientific << cs[i]  //
+            out <<        setw( 5) << i                                            //
+                << " " << setw(13) << setprecision(6) << std::scientific << r[i]   //
+                << " " << setw(13) << setprecision(6) << std::scientific << rho[i] //
+                << " " << setw(13) << setprecision(6) << std::scientific << u[i]   //
+                << " " << setw(13) << setprecision(6) << std::scientific << p[i]   //
+                << " " << setw(13) << setprecision(6) << std::scientific << vr[i]  //
+                << " " << setw(13) << setprecision(6) << std::scientific << cs[i]  //
                 << endl;
         }
     }
