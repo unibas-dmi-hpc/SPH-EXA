@@ -326,8 +326,8 @@ private:
         p_shock         = 2. * rho1 * pow(us, 2.) / gamp1;                               // post-shock pressure
         vel_shock       = 2. * us / gamp1;                                               // post-shock material speed
 
-        double u_shock  = p_shock / (gamm1 * rho_shock);                                 // post-shoock specific internal energy
-        double cs_shock = sqrt(gamma * p_shock / rho_shock);                             // post-shock sound speed
+        //double u_shock  = p_shock / (gamm1 * rho_shock);                                 // post-shoock specific internal energy
+        //double cs_shock = sqrt(gamma * p_shock / rho_shock);                             // post-shock sound speed
 
         // Find the radius corresponding to vv
         if (lvacuum){
