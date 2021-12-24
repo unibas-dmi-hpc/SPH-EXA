@@ -96,40 +96,25 @@ public:
 
         ofstream out(outfile);
 
-        out <<        setw( 5) << "i"                 // Column 01 : index
+        out << " " << setw(13) << "r[i]"              // Column 01 : position 1D
 
-            << " " << setw(13) << "r[i]"              // Column 02 : position 1D
+            << " " << setw(13) << "rho[i]"            // Column 02 : density         (Real value)
+            << " " << setw(13) << "u[i]"              // Column 03 : internal energy (Real value)
+            << " " << setw(13) << "p[i]"              // Column 04 : pressure        (Real value)
+            << " " << setw(13) << "vel[i]"            // Column 05 : velocity 1D     (Real value)
+            << " " << setw(13) << "cs[i]"             // Column 06 : sound speed     (Real value)
 
-            << " " << setw(13) << "rho[i]"            // Column 03 : density         (Real value)
-            << " " << setw(13) << "u[i]"              // Column 04 : internal energy (Real value)
-            << " " << setw(13) << "p[i]"              // Column 05 : pressure        (Real value)
-            << " " << setw(13) << "vel[i]"            // Column 06 : velocity 1D     (Real value)
-            << " " << setw(13) << "cs[i]"             // Column 07 : sound speed     (Real value)
+            << " " << setw(13) << "rho[i]/rho0"       // Column 07 : density         (Normalized)
 
-            << " " << setw(13) << "rho[i]/rho0"       // Column 08 : density         (Normalized)
-
-            << " " << setw(13) << "rho[i]/rho_shock"  // Column 09 : density         (Shock Normalized)
-            << " " << setw(13) << "p[i]/p_shock"      // Column 10 : pressure        (Shock Normalized)
-            << " " << setw(13) << "vel[i]/vel_shock"  // Column 11 : velocity        (Shock Normalized)
+            << " " << setw(13) << "rho[i]/rho_shock"  // Column 08 : density         (Shock Normalized)
+            << " " << setw(13) << "p[i]/p_shock"      // Column 09 : pressure        (Shock Normalized)
+            << " " << setw(13) << "vel[i]/vel_shock"  // Column 10 : velocity        (Shock Normalized)
 
             << endl;
 
         for(size_t i = 0; i < rPoints; i++)
         {
-            if (i + 1 == 583)
-            {
-                cout << endl;
-                cout << "i           = " << i + 1       << endl;
-                cout << "r[i]        = " << r[i]        << endl;
-                cout << "rho[i]/rho0 = " << rho[i]/rho0 << endl;
-                cout << "u[i]        = " << u[i]        << endl;
-                cout << "p[i]        = " << p[i]        << endl;
-                cout << "vel[i]      = " << vel[i]      << endl;
-                cout << "cs[i]       = " << cs[i]       << endl;
-            }
-
-            out <<        setw( 5) << i                                                      //
-                << " " << setw(13) << setprecision(6) << std::scientific << r[i]             //
+            out << " " << setw(13) << setprecision(6) << std::scientific << r[i]             //
                 << " " << setw(13) << setprecision(6) << std::scientific << rho[i]           //
                 << " " << setw(13) << setprecision(6) << std::scientific << u[i]             //
                 << " " << setw(13) << setprecision(6) << std::scientific << p[i]             //
@@ -194,7 +179,7 @@ private:
         if (omega >= xgeom)
         {
             cout << "Unphysical case: Infinite mass" << endl;
-            return;
+            exit(-1);
         }
 
         // Frequest combination variables
@@ -214,7 +199,7 @@ private:
         for(size_t i = 0; i < rPoints; i++)
         {
             rho[i] = 0.0;
-            vel[i]  = 0.0;
+            vel[i] = 0.0;
             p[i]   = 0.0;
             u[i]   = 0.0;
             cs[i]  = 0.0;
@@ -344,22 +329,10 @@ private:
         double u_shock  = p_shock / (gamm1 * rho_shock);                                 // post-shoock specific internal energy
         double cs_shock = sqrt(gamma * p_shock / rho_shock);                             // post-shock sound speed
 
-        cout << endl;
-        cout << "r2        = " << setw(39) << setprecision(38) << r2        << endl;
-        cout << "us        = " << setw(39) << setprecision(38) << us        << endl;
-        cout << "rho1      = " << setw(39) << setprecision(38) << rho1      << endl;
-        cout << "rho_shock = " << setw(39) << setprecision(38) << rho_shock << endl;
-        cout << "p_shock   = " << setw(39) << setprecision(38) << p_shock   << endl;
-        cout << "vel_shock = " << setw(39) << setprecision(38) << vel_shock << endl;
-        cout << "u_shock   = " << setw(39) << setprecision(38) << u_shock   << endl;
-        cout << "cs_shock  = " << setw(39) << setprecision(38) << cs_shock  << endl;
-        cout << endl;
-
         // Find the radius corresponding to vv
         if (lvacuum){
             vwant = vv;
             rvv = zeroin(0., r2, sed_r_find, eps2);
-            cout << endl << "I am in!" << endl;
         }
 
         // Loop over spatial positions
@@ -375,19 +348,11 @@ private:
                 p[i]   = p0;
                 u[i]   = u0;
                 cs[i]  = cs0;
-
-                //cout << "Arrived_front! : " << i + 1 << ", rPoints = " << rPoints << endl;
             }
             else
             {
                 // If we are between the origin and the shock front find the correct similarity value for this radius in the standard or vacuum cases
                 double vat;
-
-                //cout << endl;
-                //cout << "v2   = " << setw(39) << setprecision(38) << v2   << endl;
-                //cout << "v0   = " << setw(39) << setprecision(38) << v0   << endl;
-                //cout << "vv   = " << setw(39) << setprecision(38) << vv   << endl;
-                //cout << "eps2 = " << setw(39) << setprecision(38) << eps2 << endl;
 
                 if      (lstandard) vat = zeroin(0.9 * v0,       v2, sed_v_find, eps2);
                 else if (lvacuum)   vat = zeroin(      v2, 1.2 * vv, sed_v_find, eps2);
@@ -396,26 +361,10 @@ private:
                     exit(-1);
                 }
 
-                //cout << "Arrived_back! : " << i + 1 << ", rPoints = " << rPoints << endl;
-
-                cout << "vat[" << i + 1 << "] = " << setw(39) << setprecision(38) << vat << endl;
-
                 // The physical solution
                 double l_fun, dlamdv, f_fun, g_fun, h_fun;
 
                 sedov_funcs(vat, l_fun, dlamdv, f_fun, g_fun, h_fun);
-
-                /*
-                if (i == 0)
-                {
-                    cout << "i      = " << setw(39) << setprecision(38) << std::scientific << i + 1  << endl;
-                    cout << "vat    = " << setw(39) << setprecision(38) << std::scientific << vat    << endl;
-                    cout << "l_fun  = " << setw(39) << setprecision(38) << std::scientific << l_fun  << endl;
-                    cout << "dlamdv = " << setw(39) << setprecision(38) << std::scientific << dlamdv << endl;
-                    cout << "f_fun  = " << setw(39) << setprecision(38) << std::scientific << f_fun  << endl;
-                    cout << "g_fun  = " << setw(39) << setprecision(38) << std::scientific << g_fun  << endl;
-                    cout << "h_fun  = " << setw(39) << setprecision(38) << std::scientific << h_fun  << endl;
-                }*/
 
                 rho[i] = rho_shock * g_fun;
                 vel[i] = vel_shock * f_fun;
@@ -427,29 +376,7 @@ private:
                     u[i]  = p[i] / (gamm1 * rho[i]);
                     cs[i] = sqrt(gamma * p[i] / rho[i]);
                 }
-
-
-                //if (i == 0)
-                //{
-                    cout << "rho[" << i + 1 << "] = " << setw(39) << setprecision(38) << std::scientific << rho[i] << endl;
-                    cout << "vel[" << i + 1 << "] = " << setw(39) << setprecision(38) << std::scientific << vel[i] << endl;
-                    cout << "p  [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::fixed      << p[i]   << endl;
-                    cout << "u  [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::fixed      << u[i]   << endl;
-                    cout << "cs [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::fixed      << cs[i]  << endl;
-                    cout << endl;
-                //}
             }
-
-            /*
-            if (i == 0)
-            {
-                cout << endl;
-                cout << "rho[" << i + 1 << "] = " << setw(39) << setprecision(38) << std::scientific << rho[i] << endl;
-                cout << "vel[" << i + 1 << "] = " << setw(39) << setprecision(38) << std::scientific << vel[i] << endl;
-                cout << "p  [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::fixed      << p[i]   << endl;
-                cout << "u  [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::fixed      << u[i]   << endl;
-                cout << "cs [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::fixed      << cs[i]  << endl;
-            }*/
         }
     }
 
@@ -892,6 +819,7 @@ private:
         }
 
         cout << "Error: Too many steps in qromo" << endl;
+        exit(-1);
     }
 
     static double zeroin(const double                   ax,   // Left endpoint of initial interval
@@ -908,11 +836,6 @@ private:
 
         // This function subprogram is a slightly  modified  translation of the algol 60 procedure zero given in Richard Brent
         // , algorithms for minimization without derivatives, prentice - hall, inc. (1973).
-
-        //cout << endl;
-        //cout << "ax  = " << ax  << endl;
-        //cout << "bx  = " << bx  << endl;
-        //cout << "tol = " << tol << endl;
 
         // Compute 'eps', the relative machine precision
         double eps = 1.;

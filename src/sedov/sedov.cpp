@@ -208,7 +208,6 @@ int main(int argc, char** argv)
 
             if (solution)
             {
-                /*
                 SedovAnalyticalSolution::create(dim,
                                                 r0, r1,
                                                 domain.nParticles(),
@@ -217,10 +216,9 @@ int main(int argc, char** argv)
                                                 omega, gamma,
                                                 rho0, u0, p0, vr0, cs0,
                                                 solutionFilename);
-                */
 
                 // Test Sedov solution in 2D with the original fortran values
-
+                /*
                 size_t xgeom = 2;
 
                 double r0     = 0.;
@@ -252,6 +250,7 @@ int main(int argc, char** argv)
                                                 rho0, u0, p0, vr0, cs0,
                                                 outfile);
                 exit(-1);
+                */
             }
 
             timer.step("writeFile");
