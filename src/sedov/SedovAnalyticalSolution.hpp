@@ -107,10 +107,10 @@ public:
 
         for(size_t i = 0; i < rPoints; i++)
         {
-            if (i == 0)
+            if (i + 1 == 583)
             {
                 cout << endl;
-                cout << "i           = " << i           << endl;
+                cout << "i           = " << i + 1       << endl;
                 cout << "r[i]        = " << r[i]        << endl;
                 cout << "rho[i]/rho0 = " << rho[i]/rho0 << endl;
                 cout << "u[i]        = " << u[i]        << endl;
@@ -366,11 +366,11 @@ private:
                 // If we are between the origin and the shock front find the correct similarity value for this radius in the standard or vacuum cases
                 double vat;
 
-                cout << endl;
-                cout << "v2   = " << setw(39) << setprecision(38) << v2   << endl;
-                cout << "v0   = " << setw(39) << setprecision(38) << v0   << endl;
-                cout << "vv   = " << setw(39) << setprecision(38) << vv   << endl;
-                cout << "eps2 = " << setw(39) << setprecision(38) << eps2 << endl;
+                //cout << endl;
+                //cout << "v2   = " << setw(39) << setprecision(38) << v2   << endl;
+                //cout << "v0   = " << setw(39) << setprecision(38) << v0   << endl;
+                //cout << "vv   = " << setw(39) << setprecision(38) << vv   << endl;
+                //cout << "eps2 = " << setw(39) << setprecision(38) << eps2 << endl;
 
                 if      (lstandard) vat = zeroin(0.9 * v0,       v2, sed_v_find, eps2);
                 else if (lvacuum)   vat = zeroin(      v2, 1.2 * vv, sed_v_find, eps2);
@@ -411,17 +411,16 @@ private:
                     cs[i] = sqrt(gamma * p[i] / rho[i]);
                 }
 
-                /*
-                if (i == 0)
-                {
-                    cout << endl;
+
+                //if (i == 0)
+                //{
                     cout << "rho[" << i + 1 << "] = " << setw(39) << setprecision(38) << std::scientific << rho[i] << endl;
                     cout << "vel[" << i + 1 << "] = " << setw(39) << setprecision(38) << std::scientific << vel[i] << endl;
                     cout << "p  [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::fixed      << p[i]   << endl;
                     cout << "u  [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::fixed      << u[i]   << endl;
                     cout << "cs [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::fixed      << cs[i]  << endl;
                     cout << endl;
-                }*/
+                //}
             }
 
             /*
