@@ -107,13 +107,13 @@ public:
 
         for(size_t i = 0; i < rPoints; i++)
         {
-            out <<        setw(15) << i               //
-                << " " << setw(15) << r[i]            //
-                << " " << setw(15) << rho[i]          //
-                << " " << setw(15) << u[i]            //
-                << " " << setw(15) << p[i]            //
-                << " " << setw(15) << vr[i]           //
-                << " " << setw(15) << cs[i]           //
+            out <<        setw(15) << i                                            //
+                << " " << setw(15) << setprecision(6) << std::scientific << r[i]   //
+                << " " << setw(15) << setprecision(6) << std::scientific << rho[i] //
+                << " " << setw(15) << setprecision(6) << std::scientific << u[i]   //
+                << " " << setw(15) << setprecision(6) << std::scientific << p[i]   //
+                << " " << setw(15) << setprecision(6) << std::scientific << vr[i]  //
+                << " " << setw(15) << setprecision(6) << std::scientific << cs[i]  //
                 << endl;
         }
     }
