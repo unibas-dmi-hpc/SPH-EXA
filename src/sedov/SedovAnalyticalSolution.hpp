@@ -106,9 +106,11 @@ public:
             << " " << setw(13) << "vel[i]"            // Column 06 : velocity 1D     (Real value)
             << " " << setw(13) << "cs[i]"             // Column 07 : sound speed     (Real value)
 
-            << " " << setw(13) << "rho[i]/rho_shock"  // Column 08 : density         (Normalized)
-            << " " << setw(13) << "p[i]/p_shock"      // Column 09 : pressure        (Normalized)
-            << " " << setw(13) << "vel[i]/vel_shock"  // Column 10 : velocity        (Normalized)
+            << " " << setw(13) << "rho[i]/rho0"       // Column 08 : density         (Normalized)
+
+            << " " << setw(13) << "rho[i]/rho_shock"  // Column 09 : density         (Shock Normalized)
+            << " " << setw(13) << "p[i]/p_shock"      // Column 10 : pressure        (Shock Normalized)
+            << " " << setw(13) << "vel[i]/vel_shock"  // Column 11 : velocity        (Shock Normalized)
 
             << endl;
 
@@ -133,6 +135,7 @@ public:
                 << " " << setw(13) << setprecision(6) << std::scientific << p[i]             //
                 << " " << setw(13) << setprecision(6) << std::scientific << vel[i]           //
                 << " " << setw(13) << setprecision(6) << std::scientific << cs[i]            //
+                << " " << setw(13) << setprecision(6) << std::scientific << rho[i]/rho0      //
                 << " " << setw(13) << setprecision(6) << std::scientific << rho[i]/rho_shock //
                 << " " << setw(13) << setprecision(6) << std::scientific << p[i]/p_shock     //
                 << " " << setw(13) << setprecision(6) << std::scientific << vel[i]/vel_shock //
