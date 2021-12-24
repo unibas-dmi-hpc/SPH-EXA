@@ -224,7 +224,7 @@ int main(int argc, char** argv)
                 size_t xgeom = 2;
 
                 double r0     = 0.;
-                double r1     = 1.;
+                double r1     = 0.5;
 
                 size_t nstep  = 1000;
 
@@ -251,6 +251,7 @@ int main(int argc, char** argv)
                                                 omega, gamma,
                                                 rho0, u0, p0, vr0, cs0,
                                                 outfile);
+                exit(-1);
             }
 
             timer.step("writeFile");

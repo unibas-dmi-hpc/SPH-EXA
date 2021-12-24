@@ -71,7 +71,7 @@ public:
                        const double rho0,             // Initial density
                        const double u0,               // Initial internal energy
                        const double p0,               // Initial pressure
-                       const double vr0,              // Initial radial velocity
+                       const double vel0,             // Initial velocity
                        const double cs0,              // Initial sound speed
                        const string outfile)          // Output solution filename
     {
@@ -86,34 +86,46 @@ public:
         double rho[rPoints];
         double u[rPoints];
         double p[rPoints];
-        double vr[rPoints];
+        double vel[rPoints];
         double cs[rPoints];
 
         sedovSol(dim, rPoints, time,
                  eblast, omega_i, gamma_i,
-                 rho0, u0, p0, vr0, cs0,
-                 r, rho, u, p, vr, cs);
+                 rho0, u0, p0, vel0, cs0,
+                 r, rho, u, p, vel, cs);
 
         ofstream out(outfile);
 
         out <<        setw( 5) << "i"                 //
             << " " << setw(13) << "r[i]"              //
-            << " " << setw(13) << "rho[i]"            //
+            << " " << setw(13) << "rho[i]/rho0"       //
             << " " << setw(13) << "u[i]"              //
             << " " << setw(13) << "p[i]"              //
-            << " " << setw(13) << "vr[i]"             //
+            << " " << setw(13) << "vel[i]"            //
             << " " << setw(13) << "cs[i]"             //
             << endl;
 
         for(size_t i = 0; i < rPoints; i++)
         {
-            out <<        setw( 5) << i                                            //
-                << " " << setw(13) << setprecision(6) << std::scientific << r[i]   //
-                << " " << setw(13) << setprecision(6) << std::scientific << rho[i] //
-                << " " << setw(13) << setprecision(6) << std::scientific << u[i]   //
-                << " " << setw(13) << setprecision(6) << std::scientific << p[i]   //
-                << " " << setw(13) << setprecision(6) << std::scientific << vr[i]  //
-                << " " << setw(13) << setprecision(6) << std::scientific << cs[i]  //
+            if (i == 0)
+            {
+                cout << endl;
+                cout << "i           = " << i           << endl;
+                cout << "r[i]        = " << r[i]        << endl;
+                cout << "rho[i]/rho0 = " << rho[i]/rho0 << endl;
+                cout << "u[i]        = " << u[i]        << endl;
+                cout << "p[i]        = " << p[i]        << endl;
+                cout << "vel[i]      = " << vel[i]      << endl;
+                cout << "cs[i]       = " << cs[i]       << endl;
+            }
+
+            out <<        setw( 5) << i                                                 //
+                << " " << setw(13) << setprecision(6) << std::scientific << r[i]        //
+                << " " << setw(13) << setprecision(6) << std::scientific << rho[i]/rho0 //
+                << " " << setw(13) << setprecision(6) << std::scientific << u[i]        //
+                << " " << setw(13) << setprecision(6) << std::scientific << p[i]        //
+                << " " << setw(13) << setprecision(6) << std::scientific << vel[i]      //
+                << " " << setw(13) << setprecision(6) << std::scientific << cs[i]       //
                 << endl;
         }
     }
@@ -146,13 +158,13 @@ private:
                          const double rho0,           // ambient density g/cm**3 in 'rho = rho0 * r**(-omega)'
                          const double u0,             // ambient internal energy [erg/g]
                          const double p0,             // ambient pressure [erg/cm**3]
-                         const double vr0,            // ambient material speed [cm/s]
+                         const double vel0,           // ambient material speed [cm/s]
                          const double cs0,            // ambient sound speed [cm/s]
                          double *     r,              // out: spatial points where solution is desired [cm]
                          double *     rho,            // out: density  [g/cm**3]
                          double *     u,              // out: specific internal energy [erg/g]
                          double *     p,              // out: presssure [erg/cm**3]
-                         double *     vr,             // out: velocity [cm/s]
+                         double *     vel,            // out: velocity [cm/s]
                          double *     cs)             // out: sound speed [cm/s]
     {
         // Local variables
@@ -188,7 +200,7 @@ private:
         for(size_t i = 0; i < rPoints; i++)
         {
             rho[i] = 0.0;
-            vr[i]  = 0.0;
+            vel[i]  = 0.0;
             p[i]   = 0.0;
             u[i]   = 0.0;
             cs[i]  = 0.0;
@@ -316,20 +328,21 @@ private:
         double cs2  = sqrt(gamma * p2 / rho2);                                       // post-shock sound speed
 
         cout << endl;
-        cout << "r2    = " << r2   << endl;
-        cout << "us    = " << us   << endl;
-        cout << "rho1  = " << rho1 << endl;
-        cout << "u2    = " << us   << endl;
-        cout << "rho2  = " << rho2 << endl;
-        cout << "p2    = " << p2   << endl;
-        cout << "e2    = " << e2   << endl;
-        cout << "cs2   = " << cs2  << endl;
+        cout << "r2    = " << setw(39) << setprecision(38) << r2   << endl;
+        cout << "us    = " << setw(39) << setprecision(38) << us   << endl;
+        cout << "rho1  = " << setw(39) << setprecision(38) << rho1 << endl;
+        cout << "u2    = " << setw(39) << setprecision(38) << us   << endl;
+        cout << "rho2  = " << setw(39) << setprecision(38) << rho2 << endl;
+        cout << "p2    = " << setw(39) << setprecision(38) << p2   << endl;
+        cout << "e2    = " << setw(39) << setprecision(38) << e2   << endl;
+        cout << "cs2   = " << setw(39) << setprecision(38) << cs2  << endl;
         cout << endl;
 
         // Find the radius corresponding to vv
         if (lvacuum){
             vwant = vv;
             rvv = zeroin(0., r2, sed_r_find, eps2);
+            cout << endl << "I am in!" << endl;
         }
 
         // Loop over spatial positions
@@ -341,10 +354,12 @@ private:
             {
                 // If we are upstream from the shock front
                 rho[i] = rho0 * pow(rwant, -omega);
-                vr[i]  = vr0;
+                vel[i]  = vel0;
                 p[i]   = p0;
                 u[i]   = u0;
                 cs[i]  = cs0;
+
+                //cout << "Arrived_front! : " << i + 1 << ", rPoints = " << rPoints << endl;
             }
             else
             {
@@ -358,13 +373,30 @@ private:
                     exit(-1);
                 }
 
+                //cout << "Arrived_back! : " << i + 1 << ", rPoints = " << rPoints << endl;
+
+                //cout << endl;
+                //cout << "v[" << i + 1 << "] = " << setw(39) << setprecision(38) << v << endl;
+
                 // The physical solution
                 double l_fun, dlamdv, f_fun, g_fun, h_fun;
 
                 sedov_funcs(v, l_fun, dlamdv, f_fun, g_fun, h_fun);
 
+                /*
+                if (i == 0)
+                {
+                    cout << "i      = " << setw(39) << setprecision(38) << std::scientific << i + 1  << endl;
+                    cout << "v      = " << setw(39) << setprecision(38) << std::scientific << v      << endl;
+                    cout << "l_fun  = " << setw(39) << setprecision(38) << std::scientific << l_fun  << endl;
+                    cout << "dlamdv = " << setw(39) << setprecision(38) << std::scientific << dlamdv << endl;
+                    cout << "f_fun  = " << setw(39) << setprecision(38) << std::scientific << f_fun  << endl;
+                    cout << "g_fun  = " << setw(39) << setprecision(38) << std::scientific << g_fun  << endl;
+                    cout << "h_fun  = " << setw(39) << setprecision(38) << std::scientific << h_fun  << endl;
+                }*/
+
                 rho[i] = rho2 * g_fun;
-                vr[i]  = u2   * f_fun;
+                vel[i]  = u2   * f_fun;
                 p[i]   = p2   * h_fun;
                 u[i]   = 0.;
                 cs[i]  = 0.;
@@ -373,7 +405,30 @@ private:
                     u[i]  = p[i] / (gamm1 * rho[i]);
                     cs[i] = sqrt(gamma * p[i] / rho[i]);
                 }
+
+                /*
+                if (i == 0)
+                {
+                    cout << endl;
+                    cout << "rho[" << i + 1 << "] = " << setw(39) << setprecision(38) << std::scientific << rho[i] << endl;
+                    cout << "vr [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::scientific << vr[i]  << endl;
+                    cout << "p  [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::fixed      << p[i]   << endl;
+                    cout << "u  [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::fixed      << u[i]   << endl;
+                    cout << "cs [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::fixed      << cs[i]  << endl;
+                    cout << endl;
+                }*/
             }
+
+
+            //if (i == 0)
+            //{
+                cout << endl;
+                cout << "rho[" << i + 1 << "] = " << setw(39) << setprecision(38) << std::scientific << rho[i] << endl;
+                cout << "vr [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::scientific << vel[i]  << endl;
+                cout << "p  [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::fixed      << p[i]   << endl;
+                cout << "u  [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::fixed      << u[i]   << endl;
+                cout << "cs [" << i + 1 << "] = " << setw(39) << setprecision(38) << std::fixed      << cs[i]  << endl;
+            //}
         }
     }
 
@@ -833,6 +888,10 @@ private:
         // This function subprogram is a slightly  modified  translation of the algol 60 procedure zero given in Richard Brent
         // , algorithms for minimization without derivatives, prentice - hall, inc. (1973).
 
+        //cout << endl;
+        //cout << "ax  = " << ax  << endl;
+        //cout << "bx  = " << bx  << endl;
+        //cout << "tol = " << tol << endl;
 
         // Compute 'eps', the relative machine precision
         double eps = 1.;
