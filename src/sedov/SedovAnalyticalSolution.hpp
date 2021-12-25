@@ -60,6 +60,9 @@ class SedovAnalyticalSolution
 {
 public:
 
+    // Public global variabless
+    static double rho_shock, p_shock, vel_shock;      // Values in the shock peak
+
     static void create(const size_t dim,              // Dimensions
                        const double r0,               // Initial radio
                        const double r1,               // End radio
@@ -96,36 +99,34 @@ public:
 
         ofstream out(outfile);
 
-        out << " " << setw(13) << "r[i]"              // Column 01 : position 1D
-
-            << " " << setw(13) << "rho[i]"            // Column 02 : density         (Real value)
-            << " " << setw(13) << "u[i]"              // Column 03 : internal energy (Real value)
-            << " " << setw(13) << "p[i]"              // Column 04 : pressure        (Real value)
-            << " " << setw(13) << "vel[i]"            // Column 05 : velocity 1D     (Real value)
-            << " " << setw(13) << "cs[i]"             // Column 06 : sound speed     (Real value)
-
-            << " " << setw(13) << "rho[i]/rho0"       // Column 07 : density         (Normalized)
-
-            << " " << setw(13) << "rho[i]/rho_shock"  // Column 08 : density         (Shock Normalized)
-            << " " << setw(13) << "p[i]/p_shock"      // Column 09 : pressure        (Shock Normalized)
-            << " " << setw(13) << "vel[i]/vel_shock"  // Column 10 : velocity        (Shock Normalized)
-
+        out << " " << setw(15) << "r[i]"              // Column 01 : position 1D
+            << " " << setw(15) << "rho[i]"            // Column 02 : density         (Real value)
+            << " " << setw(15) << "u[i]"              // Column 03 : internal energy (Real value)
+            << " " << setw(15) << "p[i]"              // Column 04 : pressure        (Real value)
+            << " " << setw(15) << "vel[i]"            // Column 05 : velocity 1D     (Real value)
+            << " " << setw(15) << "cs[i]"             // Column 06 : sound speed     (Real value)
+            << " " << setw(15) << "rho[i]/rho0"       // Column 07 : density         (Normalized)
+            << " " << setw(15) << "rho[i]/rho_shock"  // Column 08 : density         (Shock Normalized)
+            << " " << setw(15) << "p[i]/p_shock"      // Column 09 : pressure        (Shock Normalized)
+            << " " << setw(15) << "vel[i]/vel_shock"  // Column 10 : velocity        (Shock Normalized)
             << endl;
 
         for(size_t i = 0; i < rPoints; i++)
         {
-            out << " " << setw(13) << setprecision(6) << std::scientific << r[i]             //
-                << " " << setw(13) << setprecision(6) << std::scientific << rho[i]           //
-                << " " << setw(13) << setprecision(6) << std::scientific << u[i]             //
-                << " " << setw(13) << setprecision(6) << std::scientific << p[i]             //
-                << " " << setw(13) << setprecision(6) << std::scientific << vel[i]           //
-                << " " << setw(13) << setprecision(6) << std::scientific << cs[i]            //
-                << " " << setw(13) << setprecision(6) << std::scientific << rho[i]/rho0      //
-                << " " << setw(13) << setprecision(6) << std::scientific << rho[i]/rho_shock //
-                << " " << setw(13) << setprecision(6) << std::scientific << p[i]/p_shock     //
-                << " " << setw(13) << setprecision(6) << std::scientific << vel[i]/vel_shock //
+            out << " " << setw(15) << setprecision(6) << std::scientific << r[i]             //
+                << " " << setw(15) << setprecision(6) << std::scientific << rho[i]           //
+                << " " << setw(15) << setprecision(6) << std::scientific << u[i]             //
+                << " " << setw(15) << setprecision(6) << std::scientific << p[i]             //
+                << " " << setw(15) << setprecision(6) << std::scientific << vel[i]           //
+                << " " << setw(15) << setprecision(6) << std::scientific << cs[i]            //
+                << " " << setw(15) << setprecision(6) << std::scientific << rho[i]/rho0      //
+                << " " << setw(15) << setprecision(6) << std::scientific << rho[i]/rho_shock //
+                << " " << setw(15) << setprecision(6) << std::scientific << p[i]  /p_shock   //
+                << " " << setw(15) << setprecision(6) << std::scientific << vel[i]/vel_shock //
                 << endl;
         }
+
+        out.close();
     }
 
 private:
@@ -135,7 +136,7 @@ private:
     static constexpr double eps2   = 1.e-30;          //  eps2 controls the root find accuracy
     static constexpr double osmall = 1.e-4;           //  osmall controls the size of transition regions
 
-    // Global variables
+    // Private global variables
     static double xgeom, omega, gamma;                //
     static double gamm1,gamp1, gpogm, xg2;            //
     static bool   lsingular,lstandard,lvacuum;        //
@@ -145,8 +146,6 @@ private:
     static double rwant, vwant;                       //
     static double r2,    v0,vv,rvv;                   //
     static double gam_int;                            //
-    static double rho_shock, p_shock, vel_shock;      // Values in the shock peak
-
 
     static void sedovSol(const size_t dim,            // geometry factor: 1=planar, 2=cylindircal, 3=spherical
                          const size_t rPoints,        // Number of points between r0-r1

@@ -195,15 +195,18 @@ int main(int argc, char** argv)
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
             std::string solutionFilename;
+            std::string simulationFilename;
 
 #ifdef SPH_EXA_HAVE_H5PART
             fileWriter.dumpParticleDataToH5File(
                 d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov.h5part");
-            solutionFilename = outDirectory + "dump_sedov_sol.h5part";
+            solutionFilename   = outDirectory + "dump_sedov_sol.h5part";
+            simulationFilename = outDirectory + "dump_sedov_sim.h5part";
 #else
             fileWriter.dumpParticleDataToAsciiFile(
                 d, domain.startIndex(), domain.endIndex(), "dump_sedov" + std::to_string(d.iteration) + ".txt");
-            solutionFilename = "dump_sedov" + std::to_string(d.iteration) + "_sol.txt";
+            solutionFilename   = "dump_sedov" + std::to_string(d.iteration) + "_sol.txt";
+            simulationFilename = "dump_sedov" + std::to_string(d.iteration) + "_sim.txt";
 #endif
 
             if (solution)
@@ -217,40 +220,40 @@ int main(int argc, char** argv)
                                                 rho0, u0, p0, vr0, cs0,
                                                 solutionFilename);
 
-                // Test Sedov solution in 2D with the original fortran values
-                /*
-                size_t xgeom = 2;
+                ofstream out(simulationFilename);
 
-                double r0     = 0.;
-                double r1     = 0.5;
+                out << " " << setw(15) << "r[i]"              // Column 01 : position 1D
+                    << " " << setw(15) << "rho[i]"            // Column 02 : density         (Real value)
+                    << " " << setw(15) << "u[i]"              // Column 03 : internal energy (Real value)
+                    << " " << setw(15) << "p[i]"              // Column 04 : pressure        (Real value)
+                    << " " << setw(15) << "vel[i]"            // Column 05 : velocity 1D     (Real value)
+                    << " " << setw(15) << "cs[i]"             // Column 06 : sound speed     (Real value)
+                    << " " << setw(15) << "rho[i]/rho0"       // Column 07 : density         (Normalized)
+                    << " " << setw(15) << "rho[i]/rho_shock"  // Column 08 : density         (Shock Normalized)
+                    << " " << setw(15) << "p[i]/p_shock"      // Column 09 : pressure        (Shock Normalized)
+                    << " " << setw(15) << "vel[i]/vel_shock"  // Column 10 : velocity        (Shock Normalized)
+                    << endl;
 
-                size_t nstep  = 1000;
+                //for(int i = d.count; i >= 0; i--)
+                for(int i = 0; i < d.count; i++)
+                {
+                    double r   = std::sqrt( std::pow(d.x[i],  2.) + std::pow(d.y[i],  2.) + std::pow(d.z[i],  2.) );
+                    double vel = std::sqrt( std::pow(d.vx[i], 2.) + std::pow(d.vy[i], 2.) + std::pow(d.vz[i], 2.) );
 
-                double time   = 0.2;
+                    out << " " << setw(15) << setprecision(6) << std::scientific << r                                           //
+                        << " " << setw(15) << setprecision(6) << std::scientific << d.ro[i]                                     //
+                        << " " << setw(15) << setprecision(6) << std::scientific << d.u[i]                                      //
+                        << " " << setw(15) << setprecision(6) << std::scientific << d.p[i]                                      //
+                        << " " << setw(15) << setprecision(6) << std::scientific << vel                                         //
+                        << " " << setw(15) << setprecision(6) << std::scientific << d.c[i]                                      //
+                        << " " << setw(15) << setprecision(6) << std::scientific << d.ro[i]/rho0                                //
+                        << " " << setw(15) << setprecision(6) << std::scientific << d.ro[i]/SedovAnalyticalSolution::rho_shock  //
+                        << " " << setw(15) << setprecision(6) << std::scientific << d.p[i] /SedovAnalyticalSolution::p_shock    //
+                        << " " << setw(15) << setprecision(6) << std::scientific << vel    /SedovAnalyticalSolution::vel_shock  //
+                        << endl;
+                }
 
-                double eblast = 1000.;
-
-                double omega  = 0.;
-                double gamma  = 5./3.;
-
-                double rho0   = 9801.89;
-                double u0     = 0.;
-                double p0     = 0.;
-                double vr0    = 0.;
-                double cs0    = 0.;
-
-                std::string outfile = "theoretical.dat";
-
-                SedovAnalyticalSolution::create(xgeom,
-                                                r0, r1,
-                                                nstep,
-                                                time,
-                                                eblast,
-                                                omega, gamma,
-                                                rho0, u0, p0, vr0, cs0,
-                                                outfile);
-                exit(-1);
-                */
+                out.close();
             }
 
             timer.step("writeFile");
