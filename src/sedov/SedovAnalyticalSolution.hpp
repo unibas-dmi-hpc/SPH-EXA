@@ -44,14 +44,8 @@
 #pragma once
 
 #include <cmath>
-#include <vector>
 
-#include <iostream>
-#include <iomanip>
-
-#include <fstream>
-
-#include <string>
+#include "SedovDataFileWriter.hpp"
 
 using namespace std;
 
@@ -78,55 +72,32 @@ public:
                        const double cs0,              // Initial sound speed
                        const string outfile)          // Output solution filename
     {
+        vector<double> r  (rPoints);
+        vector<double> rho(rPoints);
+        vector<double> u  (rPoints);
+        vector<double> p  (rPoints);
+        vector<double> vel(rPoints);
+        vector<double> cs (rPoints);
 
         double rStep = (r1 - r0) / rPoints;
-        double r[rPoints];
         for(size_t i = 0; i < rPoints; i++)
         {
             r[i] = r0 + (0.5 * rStep) + (i * rStep);
         }
 
-        double rho[rPoints];
-        double u[rPoints];
-        double p[rPoints];
-        double vel[rPoints];
-        double cs[rPoints];
-
+        // Calculate theoretical solution
         sedovSol(dim, rPoints, time,
                  eblast, omega_i, gamma_i,
                  rho0, u0, p0, vel0, cs0,
-                 r, rho, u, p, vel, cs);
+                 r, rho, p, u, vel, cs);
 
-        ofstream out(outfile);
-
-        out << " " << setw(15) << "r[i]"              // Column 01 : position 1D
-            << " " << setw(15) << "rho[i]"            // Column 02 : density         (Real value)
-            << " " << setw(15) << "u[i]"              // Column 03 : internal energy (Real value)
-            << " " << setw(15) << "p[i]"              // Column 04 : pressure        (Real value)
-            << " " << setw(15) << "vel[i]"            // Column 05 : velocity 1D     (Real value)
-            << " " << setw(15) << "cs[i]"             // Column 06 : sound speed     (Real value)
-            << " " << setw(15) << "rho[i]/rho0"       // Column 07 : density         (Normalized)
-            << " " << setw(15) << "rho[i]/rho_shock"  // Column 08 : density         (Shock Normalized)
-            << " " << setw(15) << "p[i]/p_shock"      // Column 09 : pressure        (Shock Normalized)
-            << " " << setw(15) << "vel[i]/vel_shock"  // Column 10 : velocity        (Shock Normalized)
-            << endl;
-
-        for(size_t i = 0; i < rPoints; i++)
-        {
-            out << " " << setw(15) << setprecision(6) << std::scientific << r[i]             //
-                << " " << setw(15) << setprecision(6) << std::scientific << rho[i]           //
-                << " " << setw(15) << setprecision(6) << std::scientific << u[i]             //
-                << " " << setw(15) << setprecision(6) << std::scientific << p[i]             //
-                << " " << setw(15) << setprecision(6) << std::scientific << vel[i]           //
-                << " " << setw(15) << setprecision(6) << std::scientific << cs[i]            //
-                << " " << setw(15) << setprecision(6) << std::scientific << rho[i]/rho0      //
-                << " " << setw(15) << setprecision(6) << std::scientific << rho[i]/rho_shock //
-                << " " << setw(15) << setprecision(6) << std::scientific << p[i]  /p_shock   //
-                << " " << setw(15) << setprecision(6) << std::scientific << vel[i]/vel_shock //
-                << endl;
-        }
-
-        out.close();
+        // Write solution file
+        SedovSolutionWriter::dump1DToAsciiFile(rPoints,
+                                               r, vel, cs,
+                                               rho, u, p,
+                                               rho0,
+                                               rho_shock, p_shock, vel_shock,
+                                               outfile);
     }
 
 private:
@@ -158,12 +129,12 @@ private:
                          const double p0,             // ambient pressure [erg/cm**3]
                          const double vel0,           // ambient material speed [cm/s]
                          const double cs0,            // ambient sound speed [cm/s]
-                         double *     r,              // out: spatial points where solution is desired [cm]
-                         double *     rho,            // out: density  [g/cm**3]
-                         double *     u,              // out: specific internal energy [erg/g]
-                         double *     p,              // out: presssure [erg/cm**3]
-                         double *     vel,            // out: velocity [cm/s]
-                         double *     cs)             // out: sound speed [cm/s]
+                         const vector<double>& r,     // out: spatial points where solution is desired [cm]
+                         vector<double>& rho,         // out: density  [g/cm**3]
+                         vector<double>& p,           // out: presssure [erg/cm**3]
+                         vector<double>& u,           // out: specific internal energy [erg/g]
+                         vector<double>& vel,         // out: velocity [cm/s]
+                         vector<double>& cs)          // out: sound speed [cm/s]
     {
         // Local variables
         double eval1 = 0.;
@@ -365,8 +336,8 @@ private:
 
                 sedov_funcs(vat, l_fun, dlamdv, f_fun, g_fun, h_fun);
 
-                rho[i] = rho_shock * g_fun;
                 vel[i] = vel_shock * f_fun;
+                rho[i] = rho_shock * g_fun;
                 p[i]   = p_shock   * h_fun;
                 u[i]   = 0.;
                 cs[i]  = 0.;

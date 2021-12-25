@@ -211,6 +211,7 @@ int main(int argc, char** argv)
 
             if (solution)
             {
+                // Calculate and write theoretical solution in 1D
                 SedovAnalyticalSolution::create(dim,
                                                 r0, r1,
                                                 domain.nParticles(),
@@ -220,39 +221,22 @@ int main(int argc, char** argv)
                                                 rho0, u0, p0, vr0, cs0,
                                                 solutionFilename);
 
-                ofstream out(simulationFilename);
-
-                out << " " << setw(15) << "r[i]"              // Column 01 : position 1D
-                    << " " << setw(15) << "rho[i]"            // Column 02 : density         (Real value)
-                    << " " << setw(15) << "u[i]"              // Column 03 : internal energy (Real value)
-                    << " " << setw(15) << "p[i]"              // Column 04 : pressure        (Real value)
-                    << " " << setw(15) << "vel[i]"            // Column 05 : velocity 1D     (Real value)
-                    << " " << setw(15) << "cs[i]"             // Column 06 : sound speed     (Real value)
-                    << " " << setw(15) << "rho[i]/rho0"       // Column 07 : density         (Normalized)
-                    << " " << setw(15) << "rho[i]/rho_shock"  // Column 08 : density         (Shock Normalized)
-                    << " " << setw(15) << "p[i]  /p_shock"    // Column 09 : pressure        (Shock Normalized)
-                    << " " << setw(15) << "vel[i]/vel_shock"  // Column 10 : velocity        (Shock Normalized)
-                    << endl;
-
+                // Calculate modules for position and velocity
+                vector<double> r  (d.count);
+                vector<double> vel(d.count);
                 for(size_t i = 0; i < d.count; i++)
                 {
-                    double r   = std::sqrt( std::pow(d.x[i],  2.) + std::pow(d.y[i],  2.) + std::pow(d.z[i],  2.) );
-                    double vel = std::sqrt( std::pow(d.vx[i], 2.) + std::pow(d.vy[i], 2.) + std::pow(d.vz[i], 2.) );
-
-                    out << " " << setw(15) << setprecision(6) << std::scientific << r                                           //
-                        << " " << setw(15) << setprecision(6) << std::scientific << d.ro[i]                                     //
-                        << " " << setw(15) << setprecision(6) << std::scientific << d.u[i]                                      //
-                        << " " << setw(15) << setprecision(6) << std::scientific << d.p[i]                                      //
-                        << " " << setw(15) << setprecision(6) << std::scientific << vel                                         //
-                        << " " << setw(15) << setprecision(6) << std::scientific << d.c[i]                                      //
-                        << " " << setw(15) << setprecision(6) << std::scientific << d.ro[i]/rho0                                //
-                        << " " << setw(15) << setprecision(6) << std::scientific << d.ro[i]/SedovAnalyticalSolution::rho_shock  //
-                        << " " << setw(15) << setprecision(6) << std::scientific << d.p[i] /SedovAnalyticalSolution::p_shock    //
-                        << " " << setw(15) << setprecision(6) << std::scientific << vel    /SedovAnalyticalSolution::vel_shock  //
-                        << endl;
+                    r[i]   = std::sqrt( std::pow(d.x[i],  2.) + std::pow(d.y[i],  2.) + std::pow(d.z[i],  2.) );
+                    vel[i] = std::sqrt( std::pow(d.vx[i], 2.) + std::pow(d.vy[i], 2.) + std::pow(d.vz[i], 2.) );
                 }
 
-                out.close();
+                // Write 1D simulation solution to compare with the theoretical solution
+                SedovSolutionWriter::dump1DToAsciiFile(d.count,
+                                                       r, vel, d.c,
+                                                       d.ro, d.u, d.p,
+                                                       rho0,
+                                                       SedovAnalyticalSolution::rho_shock, SedovAnalyticalSolution::p_shock, SedovAnalyticalSolution::vel_shock,
+                                                       simulationFilename);
             }
 
             timer.step("writeFile");
