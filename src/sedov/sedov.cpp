@@ -230,7 +230,7 @@ int main(int argc, char** argv)
                     << " " << setw(15) << "cs[i]"             // Column 06 : sound speed     (Real value)
                     << " " << setw(15) << "rho[i]/rho0"       // Column 07 : density         (Normalized)
                     << " " << setw(15) << "rho[i]/rho_shock"  // Column 08 : density         (Shock Normalized)
-                    << " " << setw(15) << "p[i]/p_shock"      // Column 09 : pressure        (Shock Normalized)
+                    << " " << setw(15) << "p[i]  /p_shock"    // Column 09 : pressure        (Shock Normalized)
                     << " " << setw(15) << "vel[i]/vel_shock"  // Column 10 : velocity        (Shock Normalized)
                     << endl;
 
