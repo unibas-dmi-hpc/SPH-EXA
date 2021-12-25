@@ -234,8 +234,7 @@ int main(int argc, char** argv)
                     << " " << setw(15) << "vel[i]/vel_shock"  // Column 10 : velocity        (Shock Normalized)
                     << endl;
 
-                //for(int i = d.count; i >= 0; i--)
-                for(int i = 0; i < d.count; i++)
+                for(size_t i = 0; i < d.count; i++)
                 {
                     double r   = std::sqrt( std::pow(d.x[i],  2.) + std::pow(d.y[i],  2.) + std::pow(d.z[i],  2.) );
                     double vel = std::sqrt( std::pow(d.vx[i], 2.) + std::pow(d.vy[i], 2.) + std::pow(d.vz[i], 2.) );
