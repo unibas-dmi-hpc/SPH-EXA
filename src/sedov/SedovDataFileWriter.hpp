@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cmath>
+
 #include <iomanip>
 
 #include "IFileWriter.hpp"
@@ -20,7 +22,7 @@ struct SedovSolutionWriter
 
             out << " " << std::setw(15) << "r"              // Column 01 : position 1D
                 << " " << std::setw(15) << "rho"            // Column 02 : density         (Real value)
-                << " " << std::setw(15) << "u"              // Column 03 : internal energy (Real value)
+                << " " << std::setw(15) << "log10(u)"       // Column 03 : internal energy (Real value)
                 << " " << std::setw(15) << "p"              // Column 04 : pressure        (Real value)
                 << " " << std::setw(15) << "vel"            // Column 05 : velocity 1D     (Real value)
                 << " " << std::setw(15) << "cs"             // Column 06 : sound speed     (Real value)
@@ -34,7 +36,7 @@ struct SedovSolutionWriter
             {
                 out << " " << std::setw(15) << std::setprecision(6) << std::scientific << r[i]
                     << " " << std::setw(15) << std::setprecision(6) << std::scientific << rho[i]
-                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << u[i]
+                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << log10(u[i])
                     << " " << std::setw(15) << std::setprecision(6) << std::scientific << p[i]
                     << " " << std::setw(15) << std::setprecision(6) << std::scientific << vel[i]
                     << " " << std::setw(15) << std::setprecision(6) << std::scientific << cs[i]

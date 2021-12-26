@@ -3,7 +3,7 @@
 #
 #  1: radio al centro de masas (r) 
 #  2: Density (rho)
-#  3: Energy (U)
+#  3: Internal Energy in log10 (log10(U))
 #  4: Pressure (P)
 #  5: velocidad (|v|)
 #  6: Sound Velocity (cs)
@@ -65,7 +65,7 @@ solSedov="theoretical.dat"
  #set xrange [0:25]
  #set yrange[0:4]
 
- plot solSedov  u 1:(log10($3))    w l ls 3 title "log10(U)"
+ plot solSedov  u 1:3    w l ls 3 title "log10(U)"
 
  #unset logscale y
  set autoscale x

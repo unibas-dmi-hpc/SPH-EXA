@@ -12,7 +12,7 @@
      5                 zlo,zhi,zstep,value
 
       ! popular formats
- 01   format(15x,a,13x,a,15x,a,15x,a,13x,a,14x,a,8x,a,4x,a,8x,a,4x,a)
+ 01   format(15x,a,13x,a,8x,a,15x,a,13x,a,14x,a,8x,a,4x,a,8x,a,4x,a)
  02   format(10(2x,1pe14.6))
 
       ! otherwise explicitly set stuff standard cases in spherical constant density should reach r=1 at t=1
@@ -49,12 +49,12 @@
 
       ! output file
       open(unit=2,file=outfile,status='unknown')
-      write(2,01) 'r','rho','u','p','vel','cs','rho/rho0',
+      write(2,01) 'r','rho','log10(u)','p','vel','cs','rho/rho0',
      1            'rho/rhoShock','p/pShock','vel/velShock'
       do i=1,nstep
        write(2,02)	zpos(i),
      1			    den(i),
-     2		 	    ener(i),
+     2		 	    LOG10(ener(i)),
      3		 	    pres(i),
      4		 	    vel(i),
      5		 	    cs(i),
