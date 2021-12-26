@@ -249,9 +249,10 @@ int main(int argc, char** argv)
                 */
 
                 // Calculate and write theoretical solution in 1D
+                size_t nSteps = 1000;  // Instead of 'domain.nParticles()'. It is not needed more precission to compere.
                 SedovAnalyticalSolution::create(dim,
                                                 r0, r1,
-                                                domain.nParticles(),
+                                                nSteps,
                                                 d.ttot,
                                                 eblast,
                                                 omega, gamma,
