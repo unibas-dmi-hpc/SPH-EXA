@@ -18,13 +18,13 @@
       ! otherwise explicitly set stuff standard cases in spherical constant density should reach r=1 at t=1
       nstep		= nmax				    ! spatial points
       eblast	= 1000.0q0				! blast energy
-      xgeom		= 2.0q0				    ! geometry type (dimensiones)
+      xgeom		= 3.0q0				    ! geometry type (dimensiones)
       omega		= 0.0q0				    ! density exponent
       outfile	= 'theoretical.dat'		! output file name
 
       !	input parameters in cgs
       time   = 0.2q0                    ! Time where the solution is calculated
-      rho0   = 9801.89q0				! Rho inicial
+      rho0   = 10000.0q0				! Rho inicial
       vel0   = 0.0q0                    !
       ener0  = 0.0q0                    !
       pres0  = 0.0q0                    !

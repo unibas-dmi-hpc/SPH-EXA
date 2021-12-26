@@ -219,7 +219,7 @@ int main(int argc, char** argv)
                                                 1000.,                  // eblast
                                                 0.,                     // omega
                                                 5./3.,                  // gamma
-                                                9801.89,                // rho0
+                                                10000.,                 // rho0
                                                 0., 0., 0., 0.,         // ener0,pres0,vel0,cs0
                                                 "theoretical_1D.dat");  // outfile
 
@@ -230,7 +230,7 @@ int main(int argc, char** argv)
                                                 1000.,                  // eblast
                                                 0.,                     // omega
                                                 5./3.,                  // gamma
-                                                9801.89,                // rho0
+                                                10000.,                 // rho0
                                                 0., 0., 0., 0.,         // ener0,pres0,vel0,cs0
                                                 "theoretical_2D.dat");  // outfile
 
@@ -241,7 +241,7 @@ int main(int argc, char** argv)
                                                 1000.,                  // eblast
                                                 0.,                     // omega
                                                 5./3.,                  // gamma
-                                                9801.89,                // rho0
+                                                10000.,                 // rho0
                                                 0., 0., 0., 0.,         // ener0,pres0,vel0,cs0
                                                 "theoretical_3D.dat");  // outfile
 
