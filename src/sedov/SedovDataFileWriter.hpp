@@ -25,9 +25,9 @@ struct SedovSolutionWriter
                 << " " << std::setw(15) << "vel"            // Column 05 : velocity 1D     (Real value)
                 << " " << std::setw(15) << "cs"             // Column 06 : sound speed     (Real value)
                 << " " << std::setw(15) << "rho/rho0"       // Column 07 : density         (Normalized)
-                << " " << std::setw(15) << "rho/rho_shock"  // Column 08 : density         (Shock Normalized)
-                << " " << std::setw(15) << "p/p_shock"      // Column 09 : pressure        (Shock Normalized)
-                << " " << std::setw(15) << "vel/vel_shock"  // Column 10 : velocity        (Shock Normalized)
+                << " " << std::setw(15) << "rho/rhoShock"   // Column 08 : density         (Shock Normalized)
+                << " " << std::setw(15) << "p/pShock"       // Column 09 : pressure        (Shock Normalized)
+                << " " << std::setw(15) << "vel/velShock"   // Column 10 : velocity        (Shock Normalized)
                 << std::endl;
 
             for(size_t i = 0; i < n; i++)

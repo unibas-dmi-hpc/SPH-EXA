@@ -6,15 +6,14 @@
       parameter        (nmax = 1000)
       real*16          time,zpos(nmax),
      1                 eblast,rho0,omega,vel0,ener0,pres0,cs0,gamma,
-     2                 xgeom,
+     2                 xgeom,rhoShock,pShock,velShock,
      3                 den(nmax),ener(nmax),pres(nmax),vel(nmax),
      4                 cs(nmax),
      5                 zlo,zhi,zstep,value
 
       ! popular formats
- 01   format(1x,t4,a,t8,a,t22,a,t36,a,t50,a,t64,a,t78,a,t92,a)
- 02   format(1x,i4,1p8e12.4)
- 03   format(1x,i4,1p8e14.6)
+ 01   format(15x,a,13x,a,15x,a,15x,a,13x,a,14x,a,8x,a,4x,a,8x,a,4x,a)
+ 02   format(10(2x,1pe14.6))
 
       ! otherwise explicitly set stuff standard cases in spherical constant density should reach r=1 at t=1
       nstep		= nmax				    ! spatial points
@@ -45,21 +44,24 @@
       call sed_1d(time,nstep,zpos,
      1            eblast,omega,xgeom,
      2            rho0,vel0,ener0,pres0,cs0,gamma,
-     3            den,ener,pres,vel,cs)
+     3            den,ener,pres,vel,cs,rhoShock,pShock,velShock)
 
 
       ! output file
       open(unit=2,file=outfile,status='unknown')
-      write(2,02) nstep,time
-      write(2,01) 'i','x','rho','e','p','v','cs'
+      write(2,01) 'r','rho','u','p','vel','cs','rho/rho0',
+     1            'rho/rhoShock','p/pShock','vel/velShock'
       do i=1,nstep
-       write(2,03)	i,
-     1			zpos(i),
-     2			den(i)/rho0,		! Normalized
-     3		 	ener(i),
-     4		 	pres(i),
-     5		 	vel(i),
-     6		 	cs(i)
+       write(2,02)	zpos(i),
+     1			    den(i),
+     2		 	    ener(i),
+     3		 	    pres(i),
+     4		 	    vel(i),
+     5		 	    cs(i),
+     6			    den(i)/rho0,
+     6			    den(i)/rhoShock,
+     6			    pres(i)/pShock,
+     6			    vel(i)/velShock
       enddo
       close(unit=2)
 
@@ -71,7 +73,7 @@
       subroutine sed_1d(time,nstep,xpos,
      1                  eblast,omega_in,xgeom_in,
      2                  rho0,vel0,ener0,pres0,cs0,gam0,
-     3                  den,ener,pres,vel,cs)
+     3                  den,ener,pres,vel,cs,rhoShock,pShock,velShock)
       implicit none
 
 
@@ -134,7 +136,7 @@
       real*16          time,xpos(*),
      1                 eblast,rho0,omega_in,vel0,ener0,pres0,cs0,
      1                 gam0,xgeom_in,den(*),ener(*),pres(*),
-     3                 vel(*),cs(*)
+     3                 vel(*),cs(*),rhoShock,pShock,velShock
 
 
 !	local variables
@@ -394,6 +396,9 @@ c      write(6,87) omega,alpha
       e2	= p2/(gamm1*rho2)
       cs2	= sqrt(gamma*p2/rho2)
 
+      rhoShock = rho2
+      pShock   = p2
+      velShock = u2
 
 !	find the radius corresponding to vv
        if (lvacuum)   then

@@ -211,6 +211,43 @@ int main(int argc, char** argv)
 
             if (solution)
             {
+                /*
+                SedovAnalyticalSolution::create(1,                      // xgeom
+                                                0., 0.5,                // r0, r1
+                                                1000,                   // nstep
+                                                0.2,                    // time
+                                                1000.,                  // eblast
+                                                0.,                     // omega
+                                                5./3.,                  // gamma
+                                                9801.89,                // rho0
+                                                0., 0., 0., 0.,         // ener0,pres0,vel0,cs0
+                                                "theoretical_1D.dat");  // outfile
+
+                SedovAnalyticalSolution::create(2,                      // xgeom
+                                                0., 0.5,                // r0, r1
+                                                1000,                   // nstep
+                                                0.2,                    // time
+                                                1000.,                  // eblast
+                                                0.,                     // omega
+                                                5./3.,                  // gamma
+                                                9801.89,                // rho0
+                                                0., 0., 0., 0.,         // ener0,pres0,vel0,cs0
+                                                "theoretical_2D.dat");  // outfile
+
+                SedovAnalyticalSolution::create(3,                      // xgeom
+                                                0., 0.5,                // r0, r1
+                                                1000,                   // nstep
+                                                0.2,                    // time
+                                                1000.,                  // eblast
+                                                0.,                     // omega
+                                                5./3.,                  // gamma
+                                                9801.89,                // rho0
+                                                0., 0., 0., 0.,         // ener0,pres0,vel0,cs0
+                                                "theoretical_3D.dat");  // outfile
+
+                exit(-1);
+                */
+
                 // Calculate and write theoretical solution in 1D
                 SedovAnalyticalSolution::create(dim,
                                                 r0, r1,

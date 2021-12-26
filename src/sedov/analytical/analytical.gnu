@@ -1,13 +1,16 @@
 #  SITUACION DE LAS VARIABLES EN EL FICHERO DE DATOS
 ####################################################
 #
-#  1: nStep     
-#  2: radio al centro de masas (r) 
-#  3: Density (rho)
-#  4: Energy (U)
-#  5: Pressure (P)
-#  6: velocidad (|v|)
-#  7: Sound Velocity (cs)
+#  1: radio al centro de masas (r) 
+#  2: Density (rho)
+#  3: Energy (U)
+#  4: Pressure (P)
+#  5: velocidad (|v|)
+#  6: Sound Velocity (cs)
+#  7: Density normalized (rho/rho0)
+#  8: Density shock normalized (rho/rho_Shock)
+#  9: Pressure shock normalized (P/P_Shock)
+# 10: Velocity shock normalized (|v|/V_Shock)
 #
 ####################################################
 
@@ -37,15 +40,14 @@ solSedov="theoretical.dat"
 ######################################################################################################
 
  set xlabel "R (cm)"
- set ylabel "{/Symbol r} (g.cm^{-2})"
+ set ylabel "{/Symbol r} (g.cm^{-2}) [normalized]"
  unset title
  set key left top
  set output 'density.png'
  #set xrange [0:25]
  #set yrange[0:4]
 
- plot solSedov  u 2:3    w l ls 1 title "{/Symbol r} Sim   ", \
-      solSedov  u 2:3    w l ls 3 title "{/Symbol r} Teoric"
+ plot solSedov  u 1:7    w l ls 3 title "{/Symbol r}_{norm}"
 
  set autoscale x
  set autoscale y
@@ -63,8 +65,7 @@ solSedov="theoretical.dat"
  #set xrange [0:25]
  #set yrange[0:4]
 
- plot solSedov  u 2:(log10($4))    w l ls 1 title "U Sim   ", \
-      solSedov  u 2:(log10($4))    w l ls 3 title "U Teoric"
+ plot solSedov  u 1:(log10($3))    w l ls 3 title "log10(U)"
 
  #unset logscale y
  set autoscale x
@@ -81,8 +82,7 @@ solSedov="theoretical.dat"
  #set xrange [0:25]
  #set yrange[0:4]
 
- plot solSedov  u 2:5    w l ls 1 title "P Sim   ", \
-      solSedov  u 2:5    w l ls 3 title "P Teoric"
+ plot solSedov  u 1:4    w l ls 3 title "P"
 
  set autoscale x
  set autoscale y
@@ -98,8 +98,7 @@ solSedov="theoretical.dat"
  #set xrange [0:25]
  #set yrange[0:4]
 
- plot solSedov  u 2:6    w l ls 1 title "|V| Sim   ", \
-      solSedov  u 2:6    w l ls 3 title "|V| Teoric"
+ plot solSedov  u 1:5    w l ls 3 title "|V|"
 
  set autoscale x
  set autoscale y
@@ -108,7 +107,7 @@ solSedov="theoretical.dat"
 ######################################################################################################
 
 set xlabel "R (cm)"
-set ylabel  "{/Symbol r} (g.cm^{-2})"
+set ylabel  "{/Symbol r} (g.cm^{-2}) [normalized]"
 set y2label "P (dyn.cm)"
 #set format y '%.1e'
 #set format y2 '%.1e'
@@ -121,8 +120,8 @@ set ytics nomirror
 #set xrange [0:25]
 
 #set yrange[0:4]
-plot solSedov  u 2:3    w l ls 1 title "{/Symbol r}" axes x1y1, \
-     solSedov  u 2:5    w l ls 3 title "Pressure" axes x1y2
+plot solSedov  u 1:7    w l ls 1 title "{/Symbol r}_{norm}" axes x1y1, \
+     solSedov  u 1:4    w l ls 3 title "Pressure" axes x1y2
 
 set autoscale x
 set autoscale y
@@ -136,7 +135,7 @@ unset format
 ######################################################################################################
 
 set xlabel "R (cm)"
-set ylabel  "{/Symbol r} (g.cm^{-2})"
+set ylabel  "{/Symbol r} (g.cm^{-2}) [normalized]"
 set y2label "|V| (cm~s^{-1})"
 #set format y '%.1e'
 #set format y2 '%.1e'
@@ -149,8 +148,8 @@ set ytics nomirror
 #set xrange [0:25]
 #set yrange[0:4]
 
-plot solSedov  u 2:3    w l ls 1 title "{/Symbol r}" axes x1y1, \
-     solSedov  u 2:6    w l ls 3 title "Velocity" axes x1y2
+plot solSedov  u 1:7    w l ls 1 title "{/Symbol r}_{norm}" axes x1y1, \
+     solSedov  u 1:5    w l ls 3 title "Velocity" axes x1y2
 
 set autoscale x
 set autoscale y
