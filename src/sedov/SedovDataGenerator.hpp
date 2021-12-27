@@ -14,6 +14,9 @@ class SedovDataGenerator
 public:
 
     static constexpr double gamma         = 5.0/3.0;
+    static constexpr double r0            = 0.;
+    static constexpr double r1            = 0.5;
+    static constexpr bool   spheric_model = true;
     static constexpr double energytot     = 1.0;
     static constexpr double width         = 0.10;
     static constexpr double rho0          = 1.0;
@@ -45,9 +48,18 @@ public:
         pd.count = side * side * side;
 
         load(pd);
-        init(pd);
 
-        return pd;
+        if (spheric_model)
+        {
+            auto pd2 = reduce_to_sphere(pd);
+            init(pd2);
+            return (pd2);
+        }
+        else
+        {
+            init(pd);
+            return pd;
+        }
     }
 
     // void load(const std::string &filename)
@@ -93,6 +105,56 @@ public:
                 }
             }
         }
+    }
+
+    static ParticlesData<T, I> reduce_to_sphere(const ParticlesData<T, I> & pd)
+    {
+        // Create the spheric model
+        ParticlesData<T, I> speric_model;
+
+        // Calculate radius
+        std::vector<T> r(pd.count);
+        for (size_t i = 0; i < pd.count; i++)
+        {
+            r[i] = sqrt(pd.x[i] * pd.x[i] +  pd.y[i] * pd.y[i]+ pd.z[i] * pd.z[i]);
+        }
+
+        // Calculate and set the new size
+        double n = 0;
+        for (size_t i = 0; i < pd.count; i++)
+        {
+            if (r[i] <= r1) n++;
+        }
+
+        speric_model.n    = n;
+        speric_model.side = pd.side;
+
+        size_t split     = speric_model.n / speric_model.nrank;
+        size_t remaining = speric_model.n - speric_model.nrank * split;
+
+        speric_model.count = split;
+        if (speric_model.rank == 0) speric_model.count += remaining;
+
+        speric_model.resize(speric_model.count);
+
+        size_t j = 0;
+        for (size_t i = 0; i < pd.count; i++)
+        {
+            if (r[i] <= r1){
+
+                speric_model.x[j]        = pd.x[i];
+                speric_model.y[j]        = pd.y[i];
+                speric_model.z[j]        = pd.z[i];
+
+                speric_model.vx[j]       = pd.vx[i];
+                speric_model.vy[j]       = pd.vy[i];
+                speric_model.vz[j]       = pd.vz[i];
+
+                j++;
+            }
+        }
+
+        return speric_model;
     }
 
     static void init(ParticlesData<T, I> &pd)

@@ -67,19 +67,12 @@ int main(int argc, char** argv)
 
     auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
 
-    double r0 = __DBL_MAX__;
-    double r1 = __DBL_MIN__;
-    for (size_t i = 0; i < d.count; i++)
-    {
-        double radius = std::sqrt( std::pow(d.x[i], 2.) + std::pow(d.y[i], 2.) + std::pow(d.z[i], 2.) );
-        if (radius < r0) r0 = radius;
-        if (radius > r1) r1 = radius;
-    }
-
     const size_t dim    = 3;
     const double eblast = SedovDataGenerator<Real, KeyType>::ener0;
     const double omega  = 0.0;
     const double gamma  = SedovDataGenerator<Real, KeyType>::gamma;
+    const double r0     = SedovDataGenerator<Real, KeyType>::r0;
+    const double r1     = SedovDataGenerator<Real, KeyType>::r1;
     const double rho0   = SedovDataGenerator<Real, KeyType>::rho0;
     const double u0     = 0.0;
     const double p0     = 0.0;
