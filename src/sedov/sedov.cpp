@@ -2,7 +2,6 @@
 #include <fstream>
 #include <string>
 #include <vector>
-#include <limits>
 
 // hard code MPI for now
 #ifndef USE_MPI
