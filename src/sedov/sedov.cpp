@@ -87,7 +87,7 @@ int main(int argc, char** argv)
 
     size_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
-    size_t bucketSize = std::max(bucketSizeFocus, (cubeSide * cubeSide * cubeSide) / (100 * d.nrank));
+    size_t bucketSize = std::max(bucketSizeFocus, d.n / (100 * d.nrank));
 
     Box<Real> box(0, 1);
     box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
