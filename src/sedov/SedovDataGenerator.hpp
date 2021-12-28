@@ -16,7 +16,7 @@ public:
     static constexpr double gamma         = 5.0/3.0;
     static constexpr double r0            = 0.;
     static constexpr double r1            = 0.5;
-    static constexpr bool   spheric_model = false;
+    static constexpr bool   spheric_model = true;
     static constexpr double energytot     = 1.0;
     static constexpr double width         = 0.10;
     static constexpr double rho0          = 1.0;
@@ -126,11 +126,13 @@ public:
             r[i] = sqrt(pd.x[i] * pd.x[i] +  pd.y[i] * pd.y[i]+ pd.z[i] * pd.z[i]);
         }
 
+        double offset_radius = r1 - ((.1 * r1) / pd.side);
+
         // Calculate and set the new size
         double n = 0;
         for (size_t i = 0; i < pd.count; i++)
         {
-            if (r[i] <= r1) n++;
+            if (r[i] <= offset_radius) n++;
         }
 
         speric_model.n    = n;
@@ -147,7 +149,7 @@ public:
         size_t j = 0;
         for (size_t i = 0; i < pd.count; i++)
         {
-            if (r[i] <= r1){
+            if (r[i] <= offset_radius){
 
                 speric_model.x[j]        = pd.x[i];
                 speric_model.y[j]        = pd.y[i];
