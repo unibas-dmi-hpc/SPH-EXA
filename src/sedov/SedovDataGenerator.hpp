@@ -74,30 +74,37 @@ public:
         pd.resize(pd.count);
 
         if(pd.rank == 0)
-            std::cout << "Approx: " << pd.count * (pd.data.size() * 64.0) / (8.0 * 1000.0 * 1000.0 * 1000.0)
-                      << "GB allocated on rank 0." << std::endl;
+            std::cout << "Approx: "
+                      << pd.count * (pd.data.size() * 64.) / (8. * 1000. * 1000.0 * 1000.0)
+                      << "GB allocated on rank 0."
+                      << std::endl;
 
         size_t offset = pd.rank * split;
         if (pd.rank > 0) offset += remaining;
 
+        double step = (2. * r1) / pd.side;
+
         #pragma omp parallel for
         for (size_t i = 0; i < pd.side; ++i)
         {
-            double lz = -0.5 + 1.0 / (2.0 * pd.side) + i * 1.0 / pd.side;
+            double lz = -r1 + (i * step);
+
             for (size_t j = 0; j < pd.side; ++j)
             {
-                double lx = -0.5 + 1.0 / (2.0 * pd.side) + j * 1.0 / pd.side;
+                double lx = -r1 + (j * step);
+
                 for (size_t k = 0; k < pd.side; ++k)
                 {
-                    size_t lindex = i * pd.side * pd.side + j * pd.side + k;
+                    size_t lindex = (i * pd.side * pd.side) + (j * pd.side) + k;
 
                     if (lindex >= offset && lindex < offset + pd.count)
                     {
-                        double ly = -0.5 + 1.0 / (2.0 * pd.side) + k * 1.0 / pd.side;
+                        double ly = -r1 + (k * step);
 
-                        pd.z[lindex - offset] = lz;
-                        pd.y[lindex - offset] = ly;
-                        pd.x[lindex - offset] = lx;
+                        pd.z[ lindex - offset] = lz;
+                        pd.y[ lindex - offset] = ly;
+                        pd.x[ lindex - offset] = lx;
+
                         pd.vx[lindex - offset] = 0.0;
                         pd.vy[lindex - offset] = 0.0;
                         pd.vz[lindex - offset] = 0.0;
