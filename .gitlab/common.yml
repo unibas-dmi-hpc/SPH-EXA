@@ -333,7 +333,7 @@ variables:
         /usr/local/sbin/integration_mpi/exchange_domain;
         /usr/local/sbin/integration_mpi/domain_nranks;
         wget --quiet $JG_DEPS_PATH/in/Test3DEvrardRel.bin;
-        /usr/local/bin/evrard_new -s 0 --input ./Test3DEvrardRel.bin ;
+        /usr/local/bin/evrard -s 0 --input ./Test3DEvrardRel.bin ;
       fi
     - /usr/local/sbin/integration_mpi/treedomain
     - /usr/local/sbin/integration_mpi/focus_tree
