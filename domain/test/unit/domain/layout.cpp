@@ -36,6 +36,19 @@
 
 using namespace cstone;
 
+TEST(DomainDecomposition, invertRanges)
+{
+    TreeNodeIndex first = 0;
+    TreeNodeIndex last  = 10;
+
+    std::vector<TreeIndexPair> ranges{{1,2}, {2, 3}, {5,8}};
+
+    std::vector<TreeIndexPair> ref{{0, 1}, {3, 5}, {8, 10}};
+
+    auto probe = invertRanges(first, ranges, last);
+    EXPECT_EQ(probe, ref);
+}
+
 //! @brief tests extraction of SFC keys for all nodes marked as halos within an index range
 TEST(Layout, extractMarkedElements)
 {

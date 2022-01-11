@@ -55,6 +55,37 @@
 namespace cstone
 {
 
+/*! @brief calculates the complementary range of the input ranges
+ *
+ * Input:  │      ------    -----   --     ----     --  │
+ * Output: -------      ----     ---  -----    -----  ---
+ *         ^                                            ^
+ *         │                                            │
+ * @param first                                         │
+ * @param ranges   size >= 1, must be sorted            │
+ * @param last    ──────────────────────────────────────/
+ * @return the output ranges that cover everything within [first:last]
+ *         that the input ranges did not cover
+ */
+inline std::vector<IndexPair<TreeNodeIndex>>
+invertRanges(TreeNodeIndex first, gsl::span<const IndexPair<TreeNodeIndex>> ranges, TreeNodeIndex last)
+{
+    assert(!ranges.empty() && std::is_sorted(ranges.begin(), ranges.end()));
+
+    std::vector<IndexPair<TreeNodeIndex>> invertedRanges;
+    if (first < ranges.front().start()) { invertedRanges.emplace_back(first, ranges.front().start()); }
+    for (size_t i = 1; i < ranges.size(); ++i)
+    {
+        if (ranges[i - 1].end() < ranges[i].start())
+        {
+            invertedRanges.emplace_back(ranges[i - 1].end(), ranges[i].start());
+        }
+    }
+    if (ranges.back().end() < last) { invertedRanges.emplace_back(ranges.back().end(), last); }
+
+    return invertedRanges;
+}
+
 /*! @brief extract ranges of marked indices from a source array
  *
  * @tparam IntegralType  an integer type
