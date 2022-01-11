@@ -176,19 +176,15 @@ public:
      *     10. exchange halo particles
      */
     template<class... Vectors>
-    void sync(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, std::vector<T>& h,
+    void sync(std::vector<T>& x,
+              std::vector<T>& y,
+              std::vector<T>& z,
+              std::vector<T>& h,
               std::vector<KeyType>& particleKeys,
               Vectors&... particleProperties)
     {
-        // bounds initialization on first call, use all particles
-        if (firstCall_)
-        {
-            particleStart_ = 0;
-            particleEnd_   = x.size();
-            layout_        = {0, LocalParticleIndex(x.size())};
-            firstCall_     = false;
-        }
-        checkSizesEqual(layout_.back(), particleKeys, x, y, z, h, particleProperties...);
+        init(x.size());
+        checkSizesEqual(x.size(), particleKeys, x, y, z, h, particleProperties...);
 
         /* Global tree build and assignment ******************************************************/
 
@@ -219,11 +215,12 @@ public:
 
         /* Halo discovery ***********************************************************************/
 
-        halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box, h.data() + particleStart_, sfcOrder);
+        halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box, h.data() + particleStart_,
+                        sfcOrder);
 
         reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
-        halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(),
-                             keyView, peers, layout_);
+        halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), keyView, peers,
+                             layout_);
 
         auto newParticleStart = layout_[focusTree_.assignment()[myRank_].start()];
         auto numParticles     = layout_.back();
@@ -232,7 +229,7 @@ public:
 
         reallocate(numParticles, x, y, z, h, particleProperties...);
         reorderArrays(reorderFunctor, particleStart_, newParticleStart, x.data(), y.data(), z.data(), h.data(),
-                      particleProperties.data()...) ;
+                      particleProperties.data()...);
 
         std::vector<KeyType> newKeys(numParticles);
         std::copy(keyView.begin(), keyView.end(), newKeys.begin() + newParticleStart);
@@ -246,14 +243,13 @@ public:
         exchangeHalos(x, y, z, h);
 
         // compute SFC keys of received halo particles
-        computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()),
-                       particleStart_, box);
+        computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), particleStart_, box);
         computeSfcKeys(x.data() + particleEnd_, y.data() + particleEnd_, z.data() + particleEnd_,
                        sfcKindPointer(particleKeys.data()) + particleEnd_, x.size() - particleEnd_, box);
     }
 
     //! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
-    template<class...Arrays>
+    template<class... Arrays>
     void exchangeHalos(Arrays&... arrays) const
     {
         halos_.exchangeHalos(arrays...);
@@ -272,23 +268,30 @@ public:
      * @param[inout] az   z-acceleration to add to
      * @return            total gravitational potential energy
      */
-    T addGravityAcceleration(gsl::span<const T> x, gsl::span<const T> y, gsl::span<const T> z, gsl::span<const T> h,
-                             gsl::span<const T> m, float G, gsl::span<T> ax, gsl::span<T> ay, gsl::span<T> az)
+    T addGravityAcceleration(gsl::span<const T> x,
+                             gsl::span<const T> y,
+                             gsl::span<const T> z,
+                             gsl::span<const T> h,
+                             gsl::span<const T> m,
+                             float G,
+                             gsl::span<T> ax,
+                             gsl::span<T> ay,
+                             gsl::span<T> az)
     {
         const Octree<KeyType>& octree = focusTree_.octree();
         std::vector<GravityMultipole<T>> multipoles(octree.numTreeNodes());
         computeMultipoles(octree, layout_, x.data(), y.data(), z.data(), m.data(), multipoles.data());
 
-        return computeGravity(octree, multipoles.data(), layout_.data(), 0, octree.numLeafNodes(),
-                              x.data(), y.data(), z.data(), h.data(), m.data(), globalAssignment_.box(), theta_,
-                              G, ax.data(), ay.data(), az.data());
+        return computeGravity(octree, multipoles.data(), layout_.data(), 0, octree.numLeafNodes(), x.data(), y.data(),
+                              z.data(), h.data(), m.data(), globalAssignment_.box(), theta_, G, ax.data(), ay.data(),
+                              az.data());
     }
 
     //! @brief return the index of the first particle that's part of the local assignment
     [[nodiscard]] LocalParticleIndex startIndex() const { return particleStart_; }
 
     //! @brief return one past the index of the last particle that's part of the local assignment
-    [[nodiscard]] LocalParticleIndex endIndex() const   { return particleEnd_; }
+    [[nodiscard]] LocalParticleIndex endIndex() const { return particleEnd_; }
 
     //! @brief return number of locally assigned particles
     [[nodiscard]] LocalParticleIndex nParticles() const { return endIndex() - startIndex(); }
@@ -307,9 +310,22 @@ public:
 
 private:
 
+    template<class... Arrays>
+    void init(std::size_t bufferSize)
+    {
+        // bounds initialization on first call, use all particles
+        if (firstCall_)
+        {
+            particleStart_ = 0;
+            particleEnd_   = bufferSize;
+            layout_        = {0, LocalParticleIndex(bufferSize)};
+            firstCall_     = false;
+        }
+    }
+
     //! @brief make sure all array sizes are equal to @p value
     template<class... Arrays>
-    static void checkSizesEqual(std::size_t value, Arrays&... arrays)
+    static void checkSizesEqual(std::size_t value, const Arrays&... arrays)
     {
         std::array<std::size_t, sizeof...(Arrays)> sizes{arrays.size()...};
         bool allEqual = size_t(std::count(begin(sizes), end(sizes), value)) == sizes.size();
