@@ -70,18 +70,21 @@ namespace cstone
 inline std::vector<IndexPair<TreeNodeIndex>>
 invertRanges(TreeNodeIndex first, gsl::span<const IndexPair<TreeNodeIndex>> ranges, TreeNodeIndex last)
 {
-    assert(!ranges.empty() && std::is_sorted(ranges.begin(), ranges.end()));
-
     std::vector<IndexPair<TreeNodeIndex>> invertedRanges;
-    if (first < ranges.front().start()) { invertedRanges.emplace_back(first, ranges.front().start()); }
-    for (size_t i = 1; i < ranges.size(); ++i)
+
+    TreeNodeIndex currentIndex = first;
+    for (auto range : ranges)
     {
-        if (ranges[i - 1].end() < ranges[i].start())
+        if (range.start() == range.end()) { continue; }
+
+        assert(currentIndex <= range.start() && "non-empty ranges must be sorted\n");
+        if (currentIndex < range.start())
         {
-            invertedRanges.emplace_back(ranges[i - 1].end(), ranges[i].start());
+            invertedRanges.emplace_back(currentIndex, range.start());
         }
+        currentIndex = range.end();
     }
-    if (ranges.back().end() < last) { invertedRanges.emplace_back(ranges.back().end(), last); }
+    if (currentIndex < last) { invertedRanges.emplace_back(currentIndex, last); }
 
     return invertedRanges;
 }

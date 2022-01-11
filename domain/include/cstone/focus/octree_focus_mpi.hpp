@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include "cstone/domain/layout.hpp"
 #include "cstone/focus/exchange_focus.hpp"
 #include "cstone/focus/octree_focus.hpp"
 
@@ -154,9 +155,7 @@ public:
 
         //! 3rd regeneration step: global data
 
-        requestIndices.push_back(assignment_[myRank]);
-        std::sort(requestIndices.begin(), requestIndices.end());
-        auto globalCountIndices = invertRanges(0, requestIndices, nNodes(leaves));
+        auto globalCountIndices = invertRanges(0, assignment_, nNodes(leaves));
 
         // particle counts for leaf nodes in treeLeaves() / leafCounts():
         //   Node indices [firstFocusNode:lastFocusNode] got assigned counts from local particles.
