@@ -57,6 +57,43 @@ public:
     {
     }
 
+    /*! @brief Update the tree structure according to previously calculated criteria (MAC and particle counts)
+     *
+     * @param[in] myRank           ID of the executing rank
+     * @param[in] peerRanks        list of ranks that have nodes that fail the MAC criterion
+     *                             w.r.t to the assigned SFC part of @p myRank
+     *                             use e.g. findPeersMac to calculate this list
+     * @param[in] assignment       assignment of the global leaf tree to ranks
+     * @param[in] globalTreeLeaves global cornerstone leaf tree
+     * @param[in] globalCounts     global cornerstone leaf tree counts
+     * @return                     true if the tree structure did not change
+     *
+     * The part of the SFC that is assigned to @p myRank is considered as the focus area.
+     */
+    bool updateTree(int myRank,
+                    gsl::span<const int> peerRanks,
+                    const SpaceCurveAssignment& assignment,
+                    gsl::span<const KeyType> globalTreeLeaves)
+    {
+        if (rebalanceStatus_ != Criteria::valid)
+        {
+            throw std::runtime_error("Call to updateCriteria required before updating the tree structure\n");
+        }
+
+        KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank)];
+        KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank)];
+
+        std::vector<KeyType> peerBoundaries;
+        for (int peer : peerRanks)
+        {
+            peerBoundaries.push_back(globalTreeLeaves[assignment.firstNodeIdx(peer)]);
+            peerBoundaries.push_back(globalTreeLeaves[assignment.lastNodeIdx(peer)]);
+        }
+
+        return tree_.update(focusStart, focusEnd, peerBoundaries, counts_, macs_);
+        rebalanceStatus_ = Criteria::invalid;
+    }
+
     /*! @brief Perform a global update of the tree structure
      *
      * @tparam    T                float or double
@@ -80,23 +117,18 @@ public:
      *    and must be sorted in ascending order (checked)
      */
     template<class T>
-    bool update(const Box<T>& box, gsl::span<const KeyType> particleKeys, int myRank, gsl::span<const int> peerRanks,
-                const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves,
-                gsl::span<const unsigned> globalCounts)
+    void updateCriteria(const Box<T>& box,
+                        gsl::span<const KeyType> particleKeys,
+                        int myRank,
+                        gsl::span<const int> peerRanks,
+                        const SpaceCurveAssignment& assignment,
+                        gsl::span<const KeyType> globalTreeLeaves,
+                        gsl::span<const unsigned> globalCounts)
     {
         KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank)];
         KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank)];
-
         assert(particleKeys.front() >= focusStart && particleKeys.back() < focusEnd);
-
-        std::vector<KeyType> peerBoundaries;
-        for (int peer : peerRanks)
-        {
-            peerBoundaries.push_back(globalTreeLeaves[assignment.firstNodeIdx(peer)]);
-            peerBoundaries.push_back(globalTreeLeaves[assignment.lastNodeIdx(peer)]);
-        }
-
-        bool converged = tree_.update(particleKeys, focusStart, focusEnd, peerBoundaries, counts_, macs_);
+        assert(std::is_sorted(particleKeys.begin(), particleKeys.end()));
 
         gsl::span<const KeyType> leaves = treeLeaves();
 
@@ -136,6 +168,21 @@ public:
                                   gsl::span<unsigned>(counts_.data() + ip.start(), ip.count()));
         }
 
+        rebalanceStatus_ = Criteria::valid;
+    }
+
+    //! @brief update the tree structure and regenerate the mac and counts criteria
+    template<class T>
+    bool update(const Box<T>& box,
+                gsl::span<const KeyType> particleKeys,
+                int myRank,
+                gsl::span<const int> peers,
+                const SpaceCurveAssignment& assignment,
+                gsl::span<const KeyType> globalTreeLeaves,
+                gsl::span<const unsigned> globalCounts)
+    {
+        bool converged = updateTree(myRank, peers, assignment, globalTreeLeaves);
+        updateCriteria(box, particleKeys, myRank, peers, assignment, globalTreeLeaves, globalCounts);
         return converged;
     }
 
@@ -171,9 +218,24 @@ public:
     const Octree<KeyType>& octree() const { return tree_.octree(); }
 
     gsl::span<const KeyType>  treeLeaves() const { return tree_.treeLeaves(); }
-    gsl::span<const unsigned> leafCounts() const { return counts_; }
+
+    gsl::span<const unsigned> leafCounts() const
+    {
+        if (rebalanceStatus_ != Criteria::valid)
+        {
+            throw std::runtime_error("Tree structure is outdated, need to call updateCriteria\n");
+        }
+
+        return counts_;
+    }
 
 private:
+
+    enum class Criteria
+    {
+        valid,
+        invalid
+    };
 
     //! @brief opening angle refinement criterion
     float theta_;
@@ -186,6 +248,9 @@ private:
     std::vector<char> macs_;
 
     bool firstCall_{true};
+
+    //! @brief the status of the macs_ and counts_ rebalance criteria
+    Criteria rebalanceStatus_{Criteria::valid};
 };
 
 } // namespace cstone
