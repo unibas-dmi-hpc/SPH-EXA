@@ -33,10 +33,41 @@
 
 #include "cstone/focus/exchange_focus.hpp"
 #include "cstone/focus/octree_focus.hpp"
-#include "cstone/focus/request_indices.hpp"
 
 namespace cstone
 {
+
+/*! @brief calculates the complementary range of the input ranges
+ *
+ * Input:  │      ------    -----   --     ----     --  │
+ * Output: -------      ----     ---  -----    -----  ---
+ *         ^                                            ^
+ *         │                                            │
+ * @param first                                         │
+ * @param ranges   size >= 1, must be sorted            │
+ * @param last    ──────────────────────────────────────/
+ * @return the output ranges that cover everything within [first:last]
+ *         that the input ranges did not cover
+ */
+std::vector<IndexPair<TreeNodeIndex>> invertRanges(TreeNodeIndex first,
+                                                   gsl::span<const IndexPair<TreeNodeIndex>> ranges,
+                                                   TreeNodeIndex last)
+{
+    assert(!ranges.empty() && std::is_sorted(ranges.begin(), ranges.end()));
+
+    std::vector<IndexPair<TreeNodeIndex>> invertedRanges;
+    if (first < ranges.front().start()) { invertedRanges.emplace_back(first, ranges.front().start()); }
+    for (size_t i = 1; i < ranges.size(); ++i)
+    {
+        if (ranges[i-1].end() < ranges[i].start())
+        {
+            invertedRanges.emplace_back(ranges[i-1].end(), ranges[i].start());
+        }
+    }
+    if (ranges.back().end() < last) { invertedRanges.emplace_back(ranges.back().end(), last); }
+
+    return invertedRanges;
+}
 
 //! @brief A fully traversable octree with a local focus
 template<class KeyType>
@@ -90,8 +121,12 @@ public:
             peerBoundaries.push_back(globalTreeLeaves[assignment.lastNodeIdx(peer)]);
         }
 
-        return tree_.update(focusStart, focusEnd, peerBoundaries, counts_, macs_);
+        bool converged   = tree_.update(focusStart, focusEnd, peerBoundaries, counts_, macs_);
         rebalanceStatus_ = Criteria::invalid;
+
+        translateAssignment(assignment, globalTreeLeaves, treeLeaves(), peerRanks, myRank, assignment_);
+
+        return converged;
     }
 
     /*! @brief Perform a global update of the tree structure
@@ -144,15 +179,14 @@ public:
 
         //! 2nd regeneration step: data from neighboring peers
 
-        auto requestIndices = findRequestIndices(peerRanks, assignment, globalTreeLeaves, leaves);
+        std::vector<TreeIndexPair> requestIndices;
+        for (auto peer : peerRanks) requestIndices.push_back(assignment_[peer]);
 
         exchangePeerCounts(peerRanks, requestIndices, particleKeys, leaves, counts_);
 
         //! 3rd regeneration step: global data
 
-        TreeNodeIndex firstFocusNode = findNodeAbove(leaves, focusStart);
-        TreeNodeIndex lastFocusNode  = findNodeBelow(leaves, focusEnd);
-        requestIndices.emplace_back(firstFocusNode, lastFocusNode);
+        requestIndices.push_back(assignment_[myRank]);
         std::sort(requestIndices.begin(), requestIndices.end());
         auto globalCountIndices = invertRanges(0, requestIndices, nNodes(leaves));
 
@@ -219,6 +253,8 @@ public:
 
     gsl::span<const KeyType>  treeLeaves() const { return tree_.treeLeaves(); }
 
+    gsl::span<const TreeIndexPair> assignment() const { return assignment_; }
+
     gsl::span<const unsigned> leafCounts() const
     {
         if (rebalanceStatus_ != Criteria::valid)
@@ -246,6 +282,9 @@ private:
     std::vector<unsigned> counts_;
     //! @brief mac evaluation result relative to focus area (pass or fail)
     std::vector<char> macs_;
+
+    //! @brief the assignment of peer ranks to tree_.treeLeaves()
+    std::vector<TreeIndexPair> assignment_;
 
     bool firstCall_{true};
 

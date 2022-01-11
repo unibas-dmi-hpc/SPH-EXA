@@ -83,7 +83,7 @@ public:
         , numRanks_(nRanks)
         , bucketSizeFocus_(bucketSizeFocus)
         , theta_(theta)
-        , focusedTree_(bucketSizeFocus_, theta_)
+        , focusTree_(bucketSizeFocus_, theta_)
         , globalAssignment_(rank, nRanks, bucketSize, box)
     {
         if (bucketSize < bucketSizeFocus_)
@@ -215,20 +215,17 @@ public:
 
         std::vector<int> peers = globalAssignment_.findPeers(theta_);
 
-        focusedTree_.initAndUpdate(box, keyView, myRank_, peers, assignment, globalTree, globalCounts);
-
-        std::vector<TreeIndexPair> focusAssignment
-            = translateAssignment<KeyType>(assignment, globalTree, focusedTree_.treeLeaves(), peers, myRank_);
+        focusTree_.initAndUpdate(box, keyView, myRank_, peers, assignment, globalTree, globalCounts);
 
         /* Halo discovery ***********************************************************************/
 
-        halos_.discover(focusedTree_.octree(), focusAssignment, keyView, box, h.data() + particleStart_, sfcOrder);
+        halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box, h.data() + particleStart_, sfcOrder);
 
-        reallocate(nNodes(focusedTree_.treeLeaves()) + 1, layout_);
-        halos_.computeLayout(focusedTree_.treeLeaves(), focusedTree_.leafCounts(), focusAssignment,
+        reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
+        halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(),
                              keyView, peers, layout_);
 
-        auto newParticleStart = layout_[focusAssignment[myRank_].start()];
+        auto newParticleStart = layout_[focusTree_.assignment()[myRank_].start()];
         auto numParticles     = layout_.back();
 
         /* Rearrange particle buffers ************************************************************/
@@ -242,7 +239,7 @@ public:
         swap(particleKeys, newKeys);
 
         particleStart_ = newParticleStart;
-        particleEnd_   = layout_[focusAssignment[myRank_].end()];
+        particleEnd_   = layout_[focusTree_.assignment()[myRank_].end()];
 
         /* Halo exchange *************************************************************************/
 
@@ -278,7 +275,7 @@ public:
     T addGravityAcceleration(gsl::span<const T> x, gsl::span<const T> y, gsl::span<const T> z, gsl::span<const T> h,
                              gsl::span<const T> m, float G, gsl::span<T> ax, gsl::span<T> ay, gsl::span<T> az)
     {
-        const Octree<KeyType>& octree = focusedTree_.octree();
+        const Octree<KeyType>& octree = focusTree_.octree();
         std::vector<GravityMultipole<T>> multipoles(octree.numTreeNodes());
         computeMultipoles(octree, layout_, x.data(), y.data(), z.data(), m.data(), multipoles.data());
 
@@ -303,7 +300,7 @@ public:
     gsl::span<const KeyType> tree() const { return globalAssignment_.tree(); }
 
     //! @brief read only visibility of the focused octree leaves to the outside
-    gsl::span<const KeyType> focusedTree() const { return focusedTree_.treeLeaves(); }
+    gsl::span<const KeyType> focusTree() const { return focusTree_.treeLeaves(); }
 
     //! @brief return the coordinate bounding box from the previous sync call
     Box<T> box() const { return globalAssignment_.box(); }
@@ -343,7 +340,7 @@ private:
      *  fulfills a MAC with theta as the opening parameter
      * -Also contains particle counts.
      */
-    FocusedOctree<KeyType> focusedTree_;
+    FocusedOctree<KeyType> focusTree_;
 
     GlobalAssignment<KeyType, T> globalAssignment_;
 

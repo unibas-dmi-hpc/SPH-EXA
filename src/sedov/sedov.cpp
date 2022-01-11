@@ -165,7 +165,7 @@ int main(int argc, char** argv)
                                 d.x.size() - domain.nParticles(),
                                 totalNeighbors,
                                 output);
-            std::cout << "### Check ### Focus Tree Nodes: " << nNodes(domain.focusedTree()) << std::endl;
+            std::cout << "### Check ### Focus Tree Nodes: " << nNodes(domain.focusTree()) << std::endl;
             Printer::printConstants(
                 d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, totalNeighbors, constantsFile);
         }

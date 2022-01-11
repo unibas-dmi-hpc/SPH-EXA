@@ -187,52 +187,49 @@ SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& globalCoun
 
 /*! @brief translates an assignment of a given tree to a new tree
  *
- * @tparam KeyType      32- or 64-bit unsigned integer
- * @param assignment    (old) assignment
- * @param oldTree
- * @param newTree
- * @param peerRanks     list of peer ranks
- * @param myRank        executing rank ID
- * @return              assignment with the same SFC key ranges per
- *                      peer rank as the original @p assignment,
- *                      but with indices valid w.r.t @p newTree
+ * @tparam     KeyType         32- or 64-bit unsigned integer
+ * @param[in]  assignment      domain assignment
+ * @param[in]  domainTree      domain tree leaves
+ * @param[in]  focusTree       focus tree leaves
+ * @param[in]  peerRanks       list of peer ranks
+ * @param[in]  myRank          executing rank ID
+ * @param[out] focusAssignment assignment with the same SFC key ranges per
+ *                             peer rank as the domain @p assignment,
+ *                             but with indices valid w.r.t @p focusTree
  *
  * The focus assignment is implemented as a plain vector; since only
  * the ranges of peer ranks (and not all ranks) are set, the requirements
  * of SpaceCurveAssignment are not met and its findRank() function would not work.
  */
 template<class KeyType>
-std::vector<TreeIndexPair> translateAssignment(const SpaceCurveAssignment& assignment,
-                                               gsl::span<const KeyType> oldTree,
-                                               gsl::span<const KeyType> newTree,
-                                               gsl::span<const int> peerRanks,
-                                               int myRank)
+void translateAssignment(const SpaceCurveAssignment& assignment,
+                         gsl::span<const KeyType> domainTree,
+                         gsl::span<const KeyType> focusTree,
+                         gsl::span<const int> peerRanks,
+                         int myRank,
+                         std::vector<TreeIndexPair>& focusAssignment)
 {
-    std::vector<TreeIndexPair> newAssignment(assignment.numRanks());
-
+    focusAssignment.resize(assignment.numRanks());
     for (int peer : peerRanks)
     {
-        KeyType startKey = oldTree[assignment.firstNodeIdx(peer)];
-        KeyType endKey   = oldTree[assignment.lastNodeIdx(peer)];
+        KeyType peerSfcStart = domainTree[assignment.firstNodeIdx(peer)];
+        KeyType peerSfcEnd   = domainTree[assignment.lastNodeIdx(peer)];
 
         // Note: start-end range is narrowed down if no exact match is found.
         // the discarded part will not participate in peer/halo exchanges
-        TreeNodeIndex newStartIndex = findNodeAbove(newTree, startKey);
-        TreeNodeIndex newEndIndex   = findNodeBelow(newTree, endKey);
-        //assert(startKey == newTree[newStartIndex]);
-        //assert(endKey == newTree[newEndIndex]);
+        TreeNodeIndex startIndex = findNodeAbove(focusTree, peerSfcStart);
+        TreeNodeIndex endIndex   = findNodeBelow(focusTree, peerSfcEnd);
 
-        newAssignment[peer] = TreeIndexPair(newStartIndex, newEndIndex);
+        if (endIndex < startIndex) { endIndex = startIndex; }
+        focusAssignment[peer] = TreeIndexPair(startIndex, endIndex);
     }
 
-    KeyType startKey = oldTree[assignment.firstNodeIdx(myRank)];
-    KeyType endKey   = oldTree[assignment.lastNodeIdx(myRank)];
+    KeyType startKey = domainTree[assignment.firstNodeIdx(myRank)];
+    KeyType endKey   = domainTree[assignment.lastNodeIdx(myRank)];
 
-    TreeNodeIndex newStartIndex = findNodeAbove(newTree, startKey);
-    TreeNodeIndex newEndIndex   = findNodeBelow(newTree, endKey);
-    newAssignment[myRank] = TreeIndexPair(newStartIndex, newEndIndex);
-
-    return newAssignment;
+    TreeNodeIndex newStartIndex = findNodeAbove(focusTree, startKey);
+    TreeNodeIndex newEndIndex   = findNodeBelow(focusTree, endKey);
+    focusAssignment[myRank] = TreeIndexPair(newStartIndex, newEndIndex);
 }
 
 /*! @brief Based on global assignment, create the list of local particle index ranges to send to each rank
