@@ -110,7 +110,7 @@ void countRequestParticles(gsl::span<const KeyType> leaves, gsl::span<const unsi
  * @tparam KeyType                  32- or 64-bit unsigned integer
  * @param[in]  peerRanks            list of peer rank IDs
  * @param[in]  exchangeIndices      contains one range of indices of @p localLeaves to request counts
- *                                  for from each peer rank, length = same as @p peerRanks
+ *                                  each element of @p peerRanks needs to be an accessible index
  * @param[in]  particleKeys         sorted SFC keys of local particles
  * @param[in]  localLeaves          cornerstone SFC key sequence of the locally (focused) tree
  *                                  of the executing rank
@@ -137,12 +137,11 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPai
     constexpr int countTag = static_cast<int>(P2pTags::focusPeerCounts) + 1;
 
     std::vector<MPI_Request> sendRequests;
-    for (size_t rankIndex = 0; rankIndex < peerRanks.size(); ++rankIndex)
+    for (auto peer : peerRanks)
     {
-        int destinationRank = peerRanks[rankIndex];
         // +1 to include the upper key boundary for the last node
-        TreeNodeIndex sendCount = exchangeIndices[rankIndex].count() + 1;
-        mpiSendAsync(localLeaves.data() + exchangeIndices[rankIndex].start(), sendCount, destinationRank, keyTag, sendRequests);
+        TreeNodeIndex sendCount = exchangeIndices[peer].count() + 1;
+        mpiSendAsync(localLeaves.data() + exchangeIndices[peer].start(), sendCount, peer, keyTag, sendRequests);
     }
 
     size_t numMessages = peerRanks.size();
@@ -175,9 +174,8 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPai
         MPI_Probe(MPI_ANY_SOURCE, countTag, MPI_COMM_WORLD, &status);
         int receiveRank = status.MPI_SOURCE;
 
-        size_t receiveRankIndex    = std::find(peerRanks.begin(), peerRanks.end(), receiveRank) - peerRanks.begin();
-        TreeNodeIndex receiveCount = exchangeIndices[receiveRankIndex].count();
-        mpiRecvSync(localCounts.data() + exchangeIndices[receiveRankIndex].start(), receiveCount, receiveRank, countTag, &status);
+        TreeNodeIndex receiveCount = exchangeIndices[receiveRank].count();
+        mpiRecvSync(localCounts.data() + exchangeIndices[receiveRank].start(), receiveCount, receiveRank, countTag, &status);
 
         numMessages--;
     }

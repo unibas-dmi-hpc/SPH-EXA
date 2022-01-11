@@ -137,7 +137,6 @@ public:
         gsl::span<const KeyType> leaves = treeLeaves();
 
         //! 1st regeneration step: local data
-
         macs_.resize(tree_.octree().numTreeNodes());
         markMac(tree_.octree(), box, focusStart, focusEnd, 1.0 / theta_, macs_.data());
 
@@ -147,14 +146,9 @@ public:
                           particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
 
         //! 2nd regeneration step: data from neighboring peers
-
-        std::vector<TreeIndexPair> requestIndices;
-        for (auto peer : peerRanks) requestIndices.push_back(assignment_[peer]);
-
-        exchangePeerCounts(peerRanks, requestIndices, particleKeys, leaves, counts_);
+        exchangePeerCounts(peerRanks, assignment_, particleKeys, leaves, counts_);
 
         //! 3rd regeneration step: global data
-
         auto globalCountIndices = invertRanges(0, assignment_, nNodes(leaves));
 
         // particle counts for leaf nodes in treeLeaves() / leafCounts():
