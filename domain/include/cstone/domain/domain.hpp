@@ -84,7 +84,7 @@ public:
         , bucketSizeFocus_(bucketSizeFocus)
         , theta_(theta)
         , focusTree_(bucketSizeFocus_, theta_)
-        , globalAssignment_(rank, nRanks, bucketSize, box)
+        , global_(rank, nRanks, bucketSize, box)
     {
         if (bucketSize < bucketSizeFocus_)
         {
@@ -188,7 +188,7 @@ public:
 
         /* Global tree build and assignment ******************************************************/
 
-        LocalParticleIndex newNParticlesAssigned = globalAssignment_.assign(
+        LocalParticleIndex newNParticlesAssigned = global_.assign(
             particleStart_, particleEnd_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data());
 
         /* Domain particles update phase *********************************************************/
@@ -198,20 +198,17 @@ public:
         std::vector<LocalParticleIndex> sfcOrder(x.size());
 
         gsl::span<const KeyType> keyView;
-        std::tie(particleStart_, keyView) = globalAssignment_.distribute(
+        std::tie(particleStart_, keyView) = global_.distribute(
             particleStart_, particleEnd_, x.size(), reorderFunctor, sfcOrder.data(), particleKeys.data(), x.data(),
             y.data(), z.data(), h.data(), particleProperties.data()...);
 
-        Box<T> box                             = globalAssignment_.box();
-        const SpaceCurveAssignment& assignment = globalAssignment_.assignment();
-        gsl::span<const KeyType> globalTree    = globalAssignment_.tree();
-        gsl::span<const unsigned> globalCounts = globalAssignment_.nodeCounts();
+        Box<T> box             = global_.box();
+        std::vector<int> peers = global_.findPeers(theta_);
 
         /* Focused tree build ********************************************************************/
 
-        std::vector<int> peers = globalAssignment_.findPeers(theta_);
-
-        focusTree_.initAndUpdate(box, keyView, myRank_, peers, assignment, globalTree, globalCounts);
+        focusTree_.initAndUpdate(box, keyView, myRank_, peers, global_.assignment(), global_.tree(),
+                                 global_.nodeCounts());
 
         /* Halo discovery ***********************************************************************/
 
@@ -283,7 +280,7 @@ public:
         computeMultipoles(octree, layout_, x.data(), y.data(), z.data(), m.data(), multipoles.data());
 
         return computeGravity(octree, multipoles.data(), layout_.data(), 0, octree.numLeafNodes(), x.data(), y.data(),
-                              z.data(), h.data(), m.data(), globalAssignment_.box(), theta_, G, ax.data(), ay.data(),
+                              z.data(), h.data(), m.data(), global_.box(), theta_, G, ax.data(), ay.data(),
                               az.data());
     }
 
@@ -300,13 +297,13 @@ public:
     [[nodiscard]] LocalParticleIndex nParticlesWithHalos() const { return layout_.back(); }
 
     //! @brief read only visibility of the global octree leaves to the outside
-    gsl::span<const KeyType> tree() const { return globalAssignment_.tree(); }
+    gsl::span<const KeyType> tree() const { return global_.tree(); }
 
     //! @brief read only visibility of the focused octree leaves to the outside
     gsl::span<const KeyType> focusTree() const { return focusTree_.treeLeaves(); }
 
     //! @brief return the coordinate bounding box from the previous sync call
-    Box<T> box() const { return globalAssignment_.box(); }
+    Box<T> box() const { return global_.box(); }
 
 private:
 
@@ -358,7 +355,7 @@ private:
      */
     FocusedOctree<KeyType> focusTree_;
 
-    GlobalAssignment<KeyType, T> globalAssignment_;
+    GlobalAssignment<KeyType, T> global_;
 
     //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
     std::vector<LocalParticleIndex> layout_;
