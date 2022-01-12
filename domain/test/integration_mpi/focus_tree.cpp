@@ -120,12 +120,12 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::vector<KeyType> particleKeys(lastAssignedIndex - firstAssignedIndex);
     computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
 
-    FocusedOctree<KeyType> focusTree(bucketSizeLocal, theta);
+    FocusedOctree<KeyType> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
 
     int converged = 0;
     while (converged != numRanks)
     {
-        converged = focusTree.update(box, particleKeys, thisRank, peers, assignment, tree, counts);
+        converged = focusTree.update(box, particleKeys, peers, assignment, tree, counts);
         MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
         // particle counts must always be valid, whatever state of convergence

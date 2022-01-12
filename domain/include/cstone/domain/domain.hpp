@@ -83,7 +83,7 @@ public:
         , numRanks_(nRanks)
         , bucketSizeFocus_(bucketSizeFocus)
         , theta_(theta)
-        , focusTree_(bucketSizeFocus_, theta_)
+        , focusTree_(rank, nRanks, bucketSizeFocus_, theta_)
         , global_(rank, nRanks, bucketSize, box)
     {
         if (bucketSize < bucketSizeFocus_)
@@ -209,12 +209,11 @@ public:
 
         if (firstCall_)
         {
-            focusTree_.converge(box, keyView, myRank_, numRanks_, peers, global_.assignment(), global_.tree(),
-                                global_.nodeCounts());
+            focusTree_.converge(box, keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
         }
 
-        focusTree_.updateTree(myRank_, peers, global_.assignment(), global_.tree());
-        focusTree_.updateCriteria(box, keyView, myRank_, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+        focusTree_.updateTree(peers, global_.assignment(), global_.tree());
+        focusTree_.updateCriteria(box, keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
 
         /* Halo discovery ***********************************************************************/
 

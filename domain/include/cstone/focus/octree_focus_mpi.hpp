@@ -46,14 +46,16 @@ public:
 
     /*! @brief constructor
      *
+     * @param myRank        executing rank id
+     * @param numRanks      number of ranks
      * @param bucketSize    Maximum number of particles per leaf inside the focus area
      * @param theta         Opening angle parameter for a min-distance MAC criterion.
      *                      In a converged FocusedOctree, each node outside the focus area
      *                      passes the min-distance MAC with theta as the parameter w.r.t
      *                      to any point inside the focus area.
      */
-    FocusedOctree(unsigned bucketSize, float theta)
-        : theta_(theta), tree_(bucketSize), counts_{bucketSize + 1}, macs_{1}
+    FocusedOctree(int myRank, int numRanks, unsigned bucketSize, float theta)
+        : myRank_(myRank), numRanks_(numRanks), theta_(theta), tree_(bucketSize), counts_{bucketSize + 1}, macs_{1}
     {
     }
 
@@ -70,8 +72,7 @@ public:
      *
      * The part of the SFC that is assigned to @p myRank is considered as the focus area.
      */
-    bool updateTree(int myRank,
-                    gsl::span<const int> peerRanks,
+    bool updateTree(gsl::span<const int> peerRanks,
                     const SpaceCurveAssignment& assignment,
                     gsl::span<const KeyType> globalTreeLeaves)
     {
@@ -80,8 +81,8 @@ public:
             throw std::runtime_error("Call to updateCriteria required before updating the tree structure\n");
         }
 
-        KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank)];
-        KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank)];
+        KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
+        KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
 
         std::vector<KeyType> peerBoundaries;
         for (int peer : peerRanks)
@@ -93,7 +94,7 @@ public:
         bool converged   = tree_.update(focusStart, focusEnd, peerBoundaries, counts_, macs_);
         rebalanceStatus_ = Criteria::invalid;
 
-        translateAssignment(assignment, globalTreeLeaves, treeLeaves(), peerRanks, myRank, assignment_);
+        translateAssignment(assignment, globalTreeLeaves, treeLeaves(), peerRanks, myRank_, assignment_);
 
         return converged;
     }
@@ -123,14 +124,13 @@ public:
     template<class T>
     void updateCriteria(const Box<T>& box,
                         gsl::span<const KeyType> particleKeys,
-                        int myRank,
                         gsl::span<const int> peerRanks,
                         const SpaceCurveAssignment& assignment,
                         gsl::span<const KeyType> globalTreeLeaves,
                         gsl::span<const unsigned> globalCounts)
     {
-        KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank)];
-        KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank)];
+        KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
+        KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
         assert(particleKeys.front() >= focusStart && particleKeys.back() < focusEnd);
         assert(std::is_sorted(particleKeys.begin(), particleKeys.end()));
 
@@ -170,14 +170,13 @@ public:
     template<class T>
     bool update(const Box<T>& box,
                 gsl::span<const KeyType> particleKeys,
-                int myRank,
                 gsl::span<const int> peers,
                 const SpaceCurveAssignment& assignment,
                 gsl::span<const KeyType> globalTreeLeaves,
                 gsl::span<const unsigned> globalCounts)
     {
-        bool converged = updateTree(myRank, peers, assignment, globalTreeLeaves);
-        updateCriteria(box, particleKeys, myRank, peers, assignment, globalTreeLeaves, globalCounts);
+        bool converged = updateTree(peers, assignment, globalTreeLeaves);
+        updateCriteria(box, particleKeys, peers, assignment, globalTreeLeaves, globalCounts);
         return converged;
     }
 
@@ -185,17 +184,15 @@ public:
     template<class T>
     void converge(const Box<T>& box,
                   gsl::span<const KeyType> particleKeys,
-                  int myRank,
-                  int numRanks,
                   gsl::span<const int> peers,
                   const SpaceCurveAssignment& assignment,
                   gsl::span<const KeyType> globalTreeLeaves,
                   gsl::span<const unsigned> globalCounts)
     {
         int converged = 0;
-        while (converged != numRanks)
+        while (converged != numRanks_)
         {
-            converged = update(box, particleKeys, myRank, peers, assignment, globalTreeLeaves, globalCounts);
+            converged = update(box, particleKeys, peers, assignment, globalTreeLeaves, globalCounts);
             MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
         }
     }
@@ -223,6 +220,10 @@ private:
         invalid
     };
 
+    //! @brief the executing rank
+    int myRank_;
+    //! @brief the total number of ranks
+    int numRanks_;
     //! @brief opening angle refinement criterion
     float theta_;
 
