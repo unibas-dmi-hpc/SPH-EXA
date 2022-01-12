@@ -183,7 +183,7 @@ public:
               std::vector<KeyType>& particleKeys,
               Vectors&... particleProperties)
     {
-        init(x.size());
+        initBounds(x.size());
         checkSizesEqual(x.size(), particleKeys, x, y, z, h, particleProperties...);
 
         /* Global tree build and assignment ******************************************************/
@@ -207,8 +207,14 @@ public:
 
         /* Focused tree build ********************************************************************/
 
-        focusTree_.initAndUpdate(box, keyView, myRank_, peers, global_.assignment(), global_.tree(),
-                                 global_.nodeCounts());
+        if (firstCall_)
+        {
+            focusTree_.converge(box, keyView, myRank_, numRanks_, peers, global_.assignment(), global_.tree(),
+                                global_.nodeCounts());
+        }
+
+        focusTree_.updateTree(myRank_, peers, global_.assignment(), global_.tree());
+        focusTree_.updateCriteria(box, keyView, myRank_, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
 
         /* Halo discovery ***********************************************************************/
 
@@ -243,6 +249,8 @@ public:
         computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), particleStart_, box);
         computeSfcKeys(x.data() + particleEnd_, y.data() + particleEnd_, z.data() + particleEnd_,
                        sfcKindPointer(particleKeys.data()) + particleEnd_, x.size() - particleEnd_, box);
+
+        firstCall_ = false;
     }
 
     //! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
@@ -307,16 +315,15 @@ public:
 
 private:
 
+    //! @brief bounds initialization on first call, use all particles
     template<class... Arrays>
-    void init(std::size_t bufferSize)
+    void initBounds(std::size_t bufferSize)
     {
-        // bounds initialization on first call, use all particles
         if (firstCall_)
         {
             particleStart_ = 0;
             particleEnd_   = bufferSize;
             layout_        = {0, LocalParticleIndex(bufferSize)};
-            firstCall_     = false;
         }
     }
 
