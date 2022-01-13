@@ -123,7 +123,8 @@ template<class KeyType>
 void exchangeTreelets(gsl::span<const int> peerRanks,
                       gsl::span<const IndexPair<TreeNodeIndex>> focusAssignment,
                       gsl::span<const KeyType> localLeaves,
-                      std::vector<std::vector<KeyType>>& peerTrees)
+                      std::vector<std::vector<KeyType>>& peerTrees,
+                      std::vector<MPI_Request>& receiveRequests)
 
 {
     constexpr int keyTag   = static_cast<int>(P2pTags::focusPeerCounts);
@@ -138,7 +139,6 @@ void exchangeTreelets(gsl::span<const int> peerRanks,
         mpiSendAsync(localLeaves.data() + focusAssignment[peer].start(), sendCount, peer, keyTag, sendRequests);
     }
 
-    std::vector<MPI_Request> receiveRequests;
     receiveRequests.reserve(numPeers);
     int numMessages = numPeers;
     while (numMessages > 0)
@@ -155,11 +155,7 @@ void exchangeTreelets(gsl::span<const int> peerRanks,
         numMessages--;
     }
 
-    MPI_Status sendStatuses[numPeers];
-    MPI_Waitall(int(numPeers), sendRequests.data(), sendStatuses);
-
-    MPI_Status receiveStatuses[numPeers];
-    MPI_Waitall(int(numPeers), receiveRequests.data(), receiveStatuses);
+    MPI_Waitall(int(numPeers), sendRequests.data(), MPI_STATUS_IGNORE);
 }
 
 template<class KeyType>
@@ -167,7 +163,8 @@ void exchangeTreeletCounts(gsl::span<const int> peerRanks,
                            const std::vector<std::vector<KeyType>>& peerTrees,
                            gsl::span<const IndexPair<TreeNodeIndex>> focusAssignment,
                            gsl::span<const KeyType> particleKeys,
-                           gsl::span<unsigned> localCounts)
+                           gsl::span<unsigned> localCounts,
+                           std::vector<MPI_Request>& treeletRequests)
 {
     size_t numPeers = peerRanks.size();
     std::vector<std::vector<unsigned>> sendBuffers;
@@ -177,8 +174,13 @@ void exchangeTreeletCounts(gsl::span<const int> peerRanks,
 
     std::vector<MPI_Request> sendRequests;
     sendRequests.reserve(numPeers);
-    for (auto peer : peerRanks)
+    int numMessages = numPeers;
+    while (numMessages > 0)
     {
+        MPI_Status status;
+        int requestIdx;
+        MPI_Waitany(numPeers, treeletRequests.data(), &requestIdx, &status);
+        int peer = status.MPI_SOURCE;
         // compute particle counts for the remote peer's tree structure of the local domain.
         TreeNodeIndex numNodes = nNodes(peerTrees[peer]);
         std::vector<unsigned> countBuffer(numNodes);
@@ -187,21 +189,18 @@ void exchangeTreeletCounts(gsl::span<const int> peerRanks,
         // send back answer with the counts for the requested nodes
         mpiSendAsync(countBuffer.data(), numNodes, peer, countTag, sendRequests);
         sendBuffers.push_back(std::move(countBuffer));
+
+        numMessages--;
     }
 
-    std::vector<MPI_Request> receiveRequests;
-    receiveRequests.reserve(numPeers);
+    treeletRequests.clear();
     for (auto peer : peerRanks)
     {
         TreeNodeIndex receiveCount = focusAssignment[peer].count();
-        mpiRecvAsync(localCounts.data() + focusAssignment[peer].start(), receiveCount, peer, countTag, receiveRequests);
+        mpiRecvAsync(localCounts.data() + focusAssignment[peer].start(), receiveCount, peer, countTag, treeletRequests);
     }
 
-    MPI_Status status[sendRequests.size()];
-    MPI_Waitall(int(sendRequests.size()), sendRequests.data(), status);
-
-    MPI_Status receiveStatuses[numPeers];
-    MPI_Waitall(int(numPeers), receiveRequests.data(), receiveStatuses);
+    MPI_Waitall(int(sendRequests.size()), sendRequests.data(), MPI_STATUS_IGNORE);
 }
 
 /*! @brief exchange particle counts with specified peer ranks
@@ -228,9 +227,12 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPai
 
 {
     std::vector<std::vector<KeyType>> treelets(exchangeIndices.size());
+    std::vector<MPI_Request> treeletRequests;
 
-    exchangeTreelets(peerRanks, exchangeIndices, localLeaves, treelets);
-    exchangeTreeletCounts(peerRanks, treelets, exchangeIndices, particleKeys, localCounts);
+    exchangeTreelets(peerRanks, exchangeIndices, localLeaves, treelets, treeletRequests);
+    exchangeTreeletCounts(peerRanks, treelets, exchangeIndices, particleKeys, localCounts, treeletRequests);
+
+    MPI_Waitall(int(peerRanks.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
 
     // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization
     // across all ranks before calling this function again.

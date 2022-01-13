@@ -151,8 +151,9 @@ public:
                           particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
 
         //! 2nd regeneration step: data from neighboring peers
-        exchangeTreelets(peerRanks, assignment_, leaves, treelets_);
-        exchangeTreeletCounts(peerRanks, treelets_, assignment_, particleKeys, counts_);
+        std::vector<MPI_Request> treeletRequests;
+        exchangeTreelets(peerRanks, assignment_, leaves, treelets_, treeletRequests);
+        exchangeTreeletCounts(peerRanks, treelets_, assignment_, particleKeys, counts_, treeletRequests);
 
         //! 3rd regeneration step: global data
         auto globalCountIndices = invertRanges(0, assignment_, nNodes(leaves));
@@ -169,6 +170,7 @@ public:
                                   gsl::span<unsigned>(counts_.data() + ip.start(), ip.count()));
         }
 
+        MPI_Waitall(int(peerRanks.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
         rebalanceStatus_ = Criteria::valid;
     }
 
