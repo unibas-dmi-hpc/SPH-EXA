@@ -34,6 +34,10 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     const T *wh = d.wh.data();
     const T *whd = d.whd.data();
 
+    const T *xmass = d.xmass.data();
+    const T *rho0 = d.rho0.data();
+    const T *wrho0 = d.wrho0.data();
+
     T *ro = d.ro.data();
 
     const T K = d.K;
@@ -78,7 +82,7 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
         int i = pi + t.firstParticle;
 
         ro[i] = kernels::densityJLoop(
-            i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi], x, y, z, h, m, wh, whd);
+            i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi], x, y, z, h, m, wh, whd, xmass, rho0[i], wrho0[i]);
 
 #ifndef NDEBUG
         if (std::isnan(ro[i]))
