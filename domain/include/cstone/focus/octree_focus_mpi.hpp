@@ -43,7 +43,6 @@ template<class KeyType>
 class FocusedOctree
 {
 public:
-
     /*! @brief constructor
      *
      * @param myRank        executing rank id
@@ -55,7 +54,13 @@ public:
      *                      to any point inside the focus area.
      */
     FocusedOctree(int myRank, int numRanks, unsigned bucketSize, float theta)
-        : myRank_(myRank), numRanks_(numRanks), theta_(theta), tree_(bucketSize), counts_{bucketSize + 1}, macs_{1}
+        : myRank_(myRank)
+        , numRanks_(numRanks)
+        , theta_(theta)
+        , treelets_(numRanks_)
+        , tree_(bucketSize)
+        , counts_{bucketSize + 1}
+        , macs_{1}
     {
     }
 
@@ -146,7 +151,8 @@ public:
                           particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
 
         //! 2nd regeneration step: data from neighboring peers
-        exchangePeerCounts(peerRanks, assignment_, particleKeys, leaves, counts_);
+        exchangeTreelets(peerRanks, assignment_, leaves, treelets_);
+        exchangeTreeletCounts(peerRanks, treelets_, assignment_, particleKeys, counts_);
 
         //! 3rd regeneration step: global data
         auto globalCountIndices = invertRanges(0, assignment_, nNodes(leaves));
@@ -226,6 +232,9 @@ private:
     int numRanks_;
     //! @brief opening angle refinement criterion
     float theta_;
+
+    //! @brief the tree structures that the peers have for the domain of the executing rank (myRank_)
+    std::vector<std::vector<KeyType>> treelets_;
 
     FocusedOctreeCore<KeyType> tree_;
 
