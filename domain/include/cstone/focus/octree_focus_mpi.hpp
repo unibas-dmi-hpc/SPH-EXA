@@ -134,17 +134,12 @@ public:
                         gsl::span<const KeyType> globalTreeLeaves,
                         gsl::span<const unsigned> globalCounts)
     {
-        KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
-        KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
-        assert(particleKeys.front() >= focusStart && particleKeys.back() < focusEnd);
         assert(std::is_sorted(particleKeys.begin(), particleKeys.end()));
 
-        gsl::span<const KeyType> leaves = treeLeaves();
-
         //! 1st regeneration step: local data
-        macs_.resize(tree_.octree().numTreeNodes());
-        markMac(tree_.octree(), box, focusStart, focusEnd, 1.0 / theta_, macs_.data());
+        updateMac(box, particleKeys, assignment, globalTreeLeaves);
 
+        gsl::span<const KeyType> leaves = treeLeaves();
         counts_.resize(nNodes(leaves));
         // local node counts
         computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), particleKeys.data(),
@@ -154,6 +149,7 @@ public:
         std::vector<MPI_Request> treeletRequests;
         exchangeTreelets(peerRanks, assignment_, leaves, treelets_, treeletRequests);
         exchangeTreeletCounts(peerRanks, treelets_, assignment_, particleKeys, counts_, treeletRequests);
+        MPI_Waitall(int(peerRanks.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
 
         //! 3rd regeneration step: global data
         auto globalCountIndices = invertRanges(0, assignment_, nNodes(leaves));
@@ -170,7 +166,6 @@ public:
                                   gsl::span<unsigned>(counts_.data() + ip.start(), ip.count()));
         }
 
-        MPI_Waitall(int(peerRanks.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
         rebalanceStatus_ = Criteria::valid;
     }
 
@@ -221,6 +216,19 @@ public:
     }
 
 private:
+    template<class T>
+    void updateMac(const Box<T>& box,
+                   gsl::span<const KeyType> particleKeys,
+                   const SpaceCurveAssignment& assignment,
+                   gsl::span<const KeyType> globalTreeLeaves)
+    {
+        KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
+        KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
+        assert(particleKeys.front() >= focusStart && particleKeys.back() < focusEnd);
+
+        macs_.resize(tree_.octree().numTreeNodes());
+        markMac(tree_.octree(), box, focusStart, focusEnd, 1.0 / theta_, macs_.data());
+    }
 
     enum class Criteria
     {
