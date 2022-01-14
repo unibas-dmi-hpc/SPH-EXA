@@ -156,7 +156,7 @@ ubu:deps:
 # }}}
 
 # {{{ ubuntu:hip:
-# {{{ hip:deps
+# {{{ hip:deps:
 ### ubu:deps:
 ###   stage: deps
 ###   extends: .deps-ubu-gnu_fake
@@ -178,14 +178,14 @@ hip:deps:
   variables:
     PERSIST_IMAGE_NAME: sph-exa_base:hip
 # }}}
-# {{{ build:ubu:gnu:
-build:ubu:gnu:
+# {{{ build:ubu:hip:
+build:ubu:hip:
   stage: build
-  extends: .build
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_base:1.0
+  extends: .build-hip
+  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_base:hip
   tags:
     - $jfrogtag
-  needs: ['ubu:deps']
+  needs: ['hip:deps']
   script:
     - ls -l /usr/local/sbin/
   variables:
