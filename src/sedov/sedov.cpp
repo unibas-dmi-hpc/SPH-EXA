@@ -117,8 +117,7 @@ int main(int argc, char** argv)
                     d.dt_m1);
         timer.step("domain::sync");
 
-        d.resize(domain.nParticlesWithHalos()); // also resize arrays not listed in sync, even though space for halos is
-                                                // not needed
+        d.resize(domain.nParticlesWithHalos()); // also resize arrays not listed in sync
         // domain.exchangeHalos(d.m);
         std::fill(begin(d.m), begin(d.m) + domain.startIndex(), d.m[domain.startIndex()]);
         std::fill(begin(d.m) + domain.endIndex(), begin(d.m) + domain.nParticlesWithHalos(), d.m[domain.startIndex()]);
