@@ -42,25 +42,20 @@ variables:
 # }}}
 
 # {{{ deps:
-# {{{ deps-cpe-gnu
-.deps-cpe-gnu: &deps-cpe-gnu
+# {{{ deps-ubu-hip
+.deps-ubu-hip: &deps-ubu-hip
   # tag must be 'docker_jfrog'
   tags:
     - docker_jfrog
-  # stage: deps
-  # image: nvidia/cuda:11.4.2-devel-ubuntu20.04
   before_script:
     - echo CI_PROJECT_DIR=$CI_PROJECT_DIR PWD=$PWD
-    - module list
-    - CC --version
-    # - apt update > /dev/null
+    - apt update > /dev/null
     # {{{ get deps:
-    # - apt install -y --no-install-recommends wget file python3-pip unzip vim-tiny > /dev/null
-    # - which wget
-    - mkdir -p /usr/local/games
+    - apt install -y --no-install-recommends wget file python3-pip unzip vim-tiny rocthrust-dev > /dev/null
+    - which wget
     - cd /usr/local/games
     - wget --quiet $JG_DEPS_PATH/c/CMake/cmake-3.21.4-linux-x86_64.tar.gz
-    - wget --quiet $JG_DEPS_PATH/n/nvhpc/nvhpc-21.9-jg.tar.gz # NVHPC
+    - wget --quiet $JG_DEPS_PATH/m/MPICH/mpich-3.1.4.tar.gz
     - wget --quiet $JG_DEPS_PATH/g/googletest/release-1.11.0.tar.gz
     # }}}
     # {{{ cmake:
@@ -68,26 +63,35 @@ variables:
     - tar xf /usr/local/games/cmake-3.21.4-linux-x86_64.tar.gz
     - mv cmake-3.21.4-linux-x86_64/share/* ../share/
     - mv cmake-3.21.4-linux-x86_64/bin/* ../bin/
-    - rm -fr cmake-3.21.4-linux-x86_64 /usr/local/games/cmake-3.21.4-linux-x86_64.tar.gz
+    - rm -fr cmake-3.21.4-linux-x86_64
     - cd ../bin
     - rm -f ccmake cmake-gui cpack
     - cd $HOME
     - cmake --version
+    - rm -f /usr/local/games/cmake-3.21.4-linux-x86_64.tar.gz
+    # }}}
+    # {{{ mpich
+    - cd /usr/local/games
+    - tar xf /usr/local/games/mpich-3.1.4.tar.gz
+    - cd mpich-3.1.4/
+    - ./configure --prefix=/usr --enable-fortran=no &> /dev/null
+    - make -j install &> /dev/null
+    - cd ..
+    - rm -fr mpich-3.1.4
+    - ldconfig
+    - cd $HOME
+    - mpicxx --version
+    - rm -f /usr/local/games/mpich-3.1.4.tar.gz
     # }}}
     # {{{ googletest:
     - cd /usr/local/games
     - tar xf /usr/local/games/release-1.11.0.tar.gz
     - rm -f /usr/local/games/release-1.11.0.tar.gz
     # }}}
-    # {{{ nvhpc/21.9
-    - cd /opt
-    - tar xf /usr/local/games/nvhpc-21.9-jg.tar.gz # -> /opt/nvidia/Linux_x86_64/21.9
-    - rm -f /usr/local/games/nvhpc-21.9-jg.tar.gz
-    # }}}
     # {{{ reframe:
-    - python3 -m pip install -U pip > /dev/null
-    - python3 -m pip install setuptools requests ReFrame-HPC > /dev/null
-    - reframe --version
+    # - python3 -m pip install -U pip > /dev/null
+    # - python3 -m pip install setuptools requests ReFrame-HPC > /dev/null
+    # - reframe --version
     # }}}
 # }}}
 # {{{ deps-ubu-gnu
@@ -152,6 +156,54 @@ variables:
   before_script:
     - echo CI_PROJECT_DIR=$CI_PROJECT_DIR PWD=$PWD
 # }}}
+# {{{ deps-cpe-gnu
+.deps-cpe-gnu: &deps-cpe-gnu
+  # tag must be 'docker_jfrog'
+  tags:
+    - docker_jfrog
+  # stage: deps
+  # image: nvidia/cuda:11.4.2-devel-ubuntu20.04
+  before_script:
+    - echo CI_PROJECT_DIR=$CI_PROJECT_DIR PWD=$PWD
+    - module list
+    - CC --version
+    # - apt update > /dev/null
+    # {{{ get deps:
+    # - apt install -y --no-install-recommends wget file python3-pip unzip vim-tiny > /dev/null
+    # - which wget
+    - mkdir -p /usr/local/games
+    - cd /usr/local/games
+    - wget --quiet $JG_DEPS_PATH/c/CMake/cmake-3.21.4-linux-x86_64.tar.gz
+    - wget --quiet $JG_DEPS_PATH/n/nvhpc/nvhpc-21.9-jg.tar.gz # NVHPC
+    - wget --quiet $JG_DEPS_PATH/g/googletest/release-1.11.0.tar.gz
+    # }}}
+    # {{{ cmake:
+    - cd /usr/local/games
+    - tar xf /usr/local/games/cmake-3.21.4-linux-x86_64.tar.gz
+    - mv cmake-3.21.4-linux-x86_64/share/* ../share/
+    - mv cmake-3.21.4-linux-x86_64/bin/* ../bin/
+    - rm -fr cmake-3.21.4-linux-x86_64 /usr/local/games/cmake-3.21.4-linux-x86_64.tar.gz
+    - cd ../bin
+    - rm -f ccmake cmake-gui cpack
+    - cd $HOME
+    - cmake --version
+    # }}}
+    # {{{ googletest:
+    - cd /usr/local/games
+    - tar xf /usr/local/games/release-1.11.0.tar.gz
+    - rm -f /usr/local/games/release-1.11.0.tar.gz
+    # }}}
+    # {{{ nvhpc/21.9
+    - cd /opt
+    - tar xf /usr/local/games/nvhpc-21.9-jg.tar.gz # -> /opt/nvidia/Linux_x86_64/21.9
+    - rm -f /usr/local/games/nvhpc-21.9-jg.tar.gz
+    # }}}
+    # {{{ reframe:
+    - python3 -m pip install -U pip > /dev/null
+    - python3 -m pip install setuptools requests ReFrame-HPC > /dev/null
+    - reframe --version
+    # }}}
+# }}}
 # }}}
 
 # {{{ build:
@@ -198,6 +250,39 @@ variables:
     # - make -j3 all
     - make -j `grep processor /proc/cpuinfo | wc -l` install
     - which sedov
+# }}}
+# {{{ build-hip:
+.build-hip: &build-hip
+  # tag must be 'docker_jfrog'
+  # tags:
+  #   - docker_jfrog
+  before_script:
+    - echo CI_PROJECT_DIR=$CI_PROJECT_DIR
+    - cd $CI_PROJECT_DIR
+    # - ls -la
+    - sed -i "s@GIT_REPOSITORY@URL /usr/local/games/googletest-release-1.11.0/\n#@" ./domain/test/CMakeLists.txt.in
+    - sed -i 's@GIT_TAG@#GIT_TAG @' ./domain/test/CMakeLists.txt.in
+    # - cat ./domain/test/CMakeLists.txt.in
+    # - echo "$PATH" | tr ':' '\n' | sort
+    - hipcc --version
+    - date
+    - for x in hpp h cuh cu ;do for f in `find include/ domain/ src/sedov/ -name \*.$x |grep -v /test` ;do hipify-perl -inplace $f ;done;done
+    - date
+    - cmake -S . -B build -DCMAKE_CXX_FLAGS=-w -DBUILD_TESTING=OFF -DSPH_EXA_WITH_HIP=ON
+    # CMAKE_PREFIX_PATH /opt/rocm  
+    - cd build/
+    # {{{ debug with:
+    # - make -j3 coordinate_test domain_2ranks
+    # - mkdir -p /usr/local/sbin/coord_samples
+    # - cp domain/test/coord_samples/coordinate_test /usr/local/sbin/coord_samples/coordinate_test
+    # - mkdir -p /usr/local/sbin/integration_mpi
+    # - cp `find . -name domain_2ranks` /usr/local/sbin/integration_mpi/domain_2ranks
+    # }}}
+    - make help
+    # - make -j3 all
+    - make sedov-hip
+    - find . -name sedov-hip
+    - cp src/sedov/sedov-hip /usr/local/bin/
 # }}}
 
 # {{{ run/1
