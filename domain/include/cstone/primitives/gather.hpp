@@ -38,7 +38,7 @@
 #include <tuple>
 #include <vector>
 
-#include "cstone/sfc/morton.hpp"
+#include "cstone/tree/definitions.h"
 #include "cstone/util/gsl-lite.hpp"
 
 namespace cstone

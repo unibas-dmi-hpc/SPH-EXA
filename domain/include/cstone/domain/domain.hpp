@@ -197,8 +197,7 @@ public:
         reallocate(exchangeSize, particleKeys, x, y, z, h, particleProperties...);
         std::vector<LocalParticleIndex> sfcOrder(x.size());
 
-        gsl::span<const KeyType> keyView;
-        std::tie(particleStart_, keyView) = global_.distribute(
+        auto [exchangeStart_, keyView] = global_.distribute(
             particleStart_, particleEnd_, x.size(), reorderFunctor, sfcOrder.data(), particleKeys.data(), x.data(),
             y.data(), z.data(), h.data(), particleProperties.data()...);
 
@@ -217,7 +216,7 @@ public:
 
         /* Halo discovery ***********************************************************************/
 
-        halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box, h.data() + particleStart_,
+        halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box, h.data() + exchangeStart_,
                         sfcOrder);
 
         reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
@@ -230,7 +229,7 @@ public:
         /* Rearrange particle buffers ************************************************************/
 
         reallocate(numParticles, x, y, z, h, particleProperties...);
-        reorderArrays(reorderFunctor, particleStart_, newParticleStart, x.data(), y.data(), z.data(), h.data(),
+        reorderArrays(reorderFunctor, exchangeStart_, newParticleStart, x.data(), y.data(), z.data(), h.data(),
                       particleProperties.data()...);
 
         std::vector<KeyType> newKeys(numParticles);

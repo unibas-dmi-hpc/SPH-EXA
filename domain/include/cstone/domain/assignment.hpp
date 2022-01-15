@@ -154,15 +154,14 @@ public:
 
         // Assigned particles are now inside the [particleStart:particleEnd] range, but not exclusively.
         // Leftover particles from the previous step can also be contained in the range.
-        std::tie(particleStart, particleEnd) =
+        auto [newStart, newEnd] =
             exchangeParticles(domainExchangeSends, myRank_, particleStart, particleEnd, bufferSize,
                               newNParticlesAssigned, sfcOrder, x, y, z, particleProperties...);
 
-        numParticles = particleEnd - particleStart;
-        keyView      = gsl::span<KeyType>(particleKeys + particleStart, numParticles);
+        numParticles = newEnd - newStart;
+        keyView      = gsl::span<KeyType>(particleKeys + newStart, numParticles);
 
-        computeSfcKeys(x + particleStart, y + particleStart, z + particleStart, sfcKindPointer(keyView.begin()),
-                       numParticles, box_);
+        computeSfcKeys(x + newStart, y + newStart, z + newStart, sfcKindPointer(keyView.begin()), numParticles, box_);
         // sort keys and keep track of the ordering
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
 
@@ -175,7 +174,7 @@ public:
 
         reorderFunctor.getReorderMap(sfcOrder, offset, offset + newNParticlesAssigned);
 
-        return {particleStart, gsl::span<const KeyType>{particleKeys + particleStart + offset, newNParticlesAssigned}};
+        return {newStart, gsl::span<const KeyType>{particleKeys + newStart + offset, newNParticlesAssigned}};
     }
 
     std::vector<int> findPeers(float theta)
