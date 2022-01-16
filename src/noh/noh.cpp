@@ -67,16 +67,11 @@ int main(int argc, char** argv)
     auto d = NohDataGenerator<Real, KeyType>::generate(cubeSide);
 
     const size_t dim    = 3;
-    const double eblast = NohDataGenerator<Real, KeyType>::ener0;
-    const double omega  = 0.0;
     const double gamma  = NohDataGenerator<Real, KeyType>::gamma;
     const double r0     = NohDataGenerator<Real, KeyType>::r0;
     const double rMax   = 2. * NohDataGenerator<Real, KeyType>::r1;
     const double rho0   = NohDataGenerator<Real, KeyType>::rho0;
-    const double u0     = 0.0;
-    const double p0     = 0.0;
-    const double vr0    = 0.0;
-    const double cs0    = 0.0;
+    const double vr0    = NohDataGenerator<Real, KeyType>::vel0;
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
@@ -203,52 +198,48 @@ int main(int argc, char** argv)
 
             if (solution)
             {
-                /*
                 NohAnalyticalSolution::create(  1,                      // xgeom
-                                                0., 0.5,                // r0, r1
+                                                0.,                     // r0
+                                                1.,                     // r1
                                                 1000,                   // nstep
-                                                0.2,                    // time
-                                                1000.,                  // eblast
-                                                0.,                     // omega
+                                                0.6,                    // time
                                                 5./3.,                  // gamma
-                                                10000.,                 // rho0
-                                                0., 0., 0., 0.,         // ener0,pres0,vel0,cs0
+                                                1.,                     // rho0
+                                                -1.,                    // vel0
                                                 "theoretical_1D.dat");  // outfile
 
                 NohAnalyticalSolution::create(  2,                      // xgeom
-                                                0., 0.5,                // r0, r1
+                                                0.,                     // r0
+                                                1.,                     // r1
                                                 1000,                   // nstep
-                                                0.2,                    // time
-                                                1000.,                  // eblast
-                                                0.,                     // omega
+                                                0.6,                    // time
                                                 5./3.,                  // gamma
-                                                10000.,                 // rho0
-                                                0., 0., 0., 0.,         // ener0,pres0,vel0,cs0
+                                                1.,                     // rho0
+                                                -1.,                    // vel0
                                                 "theoretical_2D.dat");  // outfile
 
                 NohAnalyticalSolution::create(  3,                      // xgeom
-                                                0., 0.5,                // r0, r1
+                                                0.,                     // r0
+                                                1.,                     // r1
                                                 1000,                   // nstep
-                                                0.2,                    // time
-                                                1000.,                  // eblast
-                                                0.,                     // omega
+                                                0.6,                    // time
                                                 5./3.,                  // gamma
-                                                10000.,                 // rho0
-                                                0., 0., 0., 0.,         // ener0,pres0,vel0,cs0
+                                                1.,                     // rho0
+                                                -1.,                    // vel0
                                                 "theoretical_3D.dat");  // outfile
 
                 exit(-1);
-                */
 
                 // Calculate and write theoretical solution in 1D
                 size_t nSteps = 1000;  // Instead of 'domain.nParticles()'. It is not needed more precission to compere.
                 NohAnalyticalSolution::create(  dim,
-                                                r0, rMax,
+                                                r0,
+                                                rMax,
                                                 nSteps,
                                                 d.ttot,
-                                                eblast,
-                                                omega, gamma,
-                                                rho0, u0, p0, vr0, cs0,
+                                                gamma,
+                                                rho0,
+                                                vr0,
                                                 solutionFilename);
 
                 // Calculate modules for position and velocity
@@ -261,12 +252,7 @@ int main(int argc, char** argv)
                 }
 
                 // Write 1D simulation solution to compare with the theoretical solution
-                NohSolutionWriter::dump1DToAsciiFile(  d.count,
-                                                       r, vel, d.c,
-                                                       d.ro, d.u, d.p,
-                                                       rho0,
-                                                       NohAnalyticalSolution::rho_shock, NohAnalyticalSolution::p_shock, NohAnalyticalSolution::vel_shock,
-                                                       simulationFilename);
+                NohSolutionWriter::dump1DToAsciiFile(d.count, r, d.ro, d.u, d.p, vel, simulationFilename);
             }
 
             timer.step("writeFile");

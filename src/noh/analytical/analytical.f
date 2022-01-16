@@ -63,9 +63,6 @@
      3                  den,ener,pres,vel)
       implicit none
 
-!   solves the standard case, (as opposed to the singular or vacuum case),
-!   constant density (omega = 0) sedov problem in one-dimension.
-
 !   input:
 !       time = temporal point where solution is desired seconds
 !       xpos = spatial point where solution is desired cm
