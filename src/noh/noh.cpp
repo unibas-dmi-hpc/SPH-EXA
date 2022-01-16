@@ -13,17 +13,32 @@
 #include "sphexa.hpp"
 #include "NohDataGenerator.hpp"
 #include "NohDataFileWriter.hpp"
+#include "NohAnalyticalSolution.hpp"
 
 #include "sph/findNeighborsSfc.hpp"
 
-using namespace sphexa;
 using namespace cstone;
+using namespace sphexa;
+using namespace sphexa::sph;
+
+#ifdef SPH_EXA_USE_CATALYST2
+#include "CatalystAdaptor.h"
+#endif
+
+#ifdef SPH_EXA_USE_ASCENT
+#include "AscentAdaptor.h"
+#endif
 
 void printHelp(char* binName, int rank);
 
 int main(int argc, char** argv)
 {
     const int rank = initAndGetRankId();
+
+#ifdef SPH_EXA_USE_CATALYST2
+    CatalystAdaptor::Initialize(argc, argv);
+    std::cout << "CatalystInitialize\n";
+#endif
 
     const ArgParser parser(argc, argv);
 
@@ -33,22 +48,35 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t      cubeSide       = parser.getInt("-n", 50);
-    const size_t      maxStep        = parser.getInt("-s", 10);
-    const int         writeFrequency = parser.getInt("-w", -1);
-    const bool        quiet          = parser.exists("--quiet");
-    const std::string outDirectory   = parser.getString("--outDir");
+    const size_t cubeSide = parser.getInt("-n", 50);
+    const size_t maxStep = parser.getInt("-s", 10);
+    const int writeFrequency = parser.getInt("-w", -1);
+    const bool solution = parser.exists("--sol");
+    const bool quiet = parser.exists("--quiet");
+    const std::string outDirectory = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
 
-    using Real     = double;
-    using CodeType = uint64_t;
-    using Dataset  = ParticlesData<Real, CodeType>;
+    using Real = double;
+    using KeyType = uint64_t;
+    using Dataset = ParticlesData<Real, KeyType>;
 
     const IFileWriter<Dataset>& fileWriter = NohMPIFileWriter<Dataset>();
 
-    auto d = NohDataGenerator<Real, CodeType>::generate(cubeSide);
+    auto d = NohDataGenerator<Real, KeyType>::generate(cubeSide);
+
+    const size_t dim    = 3;
+    const double eblast = NohDataGenerator<Real, KeyType>::ener0;
+    const double omega  = 0.0;
+    const double gamma  = NohDataGenerator<Real, KeyType>::gamma;
+    const double r0     = NohDataGenerator<Real, KeyType>::r0;
+    const double rMax   = 2. * NohDataGenerator<Real, KeyType>::r1;
+    const double rho0   = NohDataGenerator<Real, KeyType>::rho0;
+    const double u0     = 0.0;
+    const double p0     = 0.0;
+    const double vr0    = 0.0;
+    const double cs0    = 0.0;
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
@@ -58,26 +86,23 @@ int main(int argc, char** argv)
 
     size_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
-    size_t bucketSize = std::max(bucketSizeFocus, (cubeSide * cubeSide * cubeSide) / (100 * d.nrank));
+    size_t bucketSize = std::max(bucketSizeFocus, d.n / (100 * d.nrank));
 
-    cstone::Box<double> box(0, 1);
-    {
-        box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
+    Box<Real> box(0, 1);
+    box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
 
-        Real dx = 0.5 / cubeSide;
-
-        // enable PBC and enlarge bounds
-        box = cstone::Box<double>(box.xmin() - dx, box.xmax() + dx,
-                                  box.ymin() - dx, box.ymax() + dx,
-                                  box.zmin() - dx, box.zmax() + dx, true, true, true);
-    }
+	// enable PBC and enlarge bounds
+    Real dx = 0.5 / cubeSide;
+    box = Box<Real>(box.xmin() - dx, box.xmax() + dx,
+                    box.ymin() - dx, box.ymax() + dx,
+                    box.zmin() - dx, box.zmax() + dx, true, true, true);
 
     float theta = 1.0;
 
 #ifdef USE_CUDA
-    cstone::Domain<CodeType, Real, cstone::CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    Domain<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #else
-    cstone::Domain<CodeType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
@@ -92,6 +117,10 @@ int main(int argc, char** argv)
     const size_t ng0 = 100;
     TaskList taskList = TaskList(0, domain.nParticles(), nTasks, ngmax, ng0);
 
+#ifdef SPH_EXA_USE_ASCENT
+    AscentAdaptor::Initialize(d, domain.startIndex());
+    std::cout << "AscentInitialize\n";
+#endif
     if (d.rank == 0) std::cout << "Starting main loop." << std::endl;
 
     totalTimer.start();
@@ -110,30 +139,30 @@ int main(int argc, char** argv)
 
         taskList.update(domain.startIndex(), domain.endIndex());
         timer.step("updateTasks");
-        sph::findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, domain.box());
+        findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, domain.box());
         timer.step("FindNeighbors");
-        sph::computeDensity<Real>(taskList.tasks, d, domain.box());
+        computeDensity<Real>(taskList.tasks, d, domain.box());
         timer.step("Density");
-        sph::computeEquationOfStateEvrard<Real>(taskList.tasks, d);
+        computeEquationOfStateEvrard<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
-        sph::computeIAD<Real>(taskList.tasks, d, domain.box());
+        computeIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("IAD");
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33);
         timer.step("mpi::synchronizeHalos");
-        sph::computeMomentumAndEnergyIAD<Real>(taskList.tasks, d, domain.box());
+        computeMomentumAndEnergyIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("MomentumEnergyIAD");
-        sph::computeTimestep<Real, sph::TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
+        computeTimestep<Real, TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
         timer.step("Timestep"); // AllReduce(min:dt)
-        sph::computePositions<Real, sph::computeAcceleration<Real, Dataset>>(taskList.tasks, d, domain.box());
+        computePositions<Real, computeAcceleration<Real, Dataset>>(taskList.tasks, d, domain.box());
         timer.step("UpdateQuantities");
-        sph::computeTotalEnergy<Real>(taskList.tasks, d);
+        computeTotalEnergy<Real>(taskList.tasks, d);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
-        sph::updateSmoothingLength<Real>(taskList.tasks, d);
+        updateSmoothingLength<Real>(taskList.tasks, d);
         timer.step("UpdateSmoothingLength");
 
-        size_t totalNeighbors = sph::neighborsSum(taskList.tasks);
+        size_t totalNeighbors = neighborsSum(taskList.tasks);
 
         if (d.rank == 0)
         {
@@ -151,40 +180,95 @@ int main(int argc, char** argv)
                                 totalNeighbors,
                                 output);
             std::cout << "### Check ### Focus Tree Nodes: " << nNodes(domain.focusedTree()) << std::endl;
-
             Printer::printConstants(
                 d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, totalNeighbors, constantsFile);
-
-            if (d.iteration % 100 == 0) {
-
-                std::ofstream iterationFile(outDirectory + "iteration_" + std::to_string(d.iteration) + ".txt");
-
-                iterationFile << "01:i"   << ' ';
-                iterationFile << "02:x"   << ' ' << "03:y"  << ' ' << "04:z"  << ' ';
-                iterationFile << "05:vx"  << ' ' << "06:vy" << ' ' << "07:vz" << ' ';
-                iterationFile << "08:rho" << ' ' << "09:u"  << ' ' << "10:p"  << ' ';
-                iterationFile << std::endl;
-
-                for (size_t i = 0; i < d.count; i++)
-                {
-                    Printer::printIteration(i,
-                                            d.x[i],d.y[i],d.z[i],
-                                            d.vx[i],d.vy[i],d.vz[i],
-                                            d.ro[i],d.u[i], d.p[i],
-                                            iterationFile);
-                }
-            }
         }
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
+            std::string solutionFilename;
+            std::string simulationFilename;
+
 #ifdef SPH_EXA_HAVE_H5PART
             fileWriter.dumpParticleDataToH5File(
-                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_Noh.h5part");
+                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_noh.h5part");
+            solutionFilename   = outDirectory + "dump_noh_sol.h5part";
+            simulationFilename = outDirectory + "dump_noh_sim.h5part";
 #else
             fileWriter.dumpParticleDataToAsciiFile(
                 d, domain.startIndex(), domain.endIndex(), "dump_noh" + std::to_string(d.iteration) + ".txt");
+            solutionFilename   = "dump_noh" + std::to_string(d.iteration) + "_sol.txt";
+            simulationFilename = "dump_noh" + std::to_string(d.iteration) + "_sim.txt";
 #endif
+
+            if (solution)
+            {
+                /*
+                NohAnalyticalSolution::create(  1,                      // xgeom
+                                                0., 0.5,                // r0, r1
+                                                1000,                   // nstep
+                                                0.2,                    // time
+                                                1000.,                  // eblast
+                                                0.,                     // omega
+                                                5./3.,                  // gamma
+                                                10000.,                 // rho0
+                                                0., 0., 0., 0.,         // ener0,pres0,vel0,cs0
+                                                "theoretical_1D.dat");  // outfile
+
+                NohAnalyticalSolution::create(  2,                      // xgeom
+                                                0., 0.5,                // r0, r1
+                                                1000,                   // nstep
+                                                0.2,                    // time
+                                                1000.,                  // eblast
+                                                0.,                     // omega
+                                                5./3.,                  // gamma
+                                                10000.,                 // rho0
+                                                0., 0., 0., 0.,         // ener0,pres0,vel0,cs0
+                                                "theoretical_2D.dat");  // outfile
+
+                NohAnalyticalSolution::create(  3,                      // xgeom
+                                                0., 0.5,                // r0, r1
+                                                1000,                   // nstep
+                                                0.2,                    // time
+                                                1000.,                  // eblast
+                                                0.,                     // omega
+                                                5./3.,                  // gamma
+                                                10000.,                 // rho0
+                                                0., 0., 0., 0.,         // ener0,pres0,vel0,cs0
+                                                "theoretical_3D.dat");  // outfile
+
+                exit(-1);
+                */
+
+                // Calculate and write theoretical solution in 1D
+                size_t nSteps = 1000;  // Instead of 'domain.nParticles()'. It is not needed more precission to compere.
+                SedovAnalyticalSolution::create(dim,
+                                                r0, rMax,
+                                                nSteps,
+                                                d.ttot,
+                                                eblast,
+                                                omega, gamma,
+                                                rho0, u0, p0, vr0, cs0,
+                                                solutionFilename);
+
+                // Calculate modules for position and velocity
+                vector<double> r  (d.count);
+                vector<double> vel(d.count);
+                for(size_t i = 0; i < d.count; i++)
+                {
+                    r[i]   = std::sqrt( std::pow(d.x[i],  2.) + std::pow(d.y[i],  2.) + std::pow(d.z[i],  2.) );
+                    vel[i] = std::sqrt( std::pow(d.vx[i], 2.) + std::pow(d.vy[i], 2.) + std::pow(d.vz[i], 2.) );
+                }
+
+                // Write 1D simulation solution to compare with the theoretical solution
+                SedovSolutionWriter::dump1DToAsciiFile(d.count,
+                                                       r, vel, d.c,
+                                                       d.ro, d.u, d.p,
+                                                       rho0,
+                                                       SedovAnalyticalSolution::rho_shock, SedovAnalyticalSolution::p_shock, SedovAnalyticalSolution::vel_shock,
+                                                       simulationFilename);
+            }
+
             timer.step("writeFile");
         }
 
@@ -194,12 +278,25 @@ int main(int argc, char** argv)
         {
             Printer::printTotalIterationTime(d.iteration, timer.duration(), output);
         }
+#ifdef SPH_EXA_USE_CATALYST2
+        CatalystAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
+#endif
+#ifdef SPH_EXA_USE_ASCENT
+	if((d.iteration % 5) == 0)
+          AscentAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
+#endif
     }
 
     totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Noh");
 
     constantsFile.close();
 
+#ifdef SPH_EXA_USE_CATALYST2
+  CatalystAdaptor::Finalize();
+#endif
+#ifdef SPH_EXA_USE_ASCENT
+  AscentAdaptor::Finalize();
+#endif
     return exitSuccess();
 }
 
@@ -209,14 +306,17 @@ void printHelp(char* name, int rank)
     {
         printf("\nUsage:\n\n");
         printf("%s [OPTIONS]\n", name);
-        printf("\nWhere possible options are:\n");
-        printf("\t-n NUM \t\t\t NUM^3 Number of particles\n");
-        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps)\n");
-        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps)\n\n");
+        printf("\nWhere possible options are:\n\n");
 
-        printf("\t--quiet \t\t Don't print anything to stdout\n\n");
+        printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
+        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [10]\n\n");
 
-        printf("\t--outDir PATH \t\t Path to directory where output will be saved.\
+        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n");
+        printf("\t--sol   \t\t Print anytical solution every dump [false]\n\n");
+
+        printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
+
+        printf("\t--outDir PATH \t\t Path to directory where output will be saved [./].\
                     \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
                     \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n");
     }
