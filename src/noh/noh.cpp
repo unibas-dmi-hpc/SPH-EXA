@@ -297,7 +297,7 @@ void printHelp(char* name, int rank)
         printf("\nWhere possible options are:\n\n");
 
         printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
-        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [10]\n\n");
+        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [65]\n\n");
 
         printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n");
         printf("\t--sol   \t\t Print anytical solution every dump [false]\n\n");
