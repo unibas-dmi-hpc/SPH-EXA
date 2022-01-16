@@ -30,11 +30,11 @@ struct NohSolutionWriter
 
             for(size_t i = 0; i < n; i++)
             {
-                out << " " << std::setw(15) << std::setprecision(6) << std::scientific << r[i]
-                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << rho[i]
-                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << u[i]
-                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << p[i]
-                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << vel[i]
+                out << " " << std::setw(15) << std::setprecision(6) << std::scientific << std::uppercase << r[i]   << std::nouppercase
+                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << std::uppercase << rho[i] << std::nouppercase
+                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << std::uppercase << u[i]   << std::nouppercase
+                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << std::uppercase << p[i]   << std::nouppercase
+                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << std::uppercase << vel[i] << std::nouppercase
                     << std::endl;
             }
 
