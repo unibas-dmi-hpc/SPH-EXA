@@ -6,5 +6,4 @@ eog "density.png",     \
     "energy.png",      \
     "pressure.png",    \
     "velocity.png",    \
-    "rhoPressure.png", \
-    "rhoVelocity.png"  &
+    "combined.png"     &

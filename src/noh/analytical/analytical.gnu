@@ -39,8 +39,6 @@ solSedov="theoretical.dat"
  unset title
  set key right top
  set output 'density.png'
- #set xrange [0:25]
- #set yrange[0:4]
 
  plot solSedov  u 1:2    w l ls 3 title "{/Symbol r}"
 
@@ -54,15 +52,10 @@ solSedov="theoretical.dat"
  set ylabel "U (erg.g^{-1})"
  unset title
  set key right top
- #set logscale y
- #set format y '%.1e'
  set output 'energy.png'
- #set xrange [0:25]
- #set yrange[0:4]
 
- plot solSedov  u 1:3    w l ls 1 title "U"
+ plot solSedov u 1:3 w l ls 1 title "U"
 
- #unset logscale y
  set autoscale x
  set autoscale y
  unset format 
@@ -74,10 +67,8 @@ solSedov="theoretical.dat"
  unset title
  set key right top
  set output 'pressure.png'
- #set xrange [0:25]
- #set yrange[0:4]
 
- plot solSedov  u 1:4    w l ls 1 title "P"
+ plot solSedov u 1:4 w l ls 1 title "P"
 
  set autoscale x
  set autoscale y
@@ -90,10 +81,8 @@ solSedov="theoretical.dat"
  unset title
  set key right top
  set output 'velocity.png'
- #set xrange [0:25]
- #set yrange[0:4]
 
- plot solSedov  u 1:5    w l ls 1 title "Velocity"
+ plot solSedov u 1:5 w l ls 1 title "Velocity"
 
  set autoscale x
  set autoscale y
@@ -102,57 +91,18 @@ solSedov="theoretical.dat"
 ######################################################################################################
 
 set xlabel "R (cm)"
-set ylabel  "{/Symbol r} (g.cm^{-2})"
-set y2label "P (dyn.cm)"
-#set format y '%.1e'
-#set format y2 '%.1e'
+set ylabel  "{/Symbol r} (g.cm^{-2}); U (erg.g^{-1}); P (erg.cm^{-2}); V (cm.s^{-1})"
 unset title
 set key right top
-set output 'rhoPressure.png'
-set y2tics 
-set y2tics nomirror
-set ytics nomirror
-#set xrange [0:25]
+set output 'combined.png'
 
-#set yrange[0:4]
-plot solSedov  u 1:2    w l ls 1 title "{/Symbol r}" axes x1y1, \
-     solSedov  u 1:4    w l ls 3 title "Pressure"    axes x1y2
+plot solSedov  u 1:2    w l ls 1 title "{/Symbol r}", \
+     solSedov  u 1:3    w l ls 2 title "Energy",      \
+     solSedov  u 1:4    w l ls 3 title "Pressure",    \
+     solSedov  u 1:5    w l ls 5 title "Velocity"
 
 set autoscale x
 set autoscale y
-set autoscale y2
-set ytics mirror
-set y2tics mirror
-unset y2tics
-set y2label ""
-unset format 
-
-######################################################################################################
-
-set xlabel "R (cm)"
-set ylabel  "{/Symbol r} (g.cm^{-2})"
-set y2label "V (cm.s^{-1})"
-#set format y '%.1e'
-#set format y2 '%.1e'
-unset title
-set key right top
-set output 'rhoVelocity.png'
-set y2tics 
-set y2tics nomirror
-set ytics nomirror
-#set xrange [0:25]
-#set yrange[0:4]
-
-plot solSedov  u 1:2    w l ls 1 title "{/Symbol r}" axes x1y1, \
-     solSedov  u 1:5    w l ls 3 title "Velocity"    axes x1y2
-
-set autoscale x
-set autoscale y
-set autoscale y2
-set ytics mirror
-set y2tics mirror
-unset y2tics
-set y2label ""
 unset format 
 
 ######################################################################################################

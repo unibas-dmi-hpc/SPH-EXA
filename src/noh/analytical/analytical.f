@@ -18,7 +18,7 @@
       outfile = 'theoretical.dat'        ! output file name
 
       ! input parameters in cgs
-      time   =  1.5q0                    ! Time where the solution is calculated
+      time   =  0.6q0                    ! Time where the solution is calculated
       rho0   =  1.0q0				     ! Rho inicial
       vel0   = -1.0q0                    !
       gamma  =  5.0q0/3.0q0              !
