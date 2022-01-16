@@ -22,7 +22,11 @@
 
 /*! @file
  *
- * @brief This routine produces 1d solutions for a Noh test
+ * @brief This routine produces 1d solutions for the "The wall heating shock (Noh shock)"
+ *        , in planar(1D), cylindrical(2D) or spherical geometry(3D)
+ *
+ *        This routine is a C++ conversion of one Fortran code based in the paper:
+ *        - "Errors for Calculations of Strong Shocks Using an Artificial Viscosity and an Artificial Heat Flux", W.F. Noh. JCP 72 (1987), 78-120
  *
  * @author Jose A. Escartin <ja.escartin@gmail.com>
  *
