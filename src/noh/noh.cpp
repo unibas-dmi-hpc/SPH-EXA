@@ -69,7 +69,7 @@ int main(int argc, char** argv)
     const size_t dim    = 3;
     const double gamma  = NohDataGenerator<Real, KeyType>::gamma;
     const double r0     = NohDataGenerator<Real, KeyType>::r0;
-    const double rMax   = 2. * NohDataGenerator<Real, KeyType>::r1;
+    const double r1     = NohDataGenerator<Real, KeyType>::r1;
     const double rho0   = NohDataGenerator<Real, KeyType>::rho0;
     const double vr0    = NohDataGenerator<Real, KeyType>::vel0;
 
@@ -233,10 +233,10 @@ int main(int argc, char** argv)
                 */
 
                 // Calculate and write theoretical solution in 1D
-                size_t nSteps = 1000;  // Instead of 'domain.nParticles()'. It is not needed more precission to compere.
+                size_t nSteps = 1000;  // Instead of 'domain.nParticles()'. It is not needed more precission to compare.
                 NohAnalyticalSolution::create(  dim,
                                                 r0,
-                                                rMax,
+                                                r1,
                                                 nSteps,
                                                 d.ttot,
                                                 gamma,
@@ -244,7 +244,7 @@ int main(int argc, char** argv)
                                                 vr0,
                                                 solutionFilename);
 
-                // Calculate modules for position and velocity
+                // Calculate modules for position and velocity of the particles
                 vector<double> r  (d.count);
                 vector<double> vel(d.count);
                 for(size_t i = 0; i < d.count; i++)

@@ -22,7 +22,7 @@ public:
     static constexpr double ener0         = 1.e-20;
     static constexpr double vel0          = -1.0;
     static constexpr double Mt            = 1.0;
-    static constexpr T      firstTimeStep = 1e-6;
+    static constexpr T      firstTimeStep = 1.e-12;
 
     static ParticlesData<T, I> generate(const size_t side)
     {
