@@ -174,12 +174,9 @@ public:
         // [particleStart:particleEnd]
         reorderFunctor.restrictRange(offset, newNParticlesAssigned);
 
-        // h is already reordered now, because the h values are needed for halo discovery
-        // as a guess for the most likely layout start, we use the previous particleStart if space permits
-        LocalParticleIndex hStart = (particleStart + newNParticlesAssigned < bufferSize) ? particleStart : newStart;
-        reorderFunctor(h + newStart, h + hStart);
+        reorderFunctor(h + newStart, h);
 
-        return std::make_tuple(newStart, hStart,
+        return std::make_tuple(newStart,
                                gsl::span<const KeyType>{particleKeys + newStart + offset, newNParticlesAssigned});
     }
 

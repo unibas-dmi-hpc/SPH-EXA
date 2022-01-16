@@ -196,7 +196,7 @@ public:
         size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
         reallocate(exchangeSize, particleKeys, x, y, z, h, particleProperties...);
 
-        auto [exchangeStart, hStart, keyView] = global_.distribute(
+        auto [exchangeStart, keyView] = global_.distribute(
             particleStart_, particleEnd_, x.size(), reorderFunctor, particleKeys.data(), x.data(),
             y.data(), z.data(), h.data(), particleProperties.data()...);
 
@@ -215,7 +215,7 @@ public:
 
         /* Halo discovery ***********************************************************************/
 
-        halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box, h.data() + hStart);
+        halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box, h.data());
 
         reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), keyView, peers,
@@ -226,18 +226,14 @@ public:
 
         /* Rearrange particle buffers ************************************************************/
 
-        reallocate(numParticles, x, y, z, h, particleProperties..., swapSpace_);
+        reallocate(numParticles, x, y, z, h, particleProperties..., swapSpace_, swapKeys_);
         reorderArrays(reorderFunctor, exchangeStart, newParticleStart, x.data(), y.data(), z.data(), /* no h */
                       particleProperties.data()...);
-        if (hStart != newParticleStart)
-        {
-            std::copy(&h[hStart], &h[hStart + newNParticlesAssigned], &swapSpace_[newParticleStart]);
-            swap(h, swapSpace_);
-        }
 
-        std::vector<KeyType> newKeys(numParticles);
-        std::copy(keyView.begin(), keyView.end(), newKeys.begin() + newParticleStart);
-        swap(particleKeys, newKeys);
+        std::copy(h.begin(), h.begin() + newNParticlesAssigned, swapSpace_.begin() + newParticleStart);
+        swap(h, swapSpace_);
+        std::copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newParticleStart);
+        swap(particleKeys, swapKeys_);
 
         particleStart_ = newParticleStart;
         particleEnd_   = layout_[focusTree_.assignment()[myRank_].end()];
@@ -374,6 +370,7 @@ private:
 
     ReorderFunctor reorderFunctor;
     std::vector<T> swapSpace_;
+    std::vector<KeyType> swapKeys_;
 };
 
 } // namespace cstone
