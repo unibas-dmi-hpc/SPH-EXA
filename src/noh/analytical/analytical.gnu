@@ -1,13 +1,11 @@
 #  SITUACION DE LAS VARIABLES EN EL FICHERO DE DATOS
 ####################################################
 #
-#  1: nStep     
-#  2: radio al centro de masas (r) 
-#  3: Density (rho)
-#  4: Energy (U)
-#  5: Pressure (P)
-#  6: velocidad (|v|)
-#  7: Sound Velocity (cs)
+#  1: radio al centro de masas (r) 
+#  2: Density (rho)
+#  3: Energy (U)
+#  4: Pressure (P)
+#  5: velocidad (|v|)
 #
 ####################################################
 
@@ -44,7 +42,7 @@ solSedov="theoretical.dat"
  #set xrange [0:25]
  #set yrange[0:4]
 
- plot solSedov  u 2:3    w l ls 1 title "{/Symbol r}"
+ plot solSedov  u 1:2    w l ls 1 title "{/Symbol r}"
 
  set autoscale x
  set autoscale y
@@ -62,7 +60,7 @@ solSedov="theoretical.dat"
  #set xrange [0:25]
  #set yrange[0:4]
 
- plot solSedov  u 2:(log10($4))    w l ls 1 title "U"
+ plot solSedov  u 1:(log10($3))    w l ls 1 title "U"
 
  #unset logscale y
  set autoscale x
@@ -79,7 +77,7 @@ solSedov="theoretical.dat"
  #set xrange [0:25]
  #set yrange[0:4]
 
- plot solSedov  u 2:5    w l ls 1 title "P"
+ plot solSedov  u 1:4    w l ls 1 title "P"
 
  set autoscale x
  set autoscale y
@@ -95,7 +93,7 @@ solSedov="theoretical.dat"
  #set xrange [0:25]
  #set yrange[0:4]
 
- plot solSedov  u 2:6    w l ls 1 title "|V|"
+ plot solSedov  u 1:5    w l ls 1 title "|V|"
 
  set autoscale x
  set autoscale y
@@ -117,8 +115,8 @@ set ytics nomirror
 #set xrange [0:25]
 
 #set yrange[0:4]
-plot solSedov  u 2:3    w l ls 1 title "{/Symbol r}" axes x1y1, \
-     solSedov  u 2:5    w l ls 3 title "Pressure"    axes x1y2
+plot solSedov  u 1:2    w l ls 1 title "{/Symbol r}" axes x1y1, \
+     solSedov  u 1:4    w l ls 3 title "Pressure"    axes x1y2
 
 set autoscale x
 set autoscale y
@@ -145,8 +143,8 @@ set ytics nomirror
 #set xrange [0:25]
 #set yrange[0:4]
 
-plot solSedov  u 2:3    w l ls 1 title "{/Symbol r}" axes x1y1, \
-     solSedov  u 2:6    w l ls 3 title "Velocity"    axes x1y2
+plot solSedov  u 1:2    w l ls 1 title "{/Symbol r}" axes x1y1, \
+     solSedov  u 1:5    w l ls 3 title "Velocity"    axes x1y2
 
 set autoscale x
 set autoscale y
