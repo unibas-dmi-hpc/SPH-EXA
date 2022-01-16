@@ -198,6 +198,7 @@ int main(int argc, char** argv)
 
             if (solution)
             {
+                /*
                 NohAnalyticalSolution::create(  1,                      // xgeom
                                                 0.,                     // r0
                                                 1.,                     // r1
@@ -229,6 +230,7 @@ int main(int argc, char** argv)
                                                 "theoretical_3D.dat");  // outfile
 
                 exit(-1);
+                */
 
                 // Calculate and write theoretical solution in 1D
                 size_t nSteps = 1000;  // Instead of 'domain.nParticles()'. It is not needed more precission to compere.
