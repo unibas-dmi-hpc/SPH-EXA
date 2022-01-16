@@ -22,20 +22,7 @@
 
 /*! @file
  *
- * @brief This routine produces 1d solutions for a sedov blast wave propagating through a density gradient: rho = rho**(-omega)
- *        , in planar(1D), cylindrical(2D) or spherical geometry(3D) for the 'standard', 'singular' and 'vaccum' cases.
- *
- *        - standard case: a nonzero solution extends from the shock to the origin,       where the pressure is finite.
- *        - singular case: a nonzero solution extends from the shock to the origin,       where the pressure vanishes.
- *        - vacuum case  : a nonzero solution extends from the shock to a boundary point, where the density vanishes making the pressure meaningless.
- *
- *        This routine is a C++ conversion of one Fortran code based in these two papers:
- *        - "evaluation of the sedov-von neumann-taylor blast wave solution", Jim Kamm, la-ur-00-6055
- *        - "the sedov self-similiar point blast solutions in nonuniform media", David Book, shock waves, 4, 1, 1994
- *
- *        Although the ordinary differential equations are analytic, the sedov expressions appear to become singular for various
- *        combinations of parameters and at the lower limits of the integration range.
- *        All these singularies are removable and done so by this routine.
+ * @brief This routine produces 1d solutions for a Noh test
  *
  * @author Jose A. Escartin <ja.escartin@gmail.com>
  *
@@ -45,12 +32,12 @@
 
 #include <cmath>
 
-#include "SedovDataFileWriter.hpp"
+#include "NohDataFileWriter.hpp"
 
 using namespace std;
 
 
-class SedovAnalyticalSolution
+class NohAnalyticalSolution
 {
 public:
 
@@ -86,13 +73,13 @@ public:
         }
 
         // Calculate theoretical solution
-        sedovSol(dim, rPoints, time,
+        NohSol(dim, rPoints, time,
                  eblast, omega_i, gamma_i,
                  rho0, u0, p0, vel0, cs0,
                  r, rho, p, u, vel, cs);
 
         // Write solution file
-        SedovSolutionWriter::dump1DToAsciiFile(rPoints,
+        NohSolutionWriter::dump1DToAsciiFile(rPoints,
                                                r, vel, cs,
                                                rho, u, p,
                                                rho0,
@@ -118,7 +105,7 @@ private:
     static double r2,    v0,vv,rvv;                   //
     static double gam_int;                            //
 
-    static void sedovSol(const size_t dim,            // geometry factor: 1=planar, 2=cylindircal, 3=spherical
+    static void NohSol(const size_t dim,            // geometry factor: 1=planar, 2=cylindircal, 3=spherical
                          const size_t rPoints,        // Number of points between r0-r1
                          const double time,           // temporal point where solution is desired [seconds]
                          const double eblast,         // energy of blast in the wave front [erg]
@@ -165,7 +152,7 @@ private:
         double v2     = 4. / (   xg2 * gamp1);                   // Post-shock location
         double vstar  = 2. / ((gamm1 * xgeom) + 2.);             // Location of singular point vstar
 
-        // Initialize output variables (Sedov solution)
+        // Initialize output variables (Noh solution)
         for(size_t i = 0; i < rPoints; i++)
         {
             rho[i] = 0.0;
@@ -334,7 +321,7 @@ private:
                 // The physical solution
                 double l_fun, dlamdv, f_fun, g_fun, h_fun;
 
-                sedov_funcs(vat, l_fun, dlamdv, f_fun, g_fun, h_fun);
+                Noh_funcs(vat, l_fun, dlamdv, f_fun, g_fun, h_fun);
 
                 vel[i] = vel_shock * f_fun;
                 rho[i] = rho_shock * g_fun;
@@ -350,7 +337,7 @@ private:
         }
     }
 
-    static void sedov_funcs(const double v,           // Similarity variable v
+    static void Noh_funcs(const double v,           // Similarity variable v
                             double &     l_fun,       // out: l_fun is book's zeta
                             double &     dlamdv,      // out: l_fun derivative
                             double &     f_fun,       // out: f_fun is book's V
@@ -358,7 +345,7 @@ private:
                             double &     h_fun)       // out: h_fun is book's P
     {
         // Given the similarity variable v, returns functions: ' l_func: lambda', 'lambda_derivative', 'f', 'g', and 'h'
-        // Although the ordinary differential equations are analytic, the sedov expressions appear to become singular for various combinations of parameters and at the lower limits of the integration range.
+        // Although the ordinary differential equations are analytic, the Noh expressions appear to become singular for various combinations of parameters and at the lower limits of the integration range.
         // All these singularities are removable and done so by this routine.
 
         // Frequent combinations and their derivative with v. Kamm equation 29-32
@@ -457,7 +444,7 @@ private:
 
         double l_fun, dlamdv, f_fun, g_fun, h_fun;
 
-        sedov_funcs(v, l_fun, dlamdv, f_fun, g_fun, h_fun);
+        Noh_funcs(v, l_fun, dlamdv, f_fun, g_fun, h_fun);
 
         return (dlamdv * pow(l_fun, xgeom + 1.) * gpogm * g_fun * pow(v, 2.));
     }
@@ -471,7 +458,7 @@ private:
 
         double l_fun, dlamdv, f_fun, g_fun, h_fun;
 
-        sedov_funcs(v, l_fun, dlamdv, f_fun, g_fun, h_fun);
+        Noh_funcs(v, l_fun, dlamdv, f_fun, g_fun, h_fun);
 
         double z = 8. / ( pow(xgeom + 2. - omega, 2.) * gamp1);
 
@@ -483,7 +470,7 @@ private:
         // Given corresponding physical distances, find the similarity variable v. Kamm equation 38 as a root find
         double l_fun, dlamdv, f_fun, g_fun, h_fun;
 
-        sedov_funcs(v,l_fun,dlamdv,f_fun,g_fun,h_fun);
+        Noh_funcs(v,l_fun,dlamdv,f_fun,g_fun,h_fun);
 
         return ((r2 * l_fun) - rwant);
     }
@@ -493,7 +480,7 @@ private:
         // Given the similarity variable v, find the corresponding physical distance. Kamm equation 38 as a root find
         double l_fun, dlamdv, f_fun, g_fun, h_fun;
 
-        sedov_funcs(vwant,l_fun,dlamdv,f_fun,g_fun,h_fun);
+        Noh_funcs(vwant,l_fun,dlamdv,f_fun,g_fun,h_fun);
 
         return ((r2 * l_fun) - r);
     }
@@ -931,46 +918,46 @@ private:
     }
 };
 
-double SedovAnalyticalSolution::xgeom;
-double SedovAnalyticalSolution::omega;
-double SedovAnalyticalSolution::gamma;
+double NohAnalyticalSolution::xgeom;
+double NohAnalyticalSolution::omega;
+double NohAnalyticalSolution::gamma;
 
-double SedovAnalyticalSolution::gamm1;
-double SedovAnalyticalSolution::gamp1;
-double SedovAnalyticalSolution::gpogm;
-double SedovAnalyticalSolution::xg2;
+double NohAnalyticalSolution::gamm1;
+double NohAnalyticalSolution::gamp1;
+double NohAnalyticalSolution::gpogm;
+double NohAnalyticalSolution::xg2;
 
-bool   SedovAnalyticalSolution::lsingular;
-bool   SedovAnalyticalSolution::lstandard;
-bool   SedovAnalyticalSolution::lvacuum;
+bool   NohAnalyticalSolution::lsingular;
+bool   NohAnalyticalSolution::lstandard;
+bool   NohAnalyticalSolution::lvacuum;
 
-bool   SedovAnalyticalSolution::lomega2;
-bool   SedovAnalyticalSolution::lomega3;
+bool   NohAnalyticalSolution::lomega2;
+bool   NohAnalyticalSolution::lomega3;
 
-double SedovAnalyticalSolution::a0;
-double SedovAnalyticalSolution::a1;
-double SedovAnalyticalSolution::a2;
-double SedovAnalyticalSolution::a3;
-double SedovAnalyticalSolution::a4;
-double SedovAnalyticalSolution::a5;
+double NohAnalyticalSolution::a0;
+double NohAnalyticalSolution::a1;
+double NohAnalyticalSolution::a2;
+double NohAnalyticalSolution::a3;
+double NohAnalyticalSolution::a4;
+double NohAnalyticalSolution::a5;
 
-double SedovAnalyticalSolution::a_val;
-double SedovAnalyticalSolution::b_val;
-double SedovAnalyticalSolution::c_val;
-double SedovAnalyticalSolution::d_val;
-double SedovAnalyticalSolution::e_val;
+double NohAnalyticalSolution::a_val;
+double NohAnalyticalSolution::b_val;
+double NohAnalyticalSolution::c_val;
+double NohAnalyticalSolution::d_val;
+double NohAnalyticalSolution::e_val;
 
-double SedovAnalyticalSolution::rwant;
-double SedovAnalyticalSolution::vwant;
+double NohAnalyticalSolution::rwant;
+double NohAnalyticalSolution::vwant;
 
-double SedovAnalyticalSolution::r2;
-double SedovAnalyticalSolution::v0;
-double SedovAnalyticalSolution::vv;
-double SedovAnalyticalSolution::rvv;
+double NohAnalyticalSolution::r2;
+double NohAnalyticalSolution::v0;
+double NohAnalyticalSolution::vv;
+double NohAnalyticalSolution::rvv;
 
-double SedovAnalyticalSolution::gam_int;
+double NohAnalyticalSolution::gam_int;
 
-double SedovAnalyticalSolution::rho_shock;
-double SedovAnalyticalSolution::p_shock;
-double SedovAnalyticalSolution::vel_shock;
+double NohAnalyticalSolution::rho_shock;
+double NohAnalyticalSolution::p_shock;
+double NohAnalyticalSolution::vel_shock;
 

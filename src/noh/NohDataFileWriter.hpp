@@ -1,6 +1,61 @@
 #pragma once
 
+#include <cmath>
+
+#include <iomanip>
+
 #include "IFileWriter.hpp"
+
+
+struct NohSolutionWriter
+{
+    static void dump1DToAsciiFile(const size_t n,
+                                  const std::vector<double>& r,   const std::vector<double>& vel, const std::vector<double>& cs,
+                                  const std::vector<double>& rho, const std::vector<double>& u,   const std::vector<double>& p,
+                                  const double rho0,
+                                  const double rho_shock, const double p_shock, const double vel_shock,
+                                  const std::string &outfile)
+    {
+        try
+        {
+            std::ofstream out(outfile);
+
+            out << " " << std::setw(15) << "r"              // Column 01 : position 1D
+                << " " << std::setw(15) << "rho"            // Column 02 : density         (Real value)
+                << " " << std::setw(15) << "log10(u)"       // Column 03 : internal energy (Real value)
+                << " " << std::setw(15) << "p"              // Column 04 : pressure        (Real value)
+                << " " << std::setw(15) << "vel"            // Column 05 : velocity 1D     (Real value)
+                << " " << std::setw(15) << "cs"             // Column 06 : sound speed     (Real value)
+                << " " << std::setw(15) << "rho/rho0"       // Column 07 : density         (Normalized)
+                << " " << std::setw(15) << "rho/rhoShock"   // Column 08 : density         (Shock Normalized)
+                << " " << std::setw(15) << "p/pShock"       // Column 09 : pressure        (Shock Normalized)
+                << " " << std::setw(15) << "vel/velShock"   // Column 10 : velocity        (Shock Normalized)
+                << std::endl;
+
+            for(size_t i = 0; i < n; i++)
+            {
+                out << " " << std::setw(15) << std::setprecision(6) << std::scientific << r[i]
+                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << rho[i]
+                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << log10(u[i])
+                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << p[i]
+                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << vel[i]
+                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << cs[i]
+                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << rho[i] / rho0
+                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << rho[i] / rho_shock
+                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << p[i]   / p_shock
+                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << vel[i] / vel_shock
+                    << std::endl;
+            }
+
+            out.close();
+        }
+        catch (std::exception &ex)
+        {
+            fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
+            exit(EXIT_FAILURE);
+        }
+    }
+};
 
 namespace sphexa
 {

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <iostream>
 #include <cmath>
 #include <vector>
 
@@ -12,6 +13,17 @@ template <typename T, typename I>
 class NohDataGenerator
 {
 public:
+
+    static constexpr double gamma         = 5.0/3.0;
+    static constexpr double r0            = 0.;
+    static constexpr double r1            = 0.5;
+    static constexpr bool   spheric_model = true;
+    static constexpr double energytot     = 1.0;
+    static constexpr double width         = 0.10;
+    static constexpr double rho0          = 1.0;
+    static constexpr double ener0         = energytot / std::pow(M_PI,(3.0/2.0)) / 1.0 / std::pow(width,3);
+    static constexpr T      firstTimeStep = 1e-6;
+
     static ParticlesData<T, I> generate(const size_t side)
     {
         ParticlesData<T, I> pd;
@@ -37,9 +49,18 @@ public:
         pd.count = side * side * side;
 
         load(pd);
-        init(pd);
 
-        return pd;
+        if (spheric_model)
+        {
+            auto pd2 = reduce_to_sphere(pd);
+            init(pd2);
+            return (pd2);
+        }
+        else
+        {
+            init(pd);
+            return pd;
+        }
     }
 
     // void load(const std::string &filename)
@@ -54,29 +75,37 @@ public:
         pd.resize(pd.count);
 
         if(pd.rank == 0)
-            std::cout << "Approx: " << pd.count * (pd.data.size() * 64.0) / (8.0 * 1000.0 * 1000.0 * 1000.0) << "GB allocated on rank 0." << std::endl; 
+            std::cout << "Approx: "
+                      << pd.count * (pd.data.size() * 64.) / (8. * 1000. * 1000.0 * 1000.0)
+                      << "GB allocated on rank 0."
+                      << std::endl;
 
         size_t offset = pd.rank * split;
         if (pd.rank > 0) offset += remaining;
 
+        double step = (2. * r1) / pd.side;
+
         #pragma omp parallel for
         for (size_t i = 0; i < pd.side; ++i)
         {
-            double lz = -0.5 + 1.0 / (2.0 * pd.side) + i * 1.0 / pd.side;
+            double lz = -r1 + (i * step);
+
             for (size_t j = 0; j < pd.side; ++j)
             {
-                double lx = -0.5 + 1.0 / (2.0 * pd.side) + j * 1.0 / pd.side;
+                double lx = -r1 + (j * step);
+
                 for (size_t k = 0; k < pd.side; ++k)
                 {
-                    size_t lindex = i * pd.side * pd.side + j * pd.side + k;
+                    size_t lindex = (i * pd.side * pd.side) + (j * pd.side) + k;
 
                     if (lindex >= offset && lindex < offset + pd.count)
                     {
-                        double ly = -0.5 + 1.0 / (2.0 * pd.side) + k * 1.0 / pd.side;
+                        double ly = -r1 + (k * step);
 
-                        pd.z[lindex - offset] = lz;
-                        pd.y[lindex - offset] = ly;
-                        pd.x[lindex - offset] = lx;
+                        pd.z[ lindex - offset] = lz;
+                        pd.y[ lindex - offset] = ly;
+                        pd.x[ lindex - offset] = lx;
+
                         pd.vx[lindex - offset] = 0.0;
                         pd.vy[lindex - offset] = 0.0;
                         pd.vz[lindex - offset] = 0.0;
@@ -84,6 +113,58 @@ public:
                 }
             }
         }
+    }
+
+    static ParticlesData<T, I> reduce_to_sphere(const ParticlesData<T, I> & pd)
+    {
+        // Create the spheric model
+        ParticlesData<T, I> speric_model;
+
+        // Calculate radius
+        std::vector<T> r(pd.count);
+        for (size_t i = 0; i < pd.count; i++)
+        {
+            r[i] = sqrt(pd.x[i] * pd.x[i] +  pd.y[i] * pd.y[i]+ pd.z[i] * pd.z[i]);
+        }
+
+        double offset_radius = r1 - ((.1 * r1) / pd.side);
+
+        // Calculate and set the new size
+        double n = 0;
+        for (size_t i = 0; i < pd.count; i++)
+        {
+            if (r[i] <= offset_radius) n++;
+        }
+
+        speric_model.n    = n;
+        speric_model.side = pd.side;
+
+        size_t split     = speric_model.n / speric_model.nrank;
+        size_t remaining = speric_model.n - speric_model.nrank * split;
+
+        speric_model.count = split;
+        if (speric_model.rank == 0) speric_model.count += remaining;
+
+        speric_model.resize(speric_model.count);
+
+        size_t j = 0;
+        for (size_t i = 0; i < pd.count; i++)
+        {
+            if (r[i] <= offset_radius){
+
+                speric_model.x[j]        = pd.x[i];
+                speric_model.y[j]        = pd.y[i];
+                speric_model.z[j]        = pd.z[i];
+
+                speric_model.vx[j]       = pd.vx[i];
+                speric_model.vy[j]       = pd.vy[i];
+                speric_model.vz[j]       = pd.vz[i];
+
+                j++;
+            }
+        }
+
+        return speric_model;
     }
 
     static void init(ParticlesData<T, I> &pd)

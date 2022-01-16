@@ -242,7 +242,7 @@ int main(int argc, char** argv)
 
                 // Calculate and write theoretical solution in 1D
                 size_t nSteps = 1000;  // Instead of 'domain.nParticles()'. It is not needed more precission to compere.
-                SedovAnalyticalSolution::create(dim,
+                NohAnalyticalSolution::create(  dim,
                                                 r0, rMax,
                                                 nSteps,
                                                 d.ttot,
@@ -261,11 +261,11 @@ int main(int argc, char** argv)
                 }
 
                 // Write 1D simulation solution to compare with the theoretical solution
-                SedovSolutionWriter::dump1DToAsciiFile(d.count,
+                NohSolutionWriter::dump1DToAsciiFile(  d.count,
                                                        r, vel, d.c,
                                                        d.ro, d.u, d.p,
                                                        rho0,
-                                                       SedovAnalyticalSolution::rho_shock, SedovAnalyticalSolution::p_shock, SedovAnalyticalSolution::vel_shock,
+                                                       NohAnalyticalSolution::rho_shock, NohAnalyticalSolution::p_shock, NohAnalyticalSolution::vel_shock,
                                                        simulationFilename);
             }
 
