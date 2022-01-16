@@ -95,7 +95,7 @@ private:
         double gamm1  = gamma - 1.;
         double gamp1  = gamma + 1.;
         double gpogm  = gamp1 / gamm1;
-        double xgm1   = xgeom + 1.;
+        double xgm1   = xgeom - 1.;
 
         // Shock position
         double r2     = 0.5  * gamm1 * abs(vel0) * time;
