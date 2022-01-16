@@ -131,17 +131,18 @@ public:
      * where to put the assigned particles inside the buffer, such that we can reorder directly to the final
      * location. This saves us from having to move around data inside the buffers for a second time.
      */
-    template<class Reorderer, class Tc, class... Arrays>
-    std::tuple<LocalParticleIndex, gsl::span<const KeyType>> distribute(LocalParticleIndex particleStart,
-                                                                        LocalParticleIndex particleEnd,
-                                                                        LocalParticleIndex bufferSize,
-                                                                        Reorderer& reorderFunctor,
-                                                                        LocalParticleIndex* sfcOrder,
-                                                                        KeyType* particleKeys,
-                                                                        Tc* x,
-                                                                        Tc* y,
-                                                                        Tc* z,
-                                                                        Arrays... particleProperties) const
+    template<class Reorderer, class Tc, class Th, class... Arrays>
+    auto distribute(LocalParticleIndex particleStart,
+                    LocalParticleIndex particleEnd,
+                    LocalParticleIndex bufferSize,
+                    Reorderer& reorderFunctor,
+                    LocalParticleIndex* sfcOrder,
+                    KeyType* particleKeys,
+                    Tc* x,
+                    Tc* y,
+                    Tc* z,
+                    Th* h,
+                    Arrays... particleProperties) const
     {
         LocalParticleIndex numParticles          = particleEnd - particleStart;
         LocalParticleIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
@@ -156,7 +157,7 @@ public:
         // Leftover particles from the previous step can also be contained in the range.
         auto [newStart, newEnd] =
             exchangeParticles(domainExchangeSends, myRank_, particleStart, particleEnd, bufferSize,
-                              newNParticlesAssigned, sfcOrder, x, y, z, particleProperties...);
+                              newNParticlesAssigned, sfcOrder, x, y, z, h, particleProperties...);
 
         numParticles = newEnd - newStart;
         keyView      = gsl::span<KeyType>(particleKeys + newStart, numParticles);
@@ -172,9 +173,11 @@ public:
         // [particleStart:particleEnd]
         reorderFunctor.restrictRange(offset, newNParticlesAssigned);
 
-        reorderFunctor.getReorderMap(sfcOrder, offset, offset + newNParticlesAssigned);
+        LocalParticleIndex hStart = (particleStart + newNParticlesAssigned < bufferSize) ? particleStart : newStart;
+        reorderFunctor(h + newStart, h + hStart);
 
-        return {newStart, gsl::span<const KeyType>{particleKeys + newStart + offset, newNParticlesAssigned}};
+        return std::make_tuple(newStart, hStart,
+                               gsl::span<const KeyType>{particleKeys + newStart + offset, newNParticlesAssigned});
     }
 
     std::vector<int> findPeers(float theta)

@@ -58,25 +58,20 @@ public:
      * @param[in] particleKeys     Sorted view of locally owned particle keys, no halos
      * @param[in] box              Global coordinate bounding box
      * @param[in] h                smoothing lengths of locally owned particles
-     * @param[in] sfcOrder         order to access smoothing lengths with, such that
-     *                             particleKeys[i] <-> h[sfcOrder[i]]
      */
     template<class T, class Th>
     void discover(const Octree<KeyType>& focusedTree,
                   gsl::span<const TreeIndexPair> focusAssignment,
                   gsl::span<const KeyType> particleKeys,
                   const Box<T> box,
-                  const Th* h,
-                  gsl::span<const LocalParticleIndex> sfcOrder)
+                  const Th* h)
     {
-        assert(particleKeys.size() <= sfcOrder.size());
-
         gsl::span<const KeyType> leaves = focusedTree.treeLeaves();
         TreeNodeIndex firstAssignedNode = focusAssignment[myRank_].start();
         TreeNodeIndex lastAssignedNode  = focusAssignment[myRank_].end();
 
         std::vector<float> haloRadii(nNodes(leaves));
-        computeHaloRadii(leaves.data(), nNodes(leaves), particleKeys, sfcOrder.data(), h, haloRadii.data());
+        computeHaloRadii(leaves.data(), nNodes(leaves), particleKeys, h, haloRadii.data());
 
         reallocate(nNodes(leaves), haloFlags_);
         std::fill(begin(haloFlags_), end(haloFlags_), 0);

@@ -197,7 +197,7 @@ public:
         reallocate(exchangeSize, particleKeys, x, y, z, h, particleProperties...);
         std::vector<LocalParticleIndex> sfcOrder(x.size());
 
-        auto [exchangeStart_, keyView] = global_.distribute(
+        auto [exchangeStart, hStart, keyView] = global_.distribute(
             particleStart_, particleEnd_, x.size(), reorderFunctor, sfcOrder.data(), particleKeys.data(), x.data(),
             y.data(), z.data(), h.data(), particleProperties.data()...);
 
@@ -216,8 +216,7 @@ public:
 
         /* Halo discovery ***********************************************************************/
 
-        halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box, h.data() + exchangeStart_,
-                        sfcOrder);
+        halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box, h.data() + hStart);
 
         reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), keyView, peers,
@@ -228,9 +227,15 @@ public:
 
         /* Rearrange particle buffers ************************************************************/
 
-        reallocate(numParticles, x, y, z, h, particleProperties...);
-        reorderArrays(reorderFunctor, exchangeStart_, newParticleStart, x.data(), y.data(), z.data(), h.data(),
+        reallocate(numParticles, x, y, z, h, particleProperties..., swapSpace_);
+        reorderArrays(reorderFunctor, exchangeStart, newParticleStart, x.data(), y.data(), z.data(), /* no h */
                       particleProperties.data()...);
+        if (hStart != newParticleStart)
+        {
+            std::copy(h.data() + hStart, h.data() + hStart + newNParticlesAssigned,
+                      swapSpace_.data() + newParticleStart);
+            swap(h, swapSpace_);
+        }
 
         std::vector<KeyType> newKeys(numParticles);
         std::copy(keyView.begin(), keyView.end(), newKeys.begin() + newParticleStart);
@@ -370,6 +375,7 @@ private:
     bool firstCall_{true};
 
     ReorderFunctor reorderFunctor;
+    std::vector<T> swapSpace_;
 };
 
 } // namespace cstone
