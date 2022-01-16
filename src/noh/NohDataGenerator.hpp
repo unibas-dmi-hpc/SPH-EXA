@@ -14,13 +14,15 @@ class NohDataGenerator
 {
 public:
 
-    static constexpr double gamma         =  5./3.;
-    static constexpr double r0            =  0.;
-    static constexpr double r1            =  1.;
-    static constexpr bool   spheric_model =  true;
-    static constexpr double rho0          =  1.;
-    static constexpr double vel0          = -1.;
-    static constexpr T      firstTimeStep =  1e-6;
+    static constexpr double gamma         = 5.0/3.0;
+    static constexpr double r0            = 0.;
+    static constexpr double r1            = 1.0;
+    static constexpr bool   spheric_model = true;
+    static constexpr double rho0          = 1.0;
+    static constexpr double ener0         = 1.e-20;
+    static constexpr double vel0          = -1.0;
+    static constexpr double Mt            = 1.0;
+    static constexpr T      firstTimeStep = 1e-6;
 
     static ParticlesData<T, I> generate(const size_t side)
     {
@@ -167,17 +169,13 @@ public:
 
     static void init(ParticlesData<T, I> &pd)
     {
-        const T firstTimeStep = 1e-6;
         const T dx = 1.0 / pd.side;
 
-        double ener0 = 1.e-20;
+        double Mp = Mt / pd.n;
 
-        double Mt = 1.0;
-        double Mp = 1.0 / pd.n;
-
-        double CM_x = 0.0;
-        double CM_y = 0.0;
-        double CM_z = 0.0;
+        double CM_x = 0.;
+        double CM_y = 0.;
+        double CM_z = 0.;
 
         #pragma omp parallel for
         for (size_t i = 0; i < pd.count; i++)
@@ -193,20 +191,19 @@ public:
         #pragma omp parallel for
         for (size_t i = 0; i < pd.count; i++)
         {
-            double radius = sqrt(pd.x[i]*pd.x[i] + pd.y[i]*pd.y[i] +pd.z[i]*pd.z[i]);
+            double radius = sqrt(pd.x[i] * pd.x[i] +  pd.y[i] * pd.y[i]+ pd.z[i] * pd.z[i]);
 
-            // CGS
-            pd.m[i] = 1.0 / pd.n;
-
-            pd.vx[i] = -1.0 * (pd.x[i] - CM_x) / radius;
-            pd.vy[i] = -1.0 * (pd.y[i] - CM_y) / radius;
-            pd.vz[i] = -1.0 * (pd.z[i] - CM_z) / radius;
+            pd.vx[i] = vel0 * (pd.x[i] - CM_x) / radius;
+            pd.vy[i] = vel0 * (pd.y[i] - CM_y) / radius;
+            pd.vz[i] = vel0 * (pd.z[i] - CM_z) / radius;
 
             pd.u[i] = ener0;
-            pd.p[i] = pd.u[i]*1.0*((5.0/3.0)-1.0);
 
+            pd.p[i] = pd.u[i]*1.0*(gamma-1.0);
+
+            pd.m[i] = Mp;
             pd.h[i] = 1.5 * dx;
-            pd.ro[i] = 1.0;
+            pd.ro[i] = rho0;
 
             pd.mui[i] = 10.0;
 
