@@ -5,7 +5,7 @@
 #  2: Density (rho)
 #  3: Energy (U)
 #  4: Pressure (P)
-#  5: velocidad (|v|)
+#  5: velocidad (v)
 #
 ####################################################
 
@@ -42,7 +42,7 @@ solSedov="theoretical.dat"
  #set xrange [0:25]
  #set yrange[0:4]
 
- plot solSedov  u 1:2    w l ls 1 title "{/Symbol r}"
+ plot solSedov  u 1:2    w l ls 3 title "{/Symbol r}"
 
  set autoscale x
  set autoscale y
@@ -51,7 +51,7 @@ solSedov="theoretical.dat"
 ######################################################################################################
 
  set xlabel "R (cm)"
- set ylabel "log10(U) (erg.g^{-1})"
+ set ylabel "U (erg.g^{-1})"
  unset title
  set key right top
  #set logscale y
@@ -60,7 +60,7 @@ solSedov="theoretical.dat"
  #set xrange [0:25]
  #set yrange[0:4]
 
- plot solSedov  u 1:(log10($3))    w l ls 1 title "U"
+ plot solSedov  u 1:3    w l ls 1 title "U"
 
  #unset logscale y
  set autoscale x
@@ -86,14 +86,14 @@ solSedov="theoretical.dat"
 ######################################################################################################
 
  set xlabel "R (cm)"
- set ylabel "|V| (cm.s^{-1})"
+ set ylabel "V (cm.s^{-1})"
  unset title
  set key right top
  set output 'velocity.png'
  #set xrange [0:25]
  #set yrange[0:4]
 
- plot solSedov  u 1:5    w l ls 1 title "|V|"
+ plot solSedov  u 1:5    w l ls 1 title "Velocity"
 
  set autoscale x
  set autoscale y
@@ -131,7 +131,7 @@ unset format
 
 set xlabel "R (cm)"
 set ylabel  "{/Symbol r} (g.cm^{-2})"
-set y2label "|V| (cm~s^{-1})"
+set y2label "V (cm.s^{-1})"
 #set format y '%.1e'
 #set format y2 '%.1e'
 unset title
