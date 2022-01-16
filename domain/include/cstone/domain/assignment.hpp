@@ -32,6 +32,7 @@
 #pragma once
 
 #include "cstone/domain/domaindecomp_mpi.hpp"
+#include "cstone/domain/layout.hpp"
 #include "cstone/tree/octree_internal.hpp"
 #include "cstone/tree/octree_mpi.hpp"
 
@@ -136,7 +137,6 @@ public:
                     LocalParticleIndex particleEnd,
                     LocalParticleIndex bufferSize,
                     Reorderer& reorderFunctor,
-                    LocalParticleIndex* sfcOrder,
                     KeyType* particleKeys,
                     Tc* x,
                     Tc* y,
@@ -147,7 +147,8 @@ public:
         LocalParticleIndex numParticles          = particleEnd - particleStart;
         LocalParticleIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
 
-        reorderFunctor.getReorderMap(sfcOrder, 0, numParticles);
+        reallocate(numParticles, sfcOrder_);
+        reorderFunctor.getReorderMap(sfcOrder_.data(), 0, numParticles);
 
         gsl::span<KeyType> keyView(particleKeys + particleStart, numParticles);
 
@@ -157,12 +158,12 @@ public:
         // Leftover particles from the previous step can also be contained in the range.
         auto [newStart, newEnd] =
             exchangeParticles(domainExchangeSends, myRank_, particleStart, particleEnd, bufferSize,
-                              newNParticlesAssigned, sfcOrder, x, y, z, h, particleProperties...);
+                              newNParticlesAssigned, sfcOrder_.data(), x, y, z, h, particleProperties...);
 
-        numParticles = newEnd - newStart;
-        keyView      = gsl::span<KeyType>(particleKeys + newStart, numParticles);
+        LocalParticleIndex newNumParticles = newEnd - newStart;
+        keyView                            = gsl::span<KeyType>(particleKeys + newStart, newNumParticles);
 
-        computeSfcKeys(x + newStart, y + newStart, z + newStart, sfcKindPointer(keyView.begin()), numParticles, box_);
+        computeSfcKeys(x + newStart, y + newStart, z + newStart, sfcKindPointer(keyView.begin()), newNumParticles, box_);
         // sort keys and keep track of the ordering
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
 
@@ -173,6 +174,8 @@ public:
         // [particleStart:particleEnd]
         reorderFunctor.restrictRange(offset, newNParticlesAssigned);
 
+        // h is already reordered now, because the h values are needed for halo discovery
+        // as a guess for the most likely layout start, we use the previous particleStart if space permits
         LocalParticleIndex hStart = (particleStart + newNParticlesAssigned < bufferSize) ? particleStart : newStart;
         reorderFunctor(h + newStart, h + hStart);
 
@@ -209,6 +212,9 @@ private:
     Box<T> box_;
 
     SpaceCurveAssignment assignment_;
+
+    //! @brief storage for downloading the sfc ordering from the GPU
+    mutable std::vector<LocalParticleIndex> sfcOrder_;
 
     //! @brief cornerstone tree leaves for global domain decomposition
     std::vector<KeyType> tree_;

@@ -195,10 +195,9 @@ public:
 
         size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
         reallocate(exchangeSize, particleKeys, x, y, z, h, particleProperties...);
-        std::vector<LocalParticleIndex> sfcOrder(x.size());
 
         auto [exchangeStart, hStart, keyView] = global_.distribute(
-            particleStart_, particleEnd_, x.size(), reorderFunctor, sfcOrder.data(), particleKeys.data(), x.data(),
+            particleStart_, particleEnd_, x.size(), reorderFunctor, particleKeys.data(), x.data(),
             y.data(), z.data(), h.data(), particleProperties.data()...);
 
         Box<T> box             = global_.box();
@@ -232,8 +231,7 @@ public:
                       particleProperties.data()...);
         if (hStart != newParticleStart)
         {
-            std::copy(h.data() + hStart, h.data() + hStart + newNParticlesAssigned,
-                      swapSpace_.data() + newParticleStart);
+            std::copy(&h[hStart], &h[hStart + newNParticlesAssigned], &swapSpace_[newParticleStart]);
             swap(h, swapSpace_);
         }
 
