@@ -230,7 +230,7 @@ public:
         reorderArrays(reorderFunctor, exchangeStart, newParticleStart, x.data(), y.data(), z.data(), /* no h */
                       particleProperties.data()...);
 
-        omp_copy(h.begin(), h.begin() + newNParticlesAssigned, swapSpace_.begin() + newParticleStart);
+        omp_copy(h.begin(), h.begin() + keyView.size(), swapSpace_.begin() + newParticleStart);
         swap(h, swapSpace_);
         omp_copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newParticleStart);
         swap(particleKeys, swapKeys_);

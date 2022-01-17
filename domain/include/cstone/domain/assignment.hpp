@@ -152,7 +152,6 @@ public:
         reorderFunctor.getReorderMap(sfcOrder_.data(), 0, numParticles);
 
         gsl::span<KeyType> keyView(keys + particleStart, numParticles);
-
         SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_, keyView);
 
         // Assigned particles are now inside the [particleStart:particleEnd] range, but not exclusively.
@@ -171,12 +170,11 @@ public:
         // thanks to the sorting, we now know the exact range of the assigned particles:
         // [newStart + offset, newStart + offset + newNParticlesAssigned]
         LocalIndex offset = findNodeAbove<KeyType>(keyView, tree_[assignment_.firstNodeIdx(myRank_)]);
-        // restrict the reordering to take only the assigned particles into account and ignore the others in
-        // [newStart:newEnd]
+        // restrict the reordering to take only the assigned particles into account and ignore the others
         reorderFunctor.restrictRange(offset, newNParticlesAssigned);
         reorderFunctor(h + newStart, h);
 
-        return std::make_tuple(newStart, gsl::span<const KeyType>{keys + newStart + offset, newNParticlesAssigned});
+        return std::make_tuple(newStart, keyView.subspan(offset, newNParticlesAssigned));
     }
 
     std::vector<int> findPeers(float theta)
