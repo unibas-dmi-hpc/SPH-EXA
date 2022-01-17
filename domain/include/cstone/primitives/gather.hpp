@@ -38,7 +38,7 @@
 #include <tuple>
 #include <vector>
 
-#include "cstone/sfc/morton.hpp"
+#include "cstone/tree/definitions.h"
 #include "cstone/util/gsl-lite.hpp"
 
 namespace cstone
@@ -87,6 +87,19 @@ void sort_by_key(InoutIterator inBegin, InoutIterator inEnd, OutputIterator outB
     sort_by_key(inBegin, inEnd, outBegin, std::less<std::decay_t<decltype(*inBegin)>>{});
 }
 
+//! @brief copy with multiple OpenMP threads
+template<class InputIterator, class OutputIterator>
+void omp_copy(InputIterator first, InputIterator last, OutputIterator out)
+{
+    std::size_t n = last - first;
+
+    #pragma omp parallel for schedule(static)
+    for (std::size_t i = 0; i < n; ++i)
+    {
+        out[i] = first[i];
+    }
+}
+
 template<class IndexType, class ValueType>
 void reorder(gsl::span<const IndexType> ordering, const ValueType* source, ValueType* destination)
 {
@@ -114,11 +127,7 @@ void reorderInPlace(const std::vector<LocalIndex>& ordering, ValueType* array)
     {
         tmp[i] = array[ordering[i]];
     }
-    #pragma omp parallel for schedule(static)
-    for (std::size_t i = 0; i < ordering.size(); ++i)
-    {
-        array[i] = tmp[i];
-    }
+    omp_copy(tmp.begin(), tmp.end(), array);
 }
 
 //! @brief This class conforms to the same interface as the device version to allow abstraction
@@ -137,14 +146,14 @@ public:
     {
         mapSize_ = std::size_t(map_last - map_first);
         ordering_.resize(mapSize_);
-        std::copy(map_first, map_last, begin(ordering_));
+        omp_copy(map_first, map_last, begin(ordering_));
 
         buffer_.resize(mapSize_);
     }
 
-    void getReorderMap(IndexType* map_first, LocalParticleIndex first, LocalParticleIndex last)
+    void getReorderMap(IndexType* map_first, LocalIndex first, LocalIndex last)
     {
-        std::copy(ordering_.data() + first, ordering_.data() + last, map_first);
+        omp_copy(ordering_.data() + first, ordering_.data() + last, map_first);
     }
 
     /*! @brief sort given Morton codes on the device and determine reorder map based on sort order
@@ -187,12 +196,7 @@ public:
     void operator()(const ValueType* source, ValueType* destination, IndexType offset, IndexType numExtract) const
     {
         reorder<IndexType>({ordering_.data() + offset, numExtract}, source, buffer_.data());
-
-        #pragma omp parallel for schedule(static)
-        for (IndexType i = 0; i < numExtract; ++i)
-        {
-            destination[i] = buffer_[i];
-        }
+        omp_copy(buffer_.begin(), buffer_.begin() + numExtract, destination);
     }
 
     void operator()(const ValueType* source, ValueType* destination) const

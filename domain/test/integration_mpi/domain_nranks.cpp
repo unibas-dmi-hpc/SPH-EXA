@@ -81,7 +81,7 @@ void initCoordinates(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, Bo
 
 //! @brief can be used to calculate reasonable smoothing lengths for each particle
 template<class KeyType, class Tc, class Th>
-void adjustSmoothingLength(LocalParticleIndex numParticles,
+void adjustSmoothingLength(LocalIndex numParticles,
                            int ng0,
                            int ngmax,
                            const std::vector<Tc>& xGlob,
@@ -98,15 +98,15 @@ void adjustSmoothingLength(LocalParticleIndex numParticles,
     std::vector<Tc> h = hGlob;
 
     computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(codesGlobal.data()), numParticles, box);
-    std::vector<LocalParticleIndex> ordering(numParticles);
-    std::iota(begin(ordering), end(ordering), LocalParticleIndex(0));
+    std::vector<LocalIndex> ordering(numParticles);
+    std::iota(begin(ordering), end(ordering), LocalIndex(0));
     sort_by_key(begin(codesGlobal), end(codesGlobal), begin(ordering));
     reorderInPlace(ordering, x.data());
     reorderInPlace(ordering, y.data());
     reorderInPlace(ordering, z.data());
     reorderInPlace(ordering, h.data());
 
-    std::vector<LocalParticleIndex> inverseOrdering(numParticles);
+    std::vector<LocalIndex> inverseOrdering(numParticles);
     std::iota(begin(inverseOrdering), end(inverseOrdering), 0);
     std::vector orderCpy = ordering;
     sort_by_key(begin(orderCpy), end(orderCpy), begin(inverseOrdering));
@@ -115,7 +115,7 @@ void adjustSmoothingLength(LocalParticleIndex numParticles,
     std::vector<int> neighborCounts(numParticles);
 
     // adjust h[i] such that each particle has between ng0/2 and ngmax neighbors
-    for (LocalParticleIndex i = 0; i < numParticles; ++i)
+    for (LocalIndex i = 0; i < numParticles; ++i)
     {
         do
         {
@@ -128,7 +128,7 @@ void adjustSmoothingLength(LocalParticleIndex numParticles,
         } while (neighborCounts[i] < ng0/2 || neighborCounts[i] >= ngmax);
     }
 
-    for (LocalParticleIndex i = 0; i < numParticles; ++i)
+    for (LocalIndex i = 0; i < numParticles; ++i)
     {
         hGlob[i] = h[inverseOrdering[i]];
     }
@@ -137,7 +137,7 @@ void adjustSmoothingLength(LocalParticleIndex numParticles,
 template<class KeyType, class T, class DomainType>
 void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalizeH = false)
 {
-    LocalParticleIndex numParticles = (1000 / nRanks) * nRanks;
+    LocalIndex numParticles = (1000 / nRanks) * nRanks;
     Box<T> box = domain.box();
 
     // numParticles identical coordinates on each rank
@@ -158,36 +158,36 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
         }
     }
 
-    LocalParticleIndex nParticlesPerRank = numParticles / nRanks;
+    LocalIndex nParticlesPerRank = numParticles / nRanks;
 
     std::vector<T> x{xGlobal.begin() + rank * nParticlesPerRank, xGlobal.begin() + (rank + 1) * nParticlesPerRank};
     std::vector<T> y{yGlobal.begin() + rank * nParticlesPerRank, yGlobal.begin() + (rank + 1) * nParticlesPerRank};
     std::vector<T> z{zGlobal.begin() + rank * nParticlesPerRank, zGlobal.begin() + (rank + 1) * nParticlesPerRank};
     std::vector<T> h{hGlobal.begin() + rank * nParticlesPerRank, hGlobal.begin() + (rank + 1) * nParticlesPerRank};
 
-    std::vector<KeyType> codes(x.size());
-    domain.sync(x, y, z, h, codes);
+    std::vector<KeyType> keys(x.size());
+    domain.sync(keys, x, y, z, h);
 
-    LocalParticleIndex localCount = domain.endIndex() - domain.startIndex();
-    LocalParticleIndex localCountSum = localCount;
+    LocalIndex localCount = domain.endIndex() - domain.startIndex();
+    LocalIndex localCountSum = localCount;
     //int extractedCount = x.size();
     MPI_Allreduce(MPI_IN_PLACE, &localCountSum, 1, MpiType<int>{}, MPI_SUM, MPI_COMM_WORLD);
     EXPECT_EQ(localCountSum, numParticles);
 
     // box got updated if not using PBC
     box = domain.box();
-    std::vector<KeyType> particleKeys(x.size());
-    computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
+    std::vector<KeyType> keysRef(x.size());
+    computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(keysRef.data()), x.size(), box);
 
-    // check that particles are Morton order sorted and the codes are in sync with the x,y,z arrays
-    EXPECT_EQ(particleKeys, codes);
-    EXPECT_TRUE(std::is_sorted(begin(particleKeys), end(particleKeys)));
+    // check that particles are SFC order sorted and the keys are in sync with the x,y,z arrays
+    EXPECT_EQ(keys, keysRef);
+    EXPECT_TRUE(std::is_sorted(begin(keysRef), end(keysRef)));
 
     int ngmax = 300;
     std::vector<int> neighbors(localCount * ngmax);
     std::vector<int> neighborsCount(localCount);
     findNeighbors(x.data(), y.data(), z.data(), h.data(), domain.startIndex(), domain.endIndex(), x.size(),
-                  box, sfcKindPointer(particleKeys.data()), neighbors.data(), neighborsCount.data(), ngmax);
+                  box, sfcKindPointer(keysRef.data()), neighbors.data(), neighborsCount.data(), ngmax);
 
     int neighborSum = std::accumulate(begin(neighborsCount), end(neighborsCount), 0);
     MPI_Allreduce(MPI_IN_PLACE, &neighborSum, 1, MpiType<int>{}, MPI_SUM, MPI_COMM_WORLD);
@@ -197,8 +197,8 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
         std::vector<KeyType> codesGlobal(numParticles);
         computeSfcKeys(xGlobal.data(), yGlobal.data(), zGlobal.data(), sfcKindPointer(codesGlobal.data()),
                        numParticles, box);
-        std::vector<LocalParticleIndex> ordering(numParticles);
-        std::iota(begin(ordering), end(ordering), LocalParticleIndex(0));
+        std::vector<LocalIndex> ordering(numParticles);
+        std::iota(begin(ordering), end(ordering), LocalIndex(0));
         sort_by_key(begin(codesGlobal), end(codesGlobal), begin(ordering));
         reorderInPlace(ordering, xGlobal.data());
         reorderInPlace(ordering, yGlobal.data());
@@ -286,7 +286,7 @@ TEST(FocusDomain, assignmentShift)
     using KeyType = unsigned;
 
     Box<Real> box(0, 1);
-    LocalParticleIndex numParticlesPerRank = 15000;
+    LocalIndex numParticlesPerRank = 15000;
     unsigned bucketSize = 1024;
     unsigned bucketSizeFocus = 8;
     float theta = 0.5;
@@ -302,7 +302,7 @@ TEST(FocusDomain, assignmentShift)
 
     std::vector<KeyType> particleKeys(x.size());
 
-    domain.sync(x,y,z,h, particleKeys);
+    domain.sync(particleKeys, x, y, z, h);
 
     if (rank == 2)
     {
@@ -312,10 +312,10 @@ TEST(FocusDomain, assignmentShift)
         }
     }
 
-    domain.sync(x,y,z,h, particleKeys);
+    domain.sync(particleKeys, x, y, z, h);
 
     std::vector<Real> property(domain.nParticlesWithHalos(), -1);
-    for (LocalParticleIndex i = domain.startIndex(); i < domain.endIndex(); ++i)
+    for (LocalIndex i = domain.startIndex(); i < domain.endIndex(); ++i)
     {
         property[i] = rank;
     }

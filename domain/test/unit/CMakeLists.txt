@@ -27,6 +27,7 @@ set(UNIT_TESTS
         tree/octree_internal.cpp
         tree/octree_internal_td.cpp
         tree/octree_util.cpp
+        util/util.cpp
         test_main.cpp)
 
 add_executable(component_units ${UNIT_TESTS})
