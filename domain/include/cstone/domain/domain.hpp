@@ -83,7 +83,7 @@ public:
         , numRanks_(nRanks)
         , bucketSizeFocus_(bucketSizeFocus)
         , theta_(theta)
-        , focusTree_(rank, nRanks, bucketSizeFocus_, theta_)
+        , focusTree_(rank, numRanks_, bucketSizeFocus_, theta_)
         , global_(rank, nRanks, bucketSize, box)
     {
         if (bucketSize < bucketSizeFocus_)
@@ -221,22 +221,21 @@ public:
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), keyView, peers,
                              layout_);
 
-        auto newParticleStart = layout_[focusTree_.assignment()[myRank_].start()];
-        auto numParticles     = layout_.back();
+        auto myRange = focusTree_.assignment()[myRank_];
+        BufferDescription newBufDesc{layout_[myRange.start()], layout_[myRange.end()], layout_.back()};
 
         /* Rearrange particle buffers ************************************************************/
 
-        reallocate(numParticles, x, y, z, h, particleProperties..., swapSpace_, swapKeys_);
-        reorderArrays(reorderFunctor, exchangeStart, newParticleStart, x.data(), y.data(), z.data(), /* no h */
+        reallocate(newBufDesc.size, x, y, z, h, particleProperties..., swapSpace_, swapKeys_);
+        reorderArrays(reorderFunctor, exchangeStart, newBufDesc.start, x.data(), y.data(), z.data(), /* no h */
                       particleProperties.data()...);
 
-        omp_copy(h.begin(), h.begin() + keyView.size(), swapSpace_.begin() + newParticleStart);
+        omp_copy(h.begin(), h.begin() + keyView.size(), swapSpace_.begin() + newBufDesc.start);
         swap(h, swapSpace_);
-        omp_copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newParticleStart);
+        omp_copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newBufDesc.start);
         swap(particleKeys, swapKeys_);
 
-        bufDesc_.start = newParticleStart;
-        bufDesc_.end   = layout_[focusTree_.assignment()[myRank_].end()];
+        std::swap(newBufDesc, bufDesc_);
 
         /* Halo exchange *************************************************************************/
 
@@ -299,7 +298,7 @@ public:
     [[nodiscard]] LocalIndex nParticles() const { return endIndex() - startIndex(); }
 
     //! @brief return number of locally assigned particles plus number of halos
-    [[nodiscard]] LocalIndex nParticlesWithHalos() const { return layout_.back(); }
+    [[nodiscard]] LocalIndex nParticlesWithHalos() const { return bufDesc_.size; }
 
     //! @brief read only visibility of the global octree leaves to the outside
     gsl::span<const KeyType> tree() const { return global_.tree(); }
@@ -319,10 +318,7 @@ private:
         if (firstCall_)
         {
             bufDesc_ = {0, LocalIndex(bufferSize), LocalIndex(bufferSize)};
-
-            //particleStart_ = 0;
-            //particleEnd_   = bufferSize;
-            layout_        = {0, LocalIndex(bufferSize)};
+            layout_  = {0, LocalIndex(bufferSize)};
         }
     }
 
@@ -345,12 +341,12 @@ private:
     //! @brief MAC parameter for focus resolution and gravity treewalk
     float theta_;
 
-    /*! @brief array index of first local particle belonging to the assignment
-     *  i.e. the index of the first particle that belongs to this rank and is not a halo.
+    /*! @brief description of particle buffers, storing start and end indices of assigned particles and total size
+     *
+     *  First element: array index of first local particle belonging to the assignment
+     *  i.e. the index of the first particle that belongs to this rank and is not a halo
+     *  Second element: index (upper bound) of last particle that belongs to the assignment
      */
-    //LocalIndex particleStart_{0};
-    //! @brief index (upper bound) of last particle that belongs to the assignment
-    //LocalIndex particleEnd_{0};
     BufferDescription bufDesc_{0, 0, 0};
 
     /*! @brief locally focused, fully traversable octree, used for halo discovery and exchange
