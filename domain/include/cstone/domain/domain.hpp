@@ -230,9 +230,9 @@ public:
         reorderArrays(reorderFunctor, exchangeStart, newParticleStart, x.data(), y.data(), z.data(), /* no h */
                       particleProperties.data()...);
 
-        std::copy(h.begin(), h.begin() + newNParticlesAssigned, swapSpace_.begin() + newParticleStart);
+        omp_copy(h.begin(), h.begin() + newNParticlesAssigned, swapSpace_.begin() + newParticleStart);
         swap(h, swapSpace_);
-        std::copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newParticleStart);
+        omp_copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newParticleStart);
         swap(particleKeys, swapKeys_);
 
         particleStart_ = newParticleStart;
