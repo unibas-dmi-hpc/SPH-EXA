@@ -232,7 +232,8 @@ public:
     template<class... Arrays>
     void exchangeHalos(Arrays&... arrays) const
     {
-        halos_.exchangeHalos(arrays...);
+        checkSizesEqual(bufDesc_.size, arrays...);
+        halos_.exchangeHalos(arrays.data()...);
     }
 
     /*! @brief compute gravitational accelerations

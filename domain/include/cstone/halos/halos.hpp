@@ -104,11 +104,9 @@ public:
         auto newParticleStart = layout[assignment[myRank_].start()];
         auto newParticleEnd   = layout[assignment[myRank_].end()];
 
-        particleBufferSize_ = layout.back();
-
         outgoingHaloIndices_ =
             exchangeRequestKeys<KeyType>(leaves, haloFlags_, particleKeys, newParticleStart, assignment, peers);
-        checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd);
+        checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd, layout.back());
 
         incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags_, assignment, peers);
     }
@@ -120,36 +118,22 @@ public:
      * Arrays are not resized or reallocated. Function is const, but modifies mutable haloEpoch_ counter.
      */
     template<class... Arrays>
-    void exchangeHalos(Arrays&... arrays) const
+    void exchangeHalos(Arrays... arrays) const
     {
-        if (!sizesAllEqualTo(particleBufferSize_, arrays...))
-        {
-            throw std::runtime_error("halo exchange array sizes inconsistent with previous sync operation\n");
-        }
-
-        haloexchange(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
+        haloexchange(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays...);
     }
 
 private:
-
-    //! @brief return true if all array sizes are equal to value
-    template<class... Arrays>
-    static bool sizesAllEqualTo(std::size_t value, Arrays&... arrays)
-    {
-        std::array<std::size_t, sizeof...(Arrays)> sizes{arrays.size()...};
-        return size_t(std::count(begin(sizes), end(sizes), value)) == sizes.size();
-    }
-
     //! @brief check that only owned particles in [particleStart_:particleEnd_] are sent out as halos
     void checkIndices(const SendList& sendList, [[maybe_unused]] LocalIndex start,
-                      [[maybe_unused]] LocalIndex end)
+                      [[maybe_unused]] LocalIndex end, LocalIndex bufferSize)
     {
         for (const auto& manifest : sendList)
         {
             for (size_t ri = 0; ri < manifest.nRanges(); ++ri)
             {
                 assert(!overlapTwoRanges(LocalIndex{0}, start, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
-                assert(!overlapTwoRanges(end, particleBufferSize_, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
+                assert(!overlapTwoRanges(end, bufferSize, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
             }
         }
     }
@@ -193,8 +177,6 @@ private:
     }
 
     int myRank_;
-
-    LocalIndex particleBufferSize_{0};
 
     SendList incomingHaloIndices_;
     SendList outgoingHaloIndices_;
