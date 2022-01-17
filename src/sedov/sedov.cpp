@@ -49,7 +49,7 @@ int main(int argc, char** argv)
     }
 
     const size_t cubeSide = parser.getInt("-n", 50);
-    const size_t maxStep = parser.getInt("-s", 10);
+    const size_t maxStep = parser.getInt("-s", 100);
     const int writeFrequency = parser.getInt("-w", -1);
     const bool solution = parser.exists("--sol");
     const bool quiet = parser.exists("--quiet");
@@ -71,7 +71,7 @@ int main(int argc, char** argv)
     const double omega  = 0.0;
     const double gamma  = SedovDataGenerator<Real, KeyType>::gamma;
     const double r0     = SedovDataGenerator<Real, KeyType>::r0;
-    const double rMax   = 2. * SedovDataGenerator<Real, KeyType>::r1;
+    const double r1     = SedovDataGenerator<Real, KeyType>::r1;
     const double rho0   = SedovDataGenerator<Real, KeyType>::rho0;
     const double u0     = 0.0;
     const double p0     = 0.0;
@@ -243,7 +243,7 @@ int main(int argc, char** argv)
                 // Calculate and write theoretical solution in 1D
                 size_t nSteps = 1000;  // Instead of 'domain.nParticles()'. It is not needed more precission to compere.
                 SedovAnalyticalSolution::create(dim,
-                                                r0, rMax,
+                                                r0, r1,
                                                 nSteps,
                                                 d.ttot,
                                                 eblast,
@@ -309,7 +309,7 @@ void printHelp(char* name, int rank)
         printf("\nWhere possible options are:\n\n");
 
         printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
-        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [10]\n\n");
+        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [100]\n\n");
 
         printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n");
         printf("\t--sol   \t\t Print anytical solution every dump [false]\n\n");
