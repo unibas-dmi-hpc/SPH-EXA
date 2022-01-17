@@ -183,38 +183,20 @@ public:
               std::vector<T>& h,
               Vectors&... particleProperties)
     {
-        initBounds(x.size());
-        checkSizesEqual(x.size(), particleKeys, x, y, z, h, particleProperties...);
-
-        /* Global tree build and assignment ******************************************************/
-
-        LocalIndex newNParticlesAssigned =
-            global_.assign(bufDesc_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data());
-
-        /* Domain particles update phase *********************************************************/
-
-        size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
-        reallocate(exchangeSize, particleKeys, x, y, z, h, particleProperties...);
-
-        auto [exchangeStart, keyView] = global_.distribute(bufDesc_, reorderFunctor, particleKeys.data(), x.data(),
-                                                           y.data(), z.data(), h.data(), particleProperties.data()...);
-
-        Box<T> box             = global_.box();
-        std::vector<int> peers = global_.findPeers(theta_);
+        auto [exchangeStart, keyView] = distribute(particleKeys, x, y, z, h, particleProperties...);
 
         /* Focused tree build ********************************************************************/
+        std::vector<int> peers = global_.findPeers(theta_);
 
         if (firstCall_)
         {
-            focusTree_.converge(box, keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
         }
-
         focusTree_.updateTree(peers, global_.assignment(), global_.tree());
-        focusTree_.updateCriteria(box, keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+        focusTree_.updateCriteria(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
 
         /* Halo discovery ***********************************************************************/
-
-        halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box, h.data());
+        halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
 
         reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), keyView, peers,
@@ -224,7 +206,6 @@ public:
         BufferDescription newBufDesc{layout_[myRange.start()], layout_[myRange.end()], layout_.back()};
 
         /* Rearrange particle buffers ************************************************************/
-
         reallocate(newBufDesc.size, x, y, z, h, particleProperties..., swapSpace_, swapKeys_);
         reorderArrays(reorderFunctor, exchangeStart, newBufDesc.start, x.data(), y.data(), z.data(), /* no h */
                       particleProperties.data()...);
@@ -237,13 +218,12 @@ public:
         std::swap(newBufDesc, bufDesc_);
 
         /* Halo exchange *************************************************************************/
-
         exchangeHalos(x, y, z, h);
 
         // compute SFC keys of received halo particles
-        computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), bufDesc_.start, box);
+        computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), bufDesc_.start, box());
         computeSfcKeys(x.data() + bufDesc_.end, y.data() + bufDesc_.end, z.data() + bufDesc_.end,
-                       sfcKindPointer(particleKeys.data()) + bufDesc_.end, x.size() - bufDesc_.end, box);
+                       sfcKindPointer(particleKeys.data()) + bufDesc_.end, x.size() - bufDesc_.end, box());
 
         firstCall_ = false;
     }
@@ -306,7 +286,7 @@ public:
     gsl::span<const KeyType> focusTree() const { return focusTree_.treeLeaves(); }
 
     //! @brief return the coordinate bounding box from the previous sync call
-    Box<T> box() const { return global_.box(); }
+    const Box<T>& box() const { return global_.box(); }
 
 private:
 
@@ -331,6 +311,28 @@ private:
         {
             throw std::runtime_error("Domain sync: input array sizes are inconsistent\n");
         }
+    }
+
+    template<class... Vectors>
+    auto distribute(std::vector<KeyType>& particleKeys,
+                    std::vector<T>& x,
+                    std::vector<T>& y,
+                    std::vector<T>& z,
+                    std::vector<T>& h,
+                    Vectors&... particleProperties)
+    {
+        initBounds(x.size());
+        checkSizesEqual(x.size(), particleKeys, x, y, z, h, particleProperties...);
+
+        // Global tree build and assignment
+        LocalIndex newNParticlesAssigned =
+            global_.assign(bufDesc_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data());
+
+        size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
+        reallocate(exchangeSize, particleKeys, x, y, z, h, particleProperties...);
+
+        return global_.distribute(bufDesc_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data(), h.data(),
+                                  particleProperties.data()...);
     }
 
     int myRank_;
