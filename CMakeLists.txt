@@ -82,7 +82,7 @@ set(INSITU None CACHE STRING "Enable in-situ support")
 set_property(CACHE INSITU PROPERTY STRINGS None Catalyst Ascent)
 
 if(INSITU STREQUAL "Catalyst")
-	find_package(catalyst REQUIRED PATHS "/scratch/snx3000/jfavre/daint/software/ParaView/5.10.0-CrayGNU-20.11-RC2-EGL-python3/lib/cmake/paraview-5.10")
+    find_package(catalyst REQUIRED PATHS "$ENV{EBROOTPARAVIEW}/lib/cmake/paraview-5.10")
 elseif(INSITU STREQUAL "Ascent")
     find_package(Ascent REQUIRED PATHS "/apps/daint/UES/Ascent/ascent-install/lib/cmake/ascent")
 endif()
