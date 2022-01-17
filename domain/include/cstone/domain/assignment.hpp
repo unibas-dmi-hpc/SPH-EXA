@@ -77,13 +77,13 @@ public:
      *
      * This function does not modify / communicate any particle data.
      */
-    template<class Tc, class Reorderer>
+    template<class Reorderer>
     LocalIndex assign(BufferDescription bufDesc,
                       Reorderer& reorderFunctor,
                       KeyType* particleKeys,
-                      const Tc* x,
-                      const Tc* y,
-                      const Tc* z)
+                      const T* x,
+                      const T* y,
+                      const T* z)
     {
         box_ = makeGlobalBox(x + bufDesc.start, x + bufDesc.end, y + bufDesc.start, z + bufDesc.start, box_);
 
@@ -133,14 +133,13 @@ public:
      * where to put the assigned particles inside the buffer, such that we can reorder directly to the final
      * location. This saves us from having to move around data inside the buffers for a second time.
      */
-    template<class Reorderer, class Tc, class Th, class... Arrays>
+    template<class Reorderer, class... Arrays>
     auto distribute(BufferDescription bufDesc,
                     Reorderer& reorderFunctor,
                     KeyType* keys,
-                    Tc* x,
-                    Tc* y,
-                    Tc* z,
-                    Th* h,
+                    T* x,
+                    T* y,
+                    T* z,
                     Arrays... particleProperties) const
     {
         LocalIndex numParticles          = bufDesc.end - bufDesc.start;
@@ -156,7 +155,7 @@ public:
         // Leftover particles from the previous step can also be contained in the range.
         auto [newStart, newEnd] =
             exchangeParticles(domainExchangeSends, myRank_, bufDesc.start, bufDesc.end, bufDesc.size,
-                              newNParticlesAssigned, sfcOrder_.data(), x, y, z, h, particleProperties...);
+                              newNParticlesAssigned, sfcOrder_.data(), x, y, z, particleProperties...);
 
         LocalIndex envelopeSize = newEnd - newStart;
         keyView                 = gsl::span<KeyType>(keys + newStart, envelopeSize);
@@ -170,7 +169,6 @@ public:
         LocalIndex offset = findNodeAbove<KeyType>(keyView, tree_[assignment_.firstNodeIdx(myRank_)]);
         // restrict the reordering to take only the assigned particles into account and ignore the others
         reorderFunctor.restrictRange(offset, newNParticlesAssigned);
-        reorderFunctor(h + newStart, h);
 
         return std::make_tuple(newStart, keyView.subspan(offset, newNParticlesAssigned));
     }

@@ -183,6 +183,8 @@ public:
               Vectors&... particleProperties)
     {
         auto [exchangeStart, keyView] = distribute(particleKeys, x, y, z, h, particleProperties...);
+        // h is already reordered here for use in halo discovery
+        reorderFunctor(h.data() + exchangeStart, h.data());
 
         std::vector<int> peers = global_.findPeers(theta_);
 
@@ -295,20 +297,19 @@ private:
                     std::vector<T>& x,
                     std::vector<T>& y,
                     std::vector<T>& z,
-                    std::vector<T>& h,
                     Vectors&... particleProperties)
     {
         initBounds(x.size());
-        checkSizesEqual(x.size(), particleKeys, x, y, z, h, particleProperties...);
+        checkSizesEqual(x.size(), particleKeys, x, y, z, particleProperties...);
 
         // Global tree build and assignment
         LocalIndex newNParticlesAssigned =
             global_.assign(bufDesc_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data());
 
         size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
-        reallocate(exchangeSize, particleKeys, x, y, z, h, particleProperties...);
+        reallocate(exchangeSize, particleKeys, x, y, z, particleProperties...);
 
-        return global_.distribute(bufDesc_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data(), h.data(),
+        return global_.distribute(bufDesc_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data(),
                                   particleProperties.data()...);
     }
 
