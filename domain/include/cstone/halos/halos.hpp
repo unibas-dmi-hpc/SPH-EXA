@@ -98,7 +98,7 @@ public:
                        gsl::span<const TreeIndexPair> assignment,
                        gsl::span<const KeyType> particleKeys,
                        gsl::span<const int> peers,
-                       gsl::span<LocalParticleIndex> layout)
+                       gsl::span<LocalIndex> layout)
     {
         computeNodeLayout(counts, haloFlags_, assignment[myRank_].start(), assignment[myRank_].end(), layout);
         auto newParticleStart = layout[assignment[myRank_].start()];
@@ -141,14 +141,14 @@ private:
     }
 
     //! @brief check that only owned particles in [particleStart_:particleEnd_] are sent out as halos
-    void checkIndices(const SendList& sendList, [[maybe_unused]] LocalParticleIndex start,
-                      [[maybe_unused]] LocalParticleIndex end)
+    void checkIndices(const SendList& sendList, [[maybe_unused]] LocalIndex start,
+                      [[maybe_unused]] LocalIndex end)
     {
         for (const auto& manifest : sendList)
         {
             for (size_t ri = 0; ri < manifest.nRanges(); ++ri)
             {
-                assert(!overlapTwoRanges(LocalParticleIndex{0}, start, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
+                assert(!overlapTwoRanges(LocalIndex{0}, start, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
                 assert(!overlapTwoRanges(end, particleBufferSize_, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
             }
         }
@@ -194,7 +194,7 @@ private:
 
     int myRank_;
 
-    LocalParticleIndex particleBufferSize_{0};
+    LocalIndex particleBufferSize_{0};
 
     SendList incomingHaloIndices_;
     SendList outgoingHaloIndices_;

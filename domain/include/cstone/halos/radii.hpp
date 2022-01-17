@@ -84,11 +84,11 @@ void computeHaloRadii(const KeyType* tree, TreeNodeIndex nNodes, gsl::span<const
         KeyType nodeEnd   = tree[i + 1];
 
         // find elements belonging to particles in node i
-        LocalParticleIndex startIndex = findNodeAbove(particleKeys, nodeStart);
-        LocalParticleIndex endIndex   = findNodeAbove(particleKeys, nodeEnd);
+        LocalIndex startIndex = findNodeAbove(particleKeys, nodeStart);
+        LocalIndex endIndex   = findNodeAbove(particleKeys, nodeEnd);
 
         Tin nodeMax = 0;
-        for (LocalParticleIndex p = startIndex; p < endIndex; ++p)
+        for (LocalIndex p = startIndex; p < endIndex; ++p)
         {
             nodeMax = std::max(nodeMax, input[p]);
         }

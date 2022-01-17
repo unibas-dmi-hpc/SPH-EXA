@@ -79,13 +79,14 @@ public:
      * This function does not modify / communicate any particle data.
      */
     template<class Tc, class Reorderer>
-    LocalParticleIndex assign(LocalParticleIndex particleStart_, LocalParticleIndex particleEnd_,
+    LocalIndex assign(LocalIndex particleStart_,
+                      LocalIndex particleEnd_,
                               Reorderer& reorderFunctor, KeyType* particleKeys, const Tc* x, const Tc* y, const Tc* z)
     {
         box_ = makeGlobalBox(x + particleStart_, x + particleEnd_, y + particleStart_, z + particleStart_, box_);
 
         // number of locally assigned particles to consider for global tree building
-        LocalParticleIndex numParticles = particleEnd_ - particleStart_;
+        LocalIndex numParticles = particleEnd_ - particleStart_;
 
         gsl::span<KeyType> keyView(particleKeys + particleStart_, numParticles);
 
@@ -133,9 +134,9 @@ public:
      * location. This saves us from having to move around data inside the buffers for a second time.
      */
     template<class Reorderer, class Tc, class Th, class... Arrays>
-    auto distribute(LocalParticleIndex particleStart,
-                    LocalParticleIndex particleEnd,
-                    LocalParticleIndex bufferSize,
+    auto distribute(LocalIndex particleStart,
+                    LocalIndex particleEnd,
+                    LocalIndex bufferSize,
                     Reorderer& reorderFunctor,
                     KeyType* keys,
                     Tc* x,
@@ -144,8 +145,8 @@ public:
                     Th* h,
                     Arrays... particleProperties) const
     {
-        LocalParticleIndex numParticles          = particleEnd - particleStart;
-        LocalParticleIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
+        LocalIndex numParticles          = particleEnd - particleStart;
+        LocalIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
 
         reallocate(numParticles, sfcOrder_);
         reorderFunctor.getReorderMap(sfcOrder_.data(), 0, numParticles);
@@ -160,8 +161,8 @@ public:
             exchangeParticles(domainExchangeSends, myRank_, particleStart, particleEnd, bufferSize,
                               newNParticlesAssigned, sfcOrder_.data(), x, y, z, h, particleProperties...);
 
-        LocalParticleIndex envelopeSize = newEnd - newStart;
-        keyView                         = gsl::span<KeyType>(keys + newStart, envelopeSize);
+        LocalIndex envelopeSize = newEnd - newStart;
+        keyView                 = gsl::span<KeyType>(keys + newStart, envelopeSize);
 
         computeSfcKeys(x + newStart, y + newStart, z + newStart, sfcKindPointer(keyView.begin()), envelopeSize, box_);
         // sort keys and keep track of the ordering
@@ -169,7 +170,7 @@ public:
 
         // thanks to the sorting, we now know the exact range of the assigned particles:
         // [newStart + offset, newStart + offset + newNParticlesAssigned]
-        LocalParticleIndex offset = findNodeAbove<KeyType>(keyView, tree_[assignment_.firstNodeIdx(myRank_)]);
+        LocalIndex offset = findNodeAbove<KeyType>(keyView, tree_[assignment_.firstNodeIdx(myRank_)]);
         // restrict the reordering to take only the assigned particles into account and ignore the others in
         // [newStart:newEnd]
         reorderFunctor.restrictRange(offset, newNParticlesAssigned);
@@ -209,7 +210,7 @@ private:
     SpaceCurveAssignment assignment_;
 
     //! @brief storage for downloading the sfc ordering from the GPU
-    mutable std::vector<LocalParticleIndex> sfcOrder_;
+    mutable std::vector<LocalIndex> sfcOrder_;
 
     //! @brief cornerstone tree leaves for global domain decomposition
     std::vector<KeyType> tree_;

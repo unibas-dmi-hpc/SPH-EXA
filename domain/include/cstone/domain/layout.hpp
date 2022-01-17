@@ -146,7 +146,7 @@ inline void computeNodeLayout(gsl::span<const unsigned> focusLeafCounts,
                               gsl::span<const int> haloFlags,
                               TreeNodeIndex firstAssignedIdx,
                               TreeNodeIndex lastAssignedIdx,
-                              gsl::span<LocalParticleIndex> layout)
+                              gsl::span<LocalIndex> layout)
 {
     #pragma omp parallel for
     for (TreeNodeIndex i = 0; i < TreeNodeIndex(focusLeafCounts.size()); ++i)
@@ -168,7 +168,7 @@ inline void computeNodeLayout(gsl::span<const unsigned> focusLeafCounts,
  * @return             list of array index ranges for the receiving part in exchangeHalos
  */
 inline
-SendList computeHaloReceiveList(gsl::span<const LocalParticleIndex> layout,
+SendList computeHaloReceiveList(gsl::span<const LocalIndex> layout,
                                 gsl::span<const int> haloFlags,
                                 gsl::span<const TreeIndexPair> assignment,
                                 gsl::span<const int> peerRanks)
@@ -180,8 +180,8 @@ SendList computeHaloReceiveList(gsl::span<const LocalParticleIndex> layout,
         TreeNodeIndex peerStartIdx = assignment[peer].start();
         TreeNodeIndex peerEndIdx   = assignment[peer].end();
 
-        std::vector<LocalParticleIndex> receiveRanges =
-            extractMarkedElements<LocalParticleIndex>(layout, haloFlags, peerStartIdx, peerEndIdx);
+        std::vector<LocalIndex> receiveRanges =
+            extractMarkedElements<LocalIndex>(layout, haloFlags, peerStartIdx, peerEndIdx);
 
         for (std::size_t i = 0; i < receiveRanges.size(); i +=2 )
         {

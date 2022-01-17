@@ -58,7 +58,7 @@ class Domain
 {
     static_assert(std::is_unsigned<KeyType>{}, "SFC key type needs to be an unsigned integer\n");
 
-    using ReorderFunctor = ReorderFunctor_t<Accelerator, T, KeyType, LocalParticleIndex>;
+    using ReorderFunctor = ReorderFunctor_t<Accelerator, T, KeyType, LocalIndex>;
 
 public:
     /*! @brief construct empty Domain
@@ -188,7 +188,7 @@ public:
 
         /* Global tree build and assignment ******************************************************/
 
-        LocalParticleIndex newNParticlesAssigned = global_.assign(
+        LocalIndex newNParticlesAssigned = global_.assign(
             particleStart_, particleEnd_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data());
 
         /* Domain particles update phase *********************************************************/
@@ -290,16 +290,16 @@ public:
     }
 
     //! @brief return the index of the first particle that's part of the local assignment
-    [[nodiscard]] LocalParticleIndex startIndex() const { return particleStart_; }
+    [[nodiscard]] LocalIndex startIndex() const { return particleStart_; }
 
     //! @brief return one past the index of the last particle that's part of the local assignment
-    [[nodiscard]] LocalParticleIndex endIndex() const { return particleEnd_; }
+    [[nodiscard]] LocalIndex endIndex() const { return particleEnd_; }
 
     //! @brief return number of locally assigned particles
-    [[nodiscard]] LocalParticleIndex nParticles() const { return endIndex() - startIndex(); }
+    [[nodiscard]] LocalIndex nParticles() const { return endIndex() - startIndex(); }
 
     //! @brief return number of locally assigned particles plus number of halos
-    [[nodiscard]] LocalParticleIndex nParticlesWithHalos() const { return layout_.back(); }
+    [[nodiscard]] LocalIndex nParticlesWithHalos() const { return layout_.back(); }
 
     //! @brief read only visibility of the global octree leaves to the outside
     gsl::span<const KeyType> tree() const { return global_.tree(); }
@@ -320,7 +320,7 @@ private:
         {
             particleStart_ = 0;
             particleEnd_   = bufferSize;
-            layout_        = {0, LocalParticleIndex(bufferSize)};
+            layout_        = {0, LocalIndex(bufferSize)};
         }
     }
 
@@ -346,9 +346,9 @@ private:
     /*! @brief array index of first local particle belonging to the assignment
      *  i.e. the index of the first particle that belongs to this rank and is not a halo.
      */
-    LocalParticleIndex particleStart_{0};
+    LocalIndex particleStart_{0};
     //! @brief index (upper bound) of last particle that belongs to the assignment
-    LocalParticleIndex particleEnd_{0};
+    LocalIndex particleEnd_{0};
 
     /*! @brief locally focused, fully traversable octree, used for halo discovery and exchange
      *
@@ -362,7 +362,7 @@ private:
     GlobalAssignment<KeyType, T> global_;
 
     //! @brief particle offsets of each leaf node in focusedTree_, length = focusedTree_.treeLeaves().size()
-    std::vector<LocalParticleIndex> layout_;
+    std::vector<LocalIndex> layout_;
 
     Halos<KeyType> halos_{myRank_};
 

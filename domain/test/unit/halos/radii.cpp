@@ -48,7 +48,7 @@ TEST(CornerstoneOctree, computeHaloRadii)
 
     std::vector<float> probe(hMaxPerNode.size());
 
-    std::vector<LocalParticleIndex> ordering(particleCodes.size());
+    std::vector<LocalIndex> ordering(particleCodes.size());
 
     computeHaloRadii<KeyType>(tree.data(), nNodes(tree), particleCodes, smoothingLs.data(), probe.data());
 
@@ -66,7 +66,7 @@ void computeHaloRadiiSTree()
 
     std::vector<double> smoothingLengths{0.21, 0.2, 0.2, 0.22};
 
-    std::vector<LocalParticleIndex> ordering(particleCodes.size());
+    std::vector<LocalIndex> ordering(particleCodes.size());
 
     std::vector<double> haloRadii(nNodes(tree), 0);
     computeHaloRadii<KeyType>(tree.data(), nNodes(tree), particleCodes, smoothingLengths.data(), haloRadii.data());

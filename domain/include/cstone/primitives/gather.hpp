@@ -151,7 +151,7 @@ public:
         buffer_.resize(mapSize_);
     }
 
-    void getReorderMap(IndexType* map_first, LocalParticleIndex first, LocalParticleIndex last)
+    void getReorderMap(IndexType* map_first, LocalIndex first, LocalIndex last)
     {
         omp_copy(ordering_.data() + first, ordering_.data() + last, map_first);
     }

@@ -55,7 +55,7 @@ using namespace cstone;
 template<class KeyType, class T>
 void globalRandomGaussian(int thisRank, int numRanks)
 {
-    const LocalParticleIndex numParticles = 1000;
+    const LocalIndex numParticles = 1000;
     unsigned bucketSize = 64;
     unsigned bucketSizeLocal = 16;
     float theta = 1.0;
@@ -109,9 +109,9 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
     {
         // make sure no particles got lost
-        LocalParticleIndex numParticlesLocal = lastAssignedIndex - firstAssignedIndex;
-        LocalParticleIndex numParticlesTotal = numParticlesLocal;
-        MPI_Allreduce(MPI_IN_PLACE, &numParticlesTotal, 1, MpiType<LocalParticleIndex>{}, MPI_SUM, MPI_COMM_WORLD);
+        LocalIndex numParticlesLocal = lastAssignedIndex - firstAssignedIndex;
+        LocalIndex numParticlesTotal = numParticlesLocal;
+        MPI_Allreduce(MPI_IN_PLACE, &numParticlesTotal, 1, MpiType<LocalIndex>{}, MPI_SUM, MPI_COMM_WORLD);
         EXPECT_EQ(numParticlesTotal, numRanks * numParticles);
     }
 
@@ -130,13 +130,13 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
         // particle counts must always be valid, whatever state of convergence
         auto focusCounts = focusTree.leafCounts();
-        LocalParticleIndex totalCount = std::accumulate(focusCounts.begin(), focusCounts.end(), LocalParticleIndex(0));
+        LocalIndex totalCount = std::accumulate(focusCounts.begin(), focusCounts.end(), LocalIndex(0));
         EXPECT_EQ(totalCount, numParticles * numRanks);
 
         // peer boundaries must always be resolved at any convergence state
         for (auto key : peerBoundaries)
         {
-            LocalParticleIndex idx = findNodeAbove(focusTree.treeLeaves(), key);
+            LocalIndex idx = findNodeAbove(focusTree.treeLeaves(), key);
             EXPECT_EQ(key, focusTree.treeLeaves()[idx]);
         }
     }

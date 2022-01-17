@@ -46,7 +46,7 @@ int main()
     float G                         = 1.0;
     unsigned bucketSize             = 64;
     float theta                     = 0.75;
-    LocalParticleIndex numParticles = 100000;
+    LocalIndex numParticles = 100000;
     Box<T> box(-1, 1);
 
     RandomCoordinates<T, SfcKind<KeyType>> coordinates(numParticles, box);
@@ -65,8 +65,8 @@ int main()
     Octree<KeyType> octree;
     octree.update(std::move(tree));
 
-    std::vector<LocalParticleIndex> layout(octree.numLeafNodes() + 1);
-    stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalParticleIndex(0));
+    std::vector<LocalIndex> layout(octree.numLeafNodes() + 1);
+    stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
 
     std::vector<GravityMultipole<T>> multipoles(octree.numTreeNodes());
     computeMultipoles(octree, layout, x, y, z, masses.data(), multipoles.data());
@@ -110,7 +110,7 @@ int main()
 
     std::vector<T> delta(numParticles);
     #pragma omp parallel for schedule(static)
-    for (LocalParticleIndex i = 0; i < numParticles; ++i)
+    for (LocalIndex i = 0; i < numParticles; ++i)
     {
         T dx = ax[i] - Ax[i];
         T dy = ay[i] - Ay[i];

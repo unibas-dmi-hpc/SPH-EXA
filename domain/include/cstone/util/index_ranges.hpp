@@ -103,7 +103,7 @@ private:
 };
 
 //! @brief stores one or multiple index ranges of local particles to send out to another rank
-using SendManifest = IndexRanges<LocalParticleIndex>;
+using SendManifest = IndexRanges<LocalIndex>;
 //! @brief SendList will contain one manifest per rank
 using SendList = std::vector<SendManifest>;
 
