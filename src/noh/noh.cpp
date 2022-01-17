@@ -49,7 +49,7 @@ int main(int argc, char** argv)
     }
 
     const size_t cubeSide = parser.getInt("-n", 50);
-    const size_t maxStep = parser.getInt("-s", 10);
+    const size_t maxStep = parser.getInt("-s", 65);
     const int writeFrequency = parser.getInt("-w", -1);
     const bool solution = parser.exists("--sol");
     const bool quiet = parser.exists("--quiet");
