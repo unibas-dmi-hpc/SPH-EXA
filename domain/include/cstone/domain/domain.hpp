@@ -189,7 +189,7 @@ public:
         /* Global tree build and assignment ******************************************************/
 
         LocalIndex newNParticlesAssigned = global_.assign(
-            particleStart_, particleEnd_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data());
+            bufDesc_.start, bufDesc_.end, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data());
 
         /* Domain particles update phase *********************************************************/
 
@@ -197,7 +197,7 @@ public:
         reallocate(exchangeSize, particleKeys, x, y, z, h, particleProperties...);
 
         auto [exchangeStart, keyView] = global_.distribute(
-            particleStart_, particleEnd_, x.size(), reorderFunctor, particleKeys.data(), x.data(),
+            bufDesc_.start, bufDesc_.end, x.size(), reorderFunctor, particleKeys.data(), x.data(),
             y.data(), z.data(), h.data(), particleProperties.data()...);
 
         Box<T> box             = global_.box();
@@ -235,17 +235,17 @@ public:
         omp_copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newParticleStart);
         swap(particleKeys, swapKeys_);
 
-        particleStart_ = newParticleStart;
-        particleEnd_   = layout_[focusTree_.assignment()[myRank_].end()];
+        bufDesc_.start = newParticleStart;
+        bufDesc_.end   = layout_[focusTree_.assignment()[myRank_].end()];
 
         /* Halo exchange *************************************************************************/
 
         exchangeHalos(x, y, z, h);
 
         // compute SFC keys of received halo particles
-        computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), particleStart_, box);
-        computeSfcKeys(x.data() + particleEnd_, y.data() + particleEnd_, z.data() + particleEnd_,
-                       sfcKindPointer(particleKeys.data()) + particleEnd_, x.size() - particleEnd_, box);
+        computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), bufDesc_.start, box);
+        computeSfcKeys(x.data() + bufDesc_.end, y.data() + bufDesc_.end, z.data() + bufDesc_.end,
+                       sfcKindPointer(particleKeys.data()) + bufDesc_.end, x.size() - bufDesc_.end, box);
 
         firstCall_ = false;
     }
@@ -290,10 +290,10 @@ public:
     }
 
     //! @brief return the index of the first particle that's part of the local assignment
-    [[nodiscard]] LocalIndex startIndex() const { return particleStart_; }
+    [[nodiscard]] LocalIndex startIndex() const { return bufDesc_.start; }
 
     //! @brief return one past the index of the last particle that's part of the local assignment
-    [[nodiscard]] LocalIndex endIndex() const { return particleEnd_; }
+    [[nodiscard]] LocalIndex endIndex() const { return bufDesc_.end; }
 
     //! @brief return number of locally assigned particles
     [[nodiscard]] LocalIndex nParticles() const { return endIndex() - startIndex(); }
@@ -318,8 +318,10 @@ private:
     {
         if (firstCall_)
         {
-            particleStart_ = 0;
-            particleEnd_   = bufferSize;
+            bufDesc_ = {0, LocalIndex(bufferSize), LocalIndex(bufferSize)};
+
+            //particleStart_ = 0;
+            //particleEnd_   = bufferSize;
             layout_        = {0, LocalIndex(bufferSize)};
         }
     }
@@ -346,9 +348,10 @@ private:
     /*! @brief array index of first local particle belonging to the assignment
      *  i.e. the index of the first particle that belongs to this rank and is not a halo.
      */
-    LocalIndex particleStart_{0};
+    //LocalIndex particleStart_{0};
     //! @brief index (upper bound) of last particle that belongs to the assignment
-    LocalIndex particleEnd_{0};
+    //LocalIndex particleEnd_{0};
+    BufferDescription bufDesc_{0, 0, 0};
 
     /*! @brief locally focused, fully traversable octree, used for halo discovery and exchange
      *
