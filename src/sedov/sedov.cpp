@@ -93,7 +93,7 @@ int main(int argc, char** argv)
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 
-    domain.sync(d.x, d.y, d.z, d.h, d.codes, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,
+    domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,
                 d.dt_m1);
 
     if (d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
@@ -113,7 +113,7 @@ int main(int argc, char** argv)
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
         timer.start();
-        domain.sync(d.x, d.y, d.z, d.h, d.codes, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,
+        domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,
                     d.dt_m1);
         timer.step("domain::sync");
 

@@ -148,8 +148,8 @@ public:
      *
      *   Content of particleKeys
      *   ----------------
-     *   - The particleKeys output is sorted and contains the Morton particleKeys of assigned _and_ halo particles,
-     *     i.e. all arrays will be output in Morton order.
+     *   - The particleKeys output is sorted and contains the SFC particleKeys of assigned _and_ halo particles,
+     *     i.e. all arrays will be output in SFC order.
      *
      *   Internal state of the domain
      *   ----------------------------
@@ -172,15 +172,15 @@ public:
      *         and compute halo send and receive index ranges
      *      7. resize x,y,z,h,particleKeys and properties to new number of assigned + halo particles
      *      8. exchange coordinates, h, and properties of assigned particles
-     *      9. morton sort exchanged assigned particles
+     *      9. SFC sort exchanged assigned particles
      *     10. exchange halo particles
      */
     template<class... Vectors>
-    void sync(std::vector<T>& x,
+    void sync(std::vector<KeyType>& particleKeys,
+              std::vector<T>& x,
               std::vector<T>& y,
               std::vector<T>& z,
               std::vector<T>& h,
-              std::vector<KeyType>& particleKeys,
               Vectors&... particleProperties)
     {
         initBounds(x.size());

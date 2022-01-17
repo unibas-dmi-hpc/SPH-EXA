@@ -52,8 +52,8 @@ void noHalos(int rank, int numRanks)
     // radii around 0.5 and 0.6 don't overlap
     std::vector<T> h{0.005, 0.005};
 
-    std::vector<KeyType> codes(x.size());
-    domain.sync(x, y, z, h, codes);
+    std::vector<KeyType> keys(x.size());
+    domain.sync(keys, x, y, z, h);
 
     EXPECT_EQ(domain.startIndex(), 0);
     EXPECT_EQ(domain.endIndex(), 2);
@@ -102,8 +102,8 @@ void withHalos(int rank, int numRanks)
     std::vector<T> z{0.5, 0.6};
     std::vector<T> h{0.2, 0.22}; // in range
 
-    std::vector<KeyType> codes(x.size());
-    domain.sync(x, y, z, h, codes);
+    std::vector<KeyType> keys(x.size());
+    domain.sync(keys, x, y, z, h);
 
     if (rank == 0)
     {
@@ -172,8 +172,8 @@ void moreHalos(int rank, int numRanks)
         h.push_back(hGlobal[i]);
     }
 
-    std::vector<KeyType> codes(x.size());
-    domain.sync(x, y, z, h, codes);
+    std::vector<KeyType> keys(x.size());
+    domain.sync(keys, x, y, z, h);
 
     if (rank == 0)
     {
@@ -265,8 +265,8 @@ void particleProperty(int rank, int numRanks)
         mass.push_back(massGlobal[i]);
     }
 
-    std::vector<KeyType> codes(x.size());
-    domain.sync(x, y, z, h, codes, mass);
+    std::vector<KeyType> keys(x.size());
+    domain.sync(keys, x, y, z, h, mass);
 
     // the order of particles on the node depends on the SFC algorithm
     std::sort(mass.begin() + domain.startIndex(), mass.begin() + domain.endIndex());
@@ -337,8 +337,8 @@ void multiStepSync(int rank, int numRanks)
         h.push_back(hGlobal[i]);
     }
 
-    std::vector<KeyType> codes(x.size());
-    domain.sync(x, y, z, h, codes);
+    std::vector<KeyType> keys(x.size());
+    domain.sync(keys, x, y, z, h);
 
     // now a particle on rank 0 gets moved into an area of the global tree that's on rank 1
     if (rank == 0)
@@ -348,7 +348,7 @@ void multiStepSync(int rank, int numRanks)
         z[1] = 0.813;
     }
 
-    domain.sync(x, y, z, h, codes);
+    domain.sync(keys, x, y, z, h);
 
     // the order of particles on the node depends on the SFC algorithm
     std::sort(begin(x), end(x));
@@ -457,7 +457,7 @@ void domainHaloRadii(int rank, int nRanks)
     Domain<KeyType, T> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta);
 
     std::vector<T> x, y, z, h;
-    std::vector<KeyType> codes;
+    std::vector<KeyType> keys;
 
     if (rank == 0)
     {
@@ -476,8 +476,8 @@ void domainHaloRadii(int rank, int nRanks)
         h = std::vector<T>{0, 0, 0, 0, 0, 0.1, 0, 0, 0};
     }
 
-    codes.resize(x.size());
-    domain.sync(x, y, z, h, codes);
+    keys.resize(x.size());
+    domain.sync(keys, x, y, z, h);
 
     if (rank == 0)
     {
@@ -516,7 +516,7 @@ void domainHaloRadii(int rank, int nRanks)
         //                       ^ move to rank 0
     }
 
-    domain.sync(x, y, z, h, codes);
+    domain.sync(keys, x, y, z, h);
 
     if (rank == 1)
     {

@@ -165,8 +165,8 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     std::vector<T> z{zGlobal.begin() + rank * nParticlesPerRank, zGlobal.begin() + (rank + 1) * nParticlesPerRank};
     std::vector<T> h{hGlobal.begin() + rank * nParticlesPerRank, hGlobal.begin() + (rank + 1) * nParticlesPerRank};
 
-    std::vector<KeyType> codes(x.size());
-    domain.sync(x, y, z, h, codes);
+    std::vector<KeyType> keys(x.size());
+    domain.sync(keys, x, y, z, h);
 
     LocalParticleIndex localCount = domain.endIndex() - domain.startIndex();
     LocalParticleIndex localCountSum = localCount;
@@ -176,18 +176,18 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
 
     // box got updated if not using PBC
     box = domain.box();
-    std::vector<KeyType> particleKeys(x.size());
-    computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
+    std::vector<KeyType> keysRef(x.size());
+    computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(keysRef.data()), x.size(), box);
 
-    // check that particles are Morton order sorted and the codes are in sync with the x,y,z arrays
-    EXPECT_EQ(particleKeys, codes);
-    EXPECT_TRUE(std::is_sorted(begin(particleKeys), end(particleKeys)));
+    // check that particles are SFC order sorted and the keys are in sync with the x,y,z arrays
+    EXPECT_EQ(keys, keysRef);
+    EXPECT_TRUE(std::is_sorted(begin(keysRef), end(keysRef)));
 
     int ngmax = 300;
     std::vector<int> neighbors(localCount * ngmax);
     std::vector<int> neighborsCount(localCount);
     findNeighbors(x.data(), y.data(), z.data(), h.data(), domain.startIndex(), domain.endIndex(), x.size(),
-                  box, sfcKindPointer(particleKeys.data()), neighbors.data(), neighborsCount.data(), ngmax);
+                  box, sfcKindPointer(keysRef.data()), neighbors.data(), neighborsCount.data(), ngmax);
 
     int neighborSum = std::accumulate(begin(neighborsCount), end(neighborsCount), 0);
     MPI_Allreduce(MPI_IN_PLACE, &neighborSum, 1, MpiType<int>{}, MPI_SUM, MPI_COMM_WORLD);
@@ -302,7 +302,7 @@ TEST(FocusDomain, assignmentShift)
 
     std::vector<KeyType> particleKeys(x.size());
 
-    domain.sync(x,y,z,h, particleKeys);
+    domain.sync(particleKeys, x, y, z, h);
 
     if (rank == 2)
     {
@@ -312,7 +312,7 @@ TEST(FocusDomain, assignmentShift)
         }
     }
 
-    domain.sync(x,y,z,h, particleKeys);
+    domain.sync(particleKeys, x, y, z, h);
 
     std::vector<Real> property(domain.nParticlesWithHalos(), -1);
     for (LocalParticleIndex i = domain.startIndex(); i < domain.endIndex(); ++i)
