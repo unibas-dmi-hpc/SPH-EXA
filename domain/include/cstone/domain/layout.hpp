@@ -185,11 +185,10 @@ inline void computeNodeLayout(gsl::span<const unsigned> focusLeafCounts,
  * @param peerRanks    list of peer ranks
  * @return             list of array index ranges for the receiving part in exchangeHalos
  */
-inline
-SendList computeHaloReceiveList(gsl::span<const LocalIndex> layout,
-                                gsl::span<const int> haloFlags,
-                                gsl::span<const TreeIndexPair> assignment,
-                                gsl::span<const int> peerRanks)
+inline SendList computeHaloReceiveList(gsl::span<const LocalIndex> layout,
+                                       gsl::span<const int> haloFlags,
+                                       gsl::span<const TreeIndexPair> assignment,
+                                       gsl::span<const int> peerRanks)
 {
     SendList ret(assignment.size());
 
@@ -201,9 +200,9 @@ SendList computeHaloReceiveList(gsl::span<const LocalIndex> layout,
         std::vector<LocalIndex> receiveRanges =
             extractMarkedElements<LocalIndex>(layout, haloFlags, peerStartIdx, peerEndIdx);
 
-        for (std::size_t i = 0; i < receiveRanges.size(); i +=2 )
+        for (std::size_t i = 0; i < receiveRanges.size(); i += 2)
         {
-            ret[peer].addRange(receiveRanges[i], receiveRanges[i+1]);
+            ret[peer].addRange(receiveRanges[i], receiveRanges[i + 1]);
         }
     }
 
@@ -214,25 +213,23 @@ SendList computeHaloReceiveList(gsl::span<const LocalIndex> layout,
 template<class... Arrays>
 void reallocate(std::size_t size, Arrays&... arrays)
 {
-    std::array capacities{ arrays.capacity()... };
+    std::array capacities{arrays.capacity()...};
 
     size_t current_capacity = capacities[0];
     if (size > current_capacity)
     {
         // limit reallocation growth to 5% instead of 200%
         auto reserve_size = static_cast<size_t>(double(size) * 1.05);
-        [[maybe_unused]] std::initializer_list<int> list{ (arrays.reserve(reserve_size), 0)... };
+        [[maybe_unused]] std::initializer_list<int> list{(arrays.reserve(reserve_size), 0)...};
     }
-    [[maybe_unused]] std::initializer_list<int> list{ (arrays.resize(size), 0)... };
+    [[maybe_unused]] std::initializer_list<int> list{(arrays.resize(size), 0)...};
 }
 
 template<class R, class... Arrays>
 void reorderArrays(const R& reorderFunctor, size_t inputOffset, size_t outputOffset, Arrays... arrays)
 {
     auto reorderArray = [inputOffset, outputOffset, &reorderFunctor](auto ptr)
-    {
-        reorderFunctor(ptr + inputOffset, ptr + outputOffset);
-    };
+    { reorderFunctor(ptr + inputOffset, ptr + outputOffset); };
 
     std::tuple particleArrays{arrays...};
     for_each_tuple(reorderArray, particleArrays);

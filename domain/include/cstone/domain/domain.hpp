@@ -95,13 +95,12 @@ public:
 
     /*! @brief Domain update sequence for particles with coordinates x,y,z, interaction radius h and their properties
      *
-     * @param[inout] x             floating point coordinates
+     * @param[out]   particleKeys        SFC particleKeys
+     * @param[inout] x                   floating point coordinates
      * @param[inout] y
      * @param[inout] z
-     * @param[inout] h             interaction radii in SPH convention, actual interaction radius
-     *                             is twice the value in h
-     * @param[out]   particleKeys  SFC particleKeys
-     *
+     * @param[inout] h                   interaction radii in SPH convention, actual interaction radius
+     *                                   is twice the value in h
      * @param[inout] particleProperties  particle properties to distribute along with the coordinates
      *                                   e.g. mass or charge
      *
@@ -185,7 +184,6 @@ public:
     {
         auto [exchangeStart, keyView] = distribute(particleKeys, x, y, z, h, particleProperties...);
 
-        /* Focused tree build ********************************************************************/
         std::vector<int> peers = global_.findPeers(theta_);
 
         if (firstCall_)
@@ -195,31 +193,14 @@ public:
         focusTree_.updateTree(peers, global_.assignment(), global_.tree());
         focusTree_.updateCriteria(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
 
-        /* Halo discovery ***********************************************************************/
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
 
         reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), keyView, peers,
                              layout_);
 
-        auto myRange = focusTree_.assignment()[myRank_];
-        BufferDescription newBufDesc{layout_[myRange.start()], layout_[myRange.end()], layout_.back()};
-
-        /* Rearrange particle buffers ************************************************************/
-        reallocate(newBufDesc.size, x, y, z, h, particleProperties..., swapSpace_, swapKeys_);
-        reorderArrays(reorderFunctor, exchangeStart, newBufDesc.start, x.data(), y.data(), z.data(), /* no h */
-                      particleProperties.data()...);
-
-        omp_copy(h.begin(), h.begin() + keyView.size(), swapSpace_.begin() + newBufDesc.start);
-        swap(h, swapSpace_);
-        omp_copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newBufDesc.start);
-        swap(particleKeys, swapKeys_);
-
-        std::swap(newBufDesc, bufDesc_);
-
-        /* Halo exchange *************************************************************************/
+        updateLayout(exchangeStart, keyView, particleKeys, std::tie(h), std::tie(x, y, z, particleProperties...));
         setupHalos(particleKeys, x, y, z, h);
-
         firstCall_ = false;
     }
 
@@ -340,6 +321,42 @@ private:
         computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(keys.data()), bufDesc_.start, box());
         computeSfcKeys(x.data() + bufDesc_.end, y.data() + bufDesc_.end, z.data() + bufDesc_.end,
                        sfcKindPointer(keys.data()) + bufDesc_.end, x.size() - bufDesc_.end, box());
+    }
+
+    template<class KeyVec, class... Arrays1, class... Arrays2>
+    void updateLayout(LocalIndex exchangeStart,
+                      gsl::span<const KeyType> keyView,
+                      KeyVec& keys,
+                      std::tuple<Arrays1&...> orderedBuffers,
+                      std::tuple<Arrays2&...> unorderedBuffers)
+    {
+        auto myRange = focusTree_.assignment()[myRank_];
+        BufferDescription newBufDesc{layout_[myRange.start()], layout_[myRange.end()], layout_.back()};
+
+        // adjust sizes of all buffers if necessary
+        std::apply([size = newBufDesc.size](auto&... arrays) { reallocate(size, arrays...); }, orderedBuffers);
+        std::apply([size = newBufDesc.size](auto&... arrays) { reallocate(size, arrays...); }, unorderedBuffers);
+        reallocate(newBufDesc.size, swapSpace_, swapKeys_);
+
+        // relocate particle SFC keys
+        omp_copy(keyView.begin(), keyView.end(), swapKeys_.begin() + newBufDesc.start);
+        swap(keys, swapKeys_);
+
+        // relocate ordered buffer contents from offset 0 to offset newBufDesc.start
+        auto relocate = [size = keyView.size(), dest = newBufDesc.start, this](auto& array)
+        {
+            omp_copy(array.begin(), array.begin() + size, swapSpace_.begin() + dest);
+            swap(array, swapSpace_);
+        };
+        for_each_tuple(relocate, orderedBuffers);
+
+        // reorder the unordered buffers
+        std::apply([src = exchangeStart, dest = newBufDesc.start, this](auto&... arrays)
+                   { reorderArrays(reorderFunctor, src, dest, arrays.data()...); },
+                   unorderedBuffers);
+
+        // newBufDesc is now the valid buffer description
+        std::swap(newBufDesc, bufDesc_);
     }
 
     int myRank_;
