@@ -218,12 +218,7 @@ public:
         std::swap(newBufDesc, bufDesc_);
 
         /* Halo exchange *************************************************************************/
-        exchangeHalos(x, y, z, h);
-
-        // compute SFC keys of received halo particles
-        computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), bufDesc_.start, box());
-        computeSfcKeys(x.data() + bufDesc_.end, y.data() + bufDesc_.end, z.data() + bufDesc_.end,
-                       sfcKindPointer(particleKeys.data()) + bufDesc_.end, x.size() - bufDesc_.end, box());
+        setupHalos(particleKeys, x, y, z, h);
 
         firstCall_ = false;
     }
@@ -334,6 +329,17 @@ private:
 
         return global_.distribute(bufDesc_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data(), h.data(),
                                   particleProperties.data()...);
+    }
+
+    template<class KeyVec, class TVec>
+    void setupHalos(KeyVec& keys, TVec& x, TVec& y, TVec& z, TVec& h)
+    {
+        exchangeHalos(x, y, z, h);
+
+        // compute SFC keys of received halo particles
+        computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(keys.data()), bufDesc_.start, box());
+        computeSfcKeys(x.data() + bufDesc_.end, y.data() + bufDesc_.end, z.data() + bufDesc_.end,
+                       sfcKindPointer(keys.data()) + bufDesc_.end, x.size() - bufDesc_.end, box());
     }
 
     int myRank_;
