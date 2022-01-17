@@ -118,7 +118,7 @@ public:
      *                                  in SFC order
      * @param[out]   sfcOrder           If using the CPU reorderer, this is a duplicate copy. Otherwise provides
      *                                  the host space to download the ordering from the device.
-     * @param[in]    particleKeys       Sorted particle keys in [particleStart:particleEnd]
+     * @param[in]    keys               Sorted particle keys in [particleStart:particleEnd]
      * @param[inout] x                  particle x-coordinates
      * @param[inout] y                  particle y-coordinates
      * @param[inout] z                  particle z-coordinates
@@ -137,7 +137,7 @@ public:
                     LocalParticleIndex particleEnd,
                     LocalParticleIndex bufferSize,
                     Reorderer& reorderFunctor,
-                    KeyType* particleKeys,
+                    KeyType* keys,
                     Tc* x,
                     Tc* y,
                     Tc* z,
@@ -150,7 +150,7 @@ public:
         reallocate(numParticles, sfcOrder_);
         reorderFunctor.getReorderMap(sfcOrder_.data(), 0, numParticles);
 
-        gsl::span<KeyType> keyView(particleKeys + particleStart, numParticles);
+        gsl::span<KeyType> keyView(keys + particleStart, numParticles);
 
         SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_, keyView);
 
@@ -160,24 +160,22 @@ public:
             exchangeParticles(domainExchangeSends, myRank_, particleStart, particleEnd, bufferSize,
                               newNParticlesAssigned, sfcOrder_.data(), x, y, z, h, particleProperties...);
 
-        LocalParticleIndex newNumParticles = newEnd - newStart;
-        keyView                            = gsl::span<KeyType>(particleKeys + newStart, newNumParticles);
+        LocalParticleIndex envelopeSize = newEnd - newStart;
+        keyView                         = gsl::span<KeyType>(keys + newStart, envelopeSize);
 
-        computeSfcKeys(x + newStart, y + newStart, z + newStart, sfcKindPointer(keyView.begin()), newNumParticles, box_);
+        computeSfcKeys(x + newStart, y + newStart, z + newStart, sfcKindPointer(keyView.begin()), envelopeSize, box_);
         // sort keys and keep track of the ordering
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
 
         // thanks to the sorting, we now know the exact range of the assigned particles:
-        // [particleStart + offset, particleStart + offset + newNParticlesAssigned]
+        // [newStart + offset, newStart + offset + newNParticlesAssigned]
         LocalParticleIndex offset = findNodeAbove<KeyType>(keyView, tree_[assignment_.firstNodeIdx(myRank_)]);
         // restrict the reordering to take only the assigned particles into account and ignore the others in
-        // [particleStart:particleEnd]
+        // [newStart:newEnd]
         reorderFunctor.restrictRange(offset, newNParticlesAssigned);
-
         reorderFunctor(h + newStart, h);
 
-        return std::make_tuple(newStart,
-                               gsl::span<const KeyType>{particleKeys + newStart + offset, newNParticlesAssigned});
+        return std::make_tuple(newStart, gsl::span<const KeyType>{keys + newStart + offset, newNParticlesAssigned});
     }
 
     std::vector<int> findPeers(float theta)
