@@ -67,8 +67,7 @@ public:
 
     /*! @brief Update the global tree
      *
-     * @param[in]  particleStart_  first owned particle in x,y,z
-     * @param[in]  particleEnd_    last owned particle in x,y,z
+     * @param[in]  bufDesc         Buffer description with range of assigned particles
      * @param[in]  reorderFunctor  records the SFC order of the owned input coordinates
      * @param[out] particleKeys    will contain sorted particle SFC keys in the range [particleStart:particleEnd]
      * @param[in]  x               x coordinates
@@ -79,19 +78,22 @@ public:
      * This function does not modify / communicate any particle data.
      */
     template<class Tc, class Reorderer>
-    LocalIndex assign(LocalIndex particleStart_,
-                      LocalIndex particleEnd_,
-                              Reorderer& reorderFunctor, KeyType* particleKeys, const Tc* x, const Tc* y, const Tc* z)
+    LocalIndex assign(BufferDescription bufDesc,
+                      Reorderer& reorderFunctor,
+                      KeyType* particleKeys,
+                      const Tc* x,
+                      const Tc* y,
+                      const Tc* z)
     {
-        box_ = makeGlobalBox(x + particleStart_, x + particleEnd_, y + particleStart_, z + particleStart_, box_);
+        box_ = makeGlobalBox(x + bufDesc.start, x + bufDesc.end, y + bufDesc.start, z + bufDesc.start, box_);
 
         // number of locally assigned particles to consider for global tree building
-        LocalIndex numParticles = particleEnd_ - particleStart_;
+        LocalIndex numParticles = bufDesc.end - bufDesc.start;
 
-        gsl::span<KeyType> keyView(particleKeys + particleStart_, numParticles);
+        gsl::span<KeyType> keyView(particleKeys + bufDesc.start, numParticles);
 
         // compute SFC particle keys only for particles participating in tree build
-        computeSfcKeys(x + particleStart_, y + particleStart_, z + particleStart_,
+        computeSfcKeys(x + bufDesc.start, y + bufDesc.start, z + bufDesc.start,
                        sfcKindPointer(keyView.data()), numParticles, box_);
 
         // sort keys and keep track of ordering for later use
@@ -112,9 +114,7 @@ public:
 
     /*! @brief Distribute particles to their assigned ranks based on previous assignment
      *
-     * @param[in]    particleStart      first valid particle index before the exchange
-     * @param[in]    particleEnd        last valid particle index before the exchange
-     * @param[in]    bufferSize         size of particle buffers x,y,z and particleProperties
+     * @param[in]    bufDesc            Buffer description with range of assigned particles and total buffer size
      * @param[inout] reorderFunctor     contains the ordering that accesses the range [particleStart:particleEnd]
      *                                  in SFC order
      * @param[out]   sfcOrder           If using the CPU reorderer, this is a duplicate copy. Otherwise provides
@@ -134,9 +134,7 @@ public:
      * location. This saves us from having to move around data inside the buffers for a second time.
      */
     template<class Reorderer, class Tc, class Th, class... Arrays>
-    auto distribute(LocalIndex particleStart,
-                    LocalIndex particleEnd,
-                    LocalIndex bufferSize,
+    auto distribute(BufferDescription bufDesc,
                     Reorderer& reorderFunctor,
                     KeyType* keys,
                     Tc* x,
@@ -145,19 +143,19 @@ public:
                     Th* h,
                     Arrays... particleProperties) const
     {
-        LocalIndex numParticles          = particleEnd - particleStart;
+        LocalIndex numParticles          = bufDesc.end - bufDesc.start;
         LocalIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
 
         reallocate(numParticles, sfcOrder_);
         reorderFunctor.getReorderMap(sfcOrder_.data(), 0, numParticles);
 
-        gsl::span<KeyType> keyView(keys + particleStart, numParticles);
+        gsl::span<KeyType> keyView(keys + bufDesc.start, numParticles);
         SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_, keyView);
 
         // Assigned particles are now inside the [particleStart:particleEnd] range, but not exclusively.
         // Leftover particles from the previous step can also be contained in the range.
         auto [newStart, newEnd] =
-            exchangeParticles(domainExchangeSends, myRank_, particleStart, particleEnd, bufferSize,
+            exchangeParticles(domainExchangeSends, myRank_, bufDesc.start, bufDesc.end, bufDesc.size,
                               newNParticlesAssigned, sfcOrder_.data(), x, y, z, h, particleProperties...);
 
         LocalIndex envelopeSize = newEnd - newStart;

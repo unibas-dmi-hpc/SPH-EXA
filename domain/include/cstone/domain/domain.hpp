@@ -188,17 +188,16 @@ public:
 
         /* Global tree build and assignment ******************************************************/
 
-        LocalIndex newNParticlesAssigned = global_.assign(
-            bufDesc_.start, bufDesc_.end, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data());
+        LocalIndex newNParticlesAssigned =
+            global_.assign(bufDesc_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data());
 
         /* Domain particles update phase *********************************************************/
 
         size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
         reallocate(exchangeSize, particleKeys, x, y, z, h, particleProperties...);
 
-        auto [exchangeStart, keyView] = global_.distribute(
-            bufDesc_.start, bufDesc_.end, x.size(), reorderFunctor, particleKeys.data(), x.data(),
-            y.data(), z.data(), h.data(), particleProperties.data()...);
+        auto [exchangeStart, keyView] = global_.distribute(bufDesc_, reorderFunctor, particleKeys.data(), x.data(),
+                                                           y.data(), z.data(), h.data(), particleProperties.data()...);
 
         Box<T> box             = global_.box();
         std::vector<int> peers = global_.findPeers(theta_);
