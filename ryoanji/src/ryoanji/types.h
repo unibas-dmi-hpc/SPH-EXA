@@ -34,6 +34,7 @@
 #define CUDA_SAFE_CALL(err) cudaSafeCall(err, __FILE__, __LINE__)
 
 #include <cassert>
+#include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
 #include "cstone/util/array.hpp"
