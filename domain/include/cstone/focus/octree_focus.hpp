@@ -269,7 +269,6 @@ public:
 
     /*! @brief perform a local update step
      *
-     * @param[in] particleKeys    locally present particle SFC keys
      * @param[in] focusStart      start of the focus area
      * @param[in] focusEnd        end of the focus area
      * @param[in] mandatoryKeys   List of SFC keys that have to be present in the focus tree after this function
@@ -281,8 +280,7 @@ public:
      * @param[in] macs            MAC pass/fail results for each node, length = tree_.numTreeNodes()
      * @return                    true if the tree structure did not change
      */
-    bool update(gsl::span<const KeyType> particleKeys,
-                KeyType focusStart,
+    bool update(KeyType focusStart,
                 KeyType focusEnd,
                 gsl::span<const KeyType> mandatoryKeys,
                 gsl::span<const unsigned> counts,
@@ -290,7 +288,6 @@ public:
     {
         assert(TreeNodeIndex(counts.size()) == tree_.numLeafNodes());
         assert(TreeNodeIndex(macs.size()) == tree_.numTreeNodes());
-        assert(std::is_sorted(particleKeys.begin(), particleKeys.end()));
 
         gsl::span<const KeyType> leaves = tree_.treeLeaves();
 
@@ -370,7 +367,7 @@ public:
                 KeyType focusEnd,
                 gsl::span<const KeyType> mandatoryKeys)
     {
-        bool converged = tree_.update(particleKeys, focusStart, focusEnd, mandatoryKeys, counts_, macs_);
+        bool converged = tree_.update(focusStart, focusEnd, mandatoryKeys, counts_, macs_);
 
         gsl::span<const KeyType> leaves = tree_.treeLeaves();
 

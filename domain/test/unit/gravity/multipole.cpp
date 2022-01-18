@@ -100,7 +100,7 @@ TEST(Gravity, M2P)
     using T = double;
 
     Box<T> box(-1, 1);
-    LocalParticleIndex numParticles = 100;
+    LocalIndex numParticles = 100;
 
     RandomCoordinates<T, SfcKind<unsigned>> coordinates(numParticles, box);
 
@@ -152,7 +152,7 @@ TEST(Gravity, M2M)
     using T = double;
 
     Box<T> box(-1, 1);
-    LocalParticleIndex numParticles = 160;
+    LocalIndex numParticles = 160;
 
     RandomCoordinates<T, SfcKind<unsigned>> coordinates(numParticles, box);
 
@@ -166,7 +166,7 @@ TEST(Gravity, M2M)
     // reference directly constructed from particles
     GravityMultipole<T> reference = particle2Multipole<T>(x, y, z, masses.data(), numParticles);
 
-    LocalParticleIndex eighth = numParticles / 8;
+    LocalIndex eighth = numParticles / 8;
     GravityMultipole<T> sc[8];
     for (int i = 0; i < 8; ++i)
     {

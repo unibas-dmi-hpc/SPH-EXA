@@ -43,7 +43,7 @@ using namespace cstone;
  * and vice versa.
  */
 template<class KeyType>
-void exchangeFocus(int myRank)
+void exchangeFocus(int myRank, int numRanks)
 {
     std::vector<KeyType>  treeLeaves = makeUniformNLevelTree<KeyType>(64, 1);
     std::vector<unsigned> counts(nNodes(treeLeaves), 0);
@@ -51,17 +51,17 @@ void exchangeFocus(int myRank)
     std::vector<KeyType>  particleKeys(treeLeaves.begin(), treeLeaves.begin() + nNodes(treeLeaves));
 
     std::vector<int> peers;
-    std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices;
+    std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices(2);
 
     if (myRank == 0)
     {
         peers.push_back(1);
-        peerFocusIndices.emplace_back(32, 64);
+        peerFocusIndices[1] = TreeIndexPair(32, 64);
     }
     else
     {
         peers.push_back(0);
-        peerFocusIndices.emplace_back(0, 32);
+        peerFocusIndices[0] = TreeIndexPair(0, 32);
     }
 
     exchangePeerCounts<KeyType>(peers, peerFocusIndices, particleKeys, treeLeaves, counts);
@@ -81,16 +81,16 @@ void exchangeFocus(int myRank)
 
 TEST(PeerExchange, simpleTest)
 {
-    int rank = 0, nRanks = 0;
+    int rank = 0, numRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
     constexpr int thisExampleRanks = 2;
 
-    if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
+    if (numRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
 
-    exchangeFocus<unsigned>(rank);
-    exchangeFocus<uint64_t>(rank);
+    exchangeFocus<unsigned>(rank, numRanks);
+    exchangeFocus<uint64_t>(rank, numRanks);
 }
 
 /*! @brief irregular tree particle count exchange with 2 ranks
@@ -104,11 +104,11 @@ TEST(PeerExchange, simpleTest)
  * from the regular grid that rank 1 has in this half.
  */
 template<class KeyType>
-void exchangeFocusIrregular(int myRank)
+void exchangeFocusIrregular(int myRank, int numRanks)
 {
     std::vector<KeyType> treeLeaves;
     std::vector<int> peers;
-    std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices;
+    std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices(numRanks);
 
     OctreeMaker<KeyType> octreeMaker;
     octreeMaker.divide();
@@ -130,7 +130,7 @@ void exchangeFocusIrregular(int myRank)
         peers.push_back(1);
         TreeNodeIndex peerStartIdx =
             std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<KeyType>({4})) - begin(treeLeaves);
-        peerFocusIndices.emplace_back(peerStartIdx, nNodes(treeLeaves));
+        peerFocusIndices[1] = TreeIndexPair(peerStartIdx, nNodes(treeLeaves));
     }
     else
     {
@@ -150,7 +150,7 @@ void exchangeFocusIrregular(int myRank)
         peers.push_back(0);
         TreeNodeIndex peerEndIdx =
             std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<KeyType>({4})) - begin(treeLeaves);
-        peerFocusIndices.emplace_back(0, peerEndIdx);
+        peerFocusIndices[0] = TreeIndexPair(0, peerEndIdx);
     }
 
     // rank 0 has the first x-half of a level-3 grid, rank 1 gets the second half
@@ -196,14 +196,14 @@ void exchangeFocusIrregular(int myRank)
 
 TEST(PeerExchange, irregularTree)
 {
-    int rank = 0, nRanks = 0;
+    int rank = 0, numRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
     constexpr int thisExampleRanks = 2;
 
-    if (nRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
+    if (numRanks != thisExampleRanks) throw std::runtime_error("this test needs 2 ranks\n");
 
-    exchangeFocusIrregular<unsigned>(rank);
-    exchangeFocusIrregular<uint64_t>(rank);
+    exchangeFocusIrregular<unsigned>(rank, numRanks);
+    exchangeFocusIrregular<uint64_t>(rank, numRanks);
 }

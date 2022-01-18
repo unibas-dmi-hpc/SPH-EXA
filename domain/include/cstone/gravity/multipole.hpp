@@ -70,7 +70,7 @@ struct GravityMultipole
  */
 template<class T1, class T2, class T3>
 GravityMultipole<T1>
-particle2Multipole(const T2* x, const T2* y, const T2* z, const T3* m, LocalParticleIndex numParticles)
+particle2Multipole(const T2* x, const T2* y, const T2* z, const T3* m, LocalIndex numParticles)
 {
     GravityMultipole<T1> gv;
 
@@ -81,7 +81,7 @@ particle2Multipole(const T2* x, const T2* y, const T2* z, const T3* m, LocalPart
     T1 yce = y[0];
     T1 zce = z[0];
 
-    for (LocalParticleIndex i = 0; i < numParticles; ++i)
+    for (LocalIndex i = 0; i < numParticles; ++i)
     {
         T1 xx = x[i];
         T1 yy = y[i];
@@ -214,7 +214,7 @@ util::tuple<T1, T1, T1, T1> particle2particle(T1 tx,
                                               const T1* sz,
                                               const T2* h,
                                               const T2* m,
-                                              LocalParticleIndex numSources)
+                                              LocalIndex numSources)
 {
     T1 axLoc = 0;
     T1 ayLoc = 0;
@@ -224,7 +224,7 @@ util::tuple<T1, T1, T1, T1> particle2particle(T1 tx,
     #if defined(__llvm__) || defined(__clang__)
         #pragma clang loop vectorize(enable)
     #endif
-    for (LocalParticleIndex j = 0; j < numSources; ++j)
+    for (LocalIndex j = 0; j < numSources; ++j)
     {
         auto [ax_, ay_, az_, u_] = particle2particle(tx, ty, tz, hi, sx[j], sy[j], sz[j], h[j], m[j]);
 

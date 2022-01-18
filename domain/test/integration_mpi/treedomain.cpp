@@ -71,7 +71,7 @@ using namespace cstone;
 template<class KeyType, class T>
 void globalRandomGaussian(int thisRank, int numRanks)
 {
-    LocalParticleIndex numParticles = 1000;
+    LocalIndex numParticles = 1000;
     unsigned bucketSize = 64;
 
     Box<T> box{-1, 1};
@@ -85,7 +85,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     {
     }
 
-    std::vector<LocalParticleIndex> ordering(numParticles);
+    std::vector<LocalIndex> ordering(numParticles);
     // particles are in Morton order
     std::iota(begin(ordering), end(ordering), 0);
 
@@ -98,7 +98,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::vector<T> y(coords.y().begin(), coords.y().end());
     std::vector<T> z(coords.z().begin(), coords.z().end());
 
-    LocalParticleIndex numParticlesAssigned = assignment.totalCount(thisRank);
+    LocalIndex numParticlesAssigned = assignment.totalCount(thisRank);
 
     reallocate(std::max(numParticlesAssigned, numParticles), x, y, z);
     auto [particleStart, particleEnd] =
