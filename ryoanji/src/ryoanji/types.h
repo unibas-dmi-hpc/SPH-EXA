@@ -31,12 +31,12 @@
 
 #pragma once
 
-#define CUDA_SAFE_CALL(err) cudaSafeCall(err, __FILE__, __LINE__)
-
 #include <cassert>
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
+#include "cstone/cuda/annotation.hpp"
+#include "cstone/cuda/errorcheck.cuh"
 #include "cstone/util/array.hpp"
 
 const int P = 4;
@@ -46,15 +46,6 @@ const int NVEC4 = (NTERM - 1) / 4 + 1;       // 5 for P=4
 typedef util::array<float, 3> fvec3;
 typedef util::array<float, 4> fvec4;
 typedef util::array<float, NTERM> fvecP;
-
-static __forceinline__ void cudaSafeCall(cudaError err, const char* file, const int line)
-{
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", file, line, cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-}
 
 namespace ryoanji
 {
@@ -82,7 +73,7 @@ struct GpuConfig
     static int getSmCount()
     {
         cudaDeviceProp prop;
-        CUDA_SAFE_CALL(cudaGetDeviceProperties(&prop, 0));
+        checkCudaErrors(cudaGetDeviceProperties(&prop, 0));
         return prop.multiProcessorCount;
     }
 
@@ -122,7 +113,7 @@ private:
 public:
     CellData() = default;
 
-    __host__ __device__ CellData(const unsigned int level, const unsigned int parent, const unsigned int body,
+    HOST_DEVICE_FUN CellData(const unsigned int level, const unsigned int parent, const unsigned int body,
                                  const unsigned int nbody, const unsigned int child = 0, const unsigned int nchild = 1)
     {
         unsigned parentPack = parent | (level << LEVEL_SHIFT);
@@ -130,24 +121,24 @@ public:
         data                = make_uint4(parentPack, childPack, body, nbody);
     }
 
-    __host__ __device__ CellData(uint4 data_)
+    HOST_DEVICE_FUN CellData(uint4 data_)
         : data(data_)
     {
     }
 
-    __host__ __device__ int level() const { return data.x >> LEVEL_SHIFT; }
-    __host__ __device__ int parent() const { return data.x & LEVEL_MASK; }
-    __host__ __device__ int child() const { return data.y & CHILD_MASK; }
-    __host__ __device__ int nchild() const { return (data.y >> CHILD_SHIFT) + 1; }
-    __host__ __device__ int body() const { return data.z; }
-    __host__ __device__ int nbody() const { return data.w; }
-    __host__ __device__ bool isLeaf() const { return data.y == 0; }
-    __host__ __device__ bool isNode() const { return !isLeaf(); }
+    HOST_DEVICE_FUN int level() const { return data.x >> LEVEL_SHIFT; }
+    HOST_DEVICE_FUN int parent() const { return data.x & LEVEL_MASK; }
+    HOST_DEVICE_FUN int child() const { return data.y & CHILD_MASK; }
+    HOST_DEVICE_FUN int nchild() const { return (data.y >> CHILD_SHIFT) + 1; }
+    HOST_DEVICE_FUN int body() const { return data.z; }
+    HOST_DEVICE_FUN int nbody() const { return data.w; }
+    HOST_DEVICE_FUN bool isLeaf() const { return data.y == 0; }
+    HOST_DEVICE_FUN bool isNode() const { return !isLeaf(); }
 
-    __host__ __device__ void setParent(unsigned parent) { data.x = parent | (level() << LEVEL_SHIFT); }
-    __host__ __device__ void setChild(unsigned child) { data.y = child | (nchild() - 1 << CHILD_SHIFT); }
-    __host__ __device__ void setBody(unsigned body_) { data.z = body_; }
-    __host__ __device__ void setNBody(unsigned nbody_) { data.w = nbody_; }
+    HOST_DEVICE_FUN void setParent(unsigned parent) { data.x = parent | (level() << LEVEL_SHIFT); }
+    HOST_DEVICE_FUN void setChild(unsigned child) { data.y = child | (nchild() - 1 << CHILD_SHIFT); }
+    HOST_DEVICE_FUN void setBody(unsigned body_) { data.z = body_; }
+    HOST_DEVICE_FUN void setNBody(unsigned nbody_) { data.w = nbody_; }
 };
 
 inline __host__ __device__ fvec3 make_fvec3(fvec4 v)
