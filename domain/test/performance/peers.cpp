@@ -44,7 +44,7 @@ int main()
     using KeyType = uint64_t;
     Box<double> box{-1, 1};
 
-    LocalParticleIndex nParticles = 20000;
+    LocalIndex nParticles = 20000;
     int bucketSize = 1;
     int numRanks = 50;
 

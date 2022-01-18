@@ -55,6 +55,58 @@
 namespace cstone
 {
 
+/*! @brief Layout description for particle buffers
+ *
+ * Common usage: storing the sub-range of locally owned/assigned particles within particle buffers
+ *
+ * 0       start              end      size
+ * |-------|------------------|--------|
+ *   halos   locally assigned   halos
+ */
+struct BufferDescription
+{
+    //! @brief subrange start
+    LocalIndex start;
+    //! @brief subrange end
+    LocalIndex end;
+    //! @brief total size of the buffer
+    LocalIndex size;
+};
+
+/*! @brief calculates the complementary range of the input ranges
+ *
+ * Input:  │      ------    -----   --     ----     --  │
+ * Output: -------      ----     ---  -----    -----  ---
+ *         ^                                            ^
+ *         │                                            │
+ * @param first                                         │
+ * @param ranges   size >= 1, must be sorted            │
+ * @param last    ──────────────────────────────────────/
+ * @return the output ranges that cover everything within [first:last]
+ *         that the input ranges did not cover
+ */
+inline std::vector<IndexPair<TreeNodeIndex>>
+invertRanges(TreeNodeIndex first, gsl::span<const IndexPair<TreeNodeIndex>> ranges, TreeNodeIndex last)
+{
+    std::vector<IndexPair<TreeNodeIndex>> invertedRanges;
+
+    TreeNodeIndex currentIndex = first;
+    for (auto range : ranges)
+    {
+        if (range.start() == range.end()) { continue; }
+
+        assert(currentIndex <= range.start() && "non-empty ranges must be sorted\n");
+        if (currentIndex < range.start())
+        {
+            invertedRanges.emplace_back(currentIndex, range.start());
+        }
+        currentIndex = range.end();
+    }
+    if (currentIndex < last) { invertedRanges.emplace_back(currentIndex, last); }
+
+    return invertedRanges;
+}
+
 /*! @brief extract ranges of marked indices from a source array
  *
  * @tparam IntegralType  an integer type
@@ -112,7 +164,7 @@ inline void computeNodeLayout(gsl::span<const unsigned> focusLeafCounts,
                               gsl::span<const int> haloFlags,
                               TreeNodeIndex firstAssignedIdx,
                               TreeNodeIndex lastAssignedIdx,
-                              gsl::span<LocalParticleIndex> layout)
+                              gsl::span<LocalIndex> layout)
 {
     #pragma omp parallel for
     for (TreeNodeIndex i = 0; i < TreeNodeIndex(focusLeafCounts.size()); ++i)
@@ -133,11 +185,10 @@ inline void computeNodeLayout(gsl::span<const unsigned> focusLeafCounts,
  * @param peerRanks    list of peer ranks
  * @return             list of array index ranges for the receiving part in exchangeHalos
  */
-inline
-SendList computeHaloReceiveList(gsl::span<const LocalParticleIndex> layout,
-                                gsl::span<const int> haloFlags,
-                                gsl::span<const TreeIndexPair> assignment,
-                                gsl::span<const int> peerRanks)
+inline SendList computeHaloReceiveList(gsl::span<const LocalIndex> layout,
+                                       gsl::span<const int> haloFlags,
+                                       gsl::span<const TreeIndexPair> assignment,
+                                       gsl::span<const int> peerRanks)
 {
     SendList ret(assignment.size());
 
@@ -146,12 +197,12 @@ SendList computeHaloReceiveList(gsl::span<const LocalParticleIndex> layout,
         TreeNodeIndex peerStartIdx = assignment[peer].start();
         TreeNodeIndex peerEndIdx   = assignment[peer].end();
 
-        std::vector<LocalParticleIndex> receiveRanges =
-            extractMarkedElements<LocalParticleIndex>(layout, haloFlags, peerStartIdx, peerEndIdx);
+        std::vector<LocalIndex> receiveRanges =
+            extractMarkedElements<LocalIndex>(layout, haloFlags, peerStartIdx, peerEndIdx);
 
-        for (std::size_t i = 0; i < receiveRanges.size(); i +=2 )
+        for (std::size_t i = 0; i < receiveRanges.size(); i += 2)
         {
-            ret[peer].addRange(receiveRanges[i], receiveRanges[i+1]);
+            ret[peer].addRange(receiveRanges[i], receiveRanges[i + 1]);
         }
     }
 
@@ -162,25 +213,23 @@ SendList computeHaloReceiveList(gsl::span<const LocalParticleIndex> layout,
 template<class... Arrays>
 void reallocate(std::size_t size, Arrays&... arrays)
 {
-    std::array capacities{ arrays.capacity()... };
+    std::array capacities{arrays.capacity()...};
 
     size_t current_capacity = capacities[0];
     if (size > current_capacity)
     {
         // limit reallocation growth to 5% instead of 200%
         auto reserve_size = static_cast<size_t>(double(size) * 1.05);
-        [[maybe_unused]] std::initializer_list<int> list{ (arrays.reserve(reserve_size), 0)... };
+        [[maybe_unused]] std::initializer_list<int> list{(arrays.reserve(reserve_size), 0)...};
     }
-    [[maybe_unused]] std::initializer_list<int> list{ (arrays.resize(size), 0)... };
+    [[maybe_unused]] std::initializer_list<int> list{(arrays.resize(size), 0)...};
 }
 
 template<class R, class... Arrays>
 void reorderArrays(const R& reorderFunctor, size_t inputOffset, size_t outputOffset, Arrays... arrays)
 {
     auto reorderArray = [inputOffset, outputOffset, &reorderFunctor](auto ptr)
-    {
-        reorderFunctor(ptr + inputOffset, ptr + outputOffset);
-    };
+    { reorderFunctor(ptr + inputOffset, ptr + outputOffset); };
 
     std::tuple particleArrays{arrays...};
     for_each_tuple(reorderArray, particleArrays);

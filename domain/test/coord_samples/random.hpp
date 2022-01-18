@@ -107,8 +107,8 @@ public:
         auto keyData = (KeyType*)(codes_.data());
         computeSfcKeys(x_.data(), y_.data(), z_.data(), keyData, n, box);
 
-        std::vector<LocalParticleIndex> sfcOrder(n);
-        std::iota(begin(sfcOrder), end(sfcOrder), LocalParticleIndex(0));
+        std::vector<LocalIndex> sfcOrder(n);
+        std::iota(begin(sfcOrder), end(sfcOrder), LocalIndex(0));
         sort_by_key(begin(codes_), end(codes_), begin(sfcOrder));
 
         reorderInPlace(sfcOrder, x_.data());
@@ -167,8 +167,8 @@ public:
         auto keyData = (KeyType*)(codes_.data());
         computeSfcKeys(x_.data(), y_.data(), z_.data(), keyData, n, box);
 
-        std::vector<LocalParticleIndex> sfcOrder(n);
-        std::iota(begin(sfcOrder), end(sfcOrder), LocalParticleIndex(0));
+        std::vector<LocalIndex> sfcOrder(n);
+        std::iota(begin(sfcOrder), end(sfcOrder), LocalIndex(0));
         sort_by_key(begin(codes_), end(codes_), begin(sfcOrder));
 
         reorderInPlace(sfcOrder, x_.data());
