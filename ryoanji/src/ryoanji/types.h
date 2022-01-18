@@ -47,6 +47,15 @@ typedef util::array<float, 3> fvec3;
 typedef util::array<float, 4> fvec4;
 typedef util::array<float, NTERM> fvecP;
 
+static __forceinline__ void cudaSafeCall(cudaError err, const char* file, const int line)
+{
+    if (err != cudaSuccess)
+    {
+        fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", file, line, cudaGetErrorString(err));
+        exit(EXIT_FAILURE);
+    }
+}
+
 namespace ryoanji
 {
 
@@ -64,14 +73,21 @@ struct GpuConfig
     //! @brief log2(warpSize)
     static constexpr int warpSizeLog2 = (warpSize == 32) ? 5 : 6;
 
-    //! @brief number of multiprocessors, set based on cudaGetDeviceProp
-    inline static int smCount = 56;
-
     /*! @brief integer type for representing a thread mask, e.g. return value of __ballot_sync()
      *
      * This will automatically pick the right type based on the warpSize choice. Do not adapt.
      */
     using ThreadMask = std::conditional_t<warpSize == 32, uint32_t, uint64_t>;
+
+    static int getSmCount()
+    {
+        cudaDeviceProp prop;
+        CUDA_SAFE_CALL(cudaGetDeviceProperties(&prop, 0));
+        return prop.multiProcessorCount;
+    }
+
+    //! @brief number of multiprocessors
+    inline static int smCount = getSmCount();
 };
 
 //! Center and radius of bounding box
@@ -150,15 +166,6 @@ static void kernelSuccess(const char kernel[] = "kernel")
     if (err != cudaSuccess)
     {
         fprintf(stderr, "%s launch failed: %s\n", kernel, cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-}
-
-static __forceinline__ void cudaSafeCall(cudaError err, const char* file, const int line)
-{
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "Cuda error in file '%s' in line %i : %s.\n", file, line, cudaGetErrorString(err));
         exit(EXIT_FAILURE);
     }
 }
