@@ -107,6 +107,6 @@ void directSum(std::size_t numBodies, const fvec4* bodyPos, fvec4* bodyAcc, floa
     int numBlock   = (numBodies - 1) / numThreads + 1;
 
     directKernel<<<numBlock, numThreads>>>(numBodies, eps * eps, bodyPos, bodyAcc);
-    cudaDeviceSynchronize();
+    ryoanji::kernelSuccess("direct sum");
 }
 
