@@ -173,11 +173,11 @@ public:
 
         double Mp = Mt / pd.n;
 
-/*
         double CM_x = 0.;
         double CM_y = 0.;
         double CM_z = 0.;
 
+        /*
         #pragma omp parallel for
         for (size_t i = 0; i < pd.count; i++)
         {
@@ -193,11 +193,11 @@ public:
         #pragma omp parallel for
         for (size_t i = 0; i < pd.count; i++)
         {
-            //double radius = sqrt(pd.x[i] * pd.x[i] +  pd.y[i] * pd.y[i]+ pd.z[i] * pd.z[i]);
+            double radius = sqrt(pd.x[i] * pd.x[i] +  pd.y[i] * pd.y[i]+ pd.z[i] * pd.z[i]);
 
-            pd.vx[i] = vel0; // * (pd.x[i] - CM_x) / radius;
-            pd.vy[i] = vel0; // * (pd.y[i] - CM_y) / radius;
-            pd.vz[i] = vel0; // * (pd.z[i] - CM_z) / radius;
+            pd.vx[i] = vel0 * (pd.x[i] - CM_x) / radius;
+            pd.vy[i] = vel0 * (pd.y[i] - CM_y) / radius;
+            pd.vz[i] = vel0 * (pd.z[i] - CM_z) / radius;
 
             pd.u[i] = ener0;
 
