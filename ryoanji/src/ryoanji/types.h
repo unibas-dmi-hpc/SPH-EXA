@@ -136,7 +136,7 @@ public:
     HOST_DEVICE_FUN bool isNode() const { return !isLeaf(); }
 
     HOST_DEVICE_FUN void setParent(unsigned parent) { data.x = parent | (level() << LEVEL_SHIFT); }
-    HOST_DEVICE_FUN void setChild(unsigned child) { data.y = child | (nchild() - 1 << CHILD_SHIFT); }
+    HOST_DEVICE_FUN void setChild(unsigned child) { data.y = child | ((nchild() - 1) << CHILD_SHIFT); }
     HOST_DEVICE_FUN void setBody(unsigned body_) { data.z = body_; }
     HOST_DEVICE_FUN void setNBody(unsigned nbody_) { data.w = nbody_; }
 };
