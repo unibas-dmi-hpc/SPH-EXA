@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Barnes-Hut breadth-first tree traversal inspired by the original Bonsai implementation
+ * @brief Barnes-Hut breadth-first warp-aware tree traversal inspired by the original Bonsai implementation
  *
  * @author Rio Yokota <rioyokota@gsic.titech.ac.jp>
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
@@ -239,7 +239,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
             }
             else // Fewer than warpSize bodies remaining from current source cell set
             {
-                // push the remaining bodies onto bodyQueue
+                // push the remaining bodies into bodyQueue
                 int topUp = shflUpSync(bodyIdx, bdyFillLevel);
                 bodyQueue = (laneIdx < bdyFillLevel) ? bodyQueue : topUp;
 
