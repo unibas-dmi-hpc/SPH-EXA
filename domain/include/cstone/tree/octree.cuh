@@ -113,10 +113,10 @@ void computeNodeCountsGpu(const KeyType* tree, unsigned* counts, TreeNodeIndex n
     TreeNodeIndex popNodes[2];
 
     findPopulatedNodes<<<1,1>>>(tree, nNodes, codesStart, codesEnd);
-    checkCudaErrors(cudaMemcpyFromSymbol(popNodes, populatedNodes, 2 * sizeof(TreeNodeIndex)));
+    checkGpuErrors(cudaMemcpyFromSymbol(popNodes, populatedNodes, 2 * sizeof(TreeNodeIndex)));
 
-    checkCudaErrors(cudaMemset(counts, 0, popNodes[0] * sizeof(unsigned)));
-    checkCudaErrors(cudaMemset(counts + popNodes[1], 0, (nNodes - popNodes[1]) * sizeof(unsigned)));
+    checkGpuErrors(cudaMemset(counts, 0, popNodes[0] * sizeof(unsigned)));
+    checkGpuErrors(cudaMemset(counts + popNodes[1], 0, (nNodes - popNodes[1]) * sizeof(unsigned)));
 
     constexpr unsigned nThreads = 256;
     if (useCountsAsGuess)
@@ -230,7 +230,7 @@ bool rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, unsigned bucketSi
                                                            thrust::raw_pointer_cast(workArray.data()), nOldNodes, nNodes(tmpTree),
                                                            thrust::raw_pointer_cast(tmpTree.data()));
     int changeCounter;
-    checkCudaErrors(cudaMemcpyFromSymbol(&changeCounter, rebalanceChangeCounter, sizeof(int)));
+    checkGpuErrors(cudaMemcpyFromSymbol(&changeCounter, rebalanceChangeCounter, sizeof(int)));
 
     swap(tree, tmpTree);
 

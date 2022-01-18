@@ -73,7 +73,7 @@ struct GpuConfig
     static int getSmCount()
     {
         cudaDeviceProp prop;
-        checkCudaErrors(cudaGetDeviceProperties(&prop, 0));
+        checkGpuErrors(cudaGetDeviceProperties(&prop, 0));
         return prop.multiProcessorCount;
     }
 

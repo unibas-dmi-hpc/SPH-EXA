@@ -36,4 +36,4 @@ inline void checkErr(cudaError_t err, const char *filename, int lineno, const ch
     }
 }
 
-#define checkCudaErrors(errcode) checkErr((errcode), __FILE__, __LINE__, #errcode);
+#define checkGpuErrors(errcode) checkErr((errcode), __FILE__, __LINE__, #errcode);
