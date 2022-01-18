@@ -152,8 +152,7 @@ inline __host__ __device__ fvec3 make_fvec3(fvec4 v)
 
 static void kernelSuccess(const char kernel[] = "kernel")
 {
-    cudaDeviceSynchronize();
-    const cudaError_t err = cudaGetLastError();
+    cudaError_t err = cudaDeviceSynchronize();
     if (err != cudaSuccess)
     {
         fprintf(stderr, "%s launch failed: %s\n", kernel, cudaGetErrorString(err));
