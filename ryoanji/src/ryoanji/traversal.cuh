@@ -506,13 +506,9 @@ fvec4 computeAcceleration(int firstBody, int lastBody, int images, float eps, fl
     printf("launching %d blocks\n", numBlocks);
 
     const int poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-
     thrust::device_vector<int> globalPool(poolSize);
 
-    cudaDeviceSynchronize();
-
     resetTraversalCounters<<<1, 1>>>();
-
     auto t0 = std::chrono::high_resolution_clock::now();
     traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody,
                                                     lastBody,
@@ -544,7 +540,6 @@ fvec4 computeAcceleration(int firstBody, int lastBody, int images, float eps, fl
     interactions[1] = float(maxP2P);
     interactions[2] = float(sumM2P) * 1.0f / float(numBodies);
     interactions[3] = float(maxM2P);
-
     float flops = (interactions[0] * 20.0f + interactions[2] * 2.0f * powf(P, 3)) * float(numBodies) / dt / 1e12f;
 
     fprintf(stdout, "Traverse             : %.7f s (%.7f TFlops)\n", dt, flops);
