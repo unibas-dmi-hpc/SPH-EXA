@@ -206,6 +206,38 @@ public:
         firstCall_ = false;
     }
 
+    template<class... Vectors>
+    void syncGrav(std::vector<KeyType>& particleKeys,
+                  std::vector<T>& x,
+                  std::vector<T>& y,
+                  std::vector<T>& z,
+                  std::vector<T>& h,
+                  std::vector<T>& m,
+                  Vectors&... particleProperties)
+    {
+        auto [exchangeStart, keyView] = distribute(particleKeys, x, y, z, h, m, particleProperties...);
+        reorderArrays(reorderFunctor, exchangeStart, 0, x.data(), y.data(), z.data(), h.data(), m.data());
+
+        std::vector<int> peers = global_.findPeers(theta_);
+
+        if (firstCall_)
+        {
+            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+        }
+        focusTree_.updateTree(peers, global_.assignment(), global_.tree());
+        focusTree_.updateCriteria(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+
+        halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
+
+        reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
+        halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), keyView, peers,
+                             layout_);
+
+        updateLayout(exchangeStart, keyView, particleKeys, std::tie(x, y, z, h, m), std::tie(particleProperties...));
+        setupHalos(particleKeys, x, y, z, h);
+        firstCall_ = false;
+    }
+
     //! @brief repeat the halo exchange pattern from the previous sync operation for a different set of arrays
     template<class... Arrays>
     void exchangeHalos(Arrays&... arrays) const
