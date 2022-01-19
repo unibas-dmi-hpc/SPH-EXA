@@ -54,7 +54,7 @@ public:
         pd.resize(pd.count);
 
         if(pd.rank == 0)
-            std::cout << "Approx: " << pd.count * (pd.data.size() * 64.0) / (8.0 * 1000.0 * 1000.0 * 1000.0) << "GB allocated on rank 0." << std::endl; 
+            std::cout << "Approx: " << pd.count * (pd.data.size() * 64.0) / (8.0 * 1000.0 * 1000.0 * 1000.0) << "GB allocated on rank 0." << std::endl;
 
         size_t offset = pd.rank * split;
         if (pd.rank > 0) offset += remaining;

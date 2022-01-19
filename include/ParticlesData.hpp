@@ -24,7 +24,7 @@ struct ParticlesData
         if (size > current_capacity)
         {
             // limit reallocation growth to 5% instead of 200%
-            size_t reserve_size = double(size) * 1.05; 
+            size_t reserve_size = double(size) * 1.05;
             for (unsigned int i = 0; i < data.size(); ++i)
             {
                 data[i]->reserve(reserve_size);
@@ -59,6 +59,8 @@ struct ParticlesData
     std::vector<T> dt, dt_m1;
     std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T> maxvsignal;
+    std::vector<T> rho0, wrho0;                  // Term for VEs
+    std::vector<T> kx, whomega;
 
     std::vector<KeyType> codes; // Particle Morton codes
 
@@ -71,7 +73,8 @@ struct ParticlesData
     std::vector<std::vector<T>*> data{&x,   &y,          &z,   &x_m1,  &y_m1, &z_m1, &vx,       &vy,       &vz,
                                       &ro,  &u,          &p,   &h,     &m,    &c,    &grad_P_x, &grad_P_y, &grad_P_z,
                                       &du,  &du_m1,      &dt,  &dt_m1, &c11,  &c12,  &c13,      &c22,      &c23,
-                                      &c33, &maxvsignal, &mue, &mui,      &temp, &cv};
+                                      &c33, &maxvsignal, &mue, &mui,   &temp, &cv,   &rho0,     &wrho0,    &kx,
+                                      &whomega};
 
     const std::array<double, lt::size> wh = lt::createWharmonicLookupTable<double, lt::size>();
     const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();

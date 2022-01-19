@@ -16,6 +16,7 @@
 #endif
 
 #include "sph/density.hpp"
+#include "sph/rho0.hpp"
 #include "sph/IAD.hpp"
 #include "sph/momentumAndEnergyIAD.hpp"
 #include "sph/kernels.hpp"

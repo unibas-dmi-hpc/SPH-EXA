@@ -2,7 +2,7 @@
 
 #include "cstone/sfc/box.hpp"
 
-#include "../lookupTables.hpp"
+#include "sph/lookupTables.hpp"
 
 namespace sphexa
 {

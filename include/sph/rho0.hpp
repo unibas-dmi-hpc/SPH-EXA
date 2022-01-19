@@ -6,7 +6,7 @@
 
 #include "kernels.hpp"
 #include "Task.hpp"
-#include "kernel/computeDensity.hpp"
+#include "kernel/computeRho0.hpp"
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
 #endif
@@ -16,7 +16,7 @@ namespace sphexa
 namespace sph
 {
 template <typename T, class Dataset>
-void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
+void computeRho0Impl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 {
     // number of particles in task
     size_t numParticles = t.size();
@@ -34,12 +34,10 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     const T *wh = d.wh.data();
     const T *whd = d.whd.data();
 
-    const T *rho0 = d.rho0.data();
-    const T *wrho0 = d.wrho0.data();
+    const T *ro = d.ro.data();
 
-    T *kx = d.kx.data();
-    T *whomega = d.whomega.data();
-    T *ro = d.ro.data();
+    T *rho0 = d.rho0.data();
+    T *wrho0 = d.wrho0.data();
 
     const T K = d.K;
     const T sincIndex = d.sincIndex;
@@ -81,53 +79,28 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
         //    pi, x, y, z, h, box, cstone::sfcKindPointer(d.codes.data()), neighLoc, &count, d.codes.size(), ngmax);
 
         int i = pi + t.firstParticle;
-        kernels::densityJLoop(i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi],
-                              x, y, z, h, m, wh, whd, rho0, wrho0, ro, kx, whomega);
+
+        kernels::rho0JLoop(i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi],
+                           x, y, z, h, m, wh, whd, rho0, wrho0);
 
 #ifndef NDEBUG
-        if (std::isnan(ro[i]))
-            printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", pi, ro[i], x[i], y[i], z[i], h[i]);
+        if (std::isnan(rho0[i]))
+            printf("ERROR::Rho0(%zu) rho0 %f, position: (%f %f %f), h: %f\n", pi, ro[i], x[i], y[i], z[i], h[i]);
 #endif
     }
 }
 
 template <typename T, class Dataset>
-void computeDensity(std::vector<Task> &taskList, Dataset &d, const cstone::Box<T>& box)
+void computeRho0(std::vector<Task> &taskList, Dataset &d, const cstone::Box<T>& box)
 {
 #if defined(USE_CUDA)
-    cuda::computeDensity<Dataset>(taskList, d, box);
+    cuda::computeRho0<Dataset>(taskList, d, box);
 #else
     for (const auto &task : taskList)
     {
-        computeDensityImpl<T>(task, d, box);
+        computeRho0Impl<T>(task, d, box);
     }
 #endif
 }
-
-template <typename T, class Dataset>
-void initFluidDensityAtRestImpl(const Task &t, Dataset &d)
-{
-    int numParticles = t.size();
-
-    const T *ro = d.ro.data();
-    T *ro_0 = d.ro_0.data();
-
-    #pragma omp parallel for
-    for (size_t pi = 0; pi < numParticles; ++pi)
-    {
-        int i = pi + t.firstParticle;
-        ro_0[i] = ro[i];
-    }
-}
-
-template <typename T, class Dataset>
-void initFluidDensityAtRest(const std::vector<Task> &taskList, Dataset &d)
-{
-    for (const auto &task : taskList)
-    {
-        initFluidDensityAtRestImpl<T>(task, d);
-    }
-}
-
 } // namespace sph
 } // namespace sphexa

@@ -62,6 +62,8 @@ int main(int argc, char** argv)
 
     const IFileWriter<Dataset>& fileWriter = SedovMPIFileWriter<Dataset>();
 
+    //Feed max min here.
+    //If makeGlobalBox is called later, it wont touch it.
     auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
@@ -75,9 +77,10 @@ int main(int argc, char** argv)
     size_t bucketSize = std::max(bucketSizeFocus, (cubeSide * cubeSide * cubeSide) / (100 * d.nrank));
 
     Box<Real> box(0, 1);
+    //Define box first and not call this.
     box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
 
-	// enable PBC and enlarge bounds
+	  //Enable PBC and enlarge bounds
     Real dx = 0.5 / cubeSide;
     box = Box<Real>(box.xmin() - dx, box.xmax() + dx,
                     box.ymin() - dx, box.ymax() + dx,
@@ -127,11 +130,15 @@ int main(int argc, char** argv)
         timer.step("updateTasks");
         findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, domain.box());
         timer.step("FindNeighbors");
+        computeRho0<Real>(taskList.tasks, d, domain.box());
+        timer.step("Rho0");
+        domain.exchangeHalos(d.rho0);
+        timer.step("mpi::synchronizeHalos");
         computeDensity<Real>(taskList.tasks, d, domain.box());
         timer.step("Density");
         computeEquationOfStateEvrard<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c);
+        domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c, d.kx);
         timer.step("mpi::synchronizeHalos");
         computeIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("IAD");
