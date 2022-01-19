@@ -36,8 +36,8 @@
 namespace cstone
 {
 
-template<class KeyType, class F>
-void findCollisions(const Octree<KeyType>& octree,
+template<class TreeType, class KeyType, class F>
+void findCollisions(const TreeType& octree,
                     F&& endpointAction,
                     const IBox& target,
                     KeyType excludeStart,
@@ -71,8 +71,8 @@ void findCollisions(const Octree<KeyType>& octree,
  *                               Note: does NOT reset non-colliding indices to 0, so @p collisionFlags
  *                               should be zero-initialized prior to calling this function.
  */
-template<class KeyType, class RadiusType, class CoordinateType>
-void findHalos(const Octree<KeyType>& octree,
+template<template<class> class TreeType, class KeyType, class RadiusType, class CoordinateType>
+void findHalos(const TreeType<KeyType>& octree,
                const RadiusType* interactionRadii,
                const Box<CoordinateType>& box,
                TreeNodeIndex firstNode,

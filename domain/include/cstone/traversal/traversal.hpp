@@ -65,8 +65,8 @@ namespace cstone
 //    return;
 //}
 
-template <class KeyType, class C, class A>
-void singleTraversal(const Octree<KeyType>& octree, C&& continuationCriterion, A&& endpointAction)
+template<template<class> class TreeType, class KeyType, class C, class A>
+void singleTraversal(const TreeType<KeyType>& octree, C&& continuationCriterion, A&& endpointAction)
 {
     if (!continuationCriterion(0) || octree.isLeaf(0))
     {
