@@ -108,6 +108,8 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
 
         T mj_pro_i = mj * pri  / (gradh_i * roi * roi);
 
+        T Atwood = (abs(roi - roj)) /  (roi + roj);
+
         {
             T a = Wi * (mj_pro_i + viscosity_ij * mi_roi);
             T b = mj_roj_Wj * (p[j] / (roj * gradh_j) + viscosity_ij);
