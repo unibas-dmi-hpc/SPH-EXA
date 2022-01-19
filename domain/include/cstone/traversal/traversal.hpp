@@ -81,7 +81,6 @@ void singleTraversal(const Octree<KeyType>& octree, C&& continuationCriterion, A
     TreeNodeIndex stackPos = 1;
     TreeNodeIndex node     = 0; // start at the root
 
-    TreeNodeIndex internalNodes = octree.numInternalNodes();
     do
     {
         for (int octant = 0; octant < 8; ++octant)
@@ -92,7 +91,7 @@ void singleTraversal(const Octree<KeyType>& octree, C&& continuationCriterion, A
             {
                 if (octree.isLeaf(child))
                 {
-                    endpointAction(child - internalNodes);
+                    endpointAction(octree.cstoneIndex(child));
                 }
                 else
                 {

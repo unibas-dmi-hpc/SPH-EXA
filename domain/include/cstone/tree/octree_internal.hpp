@@ -505,6 +505,13 @@ public:
         return node + numInternalNodes();
     }
 
+    //! @brief convert an octree index to the leaf index of the cstone array used for construction
+    [[nodiscard]] inline TreeNodeIndex cstoneIndex(TreeNodeIndex node) const
+    {
+        assert(node >= numInternalNodes());
+        return node - numInternalNodes();
+    }
+
     /*! @brief check whether child of node is a leaf
      *
      * @param[in] node    node index, range [0:numInternalNodes()]
