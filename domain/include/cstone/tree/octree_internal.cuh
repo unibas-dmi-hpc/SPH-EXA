@@ -55,20 +55,18 @@ __global__ void nodeDepthKernel(const OctreeNode<I>* octree, TreeNodeIndex nNode
 template<class KeyType>
 struct OctreeGpuDataView
 {
-
     TreeNodeIndex numLeafNodes;
     TreeNodeIndex numInternalNodes;
 
-    BinaryNode<KeyType>* binaryTree;
-
-    KeyType*       prefixes;
-    TreeNodeIndex* binaryToOct;
-    TreeNodeIndex* octToBinary;
-    TreeNodeIndex* nodeOrder;
-    TreeNodeIndex* inverseNodeOrder;
+    KeyType* prefixes;
     TreeNodeIndex* childOffsets;
     TreeNodeIndex* parents;
     TreeNodeIndex* levelRange;
+    TreeNodeIndex* nodeOrder;
+    TreeNodeIndex* inverseNodeOrder;
+    BinaryNode<KeyType>* binaryTree;
+    TreeNodeIndex* binaryToOct;
+    TreeNodeIndex* octToBinary;
 };
 
 /*! @brief determine which binary nodes correspond to octree nodes
@@ -311,52 +309,57 @@ public:
         numInternalNodes       = (numLeafNodes - 1) / 7;
         TreeNodeIndex numNodes = numLeafNodes + numInternalNodes;
 
-        binaryTree.resize(numLeafNodes);
-
         prefixes.resize(numNodes);
-
-        binaryToOct.resize(numLeafNodes);
-        octToBinary.resize(numInternalNodes);
-
         childOffsets.resize(numNodes);
+        parents.resize((numNodes - 1) / 8);
+        //+1 due to level 0 and +1 due to the upper bound for the last level
+        levelRange.resize(maxTreeLevel<KeyType>{} + 2);
+
         nodeOrder.resize(numNodes);
         inverseNodeOrder.resize(numNodes);
 
-        parents.resize((numNodes - 1) / 8);
-
-        //+1 due to level 0 and +1 due to the upper bound for the last level
-        levelRange.resize(maxTreeLevel<KeyType>{} + 2);
+        binaryTree.resize(numLeafNodes);
+        binaryToOct.resize(numLeafNodes);
+        octToBinary.resize(numInternalNodes);
     }
 
     OctreeGpuDataView<KeyType> getData()
     {
         return {numLeafNodes,
                 numInternalNodes,
-                thrust::raw_pointer_cast(binaryTree.data()),
                 thrust::raw_pointer_cast(prefixes.data()),
-                thrust::raw_pointer_cast(binaryToOct.data()),
-                thrust::raw_pointer_cast(octToBinary.data()),
-                thrust::raw_pointer_cast(nodeOrder.data()),
-                thrust::raw_pointer_cast(inverseNodeOrder.data()),
                 thrust::raw_pointer_cast(childOffsets.data()),
                 thrust::raw_pointer_cast(parents.data()),
                 thrust::raw_pointer_cast(levelRange.data()),
+                thrust::raw_pointer_cast(nodeOrder.data()),
+                thrust::raw_pointer_cast(inverseNodeOrder.data()),
+                thrust::raw_pointer_cast(binaryTree.data()),
+                thrust::raw_pointer_cast(binaryToOct.data()),
+                thrust::raw_pointer_cast(octToBinary.data()),
         };
     }
 
     TreeNodeIndex numLeafNodes{0};
     TreeNodeIndex numInternalNodes{0};
 
-    thrust::device_vector<BinaryNode<KeyType>> binaryTree;
+    //! @brief the SFC key and level of each node (Warren-Salmon placeholder-bit), length = numNodes
+    thrust::device_vector<KeyType> prefixes;
+    //! @brief the index of the first child of each node, a value of 0 indicates a leaf, length = numNodes
+    thrust::device_vector<TreeNodeIndex> childOffsets;
+    //! @brief stores the parent index for every group of 8 sibling nodes, length the (numNodes - 1) / 8
+    thrust::device_vector<TreeNodeIndex> parents;
+    //! @brief store the first node index of every tree level, length = maxTreeLevel + 2
+    thrust::device_vector<TreeNodeIndex> levelRange;
 
-    thrust::device_vector<KeyType>  prefixes;
-    thrust::device_vector<TreeNodeIndex> binaryToOct;
-    thrust::device_vector<TreeNodeIndex> octToBinary;
+    //! @brief maps between the (level-key) sorted layout B and the unsorted intermediate binary layout A
     thrust::device_vector<TreeNodeIndex> nodeOrder;
     thrust::device_vector<TreeNodeIndex> inverseNodeOrder;
-    thrust::device_vector<TreeNodeIndex> childOffsets;
-    thrust::device_vector<TreeNodeIndex> parents;
-    thrust::device_vector<TreeNodeIndex> levelRange;
+
+    //! @brief temporary storage for binary tree nodes used during construction
+    thrust::device_vector<BinaryNode<KeyType>> binaryTree;
+    //! @brief temporary index maps between the binary tree and octree used during construction
+    thrust::device_vector<TreeNodeIndex> binaryToOct;
+    thrust::device_vector<TreeNodeIndex> octToBinary;
 };
 
 } // namespace cstone
