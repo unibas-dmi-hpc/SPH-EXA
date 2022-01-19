@@ -55,166 +55,235 @@
 namespace cstone
 {
 
-/*! @brief construct internal octree from given leaves
+/*! @brief determine which binary nodes correspond to octree nodes
  *
- * @tparam KeyType
- * @param[in]  leaves           cornerstone leaf cell array, length @p numLeafNodes + 1
- * @param[in]  numLeafNodes
- * @param[in]  binaryTree       binary radix tree node array, length @p numLeafNodes - 1
- * @param[out] prefixes         output octree SFC node kyes, length = numLeafNodes + (numLeafNodes-1)/7
- * @param[out] levels           output octree levels, length same as @p prefixes
- * @param[out] childOffsets     child index per node, length same as @p prefixes
- * @param[out] parents          parent index per group of 8 nodes, length is (len(prefixes) - 1) / 8
- *                              the parent index of node i is stored at parents[(i-1)/8]
- * @param[out] levelOffsets     location of first node of each level, length maxTreeLevel<KeyType>{} + 2
- *                              +1 to store the root and another +1 to store the total number of nodes
- *                              in the last element. levelOffsets[0] = 0 is the root (zero) offset,
- *                              levelOffsets[i] is the index of the first level-i node.
+ * @tparam     KeyType     unsigned 32- or 64-bit integer
+ * @param[in]  binaryTree  binary radix tree nodes, length @p numNodes
+ * @param[in]  numNodes    number of binary radix tree nodes
+ * @param[out] binaryToOct for each binary node, store 1 if prefix bit length is divisible by 3
  */
 template<class KeyType>
-void constructOctree(const KeyType* leaves, TreeNodeIndex numLeafNodes, const BinaryNode<KeyType>* binaryTree,
-                     KeyType* prefixes, unsigned* levels, TreeNodeIndex* childOffsets, TreeNodeIndex* parents,
-                     TreeNodeIndex* levelOffsets, TreeNodeIndex* nodeOrder)
+void enumeratePrefixes(const BinaryNode<KeyType>* binaryTree, TreeNodeIndex numNodes, TreeNodeIndex* binaryToOct)
 {
-    // we ignore the last binary tree node which is a duplicate root node
-    TreeNodeIndex nBinaryNodes = numLeafNodes - 1;
-
-    // one extra element to store the total sum of the exclusive scan
-    std::vector<TreeNodeIndex> binaryToOct(nBinaryNodes + 1);
     #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex i = 0; i < nBinaryNodes; ++i)
+    for (TreeNodeIndex tid = 0; tid < numNodes; ++tid)
     {
-        int  prefixLength = decodePrefixLength(binaryTree[i].prefix);
+        int  prefixLength = decodePrefixLength(binaryTree[tid].prefix);
         bool divisibleBy3 = prefixLength % 3 == 0;
-        binaryToOct[i] = (divisibleBy3) ? 1 : 0;
+        binaryToOct[tid] = (divisibleBy3) ? 1 : 0;
     }
+}
 
-    // stream compaction: scan and scatter
-    exclusiveScan(binaryToOct.data(), binaryToOct.size());
-
-    // nInternalOctreeNodes is also equal to prefixes[nBinaryNodes]
-    TreeNodeIndex numInternalNodes = (numLeafNodes - 1) / 7;
-    std::vector<TreeNodeIndex> octToBinary(numInternalNodes);
-
-    // compaction step, scatterMap -> compacted list of binary nodes that correspond to octree nodes
+/*! @brief map octree nodes back to binary nodes
+ *
+ * @param[in]  binaryToOct     translation map from binary to octree nodes, length @p numBinaryNodes
+ * @param[in]  numBinaryNodes  number of binary tree nodes
+ * @param[out] octToBinary     the inversion of binaryToOct, octToBinary[binaryToOct[i]] == i
+ */
+void translateToOct(const TreeNodeIndex* binaryToOct, int numBinaryNodes, TreeNodeIndex* octToBinary)
+{
     #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex i = 0; i < nBinaryNodes; ++i)
+    for (TreeNodeIndex tid = 0; tid < numBinaryNodes; ++tid)
     {
-        bool isOctreeNode = (binaryToOct[i+1] - binaryToOct[i]) == 1;
+        bool isOctreeNode = (binaryToOct[tid + 1] - binaryToOct[tid]) == 1;
         if (isOctreeNode)
         {
-            int octreeNodeIndex = binaryToOct[i];
-            octToBinary[octreeNodeIndex] = i;
+            int octreeNodeIndex          = binaryToOct[tid];
+            octToBinary[octreeNodeIndex] = tid;
         }
     }
+}
 
-    TreeNodeIndex numNodes = numInternalNodes + numLeafNodes;
-
-    //std::vector<TreeNodeIndex> nodeOrder(numNodes);
-    std::iota(nodeOrder, nodeOrder + numNodes, 0);
-
+/*! @brief combine internal and leaf tree parts into single arrays in the binary tree order
+ *
+ * @tparam KeyType               unsigned 32- or 64-bit integer
+ * @param[in]  binaryTree        binary radix tree nodes, length numNodes - numInternalNodes - 1
+ * @param[in]  numInternalNodes  number of internal (output) octree nodes
+ * @param[in]  numNodes          total number of nodes
+ * @param[in]  leaves            cornerstone SFC keys used to compute binaryTree, length numNodes - numInternalNodes + 1
+ * @param[in]  octToBinary       translation map from octree to binary node indices
+ * @param[out] prefixes          output octree SFC keys, length @p numNodes
+ *                               NOTE: keys are prefixed with Warren-Salmon placeholder bits!
+ * @param[out] nodeOrder         iota 0,1,2,3,... sequence for later use, length @p numNodes
+ * @param[out] inverseNodeOrder  iota 0,1,2,3,... sequence for later use, length @p numNodes
+ *
+ * Unsorted binary radix tree ordering: first all internal nodes, then leaf nodes
+ *
+ *    binaryTree |---------------------------------------------------|
+ *                       ^                      |
+ *      octToBinary   |--|  |-------------------|  binaryToOct
+ *                    |     V
+ *    prefixes   |------------|--------------------------------|
+ *    levels     |------------|--------------------------------|
+ *                 internal        leaves
+ */
+template<class KeyType>
+void createUnsortedLayout(const BinaryNode<KeyType>* binaryTree,
+                          TreeNodeIndex numInternalNodes,
+                          TreeNodeIndex numNodes,
+                          const KeyType* leaves,
+                          const TreeNodeIndex* octToBinary,
+                          KeyType* prefixes,
+                          TreeNodeIndex* nodeOrder,
+                          TreeNodeIndex* inverseNodeOrder)
+{
     #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex i = 0; i < numInternalNodes; ++i)
+    for (TreeNodeIndex tid = 0; tid < numInternalNodes; ++tid)
     {
-        TreeNodeIndex binaryIndex = octToBinary[i];
-        levels[i]   = decodePrefixLength(binaryTree[binaryIndex].prefix) / 3;
-        prefixes[i] = decodePlaceholderBit(binaryTree[binaryIndex].prefix);
+        TreeNodeIndex binaryIndex = octToBinary[tid];
+        prefixes[tid]             = binaryTree[binaryIndex].prefix;
+
+        nodeOrder[tid]        = tid;
+        inverseNodeOrder[tid] = tid;
     }
-
-    std::copy(leaves, leaves + numLeafNodes, prefixes + numInternalNodes);
-
     #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex i = 0; i < numLeafNodes; ++i)
+    for (TreeNodeIndex tid = numInternalNodes; tid < numNodes; ++tid)
     {
-        unsigned level = treeLevel(leaves[i+1] - leaves[i]);
-        levels[i + numInternalNodes] = level;
+        TreeNodeIndex leafIdx = tid - numInternalNodes;
+        unsigned level        = treeLevel(leaves[leafIdx + 1] - leaves[leafIdx]);
+        prefixes[tid]         = encodePlaceholderBit(leaves[leafIdx], 3 * level);
+
+        nodeOrder[tid]        = tid;
+        inverseNodeOrder[tid] = tid;
     }
+}
 
-    /*! prefix and levels now in unsorted layout A
-     *
-     * binaryTree |---------------------------------------------------|
-     *                    ^                      |
-     *   octToBinary   |--|  |-------------------|  binaryToOct
-     *                 |     V
-     * prefixes   |------------|--------------------------------|
-     * levels     |------------|--------------------------------|
-     *              internal        leaves
-     */
-
-    sort_by_key(levels, levels + numNodes, nodeOrder);
-    {
-        std::vector<KeyType> tmpPrefixes(prefixes, prefixes + numNodes);
-        reorder(gsl::span<const TreeNodeIndex>(nodeOrder, numNodes), tmpPrefixes.data(), prefixes);
-    }
-
-    for (unsigned level = 0; level < maxTreeLevel<KeyType>{} + 1; ++level)
-    {
-        auto it1 = std::lower_bound(levels, levels + numNodes, level);
-        auto it2 = std::upper_bound(levels, levels + numNodes, level);
-        levelOffsets[level] = TreeNodeIndex(it2 - it1);
-    }
-
-    exclusiveScan(levelOffsets, maxTreeLevel<KeyType>{} + 2);
-
-    #pragma omp parallel for schedule(dynamic)
-    for (unsigned level = 0; level < maxTreeLevel<KeyType>{} + 1; ++level)
-    {
-        TreeNodeIndex lvlStart = levelOffsets[level];
-        sort_by_key(prefixes + lvlStart, prefixes + levelOffsets[level + 1], nodeOrder + lvlStart);
-    }
-
-    /*! prefix and levels now in sorted layout B
-     *
-     *  -levels is sorted in ascending order
-     *  -prefix is first sorted by level, then by ascending key
-     *  -nodeOrder goes from layout B to layout A (nodeOrder[i] is i's location in A)
-     */
-
-    std::vector<TreeNodeIndex> inverseNodeOrder(numNodes);
-    std::iota(begin(inverseNodeOrder), end(inverseNodeOrder), 0);
-
-    // temporarily repurpose childOffsets as sort key
-    std::copy(nodeOrder, nodeOrder + numNodes, childOffsets);
-    sort_by_key(childOffsets, childOffsets + numNodes, begin(inverseNodeOrder));
-    std::fill(childOffsets, childOffsets + numNodes, 0);
-
-    // loop over octree nodes index in layout A
+/*! @brief extract parent/child relationships from binary tree and translate to sorted order
+ *
+ * @tparam     KeyType           unsigned 32- or 64-bit integer
+ * @param[in]  binaryTree        binary radix tree nodes
+ * @param[in]  numInternalNodes  number of internal octree nodes
+ * @param[in]  octToBinary       internal octree to binary node index translation map, length @p numInternalNodes
+ * @param[in]  binaryToOct       binary node to internal octree node index translation map
+ * @param[in]  inverseNodeOrder  translation map from unsorted layout to level/SFC sorted octree layout
+ *                               length is total number of octree nodes, internal + leaves
+ * @param[out] childOffsets      octree node index of first child for each node, length is total number of nodes
+ * @param[out] parents           parent index of for each node which is the first of 8 siblings
+ *                               i.e. the parent of node i is stored at parents[(i - 1)/8]
+ */
+template<class KeyType>
+void linkTree(const BinaryNode<KeyType>* binaryTree,
+              TreeNodeIndex numInternalNodes,
+              const TreeNodeIndex* octToBinary,
+              const TreeNodeIndex* binaryToOct,
+              const TreeNodeIndex* inverseNodeOrder,
+              TreeNodeIndex* childOffsets,
+              TreeNodeIndex* parents)
+{
+    // loop over octree nodes index in unsorted layout A
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex idxA = 0; idxA < numInternalNodes; ++idxA)
     {
         TreeNodeIndex binaryIndex = octToBinary[idxA];
         TreeNodeIndex firstChild  = binaryTree[binaryTree[binaryTree[binaryIndex].child[0]].child[0]].child[0];
 
-        // octree node index in layout B
+        // octree node index in sorted layout B
         TreeNodeIndex idxB = inverseNodeOrder[idxA];
 
-        // child node index in layout A
+        // child node index in unsorted layout A
         TreeNodeIndex childA =
             (isLeafIndex(firstChild)) ? loadLeafIndex(firstChild) + numInternalNodes : binaryToOct[firstChild];
 
         // node index in layout B
         TreeNodeIndex childB = inverseNodeOrder[childA];
+        // an internal node must have a valid child
+        assert(childB > 0);
 
-        childOffsets[idxB]        = childB;
+        childOffsets[idxB] = childB;
+        // We only store the parent once for every group of 8 siblings. This works as long as each node always has
+        // 8 siblings. Subtract one because the root has no siblings.
         parents[(childB - 1) / 8] = idxB;
     }
+}
+
+//! @brief determine the octree subdivision level boundaries
+template<class KeyType>
+void getLevelRange(const KeyType* nodeKeys, TreeNodeIndex numNodes, TreeNodeIndex* levelRange)
+{
+    levelRange[0] = 0;
+    levelRange[1] = 1;
+    for (unsigned level = 2; level <= maxTreeLevel<KeyType>{}; ++level)
+    {
+        auto it = std::lower_bound(nodeKeys, nodeKeys + numNodes, 3 * level,
+                                   [](KeyType k, KeyType val) { return decodePrefixLength(k) < val; });
+        levelRange[level] = TreeNodeIndex(it - nodeKeys);
+    }
+    levelRange[maxTreeLevel<KeyType>{} + 1] = numNodes;
+}
+
+/*! @brief functor to sort octree nodes first according to level, then by SFC key
+ *
+ * Note: takes SFC keys with Warren-Salmon placeholder bits in place as arguments
+ */
+template<class KeyType>
+struct compareLevelThenPrefixCpu
+{
+    HOST_DEVICE_FUN bool operator()(KeyType a, KeyType b) const
+    {
+        unsigned prefix_a = cstone::decodePrefixLength(a);
+        unsigned prefix_b = cstone::decodePrefixLength(b);
+
+        if (prefix_a < prefix_b)
+        {
+            return true;
+        }
+        else if (prefix_b < prefix_a)
+        {
+            return false;
+        }
+        else
+        {
+            return cstone::decodePlaceholderBit(a) < cstone::decodePlaceholderBit(b);
+        }
+    }
+};
+
+/*! @brief construct the internal octree part of a given octree leaf cell array on the GPU
+ *
+ * @tparam       KeyType     unsigned 32- or 64-bit integer
+ * @param[in]    cstoneTree  GPU buffer with the SFC leaf cell keys
+ */
+template<class KeyType>
+void buildInternalOctreeGpu(const KeyType* cstoneTree,
+                            TreeNodeIndex numLeafNodes,
+                            TreeNodeIndex numInternalNodes,
+                            KeyType* prefixes,
+                            TreeNodeIndex* childOffsets,
+                            TreeNodeIndex* parents,
+                            TreeNodeIndex* levelRange,
+                            TreeNodeIndex* nodeOrder,
+                            TreeNodeIndex* inverseNodeOrder,
+                            BinaryNode<KeyType>* binaryTree,
+                            TreeNodeIndex* binaryToOct,
+                            TreeNodeIndex* octToBinary)
+{
+    createBinaryTree(cstoneTree, numLeafNodes, binaryTree);
+
+    // we ignore the last binary tree node which is a duplicate root node
+    TreeNodeIndex numBinaryNodes = numLeafNodes - 1;
+    enumeratePrefixes(binaryTree, numBinaryNodes, binaryToOct);
+    exclusiveScan(binaryToOct, numLeafNodes);
+    translateToOct(binaryToOct, numBinaryNodes, octToBinary);
+    TreeNodeIndex numNodes = numInternalNodes + numLeafNodes;
+    createUnsortedLayout(binaryTree, numInternalNodes, numNodes, cstoneTree, octToBinary, prefixes, nodeOrder,
+                         inverseNodeOrder);
+    sort_by_key(prefixes, prefixes + numNodes, nodeOrder, compareLevelThenPrefixCpu<KeyType>{});
+    // arrays now in sorted layout B
+
+    // temporarily repurpose childOffsets as space for sort key
+    std::copy(nodeOrder, nodeOrder + numNodes, childOffsets);
+    sort_by_key(childOffsets, childOffsets + numNodes, inverseNodeOrder);
+    std::fill(childOffsets, childOffsets + numNodes, 0);
+
+    linkTree(binaryTree, numInternalNodes, octToBinary, binaryToOct, inverseNodeOrder, childOffsets, parents);
+    getLevelRange(prefixes, numNodes, levelRange);
 }
 
 template<class KeyType>
 class TdOctree
 {
 public:
-    /*! @brief default ctor
-     *
-     * Apart from the root at level 0, there are maxTreeLevel<KeyType>{} non-trivial levels.
-     * For convenience, we also store the root offset, even though the root is always a single node
-     * at offset 0. So in total there are maxTreeLevel<KeyType>{}+1 levels and we need
-     * another +1 to store the last upper bound which is equal to the total number of nodes in the tree.
-     */
-    TdOctree()
-        : levelOffsets_(maxTreeLevel<KeyType>{} + 2)
-    {
-    }
+    TdOctree() = default;
 
     void update(const KeyType* firstLeaf, TreeNodeIndex newNumLeafNodes)
     {
@@ -224,13 +293,13 @@ public:
     //! @brief total number of nodes in the tree
     [[nodiscard]] inline TreeNodeIndex numTreeNodes() const
     {
-        return levelOffsets_.back();
+        return levelRange_.back();
     }
 
     [[nodiscard]] inline TreeNodeIndex numTreeNodes(unsigned level) const
     {
         assert(level <= maxTreeLevel<KeyType>{});
-        return levelOffsets_[level + 1] - levelOffsets_[level];
+        return levelRange_[level + 1] - levelRange_[level];
     }
 
     //! @brief number of leaf nodes in the tree
@@ -282,21 +351,20 @@ public:
      *
      * Note: the root node is its own parent
      */
-    [[nodiscard]] inline TreeNodeIndex parent(TreeNodeIndex node) const
-    {
-        return parents_[(node -1) / 8];
-    }
+    [[nodiscard]] inline TreeNodeIndex parent(TreeNodeIndex node) const { return parents_[(node - 1) / 8]; }
 
     //! @brief lowest SFC key contained int the geometrical box of @p node
     [[nodiscard]] inline KeyType codeStart(TreeNodeIndex node) const
     {
-        return prefixes_[node];
+        return decodePlaceholderBit(prefixes_[node]);
     }
 
     //! @brief highest SFC key contained in the geometrical box of @p node
     [[nodiscard]] inline KeyType codeEnd(TreeNodeIndex node) const
     {
-        return prefixes_[node] + nodeRange<KeyType>(levels_[node]);
+        KeyType prefix = prefixes_[node];
+        assert(decodePrefixLength(prefix) % 3  == 0);
+        return decodePlaceholderBit(prefix) + (1ul << (3 * maxTreeLevel<KeyType>{} - decodePrefixLength(prefix)));
     }
 
     /*! @brief octree subdivision level for @p node
@@ -305,12 +373,13 @@ public:
      */
     [[nodiscard]] inline unsigned level(TreeNodeIndex node) const
     {
-        return levels_[node];
+        return decodePrefixLength(prefixes_[node]) / 3;
     }
 
+    //! @brief return the index of the first node at subdivision level @p level
     [[nodiscard]] inline TreeNodeIndex levelOffset(unsigned level) const
     {
-        return levelOffsets_[level];
+        return levelRange_[level];
     }
 
     /*! @brief returns index of @p node in the cornerstone tree used for construction
@@ -336,52 +405,66 @@ public:
     {
         unsigned level = treeLevel(endKey - startKey);
 
-        return std::lower_bound(prefixes_.begin() + levelOffsets_[level],
-                                prefixes_.begin() + levelOffsets_[level + 1], startKey) -
+        return std::lower_bound(prefixes_.begin() + levelRange_[level], prefixes_.begin() + levelRange_[level + 1],
+                                startKey, [](KeyType k, KeyType val) { return decodePlaceholderBit(k) < val; }) -
                prefixes_.begin();
     }
 
 private:
-
     //! @brief regenerates the internal tree based on (a changed) cstoneTree_
     void updateInternalTree(const KeyType* leaves, TreeNodeIndex numLeafNodes)
     {
-        numLeafNodes_          = numLeafNodes;
-        numInternalNodes_      = (numLeafNodes - 1) / 7;
-        TreeNodeIndex numNodes = numInternalNodes_ + numLeafNodes_;
+        resize(numLeafNodes);
+        buildInternalOctreeGpu(leaves, numLeafNodes_, numInternalNodes_, prefixes_.data(), childOffsets_.data(),
+                               parents_.data(), levelRange_.data(), nodeOrder_.data(), inverseNodeOrder_.data(),
+                               binaryTree_.data(), binaryToOct_.data(), octToBinary_.data());
+    }
 
-        std::vector<BinaryNode<KeyType>> binaryTree(numLeafNodes);
-        createBinaryTree(leaves, numLeafNodes, binaryTree.data());
+    void resize(TreeNodeIndex numCsLeafNodes)
+    {
+        numLeafNodes_          = numCsLeafNodes;
+        numInternalNodes_      = (numLeafNodes_ - 1) / 7;
+        TreeNodeIndex numNodes = numLeafNodes_ + numInternalNodes_;
 
         prefixes_.resize(numNodes);
-        levels_.resize(numNodes);
         childOffsets_.resize(numNodes);
-        nodeOrder_.resize(numNodes);
-
         parents_.resize((numNodes - 1) / 8);
+        /*! Apart from the root at level 0, there are maxTreeLevel<KeyType>{} non-trivial levels.
+         * For convenience, we also store the root offset, even though the root is always a single node
+         * at offset 0. So in total there are maxTreeLevel<KeyType>{}+1 levels and we need
+         * another +1 to store the last upper bound which is equal to the total number of nodes in the tree.
+         */
+        levelRange_.resize(maxTreeLevel<KeyType>{} + 2);
 
-        constructOctree(leaves, numLeafNodes, binaryTree.data(), prefixes_.data(), levels_.data(), childOffsets_.data(),
-                        parents_.data(), levelOffsets_.data(), nodeOrder_.data());
+        nodeOrder_.resize(numNodes);
+        inverseNodeOrder_.resize(numNodes);
+
+        binaryTree_.resize(numLeafNodes_);
+        binaryToOct_.resize(numLeafNodes_);
+        octToBinary_.resize(numInternalNodes_);
     }
 
     TreeNodeIndex numLeafNodes_{0};
     TreeNodeIndex numInternalNodes_{0};
 
+    //! @brief the SFC key and level of each node (Warren-Salmon placeholder-bit), length = numNodes
     std::vector<KeyType> prefixes_;
-
-    //! @brief subdivision level of each node
-    std::vector<unsigned> levels_;
-
-    //! @brief node offsets of first child for each node
+    //! @brief the index of the first child of each node, a value of 0 indicates a leaf, length = numNodes
     std::vector<TreeNodeIndex> childOffsets_;
-
+    //! @brief stores the parent index for every group of 8 sibling nodes, length the (numNodes - 1) / 8
     std::vector<TreeNodeIndex> parents_;
+    //! @brief store the first node index of every tree level, length = maxTreeLevel + 2
+    std::vector<TreeNodeIndex> levelRange_;
 
-    //! @brief stores index of first node for each level
-    std::vector<TreeNodeIndex> levelOffsets_;
-
-    //! @brief stores node locations in the cornerstone leaf array
+    //! @brief maps between the (level-key) sorted layout B and the unsorted intermediate binary layout A
     std::vector<TreeNodeIndex> nodeOrder_;
+    std::vector<TreeNodeIndex> inverseNodeOrder_;
+
+    //! @brief temporary storage for binary tree nodes used during construction
+    std::vector<BinaryNode<KeyType>> binaryTree_;
+    //! @brief temporary index maps between the binary tree and octree used during construction
+    std::vector<TreeNodeIndex> binaryToOct_;
+    std::vector<TreeNodeIndex> octToBinary_;
 };
 
 template<class T, class KeyType, class CombinationFunction>
