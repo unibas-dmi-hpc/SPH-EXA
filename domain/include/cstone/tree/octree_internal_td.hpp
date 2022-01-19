@@ -369,6 +369,16 @@ public:
         return levelRange_[level];
     }
 
+    /*! @brief convert a leaf index (indexed from first leaf starting from 0) to 0-indexed from root
+     *
+     * @param[in] node    leaf node index, range [0:numLeafNodes()]
+     * @return            octree index, relative to the root node
+     */
+    [[nodiscard]] inline TreeNodeIndex toInternal(TreeNodeIndex node) const
+    {
+        return inverseNodeOrder_[node + numInternalNodes()];
+    }
+
     /*! @brief returns index of @p node in the cornerstone tree used for construction
      *
      * @param node  node in [0:numTreeNodes()]

@@ -37,11 +37,8 @@ namespace cstone
 {
 
 template<class TreeType, class KeyType, class F>
-void findCollisions(const TreeType& octree,
-                    F&& endpointAction,
-                    const IBox& target,
-                    KeyType excludeStart,
-                    KeyType excludeEnd)
+void findCollisions(
+    const TreeType& octree, F&& endpointAction, const IBox& target, KeyType excludeStart, KeyType excludeEnd)
 {
     auto overlaps = [excludeStart, excludeEnd, &octree, &target](TreeNodeIndex idx)
     {
@@ -79,19 +76,20 @@ void findHalos(const TreeType<KeyType>& octree,
                TreeNodeIndex lastNode,
                int* collisionFlags)
 {
-    auto leaves = octree.treeLeaves();
-    KeyType lowestCode  = leaves[firstNode];
-    KeyType highestCode = leaves[lastNode];
+    KeyType lowestCode  = octree.codeStart(octree.toInternal(firstNode));
+    KeyType highestCode = octree.codeStart(octree.toInternal(lastNode));
 
     auto markCollisions = [flags = collisionFlags](TreeNodeIndex i) { flags[i] = 1; };
 
-    // loop over all the nodes in range
     #pragma omp parallel for
     for (TreeNodeIndex nodeIdx = firstNode; nodeIdx < lastNode; ++nodeIdx)
     {
         RadiusType radius = interactionRadii[nodeIdx];
 
-        IBox haloBox = makeHaloBox<KeyType>(leaves[nodeIdx], leaves[nodeIdx + 1], radius, box);
+        TreeNodeIndex internalIdx = octree.toInternal(nodeIdx);
+        KeyType leafKey           = octree.codeStart(internalIdx);
+        unsigned level            = octree.level(internalIdx);
+        IBox haloBox              = makeHaloBox<KeyType>(leafKey, leafKey + nodeRange<KeyType>(level), radius, box);
 
         // if the halo box is fully inside the assigned SFC range, we skip collision detection
         if (containedIn(lowestCode, highestCode, haloBox)) { continue; }
