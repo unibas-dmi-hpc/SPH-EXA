@@ -220,21 +220,8 @@ struct compareLevelThenPrefixCpu
 {
     HOST_DEVICE_FUN bool operator()(KeyType a, KeyType b) const
     {
-        unsigned prefix_a = cstone::decodePrefixLength(a);
-        unsigned prefix_b = cstone::decodePrefixLength(b);
-
-        if (prefix_a < prefix_b)
-        {
-            return true;
-        }
-        else if (prefix_b < prefix_a)
-        {
-            return false;
-        }
-        else
-        {
-            return cstone::decodePlaceholderBit(a) < cstone::decodePlaceholderBit(b);
-        }
+        return util::tuple<unsigned, KeyType>{decodePrefixLength(a), a} <
+               util::tuple<unsigned, KeyType>{decodePrefixLength(b), b};
     }
 };
 
