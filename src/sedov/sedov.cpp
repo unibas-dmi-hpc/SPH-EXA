@@ -285,4 +285,3 @@ void printHelp(char* name, int rank)
                     \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n");
     }
 }
-
