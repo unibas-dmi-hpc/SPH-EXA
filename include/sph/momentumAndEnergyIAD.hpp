@@ -48,11 +48,16 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     T* grad_P_z = d.grad_P_z.data();
     T* maxvsignal = d.maxvsignal.data();
 
-    const T* wh = d.wh.data();
-    const T* whd = d.whd.data();
+    const T* wh   = d.wh.data();
+    const T* whd  = d.whd.data();
+    const T* kx   = d.kx.data();
+    const T* rho0 = d.rho0.data();
 
-    T K = d.K;
-    T sincIndex = d.sincIndex;
+    const T K = d.K;
+    const T sincIndex = d.sincIndex;
+    const T Atmin = d.Atmin;
+    const T Atmax = d.Atmax;
+    const T ramp  = d.ramp;
 
 #if defined(USE_OMP_TARGET)
     // Apparently Cray with -O2 has a bug when calling target regions in a loop. (and computeMomentumAndEnergyIADImpl can be called in a
@@ -91,8 +96,8 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
         int i = pi + t.firstParticle;
         kernels::momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi],
                                         x, y, z, vx, vy, vz, h, m, ro, p, c,
-                                        c11, c12, c13, c22, c23, c33,
-                                        wh, whd, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
+                                        c11, c12, c13, c22, c23, c33, Atmin, Atmax, ramp,
+                                        wh, whd, kx, rho0, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
     }
 }
 

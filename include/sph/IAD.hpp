@@ -24,11 +24,12 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     const int* neighborsCount = t.neighborsCount.data();
 
     const T* h = d.h.data();
-    const T* m = d.m.data();
     const T* x = d.x.data();
     const T* y = d.y.data();
     const T* z = d.z.data();
-    const T* ro = d.ro.data();
+    const T* m = d.m.data();
+    const T* rho0 = d.rho0.data();
+    const T* kx = d.kx.data();
 
     T* c11 = d.c11.data();
     T* c12 = d.c12.data();
@@ -80,7 +81,7 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     {
         int i = pi + t.firstParticle;
         kernels::IADJLoop(i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi],
-                          x, y, z, h, m, ro, wh, whd, c11, c12, c13, c22, c23, c33);
+                          x, y, z, h, m, wh, whd, rho0, kx, c11, c12, c13, c22, c23, c33);
     }
 }
 
@@ -100,4 +101,3 @@ void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box
 } // namespace sph
 
 } // namespace sphexa
-

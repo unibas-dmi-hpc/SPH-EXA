@@ -104,7 +104,15 @@ struct ParticlesData
     constexpr static T sincIndex = 6.0;
     constexpr static T Kcour = 0.2;
     constexpr static T maxDtIncrease = 1.1;
+
+    //Min. Atwood number in ramp function in momentum equation (crossed/uncrossed selection)
+    //Complete uncrossed option (Atmin>=1.d50, Atmax it doesn't matter).
+    //Complete crossed (Atmin and Atmax negative)
+    constexpr static T Atmax = 0.1;
+    constexpr static T Atmin = 0.2;
+    constexpr static T ramp = 1.0 / (Atmax - Atmin);
     const static T K;
+
 };
 
 template <typename T, typename I>

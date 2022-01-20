@@ -44,6 +44,9 @@ TEST(MomentumEnergy, JLoop)
 
     T sincIndex = 6.0;
     T K         = compute_3d_k(sincIndex);
+    T Atmin     = 0.1;
+    T Atmax     = 0.2;
+    T ramp      = 1.0 / (Atmax - Atmin);
 
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
@@ -75,6 +78,8 @@ TEST(MomentumEnergy, JLoop)
     std::vector<T> c23{-0.25, -0.33, -0.14, -0.41, -0.50};
     std::vector<T> c33{0.26, 0.34, 0.15, 0.40, 0.51};
 
+    std::vector<T> rho0{1.1, 1.2, 1.3, 1.4, 1.5};
+    std::vector<T> kx{1.0, 1.5, 2.0, 2.7, 4.0};
     /* distances of particle zero to particle j
      *
      * j = 1   1.10905
@@ -114,8 +119,13 @@ TEST(MomentumEnergy, JLoop)
                                          c22.data(),
                                          c23.data(),
                                          c33.data(),
+                                         Atmin,
+                                         Atmax,
+                                         ramp,
                                          wh.data(),
                                          whd.data(),
+                                         kx.data(),
+                                         rho0.data(),
                                          &grad_Px,
                                          &grad_Py,
                                          &grad_Pz,
@@ -135,6 +145,9 @@ TEST(MomentumEnergy, JLoopPBC)
 
     T sincIndex = 6.0;
     T K         = compute_3d_k(sincIndex);
+    T Atmin     = 0.1;
+    T Atmax     = 0.2;
+    T ramp      = 1.0 / (Atmax - Atmin);
 
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
@@ -168,6 +181,8 @@ TEST(MomentumEnergy, JLoopPBC)
     std::vector<T> c23{-0.25, -0.33, -0.14, -0.41, -0.50};
     std::vector<T> c33{0.26, 0.34, 0.15, 0.40, 0.51};
 
+    std::vector<T> rho0{1.1, 1.2, 1.3, 1.4, 1.5};
+    std::vector<T> kx{1.0, 1.5, 2.0, 2.7, 4.0};
     /* distances of particle 0 to particle j
      *
      *          PBC
@@ -208,8 +223,13 @@ TEST(MomentumEnergy, JLoopPBC)
                                          c22.data(),
                                          c23.data(),
                                          c33.data(),
+                                         Atmin,
+                                         Atmax,
+                                         ramp,
                                          wh.data(),
                                          whd.data(),
+                                         kx.data(),
+                                         rho0.data(),
                                          &grad_Px,
                                          &grad_Py,
                                          &grad_Pz,
