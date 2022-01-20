@@ -16,7 +16,7 @@ public:
     static constexpr double gamma         = 5.0/3.0;
     static constexpr double r0            = 0.;
     static constexpr double r1            = 0.5;
-    static constexpr bool   spheric_model = true;
+    static constexpr bool   spheric_model = false;
     static constexpr double energytot     = 1.0;
     static constexpr double width         = 0.10;
     static constexpr double rho0          = 1.0;

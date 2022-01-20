@@ -67,7 +67,7 @@ int main(int argc, char** argv)
     auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
 
     const size_t dim    = 3;
-    const double eblast = SedovDataGenerator<Real, KeyType>::ener0;
+    const double eblast = SedovDataGenerator<Real, KeyType>::energytot;
     const double omega  = 0.0;
     const double gamma  = SedovDataGenerator<Real, KeyType>::gamma;
     const double r0     = SedovDataGenerator<Real, KeyType>::r0;
@@ -77,6 +77,7 @@ int main(int argc, char** argv)
     const double p0     = 0.0;
     const double vr0    = 0.0;
     const double cs0    = 0.0;
+    const bool   spheric_model = SedovDataGenerator<Real, KeyType>::spheric_model;
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
@@ -203,47 +204,11 @@ int main(int argc, char** argv)
 
             if (solution)
             {
-                /*
-                SedovAnalyticalSolution::create(1,                      // xgeom
-                                                0., 0.5,                // r0, r1
-                                                1000,                   // nstep
-                                                0.2,                    // time
-                                                1000.,                  // eblast
-                                                0.,                     // omega
-                                                5./3.,                  // gamma
-                                                10000.,                 // rho0
-                                                0., 0., 0., 0.,         // ener0,pres0,vel0,cs0
-                                                "theoretical_1D.dat");  // outfile
-
-                SedovAnalyticalSolution::create(2,                      // xgeom
-                                                0., 0.5,                // r0, r1
-                                                1000,                   // nstep
-                                                0.2,                    // time
-                                                1000.,                  // eblast
-                                                0.,                     // omega
-                                                5./3.,                  // gamma
-                                                10000.,                 // rho0
-                                                0., 0., 0., 0.,         // ener0,pres0,vel0,cs0
-                                                "theoretical_2D.dat");  // outfile
-
-                SedovAnalyticalSolution::create(3,                      // xgeom
-                                                0., 0.5,                // r0, r1
-                                                1000,                   // nstep
-                                                0.2,                    // time
-                                                1000.,                  // eblast
-                                                0.,                     // omega
-                                                5./3.,                  // gamma
-                                                10000.,                 // rho0
-                                                0., 0., 0., 0.,         // ener0,pres0,vel0,cs0
-                                                "theoretical_3D.dat");  // outfile
-
-                exit(-1);
-                */
-
-                // Calculate and write theoretical solution in 1D
-                size_t nSteps = 1000;  // Instead of 'domain.nParticles()'. It is not needed more precission to compere.
+                // Calculate and write theoretical solution profile in one dimension
+                size_t nSteps = 1000;
+                double rMax   = spheric_model ? r1 : 2.0*r1;
                 SedovAnalyticalSolution::create(dim,
-                                                r0, r1,
+                                                r0, rMax,
                                                 nSteps,
                                                 d.ttot,
                                                 eblast,
