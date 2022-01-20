@@ -218,7 +218,7 @@ public:
 private:
     template<class T>
     void updateMac(const Box<T>& box,
-                   gsl::span<const KeyType> particleKeys,
+                   [[maybe_unused]] gsl::span<const KeyType> particleKeys,
                    const SpaceCurveAssignment& assignment,
                    gsl::span<const KeyType> globalTreeLeaves)
     {
