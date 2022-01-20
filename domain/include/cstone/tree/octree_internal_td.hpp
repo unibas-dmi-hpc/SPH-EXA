@@ -376,6 +376,7 @@ public:
      */
     [[nodiscard]] inline TreeNodeIndex toInternal(TreeNodeIndex node) const
     {
+        assert(size_t(node + numInternalNodes()) < inverseNodeOrder_.size());
         return inverseNodeOrder_[node + numInternalNodes()];
     }
 
@@ -388,6 +389,7 @@ public:
      */
     [[nodiscard]] inline TreeNodeIndex cstoneIndex(TreeNodeIndex node) const
     {
+        assert(size_t(node) < nodeOrder_.size());
         return nodeOrder_[node] - numInternalNodes_;
     }
 

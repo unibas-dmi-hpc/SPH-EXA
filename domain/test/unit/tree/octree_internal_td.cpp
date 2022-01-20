@@ -114,7 +114,7 @@ TEST(InternalOctreeTd, rootNode)
  * which is a separate array.
  */
 template<class KeyType>
-void octree4x4x4()
+void octree4x4x4_impl()
 {
     std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
@@ -128,13 +128,15 @@ void octree4x4x4()
     EXPECT_EQ(fullTree.numTreeNodes(1), 8);
     EXPECT_EQ(fullTree.numTreeNodes(2), 64);
 
+    EXPECT_EQ(fullTree.codeEnd(fullTree.toInternal(nNodes(tree) - 1)), nodeRange<KeyType>(0));
+
     checkConnectivity<KeyType>(fullTree);
 }
 
 TEST(InternalOctreeTd, octree4x4x4)
 {
-    octree4x4x4<unsigned>();
-    octree4x4x4<uint64_t>();
+    octree4x4x4_impl<unsigned>();
+    octree4x4x4_impl<uint64_t>();
 }
 
 /*! @brief test internal octree creation with an irregular leaf tree

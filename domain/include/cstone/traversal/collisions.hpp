@@ -60,9 +60,9 @@ void findCollisions(
  * @param[in]  octree            fully linked octree
  * @param[in]  interactionRadii  effective halo search radii per octree (leaf) node
  * @param[in]  box               coordinate bounding box
- * @param[in]  firstNode         first leaf node index of @p leaves to consider as local
- * @param[in]  lastNode          last leaf node index of @p leaves to consider as local
- * @param[out] collisionFlags    array of length nNodes(leaves), each node that is a halo
+ * @param[in]  firstNode         first leaf node index to consider as local
+ * @param[in]  lastNode          last leaf node index to consider as local
+ * @param[out] collisionFlags    array of length octree.numLeafNodes, each node that is a halo
  *                               from the perspective of [firstNode:lastNode] will be marked
  *                               with a non-zero value.
  *                               Note: does NOT reset non-colliding indices to 0, so @p collisionFlags

@@ -128,9 +128,8 @@ void singleTraversal(const TreeType<KeyType>& octree, C&& continuationCriterion,
  * @param p2p              Particle-2-particle, called for each pair of leaf nodes during traversal
  *                         that did not pass @p continuation
  */
-template <class KeyType, class MAC, class M2L, class P2P>
-void dualTraversal(const Octree<KeyType>& octree, TreeNodeIndex a, TreeNodeIndex b,
-                   MAC&& continuation, M2L&& m2l, P2P&& p2p)
+template<class TreeType, class MAC, class M2L, class P2P>
+void dualTraversal(const TreeType& octree, TreeNodeIndex a, TreeNodeIndex b, MAC&& continuation, M2L&& m2l, P2P&& p2p)
 {
     using NodePair = pair<TreeNodeIndex>;
 
