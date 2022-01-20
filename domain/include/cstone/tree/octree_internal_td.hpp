@@ -272,9 +272,38 @@ class TdOctree
 public:
     TdOctree() = default;
 
-    void update(const KeyType* firstLeaf, TreeNodeIndex newNumLeafNodes)
+    //! @brief update tree, copying from externally provided leaf keys
+    void update(const KeyType* leaves, TreeNodeIndex numLeafNodes)
     {
-        updateInternalTree(firstLeaf, newNumLeafNodes);
+        resizeLeaves(numLeafNodes);
+        omp_copy(leaves, leaves + numLeafNodes + 1, cstoneTree_.data());
+
+        updateInternalTree();
+    }
+
+    //! @brief regenerates the internal tree, assuming cstoneTree_ has been changed from the outside
+    void updateInternalTree()
+    {
+        resize(nNodes(cstoneTree_));
+        buildInternalOctreeGpu(cstoneTree_.data(), numLeafNodes_, numInternalNodes_, prefixes_.data(),
+                               childOffsets_.data(), parents_.data(), levelRange_.data(), nodeOrder_.data(),
+                               inverseNodeOrder_.data(), binaryTree_.data(), binaryToOct_.data(), octToBinary_.data());
+    }
+
+    //! @brief resize the cornerstone leaf array
+    void resizeLeaves(TreeNodeIndex numLeafNodes)
+    {
+        cstoneTree_.resize(numLeafNodes + 1);
+    }
+
+    gsl::span<const KeyType> treeLeaves() const
+    {
+        return cstoneTree_;
+    }
+
+    gsl::span<KeyType> treeLeaves()
+    {
+        return cstoneTree_;
     }
 
     //! @brief total number of nodes in the tree
@@ -410,15 +439,6 @@ public:
     }
 
 private:
-    //! @brief regenerates the internal tree based on (a changed) cstoneTree_
-    void updateInternalTree(const KeyType* leaves, TreeNodeIndex numLeafNodes)
-    {
-        resize(numLeafNodes);
-        buildInternalOctreeGpu(leaves, numLeafNodes_, numInternalNodes_, prefixes_.data(), childOffsets_.data(),
-                               parents_.data(), levelRange_.data(), nodeOrder_.data(), inverseNodeOrder_.data(),
-                               binaryTree_.data(), binaryToOct_.data(), octToBinary_.data());
-    }
-
     void resize(TreeNodeIndex numCsLeafNodes)
     {
         numLeafNodes_          = numCsLeafNodes;
@@ -464,6 +484,9 @@ private:
     //! @brief temporary index maps between the binary tree and octree used during construction
     std::vector<TreeNodeIndex> binaryToOct_;
     std::vector<TreeNodeIndex> octToBinary_;
+
+    //! @brief the cornerstone leaf SFC key array
+    std::vector<KeyType> cstoneTree_;
 };
 
 template<class T, class KeyType, class CombinationFunction>
