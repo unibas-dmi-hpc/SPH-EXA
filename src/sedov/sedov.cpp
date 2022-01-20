@@ -77,7 +77,6 @@ int main(int argc, char** argv)
     const double p0     = 0.0;
     const double vr0    = 0.0;
     const double cs0    = 0.0;
-    const bool   spheric_model = SedovDataGenerator<Real, KeyType>::spheric_model;
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
@@ -205,7 +204,7 @@ int main(int argc, char** argv)
             {
                 // Calculate and write theoretical solution profile in one dimension
                 size_t nSteps = 1000;
-                double rMax   = spheric_model ? r1 : 2.0*r1;
+                double rMax   = 2. * r1;
                 SedovAnalyticalSolution::create(dim,
                                                 r0, rMax,
                                                 nSteps,
