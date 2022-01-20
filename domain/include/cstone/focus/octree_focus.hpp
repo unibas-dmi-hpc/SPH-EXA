@@ -280,7 +280,6 @@ public:
      * @param[in] macs            MAC pass/fail results for each node, length = tree_.numTreeNodes()
      * @return                    true if the tree structure did not change
      */
-
     bool update(KeyType focusStart,
                 KeyType focusEnd,
                 gsl::span<const KeyType> mandatoryKeys,
