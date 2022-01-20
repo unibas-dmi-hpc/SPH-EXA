@@ -40,18 +40,18 @@
 using namespace cstone;
 
 template<class KeyType>
-IBox makeLevelBox(unsigned ix, unsigned iy, unsigned iz, unsigned level)
+static IBox makeLevelBox(unsigned ix, unsigned iy, unsigned iz, unsigned level)
 {
     unsigned L = 1u << (maxTreeLevel<KeyType>{} - level);
-    return IBox(ix * L,  ix * L + L, iy * L, iy * L + L, iz * L, iz * L + L);
+    return IBox(ix * L, ix * L + L, iy * L, iy * L + L, iz * L, iz * L + L);
 }
 
 template<class KeyType>
-std::vector<TreeNodeIndex>
+static std::vector<TreeNodeIndex>
 findCollidingIndices(IBox target, gsl::span<const KeyType> leaves, KeyType exclStart, KeyType exclEnd)
 {
-    Octree<KeyType> octree;
-    octree.update(leaves.begin(), leaves.end());
+    TdOctree<KeyType> octree;
+    octree.update(leaves.data(), nNodes(leaves));
 
     std::vector<TreeNodeIndex> collisions;
     auto storeCollisions = [&collisions](TreeNodeIndex i) { collisions.push_back(i); };
@@ -63,7 +63,8 @@ findCollidingIndices(IBox target, gsl::span<const KeyType> leaves, KeyType exclS
 }
 
 template<class KeyType>
-std::vector<IBox> findCollidingBoxes(IBox target, gsl::span<const KeyType> leaves, KeyType exclStart, KeyType exclEnd)
+static std::vector<IBox>
+findCollidingBoxes(IBox target, gsl::span<const KeyType> leaves, KeyType exclStart, KeyType exclEnd)
 {
     std::vector<TreeNodeIndex> collisions = findCollidingIndices(target, leaves, exclStart, exclEnd);
 
@@ -85,7 +86,7 @@ std::vector<IBox> findCollidingBoxes(IBox target, gsl::span<const KeyType> leave
  * coordinates [2^(10 or 21)-1, 2^(10 or 21)+1]^3.
  */
 template<class KeyType>
-void pbcCollision()
+static void pbcCollision()
 {
     std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
@@ -120,7 +121,7 @@ TEST(BinaryTreeTraversal, pbcCollision)
  * coordinates [2^(10 or 21)-1, 2^(10 or 21)+1]^3.
  */
 template<class KeyType>
-void pbcCollisionWithExclusions()
+static void pbcCollisionWithExclusions()
 {
     constexpr int L2 = 2;
     std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
@@ -154,7 +155,7 @@ TEST(BinaryTreeTraversal, pbcCollisionWithExclusions)
  * to an unit cube.
  */
 template<class KeyType>
-void anisotropicHaloBox()
+static void anisotropicHaloBox()
 {
     std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
@@ -182,7 +183,7 @@ TEST(BinaryTreeTraversal, anisotropicHalo)
 }
 
 //! @brief this tree results from 2 particles at (0,0,0) and at (1,1,1) with a bucket size of 1
-std::vector<unsigned> makeEdgeTree()
+static std::vector<unsigned> makeEdgeTree()
 {
     std::vector<unsigned> tree{
         0,          1,          2,          3,          4,          5,          6,          7,          8,

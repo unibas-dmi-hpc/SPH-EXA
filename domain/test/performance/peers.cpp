@@ -32,10 +32,8 @@
 #include <chrono>
 #include <iostream>
 
-#include "cstone/traversal/peers.hpp"
-#include "cstone/tree/octree_internal.hpp"
-
 #include "coord_samples/random.hpp"
+#include "cstone/traversal/peers.hpp"
 
 using namespace cstone;
 
@@ -50,9 +48,9 @@ int main()
 
     auto codes = makeRandomGaussianKeys<KeyType>(nParticles);
 
-    Octree<KeyType> octree;
     auto [treeLeaves, counts] = computeOctree(codes.data(), codes.data() + nParticles, bucketSize);
-    octree.update(treeLeaves.begin(), treeLeaves.end());
+    TdOctree<KeyType> octree;
+    octree.update(treeLeaves.data(), nNodes(treeLeaves));
 
     SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, numRanks);
     int probeRank = numRanks / 2;
