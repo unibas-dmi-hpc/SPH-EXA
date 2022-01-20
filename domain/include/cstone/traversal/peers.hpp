@@ -59,36 +59,38 @@ namespace cstone
  * Except for @p myRank, this function acts on data that is identical on all MPI ranks and
  * doesn't need to do any communication.
  */
-template<class T, class KeyType>
-std::vector<int> findPeersMac(int myRank, const SpaceCurveAssignment& assignment,
-                              const Octree<KeyType>& domainTree, const Box<T>& box, float theta)
+template<class T, template<class> class TreeType, class KeyType>
+std::vector<int> findPeersMac(int myRank,
+                              const SpaceCurveAssignment& assignment,
+                              const TreeType<KeyType>& domainTree,
+                              const Box<T>& box,
+                              float theta)
 {
-    float invTheta = 1.0f / theta;
+    float invTheta      = 1.0f / theta;
     KeyType domainStart = domainTree.codeStart(domainTree.toInternal(assignment.firstNodeIdx(myRank)));
-    KeyType domainEnd   = domainTree.codeStart(domainTree.toInternal(assignment.lastNodeIdx(myRank)));
+    KeyType domainEnd   = domainTree.codeEnd(domainTree.toInternal(assignment.lastNodeIdx(myRank) - 1));
 
-    auto crossFocusPairs = [domainStart, domainEnd, invTheta, &tree = domainTree, &box]
-        (TreeNodeIndex a, TreeNodeIndex b)
+    auto crossFocusPairs =
+        [domainStart, domainEnd, invTheta, &tree = domainTree, &box](TreeNodeIndex a, TreeNodeIndex b)
     {
-      bool aFocusOverlap = overlapTwoRanges(domainStart, domainEnd, tree.codeStart(a), tree.codeEnd(a));
-      bool bInFocus      = containedIn(tree.codeStart(b), tree.codeEnd(b), domainStart, domainEnd);
-      // node a has to overlap/be contained in the focus, while b must not be inside it
-      if (!aFocusOverlap || bInFocus) { return false; }
+        bool aFocusOverlap = overlapTwoRanges(domainStart, domainEnd, tree.codeStart(a), tree.codeEnd(a));
+        bool bInFocus      = containedIn(tree.codeStart(b), tree.codeEnd(b), domainStart, domainEnd);
+        // node a has to overlap/be contained in the focus, while b must not be inside it
+        if (!aFocusOverlap || bInFocus) { return false; }
 
-      IBox aBox = sfcIBox(sfcKey(tree.codeStart(a)), tree.level(a));
-      IBox bBox = sfcIBox(sfcKey(tree.codeStart(b)), tree.level(b));
-      auto [aCenter, aSize] = centerAndSize<KeyType>(aBox, box);
-      auto [bCenter, bSize] = centerAndSize<KeyType>(bBox, box);
-      return !minMacMutual(aCenter, aSize, bCenter, bSize, box, invTheta);
+        IBox aBox             = sfcIBox(sfcKey(tree.codeStart(a)), tree.level(a));
+        IBox bBox             = sfcIBox(sfcKey(tree.codeStart(b)), tree.level(b));
+        auto [aCenter, aSize] = centerAndSize<KeyType>(aBox, box);
+        auto [bCenter, bSize] = centerAndSize<KeyType>(bBox, box);
+        return !minMacMutual(aCenter, aSize, bCenter, bSize, box, invTheta);
     };
 
     auto m2l = [](TreeNodeIndex, TreeNodeIndex) {};
 
-    TreeNodeIndex numInternalNodes = domainTree.numInternalNodes();
     std::vector<int> peerRanks(assignment.numRanks(), 0);
-    auto p2p = [numInternalNodes, &assignment, &peerRanks](TreeNodeIndex /*a*/, TreeNodeIndex b)
+    auto p2p = [&domainTree, &assignment, &peerRanks](TreeNodeIndex /*a*/, TreeNodeIndex b)
     {
-        int peerRank = assignment.findRank(b - numInternalNodes);
+        int peerRank = assignment.findRank(domainTree.cstoneIndex(b));
         if (peerRanks[peerRank] == 0) { peerRanks[peerRank] = 1; }
     };
 
@@ -99,7 +101,7 @@ std::vector<int> findPeersMac(int myRank, const SpaceCurveAssignment& assignment
     #pragma omp parallel for schedule(dynamic)
     for (std::size_t i = 0; i < spanningNodeKeys.size() - 1; ++i)
     {
-        TreeNodeIndex nodeIdx = domainTree.locate(spanningNodeKeys[i], spanningNodeKeys[i+1]);
+        TreeNodeIndex nodeIdx = domainTree.locate(spanningNodeKeys[i], spanningNodeKeys[i + 1]);
         dualTraversal(domainTree, nodeIdx, 0, crossFocusPairs, m2l, p2p);
     }
 
@@ -113,21 +115,21 @@ std::vector<int> findPeersMac(int myRank, const SpaceCurveAssignment& assignment
 }
 
 //! @brief Args identical to findPeersMac, but implemented with single tree traversal for comparison
-template<class T, class KeyType>
-std::vector<int> findPeersMacStt(int myRank, const SpaceCurveAssignment& assignment, const Octree<KeyType>& octree,
-                                 const Box<T>& box, float theta)
+template<template<class> class TreeType, class KeyType, class T>
+std::vector<int> findPeersMacStt(
+    int myRank, const SpaceCurveAssignment& assignment, const TreeType<KeyType>& octree, const Box<T>& box, float theta)
 {
     float invTheta = 1.0f / theta;
-    auto treeLeaves = octree.treeLeaves();
-    KeyType domainStart = treeLeaves[assignment.firstNodeIdx(myRank)];
-    KeyType domainEnd   = treeLeaves[assignment.lastNodeIdx(myRank)];
+    KeyType domainStart = octree.codeStart(octree.toInternal(assignment.firstNodeIdx(myRank)));
+    KeyType domainEnd   = octree.codeEnd(octree.toInternal(assignment.lastNodeIdx(myRank) - 1));
 
     std::vector<int> peers(assignment.numRanks());
 
     #pragma omp parallel for
     for (TreeNodeIndex i = assignment.firstNodeIdx(myRank); i < assignment.lastNodeIdx(myRank); ++i)
     {
-        IBox target = sfcIBox(sfcKey(treeLeaves[i]), sfcKey(treeLeaves[i + 1]));
+        TreeNodeIndex internalIdx = octree.toInternal(i);
+        IBox target               = sfcIBox(sfcKey(octree.codeStart(internalIdx)), octree.level(internalIdx));
         Vec3<T> targetCenter, targetSize;
         std::tie(targetCenter, targetSize) = centerAndSize<KeyType>(target, box);
 
