@@ -113,7 +113,7 @@ TEST(InternalOctree, nodeDepth)
  * Depends on binary/octree generation, so not strictly a unit test
  */
 template<class KeyType>
-void nodeDepthThreading()
+static void nodeDepthThreading()
 {
     // uniform 16x16x16 tree
     std::vector<KeyType> leaves = makeUniformNLevelTree<KeyType>(4096, 1);
@@ -183,7 +183,7 @@ TEST(InternalOctree, calculateInternalOrderExplicit)
 }
 
 template<class KeyType>
-void decreasingMaxDepthOrderIsSorted()
+static void decreasingMaxDepthOrderIsSorted()
 {
     // uniform 16x16x16 tree
     std::vector<KeyType> leaves = makeUniformNLevelTree<KeyType>(4096, 1);
@@ -227,7 +227,7 @@ TEST(InternalOctree, decreasingMaxDepthOrderIsSorted)
 }
 
 template<class KeyType>
-void checkConnectivity(const Octree<KeyType>& fullTree)
+static void checkConnectivity(const Octree<KeyType>& fullTree)
 {
     ASSERT_TRUE(fullTree.isRoot(0));
 
@@ -347,7 +347,7 @@ TEST(InternalOctree, rootNode)
  * which is a separate array.
  */
 template<class KeyType>
-void octree4x4x4()
+static void octree4x4x4()
 {
     std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
@@ -379,7 +379,7 @@ TEST(InternalOctree, octree4x4x4)
  * The internal level-1 nodes points to leaves [0:8].
  */
 template<class KeyType>
-void octreeIrregularL2()
+static void octreeIrregularL2()
 {
     std::vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(0).makeTree();
 
@@ -404,7 +404,7 @@ TEST(InternalOctree, irregularL2)
 
 //! @brief This creates an irregular tree. Checks geometry relations between children and parents.
 template<class KeyType>
-void octreeIrregularL3()
+static void octreeIrregularL3()
 {
     std::vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0, 2).divide(3).makeTree();
 
@@ -429,7 +429,7 @@ TEST(InternalOctree, irregularL3)
 }
 
 template<class KeyType>
-void locateTest()
+static void locateTest()
 {
     std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
     std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);

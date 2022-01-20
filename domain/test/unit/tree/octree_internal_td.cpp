@@ -114,7 +114,7 @@ TEST(InternalOctreeTd, rootNode)
  * which is a separate array.
  */
 template<class KeyType>
-void octree4x4x4_impl()
+static void octree4x4x4()
 {
     std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
@@ -135,8 +135,8 @@ void octree4x4x4_impl()
 
 TEST(InternalOctreeTd, octree4x4x4)
 {
-    octree4x4x4_impl<unsigned>();
-    octree4x4x4_impl<uint64_t>();
+    octree4x4x4<unsigned>();
+    octree4x4x4<uint64_t>();
 }
 
 /*! @brief test internal octree creation with an irregular leaf tree
@@ -148,7 +148,7 @@ TEST(InternalOctreeTd, octree4x4x4)
  * The internal level-1 nodes points to leaves [0:8].
  */
 template<class KeyType>
-void octreeIrregularL2()
+static void octreeIrregularL2()
 {
     std::vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(0).makeTree();
 
@@ -173,7 +173,7 @@ TEST(InternalOctreeTd, irregularL2)
 
 //! @brief This creates an irregular tree. Checks geometry relations between children and parents.
 template<class KeyType>
-void octreeIrregularL3()
+static void octreeIrregularL3()
 {
     std::vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0, 2).divide(3).makeTree();
 
@@ -200,7 +200,7 @@ TEST(InternalOctreeTd, irregularL3)
 
 //! @brief this generates a max-depth cornerstone tree
 template<class KeyType>
-void spanningTree()
+static void spanningTree()
 {
     std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
     std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
@@ -218,7 +218,7 @@ TEST(InternalOctreeTd, spanningTree)
 }
 
 template<class KeyType>
-void locate()
+static void locate()
 {
     {
         std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
@@ -257,7 +257,7 @@ TEST(InternalOctreeTd, locate)
 }
 
 template<class KeyType>
-void cstoneIndex()
+static void cstoneIndex()
 {
     std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
     std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
@@ -283,31 +283,27 @@ TEST(InternalOctreeTd, cstoneIndex)
     cstoneIndex<uint64_t>();
 }
 
-template<class I>
-void upsweepSumIrregularL3()
+template<class KeyType>
+static void upsweepSumIrregularL3()
 {
-    std::vector<I> cstoneTree = OctreeMaker<I>{}.divide().divide(0).divide(0, 2).divide(3).makeTree();
-    TdOctree<I> octree;
+    std::vector<KeyType> cstoneTree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0, 2).divide(3).makeTree();
+    TdOctree<KeyType> octree;
     octree.update(cstoneTree.data(), nNodes(cstoneTree));
 
     std::vector<unsigned> nodeCounts(octree.numTreeNodes(), 0);
     for (int i = 0; i < octree.numTreeNodes(); ++i)
     {
-        if (octree.isLeaf(i))
-        {
-            nodeCounts[i] = 1;
-        }
+        if (octree.isLeaf(i)) { nodeCounts[i] = 1; }
     }
 
-    auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h) {
-        return a + b + c + d + e + f + g + h;
-    };
+    auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h)
+    { return a + b + c + d + e + f + g + h; };
     upsweep(octree, nodeCounts.data(), sumFunction);
 
-    //std::vector<unsigned> refNodeCounts{29, 15, 8, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+    // std::vector<unsigned> refNodeCounts{29, 15, 8, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
     //                                    1,  1,  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
-    //EXPECT_EQ(nodeCounts, refNodeCounts);
+    // EXPECT_EQ(nodeCounts, refNodeCounts);
     EXPECT_EQ(nodeCounts[0], 29);
 }
 

@@ -42,12 +42,12 @@ using namespace cstone;
  * This creates 64 level-2 leaf nodes. The resulting internal tree should
  * have 9 nodes, the root node and the 8 level-1 nodes.
  */
-template<class I>
-void upsweepSum4x4x4()
+template<class KeyType>
+static void upsweepSum4x4x4()
 {
-    std::vector<I> cstoneTree = makeUniformNLevelTree<I>(64, 1);
+    std::vector<KeyType> cstoneTree = makeUniformNLevelTree<KeyType>(64, 1);
 
-    Octree<I> octree;
+    Octree<KeyType> octree;
     octree.update(cstoneTree.data(), cstoneTree.data() + cstoneTree.size());
 
     std::vector<unsigned> nodeCounts(octree.numTreeNodes(), 0);
@@ -82,11 +82,11 @@ TEST(Upsweep, sum4x4x4)
  * first octant. The root points to the one internal node and to leaves [8:15].
  * The internal level-1 nodes points to leaves [0:8].
  */
-template<class I>
-void upsweepSumIrregularL2()
+template<class KeyType>
+static void upsweepSumIrregularL2()
 {
-    std::vector<I> cstoneTree = OctreeMaker<I>{}.divide().divide(0).makeTree();
-    Octree<I> octree;
+    std::vector<KeyType> cstoneTree = OctreeMaker<KeyType>{}.divide().divide(0).makeTree();
+    Octree<KeyType> octree;
     octree.update(cstoneTree.data(), cstoneTree.data() + cstoneTree.size());
 
     std::vector<unsigned> nodeCounts(octree.numTreeNodes(), 0);
@@ -117,11 +117,11 @@ TEST(Upsweep, sumIrregularL2)
  *     - leaf nodes: 29
  *     - internal nodes: 4
  */
-template<class I>
-void upsweepSumIrregularL3()
+template<class KeyType>
+static void upsweepSumIrregularL3()
 {
-    std::vector<I> cstoneTree = OctreeMaker<I>{}.divide().divide(0).divide(0, 2).divide(3).makeTree();
-    Octree<I> octree;
+    std::vector<KeyType> cstoneTree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0, 2).divide(3).makeTree();
+    Octree<KeyType> octree;
     octree.update(cstoneTree.data(), cstoneTree.data() + cstoneTree.size());
 
     std::vector<unsigned> nodeCounts(octree.numTreeNodes(), 0);

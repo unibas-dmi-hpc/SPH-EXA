@@ -469,12 +469,13 @@ private:
 template<class T, class KeyType, class CombinationFunction>
 void upsweep(const TdOctree<KeyType>& octree, T* quantities, CombinationFunction combinationFunction)
 {
-    unsigned currentLevel = octree.level(octree.numTreeNodes() - 1);
+    int currentLevel = octree.level(octree.numTreeNodes() - 1);
 
-    for ( ; currentLevel != 0; --currentLevel)
+    for ( ; currentLevel >= 0; --currentLevel)
     {
         TreeNodeIndex start = octree.levelOffset(currentLevel);
         TreeNodeIndex end   = octree.levelOffset(currentLevel + 1);
+        #pragma omp parallel for schedule(static)
         for (TreeNodeIndex i = start; i < end; ++i)
         {
             if (!octree.isLeaf(i))
