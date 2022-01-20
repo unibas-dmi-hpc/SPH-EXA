@@ -54,15 +54,15 @@ namespace cstone
  * @param[out] multipoles output multipole moments
  */
 template<class KeyType, class T1, class T2, class T3>
-void computeMultipoles(const Octree<KeyType>& octree, gsl::span<const LocalParticleIndex> layout,
+void computeMultipoles(const Octree<KeyType>& octree, gsl::span<const LocalIndex> layout,
                        const T1* x, const T1* y, const T1* z, const T2* m, GravityMultipole<T3>* multipoles)
 {
     // calculate multipoles for leaf cells
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < octree.numLeafNodes(); ++i)
     {
-        LocalParticleIndex startIndex   = layout[i];
-        LocalParticleIndex numParticles = layout[i+1] - startIndex;
+        LocalIndex startIndex   = layout[i];
+        LocalIndex numParticles = layout[i+1] - startIndex;
 
         TreeNodeIndex fullIndex = i + octree.numInternalNodes();
         multipoles[fullIndex] = particle2Multipole<T3>(x + startIndex, y + startIndex, z + startIndex,

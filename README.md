@@ -54,12 +54,15 @@ SPH-EXA
 │       ├── performance
 │       ├── unit
 │       └── unit_cuda
-├── include                         - legacy octree implementation (superseded by cornerstone octree)
+├── ryoanji                         - GPU N-body solver for gravity
+│   ├─── src
+│   └─── test                       - demonstrator app and unit tests
+├── include
 │   └─── sph                        - SPH kernel functions
 │        ├── cuda
 │        └─── kernel
 ├── scripts
-├── src                             - test case main function
+├── src                             - test case main functions
 │   ├── evrard
 │   ├── sedov
 │   └── sqpatch
@@ -81,21 +84,14 @@ Recommended CMake configuration on Piz Daint:
 ```shell
 module load daint-gpu
 module load cudatoolkit
-
-# Current production version is 3.14.5 which is too old
-# module load CMake
-
-# workaround
-module load EasyBuild-custom/cscs
-module use /apps/daint/UES/sandbox/sebkelle/easybuild/gpu/modules/all
-module load CMake/3.20.0
+module load CMake/3.21.3 # or newer
 
 mkdir build
 cd build
 cmake -DCMAKE_CXX_COMPILER=CC <GIT_SOURCE_DIR>
 ```
 
-* Build everything: ```make -j10```
+* Build everything: ```make -j```
 * MPI + OpenMP: ```make sedov```
 * MPI + OpenMP + CUDA: ```make sedov-cuda```
 
@@ -126,7 +122,7 @@ Example usage:
 
 #### Running the tests
 
-Currently, only the cornerstone octree and domain are fully unit tested:
+Cornerstone octree and domain unit tests:
 
 ```shell
 ./domain/test/unit/component_units
@@ -150,6 +146,37 @@ mpiexec -np 5 ./domain/test/integration_mpi/exchange_domain
 mpiexec -np 5 ./domain/test/integration_mpi/exchange_keys
 mpiexec -np 5 ./domain/test/integration_mpi/focus_tree
 mpiexec -np 5 ./domain/test/integration_mpi/treedomain
+```
+
+SPH-kernel unit tests:
+
+```shell
+./include/sph/test/kernel/kernel_tests
+```
+
+## Ryoanji GPU N-body solver
+
+Ryoanji is a high-performance GPU N-body solver for gravity. It relies on the cornerstone octree framework
+for tree construction, [EXAFMM](https://github.com/exafmm/exafmm) multipole kernels,
+and a warp-aware tree-traversal inspired by the
+[Bonsai](https://github.com/treecode/Bonsai) GPU tree-code.
+
+#### Compilation
+
+```shell
+cmake -DCMAKE_CXX_COMPILER=CC -DBUILD_RYOANJI=ON <GIT_SOURCE_DIR>
+cd ryoanji
+make -j
+```
+
+#### Running the demonstrator app
+```shell
+./test/ryoanji <log2(numParticles)> <computeDirectReference:yes=1,no=0>
+```
+
+#### Running the unit tests
+```shell
+./test/ryoanji_unit_tests
 ```
 
 ## Authors (in alphabetical order)

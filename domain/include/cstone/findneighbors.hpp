@@ -274,8 +274,9 @@ HOST_DEVICE_FUN pair<int> findNeighborBoxesSimple(T xi, T yi, T zi, unsigned lev
 
 template<class KeyType, class Integer, class T, class F>
 HOST_DEVICE_FUN void searchBoxes(const KeyType* searchKeys, int firstBox, int lastBox, int level,
-                                 const Integer* particleKeys, LocalParticleIndex numParticleKeys,
-                                 LocalParticleIndex particleIndex,
+                                 const Integer* particleKeys,
+                                 LocalIndex numParticleKeys,
+                                 LocalIndex particleIndex,
                                  const T* x, const T* y, const T* z, T radiusSq,
                                  int* neighbors, int* neighborsCount, int ngmax, F&& distance)
 {
@@ -283,12 +284,12 @@ HOST_DEVICE_FUN void searchBoxes(const KeyType* searchKeys, int firstBox, int la
     for (int ibox = firstBox; ibox < lastBox; ++ibox)
     {
         KeyType searchBox = searchKeys[ibox];
-        LocalParticleIndex startIndex = stl::lower_bound(particleKeys, particleKeys + numParticleKeys, searchBox)
+        LocalIndex startIndex = stl::lower_bound(particleKeys, particleKeys + numParticleKeys, searchBox)
                                         - particleKeys;
-        LocalParticleIndex endIndex   = stl::upper_bound(particleKeys + startIndex, particleKeys + numParticleKeys,
+        LocalIndex endIndex   = stl::upper_bound(particleKeys + startIndex, particleKeys + numParticleKeys,
                                                          searchBox + nodeRange<KeyType>(level)) - particleKeys;
 
-        for (LocalParticleIndex j = startIndex; j < endIndex; ++j)
+        for (LocalIndex j = startIndex; j < endIndex; ++j)
         {
             if (j == particleIndex) { continue; }
 
@@ -329,9 +330,10 @@ HOST_DEVICE_FUN void searchBoxes(const KeyType* searchKeys, int firstBox, int la
  * @param[in]  ngmax           maximum number of neighbors per particle
  */
 template<class T, class KeyType>
-HOST_DEVICE_FUN void findNeighbors(LocalParticleIndex id, const T* x, const T* y, const T* z, const T* h,
+HOST_DEVICE_FUN void findNeighbors(LocalIndex id, const T* x, const T* y, const T* z, const T* h,
                                    const Box<T>& box, const KeyType* particleKeys,
-                                   int* neighbors, int* neighborsCount, LocalParticleIndex numParticleKeys, int ngmax)
+                                   int* neighbors, int* neighborsCount,
+                                   LocalIndex numParticleKeys, int ngmax)
 {
     // SPH convention is search radius = 2 * h
     T radius   = 2 * h[id];
@@ -371,15 +373,17 @@ HOST_DEVICE_FUN void findNeighbors(LocalParticleIndex id, const T* x, const T* y
 //! @brief generic version for Morton and Hilbert keys
 template<class T, class KeyType>
 void findNeighbors(const T* x, const T* y, const T* z, const T* h,
-                   LocalParticleIndex firstId, LocalParticleIndex lastId, LocalParticleIndex numParticles,
+                   LocalIndex firstId,
+                   LocalIndex lastId,
+                   LocalIndex numParticles,
                    const Box<T>& box, const KeyType* particleKeys, int* neighbors, int* neighborsCount, int ngmax)
 {
-    LocalParticleIndex numWork = lastId - firstId;
+    LocalIndex numWork = lastId - firstId;
 
     #pragma omp parallel for
-    for (LocalParticleIndex i = 0; i < numWork; ++i)
+    for (LocalIndex i = 0; i < numWork; ++i)
     {
-        LocalParticleIndex id = i + firstId;
+        LocalIndex id = i + firstId;
         findNeighbors(id, x, y, z, h, box, particleKeys, neighbors + i * ngmax, neighborsCount + i,
                       numParticles, ngmax);
     }

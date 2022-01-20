@@ -59,16 +59,16 @@ variables:
     # - which wget
     - mkdir -p /usr/local/games
     - cd /usr/local/games
-    - wget --quiet $JG_DEPS_PATH/c/CMake/cmake-3.21.4-linux-x86_64.tar.gz
+    - wget --quiet $JG_DEPS_PATH/c/CMake/cmake-3.22.1-linux-x86_64.tar.gz
     - wget --quiet $JG_DEPS_PATH/n/nvhpc/nvhpc-21.9-jg.tar.gz # NVHPC
     - wget --quiet $JG_DEPS_PATH/g/googletest/release-1.11.0.tar.gz
     # }}}
     # {{{ cmake:
     - cd /usr/local/games
-    - tar xf /usr/local/games/cmake-3.21.4-linux-x86_64.tar.gz
-    - mv cmake-3.21.4-linux-x86_64/share/* ../share/
-    - mv cmake-3.21.4-linux-x86_64/bin/* ../bin/
-    - rm -fr cmake-3.21.4-linux-x86_64 /usr/local/games/cmake-3.21.4-linux-x86_64.tar.gz
+    - tar xf /usr/local/games/cmake-3.22.1-linux-x86_64.tar.gz
+    - mv cmake-3.22.1-linux-x86_64/share/* ../share/
+    - mv cmake-3.22.1-linux-x86_64/bin/* ../bin/
+    - rm -fr cmake-3.22.1-linux-x86_64 /usr/local/games/cmake-3.22.1-linux-x86_64.tar.gz
     - cd ../bin
     - rm -f ccmake cmake-gui cpack
     - cd $HOME
@@ -104,21 +104,21 @@ variables:
     - apt install -y --no-install-recommends wget file python3-pip unzip vim-tiny > /dev/null
     - which wget
     - cd /usr/local/games
-    - wget --quiet $JG_DEPS_PATH/c/CMake/cmake-3.21.4-linux-x86_64.tar.gz
+    - wget --quiet $JG_DEPS_PATH/c/CMake/cmake-3.22.1-linux-x86_64.tar.gz
     - wget --quiet $JG_DEPS_PATH/m/MPICH/mpich-3.1.4.tar.gz
     - wget --quiet $JG_DEPS_PATH/g/googletest/release-1.11.0.tar.gz
     # }}}
     # {{{ cmake:
     - cd /usr/local/games
-    - tar xf /usr/local/games/cmake-3.21.4-linux-x86_64.tar.gz
-    - mv cmake-3.21.4-linux-x86_64/share/* ../share/
-    - mv cmake-3.21.4-linux-x86_64/bin/* ../bin/
-    - rm -fr cmake-3.21.4-linux-x86_64
+    - tar xf /usr/local/games/cmake-3.22.1-linux-x86_64.tar.gz
+    - mv cmake-3.22.1-linux-x86_64/share/* ../share/
+    - mv cmake-3.22.1-linux-x86_64/bin/* ../bin/
+    - rm -fr cmake-3.22.1-linux-x86_64
     - cd ../bin
     - rm -f ccmake cmake-gui cpack
     - cd $HOME
     - cmake --version
-    - rm -f /usr/local/games/cmake-3.21.4-linux-x86_64.tar.gz
+    - rm -f /usr/local/games/cmake-3.22.1-linux-x86_64.tar.gz
     # }}}
     # {{{ mpich
     - cd /usr/local/games
@@ -143,6 +143,9 @@ variables:
     - python3 -m pip install setuptools requests ReFrame-HPC > /dev/null
     - reframe --version
     # }}}
+    # {{{ thrust:
+    - apt install -y --no-install-recommends cuda-thrust-11-3 > /dev/null
+    # }}}
 # }}}
 # {{{ deps-ubu-gnu_fake
 .deps-ubu-gnu_fake: &deps-ubu-gnu_fake
@@ -154,7 +157,7 @@ variables:
 # }}}
 # }}}
 
-# {{{ build:
+# {{{ build: -DCMAKE_BUILD_TYPE=Release
 .build: &build
   # tag must be 'docker_jfrog'
   # tags:
@@ -185,7 +188,49 @@ variables:
       fi
     # - echo "$PATH" | tr ':' '\n' | sort
     - nvcc --version
-    - cmake -S . -B build -DCMAKE_CXX_FLAGS=-w $cpe_cmake_flags
+    - cmake -S . -B build -DCMAKE_CXX_FLAGS=-w $cpe_cmake_flags -DCMAKE_BUILD_TYPE=Release -DBUILD_RYOANJI=ON
+    - cd build/
+    # {{{ debug with:
+    # - make -j3 coordinate_test domain_2ranks
+    # - mkdir -p /usr/local/sbin/coord_samples
+    # - cp domain/test/coord_samples/coordinate_test /usr/local/sbin/coord_samples/coordinate_test
+    # - mkdir -p /usr/local/sbin/integration_mpi
+    # - cp `find . -name domain_2ranks` /usr/local/sbin/integration_mpi/domain_2ranks
+    # }}}
+    - make help
+    # - make -j3 all
+    - make -j `grep processor /proc/cpuinfo | wc -l` install
+    - which sedov
+# }}}
+
+# {{{ build-debug: -DCMAKE_BUILD_TYPE=Debug
+.build-debug: &build-debug
+  before_script:
+    # {{{ NOTE: for cpe only
+    - if [ "$cpe" = "true" ] ;then
+        echo "cpe=$cpe pe=$pe";
+        export PATH="$NVIDIA_PATH/cuda/bin:$NVIDIA_PATH/compilers/bin:$PATH";
+      fi
+    - export PATH="$NVIDIA_PATH/cuda/bin:$NVIDIA_PATH/compilers/bin:$PATH"
+    # }}}
+    - echo CI_PROJECT_DIR=$CI_PROJECT_DIR
+    - cd $CI_PROJECT_DIR
+    - sed -i "s@GIT_REPOSITORY@URL /usr/local/games/googletest-release-1.11.0/\n#@" ./domain/test/CMakeLists.txt.in
+    - sed -i 's@GIT_TAG@#GIT_TAG @' ./domain/test/CMakeLists.txt.in
+    # - cat ./domain/test/CMakeLists.txt.in
+    - echo "cpe=$cpe pe=$pe"
+    - if [ "$cpe" = "true" ]; then
+        cpe_cmake_flags="-DCMAKE_CXX_COMPILER=CC -DCMAKE_CUDA_COMPILER=nvcc -DCMAKE_CUDA_FLAGS=-L$NVIDIA_PATH/cuda/lib64";
+        echo "cpe_cmake_flags=$cpe_cmake_flags NVIDIA_PATH=$NVIDIA_PATH";
+        if [ "$pe" = "gnu" ]; then
+          module swap PrgEnv-cray PrgEnv-gnu;
+          module list;
+          CC --version;
+        fi;
+      fi
+    # - echo "$PATH" | tr ':' '\n' | sort
+    - nvcc --version
+    - cmake -S . -B build -DCMAKE_CXX_FLAGS=-w $cpe_cmake_flags -DCMAKE_BUILD_TYPE=Debug -DBUILD_RYOANJI=ON
     - cd build/
     # {{{ debug with:
     # - make -j3 coordinate_test domain_2ranks
@@ -326,6 +371,7 @@ variables:
     # gpu_tests -n1
     - /usr/local/bin/sedov-cuda -s 0 -n 50
     # gpu_unittests -n1
+    - /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests
     - /usr/local/sbin/unit_cuda/component_units_cuda
     - /usr/local/sbin/performance/cudaNeighborsTest
     - /usr/local/sbin/performance/octree_perf_gpu

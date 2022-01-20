@@ -36,7 +36,7 @@ namespace cstone
 //! required.
 using TreeNodeIndex = int;
 
-using LocalParticleIndex = unsigned;
+using LocalIndex = unsigned;
 
 template<class T>
 using Vec3 = util::array<T, 3>;

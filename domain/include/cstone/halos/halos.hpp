@@ -58,29 +58,25 @@ public:
      * @param[in] particleKeys     Sorted view of locally owned particle keys, no halos
      * @param[in] box              Global coordinate bounding box
      * @param[in] h                smoothing lengths of locally owned particles
-     * @param[in] sfcOrder         order to access smoothing lengths with, such that
-     *                             particleKeys[i] <-> h[sfcOrder[i]]
      */
     template<class T, class Th>
     void discover(const Octree<KeyType>& focusedTree,
                   gsl::span<const TreeIndexPair> focusAssignment,
                   gsl::span<const KeyType> particleKeys,
                   const Box<T> box,
-                  const Th* h,
-                  gsl::span<const LocalParticleIndex> sfcOrder)
+                  const Th* h)
     {
-        assert(particleKeys.size() <= sfcOrder.size());
-
         gsl::span<const KeyType> leaves = focusedTree.treeLeaves();
         TreeNodeIndex firstAssignedNode = focusAssignment[myRank_].start();
         TreeNodeIndex lastAssignedNode  = focusAssignment[myRank_].end();
 
         std::vector<float> haloRadii(nNodes(leaves));
-        computeHaloRadii(leaves.data(), nNodes(leaves), particleKeys, sfcOrder.data(), h, haloRadii.data());
+        computeHaloRadii(leaves.data(), nNodes(leaves), particleKeys, h, haloRadii.data());
 
         reallocate(nNodes(leaves), haloFlags_);
         std::fill(begin(haloFlags_), end(haloFlags_), 0);
         findHalos(focusedTree, haloRadii.data(), box, firstAssignedNode, lastAssignedNode, haloFlags_.data());
+        checkHalos(focusAssignment);
     }
 
     /*! @brief Compute particle offsets of each tree node and determine halo send/receive indices
@@ -102,17 +98,15 @@ public:
                        gsl::span<const TreeIndexPair> assignment,
                        gsl::span<const KeyType> particleKeys,
                        gsl::span<const int> peers,
-                       gsl::span<LocalParticleIndex> layout)
+                       gsl::span<LocalIndex> layout)
     {
         computeNodeLayout(counts, haloFlags_, assignment[myRank_].start(), assignment[myRank_].end(), layout);
         auto newParticleStart = layout[assignment[myRank_].start()];
         auto newParticleEnd   = layout[assignment[myRank_].end()];
 
-        particleBufferSize_ = layout.back();
-
         outgoingHaloIndices_ =
             exchangeRequestKeys<KeyType>(leaves, haloFlags_, particleKeys, newParticleStart, assignment, peers);
-        checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd);
+        checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd, layout.back());
 
         incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags_, assignment, peers);
     }
@@ -124,43 +118,65 @@ public:
      * Arrays are not resized or reallocated. Function is const, but modifies mutable haloEpoch_ counter.
      */
     template<class... Arrays>
-    void exchangeHalos(Arrays&... arrays) const
+    void exchangeHalos(Arrays... arrays) const
     {
-        if (!sizesAllEqualTo(particleBufferSize_, arrays...))
-        {
-            throw std::runtime_error("halo exchange array sizes inconsistent with previous sync operation\n");
-        }
-
-        haloexchange(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays.data()...);
+        haloexchange(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays...);
     }
 
 private:
-
-    //! @brief return true if all array sizes are equal to value
-    template<class... Arrays>
-    static bool sizesAllEqualTo(std::size_t value, Arrays&... arrays)
-    {
-        std::array<std::size_t, sizeof...(Arrays)> sizes{arrays.size()...};
-        return size_t(std::count(begin(sizes), end(sizes), value)) == sizes.size();
-    }
-
     //! @brief check that only owned particles in [particleStart_:particleEnd_] are sent out as halos
-    void checkIndices(const SendList& sendList, [[maybe_unused]] LocalParticleIndex start,
-                      [[maybe_unused]] LocalParticleIndex end)
+    void checkIndices(const SendList& sendList, [[maybe_unused]] LocalIndex start,
+                      [[maybe_unused]] LocalIndex end, LocalIndex bufferSize)
     {
         for (const auto& manifest : sendList)
         {
             for (size_t ri = 0; ri < manifest.nRanges(); ++ri)
             {
-                assert(!overlapTwoRanges(LocalParticleIndex{0}, start, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
-                assert(!overlapTwoRanges(end, particleBufferSize_, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
+                assert(!overlapTwoRanges(LocalIndex{0}, start, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
+                assert(!overlapTwoRanges(end, bufferSize, manifest.rangeStart(ri), manifest.rangeEnd(ri)));
+            }
+        }
+    }
+
+    //! @brief check halo discovery for sanity
+    void checkHalos(gsl::span<const TreeIndexPair> focusAssignment)
+    {
+        TreeNodeIndex firstAssignedNode = focusAssignment[myRank_].start();
+        TreeNodeIndex lastAssignedNode  = focusAssignment[myRank_].end();
+
+        std::array<TreeNodeIndex, 2> checkRanges[2] = {{0, firstAssignedNode},
+                                                       {lastAssignedNode, TreeNodeIndex(haloFlags_.size())}};
+
+        for (int range = 0; range < 2; ++range)
+        {
+            #pragma omp parallel for
+            for (TreeNodeIndex i = checkRanges[range][0]; i < checkRanges[range][1]; ++i)
+            {
+                if (haloFlags_[i])
+                {
+                    bool peerFound = false;
+                    for (auto peerRange : focusAssignment)
+                    {
+                        if (peerRange.start() <= i && i < peerRange.end())
+                        {
+                            peerFound = true;
+                        }
+                    }
+                    if (!peerFound)
+                    {
+                        std::cout << "Detected halo cells not belonging to peer ranks. This usually happens"
+                                  << " when some particles have smoothing length interaction sphere volumes"
+                                  << " of similar magnitude than the rank domain volume. In that case, either"
+                                  << " the number of ranks needs to be decreased or the number of particles"
+                                  << " increased, leading to shorter smoothing lengths\n";
+                        MPI_Abort(MPI_COMM_WORLD, 1);
+                    }
+                }
             }
         }
     }
 
     int myRank_;
-
-    LocalParticleIndex particleBufferSize_{0};
 
     SendList incomingHaloIndices_;
     SendList outgoingHaloIndices_;

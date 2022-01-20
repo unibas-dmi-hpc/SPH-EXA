@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.21)
+cmake_minimum_required(VERSION 3.17)
 
 project(sphexa CXX C)
 set(CMAKE_CXX_STANDARD 17)
@@ -8,6 +8,11 @@ set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 option(BUILD_TESTING "build unit and integration tests" ON)
 option(SPH_EXA_WITH_HIP "Build SPH-EXA with HIP" OFF)
+
+if (SPH_EXA_WITH_HIP)
+    cmake_minimum_required(VERSION 3.21)
+endif()
+
 
 find_package(MPI)
 find_package(OpenMP REQUIRED)
@@ -77,7 +82,7 @@ set(INSITU None CACHE STRING "Enable in-situ support")
 set_property(CACHE INSITU PROPERTY STRINGS None Catalyst Ascent)
 
 if(INSITU STREQUAL "Catalyst")
-	find_package(catalyst REQUIRED PATHS "/scratch/snx3000/jfavre/daint/software/ParaView/5.10.0-CrayGNU-20.11-RC2-EGL-python3/lib/cmake/paraview-5.10")
+    find_package(catalyst REQUIRED PATHS "$ENV{EBROOTPARAVIEW}/lib/cmake/paraview-5.10")
 elseif(INSITU STREQUAL "Ascent")
     find_package(Ascent REQUIRED PATHS "/apps/daint/UES/Ascent/ascent-install/lib/cmake/ascent")
 endif()

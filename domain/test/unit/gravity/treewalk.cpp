@@ -46,7 +46,7 @@ TEST(Gravity, TreeWalk)
     float G = 1.0;
     unsigned bucketSize = 64;
     Box<T> box(-1, 1);
-    LocalParticleIndex numParticles = 10000;
+    LocalIndex numParticles = 10000;
 
     RandomCoordinates<T, SfcKind<KeyType>> coordinates(numParticles, box);
 
@@ -68,8 +68,8 @@ TEST(Gravity, TreeWalk)
     octree.update(std::move(treeLeaves));
 
     // layout[i] is equal to the index in (x,y,z,m) of the first particle in leaf cell with index i
-    std::vector<LocalParticleIndex> layout(octree.numLeafNodes() + 1);
-    stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalParticleIndex(0));
+    std::vector<LocalIndex> layout(octree.numLeafNodes() + 1);
+    stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
 
     std::vector<GravityMultipole<T>> multipoles(octree.numTreeNodes());
     computeMultipoles(octree, layout, x, y, z, masses.data(), multipoles.data());
@@ -118,7 +118,7 @@ TEST(Gravity, TreeWalk)
 
     // relative errors
     std::vector<T> delta(numParticles);
-    for (LocalParticleIndex i = 0; i < numParticles; ++i)
+    for (LocalIndex i = 0; i < numParticles; ++i)
     {
         T dx = ax[i] - Ax[i];
         T dy = ay[i] - Ay[i];
