@@ -80,7 +80,7 @@ void enumeratePrefixes(const BinaryNode<KeyType>* binaryTree, TreeNodeIndex numN
  * @param[in]  numBinaryNodes  number of binary tree nodes
  * @param[out] octToBinary     the inversion of binaryToOct, octToBinary[binaryToOct[i]] == i
  */
-void translateToOct(const TreeNodeIndex* binaryToOct, int numBinaryNodes, TreeNodeIndex* octToBinary)
+static void translateToOct(const TreeNodeIndex* binaryToOct, int numBinaryNodes, TreeNodeIndex* octToBinary)
 {
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex tid = 0; tid < numBinaryNodes; ++tid)

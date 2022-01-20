@@ -187,9 +187,15 @@ HOST_DEVICE_FUN bool minVecMacMutual(const Vec3<T>& centerA,
 }
 
 //! @brief mark all nodes of @p octree (leaves and internal) that fail the MAC w.r.t to @p target
-template<class T, class KeyType>
-void markMacPerBox(const Vec3<T>& targetCenter, const Vec3<T>& targetSize, const Octree<KeyType>& octree, const Box<T>& box,
-                   float invTheta, KeyType focusStart, KeyType focusEnd, char* markings)
+template<template<class> class TreeType, class T, class KeyType>
+void markMacPerBox(const Vec3<T>& targetCenter,
+                   const Vec3<T>& targetSize,
+                   const TreeType<KeyType>& octree,
+                   const Box<T>& box,
+                   float invTheta,
+                   KeyType focusStart,
+                   KeyType focusEnd,
+                   char* markings)
 {
     auto checkAndMarkMac =
         [&targetCenter, &targetSize, &octree, &box, invTheta, focusStart, focusEnd, markings](TreeNodeIndex idx)
@@ -224,8 +230,8 @@ void markMacPerBox(const Vec3<T>& targetCenter, const Vec3<T>& targetSize, const
  *                          will be set to 1, if the node of @p octree with index i fails the MAC paired with
  *                          any node contained in the focus range [focusStart:focusEnd]
  */
-template<class T, class KeyType>
-void markMac(const Octree<KeyType>& octree, const Box<T>& box, KeyType focusStart, KeyType focusEnd,
+template<template<class> class TreeType, class T, class KeyType>
+void markMac(const TreeType<KeyType>& octree, const Box<T>& box, KeyType focusStart, KeyType focusEnd,
              float invTheta, char* markings)
 
 {
