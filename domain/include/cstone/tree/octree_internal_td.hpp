@@ -390,7 +390,7 @@ public:
      * @param[out]  out  output sequence of length numLeafNodes()
      */
     template<class T>
-    void extractLeaves(gsl::span<const T> in, gsl::span<T> out)
+    void extractLeaves(gsl::span<const T> in, gsl::span<T> out) const
     {
         assert(in.size() == size_t(numTreeNodes()));
         assert(out.size() == size_t(numLeafNodes()));

@@ -145,25 +145,105 @@ bool rebalanceDecisionEssential(const KeyType* cstoneTree, TreeNodeIndex numInte
     return converged;
 }
 
+/*! @brief combines the particle count and multipole criteria for rebalancing
+ *
+ * @return
+ *      - 0 if node to be merged
+ *      - 1 if node to stay unchanged
+ *      - 8 if node to be split
+ */
+template<class KeyType>
+inline HOST_DEVICE_FUN int mergeCountAndMacOpTd(TreeNodeIndex nodeIdx,
+                                                const KeyType* nodeKeys,
+                                                const TreeNodeIndex* childOffsets,
+                                                const TreeNodeIndex* parents,
+                                                const unsigned* counts,
+                                                const char* macs,
+                                                KeyType focusStart,
+                                                KeyType focusEnd,
+                                                unsigned bucketSize)
+{
+    TreeNodeIndex siblingGroup = (nodeIdx - 1) / 8;
+    TreeNodeIndex parent = parents[siblingGroup];
+
+    TreeNodeIndex firstSibling = childOffsets[parent];
+    auto g = childOffsets + firstSibling;
+    bool onlyLeafSiblings = (g[0]+g[1]+g[2]+g[3]+g[4]+g[5]+g[6]+g[7]) == 0;
+
+    TreeNodeIndex siblingIdx = nodeIdx - firstSibling;
+    KeyType nodeKey          = decodePlaceholderBit(nodeKeys[nodeIdx]);
+    unsigned level           = decodePrefixLength(nodeKeys[nodeIdx]) / 3;
+
+    if (onlyLeafSiblings && siblingIdx > 0)
+    {
+        bool countMerge = counts[parent] <= bucketSize;
+        bool macMerge   = macs[parent] == 0;
+
+        KeyType firstGroupKey = decodePlaceholderBit(nodeKeys[firstSibling]);
+        KeyType lastGroupKey  = firstGroupKey + 8 * nodeRange<KeyType>(level);
+        // inFringe: nodeIdx not in focus, but at least one sibling is in the focus
+        // in that case we cannot remove the nodes based on a MAC criterion
+        bool inFringe = overlapTwoRanges(firstGroupKey, lastGroupKey, focusStart, focusEnd);
+
+        if (countMerge || (macMerge && !inFringe)) { return 0; } // merge
+    }
+
+    bool inFocus = (nodeKey >= focusStart && nodeKey < focusEnd);
+    if (level < maxTreeLevel<KeyType>{} && counts[nodeIdx] > bucketSize && (macs[nodeIdx] || inFocus))
+    {
+        return 8; // split
+    }
+
+    return 1; // default: do nothing
+}
+
+/*! @brief Compute locally essential split or fuse decision for each octree node in parallel
+ *
+ * @tparam    KeyType          32- or 64-bit unsigned integer type
+ * @param[in] nodeKeys         warren-salmon SFC keys for each tree node, length = @p numNodes
+ * @param[in] childOffsets     node index of first child (0 identifies a leaf), length = @p numNodes
+ * @param[in] parents          parent node index for each group of 8 siblings, length = (numNodes-1) / 8
+ * @param[in] counts           particle count of each tree node, length = @p numNodes
+ * @param[in] macs             multipole pass or fail per node, length = @p numNodes
+ * @param[in] focusStart       first focus SFC key
+ * @param[in] focusEnd         last focus SFC key
+ * @param[in] bucketSize       maximum particle count per (leaf) node and
+ *                             minimum particle count (strictly >) for (implicit) internal nodes
+ * @param[out] nodeOps         stores rebalance decision result for each node, length = @p numNodes
+ *                             only leaf nodes will be set, internal nodes are ignored
+ * @return                     true if converged, false otherwise
+ *
+ * For each leaf node i in the tree, in nodeOps[i], stores
+ *  - 0 if to be merged
+ *  - 1 if unchanged,
+ *  - 8 if to be split.
+ */
 template<class KeyType, class LocalIndex>
-bool rebalanceDecisionEssentialTd(const KeyType* cstoneTree, TreeNodeIndex numInternalNodes, TreeNodeIndex numLeafNodes,
-                                  const TreeNodeIndex* leafParents,
-                                  const unsigned* leafCounts, const char* macs,
-                                  TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
-                                  unsigned bucketSize, LocalIndex* nodeOps)
+bool rebalanceDecisionEssentialTd(const KeyType* nodeKeys,
+                                  const TreeNodeIndex* childOffsets,
+                                  const TreeNodeIndex* parents,
+                                  const unsigned* counts,
+                                  const char* macs,
+                                  TreeNodeIndex numNodes,
+                                  KeyType focusStart,
+                                  KeyType focusEnd,
+                                  unsigned bucketSize,
+                                  LocalIndex* nodeOps)
 {
     bool converged = true;
     #pragma omp parallel
     {
         bool convergedThread = true;
         #pragma omp for
-        for (TreeNodeIndex leafIdx = 0; leafIdx < numLeafNodes; ++leafIdx)
+        for (TreeNodeIndex i = 0; i < numNodes; ++i)
         {
-            int opDecision = mergeCountAndMacOp(leafIdx, cstoneTree, numInternalNodes, leafParents, leafCounts,
-                                                macs, firstFocusNode, lastFocusNode, bucketSize);
+            // ignore internal nodes
+            if (childOffsets[i] != 0) { continue; }
+            int opDecision = mergeCountAndMacOpTd(i, nodeKeys, childOffsets, parents, counts, macs, focusStart,
+                                                  focusEnd, bucketSize);
             if (opDecision != 1) { convergedThread = false; }
 
-            nodeOps[leafIdx] = opDecision;
+            nodeOps[i] = opDecision;
         }
         if (!convergedThread) { converged = false; }
     }
