@@ -534,4 +534,20 @@ void upsweep(const TdOctree<KeyType>& octree, T* quantities, CombinationFunction
     }
 }
 
+//! @brief perform upsweep, initializing leaf quantities from a separate array
+template<class T, class KeyType, class CombinationFunction>
+void upsweep(const TdOctree<KeyType>& octree,
+             gsl::span<const T> leafQuantities,
+             gsl::span<T> quantities,
+             CombinationFunction combinationFunction)
+{
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < leafQuantities.ssize(); ++i)
+    {
+        TreeNodeIndex internalIdx = octree.toInternal(i);
+        quantities[internalIdx]   = leafQuantities[i];
+    }
+    upsweep(octree, quantities.data(), combinationFunction);
+}
+
 } // namespace cstone

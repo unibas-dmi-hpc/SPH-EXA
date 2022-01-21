@@ -145,6 +145,31 @@ bool rebalanceDecisionEssential(const KeyType* cstoneTree, TreeNodeIndex numInte
     return converged;
 }
 
+template<class KeyType, class LocalIndex>
+bool rebalanceDecisionEssentialTd(const KeyType* cstoneTree, TreeNodeIndex numInternalNodes, TreeNodeIndex numLeafNodes,
+                                  const TreeNodeIndex* leafParents,
+                                  const unsigned* leafCounts, const char* macs,
+                                  TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
+                                  unsigned bucketSize, LocalIndex* nodeOps)
+{
+    bool converged = true;
+    #pragma omp parallel
+    {
+        bool convergedThread = true;
+        #pragma omp for
+        for (TreeNodeIndex leafIdx = 0; leafIdx < numLeafNodes; ++leafIdx)
+        {
+            int opDecision = mergeCountAndMacOp(leafIdx, cstoneTree, numInternalNodes, leafParents, leafCounts,
+                                                macs, firstFocusNode, lastFocusNode, bucketSize);
+            if (opDecision != 1) { convergedThread = false; }
+
+            nodeOps[leafIdx] = opDecision;
+        }
+        if (!convergedThread) { converged = false; }
+    }
+    return converged;
+}
+
 enum class ResolutionStatus : int
 {
     //! @brief required SFC keys present in tree, no action needed

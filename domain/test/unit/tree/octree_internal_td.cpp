@@ -317,20 +317,21 @@ static void upsweepSumIrregularL3()
     TdOctree<KeyType> octree;
     octree.update(cstoneTree.data(), nNodes(cstoneTree));
 
-    std::vector<unsigned> nodeCounts(octree.numTreeNodes(), 0);
-    for (int i = 0; i < octree.numTreeNodes(); ++i)
-    {
-        if (octree.isLeaf(i)) { nodeCounts[i] = 1; }
-    }
+    std::vector<unsigned> leafCounts(nNodes(cstoneTree), 1);
+    std::vector<unsigned> nodeCounts(octree.numTreeNodes());
 
     auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h)
     { return a + b + c + d + e + f + g + h; };
-    upsweep(octree, nodeCounts.data(), sumFunction);
+    upsweep<unsigned>(octree, leafCounts, nodeCounts, sumFunction);
 
-    // std::vector<unsigned> refNodeCounts{29, 15, 8, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-    //                                    1,  1,  1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+    //                                      L1                       L2
+    //                                                               00                       30
+    std::vector<unsigned> refNodeCounts{29, 15, 1, 1, 8, 1, 1, 1, 1,  1, 1, 8, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
+                                   //  L3
+                                   // 020
+                                        1, 1, 1, 1, 1, 1, 1, 1};
 
-    // EXPECT_EQ(nodeCounts, refNodeCounts);
+    EXPECT_EQ(nodeCounts, refNodeCounts);
     EXPECT_EQ(nodeCounts[0], 29);
 }
 
