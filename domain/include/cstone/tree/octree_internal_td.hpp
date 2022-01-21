@@ -338,7 +338,7 @@ public:
     }
 
     //! @brief Index of parent node. Note: the root node is its own parent
-    inline TreeNodeIndex parent(TreeNodeIndex node) const { return parents_[(node - 1) / 8]; }
+    inline TreeNodeIndex parent(TreeNodeIndex node) const { return node ? parents_[(node - 1) / 8] : 0; }
 
     //! @brief lowest SFC key contained int the geometrical box of @p node
     inline KeyType codeStart(TreeNodeIndex node) const { return decodePlaceholderBit(prefixes_[node]); }
@@ -392,8 +392,8 @@ public:
     template<class T>
     void extractLeaves(gsl::span<const T> in, gsl::span<T> out) const
     {
-        assert(in.size() == size_t(numTreeNodes()));
-        assert(out.size() == size_t(numLeafNodes()));
+        assert(in.size() >= size_t(numTreeNodes()));
+        assert(out.size() >= size_t(numLeafNodes()));
 
         #pragma omp parallel for schedule(static)
         for (TreeNodeIndex i = 0; i < numLeafNodes_; ++i)

@@ -50,6 +50,7 @@
 
 #include "cstone/traversal/macs.hpp"
 #include "cstone/tree/octree_internal.hpp"
+#include "cstone/tree/octree_internal_td.hpp"
 #include "cstone/traversal/traversal.hpp"
 
 namespace cstone
@@ -164,7 +165,7 @@ inline HOST_DEVICE_FUN int mergeCountAndMacOpTd(TreeNodeIndex nodeIdx,
                                                 unsigned bucketSize)
 {
     TreeNodeIndex siblingGroup = (nodeIdx - 1) / 8;
-    TreeNodeIndex parent = parents[siblingGroup];
+    TreeNodeIndex parent = nodeIdx ? parents[siblingGroup] : 0;
 
     TreeNodeIndex firstSibling = childOffsets[parent];
     auto g = childOffsets + firstSibling;
@@ -369,7 +370,8 @@ public:
     FocusedOctreeCore(unsigned bucketSize)
         : bucketSize_(bucketSize)
     {
-        tree_.update(std::vector<KeyType>{0, nodeRange<KeyType>(0)});
+        std::vector<KeyType> init{0, nodeRange<KeyType>(0)};
+        tree_.update(init.data(), nNodes(init));
     }
 
     /*! @brief perform a local update step
@@ -391,18 +393,23 @@ public:
                 gsl::span<const unsigned> counts,
                 gsl::span<const char> macs)
     {
-        assert(TreeNodeIndex(counts.size()) == tree_.numLeafNodes());
+        assert(TreeNodeIndex(counts.size()) == tree_.numTreeNodes());
         assert(TreeNodeIndex(macs.size()) == tree_.numTreeNodes());
 
         gsl::span<const KeyType> leaves = tree_.treeLeaves();
 
-        TreeNodeIndex firstFocusNode = findNodeBelow(leaves, focusStart);
-        TreeNodeIndex lastFocusNode  = findNodeAbove(leaves, focusEnd);
+        //TreeNodeIndex firstFocusNode = findNodeBelow(leaves, focusStart);
+        //TreeNodeIndex lastFocusNode  = findNodeAbove(leaves, focusEnd);
 
         std::vector<TreeNodeIndex> nodeOps(tree_.numLeafNodes() + 1);
-        bool converged = rebalanceDecisionEssential(leaves.data(), tree_.numInternalNodes(), tree_.numLeafNodes(),
-                                                    tree_.leafParents(), counts.data(), macs.data(), firstFocusNode,
-                                                    lastFocusNode, bucketSize_, nodeOps.data());
+        std::vector<TreeNodeIndex> nodeOpsAll(tree_.numTreeNodes() + 1);
+        //bool converged = rebalanceDecisionEssential(leaves.data(), tree_.numInternalNodes(), tree_.numLeafNodes(),
+        //                                            tree_.leafParents(), counts.data(), macs.data(), firstFocusNode,
+        //                                            lastFocusNode, bucketSize_, nodeOps.data());
+        bool converged = rebalanceDecisionEssentialTd(tree_.nodeKeys(), tree_.childOffsets(), tree_.parents(),
+                                                      counts.data(), macs.data(), tree_.numTreeNodes(), focusStart,
+                                                      focusEnd, bucketSize_, nodeOpsAll.data());
+        tree_.template extractLeaves<TreeNodeIndex>(nodeOpsAll, nodeOps);
 
         std::vector<KeyType> allMandatoryKeys{focusStart, focusEnd};
         std::copy(mandatoryKeys.begin(), mandatoryKeys.end(), std::back_inserter(allMandatoryKeys));
@@ -428,13 +435,13 @@ public:
             injectKeys(newLeaves, allMandatoryKeys);
         }
 
-        tree_.update(std::move(newLeaves));
+        tree_.update(newLeaves.data(), nNodes(newLeaves));
 
         return converged;
     }
 
     //! @brief provide access to the linked octree
-    const Octree<KeyType>& octree() const { return tree_; }
+    const TdOctree<KeyType>& octree() const { return tree_; }
 
     //! @brief returns a view of the tree leaves
     gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
@@ -445,7 +452,7 @@ private:
     unsigned bucketSize_;
 
     //! @brief the focused tree
-    Octree<KeyType> tree_;
+    TdOctree<KeyType> tree_;
 };
 
 /*! @brief A fully traversable octree, locally focused w.r.t a MinMac criterion
@@ -483,10 +490,14 @@ public:
         computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), particleKeys.data(),
                           particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
 
+        std::vector<unsigned> fullCounts(octree().numTreeNodes());
+        upsweepSum<unsigned>(octree(), counts_, fullCounts);
+        std::swap(counts_, fullCounts);
+
         return converged;
     }
 
-    const Octree<KeyType>& octree() const { return tree_.octree(); }
+    const TdOctree<KeyType>& octree() const { return tree_.octree(); }
 
     gsl::span<const KeyType>  treeLeaves() const { return tree_.treeLeaves(); }
     gsl::span<const unsigned> leafCounts() const { return counts_; }

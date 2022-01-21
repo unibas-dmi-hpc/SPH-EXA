@@ -103,6 +103,7 @@ TEST(InternalOctreeTd, rootNode)
     EXPECT_EQ(fullTree.numInternalNodes(), 0);
     EXPECT_EQ(fullTree.codeStart(0), 0);
     EXPECT_EQ(fullTree.codeEnd(0), nodeRange<unsigned>(0));
+    EXPECT_EQ(fullTree.parent(0), 0);
 }
 
 /*! @brief test internal octree creation from a regular 4x4x4 grid of leaves

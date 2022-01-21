@@ -32,7 +32,6 @@
 #include "gtest/gtest.h"
 
 #include "cstone/focus/octree_focus.hpp"
-#include "cstone/tree/octree_internal_td.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 #include "coord_samples/random.hpp"
