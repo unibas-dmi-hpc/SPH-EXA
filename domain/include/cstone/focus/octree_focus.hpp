@@ -393,27 +393,24 @@ public:
                 gsl::span<const unsigned> counts,
                 gsl::span<const char> macs)
     {
-        assert(TreeNodeIndex(counts.size()) == tree_.numTreeNodes());
-        assert(TreeNodeIndex(macs.size()) == tree_.numTreeNodes());
-
-        gsl::span<const KeyType> leaves = tree_.treeLeaves();
+        TreeNodeIndex numNodes = tree_.numTreeNodes();
+        assert(TreeNodeIndex(counts.size()) == numNodes);
+        assert(TreeNodeIndex(macs.size()) == numNodes);
 
         //TreeNodeIndex firstFocusNode = findNodeBelow(leaves, focusStart);
         //TreeNodeIndex lastFocusNode  = findNodeAbove(leaves, focusEnd);
 
         std::vector<TreeNodeIndex> nodeOps(tree_.numLeafNodes() + 1);
-        std::vector<TreeNodeIndex> nodeOpsAll(tree_.numTreeNodes() + 1);
-        //bool converged = rebalanceDecisionEssential(leaves.data(), tree_.numInternalNodes(), tree_.numLeafNodes(),
-        //                                            tree_.leafParents(), counts.data(), macs.data(), firstFocusNode,
-        //                                            lastFocusNode, bucketSize_, nodeOps.data());
+        gsl::span<TreeNodeIndex> nodeOpsAll(tree_.nodeOrder(), numNodes);
         bool converged = rebalanceDecisionEssentialTd(tree_.nodeKeys(), tree_.childOffsets(), tree_.parents(),
                                                       counts.data(), macs.data(), tree_.numTreeNodes(), focusStart,
-                                                      focusEnd, bucketSize_, nodeOpsAll.data());
+                                                      focusEnd, bucketSize_, tree_.nodeOrder());
         tree_.template extractLeaves<TreeNodeIndex>(nodeOpsAll, nodeOps);
 
         std::vector<KeyType> allMandatoryKeys{focusStart, focusEnd};
         std::copy(mandatoryKeys.begin(), mandatoryKeys.end(), std::back_inserter(allMandatoryKeys));
 
+        gsl::span<const KeyType> leaves = tree_.treeLeaves();
         auto status = enforceKeys<KeyType>(leaves, allMandatoryKeys, nodeOps);
 
         if (status == ResolutionStatus::cancelMerge)

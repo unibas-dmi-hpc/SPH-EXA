@@ -303,6 +303,8 @@ public:
     //! @brief return const pointer to the cell parents array
     const TreeNodeIndex* parents() const { return parents_.data(); }
 
+    TreeNodeIndex* nodeOrder() { return nodeOrder_.data(); }
+
     //! @brief total number of nodes in the tree
     inline TreeNodeIndex numTreeNodes() const { return levelRange_.back(); }
     //! @brief return number of nodes per tree level
