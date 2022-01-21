@@ -550,4 +550,12 @@ void upsweep(const TdOctree<KeyType>& octree,
     upsweep(octree, quantities.data(), combinationFunction);
 }
 
+template<class T, class KeyType>
+void upsweepSum(const TdOctree<KeyType>& octree, gsl::span<const T> leafQuantities, gsl::span<T> quantities)
+{
+    auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h)
+    { return a + b + c + d + e + f + g + h; };
+    upsweep(octree, leafQuantities, quantities, sumFunction);
+}
+
 } // namespace cstone
