@@ -291,61 +291,36 @@ public:
     }
 
     //! @brief resize the cornerstone leaf array
-    void resizeLeaves(TreeNodeIndex numLeafNodes)
-    {
-        cstoneTree_.resize(numLeafNodes + 1);
-    }
-
-    gsl::span<const KeyType> treeLeaves() const
-    {
-        return cstoneTree_;
-    }
-
-    gsl::span<KeyType> treeLeaves()
-    {
-        return cstoneTree_;
-    }
+    void resizeLeaves(TreeNodeIndex numLeafNodes) { cstoneTree_.resize(numLeafNodes + 1); }
+    //! @brief return a const view of the cstone leaf array
+    gsl::span<const KeyType> treeLeaves() const { return cstoneTree_; }
+    //! @brief return a non-const view of the cstone leaf array
+    gsl::span<KeyType> treeLeaves() { return cstoneTree_; }
+    //! @brief return const pointer to node(cell) SFC keys
+    const KeyType* nodeKeys() const { return prefixes_.data(); }
+    //! @brief return const pointer to child offsets array
+    const TreeNodeIndex* childOffsets() const { return childOffsets_.data(); }
+    //! @brief return const pointer to the cell parents array
+    const TreeNodeIndex* parents() const { return parents_.data(); }
 
     //! @brief total number of nodes in the tree
-    [[nodiscard]] inline TreeNodeIndex numTreeNodes() const
-    {
-        return levelRange_.back();
-    }
-
-    [[nodiscard]] inline TreeNodeIndex numTreeNodes(unsigned level) const
-    {
-        assert(level <= maxTreeLevel<KeyType>{});
-        return levelRange_[level + 1] - levelRange_[level];
-    }
-
+    inline TreeNodeIndex numTreeNodes() const { return levelRange_.back(); }
+    //! @brief return number of nodes per tree level
+    inline TreeNodeIndex numTreeNodes(unsigned level) const { return levelRange_[level + 1] - levelRange_[level]; }
     //! @brief number of leaf nodes in the tree
-    [[nodiscard]] inline TreeNodeIndex numLeafNodes() const
-    {
-        return numLeafNodes_;
-    }
-
+    inline TreeNodeIndex numLeafNodes() const { return numLeafNodes_; }
     //! @brief number of internal nodes in the tree, equal to (numLeafNodes()-1) / 7
-    [[nodiscard]] inline TreeNodeIndex numInternalNodes() const
-    {
-        return numInternalNodes_;
-    }
+    inline TreeNodeIndex numInternalNodes() const { return numInternalNodes_; }
 
     /*! @brief check whether node is a leaf
      *
      * @param[in] node    node index, range [0:numTreeNodes()]
      * @return            true or false
      */
-    [[nodiscard]] inline bool isLeaf(TreeNodeIndex node) const
-    {
-        assert(node < numTreeNodes());
-        return childOffsets_[node] == 0;
-    }
+    inline bool isLeaf(TreeNodeIndex node) const { return childOffsets_[node] == 0; }
 
     //! @brief check if node is the root node
-    [[nodiscard]] inline bool isRoot(TreeNodeIndex node) const
-    {
-        return node == 0;
-    }
+    inline bool isRoot(TreeNodeIndex node) const { return node == 0; }
 
     /*! @brief return child node index
      *
@@ -356,27 +331,20 @@ public:
      * If @p node is not internal, behavior is undefined.
      * Query with isLeaf(node) before calling this function.
      */
-    [[nodiscard]] inline TreeNodeIndex child(TreeNodeIndex node, int octant) const
+    inline TreeNodeIndex child(TreeNodeIndex node, int octant) const
     {
         assert(node < TreeNodeIndex(childOffsets_.size()));
-
         return childOffsets_[node] + octant;
     }
 
-    /*! @brief index of parent node
-     *
-     * Note: the root node is its own parent
-     */
-    [[nodiscard]] inline TreeNodeIndex parent(TreeNodeIndex node) const { return parents_[(node - 1) / 8]; }
+    //! @brief Index of parent node. Note: the root node is its own parent
+    inline TreeNodeIndex parent(TreeNodeIndex node) const { return parents_[(node - 1) / 8]; }
 
     //! @brief lowest SFC key contained int the geometrical box of @p node
-    [[nodiscard]] inline KeyType codeStart(TreeNodeIndex node) const
-    {
-        return decodePlaceholderBit(prefixes_[node]);
-    }
+    inline KeyType codeStart(TreeNodeIndex node) const { return decodePlaceholderBit(prefixes_[node]); }
 
     //! @brief highest SFC key contained in the geometrical box of @p node
-    [[nodiscard]] inline KeyType codeEnd(TreeNodeIndex node) const
+    inline KeyType codeEnd(TreeNodeIndex node) const
     {
         KeyType prefix = prefixes_[node];
         assert(decodePrefixLength(prefix) % 3  == 0);
@@ -387,16 +355,10 @@ public:
      *
      * Returns 0 for the root node. Highest value is maxTreeLevel<KeyType>{}.
      */
-    [[nodiscard]] inline unsigned level(TreeNodeIndex node) const
-    {
-        return decodePrefixLength(prefixes_[node]) / 3;
-    }
+    inline unsigned level(TreeNodeIndex node) const { return decodePrefixLength(prefixes_[node]) / 3; }
 
     //! @brief return the index of the first node at subdivision level @p level
-    [[nodiscard]] inline TreeNodeIndex levelOffset(unsigned level) const
-    {
-        return levelRange_[level];
-    }
+    inline TreeNodeIndex levelOffset(unsigned level) const { return levelRange_[level]; }
 
     /*! @brief convert a leaf index (indexed from first leaf starting from 0) to 0-indexed from root
      *
@@ -450,7 +412,6 @@ public:
     TreeNodeIndex locate(KeyType startKey, KeyType endKey) const
     {
         unsigned level = treeLevel(endKey - startKey);
-
         return std::lower_bound(prefixes_.begin() + levelRange_[level], prefixes_.begin() + levelRange_[level + 1],
                                 startKey, [](KeyType k, KeyType val) { return decodePlaceholderBit(k) < val; }) -
                prefixes_.begin();
