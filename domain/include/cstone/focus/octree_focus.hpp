@@ -422,7 +422,7 @@ public:
             converged = false;
         }
 
-        std::vector<KeyType> newLeaves;
+        std::vector<KeyType>& newLeaves = tree_.prefixes_;
         rebalanceTree(leaves, newLeaves, nodeOps.data());
 
         // if rebalancing couldn't introduce the mandatory keys, we force-inject them now into the tree
@@ -432,7 +432,8 @@ public:
             injectKeys(newLeaves, allMandatoryKeys);
         }
 
-        tree_.update(newLeaves.data(), nNodes(newLeaves));
+        swap(newLeaves, tree_.cstoneTree_);
+        tree_.updateInternalTree();
 
         return converged;
     }

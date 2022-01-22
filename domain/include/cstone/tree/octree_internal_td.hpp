@@ -442,7 +442,7 @@ private:
         inverseNodeOrder_.resize(numNodes);
 
         binaryTree_.resize(numLeafNodes_);
-        // one extra element to allow temporary repurposing for nodeOps during rebalance
+        // one extra element to allow temporary repurposing for nodeOps during focus update
         binaryToOct_.resize(numLeafNodes_ + 1);
         octToBinary_.resize(numInternalNodes_);
     }
