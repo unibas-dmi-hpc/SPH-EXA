@@ -444,15 +444,6 @@ public:
     //! @brief returns a view of the tree leaves
     gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
 
-    //! @brief array to store leaf counts for temporary use
-    gsl::span<unsigned> tmpCounts()
-    {
-        static_assert(sizeof(TreeNodeIndex) == sizeof(unsigned));
-        assert(tree_.binaryToOct_.size() >= size_t(tree_.numLeafNodes()));
-        unsigned* ptr = reinterpret_cast<unsigned*>(tree_.binaryToOct_.data());
-        return gsl::span<unsigned>(ptr, tree_.numLeafNodes());
-    }
-
 private:
     //! @brief max number of particles per node in focus
     unsigned bucketSize_;
@@ -491,12 +482,12 @@ public:
         markMac(tree_.octree(), box, focusStart, focusEnd, 1.0 / theta_, macs_.data());
 
         gsl::span<const KeyType> leaves = tree_.treeLeaves();
-        gsl::span<unsigned> leafCounts  = tree_.tmpCounts();
-        computeNodeCounts(leaves.data(), leafCounts.data(), nNodes(leaves), particleKeys.data(),
+        leafCounts_.resize(nNodes(leaves));
+        computeNodeCounts(leaves.data(), leafCounts_.data(), nNodes(leaves), particleKeys.data(),
                           particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
 
         counts_.resize(octree().numTreeNodes());
-        upsweepSum<unsigned>(octree(), leafCounts, counts_);
+        upsweepSum<unsigned>(octree(), leafCounts_, counts_);
 
         return converged;
     }
@@ -504,6 +495,7 @@ public:
     const TdOctree<KeyType>& octree() const { return tree_.octree(); }
 
     gsl::span<const KeyType>  treeLeaves() const { return tree_.treeLeaves(); }
+    gsl::span<const unsigned> leafCounts() const { return leafCounts_; }
 
 private:
     //! @brief opening angle refinement criterion
@@ -512,6 +504,7 @@ private:
     FocusedOctreeCore<KeyType> tree_;
 
     //! @brief particle counts of the focused tree leaves
+    std::vector<unsigned> leafCounts_;
     std::vector<unsigned> counts_;
     //! @brief mac evaluation result relative to focus area (pass or fail)
     std::vector<char> macs_;

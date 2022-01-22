@@ -67,9 +67,9 @@ void countRequestParticles(gsl::span<const KeyType> requestLeaves, gsl::span<uns
     #pragma omp parallel for
     for (size_t i = 0; i < requestCounts.size(); ++i)
     {
-        requestCounts[i] = calculateNodeCount(requestLeaves.data(), i, particleKeys.data(),
-                                              particleKeys.data() + particleKeys.size(),
-                                              std::numeric_limits<unsigned>::max());
+        requestCounts[i] =
+            calculateNodeCount(requestLeaves[i], requestLeaves[i + 1], particleKeys.data(),
+                               particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max());
     }
 }
 
