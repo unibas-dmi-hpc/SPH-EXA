@@ -63,7 +63,7 @@ namespace cstone
  * @param[out] binaryToOct for each binary node, store 1 if prefix bit length is divisible by 3
  */
 template<class KeyType>
-void enumeratePrefixes(const BinaryNode<KeyType>* binaryTree, TreeNodeIndex numNodes, TreeNodeIndex* binaryToOct)
+void enumeratePrefixesCpu(const BinaryNode<KeyType>* binaryTree, TreeNodeIndex numNodes, TreeNodeIndex* binaryToOct)
 {
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex tid = 0; tid < numNodes; ++tid)
@@ -80,7 +80,7 @@ void enumeratePrefixes(const BinaryNode<KeyType>* binaryTree, TreeNodeIndex numN
  * @param[in]  numBinaryNodes  number of binary tree nodes
  * @param[out] octToBinary     the inversion of binaryToOct, octToBinary[binaryToOct[i]] == i
  */
-inline void translateToOct(const TreeNodeIndex* binaryToOct, int numBinaryNodes, TreeNodeIndex* octToBinary)
+inline void translateToOctCpu(const TreeNodeIndex* binaryToOct, int numBinaryNodes, TreeNodeIndex* octToBinary)
 {
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex tid = 0; tid < numBinaryNodes; ++tid)
@@ -118,14 +118,14 @@ inline void translateToOct(const TreeNodeIndex* binaryToOct, int numBinaryNodes,
  *                 internal        leaves
  */
 template<class KeyType>
-void createUnsortedLayout(const BinaryNode<KeyType>* binaryTree,
-                          TreeNodeIndex numInternalNodes,
-                          TreeNodeIndex numNodes,
-                          const KeyType* leaves,
-                          const TreeNodeIndex* octToBinary,
-                          KeyType* prefixes,
-                          TreeNodeIndex* nodeOrder,
-                          TreeNodeIndex* inverseNodeOrder)
+void createUnsortedLayoutCpu(const BinaryNode<KeyType>* binaryTree,
+                             TreeNodeIndex numInternalNodes,
+                             TreeNodeIndex numNodes,
+                             const KeyType* leaves,
+                             const TreeNodeIndex* octToBinary,
+                             KeyType* prefixes,
+                             TreeNodeIndex* nodeOrder,
+                             TreeNodeIndex* inverseNodeOrder)
 {
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex tid = 0; tid < numInternalNodes; ++tid)
@@ -162,13 +162,13 @@ void createUnsortedLayout(const BinaryNode<KeyType>* binaryTree,
  *                               i.e. the parent of node i is stored at parents[(i - 1)/8]
  */
 template<class KeyType>
-void linkTree(const BinaryNode<KeyType>* binaryTree,
-              TreeNodeIndex numInternalNodes,
-              const TreeNodeIndex* octToBinary,
-              const TreeNodeIndex* binaryToOct,
-              const TreeNodeIndex* inverseNodeOrder,
-              TreeNodeIndex* childOffsets,
-              TreeNodeIndex* parents)
+void linkTreeCpu(const BinaryNode<KeyType>* binaryTree,
+                 TreeNodeIndex numInternalNodes,
+                 const TreeNodeIndex* octToBinary,
+                 const TreeNodeIndex* binaryToOct,
+                 const TreeNodeIndex* inverseNodeOrder,
+                 TreeNodeIndex* childOffsets,
+                 TreeNodeIndex* parents)
 {
     // loop over octree nodes index in unsorted layout A
     #pragma omp parallel for schedule(static)
@@ -198,7 +198,7 @@ void linkTree(const BinaryNode<KeyType>* binaryTree,
 
 //! @brief determine the octree subdivision level boundaries
 template<class KeyType>
-void getLevelRange(const KeyType* nodeKeys, TreeNodeIndex numNodes, TreeNodeIndex* levelRange)
+void getLevelRangeCpu(const KeyType* nodeKeys, TreeNodeIndex numNodes, TreeNodeIndex* levelRange)
 {
     levelRange[0] = 0;
     levelRange[1] = 1;
@@ -248,12 +248,12 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree,
 
     // we ignore the last binary tree node which is a duplicate root node
     TreeNodeIndex numBinaryNodes = numLeafNodes - 1;
-    enumeratePrefixes(binaryTree, numBinaryNodes, binaryToOct);
+    enumeratePrefixesCpu(binaryTree, numBinaryNodes, binaryToOct);
     exclusiveScan(binaryToOct, numLeafNodes);
-    translateToOct(binaryToOct, numBinaryNodes, octToBinary);
+    translateToOctCpu(binaryToOct, numBinaryNodes, octToBinary);
     TreeNodeIndex numNodes = numInternalNodes + numLeafNodes;
-    createUnsortedLayout(binaryTree, numInternalNodes, numNodes, cstoneTree, octToBinary, prefixes, nodeOrder,
-                         inverseNodeOrder);
+    createUnsortedLayoutCpu(binaryTree, numInternalNodes, numNodes, cstoneTree, octToBinary, prefixes, nodeOrder,
+                            inverseNodeOrder);
     sort_by_key(prefixes, prefixes + numNodes, nodeOrder, compareLevelThenPrefixCpu<KeyType>{});
     // arrays now in sorted layout B
 
@@ -262,8 +262,8 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree,
     sort_by_key(childOffsets, childOffsets + numNodes, inverseNodeOrder);
     std::fill(childOffsets, childOffsets + numNodes, 0);
 
-    linkTree(binaryTree, numInternalNodes, octToBinary, binaryToOct, inverseNodeOrder, childOffsets, parents);
-    getLevelRange(prefixes, numNodes, levelRange);
+    linkTreeCpu(binaryTree, numInternalNodes, octToBinary, binaryToOct, inverseNodeOrder, childOffsets, parents);
+    getLevelRangeCpu(prefixes, numNodes, levelRange);
 }
 
 template<class K> class FocusedOctreeCore;
