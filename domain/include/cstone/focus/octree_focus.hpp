@@ -444,8 +444,16 @@ public:
     //! @brief returns a view of the tree leaves
     gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
 
-private:
+    //! @brief array to store leaf counts for temporary use
+    gsl::span<unsigned> tmpCounts()
+    {
+        static_assert(sizeof(TreeNodeIndex) == sizeof(unsigned));
+        assert(tree_.binaryToOct_.size() >= size_t(tree_.numLeafNodes()));
+        unsigned* ptr = reinterpret_cast<unsigned*>(tree_.binaryToOct_.data());
+        return gsl::span<unsigned>(ptr, tree_.numLeafNodes());
+    }
 
+private:
     //! @brief max number of particles per node in focus
     unsigned bucketSize_;
 
@@ -479,18 +487,16 @@ public:
     {
         bool converged = tree_.update(focusStart, focusEnd, mandatoryKeys, counts_, macs_);
 
-        gsl::span<const KeyType> leaves = tree_.treeLeaves();
-
         macs_.resize(tree_.octree().numTreeNodes());
         markMac(tree_.octree(), box, focusStart, focusEnd, 1.0 / theta_, macs_.data());
 
-        counts_.resize(nNodes(leaves));
-        computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), particleKeys.data(),
+        gsl::span<const KeyType> leaves = tree_.treeLeaves();
+        gsl::span<unsigned> leafCounts  = tree_.tmpCounts();
+        computeNodeCounts(leaves.data(), leafCounts.data(), nNodes(leaves), particleKeys.data(),
                           particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
 
-        std::vector<unsigned> fullCounts(octree().numTreeNodes());
-        upsweepSum<unsigned>(octree(), counts_, fullCounts);
-        std::swap(counts_, fullCounts);
+        counts_.resize(octree().numTreeNodes());
+        upsweepSum<unsigned>(octree(), leafCounts, counts_);
 
         return converged;
     }
@@ -498,7 +504,6 @@ public:
     const TdOctree<KeyType>& octree() const { return tree_.octree(); }
 
     gsl::span<const KeyType>  treeLeaves() const { return tree_.treeLeaves(); }
-    gsl::span<const unsigned> leafCounts() const { return counts_; }
 
 private:
     //! @brief opening angle refinement criterion
