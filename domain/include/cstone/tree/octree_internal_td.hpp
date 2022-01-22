@@ -266,6 +266,8 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree,
     getLevelRange(prefixes, numNodes, levelRange);
 }
 
+template<class K> class FocusedOctreeCore;
+
 template<class KeyType>
 class TdOctree
 {
@@ -302,8 +304,6 @@ public:
     const TreeNodeIndex* childOffsets() const { return childOffsets_.data(); }
     //! @brief return const pointer to the cell parents array
     const TreeNodeIndex* parents() const { return parents_.data(); }
-
-    TreeNodeIndex* nodeOrder() { return nodeOrder_.data(); }
 
     //! @brief total number of nodes in the tree
     inline TreeNodeIndex numTreeNodes() const { return levelRange_.back(); }
@@ -420,6 +420,8 @@ public:
     }
 
 private:
+    friend class FocusedOctreeCore<KeyType>;
+
     void resize(TreeNodeIndex numCsLeafNodes)
     {
         numLeafNodes_          = numCsLeafNodes;
@@ -440,7 +442,8 @@ private:
         inverseNodeOrder_.resize(numNodes);
 
         binaryTree_.resize(numLeafNodes_);
-        binaryToOct_.resize(numLeafNodes_);
+        // one extra element to allow temporary repurposing for nodeOps during rebalance
+        binaryToOct_.resize(numLeafNodes_ + 1);
         octToBinary_.resize(numInternalNodes_);
     }
 

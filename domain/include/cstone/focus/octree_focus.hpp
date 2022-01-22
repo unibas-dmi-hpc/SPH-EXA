@@ -393,18 +393,18 @@ public:
                 gsl::span<const unsigned> counts,
                 gsl::span<const char> macs)
     {
-        TreeNodeIndex numNodes = tree_.numTreeNodes();
+        [[maybe_unused]] TreeNodeIndex numNodes = tree_.numTreeNodes();
         assert(TreeNodeIndex(counts.size()) == numNodes);
         assert(TreeNodeIndex(macs.size()) == numNodes);
 
         //TreeNodeIndex firstFocusNode = findNodeBelow(leaves, focusStart);
         //TreeNodeIndex lastFocusNode  = findNodeAbove(leaves, focusEnd);
 
-        std::vector<TreeNodeIndex> nodeOps(tree_.numLeafNodes() + 1);
-        gsl::span<TreeNodeIndex> nodeOpsAll(tree_.nodeOrder(), numNodes);
+        gsl::span<TreeNodeIndex> nodeOps(tree_.binaryToOct_);
+        gsl::span<TreeNodeIndex> nodeOpsAll(tree_.nodeOrder_);
         bool converged = rebalanceDecisionEssentialTd(tree_.nodeKeys(), tree_.childOffsets(), tree_.parents(),
                                                       counts.data(), macs.data(), tree_.numTreeNodes(), focusStart,
-                                                      focusEnd, bucketSize_, tree_.nodeOrder());
+                                                      focusEnd, bucketSize_, nodeOpsAll.data());
         tree_.template extractLeaves<TreeNodeIndex>(nodeOpsAll, nodeOps);
 
         std::vector<KeyType> allMandatoryKeys{focusStart, focusEnd};
@@ -415,7 +415,7 @@ public:
 
         if (status == ResolutionStatus::cancelMerge)
         {
-            converged = std::all_of(begin(nodeOps), end(nodeOps) - 1, [](TreeNodeIndex i) { return i == 1; });
+            converged = std::all_of(nodeOps.begin(), nodeOps.end() - 1, [](TreeNodeIndex i) { return i == 1; });
         }
         else if (status == ResolutionStatus::rebalance)
         {
