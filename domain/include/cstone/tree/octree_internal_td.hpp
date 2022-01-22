@@ -452,24 +452,26 @@ private:
     TreeNodeIndex numLeafNodes_{0};
     TreeNodeIndex numInternalNodes_{0};
 
+    using Alloc = util::DefaultInitAdaptor<TreeNodeIndex>;
+
     //! @brief the SFC key and level of each node (Warren-Salmon placeholder-bit), length = numNodes
     std::vector<KeyType> prefixes_;
     //! @brief the index of the first child of each node, a value of 0 indicates a leaf, length = numNodes
-    std::vector<TreeNodeIndex> childOffsets_;
+    std::vector<TreeNodeIndex, Alloc> childOffsets_;
     //! @brief stores the parent index for every group of 8 sibling nodes, length the (numNodes - 1) / 8
-    std::vector<TreeNodeIndex> parents_;
+    std::vector<TreeNodeIndex, Alloc> parents_;
     //! @brief store the first node index of every tree level, length = maxTreeLevel + 2
-    std::vector<TreeNodeIndex> levelRange_;
+    std::vector<TreeNodeIndex, Alloc> levelRange_;
 
     //! @brief maps between the (level-key) sorted layout B and the unsorted intermediate binary layout A
-    std::vector<TreeNodeIndex> nodeOrder_;
-    std::vector<TreeNodeIndex> inverseNodeOrder_;
+    std::vector<TreeNodeIndex, Alloc> nodeOrder_;
+    std::vector<TreeNodeIndex, Alloc> inverseNodeOrder_;
 
     //! @brief temporary storage for binary tree nodes used during construction
     std::vector<BinaryNode<KeyType>> binaryTree_;
     //! @brief temporary index maps between the binary tree and octree used during construction
-    std::vector<TreeNodeIndex> binaryToOct_;
-    std::vector<TreeNodeIndex> octToBinary_;
+    std::vector<TreeNodeIndex, Alloc> binaryToOct_;
+    std::vector<TreeNodeIndex, Alloc> octToBinary_;
 
     //! @brief the cornerstone leaf SFC key array
     std::vector<KeyType> cstoneTree_;
