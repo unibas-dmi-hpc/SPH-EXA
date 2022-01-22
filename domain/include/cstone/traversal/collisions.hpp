@@ -77,7 +77,7 @@ void findHalos(const TreeType<KeyType>& octree,
                int* collisionFlags)
 {
     KeyType lowestCode  = octree.codeStart(octree.toInternal(firstNode));
-    KeyType highestCode = octree.codeEnd(octree.toInternal(lastNode) - 1);
+    KeyType highestCode = octree.codeEnd(octree.toInternal(lastNode - 1));
 
     auto markCollisions = [flags = collisionFlags](TreeNodeIndex i) { flags[i] = 1; };
 

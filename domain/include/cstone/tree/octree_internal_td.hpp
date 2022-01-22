@@ -507,6 +507,7 @@ void upsweep(const TdOctree<KeyType>& octree,
              gsl::span<T> quantities,
              CombinationFunction combinationFunction)
 {
+    assert(leafQuantities.ssize() == octree.numLeafNodes());
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < leafQuantities.ssize(); ++i)
     {

@@ -64,6 +64,7 @@ template<class KeyType>
 void countRequestParticles(gsl::span<const KeyType> requestLeaves, gsl::span<unsigned> requestCounts,
                            gsl::span<const KeyType> particleKeys)
 {
+    assert(requestLeaves.size() == requestCounts.size() + 1);
     #pragma omp parallel for
     for (size_t i = 0; i < requestCounts.size(); ++i)
     {
@@ -184,7 +185,7 @@ void exchangeTreeletCounts(gsl::span<const int> peerRanks,
         // compute particle counts for the remote peer's tree structure of the local domain.
         TreeNodeIndex numNodes = nNodes(peerTrees[peer]);
         std::vector<unsigned> countBuffer(numNodes);
-        countRequestParticles<KeyType>(gsl::span(peerTrees[peer].data(), numNodes), countBuffer, particleKeys);
+        countRequestParticles<KeyType>(peerTrees[peer], countBuffer, particleKeys);
 
         // send back answer with the counts for the requested nodes
         mpiSendAsync(countBuffer.data(), numNodes, peer, countTag, sendRequests);

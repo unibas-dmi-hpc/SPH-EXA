@@ -60,7 +60,7 @@ public:
      * @param[in] h                smoothing lengths of locally owned particles
      */
     template<class T, class Th>
-    void discover(const Octree<KeyType>& focusedTree,
+    void discover(const TdOctree<KeyType>& focusedTree,
                   gsl::span<const TreeIndexPair> focusAssignment,
                   gsl::span<const KeyType> particleKeys,
                   const Box<T> box,
