@@ -257,11 +257,13 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree,
     sort_by_key(prefixes, prefixes + numNodes, nodeOrder, compareLevelThenPrefixCpu<KeyType>{});
     // arrays now in sorted layout B
 
-    // temporarily repurpose childOffsets as space for sort key
-    std::copy(nodeOrder, nodeOrder + numNodes, childOffsets);
-    sort_by_key(childOffsets, childOffsets + numNodes, inverseNodeOrder);
-    std::fill(childOffsets, childOffsets + numNodes, 0);
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < numNodes; ++i)
+    {
+        inverseNodeOrder[nodeOrder[i]] = i;
+    }
 
+    std::fill(childOffsets, childOffsets + numNodes, 0);
     linkTreeCpu(binaryTree, numInternalNodes, octToBinary, binaryToOct, inverseNodeOrder, childOffsets, parents);
     getLevelRangeCpu(prefixes, numNodes, levelRange);
 }

@@ -40,6 +40,7 @@
 
 #include "cstone/tree/definitions.h"
 #include "cstone/util/gsl-lite.hpp"
+#include "cstone/util/noinit_alloc.hpp"
 
 namespace cstone
 {
@@ -62,7 +63,7 @@ void sort_by_key(InoutIterator keyBegin, InoutIterator keyEnd, OutputIterator va
     std::size_t n   = std::distance(keyBegin, keyEnd);
 
     // zip the input integer array together with the index sequence
-    std::vector<std::tuple<KeyType, ValueType>> keyIndexPairs(n);
+    std::vector<std::tuple<KeyType, ValueType>, util::DefaultInitAdaptor<std::tuple<KeyType, ValueType>>> keyIndexPairs(n);
     #pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < n; ++i)
         keyIndexPairs[i] = std::make_tuple(keyBegin[i], valueBegin[i]);
@@ -121,7 +122,7 @@ void reorder(gsl::span<const IndexType> ordering, const ValueType* source, Value
 template<class LocalIndex, class ValueType>
 void reorderInPlace(const std::vector<LocalIndex>& ordering, ValueType* array)
 {
-    std::vector<ValueType> tmp(ordering.size());
+    std::vector<ValueType, util::DefaultInitAdaptor<ValueType>> tmp(ordering.size());
     #pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < ordering.size(); ++i)
     {
@@ -217,9 +218,9 @@ private:
     std::size_t numExtract_{0};
     std::size_t mapSize_{0};
 
-    std::vector<IndexType> ordering_;
+    std::vector<IndexType, util::DefaultInitAdaptor<IndexType>> ordering_;
 
-    mutable std::vector<ValueType> buffer_;
+    mutable std::vector<ValueType, util::DefaultInitAdaptor<ValueType>> buffer_;
 };
 
 } // namespace cstone
