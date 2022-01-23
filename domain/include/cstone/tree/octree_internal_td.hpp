@@ -105,7 +105,6 @@ inline void translateToOctCpu(const TreeNodeIndex* binaryToOct, int numBinaryNod
  * @param[out] prefixes          output octree SFC keys, length @p numNodes
  *                               NOTE: keys are prefixed with Warren-Salmon placeholder bits!
  * @param[out] nodeOrder         iota 0,1,2,3,... sequence for later use, length @p numNodes
- * @param[out] inverseNodeOrder  iota 0,1,2,3,... sequence for later use, length @p numNodes
  *
  * Unsorted binary radix tree ordering: first all internal nodes, then leaf nodes
  *
@@ -114,7 +113,6 @@ inline void translateToOctCpu(const TreeNodeIndex* binaryToOct, int numBinaryNod
  *      octToBinary   |--|  |-------------------|  binaryToOct
  *                    |     V
  *    prefixes   |------------|--------------------------------|
- *    levels     |------------|--------------------------------|
  *                 internal        leaves
  */
 template<class KeyType>
@@ -124,17 +122,14 @@ void createUnsortedLayoutCpu(const BinaryNode<KeyType>* binaryTree,
                              const KeyType* leaves,
                              const TreeNodeIndex* octToBinary,
                              KeyType* prefixes,
-                             TreeNodeIndex* nodeOrder,
-                             TreeNodeIndex* inverseNodeOrder)
+                             TreeNodeIndex* nodeOrder)
 {
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex tid = 0; tid < numInternalNodes; ++tid)
     {
         TreeNodeIndex binaryIndex = octToBinary[tid];
         prefixes[tid]             = binaryTree[binaryIndex].prefix;
-
-        nodeOrder[tid]        = tid;
-        inverseNodeOrder[tid] = tid;
+        nodeOrder[tid]            = tid;
     }
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex tid = numInternalNodes; tid < numNodes; ++tid)
@@ -142,9 +137,7 @@ void createUnsortedLayoutCpu(const BinaryNode<KeyType>* binaryTree,
         TreeNodeIndex leafIdx = tid - numInternalNodes;
         unsigned level        = treeLevel(leaves[leafIdx + 1] - leaves[leafIdx]);
         prefixes[tid]         = encodePlaceholderBit(leaves[leafIdx], 3 * level);
-
         nodeOrder[tid]        = tid;
-        inverseNodeOrder[tid] = tid;
     }
 }
 
@@ -252,8 +245,7 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree,
     exclusiveScan(binaryToOct, numLeafNodes);
     translateToOctCpu(binaryToOct, numBinaryNodes, octToBinary);
     TreeNodeIndex numNodes = numInternalNodes + numLeafNodes;
-    createUnsortedLayoutCpu(binaryTree, numInternalNodes, numNodes, cstoneTree, octToBinary, prefixes, nodeOrder,
-                            inverseNodeOrder);
+    createUnsortedLayoutCpu(binaryTree, numInternalNodes, numNodes, cstoneTree, octToBinary, prefixes, nodeOrder);
     sort_by_key(prefixes, prefixes + numNodes, nodeOrder, compareLevelThenPrefixCpu<KeyType>{});
     // arrays now in sorted layout B
 
