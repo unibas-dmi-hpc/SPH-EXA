@@ -94,7 +94,15 @@ void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std
     }
     {
         Octree<KeyType> octree;
+        auto u0 = std::chrono::high_resolution_clock::now();
         octree.update(tree.begin(), tree.end());
+        auto u1 = std::chrono::high_resolution_clock::now();
+        std::cout << "first update: " << std::chrono::duration<double>(u1 - u0).count() << std::endl;
+
+        auto u2 = std::chrono::high_resolution_clock::now();
+        octree.update(tree.begin(), tree.end());
+        auto u3 = std::chrono::high_resolution_clock::now();
+        std::cout << "first update: " << std::chrono::duration<double>(u3 - u2).count() << std::endl;
 
         std::vector<int> collisionFlags(nNodes(tree), 0);
 
@@ -109,7 +117,15 @@ void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std
     }
     {
         TdOctree<KeyType> octree;
+        auto u0 = std::chrono::high_resolution_clock::now();
         octree.update(tree.data(), nNodes(tree));
+        auto u1 = std::chrono::high_resolution_clock::now();
+        std::cout << "first td-update: " << std::chrono::duration<double>(u1 - u0).count() << std::endl;
+
+        auto u2 = std::chrono::high_resolution_clock::now();
+        octree.update(tree.data(), nNodes(tree));
+        auto u3 = std::chrono::high_resolution_clock::now();
+        std::cout << "second td-update: " << std::chrono::duration<double>(u3 - u2).count() << std::endl;
 
         std::vector<int> collisionFlags(nNodes(tree), 0);
 
