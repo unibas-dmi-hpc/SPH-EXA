@@ -36,6 +36,7 @@
 
 #include "cstone/primitives/mpi_wrappers.hpp"
 #include "cstone/tree/octree.hpp"
+#include "cstone/tree/octree_internal_td.hpp"
 
 namespace cstone
 {
@@ -44,15 +45,48 @@ namespace cstone
  *
  * See documentation of updateOctree
  */
-template <class KeyType>
-bool updateOctreeGlobal(const KeyType *codesStart, const KeyType *codesEnd, unsigned bucketSize,
-                        std::vector<KeyType>& tree, std::vector<unsigned>& counts)
+template<class KeyType>
+bool updateOctreeGlobal(const KeyType* keyStart,
+                        const KeyType* keyEnd,
+                        unsigned bucketSize,
+                        std::vector<KeyType>& tree,
+                        std::vector<unsigned>& counts)
 {
     int nRanks;
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
     unsigned maxCount = std::numeric_limits<unsigned>::max() / nRanks;
 
-    bool converged = updateOctree(codesStart, codesEnd, bucketSize, tree, counts, maxCount);
+    bool converged = updateOctree(keyStart, keyEnd, bucketSize, tree, counts, maxCount);
+    MPI_Allreduce(MPI_IN_PLACE, counts.data(), counts.size(), MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+
+    return converged;
+}
+
+/*! @brief global update step of an octree, including regeneration of the internal node structure
+ *
+ * @tparam        KeyType     unsigned 32- or 64-bit integer
+ * @param[in]     keyStart    first particle key
+ * @param[in]     keyEnd      last particle key
+ * @param[in]     bucketSize  max number of particles per leaf
+ * @param[inout]  tree        a fully linked octree
+ * @param[inout]  counts      leaf node particle counts
+ * @param[in]     numRanks    number of MPI ranks
+ * @return                    true if tree was not changed
+ */
+template<class KeyType>
+bool updateOctreeGlobal(const KeyType* keyStart,
+                        const KeyType* keyEnd,
+                        unsigned bucketSize,
+                        TdOctree<KeyType>& tree,
+                        std::vector<unsigned>& counts,
+                        int numRanks)
+{
+    unsigned maxCount = std::numeric_limits<unsigned>::max() / numRanks;
+
+    bool converged = tree.rebalance(bucketSize, counts);
+
+    counts.resize(tree.numLeafNodes());
+    computeNodeCounts(tree.treeLeaves().data(), counts.data(), tree.numLeafNodes(), keyStart, keyEnd, maxCount, true);
     MPI_Allreduce(MPI_IN_PLACE, counts.data(), counts.size(), MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
 
     return converged;

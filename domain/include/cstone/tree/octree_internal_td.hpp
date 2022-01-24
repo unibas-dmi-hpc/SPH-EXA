@@ -286,6 +286,19 @@ public:
                                inverseNodeOrder_.data(), binaryTree_.data(), binaryToOct_.data(), octToBinary_.data());
     }
 
+    //! @brief rebalance based on leaf counts only, optimized version that avoids unnecessary allocations
+    bool rebalance(unsigned bucketSize, gsl::span<const unsigned> counts)
+    {
+        assert(counts.size() == numLeafNodes_);
+        bool converged =
+            rebalanceDecision(cstoneTree_.data(), counts.data(), numLeafNodes_, bucketSize, nodeOrder_.data());
+        rebalanceTree(cstoneTree_, prefixes_, nodeOrder_.data());
+        swap(cstoneTree_, prefixes_);
+
+        updateInternalTree();
+        return converged;
+    }
+
     //! @brief resize the cornerstone leaf array
     void resizeLeaves(TreeNodeIndex numLeafNodes) { cstoneTree_.resize(numLeafNodes + 1); }
     //! @brief return a const view of the cstone leaf array

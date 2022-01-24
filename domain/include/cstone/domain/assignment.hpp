@@ -61,7 +61,8 @@ public:
         , bucketSize_(bucketSize)
         , box_(box)
     {
-        tree_       = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
+        std::vector<KeyType> init{0, nodeRange<KeyType>(0)};
+        tree_.update(init.data(), nNodes(init));
         nodeCounts_ = std::vector<unsigned>{bucketSize_ + 1};
     }
 
@@ -99,13 +100,12 @@ public:
         // sort keys and keep track of ordering for later use
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
 
-        updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_);
+        updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_, numRanks_);
 
         if (firstCall_)
         {
             firstCall_ = false;
-            // full build on first call
-            while(!updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_));
+            while(!updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_, numRanks_));
         }
 
         assignment_ = singleRangeSfcSplit(nodeCounts_, numRanks_);
@@ -149,7 +149,7 @@ public:
         reorderFunctor.getReorderMap(sfcOrder_.data(), 0, numParticles);
 
         gsl::span<KeyType> keyView(keys + bufDesc.start, numParticles);
-        SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_, keyView);
+        SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_.treeLeaves(), keyView);
 
         // Assigned particles are now inside the [particleStart:particleEnd] range, but not exclusively.
         // Leftover particles from the previous step can also be contained in the range.
@@ -166,7 +166,7 @@ public:
 
         // thanks to the sorting, we now know the exact range of the assigned particles:
         // [newStart + offset, newStart + offset + newNParticlesAssigned]
-        LocalIndex offset = findNodeAbove<KeyType>(keyView, tree_[assignment_.firstNodeIdx(myRank_)]);
+        LocalIndex offset = findNodeAbove<KeyType>(keyView, tree_.treeLeaves()[assignment_.firstNodeIdx(myRank_)]);
         // restrict the reordering to take only the assigned particles into account and ignore the others
         reorderFunctor.restrictRange(offset, newNParticlesAssigned);
 
@@ -175,14 +175,11 @@ public:
 
     std::vector<int> findPeers(float theta)
     {
-        Octree<KeyType> domainTree;
-        domainTree.update(tree_.begin(), tree_.end());
-        std::vector<int> peers = findPeersMac(myRank_, assignment_, domainTree, box_, theta);
-        return peers;
+        return findPeersMac(myRank_, assignment_, tree_, box_, theta);
     }
 
     //! @brief read only visibility of the global octree leaves to the outside
-    gsl::span<const KeyType> tree() const { return tree_; }
+    gsl::span<const KeyType> tree() const { return tree_.treeLeaves(); }
 
     //! @brief read only visibility of the global octree leaf counts to the outside
     gsl::span<const unsigned> nodeCounts() const { return nodeCounts_; }
@@ -206,9 +203,10 @@ private:
     //! @brief storage for downloading the sfc ordering from the GPU
     mutable std::vector<LocalIndex> sfcOrder_;
 
-    //! @brief cornerstone tree leaves for global domain decomposition
-    std::vector<KeyType> tree_;
+    //! @brief leaf particle counts
     std::vector<unsigned> nodeCounts_;
+    //! @brief the fully linked octree
+    TdOctree<KeyType> tree_;
 
     bool firstCall_{true};
 };
