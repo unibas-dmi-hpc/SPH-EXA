@@ -55,7 +55,7 @@ TEST(MomentumEnergy, JLoop)
 
     // particle 0 has 4 neighbors
     std::vector<int> neighbors{1, 2, 3, 4};
-    int neighborsCount = 4;
+    int neighborsCount = 4, i;
 
     std::vector<T> x{1.0, 1.1, 3.2, 1.3, 2.4};
     std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
@@ -80,6 +80,10 @@ TEST(MomentumEnergy, JLoop)
 
     std::vector<T> rho0{1.1, 1.2, 1.3, 1.4, 1.5};
     std::vector<T> kx{1.0, 1.5, 2.0, 2.7, 4.0};
+    for (i = 0; i < neighborsCount+1; i++)
+    {
+        kx[i] = K * m[i] / rho0[i] / ::sphexa::math::pow(h[i], 3);
+    }
     /* distances of particle zero to particle j
      *
      * j = 1   1.10905

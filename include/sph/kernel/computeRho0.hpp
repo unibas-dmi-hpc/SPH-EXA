@@ -32,16 +32,16 @@ CUDA_DEVICE_HOST_FUN inline void rho0JLoop(int i, T sincIndex, T K, const cstone
         T dist  = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
         T vloc  = dist * hInv;
         T w     = ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
-        T dw    = ::sphexa::math::pow(wharmonic_derivative_std(vloc), (int)sincIndex - 1) * sincIndex;
+        T dw    = wharmonic_derivative(vloc, w) * sincIndex;
         T dterh = -(3.0 * w + vloc * dw);
 
-        rho0i += w * m[j];
+        rho0i  += w * m[j];
         wrho0i += dterh * m[j];
     }
 
     //XXXX Define new arrays rho0, wrho0, xmass for all particles
-    rho0[i] = K * (rho0i + m[i]) * h3Inv;
-    wrho0[i] = (wrho0i - 3.0 * m[i]) * h3Inv * hInv;
+    rho0[i]  = K * (rho0i + m[i]) * h3Inv;
+    wrho0[i] = K * (wrho0i - 3.0 * m[i]) * h3Inv * hInv;
 }
 
 } // namespace kernels

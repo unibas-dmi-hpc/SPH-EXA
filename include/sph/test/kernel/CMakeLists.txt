@@ -1,4 +1,5 @@
 set(UNIT_TESTS
+        rho0.cpp
         density.cpp
         iad.cpp
         momentum_energy.cpp

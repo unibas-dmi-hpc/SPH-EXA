@@ -25,6 +25,7 @@ CUDA_DEVICE_HOST_FUN inline void IADJLoop(int i, T sincIndex, T K, const cstone:
 
     T hi    = h[i];
     T hiInv = 1.0 / hi;
+    T norm  = K * hiInv * hiInv * hiInv;
 
     for (int pj = 0; pj < neighborsCount; ++pj)
     {
@@ -57,7 +58,11 @@ CUDA_DEVICE_HOST_FUN inline void IADJLoop(int i, T sincIndex, T K, const cstone:
 
     // note normalization factor: cij have units of 1/tau because det is proportional to tau^3 so we have to
     // divide by K/h^3
-    T factor = (hi * hi * hi) / (det * K);
+    // taus should be multiplied by norm, so det should be norm**3
+    // but we are interested on cXX vectors which are tau**2/det
+    // That is 1/norm, so it is enough to multiply det by norm and
+    // that gives cxx/norm.
+    T factor = 1.0 / (det * norm);
 
     c11[i] = (tau22 * tau33 - tau23 * tau23) * factor;
     c12[i] = (tau13 * tau23 - tau33 * tau12) * factor;

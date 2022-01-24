@@ -40,6 +40,15 @@ CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative_std(T v)
     return sincv * (PI / 2.0) * ((std::cos(Pv) / std::sin(Pv)) - 1.0 / Pv);
 }
 
+template <typename T>
+CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative(T v, T powsincv)
+{
+    if (v == 0.0) return 0.0;
+
+    const T Pv = (PI / 2.0) * v;
+    return powsincv * (PI / 2.0) * ((std::cos(Pv) / std::sin(Pv)) - 1.0 / Pv);
+}
+
 /*! @brief Old viscosity according to Monaghan & Gringold 1983
  *
  * We found that this leads to way too much noise in the radial velocity and radial pressure gradients
@@ -84,7 +93,7 @@ CUDA_DEVICE_FUN inline T artificial_viscosity(T c_i, T c_j, T w_ij)
     T viscosity_ij = 0.0;
     if (w_ij < 0.0)
     {
-        T vij_signal = (alpha + alpha) / 4 * (c_i + c_j) - beta * w_ij;
+        T vij_signal = (alpha + alpha) / 4.0 * (c_i + c_j) - beta * w_ij;
         viscosity_ij = -vij_signal * w_ij;
     }
 
