@@ -271,7 +271,7 @@ public:
     //! @brief update tree, copying from externally provided leaf keys
     void update(const KeyType* leaves, TreeNodeIndex numLeafNodes)
     {
-        resizeLeaves(numLeafNodes);
+        cstoneTree_.resize(numLeafNodes + 1);
         omp_copy(leaves, leaves + numLeafNodes + 1, cstoneTree_.data());
 
         updateInternalTree();
@@ -299,12 +299,8 @@ public:
         return converged;
     }
 
-    //! @brief resize the cornerstone leaf array
-    void resizeLeaves(TreeNodeIndex numLeafNodes) { cstoneTree_.resize(numLeafNodes + 1); }
     //! @brief return a const view of the cstone leaf array
     gsl::span<const KeyType> treeLeaves() const { return cstoneTree_; }
-    //! @brief return a non-const view of the cstone leaf array
-    gsl::span<KeyType> treeLeaves() { return cstoneTree_; }
     //! @brief return const pointer to node(cell) SFC keys
     const KeyType* nodeKeys() const { return prefixes_.data(); }
     //! @brief return const pointer to child offsets array
