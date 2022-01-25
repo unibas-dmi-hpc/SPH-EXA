@@ -103,9 +103,9 @@ public:
 private:
 
     // Constants
-    static constexpr double eps    = 1.e-10;          //  eps controls the integration accuracy, don't get too greedy or the number of function evaluations required kills.
-    static constexpr double eps2   = 1.e-30;          //  eps2 controls the root find accuracy
-    static constexpr double osmall = 1.e-4;           //  osmall controls the size of transition regions
+    static inline const double eps    = 1.e-10;       //  eps controls the integration accuracy, don't get too greedy or the number of function evaluations required kills.
+    static inline const double eps2   = 1.e-30;       //  eps2 controls the root find accuracy
+    static inline const double osmall = 1.e-4;        //  osmall controls the size of transition regions
 
     // Private global variables
     static double xgeom, omega, gamma;                //
