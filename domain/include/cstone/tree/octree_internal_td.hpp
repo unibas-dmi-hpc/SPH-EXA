@@ -54,8 +54,8 @@ namespace cstone
 /*! @brief determine which binary nodes correspond to octree nodes
  *
  * @tparam     KeyType     unsigned 32- or 64-bit integer
- * @param[in]  binaryTree  binary radix tree nodes, length @p numNodes
- * @param[in]  numNodes    number of binary radix tree nodes
+ * @param[in]  leaves      cornerstone leaf nodes, length @p numNodes + 1
+ * @param[in]  numNodes    number tree nodes
  * @param[out] binaryToOct for each binary node, store 1 if prefix bit length is divisible by 3
  */
 template<class KeyType>
@@ -84,12 +84,13 @@ struct compareLevelThenPrefixCpu
     }
 };
 
-/*! @brief combine internal and leaf tree parts into single arrays in the binary tree order
+/*! @brief combine internal and leaf tree parts into a single array with the nodeKey prefixes
  *
  * @tparam     KeyType           unsigned 32- or 64-bit integer
  * @param[in]  leaves            cornerstone SFC keys, length numLeafNodes + 1
  * @param[in]  numInternalNodes  number of internal octree nodes
  * @param[in]  numLeafNodes      total number of nodes
+ * @param[in]  binaryToOct       translation map from binary to octree nodes
  * @param[out] prefixes          output octree SFC keys, length @p numInternalNodes + numLeafNodes
  *                               NOTE: keys are prefixed with Warren-Salmon placeholder bits!
  * @param[out] nodeOrder         iota 0,1,2,3,... sequence for later use, length same as @p prefixes
@@ -127,12 +128,11 @@ void createUnsortedLayoutCpu(const KeyType* leaves,
 /*! @brief extract parent/child relationships from binary tree and translate to sorted order
  *
  * @tparam     KeyType           unsigned 32- or 64-bit integer
- * @param[in]  binaryTree        binary radix tree nodes
+ * @param[in]  prefixes          octree node prefixes in Warren-Salmon format
  * @param[in]  numInternalNodes  number of internal octree nodes
- * @param[in]  octToBinary       internal octree to binary node index translation map, length @p numInternalNodes
- * @param[in]  binaryToOct       binary node to internal octree node index translation map
  * @param[in]  inverseNodeOrder  translation map from unsorted layout to level/SFC sorted octree layout
  *                               length is total number of octree nodes, internal + leaves
+ * @param[in]  levelRange        indices of the first node at each level
  * @param[out] childOffsets      octree node index of first child for each node, length is total number of nodes
  * @param[out] parents           parent index of for each node which is the first of 8 siblings
  *                               i.e. the parent of node i is stored at parents[(i - 1)/8]
@@ -141,11 +141,10 @@ template<class KeyType>
 void linkTreeCpu(const KeyType* prefixes,
                  TreeNodeIndex numInternalNodes,
                  const TreeNodeIndex* inverseNodeOrder,
+                 TreeNodeIndex* levelRange,
                  TreeNodeIndex* childOffsets,
-                 TreeNodeIndex* parents,
-                 TreeNodeIndex* levelRange)
+                 TreeNodeIndex* parents)
 {
-    // loop over octree nodes index in unsorted layout A
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < numInternalNodes; ++i)
     {
@@ -153,10 +152,10 @@ void linkTreeCpu(const KeyType* prefixes,
         KeyType prefix        = prefixes[idxA];
         KeyType nodeKey       = decodePlaceholderBit(prefix);
         unsigned prefixLength = decodePrefixLength(prefix);
+        unsigned level        = prefixLength / 3;
+        assert(level < maxTreeLevel<KeyType>{});
 
         KeyType childPrefix = encodePlaceholderBit(nodeKey, prefixLength + 3);
-        unsigned level      = prefixLength / 3;
-        if (level == maxTreeLevel<KeyType>{}) { continue; }
 
         TreeNodeIndex leafSearchStart = levelRange[level + 1];
         TreeNodeIndex leafSearchEnd   = levelRange[level + 2];
@@ -224,7 +223,7 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree,
     getLevelRangeCpu(prefixes, numNodes, levelRange);
 
     std::fill(childOffsets, childOffsets + numNodes, 0);
-    linkTreeCpu(prefixes, numNodes, inverseNodeOrder, childOffsets, parents, levelRange);
+    linkTreeCpu(prefixes, numInternalNodes, inverseNodeOrder, levelRange, childOffsets, parents);
 }
 
 template<class K> class FocusedOctreeCore;
