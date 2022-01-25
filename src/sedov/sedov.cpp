@@ -13,7 +13,6 @@
 #include "sphexa.hpp"
 #include "SedovDataGenerator.hpp"
 #include "SedovDataFileWriter.hpp"
-#include "SedovAnalyticalSolution.hpp"
 
 #include "sph/findNeighborsSfc.hpp"
 
@@ -49,9 +48,8 @@ int main(int argc, char** argv)
     }
 
     const size_t cubeSide = parser.getInt("-n", 50);
-    const size_t maxStep = parser.getInt("-s", 300);
+    const size_t maxStep = parser.getInt("-s", 200);
     const int writeFrequency = parser.getInt("-w", -1);
-    const bool solution = parser.exists("--sol");
     const bool quiet = parser.exists("--quiet");
     const std::string outDirectory = parser.getString("--outDir");
 
@@ -65,18 +63,6 @@ int main(int argc, char** argv)
     const IFileWriter<Dataset>& fileWriter = SedovMPIFileWriter<Dataset>();
 
     auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
-
-    const size_t dim    = 3;
-    const double eblast = SedovDataGenerator<Real, KeyType>::energytot;
-    const double omega  = 0.0;
-    const double gamma  = SedovDataGenerator<Real, KeyType>::gamma;
-    const double r0     = SedovDataGenerator<Real, KeyType>::r0;
-    const double r1     = SedovDataGenerator<Real, KeyType>::r1;
-    const double rho0   = SedovDataGenerator<Real, KeyType>::rho0;
-    const double u0     = 0.0;
-    const double p0     = 0.0;
-    const double vr0    = 0.0;
-    const double cs0    = 0.0;
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
@@ -185,53 +171,13 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            std::string solutionFilename;
-            std::string simulationFilename;
-
 #ifdef SPH_EXA_HAVE_H5PART
             fileWriter.dumpParticleDataToH5File(
                 d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov.h5part");
-            solutionFilename   = outDirectory + "dump_sedov_sol.h5part";
-            simulationFilename = outDirectory + "dump_sedov_sim.h5part";
 #else
             fileWriter.dumpParticleDataToAsciiFile(
                 d, domain.startIndex(), domain.endIndex(), "dump_sedov" + std::to_string(d.iteration) + ".txt");
-            solutionFilename   = "dump_sedov" + std::to_string(d.iteration) + "_sol.txt";
-            simulationFilename = "dump_sedov" + std::to_string(d.iteration) + "_sim.txt";
 #endif
-
-            if (solution)
-            {
-                // Calculate and write theoretical solution profile in one dimension
-                size_t nSteps = 1000;
-                double rMax   = 2. * r1;
-                SedovAnalyticalSolution::create(dim,
-                                                r0, rMax,
-                                                nSteps,
-                                                d.ttot,
-                                                eblast,
-                                                omega, gamma,
-                                                rho0, u0, p0, vr0, cs0,
-                                                solutionFilename);
-
-                // Calculate modules for position and velocity
-                vector<double> r  (d.count);
-                vector<double> vel(d.count);
-                for(size_t i = 0; i < d.count; i++)
-                {
-                    r[i]   = std::sqrt( std::pow(d.x[i],  2.) + std::pow(d.y[i],  2.) + std::pow(d.z[i],  2.) );
-                    vel[i] = std::sqrt( std::pow(d.vx[i], 2.) + std::pow(d.vy[i], 2.) + std::pow(d.vz[i], 2.) );
-                }
-
-                // Write 1D simulation solution to compare with the theoretical solution
-                SedovSolutionWriter::dump1DToAsciiFile(d.count,
-                                                       r, vel, d.c,
-                                                       d.ro, d.u, d.p,
-                                                       rho0,
-                                                       SedovAnalyticalSolution::rho_shock, SedovAnalyticalSolution::p_shock, SedovAnalyticalSolution::vel_shock,
-                                                       simulationFilename);
-            }
-
             timer.step("writeFile");
         }
 
@@ -272,10 +218,9 @@ void printHelp(char* name, int rank)
         printf("\nWhere possible options are:\n\n");
 
         printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
-        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [300]\n\n");
+        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [200]\n\n");
 
-        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n");
-        printf("\t--sol   \t\t Print anytical solution every dump [false]\n\n");
+        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
 
         printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
 

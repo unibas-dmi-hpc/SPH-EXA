@@ -126,6 +126,6 @@ run_test:
 
 clean:
 	$(info Cleaning...)
-	$(RM) -rf $(BUILDDIR) $(BINDIR)
+	$(RM) -rf $(BUILDDIR) $(BINDIR) cudalinked.o
 
 .PHONY: all clean
