@@ -24,11 +24,11 @@
     Command line utility for compare analytical solutions of some SPH-EXA test simulations.
     
     Usage examples:
-        $ python compare_solutions.py --help'
-        $ python compare_solutions.py --version'
-        $ python compare_solutions.py sedov --help'
-        $ python compare_solutions.py sedov --timestep 0.018458 --snapshot_file ./dump_sedov100.txt'
-        $ python compare_solutions.py sedov --constants_file ./constants.txt --iteration 200 --snapshot_file ./dump_sedov200.txt'
+        $ python ./compare_solutions.py --help'
+        $ python ./compare_solutions.py --version'
+        $ python ./compare_solutions.py sedov --help'
+        $ python ./compare_solutions.py sedov --time 0.018458 --snapshot_file ./../../dump_sedov100.txt
+        $ python ./compare_solutions.py sedov --constants_file ./../../constants.txt --iteration 200 --snapshot_file ./../../dump_sedov200.txt
 '''
 
 __program__ = "compare_solutions.py"
@@ -64,31 +64,57 @@ def sedov(time, constants_file, iteration, snapshot_file):
     '''
     
     '''
-       * accept time step as input
-       * read simulation time from constants.txt
        * compute the analytical solution by running 
        * sedov_analytical and read the results
        * load the SPH simulation snapshot for the specified timestep
        * compare and plot SPH and analytical solutions
     '''
     
-    ' Select the time'
+    print("")
+    print("time           = " + time.__str__())
+    print("constants_file = " + constants_file)
+    print("iteration      = " + iteration.__str__())
+    print("snapshot_file  = " + snapshot_file)
+    print("")
+        
+    # Select the time
     if (time < 0.):
-        raise Exception("No valid time = " + timestep.__str__())
-    elif (iteration < 0): 
-        raise Exception("No valid iteration = " + iteration.__str__())
-    elif (not os.path.isfile(constants_file)):
-        raise Exception("Constants file [" + constants_file + "] doesn't exist.")
-    else:
-        # Using readlines()
-        file  = open(constants_file, 'r')
-        lines = file.readlines()
-         
-        n = 0
-        for line in lines:
-            n += 1
-            if (n == iteration):
-                print(line)
+        print("No valid time = " + timestep.__str__())
+        exit(-1)
+    elif (time == 0.):
+        if (iteration < 0): 
+            print("No valid iteration = " + iteration.__str__())
+            exit(-1)
+        else:
+            if (not os.path.isfile(constants_file)):
+                print("Constants file [" + constants_file + "] doesn't exist.")
+                exit(-1)
+            else:
+                print("Reading Constants file [" + constants_file + "]")
+                file  = open(constants_file, 'r')
+                lines = file.readlines()
+
+                found = False     
+                            
+                for line in lines:
+                    
+                    tokens = line.split(' ')
+                    iter_line = int(tokens[0])
+                    time_line = float(tokens[1])
+                    
+                    if (iter_line == iteration):
+                        time = time_line
+                        found = True
+                        break
+                    
+                if (not found):
+                    print("Iteration=" + iteration.__str__() + " not found in the Constants file [" + constants_file + "].")
+                    exit(-1)
+                    
+    print ("Solution will be calculated at time=" + time.__str__())
+
+
+
 
 if __name__ == "__main__":
     cli()
