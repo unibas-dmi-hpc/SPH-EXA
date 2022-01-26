@@ -203,7 +203,7 @@ TEST(InternalOctreeTd, irregularL3)
 template<class KeyType>
 static void spanningTree()
 {
-    std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
+    std::vector<KeyType> cornerstones{0, 1, 030173, 03333333333, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
     std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
 
     TdOctree<KeyType> fullTree;

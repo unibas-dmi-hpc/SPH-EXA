@@ -64,9 +64,9 @@ void enumeratePrefixesCpu(const KeyType* leaves, TreeNodeIndex numNodes, TreeNod
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex tid = 0; tid < numNodes; ++tid)
     {
-        int  prefixLength = commonPrefix(leaves[tid], leaves[tid+1]);
+        int prefixLength  = commonPrefix(leaves[tid], leaves[tid + 1]);
         bool divisibleBy3 = prefixLength % 3 == 0;
-        binaryToOct[tid] = (divisibleBy3) ? 1 : 0;
+        binaryToOct[tid]  = (divisibleBy3) ? 1 : 0;
     }
 }
 
@@ -185,16 +185,15 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree,
                             TreeNodeIndex* parents,
                             TreeNodeIndex* levelRange,
                             TreeNodeIndex* nodeOrder,
-                            TreeNodeIndex* inverseNodeOrder,
-                            TreeNodeIndex* binaryToOct)
+                            TreeNodeIndex* inverseNodeOrder)
 {
     // we ignore the last binary tree node which is a duplicate root node
     TreeNodeIndex numBinaryNodes = numLeafNodes - 1;
-    enumeratePrefixesCpu(cstoneTree, numBinaryNodes, binaryToOct);
-    exclusiveScan(binaryToOct, numLeafNodes);
+    enumeratePrefixesCpu(cstoneTree, numBinaryNodes, inverseNodeOrder);
+    exclusiveScan(inverseNodeOrder, numLeafNodes);
 
     TreeNodeIndex numNodes = numInternalNodes + numLeafNodes;
-    createUnsortedLayoutCpu(cstoneTree, numInternalNodes, numLeafNodes, binaryToOct, prefixes, nodeOrder);
+    createUnsortedLayoutCpu(cstoneTree, numInternalNodes, numLeafNodes, inverseNodeOrder, prefixes, nodeOrder);
     sort_by_key(prefixes, prefixes + numNodes, nodeOrder);
 
     #pragma omp parallel for schedule(static)
@@ -231,7 +230,7 @@ public:
         resize(nNodes(cstoneTree_));
         buildInternalOctreeGpu(cstoneTree_.data(), numLeafNodes_, numInternalNodes_, prefixes_.data(),
                                childOffsets_.data(), parents_.data(), levelRange_.data(), nodeOrder_.data(),
-                               inverseNodeOrder_.data(), binaryToOct_.data());
+                               inverseNodeOrder_.data());
     }
 
     //! @brief rebalance based on leaf counts only, optimized version that avoids unnecessary allocations
@@ -391,9 +390,6 @@ private:
 
         nodeOrder_.resize(numNodes);
         inverseNodeOrder_.resize(numNodes);
-
-        // one extra element to allow temporary repurposing for nodeOps during focus update
-        binaryToOct_.resize(numLeafNodes_ + 1);
     }
 
     TreeNodeIndex numLeafNodes_{0};
@@ -413,9 +409,6 @@ private:
     //! @brief maps between the (level-key) sorted layout B and the unsorted intermediate binary layout A
     std::vector<TreeNodeIndex, Alloc> nodeOrder_;
     std::vector<TreeNodeIndex, Alloc> inverseNodeOrder_;
-
-    //! @brief temporary index map between the binary tree and octree used during construction
-    std::vector<TreeNodeIndex, Alloc> binaryToOct_;
 
     //! @brief the cornerstone leaf SFC key array
     std::vector<KeyType> cstoneTree_;

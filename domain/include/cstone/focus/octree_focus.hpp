@@ -383,7 +383,7 @@ public:
      *                            specified here. @p mandatoryKeys need not be sorted and can tolerate duplicates.
      *                            This is used e.g. to guarantee that the assignment boundaries of peer ranks are
      *                            resolved, even if the update did not converge.
-     * @param[in] counts          leaf particle counts, length = tree_.numLeafNodes()
+     * @param[in] counts          node particle counts (including internal nodes), length = tree_.numTreeNodes()
      * @param[in] macs            MAC pass/fail results for each node, length = tree_.numTreeNodes()
      * @return                    true if the tree structure did not change
      */
@@ -400,7 +400,7 @@ public:
         //TreeNodeIndex firstFocusNode = findNodeBelow(leaves, focusStart);
         //TreeNodeIndex lastFocusNode  = findNodeAbove(leaves, focusEnd);
 
-        gsl::span<TreeNodeIndex> nodeOps(tree_.binaryToOct_);
+        gsl::span<TreeNodeIndex> nodeOps(tree_.inverseNodeOrder_.data(), tree_.numLeafNodes() + 1);
         gsl::span<TreeNodeIndex> nodeOpsAll(tree_.nodeOrder_);
         bool converged = rebalanceDecisionEssentialTd(tree_.nodeKeys(), tree_.childOffsets(), tree_.parents(),
                                                       counts.data(), macs.data(), tree_.numTreeNodes(), focusStart,
