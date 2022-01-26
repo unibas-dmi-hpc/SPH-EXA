@@ -14,8 +14,6 @@ class SedovDataGenerator
 {
 public:
 
-    static inline I nParts;
-
     static inline const I dim           = 3;
     static inline const T gamma         = 5./3.;
     static inline const T omega         = 0.;
@@ -55,7 +53,6 @@ public:
         pd.side  = side;
         pd.n     = side * side * side;
         pd.count = pd.n;
-        nParts   = pd.n;
 
         load(pd);
         init(pd);

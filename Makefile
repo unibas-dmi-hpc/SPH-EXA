@@ -12,8 +12,9 @@ NVCC ?= $(CUDA_PATH)/bin/nvcc
 CUDA_PATH ?= /usr/local/cuda
 
 SRCDIR := src
-BUILDDIR := build
 BINDIR := bin
+BUILDDIR := build
+
 THIS_FILE := $(lastword $(MAKEFILE_LIST))
 
 CUDA_OBJS := $(BUILDDIR)/gather.o                     \
@@ -21,6 +22,11 @@ CUDA_OBJS := $(BUILDDIR)/gather.o                     \
              $(BUILDDIR)/cudaDensity.o                \
              $(BUILDDIR)/cudaIAD.o                    \
              $(BUILDDIR)/cudaMomentumAndEnergyIAD.o
+
+SEDOV_SOL_DIR := src/analyticalSolutions/sedov
+SEDOV_SOL_CPP := $(SEDOV_SOL_DIR)/FileData.cpp                \
+                 $(SEDOV_SOL_DIR)/SedovAnalyticalSolution.cpp \
+                 $(SEDOV_SOL_DIR)/main.cpp
 
 RELEASE := -DNDEBUG
 DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
@@ -62,7 +68,7 @@ TESTCASE ?= sedov
 
 ifeq ($(TESTCASE),sedov)
 	TESTCODE = src/sedov/sedov.cpp
-	SOLCODE = src/analyticalSolutions/sedov/main.cpp
+	SOLCODE = $(SEDOV_SOL_CPP)
 else ifeq ($(TESTCASE),evrard)
 	TESTCASE_FLAGS = -DGRAVITY
 	TESTCODE = src/evrard/evrard.cpp
@@ -77,9 +83,9 @@ mpi+omp:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
-#ifdef SOLCODE
-#	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(SOLCODE) -o $(BINDIR)/$@_sol.app $(LIB)
-#endif
+ifdef SOLCODE
+	make solution
+endif
     
 #omp+cuda: $(BUILDDIR)/cuda_no_mpi.o $(CUDA_OBJS)
 #	@mkdir -p $(BINDIR)
@@ -97,17 +103,29 @@ mpi+omp+target:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
+ifdef SOLCODE
+	make solution
+endif
 
 mpi+omp+acc:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(TESTCASE_FLAGS) -DUSE_ACC $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
+ifdef SOLCODE
+	make solution
+endif
 
 mpi+omp+cuda: $(BUILDDIR)/cuda_mpi.o $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(NVCC) $(NVCCLDFLAGS) -dlink -o cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
 	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@.app cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
+ifdef SOLCODE
+	make solution
+endif
+
+solution:
+	$(MPICXX) $(CXXFLAGS) $(INC) $(SOLCODE) -o $(BINDIR)/$(TESTCASE)_$@.app $(LIB)
 
 #all: omp mpi+omp omp+cuda mpi+omp+cuda omp+target mpi+omp+target mpi+omp+acc
 all: mpi+omp mpi+omp+cuda mpi+omp+target mpi+omp+acc
@@ -138,6 +156,6 @@ run_test:
 
 clean:
 	$(info Cleaning...)
-	$(RM) -rf $(BUILDDIR) $(BINDIR) cudalinked.o
+	$(RM) -rf $(BUILDDIR) $(BINDIR) cudalinked*.o
 
 .PHONY: all clean

@@ -43,9 +43,7 @@
 
 #pragma once
 
-#include <iostream>
-#include <iomanip>
-#include <cmath>
+#include <string>
 #include <functional>
 
 #include "FileData.hpp"
@@ -56,10 +54,12 @@ class SedovAnalyticalSolution
 {
 public:
 
-    // Public global variabless
-    static double rho_shock;                             // Values in the shock peak
-    static double p_shock;                               // Values in the shock peak
-    static double vel_shock;                             // Values in the shock peak
+    // Public global variables in the shock peak
+    static double rho_shock;                             // Density
+    static double p_shock;                               // Pressure
+    static double vel_shock;                             // Velocity 1D
+    static double u_shock;                               // Internal energy
+    static double cs_shock;                              // Sound speed
 
     static void create(
         const size_t dim,                                // Dimensions

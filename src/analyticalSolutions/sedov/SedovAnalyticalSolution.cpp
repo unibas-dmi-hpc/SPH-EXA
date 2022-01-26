@@ -20,11 +20,57 @@
  * SOFTWARE.
  */
 
-#pragma once
-
 #include "SedovAnalyticalSolution.hpp"
 
-static void SedovAnalyticalSolution::create(
+#include <iostream>
+#include <cmath>
+
+double SedovAnalyticalSolution::xgeom;
+double SedovAnalyticalSolution::omega;
+double SedovAnalyticalSolution::gamma;
+
+double SedovAnalyticalSolution::gamm1;
+double SedovAnalyticalSolution::gamp1;
+double SedovAnalyticalSolution::gpogm;
+double SedovAnalyticalSolution::xg2;
+
+bool   SedovAnalyticalSolution::lsingular;
+bool   SedovAnalyticalSolution::lstandard;
+bool   SedovAnalyticalSolution::lvacuum;
+
+bool   SedovAnalyticalSolution::lomega2;
+bool   SedovAnalyticalSolution::lomega3;
+
+double SedovAnalyticalSolution::a0;
+double SedovAnalyticalSolution::a1;
+double SedovAnalyticalSolution::a2;
+double SedovAnalyticalSolution::a3;
+double SedovAnalyticalSolution::a4;
+double SedovAnalyticalSolution::a5;
+
+double SedovAnalyticalSolution::a_val;
+double SedovAnalyticalSolution::b_val;
+double SedovAnalyticalSolution::c_val;
+double SedovAnalyticalSolution::d_val;
+double SedovAnalyticalSolution::e_val;
+
+double SedovAnalyticalSolution::rwant;
+double SedovAnalyticalSolution::vwant;
+
+double SedovAnalyticalSolution::r2;
+double SedovAnalyticalSolution::v0;
+double SedovAnalyticalSolution::vv;
+double SedovAnalyticalSolution::rvv;
+
+double SedovAnalyticalSolution::gam_int;
+
+double SedovAnalyticalSolution::rho_shock;
+double SedovAnalyticalSolution::p_shock;
+double SedovAnalyticalSolution::vel_shock;
+double SedovAnalyticalSolution::u_shock;
+double SedovAnalyticalSolution::cs_shock;
+
+void SedovAnalyticalSolution::create(
     const size_t dim,
     const double r0,
     const double r1,
@@ -54,23 +100,28 @@ static void SedovAnalyticalSolution::create(
     }
 
     // Calculate theoretical solution
-    sedovSol(dim, rPoints, time,
-             eblast, omega_i, gamma_i,
-             rho0, u0, p0, vel0, cs0,
-             r, rho, p, u, vel, cs);
+    sedovSol(
+        dim, rPoints, time,
+        eblast, omega_i, gamma_i,
+        rho0, u0, p0, vel0, cs0,
+        r, rho, p, u, vel, cs);
 
     // Write solution file
-    FileData::write1D(rPoints,
-                      r,vel,cs,
-                      rho,u,p,
-                      rho0,
-                      rho_shock,
-                      p_shock,
-                      vel_shock,
-                      outfile);
+    FileData::writeData1D(
+        rPoints,
+        r,
+        rho,u,p,
+        vel,cs,
+        rho_shock,
+        u_shock,
+        p_shock,
+        vel_shock,
+        cs_shock,
+        rho0,
+        outfile);
 }
 
-static void SedovAnalyticalSolution::sedovSol(
+void SedovAnalyticalSolution::sedovSol(
     const size_t          dim,
     const size_t          rPoints,
     const double          time,
@@ -248,9 +299,8 @@ static void SedovAnalyticalSolution::sedovSol(
     rho_shock       = gpogm * rho1;                                                  // post-shock density
     p_shock         = 2. * rho1 * pow(us, 2.) / gamp1;                               // post-shock pressure
     vel_shock       = 2. * us / gamp1;                                               // post-shock material speed
-
-    //double u_shock  = p_shock / (gamm1 * rho_shock);                               // post-shoock specific internal energy
-    //double cs_shock = sqrt(gamma * p_shock / rho_shock);                           // post-shock sound speed
+    u_shock         = p_shock / (gamm1 * rho_shock);                                 // post-shoock specific internal energy
+    cs_shock        = sqrt(gamma * p_shock / rho_shock);                             // post-shock sound speed
 
     // Find the radius corresponding to vv
     if (lvacuum){
@@ -303,7 +353,7 @@ static void SedovAnalyticalSolution::sedovSol(
     }
 }
 
-static void SedovAnalyticalSolution::sedov_funcs(
+void SedovAnalyticalSolution::sedov_funcs(
     const double v,
     double &     l_fun,
     double &     dlamdv,
@@ -402,7 +452,7 @@ static void SedovAnalyticalSolution::sedov_funcs(
     }
 }
 
-static double SedovAnalyticalSolution::efun01(
+double SedovAnalyticalSolution::efun01(
     const double v)
 {
     // Evaluates the first energy integrand, kamm equations 67 and 10.
@@ -417,7 +467,7 @@ static double SedovAnalyticalSolution::efun01(
     return (dlamdv * pow(l_fun, xgeom + 1.) * gpogm * g_fun * pow(v, 2.));
 }
 
-static double SedovAnalyticalSolution::efun02(
+double SedovAnalyticalSolution::efun02(
     const double v)
 {
     // Evaluates the second energy integrand, kamm equations 68 and 11.
@@ -434,7 +484,7 @@ static double SedovAnalyticalSolution::efun02(
     return (dlamdv * pow(l_fun, xgeom - 1.) * h_fun * z);
 }
 
-static double SedovAnalyticalSolution::sed_v_find(
+double SedovAnalyticalSolution::sed_v_find(
     const double v)
 {
     // Given corresponding physical distances, find the similarity variable v. Kamm equation 38 as a root find
@@ -445,7 +495,7 @@ static double SedovAnalyticalSolution::sed_v_find(
     return ((r2 * l_fun) - rwant);
 }
 
-static double SedovAnalyticalSolution::sed_r_find(
+double SedovAnalyticalSolution::sed_r_find(
     const double r)
 {
     // Given the similarity variable v, find the corresponding physical distance. Kamm equation 38 as a root find
@@ -456,7 +506,7 @@ static double SedovAnalyticalSolution::sed_r_find(
     return ((r2 * l_fun) - r);
 }
 
-static void SedovAnalyticalSolution::midpnt(
+void SedovAnalyticalSolution::midpnt(
     const size_t                   n,
     function<double(const double)> func,
     const double                   a,
@@ -497,7 +547,7 @@ static void SedovAnalyticalSolution::midpnt(
     }
 }
 
-static double SedovAnalyticalSolution::midpowl_func(
+double SedovAnalyticalSolution::midpowl_func(
     function<double(const double)> funk,
     const double                   x,
     const double                   aa)
@@ -511,7 +561,7 @@ static double SedovAnalyticalSolution::midpowl_func(
     return (1. / p1 * p2 * p3);
 }
 
-static void SedovAnalyticalSolution::midpowl(
+void SedovAnalyticalSolution::midpowl(
     const size_t                   n,
     function<double(const double)> funk,
     const double                   aa,
@@ -557,7 +607,7 @@ static void SedovAnalyticalSolution::midpowl(
     }
 }
 
-static double SedovAnalyticalSolution::midpowl2_func(
+double SedovAnalyticalSolution::midpowl2_func(
     function<double(const double)> funk,
     const double                   x,
     const double                   aa)
@@ -571,7 +621,7 @@ static double SedovAnalyticalSolution::midpowl2_func(
     return (1. / p1 * p2 * p3);
 }
 
-static void SedovAnalyticalSolution::midpowl2(
+void SedovAnalyticalSolution::midpowl2(
     const size_t                   n,
     function<double(const double)> funk,
     const double                   aa,
@@ -617,7 +667,7 @@ static void SedovAnalyticalSolution::midpowl2(
     }
 }
 
-static void SedovAnalyticalSolution::polint(
+void SedovAnalyticalSolution::polint(
     double *     xa,
     double *     ya,
     const size_t n,
@@ -698,7 +748,7 @@ static void SedovAnalyticalSolution::polint(
     }
 }
 
-static void SedovAnalyticalSolution::qromo(
+void SedovAnalyticalSolution::qromo(
     function<double(const double)> func,
     const double                   a,
     const double                   b,
@@ -757,7 +807,7 @@ static void SedovAnalyticalSolution::qromo(
     exit(-1);
 }
 
-static double SedovAnalyticalSolution::zeroin(
+double SedovAnalyticalSolution::zeroin(
     const double                   ax,
     const double                   bx,
     function<double(const double)> f,
