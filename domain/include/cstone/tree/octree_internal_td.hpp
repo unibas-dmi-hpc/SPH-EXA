@@ -97,24 +97,20 @@ void createUnsortedLayoutCpu(const KeyType* leaves,
                              TreeNodeIndex* nodeOrder)
 {
     #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex tid = 0; tid < numLeafNodes - 1; ++tid)
+    for (TreeNodeIndex tid = 0; tid < numLeafNodes; ++tid)
     {
-        KeyType key           = leaves[tid];
+        KeyType key                       = leaves[tid];
+        unsigned level                    = treeLevel(leaves[tid + 1] - key);
+        prefixes[tid + numInternalNodes]  = encodePlaceholderBit(key, 3 * level);
+        nodeOrder[tid + numInternalNodes] = tid + numInternalNodes;
+
         unsigned prefixLength = commonPrefix(key, leaves[tid + 1]);
-        if (prefixLength % 3 == 0)
+        if (prefixLength % 3 == 0 && tid < numLeafNodes - 1)
         {
             TreeNodeIndex octIndex = (tid + binaryKeyWeight(key, prefixLength / 3)) / 7;
             prefixes[octIndex]     = encodePlaceholderBit(key, prefixLength);
             nodeOrder[octIndex]    = octIndex;
         }
-    }
-    #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex tid = numInternalNodes; tid < numInternalNodes + numLeafNodes; ++tid)
-    {
-        TreeNodeIndex leafIdx = tid - numInternalNodes;
-        unsigned level        = treeLevel(leaves[leafIdx + 1] - leaves[leafIdx]);
-        prefixes[tid]         = encodePlaceholderBit(leaves[leafIdx], 3 * level);
-        nodeOrder[tid]        = tid;
     }
 }
 
