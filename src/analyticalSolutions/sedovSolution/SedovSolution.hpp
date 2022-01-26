@@ -50,7 +50,7 @@
 
 using namespace std;
 
-class SedovAnalyticalSolution
+class SedovSolution
 {
 public:
 

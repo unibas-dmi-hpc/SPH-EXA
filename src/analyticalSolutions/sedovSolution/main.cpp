@@ -26,11 +26,11 @@
 #include <vector>
 #include <filesystem>
 
-#include "../../include/ArgParser.hpp"
-#include "../../sedov/SedovDataGenerator.hpp"
+#include "ArgParser.hpp"
+#include "sedov/SedovDataGenerator.hpp"
 
-#include "SedovAnalyticalSolution.hpp"
 #include "FileData.hpp"
+#include "SedovSolution.hpp"
 
 using namespace std;
 using namespace sphexa;
@@ -80,14 +80,15 @@ int main(int argc, char** argv)
     const double vr0     = SedovDataGenerator<Real, KeyType>::vr0;
     const double cs0     = SedovDataGenerator<Real, KeyType>::cs0;
     const string solFile = "sedov_solution_" + to_string(time) + ".dat";
-    SedovAnalyticalSolution::create(dim,
-                                    r0, rMax,
-                                    nSteps,
-                                    time,
-                                    eblast,
-                                    omega, gamma,
-                                    rho0, u0, p0, vr0, cs0,
-                                    solFile);
+    SedovSolution::create(
+        dim,
+        r0, rMax,
+        nSteps,
+        time,
+        eblast,
+        omega, gamma,
+        rho0, u0, p0, vr0, cs0,
+        solFile);
 
     // Load particles data
     vector<double> x  (nParts);
@@ -130,11 +131,11 @@ int main(int argc, char** argv)
         r,
         rho,u,p,
         vel,cs,
-        SedovAnalyticalSolution::rho_shock,
-        SedovAnalyticalSolution::u_shock,
-        SedovAnalyticalSolution::p_shock,
-        SedovAnalyticalSolution::vel_shock,
-        SedovAnalyticalSolution::cs_shock,
+        SedovSolution::rho_shock,
+        SedovSolution::u_shock,
+        SedovSolution::p_shock,
+        SedovSolution::vel_shock,
+        SedovSolution::cs_shock,
         rho0,
         simFile);
 
