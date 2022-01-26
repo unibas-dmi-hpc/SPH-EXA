@@ -1,18 +1,26 @@
 CXX ?= g++ # This is the main compiler
+# CXX := clang --analyze # and comment out the linker last line for sanity
+
 CC ?= gcc
+
 MPICXX ?= mpic++ -DOMPI_SKIP_MPICXX
+
 ENV ?= gnu
+
 NVCC ?= $(CUDA_PATH)/bin/nvcc
 
 CUDA_PATH ?= /usr/local/cuda
 
-# CXX := clang --analyze # and comment out the linker last line for sanity
 SRCDIR := src
 BUILDDIR := build
 BINDIR := bin
 THIS_FILE := $(lastword $(MAKEFILE_LIST))
 
-CUDA_OBJS := $(BUILDDIR)/gather.o $(BUILDDIR)/findneighbors.o $(BUILDDIR)/cudaDensity.o $(BUILDDIR)/cudaIAD.o $(BUILDDIR)/cudaMomentumAndEnergyIAD.o
+CUDA_OBJS := $(BUILDDIR)/gather.o                     \
+             $(BUILDDIR)/findneighbors.o              \
+             $(BUILDDIR)/cudaDensity.o                \
+             $(BUILDDIR)/cudaIAD.o                    \
+             $(BUILDDIR)/cudaMomentumAndEnergyIAD.o
 
 RELEASE := -DNDEBUG
 DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
@@ -34,7 +42,7 @@ ifeq ($(ENV),gnu)
 endif
 
 ifeq ($(ENV),pgi)
-	CXXFLAGS += -std=c++17 -mp -dynamic -acc -ta=tesla,cc60 -mp=nonuma -Mcuda -g #-g -Minfo=accel # prints generated accel functions
+	CXXFLAGS += -std=c++17 -mp -dynamic -acc -ta=tesla,cc60 -mp=nonuma -Mcuda -g # -Minfo=accel # prints generated accel functions
 endif
 
 ifeq ($(ENV),cray)
@@ -54,6 +62,7 @@ TESTCASE ?= sedov
 
 ifeq ($(TESTCASE),sedov)
 	TESTCODE = src/sedov/sedov.cpp
+	SOLCODE = src/analyticalSolutions/sedov/main.cpp
 else ifeq ($(TESTCASE),evrard)
 	TESTCASE_FLAGS = -DGRAVITY
 	TESTCODE = src/evrard/evrard.cpp
@@ -68,7 +77,10 @@ mpi+omp:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
-
+#ifdef SOLCODE
+#	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(SOLCODE) -o $(BINDIR)/$@_sol.app $(LIB)
+#endif
+    
 #omp+cuda: $(BUILDDIR)/cuda_no_mpi.o $(CUDA_OBJS)
 #	@mkdir -p $(BINDIR)
 #	$(info Linking the executable:)

@@ -22,9 +22,12 @@
 
 #pragma once
 
+#include <string>
+#include <iostream>
 #include <vector>
 #include <cmath>
 #include <iomanip>
+#include <fstream>
 
 using namespace std;
 
@@ -37,18 +40,75 @@ private:
 
 public:
 
-    static void dump1DToAsciiFile(const size_t          n,
-                                  const vector<double>& r,
-                                  const vector<double>& rho,
-                                  const vector<double>& u,
-                                  const vector<double>& p,
-                                  const vector<double>& vel,
-                                  const vector<double>& cs,
-                                  const double          rho0,
-                                  const double          rho_shock,
-                                  const double          p_shock,
-                                  const double          vel_shock,
-                                  const string&         outfile)
+    static void read3D(
+        const string&   inputFile,
+        const double    nParts,
+        vector<double>& x,
+        vector<double>& y,
+        vector<double>& z,
+        vector<double>& vx,
+        vector<double>& vy,
+        vector<double>& vz,
+        vector<double>& rho,
+        vector<double>& u,
+        vector<double>& p,
+        vector<double>& h,
+        vector<double>& m)
+    {
+        try
+        {
+            size_t i = 0;
+
+            ifstream in(inputFile);
+            string line;
+
+            while(getline(in,line))
+            {
+                istringstream iss(line);
+                if (i < nParts){
+                    iss >> x[i];
+                    iss >> y[i];
+                    iss >> z[i];
+                    iss >> vx[i];
+                    iss >> vy[i];
+                    iss >> vz[i];
+                    iss >> rho[i];
+                    iss >> u[i];
+                    iss >> p[i];
+                    iss >> h[i];
+                    iss >> m[i];
+                }
+
+                i++;
+            }
+
+            if (nParts != i){
+                cout << "ERROR: number of particles doesn't match with the expect (nParts=" << nParts << ", ParticleDataLines=" << i << ")" << endl;
+                exit(EXIT_FAILURE);
+            }
+
+            in.close();
+        }
+        catch (exception &ex)
+        {
+            cout << "ERROR: %s. Terminating\n" << ex.what() << endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    static void write1D(
+        const size_t          n,
+        const vector<double>& r,
+        const vector<double>& rho,
+        const vector<double>& u,
+        const vector<double>& p,
+        const vector<double>& vel,
+        const vector<double>& cs,
+        const double          rho0,
+        const double          rho_shock,
+        const double          p_shock,
+        const double          vel_shock,
+        const string&         outfile)
     {
         try
         {

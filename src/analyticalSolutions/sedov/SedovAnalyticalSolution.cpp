@@ -60,12 +60,14 @@ static void SedovAnalyticalSolution::create(
              r, rho, p, u, vel, cs);
 
     // Write solution file
-    FileData::dump1DToAsciiFile(rPoints,
-                                r, vel, cs,
-                                rho, u, p,
-                                rho0,
-                                rho_shock, p_shock, vel_shock,
-                                outfile);
+    FileData::write1D(rPoints,
+                      r,vel,cs,
+                      rho,u,p,
+                      rho0,
+                      rho_shock,
+                      p_shock,
+                      vel_shock,
+                      outfile);
 }
 
 static void SedovAnalyticalSolution::sedovSol(

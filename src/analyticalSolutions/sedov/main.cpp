@@ -25,8 +25,6 @@
 #include <vector>
 
 #include "../../include/ArgParser.hpp"
-#include "../../include/FileUtils.hpp"
-
 #include "../../sedov/SedovDataGenerator.hpp"
 
 #include "SedovAnalyticalSolution.hpp"
@@ -51,49 +49,26 @@ int main(int argc, char** argv)
         exit(EXIT_SUCCESS);
     }
 
-    const double time          = parser.getDouble("--time",   0.);
-    const string inputFilePath = parser.getString("--input",  "./particles.dat");
-    const string outDirectory  = parser.getString("--outDir", "./");
-
-    const size_t nParts = SedovDataGenerator<Real, KeyType>::nParts;
-
-    vector<double> x  (nParts);
-    vector<double> y  (nParts);
-    vector<double> z  (nParts);
-
-    vector<double> vx (nParts);
-    vector<double> vy (nParts);
-    vector<double> vz (nParts);
-
-    vector<double> r  (nParts);
-    vector<double> vel(nParts);
-    vector<double> cs (nParts);
-
-    vector<double> rho(nParts);
-    vector<double> u  (nParts);
-    vector<double> p  (nParts);
-
-    vector<double> h  (nParts);
-    vector<double> m  (nParts);
-
-    const size_t dim    = SedovDataGenerator<Real, KeyType>::dim;
-    const double gamma  = SedovDataGenerator<Real, KeyType>::gamma;
-    const double omega  = SedovDataGenerator<Real, KeyType>::omega;
-    const double r0     = SedovDataGenerator<Real, KeyType>::r0;
-    const double r1     = SedovDataGenerator<Real, KeyType>::r1;
-    const double eblast = SedovDataGenerator<Real, KeyType>::energyTotal;
-    const double rho0   = SedovDataGenerator<Real, KeyType>::rho0;
-    const double u0     = SedovDataGenerator<Real, KeyType>::u0;
-    const double p0     = SedovDataGenerator<Real, KeyType>::p0;
-    const double vr0    = SedovDataGenerator<Real, KeyType>::vr0;
-    const double cs0    = SedovDataGenerator<Real, KeyType>::cs0;
-
-    string simulationFilename = "sim_sedov_" + to_string(time) + ".txt";
-    string solutionFilename   = "sol_sedov_" + to_string(time) + ".txt";
+    // Get command line parameters
+    const double time      = parser.getDouble("--time",    0.);
+    const string inputFile = parser.getString("--input",   "./particles.dat");
+    const string outPath   = parser.getString("--outPath", "./");
 
     // Calculate and write theoretical solution profile in one dimension
-    size_t nSteps = 1000;
-    double rMax   = 2. * r1;
+    const size_t dim     = SedovDataGenerator<Real, KeyType>::dim;
+    const double r0      = SedovDataGenerator<Real, KeyType>::r0;
+    const double r1      = SedovDataGenerator<Real, KeyType>::r1;
+    const double rMax    = 2. * r1;
+    const size_t nSteps  = 1000;
+    const double eblast  = SedovDataGenerator<Real, KeyType>::energyTotal;
+    const double gamma   = SedovDataGenerator<Real, KeyType>::gamma;
+    const double omega   = SedovDataGenerator<Real, KeyType>::omega;
+    const double rho0    = SedovDataGenerator<Real, KeyType>::rho0;
+    const double u0      = SedovDataGenerator<Real, KeyType>::u0;
+    const double p0      = SedovDataGenerator<Real, KeyType>::p0;
+    const double vr0     = SedovDataGenerator<Real, KeyType>::vr0;
+    const double cs0     = SedovDataGenerator<Real, KeyType>::cs0;
+    const string solFile = "sol_sedov_" + to_string(time) + ".txt";
     SedovAnalyticalSolution::create(dim,
                                     r0, rMax,
                                     nSteps,
@@ -101,29 +76,49 @@ int main(int argc, char** argv)
                                     eblast,
                                     omega, gamma,
                                     rho0, u0, p0, vr0, cs0,
-                                    solutionFilename);
+                                    solFile);
 
+    // Load particles data
+    const size_t nParts = SedovDataGenerator<Real, KeyType>::nParts;
+    vector<double> x  (nParts);
+    vector<double> y  (nParts);
+    vector<double> z  (nParts);
+    vector<double> vx (nParts);
+    vector<double> vy (nParts);
+    vector<double> vz (nParts);
+    vector<double> rho(nParts);
+    vector<double> u  (nParts);
+    vector<double> p  (nParts);
+    vector<double> h  (nParts);
+    vector<double> m  (nParts);
+    FileData::read3D(inputFile,
+                     nParts,
+                     x,y,z,
+                     vx,vy,vz,
+                     rho,u,p,
+                     h,m);
+
+    // Calculate radius, velocity and local speed of sound
+    vector<double> r  (nParts);
+    vector<double> vel(nParts);
+    vector<double> cs (nParts);
     for(size_t i = 0; i < nParts; i++)
     {
-        // Load particles data
-        sphexa::fileutils::readParticleDataFromBinFile(inputFilePath,
-                                                       x[i],   y[i],  z[i],
-                                                       vx[i],  vy[i], vz[i],
-                                                       rho[i], u[i],  p[i],
-                                                       h[i],   m[i]);
-
-        // Calculate modules for position and velocity
         r[i]   = sqrt( pow(x[i], 2) + pow(y[i], 2) + pow(z[i], 2) );
         vel[i] = sqrt( pow(vx[i],2) + pow(vy[i],2) + pow(vz[i],2) );
+        cs[i]  = sqrt( gamma * p[i] / rho[i] );
     }
 
     // Write 1D simulation solution to compare with the theoretical solution
-    FileData::dump1DToAsciiFile(nParts,
-                                r, vel,cs,
-                                rho, u, p,
-                                rho0,
-                                SedovAnalyticalSolution::rho_shock, SedovAnalyticalSolution::p_shock, SedovAnalyticalSolution::vel_shock,
-                                simulationFilename);
+    const string simFile = "sim_sedov_" + to_string(time) + ".txt";
+    FileData::write1D(nParts,
+                      r,vel,cs,
+                      rho,u,p,
+                      rho0,
+                      SedovAnalyticalSolution::rho_shock,
+                      SedovAnalyticalSolution::p_shock,
+                      SedovAnalyticalSolution::vel_shock,
+                      simFile);
 
     exit(EXIT_SUCCESS);
 }
@@ -135,11 +130,11 @@ void printHelp(char* binName)
     printf("%s [OPTIONS]\n", binName);
     printf("\nWhere possible options are:\n\n");
 
-    printf("\t--time   NUM  \t\t Time where the solution is calculated (secs) [0.]\n\n");
+    printf("\t--time    NUM  \t\t Time where the solution is calculated (secs) [0.]\n\n");
 
-    printf("\t--input  PATH \t\t Path to input particle data file [./particles.dat].\n");
+    printf("\t--input   PATH \t\t Path to input particle data file [./particles.dat].\n");
 
-    printf("\t--outDir PATH \t\t Path to directory where output will be saved [./].\
+    printf("\t--outPath PATH \t\t Path to directory where output will be saved [./].\
                 \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
                 \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n");
 }
