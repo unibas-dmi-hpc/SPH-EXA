@@ -51,10 +51,10 @@ int main(int argc, char** argv)
     }
 
     // Get command line parameters
-    const double time      = parser.getDouble( "--time",    0.                );
-    const size_t nParts    = parser.getInt(    "--nParts",  0                 );
-    const string inputFile = parser.getString( "--input",   "./particles.dat" );
-    const string outPath   = parser.getString( "--outPath", "./"              );
+    const double time      = parser.getDouble( "--time",    0.                  );
+    const size_t nParts    = parser.getInt(    "--nParts",  0                   );
+    const string inputFile = parser.getString( "--input",   "./dump_sedov0.txt" );
+    const string outPath   = parser.getString( "--outPath", "./"                );
 
     if (nParts <= 0){
         cout << "ERROR: --nParts: '" << nParts << "' should be > 0." << endl;
@@ -160,7 +160,7 @@ void printHelp(char* binName)
     printf("\t--time    NUM  \t\t Time where the solution is calculated (secs) [0.]\n\n");
 
     printf("\t--nParts  PATH \t\t Number of particles in the data file [0].\n");
-    printf("\t--input   PATH \t\t Path to input particle data file [./particles.dat].\n\n");
+    printf("\t--input   PATH \t\t Path to input particle data file [./dump_sedov0.txt].\n\n");
 
     printf("\t--outPath PATH \t\t Path to directory where output will be saved [./].\
                 \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
