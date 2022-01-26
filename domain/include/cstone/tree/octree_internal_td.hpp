@@ -70,20 +70,6 @@ void enumeratePrefixesCpu(const KeyType* leaves, TreeNodeIndex numNodes, TreeNod
     }
 }
 
-/*! @brief functor to sort octree nodes first according to level, then by SFC key
- *
- * Note: takes SFC keys with Warren-Salmon placeholder bits in place as arguments
- */
-template<class KeyType>
-struct compareLevelThenPrefixCpu
-{
-    HOST_DEVICE_FUN bool operator()(KeyType a, KeyType b) const
-    {
-        return util::tuple<unsigned, KeyType>{decodePrefixLength(a), a} <
-               util::tuple<unsigned, KeyType>{decodePrefixLength(b), b};
-    }
-};
-
 /*! @brief combine internal and leaf tree parts into a single array with the nodeKey prefixes
  *
  * @tparam     KeyType           unsigned 32- or 64-bit integer
@@ -177,12 +163,9 @@ void linkTreeCpu(const KeyType* prefixes,
 template<class KeyType>
 void getLevelRangeCpu(const KeyType* nodeKeys, TreeNodeIndex numNodes, TreeNodeIndex* levelRange)
 {
-    levelRange[0] = 0;
-    levelRange[1] = 1;
-    for (unsigned level = 2; level <= maxTreeLevel<KeyType>{}; ++level)
+    for (unsigned level = 0; level <= maxTreeLevel<KeyType>{}; ++level)
     {
-        auto it = std::lower_bound(nodeKeys, nodeKeys + numNodes, 3 * level,
-                                   [](KeyType k, KeyType val) { return decodePrefixLength(k) < val; });
+        auto it = std::lower_bound(nodeKeys, nodeKeys + numNodes, encodePlaceholderBit(KeyType(0), 3 * level));
         levelRange[level] = TreeNodeIndex(it - nodeKeys);
     }
     levelRange[maxTreeLevel<KeyType>{} + 1] = numNodes;
@@ -212,8 +195,7 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree,
 
     TreeNodeIndex numNodes = numInternalNodes + numLeafNodes;
     createUnsortedLayoutCpu(cstoneTree, numInternalNodes, numLeafNodes, binaryToOct, prefixes, nodeOrder);
-    sort_by_key(prefixes, prefixes + numNodes, nodeOrder, compareLevelThenPrefixCpu<KeyType>{});
-    // arrays now in sorted layout B
+    sort_by_key(prefixes, prefixes + numNodes, nodeOrder);
 
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < numNodes; ++i)
@@ -291,7 +273,7 @@ public:
     inline bool isLeaf(TreeNodeIndex node) const { return childOffsets_[node] == 0; }
 
     //! @brief check if node is the root node
-    inline bool isRoot(TreeNodeIndex node) const { return node == 0; }
+    inline bool isRoot(TreeNodeIndex node) const { return node == levelRange_[0]; }
 
     /*! @brief return child node index
      *
@@ -442,7 +424,7 @@ private:
 template<class T, class KeyType, class CombinationFunction>
 void upsweep(const TdOctree<KeyType>& octree, T* quantities, CombinationFunction combinationFunction)
 {
-    int currentLevel = octree.level(octree.numTreeNodes() - 1);
+    int currentLevel = maxTreeLevel<KeyType>{};
 
     for ( ; currentLevel >= 0; --currentLevel)
     {
