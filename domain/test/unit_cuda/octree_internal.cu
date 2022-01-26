@@ -41,53 +41,6 @@
 
 using namespace cstone;
 
-/*! @brief larger test case for nodeDepth to detect multithreading issues
- *
- * Depends on binary/octree generation, so not strictly a unit test
- */
-template<class KeyType>
-void nodeDepthThreading()
-{
-    // uniform level-7 tree with 2097152 nodes
-    std::vector<KeyType> leaves = makeUniformNLevelTree<KeyType>(128*128*128, 1);
-
-    std::vector<BinaryNode<KeyType>> binaryTree(nNodes(leaves));
-    createBinaryTree(leaves.data(), nNodes(leaves), binaryTree.data());
-
-    std::vector<OctreeNode<KeyType>> octree((nNodes(leaves)-1)/7);
-    std::vector<TreeNodeIndex> leafParents(nNodes(leaves));
-
-    createInternalOctreeCpu(binaryTree.data(), nNodes(leaves), octree.data(), leafParents.data());
-
-    // upload octree to device
-    thrust::device_vector<OctreeNode<KeyType>> d_octree = octree;
-
-    thrust::device_vector<TreeNodeIndex> d_depths(octree.size(), 0);
-
-    constexpr int nThreads = 256;
-    nodeDepthKernel<<<iceil(octree.size(), nThreads), nThreads>>>(thrust::raw_pointer_cast(d_octree.data()), octree.size(),
-                                                                  thrust::raw_pointer_cast(d_depths.data()));
-
-    // download depths from device
-    thrust::host_vector<TreeNodeIndex> h_depths = d_depths;
-
-    int maxTreeLevel = log8ceil(nNodes(leaves));
-    std::vector<int> depths_reference(octree.size());
-    for (TreeNodeIndex i = 0; i < octree.size(); ++i)
-    {
-        // in a uniform tree, level + depth == maxTreeLevel is constant for all nodes
-        depths_reference[i] = maxTreeLevel - octree[i].level;
-    }
-
-    EXPECT_EQ(h_depths, depths_reference);
-}
-
-TEST(InternalOctreeGpu, nodeDepthsThreading)
-{
-    nodeDepthThreading<unsigned>();
-    nodeDepthThreading<uint64_t>();
-}
-
 template<class KeyType>
 void compareAgainstCpu(const std::vector<KeyType>& tree)
 {

@@ -340,8 +340,8 @@ static void computeEssentialTree()
     auto codes = makeRandomUniformKeys<KeyType>(nParticles);
 
     auto [csTree, csCounts] = computeOctree(codes.data(), codes.data() + nParticles, csBucketSize);
-    Octree<KeyType> globalTree;
-    globalTree.update(begin(csTree), end(csTree));
+    TdOctree<KeyType> globalTree;
+    globalTree.update(csTree.data(), nNodes(csTree));
 
     unsigned bucketSize = 16;
     float theta = 1.0;

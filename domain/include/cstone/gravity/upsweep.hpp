@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "cstone/traversal/upsweep.hpp"
+#include "cstone/tree/octree_internal_td.hpp"
 #include "cstone/gravity/multipole.hpp"
 
 namespace cstone
@@ -54,7 +54,7 @@ namespace cstone
  * @param[out] multipoles output multipole moments
  */
 template<class KeyType, class T1, class T2, class T3>
-void computeMultipoles(const Octree<KeyType>& octree, gsl::span<const LocalIndex> layout,
+void computeMultipoles(const TdOctree<KeyType>& octree, gsl::span<const LocalIndex> layout,
                        const T1* x, const T1* y, const T1* z, const T2* m, GravityMultipole<T3>* multipoles)
 {
     // calculate multipoles for leaf cells
@@ -62,11 +62,11 @@ void computeMultipoles(const Octree<KeyType>& octree, gsl::span<const LocalIndex
     for (TreeNodeIndex i = 0; i < octree.numLeafNodes(); ++i)
     {
         LocalIndex startIndex   = layout[i];
-        LocalIndex numParticles = layout[i+1] - startIndex;
+        LocalIndex numParticles = layout[i + 1] - startIndex;
 
-        TreeNodeIndex fullIndex = i + octree.numInternalNodes();
-        multipoles[fullIndex] = particle2Multipole<T3>(x + startIndex, y + startIndex, z + startIndex,
-                                                       m + startIndex, numParticles);
+        TreeNodeIndex fullIndex = octree.toInternal(i);
+        multipoles[fullIndex] =
+            particle2Multipole<T3>(x + startIndex, y + startIndex, z + startIndex, m + startIndex, numParticles);
     }
 
     // calculate internal cells from leaf cells

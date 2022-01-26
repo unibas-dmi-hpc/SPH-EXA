@@ -49,7 +49,6 @@
 #include "cstone/util/index_ranges.hpp"
 
 #include "cstone/traversal/macs.hpp"
-#include "cstone/tree/octree_internal.hpp"
 #include "cstone/tree/octree_internal_td.hpp"
 #include "cstone/traversal/traversal.hpp"
 

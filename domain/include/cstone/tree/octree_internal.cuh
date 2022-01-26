@@ -35,21 +35,10 @@
 #include <thrust/device_vector.h>
 #include <thrust/host_vector.h>
 
-#include "octree_internal.hpp"
 #include "cstone/tree/btree.cuh"
+#include "cstone/tree/octree_internal_td.hpp"
 
 namespace cstone {
-
-//! @brief see nodeDepth, note: depths must be initialized to zero, as in the CPU version
-template<class I>
-__global__ void nodeDepthKernel(const OctreeNode<I>* octree, TreeNodeIndex nNodes, TreeNodeIndex* depths)
-{
-    unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid < nNodes)
-    {
-        nodeDepthElement(tid, octree, depths);
-    }
-}
 
 //! Octree GPU data view for use in kernel code
 template<class KeyType>

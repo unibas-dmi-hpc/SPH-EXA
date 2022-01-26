@@ -273,43 +273,6 @@ std::vector<char> markMacAll2All(gsl::span<const KeyType> leaves, TreeNodeIndex 
 }
 
 template<class KeyType>
-void markMac()
-{
-    Box<double> box(0, 1);
-    std::vector<KeyType> treeLeaves = OctreeMaker<KeyType>{}.divide().divide(0).divide(7).makeTree();
-
-    Octree<KeyType> fullTree;
-    fullTree.update(treeLeaves.data(), treeLeaves.data() + treeLeaves.size());
-
-    std::vector<char> markings(fullTree.numTreeNodes(), 0);
-
-    float theta = 0.58;
-    KeyType focusStart = treeLeaves[0];
-    KeyType focusEnd   = treeLeaves[2];
-    markMac(fullTree, box, focusStart, focusEnd, 1. / theta, markings.data());
-
-    // Morton explicit reference:
-    //                            internal | leaves
-    //                            0 00 70  | 00 - 07              | 1 - 6           | 70 - 77
-    //std::vector<char> reference{1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
-    std::vector<char> reference = markMacAll2All<KeyType>(treeLeaves, 0, 2, theta, box);
-
-    // leaf comparisons
-    EXPECT_EQ(reference, std::vector<char>(markings.begin() + fullTree.numInternalNodes(), markings.end()));
-
-    // 3 internal nodes are all marked
-    EXPECT_EQ(markings[0], 1);
-    EXPECT_EQ(markings[1], 1);
-    EXPECT_EQ(markings[2], 1);
-}
-
-TEST(Macs, markMac)
-{
-    markMac<unsigned>();
-    markMac<uint64_t>();
-}
-
-template<class KeyType>
 void markMacTd()
 {
     Box<double> box(0, 1);

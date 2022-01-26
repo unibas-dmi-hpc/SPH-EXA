@@ -71,8 +71,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
     auto [tree, counts] = computeOctree(coords.particleKeys().data(),
                                         coords.particleKeys().data() + coords.particleKeys().size(), bucketSize);
 
-    Octree<KeyType> domainTree;
-    domainTree.update(begin(tree), end(tree));
+    TdOctree<KeyType> domainTree;
+    domainTree.update(tree.data(), nNodes(tree));
 
     auto assignment = singleRangeSfcSplit(counts, numRanks);
 

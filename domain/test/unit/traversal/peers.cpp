@@ -74,8 +74,9 @@ template<class KeyType>
 static void findMacPeers64grid(int rank, float theta, bool pbc, int refNumPeers)
 {
     Box<double> box{-1, 1, pbc};
-    Octree<KeyType> octree;
-    octree.update(makeUniformNLevelTree<KeyType>(64, 1));
+    TdOctree<KeyType> octree;
+    auto leaves = makeUniformNLevelTree<KeyType>(64, 1);
+    octree.update(leaves.data(), nNodes(leaves));
 
     SpaceCurveAssignment assignment(octree.numLeafNodes());
     for (int i = 0; i < octree.numLeafNodes(); ++i)

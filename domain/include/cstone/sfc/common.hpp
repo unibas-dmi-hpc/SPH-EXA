@@ -267,7 +267,7 @@ HOST_DEVICE_FUN constexpr unsigned octalDigit(KeyType code, unsigned position)
 }
 
 //! @brief return the offset octal digit weight for binary tree <-> octree index correspondence
-constexpr int digitWeight(int digit)
+HOST_DEVICE_FUN constexpr int digitWeight(int digit)
 {
     int fourGeqMask = -int(digit >= 4);
     return ((7 - digit) & fourGeqMask) - (digit & ~fourGeqMask);

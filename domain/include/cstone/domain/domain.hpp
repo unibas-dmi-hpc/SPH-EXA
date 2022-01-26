@@ -269,7 +269,7 @@ public:
                              gsl::span<T> ay,
                              gsl::span<T> az)
     {
-        const Octree<KeyType>& octree = focusTree_.octree();
+        const TdOctree<KeyType>& octree = focusTree_.octree();
         std::vector<GravityMultipole<T>> multipoles(octree.numTreeNodes());
         computeMultipoles(octree, layout_, x.data(), y.data(), z.data(), m.data(), multipoles.data());
 

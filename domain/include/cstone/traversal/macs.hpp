@@ -35,8 +35,8 @@
 #include <vector>
 
 #include "boxoverlap.hpp"
-#include "cstone/tree/octree_internal.hpp"
-#include "cstone/traversal/traversal.hpp"
+#include "cstone/traversal//traversal.hpp"
+#include "cstone/tree/octree_internal_td.hpp"
 
 namespace cstone
 {
