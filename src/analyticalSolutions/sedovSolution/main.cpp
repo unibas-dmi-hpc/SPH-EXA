@@ -65,6 +65,11 @@ int main(int argc, char** argv)
         exit(EXIT_FAILURE);
     }
 
+    // Get time without rounding
+    ostringstream time_long;
+    time_long << time;
+    string time_str = time_long.str();
+
     // Calculate and write theoretical solution profile in one dimension
     const size_t dim     = SedovDataGenerator<Real, KeyType>::dim;
     const double r0      = SedovDataGenerator<Real, KeyType>::r0;
@@ -79,7 +84,7 @@ int main(int argc, char** argv)
     const double p0      = SedovDataGenerator<Real, KeyType>::p0;
     const double vr0     = SedovDataGenerator<Real, KeyType>::vr0;
     const double cs0     = SedovDataGenerator<Real, KeyType>::cs0;
-    const string solFile = outPath + "sedov_solution_" + to_string(time) + ".dat";
+    const string solFile = outPath + "sedov_solution_" + time_str + ".dat";
     SedovSolution::create(
         dim,
         r0, rMax,
@@ -125,7 +130,7 @@ int main(int argc, char** argv)
     }
 
     // Write 1D simulation solution to compare with the theoretical solution
-    const string simFile = outPath + "sedov_simulation_" + to_string(time) + ".dat";
+    const string simFile = outPath + "sedov_simulation_" + time_str + ".dat";
     FileData::writeData1D(
         nParts,
         r,
