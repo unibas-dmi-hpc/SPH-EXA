@@ -173,7 +173,7 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         print("Solution file [" + solFile + "] doesn't exist.")
         exit(-1)
     else:
-        print("Solution file [" + solFile + "]")
+        print("Reading Solution   file [" + solFile + "  ] ...")
         file  = open(solFile, 'r')
         
         # Read data lines without header
@@ -216,7 +216,7 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         print("Simulation file [" + simFile + "] doesn't exist.")
         exit(-1)
     else:
-        print("Simulation file [" + simFile + "]")
+        print("Reading Simulation file [" + simFile + "] ...")
         file  = open(simFile, 'r')
         
         # Read data lines without header
@@ -254,9 +254,12 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
             
         file.close()
         
+    
 
     # Plot graphics
     if (not no_plots):
+        
+        print("\nGenerating graphics ...")
         
         figureName = "./sedov_density_comparation_"   + time.__str__() + ".svg"
         plt.plot(sim_r,sim_rho,".", label = "Simulation")
@@ -268,6 +271,7 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         plt.legend(loc='upper right')
         plt.savefig(figureName, format='svg')
         plt.figure().clear()
+        print("'Radius vs Density' done.")
     
         figureName = "./sedov_presure_comparation_"   + time.__str__() + ".svg"
         plt.plot(sim_r,sim_p,".", label = "Simulation")
@@ -279,6 +283,7 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         plt.legend(loc='upper right')
         plt.savefig(figureName, format='svg')
         plt.figure().clear()
+        print("'Radius vs Pressure' done.")
     
         figureName = "./sedov_velocity_comparation_"   + time.__str__() + ".svg" 
         plt.plot(sim_r,sim_vel,".", label = "Simulation")
@@ -290,6 +295,9 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         plt.legend(loc='upper right')
         plt.savefig(figureName, format='svg')
         plt.figure().clear()
+        print("'Radius vs Velocity' done.")
+
+    print("\nComparation finished successfully!\n")
 
 
 if __name__ == "__main__":
