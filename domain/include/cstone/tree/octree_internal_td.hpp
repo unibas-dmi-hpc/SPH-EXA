@@ -51,23 +51,31 @@
 namespace cstone
 {
 
-/*! @brief determine which binary nodes correspond to octree nodes
+/*! @brief map a binary node index to an octree node index
  *
- * @tparam     KeyType     unsigned 32- or 64-bit integer
- * @param[in]  leaves      cornerstone leaf nodes, length @p numNodes + 1
- * @param[in]  numNodes    number tree nodes
- * @param[out] binaryToOct for each binary node, store 1 if prefix bit length is divisible by 3
+ * @tparam KeyType    32- or 64-bit unsigned integer
+ * @param  key        a cornerstone leaf cell key
+ * @param  level      the subdivision level of @p key
+ * @return            the index offset
+ *
+ * if
+ *      - cstree is a cornerstone leaf array
+ *      - l = commonPrefix(cstree[j], cstree[j+1]), l % 3 == 0
+ *      - k = cstree[j]
+ *
+ * then i = (j + binaryKeyWeight(k, l) / 7 equals the index of the internal octree node with key k,
+ * see unit test of this function for an illustration
  */
 template<class KeyType>
-void enumeratePrefixesCpu(const KeyType* leaves, TreeNodeIndex numNodes, TreeNodeIndex* binaryToOct)
+HOST_DEVICE_FUN constexpr TreeNodeIndex binaryKeyWeight(KeyType key, unsigned level)
 {
-    #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex tid = 0; tid < numNodes; ++tid)
+    TreeNodeIndex ret = 0;
+    for (unsigned l = 1; l <= level + 1; ++l)
     {
-        int prefixLength  = commonPrefix(leaves[tid], leaves[tid + 1]);
-        bool divisibleBy3 = prefixLength % 3 == 0;
-        binaryToOct[tid]  = (divisibleBy3) ? 1 : 0;
+        unsigned digit = octalDigit(key, l);
+        ret += digitWeight(digit);
     }
+    return ret;
 }
 
 /*! @brief combine internal and leaf tree parts into a single array with the nodeKey prefixes
@@ -85,20 +93,19 @@ template<class KeyType>
 void createUnsortedLayoutCpu(const KeyType* leaves,
                              TreeNodeIndex numInternalNodes,
                              TreeNodeIndex numLeafNodes,
-                             const TreeNodeIndex* binaryToOct,
                              KeyType* prefixes,
                              TreeNodeIndex* nodeOrder)
 {
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex tid = 0; tid < numLeafNodes - 1; ++tid)
     {
-        TreeNodeIndex octIndex = binaryToOct[tid];
-        bool isOctreeNode = (binaryToOct[tid + 1] - octIndex) == 1;
-        if (isOctreeNode)
+        KeyType key           = leaves[tid];
+        unsigned prefixLength = commonPrefix(key, leaves[tid + 1]);
+        if (prefixLength % 3 == 0)
         {
-            unsigned prefixLength = commonPrefix(leaves[tid], leaves[tid + 1]);
-            prefixes[octIndex]    = encodePlaceholderBit(leaves[tid], prefixLength);
-            nodeOrder[octIndex]   = octIndex;
+            TreeNodeIndex octIndex = (tid + binaryKeyWeight(key, prefixLength / 3)) / 7;
+            prefixes[octIndex]     = encodePlaceholderBit(key, prefixLength);
+            nodeOrder[octIndex]    = octIndex;
         }
     }
     #pragma omp parallel for schedule(static)
@@ -187,13 +194,8 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree,
                             TreeNodeIndex* nodeOrder,
                             TreeNodeIndex* inverseNodeOrder)
 {
-    // we ignore the last binary tree node which is a duplicate root node
-    TreeNodeIndex numBinaryNodes = numLeafNodes - 1;
-    enumeratePrefixesCpu(cstoneTree, numBinaryNodes, inverseNodeOrder);
-    exclusiveScan(inverseNodeOrder, numLeafNodes);
-
     TreeNodeIndex numNodes = numInternalNodes + numLeafNodes;
-    createUnsortedLayoutCpu(cstoneTree, numInternalNodes, numLeafNodes, inverseNodeOrder, prefixes, nodeOrder);
+    createUnsortedLayoutCpu(cstoneTree, numInternalNodes, numLeafNodes, prefixes, nodeOrder);
     sort_by_key(prefixes, prefixes + numNodes, nodeOrder);
 
     #pragma omp parallel for schedule(static)

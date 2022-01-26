@@ -228,6 +228,18 @@ TEST(SfcCode, octalDigit64)
     EXPECT_EQ(7, octalDigit(0123456701200000000007ul, 21));
 }
 
+TEST(SfcCode, digitWeight)
+{
+    EXPECT_EQ(digitWeight(0),  0);
+    EXPECT_EQ(digitWeight(1), -1);
+    EXPECT_EQ(digitWeight(2), -2);
+    EXPECT_EQ(digitWeight(3), -3);
+    EXPECT_EQ(digitWeight(4),  3);
+    EXPECT_EQ(digitWeight(5),  2);
+    EXPECT_EQ(digitWeight(6),  1);
+    EXPECT_EQ(digitWeight(7),  0);
+}
+
 TEST(SfcCode, enclosingBoxTrim)
 {
     std::size_t code = 0x0FF0000000000001;

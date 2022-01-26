@@ -219,6 +219,44 @@ TEST(InternalOctreeTd, spanningTree)
 }
 
 template<class KeyType>
+static void binaryIndexConversion()
+{
+    // a non-trivial tree that goes down to the maximum tree level in three different areas
+    std::vector<KeyType> cornerstones{0, 1, 030173, 03333333333, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
+    std::vector<KeyType> cstree = computeSpanningTree<KeyType>(cornerstones);
+
+    TreeNodeIndex numNodes = nNodes(cstree);
+    std::vector<TreeNodeIndex> octreeIndices(numNodes);
+    for (TreeNodeIndex tid = 0; tid < numNodes; ++tid)
+    {
+        int prefixLength  = commonPrefix(cstree[tid], cstree[tid + 1]);
+        bool divisibleBy3 = prefixLength % 3 == 0;
+        octreeIndices[tid]  = (divisibleBy3) ? 1 : 0;
+    }
+    std::vector<TreeNodeIndex> binaryToOct(numNodes);
+    std::exclusive_scan(begin(octreeIndices), end(octreeIndices), begin(binaryToOct), 0);
+
+    for (TreeNodeIndex tid = 0; tid < numNodes; ++tid)
+    {
+        int prefixLength  = commonPrefix(cstree[tid], cstree[tid + 1]);
+        bool divisibleBy3 = prefixLength % 3 == 0;
+        if (divisibleBy3)
+        {
+            TreeNodeIndex octIndex = (tid + binaryKeyWeight(cstree[tid], prefixLength / 3)) / 7;
+            // The binaryKeyWeight formula yields the same result as an enumeration of the by-3 divisible
+            // nodes, followed by a scan.
+            EXPECT_EQ(octIndex, binaryToOct[tid]);
+        }
+    }
+}
+
+TEST(InternalOctreeTd, binaryIndexConversion)
+{
+    binaryIndexConversion<unsigned>();
+    binaryIndexConversion<uint64_t>();
+}
+
+template<class KeyType>
 static void locate()
 {
     {
