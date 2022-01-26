@@ -79,7 +79,7 @@ int main(int argc, char** argv)
     const double p0      = SedovDataGenerator<Real, KeyType>::p0;
     const double vr0     = SedovDataGenerator<Real, KeyType>::vr0;
     const double cs0     = SedovDataGenerator<Real, KeyType>::cs0;
-    const string solFile = "sedov_solution_" + to_string(time) + ".dat";
+    const string solFile = outPath + "sedov_solution_" + to_string(time) + ".dat";
     SedovSolution::create(
         dim,
         r0, rMax,
@@ -125,7 +125,7 @@ int main(int argc, char** argv)
     }
 
     // Write 1D simulation solution to compare with the theoretical solution
-    const string simFile = "sedov_simulation_" + to_string(time) + ".dat";
+    const string simFile = outPath + "sedov_simulation_" + to_string(time) + ".dat";
     FileData::writeData1D(
         nParts,
         r,
