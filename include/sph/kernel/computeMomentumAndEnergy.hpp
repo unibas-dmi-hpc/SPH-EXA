@@ -85,12 +85,12 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
 
         T hjInv3 = hjInv * hjInv * hjInv;
-        T Wi     = hiInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
-        T Wj     = hjInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v2), (int)sincIndex);
+        T Wi     = K * hiInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
+        T Wj     = K * hjInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v2), (int)sincIndex);
 
-        T termA1_i = (c11i * rx + c12i * ry + c13i * rz) * Wi;
-        T termA2_i = (c12i * rx + c22i * ry + c23i * rz) * Wi;
-        T termA3_i = (c13i * rx + c23i * ry + c33i * rz) * Wi;
+        T termA1_i = -(c11i * rx + c12i * ry + c13i * rz) * Wi;
+        T termA2_i = -(c12i * rx + c22i * ry + c23i * rz) * Wi;
+        T termA3_i = -(c13i * rx + c23i * ry + c33i * rz) * Wi;
 
         T c11j = c11[j];
         T c12j = c12[j];
@@ -99,9 +99,9 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T c23j = c23[j];
         T c33j = c33[j];
 
-        T termA1_j = (c11j * rx + c12j * ry + c13j * rz) * Wj;
-        T termA2_j = (c12j * rx + c22j * ry + c23j * rz) * Wj;
-        T termA3_j = (c13j * rx + c23j * ry + c33j * rz) * Wj;
+        T termA1_j = -(c11j * rx + c12j * ry + c13j * rz) * Wj;
+        T termA2_j = -(c12j * rx + c22j * ry + c23j * rz) * Wj;
+        T termA3_j = -(c13j * rx + c23j * ry + c33j * rz) * Wj;
 
         T roj = ro[j];
         T cj  = c[j];
@@ -165,17 +165,16 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
                      (vx_ij * termA1_i + vy_ij * termA2_i + vz_ij * termA3_i);
             //energy += vx_ij * (a * termA1_i + b * termA1_j) + vy_ij * (a * termA2_i + b * termA2_j) +
             //          vz_ij * (a * termA3_i + b * termA3_j);
-
         }
     }
 
     // with the choice of calculating coordinate (r) and velocity (v_ij) differences as i - j,
     // we add the negative sign only here at the end instead of to termA123_ij in each iteration
     a_visc_energy = std::max(0.0, a_visc_energy);
-    du[i]         = -K * (energy + a_visc_energy);
-    grad_P_x[i]   = -K * momentum_x;
-    grad_P_y[i]   = -K * momentum_y;
-    grad_P_z[i]   = -K * momentum_z;
+    du[i]         = (energy + a_visc_energy);
+    grad_P_x[i]   = momentum_x;
+    grad_P_y[i]   = momentum_y;
+    grad_P_z[i]   = momentum_z;
     maxvsignal[i] = maxvsignali;
 }
 
