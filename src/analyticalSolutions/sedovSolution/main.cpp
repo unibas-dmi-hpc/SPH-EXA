@@ -20,6 +20,14 @@
  * SOFTWARE.
  */
 
+/*! @file
+ *
+ * @brief This program generate the analytical sedov solution based in the time and the initial conditions
+ *
+ * @author Jose A. Escartin <ja.escartin@gmail.com>
+ *
+ */
+
 #include <string>
 #include <iostream>
 #include <cmath>

@@ -20,6 +20,15 @@
  * SOFTWARE.
  */
 
+/*! @file
+ *
+ * @brief This class manage the data layer in the application.
+ *        It provide a variety of read/write functions based in the number of dimensions.
+ *
+ * @author Jose A. Escartin <ja.escartin@gmail.com>
+ *
+ */
+
 #pragma once
 
 #include <string>

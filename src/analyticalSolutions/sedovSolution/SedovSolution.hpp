@@ -22,7 +22,7 @@
 
 /*! @file
  *
- * @brief This routine produces 1d solutions for a sedov blast wave propagating through a density gradient: rho = rho**(-omega)
+ * @brief This class produces 1d solutions for a sedov blast wave propagating through a density gradient: rho = rho**(-omega)
  *        , in planar(1D), cylindrical(2D) or spherical geometry(3D) for the 'standard', 'singular' and 'vaccum' cases.
  *
  *        - standard case: a nonzero solution extends from the shock to the origin,       where the pressure is finite.

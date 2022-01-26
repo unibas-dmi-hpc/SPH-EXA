@@ -27,8 +27,8 @@
         $ python ./compare_solutions.py --help'
         $ python ./compare_solutions.py --version'
         $ python ./compare_solutions.py sedov --help'
-        $ python ./compare_solutions.py sedov --time 0.018458 --snapshot_file ./../../dump_sedov100.txt
-        $ python ./compare_solutions.py sedov --constants_file ./../../constants.txt --iteration 200 --snapshot_file ./../../dump_sedov200.txt
+        $ python ./compare_solutions.py sedov --binary_file ./sedovSolution --nparts 125000 --snapshot_file ./dump_sedov100.txt --time 0.018458 
+        $ python ./compare_solutions.py sedov --binary_file ./sedovSolution --nparts 125000 --snapshot_file ./dump_sedov200.txt --constants_file ./constants.txt --iteration 200 
 '''
 
 __program__ = "compare_solutions.py"
@@ -49,39 +49,36 @@ def cli(version):
     if version:
         click.echo("\ncompare_solutions.py version: " + __version__ + "\n")
 
-default_binary = "../../bin/sedovSolution"
+default_binary = "./sedovSolution/sedovSolution"
+default_nparts    = 125000
+default_snapshot  = "./dump_sedov0.txt"
 default_timestep  = 0.
 default_constants = "./constants.txt"
 default_iteration = 0
-default_nparts    = 125000
-default_snapshot  = "./dump_sedov0.txt"
 
 @cli.command()
 @click.option('-bf', '--binary_file',    required=False, default=default_binary,    help='Binary file to compare. Default: ['         + default_binary              + '].', type=click.STRING)
+@click.option('-n',  '--nparts',         required=True,  default=default_nparts,    help='Number of particles. Default: ['            + default_nparts.__str__()    + '].', type=click.INT   )
+@click.option('-sf', '--snapshot_file',  required=True,  default=default_snapshot,  help='Simulation snapshot file. Default: ['       + default_snapshot            + '].', type=click.STRING)
 @click.option('-t',  '--time',           required=False, default=default_timestep,  help='Simulation time. Default: ['                + default_timestep.__str__()  + '].', type=click.FLOAT )
 @click.option('-cf', '--constants_file', required=False, default=default_constants, help='Simulation constants file. Default: ['      + default_constants           + '].', type=click.STRING)
 @click.option('-i',  '--iteration',      required=False, default=default_iteration, help='Iteration in the constant file. Default: [' + default_iteration.__str__() + '].', type=click.INT   )
-@click.option('-n',  '--nparts',         required=False, default=default_nparts,    help='Number of particles. Default: ['            + default_nparts.__str__()    + '].', type=click.INT   )
-@click.option('-sf', '--snapshot_file',  required=True,  default=default_snapshot,  help='Simulation snapshot file. Default: ['       + default_snapshot            + '].', type=click.STRING)
-def sedov(binary_file, time, constants_file, iteration, nparts, snapshot_file):
+@click.option('-np', '--no_plots',       required=False, default=False,             help='No create plots. Default: [False].',                                              is_flag=True     )
+def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, no_plots):
 
     ''' 
         Compare SPH-EXA simulation with Analytical solution.
     '''
     
-    '''
-       * sedov_analytical and read the results
-       * load the SPH simulation snapshot for the specified timestep
-       * compare and plot SPH and analytical solutions
-    '''
-    
     print("")
-    print("binary_file    = " + binary_file)
-    print("time           = " + time.__str__())
-    print("constants_file = " + constants_file)
-    print("iteration      = " + iteration.__str__())
-    print("nparts         = " + nparts.__str__())
-    print("snapshot_file  = " + snapshot_file)
+    print(    "binary_file    = " + binary_file         )
+    print(    "nparts         = " + nparts.__str__()    )
+    print(    "snapshot_file  = " + snapshot_file       )
+    print(    "time           = " + time.__str__()      )
+    print(    "constants_file = " + constants_file      )
+    print(    "iteration      = " + iteration.__str__() )
+    if no_plots:
+        print("no_plots       =" + "False"              )
     print("")
         
         
@@ -259,39 +256,40 @@ def sedov(binary_file, time, constants_file, iteration, nparts, snapshot_file):
         
 
     # Plot graphics
-
-    figureName = "./sedov_density_comparation_"   + time.__str__() + ".svg"
-    plt.plot(sim_r,sim_rho,".", label = "Simulation")
-    plt.plot(sol_r,sol_rho,     label = "Solution")
-    plt.xlabel('r')
-    plt.ylabel('rho')
-    plt.draw()
-    plt.title('Density')
-    plt.legend(loc='upper right')
-    plt.savefig(figureName, format='svg')
-    plt.figure().clear()
-
-    figureName = "./sedov_presure_comparation_"   + time.__str__() + ".svg"
-    plt.plot(sim_r,sim_p,".", label = "Simulation")
-    plt.plot(sol_r,sol_p,     label = "Solution")
-    plt.xlabel('r')
-    plt.ylabel('p')
-    plt.draw()
-    plt.title('Pressure')
-    plt.legend(loc='upper right')
-    plt.savefig(figureName, format='svg')
-    plt.figure().clear()
-
-    figureName = "./sedov_velocity_comparation_"   + time.__str__() + ".svg" 
-    plt.plot(sim_r,sim_vel,".", label = "Simulation")
-    plt.plot(sol_r,sol_vel,     label = "Solution")
-    plt.xlabel('r')
-    plt.ylabel('vel')
-    plt.draw()
-    plt.title('Velocity')
-    plt.legend(loc='upper right')
-    plt.savefig(figureName, format='svg')
-    plt.figure().clear()
+    if (not no_plots):
+        
+        figureName = "./sedov_density_comparation_"   + time.__str__() + ".svg"
+        plt.plot(sim_r,sim_rho,".", label = "Simulation")
+        plt.plot(sol_r,sol_rho,     label = "Solution")
+        plt.xlabel('r')
+        plt.ylabel('rho')
+        plt.draw()
+        plt.title('Density')
+        plt.legend(loc='upper right')
+        plt.savefig(figureName, format='svg')
+        plt.figure().clear()
+    
+        figureName = "./sedov_presure_comparation_"   + time.__str__() + ".svg"
+        plt.plot(sim_r,sim_p,".", label = "Simulation")
+        plt.plot(sol_r,sol_p,     label = "Solution")
+        plt.xlabel('r')
+        plt.ylabel('p')
+        plt.draw()
+        plt.title('Pressure')
+        plt.legend(loc='upper right')
+        plt.savefig(figureName, format='svg')
+        plt.figure().clear()
+    
+        figureName = "./sedov_velocity_comparation_"   + time.__str__() + ".svg" 
+        plt.plot(sim_r,sim_vel,".", label = "Simulation")
+        plt.plot(sol_r,sol_vel,     label = "Solution")
+        plt.xlabel('r')
+        plt.ylabel('vel')
+        plt.draw()
+        plt.title('Velocity')
+        plt.legend(loc='upper right')
+        plt.savefig(figureName, format='svg')
+        plt.figure().clear()
 
 
 if __name__ == "__main__":
