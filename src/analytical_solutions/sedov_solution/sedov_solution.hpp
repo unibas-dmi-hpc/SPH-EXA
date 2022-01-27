@@ -61,20 +61,19 @@ public:
     static double cs_shock;                              // Sound speed
 
     static void create(
-        const size_t dim,                                // Dimensions
-        const double r0,                                 // Initial radio
-        const double r1,                                 // End radio
-        const size_t rPoints,                            // Number of points between r0-r1
-        const double time,                               // Time at solution
-        const double eblast,                             // Energy blast in the wave front
-        const double omega_i,                            // Energy blast in the wave front
-        const double gamma_i,                            // Adiabatic coeficient
-        const double rho0,                               // Initial density
-        const double u0,                                 // Initial internal energy
-        const double p0,                                 // Initial pressure
-        const double vel0,                               // Initial velocity
-        const double cs0,                                // Initial sound speed
-        const string outfile);                           // Output solution filename
+        vector<double>& r,                               // Radius position
+        const size_t    dim,                             // Dimensions
+        const size_t    rPoints,                         // Number of points between r0-r1
+        const double    time,                            // Time at solution
+        const double    eblast,                          // Energy blast in the wave front
+        const double    omega_i,                         // Energy blast in the wave front
+        const double    gamma_i,                         // Adiabatic coeficient
+        const double    rho0,                            // Initial density
+        const double    u0,                              // Initial internal energy
+        const double    p0,                              // Initial pressure
+        const double    vel0,                            // Initial velocity
+        const double    cs0,                             // Initial sound speed
+        const string    outfile);                        // Output solution filename
 
 private:
 

@@ -20,8 +20,8 @@
  * SOFTWARE.
  */
 
-
 #include "file_data.hpp"
+
 #include "sedov_solution.hpp"
 
 #include <iostream>
@@ -73,33 +73,25 @@ double SedovSolution::u_shock;
 double SedovSolution::cs_shock;
 
 void SedovSolution::create(
-    const size_t dim,
-    const double r0,
-    const double r1,
-    const size_t rPoints,
-    const double time,
-    const double eblast,
-    const double omega_i,
-    const double gamma_i,
-    const double rho0,
-    const double u0,
-    const double p0,
-    const double vel0,
-    const double cs0,
-    const string outfile)
+    vector<double>& r,
+    const size_t    dim,
+    const size_t    rPoints,
+    const double    time,
+    const double    eblast,
+    const double    omega_i,
+    const double    gamma_i,
+    const double    rho0,
+    const double    u0,
+    const double    p0,
+    const double    vel0,
+    const double    cs0,
+    const string    outfile)
 {
-    vector<double> r  (rPoints);
     vector<double> rho(rPoints);
     vector<double> u  (rPoints);
     vector<double> p  (rPoints);
     vector<double> vel(rPoints);
     vector<double> cs (rPoints);
-
-    double rStep = (r1 - r0) / rPoints;
-    for(size_t i = 0; i < rPoints; i++)
-    {
-        r[i] = r0 + (0.5 * rStep) + (i * rStep);
-    }
 
     // Calculate theoretical solution
     sedovSol(

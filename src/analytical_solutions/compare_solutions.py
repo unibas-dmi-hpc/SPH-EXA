@@ -49,14 +49,25 @@ def cli(version):
     if version:
         click.echo("\ncompare_solutions.py version: " + __version__ + "\n")
 
-default_binary = "./sedovSolution/sedovSolution"
-default_nparts    = 125000
-default_snapshot  = "./dump_sedov0.txt"
-default_timestep  = 0.
-default_constants = "./constants.txt"
-default_iteration = -1
-default_no_plots  = False
-default_outPath   = "./"
+default_binary       = "./sedovSolution/sedovSolution"
+default_nparts       = 125000
+default_snapshot     = "./dump_sedov0.txt"
+default_timestep     = 0.
+default_constants    = "./constants.txt"
+default_iteration    = -1
+default_no_plots     = False
+default_outDir       = "./"
+
+default_error_rho    = False
+default_delta_rho    = 1.e-6
+default_error_u      = False
+default_delta_u      = 1.e-6
+default_error_p      = False
+default_delta_p      = 1.e-6
+default_error_vel    = False
+default_delta_vel    = 1.e-6
+default_error_cs     = False
+default_delta_cs     = 1.e-6
 
 @cli.command()
 @click.option('-bf', '--binary_file',    required=False, default=default_binary,    help='Binary file to compare. Default: ['         + default_binary              + '].', type=click.STRING           )
@@ -65,26 +76,56 @@ default_outPath   = "./"
 @click.option('-t',  '--time',           required=False, default=default_timestep,  help='Simulation time. Default: ['                + default_timestep.__str__()  + '].', type=click.FLOAT            )
 @click.option('-cf', '--constants_file', required=False, default=default_constants, help='Simulation constants file. Default: ['      + default_constants           + '].', type=click.STRING           )
 @click.option('-i',  '--iteration',      required=False, default=default_iteration, help='Iteration in the constant file. Default: [' + default_iteration.__str__() + '].', type=click.INT              )
-@click.option('-np', '--no_plots',       required=False, default=False,             help='No create plots. Default: ['                + default_no_plots.__str__()  + '].', is_flag=True                )
-@click.option('-o',  '--out_path',       required=False, default=default_outPath,   help='Output directory. Default: ['               + default_outPath             + '].', type=click.Path(exists=True))
-def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, no_plots, out_path):
+@click.option('-np', '--no_plots',       required=False, default=default_no_plots,  help='No create plots. Default: ['                + default_no_plots.__str__()  + '].', is_flag=True                )
+@click.option('-o',  '--out_dir',        required=False, default=default_outDir,    help='Output directory. Default: ['               + default_outDir              + '].', type=click.Path(exists=True))
+@click.option('-er', '--error_rho',      required=False, default=default_error_rho, help='Check error L1 in rho. Default: ['          + default_error_rho.__str__() + '].', is_flag=True                )
+@click.option('-dr', '--delta_rho',      required=False, default=default_delta_rho, help='Delta error L1 in rho. Default: ['          + default_delta_rho.__str__() + '].', type=click.FLOAT            )
+@click.option('-eu', '--error_u',        required=False, default=default_error_u,   help='Check error L1 in u.   Default: ['          + default_error_u.__str__()   + '].', is_flag=True                )
+@click.option('-du', '--delta_u',        required=False, default=default_delta_u,   help='Delta error L1 in u.   Default: ['          + default_delta_u.__str__()   + '].', type=click.FLOAT            )
+@click.option('-ep', '--error_p',        required=False, default=default_error_p,   help='Check error L1 in p.   Default: ['          + default_error_p.__str__()   + '].', is_flag=True                )
+@click.option('-dp', '--delta_p',        required=False, default=default_delta_p,   help='Delta error L1 in p.   Default: ['          + default_delta_p.__str__()   + '].', type=click.FLOAT            )
+@click.option('-ev', '--error_vel',      required=False, default=default_error_vel, help='Check error L1 in vel. Default: ['          + default_error_vel.__str__() + '].', is_flag=True                )
+@click.option('-dv', '--delta_vel',      required=False, default=default_delta_vel, help='Delta error L1 in vel. Default: ['          + default_delta_vel.__str__() + '].', type=click.FLOAT            )
+@click.option('-ec', '--error_cs',       required=False, default=default_error_cs,  help='Check error L1 in cs.  Default: ['          + default_error_cs.__str__()  + '].', is_flag=True                )
+@click.option('-dc', '--delta_cs',       required=False, default=default_delta_cs,  help='Delta error L1 in cs.  Default: ['          + default_delta_cs.__str__()  + '].', type=click.FLOAT            )
+def sedov(binary_file, 
+          nparts, snapshot_file, time, constants_file, iteration, 
+          no_plots, out_dir,
+          error_rho, delta_rho,
+          error_u, delta_u,
+          error_p, delta_p,
+          error_vel, delta_vel, 
+          error_cs, delta_cs):
 
     ''' 
         Compare SPH-EXA simulation with Analytical solution.
     '''
-    
+
+    # Parameters
     print("")
-    print("binary_file    = " + binary_file         )
-    print("nparts         = " + nparts.__str__()    )
-    print("snapshot_file  = " + snapshot_file       )
-    print("time           = " + time.__str__()      )
-    print("constants_file = " + constants_file      )
-    print("iteration      = " + iteration.__str__() )
-    print("no_plots       = " + no_plots.__str__()  )
-    print("out_path       = " + out_path.__str__()  )
+    print("binary_file     = " + binary_file         )
+    print("nparts          = " + nparts.__str__()    )
+    print("snapshot_file   = " + snapshot_file       )
+    print("time            = " + time.__str__()      )
+    print("constants_file  = " + constants_file      )
+    print("iteration       = " + iteration.__str__() )
+    print("no_plots        = " + no_plots.__str__()  )
+    print("out_dir        = " + out_dir.__str__()  )
+
+    # Check if it is need to calcule L1 errors        
+    if error_rho or error_u or error_p or error_vel or error_cs:
+        check_errors = True
+    else:
+        check_errors = False
+    print("\ncheck_L1_errors = " + check_errors.__str__())
+    if check_errors:
+        print(" * error_rho    = " + error_rho.__str__() + " > " + delta_rho.__str__())
+        print(" * error_u      = " + error_u.__str__()   + " > " + delta_u.__str__()  )
+        print(" * error_p      = " + error_p.__str__()   + " > " + delta_p.__str__()  )
+        print(" * error_vel    = " + error_vel.__str__() + " > " + delta_vel.__str__())
+        print(" * error_cs     = " + error_cs.__str__()  + " > " + delta_cs.__str__() )
     print("")
-        
-        
+
     # Check binary_file
     if (not os.path.isfile(binary_file)):
         print("Binary file [" + binary_file + "] doesn't exist.")
@@ -158,10 +199,12 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
     
     # Make command line
     command  = binary_file 
-    command += " --time "    + time.__str__()
-    command += " --nParts "  + nparts.__str__()
-    command += " --input "   + snapshot_file
-    command += " --outPath " + out_path
+    command += " --time "   + time.__str__()
+    command += " --nParts " + nparts.__str__()
+    command += " --input "  + snapshot_file
+    command += " --outDir " + out_dir
+    if check_errors:
+        command += " --complete "
     print("Command:\n" + command)
         
     # Execute solutionSedov
@@ -171,8 +214,8 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
     print("Checking outputs ...")
     
     # Make outputs
-    solFile = out_path + "sedov_solution_"   + time.__str__() + ".dat"
-    simFile = out_path + "sedov_simulation_" + time.__str__() + ".dat" 
+    solFile = out_dir + "sedov_solution_"   + time.__str__() + ".dat"
+    simFile = out_dir + "sedov_simulation_" + time.__str__() + ".dat" 
     
     # Load Solution file
     if (not os.path.isfile(solFile)):
@@ -259,15 +302,12 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
             sim_rho0.append(     float(tokens[11]) )
             
         file.close()
-        
-    
 
     # Plot graphics
     if (not no_plots):
-        
         print("\nGenerating graphics ...")
         
-        figureName = out_path + "sedov_density_"   + time.__str__() + ".png"
+        figureName = out_dir + "sedov_density_"   + time.__str__() + ".png"
         plt.plot(sim_r,sim_rho,".", label = "Simulation")
         plt.plot(sol_r,sol_rho,     label = "Solution")
         plt.xlabel('r')
@@ -279,7 +319,7 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         plt.figure().clear()
         print("'Radius vs Density'  done [" + figureName + "   ]")
     
-        figureName = out_path + "sedov_pressure_"   + time.__str__() + ".png"
+        figureName = out_dir + "sedov_pressure_"   + time.__str__() + ".png"
         plt.plot(sim_r,sim_p,".", label = "Simulation")
         plt.plot(sol_r,sol_p,     label = "Solution")
         plt.xlabel('r')
@@ -291,7 +331,7 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         plt.figure().clear()
         print("'Radius vs Pressure' done [" + figureName + "  ]")
     
-        figureName = out_path + "sedov_velocity_"   + time.__str__() + ".png" 
+        figureName = out_dir + "sedov_velocity_"   + time.__str__() + ".png" 
         plt.plot(sim_r,sim_vel,".", label = "Simulation")
         plt.plot(sol_r,sol_vel,     label = "Solution")
         plt.xlabel('r')
@@ -303,7 +343,94 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         plt.figure().clear()
         print("'Radius vs Velocity' done [" + figureName + "  ]")
 
-    print("\nComparation finished successfully!\n")
+
+    # Checking errors
+    successfully = True
+    if (check_errors):
+
+        '''
+            Errors L1 : Normalize distance between the theorical and simulated value. 
+           
+            For scalar quatities: rho, pressure, internal energy, ... :
+                L1=Sum[abs(theoretical - simulated)] / N
+
+            For vector quantities: velocity, ... :
+                L1 = sum ( sqrt (  (x_theo - x_sim)**2 +(y_theo - y_sim)**2 +(z_theo - z_sim)**2 ) )/ N
+        '''
+
+        print("\nChecking Errors L1 ...")
+                
+        # Calculate errors            
+        L1_rho = 0. 
+        L1_u   = 0. 
+        L1_p   = 0.
+        L1_vel = 0.
+        L1_cs  = 0.
+
+        for i in range(nparts):
+            
+            L1_rho += abs(sol_rho[i] - sim_rho[i]) 
+            L1_u   += abs(sol_u[i]   - sim_u[i]  ) 
+            L1_p   += abs(sol_p[i]   - sim_p[i]  ) 
+            L1_vel += abs(sol_vel[i] - sim_vel[i]) 
+            L1_cs  += abs(sol_cs[i]  - sim_cs[i] )
+
+        L1_rho /= nparts
+        L1_u   /= nparts
+        L1_p   /= nparts
+        L1_vel /= nparts
+        L1_cs  /= nparts
+        
+        # Write data in the file
+        errFile = out_dir + "sedov_errors_L1_" + time.__str__() + ".dat" 
+        file = open(errFile, 'w')
+        file.write("#   01:L1_rho    02:L1_u    03:L1_p   04:L1_vel    05:L1_cs\n")
+        file.write(      L1_rho.__str__() )
+        file.write(" " + L1_u.__str__()   )
+        file.write(" " + L1_p.__str__()   )
+        file.write(" " + L1_vel.__str__() )
+        file.write(" " + L1_cs.__str__()  )
+        file.write("\n")
+        file.close()
+        
+        print("Error L1_rho = " + L1_rho.__str__() )
+        print("Error L1_u   = " + L1_u.__str__()   )
+        print("Error L1_p   = " + L1_p.__str__()   )
+        print("Error L1_vel = " + L1_vel.__str__() )
+        print("Error L1_cs  = " + L1_cs.__str__()  )
+
+        print("Writing Errors L1    file [" + errFile + " ]")
+
+        # Check errors L1
+
+        if (error_rho) and (L1_rho > delta_rho):
+            print("\nCheck Error L1_rho failed : " + L1_rho.__str__() + " > " + delta_rho.__str__())
+            successfully = False
+        
+        if (error_u  ) and (L1_u   > delta_u  ):
+            print("\nCheck Error L1_u   failed : " + L1_u.__str__()   + " > " + delta_u.__str__()  )
+            successfully = False
+        
+        if (error_p  ) and (L1_p   > delta_p  ):
+            print("\nCheck Error L1_p   failed : " + L1_p.__str__()   + " > " + delta_p.__str__()  )
+            successfully = False
+        
+        if (error_vel) and (L1_vel > delta_vel):
+            print("\nCheck Error L1_vel failed : " + L1_vel.__str__() + " > " + delta_vel.__str__())
+            successfully = False
+        
+        if (error_cs ) and (L1_cs  > delta_cs ):
+            print("\nCheck Error L1_cs  failed : " + L1_cs.__str__()  + " > " + delta_cs.__str__() )
+            successfully = False
+
+
+    # Check finish        
+    if successfully:
+        print("\nComparation finished successfully !\n")
+        exit(0)
+    else:
+        print("\nComparation failed !\n")
+        exit(-1)
 
 
 if __name__ == "__main__":

@@ -176,7 +176,7 @@ int main(int argc, char** argv)
                 d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov.h5part");
 #else
             fileWriter.dumpParticleDataToAsciiFile(
-                d, domain.startIndex(), domain.endIndex(), "dump_sedov" + std::to_string(d.iteration) + ".txt");
+                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".txt");
 #endif
             timer.step("writeFile");
         }
