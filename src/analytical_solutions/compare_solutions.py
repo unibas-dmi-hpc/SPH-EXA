@@ -54,7 +54,7 @@ default_nparts    = 125000
 default_snapshot  = "./dump_sedov0.txt"
 default_timestep  = 0.
 default_constants = "./constants.txt"
-default_iteration = 0
+default_iteration = -1
 
 @cli.command()
 @click.option('-bf', '--binary_file',    required=False, default=default_binary,    help='Binary file to compare. Default: ['         + default_binary              + '].', type=click.STRING)
@@ -96,7 +96,7 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         exit(-1)
     elif (time == 0.):
         if (iteration < 0): 
-            print("No valid iteration=" + iteration.__str__())
+            print("No valid iteration=" + iteration.__str__() +". It should be 0 or more")
             exit(-1)
         else:
             if (not os.path.isfile(constants_file)):
