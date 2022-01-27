@@ -261,7 +261,7 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         
         print("\nGenerating graphics ...")
         
-        figureName = "./sedov_density_comparation_"   + time.__str__() + ".svg"
+        figureName = "./sedov_density_"   + time.__str__() + ".png"
         plt.plot(sim_r,sim_rho,".", label = "Simulation")
         plt.plot(sol_r,sol_rho,     label = "Solution")
         plt.xlabel('r')
@@ -269,11 +269,11 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         plt.draw()
         plt.title('Density')
         plt.legend(loc='upper right')
-        plt.savefig(figureName, format='svg')
+        plt.savefig(figureName, format='png')
         plt.figure().clear()
         print("'Radius vs Density' done.")
     
-        figureName = "./sedov_presure_comparation_"   + time.__str__() + ".svg"
+        figureName = "./sedov_pressure_"   + time.__str__() + ".png"
         plt.plot(sim_r,sim_p,".", label = "Simulation")
         plt.plot(sol_r,sol_p,     label = "Solution")
         plt.xlabel('r')
@@ -281,11 +281,11 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         plt.draw()
         plt.title('Pressure')
         plt.legend(loc='upper right')
-        plt.savefig(figureName, format='svg')
+        plt.savefig(figureName, format='png')
         plt.figure().clear()
         print("'Radius vs Pressure' done.")
     
-        figureName = "./sedov_velocity_comparation_"   + time.__str__() + ".svg" 
+        figureName = "./sedov_velocity_"   + time.__str__() + ".png" 
         plt.plot(sim_r,sim_vel,".", label = "Simulation")
         plt.plot(sol_r,sol_vel,     label = "Solution")
         plt.xlabel('r')
@@ -293,7 +293,7 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         plt.draw()
         plt.title('Velocity')
         plt.legend(loc='upper right')
-        plt.savefig(figureName, format='svg')
+        plt.savefig(figureName, format='png')
         plt.figure().clear()
         print("'Radius vs Velocity' done.")
 
