@@ -35,7 +35,7 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/tree/octree_internal_td.hpp"
+#include "cstone/tree/octree_internal.hpp"
 #include "cstone/tree/octree_util.hpp"
 
 using namespace cstone;

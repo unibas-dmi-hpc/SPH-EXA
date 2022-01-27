@@ -36,7 +36,7 @@
 #include <thrust/host_vector.h>
 
 #include "cstone/tree/btree.cuh"
-#include "cstone/tree/octree_internal_td.hpp"
+#include "cstone/tree/octree_internal.hpp"
 
 namespace cstone {
 

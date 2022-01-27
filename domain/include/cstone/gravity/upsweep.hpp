@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "cstone/tree/octree_internal_td.hpp"
+#include "cstone/tree/octree_internal.hpp"
 #include "cstone/gravity/multipole.hpp"
 
 namespace cstone

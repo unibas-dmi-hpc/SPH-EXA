@@ -23,7 +23,7 @@ set(UNIT_TESTS
         traversal/traversal.cpp
         tree/btree.cpp
         tree/octree.cpp
-        tree/octree_internal_td.cpp
+        tree/octree_internal.cpp
         tree/octree_util.cpp
         util/util.cpp
         test_main.cpp)

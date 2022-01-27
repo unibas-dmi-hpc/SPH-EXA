@@ -36,7 +36,7 @@
 #include "cstone/halos/discovery.hpp"
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/tree/octree.hpp"
-#include "cstone/tree/octree_internal_td.hpp"
+#include "cstone/tree/octree_internal.hpp"
 
 #include "coord_samples/random.hpp"
 #include "coord_samples/plummer.hpp"
