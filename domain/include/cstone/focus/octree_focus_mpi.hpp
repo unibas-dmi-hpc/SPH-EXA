@@ -204,7 +204,7 @@ public:
     }
 
     //! @brief the fully linked traversable octree
-    const TdOctree<KeyType>& octree() const { return tree_.octree(); }
+    const Octree<KeyType>& octree() const { return tree_.octree(); }
     //! @brief the cornerstone leaf cell array
     gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
     //! @brief the assignment of the focus tree leaves to peer ranks

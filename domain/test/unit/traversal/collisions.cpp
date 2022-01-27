@@ -50,7 +50,7 @@ template<class KeyType>
 static std::vector<TreeNodeIndex>
 findCollidingIndices(IBox target, gsl::span<const KeyType> leaves, KeyType exclStart, KeyType exclEnd)
 {
-    TdOctree<KeyType> octree;
+    Octree<KeyType> octree;
     octree.update(leaves.data(), nNodes(leaves));
 
     std::vector<TreeNodeIndex> collisions;

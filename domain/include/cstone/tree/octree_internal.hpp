@@ -208,10 +208,10 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree,
 template<class K> class FocusedOctreeCore;
 
 template<class KeyType>
-class TdOctree
+class Octree
 {
 public:
-    TdOctree() = default;
+    Octree() = default;
 
     //! @brief update tree, copying from externally provided leaf keys
     void update(const KeyType* leaves, TreeNodeIndex numLeafNodes)
@@ -414,7 +414,7 @@ private:
 };
 
 template<class T, class KeyType, class CombinationFunction>
-void upsweep(const TdOctree<KeyType>& octree, T* quantities, CombinationFunction combinationFunction)
+void upsweep(const Octree<KeyType>& octree, T* quantities, CombinationFunction combinationFunction)
 {
     int currentLevel = maxTreeLevel<KeyType>{};
 
@@ -442,7 +442,7 @@ void upsweep(const TdOctree<KeyType>& octree, T* quantities, CombinationFunction
 
 //! @brief perform upsweep, initializing leaf quantities from a separate array
 template<class T, class KeyType, class CombinationFunction>
-void upsweep(const TdOctree<KeyType>& octree,
+void upsweep(const Octree<KeyType>& octree,
              gsl::span<const T> leafQuantities,
              gsl::span<T> quantities,
              CombinationFunction combinationFunction)
@@ -458,7 +458,7 @@ void upsweep(const TdOctree<KeyType>& octree,
 }
 
 template<class T, class KeyType>
-void upsweepSum(const TdOctree<KeyType>& octree, gsl::span<const T> leafQuantities, gsl::span<T> quantities)
+void upsweepSum(const Octree<KeyType>& octree, gsl::span<const T> leafQuantities, gsl::span<T> quantities)
 {
     auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h)
     { return a + b + c + d + e + f + g + h; };

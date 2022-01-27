@@ -74,7 +74,7 @@ template<class KeyType>
 static void findMacPeers64grid(int rank, float theta, bool pbc, int refNumPeers)
 {
     Box<double> box{-1, 1, pbc};
-    TdOctree<KeyType> octree;
+    Octree<KeyType> octree;
     auto leaves = makeUniformNLevelTree<KeyType>(64, 1);
     octree.update(leaves.data(), nNodes(leaves));
 
@@ -122,7 +122,7 @@ static void findPeers()
     auto particleKeys   = makeRandomGaussianKeys<KeyType>(nParticles);
     auto [tree, counts] = computeOctree(particleKeys.data(), particleKeys.data() + nParticles, bucketSize);
 
-    TdOctree<KeyType> octree;
+    Octree<KeyType> octree;
     octree.update(tree.data(), nNodes(tree));
 
     SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, numRanks);

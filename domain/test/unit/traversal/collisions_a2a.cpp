@@ -54,7 +54,7 @@ using namespace cstone;
 template<class KeyType, class T>
 static void generalCollisionTest(const std::vector<KeyType>& tree, const std::vector<T>& haloRadii, const Box<T>& box)
 {
-    TdOctree<KeyType> octree;
+    Octree<KeyType> octree;
     octree.update(tree.data(), nNodes(tree));
 
     // tree traversal collision detection

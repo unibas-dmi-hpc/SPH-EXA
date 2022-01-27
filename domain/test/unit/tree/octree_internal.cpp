@@ -41,7 +41,7 @@
 using namespace cstone;
 
 template<class KeyType>
-void checkConnectivity(const TdOctree<KeyType>& fullTree)
+void checkConnectivity(const Octree<KeyType>& fullTree)
 {
     ASSERT_TRUE(fullTree.isRoot(0));
 
@@ -91,11 +91,11 @@ void checkConnectivity(const TdOctree<KeyType>& fullTree)
     }
 }
 
-TEST(InternalOctreeTd, rootNode)
+TEST(InternalOctree, rootNode)
 {
     auto tree = makeRootNodeTree<unsigned>();
 
-    TdOctree<unsigned> fullTree;
+    Octree<unsigned> fullTree;
     fullTree.update(tree.data(), nNodes(tree));
 
     EXPECT_EQ(fullTree.numLeafNodes(), 1);
@@ -119,7 +119,7 @@ static void octree4x4x4()
 {
     std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
-    TdOctree<KeyType> fullTree;
+    Octree<KeyType> fullTree;
     fullTree.update(tree.data(), nNodes(tree));
 
     ASSERT_EQ(fullTree.numInternalNodes(), (64 - 1) / 7);
@@ -134,7 +134,7 @@ static void octree4x4x4()
     checkConnectivity<KeyType>(fullTree);
 }
 
-TEST(InternalOctreeTd, octree4x4x4)
+TEST(InternalOctree, octree4x4x4)
 {
     octree4x4x4<unsigned>();
     octree4x4x4<uint64_t>();
@@ -153,7 +153,7 @@ static void octreeIrregularL2()
 {
     std::vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(0).makeTree();
 
-    TdOctree<KeyType> fullTree;
+    Octree<KeyType> fullTree;
     fullTree.update(tree.data(), nNodes(tree));
 
     ASSERT_EQ(fullTree.numInternalNodes(), (15 - 1) / 7);
@@ -166,7 +166,7 @@ static void octreeIrregularL2()
     checkConnectivity<KeyType>(fullTree);
 }
 
-TEST(InternalOctreeTd, irregularL2)
+TEST(InternalOctree, irregularL2)
 {
     octreeIrregularL2<unsigned>();
     octreeIrregularL2<uint64_t>();
@@ -178,7 +178,7 @@ static void octreeIrregularL3()
 {
     std::vector<KeyType> tree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0, 2).divide(3).makeTree();
 
-    TdOctree<KeyType> fullTree;
+    Octree<KeyType> fullTree;
     fullTree.update(tree.data(), nNodes(tree));
     EXPECT_EQ(fullTree.numTreeNodes(), 33);
     EXPECT_EQ(fullTree.numLeafNodes(), 29);
@@ -192,7 +192,7 @@ static void octreeIrregularL3()
     checkConnectivity<KeyType>(fullTree);
 }
 
-TEST(InternalOctreeTd, irregularL3)
+TEST(InternalOctree, irregularL3)
 {
     octreeIrregularL3<unsigned>();
     octreeIrregularL3<uint64_t>();
@@ -206,13 +206,13 @@ static void spanningTree()
     std::vector<KeyType> cornerstones{0, 1, 030173, 03333333333, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
     std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
 
-    TdOctree<KeyType> fullTree;
+    Octree<KeyType> fullTree;
     fullTree.update(spanningTree.data(), nNodes(spanningTree));
 
     checkConnectivity(fullTree);
 }
 
-TEST(InternalOctreeTd, spanningTree)
+TEST(InternalOctree, spanningTree)
 {
     spanningTree<unsigned>();
     spanningTree<uint64_t>();
@@ -250,7 +250,7 @@ static void binaryIndexConversion()
     }
 }
 
-TEST(InternalOctreeTd, binaryIndexConversion)
+TEST(InternalOctree, binaryIndexConversion)
 {
     binaryIndexConversion<unsigned>();
     binaryIndexConversion<uint64_t>();
@@ -263,7 +263,7 @@ static void locate()
         std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
         std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
 
-        TdOctree<KeyType> fullTree;
+        Octree<KeyType> fullTree;
         fullTree.update(spanningTree.data(), nNodes(spanningTree));
 
         for (TreeNodeIndex i = 0; i < fullTree.numTreeNodes(); ++i)
@@ -276,7 +276,7 @@ static void locate()
     }
     {
         std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(4096, 1);
-        TdOctree<KeyType> fullTree;
+        Octree<KeyType> fullTree;
         fullTree.update(tree.data(), nNodes(tree));
 
         for (TreeNodeIndex i = 0; i < fullTree.numTreeNodes(); ++i)
@@ -289,7 +289,7 @@ static void locate()
     }
 }
 
-TEST(InternalOctreeTd, locate)
+TEST(InternalOctree, locate)
 {
     locate<unsigned>();
     locate<uint64_t>();
@@ -301,7 +301,7 @@ static void cstoneIndex()
     std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
     std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
 
-    TdOctree<KeyType> fullTree;
+    Octree<KeyType> fullTree;
     fullTree.update(spanningTree.data(), nNodes(spanningTree));
 
     for (TreeNodeIndex i = 0; i < fullTree.numTreeNodes(); ++i)
@@ -316,7 +316,7 @@ static void cstoneIndex()
     }
 }
 
-TEST(InternalOctreeTd, cstoneIndex)
+TEST(InternalOctree, cstoneIndex)
 {
     cstoneIndex<unsigned>();
     cstoneIndex<uint64_t>();
@@ -328,7 +328,7 @@ static void extractLeaves()
     std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
     std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
 
-    TdOctree<KeyType> fullTree;
+    Octree<KeyType> fullTree;
     fullTree.update(spanningTree.data(), nNodes(spanningTree));
 
     std::vector<KeyType> prefixes(fullTree.numTreeNodes());
@@ -343,7 +343,7 @@ static void extractLeaves()
     EXPECT_TRUE(std::equal(leafExtract.begin(), leafExtract.end(), spanningTree.begin()));
 }
 
-TEST(InternalOctreeTd, extractLeaves)
+TEST(InternalOctree, extractLeaves)
 {
     extractLeaves<unsigned>();
     extractLeaves<uint64_t>();
@@ -353,7 +353,7 @@ template<class KeyType>
 static void upsweepSumIrregularL3()
 {
     std::vector<KeyType> cstoneTree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0, 2).divide(3).makeTree();
-    TdOctree<KeyType> octree;
+    Octree<KeyType> octree;
     octree.update(cstoneTree.data(), nNodes(cstoneTree));
 
     std::vector<unsigned> leafCounts(nNodes(cstoneTree), 1);

@@ -66,7 +66,7 @@ void findHalosFlags()
     // size of one node is 0.25^3
     std::vector<double> interactionRadii(nNodes(tree), 0.1);
 
-    TdOctree<KeyType> octree;
+    Octree<KeyType> octree;
     octree.update(tree.data(), nNodes(tree));
 
     {

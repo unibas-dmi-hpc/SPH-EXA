@@ -77,7 +77,7 @@ template<class KeyType>
 bool updateOctreeGlobal(const KeyType* keyStart,
                         const KeyType* keyEnd,
                         unsigned bucketSize,
-                        TdOctree<KeyType>& tree,
+                        Octree<KeyType>& tree,
                         std::vector<unsigned>& counts,
                         int numRanks)
 {

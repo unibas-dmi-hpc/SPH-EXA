@@ -62,7 +62,7 @@ int main()
     auto [tree, counts] = computeOctree(coordinates.particleKeys().data(),
                                         coordinates.particleKeys().data() + numParticles,
                                         bucketSize);
-    TdOctree<KeyType> octree;
+    Octree<KeyType> octree;
     octree.update(tree.data(), nNodes(tree));
 
     std::vector<LocalIndex> layout(octree.numLeafNodes() + 1);

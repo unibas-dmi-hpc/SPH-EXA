@@ -206,7 +206,7 @@ private:
     //! @brief leaf particle counts
     std::vector<unsigned> nodeCounts_;
     //! @brief the fully linked octree
-    TdOctree<KeyType> tree_;
+    Octree<KeyType> tree_;
 
     bool firstCall_{true};
 };

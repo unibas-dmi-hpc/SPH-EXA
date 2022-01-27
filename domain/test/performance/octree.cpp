@@ -93,7 +93,7 @@ void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std
                   << " collidingNodes: " << std::accumulate(begin(collisionFlags), end(collisionFlags), 0) << std::endl;
     }
     {
-        TdOctree<KeyType> octree;
+        Octree<KeyType> octree;
         auto u0 = std::chrono::high_resolution_clock::now();
         octree.update(tree.data(), nNodes(tree));
         auto u1 = std::chrono::high_resolution_clock::now();

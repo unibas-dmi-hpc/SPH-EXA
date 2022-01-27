@@ -350,7 +350,7 @@ public:
     }
 
     //! @brief provide access to the linked octree
-    const TdOctree<KeyType>& octree() const { return tree_; }
+    const Octree<KeyType>& octree() const { return tree_; }
 
     //! @brief returns a view of the tree leaves
     gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
@@ -360,7 +360,7 @@ private:
     unsigned bucketSize_;
 
     //! @brief the focused tree
-    TdOctree<KeyType> tree_;
+    Octree<KeyType> tree_;
 };
 
 /*! @brief A fully traversable octree, locally focused w.r.t a MinMac criterion
@@ -403,7 +403,7 @@ public:
         return converged;
     }
 
-    const TdOctree<KeyType>& octree() const { return tree_.octree(); }
+    const Octree<KeyType>& octree() const { return tree_.octree(); }
 
     gsl::span<const KeyType>  treeLeaves() const { return tree_.treeLeaves(); }
     gsl::span<const unsigned> leafCounts() const { return leafCounts_; }

@@ -52,7 +52,7 @@ void compareAgainstCpu(const std::vector<KeyType>& tree)
 
     buildInternalOctreeGpu(thrust::raw_pointer_cast(d_leaves.data()), gpuTree.getData());
 
-    TdOctree<KeyType> cpuTree;
+    Octree<KeyType> cpuTree;
     cpuTree.update(tree.data(), nNodes(tree));
 
     thrust::host_vector<KeyType> h_prefixes = gpuTree.prefixes;

@@ -49,7 +49,7 @@ int main()
     auto codes = makeRandomGaussianKeys<KeyType>(nParticles);
 
     auto [treeLeaves, counts] = computeOctree(codes.data(), codes.data() + nParticles, bucketSize);
-    TdOctree<KeyType> octree;
+    Octree<KeyType> octree;
     octree.update(treeLeaves.data(), nNodes(treeLeaves));
 
     SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, numRanks);

@@ -278,7 +278,7 @@ void markMacTd()
     Box<double> box(0, 1);
     std::vector<KeyType> treeLeaves = OctreeMaker<KeyType>{}.divide().divide(0).divide(7).makeTree();
 
-    TdOctree<KeyType> fullTree;
+    Octree<KeyType> fullTree;
     fullTree.update(treeLeaves.data(), nNodes(treeLeaves));
 
     std::vector<char> markingsTd(fullTree.numTreeNodes(), 0);

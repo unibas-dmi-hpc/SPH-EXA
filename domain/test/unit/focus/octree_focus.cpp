@@ -40,7 +40,7 @@ namespace cstone
 {
 
 template<class KeyType>
-static auto computeNodeOps(const TdOctree<KeyType>& octree,
+static auto computeNodeOps(const Octree<KeyType>& octree,
                            const std::vector<unsigned>& leafCounts,
                            const std::vector<char>& csMacs,
                            KeyType focusStart,
@@ -81,7 +81,7 @@ template<class KeyType>
 static void rebalanceDecision()
 {
     std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(0).divide(7).makeTree();
-    TdOctree<KeyType> tdtree;
+    Octree<KeyType> tdtree;
     tdtree.update(cstree.data(), nNodes(cstree));
 
     unsigned bucketSize = 1;
@@ -140,7 +140,7 @@ static void rebalanceDecision()
         // this example has a focus area that cuts through sets of 8 neighboring sibling nodes
         std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(0).divide(1).makeTree();
 
-        TdOctree<KeyType> octree;
+        Octree<KeyType> octree;
         octree.update(cstree.data(), nNodes(cstree));
         //                               |                     |                       |
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
@@ -164,7 +164,7 @@ static void rebalanceDecision()
     {
         std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(6).divide(7).makeTree();
 
-        TdOctree<KeyType> octree;
+        Octree<KeyType> octree;
         octree.update(cstree.data(), nNodes(cstree));
 
         //                                                                        focus
@@ -340,7 +340,7 @@ static void computeEssentialTree()
     auto codes = makeRandomUniformKeys<KeyType>(nParticles);
 
     auto [csTree, csCounts] = computeOctree(codes.data(), codes.data() + nParticles, csBucketSize);
-    TdOctree<KeyType> globalTree;
+    Octree<KeyType> globalTree;
     globalTree.update(csTree.data(), nNodes(csTree));
 
     unsigned bucketSize = 16;

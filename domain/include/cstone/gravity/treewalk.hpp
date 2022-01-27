@@ -68,7 +68,7 @@ namespace cstone
  */
 template<class KeyType, class T1, class T2, class T3>
 void computeGravityGroup(TreeNodeIndex groupIdx,
-                         const TdOctree<KeyType>& octree,
+                         const Octree<KeyType>& octree,
                          const GravityMultipole<T1>* multipoles,
                          const LocalIndex* layout,
                          const T2* x,
@@ -200,7 +200,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
 
 //! @brief repeats computeGravityGroup for all leaf node indices specified
 template<class KeyType, class T1, class T2, class T3>
-void computeGravity(const TdOctree<KeyType>& octree, const GravityMultipole<T1>* multipoles,
+void computeGravity(const Octree<KeyType>& octree, const GravityMultipole<T1>* multipoles,
                     const LocalIndex* layout, TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex,
                     const T2* x, const T2* y, const T2* z, const T3* h, const T3* m,
                     const Box<T2>& box, float theta, float G, T2* ax, T2* ay, T2* az, T2* ugrav)
@@ -243,7 +243,7 @@ void computeGravity(const TdOctree<KeyType>& octree, const GravityMultipole<T1>*
  * @return                       total gravitational energy
  */
 template<class KeyType, class T1, class T2, class T3>
-T2 computeGravity(const TdOctree<KeyType>& octree,
+T2 computeGravity(const Octree<KeyType>& octree,
                   const GravityMultipole<T1>* multipoles,
                   const LocalIndex* layout, TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex,
                   const T2* x, const T2* y, const T2* z, const T3* h, const T3* m,
