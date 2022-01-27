@@ -1,4 +1,6 @@
 
 add_subdirectory(evrard)
 add_subdirectory(sedov)
-add_subdirectory(analyticalSolutions)
+if(BUILD_ANALYTICAL)
+    add_subdirectory(analyticalSolutions)
+endif()
