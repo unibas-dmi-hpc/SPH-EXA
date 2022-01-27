@@ -372,7 +372,7 @@ static void upsweepSumIrregularL3()
     EXPECT_EQ(nodeCounts[0], 29);
 }
 
-TEST(UpsweepTd, sumIrregularL3)
+TEST(Upsweep, sumIrregularL3)
 {
     upsweepSumIrregularL3<unsigned>();
     upsweepSumIrregularL3<uint64_t>();
