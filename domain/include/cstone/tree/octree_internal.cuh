@@ -143,19 +143,9 @@ __global__ void linkTree(const KeyType* prefixes,
 template<class KeyType>
 __global__ void getLevelRange(const KeyType* nodeKeys, TreeNodeIndex numNodes, TreeNodeIndex* levelRange)
 {
-    int tid = int(blockDim.x * blockIdx.x + threadIdx.x);
-    if (tid < numNodes - 1)
-    {
-        unsigned l1 = decodePrefixLength(nodeKeys[tid]);
-        unsigned l2 = decodePrefixLength(nodeKeys[tid + 1]);
-
-        if (l1 != l2) { levelRange[l2 / 3] = tid + 1; }
-    }
-    if (tid == numNodes - 1)
-    {
-        unsigned l1        = decodePrefixLength(nodeKeys[tid]);
-        levelRange[l1 / 3 + 1] = tid + 1;
-    }
+    unsigned level = blockIdx.x;
+    auto it = stl::lower_bound(nodeKeys, nodeKeys + numNodes, encodePlaceholderBit(KeyType(0), 3 * level));
+    levelRange[level] = TreeNodeIndex(it - nodeKeys);
 }
 
 //! @brief computes the inverse of the permutation given by @p order
@@ -189,7 +179,7 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeGpuDataView<KeyType
     thrust::sort_by_key(thrust::device, d.prefixes, d.prefixes + numNodes, d.nodeOrder);
 
     invertOrder<<<iceil(numNodes, numThreads), numThreads>>>(d.nodeOrder, d.inverseNodeOrder, numNodes);
-    getLevelRange<<<iceil(numNodes, numThreads), numThreads>>>(d.prefixes, numNodes, d.levelRange);
+    getLevelRange<<<maxTreeLevel<KeyType>{} + 2, 1>>>(d.prefixes, numNodes, d.levelRange);
 
     thrust::fill(thrust::device, d.childOffsets, d.childOffsets + numNodes, 0);
     linkTree<<<iceil(d.numInternalNodes, numThreads), numThreads>>>(d.prefixes, d.numInternalNodes, d.inverseNodeOrder,
