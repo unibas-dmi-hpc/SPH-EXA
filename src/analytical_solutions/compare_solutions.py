@@ -55,30 +55,33 @@ default_snapshot  = "./dump_sedov0.txt"
 default_timestep  = 0.
 default_constants = "./constants.txt"
 default_iteration = -1
+default_no_plots  = False
+default_outPath   = "./"
 
 @cli.command()
-@click.option('-bf', '--binary_file',    required=False, default=default_binary,    help='Binary file to compare. Default: ['         + default_binary              + '].', type=click.STRING)
-@click.option('-n',  '--nparts',         required=True,  default=default_nparts,    help='Number of particles. Default: ['            + default_nparts.__str__()    + '].', type=click.INT   )
-@click.option('-sf', '--snapshot_file',  required=True,  default=default_snapshot,  help='Simulation snapshot file. Default: ['       + default_snapshot            + '].', type=click.STRING)
-@click.option('-t',  '--time',           required=False, default=default_timestep,  help='Simulation time. Default: ['                + default_timestep.__str__()  + '].', type=click.FLOAT )
-@click.option('-cf', '--constants_file', required=False, default=default_constants, help='Simulation constants file. Default: ['      + default_constants           + '].', type=click.STRING)
-@click.option('-i',  '--iteration',      required=False, default=default_iteration, help='Iteration in the constant file. Default: [' + default_iteration.__str__() + '].', type=click.INT   )
-@click.option('-np', '--no_plots',       required=False, default=False,             help='No create plots. Default: [False].',                                              is_flag=True     )
-def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, no_plots):
+@click.option('-bf', '--binary_file',    required=False, default=default_binary,    help='Binary file to compare. Default: ['         + default_binary              + '].', type=click.STRING           )
+@click.option('-n',  '--nparts',         required=True,  default=default_nparts,    help='Number of particles. Default: ['            + default_nparts.__str__()    + '].', type=click.INT              )
+@click.option('-sf', '--snapshot_file',  required=True,  default=default_snapshot,  help='Simulation snapshot file. Default: ['       + default_snapshot            + '].', type=click.STRING           )
+@click.option('-t',  '--time',           required=False, default=default_timestep,  help='Simulation time. Default: ['                + default_timestep.__str__()  + '].', type=click.FLOAT            )
+@click.option('-cf', '--constants_file', required=False, default=default_constants, help='Simulation constants file. Default: ['      + default_constants           + '].', type=click.STRING           )
+@click.option('-i',  '--iteration',      required=False, default=default_iteration, help='Iteration in the constant file. Default: [' + default_iteration.__str__() + '].', type=click.INT              )
+@click.option('-np', '--no_plots',       required=False, default=False,             help='No create plots. Default: ['                + default_no_plots.__str__()  + '].', is_flag=True                )
+@click.option('-o',  '--out_path',       required=False, default=default_outPath,   help='Output directory. Default: ['               + default_outPath             + '].', type=click.Path(exists=True))
+def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, no_plots, out_path):
 
     ''' 
         Compare SPH-EXA simulation with Analytical solution.
     '''
     
     print("")
-    print(    "binary_file    = " + binary_file         )
-    print(    "nparts         = " + nparts.__str__()    )
-    print(    "snapshot_file  = " + snapshot_file       )
-    print(    "time           = " + time.__str__()      )
-    print(    "constants_file = " + constants_file      )
-    print(    "iteration      = " + iteration.__str__() )
-    if no_plots:
-        print("no_plots       =" + "False"              )
+    print("binary_file    = " + binary_file         )
+    print("nparts         = " + nparts.__str__()    )
+    print("snapshot_file  = " + snapshot_file       )
+    print("time           = " + time.__str__()      )
+    print("constants_file = " + constants_file      )
+    print("iteration      = " + iteration.__str__() )
+    print("no_plots       = " + no_plots.__str__()  )
+    print("out_path       = " + out_path.__str__()  )
     print("")
         
         
@@ -155,25 +158,28 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
     
     # Make command line
     command  = binary_file 
-    command += " --time "   + time.__str__()
-    command += " --nParts " + nparts.__str__()
-    command += " --input "  + snapshot_file
+    command += " --time "    + time.__str__()
+    command += " --nParts "  + nparts.__str__()
+    command += " --input "   + snapshot_file
+    command += " --outPath " + out_path
     print("Command:\n" + command)
         
     # Execute solutionSedov
     os.system(command)
     
+
+    print("Checking outputs ...")
     
     # Make outputs
-    solFile = "./sedov_solution_"   + time.__str__() + ".dat"
-    simFile = "./sedov_simulation_" + time.__str__() + ".dat" 
+    solFile = out_path + "sedov_solution_"   + time.__str__() + ".dat"
+    simFile = out_path + "sedov_simulation_" + time.__str__() + ".dat" 
     
     # Load Solution file
     if (not os.path.isfile(solFile)):
         print("Solution file [" + solFile + "] doesn't exist.")
         exit(-1)
     else:
-        print("Reading Solution   file [" + solFile + "  ] ...")
+        print("Reading Solution     file [" + solFile + "  ]")
         file  = open(solFile, 'r')
         
         # Read data lines without header
@@ -216,7 +222,7 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         print("Simulation file [" + simFile + "] doesn't exist.")
         exit(-1)
     else:
-        print("Reading Simulation file [" + simFile + "] ...")
+        print("Reading Simulation   file [" + simFile + "]")
         file  = open(simFile, 'r')
         
         # Read data lines without header
@@ -261,7 +267,7 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         
         print("\nGenerating graphics ...")
         
-        figureName = "./sedov_density_"   + time.__str__() + ".png"
+        figureName = out_path + "sedov_density_"   + time.__str__() + ".png"
         plt.plot(sim_r,sim_rho,".", label = "Simulation")
         plt.plot(sol_r,sol_rho,     label = "Solution")
         plt.xlabel('r')
@@ -271,9 +277,9 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         plt.legend(loc='upper right')
         plt.savefig(figureName, format='png')
         plt.figure().clear()
-        print("'Radius vs Density' done.")
+        print("'Radius vs Density'  done [" + figureName + "   ]")
     
-        figureName = "./sedov_pressure_"   + time.__str__() + ".png"
+        figureName = out_path + "sedov_pressure_"   + time.__str__() + ".png"
         plt.plot(sim_r,sim_p,".", label = "Simulation")
         plt.plot(sol_r,sol_p,     label = "Solution")
         plt.xlabel('r')
@@ -283,9 +289,9 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         plt.legend(loc='upper right')
         plt.savefig(figureName, format='png')
         plt.figure().clear()
-        print("'Radius vs Pressure' done.")
+        print("'Radius vs Pressure' done [" + figureName + "  ]")
     
-        figureName = "./sedov_velocity_"   + time.__str__() + ".png" 
+        figureName = out_path + "sedov_velocity_"   + time.__str__() + ".png" 
         plt.plot(sim_r,sim_vel,".", label = "Simulation")
         plt.plot(sol_r,sol_vel,     label = "Solution")
         plt.xlabel('r')
@@ -295,7 +301,7 @@ def sedov(binary_file, nparts, snapshot_file, time, constants_file, iteration, n
         plt.legend(loc='upper right')
         plt.savefig(figureName, format='png')
         plt.figure().clear()
-        print("'Radius vs Velocity' done.")
+        print("'Radius vs Velocity' done [" + figureName + "  ]")
 
     print("\nComparation finished successfully!\n")
 
