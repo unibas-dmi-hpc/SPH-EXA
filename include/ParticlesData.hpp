@@ -54,13 +54,14 @@ struct ParticlesData
     std::vector<T> h;                            // Smoothing Length
     std::vector<T> m;                            // Mass
     std::vector<T> c;                            // Speed of sound
-    std::vector<T> grad_P_x, grad_P_y, grad_P_z; // gradient of the pressure
-    std::vector<T> du, du_m1;                    // variation of the energy
+    std::vector<T> grad_P_x, grad_P_y, grad_P_z; // Gradient of pressure
+    std::vector<T> du, du_m1;                    // Variation of energy
     std::vector<T> dt, dt_m1;
     std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T> maxvsignal;
     std::vector<T> rho0, wrho0;                  // Term for VEs
     std::vector<T> kx, whomega;
+    std::vector<T> divv, curlv;                  // Divergence and curl of velocity
 
     std::vector<KeyType> codes; // Particle Morton codes
 

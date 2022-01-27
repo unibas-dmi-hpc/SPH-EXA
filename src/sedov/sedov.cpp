@@ -136,9 +136,11 @@ int main(int argc, char** argv)
         timer.step("mpi::synchronizeHalos");
         computeDensity<Real>(taskList.tasks, d, domain.box());
         timer.step("Density");
+        computedivv_curlv<Real>(taskList.tasks, d, domain.box());
+        timer.step("divv_curlv");
         computeEquationOfStateEvrard<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c, d.kx);
+        domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c, d.kx, d.divv, d.curlv);
         timer.step("mpi::synchronizeHalos");
         computeIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("IAD");

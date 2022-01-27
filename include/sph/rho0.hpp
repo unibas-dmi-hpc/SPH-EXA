@@ -34,7 +34,7 @@ void computeRho0Impl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     const T *wh = d.wh.data();
     const T *whd = d.whd.data();
 
-    const T *ro = d.ro.data();
+    //const T *ro = d.ro.data();
 
     T *rho0 = d.rho0.data();
     T *wrho0 = d.wrho0.data();

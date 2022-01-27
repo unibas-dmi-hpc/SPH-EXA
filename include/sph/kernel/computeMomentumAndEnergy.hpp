@@ -32,11 +32,11 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
 
     T hi  = h[i];
     T roi = ro[i];
-    T pri = p[i];
+    //T pri = p[i];
     T ci  = c[i];
     T kxi    = kx[i];
 
-    T mi_roi = m[i] / ro[i];
+    //T mi_roi = m[i] / ro[i];
     T xmassi = m[i] / rho0[i];
     T proi   = p[i] / kxi / m[i] / m[i];
     T voli   = xmassi / kxi;
@@ -116,7 +116,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         maxvsignali = (vijsignal > maxvsignali) ? vijsignal : maxvsignali;
 
         T mj        = m[j];
-        T mj_roj_Wj = mj / roj * Wj;
+        //T mj_roj_Wj = mj / roj * Wj;
 
         //T mj_pro_i = mj * pri  / (gradh_i * roi * roi);
         T proj   = p[j] / kx[j] / m[j] / m[j];

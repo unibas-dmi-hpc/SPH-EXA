@@ -1,4 +1,5 @@
 set(UNIT_TESTS
+        divv_curlv.cpp
         rho0.cpp
         density.cpp
         iad.cpp
