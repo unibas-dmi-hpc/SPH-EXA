@@ -130,7 +130,7 @@ template<class KeyType>
 void linkTreeCpu(const KeyType* prefixes,
                  TreeNodeIndex numInternalNodes,
                  const TreeNodeIndex* inverseNodeOrder,
-                 TreeNodeIndex* levelRange,
+                 const TreeNodeIndex* levelRange,
                  TreeNodeIndex* childOffsets,
                  TreeNodeIndex* parents)
 {
