@@ -84,16 +84,15 @@ CUDA_DEVICE_FUN inline T artificial_viscosity_old(T ro_i, T ro_j, T h_i, T h_j, 
  * @return      the viscosity
  */
 template<typename T>
-CUDA_DEVICE_FUN inline T artificial_viscosity(T c_i, T c_j, T w_ij)
+CUDA_DEVICE_FUN inline T artificial_viscosity(T alpha_i, T alpha_j, T c_i, T c_j, T w_ij)
 {
     // alpha is const for now, but will be different for each particle when using viscosity switching
-    constexpr T alpha = 1.0;
     constexpr T beta  = 2.0;
 
     T viscosity_ij = 0.0;
     if (w_ij < 0.0)
     {
-        T vij_signal = (alpha + alpha) / 4.0 * (c_i + c_j) - beta * w_ij;
+        T vij_signal = (alpha_i + alpha_j) / 4.0 * (c_i + c_j) - beta * w_ij;
         viscosity_ij = -vij_signal * w_ij;
     }
 

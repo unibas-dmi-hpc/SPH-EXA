@@ -33,20 +33,22 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/kernel/computeMomentumAndEnergy.hpp"
+#include "sph/kernel/computeAVswitches.hpp"
 #include "sph/lookupTables.hpp"
 
 using namespace sphexa;
 
-TEST(MomentumEnergy, JLoop)
+TEST(AVswitches, JLoop)
 {
     using T = double;
 
     T sincIndex = 6.0;
     T K         = compute_3d_k(sincIndex);
-    T Atmin     = 0.1;
-    T Atmax     = 0.2;
-    T ramp      = 1.0 / (Atmax - Atmin);
+    T alphamin  = 0.05;
+    T alphamax  = 1.0;
+    T decay_constant = 0.2;
+    T alphai    = alphamax;
+    T dt        = 1.5;
 
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
@@ -62,16 +64,11 @@ TEST(MomentumEnergy, JLoop)
     std::vector<T> z{1.2, 2.3, 1.4, 1.5, 1.6};
     std::vector<T> h{5.0, 5.1, 5.2, 5.3, 5.4};
     std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
-    std::vector<T> rho{0.014, 0.015, 0.016, 0.017, 0.018};
+    std::vector<T> c{0.4, 0.5, 0.6, 0.7, 0.8};
 
     std::vector<T> vx{0.010, -0.020, 0.030, -0.040,  0.050};
     std::vector<T> vy{-0.011, 0.021, -0.031, 0.041, -0.051};
     std::vector<T> vz{0.091, -0.081, 0.071, -0.061,  0.055};
-
-    std::vector<T> c{0.4, 0.5, 0.6, 0.7, 0.8};
-    std::vector<T> p{0.2, 0.3, 0.4, 0.5, 0.6};
-
-    std::vector<T> alpha{1.0, 0.05, 0.3, 0.5, 0.3};
 
     std::vector<T> c11{0.21, 0.27, 0.10, 0.45, 0.46};
     std::vector<T> c12{-0.22, -0.29, -0.11, -0.44, -0.47};
@@ -82,6 +79,8 @@ TEST(MomentumEnergy, JLoop)
 
     std::vector<T> rho0{1.1, 1.2, 1.3, 1.4, 1.5};
     std::vector<T> kx{1.0, 1.5, 2.0, 2.7, 4.0};
+    std::vector<T> divv{-0.4, 0.1, 0.2, 0.7, -2.8};
+
     for (i = 0; i < neighborsCount+1; i++)
     {
         kx[i] = K * m[i] / rho0[i] / ::sphexa::math::pow(h[i], 3);
@@ -95,55 +94,42 @@ TEST(MomentumEnergy, JLoop)
      */
 
     // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
-    T du         = -1;
-    T grad_Px    = -1;
-    T grad_Py    = -1;
-    T grad_Pz    = -1;
-    T maxvsignal = -1;
+    T alpha  = -1;
 
     // compute gradient for for particle 0
-    sph::kernels::momentumAndEnergyJLoop(0,
-                                         sincIndex,
-                                         K,
-                                         box,
-                                         neighbors.data(),
-                                         neighborsCount,
-                                         x.data(),
-                                         y.data(),
-                                         z.data(),
-                                         vx.data(),
-                                         vy.data(),
-                                         vz.data(),
-                                         h.data(),
-                                         m.data(),
-                                         rho.data(),
-                                         p.data(),
-                                         c.data(),
-                                         c11.data(),
-                                         c12.data(),
-                                         c13.data(),
-                                         c22.data(),
-                                         c23.data(),
-                                         c33.data(),
-                                         Atmin,
-                                         Atmax,
-                                         ramp,
-                                         wh.data(),
-                                         whd.data(),
-                                         kx.data(),
-                                         rho0.data(),
-                                         alpha.data(),
-                                         &grad_Px,
-                                         &grad_Py,
-                                         &grad_Pz,
-                                         &du,
-                                         &maxvsignal);
+    alpha = sph::kernels::AVswitchesJLoop(0,
+                                  sincIndex,
+                                  K,
+                                  box,
+                                  neighbors.data(),
+                                  neighborsCount,
+                                  x.data(),
+                                  y.data(),
+                                  z.data(),
+                                  vx.data(),
+                                  vy.data(),
+                                  vz.data(),
+                                  h.data(),
+                                  m.data(),
+                                  c.data(),
+                                  c11.data(),
+                                  c12.data(),
+                                  c13.data(),
+                                  c22.data(),
+                                  c23.data(),
+                                  c33.data(),
+                                  wh.data(),
+                                  whd.data(),
+                                  kx.data(),
+                                  rho0.data(),
+                                  divv.data(),
+                                  dt,
+                                  alphamin,
+                                  alphamax,
+                                  decay_constant,
+                                  alphai);
 
-    EXPECT_NEAR(grad_Px, -0.41474721869900383, 1e-10);
-    EXPECT_NEAR(grad_Py, 0.025658320252911829, 1e-10);
-    EXPECT_NEAR(grad_Pz, -0.39246808566033031, 1e-10);
-    EXPECT_NEAR(du, -1.0681600761e-2, 1e-10);
-    EXPECT_NEAR(maxvsignal, 1.4112466829, 1e-10);
+    EXPECT_NEAR(alpha, 0.97980576425580013, 1e-10);
 }
 
 

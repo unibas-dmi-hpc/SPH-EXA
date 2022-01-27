@@ -62,6 +62,7 @@ struct ParticlesData
     std::vector<T> rho0, wrho0;                  // Term for VEs
     std::vector<T> kx, whomega;
     std::vector<T> divv, curlv;                  // Divergence and curl of velocity
+    std::vector<T> alpha;                        // Individual AV coeficients
 
     std::vector<KeyType> codes; // Particle Morton codes
 
@@ -112,6 +113,13 @@ struct ParticlesData
     constexpr static T Atmax = 0.1;
     constexpr static T Atmin = 0.2;
     constexpr static T ramp = 1.0 / (Atmax - Atmin);
+
+    //AV switches floor and ceiling
+    constexpr static T alphamin = 0.05;
+    constexpr static T alphamax = 1.0;
+    constexpr static T decay_constant = 0.2;
+
+    //Interpolation kernel normalization constant
     const static T K;
 
 };

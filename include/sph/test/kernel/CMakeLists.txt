@@ -1,8 +1,9 @@
 set(UNIT_TESTS
-        divv_curlv.cpp
         rho0.cpp
         density.cpp
         iad.cpp
+        divv_curlv.cpp
+        AVswitches.cpp
         momentum_energy.cpp
         test_main.cpp
         )

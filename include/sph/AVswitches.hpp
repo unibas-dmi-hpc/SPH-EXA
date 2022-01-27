@@ -5,7 +5,7 @@
 #include <cmath>
 #include "math.hpp"
 #include "kernels.hpp"
-#include "kernel/computeMomentumAndEnergy.hpp"
+#include "kernel/computeAVswitches.hpp"
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
 #endif
@@ -16,7 +16,7 @@ namespace sph
 {
 
 template <typename T, class Dataset>
-void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
+void computeAVswitchesImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 {
     size_t numParticles = t.size();
     size_t ngmax = t.ngmax;
@@ -31,10 +31,7 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     const T* vx = d.vx.data();
     const T* vy = d.vy.data();
     const T* vz = d.vz.data();
-    const T* ro = d.ro.data();
     const T* c = d.c.data();
-    const T* p = d.p.data();
-    const T* alpha = d.alpha.data();
 
     const T* c11 = d.c11.data();
     const T* c12 = d.c12.data();
@@ -43,22 +40,21 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     const T* c23 = d.c23.data();
     const T* c33 = d.c33.data();
 
-    T* du = d.du.data();
-    T* grad_P_x = d.grad_P_x.data();
-    T* grad_P_y = d.grad_P_y.data();
-    T* grad_P_z = d.grad_P_z.data();
-    T* maxvsignal = d.maxvsignal.data();
-
+    const T* divv = d.divv.data();
     const T* wh   = d.wh.data();
     const T* whd  = d.whd.data();
     const T* kx   = d.kx.data();
     const T* rho0 = d.rho0.data();
 
-    const T K = d.K;
+    const T K  = d.K;
+    const T* dt = d.dt.data();
     const T sincIndex = d.sincIndex;
-    const T Atmin = d.Atmin;
-    const T Atmax = d.Atmax;
-    const T ramp  = d.ramp;
+
+    const T alphamin = d.alphamin;
+    const T alphamax = d.alphamax;
+    const T decay_constant = d.decay_constant;
+
+    T* alpha = d.alpha.data();
 
 #if defined(USE_OMP_TARGET)
     // Apparently Cray with -O2 has a bug when calling target regions in a loop. (and computeMomentumAndEnergyIADImpl can be called in a
@@ -72,10 +68,10 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
 // clang-format off
 #pragma omp target map(to                                                                                                                  \
 		       : neighbors[:allNeighbors], neighborsCount[:n], x [0:np], y [0:np], z [0:np],                           \
-                       vx [0:np], vy [0:np], vz [0:np], h [0:np], m [0:np], ro [0:np], p [0:np], c [0:np],                                 \
-                       c11 [0:np], c12 [0:np], c13 [0:np], c22 [0:np], c23 [0:np], c33 [0:np], wh[0:ltsize], whd[0:ltsize])                                             \
+                       vx [0:np], vy [0:np], vz [0:np], h [0:np], m [0:np],                                  \
+                       c11 [0:np], c12 [0:np], c13 [0:np], c22 [0:np], c23 [0:np], c33 [0:np], wh[0:ltsize], whd[0:ltsize], divv[0:ltsize])                                             \
                    map(from                                                                                                                \
-                       : grad_P_x [:n], grad_P_y [:n], grad_P_z [:n], du [:n], maxvsignal[0:n])
+                       : alpha [:n])
 // clang-format on
 #pragma omp teams distribute parallel for
 #elif defined(USE_ACC)
@@ -85,9 +81,9 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     const size_t allNeighbors = n * ngmax;
 // clang-format off
 #pragma acc parallel loop copyin(neighbors [0:allNeighbors], neighborsCount [0:n], x [0:np], y [0:np], z [0:np], vx [0:np],   \
-                                 vy [0:np], vz [0:np], h [0:np], m [0:np], ro [0:np], p [0:np], c [0:np], c11 [0:np], c12 [0:np],          \
-                                 c13 [0:np], c22 [0:np], c23 [0:np], c33 [0:np], wh[0:ltsize], whd[0:ltsize])                                                           \
-                          copyout(grad_P_x [:n], grad_P_y [:n], grad_P_z [:n], du [:n], maxvsignal[0:n])
+                                 vy [0:np], vz [0:np], h [0:np], m [0:np], c11 [0:np], c12 [0:np],          \
+                                 c13 [0:np], c22 [0:np], c23 [0:np], c33 [0:np], wh[0:ltsize], whd[0:ltsize], divv[0:ltsize])                                                           \
+                          copyout(alpha [:n])
 // clang-format on
 #else
 #pragma omp parallel for schedule(guided)
@@ -95,22 +91,21 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     for (size_t pi = 0; pi < numParticles; ++pi)
     {
         int i = pi + t.firstParticle;
-        kernels::momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi],
-                                        x, y, z, vx, vy, vz, h, m, ro, p, c, c11, c12, c13, c22, c23, c33,
-                                        Atmin, Atmax, ramp, wh, whd, kx, rho0, alpha, 
-                                        grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
+        alpha[i] = kernels::AVswitchesJLoop(i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi],
+                                        x, y, z, vx, vy, vz, h, m, c, c11, c12, c13, c22, c23, c33,
+                                        wh, whd, kx, rho0, divv, dt[i], alphamin, alphamax, decay_constant, alpha[i]);
     }
 }
 
 template <typename T, class Dataset>
-void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<T>& box)
+void computeAVswitches(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<T>& box)
 {
 #if defined(USE_CUDA)
-    cuda::computeMomentumAndEnergyIAD(taskList, d, box);
+    cuda::computeAVswitches(taskList, d, box);
 #else
     for (const auto &task : taskList)
     {
-        computeMomentumAndEnergyIADImpl<T>(task, d, box);
+        computeAVswitchesImpl<T>(task, d, box);
     }
 #endif
 }

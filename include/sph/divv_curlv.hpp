@@ -85,6 +85,7 @@ void computedivv_curlvImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     for (size_t pi = 0; pi < numParticles; ++pi)
     {
         int i = pi + t.firstParticle;
+
         kernels::divV_curlVJLoop(i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi],
                                         x, y, z, vx, vy, vz, h, m, c11, c12, c13, c22, c23, c33,
                                         wh, whd, kx, rho0, divv, curlv);

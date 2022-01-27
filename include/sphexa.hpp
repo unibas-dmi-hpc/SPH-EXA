@@ -19,6 +19,7 @@
 #include "sph/rho0.hpp"
 #include "sph/divv_curlv.hpp"
 #include "sph/IAD.hpp"
+#include "sph/AVswitches.hpp"
 #include "sph/momentumAndEnergyIAD.hpp"
 #include "sph/kernels.hpp"
 #include "sph/equationOfState.hpp"
