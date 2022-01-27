@@ -30,8 +30,8 @@
  *        - vacuum case  : a nonzero solution extends from the shock to a boundary point, where the density vanishes making the pressure meaningless.
  *
  *        This routine is a C++ conversion of one Fortran code based in these two papers:
- *        - "evaluation of the sedov-von neumann-taylor blast wave solution", Jim Kamm, la-ur-00-6055
- *        - "the sedov self-similiar point blast solutions in nonuniform media", David Book, shock waves, 4, 1, 1994
+ *        - "Evaluation of the sedov-von neumann-taylor blast wave solution", Jim Kamm, la-ur-00-6055
+ *        - "The sedov self-similiar point blast solutions in nonuniform media", David Book, shock waves, 4, 1, 1994
  *
  *        Although the ordinary differential equations are analytic, the sedov expressions appear to become singular for various
  *        combinations of parameters and at the lower limits of the integration range.
@@ -44,9 +44,8 @@
 #pragma once
 
 #include <string>
+#include <vector>
 #include <functional>
-
-#include "FileData.hpp"
 
 using namespace std;
 

@@ -23,9 +23,9 @@ CUDA_OBJS := $(BUILDDIR)/gather.o                     \
              $(BUILDDIR)/cudaIAD.o                    \
              $(BUILDDIR)/cudaMomentumAndEnergyIAD.o
 
-SEDOV_SOL_DIR := src/analyticalSolutions/sedovSolution
-SEDOV_SOL_CPP := $(SEDOV_SOL_DIR)/FileData.cpp        \
-                 $(SEDOV_SOL_DIR)/SedovSolution.cpp   \
+SEDOV_SOL_DIR := src/analytical_solutions/sedov_solution
+SEDOV_SOL_CPP := $(SEDOV_SOL_DIR)/file_data.cpp        \
+                 $(SEDOV_SOL_DIR)/sedov_solution.cpp   \
                  $(SEDOV_SOL_DIR)/main.cpp
 
 RELEASE := -DNDEBUG
@@ -84,7 +84,7 @@ mpi+omp:
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 ifdef SOLCODE
-	make Solution
+	make solution
 endif
     
 #omp+cuda: $(BUILDDIR)/cuda_no_mpi.o $(CUDA_OBJS)
@@ -104,7 +104,7 @@ mpi+omp+target:
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 ifdef SOLCODE
-	make Solution
+	make solution
 endif
 
 mpi+omp+acc:
@@ -112,7 +112,7 @@ mpi+omp+acc:
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(TESTCASE_FLAGS) -DUSE_ACC $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
 ifdef SOLCODE
-	make Solution
+	make solution
 endif
 
 mpi+omp+cuda: $(BUILDDIR)/cuda_mpi.o $(CUDA_OBJS)
@@ -121,11 +121,11 @@ mpi+omp+cuda: $(BUILDDIR)/cuda_mpi.o $(CUDA_OBJS)
 	$(NVCC) $(NVCCLDFLAGS) -dlink -o cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
 	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@.app cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
 ifdef SOLCODE
-	make Solution
+	make solution
 endif
 
-Solution:
-	$(MPICXX) $(CXXFLAGS) $(INC) $(SOLCODE) -o $(BINDIR)/$(TESTCASE)$@ $(LIB)
+solution:
+	$(MPICXX) $(CXXFLAGS) $(INC) $(SOLCODE) -o $(BINDIR)/$(TESTCASE)_$@ $(LIB)
 
 #all: omp mpi+omp omp+cuda mpi+omp+cuda omp+target mpi+omp+target mpi+omp+acc
 all: mpi+omp mpi+omp+cuda mpi+omp+target mpi+omp+acc

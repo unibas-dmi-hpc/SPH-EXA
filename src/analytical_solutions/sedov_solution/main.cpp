@@ -37,8 +37,8 @@
 #include "ArgParser.hpp"
 #include "sedov/SedovDataGenerator.hpp"
 
-#include "FileData.hpp"
-#include "SedovSolution.hpp"
+#include "file_data.hpp"
+#include "sedov_solution.hpp"
 
 using namespace std;
 using namespace sphexa;

@@ -1,5 +1,0 @@
-set(SOURCES FileData.cpp SedovSolution.cpp main.cpp)
-add_executable(sedovSolution ${SOURCES})
-target_include_directories(sedovSolution PRIVATE ${PROJECT_SOURCE_DIR}/include)
-target_include_directories(sedovSolution PRIVATE ${PROJECT_SOURCE_DIR}/src)
-install(TARGETS sedovSolution RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

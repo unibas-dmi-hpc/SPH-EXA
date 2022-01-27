@@ -20,7 +20,9 @@
  * SOFTWARE.
  */
 
-#include "SedovSolution.hpp"
+
+#include "file_data.hpp"
+#include "sedov_solution.hpp"
 
 #include <iostream>
 #include <cmath>
