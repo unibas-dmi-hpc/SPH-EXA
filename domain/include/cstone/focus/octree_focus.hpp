@@ -54,7 +54,6 @@
 
 namespace cstone
 {
-
 /*! @brief combines the particle count and multipole criteria for rebalancing
  *
  * @return
@@ -63,105 +62,15 @@ namespace cstone
  *      - 8 if node to be split
  */
 template<class KeyType>
-inline HOST_DEVICE_FUN
-int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
-                       TreeNodeIndex numInternalNodes,
-                       const TreeNodeIndex* leafParents,
-                       const unsigned* leafCounts, const char* macs,
-                       TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
-                       unsigned bucketSize)
-{
-    auto [siblingIdx, level] = siblingAndLevel(cstoneTree, leafIdx);
-
-    if (siblingIdx > 0) // 8 siblings next to each other, node can potentially be merged
-    {
-        // pointer to first node in sibling group
-        auto g = leafCounts + leafIdx - siblingIdx;
-
-        bool countMerge = (g[0]+g[1]+g[2]+g[3]+g[4]+g[5]+g[6]+g[7]) <= bucketSize;
-        bool macMerge   = macs[leafParents[leafIdx]] == 0;
-
-        TreeNodeIndex firstSibling = leafIdx - siblingIdx;
-        TreeNodeIndex lastSibling  = firstSibling + 8;
-
-        // inFringe: leadIdx not in focus, but at least one sibling is in the focus
-        // in that case we cannot remove the nodes based on a MAC criterion
-        bool inFringe = overlapTwoRanges(firstSibling, lastSibling, firstFocusNode, lastFocusNode);
-
-        if (countMerge || (macMerge && !inFringe)) { return 0; } // merge
-    }
-
-    bool inFocus  = (leafIdx >= firstFocusNode && leafIdx < lastFocusNode);
-    if (level < maxTreeLevel<KeyType>{} && leafCounts[leafIdx] > bucketSize
-        && (macs[numInternalNodes + leafIdx] || inFocus))
-    { return 8; } // split
-
-    return 1; // default: do nothing
-}
-
-/*! @brief Compute locally essential split or fuse decision for each octree node in parallel
- *
- * @tparam    KeyType          32- or 64-bit unsigned integer type
- * @param[in] cstoneTree       cornerstone octree leaves, length = @p numLeafNodes
- * @param[in] numInternalNodes number of internal octree nodes
- * @param[in] numLeafNodes     number of leaf octree nodes
- * @param[in] leafParents      stores the parent node index of each leaf, length = @p numLeafNodes
- * @param[in] leafCounts       particle counts per leaf node, length = @p numLeafNodes
- * @param[in] macs             multipole pass or fail per node, length = @p numInternalNodes + numLeafNodes
- * @param[in] firstFocusNode   first focus node in @p cstoneTree, range = [0:numLeafNodes]
- * @param[in] lastFocusNode    last focus node in @p cstoneTree, range = [0:numLeafNodes]
- * @param[in] bucketSize       maximum particle count per (leaf) node and
- *                             minimum particle count (strictly >) for (implicit) internal nodes
- * @param[out] nodeOps         stores rebalance decision result for each node, length = @p numLeafNodes()
- * @return                     true if converged, false otherwise
- *
- * For each node i in the tree, in nodeOps[i], stores
- *  - 0 if to be merged
- *  - 1 if unchanged,
- *  - 8 if to be split.
- */
-template<class KeyType, class LocalIndex>
-bool rebalanceDecisionEssential(const KeyType* cstoneTree, TreeNodeIndex numInternalNodes, TreeNodeIndex numLeafNodes,
-                                const TreeNodeIndex* leafParents,
-                                const unsigned* leafCounts, const char* macs,
-                                TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
-                                unsigned bucketSize, LocalIndex* nodeOps)
-{
-    bool converged = true;
-    #pragma omp parallel
-    {
-        bool convergedThread = true;
-        #pragma omp for
-        for (TreeNodeIndex leafIdx = 0; leafIdx < numLeafNodes; ++leafIdx)
-        {
-            int opDecision = mergeCountAndMacOp(leafIdx, cstoneTree, numInternalNodes, leafParents, leafCounts,
-                                                macs, firstFocusNode, lastFocusNode, bucketSize);
-            if (opDecision != 1) { convergedThread = false; }
-
-            nodeOps[leafIdx] = opDecision;
-        }
-        if (!convergedThread) { converged = false; }
-    }
-    return converged;
-}
-
-/*! @brief combines the particle count and multipole criteria for rebalancing
- *
- * @return
- *      - 0 if node to be merged
- *      - 1 if node to stay unchanged
- *      - 8 if node to be split
- */
-template<class KeyType>
-inline HOST_DEVICE_FUN int mergeCountAndMacOpTd(TreeNodeIndex nodeIdx,
-                                                const KeyType* nodeKeys,
-                                                const TreeNodeIndex* childOffsets,
-                                                const TreeNodeIndex* parents,
-                                                const unsigned* counts,
-                                                const char* macs,
-                                                KeyType focusStart,
-                                                KeyType focusEnd,
-                                                unsigned bucketSize)
+inline HOST_DEVICE_FUN int mergeCountAndMacOp(TreeNodeIndex nodeIdx,
+                                              const KeyType* nodeKeys,
+                                              const TreeNodeIndex* childOffsets,
+                                              const TreeNodeIndex* parents,
+                                              const unsigned* counts,
+                                              const char* macs,
+                                              KeyType focusStart,
+                                              KeyType focusEnd,
+                                              unsigned bucketSize)
 {
     TreeNodeIndex siblingGroup = (nodeIdx - 1) / 8;
     TreeNodeIndex parent = nodeIdx ? parents[siblingGroup] : 0;
@@ -219,16 +128,16 @@ inline HOST_DEVICE_FUN int mergeCountAndMacOpTd(TreeNodeIndex nodeIdx,
  *  - 8 if to be split.
  */
 template<class KeyType, class LocalIndex>
-bool rebalanceDecisionEssentialTd(const KeyType* nodeKeys,
-                                  const TreeNodeIndex* childOffsets,
-                                  const TreeNodeIndex* parents,
-                                  const unsigned* counts,
-                                  const char* macs,
-                                  TreeNodeIndex numNodes,
-                                  KeyType focusStart,
-                                  KeyType focusEnd,
-                                  unsigned bucketSize,
-                                  LocalIndex* nodeOps)
+bool rebalanceDecisionEssential(const KeyType* nodeKeys,
+                                const TreeNodeIndex* childOffsets,
+                                const TreeNodeIndex* parents,
+                                const unsigned* counts,
+                                const char* macs,
+                                TreeNodeIndex numNodes,
+                                KeyType focusStart,
+                                KeyType focusEnd,
+                                unsigned bucketSize,
+                                LocalIndex* nodeOps)
 {
     bool converged = true;
     #pragma omp parallel
@@ -239,8 +148,8 @@ bool rebalanceDecisionEssentialTd(const KeyType* nodeKeys,
         {
             // ignore internal nodes
             if (childOffsets[i] != 0) { continue; }
-            int opDecision = mergeCountAndMacOpTd(i, nodeKeys, childOffsets, parents, counts, macs, focusStart,
-                                                  focusEnd, bucketSize);
+            int opDecision =
+                mergeCountAndMacOp(i, nodeKeys, childOffsets, parents, counts, macs, focusStart, focusEnd, bucketSize);
             if (opDecision != 1) { convergedThread = false; }
 
             nodeOps[i] = opDecision;
@@ -401,10 +310,11 @@ public:
 
         assert(tree_.nodeOrder_.size() >= tree_.numTreeNodes());
         gsl::span<TreeNodeIndex> nodeOpsAll(tree_.nodeOrder_);
-        bool converged = rebalanceDecisionEssentialTd(tree_.nodeKeys(), tree_.childOffsets(), tree_.parents(),
-                                                      counts.data(), macs.data(), tree_.numTreeNodes(), focusStart,
-                                                      focusEnd, bucketSize_, nodeOpsAll.data());
+        bool converged = rebalanceDecisionEssential(tree_.nodeKeys(), tree_.childOffsets(), tree_.parents(),
+                                                    counts.data(), macs.data(), tree_.numTreeNodes(), focusStart,
+                                                    focusEnd, bucketSize_, nodeOpsAll.data());
 
+        assert(tree_.childOffsets_.size() >= size_t(tree_.numLeafNodes() + 1));
         gsl::span<TreeNodeIndex> nodeOps(tree_.childOffsets_.data(), tree_.numLeafNodes() + 1);
         tree_.template extractLeaves<TreeNodeIndex>(nodeOpsAll, nodeOps);
 
