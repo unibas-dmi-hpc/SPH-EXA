@@ -399,11 +399,13 @@ public:
         //TreeNodeIndex firstFocusNode = findNodeBelow(leaves, focusStart);
         //TreeNodeIndex lastFocusNode  = findNodeAbove(leaves, focusEnd);
 
-        gsl::span<TreeNodeIndex> nodeOps(tree_.inverseNodeOrder_.data(), tree_.numLeafNodes() + 1);
+        assert(tree_.nodeOrder_.size() >= tree_.numTreeNodes());
         gsl::span<TreeNodeIndex> nodeOpsAll(tree_.nodeOrder_);
         bool converged = rebalanceDecisionEssentialTd(tree_.nodeKeys(), tree_.childOffsets(), tree_.parents(),
                                                       counts.data(), macs.data(), tree_.numTreeNodes(), focusStart,
                                                       focusEnd, bucketSize_, nodeOpsAll.data());
+
+        gsl::span<TreeNodeIndex> nodeOps(tree_.childOffsets_.data(), tree_.numLeafNodes() + 1);
         tree_.template extractLeaves<TreeNodeIndex>(nodeOpsAll, nodeOps);
 
         std::vector<KeyType> allMandatoryKeys{focusStart, focusEnd};

@@ -377,7 +377,8 @@ private:
         TreeNodeIndex numNodes = numLeafNodes_ + numInternalNodes_;
 
         prefixes_.resize(numNodes);
-        childOffsets_.resize(numNodes);
+        // +1 to accommodate nodeOffsets in FocusedOctreeCore::update when numNodes == 1
+        childOffsets_.resize(numNodes + 1);
         parents_.resize((numNodes - 1) / 8);
         /*! Apart from the root at level 0, there are maxTreeLevel<KeyType>{} non-trivial levels.
          * For convenience, we also store the root offset, even though the root is always a single node
