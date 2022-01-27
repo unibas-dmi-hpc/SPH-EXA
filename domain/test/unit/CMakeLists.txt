@@ -21,10 +21,8 @@ set(UNIT_TESTS
         traversal/macs.cpp
         traversal/peers.cpp
         traversal/traversal.cpp
-        traversal/upsweep.cpp
         tree/btree.cpp
         tree/octree.cpp
-        tree/octree_internal.cpp
         tree/octree_internal_td.cpp
         tree/octree_util.cpp
         util/util.cpp
