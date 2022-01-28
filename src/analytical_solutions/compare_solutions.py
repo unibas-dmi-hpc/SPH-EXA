@@ -119,11 +119,16 @@ def sedov(binary_file,
         check_errors = False
     print("\ncheck_L1_errors = " + check_errors.__str__())
     if check_errors:
-        print(" * error_rho    = " + error_rho.__str__() + " > " + delta_rho.__str__())
-        print(" * error_u      = " + error_u.__str__()   + " > " + delta_u.__str__()  )
-        print(" * error_p      = " + error_p.__str__()   + " > " + delta_p.__str__()  )
-        print(" * error_vel    = " + error_vel.__str__() + " > " + delta_vel.__str__())
-        print(" * error_cs     = " + error_cs.__str__()  + " > " + delta_cs.__str__() )
+        if error_rho:
+            print(" * error_rho <= " + delta_rho.__str__() + " ?")
+        if error_u:
+            print(" * error_u   <= " + delta_u.__str__()   + " ?")
+        if error_p:
+            print(" * error_p   <= " + delta_p.__str__()   + " ?")
+        if error_vel:
+            print(" * error_vel <= " + delta_vel.__str__() + " ?")
+        if error_cs:
+            print(" * error_cs  <= " + delta_cs.__str__()  + " ?")
     print("")
 
     # Check binary_file
@@ -404,38 +409,38 @@ def sedov(binary_file,
         # Check errors L1
 
         if error_rho:
-            if L1_rho < delta_rho:
-                print("Checked Error L1_rho successfully ! : " + L1_rho.__str__() + " > " + delta_rho.__str__())
+            if L1_rho <= delta_rho:
+                print("Checked Error L1_rho successfully: " + L1_rho.__str__() + " <= " + delta_rho.__str__())
             else:
-                print("Checked Error L1_rho       failed ! : " + L1_rho.__str__() + " > " + delta_rho.__str__())
+                print("Checked Error L1_rho       failed: " + L1_rho.__str__() + " >  " + delta_rho.__str__())
                 successfully = False
         
         if error_u:
-            if L1_u < delta_u:
-                print("Checked Error L1_u   successfully ! : " + L1_u.__str__()   + " > " + delta_u.__str__()  )
+            if L1_u <= delta_u:
+                print("Checked Error L1_u   successfully: " + L1_u.__str__()   + " <= " + delta_u.__str__()  )
             else:
-                print("Checked Error L1_u         failed ! : " + L1_u.__str__()   + " > " + delta_u.__str__()  )
+                print("Checked Error L1_u         failed: " + L1_u.__str__()   + " >  " + delta_u.__str__()  )
                 successfully = False
             
         if error_p:
-            if L1_p < delta_p:
-                print("Checked Error L1_p   successfully ! : " + L1_p.__str__()   + " > " + delta_p.__str__()  )
+            if L1_p <= delta_p:
+                print("Checked Error L1_p   successfully: " + L1_p.__str__()   + " <= " + delta_p.__str__()  )
             else:
-                print("Checked Error L1_p         failed ! : " + L1_p.__str__()   + " > " + delta_p.__str__()  )
+                print("Checked Error L1_p         failed: " + L1_p.__str__()   + " >  " + delta_p.__str__()  )
                 successfully = False
         
         if error_vel:
-            if L1_vel < delta_vel:
-                print("Checked Error L1_vel successfully ! : " + L1_vel.__str__() + " > " + delta_vel.__str__())
+            if L1_vel <= delta_vel:
+                print("Checked Error L1_vel successfully: " + L1_vel.__str__() + " <= " + delta_vel.__str__())
             else:
-                print("Checked Error L1_vel       failed ! : " + L1_vel.__str__() + " > " + delta_vel.__str__())
+                print("Checked Error L1_vel       failed: " + L1_vel.__str__() + " >  " + delta_vel.__str__())
                 successfully = False
         
         if error_cs:
-            if L1_cs < delta_cs:
-                print("Checked Error L1_cs  successfully ! : " + L1_cs.__str__()  + " > " + delta_cs.__str__() )
+            if L1_cs <= delta_cs:
+                print("Checked Error L1_cs  successfully: " + L1_cs.__str__()  + " <= " + delta_cs.__str__() )
             else:
-                print("Checked Error L1_cs        failed ! : " + L1_cs.__str__()  + " > " + delta_cs.__str__() )
+                print("Checked Error L1_cs        failed: " + L1_cs.__str__()  + " >  " + delta_cs.__str__() )
                 successfully = False
 
 
