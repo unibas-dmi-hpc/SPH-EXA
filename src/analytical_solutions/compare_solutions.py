@@ -268,13 +268,18 @@ def sedov(
         check_errors = True
     else:
         check_errors = False
-    print("\ncheck_L1_errors = " + check_errors.__str__())
+    print("\nCheck L1 errors = " + check_errors.__str__())
     if check_errors:
-        print(f" * error_rho    = {error_rho} > {delta_rho}")
-        print(f" * error_u      = {error_u} > {delta_u}")
-        print(f" * error_p      = {error_p} > {delta_p}")
-        print(f" * error_vel    = {error_vel} > {delta_vel}")
-        print(f" * error_cs     = {error_cs} > {delta_cs}")
+        if error_rho:
+            print(f" * error_rho <= {delta_rho} ?")
+        if error_u:
+            print(f" * error_u   <= {delta_u} ?")
+        if error_p:
+            print(f" * error_p   <= {delta_p} ?")
+        if error_vel:
+            print(f" * error_vel <= {delta_vel} ?")
+        if error_cs:
+            print(f" * error_cs  <= {delta_cs} ?")
     print("")
 
     # Check binary_file
@@ -560,22 +565,21 @@ def sedov(
         print("Error L1_p   = " + L1_p.__str__())
         print("Error L1_vel = " + L1_vel.__str__())
         print("Error L1_cs  = " + L1_cs.__str__())
-
-        print("\nWriting Errors L1    file [" + errFile + " ]\n")
+        print("")
 
         # Check errors L1
 
         if error_rho:
             if L1_rho < delta_rho:
                 print(
-                    "Checked Error L1_rho successfully ! : "
+                    "Checked Error L1_rho successfully: "
                     + L1_rho.__str__()
-                    + " > "
+                    + " <= "
                     + delta_rho.__str__()
                 )
             else:
                 print(
-                    "Checked Error L1_rho       failed ! : "
+                    "Checked Error L1_rho       failed: "
                     + L1_rho.__str__()
                     + " > "
                     + delta_rho.__str__()
@@ -585,14 +589,14 @@ def sedov(
         if error_u:
             if L1_u < delta_u:
                 print(
-                    "Checked Error L1_u   successfully ! : "
+                    "Checked Error L1_u   successfully: "
                     + L1_u.__str__()
-                    + " > "
+                    + " <= "
                     + delta_u.__str__()
                 )
             else:
                 print(
-                    "Checked Error L1_u         failed ! : "
+                    "Checked Error L1_u         failed: "
                     + L1_u.__str__()
                     + " > "
                     + delta_u.__str__()
@@ -602,14 +606,14 @@ def sedov(
         if error_p:
             if L1_p < delta_p:
                 print(
-                    "Checked Error L1_p   successfully ! : "
+                    "Checked Error L1_p   successfully: "
                     + L1_p.__str__()
-                    + " > "
+                    + " <= "
                     + delta_p.__str__()
                 )
             else:
                 print(
-                    "Checked Error L1_p         failed ! : "
+                    "Checked Error L1_p         failed: "
                     + L1_p.__str__()
                     + " > "
                     + delta_p.__str__()
@@ -619,14 +623,14 @@ def sedov(
         if error_vel:
             if L1_vel < delta_vel:
                 print(
-                    "Checked Error L1_vel successfully ! : "
+                    "Checked Error L1_vel successfully: "
                     + L1_vel.__str__()
-                    + " > "
+                    + " <= "
                     + delta_vel.__str__()
                 )
             else:
                 print(
-                    "Checked Error L1_vel       failed ! : "
+                    "Checked Error L1_vel       failed: "
                     + L1_vel.__str__()
                     + " > "
                     + delta_vel.__str__()
@@ -636,26 +640,29 @@ def sedov(
         if error_cs:
             if L1_cs < delta_cs:
                 print(
-                    "Checked Error L1_cs  successfully ! : "
+                    "Checked Error L1_cs  successfully: "
                     + L1_cs.__str__()
-                    + " > "
+                    + " <= "
                     + delta_cs.__str__()
                 )
             else:
                 print(
-                    "Checked Error L1_cs        failed ! : "
+                    "Checked Error L1_cs        failed: "
                     + L1_cs.__str__()
                     + " > "
                     + delta_cs.__str__()
                 )
                 successfully = False
 
+        print("\nWriting Errors L1    file [" + errFile + " ]")
+
+
     # Check finish
     if successfully:
-        print("\nComparison finished successfully !\n")
+        print("\nComparison finished successfully!\n")
         exit(0)
     else:
-        print("\nComparison failed !\n")
+        print("\nComparison failed!\n")
         exit(-1)
 
 
