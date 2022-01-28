@@ -22,6 +22,7 @@
 
 #include "io.hpp"
 
+#include <sstream>
 #include <iostream>
 #include <iomanip>
 
