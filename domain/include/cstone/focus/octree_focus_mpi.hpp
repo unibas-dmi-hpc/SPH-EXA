@@ -34,6 +34,7 @@
 #include "cstone/domain/layout.hpp"
 #include "cstone/focus/exchange_focus.hpp"
 #include "cstone/focus/octree_focus.hpp"
+#include "cstone/focus/source_center.hpp"
 
 namespace cstone
 {
@@ -81,9 +82,9 @@ public:
                     const SpaceCurveAssignment& assignment,
                     gsl::span<const KeyType> globalTreeLeaves)
     {
-        if (rebalanceStatus_ != Criteria::valid)
+        if (rebalanceStatus_ != valid)
         {
-            throw std::runtime_error("Call to updateCriteria required before updating the tree structure\n");
+            throw std::runtime_error("update of criteria required before updating the tree structure\n");
         }
 
         KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
@@ -96,17 +97,15 @@ public:
             peerBoundaries.push_back(globalTreeLeaves[assignment.lastNodeIdx(peer)]);
         }
 
-        bool converged   = tree_.update(focusStart, focusEnd, peerBoundaries, counts_, macs_);
-        rebalanceStatus_ = Criteria::invalid;
-
+        bool converged = tree_.update(focusStart, focusEnd, peerBoundaries, counts_, macs_);
         translateAssignment(assignment, globalTreeLeaves, treeLeaves(), peerRanks, myRank_, assignment_);
 
+        rebalanceStatus_ = invalid;
         return converged;
     }
 
     /*! @brief Perform a global update of the tree structure
      *
-     * @tparam    T                float or double
      * @param[in] box              global coordinate bounding box
      * @param[in] particleKeys     SFC keys of local particles
      * @param[in] myRank           ID of the executing rank
@@ -126,32 +125,28 @@ public:
      *  - All local particle keys must lie within the assignment of @p myRank (checked)
      *    and must be sorted in ascending order (checked)
      */
-    template<class T>
-    void updateCriteria(const Box<T>& box,
-                        gsl::span<const KeyType> particleKeys,
-                        gsl::span<const int> peerRanks,
-                        const SpaceCurveAssignment& assignment,
-                        gsl::span<const KeyType> globalTreeLeaves,
-                        gsl::span<const unsigned> globalCounts)
+    void updateCounts(gsl::span<const KeyType> particleKeys,
+                      gsl::span<const int> peerRanks,
+                      const SpaceCurveAssignment& assignment,
+                      gsl::span<const KeyType> globalTreeLeaves,
+                      gsl::span<const unsigned> globalCounts)
     {
         assert(std::is_sorted(particleKeys.begin(), particleKeys.end()));
 
-        //! 1st regeneration step: local data
-        updateMac(box, particleKeys, assignment, globalTreeLeaves);
-
         gsl::span<const KeyType> leaves = treeLeaves();
         leafCounts_.resize(nNodes(leaves));
+
         // local node counts
         computeNodeCounts(leaves.data(), leafCounts_.data(), nNodes(leaves), particleKeys.data(),
                           particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
 
-        //! 2nd regeneration step: data from neighboring peers
+        // counts from neighboring peers
         std::vector<MPI_Request> treeletRequests;
         exchangeTreelets(peerRanks, assignment_, leaves, treelets_, treeletRequests);
         exchangeTreeletCounts(peerRanks, treelets_, assignment_, particleKeys, leafCounts_, treeletRequests);
         MPI_Waitall(int(peerRanks.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
 
-        //! 3rd regeneration step: global data
+        // global counts
         auto globalCountIndices = invertRanges(0, assignment_, nNodes(leaves));
 
         // particle counts for leaf nodes in treeLeaves() / leafCounts():
@@ -169,7 +164,31 @@ public:
         counts_.resize(tree_.octree().numTreeNodes());
         upsweepSum<unsigned>(octree(), leafCounts_, counts_);
 
-        rebalanceStatus_ = Criteria::valid;
+        rebalanceStatus_ |= countsCriterion;
+    }
+
+    /*! @brief Update the MAC criteria based on a min distance MAC
+     *
+     * @tparam    T                float or double
+     * @param[in] box              global coordinate bounding box
+     * @param[in] particleKeys     SFC keys of local particles
+     * @param[in] assignment       assignment of the global leaf tree to ranks
+     * @param[in] globalTreeLeaves global cornerstone leaf tree
+     */
+    template<class T>
+    void updateMinMac(const Box<T>& box,
+                      [[maybe_unused]] gsl::span<const KeyType> particleKeys,
+                      const SpaceCurveAssignment& assignment,
+                      gsl::span<const KeyType> globalTreeLeaves)
+    {
+        KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
+        KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
+        assert(particleKeys.front() >= focusStart && particleKeys.back() < focusEnd);
+
+        macs_.resize(tree_.octree().numTreeNodes());
+        markMac(tree_.octree(), box, focusStart, focusEnd, 1.0 / theta_, macs_.data());
+
+        rebalanceStatus_ |= macCriterion;
     }
 
     //! @brief update the tree structure and regenerate the mac and counts criteria
@@ -182,7 +201,8 @@ public:
                 gsl::span<const unsigned> globalCounts)
     {
         bool converged = updateTree(peers, assignment, globalTreeLeaves);
-        updateCriteria(box, particleKeys, peers, assignment, globalTreeLeaves, globalCounts);
+        updateCounts(particleKeys, peers, assignment, globalTreeLeaves, globalCounts);
+        updateMinMac(box, particleKeys, assignment, globalTreeLeaves);
         return converged;
     }
 
@@ -212,32 +232,23 @@ public:
 
     gsl::span<const unsigned> leafCounts() const
     {
-        if (rebalanceStatus_ != Criteria::valid)
+        if (rebalanceStatus_ != valid)
         {
-            throw std::runtime_error("Tree structure is outdated, need to call updateCriteria\n");
+            throw std::runtime_error("Tree structure is outdated, need to update the rebalance criteria\n");
         }
         return leafCounts_;
     }
 
 private:
-    template<class T>
-    void updateMac(const Box<T>& box,
-                   [[maybe_unused]] gsl::span<const KeyType> particleKeys,
-                   const SpaceCurveAssignment& assignment,
-                   gsl::span<const KeyType> globalTreeLeaves)
-    {
-        KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
-        KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
-        assert(particleKeys.front() >= focusStart && particleKeys.back() < focusEnd);
 
-        macs_.resize(tree_.octree().numTreeNodes());
-        markMac(tree_.octree(), box, focusStart, focusEnd, 1.0 / theta_, macs_.data());
-    }
-
-    enum class Criteria
+    enum Status : int
     {
-        valid,
-        invalid
+        invalid = 0,
+        countsCriterion = 1,
+        macCriterion = 2,
+        // the status is valid for rebalancing if both the counts and macs have been updated
+        // since the last call to updateTree
+        valid = countsCriterion | macCriterion
     };
 
     //! @brief the executing rank
@@ -263,7 +274,7 @@ private:
     std::vector<TreeIndexPair> assignment_;
 
     //! @brief the status of the macs_ and counts_ rebalance criteria
-    Criteria rebalanceStatus_{Criteria::valid};
+    int rebalanceStatus_{valid};
 };
 
 } // namespace cstone

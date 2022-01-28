@@ -193,7 +193,8 @@ public:
             focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.tree());
-        focusTree_.updateCriteria(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+        focusTree_.updateCounts(keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+        focusTree_.updateMinMac(box(), keyView, global_.assignment(), global_.tree());
 
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
 
@@ -225,7 +226,8 @@ public:
             focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.tree());
-        focusTree_.updateCriteria(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+        focusTree_.updateCounts(keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+        focusTree_.updateMinMac(box(), keyView, global_.assignment(), global_.tree());
 
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
 
