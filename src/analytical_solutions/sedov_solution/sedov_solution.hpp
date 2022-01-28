@@ -41,9 +41,6 @@
  *
  */
 
-#ifndef _SEDOV_SOLUTION_HPP_
-#define _SEDOV_SOLUTION_HPP_
-
 #pragma once
 
 #include <string>
@@ -188,6 +185,3 @@ private:
         function<double(const double)> f,                // Function subprogram which evaluates f(x) for any x in the interval [ax,bx]
         const double                   tol);             // Desired length of the interval of uncertainty of the final result (>= 0.)
 };
-
-#endif /* _SEDOV_SOLUTION_HPP_ */
-

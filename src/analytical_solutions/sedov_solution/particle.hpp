@@ -28,9 +28,6 @@
  *
  */
 
-#ifndef _SEDOV_SOLUTION_PARTICLE_HPP_
-#define _SEDOV_SOLUTION_PARTICLE_HPP_
-
 #pragma once
 
 struct Particle{
@@ -58,5 +55,3 @@ struct Particle{
         bool operator()(const Particle& p1, const Particle& p2) { return p1.r < p2.r; }
     };
 };
-
-#endif /* _SEDOV_SOLUTION_PARTICLE_HPP_ */

@@ -29,9 +29,6 @@
  *
  */
 
-#ifndef _SEDOV_SOLUTION_IO_HPP_
-#define _SEDOV_SOLUTION_IO_HPP_
-
 #pragma once
 
 #include <string>
@@ -99,5 +96,3 @@ public:
         const double            rho0,            //
         const string&           outfile);        //
 };
-
-#endif /* _SEDOV_SOLUTION_IO_HPP_ */
