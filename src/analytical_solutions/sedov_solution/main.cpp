@@ -38,7 +38,8 @@
 #include "ArgParser.hpp"
 #include "sedov/SedovDataGenerator.hpp"
 
-#include "file_data.hpp"
+#include "particle.hpp"
+#include "io.hpp"
 #include "sedov_solution.hpp"
 
 using namespace std;
@@ -102,14 +103,24 @@ int main(int argc, char** argv)
         cs,
         Px,Py,Pz);
 
-    // Calculate radius, velocity and local speed of sound
-    vector<double> rSim(nParts);
-    vector<double> vel(nParts);
+    // Calculate radius, velocity and sort particle data by radius
+    vector<Particle> vSim(nParts);
     for(size_t i = 0; i < nParts; i++)
     {
-        rSim[i] = sqrt( pow(x[i], 2) + pow(y[i], 2) + pow(z[i], 2) );
-        vel[i]  = sqrt( pow(vx[i],2) + pow(vy[i],2) + pow(vz[i],2) );
+        double r   = sqrt( pow(x[i], 2) + pow(y[i], 2) + pow(z[i], 2) );
+        double vel = sqrt( pow(vx[i],2) + pow(vy[i],2) + pow(vz[i],2) );
+
+        vSim[i] = {i,
+                   r,vel,
+                   x[i],y[i],z[i],
+                   vx[i],vy[i],vz[i],
+                   h[i],
+                   rho[i],u[i],p[i],
+                   cs[i],
+                   Px[i],Py[i],Pz[i]};
     }
+    sort(vSim.begin(),vSim.end(),Particle::cmp());
+
 
     // Get time without rounding
     ostringstream time_long;
@@ -139,9 +150,8 @@ int main(int argc, char** argv)
 
         for(size_t i = 0; i < nSteps; i++)
         {
-            rSol.push_back(rSim[i]);
+            rSol.push_back(vSim[i].r);
         }
-        sort(rSol.begin(), rSol.end());
     }
     else
     {
@@ -169,11 +179,9 @@ int main(int argc, char** argv)
 
     // Write 1D simulation solution to compare with the theoretical solution
     const string simFile = outDir + "sedov_simulation_" + time_str + ".dat";
-    FileData::writeData1D(
+    FileData::writeParticle1D(
         nParts,
-        rSim,
-        rho,u,p,
-        vel,cs,
+        vSim,
         SedovSolution::rho_shock,
         SedovSolution::u_shock,
         SedovSolution::p_shock,

@@ -20,12 +20,12 @@
  * SOFTWARE.
  */
 
-#include "file_data.hpp"
-
 #include "sedov_solution.hpp"
 
 #include <iostream>
 #include <cmath>
+
+#include "io.hpp"
 
 double SedovSolution::xgeom;
 double SedovSolution::omega;

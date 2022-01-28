@@ -24,8 +24,8 @@ CUDA_OBJS := $(BUILDDIR)/gather.o                     \
              $(BUILDDIR)/cudaMomentumAndEnergyIAD.o
 
 SEDOV_SOL_DIR := src/analytical_solutions/sedov_solution
-SEDOV_SOL_CPP := $(SEDOV_SOL_DIR)/file_data.cpp        \
-                 $(SEDOV_SOL_DIR)/sedov_solution.cpp   \
+SEDOV_SOL_CPP := $(SEDOV_SOL_DIR)/io.cpp              \
+                 $(SEDOV_SOL_DIR)/sedov_solution.cpp  \
                  $(SEDOV_SOL_DIR)/main.cpp
 
 RELEASE := -DNDEBUG

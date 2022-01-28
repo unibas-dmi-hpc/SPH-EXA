@@ -20,7 +20,7 @@
  * SOFTWARE.
  */
 
-#include "file_data.hpp"
+#include "io.hpp"
 
 #include <iostream>
 #include <iomanip>
@@ -152,4 +152,49 @@ void FileData::writeData1D(
         cout << "ERROR: %s. Terminating\n" << ex.what() << endl;
         exit(EXIT_FAILURE);
     }
+}
+
+void FileData::writeParticle1D(
+    const size_t            n,
+    const vector<Particle>& vParticle,
+    const double            rho_shock,
+    const double            u_shock,
+    const double            p_shock,
+    const double            vel_shock,
+    const double            cs_shock,
+    const double            rho0,
+    const string&           outfile)
+{
+    vector<double> r(n);
+    vector<double> rho(n);
+    vector<double> u(n);
+    vector<double> p(n);
+    vector<double> vel(n);
+    vector<double> cs(n);
+
+    for (size_t i=0; i < n; i++)
+    {
+        r[i]   = vParticle[i].r;
+        rho[i] = vParticle[i].rho;
+        u[i]   = vParticle[i].u;
+        p[i]   = vParticle[i].p;
+        vel[i] = vParticle[i].vel;
+        cs[i]  = vParticle[i].cs;
+    }
+
+    FileData::writeData1D(
+        n,
+        r,
+        rho,
+        u,
+        p,
+        vel,
+        cs,
+        rho_shock,
+        u_shock,
+        p_shock,
+        vel_shock,
+        cs_shock,
+        rho0,
+        outfile);
 }

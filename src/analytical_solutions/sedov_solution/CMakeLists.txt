@@ -1,4 +1,4 @@
-set(SOURCES file_data.cpp sedov_solution.cpp main.cpp)
+set(SOURCES io.cpp sedov_solution.cpp main.cpp)
 add_executable(sedov_solution ${SOURCES})
 target_include_directories(sedov_solution PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(sedov_solution PRIVATE ${PROJECT_SOURCE_DIR}/src)

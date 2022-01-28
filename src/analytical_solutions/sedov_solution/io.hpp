@@ -29,11 +29,16 @@
  *
  */
 
+#ifndef _SEDOV_SOLUTION_IO_HPP_
+#define _SEDOV_SOLUTION_IO_HPP_
+
 #pragma once
 
 #include <string>
 #include <vector>
 #include <fstream>
+
+#include "particle.hpp"
 
 using namespace std;
 
@@ -82,4 +87,17 @@ public:
         const double          cs_shock,          //
         const double          rho0,              //
         const string&         outfile);          //
+
+    static void writeParticle1D(
+        const size_t            n,               //
+        const vector<Particle>& vParticle,       //
+        const double            rho_shock,       //
+        const double            u_shock,         //
+        const double            p_shock,         //
+        const double            vel_shock,       //
+        const double            cs_shock,        //
+        const double            rho0,            //
+        const string&           outfile);        //
 };
+
+#endif /* _SEDOV_SOLUTION_IO_HPP_ */

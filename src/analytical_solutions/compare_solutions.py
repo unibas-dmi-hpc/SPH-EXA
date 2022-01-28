@@ -59,15 +59,15 @@ default_no_plots     = False
 default_outDir       = "./"
 
 default_error_rho    = False
-default_delta_rho    = 1.e-6
+default_delta_rho    = 1.
 default_error_u      = False
-default_delta_u      = 1.e-6
+default_delta_u      = 1.
 default_error_p      = False
-default_delta_p      = 1.e-6
+default_delta_p      = 1.
 default_error_vel    = False
-default_delta_vel    = 1.e-6
+default_delta_vel    = 1.
 default_error_cs     = False
-default_delta_cs     = 1.e-6
+default_delta_cs     = 1.
 
 @cli.command()
 @click.option('-bf', '--binary_file',    required=False, default=default_binary,    help='Binary file to compare. Default: ['         + default_binary              + '].', type=click.STRING           )
@@ -399,29 +399,44 @@ def sedov(binary_file,
         print("Error L1_vel = " + L1_vel.__str__() )
         print("Error L1_cs  = " + L1_cs.__str__()  )
 
-        print("Writing Errors L1    file [" + errFile + " ]")
+        print("\nWriting Errors L1    file [" + errFile + " ]\n")
 
         # Check errors L1
 
-        if (error_rho) and (L1_rho > delta_rho):
-            print("\nCheck Error L1_rho failed : " + L1_rho.__str__() + " > " + delta_rho.__str__())
-            successfully = False
+        if error_rho:
+            if L1_rho < delta_rho:
+                print("Checked Error L1_rho successfully ! : " + L1_rho.__str__() + " > " + delta_rho.__str__())
+            else:
+                print("Checked Error L1_rho       failed ! : " + L1_rho.__str__() + " > " + delta_rho.__str__())
+                successfully = False
         
-        if (error_u  ) and (L1_u   > delta_u  ):
-            print("\nCheck Error L1_u   failed : " + L1_u.__str__()   + " > " + delta_u.__str__()  )
-            successfully = False
+        if error_u:
+            if L1_u < delta_u:
+                print("Checked Error L1_u   successfully ! : " + L1_u.__str__()   + " > " + delta_u.__str__()  )
+            else:
+                print("Checked Error L1_u         failed ! : " + L1_u.__str__()   + " > " + delta_u.__str__()  )
+                successfully = False
+            
+        if error_p:
+            if L1_p < delta_p:
+                print("Checked Error L1_p   successfully ! : " + L1_p.__str__()   + " > " + delta_p.__str__()  )
+            else:
+                print("Checked Error L1_p         failed ! : " + L1_p.__str__()   + " > " + delta_p.__str__()  )
+                successfully = False
         
-        if (error_p  ) and (L1_p   > delta_p  ):
-            print("\nCheck Error L1_p   failed : " + L1_p.__str__()   + " > " + delta_p.__str__()  )
-            successfully = False
+        if error_vel:
+            if L1_vel < delta_vel:
+                print("Checked Error L1_vel successfully ! : " + L1_vel.__str__() + " > " + delta_vel.__str__())
+            else:
+                print("Checked Error L1_vel       failed ! : " + L1_vel.__str__() + " > " + delta_vel.__str__())
+                successfully = False
         
-        if (error_vel) and (L1_vel > delta_vel):
-            print("\nCheck Error L1_vel failed : " + L1_vel.__str__() + " > " + delta_vel.__str__())
-            successfully = False
-        
-        if (error_cs ) and (L1_cs  > delta_cs ):
-            print("\nCheck Error L1_cs  failed : " + L1_cs.__str__()  + " > " + delta_cs.__str__() )
-            successfully = False
+        if error_cs:
+            if L1_cs < delta_cs:
+                print("Checked Error L1_cs  successfully ! : " + L1_cs.__str__()  + " > " + delta_cs.__str__() )
+            else:
+                print("Checked Error L1_cs        failed ! : " + L1_cs.__str__()  + " > " + delta_cs.__str__() )
+                successfully = False
 
 
     # Check finish        
