@@ -1,2 +1,4 @@
 add_subdirectory(cuda)
-add_subdirectory(test)
+if(BUILD_TESTING)
+    add_subdirectory(test)
+endif()

@@ -48,7 +48,7 @@ int main(int argc, char** argv)
     }
 
     const size_t cubeSide = parser.getInt("-n", 50);
-    const size_t maxStep = parser.getInt("-s", 10);
+    const size_t maxStep = parser.getInt("-s", 200);
     const int writeFrequency = parser.getInt("-w", -1);
     const bool quiet = parser.exists("--quiet");
     const std::string outDirectory = parser.getString("--outDir");
@@ -72,7 +72,7 @@ int main(int argc, char** argv)
 
     size_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
-    size_t bucketSize = std::max(bucketSizeFocus, (cubeSide * cubeSide * cubeSide) / (100 * d.nrank));
+    size_t bucketSize = std::max(bucketSizeFocus, d.n / (100 * d.nrank));
 
     Box<Real> box(0, 1);
     box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
@@ -176,7 +176,7 @@ int main(int argc, char** argv)
                 d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov.h5part");
 #else
             fileWriter.dumpParticleDataToAsciiFile(
-                d, domain.startIndex(), domain.endIndex(), "dump_sedov" + std::to_string(d.iteration) + ".txt");
+                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".txt");
 #endif
             timer.step("writeFile");
         }
@@ -218,7 +218,7 @@ void printHelp(char* name, int rank)
         printf("\nWhere possible options are:\n\n");
 
         printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
-        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [10]\n\n");
+        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [200]\n\n");
 
         printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
 
