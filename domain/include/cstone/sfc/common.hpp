@@ -266,6 +266,13 @@ HOST_DEVICE_FUN constexpr unsigned octalDigit(KeyType code, unsigned position)
     return (code >> (3u * (maxTreeLevel<KeyType>{} - position))) & 7u;
 }
 
+//! @brief return the offset octal digit weight for binary tree <-> octree index correspondence
+HOST_DEVICE_FUN constexpr int digitWeight(int digit)
+{
+    int fourGeqMask = -int(digit >= 4);
+    return ((7 - digit) & fourGeqMask) - (digit & ~fourGeqMask);
+}
+
 //! @brief cut down the input SFC code to the start code of the enclosing box at <treeLevel>
 template<class KeyType>
 HOST_DEVICE_FUN constexpr KeyType enclosingBoxCode(KeyType key, unsigned treeLevel)

@@ -54,7 +54,6 @@
 
 namespace cstone
 {
-
 /*! @brief combines the particle count and multipole criteria for rebalancing
  *
  * @return
@@ -63,38 +62,46 @@ namespace cstone
  *      - 8 if node to be split
  */
 template<class KeyType>
-inline HOST_DEVICE_FUN
-int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
-                       TreeNodeIndex numInternalNodes,
-                       const TreeNodeIndex* leafParents,
-                       const unsigned* leafCounts, const char* macs,
-                       TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
-                       unsigned bucketSize)
+inline HOST_DEVICE_FUN int mergeCountAndMacOp(TreeNodeIndex nodeIdx,
+                                              const KeyType* nodeKeys,
+                                              const TreeNodeIndex* childOffsets,
+                                              const TreeNodeIndex* parents,
+                                              const unsigned* counts,
+                                              const char* macs,
+                                              KeyType focusStart,
+                                              KeyType focusEnd,
+                                              unsigned bucketSize)
 {
-    auto [siblingIdx, level] = siblingAndLevel(cstoneTree, leafIdx);
+    TreeNodeIndex siblingGroup = (nodeIdx - 1) / 8;
+    TreeNodeIndex parent = nodeIdx ? parents[siblingGroup] : 0;
 
-    if (siblingIdx > 0) // 8 siblings next to each other, node can potentially be merged
+    TreeNodeIndex firstSibling = childOffsets[parent];
+    auto g = childOffsets + firstSibling;
+    bool onlyLeafSiblings = (g[0]+g[1]+g[2]+g[3]+g[4]+g[5]+g[6]+g[7]) == 0;
+
+    TreeNodeIndex siblingIdx = nodeIdx - firstSibling;
+    KeyType nodeKey          = decodePlaceholderBit(nodeKeys[nodeIdx]);
+    unsigned level           = decodePrefixLength(nodeKeys[nodeIdx]) / 3;
+
+    if (onlyLeafSiblings && siblingIdx > 0)
     {
-        // pointer to first node in sibling group
-        auto g = leafCounts + leafIdx - siblingIdx;
+        bool countMerge = counts[parent] <= bucketSize;
+        bool macMerge   = macs[parent] == 0;
 
-        bool countMerge = (g[0]+g[1]+g[2]+g[3]+g[4]+g[5]+g[6]+g[7]) <= bucketSize;
-        bool macMerge   = macs[leafParents[leafIdx]] == 0;
-
-        TreeNodeIndex firstSibling = leafIdx - siblingIdx;
-        TreeNodeIndex lastSibling  = firstSibling + 8;
-
-        // inFringe: leadIdx not in focus, but at least one sibling is in the focus
+        KeyType firstGroupKey = decodePlaceholderBit(nodeKeys[firstSibling]);
+        KeyType lastGroupKey  = firstGroupKey + 8 * nodeRange<KeyType>(level);
+        // inFringe: nodeIdx not in focus, but at least one sibling is in the focus
         // in that case we cannot remove the nodes based on a MAC criterion
-        bool inFringe = overlapTwoRanges(firstSibling, lastSibling, firstFocusNode, lastFocusNode);
+        bool inFringe = overlapTwoRanges(firstGroupKey, lastGroupKey, focusStart, focusEnd);
 
         if (countMerge || (macMerge && !inFringe)) { return 0; } // merge
     }
 
-    bool inFocus  = (leafIdx >= firstFocusNode && leafIdx < lastFocusNode);
-    if (level < maxTreeLevel<KeyType>{} && leafCounts[leafIdx] > bucketSize
-        && (macs[numInternalNodes + leafIdx] || inFocus))
-    { return 8; } // split
+    bool inFocus = (nodeKey >= focusStart && nodeKey < focusEnd);
+    if (level < maxTreeLevel<KeyType>{} && counts[nodeIdx] > bucketSize && (macs[nodeIdx] || inFocus))
+    {
+        return 8; // split
+    }
 
     return 1; // default: do nothing
 }
@@ -102,43 +109,50 @@ int mergeCountAndMacOp(TreeNodeIndex leafIdx, const KeyType* cstoneTree,
 /*! @brief Compute locally essential split or fuse decision for each octree node in parallel
  *
  * @tparam    KeyType          32- or 64-bit unsigned integer type
- * @param[in] cstoneTree       cornerstone octree leaves, length = @p numLeafNodes
- * @param[in] numInternalNodes number of internal octree nodes
- * @param[in] numLeafNodes     number of leaf octree nodes
- * @param[in] leafParents      stores the parent node index of each leaf, length = @p numLeafNodes
- * @param[in] leafCounts       particle counts per leaf node, length = @p numLeafNodes
- * @param[in] macs             multipole pass or fail per node, length = @p numInternalNodes + numLeafNodes
- * @param[in] firstFocusNode   first focus node in @p cstoneTree, range = [0:numLeafNodes]
- * @param[in] lastFocusNode    last focus node in @p cstoneTree, range = [0:numLeafNodes]
+ * @param[in] nodeKeys         warren-salmon SFC keys for each tree node, length = @p numNodes
+ * @param[in] childOffsets     node index of first child (0 identifies a leaf), length = @p numNodes
+ * @param[in] parents          parent node index for each group of 8 siblings, length = (numNodes-1) / 8
+ * @param[in] counts           particle count of each tree node, length = @p numNodes
+ * @param[in] macs             multipole pass or fail per node, length = @p numNodes
+ * @param[in] focusStart       first focus SFC key
+ * @param[in] focusEnd         last focus SFC key
  * @param[in] bucketSize       maximum particle count per (leaf) node and
  *                             minimum particle count (strictly >) for (implicit) internal nodes
- * @param[out] nodeOps         stores rebalance decision result for each node, length = @p numLeafNodes()
+ * @param[out] nodeOps         stores rebalance decision result for each node, length = @p numNodes
+ *                             only leaf nodes will be set, internal nodes are ignored
  * @return                     true if converged, false otherwise
  *
- * For each node i in the tree, in nodeOps[i], stores
+ * For each leaf node i in the tree, in nodeOps[i], stores
  *  - 0 if to be merged
  *  - 1 if unchanged,
  *  - 8 if to be split.
  */
 template<class KeyType, class LocalIndex>
-bool rebalanceDecisionEssential(const KeyType* cstoneTree, TreeNodeIndex numInternalNodes, TreeNodeIndex numLeafNodes,
-                                const TreeNodeIndex* leafParents,
-                                const unsigned* leafCounts, const char* macs,
-                                TreeNodeIndex firstFocusNode, TreeNodeIndex lastFocusNode,
-                                unsigned bucketSize, LocalIndex* nodeOps)
+bool rebalanceDecisionEssential(const KeyType* nodeKeys,
+                                const TreeNodeIndex* childOffsets,
+                                const TreeNodeIndex* parents,
+                                const unsigned* counts,
+                                const char* macs,
+                                TreeNodeIndex numNodes,
+                                KeyType focusStart,
+                                KeyType focusEnd,
+                                unsigned bucketSize,
+                                LocalIndex* nodeOps)
 {
     bool converged = true;
     #pragma omp parallel
     {
         bool convergedThread = true;
         #pragma omp for
-        for (TreeNodeIndex leafIdx = 0; leafIdx < numLeafNodes; ++leafIdx)
+        for (TreeNodeIndex i = 0; i < numNodes; ++i)
         {
-            int opDecision = mergeCountAndMacOp(leafIdx, cstoneTree, numInternalNodes, leafParents, leafCounts,
-                                                macs, firstFocusNode, lastFocusNode, bucketSize);
+            // ignore internal nodes
+            if (childOffsets[i] != 0) { continue; }
+            int opDecision =
+                mergeCountAndMacOp(i, nodeKeys, childOffsets, parents, counts, macs, focusStart, focusEnd, bucketSize);
             if (opDecision != 1) { convergedThread = false; }
 
-            nodeOps[leafIdx] = opDecision;
+            nodeOps[i] = opDecision;
         }
         if (!convergedThread) { converged = false; }
     }
@@ -264,7 +278,8 @@ public:
     FocusedOctreeCore(unsigned bucketSize)
         : bucketSize_(bucketSize)
     {
-        tree_.update(std::vector<KeyType>{0, nodeRange<KeyType>(0)});
+        std::vector<KeyType> init{0, nodeRange<KeyType>(0)};
+        tree_.update(init.data(), nNodes(init));
     }
 
     /*! @brief perform a local update step
@@ -276,7 +291,7 @@ public:
      *                            specified here. @p mandatoryKeys need not be sorted and can tolerate duplicates.
      *                            This is used e.g. to guarantee that the assignment boundaries of peer ranks are
      *                            resolved, even if the update did not converge.
-     * @param[in] counts          leaf particle counts, length = tree_.numLeafNodes()
+     * @param[in] counts          node particle counts (including internal nodes), length = tree_.numTreeNodes()
      * @param[in] macs            MAC pass/fail results for each node, length = tree_.numTreeNodes()
      * @return                    true if the tree structure did not change
      */
@@ -286,34 +301,39 @@ public:
                 gsl::span<const unsigned> counts,
                 gsl::span<const char> macs)
     {
-        assert(TreeNodeIndex(counts.size()) == tree_.numLeafNodes());
-        assert(TreeNodeIndex(macs.size()) == tree_.numTreeNodes());
+        [[maybe_unused]] TreeNodeIndex numNodes = tree_.numTreeNodes();
+        assert(TreeNodeIndex(counts.size()) == numNodes);
+        assert(TreeNodeIndex(macs.size()) == numNodes);
 
-        gsl::span<const KeyType> leaves = tree_.treeLeaves();
+        //TreeNodeIndex firstFocusNode = findNodeBelow(leaves, focusStart);
+        //TreeNodeIndex lastFocusNode  = findNodeAbove(leaves, focusEnd);
 
-        TreeNodeIndex firstFocusNode = findNodeBelow(leaves, focusStart);
-        TreeNodeIndex lastFocusNode  = findNodeAbove(leaves, focusEnd);
+        assert(tree_.nodeOrder_.size() >= tree_.numTreeNodes());
+        gsl::span<TreeNodeIndex> nodeOpsAll(tree_.nodeOrder_);
+        bool converged = rebalanceDecisionEssential(tree_.nodeKeys(), tree_.childOffsets(), tree_.parents(),
+                                                    counts.data(), macs.data(), tree_.numTreeNodes(), focusStart,
+                                                    focusEnd, bucketSize_, nodeOpsAll.data());
 
-        std::vector<TreeNodeIndex> nodeOps(tree_.numLeafNodes() + 1);
-        bool converged = rebalanceDecisionEssential(leaves.data(), tree_.numInternalNodes(), tree_.numLeafNodes(),
-                                                    tree_.leafParents(), counts.data(), macs.data(), firstFocusNode,
-                                                    lastFocusNode, bucketSize_, nodeOps.data());
+        assert(tree_.childOffsets_.size() >= size_t(tree_.numLeafNodes() + 1));
+        gsl::span<TreeNodeIndex> nodeOps(tree_.childOffsets_.data(), tree_.numLeafNodes() + 1);
+        tree_.template extractLeaves<TreeNodeIndex>(nodeOpsAll, nodeOps);
 
         std::vector<KeyType> allMandatoryKeys{focusStart, focusEnd};
         std::copy(mandatoryKeys.begin(), mandatoryKeys.end(), std::back_inserter(allMandatoryKeys));
 
+        gsl::span<const KeyType> leaves = tree_.treeLeaves();
         auto status = enforceKeys<KeyType>(leaves, allMandatoryKeys, nodeOps);
 
         if (status == ResolutionStatus::cancelMerge)
         {
-            converged = std::all_of(begin(nodeOps), end(nodeOps) - 1, [](TreeNodeIndex i) { return i == 1; });
+            converged = std::all_of(nodeOps.begin(), nodeOps.end() - 1, [](TreeNodeIndex i) { return i == 1; });
         }
         else if (status == ResolutionStatus::rebalance)
         {
             converged = false;
         }
 
-        std::vector<KeyType> newLeaves;
+        auto& newLeaves = tree_.prefixes_;
         rebalanceTree(leaves, newLeaves, nodeOps.data());
 
         // if rebalancing couldn't introduce the mandatory keys, we force-inject them now into the tree
@@ -323,7 +343,8 @@ public:
             injectKeys(newLeaves, allMandatoryKeys);
         }
 
-        tree_.update(std::move(newLeaves));
+        swap(newLeaves, tree_.cstoneTree_);
+        tree_.updateInternalTree();
 
         return converged;
     }
@@ -335,7 +356,6 @@ public:
     gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
 
 private:
-
     //! @brief max number of particles per node in focus
     unsigned bucketSize_;
 
@@ -369,14 +389,16 @@ public:
     {
         bool converged = tree_.update(focusStart, focusEnd, mandatoryKeys, counts_, macs_);
 
-        gsl::span<const KeyType> leaves = tree_.treeLeaves();
-
         macs_.resize(tree_.octree().numTreeNodes());
         markMac(tree_.octree(), box, focusStart, focusEnd, 1.0 / theta_, macs_.data());
 
-        counts_.resize(nNodes(leaves));
-        computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), particleKeys.data(),
+        gsl::span<const KeyType> leaves = tree_.treeLeaves();
+        leafCounts_.resize(nNodes(leaves));
+        computeNodeCounts(leaves.data(), leafCounts_.data(), nNodes(leaves), particleKeys.data(),
                           particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
+
+        counts_.resize(octree().numTreeNodes());
+        upsweepSum<unsigned>(octree(), leafCounts_, counts_);
 
         return converged;
     }
@@ -384,7 +406,7 @@ public:
     const Octree<KeyType>& octree() const { return tree_.octree(); }
 
     gsl::span<const KeyType>  treeLeaves() const { return tree_.treeLeaves(); }
-    gsl::span<const unsigned> leafCounts() const { return counts_; }
+    gsl::span<const unsigned> leafCounts() const { return leafCounts_; }
 
 private:
     //! @brief opening angle refinement criterion
@@ -393,6 +415,7 @@ private:
     FocusedOctreeCore<KeyType> tree_;
 
     //! @brief particle counts of the focused tree leaves
+    std::vector<unsigned> leafCounts_;
     std::vector<unsigned> counts_;
     //! @brief mac evaluation result relative to focus area (pass or fail)
     std::vector<char> macs_;

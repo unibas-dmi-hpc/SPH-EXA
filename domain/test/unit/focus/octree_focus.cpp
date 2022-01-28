@@ -39,14 +39,50 @@
 namespace cstone
 {
 
+template<class KeyType>
+static auto computeNodeOps(const Octree<KeyType>& octree,
+                           const std::vector<unsigned>& leafCounts,
+                           const std::vector<char>& csMacs,
+                           KeyType focusStart,
+                           KeyType focusEnd,
+                           unsigned bucketSize,
+                           const std::vector<std::tuple<int, int, int>>& imacs)
+{
+    std::vector<unsigned> counts(octree.numTreeNodes());
+    upsweepSum<unsigned>(octree, leafCounts, counts);
+
+    std::vector<char> macs(octree.numTreeNodes());
+    upsweepSum<char>(octree, gsl::span<const char>(csMacs.data() + octree.numInternalNodes(), octree.numLeafNodes()),
+                     macs);
+
+    // transfer values for internal node macs
+    for (auto t : imacs)
+    {
+        auto [keyStub, level, value] = t;
+
+        KeyType keyStart  = pad(KeyType(keyStub), 3*level);
+        TreeNodeIndex idx = octree.locate(keyStart, keyStart + nodeRange<KeyType>(level));
+        macs[idx] = value;
+    }
+
+    std::vector<int> nodeOps(octree.numTreeNodes());
+    bool converged = rebalanceDecisionEssential(octree.nodeKeys(), octree.childOffsets(), octree.parents(),
+                                                counts.data(), macs.data(), octree.numTreeNodes(), focusStart, focusEnd,
+                                                bucketSize, nodeOps.data());
+
+    std::vector<int> ret(octree.numLeafNodes());
+    octree.template extractLeaves<int>(nodeOps, ret);
+
+    return std::make_tuple(ret, converged);
+}
+
 //! @brief various tests about merge/split decisions based on node counts and MACs
 template<class KeyType>
-void rebalanceDecision()
+static void rebalanceDecision()
 {
     std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(0).divide(7).makeTree();
-
-    Octree<KeyType> tree;
-    tree.update(cstree.data(), cstree.data() + cstree.size());
+    Octree<KeyType> tdtree;
+    tdtree.update(cstree.data(), nNodes(cstree));
 
     unsigned bucketSize = 1;
 
@@ -59,10 +95,10 @@ void rebalanceDecision()
 
         std::vector<int>       reference{1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
-        std::vector<int> nodeOps(nNodes(cstree));
-        bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.numInternalNodes(),
-                                                    tree.numLeafNodes(), tree.leafParents(), leafCounts.data(),
-                                                    macs.data(), 0, 8, bucketSize, nodeOps.data());
+        // (keyStub, level, value) tuples for internal cell macs
+        std::vector<std::tuple<int, int, int>> internalMacs{{0, 0, 1}, {0, 1, 1}, {7, 1, 1}};
+        auto [nodeOps, converged] =
+            computeNodeOps(tdtree, leafCounts, macs, cstree[0], cstree[8], bucketSize, internalMacs);
 
         EXPECT_EQ(nodeOps, reference);
         EXPECT_FALSE(converged);
@@ -77,17 +113,15 @@ void rebalanceDecision()
         //                            parent of leaf nodes 14-21
         std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
-        std::vector<int> nodeOps(nNodes(cstree));
-        bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.numInternalNodes(),
-                                                    tree.numLeafNodes(), tree.leafParents(), leafCounts.data(),
-                                                    macs.data(), 0, 8, bucketSize, nodeOps.data());
+        std::vector<std::tuple<int, int, int>> internalMacs{{0, 0, 1}, {0, 1, 1}, {7, 1, 1}};
+        auto [nodeOps, converged] =
+            computeNodeOps(tdtree, leafCounts, macs, cstree[0], cstree[8], bucketSize, internalMacs);
 
         EXPECT_EQ(nodeOps, reference);
         EXPECT_TRUE(converged);
     }
     {
         // nodes 14-21 should stay based on counts, and should be fused based on MACs. MAC wins, nodes are fused
-        EXPECT_EQ(tree.parent(tree.toInternal(14)), 2);
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 2, 1, 0, 0, 0, 0};
         std::vector<char>  macs{1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
@@ -95,10 +129,9 @@ void rebalanceDecision()
         //                            parent of leaf nodes 14-21
         std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
-        std::vector<int> nodeOps(nNodes(cstree));
-        bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.numInternalNodes(),
-                                                    tree.numLeafNodes(), tree.leafParents(), leafCounts.data(),
-                                                    macs.data(), 0, 8, bucketSize, nodeOps.data());
+        std::vector<std::tuple<int, int, int>> internalMacs{{0, 0, 1}, {0, 1, 1}, {7, 1, 0}};
+        auto [nodeOps, converged] =
+            computeNodeOps(tdtree, leafCounts, macs, cstree[0], cstree[8], bucketSize, internalMacs);
 
         EXPECT_EQ(nodeOps, reference);
         EXPECT_FALSE(converged);
@@ -107,8 +140,8 @@ void rebalanceDecision()
         // this example has a focus area that cuts through sets of 8 neighboring sibling nodes
         std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(0).divide(1).makeTree();
 
-        Octree<KeyType> tree;
-        tree.update(cstree.data(), cstree.data() + cstree.size());
+        Octree<KeyType> octree;
+        octree.update(cstree.data(), nNodes(cstree));
         //                               |                     |                       |
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 2, 1, 2, 1, 1, 2, 1, 1};
@@ -120,10 +153,10 @@ void rebalanceDecision()
         //                                                             ----------------
         //                   these nodes are kept alive because their siblings (8 and 9) are inside the focus and are
         //                   staying
-        std::vector<int> nodeOps(nNodes(cstree));
-        bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.numInternalNodes(),
-                                                    tree.numLeafNodes(), tree.leafParents(), leafCounts.data(),
-                                                    macs.data(), 2, 10, bucketSize, nodeOps.data());
+
+        std::vector<std::tuple<int, int, int>> internalMacs{{0, 0, 1}, {0, 1, 1}, {1, 1, 0}};
+        auto [nodeOps, converged] =
+            computeNodeOps(octree, leafCounts, macs, cstree[2], cstree[10], bucketSize, internalMacs);
 
         EXPECT_EQ(nodeOps, reference);
         EXPECT_FALSE(converged);
@@ -131,11 +164,9 @@ void rebalanceDecision()
     {
         std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(6).divide(7).makeTree();
 
-        Octree<KeyType> tree;
-        tree.update(cstree.data(), cstree.data() + cstree.size());
+        Octree<KeyType> octree;
+        octree.update(cstree.data(), nNodes(cstree));
 
-        EXPECT_EQ(tree.parent(tree.toInternal(6)), 1);
-        EXPECT_EQ(tree.parent(tree.toInternal(14)), 2);
         //                                                                        focus
         //                               |                |                      |-----------------------
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
@@ -145,10 +176,9 @@ void rebalanceDecision()
         std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1};
         // Check that nodes 6-13, directly adjacent to the focus area can be merged
 
-        std::vector<int> nodeOps(nNodes(cstree));
-        bool converged = rebalanceDecisionEssential(tree.treeLeaves().data(), tree.numInternalNodes(),
-                                                    tree.numLeafNodes(), tree.leafParents(), leafCounts.data(),
-                                                    macs.data(), 14, 22, bucketSize, nodeOps.data());
+        std::vector<std::tuple<int, int, int>> internalMacs{{0, 0, 1}, {6, 1, 0}, {7, 1, 0}};
+        auto [nodeOps, converged] =
+            computeNodeOps(octree, leafCounts, macs, cstree[14], cstree[22], bucketSize, internalMacs);
 
         EXPECT_EQ(nodeOps, reference);
         EXPECT_FALSE(converged);
@@ -162,7 +192,7 @@ TEST(FocusedOctree, rebalanceDecision)
 }
 
 template<class KeyType>
-void enforceKeys()
+static void enforceKeys()
 {
     auto tree = OctreeMaker<KeyType>{}.divide().divide(1).makeTree();
 
@@ -301,7 +331,7 @@ std::vector<TreeNodeIndex> octantNodeCount(gsl::span<const KeyType> tree)
 }
 
 template<class KeyType>
-void computeEssentialTree()
+static void computeEssentialTree()
 {
     Box<double> box{-1, 1};
     int nParticles = 200000;
@@ -311,7 +341,7 @@ void computeEssentialTree()
 
     auto [csTree, csCounts] = computeOctree(codes.data(), codes.data() + nParticles, csBucketSize);
     Octree<KeyType> globalTree;
-    globalTree.update(begin(csTree), end(csTree));
+    globalTree.update(csTree.data(), nNodes(csTree));
 
     unsigned bucketSize = 16;
     float theta = 1.0;

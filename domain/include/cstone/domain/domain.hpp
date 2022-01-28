@@ -183,6 +183,8 @@ public:
               Vectors&... particleProperties)
     {
         auto [exchangeStart, keyView] = distribute(particleKeys, x, y, z, h, particleProperties...);
+        // h is already reordered here for use in halo discovery
+        reorderFunctor(h.data() + exchangeStart, h.data());
 
         std::vector<int> peers = global_.findPeers(theta_);
 
@@ -200,6 +202,38 @@ public:
                              layout_);
 
         updateLayout(exchangeStart, keyView, particleKeys, std::tie(h), std::tie(x, y, z, particleProperties...));
+        setupHalos(particleKeys, x, y, z, h);
+        firstCall_ = false;
+    }
+
+    template<class... Vectors>
+    void syncGrav(std::vector<KeyType>& particleKeys,
+                  std::vector<T>& x,
+                  std::vector<T>& y,
+                  std::vector<T>& z,
+                  std::vector<T>& h,
+                  std::vector<T>& m,
+                  Vectors&... particleProperties)
+    {
+        auto [exchangeStart, keyView] = distribute(particleKeys, x, y, z, h, m, particleProperties...);
+        reorderArrays(reorderFunctor, exchangeStart, 0, x.data(), y.data(), z.data(), h.data(), m.data());
+
+        std::vector<int> peers = global_.findPeers(theta_);
+
+        if (firstCall_)
+        {
+            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+        }
+        focusTree_.updateTree(peers, global_.assignment(), global_.tree());
+        focusTree_.updateCriteria(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+
+        halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
+
+        reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
+        halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), keyView, peers,
+                             layout_);
+
+        updateLayout(exchangeStart, keyView, particleKeys, std::tie(x, y, z, h, m), std::tie(particleProperties...));
         setupHalos(particleKeys, x, y, z, h);
         firstCall_ = false;
     }
@@ -295,20 +329,19 @@ private:
                     std::vector<T>& x,
                     std::vector<T>& y,
                     std::vector<T>& z,
-                    std::vector<T>& h,
                     Vectors&... particleProperties)
     {
         initBounds(x.size());
-        checkSizesEqual(x.size(), particleKeys, x, y, z, h, particleProperties...);
+        checkSizesEqual(x.size(), particleKeys, x, y, z, particleProperties...);
 
         // Global tree build and assignment
         LocalIndex newNParticlesAssigned =
             global_.assign(bufDesc_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data());
 
         size_t exchangeSize = std::max(x.size(), size_t(newNParticlesAssigned));
-        reallocate(exchangeSize, particleKeys, x, y, z, h, particleProperties...);
+        reallocate(exchangeSize, particleKeys, x, y, z, particleProperties...);
 
-        return global_.distribute(bufDesc_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data(), h.data(),
+        return global_.distribute(bufDesc_, reorderFunctor, particleKeys.data(), x.data(), y.data(), z.data(),
                                   particleProperties.data()...);
     }
 

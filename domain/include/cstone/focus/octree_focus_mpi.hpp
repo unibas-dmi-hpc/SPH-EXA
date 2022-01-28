@@ -140,15 +140,15 @@ public:
         updateMac(box, particleKeys, assignment, globalTreeLeaves);
 
         gsl::span<const KeyType> leaves = treeLeaves();
-        counts_.resize(nNodes(leaves));
+        leafCounts_.resize(nNodes(leaves));
         // local node counts
-        computeNodeCounts(leaves.data(), counts_.data(), nNodes(leaves), particleKeys.data(),
+        computeNodeCounts(leaves.data(), leafCounts_.data(), nNodes(leaves), particleKeys.data(),
                           particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
 
         //! 2nd regeneration step: data from neighboring peers
         std::vector<MPI_Request> treeletRequests;
         exchangeTreelets(peerRanks, assignment_, leaves, treelets_, treeletRequests);
-        exchangeTreeletCounts(peerRanks, treelets_, assignment_, particleKeys, counts_, treeletRequests);
+        exchangeTreeletCounts(peerRanks, treelets_, assignment_, particleKeys, leafCounts_, treeletRequests);
         MPI_Waitall(int(peerRanks.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
 
         //! 3rd regeneration step: global data
@@ -163,8 +163,11 @@ public:
         for (auto ip : globalCountIndices)
         {
             countRequestParticles(globalTreeLeaves, globalCounts, leaves.subspan(ip.start(), ip.count() + 1),
-                                  gsl::span<unsigned>(counts_.data() + ip.start(), ip.count()));
+                                  gsl::span<unsigned>(leafCounts_.data() + ip.start(), ip.count()));
         }
+
+        counts_.resize(tree_.octree().numTreeNodes());
+        upsweepSum<unsigned>(octree(), leafCounts_, counts_);
 
         rebalanceStatus_ = Criteria::valid;
     }
@@ -200,10 +203,11 @@ public:
         }
     }
 
+    //! @brief the fully linked traversable octree
     const Octree<KeyType>& octree() const { return tree_.octree(); }
-
-    gsl::span<const KeyType>  treeLeaves() const { return tree_.treeLeaves(); }
-
+    //! @brief the cornerstone leaf cell array
+    gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
+    //! @brief the assignment of the focus tree leaves to peer ranks
     gsl::span<const TreeIndexPair> assignment() const { return assignment_; }
 
     gsl::span<const unsigned> leafCounts() const
@@ -212,7 +216,7 @@ public:
         {
             throw std::runtime_error("Tree structure is outdated, need to call updateCriteria\n");
         }
-        return counts_;
+        return leafCounts_;
     }
 
 private:
@@ -249,6 +253,8 @@ private:
     FocusedOctreeCore<KeyType> tree_;
 
     //! @brief particle counts of the focused tree leaves
+    std::vector<unsigned> leafCounts_;
+    //! @brief particle counts of the full tree, including internal nodes
     std::vector<unsigned> counts_;
     //! @brief mac evaluation result relative to focus area (pass or fail)
     std::vector<char> macs_;

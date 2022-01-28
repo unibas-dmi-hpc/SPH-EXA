@@ -65,7 +65,7 @@ TEST(Gravity, TreeWalk)
 
     // fully linked octree, including internal part
     Octree<KeyType> octree;
-    octree.update(std::move(treeLeaves));
+    octree.update(treeLeaves.data(), nNodes(treeLeaves));
 
     // layout[i] is equal to the index in (x,y,z,m) of the first particle in leaf cell with index i
     std::vector<LocalIndex> layout(octree.numLeafNodes() + 1);

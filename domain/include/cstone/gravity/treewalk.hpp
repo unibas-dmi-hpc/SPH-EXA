@@ -31,8 +31,9 @@
 
 #pragma once
 
+#include "cstone/traversal/traversal.hpp"
 #include "cstone/traversal/macs.hpp"
-#include "cstone/traversal/upsweep.hpp"
+#include "cstone/tree/octree_internal.hpp"
 #include "cstone/gravity/multipole.hpp"
 
 namespace cstone

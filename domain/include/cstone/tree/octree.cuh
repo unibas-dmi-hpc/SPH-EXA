@@ -56,7 +56,7 @@ __global__ void computeNodeCountsKernel(const KeyType* tree, unsigned* counts, T
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid < nNodes)
     {
-        counts[tid] = calculateNodeCount(tree, tid, codesStart, codesEnd, maxCount);
+        counts[tid] = calculateNodeCount(tree[tid], tree[tid+1], codesStart, codesEnd, maxCount);
     }
 }
 
