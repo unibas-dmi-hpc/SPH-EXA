@@ -22,7 +22,7 @@ public:
     static inline const T mTotal        = 1.;
     static inline const T energyTotal   = 1.;
     static inline const T width         = 0.1;
-    static inline const T ener0         = energyTotal / std::pow(M_PI,1.5) / 1. / std::pow(width,3);
+    static inline const T ener0         = energyTotal / std::pow(M_PI,1.5) / 1. / std::pow(width,3.0);
     static inline const T rho0          = 1.;
     static inline const T u0            = 1.e-08;
     static inline const T p0            = 0.;
