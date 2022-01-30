@@ -427,14 +427,10 @@ void upsweep(const Octree<KeyType>& octree, T* quantities, CombinationFunction c
         {
             if (!octree.isLeaf(i))
             {
-                 quantities[i] = combinationFunction(quantities[octree.child(i, 0)],
-                                                     quantities[octree.child(i, 1)],
-                                                     quantities[octree.child(i, 2)],
-                                                     quantities[octree.child(i, 3)],
-                                                     quantities[octree.child(i, 4)],
-                                                     quantities[octree.child(i, 5)],
-                                                     quantities[octree.child(i, 6)],
-                                                     quantities[octree.child(i, 7)]);
+                quantities[i] = combinationFunction(quantities[octree.child(i, 0)], quantities[octree.child(i, 1)],
+                                                    quantities[octree.child(i, 2)], quantities[octree.child(i, 3)],
+                                                    quantities[octree.child(i, 4)], quantities[octree.child(i, 5)],
+                                                    quantities[octree.child(i, 6)], quantities[octree.child(i, 7)]);
             }
         }
     }

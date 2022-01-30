@@ -37,15 +37,64 @@
 namespace cstone
 {
 
+template<class Ts, class Tc, class Tm>
+util::array<Ts, 4> massCenter(gsl::span<const Tc> x,
+                              gsl::span<const Tc> y,
+                              gsl::span<const Tc> z,
+                              gsl::span<const Tm> m,
+                              TreeNodeIndex first,
+                              TreeNodeIndex last)
+{
+    util::array<Ts, 4> center{0, 0, 0, 0};
+    for (LocalIndex i = first; i < last; ++i)
+    {
+        Tm weight = m[i];
+
+        center[0] += weight * x[i];
+        center[1] += weight * y[i];
+        center[2] += weight * z[i];
+        center[3] += weight;
+    }
+    Tm invM = (center[3] != Tm(0.0)) ? Tm(1.0) / center[3] : Tm(0.0);
+    center[0] *= invM;
+    center[1] *= invM;
+    center[2] *= invM;
+
+    return center;
+}
+
+template<class T>
+util::array<T, 4> massCenter(const util::array<T, 4>* firstSource, const util::array<T, 4>* lastSource)
+{
+    util::array<T, 4> center{0, 0, 0, 0};
+    for ( ; firstSource != lastSource; ++firstSource)
+    {
+        auto source = *firstSource;
+        T weight = source[3];
+
+        center[0] += weight * source[0];
+        center[1] += weight * source[1];
+        center[2] += weight * source[2];
+        center[3] += weight;
+    }
+
+    T invM = (center[3] != T(0.0)) ? T(1.0) / center[3] : T(0.0);
+    center[0] *= invM;
+    center[1] *= invM;
+    center[2] *= invM;
+
+    return center;
+}
+
 template<class T1, class T2, class T3, class KeyType>
-void computeLocalSourceCenter(const T1* x,
-                              const T1* y,
-                              const T1* z,
-                              const T2* m,
-                              const KeyType* particleKeys,
-                              LocalIndex numParticles,
-                              const Octree<KeyType>& octree,
-                              util::array<T3, 4>* sourceCenter)
+void computeLeafMassCenter(gsl::span<const T1> x,
+                           gsl::span<const T1> y,
+                           gsl::span<const T1> z,
+                           gsl::span<const T2> m,
+                           gsl::span<const KeyType> particleKeys,
+                           LocalIndex numParticles,
+                           const Octree<KeyType>& octree,
+                           gsl::span<util::array<T3, 4>> sourceCenter)
 {
     #pragma omp parallel for
     for (TreeNodeIndex nodeIdx = 0; nodeIdx < octree.numTreeNodes(); ++nodeIdx)
@@ -56,25 +105,31 @@ void computeLocalSourceCenter(const T1* x,
             KeyType nodeEnd   = octree.codeEnd(nodeIdx);
 
             // find elements belonging to particles in node i
-            LocalIndex startIndex = findNodeAbove(particleKeys, nodeStart);
-            LocalIndex endIndex   = findNodeAbove(particleKeys, nodeEnd);
+            LocalIndex first = findNodeAbove(particleKeys, nodeStart);
+            LocalIndex last  = findNodeAbove(particleKeys, nodeEnd);
 
-            util::array<T3, 4> center{0, 0, 0, 0};
-            for (LocalIndex i = startIndex; i < endIndex; ++i)
+            sourceCenter[nodeIdx] = massCenter<T3>(x, y, z, m, first, last);
+        }
+    }
+}
+
+template<class T, class KeyType>
+void upsweepMassCenter(const Octree<KeyType>& octree, gsl::span<util::array<T, 4>> centers)
+{
+    int currentLevel = maxTreeLevel<KeyType>{};
+
+    for ( ; currentLevel >= 0; --currentLevel)
+    {
+        TreeNodeIndex start = octree.levelOffset(currentLevel);
+        TreeNodeIndex end   = octree.levelOffset(currentLevel + 1);
+        #pragma omp parallel for schedule(static)
+        for (TreeNodeIndex i = start; i < end; ++i)
+        {
+            if (!octree.isLeaf(i))
             {
-                T3 weight = m[i];
-
-                center[0] += weight * x[i];
-                center[1] += weight * y[i];
-                center[2] += weight * z[i];
-                center[3] += weight;
+                auto* first = centers.data() + octree.child(i, 0);
+                centers[i] = massCenter(first, first + 8);
             }
-            T3 invM = (center[3] != T3(0.0)) ? T3(1.0) / center[3] : T3(0.0);
-            center[0] *= invM;
-            center[1] *= invM;
-            center[2] *= invM;
-
-            sourceCenter[nodeIdx] = center;
         }
     }
 }
