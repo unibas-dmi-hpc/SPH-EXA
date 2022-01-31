@@ -74,10 +74,8 @@ TESTCASE ?= noh
 
 ifeq ($(TESTCASE),sedov)
 	TESTCODE = src/sedov/sedov.cpp
-	SOLCODE = $(SEDOV_SOL_CPP)
 else ifeq ($(TESTCASE),noh)
 	TESTCODE = src/noh/noh.cpp
-	SOLCODE = $(NOH_SOL_CPP)
 else ifeq ($(TESTCASE),evrard)
 	TESTCASE_FLAGS = -DGRAVITY
 	TESTCODE = src/evrard/evrard.cpp
@@ -92,9 +90,7 @@ mpi+omp:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
-ifdef SOLCODE
 	make solution
-endif
     
 #omp+cuda: $(BUILDDIR)/cuda_no_mpi.o $(CUDA_OBJS)
 #	@mkdir -p $(BINDIR)
@@ -112,29 +108,24 @@ mpi+omp+target:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
-ifdef SOLCODE
 	make solution
-endif
 
 mpi+omp+acc:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(TESTCASE_FLAGS) -DUSE_ACC $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
-ifdef SOLCODE
 	make solution
-endif
 
 mpi+omp+cuda: $(BUILDDIR)/cuda_mpi.o $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(NVCC) $(NVCCLDFLAGS) -dlink -o cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
 	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@.app cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
-ifdef SOLCODE
 	make solution
-endif
 
 solution:
-	$(MPICXX) $(CXXFLAGS) $(INC) $(SOLCODE) -o $(BINDIR)/$(TESTCASE)_$@ $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) $(SEDOV_SOL_CPP) -o $(BINDIR)/sedov_$@ $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) $(NOH_SOL_CPP)   -o $(BINDIR)/noh_$@   $(LIB)
 
 #all: omp mpi+omp omp+cuda mpi+omp+cuda omp+target mpi+omp+target mpi+omp+acc
 all: mpi+omp mpi+omp+cuda mpi+omp+target mpi+omp+acc
