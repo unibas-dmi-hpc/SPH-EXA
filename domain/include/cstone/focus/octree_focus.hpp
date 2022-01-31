@@ -301,14 +301,10 @@ public:
                 gsl::span<const unsigned> counts,
                 gsl::span<const char> macs)
     {
-        [[maybe_unused]] TreeNodeIndex numNodes = tree_.numTreeNodes();
-        assert(TreeNodeIndex(counts.size()) == numNodes);
-        assert(TreeNodeIndex(macs.size()) == numNodes);
-
-        //TreeNodeIndex firstFocusNode = findNodeBelow(leaves, focusStart);
-        //TreeNodeIndex lastFocusNode  = findNodeAbove(leaves, focusEnd);
-
+        assert(TreeNodeIndex(counts.size()) == tree_.numTreeNodes());
+        assert(TreeNodeIndex(macs.size()) == tree_.numTreeNodes());
         assert(tree_.nodeOrder_.size() >= tree_.numTreeNodes());
+
         gsl::span<TreeNodeIndex> nodeOpsAll(tree_.nodeOrder_);
         bool converged = rebalanceDecisionEssential(tree_.nodeKeys(), tree_.childOffsets(), tree_.parents(),
                                                     counts.data(), macs.data(), tree_.numTreeNodes(), focusStart,
