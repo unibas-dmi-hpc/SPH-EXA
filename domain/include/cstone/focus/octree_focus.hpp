@@ -159,6 +159,38 @@ bool rebalanceDecisionEssential(const KeyType* nodeKeys,
     return converged;
 }
 
+/*! @brief modify nodeOps such that specified ranges of keys will be removed
+ *
+ * @tparam     KeyType       32- or 64-bit unsigned integer
+ * @param[in]  treeLeaves    tree leaves to remove keys from
+ * @param[in]  keyRanges     the ranges of keys to remove. any key that falls in between elements
+ *                           of this array will be removed, i.e. the keys listed here will stay, but
+ *                           keys in between will not.
+ * @param[out] nodeOps       the corresponding nodeOps that cause the specified ranges to be
+ *                           removed after rebalancing
+ */
+template<class KeyType>
+void removeKeyRanges(gsl::span<const KeyType> treeLeaves,
+                     gsl::span<const KeyType> keyRanges,
+                     gsl::span<TreeNodeIndex> nodeOps)
+{
+    assert(keyRanges.size() >= 2lu);
+    for (size_t i = 0; i < keyRanges.size() - 1; ++i)
+    {
+        assert(isPowerOf8(keyRanges[i + 1] - keyRanges[i]));
+
+        TreeNodeIndex firstIdx  = findNodeAbove(treeLeaves, keyRanges[i]);
+        TreeNodeIndex secondIdx = findNodeBelow(treeLeaves, keyRanges[i + 1]);
+        assert(treeLeaves[firstIdx] == keyRanges[i]);
+        assert(treeLeaves[secondIdx] == keyRanges[i + 1]);
+
+        for (TreeNodeIndex nodeIdx = firstIdx + 1; nodeIdx < secondIdx; ++nodeIdx)
+        {
+            nodeOps[nodeIdx] = 0;
+        }
+    }
+}
+
 enum class ResolutionStatus : int
 {
     //! @brief required SFC keys present in tree, no action needed
@@ -303,7 +335,7 @@ public:
     {
         assert(TreeNodeIndex(counts.size()) == tree_.numTreeNodes());
         assert(TreeNodeIndex(macs.size()) == tree_.numTreeNodes());
-        assert(tree_.nodeOrder_.size() >= tree_.numTreeNodes());
+        assert(TreeNodeIndex(tree_.nodeOrder_.size()) >= tree_.numTreeNodes());
 
         gsl::span<TreeNodeIndex> nodeOpsAll(tree_.nodeOrder_);
         bool converged = rebalanceDecisionEssential(tree_.nodeKeys(), tree_.childOffsets(), tree_.parents(),
