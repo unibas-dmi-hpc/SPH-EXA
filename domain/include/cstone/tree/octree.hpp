@@ -83,17 +83,13 @@ inline TreeNodeIndex findNodeAbove(gsl::span<const KeyType> tree, KeyType key)
 
 //! @brief count particles in one tree node
 template<class KeyType>
-HOST_DEVICE_FUN
-unsigned calculateNodeCount(const KeyType* tree, TreeNodeIndex nodeIdx,
-                            const KeyType* codesStart, const KeyType* codesEnd, unsigned maxCount)
+HOST_DEVICE_FUN unsigned calculateNodeCount(
+    KeyType nodeStart, KeyType nodeEnd, const KeyType* codesStart, const KeyType* codesEnd, size_t maxCount)
 {
-    KeyType nodeStart = tree[nodeIdx];
-    KeyType nodeEnd   = tree[nodeIdx+1];
-
     // count particles in range
     auto rangeStart = stl::lower_bound(codesStart, codesEnd, nodeStart);
     auto rangeEnd   = stl::lower_bound(codesStart, codesEnd, nodeEnd);
-    unsigned count  = rangeEnd - rangeStart;
+    size_t count    = rangeEnd - rangeStart;
 
     return stl::min(count, maxCount);
 }
@@ -242,7 +238,8 @@ void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNod
         #pragma omp parallel for schedule(static)
         for (TreeNodeIndex i = 0; i < nNonZeroNodes; ++i)
         {
-            counts[i + firstNode] = calculateNodeCount(populatedTree, i, codesStart, codesEnd, maxCount);
+            counts[i + firstNode] =
+                calculateNodeCount(populatedTree[i], populatedTree[i + 1], codesStart, codesEnd, maxCount);
         }
     }
 }

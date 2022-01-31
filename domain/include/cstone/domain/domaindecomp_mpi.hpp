@@ -66,13 +66,13 @@ namespace cstone
  *           already present on @p thisRank.
  */
 template<class... Arrays>
-std::tuple<LocalParticleIndex, LocalParticleIndex>
+std::tuple<LocalIndex, LocalIndex>
 exchangeParticles(const SendList& sendList, int thisRank,
-                  LocalParticleIndex particleStart,
-                  LocalParticleIndex particleEnd,
-                  LocalParticleIndex arraySize,
-                  LocalParticleIndex numParticlesAssigned,
-                  const LocalParticleIndex* ordering, Arrays... arrays)
+                                                     LocalIndex particleStart,
+                                                     LocalIndex particleEnd,
+                                                     LocalIndex arraySize,
+                                                     LocalIndex numParticlesAssigned,
+                  const LocalIndex* ordering, Arrays... arrays)
 {
     using T = std::common_type_t<std::decay_t<decltype(*arrays)>...>;
 
@@ -88,7 +88,7 @@ exchangeParticles(const SendList& sendList, int thisRank,
     std::array<T*, numArrays> sourceArrays{ (arrays + particleStart)... };
     for (int destinationRank = 0; destinationRank < numRanks; ++destinationRank)
     {
-        LocalParticleIndex sendCount = sendList[destinationRank].totalCount();
+        LocalIndex sendCount = sendList[destinationRank].totalCount();
         if (destinationRank == thisRank || sendCount == 0) { continue; }
 
         std::vector<T> sendBuffer(numArrays * sendCount);
@@ -101,13 +101,13 @@ exchangeParticles(const SendList& sendList, int thisRank,
         sendBuffers.push_back(std::move(sendBuffer));
     }
 
-    LocalParticleIndex numParticlesPresent = sendList[thisRank].totalCount();
-    LocalParticleIndex numIncoming         = numParticlesAssigned - numParticlesPresent;
+    LocalIndex numParticlesPresent = sendList[thisRank].totalCount();
+    LocalIndex numIncoming         = numParticlesAssigned - numParticlesPresent;
 
     bool fitHead = particleStart >= numIncoming;
     bool fitTail = arraySize - particleEnd >= numIncoming;
 
-    LocalParticleIndex receiveStart, newParticleStart, newParticleEnd;
+    LocalIndex receiveStart, newParticleStart, newParticleEnd;
     if (fitHead)
     {
         receiveStart     = particleStart - numIncoming;

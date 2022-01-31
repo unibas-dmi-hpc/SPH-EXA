@@ -67,7 +67,7 @@ void findHalosFlags()
     std::vector<double> interactionRadii(nNodes(tree), 0.1);
 
     Octree<KeyType> octree;
-    octree.update(tree.begin(), tree.end());
+    octree.update(tree.data(), nNodes(tree));
 
     {
         std::vector<int> collisionFlags(nNodes(tree), 0);

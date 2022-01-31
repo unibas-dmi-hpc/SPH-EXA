@@ -1,18 +1,32 @@
 CXX ?= g++ # This is the main compiler
+# CXX := clang --analyze # and comment out the linker last line for sanity
+
 CC ?= gcc
+
 MPICXX ?= mpic++ -DOMPI_SKIP_MPICXX
+
 ENV ?= gnu
+
 NVCC ?= $(CUDA_PATH)/bin/nvcc
 
 CUDA_PATH ?= /usr/local/cuda
 
-# CXX := clang --analyze # and comment out the linker last line for sanity
 SRCDIR := src
-BUILDDIR := build
 BINDIR := bin
+BUILDDIR := build
+
 THIS_FILE := $(lastword $(MAKEFILE_LIST))
 
-CUDA_OBJS := $(BUILDDIR)/gather.o $(BUILDDIR)/findneighbors.o $(BUILDDIR)/cudaDensity.o $(BUILDDIR)/cudaIAD.o $(BUILDDIR)/cudaMomentumAndEnergyIAD.o
+CUDA_OBJS := $(BUILDDIR)/gather.o                     \
+             $(BUILDDIR)/findneighbors.o              \
+             $(BUILDDIR)/cudaDensity.o                \
+             $(BUILDDIR)/cudaIAD.o                    \
+             $(BUILDDIR)/cudaMomentumAndEnergyIAD.o
+
+SEDOV_SOL_DIR := src/analytical_solutions/sedov_solution
+SEDOV_SOL_CPP := $(SEDOV_SOL_DIR)/io.cpp              \
+                 $(SEDOV_SOL_DIR)/sedov_solution.cpp  \
+                 $(SEDOV_SOL_DIR)/main.cpp
 
 RELEASE := -DNDEBUG
 DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
@@ -34,7 +48,7 @@ ifeq ($(ENV),gnu)
 endif
 
 ifeq ($(ENV),pgi)
-	CXXFLAGS += -std=c++17 -mp -dynamic -acc -ta=tesla,cc60 -mp=nonuma -Mcuda -g #-g -Minfo=accel # prints generated accel functions
+	CXXFLAGS += -std=c++17 -mp -dynamic -acc -ta=tesla,cc60 -mp=nonuma -Mcuda -g # -Minfo=accel # prints generated accel functions
 endif
 
 ifeq ($(ENV),cray)
@@ -55,6 +69,7 @@ TESTCASE ?= noh
 
 ifeq ($(TESTCASE),sedov)
 	TESTCODE = src/sedov/sedov.cpp
+	SOLCODE = $(SEDOV_SOL_CPP)
 else ifeq ($(TESTCASE),evrard)
 	TESTCASE_FLAGS = -DGRAVITY
 	TESTCODE = src/evrard/evrard.cpp
@@ -71,7 +86,10 @@ mpi+omp:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
-
+ifdef SOLCODE
+	make solution
+endif
+    
 #omp+cuda: $(BUILDDIR)/cuda_no_mpi.o $(CUDA_OBJS)
 #	@mkdir -p $(BINDIR)
 #	$(info Linking the executable:)
@@ -88,17 +106,29 @@ mpi+omp+target:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
+ifdef SOLCODE
+	make solution
+endif
 
 mpi+omp+acc:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(TESTCASE_FLAGS) -DUSE_ACC $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
+ifdef SOLCODE
+	make solution
+endif
 
 mpi+omp+cuda: $(BUILDDIR)/cuda_mpi.o $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(NVCC) $(NVCCLDFLAGS) -dlink -o cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
 	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@.app cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
+ifdef SOLCODE
+	make solution
+endif
+
+solution:
+	$(MPICXX) $(CXXFLAGS) $(INC) $(SOLCODE) -o $(BINDIR)/$(TESTCASE)_$@ $(LIB)
 
 #all: omp mpi+omp omp+cuda mpi+omp+cuda omp+target mpi+omp+target mpi+omp+acc
 all: mpi+omp mpi+omp+cuda mpi+omp+target mpi+omp+acc
@@ -129,6 +159,6 @@ run_test:
 
 clean:
 	$(info Cleaning...)
-	$(RM) -rf $(BUILDDIR) $(BINDIR)
+	$(RM) -rf $(BUILDDIR) $(BINDIR) cudalinked*.o
 
 .PHONY: all clean
