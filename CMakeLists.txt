@@ -7,6 +7,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fno-math-errno -march=native -DNDEBUG")
 set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
 
 option(BUILD_TESTING "build unit and integration tests" ON)
+option(BUILD_ANALYTICAL "build analytical solution" ON)
 option(SPH_EXA_WITH_HIP "Build SPH-EXA with HIP" OFF)
 
 if (SPH_EXA_WITH_HIP)
@@ -82,7 +83,7 @@ set(INSITU None CACHE STRING "Enable in-situ support")
 set_property(CACHE INSITU PROPERTY STRINGS None Catalyst Ascent)
 
 if(INSITU STREQUAL "Catalyst")
-	find_package(catalyst REQUIRED PATHS "$ENV{EBROOTPARAVIEW}/lib/cmake/paraview-5.10")
+    find_package(catalyst REQUIRED PATHS "$ENV{EBROOTPARAVIEW}/lib/cmake/paraview-5.10")
 elseif(INSITU STREQUAL "Ascent")
     find_package(Ascent REQUIRED PATHS "/apps/daint/UES/Ascent/ascent-install/lib/cmake/ascent")
 endif()
