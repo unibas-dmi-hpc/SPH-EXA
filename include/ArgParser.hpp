@@ -28,6 +28,13 @@ public:
         return def;
     }
 
+    double getDouble(const std::string &option, const double def = 0.) const
+    {
+        char **itr = find(begin, end, option);
+        if (itr != end && ++itr != end) return std::stod(*itr);
+        return def;
+    }
+
     bool exists(const std::string &option) const { return std::find(begin, end, option) != end; }
 
 private:

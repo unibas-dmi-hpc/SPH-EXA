@@ -243,24 +243,28 @@ TEST(Macs, minVecMacMutual)
 }
 
 template<class KeyType, class T>
-std::vector<char> markMacAll2All(gsl::span<const KeyType> leaves, TreeNodeIndex firstNode, TreeNodeIndex lastNode,
-                                 float theta, const Box<T>& box)
+static std::vector<char> markMacAll2All(
+    const Octree<KeyType>& octree, TreeNodeIndex firstLeaf, TreeNodeIndex lastLeaf, float theta, const Box<T>& box)
 {
-    std::vector<char> markings(nNodes(leaves));
+    gsl::span<const KeyType> leaves = octree.treeLeaves();
+    std::vector<char> markings(octree.numTreeNodes(), 0);
     float invTheta = 1.0 / theta;
 
     // loop over target cells
-    for (TreeNodeIndex i = firstNode; i < lastNode; ++i)
+    for (TreeNodeIndex i = firstLeaf; i < lastLeaf; ++i)
     {
         IBox targetBox = sfcIBox(sfcKey(leaves[i]), sfcKey(leaves[i + 1]));
         auto [targetCenter, targetSize] = centerAndSize<KeyType>(targetBox, box);
 
         // loop over source cells
-        for (TreeNodeIndex j = 0; j < TreeNodeIndex(nNodes(leaves)); ++j)
+        for (TreeNodeIndex j = 0; j < octree.numTreeNodes(); ++j)
         {
             // source cells must not be in target cell range
-            if (firstNode <= j && j < lastNode) { continue; }
-            IBox sourceBox = sfcIBox(sfcKey(leaves[j]), sfcKey(leaves[j + 1]));
+            if (leaves[firstLeaf] <= octree.codeStart(j) && octree.codeEnd(j) <= leaves[lastLeaf])
+            {
+                continue;
+            }
+            IBox sourceBox                  = sfcIBox(sfcKey(octree.codeStart(j)), sfcKey(octree.codeEnd(j)));
             auto [sourceCenter, sourceSize] = centerAndSize<KeyType>(sourceBox, box);
 
             // if source cell fails MAC w.r.t to current target, it gets marked
@@ -273,34 +277,25 @@ std::vector<char> markMacAll2All(gsl::span<const KeyType> leaves, TreeNodeIndex 
 }
 
 template<class KeyType>
-void markMac()
+static void markMac()
 {
     Box<double> box(0, 1);
-    std::vector<KeyType> treeLeaves = OctreeMaker<KeyType>{}.divide().divide(0).divide(7).makeTree();
+    std::vector<KeyType> leaves = OctreeMaker<KeyType>{}.divide().divide(0).divide(5).makeTree();
 
-    Octree<KeyType> fullTree;
-    fullTree.update(treeLeaves.data(), treeLeaves.data() + treeLeaves.size());
+    Octree<KeyType> octree;
+    octree.update(leaves.data(), nNodes(leaves));
 
-    std::vector<char> markings(fullTree.numTreeNodes(), 0);
+    std::vector<char> markings(octree.numTreeNodes(), 0);
 
     float theta = 0.58;
-    KeyType focusStart = treeLeaves[0];
-    KeyType focusEnd   = treeLeaves[2];
-    markMac(fullTree, box, focusStart, focusEnd, 1. / theta, markings.data());
+    TreeNodeIndex focusIdxStart = 0;
+    TreeNodeIndex focusIdxEnd   = 2;
+    markMac(octree, box, leaves[focusIdxStart], leaves[focusIdxEnd], 1. / theta, markings.data());
 
-    // Morton explicit reference:
-    //                            internal | leaves
-    //                            0 00 70  | 00 - 07              | 1 - 6           | 70 - 77
-    //std::vector<char> reference{1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
-    std::vector<char> reference = markMacAll2All<KeyType>(treeLeaves, 0, 2, theta, box);
+    std::vector<char> reference = markMacAll2All<KeyType>(octree, focusIdxStart, focusIdxEnd, theta, box);
 
-    // leaf comparisons
-    EXPECT_EQ(reference, std::vector<char>(markings.begin() + fullTree.numInternalNodes(), markings.end()));
-
-    // 3 internal nodes are all marked
-    EXPECT_EQ(markings[0], 1);
-    EXPECT_EQ(markings[1], 1);
-    EXPECT_EQ(markings[2], 1);
+    EXPECT_EQ(std::count(begin(markings), end(markings), 0), 9);
+    EXPECT_EQ(markings, reference);
 }
 
 TEST(Macs, markMac)

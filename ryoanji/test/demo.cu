@@ -29,7 +29,6 @@
 #include "dataset.hpp"
 #include "ryoanji/types.h"
 #include "ryoanji/treebuilder.cuh"
-#include "ryoanji/traversal_cpu.hpp"
 #include "ryoanji/traversal.cuh"
 #include "ryoanji/direct.cuh"
 #include "ryoanji/upwardpass.cuh"
@@ -134,10 +133,6 @@ int main(int argc, char** argv)
         delta[i]    = std::sqrt(norm2(ref - probe) / norm2(ref));
     }
 
-    //int mei = std::max_element(delta.begin(), delta.end()) - delta.begin();
-    //fvec4 test = walkParticle(mei, eps, sources, sourceCenter, Multipole, bodyPos);
-    //std::cout << bodyAcc[mei][1] << " " << test[1] << std::endl;
-
     std::sort(begin(delta), end(delta));
 
     fprintf(stdout, "--- BH vs. direct ---------------\n");
@@ -147,10 +142,6 @@ int main(int argc, char** argv)
     std::cout << "10th percentile: " << delta[numBodies*0.9] << std::endl;
     std::cout << "1st percentile: "  << delta[numBodies*0.99] << std::endl;
     std::cout << "max Error: "       << delta[numBodies-1] << std::endl;
-
-    //fprintf(stdout, "--- FMM vs. direct ---------------\n");
-    //fprintf(stdout, "Rel. L2 Error (pot)  : %.7e\n", sqrt(diffp / normp));
-    //fprintf(stdout, "Rel. L2 Error (acc)  : %.7e\n", sqrt(diffa / norma));
 
     fprintf(stdout, "--- Tree stats -------------------\n");
     fprintf(stdout, "Bodies               : %lu\n", numBodies);

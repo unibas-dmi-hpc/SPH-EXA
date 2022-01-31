@@ -52,8 +52,8 @@ public:
     {
         if (allocatedSize_ > 0)
         {
-            checkCudaErrors(cudaFree(d_ordering_));
-            checkCudaErrors(cudaFree(d_buffer_));
+            checkGpuErrors(cudaFree(d_ordering_));
+            checkGpuErrors(cudaFree(d_buffer_));
         }
     }
 
@@ -68,13 +68,13 @@ public:
 
             if (allocatedSize_ > 0)
             {
-                checkCudaErrors(cudaFree(d_ordering_));
+                checkGpuErrors(cudaFree(d_ordering_));
 
-                checkCudaErrors(cudaFree(d_buffer_));
+                checkGpuErrors(cudaFree(d_buffer_));
             }
 
-            checkCudaErrors(cudaMalloc((void**)&d_ordering_,  newSize * sizeof(LocalIndex)));
-            checkCudaErrors(cudaMalloc((void**)&(d_buffer_), 2 * newSize * sizeof(T)));
+            checkGpuErrors(cudaMalloc((void**)&d_ordering_,  newSize * sizeof(LocalIndex)));
+            checkGpuErrors(cudaMalloc((void**)&(d_buffer_), 2 * newSize * sizeof(T)));
 
             allocatedSize_ = newSize;
         }
@@ -112,7 +112,7 @@ void DeviceGather<ValueType, CodeType, IndexType>::setReorderMap(const IndexType
     deviceMemory_->reallocate(mapSize_);
     // upload new ordering to the device
     cudaMemcpy(deviceMemory_->ordering(), map_first, mapSize_ * sizeof(IndexType), cudaMemcpyHostToDevice);
-    checkCudaErrors(cudaGetLastError());
+    checkGpuErrors(cudaGetLastError());
 }
 
 template<class ValueType, class CodeType, class IndexType>
@@ -148,23 +148,23 @@ void DeviceGather<ValueType, CodeType, IndexType>::setMapFromCodes(CodeType* cod
 
     // send Morton codes to the device
     cudaMemcpy(d_codes, codes_first, mapSize_ * sizeof(CodeType), cudaMemcpyHostToDevice);
-    checkCudaErrors(cudaGetLastError());
+    checkGpuErrors(cudaGetLastError());
 
     constexpr int nThreads = 256;
     int nBlocks = (mapSize_ + nThreads - 1) / nThreads;
     iotaKernel<<<nBlocks, nThreads>>>(deviceMemory_->ordering(), mapSize_, 0);
-    checkCudaErrors(cudaGetLastError());
+    checkGpuErrors(cudaGetLastError());
 
     // sort Morton codes on device as keys, track new ordering on the device
     thrust::sort_by_key(thrust::device,
                         thrust::device_pointer_cast(d_codes),
                         thrust::device_pointer_cast(d_codes+mapSize_),
                         thrust::device_pointer_cast(deviceMemory_->ordering()));
-    checkCudaErrors(cudaGetLastError());
+    checkGpuErrors(cudaGetLastError());
 
     // send sorted codes back to host
     cudaMemcpy(codes_first, d_codes, mapSize_ * sizeof(CodeType), cudaMemcpyDeviceToHost);
-    checkCudaErrors(cudaGetLastError());
+    checkGpuErrors(cudaGetLastError());
 }
 
 template<class ValueType, class CodeType, class IndexType>
@@ -191,19 +191,19 @@ void DeviceGather<ValueType, CodeType, IndexType>::operator()(const ValueType* v
 
     // upload to device
     cudaMemcpy(deviceMemory_->deviceBuffer(0), values, mapSize_ * sizeof(ValueType), cudaMemcpyHostToDevice);
-    checkCudaErrors(cudaGetLastError());
+    checkGpuErrors(cudaGetLastError());
 
     // reorder on device
     reorder<<<nBlocks, nThreads>>>(deviceMemory_->ordering() + offset,
                                    deviceMemory_->deviceBuffer(0),
                                    deviceMemory_->deviceBuffer(1),
                                    numExtract);
-    checkCudaErrors(cudaGetLastError());
+    checkGpuErrors(cudaGetLastError());
 
     // download to host
     cudaMemcpy(destination, deviceMemory_->deviceBuffer(1),
                numExtract * sizeof(ValueType), cudaMemcpyDeviceToHost);
-    checkCudaErrors(cudaGetLastError());
+    checkGpuErrors(cudaGetLastError());
 }
 
 template<class ValueType, class CodeType, class IndexType>

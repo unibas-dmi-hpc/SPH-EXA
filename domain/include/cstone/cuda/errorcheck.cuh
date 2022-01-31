@@ -25,8 +25,6 @@
 
 #pragma once
 
-#include <cuda_runtime.h>
-
 inline void checkErr(cudaError_t err, const char *filename, int lineno, const char *funcName)
 {
     if (err != cudaSuccess)
@@ -38,4 +36,4 @@ inline void checkErr(cudaError_t err, const char *filename, int lineno, const ch
     }
 }
 
-#define checkCudaErrors(errcode) checkErr((errcode), __FILE__, __LINE__, #errcode);
+#define checkGpuErrors(errcode) checkErr((errcode), __FILE__, __LINE__, #errcode);

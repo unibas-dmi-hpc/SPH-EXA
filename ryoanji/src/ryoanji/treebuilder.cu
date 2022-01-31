@@ -38,14 +38,14 @@
 #include "ryoanji/treebuilder.cuh"
 
 template<class KeyType>
-__global__ void convertTree(cstone::OctreeGpuDataView<KeyType> cstoneTree, const cstone::LocalParticleIndex* layout,
+__global__ void convertTree(cstone::OctreeGpuDataView<KeyType> cstoneTree, const cstone::LocalIndex* layout,
                             ryoanji::CellData* ryoanjiTree)
 {
     unsigned tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid < cstoneTree.numInternalNodes + cstoneTree.numLeafNodes)
     {
-        cstone::LocalParticleIndex firstParticle = 0;
-        cstone::LocalParticleIndex lastParticle  = 0;
+        cstone::LocalIndex firstParticle = 0;
+        cstone::LocalIndex lastParticle  = 0;
 
         cstone::TreeNodeIndex child = 0;
         int numChildren             = 1;
@@ -104,7 +104,7 @@ private:
     thrust::device_vector<cstone::TreeNodeIndex> workArray_;
 
     cstone::OctreeGpuDataAnchor<KeyType> octreeGpuData_;
-    thrust::device_vector<cstone::LocalParticleIndex> d_layout_;
+    thrust::device_vector<cstone::LocalIndex> d_layout_;
 };
 
 template<class KeyType>

@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Barnes-Hut breadth-first tree traversal inspired by the original Bonsai implementation
+ * @brief Barnes-Hut breadth-first warp-aware tree traversal inspired by the original Bonsai implementation
  *
  * @author Rio Yokota <rioyokota@gsic.titech.ac.jp>
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
@@ -239,7 +239,7 @@ __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], 
             }
             else // Fewer than warpSize bodies remaining from current source cell set
             {
-                // push the remaining bodies onto bodyQueue
+                // push the remaining bodies into bodyQueue
                 int topUp = shflUpSync(bodyIdx, bdyFillLevel);
                 bodyQueue = (laneIdx < bdyFillLevel) ? bodyQueue : topUp;
 
@@ -506,13 +506,9 @@ fvec4 computeAcceleration(int firstBody, int lastBody, int images, float eps, fl
     printf("launching %d blocks\n", numBlocks);
 
     const int poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
-
     thrust::device_vector<int> globalPool(poolSize);
 
-    cudaDeviceSynchronize();
-
     resetTraversalCounters<<<1, 1>>>();
-
     auto t0 = std::chrono::high_resolution_clock::now();
     traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody,
                                                     lastBody,
@@ -534,17 +530,16 @@ fvec4 computeAcceleration(int firstBody, int lastBody, int images, float eps, fl
     uint64_t sumP2P, sumM2P;
     unsigned int maxP2P, maxM2P;
 
-    CUDA_SAFE_CALL(cudaMemcpyFromSymbol(&sumP2P, sumP2PGlob, sizeof(uint64_t)));
-    CUDA_SAFE_CALL(cudaMemcpyFromSymbol(&maxP2P, maxP2PGlob, sizeof(unsigned int)));
-    CUDA_SAFE_CALL(cudaMemcpyFromSymbol(&sumM2P, sumM2PGlob, sizeof(uint64_t)));
-    CUDA_SAFE_CALL(cudaMemcpyFromSymbol(&maxM2P, maxM2PGlob, sizeof(unsigned int)));
+    checkGpuErrors(cudaMemcpyFromSymbol(&sumP2P, sumP2PGlob, sizeof(uint64_t)));
+    checkGpuErrors(cudaMemcpyFromSymbol(&maxP2P, maxP2PGlob, sizeof(unsigned int)));
+    checkGpuErrors(cudaMemcpyFromSymbol(&sumM2P, sumM2PGlob, sizeof(uint64_t)));
+    checkGpuErrors(cudaMemcpyFromSymbol(&maxM2P, maxM2PGlob, sizeof(unsigned int)));
 
     fvec4 interactions;
     interactions[0] = float(sumP2P) * 1.0f / float(numBodies);
     interactions[1] = float(maxP2P);
     interactions[2] = float(sumM2P) * 1.0f / float(numBodies);
     interactions[3] = float(maxM2P);
-
     float flops = (interactions[0] * 20.0f + interactions[2] * 2.0f * powf(P, 3)) * float(numBodies) / dt / 1e12f;
 
     fprintf(stdout, "Traverse             : %.7f s (%.7f TFlops)\n", dt, flops);
