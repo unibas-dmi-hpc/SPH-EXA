@@ -23,15 +23,23 @@ CUDA_OBJS := $(BUILDDIR)/gather.o                     \
              $(BUILDDIR)/cudaIAD.o                    \
              $(BUILDDIR)/cudaMomentumAndEnergyIAD.o
 
+SEDOV_TEST    := src/sedov/sedov.cpp
+SEDOV_FLAGS   := 
 SEDOV_SOL_DIR := src/analytical_solutions/sedov_solution
 SEDOV_SOL_CPP := $(SEDOV_SOL_DIR)/sedov_io.cpp        \
                  $(SEDOV_SOL_DIR)/sedov_solution.cpp  \
                  $(SEDOV_SOL_DIR)/main.cpp
 
+NOH_TEST    := src/noh/noh.cpp
+NOH_FLAGS   := 
 NOH_SOL_DIR := src/analytical_solutions/noh_solution
 NOH_SOL_CPP := $(NOH_SOL_DIR)/noh_io.cpp              \
                $(NOH_SOL_DIR)/noh_solution.cpp        \
                $(NOH_SOL_DIR)/main.cpp
+
+EVRARD_TEST  := src/evrard/evrard.cpp
+EVRARD_FLAGS := -DGRAVITY
+
 
 RELEASE := -DNDEBUG
 DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
@@ -68,59 +76,60 @@ ifeq ($(ENV),clang)
 	CXXFLAGS += -march=native -std=c++17 -fopenmp
 endif
 
-#TESTCASE ?= sedov
-TESTCASE ?= noh
-#TESTCASE ?= evrard
-
-ifeq ($(TESTCASE),sedov)
-	TESTCODE = src/sedov/sedov.cpp
-else ifeq ($(TESTCASE),noh)
-	TESTCODE = src/noh/noh.cpp
-else ifeq ($(TESTCASE),evrard)
-	TESTCASE_FLAGS = -DGRAVITY
-	TESTCODE = src/evrard/evrard.cpp
-endif
-
+ 
 #omp:
 #	@mkdir -p $(BINDIR)
 #	$(info Linking the executable:)
-#	$(CXX) $(CXXFLAGS) $(INC) $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
+#	$(CXX) $(CXXFLAGS) $(INC) $(SEDOV_FLAGS)  $(SEDOV_TEST)  -o $(BINDIR)/sedov_$@.app  $(LIB)
+#	$(CXX) $(CXXFLAGS) $(INC) $(NOH_FLAGS)    $(NOH_TEST)    -o $(BINDIR)/noh_$@.app    $(LIB)
+#	$(CXX) $(CXXFLAGS) $(INC) $(EVRARD_FLAGS) $(EVRARD_TEST) -o $(BINDIR)/evrard_$@.app $(LIB)
+#	make solution
 
 mpi+omp:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(SEDOV_FLAGS)  $(SEDOV_TEST)  -o $(BINDIR)/sedov_$@.app  $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(NOH_FLAGS)    $(NOH_TEST)    -o $(BINDIR)/noh_$@.app    $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(EVRARD_FLAGS) $(EVRARD_TEST) -o $(BINDIR)/evrard_$@.app $(LIB)
 	make solution
     
 #omp+cuda: $(BUILDDIR)/cuda_no_mpi.o $(CUDA_OBJS)
 #	@mkdir -p $(BINDIR)
 #	$(info Linking the executable:)
-#	$(NVCC) $(NVCCLDFLAGS) -DUSE_CUDA $(TESTCASE_FLAGS) -dlink -o cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
-#	$(CXX) $(CXXFLAGS) -o $(BINDIR)/$@.app cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudart -lcudadevrt
-##	$(CXX) -o $(BINDIR)/$@.app $+ -L$(CUDA_PATH)/lib64 -lcudart -fopenmp
+#	$(NVCC) $(NVCCLDFLAGS) -DUSE_CUDA $(TESTCASE_FLAGS) -dlink -o $(BUILDDIR)/cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
+#	$(CXX) $(CXXFLAGS) -o $(BINDIR)/sedov_$@.app $(BUILDDIR)/cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudart -lcudadevrt
+##	$(CXX) -o $(BINDIR)/sedov_$@.app $+ -L$(CUDA_PATH)/lib64 -lcudart -fopenmp
+#	make solution
 
 #omp+target:
 #	@mkdir -p $(BINDIR)
 #	$(info Linking the executable:)
-#	$(CXX) $(CXXFLAGS) $(INC) -DUSE_OMP_TARGET $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
+#	$(CXX) $(CXXFLAGS) $(INC) -DUSE_OMP_TARGET $(SEDOV_FLAGS)  $(SEDOV_TEST)  -o $(BINDIR)/sedov_$@.app  $(LIB)
+#	$(CXX) $(CXXFLAGS) $(INC) -DUSE_OMP_TARGET $(NOH_FLAGS)    $(NOH_TEST)    -o $(BINDIR)/noh_$@.app    $(LIB)
+#	$(CXX) $(CXXFLAGS) $(INC) -DUSE_OMP_TARGET $(EVRARD_FLAGS) $(EVRARD_TEST) -o $(BINDIR)/evrard_$@.app $(LIB)
+#	make solution
 
 mpi+omp+target:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(SEDOV_FLAGS)  $(SEDOV_TEST)  -o $(BINDIR)/sedov_$@.app  $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(NOH_FLAGS)    $(NOH_TEST)    -o $(BINDIR)/noh_$@.app    $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(EVRARD_FLAGS) $(EVRARD_TEST) -o $(BINDIR)/evrard_$@.app $(LIB)
 	make solution
 
 mpi+omp+acc:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(TESTCASE_FLAGS) -DUSE_ACC $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(SEDOV_FLAGS)  -DUSE_ACC $(SEDOV_TEST)  -o $(BINDIR)/sedov_$@.app  $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(NOH_FLAGS)    -DUSE_ACC $(NOH_TEST)    -o $(BINDIR)/noh_$@.app    $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(EVRARD_FLAGS) -DUSE_ACC $(EVRARD_TEST) -o $(BINDIR)/evrard_$@.app $(LIB)
 	make solution
 
 mpi+omp+cuda: $(BUILDDIR)/cuda_mpi.o $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(NVCC) $(NVCCLDFLAGS) -dlink -o cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
-	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@.app cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
+	$(NVCC) $(NVCCLDFLAGS) -dlink -o $(BUILDDIR)/sedov_cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
+	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/sedov_$@.app $(BUILDDIR)/sedov_cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
 	make solution
 
 solution:
@@ -130,11 +139,11 @@ solution:
 #all: omp mpi+omp omp+cuda mpi+omp+cuda omp+target mpi+omp+target mpi+omp+acc
 all: mpi+omp mpi+omp+cuda mpi+omp+target mpi+omp+acc
 
-$(BUILDDIR)/cuda_mpi.o: $(TESTCODE)
+$(BUILDDIR)/cuda_mpi.o: $(SEDOV_TEST)
 	@mkdir -p $(BUILDDIR)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_CUDA $(TESTCASE_FLAGS) -o $@ -c $<
 
-$(BUILDDIR)/cuda_no_mpi.o: $(TESTCODE)
+$(BUILDDIR)/cuda_no_mpi.o: $(SEDOV_TEST)
 	@mkdir -p $(BUILDDIR)
 	$(CXX) $(CXXFLAGS) $(INC) -DUSE_CUDA $(TESTCASE_FLAGS) -o $@ -c $<
 
@@ -147,15 +156,15 @@ $(BUILDDIR)/%.o: domain/include/cstone/cuda/%.cu
 	@mkdir -p $(BUILDDIR)
 	$(NVCC) $(NVCCFLAGS) -DUSE_CUDA $(TESTCASE_FLAGS) $(INC) -c -o $@ $<
 
-run_test:
+#run_test:
 #	@$(MAKE) -f $(THIS_FILE) omp
 #	@$(MAKE) -f $(THIS_FILE) omp+cuda
-	@$(MAKE) -f $(THIS_FILE) mpi+omp
-	@$(MAKE) -f $(THIS_FILE) mpi+omp+cuda
-	cd test/ && ./test_correctness.sh;
+#	@$(MAKE) -f $(THIS_FILE) mpi+omp
+#	@$(MAKE) -f $(THIS_FILE) mpi+omp+cuda
+#	cd test/ && ./test_correctness.sh;
 
 clean:
 	$(info Cleaning...)
-	$(RM) -rf $(BUILDDIR) $(BINDIR) cudalinked*.o
+	$(RM) -rf $(BUILDDIR) $(BINDIR)
 
 .PHONY: all clean

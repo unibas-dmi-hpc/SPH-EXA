@@ -226,5 +226,8 @@ void printHelp(char* name, int rank)
         printf("\t--outDir PATH \t\t Path to directory where output will be saved [./].\
                     \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
                     \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n");
+
+        printf("\nFor example:\n");
+        printf("\t$ %s -n 50 -s 450 -w 450 --outDir ./bin/\n\n", name);
     }
 }
