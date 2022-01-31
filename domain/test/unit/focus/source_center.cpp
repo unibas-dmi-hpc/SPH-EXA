@@ -57,9 +57,8 @@ static void computeSourceCenter()
     std::generate(begin(masses), end(masses), [numParticles](){ return drand48() / numParticles; });
     std::vector<util::array<double, 4>> centers(octree.numTreeNodes());
 
-    computeLeafMassCenter<double, double, double, KeyType>(coords.x(), coords.y(), coords.z(),
-                                                           masses, coords.particleKeys(), numParticles,
-                                                           octree, centers);
+    computeLeafMassCenter<double, double, double, KeyType>(coords.x(), coords.y(), coords.z(), masses,
+                                                           coords.particleKeys(), octree, centers);
     upsweepMassCenter<double, KeyType>(octree, centers);
 
     util::array<double, 4> refRootCenter =

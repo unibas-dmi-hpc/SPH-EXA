@@ -42,8 +42,8 @@ util::array<Ts, 4> massCenter(gsl::span<const Tc> x,
                               gsl::span<const Tc> y,
                               gsl::span<const Tc> z,
                               gsl::span<const Tm> m,
-                              TreeNodeIndex first,
-                              TreeNodeIndex last)
+                              LocalIndex first,
+                              LocalIndex last)
 {
     util::array<Ts, 4> center{0, 0, 0, 0};
     for (LocalIndex i = first; i < last; ++i)
@@ -92,7 +92,6 @@ void computeLeafMassCenter(gsl::span<const T1> x,
                            gsl::span<const T1> z,
                            gsl::span<const T2> m,
                            gsl::span<const KeyType> particleKeys,
-                           LocalIndex numParticles,
                            const Octree<KeyType>& octree,
                            gsl::span<util::array<T3, 4>> sourceCenter)
 {
