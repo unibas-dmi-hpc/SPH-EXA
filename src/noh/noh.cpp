@@ -47,7 +47,7 @@ int main(int argc, char** argv)
     }
 
     const size_t cubeSide = parser.getInt("-n", 50);
-    const size_t maxStep = parser.getInt("-s", 300);
+    const size_t maxStep = parser.getInt("-s", 450);
     const int writeFrequency = parser.getInt("-w", -1);
     const bool quiet = parser.exists("--quiet");
     const std::string outDirectory = parser.getString("--outDir");
@@ -217,7 +217,7 @@ void printHelp(char* name, int rank)
         printf("\nWhere possible options are:\n\n");
 
         printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
-        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [300]\n\n");
+        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [450]\n\n");
 
         printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
 

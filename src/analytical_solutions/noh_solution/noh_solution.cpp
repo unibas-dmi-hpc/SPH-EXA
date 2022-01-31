@@ -103,7 +103,7 @@ void NohSolution::NohSol(
               rho[i]  = rho0 * pow(1. - (vel0 * time / xpos), xgm1);
               u[i]    = u0;
               p[i]    = p0;
-              vel[i]  = vel0;
+              vel[i]  = abs(vel0);
               cs[i]   = cs0;
         }
         else

@@ -175,7 +175,7 @@ int main(int argc, char** argv)
         solFile);
 
     // Write 1D simulation solution to compare with the theoretical solution
-    const string simFile = outDir + "sedov_simulation_" + time_str + ".dat";
+    const string simFile = outDir + "noh_simulation_" + time_str + ".dat";
     NohFileData::writeParticle1D(
         nParts,
         vSim,
