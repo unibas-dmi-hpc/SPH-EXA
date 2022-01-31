@@ -129,13 +129,16 @@ int main(int argc, char** argv)
     time_long << time;
     string time_str = time_long.str();
 
-    // Calculate and write theoretical solution profile in one dimension
-    const size_t dim     = NohDataGenerator<Real, KeyType>::dim;
-    const double r0      = NohDataGenerator<Real, KeyType>::r0;
-    const double r1      = NohDataGenerator<Real, KeyType>::r1;
-    const double gamma   = NohDataGenerator<Real, KeyType>::gamma;
-    const double rho0    = NohDataGenerator<Real, KeyType>::rho0;
-    const double vel0    = NohDataGenerator<Real, KeyType>::vel0;
+    // Calculate and write theoretical solution profile in one dimension    // time = 0.6s
+    const size_t dim     = NohDataGenerator<Real, KeyType>::dim;            // 3
+    const double r0      = NohDataGenerator<Real, KeyType>::r0;             // .0
+    const double r1      = NohDataGenerator<Real, KeyType>::r1;             // .1
+    const double gamma   = NohDataGenerator<Real, KeyType>::gamma;          // 5./3.
+    const double rho0    = NohDataGenerator<Real, KeyType>::rho0;           // 1.
+    const double u0      = NohDataGenerator<Real, KeyType>::u0;             // 0.
+    const double p0      = NohDataGenerator<Real, KeyType>::p0;             // 0.
+    const double vel0    = NohDataGenerator<Real, KeyType>::vel0;           // -1.
+    const double cs0     = NohDataGenerator<Real, KeyType>::cs0;            // 0.
     const string solFile = outDir + "noh_solution_" + time_str + ".dat";
 
     // Set the positions for calculate the solution
@@ -166,11 +169,9 @@ int main(int argc, char** argv)
     // Calculate Sedov solution
     NohSolution::create(
         rSol,
-        dim,
-        nSteps,
-        time,
+        dim, nSteps, time,
         gamma,
-        rho0, vel0,
+        rho0, u0, p0, vel0, cs0,
         solFile);
 
     // Write 1D simulation solution to compare with the theoretical solution

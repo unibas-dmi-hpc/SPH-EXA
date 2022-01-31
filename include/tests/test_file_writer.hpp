@@ -5,7 +5,7 @@
 namespace sphexa
 {
 template <typename Dataset>
-struct SedovFileWriter : IFileWriter<Dataset>
+struct TestFileWriter : IFileWriter<Dataset>
 {
     void dumpParticleDataToBinFile(const Dataset &d, const std::string &path) const override
     {
@@ -74,7 +74,7 @@ struct SedovFileWriter : IFileWriter<Dataset>
 
     void dumpCheckpointDataToBinFile(const Dataset &, const std::string &) const override
     {
-        fprintf(stderr, "Warning: dumping checkpoint is not implemented in SedovFileWriter, exiting...\n");
+        fprintf(stderr, "Warning: dumping checkpoint is not implemented in TestFileWriter, exiting...\n");
         exit(EXIT_FAILURE);
     }
 };
@@ -82,7 +82,7 @@ struct SedovFileWriter : IFileWriter<Dataset>
 #ifdef USE_MPI
 
 template <typename Dataset>
-struct SedovMPIFileWriter : IFileWriter<Dataset>
+struct TestMPIFileWriter : IFileWriter<Dataset>
 {
     #ifdef SPH_EXA_HAVE_H5PART
     void dumpParticleDataToH5File(const Dataset& d, int firstIndex, int lastIndex, const std::string &path) const override
@@ -153,7 +153,7 @@ struct SedovMPIFileWriter : IFileWriter<Dataset>
 
     void dumpCheckpointDataToBinFile(const Dataset &d, const std::string &) const override
     {
-        if (d.rank == 0) fprintf(stderr, "Warning: dumping checkpoint is not implemented in SedovMPIFileWriter, exiting...\n");
+        if (d.rank == 0) fprintf(stderr, "Warning: dumping checkpoint is not implemented in TestMPIFileWriter, exiting...\n");
         MPI_Abort(d.comm, MPI_ERR_OTHER);
     }
 };

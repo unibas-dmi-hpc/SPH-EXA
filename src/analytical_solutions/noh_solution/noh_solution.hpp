@@ -50,7 +50,10 @@ public:
         const double    time,                            // Time at solution
         const double    gamma_i,                         // Adiabatic coeficient
         const double    rho0,                            // Initial density
+        const double    u0,                              // Initial internal energy
+        const double    p0,                              // Initial pressure
         const double    vel0,                            // Initial velocity
+        const double    cs0,                             // Initial sound speed
         const string    outfile);                        // Output solution filename
 
 private:
@@ -61,7 +64,10 @@ private:
         const double          time,                      // temporal point where solution is desired [seconds]
         const double          gamma,                     // gamma law equation of state
         const double          rho0,                      // ambient density g/cm**3 in 'rho = rho0 * r**(-omega)'
+        const double          u0,                        // ambient internal energy [erg/g]
+        const double          p0,                        // ambient pressure [erg/cm**3]
         const double          vel0,                      // ambient material speed [cm/s]
+        const double          cs0,                       // ambient sound speed [cm/s]
         const vector<double>& r,                         // spatial points where solution is desired [cm]
         vector<double>&       rho,                       // out: density  [g/cm**3]
         vector<double>&       u,                         // out: specific internal energy [erg/g]

@@ -26,7 +26,7 @@ public:
     static inline const T rho0          = 1.;
     static inline const T u0            = 1.e-08;
     static inline const T p0            = 0.;
-    static inline const T vr0           = 0.;
+    static inline const T vel0          = 0.;
     static inline const T cs0           = 0.;
     static inline const T firstTimeStep = 1.e-6;
 
@@ -103,9 +103,9 @@ public:
                         pd.y[ lindex - offset] = ly;
                         pd.x[ lindex - offset] = lx;
 
-                        pd.vx[lindex - offset] = 0.;
-                        pd.vy[lindex - offset] = 0.;
-                        pd.vz[lindex - offset] = 0.;
+                        pd.vx[lindex - offset] = vel0;
+                        pd.vy[lindex - offset] = vel0;
+                        pd.vz[lindex - offset] = vel0;
                     }
                 }
             }

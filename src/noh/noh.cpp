@@ -8,14 +8,12 @@
 #define USE_MPI
 #endif
 
-#include "cstone/domain/domain.hpp"
-
 #include "sphexa.hpp"
-#include "NohDataGenerator.hpp"
-#include "NohDataFileWriter.hpp"
-#include "NohAnalyticalSolution.hpp"
-
+#include "cstone/domain/domain.hpp"
 #include "sph/findNeighborsSfc.hpp"
+#include "tests/test_file_writer.hpp"
+
+#include "NohDataGenerator.hpp"
 
 using namespace cstone;
 using namespace sphexa;
@@ -51,7 +49,6 @@ int main(int argc, char** argv)
     const size_t cubeSide = parser.getInt("-n", 50);
     const size_t maxStep = parser.getInt("-s", 300);
     const int writeFrequency = parser.getInt("-w", -1);
-    const bool solution = parser.exists("--sol");
     const bool quiet = parser.exists("--quiet");
     const std::string outDirectory = parser.getString("--outDir");
 
@@ -62,16 +59,9 @@ int main(int argc, char** argv)
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType>;
 
-    const IFileWriter<Dataset>& fileWriter = NohMPIFileWriter<Dataset>();
+    const IFileWriter<Dataset>& fileWriter = TestMPIFileWriter<Dataset>();
 
     auto d = NohDataGenerator<Real, KeyType>::generate(cubeSide);
-
-    const size_t dim    = 3;
-    const double gamma  = NohDataGenerator<Real, KeyType>::gamma;
-    const double r0     = NohDataGenerator<Real, KeyType>::r0;
-    const double r1     = NohDataGenerator<Real, KeyType>::r1;
-    const double rho0   = NohDataGenerator<Real, KeyType>::rho0;
-    const double vr0    = NohDataGenerator<Real, KeyType>::vel0;
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
@@ -180,82 +170,13 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            std::string solutionFilename;
-            std::string simulationFilename;
-
 #ifdef SPH_EXA_HAVE_H5PART
             fileWriter.dumpParticleDataToH5File(
                 d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_noh.h5part");
-            solutionFilename   = outDirectory + "dump_noh_sol.h5part";
-            simulationFilename = outDirectory + "dump_noh_sim.h5part";
 #else
             fileWriter.dumpParticleDataToAsciiFile(
                 d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_noh" + std::to_string(d.iteration) + ".txt");
-            solutionFilename   = "dump_noh" + std::to_string(d.iteration) + "_sol.txt";
-            simulationFilename = "dump_noh" + std::to_string(d.iteration) + "_sim.txt";
 #endif
-
-            if (solution)
-            {
-                /*
-                NohAnalyticalSolution::create(  1,                      // xgeom
-                                                0.,                     // r0
-                                                1.,                     // r1
-                                                1000,                   // nstep
-                                                0.6,                    // time
-                                                5./3.,                  // gamma
-                                                1.,                     // rho0
-                                                -1.,                    // vel0
-                                                "theoretical_1D.dat");  // outfile
-
-                NohAnalyticalSolution::create(  2,                      // xgeom
-                                                0.,                     // r0
-                                                1.,                     // r1
-                                                1000,                   // nstep
-                                                0.6,                    // time
-                                                5./3.,                  // gamma
-                                                1.,                     // rho0
-                                                -1.,                    // vel0
-                                                "theoretical_2D.dat");  // outfile
-
-                NohAnalyticalSolution::create(  3,                      // xgeom
-                                                0.,                     // r0
-                                                1.,                     // r1
-                                                1000,                   // nstep
-                                                0.6,                    // time
-                                                5./3.,                  // gamma
-                                                1.,                     // rho0
-                                                -1.,                    // vel0
-                                                "theoretical_3D.dat");  // outfile
-
-                exit(-1);
-                */
-
-                // Calculate and write theoretical solution in 1D
-                size_t nSteps = 1000;  // Instead of 'domain.nParticles()'. It is not needed more precission to compare.
-                NohAnalyticalSolution::create(  dim,
-                                                r0,
-                                                r1,
-                                                nSteps,
-                                                d.ttot,
-                                                gamma,
-                                                rho0,
-                                                vr0,
-                                                solutionFilename);
-
-                // Calculate modules for position and velocity of the particles
-                vector<double> r  (d.count);
-                vector<double> vel(d.count);
-                for(size_t i = 0; i < d.count; i++)
-                {
-                    r[i]   = std::sqrt( std::pow(d.x[i],  2.) + std::pow(d.y[i],  2.) + std::pow(d.z[i],  2.) );
-                    vel[i] = std::sqrt( std::pow(d.vx[i], 2.) + std::pow(d.vy[i], 2.) + std::pow(d.vz[i], 2.) );
-                }
-
-                // Write 1D simulation solution to compare with the theoretical solution
-                NohSolutionWriter::dump1DToAsciiFile(d.count, r, d.ro, d.u, d.p, vel, simulationFilename);
-            }
-
             timer.step("writeFile");
         }
 
@@ -298,8 +219,7 @@ void printHelp(char* name, int rank)
         printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
         printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [300]\n\n");
 
-        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n");
-        printf("\t--sol   \t\t Print anytical solution every dump [false]\n\n");
+        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
 
         printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
 

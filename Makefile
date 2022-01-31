@@ -24,9 +24,14 @@ CUDA_OBJS := $(BUILDDIR)/gather.o                     \
              $(BUILDDIR)/cudaMomentumAndEnergyIAD.o
 
 SEDOV_SOL_DIR := src/analytical_solutions/sedov_solution
-SEDOV_SOL_CPP := $(SEDOV_SOL_DIR)/io.cpp              \
+SEDOV_SOL_CPP := $(SEDOV_SOL_DIR)/sedov_io.cpp        \
                  $(SEDOV_SOL_DIR)/sedov_solution.cpp  \
                  $(SEDOV_SOL_DIR)/main.cpp
+
+NOH_SOL_DIR := src/analytical_solutions/noh_solution
+NOH_SOL_CPP := $(NOH_SOL_DIR)/noh_io.cpp              \
+               $(NOH_SOL_DIR)/noh_solution.cpp        \
+               $(NOH_SOL_DIR)/main.cpp
 
 RELEASE := -DNDEBUG
 DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
@@ -64,17 +69,18 @@ ifeq ($(ENV),clang)
 endif
 
 #TESTCASE ?= sedov
-#TESTCASE ?= evrard
 TESTCASE ?= noh
+#TESTCASE ?= evrard
 
 ifeq ($(TESTCASE),sedov)
 	TESTCODE = src/sedov/sedov.cpp
 	SOLCODE = $(SEDOV_SOL_CPP)
+else ifeq ($(TESTCASE),noh)
+	TESTCODE = src/noh/noh.cpp
+	SOLCODE = $(NOH_SOL_CPP)
 else ifeq ($(TESTCASE),evrard)
 	TESTCASE_FLAGS = -DGRAVITY
 	TESTCODE = src/evrard/evrard.cpp
-else ifeq ($(TESTCASE),noh)
-	TESTCODE = src/noh/noh.cpp
 endif
 
 #omp:

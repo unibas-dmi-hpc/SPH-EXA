@@ -8,13 +8,13 @@
 #define USE_MPI
 #endif
 
-#include "cstone/domain/domain.hpp"
-
 #include "sphexa.hpp"
-#include "SedovDataGenerator.hpp"
-#include "SedovDataFileWriter.hpp"
-
+#include "cstone/domain/domain.hpp"
 #include "sph/findNeighborsSfc.hpp"
+#include "tests/test_file_writer.hpp"
+
+#include "SedovDataGenerator.hpp"
+
 
 using namespace cstone;
 using namespace sphexa;
@@ -60,7 +60,7 @@ int main(int argc, char** argv)
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType>;
 
-    const IFileWriter<Dataset>& fileWriter = SedovMPIFileWriter<Dataset>();
+    const IFileWriter<Dataset>& fileWriter = TestMPIFileWriter<Dataset>();
 
     auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
 

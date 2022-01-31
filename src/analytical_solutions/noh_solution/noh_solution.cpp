@@ -34,7 +34,10 @@ void NohSolution::create(
     const double    time,
     const double    gamma_i,
     const double    rho0,
+    const double    u0,
+    const double    p0,
     const double    vel0,
+    const double    cs0,
     const string    outfile)
 {
     vector<double> rho(rPoints);
@@ -47,7 +50,7 @@ void NohSolution::create(
     NohSol(
         dim, rPoints, time,
         gamma_i,
-        rho0, vel0,
+        rho0, u0, p0, vel0, cs0,
         r, rho, u, p, vel, cs);
 
     // Write solution file
@@ -65,7 +68,10 @@ void NohSolution::NohSol(
     const double          time,
     const double          gamma,
     const double          rho0,
+    const double          u0,
+    const double          p0,
     const double          vel0,
+    const double          cs0,
     const vector<double>& r,
     vector<double>&       rho,
     vector<double>&       u,
@@ -95,10 +101,10 @@ void NohSolution::NohSol(
         {
               // if we are farther out than the shock front
               rho[i]  = rho0 * pow(1. - (vel0 * time / xpos), xgm1);
-              u[i]    = 0.;
-              p[i]    = 0.;
+              u[i]    = u0;
+              p[i]    = p0;
               vel[i]  = vel0;
-              cs[i]   = 0.;
+              cs[i]   = cs0;
         }
         else
         {

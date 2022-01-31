@@ -139,7 +139,7 @@ int main(int argc, char** argv)
     const double rho0    = SedovDataGenerator<Real, KeyType>::rho0;
     const double u0      = SedovDataGenerator<Real, KeyType>::u0;
     const double p0      = SedovDataGenerator<Real, KeyType>::p0;
-    const double vr0     = SedovDataGenerator<Real, KeyType>::vr0;
+    const double vel0    = SedovDataGenerator<Real, KeyType>::vel0;
     const double cs0     = SedovDataGenerator<Real, KeyType>::cs0;
     const string solFile = outDir + "sedov_solution_" + time_str + ".dat";
 
@@ -171,12 +171,9 @@ int main(int argc, char** argv)
     // Calculate Sedov solution
     SedovSolution::create(
         rSol,
-        dim,
-        nSteps,
-        time,
-        eblast,
-        omega, gamma,
-        rho0, u0, p0, vr0, cs0,
+        dim, nSteps, time,
+        eblast, omega, gamma,
+        rho0, u0, p0, vel0, cs0,
         solFile);
 
     // Write 1D simulation solution to compare with the theoretical solution
