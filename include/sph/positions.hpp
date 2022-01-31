@@ -133,7 +133,7 @@ void computePositionsImpl(const Task &t, Dataset &d, const cstone::Box<T>& box)
         u[i] += du[i] * deltaB - du_m1[i] * deltaA;
 
 #ifndef NDEBUG
-        if (std::isnan(u[i]))
+        if (std::isnan(u[i]) || u[i] < 0.0)
             printf("ERROR::UpdateQuantities(%d) internal energy: u %f du %f dB %f du_m1 %f dA %f\n", i, u[i], du[i], deltaB, du_m1[i],
                    deltaA);
 #endif
