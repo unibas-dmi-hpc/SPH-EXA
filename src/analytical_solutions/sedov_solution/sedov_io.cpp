@@ -20,75 +20,13 @@
  * SOFTWARE.
  */
 
-#include "io.hpp"
+#include "sedov_io.hpp"
 
 #include <sstream>
 #include <iostream>
 #include <iomanip>
 
-void FileData::readData3D(
-    const string&   inputFile,
-    const double    nParts,
-    vector<double>& x,
-    vector<double>& y,
-    vector<double>& z,
-    vector<double>& vx,
-    vector<double>& vy,
-    vector<double>& vz,
-    vector<double>& h,
-    vector<double>& rho,
-    vector<double>& u,
-    vector<double>& p,
-    vector<double>& cs,
-    vector<double>& Px,
-    vector<double>& Py,
-    vector<double>& Pz)
-{
-    try
-    {
-        size_t i = 0;
-
-        ifstream in(inputFile);
-        string line;
-
-        while(getline(in,line))
-        {
-            istringstream iss(line);
-            if (i < nParts){
-                iss >> x[i];
-                iss >> y[i];
-                iss >> z[i];
-                iss >> vx[i];
-                iss >> vy[i];
-                iss >> vz[i];
-                iss >> h[i];
-                iss >> rho[i];
-                iss >> u[i];
-                iss >> p[i];
-                iss >> cs[i];
-                iss >> Px[i];
-                iss >> Py[i];
-                iss >> Pz[i];
-            }
-
-            i++;
-        }
-
-        if (nParts != i){
-            cout << "ERROR: number of particles doesn't match with the expect (nParts=" << nParts << ", ParticleDataLines=" << i << ")." << endl;
-            exit(EXIT_FAILURE);
-        }
-
-        in.close();
-    }
-    catch (exception &ex)
-    {
-        cout << "ERROR: %s. Terminating\n" << ex.what() << endl;
-        exit(EXIT_FAILURE);
-    }
-}
-
-void FileData::writeColumns1D(ostream& out)
+void SedovFileData::writeColumns1D(ostream& out)
 {
     out << setw(16) << "#           01:r"  // Column : position 1D     (Real  value     )
         << setw(16) << "02:rho"            // Column : density         (Real  value     )
@@ -105,7 +43,7 @@ void FileData::writeColumns1D(ostream& out)
         << endl;
 }
 
-void FileData::writeData1D(
+void SedovFileData::writeData1D(
     const size_t          n,
     const vector<double>& r,
     const vector<double>& rho,
@@ -155,16 +93,16 @@ void FileData::writeData1D(
     }
 }
 
-void FileData::writeParticle1D(
-    const size_t            n,
-    const vector<Particle>& vParticle,
-    const double            rho_shock,
-    const double            u_shock,
-    const double            p_shock,
-    const double            vel_shock,
-    const double            cs_shock,
-    const double            rho0,
-    const string&           outfile)
+void SedovFileData::writeParticle1D(
+    const size_t              n,
+    const vector<ParticleIO>& vParticle,
+    const double              rho_shock,
+    const double              u_shock,
+    const double              p_shock,
+    const double              vel_shock,
+    const double              cs_shock,
+    const double              rho0,
+    const string&             outfile)
 {
     vector<double> r(n);
     vector<double> rho(n);
@@ -183,7 +121,7 @@ void FileData::writeParticle1D(
         cs[i]  = vParticle[i].cs;
     }
 
-    FileData::writeData1D(
+    SedovFileData::writeData1D(
         n,
         r,
         rho,

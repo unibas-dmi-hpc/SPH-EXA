@@ -1,57 +1,11 @@
 #pragma once
 
-#include <cmath>
-
-#include <iomanip>
-
 #include "IFileWriter.hpp"
-
-
-struct NohSolutionWriter
-{
-    static void dump1DToAsciiFile(const size_t n,
-                                  const std::vector<double>& r,
-                                  const std::vector<double>& rho,
-                                  const std::vector<double>& u,
-                                  const std::vector<double>& p,
-                                  const std::vector<double>& vel,
-                                  const std::string &outfile)
-    {
-        try
-        {
-            std::ofstream out(outfile);
-
-            out << " " << std::setw(15) << "r"              // Column 01 : position 1D
-                << " " << std::setw(15) << "rho"            // Column 02 : density         (Real value)
-                << " " << std::setw(15) << "u"              // Column 03 : internal energy (Real value)
-                << " " << std::setw(15) << "p"              // Column 04 : pressure        (Real value)
-                << " " << std::setw(15) << "vel"            // Column 05 : velocity 1D     (Real value)
-                << std::endl;
-
-            for(size_t i = 0; i < n; i++)
-            {
-                out << " " << std::setw(15) << std::setprecision(6) << std::scientific << std::uppercase << r[i]   << std::nouppercase
-                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << std::uppercase << rho[i] << std::nouppercase
-                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << std::uppercase << u[i]   << std::nouppercase
-                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << std::uppercase << p[i]   << std::nouppercase
-                    << " " << std::setw(15) << std::setprecision(6) << std::scientific << std::uppercase << vel[i] << std::nouppercase
-                    << std::endl;
-            }
-
-            out.close();
-        }
-        catch (std::exception &ex)
-        {
-            fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
-            exit(EXIT_FAILURE);
-        }
-    }
-};
 
 namespace sphexa
 {
 template <typename Dataset>
-struct NohFileWriter : IFileWriter<Dataset>
+struct SedovFileWriter : IFileWriter<Dataset>
 {
     void dumpParticleDataToBinFile(const Dataset &d, const std::string &path) const override
     {
@@ -120,7 +74,7 @@ struct NohFileWriter : IFileWriter<Dataset>
 
     void dumpCheckpointDataToBinFile(const Dataset &, const std::string &) const override
     {
-        fprintf(stderr, "Warning: dumping checkpoint is not implemented in NohFileWriter, exiting...\n");
+        fprintf(stderr, "Warning: dumping checkpoint is not implemented in SedovFileWriter, exiting...\n");
         exit(EXIT_FAILURE);
     }
 };
@@ -128,7 +82,7 @@ struct NohFileWriter : IFileWriter<Dataset>
 #ifdef USE_MPI
 
 template <typename Dataset>
-struct NohMPIFileWriter : IFileWriter<Dataset>
+struct SedovMPIFileWriter : IFileWriter<Dataset>
 {
     #ifdef SPH_EXA_HAVE_H5PART
     void dumpParticleDataToH5File(const Dataset& d, int firstIndex, int lastIndex, const std::string &path) const override
@@ -199,7 +153,7 @@ struct NohMPIFileWriter : IFileWriter<Dataset>
 
     void dumpCheckpointDataToBinFile(const Dataset &d, const std::string &) const override
     {
-        if (d.rank == 0) fprintf(stderr, "Warning: dumping checkpoint is not implemented in NohMPIFileWriter, exiting...\n");
+        if (d.rank == 0) fprintf(stderr, "Warning: dumping checkpoint is not implemented in SedovMPIFileWriter, exiting...\n");
         MPI_Abort(d.comm, MPI_ERR_OTHER);
     }
 };

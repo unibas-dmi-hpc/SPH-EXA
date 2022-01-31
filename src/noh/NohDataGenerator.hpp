@@ -14,15 +14,16 @@ class NohDataGenerator
 {
 public:
 
-    static constexpr double gamma         = 5.0/3.0;
-    static constexpr double r0            = 0.;
-    static constexpr double r1            = 1.0;
-    static constexpr bool   spheric_model = true;
-    static constexpr double rho0          = 1.0;
-    static constexpr double ener0         = 1.e-20;
-    static constexpr double vel0          = -1.0;
-    static constexpr double Mt            = 1.0;
-    static constexpr T      firstTimeStep = 1.e-4;
+    static inline const I    dim           = 3;
+    static inline const T    gamma         = 5.0/3.0;
+    static inline const T    r0            = 0.;
+    static inline const T    r1            = 1.0;
+    static inline const bool spheric_model = true;
+    static inline const T    rho0          = 1.0;
+    static inline const T    ener0         = 1.e-20;
+    static inline const T    vel0          = -1.0;
+    static inline const T    Mt            = 1.0;
+    static inline const T    firstTimeStep = 1.e-4;
 
     static ParticlesData<T, I> generate(const size_t side)
     {
