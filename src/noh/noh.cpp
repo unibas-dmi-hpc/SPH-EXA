@@ -46,8 +46,8 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t cubeSide = parser.getInt("-n", 50);
-    const size_t maxStep = parser.getInt("-s", 450);
+    const size_t cubeSide = parser.getInt("-n", 80);
+    const size_t maxStep = parser.getInt("-s", 800);
     const int writeFrequency = parser.getInt("-w", -1);
     const bool quiet = parser.exists("--quiet");
     const std::string outDirectory = parser.getString("--outDir");
@@ -216,8 +216,8 @@ void printHelp(char* name, int rank)
         printf("%s [OPTIONS]\n", name);
         printf("\nWhere possible options are:\n\n");
 
-        printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
-        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [450]\n\n");
+        printf("\t-n NUM \t\t\t NUM^3 Number of particles [80]\n");
+        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [800]\n\n");
 
         printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
 
@@ -228,6 +228,6 @@ void printHelp(char* name, int rank)
                     \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n");
 
         printf("\nFor example:\n");
-        printf("\t$ %s -n 50 -s 450 -w 450 --outDir ./bin/\n\n", name);
+        printf("\t$ %s -n 80 -s 800 -w 800 --outDir ./bin/\n\n", name);
     }
 }

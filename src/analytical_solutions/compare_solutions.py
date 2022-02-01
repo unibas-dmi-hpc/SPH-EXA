@@ -36,8 +36,8 @@ Usage examples:
     
     $ python ./compare_solutions.py noh --help'
     $ python src/analytical_solutions/compare_solutions.py noh --binary_file \
-    bin/noh_solution --constants_file ./bin/constants.txt --iteration 450 \
-    --nparts 125000 --snapshot_file ./bin/dump_noh450.txt --out_dir bin/ \
+    bin/noh_solution --constants_file ./bin/constants.txt --iteration 800 \
+    --nparts 512000 --snapshot_file ./bin/dump_noh800.txt --out_dir bin/ \
     --error_u --error_vel    
 """
 

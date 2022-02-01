@@ -40,6 +40,10 @@ NOH_SOL_CPP := $(NOH_SOL_DIR)/noh_io.cpp              \
 EVRARD_TEST  := src/evrard/evrard.cpp
 EVRARD_FLAGS := -DGRAVITY
 
+TEST_CASE_FLAGS := $(SEDOV_FLAGS)   \
+                   $(NOH_FLAGS)     \
+                   $(EVRARD_FLAGS)
+ 
 
 RELEASE := -DNDEBUG
 DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
@@ -141,20 +145,20 @@ all: mpi+omp mpi+omp+cuda mpi+omp+target mpi+omp+acc
 
 $(BUILDDIR)/cuda_mpi.o: $(SEDOV_TEST)
 	@mkdir -p $(BUILDDIR)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_CUDA $(TESTCASE_FLAGS) -o $@ -c $<
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_CUDA $(TEST_CASE_FLAGS) -o $@ -c $<
 
 $(BUILDDIR)/cuda_no_mpi.o: $(SEDOV_TEST)
 	@mkdir -p $(BUILDDIR)
-	$(CXX) $(CXXFLAGS) $(INC) -DUSE_CUDA $(TESTCASE_FLAGS) -o $@ -c $<
+	$(CXX) $(CXXFLAGS) $(INC) -DUSE_CUDA $(TEST_CASE_FLAGS) -o $@ -c $<
 
 $(BUILDDIR)/%.o: include/sph/cuda/%.cu
 	@mkdir -p $(BUILDDIR)
-	$(NVCC) $(NVCCFLAGS) -DUSE_CUDA $(TESTCASE_FLAGS) $(INC) -c -o $@ $<
+	$(NVCC) $(NVCCFLAGS) -DUSE_CUDA $(TEST_CASE_FLAGS) $(INC) -c -o $@ $<
 #	$(NVCC) $(NVCCFLAGS) $(INC) -DUSE_STD_MATH_IN_KERNELS -I$(CUDA_PATH)/include -L$(CUDA_PATH)/lib64 -c -o $@ $<
 
 $(BUILDDIR)/%.o: domain/include/cstone/cuda/%.cu
 	@mkdir -p $(BUILDDIR)
-	$(NVCC) $(NVCCFLAGS) -DUSE_CUDA $(TESTCASE_FLAGS) $(INC) -c -o $@ $<
+	$(NVCC) $(NVCCFLAGS) -DUSE_CUDA $(TEST_CASE_FLAGS) $(INC) -c -o $@ $<
 
 #run_test:
 #	@$(MAKE) -f $(THIS_FILE) omp
