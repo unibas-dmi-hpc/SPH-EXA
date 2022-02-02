@@ -66,10 +66,11 @@ constexpr TreeNodeIndex loadLeafIndex(TreeNodeIndex index)
 
 enum class P2pTags : int
 {
-    focusPeerCounts = 1000,
-    haloRequestKeys = 2000,
-    domainExchange  = 3000,
-    haloExchange    = 4000
+    focusTransfer   = 1000,
+    focusPeerCounts = 2000,
+    haloRequestKeys = 3000,
+    domainExchange  = 4000,
+    haloExchange    = 5000
 };
 
 /*! @brief returns the number of nodes in a tree

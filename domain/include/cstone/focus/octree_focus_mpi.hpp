@@ -89,17 +89,28 @@ public:
 
         KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
         KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
-
-        std::vector<KeyType> peerBoundaries;
-        for (int peer : peerRanks)
+        // init on first call
+        if (prevFocusStart == 0 && prevFocusEnd == 0)
         {
-            peerBoundaries.push_back(globalTreeLeaves[assignment.firstNodeIdx(peer)]);
-            peerBoundaries.push_back(globalTreeLeaves[assignment.lastNodeIdx(peer)]);
+            prevFocusStart = focusStart;
+            prevFocusEnd   = focusEnd;
         }
 
-        bool converged = tree_.update(focusStart, focusEnd, peerBoundaries, counts_, macs_);
+        std::vector<KeyType> enforcedKeys;
+        enforcedKeys.reserve(peerRanks.size() * 2);
+
+        focusTransfer(treeLeaves(), myRank_, prevFocusStart, prevFocusEnd, focusStart, focusEnd, enforcedKeys);
+        for (int peer : peerRanks)
+        {
+            enforcedKeys.push_back(globalTreeLeaves[assignment.firstNodeIdx(peer)]);
+            enforcedKeys.push_back(globalTreeLeaves[assignment.lastNodeIdx(peer)]);
+        }
+
+        bool converged = tree_.update(focusStart, focusEnd, enforcedKeys, counts_, macs_);
         translateAssignment(assignment, globalTreeLeaves, treeLeaves(), peerRanks, myRank_, assignment_);
 
+        prevFocusStart = focusStart;
+        prevFocusEnd   = focusEnd;
         rebalanceStatus_ = invalid;
         return converged;
     }
@@ -143,7 +154,7 @@ public:
         // counts from neighboring peers
         std::vector<MPI_Request> treeletRequests;
         exchangeTreelets(peerRanks, assignment_, leaves, treelets_, treeletRequests);
-        exchangeTreeletCounts(peerRanks, treelets_, assignment_, particleKeys, leafCounts_, treeletRequests);
+        exchangeTreeletCounts(peerRanks, treelets_, assignment_, leaves, leafCounts_, treeletRequests);
         MPI_Waitall(int(peerRanks.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
 
         // global counts
@@ -262,6 +273,11 @@ private:
     std::vector<std::vector<KeyType>> treelets_;
 
     FocusedOctreeCore<KeyType> tree_;
+
+    //! @brief previous iteration focus start
+    KeyType prevFocusStart = 0;
+    //! @brief previous iteration focus end
+    KeyType prevFocusEnd   = 0;
 
     //! @brief particle counts of the focused tree leaves
     std::vector<unsigned> leafCounts_;

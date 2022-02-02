@@ -48,7 +48,7 @@ void exchangeFocus(int myRank, int numRanks)
     std::vector<KeyType>  treeLeaves = makeUniformNLevelTree<KeyType>(64, 1);
     std::vector<unsigned> counts(nNodes(treeLeaves), 0);
 
-    std::vector<KeyType>  particleKeys(treeLeaves.begin(), treeLeaves.begin() + nNodes(treeLeaves));
+    std::vector<KeyType>  particleKeys;
 
     std::vector<int> peers;
     std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices(2);
@@ -57,24 +57,18 @@ void exchangeFocus(int myRank, int numRanks)
     {
         peers.push_back(1);
         peerFocusIndices[1] = TreeIndexPair(32, 64);
+        std::fill(begin(counts), begin(counts) + 32, 1);
     }
     else
     {
         peers.push_back(0);
         peerFocusIndices[0] = TreeIndexPair(0, 32);
+        std::fill(begin(counts) + 32, end(counts), 1);
     }
 
     exchangePeerCounts<KeyType>(peers, peerFocusIndices, particleKeys, treeLeaves, counts);
 
-    std::vector<unsigned> reference(nNodes(treeLeaves), 0);
-    if (myRank == 0)
-    {
-        std::fill(begin(reference) + 32, end(reference), 1);
-    }
-    else
-    {
-        std::fill(begin(reference), begin(reference) + 32, 1);
-    }
+    std::vector<unsigned> reference(nNodes(treeLeaves), 1);
 
     EXPECT_EQ(counts, reference);
 }

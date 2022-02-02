@@ -97,8 +97,8 @@ void countRequestParticles(gsl::span<const KeyType> leaves, gsl::span<const unsi
 
         // Nodes in @p leaves must match the request keys exactly, otherwise counts are wrong.
         // If this assertion fails, it means that the local leaves/counts does not have the required
-        // resolution to answer the incoming count request of [startKey:endKey] precisely.
-        // In that case the overload above must be used which uses the particle keys directly to get the counts.
+        // resolution to answer the incoming count request of [startKey:endKey] precisely, which means that
+        // focusTransfer didn't work correctly
         assert(startKey == leaves[startIdx]);
         assert(endKey == leaves[endIdx]);
 
@@ -163,7 +163,8 @@ template<class KeyType>
 void exchangeTreeletCounts(gsl::span<const int> peerRanks,
                            const std::vector<std::vector<KeyType>>& peerTrees,
                            gsl::span<const IndexPair<TreeNodeIndex>> focusAssignment,
-                           gsl::span<const KeyType> particleKeys,
+                           gsl::span<const KeyType> localLeaves,
+                           //gsl::span<const KeyType> particleKeys,
                            gsl::span<unsigned> localCounts,
                            std::vector<MPI_Request>& treeletRequests)
 {
@@ -185,7 +186,8 @@ void exchangeTreeletCounts(gsl::span<const int> peerRanks,
         // compute particle counts for the remote peer's tree structure of the local domain.
         TreeNodeIndex numNodes = nNodes(peerTrees[peer]);
         std::vector<unsigned> countBuffer(numNodes);
-        countRequestParticles<KeyType>(peerTrees[peer], countBuffer, particleKeys);
+        //countRequestParticles<KeyType>(peerTrees[peer], countBuffer, particleKeys);
+        countRequestParticles<KeyType>(localLeaves, localCounts, peerTrees[peer], countBuffer);
 
         // send back answer with the counts for the requested nodes
         mpiSendAsync(countBuffer.data(), numNodes, peer, countTag, sendRequests);
@@ -231,13 +233,86 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPai
     std::vector<MPI_Request> treeletRequests;
 
     exchangeTreelets(peerRanks, exchangeIndices, localLeaves, treelets, treeletRequests);
-    exchangeTreeletCounts(peerRanks, treelets, exchangeIndices, particleKeys, localCounts, treeletRequests);
+    exchangeTreeletCounts(peerRanks, treelets, exchangeIndices, localLeaves, localCounts, treeletRequests);
+    //exchangeTreeletCounts(peerRanks, treelets, exchangeIndices, particleKeys, localCounts, treeletRequests);
 
     MPI_Waitall(int(peerRanks.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
 
     // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization
     // across all ranks before calling this function again.
-    //MPI_Barrier(MPI_COMM_WORLD);
+}
+
+/*! @brief Pass on focus tree parts from old owners to new owners
+ *
+ * @tparam     KeyType         32- or 64-bit unsigned integer
+ * @param[in]  cstree          cornerstone leaf cell array (of the locally focused tree)
+ * @param[in]  myRank          the executing rank
+ * @param[in]  oldFocusStart   SFC assignment boundaries from previous iteration
+ * @param[in]  oldFocusEnd
+ * @param[in]  newFocusStart   new SFC assignment boundaries
+ * @param[in]  newFocusEnd
+ * @param[out] buffer          cell keys of parts of a remote rank's @p cstree for the newly assigned area of @p myRank
+ *
+ * When the assignment boundaries change, we let the previous owning rank pass on its focus tree of the part that it
+ * lost to the new owning rank. Thanks to doing so we can guarantee that each rank always has the highest focus
+ * tree resolution inside its focus of any rank: if rank a has focus SFC range F, then no other rank can have
+ * tree cells in F that don't exist in rank a's focus tree.
+ */
+template<class KeyType>
+void focusTransfer(gsl::span<const KeyType> cstree,
+                   int myRank,
+                   KeyType oldFocusStart,
+                   KeyType oldFocusEnd,
+                   KeyType newFocusStart,
+                   KeyType newFocusEnd,
+                   std::vector<KeyType>& buffer)
+{
+    constexpr int ownerTag = static_cast<int>(P2pTags::focusTransfer);
+
+    std::vector<MPI_Request> sendRequests;
+
+    if (oldFocusStart < newFocusStart)
+    {
+        // current rank lost range [oldFocusStart : newFocusStart] to rank below
+        TreeNodeIndex start = findNodeAbove(cstree, oldFocusStart);
+        TreeNodeIndex end   = findNodeAbove(cstree, newFocusStart);
+        mpiSendAsync(cstree.data() + start, end - start, myRank - 1, ownerTag, sendRequests);
+    }
+
+    if (newFocusEnd < oldFocusEnd)
+    {
+        // current rank lost range [newFocusEnd : oldFocusEnd] to rank above
+        TreeNodeIndex start = findNodeAbove(cstree, newFocusEnd);
+        TreeNodeIndex end   = findNodeAbove(cstree, oldFocusEnd);
+        int sendCount = end - start;
+        mpiSendAsync(cstree.data() + start, sendCount, myRank + 1, ownerTag, sendRequests);
+    }
+
+    if (newFocusStart < oldFocusStart)
+    {
+        // current rank gained range [newFocusStart : oldFocusStart] from rank below
+        MPI_Status status;
+        MPI_Probe(myRank - 1, ownerTag, MPI_COMM_WORLD, &status);
+        TreeNodeIndex receiveSize;
+        MPI_Get_count(&status, MpiType<KeyType>{}, &receiveSize);
+
+        buffer.resize(buffer.size() + receiveSize);
+        mpiRecvSync(buffer.data() + buffer.size() - receiveSize, receiveSize, myRank - 1, ownerTag, &status);
+    }
+
+    if (oldFocusEnd < newFocusEnd)
+    {
+        // current rank gained range [oldFocusEnd : newFocusEnd] from rank above
+        MPI_Status status;
+        MPI_Probe(myRank + 1, ownerTag, MPI_COMM_WORLD, &status);
+        TreeNodeIndex receiveSize;
+        MPI_Get_count(&status, MpiType<KeyType>{}, &receiveSize);
+
+        buffer.resize(buffer.size() + receiveSize);
+        mpiRecvSync(buffer.data() + buffer.size() - receiveSize, receiveSize, myRank + 1, ownerTag, MPI_STATUS_IGNORE);
+    }
+
+    MPI_Waitall(int(sendRequests.size()), sendRequests.data(), MPI_STATUS_IGNORE);
 }
 
 } // namespace cstone
