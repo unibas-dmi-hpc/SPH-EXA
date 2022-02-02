@@ -48,8 +48,6 @@ void exchangeFocus(int myRank, int numRanks)
     std::vector<KeyType>  treeLeaves = makeUniformNLevelTree<KeyType>(64, 1);
     std::vector<unsigned> counts(nNodes(treeLeaves), 0);
 
-    std::vector<KeyType>  particleKeys;
-
     std::vector<int> peers;
     std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices(2);
 
@@ -66,7 +64,7 @@ void exchangeFocus(int myRank, int numRanks)
         std::fill(begin(counts) + 32, end(counts), 1);
     }
 
-    exchangePeerCounts<KeyType>(peers, peerFocusIndices, particleKeys, treeLeaves, counts);
+    exchangePeerCounts<KeyType>(peers, peerFocusIndices, treeLeaves, counts);
 
     std::vector<unsigned> reference(nNodes(treeLeaves), 1);
 
@@ -147,21 +145,9 @@ void exchangeFocusIrregular(int myRank, int numRanks)
         peerFocusIndices[0] = TreeIndexPair(0, peerEndIdx);
     }
 
-    // rank 0 has the first x-half of a level-3 grid, rank 1 gets the second half
-    std::vector<KeyType> particleKeys;
-    std::vector<KeyType> level3grid = makeNLevelGrid<KeyType>(3);
-    if (myRank == 0)
-    {
-        particleKeys = std::vector<KeyType>(level3grid.begin(), level3grid.begin() + 256);
-    }
-    else
-    {
-        particleKeys = std::vector<KeyType>(level3grid.begin() + 256, level3grid.end());
-    }
-
     std::vector<unsigned> counts(nNodes(treeLeaves), 1);
 
-    exchangePeerCounts<KeyType>(peers, peerFocusIndices, particleKeys, treeLeaves, counts);
+    exchangePeerCounts<KeyType>(peers, peerFocusIndices, treeLeaves, counts);
 
     std::vector<unsigned> reference(nNodes(treeLeaves), 1);
     TreeNodeIndex peerStartIdx, peerEndIdx;

@@ -55,27 +55,6 @@ namespace cstone
 
 /*! @brief count particles inside specified ranges of a cornerstone leaf tree
  *
- * @tparam     KeyType         32- or 64-bit unsigned integer
- * @param[in]  requestLeaves   query cornerstone SFC key sequence
- * @param[out] requestCounts   output counts for @p requestLeaves, length = length(requestLeaves) - 1
- * @param[in]  particleKeys    sorted SFC keys of local particles
- */
-template<class KeyType>
-void countRequestParticles(gsl::span<const KeyType> requestLeaves, gsl::span<unsigned> requestCounts,
-                           gsl::span<const KeyType> particleKeys)
-{
-    assert(requestLeaves.size() == requestCounts.size() + 1);
-    #pragma omp parallel for
-    for (size_t i = 0; i < requestCounts.size(); ++i)
-    {
-        requestCounts[i] =
-            calculateNodeCount(requestLeaves[i], requestLeaves[i + 1], particleKeys.data(),
-                               particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max());
-    }
-}
-
-/*! @brief count particles inside specified ranges of a cornerstone leaf tree
- *
  * @tparam KeyType             32- or 64-bit unsigned integer
  * @param[in]  leaves          cornerstone SFC key sequence,
  * @param[in]  counts          particle counts of @p leaves, length = length(leaves) - 1
@@ -164,7 +143,6 @@ void exchangeTreeletCounts(gsl::span<const int> peerRanks,
                            const std::vector<std::vector<KeyType>>& peerTrees,
                            gsl::span<const IndexPair<TreeNodeIndex>> focusAssignment,
                            gsl::span<const KeyType> localLeaves,
-                           //gsl::span<const KeyType> particleKeys,
                            gsl::span<unsigned> localCounts,
                            std::vector<MPI_Request>& treeletRequests)
 {
@@ -186,7 +164,6 @@ void exchangeTreeletCounts(gsl::span<const int> peerRanks,
         // compute particle counts for the remote peer's tree structure of the local domain.
         TreeNodeIndex numNodes = nNodes(peerTrees[peer]);
         std::vector<unsigned> countBuffer(numNodes);
-        //countRequestParticles<KeyType>(peerTrees[peer], countBuffer, particleKeys);
         countRequestParticles<KeyType>(localLeaves, localCounts, peerTrees[peer], countBuffer);
 
         // send back answer with the counts for the requested nodes
@@ -212,7 +189,6 @@ void exchangeTreeletCounts(gsl::span<const int> peerRanks,
  * @param[in]  peerRanks            list of peer rank IDs
  * @param[in]  exchangeIndices      contains one range of indices of @p localLeaves to request counts for each peer rank
  *                                  length = numRanks
- * @param[in]  particleKeys         sorted SFC keys of local particles
  * @param[in]  localLeaves          cornerstone SFC key sequence of the locally (focused) tree
  *                                  of the executing rank
  * @param[out] localCounts          particle counts associated with @p localLeaves
@@ -224,8 +200,9 @@ void exchangeTreeletCounts(gsl::span<const int> peerRanks,
  *  3. receive answer with the counts for the requested keys
  */
 template<class KeyType>
-void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPair<TreeNodeIndex>> exchangeIndices,
-                        gsl::span<const KeyType> particleKeys, gsl::span<const KeyType> localLeaves,
+void exchangePeerCounts(gsl::span<const int> peerRanks,
+                        gsl::span<const IndexPair<TreeNodeIndex>> exchangeIndices,
+                        gsl::span<const KeyType> localLeaves,
                         gsl::span<unsigned> localCounts)
 
 {
@@ -234,7 +211,6 @@ void exchangePeerCounts(gsl::span<const int> peerRanks, gsl::span<const IndexPai
 
     exchangeTreelets(peerRanks, exchangeIndices, localLeaves, treelets, treeletRequests);
     exchangeTreeletCounts(peerRanks, treelets, exchangeIndices, localLeaves, localCounts, treeletRequests);
-    //exchangeTreeletCounts(peerRanks, treelets, exchangeIndices, particleKeys, localCounts, treeletRequests);
 
     MPI_Waitall(int(peerRanks.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
 
