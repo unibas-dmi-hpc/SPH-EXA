@@ -192,38 +192,6 @@ TEST(FocusedOctree, rebalanceDecision)
 }
 
 template<class KeyType>
-static void removeKeyRanges()
-{
-    std::vector<KeyType> cstree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0,0).makeTree();
-
-    std::vector<TreeNodeIndex> nodeOps(cstree.size(), 1);
-    std::vector<KeyType> removeKeys{pad<KeyType>(0, 0), pad<KeyType>(1, 3)};
-
-    removeKeyRanges<KeyType>(cstree, removeKeys, nodeOps);
-    for (size_t i = 0; i < nodeOps.size(); ++i)
-    {
-        std::cout << std::oct << cstree[i] << " " << std::dec << " " << nodeOps[i] << std::endl;
-    }
-
-    std::vector<KeyType> balancedTree;
-    rebalanceTree(cstree, balancedTree, nodeOps.data());
-
-    for (size_t i = 0; i < balancedTree.size(); ++i)
-    {
-        std::cout << std::oct << balancedTree[i] << std::endl;
-    }
-
-    std::vector<KeyType> reference = OctreeMaker<KeyType>{}.divide().makeTree();
-    EXPECT_EQ(balancedTree, reference);
-}
-
-TEST(FocusedOctree, removeKeyRanges)
-{
-    removeKeyRanges<unsigned>();
-    removeKeyRanges<uint64_t>();
-}
-
-template<class KeyType>
 static void enforceKeys()
 {
     auto tree = OctreeMaker<KeyType>{}.divide().divide(1).makeTree();
