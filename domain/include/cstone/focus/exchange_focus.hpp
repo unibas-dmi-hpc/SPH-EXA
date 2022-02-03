@@ -183,6 +183,66 @@ void exchangeTreeletCounts(gsl::span<const int> peerRanks,
     MPI_Waitall(int(sendRequests.size()), sendRequests.data(), MPI_STATUS_IGNORE);
 }
 
+template<class T, class KeyType>
+void exchangeTreeletGeneral(gsl::span<const int> peerRanks,
+                            const std::vector<std::vector<KeyType>>& peerTrees,
+                            gsl::span<const IndexPair<TreeNodeIndex>> focusAssignment,
+                            gsl::span<const KeyType> octree,
+                            gsl::span<const TreeNodeIndex> levelRange,
+                            gsl::span<const TreeNodeIndex> csToInternalMap,
+                            gsl::span<T> quantities,
+                            int commTag)
+{
+    size_t numPeers = peerRanks.size();
+    std::vector<std::vector<unsigned>> sendBuffers;
+    sendBuffers.reserve(numPeers);
+
+    std::vector<MPI_Request> sendRequests;
+    sendRequests.reserve(numPeers);
+    for (auto peer : peerRanks)
+    {
+        TreeNodeIndex treeletSize = nNodes(peerTrees[peer]);
+        std::vector<T> buffer(treeletSize);
+        gsl::span<const KeyType> treelet(peerTrees[peer]);
+
+        for (TreeNodeIndex i = 0; i < treeletSize; ++i)
+        {
+            KeyType nodeStart = treelet[i];
+            KeyType nodeEnd   = treelet[i + 1];
+            unsigned level    = treeLevel(nodeEnd - nodeStart);
+            KeyType prefix    = encodePlaceholderBit(nodeStart, 3 * level);
+
+            TreeNodeIndex internalIdx =
+                stl::lower_bound(octree.data() + levelRange[level], octree.data() + levelRange[level + 1], prefix) -
+                octree.data();
+            assert(prefix == octree[internalIdx]);
+
+            buffer[i] = quantities[internalIdx];
+        }
+
+        mpiSendAsync(buffer.data(), treeletSize, peer, commTag, sendRequests);
+        sendBuffers.push_back(std::move(buffer));
+    }
+
+    TreeNodeIndex numInternalNodes = (quantities.size() - 1) / 8;
+
+    std::vector<T> buffer;
+    for (auto peer : peerRanks)
+    {
+        TreeNodeIndex receiveCount = focusAssignment[peer].count();
+        buffer.resize(receiveCount);
+        mpiRecvSync(buffer.data(), receiveCount, peer, commTag, MPI_STATUS_IGNORE);
+        for (int i = 0; i < receiveCount; ++i)
+        {
+            TreeNodeIndex csIdx       = i + focusAssignment[peer].start();
+            TreeNodeIndex internalIdx = csToInternalMap[csIdx + numInternalNodes];
+            quantities[internalIdx]   = buffer[i];
+        }
+    }
+
+    MPI_Waitall(int(sendRequests.size()), sendRequests.data(), MPI_STATUS_IGNORE);
+}
+
 /*! @brief exchange particle counts with specified peer ranks
  *
  * @tparam KeyType                  32- or 64-bit unsigned integer

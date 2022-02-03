@@ -66,9 +66,9 @@ static auto computeNodeOps(const Octree<KeyType>& octree,
     }
 
     std::vector<int> nodeOps(octree.numTreeNodes());
-    bool converged = rebalanceDecisionEssential(octree.nodeKeys(), octree.childOffsets(), octree.parents(),
-                                                counts.data(), macs.data(), octree.numTreeNodes(), focusStart, focusEnd,
-                                                bucketSize, nodeOps.data());
+    bool converged =
+        rebalanceDecisionEssential(octree.nodeKeys(), octree.childOffsets(), octree.parents(), counts.data(),
+                                   macs.data(), focusStart, focusEnd, bucketSize, nodeOps.data());
 
     std::vector<int> ret(octree.numLeafNodes());
     octree.template extractLeaves<int>(nodeOps, ret);

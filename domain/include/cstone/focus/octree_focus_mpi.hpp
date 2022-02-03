@@ -178,6 +178,15 @@ public:
         rebalanceStatus_ |= countsCriterion;
     }
 
+    template<class T>
+    void peerExchange(gsl::span<const int> peerRanks,
+                      gsl::span<T> quantities,
+                      int commTag)
+    {
+        exchangeTreeletGeneral<T>(peerRanks, treelets_, assignment_, octree().nodeKeys(), octree().levelRange(),
+                                  octree().internalOrder(), quantities, commTag);
+    }
+
     /*! @brief Update the MAC criteria based on a min distance MAC
      *
      * @tparam    T                float or double

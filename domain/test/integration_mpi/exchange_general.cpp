@@ -53,12 +53,12 @@ using namespace cstone;
  * algorithms. This should yield the same tree on each rank as the local case,
  */
 template<class KeyType, class T>
-void globalRandomGaussian(int thisRank, int numRanks)
+static void generalExchangeRandomGaussian(int thisRank, int numRanks)
 {
     const LocalIndex numParticles = 1000;
-    unsigned bucketSize = 64;
-    unsigned bucketSizeLocal = 16;
-    float theta = 1.0;
+    unsigned bucketSize           = 64;
+    unsigned bucketSizeLocal      = 16;
+    float theta                   = 1.0;
 
     Box<T> box{-1, 1};
 
@@ -80,22 +80,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
     auto peers = findPeersMac(thisRank, assignment, domainTree, box, theta);
 
-    // peer boundaries are required to be present in the focus tree at all times
-    std::vector<KeyType> peerBoundaries;
-    for (auto peer : peers)
-    {
-        peerBoundaries.push_back(tree[assignment.firstNodeIdx(peer)]);
-        peerBoundaries.push_back(tree[assignment.lastNodeIdx(peer)]);
-    }
-
     KeyType focusStart = tree[assignment.firstNodeIdx(thisRank)];
     KeyType focusEnd   = tree[assignment.lastNodeIdx(thisRank)];
-
-    // build the reference focus tree from the common pool of coordinates, focused on the executing rank
-    FocusedOctreeSingleNode<KeyType> referenceFocusTree(bucketSizeLocal, theta);
-    while (!referenceFocusTree.update(box, coords.particleKeys(), focusStart, focusEnd, peerBoundaries));
-
-    /*******************************/
 
     // locate particles assigned to thisRank
     auto firstAssignedIndex = findNodeAbove<KeyType>(coords.particleKeys(), focusStart);
@@ -107,53 +93,59 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::vector<T> y(coords.y().begin() + firstAssignedIndex, coords.y().begin() + lastAssignedIndex);
     std::vector<T> z(coords.z().begin() + firstAssignedIndex, coords.z().begin() + lastAssignedIndex);
 
-    {
-        // make sure no particles got lost
-        LocalIndex numParticlesLocal = lastAssignedIndex - firstAssignedIndex;
-        LocalIndex numParticlesTotal = numParticlesLocal;
-        MPI_Allreduce(MPI_IN_PLACE, &numParticlesTotal, 1, MpiType<LocalIndex>{}, MPI_SUM, MPI_COMM_WORLD);
-        EXPECT_EQ(numParticlesTotal, numRanks * numParticles);
-    }
-
     // Now build the focused tree using distributed algorithms. Each rank only uses its slice.
-
     std::vector<KeyType> particleKeys(lastAssignedIndex - firstAssignedIndex);
     computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
 
     FocusedOctree<KeyType> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
+    focusTree.converge(box, particleKeys, peers, assignment, tree, counts);
 
-    int converged = 0;
-    while (converged != numRanks)
+    const Octree<KeyType>& octree = focusTree.octree();
+    std::vector<unsigned> testCounts(octree.numTreeNodes());
+
+    for (TreeNodeIndex i = 0; i < octree.numTreeNodes(); ++i)
     {
-        converged = focusTree.update(box, particleKeys, peers, assignment, tree, counts);
-        MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-        // particle counts must always be valid, whatever state of convergence
-        auto focusCounts = focusTree.leafCounts();
-        LocalIndex totalCount = std::accumulate(focusCounts.begin(), focusCounts.end(), LocalIndex(0));
-        EXPECT_EQ(totalCount, numParticles * numRanks);
-
-        // peer boundaries must always be resolved at any convergence state
-        for (auto key : peerBoundaries)
+        if (octree.isLeaf(i))
         {
-            LocalIndex idx = findNodeAbove(focusTree.treeLeaves(), key);
-            EXPECT_EQ(key, focusTree.treeLeaves()[idx]);
+            KeyType nodeStart = octree.codeStart(i);
+            KeyType nodeEnd   = octree.codeEnd(i);
+            testCounts[i] =
+                calculateNodeCount(nodeStart, nodeEnd, particleKeys.data(), particleKeys.data() + particleKeys.size(),
+                                   std::numeric_limits<unsigned>::max());
         }
     }
 
-    // the locally built reference tree should be identical to the tree built with distributed particles
-    EXPECT_EQ(focusTree.treeLeaves(), referenceFocusTree.treeLeaves());
-    EXPECT_EQ(focusTree.leafCounts(), referenceFocusTree.leafCounts());
+    auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h)
+    { return a + b + c + d + e + f + g + h; };
+    upsweep(octree, testCounts.data(), sumFunction);
+
+    focusTree.template peerExchange<unsigned>(peers, testCounts, static_cast<int>(P2pTags::focusPeerCounts) + 2);
+    upsweep(octree, testCounts.data(), sumFunction);
+
+    {
+        for (TreeNodeIndex i = 0; i < testCounts.size(); ++i)
+        {
+            KeyType nodeStart = octree.codeStart(i);
+            KeyType nodeEnd   = octree.codeEnd(i);
+
+            unsigned referenceCount = calculateNodeCount(nodeStart, nodeEnd, coords.particleKeys().data(),
+                                                         coords.particleKeys().data() + coords.particleKeys().size(),
+                                                         std::numeric_limits<unsigned>::max());
+            EXPECT_EQ(testCounts[i], referenceCount);
+        }
+    }
+
+    EXPECT_EQ(testCounts[0], numRanks * numParticles);
 }
 
-TEST(GlobalTreeDomain, randomGaussian)
+TEST(GeneralFocusExchange, randomGaussian)
 {
     int rank = 0, nRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
-    globalRandomGaussian<unsigned, double>(rank, nRanks);
-    globalRandomGaussian<uint64_t, double>(rank, nRanks);
-    globalRandomGaussian<unsigned, float>(rank, nRanks);
-    globalRandomGaussian<uint64_t, float>(rank, nRanks);
+    generalExchangeRandomGaussian<unsigned, double>(rank, nRanks);
+    generalExchangeRandomGaussian<uint64_t, double>(rank, nRanks);
+    generalExchangeRandomGaussian<unsigned, float>(rank, nRanks);
+    generalExchangeRandomGaussian<uint64_t, float>(rank, nRanks);
 }
