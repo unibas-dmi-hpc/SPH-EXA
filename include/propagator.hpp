@@ -82,7 +82,7 @@ public:
     void hydroStep(DomainType& domain, ParticleDataType& d)
     {
         // Advance simulation by one step
-        using T = ParticleDataType::RealType;
+        using T = typename ParticleDataType::RealType;
 
         timer.start();
 
@@ -139,7 +139,7 @@ public:
     void hydroStepGravity(DomainType& domain, ParticleDataType& d)
     {
         // Advance simulation by one step
-        using T = ParticleDataType::RealType;
+        using T = typename ParticleDataType::RealType;
 
         timer.start();
 
