@@ -68,7 +68,7 @@ int main(int argc, char** argv)
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
-    MasterProcessTimer timer(output, d.rank), totalTimer(output, d.rank);
+    MasterProcessTimer totalTimer(output, d.rank);
 
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
@@ -111,15 +111,13 @@ int main(int argc, char** argv)
     const size_t ngmax   = 150;
     const size_t ng0     = 100;
 
-    Propagator propagator(domain.nParticles(), nTasks, ngmax, ng0);
+    Propagator propagator(nTasks, ngmax, ng0, domain.nParticles(), output, d.rank);
 
     if (d.rank == 0) std::cout << "Starting main loop." << std::endl;
 
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
-        timer.start();
-
         propagator.hydroStep<DomainType, Dataset, Real>(domain, d);
 
         if (d.rank == 0)
@@ -170,16 +168,14 @@ int main(int argc, char** argv)
                 domain.endIndex(),
                 outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".txt");
 #endif
-            timer.step("writeFile");
         }
 
-        timer.stop();
 
         if (d.rank == 0)
         {
             Printer::printTotalIterationTime(
                 d.iteration,
-                timer.duration(),
+                propagator.timer.duration(),
                 output);
         }
 
