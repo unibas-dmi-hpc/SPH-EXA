@@ -78,7 +78,7 @@ public:
         return neighborsSum(taskList.tasks);
     }
 
-    template <class DomainType, class ParticleDataType, class T>
+    template <class DomainType, class ParticleDataType>
     void hydroStep(DomainType& domain, ParticleDataType& d)
     {
     using T = ParticleDataType::RealType;
