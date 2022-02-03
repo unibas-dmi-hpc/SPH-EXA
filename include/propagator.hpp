@@ -81,8 +81,9 @@ public:
     template <class DomainType, class ParticleDataType>
     void hydroStep(DomainType& domain, ParticleDataType& d)
     {
-    using T = ParticleDataType::RealType;
         // Advance simulation by one step
+        using T = ParticleDataType::RealType;
+
         timer.start();
 
         domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,d.dt_m1);
@@ -134,10 +135,12 @@ public:
     }
 
 
-    template <class DomainType, class ParticleDataType, class T>
+    template <class DomainType, class ParticleDataType>
     void hydroStepGravity(DomainType& domain, ParticleDataType& d)
     {
         // Advance simulation by one step
+        using T = ParticleDataType::RealType;
+
         timer.start();
 
         domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,d.dt_m1);
