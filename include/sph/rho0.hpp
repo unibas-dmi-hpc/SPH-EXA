@@ -85,7 +85,7 @@ void computeRho0Impl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 
 #ifndef NDEBUG
         if (std::isnan(rho0[i]))
-            printf("ERROR::Rho0(%zu) rho0 %f, position: (%f %f %f), h: %f\n", pi, ro[i], x[i], y[i], z[i], h[i]);
+            printf("ERROR::Rho0(%zu) rho0 %f, position: (%f %f %f), h: %f\n", pi, rho0[i], x[i], y[i], z[i], h[i]);
 #endif
     }
 }

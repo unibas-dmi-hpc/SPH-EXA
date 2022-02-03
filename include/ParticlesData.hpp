@@ -72,11 +72,11 @@ struct ParticlesData
     T ttot, etot, ecin, eint, egrav;
     T minDt;
 
-    std::vector<std::vector<T>*> data{&x,   &y,          &z,   &x_m1,  &y_m1, &z_m1, &vx,       &vy,       &vz,
-                                      &ro,  &u,          &p,   &h,     &m,    &c,    &grad_P_x, &grad_P_y, &grad_P_z,
-                                      &du,  &du_m1,      &dt,  &dt_m1, &c11,  &c12,  &c13,      &c22,      &c23,
-                                      &c33, &maxvsignal, &mue, &mui,   &temp, &cv,   &rho0,     &wrho0,    &kx,
-                                      &whomega};
+    std::vector<std::vector<T>*> data{&x,       &y,          &z,     &x_m1,  &y_m1, &z_m1, &vx,       &vy,       &vz,
+                                      &ro,      &u,          &p,     &h,     &m,    &c,    &grad_P_x, &grad_P_y, &grad_P_z,
+                                      &du,      &du_m1,      &dt,    &dt_m1, &c11,  &c12,  &c13,      &c22,      &c23,
+                                      &c33,     &maxvsignal, &mue,   &mui,   &temp, &cv,   &rho0,     &wrho0,    &kx,
+                                      &whomega, &divv,       &curlv, &alpha};
 
     const std::array<double, lt::size> wh = lt::createWharmonicLookupTable<double, lt::size>();
     const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
