@@ -16,7 +16,7 @@
 
 #include "sph/findNeighborsSfc.hpp"
 
-#include "tests/propagator.hpp"
+#include "propagator.hpp"
 
 using namespace cstone;
 using namespace sphexa;
@@ -68,7 +68,7 @@ int main(int argc, char** argv)
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
-    MasterProcessTimer totalTimer(output, d.rank);
+    MasterProcessTimer timer(output, d.rank), totalTimer(output, d.rank);
 
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
@@ -88,9 +88,11 @@ int main(int argc, char** argv)
     float theta = 1.0;
 
 #ifdef USE_CUDA
-    Domain<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    using DomainType = Domain<KeyType, Real, CudaTag>;
+    DomainType domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #else
-    Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    using DomainType = Domain<KeyType, Real>;
+    DomainType domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
@@ -108,26 +110,21 @@ int main(int argc, char** argv)
     const size_t nTasks  = 64;
     const size_t ngmax   = 150;
     const size_t ng0     = 100;
-    const bool   gravity = false;
 
-#ifdef USE_CUDA
-    Propagator<KeyType, Real, CudaTag> propagator(domain, d, output, nTasks, ngmax, ng0, gravity);
-#else
-    Propagator<KeyType, Real> propagator(domain, d, output, nTasks, ngmax, ng0, gravity);
-#endif
+    Propagator propagator(domain.nParticles(), nTasks, ngmax, ng0);
 
     if (d.rank == 0) std::cout << "Starting main loop." << std::endl;
 
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
-        propagator.start();
+        timer.start();
 
-        propagator.hydroStep();
+        propagator.hydroStep<DomainType, Dataset, Real>(domain, d);
 
         if (d.rank == 0)
         {
-            size_t totalNeighbors = propagator.neighbors();
+            size_t totalNeighbors = neighborsSum(propagator.taskList.tasks);
 
             Printer::printCheck(
                 d.ttot,
@@ -173,16 +170,16 @@ int main(int argc, char** argv)
                 domain.endIndex(),
                 outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".txt");
 #endif
-            propagator.step("writeFile");
+            timer.step("writeFile");
         }
 
-        propagator.stop();
+        timer.stop();
 
         if (d.rank == 0)
         {
             Printer::printTotalIterationTime(
                 d.iteration,
-                propagator.duration(),
+                timer.duration(),
                 output);
         }
 
