@@ -81,6 +81,7 @@ public:
     template <class DomainType, class ParticleDataType, class T>
     void hydroStep(DomainType& domain, ParticleDataType& d)
     {
+    using T = ParticleDataType::RealType;
         // Advance simulation by one step
         timer.start();
 
