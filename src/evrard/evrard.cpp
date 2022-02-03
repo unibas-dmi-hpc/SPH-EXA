@@ -121,7 +121,7 @@ int main(int argc, char** argv)
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
-        propagator.hydroStepGravity<DomainType, Dataset, Real>(domain, d);
+        propagator.hydroStepGravity(domain, d);
 
         if (d.rank == 0)
         {
