@@ -247,11 +247,16 @@ public:
     //! @brief return a const view of the cstone leaf array
     gsl::span<const KeyType> treeLeaves() const { return cstoneTree_; }
     //! @brief return const pointer to node(cell) SFC keys
-    const KeyType* nodeKeys() const { return prefixes_.data(); }
+    gsl::span<const KeyType> nodeKeys() const { return prefixes_; }
     //! @brief return const pointer to child offsets array
     const TreeNodeIndex* childOffsets() const { return childOffsets_.data(); }
     //! @brief return const pointer to the cell parents array
     const TreeNodeIndex* parents() const { return parents_.data(); }
+
+    //! @brief stores the first internal node index of each tree subdivision level
+    gsl::span<const TreeNodeIndex> levelRange() const { return levelRange_; }
+    //! @brief converts a cornerstone index into an internal index
+    gsl::span<const TreeNodeIndex> internalOrder() const { return inverseNodeOrder_; }
 
     //! @brief total number of nodes in the tree
     inline TreeNodeIndex numTreeNodes() const { return levelRange_.back(); }
