@@ -41,31 +41,31 @@ struct MpiType
 template<>
 struct MpiType<double>
 {
-    operator MPI_Datatype() const noexcept { return MPI_DOUBLE; }
+    constexpr operator MPI_Datatype() const noexcept { return MPI_DOUBLE; }
 };
 
 template<>
 struct MpiType<float>
 {
-    operator MPI_Datatype() const noexcept { return MPI_FLOAT; }
+    constexpr operator MPI_Datatype() const noexcept { return MPI_FLOAT; }
 };
 
 template<>
 struct MpiType<int>
 {
-    operator MPI_Datatype() const noexcept { return MPI_INT; }
+    constexpr operator MPI_Datatype() const noexcept { return MPI_INT; }
 };
 
 template<>
 struct MpiType<unsigned>
 {
-    operator MPI_Datatype() const noexcept { return MPI_UNSIGNED; }
+    constexpr operator MPI_Datatype() const noexcept { return MPI_UNSIGNED; }
 };
 
 template<>
 struct MpiType<unsigned long>
 {
-    operator MPI_Datatype() const noexcept { return MPI_UNSIGNED_LONG; }
+    constexpr operator MPI_Datatype() const noexcept { return MPI_UNSIGNED_LONG; }
 };
 
 template<>
