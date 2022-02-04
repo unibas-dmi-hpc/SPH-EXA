@@ -115,12 +115,12 @@ variables:
   before_script:
     # /usr/local/bin/evrard <-- (needs input file)
     # /usr/local/bin/sedov
-    - if [ "$VARIANT" = "cuda" && "$RUN_VARIANT" = "1" ]; then
+    - if [ "$VARIANT" = "cuda" ] && [ @ "$RUN_VARIANT" = "1" ]; then
         echo "unittests -n1";
         /usr/local/sbin/unit/component_units;
         /usr/local/sbin/unit/component_units_omp;
         /usr/local/sbin/coord_samples/coordinate_test;
-        /usr/local/sbin/kernel_tests;
+        /usr/local/bin/kernel_tests;
         /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests;
         echo "perf_unittests -n1";
         /usr/local/sbin/performance/octree_perf;
@@ -129,14 +129,14 @@ variables:
         /usr/local/sbin/performance/hilbert_perf;
         /usr/local/sbin/performance/gravity_perf;
       fi
-    - if [ "$VARIANT" = "cuda" && "$RUN_VARIANT" = "2" ]; then
+    - if [ "$VARIANT" = "cuda" ] && [ @ "$RUN_VARIANT" = "2" ]; then
         echo "unittests -n2";
         /usr/local/sbin/integration_mpi/domain_2ranks;
         /usr/local/sbin/integration_mpi/exchange_focus;
         /usr/local/sbin/integration_mpi/exchange_halos;
         /usr/local/sbin/integration_mpi/globaloctree;
       fi
-    - if [ "$VARIANT" = "cuda" && "$RUN_VARIANT" = "10" ]; then
+    - if [ "$VARIANT" = "cuda" ] && [ @ "$RUN_VARIANT" = "10" ]; then
         echo "unittests -n10";
         /usr/local/sbin/integration_mpi/exchange_domain;
         /usr/local/sbin/integration_mpi/treedomain;
@@ -148,7 +148,7 @@ variables:
         /usr/local/bin/sedov -s 0 ;
       fi  
     #- export OMP_NUM_THREADS=2
-    - if [ "$VARIANT" = "cuda" && "$RUN_VARIANT" = "p100" ]; then
+    - if [ "$VARIANT" = "cuda" ] && [ @ "$RUN_VARIANT" = "p100" ]; then
         echo "gpu unittests -n1";
         /usr/local/sbin/performance/cudaNeighborsTest;
         /usr/local/sbin/performance/octree_perf_gpu;
