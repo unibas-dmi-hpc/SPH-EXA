@@ -65,8 +65,8 @@ namespace cstone
 //    return;
 //}
 
-template <class KeyType, class C, class A>
-void singleTraversal(const Octree<KeyType>& octree, C&& continuationCriterion, A&& endpointAction)
+template<template<class> class TreeType, class KeyType, class C, class A>
+void singleTraversal(const TreeType<KeyType>& octree, C&& continuationCriterion, A&& endpointAction)
 {
     if (!continuationCriterion(0) || octree.isLeaf(0))
     {
@@ -81,7 +81,6 @@ void singleTraversal(const Octree<KeyType>& octree, C&& continuationCriterion, A
     TreeNodeIndex stackPos = 1;
     TreeNodeIndex node     = 0; // start at the root
 
-    TreeNodeIndex internalNodes = octree.numInternalNodes();
     do
     {
         for (int octant = 0; octant < 8; ++octant)
@@ -92,7 +91,7 @@ void singleTraversal(const Octree<KeyType>& octree, C&& continuationCriterion, A
             {
                 if (octree.isLeaf(child))
                 {
-                    endpointAction(child - internalNodes);
+                    endpointAction(octree.cstoneIndex(child));
                 }
                 else
                 {
@@ -129,9 +128,8 @@ void singleTraversal(const Octree<KeyType>& octree, C&& continuationCriterion, A
  * @param p2p              Particle-2-particle, called for each pair of leaf nodes during traversal
  *                         that did not pass @p continuation
  */
-template <class KeyType, class MAC, class M2L, class P2P>
-void dualTraversal(const Octree<KeyType>& octree, TreeNodeIndex a, TreeNodeIndex b,
-                   MAC&& continuation, M2L&& m2l, P2P&& p2p)
+template<class TreeType, class MAC, class M2L, class P2P>
+void dualTraversal(const TreeType& octree, TreeNodeIndex a, TreeNodeIndex b, MAC&& continuation, M2L&& m2l, P2P&& p2p)
 {
     using NodePair = pair<TreeNodeIndex>;
 

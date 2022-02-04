@@ -36,6 +36,7 @@
 
 #include "cstone/halos/discovery.cuh"
 #include "cstone/tree/octree.cuh"
+#include "cstone/tree/octree_internal.cuh"
 
 #include "coord_samples/random.hpp"
 
@@ -61,6 +62,8 @@ int main()
 
     thrust::device_vector<KeyType> particleCodes(randomBox.particleKeys().begin(), randomBox.particleKeys().end());
 
+    // cornerstone build benchmark
+
     auto fullBuild = [&]()
     {
         while(!updateOctreeGpu(thrust::raw_pointer_cast(particleCodes.data()),
@@ -82,6 +85,21 @@ int main()
     float updateTime = timeGpu(updateTree);
     std::cout << "build time with guess " << updateTime / 1000 << " nNodes(tree): " << nNodes(tree)
               << " count: " << thrust::reduce(counts.begin(), counts.end(), 0) << std::endl;
+
+    // internal tree benchmark
+
+    OctreeGpuDataAnchor<KeyType> octree;
+    octree.resize(nNodes(tree));
+    auto buildInternal = [&]()
+    {
+        buildInternalOctreeGpu(thrust::raw_pointer_cast(tree.data()), octree.getData());
+    };
+
+    float internalBuildTime = timeGpu(buildInternal);
+    thrust::host_vector<TreeNodeIndex> ranges = octree.levelRange;
+    std::cout << "internal build time " << internalBuildTime / 1000 << std::endl;
+    std::cout << "level ranges: ";
+    for (int i = 0; i <= maxTreeLevel<KeyType>{}; ++i) std::cout << ranges[i] << " "; std::cout << std::endl;
 
     // halo discovery benchmark
 

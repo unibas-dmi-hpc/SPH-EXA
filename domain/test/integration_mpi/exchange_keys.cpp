@@ -35,6 +35,7 @@
 
 #include "cstone/domain/exchange_keys.hpp"
 #include "cstone/domain/layout.hpp"
+#include "cstone/tree/octree_util.hpp"
 
 using namespace cstone;
 
@@ -107,4 +108,66 @@ TEST(ExchangeKeys, fixedTreeSizePerRank)
     MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
     exchangeKeys<unsigned>(rank, numRanks);
+}
+
+/*! @brief
+ * Rank 0's surface in rank 1's domain is just one node, while rank 1's surface in 0 is 6 nodes.
+ *
+ * Here we check that the halo flag exchange works correctly, specifically that the receive buffers
+ * are are large enough.
+ */
+template<class KeyType>
+void unequalSurface(int myRank, int numRanks)
+{
+    std::vector<KeyType> treeLeaves = OctreeMaker<KeyType>().divide().makeTree();
+    std::vector<unsigned> counts(nNodes(treeLeaves), 1);
+
+    std::vector<int> haloFlags(nNodes(treeLeaves));
+    std::vector<KeyType> particleKeys;
+    std::vector<int> peers;
+    int offset = 0;
+
+    std::vector<TreeIndexPair> assignment(numRanks);
+    assignment[0] = TreeIndexPair(0, nNodes(treeLeaves) - 1);
+    assignment[1] = TreeIndexPair(nNodes(treeLeaves) - 1, nNodes(treeLeaves));
+
+    SendList reference(numRanks);
+
+    if (myRank == 1)
+    {
+        offset = nNodes(treeLeaves) - 1;
+        particleKeys = std::vector<KeyType>{treeLeaves.begin() + offset, treeLeaves.end()};
+        haloFlags = std::vector<int>{1,1,0,1,1,1,1,1};
+        peers.push_back(0);
+        reference[0].addRange(offset, offset + 1);
+    }
+
+    if (myRank == 0)
+    {
+        offset = 0;
+        particleKeys = std::vector<KeyType>{treeLeaves.begin(), treeLeaves.begin() + nNodes(treeLeaves) - 1};
+        haloFlags = std::vector<int>{0,0,0,0,0,0,0,1};
+        peers.push_back(1);
+        reference[1].addRange(0, nNodes(treeLeaves) - 1);
+    }
+
+    SendList probe = exchangeRequestKeys<KeyType>(treeLeaves, haloFlags, particleKeys, offset, assignment, peers);
+
+    if (myRank == 1)
+    {
+        EXPECT_EQ(probe, reference);
+    }
+    if (myRank == 0)
+    {
+        EXPECT_EQ(probe[1].totalCount(), nNodes(treeLeaves) - 2);
+    }
+}
+
+TEST(ExchangeKeys, unequalSurface)
+{
+    int rank = 0, numRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
+
+    unequalSurface<unsigned>(rank, numRanks);
 }

@@ -36,6 +36,7 @@
 #include "cstone/halos/discovery.hpp"
 #include "cstone/traversal/collisions.hpp"
 #include "cstone/tree/octree.hpp"
+#include "cstone/tree/octree_internal.hpp"
 
 #include "coord_samples/random.hpp"
 #include "coord_samples/plummer.hpp"
@@ -93,7 +94,15 @@ void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std
     }
     {
         Octree<KeyType> octree;
-        octree.update(tree.begin(), tree.end());
+        auto u0 = std::chrono::high_resolution_clock::now();
+        octree.update(tree.data(), nNodes(tree));
+        auto u1 = std::chrono::high_resolution_clock::now();
+        std::cout << "first td-update: " << std::chrono::duration<double>(u1 - u0).count() << std::endl;
+
+        auto u2 = std::chrono::high_resolution_clock::now();
+        octree.update(tree.data(), nNodes(tree));
+        auto u3 = std::chrono::high_resolution_clock::now();
+        std::cout << "second td-update: " << std::chrono::duration<double>(u3 - u2).count() << std::endl;
 
         std::vector<int> collisionFlags(nNodes(tree), 0);
 
@@ -102,7 +111,7 @@ void halo_discovery(Box<double> box, const std::vector<KeyType>& tree, const std
         auto tp1 = std::chrono::high_resolution_clock::now();
 
         double t2 = std::chrono::duration<double>(tp1 - tp0).count();
-        std::cout << "octree halo discovery: " << t2
+        std::cout << "td-octree halo discovery: " << t2
                   << " collidingNodes: " << std::accumulate(begin(collisionFlags), end(collisionFlags), 0) << std::endl;
 
     }

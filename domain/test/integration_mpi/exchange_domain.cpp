@@ -53,7 +53,7 @@ void exchangeAllToAll(int thisRank, int numRanks)
     int gridSize = 64;
 
     std::vector<T> x(gridSize), y(gridSize);
-    std::vector<LocalParticleIndex> ordering(gridSize);
+    std::vector<LocalIndex> ordering(gridSize);
 
     std::iota(begin(x), end(x), 0);
     // unique element id across all ranks
@@ -139,7 +139,7 @@ void exchangeCyclicNeighbors(int thisRank, int numRanks)
 
     // x and y are filled with one value that is different for each rank
     std::vector<T> x(gridSize, thisRank), y(gridSize, -thisRank);
-    std::vector<LocalParticleIndex> ordering(gridSize);
+    std::vector<LocalIndex> ordering(gridSize);
     std::iota(begin(ordering), end(ordering), 0);
 
     // send the last nex elements to the next rank

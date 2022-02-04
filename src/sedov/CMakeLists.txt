@@ -5,6 +5,7 @@ target_include_directories(sedov PRIVATE ${MPI_CXX_INCLUDE_PATH})
 target_link_libraries(sedov PRIVATE ${MPI_CXX_LIBRARIES})
 target_link_libraries(sedov PRIVATE OpenMP::OpenMP_CXX)
 install(TARGETS sedov RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+
 # {{{ i/o
 if (SPH_EXA_WITH_H5PART)
     target_compile_definitions(sedov PUBLIC SPH_EXA_HAVE_H5PART)

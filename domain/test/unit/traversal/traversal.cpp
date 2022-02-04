@@ -52,7 +52,7 @@ void surfaceDetection()
     std::vector<KeyType> tree = makeUniformNLevelTree<KeyType>(64, 1);
 
     Octree<KeyType> fullTree;
-    fullTree.update(tree.data(), tree.data() + tree.size());
+    fullTree.update(tree.data(), nNodes(tree));
 
     IBox targetBox = makeLevelBox<KeyType>(0, 0, 1, level);
 
@@ -112,7 +112,8 @@ template<class KeyType>
 void dualTraversalAllPairs()
 {
     Octree<KeyType> fullTree;
-    fullTree.update(OctreeMaker<KeyType>{}.divide().divide(0).divide(0, 7).makeTree());
+    auto leaves = OctreeMaker<KeyType>{}.divide().divide(0).divide(0, 7).makeTree();
+    fullTree.update(leaves.data(), nNodes(leaves));
 
     std::vector<pair<TreeNodeIndex>> pairs;
 
@@ -144,7 +145,8 @@ template<class KeyType>
 void dualTraversalNeighbors()
 {
     Octree<KeyType> octree;
-    octree.update(makeUniformNLevelTree<KeyType>(64, 1));
+    auto leaves = makeUniformNLevelTree<KeyType>(64, 1);
+    octree.update(leaves.data(), nNodes(leaves));
 
     Box<float> box(0, 1);
 

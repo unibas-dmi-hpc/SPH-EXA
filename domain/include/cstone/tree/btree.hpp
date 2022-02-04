@@ -213,7 +213,7 @@ HOST_DEVICE_FUN void constructInternalNode(const I* codes, TreeNodeIndex nCodes,
 
 /*! @brief create a binary radix tree from a cornerstone octree
  *
- * @tparam I                  32- or 64-bit unsigned integer
+ * @tparam     KeyType        32- or 64-bit unsigned integer
  * @param[in]  tree           Sorted Morton codes representing the leaves of the (global) octree
  *                            or the locations of objects in 3D.
  *                            Cornerstone invariants are not a requirement for this function,
@@ -236,8 +236,8 @@ HOST_DEVICE_FUN void constructInternalNode(const I* codes, TreeNodeIndex nCodes,
  * but that would result in loss of generality for arbitrary sorted Morton code sequences
  * without duplicates.
  */
-template<class I>
-void createBinaryTree(const I* tree, TreeNodeIndex nNodes, BinaryNode<I>* binaryTree)
+template<class KeyType>
+void createBinaryTree(const KeyType* tree, TreeNodeIndex nNodes, BinaryNode<KeyType>* binaryTree)
 {
     #pragma omp parallel for
     for (TreeNodeIndex idx = 0; idx < nNodes; ++idx)
