@@ -305,7 +305,6 @@ sph:test:cuda:10:
 sph:test:cuda:p100:
   stage: SPHtest
   extends: .sph-test
-  #extends: .run-1
   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
   needs: ['sph:install:cuda']
   #needs: ['build:ubu:gnu']
