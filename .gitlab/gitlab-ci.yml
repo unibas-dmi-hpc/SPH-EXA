@@ -4,9 +4,9 @@ include:
   - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.cscs.yml'
 
 stages:
-  - base
-  - install
-  - test
+  - SPHbase
+  - SPHinstall
+  - SPHtest
   - deploy
 
 variables:
@@ -59,13 +59,11 @@ variables:
     - rm -fr mpich-3.1.4 mpich-3.1.4.tar.gz
     - ldconfig
     - date; echo "## done"
-  variables:
-    PATH: /usr/local/games/cmake/bin:$PATH
 #}}}
 
 #{{{ nvidia/cuda:11.4 --> sph-exa_base:cuda
 sph-base:cuda:
-  stage: base
+  stage: SPHbase
   extends: .sph-base
   # extends: .deps-ubu-gnu_fake
   image: nvidia/cuda:11.4.2-base-ubuntu20.04
@@ -74,126 +72,8 @@ sph-base:cuda:
   script:
     # - echo "empty stage for a better display of deps"
     - nvcc --version
+    - cmake --version
   variables:
     VARIANT: 'cuda'
     PERSIST_IMAGE_NAME: 'sph-exa_base:cuda'
 #}}}
-
-#{{{ ubuntu:gnu:
-# 
-# #{{{ ubu:deps:Debug:
-# ubu:deps:Debug:
-#   stage: deps
-#   extends: .deps-ubu-gnu_fake
-#   image: debian:testing-slim
-#   tags: 
-#     - $jfrogtag
-#   script:
-#     - echo "empty stage for a better display of deps"
-#   variables:
-#     PERSIST_IMAGE_NAME: debian:testing-slim
-# #}}}
-# #{{{ build:ubu:gnu:Debug:
-# build:ubu:gnu:Debug:
-#   stage: build
-#   extends: .build-debug
-#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_base:1.0
-#   tags:
-#     - $jfrogtag
-#   needs: ['ubu:deps:Debug']
-#   script:
-#     - ls -l /usr/local/sbin/
-#   variables:
-#     PERSIST_IMAGE_NAME: sph-exa_gnu:1.0
-#     # FIXME: should not be a static version (should be the SHA hash
-#     # ($CI_COMMIT_SHA) instead of 1.0) but this will fill up JFrog, so we would
-#     # need a deletion policy (todo) and/or a deploy step to retag (todo) the
-#     # container with a usable version.
-#     # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
-# #}}}
-# # {{{ test:ubu:Debug:
-# ubu:test_1:Debug:
-#   stage: test
-#   extends: .run-1
-#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-#   # tags: ['dom']
-#   needs: ['build:ubu:gnu:Debug']
-#   script:
-#     - echo
-#   variables:
-#     PULL_IMAGE: 'YES'
-#     CSCS_REGISTRY_LOGIN: 'YES'
-#     SLURM_PARTITION: cscsci
-#     SLURM_JOB_NUM_NODES: 1
-#     SLURM_NTASKS: 1
-#     SLURM_CONSTRAINT: 'gpu'
-#     USE_MPI: 'YES'
-#     # SLURM_TIMELIMIT=15:00
-#     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-# 
-# ubu:test_2:Debug:
-#   stage: test
-#   extends: .run-2
-#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-#   # tags: ['dom']
-#   needs: ['build:ubu:gnu:Debug']
-#   script:
-#     - echo
-#   variables:
-#     PULL_IMAGE: 'YES'
-#     CSCS_REGISTRY_LOGIN: 'YES'
-#     SLURM_PARTITION: cscsci
-#     SLURM_JOB_NUM_NODES: 1
-#     SLURM_NTASKS: 2
-#     SLURM_CONSTRAINT: 'gpu'
-#     USE_MPI: 'YES'
-#     # SLURM_TIMELIMIT=15:00
-#     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-# 
-# ubu:test_10:Debug:
-#   stage: test
-#   extends: .run-10
-#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-#   # tags: ['dom']
-#   needs: ['build:ubu:gnu:Debug']
-#   script:
-#     - echo
-#   variables:
-#     PULL_IMAGE: 'YES'
-#     CSCS_REGISTRY_LOGIN: 'YES'
-#     SLURM_PARTITION: cscsci
-#     SLURM_JOB_NUM_NODES: 1
-#     SLURM_NTASKS: 10
-#     SLURM_CONSTRAINT: 'gpu'
-#     USE_MPI: 'YES'
-#     # SLURM_TIMELIMIT=15:00
-#     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-# 
-# ubu:test_p100:Debug:
-#   stage: test
-#   extends: .run-p100
-#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-#   # tags: ['dom']
-#   needs: ['build:ubu:gnu:Debug']
-#   script:
-#     - echo
-#   variables:
-#     PULL_IMAGE: 'YES'
-#     CSCS_REGISTRY_LOGIN: 'YES'
-#     SLURM_PARTITION: cscsci
-#     SLURM_JOB_NUM_NODES: 1
-#     SLURM_NTASKS: 1
-#     SLURM_CONSTRAINT: 'gpu'
-#     USE_MPI: 'YES'
-#     # SLURM_TIMELIMIT=15:00
-#     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-# # }}}
-# 
-# TODO: ubu:deploy:
-#   stage: deploy
-#   needs: ['ubu:test_1', 'ubu:test_2', 'ubu:test_12', 'ubu:test_p100']
-#   script: echo
-#}}}
-
-# {{{ cpe_gnu: see commit ab188771
-# }}}
