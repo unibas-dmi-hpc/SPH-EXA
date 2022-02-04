@@ -1,7 +1,7 @@
 #include <iostream>
 
-#include "ParticlesData.hpp"
-#include "IFileReader.hpp"
+#include "particles_data.hpp"
+#include "ifile_reader.hpp"
 
 namespace sphexa
 {

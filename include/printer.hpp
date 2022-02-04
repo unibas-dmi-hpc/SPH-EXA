@@ -8,14 +8,13 @@ namespace sphexa
 class Printer
 {
 public:
-
     static void printConstants(size_t iteration, double totalTime, double minTimeStep, double totalEnergy,
                                double kineticEnergy, double internalEnergy, double gravitationalEnergy,
-                               size_t totalNeighbors, std::ostream& out)
+                               std::ostream& out)
     {
         out << iteration << ' ' << totalTime << ' ' << minTimeStep << ' ' << totalEnergy << ' ' << kineticEnergy << ' '
             << internalEnergy << ' ';
-        out << gravitationalEnergy << ' ' << totalNeighbors << ' ' << std::endl;
+        out << gravitationalEnergy << std::endl;
     }
 
     template<class Box>

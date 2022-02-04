@@ -5,7 +5,7 @@
 #include "cstone/findneighbors.hpp"
 
 #include "kernels.hpp"
-#include "Task.hpp"
+#include "task.hpp"
 #include "kernel/computeDensity.hpp"
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"

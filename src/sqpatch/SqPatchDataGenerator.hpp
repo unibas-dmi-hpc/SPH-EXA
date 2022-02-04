@@ -4,7 +4,7 @@
 #include <vector>
 
 #include "sph/kernels.hpp"
-#include "ParticlesData.hpp"
+#include "particles_data.hpp"
 
 namespace sphexa
 {
