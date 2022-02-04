@@ -1,24 +1,87 @@
 include:
   # - local: '.gitlab/ubuntu/ubuntu_*.yml'
-  - local: '.gitlab/common.yml'
+  # - local: '.gitlab/common.yml'
   - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.cscs.yml'
 
 stages:
-  - deps
+  - base
   - build
   - test
   - deploy
 
 variables:
   jfrogtag: 'docker_jfrog'
+  JG_DEPS_PATH: 'ftp://ftp.cscs.ch/out/jgp/hpc/containers'
 
-# default:
-#     tags: ['dom']
+#{{{ .sph-base / deps-ubu-gnu
+.sph-base: &sph-base
+### .deps-ubu-gnu: &deps-ubu-gnu
+  # tag must be 'docker_jfrog'
+  tags:
+    - docker_jfrog
+  # stage: deps
+  # image: nvidia/cuda:11.4.2-devel-ubuntu20.04
+  before_script:
+    # - echo CI_PROJECT_DIR=$CI_PROJECT_DIR PWD=$PWD
+    - date
+    - sed -i 's@archive.ubuntu.com@ubuntu.ethz.ch@' /etc/apt/sources.list
+    - export TZ=Europe/Zurich DEBIAN_FRONTEND=noninteractive
+    - apt update > /dev/null
+    #
+    - if [ "$VARIANT" = "cuda" ]; then
+        echo "## apt nvcc/11.4 (+gcc9+clang12+make+thrust)";
+        apt install -y --no-install-recommends wget vim-tiny file cuda-nvcc-11-4 clang-12 libomp-12-dev > /dev/null;
+      fi
+    - apt clean autoremove > /dev/null
+    #
+    - cd /usr/local/games
+    - wget --quiet $JG_DEPS_PATH/c/CMake/cmake-3.22.2-linux-x86_64.tar.gz
+    - wget --quiet $JG_DEPS_PATH/m/MPICH/mpich-3.1.4.tar.gz
+    - wget --quiet $JG_DEPS_PATH/g/googletest/release-1.11.0.tar.gz
+    #
+    - date; echo "## cmake:"
+    #- cd /usr/local/games
+    - tar xf cmake-3.22.2-linux-x86_64.tar.gz
+    - rm -fr cmake-3.22.2-linux-x86_64.tar.gz cmake-3.22.2-linux-x86_64/bin/cmake-gui
+    #
+    - date; echo "## googletest:"
+    #- cd /usr/local/games
+    - tar xf release-1.11.0.tar.gz
+    - rm -f release-1.11.0.tar.gz
+    #
+    - date; echo "## mpich/3.1.4:"
+    #- cd /usr/local/games
+    - tar xf /usr/local/games/mpich-3.1.4.tar.gz
+    - cd mpich-3.1.4/
+    - ./configure --prefix=/usr --enable-fortran=no > /dev/null
+    - make --quiet -j `grep processor /proc/cpuinfo | wc -l` install > /dev/null
+    - cd /usr/local/games
+    - rm -fr mpich-3.1.4 mpich-3.1.4.tar.gz
+    - ldconfig
+    - date; echo "## done"
+#}}}
 
-# {{{ ubuntu:gnu:
-# turning off release until $CI_PROJECT_DIR is fixed
-# # {{{ ubu:deps
-# ubu:deps:
+#{{{ nvidia/cuda:11.4 --> sph-exa_base:cuda
+sph-base:cuda:
+  stage: base
+  extends: .sph-base
+  # extends: .deps-ubu-gnu_fake
+  image: nvidia/cuda:11.4.2-base-ubuntu20.04
+  tags: 
+    - $jfrogtag
+  script:
+    # - echo "empty stage for a better display of deps"
+    - nvcc --version
+    - which cmake
+  variables:
+    VARIANT: 'cuda'
+    PERSIST_IMAGE_NAME: 'sph-exa_base:cuda'
+#}}}
+
+#{{{ ubuntu:gnu:
+# 
+# #{{{ ubu:deps:Debug:
+# ubu:deps:Debug:
 #   stage: deps
 #   extends: .deps-ubu-gnu_fake
 #   image: debian:testing-slim
@@ -28,29 +91,15 @@ variables:
 #     - echo "empty stage for a better display of deps"
 #   variables:
 #     PERSIST_IMAGE_NAME: debian:testing-slim
-# 
-# #ok  # {{{ # uncomment to rebuild the base image
-# #ok  ubu:deps:
-# #ok    stage: deps
-# #ok    extends: .deps-ubu-gnu
-# #ok    image: nvidia/cuda:11.4.2-devel-ubuntu20.04
-# #ok    tags:
-# #ok      - $jfrogtag
-# #ok    script:
-# #ok      - which cmake
-# #ok    variables:
-# #ok      PERSIST_IMAGE_NAME: sph-exa_base:1.0
-# #ok  # TODO: build image if true/false
-# # }}}
-# # }}}
-# # {{{ build:ubu:gnu:
-# build:ubu:gnu:
+# #}}}
+# #{{{ build:ubu:gnu:Debug:
+# build:ubu:gnu:Debug:
 #   stage: build
-#   extends: .build
+#   extends: .build-debug
 #   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_base:1.0
 #   tags:
 #     - $jfrogtag
-#   needs: ['ubu:deps']
+#   needs: ['ubu:deps:Debug']
 #   script:
 #     - ls -l /usr/local/sbin/
 #   variables:
@@ -60,14 +109,14 @@ variables:
 #     # need a deletion policy (todo) and/or a deploy step to retag (todo) the
 #     # container with a usable version.
 #     # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
-# # }}}
-# # {{{ test:ubu:
-# ubu:test_1:
+# #}}}
+# # {{{ test:ubu:Debug:
+# ubu:test_1:Debug:
 #   stage: test
 #   extends: .run-1
 #   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
 #   # tags: ['dom']
-#   needs: ['build:ubu:gnu']
+#   needs: ['build:ubu:gnu:Debug']
 #   script:
 #     - echo
 #   variables:
@@ -81,12 +130,12 @@ variables:
 #     # SLURM_TIMELIMIT=15:00
 #     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
 # 
-# ubu:test_2:
+# ubu:test_2:Debug:
 #   stage: test
 #   extends: .run-2
 #   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
 #   # tags: ['dom']
-#   needs: ['build:ubu:gnu']
+#   needs: ['build:ubu:gnu:Debug']
 #   script:
 #     - echo
 #   variables:
@@ -100,12 +149,12 @@ variables:
 #     # SLURM_TIMELIMIT=15:00
 #     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
 # 
-# ubu:test_10:
+# ubu:test_10:Debug:
 #   stage: test
 #   extends: .run-10
 #   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
 #   # tags: ['dom']
-#   needs: ['build:ubu:gnu']
+#   needs: ['build:ubu:gnu:Debug']
 #   script:
 #     - echo
 #   variables:
@@ -119,12 +168,12 @@ variables:
 #     # SLURM_TIMELIMIT=15:00
 #     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
 # 
-# ubu:test_p100:
+# ubu:test_p100:Debug:
 #   stage: test
 #   extends: .run-p100
 #   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
 #   # tags: ['dom']
-#   needs: ['build:ubu:gnu']
+#   needs: ['build:ubu:gnu:Debug']
 #   script:
 #     - echo
 #   variables:
@@ -138,120 +187,12 @@ variables:
 #     # SLURM_TIMELIMIT=15:00
 #     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
 # # }}}
-
-# {{{ ubu:deps:Debug:
-ubu:deps:Debug:
-  stage: deps
-  extends: .deps-ubu-gnu_fake
-  image: debian:testing-slim
-  tags: 
-    - $jfrogtag
-  script:
-    - echo "empty stage for a better display of deps"
-  variables:
-    PERSIST_IMAGE_NAME: debian:testing-slim
-# }}}
-# {{{ build:ubu:gnu:Debug:
-build:ubu:gnu:Debug:
-  stage: build
-  extends: .build-debug
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_base:1.0
-  tags:
-    - $jfrogtag
-  needs: ['ubu:deps:Debug']
-  script:
-    - ls -l /usr/local/sbin/
-  variables:
-    PERSIST_IMAGE_NAME: sph-exa_gnu:1.0
-    # FIXME: should not be a static version (should be the SHA hash
-    # ($CI_COMMIT_SHA) instead of 1.0) but this will fill up JFrog, so we would
-    # need a deletion policy (todo) and/or a deploy step to retag (todo) the
-    # container with a usable version.
-    # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
-# }}}
-# {{{ test:ubu:Debug:
-ubu:test_1:Debug:
-  stage: test
-  extends: .run-1
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-  # tags: ['dom']
-  needs: ['build:ubu:gnu:Debug']
-  script:
-    - echo
-  variables:
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 1
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-
-ubu:test_2:Debug:
-  stage: test
-  extends: .run-2
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-  # tags: ['dom']
-  needs: ['build:ubu:gnu:Debug']
-  script:
-    - echo
-  variables:
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 2
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-
-ubu:test_10:Debug:
-  stage: test
-  extends: .run-10
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-  # tags: ['dom']
-  needs: ['build:ubu:gnu:Debug']
-  script:
-    - echo
-  variables:
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 10
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-
-ubu:test_p100:Debug:
-  stage: test
-  extends: .run-p100
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-  # tags: ['dom']
-  needs: ['build:ubu:gnu:Debug']
-  script:
-    - echo
-  variables:
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 1
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-# }}}
-
+# 
 # TODO: ubu:deploy:
 #   stage: deploy
 #   needs: ['ubu:test_1', 'ubu:test_2', 'ubu:test_12', 'ubu:test_p100']
 #   script: echo
-# }}}
+#}}}
 
 # {{{ cpe_gnu: see commit ab188771
 # }}}
