@@ -118,29 +118,7 @@ int main(int argc, char** argv)
     {
         propagator.hydroStep(domain, d);
 
-        size_t totalNeighbors = neighborsSum(propagator.taskList.tasks);
-
-        if (d.rank == 0)
-        {
-            Printer::printCheck(d.ttot,
-                                d.minDt,
-                                d.etot,
-                                d.eint,
-                                d.ecin,
-                                d.egrav,
-                                domain.box(),
-                                d.n,
-                                domain.nParticles(),
-                                nNodes(domain.tree()),
-                                domain.nParticlesWithHalos() - domain.nParticles(),
-                                totalNeighbors,
-                                output);
-
-            std::cout << "### Check ### Focus Tree Nodes: " << nNodes(domain.focusTree()) << std::endl;
-
-            Printer::printConstants(
-                d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, totalNeighbors, constantsFile);
-        }
+        Printer::printConstants(d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, constantsFile);
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
@@ -154,8 +132,6 @@ int main(int argc, char** argv)
                                                    outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".txt");
 #endif
         }
-
-        if (d.rank == 0) { Printer::printTotalIterationTime(d.iteration, propagator.timer.duration(), output); }
 
 #ifdef SPH_EXA_USE_CATALYST2
         CatalystAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
