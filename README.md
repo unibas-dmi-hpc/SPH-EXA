@@ -2,7 +2,7 @@
 [![Unit tests](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/actions/workflows/unittest.yml/badge.svg?branch=develop)](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/actions/workflows/unittest.yml)
 ![GitHub release (latest by date including pre-releases)](https://img.shields.io/github/v/release/unibas-dmi-hpc/SPH-EXA_mini-app?include_prereleases)
 <p align="center">
-  <img src="https://github.com/unibas-dmi-hpc/SPH-EXA/blob/master/docs/artwork/SPH-EXA_logo.png?raw=true" alt="SPH-EXA logo"/>
+  <img src="https://raw.githubusercontent.com/unibas-dmi-hpc/SPH-EXA/develop/docs/artwork/SPH-EXA_logo.png" alt="SPH-EXA logo" width="200"/>
 </p>
 
 # SPH
@@ -153,6 +153,11 @@ SPH-kernel unit tests:
 ```shell
 ./include/sph/test/kernel/kernel_tests
 ```
+## Input data
+
+Some tests require input data. 
+For example, the Evrard test case will check that a Test3DEvrardRel.bin file exists and can be read at the beginning of the job.
+ This file can be downloaded from [zenodo.org](https://zenodo.org/record/4904876/files/Test3DEvrardRel.dat.gz?download=1).
 
 ## Ryoanji GPU N-body solver
 
