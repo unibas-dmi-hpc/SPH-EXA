@@ -88,11 +88,9 @@ int main(int argc, char** argv)
     float theta = 1.0;
 
 #ifdef USE_CUDA
-    using DomainType = Domain<KeyType, Real, CudaTag>;
-    DomainType domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    Domain<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #else
-    using DomainType = Domain<KeyType, Real>;
-    DomainType domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
@@ -111,7 +109,7 @@ int main(int argc, char** argv)
     const size_t ngmax  = 150;
     const size_t ng0    = 100;
 
-    Propagator propagator(nTasks, ngmax, ng0, domain.nParticles(), output, d.rank);
+    Propagator propagator(nTasks, ngmax, ng0, output, d.rank);
 
     if (d.rank == 0) std::cout << "Starting main loop." << std::endl;
 
@@ -134,7 +132,7 @@ int main(int argc, char** argv)
                                 d.n,
                                 domain.nParticles(),
                                 nNodes(domain.tree()),
-                                d.x.size() - domain.nParticles(),
+                                domain.nParticlesWithHalos() - domain.nParticles(),
                                 totalNeighbors,
                                 output);
 

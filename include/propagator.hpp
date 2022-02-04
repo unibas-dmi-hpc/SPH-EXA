@@ -48,22 +48,13 @@ using namespace sphexa::sph;
 
 class Propagator
 {
-
 private:
-    const size_t nTasks;
-    const size_t ngmax;
-    const size_t ng0;
-
 public:
     TaskList taskList;
     MasterProcessTimer timer;
 
-    Propagator(const size_t nTasks, const size_t ngmax, const size_t ng0, const size_t nParticles, std::ostream& output,
-               const size_t rank)
-        : nTasks(nTasks)
-        , ngmax(ngmax)
-        , ng0(ng0)
-        , taskList(0, nParticles, nTasks, ngmax, ng0)
+    Propagator(const size_t nTasks, const size_t ngmax, const size_t ng0, std::ostream& output, const size_t rank)
+        : taskList(nTasks, ngmax, ng0)
         , timer(output, rank)
     {
     }

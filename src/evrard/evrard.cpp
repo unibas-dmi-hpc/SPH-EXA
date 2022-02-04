@@ -114,7 +114,7 @@ int main(int argc, char** argv)
     const size_t ngmax  = 150;
     const size_t ng0    = 100;
 
-    Propagator propagator(nTasks, ngmax, ng0, domain.nParticles(), output, d.rank);
+    Propagator propagator(nTasks, ngmax, ng0, output, d.rank);
 
     if (d.rank == 0) std::cout << "Starting main loop." << std::endl;
 

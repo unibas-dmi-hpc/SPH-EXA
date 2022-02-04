@@ -10,11 +10,9 @@ namespace sphexa
 
 struct Task
 {
-    Task(const size_t ngmax, const size_t ng0)
+    Task(size_t ngmax, size_t ng0)
         : ngmax(ngmax)
         , ng0(ng0)
-        , firstParticle(0)
-        , lastParticle(ngmax-1)
     {
     }
 
@@ -30,9 +28,9 @@ struct Task
     const size_t ng0;
 
     //! @brief first particle owned by rank, everything below is halos
-    size_t firstParticle;
+    size_t firstParticle{0};
     //! @brief last particle owned by rank, everything above is halos
-    size_t lastParticle;
+    size_t lastParticle{0};
 
     size_t size() const { return lastParticle - firstParticle; }
 
@@ -47,32 +45,30 @@ struct Task
 class TaskList
 {
 public:
-    TaskList(int firstIndex, int lastIndex, size_t nTasks, size_t ngmax, size_t ng0)
+    TaskList(size_t nTasks, size_t ngmax, size_t ng0)
         : ngmax(ngmax)
         , ng0(ng0)
-        , nTasks(nTasks)
         , tasks(nTasks, Task(ngmax, ng0))
     {
-        update(firstIndex, lastIndex);
     }
 
     void update(int firstIndex, int lastIndex)
     {
+        int numTasks = tasks.size();
         int numParticles = lastIndex - firstIndex;
-        int partitionSize = numParticles / nTasks;
-        int remainder = numParticles % nTasks;
+        int partitionSize = numParticles / numTasks;
+        int remainder = numParticles % numTasks;
 
-        for (size_t i = 0; i < nTasks; ++i)
+        for (size_t i = 0; i < numTasks; ++i)
         {
             tasks[i].firstParticle = firstIndex + i * partitionSize;
-            tasks[i].lastParticle  = firstIndex + (i + 1) * partitionSize + (i == nTasks - 1 ? remainder : 0);
+            tasks[i].lastParticle  = firstIndex + (i + 1) * partitionSize + (i == numTasks - 1 ? remainder : 0);
             tasks[i].resize(tasks[i].size());
         }
     }
 
     const size_t ngmax;
     const size_t ng0;
-    const size_t nTasks;
     std::vector<Task> tasks;
 
 };
