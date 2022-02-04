@@ -146,7 +146,7 @@ variables:
         /usr/local/sbin/integration_mpi/exchange_keys;
         echo "sedov -n10";
         /usr/local/bin/sedov -s 0 ;
-      fi  
+      fi
     #- export OMP_NUM_THREADS=2
     - if [ "$VARIANT" = "cuda" ] && [ @ "$RUN_VARIANT" = "p100" ]; then
         echo "gpu unittests -n1";
@@ -157,6 +157,7 @@ variables:
         /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests;
         echo "sedov-cuda -n1";
         /usr/local/bin/sedov-cuda -s 0 ;
+      fi
 #}}}
 
 #{{{ nvidia/cuda:11.4 --> sph-exa_base:cuda
