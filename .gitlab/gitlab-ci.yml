@@ -14,7 +14,7 @@ variables:
   JG_DEPS_PATH: ftp://ftp.cscs.ch/out/jgp/hpc/containers
   # export JG_DEPS_PATH='ftp://ftp.cscs.ch/out/jgp/hpc/containers'
 
-#{{{ .sph-base / deps-ubu-gnu
+#{{{ .sph-base
 .sph-base: &sph-base
   # tag must be 'docker_jfrog'
   tags:
@@ -60,6 +60,14 @@ variables:
     - ldconfig
     - date; echo "## done"
 #}}}
+#{{{ .sph-base-skip
+.sph-base-skip: &sph-base-skip
+  # tag must be 'docker_jfrog'
+  tags:
+    - docker_jfrog
+  before_script:
+    - echo "skipping build of base image"
+#}}}
 #{{{ .sph-install
 .sph-install: &sph-install
   # tag must be 'docker_jfrog'
@@ -88,8 +96,7 @@ variables:
       SPH_EXA_WITH_HIP=$SPH_EXA_WITH_HIP
       BUILD_RYOANJI=$BUILD_RYOANJI
       CMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
-    - |
-      cmake -S . -B build
+    - cmake -S . -B build
       -DCMAKE_CXX_COMPILER=mpicxx
       -DBUILD_TESTING=$BUILD_TESTING
       -DBUILD_ANALYTICAL=$BUILD_ANALYTICAL
@@ -106,20 +113,21 @@ variables:
 sph:base:cuda:
   # notice the final :
   stage: SPHbase
-  extends: .sph-base
-  # extends: .deps-ubu-gnu_fake
+  # skipping build of base image with:
+  extends: .sph-base-skip
+  # extends: .sph-base
   image: nvidia/cuda:11.4.2-base-ubuntu20.04
   tags: 
     - $jfrogtag
   script:
-    # - echo "empty stage for a better display of deps"
-    - nvcc --version
-    - cmake --version
+    - echo "skipping build of base image"
+    # - nvcc --version
+    # - cmake --version
   variables:
-    VARIANT: 'cuda'
-    PERSIST_IMAGE_NAME: 'sph-exa_base:cuda'
+    VARIANT: 'cuda'    
+    PERSIST_IMAGE_NAME: 'sph-exa_base:skip'
+    #PERSIST_IMAGE_NAME: 'sph-exa_base:cuda'
 #}}}
-
 #{{{ nvidia/cuda:11.4 --> sph-exa_base:cuda --> sph-exa_install:cuda
 sph:install:cuda:
   stage: SPHinstall
