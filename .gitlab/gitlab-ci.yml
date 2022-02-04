@@ -30,6 +30,10 @@ variables:
         echo "## apt nvcc/11.4 (+gcc9+clang12+make+thrust)";
         apt install -y --no-install-recommends wget vim-tiny file cuda-nvcc-11-4 clang-12 libomp-12-dev > /dev/null;
       fi
+    - if [ "$VARIANT" = "hip" ]; then
+        echo "## apt hipcc/4.5 (+rocthrust-dev +parallel)";
+        apt install -y --no-install-recommends wget vim-tiny file rocthrust-dev time parallel > /dev/null;
+      fi
     - apt clean autoremove > /dev/null
     #
     - cd /usr/local/games
@@ -76,18 +80,17 @@ variables:
   before_script:
     - cd $CI_PROJECT_DIR
     - pwd
-    #- sed -i 's@archive.ubuntu.com@ubuntu.ethz.ch@' /etc/apt/sources.list
-    #- export TZ=Europe/Zurich DEBIAN_FRONTEND=noninteractive
-    #
+    - echo "## sph"
     - sed -i "s@GIT_REPOSITORY@URL /usr/local/games/googletest-release-1.11.0/\n#@" ./domain/test/CMakeLists.txt.in
     - sed -i "s@GIT_TAG@#GIT_TAG @" ./domain/test/CMakeLists.txt.in
     #
-#     - if [ "$VARIANT" = "cuda" ]; then
-#         echo "## apt nvcc/11.4 (+gcc9+clang12+make+thrust)";
-#         apt install -y --no-install-recommends wget vim-tiny file cuda-nvcc-11-4 clang-12 libomp-12-dev > /dev/null;
-#       fi
-    #      
-    - echo "## sph:"
+    - if [ "$VARIANT" = "hip" ]; then
+        echo "## hipify-perl";
+        date;
+        /usr/bin/time ./.gitlab/hipify.sh;
+        date;
+      fi
+    - date
     #- if [ "x$with_clang" = "x" ]; then extra=g++; else extra=clang++-12; fi
     #- export MPICH_CXX=$extra
     - echo
@@ -96,6 +99,8 @@ variables:
       SPH_EXA_WITH_HIP=$SPH_EXA_WITH_HIP
       BUILD_RYOANJI=$BUILD_RYOANJI
       CMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
+
+
     - cmake -S . -B build
       -DCMAKE_CXX_COMPILER=mpicxx
       -DBUILD_TESTING=$BUILD_TESTING
@@ -117,32 +122,52 @@ variables:
     # /usr/local/bin/sedov
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "1" ]; then
         echo "unittests -n1";
+        echo "component_units";
         /usr/local/sbin/unit/component_units;
+        echo "component_units_omp";
         /usr/local/sbin/unit/component_units_omp;
+        echo "coordinate_test";
         /usr/local/sbin/coord_samples/coordinate_test;
+        echo "kernel_tests";
         /usr/local/bin/kernel_tests;
+        echo "ryoanji_unit_tests";
         /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests;
         echo "perf_unittests -n1";
+        echo "octree_perf";
         /usr/local/sbin/performance/octree_perf;
+        echo "peers_perf";
         /usr/local/sbin/performance/peers_perf;
+        echo "scan_perf";
         /usr/local/sbin/performance/scan_perf;
+        echo "hilbert_perf";
         /usr/local/sbin/performance/hilbert_perf;
+        echo "gravity_perf";
         /usr/local/sbin/performance/gravity_perf;
       fi
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "2" ]; then
         echo "unittests -n2";
+        echo "domain_2ranks";
         /usr/local/sbin/integration_mpi/domain_2ranks;
+        echo "exchange_focus";
         /usr/local/sbin/integration_mpi/exchange_focus;
+        echo "exchange_halos";
         /usr/local/sbin/integration_mpi/exchange_halos;
+        echo "globaloctree";
         /usr/local/sbin/integration_mpi/globaloctree;
       fi
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "10" ]; then
         echo "unittests -n10";
+        echo "exchange_domain";
         /usr/local/sbin/integration_mpi/exchange_domain;
+        echo "treedomain";
         /usr/local/sbin/integration_mpi/treedomain;
+        echo "focus_tree";
         /usr/local/sbin/integration_mpi/focus_tree;
+        echo "domain_nranks";
         /usr/local/sbin/integration_mpi/domain_nranks;
+        echo "box_mpi";
         /usr/local/sbin/integration_mpi/box_mpi;
+        echo "exchange_keys";
         /usr/local/sbin/integration_mpi/exchange_keys;
         echo "sedov -n10";
         /usr/local/bin/sedov -s 0 ;
@@ -150,10 +175,15 @@ variables:
     #- export OMP_NUM_THREADS=2
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "p100" ]; then
         echo "gpu unittests -n1";
+        echo "cudaNeighborsTest";
         /usr/local/sbin/performance/cudaNeighborsTest;
+        echo "octree_perf_gpu";
         /usr/local/sbin/performance/octree_perf_gpu;
+        echo "hilbert_perf_gpu";
         /usr/local/sbin/performance/hilbert_perf_gpu;
-        /usr/local/sbin/unit_cuda/component_units_cuddda;
+        echo "component_units_cuda";
+        /usr/local/sbin/unit_cuda/component_units_cuda;
+        echo "ryoanji_unit_tests";
         /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests;
         echo "sedov-cuda -n1";
         /usr/local/bin/sedov-cuda -s 0 ;
@@ -175,7 +205,7 @@ sph:base:cuda:
     # - nvcc --version
     # - cmake --version
   variables:
-    VARIANT: 'cuda'    
+    VARIANT: 'cuda'
     PERSIST_IMAGE_NAME: 'sph-exa_base:skip'
     #PERSIST_IMAGE_NAME: 'sph-exa_base:cuda'
 #}}}
@@ -197,41 +227,6 @@ sph:install:cuda:
     BUILD_RYOANJI: 'ON'
     CMAKE_BUILD_TYPE: 'Debug'
     PERSIST_IMAGE_NAME: 'sph-exa_install:cuda'
-#}}}
-#{{{ tests:
-# 1-- Installing: /kernel/kernel_tests
-# 1-- Installing: /usr/local/sbin/coord_samples/coordinate_test
-# 2-- Installing: /usr/local/sbin/integration_mpi/globaloctree
-# 10-- Installing: /usr/local/sbin/integration_mpi/exchange_domain
-# 10-- Installing: /usr/local/sbin/integration_mpi/treedomain
-# 10-- Installing: /usr/local/sbin/integration_mpi/focus_tree
-# 2-- Installing: /usr/local/sbin/integration_mpi/exchange_halos
-# 10-- Installing: /usr/local/sbin/integration_mpi/domain_nranks
-# 10-- Installing: /usr/local/sbin/integration_mpi/box_mpi
-# 2-- Installing: /usr/local/sbin/integration_mpi/exchange_focus
-# 10-- Installing: /usr/local/sbin/integration_mpi/exchange_keys
-# 2-- Installing: /usr/local/sbin/integration_mpi/domain_2ranks
-# 1-- Installing: /usr/local/sbin/performance/octree_perf
-# 1-- Installing: /usr/local/sbin/performance/peers_perf
-# 1-- Installing: /usr/local/sbin/performance/scan_perf
-# 1-- Installing: /usr/local/sbin/performance/hilbert_perf
-# 1-- Installing: /usr/local/sbin/performance/gravity_perf
-# G-- Installing: /usr/local/sbin/performance/cudaNeighborsTest
-# G-- Installing: /usr/local/sbin/performance/octree_perf_gpu
-# G-- Installing: /usr/local/sbin/performance/hilbert_perf_gpu
-# 1-- Installing: /usr/local/sbin/unit/component_units
-# 1-- Installing: /usr/local/sbin/unit/component_units_omp
-# G-- Installing: /usr/local/sbin/unit_cuda/component_units_cuda
-# 1-- Installing: /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests
-# 2-- Installing: /usr/local/bin/evrard <-- (needs input file)
-# 2-- Installing: /usr/local/bin/sedov
-# G-- Installing: /usr/local/bin/sedov-cuda
-#
-# 1-- Installing: /usr/local/bin/sedov_solution
-# 0-- Installing: /usr/local/bin/compare_solutions.py
-# ./bin/mpi+omp+cuda.app -n 50 -s 200 -w 200
-# python src/analyticalSolutions/compare_solutions.py sedov --binary_file bin/sedovSolution --constants_file ./constants.txt --iteration 200 --nparts 125000 --snapshot_file ./dump_sedov200.txt
-# FIXME: cp ./dump_sedov200.txt file before container ends!
 #}}}
 #{{{ sph:test:cuda:1:
 sph:test:cuda:1:
@@ -322,4 +317,79 @@ sph:test:cuda:p100:
     USE_MPI: 'YES'
     # SLURM_TIMELIMIT=15:00
     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+#}}}
+
+#{{{ rocm/dev-ubuntu-20.04:4.5 --> sph-exa_base:hip
+sph:base:hip:
+  # notice the final :
+  stage: SPHbase
+  # skipping build of base image with:
+  # extends: .sph-base-skip
+  extends: .sph-base
+  image: rocm/dev-ubuntu-20.04:4.5
+  tags: 
+    - $jfrogtag
+  script:
+    #- echo "skipping build of base image"
+    - hipcc --version
+    - cmake --version
+  variables:
+    VARIANT: 'hip'
+    #PERSIST_IMAGE_NAME: 'sph-exa_base:skip'
+    PERSIST_IMAGE_NAME: 'sph-exa_base:hip'
+#}}}
+#{{{ rocm/dev-ubuntu-20.04:4.5 --> sph-exa_base:hip --> sph-exa_install:hip
+sph:install:hip:
+  stage: SPHinstall
+  extends: .sph-install
+  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_base:hip
+  needs: ['sph:base:hip']
+  tags:
+    - $jfrogtag
+  script:
+    - ls -l /usr/local/bin/
+  variables:
+    VARIANT: 'hip'
+    BUILD_TESTING: 'ON'
+    BUILD_ANALYTICAL: 'OFF'
+    SPH_EXA_WITH_HIP: 'ON'
+    BUILD_RYOANJI: 'ON'
+    CMAKE_BUILD_TYPE: 'Debug'
+    PERSIST_IMAGE_NAME: 'sph-exa_install:hip'
+#}}}
+
+#{{{ tests:
+# 1-- Installing: /kernel/kernel_tests
+# 1-- Installing: /usr/local/sbin/coord_samples/coordinate_test
+# 2-- Installing: /usr/local/sbin/integration_mpi/globaloctree
+# 10-- Installing: /usr/local/sbin/integration_mpi/exchange_domain
+# 10-- Installing: /usr/local/sbin/integration_mpi/treedomain
+# 10-- Installing: /usr/local/sbin/integration_mpi/focus_tree
+# 2-- Installing: /usr/local/sbin/integration_mpi/exchange_halos
+# 10-- Installing: /usr/local/sbin/integration_mpi/domain_nranks
+# 10-- Installing: /usr/local/sbin/integration_mpi/box_mpi
+# 2-- Installing: /usr/local/sbin/integration_mpi/exchange_focus
+# 10-- Installing: /usr/local/sbin/integration_mpi/exchange_keys
+# 2-- Installing: /usr/local/sbin/integration_mpi/domain_2ranks
+# 1-- Installing: /usr/local/sbin/performance/octree_perf
+# 1-- Installing: /usr/local/sbin/performance/peers_perf
+# 1-- Installing: /usr/local/sbin/performance/scan_perf
+# 1-- Installing: /usr/local/sbin/performance/hilbert_perf
+# 1-- Installing: /usr/local/sbin/performance/gravity_perf
+# G-- Installing: /usr/local/sbin/performance/cudaNeighborsTest
+# G-- Installing: /usr/local/sbin/performance/octree_perf_gpu
+# G-- Installing: /usr/local/sbin/performance/hilbert_perf_gpu
+# 1-- Installing: /usr/local/sbin/unit/component_units
+# 1-- Installing: /usr/local/sbin/unit/component_units_omp
+# G-- Installing: /usr/local/sbin/unit_cuda/component_units_cuda
+# 1-- Installing: /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests
+# 2-- Installing: /usr/local/bin/evrard <-- (needs input file)
+# 2-- Installing: /usr/local/bin/sedov
+# G-- Installing: /usr/local/bin/sedov-cuda
+#
+# 1-- Installing: /usr/local/bin/sedov_solution
+# 0-- Installing: /usr/local/bin/compare_solutions.py
+# ./bin/mpi+omp+cuda.app -n 50 -s 200 -w 200
+# python src/analyticalSolutions/compare_solutions.py sedov --binary_file bin/sedovSolution --constants_file ./constants.txt --iteration 200 --nparts 125000 --snapshot_file ./dump_sedov200.txt
+# FIXME: cp ./dump_sedov200.txt file before container ends!
 #}}}
