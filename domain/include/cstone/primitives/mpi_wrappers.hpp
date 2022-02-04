@@ -51,6 +51,30 @@ struct MpiType<float>
 };
 
 template<>
+struct MpiType<char>
+{
+    constexpr operator MPI_Datatype() const noexcept { return MPI_CHAR; }
+};
+
+template<>
+struct MpiType<unsigned char>
+{
+    constexpr operator MPI_Datatype() const noexcept { return MPI_UNSIGNED_CHAR; }
+};
+
+template<>
+struct MpiType<short>
+{
+    constexpr operator MPI_Datatype() const noexcept { return MPI_SHORT; }
+};
+
+template<>
+struct MpiType<unsigned short>
+{
+    constexpr operator MPI_Datatype() const noexcept { return MPI_UNSIGNED_SHORT; }
+};
+
+template<>
 struct MpiType<int>
 {
     constexpr operator MPI_Datatype() const noexcept { return MPI_INT; }
@@ -60,6 +84,12 @@ template<>
 struct MpiType<unsigned>
 {
     constexpr operator MPI_Datatype() const noexcept { return MPI_UNSIGNED; }
+};
+
+template<>
+struct MpiType<long>
+{
+    constexpr operator MPI_Datatype() const noexcept { return MPI_LONG; }
 };
 
 template<>
@@ -74,52 +104,11 @@ struct MpiType<unsigned long long>
     constexpr operator MPI_Datatype() const noexcept { return MPI_UNSIGNED_LONG_LONG; }
 };
 
-template<class T>
-std::enable_if_t<std::is_same<double, std::decay_t<T>>{}>
-mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
+template<class T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+auto mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
 {
     requests.push_back(MPI_Request{});
-    MPI_Isend(data, count, MPI_DOUBLE, rank, tag, MPI_COMM_WORLD, &requests.back());
-}
-
-template<class T>
-std::enable_if_t<std::is_same<float, std::decay_t<T>>{}>
-mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
-{
-    requests.push_back(MPI_Request{});
-    MPI_Isend(data, count, MPI_FLOAT, rank, tag, MPI_COMM_WORLD, &requests.back());
-}
-
-template<class T>
-std::enable_if_t<std::is_same<int, std::decay_t<T>>{}>
-mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
-{
-    requests.push_back(MPI_Request{});
-    MPI_Isend(data, count, MPI_INT, rank, tag, MPI_COMM_WORLD, &requests.back());
-}
-
-template<class T>
-std::enable_if_t<std::is_same<unsigned, std::decay_t<T>>{}>
-mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
-{
-    requests.push_back(MPI_Request{});
-    MPI_Isend(data, count, MPI_UNSIGNED, rank, tag, MPI_COMM_WORLD, &requests.back());
-}
-
-template<class T>
-std::enable_if_t<std::is_same<unsigned long, std::decay_t<T>>{}>
-mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
-{
-    requests.push_back(MPI_Request{});
-    MPI_Isend(data, count, MPI_UNSIGNED_LONG, rank, tag, MPI_COMM_WORLD, &requests.back());
-}
-
-template<class T>
-std::enable_if_t<std::is_same<unsigned long long, std::decay_t<T>>{}>
-mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
-{
-    requests.push_back(MPI_Request{});
-    MPI_Isend(data, count, MPI_UNSIGNED_LONG_LONG, rank, tag, MPI_COMM_WORLD, &requests.back());
+    return MPI_Isend(data, count, MpiType<std::decay_t<T>>{}, rank, tag, MPI_COMM_WORLD, &requests.back());
 }
 
 //! @brief adaptor to wrap compile-time size arrays into flattened arrays of the underlying type
@@ -133,46 +122,10 @@ auto mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request
     return mpiSendAsync(ptr, count * N, rank, tag, requests);
 }
 
-template<class T>
-std::enable_if_t<std::is_same<double, std::decay_t<T>>{}>
-mpiRecvSync(T* data, int count, int rank, int tag, MPI_Status* status)
+template<class T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+auto mpiRecvSync(T* data, int count, int rank, int tag, MPI_Status* status)
 {
-    MPI_Recv(data, count, MPI_DOUBLE, rank, tag, MPI_COMM_WORLD, status);
-}
-
-template<class T>
-std::enable_if_t<std::is_same<float, std::decay_t<T>>{}>
-mpiRecvSync(T* data, int count, int rank, int tag, MPI_Status* status)
-{
-    MPI_Recv(data, count, MPI_FLOAT, rank, tag, MPI_COMM_WORLD, status);
-}
-
-template<class T>
-std::enable_if_t<std::is_same<int, std::decay_t<T>>{}>
-mpiRecvSync(T* data, int count, int rank, int tag, MPI_Status* status)
-{
-    MPI_Recv(data, count, MPI_INT, rank, tag, MPI_COMM_WORLD, status);
-}
-
-template<class T>
-std::enable_if_t<std::is_same<unsigned, std::decay_t<T>>{}>
-mpiRecvSync(T* data, int count, int rank, int tag, MPI_Status* status)
-{
-    MPI_Recv(data, count, MPI_UNSIGNED, rank, tag, MPI_COMM_WORLD, status);
-}
-
-template<class T>
-std::enable_if_t<std::is_same<unsigned long, std::decay_t<T>>{}>
-mpiRecvSync(T* data, int count, int rank, int tag, MPI_Status* status)
-{
-    MPI_Recv(data, count, MPI_UNSIGNED_LONG, rank, tag, MPI_COMM_WORLD, status);
-}
-
-template<class T>
-std::enable_if_t<std::is_same<unsigned long long, std::decay_t<T>>{}>
-mpiRecvSync(T* data, int count, int rank, int tag, MPI_Status* status)
-{
-    MPI_Recv(data, count, MPI_UNSIGNED_LONG_LONG, rank, tag, MPI_COMM_WORLD, status);
+    return MPI_Recv(data, count, MpiType<std::decay_t<T>>{}, rank, tag, MPI_COMM_WORLD, status);
 }
 
 //! @brief adaptor to wrap compile-time size arrays into flattened arrays of the underlying type
@@ -186,52 +139,11 @@ auto mpiRecvSync(T* data, int count, int rank, int tag, MPI_Status* status)
     return mpiRecvSync(ptr, count * N, rank, tag, status);
 }
 
-template<class T>
-std::enable_if_t<std::is_same<double, std::decay_t<T>>{}>
-mpiRecvAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
+template<class T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
+auto mpiRecvAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
 {
     requests.push_back(MPI_Request{});
-    MPI_Irecv(data, count, MPI_DOUBLE, rank, tag, MPI_COMM_WORLD, &requests.back());
-}
-
-template<class T>
-std::enable_if_t<std::is_same<float, std::decay_t<T>>{}>
-mpiRecvAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
-{
-    requests.push_back(MPI_Request{});
-    MPI_Irecv(data, count, MPI_FLOAT, rank, tag, MPI_COMM_WORLD, &requests.back());
-}
-
-template<class T>
-std::enable_if_t<std::is_same<int, std::decay_t<T>>{}>
-mpiRecvAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
-{
-    requests.push_back(MPI_Request{});
-    MPI_Irecv(data, count, MPI_INT, rank, tag, MPI_COMM_WORLD, &requests.back());
-}
-
-template<class T>
-std::enable_if_t<std::is_same<unsigned, std::decay_t<T>>{}>
-mpiRecvAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
-{
-    requests.push_back(MPI_Request{});
-    MPI_Irecv(data, count, MPI_UNSIGNED, rank, tag, MPI_COMM_WORLD, &requests.back());
-}
-
-template<class T>
-std::enable_if_t<std::is_same<unsigned long, std::decay_t<T>>{}>
-mpiRecvAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
-{
-    requests.push_back(MPI_Request{});
-    MPI_Irecv(data, count, MPI_UNSIGNED_LONG, rank, tag, MPI_COMM_WORLD, &requests.back());
-}
-
-template<class T>
-std::enable_if_t<std::is_same<unsigned long long, std::decay_t<T>>{}>
-mpiRecvAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
-{
-    requests.push_back(MPI_Request{});
-    MPI_Irecv(data, count, MPI_UNSIGNED_LONG_LONG, rank, tag, MPI_COMM_WORLD, &requests.back());
+    return MPI_Irecv(data, count, MpiType<std::decay_t<T>>{}, rank, tag, MPI_COMM_WORLD, &requests.back());
 }
 
 //! @brief adaptor to wrap compile-time size arrays into flattened arrays of the underlying type
