@@ -5,22 +5,20 @@ include:
 
 stages:
   - base
-  - build
+  - install
   - test
   - deploy
 
 variables:
   jfrogtag: 'docker_jfrog'
-  JG_DEPS_PATH: 'ftp://ftp.cscs.ch/out/jgp/hpc/containers'
+  JG_DEPS_PATH: ftp://ftp.cscs.ch/out/jgp/hpc/containers
+  # export JG_DEPS_PATH='ftp://ftp.cscs.ch/out/jgp/hpc/containers'
 
 #{{{ .sph-base / deps-ubu-gnu
 .sph-base: &sph-base
-### .deps-ubu-gnu: &deps-ubu-gnu
   # tag must be 'docker_jfrog'
   tags:
     - docker_jfrog
-  # stage: deps
-  # image: nvidia/cuda:11.4.2-devel-ubuntu20.04
   before_script:
     # - echo CI_PROJECT_DIR=$CI_PROJECT_DIR PWD=$PWD
     - date
@@ -42,6 +40,8 @@ variables:
     - date; echo "## cmake:"
     #- cd /usr/local/games
     - tar xf cmake-3.22.2-linux-x86_64.tar.gz
+    - cp -a cmake-3.22.2-linux-x86_64/bin/* /usr/bin/
+    - cp -a cmake-3.22.2-linux-x86_64/share/cmake-3.22 /usr/share/cmake-3.22
     - rm -fr cmake-3.22.2-linux-x86_64.tar.gz cmake-3.22.2-linux-x86_64/bin/cmake-gui
     #
     - date; echo "## googletest:"
@@ -59,6 +59,8 @@ variables:
     - rm -fr mpich-3.1.4 mpich-3.1.4.tar.gz
     - ldconfig
     - date; echo "## done"
+  variables:
+    PATH: /usr/local/games/cmake/bin:$PATH
 #}}}
 
 #{{{ nvidia/cuda:11.4 --> sph-exa_base:cuda
@@ -72,7 +74,6 @@ sph-base:cuda:
   script:
     # - echo "empty stage for a better display of deps"
     - nvcc --version
-    - which cmake
   variables:
     VARIANT: 'cuda'
     PERSIST_IMAGE_NAME: 'sph-exa_base:cuda'
