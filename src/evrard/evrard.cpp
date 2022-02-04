@@ -49,19 +49,19 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t nParticles = parser.getInt("-n", 65536);
-    const size_t maxStep = parser.getInt("-s", 10);
-    const int writeFrequency = parser.getInt("-w", -1);
-    const int checkpointFrequency = parser.getInt("-c", -1);
-    const bool quiet = parser.exists("--quiet");
+    const size_t nParticles           = parser.getInt("-n", 65536);
+    const size_t maxStep              = parser.getInt("-s", 10);
+    const int writeFrequency          = parser.getInt("-w", -1);
+    const int checkpointFrequency     = parser.getInt("-c", -1);
+    const bool quiet                  = parser.exists("--quiet");
     const std::string checkpointInput = parser.getString("--cinput");
-    const std::string inputFilePath = parser.getString("--input", "./Test3DEvrardRel.bin");
-    const std::string outDirectory = parser.getString("--outDir");
+    const std::string inputFilePath   = parser.getString("--input", "./Test3DEvrardRel.bin");
+    const std::string outDirectory    = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
 
-    using Real = double;
+    using Real    = double;
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType>;
 
@@ -100,8 +100,8 @@ int main(int argc, char** argv)
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 
-    domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,
-                d.dt_m1);
+    domain.sync(
+        d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
 
     if (d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
@@ -127,84 +127,54 @@ int main(int argc, char** argv)
 
         if (d.rank == 0)
         {
-            Printer::printCheck(
-                d.ttot,
-                d.minDt,
-                d.etot,
-                d.eint,
-                d.ecin,
-                d.egrav,
-                domain.box(),
-                d.n,
-                domain.nParticles(),
-                nNodes(domain.tree()),
-                d.x.size() - domain.nParticles(),
-                totalNeighbors,
-                output);
+            Printer::printCheck(d.ttot,
+                                d.minDt,
+                                d.etot,
+                                d.eint,
+                                d.ecin,
+                                d.egrav,
+                                domain.box(),
+                                d.n,
+                                domain.nParticles(),
+                                nNodes(domain.tree()),
+                                d.x.size() - domain.nParticles(),
+                                totalNeighbors,
+                                output);
 
             std::cout << "### Check ### Focus Tree Nodes: " << nNodes(domain.focusTree()) << std::endl;
 
             Printer::printConstants(
-                d.iteration,
-                d.ttot,
-                d.minDt,
-                d.etot,
-                d.ecin,
-                d.eint,
-                d.egrav,
-                totalNeighbors,
-                constantsFile);
+                d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, totalNeighbors, constantsFile);
         }
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
 #ifdef SPH_EXA_HAVE_H5PART
             fileWriter.dumpParticleDataToH5File(
-                d,
-                domain.startIndex(),
-                domain.endIndex(),
-                outDirectory + "dump_evrard.h5part");
+                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_evrard.h5part");
 #else
-            fileWriter.dumpParticleDataToAsciiFile(
-                d,
-                domain.startIndex(),
-                domain.endIndex(),
-                outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".txt");
+            fileWriter.dumpParticleDataToAsciiFile(d,
+                                                   domain.startIndex(),
+                                                   domain.endIndex(),
+                                                   outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".txt");
 #endif
         }
 
         if (checkpointFrequency > 0 && d.iteration % checkpointFrequency == 0)
         {
             fileWriter.dumpCheckpointDataToBinFile(
-                d,
-                outDirectory + "checkpoint_evrard" + std::to_string(d.iteration) + ".bin");
+                d, outDirectory + "checkpoint_evrard" + std::to_string(d.iteration) + ".bin");
         }
 
-        if (d.rank == 0)
-        {
-            Printer::printTotalIterationTime(
-                d.iteration,
-                propagator.timer.duration(),
-                output);
-        }
+        if (d.rank == 0) { Printer::printTotalIterationTime(d.iteration, propagator.timer.duration(), output); }
 
 #ifdef SPH_EXA_USE_CATALYST2
-        CatalystAdaptor::Execute(
-            d,
-            domain.startIndex(),
-            domain.endIndex());
+        CatalystAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
 #endif
 
 #ifdef SPH_EXA_USE_ASCENT
-        if(d.iteration % 5 == 0)
-        {
-            AscentAdaptor::Execute(
-                d,
-                domain.startIndex(),
-                domain.endIndex());
-        }
+        if (d.iteration % 5 == 0) { AscentAdaptor::Execute(d, domain.startIndex(), domain.endIndex()); }
 #endif
-
     }
 
     totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Evrard");

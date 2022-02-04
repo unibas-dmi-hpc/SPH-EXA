@@ -50,35 +50,27 @@ class Propagator
 {
 
 private:
-
-    const size_t       nTasks;                                  //
-    const size_t       ngmax;                                   //
-    const size_t       ng0;                                     //
+    const size_t nTasks;
+    const size_t ngmax;
+    const size_t ng0;
 
 public:
+    TaskList taskList;
+    MasterProcessTimer timer;
 
-    TaskList           taskList;                                //
-    MasterProcessTimer timer;                                   //
-
-    Propagator(
-        const size_t  nTasks,                                   //
-        const size_t  ngmax,                                    //
-        const size_t  ng0,                                      //
-        const size_t  nParticles,                               //
-        std::ostream& output,                                   //
-        const size_t  rank)                                     //
+    Propagator(const size_t nTasks, const size_t ngmax, const size_t ng0, const size_t nParticles, std::ostream& output,
+               const size_t rank)
         : nTasks(nTasks)
         , ngmax(ngmax)
         , ng0(ng0)
         , taskList(0, nParticles, nTasks, ngmax, ng0)
         , timer(output, rank)
-    {}
-
-    size_t neighbors(){
-        return neighborsSum(taskList.tasks);
+    {
     }
 
-    template <class DomainType, class ParticleDataType>
+    size_t neighbors() { return neighborsSum(taskList.tasks); }
+
+    template<class DomainType, class ParticleDataType>
     void hydroStep(DomainType& domain, ParticleDataType& d)
     {
         // Advance simulation by one step
@@ -86,12 +78,13 @@ public:
 
         timer.start();
 
-        domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,d.dt_m1);
+        domain.sync(
+            d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
         timer.step("domain::sync");
 
         d.resize(domain.nParticlesWithHalos());
 
-        std::fill(begin(d.m),                     begin(d.m) + domain.startIndex(),          d.m[domain.startIndex()]);
+        std::fill(begin(d.m), begin(d.m) + domain.startIndex(), d.m[domain.startIndex()]);
         std::fill(begin(d.m) + domain.endIndex(), begin(d.m) + domain.nParticlesWithHalos(), d.m[domain.startIndex()]);
 
         taskList.update(domain.startIndex(), domain.endIndex());
@@ -134,8 +127,7 @@ public:
         timer.stop();
     }
 
-
-    template <class DomainType, class ParticleDataType>
+    template<class DomainType, class ParticleDataType>
     void hydroStepGravity(DomainType& domain, ParticleDataType& d)
     {
         // Advance simulation by one step
@@ -143,12 +135,13 @@ public:
 
         timer.start();
 
-        domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,d.dt_m1);
+        domain.sync(
+            d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
         timer.step("domain::sync");
 
         d.resize(domain.nParticlesWithHalos());
 
-        std::fill(begin(d.m),                     begin(d.m) + domain.startIndex(),          d.m[domain.startIndex()]);
+        std::fill(begin(d.m), begin(d.m) + domain.startIndex(), d.m[domain.startIndex()]);
         std::fill(begin(d.m) + domain.endIndex(), begin(d.m) + domain.nParticlesWithHalos(), d.m[domain.startIndex()]);
 
         taskList.update(domain.startIndex(), domain.endIndex());
