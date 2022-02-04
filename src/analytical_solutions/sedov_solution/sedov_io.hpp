@@ -35,36 +35,19 @@
 #include <vector>
 #include <fstream>
 
-#include "particle.hpp"
+#include "tests/io.hpp"
+#include "tests/particle_io.hpp"
 
 using namespace std;
 
-class FileData
+class SedovFileData : public FileData
 {
 
 private:
 
-    FileData();                                  // Singleton
+    SedovFileData();                             // Singleton
 
 public:
-
-    static void readData3D(
-        const string&   inputFile,               //
-        const double    nParts,                  //
-        vector<double>& x,                       //
-        vector<double>& y,                       //
-        vector<double>& z,                       //
-        vector<double>& vx,                      //
-        vector<double>& vy,                      //
-        vector<double>& vz,                      //
-        vector<double>& h,                       //
-        vector<double>& rho,                     //
-        vector<double>& u,                       //
-        vector<double>& p,                       //
-        vector<double>& cs,                      //
-        vector<double>& Px,                      //
-        vector<double>& Py,                      //
-        vector<double>& Pz);                     //
 
     static void writeColumns1D(
         ostream& out);                           //
@@ -86,13 +69,13 @@ public:
         const string&         outfile);          //
 
     static void writeParticle1D(
-        const size_t            n,               //
-        const vector<Particle>& vParticle,       //
-        const double            rho_shock,       //
-        const double            u_shock,         //
-        const double            p_shock,         //
-        const double            vel_shock,       //
-        const double            cs_shock,        //
-        const double            rho0,            //
-        const string&           outfile);        //
+        const size_t              n,             //
+        const vector<ParticleIO>& vParticle,     //
+        const double              rho_shock,     //
+        const double              u_shock,       //
+        const double              p_shock,       //
+        const double              vel_shock,     //
+        const double              cs_shock,      //
+        const double              rho0,          //
+        const string&             outfile);      //
 };

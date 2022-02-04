@@ -9,14 +9,12 @@
 #endif
 
 #include "cstone/domain/domain.hpp"
-
 #include "sphexa.hpp"
-#include "EvrardCollapseInputFileReader.hpp"
-#include "EvrardCollapseFileWriter.hpp"
-
 #include "sph/findNeighborsSfc.hpp"
-
+#include "EvrardCollapseFileWriter.hpp"
 #include "propagator.hpp"
+
+#include "EvrardCollapseInputFileReader.hpp"
 
 using namespace cstone;
 using namespace sphexa;
@@ -79,7 +77,7 @@ int main(int argc, char** argv)
 
     MasterProcessTimer totalTimer(output, d.rank);
 
-    std::ofstream constantsFile(outDirectory + "constants.txt");
+    std::ofstream constantsFile(outDirectory + "constants_evrard.txt");
 
     size_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
@@ -127,28 +125,43 @@ int main(int argc, char** argv)
         {
 #ifdef SPH_EXA_HAVE_H5PART
             fileWriter.dumpParticleDataToH5File(
-                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_evrard.h5part");
+                d,
+                domain.startIndex(),
+                domain.endIndex(),
+                outDirectory + "dump_evrard.h5part");
 #else
-            fileWriter.dumpParticleDataToAsciiFile(d,
-                                                   domain.startIndex(),
-                                                   domain.endIndex(),
-                                                   outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".txt");
+            fileWriter.dumpParticleDataToAsciiFile(
+                d,
+                domain.startIndex(),
+                domain.endIndex(),
+                outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".txt");
 #endif
         }
 
         if (checkpointFrequency > 0 && d.iteration % checkpointFrequency == 0)
         {
             fileWriter.dumpCheckpointDataToBinFile(
-                d, outDirectory + "checkpoint_evrard" + std::to_string(d.iteration) + ".bin");
+                d,
+                outDirectory + "checkpoint_evrard" + std::to_string(d.iteration) + ".bin");
         }
 
 #ifdef SPH_EXA_USE_CATALYST2
-        CatalystAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
+        CatalystAdaptor::Execute(
+            d,
+            domain.startIndex(),
+            domain.endIndex());
 #endif
 
 #ifdef SPH_EXA_USE_ASCENT
-        if (d.iteration % 5 == 0) { AscentAdaptor::Execute(d, domain.startIndex(), domain.endIndex()); }
+        if(d.iteration % 5 == 0)
+        {
+            AscentAdaptor::Execute(
+                d,
+                domain.startIndex(),
+                domain.endIndex());
+        }
 #endif
+
     }
 
     totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Evrard");

@@ -10,25 +10,22 @@
 namespace sphexa
 {
 template <typename T, typename I>
-class SedovDataGenerator
+class NohDataGenerator
 {
 public:
 
     static inline const I dim           = 3;
     static inline const T gamma         = 5./3.;
-    static inline const T omega         = 0.;
     static inline const T r0            = 0.;
     static inline const T r1            = 0.5;
     static inline const T mTotal        = 1.;
-    static inline const T energyTotal   = 1.;
-    static inline const T width         = 0.1;
-    static inline const T ener0         = energyTotal / std::pow(M_PI,1.5) / 1. / std::pow(width,3.0);
+    static inline const T vr0           = -1.;
     static inline const T rho0          = 1.;
-    static inline const T u0            = 1.e-08;
+    static inline const T u0            = 1.e-20;
     static inline const T p0            = 0.;
     static inline const T vel0          = 0.;
     static inline const T cs0           = 0.;
-    static inline const T firstTimeStep = 1.e-6;
+    static inline const T firstTimeStep = 1.e-4;
 
     static ParticlesData<T, I> generate(const size_t side)
     {
@@ -36,7 +33,7 @@ public:
 
         if (pd.rank == 0 && side < 8)
         {
-            printf("ERROR::Sedov::init()::SmoothingLength n too small\n");
+            printf("ERROR::Noh::init()::SmoothingLength n too small\n");
             #ifdef USE_MPI
             MPI_Finalize();
             #endif
@@ -127,8 +124,12 @@ public:
             pd.h[i]        = hIni;
             pd.m[i]        = mPart;
             pd.ro[i]       = rho0;
-            pd.u[i]        = ener0 * exp(-(std::pow(radius,2) / std::pow(width,2))) + u0;
+            pd.u[i]        = u0;
             pd.p[i]        = pd.u[i] * rho0 * gamm1;
+
+            pd.vx[i]       = vr0 * (pd.x[i] / radius);
+            pd.vy[i]       = vr0 * (pd.y[i] / radius);
+            pd.vz[i]       = vr0 * (pd.z[i] / radius);
 
             pd.mui[i]      = 10.;
 

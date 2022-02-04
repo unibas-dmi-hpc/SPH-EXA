@@ -25,7 +25,7 @@
 #include <iostream>
 #include <cmath>
 
-#include "io.hpp"
+#include "sedov_io.hpp"
 
 double SedovSolution::xgeom;
 double SedovSolution::omega;
@@ -101,7 +101,7 @@ void SedovSolution::create(
         r, rho, p, u, vel, cs);
 
     // Write solution file
-    FileData::writeData1D(
+    SedovFileData::writeData1D(
         rPoints,
         r,
         rho,u,p,

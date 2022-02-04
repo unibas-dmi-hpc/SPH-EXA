@@ -22,7 +22,7 @@
 
 /*! @file
  *
- * @brief This program generate the analytical sedov solution based in the time and the initial conditions
+ * @brief This program generate the analytical noh solution based in the time and the initial conditions
  *
  * @author Jose A. Escartin <ja.escartin@gmail.com>
  *
@@ -39,10 +39,10 @@
 #include "arg_parser.hpp"
 #include "tests/particle_io.hpp"
 
-#include "sedov/SedovDataGenerator.hpp"
+#include "noh/NohDataGenerator.hpp"
 
-#include "sedov_io.hpp"
-#include "sedov_solution.hpp"
+#include "noh_io.hpp"
+#include "noh_solution.hpp"
 
 using namespace std;
 using namespace sphexa;
@@ -66,7 +66,7 @@ int main(int argc, char** argv)
     const bool   only_sol  = parser.exists("--only_solution") ? true : false;
     const double time      = parser.getDouble( "--time",   0.                  );
     const size_t nParts    = parser.getInt(    "--nParts", 0                   );
-    const string inputFile = parser.getString( "--input",  "./dump_sedov0.txt" );
+    const string inputFile = parser.getString( "--input",  "./dump_noh0.txt"   );
     const string outDir    = parser.getString( "--outDir", "./"                );
     const bool   complete  = parser.exists("--complete") ? true : false;
 
@@ -99,7 +99,7 @@ int main(int argc, char** argv)
         }
 
         // Load particles data
-        FileData::readData3D(
+        NohFileData::readData3D(
             inputFile,
             nParts,
             x,y,z,
@@ -132,26 +132,24 @@ int main(int argc, char** argv)
     time_long << time;
     string time_str = time_long.str();
 
-    // Calculate and write theoretical solution profile in one dimension
-    const size_t dim     = SedovDataGenerator<Real, KeyType>::dim;
-    const double r0      = SedovDataGenerator<Real, KeyType>::r0;
-    const double r1      = SedovDataGenerator<Real, KeyType>::r1;
-    const double eblast  = SedovDataGenerator<Real, KeyType>::energyTotal;
-    const double gamma   = SedovDataGenerator<Real, KeyType>::gamma;
-    const double omega   = SedovDataGenerator<Real, KeyType>::omega;
-    const double rho0    = SedovDataGenerator<Real, KeyType>::rho0;
-    const double u0      = SedovDataGenerator<Real, KeyType>::u0;
-    const double p0      = SedovDataGenerator<Real, KeyType>::p0;
-    const double vel0    = SedovDataGenerator<Real, KeyType>::vel0;
-    const double cs0     = SedovDataGenerator<Real, KeyType>::cs0;
-    const string solFile = outDir + "sedov_solution_" + time_str + ".dat";
+    // Calculate and write theoretical solution profile in one dimension    // time = 0.6s
+    const size_t dim     = NohDataGenerator<Real, KeyType>::dim;            // 3
+    const double r0      = NohDataGenerator<Real, KeyType>::r0;             // .0
+    const double r1      = NohDataGenerator<Real, KeyType>::r1;             // .1
+    const double gamma   = NohDataGenerator<Real, KeyType>::gamma;          // 5./3.
+    const double rho0    = NohDataGenerator<Real, KeyType>::rho0;           // 1.
+    const double u0      = NohDataGenerator<Real, KeyType>::u0;             // 0.
+    const double p0      = NohDataGenerator<Real, KeyType>::p0;             // 0.
+    const double vr0     = NohDataGenerator<Real, KeyType>::vr0;            // -1.
+    const double cs0     = NohDataGenerator<Real, KeyType>::cs0;            // 0.
+    const string solFile = outDir + "noh_solution_" + time_str + ".dat";
 
     // Set the positions for calculate the solution
     vector<double> rSol;
     size_t nSteps = 1000;
     if (only_sol || !complete)
     {
-        const double rMax  = 2. * r1;
+        const double rMax  = r1; //2. * r1;
         const double rStep = (rMax - r0) / nSteps;
 
         for(size_t i = 0; i < nSteps; i++)
@@ -170,11 +168,11 @@ int main(int argc, char** argv)
     }
 
     // Calculate Sedov solution
-    SedovSolution::create(
+    NohSolution::create(
         rSol,
         dim, nSteps, time,
-        eblast, omega, gamma,
-        rho0, u0, p0, vel0, cs0,
+        gamma,
+        rho0, u0, p0, vr0, cs0,
         solFile);
 
     // Write Info: Output files and colums.
@@ -184,22 +182,16 @@ int main(int argc, char** argv)
     if (!only_sol)
     {
         // Write 1D simulation solution to compare with the theoretical solution
-        const string simFile = outDir + "sedov_simulation_" + time_str + ".dat";
-        SedovFileData::writeParticle1D(
+        const string simFile = outDir + "noh_simulation_" + time_str + ".dat";
+        NohFileData::writeParticle1D(
             nParts,
             vSim,
-            SedovSolution::rho_shock,
-            SedovSolution::u_shock,
-            SedovSolution::p_shock,
-            SedovSolution::vel_shock,
-            SedovSolution::cs_shock,
-            rho0,
             simFile);
         cout << "Simulation file: '" <<  simFile << "'";
     }
 
     cout << "\nColumns:\n";
-    SedovFileData::writeColumns1D(cout);
+    NohFileData::writeColumns1D(cout);
     cout << endl;
 
     exit(EXIT_SUCCESS);
@@ -217,7 +209,7 @@ void printHelp(char* binName)
     printf("\t--time          NUM  \t\t Time where the solution is calculated (secs) [0.]\n\n");
 
     printf("\t--nParts        PATH \t\t Number of particles in the data file [0].\n");
-    printf("\t--input         PATH \t\t Path to input particle data file [./dump_sedov0.txt].\n\n");
+    printf("\t--input         PATH \t\t Path to input particle data file [./dump_noh0.txt].\n\n");
 
     printf("\t--outPath       PATH \t\t Path to directory where output will be saved [./].\
                  \n\t\t\t\t\t Note that directory must exist and be provided with ending slash.\

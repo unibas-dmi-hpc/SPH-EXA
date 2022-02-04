@@ -22,7 +22,8 @@
 
 /*! @file
  *
- * @brief Struct generated to sort the particles by radius
+ * @brief This class manage the data layer in the application.
+ *        It provide a variety of read/write functions based in the number of dimensions.
  *
  * @author Jose A. Escartin <ja.escartin@gmail.com>
  *
@@ -30,28 +31,39 @@
 
 #pragma once
 
-struct Particle{
+#include <string>
+#include <vector>
+#include <fstream>
 
-    size_t          idx;      // initial index order
-    double          r;        // radius
-    double          vel;      // radius
+#include "tests/io.hpp"
+#include "tests/particle_io.hpp"
 
-    double          x;        // x position
-    double          y;        // y position
-    double          z;        // z position
-    double          vx;       // vx velocity
-    double          vy;       // vy velocity
-    double          vz;       // vz velocity
-    double          h;        // smoothing lenght
-    double          rho;      // density
-    double          u;        // internal energy
-    double          p;        // pressure
-    double          cs;       // sound speed
-    double          Px;       // x momentum
-    double          Py;       // y momentum
-    double          Pz;       // z momentum
+using namespace std;
 
-    struct cmp{
-        bool operator()(const Particle& p1, const Particle& p2) { return p1.r < p2.r; }
-    };
+class NohFileData : public FileData
+{
+
+private:
+
+    NohFileData();                               // Singleton
+
+public:
+
+    static void writeColumns1D(
+        ostream& out);                           //
+
+    static void writeData1D(
+        const size_t          n,                 //
+        const vector<double>& r,                 //
+        const vector<double>& rho,               //
+        const vector<double>& u,                 //
+        const vector<double>& p,                 //
+        const vector<double>& vel,               //
+        const vector<double>& cs,                //
+        const string&         outfile);          //
+
+    static void writeParticle1D(
+        const size_t              n,             //
+        const vector<ParticleIO>& vParticle,     //
+        const string&             outfile);      //
 };
