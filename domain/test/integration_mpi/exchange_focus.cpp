@@ -187,3 +187,29 @@ TEST(PeerExchange, irregularTree)
     exchangeFocusIrregular<unsigned>(rank, numRanks);
     exchangeFocusIrregular<uint64_t>(rank, numRanks);
 }
+
+TEST(PeerExchange, arrayWrap)
+{
+    int rank = 0, numRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
+
+    using Vec = util::array<uint64_t, 4>;
+
+    if (rank == 0)
+    {
+        std::vector<Vec> buffer{ {0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11} };
+
+        std::vector<MPI_Request> requests;
+        mpiSendAsync(buffer.data(), buffer.size(), 1, 0, requests);
+        MPI_Waitall(int(requests.size()), requests.data(), MPI_STATUS_IGNORE);
+    }
+    if (rank == 1)
+    {
+        std::vector<Vec> buffer(3);
+        mpiRecvSync(buffer.data(), buffer.size(), 0, 0, MPI_STATUS_IGNORE) ;
+
+        std::vector<Vec> reference{ {0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11} };
+        EXPECT_EQ(buffer, reference);
+    }
+}

@@ -122,6 +122,17 @@ mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& re
     MPI_Isend(data, count, MPI_UNSIGNED_LONG_LONG, rank, tag, MPI_COMM_WORLD, &requests.back());
 }
 
+//! @brief adaptor to wrap compile-time size arrays into flattened arrays of the underlying type
+template<class T, std::enable_if_t<T{}.size() != 0, int> = 0>
+auto mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
+{
+    using ValueType    = typename T::value_type;
+    constexpr size_t N = T{}.size();
+    ValueType* ptr     = reinterpret_cast<ValueType*>(data);
+
+    return mpiSendAsync(ptr, count * N, rank, tag, requests);
+}
+
 template<class T>
 std::enable_if_t<std::is_same<double, std::decay_t<T>>{}>
 mpiRecvSync(T* data, int count, int rank, int tag, MPI_Status* status)
@@ -162,6 +173,17 @@ std::enable_if_t<std::is_same<unsigned long long, std::decay_t<T>>{}>
 mpiRecvSync(T* data, int count, int rank, int tag, MPI_Status* status)
 {
     MPI_Recv(data, count, MPI_UNSIGNED_LONG_LONG, rank, tag, MPI_COMM_WORLD, status);
+}
+
+//! @brief adaptor to wrap compile-time size arrays into flattened arrays of the underlying type
+template<class T, std::enable_if_t<T{}.size() != 0, int> = 0>
+auto mpiRecvSync(T* data, int count, int rank, int tag, MPI_Status* status)
+{
+    using ValueType    = typename T::value_type;
+    constexpr size_t N = T{}.size();
+    ValueType* ptr     = reinterpret_cast<ValueType*>(data);
+
+    return mpiRecvSync(ptr, count * N, rank, tag, status);
 }
 
 template<class T>
@@ -210,4 +232,15 @@ mpiRecvAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& re
 {
     requests.push_back(MPI_Request{});
     MPI_Irecv(data, count, MPI_UNSIGNED_LONG_LONG, rank, tag, MPI_COMM_WORLD, &requests.back());
+}
+
+//! @brief adaptor to wrap compile-time size arrays into flattened arrays of the underlying type
+template<class T, std::enable_if_t<T{}.size() != 0, int> = 0>
+auto mpiRecvAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
+{
+    using ValueType    = typename T::value_type;
+    constexpr size_t N = T{}.size();
+    ValueType* ptr     = reinterpret_cast<ValueType*>(data);
+
+    return mpiRecvAsync(ptr, count * N, rank, tag, requests);
 }
