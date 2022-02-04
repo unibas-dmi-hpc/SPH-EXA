@@ -7,7 +7,7 @@ stages:
   - SPHbase
   - SPHinstall
   - SPHtest
-  - deploy
+  #- SPHdeploy
 
 variables:
   jfrogtag: 'docker_jfrog'
@@ -60,9 +60,51 @@ variables:
     - ldconfig
     - date; echo "## done"
 #}}}
+#{{{ .sph-install
+.sph-install: &sph-install
+  # tag must be 'docker_jfrog'
+  tags:
+    - docker_jfrog
+  before_script:
+    - cd $CI_PROJECT_DIR
+    - pwd
+    #- sed -i 's@archive.ubuntu.com@ubuntu.ethz.ch@' /etc/apt/sources.list
+    #- export TZ=Europe/Zurich DEBIAN_FRONTEND=noninteractive
+    #
+    - sed -i "s@GIT_REPOSITORY@URL /usr/local/games/googletest-release-1.11.0/\n#@" ./domain/test/CMakeLists.txt.in
+    - sed -i "s@GIT_TAG@#GIT_TAG @" ./domain/test/CMakeLists.txt.in
+    #
+#     - if [ "$VARIANT" = "cuda" ]; then
+#         echo "## apt nvcc/11.4 (+gcc9+clang12+make+thrust)";
+#         apt install -y --no-install-recommends wget vim-tiny file cuda-nvcc-11-4 clang-12 libomp-12-dev > /dev/null;
+#       fi
+    #      
+    - echo "## sph:"
+    #- if [ "x$with_clang" = "x" ]; then extra=g++; else extra=clang++-12; fi
+    #- export MPICH_CXX=$extra
+    - echo
+      BUILD_TESTING=$BUILD_TESTING
+      BUILD_ANALYTICAL=$BUILD_ANALYTICAL
+      SPH_EXA_WITH_HIP=$SPH_EXA_WITH_HIP
+      BUILD_RYOANJI=$BUILD_RYOANJI
+      CMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
+    - |
+      cmake -S . -B build
+      -DCMAKE_CXX_COMPILER=mpicxx
+      -DBUILD_TESTING=$BUILD_TESTING
+      -DBUILD_ANALYTICAL=$BUILD_ANALYTICAL
+      -DSPH_EXA_WITH_HIP=$SPH_EXA_WITH_HIP
+      -DBUILD_RYOANJI=$BUILD_RYOANJI
+      -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
+    - cd build
+    - make help
+    - make -j `grep processor /proc/cpuinfo | wc -l` install
+    - date; echo "## done"
+#}}}
 
 #{{{ nvidia/cuda:11.4 --> sph-exa_base:cuda
-sph-base:cuda:
+sph:base:cuda:
+  # notice the final :
   stage: SPHbase
   extends: .sph-base
   # extends: .deps-ubu-gnu_fake
@@ -77,3 +119,42 @@ sph-base:cuda:
     VARIANT: 'cuda'
     PERSIST_IMAGE_NAME: 'sph-exa_base:cuda'
 #}}}
+
+#{{{ nvidia/cuda:11.4 --> sph-exa_base:cuda --> sph-exa_install:cuda
+sph:install:cuda:
+  stage: SPHinstall
+  extends: .sph-install
+  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_base:cuda
+  needs: ['sph:base:cuda']
+  tags:
+    - $jfrogtag
+  script:
+    - ls -l /usr/local/bin/
+  variables:
+    VARIANT: 'cuda'
+    BUILD_TESTING: 'OFF'
+    BUILD_ANALYTICAL: 'OFF'
+    SPH_EXA_WITH_HIP: 'OFF'
+    BUILD_RYOANJI: 'OFF'
+    CMAKE_BUILD_TYPE: 'Debug'
+    PERSIST_IMAGE_NAME: 'sph-exa_install:cuda'
+#}}}
+
+#{{{
+# build:ubu:gnu:Debug:
+#   stage: build
+#   extends: .build-debug
+#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_base:1.0
+#   tags:
+#     - $jfrogtag
+#   needs: ['ubu:deps:Debug']
+#   script:
+#     - ls -l /usr/local/sbin/
+#   variables:
+#     PERSIST_IMAGE_NAME: sph-exa_gnu:1.0
+#     # FIXME: should not be a static version (should be the SHA hash
+#     # ($CI_COMMIT_SHA) instead of 1.0) but this will fill up JFrog, so we would
+#     # need a deletion policy (todo) and/or a deploy step to retag (todo) the
+#     # container with a usable version.
+#     # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
+# #}}}
