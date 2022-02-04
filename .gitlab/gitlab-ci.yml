@@ -108,6 +108,56 @@ variables:
     - make -j `grep processor /proc/cpuinfo | wc -l` install
     - date; echo "## done"
 #}}}
+#{{{ .sph-test
+.sph-test: &sph-test
+  extends: .dom
+  # tag is set in .dom
+  before_script:
+    # /usr/local/bin/evrard <-- (needs input file)
+    # /usr/local/bin/sedov
+    - if [ "$VARIANT" = "cuda" && "$RUN_VARIANT" = "1" ]; then
+        echo "unittests -n1";
+        /usr/local/sbin/unit/component_units;
+        /usr/local/sbin/unit/component_units_omp;
+        /usr/local/sbin/coord_samples/coordinate_test;
+        /usr/local/sbin/kernel_tests;
+        /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests;
+        echo "perf_unittests -n1";
+        /usr/local/sbin/performance/octree_perf;
+        /usr/local/sbin/performance/peers_perf;
+        /usr/local/sbin/performance/scan_perf;
+        /usr/local/sbin/performance/hilbert_perf;
+        /usr/local/sbin/performance/gravity_perf;
+      fi
+    - if [ "$VARIANT" = "cuda" && "$RUN_VARIANT" = "2" ]; then
+        echo "unittests -n2";
+        /usr/local/sbin/integration_mpi/domain_2ranks;
+        /usr/local/sbin/integration_mpi/exchange_focus;
+        /usr/local/sbin/integration_mpi/exchange_halos;
+        /usr/local/sbin/integration_mpi/globaloctree;
+      fi
+    - if [ "$VARIANT" = "cuda" && "$RUN_VARIANT" = "10" ]; then
+        echo "unittests -n10";
+        /usr/local/sbin/integration_mpi/exchange_domain;
+        /usr/local/sbin/integration_mpi/treedomain;
+        /usr/local/sbin/integration_mpi/focus_tree;
+        /usr/local/sbin/integration_mpi/domain_nranks;
+        /usr/local/sbin/integration_mpi/box_mpi;
+        /usr/local/sbin/integration_mpi/exchange_keys;
+        echo "sedov -n10";
+        /usr/local/bin/sedov -s 0 ;
+      fi  
+    #- export OMP_NUM_THREADS=2
+    - if [ "$VARIANT" = "cuda" && "$RUN_VARIANT" = "p100" ]; then
+        echo "gpu unittests -n1";
+        /usr/local/sbin/performance/cudaNeighborsTest;
+        /usr/local/sbin/performance/octree_perf_gpu;
+        /usr/local/sbin/performance/hilbert_perf_gpu;
+        /usr/local/sbin/unit_cuda/component_units_cuddda;
+        /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests;
+        echo "sedov-cuda -n1";
+        /usr/local/bin/sedov-cuda -s 0 ;
+#}}}
 
 #{{{ nvidia/cuda:11.4 --> sph-exa_base:cuda
 sph:base:cuda:
@@ -140,29 +190,136 @@ sph:install:cuda:
     - ls -l /usr/local/bin/
   variables:
     VARIANT: 'cuda'
-    BUILD_TESTING: 'OFF'
+    BUILD_TESTING: 'ON'
     BUILD_ANALYTICAL: 'OFF'
     SPH_EXA_WITH_HIP: 'OFF'
-    BUILD_RYOANJI: 'OFF'
+    BUILD_RYOANJI: 'ON'
     CMAKE_BUILD_TYPE: 'Debug'
     PERSIST_IMAGE_NAME: 'sph-exa_install:cuda'
 #}}}
-
-#{{{
-# build:ubu:gnu:Debug:
-#   stage: build
-#   extends: .build-debug
-#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_base:1.0
-#   tags:
-#     - $jfrogtag
-#   needs: ['ubu:deps:Debug']
-#   script:
-#     - ls -l /usr/local/sbin/
-#   variables:
-#     PERSIST_IMAGE_NAME: sph-exa_gnu:1.0
-#     # FIXME: should not be a static version (should be the SHA hash
-#     # ($CI_COMMIT_SHA) instead of 1.0) but this will fill up JFrog, so we would
-#     # need a deletion policy (todo) and/or a deploy step to retag (todo) the
-#     # container with a usable version.
-#     # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
-# #}}}
+#{{{ tests:
+# 1-- Installing: /kernel/kernel_tests
+# 1-- Installing: /usr/local/sbin/coord_samples/coordinate_test
+# 2-- Installing: /usr/local/sbin/integration_mpi/globaloctree
+# 10-- Installing: /usr/local/sbin/integration_mpi/exchange_domain
+# 10-- Installing: /usr/local/sbin/integration_mpi/treedomain
+# 10-- Installing: /usr/local/sbin/integration_mpi/focus_tree
+# 2-- Installing: /usr/local/sbin/integration_mpi/exchange_halos
+# 10-- Installing: /usr/local/sbin/integration_mpi/domain_nranks
+# 10-- Installing: /usr/local/sbin/integration_mpi/box_mpi
+# 2-- Installing: /usr/local/sbin/integration_mpi/exchange_focus
+# 10-- Installing: /usr/local/sbin/integration_mpi/exchange_keys
+# 2-- Installing: /usr/local/sbin/integration_mpi/domain_2ranks
+# 1-- Installing: /usr/local/sbin/performance/octree_perf
+# 1-- Installing: /usr/local/sbin/performance/peers_perf
+# 1-- Installing: /usr/local/sbin/performance/scan_perf
+# 1-- Installing: /usr/local/sbin/performance/hilbert_perf
+# 1-- Installing: /usr/local/sbin/performance/gravity_perf
+# G-- Installing: /usr/local/sbin/performance/cudaNeighborsTest
+# G-- Installing: /usr/local/sbin/performance/octree_perf_gpu
+# G-- Installing: /usr/local/sbin/performance/hilbert_perf_gpu
+# 1-- Installing: /usr/local/sbin/unit/component_units
+# 1-- Installing: /usr/local/sbin/unit/component_units_omp
+# G-- Installing: /usr/local/sbin/unit_cuda/component_units_cuda
+# 1-- Installing: /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests
+# 2-- Installing: /usr/local/bin/evrard <-- (needs input file)
+# 2-- Installing: /usr/local/bin/sedov
+# G-- Installing: /usr/local/bin/sedov-cuda
+#
+# 1-- Installing: /usr/local/bin/sedov_solution
+# 0-- Installing: /usr/local/bin/compare_solutions.py
+# ./bin/mpi+omp+cuda.app -n 50 -s 200 -w 200
+# python src/analyticalSolutions/compare_solutions.py sedov --binary_file bin/sedovSolution --constants_file ./constants.txt --iteration 200 --nparts 125000 --snapshot_file ./dump_sedov200.txt
+# FIXME: cp ./dump_sedov200.txt file before container ends!
+#}}}
+#{{{ sph:test:cuda:1:
+sph:test:cuda:1:
+#ubu:test_1:
+  stage: SPHtest
+  extends: .sph-test
+  #extends: .run-1
+  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  needs: ['sph:install:cuda']
+  #needs: ['build:ubu:gnu']
+  script:
+    - date
+  variables:
+    VARIANT: 'cuda'
+    RUN_VARIANT: '1'
+    PULL_IMAGE: 'YES'
+    CSCS_REGISTRY_LOGIN: 'YES'
+    SLURM_PARTITION: cscsci
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 1
+    SLURM_CONSTRAINT: 'gpu'
+    USE_MPI: 'YES'
+    # SLURM_TIMELIMIT=15:00
+    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+#}}}
+#{{{ sph:test:cuda:2:
+sph:test:cuda:2:
+  stage: SPHtest
+  extends: .sph-test
+  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  needs: ['sph:install:cuda']
+  script:
+    - date
+  variables:
+    VARIANT: 'cuda'
+    RUN_VARIANT: '2'
+    PULL_IMAGE: 'YES'
+    CSCS_REGISTRY_LOGIN: 'YES'
+    SLURM_PARTITION: cscsci
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 2
+    SLURM_CONSTRAINT: 'gpu'
+    USE_MPI: 'YES'
+    # SLURM_TIMELIMIT=15:00
+    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+#}}}
+#{{{ sph:test:cuda:10:
+sph:test:cuda:10:
+#ubu:test_10:
+  stage: SPHtest
+  extends: .sph-test
+  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  needs: ['sph:install:cuda']
+  script:
+    - date
+  variables:
+    VARIANT: 'cuda'
+    RUN_VARIANT: '10'
+    PULL_IMAGE: 'YES'
+    CSCS_REGISTRY_LOGIN: 'YES'
+    SLURM_PARTITION: cscsci
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 10
+    SLURM_CONSTRAINT: 'gpu'
+    USE_MPI: 'YES'
+    # OMP_NUM_THREADS: 2
+    # SLURM_TIMELIMIT=15:00
+    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+#}}}
+#{{{ sph:test:cuda:p100:
+sph:test:cuda:p100:
+  stage: SPHtest
+  extends: .sph-test
+  #extends: .run-1
+  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  needs: ['sph:install:cuda']
+  #needs: ['build:ubu:gnu']
+  script:
+    - date
+  variables:
+    VARIANT: 'cuda'
+    RUN_VARIANT: 'p100'
+    PULL_IMAGE: 'YES'
+    CSCS_REGISTRY_LOGIN: 'YES'
+    SLURM_PARTITION: cscsci
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 1
+    SLURM_CONSTRAINT: 'gpu'
+    USE_MPI: 'YES'
+    # SLURM_TIMELIMIT=15:00
+    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+#}}}
