@@ -34,9 +34,9 @@
 
 #include <iostream>
 
-#include "Timer.hpp"
-#include "Task.hpp"
-#include "ParticlesData.hpp"
+#include "timer.hpp"
+#include "task.hpp"
+#include "particles_data.hpp"
 
 #include "cstone/domain/domain.hpp"
 

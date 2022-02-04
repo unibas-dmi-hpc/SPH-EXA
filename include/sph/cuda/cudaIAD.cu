@@ -1,7 +1,7 @@
 #include <algorithm>
 
 #include "sph.cuh"
-#include "ParticlesData.hpp"
+#include "particles_data.hpp"
 #include "cudaUtils.cuh"
 #include "../kernel/computeIAD.hpp"
 
