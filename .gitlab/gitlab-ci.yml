@@ -85,6 +85,7 @@ variables:
     - sed -i "s@GIT_TAG@#GIT_TAG @" ./domain/test/CMakeLists.txt.in
     #
     - if [ "$VARIANT" = "hip" ]; then
+        sed -i '1,7{s/^/### /}' ./src/sedov/CMakeLists.txt;
         echo "## hipify-perl";
         date;
         /usr/bin/time ./.gitlab/hipify.sh;
