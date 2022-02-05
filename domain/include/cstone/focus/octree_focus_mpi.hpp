@@ -187,6 +187,59 @@ public:
                                   octree().internalOrder(), quantities, commTag);
     }
 
+    /*! @brief exchange data of non-peer (beyond focus) tree cells
+     *
+     * @tparam        T            an arithmetic type, or compile-time fix-sized arrays thereof
+     * @param[in]     globalTree   the same global (replicated on all ranks) tree that was used for peer rank detection
+     * @param[inout]  quantities   an array of length octree().numTreeNodes()
+     *
+     * Precondition:  quantities contains valid data for each cell, including internal cells,
+     *                that falls into the focus range of the executing
+     *                rank
+     * Postcondition: each element of quantities corresponding to cells non-local and not owned by any of the peer
+     *                ranks contains data obtained through global collective communication between ranks
+     */
+    template<class T>
+    void globalExchange(const Octree<KeyType>& globalTree,
+                        gsl::span<T> quantities)
+    {
+        TreeNodeIndex numGlobalLeaves = globalTree.numLeafNodes();
+        std::vector<T> globalLeafQuantities(numGlobalLeaves);
+        // fetch local quantities into globalLeaves
+        gsl::span<const KeyType> globalLeaves = globalTree.treeLeaves();
+
+        TreeNodeIndex firstIdx = findNodeAbove(globalLeaves, prevFocusStart);
+        TreeNodeIndex lastIdx  = findNodeAbove(globalLeaves, prevFocusEnd);
+        assert(globalLeaves[firstIdx] == prevFocusStart);
+        assert(globalLeaves[lastIdx] == prevFocusEnd);
+
+        #pragma omp parallel for schedule(static)
+        for (TreeNodeIndex globalIdx = firstIdx; globalIdx < lastIdx; ++globalIdx)
+        {
+            TreeNodeIndex localIdx          = octree().locate(globalLeaves[globalIdx], globalLeaves[globalIdx + 1]);
+            globalLeafQuantities[globalIdx] = quantities[localIdx];
+            assert(octree().codeStart(localIdx) == globalLeaves[globalIdx]);
+            assert(octree().codeEnd(localIdx) == globalLeaves[globalIdx + 1]);
+        }
+        MPI_Allreduce(MPI_IN_PLACE, globalLeafQuantities.data(), numGlobalLeaves, MpiType<T>{}, MPI_SUM,
+                      MPI_COMM_WORLD);
+
+        std::vector<T> globalQuantities(globalTree.numTreeNodes());
+        upsweepSum<T>(globalTree, globalLeafQuantities, globalQuantities);
+
+        gsl::span<const KeyType> localLeaves = treeLeaves();
+        auto globalIndices = invertRanges(0, assignment_, octree().numLeafNodes());
+        for (auto range : globalIndices)
+        {
+            for (TreeNodeIndex i = range.start(); i < range.end(); ++i)
+            {
+                TreeNodeIndex globalIndex = globalTree.locate(localLeaves[i], localLeaves[i + 1]);
+                TreeNodeIndex internalIdx = octree().toInternal(i);
+                quantities[internalIdx]   = globalQuantities[globalIndex];
+            }
+        }
+    }
+
     /*! @brief Update the MAC criteria based on a min distance MAC
      *
      * @tparam    T                float or double

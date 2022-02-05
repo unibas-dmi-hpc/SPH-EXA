@@ -194,7 +194,7 @@ void exchangeTreeletGeneral(gsl::span<const int> peerRanks,
                             int commTag)
 {
     size_t numPeers = peerRanks.size();
-    std::vector<std::vector<unsigned>> sendBuffers;
+    std::vector<std::vector<T>> sendBuffers;
     sendBuffers.reserve(numPeers);
 
     std::vector<MPI_Request> sendRequests;

@@ -58,7 +58,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     const LocalIndex numParticles = 1000;
     unsigned bucketSize           = 64;
     unsigned bucketSizeLocal      = 16;
-    float theta                   = 1.0;
+    float theta                   = 10.0;
 
     Box<T> box{-1, 1};
 
@@ -101,17 +101,19 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     focusTree.converge(box, particleKeys, peers, assignment, tree, counts);
 
     const Octree<KeyType>& octree = focusTree.octree();
-    std::vector<unsigned> testCounts(octree.numTreeNodes());
+    std::vector<int> testCounts(octree.numTreeNodes(), -1);
 
     for (TreeNodeIndex i = 0; i < octree.numTreeNodes(); ++i)
     {
-        if (octree.isLeaf(i))
+        KeyType nodeStart = octree.codeStart(i);
+        KeyType nodeEnd   = octree.codeEnd(i);
+        bool inFocus      = focusStart <= nodeStart && nodeEnd <= focusEnd;
+
+        if (octree.isLeaf(i) && inFocus)
         {
-            KeyType nodeStart = octree.codeStart(i);
-            KeyType nodeEnd   = octree.codeEnd(i);
             testCounts[i] =
                 calculateNodeCount(nodeStart, nodeEnd, particleKeys.data(), particleKeys.data() + particleKeys.size(),
-                                   std::numeric_limits<unsigned>::max());
+                                   std::numeric_limits<int>::max());
         }
     }
 
@@ -119,7 +121,8 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     { return a + b + c + d + e + f + g + h; };
     upsweep(octree, testCounts.data(), sumFunction);
 
-    focusTree.template peerExchange<unsigned>(peers, testCounts, static_cast<int>(P2pTags::focusPeerCounts) + 2);
+    focusTree.template peerExchange<int>(peers, testCounts, static_cast<int>(P2pTags::focusPeerCounts) + 2);
+    focusTree.template globalExchange<int>(domainTree, testCounts);
     upsweep(octree, testCounts.data(), sumFunction);
 
     {
@@ -130,7 +133,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
 
             unsigned referenceCount = calculateNodeCount(nodeStart, nodeEnd, coords.particleKeys().data(),
                                                          coords.particleKeys().data() + coords.particleKeys().size(),
-                                                         std::numeric_limits<unsigned>::max());
+                                                         std::numeric_limits<int>::max());
             EXPECT_EQ(testCounts[i], referenceCount);
         }
     }
