@@ -1,7 +1,7 @@
 #ifndef AscentAdaptor_h
 #define AscentAdaptor_h
 
-#include "ParticlesData.hpp"
+#include "particles_data.hpp"
 
 #include <ascent/ascent.hpp>
 #include "conduit_blueprint.hpp"
@@ -21,7 +21,7 @@ namespace AscentAdaptor
   ascent::Ascent a;
   conduit::Node actions;
         
-void Initialize(Dataset d, long startIndex)
+void Initialize(Dataset d, [[maybe_unused]] long startIndex)
 {
   conduit::Node ascent_options;
   //ascent_options["default_dir"] = "/scratch/snx3000/jfavre/DummySPH/datasets";

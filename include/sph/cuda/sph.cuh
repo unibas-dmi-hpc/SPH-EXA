@@ -2,7 +2,7 @@
 
 #include <vector>
 
-#include "Task.hpp"
+#include "task.hpp"
 #include "cudaParticlesData.cuh"
 #include "cstone/sfc/box.hpp"
 

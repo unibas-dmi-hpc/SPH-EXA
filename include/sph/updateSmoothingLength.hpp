@@ -1,7 +1,7 @@
 #pragma once
 
 #include <vector>
-#include "Task.hpp"
+#include "task.hpp"
 
 namespace sphexa
 {

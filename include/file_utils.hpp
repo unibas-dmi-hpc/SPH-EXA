@@ -4,9 +4,9 @@
 #include <vector>
 
 #ifdef USE_MPI
-#include "MPIFileUtils.hpp"
+#include "mpi_file_utils.hpp"
 #endif
-#include "Exceptions.hpp"
+#include "exceptions.hpp"
 
 namespace sphexa
 {

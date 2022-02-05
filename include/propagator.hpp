@@ -34,9 +34,9 @@
 
 #include <iostream>
 
-#include "Timer.hpp"
-#include "Task.hpp"
-#include "ParticlesData.hpp"
+#include "timer.hpp"
+#include "task.hpp"
+#include "particles_data.hpp"
 
 #include "cstone/domain/domain.hpp"
 
@@ -48,27 +48,13 @@ using namespace sphexa::sph;
 
 class Propagator
 {
-
-private:
-    const size_t nTasks;
-    const size_t ngmax;
-    const size_t ng0;
-
 public:
-    TaskList taskList;
-    MasterProcessTimer timer;
-
-    Propagator(const size_t nTasks, const size_t ngmax, const size_t ng0, const size_t nParticles, std::ostream& output,
-               const size_t rank)
-        : nTasks(nTasks)
-        , ngmax(ngmax)
-        , ng0(ng0)
-        , taskList(0, nParticles, nTasks, ngmax, ng0)
+    Propagator(const size_t nTasks, const size_t ngmax, const size_t ng0, std::ostream& output, const size_t rank)
+        : taskList(nTasks, ngmax, ng0)
         , timer(output, rank)
+        , output_(output)
     {
     }
-
-    size_t neighbors() { return neighborsSum(taskList.tasks); }
 
     template<class DomainType, class ParticleDataType>
     void hydroStep(DomainType& domain, ParticleDataType& d)
@@ -125,6 +111,8 @@ public:
         timer.step("UpdateSmoothingLength");
 
         timer.stop();
+
+        printIterationTimings(domain, d);
     }
 
     template<class DomainType, class ParticleDataType>
@@ -187,5 +175,38 @@ public:
         timer.step("UpdateSmoothingLength");
 
         timer.stop();
+
+        printIterationTimings(domain, d);
+    }
+
+private:
+    TaskList taskList;
+    MasterProcessTimer timer;
+    std::ostream& output_;
+
+    template<class DomainType, class ParticleDataType>
+    void printIterationTimings(const DomainType& domain, const ParticleDataType& d)
+    {
+        size_t totalNeighbors = neighborsSum(taskList.tasks);
+
+        if (d.rank == 0)
+        {
+            Printer::printCheck(d.ttot,
+                                d.minDt,
+                                d.etot,
+                                d.eint,
+                                d.ecin,
+                                d.egrav,
+                                domain.box(),
+                                d.n,
+                                domain.nParticles(),
+                                nNodes(domain.tree()),
+                                domain.nParticlesWithHalos() - domain.nParticles(),
+                                totalNeighbors,
+                                output_);
+
+            std::cout << "### Check ### Focus Tree Nodes: " << nNodes(domain.focusTree()) << std::endl;
+            Printer::printTotalIterationTime(d.iteration, timer.duration(), output_);
+        }
     }
 };

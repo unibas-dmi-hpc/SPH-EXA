@@ -36,7 +36,7 @@
 #include <filesystem>
 #include <algorithm>
 
-#include "ArgParser.hpp"
+#include "arg_parser.hpp"
 #include "sedov/SedovDataGenerator.hpp"
 
 #include "particle.hpp"

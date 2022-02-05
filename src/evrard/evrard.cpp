@@ -11,35 +11,22 @@
 #include "cstone/domain/domain.hpp"
 
 #include "sphexa.hpp"
+#include "sph/findNeighborsSfc.hpp"
 #include "EvrardCollapseInputFileReader.hpp"
 #include "EvrardCollapseFileWriter.hpp"
 
-#include "sph/findNeighborsSfc.hpp"
-
 #include "propagator.hpp"
+#include "insitu_viz.h"
 
 using namespace cstone;
 using namespace sphexa;
 using namespace sphexa::sph;
-
-#ifdef SPH_EXA_USE_CATALYST2
-#include "CatalystAdaptor.h"
-#endif
-
-#ifdef SPH_EXA_USE_ASCENT
-#include "AscentAdaptor.h"
-#endif
 
 void printHelp(char* binName, int rank);
 
 int main(int argc, char** argv)
 {
     const int rank = initAndGetRankId();
-
-#ifdef SPH_EXA_USE_CATALYST2
-    CatalystAdaptor::Initialize(argc, argv);
-    std::cout << "CatalystInitialize\n";
-#endif
 
     const ArgParser parser(argc, argv);
 
@@ -90,13 +77,11 @@ int main(int argc, char** argv)
 
     float theta = 0.5;
 
-#ifdef USE_CUDA
-    using DomainType = Domain<KeyType, Real, CudaTag>;
-    DomainType domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#else
-    using DomainType = Domain<KeyType, Real>;
-    DomainType domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#endif
+    #ifdef USE_CUDA
+    DomainType<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    #else
+    Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    #endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 
@@ -105,16 +90,14 @@ int main(int argc, char** argv)
 
     if (d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
-#ifdef SPH_EXA_USE_ASCENT
-    AscentAdaptor::Initialize(d, domain.startIndex());
-    std::cout << "AscentInitialize\n";
-#endif
+    viz::init_catalyst(argc, argv);
+    viz::init_ascent(d, domain.startIndex());
 
     const size_t nTasks = 64;
     const size_t ngmax  = 150;
     const size_t ng0    = 100;
 
-    Propagator propagator(nTasks, ngmax, ng0, domain.nParticles(), output, d.rank);
+    Propagator propagator(nTasks, ngmax, ng0, output, d.rank);
 
     if (d.rank == 0) std::cout << "Starting main loop." << std::endl;
 
@@ -123,41 +106,19 @@ int main(int argc, char** argv)
     {
         propagator.hydroStepGravity(domain, d);
 
-        size_t totalNeighbors = neighborsSum(propagator.taskList.tasks);
-
-        if (d.rank == 0)
-        {
-            Printer::printCheck(d.ttot,
-                                d.minDt,
-                                d.etot,
-                                d.eint,
-                                d.ecin,
-                                d.egrav,
-                                domain.box(),
-                                d.n,
-                                domain.nParticles(),
-                                nNodes(domain.tree()),
-                                d.x.size() - domain.nParticles(),
-                                totalNeighbors,
-                                output);
-
-            std::cout << "### Check ### Focus Tree Nodes: " << nNodes(domain.focusTree()) << std::endl;
-
-            Printer::printConstants(
-                d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, totalNeighbors, constantsFile);
-        }
+        Printer::printConstants(d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, constantsFile);
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-#ifdef SPH_EXA_HAVE_H5PART
+            #ifdef SPH_EXA_HAVE_H5PART
             fileWriter.dumpParticleDataToH5File(
                 d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_evrard.h5part");
-#else
+            #else
             fileWriter.dumpParticleDataToAsciiFile(d,
                                                    domain.startIndex(),
                                                    domain.endIndex(),
                                                    outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".txt");
-#endif
+            #endif
         }
 
         if (checkpointFrequency > 0 && d.iteration % checkpointFrequency == 0)
@@ -166,29 +127,13 @@ int main(int argc, char** argv)
                 d, outDirectory + "checkpoint_evrard" + std::to_string(d.iteration) + ".bin");
         }
 
-        if (d.rank == 0) { Printer::printTotalIterationTime(d.iteration, propagator.timer.duration(), output); }
-
-#ifdef SPH_EXA_USE_CATALYST2
-        CatalystAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
-#endif
-
-#ifdef SPH_EXA_USE_ASCENT
-        if (d.iteration % 5 == 0) { AscentAdaptor::Execute(d, domain.startIndex(), domain.endIndex()); }
-#endif
+        if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
     }
 
     totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Evrard");
 
     constantsFile.close();
-
-#ifdef SPH_EXA_USE_CATALYST2
-    CatalystAdaptor::Finalize();
-#endif
-
-#ifdef SPH_EXA_USE_ASCENT
-    AscentAdaptor::Finalize();
-#endif
-
+    viz::finalize();
     return exitSuccess();
 }
 

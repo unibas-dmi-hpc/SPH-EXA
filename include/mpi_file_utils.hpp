@@ -2,7 +2,7 @@
 
 #include <mpi.h>
 
-#include "Exceptions.hpp"
+#include "exceptions.hpp"
 
 #ifdef SPH_EXA_HAVE_H5PART
 # include <filesystem>
