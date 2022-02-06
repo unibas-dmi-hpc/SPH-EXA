@@ -156,3 +156,23 @@ auto mpiRecvAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request
 
     return mpiRecvAsync(ptr, count * N, rank, tag, requests);
 }
+
+template<class Ts, class Td, std::enable_if_t<std::is_arithmetic_v<Td>, int> = 0>
+auto mpiAllreduce(const Ts* src, Td* dest, int count, MPI_Op op)
+{
+    return MPI_Allreduce(src, dest, count, MpiType<Td>{}, op, MPI_COMM_WORLD);
+}
+
+//! @brief adaptor to wrap compile-time size arrays into flattened arrays of the underlying type
+template<class Ts, class Td, std::enable_if_t<Td{}.size() != 0, int> = 0>
+auto mpiAllreduce(const Ts* src, Td* dest, int count, MPI_Op op)
+{
+    using ValueType    = typename Td::value_type;
+    constexpr size_t N = Td{}.size();
+
+    using SrcType = std::conditional_t<std::is_same_v<void, Ts>, void, ValueType>;
+    auto src_ptr  = reinterpret_cast<const SrcType*>(src);
+    auto dest_ptr = reinterpret_cast<ValueType*>(dest);
+
+    return mpiAllreduce(src_ptr, dest_ptr, count * N, op);
+}

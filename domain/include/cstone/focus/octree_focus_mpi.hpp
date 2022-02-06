@@ -221,8 +221,7 @@ public:
             assert(octree().codeStart(localIdx) == globalLeaves[globalIdx]);
             assert(octree().codeEnd(localIdx) == globalLeaves[globalIdx + 1]);
         }
-        MPI_Allreduce(MPI_IN_PLACE, globalLeafQuantities.data(), numGlobalLeaves, MpiType<T>{}, MPI_SUM,
-                      MPI_COMM_WORLD);
+        mpiAllreduce(MPI_IN_PLACE, globalLeafQuantities.data(), numGlobalLeaves, MPI_SUM);
 
         std::vector<T> globalQuantities(globalTree.numTreeNodes());
         upsweepSum<T>(globalTree, globalLeafQuantities, globalQuantities);
