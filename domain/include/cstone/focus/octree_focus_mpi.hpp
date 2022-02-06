@@ -190,6 +190,7 @@ public:
     /*! @brief exchange data of non-peer (beyond focus) tree cells
      *
      * @tparam        T            an arithmetic type, or compile-time fix-sized arrays thereof
+     * @tparam        F            function object for octree upsweep
      * @param[in]     globalTree   the same global (replicated on all ranks) tree that was used for peer rank detection
      * @param[inout]  quantities   an array of length octree().numTreeNodes()
      *
@@ -199,9 +200,10 @@ public:
      * Postcondition: each element of quantities corresponding to cells non-local and not owned by any of the peer
      *                ranks contains data obtained through global collective communication between ranks
      */
-    template<class T>
+    template<class T, class F>
     void globalExchange(const Octree<KeyType>& globalTree,
-                        gsl::span<T> quantities)
+                        gsl::span<T> quantities,
+                        F upsweepFunction)
     {
         TreeNodeIndex numGlobalLeaves = globalTree.numLeafNodes();
         std::vector<T> globalLeafQuantities(numGlobalLeaves);
@@ -224,7 +226,7 @@ public:
         mpiAllreduce(MPI_IN_PLACE, globalLeafQuantities.data(), numGlobalLeaves, MPI_SUM);
 
         std::vector<T> globalQuantities(globalTree.numTreeNodes());
-        upsweepSum<T>(globalTree, globalLeafQuantities, globalQuantities);
+        upsweep<T>(globalTree, globalLeafQuantities, globalQuantities, upsweepFunction);
 
         gsl::span<const KeyType> localLeaves = treeLeaves();
         auto globalIndices = invertRanges(0, assignment_, octree().numLeafNodes());
