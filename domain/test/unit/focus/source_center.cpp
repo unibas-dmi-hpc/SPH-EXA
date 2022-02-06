@@ -39,6 +39,38 @@
 namespace cstone
 {
 
+TEST(FocusedOctree, sourceCenter)
+{
+    using T = double;
+
+    {
+        std::vector<T> x{-1, 2};
+        std::vector<T> y{0, 0};
+        std::vector<T> z{0, 0};
+        std::vector<T> m{1, 1};
+
+        SourceCenterType<T> probe = massCenter<T, T, T>(x, y, z, m, 0, 2);
+        SourceCenterType<T> reference{0.5, 0, 0, 2};
+        EXPECT_NEAR(probe[0], reference[0], 1e-10);
+        EXPECT_NEAR(probe[1], reference[1], 1e-10);
+        EXPECT_NEAR(probe[2], reference[2], 1e-10);
+        EXPECT_NEAR(probe[3], reference[3], 1e-10);
+    }
+    {
+        std::vector<T> x{0, 0, 0, 0, 1, 1, 1, 1};
+        std::vector<T> y{0, 0, 1, 1, 0, 0, 1, 1};
+        std::vector<T> z{0, 1, 0, 1, 0, 1, 0, 1};
+        std::vector<T> m{2, 2, 2, 2, 2, 2, 2, 2};
+
+        SourceCenterType<T> probe = massCenter<T, T, T>(x, y, z, m, 0, 8);
+        SourceCenterType<T> reference{0.5, 0.5, 0.5, 16};
+        EXPECT_NEAR(probe[0], reference[0], 1e-10);
+        EXPECT_NEAR(probe[1], reference[1], 1e-10);
+        EXPECT_NEAR(probe[2], reference[2], 1e-10);
+        EXPECT_NEAR(probe[3], reference[3], 1e-10);
+    }
+}
+
 template<class KeyType>
 static void computeSourceCenter()
 {
@@ -59,19 +91,17 @@ static void computeSourceCenter()
 
     computeLeafMassCenter<double, double, double, KeyType>(coords.x(), coords.y(), coords.z(), masses,
                                                            coords.particleKeys(), octree, centers);
-    upsweepMassCenter<double, KeyType>(octree, centers);
+    upsweep(octree, centers.data(), CombineSourceCenter<double>{});
 
     util::array<double, 4> refRootCenter =
         massCenter<double, double, double>(coords.x(), coords.y(), coords.z(), masses, 0, numParticles);
 
     TreeNodeIndex rootNode = octree.levelOffset(0);
-    std::cout << centers[rootNode][3] << std::endl;
-    std::cout << refRootCenter[3] << std::endl;
 
     EXPECT_NEAR(centers[rootNode][3], refRootCenter[3], 1e-8);
 }
 
-TEST(FocusedOctree, sourceCenter)
+TEST(FocusedOctree, sourceCenterUpsweep)
 {
     computeSourceCenter<unsigned>();
     computeSourceCenter<uint64_t>();

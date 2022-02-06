@@ -37,47 +37,25 @@
 namespace cstone
 {
 
-template<class Ts, class Tc, class Tm>
-util::array<Ts, 4> massCenter(gsl::span<const Tc> x,
-                              gsl::span<const Tc> y,
-                              gsl::span<const Tc> z,
-                              gsl::span<const Tm> m,
-                              LocalIndex first,
-                              LocalIndex last)
+template<class T>
+using SourceCenterType = util::array<T, 4>;
+
+//! @brief add a single body contribution to a mass center
+template<class T>
+void addBody(SourceCenterType<T>& center, const SourceCenterType<T>& source)
 {
-    util::array<Ts, 4> center{0, 0, 0, 0};
-    for (LocalIndex i = first; i < last; ++i)
-    {
-        Tm weight = m[i];
+    T weight = source[3];
 
-        center[0] += weight * x[i];
-        center[1] += weight * y[i];
-        center[2] += weight * z[i];
-        center[3] += weight;
-    }
-    Tm invM = (center[3] != Tm(0.0)) ? Tm(1.0) / center[3] : Tm(0.0);
-    center[0] *= invM;
-    center[1] *= invM;
-    center[2] *= invM;
-
-    return center;
+    center[0] += weight * source[0];
+    center[1] += weight * source[1];
+    center[2] += weight * source[2];
+    center[3] += weight;
 }
 
+//! @brief finish mass center computation by diving coordinates by total mass
 template<class T>
-util::array<T, 4> massCenter(const util::array<T, 4>* firstSource, const util::array<T, 4>* lastSource)
+SourceCenterType<T> normalizeMass(SourceCenterType<T> center)
 {
-    util::array<T, 4> center{0, 0, 0, 0};
-    for ( ; firstSource != lastSource; ++firstSource)
-    {
-        auto source = *firstSource;
-        T weight = source[3];
-
-        center[0] += weight * source[0];
-        center[1] += weight * source[1];
-        center[2] += weight * source[2];
-        center[3] += weight;
-    }
-
     T invM = (center[3] != T(0.0)) ? T(1.0) / center[3] : T(0.0);
     center[0] *= invM;
     center[1] *= invM;
@@ -85,6 +63,50 @@ util::array<T, 4> massCenter(const util::array<T, 4>* firstSource, const util::a
 
     return center;
 }
+
+//! @brief compute a mass center from particles
+template<class Ts, class Tc, class Tm>
+SourceCenterType<Ts> massCenter(gsl::span<const Tc> x,
+                                gsl::span<const Tc> y,
+                                gsl::span<const Tc> z,
+                                gsl::span<const Tm> m,
+                                LocalIndex first,
+                                LocalIndex last)
+{
+    SourceCenterType<Ts> center{0, 0, 0, 0};
+    for (LocalIndex i = first; i < last; ++i)
+    {
+        addBody(center, SourceCenterType<Ts>{Ts(x[i]), Ts(y[i]), Ts(z[i]), Ts(m[i])});
+    }
+
+    return normalizeMass(center);
+}
+
+//! @brief compute a mass center from other mass centers for use in tree upsweep
+template<class T>
+struct CombineSourceCenter
+{
+    SourceCenterType<T> operator()(const SourceCenterType<T>& a,
+                                   const SourceCenterType<T>& b,
+                                   const SourceCenterType<T>& c,
+                                   const SourceCenterType<T>& d,
+                                   const SourceCenterType<T>& e,
+                                   const SourceCenterType<T>& f,
+                                   const SourceCenterType<T>& g,
+                                   const SourceCenterType<T>& h)
+    {
+        SourceCenterType<T> center{0, 0, 0, 0};
+        addBody(center, a);
+        addBody(center, b);
+        addBody(center, c);
+        addBody(center, d);
+        addBody(center, e);
+        addBody(center, f);
+        addBody(center, g);
+        addBody(center, h);
+        return normalizeMass(center);
+    }
+};
 
 template<class T1, class T2, class T3, class KeyType>
 void computeLeafMassCenter(gsl::span<const T1> x,
@@ -108,27 +130,6 @@ void computeLeafMassCenter(gsl::span<const T1> x,
             LocalIndex last  = findNodeAbove(particleKeys, nodeEnd);
 
             sourceCenter[nodeIdx] = massCenter<T3>(x, y, z, m, first, last);
-        }
-    }
-}
-
-template<class T, class KeyType>
-void upsweepMassCenter(const Octree<KeyType>& octree, gsl::span<util::array<T, 4>> centers)
-{
-    int currentLevel = maxTreeLevel<KeyType>{};
-
-    for ( ; currentLevel >= 0; --currentLevel)
-    {
-        TreeNodeIndex start = octree.levelOffset(currentLevel);
-        TreeNodeIndex end   = octree.levelOffset(currentLevel + 1);
-        #pragma omp parallel for schedule(static)
-        for (TreeNodeIndex i = start; i < end; ++i)
-        {
-            if (!octree.isLeaf(i))
-            {
-                auto* first = centers.data() + octree.child(i, 0);
-                centers[i] = massCenter(first, first + 8);
-            }
         }
     }
 }
