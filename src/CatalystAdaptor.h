@@ -44,13 +44,13 @@ using Real = double;
 using CodeType = uint64_t;
 using Dataset = ParticlesData<Real, CodeType>;
 
-void Execute(Dataset d, long startIndex, long endIndex)
+void Execute(Dataset &d, long startIndex, long endIndex)
 {
   conduit_cpp::Node exec_params;
   // add time/cycle information
   auto state = exec_params["catalyst/state"];
-  state["timestep"].set(d.iteration);
-  state["time"].set(d.ttot);
+  state["timestep"].set_external(&d.iteration);
+  state["time"].set_external(&d.ttot);
 
   // We only have 1 channel here. Let's name it 'grid'.
   auto channel = exec_params["catalyst/channels/grid"];
