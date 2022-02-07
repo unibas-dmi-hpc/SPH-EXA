@@ -44,11 +44,6 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     T sincIndex = d.sincIndex;
 
 #if defined(USE_OMP_TARGET)
-    // Apparently Cray with -O2 has a bug when calling target regions in a loop. (and computeIADImpl can be called in a loop).
-    // A workaround is to call some method or allocate memory to either prevent buggy optimization or other side effect.
-    // with -O1 there is no problem
-    // Tested with Cray 8.7.3 with NVIDIA Tesla P100 on PizDaint
-    std::vector<T> imHereBecauseOfCrayCompilerO2Bug(4, 10);
     const int np = d.x.size();
     const size_t ltsize = d.wh.size();
     const size_t n = numParticles;
@@ -62,17 +57,6 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
                        : c11[:n], c12[:n], c13[:n], c22[:n], c23[:n], c33[:n])
 // clang-format on
 #pragma omp teams distribute parallel for // dist_schedule(guided)
-#elif defined(USE_ACC)
-    const int np = d.x.size();
-    const size_t ltsize = d.wh.size();
-    const size_t n = numParticles;
-    const size_t allNeighbors = n * ngmax;
-// clang-format off
-#pragma acc parallel loop copyin(neighbors [0:allNeighbors], neighborsCount [0:n],                                            \
-                                  x [0:np], y [0:np], z [0:np], h [0:np], m [0:np], ro [0:np], wh[0:ltsize], whd[0:ltsize])                                             \
-                           copyout(c11 [:n], c12 [:n], c13 [:n], c22 [:n], c23 [:n],                                                       \
-                                   c33 [:n])
-// clang-format on
 #else
 #pragma omp parallel for schedule(guided)
 #endif

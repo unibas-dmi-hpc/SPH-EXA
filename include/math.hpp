@@ -1,10 +1,6 @@
 #pragma once
 
-#ifdef USE_ACC
-#include <accelmath.h>
-#else
 #include <cmath>
-#endif
 
 #include <cstdio>
 #include <array>
