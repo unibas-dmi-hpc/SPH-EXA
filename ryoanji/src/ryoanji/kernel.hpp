@@ -57,7 +57,8 @@ struct Index
 {
     static constexpr int I      = Index<nx, ny + 1, nz - 1>::I + 1;
     static constexpr uint64_t F = Index<nx, ny, nz - 1>::F * nz;
-    static __host__ __device__ __forceinline__ float power(const fvec3& dX)
+    template<class T>
+    static __host__ __device__ __forceinline__ T power(const Vec3<T>& dX)
     {
         return Index<nx, ny, nz - 1>::power(dX) * dX[2];
     }
@@ -69,7 +70,8 @@ struct Index<nx, ny, 0>
     static constexpr int I      = Index<nx + 1, 0, ny - 1>::I + 1;
     static constexpr uint64_t F = Index<nx, ny - 1, 0>::F * ny;
 
-    static __host__ __device__ __forceinline__ float power(const fvec3& dX)
+    template<class T>
+    static __host__ __device__ __forceinline__ T power(const Vec3<T>& dX)
     {
         return Index<nx, ny - 1, 0>::power(dX) * dX[1];
     }
@@ -81,7 +83,8 @@ struct Index<nx, 0, 0>
     static constexpr int I      = Index<0, 0, nx - 1>::I + 1;
     static constexpr uint64_t F = Index<nx - 1, 0, 0>::F * nx;
 
-    static __host__ __device__ __forceinline__ float power(const fvec3& dX)
+    template<class T>
+    static __host__ __device__ __forceinline__ T power(const Vec3<T>& dX)
     {
         return Index<nx - 1, 0, 0>::power(dX) * dX[0];
     }
@@ -93,7 +96,8 @@ struct Index<0, 0, 0>
     static constexpr int I      = 0;
     static constexpr uint64_t F = 1;
 
-    static __host__ __device__ __forceinline__ float power(const fvec3&) { return 1.0f; }
+    template<class T>
+    static __host__ __device__ __forceinline__ T power(const Vec3<T>&) { return T(1.0); }
 };
 
 template<int n>
@@ -101,7 +105,8 @@ struct DerivativeTerm
 {
     static constexpr int c = 1 - 2 * n;
 
-    static __host__ __device__ __forceinline__ void invR(float* invRN, const float& invR2)
+    template<class T>
+    static __host__ __device__ __forceinline__ void invR(T* invRN, const T& invR2)
     {
         DerivativeTerm<n - 1>::invR(invRN, invR2);
         invRN[n] = c * invRN[n - 1] * invR2;
@@ -111,7 +116,8 @@ struct DerivativeTerm
 template<>
 struct DerivativeTerm<0>
 {
-    static __host__ __device__ __forceinline__ void invR(float*, const float&) {}
+    template<class T>
+    static __host__ __device__ __forceinline__ void invR(T*, const T&) {}
 };
 
 template<int depth, int nx, int ny, int nz, int flag>
