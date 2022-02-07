@@ -2,7 +2,7 @@
 
 #include "cstone/findneighbors.hpp"
 
-#include "Task.hpp"
+#include "task.hpp"
 
 namespace sphexa
 {

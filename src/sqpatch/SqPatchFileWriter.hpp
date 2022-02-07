@@ -1,6 +1,6 @@
 #pragma once
 
-#include "IFileWriter.hpp"
+#include "ifile_writer.hpp"
 
 namespace sphexa
 {

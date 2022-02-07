@@ -4,11 +4,11 @@
 #include "mpi.h"
 #endif
 
-#include "Task.hpp"
-#include "ArgParser.hpp"
-#include "Timer.hpp"
-#include "FileUtils.hpp"
-#include "Printer.hpp"
+#include "task.hpp"
+#include "arg_parser.hpp"
+#include "timer.hpp"
+#include "file_utils.hpp"
+#include "printer.hpp"
 #include "utils.hpp"
 
 #if defined(USE_CUDA)
