@@ -72,8 +72,8 @@ int main(int argc, char** argv)
 
     int highestLevel = treeBuilder.extract(rawPtr(sources.data()), levelRange.data()) ;
 
-    thrust::device_vector<fvec4> sourceCenter(numSources);
-    thrust::device_vector<fvec4> Multipole(NVEC4 * numSources);
+    thrust::device_vector<fvec4>                        sourceCenter(numSources);
+    thrust::device_vector<SphericalMultipole<float, P>> Multipole(NVEC4 * numSources);
 
     ryoanji::upsweep(sources.size(),
                      highestLevel,
@@ -99,7 +99,7 @@ int main(int argc, char** argv)
                                                       rawPtr(bodyAcc.data()),
                                                       rawPtr(sources.data()),
                                                       rawPtr(sourceCenter.data()),
-                                                      rawPtr(Multipole.data()),
+                                                      (fvec4*)rawPtr(Multipole.data()),
                                                       levelRange.data());
 
     auto t1      = std::chrono::high_resolution_clock::now();

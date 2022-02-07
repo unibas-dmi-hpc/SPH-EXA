@@ -71,9 +71,10 @@ void checkBodyIndexing(int numBodies, CellData* tree, int numSources)
     EXPECT_EQ(std::count(begin(bodyIndexed), end(bodyIndexed), 1), numBodies);
 }
 
+template<class MType>
 void checkUpsweep(const Box& box, const thrust::host_vector<CellData>& sources,
                   const thrust::host_vector<fvec4>& sourceCenter, const thrust::host_vector<fvec4>& h_bodies,
-                  const thrust::host_vector<fvec4>& Multipole)
+                  const thrust::host_vector<MType>& Multipole)
 {
     cstone::Box<float> csBox(box.X[0] - box.R, box.X[0] + box.R,
                              box.X[1] - box.R, box.X[1] + box.R,
@@ -111,7 +112,7 @@ void checkUpsweep(const Box& box, const thrust::host_vector<CellData>& sources,
             }
 
             // each multipole should have the total mass of referenced bodies in the first entry
-            EXPECT_NEAR(cellMass, Multipole[i * NVEC4][0], 1e-5);
+            EXPECT_NEAR(cellMass, Multipole[i][0], 1e-5);
         }
         else
         {
@@ -146,7 +147,7 @@ TEST(Buildtree, cstone)
     h_bodies = bodyPos;
 
     thrust::device_vector<fvec4> sourceCenter(numSources);
-    thrust::device_vector<fvec4> Multipole(NVEC4 * numSources);
+    thrust::device_vector<SphericalMultipole<float, 4>> Multipole(numSources);
 
     ryoanji::upsweep(numSources,
                      highestLevel,
@@ -157,9 +158,10 @@ TEST(Buildtree, cstone)
                      rawPtr(sourceCenter.data()),
                      rawPtr(Multipole.data()));
 
-    thrust::host_vector<CellData> h_sources = sources;
-    thrust::host_vector<fvec4> h_sourceCenter = sourceCenter;
-    thrust::host_vector<fvec4> h_Multipole = Multipole;
+    thrust::host_vector<CellData> h_sources      = sources;
+    thrust::host_vector<fvec4>    h_sourceCenter = sourceCenter;
+
+    thrust::host_vector<SphericalMultipole<float, 4>> h_Multipole = Multipole;
 
     checkBodyIndexing(numBodies, h_sources.data(), numSources);
     checkUpsweep(box, h_sources, h_sourceCenter, h_bodies, h_Multipole);
