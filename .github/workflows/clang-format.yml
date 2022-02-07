@@ -1,0 +1,26 @@
+name: Check C++ format
+
+on:
+  - push
+
+jobs:
+  check:
+    env:
+        TZ: Europe/Zurich
+        DEBIAN_FRONTEND: noninteractive
+    runs-on: ubuntu-20.04
+    steps:
+      #- name: apt
+      #  run: |
+      #    sudo apt install -y --no-install-recommends clang-format-12
+      - name: Checkout
+        uses: actions/checkout@v2
+      #- name: Checkout master
+      #  run: git fetch --no-tags --depth=1 origin +refs/heads/master:refs/heads/master
+      #- name: check pr
+      #  run: git log -n2
+      - name: clang-format
+        run: clang-format -i --style=file `find src include domain -type f`
+      - name: report formating issues (if any)
+        if: always()
+        run: git diff --color --exit-code

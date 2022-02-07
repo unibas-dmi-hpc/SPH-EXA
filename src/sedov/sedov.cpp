@@ -13,6 +13,7 @@
 #include "sph/findNeighborsSfc.hpp"
 #include "tests/test_file_writer.hpp"
 #include "propagator.hpp"
+#include "insitu_viz.h"
 
 #include "SedovDataGenerator.hpp"
 
@@ -20,25 +21,11 @@ using namespace cstone;
 using namespace sphexa;
 using namespace sphexa::sph;
 
-#ifdef SPH_EXA_USE_CATALYST2
-#include "CatalystAdaptor.h"
-#endif
-
-#ifdef SPH_EXA_USE_ASCENT
-#include "AscentAdaptor.h"
-#endif
-
 void printHelp(char* binName, int rank);
 
 int main(int argc, char** argv)
 {
     const int rank = initAndGetRankId();
-
-#ifdef SPH_EXA_USE_CATALYST2
-    CatalystAdaptor::Initialize(argc, argv);
-    std::cout << "CatalystInitialize\n";
-#endif
-
     const ArgParser parser(argc, argv);
 
     if (parser.exists("-h") || parser.exists("--h") || parser.exists("-help") || parser.exists("--help"))
@@ -79,11 +66,11 @@ int main(int argc, char** argv)
 
     float theta = 1.0;
 
-#ifdef USE_CUDA
+    #ifdef USE_CUDA
     Domain<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#else
+    #else
     Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#endif
+    #endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 
@@ -92,10 +79,8 @@ int main(int argc, char** argv)
 
     if (d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
-#ifdef SPH_EXA_USE_ASCENT
-    AscentAdaptor::Initialize(d, domain.startIndex());
-    std::cout << "AscentInitialize\n";
-#endif
+    viz::init_catalyst(argc, argv);
+    viz::init_ascent(d, domain.startIndex());
 
     const size_t nTasks = 64;
     const size_t ngmax  = 150;
@@ -114,52 +99,24 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-#ifdef SPH_EXA_HAVE_H5PART
+            #ifdef SPH_EXA_HAVE_H5PART
             fileWriter.dumpParticleDataToH5File(
-                d,
-                domain.startIndex(),
-                domain.endIndex(),
-                outDirectory + "dump_sedov.h5part");
-#else
-            fileWriter.dumpParticleDataToAsciiFile(
-                d,
-                domain.startIndex(),
-                domain.endIndex(),
-                outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".txt");
-#endif
+                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov.h5part");
+            #else
+            fileWriter.dumpParticleDataToAsciiFile(d,
+                                                   domain.startIndex(),
+                                                   domain.endIndex(),
+                                                   outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".txt");
+            #endif
         }
 
-#ifdef SPH_EXA_USE_CATALYST2
-        CatalystAdaptor::Execute(
-            d,
-            domain.startIndex(),
-            domain.endIndex());
-#endif
-
-#ifdef SPH_EXA_USE_ASCENT
-        if(d.iteration % 5 == 0)
-        {
-            AscentAdaptor::Execute(
-                d,
-                domain.startIndex(),
-                domain.endIndex());
-        }
-#endif
-
+        if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
     }
 
     totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Sedov");
 
     constantsFile.close();
-
-#ifdef SPH_EXA_USE_CATALYST2
-    CatalystAdaptor::Finalize();
-#endif
-
-#ifdef SPH_EXA_USE_ASCENT
-    AscentAdaptor::Finalize();
-#endif
-
+    viz::finalize();
     return exitSuccess();
 }
 
