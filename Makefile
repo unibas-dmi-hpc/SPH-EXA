@@ -44,7 +44,7 @@ NVCCLDFLAGS := $(GENCODE_FLAGS) -rdc=true
 CXXFLAGS += -O3 -Wall -Wextra -Wno-unknown-pragmas
 
 ifeq ($(ENV),gnu)
-	CXXFLAGS += -std=c++17 -fopenmp -fopenacc -march=native -mtune=native
+	CXXFLAGS += -std=c++17 -fopenmp -march=native -mtune=native
 endif
 
 ifeq ($(ENV),pgi)
@@ -107,14 +107,6 @@ ifdef SOLCODE
 	make solution
 endif
 
-mpi+omp+acc:
-	@mkdir -p $(BINDIR)
-	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(TESTCASE_FLAGS) -DUSE_ACC $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
-ifdef SOLCODE
-	make solution
-endif
-
 mpi+omp+cuda: $(BUILDDIR)/cuda_mpi.o $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
@@ -127,8 +119,7 @@ endif
 solution:
 	$(MPICXX) $(CXXFLAGS) $(INC) $(SOLCODE) -o $(BINDIR)/$(TESTCASE)_$@ $(LIB)
 
-#all: omp mpi+omp omp+cuda mpi+omp+cuda omp+target mpi+omp+target mpi+omp+acc
-all: mpi+omp mpi+omp+cuda mpi+omp+target mpi+omp+acc
+all: mpi+omp mpi+omp+cuda mpi+omp+target
 
 $(BUILDDIR)/cuda_mpi.o: $(TESTCODE)
 	@mkdir -p $(BUILDDIR)

@@ -55,10 +55,6 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     T sincIndex = d.sincIndex;
 
 #if defined(USE_OMP_TARGET)
-    // Apparently Cray with -O2 has a bug when calling target regions in a loop. (and computeMomentumAndEnergyIADImpl can be called in a
-    // loop). A workaround is to call some method or allocate memory to either prevent buggy optimization or other side effect. with -O1
-    // there is no problem Tested with Cray 8.7.3 with NVIDIA Tesla P100 on PizDaint
-    std::vector<T> imHereBecauseOfCrayCompilerO2Bug(4, 10);
     const int np = d.x.size();
     const size_t ltsize = d.wh.size();
     const size_t n = numParticles;
@@ -72,17 +68,6 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
                        : grad_P_x [:n], grad_P_y [:n], grad_P_z [:n], du [:n], maxvsignal[0:n])
 // clang-format on
 #pragma omp teams distribute parallel for
-#elif defined(USE_ACC)
-    const int np = d.x.size();
-    const size_t ltsize = d.wh.size();
-    const size_t n = numParticles;
-    const size_t allNeighbors = n * ngmax;
-// clang-format off
-#pragma acc parallel loop copyin(neighbors [0:allNeighbors], neighborsCount [0:n], x [0:np], y [0:np], z [0:np], vx [0:np],   \
-                                 vy [0:np], vz [0:np], h [0:np], m [0:np], ro [0:np], p [0:np], c [0:np], c11 [0:np], c12 [0:np],          \
-                                 c13 [0:np], c22 [0:np], c23 [0:np], c33 [0:np], wh[0:ltsize], whd[0:ltsize])                                                           \
-                          copyout(grad_P_x [:n], grad_P_y [:n], grad_P_z [:n], du [:n], maxvsignal[0:n])
-// clang-format on
 #else
 #pragma omp parallel for schedule(guided)
 #endif
