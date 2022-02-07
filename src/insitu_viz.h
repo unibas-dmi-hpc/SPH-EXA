@@ -26,7 +26,7 @@ template<class DataType>
 void init_ascent([[maybe_unused]] DataType& d, [[maybe_unused]] long startIndex)
 {
 #ifdef SPH_EXA_USE_ASCENT
-    AscentAdaptor::Initialize(d, domain.startIndex());
+    AscentAdaptor::Initialize(d, startIndex);
     std::cout << "AscentInitialize\n";
 #endif
 }
@@ -35,10 +35,10 @@ template<class DataType>
 void execute([[maybe_unused]] DataType& d, [[maybe_unused]] long startIndex, [[maybe_unused]] long endIndex)
 {
 #ifdef SPH_EXA_USE_CATALYST2
-    CatalystAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
+    CatalystAdaptor::Execute(d, startIndex, endIndex);
 #endif
 #ifdef SPH_EXA_USE_ASCENT
-    AscentAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
+    AscentAdaptor::Execute(d, startIndex, endIndex);
 #endif
 }
 
