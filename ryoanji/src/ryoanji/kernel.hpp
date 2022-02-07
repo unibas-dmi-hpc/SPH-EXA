@@ -38,7 +38,7 @@ namespace
 
 HOST_DEVICE_FUN DEVICE_INLINE float inverseSquareRoot(float x)
 {
-#if defined(__HIP_DEVICE_COMPILE__) || defined (__CUDA_ARCH__)
+#if defined(__HIP_DEVICE_COMPILE__) || defined(__CUDA_ARCH__)
     return rsqrtf(x);
 #else
     return 1.0f / std::sqrt(x);
@@ -47,7 +47,7 @@ HOST_DEVICE_FUN DEVICE_INLINE float inverseSquareRoot(float x)
 
 HOST_DEVICE_FUN DEVICE_INLINE double inverseSquareRoot(double x)
 {
-#if defined(__HIP_DEVICE_COMPILE__) || defined (__CUDA_ARCH__)
+#if defined(__HIP_DEVICE_COMPILE__) || defined(__CUDA_ARCH__)
     return rsqrt(x);
 #else
     return 1.0 / std::sqrt(x);
@@ -57,7 +57,7 @@ HOST_DEVICE_FUN DEVICE_INLINE double inverseSquareRoot(double x)
 template<int nx, int ny, int nz>
 struct Index
 {
-    static constexpr int I      = Index<nx, ny + 1, nz - 1>::I + 1;
+    static constexpr int      I = Index<nx, ny + 1, nz - 1>::I + 1;
     static constexpr uint64_t F = Index<nx, ny, nz - 1>::F * nz;
     template<class T>
     static HOST_DEVICE_FUN DEVICE_INLINE T power(const Vec3<T>& dX)
@@ -69,7 +69,7 @@ struct Index
 template<int nx, int ny>
 struct Index<nx, ny, 0>
 {
-    static constexpr int I      = Index<nx + 1, 0, ny - 1>::I + 1;
+    static constexpr int      I = Index<nx + 1, 0, ny - 1>::I + 1;
     static constexpr uint64_t F = Index<nx, ny - 1, 0>::F * ny;
 
     template<class T>
@@ -82,7 +82,7 @@ struct Index<nx, ny, 0>
 template<int nx>
 struct Index<nx, 0, 0>
 {
-    static constexpr int I      = Index<0, 0, nx - 1>::I + 1;
+    static constexpr int      I = Index<0, 0, nx - 1>::I + 1;
     static constexpr uint64_t F = Index<nx - 1, 0, 0>::F * nx;
 
     template<class T>
@@ -95,11 +95,14 @@ struct Index<nx, 0, 0>
 template<>
 struct Index<0, 0, 0>
 {
-    static constexpr int I      = 0;
+    static constexpr int      I = 0;
     static constexpr uint64_t F = 1;
 
     template<class T>
-    static HOST_DEVICE_FUN DEVICE_INLINE T power(const Vec3<T>&) { return T(1.0); }
+    static HOST_DEVICE_FUN DEVICE_INLINE T power(const Vec3<T>&)
+    {
+        return T(1.0);
+    }
 };
 
 template<int n>
@@ -119,7 +122,9 @@ template<>
 struct DerivativeTerm<0>
 {
     template<class T>
-    static HOST_DEVICE_FUN DEVICE_INLINE void invR(T*, const T&) {}
+    static HOST_DEVICE_FUN DEVICE_INLINE void invR(T*, const T&)
+    {
+    }
 };
 
 template<int depth, int nx, int ny, int nz, int flag>
@@ -463,9 +468,9 @@ HOST_DEVICE_FUN DEVICE_INLINE void P2M(int begin, int end, const Vec4<T>& center
 
     for (int i = begin; i < end; i++)
     {
-        fvec4 body = bodyPos[i];
-        fvec3 dX   = make_fvec3(center - body);
-        MType M;
+        Vec4<T> body = bodyPos[i];
+        Vec3<T> dX   = make_fvec3(center - body);
+        MType   M;
         M[0] = body[3];
         Kernels<0, 0, P - 1>::P2M(M, dX);
         Mi += M;
@@ -473,16 +478,16 @@ HOST_DEVICE_FUN DEVICE_INLINE void P2M(int begin, int end, const Vec4<T>& center
 }
 
 template<class T, class MType>
-HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xi, Vec4<T>* sourceCenter,
-                                             fvec4* Multipole, MType& Mi)
+HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xi, Vec4<T>* sourceCenter, MType* Multipole,
+                                       MType& Mi)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
 
     for (int i = begin; i < end; i++)
     {
-        MType Mj = *(MType*)&Multipole[NVEC4 * i];
-        fvec4 Xj = sourceCenter[i];
-        fvec3 dX = make_fvec3(Xi - Xj);
+        const MType& Mj = Multipole[i];
+        Vec4<T>      Xj = sourceCenter[i];
+        Vec3<T>      dX = make_fvec3(Xi - Xj);
         Kernels<0, 0, P - 1>::M2M(Mi, dX, Mj);
     }
 }
@@ -499,11 +504,11 @@ HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xi, Ve
 template<class T>
 HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> P2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, T q_j, T EPS2)
 {
-    Vec3<T> dX = pos_j - pos_i;
-    T R2 = norm2(dX) + EPS2;
-    T invR = inverseSquareRoot(R2);
-    T invR2 = invR * invR;
-    T invR1 = q_j * invR;
+    Vec3<T> dX    = pos_j - pos_i;
+    T       R2    = norm2(dX) + EPS2;
+    T       invR  = inverseSquareRoot(R2);
+    T       invR2 = invR * invR;
+    T       invR1 = q_j * invR;
 
     dX *= invR1 * invR2;
 
@@ -525,15 +530,14 @@ HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> P2P(Vec4<T> acc, const Vec3<T>& pos_i, con
  * @return        input acceleration plus contribution from this call
  */
 template<class T, class MType>
-HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> M2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, MType& M,
-                                                T EPS2)
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> M2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, MType& M, T EPS2)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
 
-    Vec3<T> dX = pos_i - pos_j;
-    T R2 = norm2(dX) + EPS2;
-    T invR = inverseSquareRoot(R2);
-    T invR2 = invR * invR;
+    Vec3<T> dX    = pos_i - pos_j;
+    T       R2    = norm2(dX) + EPS2;
+    T       invR  = inverseSquareRoot(R2);
+    T       invR2 = invR * invR;
 
     T invRN[P];
     invRN[0] = M[0] * invR;
@@ -557,7 +561,7 @@ HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> setCenter(const int begin, const int end, 
     for (int i = begin; i < end; i++)
     {
         Vec4<T> pos    = posGlob[i];
-        T weight = pos[3];
+        T       weight = pos[3];
 
         center[0] += weight * pos[0];
         center[1] += weight * pos[1];

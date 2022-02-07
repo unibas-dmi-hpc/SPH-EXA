@@ -56,20 +56,20 @@ struct UpsweepConfig
  * @param[out] cellXmax         coordinate maximum of each cell
  * @param[out] Multipole        output multipole of each cell
  */
-__global__ void upwardPass(const int firstCell, const int lastCell, CellData* cells, const fvec4* bodyPos,
-                           fvec4* sourceCenter, fvec3* cellXmin, fvec3* cellXmax,
-                           fvec4* Multipole)
+template<class T, class MType>
+__global__ void upwardPass(const int firstCell, const int lastCell, CellData* cells, const Vec4<T>* bodyPos,
+                           Vec4<T>* sourceCenter, Vec3<T>* cellXmin, Vec3<T>* cellXmax, MType* Multipole)
 {
     const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x + firstCell;
     if (cellIdx >= lastCell) return;
     CellData& cell = cells[cellIdx];
-    const float huge    = 1e10f;
-    fvec3 Xmin{+huge, +huge, +huge};
-    fvec3 Xmax{-huge, -huge, -huge};
-    fvec4 center;
-    float M[4 * NVEC4];
+    const T   huge = T(1e10);
+    Vec3<T>   Xmin{+huge, +huge, +huge};
+    Vec3<T>   Xmax{-huge, -huge, -huge};
+    Vec4<T>   center;
+    MType     M;
 
-    for (int k = 0; k < 4 * NVEC4; ++k)
+    for (int k = 0; k < M.size(); ++k)
     {
         M[k] = 0;
     }
@@ -85,13 +85,13 @@ __global__ void upwardPass(const int firstCell, const int lastCell, CellData* ce
             Xmin      = min(Xmin, pos);
             Xmax      = max(Xmax, pos);
         }
-        P2M(begin, end, center, bodyPos, *(fvecP*)M);
+        P2M(begin, end, center, bodyPos, M);
     }
     else
     {
         const int begin = cell.child();
-        const int end   = begin + cell.nchild();
-        center          = setCenter(begin, end, sourceCenter);
+        const int end = begin + cell.nchild();
+        center = setCenter(begin, end, sourceCenter);
 
         unsigned numBodiesChildren = 0;
         for (int i = begin; i < end; i++)
@@ -104,13 +104,12 @@ __global__ void upwardPass(const int firstCell, const int lastCell, CellData* ce
         cell.setBody(cells[begin].body());
         cell.setNBody(numBodiesChildren);
 
-        M2M(begin, end, center, sourceCenter, Multipole, *(fvecP*)M);
+        M2M(begin, end, center, sourceCenter, Multipole, M);
     }
     sourceCenter[cellIdx] = center;
     cellXmin[cellIdx]     = Xmin;
     cellXmax[cellIdx]     = Xmax;
-    for (int i = 0; i < NVEC4; i++)
-        Multipole[NVEC4 * cellIdx + i] = fvec4{M[4 * i + 0], M[4 * i + 1], M[4 * i + 2], M[4 * i + 3]};
+    Multipole[cellIdx]    = M;
 }
 
 __global__ void setMAC(const int numCells, const float invTheta, fvec4* sourceCenter,
@@ -171,7 +170,7 @@ void upsweep(const int numSources, const int numLevels, const float theta, const
                                               sourceCenter,
                                               cellXmin,
                                               cellXmax,
-                                              Multipole);
+                                              (SphericalMultipole<float, P>*)Multipole);
         kernelSuccess("upwardPass");
     }
 
