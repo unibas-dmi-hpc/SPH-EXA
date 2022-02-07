@@ -34,7 +34,7 @@
 namespace
 {
 
-__host__ __device__ __forceinline__ float inverseSquareRoot(float x)
+HOST_DEVICE_FUN DEVICE_INLINE float inverseSquareRoot(float x)
 {
 #if defined(__HIP_DEVICE_COMPILE__) || defined (__CUDA_ARCH__)
     return rsqrtf(x);
@@ -43,7 +43,7 @@ __host__ __device__ __forceinline__ float inverseSquareRoot(float x)
 #endif
 }
 
-__host__ __device__ __forceinline__ double inverseSquareRoot(double x)
+HOST_DEVICE_FUN DEVICE_INLINE double inverseSquareRoot(double x)
 {
 #if defined(__HIP_DEVICE_COMPILE__) || defined (__CUDA_ARCH__)
     return rsqrt(x);
@@ -58,7 +58,7 @@ struct Index
     static constexpr int I      = Index<nx, ny + 1, nz - 1>::I + 1;
     static constexpr uint64_t F = Index<nx, ny, nz - 1>::F * nz;
     template<class T>
-    static __host__ __device__ __forceinline__ T power(const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE T power(const Vec3<T>& dX)
     {
         return Index<nx, ny, nz - 1>::power(dX) * dX[2];
     }
@@ -71,7 +71,7 @@ struct Index<nx, ny, 0>
     static constexpr uint64_t F = Index<nx, ny - 1, 0>::F * ny;
 
     template<class T>
-    static __host__ __device__ __forceinline__ T power(const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE T power(const Vec3<T>& dX)
     {
         return Index<nx, ny - 1, 0>::power(dX) * dX[1];
     }
@@ -84,7 +84,7 @@ struct Index<nx, 0, 0>
     static constexpr uint64_t F = Index<nx - 1, 0, 0>::F * nx;
 
     template<class T>
-    static __host__ __device__ __forceinline__ T power(const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE T power(const Vec3<T>& dX)
     {
         return Index<nx - 1, 0, 0>::power(dX) * dX[0];
     }
@@ -97,7 +97,7 @@ struct Index<0, 0, 0>
     static constexpr uint64_t F = 1;
 
     template<class T>
-    static __host__ __device__ __forceinline__ T power(const Vec3<T>&) { return T(1.0); }
+    static HOST_DEVICE_FUN DEVICE_INLINE T power(const Vec3<T>&) { return T(1.0); }
 };
 
 template<int n>
@@ -106,7 +106,7 @@ struct DerivativeTerm
     static constexpr int c = 1 - 2 * n;
 
     template<class T>
-    static __host__ __device__ __forceinline__ void invR(T* invRN, const T& invR2)
+    static HOST_DEVICE_FUN DEVICE_INLINE void invR(T* invRN, const T& invR2)
     {
         DerivativeTerm<n - 1>::invR(invRN, invR2);
         invRN[n] = c * invRN[n - 1] * invR2;
@@ -117,7 +117,7 @@ template<>
 struct DerivativeTerm<0>
 {
     template<class T>
-    static __host__ __device__ __forceinline__ void invR(T*, const T&) {}
+    static HOST_DEVICE_FUN DEVICE_INLINE void invR(T*, const T&) {}
 };
 
 template<int depth, int nx, int ny, int nz, int flag>
@@ -130,7 +130,7 @@ struct DerivativeSum
     static constexpr int d  = depth > 0 ? depth : 1;
 
     template<class T>
-    static __host__ __device__ __forceinline__ T loop(const T* invRN, const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE T loop(const T* invRN, const Vec3<T>& dX)
     {
         return Index<nx, ny, nz>::power(dX) * invRN[n + depth] / d +
                cx * DerivativeSum<depth + 1, nx - 2, ny, nz, (nx > 3) * 4 + 3>::loop(invRN, dX) +
@@ -148,7 +148,7 @@ struct DerivativeSum<depth, nx, ny, nz, 6>
     static constexpr int d  = depth > 0 ? depth : 1;
 
     template<class T>
-    static __host__ __device__ __forceinline__ T loop(const T* invRN, const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE T loop(const T* invRN, const Vec3<T>& dX)
     {
         return Index<nx, ny, nz>::power(dX) * invRN[n + depth] / d +
                cx * DerivativeSum<depth + 1, nx - 2, ny, nz, (nx > 3) * 4 + 2>::loop(invRN, dX) +
@@ -165,7 +165,7 @@ struct DerivativeSum<depth, nx, ny, nz, 5>
     static constexpr int d  = depth > 0 ? depth : 1;
 
     template<class T>
-    static __host__ __device__ __forceinline__ T loop(const T* invRN, const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE T loop(const T* invRN, const Vec3<T>& dX)
     {
         return Index<nx, ny, nz>::power(dX) * invRN[n + depth] / d +
                cx * DerivativeSum<depth + 1, nx - 2, ny, nz, (nx > 3) * 4 + 1>::loop(invRN, dX) +
@@ -181,7 +181,7 @@ struct DerivativeSum<depth, nx, ny, nz, 4>
     static constexpr int d  = depth > 0 ? depth : 1;
 
     template<class T>
-    static __host__ __device__ __forceinline__ T loop(const T* invRN, const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE T loop(const T* invRN, const Vec3<T>& dX)
     {
         return Index<nx, ny, nz>::power(dX) * invRN[n + depth] / d +
                cx * DerivativeSum<depth + 1, nx - 2, ny, nz, (nx > 3) * 4>::loop(invRN, dX);
@@ -197,7 +197,7 @@ struct DerivativeSum<depth, nx, ny, nz, 3>
     static constexpr int d  = depth > 0 ? depth : 1;
 
     template<class T>
-    static __host__ __device__ __forceinline__ T loop(const T* invRN, const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE T loop(const T* invRN, const Vec3<T>& dX)
     {
         return Index<nx, ny, nz>::power(dX) * invRN[n + depth] / d +
                cy * DerivativeSum<depth + 1, nx, ny - 2, nz, (ny > 3) * 2 + 1>::loop(invRN, dX) +
@@ -213,7 +213,7 @@ struct DerivativeSum<depth, nx, ny, nz, 2>
     static constexpr int d  = depth > 0 ? depth : 1;
 
     template<class T>
-    static __host__ __device__ __forceinline__ T loop(const T* invRN, const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE T loop(const T* invRN, const Vec3<T>& dX)
     {
         return Index<nx, ny, nz>::power(dX) * invRN[n + depth] / d +
                cy * DerivativeSum<depth + 1, nx, ny - 2, nz, (ny > 3) * 2>::loop(invRN, dX);
@@ -228,7 +228,7 @@ struct DerivativeSum<depth, nx, ny, nz, 1>
     static constexpr int d  = depth > 0 ? depth : 1;
 
     template<class T>
-    static __host__ __device__ __forceinline__ T loop(const T* invRN, const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE T loop(const T* invRN, const Vec3<T>& dX)
     {
         return Index<nx, ny, nz>::power(dX) * invRN[n + depth] / d +
                cz * DerivativeSum<depth + 1, nx, ny, nz - 2, (nz > 3)>::loop(invRN, dX);
@@ -242,7 +242,7 @@ struct DerivativeSum<depth, nx, ny, nz, 0>
     static constexpr int d = depth > 0 ? depth : 1;
 
     template<class T>
-    static __host__ __device__ __forceinline__ T loop(const T* invRN, const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE T loop(const T* invRN, const Vec3<T>& dX)
     {
         return Index<nx, ny, nz>::power(dX) * invRN[n + depth] / d;
     }
@@ -252,7 +252,7 @@ template<int nx, int ny, int nz, int kx = nx, int ky = ny, int kz = nz>
 struct MultipoleSum
 {
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ T kernel(const Vec3<T>& dX, const MType& M)
+    static HOST_DEVICE_FUN DEVICE_INLINE T kernel(const Vec3<T>& dX, const MType& M)
     {
         return MultipoleSum<nx, ny, nz, kx, ky, kz - 1>::kernel(dX, M) + Index<nx - kx, ny - ky, nz - kz>::power(dX) /
                                                                              Index<nx - kx, ny - ky, nz - kz>::F *
@@ -264,7 +264,7 @@ template<int nx, int ny, int nz, int kx, int ky>
 struct MultipoleSum<nx, ny, nz, kx, ky, 0>
 {
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ T kernel(const Vec3<T>& dX, const MType& M)
+    static HOST_DEVICE_FUN DEVICE_INLINE T kernel(const Vec3<T>& dX, const MType& M)
     {
         return MultipoleSum<nx, ny, nz, kx, ky - 1, nz>::kernel(dX, M) +
                Index<nx - kx, ny - ky, nz>::power(dX) / Index<nx - kx, ny - ky, nz>::F * M[Index<kx, ky, 0>::I];
@@ -275,7 +275,7 @@ template<int nx, int ny, int nz, int kx>
 struct MultipoleSum<nx, ny, nz, kx, 0, 0>
 {
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ T kernel(const Vec3<T>& dX, const MType& M)
+    static HOST_DEVICE_FUN DEVICE_INLINE T kernel(const Vec3<T>& dX, const MType& M)
     {
         return MultipoleSum<nx, ny, nz, kx - 1, ny, nz>::kernel(dX, M) +
                Index<nx - kx, ny, nz>::power(dX) / Index<nx - kx, ny, nz>::F * M[Index<kx, 0, 0>::I];
@@ -286,7 +286,7 @@ template<int nx, int ny, int nz>
 struct MultipoleSum<nx, ny, nz, 0, 0, 0>
 {
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ T kernel(const Vec3<T>& dX, const MType& M)
+    static HOST_DEVICE_FUN DEVICE_INLINE T kernel(const Vec3<T>& dX, const MType& M)
     {
         return Index<nx, ny, nz>::power(dX) / Index<nx, ny, nz>::F * M[Index<0, 0, 0>::I];
     }
@@ -302,21 +302,21 @@ struct Kernels
     static constexpr int flag = (nx > 1) * 4 + (ny > 1) * 2 + (nz > 1);
 
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ void P2M(MType& M, const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE void P2M(MType& M, const Vec3<T>& dX)
     {
         Kernels<nx, ny + 1, nz - 1>::P2M(M, dX);
         M[Index<nx, ny, nz>::I] = Index<nx, ny, nz>::power(dX) / Index<nx, ny, nz>::F * M[0];
     }
 
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ void M2M(MType& MI, const Vec3<T>& dX, const MType& MJ)
+    static HOST_DEVICE_FUN DEVICE_INLINE void M2M(MType& MI, const Vec3<T>& dX, const MType& MJ)
     {
         Kernels<nx, ny + 1, nz - 1>::M2M(MI, dX, MJ);
         MI[Index<nx, ny, nz>::I] += MultipoleSum<nx, ny, nz>::kernel(dX, MJ);
     }
 
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ void M2P(Vec4<T>& TRG, T* invRN, const Vec3<T>& dX, const MType& M)
+    static HOST_DEVICE_FUN DEVICE_INLINE void M2P(Vec4<T>& TRG, T* invRN, const Vec3<T>& dX, const MType& M)
     {
         Kernels<nx, ny + 1, nz - 1>::M2P(TRG, invRN, dX, M);
         T C = DerivativeSum<0, nx, ny, nz, flag>::loop(invRN, dX);
@@ -336,21 +336,21 @@ struct Kernels<nx, ny, 0>
     static constexpr int flag = (nx > 1) * 4 + (ny > 1) * 2;
 
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ void P2M(MType& M, const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE void P2M(MType& M, const Vec3<T>& dX)
     {
         Kernels<nx + 1, 0, ny - 1>::P2M(M, dX);
         M[Index<nx, ny, 0>::I] = Index<nx, ny, 0>::power(dX) / Index<nx, ny, 0>::F * M[0];
     }
 
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ void M2M(MType& MI, const Vec3<T>& dX, const MType& MJ)
+    static HOST_DEVICE_FUN DEVICE_INLINE void M2M(MType& MI, const Vec3<T>& dX, const MType& MJ)
     {
         Kernels<nx + 1, 0, ny - 1>::M2M(MI, dX, MJ);
         MI[Index<nx, ny, 0>::I] += MultipoleSum<nx, ny, 0>::kernel(dX, MJ);
     }
 
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ void M2P(Vec4<T>& TRG, T* invRN, const Vec3<T>& dX, const MType& M)
+    static HOST_DEVICE_FUN DEVICE_INLINE void M2P(Vec4<T>& TRG, T* invRN, const Vec3<T>& dX, const MType& M)
     {
         Kernels<nx + 1, 0, ny - 1>::M2P(TRG, invRN, dX, M);
         T C = DerivativeSum<0, nx, ny, 0, flag>::loop(invRN, dX);
@@ -367,21 +367,21 @@ struct Kernels<nx, 0, 0>
     static constexpr int flag = (nx > 1) * 4;
 
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ void P2M(MType& M, const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE void P2M(MType& M, const Vec3<T>& dX)
     {
         Kernels<0, 0, nx - 1>::P2M(M, dX);
         M[Index<nx, 0, 0>::I] = Index<nx, 0, 0>::power(dX) / Index<nx, 0, 0>::F * M[0];
     }
 
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ void M2M(MType& MI, const Vec3<T>& dX, const MType& MJ)
+    static HOST_DEVICE_FUN DEVICE_INLINE void M2M(MType& MI, const Vec3<T>& dX, const MType& MJ)
     {
         Kernels<0, 0, nx - 1>::M2M(MI, dX, MJ);
         MI[Index<nx, 0, 0>::I] += MultipoleSum<nx, 0, 0>::kernel(dX, MJ);
     }
 
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ void M2P(Vec4<T>& TRG, T* invRN, const Vec3<T> dX, const MType& M)
+    static HOST_DEVICE_FUN DEVICE_INLINE void M2P(Vec4<T>& TRG, T* invRN, const Vec3<T> dX, const MType& M)
     {
         Kernels<0, 0, nx - 1>::M2P(TRG, invRN, dX, M);
         const float C = DerivativeSum<0, nx, 0, 0, flag>::loop(invRN, dX);
@@ -394,21 +394,21 @@ template<>
 struct Kernels<0, 0, 2>
 {
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ void P2M(MType& M, const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE void P2M(MType& M, const Vec3<T>& dX)
     {
         Kernels<0, 1, 1>::P2M(M, dX);
         M[Index<0, 0, 2>::I] = Index<0, 0, 2>::power(dX) / Index<0, 0, 2>::F * M[0];
     }
 
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ void M2M(MType& MI, const Vec3<T>& dX, const MType& MJ)
+    static HOST_DEVICE_FUN DEVICE_INLINE void M2M(MType& MI, const Vec3<T>& dX, const MType& MJ)
     {
         Kernels<0, 1, 1>::M2M(MI, dX, MJ);
         MI[Index<0, 0, 2>::I] += MultipoleSum<0, 0, 2>::kernel(dX, MJ);
     }
 
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ void M2P(Vec4<T>& TRG, T* invRN, const Vec3<T>& dX, const MType& M)
+    static HOST_DEVICE_FUN DEVICE_INLINE void M2P(Vec4<T>& TRG, T* invRN, const Vec3<T>& dX, const MType& M)
     {
         TRG[0] -= invRN[0] + invRN[1] * (M[4] + M[7] + M[9]) +
                   invRN[2] * (M[4] * dX[0] * dX[0] + M[5] * dX[0] * dX[1] + M[6] * dX[0] * dX[2] +
@@ -423,18 +423,18 @@ template<>
 struct Kernels<0, 0, 0>
 {
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ void P2M(MType& M, const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE void P2M(MType& M, const Vec3<T>& dX)
     {
     }
 
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ void M2M(MType& MI, const Vec3<T>& dX, const MType& MJ)
+    static HOST_DEVICE_FUN DEVICE_INLINE void M2M(MType& MI, const Vec3<T>& dX, const MType& MJ)
     {
         MI[Index<0, 0, 0>::I] += MultipoleSum<0, 0, 0>::kernel(dX, MJ);
     }
 
     template<class T, class MType>
-    static __host__ __device__ __forceinline__ void M2P(Vec4<T>& TRG, T* invRN, const Vec3<T>&, const MType&)
+    static HOST_DEVICE_FUN DEVICE_INLINE void M2P(Vec4<T>& TRG, T* invRN, const Vec3<T>&, const MType&)
     {
         TRG[0] -= invRN[0];
     }
@@ -455,7 +455,7 @@ namespace ryoanji
  *
  */
 template<class T, class MType>
-__device__ __forceinline__ void P2M(int begin, int end, const Vec4<T>& center, const Vec4<T>* bodyPos, MType& Mi)
+HOST_DEVICE_FUN DEVICE_INLINE void P2M(int begin, int end, const Vec4<T>& center, const Vec4<T>* bodyPos, MType& Mi)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
 
@@ -471,7 +471,7 @@ __device__ __forceinline__ void P2M(int begin, int end, const Vec4<T>& center, c
 }
 
 template<class T, class MType>
-__host__ __device__ __forceinline__ void M2M(int begin, int end, const Vec4<T>& Xi, Vec4<T>* sourceCenter,
+HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xi, Vec4<T>* sourceCenter,
                                              fvec4* Multipole, MType& Mi)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
@@ -495,7 +495,7 @@ __host__ __device__ __forceinline__ void M2M(int begin, int end, const Vec4<T>& 
  * @return        input acceleration plus contribution from this call
  */
 template<class T>
-__host__ __device__ __forceinline__ Vec4<T> P2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, T q_j, T EPS2)
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> P2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, T q_j, T EPS2)
 {
     Vec3<T> dX = pos_j - pos_i;
     T R2 = norm2(dX) + EPS2;
@@ -523,7 +523,7 @@ __host__ __device__ __forceinline__ Vec4<T> P2P(Vec4<T> acc, const Vec3<T>& pos_
  * @return        input acceleration plus contribution from this call
  */
 template<class T, class MType>
-__host__ __device__ __forceinline__ Vec4<T> M2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, MType& M,
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> M2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, MType& M,
                                                 T EPS2)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};

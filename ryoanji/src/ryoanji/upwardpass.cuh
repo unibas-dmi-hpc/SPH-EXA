@@ -44,7 +44,8 @@ struct UpsweepConfig
 };
 
 //! @brief computes the center of mass for the bodies in the specified range
-__host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int end, const fvec4* posGlob)
+template<class T>
+__host__ __device__ __forceinline__ Vec4<T> setCenter(const int begin, const int end, const Vec4<T>* posGlob)
 {
     assert(begin <= end);
 
