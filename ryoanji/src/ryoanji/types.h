@@ -37,6 +37,7 @@
 
 #include "cstone/cuda/annotation.hpp"
 #include "cstone/cuda/errorcheck.cuh"
+#include "cstone/primitives/stl.hpp"
 #include "cstone/util/array.hpp"
 
 const int P = 4;
@@ -46,6 +47,45 @@ const int NVEC4 = (NTERM - 1) / 4 + 1;       // 5 for P=4
 typedef util::array<float, 3> fvec3;
 typedef util::array<float, 4> fvec4;
 typedef util::array<float, NTERM> fvecP;
+
+template<class T>
+using Vec3 = util::array<T, 3>;
+
+template<class T>
+using Vec4 = util::array<T, 4>;
+
+template<int P>
+struct TermSize : public stl::integral_constant<int, P * (P + 1) * (P + 2) / 6>
+{
+};
+
+template<class T, int P>
+using SphericalMultipole = util::array<T, TermSize<P>{}>;
+
+template<int ArraySize, class = void>
+struct ExpansionOrder
+{
+};
+
+template<>
+struct ExpansionOrder<TermSize<1>{}> : stl::integral_constant<int, 1>
+{
+};
+
+template<>
+struct ExpansionOrder<TermSize<2>{}> : stl::integral_constant<int, 2>
+{
+};
+
+template<>
+struct ExpansionOrder<TermSize<3>{}> : stl::integral_constant<int, 3>
+{
+};
+
+template<>
+struct ExpansionOrder<TermSize<4>{}> : stl::integral_constant<int, 4>
+{
+};
 
 namespace ryoanji
 {

@@ -283,22 +283,25 @@ struct Kernels
     static constexpr int z    = nz > 0;
     static constexpr int flag = (nx > 1) * 4 + (ny > 1) * 2 + (nz > 1);
 
-    static __host__ __device__ __forceinline__ void P2M(fvecP& M, const fvec3& dX)
+    template<class T, class MType>
+    static __host__ __device__ __forceinline__ void P2M(MType& M, const Vec3<T>& dX)
     {
         Kernels<nx, ny + 1, nz - 1>::P2M(M, dX);
         M[Index<nx, ny, nz>::I] = Index<nx, ny, nz>::power(dX) / Index<nx, ny, nz>::F * M[0];
     }
 
-    static __host__ __device__ __forceinline__ void M2M(fvecP& MI, const fvec3& dX, const fvecP& MJ)
+    template<class T, class MType>
+    static __host__ __device__ __forceinline__ void M2M(MType& MI, const Vec3<T>& dX, const MType& MJ)
     {
         Kernels<nx, ny + 1, nz - 1>::M2M(MI, dX, MJ);
         MI[Index<nx, ny, nz>::I] += MultipoleSum<nx, ny, nz>::kernel(dX, MJ);
     }
 
-    static __host__ __device__ __forceinline__ void M2P(fvec4& TRG, float* invRN, const fvec3& dX, const fvecP& M)
+    template<class T, class MType>
+    static __host__ __device__ __forceinline__ void M2P(Vec4<T>& TRG, T* invRN, const Vec3<T>& dX, const MType& M)
     {
         Kernels<nx, ny + 1, nz - 1>::M2P(TRG, invRN, dX, M);
-        float C = DerivativeSum<0, nx, ny, nz, flag>::loop(invRN, dX);
+        T C = DerivativeSum<0, nx, ny, nz, flag>::loop(invRN, dX);
         TRG[0] -= M[Index<nx, ny, nz>::I] * C;
         TRG[1] += M[Index<(nx - 1) * x, ny, nz>::I] * C * x;
         TRG[2] += M[Index<nx, (ny - 1) * y, nz>::I] * C * y;
@@ -314,22 +317,25 @@ struct Kernels<nx, ny, 0>
     static constexpr int y    = ny > 0;
     static constexpr int flag = (nx > 1) * 4 + (ny > 1) * 2;
 
-    static __host__ __device__ __forceinline__ void P2M(fvecP& M, const fvec3& dX)
+    template<class T, class MType>
+    static __host__ __device__ __forceinline__ void P2M(MType& M, const Vec3<T>& dX)
     {
         Kernels<nx + 1, 0, ny - 1>::P2M(M, dX);
         M[Index<nx, ny, 0>::I] = Index<nx, ny, 0>::power(dX) / Index<nx, ny, 0>::F * M[0];
     }
 
-    static __host__ __device__ __forceinline__ void M2M(fvecP& MI, const fvec3& dX, const fvecP& MJ)
+    template<class T, class MType>
+    static __host__ __device__ __forceinline__ void M2M(MType& MI, const Vec3<T>& dX, const MType& MJ)
     {
         Kernels<nx + 1, 0, ny - 1>::M2M(MI, dX, MJ);
         MI[Index<nx, ny, 0>::I] += MultipoleSum<nx, ny, 0>::kernel(dX, MJ);
     }
 
-    static __host__ __device__ __forceinline__ void M2P(fvec4& TRG, float* invRN, const fvec3& dX, const fvecP& M)
+    template<class T, class MType>
+    static __host__ __device__ __forceinline__ void M2P(Vec4<T>& TRG, T* invRN, const Vec3<T>& dX, const MType& M)
     {
         Kernels<nx + 1, 0, ny - 1>::M2P(TRG, invRN, dX, M);
-        const float C = DerivativeSum<0, nx, ny, 0, flag>::loop(invRN, dX);
+        T C = DerivativeSum<0, nx, ny, 0, flag>::loop(invRN, dX);
         TRG[0] -= M[Index<nx, ny, 0>::I] * C;
         TRG[1] += M[Index<(nx - 1) * x, ny, 0>::I] * C * x;
         TRG[2] += M[Index<nx, (ny - 1) * y, 0>::I] * C * y;
@@ -342,19 +348,22 @@ struct Kernels<nx, 0, 0>
     static constexpr int n    = nx;
     static constexpr int flag = (nx > 1) * 4;
 
-    static __host__ __device__ __forceinline__ void P2M(fvecP& M, const fvec3& dX)
+    template<class T, class MType>
+    static __host__ __device__ __forceinline__ void P2M(MType& M, const Vec3<T>& dX)
     {
         Kernels<0, 0, nx - 1>::P2M(M, dX);
         M[Index<nx, 0, 0>::I] = Index<nx, 0, 0>::power(dX) / Index<nx, 0, 0>::F * M[0];
     }
 
-    static __host__ __device__ __forceinline__ void M2M(fvecP& MI, const fvec3& dX, const fvecP& MJ)
+    template<class T, class MType>
+    static __host__ __device__ __forceinline__ void M2M(MType& MI, const Vec3<T>& dX, const MType& MJ)
     {
         Kernels<0, 0, nx - 1>::M2M(MI, dX, MJ);
         MI[Index<nx, 0, 0>::I] += MultipoleSum<nx, 0, 0>::kernel(dX, MJ);
     }
 
-    static __host__ __device__ __forceinline__ void M2P(fvec4& TRG, float* invRN, const fvec3& dX, const fvecP& M)
+    template<class T, class MType>
+    static __host__ __device__ __forceinline__ void M2P(Vec4<T>& TRG, T* invRN, const Vec3<T> dX, const MType& M)
     {
         Kernels<0, 0, nx - 1>::M2P(TRG, invRN, dX, M);
         const float C = DerivativeSum<0, nx, 0, 0, flag>::loop(invRN, dX);
@@ -366,19 +375,22 @@ struct Kernels<nx, 0, 0>
 template<>
 struct Kernels<0, 0, 2>
 {
-    static __host__ __device__ __forceinline__ void P2M(fvecP& M, const fvec3& dX)
+    template<class T, class MType>
+    static __host__ __device__ __forceinline__ void P2M(MType& M, const Vec3<T>& dX)
     {
         Kernels<0, 1, 1>::P2M(M, dX);
         M[Index<0, 0, 2>::I] = Index<0, 0, 2>::power(dX) / Index<0, 0, 2>::F * M[0];
     }
 
-    static __host__ __device__ __forceinline__ void M2M(fvecP& MI, const fvec3& dX, const fvecP& MJ)
+    template<class T, class MType>
+    static __host__ __device__ __forceinline__ void M2M(MType& MI, const Vec3<T>& dX, const MType& MJ)
     {
         Kernels<0, 1, 1>::M2M(MI, dX, MJ);
         MI[Index<0, 0, 2>::I] += MultipoleSum<0, 0, 2>::kernel(dX, MJ);
     }
 
-    static __host__ __device__ __forceinline__ void M2P(fvec4& TRG, float* invRN, const fvec3& dX, const fvecP& M)
+    template<class T, class MType>
+    static __host__ __device__ __forceinline__ void M2P(Vec4<T>& TRG, T* invRN, const Vec3<T>& dX, const MType& M)
     {
         TRG[0] -= invRN[0] + invRN[1] * (M[4] + M[7] + M[9]) +
                   invRN[2] * (M[4] * dX[0] * dX[0] + M[5] * dX[0] * dX[1] + M[6] * dX[0] * dX[2] +
@@ -392,12 +404,19 @@ struct Kernels<0, 0, 2>
 template<>
 struct Kernels<0, 0, 0>
 {
-    static __host__ __device__ __forceinline__ void P2M(fvecP& M, const fvec3& dX) {}
-    static __host__ __device__ __forceinline__ void M2M(fvecP& MI, const fvec3& dX, const fvecP& MJ)
+    template<class T, class MType>
+    static __host__ __device__ __forceinline__ void P2M(MType& M, const Vec3<T>& dX)
+    {
+    }
+
+    template<class T, class MType>
+    static __host__ __device__ __forceinline__ void M2M(MType& MI, const Vec3<T>& dX, const MType& MJ)
     {
         MI[Index<0, 0, 0>::I] += MultipoleSum<0, 0, 0>::kernel(dX, MJ);
     }
-    static __host__ __device__ __forceinline__ void M2P(fvec4& TRG, float* invRN, const fvec3&, const fvecP&)
+
+    template<class T, class MType>
+    static __host__ __device__ __forceinline__ void M2P(Vec4<T>& TRG, T* invRN, const Vec3<T>&, const MType&)
     {
         TRG[0] -= invRN[0];
     }
@@ -417,25 +436,27 @@ namespace ryoanji
  * @param[out] Mi       output multipole to add contributions to
  *
  */
-__device__ __forceinline__ void P2M(int begin, int end, const fvec4& center, const fvec4* bodyPos, fvecP& Mi)
+template<class T, class MType>
+__device__ __forceinline__ void P2M(int begin, int end, const Vec4<T>& center, const Vec4<T>* bodyPos, MType& Mi)
 {
     for (int i = begin; i < end; i++)
     {
         fvec4 body = bodyPos[i];
         fvec3 dX   = make_fvec3(center - body);
-        fvecP M;
+        MType M;
         M[0] = body[3];
         Kernels<0, 0, P - 1>::P2M(M, dX);
         Mi += M;
     }
 }
 
-__host__ __device__ __forceinline__ void M2M(int begin, int end, const fvec4& Xi, fvec4* sourceCenter, fvec4* Multipole,
-                                             fvecP& Mi)
+template<class T, class MType>
+__host__ __device__ __forceinline__ void M2M(int begin, int end, const Vec4<T>& Xi, Vec4<T>* sourceCenter,
+                                             fvec4* Multipole, MType& Mi)
 {
     for (int i = begin; i < end; i++)
     {
-        fvecP Mj = *(fvecP*)&Multipole[NVEC4 * i];
+        MType Mj = *(MType*)&Multipole[NVEC4 * i];
         fvec4 Xj = sourceCenter[i];
         fvec3 dX = make_fvec3(Xi - Xj);
         Kernels<0, 0, P - 1>::M2M(Mi, dX, Mj);
@@ -451,13 +472,14 @@ __host__ __device__ __forceinline__ void M2M(int begin, int end, const fvec4& Xi
  * @param EPS2
  * @return        input acceleration plus contribution from this call
  */
-__host__ __device__ __forceinline__ fvec4 P2P(fvec4 acc, const fvec3& pos_i, const fvec3& pos_j, float q_j, float EPS2)
+template<class T>
+__host__ __device__ __forceinline__ Vec4<T> P2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, T q_j, T EPS2)
 {
-    fvec3 dX    = pos_j - pos_i;
-    float R2    = norm2(dX) + EPS2;
-    float invR  = inverseSquareRoot(R2);
-    float invR2 = invR * invR;
-    float invR1 = q_j * invR;
+    Vec3<T> dX = pos_j - pos_i;
+    T R2 = norm2(dX) + EPS2;
+    T invR = inverseSquareRoot(R2);
+    T invR2 = invR * invR;
+    T invR1 = q_j * invR;
 
     dX *= invR1 * invR2;
 
@@ -478,19 +500,21 @@ __host__ __device__ __forceinline__ fvec4 P2P(fvec4 acc, const fvec3& pos_i, con
  * @param EPS2    plummer softening parameter
  * @return        input acceleration plus contribution from this call
  */
-__host__ __device__ __forceinline__ fvec4 M2P(fvec4 acc, const fvec3& pos_i, const fvec3& pos_j, fvecP& M, float EPS2)
+template<class T, class MType>
+__host__ __device__ __forceinline__ Vec4<T> M2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, MType& M,
+                                                T EPS2)
 {
-    fvec3 dX    = pos_i - pos_j;
-    float R2    = norm2(dX) + EPS2;
-    float invR  = inverseSquareRoot(R2);
-    float invR2 = invR * invR;
+    Vec3<T> dX = pos_i - pos_j;
+    T R2 = norm2(dX) + EPS2;
+    T invR = inverseSquareRoot(R2);
+    T invR2 = invR * invR;
 
-    float invRN[P];
+    T invRN[P];
     invRN[0] = M[0] * invR;
     DerivativeTerm<P - 1>::invR(invRN, invR2);
 
-    float M0 = M[0];
-    M[0]     = 1;
+    T M0 = M[0];
+    M[0] = 1;
     Kernels<0, 0, P - 1>::M2P(acc, invRN, dX, M);
     M[0] = M0;
 
