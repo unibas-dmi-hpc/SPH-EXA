@@ -43,32 +43,6 @@ struct UpsweepConfig
     static constexpr int numThreads = 256;
 };
 
-//! @brief computes the center of mass for the bodies in the specified range
-template<class T>
-__host__ __device__ __forceinline__ Vec4<T> setCenter(const int begin, const int end, const Vec4<T>* posGlob)
-{
-    assert(begin <= end);
-
-    fvec4 center{0, 0, 0, 0};
-    for (int i = begin; i < end; i++)
-    {
-        fvec4 pos    = posGlob[i];
-        float weight = pos[3];
-
-        center[0] += weight * pos[0];
-        center[1] += weight * pos[1];
-        center[2] += weight * pos[2];
-        center[3] += weight;
-    }
-
-    float invM = (center[3] != 0.0f) ? 1.0f / center[3] : 0.0f;
-    center[0] *= invM;
-    center[1] *= invM;
-    center[2] *= invM;
-
-    return center;
-}
-
 /*! @brief perform multipole upward sweep for one tree level
  *
  * launch config: one thread per cell of the current level

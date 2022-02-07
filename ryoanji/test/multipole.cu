@@ -24,64 +24,17 @@
  */
 
 /*! @file
- * @brief Compare and test different multipole approxmations
+ * @brief Compare and test different multipole approximations
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #include "gtest/gtest.h"
 
-#include "cstone/gravity/treewalk.hpp"
+#include "cstone/gravity/multipole.hpp"
 
 #include "dataset.hpp"
 #include "ryoanji/kernel.hpp"
-
-//! @brief little P2M wrapper for the host without GPU textures
-fvecP P2Mhost(int begin, int end, const fvec4* bodies, const fvec4& center)
-{
-    // the output multipole
-    fvecP Mout;
-    std::fill(Mout.begin(), Mout.end(), 0);
-
-    for (int i = begin; i < end; ++i)
-    {
-        // body and distance from center-mass
-        fvec4 body = bodies[i];
-        fvec3 dx   = ryoanji::make_fvec3(center - body);
-
-        fvecP M;
-        M[0] = body[3];
-        Kernels<0,0,P-1>::P2M(M, dx);
-        Mout += M;
-    }
-
-    return Mout;
-}
-
-//! @brief computes the center of mass for the bodies in the specified range
-fvec4 setCenter(const int begin, const int end, const fvec4* posGlob)
-{
-    assert(begin <= end);
-
-    fvec4 center{0, 0, 0, 0};
-    for (int i = begin; i < end; i++)
-    {
-        fvec4 pos    = posGlob[i];
-        float weight = pos[3];
-
-        center[0] += weight * pos[0];
-        center[1] += weight * pos[1];
-        center[2] += weight * pos[2];
-        center[3] += weight;
-    }
-
-    float invM = (center[3] != 0.0f) ? 1.0f / center[3] : 0.0f;
-    center[0] *= invM;
-    center[1] *= invM;
-    center[2] *= invM;
-
-    return center;
-}
 
 TEST(Multipole, P2M)
 {
@@ -106,8 +59,12 @@ TEST(Multipole, P2M)
 
     auto cstoneMultipole = cstone::particle2Multipole<double>(x.data(), y.data(), z.data(), m.data(), numBodies);
 
-    fvec4 centerMass       = setCenter(0, numBodies, bodies.data());
-    fvecP ryoanjiMultipole = P2Mhost(0, numBodies, bodies.data(), centerMass);
+    fvec4 centerMass = ryoanji::setCenter(0, numBodies, bodies.data());
+
+    SphericalMultipole<float, 4> ryoanjiMultipole;
+    std::fill(ryoanjiMultipole.begin(), ryoanjiMultipole.end(), 0.0);
+
+    ryoanji::P2M(0, numBodies, centerMass, bodies.data(), ryoanjiMultipole);
 
     EXPECT_NEAR(ryoanjiMultipole[0], cstoneMultipole.mass, 1e-6);
 
@@ -115,22 +72,6 @@ TEST(Multipole, P2M)
     EXPECT_NEAR(centerMass[1], cstoneMultipole.ycm , 1e-6);
     EXPECT_NEAR(centerMass[2], cstoneMultipole.zcm , 1e-6);
     EXPECT_NEAR(centerMass[3], cstoneMultipole.mass, 1e-6);
-
-    // the two multipoles are not directly comparable
-    {
-        //std::cout << "qxx " << cstoneMultipole.qxx << std::endl;
-        //std::cout << "qxy " << cstoneMultipole.qxy << std::endl;
-        //std::cout << "qxz " << cstoneMultipole.qxz << std::endl;
-        //std::cout << "qyy " << cstoneMultipole.qyy << std::endl;
-        //std::cout << "qyz " << cstoneMultipole.qyz << std::endl;
-        //std::cout << "qzz " << cstoneMultipole.qzz << std::endl;
-        //std::cout << std::endl;
-
-        //for (int i = 0; i < NTERM; ++i)
-        //{
-        //    std::cout << i << " " << ryoanjiMultipole[i] << std::endl;
-        //}
-    }
 
     // compare M2P results on a test target
     {

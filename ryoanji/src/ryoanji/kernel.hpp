@@ -31,6 +31,8 @@
  * @author Rio Yokota <rioyokota@gsic.titech.ac.jp>
  */
 
+#include "ryoanji/types.h"
+
 namespace
 {
 
@@ -543,6 +545,32 @@ HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> M2P(Vec4<T> acc, const Vec3<T>& pos_i, con
     M[0] = M0;
 
     return acc;
+}
+
+//! @brief computes the center of mass for the bodies in the specified range
+template<class T>
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> setCenter(const int begin, const int end, const Vec4<T>* posGlob)
+{
+    assert(begin <= end);
+
+    Vec4<T> center{0, 0, 0, 0};
+    for (int i = begin; i < end; i++)
+    {
+        Vec4<T> pos    = posGlob[i];
+        T weight = pos[3];
+
+        center[0] += weight * pos[0];
+        center[1] += weight * pos[1];
+        center[2] += weight * pos[2];
+        center[3] += weight;
+    }
+
+    T invM = (center[3] != 0.0f) ? 1.0f / center[3] : 0.0f;
+    center[0] *= invM;
+    center[1] *= invM;
+    center[2] *= invM;
+
+    return center;
 }
 
 } // namespace ryoanji
