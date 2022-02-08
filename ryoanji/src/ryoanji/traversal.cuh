@@ -377,7 +377,7 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
         for (int i = 0; i < TravConfig::nwt; i++)
         {
             int bodyIdx = imin(bodyBegin + i * GpuConfig::warpSize + laneIdx, bodyEnd - 1);
-            pos_i[i]    = makeVec3(Vec4<T>(bodyPos[bodyIdx]));
+            pos_i[i]    = makeVec3(bodyPos[bodyIdx]);
         }
 
         Vec3<T> Xmin = pos_i[0];
