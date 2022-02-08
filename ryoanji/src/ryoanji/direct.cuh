@@ -37,48 +37,50 @@
 #include "types.h"
 #include "kahan.hpp"
 
-typedef util::array<kahan<float>, 4> kvec4;
+template<class T>
+using kvec4 = util::array<kahan<T>, 4>;
 
 struct DirectConfig
 {
     static constexpr int numThreads = 256;
 };
 
-__global__ void directKernel(int numSource, float eps2, const fvec4* __restrict__ bodyPos, fvec4* bodyAcc)
+template<class T>
+__global__ void directKernel(int numSource, T eps2, const Vec4<T>* __restrict__ bodyPos, Vec4<T>* bodyAcc)
 {
     unsigned targetIdx = blockDim.x * blockIdx.x + threadIdx.x;
 
-    fvec4 pos = {0.0, 0.0, 0.0, 0.0};
+    Vec4<T> pos = {T(0), T(0), T(0), T(0)};
     if (targetIdx < numSource)
     {
         pos = bodyPos[targetIdx];
     }
-    const fvec3 pos_i{pos[0], pos[1], pos[2]};
+    const Vec3<T> pos_i{pos[0], pos[1], pos[2]};
 
-    //kvec4 acc = {0.0, 0.0, 0.0, 0.0};
+    //kvec4<T> acc = {0.0, 0.0, 0.0, 0.0};
     util::array<double, 4> acc{0, 0, 0, 0};
 
-    __shared__ fvec4 sm_bodytile[DirectConfig::numThreads];
+    __shared__ Vec4<T> sm_bodytile[DirectConfig::numThreads];
     for (int tile = 0; tile < gridDim.x; ++tile)
     {
         int sourceIdx = tile * blockDim.x + threadIdx.x;
         if (sourceIdx < numSource)
             sm_bodytile[threadIdx.x] = bodyPos[sourceIdx];
         else
-            sm_bodytile[threadIdx.x] = fvec4{0, 0, 0, 0};
+            sm_bodytile[threadIdx.x] = Vec4<T>{0, 0, 0, 0};
 
         __syncthreads();
 
         for (int j = 0; j < blockDim.x; ++j)
         {
-            fvec3 pos_j{sm_bodytile[j][0], sm_bodytile[j][1], sm_bodytile[j][2]};
-            float q_j = sm_bodytile[j][3];
-            fvec3 dX  = pos_j - pos_i;
+            Vec3<T> pos_j{sm_bodytile[j][0], sm_bodytile[j][1], sm_bodytile[j][2]};
+            T q_j = sm_bodytile[j][3];
+            Vec3<T> dX  = pos_j - pos_i;
 
-            float R2    = norm2(dX);
-            float invR  = rsqrtf(R2 + eps2);
-            float invR2 = invR * invR;
-            float invR1 = q_j * invR;
+            T R2    = norm2(dX);
+            T invR  = rsqrtf(R2 + eps2);
+            T invR2 = invR * invR;
+            T invR1 = q_j * invR;
 
             dX *= invR1 * invR2;
 
@@ -97,11 +99,12 @@ __global__ void directKernel(int numSource, float eps2, const fvec4* __restrict_
 
     if (targetIdx < numSource)
     {
-        bodyAcc[targetIdx] = fvec4{float(acc[0]), float(acc[1]), float(acc[2]), float(acc[3])};
+        bodyAcc[targetIdx] = Vec4<T>{T(acc[0]), T(acc[1]), T(acc[2]), T(acc[3])};
     }
 }
 
-void directSum(std::size_t numBodies, const fvec4* bodyPos, fvec4* bodyAcc, float eps)
+template<class T>
+void directSum(std::size_t numBodies, const Vec4<T>* bodyPos, Vec4<T>* bodyAcc, T eps)
 {
     int numThreads = DirectConfig::numThreads;
     int numBlock   = (numBodies - 1) / numThreads + 1;
@@ -109,4 +112,3 @@ void directSum(std::size_t numBodies, const fvec4* bodyPos, fvec4* bodyAcc, floa
     directKernel<<<numBlock, numThreads>>>(numBodies, eps * eps, bodyPos, bodyAcc);
     ryoanji::kernelSuccess("direct sum");
 }
-

@@ -36,7 +36,8 @@
 namespace ryoanji
 {
 
-static void makeCubeBodies(fvec4* bodies, size_t n, double extent = 3)
+template<class T>
+static void makeCubeBodies(Vec4<T>* bodies, size_t n, double extent = 3)
 {
     for (size_t i = 0; i < n; i++)
     {
@@ -57,7 +58,8 @@ static void makeCubeBodies(fvec4* bodies, size_t n, double extent = 3)
 }
 
 //! generate a grid with npOnEdge^3 bodies
-static void makeGridBodies(fvec4* bodies, int npOnEdge, double spacing)
+template<class T>
+static void makeGridBodies(Vec4<T>* bodies, int npOnEdge, double spacing)
 {
     for (size_t i = 0; i < npOnEdge; i++)
         for (size_t j = 0; j < npOnEdge; j++)

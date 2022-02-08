@@ -49,9 +49,9 @@ int main(int argc, char** argv)
     T           theta     = 0.6;
     T           boxSize   = 3;
 
-    const float eps   = 0.05;
-    const int   ncrit = 64;
-    const float cycle = 2 * M_PI;
+    const T   eps   = 0.05;
+    const int ncrit = 64;
+    const T   cycle = 2 * M_PI;
 
     fprintf(stdout, "--- BH Parameters ---------------\n");
     fprintf(stdout, "numBodies            : %lu\n", numBodies);
@@ -130,8 +130,8 @@ int main(int argc, char** argv)
 
     for (int i = 0; i < numBodies; i++)
     {
-        fvec3 ref   = {h_bodyAccDirect[i][1], h_bodyAccDirect[i][2], h_bodyAccDirect[i][3]};
-        fvec3 probe = {h_bodyAcc[i][1], h_bodyAcc[i][2], h_bodyAcc[i][3]};
+        Vec3<T> ref   = {h_bodyAccDirect[i][1], h_bodyAccDirect[i][2], h_bodyAccDirect[i][3]};
+        Vec3<T> probe = {h_bodyAcc[i][1], h_bodyAcc[i][2], h_bodyAcc[i][3]};
         delta[i]    = std::sqrt(norm2(ref - probe) / norm2(ref));
     }
 

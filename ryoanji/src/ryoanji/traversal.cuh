@@ -146,7 +146,7 @@ template<class T, class MType>
 __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec3<T> pos_i[TravConfig::nwt], const Vec3<T> targetCenter,
                               const Vec3<T> targetSize, const Vec4<T>* __restrict__ bodyPos,
                               const CellData* __restrict__ sourceCells, const Vec4<T>* __restrict__ sourceCenter,
-                              const MType* __restrict__ Multipoles, const float EPS2, int2 rootRange,
+                              const MType* __restrict__ Multipoles, const T EPS2, int2 rootRange,
                               volatile int* tempQueue, int* cellQueue)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
@@ -391,8 +391,8 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
         Xmin = {warpMin(Xmin[0]), warpMin(Xmin[1]), warpMin(Xmin[2])};
         Xmax = {warpMax(Xmax[0]), warpMax(Xmax[1]), warpMax(Xmax[2])};
 
-        Vec3<T>       targetCenter = (Xmax + Xmin) * 0.5f;
-        const Vec3<T> targetSize   = (Xmax - Xmin) * 0.5f;
+        Vec3<T>       targetCenter = (Xmax + Xmin) * T(0.5);
+        const Vec3<T> targetSize   = (Xmax - Xmin) * T(0.5);
 
         Vec4<T> acc_i[TravConfig::nwt];
         for (int i = 0; i < TravConfig::nwt; i++)
@@ -499,7 +499,7 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
  * @return                   P2P and M2P interaction statistics
  */
 template<class T, class MType>
-Vec4<T> computeAcceleration(int firstBody, int lastBody, int images, float eps, T cycle, const Vec4<T>* bodyPos,
+Vec4<T> computeAcceleration(int firstBody, int lastBody, int images, T eps, T cycle, const Vec4<T>* bodyPos,
                             Vec4<T>* bodyAcc, const CellData* sourceCells, const Vec4<T>* sourceCenter,
                             const MType* Multipole, const int2* levelRange)
 {
@@ -544,14 +544,14 @@ Vec4<T> computeAcceleration(int firstBody, int lastBody, int images, float eps, 
     checkGpuErrors(cudaMemcpyFromSymbol(&sumM2P, sumM2PGlob, sizeof(uint64_t)));
     checkGpuErrors(cudaMemcpyFromSymbol(&maxM2P, maxM2PGlob, sizeof(unsigned int)));
 
-    fvec4 interactions;
-    interactions[0] = float(sumP2P) * 1.0f / float(numBodies);
-    interactions[1] = float(maxP2P);
-    interactions[2] = float(sumM2P) * 1.0f / float(numBodies);
-    interactions[3] = float(maxM2P);
+    Vec4<T> interactions;
+    interactions[0] = T(sumP2P) / T(numBodies);
+    interactions[1] = T(maxP2P);
+    interactions[2] = T(sumM2P) / T(numBodies);
+    interactions[3] = T(maxM2P);
 
-    float flops = (interactions[0] * 20.0f + interactions[2] * 2.0f * powf(ExpansionOrder<MType{}.size()>{}, 3)) *
-                  float(numBodies) / dt / 1e12f;
+    T flops = (interactions[0] * 20.0 + interactions[2] * 2.0 * powf(ExpansionOrder<MType{}.size()>{}, 3)) *
+              T(numBodies) / dt / 1e12;
 
     fprintf(stdout, "Traverse             : %.7f s (%.7f TFlops)\n", dt, flops);
 
