@@ -23,7 +23,6 @@
  * SOFTWARE.
  */
 
-
 #include <chrono>
 
 #include "dataset.hpp"
@@ -33,23 +32,24 @@
 #include "ryoanji/direct.cuh"
 #include "ryoanji/upwardpass.cuh"
 
-using ryoanji::rawPtr;
 using ryoanji::CellData;
+using ryoanji::rawPtr;
 
 int main(int argc, char** argv)
 {
-    using T = float;
+    using T             = float;
+    using MultipoleType = SphericalMultipole<T, 4>;
 
-    int power = argc > 1 ? std::stoi(argv[1]) : 17;
+    int power     = argc > 1 ? std::stoi(argv[1]) : 17;
     int directRef = argc > 2 ? std::stoi(argv[2]) : 1;
 
     std::size_t numBodies = (1 << power) - 1;
-    int images    = 0;
-    T theta   = 0.6;
-    T boxSize = 3;
+    int         images    = 0;
+    T           theta     = 0.6;
+    T           boxSize   = 3;
 
     const float eps   = 0.05;
-    const int ncrit   = 64;
+    const int   ncrit = 64;
     const float cycle = 2 * M_PI;
 
     fprintf(stdout, "--- BH Parameters ---------------\n");
@@ -61,21 +61,20 @@ int main(int argc, char** argv)
     std::vector<Vec4<T>> h_bodies(numBodies);
     ryoanji::makeCubeBodies(h_bodies.data(), numBodies, boxSize);
     // upload bodies to device
-    thrust::device_vector<fvec4> d_bodies = h_bodies;
+    thrust::device_vector<Vec4<T>> d_bodies = h_bodies;
 
-    ryoanji::Box<T> box{ {T(0.0)}, boxSize * T(1.00)};
-
+    ryoanji::Box<T> box{{T(0)}, boxSize * T(1.00)};
 
     TreeBuilder<uint64_t> treeBuilder;
-    int numSources = treeBuilder.update(rawPtr(d_bodies.data()), d_bodies.size(), box);
+    int                   numSources = treeBuilder.update(rawPtr(d_bodies.data()), d_bodies.size(), box);
 
     thrust::device_vector<CellData> sources(numSources);
     std::vector<int2>               levelRange(cstone::maxTreeLevel<uint64_t>{} + 1);
 
-    int highestLevel = treeBuilder.extract(rawPtr(sources.data()), levelRange.data()) ;
+    int highestLevel = treeBuilder.extract(rawPtr(sources.data()), levelRange.data());
 
-    thrust::device_vector<fvec4>                        sourceCenter(numSources);
-    thrust::device_vector<SphericalMultipole<float, P>> Multipole(NVEC4 * numSources);
+    thrust::device_vector<Vec4<T>>       sourceCenter(numSources);
+    thrust::device_vector<MultipoleType> Multipole(numSources);
 
     ryoanji::upsweep(sources.size(),
                      highestLevel,
@@ -86,25 +85,25 @@ int main(int argc, char** argv)
                      rawPtr(sourceCenter.data()),
                      rawPtr(Multipole.data()));
 
-    thrust::device_vector<fvec4> bodyAcc(numBodies);
+    thrust::device_vector<Vec4<T>> bodyAcc(numBodies);
 
     fprintf(stdout, "--- BH Profiling ----------------\n");
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
-    fvec4 interactions = ryoanji::computeAcceleration(0,
-                                                      numBodies,
-                                                      images,
-                                                      eps,
-                                                      cycle,
-                                                      rawPtr(d_bodies.data()),
-                                                      rawPtr(bodyAcc.data()),
-                                                      rawPtr(sources.data()),
-                                                      rawPtr(sourceCenter.data()),
-                                                      (fvec4*)rawPtr(Multipole.data()),
-                                                      levelRange.data());
+    Vec4<T> interactions = ryoanji::computeAcceleration(0,
+                                                        numBodies,
+                                                        images,
+                                                        eps,
+                                                        cycle,
+                                                        rawPtr(d_bodies.data()),
+                                                        rawPtr(bodyAcc.data()),
+                                                        rawPtr(sources.data()),
+                                                        rawPtr(sourceCenter.data()),
+                                                        rawPtr(Multipole.data()),
+                                                        levelRange.data());
 
-    auto t1      = std::chrono::high_resolution_clock::now();
+    auto   t1    = std::chrono::high_resolution_clock::now();
     double dt    = std::chrono::duration<double>(t1 - t0).count();
     double flops = (interactions[0] * 20 + interactions[2] * 2 * pow(P, 3)) * numBodies / dt / 1e12;
 
@@ -113,7 +112,7 @@ int main(int argc, char** argv)
 
     if (!directRef) { return 0; }
 
-    thrust::device_vector<fvec4> bodyAccDirect(numBodies, fvec4{0, 0, 0, 0});
+    thrust::device_vector<Vec4<T>> bodyAccDirect(numBodies, Vec4<T>{T(0), T(0), T(0), T(0)});
 
     t0 = std::chrono::high_resolution_clock::now();
     directSum(numBodies, rawPtr(d_bodies.data()), rawPtr(bodyAccDirect.data()), eps);
@@ -123,8 +122,8 @@ int main(int argc, char** argv)
     flops = 24. * numBodies * numBodies / dt / 1e12;
     fprintf(stdout, "Total Direct         : %.7f s (%.7f TFlops)\n", dt, flops);
 
-    thrust::host_vector<fvec4> h_bodyAcc       = bodyAcc;
-    thrust::host_vector<fvec4> h_bodyAccDirect = bodyAccDirect;
+    thrust::host_vector<Vec4<T>> h_bodyAcc       = bodyAcc;
+    thrust::host_vector<Vec4<T>> h_bodyAccDirect = bodyAccDirect;
 
     std::vector<double> delta(numBodies);
 
@@ -139,11 +138,11 @@ int main(int argc, char** argv)
 
     fprintf(stdout, "--- BH vs. direct ---------------\n");
 
-    std::cout << "min Error: "       << delta[0] << std::endl;
-    std::cout << "50th percentile: " << delta[numBodies/2] << std::endl;
-    std::cout << "10th percentile: " << delta[numBodies*0.9] << std::endl;
-    std::cout << "1st percentile: "  << delta[numBodies*0.99] << std::endl;
-    std::cout << "max Error: "       << delta[numBodies-1] << std::endl;
+    std::cout << "min Error: " << delta[0] << std::endl;
+    std::cout << "50th percentile: " << delta[numBodies / 2] << std::endl;
+    std::cout << "10th percentile: " << delta[numBodies * 0.9] << std::endl;
+    std::cout << "1st percentile: " << delta[numBodies * 0.99] << std::endl;
+    std::cout << "max Error: " << delta[numBodies - 1] << std::endl;
 
     fprintf(stdout, "--- Tree stats -------------------\n");
     fprintf(stdout, "Bodies               : %lu\n", numBodies);
@@ -155,4 +154,3 @@ int main(int argc, char** argv)
 
     return 0;
 }
-
