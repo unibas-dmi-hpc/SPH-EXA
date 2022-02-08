@@ -72,15 +72,18 @@ __host__ __device__ __forceinline__ bool applyMAC(Vec3<T> sourceCenter, T MAC, C
 }
 
 //! @brief apply M2P kernel for WarpSize different multipoles to the warp-owned target bodies
-template<class T>
+template<class T, class MType>
 __device__ void approxAcc(Vec4<T> acc_i[TravConfig::nwt], const Vec3<T> pos_i[TravConfig::nwt], const int cellIdx,
-                          const Vec4<T>* __restrict__ srcCenter, const fvec4* __restrict__ Multipoles, const T EPS2,
+                          const Vec4<T>* __restrict__ srcCenter, const MType* __restrict__ Multipoles, const T EPS2,
                           volatile int* warpSpace)
 {
-    static_assert(NTERM <= GpuConfig::warpSize, "needs adaptation to work beyond octopoles");
+    constexpr int termSize = MType{}.size();
+    static_assert(termSize <= GpuConfig::warpSize, "needs adaptation to work beyond octopoles");
 
-    auto sm_Multipole              = reinterpret_cast<volatile float*>(warpSpace);
-    const float* __restrict__ gm_M = reinterpret_cast<const float*>(Multipoles);
+    using MValueType = typename MType::value_type;
+
+    auto sm_Multipole      = reinterpret_cast<volatile MValueType*>(warpSpace);
+    auto __restrict__ gm_M = reinterpret_cast<const MValueType*>(Multipoles);
 
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
 
@@ -91,13 +94,13 @@ __device__ void approxAcc(Vec4<T> acc_i[TravConfig::nwt], const Vec3<T> pos_i[Tr
 
         Vec3<T> pos_j = makeVec3(srcCenter[currentCell]);
 
-        if (laneIdx < NTERM) { sm_Multipole[laneIdx] = gm_M[currentCell * NTERM + laneIdx]; }
+        if (laneIdx < termSize) { sm_Multipole[laneIdx] = gm_M[currentCell * termSize + laneIdx]; }
         syncWarp();
 
         #pragma unroll
         for (int k = 0; k < TravConfig::nwt; k++)
         {
-            acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(fvecP*)sm_Multipole, EPS2);
+            acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(MType*)sm_Multipole, EPS2);
         }
     }
 }
@@ -133,16 +136,17 @@ __device__ void directAcc(Vec4<T> sourceBody, Vec4<T> acc_i[TravConfig::nwt], co
  * @param[in]    EPS2          plummer softening
  * @param[in]    rootRange     source cell indices indices of the top 8 octants
  * @param[-]     tempQueue     shared mem int pointer to 32 ints, uninitialized
- * @param[-]     cellQueue     shared mem int pointer to global memory, 4096 ints per thread, uninitialized
+ * @param[-]     cellQueue     pointer to global memory, 4096 ints per thread, uninitialized
  * @return
  *
  * Constant input pointers are additionally marked __restrict__ to indicate to the compiler that loads
  * can be routed through the read-only/texture cache.
  */
+template<class MType>
 __device__ uint2 traverseWarp(fvec4* acc_i, const fvec3 pos_i[TravConfig::nwt], const fvec3 targetCenter,
                               const fvec3 targetSize, const fvec4* __restrict__ bodyPos,
                               const CellData* __restrict__ sourceCells, const fvec4* __restrict__ sourceCenter,
-                              const fvec4* __restrict__ Multipoles, const float EPS2, int2 rootRange,
+                              const MType* __restrict__ Multipoles, const float EPS2, int2 rootRange,
                               volatile int* tempQueue, int* cellQueue)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
@@ -324,26 +328,31 @@ __global__ void resetTraversalCounters()
  * @param[out] bodyAcc       body accelerations
  * @param[-]   globalPool    length proportional to number of warps in the launch grid, uninitialized
  */
+template<class MType>
 __global__ __launch_bounds__(TravConfig::numThreads)
 void traverse(int firstBody, int lastBody, int images, const float EPS2, float cycle,
               const int2 rootRange, const fvec4* __restrict__ bodyPos,
               const CellData* __restrict__ srcCells,
-              const fvec4* __restrict__ srcCenter, const fvec4* __restrict__ Multipoles,
+              const fvec4* __restrict__ srcCenter, const MType* __restrict__ Multipoles,
               fvec4* bodyAcc, int* globalPool)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
     const int warpIdx = threadIdx.x >> GpuConfig::warpSizeLog2;
 
+    constexpr int termSize         = MType{}.size();
     constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
+
+    using MValueType         = typename MType::value_type;
+    constexpr int mSizeRatio = sizeof(MValueType) / sizeof(int);
 
     const int numTargets = (lastBody - firstBody - 1) / TravConfig::targetSize + 1;
 
-    static_assert(NTERM <= GpuConfig::warpSize, "review approxAcc function before disabling this check");
-    constexpr int smSize = (TravConfig::numThreads > NTERM * numWarpsPerBlock) ? TravConfig::numThreads : NTERM * numWarpsPerBlock;
-    __shared__ int sharedPool[smSize];
+    static_assert(termSize <= GpuConfig::warpSize, "review approxAcc function before disabling this check");
+    constexpr int smSize = (TravConfig::numThreads > termSize * numWarpsPerBlock) ? TravConfig::numThreads : termSize * numWarpsPerBlock;
+    __shared__ int sharedPool[smSize * mSizeRatio];
 
     // warp-common shared mem, 1 int per thread
-    int* tempQueue = sharedPool + GpuConfig::warpSize * warpIdx;
+    int* tempQueue = sharedPool + GpuConfig::warpSize * warpIdx * mSizeRatio;
     // warp-common global mem storage
     int* cellQueue = globalPool + TravConfig::memPerWarp * ((blockIdx.x * numWarpsPerBlock) + warpIdx);
 
@@ -525,7 +534,7 @@ fvec4 computeAcceleration(int firstBody, int lastBody, int images, float eps, fl
                                                     bodyPos,
                                                     sourceCells,
                                                     sourceCenter,
-                                                    Multipole,
+                                                    (SphericalMultipole<float, P>*)Multipole,
                                                     bodyAcc,
                                                     rawPtr(globalPool.data()));
     kernelSuccess("traverse");

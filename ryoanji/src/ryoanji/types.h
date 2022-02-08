@@ -54,12 +54,12 @@ using Vec3 = util::array<T, 3>;
 template<class T>
 using Vec4 = util::array<T, 4>;
 
-template<int P>
-struct TermSize : public stl::integral_constant<int, P * (P + 1) * (P + 2) / 6>
+template<size_t P>
+struct TermSize : public stl::integral_constant<size_t, P * (P + 1) * (P + 2) / 6>
 {
 };
 
-template<class T, int P>
+template<class T, size_t P>
 using SphericalMultipole = util::array<T, TermSize<P>{}>;
 
 template<int ArraySize, class = void>
@@ -68,22 +68,22 @@ struct ExpansionOrder
 };
 
 template<>
-struct ExpansionOrder<TermSize<1>{}> : stl::integral_constant<int, 1>
+struct ExpansionOrder<TermSize<1>{}> : stl::integral_constant<size_t, 1>
 {
 };
 
 template<>
-struct ExpansionOrder<TermSize<2>{}> : stl::integral_constant<int, 2>
+struct ExpansionOrder<TermSize<2>{}> : stl::integral_constant<size_t, 2>
 {
 };
 
 template<>
-struct ExpansionOrder<TermSize<3>{}> : stl::integral_constant<int, 3>
+struct ExpansionOrder<TermSize<3>{}> : stl::integral_constant<size_t, 3>
 {
 };
 
 template<>
-struct ExpansionOrder<TermSize<4>{}> : stl::integral_constant<int, 4>
+struct ExpansionOrder<TermSize<4>{}> : stl::integral_constant<size_t, 4>
 {
 };
 
