@@ -549,7 +549,9 @@ Vec4<T> computeAcceleration(int firstBody, int lastBody, int images, float eps, 
     interactions[1] = float(maxP2P);
     interactions[2] = float(sumM2P) * 1.0f / float(numBodies);
     interactions[3] = float(maxM2P);
-    float flops     = (interactions[0] * 20.0f + interactions[2] * 2.0f * powf(P, 3)) * float(numBodies) / dt / 1e12f;
+
+    float flops = (interactions[0] * 20.0f + interactions[2] * 2.0f * powf(ExpansionOrder<MType{}.size()>{}, 3)) *
+                  float(numBodies) / dt / 1e12f;
 
     fprintf(stdout, "Traverse             : %.7f s (%.7f TFlops)\n", dt, flops);
 

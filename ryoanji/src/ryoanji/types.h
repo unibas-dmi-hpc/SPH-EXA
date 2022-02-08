@@ -40,13 +40,8 @@
 #include "cstone/primitives/stl.hpp"
 #include "cstone/util/array.hpp"
 
-const int P = 4;
-
-const int NTERM = P * (P + 1) * (P + 2) / 6; // 20 for P=4
-const int NVEC4 = (NTERM - 1) / 4 + 1;       // 5 for P=4
 typedef util::array<float, 3> fvec3;
 typedef util::array<float, 4> fvec4;
-typedef util::array<float, NTERM> fvecP;
 
 template<class T>
 using Vec3 = util::array<T, 3>;

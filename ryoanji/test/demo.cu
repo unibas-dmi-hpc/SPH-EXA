@@ -37,8 +37,9 @@ using ryoanji::rawPtr;
 
 int main(int argc, char** argv)
 {
+    constexpr int P     = 4;
     using T             = float;
-    using MultipoleType = SphericalMultipole<T, 4>;
+    using MultipoleType = SphericalMultipole<T, P>;
 
     int power     = argc > 1 ? std::stoi(argv[1]) : 17;
     int directRef = argc > 2 ? std::stoi(argv[2]) : 1;
