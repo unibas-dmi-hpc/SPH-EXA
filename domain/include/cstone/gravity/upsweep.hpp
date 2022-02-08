@@ -62,12 +62,8 @@ void computeMultipoles(const Octree<KeyType>& octree, gsl::span<const LocalIndex
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < octree.numLeafNodes(); ++i)
     {
-        LocalIndex startIndex   = layout[i];
-        LocalIndex numParticles = layout[i + 1] - startIndex;
-
         TreeNodeIndex fullIndex = octree.toInternal(i);
-        particle2Multipole(x + startIndex, y + startIndex, z + startIndex, m + startIndex, numParticles,
-                           multipoles[fullIndex]);
+        particle2Multipole(x, y, z, m, layout[i], layout[i + 1], multipoles[fullIndex]);
     }
 
     // calculate internal cells from leaf cells

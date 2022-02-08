@@ -57,7 +57,8 @@ TEST(Multipole, P2M)
         m[i] = bodies[i][3];
     }
 
-    auto cstoneMultipole = cstone::particle2Multipole<double>(x.data(), y.data(), z.data(), m.data(), numBodies);
+    cstone::CartesianQuadrupole<double> cstoneMultipole;
+    cstone::particle2Multipole<double>(x.data(), y.data(), z.data(), m.data(), 0, numBodies, cstoneMultipole);
 
     fvec4 centerMass = ryoanji::setCenter(0, numBodies, bodies.data());
 

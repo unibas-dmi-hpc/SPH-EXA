@@ -71,16 +71,16 @@ struct CartesianQuadrupole
  */
 template<class T1, class T2, class T3>
 void particle2Multipole(
-    const T1* x, const T1* y, const T1* z, const T2* m, LocalIndex numParticles, CartesianQuadrupole<T3>& gv)
+    const T1* x, const T1* y, const T1* z, const T2* m, LocalIndex first, LocalIndex last, CartesianQuadrupole<T3>& gv)
 {
-    if (numParticles == 0) { return; }
+    if (first == last) { return; }
 
     // choose position of the first source particle as the expansion center
     T1 xce = x[0];
     T1 yce = y[0];
     T1 zce = z[0];
 
-    for (LocalIndex i = 0; i < numParticles; ++i)
+    for (LocalIndex i = first; i < last; ++i)
     {
         T1 xx = x[i];
         T1 yy = y[i];
