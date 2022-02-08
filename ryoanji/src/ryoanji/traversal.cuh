@@ -72,8 +72,9 @@ __host__ __device__ __forceinline__ bool applyMAC(Vec3<T> sourceCenter, T MAC, C
 }
 
 //! @brief apply M2P kernel for WarpSize different multipoles to the warp-owned target bodies
-__device__ void approxAcc(fvec4 acc_i[TravConfig::nwt], const fvec3 pos_i[TravConfig::nwt], const int cellIdx,
-                          const fvec4* __restrict__ srcCenter, const fvec4* __restrict__ Multipoles, const float EPS2,
+template<class T>
+__device__ void approxAcc(Vec4<T> acc_i[TravConfig::nwt], const Vec3<T> pos_i[TravConfig::nwt], const int cellIdx,
+                          const Vec4<T>* __restrict__ srcCenter, const fvec4* __restrict__ Multipoles, const T EPS2,
                           volatile int* warpSpace)
 {
     static_assert(NTERM <= GpuConfig::warpSize, "needs adaptation to work beyond octopoles");
@@ -88,24 +89,28 @@ __device__ void approxAcc(fvec4 acc_i[TravConfig::nwt], const fvec3 pos_i[TravCo
         int currentCell = shflSync(cellIdx, j);
         if (currentCell < 0) { continue; }
 
-        fvec3 pos_j = makeVec3(srcCenter[currentCell]);
+        Vec3<T> pos_j = makeVec3(srcCenter[currentCell]);
 
         if (laneIdx < NTERM) { sm_Multipole[laneIdx] = gm_M[currentCell * NTERM + laneIdx]; }
         syncWarp();
 
+        #pragma unroll
         for (int k = 0; k < TravConfig::nwt; k++)
+        {
             acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(fvecP*)sm_Multipole, EPS2);
+        }
     }
 }
 
 //! @brief compute body-body interactions
-__device__ void directAcc(fvec4 sourceBody, fvec4 acc_i[TravConfig::nwt], const fvec3 pos_i[TravConfig::nwt],
-                          const float EPS2)
+template<class T>
+__device__ void directAcc(Vec4<T> sourceBody, Vec4<T> acc_i[TravConfig::nwt], const Vec3<T> pos_i[TravConfig::nwt],
+                          const T EPS2)
 {
     for (int j = 0; j < GpuConfig::warpSize; j++)
     {
-        fvec3 pos_j{shflSync(sourceBody[0], j), shflSync(sourceBody[1], j), shflSync(sourceBody[2], j)};
-        float q_j = shflSync(sourceBody[3], j);
+        Vec3<T> pos_j{shflSync(sourceBody[0], j), shflSync(sourceBody[1], j), shflSync(sourceBody[2], j)};
+        T q_j = shflSync(sourceBody[3], j);
 
         #pragma unroll
         for (int k = 0; k < TravConfig::nwt; k++)
