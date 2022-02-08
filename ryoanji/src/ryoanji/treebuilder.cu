@@ -73,7 +73,7 @@ __global__ void convertTree(cstone::OctreeGpuDataView<KeyType> cstoneTree, const
 
 template<class KeyType, class T>
 __global__ void
-computeSfcKeysRealKernel(KeyType* keys, const fvec4* bodies, size_t numKeys, const cstone::Box<T> box)
+computeSfcKeysRealKernel(KeyType* keys, const Vec4<T>* bodies, size_t numKeys, const cstone::Box<T> box)
 {
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
     if (tid < numKeys)
@@ -90,7 +90,8 @@ public:
 
     Impl(unsigned ncrit);
 
-    cstone::TreeNodeIndex update(fvec4* bodies, size_t numBodies, const ryoanji::Box& box);
+    template<class T>
+    cstone::TreeNodeIndex update(Vec4<T>* bodies, size_t numBodies, const ryoanji::Box<T>& box);
 
     int extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange);
 
@@ -114,10 +115,9 @@ template<class KeyType>
 TreeBuilder<KeyType>::Impl::Impl(unsigned ncrit) : bucketSize_(ncrit) { }
 
 template<class KeyType>
-cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(fvec4* bodies, size_t numBodies, const ryoanji::Box& box)
+template<class T>
+cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(Vec4<T>* bodies, size_t numBodies, const ryoanji::Box<T>& box)
 {
-    using T = fvec4::value_type;
-
     thrust::device_vector<KeyType> d_keys(numBodies);
 
     cstone::Box<T> csBox(box.X[0] - box.R,
@@ -203,7 +203,8 @@ template<class KeyType>
 TreeBuilder<KeyType>::~TreeBuilder() = default;
 
 template<class KeyType>
-cstone::TreeNodeIndex TreeBuilder<KeyType>::update(fvec4* bodies, size_t numBodies, const ryoanji::Box& box)
+template<class T>
+cstone::TreeNodeIndex TreeBuilder<KeyType>::update(Vec4<T>* bodies, size_t numBodies, const ryoanji::Box<T>& box)
 {
     return impl_->update(bodies, numBodies, box);
 }
@@ -216,3 +217,8 @@ int TreeBuilder<KeyType>::extract(ryoanji::CellData* d_ryoanjiTree, int2* h_leve
 
 template class TreeBuilder<uint32_t>;
 template class TreeBuilder<uint64_t>;
+
+template cstone::TreeNodeIndex TreeBuilder<uint32_t>::update(Vec4<float>*, size_t, const ryoanji::Box<float>&);
+template cstone::TreeNodeIndex TreeBuilder<uint64_t>::update(Vec4<float>*, size_t, const ryoanji::Box<float>&);
+template cstone::TreeNodeIndex TreeBuilder<uint32_t>::update(Vec4<double>*, size_t, const ryoanji::Box<double>&);
+template cstone::TreeNodeIndex TreeBuilder<uint64_t>::update(Vec4<double>*, size_t, const ryoanji::Box<double>&);

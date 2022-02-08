@@ -81,7 +81,7 @@ __global__ void upwardPass(const int firstCell, const int lastCell, CellData* ce
         center          = setCenter(begin, end, bodyPos);
         for (int i = begin; i < end; i++)
         {
-            Vec3<T> pos = make_fvec3(bodyPos[i]);
+            Vec3<T> pos = makeVec3(bodyPos[i]);
             Xmin        = min(Xmin, pos);
             Xmax        = max(Xmax, pos);
         }
@@ -121,7 +121,7 @@ __global__ void setMAC(int numCells, T invTheta, Vec4<T>* sourceCenter, const Ve
 
     Vec3<T> Xmin = cellXmin[cellIdx];
     Vec3<T> Xmax = cellXmax[cellIdx];
-    Vec3<T> Xi   = make_fvec3(sourceCenter[cellIdx]);
+    Vec3<T> Xi   = makeVec3(sourceCenter[cellIdx]);
     Vec3<T> X    = (Xmax + Xmin) * T(0.5);
     Vec3<T> R    = (Xmax - Xmin) * T(0.5f);
     Vec3<T> dX   = X - Xi;

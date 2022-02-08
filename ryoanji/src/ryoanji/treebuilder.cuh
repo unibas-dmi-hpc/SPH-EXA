@@ -48,7 +48,8 @@ public:
 
     TreeBuilder(unsigned ncrit);
 
-    cstone::TreeNodeIndex update(fvec4* bodies, size_t numBodies, const ryoanji::Box& box);
+    template<class T>
+    cstone::TreeNodeIndex update(Vec4<T>* bodies, size_t numBodies, const ryoanji::Box<T>& box);
 
     int extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange);
 

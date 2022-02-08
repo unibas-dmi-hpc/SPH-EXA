@@ -469,7 +469,7 @@ HOST_DEVICE_FUN DEVICE_INLINE void P2M(int begin, int end, const Vec4<T>& center
     for (int i = begin; i < end; i++)
     {
         Vec4<T> body = bodyPos[i];
-        Vec3<T> dX   = make_fvec3(center - body);
+        Vec3<T> dX   = makeVec3(center - body);
         MType   M;
         M[0] = body[3];
         Kernels<0, 0, P - 1>::P2M(M, dX);
@@ -487,7 +487,7 @@ HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xi, Ve
     {
         const MType& Mj = Multipole[i];
         Vec4<T>      Xj = sourceCenter[i];
-        Vec3<T>      dX = make_fvec3(Xi - Xj);
+        Vec3<T>      dX = makeVec3(Xi - Xj);
         Kernels<0, 0, P - 1>::M2M(Mi, dX, Mj);
     }
 }

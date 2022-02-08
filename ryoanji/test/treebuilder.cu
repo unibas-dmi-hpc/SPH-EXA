@@ -71,15 +71,20 @@ void checkBodyIndexing(int numBodies, CellData* tree, int numSources)
     EXPECT_EQ(std::count(begin(bodyIndexed), end(bodyIndexed), 1), numBodies);
 }
 
-template<class MType>
-void checkUpsweep(const Box& box, const thrust::host_vector<CellData>& sources,
-                  const thrust::host_vector<fvec4>& sourceCenter, const thrust::host_vector<fvec4>& h_bodies,
+template<class T, class MType>
+void checkUpsweep(const Box<T>& box, const thrust::host_vector<CellData>& sources,
+                  const thrust::host_vector<Vec4<T>>& sourceCenter, const thrust::host_vector<Vec4<T>>& h_bodies,
                   const thrust::host_vector<MType>& Multipole)
 {
-    cstone::Box<float> csBox(box.X[0] - box.R, box.X[0] + box.R,
-                             box.X[1] - box.R, box.X[1] + box.R,
-                             box.X[2] - box.R, box.X[2] + box.R,
-                             false, false, false);
+    cstone::Box<T> csBox(box.X[0] - box.R,
+                         box.X[0] + box.R,
+                         box.X[1] - box.R,
+                         box.X[1] + box.R,
+                         box.X[2] - box.R,
+                         box.X[2] + box.R,
+                         false,
+                         false,
+                         false);
 
     int numSources = sources.size();
     // the root is not set by the upsweep, so start from 1
@@ -99,7 +104,7 @@ void checkUpsweep(const Box& box, const thrust::host_vector<CellData>& sources,
                                              sourceCenter[i][0], sourceCenter[i][1], sourceCenter[i][2], csBox),
                                          sources[i].level());
 
-            float cellMass = 0;
+            T cellMass = 0;
             for (int j = sources[i].body(); j < sources[i].body() + sources[i].nbody(); ++j)
             {
                 cellMass += h_bodies[j][3];
@@ -125,16 +130,19 @@ void checkUpsweep(const Box& box, const thrust::host_vector<CellData>& sources,
 
 TEST(Buildtree, cstone)
 {
-    int numBodies = (1 << 16) - 1;
-    float extent = 3;
-    float theta = 0.75;
+    using T = float;
+    using MultipoleType = SphericalMultipole<T, 4>;
 
-    thrust::host_vector<fvec4> h_bodies(numBodies);
+    int numBodies = (1 << 16) - 1;
+    T extent = 3;
+    T theta = 0.75;
+
+    thrust::host_vector<Vec4<T>> h_bodies(numBodies);
     makeCubeBodies(h_bodies.data(), numBodies, extent);
     // upload to device
     thrust::device_vector<fvec4> bodyPos = h_bodies;
 
-    Box box{ {0.0f}, extent * 1.1f };
+    Box<T> box{ {T(0.0)}, extent * T(1.1) };
 
     TreeBuilder<uint64_t> treeBuilder;
     int numSources = treeBuilder.update(rawPtr(bodyPos.data()), numBodies, box);
@@ -146,8 +154,8 @@ TEST(Buildtree, cstone)
     // download from device
     h_bodies = bodyPos;
 
-    thrust::device_vector<fvec4> sourceCenter(numSources);
-    thrust::device_vector<SphericalMultipole<float, 4>> Multipole(numSources);
+    thrust::device_vector<Vec4<T>> sourceCenter(numSources);
+    thrust::device_vector<MultipoleType> Multipole(numSources);
 
     ryoanji::upsweep(numSources,
                      highestLevel,
@@ -161,7 +169,7 @@ TEST(Buildtree, cstone)
     thrust::host_vector<CellData> h_sources      = sources;
     thrust::host_vector<fvec4>    h_sourceCenter = sourceCenter;
 
-    thrust::host_vector<SphericalMultipole<float, 4>> h_Multipole = Multipole;
+    thrust::host_vector<MultipoleType> h_Multipole = Multipole;
 
     checkBodyIndexing(numBodies, h_sources.data(), numSources);
     checkUpsweep(box, h_sources, h_sourceCenter, h_bodies, h_Multipole);

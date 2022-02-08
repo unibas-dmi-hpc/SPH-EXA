@@ -122,17 +122,11 @@ struct GpuConfig
 };
 
 //! Center and radius of bounding box
+template<class T>
 struct Box
 {
-    fvec3 X; //!< Box center
-    float R; //!< Box radius
-};
-
-//! Min & max bounds of bounding box
-struct Bounds
-{
-    fvec3 Xmin; //!< Minimum value of coordinates
-    fvec3 Xmax; //!< Maximum value of coordinates
+    Vec3<T> X; //!< Box center
+    T R; //!< Box radius
 };
 
 template<class T>
@@ -181,13 +175,14 @@ public:
     HOST_DEVICE_FUN void setNBody(unsigned nbody_) { data.w = nbody_; }
 };
 
-inline __host__ __device__ fvec3 make_fvec3(fvec4 v)
+template<class T>
+inline __host__ __device__ Vec3<T> makeVec3(Vec4<T> v)
 {
-    fvec3 data;
-    data[0] = v[0];
-    data[1] = v[1];
-    data[2] = v[2];
-    return data;
+    Vec3<T> ret;
+    ret[0] = v[0];
+    ret[1] = v[1];
+    ret[2] = v[2];
+    return ret;
 }
 
 static void kernelSuccess(const char kernel[] = "kernel")

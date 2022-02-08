@@ -60,14 +60,15 @@ struct TravConfig
 
 __device__ __forceinline__ int ringAddr(const int i) { return i & (TravConfig::memPerWarp - 1); }
 
-__host__ __device__ __forceinline__ bool applyMAC(fvec3 sourceCenter, float MAC, CellData sourceData,
-                                                  fvec3 targetCenter, fvec3 targetSize)
+template<class T>
+__host__ __device__ __forceinline__ bool applyMAC(Vec3<T> sourceCenter, T MAC, CellData sourceData,
+                                                  Vec3<T> targetCenter, Vec3<T> targetSize)
 {
-    fvec3 dX = abs(targetCenter - sourceCenter) - targetSize;
+    Vec3<T> dX = abs(targetCenter - sourceCenter) - targetSize;
     dX += abs(dX);
-    dX *= 0.5f;
-    const float R2 = norm2(dX);
-    return R2 < fabsf(MAC) || sourceData.nbody() < 3;
+    dX *= T(0.5);
+    T R2 = norm2(dX);
+    return R2 < std::abs(MAC) || sourceData.nbody() < 3;
 }
 
 //! @brief apply M2P kernel for WarpSize different multipoles to the warp-owned target bodies
@@ -87,7 +88,7 @@ __device__ void approxAcc(fvec4 acc_i[TravConfig::nwt], const fvec3 pos_i[TravCo
         int currentCell = shflSync(cellIdx, j);
         if (currentCell < 0) { continue; }
 
-        fvec3 pos_j = make_fvec3(srcCenter[currentCell]);
+        fvec3 pos_j = makeVec3(srcCenter[currentCell]);
 
         if (laneIdx < NTERM) { sm_Multipole[laneIdx] = gm_M[currentCell * NTERM + laneIdx]; }
         syncWarp();
@@ -366,7 +367,7 @@ void traverse(int firstBody, int lastBody, int images, const float EPS2, float c
         for (int i = 0; i < TravConfig::nwt; i++)
         {
             int bodyIdx = imin(bodyBegin + i * GpuConfig::warpSize + laneIdx, bodyEnd - 1);
-            pos_i[i]    = make_fvec3(fvec4(bodyPos[bodyIdx]));
+            pos_i[i]    = makeVec3(fvec4(bodyPos[bodyIdx]));
         }
 
         fvec3 Xmin = pos_i[0];

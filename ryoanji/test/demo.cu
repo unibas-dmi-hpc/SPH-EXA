@@ -38,13 +38,15 @@ using ryoanji::CellData;
 
 int main(int argc, char** argv)
 {
+    using T = float;
+
     int power = argc > 1 ? std::stoi(argv[1]) : 17;
     int directRef = argc > 2 ? std::stoi(argv[2]) : 1;
 
     std::size_t numBodies = (1 << power) - 1;
     int images    = 0;
-    float theta   = 0.6;
-    float boxSize = 3;
+    T theta   = 0.6;
+    T boxSize = 3;
 
     const float eps   = 0.05;
     const int ncrit   = 64;
@@ -56,12 +58,12 @@ int main(int argc, char** argv)
     fprintf(stdout, "theta                : %f\n", theta);
     fprintf(stdout, "ncrit                : %d\n", ncrit);
 
-    std::vector<fvec4> h_bodies(numBodies);
+    std::vector<Vec4<T>> h_bodies(numBodies);
     ryoanji::makeCubeBodies(h_bodies.data(), numBodies, boxSize);
     // upload bodies to device
     thrust::device_vector<fvec4> d_bodies = h_bodies;
 
-    ryoanji::Box box{ {0.0f}, boxSize * 1.00f};
+    ryoanji::Box<T> box{ {T(0.0)}, boxSize * T(1.00)};
 
 
     TreeBuilder<uint64_t> treeBuilder;

@@ -79,7 +79,7 @@ TEST(Multipole, P2M)
         fvec3 testTarget{-8, -8, -8};
 
         fvec4 acc{0, 0, 0, 0};
-        acc = ryoanji::M2P(acc, testTarget, ryoanji::make_fvec3(centerMass), ryoanjiMultipole, eps2);
+        acc = ryoanji::M2P(acc, testTarget, ryoanji::makeVec3(centerMass), ryoanjiMultipole, eps2);
         //printf("test acceleration: %f %f %f %f\n", acc[0], acc[1], acc[2], acc[3]);
 
         // cstone is less precise
