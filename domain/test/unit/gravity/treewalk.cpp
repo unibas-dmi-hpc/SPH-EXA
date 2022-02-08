@@ -71,7 +71,7 @@ TEST(Gravity, TreeWalk)
     std::vector<LocalIndex> layout(octree.numLeafNodes() + 1);
     stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
 
-    std::vector<GravityMultipole<T>> multipoles(octree.numTreeNodes());
+    std::vector<CartesianQuadrupole<T>> multipoles(octree.numTreeNodes());
     computeMultipoles(octree, layout, x, y, z, masses.data(), multipoles.data());
 
     T totalMass = std::accumulate(masses.begin(), masses.end(), 0.0);

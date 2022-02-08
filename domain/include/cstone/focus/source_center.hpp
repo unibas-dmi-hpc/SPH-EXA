@@ -115,7 +115,7 @@ void computeLeafMassCenter(gsl::span<const T1> x,
                            gsl::span<const T2> m,
                            gsl::span<const KeyType> particleKeys,
                            const Octree<KeyType>& octree,
-                           gsl::span<util::array<T3, 4>> sourceCenter)
+                           gsl::span<SourceCenterType<T3>> sourceCenter)
 {
     #pragma omp parallel for
     for (TreeNodeIndex nodeIdx = 0; nodeIdx < octree.numTreeNodes(); ++nodeIdx)

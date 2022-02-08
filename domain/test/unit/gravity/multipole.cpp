@@ -113,7 +113,7 @@ TEST(Gravity, M2P)
     std::vector<T> masses(numParticles);
     std::generate(begin(masses), end(masses), drand48);
 
-    GravityMultipole<T> multipole = particle2Multipole<T>(x, y, z, masses.data(), numParticles);
+    CartesianQuadrupole<T> multipole = particle2Multipole<T>(x, y, z, masses.data(), numParticles);
 
     // target particle coordinates
     std::array<T, 3> target    = {-8, 0, 0};
@@ -164,17 +164,17 @@ TEST(Gravity, M2M)
     std::generate(begin(masses), end(masses), drand48);
 
     // reference directly constructed from particles
-    GravityMultipole<T> reference = particle2Multipole<T>(x, y, z, masses.data(), numParticles);
+    CartesianQuadrupole<T> reference = particle2Multipole<T>(x, y, z, masses.data(), numParticles);
 
     LocalIndex eighth = numParticles / 8;
-    GravityMultipole<T> sc[8];
+    CartesianQuadrupole<T> sc[8];
     for (int i = 0; i < 8; ++i)
     {
         sc[i] = particle2Multipole<T>(x + i*eighth, y + i*eighth, z + i*eighth, masses.data() + i*eighth, eighth);
     }
 
     // aggregate subcell multipoles
-    GravityMultipole<T> composite = multipole2multipole(sc[0], sc[1], sc[2], sc[3], sc[4], sc[5], sc[6], sc[7]);
+    CartesianQuadrupole<T> composite = multipole2multipole(sc[0], sc[1], sc[2], sc[3], sc[4], sc[5], sc[6], sc[7]);
 
     EXPECT_NEAR(reference.mass ,composite.mass, 1e-10);
     EXPECT_NEAR(reference.xcm  ,composite.xcm , 1e-10);

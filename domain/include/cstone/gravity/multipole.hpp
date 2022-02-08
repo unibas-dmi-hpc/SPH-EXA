@@ -43,7 +43,7 @@ namespace cstone
 {
 
 template <class T>
-struct GravityMultipole
+struct CartesianQuadrupole
 {
     //! @brief total mass
     T mass = 0.0;
@@ -69,10 +69,10 @@ struct GravityMultipole
  * @param  numParticles   number of particles to read from coordinate arrays
  */
 template<class T1, class T2, class T3>
-GravityMultipole<T1>
+CartesianQuadrupole<T1>
 particle2Multipole(const T2* x, const T2* y, const T2* z, const T3* m, LocalIndex numParticles)
 {
-    GravityMultipole<T1> gv;
+    CartesianQuadrupole<T1> gv;
 
     if (numParticles == 0) { return gv; }
 
@@ -257,7 +257,7 @@ util::tuple<T1, T1, T1, T1> particle2particle(T1 tx,
  */
 template<class T1, class T2>
 inline util::tuple<T1, T1, T1, T1>
-multipole2particle(T1 tx, T1 ty, T1 tz, const GravityMultipole<T2>& multipole)
+multipole2particle(T1 tx, T1 ty, T1 tz, const CartesianQuadrupole<T2>& multipole)
 {
     T2 rx = tx - multipole.xcm;
     T2 ry = ty - multipole.ycm;
@@ -293,7 +293,7 @@ multipole2particle(T1 tx, T1 ty, T1 tz, const GravityMultipole<T2>& multipole)
  * Implements formula (2.5) from Hernquist 1987 (parallel axis theorem)
  */
 template<class T>
-void addQuadrupole(GravityMultipole<T>* composite, const GravityMultipole<T>& addend)
+void addQuadrupole(CartesianQuadrupole<T>* composite, const CartesianQuadrupole<T>& addend)
 {
     // displacement vector from subcell c-o-m to composite cell c-o-m
     T rx = addend.xcm - composite->xcm;
@@ -324,16 +324,16 @@ void addQuadrupole(GravityMultipole<T>* composite, const GravityMultipole<T>& ad
  * Works for any number of subcell multipoles, but we only need to combine 8 at a time.
  */
 template<class T>
-GravityMultipole<T> multipole2multipole(const GravityMultipole<T>& a,
-                                        const GravityMultipole<T>& b,
-                                        const GravityMultipole<T>& c,
-                                        const GravityMultipole<T>& d,
-                                        const GravityMultipole<T>& e,
-                                        const GravityMultipole<T>& f,
-                                        const GravityMultipole<T>& g,
-                                        const GravityMultipole<T>& h)
+CartesianQuadrupole<T> multipole2multipole(const CartesianQuadrupole<T>& a,
+                                           const CartesianQuadrupole<T>& b,
+                                           const CartesianQuadrupole<T>& c,
+                                           const CartesianQuadrupole<T>& d,
+                                           const CartesianQuadrupole<T>& e,
+                                           const CartesianQuadrupole<T>& f,
+                                           const CartesianQuadrupole<T>& g,
+                                           const CartesianQuadrupole<T>& h)
 {
-    GravityMultipole<T> gv;
+    CartesianQuadrupole<T> gv;
 
     gv.mass = a.mass + b.mass + c.mass + d.mass + e.mass + f.mass + g.mass + h.mass;
 

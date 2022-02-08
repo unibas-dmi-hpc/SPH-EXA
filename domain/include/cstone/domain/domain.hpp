@@ -272,7 +272,7 @@ public:
                              gsl::span<T> az)
     {
         const Octree<KeyType>& octree = focusTree_.octree();
-        std::vector<GravityMultipole<T>> multipoles(octree.numTreeNodes());
+        std::vector<CartesianQuadrupole<T>> multipoles(octree.numTreeNodes());
         computeMultipoles(octree, layout_, x.data(), y.data(), z.data(), m.data(), multipoles.data());
 
         return computeGravity(octree, multipoles.data(), layout_.data(), 0, octree.numLeafNodes(), x.data(), y.data(),
