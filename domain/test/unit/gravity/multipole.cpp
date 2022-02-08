@@ -113,7 +113,8 @@ TEST(Gravity, M2P)
     std::vector<T> masses(numParticles);
     std::generate(begin(masses), end(masses), drand48);
 
-    CartesianQuadrupole<T> multipole = particle2Multipole<T>(x, y, z, masses.data(), numParticles);
+    CartesianQuadrupole<T> multipole;
+    particle2Multipole(x, y, z, masses.data(), numParticles, multipole);
 
     // target particle coordinates
     std::array<T, 3> target    = {-8, 0, 0};
@@ -164,13 +165,14 @@ TEST(Gravity, M2M)
     std::generate(begin(masses), end(masses), drand48);
 
     // reference directly constructed from particles
-    CartesianQuadrupole<T> reference = particle2Multipole<T>(x, y, z, masses.data(), numParticles);
+    CartesianQuadrupole<T> reference;
+    particle2Multipole(x, y, z, masses.data(), numParticles, reference);
 
     LocalIndex eighth = numParticles / 8;
     CartesianQuadrupole<T> sc[8];
     for (int i = 0; i < 8; ++i)
     {
-        sc[i] = particle2Multipole<T>(x + i*eighth, y + i*eighth, z + i*eighth, masses.data() + i*eighth, eighth);
+        particle2Multipole(x + i*eighth, y + i*eighth, z + i*eighth, masses.data() + i*eighth, eighth, sc[i]);
     }
 
     // aggregate subcell multipoles

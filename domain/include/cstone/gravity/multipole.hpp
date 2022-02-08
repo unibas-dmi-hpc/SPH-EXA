@@ -65,16 +65,15 @@ struct CartesianQuadrupole
  * @param  x              x coordinate array
  * @param  y              y coordinate array
  * @param  z              z coordinate array
- * @param  m              Vector of masses.
+ * @param  m              masses array
  * @param  numParticles   number of particles to read from coordinate arrays
+ * @param  gv             output quadrupole
  */
 template<class T1, class T2, class T3>
-CartesianQuadrupole<T1>
-particle2Multipole(const T2* x, const T2* y, const T2* z, const T3* m, LocalIndex numParticles)
+void particle2Multipole(
+    const T1* x, const T1* y, const T1* z, const T2* m, LocalIndex numParticles, CartesianQuadrupole<T3>& gv)
 {
-    CartesianQuadrupole<T1> gv;
-
-    if (numParticles == 0) { return gv; }
+    if (numParticles == 0) { return; }
 
     // choose position of the first source particle as the expansion center
     T1 xce = x[0];
@@ -132,8 +131,6 @@ particle2Multipole(const T2* x, const T2* y, const T2* z, const T3* m, LocalInde
     gv.qxy *= 3;
     gv.qxz *= 3;
     gv.qyz *= 3;
-
-    return gv;
 }
 
 /*! @brief compute a single particle-particle gravitational interaction

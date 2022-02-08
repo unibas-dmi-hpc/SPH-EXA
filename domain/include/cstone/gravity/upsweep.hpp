@@ -66,8 +66,8 @@ void computeMultipoles(const Octree<KeyType>& octree, gsl::span<const LocalIndex
         LocalIndex numParticles = layout[i + 1] - startIndex;
 
         TreeNodeIndex fullIndex = octree.toInternal(i);
-        multipoles[fullIndex] =
-            particle2Multipole<T3>(x + startIndex, y + startIndex, z + startIndex, m + startIndex, numParticles);
+        particle2Multipole(x + startIndex, y + startIndex, z + startIndex, m + startIndex, numParticles,
+                           multipoles[fullIndex]);
     }
 
     // calculate internal cells from leaf cells
