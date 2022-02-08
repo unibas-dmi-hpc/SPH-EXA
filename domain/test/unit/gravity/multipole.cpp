@@ -27,6 +27,7 @@
 
 #include "gtest/gtest.h"
 
+#include "cstone/focus/source_center.hpp"
 #include "cstone/gravity/multipole.hpp"
 #include "cstone/sfc/box.hpp"
 #include "coord_samples/random.hpp"
@@ -113,8 +114,9 @@ TEST(Gravity, M2P)
     std::vector<T> masses(numParticles);
     std::generate(begin(masses), end(masses), drand48);
 
+    SourceCenterType<T> center = massCenter<T>(x, y, z, masses.data(), 0, numParticles);
     CartesianQuadrupole<T> multipole;
-    particle2Multipole(x, y, z, masses.data(), 0, numParticles, multipole);
+    particle2Multipole(x, y, z, masses.data(), 0, numParticles, center, multipole);
 
     // target particle coordinates
     std::array<T, 3> target    = {-8, 0, 0};
@@ -125,7 +127,7 @@ TEST(Gravity, M2P)
 
     // approximate gravity with multipole interaction
     auto [axApprox, ayApprox, azApprox, potApprox] =
-        multipole2particle(target[0], target[1], target[2], multipole);
+        multipole2particle(target[0], target[1], target[2], center, multipole);
 
     //std::cout << std::fixed;
     //std::cout.precision(8);
@@ -165,27 +167,30 @@ TEST(Gravity, M2M)
     std::generate(begin(masses), end(masses), drand48);
 
     // reference directly constructed from particles
+    SourceCenterType<T> refCenter = massCenter<T>(x, y, z, masses.data(), 0, numParticles);
     CartesianQuadrupole<T> reference;
-    particle2Multipole(x, y, z, masses.data(), 0, numParticles, reference);
+    particle2Multipole(x, y, z, masses.data(), 0, numParticles, refCenter, reference);
 
     LocalIndex eighth = numParticles / 8;
     CartesianQuadrupole<T> sc[8];
+    SourceCenterType<T> centers[8];
     for (int i = 0; i < 8; ++i)
     {
-        particle2Multipole(x, y, z, masses.data(), i * eighth, (i + 1) * eighth, sc[i]);
+        centers[i] = massCenter<T>(x, y, z, masses.data(), i * eighth, (i + 1) * eighth);
+        particle2Multipole(x, y, z, masses.data(), i * eighth, (i + 1) * eighth, centers[i], sc[i]);
     }
 
     // aggregate subcell multipoles
     CartesianQuadrupole<T> composite = multipole2multipole(sc[0], sc[1], sc[2], sc[3], sc[4], sc[5], sc[6], sc[7]);
 
-    EXPECT_NEAR(reference.mass ,composite.mass, 1e-10);
-    EXPECT_NEAR(reference.xcm  ,composite.xcm , 1e-10);
-    EXPECT_NEAR(reference.ycm  ,composite.ycm , 1e-10);
-    EXPECT_NEAR(reference.zcm  ,composite.zcm , 1e-10);
-    EXPECT_NEAR(reference.qxx  ,composite.qxx , 1e-10);
-    EXPECT_NEAR(reference.qxy  ,composite.qxy , 1e-10);
-    EXPECT_NEAR(reference.qxz  ,composite.qxz , 1e-10);
-    EXPECT_NEAR(reference.qyy  ,composite.qyy , 1e-10);
-    EXPECT_NEAR(reference.qyz  ,composite.qyz , 1e-10);
-    EXPECT_NEAR(reference.qzz  ,composite.qzz , 1e-10);
+    EXPECT_NEAR(reference.mass, composite.mass, 1e-10);
+    EXPECT_NEAR(reference.xcm, composite.xcm, 1e-10);
+    EXPECT_NEAR(reference.ycm, composite.ycm, 1e-10);
+    EXPECT_NEAR(reference.zcm, composite.zcm, 1e-10);
+    EXPECT_NEAR(reference.qxx, composite.qxx, 1e-10);
+    EXPECT_NEAR(reference.qxy, composite.qxy, 1e-10);
+    EXPECT_NEAR(reference.qxz, composite.qxz, 1e-10);
+    EXPECT_NEAR(reference.qyy, composite.qyy, 1e-10);
+    EXPECT_NEAR(reference.qyz, composite.qyz, 1e-10);
+    EXPECT_NEAR(reference.qzz, composite.qzz, 1e-10);
 }

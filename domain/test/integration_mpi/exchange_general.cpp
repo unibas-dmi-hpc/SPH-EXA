@@ -226,8 +226,8 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
             LocalIndex startIndex = findNodeAbove<KeyType>(coords.particleKeys(), nodeStart);
             LocalIndex endIndex   = findNodeAbove<KeyType>(coords.particleKeys(), nodeEnd);
 
-            SourceCenterType<T> reference =
-                massCenter<T, T, T>(coords.x(), coords.y(), coords.z(), globalMasses, startIndex, endIndex);
+            SourceCenterType<T> reference = massCenter<T>(coords.x().data(), coords.y().data(), coords.z().data(),
+                                                          globalMasses.data(), startIndex, endIndex);
 
             EXPECT_NEAR(sourceCenter[i][0], reference[0], tol);
             EXPECT_NEAR(sourceCenter[i][1], reference[1], tol);

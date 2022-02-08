@@ -156,7 +156,8 @@ public:
         computeMomentumAndEnergyIAD<T>(taskList.tasks, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
-        d.egrav = domain.addGravityAcceleration(d.x, d.y, d.z, d.h, d.m, d.g, d.grad_P_x, d.grad_P_y, d.grad_P_z);
+        d.egrav =
+            domain.addGravityAcceleration(d.x, d.y, d.z, d.h, d.m, d.codes, d.g, d.grad_P_x, d.grad_P_y, d.grad_P_z);
         // temporary sign fix, see note in ParticlesData
         d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
         timer.step("Gravity");

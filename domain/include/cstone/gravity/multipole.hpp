@@ -42,6 +42,9 @@
 namespace cstone
 {
 
+template<class T>
+using SourceCenterType = util::array<T, 4>;
+
 template <class T>
 struct CartesianQuadrupole
 {
@@ -69,9 +72,15 @@ struct CartesianQuadrupole
  * @param  numParticles   number of particles to read from coordinate arrays
  * @param  gv             output quadrupole
  */
-template<class T1, class T2, class T3>
-void particle2Multipole(
-    const T1* x, const T1* y, const T1* z, const T2* m, LocalIndex first, LocalIndex last, CartesianQuadrupole<T3>& gv)
+template<class T1, class T2, class T3, class CenterType>
+void particle2Multipole(const T1* x,
+                        const T1* y,
+                        const T1* z,
+                        const T2* m,
+                        LocalIndex first,
+                        LocalIndex last,
+                        CenterType /*center*/,
+                        CartesianQuadrupole<T3>& gv)
 {
     if (first == last) { return; }
 
@@ -254,14 +263,14 @@ util::tuple<T1, T1, T1, T1> particle2particle(T1 tx,
  */
 template<class T1, class T2>
 inline util::tuple<T1, T1, T1, T1>
-multipole2particle(T1 tx, T1 ty, T1 tz, const CartesianQuadrupole<T2>& multipole)
+multipole2particle(T1 tx, T1 ty, T1 tz, const SourceCenterType<T1>& center, const CartesianQuadrupole<T2>& multipole)
 {
-    T2 rx = tx - multipole.xcm;
-    T2 ry = ty - multipole.ycm;
-    T2 rz = tz - multipole.zcm;
+    T2 rx = tx - center[0];
+    T2 ry = ty - center[1];
+    T2 rz = tz - center[2];
 
     T2 r_2      = rx * rx + ry * ry + rz * rz;
-    T2 r_minus1 = 1.0 / std::sqrt(r_2);
+    T2 r_minus1 = T2(1) / std::sqrt(r_2);
     T2 r_minus2 = r_minus1 * r_minus1;
     T2 r_minus5 = r_minus2 * r_minus2 * r_minus1;
 
@@ -272,13 +281,13 @@ multipole2particle(T1 tx, T1 ty, T1 tz, const CartesianQuadrupole<T2>& multipole
     T2 rQr = rx * Qrx + ry * Qry + rz * Qrz;
     //                  rQr quad-term           mono-term
     //                      |                     |
-    T2 rQrAndMonopole = (-2.5 * rQr * r_minus5 - multipole.mass * r_minus1) * r_minus2;
+    T2 rQrAndMonopole = (T2(-2.5) * rQr * r_minus5 - multipole.mass * r_minus1) * r_minus2;
 
     //       Qr Quad-term
     return {r_minus5 * Qrx + rQrAndMonopole * rx,
             r_minus5 * Qry + rQrAndMonopole * ry,
             r_minus5 * Qrz + rQrAndMonopole * rz,
-            -(multipole.mass * r_minus1 + 0.5 * r_minus5 * rQr)};
+            -(multipole.mass * r_minus1 + T2(0.5) * r_minus5 * rQr)};
 }
 
 /*! @brief add a multipole contribution to the composite multipole

@@ -49,7 +49,7 @@ TEST(FocusedOctree, sourceCenter)
         std::vector<T> z{0, 0};
         std::vector<T> m{1, 1};
 
-        SourceCenterType<T> probe = massCenter<T, T, T>(x, y, z, m, 0, 2);
+        SourceCenterType<T> probe = massCenter<T>(x.data(), y.data(), z.data(), m.data(), 0, 2);
         SourceCenterType<T> reference{0.5, 0, 0, 2};
         EXPECT_NEAR(probe[0], reference[0], 1e-10);
         EXPECT_NEAR(probe[1], reference[1], 1e-10);
@@ -62,7 +62,7 @@ TEST(FocusedOctree, sourceCenter)
         std::vector<T> z{0, 1, 0, 1, 0, 1, 0, 1};
         std::vector<T> m{2, 2, 2, 2, 2, 2, 2, 2};
 
-        SourceCenterType<T> probe = massCenter<T, T, T>(x, y, z, m, 0, 8);
+        SourceCenterType<T> probe = massCenter<T>(x.data(), y.data(), z.data(), m.data(), 0, 8);
         SourceCenterType<T> reference{0.5, 0.5, 0.5, 16};
         EXPECT_NEAR(probe[0], reference[0], 1e-10);
         EXPECT_NEAR(probe[1], reference[1], 1e-10);
@@ -74,27 +74,28 @@ TEST(FocusedOctree, sourceCenter)
 template<class KeyType>
 static void computeSourceCenter()
 {
+    using T = double;
     LocalIndex numParticles = 20000;
-    Box<double> box{-1, 1};
+    Box<T> box{-1, 1};
     unsigned csBucketSize = 16;
 
-    RandomGaussianCoordinates<double, SfcKind<KeyType>> coords(numParticles, box);
+    RandomGaussianCoordinates<T, SfcKind<KeyType>> coords(numParticles, box);
 
     auto [csTree, csCounts] =
         computeOctree(coords.particleKeys().data(), coords.particleKeys().data() + numParticles, csBucketSize);
     Octree<KeyType> octree;
     octree.update(csTree.data(), nNodes(csTree));
 
-    std::vector<double> masses(numParticles);
+    std::vector<T> masses(numParticles);
     std::generate(begin(masses), end(masses), [numParticles](){ return drand48() / numParticles; });
-    std::vector<util::array<double, 4>> centers(octree.numTreeNodes());
+    std::vector<util::array<T, 4>> centers(octree.numTreeNodes());
 
-    computeLeafMassCenter<double, double, double, KeyType>(coords.x(), coords.y(), coords.z(), masses,
+    computeLeafMassCenter<T, T, T, KeyType>(coords.x(), coords.y(), coords.z(), masses,
                                                            coords.particleKeys(), octree, centers);
-    upsweep(octree, centers.data(), CombineSourceCenter<double>{});
+    upsweep(octree, centers.data(), CombineSourceCenter<T>{});
 
-    util::array<double, 4> refRootCenter =
-        massCenter<double, double, double>(coords.x(), coords.y(), coords.z(), masses, 0, numParticles);
+    util::array<T, 4> refRootCenter =
+        massCenter<T>(coords.x().data(), coords.y().data(), coords.z().data(), masses.data(), 0, numParticles);
 
     TreeNodeIndex rootNode = octree.levelOffset(0);
 

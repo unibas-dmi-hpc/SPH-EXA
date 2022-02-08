@@ -31,6 +31,7 @@
 
 #include "gtest/gtest.h"
 
+#include "cstone/focus/source_center.hpp"
 #include "cstone/gravity/treewalk.hpp"
 #include "cstone/gravity/upsweep.hpp"
 #include "cstone/sfc/box.hpp"
@@ -71,8 +72,13 @@ TEST(Gravity, TreeWalk)
     std::vector<LocalIndex> layout(octree.numLeafNodes() + 1);
     stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
 
+    std::vector<SourceCenterType<T>> sourceCenters(octree.numTreeNodes());
+    computeLeafMassCenter<T, T, T, KeyType>(coordinates.x(), coordinates.y(), coordinates.z(), masses,
+                                            coordinates.particleKeys(), octree, sourceCenters);
+    upsweep(octree, sourceCenters.data(), CombineSourceCenter<T>{});
+
     std::vector<CartesianQuadrupole<T>> multipoles(octree.numTreeNodes());
-    computeMultipoles(octree, layout, x, y, z, masses.data(), multipoles.data());
+    computeMultipoles(octree, layout, x, y, z, masses.data(), sourceCenters.data(), multipoles.data());
 
     T totalMass = std::accumulate(masses.begin(), masses.end(), 0.0);
     EXPECT_TRUE(std::abs(totalMass - multipoles[0].mass) < 1e-6);
@@ -84,9 +90,8 @@ TEST(Gravity, TreeWalk)
 
     float theta = 0.6;
 
-    computeGravity(octree, multipoles.data(), layout.data(), 0, octree.numLeafNodes(),
-                   x, y, z, h.data(), masses.data(), box, theta, G, ax.data(), ay.data(), az.data(),
-                   potential.data());
+    computeGravity(octree, sourceCenters.data(), multipoles.data(), layout.data(), 0, octree.numLeafNodes(), x, y, z,
+                   h.data(), masses.data(), box, theta, G, ax.data(), ay.data(), az.data(), potential.data());
 
     // test version that computes total grav energy only instead of per particle
     {
@@ -100,11 +105,11 @@ TEST(Gravity, TreeWalk)
         std::vector<T> ax2(numParticles, 0);
         std::vector<T> ay2(numParticles, 0);
         std::vector<T> az2(numParticles, 0);
-        double egravTot2 = computeGravity(octree, multipoles.data(), layout.data(), 0,
-                                          octree.numLeafNodes(), x, y, z,
-                                          h.data(), masses.data(), box, theta, G, ax2.data(), ay2.data(), az2.data());
+        double egravTot2 =
+            computeGravity(octree, sourceCenters.data(), multipoles.data(), layout.data(), 0, octree.numLeafNodes(), x,
+                           y, z, h.data(), masses.data(), box, theta, G, ax2.data(), ay2.data(), az2.data());
         std::cout << "total gravitational energy: " << egravTot << std::endl;
-        EXPECT_NEAR((egravTot-egravTot2)/egravTot, 0, 1e-4);
+        EXPECT_NEAR((egravTot - egravTot2) / egravTot, 0, 1e-4);
     }
 
     // direct sum reference

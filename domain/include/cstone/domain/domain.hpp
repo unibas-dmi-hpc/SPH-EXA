@@ -266,18 +266,25 @@ public:
                              gsl::span<const T> z,
                              gsl::span<const T> h,
                              gsl::span<const T> m,
+                             gsl::span<const KeyType> keys,
                              float G,
                              gsl::span<T> ax,
                              gsl::span<T> ay,
                              gsl::span<T> az)
     {
         const Octree<KeyType>& octree = focusTree_.octree();
-        std::vector<CartesianQuadrupole<T>> multipoles(octree.numTreeNodes());
-        computeMultipoles(octree, layout_, x.data(), y.data(), z.data(), m.data(), multipoles.data());
 
-        return computeGravity(octree, multipoles.data(), layout_.data(), 0, octree.numLeafNodes(), x.data(), y.data(),
-                              z.data(), h.data(), m.data(), global_.box(), theta_, G, ax.data(), ay.data(),
-                              az.data());
+        std::vector<SourceCenterType<T>> centers(octree.numTreeNodes());
+        gsl::span<SourceCenterType<T>> centerSpan(centers);
+        computeLeafMassCenter(x, y, z, m, keys, octree, centerSpan);
+        upsweep(octree, centers.data(), CombineSourceCenter<T>{});
+
+        std::vector<CartesianQuadrupole<T>> multipoles(octree.numTreeNodes());
+        computeMultipoles(octree, layout_, x.data(), y.data(), z.data(), m.data(), centers.data(), multipoles.data());
+
+        return computeGravity(octree, centers.data(), multipoles.data(), layout_.data(), 0, octree.numLeafNodes(),
+                              x.data(), y.data(), z.data(), h.data(), m.data(), global_.box(), theta_, G, ax.data(),
+                              ay.data(), az.data());
     }
 
     //! @brief return the index of the first particle that's part of the local assignment

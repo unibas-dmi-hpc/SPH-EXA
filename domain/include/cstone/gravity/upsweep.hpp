@@ -31,8 +31,9 @@
 
 #pragma once
 
-#include "cstone/tree/octree_internal.hpp"
+#include "cstone/focus/source_center.hpp"
 #include "cstone/gravity/multipole.hpp"
+#include "cstone/tree/octree_internal.hpp"
 
 namespace cstone
 {
@@ -54,8 +55,13 @@ namespace cstone
  * @param[out] multipoles output multipole moments
  */
 template<class KeyType, class T1, class T2, class T3>
-void computeMultipoles(const Octree<KeyType>& octree, gsl::span<const LocalIndex> layout,
-                       const T1* x, const T1* y, const T1* z, const T2* m,
+void computeMultipoles(const Octree<KeyType>& octree,
+                       gsl::span<const LocalIndex> layout,
+                       const T1* x,
+                       const T1* y,
+                       const T1* z,
+                       const T2* m,
+                       const SourceCenterType<T1>* centers,
                        CartesianQuadrupole<T3>* multipoles)
 {
     // calculate multipoles for leaf cells
@@ -63,7 +69,7 @@ void computeMultipoles(const Octree<KeyType>& octree, gsl::span<const LocalIndex
     for (TreeNodeIndex i = 0; i < octree.numLeafNodes(); ++i)
     {
         TreeNodeIndex fullIndex = octree.toInternal(i);
-        particle2Multipole(x, y, z, m, layout[i], layout[i + 1], multipoles[fullIndex]);
+        particle2Multipole(x, y, z, m, layout[i], layout[i + 1], centers[fullIndex], multipoles[fullIndex]);
     }
 
     // calculate internal cells from leaf cells

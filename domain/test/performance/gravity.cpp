@@ -68,8 +68,13 @@ int main()
     std::vector<LocalIndex> layout(octree.numLeafNodes() + 1);
     stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
 
+    std::vector<SourceCenterType<T>> sourceCenters(octree.numTreeNodes());
+    computeLeafMassCenter<T, T, T, KeyType>(coordinates.x(), coordinates.y(), coordinates.z(), masses,
+                                            coordinates.particleKeys(), octree, sourceCenters);
+    upsweep(octree, sourceCenters.data(), CombineSourceCenter<T>{});
+
     std::vector<CartesianQuadrupole<T>> multipoles(octree.numTreeNodes());
-    computeMultipoles(octree, layout, x, y, z, masses.data(), multipoles.data());
+    computeMultipoles(octree, layout, x, y, z, masses.data(), sourceCenters.data(), multipoles.data());
 
     std::vector<T> ax(numParticles, 0);
     std::vector<T> ay(numParticles, 0);
@@ -77,8 +82,8 @@ int main()
     std::vector<T> pot(numParticles, 0);
 
     auto t0 = std::chrono::high_resolution_clock::now();
-    computeGravity(octree, multipoles.data(), layout.data(), 0, octree.numLeafNodes(), x, y, z, h.data(), masses.data(),
-                   box, theta, G, ax.data(), ay.data(), az.data(), pot.data());
+    computeGravity(octree, sourceCenters.data(), multipoles.data(), layout.data(), 0, octree.numLeafNodes(), x, y, z,
+                   h.data(), masses.data(), box, theta, G, ax.data(), ay.data(), az.data(), pot.data());
     auto t1       = std::chrono::high_resolution_clock::now();
     float elapsed = std::chrono::duration<double>(t1 - t0).count();
 

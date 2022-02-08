@@ -33,16 +33,14 @@
 
 #include "cstone/util/array.hpp"
 #include "cstone/tree/octree_internal.hpp"
+#include "cstone/gravity/multipole.hpp"
 
 namespace cstone
 {
 
-template<class T>
-using SourceCenterType = util::array<T, 4>;
-
 //! @brief add a single body contribution to a mass center
 template<class T>
-void addBody(SourceCenterType<T>& center, const SourceCenterType<T>& source)
+HOST_DEVICE_FUN void addBody(SourceCenterType<T>& center, const SourceCenterType<T>& source)
 {
     T weight = source[3];
 
@@ -54,7 +52,7 @@ void addBody(SourceCenterType<T>& center, const SourceCenterType<T>& source)
 
 //! @brief finish mass center computation by diving coordinates by total mass
 template<class T>
-SourceCenterType<T> normalizeMass(SourceCenterType<T> center)
+HOST_DEVICE_FUN SourceCenterType<T> normalizeMass(SourceCenterType<T> center)
 {
     T invM = (center[3] != T(0.0)) ? T(1.0) / center[3] : T(0.0);
     center[0] *= invM;
@@ -66,12 +64,8 @@ SourceCenterType<T> normalizeMass(SourceCenterType<T> center)
 
 //! @brief compute a mass center from particles
 template<class Ts, class Tc, class Tm>
-SourceCenterType<Ts> massCenter(gsl::span<const Tc> x,
-                                gsl::span<const Tc> y,
-                                gsl::span<const Tc> z,
-                                gsl::span<const Tm> m,
-                                LocalIndex first,
-                                LocalIndex last)
+HOST_DEVICE_FUN SourceCenterType<Ts>
+massCenter(const Tc* x, const Tc* y, const Tc* z, const Tm* m, LocalIndex first, LocalIndex last)
 {
     SourceCenterType<Ts> center{0, 0, 0, 0};
     for (LocalIndex i = first; i < last; ++i)
@@ -129,7 +123,7 @@ void computeLeafMassCenter(gsl::span<const T1> x,
             LocalIndex first = findNodeAbove(particleKeys, nodeStart);
             LocalIndex last  = findNodeAbove(particleKeys, nodeEnd);
 
-            sourceCenter[nodeIdx] = massCenter<T3>(x, y, z, m, first, last);
+            sourceCenter[nodeIdx] = massCenter<T3>(x.data(), y.data(), z.data(), m.data(), first, last);
         }
     }
 }

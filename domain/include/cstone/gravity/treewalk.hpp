@@ -69,6 +69,7 @@ namespace cstone
 template<class KeyType, class T1, class T2, class T3>
 void computeGravityGroup(TreeNodeIndex groupIdx,
                          const Octree<KeyType>& octree,
+                         const SourceCenterType<T2>* centers,
                          const CartesianQuadrupole<T1>* multipoles,
                          const LocalIndex* layout,
                          const T2* x,
@@ -101,17 +102,18 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
      * the traversal routine to keep going. If the MAC passed, the multipole moments are applied
      * to the particles in the target box and traversal is stopped.
      */
-    auto descendOrM2P = [groupIdx, multipoles, x, y, z, layout, invTheta, G, ax, ay, az, ugrav, &octree, &targetCenter,
-                         &targetSize, &box](TreeNodeIndex idx)
+    auto descendOrM2P = [groupIdx, centers, multipoles, x, y, z, layout, invTheta, G, ax, ay, az, ugrav, &octree,
+                         &targetCenter, &targetSize, &box](TreeNodeIndex idx)
     {
         // idx relative to root node
-        KeyType nodeStart = octree.codeStart(idx);
-        IBox sourceBox    = sfcIBox(sfcKey(nodeStart), octree.level(idx));
+        KeyType nodeStart               = octree.codeStart(idx);
+        IBox sourceBox                  = sfcIBox(sfcKey(nodeStart), octree.level(idx));
         auto [sourceCenter, sourceSize] = centerAndSize<KeyType>(sourceBox, box);
 
-        const auto& p = multipoles[idx];
+        const auto& com = centers[idx];
+        const auto& p   = multipoles[idx];
 
-        bool violatesMac = !vectorMac<KeyType>({p.xcm, p.ycm, p.zcm}, sourceCenter, sourceSize, targetCenter,
+        bool violatesMac = !vectorMac<KeyType>({com[0], com[1], com[2]}, sourceCenter, sourceSize, targetCenter,
                                                targetSize, box, invTheta);
         if (!violatesMac)
         {
@@ -125,11 +127,11 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
             #endif
             for (LocalIndex t = 0; t < numTargets; ++t)
             {
-                LocalIndex offset = t + firstTarget;
-                auto [ax_, ay_, az_, u_] = multipole2particle(x[offset], y[offset], z[offset], p);
-                *(ax + t)    += G * ax_;
-                *(ay + t)    += G * ay_;
-                *(az + t)    += G * az_;
+                LocalIndex offset        = t + firstTarget;
+                auto [ax_, ay_, az_, u_] = multipole2particle(x[offset], y[offset], z[offset], com, p);
+                *(ax + t) += G * ax_;
+                *(ay + t) += G * ay_;
+                *(az + t) += G * az_;
                 *(ugrav + t) += G * u_;
             }
         }
@@ -200,16 +202,30 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
 
 //! @brief repeats computeGravityGroup for all leaf node indices specified
 template<class KeyType, class T1, class T2, class T3>
-void computeGravity(const Octree<KeyType>& octree, const CartesianQuadrupole<T1>* multipoles,
-                    const LocalIndex* layout, TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex,
-                    const T2* x, const T2* y, const T2* z, const T3* h, const T3* m,
-                    const Box<T2>& box, float theta, float G, T2* ax, T2* ay, T2* az, T2* ugrav)
+void computeGravity(const Octree<KeyType>& octree,
+                    const SourceCenterType<T2>* centers,
+                    const CartesianQuadrupole<T1>* multipoles,
+                    const LocalIndex* layout,
+                    TreeNodeIndex firstLeafIndex,
+                    TreeNodeIndex lastLeafIndex,
+                    const T2* x,
+                    const T2* y,
+                    const T2* z,
+                    const T3* h,
+                    const T3* m,
+                    const Box<T2>& box,
+                    float theta,
+                    float G,
+                    T2* ax,
+                    T2* ay,
+                    T2* az,
+                    T2* ugrav)
 {
     #pragma omp parallel for
     for (TreeNodeIndex leafIdx = firstLeafIndex; leafIdx < lastLeafIndex; ++leafIdx)
     {
         LocalIndex firstTarget = layout[leafIdx];
-        computeGravityGroup(leafIdx, octree, multipoles, layout, x, y, z, h, m, box, theta, G,
+        computeGravityGroup(leafIdx, octree, centers, multipoles, layout, x, y, z, h, m, box, theta, G,
                             ax + firstTarget, ay + firstTarget, az + firstTarget, ugrav + firstTarget);
     }
 }
@@ -244,6 +260,7 @@ void computeGravity(const Octree<KeyType>& octree, const CartesianQuadrupole<T1>
  */
 template<class KeyType, class T1, class T2, class T3>
 T2 computeGravity(const Octree<KeyType>& octree,
+                  const SourceCenterType<T2>* centers,
                   const CartesianQuadrupole<T1>* multipoles,
                   const LocalIndex* layout, TreeNodeIndex firstLeafIndex, TreeNodeIndex lastLeafIndex,
                   const T2* x, const T2* y, const T2* z, const T3* h, const T3* m,
@@ -271,7 +288,7 @@ T2 computeGravity(const Octree<KeyType>& octree,
             LocalIndex numTargets  = layout[leafIdx + 1] - firstTarget;
 
             std::fill(ugravThread, ugravThread + maxNodeCount, 0);
-            computeGravityGroup(leafIdx, octree, multipoles, layout, x, y, z, h, m, box, theta, G,
+            computeGravityGroup(leafIdx, octree, centers, multipoles, layout, x, y, z, h, m, box, theta, G,
                                 ax + firstTarget, ay + firstTarget, az + firstTarget, ugravThread);
 
             for (LocalIndex i = 0; i < numTargets; ++i)
