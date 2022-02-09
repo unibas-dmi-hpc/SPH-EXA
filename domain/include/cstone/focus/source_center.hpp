@@ -128,4 +128,36 @@ void computeLeafMassCenter(gsl::span<const T1> x,
     }
 }
 
+template<class T, class KeyType>
+HOST_DEVICE_FUN T computeMac(KeyType prefix, Vec3<T> expCenter, float invTheta, const Box<T>& box)
+{
+    KeyType nodeKey  = decodePlaceholderBit(prefix);
+    int prefixLength = decodePrefixLength(prefix);
+
+    IBox cellBox              = sfcIBox(sfcKey(nodeKey), prefixLength / 3);
+    auto [geoCenter, geoSize] = centerAndSize<KeyType>(cellBox, box);
+
+    Vec3<T> dX        = expCenter - geoCenter;
+
+    T s = sqrt(norm2(dX));
+    T l = T(2.0) * max(geoSize);
+    T mac = l * invTheta + s;
+
+    return mac * mac;
+}
+
+//! @brief replace the last center element (mass) with the squared mac radius
+template<class T, class KeyType>
+void setMac(gsl::span<const KeyType> nodeKeys,
+            gsl::span<SourceCenterType<T>> centers,
+            float invTheta,
+            const Box<T>& box)
+{
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < nodeKeys.size(); ++i)
+    {
+        centers[i][3] = computeMac(nodeKeys[i], makeVec3(centers[i]), invTheta, box);
+    }
+}
+
 } // namespace cstone

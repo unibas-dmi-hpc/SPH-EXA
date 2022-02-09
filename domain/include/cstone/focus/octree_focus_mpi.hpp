@@ -248,7 +248,8 @@ public:
                        gsl::span<const Tm> m,
                        gsl::span<const int> peerRanks,
                        const SpaceCurveAssignment& assignment,
-                       const Octree<KeyType>& globalTree)
+                       const Octree<KeyType>& globalTree,
+                       const Box<T>& box)
     {
         // compute temporary pre-halo exchange particle layout for local particles only
         std::vector<LocalIndex> layout(leafCounts_.size() + 1, 0);
@@ -271,6 +272,8 @@ public:
         peerExchange<SourceCenterType<T>>(peerRanks, centers_, static_cast<int>(P2pTags::focusPeerCenters));
         globalExchange<SourceCenterType<T>>(globalTree, centers_, CombineSourceCenter<T>{});
         upsweep(octree(), centers_.data(), CombineSourceCenter<T>{});
+
+        setMac<T>(octree().nodeKeys(), centers_, 1.0 / theta_, box);
     }
 
     /*! @brief Update the MAC criteria based on a min distance MAC

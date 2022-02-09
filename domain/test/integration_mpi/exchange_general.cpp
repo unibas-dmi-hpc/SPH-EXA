@@ -207,7 +207,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
 
     const Octree<KeyType>& octree = focusTree.octree();
 
-    focusTree.template updateCenters<T, T>(x, y, z, m, peers, assignment, domainTree);
+    focusTree.template updateCenters<T, T>(x, y, z, m, peers, assignment, domainTree, box);
     auto sourceCenter = focusTree.expansionCenters();
 
     constexpr T tol = std::is_same_v<T, double> ? 1e-10 : 1e-4;
@@ -223,13 +223,15 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
             SourceCenterType<T> reference = massCenter<T>(coords.x().data(), coords.y().data(), coords.z().data(),
                                                           globalMasses.data(), startIndex, endIndex);
 
+            T refMac = computeMac(octree.nodeKeys()[i], makeVec3(reference), 1.0 / theta, box);
+            reference[3] = refMac;
+
             EXPECT_NEAR(sourceCenter[i][0], reference[0], tol);
             EXPECT_NEAR(sourceCenter[i][1], reference[1], tol);
             EXPECT_NEAR(sourceCenter[i][2], reference[2], tol);
             EXPECT_NEAR(sourceCenter[i][3], reference[3], tol);
         }
     }
-    EXPECT_NEAR(sourceCenter[0][3], 1.0, tol);
 }
 
 TEST(GeneralFocusExchange, sourceCenter)
