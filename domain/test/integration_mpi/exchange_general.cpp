@@ -98,7 +98,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     std::vector<KeyType> particleKeys(lastAssignedIndex - firstAssignedIndex);
     computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
 
-    FocusedOctree<KeyType> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
+    FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
     focusTree.converge(box, particleKeys, peers, assignment, tree, counts);
 
     const Octree<KeyType>& octree = focusTree.octree();
@@ -202,7 +202,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
     std::vector<KeyType> particleKeys(lastAssignedIndex - firstAssignedIndex);
     computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
 
-    FocusedOctree<KeyType> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
+    FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
     focusTree.converge(box, particleKeys, peers, assignment, tree, counts);
 
     const Octree<KeyType>& octree = focusTree.octree();

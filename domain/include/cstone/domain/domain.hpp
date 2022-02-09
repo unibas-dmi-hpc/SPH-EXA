@@ -190,11 +190,11 @@ public:
 
         if (firstCall_)
         {
-            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
         }
-        focusTree_.updateTree(peers, global_.assignment(), global_.tree());
-        focusTree_.updateCounts(keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
-        focusTree_.updateMinMac(box(), keyView, global_.assignment(), global_.tree());
+        focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
+        focusTree_.updateCounts(keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
+        focusTree_.updateMinMac(box(), keyView, global_.assignment(), global_.treeLeaves());
 
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
 
@@ -223,11 +223,13 @@ public:
 
         if (firstCall_)
         {
-            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
         }
-        focusTree_.updateTree(peers, global_.assignment(), global_.tree());
-        focusTree_.updateCounts(keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
-        focusTree_.updateMinMac(box(), keyView, global_.assignment(), global_.tree());
+        focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
+        focusTree_.updateCounts(keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
+        focusTree_.template updateCenters<T, T>(x, y, z, m, particleKeys, peers, global_.assignment(),
+                                                global_.octree());
+        focusTree_.updateMinMac(box(), keyView, global_.assignment(), global_.treeLeaves());
 
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
 
@@ -274,10 +276,7 @@ public:
     {
         const Octree<KeyType>& octree = focusTree_.octree();
 
-        std::vector<SourceCenterType<T>> centers(octree.numTreeNodes());
-        gsl::span<SourceCenterType<T>> centerSpan(centers);
-        computeLeafMassCenter(x, y, z, m, keys, octree, centerSpan);
-        upsweep(octree, centers.data(), CombineSourceCenter<T>{});
+        gsl::span<const SourceCenterType<T>> centers = focusTree_.expansionCenters();
 
         std::vector<CartesianQuadrupole<T>> multipoles(octree.numTreeNodes());
         computeMultipoles(octree, layout_, x.data(), y.data(), z.data(), m.data(), centers.data(), multipoles.data());
@@ -300,7 +299,7 @@ public:
     [[nodiscard]] LocalIndex nParticlesWithHalos() const { return bufDesc_.size; }
 
     //! @brief read only visibility of the global octree leaves to the outside
-    gsl::span<const KeyType> tree() const { return global_.tree(); }
+    gsl::span<const KeyType> tree() const { return global_.treeLeaves(); }
 
     //! @brief read only visibility of the focused octree leaves to the outside
     gsl::span<const KeyType> focusTree() const { return focusTree_.treeLeaves(); }
@@ -423,7 +422,7 @@ private:
      *  fulfills a MAC with theta as the opening parameter
      * -Also contains particle counts.
      */
-    FocusedOctree<KeyType> focusTree_;
+    FocusedOctree<KeyType, T> focusTree_;
 
     GlobalAssignment<KeyType, T> global_;
 

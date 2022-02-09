@@ -40,7 +40,7 @@ namespace cstone
 {
 
 //! @brief A fully traversable octree with a local focus
-template<class KeyType>
+template<class KeyType, class RealType>
 class FocusedOctree
 {
 public:
@@ -241,6 +241,24 @@ public:
         }
     }
 
+    template<class T, class Tm>
+    void updateCenters(gsl::span<const T> x,
+                       gsl::span<const T> y,
+                       gsl::span<const T> z,
+                       gsl::span<const Tm> m,
+                       gsl::span<const KeyType> particleKeys,
+                       gsl::span<const int> peerRanks,
+                       const SpaceCurveAssignment& assignment,
+                       const Octree<KeyType>& globalTree)
+    {
+        centers_.resize(octree().numTreeNodes());
+        computeLeafMassCenter<T, Tm, T, KeyType>(x, y, z, m, particleKeys, octree(), centers_);
+        upsweep(octree(), centers_.data(), CombineSourceCenter<T>{});
+        peerExchange<SourceCenterType<T>>(peerRanks, centers_, static_cast<int>(P2pTags::focusPeerCenters));
+        globalExchange<SourceCenterType<T>>(globalTree, centers_, CombineSourceCenter<T>{});
+        upsweep(octree(), centers_.data(), CombineSourceCenter<T>{});
+    }
+
     /*! @brief Update the MAC criteria based on a min distance MAC
      *
      * @tparam    T                float or double
@@ -303,6 +321,8 @@ public:
     gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
     //! @brief the assignment of the focus tree leaves to peer ranks
     gsl::span<const TreeIndexPair> assignment() const { return assignment_; }
+    //! @brief Expansion (com) centers of each cell
+    gsl::span<const SourceCenterType<RealType>> expansionCenters() const { return centers_; }
 
     gsl::span<const unsigned> leafCounts() const
     {
@@ -348,6 +368,8 @@ private:
     std::vector<unsigned> counts_;
     //! @brief mac evaluation result relative to focus area (pass or fail)
     std::vector<char> macs_;
+    //! @brief the expansion (com) centers of each treeLeaves cell
+    std::vector<SourceCenterType<RealType>> centers_;
 
     //! @brief the assignment of peer ranks to tree_.treeLeaves()
     std::vector<TreeIndexPair> assignment_;

@@ -123,7 +123,7 @@ public:
 
         timer.start();
 
-        domain.sync(
+        domain.syncGrav(
             d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
         timer.step("domain::sync");
 
