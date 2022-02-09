@@ -140,6 +140,24 @@ HOST_DEVICE_FUN bool vectorMac(const Vec3<T>& sourceCom,
     return distanceToCom2 > (mac * mac);
 }
 
+/*! @brief Evaluate vector MAC based on precomputed acceptance radii
+ *
+ * @param sourceCenter   expansion (com) center of the source (cell)
+ * @param Mac            the square of the distance from @p sourceCenter beyond which the MAC fails or passes
+ * @param targetCenter   geometrical target center
+ * @param targetSize     size of the target box
+ * @return               true if source is close (needs to be opened)
+ */
+template<class T>
+HOST_DEVICE_FUN bool vectorMac(Vec3<T> sourceCenter, T Mac, Vec3<T> targetCenter, Vec3<T> targetSize)
+{
+    Vec3<T> dX = abs(targetCenter - sourceCenter) - targetSize;
+    dX += abs(dX);
+    dX *= T(0.5);
+    T R2 = norm2(dX);
+    return R2 < std::abs(Mac);
+}
+
 //! @brief commutative version of the min-distance mac, based on floating point math
 template<class T>
 HOST_DEVICE_FUN bool minMacMutual(const Vec3<T>& centerA,

@@ -157,7 +157,7 @@ void setMac(gsl::span<const KeyType> nodeKeys,
             const Box<T>& box)
 {
     #pragma omp parallel for schedule(static)
-    for (int i = 0; i < nodeKeys.size(); ++i)
+    for (size_t i = 0; i < nodeKeys.size(); ++i)
     {
         centers[i][3] = computeMac(nodeKeys[i], makeVec3(centers[i]), invTheta, box);
     }

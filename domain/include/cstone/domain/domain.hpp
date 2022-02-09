@@ -281,8 +281,8 @@ public:
         computeMultipoles(octree, layout_, x.data(), y.data(), z.data(), m.data(), centers.data(), multipoles.data());
 
         return computeGravity(octree, centers.data(), multipoles.data(), layout_.data(), 0, octree.numLeafNodes(),
-                              x.data(), y.data(), z.data(), h.data(), m.data(), global_.box(), theta_, G, ax.data(),
-                              ay.data(), az.data());
+                              x.data(), y.data(), z.data(), h.data(), m.data(), global_.box(), G, ax.data(), ay.data(),
+                              az.data());
     }
 
     //! @brief return the index of the first particle that's part of the local assignment
