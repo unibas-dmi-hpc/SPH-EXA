@@ -103,43 +103,6 @@ HOST_DEVICE_FUN bool minMac(const Vec3<T>& aCenter,
     return dsq > (mac * mac);
 }
 
-/*! @brief vector multipole acceptance criterion
- *
- * @tparam KeyType       unsigned 32- or 64-bit integer type
- * @tparam T             float or double
- * @param  sourceCom     source center of gravity
- * @param  sourceCenter  geometrical center of source cell
- * @param  sourceSize    size of source cel
- * @param  targetCenter  geometrical center of target group bounding box
- * @param  targetSize    size of target group bounding box
- * @param  box           global coordinate bounding box, contains PBC information
- * @param  invTheta      reciprocal accuracy parameter
- * @return               true if criterion fulfilled (cell does not need to be opened)
- *
- * Evaluates  d > l/theta + s with:
- *  d -> minimal distance of target box to source center of mass
- *  l -> edge length of source box
- *  s -> distance from geometric source center to source center mass
- */
-template<class KeyType, class T>
-HOST_DEVICE_FUN bool vectorMac(const Vec3<T>& sourceCom,
-                               const Vec3<T>& sourceCenter,
-                               const Vec3<T>& sourceSize,
-                               const Vec3<T>& targetCenter,
-                               const Vec3<T>& targetSize,
-                               const Box<T>& box,
-                               float invTheta)
-{
-    // minimal distance^2 from source-center-mass to target box
-    T distanceToCom2 = norm2(minDistance(sourceCom, targetCenter, targetSize, box));
-    T sourceLength   = T(2.0) * max(sourceSize);
-
-    T s = std::sqrt(norm2(sourceCom - sourceCenter));
-    T mac = sourceLength * invTheta + s;
-
-    return distanceToCom2 > (mac * mac);
-}
-
 /*! @brief Evaluate vector MAC based on precomputed acceptance radii
  *
  * @param sourceCenter   expansion (com) center of the source (cell)
@@ -147,6 +110,12 @@ HOST_DEVICE_FUN bool vectorMac(const Vec3<T>& sourceCom,
  * @param targetCenter   geometrical target center
  * @param targetSize     size of the target box
  * @return               true if source is close (needs to be opened)
+ *
+ * Evaluates  d^2 > mac^2 with:
+ *  mac -> l/theta + s
+ *  d   -> minimal distance of target box to source center of mass
+ *  l   -> edge length of source box
+ *  s   -> distance from geometric source center to source center mass
  */
 template<class T>
 HOST_DEVICE_FUN bool vectorMac(Vec3<T> sourceCenter, T Mac, Vec3<T> targetCenter, Vec3<T> targetSize)
