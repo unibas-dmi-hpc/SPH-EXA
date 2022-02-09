@@ -456,39 +456,50 @@ namespace ryoanji
  *
  * @param[in]  begin    first particle index of bodyPos
  * @param[in]  end      last particles index of bodyPos
- * @param[in]  center   multipole center of gravity
+ * @param[in]  Xout     expansion (com) center of the output multipole
  * @param[in]  bodyPos  body position and mass
- * @param[out] Mi       output multipole to add contributions to
+ * @param[out] Mout     output multipole to add contributions to
  *
  */
 template<class T, class MType>
-HOST_DEVICE_FUN DEVICE_INLINE void P2M(int begin, int end, const Vec4<T>& center, const Vec4<T>* bodyPos, MType& Mi)
+HOST_DEVICE_FUN DEVICE_INLINE void P2M(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* bodyPos, MType& Mout)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
 
     for (int i = begin; i < end; i++)
     {
         Vec4<T> body = bodyPos[i];
-        Vec3<T> dX   = makeVec3(center - body);
+        Vec3<T> dX   = makeVec3(Xout - body);
         MType   M;
         M[0] = body[3];
         Kernels<0, 0, P - 1>::P2M(M, dX);
-        Mi += M;
+        Mout += M;
     }
 }
 
+/*! @brief Combine multipoles into a single multipole
+ *
+ * @tparam      T        float or double
+ * @tparam      MType    Spherical multipole, quadrupole or octopole
+ * @param[in]   begin    first index into @p sourceCenter and @p Multipole to aggregate
+ * @param[in]   end      last index
+ * @param[in]   Xout     the expansion (com) center of the output multipole
+ * @param[in]   Xsrc     input multipole expansion (com) centers
+ * @param[in]   Msrc     input multipoles
+ * @param[out]  Mout     the aggregated output multipole
+ */
 template<class T, class MType>
-HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xi, Vec4<T>* sourceCenter, MType* Multipole,
-                                       MType& Mi)
+HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc,
+                                       const MType* Msrc, MType& Mout)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
 
     for (int i = begin; i < end; i++)
     {
-        const MType& Mj = Multipole[i];
-        Vec4<T>      Xj = sourceCenter[i];
-        Vec3<T>      dX = makeVec3(Xi - Xj);
-        Kernels<0, 0, P - 1>::M2M(Mi, dX, Mj);
+        const MType& Mi = Msrc[i];
+        Vec4<T>      Xi = Xsrc[i];
+        Vec3<T>      dX = makeVec3(Xout - Xi);
+        Kernels<0, 0, P - 1>::M2M(Mout, dX, Mi);
     }
 }
 
