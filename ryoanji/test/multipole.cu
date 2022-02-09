@@ -61,7 +61,8 @@ TEST(Multipole, P2M)
     cstone::CartesianQuadrupole<double> cstoneMultipole;
     cstone::SourceCenterType<double>    csCenter =
         cstone::massCenter<double>(x.data(), y.data(), z.data(), m.data(), 0, numBodies);
-    cstone::particle2Multipole(x.data(), y.data(), z.data(), m.data(), 0, numBodies, csCenter, cstoneMultipole);
+    cstone::particle2Multipole(
+        x.data(), y.data(), z.data(), m.data(), 0, numBodies, cstone::makeVec3(csCenter), cstoneMultipole);
 
     fvec4 centerMass = ryoanji::setCenter(0, numBodies, bodies.data());
 

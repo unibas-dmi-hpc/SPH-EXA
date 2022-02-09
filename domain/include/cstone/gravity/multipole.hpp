@@ -42,9 +42,6 @@
 namespace cstone
 {
 
-template<class T>
-using SourceCenterType = util::array<T, 4>;
-
 template <class T>
 struct CartesianQuadrupole
 {
@@ -69,14 +66,14 @@ struct CartesianQuadrupole
  * @param[in]    numParticles   number of particles to read from coordinate arrays
  * @param[inout] gv             output quadrupole
  */
-template<class T1, class T2, class T3, class CenterType>
+template<class T1, class T2, class T3>
 void particle2Multipole(const T1* x,
                         const T1* y,
                         const T1* z,
                         const T2* m,
                         LocalIndex first,
                         LocalIndex last,
-                        CenterType center,
+                        Vec3<T1> center,
                         CartesianQuadrupole<T3>& gv)
 {
     if (first == last) { return; }
@@ -113,9 +110,9 @@ void particle2Multipole(const T1* x,
 }
 
 template<class T>
-void moveExpansionCenter(SourceCenterType<T> Xold, SourceCenterType<T> Xnew, CartesianQuadrupole<T>& gv)
+void moveExpansionCenter(Vec3<T> Xold, Vec3<T> Xnew, CartesianQuadrupole<T>& gv)
 {
-    Vec3<T> dX = makeVec3<T>(Xold - Xnew);
+    Vec3<T> dX = Xold - Xnew;
     T rx = dX[0];
     T ry = dX[1];
     T rz = dX[2];
@@ -259,7 +256,7 @@ util::tuple<T1, T1, T1, T1> particle2particle(T1 tx,
  */
 template<class T1, class T2>
 inline util::tuple<T1, T1, T1, T1>
-multipole2particle(T1 tx, T1 ty, T1 tz, const SourceCenterType<T1>& center, const CartesianQuadrupole<T2>& multipole)
+multipole2particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center, const CartesianQuadrupole<T2>& multipole)
 {
     T2 rx = tx - center[0];
     T2 ry = ty - center[1];
@@ -318,7 +315,16 @@ void addQuadrupole(CartesianQuadrupole<T>& composite, Vec3<T> dX, const Cartesia
     composite.qzz += addend.qzz + ml * (rz_2 - r_2);
 }
 
-/*! @brief aggregate multipoles into a composite multipole
+/*! @brief Combine multipoles into a single multipole
+ *
+ * @tparam      T        float or double
+ * @tparam      MType    Spherical multipole, quadrupole or octopole
+ * @param[in]   begin    first index into @p sourceCenter and @p Multipole to aggregate
+ * @param[in]   end      last index
+ * @param[in]   Xout     the expansion (com) center of the output multipole
+ * @param[in]   Xsrc     input multipole expansion (com) centers
+ * @param[in]   Msrc     input multipoles
+ * @param[out]  Mout     the aggregated output multipole
  */
 template<class T, class MType>
 void multipole2multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc, const MType* Msrc, MType& Mout)

@@ -31,7 +31,6 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/focus/source_center.hpp"
 #include "cstone/gravity/treewalk.hpp"
 #include "cstone/gravity/upsweep.hpp"
 #include "cstone/sfc/box.hpp"

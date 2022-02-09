@@ -34,6 +34,7 @@
 #include "cstone/traversal/traversal.hpp"
 #include "cstone/traversal/macs.hpp"
 #include "cstone/tree/octree_internal.hpp"
+#include "cstone/focus/source_center.hpp"
 #include "cstone/gravity/multipole.hpp"
 
 namespace cstone
@@ -128,7 +129,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
             for (LocalIndex t = 0; t < numTargets; ++t)
             {
                 LocalIndex offset        = t + firstTarget;
-                auto [ax_, ay_, az_, u_] = multipole2particle(x[offset], y[offset], z[offset], com, p);
+                auto [ax_, ay_, az_, u_] = multipole2particle(x[offset], y[offset], z[offset], makeVec3(com), p);
                 *(ax + t) += G * ax_;
                 *(ay + t) += G * ay_;
                 *(az + t) += G * az_;

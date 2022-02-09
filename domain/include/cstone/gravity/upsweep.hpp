@@ -75,7 +75,7 @@ void computeMultipoles(const Octree<KeyType>& octree,
             if (octree.isLeaf(i))
             {
                 TreeNodeIndex csIdx = octree.cstoneIndex(i);
-                particle2Multipole(x, y, z, m, layout[csIdx], layout[csIdx + 1], centers[i], multipoles[i]);
+                particle2Multipole(x, y, z, m, layout[csIdx], layout[csIdx + 1], makeVec3(centers[i]), multipoles[i]);
             }
             else
             {

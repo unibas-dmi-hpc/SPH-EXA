@@ -38,6 +38,9 @@
 namespace cstone
 {
 
+template<class T>
+using SourceCenterType = util::array<T, 4>;
+
 //! @brief add a single body contribution to a mass center
 template<class T>
 HOST_DEVICE_FUN void addBody(SourceCenterType<T>& center, const SourceCenterType<T>& source)

@@ -116,7 +116,7 @@ TEST(Gravity, M2P)
 
     SourceCenterType<T> center = massCenter<T>(x, y, z, masses.data(), 0, numParticles);
     CartesianQuadrupole<T> multipole;
-    particle2Multipole(x, y, z, masses.data(), 0, numParticles, center, multipole);
+    particle2Multipole(x, y, z, masses.data(), 0, numParticles, makeVec3(center), multipole);
 
     // target particle coordinates
     std::array<T, 3> target    = {-8, 0, 0};
@@ -127,7 +127,7 @@ TEST(Gravity, M2P)
 
     // approximate gravity with multipole interaction
     auto [axApprox, ayApprox, azApprox, potApprox] =
-        multipole2particle(target[0], target[1], target[2], center, multipole);
+        multipole2particle(target[0], target[1], target[2], makeVec3(center), multipole);
 
     //std::cout << std::fixed;
     //std::cout.precision(8);
@@ -169,7 +169,7 @@ TEST(Gravity, M2M)
     // reference directly constructed from particles
     SourceCenterType<T> refCenter = massCenter<T>(x, y, z, masses.data(), 0, numParticles);
     CartesianQuadrupole<T> reference;
-    particle2Multipole(x, y, z, masses.data(), 0, numParticles, refCenter, reference);
+    particle2Multipole(x, y, z, masses.data(), 0, numParticles, makeVec3(refCenter), reference);
 
     LocalIndex eighth = numParticles / 8;
     CartesianQuadrupole<T> sc[8];
@@ -177,7 +177,7 @@ TEST(Gravity, M2M)
     for (int i = 0; i < 8; ++i)
     {
         centers[i] = massCenter<T>(x, y, z, masses.data(), i * eighth, (i + 1) * eighth);
-        particle2Multipole(x, y, z, masses.data(), i * eighth, (i + 1) * eighth, centers[i], sc[i]);
+        particle2Multipole(x, y, z, masses.data(), i * eighth, (i + 1) * eighth, makeVec3(centers[i]), sc[i]);
     }
 
     // aggregate subcell multipoles
