@@ -294,76 +294,46 @@ multipole2particle(T1 tx, T1 ty, T1 tz, const SourceCenterType<T1>& center, cons
  *
  * @tparam        T           float or double
  * @param[inout]  composite   the composite multipole
+ * @param[in]     dX          distance vector between composite and added expansion center
  * @param[in]     addend      the multipole to add
  *
  * Implements formula (2.5) from Hernquist 1987 (parallel axis theorem)
  */
 template<class T>
-void addQuadrupole(CartesianQuadrupole<T>* composite, const CartesianQuadrupole<T>& addend)
+void addQuadrupole(CartesianQuadrupole<T>& composite, Vec3<T> dX, const CartesianQuadrupole<T>& addend)
 {
-    // displacement vector from subcell c-o-m to composite cell c-o-m
-    T rx = addend.xcm - composite->xcm;
-    T ry = addend.ycm - composite->ycm;
-    T rz = addend.zcm - composite->zcm;
+    T rx = dX[0];
+    T ry = dX[1];
+    T rz = dX[2];
 
     T rx_2 = rx * rx;
     T ry_2 = ry * ry;
     T rz_2 = rz * rz;
-    T r_2  = (rx_2 + ry_2 + rz_2) * (1.0/3.0);
+    T r_2  = (rx_2 + ry_2 + rz_2) * (1.0 / 3.0);
 
     T ml = addend.mass * 3;
 
-    composite->qxx += addend.qxx + ml * (rx_2 - r_2);
-    composite->qxy += addend.qxy + ml * rx * ry;
-    composite->qxz += addend.qxz + ml * rx * rz;
-    composite->qyy += addend.qyy + ml * (ry_2 - r_2);
-    composite->qyz += addend.qyz + ml * ry * rz;
-    composite->qzz += addend.qzz + ml * (rz_2 - r_2);
+    composite.mass += addend.mass;
+    composite.qxx += addend.qxx + ml * (rx_2 - r_2);
+    composite.qxy += addend.qxy + ml * rx * ry;
+    composite.qxz += addend.qxz + ml * rx * rz;
+    composite.qyy += addend.qyy + ml * (ry_2 - r_2);
+    composite.qyz += addend.qyz + ml * ry * rz;
+    composite.qzz += addend.qzz + ml * (rz_2 - r_2);
 }
 
 /*! @brief aggregate multipoles into a composite multipole
- *
- * @tparam T     float or double
- * @param  a..h  subcell multipoles
- * @return       the composite multipole
- *
- * Works for any number of subcell multipoles, but we only need to combine 8 at a time.
  */
-template<class T>
-CartesianQuadrupole<T> multipole2multipole(const CartesianQuadrupole<T>& a,
-                                           const CartesianQuadrupole<T>& b,
-                                           const CartesianQuadrupole<T>& c,
-                                           const CartesianQuadrupole<T>& d,
-                                           const CartesianQuadrupole<T>& e,
-                                           const CartesianQuadrupole<T>& f,
-                                           const CartesianQuadrupole<T>& g,
-                                           const CartesianQuadrupole<T>& h)
+template<class T, class MType>
+void multipole2multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc, const MType* Msrc, MType& Mout)
 {
-    CartesianQuadrupole<T> gv;
-
-    gv.mass = a.mass + b.mass + c.mass + d.mass + e.mass + f.mass + g.mass + h.mass;
-
-    gv.xcm  = a.xcm * a.mass + b.xcm * b.mass + c.xcm * c.mass + d.xcm * d.mass;
-    gv.ycm  = a.ycm * a.mass + b.ycm * b.mass + c.ycm * c.mass + d.ycm * d.mass;
-    gv.zcm  = a.zcm * a.mass + b.zcm * b.mass + c.zcm * c.mass + d.zcm * d.mass;
-    gv.xcm += e.xcm * e.mass + f.xcm * f.mass + g.xcm * g.mass + h.xcm * h.mass;
-    gv.ycm += e.ycm * e.mass + f.ycm * f.mass + g.ycm * g.mass + h.ycm * h.mass;
-    gv.zcm += e.zcm * e.mass + f.zcm * f.mass + g.zcm * g.mass + h.zcm * h.mass;
-
-    gv.xcm /= gv.mass;
-    gv.ycm /= gv.mass;
-    gv.zcm /= gv.mass;
-
-    addQuadrupole(&gv, a);
-    addQuadrupole(&gv, b);
-    addQuadrupole(&gv, c);
-    addQuadrupole(&gv, d);
-    addQuadrupole(&gv, e);
-    addQuadrupole(&gv, f);
-    addQuadrupole(&gv, g);
-    addQuadrupole(&gv, h);
-
-    return gv;
+    for (int i = begin; i < end; i++)
+    {
+        const MType& Mi = Msrc[i];
+        Vec4<T> Xi      = Xsrc[i];
+        Vec3<T> dX      = makeVec3(Xout - Xi);
+        addQuadrupole(Mout, dX, Mi);
+    }
 }
 
 } // namespace cstone

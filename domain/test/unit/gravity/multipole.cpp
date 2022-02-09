@@ -181,12 +181,10 @@ TEST(Gravity, M2M)
     }
 
     // aggregate subcell multipoles
-    CartesianQuadrupole<T> composite = multipole2multipole(sc[0], sc[1], sc[2], sc[3], sc[4], sc[5], sc[6], sc[7]);
+    CartesianQuadrupole<T> composite;
+    multipole2multipole(0, 8, refCenter, centers, sc, composite);
 
     EXPECT_NEAR(reference.mass, composite.mass, 1e-10);
-    EXPECT_NEAR(reference.xcm, composite.xcm, 1e-10);
-    EXPECT_NEAR(reference.ycm, composite.ycm, 1e-10);
-    EXPECT_NEAR(reference.zcm, composite.zcm, 1e-10);
     EXPECT_NEAR(reference.qxx, composite.qxx, 1e-10);
     EXPECT_NEAR(reference.qxy, composite.qxy, 1e-10);
     EXPECT_NEAR(reference.qxz, composite.qxz, 1e-10);

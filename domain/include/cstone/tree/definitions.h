@@ -32,8 +32,9 @@
 namespace cstone
 {
 
-//! @brief Controls the node index type, has to be signed. Change to 64-bit if more than 2 billion tree nodes are
-//! required.
+/*! @brief
+ * Controls the node index type, has to be signed. Change to 64-bit if more than 2 billion tree nodes are required.
+ */
 using TreeNodeIndex = int;
 
 using LocalIndex = unsigned;
@@ -41,7 +42,18 @@ using LocalIndex = unsigned;
 template<class T>
 using Vec3 = util::array<T, 3>;
 
-using TestType = float;
+template<class T>
+using Vec4 = util::array<T, 4>;
+
+template<class T>
+constexpr HOST_DEVICE_FUN Vec3<T> makeVec3(Vec4<T> v)
+{
+    Vec3<T> ret;
+    ret[0] = v[0];
+    ret[1] = v[1];
+    ret[2] = v[2];
+    return ret;
+}
 
 //! @brief checks whether a binary tree index corresponds to a leaf index
 HOST_DEVICE_FUN

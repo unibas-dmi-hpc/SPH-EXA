@@ -64,16 +64,26 @@ void computeMultipoles(const Octree<KeyType>& octree,
                        const SourceCenterType<T1>* centers,
                        CartesianQuadrupole<T3>* multipoles)
 {
-    // calculate multipoles for leaf cells
-    #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex i = 0; i < octree.numLeafNodes(); ++i)
+    int currentLevel = maxTreeLevel<KeyType>{};
+    for ( ; currentLevel >= 0; --currentLevel)
     {
-        TreeNodeIndex fullIndex = octree.toInternal(i);
-        particle2Multipole(x, y, z, m, layout[i], layout[i + 1], centers[fullIndex], multipoles[fullIndex]);
+        TreeNodeIndex start = octree.levelOffset(currentLevel);
+        TreeNodeIndex end   = octree.levelOffset(currentLevel + 1);
+        #pragma omp parallel for schedule(static)
+        for (TreeNodeIndex i = start; i < end; ++i)
+        {
+            if (octree.isLeaf(i))
+            {
+                TreeNodeIndex csIdx = octree.cstoneIndex(i);
+                particle2Multipole(x, y, z, m, layout[csIdx], layout[csIdx + 1], centers[i], multipoles[i]);
+            }
+            else
+            {
+                TreeNodeIndex child = octree.child(i, 0);
+                multipole2multipole(child, child + 8, centers[i], centers, multipoles, multipoles[i]);
+            }
+        }
     }
-
-    // calculate internal cells from leaf cells
-    upsweep(octree, multipoles, multipole2multipole<T3>);
 }
 
 } // namespace cstone
