@@ -246,13 +246,27 @@ public:
                        gsl::span<const T> y,
                        gsl::span<const T> z,
                        gsl::span<const Tm> m,
-                       gsl::span<const KeyType> particleKeys,
                        gsl::span<const int> peerRanks,
                        const SpaceCurveAssignment& assignment,
                        const Octree<KeyType>& globalTree)
     {
+        // compute temporary pre-halo exchange particle layout for local particles only
+        std::vector<LocalIndex> layout(leafCounts_.size() + 1, 0);
+        TreeNodeIndex firstIdx = assignment_[myRank_].start();
+        TreeNodeIndex lastIdx  = assignment_[myRank_].end();
+        std::exclusive_scan(leafCounts_.begin() + firstIdx, leafCounts_.begin() + lastIdx + 1,
+                            layout.begin() + firstIdx, 0);
+
         centers_.resize(octree().numTreeNodes());
-        computeLeafMassCenter<T, Tm, T, KeyType>(x, y, z, m, particleKeys, octree(), centers_);
+
+        #pragma omp parallel for schedule(static)
+        for (TreeNodeIndex leafIdx = 0; leafIdx < octree().numLeafNodes(); ++leafIdx)
+        {
+            TreeNodeIndex nodeIdx = octree().toInternal(leafIdx);
+            centers_[nodeIdx] =
+                massCenter<RealType>(x.data(), y.data(), z.data(), m.data(), layout[leafIdx], layout[leafIdx + 1]);
+        }
+
         upsweep(octree(), centers_.data(), CombineSourceCenter<T>{});
         peerExchange<SourceCenterType<T>>(peerRanks, centers_, static_cast<int>(P2pTags::focusPeerCenters));
         globalExchange<SourceCenterType<T>>(globalTree, centers_, CombineSourceCenter<T>{});

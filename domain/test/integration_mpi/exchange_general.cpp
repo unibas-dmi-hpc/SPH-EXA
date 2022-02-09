@@ -207,18 +207,12 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
 
     const Octree<KeyType>& octree = focusTree.octree();
 
-    std::vector<SourceCenterType<T>> sourceCenter(octree.numTreeNodes());
-    computeLeafMassCenter<T, T, T, KeyType>(x, y, z, m, particleKeys, octree, sourceCenter);
-    upsweep(octree, sourceCenter.data(), CombineSourceCenter<T>{});
-
-    focusTree.template peerExchange<SourceCenterType<T>>(peers, sourceCenter,
-                                                         static_cast<int>(P2pTags::focusPeerCounts) + 2);
-    focusTree.template globalExchange<SourceCenterType<T>>(domainTree, sourceCenter, CombineSourceCenter<T>{});
-    upsweep(octree, sourceCenter.data(), CombineSourceCenter<T>{});
+    focusTree.template updateCenters<T, T>(x, y, z, m, peers, assignment, domainTree);
+    auto sourceCenter = focusTree.expansionCenters();
 
     constexpr T tol = std::is_same_v<T, double> ? 1e-10 : 1e-4;
     {
-        for (TreeNodeIndex i = 0; i < sourceCenter.size(); ++i)
+        for (TreeNodeIndex i = 0; i < octree.numTreeNodes(); ++i)
         {
             KeyType nodeStart = octree.codeStart(i);
             KeyType nodeEnd   = octree.codeEnd(i);

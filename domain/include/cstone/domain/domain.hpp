@@ -227,8 +227,7 @@ public:
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
         focusTree_.updateCounts(keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
-        focusTree_.template updateCenters<T, T>(x, y, z, m, particleKeys, peers, global_.assignment(),
-                                                global_.octree());
+        focusTree_.template updateCenters<T, T>(x, y, z, m, peers, global_.assignment(), global_.octree());
         focusTree_.updateMinMac(box(), keyView, global_.assignment(), global_.treeLeaves());
 
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
