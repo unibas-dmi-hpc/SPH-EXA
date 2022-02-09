@@ -51,9 +51,6 @@ struct CartesianQuadrupole
     //! @brief total mass
     T mass = 0.0;
 
-    //! @brief center of mass
-    T xcm = 0.0, ycm = 0.0, zcm = 0.0;
-
     //! @brief quadrupole moments
     T qxx = 0.0, qxy = 0.0, qxz = 0.0;
     T qyy = 0.0, qyz = 0.0;
@@ -62,15 +59,15 @@ struct CartesianQuadrupole
 
 /*! @brief Compute the monopole and quadruple moments from particle coordinates
  *
- * @tparam T1             float or double
- * @tparam T2             float or double
- * @tparam T3             float or double
- * @param  x              x coordinate array
- * @param  y              y coordinate array
- * @param  z              z coordinate array
- * @param  m              masses array
- * @param  numParticles   number of particles to read from coordinate arrays
- * @param  gv             output quadrupole
+ * @tparam       T1             float or double
+ * @tparam       T2             float or double
+ * @tparam       T3             float or double
+ * @param[in]    x              x coordinate array
+ * @param[in]    y              y coordinate array
+ * @param[in]    z              z coordinate array
+ * @param[in]    m              masses array
+ * @param[in]    numParticles   number of particles to read from coordinate arrays
+ * @param[inout] gv             output quadrupole
  */
 template<class T1, class T2, class T3, class CenterType>
 void particle2Multipole(const T1* x,
@@ -79,34 +76,23 @@ void particle2Multipole(const T1* x,
                         const T2* m,
                         LocalIndex first,
                         LocalIndex last,
-                        CenterType /*center*/,
+                        CenterType center,
                         CartesianQuadrupole<T3>& gv)
 {
     if (first == last) { return; }
 
-    // choose position of the first source particle as the expansion center
-    T1 xce = x[0];
-    T1 yce = y[0];
-    T1 zce = z[0];
-
     for (LocalIndex i = first; i < last; ++i)
     {
-        T1 xx = x[i];
-        T1 yy = y[i];
-        T1 zz = z[i];
-
+        T1 xx  = x[i];
+        T1 yy  = y[i];
+        T1 zz  = z[i];
         T1 m_i = m[i];
 
-        gv.xcm += xx * m_i;
-        gv.ycm += yy * m_i;
-        gv.zcm += zz * m_i;
+        T1 rx = xx - center[0];
+        T1 ry = yy - center[1];
+        T1 rz = zz - center[2];
 
         gv.mass += m_i;
-
-        T1 rx = xx - xce;
-        T1 ry = yy - yce;
-        T1 rz = zz - zce;
-
         gv.qxx += rx * rx * m_i;
         gv.qxy += rx * ry * m_i;
         gv.qxz += rx * rz * m_i;
@@ -115,15 +101,25 @@ void particle2Multipole(const T1* x,
         gv.qzz += rz * rz * m_i;
     }
 
-    gv.xcm /= gv.mass;
-    gv.ycm /= gv.mass;
-    gv.zcm /= gv.mass;
+    T1 traceQ = gv.qxx + gv.qyy + gv.qzz;
 
-    T1 rx = xce - gv.xcm;
-    T1 ry = yce - gv.ycm;
-    T1 rz = zce - gv.zcm;
+    // remove trace
+    gv.qxx = 3 * gv.qxx - traceQ;
+    gv.qyy = 3 * gv.qyy - traceQ;
+    gv.qzz = 3 * gv.qzz - traceQ;
+    gv.qxy *= 3;
+    gv.qxz *= 3;
+    gv.qyz *= 3;
+}
 
-    // move expansion center to center of mass
+template<class T>
+void moveExpansionCenter(SourceCenterType<T> Xold, SourceCenterType<T> Xnew, CartesianQuadrupole<T>& gv)
+{
+    Vec3<T> dX = makeVec3<T>(Xold - Xnew);
+    T rx = dX[0];
+    T ry = dX[1];
+    T rz = dX[2];
+
     gv.qxx = gv.qxx - rx * rx * gv.mass;
     gv.qxy = gv.qxy - rx * ry * gv.mass;
     gv.qxz = gv.qxz - rx * rz * gv.mass;
@@ -131,7 +127,7 @@ void particle2Multipole(const T1* x,
     gv.qyz = gv.qyz - ry * rz * gv.mass;
     gv.qzz = gv.qzz - rz * rz * gv.mass;
 
-    T1 traceQ = gv.qxx + gv.qyy + gv.qzz;
+    T traceQ = gv.qxx + gv.qyy + gv.qzz;
 
     // remove trace
     gv.qxx = 3 * gv.qxx - traceQ;
