@@ -210,6 +210,37 @@ TEST(Macs, minMac)
     }
 }
 
+TEST(Macs, vectorMacAndPbc)
+{
+    using T = double;
+
+    Box<T> box(0, 1, true);
+
+    Vec3<T> tcenter{0.1, 0.1, 0.1};
+    Vec3<T> tsize{0.01, 0.01, 0.01};
+
+    // R = sqrt(0.03) = 0.173
+    T mac = 0.03;
+    {
+        Vec3<T> scenter{0.2, 0.2, 0.2};
+        EXPECT_TRUE(vectorMac(scenter, mac, tcenter, tsize));
+        EXPECT_TRUE(vectorMacPbc(scenter, mac, tcenter, tsize, box));
+    }
+    {
+        Vec3<T> scenter{0.2101, 0.2101, 0.2101};
+        EXPECT_FALSE(vectorMac(scenter, mac, tcenter, tsize));
+        EXPECT_FALSE(vectorMacPbc(scenter, mac, tcenter, tsize, box));
+    }
+    {
+        Vec3<T> scenter{1.0, 1.0, 1.0};
+        EXPECT_TRUE(vectorMacPbc(scenter, mac, tcenter, tsize, box));
+    }
+    {
+        Vec3<T> scenter{0.9899, 0.9899, 0.9899};
+        EXPECT_FALSE(vectorMacPbc(scenter, mac, tcenter, tsize, box));
+    }
+}
+
 TEST(Macs, minMacMutual)
 {
     using T = double;

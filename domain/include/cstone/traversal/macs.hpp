@@ -127,6 +127,21 @@ HOST_DEVICE_FUN bool vectorMac(Vec3<T> sourceCenter, T Mac, Vec3<T> targetCenter
     return R2 < std::abs(Mac);
 }
 
+//! @brief PBC-aware version of vectorMac, taking the global coordinate bounding box as input
+template<class T>
+HOST_DEVICE_FUN bool
+vectorMacPbc(Vec3<T> sourceCenter, T Mac, Vec3<T> targetCenter, Vec3<T> targetSize, const Box<T>& box)
+{
+    Vec3<T> dX = targetCenter - sourceCenter;
+
+    dX = abs(applyPbc(dX, box));
+    dX -= targetSize;
+    dX += abs(dX);
+    dX *= T(0.5);
+    T R2 = norm2(dX);
+    return R2 < std::abs(Mac);
+}
+
 //! @brief commutative version of the min-distance mac, based on floating point math
 template<class T>
 HOST_DEVICE_FUN bool minMacMutual(const Vec3<T>& centerA,
