@@ -31,8 +31,11 @@
 
 #include "gtest/gtest.h"
 
+#include "cstone/focus/source_center.hpp"
 #include "cstone/traversal/macs.hpp"
 #include "cstone/tree/octree_util.hpp"
+
+#include "coord_samples/random.hpp"
 
 namespace cstone
 {
@@ -275,11 +278,10 @@ TEST(Macs, minVecMacMutual)
 
 template<class KeyType, class T>
 static std::vector<char> markMacAll2All(
-    const Octree<KeyType>& octree, TreeNodeIndex firstLeaf, TreeNodeIndex lastLeaf, float theta, const Box<T>& box)
+    const Octree<KeyType>& octree, TreeNodeIndex firstLeaf, TreeNodeIndex lastLeaf, float invTheta, const Box<T>& box)
 {
     gsl::span<const KeyType> leaves = octree.treeLeaves();
     std::vector<char> markings(octree.numTreeNodes(), 0);
-    float invTheta = 1.0 / theta;
 
     // loop over target cells
     for (TreeNodeIndex i = firstLeaf; i < lastLeaf; ++i)
@@ -323,7 +325,7 @@ static void markMac()
     TreeNodeIndex focusIdxEnd   = 2;
     markMac(octree, box, leaves[focusIdxStart], leaves[focusIdxEnd], 1. / theta, markings.data());
 
-    std::vector<char> reference = markMacAll2All<KeyType>(octree, focusIdxStart, focusIdxEnd, theta, box);
+    std::vector<char> reference = markMacAll2All<KeyType>(octree, focusIdxStart, focusIdxEnd, 1. / theta, box);
 
     EXPECT_EQ(std::count(begin(markings), end(markings), 0), 9);
     EXPECT_EQ(markings, reference);
@@ -333,6 +335,81 @@ TEST(Macs, markMac)
 {
     markMac<unsigned>();
     markMac<uint64_t>();
+}
+
+template<class KeyType, class T>
+static std::vector<char> markVecMacAll2All(const Octree<KeyType>& octree,
+                                           const Vec4<T>* centers,
+                                           TreeNodeIndex firstLeaf,
+                                           TreeNodeIndex lastLeaf,
+                                           const Box<T>& box)
+{
+    gsl::span<const KeyType> leaves = octree.treeLeaves();
+    std::vector<char> markings(octree.numTreeNodes(), 0);
+
+    // loop over target cells
+    for (TreeNodeIndex i = firstLeaf; i < lastLeaf; ++i)
+    {
+        IBox targetBox = sfcIBox(sfcKey(leaves[i]), sfcKey(leaves[i + 1]));
+        auto [targetCenter, targetSize] = centerAndSize<KeyType>(targetBox, box);
+
+        // loop over source cells
+        for (TreeNodeIndex j = 0; j < octree.numTreeNodes(); ++j)
+        {
+            // source cells must not be in target cell range
+            if (leaves[firstLeaf] <= octree.codeStart(j) && octree.codeEnd(j) <= leaves[lastLeaf])
+            {
+                continue;
+            }
+
+            Vec4<T> center   = centers[j];
+            bool violatesMac = vectorMacPbc(makeVec3(center), center[3], targetCenter, targetSize, box);
+            if (violatesMac) { markings[j] = 1; }
+        }
+    }
+
+    return markings;
+}
+
+template<class KeyType>
+static void markMacVector()
+{
+    using T                 = double;
+    LocalIndex numParticles = 1000;
+    unsigned bucketSize     = 2;
+    float theta             = 0.58;
+    Box<T> box(0, 1);
+
+    RandomGaussianCoordinates<T, SfcKind<KeyType>> coords(numParticles, box);
+    std::vector<T> masses(numParticles, 1.0 / numParticles);
+
+    auto [leaves, counts] = computeOctree(coords.particleKeys().data(),
+                                          coords.particleKeys().data() + coords.particleKeys().size(), bucketSize);
+    Octree<KeyType> octree;
+    octree.update(leaves.data(), nNodes(leaves));
+
+    std::vector<SourceCenterType<T>> centers(octree.numTreeNodes());
+    computeLeafMassCenter<T, T, T, KeyType>(coords.x(), coords.y(), coords.z(), masses, coords.particleKeys(), octree,
+                                            centers);
+    upsweep(octree, centers.data(), CombineSourceCenter<T>{});
+    setMac<T, KeyType>(octree.nodeKeys(), centers, 1.0 / theta, box);
+
+    std::vector<char> markings(octree.numTreeNodes(), 0);
+
+    TreeNodeIndex focusIdxStart = 4;
+    TreeNodeIndex focusIdxEnd   = 22;
+
+    markVecMac(octree, centers.data(), box, leaves[focusIdxStart], leaves[focusIdxEnd], markings.data());
+
+    std::vector<char> reference = markVecMacAll2All<KeyType>(octree, centers.data(), focusIdxStart, focusIdxEnd, box);
+
+    EXPECT_EQ(markings, reference);
+}
+
+TEST(Macs, markMacVector)
+{
+    markMacVector<unsigned>();
+    markMacVector<uint64_t>();
 }
 
 } // namespace cstone

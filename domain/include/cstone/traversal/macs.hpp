@@ -207,7 +207,7 @@ void markMacPerBox(const Vec3<T>& targetCenter,
         // if the tree node with index idx is fully contained in the focus, we stop traversal
         if (containedIn(nodeStart, nodeEnd, focusStart, focusEnd)) { return false; }
 
-        IBox sourceBox = sfcIBox(sfcKey(nodeStart), octree.level(idx));
+        IBox sourceBox                  = sfcIBox(sfcKey(nodeStart), octree.level(idx));
         auto [sourceCenter, sourceSize] = centerAndSize<KeyType>(sourceBox, box);
 
         bool violatesMac = !minMac(targetCenter, targetSize, sourceCenter, sourceSize, box, invTheta);
@@ -245,12 +245,80 @@ void markMac(const TreeType<KeyType>& octree, const Box<T>& box, KeyType focusSt
     spanSfcRange(focusStart, focusEnd, focusCodes.data());
     focusCodes.back() = focusEnd;
 
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for schedule(dynamic)
     for (TreeNodeIndex i = 0; i < numFocusBoxes; ++i)
     {
         IBox target = sfcIBox(sfcKey(focusCodes[i]), sfcKey(focusCodes[i + 1]));
         auto [targetCenter, targetSize] = centerAndSize<KeyType>(target, box);
         markMacPerBox(targetCenter, targetSize, octree, box, invTheta, focusStart, focusEnd, markings);
+    }
+}
+
+//! @brief mark all nodes of @p octree (leaves and internal) that fail the vectorMac w.r.t to @p target
+template<template<class> class TreeType, class T, class KeyType>
+void markVecMacPerBox(const Vec3<T>& targetCenter,
+                      const Vec3<T>& targetSize,
+                      const TreeType<KeyType>& octree,
+                      const Vec4<T>* centers,
+                      const Box<T>& box,
+                      KeyType focusStart,
+                      KeyType focusEnd,
+                      char* markings)
+{
+    auto checkAndMarkMac =
+        [&targetCenter, &targetSize, &octree, &box, focusStart, focusEnd, centers, markings](TreeNodeIndex idx)
+    {
+        KeyType nodeStart = octree.codeStart(idx);
+        KeyType nodeEnd   = octree.codeEnd(idx);
+        // if the tree node with index idx is fully contained in the focus, we stop traversal
+        if (containedIn(nodeStart, nodeEnd, focusStart, focusEnd)) { return false; }
+
+        Vec4<T> center   = centers[idx];
+        bool violatesMac = vectorMacPbc(makeVec3(center), center[3], targetCenter, targetSize, box);
+        if (violatesMac) { markings[idx] = 1; }
+
+        return violatesMac;
+    };
+
+    singleTraversal(octree, checkAndMarkMac, [](TreeNodeIndex) {});
+}
+
+/*! @brief Mark each node in an octree that fails the MAC paired with any node from a given focus SFC range
+ *
+ * @tparam     T            float or double
+ * @tparam     KeyType      32- or 64-bit unsigned integer
+ * @param[in]  octree       octree, including internal part
+ * @param[in]  centers      tree cell expansion (com) center coordinates and mac radius, size @p octree.numTreeNodes()
+ * @param[in]  box          global coordinate bounding box
+ * @param[in]  focusStart   lower SFC focus code
+ * @param[in]  focusEnd     upper SFC focus code
+ * @param[out] markings     array of length @p octree.numTreeNodes(), each position i
+ *                          will be set to 1, if the node of @p octree with index i fails the MAC paired with
+ *                          any node contained in the focus range [focusStart:focusEnd]
+ */
+template<template<class> class TreeType, class T, class KeyType>
+void markVecMac(const TreeType<KeyType>& octree,
+                const Vec4<T>* centers,
+                const Box<T>& box,
+                KeyType focusStart,
+                KeyType focusEnd,
+                char* markings)
+
+{
+    std::fill(markings, markings + octree.numTreeNodes(), 0);
+
+    // find the minimum possible number of octree node boxes to cover the entire focus
+    TreeNodeIndex numFocusBoxes = spanSfcRange(focusStart, focusEnd);
+    std::vector<KeyType> focusCodes(numFocusBoxes + 1);
+    spanSfcRange(focusStart, focusEnd, focusCodes.data());
+    focusCodes.back() = focusEnd;
+
+    #pragma omp parallel for schedule(dynamic)
+    for (TreeNodeIndex i = 0; i < numFocusBoxes; ++i)
+    {
+        IBox target = sfcIBox(sfcKey(focusCodes[i]), sfcKey(focusCodes[i + 1]));
+        auto [targetCenter, targetSize] = centerAndSize<KeyType>(target, box);
+        markVecMacPerBox(targetCenter, targetSize, octree, centers, box, focusStart, focusEnd, markings);
     }
 }
 
