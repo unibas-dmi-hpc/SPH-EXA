@@ -275,7 +275,7 @@ void markVecMacPerBox(const Vec3<T>& targetCenter,
 
         Vec4<T> center   = centers[idx];
         bool violatesMac = vectorMacPbc(makeVec3(center), center[3], targetCenter, targetSize, box);
-        if (violatesMac) { markings[idx] = 1; }
+        if (violatesMac && !markings[idx]) { markings[idx] = 1; }
 
         return violatesMac;
     };

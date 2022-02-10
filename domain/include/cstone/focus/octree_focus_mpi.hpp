@@ -280,22 +280,40 @@ public:
      *
      * @tparam    T                float or double
      * @param[in] box              global coordinate bounding box
-     * @param[in] particleKeys     SFC keys of local particles
      * @param[in] assignment       assignment of the global leaf tree to ranks
      * @param[in] globalTreeLeaves global cornerstone leaf tree
      */
     template<class T>
     void updateMinMac(const Box<T>& box,
-                      [[maybe_unused]] gsl::span<const KeyType> particleKeys,
                       const SpaceCurveAssignment& assignment,
                       gsl::span<const KeyType> globalTreeLeaves)
     {
         KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
         KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
-        assert(particleKeys.front() >= focusStart && particleKeys.back() < focusEnd);
 
         macs_.resize(tree_.octree().numTreeNodes());
         markMac(tree_.octree(), box, focusStart, focusEnd, 1.0 / theta_, macs_.data());
+
+        rebalanceStatus_ |= macCriterion;
+    }
+
+    /*! @brief Update the MAC criteria based on the vector MAC
+     *
+     * @tparam    T                float or double
+     * @param[in] box              global coordinate bounding box
+     * @param[in] assignment       assignment of the global leaf tree to ranks
+     * @param[in] globalTreeLeaves global cornerstone leaf tree
+     */
+    template<class T>
+    void updateVecMac(const Box<T>& box,
+                      const SpaceCurveAssignment& assignment,
+                      gsl::span<const KeyType> globalTreeLeaves)
+    {
+        KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
+        KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
+
+        macs_.resize(octree().numTreeNodes());
+        markVecMac(octree(), centers_.data(), box, focusStart, focusEnd, macs_.data());
 
         rebalanceStatus_ |= macCriterion;
     }
@@ -311,7 +329,7 @@ public:
     {
         bool converged = updateTree(peers, assignment, globalTreeLeaves);
         updateCounts(particleKeys, peers, assignment, globalTreeLeaves, globalCounts);
-        updateMinMac(box, particleKeys, assignment, globalTreeLeaves);
+        updateMinMac(box, assignment, globalTreeLeaves);
         return converged;
     }
 
@@ -340,14 +358,22 @@ public:
     gsl::span<const TreeIndexPair> assignment() const { return assignment_; }
     //! @brief Expansion (com) centers of each cell
     gsl::span<const SourceCenterType<RealType>> expansionCenters() const { return centers_; }
+    //! @brief access multipole acceptance status of each cell
+    gsl::span<const char> macs() const { return macs_; }
+    //! brief particle counts per focus tree leaf cell
+    gsl::span<const unsigned> leafCounts() const { return leafCounts_; }
 
-    gsl::span<const unsigned> leafCounts() const
+    void addMacs(gsl::span<int> haloFlags) const
     {
-        if (rebalanceStatus_ != valid)
+        #pragma omp parallel for schedule(static)
+        for (TreeNodeIndex i = 0; i < haloFlags.size(); ++i)
         {
-            throw std::runtime_error("Tree structure is outdated, need to update the rebalance criteria\n");
+            size_t iIdx = octree().toInternal(i);
+            if (macs_[iIdx] && !haloFlags[i])
+            {
+                haloFlags[i] = 1;
+            }
         }
-        return leafCounts_;
     }
 
 private:
