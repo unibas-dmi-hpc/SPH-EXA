@@ -40,12 +40,13 @@ using namespace cstone;
 
 int main()
 {
-    using T = float;
-    using KeyType = uint64_t;
+    using T             = float;
+    using KeyType       = uint64_t;
+    using MultipoleType = CartesianQuadrupole<T>;
 
-    float G                         = 1.0;
-    unsigned bucketSize             = 64;
-    float theta                     = 0.75;
+    float G                 = 1.0;
+    unsigned bucketSize     = 64;
+    float theta             = 0.75;
     LocalIndex numParticles = 100000;
     Box<T> box(-1, 1);
 
@@ -74,9 +75,10 @@ int main()
     upsweep(octree, sourceCenters.data(), CombineSourceCenter<T>{});
     setMac<T>(octree.nodeKeys(), sourceCenters, 1.0 / theta, box);
 
-    std::vector<CartesianQuadrupole<T>> multipoles(octree.numTreeNodes());
+    std::vector<MultipoleType> multipoles(octree.numTreeNodes());
     computeLeafMultipoles(octree, layout, x, y, z, masses.data(), sourceCenters.data(), multipoles.data());
-    multipoleUpsweep(octree, sourceCenters.data(), multipoles.data());
+    CombineMultipole<MultipoleType> combineMultipole(sourceCenters.data());
+    upsweep(octree, multipoles.data(), combineMultipole);
 
     std::vector<T> ax(numParticles, 0);
     std::vector<T> ay(numParticles, 0);

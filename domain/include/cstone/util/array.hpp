@@ -155,11 +155,6 @@ struct alignas(determineAlignment<T>(N)) array
         return *this;
     }
 
-    //! conversion to pointer for interoperability with gmx::BasicVector
-    HOST_DEVICE_FUN constexpr T* as_vec() { return data_; }
-    //! conversion to const pointer for interoperability with gmx::BasicVector
-    HOST_DEVICE_FUN constexpr const T* as_vec() const { return data_; }
-
 private:
     template<class F, std::size_t... Is>
     HOST_DEVICE_FUN constexpr static void assignImpl(T* a, const T* b, F&& f, std::index_sequence<Is...>) noexcept

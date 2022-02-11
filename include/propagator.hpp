@@ -121,8 +121,9 @@ public:
     template<class DomainType, class ParticleDataType>
     void hydroStepGravity(DomainType& domain, ParticleDataType& d)
     {
-        using T       = typename ParticleDataType::RealType;
-        using KeyType = typename ParticleDataType::KeyType;
+        using T             = typename ParticleDataType::RealType;
+        using KeyType       = typename ParticleDataType::KeyType;
+        using MultipoleType = CartesianQuadrupole<T>;
 
         timer.start();
 
@@ -161,10 +162,13 @@ public:
 
         const Octree<KeyType>&               octree  = domain.focusTree();
         gsl::span<const SourceCenterType<T>> centers = domain.expansionCenters();
-        std::vector<CartesianQuadrupole<T>>  multipoles(octree.numTreeNodes());
+
+        std::vector<MultipoleType> multipoles(octree.numTreeNodes());
         computeLeafMultipoles(
             octree, domain.layout(), d.x.data(), d.y.data(), d.z.data(), d.m.data(), centers.data(), multipoles.data());
-        multipoleUpsweep(octree, centers.data(), multipoles.data());
+
+        CombineMultipole<MultipoleType> combineMultipole(centers.data());
+        upsweep(octree, multipoles.data(), combineMultipole);
 
         d.egrav = computeGravity(octree,
                                  centers.data(),

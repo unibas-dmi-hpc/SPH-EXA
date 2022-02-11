@@ -43,7 +43,7 @@ namespace cstone
  * @tparam     KeyType    32- or 64-bit unsigned integer
  * @tparam     T1         float or double
  * @tparam     T2         float or double
- * @tparam     T3         float or double
+ * @tparam     MType      Multipole type, e.g. CartesianQuadrupole
  * @param[in]  octree     full linked octree
  * @param[in]  layout     array of length @p octree.numLeafNodes()+1, layout[i] is the start offset
  *                        into the x,y,z,m arrays for the leaf node with index i. The last element
@@ -54,7 +54,7 @@ namespace cstone
  * @param[in]  m          local particle masses
  * @param[out] multipoles output multipole moments
  */
-template<class KeyType, class T1, class T2, class T3>
+template<class KeyType, class T1, class T2, class MType>
 void computeLeafMultipoles(const Octree<KeyType>& octree,
                            gsl::span<const LocalIndex> layout,
                            const T1* x,
@@ -62,7 +62,7 @@ void computeLeafMultipoles(const Octree<KeyType>& octree,
                            const T1* z,
                            const T2* m,
                            const SourceCenterType<T1>* centers,
-                           CartesianQuadrupole<T3>* multipoles)
+                           MType* multipoles)
 {
     #pragma omp parallel for schedule(static)
     for (TreeNodeIndex leafIdx = 0; leafIdx < octree.numLeafNodes(); ++leafIdx)
@@ -72,26 +72,25 @@ void computeLeafMultipoles(const Octree<KeyType>& octree,
     }
 }
 
-template<class KeyType, class T1, class T2>
-void multipoleUpsweep(const Octree<KeyType>& octree,
-                      const SourceCenterType<T1>* centers,
-                      CartesianQuadrupole<T2>* multipoles)
+template<class MType>
+class CombineMultipole
 {
-    int currentLevel = maxTreeLevel<KeyType>{};
-    for ( ; currentLevel >= 0; --currentLevel)
+public:
+    CombineMultipole(const SourceCenterType<typename MType::value_type>* centers)
+        : centers_(centers)
     {
-        TreeNodeIndex start = octree.levelOffset(currentLevel);
-        TreeNodeIndex end   = octree.levelOffset(currentLevel + 1);
-        #pragma omp parallel for schedule(static)
-        for (TreeNodeIndex i = start; i < end; ++i)
-        {
-            if (!octree.isLeaf(i))
-            {
-                TreeNodeIndex child = octree.child(i, 0);
-                multipole2multipole(child, child + 8, centers[i], centers, multipoles, multipoles[i]);
-            }
-        }
     }
-}
+
+    MType operator()(TreeNodeIndex nodeIdx, TreeNodeIndex child, MType* multipoles)
+    {
+        MType ret;
+        setZero(ret);
+        multipole2multipole(child, child + 8, centers_[nodeIdx], centers_, multipoles, ret);
+        return ret;
+    }
+
+private:
+    const SourceCenterType<typename MType::value_type>* centers_;
+};
 
 } // namespace cstone

@@ -83,7 +83,7 @@ massCenter(const Tc* x, const Tc* y, const Tc* z, const Tm* m, LocalIndex first,
 template<class T>
 struct CombineSourceCenter
 {
-    SourceCenterType<T> operator()(TreeNodeIndex /*nodeIdx*/, TreeNodeIndex child, SourceCenterType<T>* centers)
+    SourceCenterType<T> operator()(TreeNodeIndex /*nodeIdx*/, TreeNodeIndex child, const SourceCenterType<T>* centers)
     {
         SourceCenterType<T> center{0, 0, 0, 0};
 

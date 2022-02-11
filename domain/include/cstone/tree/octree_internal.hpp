@@ -457,7 +457,7 @@ void upsweep(const Octree<KeyType>& octree,
 template<class T>
 struct SumCombination
 {
-    T operator()(TreeNodeIndex /*nodeIdx*/, TreeNodeIndex c, T* Q)
+    T operator()(TreeNodeIndex /*nodeIdx*/, TreeNodeIndex c, const T* Q)
     {
         return Q[c] + Q[c + 1] + Q[c + 2] + Q[c + 3] + Q[c + 4] + Q[c + 5] + Q[c + 6] + Q[c + 7];
     }

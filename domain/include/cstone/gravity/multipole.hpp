@@ -45,6 +45,8 @@ namespace cstone
 template <class T>
 struct CartesianQuadrupole
 {
+    using value_type = T;
+
     //! @brief total mass
     T mass = 0.0;
 
@@ -53,6 +55,11 @@ struct CartesianQuadrupole
     T qyy = 0.0, qyz = 0.0;
     T qzz = 0.0;
 };
+
+template<class T>
+void setZero(CartesianQuadrupole<T>& /*gv*/)
+{
+}
 
 /*! @brief Compute the monopole and quadruple moments from particle coordinates
  *

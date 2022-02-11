@@ -40,11 +40,12 @@ using namespace cstone;
 
 TEST(Gravity, TreeWalk)
 {
-    using T = double;
-    using KeyType = uint64_t;
+    using T             = double;
+    using KeyType       = uint64_t;
+    using MultipoleType = CartesianQuadrupole<T>;
 
-    float theta = 0.6;
-    float G = 1.0;
+    float theta         = 0.6;
+    float G             = 1.0;
     unsigned bucketSize = 64;
     Box<T> box(-1, 1);
     LocalIndex numParticles = 10000;
@@ -78,9 +79,10 @@ TEST(Gravity, TreeWalk)
     upsweep(octree, centers.data(), CombineSourceCenter<T>{});
     setMac<T>(octree.nodeKeys(), centers, 1.0 / theta, box);
 
-    std::vector<CartesianQuadrupole<T>> multipoles(octree.numTreeNodes());
+    std::vector<MultipoleType> multipoles(octree.numTreeNodes());
     computeLeafMultipoles(octree, layout, x, y, z, masses.data(), centers.data(), multipoles.data());
-    multipoleUpsweep(octree, centers.data(), multipoles.data());
+    CombineMultipole<MultipoleType> combineMultipole(centers.data());
+    upsweep(octree, multipoles.data(), combineMultipole);
 
     T totalMass = std::accumulate(masses.begin(), masses.end(), 0.0);
     EXPECT_TRUE(std::abs(totalMass - multipoles[0].mass) < 1e-6);
