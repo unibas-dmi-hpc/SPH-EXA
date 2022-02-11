@@ -176,7 +176,6 @@ public:
                                  d.z.data(),
                                  d.h.data(),
                                  d.m.data(),
-                                 domain.box(),
                                  d.g,
                                  d.grad_P_x.data(),
                                  d.grad_P_y.data(),

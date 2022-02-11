@@ -78,20 +78,26 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
                          const T2* z,
                          const T3* h,
                          const T3* m,
-                         const Box<T2>& box,
                          float G,
                          T2* ax,
                          T2* ay,
                          T2* az,
                          T2* ugrav)
 {
-    auto treeLeaves     = octree.treeLeaves();
-    KeyType groupKey    = treeLeaves[groupIdx];
-    unsigned groupLevel = treeLevel(treeLeaves[groupIdx + 1] - groupKey);
+    LocalIndex firstTarget = layout[groupIdx];
+    LocalIndex lastTarget  = layout[groupIdx + 1];
 
-    IBox targetBox = sfcIBox(sfcKey(groupKey), groupLevel);
-    Vec3<T2> targetCenter, targetSize;
-    std::tie(targetCenter, targetSize) = centerAndSize<KeyType>(targetBox, box);
+    Vec3<T2> tMin{x[firstTarget], y[firstTarget], z[firstTarget]};
+    Vec3<T2> tMax = tMin;
+    for (LocalIndex i = firstTarget; i < lastTarget; ++i)
+    {
+        Vec3<T2> tp{x[i], y[i], z[i]};
+        tMin = min(tp, tMin);
+        tMax = max(tp, tMax);
+    }
+
+    Vec3<T2> targetCenter = (tMax + tMin) * T2(0.5);
+    Vec3<T2> targetSize = (tMax - tMin) * T2(0.5);
 
     /*! @brief octree traversal continuation criterion
      *
@@ -206,7 +212,6 @@ void computeGravity(const Octree<KeyType>& octree,
                     const T2* z,
                     const T3* h,
                     const T3* m,
-                    const Box<T2>& box,
                     float G,
                     T2* ax,
                     T2* ay,
@@ -217,7 +222,7 @@ void computeGravity(const Octree<KeyType>& octree,
     for (TreeNodeIndex leafIdx = firstLeafIndex; leafIdx < lastLeafIndex; ++leafIdx)
     {
         LocalIndex firstTarget = layout[leafIdx];
-        computeGravityGroup(leafIdx, octree, centers, multipoles, layout, x, y, z, h, m, box, G, ax + firstTarget,
+        computeGravityGroup(leafIdx, octree, centers, multipoles, layout, x, y, z, h, m, G, ax + firstTarget,
                             ay + firstTarget, az + firstTarget, ugrav + firstTarget);
     }
 }
@@ -242,8 +247,6 @@ void computeGravity(const Octree<KeyType>& octree,
  * @param[in]    z               z-coordinates
  * @param[in]    h               smoothing lengths
  * @param[in]    m               masses
- * @param[in]    box             global coordinate bounding box
- * @param[in]    theta           accuracy parameter
  * @param[in]    G               gravitational constant
  * @param[inout] ax              location to add x-acceleration to
  * @param[inout] ay              location to add y-acceleration to
@@ -262,7 +265,6 @@ T2 computeGravity(const Octree<KeyType>& octree,
                   const T2* z,
                   const T3* h,
                   const T3* m,
-                  const Box<T2>& box,
                   float G,
                   T2* ax,
                   T2* ay,
@@ -275,7 +277,7 @@ T2 computeGravity(const Octree<KeyType>& octree,
     #pragma omp parallel for reduction (max : maxNodeCount)
     for (TreeNodeIndex i = 0; i < octree.numLeafNodes(); ++i)
     {
-        maxNodeCount = std::max(maxNodeCount, std::size_t(layout[i+1] - layout[i]));
+        maxNodeCount = std::max(maxNodeCount, std::size_t(layout[i + 1] - layout[i]));
     }
 
     #pragma omp parallel
@@ -290,7 +292,7 @@ T2 computeGravity(const Octree<KeyType>& octree,
             LocalIndex numTargets  = layout[leafIdx + 1] - firstTarget;
 
             std::fill(ugravThread, ugravThread + maxNodeCount, 0);
-            computeGravityGroup(leafIdx, octree, centers, multipoles, layout, x, y, z, h, m, box, G, ax + firstTarget,
+            computeGravityGroup(leafIdx, octree, centers, multipoles, layout, x, y, z, h, m, G, ax + firstTarget,
                                 ay + firstTarget, az + firstTarget, ugravThread);
 
             for (LocalIndex i = 0; i < numTargets; ++i)

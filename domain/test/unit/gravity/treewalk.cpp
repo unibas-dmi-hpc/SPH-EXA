@@ -90,7 +90,7 @@ TEST(Gravity, TreeWalk)
     std::vector<T> potential(numParticles, 0);
 
     computeGravity(octree, centers.data(), multipoles.data(), layout.data(), 0, octree.numLeafNodes(), x, y, z,
-                   h.data(), masses.data(), box, G, ax.data(), ay.data(), az.data(), potential.data());
+                   h.data(), masses.data(), G, ax.data(), ay.data(), az.data(), potential.data());
 
     // test version that computes total grav energy only instead of per particle
     {
@@ -106,7 +106,7 @@ TEST(Gravity, TreeWalk)
         std::vector<T> az2(numParticles, 0);
         double egravTot2 =
             computeGravity(octree, centers.data(), multipoles.data(), layout.data(), 0, octree.numLeafNodes(), x,
-                           y, z, h.data(), masses.data(), box, G, ax2.data(), ay2.data(), az2.data());
+                           y, z, h.data(), masses.data(), G, ax2.data(), ay2.data(), az2.data());
         std::cout << "total gravitational energy: " << egravTot << std::endl;
         EXPECT_NEAR((egravTot - egravTot2) / egravTot, 0, 1e-4);
     }

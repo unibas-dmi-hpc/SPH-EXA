@@ -84,7 +84,7 @@ int main()
 
     auto t0 = std::chrono::high_resolution_clock::now();
     computeGravity(octree, sourceCenters.data(), multipoles.data(), layout.data(), 0, octree.numLeafNodes(), x, y, z,
-                   h.data(), masses.data(), box, G, ax.data(), ay.data(), az.data(), pot.data());
+                   h.data(), masses.data(), G, ax.data(), ay.data(), az.data(), pot.data());
     auto t1       = std::chrono::high_resolution_clock::now();
     float elapsed = std::chrono::duration<double>(t1 - t0).count();
 
