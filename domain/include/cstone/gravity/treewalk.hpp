@@ -106,7 +106,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
      * the traversal routine to keep going. If the MAC passed, the multipole moments are applied
      * to the particles in the target box and traversal is stopped.
      */
-    auto descendOrM2P = [groupIdx, centers, multipoles, x, y, z, layout, G, ax, ay, az, ugrav,
+    auto descendOrM2P = [firstTarget, lastTarget, centers, multipoles, x, y, z, G, ax, ay, az, ugrav,
                          &targetCenter, &targetSize](TreeNodeIndex idx)
     {
         const auto& com = centers[idx];
@@ -116,8 +116,6 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
 
         if (!violatesMac)
         {
-            LocalIndex firstTarget = layout[groupIdx];
-            LocalIndex lastTarget  = layout[groupIdx + 1];
             LocalIndex numTargets  = lastTarget - firstTarget;
 
             // apply multipole to all particles in group
@@ -144,11 +142,8 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
      * and the leaf failed the MAC w.r.t to the target box. In that case, direct particle-particle
      * interactions need to be computed.
      */
-    auto leafP2P = [groupIdx, x, y, z, h, m, layout, G, ax, ay, az, ugrav](TreeNodeIndex idx)
+    auto leafP2P = [groupIdx, layout, firstTarget, lastTarget, x, y, z, h, m, G, ax, ay, az, ugrav](TreeNodeIndex idx)
     {
-        // idx relative to first leaf
-        LocalIndex firstTarget = layout[groupIdx];
-        LocalIndex lastTarget  = layout[groupIdx + 1];
         LocalIndex numTargets  = lastTarget - firstTarget;
 
         LocalIndex firstSource = layout[idx];
