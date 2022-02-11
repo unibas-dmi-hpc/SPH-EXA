@@ -79,7 +79,8 @@ TEST(Gravity, TreeWalk)
     setMac<T>(octree.nodeKeys(), centers, 1.0 / theta, box);
 
     std::vector<CartesianQuadrupole<T>> multipoles(octree.numTreeNodes());
-    computeMultipoles(octree, layout, x, y, z, masses.data(), centers.data(), multipoles.data());
+    computeLeafMultipoles(octree, layout, x, y, z, masses.data(), centers.data(), multipoles.data());
+    multipoleUpsweep(octree, centers.data(), multipoles.data());
 
     T totalMass = std::accumulate(masses.begin(), masses.end(), 0.0);
     EXPECT_TRUE(std::abs(totalMass - multipoles[0].mass) < 1e-6);

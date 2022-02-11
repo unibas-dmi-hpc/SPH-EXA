@@ -75,7 +75,8 @@ int main()
     setMac<T>(octree.nodeKeys(), sourceCenters, 1.0 / theta, box);
 
     std::vector<CartesianQuadrupole<T>> multipoles(octree.numTreeNodes());
-    computeMultipoles(octree, layout, x, y, z, masses.data(), sourceCenters.data(), multipoles.data());
+    computeLeafMultipoles(octree, layout, x, y, z, masses.data(), sourceCenters.data(), multipoles.data());
+    multipoleUpsweep(octree, sourceCenters.data(), multipoles.data());
 
     std::vector<T> ax(numParticles, 0);
     std::vector<T> ay(numParticles, 0);

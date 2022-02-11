@@ -162,8 +162,9 @@ public:
         const Octree<KeyType>&               octree  = domain.focusTree();
         gsl::span<const SourceCenterType<T>> centers = domain.expansionCenters();
         std::vector<CartesianQuadrupole<T>>  multipoles(octree.numTreeNodes());
-        computeMultipoles(
+        computeLeafMultipoles(
             octree, domain.layout(), d.x.data(), d.y.data(), d.z.data(), d.m.data(), centers.data(), multipoles.data());
+        multipoleUpsweep(octree, centers.data(), multipoles.data());
 
         d.egrav = computeGravity(octree,
                                  centers.data(),

@@ -55,14 +55,27 @@ namespace cstone
  * @param[out] multipoles output multipole moments
  */
 template<class KeyType, class T1, class T2, class T3>
-void computeMultipoles(const Octree<KeyType>& octree,
-                       gsl::span<const LocalIndex> layout,
-                       const T1* x,
-                       const T1* y,
-                       const T1* z,
-                       const T2* m,
-                       const SourceCenterType<T1>* centers,
-                       CartesianQuadrupole<T3>* multipoles)
+void computeLeafMultipoles(const Octree<KeyType>& octree,
+                           gsl::span<const LocalIndex> layout,
+                           const T1* x,
+                           const T1* y,
+                           const T1* z,
+                           const T2* m,
+                           const SourceCenterType<T1>* centers,
+                           CartesianQuadrupole<T3>* multipoles)
+{
+    #pragma omp parallel for schedule(static)
+    for (TreeNodeIndex leafIdx = 0; leafIdx < octree.numLeafNodes(); ++leafIdx)
+    {
+        TreeNodeIndex i = octree.toInternal(leafIdx);
+        particle2Multipole(x, y, z, m, layout[leafIdx], layout[leafIdx + 1], makeVec3(centers[i]), multipoles[i]);
+    }
+}
+
+template<class KeyType, class T1, class T2>
+void multipoleUpsweep(const Octree<KeyType>& octree,
+                      const SourceCenterType<T1>* centers,
+                      CartesianQuadrupole<T2>* multipoles)
 {
     int currentLevel = maxTreeLevel<KeyType>{};
     for ( ; currentLevel >= 0; --currentLevel)
@@ -72,12 +85,7 @@ void computeMultipoles(const Octree<KeyType>& octree,
         #pragma omp parallel for schedule(static)
         for (TreeNodeIndex i = start; i < end; ++i)
         {
-            if (octree.isLeaf(i))
-            {
-                TreeNodeIndex csIdx = octree.cstoneIndex(i);
-                particle2Multipole(x, y, z, m, layout[csIdx], layout[csIdx + 1], makeVec3(centers[i]), multipoles[i]);
-            }
-            else
+            if (!octree.isLeaf(i))
             {
                 TreeNodeIndex child = octree.child(i, 0);
                 multipole2multipole(child, child + 8, centers[i], centers, multipoles, multipoles[i]);
