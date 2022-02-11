@@ -41,7 +41,7 @@ TEST(Multipole, P2M)
 {
     int numBodies = 1023;
 
-    std::vector<fvec4> bodies(numBodies);
+    std::vector<Vec4<float>> bodies(numBodies);
     ryoanji::makeCubeBodies(bodies.data(), numBodies);
 
     std::vector<double> x(numBodies);
@@ -64,9 +64,9 @@ TEST(Multipole, P2M)
     cstone::particle2Multipole(
         x.data(), y.data(), z.data(), m.data(), 0, numBodies, cstone::makeVec3(csCenter), cstoneMultipole);
 
-    fvec4 centerMass = ryoanji::setCenter(0, numBodies, bodies.data());
+    Vec4<float> centerMass = ryoanji::setCenter(0, numBodies, bodies.data());
 
-    SphericalMultipole<float, 4> ryoanjiMultipole;
+    ryoanji::SphericalMultipole<float, 4> ryoanjiMultipole;
     std::fill(ryoanjiMultipole.begin(), ryoanjiMultipole.end(), 0.0);
 
     ryoanji::P2M(0, numBodies, centerMass, bodies.data(), ryoanjiMultipole);
@@ -81,9 +81,9 @@ TEST(Multipole, P2M)
     // compare M2P results on a test target
     {
         float eps2 = 0;
-        fvec3 testTarget{-8, -8, -8};
+        Vec3<float> testTarget{-8, -8, -8};
 
-        fvec4 acc{0, 0, 0, 0};
+        Vec4<float> acc{0, 0, 0, 0};
         acc = ryoanji::M2P(acc, testTarget, ryoanji::makeVec3(centerMass), ryoanjiMultipole, eps2);
         //printf("test acceleration: %f %f %f %f\n", acc[0], acc[1], acc[2], acc[3]);
 

@@ -140,7 +140,7 @@ TEST(Buildtree, cstone)
     thrust::host_vector<Vec4<T>> h_bodies(numBodies);
     makeCubeBodies(h_bodies.data(), numBodies, extent);
     // upload to device
-    thrust::device_vector<fvec4> bodyPos = h_bodies;
+    thrust::device_vector<Vec4<T>> bodyPos = h_bodies;
 
     Box<T> box{ {T(0.0)}, extent * T(1.1) };
 
@@ -167,7 +167,7 @@ TEST(Buildtree, cstone)
                      rawPtr(Multipole.data()));
 
     thrust::host_vector<CellData> h_sources      = sources;
-    thrust::host_vector<fvec4>    h_sourceCenter = sourceCenter;
+    thrust::host_vector<Vec4<T>>    h_sourceCenter = sourceCenter;
 
     thrust::host_vector<MultipoleType> h_Multipole = Multipole;
 

@@ -40,14 +40,14 @@
 #include "cstone/primitives/stl.hpp"
 #include "cstone/util/array.hpp"
 
-typedef util::array<float, 3> fvec3;
-typedef util::array<float, 4> fvec4;
-
 template<class T>
 using Vec3 = util::array<T, 3>;
 
 template<class T>
 using Vec4 = util::array<T, 4>;
+
+namespace ryoanji
+{
 
 template<size_t P>
 struct TermSize : public stl::integral_constant<size_t, P * (P + 1) * (P + 2) / 6>
@@ -82,8 +82,14 @@ struct ExpansionOrder<TermSize<4>{}> : stl::integral_constant<size_t, 4>
 {
 };
 
-namespace ryoanji
+template<class T, size_t P>
+void setZero(SphericalMultipole<T, P>& M)
 {
+    for (size_t i = 0; i < TermSize<P>{}; ++i)
+    {
+        M[i] = 0;
+    }
+}
 
 struct GpuConfig
 {

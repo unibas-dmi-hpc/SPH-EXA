@@ -32,8 +32,7 @@
 #include "ryoanji/direct.cuh"
 #include "ryoanji/upwardpass.cuh"
 
-using ryoanji::CellData;
-using ryoanji::rawPtr;
+using namespace ryoanji;
 
 int main(int argc, char** argv)
 {
@@ -60,11 +59,11 @@ int main(int argc, char** argv)
     fprintf(stdout, "ncrit                : %d\n", ncrit);
 
     std::vector<Vec4<T>> h_bodies(numBodies);
-    ryoanji::makeCubeBodies(h_bodies.data(), numBodies, boxSize);
+    makeCubeBodies(h_bodies.data(), numBodies, boxSize);
     // upload bodies to device
     thrust::device_vector<Vec4<T>> d_bodies = h_bodies;
 
-    ryoanji::Box<T> box{{T(0)}, boxSize * T(1.00)};
+    Box<T> box{{T(0)}, boxSize * T(1.00)};
 
     TreeBuilder<uint64_t> treeBuilder;
     int                   numSources = treeBuilder.update(rawPtr(d_bodies.data()), d_bodies.size(), box);
@@ -77,14 +76,14 @@ int main(int argc, char** argv)
     thrust::device_vector<Vec4<T>>       sourceCenter(numSources);
     thrust::device_vector<MultipoleType> Multipole(numSources);
 
-    ryoanji::upsweep(sources.size(),
-                     highestLevel,
-                     theta,
-                     levelRange.data(),
-                     rawPtr(d_bodies.data()),
-                     rawPtr(sources.data()),
-                     rawPtr(sourceCenter.data()),
-                     rawPtr(Multipole.data()));
+    upsweep(sources.size(),
+            highestLevel,
+            theta,
+            levelRange.data(),
+            rawPtr(d_bodies.data()),
+            rawPtr(sources.data()),
+            rawPtr(sourceCenter.data()),
+            rawPtr(Multipole.data()));
 
     thrust::device_vector<Vec4<T>> bodyAcc(numBodies);
 
@@ -92,17 +91,17 @@ int main(int argc, char** argv)
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
-    Vec4<T> interactions = ryoanji::computeAcceleration(0,
-                                                        numBodies,
-                                                        images,
-                                                        eps,
-                                                        cycle,
-                                                        rawPtr(d_bodies.data()),
-                                                        rawPtr(bodyAcc.data()),
-                                                        rawPtr(sources.data()),
-                                                        rawPtr(sourceCenter.data()),
-                                                        rawPtr(Multipole.data()),
-                                                        levelRange.data());
+    Vec4<T> interactions = computeAcceleration(0,
+                                               numBodies,
+                                               images,
+                                               eps,
+                                               cycle,
+                                               rawPtr(d_bodies.data()),
+                                               rawPtr(bodyAcc.data()),
+                                               rawPtr(sources.data()),
+                                               rawPtr(sourceCenter.data()),
+                                               rawPtr(Multipole.data()),
+                                               levelRange.data());
 
     auto   t1    = std::chrono::high_resolution_clock::now();
     double dt    = std::chrono::duration<double>(t1 - t0).count();
