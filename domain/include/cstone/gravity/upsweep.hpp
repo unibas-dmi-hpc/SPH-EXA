@@ -84,7 +84,6 @@ public:
     MType operator()(TreeNodeIndex nodeIdx, TreeNodeIndex child, MType* multipoles)
     {
         MType ret;
-        setZero(ret);
         multipole2multipole(child, child + 8, centers_[nodeIdx], centers_, multipoles, ret);
         return ret;
     }

@@ -71,12 +71,12 @@ TEST(Multipole, P2M)
 
     ryoanji::P2M(0, numBodies, centerMass, bodies.data(), ryoanjiMultipole);
 
-    EXPECT_NEAR(ryoanjiMultipole[0], cstoneMultipole.mass, 1e-6);
+    EXPECT_NEAR(ryoanjiMultipole[0], cstoneMultipole[cstone::Cqi::mass], 1e-6);
 
     EXPECT_NEAR(centerMass[0], csCenter[0] , 1e-6);
     EXPECT_NEAR(centerMass[1], csCenter[1] , 1e-6);
     EXPECT_NEAR(centerMass[2], csCenter[2] , 1e-6);
-    EXPECT_NEAR(centerMass[3], cstoneMultipole.mass, 1e-6);
+    EXPECT_NEAR(centerMass[3], cstoneMultipole[cstone::Cqi::mass], 1e-6);
 
     // compare M2P results on a test target
     {

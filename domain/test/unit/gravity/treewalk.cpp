@@ -85,7 +85,7 @@ TEST(Gravity, TreeWalk)
     upsweep(octree, multipoles.data(), combineMultipole);
 
     T totalMass = std::accumulate(masses.begin(), masses.end(), 0.0);
-    EXPECT_TRUE(std::abs(totalMass - multipoles[0].mass) < 1e-6);
+    EXPECT_TRUE(std::abs(totalMass - multipoles[0][Cqi::mass]) < 1e-6);
 
     std::vector<T> ax(numParticles, 0);
     std::vector<T> ay(numParticles, 0);

@@ -119,7 +119,7 @@ TEST(Gravity, M2P)
     particle2Multipole(x, y, z, masses.data(), 0, numParticles, makeVec3(center), multipole);
 
     // target particle coordinates
-    std::array<T, 3> target    = {-8, 0, 0};
+    std::array<T, 3> target = {-8, 0, 0};
 
     // reference direct gravity on target
     auto [axDirect, ayDirect, azDirect, potDirect] =
@@ -184,11 +184,11 @@ TEST(Gravity, M2M)
     CartesianQuadrupole<T> composite;
     multipole2multipole(0, 8, refCenter, centers, sc, composite);
 
-    EXPECT_NEAR(reference.mass, composite.mass, 1e-10);
-    EXPECT_NEAR(reference.qxx, composite.qxx, 1e-10);
-    EXPECT_NEAR(reference.qxy, composite.qxy, 1e-10);
-    EXPECT_NEAR(reference.qxz, composite.qxz, 1e-10);
-    EXPECT_NEAR(reference.qyy, composite.qyy, 1e-10);
-    EXPECT_NEAR(reference.qyz, composite.qyz, 1e-10);
-    EXPECT_NEAR(reference.qzz, composite.qzz, 1e-10);
+    EXPECT_NEAR(reference[Cqi::mass], composite[Cqi::mass], 1e-10);
+    EXPECT_NEAR(reference[Cqi::qxx], composite[Cqi::qxx], 1e-10);
+    EXPECT_NEAR(reference[Cqi::qxy], composite[Cqi::qxy], 1e-10);
+    EXPECT_NEAR(reference[Cqi::qxz], composite[Cqi::qxz], 1e-10);
+    EXPECT_NEAR(reference[Cqi::qyy], composite[Cqi::qyy], 1e-10);
+    EXPECT_NEAR(reference[Cqi::qyz], composite[Cqi::qyz], 1e-10);
+    EXPECT_NEAR(reference[Cqi::qzz], composite[Cqi::qzz], 1e-10);
 }

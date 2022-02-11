@@ -37,28 +37,37 @@
 #include <cmath>
 
 #include "cstone/tree/definitions.h"
+#include "cstone/util/array.hpp"
 #include "cstone/util/tuple.hpp"
 
 namespace cstone
 {
 
 template <class T>
-struct CartesianQuadrupole
+using CartesianQuadrupole = util::array<T, 8>;
+
+//! @brief CartesianQuadrupole index names
+struct Cqi
 {
-    using value_type = T;
-
-    //! @brief total mass
-    T mass = 0.0;
-
-    //! @brief quadrupole moments
-    T qxx = 0.0, qxy = 0.0, qxz = 0.0;
-    T qyy = 0.0, qyz = 0.0;
-    T qzz = 0.0;
+    enum IndexNames
+    {
+        mass = 0,
+        qxx  = 1,
+        qxy  = 2,
+        qxz  = 3,
+        qyy  = 4,
+        qyz  = 5,
+        qzz  = 6
+    };
 };
 
 template<class T>
-void setZero(CartesianQuadrupole<T>& /*gv*/)
+void setZero(CartesianQuadrupole<T>& M)
 {
+    for (size_t i = 0; i < M.size(); ++i)
+    {
+        M[i] = 0;
+    }
 }
 
 /*! @brief Compute the monopole and quadruple moments from particle coordinates
@@ -71,7 +80,7 @@ void setZero(CartesianQuadrupole<T>& /*gv*/)
  * @param[in]    z              z coordinate array
  * @param[in]    m              masses array
  * @param[in]    numParticles   number of particles to read from coordinate arrays
- * @param[inout] gv             output quadrupole
+ * @param[out]   gv             output quadrupole
  */
 template<class T1, class T2, class T3>
 void particle2Multipole(const T1* x,
@@ -83,6 +92,7 @@ void particle2Multipole(const T1* x,
                         Vec3<T1> center,
                         CartesianQuadrupole<T3>& gv)
 {
+    setZero(gv);
     if (first == last) { return; }
 
     for (LocalIndex i = first; i < last; ++i)
@@ -96,24 +106,24 @@ void particle2Multipole(const T1* x,
         T1 ry = yy - center[1];
         T1 rz = zz - center[2];
 
-        gv.mass += m_i;
-        gv.qxx += rx * rx * m_i;
-        gv.qxy += rx * ry * m_i;
-        gv.qxz += rx * rz * m_i;
-        gv.qyy += ry * ry * m_i;
-        gv.qyz += ry * rz * m_i;
-        gv.qzz += rz * rz * m_i;
+        gv[Cqi::mass] += m_i;
+        gv[Cqi::qxx] += rx * rx * m_i;
+        gv[Cqi::qxy] += rx * ry * m_i;
+        gv[Cqi::qxz] += rx * rz * m_i;
+        gv[Cqi::qyy] += ry * ry * m_i;
+        gv[Cqi::qyz] += ry * rz * m_i;
+        gv[Cqi::qzz] += rz * rz * m_i;
     }
 
-    T1 traceQ = gv.qxx + gv.qyy + gv.qzz;
+    T1 traceQ = gv[Cqi::qxx] + gv[Cqi::qyy] + gv[Cqi::qzz];
 
     // remove trace
-    gv.qxx = 3 * gv.qxx - traceQ;
-    gv.qyy = 3 * gv.qyy - traceQ;
-    gv.qzz = 3 * gv.qzz - traceQ;
-    gv.qxy *= 3;
-    gv.qxz *= 3;
-    gv.qyz *= 3;
+    gv[Cqi::qxx] = 3 * gv[Cqi::qxx] - traceQ;
+    gv[Cqi::qyy] = 3 * gv[Cqi::qyy] - traceQ;
+    gv[Cqi::qzz] = 3 * gv[Cqi::qzz] - traceQ;
+    gv[Cqi::qxy] *= 3;
+    gv[Cqi::qxz] *= 3;
+    gv[Cqi::qyz] *= 3;
 }
 
 template<class T>
@@ -124,22 +134,22 @@ void moveExpansionCenter(Vec3<T> Xold, Vec3<T> Xnew, CartesianQuadrupole<T>& gv)
     T ry = dX[1];
     T rz = dX[2];
 
-    gv.qxx = gv.qxx - rx * rx * gv.mass;
-    gv.qxy = gv.qxy - rx * ry * gv.mass;
-    gv.qxz = gv.qxz - rx * rz * gv.mass;
-    gv.qyy = gv.qyy - ry * ry * gv.mass;
-    gv.qyz = gv.qyz - ry * rz * gv.mass;
-    gv.qzz = gv.qzz - rz * rz * gv.mass;
+    gv[Cqi::qxx] = gv.qxx - rx * rx * gv[Cqi::mass];
+    gv[Cqi::qxy] = gv.qxy - rx * ry * gv[Cqi::mass];
+    gv[Cqi::qxz] = gv.qxz - rx * rz * gv[Cqi::mass];
+    gv[Cqi::qyy] = gv.qyy - ry * ry * gv[Cqi::mass];
+    gv[Cqi::qyz] = gv.qyz - ry * rz * gv[Cqi::mass];
+    gv[Cqi::qzz] = gv.qzz - rz * rz * gv[Cqi::mass];
 
-    T traceQ = gv.qxx + gv.qyy + gv.qzz;
+    T traceQ = gv[Cqi::qxx] + gv[Cqi::qyy] + gv[Cqi::qzz];
 
     // remove trace
-    gv.qxx = 3 * gv.qxx - traceQ;
-    gv.qyy = 3 * gv.qyy - traceQ;
-    gv.qzz = 3 * gv.qzz - traceQ;
-    gv.qxy *= 3;
-    gv.qxz *= 3;
-    gv.qyz *= 3;
+    gv[Cqi::qxx] = 3 * gv[Cqi::qxx] - traceQ;
+    gv[Cqi::qyy] = 3 * gv[Cqi::qyy] - traceQ;
+    gv[Cqi::qzz] = 3 * gv[Cqi::qzz] - traceQ;
+    gv[Cqi::qxy] *= 3;
+    gv[Cqi::qxz] *= 3;
+    gv[Cqi::qyz] *= 3;
 }
 
 /*! @brief compute a single particle-particle gravitational interaction
@@ -158,7 +168,7 @@ void moveExpansionCenter(Vec3<T> Xold, Vec3<T> Xnew, CartesianQuadrupole<T>& gv)
  * @return      tuple(ax, ay, az, ugrav)
  */
 template<class T1, class T2>
-inline __attribute__((always_inline)) util::tuple<T1, T1, T1, T1>
+HOST_DEVICE_FUN inline __attribute__((always_inline)) util::tuple<T1, T1, T1, T1>
 particle2particle(T1 tx, T1 ty, T1 tz, T2 th, T1 sx, T1 sy, T1 sz, T2 sh, T2 sm)
 {
     T1 rx = sx - tx;
@@ -211,16 +221,16 @@ particle2particle(T1 tx, T1 ty, T1 tz, T2 th, T1 sx, T1 sy, T1 sz, T2 sh, T2 sm)
  *    all particles that follow it.
  */
 template<class T1, class T2>
-util::tuple<T1, T1, T1, T1> particle2particle(T1 tx,
-                                              T1 ty,
-                                              T1 tz,
-                                              T2 hi,
-                                              const T1* sx,
-                                              const T1* sy,
-                                              const T1* sz,
-                                              const T2* h,
-                                              const T2* m,
-                                              LocalIndex numSources)
+HOST_DEVICE_FUN util::tuple<T1, T1, T1, T1> particle2particle(T1 tx,
+                                                              T1 ty,
+                                                              T1 tz,
+                                                              T2 hi,
+                                                              const T1* sx,
+                                                              const T1* sy,
+                                                              const T1* sz,
+                                                              const T2* h,
+                                                              const T2* m,
+                                                              LocalIndex numSources)
 {
     T1 axLoc = 0;
     T1 ayLoc = 0;
@@ -237,7 +247,7 @@ util::tuple<T1, T1, T1, T1> particle2particle(T1 tx,
         axLoc += ax_;
         ayLoc += ay_;
         azLoc += az_;
-        uLoc  += u_;
+        uLoc += u_;
     }
 
     return {axLoc, ayLoc, azLoc, uLoc};
@@ -262,7 +272,7 @@ util::tuple<T1, T1, T1, T1> particle2particle(T1 tx,
  * quadrupole: Q*vec(r) / r^5 - 5/2 * vec(r)*Q*vec(r) * vec(r) / r^7
  */
 template<class T1, class T2>
-inline util::tuple<T1, T1, T1, T1>
+HOST_DEVICE_FUN inline util::tuple<T1, T1, T1, T1>
 multipole2particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center, const CartesianQuadrupole<T2>& multipole)
 {
     T2 rx = tx - center[0];
@@ -274,20 +284,20 @@ multipole2particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center, const CartesianQ
     T2 r_minus2 = r_minus1 * r_minus1;
     T2 r_minus5 = r_minus2 * r_minus2 * r_minus1;
 
-    T2 Qrx = rx * multipole.qxx + ry * multipole.qxy + rz * multipole.qxz;
-    T2 Qry = rx * multipole.qxy + ry * multipole.qyy + rz * multipole.qyz;
-    T2 Qrz = rx * multipole.qxz + ry * multipole.qyz + rz * multipole.qzz;
+    T2 Qrx = rx * multipole[Cqi::qxx] + ry * multipole[Cqi::qxy] + rz * multipole[Cqi::qxz];
+    T2 Qry = rx * multipole[Cqi::qxy] + ry * multipole[Cqi::qyy] + rz * multipole[Cqi::qyz];
+    T2 Qrz = rx * multipole[Cqi::qxz] + ry * multipole[Cqi::qyz] + rz * multipole[Cqi::qzz];
 
     T2 rQr = rx * Qrx + ry * Qry + rz * Qrz;
     //                  rQr quad-term           mono-term
     //                      |                     |
-    T2 rQrAndMonopole = (T2(-2.5) * rQr * r_minus5 - multipole.mass * r_minus1) * r_minus2;
+    T2 rQrAndMonopole = (T2(-2.5) * rQr * r_minus5 - multipole[Cqi::mass] * r_minus1) * r_minus2;
 
     //       Qr Quad-term
     return {r_minus5 * Qrx + rQrAndMonopole * rx,
             r_minus5 * Qry + rQrAndMonopole * ry,
             r_minus5 * Qrz + rQrAndMonopole * rz,
-            -(multipole.mass * r_minus1 + T2(0.5) * r_minus5 * rQr)};
+            -(multipole[Cqi::mass] * r_minus1 + T2(0.5) * r_minus5 * rQr)};
 }
 
 /*! @brief add a multipole contribution to the composite multipole
@@ -311,15 +321,15 @@ void addQuadrupole(CartesianQuadrupole<T>& composite, Vec3<T> dX, const Cartesia
     T rz_2 = rz * rz;
     T r_2  = (rx_2 + ry_2 + rz_2) * (1.0 / 3.0);
 
-    T ml = addend.mass * 3;
+    T ml = addend[Cqi::mass] * 3;
 
-    composite.mass += addend.mass;
-    composite.qxx += addend.qxx + ml * (rx_2 - r_2);
-    composite.qxy += addend.qxy + ml * rx * ry;
-    composite.qxz += addend.qxz + ml * rx * rz;
-    composite.qyy += addend.qyy + ml * (ry_2 - r_2);
-    composite.qyz += addend.qyz + ml * ry * rz;
-    composite.qzz += addend.qzz + ml * (rz_2 - r_2);
+    composite[Cqi::mass] += addend[Cqi::mass];
+    composite[Cqi::qxx] += addend[Cqi::qxx] + ml * (rx_2 - r_2);
+    composite[Cqi::qxy] += addend[Cqi::qxy] + ml * rx * ry;
+    composite[Cqi::qxz] += addend[Cqi::qxz] + ml * rx * rz;
+    composite[Cqi::qyy] += addend[Cqi::qyy] + ml * (ry_2 - r_2);
+    composite[Cqi::qyz] += addend[Cqi::qyz] + ml * ry * rz;
+    composite[Cqi::qzz] += addend[Cqi::qzz] + ml * (rz_2 - r_2);
 }
 
 /*! @brief Combine multipoles into a single multipole
@@ -336,6 +346,7 @@ void addQuadrupole(CartesianQuadrupole<T>& composite, Vec3<T> dX, const Cartesia
 template<class T, class MType>
 void multipole2multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc, const MType* Msrc, MType& Mout)
 {
+    setZero(Mout);
     for (int i = begin; i < end; i++)
     {
         const MType& Mi = Msrc[i];
