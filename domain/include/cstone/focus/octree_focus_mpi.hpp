@@ -173,15 +173,13 @@ public:
         }
 
         counts_.resize(tree_.octree().numTreeNodes());
-        upsweepSum<unsigned>(octree(), leafCounts_, counts_);
+        upsweep(octree(), leafCounts_.data(), counts_.data(), SumCombination<unsigned>{});
 
         rebalanceStatus_ |= countsCriterion;
     }
 
     template<class T>
-    void peerExchange(gsl::span<const int> peerRanks,
-                      gsl::span<T> quantities,
-                      int commTag)
+    void peerExchange(gsl::span<const int> peerRanks, gsl::span<T> quantities, int commTag)
     {
         exchangeTreeletGeneral<T>(peerRanks, treelets_, assignment_, octree().nodeKeys(), octree().levelRange(),
                                   octree().internalOrder(), quantities, commTag);

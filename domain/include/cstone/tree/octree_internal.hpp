@@ -464,12 +464,6 @@ struct SumCombination
 };
 
 template<class T, class KeyType>
-void upsweepSum(const Octree<KeyType>& octree, gsl::span<const T> leafQuantities, gsl::span<T> quantities)
-{
-    upsweep(octree, leafQuantities.data(), quantities.data(), SumCombination<T>{});
-}
-
-template<class T, class KeyType>
 void upsweepSum(const Octree<KeyType>& octree, T* quantities)
 {
     upsweep(octree, quantities, SumCombination<T>{});
