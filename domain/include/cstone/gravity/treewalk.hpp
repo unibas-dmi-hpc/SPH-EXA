@@ -45,7 +45,6 @@ namespace cstone
  * @tparam KeyType            unsigned 32- or 64-bit integer type
  * @tparam T1                 float or double
  * @tparam T2                 float or double
- * @tparam T3                 float or double
  * @param[in]    groupIdx     leaf cell index in [0:octree.numLeafNodes()] to compute accelerations for
  * @param[in]    octree       fully linked octree
  * @param[in]    multipoles   array of length @p octree.numTreeNodes() with the multipole moments for all nodes
@@ -67,37 +66,37 @@ namespace cstone
  *
  * Note: acceleration output is added to destination
  */
-template<class KeyType, class T1, class T2, class T3>
+template<class KeyType, class MType, class T1, class T2>
 void computeGravityGroup(TreeNodeIndex groupIdx,
                          const Octree<KeyType>& octree,
-                         const SourceCenterType<T2>* centers,
-                         const CartesianQuadrupole<T1>* multipoles,
+                         const SourceCenterType<T1>* centers,
+                         const MType* multipoles,
                          const LocalIndex* layout,
-                         const T2* x,
-                         const T2* y,
-                         const T2* z,
-                         const T3* h,
-                         const T3* m,
+                         const T1* x,
+                         const T1* y,
+                         const T1* z,
+                         const T2* h,
+                         const T2* m,
                          float G,
-                         T2* ax,
-                         T2* ay,
-                         T2* az,
-                         T2* ugrav)
+                         T1* ax,
+                         T1* ay,
+                         T1* az,
+                         T1* ugrav)
 {
     LocalIndex firstTarget = layout[groupIdx];
     LocalIndex lastTarget  = layout[groupIdx + 1];
 
-    Vec3<T2> tMin{x[firstTarget], y[firstTarget], z[firstTarget]};
-    Vec3<T2> tMax = tMin;
+    Vec3<T1> tMin{x[firstTarget], y[firstTarget], z[firstTarget]};
+    Vec3<T1> tMax = tMin;
     for (LocalIndex i = firstTarget; i < lastTarget; ++i)
     {
-        Vec3<T2> tp{x[i], y[i], z[i]};
+        Vec3<T1> tp{x[i], y[i], z[i]};
         tMin = min(tp, tMin);
         tMax = max(tp, tMax);
     }
 
-    Vec3<T2> targetCenter = (tMax + tMin) * T2(0.5);
-    Vec3<T2> targetSize = (tMax - tMin) * T2(0.5);
+    Vec3<T1> targetCenter = (tMax + tMin) * T2(0.5);
+    Vec3<T1> targetSize = (tMax - tMin) * T2(0.5);
 
     /*! @brief octree traversal continuation criterion
      *
@@ -195,23 +194,23 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
 }
 
 //! @brief repeats computeGravityGroup for all leaf node indices specified
-template<class KeyType, class T1, class T2, class T3>
+template<class KeyType, class MType, class T1, class T2>
 void computeGravity(const Octree<KeyType>& octree,
-                    const SourceCenterType<T2>* centers,
-                    const CartesianQuadrupole<T1>* multipoles,
+                    const SourceCenterType<T1>* centers,
+                    const MType* multipoles,
                     const LocalIndex* layout,
                     TreeNodeIndex firstLeafIndex,
                     TreeNodeIndex lastLeafIndex,
-                    const T2* x,
-                    const T2* y,
-                    const T2* z,
-                    const T3* h,
-                    const T3* m,
+                    const T1* x,
+                    const T1* y,
+                    const T1* z,
+                    const T2* h,
+                    const T2* m,
                     float G,
-                    T2* ax,
-                    T2* ay,
-                    T2* az,
-                    T2* ugrav)
+                    T1* ax,
+                    T1* ay,
+                    T1* az,
+                    T1* ugrav)
 {
     #pragma omp parallel for
     for (TreeNodeIndex leafIdx = firstLeafIndex; leafIdx < lastLeafIndex; ++leafIdx)
@@ -229,7 +228,6 @@ void computeGravity(const Octree<KeyType>& octree,
  * @tparam KeyType               unsigned 32- or 64-bit integer type
  * @tparam T1                    float or double
  * @tparam T2                    float or double
- * @tparam T3                    float or double
  * @param[in]    octree          fully linked octree
  * @param[in]    multipoles      array of length @p octree.numTreeNodes() with the multipole moments for all nodes
  * @param[in]    layout          array of length @p octree.numLeafNodes()+1, layout[i] is the start offset
@@ -248,24 +246,24 @@ void computeGravity(const Octree<KeyType>& octree,
  * @param[inout] az              location to add z-acceleration to
  * @return                       total gravitational energy
  */
-template<class KeyType, class T1, class T2, class T3>
+template<class KeyType, class MType, class T1, class T2>
 T2 computeGravity(const Octree<KeyType>& octree,
-                  const SourceCenterType<T2>* centers,
-                  const CartesianQuadrupole<T1>* multipoles,
+                  const SourceCenterType<T1>* centers,
+                  const MType* multipoles,
                   const LocalIndex* layout,
                   TreeNodeIndex firstLeafIndex,
                   TreeNodeIndex lastLeafIndex,
-                  const T2* x,
-                  const T2* y,
-                  const T2* z,
-                  const T3* h,
-                  const T3* m,
+                  const T1* x,
+                  const T1* y,
+                  const T1* z,
+                  const T2* h,
+                  const T2* m,
                   float G,
-                  T2* ax,
-                  T2* ay,
-                  T2* az)
+                  T1* ax,
+                  T1* ay,
+                  T1* az)
 {
-    T2 egravTot = 0.0;
+    T1 egravTot = 0.0;
 
     // determine maximum leaf particle count, bucketSize does not work, since octree might not be converged
     std::size_t maxNodeCount = 0;
@@ -277,8 +275,8 @@ T2 computeGravity(const Octree<KeyType>& octree,
 
     #pragma omp parallel
     {
-        T2 ugravThread[maxNodeCount];
-        T2 egravThread = 0.0;
+        T1 ugravThread[maxNodeCount];
+        T1 egravThread = 0.0;
 
         #pragma omp for
         for (TreeNodeIndex leafIdx = firstLeafIndex; leafIdx < lastLeafIndex; ++leafIdx)
