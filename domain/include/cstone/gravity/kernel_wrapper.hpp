@@ -24,12 +24,9 @@
  */
 
 /*! @file
- * @brief implements elementary gravity data structures for octree nodes
+ * @brief compatibility wrappers for Ryoanji EXA-FMM spherical multipoles
  *
  * @author Sebastian Keller        <sebastian.f.keller@gmail.com>
- *
- * See for example Hernquist 1987, Performance Characteristics of Tree Codes,
- * https://ui.adsabs.harvard.edu/abs/1987ApJS...64..715H
  */
 
 #pragma once
