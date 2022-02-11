@@ -137,7 +137,7 @@ TEST(Gravity, TreeWalk)
     // sort errors in ascending order to infer the error distribution
     std::sort(begin(delta), end(delta));
 
-    EXPECT_TRUE(delta[numParticles*0.99] < 2e-3);
+    EXPECT_TRUE(delta[numParticles*0.99] < 3e-3);
     EXPECT_TRUE(delta[numParticles-1] < 2e-2);
 
     std::cout.precision(10);

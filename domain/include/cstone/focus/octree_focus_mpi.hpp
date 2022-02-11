@@ -202,8 +202,8 @@ public:
      */
     template<class T, class F>
     void globalExchange(const Octree<KeyType>& globalTree,
-                        gsl::span<T> quantities,
-                        F upsweepFunction)
+                        T* quantities,
+                        F&& upsweepFunction)
     {
         TreeNodeIndex numGlobalLeaves = globalTree.numLeafNodes();
         std::vector<T> globalLeafQuantities(numGlobalLeaves);
@@ -226,7 +226,7 @@ public:
         mpiAllreduce(MPI_IN_PLACE, globalLeafQuantities.data(), numGlobalLeaves, MPI_SUM);
 
         std::vector<T> globalQuantities(globalTree.numTreeNodes());
-        upsweep<T>(globalTree, globalLeafQuantities, globalQuantities, upsweepFunction);
+        upsweep(globalTree, globalLeafQuantities.data(), globalQuantities.data(), std::forward<F>(upsweepFunction));
 
         gsl::span<const KeyType> localLeaves = treeLeaves();
         auto globalIndices = invertRanges(0, assignment_, octree().numLeafNodes());
@@ -270,7 +270,7 @@ public:
 
         upsweep(octree(), centers_.data(), CombineSourceCenter<T>{});
         peerExchange<SourceCenterType<T>>(peerRanks, centers_, static_cast<int>(P2pTags::focusPeerCenters));
-        globalExchange<SourceCenterType<T>>(globalTree, centers_, CombineSourceCenter<T>{});
+        globalExchange(globalTree, centers_.data(), CombineSourceCenter<T>{});
         upsweep(octree(), centers_.data(), CombineSourceCenter<T>{});
 
         setMac<T>(octree().nodeKeys(), centers_, 1.0 / theta_, box);

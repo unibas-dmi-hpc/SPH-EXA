@@ -419,7 +419,7 @@ private:
 };
 
 template<class T, class KeyType, class CombinationFunction>
-void upsweep(const Octree<KeyType>& octree, T* quantities, CombinationFunction combinationFunction)
+void upsweep(const Octree<KeyType>& octree, T* quantities, CombinationFunction&& combinationFunction)
 {
     int currentLevel = maxTreeLevel<KeyType>{};
 
@@ -432,10 +432,7 @@ void upsweep(const Octree<KeyType>& octree, T* quantities, CombinationFunction c
         {
             if (!octree.isLeaf(i))
             {
-                quantities[i] = combinationFunction(quantities[octree.child(i, 0)], quantities[octree.child(i, 1)],
-                                                    quantities[octree.child(i, 2)], quantities[octree.child(i, 3)],
-                                                    quantities[octree.child(i, 4)], quantities[octree.child(i, 5)],
-                                                    quantities[octree.child(i, 6)], quantities[octree.child(i, 7)]);
+                quantities[i] = combinationFunction(i, octree.child(i, 0), quantities);
             }
         }
     }
@@ -444,26 +441,38 @@ void upsweep(const Octree<KeyType>& octree, T* quantities, CombinationFunction c
 //! @brief perform upsweep, initializing leaf quantities from a separate array
 template<class T, class KeyType, class CombinationFunction>
 void upsweep(const Octree<KeyType>& octree,
-             gsl::span<const T> leafQuantities,
-             gsl::span<T> quantities,
-             CombinationFunction combinationFunction)
+             const T* leafQuantities,
+             T* quantities,
+             CombinationFunction&& combinationFunction)
 {
-    assert(leafQuantities.ssize() == octree.numLeafNodes());
     #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex i = 0; i < leafQuantities.ssize(); ++i)
+    for (TreeNodeIndex i = 0; i < octree.numLeafNodes(); ++i)
     {
         TreeNodeIndex internalIdx = octree.toInternal(i);
         quantities[internalIdx]   = leafQuantities[i];
     }
-    upsweep(octree, quantities.data(), combinationFunction);
+    upsweep(octree, quantities, std::forward<CombinationFunction>(combinationFunction));
 }
+
+template<class T>
+struct SumCombination
+{
+    T operator()(TreeNodeIndex /*nodeIdx*/, TreeNodeIndex c, T* Q)
+    {
+        return Q[c] + Q[c + 1] + Q[c + 2] + Q[c + 3] + Q[c + 4] + Q[c + 5] + Q[c + 6] + Q[c + 7];
+    }
+};
 
 template<class T, class KeyType>
 void upsweepSum(const Octree<KeyType>& octree, gsl::span<const T> leafQuantities, gsl::span<T> quantities)
 {
-    auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h)
-    { return a + b + c + d + e + f + g + h; };
-    upsweep(octree, leafQuantities, quantities, sumFunction);
+    upsweep(octree, leafQuantities.data(), quantities.data(), SumCombination<T>{});
+}
+
+template<class T, class KeyType>
+void upsweepSum(const Octree<KeyType>& octree, T* quantities)
+{
+    upsweep(octree, quantities, SumCombination<T>{});
 }
 
 } // namespace cstone

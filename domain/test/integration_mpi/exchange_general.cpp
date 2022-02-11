@@ -118,13 +118,11 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
         }
     }
 
-    auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h)
-    { return a + b + c + d + e + f + g + h; };
-    upsweep(octree, testCounts.data(), sumFunction);
+    upsweepSum(octree, testCounts.data());
 
     focusTree.template peerExchange<int>(peers, testCounts, static_cast<int>(P2pTags::focusPeerCounts) + 2);
-    focusTree.template globalExchange<int>(domainTree, testCounts, sumFunction);
-    upsweep(octree, testCounts.data(), sumFunction);
+    focusTree.globalExchange(domainTree, testCounts.data(), SumCombination<int>{});
+    upsweepSum(octree, testCounts.data());
 
     {
         for (TreeNodeIndex i = 0; i < testCounts.size(); ++i)

@@ -83,24 +83,14 @@ massCenter(const Tc* x, const Tc* y, const Tc* z, const Tm* m, LocalIndex first,
 template<class T>
 struct CombineSourceCenter
 {
-    SourceCenterType<T> operator()(const SourceCenterType<T>& a,
-                                   const SourceCenterType<T>& b,
-                                   const SourceCenterType<T>& c,
-                                   const SourceCenterType<T>& d,
-                                   const SourceCenterType<T>& e,
-                                   const SourceCenterType<T>& f,
-                                   const SourceCenterType<T>& g,
-                                   const SourceCenterType<T>& h)
+    SourceCenterType<T> operator()(TreeNodeIndex /*nodeIdx*/, TreeNodeIndex child, SourceCenterType<T>* centers)
     {
         SourceCenterType<T> center{0, 0, 0, 0};
-        addBody(center, a);
-        addBody(center, b);
-        addBody(center, c);
-        addBody(center, d);
-        addBody(center, e);
-        addBody(center, f);
-        addBody(center, g);
-        addBody(center, h);
+
+        for (TreeNodeIndex i = child; i < child + 8; ++i)
+        {
+            addBody(center, centers[i]);
+        }
         return normalizeMass(center);
     }
 };
