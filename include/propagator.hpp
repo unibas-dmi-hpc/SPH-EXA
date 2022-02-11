@@ -39,6 +39,8 @@
 #include "particles_data.hpp"
 
 #include "cstone/domain/domain.hpp"
+#include "cstone/gravity/treewalk.hpp"
+#include "cstone/gravity/upsweep.hpp"
 
 #include "sph/timestep.hpp"
 
@@ -56,10 +58,10 @@ public:
     {
     }
 
+    //! @brief Advance simulation by one step with hydro-dynamical forces
     template<class DomainType, class ParticleDataType>
     void hydroStep(DomainType& domain, ParticleDataType& d)
     {
-        // Advance simulation by one step
         using T = typename ParticleDataType::RealType;
 
         timer.start();
@@ -115,11 +117,12 @@ public:
         printIterationTimings(domain, d);
     }
 
+    //! @brief Advance simulation by one step with hydro-dynamical and self-gravity forces
     template<class DomainType, class ParticleDataType>
     void hydroStepGravity(DomainType& domain, ParticleDataType& d)
     {
-        // Advance simulation by one step
-        using T = typename ParticleDataType::RealType;
+        using T       = typename ParticleDataType::RealType;
+        using KeyType = typename ParticleDataType::KeyType;
 
         timer.start();
 
@@ -156,8 +159,29 @@ public:
         computeMomentumAndEnergyIAD<T>(taskList.tasks, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
-        d.egrav =
-            domain.addGravityAcceleration(d.x, d.y, d.z, d.h, d.m, d.codes, d.g, d.grad_P_x, d.grad_P_y, d.grad_P_z);
+        const Octree<KeyType>&               octree  = domain.focusTree();
+        gsl::span<const SourceCenterType<T>> centers = domain.expansionCenters();
+        std::vector<CartesianQuadrupole<T>>  multipoles(octree.numTreeNodes());
+        computeMultipoles(
+            octree, domain.layout(), d.x.data(), d.y.data(), d.z.data(), d.m.data(), centers.data(), multipoles.data());
+
+        d.egrav = computeGravity(octree,
+                                 centers.data(),
+                                 multipoles.data(),
+                                 domain.layout().data(),
+                                 0,
+                                 octree.numLeafNodes(),
+                                 d.x.data(),
+                                 d.y.data(),
+                                 d.z.data(),
+                                 d.h.data(),
+                                 d.m.data(),
+                                 domain.box(),
+                                 d.g,
+                                 d.grad_P_x.data(),
+                                 d.grad_P_y.data(),
+                                 d.grad_P_z.data());
+
         // temporary sign fix, see note in ParticlesData
         d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
         timer.step("Gravity");
@@ -206,7 +230,7 @@ private:
                                 totalNeighbors,
                                 output_);
 
-            std::cout << "### Check ### Focus Tree Nodes: " << nNodes(domain.focusTree()) << std::endl;
+            std::cout << "### Check ### Focus Tree Nodes: " << domain.focusTree().numLeafNodes() << std::endl;
             Printer::printTotalIterationTime(d.iteration, timer.duration(), output_);
         }
     }

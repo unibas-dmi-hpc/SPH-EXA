@@ -38,16 +38,11 @@
 #include "cstone/domain/domain_traits.hpp"
 #include "cstone/domain/exchange_keys.hpp"
 #include "cstone/domain/layout.hpp"
-#include "cstone/traversal/collisions.hpp"
-#include "cstone/traversal/peers.hpp"
-
-#include "cstone/gravity/treewalk.hpp"
-#include "cstone/gravity/upsweep.hpp"
+#include "cstone/focus/octree_focus_mpi.hpp"
 #include "cstone/halos/exchange_halos.hpp"
 #include "cstone/halos/halos.hpp"
-
-#include "cstone/focus/octree_focus_mpi.hpp"
-
+#include "cstone/traversal/collisions.hpp"
+#include "cstone/traversal/peers.hpp"
 #include "cstone/sfc/box_mpi.hpp"
 
 namespace cstone
@@ -250,60 +245,22 @@ public:
         halos_.exchangeHalos(arrays.data()...);
     }
 
-    /*! @brief compute gravitational accelerations
-     *
-     * @param[in]    x    x-coordinates
-     * @param[in]    y    y-coordinates
-     * @param[in]    z    z-coordinates
-     * @param[in]    h    smoothing lengths
-     * @param[in]    m    particle masses
-     * @param[in]    G    gravitational constant
-     * @param[inout] ax   x-acceleration to add to
-     * @param[inout] ay   y-acceleration to add to
-     * @param[inout] az   z-acceleration to add to
-     * @return            total gravitational potential energy
-     */
-    T addGravityAcceleration(gsl::span<const T> x,
-                             gsl::span<const T> y,
-                             gsl::span<const T> z,
-                             gsl::span<const T> h,
-                             gsl::span<const T> m,
-                             gsl::span<const KeyType> keys,
-                             float G,
-                             gsl::span<T> ax,
-                             gsl::span<T> ay,
-                             gsl::span<T> az)
-    {
-        const Octree<KeyType>& octree = focusTree_.octree();
-
-        gsl::span<const SourceCenterType<T>> centers = focusTree_.expansionCenters();
-
-        std::vector<CartesianQuadrupole<T>> multipoles(octree.numTreeNodes());
-        computeMultipoles(octree, layout_, x.data(), y.data(), z.data(), m.data(), centers.data(), multipoles.data());
-
-        return computeGravity(octree, centers.data(), multipoles.data(), layout_.data(), 0, octree.numLeafNodes(),
-                              x.data(), y.data(), z.data(), h.data(), m.data(), global_.box(), G, ax.data(), ay.data(),
-                              az.data());
-    }
-
     //! @brief return the index of the first particle that's part of the local assignment
     [[nodiscard]] LocalIndex startIndex() const { return bufDesc_.start; }
-
     //! @brief return one past the index of the last particle that's part of the local assignment
     [[nodiscard]] LocalIndex endIndex() const { return bufDesc_.end; }
-
     //! @brief return number of locally assigned particles
     [[nodiscard]] LocalIndex nParticles() const { return endIndex() - startIndex(); }
-
     //! @brief return number of locally assigned particles plus number of halos
     [[nodiscard]] LocalIndex nParticlesWithHalos() const { return bufDesc_.size; }
-
     //! @brief read only visibility of the global octree leaves to the outside
     gsl::span<const KeyType> tree() const { return global_.treeLeaves(); }
-
-    //! @brief read only visibility of the focused octree leaves to the outside
-    gsl::span<const KeyType> focusTree() const { return focusTree_.treeLeaves(); }
-
+    //! @brief read only visibility of the focused octree
+    const Octree<KeyType>& focusTree() const { return focusTree_.octree(); }
+    //! @brief expansion (com) center and mac^2 radii of each focus tree cell
+    gsl::span<const SourceCenterType<T>> expansionCenters() const { return focusTree_.expansionCenters(); }
+    //! @brief particle offsets of each focus tree leaf cell
+    gsl::span<const LocalIndex> layout() const { return layout_; }
     //! @brief return the coordinate bounding box from the previous sync call
     const Box<T>& box() const { return global_.box(); }
 
