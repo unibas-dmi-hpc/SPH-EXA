@@ -76,11 +76,11 @@ int main(int argc, char** argv)
 
     float theta = 0.5;
 
-#ifdef USE_CUDA
+    #ifdef USE_CUDA
     DomainType<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#else
+    #else
     Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#endif
+    #endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 
