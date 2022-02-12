@@ -110,7 +110,7 @@ void NohSolution::NohSol(
         {
               // if we are between the origin and the shock front
               rho[i]  = rho0  * pow(gpogm, xgeom);
-              u[i]    = 0.5   * pow(vel0,  2.);
+              u[i]    = 0.5   * (vel0 * vel0);
               p[i]    = gamm1 * rho[i] * u[i];
               vel[i]  = 0.;
               cs[i]   = sqrt(gamma * p[i] / rho[i]);;

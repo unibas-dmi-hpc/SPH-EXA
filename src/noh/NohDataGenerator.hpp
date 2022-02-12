@@ -119,7 +119,7 @@ public:
         #pragma omp parallel for
         for (size_t i = 0; i < pd.count; i++)
         {
-            const T radius = std::sqrt(std::pow(pd.x[i],2) + std::pow(pd.y[i],2) + std::pow(pd.z[i],2));
+            const T radius = std::sqrt( (pd.x[i] * pd.x[i]) + (pd.y[i] * pd.y[i]) + (pd.z[i] * pd.z[i]) );
 
             pd.h[i]        = hIni;
             pd.m[i]        = mPart;

@@ -52,7 +52,7 @@ SMS ?= 35 60 70 75
 $(foreach sm,$(SMS),$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
 GENCODE_FLAGS += -Wno-deprecated-gpu-targets
 
-INC += -Isrc -Iinclude -Idomain/include -I$(CUDA_PATH)/include -I$(PGI_PATH)/include
+INC += -Isrc -Iinclude -Idomain/include -I$(CUDA_PATH)/include
 CXXFLAGS += $(RELEASE)
 NVCCFLAGS := -std=c++17 -O3 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS)
 NVCCLDFLAGS := $(GENCODE_FLAGS) -rdc=true
@@ -60,15 +60,7 @@ NVCCLDFLAGS := $(GENCODE_FLAGS) -rdc=true
 CXXFLAGS += -O3 -Wall -Wextra -Wno-unknown-pragmas
 
 ifeq ($(ENV),gnu)
-	CXXFLAGS += -std=c++17 -fopenmp -fopenacc -march=native -mtune=native
-endif
-
-ifeq ($(ENV),pgi)
-	CXXFLAGS += -std=c++17 -mp -dynamic -acc -ta=tesla,cc60 -mp=nonuma -Mcuda -g # -Minfo=accel # prints generated accel functions
-endif
-
-ifeq ($(ENV),cray)
-	CXXFLAGS += -hstd=c++17 -homp -hacc -dynamic
+	CXXFLAGS += -std=c++17 -fopenmp -march=native -mtune=native
 endif
 
 ifeq ($(ENV),intel)
@@ -79,8 +71,8 @@ ifeq ($(ENV),clang)
 	CXXFLAGS += -march=native -std=c++17 -fopenmp
 endif
 
-#all: omp mpi+omp omp+cuda mpi+omp+cuda omp+target mpi+omp+target mpi+omp+acc solution
-all: mpi+omp mpi+omp+cuda mpi+omp+target mpi+omp+acc solution
+#all: omp mpi+omp omp+cuda mpi+omp+cuda omp+target mpi+omp+target solution
+all: mpi+omp mpi+omp+cuda mpi+omp+target solution
  
 #omp:
 #	@mkdir -p $(BINDIR)
@@ -130,13 +122,6 @@ mpi+omp+target:
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(SEDOV_FLAGS)  $(SEDOV_TEST)  -o $(BINDIR)/sedov_$@.app  $(LIB)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(NOH_FLAGS)    $(NOH_TEST)    -o $(BINDIR)/noh_$@.app    $(LIB)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(EVRARD_FLAGS) $(EVRARD_TEST) -o $(BINDIR)/evrard_$@.app $(LIB)
-
-mpi+omp+acc:
-	@mkdir -p $(BINDIR)
-	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(SEDOV_FLAGS)  -DUSE_ACC $(SEDOV_TEST)  -o $(BINDIR)/sedov_$@.app  $(LIB)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(NOH_FLAGS)    -DUSE_ACC $(NOH_TEST)    -o $(BINDIR)/noh_$@.app    $(LIB)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_STD_MATH_IN_KERNELS $(EVRARD_FLAGS) -DUSE_ACC $(EVRARD_TEST) -o $(BINDIR)/evrard_$@.app $(LIB)
 
 mpi+omp+cuda:
 	make sedov_mpi+omp+cuda

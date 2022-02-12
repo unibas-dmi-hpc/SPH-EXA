@@ -212,11 +212,14 @@ void SedovSolution::sedovSol(
 
     if (lsingular)
     {
+        double value2 = (gamm1 * xgeom) + 2.;
+        double value1 = xgeom * (value2 * value2);
+
         // The singular case can be done by hand. It save some cpu cycles: Kamm equations 80, 81, and 85
-        eval2 = gamp1 / (xgeom * pow((gamm1 * xgeom) + 2., 2.) );
+        eval2 = gamp1 / value1;
         eval1 = 2. / gamm1 * eval2;
 
-        alpha = (gpogm * pow(2.,xgeom)) / (xgeom * pow((gamm1 * xgeom) + 2., 2.));
+        alpha = gpogm * pow(2., xgeom) / value1;
 
         if (int(xgeom) != 1) alpha = M_PI * alpha;
 
@@ -291,7 +294,7 @@ void SedovSolution::sedovSol(
     double rho1     = rho0 * pow(r2, -omega);                                        // pre-shock density
 
     rho_shock       = gpogm * rho1;                                                  // post-shock density
-    p_shock         = 2. * rho1 * pow(us, 2.) / gamp1;                               // post-shock pressure
+    p_shock         = 2. * rho1 * (us * us) / gamp1;                                 // post-shock pressure
     vel_shock       = 2. * us / gamp1;                                               // post-shock material speed
     u_shock         = p_shock / (gamm1 * rho_shock);                                 // post-shoock specific internal energy
     cs_shock        = sqrt(gamma * p_shock / rho_shock);                             // post-shock sound speed
@@ -458,7 +461,7 @@ double SedovSolution::efun01(
 
     sedov_funcs(v, l_fun, dlamdv, f_fun, g_fun, h_fun);
 
-    return (dlamdv * pow(l_fun, xgeom + 1.) * gpogm * g_fun * pow(v, 2.));
+    return (dlamdv * pow(l_fun, xgeom + 1.) * gpogm * g_fun * (v * v));
 }
 
 double SedovSolution::efun02(
@@ -473,7 +476,9 @@ double SedovSolution::efun02(
 
     sedov_funcs(v, l_fun, dlamdv, f_fun, g_fun, h_fun);
 
-    double z = 8. / ( pow(xgeom + 2. - omega, 2.) * gamp1);
+    double value = xgeom - omega + 2.;
+
+    double z = 8. / ( value * value * gamp1);
 
     return (dlamdv * pow(l_fun, xgeom - 1.) * h_fun * z);
 }

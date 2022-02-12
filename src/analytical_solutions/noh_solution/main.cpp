@@ -112,8 +112,8 @@ int main(int argc, char** argv)
         // Calculate radius, velocity and sort particle data by radius
         for(size_t i = 0; i < nParts; i++)
         {
-            double r   = sqrt( pow(x[i], 2) + pow(y[i], 2) + pow(z[i], 2) );
-            double vel = sqrt( pow(vx[i],2) + pow(vy[i],2) + pow(vz[i],2) );
+            double r = sqrt( (x[i] * x[i]) + (y[i] * y[i]) + (z[i] * z[i]) );
+            double vel = sqrt( (vx[i] * vx[i]) + (vy[i] * vy[i]) + (vz[i] * vz[i]) );
 
             vSim[i] = {i,
                        r,vel,
