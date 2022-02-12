@@ -23,43 +23,43 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t cubeSide = parser.getInt("-n", 50);
-    const size_t maxStep = parser.getInt("-s", 10);
-    const int writeFrequency = parser.getInt("-w", -1);
-    const bool quiet = parser.exists("--quiet");
-    const std::string outDirectory = parser.getString("--outDir");
+    const size_t      cubeSide       = parser.getInt("-n", 50);
+    const size_t      maxStep        = parser.getInt("-s", 10);
+    const int         writeFrequency = parser.getInt("-w", -1);
+    const bool        quiet          = parser.exists("--quiet");
+    const std::string outDirectory   = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
 
-    using Real = double;
+    using Real    = double;
     using Dataset = ParticlesData<Real>;
-    using Tree = Octree<Real>;
+    using Tree    = Octree<Real>;
 
 #ifdef USE_MPI
     DistributedDomain<Real, Dataset, Tree> domain;
-    const IFileWriter<Dataset>& fileWriter = SqPatchMPIFileWriter<Dataset>();
+    const IFileWriter<Dataset>&            fileWriter = SqPatchMPIFileWriter<Dataset>();
 #else
     Domain<Real, Dataset, Tree> domain;
     const IFileWriter<Dataset>& fileWriter = SqPatchFileWriter<Dataset>();
 #endif
 
-    auto d = SqPatchDataGenerator<Real>::generate(cubeSide);
+    auto                   d = SqPatchDataGenerator<Real>::generate(cubeSide);
     const Printer<Dataset> printer(d);
 
     MasterProcessTimer timer(output, d.rank), totalTimer(output, d.rank);
 
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
-    Tree::bucketSize = 64;
+    Tree::bucketSize          = 64;
     Tree::minGlobalBucketSize = 512;
     Tree::maxGlobalBucketSize = 2048;
     domain.create(d);
 
-    const size_t nTasks = 1;
-    const size_t ngmax = 300;
-    const size_t ng0 = 250;
-    TaskList taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
+    const size_t nTasks   = 1;
+    const size_t ngmax    = 300;
+    const size_t ng0      = 250;
+    TaskList     taskList = TaskList(domain.clist, nTasks, ngmax, ng0);
 
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)

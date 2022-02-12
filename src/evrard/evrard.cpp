@@ -35,14 +35,14 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t nParticles           = parser.getInt("-n", 65536);
-    const size_t maxStep              = parser.getInt("-s", 10);
-    const int writeFrequency          = parser.getInt("-w", -1);
-    const int checkpointFrequency     = parser.getInt("-c", -1);
-    const bool quiet                  = parser.exists("--quiet");
-    const std::string checkpointInput = parser.getString("--cinput");
-    const std::string inputFilePath   = parser.getString("--input", "./Test3DEvrardRel.bin");
-    const std::string outDirectory    = parser.getString("--outDir");
+    const size_t      nParticles          = parser.getInt("-n", 65536);
+    const size_t      maxStep             = parser.getInt("-s", 10);
+    const int         writeFrequency      = parser.getInt("-w", -1);
+    const int         checkpointFrequency = parser.getInt("-c", -1);
+    const bool        quiet               = parser.exists("--quiet");
+    const std::string checkpointInput     = parser.getString("--cinput");
+    const std::string inputFilePath       = parser.getString("--input", "./Test3DEvrardRel.bin");
+    const std::string outDirectory        = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
@@ -76,11 +76,11 @@ int main(int argc, char** argv)
 
     float theta = 0.5;
 
-    #ifdef USE_CUDA
+#ifdef USE_CUDA
     DomainType<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-    #else
+#else
     Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-    #endif
+#endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 
@@ -113,8 +113,10 @@ int main(int argc, char** argv)
             fileWriter.dumpParticleDataToH5File(
                 d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_evrard.h5part");
 #else
-            fileWriter.dumpParticleDataToAsciiFile(
-                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".txt");
+            fileWriter.dumpParticleDataToAsciiFile(d,
+                                                   domain.startIndex(),
+                                                   domain.endIndex(),
+                                                   outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".txt");
 #endif
         }
 

@@ -27,93 +27,64 @@
 
 #include "noh_io.hpp"
 
-void NohSolution::create(
-    vector<double>& r,
-    const size_t    dim,
-    const size_t    rPoints,
-    const double    time,
-    const double    gamma_i,
-    const double    rho0,
-    const double    u0,
-    const double    p0,
-    const double    vel0,
-    const double    cs0,
-    const string    outfile)
+void NohSolution::create(vector<double>& r, const size_t dim, const size_t rPoints, const double time,
+                         const double gamma_i, const double rho0, const double u0, const double p0, const double vel0,
+                         const double cs0, const string outfile)
 {
     vector<double> rho(rPoints);
-    vector<double> u  (rPoints);
-    vector<double> p  (rPoints);
+    vector<double> u(rPoints);
+    vector<double> p(rPoints);
     vector<double> vel(rPoints);
-    vector<double> cs (rPoints);
+    vector<double> cs(rPoints);
 
     // Calculate theoretical solution
-    NohSol(
-        dim, rPoints, time,
-        gamma_i,
-        rho0, u0, p0, vel0, cs0,
-        r, rho, u, p, vel, cs);
+    NohSol(dim, rPoints, time, gamma_i, rho0, u0, p0, vel0, cs0, r, rho, u, p, vel, cs);
 
     // Write solution file
-    NohFileData::writeData1D(
-        rPoints,
-        r,
-        rho,u,p,
-        vel,cs,
-        outfile);
+    NohFileData::writeData1D(rPoints, r, rho, u, p, vel, cs, outfile);
 }
 
-void NohSolution::NohSol(
-    const size_t          xgeom,
-    const size_t          rPoints,
-    const double          time,
-    const double          gamma,
-    const double          rho0,
-    const double          u0,
-    const double          p0,
-    const double          vel0,
-    const double          cs0,
-    const vector<double>& r,
-    vector<double>&       rho,
-    vector<double>&       u,
-    vector<double>&       p,
-    vector<double>&       vel,
-    vector<double>&       cs)
+void NohSolution::NohSol(const size_t xgeom, const size_t rPoints, const double time, const double gamma,
+                         const double rho0, const double u0, const double p0, const double vel0, const double cs0,
+                         const vector<double>& r, vector<double>& rho, vector<double>& u, vector<double>& p,
+                         vector<double>& vel, vector<double>& cs)
 {
     // Frequest combination variables
-    double gamm1  = gamma - 1.;
-    double gamp1  = gamma + 1.;
-    double gpogm  = gamp1 / gamm1;
-    double xgm1   = xgeom - 1.;
+    double gamm1 = gamma - 1.;
+    double gamp1 = gamma + 1.;
+    double gpogm = gamp1 / gamm1;
+    double xgm1  = xgeom - 1.;
 
     // Shock position
-    double r2     = 0.5  * gamm1 * abs(vel0) * time;
+    double r2 = 0.5 * gamm1 * abs(vel0) * time;
 
     // Immediate post-shock using strong shock relations
-    //double rhop = rho0 * pow(1. - (vel0 * time / r2), xgm1);
+    // double rhop = rho0 * pow(1. - (vel0 * time / r2), xgm1);
 
     // Loop over spatial positions
-    for(size_t i = 0; i < rPoints; i++)
+    for (size_t i = 0; i < rPoints; i++)
     {
         // Spatial point where solution is searched [cm]
         double xpos = r[i];
 
         if (xpos > r2)
         {
-              // if we are farther out than the shock front
-              rho[i]  = rho0 * pow(1. - (vel0 * time / xpos), xgm1);
-              u[i]    = u0;
-              p[i]    = p0;
-              vel[i]  = abs(vel0);
-              cs[i]   = cs0;
+            // if we are farther out than the shock front
+            rho[i] = rho0 * pow(1. - (vel0 * time / xpos), xgm1);
+            u[i]   = u0;
+            p[i]   = p0;
+            vel[i] = abs(vel0);
+            cs[i]  = cs0;
         }
         else
         {
-              // if we are between the origin and the shock front
-              rho[i]  = rho0  * pow(gpogm, xgeom);
-              u[i]    = 0.5   * (vel0 * vel0);
-              p[i]    = gamm1 * rho[i] * u[i];
-              vel[i]  = 0.;
-              cs[i]   = sqrt(gamma * p[i] / rho[i]);;
+            // if we are between the origin and the shock front
+            rho[i] = rho0 * pow(gpogm, xgeom);
+            u[i]   = 0.5 * (vel0 * vel0);
+            p[i]   = gamm1 * rho[i] * u[i];
+            vel[i] = 0.;
+            cs[i]  = sqrt(gamma * p[i] / rho[i]);
+            ;
         }
     }
 }

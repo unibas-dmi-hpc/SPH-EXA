@@ -47,16 +47,16 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t cubeSide = parser.getInt("-n", 100);
-    const size_t maxStep = parser.getInt("-s", 1000);
-    const int writeFrequency = parser.getInt("-w", -1);
-    const bool quiet = parser.exists("--quiet");
-    const std::string outDirectory = parser.getString("--outDir");
+    const size_t      cubeSide       = parser.getInt("-n", 100);
+    const size_t      maxStep        = parser.getInt("-s", 1000);
+    const int         writeFrequency = parser.getInt("-w", -1);
+    const bool        quiet          = parser.exists("--quiet");
+    const std::string outDirectory   = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
 
-    using Real = double;
+    using Real    = double;
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType>;
 
@@ -74,7 +74,7 @@ int main(int argc, char** argv)
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
     size_t bucketSize = std::max(bucketSizeFocus, d.n / (100 * d.nrank));
 
-    double radius = NohDataGenerator<Real, KeyType>::r1;
+    double    radius = NohDataGenerator<Real, KeyType>::r1;
     Box<Real> box(-radius, radius, false);
 
     float theta = 1.0;
@@ -116,36 +116,22 @@ int main(int argc, char** argv)
         {
 #ifdef SPH_EXA_HAVE_H5PART
             fileWriter.dumpParticleDataToH5File(
-                d,
-                domain.startIndex(),
-                domain.endIndex(),
-                outDirectory + "dump_noh.h5part");
+                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_noh.h5part");
 #else
-            fileWriter.dumpParticleDataToAsciiFile(
-                d,
-                domain.startIndex(),
-                domain.endIndex(),
-                outDirectory + "dump_noh" + std::to_string(d.iteration) + ".txt");
+            fileWriter.dumpParticleDataToAsciiFile(d,
+                                                   domain.startIndex(),
+                                                   domain.endIndex(),
+                                                   outDirectory + "dump_noh" + std::to_string(d.iteration) + ".txt");
 #endif
         }
 
 #ifdef SPH_EXA_USE_CATALYST2
-        CatalystAdaptor::Execute(
-            d,
-            domain.startIndex(),
-            domain.endIndex());
+        CatalystAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
 #endif
 
 #ifdef SPH_EXA_USE_ASCENT
-        if(d.iteration % 5 == 0)
-        {
-            AscentAdaptor::Execute(
-                d,
-                domain.startIndex(),
-                domain.endIndex());
-        }
+        if (d.iteration % 5 == 0) { AscentAdaptor::Execute(d, domain.startIndex(), domain.endIndex()); }
 #endif
-
     }
 
     totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Noh");

@@ -25,7 +25,7 @@ void printHelp(char* binName, int rank);
 
 int main(int argc, char** argv)
 {
-    const int rank = initAndGetRankId();
+    const int       rank = initAndGetRankId();
     const ArgParser parser(argc, argv);
 
     if (parser.exists("-h") || parser.exists("--h") || parser.exists("-help") || parser.exists("--help"))
@@ -34,16 +34,16 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t cubeSide = parser.getInt("-n", 50);
-    const size_t maxStep = parser.getInt("-s", 200);
-    const int writeFrequency = parser.getInt("-w", -1);
-    const bool quiet = parser.exists("--quiet");
-    const std::string outDirectory = parser.getString("--outDir");
+    const size_t      cubeSide       = parser.getInt("-n", 50);
+    const size_t      maxStep        = parser.getInt("-s", 200);
+    const int         writeFrequency = parser.getInt("-w", -1);
+    const bool        quiet          = parser.exists("--quiet");
+    const std::string outDirectory   = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
 
-    using Real = double;
+    using Real    = double;
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType>;
 
@@ -61,16 +61,16 @@ int main(int argc, char** argv)
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
     size_t bucketSize = std::max(bucketSizeFocus, d.n / (100 * d.nrank));
 
-    double radius = SedovDataGenerator<Real, KeyType>::r1;
+    double    radius = SedovDataGenerator<Real, KeyType>::r1;
     Box<Real> box(-radius, radius, true);
 
     float theta = 1.0;
 
-    #ifdef USE_CUDA
+#ifdef USE_CUDA
     Domain<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-    #else
+#else
     Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-    #endif
+#endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 
@@ -103,8 +103,10 @@ int main(int argc, char** argv)
             fileWriter.dumpParticleDataToH5File(
                 d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov.h5part");
 #else
-            fileWriter.dumpParticleDataToAsciiFile(
-                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".txt");
+            fileWriter.dumpParticleDataToAsciiFile(d,
+                                                   domain.startIndex(),
+                                                   domain.endIndex(),
+                                                   outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".txt");
 #endif
         }
 

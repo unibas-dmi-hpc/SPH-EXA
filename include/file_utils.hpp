@@ -14,49 +14,50 @@ namespace fileutils
 {
 namespace details
 {
-void writeParticleDataToBinFile(std::ofstream &) {}
+void writeParticleDataToBinFile(std::ofstream&) {}
 
-template <typename Arg, typename... Args>
-void writeParticleDataToBinFile(std::ofstream &file, const Arg &first, Args &&... args)
+template<typename Arg, typename... Args>
+void writeParticleDataToBinFile(std::ofstream& file, const Arg& first, Args&&... args)
 {
-    file.write((char *)&first[0], first.size() * sizeof(first[0]));
+    file.write((char*)&first[0], first.size() * sizeof(first[0]));
 
     writeParticleDataToBinFile(file, args...);
 }
 
-void writeParticleDataToAsciiFile(std::ostream &, const int, const char) {}
+void writeParticleDataToAsciiFile(std::ostream&, const int, const char) {}
 
-template <typename Arg, typename... Args>
-void writeParticleDataToAsciiFile(std::ostream &file, const int idx, const char separator, const Arg &first, Args &&... data)
+template<typename Arg, typename... Args>
+void writeParticleDataToAsciiFile(std::ostream& file, const int idx, const char separator, const Arg& first,
+                                  Args&&... data)
 {
     file << first[idx] << separator;
 
     writeParticleDataToAsciiFile(file, idx, separator, data...);
 }
 
-void readParticleDataFromBinFile(std::ifstream &) {}
+void readParticleDataFromBinFile(std::ifstream&) {}
 
-template <typename Arg, typename... Args>
-void readParticleDataFromBinFile(std::ifstream &file, Arg &first, Args &&... args)
+template<typename Arg, typename... Args>
+void readParticleDataFromBinFile(std::ifstream& file, Arg& first, Args&&... args)
 {
-    file.read(reinterpret_cast<char *>(&first[0]), first.size() * sizeof(first[0]));
+    file.read(reinterpret_cast<char*>(&first[0]), first.size() * sizeof(first[0]));
 
     readParticleDataFromBinFile(file, args...);
 }
 
 } // namespace details
 
-template <typename Dataset, typename... Args>
-void writeParticleCheckpointDataToBinFile(const Dataset &d, const std::string &path, Args &&... data)
+template<typename Dataset, typename... Args>
+void writeParticleCheckpointDataToBinFile(const Dataset& d, const std::string& path, Args&&... data)
 {
     std::ofstream checkpoint;
     checkpoint.open(path, std::ofstream::out | std::ofstream::binary);
 
     if (checkpoint.is_open())
     {
-        checkpoint.write((char *)&d.n, sizeof(d.n));
-        checkpoint.write((char *)&d.ttot, sizeof(d.ttot));
-        checkpoint.write((char *)&d.minDt, sizeof(d.minDt));
+        checkpoint.write((char*)&d.n, sizeof(d.n));
+        checkpoint.write((char*)&d.ttot, sizeof(d.ttot));
+        checkpoint.write((char*)&d.minDt, sizeof(d.minDt));
 
         details::writeParticleDataToBinFile(checkpoint, data...);
 
@@ -68,8 +69,8 @@ void writeParticleCheckpointDataToBinFile(const Dataset &d, const std::string &p
     }
 }
 
-template <typename... Args>
-void writeParticleDataToBinFile(const std::string &path, Args &&... data)
+template<typename... Args>
+void writeParticleDataToBinFile(const std::string& path, Args&&... data)
 {
     std::ofstream checkpoint;
     checkpoint.open(path, std::ofstream::out | std::ofstream::binary);
@@ -114,14 +115,15 @@ void writeParticleDataToAsciiFile(size_t firstIndex, size_t lastIndex, const std
     dump.close();
 }
 
-template <typename... Args>
-void writeParticleDataToAsciiFile(const std::vector<int> &clist, const std::string &path, const char separator, Args &&... data)
+template<typename... Args>
+void writeParticleDataToAsciiFile(const std::vector<int>& clist, const std::string& path, const char separator,
+                                  Args&&... data)
 {
     writeParticleDataToAsciiFile(clist, path, false, separator, data...);
 }
 
-template <typename... Args>
-void readParticleDataFromBinFile(const std::string &path, Args &&... data)
+template<typename... Args>
+void readParticleDataFromBinFile(const std::string& path, Args&&... data)
 {
     std::ifstream inputfile(path, std::ios::binary);
 

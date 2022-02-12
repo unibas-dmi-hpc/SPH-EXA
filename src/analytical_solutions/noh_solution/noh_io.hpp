@@ -44,26 +44,21 @@ class NohFileData : public FileData
 {
 
 private:
-
-    NohFileData();                               // Singleton
+    NohFileData(); // Singleton
 
 public:
+    static void writeColumns1D(ostream& out); //
 
-    static void writeColumns1D(
-        ostream& out);                           //
+    static void writeData1D(const size_t          n,   //
+                            const vector<double>& r,   //
+                            const vector<double>& rho, //
+                            const vector<double>& u,   //
+                            const vector<double>& p,   //
+                            const vector<double>& vel, //
+                            const vector<double>& cs,  //
+                            const string&         outfile);    //
 
-    static void writeData1D(
-        const size_t          n,                 //
-        const vector<double>& r,                 //
-        const vector<double>& rho,               //
-        const vector<double>& u,                 //
-        const vector<double>& p,                 //
-        const vector<double>& vel,               //
-        const vector<double>& cs,                //
-        const string&         outfile);          //
-
-    static void writeParticle1D(
-        const size_t              n,             //
-        const vector<ParticleIO>& vParticle,     //
-        const string&             outfile);      //
+    static void writeParticle1D(const size_t              n,         //
+                                const vector<ParticleIO>& vParticle, //
+                                const string&             outfile);              //
 };

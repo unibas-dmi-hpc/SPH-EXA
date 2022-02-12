@@ -28,24 +28,18 @@
 
 void NohFileData::writeColumns1D(ostream& out)
 {
-    out << setw(16) << "#           01:r"  // Column : position 1D     (Real  value     )
-        << setw(16) << "02:rho"            // Column : density         (Real  value     )
-        << setw(16) << "03:u"              // Column : internal energy (Real  value     )
-        << setw(16) << "04:p"              // Column : pressure        (Real  value     )
-        << setw(16) << "05:vel"            // Column : velocity 1D     (Real  value     )
-        << setw(16) << "06:cs"             // Column : sound speed     (Real  value     )
+    out << setw(16) << "#           01:r" // Column : position 1D     (Real  value     )
+        << setw(16) << "02:rho"           // Column : density         (Real  value     )
+        << setw(16) << "03:u"             // Column : internal energy (Real  value     )
+        << setw(16) << "04:p"             // Column : pressure        (Real  value     )
+        << setw(16) << "05:vel"           // Column : velocity 1D     (Real  value     )
+        << setw(16) << "06:cs"            // Column : sound speed     (Real  value     )
         << endl;
 }
 
-void NohFileData::writeData1D(
-    const size_t          n,
-    const vector<double>& r,
-    const vector<double>& rho,
-    const vector<double>& u,
-    const vector<double>& p,
-    const vector<double>& vel,
-    const vector<double>& cs,
-    const string&         outfile)
+void NohFileData::writeData1D(const size_t n, const vector<double>& r, const vector<double>& rho,
+                              const vector<double>& u, const vector<double>& p, const vector<double>& vel,
+                              const vector<double>& cs, const string& outfile)
 {
     try
     {
@@ -55,30 +49,27 @@ void NohFileData::writeData1D(
         writeColumns1D(out);
 
         // Write Data
-        for(size_t i = 0; i < n; i++)
+        for (size_t i = 0; i < n; i++)
         {
-            out << setw(16) << setprecision(6) << scientific << r[i]
-                << setw(16) << setprecision(6) << scientific << rho[i]
-                << setw(16) << setprecision(6) << scientific << u[i]
-                << setw(16) << setprecision(6) << scientific << p[i]
-                << setw(16) << setprecision(6) << scientific << vel[i]
-                << setw(16) << setprecision(6) << scientific << cs[i]
-                << endl;
+            out << setw(16) << setprecision(6) << scientific << r[i];
+            out << setw(16) << setprecision(6) << scientific << rho[i];
+            out << setw(16) << setprecision(6) << scientific << u[i];
+            out << setw(16) << setprecision(6) << scientific << p[i];
+            out << setw(16) << setprecision(6) << scientific << vel[i];
+            out << setw(16) << setprecision(6) << scientific << cs[i];
+            out << endl;
         }
 
         out.close();
     }
-    catch (exception &ex)
+    catch (exception& ex)
     {
         cout << "ERROR: %s. Terminating\n" << ex.what() << endl;
         exit(EXIT_FAILURE);
     }
 }
 
-void NohFileData::writeParticle1D(
-    const size_t              n,
-    const vector<ParticleIO>& vParticle,
-    const string&             outfile)
+void NohFileData::writeParticle1D(const size_t n, const vector<ParticleIO>& vParticle, const string& outfile)
 {
     vector<double> r(n);
     vector<double> rho(n);
@@ -87,7 +78,7 @@ void NohFileData::writeParticle1D(
     vector<double> vel(n);
     vector<double> cs(n);
 
-    for (size_t i=0; i < n; i++)
+    for (size_t i = 0; i < n; i++)
     {
         r[i]   = vParticle[i].r;
         rho[i] = vParticle[i].rho;
@@ -97,13 +88,5 @@ void NohFileData::writeParticle1D(
         cs[i]  = vParticle[i].cs;
     }
 
-    NohFileData::writeData1D(
-        n,
-        r,
-        rho,
-        u,
-        p,
-        vel,
-        cs,
-        outfile);
+    NohFileData::writeData1D(n, r, rho, u, p, vel, cs, outfile);
 }

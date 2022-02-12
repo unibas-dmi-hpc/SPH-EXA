@@ -44,38 +44,33 @@ class SedovFileData : public FileData
 {
 
 private:
-
-    SedovFileData();                             // Singleton
+    SedovFileData(); // Singleton
 
 public:
+    static void writeColumns1D(ostream& out); //
 
-    static void writeColumns1D(
-        ostream& out);                           //
+    static void writeData1D(const size_t          n,         //
+                            const vector<double>& r,         //
+                            const vector<double>& rho,       //
+                            const vector<double>& u,         //
+                            const vector<double>& p,         //
+                            const vector<double>& vel,       //
+                            const vector<double>& cs,        //
+                            const double          rho_shock, //
+                            const double          u_shock,   //
+                            const double          p_shock,   //
+                            const double          vel_shock, //
+                            const double          cs_shock,  //
+                            const double          rho0,      //
+                            const string&         outfile);          //
 
-    static void writeData1D(
-        const size_t          n,                 //
-        const vector<double>& r,                 //
-        const vector<double>& rho,               //
-        const vector<double>& u,                 //
-        const vector<double>& p,                 //
-        const vector<double>& vel,               //
-        const vector<double>& cs,                //
-        const double          rho_shock,         //
-        const double          u_shock,           //
-        const double          p_shock,           //
-        const double          vel_shock,         //
-        const double          cs_shock,          //
-        const double          rho0,              //
-        const string&         outfile);          //
-
-    static void writeParticle1D(
-        const size_t              n,             //
-        const vector<ParticleIO>& vParticle,     //
-        const double              rho_shock,     //
-        const double              u_shock,       //
-        const double              p_shock,       //
-        const double              vel_shock,     //
-        const double              cs_shock,      //
-        const double              rho0,          //
-        const string&             outfile);      //
+    static void writeParticle1D(const size_t              n,         //
+                                const vector<ParticleIO>& vParticle, //
+                                const double              rho_shock, //
+                                const double              u_shock,   //
+                                const double              p_shock,   //
+                                const double              vel_shock, //
+                                const double              cs_shock,  //
+                                const double              rho0,      //
+                                const string&             outfile);              //
 };

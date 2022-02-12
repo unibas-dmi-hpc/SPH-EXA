@@ -28,36 +28,26 @@
 
 void SedovFileData::writeColumns1D(ostream& out)
 {
-    out << setw(16) << "#           01:r"  // Column : position 1D     (Real  value     )
-        << setw(16) << "02:rho"            // Column : density         (Real  value     )
-        << setw(16) << "03:u"              // Column : internal energy (Real  value     )
-        << setw(16) << "04:p"              // Column : pressure        (Real  value     )
-        << setw(16) << "05:vel"            // Column : velocity 1D     (Real  value     )
-        << setw(16) << "06:cs"             // Column : sound speed     (Real  value     )
-        << setw(16) << "07:rho/rhoShock"   // Column : density         (Shock Normalized)
-        << setw(16) << "08:u/uShock"       // Column : internal energy (Shock Normalized)
-        << setw(16) << "09:p/pShock"       // Column : pressure        (Shock Normalized)
-        << setw(16) << "10:vel/velShock"   // Column : velocity        (Shock Normalized)
-        << setw(16) << "11:cs/csShock"     // Column : sound speed     (Shock Normalized)
-        << setw(16) << "12:rho/rho0"       // Column : density         (Init  Normalized)
+    out << setw(16) << "#           01:r" // Column : position 1D     (Real  value     )
+        << setw(16) << "02:rho"           // Column : density         (Real  value     )
+        << setw(16) << "03:u"             // Column : internal energy (Real  value     )
+        << setw(16) << "04:p"             // Column : pressure        (Real  value     )
+        << setw(16) << "05:vel"           // Column : velocity 1D     (Real  value     )
+        << setw(16) << "06:cs"            // Column : sound speed     (Real  value     )
+        << setw(16) << "07:rho/rhoShock"  // Column : density         (Shock Normalized)
+        << setw(16) << "08:u/uShock"      // Column : internal energy (Shock Normalized)
+        << setw(16) << "09:p/pShock"      // Column : pressure        (Shock Normalized)
+        << setw(16) << "10:vel/velShock"  // Column : velocity        (Shock Normalized)
+        << setw(16) << "11:cs/csShock"    // Column : sound speed     (Shock Normalized)
+        << setw(16) << "12:rho/rho0"      // Column : density         (Init  Normalized)
         << endl;
 }
 
-void SedovFileData::writeData1D(
-    const size_t          n,
-    const vector<double>& r,
-    const vector<double>& rho,
-    const vector<double>& u,
-    const vector<double>& p,
-    const vector<double>& vel,
-    const vector<double>& cs,
-    const double          rho_shock,
-    const double          u_shock,
-    const double          p_shock,
-    const double          vel_shock,
-    const double          cs_shock,
-    const double          rho0,
-    const string&         outfile)
+void SedovFileData::writeData1D(const size_t n, const vector<double>& r, const vector<double>& rho,
+                                const vector<double>& u, const vector<double>& p, const vector<double>& vel,
+                                const vector<double>& cs, const double rho_shock, const double u_shock,
+                                const double p_shock, const double vel_shock, const double cs_shock, const double rho0,
+                                const string& outfile)
 {
     try
     {
@@ -67,42 +57,35 @@ void SedovFileData::writeData1D(
         writeColumns1D(out);
 
         // Write Data
-        for(size_t i = 0; i < n; i++)
+        for (size_t i = 0; i < n; i++)
         {
-            out << setw(16) << setprecision(6) << scientific << r[i]
-                << setw(16) << setprecision(6) << scientific << rho[i]
-                << setw(16) << setprecision(6) << scientific << u[i]
-                << setw(16) << setprecision(6) << scientific << p[i]
-                << setw(16) << setprecision(6) << scientific << vel[i]
-                << setw(16) << setprecision(6) << scientific << cs[i]
-                << setw(16) << setprecision(6) << scientific << rho[i] / rho_shock
-                << setw(16) << setprecision(6) << scientific << u[i]   / u_shock
-                << setw(16) << setprecision(6) << scientific << p[i]   / p_shock
-                << setw(16) << setprecision(6) << scientific << vel[i] / vel_shock
-                << setw(16) << setprecision(6) << scientific << cs[i]  / cs_shock
-                << setw(16) << setprecision(6) << scientific << rho[i] / rho0
-                << endl;
+            out << setw(16) << setprecision(6) << scientific << r[i];
+            out << setw(16) << setprecision(6) << scientific << rho[i];
+            out << setw(16) << setprecision(6) << scientific << u[i];
+            out << setw(16) << setprecision(6) << scientific << p[i];
+            out << setw(16) << setprecision(6) << scientific << vel[i];
+            out << setw(16) << setprecision(6) << scientific << cs[i];
+            out << setw(16) << setprecision(6) << scientific << rho[i] / rho_shock;
+            out << setw(16) << setprecision(6) << scientific << u[i] / u_shock;
+            out << setw(16) << setprecision(6) << scientific << p[i] / p_shock;
+            out << setw(16) << setprecision(6) << scientific << vel[i] / vel_shock;
+            out << setw(16) << setprecision(6) << scientific << cs[i] / cs_shock;
+            out << setw(16) << setprecision(6) << scientific << rho[i] / rho0;
+            out << endl;
         }
 
         out.close();
     }
-    catch (exception &ex)
+    catch (exception& ex)
     {
         cout << "ERROR: %s. Terminating\n" << ex.what() << endl;
         exit(EXIT_FAILURE);
     }
 }
 
-void SedovFileData::writeParticle1D(
-    const size_t              n,
-    const vector<ParticleIO>& vParticle,
-    const double              rho_shock,
-    const double              u_shock,
-    const double              p_shock,
-    const double              vel_shock,
-    const double              cs_shock,
-    const double              rho0,
-    const string&             outfile)
+void SedovFileData::writeParticle1D(const size_t n, const vector<ParticleIO>& vParticle, const double rho_shock,
+                                    const double u_shock, const double p_shock, const double vel_shock,
+                                    const double cs_shock, const double rho0, const string& outfile)
 {
     vector<double> r(n);
     vector<double> rho(n);
@@ -111,7 +94,7 @@ void SedovFileData::writeParticle1D(
     vector<double> vel(n);
     vector<double> cs(n);
 
-    for (size_t i=0; i < n; i++)
+    for (size_t i = 0; i < n; i++)
     {
         r[i]   = vParticle[i].r;
         rho[i] = vParticle[i].rho;
@@ -122,18 +105,5 @@ void SedovFileData::writeParticle1D(
     }
 
     SedovFileData::writeData1D(
-        n,
-        r,
-        rho,
-        u,
-        p,
-        vel,
-        cs,
-        rho_shock,
-        u_shock,
-        p_shock,
-        vel_shock,
-        cs_shock,
-        rho0,
-        outfile);
+        n, r, rho, u, p, vel, cs, rho_shock, u_shock, p_shock, vel_shock, cs_shock, rho0, outfile);
 }

@@ -64,67 +64,55 @@ int main(int argc, char** argv)
 
     // Get command line parameters
     const bool   only_sol  = parser.exists("--only_solution") ? true : false;
-    const double time      = parser.getDouble( "--time",   0.                  );
-    const size_t nParts    = parser.getInt(    "--nParts", 0                   );
-    const string inputFile = parser.getString( "--input",  "./dump_sedov0.txt" );
-    const string outDir    = parser.getString( "--outDir", "./"                );
+    const double time      = parser.getDouble("--time", 0.);
+    const size_t nParts    = parser.getInt("--nParts", 0);
+    const string inputFile = parser.getString("--input", "./dump_sedov0.txt");
+    const string outDir    = parser.getString("--outDir", "./");
     const bool   complete  = parser.exists("--complete") ? true : false;
 
     // Initialize vector size
-    vector<double> x  (nParts);
-    vector<double> y  (nParts);
-    vector<double> z  (nParts);
-    vector<double> vx (nParts);
-    vector<double> vy (nParts);
-    vector<double> vz (nParts);
-    vector<double> h  (nParts);
-    vector<double> rho(nParts);
-    vector<double> u  (nParts);
-    vector<double> p  (nParts);
-    vector<double> cs (nParts);
-    vector<double> Px (nParts);
-    vector<double> Py (nParts);
-    vector<double> Pz (nParts);
+    vector<double>     x(nParts);
+    vector<double>     y(nParts);
+    vector<double>     z(nParts);
+    vector<double>     vx(nParts);
+    vector<double>     vy(nParts);
+    vector<double>     vz(nParts);
+    vector<double>     h(nParts);
+    vector<double>     rho(nParts);
+    vector<double>     u(nParts);
+    vector<double>     p(nParts);
+    vector<double>     cs(nParts);
+    vector<double>     Px(nParts);
+    vector<double>     Py(nParts);
+    vector<double>     Pz(nParts);
     vector<ParticleIO> vSim(nParts);
 
     if (!only_sol)
     {
-        if (nParts <= 0){
+        if (nParts <= 0)
+        {
             cout << "ERROR: --nParts: '" << nParts << "' should be > 0." << endl;
             exit(EXIT_FAILURE);
         }
-        else if (!filesystem::exists(inputFile)){
+        else if (!filesystem::exists(inputFile))
+        {
             cout << "ERROR: --input file: '" << inputFile << "' don't exist." << endl;
             exit(EXIT_FAILURE);
         }
 
         // Load particles data
-        FileData::readData3D(
-            inputFile,
-            nParts,
-            x,y,z,
-            vx,vy,vz,
-            h,
-            rho,u,p,
-            cs,
-            Px,Py,Pz);
+        FileData::readData3D(inputFile, nParts, x, y, z, vx, vy, vz, h, rho, u, p, cs, Px, Py, Pz);
 
         // Calculate radius, velocity and sort particle data by radius
-        for(size_t i = 0; i < nParts; i++)
+        for (size_t i = 0; i < nParts; i++)
         {
-            double r = sqrt( (x[i] * x[i]) + (y[i] * y[i]) + (z[i] * z[i]) );
-            double vel = sqrt( (vx[i] * vx[i]) + (vy[i] * vy[i]) + (vz[i] * vz[i]) );
+            double r   = sqrt((x[i] * x[i]) + (y[i] * y[i]) + (z[i] * z[i]));
+            double vel = sqrt((vx[i] * vx[i]) + (vy[i] * vy[i]) + (vz[i] * vz[i]));
 
-            vSim[i] = {i,
-                       r,vel,
-                       x[i],y[i],z[i],
-                       vx[i],vy[i],vz[i],
-                       h[i],
-                       rho[i],u[i],p[i],
-                       cs[i],
-                       Px[i],Py[i],Pz[i]};
+            vSim[i] = {
+                i, r, vel, x[i], y[i], z[i], vx[i], vy[i], vz[i], h[i], rho[i], u[i], p[i], cs[i], Px[i], Py[i], Pz[i]};
         }
-        sort(vSim.begin(),vSim.end(),ParticleIO::cmp());
+        sort(vSim.begin(), vSim.end(), ParticleIO::cmp());
     }
 
     // Get time without rounding
@@ -148,13 +136,13 @@ int main(int argc, char** argv)
 
     // Set the positions for calculate the solution
     vector<double> rSol;
-    size_t nSteps = 1000;
+    size_t         nSteps = 1000;
     if (only_sol || !complete)
     {
         const double rMax  = 2. * r1;
         const double rStep = (rMax - r0) / nSteps;
 
-        for(size_t i = 0; i < nSteps; i++)
+        for (size_t i = 0; i < nSteps; i++)
         {
             rSol.push_back(r0 + (0.5 * rStep) + (i * rStep));
         }
@@ -163,39 +151,33 @@ int main(int argc, char** argv)
     {
         nSteps = nParts;
 
-        for(size_t i = 0; i < nSteps; i++)
+        for (size_t i = 0; i < nSteps; i++)
         {
             rSol.push_back(vSim[i].r);
         }
     }
 
     // Calculate Sedov solution
-    SedovSolution::create(
-        rSol,
-        dim, nSteps, time,
-        eblast, omega, gamma,
-        rho0, u0, p0, vel0, cs0,
-        solFile);
+    SedovSolution::create(rSol, dim, nSteps, time, eblast, omega, gamma, rho0, u0, p0, vel0, cs0, solFile);
 
     // Write Info: Output files and colums.
     cout << "\nExecuted successfully.\n";
-    cout << "Solution   file: '" <<  solFile << "'";
+    cout << "Solution   file: '" << solFile << "'";
 
     if (!only_sol)
     {
         // Write 1D simulation solution to compare with the theoretical solution
         const string simFile = outDir + "sedov_simulation_" + time_str + ".dat";
-        SedovFileData::writeParticle1D(
-            nParts,
-            vSim,
-            SedovSolution::rho_shock,
-            SedovSolution::u_shock,
-            SedovSolution::p_shock,
-            SedovSolution::vel_shock,
-            SedovSolution::cs_shock,
-            rho0,
-            simFile);
-        cout << "Simulation file: '" <<  simFile << "'";
+        SedovFileData::writeParticle1D(nParts,
+                                       vSim,
+                                       SedovSolution::rho_shock,
+                                       SedovSolution::u_shock,
+                                       SedovSolution::p_shock,
+                                       SedovSolution::vel_shock,
+                                       SedovSolution::cs_shock,
+                                       rho0,
+                                       simFile);
+        cout << "Simulation file: '" << simFile << "'";
     }
 
     cout << "\nColumns:\n";
@@ -204,7 +186,6 @@ int main(int argc, char** argv)
 
     exit(EXIT_SUCCESS);
 }
-
 
 void printHelp(char* binName)
 {

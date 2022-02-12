@@ -20,7 +20,7 @@ jobs:
       #- name: check pr
       #  run: git log -n2
       - name: clang-format
-        run: clang-format -i --style=file `find src include domain -type f`
+        run: clang-format -i --style=file `find . \( -name "*.hpp" -o -name "*.cpp" -o -name "*.cu" -o -name "*.cuh" \)`
       - name: report formating issues (if any)
         if: always()
         run: git diff --color --exit-code

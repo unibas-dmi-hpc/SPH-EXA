@@ -44,10 +44,10 @@ template<>
 class pinned_allocator<void>
 {
 public:
-    typedef void value_type;
-    typedef void* pointer;
-    typedef const void* const_pointer;
-    typedef std::size_t size_type;
+    typedef void           value_type;
+    typedef void*          pointer;
+    typedef const void*    const_pointer;
+    typedef std::size_t    size_type;
     typedef std::ptrdiff_t difference_type;
 
     // convert a pinned_allocator<void> to pinned_allocator<U>
@@ -63,12 +63,12 @@ class pinned_allocator
 {
 public:
     //! \{
-    typedef T value_type;
-    typedef T* pointer;
-    typedef const T* const_pointer;
-    typedef T& reference;
-    typedef const T& const_reference;
-    typedef std::size_t size_type;
+    typedef T              value_type;
+    typedef T*             pointer;
+    typedef const T*       const_pointer;
+    typedef T&             reference;
+    typedef const T&       const_reference;
+    typedef std::size_t    size_type;
     typedef std::ptrdiff_t difference_type;
     //! \}
 
@@ -130,7 +130,7 @@ public:
     {
         if (cnt > this->max_size()) { throw std::bad_alloc(); } // end if
 
-        pointer result(0);
+        pointer     result(0);
         cudaError_t error = cudaMallocHost(reinterpret_cast<void**>(&result), cnt * sizeof(value_type));
 
         if (error)
