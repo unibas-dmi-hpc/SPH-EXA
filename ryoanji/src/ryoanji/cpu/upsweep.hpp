@@ -32,8 +32,8 @@
 #pragma once
 
 #include "cstone/focus/source_center.hpp"
-#include "cstone/gravity/multipole.hpp"
 #include "cstone/tree/octree_internal.hpp"
+#include "multipole.hpp"
 
 namespace cstone
 {

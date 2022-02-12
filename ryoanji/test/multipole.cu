@@ -32,9 +32,9 @@
 #include "gtest/gtest.h"
 
 #include "cstone/focus/source_center.hpp"
-#include "cstone/gravity/multipole.hpp"
 
 #include "dataset.hpp"
+#include "ryoanji/cpu/multipole.hpp"
 #include "ryoanji/kernel.hpp"
 
 TEST(Multipole, P2M)

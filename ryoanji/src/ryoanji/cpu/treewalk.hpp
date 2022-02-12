@@ -35,7 +35,7 @@
 #include "cstone/traversal/macs.hpp"
 #include "cstone/tree/octree_internal.hpp"
 #include "cstone/focus/source_center.hpp"
-#include "cstone/gravity/multipole.hpp"
+#include "multipole.hpp"
 
 namespace cstone
 {

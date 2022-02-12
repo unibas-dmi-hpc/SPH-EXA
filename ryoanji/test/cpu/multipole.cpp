@@ -28,9 +28,9 @@
 #include "gtest/gtest.h"
 
 #include "cstone/focus/source_center.hpp"
-#include "cstone/gravity/multipole.hpp"
 #include "cstone/sfc/box.hpp"
 #include "coord_samples/random.hpp"
+#include "ryoanji/cpu/multipole.hpp"
 
 using namespace cstone;
 
