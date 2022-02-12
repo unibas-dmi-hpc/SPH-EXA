@@ -215,6 +215,12 @@ int TreeBuilder<KeyType>::extract(ryoanji::CellData* d_ryoanjiTree, int2* h_leve
     return impl_->extract(d_ryoanjiTree, h_levelRange);
 }
 
+template<class KeyType>
+unsigned TreeBuilder<KeyType>::maxTreeLevel() const
+{
+    return cstone::maxTreeLevel<KeyType>{};
+}
+
 template class TreeBuilder<uint32_t>;
 template class TreeBuilder<uint64_t>;
 

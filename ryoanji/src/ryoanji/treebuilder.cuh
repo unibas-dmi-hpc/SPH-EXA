@@ -33,9 +33,6 @@
 
 #include <memory>
 
-#include "cstone/sfc/common.hpp"
-#include "cstone/tree/definitions.h"
-
 #include "ryoanji/types.h"
 
 template<class KeyType>
@@ -49,9 +46,11 @@ public:
     TreeBuilder(unsigned ncrit);
 
     template<class T>
-    cstone::TreeNodeIndex update(Vec4<T>* bodies, size_t numBodies, const ryoanji::Box<T>& box);
+    int update(Vec4<T>* bodies, size_t numBodies, const ryoanji::Box<T>& box);
 
     int extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange);
+
+    unsigned maxTreeLevel() const;
 
 private:
     class Impl;

@@ -69,7 +69,7 @@ int main(int argc, char** argv)
     int                   numSources = treeBuilder.update(rawPtr(d_bodies.data()), d_bodies.size(), box);
 
     thrust::device_vector<CellData> sources(numSources);
-    std::vector<int2>               levelRange(cstone::maxTreeLevel<uint64_t>{} + 1);
+    std::vector<int2>               levelRange(treeBuilder.maxTreeLevel() + 1);
 
     int highestLevel = treeBuilder.extract(rawPtr(sources.data()), levelRange.data());
 
