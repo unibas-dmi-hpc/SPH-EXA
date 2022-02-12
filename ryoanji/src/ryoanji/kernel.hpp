@@ -33,7 +33,7 @@
 
 #include "ryoanji/types.h"
 
-namespace
+namespace ryoanji
 {
 
 HOST_DEVICE_FUN DEVICE_INLINE float inverseSquareRoot(float x)
@@ -446,11 +446,6 @@ struct Kernels<0, 0, 0>
         TRG[0] -= invRN[0];
     }
 };
-
-} // namespace
-
-namespace ryoanji
-{
 
 /*! @brief calculate multipole from particles
  *
