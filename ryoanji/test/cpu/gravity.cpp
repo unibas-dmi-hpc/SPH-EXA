@@ -31,10 +31,10 @@
 
 #include <chrono>
 
-#include "cstone/gravity/treewalk.hpp"
-#include "cstone/gravity/upsweep.hpp"
 #include "cstone/sfc/box.hpp"
 #include "coord_samples/random.hpp"
+#include "ryoanji/cpu/treewalk.hpp"
+#include "ryoanji/cpu/upsweep.hpp"
 
 using namespace cstone;
 

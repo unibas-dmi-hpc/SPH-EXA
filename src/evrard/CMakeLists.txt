@@ -2,11 +2,7 @@
 set(exename evrard)
 add_executable(${exename} evrard.cpp)
 
-target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
-target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/include)
-target_include_directories(${exename} PRIVATE ${PROJECT_SOURCE_DIR}/src)
-target_include_directories(${exename} PRIVATE ${MPI_CXX_INCLUDE_PATH})
-
+target_include_directories(${exename} PRIVATE ${SPH_EXA_INCLUDE_DIRS})
 target_compile_definitions(${exename} PRIVATE USE_MPI GRAVITY)
 
 target_link_libraries(${exename} PRIVATE ${MPI_CXX_LIBRARIES})

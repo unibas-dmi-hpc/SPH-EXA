@@ -34,7 +34,7 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
-#include "cstone/gravity/treewalk.hpp"
+#include "ryoanji/cpu/treewalk.hpp"
 
 #include "dataset.hpp"
 #include "ryoanji/direct.cuh"

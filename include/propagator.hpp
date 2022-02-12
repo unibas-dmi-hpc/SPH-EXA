@@ -39,8 +39,8 @@
 #include "particles_data.hpp"
 
 #include "cstone/domain/domain.hpp"
-#include "cstone/gravity/treewalk.hpp"
-#include "cstone/gravity/upsweep.hpp"
+#include "ryoanji/cpu/treewalk.hpp"
+#include "ryoanji/cpu/upsweep.hpp"
 
 #include "sph/timestep.hpp"
 
