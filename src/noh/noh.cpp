@@ -11,7 +11,7 @@
 #include "cstone/domain/domain.hpp"
 #include "sphexa.hpp"
 #include "sph/findNeighborsSfc.hpp"
-#include "tests/test_file_writer.hpp"
+#include "test_file_writer.hpp"
 #include "propagator.hpp"
 
 #include "NohDataGenerator.hpp"

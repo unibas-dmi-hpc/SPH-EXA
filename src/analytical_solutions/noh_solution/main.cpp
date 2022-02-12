@@ -37,7 +37,8 @@
 #include <algorithm>
 
 #include "arg_parser.hpp"
-#include "tests/particle_io.hpp"
+
+#include "analytical_solutions/common/particle_io.hpp"
 
 #include "noh/NohDataGenerator.hpp"
 

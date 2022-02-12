@@ -35,8 +35,8 @@
 #include <vector>
 #include <fstream>
 
-#include "tests/io.hpp"
-#include "tests/particle_io.hpp"
+#include "analytical_solutions/common/io.hpp"
+#include "analytical_solutions/common/particle_io.hpp"
 
 using namespace std;
 
