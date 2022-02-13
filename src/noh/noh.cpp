@@ -13,8 +13,8 @@
 #include "sph/findNeighborsSfc.hpp"
 #include "timer.hpp"
 #include "propagator.hpp"
-#include "../common/test_file_writer.hpp"
-#include "../insitu_viz.h"
+#include "common/test_file_writer.hpp"
+#include "insitu_viz.h"
 
 #include "NohDataGenerator.hpp"
 

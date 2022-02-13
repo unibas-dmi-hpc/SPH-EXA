@@ -1,10 +1,14 @@
 add_executable(sedov sedov.cpp)
+
 target_include_directories(sedov PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
 target_include_directories(sedov PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(sedov PRIVATE ${PROJECT_SOURCE_DIR}/src)
+
 target_include_directories(sedov PRIVATE ${MPI_CXX_INCLUDE_PATH})
+
 target_link_libraries(sedov PRIVATE ${MPI_CXX_LIBRARIES})
 target_link_libraries(sedov PRIVATE OpenMP::OpenMP_CXX)
+
 install(TARGETS sedov RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # {{{ i/o
