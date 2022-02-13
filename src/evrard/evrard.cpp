@@ -11,11 +11,11 @@
 #include "cstone/domain/domain.hpp"
 #include "sphexa.hpp"
 #include "sph/findNeighborsSfc.hpp"
-#include "EvrardCollapseFileWriter.hpp"
 #include "propagator.hpp"
 #include "insitu_viz.h"
 
-#include "EvrardCollapseInputFileReader.hpp"
+#include "evrard_data_file_reader.hpp"
+#include "evrard_data_file_writer.hpp"
 
 using namespace cstone;
 using namespace sphexa;
@@ -51,8 +51,8 @@ int main(int argc, char** argv)
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType>;
 
-    const IFileReader<Dataset>& fileReader = EvrardCollapseMPIInputFileReader<Dataset>();
-    const IFileWriter<Dataset>& fileWriter = EvrardCollapseMPIFileWriter<Dataset>();
+    const IFileReader<Dataset>& fileReader = EvrardDataMPIFileReader<Dataset>();
+    const IFileWriter<Dataset>& fileWriter = EvrardDataMPIFileWriter<Dataset>();
 
     auto d = checkpointInput.empty() ? fileReader.readParticleDataFromBinFile(inputFilePath, nParticles)
                                      : fileReader.readParticleDataFromCheckpointBinFile(checkpointInput);

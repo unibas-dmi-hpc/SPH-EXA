@@ -1,13 +1,13 @@
 #include <iostream>
 
-#include "particles_data.hpp"
 #include "ifile_reader.hpp"
+#include "file_utils.hpp"
 
 namespace sphexa
 {
 
 template<typename Dataset>
-struct EvrardCollapseInputFileReader : IFileReader<Dataset>
+struct EvrardDataFileReader : IFileReader<Dataset>
 {
     Dataset readParticleDataFromBinFile(const std::string& path, const size_t noParticles) const override
     {
@@ -124,7 +124,7 @@ protected:
 
 #ifdef USE_MPI
 template<typename Dataset>
-struct EvrardCollapseMPIInputFileReader : EvrardCollapseInputFileReader<Dataset>
+struct EvrardDataMPIFileReader : EvrardDataFileReader<Dataset>
 {
     Dataset readParticleDataFromBinFile(const std::string& path, const size_t noParticles) const override
     {

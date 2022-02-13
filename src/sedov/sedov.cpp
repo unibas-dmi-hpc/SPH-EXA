@@ -13,10 +13,10 @@
 #include "sph/findNeighborsSfc.hpp"
 #include "timer.hpp"
 #include "propagator.hpp"
-#include "common/test_file_writer.hpp"
 #include "insitu_viz.h"
 
-#include "SedovDataGenerator.hpp"
+#include "sedov_data_file_writer.hpp"
+#include "sedov_data_generator.hpp"
 
 using namespace cstone;
 using namespace sphexa;
@@ -48,7 +48,7 @@ int main(int argc, char** argv)
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType>;
 
-    const IFileWriter<Dataset>& fileWriter = TestMPIFileWriter<Dataset>();
+    const IFileWriter<Dataset>& fileWriter = SedovDataMPIFileWriter<Dataset>();
 
     auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
 

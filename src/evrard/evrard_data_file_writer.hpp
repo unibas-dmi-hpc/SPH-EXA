@@ -7,7 +7,7 @@ namespace sphexa
 {
 
 template<typename Dataset>
-struct EvrardCollapseFileWriter : public IFileWriter<Dataset>
+struct EvrardDataFileWriter : public IFileWriter<Dataset>
 {
     void dumpParticleDataToBinFile(const Dataset& d, const std::string& path) const override
     {
@@ -99,7 +99,7 @@ struct EvrardCollapseFileWriter : public IFileWriter<Dataset>
 #ifdef USE_MPI
 
 template<typename Dataset>
-struct EvrardCollapseMPIFileWriter : IFileWriter<Dataset>
+struct EvrardDataMPIFileWriter : IFileWriter<Dataset>
 {
 #ifdef SPH_EXA_HAVE_H5PART
     void dumpParticleDataToH5File(const Dataset& d, int firstIndex, int lastIndex,

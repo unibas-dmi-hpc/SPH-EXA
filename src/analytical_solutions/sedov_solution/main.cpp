@@ -38,7 +38,7 @@
 
 #include "arg_parser.hpp"
 
-#include "sedov/SedovDataGenerator.hpp"
+#include "sedov/sedov_data_generator.hpp"
 
 #include "analytical_solutions/common/particle_io.hpp"
 
