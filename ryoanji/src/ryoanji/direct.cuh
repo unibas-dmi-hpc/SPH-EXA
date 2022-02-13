@@ -37,6 +37,9 @@
 #include "types.h"
 #include "kahan.hpp"
 
+namespace ryoanji
+{
+
 template<class T>
 using kvec4 = util::array<kahan<T>, 4>;
 
@@ -51,13 +54,10 @@ __global__ void directKernel(int numSource, T eps2, const Vec4<T>* __restrict__ 
     unsigned targetIdx = blockDim.x * blockIdx.x + threadIdx.x;
 
     Vec4<T> pos = {T(0), T(0), T(0), T(0)};
-    if (targetIdx < numSource)
-    {
-        pos = bodyPos[targetIdx];
-    }
+    if (targetIdx < numSource) { pos = bodyPos[targetIdx]; }
     const Vec3<T> pos_i{pos[0], pos[1], pos[2]};
 
-    //kvec4<T> acc = {0.0, 0.0, 0.0, 0.0};
+    // kvec4<T> acc = {0.0, 0.0, 0.0, 0.0};
     util::array<double, 4> acc{0, 0, 0, 0};
 
     __shared__ Vec4<T> sm_bodytile[DirectConfig::numThreads];
@@ -74,7 +74,7 @@ __global__ void directKernel(int numSource, T eps2, const Vec4<T>* __restrict__ 
         for (int j = 0; j < blockDim.x; ++j)
         {
             Vec3<T> pos_j{sm_bodytile[j][0], sm_bodytile[j][1], sm_bodytile[j][2]};
-            T q_j = sm_bodytile[j][3];
+            T       q_j = sm_bodytile[j][3];
             Vec3<T> dX  = pos_j - pos_i;
 
             T R2    = norm2(dX);
@@ -97,10 +97,7 @@ __global__ void directKernel(int numSource, T eps2, const Vec4<T>* __restrict__ 
         __syncthreads();
     }
 
-    if (targetIdx < numSource)
-    {
-        bodyAcc[targetIdx] = Vec4<T>{T(acc[0]), T(acc[1]), T(acc[2]), T(acc[3])};
-    }
+    if (targetIdx < numSource) { bodyAcc[targetIdx] = Vec4<T>{T(acc[0]), T(acc[1]), T(acc[2]), T(acc[3])}; }
 }
 
 template<class T>
@@ -112,3 +109,5 @@ void directSum(std::size_t numBodies, const Vec4<T>* bodyPos, Vec4<T>* bodyAcc, 
     directKernel<<<numBlock, numThreads>>>(numBodies, eps * eps, bodyPos, bodyAcc);
     ryoanji::kernelSuccess("direct sum");
 }
+
+} // namespace ryoanji

@@ -35,6 +35,9 @@
 
 #include "ryoanji/types.h"
 
+namespace ryoanji
+{
+
 template<class KeyType>
 class TreeBuilder
 {
@@ -59,3 +62,5 @@ private:
 
 extern template class TreeBuilder<uint32_t>;
 extern template class TreeBuilder<uint64_t>;
+
+} // namespace ryoanji
