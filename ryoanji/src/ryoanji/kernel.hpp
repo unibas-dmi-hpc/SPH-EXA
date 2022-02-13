@@ -430,7 +430,7 @@ template<>
 struct Kernels<0, 0, 0>
 {
     template<class T, class MType>
-    static HOST_DEVICE_FUN DEVICE_INLINE void P2M(MType& M, const Vec3<T>& dX)
+    static HOST_DEVICE_FUN DEVICE_INLINE void P2M(MType& /*M*/, const Vec3<T>& /*dX*/)
     {
     }
 

@@ -34,6 +34,7 @@
 #include "cstone/focus/source_center.hpp"
 #include "cstone/tree/octree_internal.hpp"
 #include "multipole.hpp"
+#include "kernel_wrapper.hpp"
 
 namespace cstone
 {

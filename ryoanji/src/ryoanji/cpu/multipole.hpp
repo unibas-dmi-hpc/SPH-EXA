@@ -88,7 +88,7 @@ void particle2Multipole(const T1* x,
                         const T2* m,
                         LocalIndex first,
                         LocalIndex last,
-                        Vec3<T1> center,
+                        const Vec3<T1>& center,
                         CartesianQuadrupole<T3>& gv)
 {
     setZero(gv);
@@ -342,7 +342,7 @@ void addQuadrupole(CartesianQuadrupole<T>& composite, Vec3<T> dX, const Cartesia
  * @param[in]   Msrc     input multipoles
  * @param[out]  Mout     the aggregated output multipole
  */
-template<class T, class MType>
+template<class T, class MType, std::enable_if_t<MType{}.size() == CartesianQuadrupole<T>{}.size(), int> = 0>
 void multipole2Multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc, const MType* Msrc, MType& Mout)
 {
     setZero(Mout);
@@ -355,4 +355,10 @@ void multipole2Multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>*
     }
 }
 
-} // namespace cstone
+template<class MType, std::enable_if_t<MType{}.size() == CartesianQuadrupole<float>{}.size(), int> = 0>
+void normalize(MType* /*Multipole*/, int /*numCells*/)
+{
+}
+
+
+} // namespace ryoanji

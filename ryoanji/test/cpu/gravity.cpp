@@ -33,7 +33,7 @@
 
 #include "cstone/sfc/box.hpp"
 #include "coord_samples/random.hpp"
-//#include "ryoanji/cpu/kernel_wrapper.hpp"
+#include "ryoanji/cpu/kernel_wrapper.hpp"
 #include "ryoanji/cpu/treewalk.hpp"
 #include "ryoanji/cpu/upsweep.hpp"
 
@@ -44,6 +44,7 @@ int main()
     using T             = float;
     using KeyType       = uint64_t;
     using MultipoleType = ryoanji::CartesianQuadrupole<T>;
+    //using MultipoleType = ryoanji::SphericalMultipole<T, 2>;
 
     float G                 = 1.0;
     unsigned bucketSize     = 64;
@@ -80,6 +81,7 @@ int main()
     computeLeafMultipoles(octree, layout, x, y, z, masses.data(), sourceCenters.data(), multipoles.data());
     CombineMultipole<MultipoleType> combineMultipole(sourceCenters.data());
     upsweep(octree, multipoles.data(), combineMultipole);
+    ryoanji::normalize(multipoles.data(), multipoles.size());
 
     std::vector<T> ax(numParticles, 0);
     std::vector<T> ay(numParticles, 0);
