@@ -55,7 +55,6 @@ public:
         return pd;
     }
 
-    // void load(const std::string &filename)
     static void load(ParticlesData<T, I>& pd)
     {
         size_t split     = pd.n / pd.nrank;
