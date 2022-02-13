@@ -50,37 +50,37 @@ private:
     SedovFileData(); // Singleton
 
 public:
-    static void writeColumns1D(ostream& out)                               //
+    static void writeColumns1D(ostream& out) //
     {
-        out << setw(16) << "#           01:r"  // Column : position 1D     (Real  value     )
-            << setw(16) << "02:rho"            // Column : density         (Real  value     )
-            << setw(16) << "03:u"              // Column : internal energy (Real  value     )
-            << setw(16) << "04:p"              // Column : pressure        (Real  value     )
-            << setw(16) << "05:vel"            // Column : velocity 1D     (Real  value     )
-            << setw(16) << "06:cs"             // Column : sound speed     (Real  value     )
-            << setw(16) << "07:rho/rhoShock"   // Column : density         (Shock Normalized)
-            << setw(16) << "08:u/uShock"       // Column : internal energy (Shock Normalized)
-            << setw(16) << "09:p/pShock"       // Column : pressure        (Shock Normalized)
-            << setw(16) << "10:vel/velShock"   // Column : velocity        (Shock Normalized)
-            << setw(16) << "11:cs/csShock"     // Column : sound speed     (Shock Normalized)
-            << setw(16) << "12:rho/rho0"       // Column : density         (Init  Normalized)
+        out << setw(16) << "#           01:r" // Column : position 1D     (Real  value     )
+            << setw(16) << "02:rho"           // Column : density         (Real  value     )
+            << setw(16) << "03:u"             // Column : internal energy (Real  value     )
+            << setw(16) << "04:p"             // Column : pressure        (Real  value     )
+            << setw(16) << "05:vel"           // Column : velocity 1D     (Real  value     )
+            << setw(16) << "06:cs"            // Column : sound speed     (Real  value     )
+            << setw(16) << "07:rho/rhoShock"  // Column : density         (Shock Normalized)
+            << setw(16) << "08:u/uShock"      // Column : internal energy (Shock Normalized)
+            << setw(16) << "09:p/pShock"      // Column : pressure        (Shock Normalized)
+            << setw(16) << "10:vel/velShock"  // Column : velocity        (Shock Normalized)
+            << setw(16) << "11:cs/csShock"    // Column : sound speed     (Shock Normalized)
+            << setw(16) << "12:rho/rho0"      // Column : density         (Init  Normalized)
             << endl;
     }
 
-    static void writeData1D(const I          n,                             //
-                            const vector<T>& r,                             //
-                            const vector<T>& rho,                           //
-                            const vector<T>& u,                             //
-                            const vector<T>& p,                             //
-                            const vector<T>& vel,                           //
-                            const vector<T>& cs,                            //
-                            const T          rho_shock,                     //
-                            const T          u_shock,                       //
-                            const T          p_shock,                       //
-                            const T          vel_shock,                     //
-                            const T          cs_shock,                      //
-                            const T          rho0,                          //
-                            const string&    outfile)                       //
+    static void writeData1D(const I          n,         //
+                            const vector<T>& r,         //
+                            const vector<T>& rho,       //
+                            const vector<T>& u,         //
+                            const vector<T>& p,         //
+                            const vector<T>& vel,       //
+                            const vector<T>& cs,        //
+                            const T          rho_shock, //
+                            const T          u_shock,   //
+                            const T          p_shock,   //
+                            const T          vel_shock, //
+                            const T          cs_shock,  //
+                            const T          rho0,      //
+                            const string&    outfile)
     {
         try
         {
@@ -92,18 +92,18 @@ public:
             // Write Data
             for (I i = 0; i < n; i++)
             {
-                out << setw(16) << setprecision(6) << scientific << r[i]                //
-                    << setw(16) << setprecision(6) << scientific << rho[i]              //
-                    << setw(16) << setprecision(6) << scientific << u[i]                //
-                    << setw(16) << setprecision(6) << scientific << p[i]                //
-                    << setw(16) << setprecision(6) << scientific << vel[i]              //
-                    << setw(16) << setprecision(6) << scientific << cs[i]               //
-                    << setw(16) << setprecision(6) << scientific << rho[i] / rho_shock  //
-                    << setw(16) << setprecision(6) << scientific << u[i] / u_shock      //
-                    << setw(16) << setprecision(6) << scientific << p[i] / p_shock      //
-                    << setw(16) << setprecision(6) << scientific << vel[i] / vel_shock  //
-                    << setw(16) << setprecision(6) << scientific << cs[i] / cs_shock    //
-                    << setw(16) << setprecision(6) << scientific << rho[i] / rho0       //
+                out << setw(16) << setprecision(6) << scientific << r[i]               //
+                    << setw(16) << setprecision(6) << scientific << rho[i]             //
+                    << setw(16) << setprecision(6) << scientific << u[i]               //
+                    << setw(16) << setprecision(6) << scientific << p[i]               //
+                    << setw(16) << setprecision(6) << scientific << vel[i]             //
+                    << setw(16) << setprecision(6) << scientific << cs[i]              //
+                    << setw(16) << setprecision(6) << scientific << rho[i] / rho_shock //
+                    << setw(16) << setprecision(6) << scientific << u[i] / u_shock     //
+                    << setw(16) << setprecision(6) << scientific << p[i] / p_shock     //
+                    << setw(16) << setprecision(6) << scientific << vel[i] / vel_shock //
+                    << setw(16) << setprecision(6) << scientific << cs[i] / cs_shock   //
+                    << setw(16) << setprecision(6) << scientific << rho[i] / rho0      //
                     << endl;
             }
 
@@ -116,15 +116,15 @@ public:
         }
     }
 
-    static void writeParticle1D(const I                         n,          //
-                                const vector<ParticleIO<T, I>>& vParticle,  //
-                                const T                         rho_shock,  //
-                                const T                         u_shock,    //
-                                const T                         p_shock,    //
-                                const T                         vel_shock,  //
-                                const T                         cs_shock,   //
-                                const T                         rho0,       //
-                                const string&                   outfile)    //
+    static void writeParticle1D(const I                         n,         //
+                                const vector<ParticleIO<T, I>>& vParticle, //
+                                const T                         rho_shock, //
+                                const T                         u_shock,   //
+                                const T                         p_shock,   //
+                                const T                         vel_shock, //
+                                const T                         cs_shock,  //
+                                const T                         rho0,      //
+                                const string&                   outfile)
     {
         vector<T> r(n);
         vector<T> rho(n);
@@ -143,7 +143,6 @@ public:
             cs[i]  = vParticle[i].cs;
         }
 
-        writeData1D(
-            n, r, rho, u, p, vel, cs, rho_shock, u_shock, p_shock, vel_shock, cs_shock, rho0, outfile);
+        writeData1D(n, r, rho, u, p, vel, cs, rho_shock, u_shock, p_shock, vel_shock, cs_shock, rho0, outfile);
     }
 };

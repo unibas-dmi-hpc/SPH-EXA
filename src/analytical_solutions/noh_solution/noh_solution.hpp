@@ -46,17 +46,17 @@ template<typename T, typename I>
 class NohSolution
 {
 public:
-    static void create(vector<T>&   r,           // Radius position
-                       const I      dim,         // Dimensions
-                       const I      rPoints,     // Number of points between r0-r1
-                       const T      time,        // Time at solution
-                       const T      gamma_i,     // Adiabatic coeficient
-                       const T      rho0,        // Initial density
-                       const T      u0,          // Initial internal energy
-                       const T      p0,          // Initial pressure
-                       const T      vel0,        // Initial velocity
-                       const T      cs0,         // Initial sound speed
-                       const string outfile)     // Output solution filename
+    static void create(vector<T>&   r,       // Radius position
+                       const I      dim,     // Dimensions
+                       const I      rPoints, // Number of points between r0-r1
+                       const T      time,    // Time at solution
+                       const T      gamma_i, // Adiabatic coeficient
+                       const T      rho0,    // Initial density
+                       const T      u0,      // Initial internal energy
+                       const T      p0,      // Initial pressure
+                       const T      vel0,    // Initial velocity
+                       const T      cs0,     // Initial sound speed
+                       const string outfile) // Output solution filename
     {
         vector<T> rho(rPoints);
         vector<T> u(rPoints);
@@ -86,7 +86,7 @@ private:
                        vector<T>&       u,       // out: specific internal energy [erg/g]
                        vector<T>&       p,       // out: presssure [erg/cm**3]
                        vector<T>&       vel,     // out: velocity [cm/s]
-                       vector<T>&       cs)      // out: sound speed [cm/s]
+                       vector<T>&       cs)            // out: sound speed [cm/s]
     {
         // Frequest combination variables
         T gamm1 = gamma - 1.;

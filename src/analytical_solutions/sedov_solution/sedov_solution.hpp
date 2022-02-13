@@ -58,25 +58,25 @@ class SedovSolution
 {
 public:
     // Public global variables in the shock peak
-    static T rho_shock;                       // Density
-    static T p_shock;                         // Pressure
-    static T vel_shock;                       // Velocity 1D
-    static T u_shock;                         // Internal energy
-    static T cs_shock;                        // Sound speed
+    static T rho_shock; // Density
+    static T p_shock;   // Pressure
+    static T vel_shock; // Velocity 1D
+    static T u_shock;   // Internal energy
+    static T cs_shock;  // Sound speed
 
-    static void create(vector<T>&   r,        // Radius position
-                       const I      dim,      // Dimensions
-                       const I      rPoints,  // Number of points between r0-r1
-                       const T      time,     // Time at solution
-                       const T      eblast,   // Energy blast in the wave front
-                       const T      omega_i,  // Energy blast in the wave front
-                       const T      gamma_i,  // Adiabatic coeficient
-                       const T      rho0,     // Initial density
-                       const T      u0,       // Initial internal energy
-                       const T      p0,       // Initial pressure
-                       const T      vel0,     // Initial velocity
-                       const T      cs0,      // Initial sound speed
-                       const string outfile)  // Output solution filename
+    static void create(vector<T>&   r,       // Radius position
+                       const I      dim,     // Dimensions
+                       const I      rPoints, // Number of points between r0-r1
+                       const T      time,    // Time at solution
+                       const T      eblast,  // Energy blast in the wave front
+                       const T      omega_i, // Energy blast in the wave front
+                       const T      gamma_i, // Adiabatic coeficient
+                       const T      rho0,    // Initial density
+                       const T      u0,      // Initial internal energy
+                       const T      p0,      // Initial pressure
+                       const T      vel0,    // Initial velocity
+                       const T      cs0,     // Initial sound speed
+                       const string outfile) // Output solution filename
     {
         vector<T> rho(rPoints);
         vector<T> u(rPoints);
@@ -94,39 +94,38 @@ public:
 
 private:
     // Constants
-    static inline const T eps    = 1.e-10;          // eps controls the integration accuracy, don't get too greedy
-                                                    // or the number of function evaluations required kills.
-    static inline const T eps2   = 1.e-30;          // eps2 controls the root find accuracy
-    static inline const T osmall = 1.e-4;           // osmall controls the size of transition regions
+    static inline const T eps    = 1.e-10; // eps controls the integration accuracy
+    static inline const T eps2   = 1.e-30; // eps2 controls the root find accuracy
+    static inline const T osmall = 1.e-4;  // osmall controls the size of transition regions
 
     // Private global variables
-    static T    xgeom, omega, gamma;                //
-    static T    gamm1, gamp1, gpogm, xg2;           //
-    static bool lsingular, lstandard, lvacuum;      //
-    static bool lomega2, lomega3;                   //
-    static T    a0, a1, a2, a3, a4, a5;             //
-    static T    a_val, b_val, c_val, d_val, e_val;  //
-    static T    rwant, vwant;                       //
-    static T    r2, v0, vv, rvv;                    //
-    static T    gam_int;                            //
+    static T    xgeom, omega, gamma;               //
+    static T    gamm1, gamp1, gpogm, xg2;          //
+    static bool lsingular, lstandard, lvacuum;     //
+    static bool lomega2, lomega3;                  //
+    static T    a0, a1, a2, a3, a4, a5;            //
+    static T    a_val, b_val, c_val, d_val, e_val; //
+    static T    rwant, vwant;                      //
+    static T    r2, v0, vv, rvv;                   //
+    static T    gam_int;                           //
 
-    static void sedovSol(const I          dim,      // geometry factor: 1=planar, 2=cylindircal, 3=spherical
-                         const I          rPoints,  // Number of points between r0-r1
-                         const T          time,     // temporal point where solution is desired [seconds]
-                         const T          eblast,   // energy of blast in the wave front [erg]
-                         const T          omega_i,  // density power law exponent in 'rho = rho0 * r**(-omega)'
-                         const T          gamma_i,  // gamma law equation of state
-                         const T          rho0,     // ambient density g/cm**3 in 'rho = rho0 * r**(-omega)'
-                         const T          u0,       // ambient internal energy [erg/g]
-                         const T          p0,       // ambient pressure [erg/cm**3]
-                         const T          vel0,     // ambient material speed [cm/s]
-                         const T          cs0,      // ambient sound speed [cm/s]
-                         const vector<T>& r,        // out: spatial points where solution is desired [cm]
-                         vector<T>&       rho,      // out: density  [g/cm**3]
-                         vector<T>&       p,        // out: presssure [erg/cm**3]
-                         vector<T>&       u,        // out: specific internal energy [erg/g]
-                         vector<T>&       vel,      // out: velocity [cm/s]
-                         vector<T>&       cs)       // out: sound speed [cm/s]
+    static void sedovSol(const I          dim,     // geometry factor: 1=planar, 2=cylindircal, 3=spherical
+                         const I          rPoints, // Number of points between r0-r1
+                         const T          time,    // temporal point where solution is desired [seconds]
+                         const T          eblast,  // energy of blast in the wave front [erg]
+                         const T          omega_i, // density power law exponent in 'rho = rho0 * r**(-omega)'
+                         const T          gamma_i, // gamma law equation of state
+                         const T          rho0,    // ambient density g/cm**3 in 'rho = rho0 * r**(-omega)'
+                         const T          u0,      // ambient internal energy [erg/g]
+                         const T          p0,      // ambient pressure [erg/cm**3]
+                         const T          vel0,    // ambient material speed [cm/s]
+                         const T          cs0,     // ambient sound speed [cm/s]
+                         const vector<T>& r,       // out: spatial points where solution is desired [cm]
+                         vector<T>&       rho,     // out: density  [g/cm**3]
+                         vector<T>&       p,       // out: presssure [erg/cm**3]
+                         vector<T>&       u,       // out: specific internal energy [erg/g]
+                         vector<T>&       vel,     // out: velocity [cm/s]
+                         vector<T>&       cs)            // out: sound speed [cm/s]
     {
         // Local variables
         T eval1 = 0.;
@@ -196,17 +195,17 @@ private:
         a0 = 2. / xg2;        // a0 =  beta6;
         a2 = -gamm1 / denom2; // a1 =  beta1;
         a1 = xg2 * gamma / (2. + (xgeom * gamm1)) *
-             (((2. * (xgeom * (2. - gamma) - omega)) / (gamma * xg2 * xg2)) - a2);  // a2 = -beta2;
-        a3 = (xgeom - omega) / denom2;                                              // a3 =  beta3;
-        a4 = xg2 * (xgeom - omega) * a1 / denom3;                                   // a4 =  beta4;
-        a5 = ((omega * gamp1) - (2. * xgeom)) / denom3;                             // a5 = -beta5;
+             (((2. * (xgeom * (2. - gamma) - omega)) / (gamma * xg2 * xg2)) - a2); // a2 = -beta2;
+        a3 = (xgeom - omega) / denom2;                                             // a3 =  beta3;
+        a4 = xg2 * (xgeom - omega) * a1 / denom3;                                  // a4 =  beta4;
+        a5 = ((omega * gamp1) - (2. * xgeom)) / denom3;                            // a5 = -beta5;
 
         // Frequent combinations in Kamm equations 33-37
-        a_val = 0.25 * xg2 * gamp1;                                                 //
-        b_val = gpogm;                                                              //
-        c_val = 0.5 * xg2 * gamma;                                                  //
-        d_val = (xg2 * gamp1) / ((xg2 * gamp1) - (2. * (2. + (xgeom * gamm1))));    //
-        e_val = 0.5 * (2. + (xgeom * gamm1));                                       //
+        a_val = 0.25 * xg2 * gamp1;                                              //
+        b_val = gpogm;                                                           //
+        c_val = 0.5 * xg2 * gamma;                                               //
+        d_val = (xg2 * gamp1) / ((xg2 * gamp1) - (2. * (2. + (xgeom * gamm1)))); //
+        e_val = 0.5 * (2. + (xgeom * gamm1));                                    //
 
         //  Evaluate the energy integrals.
         T alpha, vmin;
@@ -291,16 +290,16 @@ private:
         }
 
         // Immediate post-shock values: Kamm page 14, equations 14, 16, 5, 13
-        r2 = pow(eblast / (alpha * rho0), 1. / xg2) * pow(time, 2. / xg2);  // shock position
+        r2 = pow(eblast / (alpha * rho0), 1. / xg2) * pow(time, 2. / xg2); // shock position
 
-        T us   = (2. / xg2) * r2 / time;                // shock speed
-        T rho1 = rho0 * pow(r2, -omega);                // pre-shock density
+        T us   = (2. / xg2) * r2 / time; // shock speed
+        T rho1 = rho0 * pow(r2, -omega); // pre-shock density
 
-        rho_shock = gpogm * rho1;                       // post-shock density
-        p_shock   = 2. * rho1 * (us * us) / gamp1;      // post-shock pressure
-        vel_shock = 2. * us / gamp1;                    // post-shock material speed
-        u_shock   = p_shock / (gamm1 * rho_shock);      // post-shoock specific internal energy
-        cs_shock  = sqrt(gamma * p_shock / rho_shock);  // post-shock sound speed
+        rho_shock = gpogm * rho1;                      // post-shock density
+        p_shock   = 2. * rho1 * (us * us) / gamp1;     // post-shock pressure
+        vel_shock = 2. * us / gamp1;                   // post-shock material speed
+        u_shock   = p_shock / (gamm1 * rho_shock);     // post-shoock specific internal energy
+        cs_shock  = sqrt(gamma * p_shock / rho_shock); // post-shock sound speed
 
         // Find the radius corresponding to vv
         if (lvacuum)
@@ -359,16 +358,16 @@ private:
         }
     }
 
-    static void sedov_funcs(const T v,       // Similarity variable v
-                            T&      l_fun,   // out: l_fun is book's zeta
-                            T&      dlamdv,  // out: l_fun derivative
-                            T&      f_fun,   // out: f_fun is book's V
-                            T&      g_fun,   // out: g_fun is book's D
-                            T&      h_fun)   // out: h_fun is book's P
+    static void sedov_funcs(const T v,      // Similarity variable v
+                            T&      l_fun,  // out: l_fun is book's zeta
+                            T&      dlamdv, // out: l_fun derivative
+                            T&      f_fun,  // out: f_fun is book's V
+                            T&      g_fun,  // out: g_fun is book's D
+                            T&      h_fun)       // out: h_fun is book's P
     {
         // Given the similarity variable v, returns functions: ' l_func: lambda', 'lambda_derivative', 'f', 'g', and 'h'
-        // Although the ordinary differential equations are analytic, the sedov expressions appear to become singular for
-        // various combinations of parameters and at the lower limits of the integration range.
+        // Although the ordinary differential equations are analytic, the sedov expressions appear to become singular
+        // for various combinations of parameters and at the lower limits of the integration range.
         // All these singularities are removable and done so by this routine.
 
         // Frequent combinations and their derivative with v. Kamm equation 29-32
@@ -458,7 +457,7 @@ private:
         }
     }
 
-    static T efun01(const T v)  //
+    static T efun01(const T v) //
     {
         // Evaluates the first energy integrand, kamm equations 67 and 10.
         // The (c_val*v - 1) term might be singular at v=vmin in the standard case.
@@ -472,7 +471,7 @@ private:
         return (dlamdv * pow(l_fun, xgeom + 1.) * gpogm * g_fun * (v * v));
     }
 
-    static T efun02(const T v)  //
+    static T efun02(const T v) //
     {
         // Evaluates the second energy integrand, kamm equations 68 and 11.
         // The (c_val*v - 1) term might be singular at v=vmin in the standard case.
@@ -490,7 +489,7 @@ private:
         return (dlamdv * pow(l_fun, xgeom - 1.) * h_fun * z);
     }
 
-    static T sed_v_find(const T v)  //
+    static T sed_v_find(const T v) //
     {
         // Given corresponding physical distances, find the similarity variable v. Kamm equation 38 as a root find
         T l_fun, dlamdv, f_fun, g_fun, h_fun;
@@ -500,7 +499,7 @@ private:
         return ((r2 * l_fun) - rwant);
     }
 
-    static T sed_r_find(const T r)  //
+    static T sed_r_find(const T r) //
     {
         // Given the similarity variable v, find the corresponding physical distance. Kamm equation 38 as a root find
         T l_fun, dlamdv, f_fun, g_fun, h_fun;
@@ -510,11 +509,11 @@ private:
         return ((r2 * l_fun) - r);
     }
 
-    static void midpnt(const I              n,     //
-                       function<T(const T)> func,  //
-                       const T              a,     //
-                       const T              b,     //
-                       T&                   s)     //
+    static void midpnt(const I              n,    //
+                       function<T(const T)> func, //
+                       const T              a,    //
+                       const T              b,    //
+                       T&                   s)
     {
         // This routine computes the n'th stage of refinement of an extended midpoint rule.
         // Func is input as the name of the function to be integrated between limits a and b.
@@ -524,7 +523,7 @@ private:
         if (n == 1)
         {
             T x = 0.5 * (a + b);
-            s        = (b - a) * func(x);
+            s   = (b - a) * func(x);
         }
         else
         {
@@ -550,9 +549,9 @@ private:
         }
     }
 
-    static T midpowl_func(function<T(const T)> funk,  //
-                          const T              x,     //
-                          const T              aa)    //
+    static T midpowl_func(function<T(const T)> funk, //
+                          const T              x,    //
+                          const T              aa)
     {
         // A little conversion, recipe equation 4.4.3
 
@@ -563,11 +562,11 @@ private:
         return (1. / p1 * p2 * p3);
     }
 
-    static void midpowl(const I              n,     //
-                        function<T(const T)> funk,  //
-                        const T              aa,    //
-                        const T              bb,    //
-                        T&                   s)     // out:
+    static void midpowl(const I              n,    //
+                        function<T(const T)> funk, //
+                        const T              aa,   //
+                        const T              bb,   //
+                        T&                   s)
     {
         // This routine is an exact replacement for midpnt,
         // except that it allows for an integrable power-law singularity
@@ -608,9 +607,9 @@ private:
         }
     }
 
-    static T midpowl2_func(function<T(const T)> funk,  //
-                           const T              x,     //
-                           const T              aa)    //
+    static T midpowl2_func(function<T(const T)> funk, //
+                           const T              x,    //
+                           const T              aa)
     {
         // A little conversion, module recipe equation 4.4.3
 
@@ -621,11 +620,11 @@ private:
         return (1. / p1 * p2 * p3);
     }
 
-    static void midpowl2(const I              n,     //
-                         function<T(const T)> funk,  //
-                         const T              aa,    //
-                         const T              bb,    //
-                         T&                   s)     // out:
+    static void midpowl2(const I              n,    //
+                         function<T(const T)> funk, //
+                         const T              aa,   //
+                         const T              bb,   //
+                         T&                   s)
     {
         // This routine is an exact replacement for midpnt,
         // except that it allows for an integrable power-law singularity
@@ -666,12 +665,12 @@ private:
         }
     }
 
-    static void polint(T*      xa,  //
-                       T*      ya,  //
-                       const I n,   //
-                       const T x,   //
-                       T&      y,   // out:
-                       T&      dy)  // out:
+    static void polint(T*      xa, //
+                       T*      ya, //
+                       const I n,  //
+                       const T x,  //
+                       T&      y,  // out:
+                       T&      dy)
     {
         // Given arrays xa and ya of length n and a value x, this routine returns a value y and an error estimate dy.
         // if p(x) is the polynomial of degree n-1 such that ya = p(xa) ya then the returned value is y = p(x)
@@ -744,12 +743,12 @@ private:
         }
     }
 
-    static void qromo(function<T(const T)>                                                func,    //
-                      const T                                                             a,       //
-                      const T                                                             b,       //
-                      const T                                                             eps,     //
-                      T&                                                                  ss,      //
-                      function<void(const I, function<T(const T)>, const T, const T, T&)> choose)  //
+    static void qromo(function<T(const T)>                                                func,   //
+                      const T                                                             a,      //
+                      const T                                                             b,      //
+                      const T                                                             eps,    //
+                      T&                                                                  ss,     //
+                      function<void(const I, function<T(const T)>, const T, const T, T&)> choose) //
     {
         // This routine returns as 's' the integral of the function 'func'
         // from 'a' to 'b' with fractional accuracy 'eps'.
@@ -802,10 +801,11 @@ private:
         exit(-1);
     }
 
-    static T zeroin(const T              ax,   // Left endpoint of initial interval
-                    const T              bx,   // Right endpoint of initial interval
-                    function<T(const T)> f,    // Function subprogram which evaluates f(x) for any x in the interval [ax,bx]
-                    const T              tol)  // Desired length of the interval of uncertainty of the final result (>= 0.)
+    static T
+    zeroin(const T              ax, // Left endpoint of initial interval
+           const T              bx, // Right endpoint of initial interval
+           function<T(const T)> f,  // Function subprogram which evaluates f(x) for any x in the interval [ax,bx]
+           const T              tol)             // Desired length of the interval of uncertainty of the final result (>= 0.)
     {
         // This subroutine solves the 'zeroin' abcissa approximating to zero of 'f' in the interval [ax,bx]
 
@@ -946,47 +946,82 @@ private:
     }
 };
 
-template<typename T, typename I> T    SedovSolution<T, I>::xgeom;
-template<typename T, typename I> T    SedovSolution<T, I>::omega;
-template<typename T, typename I> T    SedovSolution<T, I>::gamma;
+template<typename T, typename I>
+T SedovSolution<T, I>::xgeom;
+template<typename T, typename I>
+T SedovSolution<T, I>::omega;
+template<typename T, typename I>
+T SedovSolution<T, I>::gamma;
 
-template<typename T, typename I> T    SedovSolution<T, I>::gamm1;
-template<typename T, typename I> T    SedovSolution<T, I>::gamp1;
-template<typename T, typename I> T    SedovSolution<T, I>::gpogm;
-template<typename T, typename I> T    SedovSolution<T, I>::xg2;
+template<typename T, typename I>
+T SedovSolution<T, I>::gamm1;
+template<typename T, typename I>
+T SedovSolution<T, I>::gamp1;
+template<typename T, typename I>
+T SedovSolution<T, I>::gpogm;
+template<typename T, typename I>
+T SedovSolution<T, I>::xg2;
 
-template<typename T, typename I> bool SedovSolution<T, I>::lsingular;
-template<typename T, typename I> bool SedovSolution<T, I>::lstandard;
-template<typename T, typename I> bool SedovSolution<T, I>::lvacuum;
+template<typename T, typename I>
+bool SedovSolution<T, I>::lsingular;
+template<typename T, typename I>
+bool SedovSolution<T, I>::lstandard;
+template<typename T, typename I>
+bool SedovSolution<T, I>::lvacuum;
 
-template<typename T, typename I> bool SedovSolution<T, I>::lomega2;
-template<typename T, typename I> bool SedovSolution<T, I>::lomega3;
+template<typename T, typename I>
+bool SedovSolution<T, I>::lomega2;
+template<typename T, typename I>
+bool SedovSolution<T, I>::lomega3;
 
-template<typename T, typename I> T    SedovSolution<T, I>::a0;
-template<typename T, typename I> T    SedovSolution<T, I>::a1;
-template<typename T, typename I> T    SedovSolution<T, I>::a2;
-template<typename T, typename I> T    SedovSolution<T, I>::a3;
-template<typename T, typename I> T    SedovSolution<T, I>::a4;
-template<typename T, typename I> T    SedovSolution<T, I>::a5;
+template<typename T, typename I>
+T SedovSolution<T, I>::a0;
+template<typename T, typename I>
+T SedovSolution<T, I>::a1;
+template<typename T, typename I>
+T SedovSolution<T, I>::a2;
+template<typename T, typename I>
+T SedovSolution<T, I>::a3;
+template<typename T, typename I>
+T SedovSolution<T, I>::a4;
+template<typename T, typename I>
+T SedovSolution<T, I>::a5;
 
-template<typename T, typename I> T    SedovSolution<T, I>::a_val;
-template<typename T, typename I> T    SedovSolution<T, I>::b_val;
-template<typename T, typename I> T    SedovSolution<T, I>::c_val;
-template<typename T, typename I> T    SedovSolution<T, I>::d_val;
-template<typename T, typename I> T    SedovSolution<T, I>::e_val;
+template<typename T, typename I>
+T SedovSolution<T, I>::a_val;
+template<typename T, typename I>
+T SedovSolution<T, I>::b_val;
+template<typename T, typename I>
+T SedovSolution<T, I>::c_val;
+template<typename T, typename I>
+T SedovSolution<T, I>::d_val;
+template<typename T, typename I>
+T SedovSolution<T, I>::e_val;
 
-template<typename T, typename I> T    SedovSolution<T, I>::rwant;
-template<typename T, typename I> T    SedovSolution<T, I>::vwant;
+template<typename T, typename I>
+T SedovSolution<T, I>::rwant;
+template<typename T, typename I>
+T SedovSolution<T, I>::vwant;
 
-template<typename T, typename I> T    SedovSolution<T, I>::r2;
-template<typename T, typename I> T    SedovSolution<T, I>::v0;
-template<typename T, typename I> T    SedovSolution<T, I>::vv;
-template<typename T, typename I> T    SedovSolution<T, I>::rvv;
+template<typename T, typename I>
+T SedovSolution<T, I>::r2;
+template<typename T, typename I>
+T SedovSolution<T, I>::v0;
+template<typename T, typename I>
+T SedovSolution<T, I>::vv;
+template<typename T, typename I>
+T SedovSolution<T, I>::rvv;
 
-template<typename T, typename I> T    SedovSolution<T, I>::gam_int;
+template<typename T, typename I>
+T SedovSolution<T, I>::gam_int;
 
-template<typename T, typename I> T    SedovSolution<T, I>::rho_shock;
-template<typename T, typename I> T    SedovSolution<T, I>::p_shock;
-template<typename T, typename I> T    SedovSolution<T, I>::vel_shock;
-template<typename T, typename I> T    SedovSolution<T, I>::u_shock;
-template<typename T, typename I> T    SedovSolution<T, I>::cs_shock;
+template<typename T, typename I>
+T SedovSolution<T, I>::rho_shock;
+template<typename T, typename I>
+T SedovSolution<T, I>::p_shock;
+template<typename T, typename I>
+T SedovSolution<T, I>::vel_shock;
+template<typename T, typename I>
+T SedovSolution<T, I>::u_shock;
+template<typename T, typename I>
+T SedovSolution<T, I>::cs_shock;

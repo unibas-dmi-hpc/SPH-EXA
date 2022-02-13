@@ -50,25 +50,25 @@ private:
     NohFileData(); // Singleton
 
 public:
-    static void writeColumns1D(ostream& out)                                //
+    static void writeColumns1D(ostream& out) //
     {
-        out << setw(16) << "#           01:r"  // Column : position 1D     (Real  value     )
-            << setw(16) << "02:rho"            // Column : density         (Real  value     )
-            << setw(16) << "03:u"              // Column : internal energy (Real  value     )
-            << setw(16) << "04:p"              // Column : pressure        (Real  value     )
-            << setw(16) << "05:vel"            // Column : velocity 1D     (Real  value     )
-            << setw(16) << "06:cs"             // Column : sound speed     (Real  value     )
+        out << setw(16) << "#           01:r" // Column : position 1D     (Real  value     )
+            << setw(16) << "02:rho"           // Column : density         (Real  value     )
+            << setw(16) << "03:u"             // Column : internal energy (Real  value     )
+            << setw(16) << "04:p"             // Column : pressure        (Real  value     )
+            << setw(16) << "05:vel"           // Column : velocity 1D     (Real  value     )
+            << setw(16) << "06:cs"            // Column : sound speed     (Real  value     )
             << endl;
     }
 
-    static void writeData1D(const I          n,                             //
-                            const vector<T>& r,                             //
-                            const vector<T>& rho,                           //
-                            const vector<T>& u,                             //
-                            const vector<T>& p,                             //
-                            const vector<T>& vel,                           //
-                            const vector<T>& cs,                            //
-                            const string&    outfile)                       //
+    static void writeData1D(const I          n,   //
+                            const vector<T>& r,   //
+                            const vector<T>& rho, //
+                            const vector<T>& u,   //
+                            const vector<T>& p,   //
+                            const vector<T>& vel, //
+                            const vector<T>& cs,  //
+                            const string&    outfile)
     {
         try
         {
@@ -80,12 +80,12 @@ public:
             // Write Data
             for (size_t i = 0; i < n; i++)
             {
-                out << setw(16) << setprecision(6) << scientific << r[i]    //
-                    << setw(16) << setprecision(6) << scientific << rho[i]  //
-                    << setw(16) << setprecision(6) << scientific << u[i]    //
-                    << setw(16) << setprecision(6) << scientific << p[i]    //
-                    << setw(16) << setprecision(6) << scientific << vel[i]  //
-                    << setw(16) << setprecision(6) << scientific << cs[i]   //
+                out << setw(16) << setprecision(6) << scientific << r[i]   //
+                    << setw(16) << setprecision(6) << scientific << rho[i] //
+                    << setw(16) << setprecision(6) << scientific << u[i]   //
+                    << setw(16) << setprecision(6) << scientific << p[i]   //
+                    << setw(16) << setprecision(6) << scientific << vel[i] //
+                    << setw(16) << setprecision(6) << scientific << cs[i]  //
                     << endl;
             }
 
@@ -98,9 +98,9 @@ public:
         }
     }
 
-    static void writeParticle1D(const I                         n,          //
-                                const vector<ParticleIO<T, I>>& vParticle,  //
-                                const string&                   outfile)    //
+    static void writeParticle1D(const I                         n,         //
+                                const vector<ParticleIO<T, I>>& vParticle, //
+                                const string&                   outfile)
     {
         vector<T> r(n);
         vector<T> rho(n);
