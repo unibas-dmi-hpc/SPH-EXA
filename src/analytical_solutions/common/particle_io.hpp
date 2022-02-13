@@ -13,7 +13,7 @@ struct ParticleIO
     double vx;  // vx velocity
     double vy;  // vy velocity
     double vz;  // vz velocity
-    double h;   // smoothing lenght
+    double h;   // smoothing length
     double rho; // density
     double u;   // internal energy
     double p;   // pressure

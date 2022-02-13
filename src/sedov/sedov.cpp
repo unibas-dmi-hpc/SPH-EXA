@@ -12,6 +12,7 @@
 #include "sphexa.hpp"
 #include "sph/findNeighborsSfc.hpp"
 #include "common/test_file_writer.hpp"
+#include "timer.hpp"
 #include "propagator.hpp"
 #include "insitu_viz.h"
 

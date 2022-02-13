@@ -12,6 +12,7 @@
 #include "sphexa.hpp"
 #include "sph/findNeighborsSfc.hpp"
 #include "common/test_file_writer.hpp"
+#include "timer.hpp"
 #include "propagator.hpp"
 #include "insitu_viz.h"
 
@@ -112,7 +113,7 @@ int main(int argc, char** argv)
 
         if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
     }
-viz
+
     totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Noh");
 
     constantsFile.close();

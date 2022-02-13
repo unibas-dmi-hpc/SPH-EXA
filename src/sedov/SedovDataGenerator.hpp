@@ -4,7 +4,6 @@
 #include <cmath>
 #include <vector>
 
-#include "sph/kernels.hpp"
 #include "particles_data.hpp"
 
 namespace sphexa
