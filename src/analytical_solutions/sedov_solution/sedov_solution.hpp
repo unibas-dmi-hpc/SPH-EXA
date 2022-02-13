@@ -58,31 +58,31 @@ class SedovSolution
 {
 public:
     // Public global variables in the shock peak
-    static double rho_shock; // Density
-    static double p_shock;   // Pressure
-    static double vel_shock; // Velocity 1D
-    static double u_shock;   // Internal energy
-    static double cs_shock;  // Sound speed
+    static T rho_shock;                       // Density
+    static T p_shock;                         // Pressure
+    static T vel_shock;                       // Velocity 1D
+    static T u_shock;                         // Internal energy
+    static T cs_shock;                        // Sound speed
 
-    static void create(vector<double>& r,        // Radius position
-                       const size_t    dim,      // Dimensions
-                       const size_t    rPoints,  // Number of points between r0-r1
-                       const double    time,     // Time at solution
-                       const double    eblast,   // Energy blast in the wave front
-                       const double    omega_i,  // Energy blast in the wave front
-                       const double    gamma_i,  // Adiabatic coeficient
-                       const double    rho0,     // Initial density
-                       const double    u0,       // Initial internal energy
-                       const double    p0,       // Initial pressure
-                       const double    vel0,     // Initial velocity
-                       const double    cs0,      // Initial sound speed
-                       const string    outfile)  // Output solution filename
+    static void create(vector<T>&   r,        // Radius position
+                       const I      dim,      // Dimensions
+                       const I      rPoints,  // Number of points between r0-r1
+                       const T      time,     // Time at solution
+                       const T      eblast,   // Energy blast in the wave front
+                       const T      omega_i,  // Energy blast in the wave front
+                       const T      gamma_i,  // Adiabatic coeficient
+                       const T      rho0,     // Initial density
+                       const T      u0,       // Initial internal energy
+                       const T      p0,       // Initial pressure
+                       const T      vel0,     // Initial velocity
+                       const T      cs0,      // Initial sound speed
+                       const string outfile)  // Output solution filename
     {
-        vector<double> rho(rPoints);
-        vector<double> u(rPoints);
-        vector<double> p(rPoints);
-        vector<double> vel(rPoints);
-        vector<double> cs(rPoints);
+        vector<T> rho(rPoints);
+        vector<T> u(rPoints);
+        vector<T> p(rPoints);
+        vector<T> vel(rPoints);
+        vector<T> cs(rPoints);
 
         // Calculate theoretical solution
         sedovSol(dim, rPoints, time, eblast, omega_i, gamma_i, rho0, u0, p0, vel0, cs0, r, rho, p, u, vel, cs);
@@ -94,43 +94,43 @@ public:
 
 private:
     // Constants
-    static inline const double eps = 1.e-10;          // eps controls the integration accuracy, don't get too greedy
-                                                      // or the number of function evaluations required kills.
-    static inline const double eps2   = 1.e-30;       // eps2 controls the root find accuracy
-    static inline const double osmall = 1.e-4;        // osmall controls the size of transition regions
+    static inline const T eps    = 1.e-10;          // eps controls the integration accuracy, don't get too greedy
+                                                    // or the number of function evaluations required kills.
+    static inline const T eps2   = 1.e-30;          // eps2 controls the root find accuracy
+    static inline const T osmall = 1.e-4;           // osmall controls the size of transition regions
 
     // Private global variables
-    static double xgeom, omega, gamma;                //
-    static double gamm1, gamp1, gpogm, xg2;           //
-    static bool   lsingular, lstandard, lvacuum;      //
-    static bool   lomega2, lomega3;                   //
-    static double a0, a1, a2, a3, a4, a5;             //
-    static double a_val, b_val, c_val, d_val, e_val;  //
-    static double rwant, vwant;                       //
-    static double r2, v0, vv, rvv;                    //
-    static double gam_int;                            //
+    static T    xgeom, omega, gamma;                //
+    static T    gamm1, gamp1, gpogm, xg2;           //
+    static bool lsingular, lstandard, lvacuum;      //
+    static bool lomega2, lomega3;                   //
+    static T    a0, a1, a2, a3, a4, a5;             //
+    static T    a_val, b_val, c_val, d_val, e_val;  //
+    static T    rwant, vwant;                       //
+    static T    r2, v0, vv, rvv;                    //
+    static T    gam_int;                            //
 
-    static void sedovSol(const size_t          dim,     // geometry factor: 1=planar, 2=cylindircal, 3=spherical
-                         const size_t          rPoints, // Number of points between r0-r1
-                         const double          time,    // temporal point where solution is desired [seconds]
-                         const double          eblast,  // energy of blast in the wave front [erg]
-                         const double          omega_i, // density power law exponent in 'rho = rho0 * r**(-omega)'
-                         const double          gamma_i, // gamma law equation of state
-                         const double          rho0,    // ambient density g/cm**3 in 'rho = rho0 * r**(-omega)'
-                         const double          u0,      // ambient internal energy [erg/g]
-                         const double          p0,      // ambient pressure [erg/cm**3]
-                         const double          vel0,    // ambient material speed [cm/s]
-                         const double          cs0,     // ambient sound speed [cm/s]
-                         const vector<double>& r,       // out: spatial points where solution is desired [cm]
-                         vector<double>&       rho,     // out: density  [g/cm**3]
-                         vector<double>&       p,       // out: presssure [erg/cm**3]
-                         vector<double>&       u,       // out: specific internal energy [erg/g]
-                         vector<double>&       vel,     // out: velocity [cm/s]
-                         vector<double>&       cs)      // out: sound speed [cm/s]
+    static void sedovSol(const I          dim,      // geometry factor: 1=planar, 2=cylindircal, 3=spherical
+                         const I          rPoints,  // Number of points between r0-r1
+                         const T          time,     // temporal point where solution is desired [seconds]
+                         const T          eblast,   // energy of blast in the wave front [erg]
+                         const T          omega_i,  // density power law exponent in 'rho = rho0 * r**(-omega)'
+                         const T          gamma_i,  // gamma law equation of state
+                         const T          rho0,     // ambient density g/cm**3 in 'rho = rho0 * r**(-omega)'
+                         const T          u0,       // ambient internal energy [erg/g]
+                         const T          p0,       // ambient pressure [erg/cm**3]
+                         const T          vel0,     // ambient material speed [cm/s]
+                         const T          cs0,      // ambient sound speed [cm/s]
+                         const vector<T>& r,        // out: spatial points where solution is desired [cm]
+                         vector<T>&       rho,      // out: density  [g/cm**3]
+                         vector<T>&       p,        // out: presssure [erg/cm**3]
+                         vector<T>&       u,        // out: specific internal energy [erg/g]
+                         vector<T>&       vel,      // out: velocity [cm/s]
+                         vector<T>&       cs)       // out: sound speed [cm/s]
     {
         // Local variables
-        double eval1 = 0.;
-        double eval2 = 0.;
+        T eval1 = 0.;
+        T eval2 = 0.;
 
         // Set global input parameters
         omega = omega_i; //
@@ -150,15 +150,15 @@ private:
         gpogm = gamp1 / gamm1;      //
         xg2   = xgeom + 2. - omega; //
 
-        double denom2 = (2. * gamm1) + xgeom - (gamma * omega); //
-        double denom3 = (xgeom * (2. - gamma)) - omega;         //
+        T denom2 = (2. * gamm1) + xgeom - (gamma * omega); //
+        T denom3 = (xgeom * (2. - gamma)) - omega;         //
 
         // Kamm equation 18 and 19
-        double v2    = 4. / (xg2 * gamp1);          // Post-shock location
-        double vstar = 2. / ((gamm1 * xgeom) + 2.); // Location of singular point vstar
+        T v2    = 4. / (xg2 * gamp1);          // Post-shock location
+        T vstar = 2. / ((gamm1 * xgeom) + 2.); // Location of singular point vstar
 
         // Initialize output variables (Sedov solution)
-        for (size_t i = 0; i < rPoints; i++)
+        for (I i = 0; i < rPoints; i++)
         {
             rho[i] = 0.;
             vel[i] = 0.;
@@ -196,25 +196,25 @@ private:
         a0 = 2. / xg2;        // a0 =  beta6;
         a2 = -gamm1 / denom2; // a1 =  beta1;
         a1 = xg2 * gamma / (2. + (xgeom * gamm1)) *
-             (((2. * (xgeom * (2. - gamma) - omega)) / (gamma * xg2 * xg2)) - a2); // a2 = -beta2;
-        a3 = (xgeom - omega) / denom2;                                             // a3 =  beta3;
-        a4 = xg2 * (xgeom - omega) * a1 / denom3;                                  // a4 =  beta4;
-        a5 = ((omega * gamp1) - (2. * xgeom)) / denom3;                            // a5 = -beta5;
+             (((2. * (xgeom * (2. - gamma) - omega)) / (gamma * xg2 * xg2)) - a2);  // a2 = -beta2;
+        a3 = (xgeom - omega) / denom2;                                              // a3 =  beta3;
+        a4 = xg2 * (xgeom - omega) * a1 / denom3;                                   // a4 =  beta4;
+        a5 = ((omega * gamp1) - (2. * xgeom)) / denom3;                             // a5 = -beta5;
 
         // Frequent combinations in Kamm equations 33-37
-        a_val = 0.25 * xg2 * gamp1;                                              //
-        b_val = gpogm;                                                           //
-        c_val = 0.5 * xg2 * gamma;                                               //
-        d_val = (xg2 * gamp1) / ((xg2 * gamp1) - (2. * (2. + (xgeom * gamm1)))); //
-        e_val = 0.5 * (2. + (xgeom * gamm1));                                    //
+        a_val = 0.25 * xg2 * gamp1;                                                 //
+        b_val = gpogm;                                                              //
+        c_val = 0.5 * xg2 * gamma;                                                  //
+        d_val = (xg2 * gamp1) / ((xg2 * gamp1) - (2. * (2. + (xgeom * gamm1))));    //
+        e_val = 0.5 * (2. + (xgeom * gamm1));                                       //
 
         //  Evaluate the energy integrals.
-        double alpha, vmin;
+        T alpha, vmin;
 
         if (lsingular)
         {
-            double value2 = (gamm1 * xgeom) + 2.;
-            double value1 = xgeom * (value2 * value2);
+            T value2 = (gamm1 * xgeom) + 2.;
+            T value1 = xgeom * (value2 * value2);
 
             // The singular case can be done by hand. It save some cpu cycles: Kamm equations 80, 81, and 85
             eval2 = gamp1 / value1;
@@ -291,16 +291,16 @@ private:
         }
 
         // Immediate post-shock values: Kamm page 14, equations 14, 16, 5, 13
-        r2 = pow(eblast / (alpha * rho0), 1. / xg2) * pow(time, 2. / xg2); // shock position
+        r2 = pow(eblast / (alpha * rho0), 1. / xg2) * pow(time, 2. / xg2);  // shock position
 
-        double us   = (2. / xg2) * r2 / time; // shock speed
-        double rho1 = rho0 * pow(r2, -omega); // pre-shock density
+        T us   = (2. / xg2) * r2 / time;                // shock speed
+        T rho1 = rho0 * pow(r2, -omega);                // pre-shock density
 
-        rho_shock = gpogm * rho1;                      // post-shock density
-        p_shock   = 2. * rho1 * (us * us) / gamp1;     // post-shock pressure
-        vel_shock = 2. * us / gamp1;                   // post-shock material speed
-        u_shock   = p_shock / (gamm1 * rho_shock);     // post-shoock specific internal energy
-        cs_shock  = sqrt(gamma * p_shock / rho_shock); // post-shock sound speed
+        rho_shock = gpogm * rho1;                       // post-shock density
+        p_shock   = 2. * rho1 * (us * us) / gamp1;      // post-shock pressure
+        vel_shock = 2. * us / gamp1;                    // post-shock material speed
+        u_shock   = p_shock / (gamm1 * rho_shock);      // post-shoock specific internal energy
+        cs_shock  = sqrt(gamma * p_shock / rho_shock);  // post-shock sound speed
 
         // Find the radius corresponding to vv
         if (lvacuum)
@@ -310,7 +310,7 @@ private:
         }
 
         // Loop over spatial positions
-        for (size_t i = 0; i < rPoints; i++)
+        for (I i = 0; i < rPoints; i++)
         {
             rwant = r[i];
 
@@ -327,7 +327,7 @@ private:
             {
                 // If we are between the origin and the shock front find the correct similarity value
                 // for this radius in the standard or vacuum cases
-                double vat;
+                T vat;
 
                 if (lstandard)
                     vat = zeroin(0.9 * v0, v2, sed_v_find, eps2);
@@ -340,7 +340,7 @@ private:
                 }
 
                 // The physical solution
-                double l_fun, dlamdv, f_fun, g_fun, h_fun;
+                T l_fun, dlamdv, f_fun, g_fun, h_fun;
 
                 sedov_funcs(vat, l_fun, dlamdv, f_fun, g_fun, h_fun);
 
@@ -359,12 +359,12 @@ private:
         }
     }
 
-    static void sedov_funcs(const double v,       // Similarity variable v
-                            double&      l_fun,   // out: l_fun is book's zeta
-                            double&      dlamdv,  // out: l_fun derivative
-                            double&      f_fun,   // out: f_fun is book's V
-                            double&      g_fun,   // out: g_fun is book's D
-                            double&      h_fun)   // out: h_fun is book's P
+    static void sedov_funcs(const T v,       // Similarity variable v
+                            T&      l_fun,   // out: l_fun is book's zeta
+                            T&      dlamdv,  // out: l_fun derivative
+                            T&      f_fun,   // out: f_fun is book's V
+                            T&      g_fun,   // out: g_fun is book's D
+                            T&      h_fun)   // out: h_fun is book's P
     {
         // Given the similarity variable v, returns functions: ' l_func: lambda', 'lambda_derivative', 'f', 'g', and 'h'
         // Although the ordinary differential equations are analytic, the sedov expressions appear to become singular for
@@ -373,19 +373,19 @@ private:
 
         // Frequent combinations and their derivative with v. Kamm equation 29-32
 
-        double x1    = a_val * v; // x1 is book's F
-        double dx1dv = a_val;     //
+        T x1    = a_val * v; // x1 is book's F
+        T dx1dv = a_val;     //
 
-        double cbag  = max(eps2, (c_val * v) - 1.); //
-        double x2    = b_val * cbag;                //
-        double dx2dv = b_val * c_val;               //
+        T cbag  = max(eps2, (c_val * v) - 1.); //
+        T x2    = b_val * cbag;                //
+        T dx2dv = b_val * c_val;               //
 
-        double ebag  = 1. - (e_val * v); //
-        double x3    = d_val * ebag;     //
-        double dx3dv = -d_val * e_val;   //
+        T ebag  = 1. - (e_val * v); //
+        T x3    = d_val * ebag;     //
+        T dx3dv = -d_val * e_val;   //
 
-        double x4    = b_val * (1. - (0.5 * xg2 * v)); // x4 a bit different to save a divide
-        double dx4dv = -b_val * 0.5 * xg2;             //
+        T x4    = b_val * (1. - (0.5 * xg2 * v)); // x4 a bit different to save a divide
+        T dx4dv = -b_val * 0.5 * xg2;             //
 
         //  Transition region between standard and vacuum cases. Kamm page 15 or equations 88-92
         if (lsingular)
@@ -410,17 +410,17 @@ private:
         {
             // omega = omega2 = (2*(gamma -1) + xgeom)/gamma case, denom2 = 0. Book expressions 20-22
 
-            double beta0  = 1. / (2. * e_val);
-            double c6     = 0.5 * gamp1;
-            double c2     = c6 / gamma;
-            double y      = 1. / (x1 - c2);
-            double z      = (1. - x1) * y;
-            double dpp2dv = -gamp1 * beta0 * dx1dv * y * (1. + z);
+            T beta0  = 1. / (2. * e_val);
+            T c6     = 0.5 * gamp1;
+            T c2     = c6 / gamma;
+            T y      = 1. / (x1 - c2);
+            T z      = (1. - x1) * y;
+            T dpp2dv = -gamp1 * beta0 * dx1dv * y * (1. + z);
 
-            double pp1 = gamm1 * beta0;
-            double pp2 = gamp1 * beta0 * z;
-            double pp3 = (4. - xgeom - (2. * gamma)) * beta0;
-            double pp4 = -xgeom * gamma * beta0;
+            T pp1 = gamm1 * beta0;
+            T pp2 = gamp1 * beta0 * z;
+            T pp3 = (4. - xgeom - (2. * gamma)) * beta0;
+            T pp4 = -xgeom * gamma * beta0;
 
             l_fun  = pow(x1, -a0) * pow(x2, pp1) * exp(pp2);
             dlamdv = ((-a0 * dx1dv / x1) + (pp1 * dx2dv / x2) + dpp2dv) * l_fun;
@@ -432,13 +432,13 @@ private:
         {
             // omega = omega3 = xgeom*(2 - gamma) case, denom3 = 0. Book expressions 23-25
 
-            double beta0 = 1. / (2. * e_val);
-            double c6    = 0.5 * gamp1;
+            T beta0 = 1. / (2. * e_val);
+            T c6    = 0.5 * gamp1;
 
-            double pp1 = a3 + omega * a2;
-            double pp2 = 1. - 4. * beta0;
-            double pp3 = -xgeom * gamma * gamp1 * beta0 * (1. - x1) / (c6 - x1);
-            double pp4 = 2. * (xgeom * gamm1 - gamma) * beta0;
+            T pp1 = a3 + omega * a2;
+            T pp2 = 1. - 4. * beta0;
+            T pp3 = -xgeom * gamma * gamp1 * beta0 * (1. - x1) / (c6 - x1);
+            T pp4 = 2. * (xgeom * gamm1 - gamma) * beta0;
 
             l_fun  = pow(x1, -a0) * pow(x2, -a2) * pow(x4, -a1);
             dlamdv = -((a0 * dx1dv / x1) + (a2 * dx2dv / x2) + (a1 * dx4dv / x4)) * l_fun;
@@ -458,63 +458,63 @@ private:
         }
     }
 
-    static double efun01(const double v)  //
+    static T efun01(const T v)  //
     {
         // Evaluates the first energy integrand, kamm equations 67 and 10.
         // The (c_val*v - 1) term might be singular at v=vmin in the standard case.
         // The (1 - c_val/gamma * v) term might be singular at v=vmin in the vacuum case.
         // Due care should be taken for these removable singularities by the integrator.
 
-        double l_fun, dlamdv, f_fun, g_fun, h_fun;
+        T l_fun, dlamdv, f_fun, g_fun, h_fun;
 
         sedov_funcs(v, l_fun, dlamdv, f_fun, g_fun, h_fun);
 
         return (dlamdv * pow(l_fun, xgeom + 1.) * gpogm * g_fun * (v * v));
     }
 
-    static double efun02(const double v)  //
+    static T efun02(const T v)  //
     {
         // Evaluates the second energy integrand, kamm equations 68 and 11.
         // The (c_val*v - 1) term might be singular at v=vmin in the standard case.
         // The (1 - c_val/gamma * v) term might be singular at v=vmin in the vacuum case.
         // Due care should be taken for these removable singularities by the integrator.
 
-        double l_fun, dlamdv, f_fun, g_fun, h_fun;
+        T l_fun, dlamdv, f_fun, g_fun, h_fun;
 
         sedov_funcs(v, l_fun, dlamdv, f_fun, g_fun, h_fun);
 
-        double value = xgeom - omega + 2.;
+        T value = xgeom - omega + 2.;
 
-        double z = 8. / (value * value * gamp1);
+        T z = 8. / (value * value * gamp1);
 
         return (dlamdv * pow(l_fun, xgeom - 1.) * h_fun * z);
     }
 
-    static double sed_v_find(const double v)  //
+    static T sed_v_find(const T v)  //
     {
         // Given corresponding physical distances, find the similarity variable v. Kamm equation 38 as a root find
-        double l_fun, dlamdv, f_fun, g_fun, h_fun;
+        T l_fun, dlamdv, f_fun, g_fun, h_fun;
 
         sedov_funcs(v, l_fun, dlamdv, f_fun, g_fun, h_fun);
 
         return ((r2 * l_fun) - rwant);
     }
 
-    static double sed_r_find(const double r)  //
+    static T sed_r_find(const T r)  //
     {
         // Given the similarity variable v, find the corresponding physical distance. Kamm equation 38 as a root find
-        double l_fun, dlamdv, f_fun, g_fun, h_fun;
+        T l_fun, dlamdv, f_fun, g_fun, h_fun;
 
         sedov_funcs(vwant, l_fun, dlamdv, f_fun, g_fun, h_fun);
 
         return ((r2 * l_fun) - r);
     }
 
-    static void midpnt(const size_t                   n,    //
-                       function<double(const double)> func, //
-                       const double                   a,    //
-                       const double                   b,    //
-                       double&                        s)    //
+    static void midpnt(const I              n,     //
+                       function<T(const T)> func,  //
+                       const T              a,     //
+                       const T              b,     //
+                       T&                   s)     //
     {
         // This routine computes the n'th stage of refinement of an extended midpoint rule.
         // Func is input as the name of the function to be integrated between limits a and b.
@@ -523,21 +523,21 @@ private:
 
         if (n == 1)
         {
-            double x = 0.5 * (a + b);
+            T x = 0.5 * (a + b);
             s        = (b - a) * func(x);
         }
         else
         {
-            size_t i_max = pow(3, n - 2);
-            double tnm   = double(i_max);
+            I i_max = pow(3, n - 2);
+            T tnm   = T(i_max);
 
-            double del  = (b - a) / (3. * tnm);
-            double ddel = 2. * del;
+            T del  = (b - a) / (3. * tnm);
+            T ddel = 2. * del;
 
-            double sum = 0.;
-            double x   = a + (0.5 * del);
+            T sum = 0.;
+            T x   = a + (0.5 * del);
 
-            for (size_t i = 0; i < i_max; i++)
+            for (I i = 0; i < i_max; i++)
             {
                 sum = sum + func(x);
                 x   = x + ddel;
@@ -550,52 +550,52 @@ private:
         }
     }
 
-    static double midpowl_func(function<double(const double)> funk, //
-                               const double                   x,    //
-                               const double                   aa)   //
+    static T midpowl_func(function<T(const T)> funk,  //
+                          const T              x,     //
+                          const T              aa)    //
     {
         // A little conversion, recipe equation 4.4.3
 
-        double p1 = (1. - gam_int);
-        double p2 = pow(x, gam_int / (1. - gam_int));
-        double p3 = funk(pow(x, 1. / (1. - gam_int)) + aa);
+        T p1 = (1. - gam_int);
+        T p2 = pow(x, gam_int / (1. - gam_int));
+        T p3 = funk(pow(x, 1. / (1. - gam_int)) + aa);
 
         return (1. / p1 * p2 * p3);
     }
 
-    static void midpowl(const size_t                   n,    //
-                        function<double(const double)> funk, //
-                        const double                   aa,   //
-                        const double                   bb,   //
-                        double&                        s)    // out:
+    static void midpowl(const I              n,     //
+                        function<T(const T)> funk,  //
+                        const T              aa,    //
+                        const T              bb,    //
+                        T&                   s)     // out:
     {
         // This routine is an exact replacement for midpnt,
         // except that it allows for an integrable power-law singularity
         // of the form pow(x - a, -gam_int)
         // at the lower limit aa for 0 < gam_int < 1.
 
-        double b = pow(bb - aa, 1. - gam_int);
-        double a = 0.;
+        T b = pow(bb - aa, 1. - gam_int);
+        T a = 0.;
 
         // Now exactly as midpnt
         if (n == 1)
         {
-            double x = 0.5 * (a + b);
+            T x = 0.5 * (a + b);
 
             s = (b - a) * midpowl_func(funk, x, aa);
         }
         else
         {
-            size_t i_max = pow(3, n - 2);
-            double tnm   = double(i_max);
+            I i_max = pow(3, n - 2);
+            T tnm   = T(i_max);
 
-            double del  = (b - a) / (3. * tnm);
-            double ddel = 2. * del;
+            T del  = (b - a) / (3. * tnm);
+            T ddel = 2. * del;
 
-            double sum = 0.;
-            double x   = a + (0.5 * del);
+            T sum = 0.;
+            T x   = a + (0.5 * del);
 
-            for (size_t i = 0; i < i_max; i++)
+            for (I i = 0; i < i_max; i++)
             {
                 sum = sum + midpowl_func(funk, x, aa);
                 x   = x + ddel;
@@ -608,52 +608,52 @@ private:
         }
     }
 
-    static double midpowl2_func(function<double(const double)> funk,  //
-                                const double                   x,     //
-                                const double                   aa)    //
+    static T midpowl2_func(function<T(const T)> funk,  //
+                           const T              x,     //
+                           const T              aa)    //
     {
         // A little conversion, module recipe equation 4.4.3
 
-        double p1 = (gam_int - 1.);
-        double p2 = pow(x, gam_int / (1. - gam_int));
-        double p3 = funk(aa - pow(x, 1. / (1. - gam_int)));
+        T p1 = (gam_int - 1.);
+        T p2 = pow(x, gam_int / (1. - gam_int));
+        T p3 = funk(aa - pow(x, 1. / (1. - gam_int)));
 
         return (1. / p1 * p2 * p3);
     }
 
-    static void midpowl2(const size_t                   n,     //
-                         function<double(const double)> funk,  //
-                         const double                   aa,    //
-                         const double                   bb,    //
-                         double&                        s)     // out:
+    static void midpowl2(const I              n,     //
+                         function<T(const T)> funk,  //
+                         const T              aa,    //
+                         const T              bb,    //
+                         T&                   s)     // out:
     {
         // This routine is an exact replacement for midpnt,
         // except that it allows for an integrable power-law singularity
         // of the form pow(a - x, -gam_int)
         // at the lower limit aa for 0 < gam_int < 1.
 
-        double b = pow(aa - bb, 1. - gam_int);
-        double a = 0.;
+        T b = pow(aa - bb, 1. - gam_int);
+        T a = 0.;
 
         // Now exactly as midpnt
         if (n == 1)
         {
-            double x = 0.5 * (a + b);
+            T x = 0.5 * (a + b);
 
             s = (b - a) * midpowl2_func(funk, x, aa);
         }
         else
         {
-            size_t i_max = pow(3, n - 2);
-            double tnm   = double(i_max);
+            I i_max = pow(3, n - 2);
+            T tnm   = T(i_max);
 
-            double del  = (b - a) / (3. * tnm);
-            double ddel = 2. * del;
+            T del  = (b - a) / (3. * tnm);
+            T ddel = 2. * del;
 
-            double sum = 0.;
-            double x   = a + (0.5 * del);
+            T sum = 0.;
+            T x   = a + (0.5 * del);
 
-            for (size_t i = 0; i < i_max; i++)
+            for (I i = 0; i < i_max; i++)
             {
                 sum = sum + midpowl2_func(funk, x, aa);
                 x   = x + ddel;
@@ -666,28 +666,28 @@ private:
         }
     }
 
-    static void polint(double*      xa,  //
-                       double*      ya,  //
-                       const size_t n,   //
-                       const double x,   //
-                       double&      y,   // out:
-                       double&      dy)  // out:
+    static void polint(T*      xa,  //
+                       T*      ya,  //
+                       const I n,   //
+                       const T x,   //
+                       T&      y,   // out:
+                       T&      dy)  // out:
     {
         // Given arrays xa and ya of length n and a value x, this routine returns a value y and an error estimate dy.
         // if p(x) is the polynomial of degree n-1 such that ya = p(xa) ya then the returned value is y = p(x)
 
-        const size_t nmax = 20;
+        const I nmax = 20;
 
-        double c[nmax];
-        double d[nmax];
+        T c[nmax];
+        T d[nmax];
 
         // Find the index ns of the closest table entry; initialize the c and d tables
-        size_t ns  = 0;
-        double dif = abs(x - xa[0]);
+        I ns  = 0;
+        T dif = abs(x - xa[0]);
 
-        for (size_t i = 0; i < n; i++)
+        for (I i = 0; i < n; i++)
         {
-            double dift = abs(x - xa[i]);
+            T dift = abs(x - xa[i]);
 
             if (dift < dif)
             {
@@ -705,16 +705,16 @@ private:
         // for each column of the table, loop over the c's and d's and update them
         ns = ns - 1;
 
-        for (size_t m = 0; m < n - 1; m++)
+        for (I m = 0; m < n - 1; m++)
         {
-            for (size_t i = 0; i < n - m - 1; i++)
+            for (I i = 0; i < n - m - 1; i++)
             {
-                double ho = xa[i] - x;
-                double hp = xa[i + m + 1] - x;
+                T ho = xa[i] - x;
+                T hp = xa[i + m + 1] - x;
 
-                double w = c[i + 1] - d[i];
+                T w = c[i + 1] - d[i];
 
-                double den = ho - hp;
+                T den = ho - hp;
 
                 if (den == 0.)
                 {
@@ -744,13 +744,12 @@ private:
         }
     }
 
-    static void
-    qromo(function<double(const double)>                                                                    func,    //
-          const double                                                                                      a,       //
-          const double                                                                                      b,       //
-          const double                                                                                      eps,     //
-          double&                                                                                           ss,      //
-          function<void(const size_t, function<double(const double)>, const double, const double, double&)> choose)  //
+    static void qromo(function<T(const T)>                                                func,    //
+                      const T                                                             a,       //
+                      const T                                                             b,       //
+                      const T                                                             eps,     //
+                      T&                                                                  ss,      //
+                      function<void(const I, function<T(const T)>, const T, const T, T&)> choose)  //
     {
         // This routine returns as 's' the integral of the function 'func'
         // from 'a' to 'b' with fractional accuracy 'eps'.
@@ -760,19 +759,19 @@ private:
         // and that its error series contains only even powers of the number of steps.
         // The external choose may be any of the above drivers, i.e midpnt,midinf...
 
-        const size_t imax  = 14;
-        const size_t imaxp = imax + 1;
+        const I imax  = 14;
+        const I imaxp = imax + 1;
 
-        const size_t j  = 5;
-        const size_t jm = j - 1;
+        const I j  = 5;
+        const I jm = j - 1;
 
-        double s[imaxp];
-        double h[imaxp];
+        T s[imaxp];
+        T h[imaxp];
 
         h[0] = 1.;
 
         // jmax limits the number of steps; nsteps = 3**(jmax-1)
-        for (size_t i = 0; i < imax; i++)
+        for (I i = 0; i < imax; i++)
         {
             // Integrate function
             choose(i + 1, // Num of ref steps         'n'
@@ -783,7 +782,7 @@ private:
 
             if (i >= j - 1)
             {
-                double dss;
+                T dss;
 
                 polint(&h[i - jm], // array pointer 'xa'
                        &s[i - jm], // array pointer 'ya'
@@ -803,11 +802,10 @@ private:
         exit(-1);
     }
 
-    static double zeroin(
-        const double                   ax,  // Left endpoint of initial interval
-        const double                   bx,  // Right endpoint of initial interval
-        function<double(const double)> f,   // Function subprogram which evaluates f(x) for any x in the interval [ax,bx]
-        const double tol)                   // Desired length of the interval of uncertainty of the final result (>= 0.)
+    static T zeroin(const T              ax,   // Left endpoint of initial interval
+                    const T              bx,   // Right endpoint of initial interval
+                    function<T(const T)> f,    // Function subprogram which evaluates f(x) for any x in the interval [ax,bx]
+                    const T              tol)  // Desired length of the interval of uncertainty of the final result (>= 0.)
     {
         // This subroutine solves the 'zeroin' abcissa approximating to zero of 'f' in the interval [ax,bx]
 
@@ -820,8 +818,8 @@ private:
         // Brent , algorithms for minimization without derivatives, prentice - hall, inc. (1973).
 
         // Compute 'eps', the relative machine precision
-        double eps = 1.;
-        double tol1;
+        T eps = 1.;
+        T tol1;
         do
         {
             eps  = eps / 2.;
@@ -830,16 +828,16 @@ private:
 
         // Initialization : Begin step
 
-        double a = ax;
-        double b = bx;
-        double c = a;
+        T a = ax;
+        T b = bx;
+        T c = a;
 
-        double fa = f(a);
-        double fb = f(b);
-        double fc = fa;
+        T fa = f(a);
+        T fb = f(b);
+        T fc = fa;
 
-        double d = b - a;
-        double e = d;
+        T d = b - a;
+        T e = d;
 
         while (true)
         {
@@ -858,7 +856,7 @@ private:
             tol1 = (2. * eps * abs(b)) + (0.5 * tol);
 
             // Update xm
-            double xm = 0.5 * (c - b);
+            T xm = 0.5 * (c - b);
 
             // Is the solution found?
             if ((abs(xm) <= tol1) || (fb == 0.))
@@ -877,7 +875,7 @@ private:
             else
             {
                 // Local variables
-                double p, q, r, s;
+                T p, q, r, s;
 
                 // Is quadratic interpolation possible?
                 if (a != c)
@@ -948,47 +946,47 @@ private:
     }
 };
 
-template<typename T, typename I> double SedovSolution<T, I>::xgeom;
-template<typename T, typename I> double SedovSolution<T, I>::omega;
-template<typename T, typename I> double SedovSolution<T, I>::gamma;
+template<typename T, typename I> T    SedovSolution<T, I>::xgeom;
+template<typename T, typename I> T    SedovSolution<T, I>::omega;
+template<typename T, typename I> T    SedovSolution<T, I>::gamma;
 
-template<typename T, typename I> double SedovSolution<T, I>::gamm1;
-template<typename T, typename I> double SedovSolution<T, I>::gamp1;
-template<typename T, typename I> double SedovSolution<T, I>::gpogm;
-template<typename T, typename I> double SedovSolution<T, I>::xg2;
+template<typename T, typename I> T    SedovSolution<T, I>::gamm1;
+template<typename T, typename I> T    SedovSolution<T, I>::gamp1;
+template<typename T, typename I> T    SedovSolution<T, I>::gpogm;
+template<typename T, typename I> T    SedovSolution<T, I>::xg2;
 
-template<typename T, typename I> bool   SedovSolution<T, I>::lsingular;
-template<typename T, typename I> bool   SedovSolution<T, I>::lstandard;
-template<typename T, typename I> bool   SedovSolution<T, I>::lvacuum;
+template<typename T, typename I> bool SedovSolution<T, I>::lsingular;
+template<typename T, typename I> bool SedovSolution<T, I>::lstandard;
+template<typename T, typename I> bool SedovSolution<T, I>::lvacuum;
 
-template<typename T, typename I> bool   SedovSolution<T, I>::lomega2;
-template<typename T, typename I> bool   SedovSolution<T, I>::lomega3;
+template<typename T, typename I> bool SedovSolution<T, I>::lomega2;
+template<typename T, typename I> bool SedovSolution<T, I>::lomega3;
 
-template<typename T, typename I> double SedovSolution<T, I>::a0;
-template<typename T, typename I> double SedovSolution<T, I>::a1;
-template<typename T, typename I> double SedovSolution<T, I>::a2;
-template<typename T, typename I> double SedovSolution<T, I>::a3;
-template<typename T, typename I> double SedovSolution<T, I>::a4;
-template<typename T, typename I> double SedovSolution<T, I>::a5;
+template<typename T, typename I> T    SedovSolution<T, I>::a0;
+template<typename T, typename I> T    SedovSolution<T, I>::a1;
+template<typename T, typename I> T    SedovSolution<T, I>::a2;
+template<typename T, typename I> T    SedovSolution<T, I>::a3;
+template<typename T, typename I> T    SedovSolution<T, I>::a4;
+template<typename T, typename I> T    SedovSolution<T, I>::a5;
 
-template<typename T, typename I> double SedovSolution<T, I>::a_val;
-template<typename T, typename I> double SedovSolution<T, I>::b_val;
-template<typename T, typename I> double SedovSolution<T, I>::c_val;
-template<typename T, typename I> double SedovSolution<T, I>::d_val;
-template<typename T, typename I> double SedovSolution<T, I>::e_val;
+template<typename T, typename I> T    SedovSolution<T, I>::a_val;
+template<typename T, typename I> T    SedovSolution<T, I>::b_val;
+template<typename T, typename I> T    SedovSolution<T, I>::c_val;
+template<typename T, typename I> T    SedovSolution<T, I>::d_val;
+template<typename T, typename I> T    SedovSolution<T, I>::e_val;
 
-template<typename T, typename I> double SedovSolution<T, I>::rwant;
-template<typename T, typename I> double SedovSolution<T, I>::vwant;
+template<typename T, typename I> T    SedovSolution<T, I>::rwant;
+template<typename T, typename I> T    SedovSolution<T, I>::vwant;
 
-template<typename T, typename I> double SedovSolution<T, I>::r2;
-template<typename T, typename I> double SedovSolution<T, I>::v0;
-template<typename T, typename I> double SedovSolution<T, I>::vv;
-template<typename T, typename I> double SedovSolution<T, I>::rvv;
+template<typename T, typename I> T    SedovSolution<T, I>::r2;
+template<typename T, typename I> T    SedovSolution<T, I>::v0;
+template<typename T, typename I> T    SedovSolution<T, I>::vv;
+template<typename T, typename I> T    SedovSolution<T, I>::rvv;
 
-template<typename T, typename I> double SedovSolution<T, I>::gam_int;
+template<typename T, typename I> T    SedovSolution<T, I>::gam_int;
 
-template<typename T, typename I> double SedovSolution<T, I>::rho_shock;
-template<typename T, typename I> double SedovSolution<T, I>::p_shock;
-template<typename T, typename I> double SedovSolution<T, I>::vel_shock;
-template<typename T, typename I> double SedovSolution<T, I>::u_shock;
-template<typename T, typename I> double SedovSolution<T, I>::cs_shock;
+template<typename T, typename I> T    SedovSolution<T, I>::rho_shock;
+template<typename T, typename I> T    SedovSolution<T, I>::p_shock;
+template<typename T, typename I> T    SedovSolution<T, I>::vel_shock;
+template<typename T, typename I> T    SedovSolution<T, I>::u_shock;
+template<typename T, typename I> T    SedovSolution<T, I>::cs_shock;
