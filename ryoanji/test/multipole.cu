@@ -37,6 +37,8 @@
 #include "ryoanji/cpu/multipole.hpp"
 #include "ryoanji/kernel.hpp"
 
+using namespace ryoanji;
+
 TEST(Multipole, P2M)
 {
     int numBodies = 1023;
@@ -58,11 +60,11 @@ TEST(Multipole, P2M)
         m[i] = bodies[i][3];
     }
 
-    cstone::CartesianQuadrupole<double> cstoneMultipole;
-    cstone::SourceCenterType<double>    csCenter =
+    CartesianQuadrupole<double>      cstoneMultipole;
+    cstone::SourceCenterType<double> csCenter =
         cstone::massCenter<double>(x.data(), y.data(), z.data(), m.data(), 0, numBodies);
-    cstone::particle2Multipole(
-        x.data(), y.data(), z.data(), m.data(), 0, numBodies, cstone::makeVec3(csCenter), cstoneMultipole);
+    particle2Multipole(
+        x.data(), y.data(), z.data(), m.data(), 0, numBodies, util::makeVec3(csCenter), cstoneMultipole);
 
     Vec4<float> centerMass = ryoanji::setCenter(0, numBodies, bodies.data());
 
@@ -71,12 +73,12 @@ TEST(Multipole, P2M)
 
     ryoanji::P2M(0, numBodies, centerMass, bodies.data(), ryoanjiMultipole);
 
-    EXPECT_NEAR(ryoanjiMultipole[0], cstoneMultipole[cstone::Cqi::mass], 1e-6);
+    EXPECT_NEAR(ryoanjiMultipole[0], cstoneMultipole[Cqi::mass], 1e-6);
 
     EXPECT_NEAR(centerMass[0], csCenter[0] , 1e-6);
     EXPECT_NEAR(centerMass[1], csCenter[1] , 1e-6);
     EXPECT_NEAR(centerMass[2], csCenter[2] , 1e-6);
-    EXPECT_NEAR(centerMass[3], cstoneMultipole[cstone::Cqi::mass], 1e-6);
+    EXPECT_NEAR(centerMass[3], cstoneMultipole[Cqi::mass], 1e-6);
 
     // compare M2P results on a test target
     {
@@ -84,7 +86,7 @@ TEST(Multipole, P2M)
         Vec3<float> testTarget{-8, -8, -8};
 
         Vec4<float> acc{0, 0, 0, 0};
-        acc = ryoanji::M2P(acc, testTarget, ryoanji::makeVec3(centerMass), ryoanjiMultipole, eps2);
+        acc = ryoanji::M2P(acc, testTarget, util::makeVec3(centerMass), ryoanjiMultipole, eps2);
         //printf("test acceleration: %f %f %f %f\n", acc[0], acc[1], acc[2], acc[3]);
 
         // cstone is less precise
@@ -95,10 +97,17 @@ TEST(Multipole, P2M)
         //    testTarget[0], testTarget[1], testTarget[2], cstoneMultipole, eps2, &ax, &ay, &az);
         //printf("cstone test acceleration: %f %f %f\n", ax, ay, az);
 
-        auto [axd, ayd, azd, pot] =
-        cstone::particle2particle(double(testTarget[0]), double(testTarget[1]), double(testTarget[2]), 0.0,
-                                  x.data(), y.data(), z.data(), h.data(), m.data(), numBodies);
-        //printf("direct acceleration: %f %f %f\n", axd, ayd, azd);
+        auto [axd, ayd, azd, pot] = particle2particle(double(testTarget[0]),
+                                                      double(testTarget[1]),
+                                                      double(testTarget[2]),
+                                                      0.0,
+                                                      x.data(),
+                                                      y.data(),
+                                                      z.data(),
+                                                      h.data(),
+                                                      m.data(),
+                                                      numBodies);
+        // printf("direct acceleration: %f %f %f\n", axd, ayd, azd);
 
         // compare ryoanji against the direct sum reference
         EXPECT_NEAR(acc[0], pot, 3e-5);

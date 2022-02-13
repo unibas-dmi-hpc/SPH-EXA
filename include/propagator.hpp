@@ -123,7 +123,7 @@ public:
     {
         using T             = typename ParticleDataType::RealType;
         using KeyType       = typename ParticleDataType::KeyType;
-        using MultipoleType = CartesianQuadrupole<T>;
+        using MultipoleType = ryoanji::CartesianQuadrupole<T>;
 
         timer.start();
 

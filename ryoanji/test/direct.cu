@@ -34,15 +34,15 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
+#include "dataset.hpp"
+#include "ryoanji/gpu_config.h"
+#include "ryoanji/direct.cuh"
 #include "ryoanji/cpu/treewalk.hpp"
 
-#include "dataset.hpp"
-#include "ryoanji/direct.cuh"
-
-using ryoanji::rawPtr;
+using namespace ryoanji;
 
 template<class T>
-std::vector<Vec4<T>> cpuReference(const std::vector<util::array<T, 4>>& bodies)
+std::vector<Vec4<T>> cpuReference(const std::vector<Vec4<T>>& bodies)
 {
     size_t numBodies = bodies.size();
 

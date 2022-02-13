@@ -45,16 +45,6 @@ using Vec3 = util::array<T, 3>;
 template<class T>
 using Vec4 = util::array<T, 4>;
 
-template<class T>
-constexpr HOST_DEVICE_FUN Vec3<T> makeVec3(Vec4<T> v)
-{
-    Vec3<T> ret;
-    ret[0] = v[0];
-    ret[1] = v[1];
-    ret[2] = v[2];
-    return ret;
-}
-
 //! @brief checks whether a binary tree index corresponds to a leaf index
 HOST_DEVICE_FUN
 constexpr bool isLeafIndex(TreeNodeIndex nodeIndex) { return nodeIndex < 0; }

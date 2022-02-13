@@ -31,15 +31,9 @@
 
 #pragma once
 
-#include <cassert>
-#include <thrust/host_vector.h>
-#include <thrust/device_vector.h>
-
 #include "cstone/cuda/annotation.hpp"
-#include "cstone/cuda/errorcheck.cuh"
 #include "cstone/primitives/stl.hpp"
 #include "cstone/util/array.hpp"
-
 
 namespace ryoanji
 {
@@ -49,6 +43,8 @@ using Vec3 = util::array<T, 3>;
 
 template<class T>
 using Vec4 = util::array<T, 4>;
+
+using LocalIndex = unsigned;
 
 template<size_t P>
 struct TermSize : public stl::integral_constant<size_t, P * (P + 1) * (P + 2) / 6>
@@ -92,37 +88,6 @@ void setZero(SphericalMultipole<T, P>& M)
     }
 }
 
-struct GpuConfig
-{
-    //! @brief number of threads per warp
-    #if defined(__CUDACC__) && !defined(__HIPCC__)
-    static constexpr int warpSize = 32;
-    #else
-    static constexpr int warpSize = 64;
-    #endif
-
-    static_assert(warpSize == 32 || warpSize == 64, "warp size has to be 32 or 64");
-
-    //! @brief log2(warpSize)
-    static constexpr int warpSizeLog2 = (warpSize == 32) ? 5 : 6;
-
-    /*! @brief integer type for representing a thread mask, e.g. return value of __ballot_sync()
-     *
-     * This will automatically pick the right type based on the warpSize choice. Do not adapt.
-     */
-    using ThreadMask = std::conditional_t<warpSize == 32, uint32_t, uint64_t>;
-
-    static int getSmCount()
-    {
-        cudaDeviceProp prop;
-        checkGpuErrors(cudaGetDeviceProperties(&prop, 0));
-        return prop.multiProcessorCount;
-    }
-
-    //! @brief number of multiprocessors
-    inline static int smCount = getSmCount();
-};
-
 //! Center and radius of bounding box
 template<class T>
 struct Box
@@ -131,12 +96,6 @@ struct Box
     T R; //!< Box radius
 };
 
-template<class T>
-T* rawPtr(thrust::device_ptr<T> p)
-{
-    return thrust::raw_pointer_cast(p);
-}
-
 class CellData
 {
 private:
@@ -144,57 +103,39 @@ private:
     static const int CHILD_MASK  = ~(0x7U << CHILD_SHIFT);
     static const int LEVEL_SHIFT = 27;
     static const int LEVEL_MASK  = ~(0x1FU << LEVEL_SHIFT);
-    uint4 data;
+
+    using DataType = util::array<unsigned, 4>;
+    DataType data;
 
 public:
     CellData() = default;
 
-    HOST_DEVICE_FUN CellData(const unsigned int level, const unsigned int parent, const unsigned int body,
-                                 const unsigned int nbody, const unsigned int child = 0, const unsigned int nchild = 1)
+    HOST_DEVICE_FUN CellData(unsigned level, unsigned parent, unsigned body, unsigned nbody, unsigned child = 0,
+                             unsigned nchild = 1)
     {
         unsigned parentPack = parent | (level << LEVEL_SHIFT);
         unsigned childPack  = child | ((nchild - 1) << CHILD_SHIFT);
-        data                = make_uint4(parentPack, childPack, body, nbody);
+        data                = DataType{parentPack, childPack, body, nbody};
     }
 
-    HOST_DEVICE_FUN CellData(uint4 data_)
+    HOST_DEVICE_FUN CellData(DataType data_)
         : data(data_)
     {
     }
 
-    HOST_DEVICE_FUN int level() const { return data.x >> LEVEL_SHIFT; }
-    HOST_DEVICE_FUN int parent() const { return data.x & LEVEL_MASK; }
-    HOST_DEVICE_FUN int child() const { return data.y & CHILD_MASK; }
-    HOST_DEVICE_FUN int nchild() const { return (data.y >> CHILD_SHIFT) + 1; }
-    HOST_DEVICE_FUN int body() const { return data.z; }
-    HOST_DEVICE_FUN int nbody() const { return data.w; }
-    HOST_DEVICE_FUN bool isLeaf() const { return data.y == 0; }
+    HOST_DEVICE_FUN int level() const { return data[0] >> LEVEL_SHIFT; }
+    HOST_DEVICE_FUN int parent() const { return data[0] & LEVEL_MASK; }
+    HOST_DEVICE_FUN int child() const { return data[1] & CHILD_MASK; }
+    HOST_DEVICE_FUN int nchild() const { return (data[1] >> CHILD_SHIFT) + 1; }
+    HOST_DEVICE_FUN int body() const { return data[2]; }
+    HOST_DEVICE_FUN int nbody() const { return data[3]; }
+    HOST_DEVICE_FUN bool isLeaf() const { return data[1] == 0; }
     HOST_DEVICE_FUN bool isNode() const { return !isLeaf(); }
 
-    HOST_DEVICE_FUN void setParent(unsigned parent) { data.x = parent | (level() << LEVEL_SHIFT); }
-    HOST_DEVICE_FUN void setChild(unsigned child) { data.y = child | ((nchild() - 1) << CHILD_SHIFT); }
-    HOST_DEVICE_FUN void setBody(unsigned body_) { data.z = body_; }
-    HOST_DEVICE_FUN void setNBody(unsigned nbody_) { data.w = nbody_; }
+    HOST_DEVICE_FUN void setParent(unsigned parent) { data[0] = parent | (level() << LEVEL_SHIFT); }
+    HOST_DEVICE_FUN void setChild(unsigned child) { data[1] = child | ((nchild() - 1) << CHILD_SHIFT); }
+    HOST_DEVICE_FUN void setBody(unsigned body_) { data[2] = body_; }
+    HOST_DEVICE_FUN void setNBody(unsigned nbody_) { data[3] = nbody_; }
 };
-
-template<class T>
-inline __host__ __device__ Vec3<T> makeVec3(Vec4<T> v)
-{
-    Vec3<T> ret;
-    ret[0] = v[0];
-    ret[1] = v[1];
-    ret[2] = v[2];
-    return ret;
-}
-
-static void kernelSuccess(const char kernel[] = "kernel")
-{
-    cudaError_t err = cudaDeviceSynchronize();
-    if (err != cudaSuccess)
-    {
-        fprintf(stderr, "%s launch failed: %s\n", kernel, cudaGetErrorString(err));
-        exit(EXIT_FAILURE);
-    }
-}
 
 } // namespace ryoanji

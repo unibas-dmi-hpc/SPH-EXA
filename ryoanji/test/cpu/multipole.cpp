@@ -33,6 +33,7 @@
 #include "ryoanji/cpu/multipole.hpp"
 
 using namespace cstone;
+using namespace ryoanji;
 
 //! @brief Tests direct particle-to-particle gravity interactions with mass softening
 TEST(Gravity, P2PmsoftBase)
@@ -100,7 +101,7 @@ TEST(Gravity, M2P)
 {
     using T = double;
 
-    Box<T> box(-1, 1);
+    cstone::Box<T> box(-1, 1);
     LocalIndex numParticles = 100;
 
     RandomCoordinates<T, SfcKind<unsigned>> coordinates(numParticles, box);
@@ -154,7 +155,7 @@ TEST(Gravity, M2M)
 {
     using T = double;
 
-    Box<T> box(-1, 1);
+    cstone::Box<T> box(-1, 1);
     LocalIndex numParticles = 160;
 
     RandomCoordinates<T, SfcKind<unsigned>> coordinates(numParticles, box);

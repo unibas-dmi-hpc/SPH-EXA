@@ -36,11 +36,10 @@
 
 #include <cmath>
 
-#include "cstone/tree/definitions.h"
-#include "cstone/util/array.hpp"
 #include "cstone/util/tuple.hpp"
+#include "ryoanji/types.h"
 
-namespace cstone
+namespace ryoanji
 {
 
 template <class T>

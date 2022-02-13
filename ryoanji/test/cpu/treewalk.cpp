@@ -42,7 +42,7 @@ TEST(Gravity, TreeWalk)
 {
     using T             = double;
     using KeyType       = uint64_t;
-    using MultipoleType = CartesianQuadrupole<T>;
+    using MultipoleType = ryoanji::CartesianQuadrupole<T>;
 
     float theta         = 0.6;
     float G             = 1.0;
@@ -85,7 +85,7 @@ TEST(Gravity, TreeWalk)
     upsweep(octree, multipoles.data(), combineMultipole);
 
     T totalMass = std::accumulate(masses.begin(), masses.end(), 0.0);
-    EXPECT_TRUE(std::abs(totalMass - multipoles[0][Cqi::mass]) < 1e-6);
+    EXPECT_TRUE(std::abs(totalMass - multipoles[0][ryoanji::Cqi::mass]) < 1e-6);
 
     std::vector<T> ax(numParticles, 0);
     std::vector<T> ay(numParticles, 0);

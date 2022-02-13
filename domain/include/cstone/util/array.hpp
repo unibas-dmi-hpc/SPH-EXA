@@ -364,4 +364,10 @@ HOST_DEVICE_FUN constexpr array<T, 3> cross(const array<T, 3>& a, const array<T,
     return { a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0] };
 }
 
+template<class T>
+constexpr HOST_DEVICE_FUN array<T, 3> makeVec3(array<T, 4> v)
+{
+    return array<T, 3>{v[0], v[1], v[2]};
+}
+
 } // namespace util

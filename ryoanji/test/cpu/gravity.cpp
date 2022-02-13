@@ -33,6 +33,7 @@
 
 #include "cstone/sfc/box.hpp"
 #include "coord_samples/random.hpp"
+//#include "ryoanji/cpu/kernel_wrapper.hpp"
 #include "ryoanji/cpu/treewalk.hpp"
 #include "ryoanji/cpu/upsweep.hpp"
 
@@ -42,7 +43,7 @@ int main()
 {
     using T             = float;
     using KeyType       = uint64_t;
-    using MultipoleType = CartesianQuadrupole<T>;
+    using MultipoleType = ryoanji::CartesianQuadrupole<T>;
 
     float G                 = 1.0;
     unsigned bucketSize     = 64;

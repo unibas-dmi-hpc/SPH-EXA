@@ -37,6 +37,11 @@
 #include "cstone/focus/source_center.hpp"
 #include "multipole.hpp"
 
+using ryoanji::particle2particle;
+using ryoanji::particle2Multipole;
+using ryoanji::multipole2multipole;
+using ryoanji::multipole2particle;
+
 namespace cstone
 {
 

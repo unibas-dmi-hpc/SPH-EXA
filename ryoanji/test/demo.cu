@@ -26,6 +26,7 @@
 #include <chrono>
 
 #include "dataset.hpp"
+#include "ryoanji/gpu_config.h"
 #include "ryoanji/types.h"
 #include "ryoanji/treebuilder.cuh"
 #include "ryoanji/traversal.cuh"

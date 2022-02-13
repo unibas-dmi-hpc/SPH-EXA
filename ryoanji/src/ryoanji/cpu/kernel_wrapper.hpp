@@ -42,14 +42,8 @@ namespace cstone
 /*! @brief Compute the monopole and quadruple moments from particle coordinates
  */
 template<class T1, class T2, class T3, size_t P>
-HOST_DEVICE_FUN void particle2Multipole(const T1* x,
-                        const T1* y,
-                        const T1* z,
-                        const T2* m,
-                        LocalIndex first,
-                        LocalIndex last,
-                        Vec3<T1> center,
-                        ryoanji::SphericalMultipole<T3, P>& M)
+HOST_DEVICE_FUN void particle2Multipole(const T1* x, const T1* y, const T1* z, const T2* m, LocalIndex first,
+                                        LocalIndex last, Vec3<T1> center, ryoanji::SphericalMultipole<T3, P>& M)
 {
     setZero(M);
 }
