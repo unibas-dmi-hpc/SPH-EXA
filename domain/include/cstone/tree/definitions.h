@@ -45,27 +45,6 @@ using Vec3 = util::array<T, 3>;
 template<class T>
 using Vec4 = util::array<T, 4>;
 
-//! @brief checks whether a binary tree index corresponds to a leaf index
-HOST_DEVICE_FUN
-constexpr bool isLeafIndex(TreeNodeIndex nodeIndex) { return nodeIndex < 0; }
-
-//! @brief convert a leaf index to the storage format
-HOST_DEVICE_FUN
-constexpr TreeNodeIndex storeLeafIndex(TreeNodeIndex index)
-{
-    // -2^31 or -2^63
-    constexpr auto offset = TreeNodeIndex(-(1ul << (8 * sizeof(TreeNodeIndex) - 1)));
-    return index + offset;
-}
-
-//! @brief restore a leaf index from the storage format
-HOST_DEVICE_FUN
-constexpr TreeNodeIndex loadLeafIndex(TreeNodeIndex index)
-{
-    constexpr auto offset = TreeNodeIndex(-(1ul << (8 * sizeof(TreeNodeIndex) - 1)));
-    return index - offset;
-}
-
 enum class P2pTags : int
 {
     focusTransfer    = 1000,
