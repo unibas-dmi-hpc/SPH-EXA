@@ -48,8 +48,8 @@
 using namespace std;
 using namespace sphexa;
 
-using Real    = double;
-using KeyType = uint64_t;
+using T = double;
+using I = uint64_t;
 
 void printHelp(char* binName);
 
@@ -65,28 +65,28 @@ int main(int argc, char** argv)
 
     // Get command line parameters
     const bool   only_sol  = parser.exists("--only_solution") ? true : false;
-    const double time      = parser.getDouble("--time", 0.);
-    const size_t nParts    = parser.getInt("--nParts", 0);
+    const T      time      = parser.getDouble("--time", 0.);
+    const I      nParts    = parser.getInt("--nParts", 0);
     const string inputFile = parser.getString("--input", "./dump_sedov0.txt");
     const string outDir    = parser.getString("--outDir", "./");
     const bool   complete  = parser.exists("--complete") ? true : false;
 
     // Initialize vector size
-    vector<double>     x(nParts);
-    vector<double>     y(nParts);
-    vector<double>     z(nParts);
-    vector<double>     vx(nParts);
-    vector<double>     vy(nParts);
-    vector<double>     vz(nParts);
-    vector<double>     h(nParts);
-    vector<double>     rho(nParts);
-    vector<double>     u(nParts);
-    vector<double>     p(nParts);
-    vector<double>     cs(nParts);
-    vector<double>     Px(nParts);
-    vector<double>     Py(nParts);
-    vector<double>     Pz(nParts);
-    vector<ParticleIO> vSim(nParts);
+    vector<T>                x(nParts);
+    vector<T>                y(nParts);
+    vector<T>                z(nParts);
+    vector<T>                vx(nParts);
+    vector<T>                vy(nParts);
+    vector<T>                vz(nParts);
+    vector<T>                h(nParts);
+    vector<T>                rho(nParts);
+    vector<T>                u(nParts);
+    vector<T>                p(nParts);
+    vector<T>                cs(nParts);
+    vector<T>                Px(nParts);
+    vector<T>                Py(nParts);
+    vector<T>                Pz(nParts);
+    vector<ParticleIO<T, I>> vSim(nParts);
 
     if (!only_sol)
     {
@@ -102,18 +102,18 @@ int main(int argc, char** argv)
         }
 
         // Load particles data
-        FileData::readData3D(inputFile, nParts, x, y, z, vx, vy, vz, h, rho, u, p, cs, Px, Py, Pz);
+        FileData<T, I>::readData3D(inputFile, nParts, x, y, z, vx, vy, vz, h, rho, u, p, cs, Px, Py, Pz);
 
         // Calculate radius, velocity and sort particle data by radius
-        for (size_t i = 0; i < nParts; i++)
+        for (I i = 0; i < nParts; i++)
         {
-            double r   = sqrt((x[i] * x[i]) + (y[i] * y[i]) + (z[i] * z[i]));
-            double vel = sqrt((vx[i] * vx[i]) + (vy[i] * vy[i]) + (vz[i] * vz[i]));
+            T r   = sqrt((x[i] * x[i]) + (y[i] * y[i]) + (z[i] * z[i]));
+            T vel = sqrt((vx[i] * vx[i]) + (vy[i] * vy[i]) + (vz[i] * vz[i]));
 
             vSim[i] = {
                 i, r, vel, x[i], y[i], z[i], vx[i], vy[i], vz[i], h[i], rho[i], u[i], p[i], cs[i], Px[i], Py[i], Pz[i]};
         }
-        sort(vSim.begin(), vSim.end(), ParticleIO::cmp());
+        sort(vSim.begin(), vSim.end(), ParticleIO<T, I>::cmp());
     }
 
     // Get time without rounding
@@ -122,28 +122,28 @@ int main(int argc, char** argv)
     string time_str = time_long.str();
 
     // Calculate and write theoretical solution profile in one dimension
-    const size_t dim     = SedovDataGenerator<Real, KeyType>::dim;
-    const double r0      = SedovDataGenerator<Real, KeyType>::r0;
-    const double r1      = SedovDataGenerator<Real, KeyType>::r1;
-    const double eblast  = SedovDataGenerator<Real, KeyType>::energyTotal;
-    const double gamma   = SedovDataGenerator<Real, KeyType>::gamma;
-    const double omega   = SedovDataGenerator<Real, KeyType>::omega;
-    const double rho0    = SedovDataGenerator<Real, KeyType>::rho0;
-    const double u0      = SedovDataGenerator<Real, KeyType>::u0;
-    const double p0      = SedovDataGenerator<Real, KeyType>::p0;
-    const double vel0    = SedovDataGenerator<Real, KeyType>::vel0;
-    const double cs0     = SedovDataGenerator<Real, KeyType>::cs0;
+    const I      dim     = SedovDataGenerator<T, I>::dim;
+    const T      r0      = SedovDataGenerator<T, I>::r0;
+    const T      r1      = SedovDataGenerator<T, I>::r1;
+    const T      eblast  = SedovDataGenerator<T, I>::energyTotal;
+    const T      gamma   = SedovDataGenerator<T, I>::gamma;
+    const T      omega   = SedovDataGenerator<T, I>::omega;
+    const T      rho0    = SedovDataGenerator<T, I>::rho0;
+    const T      u0      = SedovDataGenerator<T, I>::u0;
+    const T      p0      = SedovDataGenerator<T, I>::p0;
+    const T      vel0    = SedovDataGenerator<T, I>::vel0;
+    const T      cs0     = SedovDataGenerator<T, I>::cs0;
     const string solFile = outDir + "sedov_solution_" + time_str + ".dat";
 
     // Set the positions for calculate the solution
-    vector<double> rSol;
-    size_t         nSteps = 1000;
+    vector<T> rSol;
+    I         nSteps = 1000;
     if (only_sol || !complete)
     {
-        const double rMax  = 2. * r1;
-        const double rStep = (rMax - r0) / nSteps;
+        const T rMax  = 2. * r1;
+        const T rStep = (rMax - r0) / nSteps;
 
-        for (size_t i = 0; i < nSteps; i++)
+        for (I i = 0; i < nSteps; i++)
         {
             rSol.push_back(r0 + (0.5 * rStep) + (i * rStep));
         }
@@ -152,14 +152,14 @@ int main(int argc, char** argv)
     {
         nSteps = nParts;
 
-        for (size_t i = 0; i < nSteps; i++)
+        for (I i = 0; i < nSteps; i++)
         {
             rSol.push_back(vSim[i].r);
         }
     }
 
     // Calculate Sedov solution
-    SedovSolution::create(rSol, dim, nSteps, time, eblast, omega, gamma, rho0, u0, p0, vel0, cs0, solFile);
+    SedovSolution<T, I>::create(rSol, dim, nSteps, time, eblast, omega, gamma, rho0, u0, p0, vel0, cs0, solFile);
 
     // Write Info: Output files and colums.
     cout << "\nExecuted successfully.\n";
@@ -169,20 +169,20 @@ int main(int argc, char** argv)
     {
         // Write 1D simulation solution to compare with the theoretical solution
         const string simFile = outDir + "sedov_simulation_" + time_str + ".dat";
-        SedovFileData::writeParticle1D(nParts,
-                                       vSim,
-                                       SedovSolution::rho_shock,
-                                       SedovSolution::u_shock,
-                                       SedovSolution::p_shock,
-                                       SedovSolution::vel_shock,
-                                       SedovSolution::cs_shock,
-                                       rho0,
-                                       simFile);
+        SedovFileData<T, I>::writeParticle1D(nParts,
+                                             vSim,
+                                             SedovSolution<T, I>::rho_shock,
+                                             SedovSolution<T, I>::u_shock,
+                                             SedovSolution<T, I>::p_shock,
+                                             SedovSolution<T, I>::vel_shock,
+                                             SedovSolution<T, I>::cs_shock,
+                                             rho0,
+                                             simFile);
         cout << "Simulation file: '" << simFile << "'";
     }
 
     cout << "\nColumns:\n";
-    SedovFileData::writeColumns1D(cout);
+    SedovFileData<T, I>::writeColumns1D(cout);
     cout << endl;
 
     exit(EXIT_SUCCESS);

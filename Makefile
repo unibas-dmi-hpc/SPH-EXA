@@ -26,16 +26,12 @@ CUDA_OBJS := $(BUILDDIR)/gather.o                     \
 SEDOV_TEST    := src/sedov/sedov.cpp
 SEDOV_FLAGS   := 
 SEDOV_SOL_DIR := src/analytical_solutions/sedov_solution
-SEDOV_SOL_CPP := $(SEDOV_SOL_DIR)/sedov_io.cpp        \
-                 $(SEDOV_SOL_DIR)/sedov_solution.cpp  \
-                 $(SEDOV_SOL_DIR)/main.cpp
+SEDOV_SOL_CPP := $(SEDOV_SOL_DIR)/main.cpp
 
 NOH_TEST    := src/noh/noh.cpp
 NOH_FLAGS   := 
 NOH_SOL_DIR := src/analytical_solutions/noh_solution
-NOH_SOL_CPP := $(NOH_SOL_DIR)/noh_io.cpp              \
-               $(NOH_SOL_DIR)/noh_solution.cpp        \
-               $(NOH_SOL_DIR)/main.cpp
+NOH_SOL_CPP := $(NOH_SOL_DIR)/main.cpp
 
 EVRARD_TEST  := src/evrard/evrard.cpp
 EVRARD_FLAGS := -DGRAVITY
@@ -152,6 +148,8 @@ $(BUILDDIR)/%.o: domain/include/cstone/cuda/%.cu
 	$(NVCC) $(NVCCFLAGS) -DUSE_CUDA $(TEST_CUDA_FLAGS) $(INC) -c -o $@ $<
 
 solution:
+	@mkdir -p $(BINDIR)
+	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) $(SEDOV_SOL_CPP) -o $(BINDIR)/sedov_$@ $(LIB)
 	$(MPICXX) $(CXXFLAGS) $(INC) $(NOH_SOL_CPP)   -o $(BINDIR)/noh_$@   $(LIB)
 

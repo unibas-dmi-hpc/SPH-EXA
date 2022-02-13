@@ -1,4 +1,4 @@
-set(SOURCES noh_io.cpp noh_solution.cpp main.cpp)
+set(SOURCES main.cpp)
 add_executable(noh_solution ${SOURCES})
 target_include_directories(noh_solution PRIVATE ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(noh_solution PRIVATE ${PROJECT_SOURCE_DIR}/src)

@@ -34,31 +34,91 @@
 #include <string>
 #include <vector>
 #include <fstream>
+#include <sstream>
+#include <iostream>
+#include <iomanip>
 
-#include "analytical_solutions/common/io.hpp"
 #include "analytical_solutions/common/particle_io.hpp"
 
 using namespace std;
 
-class NohFileData : public FileData
+template<typename T, typename I>
+class NohFileData : public FileData<T, I>
 {
 
 private:
     NohFileData(); // Singleton
 
 public:
-    static void writeColumns1D(ostream& out); //
+    static void writeColumns1D(ostream& out)                                //
+    {
+        out << setw(16) << "#           01:r"  // Column : position 1D     (Real  value     )
+            << setw(16) << "02:rho"            // Column : density         (Real  value     )
+            << setw(16) << "03:u"              // Column : internal energy (Real  value     )
+            << setw(16) << "04:p"              // Column : pressure        (Real  value     )
+            << setw(16) << "05:vel"            // Column : velocity 1D     (Real  value     )
+            << setw(16) << "06:cs"             // Column : sound speed     (Real  value     )
+            << endl;
+    }
 
-    static void writeData1D(const size_t          n,   //
-                            const vector<double>& r,   //
-                            const vector<double>& rho, //
-                            const vector<double>& u,   //
-                            const vector<double>& p,   //
-                            const vector<double>& vel, //
-                            const vector<double>& cs,  //
-                            const string&         outfile);    //
+    static void writeData1D(const I          n,                             //
+                            const vector<T>& r,                             //
+                            const vector<T>& rho,                           //
+                            const vector<T>& u,                             //
+                            const vector<T>& p,                             //
+                            const vector<T>& vel,                           //
+                            const vector<T>& cs,                            //
+                            const string&    outfile)                       //
+    {
+        try
+        {
+            ofstream out(outfile);
 
-    static void writeParticle1D(const size_t              n,         //
-                                const vector<ParticleIO>& vParticle, //
-                                const string&             outfile);              //
+            // Write Colums
+            writeColumns1D(out);
+
+            // Write Data
+            for (size_t i = 0; i < n; i++)
+            {
+                out << setw(16) << setprecision(6) << scientific << r[i]    //
+                    << setw(16) << setprecision(6) << scientific << rho[i]  //
+                    << setw(16) << setprecision(6) << scientific << u[i]    //
+                    << setw(16) << setprecision(6) << scientific << p[i]    //
+                    << setw(16) << setprecision(6) << scientific << vel[i]  //
+                    << setw(16) << setprecision(6) << scientific << cs[i]   //
+                    << endl;
+            }
+
+            out.close();
+        }
+        catch (exception& ex)
+        {
+            cout << "ERROR: %s. Terminating\n" << ex.what() << endl;
+            exit(EXIT_FAILURE);
+        }
+    }
+
+    static void writeParticle1D(const I                         n,          //
+                                const vector<ParticleIO<T, I>>& vParticle,  //
+                                const string&                   outfile)    //
+    {
+        vector<T> r(n);
+        vector<T> rho(n);
+        vector<T> u(n);
+        vector<T> p(n);
+        vector<T> vel(n);
+        vector<T> cs(n);
+
+        for (I i = 0; i < n; i++)
+        {
+            r[i]   = vParticle[i].r;
+            rho[i] = vParticle[i].rho;
+            u[i]   = vParticle[i].u;
+            p[i]   = vParticle[i].p;
+            vel[i] = vParticle[i].vel;
+            cs[i]  = vParticle[i].cs;
+        }
+
+        writeData1D(n, r, rho, u, p, vel, cs, outfile);
+    }
 };
