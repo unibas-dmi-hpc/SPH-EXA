@@ -60,25 +60,25 @@ TEST(Multipole, P2M)
         m[i] = bodies[i][3];
     }
 
-    CartesianQuadrupole<double>      cstoneMultipole;
+    CartesianQuadrupole<double>      cartesianQuadrupole;
     cstone::SourceCenterType<double> csCenter =
         cstone::massCenter<double>(x.data(), y.data(), z.data(), m.data(), 0, numBodies);
     particle2Multipole(
-        x.data(), y.data(), z.data(), m.data(), 0, numBodies, util::makeVec3(csCenter), cstoneMultipole);
+        x.data(), y.data(), z.data(), m.data(), 0, numBodies, util::makeVec3(csCenter), cartesianQuadrupole);
 
     Vec4<float> centerMass = ryoanji::setCenter(0, numBodies, bodies.data());
 
-    ryoanji::SphericalMultipole<float, 4> ryoanjiMultipole;
-    std::fill(ryoanjiMultipole.begin(), ryoanjiMultipole.end(), 0.0);
+    ryoanji::SphericalMultipole<float, 4> sphericalOctopole;
+    std::fill(sphericalOctopole.begin(), sphericalOctopole.end(), 0.0);
 
-    ryoanji::P2M(0, numBodies, centerMass, bodies.data(), ryoanjiMultipole);
+    ryoanji::P2M(0, numBodies, centerMass, bodies.data(), sphericalOctopole);
 
-    EXPECT_NEAR(ryoanjiMultipole[0], cstoneMultipole[Cqi::mass], 1e-6);
+    EXPECT_NEAR(sphericalOctopole[0], cartesianQuadrupole[Cqi::mass], 1e-6);
 
     EXPECT_NEAR(centerMass[0], csCenter[0] , 1e-6);
     EXPECT_NEAR(centerMass[1], csCenter[1] , 1e-6);
     EXPECT_NEAR(centerMass[2], csCenter[2] , 1e-6);
-    EXPECT_NEAR(centerMass[3], cstoneMultipole[Cqi::mass], 1e-6);
+    EXPECT_NEAR(centerMass[3], cartesianQuadrupole[Cqi::mass], 1e-6);
 
     // compare M2P results on a test target
     {
@@ -86,7 +86,7 @@ TEST(Multipole, P2M)
         Vec3<float> testTarget{-8, -8, -8};
 
         Vec4<float> acc{0, 0, 0, 0};
-        acc = ryoanji::M2P(acc, testTarget, util::makeVec3(centerMass), ryoanjiMultipole, eps2);
+        acc = ryoanji::M2P(acc, testTarget, util::makeVec3(centerMass), sphericalOctopole, eps2);
         //printf("test acceleration: %f %f %f %f\n", acc[0], acc[1], acc[2], acc[3]);
 
         // cstone is less precise
@@ -97,7 +97,7 @@ TEST(Multipole, P2M)
         //    testTarget[0], testTarget[1], testTarget[2], cstoneMultipole, eps2, &ax, &ay, &az);
         //printf("cstone test acceleration: %f %f %f\n", ax, ay, az);
 
-        auto [axd, ayd, azd, pot] = particle2particle(double(testTarget[0]),
+        auto [axd, ayd, azd, pot] = particle2Particle(double(testTarget[0]),
                                                       double(testTarget[1]),
                                                       double(testTarget[2]),
                                                       0.0,

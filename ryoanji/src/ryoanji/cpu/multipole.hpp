@@ -168,7 +168,7 @@ void moveExpansionCenter(Vec3<T> Xold, Vec3<T> Xnew, CartesianQuadrupole<T>& gv)
  */
 template<class T1, class T2>
 HOST_DEVICE_FUN inline __attribute__((always_inline)) util::tuple<T1, T1, T1, T1>
-particle2particle(T1 tx, T1 ty, T1 tz, T2 th, T1 sx, T1 sy, T1 sz, T2 sh, T2 sm)
+particle2Particle(T1 tx, T1 ty, T1 tz, T2 th, T1 sx, T1 sy, T1 sz, T2 sh, T2 sm)
 {
     T1 rx = sx - tx;
     T1 ry = sy - ty;
@@ -220,7 +220,7 @@ particle2particle(T1 tx, T1 ty, T1 tz, T2 th, T1 sx, T1 sy, T1 sz, T2 sh, T2 sm)
  *    all particles that follow it.
  */
 template<class T1, class T2>
-HOST_DEVICE_FUN util::tuple<T1, T1, T1, T1> particle2particle(T1 tx,
+HOST_DEVICE_FUN util::tuple<T1, T1, T1, T1> particle2Particle(T1 tx,
                                                               T1 ty,
                                                               T1 tz,
                                                               T2 hi,
@@ -241,7 +241,7 @@ HOST_DEVICE_FUN util::tuple<T1, T1, T1, T1> particle2particle(T1 tx,
     #endif
     for (LocalIndex j = 0; j < numSources; ++j)
     {
-        auto [ax_, ay_, az_, u_] = particle2particle(tx, ty, tz, hi, sx[j], sy[j], sz[j], h[j], m[j]);
+        auto [ax_, ay_, az_, u_] = particle2Particle(tx, ty, tz, hi, sx[j], sy[j], sz[j], h[j], m[j]);
 
         axLoc += ax_;
         ayLoc += ay_;
@@ -271,8 +271,8 @@ HOST_DEVICE_FUN util::tuple<T1, T1, T1, T1> particle2particle(T1 tx,
  * quadrupole: Q*vec(r) / r^5 - 5/2 * vec(r)*Q*vec(r) * vec(r) / r^7
  */
 template<class T1, class T2>
-HOST_DEVICE_FUN inline util::tuple<T1, T1, T1, T1>
-multipole2particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center, const CartesianQuadrupole<T2>& multipole)
+HOST_DEVICE_FUN inline util::tuple<T1, T1, T1, T1> multipole2Particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center,
+                                                                      const CartesianQuadrupole<T2>& multipole)
 {
     T2 rx = tx - center[0];
     T2 ry = ty - center[1];
@@ -343,7 +343,7 @@ void addQuadrupole(CartesianQuadrupole<T>& composite, Vec3<T> dX, const Cartesia
  * @param[out]  Mout     the aggregated output multipole
  */
 template<class T, class MType>
-void multipole2multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc, const MType* Msrc, MType& Mout)
+void multipole2Multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc, const MType* Msrc, MType& Mout)
 {
     setZero(Mout);
     for (int i = begin; i < end; i++)

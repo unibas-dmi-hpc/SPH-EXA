@@ -37,10 +37,10 @@
 #include "cstone/focus/source_center.hpp"
 #include "multipole.hpp"
 
-using ryoanji::particle2particle;
+using ryoanji::particle2Particle;
 using ryoanji::particle2Multipole;
-using ryoanji::multipole2multipole;
-using ryoanji::multipole2particle;
+using ryoanji::multipole2Multipole;
+using ryoanji::multipole2Particle;
 
 namespace cstone
 {
@@ -129,7 +129,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
             for (LocalIndex t = 0; t < numTargets; ++t)
             {
                 LocalIndex offset        = t + firstTarget;
-                auto [ax_, ay_, az_, u_] = multipole2particle(x[offset], y[offset], z[offset], makeVec3(com), p);
+                auto [ax_, ay_, az_, u_] = multipole2Particle(x[offset], y[offset], z[offset], makeVec3(com), p);
                 *(ax + t) += G * ax_;
                 *(ay + t) += G * ay_;
                 *(az + t) += G * az_;
@@ -161,7 +161,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
             {
                 LocalIndex offset = t + firstTarget;
                 auto [ax_, ay_, az_, u_] =
-                particle2particle(x[offset], y[offset], z[offset], h[offset],
+                particle2Particle(x[offset], y[offset], z[offset], h[offset],
                                   x + firstSource, y + firstSource, z + firstSource, h + firstSource,
                                   m + firstSource, numSources);
                 *(ax + t)    += G * ax_;
@@ -179,13 +179,13 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
                 LocalIndex offset = t + firstTarget;
                 // 2 splits: [firstSource:t] and [t+1:lastSource]
                 auto [ax_, ay_, az_, u_] =
-                particle2particle(x[offset], y[offset], z[offset], h[offset],
+                particle2Particle(x[offset], y[offset], z[offset], h[offset],
                                   x + firstSource, y + firstSource, z + firstSource, h + firstSource,
                                   m + firstSource, offset - firstSource);
 
                 LocalIndex tp1 = offset + 1;
                 auto [ax2_, ay2_, az2_, u2_] =
-                particle2particle(x[offset], y[offset], z[offset], h[offset],
+                particle2Particle(x[offset], y[offset], z[offset], h[offset],
                                   x + tp1, y + tp1, z + tp1, h + tp1, m + tp1, lastSource - tp1);
                 *(ax + t)    += G * (ax_ + ax2_);
                 *(ay + t)    += G * (ay_ + ay2_);
@@ -316,11 +316,11 @@ void directSum(const T1* x, const T1* y, const T1* z, const T2* h, const T2* m,
     for (LocalIndex t = 0; t < numParticles; ++t)
     {
         // 2 splits: [0:t] and [t+1:numParticles]
-        auto [ax_, ay_, az_, u_] = particle2particle(x[t], y[t], z[t], h[t], x, y, z, h, m, t);
+        auto [ax_, ay_, az_, u_] = particle2Particle(x[t], y[t], z[t], h[t], x, y, z, h, m, t);
 
         LocalIndex tp1 = t + 1;
         auto [ax2_, ay2_, az2_, u2_] =
-            particle2particle(x[t], y[t], z[t], h[t], x + tp1, y + tp1, z + tp1, h + tp1, m + tp1, numParticles - tp1);
+            particle2Particle(x[t], y[t], z[t], h[t], x + tp1, y + tp1, z + tp1, h + tp1, m + tp1, numParticles - tp1);
 
         *(ax + t)    += G * (ax_ + ax2_);
         *(ay + t)    += G * (ay_ + ay2_);

@@ -54,7 +54,7 @@ TEST(Gravity, P2PmsoftBase)
     T m[2]  = {1, 1};
 
 
-    auto [xacc, yacc, zacc, pot] = particle2particle(x, y, z, h, xs, ys, zs, hs, m, 2);
+    auto [xacc, yacc, zacc, pot] = particle2Particle(x, y, z, h, xs, ys, zs, hs, m, 2);
 
     // h too small to trigger softening, so results should match the non-softened numbers
     EXPECT_NEAR(xacc, 0.17106674642655587, 1e-10);
@@ -83,7 +83,7 @@ TEST(Gravity, P2PmsoftH)
     T hs[numSources] = {h, h};
     T m[numSources]  = {1, 1};
 
-    auto [xacc, yacc, zacc, pot] = particle2particle(x, y, z, h, xs, ys, zs, hs, m, numSources);
+    auto [xacc, yacc, zacc, pot] = particle2Particle(x, y, z, h, xs, ys, zs, hs, m, numSources);
 
     EXPECT_NEAR(xacc, 0.1704016164027678, 1e-10);
     EXPECT_NEAR(yacc, 0.1704016164027678, 1e-10);
@@ -124,11 +124,11 @@ TEST(Gravity, M2P)
 
     // reference direct gravity on target
     auto [axDirect, ayDirect, azDirect, potDirect] =
-        particle2particle(target[0], target[1], target[2], 0.0, x, y, z, h.data(), masses.data(), numParticles);
+        particle2Particle(target[0], target[1], target[2], 0.0, x, y, z, h.data(), masses.data(), numParticles);
 
     // approximate gravity with multipole interaction
     auto [axApprox, ayApprox, azApprox, potApprox] =
-        multipole2particle(target[0], target[1], target[2], makeVec3(center), multipole);
+        multipole2Particle(target[0], target[1], target[2], makeVec3(center), multipole);
 
     //std::cout << std::fixed;
     //std::cout.precision(8);
@@ -183,7 +183,7 @@ TEST(Gravity, M2M)
 
     // aggregate subcell multipoles
     CartesianQuadrupole<T> composite;
-    multipole2multipole(0, 8, refCenter, centers, sc, composite);
+    multipole2Multipole(0, 8, refCenter, centers, sc, composite);
 
     EXPECT_NEAR(reference[Cqi::mass], composite[Cqi::mass], 1e-10);
     EXPECT_NEAR(reference[Cqi::qxx], composite[Cqi::qxx], 1e-10);
