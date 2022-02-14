@@ -84,6 +84,10 @@ TEST(Gravity, TreeWalk)
     computeLeafMultipoles(octree, layout, x, y, z, masses.data(), centers.data(), multipoles.data());
     CombineMultipole<MultipoleType> combineMultipole(centers.data());
     upsweep(octree, multipoles.data(), combineMultipole);
+    for (size_t i = 0; i < multipoles.size(); ++i)
+    {
+        multipoles[i] = ryoanji::normalize(multipoles[i]);
+    }
 
     T totalMass = std::accumulate(masses.begin(), masses.end(), 0.0);
     EXPECT_TRUE(std::abs(totalMass - multipoles[0][ryoanji::Cqi::mass]) < 1e-6);

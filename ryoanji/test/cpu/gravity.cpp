@@ -81,7 +81,10 @@ int main()
     computeLeafMultipoles(octree, layout, x, y, z, masses.data(), sourceCenters.data(), multipoles.data());
     CombineMultipole<MultipoleType> combineMultipole(sourceCenters.data());
     upsweep(octree, multipoles.data(), combineMultipole);
-    ryoanji::normalize(multipoles.data(), multipoles.size());
+    for (size_t i = 0; i < multipoles.size(); ++i)
+    {
+        multipoles[i] = ryoanji::normalize(multipoles[i]);
+    }
 
     std::vector<T> ax(numParticles, 0);
     std::vector<T> ay(numParticles, 0);

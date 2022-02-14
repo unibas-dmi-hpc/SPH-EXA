@@ -45,6 +45,11 @@ namespace ryoanji
 template <class T>
 using CartesianQuadrupole = util::array<T, 8>;
 
+template<class MType>
+struct IsCartesian : public stl::integral_constant<size_t, MType{}.size() == CartesianQuadrupole<float>{}.size()>
+{
+};
+
 //! @brief CartesianQuadrupole index names
 struct Cqi
 {
@@ -346,10 +351,10 @@ void multipole2Multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>*
     }
 }
 
-template<class MType, std::enable_if_t<MType{}.size() == CartesianQuadrupole<float>{}.size(), int> = 0>
-void normalize(MType* /*Multipole*/, int /*numCells*/)
+template<class MType, std::enable_if_t<IsCartesian<MType>{}, int> = 0>
+HOST_DEVICE_FUN MType normalize(const MType& multipole)
 {
+    return multipole;
 }
-
 
 } // namespace ryoanji

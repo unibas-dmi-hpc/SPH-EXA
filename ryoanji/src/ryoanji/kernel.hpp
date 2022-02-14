@@ -583,4 +583,18 @@ HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> setCenter(const int begin, const int end, 
     return center;
 }
 
+template<class MType, std::enable_if_t<IsSpherical<MType>{}, int> = 0>
+HOST_DEVICE_FUN MType normalize(const MType& multipole)
+{
+    using T = typename MType::value_type;
+    MType M = multipole;
+
+    T mass = M[0];
+    T invM = (mass != T(0.0)) ? T(1.0) / mass : T(0.0);
+    M *= invM;
+    M[0] = mass;
+
+    return M;
+}
+
 } // namespace ryoanji

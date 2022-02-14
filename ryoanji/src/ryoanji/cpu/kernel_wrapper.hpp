@@ -107,30 +107,11 @@ multipole2Particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center, SphericalMultipo
 
 /*! @brief Combine multipoles into a single multipole
  */
-template<class T, class MType,
-         std::enable_if_t<MType{}.size() == TermSize<2>{} || MType{}.size() == TermSize<4>{}, int> = 0>
+template<class T, class MType, std::enable_if_t<IsSpherical<MType>{}, int> = 0>
 void multipole2Multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc, const MType* Msrc, MType& Mout)
 {
     Mout = 0;
     M2M(begin, end, Xout, Xsrc, Msrc, Mout);
-}
-
-template<class MType, std::enable_if_t<MType{}.size() == TermSize<2>{} || MType{}.size() == TermSize<4>{}, int> = 0>
-void normalize(MType* Multipole, int numCells)
-{
-    using T = typename MType::value_type;
-
-    for (int cellIdx = 0; cellIdx < numCells; ++cellIdx)
-    {
-        MType M    = Multipole[cellIdx];
-        T     mass = M[0];
-        T     invM = (mass != T(0.0)) ? T(1.0) / mass : T(0.0);
-
-        M *= invM;
-        M[0] = mass;
-
-        Multipole[cellIdx] = M;
-    }
 }
 
 } // namespace ryoanji
