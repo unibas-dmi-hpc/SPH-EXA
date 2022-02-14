@@ -37,12 +37,7 @@
 #include "cstone/focus/source_center.hpp"
 #include "multipole.hpp"
 
-using ryoanji::particle2Particle;
-using ryoanji::particle2Multipole;
-using ryoanji::multipole2Multipole;
-using ryoanji::multipole2Particle;
-
-namespace cstone
+namespace ryoanji
 {
 
 /*! @brief computes gravitational acceleration for all particles in the specified group
@@ -73,8 +68,8 @@ namespace cstone
  */
 template<class KeyType, class MType, class T1, class T2>
 void computeGravityGroup(TreeNodeIndex groupIdx,
-                         const Octree<KeyType>& octree,
-                         const SourceCenterType<T1>* centers,
+                         const cstone::Octree<KeyType>& octree,
+                         const cstone::SourceCenterType<T1>* centers,
                          MType* multipoles,
                          const LocalIndex* layout,
                          const T1* x,
@@ -116,7 +111,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
         const auto& com = centers[idx];
         const auto& p   = multipoles[idx];
 
-        bool violatesMac = vectorMac(makeVec3(com), com[3], targetCenter, targetSize);
+        bool violatesMac = cstone::vectorMac(makeVec3(com), com[3], targetCenter, targetSize);
 
         if (!violatesMac)
         {
@@ -200,8 +195,8 @@ void computeGravityGroup(TreeNodeIndex groupIdx,
 
 //! @brief repeats computeGravityGroup for all leaf node indices specified
 template<class KeyType, class MType, class T1, class T2>
-void computeGravity(const Octree<KeyType>& octree,
-                    const SourceCenterType<T1>* centers,
+void computeGravity(const cstone::Octree<KeyType>& octree,
+                    const cstone::SourceCenterType<T1>* centers,
                     MType* multipoles,
                     const LocalIndex* layout,
                     TreeNodeIndex firstLeafIndex,
@@ -252,8 +247,8 @@ void computeGravity(const Octree<KeyType>& octree,
  * @return                       total gravitational energy
  */
 template<class KeyType, class MType, class T1, class T2>
-T2 computeGravity(const Octree<KeyType>& octree,
-                  const SourceCenterType<T1>* centers,
+T2 computeGravity(const cstone::Octree<KeyType>& octree,
+                  const cstone::SourceCenterType<T1>* centers,
                   MType* multipoles,
                   const LocalIndex* layout,
                   TreeNodeIndex firstLeafIndex,

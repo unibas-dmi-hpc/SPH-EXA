@@ -33,18 +33,20 @@
 
 #include "cstone/cuda/annotation.hpp"
 #include "cstone/primitives/stl.hpp"
+#include "cstone/tree/definitions.h"
 #include "cstone/util/array.hpp"
 
 namespace ryoanji
 {
 
 template<class T>
-using Vec3 = util::array<T, 3>;
+using Vec3 = cstone::Vec3<T>;
 
 template<class T>
-using Vec4 = util::array<T, 4>;
+using Vec4 = cstone::Vec4<T>;
 
-using LocalIndex = unsigned;
+using TreeNodeIndex = cstone::TreeNodeIndex;
+using LocalIndex    = cstone::LocalIndex;
 
 template<size_t P>
 struct TermSize : public stl::integral_constant<size_t, P * (P + 1) * (P + 2) / 6>

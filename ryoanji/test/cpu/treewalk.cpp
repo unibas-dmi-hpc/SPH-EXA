@@ -37,6 +37,7 @@
 #include "ryoanji/cpu/upsweep.hpp"
 
 using namespace cstone;
+using namespace ryoanji;
 
 TEST(Gravity, TreeWalk)
 {
@@ -47,7 +48,7 @@ TEST(Gravity, TreeWalk)
     float theta         = 0.6;
     float G             = 1.0;
     unsigned bucketSize = 64;
-    Box<T> box(-1, 1);
+    cstone::Box<T> box(-1, 1);
     LocalIndex numParticles = 10000;
 
     RandomCoordinates<T, SfcKind<KeyType>> coordinates(numParticles, box);

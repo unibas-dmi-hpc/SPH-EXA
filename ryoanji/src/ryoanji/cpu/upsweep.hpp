@@ -36,7 +36,7 @@
 #include "multipole.hpp"
 #include "kernel_wrapper.hpp"
 
-namespace cstone
+namespace ryoanji
 {
 
 /*! @brief compute multipoles from particle data for the entire tree hierarchy
@@ -56,13 +56,13 @@ namespace cstone
  * @param[out] multipoles output multipole moments
  */
 template<class KeyType, class T1, class T2, class MType>
-void computeLeafMultipoles(const Octree<KeyType>& octree,
+void computeLeafMultipoles(const cstone::Octree<KeyType>& octree,
                            gsl::span<const LocalIndex> layout,
                            const T1* x,
                            const T1* y,
                            const T1* z,
                            const T2* m,
-                           const SourceCenterType<T1>* centers,
+                           const cstone::SourceCenterType<T1>* centers,
                            MType* multipoles)
 {
     #pragma omp parallel for schedule(static)
@@ -77,7 +77,7 @@ template<class MType>
 class CombineMultipole
 {
 public:
-    CombineMultipole(const SourceCenterType<typename MType::value_type>* centers)
+    CombineMultipole(const cstone::SourceCenterType<typename MType::value_type>* centers)
         : centers_(centers)
     {
     }
@@ -90,7 +90,7 @@ public:
     }
 
 private:
-    const SourceCenterType<typename MType::value_type>* centers_;
+    const cstone::SourceCenterType<typename MType::value_type>* centers_;
 };
 
 } // namespace cstone

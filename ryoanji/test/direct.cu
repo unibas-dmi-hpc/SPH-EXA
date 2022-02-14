@@ -67,8 +67,8 @@ std::vector<Vec4<T>> cpuReference(const std::vector<Vec4<T>>& bodies)
 
     float G = 1.0;
 
-    cstone::directSum(x.data(), y.data(), z.data(), h.data(), m.data(), numBodies, G,
-                      ax.data(), ay.data(), az.data(), pot.data());
+    directSum(
+        x.data(), y.data(), z.data(), h.data(), m.data(), numBodies, G, ax.data(), ay.data(), az.data(), pot.data());
 
     std::vector<Vec4<T>> acc(numBodies, Vec4<T>{0, 0, 0, 0});
 

@@ -37,7 +37,7 @@
 #include "ryoanji/cpu/treewalk.hpp"
 #include "ryoanji/cpu/upsweep.hpp"
 
-using namespace cstone;
+using namespace ryoanji;
 
 int main()
 {
@@ -50,9 +50,9 @@ int main()
     unsigned bucketSize     = 64;
     float theta             = 0.75;
     LocalIndex numParticles = 100000;
-    Box<T> box(-1, 1);
+    cstone::Box<T> box(-1, 1);
 
-    RandomCoordinates<T, SfcKind<KeyType>> coordinates(numParticles, box);
+    RandomCoordinates<T, cstone::SfcKind<KeyType>> coordinates(numParticles, box);
 
     const T* x = coordinates.x().data();
     const T* y = coordinates.y().data();
@@ -62,20 +62,20 @@ int main()
     std::vector<T> masses(numParticles);
     std::generate(begin(masses), end(masses), drand48);
 
-    auto [tree, counts] = computeOctree(coordinates.particleKeys().data(),
-                                        coordinates.particleKeys().data() + numParticles,
-                                        bucketSize);
-    Octree<KeyType> octree;
-    octree.update(tree.data(), nNodes(tree));
+    auto [tree, counts] = cstone::computeOctree(
+        coordinates.particleKeys().data(), coordinates.particleKeys().data() + numParticles, bucketSize);
+
+    cstone::Octree<KeyType> octree;
+    octree.update(tree.data(), cstone::nNodes(tree));
 
     std::vector<LocalIndex> layout(octree.numLeafNodes() + 1);
     stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
 
-    std::vector<SourceCenterType<T>> sourceCenters(octree.numTreeNodes());
-    computeLeafMassCenter<T, T, T, KeyType>(coordinates.x(), coordinates.y(), coordinates.z(), masses,
+    std::vector<cstone::SourceCenterType<T>> sourceCenters(octree.numTreeNodes());
+    cstone::computeLeafMassCenter<T, T, T, KeyType>(coordinates.x(), coordinates.y(), coordinates.z(), masses,
                                             coordinates.particleKeys(), octree, sourceCenters);
-    upsweep(octree, sourceCenters.data(), CombineSourceCenter<T>{});
-    setMac<T>(octree.nodeKeys(), sourceCenters, 1.0 / theta, box);
+    upsweep(octree, sourceCenters.data(), cstone::CombineSourceCenter<T>{});
+    cstone::setMac<T>(octree.nodeKeys(), sourceCenters, 1.0 / theta, box);
 
     std::vector<MultipoleType> multipoles(octree.numTreeNodes());
     computeLeafMultipoles(octree, layout, x, y, z, masses.data(), sourceCenters.data(), multipoles.data());

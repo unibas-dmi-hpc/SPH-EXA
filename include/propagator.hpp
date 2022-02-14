@@ -164,27 +164,27 @@ public:
         gsl::span<const SourceCenterType<T>> centers = domain.expansionCenters();
 
         std::vector<MultipoleType> multipoles(octree.numTreeNodes());
-        computeLeafMultipoles(
+        ryoanji::computeLeafMultipoles(
             octree, domain.layout(), d.x.data(), d.y.data(), d.z.data(), d.m.data(), centers.data(), multipoles.data());
 
-        CombineMultipole<MultipoleType> combineMultipole(centers.data());
+        ryoanji::CombineMultipole<MultipoleType> combineMultipole(centers.data());
         upsweep(octree, multipoles.data(), combineMultipole);
 
-        d.egrav = computeGravity(octree,
-                                 centers.data(),
-                                 multipoles.data(),
-                                 domain.layout().data(),
-                                 0,
-                                 octree.numLeafNodes(),
-                                 d.x.data(),
-                                 d.y.data(),
-                                 d.z.data(),
-                                 d.h.data(),
-                                 d.m.data(),
-                                 d.g,
-                                 d.grad_P_x.data(),
-                                 d.grad_P_y.data(),
-                                 d.grad_P_z.data());
+        d.egrav = ryoanji::computeGravity(octree,
+                                          centers.data(),
+                                          multipoles.data(),
+                                          domain.layout().data(),
+                                          0,
+                                          octree.numLeafNodes(),
+                                          d.x.data(),
+                                          d.y.data(),
+                                          d.z.data(),
+                                          d.h.data(),
+                                          d.m.data(),
+                                          d.g,
+                                          d.grad_P_x.data(),
+                                          d.grad_P_y.data(),
+                                          d.grad_P_z.data());
 
         // temporary sign fix, see note in ParticlesData
         d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
