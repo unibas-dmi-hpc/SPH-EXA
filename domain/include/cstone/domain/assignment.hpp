@@ -170,8 +170,6 @@ public:
         return std::make_tuple(newStart, keyView.subspan(offset, newNParticlesAssigned));
     }
 
-    std::vector<int> findPeers(float theta) { return findPeersMac(myRank_, assignment_, tree_, box_, theta); }
-
     //! @brief read only visibility of the global octree leaves to the outside
     gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
     //! @brief the octree, including the internal part

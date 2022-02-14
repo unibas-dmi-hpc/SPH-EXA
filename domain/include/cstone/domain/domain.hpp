@@ -181,7 +181,7 @@ public:
         // h is already reordered here for use in halo discovery
         reorderFunctor(h.data() + exchangeStart, h.data());
 
-        std::vector<int> peers = global_.findPeers(theta_);
+        std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), theta_);
 
         if (firstCall_)
         {
@@ -214,7 +214,7 @@ public:
         auto [exchangeStart, keyView] = distribute(particleKeys, x, y, z, h, m, particleProperties...);
         reorderArrays(reorderFunctor, exchangeStart, 0, x.data(), y.data(), z.data(), h.data(), m.data());
 
-        std::vector<int> peers = global_.findPeers(theta_);
+        std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), theta_);
 
         if (firstCall_)
         {
@@ -222,7 +222,7 @@ public:
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
         focusTree_.updateCounts(keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
-        focusTree_.template updateCenters<T, T>(x, y, z, m, peers, global_.assignment(), global_.octree(), global_.box());
+        focusTree_.template updateCenters<T, T>(x, y, z, m, peers, global_.assignment(), global_.octree(), box());
         focusTree_.updateVecMac(box(), global_.assignment(), global_.treeLeaves());
 
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
@@ -243,6 +243,15 @@ public:
     {
         checkSizesEqual(bufDesc_.size, arrays...);
         halos_.exchangeHalos(arrays.data()...);
+    }
+
+    template<class CellProperty, class CombinationFunction>
+    void exchangeFocusGlobal(gsl::span<CellProperty> cellProperties, CombinationFunction&& combinationFunction)
+    {
+        std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), theta_);
+        focusTree_.peerExchange(peers, cellProperties, static_cast<int>(P2pTags::focusPeerCenters) + 1);
+        focusTree_.globalExchange(global_.octree(), cellProperties.data(),
+                                  std::forward<CombinationFunction>(combinationFunction));
     }
 
     //! @brief return the index of the first particle that's part of the local assignment
