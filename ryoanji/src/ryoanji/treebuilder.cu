@@ -93,7 +93,7 @@ public:
     Impl(unsigned ncrit);
 
     template<class T>
-    cstone::TreeNodeIndex update(Vec4<T>* bodies, size_t numBodies, const ryoanji::Box<T>& box);
+    cstone::TreeNodeIndex update(Vec4<T>* bodies, size_t numBodies, const cstone::Box<T>& box);
 
     int extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange);
 
@@ -124,19 +124,9 @@ TreeBuilder<KeyType>::Impl::Impl(unsigned ncrit)
 
 template<class KeyType>
 template<class T>
-cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(Vec4<T>* bodies, size_t numBodies, const ryoanji::Box<T>& box)
+cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(Vec4<T>* bodies, size_t numBodies, const cstone::Box<T>& csBox)
 {
     thrust::device_vector<KeyType> d_keys(numBodies);
-
-    cstone::Box<T> csBox(box.X[0] - box.R,
-                         box.X[0] + box.R,
-                         box.X[1] - box.R,
-                         box.X[1] + box.R,
-                         box.X[2] - box.R,
-                         box.X[2] + box.R,
-                         false,
-                         false,
-                         false);
 
     constexpr unsigned numThreads = 256;
     unsigned           numBlocks  = (numBodies - 1) / numThreads + 1;
@@ -219,7 +209,7 @@ TreeBuilder<KeyType>::~TreeBuilder() = default;
 
 template<class KeyType>
 template<class T>
-int TreeBuilder<KeyType>::update(Vec4<T>* bodies, size_t numBodies, const ryoanji::Box<T>& box)
+int TreeBuilder<KeyType>::update(Vec4<T>* bodies, size_t numBodies, const cstone::Box<T>& box)
 {
     return impl_->update(bodies, numBodies, box);
 }
@@ -239,9 +229,9 @@ unsigned TreeBuilder<KeyType>::maxTreeLevel() const
 template class TreeBuilder<uint32_t>;
 template class TreeBuilder<uint64_t>;
 
-template int TreeBuilder<uint32_t>::update(Vec4<float>*, size_t, const ryoanji::Box<float>&);
-template int TreeBuilder<uint64_t>::update(Vec4<float>*, size_t, const ryoanji::Box<float>&);
-template int TreeBuilder<uint32_t>::update(Vec4<double>*, size_t, const ryoanji::Box<double>&);
-template int TreeBuilder<uint64_t>::update(Vec4<double>*, size_t, const ryoanji::Box<double>&);
+template int TreeBuilder<uint32_t>::update(Vec4<float>*, size_t, const cstone::Box<float>&);
+template int TreeBuilder<uint64_t>::update(Vec4<float>*, size_t, const cstone::Box<float>&);
+template int TreeBuilder<uint32_t>::update(Vec4<double>*, size_t, const cstone::Box<double>&);
+template int TreeBuilder<uint64_t>::update(Vec4<double>*, size_t, const cstone::Box<double>&);
 
 } //namespace ryoanji

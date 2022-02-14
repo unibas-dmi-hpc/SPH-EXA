@@ -32,8 +32,7 @@
 #pragma once
 
 #include "cstone/cuda/annotation.hpp"
-#include "cstone/primitives/stl.hpp"
-#include "cstone/tree/definitions.h"
+#include "cstone/sfc/box.hpp"
 #include "cstone/util/array.hpp"
 
 namespace ryoanji
@@ -89,14 +88,6 @@ void setZero(SphericalMultipole<T, P>& M)
         M[i] = 0;
     }
 }
-
-//! Center and radius of bounding box
-template<class T>
-struct Box
-{
-    Vec3<T> X; //!< Box center
-    T R; //!< Box radius
-};
 
 class CellData
 {

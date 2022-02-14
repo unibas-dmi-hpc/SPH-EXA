@@ -49,7 +49,7 @@ public:
     TreeBuilder(unsigned ncrit);
 
     template<class T>
-    int update(Vec4<T>* bodies, size_t numBodies, const ryoanji::Box<T>& box);
+    int update(Vec4<T>* bodies, size_t numBodies, const cstone::Box<T>& box);
 
     int extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange);
 

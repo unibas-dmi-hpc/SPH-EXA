@@ -64,7 +64,7 @@ int main(int argc, char** argv)
     // upload bodies to device
     thrust::device_vector<Vec4<T>> d_bodies = h_bodies;
 
-    Box<T> box{{T(0)}, boxSize * T(1.00)};
+    cstone::Box<T> box(-boxSize, boxSize);
 
     TreeBuilder<uint64_t> treeBuilder;
     int                   numSources = treeBuilder.update(rawPtr(d_bodies.data()), d_bodies.size(), box);
