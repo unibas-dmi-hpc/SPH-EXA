@@ -24,3 +24,7 @@ target_include_directories(gravity_perf PRIVATE ${RYOANJI_TEST_INCLUDE_DIRS})
 target_link_libraries(gravity_perf PRIVATE OpenMP::OpenMP_CXX)
 #target_compile_options(gravity_perf PRIVATE -Rpass=loop-vectorize -Rpass-analysis=loop-vectorize)
 install(TARGETS gravity_perf RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/performance)
+
+add_executable(multi_rank multi_rank.cpp)
+target_include_directories(multi_rank PRIVATE ${MPI_CXX_INCLUDE_PATH} ${RYOANJI_TEST_INCLUDE_DIRS})
+target_link_libraries(multi_rank PRIVATE OpenMP::OpenMP_CXX ${MPI_CXX_LIBRARIES})
