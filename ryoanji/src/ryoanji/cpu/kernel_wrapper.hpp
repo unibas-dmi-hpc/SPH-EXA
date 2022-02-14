@@ -47,7 +47,7 @@ HOST_DEVICE_FUN void particle2Multipole(const T1* x, const T1* y, const T1* z, c
 {
     constexpr int P = 2;
 
-    setZero<T1, P>(Mout);
+    Mout = 0;
     for (LocalIndex i = first; i < last; i++)
     {
         Vec3<T1> body{x[i], y[i], z[i]};
@@ -66,7 +66,7 @@ HOST_DEVICE_FUN void particle2Multipole(const T1* x, const T1* y, const T1* z, c
 {
     constexpr int P = 4;
 
-    setZero<T1, P>(Mout);
+    Mout = 0;
     for (LocalIndex i = first; i < last; i++)
     {
         Vec3<T1> body{x[i], y[i], z[i]};
@@ -111,9 +111,7 @@ template<class T, class MType,
          std::enable_if_t<MType{}.size() == TermSize<2>{} || MType{}.size() == TermSize<4>{}, int> = 0>
 void multipole2Multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc, const MType* Msrc, MType& Mout)
 {
-    constexpr int P = ExpansionOrder<MType{}.size()>{};
-
-    setZero<T, P>(Mout);
+    Mout = 0;
     M2M(begin, end, Xout, Xsrc, Msrc, Mout);
 }
 

@@ -80,15 +80,6 @@ struct ExpansionOrder<TermSize<4>{}> : stl::integral_constant<size_t, 4>
 {
 };
 
-template<class T, size_t P>
-void setZero(SphericalMultipole<T, P>& M)
-{
-    for (size_t i = 0; i < TermSize<P>{}; ++i)
-    {
-        M[i] = 0;
-    }
-}
-
 class CellData
 {
 private:

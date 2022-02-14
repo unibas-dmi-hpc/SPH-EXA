@@ -60,15 +60,6 @@ struct Cqi
     };
 };
 
-template<class T>
-void setZero(CartesianQuadrupole<T>& M)
-{
-    for (size_t i = 0; i < M.size(); ++i)
-    {
-        M[i] = 0;
-    }
-}
-
 /*! @brief Compute the monopole and quadruple moments from particle coordinates
  *
  * @tparam       T1             float or double
@@ -91,7 +82,7 @@ void particle2Multipole(const T1* x,
                         const Vec3<T1>& center,
                         CartesianQuadrupole<T3>& gv)
 {
-    setZero(gv);
+    gv = T3(0);
     if (first == last) { return; }
 
     for (LocalIndex i = first; i < last; ++i)
@@ -345,7 +336,7 @@ void addQuadrupole(CartesianQuadrupole<T>& composite, Vec3<T> dX, const Cartesia
 template<class T, class MType, std::enable_if_t<MType{}.size() == CartesianQuadrupole<T>{}.size(), int> = 0>
 void multipole2Multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc, const MType* Msrc, MType& Mout)
 {
-    setZero(Mout);
+    Mout = 0;
     for (int i = begin; i < end; i++)
     {
         const MType& Mi = Msrc[i];

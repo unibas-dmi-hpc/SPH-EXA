@@ -68,11 +68,7 @@ __global__ void upwardPass(const int firstCell, const int lastCell, CellData* ce
     Vec3<T>   Xmax{-huge, -huge, -huge};
     Vec4<T>   center;
     MType     M;
-
-    for (int k = 0; k < M.size(); ++k)
-    {
-        M[k] = 0;
-    }
+    M = 0;
 
     if (cell.isLeaf())
     {
