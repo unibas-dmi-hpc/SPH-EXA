@@ -40,6 +40,8 @@
 #include <iostream>
 #include <cmath>
 
+#include "noh_io.hpp"
+
 using namespace std;
 
 template<typename T, typename I>
@@ -68,7 +70,7 @@ public:
         NohSol(dim, rPoints, time, gamma_i, rho0, u0, p0, vel0, cs0, r, rho, u, p, vel, cs);
 
         // Write solution file
-        NohFileData<T, I>::writeData1D(rPoints, r, rho, u, p, vel, cs, outfile);
+        NohSolutionFile<T, I>::writeData1D(rPoints, r, rho, u, p, vel, cs, outfile);
     }
 
 private:

@@ -38,16 +38,13 @@
 #include <iostream>
 #include <iomanip>
 
-#include "analytical_solutions/common/particle_io.hpp"
-
 using namespace std;
 
 template<typename T, typename I>
-class NohFileData : public FileData<T, I>
+class NohSolutionFile
 {
-
 private:
-    NohFileData(); // Singleton
+    NohSolutionFile(); // Singleton
 
 public:
     static void writeColumns1D(ostream& out) //
@@ -97,28 +94,28 @@ public:
             exit(EXIT_FAILURE);
         }
     }
+};
 
-    static void writeParticle1D(const I                         n,         //
-                                const vector<ParticleIO<T, I>>& vParticle, //
-                                const string&                   outfile)
+template<typename T, typename I, typename Dataset>
+struct NohSolutionDataFile : NohSolutionFile<T, I>
+{
+private:
+    NohSolutionDataFile(); // Singleton
+
+public:
+    static void writeParticle1D(const I       n,  //
+                                const Dataset &d, //
+                                const string& outfile)
     {
         vector<T> r(n);
-        vector<T> rho(n);
-        vector<T> u(n);
-        vector<T> p(n);
         vector<T> vel(n);
-        vector<T> cs(n);
 
         for (I i = 0; i < n; i++)
         {
-            r[i]   = vParticle[i].r;
-            rho[i] = vParticle[i].rho;
-            u[i]   = vParticle[i].u;
-            p[i]   = vParticle[i].p;
-            vel[i] = vParticle[i].vel;
-            cs[i]  = vParticle[i].cs;
+            r[i]   = sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
+            vel[i] = sqrt((d.vx[i] * d.vx[i]) + (d.vy[i] * d.vy[i]) + (d.vz[i] * d.vz[i]));
         }
 
-        writeData1D(n, r, rho, u, p, vel, cs, outfile);
+        NohSolutionFile<T, I>::writeData1D(n, r, d.ro, d.u, d.p, vel, d.c, outfile);
     }
 };

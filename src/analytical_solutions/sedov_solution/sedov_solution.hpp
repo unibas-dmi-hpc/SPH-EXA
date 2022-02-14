@@ -51,6 +51,8 @@
 #include <iostream>
 #include <cmath>
 
+#include "sedov_io.hpp"
+
 using namespace std;
 
 template<typename T, typename I>
@@ -88,7 +90,7 @@ public:
         sedovSol(dim, rPoints, time, eblast, omega_i, gamma_i, rho0, u0, p0, vel0, cs0, r, rho, p, u, vel, cs);
 
         // Write solution file
-        SedovFileData<T, I>::writeData1D(
+        SedovSolutionFile<T, I>::writeData1D(
             rPoints, r, rho, u, p, vel, cs, rho_shock, u_shock, p_shock, vel_shock, cs_shock, rho0, outfile);
     }
 

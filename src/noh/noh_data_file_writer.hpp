@@ -5,25 +5,49 @@
 
 namespace sphexa
 {
-template <typename Dataset>
-struct NohDataFileWriter : IFileWriter<Dataset>
+template<typename Dataset>
+struct NohDataFileWriter : public IFileWriter<Dataset>
 {
-    void dumpParticleDataToBinFile(const Dataset &d, const std::string &path) const override
+    void dumpParticleDataToBinFile(const Dataset& d, const std::string& path) const override
     {
         try
         {
             printf("Dumping particles data to file at path: %s\n", path.c_str());
-            fileutils::writeParticleDataToBinFile(path, d.x, d.y, d.z, d.vx, d.vy, d.vz, d.h, d.ro, d.u, d.p, d.c, d.grad_P_x, d.grad_P_y,
-                                                  d.grad_P_z /*, d.radius*/);
+            fileutils::writeParticleDataToBinFile(path,
+                                                  d.x,
+                                                  d.y,
+                                                  d.z,
+                                                  d.vx,
+                                                  d.vy,
+                                                  d.vz,
+                                                  d.ro,
+                                                  d.u,
+                                                  d.p,
+                                                  d.h,
+                                                  d.m,
+                                                  d.temp,
+                                                  d.mue,
+                                                  d.mui,
+                                                  d.du,
+                                                  d.du_m1,
+                                                  d.dt,
+                                                  d.dt_m1,
+                                                  d.x_m1,
+                                                  d.y_m1,
+                                                  d.z_m1,
+                                                  d.c,
+                                                  d.grad_P_x,
+                                                  d.grad_P_y,
+                                                  d.grad_P_z);
         }
-        catch (FileNotOpenedException &ex)
+        catch (FileNotOpenedException& ex)
         {
             fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
             exit(EXIT_FAILURE);
         }
     }
 
-    void dumpParticleDataToAsciiFile(const Dataset &d, int firstIndex, int lastIndex, const std::string &path) const override
+    void dumpParticleDataToAsciiFile(const Dataset& d, int firstIndex, int lastIndex, const std::string& path) const override
     {
         try
         {
@@ -40,10 +64,21 @@ struct NohDataFileWriter : IFileWriter<Dataset>
                                                     d.vx,
                                                     d.vy,
                                                     d.vz,
-                                                    d.h,
                                                     d.ro,
                                                     d.u,
                                                     d.p,
+                                                    d.h,
+                                                    d.m,
+                                                    d.temp,
+                                                    d.mue,
+                                                    d.mui,
+                                                    d.du,
+                                                    d.du_m1,
+                                                    d.dt,
+                                                    d.dt_m1,
+                                                    d.x_m1,
+                                                    d.y_m1,
+                                                    d.z_m1,
                                                     d.c,
                                                     d.grad_P_x,
                                                     d.grad_P_y,
@@ -56,55 +91,162 @@ struct NohDataFileWriter : IFileWriter<Dataset>
         }
     }
 
-    #ifdef SPH_EXA_HAVE_H5PART
-    void dumpParticleDataToH5File(const Dataset &d, const std::vector<int> &clist, const std::string &path) const override
+    void dumpParticleDataToAsciiFile(const Dataset& d, const std::vector<int>& clist, const std::string& path) const override
     {
         try
         {
-            fileutils::writeParticleDataToBinFileWithH5Part(d, clist, path, d.x, d.y, d.z, d.h, d.ro);
-                //d.vx, d.vy, d.vz, d.h, d.ro, d.u, d.p, d.c, d.grad_P_x,
-                //d.grad_P_y, d.grad_P_z /*, d.radius*/);
+            const char separator = ' ';
+
+            printf("Dumping particles data to ASCII file at path: %s\n", path.c_str());
+            fileutils::writeParticleDataToAsciiFile(clist,
+                                                    path,
+                                                    separator,
+                                                    d.x,
+                                                    d.y,
+                                                    d.z,
+                                                    d.vx,
+                                                    d.vy,
+                                                    d.vz,
+                                                    d.ro,
+                                                    d.u,
+                                                    d.p,
+                                                    d.h,
+                                                    d.m,
+                                                    d.temp,
+                                                    d.mue,
+                                                    d.mui,
+                                                    d.du,
+                                                    d.du_m1,
+                                                    d.dt,
+                                                    d.dt_m1,
+                                                    d.x_m1,
+                                                    d.y_m1,
+                                                    d.z_m1,
+                                                    d.c,
+                                                    d.grad_P_x,
+                                                    d.grad_P_y,
+                                                    d.grad_P_z);
         }
-        catch (MPIFileNotOpenedException &ex)
+        catch (FileNotOpenedException& ex)
         {
-            if (d.rank == 0) fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
-            MPI_Abort(d.comm, ex.mpierr);
+            fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
+            exit(EXIT_FAILURE);
         }
     }
-    #endif
 
-    void dumpCheckpointDataToBinFile(const Dataset &, const std::string &) const override
+    void dumpCheckpointDataToBinFile(const Dataset& d, const std::string& path) const override
     {
-        fprintf(stderr, "Warning: dumping checkpoint is not implemented in NohDataFileWriter, exiting...\n");
-        exit(EXIT_FAILURE);
+        try
+        {
+            printf("Saving checkpoint at path: %s\n", path.c_str());
+            fileutils::writeParticleCheckpointDataToBinFile(d,
+                                                            path,
+                                                            d.x,
+                                                            d.y,
+                                                            d.z,
+                                                            d.vx,
+                                                            d.vy,
+                                                            d.vz,
+                                                            d.ro,
+                                                            d.u,
+                                                            d.p,
+                                                            d.h,
+                                                            d.m,
+                                                            d.temp,
+                                                            d.mue,
+                                                            d.mui,
+                                                            d.du,
+                                                            d.du_m1,
+                                                            d.dt,
+                                                            d.dt_m1,
+                                                            d.x_m1,
+                                                            d.y_m1,
+                                                            d.z_m1,
+                                                            d.c,
+                                                            d.grad_P_x,
+                                                            d.grad_P_y,
+                                                            d.grad_P_z);
+        }
+        catch (FileNotOpenedException& ex)
+        {
+            fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
+            exit(EXIT_FAILURE);
+        }
     }
 };
 
 #ifdef USE_MPI
 
-template <typename Dataset>
+template<typename Dataset>
 struct NohDataMPIFileWriter : IFileWriter<Dataset>
 {
-    #ifdef SPH_EXA_HAVE_H5PART
-    void dumpParticleDataToH5File(const Dataset& d, int firstIndex, int lastIndex, const std::string &path) const override
+#ifdef SPH_EXA_HAVE_H5PART
+    void dumpParticleDataToH5File(const Dataset& d, int firstIndex, int lastIndex,
+                                  const std::string& path) const override
     {
         fileutils::writeParticleDataToBinFileWithH5Part(d, firstIndex, lastIndex, path);
     }
-    #endif
 
-    void dumpParticleDataToBinFile(const Dataset &d, const std::string &path) const override
+    void dumpParticleDataToH5File(const Dataset &d, const std::vector<int> &clist,
+                                  const std::string &path) const override
     {
         try
         {
-            fileutils::writeParticleDataToBinFileWithMPI(d, path, d.x, d.y, d.z, d.vx, d.vy, d.vz, d.h, d.ro, d.u, d.p, d.c, d.grad_P_x,
-                                                         d.grad_P_y, d.grad_P_z);
+            fileutils::writeParticleDataToBinFileWithH5Part(d,
+                                                            clist,
+                                                            path,
+                                                            d.x,
+                                                            d.y,
+                                                            d.z,
+                                                            d.h,
+                                                            d.ro);
         }
         catch (MPIFileNotOpenedException &ex)
         {
             if (d.rank == 0) fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
             MPI_Abort(d.comm, ex.mpierr);
         }
-    };
+    }
+#endif
+
+    void dumpParticleDataToBinFile(const Dataset& d, const std::string& path) const override
+    {
+        try
+        {
+            fileutils::writeParticleDataToBinFileWithMPI(d,
+                                                         path,
+                                                         d.x,
+                                                         d.y,
+                                                         d.z,
+                                                         d.vx,
+                                                         d.vy,
+                                                         d.vz,
+                                                         d.ro,
+                                                         d.u,
+                                                         d.p,
+                                                         d.h,
+                                                         d.m,
+                                                         d.temp,
+                                                         d.mue,
+                                                         d.mui,
+                                                         d.du,
+                                                         d.du_m1,
+                                                         d.dt,
+                                                         d.dt_m1,
+                                                         d.x_m1,
+                                                         d.y_m1,
+                                                         d.z_m1,
+                                                         d.c,
+                                                         d.grad_P_x,
+                                                         d.grad_P_y,
+                                                         d.grad_P_z);
+        }
+        catch (MPIFileNotOpenedException& ex)
+        {
+            if (d.rank == 0) fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
+            MPI_Abort(d.comm, ex.mpierr);
+        }
+    }
 
     void dumpParticleDataToAsciiFile(const Dataset& d, int firstIndex, int lastIndex,
                                      const std::string& path) const override
@@ -128,16 +270,27 @@ struct NohDataMPIFileWriter : IFileWriter<Dataset>
                                                             d.vx,
                                                             d.vy,
                                                             d.vz,
-                                                            d.h,
                                                             d.ro,
                                                             d.u,
                                                             d.p,
+                                                            d.h,
+                                                            d.m,
+                                                            d.temp,
+                                                            d.mue,
+                                                            d.mui,
+                                                            d.du,
+                                                            d.du_m1,
+                                                            d.dt,
+                                                            d.dt_m1,
+                                                            d.x_m1,
+                                                            d.y_m1,
+                                                            d.z_m1,
                                                             d.c,
                                                             d.grad_P_x,
                                                             d.grad_P_y,
                                                             d.grad_P_z);
                 }
-                catch (MPIFileNotOpenedException &ex)
+                catch (MPIFileNotOpenedException& ex)
                 {
                     if (d.rank == 0) fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
                     MPI_Abort(d.comm, ex.mpierr);
@@ -152,12 +305,17 @@ struct NohDataMPIFileWriter : IFileWriter<Dataset>
         }
     }
 
-    void dumpCheckpointDataToBinFile(const Dataset &d, const std::string &) const override
+    void dumpCheckpointDataToBinFile(const Dataset& d, const std::string& path) const override
     {
-        if (d.rank == 0) fprintf(stderr, "Warning: dumping checkpoint is not implemented in NohDataMPIFileWriter, exiting...\n");
-        MPI_Abort(d.comm, MPI_ERR_OTHER);
+        if (d.rank == 0)
+            printf("Dumping checkpoint...\n");
+
+        dumpParticleDataToBinFile(d, path);
+
+        if (d.rank == 0)
+            printf("Dumped checkpoint...\n");
     }
 };
-
 #endif
+
 } // namespace sphexa

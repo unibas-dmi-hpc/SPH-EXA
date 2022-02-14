@@ -7,7 +7,7 @@ namespace sphexa
 {
 
 template<typename Dataset>
-struct EvrardDataFileReader : IFileReader<Dataset>
+struct SedovDataFileReader : IFileReader<Dataset>
 {
     Dataset readParticleDataFromBinFile(const std::string& path, const size_t noParticles) const override
     {
@@ -156,7 +156,7 @@ protected:
 
 #ifdef USE_MPI
 template<typename Dataset>
-struct EvrardDataMPIFileReader : EvrardDataFileReader<Dataset>
+struct SedovDataMPIFileReader : SedovDataFileReader<Dataset>
 {
     Dataset readParticleDataFromBinFile(const std::string& path, const size_t noParticles) const override
     {
