@@ -130,20 +130,13 @@ __global__ void setMAC(int numCells, T invTheta, Vec4<T>* sourceCenter, const Ve
 }
 
 template<class MType>
-__global__ void normalize(int numCells, MType* Multipole)
+__global__ void normalize(int numCells, MType* multipoles)
 {
     using T     = typename MType::value_type;
     int cellIdx = blockIdx.x * blockDim.x + threadIdx.x;
     if (cellIdx >= numCells) { return; }
 
-    MType M    = Multipole[cellIdx];
-    T     mass = M[0];
-    T     invM = (mass != T(0.0)) ? T(1.0) / mass : T(0.0);
-
-    M *= invM;
-    M[0] = mass;
-
-    Multipole[cellIdx] = M;
+    multipoles[cellIdx] = normalize(multipoles[cellIdx]);
 }
 
 template<class T, class MType>

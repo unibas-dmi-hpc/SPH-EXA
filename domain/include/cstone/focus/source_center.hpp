@@ -129,10 +129,10 @@ HOST_DEVICE_FUN T computeMac(KeyType prefix, Vec3<T> expCenter, float invTheta, 
     IBox cellBox              = sfcIBox(sfcKey(nodeKey), prefixLength / 3);
     auto [geoCenter, geoSize] = centerAndSize<KeyType>(cellBox, box);
 
-    Vec3<T> dX        = expCenter - geoCenter;
+    Vec3<T> dX = expCenter - geoCenter;
 
-    T s = sqrt(norm2(dX));
-    T l = T(2.0) * max(geoSize);
+    T s   = sqrt(norm2(dX));
+    T l   = T(2.0) * max(geoSize);
     T mac = l * invTheta + s;
 
     return mac * mac;
