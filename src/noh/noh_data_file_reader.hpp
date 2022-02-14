@@ -1,4 +1,4 @@
-#include <iostream>
+#pragma once
 
 #include "ifile_reader.hpp"
 #include "file_utils.hpp"

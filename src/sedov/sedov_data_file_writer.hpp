@@ -6,7 +6,7 @@
 namespace sphexa
 {
 template<typename Dataset>
-struct SedovDataFileWriter : public IFileWriter<Dataset>
+struct SedovDataFileWriter : IFileWriter<Dataset>
 {
     void dumpParticleDataToBinFile(const Dataset& d, const std::string& path) const override
     {
