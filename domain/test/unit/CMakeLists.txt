@@ -24,6 +24,7 @@ set(UNIT_TESTS
         tree/octree.cpp
         tree/octree_internal.cpp
         tree/octree_util.cpp
+        util/array.cpp
         util/util.cpp
         test_main.cpp)
 

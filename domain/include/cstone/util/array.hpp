@@ -127,6 +127,13 @@ struct alignas(determineAlignment<T>(N)) array
 
     HOST_DEVICE_FUN constexpr const_pointer data() const noexcept { return data_; }
 
+    HOST_DEVICE_FUN constexpr array<T, N>& operator=(const value_type& rhs) noexcept
+    {
+        auto assignAToB = [](T /*a*/, T b) { return b; };
+        assignImpl(data(), rhs, assignAToB, std::make_index_sequence<N>{});
+        return *this;
+    }
+
     HOST_DEVICE_FUN constexpr array<T, N>& operator+=(const array<T, N>& rhs) noexcept
     {
         auto add = [](T a, T b) { return a + b; };
@@ -186,6 +193,24 @@ HOST_DEVICE_FUN constexpr array<T, N> operator+(const array<T, N>& a, const arra
 {
     auto ret = a;
     return ret += b;
+}
+
+namespace detail
+{
+
+template<class T, std::size_t... Is>
+HOST_DEVICE_FUN constexpr array<T, sizeof...(Is)> negateImpl(const array<T, sizeof...(Is)>& a,
+                                                             std::index_sequence<Is...>)
+{
+    return array<T, sizeof...(Is)>{-a[Is]...};
+}
+
+} // namespace detail
+
+template<class T, std::size_t N>
+HOST_DEVICE_FUN constexpr array<T, N> operator-(const array<T, N>& a)
+{
+    return detail::negateImpl(a, std::make_index_sequence<N>{});
 }
 
 template<class T, std::size_t N>
