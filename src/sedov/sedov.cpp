@@ -38,6 +38,7 @@ int main(int argc, char** argv)
     const size_t      cubeSide       = parser.getInt("-n", 50);
     const size_t      maxStep        = parser.getInt("-s", 200);
     const int         writeFrequency = parser.getInt("-w", -1);
+    const bool        ascii          = parser.exists("--ascii");
     const bool        quiet          = parser.exists("--quiet");
     const std::string outDirectory   = parser.getString("--outDir");
 
@@ -104,10 +105,19 @@ int main(int argc, char** argv)
             fileWriter.dumpParticleDataToH5File(
                 d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov.h5part");
 #else
-            fileWriter.dumpParticleDataToAsciiFile(d,
-                                                   domain.startIndex(),
-                                                   domain.endIndex(),
-                                                   outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".txt");
+            if (ascii)
+            {
+                fileWriter.dumpParticleDataToAsciiFile(d,
+                                                       domain.startIndex(),
+                                                       domain.endIndex(),
+                                                       outDirectory + "dump_sedov" + std::to_string(d.iteration) +
+                                                           ".txt");
+            }
+            else
+            {
+                fileWriter.dumpParticleDataToBinFile(
+                    d, outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".txt");
+            }
 #endif
         }
 
@@ -129,12 +139,13 @@ void printHelp(char* name, int rank)
         printf("%s [OPTIONS]\n", name);
         printf("\nWhere possible options are:\n\n");
 
-        printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
-        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [200]\n\n");
+        printf("\t-n NUM \t\t\t NUM^3 Number of particles [50].\n");
+        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [200].\n\n");
 
-        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
+        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1].\n");
+        printf("\t--ascii \t\t  Write file in ASCII format [false].\n\n");
 
-        printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
+        printf("\t--quiet \t\t Don't print anything to stdout [false].\n\n");
 
         printf("\t--outDir PATH \t\t Path to directory where output will be saved [./].\
                     \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
