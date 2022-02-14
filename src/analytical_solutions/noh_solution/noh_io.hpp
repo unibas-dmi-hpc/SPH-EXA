@@ -103,9 +103,9 @@ private:
     NohSolutionDataFile(); // Singleton
 
 public:
-    static void writeParticle1D(const I       n,  //
-                                const Dataset &d, //
-                                const string& outfile)
+    static void writeParticle1D(const I        n, //
+                                const Dataset& d, //
+                                const string&  outfile)
     {
         vector<T> r(n);
         vector<T> vel(n);

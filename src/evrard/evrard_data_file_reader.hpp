@@ -197,9 +197,7 @@ struct EvrardDataMPIFileReader : EvrardDataFileReader<Dataset>
                                                           d.grad_P_y,
                                                           d.grad_P_z);
 
-            if (d.rank == 0)
-                printf("Loaded input file with %lu particles from path '%s' \n", d.n, path.c_str());
-
+            if (d.rank == 0) printf("Loaded input file with %lu particles from path '%s' \n", d.n, path.c_str());
         }
         catch (MPIFileNotOpenedException& ex)
         {
@@ -248,8 +246,7 @@ struct EvrardDataMPIFileReader : EvrardDataFileReader<Dataset>
 
             d.etot = d.ecin = d.eint = d.egrav = 0.0;
 
-            if (d.rank == 0)
-                printf("Loaded checkpoint file with %lu particles from path '%s'\n", d.n, path.c_str());
+            if (d.rank == 0) printf("Loaded checkpoint file with %lu particles from path '%s'\n", d.n, path.c_str());
         }
         catch (MPIFileNotOpenedException& ex)
         {

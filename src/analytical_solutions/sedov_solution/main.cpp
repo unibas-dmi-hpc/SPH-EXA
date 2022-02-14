@@ -74,9 +74,7 @@ int main(int argc, char** argv)
 
     // Load ParticlesData
     const IFileReader<Dataset>& fileReader = SedovDataFileReader<Dataset>();
-    auto d = fileReader.readParticleDataFromBinFile(inputFile, nParts);
-    vector<T> r(nParts);
-
+    auto                        d          = fileReader.readParticleDataFromBinFile(inputFile, nParts);
 
     if (!only_sol)
     {
@@ -91,8 +89,8 @@ int main(int argc, char** argv)
             exit(EXIT_FAILURE);
         }
 
-        // sort ParticleData by radius
-        //sort(vSim.begin(), vSim.end(), ParticleIO<T, I>::cmp());
+        // Sorting ParticleData by radius
+        // sort(vSim.begin(), vSim.end(), ParticleIO<T, I>::cmp());
     }
 
     // Get time without rounding

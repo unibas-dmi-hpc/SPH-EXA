@@ -47,7 +47,8 @@ struct SedovDataFileWriter : public IFileWriter<Dataset>
         }
     }
 
-    void dumpParticleDataToAsciiFile(const Dataset& d, int firstIndex, int lastIndex, const std::string& path) const override
+    void dumpParticleDataToAsciiFile(const Dataset& d, int firstIndex, int lastIndex,
+                                     const std::string& path) const override
     {
         try
         {
@@ -91,7 +92,8 @@ struct SedovDataFileWriter : public IFileWriter<Dataset>
         }
     }
 
-    void dumpParticleDataToAsciiFile(const Dataset& d, const std::vector<int>& clist, const std::string& path) const override
+    void dumpParticleDataToAsciiFile(const Dataset& d, const std::vector<int>& clist,
+                                     const std::string& path) const override
     {
         try
         {
@@ -187,21 +189,14 @@ struct SedovDataMPIFileWriter : IFileWriter<Dataset>
         fileutils::writeParticleDataToBinFileWithH5Part(d, firstIndex, lastIndex, path);
     }
 
-    void dumpParticleDataToH5File(const Dataset &d, const std::vector<int> &clist,
-                                  const std::string &path) const override
+    void dumpParticleDataToH5File(const Dataset& d, const std::vector<int>& clist,
+                                  const std::string& path) const override
     {
         try
         {
-            fileutils::writeParticleDataToBinFileWithH5Part(d,
-                                                            clist,
-                                                            path,
-                                                            d.x,
-                                                            d.y,
-                                                            d.z,
-                                                            d.h,
-                                                            d.ro);
+            fileutils::writeParticleDataToBinFileWithH5Part(d, clist, path, d.x, d.y, d.z, d.h, d.ro);
         }
-        catch (MPIFileNotOpenedException &ex)
+        catch (MPIFileNotOpenedException& ex)
         {
             if (d.rank == 0) fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
             MPI_Abort(d.comm, ex.mpierr);
@@ -307,13 +302,11 @@ struct SedovDataMPIFileWriter : IFileWriter<Dataset>
 
     void dumpCheckpointDataToBinFile(const Dataset& d, const std::string& path) const override
     {
-        if (d.rank == 0)
-            printf("Dumping checkpoint...\n");
+        if (d.rank == 0) printf("Dumping checkpoint...\n");
 
         dumpParticleDataToBinFile(d, path);
 
-        if (d.rank == 0)
-            printf("Dumped checkpoint...\n");
+        if (d.rank == 0) printf("Dumped checkpoint...\n");
     }
 };
 #endif

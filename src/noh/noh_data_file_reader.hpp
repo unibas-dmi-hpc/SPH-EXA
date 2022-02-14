@@ -179,7 +179,6 @@ struct NohDataMPIFileReader : NohDataFileReader<Dataset>
 
             if (d.rank == 0)
                 printf("Loaded input file with %lu particles for Noh from path '%s' \n", d.n, path.c_str());
-
         }
         catch (MPIFileNotOpenedException& ex)
         {

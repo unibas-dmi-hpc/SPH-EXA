@@ -122,15 +122,15 @@ private:
     SedovSolutionDataFile(); // Singleton
 
 public:
-    static void writeParticle1D(const I       n,         //
-                                const Dataset &d,        //
-                                const T       rho_shock, //
-                                const T       u_shock,   //
-                                const T       p_shock,   //
-                                const T       vel_shock, //
-                                const T       cs_shock,  //
-                                const T       rho0,      //
-                                const string& outfile)
+    static void writeParticle1D(const I        n,         //
+                                const Dataset& d,         //
+                                const T        rho_shock, //
+                                const T        u_shock,   //
+                                const T        p_shock,   //
+                                const T        vel_shock, //
+                                const T        cs_shock,  //
+                                const T        rho0,      //
+                                const string&  outfile)
     {
         vector<T> r(n);
         vector<T> vel(n);
@@ -141,6 +141,7 @@ public:
             vel[i] = sqrt((d.vx[i] * d.vx[i]) + (d.vy[i] * d.vy[i]) + (d.vz[i] * d.vz[i]));
         }
 
-        SedovSolutionFile<T, I>::writeData1D(n, r, d.ro, d.u, d.p, vel, d.c, rho_shock, u_shock, p_shock, vel_shock, cs_shock, rho0, outfile);
+        SedovSolutionFile<T, I>::writeData1D(
+            n, r, d.ro, d.u, d.p, vel, d.c, rho_shock, u_shock, p_shock, vel_shock, cs_shock, rho0, outfile);
     }
 };

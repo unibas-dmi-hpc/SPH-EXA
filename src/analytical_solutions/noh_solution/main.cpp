@@ -74,7 +74,7 @@ int main(int argc, char** argv)
 
     // Load ParticlesData
     const IFileReader<Dataset>& fileReader = NohDataFileReader<Dataset>();
-    auto d = fileReader.readParticleDataFromBinFile(inputFile, nParts);
+    auto                        d          = fileReader.readParticleDataFromBinFile(inputFile, nParts);
 
     if (!only_sol)
     {
@@ -89,8 +89,8 @@ int main(int argc, char** argv)
             exit(EXIT_FAILURE);
         }
 
-        // Sort ParticleData by radius
-        //sort(vSim.begin(), vSim.end(), ParticleIO<T, I>::cmp());
+        // Sorting ParticleData by radius
+        // sort(vSim.begin(), vSim.end(), ParticleIO<T, I>::cmp());
     }
 
     // Get time without rounding
