@@ -410,7 +410,7 @@ def evaluate_errors_L1(
         L1_cs /= nparts
 
         # Write data in the file
-        errFile = out_dir + test_name + "_errors_L1_" + time.__str__() + ".dat"
+        errFile = out_dir + test_name + "_errors_L1_" + time.__str__() + ".txt"
         file = open(errFile, "w")
         hstr = "#   01:L1_rho    02:L1_u    03:L1_p   04:L1_vel    05:L1_cs\n"
         file.write(hstr)
@@ -792,7 +792,7 @@ def sedov(
     print("Checking outputs ...")
 
     # Load Solution file
-    solFile = out_dir + "sedov_solution_" + time.__str__() + ".dat"
+    solFile = out_dir + "sedov_solution_" + time.__str__() + ".txt"
     sol_r, sol_rho,sol_u,sol_p,sol_vel,sol_cs, sol_rhoShock,sol_uShock,sol_pShock,sol_velShock,sol_csShock, sol_rho0 = sedov_load_file(solFile)
 
     if only_solution:
@@ -800,7 +800,7 @@ def sedov(
         exit(0)
 
     # Load Simulated file
-    simFile = out_dir + "sedov_simulation_" + time.__str__() + ".dat"
+    simFile = out_dir + "sedov_simulation_" + time.__str__() + ".txt"
     sim_r, sim_rho,sim_u,sim_p,sim_vel,sim_cs, sim_rhoShock,sim_uShock,sim_pShock,sim_velShock,sim_csShock, sim_rho0 = sedov_load_file(simFile)
 
 
@@ -1086,7 +1086,7 @@ def noh(
     print("Checking outputs ...")
 
     # Load Solution file
-    solFile = out_dir + "noh_solution_" + time.__str__() + ".dat"
+    solFile = out_dir + "noh_solution_" + time.__str__() + ".txt"
     sol_r, sol_rho,sol_u,sol_p,sol_vel,sol_cs = noh_load_file(solFile)
 
     if only_solution:
@@ -1094,7 +1094,7 @@ def noh(
         exit(0)
 
     # Load Simulated file
-    simFile = out_dir + "noh_simulation_" + time.__str__() + ".dat"
+    simFile = out_dir + "noh_simulation_" + time.__str__() + ".txt"
     sim_r, sim_rho,sim_u,sim_p,sim_vel,sim_cs = noh_load_file(simFile)
 
 

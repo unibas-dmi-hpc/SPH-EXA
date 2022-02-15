@@ -165,14 +165,14 @@ int main(int argc, char** argv)
             }
         }
 
-        const string simFile = outDir + "noh_simulation_" + time_str + ".dat";
+        const string simFile = outDir + "noh_simulation_" + time_str + ".txt";
         cout << "Simulation file: '" << simFile << "'";
 
         // Write 1D simulation solution to compare with the theoretical solution
         NohSolutionDataFile<T, I, Dataset>::writeParticle1D(nParts, d, simFile);
     }
 
-    const string solFile = outDir + "noh_solution_" + time_str + ".dat";
+    const string solFile = outDir + "noh_solution_" + time_str + ".txt";
     cout << "Solution   file: '" << solFile << "'";
 
     // Calculate Noh solution

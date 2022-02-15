@@ -163,12 +163,11 @@ int main(int argc, char** argv)
             nSteps = nParts;
             for (I i = 0; i < nSteps; i++)
             {
-                cout << "radii[" << i << "]=" << radii[i] << endl;
                 rSol.push_back(radii[i]);
             }
         }
 
-        const string simFile = outDir + "sedov_simulation_" + time_str + ".dat";
+        const string simFile = outDir + "sedov_simulation_" + time_str + ".txt";
         cout << "Simulation file: '" << simFile << "'";
 
         // Write 1D simulation solution to compare with the theoretical solution
@@ -183,7 +182,7 @@ int main(int argc, char** argv)
                                                               simFile);
     }
 
-    const string solFile = outDir + "sedov_solution_" + time_str + ".dat";
+    const string solFile = outDir + "sedov_solution_" + time_str + ".txt";
     cout << "Solution   file: '" << solFile << "'";
 
     // Calculate Sedov solution
