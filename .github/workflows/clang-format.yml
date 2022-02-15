@@ -26,4 +26,6 @@ jobs:
         run: clang-format -i --style=file `git diff --name-only origin/develop`
       - name: report formating issues (if any)
         if: always()
-        run: git diff --color --exit-code
+        run: |
+          git diff --name-only
+          git diff --color --exit-code
