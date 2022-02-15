@@ -63,6 +63,7 @@ int main(int argc, char** argv)
     size_t bucketSize = std::max(bucketSizeFocus, d.n / (100 * d.nrank));
 
     Box<Real> box(0, 1);
+    MARK_BEGIN("00_box")
     box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
 
     // enable PBC and enlarge bounds
@@ -70,6 +71,7 @@ int main(int argc, char** argv)
     box = Box<Real>(box.xmin() - dx, box.xmax() + dx,
                     box.ymin() - dx, box.ymax() + dx,
                     box.zmin() - dx, box.zmax() + dx, true, true, true);
+    MARK_END
 
     float theta = 1.0;
 
@@ -81,13 +83,17 @@ int main(int argc, char** argv)
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 
+    MARK_BEGIN("00_domain.sync")
     domain.sync(
         d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
 
     if (d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
+    MARK_END
 
+    MARK_BEGIN("00_visu_init")
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
+    MARK_END
 
     const size_t nTasks = 64;
     const size_t ngmax  = 150;
@@ -117,13 +123,17 @@ int main(int argc, char** argv)
             #endif
         }
 
+        MARK_BEGIN("15_visu_output")
         if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
+        MARK_END
     }
 
     totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Sedov");
 
     constantsFile.close();
+    MARK_BEGIN("16_visu_finalize")
     viz::finalize();
+    MARK_END
     return exitSuccess();
 }
 

@@ -6,6 +6,7 @@
 
 #include "sph/kernels.hpp"
 #include "particles_data.hpp"
+#include "timer.hpp"
 
 namespace sphexa
 {
@@ -34,6 +35,7 @@ public:
     {
         ParticlesData<T, I> pd;
 
+        MARK_BEGIN("00_init")
         if (pd.rank == 0 && side < 8)
         {
             printf("ERROR::Sedov::init()::SmoothingLength n too small\n");
@@ -57,6 +59,7 @@ public:
         load(pd);
         init(pd);
 
+        MARK_END
         return pd;
     }
 

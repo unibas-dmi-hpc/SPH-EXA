@@ -4,6 +4,25 @@
 #include <iostream>
 #include <functional>
 
+
+#if defined(USE_PROFILING_NVTX) || defined(USE_PROFILING_SCOREP)
+#ifdef USE_PROFILING_NVTX
+#include <nvToolsExt.h>
+#define MARK_BEGIN(xx) nvtxRangePush(xx);
+#define MARK_END nvtxRangePop();
+#endif
+
+#ifdef USE_PROFILING_SCOREP
+#include "scorep/SCOREP_User.h"
+#define MARK_BEGIN(xx) {SCOREP_USER_REGION(xx, SCOREP_USER_REGION_TYPE_COMMON)
+#define MARK_END }
+#endif
+
+#else
+#define MARK_BEGIN(xx)
+#define MARK_END
+#endif
+
 namespace sphexa
 {
 
