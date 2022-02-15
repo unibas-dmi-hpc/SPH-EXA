@@ -9,6 +9,61 @@ namespace sphexa
 template<typename Dataset>
 struct NohDataFileReader : IFileReader<Dataset>
 {
+    Dataset readParticleDataFromAsciiFile(const std::string& path, const size_t noParticles) const override
+    {
+        Dataset d;
+        d.n = noParticles;
+
+        d.resize(noParticles);
+        d.count = d.x.size();
+
+        try
+        {
+            init(d);
+
+            // NOTE: not yet implemented
+
+            /*
+            printf("Loading input file with %lu particles at path '%s'... ", d.n, path.c_str());
+            fileutils::readParticleDataFromAsciiFile(path,
+                                                     d.x,
+                                                     d.y,
+                                                     d.z,
+                                                     d.vx,
+                                                     d.vy,
+                                                     d.vz,
+                                                     d.ro,
+                                                     d.u,
+                                                     d.p,
+                                                     d.h,
+                                                     d.m,
+                                                     d.temp,
+                                                     d.mue,
+                                                     d.mui,
+                                                     d.du,
+                                                     d.du_m1,
+                                                     d.dt,
+                                                     d.dt_m1,
+                                                     d.x_m1,
+                                                     d.y_m1,
+                                                     d.z_m1,
+                                                     d.c,
+                                                     d.grad_P_x,
+                                                     d.grad_P_y,
+                                                     d.grad_P_z);
+            */
+
+            printf("OK\n");
+        }
+        catch (FileNotOpenedException& ex)
+        {
+            printf("ERROR: %s. Terminating\n", ex.what());
+            exit(EXIT_FAILURE);
+        }
+
+        return d;
+    }
+
     Dataset readParticleDataFromBinFile(const std::string& path, const size_t noParticles) const override
     {
         Dataset d;
@@ -21,7 +76,7 @@ struct NohDataFileReader : IFileReader<Dataset>
         {
             init(d);
 
-            printf("Loading input file with %lu particles for Noh at path '%s'... ", d.n, path.c_str());
+            printf("Loading input file with %lu particles at path '%s'... ", d.n, path.c_str());
             fileutils::readParticleDataFromBinFile(path,
                                                    d.x,
                                                    d.y,
@@ -34,6 +89,16 @@ struct NohDataFileReader : IFileReader<Dataset>
                                                    d.p,
                                                    d.h,
                                                    d.m,
+                                                   d.temp,
+                                                   d.mue,
+                                                   d.mui,
+                                                   d.du,
+                                                   d.du_m1,
+                                                   d.dt,
+                                                   d.dt_m1,
+                                                   d.x_m1,
+                                                   d.y_m1,
+                                                   d.z_m1,
                                                    d.c,
                                                    d.grad_P_x,
                                                    d.grad_P_y,
@@ -63,7 +128,7 @@ struct NohDataFileReader : IFileReader<Dataset>
             d.n     = d.x.size();
             d.count = d.x.size();
 
-            printf("Loading checkpoint file with %lu particles for Noh... ", d.n);
+            printf("Loading checkpoint file with %lu particles ... ", d.n);
 
             inputfile.read(reinterpret_cast<char*>(&d.ttot), sizeof(d.ttot));
             inputfile.read(reinterpret_cast<char*>(&d.minDt), sizeof(d.minDt));
@@ -172,13 +237,22 @@ struct NohDataMPIFileReader : NohDataFileReader<Dataset>
                                                           d.p,
                                                           d.h,
                                                           d.m,
+                                                          d.temp,
+                                                          d.mue,
+                                                          d.mui,
+                                                          d.du,
+                                                          d.du_m1,
+                                                          d.dt,
+                                                          d.dt_m1,
+                                                          d.x_m1,
+                                                          d.y_m1,
+                                                          d.z_m1,
                                                           d.c,
                                                           d.grad_P_x,
                                                           d.grad_P_y,
                                                           d.grad_P_z);
 
-            if (d.rank == 0)
-                printf("Loaded input file with %lu particles for Noh from path '%s' \n", d.n, path.c_str());
+            if (d.rank == 0) printf("Loaded input file with %lu particles from path '%s' \n", d.n, path.c_str());
         }
         catch (MPIFileNotOpenedException& ex)
         {
@@ -227,8 +301,7 @@ struct NohDataMPIFileReader : NohDataFileReader<Dataset>
 
             d.etot = d.ecin = d.eint = d.egrav = 0.0;
 
-            if (d.rank == 0)
-                printf("Loaded checkpoint file with %lu particles for Noh from path '%s'\n", d.n, path.c_str());
+            if (d.rank == 0) printf("Loaded checkpoint file with %lu particles from path '%s'\n", d.n, path.c_str());
         }
         catch (MPIFileNotOpenedException& ex)
         {

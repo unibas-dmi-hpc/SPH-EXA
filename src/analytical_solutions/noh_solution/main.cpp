@@ -116,7 +116,7 @@ int main(int argc, char** argv)
         const IFileReader<Dataset>& fileReader = NohDataFileReader<Dataset>();
 
         // Load ParticlesData
-        Dataset d = (ascii) ? fileReader.readParticleDataFromBinFile(inputFile, nParts)
+        Dataset d = (ascii) ? fileReader.readParticleDataFromAsciiFile(inputFile, nParts)
                             : fileReader.readParticleDataFromBinFile(inputFile, nParts);
 
         if (nParts <= 0)
