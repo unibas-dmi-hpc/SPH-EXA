@@ -160,11 +160,10 @@ int main(int argc, char** argv)
 
         if (complete)
         {
-            reorderInPlace(ordering, radii.data());
-
             nSteps = nParts;
             for (I i = 0; i < nSteps; i++)
             {
+                cout << "radii[" << i << "]=" << radii[i] << endl;
                 rSol.push_back(radii[i]);
             }
         }
