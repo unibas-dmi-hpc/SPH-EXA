@@ -53,7 +53,8 @@ namespace ryoanji
  * @param[in]  y          local particle y-coordinates
  * @param[in]  z          local particle z-coordinates
  * @param[in]  m          local particle masses
- * @param[out] multipoles output multipole moments
+ * @param[in]  centers    expansion (com) center of each tree cell, length = octree.numTreeNodes()
+ * @param[out] multipoles output multipole moments , length = octree.numTreeNodes()
  */
 template<class KeyType, class T1, class T2, class MType>
 void computeLeafMultipoles(const cstone::Octree<KeyType>& octree,
@@ -87,6 +88,11 @@ public:
         MType ret;
         multipole2Multipole(child, child + 8, centers_[nodeIdx], centers_, multipoles, ret);
         return ret;
+    }
+
+    void setCenters(const cstone::SourceCenterType<typename MType::value_type>* centers)
+    {
+        centers_ = centers;
     }
 
 private:

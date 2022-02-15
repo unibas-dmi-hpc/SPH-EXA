@@ -366,10 +366,17 @@ public:
      */
     TreeNodeIndex locate(KeyType startKey, KeyType endKey) const
     {
-        unsigned level = treeLevel(endKey - startKey);
-        return std::lower_bound(prefixes_.begin() + levelRange_[level], prefixes_.begin() + levelRange_[level + 1],
-                                startKey, [](KeyType k, KeyType val) { return decodePlaceholderBit(k) < val; }) -
-               prefixes_.begin();
+        //! prefixLength is 3 * treeLevel(endKey - startKey)
+        unsigned prefixLength = countLeadingZeros(endKey - startKey - 1) - unusedBits<KeyType>{};
+        return locate(encodePlaceholderBit(startKey, prefixLength));
+    }
+
+    TreeNodeIndex locate(KeyType nodeKey) const
+    {
+        unsigned level = decodePrefixLength(nodeKey) / 3;
+        auto it = std::lower_bound(prefixes_.begin() + levelRange_[level], prefixes_.begin() + levelRange_[level + 1],
+                                   nodeKey);
+        return it - prefixes_.begin();
     }
 
 private:

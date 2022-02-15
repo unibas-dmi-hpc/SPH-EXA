@@ -205,7 +205,7 @@ public:
     {
         TreeNodeIndex numGlobalLeaves = globalTree.numLeafNodes();
         std::vector<T> globalLeafQuantities(numGlobalLeaves);
-        // fetch local quantities into globalLeaves
+        //! fetch local quantities into globalLeaves
         gsl::span<const KeyType> globalLeaves = globalTree.treeLeaves();
 
         TreeNodeIndex firstIdx = findNodeAbove(globalLeaves, prevFocusStart);
@@ -221,15 +221,19 @@ public:
             assert(octree().codeStart(localIdx) == globalLeaves[globalIdx]);
             assert(octree().codeEnd(localIdx) == globalLeaves[globalIdx + 1]);
         }
+        //! exchange global leaves
         mpiAllreduce(MPI_IN_PLACE, globalLeafQuantities.data(), numGlobalLeaves, MPI_SUM);
 
+        //! upsweep of the global tree
         std::vector<T> globalQuantities(globalTree.numTreeNodes());
         upsweep(globalTree, globalLeafQuantities.data(), globalQuantities.data(), std::forward<F>(upsweepFunction));
 
         gsl::span<const KeyType> localLeaves = treeLeaves();
+        //! globalIndices: range of leaf cell indices in the locally focused tree that need global information
         auto globalIndices = invertRanges(0, assignment_, octree().numLeafNodes());
         for (auto range : globalIndices)
         {
+            //! from global tree, pull in missing elements into locally focused tree
             for (TreeNodeIndex i = range.start(); i < range.end(); ++i)
             {
                 TreeNodeIndex globalIndex = globalTree.locate(localLeaves[i], localLeaves[i + 1]);

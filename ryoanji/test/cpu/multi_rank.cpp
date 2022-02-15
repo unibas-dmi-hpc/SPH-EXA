@@ -221,8 +221,9 @@ static void globalMultipoleExchange(int thisRank, int numRanks)
         }
     }
 
-    std::string testResult = pass ? "PASS" : "FAIL";
-    std::cout << "Root multipole moment comparison: " << testResult << std::endl;
+    int numPassed = pass;
+    mpiAllreduce(MPI_IN_PLACE, &numPassed, 1, MPI_SUM);
+    std::cout << "Number of ranks passed: " << numPassed << std::endl;
 }
 
 int main(int argc, char** argv)
@@ -234,4 +235,6 @@ int main(int argc, char** argv)
     MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
     globalMultipoleExchange<double, unsigned>(rank, numRanks);
+
+    MPI_Finalize();
 }
