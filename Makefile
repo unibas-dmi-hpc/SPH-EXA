@@ -125,19 +125,19 @@ test_cuda:
 	make clean
 	make -j mpi+omp+cuda
 	make -j solution
-	bin/sedov_mpi+omp+cuda.app -n 50  -s 200  -w 200  --ascii --outDir ./bin/
-	bin/noh_mpi+omp+cuda.app   -n 100 -s 1000 -w 1000 --ascii --outDir ./bin/
+	bin/sedov_mpi+omp+cuda.app -n 50  -s 200  -w 200  --outDir ./bin/
+	bin/noh_mpi+omp+cuda.app   -n 100 -s 1000 -w 1000 --outDir ./bin/
 	make compare
 
 compare:
 	python src/analytical_solutions/compare_solutions.py sedov --binary_file \
     bin/sedov_solution --constants_file ./bin/constants_sedov.txt \
-    --iteration 200 --nparts 125000 --snapshot_file ./bin/dump_sedov200.txt \
-    --ascii --out_dir bin/ --error_rho --error_p --error_vel
+    --iteration 200 --nparts 125000 --snapshot_file ./bin/dump_sedov200.dat \
+    --out_dir bin/ --error_rho --error_p --error_vel
 	python src/analytical_solutions/compare_solutions.py noh --binary_file \
     bin/noh_solution --constants_file ./bin/constants_noh.txt \
-    --iteration 1000 --nparts 1000000 --snapshot_file ./bin/dump_noh1000.txt \
-    --ascii --out_dir bin/ --error_u --error_vel --error_cs
+    --iteration 1000 --nparts 1000000 --snapshot_file ./bin/dump_noh1000.dat \
+    --out_dir bin/ --error_u --error_vel --error_cs
 	ls -alF bin/
 
 clean:

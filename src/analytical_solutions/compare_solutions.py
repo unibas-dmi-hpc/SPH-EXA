@@ -38,8 +38,8 @@ Usage examples:
     bin/sedov_solution --only_solution --time 0.0673556 --out_dir bin/
     $ python src/analytical_solutions/compare_solutions.py sedov --binary_file \
     bin/sedov_solution --constants_file ./bin/constants_sedov.txt \
-    --iteration 200 --nparts 125000 --snapshot_file ./bin/dump_sedov200.txt \
-    --ascii --out_dir bin/ --error_rho --error_p --error_vel
+    --iteration 200 --nparts 125000 --snapshot_file ./bin/dump_sedov200.dat \
+    --out_dir bin/ --error_rho --error_p --error_vel
 
     Check Noh density snapshot:
     $ gnuplot
@@ -51,8 +51,8 @@ Usage examples:
     bin/noh_solution --only_solution --time 0.281115 --out_dir bin/
     $ python src/analytical_solutions/compare_solutions.py noh --binary_file \
     bin/noh_solution --constants_file ./bin/constants_noh.txt \
-    --iteration 1000 --nparts 1000000 --snapshot_file ./bin/dump_noh1000.txt \
-    --ascii --out_dir bin/ --error_u --error_vel --error_cs
+    --iteration 1000 --nparts 1000000 --snapshot_file ./bin/dump_noh1000.dat \
+    --out_dir bin/ --error_u --error_vel --error_cs
     
 """
 
@@ -770,7 +770,8 @@ def sedov(
         time = get_time(time, constants_file, iteration)
     
         # Check simulated data
-        check_snapshot(nparts, snapshot_file)
+        if ascii:
+            check_snapshot(nparts, snapshot_file)
 
     # Make command line and execute
     command = binary_file
@@ -1064,7 +1065,8 @@ def noh(
         time = get_time(time, constants_file, iteration)
     
         # Check simulated data
-        check_snapshot(nparts, snapshot_file)
+        if ascii:
+            check_snapshot(nparts, snapshot_file)
 
     # Make command line and execute
     command = binary_file
