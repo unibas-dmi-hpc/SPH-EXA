@@ -156,7 +156,7 @@ int main(int argc, char** argv)
         reorderInPlace(ordering, d.m.data());
         reorderInPlace(ordering, d.c.data());
 
-        if (!complete)
+        if (complete)
         {
             reorderInPlace(ordering, radii.data());
 

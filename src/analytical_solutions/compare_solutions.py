@@ -39,7 +39,7 @@ Usage examples:
     $ python src/analytical_solutions/compare_solutions.py sedov --binary_file \
     bin/sedov_solution --constants_file ./bin/constants_sedov.txt \
     --iteration 200 --nparts 125000 --snapshot_file ./bin/dump_sedov200.txt \
-    --out_dir bin/ --error_rho --error_p --error_vel
+    --ascii --out_dir bin/ --error_rho --error_p --error_vel
 
     Check Noh density snapshot:
     $ gnuplot
@@ -52,7 +52,7 @@ Usage examples:
     $ python src/analytical_solutions/compare_solutions.py noh --binary_file \
     bin/noh_solution --constants_file ./bin/constants_noh.txt \
     --iteration 1000 --nparts 1000000 --snapshot_file ./bin/dump_noh1000.txt \
-    --out_dir bin/ --error_u --error_vel --error_cs
+    --ascii --out_dir bin/ --error_u --error_vel --error_cs
     
 """
 
@@ -523,11 +523,12 @@ def evaluate_errors_L1(
 
 default_binary = "./solution"
 
-default_nparts = 10000
-default_snapshot = "./dump_0.txt"
-
 default_only_solution = False
 default_time = 0.0
+
+default_nparts = 10000
+default_snapshot = "./dump_0.txt"
+default_ascii = False
 
 default_constants = "./constants.txt"
 default_iteration = -1
@@ -588,6 +589,14 @@ default_delta_cs = 1.0
     default=default_snapshot,
     help="Simulation snapshot file. Default: [" + default_snapshot + "].",
     type=click.STRING,
+)
+@click.option(
+    "-a",
+    "--ascii",
+    required=False,
+    default=default_error_vel,
+    help="Snapshot file in ASCII format. Default: [" + default_ascii.__str__() + "].",
+    is_flag=True,
 )
 @click.option(
     "-cf",
@@ -709,6 +718,7 @@ def sedov(
     time,
     nparts,
     snapshot_file,
+    ascii,
     constants_file,
     iteration,
     no_plots,
@@ -773,6 +783,8 @@ def sedov(
         command += " --input " + snapshot_file
     if check_L1:
         command += " --complete"
+    if ascii:
+        command += " --ascii"
     print("Command:\n" + command)
     os.system(command)
 
@@ -871,6 +883,14 @@ def sedov(
     default=default_snapshot,
     help="Simulation snapshot file. Default: [" + default_snapshot + "].",
     type=click.STRING,
+)
+@click.option(
+    "-a",
+    "--ascii",
+    required=False,
+    default=default_error_vel,
+    help="Snapshot file in ASCII format. Default: [" + default_ascii.__str__() + "].",
+    is_flag=True,
 )
 @click.option(
     "-cf",
@@ -992,6 +1012,7 @@ def noh(
     time,
     nparts,
     snapshot_file,
+    ascii,
     constants_file,
     iteration,
     no_plots,
@@ -1056,6 +1077,8 @@ def noh(
         command += " --input " + snapshot_file
     if check_L1:
         command += " --complete "
+    if ascii:
+        command += " --ascii"
     print("Command:\n" + command)
     os.system(command)
 

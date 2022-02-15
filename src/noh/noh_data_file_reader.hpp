@@ -21,9 +21,6 @@ struct NohDataFileReader : IFileReader<Dataset>
         {
             init(d);
 
-            // NOTE: not yet implemented
-
-            /*
             printf("Loading input file with %lu particles at path '%s'... ", d.n, path.c_str());
             fileutils::readParticleDataFromAsciiFile(path,
                                                      d.x,
@@ -51,7 +48,6 @@ struct NohDataFileReader : IFileReader<Dataset>
                                                      d.grad_P_x,
                                                      d.grad_P_y,
                                                      d.grad_P_z);
-            */
 
             printf("OK\n");
         }

@@ -152,6 +152,6 @@ void printHelp(char* name, int rank)
                     \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n");
 
         printf("\nFor example:\n");
-        printf("\t$ %s -n 50 -s 200 -w 10 --outDir ./bin/\n\n", name);
+        printf("\t$ %s -n 50 -s 200 -w 10 --ascii --outDir ./bin/\n\n", name);
     }
 }
