@@ -116,7 +116,7 @@ int main(int argc, char** argv)
             else
             {
                 fileWriter.dumpParticleDataToBinFile(
-                    d, outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".txt");
+                    d, outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".dat");
             }
 #endif
         }

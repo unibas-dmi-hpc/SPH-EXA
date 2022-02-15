@@ -38,6 +38,7 @@ int main(int argc, char** argv)
     const size_t      nParticles          = parser.getInt("-n", 65536);
     const size_t      maxStep             = parser.getInt("-s", 10);
     const int         writeFrequency      = parser.getInt("-w", -1);
+    const bool        ascii               = parser.exists("--ascii");
     const int         checkpointFrequency = parser.getInt("-c", -1);
     const bool        quiet               = parser.exists("--quiet");
     const std::string checkpointInput     = parser.getString("--cinput");
@@ -113,10 +114,19 @@ int main(int argc, char** argv)
             fileWriter.dumpParticleDataToH5File(
                 d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_evrard.h5part");
 #else
-            fileWriter.dumpParticleDataToAsciiFile(d,
-                                                   domain.startIndex(),
-                                                   domain.endIndex(),
-                                                   outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".txt");
+            if (ascii)
+            {
+                fileWriter.dumpParticleDataToAsciiFile(d,
+                                                       domain.startIndex(),
+                                                       domain.endIndex(),
+                                                       outDirectory + "dump_evrard" + std::to_string(d.iteration) +
+                                                           ".txt");
+            }
+            else
+            {
+                fileWriter.dumpParticleDataToBinFile(
+                    d, outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".dat");
+            }
 #endif
         }
 
@@ -149,6 +159,7 @@ void printHelp(char* name, int rank)
 
         printf("\t-w NUM \t\t\t Dump Frequency data every NUM iterations (time-steps) [-1]\n");
         printf("\t-c NUM \t\t\t Create checkpoint every NUM iterations (time-steps) [-1]\n\n");
+        printf("\t--ascii \t\t  Write file in ASCII format [false].\n\n");
 
         printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
 
