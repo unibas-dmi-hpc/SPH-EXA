@@ -42,8 +42,8 @@ if(CMAKE_CUDA_COMPILER)
     endif()
     if(USE_PROFILING_NVTX)
         target_compile_definitions(sedov-cuda PRIVATE USE_PROFILING_NVTX)
-        # FIXME
-        target_include_directories(sedov-cuda PRIVATE /usr/local/cuda-11.2/include/nvtx3)
+        target_link_libraries(sedov-cuda PRIVATE CUDA::nvToolsExt)
+        # /usr/local/cuda-11.2/include/nvtx3
     endif()
     set_target_properties(sedov-cuda PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
     target_link_libraries(sedov-cuda PRIVATE ${MPI_CXX_LIBRARIES})
