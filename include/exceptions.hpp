@@ -4,11 +4,13 @@
 
 namespace sphexa
 {
-struct FileNotOpenedException : std::runtime_error
+
+struct FileNotOpenedException : public std::runtime_error
 {
     using std::runtime_error::runtime_error;
 };
-struct MPIFileNotOpenedException : std::runtime_error
+
+struct MPIFileNotOpenedException : public std::runtime_error
 {
     MPIFileNotOpenedException(const std::string& what, const int mpierr)
         : std::runtime_error(what)
