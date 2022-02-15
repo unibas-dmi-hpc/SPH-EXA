@@ -9,14 +9,13 @@
 #endif
 
 #include "cstone/domain/domain.hpp"
-
 #include "sphexa.hpp"
 #include "sph/findNeighborsSfc.hpp"
-#include "EvrardCollapseInputFileReader.hpp"
-#include "EvrardCollapseFileWriter.hpp"
-
 #include "propagator.hpp"
 #include "insitu_viz.h"
+
+#include "evrard_data_file_reader.hpp"
+#include "evrard_data_file_writer.hpp"
 
 using namespace cstone;
 using namespace sphexa;
@@ -36,14 +35,14 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t nParticles           = parser.getInt("-n", 65536);
-    const size_t maxStep              = parser.getInt("-s", 10);
-    const int writeFrequency          = parser.getInt("-w", -1);
-    const int checkpointFrequency     = parser.getInt("-c", -1);
-    const bool quiet                  = parser.exists("--quiet");
-    const std::string checkpointInput = parser.getString("--cinput");
-    const std::string inputFilePath   = parser.getString("--input", "./Test3DEvrardRel.bin");
-    const std::string outDirectory    = parser.getString("--outDir");
+    const size_t      nParticles          = parser.getInt("-n", 65536);
+    const size_t      maxStep             = parser.getInt("-s", 10);
+    const int         writeFrequency      = parser.getInt("-w", -1);
+    const int         checkpointFrequency = parser.getInt("-c", -1);
+    const bool        quiet               = parser.exists("--quiet");
+    const std::string checkpointInput     = parser.getString("--cinput");
+    const std::string inputFilePath       = parser.getString("--input", "./Test3DEvrardRel.bin");
+    const std::string outDirectory        = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
@@ -52,8 +51,8 @@ int main(int argc, char** argv)
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType>;
 
-    const IFileReader<Dataset>& fileReader = EvrardCollapseMPIInputFileReader<Dataset>();
-    const IFileWriter<Dataset>& fileWriter = EvrardCollapseMPIFileWriter<Dataset>();
+    const IFileReader<Dataset>& fileReader = EvrardDataMPIFileReader<Dataset>();
+    const IFileWriter<Dataset>& fileWriter = EvrardDataMPIFileWriter<Dataset>();
 
     auto d = checkpointInput.empty() ? fileReader.readParticleDataFromBinFile(inputFilePath, nParticles)
                                      : fileReader.readParticleDataFromCheckpointBinFile(checkpointInput);
@@ -66,7 +65,7 @@ int main(int argc, char** argv)
 
     MasterProcessTimer totalTimer(output, d.rank);
 
-    std::ofstream constantsFile(outDirectory + "constants.txt");
+    std::ofstream constantsFile(outDirectory + "constants_evrard.txt");
 
     size_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
@@ -77,11 +76,11 @@ int main(int argc, char** argv)
 
     float theta = 0.5;
 
-    #ifdef USE_CUDA
+#ifdef USE_CUDA
     DomainType<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-    #else
+#else
     Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-    #endif
+#endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 
@@ -110,15 +109,15 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            #ifdef SPH_EXA_HAVE_H5PART
+#ifdef SPH_EXA_HAVE_H5PART
             fileWriter.dumpParticleDataToH5File(
                 d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_evrard.h5part");
-            #else
+#else
             fileWriter.dumpParticleDataToAsciiFile(d,
                                                    domain.startIndex(),
                                                    domain.endIndex(),
                                                    outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".txt");
-            #endif
+#endif
         }
 
         if (checkpointFrequency > 0 && d.iteration % checkpointFrequency == 0)

@@ -15,8 +15,8 @@
 #include "propagator.hpp"
 #include "insitu_viz.h"
 
-#include "sedov_data_file_writer.hpp"
-#include "sedov_data_generator.hpp"
+#include "noh_data_file_writer.hpp"
+#include "noh_data_generator.hpp"
 
 using namespace cstone;
 using namespace sphexa;
@@ -35,8 +35,8 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t      cubeSide       = parser.getInt("-n", 50);
-    const size_t      maxStep        = parser.getInt("-s", 200);
+    const size_t      cubeSide       = parser.getInt("-n", 100);
+    const size_t      maxStep        = parser.getInt("-s", 1000);
     const int         writeFrequency = parser.getInt("-w", -1);
     const bool        ascii          = parser.exists("--ascii");
     const bool        quiet          = parser.exists("--quiet");
@@ -49,22 +49,22 @@ int main(int argc, char** argv)
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType>;
 
-    const IFileWriter<Dataset>& fileWriter = SedovDataMPIFileWriter<Dataset>();
+    const IFileWriter<Dataset>& fileWriter = NohDataMPIFileWriter<Dataset>();
 
-    auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
+    auto d = NohDataGenerator<Real, KeyType>::generate(cubeSide);
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
     MasterProcessTimer totalTimer(output, d.rank);
 
-    std::ofstream constantsFile(outDirectory + "constants_sedov.txt");
+    std::ofstream constantsFile(outDirectory + "constants_noh.txt");
 
     size_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
     size_t bucketSize = std::max(bucketSizeFocus, d.n / (100 * d.nrank));
 
-    double    radius = SedovDataGenerator<Real, KeyType>::r1;
-    Box<Real> box(-radius, radius, true);
+    double    radius = NohDataGenerator<Real, KeyType>::r1;
+    Box<Real> box(-radius, radius, false);
 
     float theta = 1.0;
 
@@ -103,20 +103,20 @@ int main(int argc, char** argv)
         {
 #ifdef SPH_EXA_HAVE_H5PART
             fileWriter.dumpParticleDataToH5File(
-                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov.h5part");
+                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_noh.h5part");
 #else
             if (ascii)
             {
                 fileWriter.dumpParticleDataToAsciiFile(d,
                                                        domain.startIndex(),
                                                        domain.endIndex(),
-                                                       outDirectory + "dump_sedov" + std::to_string(d.iteration) +
+                                                       outDirectory + "dump_noh" + std::to_string(d.iteration) +
                                                            ".txt");
             }
             else
             {
-                fileWriter.dumpParticleDataToBinFile(
-                    d, outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".txt");
+                fileWriter.dumpParticleDataToBinFile(d,
+                                                     outDirectory + "dump_noh" + std::to_string(d.iteration) + ".txt");
             }
 #endif
         }
@@ -124,7 +124,7 @@ int main(int argc, char** argv)
         if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
     }
 
-    totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Sedov");
+    totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Noh");
 
     constantsFile.close();
     viz::finalize();
@@ -139,8 +139,8 @@ void printHelp(char* name, int rank)
         printf("%s [OPTIONS]\n", name);
         printf("\nWhere possible options are:\n\n");
 
-        printf("\t-n NUM \t\t\t NUM^3 Number of particles [50].\n");
-        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [200].\n\n");
+        printf("\t-n NUM \t\t\t NUM^3 Number of particles [100].\n");
+        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [1000].\n\n");
 
         printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1].\n");
         printf("\t--ascii \t\t  Write file in ASCII format [false].\n\n");
@@ -152,6 +152,6 @@ void printHelp(char* name, int rank)
                     \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n");
 
         printf("\nFor example:\n");
-        printf("\t$ %s -n 50 -s 200 -w 10 --outDir ./bin/\n\n", name);
+        printf("\t$ %s -n 100 -s 1000 -w 50 --outDir ./bin/\n\n", name);
     }
 }

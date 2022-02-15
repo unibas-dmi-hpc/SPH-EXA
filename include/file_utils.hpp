@@ -18,6 +18,7 @@ void writeParticleDataToBinFile(std::ofstream&) {}
 
 template<typename Arg, typename... Args>
 void writeParticleDataToBinFile(std::ofstream& file, const Arg& first, const Args&... args)
+
 {
     file.write((char*)&first[0], first.size() * sizeof(first[0]));
 

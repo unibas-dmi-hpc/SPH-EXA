@@ -180,9 +180,9 @@ public:
     }
 
 private:
-    TaskList taskList;
+    TaskList           taskList;
     MasterProcessTimer timer;
-    std::ostream& output_;
+    std::ostream&      output_;
 
     template<class DomainType, class ParticleDataType>
     void printIterationTimings(const DomainType& domain, const ParticleDataType& d)
