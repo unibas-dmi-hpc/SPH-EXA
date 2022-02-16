@@ -83,8 +83,6 @@ void computeTotalEnergy(size_t startIndex, size_t endIndex, Dataset& d)
 
     energies[2] = d.egrav;
 
-    std::cout << "egrav " << d.egrav << std::endl;
-
     int rootRank = 0;
 #ifdef USE_MPI
     MPI_Reduce(energies, globalEnergies, 3, MpiType<T>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);

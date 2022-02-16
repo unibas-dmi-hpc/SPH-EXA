@@ -274,6 +274,10 @@ public:
     gsl::span<const KeyType> tree() const { return global_.treeLeaves(); }
     //! @brief read only visibility of the focused octree
     const Octree<KeyType>& focusTree() const { return focusTree_.octree(); }
+    //! @brief the index of the first locally assigned cell in focusTree()
+    TreeNodeIndex startCell() const { return focusTree_.assignment()[myRank_].start(); }
+    //! @brief the index of the last locally assigned cell in focusTree()
+    TreeNodeIndex endCell() const { return focusTree_.assignment()[myRank_].end(); }
     //! @brief expansion (com) center and mac^2 radii of each focus tree cell
     gsl::span<const SourceCenterType<T>> expansionCenters() const { return focusTree_.expansionCenters(); }
     //! @brief particle offsets of each focus tree leaf cell
