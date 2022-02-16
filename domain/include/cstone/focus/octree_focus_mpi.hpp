@@ -368,7 +368,7 @@ public:
     void addMacs(gsl::span<int> haloFlags) const
     {
         #pragma omp parallel for schedule(static)
-        for (TreeNodeIndex i = 0; i < haloFlags.size(); ++i)
+        for (TreeNodeIndex i = 0; i < TreeNodeIndex(haloFlags.size()); ++i)
         {
             size_t iIdx = octree().toInternal(i);
             if (macs_[iIdx] && !haloFlags[i])
