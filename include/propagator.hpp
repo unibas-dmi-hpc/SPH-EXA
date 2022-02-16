@@ -105,8 +105,8 @@ public:
         computePositions<T, computeAcceleration<T, ParticleDataType>>(taskList.tasks, d, domain.box());
         timer.step("UpdateQuantities");
 
-        computeTotalEnergy<T>(taskList.tasks, d);
-        d.etot += d.egrav;
+        d.egrav = 0;
+        computeTotalEnergy<T>(domain.startIndex(), domain.endIndex(), d);
         timer.step("EnergyConservation");
 
         updateSmoothingLength<T>(taskList.tasks, d);
@@ -200,8 +200,7 @@ public:
         computePositions<T, computeAcceleration<T, ParticleDataType>>(taskList.tasks, d, domain.box());
         timer.step("UpdateQuantities");
 
-        computeTotalEnergy<T>(taskList.tasks, d);
-        d.etot += d.egrav;
+        computeTotalEnergy<T>(domain.startIndex(), domain.endIndex(), d);
         timer.step("EnergyConservation");
 
         updateSmoothingLength<T>(taskList.tasks, d);
