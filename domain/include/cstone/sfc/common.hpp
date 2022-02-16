@@ -38,36 +38,12 @@
 
 #include "cstone/primitives/clz.hpp"
 #include "cstone/primitives/stl.hpp"
+#include "cstone/tree/definitions.h"
 #include "cstone/util/tuple.hpp"
 #include "cstone/util/util.hpp"
 
 namespace cstone
 {
-
-template<class KeyType>
-struct unusedBits {};
-
-//! @brief number of unused leading zeros in a 32-bit SFC code
-template<>
-struct unusedBits<unsigned> : stl::integral_constant<unsigned, 2> {};
-
-//! @brief number of unused leading zeros in a 64-bit SFC code
-template<>
-struct unusedBits<uint64_t> : stl::integral_constant<unsigned, 1> {};
-
-template<class KeyType>
-struct maxTreeLevel {};
-
-template<>
-struct maxTreeLevel<unsigned> : stl::integral_constant<unsigned, 10> {};
-
-template<>
-struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21> {};
-
-//! @brief maximum integer coordinate
-template<class KeyType>
-struct maxCoord : stl::integral_constant<unsigned, (1u << maxTreeLevel<KeyType>{})> {};
-
 
 /*! @brief normalize a floating point number in [0,1] to an integer in [0 : 2^(10 or 21)]
  *

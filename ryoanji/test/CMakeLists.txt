@@ -2,13 +2,13 @@
 add_subdirectory(gtest)
 
 add_executable(ryoanji_unit_tests
-        treebuilder.cu
-        direct.cu
-        multipole.cu
-        warpscan.cu
-        test_main.cpp)
+               treebuilder.cu
+               direct.cu
+               multipole.cu
+               warpscan.cu
+               test_main.cpp)
 
-target_include_directories(ryoanji_unit_tests PRIVATE ../src)
+target_include_directories(ryoanji_unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
 
 target_link_libraries(ryoanji_unit_tests PUBLIC OpenMP::OpenMP_CXX cstone_tree gtest_main)
 
@@ -24,3 +24,6 @@ target_link_libraries(ryoanji PUBLIC cstone_tree)
 set_target_properties(ryoanji PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 # set_source_files_properties(demo.cu PROPERTIES COMPILE_FLAGS "-Xptxas -v")
+
+add_subdirectory(cpu)
+

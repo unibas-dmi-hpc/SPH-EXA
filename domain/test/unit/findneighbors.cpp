@@ -33,10 +33,10 @@
 #include <vector>
 
 #include "gtest/gtest.h"
-
 #include "cstone/findneighbors.hpp"
-
 #include "coord_samples/random.hpp"
+
+using namespace cstone;
 
 //! @brief simple N^2 all-to-all neighbor search
 template<class T>

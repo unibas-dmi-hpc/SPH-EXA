@@ -35,6 +35,7 @@
 
 #include "dataset.hpp"
 
+#include "ryoanji/gpu_config.h"
 #include "ryoanji/treebuilder.cuh"
 #include "ryoanji/types.h"
 #include "ryoanji/upwardpass.cuh"
@@ -71,47 +72,45 @@ void checkBodyIndexing(int numBodies, CellData* tree, int numSources)
     EXPECT_EQ(std::count(begin(bodyIndexed), end(bodyIndexed), 1), numBodies);
 }
 
-void checkUpsweep(const Box& box, const thrust::host_vector<CellData>& sources,
-                  const thrust::host_vector<fvec4>& sourceCenter, const thrust::host_vector<fvec4>& h_bodies,
-                  const thrust::host_vector<fvec4>& Multipole)
+template<class T, class MType>
+void checkUpsweep(const cstone::Box<T>& box, const thrust::host_vector<CellData>& sources,
+                  const thrust::host_vector<Vec4<T>>& sourceCenter, const thrust::host_vector<Vec4<T>>& h_bodies,
+                  const thrust::host_vector<MType>& Multipole)
 {
-    cstone::Box<float> csBox(box.X[0] - box.R, box.X[0] + box.R,
-                             box.X[1] - box.R, box.X[1] + box.R,
-                             box.X[2] - box.R, box.X[2] + box.R,
-                             false, false, false);
-
-    int numSources = sources.size();
+    TreeNodeIndex numSources = sources.size();
     // the root is not set by the upsweep, so start from 1
-    for (int i = 1; i < numSources; ++i)
+    for (TreeNodeIndex i = 1; i < numSources; ++i)
     {
         if (sources[i].nbody())
         {
-            for (int d = 0; d < 3; ++d)
-            {
-                EXPECT_GT(sourceCenter[i][d], box.X[d] - box.R);
-                EXPECT_LT(sourceCenter[i][d], box.X[d] + box.R);
-            }
-            EXPECT_TRUE(sourceCenter[i][3] < 4 * box.R * box.R);
+            EXPECT_GT(sourceCenter[i][0], box.xmin());
+            EXPECT_LT(sourceCenter[i][0], box.xmax());
+            EXPECT_GT(sourceCenter[i][1], box.xmin());
+            EXPECT_LT(sourceCenter[i][1], box.xmax());
+            EXPECT_GT(sourceCenter[i][2], box.xmin());
+            EXPECT_LT(sourceCenter[i][2], box.xmax());
+
+            EXPECT_TRUE(sourceCenter[i][3] < box.maxExtent() * box.maxExtent());
 
             uint64_t cellKey =
                 cstone::enclosingBoxCode(cstone::sfc3D<cstone::SfcKind<uint64_t>>(
-                                             sourceCenter[i][0], sourceCenter[i][1], sourceCenter[i][2], csBox),
+                                             sourceCenter[i][0], sourceCenter[i][1], sourceCenter[i][2], box),
                                          sources[i].level());
 
-            float cellMass = 0;
+            T cellMass = 0;
             for (int j = sources[i].body(); j < sources[i].body() + sources[i].nbody(); ++j)
             {
                 cellMass += h_bodies[j][3];
 
                 uint64_t bodyKey =
-                    cstone::sfc3D<cstone::SfcKind<uint64_t>>(h_bodies[j][0], h_bodies[j][1], h_bodies[j][2], csBox);
+                    cstone::sfc3D<cstone::SfcKind<uint64_t>>(h_bodies[j][0], h_bodies[j][1], h_bodies[j][2], box);
                 // check that the referenced body really lies inside the cell
                 // this is true if the keys, truncated to the first key-in-cell match
                 EXPECT_EQ(cellKey, cstone::enclosingBoxCode(bodyKey, sources[i].level()));
             }
 
             // each multipole should have the total mass of referenced bodies in the first entry
-            EXPECT_NEAR(cellMass, Multipole[i * NVEC4][0], 1e-5);
+            EXPECT_NEAR(cellMass, Multipole[i][0], 1e-5);
         }
         else
         {
@@ -124,29 +123,32 @@ void checkUpsweep(const Box& box, const thrust::host_vector<CellData>& sources,
 
 TEST(Buildtree, cstone)
 {
-    int numBodies = (1 << 16) - 1;
-    float extent = 3;
-    float theta = 0.75;
+    using T             = float;
+    using MultipoleType = SphericalMultipole<T, 4>;
 
-    thrust::host_vector<fvec4> h_bodies(numBodies);
+    int numBodies = (1 << 16) - 1;
+    T   extent    = 3;
+    T   theta     = 0.75;
+
+    thrust::host_vector<Vec4<T>> h_bodies(numBodies);
     makeCubeBodies(h_bodies.data(), numBodies, extent);
     // upload to device
-    thrust::device_vector<fvec4> bodyPos = h_bodies;
+    thrust::device_vector<Vec4<T>> bodyPos = h_bodies;
 
-    Box box{ {0.0f}, extent * 1.1f };
+    cstone::Box<T> box(-extent * 1.1, extent * 1.1);
 
     TreeBuilder<uint64_t> treeBuilder;
-    int numSources = treeBuilder.update(rawPtr(bodyPos.data()), numBodies, box);
+    int                   numSources = treeBuilder.update(rawPtr(bodyPos.data()), numBodies, box);
 
     thrust::device_vector<CellData> sources(numSources);
-    std::vector<int2> levelRange(cstone::maxTreeLevel<uint64_t>{} + 1);
+    std::vector<int2>               levelRange(cstone::maxTreeLevel<uint64_t>{} + 1);
 
     int highestLevel = treeBuilder.extract(rawPtr(sources.data()), levelRange.data());
     // download from device
     h_bodies = bodyPos;
 
-    thrust::device_vector<fvec4> sourceCenter(numSources);
-    thrust::device_vector<fvec4> Multipole(NVEC4 * numSources);
+    thrust::device_vector<Vec4<T>>       sourceCenter(numSources);
+    thrust::device_vector<MultipoleType> Multipole(numSources);
 
     ryoanji::upsweep(numSources,
                      highestLevel,
@@ -157,9 +159,10 @@ TEST(Buildtree, cstone)
                      rawPtr(sourceCenter.data()),
                      rawPtr(Multipole.data()));
 
-    thrust::host_vector<CellData> h_sources = sources;
-    thrust::host_vector<fvec4> h_sourceCenter = sourceCenter;
-    thrust::host_vector<fvec4> h_Multipole = Multipole;
+    thrust::host_vector<CellData> h_sources      = sources;
+    thrust::host_vector<Vec4<T>>  h_sourceCenter = sourceCenter;
+
+    thrust::host_vector<MultipoleType> h_Multipole = Multipole;
 
     checkBodyIndexing(numBodies, h_sources.data(), numSources);
     checkUpsweep(box, h_sources, h_sourceCenter, h_bodies, h_Multipole);

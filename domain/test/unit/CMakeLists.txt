@@ -4,8 +4,7 @@ set(UNIT_TESTS
         domain/layout.cpp
         findneighbors.cpp
         focus/octree_focus.cpp
-        gravity/multipole.cpp
-        gravity/treewalk.cpp
+        focus/source_center.cpp
         halos/radii.cpp
         primitives/clz.cpp
         primitives/gather.cpp
@@ -25,6 +24,7 @@ set(UNIT_TESTS
         tree/octree.cpp
         tree/octree_internal.cpp
         tree/octree_util.cpp
+        util/array.cpp
         util/util.cpp
         test_main.cpp)
 

@@ -95,7 +95,7 @@ struct ParticlesData
     // from SPH we have acceleration = -grad_P, so computePosition adds a factor of -1 to the pressure gradients
     // instead, the pressure gradients should be renamed to acceleration and computeMomentumAndEnergy should directly
     // set this to -grad_P, such that we don't need to add the gravitational acceleration with a factor of -1 on top
-    constexpr static T g = -1.0; // for Evrard Collapse Gravity.
+    T g = -1.0; // for Evrard Collapse Gravity.
     // constexpr static T g = 6.6726e-8; // the REAL value of g. g is 1.0 for Evrard mainly
 
     constexpr static T sincIndex = 6.0;

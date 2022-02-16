@@ -120,7 +120,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
     std::vector<KeyType> particleKeys(lastAssignedIndex - firstAssignedIndex);
     computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
 
-    FocusedOctree<KeyType> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
+    FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
 
     int converged = 0;
     while (converged != numRanks)

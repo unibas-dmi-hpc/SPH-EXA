@@ -27,49 +27,58 @@
 
 #include "cstone/cuda/annotation.hpp"
 
+#include "cstone/primitives/stl.hpp"
 #include "cstone/util/array.hpp"
 
 namespace cstone
 {
 
-//! @brief Controls the node index type, has to be signed. Change to 64-bit if more than 2 billion tree nodes are
-//! required.
+/*! @brief
+ * Controls the node index type, has to be signed. Change to 64-bit if more than 2 billion tree nodes are required.
+ */
 using TreeNodeIndex = int;
-
+//! @brief index type of local particle arrays
 using LocalIndex = unsigned;
+
+
+template<class KeyType>
+struct unusedBits {};
+
+//! @brief number of unused leading zeros in a 32-bit SFC code
+template<>
+struct unusedBits<unsigned> : stl::integral_constant<unsigned, 2> {};
+
+//! @brief number of unused leading zeros in a 64-bit SFC code
+template<>
+struct unusedBits<uint64_t> : stl::integral_constant<unsigned, 1> {};
+
+template<class KeyType>
+struct maxTreeLevel {};
+
+template<>
+struct maxTreeLevel<unsigned> : stl::integral_constant<unsigned, 10> {};
+
+template<>
+struct maxTreeLevel<uint64_t> : stl::integral_constant<unsigned, 21> {};
+
+//! @brief maximum integer coordinate
+template<class KeyType>
+struct maxCoord : stl::integral_constant<unsigned, (1u << maxTreeLevel<KeyType>{})> {};
 
 template<class T>
 using Vec3 = util::array<T, 3>;
 
-using TestType = float;
-
-//! @brief checks whether a binary tree index corresponds to a leaf index
-HOST_DEVICE_FUN
-constexpr bool isLeafIndex(TreeNodeIndex nodeIndex) { return nodeIndex < 0; }
-
-//! @brief convert a leaf index to the storage format
-HOST_DEVICE_FUN
-constexpr TreeNodeIndex storeLeafIndex(TreeNodeIndex index)
-{
-    // -2^31 or -2^63
-    constexpr auto offset = TreeNodeIndex(-(1ul << (8 * sizeof(TreeNodeIndex) - 1)));
-    return index + offset;
-}
-
-//! @brief restore a leaf index from the storage format
-HOST_DEVICE_FUN
-constexpr TreeNodeIndex loadLeafIndex(TreeNodeIndex index)
-{
-    constexpr auto offset = TreeNodeIndex(-(1ul << (8 * sizeof(TreeNodeIndex) - 1)));
-    return index - offset;
-}
+template<class T>
+using Vec4 = util::array<T, 4>;
 
 enum class P2pTags : int
 {
-    focusPeerCounts = 1000,
-    haloRequestKeys = 2000,
-    domainExchange  = 3000,
-    haloExchange    = 4000
+    focusTransfer    = 1000,
+    focusPeerCounts  = 2000,
+    focusPeerCenters = 3000,
+    haloRequestKeys  = 4000,
+    domainExchange   = 5000,
+    haloExchange     = 6000
 };
 
 /*! @brief returns the number of nodes in a tree

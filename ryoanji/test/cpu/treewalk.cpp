@@ -31,21 +31,24 @@
 
 #include "gtest/gtest.h"
 
-#include "cstone/gravity/treewalk.hpp"
-#include "cstone/gravity/upsweep.hpp"
 #include "cstone/sfc/box.hpp"
 #include "coord_samples/random.hpp"
+#include "ryoanji/cpu/treewalk.hpp"
+#include "ryoanji/cpu/upsweep.hpp"
 
 using namespace cstone;
+using namespace ryoanji;
 
 TEST(Gravity, TreeWalk)
 {
-    using T = double;
-    using KeyType = uint64_t;
+    using T             = double;
+    using KeyType       = uint64_t;
+    using MultipoleType = ryoanji::CartesianQuadrupole<T>;
 
-    float G = 1.0;
+    float theta         = 0.6;
+    float G             = 1.0;
     unsigned bucketSize = 64;
-    Box<T> box(-1, 1);
+    cstone::Box<T> box(-1, 1);
     LocalIndex numParticles = 10000;
 
     RandomCoordinates<T, SfcKind<KeyType>> coordinates(numParticles, box);
@@ -71,22 +74,31 @@ TEST(Gravity, TreeWalk)
     std::vector<LocalIndex> layout(octree.numLeafNodes() + 1);
     stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
 
-    std::vector<GravityMultipole<T>> multipoles(octree.numTreeNodes());
-    computeMultipoles(octree, layout, x, y, z, masses.data(), multipoles.data());
+    std::vector<SourceCenterType<T>> centers(octree.numTreeNodes());
+    computeLeafMassCenter<T, T, T, KeyType>(coordinates.x(), coordinates.y(), coordinates.z(), masses,
+                                            coordinates.particleKeys(), octree, centers);
+    upsweep(octree, centers.data(), CombineSourceCenter<T>{});
+    setMac<T>(octree.nodeKeys(), centers, 1.0 / theta, box);
+
+    std::vector<MultipoleType> multipoles(octree.numTreeNodes());
+    computeLeafMultipoles(octree, layout, x, y, z, masses.data(), centers.data(), multipoles.data());
+    CombineMultipole<MultipoleType> combineMultipole(centers.data());
+    upsweep(octree, multipoles.data(), combineMultipole);
+    for (size_t i = 0; i < multipoles.size(); ++i)
+    {
+        multipoles[i] = ryoanji::normalize(multipoles[i]);
+    }
 
     T totalMass = std::accumulate(masses.begin(), masses.end(), 0.0);
-    EXPECT_TRUE(std::abs(totalMass - multipoles[0].mass) < 1e-6);
+    EXPECT_TRUE(std::abs(totalMass - multipoles[0][ryoanji::Cqi::mass]) < 1e-6);
 
     std::vector<T> ax(numParticles, 0);
     std::vector<T> ay(numParticles, 0);
     std::vector<T> az(numParticles, 0);
     std::vector<T> potential(numParticles, 0);
 
-    float theta = 0.6;
-
-    computeGravity(octree, multipoles.data(), layout.data(), 0, octree.numLeafNodes(),
-                   x, y, z, h.data(), masses.data(), box, theta, G, ax.data(), ay.data(), az.data(),
-                   potential.data());
+    computeGravity(octree, centers.data(), multipoles.data(), layout.data(), 0, octree.numLeafNodes(), x, y, z,
+                   h.data(), masses.data(), G, ax.data(), ay.data(), az.data(), potential.data());
 
     // test version that computes total grav energy only instead of per particle
     {
@@ -100,11 +112,11 @@ TEST(Gravity, TreeWalk)
         std::vector<T> ax2(numParticles, 0);
         std::vector<T> ay2(numParticles, 0);
         std::vector<T> az2(numParticles, 0);
-        double egravTot2 = computeGravity(octree, multipoles.data(), layout.data(), 0,
-                                          octree.numLeafNodes(), x, y, z,
-                                          h.data(), masses.data(), box, theta, G, ax2.data(), ay2.data(), az2.data());
+        double egravTot2 =
+            computeGravity(octree, centers.data(), multipoles.data(), layout.data(), 0, octree.numLeafNodes(), x,
+                           y, z, h.data(), masses.data(), G, ax2.data(), ay2.data(), az2.data());
         std::cout << "total gravitational energy: " << egravTot << std::endl;
-        EXPECT_NEAR((egravTot-egravTot2)/egravTot, 0, 1e-4);
+        EXPECT_NEAR((egravTot - egravTot2) / egravTot, 0, 1e-4);
     }
 
     // direct sum reference
@@ -132,7 +144,7 @@ TEST(Gravity, TreeWalk)
     // sort errors in ascending order to infer the error distribution
     std::sort(begin(delta), end(delta));
 
-    EXPECT_TRUE(delta[numParticles*0.99] < 2e-3);
+    EXPECT_TRUE(delta[numParticles*0.99] < 3e-3);
     EXPECT_TRUE(delta[numParticles-1] < 2e-2);
 
     std::cout.precision(10);

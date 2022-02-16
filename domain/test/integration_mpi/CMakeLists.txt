@@ -26,6 +26,10 @@ addMpiTest(box_mpi.cpp box_mpi GlobalBox)
 
 addMpiTest(exchange_focus.cpp exchange_focus GlobalFocusExchange)
 
+addMpiTest(exchange_general.cpp exchange_general GeneralFocusExchange)
+
 addMpiTest(exchange_keys.cpp exchange_keys GlobalKeyExchange)
+
+addMpiTest(focus_transfer.cpp focus_transfer FocusTransfer)
 
 addMpiTest(domain_2ranks.cpp domain_2ranks GlobalDomain2Ranks)
