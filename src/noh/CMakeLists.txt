@@ -1,14 +1,7 @@
 add_executable(noh noh.cpp)
-
-target_include_directories(noh PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
-target_include_directories(noh PRIVATE ${PROJECT_SOURCE_DIR}/include)
-target_include_directories(noh PRIVATE ${PROJECT_SOURCE_DIR}/src)
-
-target_include_directories(noh PRIVATE ${MPI_CXX_INCLUDE_PATH})
-
+target_include_directories(noh PRIVATE ${SPH_EXA_INCLUDE_DIRS})
 target_link_libraries(noh PRIVATE ${MPI_CXX_LIBRARIES})
 target_link_libraries(noh PRIVATE OpenMP::OpenMP_CXX)
-
 install(TARGETS noh RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # {{{ i/o
@@ -36,10 +29,7 @@ endif()
 
 if(CMAKE_CUDA_COMPILER)
     add_executable(noh-cuda $<TARGET_OBJECTS:gather_obj> $<TARGET_OBJECTS:cuda_find_neighbors_obj> $<TARGET_OBJECTS:cuda_sph> noh.cpp)
-    target_include_directories(noh-cuda PRIVATE  ${PROJECT_SOURCE_DIR}/domain/include)
-    target_include_directories(noh-cuda PRIVATE ${PROJECT_SOURCE_DIR}/include)
-    target_include_directories(noh-cuda PRIVATE ${PROJECT_SOURCE_DIR}/src)
-    target_include_directories(noh-cuda PRIVATE ${MPI_CXX_INCLUDE_PATH})
+    target_include_directories(noh-cuda PRIVATE ${SPH_EXA_INCLUDE_DIRS})
     target_compile_definitions(noh-cuda PRIVATE USE_MPI USE_CUDA)
     set_target_properties(noh-cuda PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
     target_link_libraries(noh-cuda PRIVATE ${MPI_CXX_LIBRARIES})
@@ -51,10 +41,7 @@ elseif(CMAKE_HIP_COMPILER)
     set_source_files_properties(noh.cpp PROPERTIES LANGUAGE HIP)
     add_executable(noh-hip $<TARGET_OBJECTS:gather_obj> $<TARGET_OBJECTS:cuda_find_neighbors_obj> $<TARGET_OBJECTS:cuda_sph> noh.cpp)
     set_property(TARGET noh-hip PROPERTY HIP_ARCHITECTURES gfx908)
-    target_include_directories(noh-hip PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
-    target_include_directories(noh-hip PRIVATE ${PROJECT_SOURCE_DIR}/include)
-    target_include_directories(noh-hip PRIVATE ${PROJECT_SOURCE_DIR}/src)
-    target_include_directories(noh-hip PRIVATE ${MPI_CXX_INCLUDE_PATH})
+    target_include_directories(noh-hip PRIVATE ${SPH_EXA_INCLUDE_DIRS})
     target_include_directories(noh-hip PRIVATE ${HIP_PATH}/include)
     target_compile_definitions(noh-hip PRIVATE USE_MPI USE_CUDA)
     target_link_libraries(noh-hip PRIVATE ${MPI_CXX_LIBRARIES})
