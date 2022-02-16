@@ -25,12 +25,12 @@ simulations.
 
 Usage examples:
 
-    $ python src/analytical_solutions//compare_solutions.py --help
-    $ python src/analytical_solutions//compare_solutions.py --version
+    $ python src/analytical_solutions/compare_solutions.py --help
+    $ python src/analytical_solutions/compare_solutions.py --version
 
     Check Sedov density snapshot:
     $ gnuplot
-    gnuplot> plot "bin/dump_sedov0.txt" u (abs($3/$7)<2.?$1:1/0):2:8 w p pt 7 lc palette z
+    gnuplot> plot "bin/dump_sedov0.txt"   u (abs($3/$7)<2.?$1:1/0):2:8 w p pt 7 lc palette z
     gnuplot> plot "bin/dump_sedov200.txt" u (abs($3/$7)<2.?$1:1/0):2:8 w p pt 7 lc palette z
     
     $ python src/analytical_solutions/compare_solutions.py sedov --help
@@ -43,7 +43,7 @@ Usage examples:
 
     Check Noh density snapshot:
     $ gnuplot
-    gnuplot> plot "bin/dump_noh0.txt" u (abs($3/$7)<2.?$1:1/0):2:8 w p pt 7 lc palette z
+    gnuplot> plot "bin/dump_noh0.txt"    u (abs($3/$7)<2.?$1:1/0):2:8 w p pt 7 lc palette z
     gnuplot> plot "bin/dump_noh1000.txt" u (abs($3/$7)<2.?$1:1/0):2:8 w p pt 7 lc palette z
         
     $ python src/analytical_solutions/compare_solutions.py noh --help
