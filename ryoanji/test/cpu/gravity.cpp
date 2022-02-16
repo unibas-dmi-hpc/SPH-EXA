@@ -31,25 +31,28 @@
 
 #include <chrono>
 
-#include "cstone/gravity/treewalk.hpp"
-#include "cstone/gravity/upsweep.hpp"
 #include "cstone/sfc/box.hpp"
 #include "coord_samples/random.hpp"
+#include "ryoanji/cpu/kernel_wrapper.hpp"
+#include "ryoanji/cpu/treewalk.hpp"
+#include "ryoanji/cpu/upsweep.hpp"
 
-using namespace cstone;
+using namespace ryoanji;
 
 int main()
 {
-    using T = float;
-    using KeyType = uint64_t;
+    using T             = float;
+    using KeyType       = uint64_t;
+    using MultipoleType = ryoanji::CartesianQuadrupole<T>;
+    //using MultipoleType = ryoanji::SphericalMultipole<T, 2>;
 
-    float G                         = 1.0;
-    unsigned bucketSize             = 64;
-    float theta                     = 0.75;
+    float G                 = 1.0;
+    unsigned bucketSize     = 64;
+    float theta             = 0.75;
     LocalIndex numParticles = 100000;
-    Box<T> box(-1, 1);
+    cstone::Box<T> box(-1, 1);
 
-    RandomCoordinates<T, SfcKind<KeyType>> coordinates(numParticles, box);
+    RandomCoordinates<T, cstone::SfcKind<KeyType>> coordinates(numParticles, box);
 
     const T* x = coordinates.x().data();
     const T* y = coordinates.y().data();
@@ -59,17 +62,29 @@ int main()
     std::vector<T> masses(numParticles);
     std::generate(begin(masses), end(masses), drand48);
 
-    auto [tree, counts] = computeOctree(coordinates.particleKeys().data(),
-                                        coordinates.particleKeys().data() + numParticles,
-                                        bucketSize);
-    Octree<KeyType> octree;
-    octree.update(tree.data(), nNodes(tree));
+    auto [tree, counts] = cstone::computeOctree(
+        coordinates.particleKeys().data(), coordinates.particleKeys().data() + numParticles, bucketSize);
+
+    cstone::Octree<KeyType> octree;
+    octree.update(tree.data(), cstone::nNodes(tree));
 
     std::vector<LocalIndex> layout(octree.numLeafNodes() + 1);
     stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
 
-    std::vector<GravityMultipole<T>> multipoles(octree.numTreeNodes());
-    computeMultipoles(octree, layout, x, y, z, masses.data(), multipoles.data());
+    std::vector<cstone::SourceCenterType<T>> sourceCenters(octree.numTreeNodes());
+    cstone::computeLeafMassCenter<T, T, T, KeyType>(coordinates.x(), coordinates.y(), coordinates.z(), masses,
+                                            coordinates.particleKeys(), octree, sourceCenters);
+    upsweep(octree, sourceCenters.data(), cstone::CombineSourceCenter<T>{});
+    cstone::setMac<T>(octree.nodeKeys(), sourceCenters, 1.0 / theta, box);
+
+    std::vector<MultipoleType> multipoles(octree.numTreeNodes());
+    computeLeafMultipoles(octree, layout, x, y, z, masses.data(), sourceCenters.data(), multipoles.data());
+    CombineMultipole<MultipoleType> combineMultipole(sourceCenters.data());
+    upsweep(octree, multipoles.data(), combineMultipole);
+    for (size_t i = 0; i < multipoles.size(); ++i)
+    {
+        multipoles[i] = ryoanji::normalize(multipoles[i]);
+    }
 
     std::vector<T> ax(numParticles, 0);
     std::vector<T> ay(numParticles, 0);
@@ -77,8 +92,8 @@ int main()
     std::vector<T> pot(numParticles, 0);
 
     auto t0 = std::chrono::high_resolution_clock::now();
-    computeGravity(octree, multipoles.data(), layout.data(), 0, octree.numLeafNodes(), x, y, z, h.data(), masses.data(),
-                   box, theta, G, ax.data(), ay.data(), az.data(), pot.data());
+    computeGravity(octree, sourceCenters.data(), multipoles.data(), layout.data(), 0, octree.numLeafNodes(), x, y, z,
+                   h.data(), masses.data(), G, ax.data(), ay.data(), az.data(), pot.data());
     auto t1       = std::chrono::high_resolution_clock::now();
     float elapsed = std::chrono::duration<double>(t1 - t0).count();
 

@@ -38,3 +38,9 @@
 #else
 #define HOST_DEVICE_FUN
 #endif
+
+#if defined(__CUDACC__) || defined(__HIPCC__)
+#define DEVICE_INLINE __forceinline__
+#else
+#define DEVICE_INLINE
+#endif

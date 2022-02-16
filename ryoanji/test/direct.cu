@@ -34,15 +34,15 @@
 #include <thrust/host_vector.h>
 #include <thrust/device_vector.h>
 
-#include "cstone/gravity/treewalk.hpp"
-
 #include "dataset.hpp"
+#include "ryoanji/gpu_config.h"
 #include "ryoanji/direct.cuh"
+#include "ryoanji/cpu/treewalk.hpp"
 
-using ryoanji::rawPtr;
+using namespace ryoanji;
 
 template<class T>
-std::vector<fvec4> cpuReference(const std::vector<util::array<T, 4>>& bodies)
+std::vector<Vec4<T>> cpuReference(const std::vector<Vec4<T>>& bodies)
 {
     size_t numBodies = bodies.size();
 
@@ -67,14 +67,14 @@ std::vector<fvec4> cpuReference(const std::vector<util::array<T, 4>>& bodies)
 
     float G = 1.0;
 
-    cstone::directSum(x.data(), y.data(), z.data(), h.data(), m.data(), numBodies, G,
-                      ax.data(), ay.data(), az.data(), pot.data());
+    directSum(
+        x.data(), y.data(), z.data(), h.data(), m.data(), numBodies, G, ax.data(), ay.data(), az.data(), pot.data());
 
-    std::vector<fvec4> acc(numBodies, fvec4{0, 0, 0, 0});
+    std::vector<Vec4<T>> acc(numBodies, Vec4<T>{0, 0, 0, 0});
 
     for (size_t i = 0; i < numBodies; ++i)
     {
-        acc[i] = fvec4{T(pot[i]), T(ax[i]), T(ay[i]), T(az[i])};
+        acc[i] = Vec4<T>{T(pot[i]), T(ax[i]), T(ay[i]), T(az[i])};
     }
 
     return acc;
@@ -82,6 +82,7 @@ std::vector<fvec4> cpuReference(const std::vector<util::array<T, 4>>& bodies)
 
 TEST(DirectSum, MatchCpu)
 {
+    using T = float;
     int npOnEdge  = 10;
     int numBodies = npOnEdge * npOnEdge * npOnEdge;
 
@@ -90,24 +91,24 @@ TEST(DirectSum, MatchCpu)
     // particles are not on top of each other
     float eps = 0.0;
 
-    std::vector<fvec4> h_bodies(numBodies);
+    std::vector<Vec4<T>> h_bodies(numBodies);
     ryoanji::makeGridBodies(h_bodies.data(), npOnEdge, 0.5);
 
     // upload to device
-    thrust::device_vector<fvec4> bodyPos = h_bodies;
-    thrust::device_vector<fvec4> bodyAcc(numBodies, fvec4{0, 0, 0, 0});
+    thrust::device_vector<Vec4<T>> bodyPos = h_bodies;
+    thrust::device_vector<Vec4<T>> bodyAcc(numBodies, Vec4<T>{0, 0, 0, 0});
 
     directSum(numBodies, rawPtr(bodyPos.data()), rawPtr(bodyAcc.data()), eps);
 
     // download body accelerations
-    thrust::host_vector<fvec4> h_acc = bodyAcc;
+    thrust::host_vector<Vec4<T>> h_acc = bodyAcc;
 
     auto refAcc = cpuReference(h_bodies);
 
     for (int i = 0; i < numBodies; ++i)
     {
-        fvec3 ref   = {refAcc[i][1], refAcc[i][2], refAcc[i][3]};
-        fvec3 probe = {h_acc[i][1], h_acc[i][2], h_acc[i][3]};
+        Vec3<T> ref   = {refAcc[i][1], refAcc[i][2], refAcc[i][3]};
+        Vec3<T> probe = {h_acc[i][1], h_acc[i][2], h_acc[i][3]};
 
         EXPECT_NEAR(std::sqrt(norm2(ref - probe) / norm2(probe)), 0, 1e-6);
         // the potential
