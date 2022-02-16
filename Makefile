@@ -121,7 +121,7 @@ test:
 	bin/noh   -n 100 -s 1000 -w 1000 --outDir ./bin/
 	make compare
 
-test_cuda:
+test-cuda:
 	make clean
 	make -j cuda
 	make -j solution
