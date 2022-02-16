@@ -246,12 +246,20 @@ public:
     }
 
     template<class CellProperty, class CombinationFunction>
-    void exchangeFocusGlobal(gsl::span<CellProperty> cellProperties, CombinationFunction&& combinationFunction)
+    void exchangeFocusGlobal(gsl::span<CellProperty> cellProperties, CombinationFunction combinationFunction)
     {
-        std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), theta_);
+        const Octree<KeyType>& globalTree = global_.octree();
+
+        gsl::span<const SourceCenterType<T>> globalCenters = focusTree_.globalExpansionCenters();
+        assert(globalTree.numTreeNodes() == focusTree_.globalCenters.ssize());
+        combinationFunction.setCenters(globalCenters.data());
+
+        std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), globalTree, box(), theta_);
+
+        std::vector<CellProperty> globalProperties(globalTree.numTreeNodes());
+
         focusTree_.peerExchange(peers, cellProperties, static_cast<int>(P2pTags::focusPeerCenters) + 1);
-        focusTree_.globalExchange(global_.octree(), cellProperties.data(),
-                                  std::forward<CombinationFunction>(combinationFunction));
+        focusTree_.globalExchange(globalTree, globalProperties.data(), cellProperties.data(), combinationFunction);
     }
 
     //! @brief return the index of the first particle that's part of the local assignment

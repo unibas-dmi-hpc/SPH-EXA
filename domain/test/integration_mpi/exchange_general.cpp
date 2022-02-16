@@ -120,8 +120,10 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
 
     upsweepSum(octree, testCounts.data());
 
+    std::vector<int> globalCounts(domainTree.numTreeNodes());
+
     focusTree.template peerExchange<int>(peers, testCounts, static_cast<int>(P2pTags::focusPeerCounts) + 2);
-    focusTree.globalExchange(domainTree, testCounts.data(), SumCombination<int>{});
+    focusTree.globalExchange(domainTree, globalCounts.data(), testCounts.data(), SumCombination<int>{});
     upsweepSum(octree, testCounts.data());
 
     {
