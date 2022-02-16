@@ -67,20 +67,20 @@ ifeq ($(ENV),clang)
 	CXXFLAGS += -march=native -std=c++17 -fopenmp
 endif
 
-all: mpi+omp mpi+omp+cuda solution
+all: mpi cuda solution
 
-mpi+omp:
+mpi:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(SEDOV_FLAGS)  $(SEDOV_TEST)  -o $(BINDIR)/sedov_$@.app  $(LIB)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(NOH_FLAGS)    $(NOH_TEST)    -o $(BINDIR)/noh_$@.app    $(LIB)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(EVRARD_FLAGS) $(EVRARD_TEST) -o $(BINDIR)/evrard_$@.app $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(SEDOV_FLAGS)  $(SEDOV_TEST)  -o $(BINDIR)/sedov  $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(NOH_FLAGS)    $(NOH_TEST)    -o $(BINDIR)/noh    $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(EVRARD_FLAGS) $(EVRARD_TEST) -o $(BINDIR)/evrard $(LIB)
 
-mpi+omp+cuda:
-	make sedov_mpi+omp+cuda
-	make noh_mpi+omp+cuda
+cuda:
+	make sedov-cuda
+	make noh-cuda
 
-sedov_mpi+omp+cuda: $(CUDA_OBJS)
+sedov-cuda: $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_CUDA $(SEDOV_FLAGS) -o $(BUILDDIR)/cuda_mpi.o -c $(SEDOV_TEST)
@@ -88,7 +88,7 @@ sedov_mpi+omp+cuda: $(CUDA_OBJS)
 	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@.app $(BUILDDIR)/cudalinked.o $(BUILDDIR)/cuda_mpi.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
 	$(RM) -rf $(BUILDDIR)
 
-noh_mpi+omp+cuda: $(CUDA_OBJS)
+noh-cuda: $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_CUDA $(NOH_FLAGS) -o $(BUILDDIR)/cuda_mpi.o -c $(NOH_TEST)
@@ -115,18 +115,18 @@ solution:
 
 test:
 	make clean
-	make -j mpi+omp
+	make -j mpi
 	make -j solution
-	bin/sedov_mpi+omp.app -n 50  -s 200  -w 200  --outDir ./bin/
-	bin/noh_mpi+omp.app   -n 100 -s 1000 -w 1000 --outDir ./bin/
+	bin/sedov -n 50  -s 200  -w 200  --outDir ./bin/
+	bin/noh   -n 100 -s 1000 -w 1000 --outDir ./bin/
 	make compare
 
 test_cuda:
 	make clean
-	make -j mpi+omp+cuda
+	make -j cuda
 	make -j solution
-	bin/sedov_mpi+omp+cuda.app -n 50  -s 200  -w 200  --outDir ./bin/
-	bin/noh_mpi+omp+cuda.app   -n 100 -s 1000 -w 1000 --outDir ./bin/
+	bin/sedov-cuda -n 50  -s 200  -w 200  --outDir ./bin/
+	bin/noh-cuda   -n 100 -s 1000 -w 1000 --outDir ./bin/
 	make compare
 
 compare:
