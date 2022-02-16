@@ -57,6 +57,7 @@ struct computeAccelerationWithGravity
 template<class T, class Dataset>
 void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
+    using Vec3T = cstone::Vec3<T>;
     const T* dt = d.dt.data();
     const T* du = d.du.data();
 
@@ -76,17 +77,17 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        T ax = -d.grad_P_x[i];
-        T ay = -d.grad_P_y[i];
-        T az = -d.grad_P_z[i];
+        Vec3T A{-d.grad_P_x[i], -d.grad_P_y[i], -d.grad_P_z[i]};
+        Vec3T X{x[i], y[i], z[i]};
+        Vec3T X_m1{x_m1[i], y_m1[i], z_m1[i]};
+
+        T dt_i = dt[i];
 
         // Update positions according to Press (2nd order)
-        T deltaA = dt[i] + 0.5 * dt_m1[i];
+        T deltaA = dt_i + 0.5 * dt_m1[i];
         T deltaB = 0.5 * (dt[i] + dt_m1[i]);
 
-        T valx = (x[i] - x_m1[i]) / dt_m1[i];
-        T valy = (y[i] - y_m1[i]) / dt_m1[i];
-        T valz = (z[i] - z_m1[i]) / dt_m1[i];
+        Vec3T Val = (X - X_m1) * (1.0 / dt_m1[i]);
 
 #ifndef NDEBUG
         if (std::isnan(ax) || std::isnan(ay) || std::isnan(az))
@@ -100,54 +101,62 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         }
 #endif
 
-        vx[i] = valx + ax * deltaA;
-        vy[i] = valy + ay * deltaA;
-        vz[i] = valz + az * deltaA;
+        Vec3T V = Val + A * deltaA;
 
-        x_m1[i] = x[i];
-        y_m1[i] = y[i];
-        z_m1[i] = z[i];
+        X_m1 = X;
 
-        x[i] += dt[i] * valx + (vx[i] - valx) * dt[i] * deltaB / deltaA;
-        y[i] += dt[i] * valy + (vy[i] - valy) * dt[i] * deltaB / deltaA;
-        z[i] += dt[i] * valz + (vz[i] - valz) * dt[i] * deltaB / deltaA;
+        T dt_i_deltaBA = dt_i * deltaB / deltaA;
+        X += dt_i * Val + (V - Val) * dt_i_deltaBA;
 
         if (box.pbcX() && x[i] < box.xmin())
         {
-            x[i] += box.lx();
-            x_m1[i] += box.lx();
+            X[0] += box.lx();
+            X_m1[0] += box.lx();
         }
         else if (box.pbcX() && x[i] > box.xmax())
         {
-            x[i] -= box.lx();
-            x_m1[i] -= box.lx();
+            X[0] -= box.lx();
+            X_m1[0] -= box.lx();
         }
         if (box.pbcY() && y[i] < box.ymin())
         {
-            y[i] += box.ly();
-            y_m1[i] += box.ly();
+            X[1] += box.ly();
+            X_m1[1] += box.ly();
         }
         else if (box.pbcY() && y[i] > box.ymax())
         {
-            y[i] -= box.ly();
-            y_m1[i] -= box.ly();
+            X[1] -= box.ly();
+            X_m1[1] -= box.ly();
         }
         if (box.pbcZ() && z[i] < box.zmin())
         {
-            z[i] += box.lz();
-            z_m1[i] += box.lz();
+            X[2] += box.lz();
+            z_m1[2] += box.lz();
         }
         else if (box.pbcZ() && z[i] > box.zmax())
         {
-            z[i] -= box.lz();
-            z_m1[i] -= box.lz();
+            X[2] -= box.lz();
+            X_m1[2] -= box.lz();
         }
 
+        x[i]    = X[0];
+        y[i]    = X[1];
+        z[i]    = X[2];
+        x_m1[i] = X_m1[0];
+        y_m1[i] = X_m1[1];
+        z_m1[i] = X_m1[2];
+        vx[i]   = V[0];
+        vy[i]   = V[1];
+        vz[i]   = V[2];
+
         // Update the energy according to Adams-Bashforth (2nd order)
-        deltaA = 0.5 * dt[i] * dt[i] / dt_m1[i];
-        deltaB = dt[i] + deltaA;
+        deltaA = 0.5 * dt_i * dt_i / dt_m1[i];
+        deltaB = dt_i + deltaA;
 
         u[i] += du[i] * deltaB - du_m1[i] * deltaA;
+
+        du_m1[i] = du[i];
+        dt_m1[i] = dt_i;
 
 #ifndef NDEBUG
         if (std::isnan(u[i]) || u[i] < 0.0)
@@ -159,9 +168,6 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
                    du_m1[i],
                    deltaA);
 #endif
-
-        du_m1[i] = du[i];
-        dt_m1[i] = dt[i];
     }
 }
 
