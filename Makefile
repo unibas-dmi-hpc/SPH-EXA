@@ -85,7 +85,7 @@ sedov-cuda: $(CUDA_OBJS)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_CUDA $(SEDOV_FLAGS) -o $(BUILDDIR)/cuda_mpi.o -c $(SEDOV_TEST)
 	$(NVCC) $(NVCCLDFLAGS) -dlink -o $(BUILDDIR)/cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
-	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@.app $(BUILDDIR)/cudalinked.o $(BUILDDIR)/cuda_mpi.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
+	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@ $(BUILDDIR)/cudalinked.o $(BUILDDIR)/cuda_mpi.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
 	$(RM) -rf $(BUILDDIR)
 
 noh-cuda: $(CUDA_OBJS)
@@ -93,7 +93,7 @@ noh-cuda: $(CUDA_OBJS)
 	$(info Linking the executable:)
 	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_CUDA $(NOH_FLAGS) -o $(BUILDDIR)/cuda_mpi.o -c $(NOH_TEST)
 	$(NVCC) $(NVCCLDFLAGS) -dlink -o $(BUILDDIR)/cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
-	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@.app $(BUILDDIR)/cudalinked.o $(BUILDDIR)/cuda_mpi.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
+	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@ $(BUILDDIR)/cudalinked.o $(BUILDDIR)/cuda_mpi.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
 	$(RM) -rf $(BUILDDIR)
 
 $(BUILDDIR)/%.o: include/sph/cuda/%.cu
