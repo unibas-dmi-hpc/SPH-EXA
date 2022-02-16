@@ -99,7 +99,7 @@ public:
         computeMomentumAndEnergyIAD<T>(taskList.tasks, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
-        computeTimestep<T, TimestepPress2ndOrder<T, ParticleDataType>>(taskList.tasks, d);
+        computeTimestep(domain.startIndex(), domain.endIndex(), d);
         timer.step("Timestep");
 
         computePositions<T, computeAcceleration<T, ParticleDataType>>(taskList.tasks, d, domain.box());
@@ -194,7 +194,7 @@ public:
         d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
         timer.step("Gravity");
 
-        computeTimestep<T, TimestepPress2ndOrder<T, ParticleDataType>>(taskList.tasks, d);
+        computeTimestep(domain.startIndex(), domain.endIndex(), d);
         timer.step("Timestep");
 
         computePositions<T, computeAcceleration<T, ParticleDataType>>(taskList.tasks, d, domain.box());
