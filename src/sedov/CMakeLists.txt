@@ -1,14 +1,7 @@
 add_executable(sedov sedov.cpp)
-
-target_include_directories(sedov PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
-target_include_directories(sedov PRIVATE ${PROJECT_SOURCE_DIR}/include)
-target_include_directories(sedov PRIVATE ${PROJECT_SOURCE_DIR}/src)
-
-target_include_directories(sedov PRIVATE ${MPI_CXX_INCLUDE_PATH})
-
+target_include_directories(sedov PRIVATE ${SPH_EXA_INCLUDE_DIRS})
 target_link_libraries(sedov PRIVATE ${MPI_CXX_LIBRARIES})
 target_link_libraries(sedov PRIVATE OpenMP::OpenMP_CXX)
-
 install(TARGETS sedov RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # {{{ i/o
@@ -36,10 +29,7 @@ endif()
 
 if(CMAKE_CUDA_COMPILER)
     add_executable(sedov-cuda $<TARGET_OBJECTS:gather_obj> $<TARGET_OBJECTS:cuda_find_neighbors_obj> $<TARGET_OBJECTS:cuda_sph> sedov.cpp)
-    target_include_directories(sedov-cuda PRIVATE  ${PROJECT_SOURCE_DIR}/domain/include)
-    target_include_directories(sedov-cuda PRIVATE ${PROJECT_SOURCE_DIR}/include)
-    target_include_directories(sedov-cuda PRIVATE ${PROJECT_SOURCE_DIR}/src)
-    target_include_directories(sedov-cuda PRIVATE ${MPI_CXX_INCLUDE_PATH})
+    target_include_directories(sedov-cuda PRIVATE ${SPH_EXA_INCLUDE_DIRS})
     target_compile_definitions(sedov-cuda PRIVATE USE_MPI USE_CUDA)
     set_target_properties(sedov-cuda PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
     target_link_libraries(sedov-cuda PRIVATE ${MPI_CXX_LIBRARIES})
@@ -51,10 +41,7 @@ elseif(CMAKE_HIP_COMPILER)
     set_source_files_properties(sedov.cpp PROPERTIES LANGUAGE HIP)
     add_executable(sedov-hip $<TARGET_OBJECTS:gather_obj> $<TARGET_OBJECTS:cuda_find_neighbors_obj> $<TARGET_OBJECTS:cuda_sph> sedov.cpp)
     set_property(TARGET sedov-hip PROPERTY HIP_ARCHITECTURES gfx908)
-    target_include_directories(sedov-hip PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
-    target_include_directories(sedov-hip PRIVATE ${PROJECT_SOURCE_DIR}/include)
-    target_include_directories(sedov-hip PRIVATE ${PROJECT_SOURCE_DIR}/src)
-    target_include_directories(sedov-hip PRIVATE ${MPI_CXX_INCLUDE_PATH})
+    target_include_directories(sedov-hip PRIVATE ${SPH_EXA_INCLUDE_DIRS})
     target_include_directories(sedov-hip PRIVATE ${HIP_PATH}/include)
     target_compile_definitions(sedov-hip PRIVATE USE_MPI USE_CUDA)
     target_link_libraries(sedov-hip PRIVATE ${MPI_CXX_LIBRARIES})
