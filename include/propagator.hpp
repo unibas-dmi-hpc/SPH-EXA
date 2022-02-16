@@ -102,7 +102,7 @@ public:
         computeTimestep(domain.startIndex(), domain.endIndex(), d);
         timer.step("Timestep");
 
-        computePositions<T, computeAcceleration<T, ParticleDataType>>(taskList.tasks, d, domain.box());
+        computePositions(domain.startIndex(), domain.endIndex(), d, domain.box());
         timer.step("UpdateQuantities");
 
         d.egrav = 0;
@@ -197,7 +197,7 @@ public:
         computeTimestep(domain.startIndex(), domain.endIndex(), d);
         timer.step("Timestep");
 
-        computePositions<T, computeAcceleration<T, ParticleDataType>>(taskList.tasks, d, domain.box());
+        computePositions(domain.startIndex(), domain.endIndex(), d, domain.box());
         timer.step("UpdateQuantities");
 
         computeTotalEnergy<T>(domain.startIndex(), domain.endIndex(), d);
