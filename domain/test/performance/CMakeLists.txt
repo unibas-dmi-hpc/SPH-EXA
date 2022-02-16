@@ -23,13 +23,6 @@ target_include_directories(hilbert_perf PRIVATE ../)
 target_link_libraries(hilbert_perf PRIVATE OpenMP::OpenMP_CXX)
 install(TARGETS hilbert_perf RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/performance)
 
-add_executable(gravity_perf gravity.cpp)
-target_include_directories(gravity_perf PRIVATE ../../include)
-target_include_directories(gravity_perf PRIVATE ../)
-target_link_libraries(gravity_perf PRIVATE OpenMP::OpenMP_CXX)
-#target_compile_options(gravity_perf PRIVATE -Rpass=loop-vectorize -Rpass-analysis=loop-vectorize)
-install(TARGETS gravity_perf RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/performance)
-
 if(CMAKE_CUDA_COMPILER)
     add_executable(cudaNeighborsTest $<TARGET_OBJECTS:cuda_find_neighbors_obj> neighbor_driver.cu)
     target_include_directories(cudaNeighborsTest PRIVATE ../../include)

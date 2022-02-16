@@ -72,7 +72,10 @@ class SpaceCurveAssignment
 {
     static constexpr TreeNodeIndex untouched = -1;
 public:
-    SpaceCurveAssignment() = default;
+    SpaceCurveAssignment()
+        : rankAssignment_(1)
+    {
+    }
 
     explicit SpaceCurveAssignment(int numRanks) : rankAssignment_(numRanks+1, untouched), counts_(numRanks) {}
 
@@ -119,7 +122,6 @@ private:
     std::vector<size_t>        counts_;
 };
 
-
 /*! @brief assign the global tree/SFC to nSplits ranks, assigning to each rank only a single Morton code range
  *
  * @param globalCounts       counts per leaf
@@ -131,8 +133,7 @@ private:
  * all the ranks are assigned.
  *
  */
-inline
-SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& globalCounts, int nSplits)
+inline SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& globalCounts, int nSplits)
 {
     // one element per rank
     SpaceCurveAssignment ret(nSplits);
@@ -141,7 +142,7 @@ SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& globalCoun
 
     // distribute work, every rank gets global count / nSplits,
     // the remainder gets distributed one by one
-    std::vector<std::size_t> nParticlesPerSplit(nSplits, globalNParticles/nSplits);
+    std::vector<std::size_t> nParticlesPerSplit(nSplits, globalNParticles / nSplits);
     for (std::size_t split = 0; split < globalNParticles % nSplits; ++split)
     {
         nParticlesPerSplit[split]++;
@@ -157,9 +158,11 @@ SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& globalCoun
         {
             // if adding the particles of the next leaf takes us further away from
             // the target count than where we're now, we stop
-            if (targetCount < splitCount + globalCounts[j] && // overshoot
+            if (targetCount < splitCount + globalCounts[j] &&                          // overshoot
                 targetCount - splitCount < splitCount + globalCounts[j] - targetCount) // overshoot more than undershoot
-            { break; }
+            {
+                break;
+            }
 
             splitCount += globalCounts[j++];
         }
@@ -169,11 +172,12 @@ SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& globalCoun
             // carry over difference of particles over/under assigned to next split
             // to avoid accumulating round off
             long int delta = (long int)(targetCount) - (long int)(splitCount);
-            nParticlesPerSplit[split+1] += delta;
+            nParticlesPerSplit[split + 1] += delta;
         }
         // afaict, j < nNodes(globalTree) can only happen if there are empty nodes at the end
-        else {
-            for( ; j < TreeNodeIndex(globalCounts.size()); ++j)
+        else
+        {
+            for (; j < TreeNodeIndex(globalCounts.size()); ++j)
                 splitCount += globalCounts[j];
         }
 
@@ -183,6 +187,69 @@ SpaceCurveAssignment singleRangeSfcSplit(const std::vector<unsigned>& globalCoun
     }
 
     return ret;
+}
+
+/*! @brief limit SFC range assignment transfer to the domain of the rank above or below
+ *
+ * @tparam        KeyType          32- or 64-bit unsigned integer
+ * @param[in]     oldBoundaries    SFC key assignment boundaries to ranks from the previous step
+ * @param[in]     newTree          the global octree leaves used for domain decomposition in the current step
+ * @param[in]     counts           particle counts per leaf cell in @p newTree
+ * @param[inout]  newAssignment    the current assignment, will be modified if needed
+ *
+ * When assignment boundaries change, we limit the growth of any rank downwards or upwards the SFC
+ * to the previous assignment of the rank below or above, i.e. rank r can only acquire new SFC areas
+ * that belonged to ranks r-1 or r+1 in the previous step. This limitation never kicks in for any
+ * halfway reasonable particle configuration as the handover of a rank's entire domain to another rank
+ * is quite an extreme scenario. But the limitation is useful for focused torture tests to demonstrate
+ * that the domain and octree invariants still hold under such circumstances. Imposing this limitation
+ * here is needed to guarantee that the focus tree resolution of any rank in its focus is not exceeded
+ * in the trees of any other rank.
+ */
+template<class KeyType>
+void limitBoundaryShifts(gsl::span<const KeyType> oldBoundaries,
+                         gsl::span<const KeyType> newTree,
+                         gsl::span<const unsigned> counts,
+                         SpaceCurveAssignment& newAssignment)
+{
+    // do nothing on first call when there are no boundaries
+    if (oldBoundaries.size() == 1) { return; }
+
+    int numRanks = newAssignment.numRanks();
+    std::vector<TreeNodeIndex> newIndexBoundaries(numRanks + 1, 0);
+    newIndexBoundaries.back() = newAssignment.lastNodeIdx(numRanks - 1);
+
+    bool triggerRecount = false;
+    for (int rank = 1; rank < numRanks; ++rank)
+    {
+        KeyType newBoundary = newTree[newAssignment.firstNodeIdx(rank)];
+
+        KeyType doNotGoBelow = oldBoundaries[rank - 1];
+        KeyType doNotExceed  = oldBoundaries[rank + 1];
+
+        TreeNodeIndex restrictedStart = newAssignment.firstNodeIdx(rank);
+        if (newBoundary < doNotGoBelow)
+        {
+            restrictedStart = findNodeAbove(newTree, doNotGoBelow);
+            triggerRecount  = true;
+        }
+        else if (newBoundary > doNotExceed)
+        {
+            restrictedStart = findNodeBelow(newTree, doNotExceed);
+            triggerRecount  = true;
+        }
+        newIndexBoundaries[rank] = restrictedStart;
+    }
+
+    if (triggerRecount)
+    {
+        for (int rank = 0; rank < numRanks; ++rank)
+        {
+            std::size_t segmentCount = std::accumulate(counts.begin() + newIndexBoundaries[rank],
+                                                       counts.begin() + newIndexBoundaries[rank + 1], std::size_t(0));
+            newAssignment.addRange(Rank(rank), newIndexBoundaries[rank], newIndexBoundaries[rank + 1], segmentCount);
+        }
+    }
 }
 
 /*! @brief translates an assignment of a given tree to a new tree
@@ -285,8 +352,12 @@ void extractRange(const SendManifest& manifest, const T* source, const IndexType
 {
     int idx = 0;
     for (std::size_t rangeIndex = 0; rangeIndex < manifest.nRanges(); ++rangeIndex)
+    {
         for (IndexType i = manifest.rangeStart(rangeIndex); i < IndexType(manifest.rangeEnd(rangeIndex)); ++i)
+        {
             destination[idx++] = source[ordering[i]];
+        }
+    }
 }
 
 } // namespace cstone

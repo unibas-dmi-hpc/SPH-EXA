@@ -247,11 +247,16 @@ public:
     //! @brief return a const view of the cstone leaf array
     gsl::span<const KeyType> treeLeaves() const { return cstoneTree_; }
     //! @brief return const pointer to node(cell) SFC keys
-    const KeyType* nodeKeys() const { return prefixes_.data(); }
+    gsl::span<const KeyType> nodeKeys() const { return prefixes_; }
     //! @brief return const pointer to child offsets array
     const TreeNodeIndex* childOffsets() const { return childOffsets_.data(); }
     //! @brief return const pointer to the cell parents array
     const TreeNodeIndex* parents() const { return parents_.data(); }
+
+    //! @brief stores the first internal node index of each tree subdivision level
+    gsl::span<const TreeNodeIndex> levelRange() const { return levelRange_; }
+    //! @brief converts a cornerstone index into an internal index
+    gsl::span<const TreeNodeIndex> internalOrder() const { return inverseNodeOrder_; }
 
     //! @brief total number of nodes in the tree
     inline TreeNodeIndex numTreeNodes() const { return levelRange_.back(); }
@@ -361,10 +366,17 @@ public:
      */
     TreeNodeIndex locate(KeyType startKey, KeyType endKey) const
     {
-        unsigned level = treeLevel(endKey - startKey);
-        return std::lower_bound(prefixes_.begin() + levelRange_[level], prefixes_.begin() + levelRange_[level + 1],
-                                startKey, [](KeyType k, KeyType val) { return decodePlaceholderBit(k) < val; }) -
-               prefixes_.begin();
+        //! prefixLength is 3 * treeLevel(endKey - startKey)
+        unsigned prefixLength = countLeadingZeros(endKey - startKey - 1) - unusedBits<KeyType>{};
+        return locate(encodePlaceholderBit(startKey, prefixLength));
+    }
+
+    TreeNodeIndex locate(KeyType nodeKey) const
+    {
+        unsigned level = decodePrefixLength(nodeKey) / 3;
+        auto it = std::lower_bound(prefixes_.begin() + levelRange_[level], prefixes_.begin() + levelRange_[level + 1],
+                                   nodeKey);
+        return it - prefixes_.begin();
     }
 
 private:
@@ -414,7 +426,7 @@ private:
 };
 
 template<class T, class KeyType, class CombinationFunction>
-void upsweep(const Octree<KeyType>& octree, T* quantities, CombinationFunction combinationFunction)
+void upsweep(const Octree<KeyType>& octree, T* quantities, CombinationFunction&& combinationFunction)
 {
     int currentLevel = maxTreeLevel<KeyType>{};
 
@@ -427,14 +439,7 @@ void upsweep(const Octree<KeyType>& octree, T* quantities, CombinationFunction c
         {
             if (!octree.isLeaf(i))
             {
-                 quantities[i] = combinationFunction(quantities[octree.child(i, 0)],
-                                                     quantities[octree.child(i, 1)],
-                                                     quantities[octree.child(i, 2)],
-                                                     quantities[octree.child(i, 3)],
-                                                     quantities[octree.child(i, 4)],
-                                                     quantities[octree.child(i, 5)],
-                                                     quantities[octree.child(i, 6)],
-                                                     quantities[octree.child(i, 7)]);
+                quantities[i] = combinationFunction(i, octree.child(i, 0), quantities);
             }
         }
     }
@@ -443,26 +448,32 @@ void upsweep(const Octree<KeyType>& octree, T* quantities, CombinationFunction c
 //! @brief perform upsweep, initializing leaf quantities from a separate array
 template<class T, class KeyType, class CombinationFunction>
 void upsweep(const Octree<KeyType>& octree,
-             gsl::span<const T> leafQuantities,
-             gsl::span<T> quantities,
-             CombinationFunction combinationFunction)
+             const T* leafQuantities,
+             T* quantities,
+             CombinationFunction&& combinationFunction)
 {
-    assert(leafQuantities.ssize() == octree.numLeafNodes());
     #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex i = 0; i < leafQuantities.ssize(); ++i)
+    for (TreeNodeIndex i = 0; i < octree.numLeafNodes(); ++i)
     {
         TreeNodeIndex internalIdx = octree.toInternal(i);
         quantities[internalIdx]   = leafQuantities[i];
     }
-    upsweep(octree, quantities.data(), combinationFunction);
+    upsweep(octree, quantities, std::forward<CombinationFunction>(combinationFunction));
 }
 
-template<class T, class KeyType>
-void upsweepSum(const Octree<KeyType>& octree, gsl::span<const T> leafQuantities, gsl::span<T> quantities)
+template<class T>
+struct SumCombination
 {
-    auto sumFunction = [](auto a, auto b, auto c, auto d, auto e, auto f, auto g, auto h)
-    { return a + b + c + d + e + f + g + h; };
-    upsweep(octree, leafQuantities, quantities, sumFunction);
+    T operator()(TreeNodeIndex /*nodeIdx*/, TreeNodeIndex c, const T* Q)
+    {
+        return Q[c] + Q[c + 1] + Q[c + 2] + Q[c + 3] + Q[c + 4] + Q[c + 5] + Q[c + 6] + Q[c + 7];
+    }
+};
+
+template<class T, class KeyType>
+void upsweepSum(const Octree<KeyType>& octree, T* quantities)
+{
+    upsweep(octree, quantities, SumCombination<T>{});
 }
 
 } // namespace cstone

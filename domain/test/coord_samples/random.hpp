@@ -41,12 +41,10 @@
 #include "cstone/tree/definitions.h"
 #include "cstone/util/gsl-lite.hpp"
 
-using namespace cstone;
-
 template<class Integer>
 std::vector<Integer> makeRandomUniformKeys(size_t numKeys, int seed = 42)
 {
-    Integer maxCoord = nodeRange<Integer>(0) - 1;
+    Integer maxCoord = cstone::nodeRange<Integer>(0) - 1;
     std::mt19937 gen(seed);
     std::uniform_int_distribution<Integer> distribution(0, maxCoord);
 
@@ -61,7 +59,7 @@ std::vector<Integer> makeRandomUniformKeys(size_t numKeys, int seed = 42)
 template<class Integer>
 std::vector<Integer> makeRandomGaussianKeys(size_t numKeys, int seed = 42)
 {
-    Integer maxCoord = nodeRange<Integer>(0) - 1;
+    Integer maxCoord = cstone::nodeRange<Integer>(0) - 1;
     std::mt19937 gen(seed);
     std::normal_distribution<double> distribution(double(maxCoord) / 2, double(maxCoord) / 5);
 
@@ -87,7 +85,7 @@ public:
     using KeyType = KeyType_;
     using Integer = typename KeyType::ValueType;
 
-    RandomCoordinates(size_t n, Box<T> box, int seed = 42)
+    RandomCoordinates(size_t n, cstone::Box<T> box, int seed = 42)
         : box_(std::move(box)), x_(n), y_(n), z_(n), codes_(n)
     {
         //std::random_device rd;
@@ -105,15 +103,15 @@ public:
         std::generate(begin(z_), end(z_), randZ);
 
         auto keyData = (KeyType*)(codes_.data());
-        computeSfcKeys(x_.data(), y_.data(), z_.data(), keyData, n, box);
+        cstone::computeSfcKeys(x_.data(), y_.data(), z_.data(), keyData, n, box);
 
-        std::vector<LocalIndex> sfcOrder(n);
-        std::iota(begin(sfcOrder), end(sfcOrder), LocalIndex(0));
-        sort_by_key(begin(codes_), end(codes_), begin(sfcOrder));
+        std::vector<cstone::LocalIndex> sfcOrder(n);
+        std::iota(begin(sfcOrder), end(sfcOrder), cstone::LocalIndex(0));
+        cstone::sort_by_key(begin(codes_), end(codes_), begin(sfcOrder));
 
-        reorderInPlace(sfcOrder, x_.data());
-        reorderInPlace(sfcOrder, y_.data());
-        reorderInPlace(sfcOrder, z_.data());
+        cstone::reorderInPlace(sfcOrder, x_.data());
+        cstone::reorderInPlace(sfcOrder, y_.data());
+        cstone::reorderInPlace(sfcOrder, z_.data());
     }
 
     const std::vector<T>& x() const { return x_; }
@@ -123,7 +121,7 @@ public:
 
 private:
 
-    Box<T> box_;
+    cstone::Box<T> box_;
     std::vector<T> x_, y_, z_;
     std::vector<Integer> codes_;
 };
@@ -135,7 +133,7 @@ public:
     using KeyType = KeyType_;
     using Integer = typename KeyType::ValueType;
 
-    RandomGaussianCoordinates(unsigned n, Box<T> box, int seed = 42)
+    RandomGaussianCoordinates(unsigned n, cstone::Box<T> box, int seed = 42)
         : box_(std::move(box)), x_(n), y_(n), z_(n), codes_(n)
     {
         //std::random_device rd;
@@ -165,15 +163,15 @@ public:
         std::generate(begin(z_), end(z_), randZ);
 
         auto keyData = (KeyType*)(codes_.data());
-        computeSfcKeys(x_.data(), y_.data(), z_.data(), keyData, n, box);
+        cstone::computeSfcKeys(x_.data(), y_.data(), z_.data(), keyData, n, box);
 
-        std::vector<LocalIndex> sfcOrder(n);
-        std::iota(begin(sfcOrder), end(sfcOrder), LocalIndex(0));
-        sort_by_key(begin(codes_), end(codes_), begin(sfcOrder));
+        std::vector<cstone::LocalIndex> sfcOrder(n);
+        std::iota(begin(sfcOrder), end(sfcOrder), cstone::LocalIndex(0));
+        cstone::sort_by_key(begin(codes_), end(codes_), begin(sfcOrder));
 
-        reorderInPlace(sfcOrder, x_.data());
-        reorderInPlace(sfcOrder, y_.data());
-        reorderInPlace(sfcOrder, z_.data());
+        cstone::reorderInPlace(sfcOrder, x_.data());
+        cstone::reorderInPlace(sfcOrder, y_.data());
+        cstone::reorderInPlace(sfcOrder, z_.data());
     }
 
     const std::vector<T>& x() const { return x_; }
@@ -183,7 +181,7 @@ public:
 
 private:
 
-    Box<T> box_;
+    cstone::Box<T> box_;
     std::vector<T> x_, y_, z_;
     std::vector<Integer> codes_;
 };

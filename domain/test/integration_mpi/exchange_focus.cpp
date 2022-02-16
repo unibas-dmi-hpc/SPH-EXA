@@ -48,8 +48,6 @@ void exchangeFocus(int myRank, int numRanks)
     std::vector<KeyType>  treeLeaves = makeUniformNLevelTree<KeyType>(64, 1);
     std::vector<unsigned> counts(nNodes(treeLeaves), 0);
 
-    std::vector<KeyType>  particleKeys(treeLeaves.begin(), treeLeaves.begin() + nNodes(treeLeaves));
-
     std::vector<int> peers;
     std::vector<IndexPair<TreeNodeIndex>> peerFocusIndices(2);
 
@@ -57,24 +55,18 @@ void exchangeFocus(int myRank, int numRanks)
     {
         peers.push_back(1);
         peerFocusIndices[1] = TreeIndexPair(32, 64);
+        std::fill(begin(counts), begin(counts) + 32, 1);
     }
     else
     {
         peers.push_back(0);
         peerFocusIndices[0] = TreeIndexPair(0, 32);
+        std::fill(begin(counts) + 32, end(counts), 1);
     }
 
-    exchangePeerCounts<KeyType>(peers, peerFocusIndices, particleKeys, treeLeaves, counts);
+    exchangePeerCounts<KeyType>(peers, peerFocusIndices, treeLeaves, counts);
 
-    std::vector<unsigned> reference(nNodes(treeLeaves), 0);
-    if (myRank == 0)
-    {
-        std::fill(begin(reference) + 32, end(reference), 1);
-    }
-    else
-    {
-        std::fill(begin(reference), begin(reference) + 32, 1);
-    }
+    std::vector<unsigned> reference(nNodes(treeLeaves), 1);
 
     EXPECT_EQ(counts, reference);
 }
@@ -153,21 +145,9 @@ void exchangeFocusIrregular(int myRank, int numRanks)
         peerFocusIndices[0] = TreeIndexPair(0, peerEndIdx);
     }
 
-    // rank 0 has the first x-half of a level-3 grid, rank 1 gets the second half
-    std::vector<KeyType> particleKeys;
-    std::vector<KeyType> level3grid = makeNLevelGrid<KeyType>(3);
-    if (myRank == 0)
-    {
-        particleKeys = std::vector<KeyType>(level3grid.begin(), level3grid.begin() + 256);
-    }
-    else
-    {
-        particleKeys = std::vector<KeyType>(level3grid.begin() + 256, level3grid.end());
-    }
-
     std::vector<unsigned> counts(nNodes(treeLeaves), 1);
 
-    exchangePeerCounts<KeyType>(peers, peerFocusIndices, particleKeys, treeLeaves, counts);
+    exchangePeerCounts<KeyType>(peers, peerFocusIndices, treeLeaves, counts);
 
     std::vector<unsigned> reference(nNodes(treeLeaves), 1);
     TreeNodeIndex peerStartIdx, peerEndIdx;
@@ -206,4 +186,30 @@ TEST(PeerExchange, irregularTree)
 
     exchangeFocusIrregular<unsigned>(rank, numRanks);
     exchangeFocusIrregular<uint64_t>(rank, numRanks);
+}
+
+TEST(PeerExchange, arrayWrap)
+{
+    int rank = 0, numRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
+
+    using Vec = util::array<uint64_t, 4>;
+
+    if (rank == 0)
+    {
+        std::vector<Vec> buffer{ {0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11} };
+
+        std::vector<MPI_Request> requests;
+        mpiSendAsync(buffer.data(), buffer.size(), 1, 0, requests);
+        MPI_Waitall(int(requests.size()), requests.data(), MPI_STATUS_IGNORE);
+    }
+    if (rank == 1)
+    {
+        std::vector<Vec> buffer(3);
+        mpiRecvSync(buffer.data(), buffer.size(), 0, 0, MPI_STATUS_IGNORE) ;
+
+        std::vector<Vec> reference{ {0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11} };
+        EXPECT_EQ(buffer, reference);
+    }
 }
