@@ -96,6 +96,14 @@ public:
         // sort keys and keep track of ordering for later use
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
 
+        gsl::span<const KeyType> oldLeaves = tree_.treeLeaves();
+        std::vector<KeyType> oldBoundaries(assignment_.numRanks() + 1);
+        for (int rank = 0; rank < oldBoundaries.size() - 1; ++rank)
+        {
+            oldBoundaries[rank] = oldLeaves[assignment_.firstNodeIdx(rank)];
+        }
+        oldBoundaries.back() = nodeRange<KeyType>(0);
+
         updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_, numRanks_);
 
         if (firstCall_)
@@ -105,7 +113,10 @@ public:
                 ;
         }
 
-        assignment_ = singleRangeSfcSplit(nodeCounts_, numRanks_);
+        auto newAssignment = singleRangeSfcSplit(nodeCounts_, numRanks_);
+        limitBoundaryShifts<KeyType>(oldBoundaries, tree_.treeLeaves(), nodeCounts_, newAssignment);
+        assignment_ = std::move(newAssignment);
+
         return assignment_.totalCount(myRank_);
     }
 
