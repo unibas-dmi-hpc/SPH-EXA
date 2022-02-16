@@ -138,7 +138,7 @@ public:
      */
     void updateCounts(gsl::span<const KeyType> particleKeys,
                       gsl::span<const int> peerRanks,
-                      const SpaceCurveAssignment& assignment,
+                      [[maybe_unused]] const SpaceCurveAssignment& assignment,
                       gsl::span<const KeyType> globalTreeLeaves,
                       gsl::span<const unsigned> globalCounts)
     {
@@ -249,7 +249,7 @@ public:
                        gsl::span<const T> z,
                        gsl::span<const Tm> m,
                        gsl::span<const int> peerRanks,
-                       const SpaceCurveAssignment& assignment,
+                       [[maybe_unused]] const SpaceCurveAssignment& assignment,
                        const Octree<KeyType>& globalTree,
                        const Box<T>& box)
     {
