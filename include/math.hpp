@@ -14,7 +14,7 @@ namespace sphexa
 namespace math
 {
 
-template <typename T>
+template<typename T>
 CUDA_DEVICE_HOST_FUN inline T pow(T a, int b)
 {
     if (b == 0)

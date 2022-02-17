@@ -13,12 +13,8 @@ namespace sph
 #ifndef USE_CUDA
 
 template<class T, class KeyType>
-void findNeighborsSfc(std::vector<Task>& taskList,
-                      const std::vector<T>& x,
-                      const std::vector<T>& y,
-                      const std::vector<T>& z,
-                      const std::vector<T>& h,
-                      const std::vector<KeyType>& particleKeys,
+void findNeighborsSfc(std::vector<Task>& taskList, const std::vector<T>& x, const std::vector<T>& y,
+                      const std::vector<T>& z, const std::vector<T>& h, const std::vector<KeyType>& particleKeys,
                       const cstone::Box<T>& box)
 {
     std::array<std::size_t, 5> sizes{x.size(), y.size(), z.size(), h.size(), particleKeys.size()};
@@ -29,25 +25,31 @@ void findNeighborsSfc(std::vector<Task>& taskList,
 
     for (auto& t : taskList)
     {
-        int* neighbors = t.neighbors.data();
+        int* neighbors      = t.neighbors.data();
         int* neighborsCount = t.neighborsCount.data();
 
-        cstone::findNeighbors(x.data(), y.data(), z.data(), h.data(), t.firstParticle, t.lastParticle, x.size(),
-                              box, cstone::sfcKindPointer(particleKeys.data()), neighbors, neighborsCount, ngmax);
+        cstone::findNeighbors(x.data(),
+                              y.data(),
+                              z.data(),
+                              h.data(),
+                              t.firstParticle,
+                              t.lastParticle,
+                              x.size(),
+                              box,
+                              cstone::sfcKindPointer(particleKeys.data()),
+                              neighbors,
+                              neighborsCount,
+                              ngmax);
     }
 }
 #else
 
 template<class T, class KeyType>
-void findNeighborsSfc([[maybe_unused]] std::vector<Task>& taskList,
-                      [[maybe_unused]] const std::vector<T>& x,
-                      [[maybe_unused]] const std::vector<T>& y,
-                      [[maybe_unused]] const std::vector<T>& z,
-                      [[maybe_unused]] const std::vector<T>& h,
-                      [[maybe_unused]] const std::vector<KeyType>& codes,
+void findNeighborsSfc([[maybe_unused]] std::vector<Task>& taskList, [[maybe_unused]] const std::vector<T>& x,
+                      [[maybe_unused]] const std::vector<T>& y, [[maybe_unused]] const std::vector<T>& z,
+                      [[maybe_unused]] const std::vector<T>& h, [[maybe_unused]] const std::vector<KeyType>& codes,
                       [[maybe_unused]] const cstone::Box<T>& box)
 {
-
 }
 
 #endif
@@ -56,7 +58,7 @@ size_t neighborsSumImpl(const Task& t)
 {
     size_t sum = 0;
 
-    #pragma omp parallel for reduction(+ : sum)
+#pragma omp parallel for reduction(+ : sum)
     for (size_t i = 0; i < t.size(); i++)
     {
         sum += t.neighborsCount[i];
@@ -69,7 +71,7 @@ size_t neighborsSum(const std::vector<Task>& taskList)
 {
     size_t sum = 0;
 
-    for (const auto &task : taskList)
+    for (const auto& task : taskList)
     {
         sum += neighborsSumImpl(task);
     }
@@ -83,4 +85,3 @@ size_t neighborsSum(const std::vector<Task>& taskList)
 
 } // namespace sph
 } // namespace sphexa
-

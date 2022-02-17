@@ -54,10 +54,10 @@ public:
 
     void update(int firstIndex, int lastIndex)
     {
-        int numTasks = tasks.size();
-        int numParticles = lastIndex - firstIndex;
+        int numTasks      = tasks.size();
+        int numParticles  = lastIndex - firstIndex;
         int partitionSize = numParticles / numTasks;
-        int remainder = numParticles % numTasks;
+        int remainder     = numParticles % numTasks;
 
         for (size_t i = 0; i < numTasks; ++i)
         {
@@ -67,9 +67,8 @@ public:
         }
     }
 
-    const size_t ngmax;
-    const size_t ng0;
+    const size_t      ngmax;
+    const size_t      ng0;
     std::vector<Task> tasks;
-
 };
 } // namespace sphexa
