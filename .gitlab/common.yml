@@ -173,7 +173,9 @@ variables:
     - echo CI_PROJECT_DIR=$CI_PROJECT_DIR
     - cd $CI_PROJECT_DIR
     # - ls -la
-    - sed -i "s@GIT_REPOSITORY@URL /usr/local/games/googletest-release-1.11.0/\n#@" ./domain/test/CMakeLists.txt.in
+    - sed -i "s@GIT_REPOSITORY@URL /usr/local/games/googletest-release-1.11.0/\n#@" ./cmake/setup_GTest.cmake
+    - sed -i "s@GIT_REPOSITORY@URL /usr/local/games/googletest-release-1.11.0/\n#@" ./domain/cmake/setup_GTest.cmake
+    - sed -i "s@GIT_REPOSITORY@URL /usr/local/games/googletest-release-1.11.0/\n#@" ./ryoanji/cmake/setup_GTest.cmake
     - sed -i 's@GIT_TAG@#GIT_TAG @' ./domain/test/CMakeLists.txt.in
     # - cat ./domain/test/CMakeLists.txt.in
     - echo "cpe=$cpe pe=$pe"
@@ -215,7 +217,9 @@ variables:
     # }}}
     - echo CI_PROJECT_DIR=$CI_PROJECT_DIR
     - cd $CI_PROJECT_DIR
-    - sed -i "s@GIT_REPOSITORY@URL /usr/local/games/googletest-release-1.11.0/\n#@" ./domain/test/CMakeLists.txt.in
+    - sed -i "s@GIT_REPOSITORY@URL /usr/local/games/googletest-release-1.11.0/\n#@" ./cmake/setup_GTest.cmake
+    - sed -i "s@GIT_REPOSITORY@URL /usr/local/games/googletest-release-1.11.0/\n#@" ./domain/cmake/setup_GTest.cmake
+    - sed -i "s@GIT_REPOSITORY@URL /usr/local/games/googletest-release-1.11.0/\n#@" ./ryoanji/cmake/setup_GTest.cmake
     - sed -i 's@GIT_TAG@#GIT_TAG @' ./domain/test/CMakeLists.txt.in
     # - cat ./domain/test/CMakeLists.txt.in
     - echo "cpe=$cpe pe=$pe"
