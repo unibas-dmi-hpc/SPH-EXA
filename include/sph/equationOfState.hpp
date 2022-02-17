@@ -27,7 +27,7 @@ void computeEquationOfState(size_t startIndex, size_t endIndex, Dataset& d)
     T* cv   = d.cv.data();
 
 #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < endIndex; ++i)
+    for (size_t i = startIndex; i < endIndex; ++i)
     {
         cv[i]   = T(1.5) * R / mui[i];
         temp[i] = u[i] / cv[i];
