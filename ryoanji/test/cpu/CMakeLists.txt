@@ -13,7 +13,7 @@ target_compile_options(ryoanji_cpu_unit_tests PRIVATE -Wall -Wextra -Wno-unknown
 
 target_include_directories(ryoanji_cpu_unit_tests PRIVATE ${RYOANJI_TEST_INCLUDE_DIRS})
 
-target_link_libraries(ryoanji_cpu_unit_tests PRIVATE gtest_main)
+target_link_libraries(ryoanji_cpu_unit_tests PRIVATE GTest::gtest_main)
 add_test(NAME RyoanjiCpuTests COMMAND ryoanji_cpu_unit_tests)
 
 install(TARGETS ryoanji_unit_tests RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji/cpu_unit_tests)

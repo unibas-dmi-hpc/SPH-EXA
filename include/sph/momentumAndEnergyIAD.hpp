@@ -15,25 +15,25 @@ namespace sphexa
 namespace sph
 {
 
-template <typename T, class Dataset>
+template<typename T, class Dataset>
 void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 {
-    size_t numParticles = t.size();
-    size_t ngmax = t.ngmax;
-    const int* neighbors = t.neighbors.data();
+    size_t     numParticles   = t.size();
+    size_t     ngmax          = t.ngmax;
+    const int* neighbors      = t.neighbors.data();
     const int* neighborsCount = t.neighborsCount.data();
 
-    const T* h = d.h.data();
-    const T* m = d.m.data();
-    const T* x = d.x.data();
-    const T* y = d.y.data();
-    const T* z = d.z.data();
+    const T* h  = d.h.data();
+    const T* m  = d.m.data();
+    const T* x  = d.x.data();
+    const T* y  = d.y.data();
+    const T* z  = d.z.data();
     const T* vx = d.vx.data();
     const T* vy = d.vy.data();
     const T* vz = d.vz.data();
     const T* ro = d.ro.data();
-    const T* c = d.c.data();
-    const T* p = d.p.data();
+    const T* c  = d.c.data();
+    const T* p  = d.p.data();
 
     const T* c11 = d.c11.data();
     const T* c12 = d.c12.data();
@@ -42,22 +42,22 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     const T* c23 = d.c23.data();
     const T* c33 = d.c33.data();
 
-    T* du = d.du.data();
-    T* grad_P_x = d.grad_P_x.data();
-    T* grad_P_y = d.grad_P_y.data();
-    T* grad_P_z = d.grad_P_z.data();
+    T* du         = d.du.data();
+    T* grad_P_x   = d.grad_P_x.data();
+    T* grad_P_y   = d.grad_P_y.data();
+    T* grad_P_z   = d.grad_P_z.data();
     T* maxvsignal = d.maxvsignal.data();
 
-    const T* wh = d.wh.data();
+    const T* wh  = d.wh.data();
     const T* whd = d.whd.data();
 
-    T K = d.K;
+    T K         = d.K;
     T sincIndex = d.sincIndex;
 
 #if defined(USE_OMP_TARGET)
-    const int np = d.x.size();
-    const size_t ltsize = d.wh.size();
-    const size_t n = numParticles;
+    const int    np           = d.x.size();
+    const size_t ltsize       = d.wh.size();
+    const size_t n            = numParticles;
     const size_t allNeighbors = n * ngmax;
 // clang-format off
 #pragma omp target map(to                                                                                                                  \
@@ -81,13 +81,13 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     }
 }
 
-template <typename T, class Dataset>
+template<typename T, class Dataset>
 void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<T>& box)
 {
 #if defined(USE_CUDA)
     cuda::computeMomentumAndEnergyIAD(taskList, d, box);
 #else
-    for (const auto &task : taskList)
+    for (const auto& task : taskList)
     {
         computeMomentumAndEnergyIADImpl<T>(task, d, box);
     }

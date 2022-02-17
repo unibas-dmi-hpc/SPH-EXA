@@ -187,10 +187,18 @@ public:
 
     /*! @brief exchange data of non-peer (beyond focus) tree cells
      *
-     * @tparam        T            an arithmetic type, or compile-time fix-sized arrays thereof
-     * @tparam        F            function object for octree upsweep
-     * @param[in]     globalTree   the same global (replicated on all ranks) tree that was used for peer rank detection
-     * @param[inout]  quantities   an array of length octree().numTreeNodes()
+     * @tparam        T                an arithmetic type, or compile-time fix-sized arrays thereof
+     * @tparam        F                function object for octree upsweep
+     * @param[in]     globalTree       the same global (replicated on all ranks) tree that was used for peer rank
+     *                                 detection
+     * @param[out]    globalQuantities an array of length @p globalTree.numTreeNodes(), will be populated with
+     *                                 information from @p quantities
+     * @param[inout]  quantities       an array of length octree().numTreeNodes() with cell properties of the
+     *                                 locally focused octree
+     *
+     * The data flow is:
+     *  local cells of quantities -> leaves of globalQuantities -> global collective communication -> upsweep
+     *   -> back-contribution of global cell quantities into the
      *
      * Precondition:  quantities contains valid data for each cell, including internal cells,
      *                that falls into the focus range of the executing
@@ -200,6 +208,7 @@ public:
      */
     template<class T, class F>
     void globalExchange(const Octree<KeyType>& globalTree,
+                        T* globalQuantities,
                         T* quantities,
                         F&& upsweepFunction)
     {
@@ -225,8 +234,7 @@ public:
         mpiAllreduce(MPI_IN_PLACE, globalLeafQuantities.data(), numGlobalLeaves, MPI_SUM);
 
         //! upsweep of the global tree
-        std::vector<T> globalQuantities(globalTree.numTreeNodes());
-        upsweep(globalTree, globalLeafQuantities.data(), globalQuantities.data(), std::forward<F>(upsweepFunction));
+        upsweep(globalTree, globalLeafQuantities.data(), globalQuantities, std::forward<F>(upsweepFunction));
 
         gsl::span<const KeyType> localLeaves = treeLeaves();
         //! globalIndices: range of leaf cell indices in the locally focused tree that need global information
@@ -253,15 +261,16 @@ public:
                        const Octree<KeyType>& globalTree,
                        const Box<T>& box)
     {
-        // compute temporary pre-halo exchange particle layout for local particles only
+        //! compute temporary pre-halo exchange particle layout for local particles only
         std::vector<LocalIndex> layout(leafCounts_.size() + 1, 0);
         TreeNodeIndex firstIdx = assignment_[myRank_].start();
         TreeNodeIndex lastIdx  = assignment_[myRank_].end();
         std::exclusive_scan(leafCounts_.begin() + firstIdx, leafCounts_.begin() + lastIdx + 1,
                             layout.begin() + firstIdx, 0);
 
+        globalCenters_.resize(globalTree.numTreeNodes());
         centers_.resize(octree().numTreeNodes());
-
+        //! prepare local leaf centers
         #pragma omp parallel for schedule(static)
         for (TreeNodeIndex leafIdx = 0; leafIdx < octree().numLeafNodes(); ++leafIdx)
         {
@@ -270,11 +279,15 @@ public:
                 massCenter<RealType>(x.data(), y.data(), z.data(), m.data(), layout[leafIdx], layout[leafIdx + 1]);
         }
 
+        //! upsweep with local data in place
         upsweep(octree(), centers_.data(), CombineSourceCenter<T>{});
+        //! exchange information with peer close to focus
         peerExchange<SourceCenterType<T>>(peerRanks, centers_, static_cast<int>(P2pTags::focusPeerCenters));
-        globalExchange(globalTree, centers_.data(), CombineSourceCenter<T>{});
+        //! global exchange for the top nodes that are bigger than local domains
+        globalExchange(globalTree, globalCenters_.data(), centers_.data(), CombineSourceCenter<T>{});
+        //! upsweep with all (leaf) data in place
         upsweep(octree(), centers_.data(), CombineSourceCenter<T>{});
-
+        //! calculate mac radius for each cell based on location of expansion centers
         setMac<T>(octree().nodeKeys(), centers_, 1.0 / theta_, box);
     }
 
@@ -360,6 +373,8 @@ public:
     gsl::span<const TreeIndexPair> assignment() const { return assignment_; }
     //! @brief Expansion (com) centers of each cell
     gsl::span<const SourceCenterType<RealType>> expansionCenters() const { return centers_; }
+    //! @brief Expansion (com) centers of each global cell
+    gsl::span<const SourceCenterType<RealType>> globalExpansionCenters() const { return globalCenters_; }
     //! @brief access multipole acceptance status of each cell
     gsl::span<const char> macs() const { return macs_; }
     //! brief particle counts per focus tree leaf cell
@@ -407,15 +422,16 @@ private:
     //! @brief previous iteration focus end
     KeyType prevFocusEnd   = 0;
 
-    //! @brief particle counts of the focused tree leaves
+    //! @brief particle counts of the focused tree leaves, tree_.treeLeaves()
     std::vector<unsigned> leafCounts_;
-    //! @brief particle counts of the full tree, including internal nodes
+    //! @brief particle counts of the full tree, tree_.octree()
     std::vector<unsigned> counts_;
     //! @brief mac evaluation result relative to focus area (pass or fail)
     std::vector<char> macs_;
-    //! @brief the expansion (com) centers of each treeLeaves cell
+    //! @brief the expansion (com) centers of each cell of tree_.octree()
     std::vector<SourceCenterType<RealType>> centers_;
-
+    //! @brief we also need to hold on to the expansion centers of the global tree for the multipole upsweep
+    std::vector<SourceCenterType<RealType>> globalCenters_;
     //! @brief the assignment of peer ranks to tree_.treeLeaves()
     std::vector<TreeIndexPair> assignment_;
 
