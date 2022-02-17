@@ -1,5 +1,5 @@
-
-add_subdirectory(gtest)
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+include(setup_GTest)
 
 add_executable(ryoanji_unit_tests
                treebuilder.cu
@@ -10,7 +10,7 @@ add_executable(ryoanji_unit_tests
 
 target_include_directories(ryoanji_unit_tests PRIVATE ${PROJECT_SOURCE_DIR}/src)
 
-target_link_libraries(ryoanji_unit_tests PUBLIC OpenMP::OpenMP_CXX cstone_tree gtest_main)
+target_link_libraries(ryoanji_unit_tests PUBLIC OpenMP::OpenMP_CXX cstone_tree GTest::gtest_main)
 
 set_source_files_properties(buildtree.cu PROPERTIES COMPILE_FLAGS -G)
 set_source_files_properties(direct.cu PROPERTIES COMPILE_FLAGS -G)
