@@ -106,7 +106,7 @@ void adjustSmoothingLength(LocalIndex numParticles,
 }
 
 template<class T, class KeyType>
-static void globalMultipoleExchange(int thisRank, int numRanks)
+static int globalMultipoleExchange(int thisRank, int numRanks)
 {
     using MultipoleType = CartesianQuadrupole<T>;
     const LocalIndex numParticles    = 1000;
@@ -120,7 +120,7 @@ static void globalMultipoleExchange(int thisRank, int numRanks)
     RandomGaussianCoordinates<T, cstone::SfcKind<KeyType>> coords(numRanks * numParticles, box);
 
     std::vector<T> globalH(numRanks * numParticles, 0.1);
-    adjustSmoothingLength<KeyType>(globalH.size(), 100, 150, coords.x(), coords.y(), coords.z(), globalH, box);
+    adjustSmoothingLength<KeyType>(globalH.size(), 5, 10, coords.x(), coords.y(), coords.z(), globalH, box);
 
     std::vector<T> globalMasses(numRanks * numParticles, 1.0 / (numRanks * numParticles));
 
@@ -135,55 +135,24 @@ static void globalMultipoleExchange(int thisRank, int numRanks)
     std::vector<T> h(globalH.begin() + firstIndex, globalH.begin() + lastIndex);
     std::vector<T> m(globalMasses.begin() + firstIndex, globalMasses.begin() + lastIndex);
 
-    for (int rank = 0; rank < numRanks; ++rank)
-    {
-        if (thisRank == rank)
-        {
-            std::cout << "localMass rank " << rank << " " << std::accumulate(m.begin(), m.end(), 0.0) << std::endl;
-        }
-        MPI_Barrier(MPI_COMM_WORLD);
-    }
-
     std::vector<KeyType> particleKeys(x.size());
 
     cstone::Domain<KeyType, T> domain(thisRank, numRanks, bucketSize, bucketSizeLocal, theta, box);
 
     domain.syncGrav(particleKeys, x, y, z, h, m);
 
-    for (int rank = 0; rank < numRanks; ++rank)
-    {
-        if (thisRank == rank)
-        {
-            std::cout << "localMass rank " << rank << " " << std::accumulate(m.begin() + domain.startIndex(), m.begin() + domain.endIndex(), 0.0) << " ";
-            std::cout << "start/end " << domain.startIndex() << " " << domain.endIndex() << " " << domain.nParticlesWithHalos() << " ";
-
-            gsl::span<const cstone::SourceCenterType<T>> centers = domain.expansionCenters();
-            auto rc = centers[0];
-            std::cout << rc[0] << " " << rc[1] << " " << rc[2] << std::endl;
-        }
-        MPI_Barrier(MPI_COMM_WORLD);
-    }
-
     const cstone::Octree<KeyType>& focusTree = domain.focusTree();
     gsl::span<const cstone::SourceCenterType<T>> centers = domain.expansionCenters();
 
-    MultipoleType zero;
-    zero = 0;
-    std::vector<MultipoleType> multipoles(focusTree.numTreeNodes(), zero);
+    std::vector<MultipoleType> multipoles(focusTree.numTreeNodes());
     ryoanji::computeLeafMultipoles(
         focusTree, domain.layout(), x.data(), y.data(), z.data(), m.data(), centers.data(), multipoles.data());
 
     ryoanji::CombineMultipole<MultipoleType> combineMultipole(centers.data());
     upsweep(focusTree, multipoles.data(), combineMultipole);
 
-    if (thisRank == 0)
-        std::cout << "root mass before global exchange " << multipoles[0][0] << std::endl;
-
     domain.template exchangeFocusGlobal<MultipoleType>(multipoles, combineMultipole);
     upsweep(focusTree, multipoles.data(), combineMultipole);
-
-    if (thisRank == 0)
-        std::cout << "root mass after global exchange " << multipoles[0][0] << std::endl;
 
     MultipoleType globalRootMultipole = multipoles[focusTree.levelOffset(0)];
 
@@ -198,32 +167,20 @@ static void globalMultipoleExchange(int thisRank, int numRanks)
                        makeVec3(centers[focusTree.levelOffset(0)]),
                        reference);
 
-    MultipoleType diff = reference - globalRootMultipole;
+    double maxDiff = max(abs(reference - globalRootMultipole));
 
-    bool pass = true;
-    for (size_t i = 0; i < diff.size(); ++i)
-    {
-        if (reference[i] != 0)
-        {
-            if (std::abs(reference[i] - globalRootMultipole[i]) > 1e-6)
-            {
-                pass = false;
-                break;
-            }
-        }
-        else
-        {
-            if (globalRootMultipole[i] != 0)
-            {
-                pass = false;
-                break;
-            }
-        }
-    }
-
+    bool pass = maxDiff < 1e-10;
     int numPassed = pass;
     mpiAllreduce(MPI_IN_PLACE, &numPassed, 1, MPI_SUM);
-    std::cout << "Number of ranks passed: " << numPassed << std::endl;
+
+    if (thisRank == 0)
+    {
+        std::string testResult = (numPassed == numRanks) ? "PASS" : "FAIL";
+        std::cout << "Test result: " << testResult << std::endl;
+    }
+
+    if (numPassed == numRanks) { return EXIT_SUCCESS; }
+    else { return EXIT_FAILURE; }
 }
 
 int main(int argc, char** argv)
@@ -234,7 +191,9 @@ int main(int argc, char** argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
-    globalMultipoleExchange<double, unsigned>(rank, numRanks);
+    int testResult = globalMultipoleExchange<double, uint64_t>(rank, numRanks);
 
     MPI_Finalize();
+
+    return testResult;
 }

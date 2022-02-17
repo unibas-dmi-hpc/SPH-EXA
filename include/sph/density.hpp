@@ -52,6 +52,7 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
                        : ro [:n])
 #pragma omp teams distribute parallel for
 // clang-format on
+#else
 #pragma omp parallel for
 #endif
     for (size_t pi = 0; pi < numParticles; pi++)

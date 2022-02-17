@@ -99,14 +99,14 @@ public:
         computeMomentumAndEnergyIAD<T>(taskList.tasks, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
-        computeTimestep<T, TimestepPress2ndOrder<T, ParticleDataType>>(taskList.tasks, d);
+        computeTimestep(domain.startIndex(), domain.endIndex(), d);
         timer.step("Timestep");
 
-        computePositions<T, computeAcceleration<T, ParticleDataType>>(taskList.tasks, d, domain.box());
+        computePositions(domain.startIndex(), domain.endIndex(), d, domain.box());
         timer.step("UpdateQuantities");
 
-        computeTotalEnergy<T>(taskList.tasks, d);
-        d.etot += d.egrav;
+        d.egrav = 0;
+        computeTotalEnergy<T>(domain.startIndex(), domain.endIndex(), d);
         timer.step("EnergyConservation");
 
         updateSmoothingLength<T>(taskList.tasks, d);
@@ -168,14 +168,18 @@ public:
             octree, domain.layout(), d.x.data(), d.y.data(), d.z.data(), d.m.data(), centers.data(), multipoles.data());
 
         ryoanji::CombineMultipole<MultipoleType> combineMultipole(centers.data());
+        //! first upsweep with local data
+        upsweep(octree, multipoles.data(), combineMultipole);
+        domain.template exchangeFocusGlobal<MultipoleType>(multipoles, combineMultipole);
+        //! second upsweep with leaf data from peer ranks in place
         upsweep(octree, multipoles.data(), combineMultipole);
 
         d.egrav = ryoanji::computeGravity(octree,
                                           centers.data(),
                                           multipoles.data(),
                                           domain.layout().data(),
-                                          0,
-                                          octree.numLeafNodes(),
+                                          domain.startCell(),
+                                          domain.endCell(),
                                           d.x.data(),
                                           d.y.data(),
                                           d.z.data(),
@@ -190,14 +194,13 @@ public:
         d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
         timer.step("Gravity");
 
-        computeTimestep<T, TimestepPress2ndOrder<T, ParticleDataType>>(taskList.tasks, d);
+        computeTimestep(domain.startIndex(), domain.endIndex(), d);
         timer.step("Timestep");
 
-        computePositions<T, computeAcceleration<T, ParticleDataType>>(taskList.tasks, d, domain.box());
+        computePositions(domain.startIndex(), domain.endIndex(), d, domain.box());
         timer.step("UpdateQuantities");
 
-        computeTotalEnergy<T>(taskList.tasks, d);
-        d.etot += d.egrav;
+        computeTotalEnergy<T>(domain.startIndex(), domain.endIndex(), d);
         timer.step("EnergyConservation");
 
         updateSmoothingLength<T>(taskList.tasks, d);
