@@ -4,7 +4,7 @@
 find_package(GTest)
 
 if (NOT GTest_FOUND)
-    message("-- Configure GTest from github")
+    message(STATUS "Configure GTest from github")
 
     include(FetchContent)
     FetchContent_Declare(
@@ -16,7 +16,7 @@ if (NOT GTest_FOUND)
     # Check if population has already been performed
     FetchContent_GetProperties(googletest)
     if(NOT googletest_POPULATED)
-        message("-- Downloading GTest from github")
+        message(STATUS "Downloading GTest from github")
         # Fetch the content using previously declared details
         FetchContent_Populate(googletest)
 
