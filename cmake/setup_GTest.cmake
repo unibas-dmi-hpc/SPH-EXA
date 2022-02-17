@@ -5,7 +5,6 @@ find_package(GTest)
 
 if (NOT GTest_FOUND)
     message("-- Configure GTest from github")
-    project(googletest-git NONE)
 
     include(FetchContent)
     FetchContent_Declare(
