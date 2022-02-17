@@ -9,12 +9,13 @@ namespace sphexa
 namespace sph
 {
 
-template<typename T, typename Dataset>
-void computeEquationOfStateEvrardImpl(const Task& t, Dataset& d)
+template<typename Dataset>
+void computeEquationOfState(size_t startIndex, size_t endIndex, Dataset& d)
 {
-    size_t numParticles = t.size();
+    using T = typename Dataset::RealType;
 
-    const T R = 8.317e7, gamma = (5.0 / 3.0);
+    const T R     = 8.317e7;
+    const T gamma = (5.0 / 3.0);
 
     const T* ro  = d.ro.data();
     const T* mui = d.mui.data();
@@ -25,28 +26,21 @@ void computeEquationOfStateEvrardImpl(const Task& t, Dataset& d)
     T* c    = d.c.data();
     T* cv   = d.cv.data();
 
-#pragma omp parallel for
-    for (size_t pi = 0; pi < numParticles; ++pi)
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < endIndex; ++i)
     {
-        int i = pi + t.firstParticle;
-
-        cv[i]   = 1.5 * R / mui[i];
+        cv[i]   = T(1.5) * R / mui[i];
         temp[i] = u[i] / cv[i];
         T tmp   = u[i] * (gamma - 1);
         p[i]    = ro[i] * tmp;
-        c[i]    = sqrt(tmp);
+        c[i]    = std::sqrt(tmp);
 
+#ifndef NDEBUG
         if (std::isnan(c[i]) || std::isnan(cv[i]))
             printf("ERROR:equation_of_state c %f cv %f temp %f u %f p %f\n", c[i], cv[i], temp[i], u[i], p[i]);
+#endif
     }
 }
-template<typename T, class Dataset>
-void computeEquationOfStateEvrard(const std::vector<Task>& taskList, Dataset& d)
-{
-    for (const auto& task : taskList)
-    {
-        computeEquationOfStateEvrardImpl<T>(task, d);
-    }
-}
+
 } // namespace sph
 } // namespace sphexa
