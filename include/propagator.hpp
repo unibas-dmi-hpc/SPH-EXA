@@ -39,6 +39,8 @@
 #include "particles_data.hpp"
 
 #include "cstone/domain/domain.hpp"
+#include "ryoanji/cpu/treewalk.hpp"
+#include "ryoanji/cpu/upsweep.hpp"
 
 #include "sph/timestep.hpp"
 
@@ -56,10 +58,10 @@ public:
     {
     }
 
+    //! @brief Advance simulation by one step with hydro-dynamical forces
     template<class DomainType, class ParticleDataType>
     void hydroStep(DomainType& domain, ParticleDataType& d)
     {
-        // Advance simulation by one step
         using T = typename ParticleDataType::RealType;
 
         timer.start();
@@ -97,14 +99,14 @@ public:
         computeMomentumAndEnergyIAD<T>(taskList.tasks, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
-        computeTimestep<T, TimestepPress2ndOrder<T, ParticleDataType>>(taskList.tasks, d);
+        computeTimestep(domain.startIndex(), domain.endIndex(), d);
         timer.step("Timestep");
 
-        computePositions<T, computeAcceleration<T, ParticleDataType>>(taskList.tasks, d, domain.box());
+        computePositions(domain.startIndex(), domain.endIndex(), d, domain.box());
         timer.step("UpdateQuantities");
 
-        computeTotalEnergy<T>(taskList.tasks, d);
-        d.etot += d.egrav;
+        d.egrav = 0;
+        computeTotalEnergy<T>(domain.startIndex(), domain.endIndex(), d);
         timer.step("EnergyConservation");
 
         updateSmoothingLength<T>(taskList.tasks, d);
@@ -115,15 +117,17 @@ public:
         printIterationTimings(domain, d);
     }
 
+    //! @brief Advance simulation by one step with hydro-dynamical and self-gravity forces
     template<class DomainType, class ParticleDataType>
     void hydroStepGravity(DomainType& domain, ParticleDataType& d)
     {
-        // Advance simulation by one step
-        using T = typename ParticleDataType::RealType;
+        using T             = typename ParticleDataType::RealType;
+        using KeyType       = typename ParticleDataType::KeyType;
+        using MultipoleType = ryoanji::CartesianQuadrupole<T>;
 
         timer.start();
 
-        domain.sync(
+        domain.syncGrav(
             d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
         timer.step("domain::sync");
 
@@ -156,19 +160,47 @@ public:
         computeMomentumAndEnergyIAD<T>(taskList.tasks, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
-        d.egrav = domain.addGravityAcceleration(d.x, d.y, d.z, d.h, d.m, d.g, d.grad_P_x, d.grad_P_y, d.grad_P_z);
+        const Octree<KeyType>&               octree  = domain.focusTree();
+        gsl::span<const SourceCenterType<T>> centers = domain.expansionCenters();
+
+        std::vector<MultipoleType> multipoles(octree.numTreeNodes());
+        ryoanji::computeLeafMultipoles(
+            octree, domain.layout(), d.x.data(), d.y.data(), d.z.data(), d.m.data(), centers.data(), multipoles.data());
+
+        ryoanji::CombineMultipole<MultipoleType> combineMultipole(centers.data());
+        //! first upsweep with local data
+        upsweep(octree, multipoles.data(), combineMultipole);
+        domain.template exchangeFocusGlobal<MultipoleType>(multipoles, combineMultipole);
+        //! second upsweep with leaf data from peer ranks in place
+        upsweep(octree, multipoles.data(), combineMultipole);
+
+        d.egrav = ryoanji::computeGravity(octree,
+                                          centers.data(),
+                                          multipoles.data(),
+                                          domain.layout().data(),
+                                          domain.startCell(),
+                                          domain.endCell(),
+                                          d.x.data(),
+                                          d.y.data(),
+                                          d.z.data(),
+                                          d.h.data(),
+                                          d.m.data(),
+                                          d.g,
+                                          d.grad_P_x.data(),
+                                          d.grad_P_y.data(),
+                                          d.grad_P_z.data());
+
         // temporary sign fix, see note in ParticlesData
         d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
         timer.step("Gravity");
 
-        computeTimestep<T, TimestepPress2ndOrder<T, ParticleDataType>>(taskList.tasks, d);
+        computeTimestep(domain.startIndex(), domain.endIndex(), d);
         timer.step("Timestep");
 
-        computePositions<T, computeAcceleration<T, ParticleDataType>>(taskList.tasks, d, domain.box());
+        computePositions(domain.startIndex(), domain.endIndex(), d, domain.box());
         timer.step("UpdateQuantities");
 
-        computeTotalEnergy<T>(taskList.tasks, d);
-        d.etot += d.egrav;
+        computeTotalEnergy<T>(domain.startIndex(), domain.endIndex(), d);
         timer.step("EnergyConservation");
 
         updateSmoothingLength<T>(taskList.tasks, d);
@@ -205,7 +237,7 @@ private:
                                 totalNeighbors,
                                 output_);
 
-            std::cout << "### Check ### Focus Tree Nodes: " << nNodes(domain.focusTree()) << std::endl;
+            std::cout << "### Check ### Focus Tree Nodes: " << domain.focusTree().numLeafNodes() << std::endl;
             Printer::printTotalIterationTime(d.iteration, timer.duration(), output_);
         }
     }

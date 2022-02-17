@@ -123,6 +123,8 @@ public:
         haloexchange(haloEpoch_++, incomingHaloIndices_, outgoingHaloIndices_, arrays...);
     }
 
+    gsl::span<int> haloFlags() { return haloFlags_; }
+
 private:
     //! @brief check that only owned particles in [particleStart_:particleEnd_] are sent out as halos
     void checkIndices(const SendList& sendList,

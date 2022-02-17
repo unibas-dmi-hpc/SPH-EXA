@@ -213,9 +213,9 @@ inline SendList computeHaloReceiveList(gsl::span<const LocalIndex> layout,
 template<class... Arrays>
 void reallocate(std::size_t size, Arrays&... arrays)
 {
-    std::array capacities{arrays.capacity()...};
+    std::array<std::size_t, sizeof...(Arrays)> capacities{arrays.capacity()...};
 
-    size_t current_capacity = capacities[0];
+    size_t current_capacity = capacities.size() ? capacities[0] : 0;
     if (size > current_capacity)
     {
         // limit reallocation growth to 5% instead of 200%

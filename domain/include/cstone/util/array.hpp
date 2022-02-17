@@ -127,6 +127,13 @@ struct alignas(determineAlignment<T>(N)) array
 
     HOST_DEVICE_FUN constexpr const_pointer data() const noexcept { return data_; }
 
+    HOST_DEVICE_FUN constexpr array<T, N>& operator=(const value_type& rhs) noexcept
+    {
+        auto assignAToB = [](T /*a*/, T b) { return b; };
+        assignImpl(data(), rhs, assignAToB, std::make_index_sequence<N>{});
+        return *this;
+    }
+
     HOST_DEVICE_FUN constexpr array<T, N>& operator+=(const array<T, N>& rhs) noexcept
     {
         auto add = [](T a, T b) { return a + b; };
@@ -154,11 +161,6 @@ struct alignas(determineAlignment<T>(N)) array
         assignImpl(data(), rhs, divide, std::make_index_sequence<N>{});
         return *this;
     }
-
-    //! conversion to pointer for interoperability with gmx::BasicVector
-    HOST_DEVICE_FUN constexpr T* as_vec() { return data_; }
-    //! conversion to const pointer for interoperability with gmx::BasicVector
-    HOST_DEVICE_FUN constexpr const T* as_vec() const { return data_; }
 
 private:
     template<class F, std::size_t... Is>
@@ -191,6 +193,24 @@ HOST_DEVICE_FUN constexpr array<T, N> operator+(const array<T, N>& a, const arra
 {
     auto ret = a;
     return ret += b;
+}
+
+namespace detail
+{
+
+template<class T, std::size_t... Is>
+HOST_DEVICE_FUN constexpr array<T, sizeof...(Is)> negateImpl(const array<T, sizeof...(Is)>& a,
+                                                             std::index_sequence<Is...>)
+{
+    return array<T, sizeof...(Is)>{-a[Is]...};
+}
+
+} // namespace detail
+
+template<class T, std::size_t N>
+HOST_DEVICE_FUN constexpr array<T, N> operator-(const array<T, N>& a)
+{
+    return detail::negateImpl(a, std::make_index_sequence<N>{});
 }
 
 template<class T, std::size_t N>
@@ -367,6 +387,12 @@ template<class T>
 HOST_DEVICE_FUN constexpr array<T, 3> cross(const array<T, 3>& a, const array<T, 3>& b)
 {
     return { a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0] };
+}
+
+template<class T>
+constexpr HOST_DEVICE_FUN array<T, 3> makeVec3(array<T, 4> v)
+{
+    return array<T, 3>{v[0], v[1], v[2]};
 }
 
 } // namespace util

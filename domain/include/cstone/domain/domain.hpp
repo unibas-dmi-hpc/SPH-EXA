@@ -38,16 +38,11 @@
 #include "cstone/domain/domain_traits.hpp"
 #include "cstone/domain/exchange_keys.hpp"
 #include "cstone/domain/layout.hpp"
-#include "cstone/traversal/collisions.hpp"
-#include "cstone/traversal/peers.hpp"
-
-#include "cstone/gravity/treewalk.hpp"
-#include "cstone/gravity/upsweep.hpp"
+#include "cstone/focus/octree_focus_mpi.hpp"
 #include "cstone/halos/exchange_halos.hpp"
 #include "cstone/halos/halos.hpp"
-
-#include "cstone/focus/octree_focus_mpi.hpp"
-
+#include "cstone/traversal/collisions.hpp"
+#include "cstone/traversal/peers.hpp"
 #include "cstone/sfc/box_mpi.hpp"
 
 namespace cstone
@@ -186,14 +181,15 @@ public:
         // h is already reordered here for use in halo discovery
         reorderFunctor(h.data() + exchangeStart, h.data());
 
-        std::vector<int> peers = global_.findPeers(theta_);
+        std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), theta_);
 
         if (firstCall_)
         {
-            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
         }
-        focusTree_.updateTree(peers, global_.assignment(), global_.tree());
-        focusTree_.updateCriteria(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+        focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
+        focusTree_.updateCounts(keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
+        focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves());
 
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
 
@@ -218,16 +214,19 @@ public:
         auto [exchangeStart, keyView] = distribute(particleKeys, x, y, z, h, m, particleProperties...);
         reorderArrays(reorderFunctor, exchangeStart, 0, x.data(), y.data(), z.data(), h.data(), m.data());
 
-        std::vector<int> peers = global_.findPeers(theta_);
+        std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), theta_);
 
         if (firstCall_)
         {
-            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
         }
-        focusTree_.updateTree(peers, global_.assignment(), global_.tree());
-        focusTree_.updateCriteria(box(), keyView, peers, global_.assignment(), global_.tree(), global_.nodeCounts());
+        focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
+        focusTree_.updateCounts(keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
+        focusTree_.template updateCenters<T, T>(x, y, z, m, peers, global_.assignment(), global_.octree(), box());
+        focusTree_.updateVecMac(box(), global_.assignment(), global_.treeLeaves());
 
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
+        focusTree_.addMacs(halos_.haloFlags());
 
         reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), keyView, peers,
@@ -246,56 +245,43 @@ public:
         halos_.exchangeHalos(arrays.data()...);
     }
 
-    /*! @brief compute gravitational accelerations
-     *
-     * @param[in]    x    x-coordinates
-     * @param[in]    y    y-coordinates
-     * @param[in]    z    z-coordinates
-     * @param[in]    h    smoothing lengths
-     * @param[in]    m    particle masses
-     * @param[in]    G    gravitational constant
-     * @param[inout] ax   x-acceleration to add to
-     * @param[inout] ay   y-acceleration to add to
-     * @param[inout] az   z-acceleration to add to
-     * @return            total gravitational potential energy
-     */
-    T addGravityAcceleration(gsl::span<const T> x,
-                             gsl::span<const T> y,
-                             gsl::span<const T> z,
-                             gsl::span<const T> h,
-                             gsl::span<const T> m,
-                             float G,
-                             gsl::span<T> ax,
-                             gsl::span<T> ay,
-                             gsl::span<T> az)
+    template<class CellProperty, class CombinationFunction>
+    void exchangeFocusGlobal(gsl::span<CellProperty> cellProperties, CombinationFunction combinationFunction)
     {
-        const Octree<KeyType>& octree = focusTree_.octree();
-        std::vector<GravityMultipole<T>> multipoles(octree.numTreeNodes());
-        computeMultipoles(octree, layout_, x.data(), y.data(), z.data(), m.data(), multipoles.data());
+        const Octree<KeyType>& globalTree = global_.octree();
 
-        return computeGravity(octree, multipoles.data(), layout_.data(), 0, octree.numLeafNodes(), x.data(), y.data(),
-                              z.data(), h.data(), m.data(), global_.box(), theta_, G, ax.data(), ay.data(),
-                              az.data());
+        gsl::span<const SourceCenterType<T>> globalCenters = focusTree_.globalExpansionCenters();
+        assert(globalTree.numTreeNodes() == globalCenters.ssize());
+        combinationFunction.setCenters(globalCenters.data());
+
+        std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), globalTree, box(), theta_);
+
+        std::vector<CellProperty> globalProperties(globalTree.numTreeNodes());
+
+        focusTree_.peerExchange(peers, cellProperties, static_cast<int>(P2pTags::focusPeerCenters) + 1);
+        focusTree_.globalExchange(globalTree, globalProperties.data(), cellProperties.data(), combinationFunction);
     }
 
     //! @brief return the index of the first particle that's part of the local assignment
     [[nodiscard]] LocalIndex startIndex() const { return bufDesc_.start; }
-
     //! @brief return one past the index of the last particle that's part of the local assignment
     [[nodiscard]] LocalIndex endIndex() const { return bufDesc_.end; }
-
     //! @brief return number of locally assigned particles
     [[nodiscard]] LocalIndex nParticles() const { return endIndex() - startIndex(); }
-
     //! @brief return number of locally assigned particles plus number of halos
     [[nodiscard]] LocalIndex nParticlesWithHalos() const { return bufDesc_.size; }
-
     //! @brief read only visibility of the global octree leaves to the outside
-    gsl::span<const KeyType> tree() const { return global_.tree(); }
-
-    //! @brief read only visibility of the focused octree leaves to the outside
-    gsl::span<const KeyType> focusTree() const { return focusTree_.treeLeaves(); }
-
+    gsl::span<const KeyType> tree() const { return global_.treeLeaves(); }
+    //! @brief read only visibility of the focused octree
+    const Octree<KeyType>& focusTree() const { return focusTree_.octree(); }
+    //! @brief the index of the first locally assigned cell in focusTree()
+    TreeNodeIndex startCell() const { return focusTree_.assignment()[myRank_].start(); }
+    //! @brief the index of the last locally assigned cell in focusTree()
+    TreeNodeIndex endCell() const { return focusTree_.assignment()[myRank_].end(); }
+    //! @brief expansion (com) center and mac^2 radii of each focus tree cell
+    gsl::span<const SourceCenterType<T>> expansionCenters() const { return focusTree_.expansionCenters(); }
+    //! @brief particle offsets of each focus tree leaf cell
+    gsl::span<const LocalIndex> layout() const { return layout_; }
     //! @brief return the coordinate bounding box from the previous sync call
     const Box<T>& box() const { return global_.box(); }
 
@@ -414,7 +400,7 @@ private:
      *  fulfills a MAC with theta as the opening parameter
      * -Also contains particle counts.
      */
-    FocusedOctree<KeyType> focusTree_;
+    FocusedOctree<KeyType, T> focusTree_;
 
     GlobalAssignment<KeyType, T> global_;
 

@@ -79,12 +79,8 @@ public:
      * This function does not modify / communicate any particle data.
      */
     template<class Reorderer>
-    LocalIndex assign(BufferDescription bufDesc,
-                      Reorderer& reorderFunctor,
-                      KeyType* particleKeys,
-                      const T* x,
-                      const T* y,
-                      const T* z)
+    LocalIndex assign(
+        BufferDescription bufDesc, Reorderer& reorderFunctor, KeyType* particleKeys, const T* x, const T* y, const T* z)
     {
         box_ = makeGlobalBox(x + bufDesc.start, x + bufDesc.end, y + bufDesc.start, z + bufDesc.start, box_);
 
@@ -94,21 +90,33 @@ public:
         gsl::span<KeyType> keyView(particleKeys + bufDesc.start, numParticles);
 
         // compute SFC particle keys only for particles participating in tree build
-        computeSfcKeys(x + bufDesc.start, y + bufDesc.start, z + bufDesc.start,
-                       sfcKindPointer(keyView.data()), numParticles, box_);
+        computeSfcKeys(x + bufDesc.start, y + bufDesc.start, z + bufDesc.start, sfcKindPointer(keyView.data()),
+                       numParticles, box_);
 
         // sort keys and keep track of ordering for later use
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
+
+        gsl::span<const KeyType> oldLeaves = tree_.treeLeaves();
+        std::vector<KeyType> oldBoundaries(assignment_.numRanks() + 1);
+        for (int rank = 0; rank < oldBoundaries.size() - 1; ++rank)
+        {
+            oldBoundaries[rank] = oldLeaves[assignment_.firstNodeIdx(rank)];
+        }
+        oldBoundaries.back() = nodeRange<KeyType>(0);
 
         updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_, numRanks_);
 
         if (firstCall_)
         {
             firstCall_ = false;
-            while(!updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_, numRanks_));
+            while (!updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_, numRanks_))
+                ;
         }
 
-        assignment_ = singleRangeSfcSplit(nodeCounts_, numRanks_);
+        auto newAssignment = singleRangeSfcSplit(nodeCounts_, numRanks_);
+        limitBoundaryShifts<KeyType>(oldBoundaries, tree_.treeLeaves(), nodeCounts_, newAssignment);
+        assignment_ = std::move(newAssignment);
+
         return assignment_.totalCount(myRank_);
     }
 
@@ -173,20 +181,14 @@ public:
         return std::make_tuple(newStart, keyView.subspan(offset, newNParticlesAssigned));
     }
 
-    std::vector<int> findPeers(float theta)
-    {
-        return findPeersMac(myRank_, assignment_, tree_, box_, theta);
-    }
-
     //! @brief read only visibility of the global octree leaves to the outside
-    gsl::span<const KeyType> tree() const { return tree_.treeLeaves(); }
-
+    gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
+    //! @brief the octree, including the internal part
+    const Octree<KeyType>& octree() const { return tree_; }
     //! @brief read only visibility of the global octree leaf counts to the outside
     gsl::span<const unsigned> nodeCounts() const { return nodeCounts_; }
-
     //! @brief the global coordinate bounding box
     const Box<T>& box() const { return box_; }
-
     //! @brief return the space filling curve rank assignment
     const SpaceCurveAssignment& assignment() const { return assignment_; }
 

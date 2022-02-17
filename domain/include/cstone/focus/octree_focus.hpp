@@ -128,12 +128,11 @@ inline HOST_DEVICE_FUN int mergeCountAndMacOp(TreeNodeIndex nodeIdx,
  *  - 8 if to be split.
  */
 template<class KeyType, class LocalIndex>
-bool rebalanceDecisionEssential(const KeyType* nodeKeys,
+bool rebalanceDecisionEssential(gsl::span<const KeyType> nodeKeys,
                                 const TreeNodeIndex* childOffsets,
                                 const TreeNodeIndex* parents,
                                 const unsigned* counts,
                                 const char* macs,
-                                TreeNodeIndex numNodes,
                                 KeyType focusStart,
                                 KeyType focusEnd,
                                 unsigned bucketSize,
@@ -144,12 +143,12 @@ bool rebalanceDecisionEssential(const KeyType* nodeKeys,
     {
         bool convergedThread = true;
         #pragma omp for
-        for (TreeNodeIndex i = 0; i < numNodes; ++i)
+        for (TreeNodeIndex i = 0; i < nodeKeys.ssize(); ++i)
         {
             // ignore internal nodes
             if (childOffsets[i] != 0) { continue; }
-            int opDecision =
-                mergeCountAndMacOp(i, nodeKeys, childOffsets, parents, counts, macs, focusStart, focusEnd, bucketSize);
+            int opDecision = mergeCountAndMacOp(i, nodeKeys.data(), childOffsets, parents, counts, macs, focusStart,
+                                                focusEnd, bucketSize);
             if (opDecision != 1) { convergedThread = false; }
 
             nodeOps[i] = opDecision;
@@ -301,18 +300,14 @@ public:
                 gsl::span<const unsigned> counts,
                 gsl::span<const char> macs)
     {
-        [[maybe_unused]] TreeNodeIndex numNodes = tree_.numTreeNodes();
-        assert(TreeNodeIndex(counts.size()) == numNodes);
-        assert(TreeNodeIndex(macs.size()) == numNodes);
+        assert(TreeNodeIndex(counts.size()) == tree_.numTreeNodes());
+        assert(TreeNodeIndex(macs.size()) == tree_.numTreeNodes());
+        assert(TreeNodeIndex(tree_.nodeOrder_.size()) >= tree_.numTreeNodes());
 
-        //TreeNodeIndex firstFocusNode = findNodeBelow(leaves, focusStart);
-        //TreeNodeIndex lastFocusNode  = findNodeAbove(leaves, focusEnd);
-
-        assert(tree_.nodeOrder_.size() >= tree_.numTreeNodes());
         gsl::span<TreeNodeIndex> nodeOpsAll(tree_.nodeOrder_);
-        bool converged = rebalanceDecisionEssential(tree_.nodeKeys(), tree_.childOffsets(), tree_.parents(),
-                                                    counts.data(), macs.data(), tree_.numTreeNodes(), focusStart,
-                                                    focusEnd, bucketSize_, nodeOpsAll.data());
+        bool converged =
+            rebalanceDecisionEssential(tree_.nodeKeys(), tree_.childOffsets(), tree_.parents(), counts.data(),
+                                       macs.data(), focusStart, focusEnd, bucketSize_, nodeOpsAll.data());
 
         assert(tree_.childOffsets_.size() >= size_t(tree_.numLeafNodes() + 1));
         gsl::span<TreeNodeIndex> nodeOps(tree_.childOffsets_.data(), tree_.numLeafNodes() + 1);
@@ -398,7 +393,7 @@ public:
                           particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
 
         counts_.resize(octree().numTreeNodes());
-        upsweepSum<unsigned>(octree(), leafCounts_, counts_);
+        upsweep(octree(), leafCounts_.data(), counts_.data(), SumCombination<unsigned>{});
 
         return converged;
     }
