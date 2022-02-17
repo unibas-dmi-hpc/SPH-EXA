@@ -90,23 +90,15 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         Vec3T Val = (X - X_m1) * (1.0 / dt_m1[i]);
 
 #ifndef NDEBUG
-        if (std::isnan(ax) || std::isnan(ay) || std::isnan(az))
+        if (std::isnan(A[0]) || std::isnan(A[1]) || std::isnan(A[2]))
         {
-            printf("ERROR::UpdateQuantities(%d) acceleration: (%f %f %f)\n", i, ax, ay, az);
-        }
-        if (std::isnan(valx) || std::isnan(valy) || std::isnan(valz))
-        {
-            printf("ERROR::UpdateQuantities(%d) velocities: (%f %f %f)\n", i, valx, valy, valz);
-            printf("ERROR::UpdateQuantities(%d) x, y, z, dt_m1: (%f %f %f %f)\n", i, x[i], y[i], z[i], dt_m1[i]);
+            printf("ERROR::UpdateQuantities(%lu) acceleration: (%f %f %f)\n", i, A[0], A[1], A[2]);
         }
 #endif
 
         Vec3T V = Val + A * deltaA;
-
-        X_m1 = X;
-
-        T dt_i_deltaBA = dt_i * deltaB / deltaA;
-        X += dt_i * Val + (V - Val) * dt_i_deltaBA;
+        X_m1    = X;
+        X += dt_i * Val + A * deltaB * dt_i;
 
         if (box.pbcX() && x[i] < box.xmin())
         {
@@ -160,7 +152,7 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 
 #ifndef NDEBUG
         if (std::isnan(u[i]) || u[i] < 0.0)
-            printf("ERROR::UpdateQuantities(%d) internal energy: u %f du %f dB %f du_m1 %f dA %f\n",
+            printf("ERROR::UpdateQuantities(%lu) internal energy: u %f du %f dB %f du_m1 %f dA %f\n",
                    i,
                    u[i],
                    du[i],

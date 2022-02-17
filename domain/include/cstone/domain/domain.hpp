@@ -251,7 +251,7 @@ public:
         const Octree<KeyType>& globalTree = global_.octree();
 
         gsl::span<const SourceCenterType<T>> globalCenters = focusTree_.globalExpansionCenters();
-        assert(globalTree.numTreeNodes() == focusTree_.globalCenters.ssize());
+        assert(globalTree.numTreeNodes() == globalCenters.ssize());
         combinationFunction.setCenters(globalCenters.data());
 
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), globalTree, box(), theta_);
