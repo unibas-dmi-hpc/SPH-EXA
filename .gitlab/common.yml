@@ -234,7 +234,7 @@ variables:
       fi
     # - echo "$PATH" | tr ':' '\n' | sort
     - nvcc --version
-    - cmake -S . -B build -DCMAKE_CXX_FLAGS=-w $cpe_cmake_flags -DCMAKE_BUILD_TYPE=Debug -DBUILD_RYOANJI=ON
+    - cmake -S . -B build -DCMAKE_CXX_FLAGS=-w $cpe_cmake_flags -DCMAKE_BUILD_TYPE=Debug -DBUILD_RYOANJI=ON -DBUILD_TESTING=ON -DBUILD_ANALYTICAL=ON -DSPH_EXA_WITH_HIP=OFF 
     - cd build/
     # {{{ debug with:
     # - make -j3 coordinate_test domain_2ranks
@@ -283,8 +283,9 @@ variables:
     - /usr/local/sbin/performance/peers_perf
     - /usr/local/sbin/performance/scan_perf
     - /usr/local/sbin/performance/hilbert_perf
-    - /usr/local/sbin/performance/gravity_perf
-    # TODO: - /usr/local/bin/kernel/kernel_tests
+    - /usr/local/sbin/ryoanji/gravity_perf
+    - /usr/local/sbin/ryoanji/cpu_unit_tests/ryoanji_cpu_unit_tests
+    - /usr/local/sbin/kernel_tests
     # NOTE:gfetch - kernel_tests
     # - /kernel/kernel_tests
 # }}}
@@ -300,6 +301,11 @@ variables:
     - /usr/local/sbin/integration_mpi/exchange_focus
     - /usr/local/sbin/integration_mpi/exchange_halos
     - /usr/local/sbin/integration_mpi/globaloctree
+    - /usr/local/sbin/integration_mpi/focus_transfer
+    - /usr/local/sbin/ryoanji/multi_rank
+    - /usr/local
+    - /usr/local
+    - /usr/local
 # }}}
 
 # {{{ run/10
@@ -343,6 +349,7 @@ variables:
     - /usr/local/sbin/integration_mpi/focus_tree
     - /usr/local/sbin/integration_mpi/box_mpi
     - /usr/local/sbin/integration_mpi/exchange_keys
+    - /usr/local/sbin/integration_mpi/exchange_general
     # tests -n12 (or -n1 if cpe)
     - /usr/local/bin/sedov -s 0 -n 40
 # }}}
@@ -380,4 +387,6 @@ variables:
     - /usr/local/sbin/performance/cudaNeighborsTest
     - /usr/local/sbin/performance/octree_perf_gpu
     - /usr/local/sbin/performance/hilbert_perf_gpu
+    - /usr/local/sbin/unit_cuda/component_units_cuda
+    - /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests
 # }}}
