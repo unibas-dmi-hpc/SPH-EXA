@@ -25,6 +25,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include "cstone/cuda/annotation.hpp"
 
 #include "cstone/primitives/stl.hpp"
