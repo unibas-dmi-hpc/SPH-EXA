@@ -27,8 +27,7 @@ void writeParticleDataToBinFile(std::ofstream& file, const Arg& first, const Arg
 void writeParticleDataToAsciiFile(std::ostream&, size_t, char) {}
 
 template<typename Arg, typename... Args>
-void writeParticleDataToAsciiFile(std::ostream& file, size_t idx, char separator, const Arg& first,
-                                  const Args&... data)
+void writeParticleDataToAsciiFile(std::ostream& file, size_t idx, char separator, const Arg& first, const Args&... data)
 {
     file << first[idx] << separator;
 
@@ -152,12 +151,12 @@ void readParticleDataFromBinFile(const std::string& path, Args&... data)
  *  The number of rows to read is determined by the data container size.
  */
 template<typename... Args>
-void readParticleDataFromAsciiFile(const std::string& path, Args&&... data)
+void readParticleDataFromAsciiFile(const std::string& path, Args&... data)
 {
     std::ifstream inputfile(path);
 
     std::array<size_t, sizeof...(Args)> sizes{data.size()...};
-    size_t readSize = sizes[0];
+    size_t                              readSize = sizes[0];
 
     if (std::count(sizes.begin(), sizes.end(), readSize) != sizeof...(Args))
     {

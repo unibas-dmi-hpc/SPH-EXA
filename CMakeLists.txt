@@ -6,14 +6,22 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fno-math-errno -march=native -DNDEBUG")
 set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
 
+##################################################
+# CMAKE_MODULE_PATH
+##################################################
+list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+
 option(BUILD_TESTING "build unit and integration tests" ON)
 option(BUILD_ANALYTICAL "build analytical solution" ON)
 option(SPH_EXA_WITH_HIP "Build SPH-EXA with HIP" OFF)
 
+if (BUILD_TESTING)
+    include(setup_GTest)
+endif()
+
 if (SPH_EXA_WITH_HIP)
     cmake_minimum_required(VERSION 3.21)
 endif()
-
 
 find_package(MPI)
 find_package(OpenMP REQUIRED)
@@ -97,6 +105,3 @@ if (CMAKE_CUDA_COMPILER AND BUILD_RYOANJI)
 endif()
 
 add_subdirectory(src)
-if (BUILD_TESTING)
-    add_subdirectory(test)
-endif()

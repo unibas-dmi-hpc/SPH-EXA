@@ -6,7 +6,7 @@
 namespace sphexa
 {
 
-template <typename T>
+template<typename T>
 CUDA_DEVICE_HOST_FUN inline T compute_3d_k(T n)
 {
     // b0, b1, b2 and b3 are defined in "SPHYNX: an accurate density-based SPH method for astrophysical applications",
@@ -19,7 +19,7 @@ CUDA_DEVICE_HOST_FUN inline T compute_3d_k(T n)
     return b0 + b1 * std::sqrt(n) + b2 * n + b3 * std::sqrt(n * n * n);
 }
 
-template <typename T>
+template<typename T>
 CUDA_DEVICE_HOST_FUN inline T wharmonic_std(T v)
 {
     if (v == 0.0) return 1.0;
@@ -29,12 +29,12 @@ CUDA_DEVICE_HOST_FUN inline T wharmonic_std(T v)
     return std::sin(Pv) / Pv;
 }
 
-template <typename T>
+template<typename T>
 CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative_std(T v)
 {
     if (v == 0.0) return 0.0;
 
-    const T Pv = (PI / 2.0) * v;
+    const T Pv    = (PI / 2.0) * v;
     const T sincv = std::sin(Pv) / (Pv);
 
     return sincv * (PI / 2.0) * ((std::cos(Pv) / std::sin(Pv)) - 1.0 / Pv);
@@ -59,8 +59,8 @@ CUDA_DEVICE_FUN inline T artificial_viscosity_old(T ro_i, T ro_j, T h_i, T h_j, 
     T viscosity_ij = 0.0;
     if (rv < 0.0)
     {
-        T mu_ij = (h_ij * rv) / (r_square + epsilon * h_ij * h_ij);
-        viscosity_ij  = (-alpha * c_ij * mu_ij + beta * mu_ij * mu_ij) / ro_ij;
+        T mu_ij      = (h_ij * rv) / (r_square + epsilon * h_ij * h_ij);
+        viscosity_ij = (-alpha * c_ij * mu_ij + beta * mu_ij * mu_ij) / ro_ij;
     }
 
     return viscosity_ij;

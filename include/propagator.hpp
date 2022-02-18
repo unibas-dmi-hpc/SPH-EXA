@@ -84,7 +84,7 @@ public:
         computeDensity<T>(taskList.tasks, d, domain.box());
         timer.step("Density");
 
-        computeEquationOfStateEvrard<T>(taskList.tasks, d);
+        computeEquationOfState(domain.startIndex(), domain.endIndex(), d);
         timer.step("EquationOfState");
 
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c);
@@ -145,7 +145,7 @@ public:
         computeDensity<T>(taskList.tasks, d, domain.box());
         timer.step("Density");
 
-        computeEquationOfStateEvrard<T>(taskList.tasks, d);
+        computeEquationOfState(domain.startIndex(), domain.endIndex(), d);
         timer.step("EquationOfState");
 
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c);
@@ -212,9 +212,9 @@ public:
     }
 
 private:
-    TaskList taskList;
+    TaskList           taskList;
     MasterProcessTimer timer;
-    std::ostream& output_;
+    std::ostream&      output_;
 
     template<class DomainType, class ParticleDataType>
     void printIterationTimings(const DomainType& domain, const ParticleDataType& d)

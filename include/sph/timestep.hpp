@@ -51,7 +51,7 @@ template<class T1, class T2, class T3>
 auto tsKCourant(T1 maxvsignal, T2 h, T3 c, double kcour)
 {
     using T = std::common_type_t<T1, T2, T3>;
-    T v = maxvsignal > T(0) ? maxvsignal : c;
+    T v     = maxvsignal > T(0) ? maxvsignal : c;
     return T(kcour * h / v);
 }
 

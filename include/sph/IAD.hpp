@@ -15,19 +15,19 @@ namespace sphexa
 namespace sph
 {
 
-template <typename T, class Dataset>
+template<typename T, class Dataset>
 void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 {
-    size_t numParticles = t.size();
-    size_t ngmax = t.ngmax;
-    const int* neighbors = t.neighbors.data();
+    size_t     numParticles   = t.size();
+    size_t     ngmax          = t.ngmax;
+    const int* neighbors      = t.neighbors.data();
     const int* neighborsCount = t.neighborsCount.data();
 
-    const T* h = d.h.data();
-    const T* m = d.m.data();
-    const T* x = d.x.data();
-    const T* y = d.y.data();
-    const T* z = d.z.data();
+    const T* h  = d.h.data();
+    const T* m  = d.m.data();
+    const T* x  = d.x.data();
+    const T* y  = d.y.data();
+    const T* z  = d.z.data();
     const T* ro = d.ro.data();
 
     T* c11 = d.c11.data();
@@ -37,16 +37,16 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     T* c23 = d.c23.data();
     T* c33 = d.c33.data();
 
-    const T* wh = d.wh.data();
+    const T* wh  = d.wh.data();
     const T* whd = d.whd.data();
 
-    T K = d.K;
+    T K         = d.K;
     T sincIndex = d.sincIndex;
 
 #if defined(USE_OMP_TARGET)
-    const int np = d.x.size();
-    const size_t ltsize = d.wh.size();
-    const size_t n = numParticles;
+    const int    np           = d.x.size();
+    const size_t ltsize       = d.wh.size();
+    const size_t n            = numParticles;
     const size_t allNeighbors = n * ngmax;
 
 // clang-format off
@@ -74,7 +74,7 @@ void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box
 #if defined(USE_CUDA)
     cuda::computeIAD(taskList, d, box);
 #else
-    for (const auto &task : taskList)
+    for (const auto& task : taskList)
     {
         computeIADImpl<T>(task, d, box);
     }
@@ -84,4 +84,3 @@ void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box
 } // namespace sph
 
 } // namespace sphexa
-
