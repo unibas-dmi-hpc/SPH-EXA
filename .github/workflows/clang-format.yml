@@ -23,9 +23,12 @@ jobs:
       #  run: git log -n2
 
       - name: clang-format
-        run: clang-format -i --style=file `git diff --name-only origin/develop`
+        run: |
+          clang-format -i --style=file `git diff --name-only develop`
+          clang-format --version
       - name: report formating issues (if any)
         if: always()
         run: |
           git diff --name-only
           git diff --color --exit-code
+          git diff --name-only
