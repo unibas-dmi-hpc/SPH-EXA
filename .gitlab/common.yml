@@ -303,9 +303,6 @@ variables:
     - /usr/local/sbin/integration_mpi/globaloctree
     - /usr/local/sbin/integration_mpi/focus_transfer
     - /usr/local/sbin/ryoanji/multi_rank
-    - /usr/local
-    - /usr/local
-    - /usr/local
 # }}}
 
 # {{{ run/10
