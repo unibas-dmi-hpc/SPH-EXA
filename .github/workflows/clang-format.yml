@@ -17,18 +17,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      #- name: Checkout master
-      #  run: git fetch --no-tags --depth=1 origin +refs/heads/master:refs/heads/master
-      #- name: check pr
-      #  run: git log -n2
+      #- name: Setup tmate debug session
+      #  uses: mxschmitt/action-tmate@v3
 
-      - name: clang-format
+      - name: fetch origin and run clang-format
         run: |
-          clang-format -i --style=file `git diff --name-only develop`
+          git fetch --no-tags --depth=1 https://github.com/unibas-dmi-hpc/SPH-EXA.git develop
+          # git remote -v
+          # git log -n2 --format='%H'
+          git diff --name-only FETCH_HEAD
           clang-format --version
-      - name: report formating issues (if any)
-        if: always()
-        run: |
-          git diff --name-only
-          git diff --color --exit-code
-          git diff --name-only
+          clang-format -n --style=file `git diff --name-only FETCH_HEAD |grep -E "\.(cpp|hpp|h|cu)$"` 2> rpt
+          if [ -s rpt ] ;then grep 'code should be clang-formatted' rpti; exit 1; else echo "no formatting issue" ; fi
+
+#       - name: report formating issues (if any)
+#         if: always()
+#         run: |
+#           git diff --name-only
+#           git diff --color --exit-code
+#           git diff --name-only
