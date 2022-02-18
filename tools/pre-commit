@@ -17,7 +17,7 @@ blue=$(tput setaf 4)
 normal=$(tput sgr0)
 
 cxxfiles=()
-for file in `git diff --cached --name-only --diff-filter=ACMRT | grep -E "\.(cpp|hpp)$"`; do
+for file in `git diff --cached --name-only --diff-filter=ACMRT | grep -E "\.(cpp|hpp|h)$"`; do
     if ! cmp -s <(git show :${file}) <(git show :${file}|clang-format -style=file); then
         cxxfiles+=("${file}")
     fi
