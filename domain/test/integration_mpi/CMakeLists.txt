@@ -12,25 +12,15 @@ function(addMpiTest source exename testname ranks)
 endfunction()
 
 addMpiTest(globaloctree.cpp globaloctree GlobalTreeTests 2)
-
-addMpiTest(exchange_domain.cpp exchange_domain GlobalDomainExchange 2)
-
-addMpiTest(treedomain.cpp treedomain GlobalDomainTreeIntregration 2)
-
-addMpiTest(focus_tree.cpp focus_tree FocusTreeIntregration 2)
-
 addMpiTest(exchange_halos.cpp exchange_halos GlobalHaloExchange 2)
-
-addMpiTest(domain_nranks.cpp domain_nranks GlobalDomainNRanks 2)
-
 addMpiTest(box_mpi.cpp box_mpi GlobalBox 2)
-
 addMpiTest(exchange_focus.cpp exchange_focus GlobalFocusExchange 2)
-
-addMpiTest(exchange_general.cpp exchange_general GeneralFocusExchange 2)
-
 addMpiTest(exchange_keys.cpp exchange_keys GlobalKeyExchange 2)
-
 addMpiTest(focus_transfer.cpp focus_transfer FocusTransfer 2)
-
 addMpiTest(domain_2ranks.cpp domain_2ranks GlobalDomain2Ranks 2)
+
+addMpiTest(treedomain.cpp treedomain GlobalDomainTreeIntregration 5)
+addMpiTest(exchange_general.cpp exchange_general GeneralFocusExchange 5)
+addMpiTest(exchange_domain.cpp exchange_domain GlobalDomainExchange 5)
+addMpiTest(focus_tree.cpp focus_tree FocusTreeIntregration 5)
+addMpiTest(domain_nranks.cpp domain_nranks GlobalDomainNRanks 5)
