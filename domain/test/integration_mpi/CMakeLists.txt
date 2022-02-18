@@ -8,7 +8,7 @@ function(addMpiTest source exename testname ranks)
     target_compile_options(${exename} PRIVATE -Wno-unknown-pragmas)
     target_link_libraries(${exename} ${MPI_CXX_LIBRARIES} GTest::gtest_main)
     sphexa_add_test(${testname} EXECUTABLE ${exename} RANKS ${ranks})
-    install(TARGETS ${exename} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/integration_mpi)
+    install(TARGETS ${exename} RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/integration_mpi)
 endfunction()
 
 addMpiTest(globaloctree.cpp globaloctree GlobalTreeTests 2)

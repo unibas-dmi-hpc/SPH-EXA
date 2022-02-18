@@ -16,7 +16,7 @@ set_source_files_properties(buildtree.cu PROPERTIES COMPILE_FLAGS -G)
 set_source_files_properties(direct.cu PROPERTIES COMPILE_FLAGS -G)
 set_source_files_properties(multipole.cu PROPERTIES COMPILE_FLAGS -G)
 
-install(TARGETS ryoanji_unit_tests RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji/unit_tests)
+install(TARGETS ryoanji_unit_tests RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}/ryoanji/unit_tests)
 
 add_executable(ryoanji demo.cu)
 
