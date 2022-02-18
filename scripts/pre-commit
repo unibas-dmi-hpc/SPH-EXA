@@ -7,7 +7,7 @@
 # To use this hook, you must have clang-format installed
 
 # To install this hook, copy this file to your git hooks as follows
-# cp tools/pre-commit .git/hooks/pre-commit
+# cp scripts/pre-commit .git/hooks/pre-commit
 # chmod +x .git/hooks/pre-commit
 
 red=$(tput setaf 1)
