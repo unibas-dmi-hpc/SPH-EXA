@@ -52,10 +52,8 @@ target_link_libraries(H5Part ${HDF5_LIBRARIES})
 #--------------------------------------------------------
 # Includes, configuration headers
 #--------------------------------------------------------
-target_include_directories(H5Part PRIVATE
-    ${PROJECT_SOURCE_DIR}
-    ${HDF5_INCLUDE_DIRS}
-)
+target_include_directories(H5Part PRIVATE ${PROJECT_SOURCE_DIR})
+target_include_directories(H5Part PUBLIC ${HDF5_INCLUDE_DIRS})
 
 #--------------------------------------------------------
 # API compatibility setting
