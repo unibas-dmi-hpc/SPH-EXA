@@ -32,25 +32,9 @@ struct AsciiWriter : public IFileWriter<Dataset>
                 {
                     auto fieldPointers = getOutputArrays(d, d.outputFields);
 
-                    fileutils::writeParticleDataToAsciiFile(firstIndex,
-                                                            lastIndex,
-                                                            path,
-                                                            d.rank != 0,
-                                                            separator,
-                                                            d.x,
-                                                            d.y,
-                                                            d.z,
-                                                            d.vx,
-                                                            d.vy,
-                                                            d.vz,
-                                                            d.h,
-                                                            d.ro,
-                                                            d.u,
-                                                            d.p,
-                                                            d.c,
-                                                            d.grad_P_x,
-                                                            d.grad_P_y,
-                                                            d.grad_P_z);
+                    bool append = d.rank != 0;
+                    fileutils::writeParticleDataToAsciiFile(
+                        firstIndex, lastIndex, path, append, separator, fieldPointers);
                 }
                 catch (MPIFileNotOpenedException& ex)
                 {

@@ -59,6 +59,7 @@ int main(int argc, char** argv)
     else { fileWriter = std::make_unique<H5PartWriter<Dataset>>(); }
 
     auto d = fileReader.read(inputFilePath, nParticles);
+    d.outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "ro", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
 
     std::cout << d.x[0] << " " << d.y[0] << " " << d.z[0] << std::endl;
     std::cout << d.x[1] << " " << d.y[1] << " " << d.z[1] << std::endl;
