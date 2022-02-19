@@ -120,7 +120,7 @@ StrongType<T, Phantom> operator-(const StrongType<T, Phantom>& lhs, const Strong
     return StrongType<T, Phantom>(lhs.value() - rhs.value());
 }
 
-//! \brief Utility to call function with each element in tuple_
+//! @brief Utility to call function with each element in tuple_
 template<class F, class... Ts>
 void for_each_tuple(F&& func, std::tuple<Ts...>& tuple_)
 {
@@ -128,12 +128,26 @@ void for_each_tuple(F&& func, std::tuple<Ts...>& tuple_)
                tuple_);
 }
 
-//! \brief Utility to call function with each element in tuple_ with const guarantee
+//! @brief Utility to call function with each element in tuple_ with const guarantee
 template<class F, class... Ts>
 void for_each_tuple(F&& func, const std::tuple<Ts...>& tuple_)
 {
     std::apply([f = func](auto&... args) { [[maybe_unused]] auto list = std::initializer_list<int>{(f(args), 0)...}; },
                tuple_);
+}
+
+//! @brief resizes a vector with a determined growth rate upon reallocation
+template<class Vector>
+void reallocate(Vector& vector, size_t size, double growthRate)
+{
+    size_t current_capacity = vector.capacity();
+
+    if (size > current_capacity)
+    {
+        size_t reserve_size = double(size) * growthRate;
+        vector.reserve(reserve_size);
+    }
+    vector.resize(size);
 }
 
 //! @brief simple pair that's usable in both CPU and GPU code
@@ -165,7 +179,6 @@ private:
 
     T data[2];
 };
-
 
 //! @brief ceil(divident/divisor) for integers
 HOST_DEVICE_FUN constexpr unsigned iceil(size_t dividend, unsigned divisor)

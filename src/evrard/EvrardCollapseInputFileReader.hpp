@@ -39,7 +39,6 @@ private:
         d.comm = MPI_COMM_WORLD;
         MPI_Comm_size(d.comm, &d.nrank);
         MPI_Comm_rank(d.comm, &d.rank);
-        MPI_Get_processor_name(d.pname, &d.pnamelen);
     }
 
     void init(Dataset& pd) const

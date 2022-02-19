@@ -38,7 +38,7 @@ void readParticleDataFromBinFileWithMPI(const std::string& path, Dataset& pd, Ar
     const size_t remaining = pd.n - pd.nrank * split;
 
     pd.count = pd.rank != pd.nrank - 1 ? split : split + remaining;
-    pd.resize(pd.count);
+    resize(pd, pd.count);
 
     MPI_File fh;
 

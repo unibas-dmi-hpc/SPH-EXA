@@ -70,7 +70,7 @@ public:
             d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
         timer.step("domain::sync");
 
-        d.resize(domain.nParticlesWithHalos());
+        resize(d, domain.nParticlesWithHalos());
 
         std::fill(begin(d.m), begin(d.m) + domain.startIndex(), d.m[domain.startIndex()]);
         std::fill(begin(d.m) + domain.endIndex(), begin(d.m) + domain.nParticlesWithHalos(), d.m[domain.startIndex()]);
@@ -131,7 +131,7 @@ public:
             d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
         timer.step("domain::sync");
 
-        d.resize(domain.nParticlesWithHalos());
+        resize(d, domain.nParticlesWithHalos());
 
         std::fill(begin(d.m), begin(d.m) + domain.startIndex(), d.m[domain.startIndex()]);
         std::fill(begin(d.m) + domain.endIndex(), begin(d.m) + domain.nParticlesWithHalos(), d.m[domain.startIndex()]);

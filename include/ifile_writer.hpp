@@ -3,13 +3,15 @@
 #include <string>
 #include <vector>
 
+#include "particles_data.hpp"
+
 namespace sphexa
 {
 
 template<typename Dataset>
 struct IFileWriter
 {
-    virtual void dump(const Dataset& d, size_t firstIndex, size_t lastIndex, std::string path) const = 0;
+    virtual void dump(Dataset& d, size_t firstIndex, size_t lastIndex, std::string path) const = 0;
 
     virtual ~IFileWriter() = default;
 };
@@ -17,7 +19,7 @@ struct IFileWriter
 template<class Dataset>
 struct AsciiWriter : public IFileWriter<Dataset>
 {
-    void dump(const Dataset& d, size_t firstIndex, size_t lastIndex, std::string path) const override
+    void dump(Dataset& d, size_t firstIndex, size_t lastIndex, std::string path) const override
     {
         const char separator = ' ';
         path += std::to_string(d.iteration) + ".txt";
@@ -28,6 +30,8 @@ struct AsciiWriter : public IFileWriter<Dataset>
             {
                 try
                 {
+                    auto fieldPointers = getOutputArrays(d, d.outputFields);
+
                     fileutils::writeParticleDataToAsciiFile(firstIndex,
                                                             lastIndex,
                                                             path,
@@ -63,7 +67,7 @@ struct AsciiWriter : public IFileWriter<Dataset>
 template<class Dataset>
 struct H5PartWriter : public IFileWriter<Dataset>
 {
-    void dump(const Dataset& d, size_t firstIndex, size_t lastIndex, std::string path) const override
+    void dump(Dataset& d, size_t firstIndex, size_t lastIndex, std::string path) const override
     {
         path += ".h5part";
 #ifdef SPH_EXA_HAVE_H5PART

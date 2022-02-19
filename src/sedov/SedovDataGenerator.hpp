@@ -47,7 +47,6 @@ public:
         pd.comm = MPI_COMM_WORLD;
         MPI_Comm_size(pd.comm, &pd.nrank);
         MPI_Comm_rank(pd.comm, &pd.rank);
-        MPI_Get_processor_name(pd.pname, &pd.pnamelen);
         #endif
 
         pd.side  = side;
@@ -69,11 +68,11 @@ public:
         pd.count = split;
         if (pd.rank == 0) pd.count += remaining;
 
-        pd.resize(pd.count);
+        resize(pd, pd.count);
 
         if(pd.rank == 0)
             std::cout << "Approx: "
-                      << pd.count * (pd.data.size() * 64.) / (8. * 1000. * 1000. * 1000.)
+                      << pd.count * (pd.data().size() * 64.) / (8. * 1000. * 1000. * 1000.)
                       << "GB allocated on rank 0."
                       << std::endl;
 
