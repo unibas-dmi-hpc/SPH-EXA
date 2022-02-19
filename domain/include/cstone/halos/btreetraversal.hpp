@@ -76,7 +76,7 @@ private:
 
 template<class KeyType>
 HOST_DEVICE_FUN inline bool traverseNode(const BinaryNode<KeyType>* root, TreeNodeIndex idx,
-                                         const IBox& collisionBox, pair<KeyType> excludeRange)
+                                         const IBox& collisionBox, util::array<KeyType, 2> excludeRange)
 {
     return (!isLeafIndex(idx)) && !containedIn(root[idx].prefix, excludeRange[0], excludeRange[1]) &&
            overlap<KeyType>(
@@ -86,7 +86,7 @@ HOST_DEVICE_FUN inline bool traverseNode(const BinaryNode<KeyType>* root, TreeNo
 
 template<class KeyType>
 HOST_DEVICE_FUN inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
-                                        const IBox& collisionBox, pair<KeyType> excludeRange)
+                                        const IBox& collisionBox, util::array<KeyType, 2> excludeRange)
 {
     if (!isLeafIndex(leafIndex)) { return false; }
 
@@ -134,7 +134,7 @@ HOST_DEVICE_FUN inline bool leafOverlap(int leafIndex, const KeyType* leafNodes,
 template <class KeyType, class Endpoint>
 HOST_DEVICE_FUN void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes,
                                     Endpoint&& reportCollision,
-                                    const IBox& collisionBox, pair<KeyType> excludeRange)
+                                    const IBox& collisionBox, util::array<KeyType, 2> excludeRange)
 {
     using Node = BinaryNode<KeyType>;
 
@@ -182,7 +182,7 @@ HOST_DEVICE_FUN void findCollisions(const BinaryNode<KeyType>* root, const KeyTy
 //! @brief convenience overload for storing colliding indices
 template <class KeyType>
 void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, CollisionList& collisions,
-                    const IBox& collisionBox, pair<KeyType> excludeRange)
+                    const IBox& collisionBox, util::array<KeyType, 2> excludeRange)
 {
     auto storeCollisions = [&collisions](TreeNodeIndex i) { collisions.add(i); };
     findCollisions(root, leafNodes, storeCollisions, collisionBox, excludeRange);
@@ -192,7 +192,7 @@ void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, C
 template <class KeyType>
 HOST_DEVICE_FUN inline
 void findCollisions(const BinaryNode<KeyType>* root, const KeyType* leafNodes, int* flags,
-                    const IBox& collisionBox, pair<KeyType> excludeRange)
+                    const IBox& collisionBox, util::array<KeyType, 2> excludeRange)
 {
     auto markCollisions = [flags](TreeNodeIndex i) { flags[i] = 1; };
     findCollisions(root, leafNodes, markCollisions, collisionBox, excludeRange);
