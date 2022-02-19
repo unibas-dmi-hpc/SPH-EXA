@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <memory>
 #include <vector>
 
 // hard code MPI for now
@@ -13,7 +14,7 @@
 #include "sphexa.hpp"
 #include "sph/findNeighborsSfc.hpp"
 #include "SedovDataGenerator.hpp"
-#include "SedovDataFileWriter.hpp"
+#include "ifile_writer.hpp"
 
 #include "propagator.hpp"
 #include "insitu_viz.h"
@@ -39,6 +40,7 @@ int main(int argc, char** argv)
     const size_t maxStep           = parser.getInt("-s", 200);
     const int writeFrequency       = parser.getInt("-w", -1);
     const bool quiet               = parser.exists("--quiet");
+    const bool ascii               = parser.exists("--ascii");
     const std::string outDirectory = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
@@ -48,7 +50,9 @@ int main(int argc, char** argv)
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType>;
 
-    const IFileWriter<Dataset>& fileWriter = SedovMPIFileWriter<Dataset>();
+    std::unique_ptr<IFileWriter<Dataset>> fileWriter;
+    if (ascii) { fileWriter = std::make_unique<AsciiWriter<Dataset>>(); }
+    else { fileWriter = std::make_unique<H5PartWriter<Dataset>>(); }
 
     auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
 
@@ -106,15 +110,7 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            #ifdef SPH_EXA_HAVE_H5PART
-            fileWriter.dumpParticleDataToH5File(
-                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov.h5part");
-            #else
-            fileWriter.dumpParticleDataToAsciiFile(d,
-                                                   domain.startIndex(),
-                                                   domain.endIndex(),
-                                                   outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".txt");
-            #endif
+            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov");
         }
 
         if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
