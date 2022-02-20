@@ -37,7 +37,7 @@ endif()
 # Parallel compilation settings
 #--------------------------------------------------------
 if(HDF5_IS_PARALLEL)
-  add_definitions(-DH5PART_PARALLEL_IO)
+  target_compile_definitions(H5Part PUBLIC H5PART_PARALLEL_IO)
   target_link_libraries(H5Part ${MPI_C_LIBRARIES})
   target_include_directories(H5Part PRIVATE ${MPI_INCLUDE_DIRS})
 else()

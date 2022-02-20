@@ -57,64 +57,62 @@ void readParticleDataFromBinFileWithMPI(const std::string& path, Dataset& pd, Ar
 
 #ifdef SPH_EXA_HAVE_H5PART
 
-template<typename Dataset, typename... Args>
-void writeParticleDataToBinFileWithH5Part(const Dataset& d, int firstIndex, int lastIndex, const std::string& path,
-                                          Args&&... data)
+inline void writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const float* field)
+{
+    static_assert(std::is_same_v<float, h5part_float32_t>);
+    H5PartWriteDataFloat32(h5_file, fieldName.c_str(), field);
+}
+
+inline void writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const double* field)
+{
+    static_assert(std::is_same_v<double, h5part_float64_t>);
+    H5PartWriteDataFloat64(h5_file, fieldName.c_str(), field);
+}
+
+template<typename Dataset>
+void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const std::string& path)
 {
     using h5_int64_t = h5part_int64_t;
     using h5_id_t    = h5part_int64_t;
 
-    // verbosity level: H5_VERBOSE_DEBUG/H5_VERBOSE_INFO/H5_VERBOSE_DEFAULT
-    //    const h5_int64_t h5_verbosity = H5_VERBOSE_DEFAULT;
-    //    H5AbortOnError();
     // output name
     const char* h5_fname = path.c_str();
     H5PartFile* h5_file  = nullptr;
-    // open file
+
+#ifdef H5PART_PARALLEL_IO
+    if (std::filesystem::exists(h5_fname)) { h5_file = H5PartOpenFileParallel(h5_fname, H5PART_APPEND, d.comm); }
+    else
+    {
+        h5_file = H5PartOpenFileParallel(h5_fname, H5PART_WRITE, d.comm);
+    }
+#else
+    if (d.nrank > 1)
+    {
+        throw std::runtime_error("Cannot write HDF5 output with multiple ranks without parallel HDF5 support\n");
+    }
     if (std::filesystem::exists(h5_fname)) { h5_file = H5PartOpenFile(h5_fname, H5PART_APPEND); }
     else
     {
         h5_file = H5PartOpenFile(h5_fname, H5PART_WRITE);
     }
+#endif
 
-    // create first step
+    // create the current step
     const h5_id_t h5_step = d.iteration;
     H5PartSetStep(h5_file, h5_step);
 
-    // get number of particles that each rank will write
-    const int        h5_begin         = firstIndex;
-    const int        h5_end           = lastIndex;
-    const h5_int64_t h5_num_particles = h5_end - h5_begin + 1;
+    // set number of particles that each rank will write
+    const h5_int64_t h5_num_particles = lastIndex - firstIndex;
 
     // set number of particles that each rank will write
     H5PartSetNumParticles(h5_file, h5_num_particles);
 
-    h5part_float64_t h5_data_x[h5_num_particles];
-    h5part_float64_t h5_data_y[h5_num_particles];
-    h5part_float64_t h5_data_z[h5_num_particles];
-    h5part_float64_t h5_data_h[h5_num_particles];
-    h5part_float64_t h5_data_ro[h5_num_particles];
-    // TODO:
-    //   vector<T>::const_iterator first = myVec.begin() + 100000;
-    //   vector<T>::const_iterator last = myVec.begin() + 101000;
-    //   vector<T> newVec(first, last);
-#pragma omp parallel for
-    for (auto ii = h5_begin; ii < h5_end; ii++)
+    auto fieldPointers = getOutputArrays(d, d.outputFields);
+    for (size_t fidx = 0; fidx < fieldPointers.size(); ++fidx)
     {
-        auto jj        = ii - h5_begin;
-        h5_data_x[jj]  = d.x[ii];
-        h5_data_y[jj]  = d.y[ii];
-        h5_data_z[jj]  = d.z[ii];
-        h5_data_h[jj]  = d.h[ii];
-        h5_data_ro[jj] = d.ro[ii];
+        writeH5PartField(h5_file, d.outputFields[fidx], fieldPointers[fidx] + firstIndex);
     }
-    // write data
-    // MPI_Barrier(MPI_COMM_WORLD);
-    H5PartWriteDataFloat64(h5_file, "x", h5_data_x);
-    H5PartWriteDataFloat64(h5_file, "y", h5_data_y);
-    H5PartWriteDataFloat64(h5_file, "z", h5_data_z);
-    H5PartWriteDataFloat64(h5_file, "h", h5_data_h);
-    H5PartWriteDataFloat64(h5_file, "ro", h5_data_ro);
+
     H5PartCloseFile(h5_file);
 }
 

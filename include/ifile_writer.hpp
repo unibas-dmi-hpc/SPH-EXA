@@ -33,8 +33,7 @@ struct AsciiWriter : public IFileWriter<Dataset>
                     auto fieldPointers = getOutputArrays(d, d.outputFields);
 
                     bool append = d.rank != 0;
-                    fileutils::writeParticleDataToAsciiFile(
-                        firstIndex, lastIndex, path, append, separator, fieldPointers);
+                    fileutils::writeAscii(firstIndex, lastIndex, path, append, separator, fieldPointers);
                 }
                 catch (MPIFileNotOpenedException& ex)
                 {
@@ -55,7 +54,7 @@ struct H5PartWriter : public IFileWriter<Dataset>
     {
         path += ".h5part";
 #ifdef SPH_EXA_HAVE_H5PART
-        fileutils::writeParticleDataToBinFileWithH5Part(d, firstIndex, lastIndex, path);
+        fileutils::writeH5Part(d, firstIndex, lastIndex, path);
 #else
         throw std::runtime_error("Cannot write to HDF5 file: H5Part not enabled\n");
 #endif

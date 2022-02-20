@@ -14,8 +14,8 @@ namespace fileutils
 {
 
 template<class T>
-void writeParticleDataToAsciiFile(size_t firstIndex, size_t lastIndex, const std::string& path, const bool append,
-                                  const char separator, const std::vector<T*>& fields)
+void writeAscii(size_t firstIndex, size_t lastIndex, const std::string& path, bool append, char separator,
+                const std::vector<T*>& fields)
 {
     std::ios_base::openmode mode;
     if (append) { mode = std::ofstream::app; }
@@ -56,7 +56,7 @@ void writeParticleDataToAsciiFile(size_t firstIndex, size_t lastIndex, const std
  *  The number of rows to read is determined by the data container size.
  */
 template<class T>
-void readParticleDataFromAsciiFile(const std::string& path, size_t numLines, const std::vector<T*>& fields)
+void readAscii(const std::string& path, size_t numLines, const std::vector<T*>& fields)
 {
     std::ifstream inputFile(path);
 
