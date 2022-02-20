@@ -60,6 +60,10 @@ int main(int argc, char** argv)
 
     auto d = fileReader.read(inputFilePath, nParticles);
     d.outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "ro", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
+    if (parser.exists("-f"))
+    {
+        d.outputFields = parser.getCommaList("-f");
+    }
 
     std::cout << d.x[0] << " " << d.y[0] << " " << d.z[0] << std::endl;
     std::cout << d.x[1] << " " << d.y[1] << " " << d.z[1] << std::endl;
@@ -139,6 +143,8 @@ void printHelp(char* name, int rank)
 
         printf("\t-w NUM \t\t\t Dump Frequency data every NUM iterations (time-steps) [-1]\n");
         printf("\t-c NUM \t\t\t Create checkpoint every NUM iterations (time-steps) [-1]\n\n");
+        printf("\t-f list \t\t Comma-separated list of field names to write for each dump, "
+               "e.g -f x,y,z,h,ro\n\n");
 
         printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
 

@@ -43,6 +43,12 @@ int main(int argc, char** argv)
     const bool ascii               = parser.exists("--ascii");
     const std::string outDirectory = parser.getString("--outDir");
 
+    std::vector<std::string> outputFields = parser.getCommaList("-f");
+    if (outputFields.empty())
+    {
+        outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "ro", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
+    }
+
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
 
@@ -55,8 +61,7 @@ int main(int argc, char** argv)
     else { fileWriter = std::make_unique<H5PartWriter<Dataset>>(); }
 
     auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
-    //d.outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "ro", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
-    d.outputFields = {"x", "y", "z", "h", "ro"};
+    d.outputFields = std::move(outputFields);
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
@@ -137,6 +142,8 @@ void printHelp(char* name, int rank)
         printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [200]\n\n");
 
         printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
+        printf("\t-f list \t\t Comma-separated list of field names to write for each dump, "
+               "e.g -f x,y,z,h,ro\n\n");
 
         printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
 
