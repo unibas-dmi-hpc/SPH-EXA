@@ -6,16 +6,26 @@
 #ifdef USE_MPI
 #include "mpi_file_utils.hpp"
 #endif
-#include "exceptions.hpp"
 
 namespace sphexa
 {
 namespace fileutils
 {
 
-template<class T>
-void writeAscii(size_t firstIndex, size_t lastIndex, const std::string& path, bool append, char separator,
-                const std::vector<T*>& fields)
+/*! @brief write fields as columns to an ASCII file
+ *
+ * @tparam  T              field value type
+ * @tparam  Separators
+ * @param   firstIndex     first field index to write
+ * @param   lastIndex      last field index to write
+ * @param   path           the file name to write to
+ * @param   append         append or overwrite if file already exists
+ * @param   fields         pointers to field array, each field is a column
+ * @param   separators     arbitrary number of separators to insert between columns, eg '\t', std::setw(n), ...
+ */
+template<class T, class... Separators>
+void writeAscii(size_t firstIndex, size_t lastIndex, const std::string& path, bool append,
+                const std::vector<T*>& fields, Separators&&... separators)
 {
     std::ios_base::openmode mode;
     if (append) { mode = std::ofstream::app; }
@@ -32,14 +42,15 @@ void writeAscii(size_t firstIndex, size_t lastIndex, const std::string& path, bo
         {
             for (auto field : fields)
             {
-                dumpFile << field[i] << separator;
+                [[maybe_unused]] std::initializer_list<int> list{(dumpFile << separators, 0)...};
+                dumpFile << field[i];
             }
             dumpFile << std::endl;
         }
     }
     else
     {
-        throw FileNotOpenedException("Can't open file at path: " + path);
+        throw std::runtime_error("Can't open file at path: " + path);
     }
 
     dumpFile.close();
@@ -73,7 +84,7 @@ void readAscii(const std::string& path, size_t numLines, const std::vector<T*>& 
     }
     else
     {
-        throw FileNotOpenedException("Can't open file at path: " + path);
+        throw std::runtime_error("Can't open file at path: " + path);
     }
 }
 

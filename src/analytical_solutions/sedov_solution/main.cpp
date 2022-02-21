@@ -35,9 +35,10 @@
 #include <filesystem>
 
 #include "arg_parser.hpp"
+#include "file_utils.hpp"
+
 #include "sedov/SedovDataGenerator.hpp"
 
-#include "io.hpp"
 #include "sedov_solution.hpp"
 
 using namespace std;
@@ -47,6 +48,7 @@ using Real    = double;
 using KeyType = uint64_t;
 
 void printHelp(char* binName);
+void writeColumns1D(const std::string& path);
 
 int main(int argc, char** argv)
 {
@@ -59,8 +61,9 @@ int main(int argc, char** argv)
     }
 
     // Get command line parameters
-    const double time   = parser.getDouble("--time", 0.);
-    const string outDir = parser.getString("--outDir", "./");
+    const double time      = parser.getDouble("--time", 0.);
+    const string outDir    = parser.getString("--outDir", "./");
+    const bool   normalize = parser.exists("--normalize");
 
     // Get time without rounding
     ostringstream time_long;
@@ -93,27 +96,37 @@ int main(int argc, char** argv)
         rSol.push_back(r0 + (0.5 * rStep) + (i * rStep));
     }
 
-    // Calculate Sedov solution
-    SedovSolution::create(
-        rSol,
-        dim,
-        nSteps,
-        time,
-        eblast,
-        omega, gamma,
-        rho0, u0, p0, vr0, cs0,
-        solFile);
+    // analytical solution output
+    std::vector<Real> rho(nSteps), p(nSteps), u(nSteps), vel(nSteps), cs(nSteps);
+
+    // Calculate theoretical solution
+    SedovSolution::sedovSol(dim, time, eblast, omega, gamma, rho0, u0, p0, vr0, cs0, rSol, rho, p, u, vel, cs);
+
+    if (normalize)
+    {
+        std::for_each(begin(rho), end(rho), [](auto& val) { val /= SedovSolution::rho_shock; });
+        std::for_each(begin(u), end(u), [](auto& val) { val /= SedovSolution::u_shock; });
+        std::for_each(begin(p), end(p), [](auto& val) { val /= SedovSolution::p_shock; });
+        std::for_each(begin(vel), end(vel), [](auto& val) { val /= SedovSolution::vel_shock; });
+        std::for_each(begin(cs), end(cs), [](auto& val) { val /= SedovSolution::cs_shock; });
+    }
+
+    writeColumns1D(solFile);
+    fileutils::writeAscii<Real>(0,
+                                nSteps,
+                                solFile,
+                                true,
+                                {rSol.data(), rho.data(), u.data(), p.data(), vel.data(), cs.data()},
+                                std::setw(16),
+                                std::setprecision(6),
+                                std::scientific);
 
     // Write Info: Output files and colums.
     cout << "\nExecuted successfully.\n\n"
-         << "Solution   file: '" <<  solFile << "'\n"
-         << "\nColumns:\n";
-    FileData::writeColumns1D(cout);
-    cout << endl;
+         << "Solution   file: '" << solFile << std::endl;
 
     return EXIT_SUCCESS;
 }
-
 
 void printHelp(char* binName)
 {
@@ -128,4 +141,18 @@ void printHelp(char* binName)
                 \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n\n");
 
     printf("\t--complete FLAG \t\t Calculate the solution for each particle [False]\n");
+}
+
+void writeColumns1D(const std::string& path)
+{
+    ofstream out(path, std::ofstream::out);
+
+    out << setw(16) << "#           01:r"    // Column : position 1D     (Real value)
+        << setw(16) << "02:rho"              // Column : density         (Real value)
+        << setw(16) << "03:u"                // Column : internal energy (Real value)
+        << setw(16) << "04:p"                // Column : pressure        (Real value)
+        << setw(16) << "05:vel"              // Column : velocity 1D     (Real value)
+        << setw(16) << "06:cs" << std::endl; // Column : sound speed     (Real value)
+
+    out.close();
 }

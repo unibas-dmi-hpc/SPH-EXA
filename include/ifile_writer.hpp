@@ -33,7 +33,7 @@ struct AsciiWriter : public IFileWriter<Dataset>
                     auto fieldPointers = getOutputArrays(d, d.outputFields);
 
                     bool append = d.rank != 0;
-                    fileutils::writeAscii(firstIndex, lastIndex, path, append, separator, fieldPointers);
+                    fileutils::writeAscii(firstIndex, lastIndex, path, append, fieldPointers, separator);
                 }
                 catch (MPIFileNotOpenedException& ex)
                 {

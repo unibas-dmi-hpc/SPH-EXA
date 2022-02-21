@@ -25,8 +25,6 @@
 #include <iostream>
 #include <cmath>
 
-#include "io.hpp"
-
 double SedovSolution::xgeom;
 double SedovSolution::omega;
 double SedovSolution::gamma;
@@ -72,52 +70,8 @@ double SedovSolution::vel_shock;
 double SedovSolution::u_shock;
 double SedovSolution::cs_shock;
 
-void SedovSolution::create(
-    vector<double>& r,
-    const size_t    dim,
-    const size_t    rPoints,
-    const double    time,
-    const double    eblast,
-    const double    omega_i,
-    const double    gamma_i,
-    const double    rho0,
-    const double    u0,
-    const double    p0,
-    const double    vel0,
-    const double    cs0,
-    const string    outfile)
-{
-    vector<double> rho(rPoints);
-    vector<double> u  (rPoints);
-    vector<double> p  (rPoints);
-    vector<double> vel(rPoints);
-    vector<double> cs (rPoints);
-
-    // Calculate theoretical solution
-    sedovSol(
-        dim, rPoints, time,
-        eblast, omega_i, gamma_i,
-        rho0, u0, p0, vel0, cs0,
-        r, rho, p, u, vel, cs);
-
-    // Write solution file
-    FileData::writeData1D(
-        rPoints,
-        r,
-        rho,u,p,
-        vel,cs,
-        rho_shock,
-        u_shock,
-        p_shock,
-        vel_shock,
-        cs_shock,
-        rho0,
-        outfile);
-}
-
 void SedovSolution::sedovSol(
     const size_t          dim,
-    const size_t          rPoints,
     const double          time,
     const double          eblast,
     const double          omega_i,
@@ -134,6 +88,8 @@ void SedovSolution::sedovSol(
     vector<double>&       vel,
     vector<double>&       cs)
 {
+    const size_t rPoints = r.size();
+
     // Local variables
     double eval1 = 0.;
     double eval2 = 0.;
