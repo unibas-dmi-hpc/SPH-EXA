@@ -70,6 +70,9 @@ int main(int argc, char** argv)
     time_long << time;
     string time_str = time_long.str();
 
+    const string solFile =
+        parser.exists("--out") ? parser.getString("--out") : outDir + "sedov_solution_" + time_str + ".dat";
+
     // Calculate and write theoretical solution profile in one dimension
     const size_t dim     = SedovDataGenerator<Real, KeyType>::dim;
     const double r0      = SedovDataGenerator<Real, KeyType>::r0;
@@ -82,7 +85,6 @@ int main(int argc, char** argv)
     const double p0      = SedovDataGenerator<Real, KeyType>::p0;
     const double vr0     = SedovDataGenerator<Real, KeyType>::vr0;
     const double cs0     = SedovDataGenerator<Real, KeyType>::cs0;
-    const string solFile = outDir + "sedov_solution_" + time_str + ".dat";
 
     // Set the positions for calculating the solution
     vector<double> rSol;
@@ -121,9 +123,7 @@ int main(int argc, char** argv)
                                 std::setprecision(6),
                                 std::scientific);
 
-    // Write Info: Output files and colums.
-    cout << "\nExecuted successfully.\n\n"
-         << "Solution   file: '" << solFile << std::endl;
+    cout << "Created solution file: '" << solFile << std::endl;
 
     return EXIT_SUCCESS;
 }
