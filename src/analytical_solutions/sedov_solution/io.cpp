@@ -26,68 +26,6 @@
 #include <iostream>
 #include <iomanip>
 
-void FileData::readData3D(
-    const string&   inputFile,
-    const double    nParts,
-    vector<double>& x,
-    vector<double>& y,
-    vector<double>& z,
-    vector<double>& vx,
-    vector<double>& vy,
-    vector<double>& vz,
-    vector<double>& h,
-    vector<double>& rho,
-    vector<double>& u,
-    vector<double>& p,
-    vector<double>& cs,
-    vector<double>& Px,
-    vector<double>& Py,
-    vector<double>& Pz)
-{
-    try
-    {
-        size_t i = 0;
-
-        ifstream in(inputFile);
-        string line;
-
-        while(getline(in,line))
-        {
-            istringstream iss(line);
-            if (i < nParts){
-                iss >> x[i];
-                iss >> y[i];
-                iss >> z[i];
-                iss >> vx[i];
-                iss >> vy[i];
-                iss >> vz[i];
-                iss >> h[i];
-                iss >> rho[i];
-                iss >> u[i];
-                iss >> p[i];
-                iss >> cs[i];
-                iss >> Px[i];
-                iss >> Py[i];
-                iss >> Pz[i];
-            }
-
-            i++;
-        }
-
-        if (nParts != i){
-            cout << "ERROR: number of particles doesn't match with the expect (nParts=" << nParts << ", ParticleDataLines=" << i << ")." << endl;
-            exit(EXIT_FAILURE);
-        }
-
-        in.close();
-    }
-    catch (exception &ex)
-    {
-        cout << "ERROR: %s. Terminating\n" << ex.what() << endl;
-        exit(EXIT_FAILURE);
-    }
-}
-
 void FileData::writeColumns1D(ostream& out)
 {
     out << setw(16) << "#           01:r"  // Column : position 1D     (Real  value     )
@@ -153,49 +91,4 @@ void FileData::writeData1D(
         cout << "ERROR: %s. Terminating\n" << ex.what() << endl;
         exit(EXIT_FAILURE);
     }
-}
-
-void FileData::writeParticle1D(
-    const size_t            n,
-    const vector<Particle>& vParticle,
-    const double            rho_shock,
-    const double            u_shock,
-    const double            p_shock,
-    const double            vel_shock,
-    const double            cs_shock,
-    const double            rho0,
-    const string&           outfile)
-{
-    vector<double> r(n);
-    vector<double> rho(n);
-    vector<double> u(n);
-    vector<double> p(n);
-    vector<double> vel(n);
-    vector<double> cs(n);
-
-    for (size_t i=0; i < n; i++)
-    {
-        r[i]   = vParticle[i].r;
-        rho[i] = vParticle[i].rho;
-        u[i]   = vParticle[i].u;
-        p[i]   = vParticle[i].p;
-        vel[i] = vParticle[i].vel;
-        cs[i]  = vParticle[i].cs;
-    }
-
-    FileData::writeData1D(
-        n,
-        r,
-        rho,
-        u,
-        p,
-        vel,
-        cs,
-        rho_shock,
-        u_shock,
-        p_shock,
-        vel_shock,
-        cs_shock,
-        rho0,
-        outfile);
 }
