@@ -60,20 +60,23 @@ public:
     static double u_shock;                               // Internal energy
     static double cs_shock;                              // Sound speed
 
-    static void create(
-        vector<double>& r,                               // Radius position
-        const size_t    dim,                             // Dimensions
-        const size_t    rPoints,                         // Number of points between r0-r1
-        const double    time,                            // Time at solution
-        const double    eblast,                          // Energy blast in the wave front
-        const double    omega_i,                         // Energy blast in the wave front
-        const double    gamma_i,                         // Adiabatic coeficient
-        const double    rho0,                            // Initial density
-        const double    u0,                              // Initial internal energy
-        const double    p0,                              // Initial pressure
-        const double    vel0,                            // Initial velocity
-        const double    cs0,                             // Initial sound speed
-        const string    outfile);                        // Output solution filename
+    static void sedovSol(
+        const size_t          dim,                       // geometry factor: 1=planar, 2=cylindircal, 3=spherical
+        const double          time,                      // temporal point where solution is desired [seconds]
+        const double          eblast,                    // energy of blast in the wave front [erg]
+        const double          omega_i,                   // density power law exponent in 'rho = rho0 * r**(-omega)'
+        const double          gamma_i,                   // gamma law equation of state
+        const double          rho0,                      // ambient density g/cm**3 in 'rho = rho0 * r**(-omega)'
+        const double          u0,                        // ambient internal energy [erg/g]
+        const double          p0,                        // ambient pressure [erg/cm**3]
+        const double          vel0,                      // ambient material speed [cm/s]
+        const double          cs0,                       // ambient sound speed [cm/s]
+        const vector<double>& r,                         // out: spatial points where solution is desired [cm]
+        vector<double>&       rho,                       // out: density  [g/cm**3]
+        vector<double>&       p,                         // out: presssure [erg/cm**3]
+        vector<double>&       u,                         // out: specific internal energy [erg/g]
+        vector<double>&       vel,                       // out: velocity [cm/s]
+        vector<double>&       cs);                       // out: sound speed [cm/s]
 
 private:
 
@@ -92,25 +95,6 @@ private:
     static double rwant, vwant;                          //
     static double r2,    v0,vv,rvv;                      //
     static double gam_int;                               //
-
-    static void sedovSol(
-        const size_t          dim,                       // geometry factor: 1=planar, 2=cylindircal, 3=spherical
-        const size_t          rPoints,                   // Number of points between r0-r1
-        const double          time,                      // temporal point where solution is desired [seconds]
-        const double          eblast,                    // energy of blast in the wave front [erg]
-        const double          omega_i,                   // density power law exponent in 'rho = rho0 * r**(-omega)'
-        const double          gamma_i,                   // gamma law equation of state
-        const double          rho0,                      // ambient density g/cm**3 in 'rho = rho0 * r**(-omega)'
-        const double          u0,                        // ambient internal energy [erg/g]
-        const double          p0,                        // ambient pressure [erg/cm**3]
-        const double          vel0,                      // ambient material speed [cm/s]
-        const double          cs0,                       // ambient sound speed [cm/s]
-        const vector<double>& r,                         // out: spatial points where solution is desired [cm]
-        vector<double>&       rho,                       // out: density  [g/cm**3]
-        vector<double>&       p,                         // out: presssure [erg/cm**3]
-        vector<double>&       u,                         // out: specific internal energy [erg/g]
-        vector<double>&       vel,                       // out: velocity [cm/s]
-        vector<double>&       cs);                       // out: sound speed [cm/s]
 
     static void sedov_funcs(
         const double v,                                  // Similarity variable v
