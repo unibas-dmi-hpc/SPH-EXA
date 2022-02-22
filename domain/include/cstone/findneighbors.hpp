@@ -37,6 +37,7 @@
 #include "cstone/primitives/stl.hpp"
 #include "cstone/sfc/sfc.hpp"
 #include "cstone/tree/definitions.h"
+#include "cstone/util/array.hpp"
 
 namespace cstone
 {
@@ -110,8 +111,8 @@ HOST_DEVICE_FUN inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, KeyType
  * with said box, which means that there are 26 different overlap checks.
  */
 template<class T, class KeyType>
-HOST_DEVICE_FUN pair<int> findNeighborBoxes(T x, T y, T z, T radiusSq, unsigned level,
-                                            const Box<T>& bbox, KeyType* nCodes)
+HOST_DEVICE_FUN util::array<int, 2>
+findNeighborBoxes(T x, T y, T z, T radiusSq, unsigned level, const Box<T>& bbox, KeyType* nCodes)
 {
     constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
     int cubeLength = maxCoord >> level;
@@ -245,7 +246,8 @@ HOST_DEVICE_FUN pair<int> findNeighborBoxes(T x, T y, T z, T radiusSq, unsigned 
  * calculate distances.
  */
 template<class T, class KeyType>
-HOST_DEVICE_FUN pair<int> findNeighborBoxesSimple(T xi, T yi, T zi, unsigned level, const Box<T>& bbox, KeyType* nCodes)
+HOST_DEVICE_FUN util::array<int, 2>
+findNeighborBoxesSimple(T xi, T yi, T zi, unsigned level, const Box<T>& bbox, KeyType* nCodes)
 {
     // level is the smallest tree subdivision level at which the node edge length is still bigger than radius
     KeyType xyzCode = sfc3D<KeyType>(xi, yi, zi, bbox);
@@ -347,8 +349,8 @@ HOST_DEVICE_FUN void findNeighbors(LocalIndex id, const T* x, const T* y, const 
     T zi = z[id];
 
     KeyType neighborCodes[27];
-    pair<int> boxCodeIndices = findNeighborBoxes(xi, yi, zi, radiusSq, level, box, neighborCodes);
-    //pair<int> boxCodeIndices = findNeighborBoxesSimple(xi, yi, zi, level, box, neighborCodes);
+    util::array<int, 2> boxCodeIndices = findNeighborBoxes(xi, yi, zi, radiusSq, level, box, neighborCodes);
+    // util::array<int, 2> boxCodeIndices = findNeighborBoxesSimple(xi, yi, zi, level, box, neighborCodes);
 
     int nBoxes  = boxCodeIndices[0];
     int iBoxPbc = boxCodeIndices[1];

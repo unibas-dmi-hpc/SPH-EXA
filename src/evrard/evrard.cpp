@@ -12,8 +12,8 @@
 
 #include "sphexa.hpp"
 #include "sph/findNeighborsSfc.hpp"
+#include "ifile_writer.hpp"
 #include "EvrardCollapseInputFileReader.hpp"
-#include "EvrardCollapseFileWriter.hpp"
 
 #include "propagator.hpp"
 #include "insitu_viz.h"
@@ -39,9 +39,9 @@ int main(int argc, char** argv)
     const size_t nParticles           = parser.getInt("-n", 65536);
     const size_t maxStep              = parser.getInt("-s", 10);
     const int writeFrequency          = parser.getInt("-w", -1);
-    const int checkpointFrequency     = parser.getInt("-c", -1);
+    // const int checkpointFrequency     = parser.getInt("-c", -1);
     const bool quiet                  = parser.exists("--quiet");
-    const std::string checkpointInput = parser.getString("--cinput");
+    const bool ascii                  = parser.exists("--ascii");
     const std::string inputFilePath   = parser.getString("--input", "./Test3DEvrardRel.bin");
     const std::string outDirectory    = parser.getString("--outDir");
 
@@ -52,11 +52,18 @@ int main(int argc, char** argv)
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType>;
 
-    const IFileReader<Dataset>& fileReader = EvrardCollapseMPIInputFileReader<Dataset>();
-    const IFileWriter<Dataset>& fileWriter = EvrardCollapseMPIFileWriter<Dataset>();
+    const IFileReader<Dataset>& fileReader = EvrardFileReader<Dataset>();
 
-    auto d = checkpointInput.empty() ? fileReader.readParticleDataFromBinFile(inputFilePath, nParticles)
-                                     : fileReader.readParticleDataFromCheckpointBinFile(checkpointInput);
+    std::unique_ptr<IFileWriter<Dataset>> fileWriter;
+    if (ascii) { fileWriter = std::make_unique<AsciiWriter<Dataset>>(); }
+    else { fileWriter = std::make_unique<H5PartWriter<Dataset>>(); }
+
+    auto d = fileReader.read(inputFilePath, nParticles);
+    d.outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "ro", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
+    if (parser.exists("-f"))
+    {
+        d.outputFields = parser.getCommaList("-f");
+    }
 
     std::cout << d.x[0] << " " << d.y[0] << " " << d.z[0] << std::endl;
     std::cout << d.x[1] << " " << d.y[1] << " " << d.z[1] << std::endl;
@@ -110,21 +117,7 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            #ifdef SPH_EXA_HAVE_H5PART
-            fileWriter.dumpParticleDataToH5File(
-                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_evrard.h5part");
-            #else
-            fileWriter.dumpParticleDataToAsciiFile(d,
-                                                   domain.startIndex(),
-                                                   domain.endIndex(),
-                                                   outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".txt");
-            #endif
-        }
-
-        if (checkpointFrequency > 0 && d.iteration % checkpointFrequency == 0)
-        {
-            fileWriter.dumpCheckpointDataToBinFile(
-                d, outDirectory + "checkpoint_evrard" + std::to_string(d.iteration) + ".bin");
+            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_evrard");
         }
 
         if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
@@ -150,6 +143,8 @@ void printHelp(char* name, int rank)
 
         printf("\t-w NUM \t\t\t Dump Frequency data every NUM iterations (time-steps) [-1]\n");
         printf("\t-c NUM \t\t\t Create checkpoint every NUM iterations (time-steps) [-1]\n\n");
+        printf("\t-f list \t\t Comma-separated list of field names to write for each dump, "
+               "e.g -f x,y,z,h,ro\n\n");
 
         printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
 

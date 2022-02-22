@@ -34,6 +34,7 @@
 #include <utility>
 
 #include "cstone/cuda/annotation.hpp"
+#include "array.hpp"
 
 /*! @brief A template to create structs as a type-safe version to using declarations
  *
@@ -120,7 +121,7 @@ StrongType<T, Phantom> operator-(const StrongType<T, Phantom>& lhs, const Strong
     return StrongType<T, Phantom>(lhs.value() - rhs.value());
 }
 
-//! \brief Utility to call function with each element in tuple_
+//! @brief Utility to call function with each element in tuple_
 template<class F, class... Ts>
 void for_each_tuple(F&& func, std::tuple<Ts...>& tuple_)
 {
@@ -128,7 +129,7 @@ void for_each_tuple(F&& func, std::tuple<Ts...>& tuple_)
                tuple_);
 }
 
-//! \brief Utility to call function with each element in tuple_ with const guarantee
+//! @brief Utility to call function with each element in tuple_ with const guarantee
 template<class F, class... Ts>
 void for_each_tuple(F&& func, const std::tuple<Ts...>& tuple_)
 {
@@ -136,40 +137,22 @@ void for_each_tuple(F&& func, const std::tuple<Ts...>& tuple_)
                tuple_);
 }
 
-//! @brief simple pair that's usable in both CPU and GPU code
-template<class T>
-class pair
+//! @brief resizes a vector with a determined growth rate upon reallocation
+template<class Vector>
+void reallocate(Vector& vector, size_t size, double growthRate)
 {
-public:
-    constexpr pair() = default;
+    size_t current_capacity = vector.capacity();
 
-    HOST_DEVICE_FUN constexpr
-    pair(T first, T second) : data{first, second} {}
-
-    HOST_DEVICE_FUN constexpr       T& operator[](int i)       { return data[i]; }
-    HOST_DEVICE_FUN constexpr const T& operator[](int i) const { return data[i]; }
-
-private:
-    HOST_DEVICE_FUN friend constexpr bool operator==(const pair& a, const pair& b)
+    if (size > current_capacity)
     {
-        return a.data[0] == b.data[0] && a.data[1] == b.data[1];
+        size_t reserve_size = double(size) * growthRate;
+        vector.reserve(reserve_size);
     }
-
-    HOST_DEVICE_FUN friend constexpr bool operator<(const pair& a, const pair& b)
-    {
-        bool c0 = a.data[0] < b.data[0];
-        bool e0 = a.data[0] == b.data[0];
-        bool c1 = a.data[1] < b.data[1];
-        return c0 || (e0 && c1);
-    }
-
-    T data[2];
-};
-
+    vector.resize(size);
+}
 
 //! @brief ceil(divident/divisor) for integers
 HOST_DEVICE_FUN constexpr unsigned iceil(size_t dividend, unsigned divisor)
 {
     return (dividend + divisor - 1) / divisor;
 }
-

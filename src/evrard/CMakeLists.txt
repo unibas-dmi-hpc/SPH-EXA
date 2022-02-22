@@ -7,12 +7,7 @@ target_compile_definitions(${exename} PRIVATE USE_MPI GRAVITY)
 
 target_link_libraries(${exename} PRIVATE ${MPI_CXX_LIBRARIES})
 target_link_libraries(${exename} PRIVATE OpenMP::OpenMP_CXX)
-
-if (SPH_EXA_WITH_H5PART)
-    target_include_directories(${exename} PUBLIC ${PROJECT_SOURCE_DIR}/extern/h5part)
-    target_compile_definitions(${exename} PUBLIC SPH_EXA_HAVE_H5PART)
-    target_link_libraries(${exename} PRIVATE H5Part ${HDF5_LIBRARIES})
-endif()
+enableH5Part(${exename})
 
 if (SPH_EXA_WITH_CATALYST2)
     target_include_directories(${exename} PRIVATE ..)

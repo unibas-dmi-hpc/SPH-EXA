@@ -5,6 +5,15 @@ set(RYOANJI_DIR ${PROJECT_SOURCE_DIR}/ryoanji/src)
 set(SPH_EXA_INCLUDE_DIRS ${CSTONE_DIR} ${RYOANJI_DIR} ${PROJECT_SOURCE_DIR}/include
                          ${PROJECT_SOURCE_DIR}/src ${MPI_CXX_INCLUDE_PATH})
 
+function(enableH5Part exename)
+    if (SPH_EXA_WITH_H5PART)
+        target_compile_definitions(${exename} PUBLIC SPH_EXA_HAVE_H5PART)
+        target_include_directories(${exename} PUBLIC ${PROJECT_SOURCE_DIR}/extern/h5part)
+        target_link_libraries(${exename} PRIVATE H5Part ${HDF5_LIBRARIES})
+    endif()
+endfunction()
+
+
 add_subdirectory(evrard)
 add_subdirectory(sedov)
 if(BUILD_ANALYTICAL)

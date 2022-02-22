@@ -131,7 +131,7 @@ void singleTraversal(const TreeType<KeyType>& octree, C&& continuationCriterion,
 template<class TreeType, class MAC, class M2L, class P2P>
 void dualTraversal(const TreeType& octree, TreeNodeIndex a, TreeNodeIndex b, MAC&& continuation, M2L&& m2l, P2P&& p2p)
 {
-    using NodePair = pair<TreeNodeIndex>;
+    using NodePair = util::array<TreeNodeIndex, 2>;
 
     if (octree.isLeaf(a) && octree.isLeaf(b)) { p2p(a, b); return; }
 
