@@ -82,17 +82,8 @@ def computeRadii(h5File, step):
     return np.sqrt(x ** 2 + y ** 2 + z ** 2)
 
 
-def interpolate(where, x, fx):
-    """Interpolate a function (x, fx) at location where. x has to be sorted and x[0] < where < x[-1] """
-    closest = np.searchsorted(x, where)
-    dx = x[closest] - x[closest - 1]
-    df = fx[closest] - fx[closest - 1]
-    ret = fx[closest - 1] + (where - x[closest - 1]) * df/dx
-    return ret
-
-
 def computeL1Error(xSim, ySim, xSol, ySol):
-    ySolExpanded = np.array([interpolate(where, xSol, ySol) for where in xSim])
+    ySolExpanded = np.interp(xSim, xSol, ySol)
     return sum(abs(ySolExpanded - ySim)) / len(xSim)
 
 
