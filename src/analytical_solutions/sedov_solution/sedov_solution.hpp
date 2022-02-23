@@ -60,7 +60,7 @@ public:
     static double u_shock;                               // Internal energy
     static double cs_shock;                              // Sound speed
 
-    static void sedovSol(
+    static double sedovSol(
         const size_t          dim,                       // geometry factor: 1=planar, 2=cylindircal, 3=spherical
         const double          time,                      // temporal point where solution is desired [seconds]
         const double          eblast,                    // energy of blast in the wave front [erg]

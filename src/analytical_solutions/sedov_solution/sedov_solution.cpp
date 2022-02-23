@@ -70,7 +70,7 @@ double SedovSolution::vel_shock;
 double SedovSolution::u_shock;
 double SedovSolution::cs_shock;
 
-void SedovSolution::sedovSol(
+double SedovSolution::sedovSol(
     const size_t          dim,
     const double          time,
     const double          eblast,
@@ -301,6 +301,7 @@ void SedovSolution::sedovSol(
             }
         }
     }
+    return r2;
 }
 
 void SedovSolution::sedov_funcs(
