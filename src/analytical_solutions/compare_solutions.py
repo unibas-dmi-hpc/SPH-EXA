@@ -43,14 +43,15 @@ import matplotlib.pyplot as plt
 
 
 def parseSolution(fname):
-    data = np.loadtxt(fname)
-    r = data[:, 0]
-    ro = data[:, 1]
-    u = data[:, 2]
-    p = data[:, 3]
-    vel = data[:, 4]
-    cs = data[:, 5]
-    return r, ro, u, p, vel, cs
+    rawData = np.loadtxt(fname)
+    data = {}
+    data["r"] = rawData[:, 0]
+    data["ro"] = rawData[:, 1]
+    data["u"] = rawData[:, 2]
+    data["p"] = rawData[:, 3]
+    data["vel"] = rawData[:, 4]
+    data["cs"] = rawData[:, 5]
+    return data
 
 
 def loadH5Field(h5File, what, step):
@@ -81,6 +82,11 @@ def computeRadii(h5File, step):
     return np.sqrt(x ** 2 + y ** 2 + z ** 2)
 
 
+def computeL1Error(xSim, ySim, xSol, ySol):
+    ySolExpanded = np.interp(xSim, xSol, ySol)
+    return sum(abs(ySolExpanded - ySim)) / len(xSim)
+
+
 def plotRadialProfile(props, xSim, ySim, xSol, ySol):
     plt.scatter(xSim, ySim, s=0.1, label="Simulation", color="C0")
     plt.plot(xSol, ySol, label="Solution", color="C1")
@@ -93,31 +99,31 @@ def plotRadialProfile(props, xSim, ySim, xSol, ySol):
     plt.figure().clear()
 
 
-def createDensityPlot(h5File, solFile, radii, time, step):
+def createDensityPlot(h5File, solution, radii, time, step):
     ro = loadH5Field(h5File, "ro", step)
 
-    radiiSol, roSol, *_ = parseSolution(solFile)
     props = {"ylabel": "rho", "title": "Density", "fname": "sedov_density_%4f.png" % time}
-    plotRadialProfile(props, radii, ro, radiiSol, roSol)
+    plotRadialProfile(props, radii, ro, solution["r"], solution["ro"])
+    print("Density L1 error", computeL1Error(radii, ro, solution["r"], solution["ro"]))
 
 
-def createPressurePlot(h5File, solFile, radii, time, step):
+def createPressurePlot(h5File, solution, radii, time, step):
     p = loadH5Field(h5File, "p", step)
 
-    radiiSol, _, _, pSol, *_ = parseSolution(solFile)
     props = {"ylabel": "p", "title": "Pressure", "fname": "sedov_pressure_%4f.png" % time}
-    plotRadialProfile(props, radii, p, radiiSol, pSol)
+    plotRadialProfile(props, radii, p, solution["r"], solution["p"])
+    print("Pressure L1 error", computeL1Error(radii, p, solution["r"], solution["ro"]))
 
 
-def createVelocityPlot(h5File, solFile, radii, time, step):
+def createVelocityPlot(h5File, solution, radii, time, step):
     vx = loadH5Field(h5File, "vx", step)
     vy = loadH5Field(h5File, "vy", step)
     vz = loadH5Field(h5File, "vz", step)
 
     vr = np.sqrt(vx ** 2 + vy ** 2 + vz ** 2)
-    radiiSol, _, _, _, vrSol, *_ = parseSolution(solFile)
     props = {"ylabel": "vel", "title": "Velocity", "fname": "sedov_velocity_%4f.png" % time}
-    plotRadialProfile(props, radii, vr, radiiSol, vrSol)
+    plotRadialProfile(props, radii, vr, solution["r"], solution["vel"])
+    print("Velocity L1 error", computeL1Error(radii, vr, solution["r"], solution["ro"]))
 
 
 if __name__ == "__main__":
@@ -148,6 +154,7 @@ if __name__ == "__main__":
 
     solFile = "sedov_solution_%4f.dat" % time
     os.system("./sedov_solution --time %s --out %s" % (time, solFile))
+    solution = parseSolution(solFile)
 
     radii = None
     try:
@@ -156,16 +163,16 @@ if __name__ == "__main__":
         print("Could not load radii, input file does not contain fields \"x, y, z\"")
 
     try:
-        createDensityPlot(h5File, solFile, radii, time, step)
+        createDensityPlot(h5File, solution, radii, time, step)
     except KeyError:
         print("Could not plot density profile, input does not contain field \"ro\"")
 
     try:
-        createPressurePlot(h5File, solFile, radii, time, step)
+        createPressurePlot(h5File, solution, radii, time, step)
     except KeyError:
         print("Could not plot pressure profile, input does not contain field \"p\"")
 
     try:
-        createVelocityPlot(h5File, solFile, radii, time, step)
+        createVelocityPlot(h5File, solution, radii, time, step)
     except KeyError:
         print("Could not plot velocity profile, input does not contain fields \"vx, vy, vz\"")
