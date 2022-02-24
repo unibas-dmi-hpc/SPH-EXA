@@ -127,7 +127,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     upsweepSum(octree, testCounts.data());
 
     {
-        for (TreeNodeIndex i = 0; i < testCounts.size(); ++i)
+        for (size_t i = 0; i < testCounts.size(); ++i)
         {
             KeyType nodeStart = octree.codeStart(i);
             KeyType nodeEnd   = octree.codeEnd(i);

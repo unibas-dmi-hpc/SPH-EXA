@@ -188,7 +188,7 @@ public:
             focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-        focusTree_.updateCounts(keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
+        focusTree_.updateCounts(keyView, peers, global_.treeLeaves(), global_.nodeCounts());
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves());
 
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
@@ -221,7 +221,7 @@ public:
             focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-        focusTree_.updateCounts(keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
+        focusTree_.updateCounts(keyView, peers, global_.treeLeaves(), global_.nodeCounts());
         focusTree_.template updateCenters<T, T>(x, y, z, m, peers, global_.assignment(), global_.octree(), box());
         focusTree_.updateVecMac(box(), global_.assignment(), global_.treeLeaves());
 

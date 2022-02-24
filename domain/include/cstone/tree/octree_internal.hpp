@@ -234,7 +234,7 @@ public:
     //! @brief rebalance based on leaf counts only, optimized version that avoids unnecessary allocations
     bool rebalance(unsigned bucketSize, gsl::span<const unsigned> counts)
     {
-        assert(counts.size() == numLeafNodes_);
+        assert(TreeNodeIndex(counts.size()) == numLeafNodes_);
         bool converged =
             rebalanceDecision(cstoneTree_.data(), counts.data(), numLeafNodes_, bucketSize, nodeOrder_.data());
         rebalanceTree(cstoneTree_, prefixes_, nodeOrder_.data());
