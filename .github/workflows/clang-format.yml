@@ -28,7 +28,7 @@ jobs:
           # git diff --name-only FETCH_HEAD
           clang-format-12 --version
           echo "step1:"
-          clang-format-12 -n --style=file `git diff --name-only FETCH_HEAD |grep -E "\.(cpp|hpp|h|cu)$"` 2> rpt
+          (clang-format-12 -n --style=file `git diff --name-only FETCH_HEAD |grep -E "\.(cpp|hpp|h|cu)$"` || true) 2> rpt
           echo "step2:"
           if [ -s rpt ] ;then grep 'code should be clang-formatted' rpt; exit 1; else echo "no formatting issue" ; fi
 
