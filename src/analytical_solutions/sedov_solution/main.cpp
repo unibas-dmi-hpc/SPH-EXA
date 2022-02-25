@@ -86,20 +86,31 @@ int main(int argc, char** argv)
     const double vr0     = SedovDataGenerator<Real, KeyType>::vr0;
     const double cs0     = SedovDataGenerator<Real, KeyType>::cs0;
 
+    double shockFront;
+    {
+        std::vector<double> rDummy(1, 0.1);
+        std::vector<Real> rho(1), p(1), u(1), vel(1), cs(1);
+        shockFront = SedovSolution::sedovSol(dim, time, eblast, omega, gamma, rho0, u0, p0, vr0, cs0, rDummy, rho, p, u, vel, cs);
+    }
+
     // Set the positions for calculating the solution
-    vector<double> rSol;
-    size_t         nSteps = 1000;
+    size_t         nSteps = 100000;
+    size_t         nSamples = nSteps + 2;
+    vector<double> rSol(nSamples);
 
     const double rMax  = 2. * r1;
     const double rStep = (rMax - r0) / nSteps;
 
     for (size_t i = 0; i < nSteps; i++)
     {
-        rSol.push_back(r0 + (0.5 * rStep) + (i * rStep));
+        rSol[i] = (r0 + (0.5 * rStep) + (i * rStep));
     }
-
+    rSol[nSamples - 2] = shockFront;
+    rSol[nSamples - 1] = shockFront + 1e-7;
+    std::sort(begin(rSol), end(rSol));
+    
     // analytical solution output
-    std::vector<Real> rho(nSteps), p(nSteps), u(nSteps), vel(nSteps), cs(nSteps);
+    std::vector<Real> rho(nSamples), p(nSamples), u(nSamples), vel(nSamples), cs(nSamples);
 
     // Calculate theoretical solution
     SedovSolution::sedovSol(dim, time, eblast, omega, gamma, rho0, u0, p0, vr0, cs0, rSol, rho, p, u, vel, cs);
@@ -120,7 +131,7 @@ int main(int argc, char** argv)
                                 true,
                                 {rSol.data(), rho.data(), u.data(), p.data(), vel.data(), cs.data()},
                                 std::setw(16),
-                                std::setprecision(6),
+                                std::setprecision(7),
                                 std::scientific);
 
     cout << "Created solution file: '" << solFile << std::endl;
