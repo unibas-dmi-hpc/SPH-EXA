@@ -17,8 +17,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Setup tmate debug session
-        uses: mxschmitt/action-tmate@v3
+#       - name: Setup tmate debug session
+#         uses: mxschmitt/action-tmate@v3
 
       - name: fetch origin and run clang-format
         run: |
