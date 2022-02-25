@@ -8,7 +8,7 @@
 #include "sph/tables.hpp"
 
 #if defined(USE_CUDA)
-#include "sph/cuda/cudaParticlesData.cuh"
+#include "sph/cuda/gpu_particle_data.cuh"
 #endif
 
 namespace sphexa
@@ -28,7 +28,7 @@ struct ParticlesData
 
     std::vector<T> x, y, z, x_m1, y_m1, z_m1;    // Positions
     std::vector<T> vx, vy, vz;                   // Velocities
-    std::vector<T> ro;                           // Density
+    std::vector<T> rho;                          // Density
     std::vector<T> u;                            // Internal Energy
     std::vector<T> p;                            // Pressure
     std::vector<T> h;                            // Smoothing Length
@@ -47,7 +47,7 @@ struct ParticlesData
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
      */
     inline static constexpr std::array fieldNames{
-        "x",   "y",   "z",   "x_m1", "y_m1",     "z_m1",     "vx",         "vy",  "vz",    "ro",   "u",
+        "x",   "y",   "z",   "x_m1", "y_m1",     "z_m1",     "vx",         "vy",  "vz",    "rho",  "u",
         "p",   "h",   "m",   "c",    "grad_P_x", "grad_P_y", "grad_P_z",   "du",  "du_m1", "dt",   "dt_m1",
         "c11", "c12", "c13", "c22",  "c23",      "c33",      "maxvsignal", "mue", "mui",   "temp", "cv"};
 
@@ -59,7 +59,7 @@ struct ParticlesData
     auto data()
     {
         std::array<std::vector<T>*, 33> ret{
-            &x,   &y,   &z,   &x_m1, &y_m1,     &z_m1,     &vx,         &vy,  &vz,    &ro,   &u,
+            &x,   &y,   &z,   &x_m1, &y_m1,     &z_m1,     &vx,         &vy,  &vz,    &rho,  &u,
             &p,   &h,   &m,   &c,    &grad_P_x, &grad_P_y, &grad_P_z,   &du,  &du_m1, &dt,   &dt_m1,
             &c11, &c12, &c13, &c22,  &c23,      &c33,      &maxvsignal, &mue, &mui,   &temp, &cv};
 

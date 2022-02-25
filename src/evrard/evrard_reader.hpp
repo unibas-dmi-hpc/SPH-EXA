@@ -18,7 +18,7 @@ struct EvrardFileReader : IFileReader<Dataset>
         try
         {
             fileutils::readParticleDataFromBinFileWithMPI(
-                path, d, d.x, d.y, d.z, d.vx, d.vy, d.vz, d.ro, d.u, d.p, d.h, d.m);
+                path, d, d.x, d.y, d.z, d.vx, d.vy, d.vz, d.rho, d.u, d.p, d.h, d.m);
             if (d.rank == 0)
                 printf("Loaded input file with %lu particles for Evrard Collapse from path '%s' \n", d.n, path.c_str());
         }

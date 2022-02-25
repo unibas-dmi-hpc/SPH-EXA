@@ -34,7 +34,7 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     const T* wh  = d.wh.data();
     const T* whd = d.whd.data();
 
-    T* ro = d.ro.data();
+    T* rho = d.rho.data();
 
     const T K         = d.K;
     const T sincIndex = d.sincIndex;
@@ -49,7 +49,7 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 #pragma omp target map(to                                                                                                                  \
                        : n, neighbors [:allNeighbors], neighborsCount [:n], m [0:np], h [0:np], x [0:np], y [0:np], z [0:np],  wh [0:ltsize], whd [0:ltsize])    \
                    map(from                                                                                                                \
-                       : ro [:n])
+                       : rho [:n])
 #pragma omp teams distribute parallel for
 // clang-format on
 #else
@@ -64,12 +64,12 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 
         int i = pi + t.firstParticle;
 
-        ro[i] = kernels::densityJLoop(
+        rho[i] = kernels::densityJLoop(
             i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi], x, y, z, h, m, wh, whd);
 
 #ifndef NDEBUG
-        if (std::isnan(ro[i]))
-            printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", pi, ro[i], x[i], y[i], z[i], h[i]);
+        if (std::isnan(rho[i]))
+            printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", pi, rho[i], x[i], y[i], z[i], h[i]);
 #endif
     }
 }

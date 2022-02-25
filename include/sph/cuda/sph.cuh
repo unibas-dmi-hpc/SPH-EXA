@@ -3,7 +3,7 @@
 #include <vector>
 
 #include "task.hpp"
-#include "cudaParticlesData.cuh"
+#include "gpu_particle_data.cuh"
 #include "cstone/sfc/box.hpp"
 
 //! @brief maximum number of neighbors supported in GPU kernels

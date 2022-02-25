@@ -120,11 +120,11 @@ public:
         {
             const T radius = std::sqrt(std::pow(pd.x[i], 2) + std::pow(pd.y[i], 2) + std::pow(pd.z[i], 2));
 
-            pd.h[i]  = hIni;
-            pd.m[i]  = mPart;
-            pd.ro[i] = rho0;
-            pd.u[i]  = ener0 * exp(-(std::pow(radius, 2) / std::pow(width, 2))) + u0;
-            pd.p[i]  = pd.u[i] * rho0 * gamm1;
+            pd.h[i]   = hIni;
+            pd.m[i]   = mPart;
+            pd.rho[i] = rho0;
+            pd.u[i]   = ener0 * exp(-(std::pow(radius, 2) / std::pow(width, 2))) + u0;
+            pd.p[i]   = pd.u[i] * rho0 * gamm1;
 
             pd.mui[i] = 10.;
 

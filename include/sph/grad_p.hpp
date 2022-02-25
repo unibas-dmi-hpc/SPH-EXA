@@ -23,17 +23,17 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     const int* neighbors      = t.neighbors.data();
     const int* neighborsCount = t.neighborsCount.data();
 
-    const T* h  = d.h.data();
-    const T* m  = d.m.data();
-    const T* x  = d.x.data();
-    const T* y  = d.y.data();
-    const T* z  = d.z.data();
-    const T* vx = d.vx.data();
-    const T* vy = d.vy.data();
-    const T* vz = d.vz.data();
-    const T* ro = d.ro.data();
-    const T* c  = d.c.data();
-    const T* p  = d.p.data();
+    const T* h   = d.h.data();
+    const T* m   = d.m.data();
+    const T* x   = d.x.data();
+    const T* y   = d.y.data();
+    const T* z   = d.z.data();
+    const T* vx  = d.vx.data();
+    const T* vy  = d.vy.data();
+    const T* vz  = d.vz.data();
+    const T* rho = d.rho.data();
+    const T* c   = d.c.data();
+    const T* p   = d.p.data();
 
     const T* c11 = d.c11.data();
     const T* c12 = d.c12.data();
@@ -88,7 +88,7 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
                                         vz,
                                         h,
                                         m,
-                                        ro,
+                                        rho,
                                         p,
                                         c,
                                         c11,

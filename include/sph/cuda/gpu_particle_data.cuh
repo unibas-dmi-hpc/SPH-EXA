@@ -27,7 +27,7 @@ public:
 
     struct neighbors_stream d_stream[NST];
 
-    T *d_x, *d_y, *d_z, *d_vx, *d_vy, *d_vz, *d_m, *d_h, *d_ro, *d_p, *d_c, *d_c11, *d_c12, *d_c13, *d_c22, *d_c23,
+    T *d_x, *d_y, *d_z, *d_vx, *d_vy, *d_vz, *d_m, *d_h, *d_rho, *d_p, *d_c, *d_c11, *d_c12, *d_c13, *d_c22, *d_c23,
         *d_c33, *d_wh, *d_whd, *d_grad_P_x, *d_grad_P_y, *d_grad_P_z, *d_du, *d_maxvsignal;
 
     typename ParticleData::KeyType* d_codes;
@@ -41,7 +41,7 @@ public:
             // TODO: Investigate benefits of low-level reallocate
             if (allocatedDeviceMemory)
             {
-                CHECK_CUDA_ERR(utils::cudaFree(d_x, d_y, d_z, d_h, d_m, d_ro));
+                CHECK_CUDA_ERR(utils::cudaFree(d_x, d_y, d_z, d_h, d_m, d_rho));
                 CHECK_CUDA_ERR(utils::cudaFree(d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
                 CHECK_CUDA_ERR(utils::cudaFree(
                     d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal));
@@ -54,7 +54,7 @@ public:
             size_t size_np_T       = size * sizeof(T);
             size_t size_np_KeyType = size * sizeof(typename ParticleData::KeyType);
 
-            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m, d_ro));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m, d_rho));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
             CHECK_CUDA_ERR(utils::cudaMalloc(
                 size_np_T, d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal));
@@ -114,7 +114,7 @@ public:
                                        d_vz,
                                        d_h,
                                        d_m,
-                                       d_ro,
+                                       d_rho,
                                        d_p,
                                        d_c,
                                        d_c11,

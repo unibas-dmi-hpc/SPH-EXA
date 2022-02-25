@@ -28,7 +28,7 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     const T* x  = d.x.data();
     const T* y  = d.y.data();
     const T* z  = d.z.data();
-    const T* ro = d.ro.data();
+    const T* ro = d.rho.data();
 
     T* c11 = d.c11.data();
     T* c12 = d.c12.data();

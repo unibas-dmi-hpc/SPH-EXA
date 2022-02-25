@@ -87,7 +87,7 @@ public:
         computeEquationOfState(domain.startIndex(), domain.endIndex(), d);
         timer.step("EquationOfState");
 
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c);
+        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
 
         computeIAD<T>(taskList.tasks, d, domain.box());
@@ -148,7 +148,7 @@ public:
         computeEquationOfState(domain.startIndex(), domain.endIndex(), d);
         timer.step("EquationOfState");
 
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c);
+        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
 
         computeIAD<T>(taskList.tasks, d, domain.box());

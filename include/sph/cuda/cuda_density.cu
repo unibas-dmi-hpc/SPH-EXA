@@ -15,9 +15,9 @@ namespace cuda
 {
 
 template<class T, class KeyType>
-__global__ void density(T sincIndex, T K, int ngmax, cstone::Box<T> box, int firstParticle, int lastParticle,
-                        int numParticles, const KeyType* particleKeys, int* neighborsCount, const T* x, const T* y,
-                        const T* z, const T* h, const T* m, const T* wh, const T* whd, T* ro)
+__global__ void cudaDensity(T sincIndex, T K, int ngmax, cstone::Box<T> box, int firstParticle, int lastParticle,
+                            int numParticles, const KeyType* particleKeys, int* neighborsCount, const T* x, const T* y,
+                            const T* z, const T* h, const T* m, const T* wh, const T* whd, T* rho)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + firstParticle;
@@ -34,7 +34,7 @@ __global__ void density(T sincIndex, T K, int ngmax, cstone::Box<T> box, int fir
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
 
-    ro[i] = sph::kernels::densityJLoop(i, sincIndex, K, box, neighbors, neighborsCount_, x, y, z, h, m, wh, whd);
+    rho[i] = sph::kernels::densityJLoop(i, sincIndex, K, box, neighbors, neighborsCount_, x, y, z, h, m, wh, whd);
 
     neighborsCount[tid] = neighborsCount_;
 }
@@ -89,23 +89,23 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<d
         unsigned numThreads = 256;
         unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
-        density<<<numBlocks, numThreads, 0, stream>>>(d.sincIndex,
-                                                      d.K,
-                                                      t.ngmax,
-                                                      box,
-                                                      firstParticle,
-                                                      lastParticle,
-                                                      numParticles,
-                                                      d.devPtrs.d_codes,
-                                                      d_neighborsCount_use,
-                                                      d.devPtrs.d_x,
-                                                      d.devPtrs.d_y,
-                                                      d.devPtrs.d_z,
-                                                      d.devPtrs.d_h,
-                                                      d.devPtrs.d_m,
-                                                      d.devPtrs.d_wh,
-                                                      d.devPtrs.d_whd,
-                                                      d.devPtrs.d_ro);
+        cudaDensity<<<numBlocks, numThreads, 0, stream>>>(d.sincIndex,
+                                                          d.K,
+                                                          t.ngmax,
+                                                          box,
+                                                          firstParticle,
+                                                          lastParticle,
+                                                          numParticles,
+                                                          d.devPtrs.d_codes,
+                                                          d_neighborsCount_use,
+                                                          d.devPtrs.d_x,
+                                                          d.devPtrs.d_y,
+                                                          d.devPtrs.d_z,
+                                                          d.devPtrs.d_h,
+                                                          d.devPtrs.d_m,
+                                                          d.devPtrs.d_wh,
+                                                          d.devPtrs.d_whd,
+                                                          d.devPtrs.d_rho);
         CHECK_CUDA_ERR(cudaGetLastError());
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighborsCount.data(),
@@ -116,7 +116,7 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<d
     }
 
     // Memcpy in default stream synchronizes all other streams
-    CHECK_CUDA_ERR(cudaMemcpy(d.ro.data(), d.devPtrs.d_ro, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.rho.data(), d.devPtrs.d_rho, size_np_T, cudaMemcpyDeviceToHost));
 }
 
 template void computeDensity(std::vector<Task>&, ParticlesData<double, unsigned>&, const cstone::Box<double>&);
