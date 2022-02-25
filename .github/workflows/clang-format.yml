@@ -10,9 +10,9 @@ jobs:
         DEBIAN_FRONTEND: noninteractive
     runs-on: ubuntu-20.04
     steps:
-      #- name: apt
-      #  run: |
-      #    sudo apt install -y --no-install-recommends clang-format-12
+      - name: apt
+        run: |
+          sudo apt install -y --no-install-recommends clang-format-12
 
       - name: Checkout
         uses: actions/checkout@v2
@@ -25,9 +25,9 @@ jobs:
           git fetch --no-tags --depth=1 https://github.com/unibas-dmi-hpc/SPH-EXA.git develop
           # git remote -v
           # git log -n2 --format='%H'
-          git diff --name-only FETCH_HEAD
-          clang-format --version
-          clang-format -n --style=file `git diff --name-only FETCH_HEAD |grep -E "\.(cpp|hpp|h|cu)$"` 2> rpt
+          # git diff --name-only FETCH_HEAD
+          clang-format-12 --version
+          clang-format-12 -n --style=file `git diff --name-only FETCH_HEAD |grep -E "\.(cpp|hpp|h|cu)$"` 2> rpt
           if [ -s rpt ] ;then grep 'code should be clang-formatted' rpt; exit 1; else echo "no formatting issue" ; fi
 
 #       - name: report formating issues (if any)
