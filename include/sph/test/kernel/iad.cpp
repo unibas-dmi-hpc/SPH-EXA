@@ -33,8 +33,8 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/kernel/computeIAD.hpp"
-#include "sph/lookupTables.hpp"
+#include "sph/kernel/iad.hpp"
+#include "sph/tables.hpp"
 
 using namespace sphexa;
 

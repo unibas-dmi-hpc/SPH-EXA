@@ -1,7 +1,7 @@
 #include <cuda.h>
 
 #include "../kernels.hpp"
-#include "../lookupTables.hpp"
+#include "../tables.hpp"
 
 namespace sphexa
 {

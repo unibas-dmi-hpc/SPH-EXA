@@ -3,7 +3,7 @@
 #include "sph.cuh"
 #include "particles_data.hpp"
 #include "cudaUtils.cuh"
-#include "../kernel/computeIAD.hpp"
+#include "../kernel/iad.hpp"
 
 #include "cstone/cuda/findneighbors.cuh"
 

@@ -33,8 +33,8 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/kernel/computeMomentumAndEnergy.hpp"
-#include "sph/lookupTables.hpp"
+#include "sph/kernel/grad_p.hpp"
+#include "sph/tables.hpp"
 
 using namespace sphexa;
 

@@ -5,7 +5,7 @@
 #include <cmath>
 #include "math.hpp"
 #include "kernels.hpp"
-#include "kernel/computeIAD.hpp"
+#include "kernel/iad.hpp"
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
 #endif

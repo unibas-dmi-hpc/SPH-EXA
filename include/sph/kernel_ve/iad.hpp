@@ -33,7 +33,7 @@
 
 #include "cstone/sfc/box.hpp"
 
-#include "sph/lookupTables.hpp"
+#include "sph/tables.hpp"
 
 namespace sphexa
 {

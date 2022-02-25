@@ -5,7 +5,7 @@
 #include <vector>
 
 #include "sph/kernels.hpp"
-#include "sph/lookupTables.hpp"
+#include "sph/tables.hpp"
 
 #if defined(USE_CUDA)
 #include "sph/cuda/cudaParticlesData.cuh"

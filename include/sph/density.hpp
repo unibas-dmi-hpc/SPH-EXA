@@ -6,7 +6,7 @@
 
 #include "kernels.hpp"
 #include "task.hpp"
-#include "kernel/computeDensity.hpp"
+#include "kernel/density.hpp"
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
 #endif

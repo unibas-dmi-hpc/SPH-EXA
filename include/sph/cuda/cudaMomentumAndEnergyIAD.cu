@@ -3,7 +3,7 @@
 #include "sph.cuh"
 #include "particles_data.hpp"
 #include "cudaUtils.cuh"
-#include "../kernel/computeMomentumAndEnergy.hpp"
+#include "../kernel/grad_p.hpp"
 
 #include "cstone/cuda/findneighbors.cuh"
 

@@ -12,7 +12,7 @@
 #include "cstone/domain/domain.hpp"
 
 #include "sphexa.hpp"
-#include "sph/findNeighborsSfc.hpp"
+#include "sph/find_neighbors.hpp"
 #include "SedovDataGenerator.hpp"
 #include "ifile_writer.hpp"
 
