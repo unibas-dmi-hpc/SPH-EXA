@@ -63,8 +63,8 @@ int main(int argc, char** argv)
         fileWriter = std::make_unique<H5PartWriter<Dataset>>();
     }
 
-    auto d         = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
-    d.outputFields = std::move(outputFields);
+    auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
+    d.setOutputFields(outputFields);
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 

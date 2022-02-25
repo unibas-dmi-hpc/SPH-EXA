@@ -14,6 +14,9 @@
 namespace sphexa
 {
 
+template<class Array>
+std::vector<int> fieldStringsToInt(const Array&, const std::vector<std::string>&);
+
 template<typename T, typename I>
 struct ParticlesData
 {
@@ -58,7 +61,7 @@ struct ParticlesData
      */
     auto data()
     {
-        std::array<std::vector<T>*, 33> ret{
+        std::array<std::vector<T>*, fieldNames.size()> ret{
             &x,   &y,   &z,   &x_m1, &y_m1,     &z_m1,     &vx,         &vy,  &vz,    &rho,  &u,
             &p,   &h,   &m,   &c,    &grad_P_x, &grad_P_y, &grad_P_z,   &du,  &du_m1, &dt,   &dt_m1,
             &c11, &c12, &c13, &c22,  &c23,      &c33,      &maxvsignal, &mue, &mui,   &temp, &cv};
@@ -68,7 +71,17 @@ struct ParticlesData
         return ret;
     }
 
-    std::vector<std::string> outputFields;
+    void setOutputFields(const std::vector<std::string>& outFields)
+    {
+        outputFields = fieldStringsToInt(fieldNames, outFields);
+    }
+
+    //! @brief particle fields to conserve between iterations, needed for checkpoints and domain exchange
+    // std::vector<int> conservedFields;
+    //! @brief particle fields recomputed every step from conserved fields
+    // std::vector<int> dependentFields;
+    //! @brief particle fields select for file outputj
+    std::vector<int> outputFields;
 
     const std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
@@ -102,6 +115,38 @@ struct ParticlesData
 template<typename T, typename I>
 const T ParticlesData<T, I>::K = sphexa::compute_3d_k(sincIndex);
 
+template<class Array>
+std::vector<int> fieldStringsToInt(const Array& allNames, const std::vector<std::string>& subsetNames)
+{
+    std::vector<int> subsetIndices;
+    subsetIndices.reserve(subsetNames.size());
+    for (const auto& field : subsetNames)
+    {
+        auto it = std::find(allNames.begin(), allNames.end(), field);
+        if (it == allNames.end()) { throw std::runtime_error("Field " + field + " does not exist\n"); }
+
+        size_t fieldIndex = it - allNames.begin();
+        subsetIndices.push_back(fieldIndex);
+    }
+    return subsetIndices;
+}
+
+//! @brief extract a vector of pointers to particle fields for file output
+template<class Dataset>
+auto getOutputArrays(Dataset& dataset)
+{
+    using T            = typename Dataset::RealType;
+    auto fieldPointers = dataset.data();
+
+    std::vector<const T*> outputFields(dataset.outputFields.size());
+    std::transform(dataset.outputFields.begin(),
+                   dataset.outputFields.end(),
+                   outputFields.begin(),
+                   [&fieldPointers](int i) { return fieldPointers[i]->data(); });
+
+    return outputFields;
+}
+
 //! @brief resizes all particles fields of @p d listed in data() to the specified size
 template<class Dataset>
 void resize(Dataset& d, size_t size)
@@ -118,30 +163,6 @@ void resize(Dataset& d, size_t size)
 #if defined(USE_CUDA)
     d.devPtrs.resize(size);
 #endif
-}
-
-//! @brief construct a vector of pointers to particle fields for file output
-template<class Dataset>
-auto getOutputArrays(Dataset& dataset, const std::vector<std::string>& fields)
-{
-    using T = typename Dataset::RealType;
-
-    auto fieldPointers = dataset.data();
-    auto fieldNames    = Dataset::fieldNames;
-
-    std::vector<const T*> outputFields;
-
-    for (const auto& field : fields)
-    {
-        auto it = std::find(fieldNames.begin(), fieldNames.end(), field);
-
-        if (it == fieldNames.end()) { throw std::runtime_error("Cannot output field " + field + "\n"); }
-
-        size_t fieldIndex = it - fieldNames.begin();
-        outputFields.push_back(fieldPointers[fieldIndex]->data());
-    }
-
-    return outputFields;
 }
 
 } // namespace sphexa

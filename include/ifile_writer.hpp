@@ -30,7 +30,7 @@ struct AsciiWriter : public IFileWriter<Dataset>
             {
                 try
                 {
-                    auto fieldPointers = getOutputArrays(d, d.outputFields);
+                    auto fieldPointers = getOutputArrays(d);
 
                     bool append = d.rank != 0;
                     fileutils::writeAscii(firstIndex, lastIndex, path, append, fieldPointers, separator);
