@@ -15,34 +15,34 @@ namespace sphexa
 {
 namespace sph
 {
-template <typename T, class Dataset>
+template<typename T, class Dataset>
 void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 {
     // number of particles in task
     size_t numParticles = t.size();
 
-    const size_t ngmax = t.ngmax;
-    const int *neighbors = t.neighbors.data();
-    const int *neighborsCount = t.neighborsCount.data();
+    const size_t ngmax          = t.ngmax;
+    const int*   neighbors      = t.neighbors.data();
+    const int*   neighborsCount = t.neighborsCount.data();
 
-    const T *h = d.h.data();
-    const T *m = d.m.data();
-    const T *x = d.x.data();
-    const T *y = d.y.data();
-    const T *z = d.z.data();
+    const T* h = d.h.data();
+    const T* m = d.m.data();
+    const T* x = d.x.data();
+    const T* y = d.y.data();
+    const T* z = d.z.data();
 
-    const T *wh = d.wh.data();
-    const T *whd = d.whd.data();
+    const T* wh  = d.wh.data();
+    const T* whd = d.whd.data();
 
-    T *ro = d.ro.data();
+    T* ro = d.ro.data();
 
-    const T K = d.K;
+    const T K         = d.K;
     const T sincIndex = d.sincIndex;
 
 #if defined(USE_OMP_TARGET)
-    const size_t np = d.x.size();
-    const size_t ltsize = d.wh.size();
-    const size_t n = numParticles;
+    const size_t np           = d.x.size();
+    const size_t ltsize       = d.wh.size();
+    const size_t n            = numParticles;
     const size_t allNeighbors = n * ngmax;
 
 // clang-format off
@@ -57,9 +57,9 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 #endif
     for (size_t pi = 0; pi < numParticles; pi++)
     {
-        //int neighLoc[ngmax];
-        //int count;
-        //cstone::findNeighbors(
+        // int neighLoc[ngmax];
+        // int count;
+        // cstone::findNeighbors(
         //    pi, x, y, z, h, box, cstone::sfcKindPointer(d.codes.data()), neighLoc, &count, d.codes.size(), ngmax);
 
         int i = pi + t.firstParticle;
@@ -74,42 +74,17 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     }
 }
 
-template <typename T, class Dataset>
-void computeDensity(std::vector<Task> &taskList, Dataset &d, const cstone::Box<T>& box)
+template<typename T, class Dataset>
+void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<T>& box)
 {
 #if defined(USE_CUDA)
     cuda::computeDensity<Dataset>(taskList, d, box);
 #else
-    for (const auto &task : taskList)
+    for (const auto& task : taskList)
     {
         computeDensityImpl<T>(task, d, box);
     }
 #endif
-}
-
-template <typename T, class Dataset>
-void initFluidDensityAtRestImpl(const Task &t, Dataset &d)
-{
-    int numParticles = t.size();
-
-    const T *ro = d.ro.data();
-    T *ro_0 = d.ro_0.data();
-
-    #pragma omp parallel for
-    for (size_t pi = 0; pi < numParticles; ++pi)
-    {
-        int i = pi + t.firstParticle;
-        ro_0[i] = ro[i];
-    }
-}
-
-template <typename T, class Dataset>
-void initFluidDensityAtRest(const std::vector<Task> &taskList, Dataset &d)
-{
-    for (const auto &task : taskList)
-    {
-        initFluidDensityAtRestImpl<T>(task, d);
-    }
 }
 
 } // namespace sph
