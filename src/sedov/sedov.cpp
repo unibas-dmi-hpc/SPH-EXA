@@ -13,7 +13,7 @@
 
 #include "sphexa.hpp"
 #include "sph/find_neighbors.hpp"
-#include "SedovDataGenerator.hpp"
+#include "sedov_generator.hpp"
 #include "ifile_writer.hpp"
 
 #include "propagator.hpp"

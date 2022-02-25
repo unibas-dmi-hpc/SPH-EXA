@@ -2,8 +2,8 @@
 
 #include "sph.cuh"
 #include "particles_data.hpp"
-#include "cudaUtils.cuh"
-#include "../kernel/density.hpp"
+#include "cuda_utils.cuh"
+#include "sph/kernel/density.hpp"
 
 #include "cstone/cuda/findneighbors.cuh"
 

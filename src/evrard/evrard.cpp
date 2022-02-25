@@ -13,7 +13,7 @@
 #include "sphexa.hpp"
 #include "sph/find_neighbors.hpp"
 #include "ifile_writer.hpp"
-#include "EvrardCollapseInputFileReader.hpp"
+#include "evrard_reader.hpp"
 
 #include "propagator.hpp"
 #include "insitu_viz.h"

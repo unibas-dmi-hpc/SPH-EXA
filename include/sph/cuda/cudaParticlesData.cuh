@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cudaUtils.cuh"
+#include "cuda_utils.cuh"
 
 namespace sphexa
 {

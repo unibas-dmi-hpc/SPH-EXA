@@ -37,7 +37,7 @@
 #include "arg_parser.hpp"
 #include "file_utils.hpp"
 
-#include "sedov/SedovDataGenerator.hpp"
+#include "sedov/sedov_generator.hpp"
 
 #include "sedov_solution.hpp"
 

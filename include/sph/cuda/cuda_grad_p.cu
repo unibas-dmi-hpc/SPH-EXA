@@ -2,8 +2,8 @@
 
 #include "sph.cuh"
 #include "particles_data.hpp"
-#include "cudaUtils.cuh"
-#include "../kernel/grad_p.hpp"
+#include "cuda_utils.cuh"
+#include "sph/kernel/grad_p.hpp"
 
 #include "cstone/cuda/findneighbors.cuh"
 
@@ -16,7 +16,6 @@ namespace cuda
 
 template<class T, class KeyType>
 __global__ void computeMomentumAndEnergyIAD(T sincIndex, T K, int ngmax, cstone::Box<T> box,
-                                            // const int* neighbors, const int* neighborsCount,
                                             int firstParticle, int lastParticle, int numParticles,
                                             const KeyType* particleKeys, const T* x, const T* y, const T* z,
                                             const T* vx, const T* vy, const T* vz, const T* h, const T* m, const T* ro,

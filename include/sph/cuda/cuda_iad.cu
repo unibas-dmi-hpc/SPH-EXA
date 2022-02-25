@@ -2,8 +2,8 @@
 
 #include "sph.cuh"
 #include "particles_data.hpp"
-#include "cudaUtils.cuh"
-#include "../kernel/iad.hpp"
+#include "cuda_utils.cuh"
+#include "sph/kernel/iad.hpp"
 
 #include "cstone/cuda/findneighbors.cuh"
 
@@ -34,7 +34,7 @@ namespace cuda
  * @param[in]  ro              densities, length @p numParticles
  * @param[in]  wh              sinc lookup table
  * @param[in]  whd             sinc derivative lookup table
- * @param[out] c11             output iad components, length @p numParticles
+ * @param[out] c11             output IAD components, length @p numParticles
  * @param[out] c12
  * @param[out] c13
  * @param[out] c22
