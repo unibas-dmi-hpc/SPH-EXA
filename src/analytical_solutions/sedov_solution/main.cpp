@@ -37,7 +37,7 @@
 #include "arg_parser.hpp"
 #include "file_utils.hpp"
 
-#include "sedov/SedovDataGenerator.hpp"
+#include "sedov/sedov_generator.hpp"
 
 #include "sedov_solution.hpp"
 
@@ -74,27 +74,28 @@ int main(int argc, char** argv)
         parser.exists("--out") ? parser.getString("--out") : outDir + "sedov_solution_" + time_str + ".dat";
 
     // Calculate and write theoretical solution profile in one dimension
-    const size_t dim     = SedovDataGenerator<Real, KeyType>::dim;
-    const double r0      = SedovDataGenerator<Real, KeyType>::r0;
-    const double r1      = SedovDataGenerator<Real, KeyType>::r1;
-    const double eblast  = SedovDataGenerator<Real, KeyType>::energyTotal;
-    const double gamma   = SedovDataGenerator<Real, KeyType>::gamma;
-    const double omega   = SedovDataGenerator<Real, KeyType>::omega;
-    const double rho0    = SedovDataGenerator<Real, KeyType>::rho0;
-    const double u0      = SedovDataGenerator<Real, KeyType>::u0;
-    const double p0      = SedovDataGenerator<Real, KeyType>::p0;
-    const double vr0     = SedovDataGenerator<Real, KeyType>::vr0;
-    const double cs0     = SedovDataGenerator<Real, KeyType>::cs0;
+    const size_t dim    = SedovDataGenerator<Real, KeyType>::dim;
+    const double r0     = SedovDataGenerator<Real, KeyType>::r0;
+    const double r1     = SedovDataGenerator<Real, KeyType>::r1;
+    const double eblast = SedovDataGenerator<Real, KeyType>::energyTotal;
+    const double gamma  = SedovDataGenerator<Real, KeyType>::gamma;
+    const double omega  = SedovDataGenerator<Real, KeyType>::omega;
+    const double rho0   = SedovDataGenerator<Real, KeyType>::rho0;
+    const double u0     = SedovDataGenerator<Real, KeyType>::u0;
+    const double p0     = SedovDataGenerator<Real, KeyType>::p0;
+    const double vr0    = SedovDataGenerator<Real, KeyType>::vr0;
+    const double cs0    = SedovDataGenerator<Real, KeyType>::cs0;
 
     double shockFront;
     {
         std::vector<double> rDummy(1, 0.1);
-        std::vector<Real> rho(1), p(1), u(1), vel(1), cs(1);
-        shockFront = SedovSolution::sedovSol(dim, time, eblast, omega, gamma, rho0, u0, p0, vr0, cs0, rDummy, rho, p, u, vel, cs);
+        std::vector<Real>   rho(1), p(1), u(1), vel(1), cs(1);
+        shockFront = SedovSolution::sedovSol(
+            dim, time, eblast, omega, gamma, rho0, u0, p0, vr0, cs0, rDummy, rho, p, u, vel, cs);
     }
 
     // Set the positions for calculating the solution
-    size_t         nSteps = 100000;
+    size_t         nSteps   = 100000;
     size_t         nSamples = nSteps + 2;
     vector<double> rSol(nSamples);
 
@@ -108,7 +109,7 @@ int main(int argc, char** argv)
     rSol[nSamples - 2] = shockFront;
     rSol[nSamples - 1] = shockFront + 1e-7;
     std::sort(begin(rSol), end(rSol));
-    
+
     // analytical solution output
     std::vector<Real> rho(nSamples), p(nSamples), u(nSamples), vel(nSamples), cs(nSamples);
 

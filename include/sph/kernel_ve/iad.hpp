@@ -33,7 +33,7 @@
 
 #include "cstone/sfc/box.hpp"
 
-#include "sph/lookupTables.hpp"
+#include "sph/tables.hpp"
 
 namespace sphexa
 {
@@ -44,9 +44,9 @@ namespace kernels
 
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline void IADJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
-                                          int neighborsCount, const T* x, const T* y, const T* z, const T* h, const T* m,
-                                          const T* wh, const T* whd, const T* rho0, const T* kx,
-                                          T* c11, T* c12, T* c13, T* c22, T* c23, T* c33)
+                                          int neighborsCount, const T* x, const T* y, const T* z, const T* h,
+                                          const T* m, const T* wh, const T* whd, const T* rho0, const T* kx, T* c11,
+                                          T* c12, T* c13, T* c22, T* c23, T* c33)
 {
     T tau11 = 0.0, tau12 = 0.0, tau13 = 0.0, tau22 = 0.0, tau23 = 0.0, tau33 = 0.0;
 
@@ -72,7 +72,7 @@ CUDA_DEVICE_HOST_FUN inline void IADJLoop(int i, T sincIndex, T K, const cstone:
 
         // calculate the v as ratio between the distance and the smoothing length
         T vloc = dist * hiInv;
-        T w = ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
+        T w    = ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
 
         T volj_w = m[j] / rho0[j] / kx[j] * w;
 

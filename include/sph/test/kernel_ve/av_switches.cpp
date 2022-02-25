@@ -35,7 +35,7 @@
 #include "gtest/gtest.h"
 
 #include "sph/kernel_ve/av_switches.hpp"
-#include "sph/lookupTables.hpp"
+#include "sph/tables.hpp"
 
 using namespace sphexa;
 
@@ -43,13 +43,13 @@ TEST(AVswitches, JLoop)
 {
     using T = double;
 
-    T sincIndex = 6.0;
-    T K         = compute_3d_k(sincIndex);
-    T alphamin  = 0.05;
-    T alphamax  = 1.0;
+    T sincIndex      = 6.0;
+    T K              = compute_3d_k(sincIndex);
+    T alphamin       = 0.05;
+    T alphamax       = 1.0;
     T decay_constant = 0.2;
-    T alphai    = alphamax;
-    T dt        = 1.5;
+    T alphai         = alphamax;
+    T dt             = 1.5;
 
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
@@ -58,7 +58,7 @@ TEST(AVswitches, JLoop)
 
     // particle 0 has 4 neighbors
     std::vector<int> neighbors{1, 2, 3, 4};
-    int neighborsCount = 4, i;
+    int              neighborsCount = 4, i;
 
     std::vector<T> x{1.0, 1.1, 3.2, 1.3, 2.4};
     std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
@@ -67,9 +67,9 @@ TEST(AVswitches, JLoop)
     std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
     std::vector<T> c{0.4, 0.5, 0.6, 0.7, 0.8};
 
-    std::vector<T> vx{0.010, -0.020, 0.030, -0.040,  0.050};
+    std::vector<T> vx{0.010, -0.020, 0.030, -0.040, 0.050};
     std::vector<T> vy{-0.011, 0.021, -0.031, 0.041, -0.051};
-    std::vector<T> vz{0.091, -0.081, 0.071, -0.061,  0.055};
+    std::vector<T> vz{0.091, -0.081, 0.071, -0.061, 0.055};
 
     std::vector<T> c11{0.21, 0.27, 0.10, 0.45, 0.46};
     std::vector<T> c12{-0.22, -0.29, -0.11, -0.44, -0.47};
@@ -82,7 +82,7 @@ TEST(AVswitches, JLoop)
     std::vector<T> kx{1.0, 1.5, 2.0, 2.7, 4.0};
     std::vector<T> divv{-0.4, 0.1, 0.2, 0.7, -2.8};
 
-    for (i = 0; i < neighborsCount+1; i++)
+    for (i = 0; i < neighborsCount + 1; i++)
     {
         kx[i] = K * m[i] / rho0[i] / ::sphexa::math::pow(h[i], 3);
     }
@@ -95,44 +95,43 @@ TEST(AVswitches, JLoop)
      */
 
     // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
-    T alpha  = -1;
+    T alpha = -1;
 
     // compute gradient for for particle 0
     alpha = sph::kernels::AVswitchesJLoop(0,
-                                  sincIndex,
-                                  K,
-                                  box,
-                                  neighbors.data(),
-                                  neighborsCount,
-                                  x.data(),
-                                  y.data(),
-                                  z.data(),
-                                  vx.data(),
-                                  vy.data(),
-                                  vz.data(),
-                                  h.data(),
-                                  m.data(),
-                                  c.data(),
-                                  c11.data(),
-                                  c12.data(),
-                                  c13.data(),
-                                  c22.data(),
-                                  c23.data(),
-                                  c33.data(),
-                                  wh.data(),
-                                  whd.data(),
-                                  kx.data(),
-                                  rho0.data(),
-                                  divv.data(),
-                                  dt,
-                                  alphamin,
-                                  alphamax,
-                                  decay_constant,
-                                  alphai);
+                                          sincIndex,
+                                          K,
+                                          box,
+                                          neighbors.data(),
+                                          neighborsCount,
+                                          x.data(),
+                                          y.data(),
+                                          z.data(),
+                                          vx.data(),
+                                          vy.data(),
+                                          vz.data(),
+                                          h.data(),
+                                          m.data(),
+                                          c.data(),
+                                          c11.data(),
+                                          c12.data(),
+                                          c13.data(),
+                                          c22.data(),
+                                          c23.data(),
+                                          c33.data(),
+                                          wh.data(),
+                                          whd.data(),
+                                          kx.data(),
+                                          rho0.data(),
+                                          divv.data(),
+                                          dt,
+                                          alphamin,
+                                          alphamax,
+                                          decay_constant,
+                                          alphai);
 
     EXPECT_NEAR(alpha, 0.97980576425580013, 1e-10);
 }
-
 
 // TEST(MomentumEnergy, JLoopPBC)
 // {

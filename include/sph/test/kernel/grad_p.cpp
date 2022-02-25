@@ -33,8 +33,8 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/kernel/computeMomentumAndEnergy.hpp"
-#include "sph/lookupTables.hpp"
+#include "sph/kernel/grad_p.hpp"
+#include "sph/tables.hpp"
 
 using namespace sphexa;
 
@@ -52,7 +52,7 @@ TEST(MomentumEnergy, JLoop)
 
     // particle 0 has 4 neighbors
     std::vector<int> neighbors{1, 2, 3, 4};
-    int neighborsCount = 4;
+    int              neighborsCount = 4;
 
     std::vector<T> x{1.0, 1.1, 3.2, 1.3, 2.4};
     std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
@@ -61,9 +61,9 @@ TEST(MomentumEnergy, JLoop)
     std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
     std::vector<T> rho{0.014, 0.015, 0.016, 0.017, 0.018};
 
-    std::vector<T> vx{0.010, -0.020, 0.030, -0.040,  0.050};
+    std::vector<T> vx{0.010, -0.020, 0.030, -0.040, 0.050};
     std::vector<T> vy{-0.011, 0.021, -0.031, 0.041, -0.051};
-    std::vector<T> vz{0.091, -0.081, 0.071, -0.061,  0.055};
+    std::vector<T> vz{0.091, -0.081, 0.071, -0.061, 0.055};
 
     std::vector<T> c{0.4, 0.5, 0.6, 0.7, 0.8};
     std::vector<T> p{0.2, 0.3, 0.4, 0.5, 0.6};
@@ -145,7 +145,7 @@ TEST(MomentumEnergy, JLoopPBC)
 
     // particle 0 has 4 neighbors
     std::vector<int> neighbors{1, 2, 3, 4};
-    int neighborsCount = 4;
+    int              neighborsCount = 4;
 
     std::vector<T> x{1.0, 1.1, 3.2, 1.3, 9.4};
     std::vector<T> y{1.1, 1.2, 1.3, 8.4, 9.5};

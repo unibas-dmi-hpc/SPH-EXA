@@ -35,7 +35,7 @@
 #include "gtest/gtest.h"
 
 #include "sph/kernel_ve/divv_curlv.hpp"
-#include "sph/lookupTables.hpp"
+#include "sph/tables.hpp"
 
 using namespace sphexa;
 
@@ -53,7 +53,7 @@ TEST(Divv_Curlv, JLoop)
 
     // particle 0 has 4 neighbors
     std::vector<int> neighbors{1, 2, 3, 4};
-    int neighborsCount = 4, i;
+    int              neighborsCount = 4, i;
 
     std::vector<T> x{1.0, 1.1, 3.2, 1.3, 2.4};
     std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
@@ -61,9 +61,9 @@ TEST(Divv_Curlv, JLoop)
     std::vector<T> h{5.0, 5.1, 5.2, 5.3, 5.4};
     std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
 
-    std::vector<T> vx{0.010, -0.020, 0.030, -0.040,  0.050};
+    std::vector<T> vx{0.010, -0.020, 0.030, -0.040, 0.050};
     std::vector<T> vy{-0.011, 0.021, -0.031, 0.041, -0.051};
-    std::vector<T> vz{0.091, -0.081, 0.071, -0.061,  0.055};
+    std::vector<T> vz{0.091, -0.081, 0.071, -0.061, 0.055};
 
     std::vector<T> c11{0.21, 0.27, 0.10, 0.45, 0.46};
     std::vector<T> c12{-0.22, -0.29, -0.11, -0.44, -0.47};
@@ -74,7 +74,7 @@ TEST(Divv_Curlv, JLoop)
 
     std::vector<T> rho0{1.1, 1.2, 1.3, 1.4, 1.5};
     std::vector<T> kx{1.0, 1.5, 2.0, 2.7, 4.0};
-    for (i = 0; i < neighborsCount+1; i++)
+    for (i = 0; i < neighborsCount + 1; i++)
     {
         kx[i] = K * m[i] / rho0[i] / ::sphexa::math::pow(h[i], 3);
     }
@@ -121,7 +121,6 @@ TEST(Divv_Curlv, JLoop)
     EXPECT_NEAR(divv, 2.8368574507652129e-2, 1e-10);
     EXPECT_NEAR(curlv, 6.8649752398e-2, 1e-10);
 }
-
 
 // TEST(MomentumEnergy, JLoopPBC)
 // {

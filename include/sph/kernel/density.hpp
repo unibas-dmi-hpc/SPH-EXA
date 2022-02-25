@@ -2,7 +2,7 @@
 
 #include "cstone/sfc/box.hpp"
 
-#include "sph/lookupTables.hpp"
+#include "sph/tables.hpp"
 
 namespace sphexa
 {
@@ -27,10 +27,10 @@ CUDA_DEVICE_HOST_FUN inline T densityJLoop(int i, T sincIndex, T K, const cstone
     T roloc = 0.0;
     for (int pj = 0; pj < neighborsCount; ++pj)
     {
-        int j  = neighbors[pj];
-        T dist = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
-        T vloc = dist * hInv;
-        T w    = ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
+        int j    = neighbors[pj];
+        T   dist = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
+        T   vloc = dist * hInv;
+        T   w    = ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), (int)sincIndex);
 
         roloc += w * m[j];
     }

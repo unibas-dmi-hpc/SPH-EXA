@@ -12,8 +12,8 @@
 #include "cstone/domain/domain.hpp"
 
 #include "sphexa.hpp"
-#include "sph/findNeighborsSfc.hpp"
-#include "SedovDataGenerator.hpp"
+#include "sph/find_neighbors.hpp"
+#include "sedov_generator.hpp"
 #include "ifile_writer.hpp"
 
 #include "propagator.hpp"
@@ -27,7 +27,7 @@ void printHelp(char* binName, int rank);
 
 int main(int argc, char** argv)
 {
-    const int rank = initAndGetRankId();
+    const int       rank = initAndGetRankId();
     const ArgParser parser(argc, argv);
 
     if (parser.exists("-h") || parser.exists("--h") || parser.exists("-help") || parser.exists("--help"))
@@ -36,12 +36,12 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t cubeSide          = parser.getInt("-n", 50);
-    const size_t maxStep           = parser.getInt("-s", 200);
-    const int writeFrequency       = parser.getInt("-w", -1);
-    const bool quiet               = parser.exists("--quiet");
-    const bool ascii               = parser.exists("--ascii");
-    const std::string outDirectory = parser.getString("--outDir");
+    const size_t      cubeSide       = parser.getInt("-n", 50);
+    const size_t      maxStep        = parser.getInt("-s", 200);
+    const int         writeFrequency = parser.getInt("-w", -1);
+    const bool        quiet          = parser.exists("--quiet");
+    const bool        ascii          = parser.exists("--ascii");
+    const std::string outDirectory   = parser.getString("--outDir");
 
     std::vector<std::string> outputFields = parser.getCommaList("-f");
     if (outputFields.empty())
@@ -58,9 +58,12 @@ int main(int argc, char** argv)
 
     std::unique_ptr<IFileWriter<Dataset>> fileWriter;
     if (ascii) { fileWriter = std::make_unique<AsciiWriter<Dataset>>(); }
-    else { fileWriter = std::make_unique<H5PartWriter<Dataset>>(); }
+    else
+    {
+        fileWriter = std::make_unique<H5PartWriter<Dataset>>();
+    }
 
-    auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
+    auto d         = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
     d.outputFields = std::move(outputFields);
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
@@ -78,17 +81,23 @@ int main(int argc, char** argv)
 
     // enable PBC and enlarge bounds
     Real dx = 0.5 / cubeSide;
-    box = Box<Real>(box.xmin() - dx, box.xmax() + dx,
-                    box.ymin() - dx, box.ymax() + dx,
-                    box.zmin() - dx, box.zmax() + dx, true, true, true);
+    box     = Box<Real>(box.xmin() - dx,
+                    box.xmax() + dx,
+                    box.ymin() - dx,
+                    box.ymax() + dx,
+                    box.zmin() - dx,
+                    box.zmax() + dx,
+                    true,
+                    true,
+                    true);
 
     float theta = 1.0;
 
-    #ifdef USE_CUDA
+#ifdef USE_CUDA
     Domain<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-    #else
+#else
     Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-    #endif
+#endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 

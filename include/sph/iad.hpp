@@ -5,7 +5,7 @@
 #include <cmath>
 #include "math.hpp"
 #include "kernels.hpp"
-#include "kernel/computeIAD.hpp"
+#include "kernel/iad.hpp"
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
 #endif
@@ -28,7 +28,7 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     const T* x  = d.x.data();
     const T* y  = d.y.data();
     const T* z  = d.z.data();
-    const T* ro = d.ro.data();
+    const T* ro = d.rho.data();
 
     T* c11 = d.c11.data();
     T* c12 = d.c12.data();
@@ -63,12 +63,30 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     for (size_t pi = 0; pi < numParticles; ++pi)
     {
         int i = pi + t.firstParticle;
-        kernels::IADJLoop(i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi],
-                          x, y, z, h, m, ro, wh, whd, c11, c12, c13, c22, c23, c33);
+        kernels::IADJLoop(i,
+                          sincIndex,
+                          K,
+                          box,
+                          neighbors + ngmax * pi,
+                          neighborsCount[pi],
+                          x,
+                          y,
+                          z,
+                          h,
+                          m,
+                          ro,
+                          wh,
+                          whd,
+                          c11,
+                          c12,
+                          c13,
+                          c22,
+                          c23,
+                          c33);
     }
 }
 
-template <typename T, class Dataset>
+template<typename T, class Dataset>
 void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<T>& box)
 {
 #if defined(USE_CUDA)

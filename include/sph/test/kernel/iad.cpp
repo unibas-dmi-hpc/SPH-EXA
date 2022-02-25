@@ -33,8 +33,8 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/kernel/computeIAD.hpp"
-#include "sph/lookupTables.hpp"
+#include "sph/kernel/iad.hpp"
+#include "sph/tables.hpp"
 
 using namespace sphexa;
 
@@ -43,7 +43,7 @@ TEST(IAD, JLoop)
     using T = double;
 
     T sincIndex = 6.0;
-    T K = compute_3d_k(sincIndex);
+    T K         = compute_3d_k(sincIndex);
 
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
@@ -52,7 +52,7 @@ TEST(IAD, JLoop)
 
     // particle 0 has 4 neighbors
     std::vector<int> neighbors{1, 2, 3, 4};
-    int neighborsCount = 4;
+    int              neighborsCount = 4;
 
     std::vector<T> x{1.0, 1.1, 3.2, 1.3, 2.4};
     std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
@@ -73,16 +73,33 @@ TEST(IAD, JLoop)
     std::vector<T> iad(6, -1);
 
     // compute the 6 tensor components for particle 0
-    sph::kernels::IADJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount,
-                           x.data(), y.data(), z.data(), h.data(), m.data(), rho.data(), wh.data(), whd.data(),
-                           &iad[0], &iad[1], &iad[2], &iad[3], &iad[4], &iad[5]);
+    sph::kernels::IADJLoop(0,
+                           sincIndex,
+                           K,
+                           box,
+                           neighbors.data(),
+                           neighborsCount,
+                           x.data(),
+                           y.data(),
+                           z.data(),
+                           h.data(),
+                           m.data(),
+                           rho.data(),
+                           wh.data(),
+                           whd.data(),
+                           &iad[0],
+                           &iad[1],
+                           &iad[2],
+                           &iad[3],
+                           &iad[4],
+                           &iad[5]);
 
-    EXPECT_NEAR(iad[0], 0.68826690705820426,  1e-10);
+    EXPECT_NEAR(iad[0], 0.68826690705820426, 1e-10);
     EXPECT_NEAR(iad[1], -0.12963692749098227, 1e-10);
     EXPECT_NEAR(iad[2], -0.20435302529035185, 1e-10);
-    EXPECT_NEAR(iad[3], 0.39616100615949118,  1e-10);
+    EXPECT_NEAR(iad[3], 0.39616100615949118, 1e-10);
     EXPECT_NEAR(iad[4], -0.16797800818772629, 1e-10);
-    EXPECT_NEAR(iad[5], 1.9055087808073545,   1e-10);
+    EXPECT_NEAR(iad[5], 1.9055087808073545, 1e-10);
 }
 
 TEST(IAD, JLoopPBC)
@@ -90,7 +107,7 @@ TEST(IAD, JLoopPBC)
     using T = double;
 
     T sincIndex = 6.0;
-    T K = compute_3d_k(sincIndex);
+    T K         = compute_3d_k(sincIndex);
 
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
@@ -101,7 +118,7 @@ TEST(IAD, JLoopPBC)
 
     // particle 0 has 4 neighbors
     std::vector<int> neighbors{1, 2, 3, 4};
-    int neighborsCount = 4;
+    int              neighborsCount = 4;
 
     std::vector<T> x{1.0, 1.1, 3.2, 1.3, 9.4};
     std::vector<T> y{1.1, 1.2, 1.3, 8.4, 9.5};
@@ -122,15 +139,31 @@ TEST(IAD, JLoopPBC)
     // fill with invalid initial value to make sure that the kernel overwrites it instead of add to it
     std::vector<T> iad(6, -1);
 
-    sph::kernels::IADJLoop(0, sincIndex, K, box, neighbors.data(), neighborsCount,
-                           x.data(), y.data(), z.data(), h.data(), m.data(), rho.data(), wh.data(), whd.data(),
-                           &iad[0], &iad[1], &iad[2], &iad[3], &iad[4], &iad[5]);
+    sph::kernels::IADJLoop(0,
+                           sincIndex,
+                           K,
+                           box,
+                           neighbors.data(),
+                           neighborsCount,
+                           x.data(),
+                           y.data(),
+                           z.data(),
+                           h.data(),
+                           m.data(),
+                           rho.data(),
+                           wh.data(),
+                           whd.data(),
+                           &iad[0],
+                           &iad[1],
+                           &iad[2],
+                           &iad[3],
+                           &iad[4],
+                           &iad[5]);
 
-    EXPECT_NEAR(iad[0], 0.42970014180599519,   1e-10);
-    EXPECT_NEAR(iad[1], -0.2304555811353339,   1e-10);
+    EXPECT_NEAR(iad[0], 0.42970014180599519, 1e-10);
+    EXPECT_NEAR(iad[1], -0.2304555811353339, 1e-10);
     EXPECT_NEAR(iad[2], -0.052317231832885822, 1e-10);
-    EXPECT_NEAR(iad[3], 2.8861688071845268,    1e-10);
-    EXPECT_NEAR(iad[4], -0.23251632520430554,  1e-10);
+    EXPECT_NEAR(iad[3], 2.8861688071845268, 1e-10);
+    EXPECT_NEAR(iad[4], -0.23251632520430554, 1e-10);
     EXPECT_NEAR(iad[5], 0.36028770403046995, 1e-10);
-
 }

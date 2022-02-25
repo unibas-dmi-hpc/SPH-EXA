@@ -40,7 +40,7 @@ CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative_std(T v)
     return sincv * (PI / 2.0) * ((std::cos(Pv) / std::sin(Pv)) - 1.0 / Pv);
 }
 
-template <typename T>
+template<typename T>
 CUDA_DEVICE_HOST_FUN inline T wharmonic_derivative(T v, T powsincv)
 {
     if (v == 0.0) return 0.0;
@@ -89,7 +89,7 @@ template<typename T>
 CUDA_DEVICE_FUN inline T artificial_viscosity(T alpha_i, T alpha_j, T c_i, T c_j, T w_ij)
 {
     // alpha is const for now, but will be different for each particle when using viscosity switching
-    constexpr T beta  = 2.0;
+    constexpr T beta = 2.0;
 
     T viscosity_ij = 0.0;
     if (w_ij < 0.0)

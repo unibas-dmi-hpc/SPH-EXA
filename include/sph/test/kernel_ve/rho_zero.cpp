@@ -35,7 +35,7 @@
 #include "gtest/gtest.h"
 
 #include "sph/kernel_ve/rho_zero.hpp"
-#include "sph/lookupTables.hpp"
+#include "sph/tables.hpp"
 
 using namespace sphexa;
 
@@ -44,7 +44,7 @@ TEST(rho0, JLoop)
     using T = double;
 
     T sincIndex = 6.0;
-    T K = compute_3d_k(sincIndex);
+    T K         = compute_3d_k(sincIndex);
 
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
@@ -54,7 +54,7 @@ TEST(rho0, JLoop)
     // particle 0 has 4 neighbors
     std::vector<int> clist{0};
     std::vector<int> neighbors{1, 2, 3, 4};
-    int neighborsCount = 4;
+    int              neighborsCount = 4;
 
     std::vector<T> x{1.0, 1.1, 3.2, 1.3, 2.4};
     std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
@@ -74,20 +74,20 @@ TEST(rho0, JLoop)
      */
 
     sph::kernels::rho0JLoop(0,
-                               sincIndex,
-                               K,
-                               box,
-                               neighbors.data(),
-                               neighborsCount,
-                               x.data(),
-                               y.data(),
-                               z.data(),
-                               h.data(),
-                               m.data(),
-                               wh.data(),
-                               whd.data(),
-                               rho0.data(),
-                               wrho0.data());
+                            sincIndex,
+                            K,
+                            box,
+                            neighbors.data(),
+                            neighborsCount,
+                            x.data(),
+                            y.data(),
+                            z.data(),
+                            h.data(),
+                            m.data(),
+                            wh.data(),
+                            whd.data(),
+                            rho0.data(),
+                            wrho0.data());
     EXPECT_NEAR(rho0[0], 1.8450716246e-2, 1e-10);
     EXPECT_NEAR(wrho0[0], -8.4240908240e-3, 1e-10);
 }

@@ -28,7 +28,7 @@ void computeEquationOfState(size_t /*startIndex*/, size_t /*endIndex*/, Dataset&
     const T R     = 8.317e7;
     const T gamma = (5.0 / 3.0);
 
-    const T* ro  = d.ro.data();
+    const T* rho = d.rho.data();
     const T* mui = d.mui.data();
     const T* u   = d.u.data();
 
@@ -45,7 +45,7 @@ void computeEquationOfState(size_t /*startIndex*/, size_t /*endIndex*/, Dataset&
         cv[i]   = T(1.5) * R / mui[i];
         temp[i] = u[i] / cv[i];
         T tmp   = u[i] * (gamma - 1);
-        p[i]    = ro[i] * tmp;
+        p[i]    = rho[i] * tmp;
         c[i]    = std::sqrt(tmp);
     }
 }
