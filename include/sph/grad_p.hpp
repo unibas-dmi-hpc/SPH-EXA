@@ -5,7 +5,7 @@
 #include <cmath>
 #include "math.hpp"
 #include "kernels.hpp"
-#include "kernel/computeMomentumAndEnergy.hpp"
+#include "kernel/grad_p.hpp"
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
 #endif
@@ -23,17 +23,17 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     const int* neighbors      = t.neighbors.data();
     const int* neighborsCount = t.neighborsCount.data();
 
-    const T* h  = d.h.data();
-    const T* m  = d.m.data();
-    const T* x  = d.x.data();
-    const T* y  = d.y.data();
-    const T* z  = d.z.data();
-    const T* vx = d.vx.data();
-    const T* vy = d.vy.data();
-    const T* vz = d.vz.data();
-    const T* ro = d.ro.data();
-    const T* c  = d.c.data();
-    const T* p  = d.p.data();
+    const T* h   = d.h.data();
+    const T* m   = d.m.data();
+    const T* x   = d.x.data();
+    const T* y   = d.y.data();
+    const T* z   = d.z.data();
+    const T* vx  = d.vx.data();
+    const T* vy  = d.vy.data();
+    const T* vz  = d.vz.data();
+    const T* rho = d.rho.data();
+    const T* c   = d.c.data();
+    const T* p   = d.p.data();
 
     const T* c11 = d.c11.data();
     const T* c12 = d.c12.data();
@@ -74,10 +74,36 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     for (size_t pi = 0; pi < numParticles; ++pi)
     {
         int i = pi + t.firstParticle;
-        kernels::momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi],
-                                        x, y, z, vx, vy, vz, h, m, ro, p, c,
-                                        c11, c12, c13, c22, c23, c33,
-                                        wh, whd, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
+        kernels::momentumAndEnergyJLoop(i,
+                                        sincIndex,
+                                        K,
+                                        box,
+                                        neighbors + ngmax * pi,
+                                        neighborsCount[pi],
+                                        x,
+                                        y,
+                                        z,
+                                        vx,
+                                        vy,
+                                        vz,
+                                        h,
+                                        m,
+                                        rho,
+                                        p,
+                                        c,
+                                        c11,
+                                        c12,
+                                        c13,
+                                        c22,
+                                        c23,
+                                        c33,
+                                        wh,
+                                        whd,
+                                        grad_P_x,
+                                        grad_P_y,
+                                        grad_P_z,
+                                        du,
+                                        maxvsignal);
     }
 }
 

@@ -9,20 +9,19 @@
 
 namespace sphexa
 {
-template <typename T, typename I>
+template<typename T, typename I>
 class SedovDataGenerator
 {
 public:
-
     static inline const I dim           = 3;
-    static inline const T gamma         = 5./3.;
+    static inline const T gamma         = 5. / 3.;
     static inline const T omega         = 0.;
     static inline const T r0            = 0.;
     static inline const T r1            = 0.5;
     static inline const T mTotal        = 1.;
     static inline const T energyTotal   = 1.;
     static inline const T width         = 0.1;
-    static inline const T ener0         = energyTotal / std::pow(M_PI,1.5) / 1. / std::pow(width,3.0);
+    static inline const T ener0         = energyTotal / std::pow(M_PI, 1.5) / 1. / std::pow(width, 3.0);
     static inline const T rho0          = 1.;
     static inline const T u0            = 1.e-08;
     static inline const T p0            = 0.;
@@ -37,18 +36,17 @@ public:
         if (pd.rank == 0 && side < 8)
         {
             printf("ERROR::Sedov::init()::SmoothingLength n too small\n");
-            #ifdef USE_MPI
+#ifdef USE_MPI
             MPI_Finalize();
-            #endif
+#endif
             exit(0);
         }
 
-        #ifdef USE_MPI
+#ifdef USE_MPI
         pd.comm = MPI_COMM_WORLD;
         MPI_Comm_size(pd.comm, &pd.nrank);
         MPI_Comm_rank(pd.comm, &pd.rank);
-        MPI_Get_processor_name(pd.pname, &pd.pnamelen);
-        #endif
+#endif
 
         pd.side  = side;
         pd.n     = side * side * side;
@@ -61,28 +59,26 @@ public:
     }
 
     // void load(const std::string &filename)
-    static void load(ParticlesData<T, I> &pd)
+    static void load(ParticlesData<T, I>& pd)
     {
-        size_t split = pd.n / pd.nrank;
+        size_t split     = pd.n / pd.nrank;
         size_t remaining = pd.n - pd.nrank * split;
 
         pd.count = split;
         if (pd.rank == 0) pd.count += remaining;
 
-        pd.resize(pd.count);
+        resize(pd, pd.count);
 
-        if(pd.rank == 0)
-            std::cout << "Approx: "
-                      << pd.count * (pd.data.size() * 64.) / (8. * 1000. * 1000. * 1000.)
-                      << "GB allocated on rank 0."
-                      << std::endl;
+        if (pd.rank == 0)
+            std::cout << "Approx: " << pd.count * (pd.data().size() * 64.) / (8. * 1000. * 1000. * 1000.)
+                      << "GB allocated on rank 0." << std::endl;
 
         size_t offset = pd.rank * split;
         if (pd.rank > 0) offset += remaining;
 
         double step = (2. * r1) / pd.side;
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (size_t i = 0; i < pd.side; ++i)
         {
             double lz = -r1 + (i * step);
@@ -99,9 +95,9 @@ public:
                     {
                         double ly = -r1 + (k * step);
 
-                        pd.z[ lindex - offset] = lz;
-                        pd.y[ lindex - offset] = ly;
-                        pd.x[ lindex - offset] = lx;
+                        pd.z[lindex - offset] = lz;
+                        pd.y[lindex - offset] = ly;
+                        pd.x[lindex - offset] = lx;
 
                         pd.vx[lindex - offset] = 0.;
                         pd.vy[lindex - offset] = 0.;
@@ -112,40 +108,40 @@ public:
         }
     }
 
-    static void init(ParticlesData<T, I> &pd)
+    static void init(ParticlesData<T, I>& pd)
     {
-        const T step  = (2. * r1) / pd.side;    //
-        const T hIni  = 1.5 * step;             //
-        const T mPart = mTotal / pd.n;          //
-        const T gamm1 = gamma - 1.;             //
+        const T step  = (2. * r1) / pd.side; //
+        const T hIni  = 1.5 * step;          //
+        const T mPart = mTotal / pd.n;       //
+        const T gamm1 = gamma - 1.;          //
 
-        #pragma omp parallel for
+#pragma omp parallel for
         for (size_t i = 0; i < pd.count; i++)
         {
-            const T radius = std::sqrt(std::pow(pd.x[i],2) + std::pow(pd.y[i],2) + std::pow(pd.z[i],2));
+            const T radius = std::sqrt(std::pow(pd.x[i], 2) + std::pow(pd.y[i], 2) + std::pow(pd.z[i], 2));
 
-            pd.h[i]        = hIni;
-            pd.m[i]        = mPart;
-            pd.ro[i]       = rho0;
-            pd.u[i]        = ener0 * exp(-(std::pow(radius,2) / std::pow(width,2))) + u0;
-            pd.p[i]        = pd.u[i] * rho0 * gamm1;
+            pd.h[i]   = hIni;
+            pd.m[i]   = mPart;
+            pd.rho[i] = rho0;
+            pd.u[i]   = ener0 * exp(-(std::pow(radius, 2) / std::pow(width, 2))) + u0;
+            pd.p[i]   = pd.u[i] * rho0 * gamm1;
 
-            pd.mui[i]      = 10.;
+            pd.mui[i] = 10.;
 
-            pd.du[i]       = 0.;
-            pd.du_m1[i]    = 0.;
+            pd.du[i]    = 0.;
+            pd.du_m1[i] = 0.;
 
-            pd.dt[i]       = firstTimeStep;
-            pd.dt_m1[i]    = firstTimeStep;
-            pd.minDt       = firstTimeStep;
+            pd.dt[i]    = firstTimeStep;
+            pd.dt_m1[i] = firstTimeStep;
+            pd.minDt    = firstTimeStep;
 
             pd.grad_P_x[i] = 0.;
             pd.grad_P_y[i] = 0.;
             pd.grad_P_z[i] = 0.;
 
-            pd.x_m1[i]     = pd.x[i] - pd.vx[i] * firstTimeStep;
-            pd.y_m1[i]     = pd.y[i] - pd.vy[i] * firstTimeStep;
-            pd.z_m1[i]     = pd.z[i] - pd.vz[i] * firstTimeStep;
+            pd.x_m1[i] = pd.x[i] - pd.vx[i] * firstTimeStep;
+            pd.y_m1[i] = pd.y[i] - pd.vy[i] * firstTimeStep;
+            pd.z_m1[i] = pd.z[i] - pd.vz[i] * firstTimeStep;
         }
 
         pd.etot = 0.;

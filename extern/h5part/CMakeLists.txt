@@ -37,9 +37,10 @@ endif()
 # Parallel compilation settings
 #--------------------------------------------------------
 if(HDF5_IS_PARALLEL)
-  add_definitions(-DH5PART_PARALLEL_IO)
+  find_package(MPI REQUIRED)
+  target_compile_definitions(H5Part PUBLIC H5PART_PARALLEL_IO)
   target_link_libraries(H5Part ${MPI_C_LIBRARIES})
-  target_include_directories(H5Part PRIVATE ${MPI_INCLUDE_DIRS})
+  target_include_directories(H5Part PRIVATE ${MPI_C_INCLUDE_DIRS})
 else()
   message("HDF5_IS_PARALLEL not found, Parallel HDF5 IO will not be enabled")
 endif()
@@ -52,10 +53,8 @@ target_link_libraries(H5Part ${HDF5_LIBRARIES})
 #--------------------------------------------------------
 # Includes, configuration headers
 #--------------------------------------------------------
-target_include_directories(H5Part PRIVATE
-    ${PROJECT_SOURCE_DIR}
-    ${HDF5_INCLUDE_DIRS}
-)
+target_include_directories(H5Part PRIVATE ${PROJECT_SOURCE_DIR})
+target_include_directories(H5Part PUBLIC ${HDF5_INCLUDE_DIRS})
 
 #--------------------------------------------------------
 # API compatibility setting

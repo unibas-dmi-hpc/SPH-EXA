@@ -2,7 +2,7 @@
 
 #include "cstone/sfc/box.hpp"
 
-#include "../lookupTables.hpp"
+#include "../tables.hpp"
 
 namespace sphexa
 {
@@ -96,8 +96,9 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T roj = ro[j];
         T cj  = c[j];
 
-        T wij = rv / dist;
-        T viscosity_ij = T(0.5) * artificial_viscosity(ci, cj, wij);
+        T           wij          = rv / dist;
+        constexpr T av_alpha     = 1.0;
+        T           viscosity_ij = T(0.5) * artificial_viscosity(av_alpha, av_alpha, ci, cj, wij);
 
         // For time-step calculations
         T vijsignal = ci + cj - 3.0 * wij;
@@ -106,7 +107,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T mj        = m[j];
         T mj_roj_Wj = mj / roj * Wj;
 
-        T mj_pro_i = mj * pri  / (gradh_i * roi * roi);
+        T mj_pro_i = mj * pri / (gradh_i * roi * roi);
 
         {
             T a = Wi * (mj_pro_i + viscosity_ij * mi_roi);

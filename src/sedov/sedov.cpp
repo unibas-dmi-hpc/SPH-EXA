@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <memory>
 #include <vector>
 
 // hard code MPI for now
@@ -11,9 +12,9 @@
 #include "cstone/domain/domain.hpp"
 
 #include "sphexa.hpp"
-#include "sph/findNeighborsSfc.hpp"
-#include "SedovDataGenerator.hpp"
-#include "SedovDataFileWriter.hpp"
+#include "sph/find_neighbors.hpp"
+#include "sedov_generator.hpp"
+#include "ifile_writer.hpp"
 
 #include "propagator.hpp"
 #include "insitu_viz.h"
@@ -26,7 +27,7 @@ void printHelp(char* binName, int rank);
 
 int main(int argc, char** argv)
 {
-    const int rank = initAndGetRankId();
+    const int       rank = initAndGetRankId();
     const ArgParser parser(argc, argv);
 
     if (parser.exists("-h") || parser.exists("--h") || parser.exists("-help") || parser.exists("--help"))
@@ -35,11 +36,18 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t cubeSide          = parser.getInt("-n", 50);
-    const size_t maxStep           = parser.getInt("-s", 200);
-    const int writeFrequency       = parser.getInt("-w", -1);
-    const bool quiet               = parser.exists("--quiet");
-    const std::string outDirectory = parser.getString("--outDir");
+    const size_t      cubeSide       = parser.getInt("-n", 50);
+    const size_t      maxStep        = parser.getInt("-s", 200);
+    const int         writeFrequency = parser.getInt("-w", -1);
+    const bool        quiet          = parser.exists("--quiet");
+    const bool        ascii          = parser.exists("--ascii");
+    const std::string outDirectory   = parser.getString("--outDir");
+
+    std::vector<std::string> outputFields = parser.getCommaList("-f");
+    if (outputFields.empty())
+    {
+        outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "ro", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
+    }
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
@@ -48,9 +56,15 @@ int main(int argc, char** argv)
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType>;
 
-    const IFileWriter<Dataset>& fileWriter = SedovMPIFileWriter<Dataset>();
+    std::unique_ptr<IFileWriter<Dataset>> fileWriter;
+    if (ascii) { fileWriter = std::make_unique<AsciiWriter<Dataset>>(); }
+    else
+    {
+        fileWriter = std::make_unique<H5PartWriter<Dataset>>();
+    }
 
-    auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
+    auto d         = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
+    d.outputFields = std::move(outputFields);
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
@@ -67,17 +81,23 @@ int main(int argc, char** argv)
 
     // enable PBC and enlarge bounds
     Real dx = 0.5 / cubeSide;
-    box = Box<Real>(box.xmin() - dx, box.xmax() + dx,
-                    box.ymin() - dx, box.ymax() + dx,
-                    box.zmin() - dx, box.zmax() + dx, true, true, true);
+    box     = Box<Real>(box.xmin() - dx,
+                    box.xmax() + dx,
+                    box.ymin() - dx,
+                    box.ymax() + dx,
+                    box.zmin() - dx,
+                    box.zmax() + dx,
+                    true,
+                    true,
+                    true);
 
     float theta = 1.0;
 
-    #ifdef USE_CUDA
+#ifdef USE_CUDA
     Domain<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-    #else
+#else
     Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-    #endif
+#endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 
@@ -106,15 +126,7 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            #ifdef SPH_EXA_HAVE_H5PART
-            fileWriter.dumpParticleDataToH5File(
-                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov.h5part");
-            #else
-            fileWriter.dumpParticleDataToAsciiFile(d,
-                                                   domain.startIndex(),
-                                                   domain.endIndex(),
-                                                   outDirectory + "dump_sedov" + std::to_string(d.iteration) + ".txt");
-            #endif
+            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov");
         }
 
         if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
@@ -139,6 +151,8 @@ void printHelp(char* name, int rank)
         printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [200]\n\n");
 
         printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
+        printf("\t-f list \t\t Comma-separated list of field names to write for each dump, "
+               "e.g -f x,y,z,h,ro\n\n");
 
         printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
 

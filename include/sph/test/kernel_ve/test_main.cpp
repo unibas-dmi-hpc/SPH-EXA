@@ -1,6 +1,9 @@
 /*
  * MIT License
  *
+ * Copyright (c) 2021 CSCS, ETH Zurich
+ *               2021 University of Basel
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
  * in the Software without restriction, including without limitation the rights
@@ -21,37 +24,16 @@
  */
 
 /*! @file
+ * @brief GTest driver
  *
- * @brief Struct generated to sort the particles by radius
- *
- * @author Jose A. Escartin <ja.escartin@gmail.com>
- *
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-#pragma once
+#include "gtest/gtest.h"
 
-struct Particle{
-
-    size_t          idx;      // initial index order
-    double          r;        // radius
-    double          vel;      // radius
-
-    double          x;        // x position
-    double          y;        // y position
-    double          z;        // z position
-    double          vx;       // vx velocity
-    double          vy;       // vy velocity
-    double          vz;       // vz velocity
-    double          h;        // smoothing lenght
-    double          rho;      // density
-    double          u;        // internal energy
-    double          p;        // pressure
-    double          cs;       // sound speed
-    double          Px;       // x momentum
-    double          Py;       // y momentum
-    double          Pz;       // z momentum
-
-    struct cmp{
-        bool operator()(const Particle& p1, const Particle& p2) { return p1.r < p2.r; }
-    };
-};
+int main(int argc, char** argv)
+{
+    ::testing::InitGoogleTest(&argc, argv);
+    auto ret = RUN_ALL_TESTS();
+    return ret;
+}

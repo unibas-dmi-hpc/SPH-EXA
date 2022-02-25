@@ -98,7 +98,7 @@ public:
 
         gsl::span<const KeyType> oldLeaves = tree_.treeLeaves();
         std::vector<KeyType> oldBoundaries(assignment_.numRanks() + 1);
-        for (int rank = 0; rank < oldBoundaries.size() - 1; ++rank)
+        for (size_t rank = 0; rank < oldBoundaries.size() - 1; ++rank)
         {
             oldBoundaries[rank] = oldLeaves[assignment_.firstNodeIdx(rank)];
         }

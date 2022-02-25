@@ -5,7 +5,7 @@
 #include "kernels.hpp"
 
 #ifdef __CUDACC__
-#include "cuda/cudaUtils.cuh"
+#include "cuda/cuda_utils.cuh"
 #endif
 
 namespace sphexa

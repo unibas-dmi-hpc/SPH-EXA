@@ -105,9 +105,10 @@ HOST_DEVICE_FUN unsigned calculateNodeCount(
  * @return            the sub-range in [codesStart:codesEnd] containing @p targetCode
  */
 template<class KeyType>
-HOST_DEVICE_FUN
-pair<const KeyType*> findSearchBounds(std::make_signed_t<KeyType> firstIdx, KeyType targetCode,
-                                      const KeyType* codesStart, const KeyType* codesEnd)
+HOST_DEVICE_FUN util::array<const KeyType*, 2> findSearchBounds(std::make_signed_t<KeyType> firstIdx,
+                                                                KeyType targetCode,
+                                                                const KeyType* codesStart,
+                                                                const KeyType* codesEnd)
 {
     assert(firstIdx >= 0);
 

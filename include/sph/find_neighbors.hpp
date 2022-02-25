@@ -76,11 +76,13 @@ size_t neighborsSum(const std::vector<Task>& taskList)
         sum += neighborsSumImpl(task);
     }
 
+    int    rootRank  = 0;
+    size_t globalSum = 0;
 #ifdef USE_MPI
-    MPI_Allreduce(MPI_IN_PLACE, &sum, 1, MPI_LONG_LONG_INT, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Reduce(&sum, &globalSum, 1, MpiType<size_t>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
 #endif
 
-    return sum;
+    return globalSum;
 }
 
 } // namespace sph
