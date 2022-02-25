@@ -52,12 +52,12 @@ public:
     {
     }
 
-    void update(int firstIndex, int lastIndex)
+    void update(size_t firstIndex, size_t lastIndex)
     {
-        int numTasks      = tasks.size();
-        int numParticles  = lastIndex - firstIndex;
-        int partitionSize = numParticles / numTasks;
-        int remainder     = numParticles % numTasks;
+        size_t numTasks      = tasks.size();
+        size_t numParticles  = lastIndex - firstIndex;
+        size_t partitionSize = numParticles / numTasks;
+        size_t remainder     = numParticles % numTasks;
 
         for (size_t i = 0; i < numTasks; ++i)
         {

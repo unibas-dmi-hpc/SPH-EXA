@@ -85,7 +85,7 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
 
         // Update positions according to Press (2nd order)
         T deltaA = dt_i + 0.5 * dt_m1[i];
-        T deltaB = 0.5 * (dt[i] + dt_m1[i]);
+        T deltaB = 0.5 * (dt_i + dt_m1[i]);
 
         Vec3T Val = (X - X_m1) * (1.0 / dt_m1[i]);
 
@@ -100,32 +100,32 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         X_m1    = X;
         X += dt_i * Val + A * deltaB * dt_i;
 
-        if (box.pbcX() && x[i] < box.xmin())
+        if (box.pbcX() && X[0] < box.xmin())
         {
             X[0] += box.lx();
             X_m1[0] += box.lx();
         }
-        else if (box.pbcX() && x[i] > box.xmax())
+        else if (box.pbcX() && X[0] > box.xmax())
         {
             X[0] -= box.lx();
             X_m1[0] -= box.lx();
         }
-        if (box.pbcY() && y[i] < box.ymin())
+        if (box.pbcY() && X[1] < box.ymin())
         {
             X[1] += box.ly();
             X_m1[1] += box.ly();
         }
-        else if (box.pbcY() && y[i] > box.ymax())
+        else if (box.pbcY() && X[1] > box.ymax())
         {
             X[1] -= box.ly();
             X_m1[1] -= box.ly();
         }
-        if (box.pbcZ() && z[i] < box.zmin())
+        if (box.pbcZ() && X[2] < box.zmin())
         {
             X[2] += box.lz();
-            z_m1[2] += box.lz();
+            X_m1[2] += box.lz();
         }
-        else if (box.pbcZ() && z[i] > box.zmax())
+        else if (box.pbcZ() && X[2] > box.zmax())
         {
             X[2] -= box.lz();
             X_m1[2] -= box.lz();

@@ -219,7 +219,7 @@ void reallocate(std::size_t size, Arrays&... arrays)
     if (size > current_capacity)
     {
         // limit reallocation growth to 5% instead of 200%
-        auto reserve_size = static_cast<size_t>(double(size) * 1.05);
+        [[maybe_unused]] auto reserve_size = static_cast<size_t>(double(size) * 1.05);
         [[maybe_unused]] std::initializer_list<int> list{(arrays.reserve(reserve_size), 0)...};
     }
     [[maybe_unused]] std::initializer_list<int> list{(arrays.resize(size), 0)...};
