@@ -2,6 +2,7 @@
 
 #include <array>
 #include <cstdio>
+#include <iostream>
 #include <vector>
 
 #include "sph/kernels.hpp"
@@ -18,10 +19,20 @@ template<class Array>
 std::vector<int> fieldStringsToInt(const Array&, const std::vector<std::string>&);
 
 template<typename T, typename I>
-struct ParticlesData
+class ParticlesData
 {
+public:
     using RealType = T;
     using KeyType  = I;
+
+    ParticlesData()
+#if defined(USE_CUDA)
+        : devPtrs(*this)
+#endif
+    {
+        setConservedFields();
+        setDependentFields();
+    }
 
     size_t iteration;      // Current iteration
     size_t n, side, count; // Number of particles
@@ -71,15 +82,43 @@ struct ParticlesData
         return ret;
     }
 
+    void setConservedFields()
+    {
+        std::vector<std::string> fields{
+            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "dt_m1"};
+        conservedFields = fieldStringsToInt(fieldNames, fields);
+    }
+
+    void setDependentFields()
+    {
+        std::vector<std::string> fields{"rho",
+                                        "p",
+                                        "c",
+                                        "grad_P_x",
+                                        "grad_P_y",
+                                        "grad_P_z",
+                                        "du",
+                                        "dt",
+                                        "c11",
+                                        "c12",
+                                        "c13",
+                                        "c22",
+                                        "c23",
+                                        "c33",
+                                        "maxvsignal"};
+
+        dependentFields = fieldStringsToInt(fieldNames, fields);
+    }
+
     void setOutputFields(const std::vector<std::string>& outFields)
     {
         outputFields = fieldStringsToInt(fieldNames, outFields);
     }
 
     //! @brief particle fields to conserve between iterations, needed for checkpoints and domain exchange
-    // std::vector<int> conservedFields;
+    std::vector<int> conservedFields;
     //! @brief particle fields recomputed every step from conserved fields
-    // std::vector<int> dependentFields;
+    std::vector<int> dependentFields;
     //! @brief particle fields select for file outputj
     std::vector<int> outputFields;
 
@@ -88,9 +127,6 @@ struct ParticlesData
 
 #if defined(USE_CUDA)
     sph::cuda::DeviceParticlesData<T, ParticlesData> devPtrs;
-
-    ParticlesData()
-        : devPtrs(*this){};
 #endif
 
 #ifdef USE_MPI
@@ -154,10 +190,15 @@ void resize(Dataset& d, size_t size)
     double growthRate = 1.05;
     auto   data_      = d.data();
 
-    for (size_t i = 0; i < data_.size(); ++i)
+    for (int i : d.conservedFields)
     {
         reallocate(*data_[i], size, growthRate);
     }
+    for (int i : d.dependentFields)
+    {
+        reallocate(*data_[i], size, growthRate);
+    }
+
     reallocate(d.codes, size, growthRate);
 
 #if defined(USE_CUDA)

@@ -44,18 +44,12 @@ private:
     void init(Dataset& pd) const
     {
         // additional fields for evrard
-        std::fill(pd.temp.begin(), pd.temp.end(), 1.0);
         std::fill(pd.mue.begin(), pd.mue.end(), 2.0);
         std::fill(pd.mui.begin(), pd.mui.end(), 10.0);
         std::fill(pd.vx.begin(), pd.vx.end(), 0.0);
         std::fill(pd.vy.begin(), pd.vy.end(), 0.0);
         std::fill(pd.vz.begin(), pd.vz.end(), 0.0);
-        std::fill(pd.grad_P_x.begin(), pd.grad_P_x.end(), 0.0);
-        std::fill(pd.grad_P_y.begin(), pd.grad_P_y.end(), 0.0);
-        std::fill(pd.grad_P_z.begin(), pd.grad_P_z.end(), 0.0);
-        std::fill(pd.du.begin(), pd.du.end(), 0.0);
         std::fill(pd.du_m1.begin(), pd.du_m1.end(), 0.0);
-        std::fill(pd.dt.begin(), pd.dt.end(), 0.0001);
         std::fill(pd.dt_m1.begin(), pd.dt_m1.end(), 0.0001);
 
         for (size_t i = 0; i < pd.count; ++i)

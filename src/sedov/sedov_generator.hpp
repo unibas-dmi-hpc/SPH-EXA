@@ -110,34 +110,25 @@ public:
 
     static void init(ParticlesData<T, I>& pd)
     {
-        const T step  = (2. * r1) / pd.side; //
-        const T hIni  = 1.5 * step;          //
-        const T mPart = mTotal / pd.n;       //
-        const T gamm1 = gamma - 1.;          //
+        const T step  = (2. * r1) / pd.side;
+        const T hIni  = 1.5 * step;
+        const T mPart = mTotal / pd.n;
 
-#pragma omp parallel for
+#pragma omp parallel for schedule(static)
         for (size_t i = 0; i < pd.count; i++)
         {
             const T radius = std::sqrt(std::pow(pd.x[i], 2) + std::pow(pd.y[i], 2) + std::pow(pd.z[i], 2));
 
-            pd.h[i]   = hIni;
-            pd.m[i]   = mPart;
-            pd.rho[i] = rho0;
-            pd.u[i]   = ener0 * exp(-(std::pow(radius, 2) / std::pow(width, 2))) + u0;
-            pd.p[i]   = pd.u[i] * rho0 * gamm1;
+            pd.h[i] = hIni;
+            pd.m[i] = mPart;
+            pd.u[i] = ener0 * exp(-(std::pow(radius, 2) / std::pow(width, 2))) + u0;
 
-            pd.mui[i] = 10.;
-
-            pd.du[i]    = 0.;
+            // pd.mui[i] = 10.;
             pd.du_m1[i] = 0.;
 
             pd.dt[i]    = firstTimeStep;
             pd.dt_m1[i] = firstTimeStep;
             pd.minDt    = firstTimeStep;
-
-            pd.grad_P_x[i] = 0.;
-            pd.grad_P_y[i] = 0.;
-            pd.grad_P_z[i] = 0.;
 
             pd.x_m1[i] = pd.x[i] - pd.vx[i] * firstTimeStep;
             pd.y_m1[i] = pd.y[i] - pd.vy[i] * firstTimeStep;

@@ -64,7 +64,7 @@ int main(int argc, char** argv)
     auto d = fileReader.read(inputFilePath, nParticles);
 
     std::vector<std::string> outputFields = {
-        "x", "y", "z", "vx", "vy", "vz", "h", "ro", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
+        "x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
     if (parser.exists("-f")) { outputFields = parser.getCommaList("-f"); }
     d.setOutputFields(outputFields);
 
@@ -95,8 +95,7 @@ int main(int argc, char** argv)
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 
-    domain.sync(
-        d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
+    domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
 
     if (d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
