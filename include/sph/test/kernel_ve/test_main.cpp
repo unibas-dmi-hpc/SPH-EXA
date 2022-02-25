@@ -37,4 +37,3 @@ int main(int argc, char** argv)
     auto ret = RUN_ALL_TESTS();
     return ret;
 }
-

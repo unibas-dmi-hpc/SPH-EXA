@@ -16,16 +16,15 @@ namespace sph
 namespace cuda
 {
 
-template <class Dataset>
+template<class Dataset>
 extern void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<double>&);
 
-template <class Dataset>
+template<class Dataset>
 extern void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<double>&);
 
-template <class Dataset>
+template<class Dataset>
 extern void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<double>&);
 
 } // namespace cuda
 } // namespace sph
 } // namespace sphexa
-

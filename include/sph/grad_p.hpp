@@ -74,10 +74,36 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     for (size_t pi = 0; pi < numParticles; ++pi)
     {
         int i = pi + t.firstParticle;
-        kernels::momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi],
-                                        x, y, z, vx, vy, vz, h, m, ro, p, c,
-                                        c11, c12, c13, c22, c23, c33,
-                                        wh, whd, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
+        kernels::momentumAndEnergyJLoop(i,
+                                        sincIndex,
+                                        K,
+                                        box,
+                                        neighbors + ngmax * pi,
+                                        neighborsCount[pi],
+                                        x,
+                                        y,
+                                        z,
+                                        vx,
+                                        vy,
+                                        vz,
+                                        h,
+                                        m,
+                                        ro,
+                                        p,
+                                        c,
+                                        c11,
+                                        c12,
+                                        c13,
+                                        c22,
+                                        c23,
+                                        c33,
+                                        wh,
+                                        whd,
+                                        grad_P_x,
+                                        grad_P_y,
+                                        grad_P_z,
+                                        du,
+                                        maxvsignal);
     }
 }
 

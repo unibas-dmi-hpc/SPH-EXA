@@ -36,14 +36,14 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t nParticles           = parser.getInt("-n", 65536);
-    const size_t maxStep              = parser.getInt("-s", 10);
-    const int writeFrequency          = parser.getInt("-w", -1);
+    const size_t nParticles     = parser.getInt("-n", 65536);
+    const size_t maxStep        = parser.getInt("-s", 10);
+    const int    writeFrequency = parser.getInt("-w", -1);
     // const int checkpointFrequency     = parser.getInt("-c", -1);
-    const bool quiet                  = parser.exists("--quiet");
-    const bool ascii                  = parser.exists("--ascii");
-    const std::string inputFilePath   = parser.getString("--input", "./Test3DEvrardRel.bin");
-    const std::string outDirectory    = parser.getString("--outDir");
+    const bool        quiet         = parser.exists("--quiet");
+    const bool        ascii         = parser.exists("--ascii");
+    const std::string inputFilePath = parser.getString("--input", "./Test3DEvrardRel.bin");
+    const std::string outDirectory  = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
@@ -56,14 +56,14 @@ int main(int argc, char** argv)
 
     std::unique_ptr<IFileWriter<Dataset>> fileWriter;
     if (ascii) { fileWriter = std::make_unique<AsciiWriter<Dataset>>(); }
-    else { fileWriter = std::make_unique<H5PartWriter<Dataset>>(); }
-
-    auto d = fileReader.read(inputFilePath, nParticles);
-    d.outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "ro", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
-    if (parser.exists("-f"))
+    else
     {
-        d.outputFields = parser.getCommaList("-f");
+        fileWriter = std::make_unique<H5PartWriter<Dataset>>();
     }
+
+    auto d         = fileReader.read(inputFilePath, nParticles);
+    d.outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "ro", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
+    if (parser.exists("-f")) { d.outputFields = parser.getCommaList("-f"); }
 
     std::cout << d.x[0] << " " << d.y[0] << " " << d.z[0] << std::endl;
     std::cout << d.x[1] << " " << d.y[1] << " " << d.z[1] << std::endl;
@@ -84,11 +84,11 @@ int main(int argc, char** argv)
 
     float theta = 0.5;
 
-    #ifdef USE_CUDA
+#ifdef USE_CUDA
     DomainType<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-    #else
+#else
     Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-    #endif
+#endif
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 

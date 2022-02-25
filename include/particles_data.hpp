@@ -102,13 +102,12 @@ struct ParticlesData
 template<typename T, typename I>
 const T ParticlesData<T, I>::K = sphexa::compute_3d_k(sincIndex);
 
-
 //! @brief resizes all particles fields of @p d listed in data() to the specified size
 template<class Dataset>
 void resize(Dataset& d, size_t size)
 {
     double growthRate = 1.05;
-    auto data_ = d.data();
+    auto   data_      = d.data();
 
     for (size_t i = 0; i < data_.size(); ++i)
     {
@@ -128,7 +127,7 @@ auto getOutputArrays(Dataset& dataset, const std::vector<std::string>& fields)
     using T = typename Dataset::RealType;
 
     auto fieldPointers = dataset.data();
-    auto fieldNames = Dataset::fieldNames;
+    auto fieldNames    = Dataset::fieldNames;
 
     std::vector<const T*> outputFields;
 

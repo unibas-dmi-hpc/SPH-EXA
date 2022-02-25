@@ -56,7 +56,7 @@ TEST(MomentumEnergy, JLoop)
 
     // particle 0 has 4 neighbors
     std::vector<int> neighbors{1, 2, 3, 4};
-    int neighborsCount = 4, i;
+    int              neighborsCount = 4, i;
 
     std::vector<T> x{1.0, 1.1, 3.2, 1.3, 2.4};
     std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
@@ -65,9 +65,9 @@ TEST(MomentumEnergy, JLoop)
     std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
     std::vector<T> rho{0.014, 0.015, 0.016, 0.017, 0.018};
 
-    std::vector<T> vx{0.010, -0.020, 0.030, -0.040,  0.050};
+    std::vector<T> vx{0.010, -0.020, 0.030, -0.040, 0.050};
     std::vector<T> vy{-0.011, 0.021, -0.031, 0.041, -0.051};
-    std::vector<T> vz{0.091, -0.081, 0.071, -0.061,  0.055};
+    std::vector<T> vz{0.091, -0.081, 0.071, -0.061, 0.055};
 
     std::vector<T> c{0.4, 0.5, 0.6, 0.7, 0.8};
     std::vector<T> p{0.2, 0.3, 0.4, 0.5, 0.6};
@@ -83,7 +83,7 @@ TEST(MomentumEnergy, JLoop)
 
     std::vector<T> rho0{1.1, 1.2, 1.3, 1.4, 1.5};
     std::vector<T> kx{1.0, 1.5, 2.0, 2.7, 4.0};
-    for (i = 0; i < neighborsCount+1; i++)
+    for (i = 0; i < neighborsCount + 1; i++)
     {
         kx[i] = K * m[i] / rho0[i] / ::sphexa::math::pow(h[i], 3);
     }
@@ -146,7 +146,6 @@ TEST(MomentumEnergy, JLoop)
     EXPECT_NEAR(du, -1.0681600761e-2, 1e-10);
     EXPECT_NEAR(maxvsignal, 1.4112466829, 1e-10);
 }
-
 
 // TEST(MomentumEnergy, JLoopPBC)
 // {

@@ -45,8 +45,8 @@ public:
         std::replace(listWithCommas.begin(), listWithCommas.end(), ',', ' ');
 
         std::vector<std::string> list;
-        std::stringstream ss(listWithCommas);
-        std::string field;
+        std::stringstream        ss(listWithCommas);
+        std::string              field;
         while (ss >> field)
         {
             list.push_back(field);

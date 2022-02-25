@@ -43,7 +43,7 @@ TEST(Density, JLoop)
     using T = double;
 
     T sincIndex = 6.0;
-    T K = compute_3d_k(sincIndex);
+    T K         = compute_3d_k(sincIndex);
 
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
@@ -53,7 +53,7 @@ TEST(Density, JLoop)
     // particle 0 has 4 neighbors
     std::vector<int> clist{0};
     std::vector<int> neighbors{1, 2, 3, 4};
-    int neighborsCount = 4;
+    int              neighborsCount = 4;
 
     std::vector<T> x{1.0, 2.1, 3.2, 4.3, 5.4};
     std::vector<T> y{1.1, 2.2, 3.3, 4.4, 5.5};
@@ -91,7 +91,7 @@ TEST(Density, JLoopPBC)
     using T = double;
 
     T sincIndex = 6.0;
-    T K = compute_3d_k(sincIndex);
+    T K         = compute_3d_k(sincIndex);
 
     std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
@@ -103,7 +103,7 @@ TEST(Density, JLoopPBC)
     // particle 0 has 4 neighbors
     std::vector<int> clist{0};
     std::vector<int> neighbors{1, 2, 3, 4};
-    int neighborsCount = 4;
+    int              neighborsCount = 4;
 
     std::vector<T> x{1.0, 1.1, 1.4, 9.9, 10.4};
     std::vector<T> y{1.1, 1.2, 1.5, 9.8, 10.2};
@@ -136,4 +136,3 @@ TEST(Density, JLoopPBC)
 
     EXPECT_NEAR(rho, 0.17929212293724384, 1e-10);
 }
-

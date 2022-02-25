@@ -16,17 +16,16 @@ namespace cuda
 
 template<class T, class KeyType>
 __global__ void computeMomentumAndEnergyIAD(T sincIndex, T K, int ngmax, cstone::Box<T> box,
-                                            //const int* neighbors, const int* neighborsCount,
+                                            // const int* neighbors, const int* neighborsCount,
                                             int firstParticle, int lastParticle, int numParticles,
-                                            const KeyType* particleKeys,
-                                            const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz,
-                                            const T* h, const T* m, const T* ro, const T* p, const T* c,
-                                            const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
-                                            const T* c33, const T* wh, const T* whd,
+                                            const KeyType* particleKeys, const T* x, const T* y, const T* z,
+                                            const T* vx, const T* vy, const T* vz, const T* h, const T* m, const T* ro,
+                                            const T* p, const T* c, const T* c11, const T* c12, const T* c13,
+                                            const T* c22, const T* c23, const T* c33, const T* wh, const T* whd,
                                             T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du, T* maxvsignal)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    unsigned i = tid + firstParticle;
+    unsigned i   = tid + firstParticle;
     if (i >= lastParticle) return;
 
     // need to hard-code ngmax stack allocation for now
@@ -40,19 +39,46 @@ __global__ void computeMomentumAndEnergyIAD(T sincIndex, T K, int ngmax, cstone:
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
 
-    sph::kernels::momentumAndEnergyJLoop(i, sincIndex, K, box, neighbors, neighborsCount,
-                                         x, y, z, vx, vy, vz, h, m, ro, p, c, c11, c12, c13, c22, c23, c33,
-                                         wh, whd, grad_P_x, grad_P_y, grad_P_z, du, maxvsignal);
+    sph::kernels::momentumAndEnergyJLoop(i,
+                                         sincIndex,
+                                         K,
+                                         box,
+                                         neighbors,
+                                         neighborsCount,
+                                         x,
+                                         y,
+                                         z,
+                                         vx,
+                                         vy,
+                                         vz,
+                                         h,
+                                         m,
+                                         ro,
+                                         p,
+                                         c,
+                                         c11,
+                                         c12,
+                                         c13,
+                                         c22,
+                                         c23,
+                                         c33,
+                                         wh,
+                                         whd,
+                                         grad_P_x,
+                                         grad_P_y,
+                                         grad_P_z,
+                                         du,
+                                         maxvsignal);
 }
 
-template <class Dataset>
-void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d, const cstone::Box<double>& box)
+template<class Dataset>
+void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<double>& box)
 {
     using T = typename Dataset::RealType;
 
     size_t numParticles = d.x.size();
-    size_t size_np_T = numParticles * sizeof(T);
-    T ngmax = taskList.empty() ? 0 : taskList.front().ngmax;
+    size_t size_np_T    = numParticles * sizeof(T);
+    T      ngmax        = taskList.empty() ? 0 : taskList.front().ngmax;
 
     auto largestChunkSize = std::max_element(taskList.cbegin(),
                                              taskList.cend(),
@@ -81,26 +107,50 @@ void computeMomentumAndEnergyIAD(const std::vector<Task> &taskList, Dataset &d, 
     {
         const auto& t = taskList[i];
 
-        int sIdx = i % NST;
+        int          sIdx   = i % NST;
         cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
 
-        //int* d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
+        // int* d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
 
-        unsigned firstParticle = t.firstParticle;
-        unsigned lastParticle  = t.lastParticle;
+        unsigned firstParticle       = t.firstParticle;
+        unsigned lastParticle        = t.lastParticle;
         unsigned numParticlesCompute = lastParticle - firstParticle;
 
         unsigned numThreads = 128;
         unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
-        computeMomentumAndEnergyIAD<<<numBlocks, numThreads, 0, stream>>>(
-            d.sincIndex, d.K, ngmax, box, //d_neighborsCount_use,
-            firstParticle, lastParticle, numParticles, d.devPtrs.d_codes,
-            d.devPtrs.d_x, d.devPtrs.d_y, d.devPtrs.d_z, d.devPtrs.d_vx, d.devPtrs.d_vy, d.devPtrs.d_vz,
-            d.devPtrs.d_h, d.devPtrs.d_m, d.devPtrs.d_ro, d.devPtrs.d_p, d.devPtrs.d_c,
-            d.devPtrs.d_c11, d.devPtrs.d_c12, d.devPtrs.d_c13, d.devPtrs.d_c22, d.devPtrs.d_c23, d.devPtrs.d_c33,
-            d.devPtrs.d_wh, d.devPtrs.d_whd, d.devPtrs.d_grad_P_x, d.devPtrs.d_grad_P_y, d.devPtrs.d_grad_P_z,
-            d.devPtrs.d_du, d.devPtrs.d_maxvsignal);
+        computeMomentumAndEnergyIAD<<<numBlocks, numThreads, 0, stream>>>(d.sincIndex,
+                                                                          d.K,
+                                                                          ngmax,
+                                                                          box, // d_neighborsCount_use,
+                                                                          firstParticle,
+                                                                          lastParticle,
+                                                                          numParticles,
+                                                                          d.devPtrs.d_codes,
+                                                                          d.devPtrs.d_x,
+                                                                          d.devPtrs.d_y,
+                                                                          d.devPtrs.d_z,
+                                                                          d.devPtrs.d_vx,
+                                                                          d.devPtrs.d_vy,
+                                                                          d.devPtrs.d_vz,
+                                                                          d.devPtrs.d_h,
+                                                                          d.devPtrs.d_m,
+                                                                          d.devPtrs.d_ro,
+                                                                          d.devPtrs.d_p,
+                                                                          d.devPtrs.d_c,
+                                                                          d.devPtrs.d_c11,
+                                                                          d.devPtrs.d_c12,
+                                                                          d.devPtrs.d_c13,
+                                                                          d.devPtrs.d_c22,
+                                                                          d.devPtrs.d_c23,
+                                                                          d.devPtrs.d_c33,
+                                                                          d.devPtrs.d_wh,
+                                                                          d.devPtrs.d_whd,
+                                                                          d.devPtrs.d_grad_P_x,
+                                                                          d.devPtrs.d_grad_P_y,
+                                                                          d.devPtrs.d_grad_P_z,
+                                                                          d.devPtrs.d_du,
+                                                                          d.devPtrs.d_maxvsignal);
 
         CHECK_CUDA_ERR(cudaGetLastError());
     }
@@ -120,4 +170,3 @@ template void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, Par
 } // namespace cuda
 } // namespace sph
 } // namespace sphexa
-
