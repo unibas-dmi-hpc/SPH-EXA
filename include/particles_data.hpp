@@ -54,6 +54,13 @@ public:
 
     std::vector<KeyType> codes; // Particle space-filling-curve keys
 
+#if defined(USE_CUDA)
+    sph::cuda::DeviceParticlesData<T, KeyType> devPtrs;
+#endif
+
+    const std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
+    const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
      */
@@ -118,13 +125,6 @@ public:
     std::vector<int> dependentFields;
     //! @brief particle fields select for file outputj
     std::vector<int> outputFields;
-
-    const std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
-    const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
-
-#if defined(USE_CUDA)
-    sph::cuda::DeviceParticlesData<T, ParticlesData> devPtrs;
-#endif
 
 #ifdef USE_MPI
     MPI_Comm comm;

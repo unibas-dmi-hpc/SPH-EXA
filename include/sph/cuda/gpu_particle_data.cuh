@@ -10,7 +10,7 @@ namespace sph
 namespace cuda
 {
 
-template<typename T, class ParticleData>
+template<typename T, class KeyType>
 class DeviceParticlesData
 {
     size_t allocatedDeviceMemory = 0;
@@ -31,7 +31,7 @@ public:
     T *d_x, *d_y, *d_z, *d_vx, *d_vy, *d_vz, *d_m, *d_h, *d_rho, *d_p, *d_c, *d_c11, *d_c12, *d_c13, *d_c22, *d_c23,
         *d_c33, *d_wh, *d_whd, *d_grad_P_x, *d_grad_P_y, *d_grad_P_z, *d_du, *d_maxvsignal;
 
-    typename ParticleData::KeyType* d_codes;
+    KeyType* d_codes;
 
     [[nodiscard]] size_t capacity() const { return allocatedDeviceMemory; }
 
@@ -53,7 +53,7 @@ public:
             size = size_t(double(size) * 1.01); // allocate 1% extra to avoid reallocation on small size increase
 
             size_t size_np_T       = size * sizeof(T);
-            size_t size_np_KeyType = size * sizeof(typename ParticleData::KeyType);
+            size_t size_np_KeyType = size * sizeof(KeyType);
 
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m, d_rho));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
