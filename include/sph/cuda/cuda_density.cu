@@ -114,8 +114,10 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<d
     CHECK_CUDA_ERR(cudaMemcpy(d.rho.data(), d.devPtrs.d_rho, size_np_T, cudaMemcpyDeviceToHost));
 }
 
-template void computeDensity(std::vector<Task>&, ParticlesData<double, unsigned>&, const cstone::Box<double>&);
-template void computeDensity(std::vector<Task>&, ParticlesData<double, uint64_t>&, const cstone::Box<double>&);
+template void computeDensity(std::vector<Task>&, ParticlesData<double, unsigned, cstone::GpuTag>&,
+                             const cstone::Box<double>&);
+template void computeDensity(std::vector<Task>&, ParticlesData<double, uint64_t, cstone::GpuTag>&,
+                             const cstone::Box<double>&);
 
 } // namespace cuda
 } // namespace sph

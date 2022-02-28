@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Traits classes for Domain to manage GPU device acceleration behavior
+ * @brief Traits classes for ParticlesData to abstract and manage GPU device acceleration behavior
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -33,45 +33,57 @@
 
 #include <type_traits>
 
-#include "cstone/primitives/gather.hpp"
-#include "cstone/cuda/gather.cuh"
+#include "cstone/domain/domain_traits.hpp"
 
-namespace cstone
+namespace sphexa
 {
 
-struct CpuTag
+using cstone::CpuTag;
+using cstone::GpuTag;
+
+template<class T, class KeyType>
+struct DeviceDataFacade
 {
+    void resize(size_t) {}
+    void resize_streams(size_t, size_t) {}
 };
-struct GpuTag
+
+namespace sph
 {
-};
+namespace cuda
+{
+
+template<class T, class KeyType>
+class DeviceParticlesData;
+
+} // namespace cuda
+} // namespace sph
 
 namespace detail
 {
 
 template<class Accelerator, class = void>
-struct ReorderFunctor
+struct DeviceDataType
 {
 };
 
 template<class Accelerator>
-struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, CpuTag>{}>>
+struct DeviceDataType<Accelerator, std::enable_if_t<std::is_same<Accelerator, CpuTag>{}>>
 {
-    template<class ValueType, class CodeType, class IndexType>
-    using type = CpuGather<ValueType, CodeType, IndexType>;
+    template<class T, class KeyType>
+    using type = DeviceDataFacade<T, KeyType>;
 };
 
 template<class Accelerator>
-struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, GpuTag>{}>>
+struct DeviceDataType<Accelerator, std::enable_if_t<std::is_same<Accelerator, GpuTag>{}>>
 {
-    template<class ValueType, class CodeType, class IndexType>
-    using type = DeviceGather<ValueType, CodeType, IndexType>;
+    template<class T, class KeyType>
+    using type = sph::cuda::DeviceParticlesData<T, KeyType>;
 };
 
 } // namespace detail
 
-//! @brief returns reorder functor type to be used, depending on the accelerator
-template<class Accelerator, class ValueType, class CodeType, class IndexType>
-using ReorderFunctor_t = typename detail::ReorderFunctor<Accelerator>::template type<ValueType, CodeType, IndexType>;
+template<class Accelerator, class T, class KeyType>
+using DeviceData_t = typename detail::DeviceDataType<Accelerator>::template type<T, KeyType>;
 
-} // namespace cstone
+} // namespace sphexa

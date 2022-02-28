@@ -18,7 +18,12 @@
 #include "propagator.hpp"
 #include "insitu_viz.h"
 
-using namespace cstone;
+#ifdef USE_CUDA
+using AccType = cstone::GpuTag;
+#else
+using AccType = cstone::CpuTag;
+#endif
+
 using namespace sphexa;
 using namespace sphexa::sph;
 
@@ -50,7 +55,7 @@ int main(int argc, char** argv)
 
     using Real    = double;
     using KeyType = uint64_t;
-    using Dataset = ParticlesData<Real, KeyType>;
+    using Dataset = ParticlesData<Real, KeyType, AccType>;
 
     const IFileReader<Dataset>& fileReader = EvrardFileReader<Dataset>();
 
@@ -87,11 +92,7 @@ int main(int argc, char** argv)
 
     float theta = 0.5;
 
-#ifdef USE_CUDA
-    DomainType<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#else
-    Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#endif
+    cstone::Domain<KeyType, Real, AccType> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 

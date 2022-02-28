@@ -119,9 +119,9 @@ void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box
     CHECK_CUDA_ERR(cudaMemcpy(d.c33.data(), d.devPtrs.d_c33, size_np_T, cudaMemcpyDeviceToHost));
 }
 
-template void computeIAD(const std::vector<Task>& taskList, ParticlesData<double, unsigned>& d,
+template void computeIAD(const std::vector<Task>& taskList, ParticlesData<double, unsigned, cstone::GpuTag>& d,
                          const cstone::Box<double>&);
-template void computeIAD(const std::vector<Task>& taskList, ParticlesData<double, uint64_t>& d,
+template void computeIAD(const std::vector<Task>& taskList, ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                          const cstone::Box<double>&);
 
 } // namespace cuda

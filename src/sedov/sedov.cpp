@@ -19,7 +19,12 @@
 #include "propagator.hpp"
 #include "insitu_viz.h"
 
-using namespace cstone;
+#ifdef USE_CUDA
+using AccType = cstone::GpuTag;
+#else
+using AccType = cstone::CpuTag;
+#endif
+
 using namespace sphexa;
 using namespace sphexa::sph;
 
@@ -54,7 +59,7 @@ int main(int argc, char** argv)
 
     using Real    = double;
     using KeyType = uint64_t;
-    using Dataset = ParticlesData<Real, KeyType>;
+    using Dataset = ParticlesData<Real, KeyType, AccType>;
 
     std::unique_ptr<IFileWriter<Dataset>> fileWriter;
     if (ascii) { fileWriter = std::make_unique<AsciiWriter<Dataset>>(); }
@@ -63,7 +68,7 @@ int main(int argc, char** argv)
         fileWriter = std::make_unique<H5PartWriter<Dataset>>();
     }
 
-    auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
+    auto d = SedovDataGenerator::generate<Dataset>(cubeSide);
     d.setOutputFields(outputFields);
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
@@ -93,11 +98,7 @@ int main(int argc, char** argv)
 
     float theta = 1.0;
 
-#ifdef USE_CUDA
-    Domain<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#else
-    Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#endif
+    cstone::Domain<KeyType, Real, AccType> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 

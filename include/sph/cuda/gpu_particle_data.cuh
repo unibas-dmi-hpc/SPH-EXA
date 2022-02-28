@@ -33,7 +33,56 @@ public:
 
     KeyType* d_codes;
 
-    [[nodiscard]] size_t capacity() const { return allocatedDeviceMemory; }
+    DeviceParticlesData()
+    {
+        size_t                             size_lt_T = lt::size * sizeof(T);
+        const std::array<double, lt::size> wh        = lt::createWharmonicLookupTable<double, lt::size>();
+        const std::array<double, lt::size> whd       = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+
+        CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
+        CHECK_CUDA_ERR(cudaMemcpy(d_wh, wh.data(), size_lt_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d_whd, whd.data(), size_lt_T, cudaMemcpyHostToDevice));
+
+        for (int i = 0; i < NST; ++i)
+        {
+            CHECK_CUDA_ERR(cudaStreamCreate(&d_stream[i].stream));
+        }
+    }
+
+    ~DeviceParticlesData()
+    {
+        CHECK_CUDA_ERR(utils::cudaFree(d_x,
+                                       d_y,
+                                       d_z,
+                                       d_vx,
+                                       d_vy,
+                                       d_vz,
+                                       d_h,
+                                       d_m,
+                                       d_rho,
+                                       d_p,
+                                       d_c,
+                                       d_c11,
+                                       d_c12,
+                                       d_c13,
+                                       d_c22,
+                                       d_c23,
+                                       d_c33,
+                                       d_grad_P_x,
+                                       d_grad_P_y,
+                                       d_grad_P_z,
+                                       d_du,
+                                       d_maxvsignal,
+                                       d_wh,
+                                       d_whd));
+        CHECK_CUDA_ERR(utils::cudaFree(d_codes));
+
+        for (int i = 0; i < NST; ++i)
+        {
+            CHECK_CUDA_ERR(cudaStreamDestroy(d_stream[i].stream));
+            CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_neighborsCount));
+        }
+    }
 
     void resize(size_t size)
     {
@@ -89,59 +138,7 @@ public:
             allocatedTaskSize = taskSize;
         }
     }
-
-    DeviceParticlesData()
-    {
-        size_t size_lt_T = lt::size * sizeof(T);
-        const std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
-        const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
-
-        CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
-        CHECK_CUDA_ERR(cudaMemcpy(d_wh, wh.data(), size_lt_T, cudaMemcpyHostToDevice));
-        CHECK_CUDA_ERR(cudaMemcpy(d_whd, whd.data(), size_lt_T, cudaMemcpyHostToDevice));
-
-        for (int i = 0; i < NST; ++i)
-        {
-            CHECK_CUDA_ERR(cudaStreamCreate(&d_stream[i].stream));
-        }
-    }
-
-    ~DeviceParticlesData()
-    {
-        CHECK_CUDA_ERR(utils::cudaFree(d_x,
-                                       d_y,
-                                       d_z,
-                                       d_vx,
-                                       d_vy,
-                                       d_vz,
-                                       d_h,
-                                       d_m,
-                                       d_rho,
-                                       d_p,
-                                       d_c,
-                                       d_c11,
-                                       d_c12,
-                                       d_c13,
-                                       d_c22,
-                                       d_c23,
-                                       d_c33,
-                                       d_grad_P_x,
-                                       d_grad_P_y,
-                                       d_grad_P_z,
-                                       d_du,
-                                       d_maxvsignal,
-                                       d_wh,
-                                       d_whd));
-        CHECK_CUDA_ERR(utils::cudaFree(d_codes));
-
-        for (int i = 0; i < NST; ++i)
-        {
-            CHECK_CUDA_ERR(cudaStreamDestroy(d_stream[i].stream));
-            CHECK_CUDA_ERR(utils::cudaFree(d_stream[i].d_neighborsCount));
-        }
-    }
 };
 } // namespace cuda
 } // namespace sph
 } // namespace sphexa
-

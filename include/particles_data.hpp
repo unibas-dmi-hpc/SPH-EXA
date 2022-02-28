@@ -1,3 +1,32 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2021 CSCS, ETH Zurich
+ *               2021 University of Basel
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/*! @file
+ * @brief Contains the object holding all particle data
+ */
+
 #pragma once
 
 #include <array>
@@ -7,6 +36,7 @@
 
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"
+#include "traits.hpp"
 
 #if defined(USE_CUDA)
 #include "sph/cuda/gpu_particle_data.cuh"
@@ -18,7 +48,7 @@ namespace sphexa
 template<class Array>
 std::vector<int> fieldStringsToInt(const Array&, const std::vector<std::string>&);
 
-template<typename T, typename I>
+template<typename T, typename I, class AccType>
 class ParticlesData
 {
 public:
@@ -54,9 +84,7 @@ public:
 
     std::vector<KeyType> codes; // Particle space-filling-curve keys
 
-#if defined(USE_CUDA)
-    sph::cuda::DeviceParticlesData<T, KeyType> devPtrs;
-#endif
+    DeviceData_t<AccType, T, KeyType> devPtrs;
 
     const std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
@@ -145,8 +173,8 @@ public:
     const static T     K;
 };
 
-template<typename T, typename I>
-const T ParticlesData<T, I>::K = sphexa::compute_3d_k(sincIndex);
+template<typename T, typename I, class Acc>
+const T ParticlesData<T, I, Acc>::K = sphexa::compute_3d_k(sincIndex);
 
 template<class Array>
 std::vector<int> fieldStringsToInt(const Array& allNames, const std::vector<std::string>& subsetNames)
@@ -198,9 +226,7 @@ void resize(Dataset& d, size_t size)
 
     reallocate(d.codes, size, growthRate);
 
-#if defined(USE_CUDA)
     d.devPtrs.resize(size);
-#endif
 }
 
 } // namespace sphexa
