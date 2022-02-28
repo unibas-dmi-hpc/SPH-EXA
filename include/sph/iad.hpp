@@ -21,7 +21,7 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     size_t     numParticles   = t.size();
     size_t     ngmax          = t.ngmax;
     const int* neighbors      = t.neighbors.data();
-    const int* neighborsCount = t.neighborsCount.data();
+    const int* neighborsCount = d.neighborsCount.data();
 
     const T* h  = d.h.data();
     const T* m  = d.m.data();
@@ -68,7 +68,7 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
                           K,
                           box,
                           neighbors + ngmax * pi,
-                          neighborsCount[pi],
+                          neighborsCount[i],
                           x,
                           y,
                           z,

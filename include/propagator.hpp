@@ -62,7 +62,8 @@ public:
     template<class DomainType, class ParticleDataType>
     void hydroStep(DomainType& domain, ParticleDataType& d)
     {
-        using T = typename ParticleDataType::RealType;
+        using T       = typename ParticleDataType::RealType;
+        using KeyType = typename ParticleDataType::KeyType;
 
         timer.start();
 
@@ -77,7 +78,7 @@ public:
         taskList.update(domain.startIndex(), domain.endIndex());
         timer.step("updateTasks");
 
-        findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, domain.box());
+        findNeighborsSfc<T, KeyType>(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, d.neighborsCount, domain.box());
         timer.step("FindNeighbors");
 
         computeDensity<T>(taskList.tasks, d, domain.box());
@@ -138,7 +139,7 @@ public:
         taskList.update(domain.startIndex(), domain.endIndex());
         timer.step("updateTasks");
 
-        findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, domain.box());
+        findNeighborsSfc<T, KeyType>(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, d.neighborsCount, domain.box());
         timer.step("FindNeighbors");
 
         computeDensity<T>(taskList.tasks, d, domain.box());
@@ -218,7 +219,7 @@ private:
     template<class DomainType, class ParticleDataType>
     void printIterationTimings(const DomainType& domain, const ParticleDataType& d)
     {
-        size_t totalNeighbors = neighborsSum(taskList.tasks);
+        size_t totalNeighbors = neighborsSum(domain.startIndex(), domain.endIndex(), d.neighborsCount);
 
         if (d.rank == 0)
         {

@@ -82,7 +82,8 @@ public:
     std::vector<T> maxvsignal;
     std::vector<T> mue, mui, temp, cv;
 
-    std::vector<KeyType> codes; // Particle space-filling-curve keys
+    std::vector<KeyType>                          codes;          // Particle space-filling-curve keys
+    std::vector<int, PinnedAlloc_t<AccType, int>> neighborsCount; // number of neighbors of each particle
 
     DeviceData_t<AccType, T, KeyType> devPtrs;
 
@@ -225,6 +226,7 @@ void resize(Dataset& d, size_t size)
     }
 
     reallocate(d.codes, size, growthRate);
+    reallocate(d.neighborsCount, size, growthRate);
 
     d.devPtrs.resize(size);
 }

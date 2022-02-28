@@ -35,12 +35,16 @@
 
 #include "cstone/domain/domain_traits.hpp"
 
+template<class T>
+class pinned_allocator;
+
 namespace sphexa
 {
 
 using cstone::CpuTag;
 using cstone::GpuTag;
 
+//! @brief stub for use in CPU code
 template<class T, class KeyType>
 struct DeviceDataFacade
 {
@@ -85,5 +89,33 @@ struct DeviceDataType<Accelerator, std::enable_if_t<std::is_same<Accelerator, Gp
 
 template<class Accelerator, class T, class KeyType>
 using DeviceData_t = typename detail::DeviceDataType<Accelerator>::template type<T, KeyType>;
+
+namespace detail
+{
+
+template<class Accelerator, template<class...> class CpuCaseType, template<class...> class GpuCaseType, class = void>
+struct AccelSwitchType
+{
+};
+
+template<class Accelerator, template<class...> class CpuCaseType, template<class...> class GpuCaseType>
+struct AccelSwitchType<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<std::is_same<Accelerator, CpuTag>{}>>
+{
+    template<class... Args>
+    using type = CpuCaseType<Args...>;
+};
+
+template<class Accelerator, template<class...> class CpuCaseType, template<class...> class GpuCaseType>
+struct AccelSwitchType<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<std::is_same<Accelerator, GpuTag>{}>>
+{
+    template<class... Args>
+    using type = GpuCaseType<Args...>;
+};
+
+} // namespace detail
+
+//! @brief std::allocator on the CPU, pinned_allocator on the GPU
+template<class Accelerator, class T>
+using PinnedAlloc_t = typename detail::AccelSwitchType<Accelerator, std::allocator, pinned_allocator>::template type<T>;
 
 } // namespace sphexa

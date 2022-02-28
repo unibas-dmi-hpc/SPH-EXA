@@ -13,8 +13,8 @@ namespace sph
 #ifndef USE_CUDA
 
 template<class T, class KeyType>
-void findNeighborsSfc(std::vector<Task>& taskList, const std::vector<T>& x, const std::vector<T>& y,
-                      const std::vector<T>& z, const std::vector<T>& h, const std::vector<KeyType>& particleKeys,
+void findNeighborsSfc(std::vector<Task>& taskList, gsl::span<const T> x, gsl::span<const T> y, gsl::span<const T> z,
+                      gsl::span<const T> h, gsl::span<const KeyType> particleKeys, gsl::span<int> neighborsCount,
                       const cstone::Box<T>& box)
 {
     std::array<std::size_t, 5> sizes{x.size(), y.size(), z.size(), h.size(), particleKeys.size()};
@@ -25,9 +25,7 @@ void findNeighborsSfc(std::vector<Task>& taskList, const std::vector<T>& x, cons
 
     for (auto& t : taskList)
     {
-        int* neighbors      = t.neighbors.data();
-        int* neighborsCount = t.neighborsCount.data();
-
+        int* neighbors = t.neighbors.data();
         cstone::findNeighbors(x.data(),
                               y.data(),
                               z.data(),
@@ -38,42 +36,29 @@ void findNeighborsSfc(std::vector<Task>& taskList, const std::vector<T>& x, cons
                               box,
                               cstone::sfcKindPointer(particleKeys.data()),
                               neighbors,
-                              neighborsCount,
+                              neighborsCount.data() + t.firstParticle,
                               ngmax);
     }
 }
 #else
 
 template<class T, class KeyType>
-void findNeighborsSfc([[maybe_unused]] std::vector<Task>& taskList, [[maybe_unused]] const std::vector<T>& x,
-                      [[maybe_unused]] const std::vector<T>& y, [[maybe_unused]] const std::vector<T>& z,
-                      [[maybe_unused]] const std::vector<T>& h, [[maybe_unused]] const std::vector<KeyType>& codes,
-                      [[maybe_unused]] const cstone::Box<T>& box)
+void findNeighborsSfc([[maybe_unused]] std::vector<Task>& taskList, [[maybe_unused]] gsl::span<const T> x,
+                      [[maybe_unused]] gsl::span<const T> y, [[maybe_unused]] gsl::span<const T> z,
+                      [[maybe_unused]] gsl::span<const T> h, [[maybe_unused]] const gsl::span<const KeyType> codes,
+                      [[maybe_unused]] gsl::span<int> neighborsCount, [[maybe_unused]] const cstone::Box<T>& box)
 {
 }
 
 #endif
 
-size_t neighborsSumImpl(const Task& t)
+size_t neighborsSum(size_t startIndex, size_t endIndex, gsl::span<const int> neighborsCount)
 {
     size_t sum = 0;
-
 #pragma omp parallel for reduction(+ : sum)
-    for (size_t i = 0; i < t.size(); i++)
+    for (size_t i = startIndex; i < endIndex; i++)
     {
-        sum += t.neighborsCount[i];
-    }
-
-    return sum;
-}
-
-size_t neighborsSum(const std::vector<Task>& taskList)
-{
-    size_t sum = 0;
-
-    for (const auto& task : taskList)
-    {
-        sum += neighborsSumImpl(task);
+        sum += neighborsCount[i];
     }
 
     int    rootRank  = 0;

@@ -15,7 +15,7 @@ void updateSmoothingLengthImpl(Task& t, Dataset& d)
     const T exp = 1.0 / 3.0;
 
     const int  ng0            = t.ng0;
-    const int* neighborsCount = t.neighborsCount.data();
+    const int* neighborsCount = d.neighborsCount.data();
     T*         h              = d.h.data();
 
     size_t numParticles = t.size();
@@ -24,7 +24,7 @@ void updateSmoothingLengthImpl(Task& t, Dataset& d)
     for (size_t pi = 0; pi < numParticles; pi++)
     {
         int i  = pi + t.firstParticle;
-        int nn = neighborsCount[pi];
+        int nn = neighborsCount[i];
 
         h[i] = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp);
 

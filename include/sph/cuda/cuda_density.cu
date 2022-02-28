@@ -103,9 +103,9 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<d
                                                           d.devPtrs.d_rho);
         CHECK_CUDA_ERR(cudaGetLastError());
 
-        CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighborsCount.data(),
+        CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + t.firstParticle,
                                        d_neighborsCount_use,
-                                       numParticlesCompute * sizeof(int),
+                                       numParticlesCompute * sizeof(decltype(d.neighborsCount.front())),
                                        cudaMemcpyDeviceToHost,
                                        stream));
     }

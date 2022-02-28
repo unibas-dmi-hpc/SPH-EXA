@@ -21,7 +21,6 @@ struct Task
 #ifndef USE_CUDA
         neighbors.resize(size * ngmax);
 #endif
-        neighborsCount.resize(size);
     }
 
     const size_t ngmax;
@@ -35,11 +34,6 @@ struct Task
     size_t size() const { return lastParticle - firstParticle; }
 
     std::vector<int> neighbors;
-#ifdef USE_CUDA
-    std::vector<int, pinned_allocator<int>> neighborsCount;
-#else
-    std::vector<int> neighborsCount;
-#endif
 };
 
 class TaskList

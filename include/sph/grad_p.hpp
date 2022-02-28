@@ -21,7 +21,7 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     size_t     numParticles   = t.size();
     size_t     ngmax          = t.ngmax;
     const int* neighbors      = t.neighbors.data();
-    const int* neighborsCount = t.neighborsCount.data();
+    const int* neighborsCount = d.neighborsCount.data();
 
     const T* h   = d.h.data();
     const T* m   = d.m.data();
@@ -79,7 +79,7 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
                                         K,
                                         box,
                                         neighbors + ngmax * pi,
-                                        neighborsCount[pi],
+                                        neighborsCount[i],
                                         x,
                                         y,
                                         z,
