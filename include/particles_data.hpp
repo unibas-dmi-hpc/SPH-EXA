@@ -26,9 +26,6 @@ public:
     using KeyType  = I;
 
     ParticlesData()
-#if defined(USE_CUDA)
-        : devPtrs(*this)
-#endif
     {
         setConservedFields();
         setDependentFields();

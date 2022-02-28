@@ -1,6 +1,7 @@
 #pragma once
 
 #include "cuda_utils.cuh"
+#include "sph/tables.hpp"
 
 namespace sphexa
 {
@@ -89,14 +90,15 @@ public:
         }
     }
 
-    DeviceParticlesData() = delete;
-
-    explicit DeviceParticlesData(const ParticleData& pd)
+    DeviceParticlesData()
     {
-        size_t ltsize    = pd.wh.size();
-        size_t size_lt_T = ltsize * sizeof(T);
+        size_t size_lt_T = lt::size * sizeof(T);
+        const std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
+        const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
 
         CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
+        CHECK_CUDA_ERR(cudaMemcpy(d_wh, wh.data(), size_lt_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d_whd, whd.data(), size_lt_T, cudaMemcpyHostToDevice));
 
         for (int i = 0; i < NST; ++i)
         {
@@ -142,3 +144,4 @@ public:
 } // namespace cuda
 } // namespace sph
 } // namespace sphexa
+
