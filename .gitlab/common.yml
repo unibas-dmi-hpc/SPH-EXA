@@ -279,11 +279,7 @@ variables:
     - /usr/local/sbin/unit/component_units_omp
     - /usr/local/sbin/coord_samples/coordinate_test
     # perf_unittests -n1
-    - /usr/local/sbin/performance/octree_perf
-    - /usr/local/sbin/performance/peers_perf
     - /usr/local/sbin/performance/scan_perf
-    - /usr/local/sbin/performance/hilbert_perf
-    - /usr/local/sbin/ryoanji/gravity_perf
     - /usr/local/sbin/ryoanji/cpu_unit_tests/ryoanji_cpu_unit_tests
     - /usr/local/sbin/kernel_tests
     # NOTE:gfetch - kernel_tests
