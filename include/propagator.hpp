@@ -51,10 +51,11 @@ using namespace sphexa::sph;
 class Propagator
 {
 public:
-    Propagator(const size_t nTasks, const size_t ngmax, const size_t ng0, std::ostream& output, const size_t rank)
-        : taskList(nTasks, ngmax, ng0)
+    Propagator(size_t nTasks, size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+        : taskList(nTasks, ngmax)
         , timer(output, rank)
         , output_(output)
+        , ng0_(ng0)
     {
     }
 
@@ -109,7 +110,7 @@ public:
         computeTotalEnergy<T>(domain.startIndex(), domain.endIndex(), d);
         timer.step("EnergyConservation");
 
-        updateSmoothingLength<T>(taskList.tasks, d);
+        updateSmoothingLength<T>(domain.startIndex(), domain.endIndex(), d, ng0_);
         timer.step("UpdateSmoothingLength");
 
         timer.stop();
@@ -203,7 +204,7 @@ public:
         computeTotalEnergy<T>(domain.startIndex(), domain.endIndex(), d);
         timer.step("EnergyConservation");
 
-        updateSmoothingLength<T>(taskList.tasks, d);
+        updateSmoothingLength<T>(domain.startIndex(), domain.endIndex(), d, ng0_);
         timer.step("UpdateSmoothingLength");
 
         timer.stop();
@@ -215,6 +216,9 @@ private:
     TaskList           taskList;
     MasterProcessTimer timer;
     std::ostream&      output_;
+
+    //! average number of neighbors per particle
+    size_t ng0_;
 
     template<class DomainType, class ParticleDataType>
     void printIterationTimings(const DomainType& domain, const ParticleDataType& d)

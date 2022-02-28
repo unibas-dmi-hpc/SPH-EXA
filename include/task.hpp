@@ -10,9 +10,8 @@ namespace sphexa
 
 struct Task
 {
-    Task(size_t ngmax, size_t ng0)
+    Task(size_t ngmax)
         : ngmax(ngmax)
-        , ng0(ng0)
     {
     }
 
@@ -24,7 +23,6 @@ struct Task
     }
 
     const size_t ngmax;
-    const size_t ng0;
 
     //! @brief first particle owned by rank, everything below is halos
     size_t firstParticle{0};
@@ -39,10 +37,9 @@ struct Task
 class TaskList
 {
 public:
-    TaskList(size_t nTasks, size_t ngmax, size_t ng0)
+    TaskList(size_t nTasks, size_t ngmax)
         : ngmax(ngmax)
-        , ng0(ng0)
-        , tasks(nTasks, Task(ngmax, ng0))
+        , tasks(nTasks, Task(ngmax))
     {
     }
 
@@ -62,7 +59,6 @@ public:
     }
 
     const size_t      ngmax;
-    const size_t      ng0;
     std::vector<Task> tasks;
 };
 } // namespace sphexa
