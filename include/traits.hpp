@@ -66,33 +66,7 @@ class DeviceParticlesData;
 namespace detail
 {
 
-template<class Accelerator, class = void>
-struct DeviceDataType
-{
-};
-
-template<class Accelerator>
-struct DeviceDataType<Accelerator, std::enable_if_t<std::is_same<Accelerator, CpuTag>{}>>
-{
-    template<class T, class KeyType>
-    using type = DeviceDataFacade<T, KeyType>;
-};
-
-template<class Accelerator>
-struct DeviceDataType<Accelerator, std::enable_if_t<std::is_same<Accelerator, GpuTag>{}>>
-{
-    template<class T, class KeyType>
-    using type = sph::cuda::DeviceParticlesData<T, KeyType>;
-};
-
-} // namespace detail
-
-template<class Accelerator, class T, class KeyType>
-using DeviceData_t = typename detail::DeviceDataType<Accelerator>::template type<T, KeyType>;
-
-namespace detail
-{
-
+//! @brief The type member of this trait evaluates to CpuCaseType if Accelerator == CpuTag and GpuCaseType otherwise
 template<class Accelerator, template<class...> class CpuCaseType, template<class...> class GpuCaseType, class = void>
 struct AccelSwitchType
 {
@@ -113,6 +87,11 @@ struct AccelSwitchType<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<s
 };
 
 } // namespace detail
+
+//! @brief Just a facade on the CPU, DeviceParticlesData on the GPU
+template<class Accelerator, class T, class KeyType>
+using DeviceData_t = typename detail::AccelSwitchType<Accelerator, DeviceDataFacade,
+                                                      sph::cuda::DeviceParticlesData>::template type<T, KeyType>;
 
 //! @brief std::allocator on the CPU, pinned_allocator on the GPU
 template<class Accelerator, class T>
