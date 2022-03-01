@@ -8,26 +8,27 @@
 
 namespace sphexa
 {
-template<typename T, typename I>
+
 class NohDataGenerator
 {
 public:
-    static inline const I dim           = 3;
-    static inline const T gamma         = 5. / 3.;
-    static inline const T r0            = 0.;
-    static inline const T r1            = 0.5;
-    static inline const T mTotal        = 1.;
-    static inline const T vr0           = -1.;
-    static inline const T rho0          = 1.;
-    static inline const T u0            = 1.e-20;
-    static inline const T p0            = 0.;
-    static inline const T vel0          = 0.;
-    static inline const T cs0           = 0.;
-    static inline const T firstTimeStep = 1.e-4;
+    static inline const unsigned dim           = 3;
+    static inline const double   gamma         = 5. / 3.;
+    static inline const double   r0            = 0.;
+    static inline const double   r1            = 0.5;
+    static inline const double   mTotal        = 1.;
+    static inline const double   vr0           = -1.;
+    static inline const double   rho0          = 1.;
+    static inline const double   u0            = 1.e-20;
+    static inline const double   p0            = 0.;
+    static inline const double   vel0          = 0.;
+    static inline const double   cs0           = 0.;
+    static inline const double   firstTimeStep = 1.e-4;
 
-    static ParticlesData<T, I> generate(const size_t side)
+    template<class Dataset>
+    static Dataset generate(const size_t side)
     {
-        ParticlesData<T, I> pd;
+        Dataset pd;
 
         if (pd.rank == 0 && side < 8)
         {
@@ -42,7 +43,6 @@ public:
         pd.comm = MPI_COMM_WORLD;
         MPI_Comm_size(pd.comm, &pd.nrank);
         MPI_Comm_rank(pd.comm, &pd.rank);
-        MPI_Get_processor_name(pd.pname, &pd.pnamelen);
 #endif
 
         pd.side  = side;
@@ -55,7 +55,8 @@ public:
         return pd;
     }
 
-    static void load(ParticlesData<T, I>& pd)
+    template<class Dataset>
+    static void load(Dataset& pd)
     {
         size_t split     = pd.n / pd.nrank;
         size_t remaining = pd.n - pd.nrank * split;
@@ -63,10 +64,10 @@ public:
         pd.count = split;
         if (pd.rank == 0) pd.count += remaining;
 
-        pd.resize(pd.count);
+        resize(pd, pd.count);
 
         if (pd.rank == 0)
-            std::cout << "Approx: " << pd.count * (pd.data.size() * 64.) / (8. * 1000. * 1000. * 1000.)
+            std::cout << "Approx: " << pd.count * (pd.data().size() * 64.) / (8. * 1000. * 1000. * 1000.)
                       << "GB allocated on rank 0." << std::endl;
 
         size_t offset = pd.rank * split;
@@ -104,40 +105,33 @@ public:
         }
     }
 
-    static void init(ParticlesData<T, I>& pd)
+    template<class Dataset>
+    static void init(Dataset& pd)
     {
-        const T step  = (2. * r1) / pd.side; //
-        const T hIni  = 1.5 * step;          //
-        const T mPart = mTotal / pd.n;       //
-        const T gamm1 = gamma - 1.;          //
+        const double step  = (2. * r1) / pd.side;
+        const double hIni  = 1.5 * step;
+        const double mPart = mTotal / pd.n;
 
-#pragma omp parallel for
+#pragma omp parallel for schedule(static)
         for (size_t i = 0; i < pd.count; i++)
         {
-            const T radius = std::sqrt((pd.x[i] * pd.x[i]) + (pd.y[i] * pd.y[i]) + (pd.z[i] * pd.z[i]));
+            const double radius = std::sqrt((pd.x[i] * pd.x[i]) + (pd.y[i] * pd.y[i]) + (pd.z[i] * pd.z[i]));
 
-            pd.h[i]  = hIni;
-            pd.m[i]  = mPart;
-            pd.ro[i] = rho0;
-            pd.u[i]  = u0;
-            pd.p[i]  = pd.u[i] * rho0 * gamm1;
+            pd.h[i] = hIni;
+            pd.m[i] = mPart;
+            pd.u[i] = u0;
 
             pd.vx[i] = vr0 * (pd.x[i] / radius);
             pd.vy[i] = vr0 * (pd.y[i] / radius);
             pd.vz[i] = vr0 * (pd.z[i] / radius);
 
-            pd.mui[i] = 10.;
-
+            // pd.mui[i] = 10.;
             pd.du[i]    = 0.;
             pd.du_m1[i] = 0.;
 
             pd.dt[i]    = firstTimeStep;
             pd.dt_m1[i] = firstTimeStep;
             pd.minDt    = firstTimeStep;
-
-            pd.grad_P_x[i] = 0.;
-            pd.grad_P_y[i] = 0.;
-            pd.grad_P_z[i] = 0.;
 
             pd.x_m1[i] = pd.x[i] - pd.vx[i] * firstTimeStep;
             pd.y_m1[i] = pd.y[i] - pd.vy[i] * firstTimeStep;

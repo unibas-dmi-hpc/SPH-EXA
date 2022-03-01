@@ -9,16 +9,21 @@
 #endif
 
 #include "cstone/domain/domain.hpp"
+
 #include "sphexa.hpp"
 #include "sph/find_neighbors.hpp"
-#include "timer.hpp"
+#include "noh_data_generator.hpp"
+#include "ifile_writer.hpp"
+
 #include "propagator.hpp"
 #include "insitu_viz.h"
 
-#include "noh_data_file_writer.hpp"
-#include "noh_data_generator.hpp"
+#ifdef USE_CUDA
+using AccType = cstone::GpuTag;
+#else
+using AccType = cstone::CpuTag;
+#endif
 
-using namespace cstone;
 using namespace sphexa;
 using namespace sphexa::sph;
 
@@ -42,16 +47,28 @@ int main(int argc, char** argv)
     const bool        quiet          = parser.exists("--quiet");
     const std::string outDirectory   = parser.getString("--outDir");
 
+    std::vector<std::string> outputFields = parser.getCommaList("-f");
+    if (outputFields.empty())
+    {
+        outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
+    }
+
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
 
     using Real    = double;
     using KeyType = uint64_t;
-    using Dataset = ParticlesData<Real, KeyType, CpuTag>;
+    using Dataset = ParticlesData<Real, KeyType, AccType>;
 
-    const IFileWriter<Dataset>& fileWriter = NohDataMPIFileWriter<Dataset>();
+    std::unique_ptr<IFileWriter<Dataset>> fileWriter;
+    if (ascii) { fileWriter = std::make_unique<AsciiWriter<Dataset>>(); }
+    else
+    {
+        fileWriter = std::make_unique<H5PartWriter<Dataset>>();
+    }
 
-    auto d = NohDataGenerator<Real, KeyType>::generate(cubeSide);
+    auto d = NohDataGenerator::generate<Dataset>(cubeSide);
+    d.setOutputFields(outputFields);
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
@@ -63,34 +80,26 @@ int main(int argc, char** argv)
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
     size_t bucketSize = std::max(bucketSizeFocus, d.n / (100 * d.nrank));
 
-    double    radius = NohDataGenerator<Real, KeyType>::r1;
+    double    radius = NohDataGenerator::r1;
     Box<Real> box(-radius, radius, false);
 
     float theta = 1.0;
 
-#ifdef USE_CUDA
-    Domain<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#else
-    Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#endif
+    cstone::Domain<KeyType, Real, AccType> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 
-    domain.sync(
-        d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
+    domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
 
     if (d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
-    const size_t nTasks = 64;
-    const size_t ngmax  = 150;
-    const size_t ng0    = 100;
+    const size_t ngmax = 150;
+    const size_t ng0   = 100;
 
-    Propagator propagator(nTasks, ngmax, ng0, output, d.rank);
-
-    if (d.rank == 0) std::cout << "Starting main loop." << std::endl;
+    Propagator propagator(ngmax, ng0, output, d.rank);
 
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
@@ -101,24 +110,7 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-#ifdef SPH_EXA_HAVE_H5PART
-            fileWriter.dumpParticleDataToH5File(
-                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_noh.h5part");
-#else
-            if (ascii)
-            {
-                fileWriter.dumpParticleDataToAsciiFile(d,
-                                                       domain.startIndex(),
-                                                       domain.endIndex(),
-                                                       outDirectory + "dump_noh" + std::to_string(d.iteration) +
-                                                           ".txt");
-            }
-            else
-            {
-                fileWriter.dumpParticleDataToBinFile(d,
-                                                     outDirectory + "dump_noh" + std::to_string(d.iteration) + ".dat");
-            }
-#endif
+            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_noh");
         }
 
         if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
