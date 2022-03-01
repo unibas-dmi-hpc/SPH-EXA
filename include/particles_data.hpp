@@ -52,8 +52,9 @@ template<typename T, typename I, class AccType>
 class ParticlesData
 {
 public:
-    using RealType = T;
-    using KeyType  = I;
+    using RealType        = T;
+    using KeyType         = I;
+    using AcceleratorType = AccType;
 
     ParticlesData()
     {
@@ -84,6 +85,7 @@ public:
 
     std::vector<KeyType>                          codes;          // Particle space-filling-curve keys
     std::vector<int, PinnedAlloc_t<AccType, int>> neighborsCount; // number of neighbors of each particle
+    std::vector<int>                              neighbors;      // only used in the CPU version
 
     DeviceData_t<AccType, T, KeyType> devPtrs;
 
@@ -229,6 +231,15 @@ void resize(Dataset& d, size_t size)
     reallocate(d.neighborsCount, size, growthRate);
 
     d.devPtrs.resize(size);
+}
+
+//! resizes the neighbors list, only used in the CPU verison
+template<class Dataset>
+void resizeNeighbors(Dataset& d, size_t size)
+{
+    double growthRate = 1.05;
+    //! If we have a GPU, neighbors are calculated on-the-fly, so we don't need space to store them
+    reallocate(d.neighbors, HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
 }
 
 } // namespace sphexa

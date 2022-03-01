@@ -20,6 +20,8 @@ class DeviceParticlesData
 public:
     // number of CUDA streams to use
     static constexpr int NST = 2;
+    // max number of particles to process per launch in kernel with async transfers
+    static constexpr int taskSize = 125000;
 
     struct neighbors_stream
     {
@@ -48,6 +50,7 @@ public:
         {
             CHECK_CUDA_ERR(cudaStreamCreate(&d_stream[i].stream));
         }
+        resize_streams(taskSize);
     }
 
     ~DeviceParticlesData()
@@ -115,7 +118,7 @@ public:
         }
     }
 
-    void resize_streams(size_t taskSize, size_t ngmax)
+    void resize_streams(size_t taskSize)
     {
         if (taskSize > allocatedTaskSize)
         {

@@ -109,13 +109,10 @@ int main(int argc, char** argv)
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
-    const size_t nTasks = 64;
-    const size_t ngmax  = 150;
-    const size_t ng0    = 100;
+    const size_t ngmax = 150;
+    const size_t ng0   = 100;
 
-    Propagator propagator(nTasks, ngmax, ng0, output, d.rank);
-
-    if (d.rank == 0) std::cout << "Starting main loop." << std::endl;
+    Propagator propagator(ngmax, ng0, output, d.rank);
 
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)

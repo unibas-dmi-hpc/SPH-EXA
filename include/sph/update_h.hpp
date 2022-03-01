@@ -1,16 +1,16 @@
 #pragma once
 
 #include <vector>
-#include "task.hpp"
 
 namespace sphexa
 {
 namespace sph
 {
 
-template<typename T, class Dataset>
+template<class Dataset>
 void updateSmoothingLength(size_t startIndex, size_t endIndex, Dataset& d, size_t ng0)
 {
+    using T     = typename Dataset::RealType;
     const T c0  = 7.0;
     const T exp = 1.0 / 3.0;
 
@@ -24,7 +24,7 @@ void updateSmoothingLength(size_t startIndex, size_t endIndex, Dataset& d, size_
         h[i]   = h[i] * 0.5 * pow((1.0 + c0 * ng0 / nn), exp);
 
 #ifndef NDEBUG
-        if (std::isinf(h[i]) || std::isnan(h[i])) printf("ERROR::h(%d) ngi %d h %f\n", i, nn, h[i]);
+        if (std::isinf(h[i]) || std::isnan(h[i])) printf("ERROR::h(%lu) ngi %d h %f\n", i, nn, h[i]);
 #endif
     }
 }

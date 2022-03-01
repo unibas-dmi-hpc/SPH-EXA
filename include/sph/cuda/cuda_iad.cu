@@ -68,21 +68,18 @@ __global__ void cudaIAD(T sincIndex, T K, int ngmax, cstone::Box<T> box, int fir
 }
 
 template<class Dataset>
-void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<double>& box)
+void computeIAD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<double>& box)
 {
     using T = typename Dataset::RealType;
 
     // number of locally present particles, including halos
-    size_t numParticles = d.x.size();
+    size_t sizeWithHalos = d.x.size();
 
-    size_t size_np_T = numParticles * sizeof(T);
-    T      ngmax     = taskList.empty() ? 0 : taskList.front().ngmax;
+    size_t size_np_T = sizeWithHalos * sizeof(T);
 
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_rho, d.rho.data(), size_np_T, cudaMemcpyHostToDevice));
 
-    unsigned firstParticle       = taskList.front().firstParticle;
-    unsigned lastParticle        = taskList.back().lastParticle;
-    unsigned numParticlesCompute = lastParticle - firstParticle;
+    unsigned numParticlesCompute = endIndex - startIndex;
 
     unsigned numThreads = 128;
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
@@ -91,9 +88,9 @@ void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box
                                        d.K,
                                        ngmax,
                                        box,
-                                       firstParticle,
-                                       lastParticle,
-                                       numParticles,
+                                       startIndex,
+                                       endIndex,
+                                       sizeWithHalos,
                                        d.devPtrs.d_codes,
                                        d.devPtrs.d_x,
                                        d.devPtrs.d_y,
@@ -119,9 +116,9 @@ void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box
     CHECK_CUDA_ERR(cudaMemcpy(d.c33.data(), d.devPtrs.d_c33, size_np_T, cudaMemcpyDeviceToHost));
 }
 
-template void computeIAD(const std::vector<Task>& taskList, ParticlesData<double, unsigned, cstone::GpuTag>& d,
+template void computeIAD(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>& d,
                          const cstone::Box<double>&);
-template void computeIAD(const std::vector<Task>& taskList, ParticlesData<double, uint64_t, cstone::GpuTag>& d,
+template void computeIAD(size_t, size_t, size_t, ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                          const cstone::Box<double>&);
 
 } // namespace cuda

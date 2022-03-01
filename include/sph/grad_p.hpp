@@ -15,12 +15,11 @@ namespace sphexa
 namespace sph
 {
 
-template<typename T, class Dataset>
-void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
+template<class T, class Dataset>
+void computeMomentumAndEnergyImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+                                  const cstone::Box<T>& box)
 {
-    size_t     numParticles   = t.size();
-    size_t     ngmax          = t.ngmax;
-    const int* neighbors      = t.neighbors.data();
+    const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
 
     const T* h   = d.h.data();
@@ -54,31 +53,15 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     T K         = d.K;
     T sincIndex = d.sincIndex;
 
-#if defined(USE_OMP_TARGET)
-    const int    np           = d.x.size();
-    const size_t ltsize       = d.wh.size();
-    const size_t n            = numParticles;
-    const size_t allNeighbors = n * ngmax;
-// clang-format off
-#pragma omp target map(to                                                                                                                  \
-		       : neighbors[:allNeighbors], neighborsCount[:n], x [0:np], y [0:np], z [0:np],                           \
-                       vx [0:np], vy [0:np], vz [0:np], h [0:np], m [0:np], ro [0:np], p [0:np], c [0:np],                                 \
-                       c11 [0:np], c12 [0:np], c13 [0:np], c22 [0:np], c23 [0:np], c33 [0:np], wh[0:ltsize], whd[0:ltsize])                                             \
-                   map(from                                                                                                                \
-                       : grad_P_x [:n], grad_P_y [:n], grad_P_z [:n], du [:n], maxvsignal[0:n])
-// clang-format on
-#pragma omp teams distribute parallel for
-#else
-#pragma omp parallel for schedule(guided)
-#endif
-    for (size_t pi = 0; pi < numParticles; ++pi)
+#pragma omp parallel for schedule(static)
+    for (size_t i = startIndex; i < endIndex; ++i)
     {
-        int i = pi + t.firstParticle;
+        size_t ni = i - startIndex;
         kernels::momentumAndEnergyJLoop(i,
                                         sincIndex,
                                         K,
                                         box,
-                                        neighbors + ngmax * pi,
+                                        neighbors + ngmax * ni,
                                         neighborsCount[i],
                                         x,
                                         y,
@@ -107,16 +90,13 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     }
 }
 
-template<typename T, class Dataset>
-void computeMomentumAndEnergyIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<T>& box)
+template<class T, class Dataset>
+void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
 #if defined(USE_CUDA)
-    cuda::computeMomentumAndEnergyIAD(taskList, d, box);
+    cuda::computeMomentumAndEnergy(startIndex, endIndex, ngmax, d, box);
 #else
-    for (const auto& task : taskList)
-    {
-        computeMomentumAndEnergyIADImpl<T>(task, d, box);
-    }
+    computeMomentumAndEnergyImpl(startIndex, endIndex, ngmax, d, box);
 #endif
 }
 

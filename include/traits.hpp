@@ -44,6 +44,11 @@ namespace sphexa
 using cstone::CpuTag;
 using cstone::GpuTag;
 
+template<class AccType>
+struct HaveGpu : public stl::integral_constant<int, std::is_same_v<AccType, GpuTag>>
+{
+};
+
 //! @brief stub for use in CPU code
 template<class T, class KeyType>
 struct DeviceDataFacade
@@ -73,14 +78,14 @@ struct AccelSwitchType
 };
 
 template<class Accelerator, template<class...> class CpuCaseType, template<class...> class GpuCaseType>
-struct AccelSwitchType<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<std::is_same<Accelerator, CpuTag>{}>>
+struct AccelSwitchType<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<!HaveGpu<Accelerator>{}>>
 {
     template<class... Args>
     using type = CpuCaseType<Args...>;
 };
 
 template<class Accelerator, template<class...> class CpuCaseType, template<class...> class GpuCaseType>
-struct AccelSwitchType<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<std::is_same<Accelerator, GpuTag>{}>>
+struct AccelSwitchType<Accelerator, CpuCaseType, GpuCaseType, std::enable_if_t<HaveGpu<Accelerator>{}>>
 {
     template<class... Args>
     using type = GpuCaseType<Args...>;
