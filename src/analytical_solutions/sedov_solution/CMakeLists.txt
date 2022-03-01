@@ -1,7 +1,6 @@
-set(SOURCES main.cpp)
+set(SOURCES sedov_solution.cpp main.cpp)
 add_executable(sedov_solution ${SOURCES})
 target_include_directories(sedov_solution PRIVATE ${PROJECT_SOURCE_DIR}/include)
-target_include_directories(sedov_solution PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
 target_include_directories(sedov_solution PRIVATE ${PROJECT_SOURCE_DIR}/src)
 if(CMAKE_OSX_SYSROOT)
     target_link_libraries(sedov_solution stdc++)

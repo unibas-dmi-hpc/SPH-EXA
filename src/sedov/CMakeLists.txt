@@ -1,16 +1,20 @@
+
+function(enableH5Part exename)
+    if (SPH_EXA_WITH_H5PART)
+        target_compile_definitions(${exename} PUBLIC SPH_EXA_HAVE_H5PART)
+        target_include_directories(${exename} PUBLIC ${PROJECT_SOURCE_DIR}/extern/h5part)
+        target_link_libraries(${exename} PRIVATE H5Part ${HDF5_LIBRARIES})
+    endif()
+endfunction()
+
 add_executable(sedov sedov.cpp)
 target_include_directories(sedov PRIVATE ${SPH_EXA_INCLUDE_DIRS})
 target_link_libraries(sedov PRIVATE ${MPI_CXX_LIBRARIES})
 target_link_libraries(sedov PRIVATE OpenMP::OpenMP_CXX)
+enableH5Part(sedov)
 install(TARGETS sedov RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 # {{{ i/o
-if (SPH_EXA_WITH_H5PART)
-    target_compile_definitions(sedov PUBLIC SPH_EXA_HAVE_H5PART)
-    target_include_directories(sedov PUBLIC ${PROJECT_SOURCE_DIR}/extern/h5part)
-    target_link_libraries(sedov PRIVATE H5Part ${HDF5_LIBRARIES})
-endif()
-
 if(INSITU STREQUAL "Catalyst")
     target_include_directories(sedov PRIVATE ..)
     target_compile_definitions(sedov
@@ -35,6 +39,7 @@ if(CMAKE_CUDA_COMPILER)
     target_link_libraries(sedov-cuda PRIVATE ${MPI_CXX_LIBRARIES})
     target_link_libraries(sedov-cuda PRIVATE OpenMP::OpenMP_CXX)
     target_link_libraries(sedov-cuda PRIVATE CUDA::cudart)
+    enableH5Part(sedov-cuda)
     install(TARGETS sedov-cuda RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 elseif(CMAKE_HIP_COMPILER)
@@ -46,5 +51,6 @@ elseif(CMAKE_HIP_COMPILER)
     target_compile_definitions(sedov-hip PRIVATE USE_MPI USE_CUDA)
     target_link_libraries(sedov-hip PRIVATE ${MPI_CXX_LIBRARIES})
     target_link_libraries(sedov-hip PRIVATE OpenMP::OpenMP_CXX)
+    enableH5Part(sedov-hip)
     install(TARGETS sedov-hip RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()

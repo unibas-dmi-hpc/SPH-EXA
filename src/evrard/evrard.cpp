@@ -9,15 +9,21 @@
 #endif
 
 #include "cstone/domain/domain.hpp"
+
 #include "sphexa.hpp"
-#include "sph/findNeighborsSfc.hpp"
+#include "sph/find_neighbors.hpp"
+#include "ifile_writer.hpp"
+#include "evrard_reader.hpp"
+
 #include "propagator.hpp"
 #include "insitu_viz.h"
 
-#include "evrard_data_file_reader.hpp"
-#include "evrard_data_file_writer.hpp"
+#ifdef USE_CUDA
+using AccType = cstone::GpuTag;
+#else
+using AccType = cstone::CpuTag;
+#endif
 
-using namespace cstone;
 using namespace sphexa;
 using namespace sphexa::sph;
 
@@ -35,28 +41,37 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t      nParticles          = parser.getInt("-n", 65536);
-    const size_t      maxStep             = parser.getInt("-s", 10);
-    const int         writeFrequency      = parser.getInt("-w", -1);
-    const bool        ascii               = parser.exists("--ascii");
-    const int         checkpointFrequency = parser.getInt("-c", -1);
-    const bool        quiet               = parser.exists("--quiet");
-    const std::string checkpointInput     = parser.getString("--cinput");
-    const std::string inputFilePath       = parser.getString("--input", "./Test3DEvrardRel.bin");
-    const std::string outDirectory        = parser.getString("--outDir");
+    const size_t nParticles     = parser.getInt("-n", 65536);
+    const size_t maxStep        = parser.getInt("-s", 10);
+    const int    writeFrequency = parser.getInt("-w", -1);
+    // const int checkpointFrequency     = parser.getInt("-c", -1);
+    const bool        quiet         = parser.exists("--quiet");
+    const bool        ascii         = parser.exists("--ascii");
+    const std::string inputFilePath = parser.getString("--input", "./Test3DEvrardRel.bin");
+    const std::string outDirectory  = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
 
     using Real    = double;
     using KeyType = uint64_t;
-    using Dataset = ParticlesData<Real, KeyType>;
+    using Dataset = ParticlesData<Real, KeyType, AccType>;
 
-    const IFileReader<Dataset>& fileReader = EvrardDataMPIFileReader<Dataset>();
-    const IFileWriter<Dataset>& fileWriter = EvrardDataMPIFileWriter<Dataset>();
+    const IFileReader<Dataset>& fileReader = EvrardFileReader<Dataset>();
 
-    auto d = checkpointInput.empty() ? fileReader.readParticleDataFromBinFile(inputFilePath, nParticles)
-                                     : fileReader.readParticleDataFromCheckpointBinFile(checkpointInput);
+    std::unique_ptr<IFileWriter<Dataset>> fileWriter;
+    if (ascii) { fileWriter = std::make_unique<AsciiWriter<Dataset>>(); }
+    else
+    {
+        fileWriter = std::make_unique<H5PartWriter<Dataset>>();
+    }
+
+    auto d = fileReader.read(inputFilePath, nParticles);
+
+    std::vector<std::string> outputFields = {
+        "x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
+    if (parser.exists("-f")) { outputFields = parser.getCommaList("-f"); }
+    d.setOutputFields(outputFields);
 
     std::cout << d.x[0] << " " << d.y[0] << " " << d.z[0] << std::endl;
     std::cout << d.x[1] << " " << d.y[1] << " " << d.z[1] << std::endl;
@@ -66,7 +81,7 @@ int main(int argc, char** argv)
 
     MasterProcessTimer totalTimer(output, d.rank);
 
-    std::ofstream constantsFile(outDirectory + "constants_evrard.txt");
+    std::ofstream constantsFile(outDirectory + "constants.txt");
 
     size_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
@@ -77,29 +92,21 @@ int main(int argc, char** argv)
 
     float theta = 0.5;
 
-#ifdef USE_CUDA
-    DomainType<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#else
-    Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#endif
+    cstone::Domain<KeyType, Real, AccType> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 
-    domain.sync(
-        d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
+    domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
 
     if (d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
-    const size_t nTasks = 64;
-    const size_t ngmax  = 150;
-    const size_t ng0    = 100;
+    const size_t ngmax = 150;
+    const size_t ng0   = 100;
 
-    Propagator propagator(nTasks, ngmax, ng0, output, d.rank);
-
-    if (d.rank == 0) std::cout << "Starting main loop." << std::endl;
+    Propagator propagator(ngmax, ng0, output, d.rank);
 
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
@@ -110,30 +117,7 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-#ifdef SPH_EXA_HAVE_H5PART
-            fileWriter.dumpParticleDataToH5File(
-                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_evrard.h5part");
-#else
-            if (ascii)
-            {
-                fileWriter.dumpParticleDataToAsciiFile(d,
-                                                       domain.startIndex(),
-                                                       domain.endIndex(),
-                                                       outDirectory + "dump_evrard" + std::to_string(d.iteration) +
-                                                           ".txt");
-            }
-            else
-            {
-                fileWriter.dumpParticleDataToBinFile(
-                    d, outDirectory + "dump_evrard" + std::to_string(d.iteration) + ".dat");
-            }
-#endif
-        }
-
-        if (checkpointFrequency > 0 && d.iteration % checkpointFrequency == 0)
-        {
-            fileWriter.dumpCheckpointDataToBinFile(
-                d, outDirectory + "checkpoint_evrard" + std::to_string(d.iteration) + ".bin");
+            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_evrard");
         }
 
         if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
@@ -159,7 +143,8 @@ void printHelp(char* name, int rank)
 
         printf("\t-w NUM \t\t\t Dump Frequency data every NUM iterations (time-steps) [-1]\n");
         printf("\t-c NUM \t\t\t Create checkpoint every NUM iterations (time-steps) [-1]\n\n");
-        printf("\t--ascii \t\t  Write file in ASCII format [false].\n\n");
+        printf("\t-f list \t\t Comma-separated list of field names to write for each dump, "
+               "e.g -f x,y,z,h,ro\n\n");
 
         printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
 

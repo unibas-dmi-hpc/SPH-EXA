@@ -123,7 +123,6 @@ public:
      * @param[in] peerRanks        list of ranks that have nodes that fail the MAC criterion
      *                             w.r.t to the assigned SFC part of @p myRank
      *                             use e.g. findPeersMac to calculate this list
-     * @param[in] assignment       assignment of the global leaf tree to ranks
      * @param[in] globalTreeLeaves global cornerstone leaf tree
      * @param[in] globalCounts     global cornerstone leaf tree counts
      * @return                     true if the tree structure did not change
@@ -138,7 +137,6 @@ public:
      */
     void updateCounts(gsl::span<const KeyType> particleKeys,
                       gsl::span<const int> peerRanks,
-                      [[maybe_unused]] const SpaceCurveAssignment& assignment,
                       gsl::span<const KeyType> globalTreeLeaves,
                       gsl::span<const unsigned> globalCounts)
     {
@@ -257,7 +255,7 @@ public:
                        gsl::span<const T> z,
                        gsl::span<const Tm> m,
                        gsl::span<const int> peerRanks,
-                       [[maybe_unused]] const SpaceCurveAssignment& assignment,
+                       const SpaceCurveAssignment& assignment,
                        const Octree<KeyType>& globalTree,
                        const Box<T>& box)
     {
@@ -343,7 +341,7 @@ public:
                 gsl::span<const unsigned> globalCounts)
     {
         bool converged = updateTree(peers, assignment, globalTreeLeaves);
-        updateCounts(particleKeys, peers, assignment, globalTreeLeaves, globalCounts);
+        updateCounts(particleKeys, peers, globalTreeLeaves, globalCounts);
         updateMinMac(box, assignment, globalTreeLeaves);
         return converged;
     }
@@ -383,7 +381,7 @@ public:
     void addMacs(gsl::span<int> haloFlags) const
     {
         #pragma omp parallel for schedule(static)
-        for (TreeNodeIndex i = 0; i < TreeNodeIndex(haloFlags.size()); ++i)
+        for (TreeNodeIndex i = 0; i < haloFlags.ssize(); ++i)
         {
             size_t iIdx = octree().toInternal(i);
             if (macs_[iIdx] && !haloFlags[i])

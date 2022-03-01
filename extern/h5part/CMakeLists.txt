@@ -1,80 +1,69 @@
 project(H5Part C)
 
 #--------------------------------------------------------
-# Parallel compilation flag
+# dependencies
 #--------------------------------------------------------
-IF(HDF5_IS_PARALLEL)
-  ADD_DEFINITIONS(-DH5PART_PARALLEL_IO -DH5PART_HAS_MPI)
-ELSE()
-  MESSAGE("HDF5_IS_PARALLEL not found, Parallel HDF5 IO will not be enabled")
-ENDIF()
+find_package(HDF5 REQUIRED)
 
-IF(WIN32)
-  ADD_DEFINITIONS(-D_CRT_SECURE_NO_WARNINGS)
-ENDIF(WIN32)
+#--------------------------------------------------------
+# define empty library (add settings later)
+#--------------------------------------------------------
+add_library(H5Part STATIC)
 
 #--------------------------------------------------------
 # Source files
 #--------------------------------------------------------
-SET(H5Part_SRCS
+set(H5Part_SRCS
   ${CMAKE_CURRENT_SOURCE_DIR}/H5Part.c
   ${CMAKE_CURRENT_SOURCE_DIR}/h5tools_type.c
 )
+target_sources(H5Part PRIVATE ${H5Part_SRCS})
 
-#
-# Make sure msvc builds as cxx not C
+#--------------------------------------------------------
+# Windows: Make sure msvc builds as cxx not C
 # This resolves some struct typedef issues
-#
-IF(WIN32)
-  SET_SOURCE_FILES_PROPERTIES(
+#--------------------------------------------------------
+if(WIN32)
+  set_source_files_properties(
     ${CMAKE_CURRENT_SOURCE_DIR}/H5Part.c
-    ${CMAKE_CURRENT_SOURCE_DIR}/H5Block.c
+    #${CMAKE_CURRENT_SOURCE_DIR}/H5Block.c
     PROPERTIES LANGUAGE CXX
   )
-ENDIF (WIN32)
+
+  add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+endif()
 
 #--------------------------------------------------------
-# List the libraries used
+# Parallel compilation settings
 #--------------------------------------------------------
-SET(H5Part_LIBS
-  ${PARAVIEW_HDF5_LIBRARIES}
-)
-
-IF (PARAVIEW_USE_MPI)
-  SET(H5Part_LIBS
-    ${H5Part_LIBS}
-    hdf5
-    ${MPI_C_LIBRARIES}
-  )
-ENDIF (PARAVIEW_USE_MPI)
+if(HDF5_IS_PARALLEL)
+  find_package(MPI REQUIRED)
+  target_compile_definitions(H5Part PUBLIC H5PART_PARALLEL_IO)
+  target_link_libraries(H5Part ${MPI_C_LIBRARIES})
+  target_include_directories(H5Part PRIVATE ${MPI_C_INCLUDE_DIRS})
+else()
+  message("HDF5_IS_PARALLEL not found, Parallel HDF5 IO will not be enabled")
+endif()
 
 #--------------------------------------------------------
-# Include class, configuration headers
+# libraries
 #--------------------------------------------------------
-SET(H5PART_INCLUDE_DIRS
-  ${PROJECT_SOURCE_DIR}
-  ${PROJECT_BINARY_DIR}
-  ${HDF5_INCLUDE_DIR}
-)
-
-INCLUDE_DIRECTORIES(${H5PART_INCLUDE_DIRS})
+target_link_libraries(H5Part ${HDF5_LIBRARIES})
 
 #--------------------------------------------------------
-# Create the Library
+# Includes, configuration headers
 #--------------------------------------------------------
-ADD_LIBRARY(H5Part STATIC
-  ${H5Part_SRCS}
-)
+target_include_directories(H5Part PRIVATE ${PROJECT_SOURCE_DIR})
+target_include_directories(H5Part PUBLIC ${HDF5_INCLUDE_DIRS})
 
+#--------------------------------------------------------
+# API compatibility setting
+#--------------------------------------------------------
 target_compile_definitions(H5Part PUBLIC H5_USE_110_API)
 
-TARGET_LINK_LIBRARIES(H5Part
-  PUBLIC
-    ${H5Part_LIBS}
-)
-
+#--------------------------------------------------------
 # Make sure static lib can be linked into dynamic one
-IF(BUILD_SHARED_LIBS AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_COMPILER_IS_GNUCC)
-  SET_TARGET_PROPERTIES( H5Part PROPERTIES COMPILE_FLAGS -fPIC)
-ENDIF(BUILD_SHARED_LIBS AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_COMPILER_IS_GNUCC)
-
+#--------------------------------------------------------
+if(BUILD_SHARED_LIBS AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_COMPILER_IS_GNUCC)
+  set_target_properties(H5Part PROPERTIES COMPILE_FLAGS -fPIC)
+endif()

@@ -4,7 +4,6 @@
 #include "mpi.h"
 #endif
 
-#include "task.hpp"
 #include "arg_parser.hpp"
 #include "timer.hpp"
 #include "file_utils.hpp"
@@ -16,11 +15,11 @@
 #endif
 
 #include "sph/density.hpp"
-#include "sph/IAD.hpp"
-#include "sph/momentumAndEnergyIAD.hpp"
+#include "sph/iad.hpp"
+#include "sph/grad_p.hpp"
 #include "sph/kernels.hpp"
-#include "sph/equationOfState.hpp"
+#include "sph/eos.hpp"
 #include "sph/timestep.hpp"
 #include "sph/positions.hpp"
-#include "sph/totalEnergy.hpp"
-#include "sph/updateSmoothingLength.hpp"
+#include "sph/total_energy.hpp"
+#include "sph/update_h.hpp"

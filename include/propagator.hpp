@@ -35,7 +35,6 @@
 #include <iostream>
 
 #include "timer.hpp"
-#include "task.hpp"
 #include "particles_data.hpp"
 
 #include "cstone/domain/domain.hpp"
@@ -51,10 +50,11 @@ using namespace sphexa::sph;
 class Propagator
 {
 public:
-    Propagator(const size_t nTasks, const size_t ngmax, const size_t ng0, std::ostream& output, const size_t rank)
-        : taskList(nTasks, ngmax, ng0)
-        , timer(output, rank)
+    Propagator(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+        : timer(output, rank)
         , output_(output)
+        , ngmax_(ngmax)
+        , ng0_(ng0)
     {
     }
 
@@ -62,54 +62,55 @@ public:
     template<class DomainType, class ParticleDataType>
     void hydroStep(DomainType& domain, ParticleDataType& d)
     {
-        using T = typename ParticleDataType::RealType;
+        using T       = typename ParticleDataType::RealType;
+        using KeyType = typename ParticleDataType::KeyType;
 
         timer.start();
 
-        domain.sync(
-            d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
+        domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
         timer.step("domain::sync");
 
-        d.resize(domain.nParticlesWithHalos());
+        resize(d, domain.nParticlesWithHalos());
+        resizeNeighbors(d, domain.nParticles() * ngmax_);
+        size_t first = domain.startIndex();
+        size_t last  = domain.endIndex();
 
-        std::fill(begin(d.m), begin(d.m) + domain.startIndex(), d.m[domain.startIndex()]);
-        std::fill(begin(d.m) + domain.endIndex(), begin(d.m) + domain.nParticlesWithHalos(), d.m[domain.startIndex()]);
+        std::fill(begin(d.m), begin(d.m) + first, d.m[first]);
+        std::fill(begin(d.m) + last, end(d.m), d.m[first]);
 
-        taskList.update(domain.startIndex(), domain.endIndex());
-        timer.step("updateTasks");
-
-        findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, domain.box());
+        findNeighborsSfc<T, KeyType>(
+            first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, domain.box());
         timer.step("FindNeighbors");
 
-        computeDensity<T>(taskList.tasks, d, domain.box());
+        computeDensity(first, last, ngmax_, d, domain.box());
         timer.step("Density");
 
-        computeEquationOfState(domain.startIndex(), domain.endIndex(), d);
+        computeEquationOfState(first, last, d);
         timer.step("EquationOfState");
 
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c);
+        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
 
-        computeIAD<T>(taskList.tasks, d, domain.box());
+        computeIAD(first, last, ngmax_, d, domain.box());
         timer.step("IAD");
 
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33);
         timer.step("mpi::synchronizeHalos");
 
-        computeMomentumAndEnergyIAD<T>(taskList.tasks, d, domain.box());
+        computeMomentumAndEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
-        computeTimestep(domain.startIndex(), domain.endIndex(), d);
+        computeTimestep(first, last, d);
         timer.step("Timestep");
 
-        computePositions(domain.startIndex(), domain.endIndex(), d, domain.box());
+        computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");
 
         d.egrav = 0;
-        computeTotalEnergy<T>(domain.startIndex(), domain.endIndex(), d);
+        computeTotalEnergy(first, last, d);
         timer.step("EnergyConservation");
 
-        updateSmoothingLength<T>(taskList.tasks, d);
+        updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");
 
         timer.stop();
@@ -128,36 +129,37 @@ public:
         timer.start();
 
         domain.syncGrav(
-            d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
+            d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
         timer.step("domain::sync");
 
-        d.resize(domain.nParticlesWithHalos());
+        resize(d, domain.nParticlesWithHalos());
+        resizeNeighbors(d, domain.nParticles() * ngmax_);
+        size_t first = domain.startIndex();
+        size_t last  = domain.endIndex();
 
-        std::fill(begin(d.m), begin(d.m) + domain.startIndex(), d.m[domain.startIndex()]);
-        std::fill(begin(d.m) + domain.endIndex(), begin(d.m) + domain.nParticlesWithHalos(), d.m[domain.startIndex()]);
+        std::fill(begin(d.m), begin(d.m) + first, d.m[first]);
+        std::fill(begin(d.m) + last, end(d.m), d.m[first]);
 
-        taskList.update(domain.startIndex(), domain.endIndex());
-        timer.step("updateTasks");
-
-        findNeighborsSfc(taskList.tasks, d.x, d.y, d.z, d.h, d.codes, domain.box());
+        findNeighborsSfc<T, KeyType>(
+            first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, domain.box());
         timer.step("FindNeighbors");
 
-        computeDensity<T>(taskList.tasks, d, domain.box());
+        computeDensity(first, last, ngmax_, d, domain.box());
         timer.step("Density");
 
-        computeEquationOfState(domain.startIndex(), domain.endIndex(), d);
+        computeEquationOfState(first, last, d);
         timer.step("EquationOfState");
 
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c);
+        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
 
-        computeIAD<T>(taskList.tasks, d, domain.box());
+        computeIAD(first, last, ngmax_, d, domain.box());
         timer.step("IAD");
 
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33);
         timer.step("mpi::synchronizeHalos");
 
-        computeMomentumAndEnergyIAD<T>(taskList.tasks, d, domain.box());
+        computeMomentumAndEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
         const Octree<KeyType>&               octree  = domain.focusTree();
@@ -194,16 +196,16 @@ public:
         d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
         timer.step("Gravity");
 
-        computeTimestep(domain.startIndex(), domain.endIndex(), d);
+        computeTimestep(first, last, d);
         timer.step("Timestep");
 
-        computePositions(domain.startIndex(), domain.endIndex(), d, domain.box());
+        computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");
 
-        computeTotalEnergy<T>(domain.startIndex(), domain.endIndex(), d);
+        computeTotalEnergy(first, last, d);
         timer.step("EnergyConservation");
 
-        updateSmoothingLength<T>(taskList.tasks, d);
+        updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");
 
         timer.stop();
@@ -212,14 +214,18 @@ public:
     }
 
 private:
-    TaskList           taskList;
     MasterProcessTimer timer;
     std::ostream&      output_;
+
+    //! maximum number of neighbors per particle
+    size_t ngmax_;
+    //! average number of neighbors per particle
+    size_t ng0_;
 
     template<class DomainType, class ParticleDataType>
     void printIterationTimings(const DomainType& domain, const ParticleDataType& d)
     {
-        size_t totalNeighbors = neighborsSum(taskList.tasks);
+        size_t totalNeighbors = neighborsSum(domain.startIndex(), domain.endIndex(), d.neighborsCount);
 
         if (d.rank == 0)
         {

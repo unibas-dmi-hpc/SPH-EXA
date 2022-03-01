@@ -6,175 +6,85 @@
 #ifdef USE_MPI
 #include "mpi_file_utils.hpp"
 #endif
-#include "exceptions.hpp"
 
 namespace sphexa
 {
 namespace fileutils
 {
-namespace details
-{
-void writeParticleDataToBinFile(std::ofstream&) {}
 
-template<typename Arg, typename... Args>
-void writeParticleDataToBinFile(std::ofstream& file, const Arg& first, const Args&... args)
-
-{
-    file.write((char*)&first[0], first.size() * sizeof(first[0]));
-
-    writeParticleDataToBinFile(file, args...);
-}
-
-void writeParticleDataToAsciiFile(std::ostream&, size_t, char) {}
-
-template<typename Arg, typename... Args>
-void writeParticleDataToAsciiFile(std::ostream& file, size_t idx, char separator, const Arg& first, const Args&... data)
-{
-    file << first[idx] << separator;
-
-    writeParticleDataToAsciiFile(file, idx, separator, data...);
-}
-
-void readParticleDataFromBinFile(std::ifstream&) {}
-
-template<typename Arg, typename... Args>
-void readParticleDataFromBinFile(std::ifstream& file, Arg& first, Args&... args)
-{
-    file.read(reinterpret_cast<char*>(&first[0]), first.size() * sizeof(first[0]));
-
-    readParticleDataFromBinFile(file, args...);
-}
-
-void readParticleDataFromAsciiFile(std::ifstream&, size_t) {}
-
-template<typename Arg, typename... Args>
-void readParticleDataFromAsciiFile(std::ifstream& file, size_t idx, Arg& first, Args&... data)
-{
-    file >> first[idx];
-
-    readParticleDataFromAsciiFile(file, idx, data...);
-}
-
-} // namespace details
-
-template<typename Dataset, typename... Args>
-void writeParticleCheckpointDataToBinFile(const Dataset& d, const std::string& path, Args&... data)
-{
-    std::ofstream checkpoint;
-    checkpoint.open(path, std::ofstream::out | std::ofstream::binary);
-
-    if (checkpoint.is_open())
-    {
-        checkpoint.write((char*)&d.n, sizeof(d.n));
-        checkpoint.write((char*)&d.ttot, sizeof(d.ttot));
-        checkpoint.write((char*)&d.minDt, sizeof(d.minDt));
-
-        details::writeParticleDataToBinFile(checkpoint, data...);
-
-        checkpoint.close();
-    }
-    else
-    {
-        throw FileNotOpenedException("Can't open file to write Checkpoint at path: " + path);
-    }
-}
-
-template<typename... Args>
-void writeParticleDataToBinFile(const std::string& path, Args&... data)
-{
-    std::ofstream checkpoint;
-    checkpoint.open(path, std::ofstream::out | std::ofstream::binary);
-
-    if (checkpoint.is_open())
-    {
-        details::writeParticleDataToBinFile(checkpoint, data...);
-
-        checkpoint.close();
-    }
-    else
-    {
-        throw FileNotOpenedException("Can't open file at path: " + path);
-    }
-}
-
-template<typename... Args>
-void writeParticleDataToAsciiFile(size_t firstIndex, size_t lastIndex, const std::string& path, const bool append,
-                                  const char separator, Args&... data)
+/*! @brief write fields as columns to an ASCII file
+ *
+ * @tparam  T              field value type
+ * @tparam  Separators
+ * @param   firstIndex     first field index to write
+ * @param   lastIndex      last field index to write
+ * @param   path           the file name to write to
+ * @param   append         append or overwrite if file already exists
+ * @param   fields         pointers to field array, each field is a column
+ * @param   separators     arbitrary number of separators to insert between columns, eg '\t', std::setw(n), ...
+ */
+template<class T, class... Separators>
+void writeAscii(size_t firstIndex, size_t lastIndex, const std::string& path, bool append,
+                const std::vector<T*>& fields, Separators&&... separators)
 {
     std::ios_base::openmode mode;
-    if (append)
-        mode = std::ofstream::app;
+    if (append) { mode = std::ofstream::app; }
     else
+    {
         mode = std::ofstream::out;
+    }
 
-    std::ofstream dump(path, mode);
+    std::ofstream dumpFile(path, mode);
 
-    if (dump.is_open())
+    if (dumpFile.is_open())
     {
         for (size_t i = firstIndex; i < lastIndex; ++i)
         {
-            details::writeParticleDataToAsciiFile(dump, i, separator, data...);
-            dump << std::endl;
+            for (auto field : fields)
+            {
+                [[maybe_unused]] std::initializer_list<int> list{(dumpFile << separators, 0)...};
+                dumpFile << field[i];
+            }
+            dumpFile << std::endl;
         }
     }
     else
     {
-        throw FileNotOpenedException("Can't open file at path: " + path);
+        throw std::runtime_error("Can't open file at path: " + path);
     }
 
-    dump.close();
-}
-
-template<typename... Args>
-void readParticleDataFromBinFile(const std::string& path, Args&... data)
-{
-    std::ifstream inputfile(path, std::ios::binary);
-
-    if (inputfile.is_open())
-    {
-        details::readParticleDataFromBinFile(inputfile, data...);
-        inputfile.close();
-    }
-    else
-    {
-        throw FileNotOpenedException("Can't open file at path: " + path);
-    }
+    dumpFile.close();
 }
 
 /*! @brief read input data from an ASCII file
  *
- * @tparam Args  variadic number of vector-like objects
- * @param  path  the input file to read from
- * @param  data  the data containers to read into
- *               each data container needs to be the same size (checked)
+ * @tparam T         an elementary type or a std::variant thereof
+ * @param  path      the input file to read from
+ * @param  numLines  number of lines/elements per field to read
+ * @param  fields    the data containers to read into
  *
  *  Each data container will get one column of the input file.
  *  The number of rows to read is determined by the data container size.
  */
-template<typename... Args>
-void readParticleDataFromAsciiFile(const std::string& path, Args&... data)
+template<class T>
+void readAscii(const std::string& path, size_t numLines, const std::vector<T*>& fields)
 {
-    std::ifstream inputfile(path);
+    std::ifstream inputFile(path);
 
-    std::array<size_t, sizeof...(Args)> sizes{data.size()...};
-    size_t                              readSize = sizes[0];
-
-    if (std::count(sizes.begin(), sizes.end(), readSize) != sizeof...(Args))
+    if (inputFile.is_open())
     {
-        throw std::runtime_error("Argument vector sizes to read into are not equal\n");
-    }
-
-    if (inputfile.is_open())
-    {
-        for (size_t i = 0; i < readSize; ++i)
+        for (size_t i = 0; i < numLines; ++i)
         {
-            details::readParticleDataFromAsciiFile(inputfile, i, data...);
+            for (auto field : fields)
+            {
+                inputFile >> field[i];
+            }
         }
-        inputfile.close();
+        inputFile.close();
     }
     else
     {
-        throw FileNotOpenedException("Can't open file at path: " + path);
+        throw std::runtime_error("Can't open file at path: " + path);
     }
 }
 

@@ -10,7 +10,7 @@
 
 #include "cstone/domain/domain.hpp"
 #include "sphexa.hpp"
-#include "sph/findNeighborsSfc.hpp"
+#include "sph/find_neighbors.hpp"
 #include "timer.hpp"
 #include "propagator.hpp"
 #include "insitu_viz.h"
@@ -47,7 +47,7 @@ int main(int argc, char** argv)
 
     using Real    = double;
     using KeyType = uint64_t;
-    using Dataset = ParticlesData<Real, KeyType>;
+    using Dataset = ParticlesData<Real, KeyType, CpuTag>;
 
     const IFileWriter<Dataset>& fileWriter = NohDataMPIFileWriter<Dataset>();
 

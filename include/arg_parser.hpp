@@ -1,6 +1,8 @@
 #pragma once
 
 #include <algorithm>
+#include <string>
+#include <sstream>
 
 namespace sphexa
 {
@@ -33,6 +35,24 @@ public:
         char** itr = find(begin, end, option);
         if (itr != end && ++itr != end) return std::stod(*itr);
         return def;
+    }
+
+    //! @brief parse a comma-separated list
+    std::vector<std::string> getCommaList(const std::string& option) const
+    {
+        std::string listWithCommas = getString(option);
+
+        std::replace(listWithCommas.begin(), listWithCommas.end(), ',', ' ');
+
+        std::vector<std::string> list;
+        std::stringstream        ss(listWithCommas);
+        std::string              field;
+        while (ss >> field)
+        {
+            list.push_back(field);
+        }
+
+        return list;
     }
 
     bool exists(const std::string& option) const { return std::find(begin, end, option) != end; }

@@ -115,12 +115,12 @@ void dualTraversalAllPairs()
     auto leaves = OctreeMaker<KeyType>{}.divide().divide(0).divide(0, 7).makeTree();
     fullTree.update(leaves.data(), nNodes(leaves));
 
-    std::vector<pair<TreeNodeIndex>> pairs;
+    std::vector<util::array<TreeNodeIndex, 2>> pairs;
 
     auto allPairs = [](TreeNodeIndex, TreeNodeIndex) { return true; };
 
     auto m2l = [](TreeNodeIndex, TreeNodeIndex) {};
-    auto p2p = [&pairs](TreeNodeIndex a, TreeNodeIndex b) { pairs.emplace_back(a, b); };
+    auto p2p = [&pairs](TreeNodeIndex a, TreeNodeIndex b) { pairs.push_back({a, b}); };
 
     dualTraversal(fullTree, 0, 0, allPairs, m2l, p2p);
 
@@ -163,8 +163,8 @@ void dualTraversalNeighbors()
         return minDistanceSq<KeyType>(aBox, bBox, box) == 0.0;
     };
 
-    std::vector<pair<TreeNodeIndex>> pairs;
-    auto p2p = [&pairs](TreeNodeIndex a, TreeNodeIndex b) { pairs.emplace_back(a, b); };
+    std::vector<util::array<TreeNodeIndex, 2>> pairs;
+    auto p2p = [&pairs](TreeNodeIndex a, TreeNodeIndex b) { pairs.push_back({a, b}); };
 
     auto m2l = [](TreeNodeIndex, TreeNodeIndex) {};
 

@@ -1,53 +1,76 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2021 CSCS, ETH Zurich
+ *               2021 University of Basel
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/*! @file
+ * @brief Contains the object holding all particle data
+ */
+
 #pragma once
 
+#include <array>
 #include <cstdio>
+#include <iostream>
 #include <vector>
+
 #include "sph/kernels.hpp"
-#include "sph/lookupTables.hpp"
+#include "sph/tables.hpp"
+#include "traits.hpp"
 
 #if defined(USE_CUDA)
-#include "sph/cuda/cudaParticlesData.cuh"
+#include "sph/cuda/gpu_particle_data.cuh"
 #endif
 
 namespace sphexa
 {
-template<typename T, typename I>
-struct ParticlesData
+
+template<class Array>
+std::vector<int> fieldStringsToInt(const Array&, const std::vector<std::string>&);
+
+template<typename T, typename I, class AccType>
+class ParticlesData
 {
-    using RealType = T;
-    using KeyType  = I;
+public:
+    using RealType        = T;
+    using KeyType         = I;
+    using AcceleratorType = AccType;
 
-    inline void resize(size_t size)
+    ParticlesData()
     {
-        size_t current_capacity = data[0]->capacity();
-        if (size > current_capacity)
-        {
-            // limit reallocation growth to 5% instead of 200%
-            size_t reserve_size = double(size) * 1.05;
-            for (unsigned int i = 0; i < data.size(); ++i)
-            {
-                data[i]->reserve(reserve_size);
-            }
-            codes.reserve(reserve_size);
-        }
-
-        for (unsigned int i = 0; i < data.size(); ++i)
-        {
-            data[i]->resize(size);
-        }
-
-        codes.resize(size);
-
-#if defined(USE_CUDA)
-        devPtrs.resize(size);
-#endif
+        setConservedFields();
+        setDependentFields();
     }
 
-    size_t         iteration;                    // Current iteration
-    size_t         n, side, count;               // Number of particles
+    size_t iteration;      // Current iteration
+    size_t n, side, count; // Number of particles
+
+    T ttot, etot, ecin, eint, egrav;
+    T minDt;
+
     std::vector<T> x, y, z, x_m1, y_m1, z_m1;    // Positions
     std::vector<T> vx, vy, vz;                   // Velocities
-    std::vector<T> ro;                           // Density
+    std::vector<T> rho;                          // Density
     std::vector<T> u;                            // Internal Energy
     std::vector<T> p;                            // Pressure
     std::vector<T> h;                            // Smoothing Length
@@ -58,36 +81,85 @@ struct ParticlesData
     std::vector<T> dt, dt_m1;
     std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T> maxvsignal;
-
-    std::vector<KeyType> codes; // Particle Morton codes
-
-    // For Sedov
     std::vector<T> mue, mui, temp, cv;
 
-    T ttot, etot, ecin, eint, egrav;
-    T minDt;
+    std::vector<KeyType>                          codes;          // Particle space-filling-curve keys
+    std::vector<int, PinnedAlloc_t<AccType, int>> neighborsCount; // number of neighbors of each particle
+    std::vector<int>                              neighbors;      // only used in the CPU version
 
-    std::vector<std::vector<T>*> data{&x,   &y,          &z,   &x_m1,  &y_m1, &z_m1, &vx,       &vy,       &vz,
-                                      &ro,  &u,          &p,   &h,     &m,    &c,    &grad_P_x, &grad_P_y, &grad_P_z,
-                                      &du,  &du_m1,      &dt,  &dt_m1, &c11,  &c12,  &c13,      &c22,      &c23,
-                                      &c33, &maxvsignal, &mue, &mui,   &temp, &cv};
+    DeviceData_t<AccType, T, KeyType> devPtrs;
 
     const std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
     const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
 
-#if defined(USE_CUDA)
-    sph::cuda::DeviceParticlesData<T, ParticlesData> devPtrs;
+    /*! @brief
+     * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
+     */
+    inline static constexpr std::array fieldNames{
+        "x",   "y",   "z",   "x_m1", "y_m1",     "z_m1",     "vx",         "vy",  "vz",    "rho",  "u",
+        "p",   "h",   "m",   "c",    "grad_P_x", "grad_P_y", "grad_P_z",   "du",  "du_m1", "dt",   "dt_m1",
+        "c11", "c12", "c13", "c22",  "c23",      "c33",      "maxvsignal", "mue", "mui",   "temp", "cv"};
 
-    ParticlesData()
-        : devPtrs(*this){};
-#endif
+    /*! @brief return a vector of pointers to field vectors
+     *
+     * We implement this by returning an rvalue to prevent having to store pointers and avoid
+     * non-trivial copy/move constructors.
+     */
+    auto data()
+    {
+        std::array<std::vector<T>*, fieldNames.size()> ret{
+            &x,   &y,   &z,   &x_m1, &y_m1,     &z_m1,     &vx,         &vy,  &vz,    &rho,  &u,
+            &p,   &h,   &m,   &c,    &grad_P_x, &grad_P_y, &grad_P_z,   &du,  &du_m1, &dt,   &dt_m1,
+            &c11, &c12, &c13, &c22,  &c23,      &c33,      &maxvsignal, &mue, &mui,   &temp, &cv};
+
+        static_assert(ret.size() == fieldNames.size());
+
+        return ret;
+    }
+
+    void setConservedFields()
+    {
+        std::vector<std::string> fields{
+            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "dt_m1"};
+        conservedFields = fieldStringsToInt(fieldNames, fields);
+    }
+
+    void setDependentFields()
+    {
+        std::vector<std::string> fields{"rho",
+                                        "p",
+                                        "c",
+                                        "grad_P_x",
+                                        "grad_P_y",
+                                        "grad_P_z",
+                                        "du",
+                                        "dt",
+                                        "c11",
+                                        "c12",
+                                        "c13",
+                                        "c22",
+                                        "c23",
+                                        "c33",
+                                        "maxvsignal"};
+
+        dependentFields = fieldStringsToInt(fieldNames, fields);
+    }
+
+    void setOutputFields(const std::vector<std::string>& outFields)
+    {
+        outputFields = fieldStringsToInt(fieldNames, outFields);
+    }
+
+    //! @brief particle fields to conserve between iterations, needed for checkpoints and domain exchange
+    std::vector<int> conservedFields;
+    //! @brief particle fields recomputed every step from conserved fields
+    std::vector<int> dependentFields;
+    //! @brief particle fields select for file outputj
+    std::vector<int> outputFields;
 
 #ifdef USE_MPI
     MPI_Comm comm;
-    int      pnamelen = 0;
-    char     pname[MPI_MAX_PROCESSOR_NAME];
 #endif
-
     int rank  = 0;
     int nrank = 1;
 
@@ -104,7 +176,70 @@ struct ParticlesData
     const static T     K;
 };
 
-template<typename T, typename I>
-const T ParticlesData<T, I>::K = sphexa::compute_3d_k(sincIndex);
+template<typename T, typename I, class Acc>
+const T ParticlesData<T, I, Acc>::K = sphexa::compute_3d_k(sincIndex);
+
+template<class Array>
+std::vector<int> fieldStringsToInt(const Array& allNames, const std::vector<std::string>& subsetNames)
+{
+    std::vector<int> subsetIndices;
+    subsetIndices.reserve(subsetNames.size());
+    for (const auto& field : subsetNames)
+    {
+        auto it = std::find(allNames.begin(), allNames.end(), field);
+        if (it == allNames.end()) { throw std::runtime_error("Field " + field + " does not exist\n"); }
+
+        size_t fieldIndex = it - allNames.begin();
+        subsetIndices.push_back(fieldIndex);
+    }
+    return subsetIndices;
+}
+
+//! @brief extract a vector of pointers to particle fields for file output
+template<class Dataset>
+auto getOutputArrays(Dataset& dataset)
+{
+    using T            = typename Dataset::RealType;
+    auto fieldPointers = dataset.data();
+
+    std::vector<const T*> outputFields(dataset.outputFields.size());
+    std::transform(dataset.outputFields.begin(),
+                   dataset.outputFields.end(),
+                   outputFields.begin(),
+                   [&fieldPointers](int i) { return fieldPointers[i]->data(); });
+
+    return outputFields;
+}
+
+//! @brief resizes all particles fields of @p d listed in data() to the specified size
+template<class Dataset>
+void resize(Dataset& d, size_t size)
+{
+    double growthRate = 1.05;
+    auto   data_      = d.data();
+
+    for (int i : d.conservedFields)
+    {
+        reallocate(*data_[i], size, growthRate);
+    }
+    for (int i : d.dependentFields)
+    {
+        reallocate(*data_[i], size, growthRate);
+    }
+
+    reallocate(d.codes, size, growthRate);
+    reallocate(d.neighborsCount, size, growthRate);
+
+    d.devPtrs.resize(size);
+}
+
+//! resizes the neighbors list, only used in the CPU verison
+template<class Dataset>
+void resizeNeighbors(Dataset& d, size_t size)
+{
+    double growthRate = 1.05;
+    //! If we have a GPU, neighbors are calculated on-the-fly, so we don't need space to store them
+    reallocate(d.neighbors, HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
+}
 
 } // namespace sphexa
