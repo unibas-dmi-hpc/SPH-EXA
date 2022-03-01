@@ -75,9 +75,10 @@ void localEnergyReduction(size_t startIndex, size_t endIndex, Dataset& d, T* eKi
  * @param[in]     endIndex     last locally assigned particle index of buffers in @p d
  * @param[inout]  d            particle data set
  */
-template<typename T, class Dataset>
+template<class Dataset>
 void computeTotalEnergy(size_t startIndex, size_t endIndex, Dataset& d)
 {
+    using T = typename Dataset::RealType;
     T energies[3], globalEnergies[3];
     localEnergyReduction(startIndex, endIndex, d, energies + 0, energies + 1);
 

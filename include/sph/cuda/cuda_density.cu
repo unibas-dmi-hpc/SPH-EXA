@@ -40,30 +40,21 @@ __global__ void cudaDensity(T sincIndex, T K, int ngmax, cstone::Box<T> box, int
 }
 
 template<class Dataset>
-void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<double>& box)
+void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<double>& box)
 {
-    using T = typename Dataset::RealType;
+    using T       = typename Dataset::RealType;
+    using KeyType = typename Dataset::KeyType;
 
-    size_t numParticles = d.x.size();
+    size_t sizeWithHalos     = d.x.size();
+    size_t numLocalParticles = endIndex - startIndex;
+    size_t size_np_T         = sizeWithHalos * sizeof(T);
+    size_t size_np_CodeType  = sizeWithHalos * sizeof(KeyType);
 
-    size_t size_np_T        = numParticles * sizeof(T);
-    size_t size_np_CodeType = numParticles * sizeof(typename Dataset::KeyType);
-    T      ngmax            = taskList.empty() ? 0 : taskList.front().ngmax;
-
-    auto largestChunkSize = std::max_element(taskList.cbegin(),
-                                             taskList.cend(),
-                                             [](const Task& lhs, const Task& rhs) { return lhs.size() < rhs.size(); })
-                                ->size();
-
-    d.devPtrs.resize_streams(largestChunkSize, ngmax);
+    size_t taskSize = DeviceParticlesData<T, KeyType>::taskSize;
+    size_t numTasks = iceil(numLocalParticles, taskSize);
 
     // number of CUDA streams to use
     constexpr int NST = DeviceParticlesData<T, Dataset>::NST;
-
-    size_t ltsize    = d.wh.size();
-    size_t size_lt_T = ltsize * sizeof(T);
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_wh, d.wh.data(), size_lt_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_whd, d.whd.data(), size_lt_T, cudaMemcpyHostToDevice));
 
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
@@ -73,17 +64,15 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<d
 
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_codes, d.codes.data(), size_np_CodeType, cudaMemcpyHostToDevice));
 
-    for (int i = 0; i < taskList.size(); ++i)
+    for (int i = 0; i < numTasks; ++i)
     {
-        auto& t = taskList[i];
-
         int          sIdx   = i % NST;
         cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
 
         int* d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
 
-        unsigned firstParticle       = t.firstParticle;
-        unsigned lastParticle        = t.lastParticle;
+        unsigned firstParticle       = startIndex + i * taskSize;
+        unsigned lastParticle        = std::min(startIndex + (i + 1) * taskSize, endIndex);
         unsigned numParticlesCompute = lastParticle - firstParticle;
 
         unsigned numThreads = 256;
@@ -91,11 +80,11 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<d
 
         cudaDensity<<<numBlocks, numThreads, 0, stream>>>(d.sincIndex,
                                                           d.K,
-                                                          t.ngmax,
+                                                          ngmax,
                                                           box,
                                                           firstParticle,
                                                           lastParticle,
-                                                          numParticles,
+                                                          sizeWithHalos,
                                                           d.devPtrs.d_codes,
                                                           d_neighborsCount_use,
                                                           d.devPtrs.d_x,
@@ -108,9 +97,9 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<d
                                                           d.devPtrs.d_rho);
         CHECK_CUDA_ERR(cudaGetLastError());
 
-        CHECK_CUDA_ERR(cudaMemcpyAsync(t.neighborsCount.data(),
+        CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle,
                                        d_neighborsCount_use,
-                                       numParticlesCompute * sizeof(int),
+                                       numParticlesCompute * sizeof(decltype(d.neighborsCount.front())),
                                        cudaMemcpyDeviceToHost,
                                        stream));
     }
@@ -119,8 +108,10 @@ void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<d
     CHECK_CUDA_ERR(cudaMemcpy(d.rho.data(), d.devPtrs.d_rho, size_np_T, cudaMemcpyDeviceToHost));
 }
 
-template void computeDensity(std::vector<Task>&, ParticlesData<double, unsigned>&, const cstone::Box<double>&);
-template void computeDensity(std::vector<Task>&, ParticlesData<double, uint64_t>&, const cstone::Box<double>&);
+template void computeDensity(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>&,
+                             const cstone::Box<double>&);
+template void computeDensity(size_t, size_t, size_t, ParticlesData<double, uint64_t, cstone::GpuTag>&,
+                             const cstone::Box<double>&);
 
 } // namespace cuda
 } // namespace sph

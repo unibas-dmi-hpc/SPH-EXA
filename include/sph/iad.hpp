@@ -15,13 +15,11 @@ namespace sphexa
 namespace sph
 {
 
-template<typename T, class Dataset>
-void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
+template<class T, class Dataset>
+void computeIADImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    size_t     numParticles   = t.size();
-    size_t     ngmax          = t.ngmax;
-    const int* neighbors      = t.neighbors.data();
-    const int* neighborsCount = t.neighborsCount.data();
+    const int* neighbors      = d.neighbors.data();
+    const int* neighborsCount = d.neighborsCount.data();
 
     const T* h  = d.h.data();
     const T* m  = d.m.data();
@@ -43,32 +41,16 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     T K         = d.K;
     T sincIndex = d.sincIndex;
 
-#if defined(USE_OMP_TARGET)
-    const int    np           = d.x.size();
-    const size_t ltsize       = d.wh.size();
-    const size_t n            = numParticles;
-    const size_t allNeighbors = n * ngmax;
-
-// clang-format off
-#pragma omp target map(to                                                                                                                  \
-		       : neighbors[:allNeighbors], neighborsCount[:n],                                                         \
-                       x [0:np], y [0:np], z [0:np], h [0:np], m [0:np], ro [0:np], wh[0:ltsize], whd[0:ltsize])                                                        \
-                   map(from                                                                                                                \
-                       : c11[:n], c12[:n], c13[:n], c22[:n], c23[:n], c33[:n])
-// clang-format on
-#pragma omp teams distribute parallel for // dist_schedule(guided)
-#else
-#pragma omp parallel for schedule(guided)
-#endif
-    for (size_t pi = 0; pi < numParticles; ++pi)
+#pragma omp parallel for schedule(static)
+    for (size_t i = startIndex; i < endIndex; ++i)
     {
-        int i = pi + t.firstParticle;
+        size_t ni = i - startIndex;
         kernels::IADJLoop(i,
                           sincIndex,
                           K,
                           box,
-                          neighbors + ngmax * pi,
-                          neighborsCount[pi],
+                          neighbors + ngmax * ni,
+                          neighborsCount[i],
                           x,
                           y,
                           z,
@@ -86,16 +68,13 @@ void computeIADImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     }
 }
 
-template<typename T, class Dataset>
-void computeIAD(const std::vector<Task>& taskList, Dataset& d, const cstone::Box<T>& box)
+template<class T, class Dataset>
+void computeIAD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
 #if defined(USE_CUDA)
-    cuda::computeIAD(taskList, d, box);
+    cuda::computeIAD(startIndex, endIndex, ngmax, d, box);
 #else
-    for (const auto& task : taskList)
-    {
-        computeIADImpl<T>(task, d, box);
-    }
+    computeIADImpl(startIndex, endIndex, ngmax, d, box);
 #endif
 }
 

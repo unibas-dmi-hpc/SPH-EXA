@@ -5,33 +5,33 @@
 #include <vector>
 
 #include "sph/kernels.hpp"
-#include "particles_data.hpp"
 
 namespace sphexa
 {
-template<typename T, typename I>
+
 class SedovDataGenerator
 {
 public:
-    static inline const I dim           = 3;
-    static inline const T gamma         = 5. / 3.;
-    static inline const T omega         = 0.;
-    static inline const T r0            = 0.;
-    static inline const T r1            = 0.5;
-    static inline const T mTotal        = 1.;
-    static inline const T energyTotal   = 1.;
-    static inline const T width         = 0.1;
-    static inline const T ener0         = energyTotal / std::pow(M_PI, 1.5) / 1. / std::pow(width, 3.0);
-    static inline const T rho0          = 1.;
-    static inline const T u0            = 1.e-08;
-    static inline const T p0            = 0.;
-    static inline const T vr0           = 0.;
-    static inline const T cs0           = 0.;
-    static inline const T firstTimeStep = 1.e-6;
+    static inline const unsigned dim           = 3;
+    static inline const double   gamma         = 5. / 3.;
+    static inline const double   omega         = 0.;
+    static inline const double   r0            = 0.;
+    static inline const double   r1            = 0.5;
+    static inline const double   mTotal        = 1.;
+    static inline const double   energyTotal   = 1.;
+    static inline const double   width         = 0.1;
+    static inline const double   ener0         = energyTotal / std::pow(M_PI, 1.5) / 1. / std::pow(width, 3.0);
+    static inline const double   rho0          = 1.;
+    static inline const double   u0            = 1.e-08;
+    static inline const double   p0            = 0.;
+    static inline const double   vr0           = 0.;
+    static inline const double   cs0           = 0.;
+    static inline const double   firstTimeStep = 1.e-6;
 
-    static ParticlesData<T, I> generate(const size_t side)
+    template<class Dataset>
+    static Dataset generate(const size_t side)
     {
-        ParticlesData<T, I> pd;
+        Dataset pd;
 
         if (pd.rank == 0 && side < 8)
         {
@@ -59,7 +59,8 @@ public:
     }
 
     // void load(const std::string &filename)
-    static void load(ParticlesData<T, I>& pd)
+    template<class Dataset>
+    static void load(Dataset& pd)
     {
         size_t split     = pd.n / pd.nrank;
         size_t remaining = pd.n - pd.nrank * split;
@@ -108,16 +109,17 @@ public:
         }
     }
 
-    static void init(ParticlesData<T, I>& pd)
+    template<class Dataset>
+    static void init(Dataset& pd)
     {
-        const T step  = (2. * r1) / pd.side;
-        const T hIni  = 1.5 * step;
-        const T mPart = mTotal / pd.n;
+        const double step  = (2. * r1) / pd.side;
+        const double hIni  = 1.5 * step;
+        const double mPart = mTotal / pd.n;
 
 #pragma omp parallel for schedule(static)
         for (size_t i = 0; i < pd.count; i++)
         {
-            const T radius = std::sqrt(std::pow(pd.x[i], 2) + std::pow(pd.y[i], 2) + std::pow(pd.z[i], 2));
+            const double radius = std::sqrt(std::pow(pd.x[i], 2) + std::pow(pd.y[i], 2) + std::pow(pd.z[i], 2));
 
             pd.h[i] = hIni;
             pd.m[i] = mPart;
