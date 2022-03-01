@@ -25,7 +25,6 @@ add_executable(${testname} gravity.cpp)
 target_include_directories(${testname} PRIVATE ${RYOANJI_TEST_INCLUDE_DIRS})
 target_link_libraries(${testname} PRIVATE OpenMP::OpenMP_CXX)
 #target_compile_options(${testname} PRIVATE -Rpass=loop-vectorize -Rpass-analysis=loop-vectorize)
-sphexa_add_test(${testname} EXECUTABLE ${testname} RANKS 1)
 install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji)
 
 set(testname multi_rank)
