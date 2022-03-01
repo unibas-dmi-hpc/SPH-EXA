@@ -21,7 +21,7 @@ public:
     // number of CUDA streams to use
     static constexpr int NST = 2;
     // max number of particles to process per launch in kernel with async transfers
-    static constexpr int taskSize = 125000;
+    static constexpr int taskSize = 1000000;
 
     struct neighbors_stream
     {
