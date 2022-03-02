@@ -46,6 +46,7 @@ int main(int argc, char** argv)
     const int         writeFrequency = parser.getInt("-w", -1);
     const bool        quiet          = parser.exists("--quiet");
     const bool        ascii          = parser.exists("--ascii");
+    const bool        ve             = parser.exists("--ve");
     const std::string outDirectory   = parser.getString("--outDir");
 
     std::vector<std::string> outputFields = parser.getCommaList("-f");
@@ -117,7 +118,11 @@ int main(int argc, char** argv)
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
-        propagator.hydroStep(domain, d);
+        if (ve) { propagator.hydroStepVE(domain, d); }
+        else
+        {
+            propagator.hydroStep(domain, d);
+        }
 
         Printer::printConstants(d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, constantsFile);
 
