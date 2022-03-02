@@ -41,6 +41,7 @@
 #include "ryoanji/cpu/treewalk.hpp"
 #include "ryoanji/cpu/upsweep.hpp"
 
+#include "sph/density_ve.hpp"
 #include "sph/rho_zero.hpp"
 #include "sph/timestep.hpp"
 
@@ -133,6 +134,12 @@ public:
         computeRho0(first, last, ngmax_, d, domain.box());
         timer.step("Rho0");
         domain.exchangeHalos(d.rho0);
+        timer.step("mpi::synchronizeHalos");
+        computeDensityVE(first, last, ngmax_, d, domain.box());
+        timer.step("Density");
+        computeEquationOfState(first, last, d);
+        timer.step("EquationOfState");
+        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c, d.kx);
         timer.step("mpi::synchronizeHalos");
 
         computeTimestep(first, last, d);

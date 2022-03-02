@@ -51,11 +51,7 @@ void computeRho0Impl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& 
 template<typename T, class Dataset>
 void computeRho0(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-#if defined(USE_CUDA)
-    cuda::computeRho0<Dataset>(startIndex, endIndex, ngmax, d, box);
-#else
     computeRho0Impl(startIndex, endIndex, ngmax, d, box);
-#endif
 }
 
 } // namespace sph
