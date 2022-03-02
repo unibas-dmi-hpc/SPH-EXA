@@ -108,19 +108,13 @@ public:
             pd.vx[i] = pd.vx[i] * 100.0;
             pd.vy[i] = pd.vy[i] * 100.0;
             pd.vz[i] = pd.vz[i] * 100.0;
-            pd.p[i] = pd.p_0[i] = pd.p_0[i] * 10.0;
 
-            pd.m[i]    = 1000000.0 / pd.n; // 1.0;//1000000.0/n;//1.0;//0.001;//0.001;//0.001;//1.0;
-            pd.c[i]    = 3500.0;           // 35.0;//35.0;//35000
-            pd.h[i]    = 2.0 * dx;         // 0.02;//0.02;
-            pd.ro[i]   = 1.0;              // 1.0e3;//.0;//1e3;//1e3;
-            pd.ro_0[i] = 1.0;              // 1.0e3;//.0;//1e3;//1e3;
+            pd.m[i] = 1000000.0 / pd.n; // 1.0;//1000000.0/n;//1.0;//0.001;//0.001;//0.001;//1.0;
+            pd.h[i] = 2.0 * dx;         // 0.02;//0.02;
 
             pd.du[i] = pd.du_m1[i] = 0.0;
             pd.dt[i] = pd.dt_m1[i] = firstTimeStep;
             pd.minDt               = firstTimeStep;
-
-            pd.grad_P_x[i] = pd.grad_P_y[i] = pd.grad_P_z[i] = 0.0;
 
             pd.x_m1[i] = pd.x[i] - pd.vx[i] * firstTimeStep;
             pd.y_m1[i] = pd.y[i] - pd.vy[i] * firstTimeStep;
