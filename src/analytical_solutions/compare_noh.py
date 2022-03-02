@@ -188,7 +188,7 @@ def createEnergyPlot(h5File, attrs, radii, time, step):
     plotRadialProfile(props, radii, u, rSol, uSol)
 
     uSolFull = np.vectorize(nohU)(attrs["gamma"], attrs["u0"], attrs["vr0"], radii, time)
-    print("Pressure L1 error", sum(abs(uSolFull - u)) / len(u))
+    print("Energy L1 error", sum(abs(uSolFull - u)) / len(u))
 
 
 if __name__ == "__main__":
