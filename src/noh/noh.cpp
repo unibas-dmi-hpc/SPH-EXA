@@ -33,6 +33,7 @@ int main(int argc, char** argv)
 {
     const int       rank = initAndGetRankId();
     const ArgParser parser(argc, argv);
+    using Gen = NohDataGenerator;
 
     if (parser.exists("-h") || parser.exists("--h") || parser.exists("-help") || parser.exists("--help"))
     {
@@ -46,12 +47,10 @@ int main(int argc, char** argv)
     const bool        ascii          = parser.exists("--ascii");
     const bool        quiet          = parser.exists("--quiet");
     const std::string outDirectory   = parser.getString("--outDir");
+    const std::string outFile        = outDirectory + "dump_noh";
 
     std::vector<std::string> outputFields = parser.getCommaList("-f");
-    if (outputFields.empty())
-    {
-        outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
-    }
+    if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c"}; }
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
@@ -67,40 +66,37 @@ int main(int argc, char** argv)
         fileWriter = std::make_unique<H5PartWriter<Dataset>>();
     }
 
-    auto d = NohDataGenerator::generate<Dataset>(cubeSide);
+    auto d = Gen::generate<Dataset>(cubeSide);
     d.setOutputFields(outputFields);
-
-    if (d.rank == 0) std::cout << "Data generated." << std::endl;
-
-    MasterProcessTimer totalTimer(output, d.rank);
+    if (d.rank == 0 && writeFrequency > 0)
+    {
+        fileWriter->constants({"dim", "gamma", "rho0", "u0", "p0", "vr0", "cs0"},
+                              {Gen::dim, Gen::gamma, Gen::rho0, Gen::u0, Gen::p0, Gen::vr0, Gen::cs0},
+                              outFile);
+    }
 
     std::ofstream constantsFile(outDirectory + "constants_noh.txt");
 
     size_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
-    size_t bucketSize = std::max(bucketSizeFocus, d.n / (100 * d.nrank));
+    size_t       bucketSize = std::max(bucketSizeFocus, d.n / (100 * d.nrank));
+    float        theta      = 1.0;
+    const size_t ngmax      = 150;
+    const size_t ng0        = 100;
 
     double    radius = NohDataGenerator::r1;
     Box<Real> box(-radius, radius, false);
 
-    float theta = 1.0;
-
     cstone::Domain<KeyType, Real, AccType> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-
-    if (d.rank == 0) std::cout << "Domain created." << std::endl;
-
     domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
-
-    if (d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
+    if (d.rank == 0) std::cout << "Domain synchronized, numLocalParticles " << d.x.size() << std::endl;
 
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
-    const size_t ngmax = 150;
-    const size_t ng0   = 100;
-
     Propagator propagator(ngmax, ng0, output, d.rank);
 
+    MasterProcessTimer totalTimer(output, d.rank);
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
@@ -110,7 +106,7 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_noh");
+            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), outFile);
         }
 
         if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
