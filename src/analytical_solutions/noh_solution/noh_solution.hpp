@@ -40,93 +40,63 @@
 #include <iostream>
 #include <cmath>
 
-#include "noh_io.hpp"
-
-using namespace std;
-
-template<typename T, typename I>
-class NohSolution
+template<class T>
+T nohShockFront(T gamma, T vel0, T time)
 {
-public:
-    static void create(vector<T>&   r,       // Radius position
-                       const I      dim,     // Dimensions
-                       const I      rPoints, // Number of points between r0-r1
-                       const T      time,    // Time at solution
-                       const T      gamma_i, // Adiabatic coeficient
-                       const T      rho0,    // Initial density
-                       const T      u0,      // Initial internal energy
-                       const T      p0,      // Initial pressure
-                       const T      vel0,    // Initial velocity
-                       const T      cs0,     // Initial sound speed
-                       const string outfile) // Output solution filename
+    return T(0.5) * (gamma - 1) * std::abs(vel0) * time;
+}
+
+template<class T>
+void nohSol(const size_t          xgeom,   // geometry factor: 1=planar, 2=cylindircal, 3=spherical
+            const size_t          rPoints, // Number of points between r0-r1
+            const double          time,    // temporal point where solution is desired [seconds]
+            const double          gamma,   // gamma law equation of state
+            const double          rho0,    // ambient density g/cm**3 in 'rho = rho0 * r**(-omega)'
+            const double          u0,      // ambient internal energy [erg/g]
+            const double          p0,      // ambient pressure [erg/cm**3]
+            const double          vel0,    // ambient material speed [cm/s]
+            const double          cs0,     // ambient sound speed [cm/s]
+            const std::vector<T>& r,       // spatial points where solution is desired [cm]
+            std::vector<T>&       rho,     // out: density  [g/cm**3]
+            std::vector<T>&       u,       // out: specific internal energy [erg/g]
+            std::vector<T>&       p,       // out: presssure [erg/cm**3]
+            std::vector<T>&       vel,     // out: velocity [cm/s]
+            std::vector<T>&       cs)            // out: sound speed [cm/s]
+{
+    // Frequest combination variables
+    T gamm1 = gamma - 1.;
+    T gamp1 = gamma + 1.;
+    T gpogm = gamp1 / gamm1;
+    T xgm1  = xgeom - 1.;
+
+    T r2 = nohShockFront(gamma, vel0, time);
+
+    // Immediate post-shock using strong shock relations
+    // T rhop = rho0 * pow(1. - (vel0 * time / r2), xgm1);
+
+    // Loop over spatial positions
+    for (size_t i = 0; i < rPoints; i++)
     {
-        vector<T> rho(rPoints);
-        vector<T> u(rPoints);
-        vector<T> p(rPoints);
-        vector<T> vel(rPoints);
-        vector<T> cs(rPoints);
+        // Spatial point where solution is searched [cm]
+        T xpos = r[i];
 
-        // Calculate theoretical solution
-        NohSol(dim, rPoints, time, gamma_i, rho0, u0, p0, vel0, cs0, r, rho, u, p, vel, cs);
-
-        // Write solution file
-        NohSolutionFile<T, I>::writeData1D(rPoints, r, rho, u, p, vel, cs, outfile);
-    }
-
-private:
-    static void NohSol(const I          xgeom,   // geometry factor: 1=planar, 2=cylindircal, 3=spherical
-                       const I          rPoints, // Number of points between r0-r1
-                       const T          time,    // temporal point where solution is desired [seconds]
-                       const T          gamma,   // gamma law equation of state
-                       const T          rho0,    // ambient density g/cm**3 in 'rho = rho0 * r**(-omega)'
-                       const T          u0,      // ambient internal energy [erg/g]
-                       const T          p0,      // ambient pressure [erg/cm**3]
-                       const T          vel0,    // ambient material speed [cm/s]
-                       const T          cs0,     // ambient sound speed [cm/s]
-                       const vector<T>& r,       // spatial points where solution is desired [cm]
-                       vector<T>&       rho,     // out: density  [g/cm**3]
-                       vector<T>&       u,       // out: specific internal energy [erg/g]
-                       vector<T>&       p,       // out: presssure [erg/cm**3]
-                       vector<T>&       vel,     // out: velocity [cm/s]
-                       vector<T>&       cs)            // out: sound speed [cm/s]
-    {
-        // Frequest combination variables
-        T gamm1 = gamma - 1.;
-        T gamp1 = gamma + 1.;
-        T gpogm = gamp1 / gamm1;
-        T xgm1  = xgeom - 1.;
-
-        // Shock position
-        T r2 = 0.5 * gamm1 * abs(vel0) * time;
-
-        // Immediate post-shock using strong shock relations
-        // T rhop = rho0 * pow(1. - (vel0 * time / r2), xgm1);
-
-        // Loop over spatial positions
-        for (I i = 0; i < rPoints; i++)
+        if (xpos > r2)
         {
-            // Spatial point where solution is searched [cm]
-            T xpos = r[i];
-
-            if (xpos > r2)
-            {
-                // if we are farther out than the shock front
-                rho[i] = rho0 * pow(1. - (vel0 * time / xpos), xgm1);
-                u[i]   = u0;
-                p[i]   = p0;
-                vel[i] = abs(vel0);
-                cs[i]  = cs0;
-            }
-            else
-            {
-                // if we are between the origin and the shock front
-                rho[i] = rho0 * pow(gpogm, xgeom);
-                u[i]   = 0.5 * (vel0 * vel0);
-                p[i]   = gamm1 * rho[i] * u[i];
-                vel[i] = 0.;
-                cs[i]  = sqrt(gamma * p[i] / rho[i]);
-                ;
-            }
+            // if we are farther out than the shock front
+            rho[i] = rho0 * pow(1. - (vel0 * time / xpos), xgm1);
+            u[i]   = u0;
+            p[i]   = p0;
+            vel[i] = std::abs(vel0);
+            cs[i]  = cs0;
+        }
+        else
+        {
+            // if we are between the origin and the shock front
+            rho[i] = rho0 * std::pow(gpogm, xgeom);
+            u[i]   = 0.5 * (vel0 * vel0);
+            p[i]   = gamm1 * rho[i] * u[i];
+            vel[i] = 0.;
+            cs[i]  = std::sqrt(gamma * p[i] / rho[i]);
         }
     }
-};
+}

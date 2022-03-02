@@ -97,7 +97,6 @@ struct H5PartWriter : public IFileWriter<Dataset>
 
         for (size_t i = 0; i < names.size(); ++i)
         {
-            std::cout << "writing " << names[i] << std::endl;
             H5PartWriteFileAttrib(h5_file, names[i].c_str(), H5PART_FLOAT64, &values[i], 1);
         }
 

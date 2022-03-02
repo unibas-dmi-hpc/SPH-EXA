@@ -70,8 +70,8 @@ int main(int argc, char** argv)
     d.setOutputFields(outputFields);
     if (d.rank == 0 && writeFrequency > 0)
     {
-        fileWriter->constants({"dim", "gamma", "rho0", "u0", "p0", "vr0", "cs0"},
-                              {Gen::dim, Gen::gamma, Gen::rho0, Gen::u0, Gen::p0, Gen::vr0, Gen::cs0},
+        fileWriter->constants({"r0", "r1", "dim", "gamma", "rho0", "u0", "p0", "vr0", "cs0"},
+                              {Gen::r0, Gen::r1, Gen::dim, Gen::gamma, Gen::rho0, Gen::u0, Gen::p0, Gen::vr0, Gen::cs0},
                               outFile);
     }
 

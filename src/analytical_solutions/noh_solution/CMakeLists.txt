@@ -1,7 +1,7 @@
 set(SOURCES main.cpp)
 add_executable(noh_solution ${SOURCES})
 target_include_directories(noh_solution PRIVATE ${PROJECT_SOURCE_DIR}/include)
-target_include_directories(sedov_solution PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
+target_include_directories(noh_solution PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
 target_include_directories(noh_solution PRIVATE ${PROJECT_SOURCE_DIR}/src)
 if(CMAKE_OSX_SYSROOT)
     target_link_libraries(noh_solution stdc++)
