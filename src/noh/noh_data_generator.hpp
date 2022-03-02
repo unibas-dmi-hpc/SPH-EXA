@@ -115,7 +115,8 @@ public:
 #pragma omp parallel for schedule(static)
         for (size_t i = 0; i < pd.count; i++)
         {
-            const double radius = std::sqrt((pd.x[i] * pd.x[i]) + (pd.y[i] * pd.y[i]) + (pd.z[i] * pd.z[i]));
+            double radius = std::sqrt((pd.x[i] * pd.x[i]) + (pd.y[i] * pd.y[i]) + (pd.z[i] * pd.z[i]));
+            radius        = std::max(radius, 1e-10);
 
             pd.h[i] = hIni;
             pd.m[i] = mPart;
