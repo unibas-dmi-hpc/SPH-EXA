@@ -42,6 +42,7 @@
 #include "ryoanji/cpu/upsweep.hpp"
 
 #include "sph/density_ve.hpp"
+#include "sph/iad_ve.hpp"
 #include "sph/rho_zero.hpp"
 #include "sph/timestep.hpp"
 
@@ -141,6 +142,8 @@ public:
         timer.step("EquationOfState");
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c, d.kx);
         timer.step("mpi::synchronizeHalos");
+        computeIadVE(first, last, ngmax_, d, domain.box());
+        timer.step("IAD");
 
         computeTimestep(first, last, d);
         timer.step("Timestep");
