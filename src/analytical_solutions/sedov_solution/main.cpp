@@ -152,8 +152,6 @@ void printHelp(char* binName)
     printf("\t--outPath  PATH \t\t Path to directory where output will be saved [./].\
                 \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
                 \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n\n");
-
-    printf("\t--complete FLAG \t\t Calculate the solution for each particle [False]\n");
 }
 
 void writeColumns1D(const std::string& path)
