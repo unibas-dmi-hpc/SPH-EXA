@@ -29,36 +29,20 @@ public:
     static inline const double   firstTimeStep = 1.e-6;
 
     template<class Dataset>
-    static Dataset generate(const size_t side)
+    static void generate(Dataset& pd)
     {
-        Dataset pd;
-
-        if (pd.rank == 0 && side < 8)
-        {
-            printf("ERROR::Sedov::init()::SmoothingLength n too small\n");
-#ifdef USE_MPI
-            MPI_Finalize();
-#endif
-            exit(0);
-        }
-
 #ifdef USE_MPI
         pd.comm = MPI_COMM_WORLD;
         MPI_Comm_size(pd.comm, &pd.nrank);
         MPI_Comm_rank(pd.comm, &pd.rank);
 #endif
-
-        pd.side  = side;
-        pd.n     = side * side * side;
+        pd.n     = pd.side * pd.side * pd.side;
         pd.count = pd.n;
 
         load(pd);
         init(pd);
-
-        return pd;
     }
 
-    // void load(const std::string &filename)
     template<class Dataset>
     static void load(Dataset& pd)
     {

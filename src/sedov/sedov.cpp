@@ -32,7 +32,7 @@ void printHelp(char* binName, int rank);
 
 int main(int argc, char** argv)
 {
-    const int       rank = initAndGetRankId();
+    auto [rank, numRanks] = initMpi();
     const ArgParser parser(argc, argv);
 
     if (parser.exists("-h") || parser.exists("--h") || parser.exists("-help") || parser.exists("--help"))
@@ -49,18 +49,22 @@ int main(int argc, char** argv)
     const bool        ve             = parser.exists("--ve");
     const std::string outDirectory   = parser.getString("--outDir");
 
-    std::vector<std::string> outputFields = parser.getCommaList("-f");
-    if (outputFields.empty())
-    {
-        outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
-    }
-
-    std::ofstream nullOutput("/dev/null");
-    std::ostream& output = quiet ? nullOutput : std::cout;
-
     using Real    = double;
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType, AccType>;
+
+    float  theta           = 1.0;
+    size_t ngmax           = 150;
+    size_t ng0             = 100;
+    size_t bucketSizeFocus = 64;
+    // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
+    size_t bucketSize = std::max(bucketSizeFocus, size_t(std::pow(cubeSide, 3) / (100 * numRanks)));
+
+    std::vector<std::string> outputFields = parser.getCommaList("-f");
+    if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c"}; }
+
+    std::ofstream nullOutput("/dev/null");
+    std::ostream& output = quiet ? nullOutput : std::cout;
 
     std::unique_ptr<IFileWriter<Dataset>> fileWriter;
     if (ascii) { fileWriter = std::make_unique<AsciiWriter<Dataset>>(); }
@@ -68,19 +72,19 @@ int main(int argc, char** argv)
     {
         fileWriter = std::make_unique<H5PartWriter<Dataset>>();
     }
+    std::ofstream constantsFile(outDirectory + "constants.txt");
 
-    auto d = SedovDataGenerator::generate<Dataset>(cubeSide);
+    Dataset d;
+    d.side = cubeSide;
+    if (ve)
+    {
+        d.setConservedFieldsVE();
+        d.setDependentFieldsVE();
+    }
+    SedovDataGenerator::generate(d);
     d.setOutputFields(outputFields);
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
-
-    MasterProcessTimer totalTimer(output, d.rank);
-
-    std::ofstream constantsFile(outDirectory + "constants.txt");
-
-    size_t bucketSizeFocus = 64;
-    // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
-    size_t bucketSize = std::max(bucketSizeFocus, d.n / (100 * d.nrank));
 
     Box<Real> box(0, 1);
     box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
@@ -97,8 +101,6 @@ int main(int argc, char** argv)
                     true,
                     true);
 
-    float theta = 1.0;
-
     cstone::Domain<KeyType, Real, AccType> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 
     if (ve)
@@ -112,11 +114,9 @@ int main(int argc, char** argv)
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
-    const size_t ngmax = 150;
-    const size_t ng0   = 100;
-
     Propagator propagator(ngmax, ng0, output, d.rank);
 
+    MasterProcessTimer totalTimer(output, d.rank);
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {

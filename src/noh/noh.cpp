@@ -31,7 +31,7 @@ void printHelp(char* binName, int rank);
 
 int main(int argc, char** argv)
 {
-    const int       rank = initAndGetRankId();
+    auto [rank, numRanks] = initMpi();
     const ArgParser parser(argc, argv);
     using Gen = NohDataGenerator;
 
@@ -49,15 +49,22 @@ int main(int argc, char** argv)
     const std::string outDirectory   = parser.getString("--outDir");
     const std::string outFile        = outDirectory + "dump_noh";
 
+    using Real    = double;
+    using KeyType = uint64_t;
+    using Dataset = ParticlesData<Real, KeyType, AccType>;
+
+    float  theta           = 1.0;
+    size_t ngmax           = 150;
+    size_t ng0             = 100;
+    size_t bucketSizeFocus = 64;
+    // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
+    size_t bucketSize = std::max(bucketSizeFocus, size_t(std::pow(cubeSide, 3) / (100 * numRanks)));
+
     std::vector<std::string> outputFields = parser.getCommaList("-f");
     if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c"}; }
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
-
-    using Real    = double;
-    using KeyType = uint64_t;
-    using Dataset = ParticlesData<Real, KeyType, AccType>;
 
     std::unique_ptr<IFileWriter<Dataset>> fileWriter;
     if (ascii) { fileWriter = std::make_unique<AsciiWriter<Dataset>>(); }
@@ -65,6 +72,7 @@ int main(int argc, char** argv)
     {
         fileWriter = std::make_unique<H5PartWriter<Dataset>>();
     }
+    std::ofstream constantsFile(outDirectory + "constants_noh.txt");
 
     auto d = Gen::generate<Dataset>(cubeSide);
     d.setOutputFields(outputFields);
@@ -74,15 +82,6 @@ int main(int argc, char** argv)
                               {Gen::r0, Gen::r1, Gen::dim, Gen::gamma, Gen::rho0, Gen::u0, Gen::p0, Gen::vr0, Gen::cs0},
                               outFile);
     }
-
-    std::ofstream constantsFile(outDirectory + "constants_noh.txt");
-
-    size_t bucketSizeFocus = 64;
-    // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
-    size_t       bucketSize = std::max(bucketSizeFocus, d.n / (100 * d.nrank));
-    float        theta      = 1.0;
-    const size_t ngmax      = 150;
-    const size_t ng0        = 100;
 
     double    radius = NohDataGenerator::r1;
     Box<Real> box(-radius, radius, false);
