@@ -42,6 +42,7 @@
 #include "ryoanji/cpu/upsweep.hpp"
 
 #include "sph/density_ve.hpp"
+#include "sph/divv_curlv.hpp"
 #include "sph/iad_ve.hpp"
 #include "sph/rho_zero.hpp"
 #include "sph/timestep.hpp"
@@ -144,6 +145,9 @@ public:
         timer.step("mpi::synchronizeHalos");
         computeIadVE(first, last, ngmax_, d, domain.box());
         timer.step("IAD");
+        computeDivvCurlv(first, last, ngmax_, d, domain.box());
+        timer.step("VelocityDivCurl");
+        domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33, d.divv, d.curlv);
 
         computeTimestep(first, last, d);
         timer.step("Timestep");

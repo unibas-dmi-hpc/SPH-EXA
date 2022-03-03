@@ -82,7 +82,7 @@ public:
     std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T> maxvsignal;
     std::vector<T> mue, mui, temp, cv;
-    std::vector<T> rho0, wrho0, kx, whomega;
+    std::vector<T> rho0, wrho0, kx, whomega, divv, curlv;
 
     std::vector<KeyType>                          codes;          // Particle space-filling-curve keys
     std::vector<int, PinnedAlloc_t<AccType, int>> neighborsCount; // number of neighbors of each particle
@@ -100,7 +100,7 @@ public:
         "x",   "y",     "z",   "x_m1", "y_m1",  "z_m1",     "vx",       "vy",       "vz",         "rho",
         "u",   "p",     "h",   "m",    "c",     "grad_P_x", "grad_P_y", "grad_P_z", "du",         "du_m1",
         "dt",  "dt_m1", "c11", "c12",  "c13",   "c22",      "c23",      "c33",      "maxvsignal", "mue",
-        "mui", "temp",  "cv",  "rho0", "wrho0", "kx",       "whomega"};
+        "mui", "temp",  "cv",  "rho0", "wrho0", "kx",       "whomega",  "divv",     "curlv"};
 
     /*! @brief return a vector of pointers to field vectors
      *
@@ -110,9 +110,9 @@ public:
     auto data()
     {
         std::array<std::vector<T>*, fieldNames.size()> ret{
-            &x,   &y,   &z,          &x_m1,     &y_m1,     &z_m1, &vx,    &vy,   &vz,    &rho, &u,      &p,   &h,
-            &m,   &c,   &grad_P_x,   &grad_P_y, &grad_P_z, &du,   &du_m1, &dt,   &dt_m1, &c11, &c12,    &c13, &c22,
-            &c23, &c33, &maxvsignal, &mue,      &mui,      &temp, &cv,    &rho0, &wrho0, &kx,  &whomega};
+            &x,   &y,   &z,          &x_m1,     &y_m1,     &z_m1, &vx,    &vy,   &vz,    &rho, &u,       &p,    &h,
+            &m,   &c,   &grad_P_x,   &grad_P_y, &grad_P_z, &du,   &du_m1, &dt,   &dt_m1, &c11, &c12,     &c13,  &c22,
+            &c23, &c33, &maxvsignal, &mue,      &mui,      &temp, &cv,    &rho0, &wrho0, &kx,  &whomega, &divv, &curlv};
 
         static_assert(ret.size() == fieldNames.size());
 
