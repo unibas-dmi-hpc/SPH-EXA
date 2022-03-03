@@ -125,6 +125,7 @@ public:
         std::fill(pd.mui.begin(), pd.mui.end(), 10.0);
         std::fill(pd.dt.begin(), pd.dt.end(), firstTimeStep);
         std::fill(pd.dt_m1.begin(), pd.dt_m1.end(), firstTimeStep);
+        std::fill(pd.alpha.begin(), pd.alpha.end(), pd.alphamin);
         pd.minDt = firstTimeStep;
 
 #pragma omp parallel for schedule(static)

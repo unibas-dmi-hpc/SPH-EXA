@@ -41,6 +41,7 @@
 #include "ryoanji/cpu/treewalk.hpp"
 #include "ryoanji/cpu/upsweep.hpp"
 
+#include "sph/av_switches.hpp"
 #include "sph/density_ve.hpp"
 #include "sph/divv_curlv.hpp"
 #include "sph/iad_ve.hpp"
@@ -118,7 +119,8 @@ public:
         using KeyType = typename ParticleDataType::KeyType;
 
         timer.start();
-        domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
+        domain.sync(
+            d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1, d.alpha);
         timer.step("domain::sync");
 
         resize(d, domain.nParticlesWithHalos());
@@ -148,6 +150,11 @@ public:
         computeDivvCurlv(first, last, ngmax_, d, domain.box());
         timer.step("VelocityDivCurl");
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33, d.divv, d.curlv);
+        timer.step("mpi::synchronizeHalos");
+        computeAVswitches(first, last, ngmax_, d, domain.box());
+        timer.step("AVswitches");
+        domain.exchangeHalos(d.alpha);
+        timer.step("mpi::synchronizeHalos");
 
         computeTimestep(first, last, d);
         timer.step("Timestep");

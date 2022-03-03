@@ -53,6 +53,7 @@ private:
         std::fill(pd.vz.begin(), pd.vz.end(), 0.0);
         std::fill(pd.du_m1.begin(), pd.du_m1.end(), 0.0);
         std::fill(pd.dt_m1.begin(), pd.dt_m1.end(), pd.minDt);
+        std::fill(pd.alpha.begin(), pd.alpha.end(), pd.alphamin);
 
         // As long as velocities are zero, we could also just copy x to x_m1
 #pragma omp parallel for schedule(static)
