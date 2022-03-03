@@ -44,6 +44,7 @@
 #include "sph/av_switches.hpp"
 #include "sph/density_ve.hpp"
 #include "sph/divv_curlv.hpp"
+#include "sph/grad_p_ve.hpp"
 #include "sph/iad_ve.hpp"
 #include "sph/rho_zero.hpp"
 #include "sph/timestep.hpp"
@@ -155,12 +156,12 @@ public:
         timer.step("AVswitches");
         domain.exchangeHalos(d.alpha);
         timer.step("mpi::synchronizeHalos");
-
+        computeGradPVE(first, last, ngmax_, d, domain.box());
+        timer.step("MomentumAndEnergy");
         computeTimestep(first, last, d);
         timer.step("Timestep");
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");
-        d.egrav = 0;
         computeTotalEnergy(first, last, d);
         timer.step("EnergyConservation");
         updateSmoothingLength(first, last, d, ng0_);
