@@ -148,6 +148,21 @@ public:
         dependentFields = fieldStringsToInt(fieldNames, fields);
     }
 
+    void setConservedFieldsVE()
+    {
+        std::vector<std::string> fields{
+            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "dt_m1", "alpha"};
+        conservedFields = fieldStringsToInt(fieldNames, fields);
+    }
+
+    void setDependentFieldsVE()
+    {
+        std::vector<std::string> fields{"rho",        "p",    "c",     "grad_P_x", "grad_P_y", "grad_P_z", "du",
+                                        "dt",         "c11",  "c12",   "c13",      "c22",      "c23",      "c33",
+                                        "maxvsignal", "rho0", "wrho0", "kx",       "whomega",  "divv",     "curlv"};
+        dependentFields = fieldStringsToInt(fieldNames, fields);
+    }
+
     void setOutputFields(const std::vector<std::string>& outFields)
     {
         outputFields = fieldStringsToInt(fieldNames, outFields);
