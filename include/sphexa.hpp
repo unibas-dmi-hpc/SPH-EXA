@@ -5,9 +5,9 @@
 #endif
 
 #include "Task.hpp"
-#include "ArgParser.hpp"
+#include "arg_parser.hpp"
 #include "Timer.hpp"
-#include "FileUtils.hpp"
+#include "file_utils.hpp"
 #include "Printer.hpp"
 #include "utils.hpp"
 

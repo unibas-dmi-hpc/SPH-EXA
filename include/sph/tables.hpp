@@ -5,7 +5,7 @@
 #include "kernels.hpp"
 
 #ifdef __CUDACC__
-#include "cuda/cudaUtils.cuh"
+#include "cuda/cuda_utils.cuh"
 #endif
 
 namespace sphexa
@@ -16,7 +16,7 @@ namespace lt
 
 constexpr size_t size = 20000;
 
-template <typename T, std::size_t N>
+template<typename T, std::size_t N>
 std::array<T, N> createWharmonicLookupTable()
 {
     std::array<T, N> wh;
@@ -25,12 +25,12 @@ std::array<T, N> createWharmonicLookupTable()
     for (size_t i = 0; i < N; ++i)
     {
         T normalizedVal = i / halfsSize;
-        wh[i] = wharmonic_std(normalizedVal);
+        wh[i]           = wharmonic_std(normalizedVal);
     }
     return wh;
 }
 
-template <typename T, std::size_t N>
+template<typename T, std::size_t N>
 std::array<T, N> createWharmonicDerivativeLookupTable()
 {
     std::array<T, N> whd;
@@ -39,7 +39,7 @@ std::array<T, N> createWharmonicDerivativeLookupTable()
     for (size_t i = 0; i < N; ++i)
     {
         T normalizedVal = i / halfsSize;
-        whd[i] = wharmonic_derivative_std(normalizedVal);
+        whd[i]          = wharmonic_derivative_std(normalizedVal);
     }
 
     return whd;
@@ -52,10 +52,10 @@ std::array<T, N> createWharmonicDerivativeLookupTable()
 //     return (idx >= ltsize) ? 0.0 : wh[idx];
 // }
 
-template <typename T>
-CUDA_DEVICE_FUN inline T wharmonic_lt_with_derivative(const T *wh, const T *whd, T v)
+template<typename T>
+CUDA_DEVICE_FUN inline T wharmonic_lt_with_derivative(const T* wh, const T* whd, T v)
 {
-    constexpr size_t halfTableSize = size / 2;
+    constexpr size_t halfTableSize   = size / 2;
     constexpr double inverseHalfSize = 1.0 / halfTableSize;
 
     const size_t idx = v * halfTableSize;

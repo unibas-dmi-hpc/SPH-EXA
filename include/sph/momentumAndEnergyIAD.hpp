@@ -31,7 +31,7 @@ void computeMomentumAndEnergyIADImpl(const Task& t, Dataset& d, const cstone::Bo
     const T* vx = d.vx.data();
     const T* vy = d.vy.data();
     const T* vz = d.vz.data();
-    const T* ro = d.ro.data();
+    const T* ro = d.rho.data();
     const T* c = d.c.data();
     const T* p = d.p.data();
     const T* alpha = d.alpha.data();

@@ -11,8 +11,9 @@
 #include "cstone/domain/domain.hpp"
 
 #include "sphexa.hpp"
+#include "sph/findNeighborsSfc.hpp"
+#include "ifile_writer.hpp"
 #include "SedovDataGenerator.hpp"
-#include "SedovDataFileWriter.hpp"
 
 #include "sph/findNeighborsSfc.hpp"
 
@@ -26,6 +27,12 @@ using namespace sphexa::sph;
 
 #ifdef SPH_EXA_USE_ASCENT
 #include "AscentAdaptor.h"
+#endif
+
+#ifdef USE_CUDA
+using AccType = cstone::GpuTag;
+#else
+using AccType = cstone::CpuTag;
 #endif
 
 void printHelp(char* binName, int rank);
@@ -47,10 +54,11 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t cubeSide = parser.getInt("-n", 50);
-    const size_t maxStep = parser.getInt("-s", 10);
-    const int writeFrequency = parser.getInt("-w", -1);
-    const bool quiet = parser.exists("--quiet");
+    const size_t cubeSide          = parser.getInt("-n", 50);
+    const size_t maxStep           = parser.getInt("-s", 10);
+    const int writeFrequency       = parser.getInt("-w", -1);
+    const bool quiet               = parser.exists("--quiet");
+    const bool ascii               = parser.exists("--ascii");
     const std::string outDirectory = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
@@ -58,19 +66,30 @@ int main(int argc, char** argv)
 
     using Real = double;
     using KeyType = uint64_t;
-    using Dataset = ParticlesData<Real, KeyType>;
+    using Dataset = ParticlesData<Real, KeyType, AccType>;
 
-    const IFileWriter<Dataset>& fileWriter = SedovMPIFileWriter<Dataset>();
+    std::vector<std::string> outputFields = parser.getCommaList("-f");
+    if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c"}; }
+
+    std::unique_ptr<IFileWriter<Dataset>> fileWriter;
+    if (ascii) { fileWriter = std::make_unique<AsciiWriter<Dataset>>(); }
+    else
+    {
+        fileWriter = std::make_unique<H5PartWriter<Dataset>>();
+    }
+    std::ofstream constantsFile(outDirectory + "constants.txt");
+
 
     //Feed max min here.
     //If makeGlobalBox is called later, it wont touch it.
-    auto d = SedovDataGenerator<Real, KeyType>::generate(cubeSide);
+    Dataset d;
+    d.side = cubeSide;
+    d.setConservedFieldsVE();
+    d.setDependentFieldsVE();
+    SedovDataGenerator::generate(d);
+    d.setOutputFields(outputFields);
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
-
-    MasterProcessTimer timer(output, d.rank), totalTimer(output, d.rank);
-
-    std::ofstream constantsFile(outDirectory + "constants.txt");
 
     size_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
@@ -94,10 +113,8 @@ int main(int argc, char** argv)
     Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #endif
 
-    if (d.rank == 0) std::cout << "Domain created." << std::endl;
-
-    domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,
-                d.dt_m1);
+    domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,
+                d.dt_m1, d.alpha);
 
     if (d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
@@ -110,18 +127,17 @@ int main(int argc, char** argv)
     AscentAdaptor::Initialize(d, domain.startIndex());
     std::cout << "AscentInitialize\n";
 #endif
-    if (d.rank == 0) std::cout << "Starting main loop." << std::endl;
 
+    MasterProcessTimer timer(output, d.rank), totalTimer(output, d.rank);
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
         timer.start();
-        domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,
-                    d.dt_m1);
+        domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,
+                    d.dt_m1, d.alpha);
         timer.step("domain::sync");
 
-        d.resize(domain.nParticlesWithHalos()); // also resize arrays not listed in sync, even though space for halos is
-                                                // not needed
+        resize(d, domain.nParticlesWithHalos());
         // domain.exchangeHalos(d.m);
         std::fill(begin(d.m), begin(d.m) + domain.startIndex(), d.m[domain.startIndex()]);
         std::fill(begin(d.m) + domain.endIndex(), begin(d.m) + domain.nParticlesWithHalos(), d.m[domain.startIndex()]);
@@ -138,7 +154,7 @@ int main(int argc, char** argv)
         timer.step("Density");
         computeEquationOfStateEvrard<Real>(taskList.tasks, d);
         timer.step("EquationOfState");
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.ro, d.p, d.c, d.kx);
+        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c, d.kx);
         timer.step("mpi::synchronizeHalos");
         computeIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("IAD");
@@ -185,14 +201,7 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-#ifdef SPH_EXA_HAVE_H5PART
-            fileWriter.dumpParticleDataToH5File(
-                d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov.h5part");
-#else
-            fileWriter.dumpParticleDataToAsciiFile(
-                d, domain.startIndex(), domain.endIndex(), "dump_sedov" + std::to_string(d.iteration) + ".txt");
-#endif
-            timer.step("writeFile");
+            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov");
         }
 
         timer.stop();

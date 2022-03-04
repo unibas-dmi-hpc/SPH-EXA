@@ -39,7 +39,7 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
 
     T *kx = d.kx.data();
     T *whomega = d.whomega.data();
-    T *ro = d.ro.data();
+    T *ro = d.rho.data();
 
     const T K = d.K;
     const T sincIndex = d.sincIndex;
@@ -102,31 +102,6 @@ void computeDensity(std::vector<Task> &taskList, Dataset &d, const cstone::Box<T
         computeDensityImpl<T>(task, d, box);
     }
 #endif
-}
-
-template <typename T, class Dataset>
-void initFluidDensityAtRestImpl(const Task &t, Dataset &d)
-{
-    int numParticles = t.size();
-
-    const T *ro = d.ro.data();
-    T *ro_0 = d.ro_0.data();
-
-    #pragma omp parallel for
-    for (size_t pi = 0; pi < numParticles; ++pi)
-    {
-        int i = pi + t.firstParticle;
-        ro_0[i] = ro[i];
-    }
-}
-
-template <typename T, class Dataset>
-void initFluidDensityAtRest(const std::vector<Task> &taskList, Dataset &d)
-{
-    for (const auto &task : taskList)
-    {
-        initFluidDensityAtRestImpl<T>(task, d);
-    }
 }
 
 } // namespace sph

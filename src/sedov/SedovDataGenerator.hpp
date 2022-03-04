@@ -3,47 +3,32 @@
 #include <cmath>
 #include <vector>
 
-#include "sph/kernels.hpp"
-#include "ParticlesData.hpp"
-
 namespace sphexa
 {
-template <typename T, typename I>
+
 class SedovDataGenerator
 {
 public:
-    static ParticlesData<T, I> generate(const size_t side)
+    template<class Dataset>
+    static void generate(Dataset& pd)
     {
-        ParticlesData<T, I> pd;
-
-        if (pd.rank == 0 && side < 8)
-        {
-            printf("ERROR::Sedov::init()::SmoothingLength n too small\n");
-            #ifdef USE_MPI
-            MPI_Finalize();
-            #endif
-            exit(0);
-        }
+        size_t side = pd.side;
 
         #ifdef USE_MPI
         pd.comm = MPI_COMM_WORLD;
         MPI_Comm_size(pd.comm, &pd.nrank);
         MPI_Comm_rank(pd.comm, &pd.rank);
-        MPI_Get_processor_name(pd.pname, &pd.pnamelen);
         #endif
 
         pd.n = side * side * side;
-        pd.side = side;
         pd.count = side * side * side;
 
         load(pd);
         init(pd);
-
-        return pd;
     }
 
-    // void load(const std::string &filename)
-    static void load(ParticlesData<T, I> &pd)
+    template<class Dataset>
+    static void load(Dataset& pd)
     {
         size_t split = pd.n / pd.nrank;
         size_t remaining = pd.n - pd.nrank * split;
@@ -51,10 +36,7 @@ public:
         pd.count = split;
         if (pd.rank == 0) pd.count += remaining;
 
-        pd.resize(pd.count);
-
-        if(pd.rank == 0)
-            std::cout << "Approx: " << pd.count * (pd.data.size() * 64.0) / (8.0 * 1000.0 * 1000.0 * 1000.0) << "GB allocated on rank 0." << std::endl;
+        resize(pd, pd.count);
 
         size_t offset = pd.rank * split;
         if (pd.rank > 0) offset += remaining;
@@ -86,10 +68,11 @@ public:
         }
     }
 
-    static void init(ParticlesData<T, I> &pd)
+    template<class Dataset>
+    static void init(Dataset& pd)
     {
-        const T firstTimeStep = 1e-6;
-        const T dx = 1.0 / pd.side;
+        const double firstTimeStep = 1e-6;
+        const double dx = 1.0 / pd.side;
 
         const double myPI = std::acos(-1.0);
 
@@ -117,9 +100,9 @@ public:
             pd.m[i] = 1.0 / pd.n; // 1.0;//1000000.0/n;//1.0;//0.001;//0.001;//0.001;//1.0;
             //pd.c[i] = 3500.0;           // 35.0;//35.0;//35000
             pd.h[i] = 1.5 * dx;//0.28577500E-01 / 2.0; //2.0 * dx;         // 0.02;//0.02;
-            pd.ro[i] = 1.0;             // 1.0e3;//.0;//1e3;//1e3;
+            pd.rho[i] = 1.0;             // 1.0e3;//.0;//1e3;//1e3;
 
-            pd.mui[i] = 10.0;
+            //pd.mui[i] = 10.0;
 
             pd.du[i] = pd.du_m1[i] = 0.0;
             pd.dt[i] = pd.dt_m1[i] = firstTimeStep;
