@@ -35,8 +35,8 @@
 #include <vector>
 
 #include "boxoverlap.hpp"
+#include "cstone/traversal//traversal.hpp"
 #include "cstone/tree/octree_internal.hpp"
-#include "cstone/traversal/traversal.hpp"
 
 namespace cstone
 {
@@ -103,41 +103,43 @@ HOST_DEVICE_FUN bool minMac(const Vec3<T>& aCenter,
     return dsq > (mac * mac);
 }
 
-/*! @brief vector multipole acceptance criterion
+/*! @brief Evaluate vector MAC based on precomputed acceptance radii
  *
- * @tparam KeyType       unsigned 32- or 64-bit integer type
- * @tparam T             float or double
- * @param  sourceCom     source center of gravity
- * @param  sourceCenter  geometrical center of source cell
- * @param  sourceSize    size of source cel
- * @param  targetCenter  geometrical center of target group bounding box
- * @param  targetSize    size of target group bounding box
- * @param  box           global coordinate bounding box, contains PBC information
- * @param  invTheta      reciprocal accuracy parameter
- * @return               true if criterion fulfilled (cell does not need to be opened)
+ * @param sourceCenter   expansion (com) center of the source (cell)
+ * @param Mac            the square of the distance from @p sourceCenter beyond which the MAC fails or passes
+ * @param targetCenter   geometrical target center
+ * @param targetSize     size of the target box
+ * @return               true if source is close (needs to be opened)
  *
- * Evaluates  d > l/theta + s with:
- *  d -> minimal distance of target box to source center of mass
- *  l -> edge length of source box
- *  s -> distance from geometric source center to source center mass
+ * Evaluates  d^2 > mac^2 with:
+ *  mac -> l/theta + s
+ *  d   -> minimal distance of target box to source center of mass
+ *  l   -> edge length of source box
+ *  s   -> distance from geometric source center to source center mass
  */
-template<class KeyType, class T>
-HOST_DEVICE_FUN bool vectorMac(const Vec3<T>& sourceCom,
-                               const Vec3<T>& sourceCenter,
-                               const Vec3<T>& sourceSize,
-                               const Vec3<T>& targetCenter,
-                               const Vec3<T>& targetSize,
-                               const Box<T>& box,
-                               float invTheta)
+template<class T>
+HOST_DEVICE_FUN bool vectorMac(Vec3<T> sourceCenter, T Mac, Vec3<T> targetCenter, Vec3<T> targetSize)
 {
-    // minimal distance^2 from source-center-mass to target box
-    T distanceToCom2 = norm2(minDistance(sourceCom, targetCenter, targetSize, box));
-    T sourceLength   = T(2.0) * max(sourceSize);
+    Vec3<T> dX = abs(targetCenter - sourceCenter) - targetSize;
+    dX += abs(dX);
+    dX *= T(0.5);
+    T R2 = norm2(dX);
+    return R2 < std::abs(Mac);
+}
 
-    T s = std::sqrt(norm2(sourceCom - sourceCenter));
-    T mac = sourceLength * invTheta + s;
+//! @brief PBC-aware version of vectorMac, taking the global coordinate bounding box as input
+template<class T>
+HOST_DEVICE_FUN bool
+vectorMacPbc(Vec3<T> sourceCenter, T Mac, Vec3<T> targetCenter, Vec3<T> targetSize, const Box<T>& box)
+{
+    Vec3<T> dX = targetCenter - sourceCenter;
 
-    return distanceToCom2 > (mac * mac);
+    dX = abs(applyPbc(dX, box));
+    dX -= targetSize;
+    dX += abs(dX);
+    dX *= T(0.5);
+    T R2 = norm2(dX);
+    return R2 < std::abs(Mac);
 }
 
 //! @brief commutative version of the min-distance mac, based on floating point math
@@ -187,9 +189,15 @@ HOST_DEVICE_FUN bool minVecMacMutual(const Vec3<T>& centerA,
 }
 
 //! @brief mark all nodes of @p octree (leaves and internal) that fail the MAC w.r.t to @p target
-template<class T, class KeyType>
-void markMacPerBox(const Vec3<T>& targetCenter, const Vec3<T>& targetSize, const Octree<KeyType>& octree, const Box<T>& box,
-                   float invTheta, KeyType focusStart, KeyType focusEnd, char* markings)
+template<template<class> class TreeType, class T, class KeyType>
+void markMacPerBox(const Vec3<T>& targetCenter,
+                   const Vec3<T>& targetSize,
+                   const TreeType<KeyType>& octree,
+                   const Box<T>& box,
+                   float invTheta,
+                   KeyType focusStart,
+                   KeyType focusEnd,
+                   char* markings)
 {
     auto checkAndMarkMac =
         [&targetCenter, &targetSize, &octree, &box, invTheta, focusStart, focusEnd, markings](TreeNodeIndex idx)
@@ -199,7 +207,7 @@ void markMacPerBox(const Vec3<T>& targetCenter, const Vec3<T>& targetSize, const
         // if the tree node with index idx is fully contained in the focus, we stop traversal
         if (containedIn(nodeStart, nodeEnd, focusStart, focusEnd)) { return false; }
 
-        IBox sourceBox = sfcIBox(sfcKey(nodeStart), octree.level(idx));
+        IBox sourceBox                  = sfcIBox(sfcKey(nodeStart), octree.level(idx));
         auto [sourceCenter, sourceSize] = centerAndSize<KeyType>(sourceBox, box);
 
         bool violatesMac = !minMac(targetCenter, targetSize, sourceCenter, sourceSize, box, invTheta);
@@ -224,8 +232,8 @@ void markMacPerBox(const Vec3<T>& targetCenter, const Vec3<T>& targetSize, const
  *                          will be set to 1, if the node of @p octree with index i fails the MAC paired with
  *                          any node contained in the focus range [focusStart:focusEnd]
  */
-template<class T, class KeyType>
-void markMac(const Octree<KeyType>& octree, const Box<T>& box, KeyType focusStart, KeyType focusEnd,
+template<template<class> class TreeType, class T, class KeyType>
+void markMac(const TreeType<KeyType>& octree, const Box<T>& box, KeyType focusStart, KeyType focusEnd,
              float invTheta, char* markings)
 
 {
@@ -237,12 +245,80 @@ void markMac(const Octree<KeyType>& octree, const Box<T>& box, KeyType focusStar
     spanSfcRange(focusStart, focusEnd, focusCodes.data());
     focusCodes.back() = focusEnd;
 
-    #pragma omp parallel for schedule(static)
+    #pragma omp parallel for schedule(dynamic)
     for (TreeNodeIndex i = 0; i < numFocusBoxes; ++i)
     {
         IBox target = sfcIBox(sfcKey(focusCodes[i]), sfcKey(focusCodes[i + 1]));
         auto [targetCenter, targetSize] = centerAndSize<KeyType>(target, box);
         markMacPerBox(targetCenter, targetSize, octree, box, invTheta, focusStart, focusEnd, markings);
+    }
+}
+
+//! @brief mark all nodes of @p octree (leaves and internal) that fail the vectorMac w.r.t to @p target
+template<template<class> class TreeType, class T, class KeyType>
+void markVecMacPerBox(const Vec3<T>& targetCenter,
+                      const Vec3<T>& targetSize,
+                      const TreeType<KeyType>& octree,
+                      const Vec4<T>* centers,
+                      const Box<T>& box,
+                      KeyType focusStart,
+                      KeyType focusEnd,
+                      char* markings)
+{
+    auto checkAndMarkMac =
+        [&targetCenter, &targetSize, &octree, &box, focusStart, focusEnd, centers, markings](TreeNodeIndex idx)
+    {
+        KeyType nodeStart = octree.codeStart(idx);
+        KeyType nodeEnd   = octree.codeEnd(idx);
+        // if the tree node with index idx is fully contained in the focus, we stop traversal
+        if (containedIn(nodeStart, nodeEnd, focusStart, focusEnd)) { return false; }
+
+        Vec4<T> center   = centers[idx];
+        bool violatesMac = vectorMacPbc(makeVec3(center), center[3], targetCenter, targetSize, box);
+        if (violatesMac && !markings[idx]) { markings[idx] = 1; }
+
+        return violatesMac;
+    };
+
+    singleTraversal(octree, checkAndMarkMac, [](TreeNodeIndex) {});
+}
+
+/*! @brief Mark each node in an octree that fails the MAC paired with any node from a given focus SFC range
+ *
+ * @tparam     T            float or double
+ * @tparam     KeyType      32- or 64-bit unsigned integer
+ * @param[in]  octree       octree, including internal part
+ * @param[in]  centers      tree cell expansion (com) center coordinates and mac radius, size @p octree.numTreeNodes()
+ * @param[in]  box          global coordinate bounding box
+ * @param[in]  focusStart   lower SFC focus code
+ * @param[in]  focusEnd     upper SFC focus code
+ * @param[out] markings     array of length @p octree.numTreeNodes(), each position i
+ *                          will be set to 1, if the node of @p octree with index i fails the MAC paired with
+ *                          any node contained in the focus range [focusStart:focusEnd]
+ */
+template<template<class> class TreeType, class T, class KeyType>
+void markVecMac(const TreeType<KeyType>& octree,
+                const Vec4<T>* centers,
+                const Box<T>& box,
+                KeyType focusStart,
+                KeyType focusEnd,
+                char* markings)
+
+{
+    std::fill(markings, markings + octree.numTreeNodes(), 0);
+
+    // find the minimum possible number of octree node boxes to cover the entire focus
+    TreeNodeIndex numFocusBoxes = spanSfcRange(focusStart, focusEnd);
+    std::vector<KeyType> focusCodes(numFocusBoxes + 1);
+    spanSfcRange(focusStart, focusEnd, focusCodes.data());
+    focusCodes.back() = focusEnd;
+
+    #pragma omp parallel for schedule(dynamic)
+    for (TreeNodeIndex i = 0; i < numFocusBoxes; ++i)
+    {
+        IBox target = sfcIBox(sfcKey(focusCodes[i]), sfcKey(focusCodes[i + 1]));
+        auto [targetCenter, targetSize] = centerAndSize<KeyType>(target, box);
+        markVecMacPerBox(targetCenter, targetSize, octree, centers, box, focusStart, focusEnd, markings);
     }
 }
 

@@ -38,6 +38,9 @@
 
 using namespace cstone;
 
+template<class T>
+using pair = util::array<T, 2>;
+
 template<class KeyType>
 void findSearchBounds()
 {

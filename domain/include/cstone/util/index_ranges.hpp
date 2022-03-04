@@ -44,11 +44,11 @@ namespace cstone
 template<class T>
 struct IndexPair : public std::tuple<T, T>
 {
-    IndexPair() = default;
+    IndexPair() : std::tuple<T, T>(0, 0) {}
     IndexPair(T a, T b) : std::tuple<T, T>(a, b) {}
 
     T start() const { return std::get<0>(*this); }
-    T end()   const { return std::get<1>(*this); }
+    T end() const { return std::get<1>(*this); }
     T count() const { return end() - start(); }
 };
 
@@ -76,7 +76,7 @@ public:
     void addRange(IndexType lower, IndexType upper)
     {
         assert(lower <= upper);
-        ranges_.emplace_back(lower, upper);
+        ranges_.push_back({lower, upper});
         totalCount_ += upper - lower;
     }
 
@@ -99,11 +99,11 @@ private:
     }
 
     std::size_t totalCount_;
-    std::vector<pair<IndexType>> ranges_;
+    std::vector<util::array<IndexType, 2>> ranges_;
 };
 
 //! @brief stores one or multiple index ranges of local particles to send out to another rank
-using SendManifest = IndexRanges<LocalParticleIndex>;
+using SendManifest = IndexRanges<LocalIndex>;
 //! @brief SendList will contain one manifest per rank
 using SendList = std::vector<SendManifest>;
 

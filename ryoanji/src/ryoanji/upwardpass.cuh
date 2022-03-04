@@ -43,31 +43,6 @@ struct UpsweepConfig
     static constexpr int numThreads = 256;
 };
 
-//! @brief computes the center of mass for the bodies in the specified range
-__host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int end, const fvec4* posGlob)
-{
-    assert(begin <= end);
-
-    fvec4 center{0, 0, 0, 0};
-    for (int i = begin; i < end; i++)
-    {
-        fvec4 pos    = posGlob[i];
-        float weight = pos[3];
-
-        center[0] += weight * pos[0];
-        center[1] += weight * pos[1];
-        center[2] += weight * pos[2];
-        center[3] += weight;
-    }
-
-    float invM = (center[3] != 0.0f) ? 1.0f / center[3] : 0.0f;
-    center[0] *= invM;
-    center[1] *= invM;
-    center[2] *= invM;
-
-    return center;
-}
-
 /*! @brief perform multipole upward sweep for one tree level
  *
  * launch config: one thread per cell of the current level
@@ -81,23 +56,19 @@ __host__ __device__ __forceinline__ fvec4 setCenter(const int begin, const int e
  * @param[out] cellXmax         coordinate maximum of each cell
  * @param[out] Multipole        output multipole of each cell
  */
-__global__ void upwardPass(const int firstCell, const int lastCell, CellData* cells, const fvec4* bodyPos,
-                           fvec4* sourceCenter, fvec3* cellXmin, fvec3* cellXmax,
-                           fvec4* Multipole)
+template<class T, class MType>
+__global__ void upwardPass(const int firstCell, const int lastCell, CellData* cells, const Vec4<T>* bodyPos,
+                           Vec4<T>* sourceCenter, Vec3<T>* cellXmin, Vec3<T>* cellXmax, MType* Multipole)
 {
     const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x + firstCell;
     if (cellIdx >= lastCell) return;
     CellData& cell = cells[cellIdx];
-    const float huge    = 1e10f;
-    fvec3 Xmin{+huge, +huge, +huge};
-    fvec3 Xmax{-huge, -huge, -huge};
-    fvec4 center;
-    float M[4 * NVEC4];
-
-    for (int k = 0; k < 4 * NVEC4; ++k)
-    {
-        M[k] = 0;
-    }
+    const T   huge = T(1e10);
+    Vec3<T>   Xmin{+huge, +huge, +huge};
+    Vec3<T>   Xmax{-huge, -huge, -huge};
+    Vec4<T>   center;
+    MType     M;
+    M = 0;
 
     if (cell.isLeaf())
     {
@@ -106,17 +77,17 @@ __global__ void upwardPass(const int firstCell, const int lastCell, CellData* ce
         center          = setCenter(begin, end, bodyPos);
         for (int i = begin; i < end; i++)
         {
-            fvec3 pos = make_fvec3(bodyPos[i]);
-            Xmin      = min(Xmin, pos);
-            Xmax      = max(Xmax, pos);
+            Vec3<T> pos = makeVec3(bodyPos[i]);
+            Xmin        = min(Xmin, pos);
+            Xmax        = max(Xmax, pos);
         }
-        P2M(begin, end, center, bodyPos, *(fvecP*)M);
+        P2M(begin, end, center, bodyPos, M);
     }
     else
     {
         const int begin = cell.child();
-        const int end   = begin + cell.nchild();
-        center          = setCenter(begin, end, sourceCenter);
+        const int end = begin + cell.nchild();
+        center = setCenter(begin, end, sourceCenter);
 
         unsigned numBodiesChildren = 0;
         for (int i = begin; i < end; i++)
@@ -129,59 +100,54 @@ __global__ void upwardPass(const int firstCell, const int lastCell, CellData* ce
         cell.setBody(cells[begin].body());
         cell.setNBody(numBodiesChildren);
 
-        M2M(begin, end, center, sourceCenter, Multipole, *(fvecP*)M);
+        M2M(begin, end, center, sourceCenter, Multipole, M);
     }
     sourceCenter[cellIdx] = center;
     cellXmin[cellIdx]     = Xmin;
     cellXmax[cellIdx]     = Xmax;
-    for (int i = 0; i < NVEC4; i++)
-        Multipole[NVEC4 * cellIdx + i] = fvec4{M[4 * i + 0], M[4 * i + 1], M[4 * i + 2], M[4 * i + 3]};
+    Multipole[cellIdx]    = M;
 }
 
-__global__ void setMAC(const int numCells, const float invTheta, fvec4* sourceCenter,
-                       fvec3* cellXmin, fvec3* cellXmax)
+template<class T>
+__global__ void setMAC(int numCells, T invTheta, Vec4<T>* sourceCenter, const Vec3<T>* cellXmin,
+                       const Vec3<T>* cellXmax)
 {
-    const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (cellIdx >= numCells) return;
-    const fvec3 Xmin         = cellXmin[cellIdx];
-    const fvec3 Xmax         = cellXmax[cellIdx];
-    const fvec3 Xi           = make_fvec3(sourceCenter[cellIdx]);
-    const fvec3 X            = (Xmax + Xmin) * 0.5f;
-    const fvec3 R            = (Xmax - Xmin) * 0.5f;
-    const fvec3 dX           = X - Xi;
-    const float s            = sqrt(norm2(dX));
-    const float l            = max(2.0f * max(R), 1.0e-6f);
-    const float MAC          = l * invTheta + s;
-    const float MAC2         = MAC * MAC;
+    int cellIdx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (cellIdx >= numCells) { return; }
+
+    Vec3<T> Xmin = cellXmin[cellIdx];
+    Vec3<T> Xmax = cellXmax[cellIdx];
+    Vec3<T> Xi   = makeVec3(sourceCenter[cellIdx]);
+    Vec3<T> X    = (Xmax + Xmin) * T(0.5);
+    Vec3<T> R    = (Xmax - Xmin) * T(0.5f);
+    Vec3<T> dX   = X - Xi;
+    T       s    = sqrt(norm2(dX));
+    T       l    = max(T(2.0) * max(R), T(1.0e-6));
+    T       MAC  = l * invTheta + s;
+    T       MAC2 = MAC * MAC;
+
     sourceCenter[cellIdx][3] = MAC2;
 }
 
-__global__ void normalize(const int numCells, fvec4* Multipole)
+template<class MType>
+__global__ void normalize(int numCells, MType* multipoles)
 {
-    const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x;
-    if (cellIdx >= numCells) return;
+    using T     = typename MType::value_type;
+    int cellIdx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (cellIdx >= numCells) { return; }
 
-    float mass = Multipole[NVEC4 * cellIdx][0];
-    float invM = (mass != 0.0f) ? 1.0 / mass : 0.0f;
-
-    Multipole[NVEC4 * cellIdx][1] *= invM;
-    Multipole[NVEC4 * cellIdx][2] *= invM;
-    Multipole[NVEC4 * cellIdx][3] *= invM;
-
-    for (int i = 1; i < NVEC4; i++)
-    {
-        Multipole[NVEC4 * cellIdx + i] *= invM;
-    }
+    multipoles[cellIdx] = normalize(multipoles[cellIdx]);
 }
 
-void upsweep(const int numSources, const int numLevels, const float theta, const int2* levelRange,
-             const fvec4* bodyPos, CellData* sourceCells, fvec4* sourceCenter, fvec4* Multipole)
+template<class T, class MType>
+void upsweep(int numSources, int numLevels, T theta, const int2* levelRange, const Vec4<T>* bodyPos,
+             CellData* sourceCells, Vec4<T>* sourceCenter, MType* Multipole)
 {
     constexpr int numThreads = UpsweepConfig::numThreads;
 
-    thrust::device_vector<fvec3> d_cellXminmax(2 * numSources);
-    fvec3* cellXmin = rawPtr(d_cellXminmax.data());
-    fvec3* cellXmax = cellXmin + numSources;
+    thrust::device_vector<Vec3<T>> d_cellXminmax(2 * numSources);
+    Vec3<T>* cellXmin = rawPtr(d_cellXminmax.data());
+    Vec3<T>* cellXmax = cellXmin + numSources;
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
@@ -201,7 +167,7 @@ void upsweep(const int numSources, const int numLevels, const float theta, const
     }
 
     int numBlocks = (numSources - 1) / numThreads + 1;
-    setMAC<<<numBlocks, numThreads>>>(numSources, 1.0 / theta, sourceCenter, cellXmin, cellXmax);
+    setMAC<<<numBlocks, numThreads>>>(numSources, T(1.0) / theta, sourceCenter, cellXmin, cellXmax);
     normalize<<<numBlocks, numThreads>>>(numSources, Multipole);
 
     auto t1   = std::chrono::high_resolution_clock::now();

@@ -39,9 +39,9 @@
 using namespace cstone;
 
 //! @brief reference peer search, all-all leaf comparison
-template<class T, class KeyType>
-std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> tree,
-                                  const Box<T>& box, float theta)
+template<class KeyType, class T>
+static std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> tree,
+                                         const Box<T>& box, float theta)
 {
     TreeNodeIndex firstIdx = assignment.firstNodeIdx(myRank);
     TreeNodeIndex lastIdx  = assignment.lastNodeIdx(myRank);
@@ -71,11 +71,12 @@ std::vector<int> findPeersAll2All(int myRank, const SpaceCurveAssignment& assign
 }
 
 template<class KeyType>
-void findMacPeers64grid(int rank, float theta, bool pbc, int refNumPeers)
+static void findMacPeers64grid(int rank, float theta, bool pbc, int refNumPeers)
 {
     Box<double> box{-1, 1, pbc};
     Octree<KeyType> octree;
-    octree.update(makeUniformNLevelTree<KeyType>(64, 1));
+    auto leaves = makeUniformNLevelTree<KeyType>(64, 1);
+    octree.update(leaves.data(), nNodes(leaves));
 
     SpaceCurveAssignment assignment(octree.numLeafNodes());
     for (int i = 0; i < octree.numLeafNodes(); ++i)
@@ -111,25 +112,25 @@ TEST(Peers, findMacGrid64PBC)
 }
 
 template<class KeyType>
-void findPeers()
+static void findPeers()
 {
     Box<double> box{-1, 1};
     int nParticles = 100000;
     int bucketSize = 64;
     int numRanks = 50;
 
-    auto codes = makeRandomGaussianKeys<KeyType>(nParticles);
+    auto particleKeys   = makeRandomGaussianKeys<KeyType>(nParticles);
+    auto [tree, counts] = computeOctree(particleKeys.data(), particleKeys.data() + nParticles, bucketSize);
 
     Octree<KeyType> octree;
-    auto [tree, counts] = computeOctree(codes.data(), codes.data() + nParticles, bucketSize);
-    octree.update(tree.begin(), tree.end());
+    octree.update(tree.data(), nNodes(tree));
 
     SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, numRanks);
 
     int probeRank = numRanks / 2;
     std::vector<int> peersDtt = findPeersMac(probeRank, assignment, octree, box, 0.5);
     std::vector<int> peersStt = findPeersMacStt(probeRank, assignment, octree, box, 0.5);
-    std::vector<int> peersA2A = findPeersAll2All(probeRank, assignment, octree.treeLeaves(), box, 0.5);
+    std::vector<int> peersA2A = findPeersAll2All<KeyType>(probeRank, assignment, tree, box, 0.5);
     EXPECT_EQ(peersDtt, peersStt);
     EXPECT_EQ(peersDtt, peersA2A);
 
@@ -140,7 +141,7 @@ void findPeers()
 
         // std::vector<int> peersOfPeerStt = findPeersMacStt(peerRank, assignment, octree, box, 0.5);
         // EXPECT_EQ(peersDtt, peersStt);
-        std::vector<int> peersOfPeerA2A = findPeersAll2All(peerRank, assignment, octree.treeLeaves(), box, 0.5);
+        std::vector<int> peersOfPeerA2A = findPeersAll2All<KeyType>(peerRank, assignment, tree, box, 0.5);
         EXPECT_EQ(peersOfPeerDtt, peersOfPeerA2A);
 
         // the peers of the peers of the probeRank have to have probeRank as peer

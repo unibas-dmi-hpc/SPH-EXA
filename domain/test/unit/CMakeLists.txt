@@ -4,8 +4,7 @@ set(UNIT_TESTS
         domain/layout.cpp
         findneighbors.cpp
         focus/octree_focus.cpp
-        gravity/multipole.cpp
-        gravity/treewalk.cpp
+        focus/source_center.cpp
         halos/radii.cpp
         primitives/clz.cpp
         primitives/gather.cpp
@@ -21,12 +20,12 @@ set(UNIT_TESTS
         traversal/macs.cpp
         traversal/peers.cpp
         traversal/traversal.cpp
-        traversal/upsweep.cpp
         tree/btree.cpp
         tree/octree.cpp
         tree/octree_internal.cpp
-        tree/octree_internal_td.cpp
         tree/octree_util.cpp
+        util/array.cpp
+        util/util.cpp
         test_main.cpp)
 
 add_executable(component_units ${UNIT_TESTS})
@@ -34,14 +33,14 @@ target_compile_options(component_units PRIVATE -Wall -Wextra -Wno-unknown-pragma
 
 target_include_directories(component_units PRIVATE ../../include)
 target_include_directories(component_units PRIVATE ../)
-target_link_libraries(component_units PRIVATE gtest_main)
+target_link_libraries(component_units PRIVATE GTest::gtest_main)
 add_test(NAME ComponentUnits COMMAND component_units)
 
 add_executable(component_units_omp ${UNIT_TESTS})
 
 target_include_directories(component_units_omp PRIVATE ../../include)
 target_include_directories(component_units_omp PRIVATE ../)
-target_link_libraries(component_units_omp PRIVATE gtest_main)
+target_link_libraries(component_units_omp PRIVATE GTest::gtest_main)
 target_link_libraries(component_units_omp PUBLIC OpenMP::OpenMP_CXX)
 add_test(NAME ComponentUnitsOmp COMMAND component_units_omp)
 

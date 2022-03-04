@@ -32,6 +32,7 @@
 #pragma once
 
 #include "cstone/domain/domaindecomp_mpi.hpp"
+#include "cstone/domain/layout.hpp"
 #include "cstone/tree/octree_internal.hpp"
 #include "cstone/tree/octree_mpi.hpp"
 
@@ -60,14 +61,14 @@ public:
         , bucketSize_(bucketSize)
         , box_(box)
     {
-        tree_       = std::vector<KeyType>{0, nodeRange<KeyType>(0)};
+        std::vector<KeyType> init{0, nodeRange<KeyType>(0)};
+        tree_.update(init.data(), nNodes(init));
         nodeCounts_ = std::vector<unsigned>{bucketSize_ + 1};
     }
 
     /*! @brief Update the global tree
      *
-     * @param[in]  particleStart_  first owned particle in x,y,z
-     * @param[in]  particleEnd_    last owned particle in x,y,z
+     * @param[in]  bufDesc         Buffer description with range of assigned particles
      * @param[in]  reorderFunctor  records the SFC order of the owned input coordinates
      * @param[out] particleKeys    will contain sorted particle SFC keys in the range [particleStart:particleEnd]
      * @param[in]  x               x coordinates
@@ -77,47 +78,56 @@ public:
      *
      * This function does not modify / communicate any particle data.
      */
-    template<class Tc, class Reorderer>
-    LocalParticleIndex assign(LocalParticleIndex particleStart_, LocalParticleIndex particleEnd_,
-                              Reorderer& reorderFunctor, KeyType* particleKeys, const Tc* x, const Tc* y, const Tc* z)
+    template<class Reorderer>
+    LocalIndex assign(
+        BufferDescription bufDesc, Reorderer& reorderFunctor, KeyType* particleKeys, const T* x, const T* y, const T* z)
     {
-        box_ = makeGlobalBox(x + particleStart_, x + particleEnd_, y + particleStart_, z + particleStart_, box_);
+        box_ = makeGlobalBox(x + bufDesc.start, x + bufDesc.end, y + bufDesc.start, z + bufDesc.start, box_);
 
         // number of locally assigned particles to consider for global tree building
-        LocalParticleIndex numParticles = particleEnd_ - particleStart_;
+        LocalIndex numParticles = bufDesc.end - bufDesc.start;
 
-        gsl::span<KeyType> keyView(particleKeys + particleStart_, numParticles);
+        gsl::span<KeyType> keyView(particleKeys + bufDesc.start, numParticles);
 
         // compute SFC particle keys only for particles participating in tree build
-        computeSfcKeys(x + particleStart_, y + particleStart_, z + particleStart_,
-                       sfcKindPointer(keyView.data()), numParticles, box_);
+        computeSfcKeys(x + bufDesc.start, y + bufDesc.start, z + bufDesc.start, sfcKindPointer(keyView.data()),
+                       numParticles, box_);
 
         // sort keys and keep track of ordering for later use
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
 
-        updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_);
+        gsl::span<const KeyType> oldLeaves = tree_.treeLeaves();
+        std::vector<KeyType> oldBoundaries(assignment_.numRanks() + 1);
+        for (size_t rank = 0; rank < oldBoundaries.size() - 1; ++rank)
+        {
+            oldBoundaries[rank] = oldLeaves[assignment_.firstNodeIdx(rank)];
+        }
+        oldBoundaries.back() = nodeRange<KeyType>(0);
+
+        updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_, numRanks_);
 
         if (firstCall_)
         {
             firstCall_ = false;
-            // full build on first call
-            while(!updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_));
+            while (!updateOctreeGlobal(keyView.begin(), keyView.end(), bucketSize_, tree_, nodeCounts_, numRanks_))
+                ;
         }
 
-        assignment_ = singleRangeSfcSplit(nodeCounts_, numRanks_);
+        auto newAssignment = singleRangeSfcSplit(nodeCounts_, numRanks_);
+        limitBoundaryShifts<KeyType>(oldBoundaries, tree_.treeLeaves(), nodeCounts_, newAssignment);
+        assignment_ = std::move(newAssignment);
+
         return assignment_.totalCount(myRank_);
     }
 
     /*! @brief Distribute particles to their assigned ranks based on previous assignment
      *
-     * @param[in]    particleStart      first valid particle index before the exchange
-     * @param[in]    particleEnd        last valid particle index before the exchange
-     * @param[in]    bufferSize         size of particle buffers x,y,z and particleProperties
+     * @param[in]    bufDesc            Buffer description with range of assigned particles and total buffer size
      * @param[inout] reorderFunctor     contains the ordering that accesses the range [particleStart:particleEnd]
      *                                  in SFC order
      * @param[out]   sfcOrder           If using the CPU reorderer, this is a duplicate copy. Otherwise provides
      *                                  the host space to download the ordering from the device.
-     * @param[in]    particleKeys       Sorted particle keys in [particleStart:particleEnd]
+     * @param[in]    keys               Sorted particle keys in [particleStart:particleEnd]
      * @param[inout] x                  particle x-coordinates
      * @param[inout] y                  particle y-coordinates
      * @param[inout] z                  particle z-coordinates
@@ -131,70 +141,54 @@ public:
      * where to put the assigned particles inside the buffer, such that we can reorder directly to the final
      * location. This saves us from having to move around data inside the buffers for a second time.
      */
-    template<class Reorderer, class Tc, class... Arrays>
-    std::tuple<LocalParticleIndex, gsl::span<const KeyType>> distribute(LocalParticleIndex particleStart,
-                                                                        LocalParticleIndex particleEnd,
-                                                                        LocalParticleIndex bufferSize,
-                                                                        Reorderer& reorderFunctor,
-                                                                        LocalParticleIndex* sfcOrder,
-                                                                        KeyType* particleKeys,
-                                                                        Tc* x,
-                                                                        Tc* y,
-                                                                        Tc* z,
-                                                                        Arrays... particleProperties) const
+    template<class Reorderer, class... Arrays>
+    auto distribute(BufferDescription bufDesc,
+                    Reorderer& reorderFunctor,
+                    KeyType* keys,
+                    T* x,
+                    T* y,
+                    T* z,
+                    Arrays... particleProperties) const
     {
-        LocalParticleIndex numParticles          = particleEnd - particleStart;
-        LocalParticleIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
+        LocalIndex numParticles          = bufDesc.end - bufDesc.start;
+        LocalIndex newNParticlesAssigned = assignment_.totalCount(myRank_);
 
-        reorderFunctor.getReorderMap(sfcOrder, 0, numParticles);
+        reallocate(numParticles, sfcOrder_);
+        reorderFunctor.getReorderMap(sfcOrder_.data(), 0, numParticles);
 
-        gsl::span<KeyType> keyView(particleKeys + particleStart, numParticles);
-
-        SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_, keyView);
+        gsl::span<KeyType> keyView(keys + bufDesc.start, numParticles);
+        SendList domainExchangeSends = createSendList<KeyType>(assignment_, tree_.treeLeaves(), keyView);
 
         // Assigned particles are now inside the [particleStart:particleEnd] range, but not exclusively.
         // Leftover particles from the previous step can also be contained in the range.
-        std::tie(particleStart, particleEnd) =
-            exchangeParticles(domainExchangeSends, myRank_, particleStart, particleEnd, bufferSize,
-                              newNParticlesAssigned, sfcOrder, x, y, z, particleProperties...);
+        auto [newStart, newEnd] =
+            exchangeParticles(domainExchangeSends, myRank_, bufDesc.start, bufDesc.end, bufDesc.size,
+                              newNParticlesAssigned, sfcOrder_.data(), x, y, z, particleProperties...);
 
-        numParticles = particleEnd - particleStart;
-        keyView      = gsl::span<KeyType>(particleKeys + particleStart, numParticles);
+        LocalIndex envelopeSize = newEnd - newStart;
+        keyView                 = gsl::span<KeyType>(keys + newStart, envelopeSize);
 
-        computeSfcKeys(x + particleStart, y + particleStart, z + particleStart, sfcKindPointer(keyView.begin()),
-                       numParticles, box_);
+        computeSfcKeys(x + newStart, y + newStart, z + newStart, sfcKindPointer(keyView.begin()), envelopeSize, box_);
         // sort keys and keep track of the ordering
         reorderFunctor.setMapFromCodes(keyView.begin(), keyView.end());
 
         // thanks to the sorting, we now know the exact range of the assigned particles:
-        // [particleStart + offset, particleStart + offset + newNParticlesAssigned]
-        LocalParticleIndex offset = findNodeAbove<KeyType>(keyView, tree_[assignment_.firstNodeIdx(myRank_)]);
-        // restrict the reordering to take only the assigned particles into account and ignore the others in
-        // [particleStart:particleEnd]
+        // [newStart + offset, newStart + offset + newNParticlesAssigned]
+        LocalIndex offset = findNodeAbove<KeyType>(keyView, tree_.treeLeaves()[assignment_.firstNodeIdx(myRank_)]);
+        // restrict the reordering to take only the assigned particles into account and ignore the others
         reorderFunctor.restrictRange(offset, newNParticlesAssigned);
 
-        reorderFunctor.getReorderMap(sfcOrder, offset, offset + newNParticlesAssigned);
-
-        return {particleStart, gsl::span<const KeyType>{particleKeys + particleStart + offset, newNParticlesAssigned}};
-    }
-
-    std::vector<int> findPeers(float theta)
-    {
-        Octree<KeyType> domainTree;
-        domainTree.update(tree_.begin(), tree_.end());
-        std::vector<int> peers = findPeersMac(myRank_, assignment_, domainTree, box_, theta);
-        return peers;
+        return std::make_tuple(newStart, keyView.subspan(offset, newNParticlesAssigned));
     }
 
     //! @brief read only visibility of the global octree leaves to the outside
-    gsl::span<const KeyType> tree() const { return tree_; }
-
+    gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
+    //! @brief the octree, including the internal part
+    const Octree<KeyType>& octree() const { return tree_; }
     //! @brief read only visibility of the global octree leaf counts to the outside
     gsl::span<const unsigned> nodeCounts() const { return nodeCounts_; }
-
     //! @brief the global coordinate bounding box
     const Box<T>& box() const { return box_; }
-
     //! @brief return the space filling curve rank assignment
     const SpaceCurveAssignment& assignment() const { return assignment_; }
 
@@ -208,9 +202,13 @@ private:
 
     SpaceCurveAssignment assignment_;
 
-    //! @brief cornerstone tree leaves for global domain decomposition
-    std::vector<KeyType> tree_;
+    //! @brief storage for downloading the sfc ordering from the GPU
+    mutable std::vector<LocalIndex> sfcOrder_;
+
+    //! @brief leaf particle counts
     std::vector<unsigned> nodeCounts_;
+    //! @brief the fully linked octree
+    Octree<KeyType> tree_;
 
     bool firstCall_{true};
 };

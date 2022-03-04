@@ -37,8 +37,7 @@
 #include "cstone/cuda/annotation.hpp"
 #include "cstone/primitives/stl.hpp"
 #include "cstone/tree/definitions.h"
-
-#include "common.hpp"
+#include "cstone/util/tuple.hpp"
 
 namespace cstone
 {

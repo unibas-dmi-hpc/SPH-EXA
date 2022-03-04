@@ -52,10 +52,10 @@ using namespace cstone;
  * naive all-to-all algorithm and the results are compared.
  */
 template<class KeyType, class T>
-void generalCollisionTest(const std::vector<KeyType>& tree, const std::vector<T>& haloRadii, const Box<T>& box)
+static void generalCollisionTest(const std::vector<KeyType>& tree, const std::vector<T>& haloRadii, const Box<T>& box)
 {
     Octree<KeyType> octree;
-    octree.update(tree.begin(), tree.end());
+    octree.update(tree.data(), nNodes(tree));
 
     // tree traversal collision detection
     std::vector<std::vector<TreeNodeIndex>> collisions(nNodes(tree));

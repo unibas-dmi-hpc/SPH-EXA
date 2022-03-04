@@ -65,7 +65,7 @@ template<class KeyType>
 SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
                              gsl::span<const int> haloFlags,
                              gsl::span<const KeyType> particleKeys,
-                             LocalParticleIndex offset,
+                             LocalIndex offset,
                              gsl::span<const TreeIndexPair> assignment,
                              gsl::span<const int> peerRanks)
 {
@@ -84,13 +84,7 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
         sendBuffers.push_back(std::move(requestKeys));
     }
 
-    size_t maxReceiveCount = 0;
-    for (int peer : peerRanks)
-    {
-        // +1 for the last range delimiter
-        maxReceiveCount = std::max(maxReceiveCount, size_t(assignment[peer].count()) + 1);
-    }
-    std::vector<KeyType> receiveBuffer(maxReceiveCount);
+    std::vector<KeyType> receiveBuffer(treeLeaves.size());
 
     SendList ret(assignment.size());
 
@@ -108,9 +102,9 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
             KeyType lowerKey = receiveBuffer[i];
             KeyType upperKey = receiveBuffer[i+1];
 
-            LocalParticleIndex lowerIdx = stl::lower_bound(particleKeys.begin(), particleKeys.end(), lowerKey)
+            LocalIndex lowerIdx = stl::lower_bound(particleKeys.begin(), particleKeys.end(), lowerKey)
                                           - particleKeys.begin() + offset;
-            LocalParticleIndex upperIdx = stl::lower_bound(particleKeys.begin(), particleKeys.end(), upperKey)
+            LocalIndex upperIdx = stl::lower_bound(particleKeys.begin(), particleKeys.end(), upperKey)
                                           - particleKeys.begin() + offset;
 
             ret[receiveRank].addRange(lowerIdx, upperIdx);

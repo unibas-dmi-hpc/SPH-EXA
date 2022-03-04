@@ -39,14 +39,20 @@
 namespace cstone
 {
 
-struct CpuTag {};
-struct CudaTag {};
+struct CpuTag
+{
+};
+struct GpuTag
+{
+};
 
 namespace detail
 {
 
 template<class Accelerator, class = void>
-struct ReorderFunctor {};
+struct ReorderFunctor
+{
+};
 
 template<class Accelerator>
 struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, CpuTag>{}>>
@@ -56,7 +62,7 @@ struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, Cp
 };
 
 template<class Accelerator>
-struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, CudaTag>{}>>
+struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, GpuTag>{}>>
 {
     template<class ValueType, class CodeType, class IndexType>
     using type = DeviceGather<ValueType, CodeType, IndexType>;
@@ -68,6 +74,4 @@ struct ReorderFunctor<Accelerator, std::enable_if_t<std::is_same<Accelerator, Cu
 template<class Accelerator, class ValueType, class CodeType, class IndexType>
 using ReorderFunctor_t = typename detail::ReorderFunctor<Accelerator>::template type<ValueType, CodeType, IndexType>;
 
-
 } // namespace cstone
-
