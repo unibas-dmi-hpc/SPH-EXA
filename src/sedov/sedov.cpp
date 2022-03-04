@@ -52,12 +52,12 @@ int main(int argc, char** argv)
         return exitSuccess();
     }
 
-    const size_t cubeSide          = parser.getInt("-n", 50);
-    const size_t maxStep           = parser.getInt("-s", 10);
-    const int writeFrequency       = parser.getInt("-w", -1);
-    const bool quiet               = parser.exists("--quiet");
-    const bool ascii               = parser.exists("--ascii");
-    const std::string outDirectory = parser.getString("--outDir");
+    const size_t      cubeSide       = parser.getInt("-n", 50);
+    const size_t      maxStep        = parser.getInt("-s", 10);
+    const int         writeFrequency = parser.getInt("-w", -1);
+    const bool        quiet          = parser.exists("--quiet");
+    const bool        ascii          = parser.exists("--ascii");
+    const std::string outDirectory   = parser.getString("--outDir");
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
@@ -121,10 +121,10 @@ int main(int argc, char** argv)
 
     if (d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
-    const size_t nTasks = 64;
-    const size_t ngmax  = 150;
-    const size_t ng0    = 100;
-    TaskList taskList   = TaskList(0, domain.nParticles(), nTasks, ngmax, ng0);
+    const size_t nTasks   = 64;
+    const size_t ngmax    = 150;
+    const size_t ng0      = 100;
+    TaskList     taskList = TaskList(0, domain.nParticles(), nTasks, ngmax, ng0);
 
 #ifdef SPH_EXA_USE_ASCENT
     AscentAdaptor::Initialize(d, domain.startIndex());
@@ -178,7 +178,7 @@ int main(int argc, char** argv)
         timer.step("Timestep"); // AllReduce(min:dt)
         computePositions<Real, computeAcceleration<Real, Dataset>>(taskList.tasks, d, domain.box());
         timer.step("UpdateQuantities");
-        computeTotalEnergy<Real>(taskList.tasks, d);
+        computeTotalEnergy(first, last, d);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
         updateSmoothingLength<Real>(taskList.tasks, d);
         timer.step("UpdateSmoothingLength");

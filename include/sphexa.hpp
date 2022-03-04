@@ -25,5 +25,5 @@
 #include "sph/eos.hpp"
 #include "sph/timestep.hpp"
 #include "sph/positions.hpp"
-#include "sph/totalEnergy.hpp"
+#include "sph/total_energy.hpp"
 #include "sph/updateSmoothingLength.hpp"
