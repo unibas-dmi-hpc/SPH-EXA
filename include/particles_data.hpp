@@ -65,7 +65,7 @@ public:
     size_t iteration;      // Current iteration
     size_t n, side, count; // Number of particles
 
-    T ttot, etot, ecin, eint, egrav;
+    T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
     T minDt;
 
     std::vector<T> x, y, z, x_m1, y_m1, z_m1;    // Positions
@@ -82,6 +82,7 @@ public:
     std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T> maxvsignal;
     std::vector<T> mue, mui, temp, cv;
+    std::vector<T> rho0, wrho0, kx, whomega, divv, curlv, alpha;
 
     std::vector<KeyType>                          codes;          // Particle space-filling-curve keys
     std::vector<int, PinnedAlloc_t<AccType, int>> neighborsCount; // number of neighbors of each particle
@@ -96,9 +97,10 @@ public:
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
      */
     inline static constexpr std::array fieldNames{
-        "x",   "y",   "z",   "x_m1", "y_m1",     "z_m1",     "vx",         "vy",  "vz",    "rho",  "u",
-        "p",   "h",   "m",   "c",    "grad_P_x", "grad_P_y", "grad_P_z",   "du",  "du_m1", "dt",   "dt_m1",
-        "c11", "c12", "c13", "c22",  "c23",      "c33",      "maxvsignal", "mue", "mui",   "temp", "cv"};
+        "x",   "y",     "z",   "x_m1", "y_m1",  "z_m1",     "vx",       "vy",       "vz",         "rho",
+        "u",   "p",     "h",   "m",    "c",     "grad_P_x", "grad_P_y", "grad_P_z", "du",         "du_m1",
+        "dt",  "dt_m1", "c11", "c12",  "c13",   "c22",      "c23",      "c33",      "maxvsignal", "mue",
+        "mui", "temp",  "cv",  "rho0", "wrho0", "kx",       "whomega",  "divv",     "curlv",      "alpha"};
 
     /*! @brief return a vector of pointers to field vectors
      *
@@ -108,9 +110,10 @@ public:
     auto data()
     {
         std::array<std::vector<T>*, fieldNames.size()> ret{
-            &x,   &y,   &z,   &x_m1, &y_m1,     &z_m1,     &vx,         &vy,  &vz,    &rho,  &u,
-            &p,   &h,   &m,   &c,    &grad_P_x, &grad_P_y, &grad_P_z,   &du,  &du_m1, &dt,   &dt_m1,
-            &c11, &c12, &c13, &c22,  &c23,      &c33,      &maxvsignal, &mue, &mui,   &temp, &cv};
+            &x,   &y,     &z,   &x_m1, &y_m1,  &z_m1,     &vx,       &vy,       &vz,         &rho,
+            &u,   &p,     &h,   &m,    &c,     &grad_P_x, &grad_P_y, &grad_P_z, &du,         &du_m1,
+            &dt,  &dt_m1, &c11, &c12,  &c13,   &c22,      &c23,      &c33,      &maxvsignal, &mue,
+            &mui, &temp,  &cv,  &rho0, &wrho0, &kx,       &whomega,  &divv,     &curlv,      &alpha};
 
         static_assert(ret.size() == fieldNames.size());
 
@@ -145,6 +148,21 @@ public:
         dependentFields = fieldStringsToInt(fieldNames, fields);
     }
 
+    void setConservedFieldsVE()
+    {
+        std::vector<std::string> fields{
+            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "dt_m1", "alpha"};
+        conservedFields = fieldStringsToInt(fieldNames, fields);
+    }
+
+    void setDependentFieldsVE()
+    {
+        std::vector<std::string> fields{"rho",        "p",    "c",     "grad_P_x", "grad_P_y", "grad_P_z", "du",
+                                        "dt",         "c11",  "c12",   "c13",      "c22",      "c23",      "c33",
+                                        "maxvsignal", "rho0", "wrho0", "kx",       "whomega",  "divv",     "curlv"};
+        dependentFields = fieldStringsToInt(fieldNames, fields);
+    }
+
     void setOutputFields(const std::vector<std::string>& outFields)
     {
         outputFields = fieldStringsToInt(fieldNames, outFields);
@@ -173,7 +191,21 @@ public:
     constexpr static T sincIndex     = 6.0;
     constexpr static T Kcour         = 0.2;
     constexpr static T maxDtIncrease = 1.1;
-    const static T     K;
+
+    // Min. Atwood number in ramp function in momentum equation (crossed/uncrossed selection)
+    // Complete uncrossed option (Atmin>=1.d50, Atmax it doesn't matter).
+    // Complete crossed (Atmin and Atmax negative)
+    constexpr static T Atmax = 0.1;
+    constexpr static T Atmin = 0.2;
+    constexpr static T ramp  = 1.0 / (Atmax - Atmin);
+
+    // AV switches floor and ceiling
+    constexpr static T alphamin       = 0.05;
+    constexpr static T alphamax       = 1.0;
+    constexpr static T decay_constant = 0.2;
+
+    // Interpolation kernel normalization constant
+    const static T K;
 };
 
 template<typename T, typename I, class Acc>

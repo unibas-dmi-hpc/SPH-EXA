@@ -107,37 +107,31 @@ public:
         const double hIni  = 1.5 * step;
         const double mPart = mTotal / pd.n;
 
+        std::fill(pd.m.begin(), pd.m.end(), mPart);
+        std::fill(pd.h.begin(), pd.h.end(), hIni);
+        std::fill(pd.du_m1.begin(), pd.du_m1.end(), 0.0);
+        std::fill(pd.mui.begin(), pd.mui.end(), 10.0);
+        std::fill(pd.dt.begin(), pd.dt.end(), firstTimeStep);
+        std::fill(pd.dt_m1.begin(), pd.dt_m1.end(), firstTimeStep);
+        std::fill(pd.alpha.begin(), pd.alpha.end(), pd.alphamin);
+        pd.minDt = firstTimeStep;
+
 #pragma omp parallel for schedule(static)
         for (size_t i = 0; i < pd.count; i++)
         {
             double radius = std::sqrt((pd.x[i] * pd.x[i]) + (pd.y[i] * pd.y[i]) + (pd.z[i] * pd.z[i]));
             radius        = std::max(radius, 1e-10);
 
-            pd.h[i] = hIni;
-            pd.m[i] = mPart;
             pd.u[i] = u0;
 
             pd.vx[i] = vr0 * (pd.x[i] / radius);
             pd.vy[i] = vr0 * (pd.y[i] / radius);
             pd.vz[i] = vr0 * (pd.z[i] / radius);
 
-            // pd.mui[i] = 10.;
-            pd.du[i]    = 0.;
-            pd.du_m1[i] = 0.;
-
-            pd.dt[i]    = firstTimeStep;
-            pd.dt_m1[i] = firstTimeStep;
-            pd.minDt    = firstTimeStep;
-
             pd.x_m1[i] = pd.x[i] - pd.vx[i] * firstTimeStep;
             pd.y_m1[i] = pd.y[i] - pd.vy[i] * firstTimeStep;
             pd.z_m1[i] = pd.z[i] - pd.vz[i] * firstTimeStep;
         }
-
-        pd.etot = 0.;
-        pd.ecin = 0.;
-        pd.eint = 0.;
-        pd.ttot = 0.;
     }
 };
 

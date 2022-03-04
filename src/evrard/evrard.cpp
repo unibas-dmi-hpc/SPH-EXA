@@ -31,7 +31,7 @@ void printHelp(char* binName, int rank);
 
 int main(int argc, char** argv)
 {
-    const int rank = initAndGetRankId();
+    auto [rank, numRanks] = initMpi();
 
     const ArgParser parser(argc, argv);
 
