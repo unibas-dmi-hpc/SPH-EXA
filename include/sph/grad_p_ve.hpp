@@ -53,7 +53,7 @@ void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
     const T Atmax     = d.Atmax;
     const T ramp      = d.ramp;
 
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;

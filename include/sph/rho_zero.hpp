@@ -35,7 +35,7 @@ void computeRho0Impl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& 
     const T K         = d.K;
     const T sincIndex = d.sincIndex;
 
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
     for (size_t i = startIndex; i < endIndex; i++)
     {
         size_t ni = i - startIndex;
