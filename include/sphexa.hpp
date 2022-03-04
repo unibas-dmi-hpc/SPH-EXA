@@ -22,7 +22,7 @@
 #include "sph/AVswitches.hpp"
 #include "sph/momentumAndEnergyIAD.hpp"
 #include "sph/kernels.hpp"
-#include "sph/equationOfState.hpp"
+#include "sph/eos.hpp"
 #include "sph/timestep.hpp"
 #include "sph/positions.hpp"
 #include "sph/totalEnergy.hpp"

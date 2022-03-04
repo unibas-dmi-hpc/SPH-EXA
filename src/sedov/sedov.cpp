@@ -141,6 +141,9 @@ int main(int argc, char** argv)
         timer.step("domain::sync");
 
         resize(d, domain.nParticlesWithHalos());
+        size_t first = domain.startIndex();
+        size_t last  = domain.endIndex();
+
         // domain.exchangeHalos(d.m);
         std::fill(begin(d.m), begin(d.m) + domain.startIndex(), d.m[domain.startIndex()]);
         std::fill(begin(d.m) + domain.endIndex(), begin(d.m) + domain.nParticlesWithHalos(), d.m[domain.startIndex()]);
@@ -155,7 +158,7 @@ int main(int argc, char** argv)
         timer.step("mpi::synchronizeHalos");
         computeDensity<Real>(taskList.tasks, d, domain.box());
         timer.step("Density");
-        computeEquationOfStateEvrard<Real>(taskList.tasks, d);
+        computeEquationOfState(first, last, d);
         timer.step("EquationOfState");
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c, d.kx);
         timer.step("mpi::synchronizeHalos");
