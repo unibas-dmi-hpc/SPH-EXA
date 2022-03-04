@@ -1,3 +1,35 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2021 CSCS, ETH Zurich
+ *               2021 University of Basel
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/*! @file
+ * @brief Min-reduction to determine global timestep
+ *
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Aurelien Cavelan
+ */
+
 #pragma once
 
 #include <vector>
@@ -15,88 +47,49 @@ namespace sphexa
 namespace sph
 {
 
-// TODO: rename into KCourant
-template <typename T, class Dataset>
-struct TimestepPress2ndOrder
+template<class T1, class T2, class T3>
+auto tsKCourant(T1 maxvsignal, T2 h, T3 c, double kcour)
 {
-    T operator()(const int i, const Dataset &d)
-    {
-        const T maxvsignal = d.maxvsignal[i];
-        return maxvsignal > 0.0 ? d.Kcour * d.h[i] / d.maxvsignal[i] : d.Kcour * d.h[i] / d.c[i];
-    }
-};
-
-template <typename T, class Dataset>
-struct TimestepKCourantDmy
-{
-    T operator()(const int i, const Dataset &d)
-    {
-        const T dtu = std::abs(d.dku * (d.u[i] / d.du[i]));
-        const T dtcour = d.Kcour * d.h[i] / d.c[i];
-        return std::min(dtu, dtcour);
-    }
-};
-
-template <typename T, class TimestepFunct, class Dataset>
-void computeMinTimestepImpl(const Task &t, Dataset &d, T &minDt)
-{
-    TimestepFunct functTimestep;
-    size_t numParticles = t.size();
-
-    T minDtTmp = INFINITY;
-
-    #pragma omp parallel for reduction(min : minDtTmp)
-    for (size_t pi = 0; pi < numParticles; pi++)
-    {
-        int i = pi + t.firstParticle;
-        const T dt_i = functTimestep(i, d);
-
-        minDtTmp = std::min(minDtTmp, dt_i);
-    }
-
-    minDt = minDtTmp;
+    using T = std::common_type_t<T1, T2, T3>;
+    T v     = maxvsignal > T(0) ? maxvsignal : c;
+    return T(kcour * h / v);
 }
 
-template <typename T, class Dataset>
-void setMinTimestepImpl(const Task &t, Dataset &d, const T minDt)
+template<class Dataset>
+auto computeMinTimestepImpl(size_t startIndex, size_t endIndex, Dataset& d)
 {
-    size_t numParticles = t.size();
+    using T = typename Dataset::RealType;
+    T minDt = INFINITY;
 
-    T* dt = d.dt.data();
-
-    #pragma omp parallel for
-    for (size_t pi = 0; pi < numParticles; pi++)
+#pragma omp parallel for reduction(min : minDt)
+    for (size_t i = startIndex; i < endIndex; i++)
     {
-        int i = pi + t.firstParticle;
-        dt[i] = minDt;
+        T dt_i = tsKCourant(d.maxvsignal[i], d.h[i], d.c[i], d.Kcour);
+        minDt  = std::min(minDt, dt_i);
     }
+
+    return minDt;
 }
 
-template <typename T, class TimestepFunct, class Dataset>
-void computeTimestep(const std::vector<Task> &taskList, Dataset &d)
+template<class Dataset>
+void computeTimestep(size_t startIndex, size_t endIndex, Dataset& d)
 {
-    T minDtTmp = INFINITY;
-    for (const auto &task : taskList)
-    {
-        T tminDt = 0.0;
-        computeMinTimestepImpl<T, TimestepFunct>(task, d, tminDt);
-        minDtTmp = std::min(tminDt, minDtTmp);
-    }
-
-    //    d.minTmpDt = minDtTmp;
-    minDtTmp = std::min(minDtTmp, d.maxDtIncrease * d.minDt);
+    using T = typename Dataset::RealType;
+    T minDt = computeMinTimestepImpl(startIndex, endIndex, d);
+    minDt   = std::min(minDt, d.maxDtIncrease * d.minDt);
 
 #ifdef USE_MPI
-    MPI_Allreduce(MPI_IN_PLACE, &minDtTmp, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+    MPI_Allreduce(MPI_IN_PLACE, &minDt, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
 #endif
 
-    for (const auto &task : taskList)
+#pragma omp parallel for schedule(static)
+    for (size_t i = startIndex; i < endIndex; i++)
     {
-        setMinTimestepImpl(task, d, minDtTmp);
+        d.dt[i] = minDt;
     }
 
-    d.ttot += minDtTmp;
-    d.minDt = minDtTmp;
+    d.ttot += minDt;
+    d.minDt = minDt;
 }
 
 } // namespace sph

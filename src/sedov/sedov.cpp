@@ -174,7 +174,7 @@ int main(int argc, char** argv)
         timer.step("mpi::synchronizeHalos");
         computeMomentumAndEnergyIAD<Real>(taskList.tasks, d, domain.box());
         timer.step("MomentumEnergyIAD");
-        computeTimestep<Real, TimestepPress2ndOrder<Real, Dataset>>(taskList.tasks, d);
+        computeTimestep(first, last, d);
         timer.step("Timestep"); // AllReduce(min:dt)
         computePositions<Real, computeAcceleration<Real, Dataset>>(taskList.tasks, d, domain.box());
         timer.step("UpdateQuantities");
