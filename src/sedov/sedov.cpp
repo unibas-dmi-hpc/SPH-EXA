@@ -13,9 +13,7 @@
 #include "sphexa.hpp"
 #include "sph/findNeighborsSfc.hpp"
 #include "ifile_writer.hpp"
-#include "SedovDataGenerator.hpp"
-
-#include "sph/findNeighborsSfc.hpp"
+#include "sedov_generator.hpp"
 
 using namespace cstone;
 using namespace sphexa;
@@ -64,7 +62,7 @@ int main(int argc, char** argv)
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
 
-    using Real = double;
+    using Real    = double;
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType, AccType>;
 
@@ -79,9 +77,8 @@ int main(int argc, char** argv)
     }
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
-
-    //Feed max min here.
-    //If makeGlobalBox is called later, it wont touch it.
+    // Feed max min here.
+    // If makeGlobalBox is called later, it wont touch it.
     Dataset d;
     d.side = cubeSide;
     d.setConservedFieldsVE();
@@ -96,14 +93,20 @@ int main(int argc, char** argv)
     size_t bucketSize = std::max(bucketSizeFocus, (cubeSide * cubeSide * cubeSide) / (100 * d.nrank));
 
     Box<Real> box(0, 1);
-    //Define box first and not call this.
+    // Define box first and not call this.
     box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
 
-	  //Enable PBC and enlarge bounds
+    // Enable PBC and enlarge bounds
     Real dx = 0.5 / cubeSide;
-    box = Box<Real>(box.xmin() - dx, box.xmax() + dx,
-                    box.ymin() - dx, box.ymax() + dx,
-                    box.zmin() - dx, box.zmax() + dx, true, true, true);
+    box     = Box<Real>(box.xmin() - dx,
+                    box.xmax() + dx,
+                    box.ymin() - dx,
+                    box.ymax() + dx,
+                    box.zmin() - dx,
+                    box.zmax() + dx,
+                    true,
+                    true,
+                    true);
 
     float theta = 1.0;
 
@@ -113,15 +116,15 @@ int main(int argc, char** argv)
     Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 #endif
 
-    domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,
-                d.dt_m1, d.alpha);
+    domain.sync(
+        d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1, d.alpha);
 
     if (d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
     const size_t nTasks = 64;
-    const size_t ngmax = 150;
-    const size_t ng0 = 100;
-    TaskList taskList = TaskList(0, domain.nParticles(), nTasks, ngmax, ng0);
+    const size_t ngmax  = 150;
+    const size_t ng0    = 100;
+    TaskList taskList   = TaskList(0, domain.nParticles(), nTasks, ngmax, ng0);
 
 #ifdef SPH_EXA_USE_ASCENT
     AscentAdaptor::Initialize(d, domain.startIndex());
@@ -133,8 +136,8 @@ int main(int argc, char** argv)
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
         timer.start();
-        domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1,
-                    d.dt_m1, d.alpha);
+        domain.sync(
+            d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1, d.alpha);
         timer.step("domain::sync");
 
         resize(d, domain.nParticlesWithHalos());
@@ -206,16 +209,12 @@ int main(int argc, char** argv)
 
         timer.stop();
 
-        if (d.rank == 0)
-        {
-            Printer::printTotalIterationTime(d.iteration, timer.duration(), output);
-        }
+        if (d.rank == 0) { Printer::printTotalIterationTime(d.iteration, timer.duration(), output); }
 #ifdef SPH_EXA_USE_CATALYST2
         CatalystAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
 #endif
 #ifdef SPH_EXA_USE_ASCENT
-	if((d.iteration % 5) == 0)
-          AscentAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
+        if ((d.iteration % 5) == 0) AscentAdaptor::Execute(d, domain.startIndex(), domain.endIndex());
 #endif
     }
 
@@ -224,10 +223,10 @@ int main(int argc, char** argv)
     constantsFile.close();
 
 #ifdef SPH_EXA_USE_CATALYST2
-  CatalystAdaptor::Finalize();
+    CatalystAdaptor::Finalize();
 #endif
 #ifdef SPH_EXA_USE_ASCENT
-  AscentAdaptor::Finalize();
+    AscentAdaptor::Finalize();
 #endif
     return exitSuccess();
 }
