@@ -34,7 +34,7 @@
 #include "gtest/gtest.h"
 
 #include "sph/kernel/computeMomentumAndEnergy.hpp"
-#include "sph/lookupTables.hpp"
+#include "sph/tables.hpp"
 
 using namespace sphexa;
 
@@ -142,7 +142,7 @@ TEST(MomentumEnergy, JLoop)
     EXPECT_NEAR(grad_Px, -0.41474721869900383, 1e-10);
     EXPECT_NEAR(grad_Py, 0.025658320252911829, 1e-10);
     EXPECT_NEAR(grad_Pz, -0.39246808566033031, 1e-10);
-    EXPECT_NEAR(du, -1.0681600761e-2, 1e-10);
+    EXPECT_NEAR(du, -0.0053408003947106632, 1e-10);
     EXPECT_NEAR(maxvsignal, 1.4112466829, 1e-10);
 }
 

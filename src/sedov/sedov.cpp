@@ -176,7 +176,7 @@ int main(int argc, char** argv)
         timer.step("MomentumEnergyIAD");
         computeTimestep(first, last, d);
         timer.step("Timestep"); // AllReduce(min:dt)
-        computePositions<Real, computeAcceleration<Real, Dataset>>(taskList.tasks, d, domain.box());
+        computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");
         computeTotalEnergy(first, last, d);
         timer.step("EnergyConservation"); // AllReduce(sum:ecin,ein)
