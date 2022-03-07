@@ -30,6 +30,7 @@
 
 #include <string>
 #include <iostream>
+#include <iomanip>
 #include <cmath>
 #include <vector>
 #include <filesystem>
@@ -74,17 +75,17 @@ int main(int argc, char** argv)
         parser.exists("--out") ? parser.getString("--out") : outDir + "sedov_solution_" + time_str + ".dat";
 
     // Calculate and write theoretical solution profile in one dimension
-    const size_t dim    = SedovDataGenerator<Real, KeyType>::dim;
-    const double r0     = SedovDataGenerator<Real, KeyType>::r0;
-    const double r1     = SedovDataGenerator<Real, KeyType>::r1;
-    const double eblast = SedovDataGenerator<Real, KeyType>::energyTotal;
-    const double gamma  = SedovDataGenerator<Real, KeyType>::gamma;
-    const double omega  = SedovDataGenerator<Real, KeyType>::omega;
-    const double rho0   = SedovDataGenerator<Real, KeyType>::rho0;
-    const double u0     = SedovDataGenerator<Real, KeyType>::u0;
-    const double p0     = SedovDataGenerator<Real, KeyType>::p0;
-    const double vr0    = SedovDataGenerator<Real, KeyType>::vr0;
-    const double cs0    = SedovDataGenerator<Real, KeyType>::cs0;
+    const size_t dim    = SedovDataGenerator::dim;
+    const double r0     = SedovDataGenerator::r0;
+    const double r1     = SedovDataGenerator::r1;
+    const double eblast = SedovDataGenerator::energyTotal;
+    const double gamma  = SedovDataGenerator::gamma;
+    const double omega  = SedovDataGenerator::omega;
+    const double rho0   = SedovDataGenerator::rho0;
+    const double u0     = SedovDataGenerator::u0;
+    const double p0     = SedovDataGenerator::p0;
+    const double vr0    = SedovDataGenerator::vr0;
+    const double cs0    = SedovDataGenerator::cs0;
 
     double shockFront;
     {
@@ -151,8 +152,6 @@ void printHelp(char* binName)
     printf("\t--outPath  PATH \t\t Path to directory where output will be saved [./].\
                 \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
                 \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n\n");
-
-    printf("\t--complete FLAG \t\t Calculate the solution for each particle [False]\n");
 }
 
 void writeColumns1D(const std::string& path)

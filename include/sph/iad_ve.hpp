@@ -1,11 +1,6 @@
 #pragma once
 
-#include <vector>
-
-#include <cmath>
-#include "math.hpp"
-#include "kernels.hpp"
-#include "kernel/iad.hpp"
+#include "kernel_ve/iad.hpp"
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
 #endif
@@ -16,17 +11,18 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computeIADImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeIadVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
 
-    const T* h  = d.h.data();
-    const T* m  = d.m.data();
-    const T* x  = d.x.data();
-    const T* y  = d.y.data();
-    const T* z  = d.z.data();
-    const T* ro = d.rho.data();
+    const T* h    = d.h.data();
+    const T* x    = d.x.data();
+    const T* y    = d.y.data();
+    const T* z    = d.z.data();
+    const T* m    = d.m.data();
+    const T* rho0 = d.rho0.data();
+    const T* kx   = d.kx.data();
 
     T* c11 = d.c11.data();
     T* c12 = d.c12.data();
@@ -41,7 +37,7 @@ void computeIADImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
     T K         = d.K;
     T sincIndex = d.sincIndex;
 
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;
@@ -56,9 +52,10 @@ void computeIADImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
                           z,
                           h,
                           m,
-                          ro,
                           wh,
                           whd,
+                          rho0,
+                          kx,
                           c11,
                           c12,
                           c13,
@@ -69,15 +66,10 @@ void computeIADImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
 }
 
 template<class T, class Dataset>
-void computeIAD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeIadVE(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-#if defined(USE_CUDA)
-    cuda::computeIAD(startIndex, endIndex, ngmax, d, box);
-#else
-    computeIADImpl(startIndex, endIndex, ngmax, d, box);
-#endif
+    computeIadVeImpl(startIndex, endIndex, ngmax, d, box);
 }
 
 } // namespace sph
-
 } // namespace sphexa

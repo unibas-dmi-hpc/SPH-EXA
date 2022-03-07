@@ -4,7 +4,6 @@
 #include "mpi.h"
 #endif
 
-#include "task.hpp"
 #include "arg_parser.hpp"
 #include "timer.hpp"
 #include "file_utils.hpp"

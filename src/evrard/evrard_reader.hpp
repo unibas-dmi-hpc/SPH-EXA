@@ -43,29 +43,26 @@ private:
 
     void init(Dataset& pd) const
     {
+        pd.minDt = 1e-4;
+
         // additional fields for evrard
-        std::fill(pd.temp.begin(), pd.temp.end(), 1.0);
         std::fill(pd.mue.begin(), pd.mue.end(), 2.0);
         std::fill(pd.mui.begin(), pd.mui.end(), 10.0);
         std::fill(pd.vx.begin(), pd.vx.end(), 0.0);
         std::fill(pd.vy.begin(), pd.vy.end(), 0.0);
         std::fill(pd.vz.begin(), pd.vz.end(), 0.0);
-        std::fill(pd.grad_P_x.begin(), pd.grad_P_x.end(), 0.0);
-        std::fill(pd.grad_P_y.begin(), pd.grad_P_y.end(), 0.0);
-        std::fill(pd.grad_P_z.begin(), pd.grad_P_z.end(), 0.0);
-        std::fill(pd.du.begin(), pd.du.end(), 0.0);
         std::fill(pd.du_m1.begin(), pd.du_m1.end(), 0.0);
-        std::fill(pd.dt.begin(), pd.dt.end(), 0.0001);
-        std::fill(pd.dt_m1.begin(), pd.dt_m1.end(), 0.0001);
+        std::fill(pd.dt_m1.begin(), pd.dt_m1.end(), pd.minDt);
+        std::fill(pd.alpha.begin(), pd.alpha.end(), pd.alphamin);
 
+        // As long as velocities are zero, we could also just copy x to x_m1
+#pragma omp parallel for schedule(static)
         for (size_t i = 0; i < pd.count; ++i)
         {
-            pd.x_m1[i] = pd.x[i] - pd.vx[i] * pd.dt[0];
-            pd.y_m1[i] = pd.y[i] - pd.vy[i] * pd.dt[0];
-            pd.z_m1[i] = pd.z[i] - pd.vz[i] * pd.dt[0];
+            pd.x_m1[i] = pd.x[i] - pd.vx[i] * pd.minDt;
+            pd.y_m1[i] = pd.y[i] - pd.vy[i] * pd.minDt;
+            pd.z_m1[i] = pd.z[i] - pd.vz[i] * pd.minDt;
         }
-        pd.etot = pd.ecin = pd.eint = pd.egrav = 0.0;
-        pd.minDt                               = 1e-4;
     }
 };
 

@@ -18,7 +18,12 @@
 #include "propagator.hpp"
 #include "insitu_viz.h"
 
-using namespace cstone;
+#ifdef USE_CUDA
+using AccType = cstone::GpuTag;
+#else
+using AccType = cstone::CpuTag;
+#endif
+
 using namespace sphexa;
 using namespace sphexa::sph;
 
@@ -26,7 +31,7 @@ void printHelp(char* binName, int rank);
 
 int main(int argc, char** argv)
 {
-    const int rank = initAndGetRankId();
+    auto [rank, numRanks] = initMpi();
 
     const ArgParser parser(argc, argv);
 
@@ -50,7 +55,7 @@ int main(int argc, char** argv)
 
     using Real    = double;
     using KeyType = uint64_t;
-    using Dataset = ParticlesData<Real, KeyType>;
+    using Dataset = ParticlesData<Real, KeyType, AccType>;
 
     const IFileReader<Dataset>& fileReader = EvrardFileReader<Dataset>();
 
@@ -61,9 +66,12 @@ int main(int argc, char** argv)
         fileWriter = std::make_unique<H5PartWriter<Dataset>>();
     }
 
-    auto d         = fileReader.read(inputFilePath, nParticles);
-    d.outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "ro", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
-    if (parser.exists("-f")) { d.outputFields = parser.getCommaList("-f"); }
+    auto d = fileReader.read(inputFilePath, nParticles);
+
+    std::vector<std::string> outputFields = {
+        "x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
+    if (parser.exists("-f")) { outputFields = parser.getCommaList("-f"); }
+    d.setOutputFields(outputFields);
 
     std::cout << d.x[0] << " " << d.y[0] << " " << d.z[0] << std::endl;
     std::cout << d.x[1] << " " << d.y[1] << " " << d.z[1] << std::endl;
@@ -84,29 +92,21 @@ int main(int argc, char** argv)
 
     float theta = 0.5;
 
-#ifdef USE_CUDA
-    DomainType<KeyType, Real, CudaTag> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#else
-    Domain<KeyType, Real> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
-#endif
+    cstone::Domain<KeyType, Real, AccType> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 
-    domain.sync(
-        d.codes, d.x, d.y, d.z, d.h, d.m, d.mui, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
+    domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
 
     if (d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
-    const size_t nTasks = 64;
-    const size_t ngmax  = 150;
-    const size_t ng0    = 100;
+    const size_t ngmax = 150;
+    const size_t ng0   = 100;
 
-    Propagator propagator(nTasks, ngmax, ng0, output, d.rank);
-
-    if (d.rank == 0) std::cout << "Starting main loop." << std::endl;
+    Propagator propagator(ngmax, ng0, output, d.rank);
 
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)

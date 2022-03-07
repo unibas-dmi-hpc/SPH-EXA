@@ -4,43 +4,54 @@
 #include <cmath>
 #include <vector>
 
-#include "sph/kernels.hpp"
+#include "particles_data.hpp"
 
 namespace sphexa
 {
 
-class SedovDataGenerator
+class NohDataGenerator
 {
 public:
-    static inline const unsigned dim           = 3;
-    static inline const double   gamma         = 5. / 3.;
-    static inline const double   omega         = 0.;
     static inline const double   r0            = 0.;
     static inline const double   r1            = 0.5;
     static inline const double   mTotal        = 1.;
-    static inline const double   energyTotal   = 1.;
-    static inline const double   width         = 0.1;
-    static inline const double   ener0         = energyTotal / std::pow(M_PI, 1.5) / 1. / std::pow(width, 3.0);
+    static inline const unsigned dim           = 3;
+    static inline const double   gamma         = 5. / 3.;
     static inline const double   rho0          = 1.;
-    static inline const double   u0            = 1.e-08;
+    static inline const double   u0            = 1.e-20;
     static inline const double   p0            = 0.;
-    static inline const double   vr0           = 0.;
+    static inline const double   vr0           = -1.;
     static inline const double   cs0           = 0.;
-    static inline const double   firstTimeStep = 1.e-6;
+    static inline const double   firstTimeStep = 1.e-4;
 
     template<class Dataset>
-    static void generate(Dataset& pd)
+    static Dataset generate(const size_t side)
     {
+        Dataset pd;
+
+        if (pd.rank == 0 && side < 8)
+        {
+            printf("ERROR::Noh::init()::SmoothingLength n too small\n");
+#ifdef USE_MPI
+            MPI_Finalize();
+#endif
+            exit(0);
+        }
+
 #ifdef USE_MPI
         pd.comm = MPI_COMM_WORLD;
         MPI_Comm_size(pd.comm, &pd.nrank);
         MPI_Comm_rank(pd.comm, &pd.rank);
 #endif
-        pd.n     = pd.side * pd.side * pd.side;
+
+        pd.side  = side;
+        pd.n     = side * side * side;
         pd.count = pd.n;
 
         load(pd);
         init(pd);
+
+        return pd;
     }
 
     template<class Dataset>
@@ -83,10 +94,6 @@ public:
                         pd.z[lindex - offset] = lz;
                         pd.y[lindex - offset] = ly;
                         pd.x[lindex - offset] = lx;
-
-                        pd.vx[lindex - offset] = 0.;
-                        pd.vy[lindex - offset] = 0.;
-                        pd.vz[lindex - offset] = 0.;
                     }
                 }
             }
@@ -96,12 +103,9 @@ public:
     template<class Dataset>
     static void init(Dataset& pd)
     {
-        using T = typename Dataset::RealType;
-
-        const double step   = (2. * r1) / pd.side;
-        const double hIni   = 1.5 * step;
-        const double mPart  = mTotal / pd.n;
-        const double width2 = width * width;
+        const double step  = (2. * r1) / pd.side;
+        const double hIni  = 1.5 * step;
+        const double mPart = mTotal / pd.n;
 
         std::fill(pd.m.begin(), pd.m.end(), mPart);
         std::fill(pd.h.begin(), pd.h.end(), hIni);
@@ -115,16 +119,18 @@ public:
 #pragma omp parallel for schedule(static)
         for (size_t i = 0; i < pd.count; i++)
         {
-            T xi = pd.x[i];
-            T yi = pd.y[i];
-            T zi = pd.z[i];
-            T r2 = xi * xi + yi * yi + zi * zi;
+            double radius = std::sqrt((pd.x[i] * pd.x[i]) + (pd.y[i] * pd.y[i]) + (pd.z[i] * pd.z[i]));
+            radius        = std::max(radius, 1e-10);
 
-            pd.u[i] = ener0 * exp(-(r2 / width2)) + u0;
+            pd.u[i] = u0;
 
-            pd.x_m1[i] = xi - pd.vx[i] * firstTimeStep;
-            pd.y_m1[i] = yi - pd.vy[i] * firstTimeStep;
-            pd.z_m1[i] = zi - pd.vz[i] * firstTimeStep;
+            pd.vx[i] = vr0 * (pd.x[i] / radius);
+            pd.vy[i] = vr0 * (pd.y[i] / radius);
+            pd.vz[i] = vr0 * (pd.z[i] / radius);
+
+            pd.x_m1[i] = pd.x[i] - pd.vx[i] * firstTimeStep;
+            pd.y_m1[i] = pd.y[i] - pd.vy[i] * firstTimeStep;
+            pd.z_m1[i] = pd.z[i] - pd.vz[i] * firstTimeStep;
         }
     }
 };

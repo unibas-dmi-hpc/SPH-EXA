@@ -4,8 +4,6 @@
 
 #include "cstone/findneighbors.hpp"
 
-#include "kernels.hpp"
-#include "task.hpp"
 #include "kernel/density.hpp"
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
@@ -15,15 +13,11 @@ namespace sphexa
 {
 namespace sph
 {
-template<typename T, class Dataset>
-void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
+template<class T, class Dataset>
+void computeDensityImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    // number of particles in task
-    size_t numParticles = t.size();
-
-    const size_t ngmax          = t.ngmax;
-    const int*   neighbors      = t.neighbors.data();
-    const int*   neighborsCount = t.neighborsCount.data();
+    const int* neighbors      = d.neighbors.data();
+    const int* neighborsCount = d.neighborsCount.data();
 
     const T* h = d.h.data();
     const T* m = d.m.data();
@@ -39,51 +33,33 @@ void computeDensityImpl(const Task& t, Dataset& d, const cstone::Box<T>& box)
     const T K         = d.K;
     const T sincIndex = d.sincIndex;
 
-#if defined(USE_OMP_TARGET)
-    const size_t np           = d.x.size();
-    const size_t ltsize       = d.wh.size();
-    const size_t n            = numParticles;
-    const size_t allNeighbors = n * ngmax;
-
-// clang-format off
-#pragma omp target map(to                                                                                                                  \
-                       : n, neighbors [:allNeighbors], neighborsCount [:n], m [0:np], h [0:np], x [0:np], y [0:np], z [0:np],  wh [0:ltsize], whd [0:ltsize])    \
-                   map(from                                                                                                                \
-                       : rho [:n])
-#pragma omp teams distribute parallel for
-// clang-format on
-#else
-#pragma omp parallel for
-#endif
-    for (size_t pi = 0; pi < numParticles; pi++)
+#pragma omp parallel for schedule(static)
+    for (size_t i = startIndex; i < endIndex; i++)
     {
         // int neighLoc[ngmax];
         // int count;
         // cstone::findNeighbors(
         //    pi, x, y, z, h, box, cstone::sfcKindPointer(d.codes.data()), neighLoc, &count, d.codes.size(), ngmax);
 
-        int i = pi + t.firstParticle;
+        size_t ni = i - startIndex;
 
         rho[i] = kernels::densityJLoop(
-            i, sincIndex, K, box, neighbors + ngmax * pi, neighborsCount[pi], x, y, z, h, m, wh, whd);
+            i, sincIndex, K, box, neighbors + ngmax * ni, neighborsCount[i], x, y, z, h, m, wh, whd);
 
 #ifndef NDEBUG
         if (std::isnan(rho[i]))
-            printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", pi, rho[i], x[i], y[i], z[i], h[i]);
+            printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", i, rho[i], x[i], y[i], z[i], h[i]);
 #endif
     }
 }
 
-template<typename T, class Dataset>
-void computeDensity(std::vector<Task>& taskList, Dataset& d, const cstone::Box<T>& box)
+template<class T, class Dataset>
+void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
 #if defined(USE_CUDA)
-    cuda::computeDensity<Dataset>(taskList, d, box);
+    cuda::computeDensity(startIndex, endIndex, ngmax, d, box);
 #else
-    for (const auto& task : taskList)
-    {
-        computeDensityImpl<T>(task, d, box);
-    }
+    computeDensityImpl(startIndex, endIndex, ngmax, d, box);
 #endif
 }
 

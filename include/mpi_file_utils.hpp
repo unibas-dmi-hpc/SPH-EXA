@@ -110,10 +110,11 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const std::str
     // set number of particles that each rank will write
     H5PartSetNumParticles(h5_file, h5_num_particles);
 
-    auto fieldPointers = getOutputArrays(d, d.outputFields);
+    auto fieldPointers = getOutputArrays(d);
     for (size_t fidx = 0; fidx < fieldPointers.size(); ++fidx)
     {
-        writeH5PartField(h5_file, d.outputFields[fidx], fieldPointers[fidx] + firstIndex);
+        const std::string& fieldName = Dataset::fieldNames[d.outputFields[fidx]];
+        writeH5PartField(h5_file, fieldName, fieldPointers[fidx] + firstIndex);
     }
 
     H5PartCloseFile(h5_file);
