@@ -77,7 +77,7 @@ public:
         double step = (2. * r1) / side;
 
 #pragma omp parallel for
-        for (size_t i = 0; i < side; ++i)
+        for (size_t i = first / (side * side); i < last / (side * side) + 1; ++i)
         {
             double lz = -r1 + (i * step);
 
