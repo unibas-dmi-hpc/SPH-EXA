@@ -11,7 +11,7 @@ set(testname kernel_tests)
 add_executable(${testname} ${UNIT_TESTS})
 target_compile_options(${testname} PRIVATE -Wall -Wextra)
 
-target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/domain/include)
+target_include_directories(${testname} PRIVATE ${CSTONE_DIR})
 target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
 target_link_libraries(${testname} PRIVATE GTest::gtest_main)

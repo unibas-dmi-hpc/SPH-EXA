@@ -96,7 +96,7 @@ noh-cuda: $(CUDA_OBJS)
 	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@ $(BUILDDIR)/cudalinked.o $(BUILDDIR)/cuda_mpi.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
 	$(RM) -rf $(BUILDDIR)
 
-$(BUILDDIR)/%.o: include/sph/cuda/%.cu
+$(BUILDDIR)/%.o: sph/include
 	@mkdir -p $(BUILDDIR)
 	$(NVCC) $(NVCCFLAGS) -DUSE_CUDA $(TEST_CUDA_FLAGS) $(INC) -c -o $@ $<
 
