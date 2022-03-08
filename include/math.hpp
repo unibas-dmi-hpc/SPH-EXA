@@ -5,7 +5,7 @@
 #include <cstdio>
 #include <array>
 
-#include "cudaFunctionAnnotation.hpp"
+#include "sph/cuda/cudaFunctionAnnotation.hpp"
 
 #define PI 3.14159265358979323846
 

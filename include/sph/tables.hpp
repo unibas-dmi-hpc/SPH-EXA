@@ -1,12 +1,8 @@
 #pragma once
 
-#include "../math.hpp"
-#include "../cudaFunctionAnnotation.hpp"
+#include "sph/cuda/cudaFunctionAnnotation.hpp"
 #include "kernels.hpp"
-
-#ifdef __CUDACC__
-#include "cuda/cuda_utils.cuh"
-#endif
+#include "math.hpp"
 
 namespace sphexa
 {
@@ -53,7 +49,7 @@ std::array<T, N> createWharmonicDerivativeLookupTable()
 // }
 
 template<typename T>
-CUDA_DEVICE_FUN inline T wharmonic_lt_with_derivative(const T* wh, const T* whd, T v)
+CUDA_DEVICE_HOST_FUN inline T wharmonic_lt_with_derivative(const T* wh, const T* whd, T v)
 {
     constexpr size_t halfTableSize   = size / 2;
     constexpr double inverseHalfSize = 1.0 / halfTableSize;

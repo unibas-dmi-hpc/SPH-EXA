@@ -1,7 +1,7 @@
 #pragma once
 
 #include "math.hpp"
-#include "cudaFunctionAnnotation.hpp"
+#include "sph/cuda/cudaFunctionAnnotation.hpp"
 
 namespace sphexa
 {
