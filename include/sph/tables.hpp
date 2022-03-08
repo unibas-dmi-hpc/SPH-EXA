@@ -1,6 +1,6 @@
 #pragma once
 
-#include "sph/cuda/cudaFunctionAnnotation.hpp"
+#include "sph/cuda/annotation.hpp"
 #include "kernels.hpp"
 #include "math.hpp"
 
