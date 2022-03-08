@@ -9,14 +9,13 @@
 #endif
 
 #include "cstone/domain/domain.hpp"
-
-#include "sphexa.hpp"
-#include "sph/find_neighbors.hpp"
-#include "noh_data_generator.hpp"
+#include "sph/propagator.hpp"
 #include "io/arg_parser.hpp"
 #include "io/ifile_writer.hpp"
+#include "util/timer.hpp"
+#include "util/utils.hpp"
 
-#include "propagator.hpp"
+#include "noh_data_generator.hpp"
 #include "insitu_viz.h"
 
 #ifdef USE_CUDA

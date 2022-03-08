@@ -1,7 +1,6 @@
 #pragma once
 
 #include <tuple>
-
 #include <omp.h>
 
 namespace sphexa
@@ -11,7 +10,6 @@ auto initMpi()
 {
     int rank     = 0;
     int numRanks = 0;
-#ifdef USE_MPI
     MPI_Init(NULL, NULL);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
@@ -30,15 +28,12 @@ auto initMpi()
         printf("# %d MPI-%d.%d process(es) with 1 OpenMP thread/process\n", mpi_ranks, mpi_version, mpi_subversion);
 #endif
     }
-#endif
     return std::make_tuple(rank, numRanks);
 }
 
 int exitSuccess()
 {
-#ifdef USE_MPI
     MPI_Finalize();
-#endif
     return EXIT_SUCCESS;
 }
 

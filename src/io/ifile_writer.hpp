@@ -5,7 +5,7 @@
 
 #include "file_utils.hpp"
 #include "mpi_file_utils.hpp"
-#include "particles_data.hpp"
+#include "sph/particles_data.hpp"
 
 namespace sphexa
 {

@@ -1,7 +1,7 @@
 #pragma once
 
 #include "cuda_utils.cuh"
-#include "pinned_allocator.h"
+#include "sph/pinned_allocator.h"
 #include "sph/tables.hpp"
 
 namespace sphexa

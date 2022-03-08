@@ -1,7 +1,7 @@
 #pragma once
 
 #include <iostream>
-#include "particles_data.hpp"
+#include "sph/particles_data.hpp"
 
 #ifdef SPH_EXA_USE_CATALYST2
 #include "CatalystAdaptor.h"

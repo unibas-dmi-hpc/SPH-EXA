@@ -1,15 +1,10 @@
 #pragma once
 
-#ifdef USE_MPI
-#include "mpi.h"
-#endif
-
-#include "timer.hpp"
-#include "utils.hpp"
-
 #if defined(USE_CUDA)
 #include "sph/cuda/sph.cuh"
 #endif
+
+#include "sph/find_neighbors.hpp"
 
 #include "sph/density.hpp"
 #include "sph/iad.hpp"
@@ -20,3 +15,10 @@
 #include "sph/positions.hpp"
 #include "sph/total_energy.hpp"
 #include "sph/update_h.hpp"
+
+#include "sph/av_switches.hpp"
+#include "sph/density_ve.hpp"
+#include "sph/divv_curlv.hpp"
+#include "sph/iad_ve.hpp"
+#include "sph/momentum_energy_ve.hpp"
+#include "sph/rho_zero.hpp"

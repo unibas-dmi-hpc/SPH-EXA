@@ -10,15 +10,14 @@
 #endif
 
 #include "cstone/domain/domain.hpp"
-
-#include "sphexa.hpp"
-#include "sph/find_neighbors.hpp"
-#include "sedov_generator.hpp"
+#include "sph/propagator.hpp"
 #include "io/arg_parser.hpp"
 #include "io/ifile_writer.hpp"
+#include "util/timer.hpp"
+#include "util/utils.hpp"
 
-#include "propagator.hpp"
 #include "insitu_viz.h"
+#include "sedov_generator.hpp"
 
 #ifdef USE_CUDA
 using AccType = cstone::GpuTag;

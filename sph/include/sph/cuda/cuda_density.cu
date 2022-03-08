@@ -1,7 +1,7 @@
 #include <algorithm>
 
 #include "sph.cuh"
-#include "particles_data.hpp"
+#include "sph/particles_data.hpp"
 #include "cuda_utils.cuh"
 #include "sph/kernel/density_kern.hpp"
 

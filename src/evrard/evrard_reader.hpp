@@ -3,7 +3,7 @@
 #include "io/file_utils.hpp"
 #include "io/mpi_file_utils.hpp"
 #include "io/ifile_reader.hpp"
-#include "particles_data.hpp"
+#include "sph/particles_data.hpp"
 
 namespace sphexa
 {

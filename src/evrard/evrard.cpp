@@ -9,14 +9,13 @@
 #endif
 
 #include "cstone/domain/domain.hpp"
-
-#include "evrard_reader.hpp"
+#include "sph/propagator.hpp"
 #include "io/arg_parser.hpp"
 #include "io/ifile_writer.hpp"
-#include "sphexa.hpp"
-#include "sph/find_neighbors.hpp"
+#include "util/timer.hpp"
+#include "util/utils.hpp"
 
-#include "propagator.hpp"
+#include "evrard_reader.hpp"
 #include "insitu_viz.h"
 
 #ifdef USE_CUDA
