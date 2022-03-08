@@ -1,6 +1,6 @@
 #pragma once
 
-#include "kernel_ve/iad.hpp"
+#include "kernel_ve/iad_kern.hpp"
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
 #endif

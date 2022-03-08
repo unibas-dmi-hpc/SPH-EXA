@@ -4,7 +4,7 @@
 
 #include "cstone/findneighbors.hpp"
 
-#include "kernel/density.hpp"
+#include "kernel/density_kern.hpp"
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
 #endif

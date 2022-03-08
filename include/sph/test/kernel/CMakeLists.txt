@@ -1,8 +1,8 @@
 include(sphexa_add_test)
 
 set(UNIT_TESTS
-        density.cpp
-        iad.cpp
+        density_kern.cpp
+        iad_kern.cpp
         momentum_energy.cpp
         test_main.cpp
         )

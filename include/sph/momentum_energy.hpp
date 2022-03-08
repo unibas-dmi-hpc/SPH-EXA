@@ -5,7 +5,7 @@
 #include <cmath>
 #include "math.hpp"
 #include "kernels.hpp"
-#include "kernel/grad_p.hpp"
+#include "kernel/momentum_energy_kern.hpp"
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
 #endif

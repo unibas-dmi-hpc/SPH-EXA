@@ -34,7 +34,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/kernel_ve/iad.hpp"
+#include "sph/kernel_ve/iad_kern.hpp"
 #include "sph/tables.hpp"
 
 using namespace sphexa;

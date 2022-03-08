@@ -33,7 +33,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/kernel/density.hpp"
+#include "sph/kernel/density_kern.hpp"
 #include "sph/tables.hpp"
 
 using namespace sphexa;

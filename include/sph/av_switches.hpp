@@ -1,6 +1,6 @@
 #pragma once
 
-#include "kernel_ve/av_switches.hpp"
+#include "kernel_ve/av_switches_kern.hpp"
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
 #endif

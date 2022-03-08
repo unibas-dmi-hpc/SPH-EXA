@@ -1,10 +1,10 @@
 set(UNIT_TESTS
-        rho_zero.cpp
-        density.cpp
-        iad.cpp
-        divv_curlv.cpp
-        av_switches.cpp
-        grad_p.cpp
+        rho_zero_kern.cpp
+        density_kern.cpp
+        iad_kern.cpp
+        divv_curlv_kern.cpp
+        av_switches_kern.cpp
+        momentum_energy_kern.cpp
         test_main.cpp
         )
 
