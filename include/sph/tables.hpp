@@ -2,7 +2,6 @@
 
 #include "sph/cuda/annotation.hpp"
 #include "kernels.hpp"
-#include "math.hpp"
 
 namespace sphexa
 {

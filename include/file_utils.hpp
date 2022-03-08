@@ -8,6 +8,14 @@ namespace sphexa
 namespace fileutils
 {
 
+//! @brief write a single line of compile-time fixed column types to an ostream
+template<class Separator, class... Columns>
+void writeColumns(std::ostream& out, const Separator& sep, Columns&&... columns)
+{
+    [[maybe_unused]] std::initializer_list<int> list{(out << sep << columns, 0)...};
+    out << std::endl;
+}
+
 /*! @brief write fields as columns to an ASCII file
  *
  * @tparam  T              field value type

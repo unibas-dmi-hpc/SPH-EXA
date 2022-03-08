@@ -7,7 +7,6 @@
 #include "arg_parser.hpp"
 #include "timer.hpp"
 #include "file_utils.hpp"
-#include "printer.hpp"
 #include "utils.hpp"
 
 #if defined(USE_CUDA)

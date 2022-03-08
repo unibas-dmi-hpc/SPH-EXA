@@ -88,7 +88,7 @@ int main(int argc, char** argv)
     size_t bucketSize = std::max(bucketSizeFocus, nParticles / (100 * d.nrank));
 
     // no PBC, global box will be recomputed every step
-    Box<Real> box(0, 1, false);
+    cstone::Box<Real> box(0, 1, false);
 
     float theta = 0.5;
 
@@ -113,7 +113,7 @@ int main(int argc, char** argv)
     {
         propagator.hydroStepGravity(domain, d);
 
-        Printer::printConstants(d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, constantsFile);
+        fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {

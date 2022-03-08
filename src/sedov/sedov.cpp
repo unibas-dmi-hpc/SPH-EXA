@@ -86,20 +86,20 @@ int main(int argc, char** argv)
 
     if (d.rank == 0) std::cout << "Data generated." << std::endl;
 
-    Box<Real> box(0, 1);
+    cstone::Box<Real> box(0, 1);
     box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
 
     // enable PBC and enlarge bounds
     Real dx = 0.5 / cubeSide;
-    box     = Box<Real>(box.xmin() - dx,
-                    box.xmax() + dx,
-                    box.ymin() - dx,
-                    box.ymax() + dx,
-                    box.zmin() - dx,
-                    box.zmax() + dx,
-                    true,
-                    true,
-                    true);
+    box     = cstone::Box<Real>(box.xmin() - dx,
+                            box.xmax() + dx,
+                            box.ymin() - dx,
+                            box.ymax() + dx,
+                            box.zmin() - dx,
+                            box.zmax() + dx,
+                            true,
+                            true,
+                            true);
 
     cstone::Domain<KeyType, Real, AccType> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 
@@ -126,7 +126,7 @@ int main(int argc, char** argv)
             propagator.hydroStep(domain, d);
         }
 
-        Printer::printConstants(d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, constantsFile);
+        fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {

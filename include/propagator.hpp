@@ -49,7 +49,6 @@
 #include "sph/rho_zero.hpp"
 #include "sph/timestep.hpp"
 
-using namespace cstone;
 using namespace sphexa;
 using namespace sphexa::sph;
 
@@ -208,8 +207,8 @@ public:
         computeMomentumAndEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
-        const Octree<KeyType>&               octree  = domain.focusTree();
-        gsl::span<const SourceCenterType<T>> centers = domain.expansionCenters();
+        const cstone::Octree<KeyType>&               octree  = domain.focusTree();
+        gsl::span<const cstone::SourceCenterType<T>> centers = domain.expansionCenters();
 
         std::vector<MultipoleType> multipoles(octree.numTreeNodes());
         ryoanji::computeLeafMultipoles(
@@ -270,22 +269,46 @@ private:
 
         if (d.rank == 0)
         {
-            Printer::printCheck(d.ttot,
-                                d.minDt,
-                                d.etot,
-                                d.eint,
-                                d.ecin,
-                                d.egrav,
-                                domain.box(),
-                                d.n,
-                                domain.nParticles(),
-                                nNodes(domain.tree()),
-                                domain.nParticlesWithHalos() - domain.nParticles(),
-                                totalNeighbors,
-                                output_);
+            printCheck(d.ttot,
+                       d.minDt,
+                       d.etot,
+                       d.eint,
+                       d.ecin,
+                       d.egrav,
+                       domain.box(),
+                       d.n,
+                       domain.nParticles(),
+                       cstone::nNodes(domain.tree()),
+                       domain.nParticlesWithHalos() - domain.nParticles(),
+                       totalNeighbors,
+                       output_);
 
             std::cout << "### Check ### Focus Tree Nodes: " << domain.focusTree().numLeafNodes() << std::endl;
-            Printer::printTotalIterationTime(d.iteration, timer.duration(), output_);
+            printTotalIterationTime(d.iteration, timer.duration(), output_);
         }
+    }
+
+    static void printTotalIterationTime(size_t iteration, float duration, std::ostream& out)
+    {
+        out << "=== Total time for iteration(" << iteration << ") " << duration << "s" << std::endl << std::endl;
+    }
+
+    template<class Box>
+    static void printCheck(double totalTime, double minTimeStep, double totalEnergy, double internalEnergy,
+                           double kineticEnergy, double gravitationalEnergy, const Box& box, size_t totalParticleCount,
+                           size_t particleCount, size_t nodeCount, size_t haloCount, size_t totalNeighbors,
+                           std::ostream& out)
+    {
+        out << "### Check ### Global Tree Nodes: " << nodeCount << ", Particles: " << particleCount
+            << ", Halos: " << haloCount << std::endl;
+        out << "### Check ### Computational domain: " << box.xmin() << " " << box.xmax() << " " << box.ymin() << " "
+            << box.ymax() << " " << box.zmin() << " " << box.zmax() << std::endl;
+        out << "### Check ### Total Neighbors: " << totalNeighbors
+            << ", Avg neighbor count per particle: " << totalNeighbors / totalParticleCount << std::endl;
+        out << "### Check ### Total time: " << totalTime << ", current time-step: " << minTimeStep << std::endl;
+        out << "### Check ### Total energy: " << totalEnergy << ", (internal: " << internalEnergy
+            << ", cinetic: " << kineticEnergy;
+        out << ", gravitational: " << gravitationalEnergy;
+        out << ")" << std::endl;
     }
 };
