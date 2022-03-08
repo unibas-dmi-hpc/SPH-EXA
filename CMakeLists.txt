@@ -103,10 +103,6 @@ endif()
 # }}}
 
 add_subdirectory(domain)
+add_subdirectory(ryoanji)
 add_subdirectory(sph)
-
-if (CMAKE_CUDA_COMPILER AND BUILD_RYOANJI)
-    add_subdirectory(ryoanji)
-endif()
-
 add_subdirectory(src)

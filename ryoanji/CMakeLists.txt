@@ -14,4 +14,6 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 add_subdirectory(src)
-add_subdirectory(test)
+if (BUILD_TESTING)
+  add_subdirectory(test)
+endif ()
