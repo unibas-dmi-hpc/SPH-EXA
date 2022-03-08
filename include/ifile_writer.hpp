@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "mpi_file_utils.hpp"
 #include "particles_data.hpp"
 
 namespace sphexa
@@ -37,10 +38,10 @@ struct AsciiWriter : public IFileWriter<Dataset>
                     bool append = d.rank != 0;
                     fileutils::writeAscii(firstIndex, lastIndex, path, append, fieldPointers, separator);
                 }
-                catch (MPIFileNotOpenedException& ex)
+                catch (std::runtime_error& ex)
                 {
                     if (d.rank == 0) fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
-                    MPI_Abort(d.comm, ex.mpierr);
+                    MPI_Abort(d.comm, 1);
                 }
             }
 

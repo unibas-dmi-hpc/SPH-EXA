@@ -22,10 +22,10 @@ struct EvrardFileReader : IFileReader<Dataset>
             if (d.rank == 0)
                 printf("Loaded input file with %lu particles for Evrard Collapse from path '%s' \n", d.n, path.c_str());
         }
-        catch (MPIFileNotOpenedException& ex)
+        catch (std::runtime_error& ex)
         {
             if (d.rank == 0) fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
-            MPI_Abort(d.comm, ex.mpierr);
+            MPI_Abort(d.comm, 1);
         }
 
         this->init(d);

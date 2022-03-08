@@ -2,8 +2,6 @@
 
 #include <mpi.h>
 
-#include "exceptions.hpp"
-
 #ifdef SPH_EXA_HAVE_H5PART
 #include <filesystem>
 #include "H5Part.h"
@@ -48,7 +46,7 @@ void readParticleDataFromBinFileWithMPI(const std::string& path, Dataset& pd, Ar
     if (pd.rank > pd.nrank - 1) offset += remaining * sizeof(double);
 
     const int err = MPI_File_open(pd.comm, path.c_str(), MPI_MODE_RDWR, MPI_INFO_NULL, &fh);
-    if (err != MPI_SUCCESS) { throw MPIFileNotOpenedException("Can't open MPI file at path: " + path, err); }
+    if (err != MPI_SUCCESS) { throw std::runtime_error("Can't open MPI file at path: " + path); }
 
     details::readFileMPI(fh, pd.count, offset, col, 0, data...);
 

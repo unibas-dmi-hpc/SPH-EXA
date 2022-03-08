@@ -3,10 +3,6 @@
 #include <fstream>
 #include <vector>
 
-#ifdef USE_MPI
-#include "mpi_file_utils.hpp"
-#endif
-
 namespace sphexa
 {
 namespace fileutils
