@@ -44,7 +44,7 @@
 #include "sph/av_switches.hpp"
 #include "sph/density_ve.hpp"
 #include "sph/divv_curlv.hpp"
-#include "sph/grad_p_ve.hpp"
+#include "sph/momentum_energy_ve.hpp"
 #include "sph/iad_ve.hpp"
 #include "sph/rho_zero.hpp"
 #include "sph/timestep.hpp"

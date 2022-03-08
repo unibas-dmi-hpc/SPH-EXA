@@ -15,7 +15,7 @@
 
 #include "sph/density.hpp"
 #include "sph/iad.hpp"
-#include "sph/grad_p.hpp"
+#include "sph/momentum_energy.hpp"
 #include "sph/kernels.hpp"
 #include "sph/eos.hpp"
 #include "sph/timestep.hpp"
