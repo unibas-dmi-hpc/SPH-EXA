@@ -4,9 +4,7 @@
 #include "mpi.h"
 #endif
 
-#include "arg_parser.hpp"
 #include "timer.hpp"
-#include "file_utils.hpp"
 #include "utils.hpp"
 
 #if defined(USE_CUDA)

@@ -10,10 +10,11 @@
 
 #include "cstone/domain/domain.hpp"
 
+#include "evrard_reader.hpp"
+#include "io/arg_parser.hpp"
+#include "io/ifile_writer.hpp"
 #include "sphexa.hpp"
 #include "sph/find_neighbors.hpp"
-#include "ifile_writer.hpp"
-#include "evrard_reader.hpp"
 
 #include "propagator.hpp"
 #include "insitu_viz.h"

@@ -13,7 +13,8 @@
 #include "sphexa.hpp"
 #include "sph/find_neighbors.hpp"
 #include "noh_data_generator.hpp"
-#include "ifile_writer.hpp"
+#include "io/arg_parser.hpp"
+#include "io/ifile_writer.hpp"
 
 #include "propagator.hpp"
 #include "insitu_viz.h"
