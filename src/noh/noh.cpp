@@ -9,13 +9,13 @@
 #endif
 
 #include "cstone/domain/domain.hpp"
+#include "sph/propagator.hpp"
+#include "io/arg_parser.hpp"
+#include "io/ifile_writer.hpp"
+#include "util/timer.hpp"
+#include "util/utils.hpp"
 
-#include "sphexa.hpp"
-#include "sph/find_neighbors.hpp"
 #include "noh_data_generator.hpp"
-#include "ifile_writer.hpp"
-
-#include "propagator.hpp"
 #include "insitu_viz.h"
 
 #ifdef USE_CUDA
@@ -83,8 +83,8 @@ int main(int argc, char** argv)
                               outFile);
     }
 
-    double    radius = NohDataGenerator::r1;
-    Box<Real> box(-radius, radius, false);
+    double            radius = NohDataGenerator::r1;
+    cstone::Box<Real> box(-radius, radius, false);
 
     cstone::Domain<KeyType, Real, AccType> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
     domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
@@ -101,7 +101,7 @@ int main(int argc, char** argv)
     {
         propagator.hydroStep(domain, d);
 
-        Printer::printConstants(d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, constantsFile);
+        fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {

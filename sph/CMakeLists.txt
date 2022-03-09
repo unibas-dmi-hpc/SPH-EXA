@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.17)
 
-project(ryoanji CXX CUDA)
+project(sph CXX CUDA)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CUDA_STANDARD 17)
@@ -13,7 +13,9 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
-add_subdirectory(src)
+set(CSTONE_DIR ${CMAKE_SOURCE_DIR}/domain/include)
+
+add_subdirectory(include)
 if (BUILD_TESTING)
   add_subdirectory(test)
 endif ()

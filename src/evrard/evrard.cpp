@@ -9,13 +9,13 @@
 #endif
 
 #include "cstone/domain/domain.hpp"
+#include "sph/propagator.hpp"
+#include "io/arg_parser.hpp"
+#include "io/ifile_writer.hpp"
+#include "util/timer.hpp"
+#include "util/utils.hpp"
 
-#include "sphexa.hpp"
-#include "sph/find_neighbors.hpp"
-#include "ifile_writer.hpp"
 #include "evrard_reader.hpp"
-
-#include "propagator.hpp"
 #include "insitu_viz.h"
 
 #ifdef USE_CUDA
@@ -88,7 +88,7 @@ int main(int argc, char** argv)
     size_t bucketSize = std::max(bucketSizeFocus, nParticles / (100 * d.nrank));
 
     // no PBC, global box will be recomputed every step
-    Box<Real> box(0, 1, false);
+    cstone::Box<Real> box(0, 1, false);
 
     float theta = 0.5;
 
@@ -113,7 +113,7 @@ int main(int argc, char** argv)
     {
         propagator.hydroStepGravity(domain, d);
 
-        Printer::printConstants(d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, constantsFile);
+        fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {

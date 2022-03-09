@@ -9,6 +9,24 @@
 namespace sphexa
 {
 
+auto partitionRange(size_t R, size_t i, size_t N)
+{
+    size_t s = R / N;
+    size_t r = R % N;
+    if (i < r)
+    {
+        size_t start = (s + 1) * i;
+        size_t end   = start + s + 1;
+        return std::make_tuple(start, end);
+    }
+    else
+    {
+        size_t start = (s + 1) * r + s * (i - r);
+        size_t end   = start + s;
+        return std::make_tuple(start, end);
+    }
+}
+
 class SedovDataGenerator
 {
 public:
@@ -36,57 +54,48 @@ public:
         MPI_Comm_size(pd.comm, &pd.nrank);
         MPI_Comm_rank(pd.comm, &pd.rank);
 #endif
-        pd.n     = pd.side * pd.side * pd.side;
-        pd.count = pd.n;
+        pd.n = pd.side * pd.side * pd.side;
 
-        load(pd);
-        init(pd);
-    }
-
-    template<class Dataset>
-    static void load(Dataset& pd)
-    {
-        size_t split     = pd.n / pd.nrank;
-        size_t remaining = pd.n - pd.nrank * split;
-
-        pd.count = split;
-        if (pd.rank == 0) pd.count += remaining;
+        auto [first, last] = partitionRange(pd.n, pd.rank, pd.nrank);
+        pd.count           = last - first;
 
         resize(pd, pd.count);
 
         if (pd.rank == 0)
+        {
             std::cout << "Approx: " << pd.count * (pd.data().size() * 64.) / (8. * 1000. * 1000. * 1000.)
                       << "GB allocated on rank 0." << std::endl;
+        }
 
-        size_t offset = pd.rank * split;
-        if (pd.rank > 0) offset += remaining;
+        regularGrid(pd.side, first, last, pd.x, pd.y, pd.z);
+        init(pd);
+    }
 
-        double step = (2. * r1) / pd.side;
+    template<class Vector>
+    static void regularGrid(size_t side, size_t first, size_t last, Vector& x, Vector& y, Vector& z)
+    {
+        double step = (2. * r1) / side;
 
 #pragma omp parallel for
-        for (size_t i = 0; i < pd.side; ++i)
+        for (size_t i = first / (side * side); i < last / (side * side) + 1; ++i)
         {
             double lz = -r1 + (i * step);
 
-            for (size_t j = 0; j < pd.side; ++j)
+            for (size_t j = 0; j < side; ++j)
             {
-                double lx = -r1 + (j * step);
+                double ly = -r1 + (j * step);
 
-                for (size_t k = 0; k < pd.side; ++k)
+                for (size_t k = 0; k < side; ++k)
                 {
-                    size_t lindex = (i * pd.side * pd.side) + (j * pd.side) + k;
+                    size_t lindex = (i * side * side) + (j * side) + k;
 
-                    if (lindex >= offset && lindex < offset + pd.count)
+                    if (first <= lindex && lindex < last)
                     {
-                        double ly = -r1 + (k * step);
+                        double lx = -r1 + (k * step);
 
-                        pd.z[lindex - offset] = lz;
-                        pd.y[lindex - offset] = ly;
-                        pd.x[lindex - offset] = lx;
-
-                        pd.vx[lindex - offset] = 0.;
-                        pd.vy[lindex - offset] = 0.;
-                        pd.vz[lindex - offset] = 0.;
+                        z[lindex - first] = lz;
+                        y[lindex - first] = ly;
+                        x[lindex - first] = lx;
                     }
                 }
             }
@@ -102,7 +111,6 @@ public:
         const double hIni   = 1.5 * step;
         const double mPart  = mTotal / pd.n;
         const double width2 = width * width;
-
         std::fill(pd.m.begin(), pd.m.end(), mPart);
         std::fill(pd.h.begin(), pd.h.end(), hIni);
         std::fill(pd.du_m1.begin(), pd.du_m1.end(), 0.0);
@@ -111,6 +119,10 @@ public:
         std::fill(pd.dt_m1.begin(), pd.dt_m1.end(), firstTimeStep);
         std::fill(pd.alpha.begin(), pd.alpha.end(), pd.alphamin);
         pd.minDt = firstTimeStep;
+
+        std::fill(pd.vx.begin(), pd.vx.end(), 0.0);
+        std::fill(pd.vy.begin(), pd.vy.end(), 0.0);
+        std::fill(pd.vz.begin(), pd.vz.end(), 0.0);
 
 #pragma omp parallel for schedule(static)
         for (size_t i = 0; i < pd.count; i++)

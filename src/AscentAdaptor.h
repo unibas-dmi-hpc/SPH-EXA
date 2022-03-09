@@ -1,7 +1,7 @@
 #ifndef AscentAdaptor_h
 #define AscentAdaptor_h
 
-#include "particles_data.hpp"
+#include "sph/particles_data.hpp"
 
 #include <ascent/ascent.hpp>
 #include "conduit_blueprint.hpp"
