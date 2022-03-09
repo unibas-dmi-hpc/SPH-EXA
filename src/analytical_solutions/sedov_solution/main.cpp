@@ -34,10 +34,9 @@
 #include <cmath>
 #include <vector>
 
+#include "init/sedov_constants.hpp"
 #include "io/arg_parser.hpp"
 #include "io/file_utils.hpp"
-
-#include "sedov/sedov_generator.hpp"
 
 #include "sedov_solution.hpp"
 

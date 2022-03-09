@@ -18,7 +18,6 @@
 #include "util/utils.hpp"
 
 #include "insitu_viz.h"
-#include "sedov_generator.hpp"
 
 #ifdef USE_CUDA
 using AccType = cstone::GpuTag;

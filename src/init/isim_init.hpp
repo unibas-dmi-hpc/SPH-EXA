@@ -31,7 +31,7 @@
 
 #pragma once
 
-#include "sedov/sedov_generator.hpp"
+#include "sedov_constants.hpp"
 #include "grid.hpp"
 
 namespace sphexa
