@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include "noh/noh_data_generator.hpp"
 #include "sedov_constants.hpp"
 #include "grid.hpp"
 
@@ -116,5 +117,80 @@ private:
         }
     }
 };
+
+template<class Dataset>
+class NohGrid : public ISimInitializer<Dataset>
+{
+public:
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
+    {
+        using T = typename Dataset::RealType;
+        d.n     = d.side * d.side * d.side;
+
+        auto [first, last] = partitionRange(d.n, rank, numRanks);
+        d.count            = last - first;
+
+        resize(d, d.count);
+
+        if (rank == 0)
+        {
+            std::cout << "Approx: " << d.count * (d.data().size() * 64.) / (8. * 1000. * 1000. * 1000.)
+                      << "GB allocated on rank 0." << std::endl;
+        }
+
+        T r = NohDataGenerator::r1;
+
+        regularGrid(r, d.side, first, last, d.x, d.y, d.z);
+        initFields(d);
+
+        return cstone::Box<T>(-r, r, false);
+    }
+
+private:
+    void initFields(Dataset& d) const
+    {
+        using T = typename Dataset::RealType;
+
+        double r1            = NohDataGenerator::r1;
+        double step          = (2. * r1) / d.side;
+        double hIni          = 1.5 * step;
+        double mPart         = NohDataGenerator::mTotal / d.n;
+        double firstTimeStep = NohDataGenerator::firstTimeStep;
+
+        std::fill(d.m.begin(), d.m.end(), mPart);
+        std::fill(d.h.begin(), d.h.end(), hIni);
+        std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
+        std::fill(d.mui.begin(), d.mui.end(), 10.0);
+        std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
+        std::fill(d.dt_m1.begin(), d.dt_m1.end(), firstTimeStep);
+        std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
+        d.minDt = firstTimeStep;
+
+#pragma omp parallel for schedule(static)
+        for (size_t i = 0; i < d.count; i++)
+        {
+            T radius = std::sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
+            radius   = std::max(radius, 1e-10);
+
+            d.u[i] = NohDataGenerator::u0;
+
+            d.vx[i] = NohDataGenerator::vr0 * (d.x[i] / radius);
+            d.vy[i] = NohDataGenerator::vr0 * (d.y[i] / radius);
+            d.vz[i] = NohDataGenerator::vr0 * (d.z[i] / radius);
+
+            d.x_m1[i] = d.x[i] - d.vx[i] * firstTimeStep;
+            d.y_m1[i] = d.y[i] - d.vy[i] * firstTimeStep;
+            d.z_m1[i] = d.z[i] - d.vz[i] * firstTimeStep;
+        }
+    }
+};
+
+template<class Dataset>
+std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCase)
+{
+    if (testCase == "sedov") { return std::make_unique<SedovGrid<Dataset>>(); }
+    if (testCase == "noh") { return std::make_unique<NohGrid<Dataset>>(); }
+    throw std::runtime_error("unrecognized testCase");
+}
 
 } // namespace sphexa

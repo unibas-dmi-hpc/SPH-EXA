@@ -48,6 +48,7 @@ int main(int argc, char** argv)
     const bool        ascii          = parser.exists("--ascii");
     const bool        ve             = parser.exists("--ve");
     const std::string outDirectory   = parser.getString("--outDir");
+    const std::string initCond       = parser.getString("--init");
 
     using Real    = double;
     using KeyType = uint64_t;
@@ -74,7 +75,7 @@ int main(int argc, char** argv)
     }
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
-    std::unique_ptr<ISimInitializer<Dataset>> simInit = std::make_unique<SedovGrid<Dataset>>();
+    std::unique_ptr<ISimInitializer<Dataset>> simInit = initializerFactory<Dataset>(initCond);
 
     Dataset d;
     d.side  = cubeSide;
