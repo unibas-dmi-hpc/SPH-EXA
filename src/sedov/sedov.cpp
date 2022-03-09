@@ -75,7 +75,10 @@ int main(int argc, char** argv)
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
     Dataset d;
-    d.side = cubeSide;
+    d.side  = cubeSide;
+    d.comm  = MPI_COMM_WORLD;
+    d.rank  = rank;
+    d.nrank = numRanks;
     if (ve)
     {
         d.setConservedFieldsVE();
@@ -101,7 +104,7 @@ int main(int argc, char** argv)
                             true,
                             true);
 
-    cstone::Domain<KeyType, Real, AccType> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    cstone::Domain<KeyType, Real, AccType> domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
 
     if (ve)
         domain.sync(

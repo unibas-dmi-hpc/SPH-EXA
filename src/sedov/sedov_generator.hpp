@@ -4,28 +4,10 @@
 #include <cmath>
 #include <vector>
 
-#include "sph/kernels.hpp"
+#include "init/grid.hpp"
 
 namespace sphexa
 {
-
-auto partitionRange(size_t R, size_t i, size_t N)
-{
-    size_t s = R / N;
-    size_t r = R % N;
-    if (i < r)
-    {
-        size_t start = (s + 1) * i;
-        size_t end   = start + s + 1;
-        return std::make_tuple(start, end);
-    }
-    else
-    {
-        size_t start = (s + 1) * r + s * (i - r);
-        size_t end   = start + s;
-        return std::make_tuple(start, end);
-    }
-}
 
 class SedovDataGenerator
 {
@@ -49,11 +31,6 @@ public:
     template<class Dataset>
     static void generate(Dataset& pd)
     {
-#ifdef USE_MPI
-        pd.comm = MPI_COMM_WORLD;
-        MPI_Comm_size(pd.comm, &pd.nrank);
-        MPI_Comm_rank(pd.comm, &pd.rank);
-#endif
         pd.n = pd.side * pd.side * pd.side;
 
         auto [first, last] = partitionRange(pd.n, pd.rank, pd.nrank);
@@ -67,39 +44,8 @@ public:
                       << "GB allocated on rank 0." << std::endl;
         }
 
-        regularGrid(pd.side, first, last, pd.x, pd.y, pd.z);
+        regularGrid(r1, pd.side, first, last, pd.x, pd.y, pd.z);
         init(pd);
-    }
-
-    template<class Vector>
-    static void regularGrid(size_t side, size_t first, size_t last, Vector& x, Vector& y, Vector& z)
-    {
-        double step = (2. * r1) / side;
-
-#pragma omp parallel for
-        for (size_t i = first / (side * side); i < last / (side * side) + 1; ++i)
-        {
-            double lz = -r1 + (i * step);
-
-            for (size_t j = 0; j < side; ++j)
-            {
-                double ly = -r1 + (j * step);
-
-                for (size_t k = 0; k < side; ++k)
-                {
-                    size_t lindex = (i * side * side) + (j * side) + k;
-
-                    if (first <= lindex && lindex < last)
-                    {
-                        double lx = -r1 + (k * step);
-
-                        z[lindex - first] = lz;
-                        y[lindex - first] = ly;
-                        x[lindex - first] = lx;
-                    }
-                }
-            }
-        }
     }
 
     template<class Dataset>
