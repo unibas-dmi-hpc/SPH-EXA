@@ -102,11 +102,7 @@ elseif(INSITU STREQUAL "Ascent")
 endif()
 # }}}
 
-add_subdirectory(include)
 add_subdirectory(domain)
-
-if (CMAKE_CUDA_COMPILER AND BUILD_RYOANJI)
-    add_subdirectory(ryoanji)
-endif()
-
+add_subdirectory(ryoanji)
+add_subdirectory(sph)
 add_subdirectory(src)

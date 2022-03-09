@@ -1,7 +1,7 @@
 #ifndef CatalystAdaptor_h
 #define CatalystAdaptor_h
 
-#include "particles_data.hpp"
+#include "sph/particles_data.hpp"
 
 #include <catalyst.hpp>
 #include <cstring>
