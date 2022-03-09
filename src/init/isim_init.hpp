@@ -41,7 +41,7 @@ template<class Dataset>
 class ISimInitializer
 {
 public:
-    virtual void init(int rank, int numRanks, Dataset& d) const = 0;
+    virtual cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const = 0;
 
     virtual ~ISimInitializer() = default;
 };
@@ -50,7 +50,7 @@ template<class Dataset>
 class SedovGrid : public ISimInitializer<Dataset>
 {
 public:
-    void init(int rank, int numRanks, Dataset& d) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
     {
         d.n = d.side * d.side * d.side;
 
@@ -67,6 +67,11 @@ public:
 
         regularGrid(SedovConstants::r1, d.side, first, last, d.x, d.y, d.z);
         initFields(d);
+
+        using T    = typename Dataset::RealType;
+        T r        = SedovConstants::r1;
+        T halfStep = SedovConstants::r1 / d.side;
+        return cstone::Box<T>(-r - halfStep, r - halfStep, true);
     }
 
 private:

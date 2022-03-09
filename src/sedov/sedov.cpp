@@ -86,25 +86,10 @@ int main(int argc, char** argv)
         d.setConservedFieldsVE();
         d.setDependentFieldsVE();
     }
-    simInit->init(rank, numRanks, d);
+    cstone::Box<Real> box = simInit->init(rank, numRanks, d);
     d.setOutputFields(outputFields);
 
     if (rank == 0) std::cout << "Data generated." << std::endl;
-
-    cstone::Box<Real> box(0, 1);
-    box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
-
-    // enable PBC and enlarge bounds
-    Real dx = 0.5 / cubeSide;
-    box     = cstone::Box<Real>(box.xmin() - dx,
-                            box.xmax() + dx,
-                            box.ymin() - dx,
-                            box.ymax() + dx,
-                            box.zmin() - dx,
-                            box.zmax() + dx,
-                            true,
-                            true,
-                            true);
 
     cstone::Domain<KeyType, Real, AccType> domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
 
