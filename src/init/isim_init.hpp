@@ -31,7 +31,11 @@
 
 #pragma once
 
-#include "noh/noh_data_generator.hpp"
+#include <map>
+
+#include "cstone/sfc/box.hpp"
+
+#include "noh_constants.hpp"
 #include "sedov_constants.hpp"
 #include "grid.hpp"
 
@@ -43,6 +47,7 @@ class ISimInitializer
 {
 public:
     virtual cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const = 0;
+    virtual const std::map<std::string, double>&    constants() const                              = 0;
 
     virtual ~ISimInitializer() = default;
 };
@@ -50,6 +55,8 @@ public:
 template<class Dataset>
 class SedovGrid : public ISimInitializer<Dataset>
 {
+    std::map<std::string, double> constants_;
+
 public:
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
     {
@@ -74,6 +81,8 @@ public:
         T halfStep = SedovConstants::r1 / d.side;
         return cstone::Box<T>(-r - halfStep, r - halfStep, true);
     }
+
+    const std::map<std::string, double>& constants() const override { return constants_; }
 
 private:
     void initFields(Dataset& d) const
@@ -121,6 +130,18 @@ private:
 template<class Dataset>
 class NohGrid : public ISimInitializer<Dataset>
 {
+    std::map<std::string, double> constants_{{"r0", 0},
+                                             {"r1", 0.5},
+                                             {"mTotal", 1.},
+                                             {"dim", 3},
+                                             {"gamma", 5.0 / 3.0},
+                                             {"rho0", 1.},
+                                             {"u0", 1e-20},
+                                             {"p0", 0.},
+                                             {"vr0", -1.},
+                                             {"cs0", 0.},
+                                             {"firstTimeStep", 1e-4}};
+
 public:
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
     {
@@ -138,7 +159,7 @@ public:
                       << "GB allocated on rank 0." << std::endl;
         }
 
-        T r = NohDataGenerator::r1;
+        T r = constants_.at("r1");
 
         regularGrid(r, d.side, first, last, d.x, d.y, d.z);
         initFields(d);
@@ -146,16 +167,18 @@ public:
         return cstone::Box<T>(-r, r, false);
     }
 
+    const std::map<std::string, double>& constants() const override { return constants_; }
+
 private:
     void initFields(Dataset& d) const
     {
         using T = typename Dataset::RealType;
 
-        double r1            = NohDataGenerator::r1;
+        double r1            = constants_.at("r1");
         double step          = (2. * r1) / d.side;
         double hIni          = 1.5 * step;
-        double mPart         = NohDataGenerator::mTotal / d.n;
-        double firstTimeStep = NohDataGenerator::firstTimeStep;
+        double mPart         = constants_.at("mTotal") / d.n;
+        double firstTimeStep = constants_.at("firstTimeStep");
 
         std::fill(d.m.begin(), d.m.end(), mPart);
         std::fill(d.h.begin(), d.h.end(), hIni);
@@ -172,11 +195,11 @@ private:
             T radius = std::sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
             radius   = std::max(radius, 1e-10);
 
-            d.u[i] = NohDataGenerator::u0;
+            d.u[i] = constants_.at("u0");
 
-            d.vx[i] = NohDataGenerator::vr0 * (d.x[i] / radius);
-            d.vy[i] = NohDataGenerator::vr0 * (d.y[i] / radius);
-            d.vz[i] = NohDataGenerator::vr0 * (d.z[i] / radius);
+            d.vx[i] = constants_.at("vr0") * (d.x[i] / radius);
+            d.vy[i] = constants_.at("vr0") * (d.y[i] / radius);
+            d.vz[i] = constants_.at("vr0") * (d.z[i] / radius);
 
             d.x_m1[i] = d.x[i] - d.vx[i] * firstTimeStep;
             d.y_m1[i] = d.y[i] - d.vy[i] * firstTimeStep;

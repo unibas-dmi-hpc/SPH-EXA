@@ -49,6 +49,7 @@ int main(int argc, char** argv)
     const bool        ve             = parser.exists("--ve");
     const std::string outDirectory   = parser.getString("--outDir");
     const std::string initCond       = parser.getString("--init");
+    const std::string outFile        = outDirectory + "dump_" + initCond;
 
     using Real    = double;
     using KeyType = uint64_t;
@@ -90,7 +91,8 @@ int main(int argc, char** argv)
     cstone::Box<Real> box = simInit->init(rank, numRanks, d);
     d.setOutputFields(outputFields);
 
-    if (rank == 0) std::cout << "Data generated." << std::endl;
+    if (rank == 0 && writeFrequency > 0) { fileWriter->constants(simInit->constants(), outFile); }
+    if (rank == 0) { std::cout << "Data generated." << std::endl; }
 
     cstone::Domain<KeyType, Real, AccType> domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
 
@@ -121,7 +123,7 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov");
+            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), outFile);
         }
 
         if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
@@ -142,15 +144,14 @@ void printHelp(char* name, int rank)
         printf("%s [OPTIONS]\n", name);
         printf("\nWhere possible options are:\n\n");
 
+        printf("\t--init \t\t Test case selection (sedov or noh)\n\n");
         printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
         printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [200]\n\n");
-
         printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
         printf("\t-f list \t\t Comma-separated list of field names to write for each dump, "
                "e.g -f x,y,z,h,ro\n\n");
 
         printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
-
         printf("\t--outDir PATH \t\t Path to directory where output will be saved [./].\
                     \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
                     \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n");

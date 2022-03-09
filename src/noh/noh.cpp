@@ -15,7 +15,7 @@
 #include "util/timer.hpp"
 #include "util/utils.hpp"
 
-#include "noh_data_generator.hpp"
+#include "init/noh_constants.hpp"
 #include "insitu_viz.h"
 
 #ifdef USE_CUDA
@@ -33,7 +33,7 @@ int main(int argc, char** argv)
 {
     auto [rank, numRanks] = initMpi();
     const ArgParser parser(argc, argv);
-    using Gen = NohDataGenerator;
+    using Gen = NohConstants;
 
     if (parser.exists("-h") || parser.exists("--h") || parser.exists("-help") || parser.exists("--help"))
     {
@@ -83,7 +83,7 @@ int main(int argc, char** argv)
                               outFile);
     }
 
-    double            radius = NohDataGenerator::r1;
+    double            radius = NohConstants::r1;
     cstone::Box<Real> box(-radius, radius, false);
 
     cstone::Domain<KeyType, Real, AccType> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
