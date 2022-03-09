@@ -35,7 +35,6 @@
 
 #include "cstone/sfc/box.hpp"
 
-#include "noh_constants.hpp"
 #include "sedov_constants.hpp"
 #include "grid.hpp"
 

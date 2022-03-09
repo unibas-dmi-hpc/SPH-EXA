@@ -16,8 +16,7 @@ endfunction()
 
 
 add_subdirectory(evrard)
-add_subdirectory(sedov)
-add_subdirectory(noh)
+add_subdirectory(sphexa)
 if (BUILD_ANALYTICAL)
     add_subdirectory(analytical_solutions)
 endif ()
