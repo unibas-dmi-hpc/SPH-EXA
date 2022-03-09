@@ -11,6 +11,7 @@
 
 #include "cstone/domain/domain.hpp"
 #include "sph/propagator.hpp"
+#include "init/isim_init.hpp"
 #include "io/arg_parser.hpp"
 #include "io/ifile_writer.hpp"
 #include "util/timer.hpp"
@@ -74,6 +75,8 @@ int main(int argc, char** argv)
     }
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
+    std::unique_ptr<ISimInitializer<Dataset>> simInit = std::make_unique<SedovGrid<Dataset>>();
+
     Dataset d;
     d.side  = cubeSide;
     d.comm  = MPI_COMM_WORLD;
@@ -84,10 +87,10 @@ int main(int argc, char** argv)
         d.setConservedFieldsVE();
         d.setDependentFieldsVE();
     }
-    SedovDataGenerator::generate(d);
+    simInit->init(rank, numRanks, d);
     d.setOutputFields(outputFields);
 
-    if (d.rank == 0) std::cout << "Data generated." << std::endl;
+    if (rank == 0) std::cout << "Data generated." << std::endl;
 
     cstone::Box<Real> box(0, 1);
     box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
@@ -117,9 +120,9 @@ int main(int argc, char** argv)
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
-    Propagator propagator(ngmax, ng0, output, d.rank);
+    Propagator propagator(ngmax, ng0, output, rank);
 
-    MasterProcessTimer totalTimer(output, d.rank);
+    MasterProcessTimer totalTimer(output, rank);
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
