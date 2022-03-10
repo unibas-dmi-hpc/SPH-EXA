@@ -62,8 +62,8 @@ public:
         setDependentFields();
     }
 
-    size_t iteration;      // Current iteration
-    size_t n, side, count; // Number of particles
+    size_t iteration{0};
+    size_t n, side, count;
 
     T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
     T minDt;

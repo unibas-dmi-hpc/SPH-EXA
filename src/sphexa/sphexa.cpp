@@ -111,7 +111,7 @@ int main(int argc, char** argv)
 
     MasterProcessTimer totalTimer(output, rank);
     totalTimer.start();
-    for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
+    for (; d.iteration < maxStep; d.iteration++)
     {
         if (ve) { propagator.hydroStepVE(domain, d); }
         else

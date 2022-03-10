@@ -55,16 +55,45 @@ void readParticleDataFromBinFileWithMPI(const std::string& path, Dataset& pd, Ar
 
 #ifdef SPH_EXA_HAVE_H5PART
 
-inline void writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const float* field)
+//! @brief return the names of all datasets in @p h5_file
+std::vector<std::string> datasetNames(H5PartFile* h5_file)
 {
-    static_assert(std::is_same_v<float, h5part_float32_t>);
-    H5PartWriteDataFloat32(h5_file, fieldName.c_str(), field);
+    auto numSets = H5PartGetNumDatasets(h5_file);
+
+    std::vector<std::string> setNames(numSets);
+    for (size_t fi = 0; fi < numSets; ++fi)
+    {
+        int  maxlen = 256;
+        char fieldName[maxlen];
+        H5PartGetDatasetName(h5_file, fi, fieldName, maxlen);
+        setNames[fi] = std::string(fieldName);
+    }
+
+    return setNames;
 }
 
-inline void writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const double* field)
+inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, float* field)
+{
+    static_assert(std::is_same_v<float, h5part_float32_t>);
+    return H5PartReadDataFloat32(h5_file, fieldName.c_str(), field);
+}
+
+inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, double* field)
 {
     static_assert(std::is_same_v<double, h5part_float64_t>);
-    H5PartWriteDataFloat64(h5_file, fieldName.c_str(), field);
+    return H5PartReadDataFloat64(h5_file, fieldName.c_str(), field);
+}
+
+inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const float* field)
+{
+    static_assert(std::is_same_v<float, h5part_float32_t>);
+    return H5PartWriteDataFloat32(h5_file, fieldName.c_str(), field);
+}
+
+inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const double* field)
+{
+    static_assert(std::is_same_v<double, h5part_float64_t>);
+    return H5PartWriteDataFloat64(h5_file, fieldName.c_str(), field);
 }
 
 template<typename Dataset>
@@ -95,12 +124,13 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const std::str
     }
 #endif
 
-    // create the current step
-    const h5_id_t h5_step = d.iteration;
-    H5PartSetStep(h5_file, h5_step);
+    // create the next step
+    h5_id_t numSteps = H5PartGetNumSteps(h5_file);
+    H5PartSetStep(h5_file, numSteps);
 
     H5PartWriteStepAttrib(h5_file, "time", H5PART_FLOAT64, &d.ttot, 1);
-    H5PartWriteStepAttrib(h5_file, "step", H5PART_INT64, &h5_step, 1);
+    // record the actual SPH-iteration as step attribute
+    H5PartWriteStepAttrib(h5_file, "step", H5PART_INT64, &d.iteration, 1);
 
     // set number of particles that each rank will write
     const h5_int64_t h5_num_particles = lastIndex - firstIndex;

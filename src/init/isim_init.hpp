@@ -35,6 +35,7 @@
 
 #include "cstone/sfc/box.hpp"
 
+#include "io/mpi_file_utils.hpp"
 #include "sedov_constants.hpp"
 #include "grid.hpp"
 
@@ -49,6 +50,127 @@ public:
     virtual const std::map<std::string, double>&    constants() const                              = 0;
 
     virtual ~ISimInitializer() = default;
+};
+
+template<class Dataset>
+class FileInit : public ISimInitializer<Dataset>
+{
+    std::map<std::string, double> constants_;
+    std::string                   h5_fname;
+
+public:
+    FileInit(std::string fname)
+        : h5_fname(fname)
+    {
+    }
+
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
+    {
+#ifdef SPH_EXA_HAVE_H5PART
+
+        H5PartFile* h5_file = nullptr;
+#ifdef H5PART_PARALLEL_IO
+        h5_file = H5PartOpenFileParallel(h5_fname, H5PART_READ, d.comm);
+#else
+        h5_file = H5PartOpenFile(h5_fname.c_str(), H5PART_READ);
+#endif
+        size_t numH5Steps = H5PartGetNumSteps(h5_file);
+        H5PartSetStep(h5_file, numH5Steps - 1);
+
+        size_t numParticles = H5PartGetNumParticles(h5_file);
+        d.n                 = numParticles;
+        if (numParticles < 1) { throw std::runtime_error("no particles in input file found\n"); }
+
+        auto [first, last] = partitionRange(numParticles, rank, numRanks);
+        d.count            = last - first;
+
+        H5PartReadStepAttrib(h5_file, "time", &d.ttot);
+        H5PartReadStepAttrib(h5_file, "step", &d.iteration);
+
+        resize(d, d.count);
+
+        H5PartSetView(h5_file, first, last - 1);
+        h5part_int64_t errors = H5PART_SUCCESS;
+        errors |= fileutils::readH5PartField(h5_file, "x", d.x.data());
+        errors |= fileutils::readH5PartField(h5_file, "y", d.y.data());
+        errors |= fileutils::readH5PartField(h5_file, "z", d.z.data());
+        errors |= fileutils::readH5PartField(h5_file, "h", d.h.data());
+        errors |= fileutils::readH5PartField(h5_file, "m", d.m.data());
+        errors |= fileutils::readH5PartField(h5_file, "u", d.u.data());
+
+        if (errors != H5PART_SUCCESS) { throw std::runtime_error("Could not read essential fields x,y,z,h,m,u\n"); }
+
+        d.minDt = 1e-4;
+
+        initField(h5_file, rank, d.vx, "vx", 0.0);
+        initField(h5_file, rank, d.vy, "vy", 0.0);
+        initField(h5_file, rank, d.vz, "vz", 0.0);
+
+        initField(h5_file, rank, d.dt_m1, "dt_m1", d.minDt);
+        initField(h5_file, rank, d.du_m1, "du_m1", 0.0);
+        initField(h5_file, rank, d.alpha, "alpha", d.alphamin);
+
+        initXm1(h5_file, rank, d);
+
+        std::fill(d.mue.begin(), d.mue.end(), 2.0);
+        std::fill(d.mui.begin(), d.mui.end(), 10.0);
+
+#else
+        throw std::runtime_error("Cannot read from HDF5 file: H5Part not enabled\n");
+#endif
+        return cstone::makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), cstone::Box<double>(0, 1));
+    }
+
+    const std::map<std::string, double>& constants() const override { return constants_; }
+
+private:
+    template<class Vector>
+    static void initField(H5PartFile* h5_file, int rank, Vector& field, std::string name, double defaultValue)
+    {
+        if (field.size())
+        {
+            auto datasets = fileutils::datasetNames(h5_file);
+            bool hasField = std::count(datasets.begin(), datasets.end(), name) == 1;
+            if (hasField)
+            {
+                if (rank == 0) std::cout << "loading " + name + " from file\n";
+                fileutils::readH5PartField(h5_file, name.c_str(), field.data());
+            }
+            else
+            {
+                if (rank == 0) std::cout << name << " not found, initializing to " << defaultValue << std::endl;
+                std::fill(field.begin(), field.end(), defaultValue);
+            }
+        }
+    }
+
+    static void initXm1(H5PartFile* h5_file, int rank, Dataset& d)
+    {
+        auto   names  = fileutils::datasetNames(h5_file);
+        size_t hasXm1 = std::count(names.begin(), names.end(), "x_m1") +
+                        std::count(names.begin(), names.end(), "y_m1") + std::count(names.begin(), names.end(), "z_m1");
+        if (hasXm1 == 3)
+        {
+            if (rank == 0) std::cout << "loading previous time-step coordinates from file\n";
+            fileutils::readH5PartField(h5_file, "x_m1", d.x_m1.data());
+            fileutils::readH5PartField(h5_file, "y_m1", d.y_m1.data());
+            fileutils::readH5PartField(h5_file, "z_m1", d.z_m1.data());
+        }
+        else
+        {
+            if (rank == 0)
+                std::cout << "no previous time-step coordinates found, initializing from current coordinates and "
+                             "velocities\n";
+
+#pragma omp parallel for schedule(static)
+            for (size_t i = 0; i < d.count; ++i)
+            {
+                d.x_m1[i] = d.x[i] - d.vx[i] * d.minDt;
+                d.y_m1[i] = d.y[i] - d.vy[i] * d.minDt;
+                d.z_m1[i] = d.z[i] - d.vz[i] * d.minDt;
+            }
+        }
+    }
 };
 
 template<class Dataset>
@@ -212,7 +334,10 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
 {
     if (testCase == "sedov") { return std::make_unique<SedovGrid<Dataset>>(); }
     if (testCase == "noh") { return std::make_unique<NohGrid<Dataset>>(); }
-    throw std::runtime_error("unrecognized testCase");
+    else
+    {
+        return std::make_unique<FileInit<Dataset>>(testCase);
+    }
 }
 
 } // namespace sphexa
