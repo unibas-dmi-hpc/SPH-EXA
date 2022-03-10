@@ -111,7 +111,8 @@ int main(int argc, char** argv)
 
     MasterProcessTimer totalTimer(output, rank);
     totalTimer.start();
-    for (; d.iteration < maxStep; d.iteration++)
+    int startIteration = d.iteration;
+    for (; d.iteration <= maxStep; d.iteration++)
     {
         if (ve) { propagator.hydroStepVE(domain, d); }
         else
@@ -123,13 +124,13 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), outFile);
+            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), box, outFile);
         }
 
         if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
     }
 
-    totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Sedov");
+    totalTimer.step("Total execution time of " + std::to_string(maxStep - startIteration + 1) + " iterations of Sedov");
 
     constantsFile.close();
     viz::finalize();

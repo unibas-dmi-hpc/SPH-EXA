@@ -4,6 +4,8 @@
 #include <string>
 #include <vector>
 
+#include "cstone/sfc/box.hpp"
+
 #include "file_utils.hpp"
 #include "mpi_file_utils.hpp"
 #include "sph/particles_data.hpp"
@@ -14,8 +16,9 @@ namespace sphexa
 template<typename Dataset>
 struct IFileWriter
 {
-    virtual void dump(Dataset& d, size_t firstIndex, size_t lastIndex, std::string path) const = 0;
-    virtual void constants(const std::map<std::string, double>& c, std::string path) const     = 0;
+    virtual void dump(Dataset& d, size_t firstIndex, size_t lastIndex,
+                      const cstone::Box<typename Dataset::RealType>& box, std::string path) const = 0;
+    virtual void constants(const std::map<std::string, double>& c, std::string path) const        = 0;
 
     virtual ~IFileWriter() = default;
 };
@@ -23,7 +26,8 @@ struct IFileWriter
 template<class Dataset>
 struct AsciiWriter : public IFileWriter<Dataset>
 {
-    void dump(Dataset& d, size_t firstIndex, size_t lastIndex, std::string path) const override
+    void dump(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::Box<typename Dataset::RealType>& box,
+              std::string path) const override
     {
         const char separator = ' ';
         path += std::to_string(d.iteration) + ".txt";
@@ -56,11 +60,12 @@ struct AsciiWriter : public IFileWriter<Dataset>
 template<class Dataset>
 struct H5PartWriter : public IFileWriter<Dataset>
 {
-    void dump(Dataset& d, size_t firstIndex, size_t lastIndex, std::string path) const override
+    void dump(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::Box<typename Dataset::RealType>& box,
+              std::string path) const override
     {
 #ifdef SPH_EXA_HAVE_H5PART
         path += ".h5part";
-        fileutils::writeH5Part(d, firstIndex, lastIndex, path);
+        fileutils::writeH5Part(d, firstIndex, lastIndex, box, path);
 #else
         throw std::runtime_error("Cannot write to HDF5 file: H5Part not enabled\n");
 #endif

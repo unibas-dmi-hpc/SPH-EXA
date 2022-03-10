@@ -117,7 +117,7 @@ int main(int argc, char** argv)
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_evrard");
+            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), box, outDirectory + "dump_evrard");
         }
 
         if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }

@@ -67,6 +67,7 @@ public:
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
     {
 #ifdef SPH_EXA_HAVE_H5PART
+        using T = typename Dataset::RealType;
 
         H5PartFile* h5_file = nullptr;
 #ifdef H5PART_PARALLEL_IO
@@ -85,7 +86,17 @@ public:
         d.count            = last - first;
 
         H5PartReadStepAttrib(h5_file, "time", &d.ttot);
+        H5PartReadStepAttrib(h5_file, "minDt", &d.minDt);
         H5PartReadStepAttrib(h5_file, "step", &d.iteration);
+        d.iteration++;
+        H5PartReadStepAttrib(h5_file, "gravConstant", &d.g);
+
+        double extents[6];
+        H5PartReadStepAttrib(h5_file, "box", extents);
+        int pbc[3];
+        H5PartReadStepAttrib(h5_file, "pbc", pbc);
+        cstone::Box<T> box(
+            extents[0], extents[1], extents[2], extents[3], extents[4], extents[5], pbc[0], pbc[1], pbc[2]);
 
         resize(d, d.count);
 
@@ -99,8 +110,6 @@ public:
         errors |= fileutils::readH5PartField(h5_file, "u", d.u.data());
 
         if (errors != H5PART_SUCCESS) { throw std::runtime_error("Could not read essential fields x,y,z,h,m,u\n"); }
-
-        d.minDt = 1e-4;
 
         initField(h5_file, rank, d.vx, "vx", 0.0);
         initField(h5_file, rank, d.vy, "vy", 0.0);
@@ -118,7 +127,7 @@ public:
 #else
         throw std::runtime_error("Cannot read from HDF5 file: H5Part not enabled\n");
 #endif
-        return cstone::makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), cstone::Box<double>(0, 1));
+        return box;
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }

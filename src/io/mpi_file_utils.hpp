@@ -96,8 +96,8 @@ inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& f
     return H5PartWriteDataFloat64(h5_file, fieldName.c_str(), field);
 }
 
-template<typename Dataset>
-void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const std::string& path)
+template<class Dataset, class T>
+void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::Box<T>& box, const std::string& path)
 {
     using h5_int64_t = h5part_int64_t;
     using h5_id_t    = h5part_int64_t;
@@ -129,12 +129,18 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const std::str
     H5PartSetStep(h5_file, numSteps);
 
     H5PartWriteStepAttrib(h5_file, "time", H5PART_FLOAT64, &d.ttot, 1);
+    H5PartWriteStepAttrib(h5_file, "minDt", H5PART_FLOAT64, &d.minDt, 1);
     // record the actual SPH-iteration as step attribute
     H5PartWriteStepAttrib(h5_file, "step", H5PART_INT64, &d.iteration, 1);
+    H5PartWriteStepAttrib(h5_file, "gravConstant", H5PART_FLOAT64, &d.g, 1);
 
-    // set number of particles that each rank will write
+    // record the global coordinate bounding box
+    double extents[6] = {box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax()};
+    H5PartWriteStepAttrib(h5_file, "box", H5PART_FLOAT64, extents, 6);
+    h5part_int32_t pbc[3] = {box.pbcX(), box.pbcY(), box.pbcZ()};
+    H5PartWriteStepAttrib(h5_file, "pbc", H5PART_INT32, pbc, 3);
+
     const h5_int64_t h5_num_particles = lastIndex - firstIndex;
-
     // set number of particles that each rank will write
     H5PartSetNumParticles(h5_file, h5_num_particles);
 

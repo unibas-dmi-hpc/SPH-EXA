@@ -62,7 +62,7 @@ public:
         setDependentFields();
     }
 
-    size_t iteration{0};
+    size_t iteration{1};
     size_t n, side, count;
 
     T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};

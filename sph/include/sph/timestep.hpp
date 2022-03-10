@@ -88,6 +88,8 @@ void computeTimestep(size_t startIndex, size_t endIndex, Dataset& d)
         d.dt[i] = minDt;
     }
 
+    std::cout << "new minDt is " << minDt << " " << d.ttot << " " << d.ttot + minDt << std::endl;
+
     d.ttot += minDt;
     d.minDt = minDt;
 }
