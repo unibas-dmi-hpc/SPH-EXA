@@ -82,7 +82,7 @@ void Execute(Dataset& d, long startIndex, long endIndex)
     fields["Density/association"].set("vertex");
     fields["Density/topology"].set("mesh");
     fields["Density/volume_dependent"].set("false");
-    fields["Density/values"].set_external(&d.ro[startIndex], endIndex - startIndex); // zero-copy
+    fields["Density/values"].set_external(&d.rho[startIndex], endIndex - startIndex); // zero-copy
     // vx is vertex-data.
     fields["vx/association"].set("vertex");
     fields["vx/topology"].set("mesh");
