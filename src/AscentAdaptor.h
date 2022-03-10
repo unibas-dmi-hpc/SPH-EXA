@@ -107,7 +107,7 @@ void Execute(Dataset d, long startIndex, long endIndex)
 
     mesh["fields/Density/association"] = "vertex";
     mesh["fields/Density/topology"]    = "mesh";
-    mesh["fields/Density/values"].set_external(&d.ro[startIndex], endIndex - startIndex);
+    mesh["fields/Density/values"].set_external(&d.rho[startIndex], endIndex - startIndex);
     mesh["fields/Density/volume_dependent"].set("false");
 
     std::vector<conduit_int64> conn(endIndex - startIndex);
