@@ -1,7 +1,5 @@
 #pragma once
 
-#include <mpi.h>
-
 #ifdef SPH_EXA_HAVE_H5PART
 #include <filesystem>
 #include "H5Part.h"
@@ -11,47 +9,6 @@ namespace sphexa
 {
 namespace fileutils
 {
-
-namespace details
-{
-void readFileMPI(const MPI_File&, const size_t, const MPI_Offset&, const MPI_Offset&, const int) {}
-
-template<typename Arg, typename... Args>
-void readFileMPI(const MPI_File& file, const size_t count, const MPI_Offset& offset, const MPI_Offset& col,
-                 const int blockNo, Arg& first, Args&&... args)
-{
-    MPI_Status status;
-
-    MPI_File_set_view(file, blockNo * col + offset, MPI_DOUBLE, MPI_DOUBLE, "native", MPI_INFO_NULL);
-    MPI_File_read(file, first.data(), count, MPI_DOUBLE, &status);
-
-    readFileMPI(file, count, offset, col, blockNo + 1, args...);
-}
-} // namespace details
-
-template<typename Dataset, typename... Args>
-void readParticleDataFromBinFileWithMPI(const std::string& path, Dataset& pd, Args&&... data)
-{
-    const size_t split     = pd.n / pd.nrank;
-    const size_t remaining = pd.n - pd.nrank * split;
-
-    pd.count = pd.rank != pd.nrank - 1 ? split : split + remaining;
-    resize(pd, pd.count);
-
-    MPI_File fh;
-
-    const MPI_Offset col = pd.n * sizeof(double);
-
-    MPI_Offset offset = pd.rank * split * sizeof(double);
-    if (pd.rank > pd.nrank - 1) offset += remaining * sizeof(double);
-
-    const int err = MPI_File_open(pd.comm, path.c_str(), MPI_MODE_RDWR, MPI_INFO_NULL, &fh);
-    if (err != MPI_SUCCESS) { throw std::runtime_error("Can't open MPI file at path: " + path); }
-
-    details::readFileMPI(fh, pd.count, offset, col, 0, data...);
-
-    MPI_File_close(&fh);
-}
 
 #ifdef SPH_EXA_HAVE_H5PART
 
