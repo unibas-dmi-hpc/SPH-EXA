@@ -61,7 +61,7 @@ public:
 
         H5PartFile* h5_file = nullptr;
 #ifdef H5PART_PARALLEL_IO
-        h5_file = H5PartOpenFileParallel(h5_fname, H5PART_READ, d.comm);
+        h5_file = H5PartOpenFileParallel(h5_fname.c_str(), H5PART_READ, d.comm);
 #else
         h5_file = H5PartOpenFile(h5_fname.c_str(), H5PART_READ);
 #endif
@@ -114,6 +114,7 @@ public:
         std::fill(d.mue.begin(), d.mue.end(), 2.0);
         std::fill(d.mui.begin(), d.mui.end(), 10.0);
 
+        H5PartCloseFile(h5_file);
         return box;
     }
 
