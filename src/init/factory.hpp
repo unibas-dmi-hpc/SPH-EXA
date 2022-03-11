@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Test-case simulation data initialization
+ * @brief Select a simulation initializer based on user input choice
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
@@ -35,21 +35,23 @@
 
 #include "cstone/sfc/box.hpp"
 
-#include "io/mpi_file_utils.hpp"
-#include "sedov_constants.hpp"
-#include "grid.hpp"
+#include "isim_init.hpp"
+#include "file_init.hpp"
+#include "noh_init.hpp"
+#include "sedov_init.hpp"
 
 namespace sphexa
 {
 
 template<class Dataset>
-class ISimInitializer
+std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCase)
 {
-public:
-    virtual cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const = 0;
-    virtual const std::map<std::string, double>&    constants() const                              = 0;
-
-    virtual ~ISimInitializer() = default;
-};
+    if (testCase == "sedov") { return std::make_unique<SedovGrid<Dataset>>(); }
+    if (testCase == "noh") { return std::make_unique<NohGrid<Dataset>>(); }
+    else
+    {
+        return std::make_unique<FileInit<Dataset>>(testCase);
+    }
+}
 
 } // namespace sphexa

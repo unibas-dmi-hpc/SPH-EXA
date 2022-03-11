@@ -11,7 +11,7 @@
 
 #include "cstone/domain/domain.hpp"
 #include "sph/propagator.hpp"
-#include "init/isim_init.hpp"
+#include "init/factory.hpp"
 #include "io/arg_parser.hpp"
 #include "io/ifile_writer.hpp"
 #include "util/timer.hpp"
