@@ -52,12 +52,13 @@ int main(int argc, char** argv)
     const std::string initCond       = parser.getString("--init");
     const std::string outFile        = outDirectory + "dump_" + initCond;
 
+    float theta = parser.exists("--theta") ? parser.getDouble("--theta") : (grav ? 0.5 : 1.0);
+
     using Real    = double;
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType, AccType>;
     using Domain  = cstone::Domain<KeyType, Real, AccType>;
 
-    float  theta           = 1.0;
     size_t ngmax           = 150;
     size_t ng0             = 100;
     size_t bucketSizeFocus = 64;
@@ -143,7 +144,8 @@ void printHelp(char* name, int rank)
         printf("\nWhere possible options are:\n\n");
 
         printf("\t--init \t\t Test case selection (sedov, noh) or an HDF5 file with initial conditions\n\n");
-        printf("\t--grav \t\t Include self-gravity\n\n");
+        printf("\t--grav \t\t Include self-gravity [false]\n\n");
+        printf("\t--theta\t\t Gravity accuracy parameter [0.5]\n\n");
         printf("\t--ve \t\t Activate SPH with generalized volume elements\n\n");
         printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
         printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [200]\n\n");
