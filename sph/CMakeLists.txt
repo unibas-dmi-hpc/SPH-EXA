@@ -1,10 +1,16 @@
 cmake_minimum_required(VERSION 3.17)
 
-project(sph CXX CUDA)
+project(sph CXX)
 
 set(CMAKE_CXX_STANDARD 17)
-set(CMAKE_CUDA_STANDARD 17)
-#set(CMAKE_CUDA_ARCHITECTURES "")
+check_language(CUDA)
+if(CMAKE_CUDA_COMPILER)
+    enable_language(CUDA)
+    find_package(CUDAToolkit)
+    set(CMAKE_CUDA_STANDARD 17)
+else()
+    message(STATUS "No CUDA support")
+endif()
 
 set(default_build_type "Release")
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
