@@ -128,7 +128,8 @@ int main(int argc, char** argv)
         if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
     }
 
-    totalTimer.step("Total execution time of " + std::to_string(maxStep - startIteration + 1) + " iterations of Sedov");
+    totalTimer.step("Total execution time of " + std::to_string(maxStep - startIteration + 1) + " iterations of " +
+                    initCond);
 
     constantsFile.close();
     viz::finalize();
