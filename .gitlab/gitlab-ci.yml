@@ -116,80 +116,82 @@ variables:
   before_script:
     # /usr/local/bin/evrard <-- (needs input file)
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "1" ]; then
-        /usr/local/sbin/performance/scan_perf;
-        /usr/local/sbin/coord_samples/coordinate_test;
-        /usr/local/sbin/kernel/kernel_tests_ve;
-        /usr/local/sbin/kernel/kernel_tests;
-        /usr/local/sbin/ryoanji/gravity_perf;
-        /usr/local/sbin/ryoanji/cpu_unit_tests/ryoanji_cpu_unit_tests;
-        /usr/local/sbin/unit/component_units;
-        /usr/local/sbin/unit/component_units_omp;
+        /usr/local/sbin/performance/scan_perf;echo;
+        /usr/local/sbin/coord_samples/coordinate_test;echo;
+        /usr/local/sbin/kernel/kernel_tests_ve;echo;
+        /usr/local/sbin/kernel/kernel_tests;echo;
+        /usr/local/sbin/ryoanji/gravity_perf;echo;
+        /usr/local/sbin/ryoanji/cpu_unit_tests/ryoanji_cpu_unit_tests;echo;
+        /usr/local/sbin/unit/component_units;echo;
+        /usr/local/sbin/unit/component_units_omp;echo;
       fi
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "2" ]; then
-        /usr/local/sbin/integration_mpi/domain_2ranks;
-        /usr/local/sbin/integration_mpi/exchange_focus;
-        /usr/local/sbin/integration_mpi/exchange_halos;
-        /usr/local/sbin/integration_mpi/focus_transfer;
-        /usr/local/sbin/integration_mpi/globaloctree;
+        /usr/local/sbin/integration_mpi/domain_2ranks;echo;
+        /usr/local/sbin/integration_mpi/exchange_focus;echo;
+        /usr/local/sbin/integration_mpi/exchange_halos;echo;
+        /usr/local/sbin/integration_mpi/focus_transfer;echo;
+        /usr/local/sbin/integration_mpi/globaloctree;echo;
       fi
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "5" ]; then
-        /usr/local/sbin/integration_mpi/exchange_domain;
-        /usr/local/sbin/integration_mpi/box_mpi;
-        /usr/local/sbin/integration_mpi/focus_tree;
-        /usr/local/sbin/integration_mpi/treedomain;
-        /usr/local/sbin/integration_mpi/domain_nranks;
-        /usr/local/sbin/integration_mpi/exchange_general;
-        /usr/local/sbin/integration_mpi/exchange_keys;
-        /usr/local/sbin/ryoanji/multi_rank;
+        /usr/local/sbin/integration_mpi/exchange_domain;echo;
+        /usr/local/sbin/integration_mpi/box_mpi;echo;
+        /usr/local/sbin/integration_mpi/focus_tree;echo;
+        /usr/local/sbin/integration_mpi/treedomain;echo;
+        /usr/local/sbin/integration_mpi/domain_nranks;echo;
+        /usr/local/sbin/integration_mpi/exchange_general;echo;
+        /usr/local/sbin/integration_mpi/exchange_keys;echo;
+        /usr/local/sbin/ryoanji/multi_rank;echo;
       fi
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "p100" ]; then
-        /usr/local/sbin/performance/hilbert_perf_gpu;
-        /usr/local/sbin/performance/cudaNeighborsTest;
-        /usr/local/sbin/performance/octree_perf_gpu;
-        /usr/local/sbin/unit_cuda/component_units_cuda;
-        /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests      ;
+        /usr/local/sbin/performance/hilbert_perf_gpu;echo;
+        /usr/local/sbin/performance/cudaNeighborsTest;echo;
+        /usr/local/sbin/performance/octree_perf_gpu;echo;
+        /usr/local/sbin/unit_cuda/component_units_cuda;echo;
+        /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests;echo;
       fi
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "sphexa_cpu" ]; then
-        echo "sedov:cpu"
-        /usr/local/bin/sphexa --init sedov -s 0 -n 50 ;
-        echo "noh:cpu"
-        /usr/local/bin/sphexa --init noh -s 0 -n 50 ;
+        echo "sedov:cpu";
+        /usr/local/bin/sphexa --init sedov -s 1 -n 50 ;
+        echo "noh:cpu";
+        /usr/local/bin/sphexa --init noh -s 1 -n 50 ;
       fi
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "sphexa_gpu" ]; then
-        echo "sedov:gpu"
-        /usr/local/bin/sphexa-cuda --init sedov -s 0 -n 50 ;
-        echo "noh:gpu"
-        /usr/local/bin/sphexa-cuda --init noh -s 0 -n 50 ;
+        echo "sedov:gpu";
+        /usr/local/bin/sphexa-cuda --init sedov -s 1 -n 50 ;
+        echo "noh:gpu";
+        /usr/local/bin/sphexa-cuda --init noh -s 1 -n 50 ;
       fi
 #}}}
 
 #{{{ nvidia/cuda:11.6.0 --> sph-exa_base:cuda
-sph:base:cuda:
-  # notice the final ':'
-  stage: SPHbase
-  extends: .sph-base
-  image: nvidia/cuda:11.6.0-base-ubuntu20.04
-  tags: 
-    - $jfrogtag
-  script:
-    - nvcc --version
-  variables:
-    VARIANT: 'cuda'
-    PERSIST_IMAGE_NAME: 'sph-exa_base:cuda'
-
-# skipping build of base image with:
+#{{{ BUILD base image:
 # sph:base:cuda:
 #   # notice the final ':'
 #   stage: SPHbase
-#   extends: .sph-base-skip
+#   extends: .sph-base
 #   image: nvidia/cuda:11.6.0-base-ubuntu20.04
 #   tags: 
 #     - $jfrogtag
 #   script:
-#     - echo "skipping build of base image"
+#     - nvcc --version
 #   variables:
 #     VARIANT: 'cuda'
-#     PERSIST_IMAGE_NAME: 'sph-exa_base:skip'
+#     PERSIST_IMAGE_NAME: 'sph-exa_base:cuda'
+#}}}
+#{{{ SKIP base image:
+sph:base:cuda:
+  # notice the final ':'
+  stage: SPHbase
+  extends: .sph-base-skip
+  image: nvidia/cuda:11.6.0-base-ubuntu20.04
+  tags: 
+    - $jfrogtag
+  script:
+    - echo "skipping build of base image"
+  variables:
+    VARIANT: 'cuda'
+    PERSIST_IMAGE_NAME: 'sph-exa_base:skip'
+#}}}
 #}}}
 #{{{ nvidia/cuda:11.6.0 --> sph-exa_base:cuda --> sph-exa_install:cuda
 sph:install:cuda:
