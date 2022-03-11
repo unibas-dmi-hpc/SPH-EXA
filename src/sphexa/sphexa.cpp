@@ -152,7 +152,7 @@ void printHelp(char* name, int rank)
         printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [200]\n\n");
         printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
         printf("\t-f list \t\t Comma-separated list of field names to write for each dump, "
-               "e.g -f x,y,z,h,ro\n\n");
+               "e.g -f x,y,z,h,rho\n\n");
 
         printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
         printf("\t--outDir PATH \t\t Path to directory where output will be saved [./].\
