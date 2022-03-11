@@ -26,8 +26,7 @@ Therefore, the goal is to extrapolate their common basic SPH features, and conso
 
 # SPH-EXA
 
-SPH-EXA is a C++17 headers-only code with no external software dependencies.
-The parallelism is currently expressed via the following models: MPI, OpenMP, CUDA and HIP.
+SPH-EXA is a C++17 simulation code, parallelized with MPI, OpenMP, CUDA and HIP.
 
 [Check our wiki for more details](https://github.com/unibas-dmi-hpc/SPH-EXA_mini-app/wiki)
 
@@ -37,7 +36,7 @@ The parallelism is currently expressed via the following models: MPI, OpenMP, CU
 SPH-EXA
 ├── README.md
 ├── docs
-├── domain                           - cornerstone octree and domain
+├── domain                           - Cornerstone library: octree building and domain decomposition
 │   ├── include
 │   │   └── cstone
 │   │       ├── CMakeLists.txt
@@ -49,29 +48,28 @@ SPH-EXA
 │   │       ├── sfc
 │   │       ├── tree
 │   │       └── util
-│   └── test                        - cornerstone unit- performance-
+│   └── test                        - Cornerstone unit- performance-
 │       ├── integration_mpi           and integration tests
 │       ├── performance
 │       ├── unit
 │       └── unit_cuda
-├── ryoanji                         - GPU N-body solver for gravity
+├── ryoanji                         - Ryoanji: N-body solver for gravity
 │   ├─── src
 │   └─── test                       - demonstrator app and unit tests
-├── include
-│   └─── sph                        - SPH kernel functions
-│        ├── cuda
-│        └─── kernel
-├── scripts
-├── src                             - test case main functions
-│   ├── evrard
-│   ├── sedov
-│   └── sqpatch
-├── test
-└── tools
+│
+├── sph                             - SPH implementation
+│   ├─── include
+│   │    └── sph
+│   └─── test                       - SPH kernel unit tests
+│
+└── src
+    ├── init                        - initial conditions for test cases
+    ├── io                          - file output functionality
+    └── sphexa                      - SPH main application front-end
 ```
 #### Compile
 
-Use the following commands to compile the Sedov blast wave example:
+Use the following commands to compile the main SPH-EXA application:
 
 Minimal CMake configuration:
 ```shell
@@ -84,7 +82,8 @@ Recommended CMake configuration on Piz Daint:
 ```shell
 module load daint-gpu
 module load cudatoolkit
-module load CMake/3.21.3 # or newer
+module load CMake/3.22.1 # or newer
+module load cray-hdf5-parallel
 
 mkdir build
 cd build
@@ -92,35 +91,41 @@ cmake -DCMAKE_CXX_COMPILER=CC <GIT_SOURCE_DIR>
 ```
 
 * Build everything: ```make -j```
-* MPI + OpenMP: ```make sedov```
-* MPI + OpenMP + CUDA: ```make sedov-cuda```
 
 
 #### Running the main application
 
-The Sedov test case binaries are located in  ```build/src/sedov/```
+The main ```sphexa``` application can either start a simulation by reading initial conditions
+from a file or generate an initial configuration for a named test case.
 
-Possible arguments:  
-* ```-n NUM``` : Run the simulation with NUM^3 (NUM to the cube) number of particles  
+Arguments:  
+* ```--init CASE/FILE ```: `sedov` for simulation the Sedov blast wave, `noh` for the Noh implosion or
+                                   provide and HDF5 file with valid input data
+* ```-n NUM``` : Run the simulation with NUM^3 (NUM to the cube) number of particles (for named test cases)
 * ```-s NUM``` : Run the simulation with NUM of iterations (time-steps)  
 * ```-w NUM``` : Dump particle data every NUM iterations (time-steps)  
+* ```-f FIELDS```: Comma separated list of particle fields for file output dumps
 * ```--quiet``` : Don't print any output to stdout  
 
 Example usage:  
-* ```OMP_NUM_THREADS=4 ./src/sedov/sedov -n 100 -s 1000 -w 10```
-  Runs Sedov with 1 million particles for 1000 iterations (time-steps) with 4 OpenMP
-  threads and dumps particles data every 10 iterations
-* ```OMP_NUM_THREADS=4 ./src/sedov/sedov-cuda -n 100 -s 1000 -w 10```
-  Runs Sedov with 1 million particles for 1000 iterations (time-steps) with 4 OpenMP
+* ```OMP_NUM_THREADS=4 ./sphexa --init sedov -n 100 -s 1000 -w 10 -f x,y,z,rho,p```
+  Runs Sedov with 100^3 particles for 1000 iterations (time-steps) with 4 OpenMP
+  threads and dumps particle xyz-coordinates, density and pressure data every 10 iterations
+* ```OMP_NUM_THREADS=4 ./sphexa-cuda --init -n 100 -s 1000 -w 10 -f x,y,z,rho,p```
+  Runs Sedov with 100^3 million particles for 1000 iterations (time-steps) with 4 OpenMP
   threads. Uses the GPU for most of the compute work.
-* ```OMP_NUM_THREADS=4 mpiexec -np 2 ./src/sedov/sedov -n 100 -s 1000 -w 10```
-  Runs Sedov with 1 million particles for 1000 iterations (time-steps) with 2 MPI ranks of 4 OpenMP
+* ```OMP_NUM_THREADS=4 mpiexec -np 2 ./sphexa --init noh -n 100 -s 1000 -w 10```
+  Runs Noh with 100^3 million particles for 1000 iterations (time-steps) with 2 MPI ranks of 4 OpenMP
   threads each. Works when using MPICH. For OpenMPI, use ```mpirun```  instead.
-* ```OMP_NUM_THREADS=12 srun -Cgpu -A<your account> -n<nnodes> -c12 ./src/sedov/sedov-cuda -n 100 -s 1000 -w 10```
+* ```OMP_NUM_THREADS=12 srun -Cgpu -A<your account> -n<nnodes> -c12 ./sphexa-cuda --init sedov -n 100 -s 1000 -w 10```
   Optimal runtime configuration on Piz Daint for `nnodes` GPU compute nodes. Launches 1 MPI rank with
   12 OpenMP threads per node.
+* ```./sphexa-cuda --init evrard.h5 --grav -s 2000 -w 100 -f x,y,z,rho,p,vx,vy,vz```
+  Run SPH-EXA, initializing particle data from an input file (e.g. for the Evrard collapse). Include
+  gravitational forces between particles. The angle dependent accuracy parameter theta can be specificed
+  with ```--theta <value>```, the default is `0.5`.
 
-#### Running the tests
+#### Running the unit, integration and regression tests
 
 Cornerstone octree and domain unit tests:
 
@@ -165,14 +170,6 @@ Ryoanji is a high-performance GPU N-body solver for gravity. It relies on the co
 for tree construction, [EXAFMM](https://github.com/exafmm/exafmm) multipole kernels,
 and a warp-aware tree-traversal inspired by the
 [Bonsai](https://github.com/treecode/Bonsai) GPU tree-code.
-
-#### Compilation
-
-```shell
-cmake -DCMAKE_CXX_COMPILER=CC -DBUILD_RYOANJI=ON <GIT_SOURCE_DIR>
-cd ryoanji
-make -j
-```
 
 #### Running the demonstrator app
 ```shell

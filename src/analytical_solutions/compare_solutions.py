@@ -150,7 +150,8 @@ if __name__ == "__main__":
         print("The closest timestep to the specified time of %s is step %s at t=%s" % (
         args.time, step, timesteps[stepIndex]))
 
-    time = timesteps[np.searchsorted(stepNumbers, step)]
+    hdf5_step = np.searchsorted(stepNumbers, step)
+    time = timesteps[hdf5_step]
 
     solFile = "sedov_solution_%4f.dat" % time
     os.system("./sedov_solution --time %s --out %s" % (time, solFile))
@@ -158,21 +159,21 @@ if __name__ == "__main__":
 
     radii = None
     try:
-        radii = computeRadii(h5File, step)
+        radii = computeRadii(h5File, hdf5_step)
     except KeyError:
         print("Could not load radii, input file does not contain fields \"x, y, z\"")
 
     try:
-        createDensityPlot(h5File, solution, radii, time, step)
+        createDensityPlot(h5File, solution, radii, time, hdf5_step)
     except KeyError:
         print("Could not plot density profile, input does not contain field \"rho\"")
 
     try:
-        createPressurePlot(h5File, solution, radii, time, step)
+        createPressurePlot(h5File, solution, radii, time, hdf5_step)
     except KeyError:
         print("Could not plot pressure profile, input does not contain field \"p\"")
 
     try:
-        createVelocityPlot(h5File, solution, radii, time, step)
+        createVelocityPlot(h5File, solution, radii, time, hdf5_step)
     except KeyError:
         print("Could not plot velocity profile, input does not contain fields \"vx, vy, vz\"")

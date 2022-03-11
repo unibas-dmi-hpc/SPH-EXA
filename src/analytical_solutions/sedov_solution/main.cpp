@@ -34,10 +34,9 @@
 #include <cmath>
 #include <vector>
 
+#include "init/sedov_constants.hpp"
 #include "io/arg_parser.hpp"
 #include "io/file_utils.hpp"
-
-#include "sedov/sedov_generator.hpp"
 
 #include "sedov_solution.hpp"
 
@@ -74,17 +73,17 @@ int main(int argc, char** argv)
         parser.exists("--out") ? parser.getString("--out") : outDir + "sedov_solution_" + time_str + ".dat";
 
     // Calculate and write theoretical solution profile in one dimension
-    const size_t dim    = SedovDataGenerator::dim;
-    const double r0     = SedovDataGenerator::r0;
-    const double r1     = SedovDataGenerator::r1;
-    const double eblast = SedovDataGenerator::energyTotal;
-    const double gamma  = SedovDataGenerator::gamma;
-    const double omega  = SedovDataGenerator::omega;
-    const double rho0   = SedovDataGenerator::rho0;
-    const double u0     = SedovDataGenerator::u0;
-    const double p0     = SedovDataGenerator::p0;
-    const double vr0    = SedovDataGenerator::vr0;
-    const double cs0    = SedovDataGenerator::cs0;
+    const size_t dim    = SedovConstants::dim;
+    const double r0     = SedovConstants::r0;
+    const double r1     = SedovConstants::r1;
+    const double eblast = SedovConstants::energyTotal;
+    const double gamma  = SedovConstants::gamma;
+    const double omega  = SedovConstants::omega;
+    const double rho0   = SedovConstants::rho0;
+    const double u0     = SedovConstants::u0;
+    const double p0     = SedovConstants::p0;
+    const double vr0    = SedovConstants::vr0;
+    const double cs0    = SedovConstants::cs0;
 
     double shockFront;
     {

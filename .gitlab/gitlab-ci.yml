@@ -1,184 +1,230 @@
 include:
-  # - local: '.gitlab/ubuntu/ubuntu_*.yml'
-  - local: '.gitlab/common.yml'
   - remote: 'https://gitlab.com/cscs-ci/recipes/-/raw/master/templates/v2/.cscs.yml'
 
 stages:
-  - deps
-  - build
-  - test
-  - deploy
+  - SPHbase
+  - SPHinstall
+  - SPHtest
 
 variables:
   jfrogtag: 'docker_jfrog'
+  JG_DEPS_PATH: ftp://ftp.cscs.ch/out/jgp/hpc/containers
+  # https://hub.docker.com/r/nvidia/cuda
 
-# default:
-#     tags: ['dom']
+#{{{ .sph-base
+.sph-base: &sph-base
+  # tag must be 'docker_jfrog'
+  tags:
+    - docker_jfrog
+  before_script:
+    # - echo CI_PROJECT_DIR=$CI_PROJECT_DIR PWD=$PWD
+    - date
+    - sed -i 's@archive.ubuntu.com@ubuntu.ethz.ch@' /etc/apt/sources.list
+    - export TZ=Europe/Zurich DEBIAN_FRONTEND=noninteractive
+    - apt update > /dev/null
+    #
+    - if [ "$VARIANT" = "cuda" ]; then
+        echo "## apt nvcc/11.6 (+gcc9+clang12+make+thrust)";
+        apt install -y --no-install-recommends wget vim-tiny file cuda-nvcc-11-6 clang-12 libomp-12-dev > /dev/null;
+      fi
+    - if [ "$VARIANT" = "hip" ]; then
+        echo "## apt hipcc/4.5 (+rocthrust-dev +parallel)";
+        apt install -y --no-install-recommends wget vim-tiny file rocthrust-dev time parallel > /dev/null;
+      fi
+    - apt clean autoremove > /dev/null
+    #
+    - cd /usr/local/games
+    - wget --quiet $JG_DEPS_PATH/c/CMake/cmake-3.22.2-linux-x86_64.tar.gz
+    - wget --quiet $JG_DEPS_PATH/m/MPICH/mpich-3.1.4.tar.gz
+    - wget --quiet $JG_DEPS_PATH/g/googletest/release-1.11.0.tar.gz
+    #
+    - date; echo "## cmake:"
+    #- cd /usr/local/games
+    - tar xf cmake-3.22.2-linux-x86_64.tar.gz
+    - cp -a cmake-3.22.2-linux-x86_64/bin/* /usr/bin/
+    - cp -a cmake-3.22.2-linux-x86_64/share/cmake-3.22 /usr/share/cmake-3.22
+    - rm -fr cmake-3.22.2-linux-x86_64.tar.gz cmake-3.22.2-linux-x86_64/bin/cmake-gui
+    #
+    - date; echo "## googletest:"
+    #- cd /usr/local/games
+    - tar xf release-1.11.0.tar.gz
+    - rm -f release-1.11.0.tar.gz
+    #
+    - date; echo "## mpich/3.1.4:"
+    #- cd /usr/local/games
+    - tar xf /usr/local/games/mpich-3.1.4.tar.gz
+    - cd mpich-3.1.4/
+    - ./configure --prefix=/usr --enable-fortran=no > /dev/null
+    - make --quiet -j `grep processor /proc/cpuinfo | wc -l` install > /dev/null
+    - cd /usr/local/games
+    - rm -fr mpich-3.1.4 mpich-3.1.4.tar.gz
+    - ldconfig
+    - date; echo "## done"
+#}}}
+#{{{ .sph-base-skip
+.sph-base-skip: &sph-base-skip
+  # tag must be 'docker_jfrog'
+  tags:
+    - docker_jfrog
+  before_script:
+    - echo "skipping build of base image"
+#}}}
+#{{{ .sph-install
+.sph-install: &sph-install
+  # tag must be 'docker_jfrog'
+  tags:
+    - docker_jfrog
+  before_script:
+    - cd $CI_PROJECT_DIR
+    - pwd
+    - echo "## sph"
+    - sed -i "s@GIT_REPOSITORY@SOURCE_DIR /usr/local/games/googletest-release-1.11.0/\n#@" ./domain/cmake/setup_GTest.cmake
+    - sed -i "s@GIT_REPOSITORY@SOURCE_DIR /usr/local/games/googletest-release-1.11.0/\n#@" ./cmake/setup_GTest.cmake
+    - sed -i "s@GIT_REPOSITORY@SOURCE_DIR /usr/local/games/googletest-release-1.11.0/\n#@" ./ryoanji/cmake/setup_GTest.cmake
+    - sed -i "s@GIT_TAG@#GIT_TAG @" ./domain/cmake/setup_GTest.cmake
+    - sed -i "s@GIT_TAG@#GIT_TAG @" ./cmake/setup_GTest.cmake
+    - sed -i "s@GIT_TAG@#GIT_TAG @" ./ryoanji/cmake/setup_GTest.cmake
+    #
+    - if [ "$VARIANT" = "hip" ]; then
+        sed -i '1,7{s/^/### /}' ./src/sedov/CMakeLists.txt;
+        echo "## hipify-perl";
+        date;
+        /usr/bin/time ./.gitlab/hipify.sh;
+        date;
+      fi
+    - date
+    - echo
+      BUILD_TESTING=$BUILD_TESTING
+      BUILD_ANALYTICAL=$BUILD_ANALYTICAL
+      SPH_EXA_WITH_HIP=$SPH_EXA_WITH_HIP
+      CMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
+    - cmake -S . -B build
+      -DCMAKE_CXX_COMPILER=mpicxx
+      -DBUILD_TESTING=$BUILD_TESTING
+      -DBUILD_ANALYTICAL=$BUILD_ANALYTICAL
+      -DSPH_EXA_WITH_HIP=$SPH_EXA_WITH_HIP
+      -DCMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
+    - cd build
+    - make help
+    - make -j `grep processor /proc/cpuinfo | wc -l` install
+    - date; echo "## done"
+#}}}
+#{{{ .sph-test
+.sph-test: &sph-test
+  extends: .dom
+  # tag is set in .dom
+  before_script:
+    # /usr/local/bin/evrard <-- (needs input file)
+    - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "1" ]; then
+        /usr/local/sbin/performance/scan_perf;echo;
+        /usr/local/sbin/coord_samples/coordinate_test;echo;
+        /usr/local/sbin/kernel/kernel_tests_ve;echo;
+        /usr/local/sbin/kernel/kernel_tests;echo;
+        /usr/local/sbin/ryoanji/gravity_perf;echo;
+        /usr/local/sbin/ryoanji/cpu_unit_tests/ryoanji_cpu_unit_tests;echo;
+        /usr/local/sbin/unit/component_units;echo;
+        /usr/local/sbin/unit/component_units_omp;echo;
+      fi
+    - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "2" ]; then
+        /usr/local/sbin/integration_mpi/domain_2ranks;echo;
+        /usr/local/sbin/integration_mpi/exchange_focus;echo;
+        /usr/local/sbin/integration_mpi/exchange_halos;echo;
+        /usr/local/sbin/integration_mpi/focus_transfer;echo;
+        /usr/local/sbin/integration_mpi/globaloctree;echo;
+      fi
+    - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "5" ]; then
+        /usr/local/sbin/integration_mpi/exchange_domain;echo;
+        /usr/local/sbin/integration_mpi/box_mpi;echo;
+        /usr/local/sbin/integration_mpi/focus_tree;echo;
+        /usr/local/sbin/integration_mpi/treedomain;echo;
+        /usr/local/sbin/integration_mpi/domain_nranks;echo;
+        /usr/local/sbin/integration_mpi/exchange_general;echo;
+        /usr/local/sbin/integration_mpi/exchange_keys;echo;
+        /usr/local/sbin/ryoanji/multi_rank;echo;
+      fi
+    - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "p100" ]; then
+        /usr/local/sbin/performance/hilbert_perf_gpu;echo;
+        /usr/local/sbin/performance/cudaNeighborsTest;echo;
+        /usr/local/sbin/performance/octree_perf_gpu;echo;
+        /usr/local/sbin/unit_cuda/component_units_cuda;echo;
+        /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests;echo;
+      fi
+    - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "sphexa_cpu" ]; then
+        echo "sedov:cpu";
+        /usr/local/bin/sphexa --init sedov -s 1 -n 50 ;
+        echo "noh:cpu";
+        /usr/local/bin/sphexa --init noh -s 1 -n 50 ;
+      fi
+    - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "sphexa_gpu" ]; then
+        echo "sedov:gpu";
+        /usr/local/bin/sphexa-cuda --init sedov -s 1 -n 50 ;
+        echo "noh:gpu";
+        /usr/local/bin/sphexa-cuda --init noh -s 1 -n 50 ;
+      fi
+#}}}
 
-# {{{ ubuntu:gnu:
-# turning off release until $CI_PROJECT_DIR is fixed
-# # {{{ ubu:deps
-# ubu:deps:
-#   stage: deps
-#   extends: .deps-ubu-gnu_fake
-#   image: debian:testing-slim
+#{{{ nvidia/cuda:11.6.0 --> sph-exa_base:cuda
+#{{{ BUILD base image:
+# sph:base:cuda:
+#   # notice the final ':'
+#   stage: SPHbase
+#   extends: .sph-base
+#   image: nvidia/cuda:11.6.0-base-ubuntu20.04
 #   tags: 
 #     - $jfrogtag
 #   script:
-#     - echo "empty stage for a better display of deps"
+#     - nvcc --version
 #   variables:
-#     PERSIST_IMAGE_NAME: debian:testing-slim
-# 
-# #ok  # {{{ # uncomment to rebuild the base image
-# #ok  ubu:deps:
-# #ok    stage: deps
-# #ok    extends: .deps-ubu-gnu
-# #ok    image: nvidia/cuda:11.4.2-devel-ubuntu20.04
-# #ok    tags:
-# #ok      - $jfrogtag
-# #ok    script:
-# #ok      - which cmake
-# #ok    variables:
-# #ok      PERSIST_IMAGE_NAME: sph-exa_base:1.0
-# #ok  # TODO: build image if true/false
-# # }}}
-# # }}}
-# # {{{ build:ubu:gnu:
-# build:ubu:gnu:
-#   stage: build
-#   extends: .build
-#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_base:1.0
-#   tags:
-#     - $jfrogtag
-#   needs: ['ubu:deps']
-#   script:
-#     - ls -l /usr/local/sbin/
-#   variables:
-#     PERSIST_IMAGE_NAME: sph-exa_gnu:1.0
-#     # FIXME: should not be a static version (should be the SHA hash
-#     # ($CI_COMMIT_SHA) instead of 1.0) but this will fill up JFrog, so we would
-#     # need a deletion policy (todo) and/or a deploy step to retag (todo) the
-#     # container with a usable version.
-#     # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
-# # }}}
-# # {{{ test:ubu:
-# ubu:test_1:
-#   stage: test
-#   extends: .run-1
-#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-#   # tags: ['dom']
-#   needs: ['build:ubu:gnu']
-#   script:
-#     - echo
-#   variables:
-#     PULL_IMAGE: 'YES'
-#     CSCS_REGISTRY_LOGIN: 'YES'
-#     SLURM_PARTITION: cscsci
-#     SLURM_JOB_NUM_NODES: 1
-#     SLURM_NTASKS: 1
-#     SLURM_CONSTRAINT: 'gpu'
-#     USE_MPI: 'YES'
-#     # SLURM_TIMELIMIT=15:00
-#     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-# 
-# ubu:test_2:
-#   stage: test
-#   extends: .run-2
-#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-#   # tags: ['dom']
-#   needs: ['build:ubu:gnu']
-#   script:
-#     - echo
-#   variables:
-#     PULL_IMAGE: 'YES'
-#     CSCS_REGISTRY_LOGIN: 'YES'
-#     SLURM_PARTITION: cscsci
-#     SLURM_JOB_NUM_NODES: 1
-#     SLURM_NTASKS: 2
-#     SLURM_CONSTRAINT: 'gpu'
-#     USE_MPI: 'YES'
-#     # SLURM_TIMELIMIT=15:00
-#     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-# 
-# ubu:test_10:
-#   stage: test
-#   extends: .run-10
-#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-#   # tags: ['dom']
-#   needs: ['build:ubu:gnu']
-#   script:
-#     - echo
-#   variables:
-#     PULL_IMAGE: 'YES'
-#     CSCS_REGISTRY_LOGIN: 'YES'
-#     SLURM_PARTITION: cscsci
-#     SLURM_JOB_NUM_NODES: 1
-#     SLURM_NTASKS: 10
-#     SLURM_CONSTRAINT: 'gpu'
-#     USE_MPI: 'YES'
-#     # SLURM_TIMELIMIT=15:00
-#     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-# 
-# ubu:test_p100:
-#   stage: test
-#   extends: .run-p100
-#   image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-#   # tags: ['dom']
-#   needs: ['build:ubu:gnu']
-#   script:
-#     - echo
-#   variables:
-#     PULL_IMAGE: 'YES'
-#     CSCS_REGISTRY_LOGIN: 'YES'
-#     SLURM_PARTITION: cscsci
-#     SLURM_JOB_NUM_NODES: 1
-#     SLURM_NTASKS: 1
-#     SLURM_CONSTRAINT: 'gpu'
-#     USE_MPI: 'YES'
-#     # SLURM_TIMELIMIT=15:00
-#     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-# # }}}
-
-# {{{ ubu:deps:Debug:
-ubu:deps:Debug:
-  stage: deps
-  extends: .deps-ubu-gnu_fake
-  image: debian:testing-slim
+#     VARIANT: 'cuda'
+#     PERSIST_IMAGE_NAME: 'sph-exa_base:cuda'
+#}}}
+#{{{ SKIP base image:
+sph:base:cuda:
+  # notice the final ':'
+  stage: SPHbase
+  extends: .sph-base-skip
+  image: nvidia/cuda:11.6.0-base-ubuntu20.04
   tags: 
     - $jfrogtag
   script:
-    - echo "empty stage for a better display of deps"
+    - echo "skipping build of base image"
   variables:
-    PERSIST_IMAGE_NAME: debian:testing-slim
-# }}}
-# {{{ build:ubu:gnu:Debug:
-build:ubu:gnu:Debug:
-  stage: build
-  extends: .build-debug
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_base:1.0
+    VARIANT: 'cuda'
+    PERSIST_IMAGE_NAME: 'sph-exa_base:skip'
+#}}}
+#}}}
+#{{{ nvidia/cuda:11.6.0 --> sph-exa_base:cuda --> sph-exa_install:cuda
+sph:install:cuda:
+  stage: SPHinstall
+  extends: .sph-install
+  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_base:cuda
+  needs: ['sph:base:cuda']
   tags:
     - $jfrogtag
-  needs: ['ubu:deps:Debug']
   script:
-    - ls -l /usr/local/sbin/
+    - ls -l /usr/local/bin/
   variables:
-    PERSIST_IMAGE_NAME: sph-exa_gnu:1.0
-    # FIXME: should not be a static version (should be the SHA hash
-    # ($CI_COMMIT_SHA) instead of 1.0) but this will fill up JFrog, so we would
-    # need a deletion policy (todo) and/or a deploy step to retag (todo) the
-    # container with a usable version.
-    # https://docs.gitlab.com/ee/ci/variables/predefined_variables.html
-# }}}
-# {{{ test:ubu:Debug:
-ubu:test_1:Debug:
-  stage: test
-  extends: .run-1
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-  # tags: ['dom']
-  needs: ['build:ubu:gnu:Debug']
+    VARIANT: 'cuda'
+    BUILD_TESTING: 'ON'
+    BUILD_ANALYTICAL: 'ON'
+    SPH_EXA_WITH_HIP: 'OFF'
+    CMAKE_BUILD_TYPE: 'Debug'
+    PERSIST_IMAGE_NAME: 'sph-exa_install:cuda'
+    # TODO: HDF5
+    # TODO: INSITU
+    # TODO: ./sphexa --init evrard_65k.h5 --grav
+#}}}
+#{{{ sph:test:cuda:1:
+sph:test:cuda:1:
+  stage: SPHtest
+  extends: .sph-test
+  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  needs: ['sph:install:cuda']
   script:
-    - echo
+    - date
   variables:
+    VARIANT: 'cuda'
+    RUN_VARIANT: '1'
     PULL_IMAGE: 'YES'
     CSCS_REGISTRY_LOGIN: 'YES'
     SLURM_PARTITION: cscsci
@@ -187,17 +233,18 @@ ubu:test_1:Debug:
     SLURM_CONSTRAINT: 'gpu'
     USE_MPI: 'YES'
     # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-
-ubu:test_2:Debug:
-  stage: test
-  extends: .run-2
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-  # tags: ['dom']
-  needs: ['build:ubu:gnu:Debug']
+#}}}
+#{{{ sph:test:cuda:2:
+sph:test:cuda:2:
+  stage: SPHtest
+  extends: .sph-test
+  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  needs: ['sph:install:cuda']
   script:
-    - echo
+    - date
   variables:
+    VARIANT: 'cuda'
+    RUN_VARIANT: '2'
     PULL_IMAGE: 'YES'
     CSCS_REGISTRY_LOGIN: 'YES'
     SLURM_PARTITION: cscsci
@@ -207,35 +254,41 @@ ubu:test_2:Debug:
     USE_MPI: 'YES'
     # SLURM_TIMELIMIT=15:00
     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-
-ubu:test_10:Debug:
-  stage: test
-  extends: .run-10
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-  # tags: ['dom']
-  needs: ['build:ubu:gnu:Debug']
+#}}}
+#{{{ sph:test:cuda:5:
+sph:test:cuda:5:
+  stage: SPHtest
+  extends: .sph-test
+  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  needs: ['sph:install:cuda']
   script:
-    - echo
+    - date
   variables:
+    VARIANT: 'cuda'
+    RUN_VARIANT: '5'
     PULL_IMAGE: 'YES'
     CSCS_REGISTRY_LOGIN: 'YES'
     SLURM_PARTITION: cscsci
     SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 10
+    SLURM_NTASKS: 5
     SLURM_CONSTRAINT: 'gpu'
     USE_MPI: 'YES'
+    # OMP_NUM_THREADS: 2
     # SLURM_TIMELIMIT=15:00
     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-
-ubu:test_p100:Debug:
-  stage: test
-  extends: .run-p100
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_gnu:1.0
-  # tags: ['dom']
-  needs: ['build:ubu:gnu:Debug']
+#}}}
+#{{{ sph:test:cuda:p100:
+sph:test:cuda:p100:
+  stage: SPHtest
+  extends: .sph-test
+  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  needs: ['sph:install:cuda']
+  #needs: ['build:ubu:gnu']
   script:
-    - echo
+    - date
   variables:
+    VARIANT: 'cuda'
+    RUN_VARIANT: 'p100'
     PULL_IMAGE: 'YES'
     CSCS_REGISTRY_LOGIN: 'YES'
     SLURM_PARTITION: cscsci
@@ -245,13 +298,92 @@ ubu:test_p100:Debug:
     USE_MPI: 'YES'
     # SLURM_TIMELIMIT=15:00
     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-# }}}
+#}}}
+#{{{ sph:test:cuda:sphexa:
+sph:test:cuda:sphexa:cpu:
+  stage: SPHtest
+  extends: .sph-test
+  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  needs: ['sph:install:cuda']
+  script:
+    - date
+  variables:
+    VARIANT: 'cuda'
+    RUN_VARIANT: 'sphexa_cpu'
+    PULL_IMAGE: 'YES'
+    CSCS_REGISTRY_LOGIN: 'YES'
+    SLURM_PARTITION: cscsci
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 12
+    SLURM_CONSTRAINT: 'gpu'
+    USE_MPI: 'YES'
+    # SLURM_TIMELIMIT=15:00
+    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+#}}}
+#{{{ sph:test:cuda:sphexa:
+sph:test:cuda:sphexa:gpu:
+  stage: SPHtest
+  extends: .sph-test
+  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+  needs: ['sph:install:cuda']
+  script:
+    - date
+  variables:
+    VARIANT: 'cuda'
+    RUN_VARIANT: 'sphexa_gpu'
+    PULL_IMAGE: 'YES'
+    CSCS_REGISTRY_LOGIN: 'YES'
+    SLURM_PARTITION: cscsci
+    SLURM_JOB_NUM_NODES: 1
+    SLURM_NTASKS: 1
+    SLURM_CONSTRAINT: 'gpu'
+    USE_MPI: 'YES'
+    # SLURM_TIMELIMIT=15:00
+    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+#}}}
 
-# TODO: ubu:deploy:
-#   stage: deploy
-#   needs: ['ubu:test_1', 'ubu:test_2', 'ubu:test_12', 'ubu:test_p100']
-#   script: echo
-# }}}
-
-# {{{ cpe_gnu: see commit ab188771
-# }}}
+#{{{ list of tests:
+# NOTE: -s1 means 1 step (was 2 before)
+# G bin/sphexa-cuda <-- sedov-cuda
+# N bin/sedov_solution <-- TODO
+#12 bin/sphexa  <-- sedov
+#   bin/evrard  <-- (needs input file)
+# -------------------------------------
+# ./sphexa --init sedov -s0 -n50
+# ./sphexa --init noh
+# ./sphexa --init evrard.h5
+# -------------------------------------
+# N sbin/performance/octree_perf
+# N sbin/performance/peers_perf
+# G sbin/performance/hilbert_perf_gpu
+# G sbin/performance/cudaNeighborsTest
+# 1 sbin/performance/scan_perf
+# G sbin/performance/octree_perf_gpu
+# N sbin/performance/hilbert_perf
+#
+# 5 sbin/integration_mpi/exchange_domain
+# 5 sbin/integration_mpi/box_mpi
+# 5 sbin/integration_mpi/focus_tree
+# 2 sbin/integration_mpi/domain_2ranks
+# 2 sbin/integration_mpi/exchange_focus
+# 5 sbin/integration_mpi/treedomain
+# 5 sbin/integration_mpi/domain_nranks
+# 2 sbin/integration_mpi/exchange_halos
+# 2 sbin/integration_mpi/focus_transfer
+# 5 sbin/integration_mpi/exchange_general
+# 5 sbin/integration_mpi/exchange_keys
+# 2 sbin/integration_mpi/globaloctree
+#
+# 1 sbin/coord_samples/coordinate_test
+# 1 sbin/kernel/kernel_tests_ve
+# 1 sbin/kernel/kernel_tests
+# G sbin/unit_cuda/component_units_cuda
+# 5 sbin/ryoanji/multi_rank
+# G sbin/ryoanji/unit_tests/ryoanji_unit_tests
+# 1 sbin/ryoanji/gravity_perf
+# 1 sbin/ryoanji/cpu_unit_tests/ryoanji_cpu_unit_tests
+# 1 sbin/unit/component_units
+# 1 sbin/unit/component_units_omp
+#
+# TODO: cp ./dump_sedov200.txt file before container ends!
+#}}}

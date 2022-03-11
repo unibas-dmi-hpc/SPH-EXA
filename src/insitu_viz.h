@@ -4,11 +4,11 @@
 #include "sph/particles_data.hpp"
 
 #ifdef SPH_EXA_USE_CATALYST2
-#include "CatalystAdaptor.h"
+#include "catalyst_adaptor.h"
 #endif
 
 #ifdef SPH_EXA_USE_ASCENT
-#include "AscentAdaptor.h"
+#include "ascent_adaptor.h"
 #endif
 
 namespace viz

@@ -42,23 +42,99 @@
 #include "util/timer.hpp"
 #include "particles_data.hpp"
 
-using namespace sphexa;
+namespace sphexa
+{
+
 using namespace sphexa::sph;
 
+template<class DomainType, class ParticleDataType>
 class Propagator
 {
 public:
     Propagator(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
         : timer(output, rank)
-        , output_(output)
+        , out(output)
         , ngmax_(ngmax)
         , ng0_(ng0)
     {
     }
 
-    //! @brief Advance simulation by one step with hydro-dynamical forces
-    template<class DomainType, class ParticleDataType>
-    void hydroStep(DomainType& domain, ParticleDataType& d)
+    virtual void step(DomainType& domain, ParticleDataType& d) = 0;
+
+    virtual ~Propagator() = default;
+
+protected:
+    MasterProcessTimer timer;
+    std::ostream&      out;
+
+    //! maximum number of neighbors per particle
+    size_t ngmax_;
+    //! average number of neighbors per particle
+    size_t ng0_;
+
+    void printIterationTimings(const DomainType& domain, const ParticleDataType& d)
+    {
+        size_t totalNeighbors = neighborsSum(domain.startIndex(), domain.endIndex(), d.neighborsCount);
+
+        if (d.rank == 0)
+        {
+            printCheck(d.ttot,
+                       d.minDt,
+                       d.etot,
+                       d.eint,
+                       d.ecin,
+                       d.egrav,
+                       domain.box(),
+                       d.n,
+                       domain.nParticles(),
+                       cstone::nNodes(domain.tree()),
+                       domain.nParticlesWithHalos() - domain.nParticles(),
+                       totalNeighbors);
+
+            std::cout << "### Check ### Focus Tree Nodes: " << domain.focusTree().numLeafNodes() << std::endl;
+            printTotalIterationTime(d.iteration, timer.duration());
+        }
+    }
+
+    void printTotalIterationTime(size_t iteration, float duration)
+    {
+        out << "=== Total time for iteration(" << iteration << ") " << duration << "s" << std::endl << std::endl;
+    }
+
+    template<class Box>
+    void printCheck(double totalTime, double minTimeStep, double totalEnergy, double internalEnergy,
+                    double kineticEnergy, double gravitationalEnergy, const Box& box, size_t totalParticleCount,
+                    size_t particleCount, size_t nodeCount, size_t haloCount, size_t totalNeighbors)
+    {
+        out << "### Check ### Global Tree Nodes: " << nodeCount << ", Particles: " << particleCount
+            << ", Halos: " << haloCount << std::endl;
+        out << "### Check ### Computational domain: " << box.xmin() << " " << box.xmax() << " " << box.ymin() << " "
+            << box.ymax() << " " << box.zmin() << " " << box.zmax() << std::endl;
+        out << "### Check ### Total Neighbors: " << totalNeighbors
+            << ", Avg neighbor count per particle: " << totalNeighbors / totalParticleCount << std::endl;
+        out << "### Check ### Total time: " << totalTime << ", current time-step: " << minTimeStep << std::endl;
+        out << "### Check ### Total energy: " << totalEnergy << ", (internal: " << internalEnergy
+            << ", cinetic: " << kineticEnergy;
+        out << ", gravitational: " << gravitationalEnergy;
+        out << ")" << std::endl;
+    }
+};
+
+template<class DomainType, class ParticleDataType>
+class HydroProp final : public Propagator<DomainType, ParticleDataType>
+{
+    using Base = Propagator<DomainType, ParticleDataType>;
+    using Base::ng0_;
+    using Base::ngmax_;
+    using Base::timer;
+
+public:
+    HydroProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+        : Base(ngmax, ng0, output, rank)
+    {
+    }
+
+    void step(DomainType& domain, ParticleDataType& d) override
     {
         using T       = typename ParticleDataType::RealType;
         using KeyType = typename ParticleDataType::KeyType;
@@ -101,12 +177,25 @@ public:
         timer.step("UpdateSmoothingLength");
 
         timer.stop();
-        printIterationTimings(domain, d);
+        this->printIterationTimings(domain, d);
+    }
+};
+
+template<class DomainType, class ParticleDataType>
+class HydroVeProp final : public Propagator<DomainType, ParticleDataType>
+{
+    using Base = Propagator<DomainType, ParticleDataType>;
+    using Base::ng0_;
+    using Base::ngmax_;
+    using Base::timer;
+
+public:
+    HydroVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+        : Base(ngmax, ng0, output, rank)
+    {
     }
 
-    //! @brief Advance simulation by one step with hydro-dynamical forces using generalized volume elements
-    template<class DomainType, class ParticleDataType>
-    void hydroStepVE(DomainType& domain, ParticleDataType& d)
+    void step(DomainType& domain, ParticleDataType& d) override
     {
         using T       = typename ParticleDataType::RealType;
         using KeyType = typename ParticleDataType::KeyType;
@@ -160,12 +249,25 @@ public:
         timer.step("UpdateSmoothingLength");
 
         timer.stop();
-        printIterationTimings(domain, d);
+        this->printIterationTimings(domain, d);
+    }
+};
+
+template<class DomainType, class ParticleDataType>
+class HydroGravProp final : public Propagator<DomainType, ParticleDataType>
+{
+    using Base = Propagator<DomainType, ParticleDataType>;
+    using Base::ng0_;
+    using Base::ngmax_;
+    using Base::timer;
+
+public:
+    HydroGravProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+        : Base(ngmax, ng0, output, rank)
+    {
     }
 
-    //! @brief Advance simulation by one step with hydro-dynamical and self-gravity forces
-    template<class DomainType, class ParticleDataType>
-    void hydroStepGravity(DomainType& domain, ParticleDataType& d)
+    void step(DomainType& domain, ParticleDataType& d) override
     {
         using T             = typename ParticleDataType::RealType;
         using KeyType       = typename ParticleDataType::KeyType;
@@ -243,65 +345,20 @@ public:
         timer.step("UpdateSmoothingLength");
 
         timer.stop();
-        printIterationTimings(domain, d);
-    }
-
-private:
-    MasterProcessTimer timer;
-    std::ostream&      output_;
-
-    //! maximum number of neighbors per particle
-    size_t ngmax_;
-    //! average number of neighbors per particle
-    size_t ng0_;
-
-    template<class DomainType, class ParticleDataType>
-    void printIterationTimings(const DomainType& domain, const ParticleDataType& d)
-    {
-        size_t totalNeighbors = neighborsSum(domain.startIndex(), domain.endIndex(), d.neighborsCount);
-
-        if (d.rank == 0)
-        {
-            printCheck(d.ttot,
-                       d.minDt,
-                       d.etot,
-                       d.eint,
-                       d.ecin,
-                       d.egrav,
-                       domain.box(),
-                       d.n,
-                       domain.nParticles(),
-                       cstone::nNodes(domain.tree()),
-                       domain.nParticlesWithHalos() - domain.nParticles(),
-                       totalNeighbors,
-                       output_);
-
-            std::cout << "### Check ### Focus Tree Nodes: " << domain.focusTree().numLeafNodes() << std::endl;
-            printTotalIterationTime(d.iteration, timer.duration(), output_);
-        }
-    }
-
-    static void printTotalIterationTime(size_t iteration, float duration, std::ostream& out)
-    {
-        out << "=== Total time for iteration(" << iteration << ") " << duration << "s" << std::endl << std::endl;
-    }
-
-    template<class Box>
-    static void printCheck(double totalTime, double minTimeStep, double totalEnergy, double internalEnergy,
-                           double kineticEnergy, double gravitationalEnergy, const Box& box, size_t totalParticleCount,
-                           size_t particleCount, size_t nodeCount, size_t haloCount, size_t totalNeighbors,
-                           std::ostream& out)
-    {
-        out << "### Check ### Global Tree Nodes: " << nodeCount << ", Particles: " << particleCount
-            << ", Halos: " << haloCount << std::endl;
-        out << "### Check ### Computational domain: " << box.xmin() << " " << box.xmax() << " " << box.ymin() << " "
-            << box.ymax() << " " << box.zmin() << " " << box.zmax() << std::endl;
-        out << "### Check ### Total Neighbors: " << totalNeighbors
-            << ", Avg neighbor count per particle: " << totalNeighbors / totalParticleCount << std::endl;
-        out << "### Check ### Total time: " << totalTime << ", current time-step: " << minTimeStep << std::endl;
-        out << "### Check ### Total energy: " << totalEnergy << ", (internal: " << internalEnergy
-            << ", cinetic: " << kineticEnergy;
-        out << ", gravitational: " << gravitationalEnergy;
-        out << ")" << std::endl;
+        this->printIterationTimings(domain, d);
     }
 };
+
+template<class DomainType, class ParticleDataType>
+std::unique_ptr<Propagator<DomainType, ParticleDataType>>
+propagatorFactory(bool grav, bool ve, size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+{
+    if (grav) { return std::make_unique<HydroGravProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank); }
+    if (ve) { return std::make_unique<HydroVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank); }
+    else
+    {
+        return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
+    }
+}
+
+} // namespace sphexa
