@@ -134,7 +134,7 @@ private:
             }
             else
             {
-                if (rank == 0) std::cout << name << " not found, initializing to " << defaultValue << std::endl;
+                if (rank == 0) std::cout << name << " not provided, initializing to " << defaultValue << std::endl;
                 std::fill(field.begin(), field.end(), defaultValue);
             }
         }
@@ -155,7 +155,7 @@ private:
         else
         {
             if (rank == 0)
-                std::cout << "no previous time-step coordinates found, initializing from current coordinates and "
+                std::cout << "no previous time-step coordinates provided, initializing from current coordinates and "
                              "velocities\n";
 
 #pragma omp parallel for schedule(static)

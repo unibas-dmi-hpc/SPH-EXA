@@ -46,6 +46,7 @@ int main(int argc, char** argv)
     const int         writeFrequency = parser.getInt("-w", -1);
     const bool        quiet          = parser.exists("--quiet");
     const bool        ascii          = parser.exists("--ascii");
+    const bool        grav           = parser.exists("--grav");
     const bool        ve             = parser.exists("--ve");
     const std::string outDirectory   = parser.getString("--outDir");
     const std::string initCond       = parser.getString("--init");
@@ -54,6 +55,7 @@ int main(int argc, char** argv)
     using Real    = double;
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType, AccType>;
+    using Domain  = cstone::Domain<KeyType, Real, AccType>;
 
     float  theta           = 1.0;
     size_t ngmax           = 150;
@@ -94,7 +96,8 @@ int main(int argc, char** argv)
     if (rank == 0 && writeFrequency > 0) { fileWriter->constants(simInit->constants(), outFile); }
     if (rank == 0) { std::cout << "Data generated." << std::endl; }
 
-    cstone::Domain<KeyType, Real, AccType> domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
+    Domain domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
+    auto   propagator = propagatorFactory<Domain, Dataset>(grav, ve, ngmax, ng0, output, rank);
 
     if (ve)
         domain.sync(
@@ -107,18 +110,12 @@ int main(int argc, char** argv)
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
-    Propagator propagator(ngmax, ng0, output, rank);
-
     MasterProcessTimer totalTimer(output, rank);
     totalTimer.start();
     int startIteration = d.iteration;
     for (; d.iteration <= maxStep; d.iteration++)
     {
-        if (ve) { propagator.hydroStepVE(domain, d); }
-        else
-        {
-            propagator.hydroStep(domain, d);
-        }
+        propagator->step(domain, d);
 
         fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
 
@@ -145,7 +142,9 @@ void printHelp(char* name, int rank)
         printf("%s [OPTIONS]\n", name);
         printf("\nWhere possible options are:\n\n");
 
-        printf("\t--init \t\t Test case selection (sedov or noh)\n\n");
+        printf("\t--init \t\t Test case selection (sedov, noh) or an HDF5 file with initial conditions\n\n");
+        printf("\t--grav \t\t Include self-gravity\n\n");
+        printf("\t--ve \t\t Activate SPH with generalized volume elements\n\n");
         printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
         printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [200]\n\n");
         printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");

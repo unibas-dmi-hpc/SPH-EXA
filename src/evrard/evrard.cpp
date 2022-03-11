@@ -56,6 +56,7 @@ int main(int argc, char** argv)
     using Real    = double;
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType, AccType>;
+    using Domain  = cstone::Domain<KeyType, Real, AccType>;
 
     const IFileReader<Dataset>& fileReader = EvrardFileReader<Dataset>();
 
@@ -68,8 +69,7 @@ int main(int argc, char** argv)
 
     auto d = fileReader.read(inputFilePath, nParticles);
 
-    std::vector<std::string> outputFields = {
-        "x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z"};
+    std::vector<std::string> outputFields = {"x", "y", "z", "h", "m", "u"};
     if (parser.exists("-f")) { outputFields = parser.getCommaList("-f"); }
     d.setOutputFields(outputFields);
 
@@ -92,7 +92,7 @@ int main(int argc, char** argv)
 
     float theta = 0.5;
 
-    cstone::Domain<KeyType, Real, AccType> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    Domain domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
 
     if (d.rank == 0) std::cout << "Domain created." << std::endl;
 
@@ -106,12 +106,15 @@ int main(int argc, char** argv)
     const size_t ngmax = 150;
     const size_t ng0   = 100;
 
-    Propagator propagator(ngmax, ng0, output, d.rank);
+    auto propagator = propagatorFactory<Domain, Dataset>(true, false, ngmax, ng0, output, rank);
+
+    d.iteration = 0;
+    fileWriter->dump(d, domain.startIndex(), domain.endIndex(), box, "evrard_65k");
 
     totalTimer.start();
     for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
     {
-        propagator.hydroStepGravity(domain, d);
+        propagator->step(domain, d);
 
         fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
 
