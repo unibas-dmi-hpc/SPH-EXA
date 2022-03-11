@@ -52,6 +52,7 @@ public:
     virtual ~ISimInitializer() = default;
 };
 
+#ifdef SPH_EXA_HAVE_H5PART
 template<class Dataset>
 class FileInit : public ISimInitializer<Dataset>
 {
@@ -66,7 +67,6 @@ public:
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
     {
-#ifdef SPH_EXA_HAVE_H5PART
         using T = typename Dataset::RealType;
 
         H5PartFile* h5_file = nullptr;
@@ -124,9 +124,6 @@ public:
         std::fill(d.mue.begin(), d.mue.end(), 2.0);
         std::fill(d.mui.begin(), d.mui.end(), 10.0);
 
-#else
-        throw std::runtime_error("Cannot read from HDF5 file: H5Part not enabled\n");
-#endif
         return box;
     }
 
@@ -181,6 +178,26 @@ private:
         }
     }
 };
+
+#else
+
+template<class Dataset>
+class FileInit : public ISimInitializer<Dataset>
+{
+    std::map<std::string, double> constants_;
+
+public:
+    FileInit(std::string) {}
+
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
+    {
+        throw std::runtime_error("Initialization from file only possible with HDF5 support enabled\n");
+    }
+
+    const std::map<std::string, double>& constants() const override { return constants_; }
+};
+
+#endif
 
 template<class Dataset>
 class SedovGrid : public ISimInitializer<Dataset>
