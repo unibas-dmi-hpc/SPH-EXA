@@ -40,6 +40,10 @@ int main(int argc, char** argv)
         printHelp(argv[0], rank);
         return exitSuccess();
     }
+    if (!parser.exists("--init") && rank == 0)
+    {
+        throw std::runtime_error("no initial conditions specified (--init flag missing)\n");
+    }
 
     const size_t      cubeSide       = parser.getInt("-n", 50);
     const size_t      maxStep        = parser.getInt("-s", 200);
@@ -113,12 +117,15 @@ int main(int argc, char** argv)
 
     MasterProcessTimer totalTimer(output, rank);
     totalTimer.start();
-    int startIteration = d.iteration;
+    size_t startIteration = d.iteration;
     for (; d.iteration <= maxStep; d.iteration++)
     {
         propagator->step(domain, d);
 
-        fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
+        if (rank == 0)
+        {
+            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
+        }
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
