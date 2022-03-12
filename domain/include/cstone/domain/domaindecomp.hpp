@@ -31,7 +31,6 @@
  * Any code in this file relies on a global cornerstone octree on each calling rank.
  */
 
-
 #pragma once
 
 #include <algorithm>
@@ -41,7 +40,6 @@
 #include "cstone/tree/octree.hpp"
 #include "cstone/util/index_ranges.hpp"
 #include "cstone/util/gsl-lite.hpp"
-
 
 namespace cstone
 {
@@ -71,13 +69,18 @@ using Rank = StrongType<int, struct RankTag>;
 class SpaceCurveAssignment
 {
     static constexpr TreeNodeIndex untouched = -1;
+
 public:
     SpaceCurveAssignment()
         : rankAssignment_(1)
     {
     }
 
-    explicit SpaceCurveAssignment(int numRanks) : rankAssignment_(numRanks+1, untouched), counts_(numRanks) {}
+    explicit SpaceCurveAssignment(int numRanks)
+        : rankAssignment_(numRanks + 1, untouched)
+        , counts_(numRanks)
+    {
+    }
 
     //! @brief add an index/code range to rank @p rank
     void addRange(Rank rank, TreeNodeIndex lower, TreeNodeIndex upper, std::size_t cnt)
@@ -85,23 +88,17 @@ public:
         // make sure that there's no holes or overlap between or with the range of the previous rank
         assert(rankAssignment_[rank] == lower || rankAssignment_[rank] == untouched);
 
-        rankAssignment_[rank]   = lower;
+        rankAssignment_[rank] = lower;
         // will be overwritten by @p lower of rank+1, except if rank == numRanks-1
-        rankAssignment_[rank+1] = upper;
-        counts_[rank]           = cnt;
+        rankAssignment_[rank + 1] = upper;
+        counts_[rank]             = cnt;
     }
 
     [[nodiscard]] int numRanks() const { return int(rankAssignment_.size()) - 1; }
 
-    [[nodiscard]] TreeNodeIndex firstNodeIdx(int rank) const
-    {
-        return rankAssignment_[rank];
-    }
+    [[nodiscard]] TreeNodeIndex firstNodeIdx(int rank) const { return rankAssignment_[rank]; }
 
-    [[nodiscard]] TreeNodeIndex lastNodeIdx(int rank) const
-    {
-        return rankAssignment_[rank+1];
-    }
+    [[nodiscard]] TreeNodeIndex lastNodeIdx(int rank) const { return rankAssignment_[rank + 1]; }
 
     [[nodiscard]] int findRank(TreeNodeIndex nodeIdx) const
     {
@@ -119,7 +116,7 @@ private:
     }
 
     std::vector<TreeNodeIndex> rankAssignment_;
-    std::vector<size_t>        counts_;
+    std::vector<size_t> counts_;
 };
 
 /*! @brief assign the global tree/SFC to nSplits ranks, assigning to each rank only a single Morton code range
@@ -277,6 +274,7 @@ void translateAssignment(const SpaceCurveAssignment& assignment,
                          std::vector<TreeIndexPair>& focusAssignment)
 {
     focusAssignment.resize(assignment.numRanks());
+    std::fill(focusAssignment.begin(), focusAssignment.end(), TreeIndexPair(0, 0));
     for (int peer : peerRanks)
     {
         KeyType peerSfcStart = domainTree[assignment.firstNodeIdx(peer)];
@@ -296,7 +294,7 @@ void translateAssignment(const SpaceCurveAssignment& assignment,
 
     TreeNodeIndex newStartIndex = findNodeAbove(focusTree, startKey);
     TreeNodeIndex newEndIndex   = findNodeBelow(focusTree, endKey);
-    focusAssignment[myRank] = TreeIndexPair(newStartIndex, newEndIndex);
+    focusAssignment[myRank]     = TreeIndexPair(newStartIndex, newEndIndex);
 }
 
 /*! @brief Based on global assignment, create the list of local particle index ranges to send to each rank
@@ -326,7 +324,7 @@ SendList createSendList(const SpaceCurveAssignment& assignment,
         KeyType rangeStart = treeLeaves[assignment.firstNodeIdx(rank)];
         KeyType rangeEnd   = treeLeaves[assignment.lastNodeIdx(rank)];
 
-        auto lit = std::lower_bound(particleKeys.begin(), particleKeys.end(), rangeStart);
+        auto lit                     = std::lower_bound(particleKeys.begin(), particleKeys.end(), rangeStart);
         IndexType lowerParticleIndex = std::distance(particleKeys.begin(), lit);
 
         auto uit = std::lower_bound(particleKeys.begin() + lowerParticleIndex, particleKeys.end(), rangeEnd);
