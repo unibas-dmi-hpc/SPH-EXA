@@ -83,6 +83,7 @@ endif()
 # {{{ i/o
 option(SPH_EXA_WITH_H5PART "Enable HDF5 IO using the H5Part library" ON)
 if (SPH_EXA_WITH_H5PART)
+    set(HDF5_PREFER_PARALLEL true)
     find_package(HDF5)
     if (HDF5_FOUND)
         add_subdirectory(./extern/h5part)
