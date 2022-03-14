@@ -4,7 +4,7 @@ set(RYOANJI_DIR ${PROJECT_SOURCE_DIR}/ryoanji/src)
 set(SPH_DIR ${PROJECT_SOURCE_DIR}/sph/include)
 
 set(SPH_EXA_INCLUDE_DIRS ${CSTONE_DIR} ${RYOANJI_DIR} ${SPH_DIR}
-        ${PROJECT_SOURCE_DIR}/src ${MPI_CXX_INCLUDE_PATH})
+        ${PROJECT_SOURCE_DIR}/main/src ${MPI_CXX_INCLUDE_PATH})
 
 function(enableH5Part exename)
     if (SPH_EXA_WITH_H5PART)
