@@ -1,8 +1,4 @@
 
-set(CSTONE_DIR ${PROJECT_SOURCE_DIR}/domain/include)
-set(RYOANJI_DIR ${PROJECT_SOURCE_DIR}/ryoanji/src)
-set(SPH_DIR ${PROJECT_SOURCE_DIR}/sph/include)
-
 set(SPH_EXA_INCLUDE_DIRS ${CSTONE_DIR} ${RYOANJI_DIR} ${SPH_DIR}
         ${PROJECT_SOURCE_DIR}/main/src ${MPI_CXX_INCLUDE_PATH})
 

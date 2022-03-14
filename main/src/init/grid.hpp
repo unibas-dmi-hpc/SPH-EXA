@@ -31,6 +31,10 @@
 
 #pragma once
 
+#include "cstone/sfc/box.hpp"
+#include "cstone/util/array.hpp"
+#include "cstone/util/gsl-lite.hpp"
+
 namespace sphexa
 {
 
@@ -97,6 +101,69 @@ void regularGrid(double r, size_t side, size_t first, size_t last, Vector& x, Ve
                     x[lindex - first] = lx;
                 }
             }
+        }
+    }
+}
+
+/*! @brief intersection of a box with a regular grid
+ *
+ * @tparam T   float or double
+ * @param  a   sub box of the unit-cube
+ * @param  m   number of grid-segments per dimension
+ * @return     two integer triples marking which grid cells intersected with @p a
+ */
+template<class T>
+auto gridIntersection(const cstone::Box<T> a, int m)
+{
+    auto                l = util::array<T, 3>{a.xmin(), a.ymin(), a.zmin()} * T(m);
+    util::array<int, 3> lowerIdx{int(l[0]), int(l[1]), int(l[2])};
+
+    auto                u = util::array<T, 3>{a.xmax(), a.ymax(), a.zmax()} * T(m);
+    util::array<int, 3> upperIdx{int(std::ceil(u[0])), int(std::ceil(u[1])), int(std::ceil(u[2]))};
+
+    return std::make_tuple(lowerIdx, upperIdx);
+}
+
+template<class T>
+cstone::Vec3<T> scaleBlockToGlobal(cstone::Vec3<T> uX, cstone::Vec3<int> gridIdx, int m,
+                                   const cstone::Box<T>& globalBox)
+{
+
+    cstone::Vec3<T> blockOrigin{gridIdx[0] * globalBox.lx(), gridIdx[1] * globalBox.ly(), gridIdx[2] * globalBox.lz()};
+    blockOrigin /= T(m);
+
+    cstone::Vec3<T> globalOrigin{globalBox.xmin(), globalBox.ymin(), globalBox.zmin()};
+
+    auto gX = uX;
+    gX[0] *= globalBox.lx();
+    gX[1] *= globalBox.ly();
+    gX[2] *= globalBox.lz();
+    gX /= m;
+
+    gX += globalOrigin + blockOrigin;
+
+    return gX;
+}
+
+template<class T, class Vector>
+void extractBlock(const cstone::Box<T>& selectBox, const cstone::Box<T>& globalBox, cstone::Vec3<int> gridIdx, int m,
+                  gsl::span<const T> xBlock, gsl::span<const T> yBlock, gsl::span<const T> zBlock, Vector& x, Vector& y,
+                  Vector& z)
+{
+    cstone::Vec3<T> origin{globalBox.xmin(), globalBox.ymin(), globalBox.zmin()};
+
+    for (size_t i = 0; i < xBlock.size(); ++i)
+    {
+        auto sX = scaleBlockToGlobal({xBlock[i], yBlock[i], zBlock[i]}, gridIdx, m, globalBox);
+
+        bool select = (selectBox.xmin() <= sX[0] && sX[0] < selectBox.xmax()) &&
+                      (selectBox.ymin() <= sX[1] && sX[1] < selectBox.ymax()) &&
+                      (selectBox.zmin() <= sX[2] && sX[2] < selectBox.zmax());
+        if (select)
+        {
+            x.push_back(sX[0]);
+            y.push_back(sX[1]);
+            z.push_back(sX[2]);
         }
     }
 }
