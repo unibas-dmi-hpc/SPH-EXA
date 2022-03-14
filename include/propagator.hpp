@@ -43,7 +43,6 @@
 #include "ryoanji/cpu/upsweep.hpp"
 
 #include "sph/timestep.hpp"
-
 using namespace cstone;
 using namespace sphexa;
 using namespace sphexa::sph;

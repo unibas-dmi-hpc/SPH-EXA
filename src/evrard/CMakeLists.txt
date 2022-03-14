@@ -1,11 +1,14 @@
 
 set(exename evrard)
-add_executable(${exename} evrard.cpp)
+add_executable(${exename} evrard.cpp ../../include/sph/cooling.hpp)
 
-target_include_directories(${exename} PRIVATE ${SPH_EXA_INCLUDE_DIRS})
+target_include_directories(${exename} PRIVATE ${SPH_EXA_INCLUDE_DIRS} /usr/local/grackle/include/)
 target_compile_definitions(${exename} PRIVATE USE_MPI GRAVITY)
 
+#target_link_directories(${exename} PRIVATE /usr/local/grackle/lib/)
 target_link_libraries(${exename} PRIVATE ${MPI_CXX_LIBRARIES})
+target_link_libraries(${exename} PRIVATE /usr/local/grackle/lib/libgrackle.a)
+
 target_link_libraries(${exename} PRIVATE OpenMP::OpenMP_CXX)
 enableH5Part(${exename})
 

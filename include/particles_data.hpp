@@ -41,6 +41,20 @@ struct ParticlesData
     std::vector<T> maxvsignal;
     std::vector<T> mue, mui, temp, cv;
 
+    std::vector<T> HI_fraction;
+    std::vector<T> HII_fraction;
+    std::vector<T> HeI_fraction;
+    std::vector<T> HeII_fraction;
+    std::vector<T> HeIII_fraction;
+    std::vector<T> e_fraction;
+    std::vector<T> HM_fraction;
+    std::vector<T> H2I_fraction;
+    std::vector<T> H2II_fraction;
+    std::vector<T> DI_fraction;
+    std::vector<T> DII_fraction;
+    std::vector<T> HDI_fraction;
+    std::vector<T> metal_fraction;
+
     std::vector<KeyType> codes; // Particle space-filling-curve keys
 
     /*! @brief
@@ -49,7 +63,10 @@ struct ParticlesData
     inline static constexpr std::array fieldNames{
         "x",   "y",   "z",   "x_m1", "y_m1",     "z_m1",     "vx",         "vy",  "vz",    "ro",   "u",
         "p",   "h",   "m",   "c",    "grad_P_x", "grad_P_y", "grad_P_z",   "du",  "du_m1", "dt",   "dt_m1",
-        "c11", "c12", "c13", "c22",  "c23",      "c33",      "maxvsignal", "mue", "mui",   "temp", "cv"};
+        "c11", "c12", "c13", "c22",  "c23",      "c33",      "maxvsignal", "mue", "mui",   "temp", "cv",
+        "HI_fraction", "HII_fraction", "HeI_fraction", "HeII_fraction", "HeIII_fraction",
+        "e_fraction", "HM_fraction", "H2I_fraction", "H2II_fraction",
+        "DI_fraction", "DII_fraction", "HDI_fraction", "metal_fraction"};
 
     /*! @brief return a vector of pointers to field vectors
      *
@@ -58,10 +75,15 @@ struct ParticlesData
      */
     auto data()
     {
-        std::array<std::vector<T>*, 33> ret{
+        std::array<std::vector<T>*, 46> ret{
             &x,   &y,   &z,   &x_m1, &y_m1,     &z_m1,     &vx,         &vy,  &vz,    &ro,   &u,
             &p,   &h,   &m,   &c,    &grad_P_x, &grad_P_y, &grad_P_z,   &du,  &du_m1, &dt,   &dt_m1,
-            &c11, &c12, &c13, &c22,  &c23,      &c33,      &maxvsignal, &mue, &mui,   &temp, &cv};
+            &c11, &c12, &c13, &c22,  &c23,      &c33,      &maxvsignal, &mue, &mui,   &temp, &cv,
+            &HI_fraction, &HII_fraction, &HeI_fraction, &HeII_fraction, &HeIII_fraction,
+            &e_fraction, &HM_fraction,
+            &H2I_fraction, &H2II_fraction, &DI_fraction,
+            &DII_fraction, &HDI_fraction, &metal_fraction
+        };
 
         static_assert(ret.size() == fieldNames.size());
 
