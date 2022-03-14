@@ -11,13 +11,13 @@
 
 #include "cstone/domain/domain.hpp"
 #include "sph/propagator.hpp"
+#include "init/factory.hpp"
 #include "io/arg_parser.hpp"
 #include "io/ifile_writer.hpp"
 #include "util/timer.hpp"
 #include "util/utils.hpp"
 
 #include "insitu_viz.h"
-#include "sedov_generator.hpp"
 
 #ifdef USE_CUDA
 using AccType = cstone::GpuTag;
@@ -40,20 +40,29 @@ int main(int argc, char** argv)
         printHelp(argv[0], rank);
         return exitSuccess();
     }
+    if (!parser.exists("--init") && rank == 0)
+    {
+        throw std::runtime_error("no initial conditions specified (--init flag missing)\n");
+    }
 
     const size_t      cubeSide       = parser.getInt("-n", 50);
     const size_t      maxStep        = parser.getInt("-s", 200);
     const int         writeFrequency = parser.getInt("-w", -1);
     const bool        quiet          = parser.exists("--quiet");
     const bool        ascii          = parser.exists("--ascii");
+    const bool        grav           = parser.exists("--grav");
     const bool        ve             = parser.exists("--ve");
     const std::string outDirectory   = parser.getString("--outDir");
+    const std::string initCond       = parser.getString("--init");
+    const std::string outFile        = outDirectory + "dump_" + initCond;
+
+    float theta = parser.exists("--theta") ? parser.getDouble("--theta") : (grav ? 0.5 : 1.0);
 
     using Real    = double;
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType, AccType>;
+    using Domain  = cstone::Domain<KeyType, Real, AccType>;
 
-    float  theta           = 1.0;
     size_t ngmax           = 150;
     size_t ng0             = 100;
     size_t bucketSizeFocus = 64;
@@ -74,34 +83,26 @@ int main(int argc, char** argv)
     }
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
+    std::unique_ptr<ISimInitializer<Dataset>> simInit = initializerFactory<Dataset>(initCond);
+
     Dataset d;
-    d.side = cubeSide;
+    d.side  = cubeSide;
+    d.comm  = MPI_COMM_WORLD;
+    d.rank  = rank;
+    d.nrank = numRanks;
     if (ve)
     {
         d.setConservedFieldsVE();
         d.setDependentFieldsVE();
     }
-    SedovDataGenerator::generate(d);
+    cstone::Box<Real> box = simInit->init(rank, numRanks, d);
     d.setOutputFields(outputFields);
 
-    if (d.rank == 0) std::cout << "Data generated." << std::endl;
+    if (rank == 0 && writeFrequency > 0) { fileWriter->constants(simInit->constants(), outFile); }
+    if (rank == 0) { std::cout << "Data generated." << std::endl; }
 
-    cstone::Box<Real> box(0, 1);
-    box = makeGlobalBox(d.x.begin(), d.x.end(), d.y.begin(), d.z.begin(), box);
-
-    // enable PBC and enlarge bounds
-    Real dx = 0.5 / cubeSide;
-    box     = cstone::Box<Real>(box.xmin() - dx,
-                            box.xmax() + dx,
-                            box.ymin() - dx,
-                            box.ymax() + dx,
-                            box.zmin() - dx,
-                            box.zmax() + dx,
-                            true,
-                            true,
-                            true);
-
-    cstone::Domain<KeyType, Real, AccType> domain(rank, d.nrank, bucketSize, bucketSizeFocus, theta, box);
+    Domain domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
+    auto   propagator = propagatorFactory<Domain, Dataset>(grav, ve, ngmax, ng0, output, rank);
 
     if (ve)
         domain.sync(
@@ -114,29 +115,28 @@ int main(int argc, char** argv)
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
-    Propagator propagator(ngmax, ng0, output, d.rank);
-
-    MasterProcessTimer totalTimer(output, d.rank);
+    MasterProcessTimer totalTimer(output, rank);
     totalTimer.start();
-    for (d.iteration = 0; d.iteration <= maxStep; d.iteration++)
+    size_t startIteration = d.iteration;
+    for (; d.iteration <= maxStep; d.iteration++)
     {
-        if (ve) { propagator.hydroStepVE(domain, d); }
-        else
-        {
-            propagator.hydroStep(domain, d);
-        }
+        propagator->step(domain, d);
 
-        fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
+        if (rank == 0)
+        {
+            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
+        }
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
-            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), outDirectory + "dump_sedov");
+            fileWriter->dump(d, domain.startIndex(), domain.endIndex(), box, outFile);
         }
 
         if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
     }
 
-    totalTimer.step("Total execution time of " + std::to_string(maxStep) + " iterations of Sedov");
+    totalTimer.step("Total execution time of " + std::to_string(maxStep - startIteration + 1) + " iterations of " +
+                    initCond);
 
     constantsFile.close();
     viz::finalize();
@@ -151,15 +151,17 @@ void printHelp(char* name, int rank)
         printf("%s [OPTIONS]\n", name);
         printf("\nWhere possible options are:\n\n");
 
+        printf("\t--init \t\t Test case selection (sedov, noh) or an HDF5 file with initial conditions\n\n");
+        printf("\t--grav \t\t Include self-gravity [false]\n\n");
+        printf("\t--theta\t\t Gravity accuracy parameter [0.5]\n\n");
+        printf("\t--ve \t\t Activate SPH with generalized volume elements\n\n");
         printf("\t-n NUM \t\t\t NUM^3 Number of particles [50]\n");
         printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [200]\n\n");
-
         printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
         printf("\t-f list \t\t Comma-separated list of field names to write for each dump, "
-               "e.g -f x,y,z,h,ro\n\n");
+               "e.g -f x,y,z,h,rho\n\n");
 
         printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
-
         printf("\t--outDir PATH \t\t Path to directory where output will be saved [./].\
                     \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
                     \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n");

@@ -18,4 +18,4 @@ target_link_libraries(${testname} PRIVATE GTest::gtest_main)
 sphexa_add_test(${testname} EXECUTABLE ${testname} RANKS 1)
 #add_test(NAME KernelTests COMMAND ${testname})
 
-install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR})
+install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/kernel)

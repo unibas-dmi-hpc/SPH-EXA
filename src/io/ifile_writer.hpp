@@ -1,7 +1,10 @@
 #pragma once
 
+#include <map>
 #include <string>
 #include <vector>
+
+#include "cstone/sfc/box.hpp"
 
 #include "file_utils.hpp"
 #include "mpi_file_utils.hpp"
@@ -13,9 +16,9 @@ namespace sphexa
 template<typename Dataset>
 struct IFileWriter
 {
-    virtual void dump(Dataset& d, size_t firstIndex, size_t lastIndex, std::string path) const = 0;
-    virtual void constants(const std::vector<std::string>& names, const std::vector<double>& values,
-                           std::string path) const                                             = 0;
+    virtual void dump(Dataset& d, size_t firstIndex, size_t lastIndex,
+                      const cstone::Box<typename Dataset::RealType>& box, std::string path) const = 0;
+    virtual void constants(const std::map<std::string, double>& c, std::string path) const        = 0;
 
     virtual ~IFileWriter() = default;
 };
@@ -23,7 +26,8 @@ struct IFileWriter
 template<class Dataset>
 struct AsciiWriter : public IFileWriter<Dataset>
 {
-    void dump(Dataset& d, size_t firstIndex, size_t lastIndex, std::string path) const override
+    void dump(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::Box<typename Dataset::RealType>& box,
+              std::string path) const override
     {
         const char separator = ' ';
         path += std::to_string(d.iteration) + ".txt";
@@ -50,20 +54,18 @@ struct AsciiWriter : public IFileWriter<Dataset>
         }
     }
 
-    void constants(const std::vector<std::string>& names, const std::vector<double>& values,
-                   std::string path) const override
-    {
-    }
+    void constants(const std::map<std::string, double>& c, std::string path) const override {}
 };
 
 template<class Dataset>
 struct H5PartWriter : public IFileWriter<Dataset>
 {
-    void dump(Dataset& d, size_t firstIndex, size_t lastIndex, std::string path) const override
+    void dump(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::Box<typename Dataset::RealType>& box,
+              std::string path) const override
     {
 #ifdef SPH_EXA_HAVE_H5PART
         path += ".h5part";
-        fileutils::writeH5Part(d, firstIndex, lastIndex, path);
+        fileutils::writeH5Part(d, firstIndex, lastIndex, box, path);
 #else
         throw std::runtime_error("Cannot write to HDF5 file: H5Part not enabled\n");
 #endif
@@ -71,21 +73,14 @@ struct H5PartWriter : public IFileWriter<Dataset>
 
     /*! @brief write simulation parameters to file
      *
-     * @param names    names of the constants
-     * @param values   their values
+     * @param c        (name, value) pairs of constants
      * @param path     path to HDF5 file
      *
      * Note: file is being opened serially, must be called on one rank only.
      */
-    void constants(const std::vector<std::string>& names, const std::vector<double>& values,
-                   std::string path) const override
+    void constants(const std::map<std::string, double>& c, std::string path) const override
     {
 #ifdef SPH_EXA_HAVE_H5PART
-        if (names.size() != values.size())
-        {
-            throw std::runtime_error("Cannot write constants: name/value size mismatch\n");
-        }
-
         path += ".h5part";
         const char* h5_fname = path.c_str();
 
@@ -97,9 +92,9 @@ struct H5PartWriter : public IFileWriter<Dataset>
         H5PartFile* h5_file = nullptr;
         h5_file             = H5PartOpenFile(h5_fname, H5PART_WRITE);
 
-        for (size_t i = 0; i < names.size(); ++i)
+        for (auto it = c.begin(); it != c.end(); ++it)
         {
-            H5PartWriteFileAttrib(h5_file, names[i].c_str(), H5PART_FLOAT64, &values[i], 1);
+            H5PartWriteFileAttrib(h5_file, it->first.c_str(), H5PART_FLOAT64, &(it->second), 1);
         }
 
         H5PartCloseFile(h5_file);
