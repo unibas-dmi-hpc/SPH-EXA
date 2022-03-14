@@ -35,6 +35,7 @@
 
 #include "cstone/sfc/box.hpp"
 
+#include "io/file_utils.hpp"
 #include "isim_init.hpp"
 #include "sedov_constants.hpp"
 #include "grid.hpp"
@@ -43,14 +44,59 @@ namespace sphexa
 {
 
 template<class Dataset>
+void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
+{
+    using T = typename Dataset::RealType;
+
+    double step   = 2. * constants.at("r1") / d.side;
+    double hIni   = 1.5 * step;
+    double mPart  = constants.at("mTotal") / d.n;
+    double width  = constants.at("width");
+    double width2 = width * width;
+
+    double firstTimeStep = constants.at("firstTimeStep");
+
+    std::fill(d.m.begin(), d.m.end(), mPart);
+    std::fill(d.h.begin(), d.h.end(), hIni);
+    std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
+    std::fill(d.mui.begin(), d.mui.end(), 10.0);
+    std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
+    std::fill(d.dt_m1.begin(), d.dt_m1.end(), firstTimeStep);
+    std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
+    d.minDt = firstTimeStep;
+
+    std::fill(d.vx.begin(), d.vx.end(), 0.0);
+    std::fill(d.vy.begin(), d.vy.end(), 0.0);
+    std::fill(d.vz.begin(), d.vz.end(), 0.0);
+
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < d.count; i++)
+    {
+        T xi = d.x[i];
+        T yi = d.y[i];
+        T zi = d.z[i];
+        T r2 = xi * xi + yi * yi + zi * zi;
+
+        d.u[i] = constants.at("ener0") * exp(-(r2 / width2)) + constants.at("u0");
+
+        d.x_m1[i] = xi - d.vx[i] * firstTimeStep;
+        d.y_m1[i] = yi - d.vy[i] * firstTimeStep;
+        d.z_m1[i] = zi - d.vz[i] * firstTimeStep;
+    }
+}
+
+template<class Dataset>
 class SedovGrid : public ISimInitializer<Dataset>
 {
     std::map<std::string, double> constants_;
 
 public:
+    SedovGrid() { constants_ = sedovConstants(); }
+
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
     {
-        d.n = d.side * d.side * d.side;
+        using T = typename Dataset::RealType;
+        d.n     = d.side * d.side * d.side;
 
         auto [first, last] = partitionRange(d.n, rank, numRanks);
         d.count            = last - first;
@@ -63,58 +109,58 @@ public:
                       << "GB allocated on rank 0." << std::endl;
         }
 
-        regularGrid(SedovConstants::r1, d.side, first, last, d.x, d.y, d.z);
-        initFields(d);
+        T r = constants_.at("r1");
+        regularGrid(r, d.side, first, last, d.x, d.y, d.z);
+        initSedovFields(d, constants_);
 
-        using T    = typename Dataset::RealType;
-        T r        = SedovConstants::r1;
-        T halfStep = SedovConstants::r1 / d.side;
+        T halfStep = r / d.side;
         return cstone::Box<T>(-r - halfStep, r - halfStep, true);
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }
+};
 
-private:
-    void initFields(Dataset& d) const
+template<class Dataset>
+class SedovGlass : public ISimInitializer<Dataset>
+{
+    std::string                   glassBlock;
+    std::map<std::string, double> constants_;
+
+public:
+    SedovGlass(std ::string initBlock)
+        : glassBlock(initBlock)
+    {
+        constants_ = sedovConstants();
+    }
+
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
     {
         using T = typename Dataset::RealType;
+        d.n     = d.side * d.side * d.side;
 
-        double step   = (2. * SedovConstants::r1) / d.side;
-        double hIni   = 1.5 * step;
-        double mPart  = SedovConstants::mTotal / d.n;
-        double width  = SedovConstants::width;
-        double width2 = width * width;
+        auto [first, last] = partitionRange(d.n, rank, numRanks);
+        d.count            = last - first;
 
-        double firstTimeStep = SedovConstants::firstTimeStep;
+        resize(d, d.count);
 
-        std::fill(d.m.begin(), d.m.end(), mPart);
-        std::fill(d.h.begin(), d.h.end(), hIni);
-        std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
-        std::fill(d.mui.begin(), d.mui.end(), 10.0);
-        std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
-        std::fill(d.dt_m1.begin(), d.dt_m1.end(), firstTimeStep);
-        std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
-        d.minDt = firstTimeStep;
-
-        std::fill(d.vx.begin(), d.vx.end(), 0.0);
-        std::fill(d.vy.begin(), d.vy.end(), 0.0);
-        std::fill(d.vz.begin(), d.vz.end(), 0.0);
+        T r = constants_.at("r1");
+        fileutils::readAscii<T>(glassBlock, d.n, {d.x.data(), d.y.data(), d.z.data()});
+        cstone::Vec3<T> glassCenter{0.5, 0.5, 0.5};
 
 #pragma omp parallel for schedule(static)
         for (size_t i = 0; i < d.count; i++)
         {
-            T xi = d.x[i];
-            T yi = d.y[i];
-            T zi = d.z[i];
-            T r2 = xi * xi + yi * yi + zi * zi;
-
-            d.u[i] = SedovConstants::ener0 * exp(-(r2 / width2)) + SedovConstants::u0;
-
-            d.x_m1[i] = xi - d.vx[i] * firstTimeStep;
-            d.y_m1[i] = yi - d.vy[i] * firstTimeStep;
-            d.z_m1[i] = zi - d.vz[i] * firstTimeStep;
+            d.x[i] -= glassCenter[0];
+            d.y[i] -= glassCenter[1];
+            d.z[i] -= glassCenter[2];
         }
+
+        initSedovFields(d, constants_);
+
+        return cstone::Box<T>(-r, r, true);
     }
+
+    const std::map<std::string, double>& constants() const override { return constants_; }
 };
 
 } // namespace sphexa

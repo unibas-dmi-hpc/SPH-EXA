@@ -54,6 +54,7 @@ int main(int argc, char** argv)
     const bool        ve             = parser.exists("--ve");
     const std::string outDirectory   = parser.getString("--outDir");
     const std::string initCond       = parser.getString("--init");
+    const std::string glassBlock     = parser.getString("--glass");
     const std::string outFile        = outDirectory + "dump_" + initCond;
 
     float theta = parser.exists("--theta") ? parser.getDouble("--theta") : (grav ? 0.5 : 1.0);
@@ -83,7 +84,7 @@ int main(int argc, char** argv)
     }
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
-    std::unique_ptr<ISimInitializer<Dataset>> simInit = initializerFactory<Dataset>(initCond);
+    std::unique_ptr<ISimInitializer<Dataset>> simInit = initializerFactory<Dataset>(initCond, glassBlock);
 
     Dataset d;
     d.side  = cubeSide;
