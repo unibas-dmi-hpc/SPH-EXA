@@ -23,10 +23,22 @@ CUDA_OBJS := $(BUILDDIR)/gather.o                     \
              $(BUILDDIR)/cudaIAD.o                    \
              $(BUILDDIR)/cudaMomentumAndEnergyIAD.o
 
+SEDOV_TEST    := src/sedov/sedov.cpp
+SEDOV_FLAGS   := 
 SEDOV_SOL_DIR := src/analytical_solutions/sedov_solution
-SEDOV_SOL_CPP := $(SEDOV_SOL_DIR)/io.cpp              \
-                 $(SEDOV_SOL_DIR)/sedov_solution.cpp  \
-                 $(SEDOV_SOL_DIR)/main.cpp
+SEDOV_SOL_CPP := $(SEDOV_SOL_DIR)/main.cpp
+
+NOH_TEST    := src/noh/noh.cpp
+NOH_FLAGS   := 
+NOH_SOL_DIR := src/analytical_solutions/noh_solution
+NOH_SOL_CPP := $(NOH_SOL_DIR)/main.cpp
+
+EVRARD_TEST  := src/evrard/evrard.cpp
+EVRARD_FLAGS := -DGRAVITY
+
+TEST_CUDA_FLAGS := $(SEDOV_FLAGS)  \
+                   $(NOH_FLAGS)    \
+                   $(EVRARD_FLAGS) \
 
 RELEASE := -DNDEBUG
 DEBUG := -D__DEBUG -D_GLIBCXX_DEBUG
@@ -36,7 +48,7 @@ SMS ?= 35 60 70 75
 $(foreach sm,$(SMS),$(eval GENCODE_FLAGS += -gencode arch=compute_$(sm),code=sm_$(sm)))
 GENCODE_FLAGS += -Wno-deprecated-gpu-targets
 
-INC += -Isrc -Iinclude -Idomain/include -I$(CUDA_PATH)/include -I$(PGI_PATH)/include
+INC += -Isrc -Iryoanji/src -Iinclude -Idomain/include -I$(CUDA_PATH)/include
 CXXFLAGS += $(RELEASE)
 NVCCFLAGS := -std=c++17 -O3 --expt-relaxed-constexpr -rdc=true $(GENCODE_FLAGS)
 NVCCLDFLAGS := $(GENCODE_FLAGS) -rdc=true
@@ -47,14 +59,6 @@ ifeq ($(ENV),gnu)
 	CXXFLAGS += -std=c++17 -fopenmp -march=native -mtune=native
 endif
 
-ifeq ($(ENV),pgi)
-	CXXFLAGS += -std=c++17 -mp -dynamic -acc -ta=tesla,cc60 -mp=nonuma -Mcuda -g # -Minfo=accel # prints generated accel functions
-endif
-
-ifeq ($(ENV),cray)
-	CXXFLAGS += -hstd=c++17 -homp -hacc -dynamic
-endif
-
 ifeq ($(ENV),intel)
 	CXXFLAGS += -std=c++17 -qopenmp -dynamic
 endif
@@ -63,90 +67,81 @@ ifeq ($(ENV),clang)
 	CXXFLAGS += -march=native -std=c++17 -fopenmp
 endif
 
-TESTCASE ?= sedov
-#TESTCASE ?= evrard
+all: mpi cuda solution
 
-ifeq ($(TESTCASE),sedov)
-	TESTCODE = src/sedov/sedov.cpp
-	SOLCODE = $(SEDOV_SOL_CPP)
-else ifeq ($(TESTCASE),evrard)
-	TESTCASE_FLAGS = -DGRAVITY
-	TESTCODE = src/evrard/evrard.cpp
-endif
-
-#omp:
-#	@mkdir -p $(BINDIR)
-#	$(info Linking the executable:)
-#	$(CXX) $(CXXFLAGS) $(INC) $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
-
-mpi+omp:
+mpi:
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
-ifdef SOLCODE
-	make solution
-endif
-    
-#omp+cuda: $(BUILDDIR)/cuda_no_mpi.o $(CUDA_OBJS)
-#	@mkdir -p $(BINDIR)
-#	$(info Linking the executable:)
-#	$(NVCC) $(NVCCLDFLAGS) -DUSE_CUDA $(TESTCASE_FLAGS) -dlink -o cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
-#	$(CXX) $(CXXFLAGS) -o $(BINDIR)/$@.app cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudart -lcudadevrt
-##	$(CXX) -o $(BINDIR)/$@.app $+ -L$(CUDA_PATH)/lib64 -lcudart -fopenmp
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(SEDOV_FLAGS)  $(SEDOV_TEST)  -o $(BINDIR)/sedov  $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(NOH_FLAGS)    $(NOH_TEST)    -o $(BINDIR)/noh    $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI $(EVRARD_FLAGS) $(EVRARD_TEST) -o $(BINDIR)/evrard $(LIB)
 
-#omp+target:
-#	@mkdir -p $(BINDIR)
-#	$(info Linking the executable:)
-#	$(CXX) $(CXXFLAGS) $(INC) -DUSE_OMP_TARGET $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
+cuda:
+	make sedov-cuda
+	make noh-cuda
 
-mpi+omp+target:
+sedov-cuda: $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_OMP_TARGET $(TESTCASE_FLAGS) $(TESTCODE) -o $(BINDIR)/$@.app $(LIB)
-ifdef SOLCODE
-	make solution
-endif
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_CUDA $(SEDOV_FLAGS) -o $(BUILDDIR)/cuda_mpi.o -c $(SEDOV_TEST)
+	$(NVCC) $(NVCCLDFLAGS) -dlink -o $(BUILDDIR)/cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
+	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@ $(BUILDDIR)/cudalinked.o $(BUILDDIR)/cuda_mpi.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
+	$(RM) -rf $(BUILDDIR)
 
-mpi+omp+cuda: $(BUILDDIR)/cuda_mpi.o $(CUDA_OBJS)
+noh-cuda: $(CUDA_OBJS)
 	@mkdir -p $(BINDIR)
 	$(info Linking the executable:)
-	$(NVCC) $(NVCCLDFLAGS) -dlink -o cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
-	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@.app cudalinked.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
-ifdef SOLCODE
-	make solution
-endif
+	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_CUDA $(NOH_FLAGS) -o $(BUILDDIR)/cuda_mpi.o -c $(NOH_TEST)
+	$(NVCC) $(NVCCLDFLAGS) -dlink -o $(BUILDDIR)/cudalinked.o $(CUDA_OBJS) -lcudadevrt -lcudart
+	$(MPICXX) $(CXXFLAGS) -o $(BINDIR)/$@ $(BUILDDIR)/cudalinked.o $(BUILDDIR)/cuda_mpi.o $+ -L$(CUDA_PATH)/lib64 -lcudadevrt -lcudart
+	$(RM) -rf $(BUILDDIR)
 
-solution:
-	$(MPICXX) $(CXXFLAGS) $(INC) $(SOLCODE) -o $(BINDIR)/$(TESTCASE)_$@ $(LIB)
-
-all: mpi+omp mpi+omp+cuda mpi+omp+target
-
-$(BUILDDIR)/cuda_mpi.o: $(TESTCODE)
+$(BUILDDIR)/%.o: sph/include
 	@mkdir -p $(BUILDDIR)
-	$(MPICXX) $(CXXFLAGS) $(INC) -DUSE_MPI -DUSE_CUDA $(TESTCASE_FLAGS) -o $@ -c $<
-
-$(BUILDDIR)/cuda_no_mpi.o: $(TESTCODE)
-	@mkdir -p $(BUILDDIR)
-	$(CXX) $(CXXFLAGS) $(INC) -DUSE_CUDA $(TESTCASE_FLAGS) -o $@ -c $<
-
-$(BUILDDIR)/%.o: include/sph/cuda/%.cu
-	@mkdir -p $(BUILDDIR)
-	$(NVCC) $(NVCCFLAGS) -DUSE_CUDA $(TESTCASE_FLAGS) $(INC) -c -o $@ $<
-#	$(NVCC) $(NVCCFLAGS) $(INC) -DUSE_STD_MATH_IN_KERNELS -I$(CUDA_PATH)/include -L$(CUDA_PATH)/lib64 -c -o $@ $<
+	$(NVCC) $(NVCCFLAGS) -DUSE_CUDA $(TEST_CUDA_FLAGS) $(INC) -c -o $@ $<
 
 $(BUILDDIR)/%.o: domain/include/cstone/cuda/%.cu
 	@mkdir -p $(BUILDDIR)
-	$(NVCC) $(NVCCFLAGS) -DUSE_CUDA $(TESTCASE_FLAGS) $(INC) -c -o $@ $<
+	$(NVCC) $(NVCCFLAGS) -DUSE_CUDA $(TEST_CUDA_FLAGS) $(INC) -c -o $@ $<
 
-run_test:
-#	@$(MAKE) -f $(THIS_FILE) omp
-#	@$(MAKE) -f $(THIS_FILE) omp+cuda
-	@$(MAKE) -f $(THIS_FILE) mpi+omp
-	@$(MAKE) -f $(THIS_FILE) mpi+omp+cuda
-	cd test/ && ./test_correctness.sh;
+solution:
+	@mkdir -p $(BINDIR)
+	$(info Linking the executable:)
+	$(MPICXX) $(CXXFLAGS) $(INC) $(SEDOV_SOL_CPP) -o $(BINDIR)/sedov_$@ $(LIB)
+	$(MPICXX) $(CXXFLAGS) $(INC) $(NOH_SOL_CPP)   -o $(BINDIR)/noh_$@   $(LIB)
+
+#run_test:
+#	cd test/ && ./test_correctness.sh;
+
+test:
+	make clean
+	make -j mpi
+	make -j solution
+	bin/sedov -n 50  -s 200  -w 200  --outDir ./bin/
+	bin/noh   -n 100 -s 1000 -w 1000 --outDir ./bin/
+	make compare
+
+test-cuda:
+	make clean
+	make -j cuda
+	make -j solution
+	bin/sedov-cuda -n 50  -s 200  -w 200  --outDir ./bin/
+	bin/noh-cuda   -n 100 -s 1000 -w 1000 --outDir ./bin/
+	make compare
+
+compare:
+	python src/analytical_solutions/compare_solutions.py sedov --binary_file \
+    bin/sedov_solution --constants_file ./bin/constants_sedov.txt \
+    --iteration 200 --nparts 125000 --snapshot_file ./bin/dump_sedov200.dat \
+    --out_dir bin/ --error_rho --error_p --error_vel
+	python src/analytical_solutions/compare_solutions.py noh --binary_file \
+    bin/noh_solution --constants_file ./bin/constants_noh.txt \
+    --iteration 1000 --nparts 1000000 --snapshot_file ./bin/dump_noh1000.dat \
+    --out_dir bin/ --error_u --error_vel --error_cs
+	ls -alF bin/
 
 clean:
 	$(info Cleaning...)
-	$(RM) -rf $(BUILDDIR) $(BINDIR) cudalinked*.o
+	$(RM) -rf $(BUILDDIR) $(BINDIR)
 
 .PHONY: all clean

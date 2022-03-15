@@ -30,14 +30,13 @@
 
 #include <string>
 #include <iostream>
+#include <iomanip>
 #include <cmath>
 #include <vector>
-#include <filesystem>
 
-#include "arg_parser.hpp"
-#include "file_utils.hpp"
-
-#include "sedov/SedovDataGenerator.hpp"
+#include "init/sedov_constants.hpp"
+#include "io/arg_parser.hpp"
+#include "io/file_utils.hpp"
 
 #include "sedov_solution.hpp"
 
@@ -74,32 +73,44 @@ int main(int argc, char** argv)
         parser.exists("--out") ? parser.getString("--out") : outDir + "sedov_solution_" + time_str + ".dat";
 
     // Calculate and write theoretical solution profile in one dimension
-    const size_t dim     = SedovDataGenerator<Real, KeyType>::dim;
-    const double r0      = SedovDataGenerator<Real, KeyType>::r0;
-    const double r1      = SedovDataGenerator<Real, KeyType>::r1;
-    const double eblast  = SedovDataGenerator<Real, KeyType>::energyTotal;
-    const double gamma   = SedovDataGenerator<Real, KeyType>::gamma;
-    const double omega   = SedovDataGenerator<Real, KeyType>::omega;
-    const double rho0    = SedovDataGenerator<Real, KeyType>::rho0;
-    const double u0      = SedovDataGenerator<Real, KeyType>::u0;
-    const double p0      = SedovDataGenerator<Real, KeyType>::p0;
-    const double vr0     = SedovDataGenerator<Real, KeyType>::vr0;
-    const double cs0     = SedovDataGenerator<Real, KeyType>::cs0;
+    const size_t dim    = SedovConstants::dim;
+    const double r0     = SedovConstants::r0;
+    const double r1     = SedovConstants::r1;
+    const double eblast = SedovConstants::energyTotal;
+    const double gamma  = SedovConstants::gamma;
+    const double omega  = SedovConstants::omega;
+    const double rho0   = SedovConstants::rho0;
+    const double u0     = SedovConstants::u0;
+    const double p0     = SedovConstants::p0;
+    const double vr0    = SedovConstants::vr0;
+    const double cs0    = SedovConstants::cs0;
+
+    double shockFront;
+    {
+        std::vector<double> rDummy(1, 0.1);
+        std::vector<Real>   rho(1), p(1), u(1), vel(1), cs(1);
+        shockFront = SedovSolution::sedovSol(
+            dim, time, eblast, omega, gamma, rho0, u0, p0, vr0, cs0, rDummy, rho, p, u, vel, cs);
+    }
 
     // Set the positions for calculating the solution
-    vector<double> rSol;
-    size_t         nSteps = 1000;
+    size_t         nSteps   = 100000;
+    size_t         nSamples = nSteps + 2;
+    vector<double> rSol(nSamples);
 
     const double rMax  = 2. * r1;
     const double rStep = (rMax - r0) / nSteps;
 
     for (size_t i = 0; i < nSteps; i++)
     {
-        rSol.push_back(r0 + (0.5 * rStep) + (i * rStep));
+        rSol[i] = (r0 + (0.5 * rStep) + (i * rStep));
     }
+    rSol[nSamples - 2] = shockFront;
+    rSol[nSamples - 1] = shockFront + 1e-7;
+    std::sort(begin(rSol), end(rSol));
 
     // analytical solution output
-    std::vector<Real> rho(nSteps), p(nSteps), u(nSteps), vel(nSteps), cs(nSteps);
+    std::vector<Real> rho(nSamples), p(nSamples), u(nSamples), vel(nSamples), cs(nSamples);
 
     // Calculate theoretical solution
     SedovSolution::sedovSol(dim, time, eblast, omega, gamma, rho0, u0, p0, vr0, cs0, rSol, rho, p, u, vel, cs);
@@ -120,7 +131,7 @@ int main(int argc, char** argv)
                                 true,
                                 {rSol.data(), rho.data(), u.data(), p.data(), vel.data(), cs.data()},
                                 std::setw(16),
-                                std::setprecision(6),
+                                std::setprecision(7),
                                 std::scientific);
 
     cout << "Created solution file: '" << solFile << std::endl;
@@ -139,8 +150,6 @@ void printHelp(char* binName)
     printf("\t--outPath  PATH \t\t Path to directory where output will be saved [./].\
                 \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
                 \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n\n");
-
-    printf("\t--complete FLAG \t\t Calculate the solution for each particle [False]\n");
 }
 
 void writeColumns1D(const std::string& path)
