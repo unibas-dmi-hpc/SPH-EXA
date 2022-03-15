@@ -32,6 +32,7 @@
 #pragma once
 
 #include "cstone/sfc/box.hpp"
+#include "cstone/sfc/sfc.hpp"
 #include "cstone/util/array.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
@@ -113,7 +114,7 @@ void regularGrid(double r, size_t side, size_t first, size_t last, Vector& x, Ve
  * @return     two integer triples marking which grid cells intersected with @p a
  */
 template<class T>
-auto gridIntersection(const cstone::Box<T> a, int m)
+auto gridIntersection(const cstone::FBox<T>& a, int m)
 {
     auto                l = util::array<T, 3>{a.xmin(), a.ymin(), a.zmin()} * T(m);
     util::array<int, 3> lowerIdx{int(l[0]), int(l[1]), int(l[2])};
@@ -124,6 +125,20 @@ auto gridIntersection(const cstone::Box<T> a, int m)
     return std::make_tuple(lowerIdx, upperIdx);
 }
 
+/*! @brief scale coordinates from a [0,1] unit block into a global coordinate box
+ *
+ * @tparam T             float or double
+ * @param  uX            3D coordinate in [0,1]^3
+ * @param  gridIdx       3D integer coordinate in [0,m-1]^3
+ * @param  m             multiplicity of the block-grid
+ * @param  globalBox     the global coordinate bounds
+ * @return               mapped coordinate into the specified grid index
+ *
+ * Here we have the globalBox decomposed into an m x m x m grid. Each of those m^3 components
+ * can be indexed with @p gridIdx. We assume that @p uX comes from a template (glass) block with
+ * coordinates in [0,1]. With this function we can map a template block into one of the m^3 grid points
+ * of the global box.
+ */
 template<class T>
 cstone::Vec3<T> scaleBlockToGlobal(cstone::Vec3<T> uX, cstone::Vec3<int> gridIdx, int m,
                                    const cstone::Box<T>& globalBox)
@@ -145,13 +160,26 @@ cstone::Vec3<T> scaleBlockToGlobal(cstone::Vec3<T> uX, cstone::Vec3<int> gridIdx
     return gX;
 }
 
+/*! @brief extract (push into vector) coordinates of the virtual global box that are contained in @p selectBox
+ *
+ * @tparam T
+ * @tparam Vector
+ * @param[in]  selectBox    a sub box of @p globalBox
+ * @param[in]  globalBox    global coordinate bounding box
+ * @param[in]  gridIdx      3D integer coordinate in [0,m-1]^3
+ * @param[in]  m            multiplicity of the global grid
+ * @param[in]  xBlock       x-coords of the template block in [0,1]
+ * @param[in]  yBlock       y-coords of the template block in [0,1]
+ * @param[in]  zBlock       z-coords of the template block in [0,1]
+ * @param[out] x            output x-coords that lie in @p selectBox
+ * @param[out] y            output y-coords that lie in @p selectBox
+ * @param[out] z            output z-coords that lie in @p selectBox
+ */
 template<class T, class Vector>
-void extractBlock(const cstone::Box<T>& selectBox, const cstone::Box<T>& globalBox, cstone::Vec3<int> gridIdx, int m,
+void extractBlock(const cstone::FBox<T>& selectBox, const cstone::Box<T>& globalBox, cstone::Vec3<int> gridIdx, int m,
                   gsl::span<const T> xBlock, gsl::span<const T> yBlock, gsl::span<const T> zBlock, Vector& x, Vector& y,
                   Vector& z)
 {
-    cstone::Vec3<T> origin{globalBox.xmin(), globalBox.ymin(), globalBox.zmin()};
-
     for (size_t i = 0; i < xBlock.size(); ++i)
     {
         auto sX = scaleBlockToGlobal({xBlock[i], yBlock[i], zBlock[i]}, gridIdx, m, globalBox);
@@ -165,6 +193,51 @@ void extractBlock(const cstone::Box<T>& selectBox, const cstone::Box<T>& globalB
             y.push_back(sX[1]);
             z.push_back(sX[2]);
         }
+    }
+}
+
+/*! @brief Construct a part of a coordinate box obtained by stacking a template block m-times in each dimension
+ *
+ * @tparam T
+ * @tparam KeyType
+ * @tparam Vector
+ * @param[in]  keyStart     SFC key start
+ * @param[in]  keyEnd       SFC key end
+ * @param[in]  globalBox    global coordinate bounding box
+ * @param[in]  multiplicity multiplicity of the global grid
+ * @param[in]  xBlock       x-coords of the template block in [0,1]
+ * @param[in]  yBlock       y-coords of the template block in [0,1]
+ * @param[in]  zBlock       z-coords of the template block in [0,1]
+ * @param[out] x            output x-coords that lie in @p selectBox
+ * @param[out] y            output y-coords that lie in @p selectBox
+ * @param[out] z            output z-coords that lie in @p selectBox
+ */
+template<class T, class KeyType, class Vector>
+void assembleCube(KeyType keyStart, KeyType keyEnd, const cstone::Box<T>& globalBox, int multiplicity,
+                  gsl::span<const T> xBlock, gsl::span<const T> yBlock, gsl::span<const T> zBlock, Vector& x, Vector& y,
+                  Vector& z)
+{
+    // span the assigned SFC range with valid octree cells
+    int                  numCells = cstone::spanSfcRange(keyStart, keyEnd);
+    std::vector<KeyType> cells(numCells + 1);
+    cstone::spanSfcRange(keyStart, keyEnd, cells.data());
+    cells.back() = keyEnd;
+
+    // extract the volume of each cell from the virtual global glass block grid
+    for (size_t i = 0; i < cstone::nNodes(cells); ++i)
+    {
+        auto iBox      = cstone::sfcIBox(cstone::sfcKey(cells[i]), cstone::sfcKey(cells[i + 1]));
+        auto selectBox = cstone::createFpBox<KeyType>(iBox, globalBox);
+
+        // determine which building blocks in the glass block grid the current selectBox intersects with
+        auto [lowerIdx, upperIdx] =
+            gridIntersection(cstone::createFpBox<KeyType>(iBox, cstone::Box<T>(0, 1)), multiplicity);
+        for (int ix = lowerIdx[0]; ix < upperIdx[0]; ++ix)
+            for (int iy = lowerIdx[1]; iy < upperIdx[1]; ++iy)
+                for (int iz = lowerIdx[2]; iz < upperIdx[2]; ++iz)
+                {
+                    extractBlock<T>(selectBox, globalBox, {ix, iy, iz}, multiplicity, xBlock, yBlock, zBlock, x, y, z);
+                }
     }
 }
 

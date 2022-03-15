@@ -48,8 +48,11 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
 {
     using T = typename Dataset::RealType;
 
-    double step   = 2. * constants.at("r1") / d.side;
-    double hIni   = 1.5 * step;
+    int    ng0         = 100;
+    double r           = constants.at("r1");
+    double totalVolume = std::pow(2 * r, 3);
+    double hInit       = std::cbrt(3.0 / (4 * M_PI) * ng0 * totalVolume / d.n) * 0.5;
+
     double mPart  = constants.at("mTotal") / d.n;
     double width  = constants.at("width");
     double width2 = width * width;
@@ -57,7 +60,7 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
     double firstTimeStep = constants.at("firstTimeStep");
 
     std::fill(d.m.begin(), d.m.end(), mPart);
-    std::fill(d.h.begin(), d.h.end(), hIni);
+    std::fill(d.h.begin(), d.h.end(), hInit);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
     std::fill(d.mui.begin(), d.mui.end(), 10.0);
     std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
@@ -127,7 +130,7 @@ class SedovGlass : public ISimInitializer<Dataset>
     std::map<std::string, double> constants_;
 
 public:
-    SedovGlass(std ::string initBlock)
+    SedovGlass(std::string initBlock)
         : glassBlock(initBlock)
     {
         constants_ = sedovConstants();
@@ -135,29 +138,30 @@ public:
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
     {
-        using T = typename Dataset::RealType;
-        d.n     = d.side * d.side * d.side;
+        using KeyType = typename Dataset::KeyType;
+        using T       = typename Dataset::RealType;
+        T r           = constants_.at("r1");
 
-        auto [first, last] = partitionRange(d.n, rank, numRanks);
-        d.count            = last - first;
+        size_t blockSize = 125000lu;
+        d.n              = d.side * d.side * d.side * blockSize;
 
-        resize(d, d.count);
+        cstone::Box<T> globalBox(-r, r, true);
+        int            multiplicity = d.side;
 
-        T r = constants_.at("r1");
-        fileutils::readAscii<T>(glassBlock, d.n, {d.x.data(), d.y.data(), d.z.data()});
-        cstone::Vec3<T> glassCenter{0.5, 0.5, 0.5};
+        auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
 
-#pragma omp parallel for schedule(static)
-        for (size_t i = 0; i < d.count; i++)
-        {
-            d.x[i] -= glassCenter[0];
-            d.y[i] -= glassCenter[1];
-            d.z[i] -= glassCenter[2];
-        }
+        // read the template block
+        std::vector<T> xBlock(blockSize), yBlock(blockSize), zBlock(blockSize);
+        fileutils::readAscii<T>(glassBlock, d.n, {xBlock.data(), yBlock.data(), zBlock.data()});
+
+        assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
+
+        d.count = d.x.size();
+        resize(d, d.x.size());
 
         initSedovFields(d, constants_);
 
-        return cstone::Box<T>(-r, r, true);
+        return globalBox;
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }
