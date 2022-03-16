@@ -98,7 +98,6 @@ public:
     std::vector<T> HDI_fraction;
     std::vector<T> metal_fraction;
 
-
     std::vector<KeyType>                          codes;          // Particle space-filling-curve keys
     std::vector<int, PinnedAlloc_t<AccType, int>> neighborsCount; // number of neighbors of each particle
     std::vector<int>                              neighbors;      // only used in the CPU version
@@ -111,14 +110,59 @@ public:
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
      */
-    inline static constexpr std::array fieldNames{
-        "x",   "y",     "z",   "x_m1", "y_m1",  "z_m1",     "vx",       "vy",       "vz",         "rho",
-        "u",   "p",     "h",   "m",    "c",     "grad_P_x", "grad_P_y", "grad_P_z", "du",         "du_m1",
-        "dt",  "dt_m1", "c11", "c12",  "c13",   "c22",      "c23",      "c33",      "maxvsignal", "mue",
-        "mui", "temp",  "cv",  "rho0", "wrho0", "kx",       "whomega",  "divv",     "curlv",      "alpha",
-        "HI_fraction", "HII_fraction", "HeI_fraction", "HeII_fraction", "HeIII_fraction",
-        "e_fraction", "HM_fraction", "H2I_fraction", "H2II_fraction",
-        "DI_fraction", "DII_fraction", "HDI_fraction", "metal_fraction"};
+    inline static constexpr std::array fieldNames{"x",
+                                                  "y",
+                                                  "z",
+                                                  "x_m1",
+                                                  "y_m1",
+                                                  "z_m1",
+                                                  "vx",
+                                                  "vy",
+                                                  "vz",
+                                                  "rho",
+                                                  "u",
+                                                  "p",
+                                                  "h",
+                                                  "m",
+                                                  "c",
+                                                  "grad_P_x",
+                                                  "grad_P_y",
+                                                  "grad_P_z",
+                                                  "du",
+                                                  "du_m1",
+                                                  "dt",
+                                                  "dt_m1",
+                                                  "c11",
+                                                  "c12",
+                                                  "c13",
+                                                  "c22",
+                                                  "c23",
+                                                  "c33",
+                                                  "maxvsignal",
+                                                  "mue",
+                                                  "mui",
+                                                  "temp",
+                                                  "cv",
+                                                  "rho0",
+                                                  "wrho0",
+                                                  "kx",
+                                                  "whomega",
+                                                  "divv",
+                                                  "curlv",
+                                                  "alpha",
+                                                  "HI_fraction",
+                                                  "HII_fraction",
+                                                  "HeI_fraction",
+                                                  "HeII_fraction",
+                                                  "HeIII_fraction",
+                                                  "e_fraction",
+                                                  "HM_fraction",
+                                                  "H2I_fraction",
+                                                  "H2II_fraction",
+                                                  "DI_fraction",
+                                                  "DII_fraction",
+                                                  "HDI_fraction",
+                                                  "metal_fraction"};
 
     /*! @brief return a vector of pointers to field vectors
      *
@@ -127,16 +171,59 @@ public:
      */
     auto data()
     {
-        std::array<std::vector<T>*, fieldNames.size()> ret{
-            &x,   &y,     &z,   &x_m1, &y_m1,  &z_m1,     &vx,       &vy,       &vz,         &rho,
-            &u,   &p,     &h,   &m,    &c,     &grad_P_x, &grad_P_y, &grad_P_z, &du,         &du_m1,
-            &dt,  &dt_m1, &c11, &c12,  &c13,   &c22,      &c23,      &c33,      &maxvsignal, &mue,
-            &mui, &temp,  &cv,  &rho0, &wrho0, &kx,       &whomega,  &divv,     &curlv,      &alpha,
-            &HI_fraction, &HII_fraction, &HeI_fraction, &HeII_fraction, &HeIII_fraction,
-            &e_fraction, &HM_fraction,
-            &H2I_fraction, &H2II_fraction, &DI_fraction,
-            &DII_fraction, &HDI_fraction, &metal_fraction
-        };
+        std::array<std::vector<T>*, fieldNames.size()> ret{&x,
+                                                           &y,
+                                                           &z,
+                                                           &x_m1,
+                                                           &y_m1,
+                                                           &z_m1,
+                                                           &vx,
+                                                           &vy,
+                                                           &vz,
+                                                           &rho,
+                                                           &u,
+                                                           &p,
+                                                           &h,
+                                                           &m,
+                                                           &c,
+                                                           &grad_P_x,
+                                                           &grad_P_y,
+                                                           &grad_P_z,
+                                                           &du,
+                                                           &du_m1,
+                                                           &dt,
+                                                           &dt_m1,
+                                                           &c11,
+                                                           &c12,
+                                                           &c13,
+                                                           &c22,
+                                                           &c23,
+                                                           &c33,
+                                                           &maxvsignal,
+                                                           &mue,
+                                                           &mui,
+                                                           &temp,
+                                                           &cv,
+                                                           &rho0,
+                                                           &wrho0,
+                                                           &kx,
+                                                           &whomega,
+                                                           &divv,
+                                                           &curlv,
+                                                           &alpha,
+                                                           &HI_fraction,
+                                                           &HII_fraction,
+                                                           &HeI_fraction,
+                                                           &HeII_fraction,
+                                                           &HeIII_fraction,
+                                                           &e_fraction,
+                                                           &HM_fraction,
+                                                           &H2I_fraction,
+                                                           &H2II_fraction,
+                                                           &DI_fraction,
+                                                           &DII_fraction,
+                                                           &HDI_fraction,
+                                                           &metal_fraction};
 
         static_assert(ret.size() == fieldNames.size());
 

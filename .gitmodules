@@ -1,0 +1,3 @@
+[submodule "extern/grackle"]
+	path = extern/grackle
+	url = https://github.com/grackle-project/grackle
