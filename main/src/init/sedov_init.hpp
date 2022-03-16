@@ -143,17 +143,10 @@ public:
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
 
-        H5PartFile* h5_file = nullptr;
-        h5_file             = H5PartOpenFile(glassBlock.c_str(), H5PART_READ);
-        H5PartSetStep(h5_file, 0);
-        size_t blockSize = H5PartGetNumParticles(h5_file);
-
         // read the template block
-        std::vector<T> xBlock(blockSize), yBlock(blockSize), zBlock(blockSize);
-        fileutils::readH5PartField(h5_file, "x", xBlock.data());
-        fileutils::readH5PartField(h5_file, "y", yBlock.data());
-        fileutils::readH5PartField(h5_file, "z", zBlock.data());
-        H5PartCloseFile(h5_file);
+        std::vector<T> xBlock, yBlock, zBlock;
+        fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
+        size_t blockSize = xBlock.size();
 
         size_t multiplicity = d.side;
         d.n                 = multiplicity * multiplicity * multiplicity * blockSize;

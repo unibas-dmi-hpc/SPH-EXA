@@ -208,9 +208,9 @@ void extractBlock(const cstone::FBox<T>& selectBox, const cstone::Box<T>& global
  * @param[in]  xBlock       x-coords of the template block in [0,1]
  * @param[in]  yBlock       y-coords of the template block in [0,1]
  * @param[in]  zBlock       z-coords of the template block in [0,1]
- * @param[out] x            output x-coords that lie in @p selectBox
- * @param[out] y            output y-coords that lie in @p selectBox
- * @param[out] z            output z-coords that lie in @p selectBox
+ * @param[out] x            output x-coords with SFC keys in @p [keyStart:keyEnd]
+ * @param[out] y            output y-coords with SFC keys in @p [keyStart:keyEnd]
+ * @param[out] z            output z-coords with SFC keys in @p [keyStart:keyEnd]
  */
 template<class T, class KeyType, class Vector>
 void assembleCube(KeyType keyStart, KeyType keyEnd, const cstone::Box<T>& globalBox, int multiplicity,
