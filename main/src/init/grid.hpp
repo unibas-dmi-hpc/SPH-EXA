@@ -271,8 +271,8 @@ void cutSphere(T radius, Vector& x, Vector& y, Vector& z)
     }
 
     swap(x, xSphere);
-    swap(y, xSphere);
-    swap(z, xSphere);
+    swap(y, ySphere);
+    swap(z, zSphere);
 }
 
 } // namespace sphexa
