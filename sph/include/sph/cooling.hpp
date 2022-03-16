@@ -29,7 +29,7 @@ void cool_particle (Dataset& d, size_t i)
     grackle_fields.grid_end = zero;
     grackle_fields.grid_dx = 0.0;
 
-    gr_float gr_rho = (gr_float)d.ro[i];
+    gr_float gr_rho = (gr_float)d.rho[i];
     grackle_fields.density = &gr_rho;
     gr_float gr_u = (gr_float)d.u[i];
     grackle_fields.internal_energy = &gr_u;
@@ -39,19 +39,19 @@ void cool_particle (Dataset& d, size_t i)
     grackle_fields.y_velocity = &y_velocity;
     gr_float z_velocity = 0.;
     grackle_fields.z_velocity = &z_velocity;
-    gr_float HI_density =  (gr_float)d.HI_fraction[i]          * (gr_float)d.ro[i];
-    gr_float HII_density = (gr_float)d.HII_fraction[i]         * (gr_float)d.ro[i];
-    gr_float HeI_density = (gr_float)d.HeI_fraction[i]         * (gr_float)d.ro[i];
-    gr_float HeII_density = (gr_float)d.HeII_fraction[i]       * (gr_float)d.ro[i];
-    gr_float HeIII_density = (gr_float)d.HeIII_fraction[i]     * (gr_float)d.ro[i];
-    gr_float e_density = (gr_float)d.e_fraction[i]             * (gr_float)d.ro[i];
-    gr_float HM_density = (gr_float)d.HM_fraction[i]           * (gr_float)d.ro[i];
-    gr_float H2I_density = (gr_float)d.H2I_fraction[i]         * (gr_float)d.ro[i];
-    gr_float H2II_density = (gr_float)d.H2II_fraction[i]       * (gr_float)d.ro[i];
-    gr_float DI_density = (gr_float)d.DI_fraction[i]           * (gr_float)d.ro[i];
-    gr_float DII_density = (gr_float)d.DII_fraction[i]         * (gr_float)d.ro[i];
-    gr_float HDI_density = (gr_float)d.HDI_fraction[i]         * (gr_float)d.ro[i];
-    gr_float metal_density = (gr_float)d.metal_fraction[i]     * (gr_float)d.ro[i];
+    gr_float HI_density =  (gr_float)d.HI_fraction[i]          * (gr_float)d.rho[i];
+    gr_float HII_density = (gr_float)d.HII_fraction[i]         * (gr_float)d.rho[i];
+    gr_float HeI_density = (gr_float)d.HeI_fraction[i]         * (gr_float)d.rho[i];
+    gr_float HeII_density = (gr_float)d.HeII_fraction[i]       * (gr_float)d.rho[i];
+    gr_float HeIII_density = (gr_float)d.HeIII_fraction[i]     * (gr_float)d.rho[i];
+    gr_float e_density = (gr_float)d.e_fraction[i]             * (gr_float)d.rho[i];
+    gr_float HM_density = (gr_float)d.HM_fraction[i]           * (gr_float)d.rho[i];
+    gr_float H2I_density = (gr_float)d.H2I_fraction[i]         * (gr_float)d.rho[i];
+    gr_float H2II_density = (gr_float)d.H2II_fraction[i]       * (gr_float)d.rho[i];
+    gr_float DI_density = (gr_float)d.DI_fraction[i]           * (gr_float)d.rho[i];
+    gr_float DII_density = (gr_float)d.DII_fraction[i]         * (gr_float)d.rho[i];
+    gr_float HDI_density = (gr_float)d.HDI_fraction[i]         * (gr_float)d.rho[i];
+    gr_float metal_density = (gr_float)d.metal_fraction[i]     * (gr_float)d.rho[i];
     grackle_fields.HI_density = &HI_density;
     grackle_fields.HII_density = &HII_density;
     grackle_fields.HeI_density = &HeI_density;
@@ -90,7 +90,7 @@ void cool_particle (Dataset& d, size_t i)
 
     solve_chemistry(&grackle_units_copy, &grackle_fields, d.dt[i]/grackle_units.time_units);
     //std::cout << HI_density/gr_rho << std::endl;
-    d.ro[i] = gr_rho;
+    d.rho[i] = gr_rho;
     d.HI_fraction[i] =      HI_density / gr_rho;
     d.HII_fraction[i] =    HII_density / gr_rho;
     d.HeI_fraction[i] =    HeI_density / gr_rho;
