@@ -73,7 +73,7 @@ public:
         if (numParticles < 1) { throw std::runtime_error("no particles in input file found\n"); }
 
         auto [first, last] = partitionRange(numParticles, rank, numRanks);
-        d.count            = last - first;
+        size_t count       = last - first;
 
         H5PartReadStepAttrib(h5_file, "time", &d.ttot);
         H5PartReadStepAttrib(h5_file, "minDt", &d.minDt);
@@ -88,7 +88,7 @@ public:
         cstone::Box<T> box(
             extents[0], extents[1], extents[2], extents[3], extents[4], extents[5], pbc[0], pbc[1], pbc[2]);
 
-        resize(d, d.count);
+        resize(d, count);
 
         H5PartSetView(h5_file, first, last - 1);
         h5part_int64_t errors = H5PART_SUCCESS;
@@ -160,7 +160,7 @@ private:
                              "velocities\n";
 
 #pragma omp parallel for schedule(static)
-            for (size_t i = 0; i < d.count; ++i)
+            for (size_t i = 0; i < d.x.size(); ++i)
             {
                 d.x_m1[i] = d.x[i] - d.vx[i] * d.minDt;
                 d.y_m1[i] = d.y[i] - d.vy[i] * d.minDt;

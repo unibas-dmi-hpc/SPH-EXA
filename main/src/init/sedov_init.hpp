@@ -73,7 +73,7 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
     std::fill(d.vz.begin(), d.vz.end(), 0.0);
 
 #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < d.count; i++)
+    for (size_t i = 0; i < d.x.size(); i++)
     {
         T xi = d.x[i];
         T yi = d.y[i];
@@ -102,13 +102,13 @@ public:
         d.n     = d.side * d.side * d.side;
 
         auto [first, last] = partitionRange(d.n, rank, numRanks);
-        d.count            = last - first;
+        size_t count       = last - first;
 
-        resize(d, d.count);
+        resize(d, count);
 
         if (rank == 0)
         {
-            std::cout << "Approx: " << d.count * (d.data().size() * 64.) / (8. * 1000. * 1000. * 1000.)
+            std::cout << "Approx: " << count * (d.data().size() * 64.) / (8. * 1000. * 1000. * 1000.)
                       << "GB allocated on rank 0." << std::endl;
         }
 
@@ -156,7 +156,7 @@ public:
 
         assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
-        d.count = d.x.size();
+        // d.count = d.x.size();
         resize(d, d.x.size());
 
         initSedovFields(d, constants_);

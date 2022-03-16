@@ -26,7 +26,7 @@
 /*! @file
  * @brief Noh implosion simulation data initialization
  *
- * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Jose A. Escartin <ja.escartin@gmail.com>"
  */
 
 #pragma once
@@ -63,13 +63,13 @@ public:
         d.n     = d.side * d.side * d.side;
 
         auto [first, last] = partitionRange(d.n, rank, numRanks);
-        d.count            = last - first;
+        size_t count       = last - first;
 
-        resize(d, d.count);
+        resize(d, count);
 
         if (rank == 0)
         {
-            std::cout << "Approx: " << d.count * (d.data().size() * 64.) / (8. * 1000. * 1000. * 1000.)
+            std::cout << "Approx: " << count * (d.data().size() * 64.) / (8. * 1000. * 1000. * 1000.)
                       << "GB allocated on rank 0." << std::endl;
         }
 
@@ -104,7 +104,7 @@ private:
         d.minDt = firstTimeStep;
 
 #pragma omp parallel for schedule(static)
-        for (size_t i = 0; i < d.count; i++)
+        for (size_t i = 0; i < d.x.size(); i++)
         {
             T radius = std::sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
             radius   = std::max(radius, 1e-10);
