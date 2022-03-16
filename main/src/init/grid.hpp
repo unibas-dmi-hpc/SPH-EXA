@@ -241,4 +241,38 @@ void assembleCube(KeyType keyStart, KeyType keyEnd, const cstone::Box<T>& global
     }
 }
 
+template<class T, class Vector>
+void cutSphere(T radius, Vector& x, Vector& y, Vector& z)
+{
+    std::vector<int> particleSelection(x.size());
+
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < x.size(); ++i)
+    {
+        T rp                 = std::sqrt(x[i] * x[i] + y[i] * y[i] + z[i] * z[i]);
+        particleSelection[i] = (rp <= radius);
+    }
+
+    size_t numSelect = std::count(particleSelection.begin(), particleSelection.end(), 1);
+
+    Vector xSphere, ySphere, zSphere;
+    xSphere.reserve(numSelect);
+    ySphere.reserve(numSelect);
+    zSphere.reserve(numSelect);
+
+    for (size_t i = 0; i < x.size(); ++i)
+    {
+        if (particleSelection[i])
+        {
+            xSphere.push_back(x[i]);
+            ySphere.push_back(y[i]);
+            zSphere.push_back(z[i]);
+        }
+    }
+
+    swap(x, xSphere);
+    swap(y, xSphere);
+    swap(z, xSphere);
+}
+
 } // namespace sphexa
