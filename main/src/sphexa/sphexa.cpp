@@ -84,9 +84,7 @@ int main(int argc, char** argv)
     std::unique_ptr<ISimInitializer<Dataset>> simInit = initializerFactory<Dataset>(initCond, glassBlock);
 
     Dataset d;
-    d.comm  = MPI_COMM_WORLD;
-    d.rank  = rank;
-    d.nrank = numRanks;
+    d.comm = MPI_COMM_WORLD;
     if (ve)
     {
         d.setConservedFieldsVE();
@@ -110,7 +108,7 @@ int main(int argc, char** argv)
     else
         domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
 
-    if (d.rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
+    if (rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());

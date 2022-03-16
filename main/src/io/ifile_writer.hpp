@@ -32,20 +32,24 @@ struct AsciiWriter : public IFileWriter<Dataset>
         const char separator = ' ';
         path += std::to_string(d.iteration) + ".txt";
 
-        for (int turn = 0; turn < d.nrank; turn++)
+        int rank, numRanks;
+        MPI_Comm_rank(d.comm, &rank);
+        MPI_Comm_size(d.comm, &numRanks);
+
+        for (int turn = 0; turn < numRanks; turn++)
         {
-            if (turn == d.rank)
+            if (turn == rank)
             {
                 try
                 {
                     auto fieldPointers = getOutputArrays(d);
 
-                    bool append = d.rank != 0;
+                    bool append = rank != 0;
                     fileutils::writeAscii(firstIndex, lastIndex, path, append, fieldPointers, separator);
                 }
                 catch (std::runtime_error& ex)
                 {
-                    if (d.rank == 0) fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
+                    if (rank == 0) fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
                     MPI_Abort(d.comm, 1);
                 }
             }

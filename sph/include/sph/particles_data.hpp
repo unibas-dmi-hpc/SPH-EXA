@@ -178,8 +178,6 @@ public:
 #ifdef USE_MPI
     MPI_Comm comm;
 #endif
-    int rank  = 0;
-    int nrank = 1;
 
     // TODO: unify this with computePosition/Acceleration:
     // from SPH we have acceleration = -grad_P, so computePosition adds a factor of -1 to the pressure gradients
