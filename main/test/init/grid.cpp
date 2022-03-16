@@ -131,6 +131,19 @@ TEST(Grids, assembleCube)
     cstone::computeSfcKeys(x2.data(), y2.data(), z2.data(), ksfc + x1.size(), x2.size(), box);
     cstone::computeSfcKeys(x3.data(), y3.data(), z3.data(), ksfc + x1.size() + x2.size(), x3.size(), box);
 
+    for (size_t i = 0; i < x1.size(); ++i)
+    {
+        EXPECT_TRUE(keys[i] < k1);
+    }
+    for (size_t i = x1.size(); i < x1.size() + x2.size(); ++i)
+    {
+        EXPECT_TRUE(k1 <= keys[i] && keys[i] < k2);
+    }
+    for (size_t i = x1.size() + x2.size(); i < keys.size(); ++i)
+    {
+        EXPECT_TRUE(k2 <= keys[i]);
+    }
+
     std::sort(keys.begin(), keys.end());
     auto uit = std::unique(keys.begin(), keys.end());
 

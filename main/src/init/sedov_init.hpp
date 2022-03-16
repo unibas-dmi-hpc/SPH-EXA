@@ -123,6 +123,8 @@ public:
     const std::map<std::string, double>& constants() const override { return constants_; }
 };
 
+#ifdef SPH_EXA_HAVE_H5PART
+
 template<class Dataset>
 class SedovGlass : public ISimInitializer<Dataset>
 {
@@ -140,25 +142,29 @@ public:
     {
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
-        T r           = constants_.at("r1");
 
-        size_t blockSize = 125000lu;
-        d.n              = d.side * d.side * d.side * blockSize;
-
-        cstone::Box<T> globalBox(-r, r, true);
-        int            multiplicity = d.side;
-
-        auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
+        H5PartFile* h5_file = nullptr;
+        h5_file             = H5PartOpenFile(glassBlock.c_str(), H5PART_READ);
+        H5PartSetStep(h5_file, 0);
+        size_t blockSize = H5PartGetNumParticles(h5_file);
 
         // read the template block
         std::vector<T> xBlock(blockSize), yBlock(blockSize), zBlock(blockSize);
-        fileutils::readAscii<T>(glassBlock, d.n, {xBlock.data(), yBlock.data(), zBlock.data()});
+        fileutils::readH5PartField(h5_file, "x", xBlock.data());
+        fileutils::readH5PartField(h5_file, "y", yBlock.data());
+        fileutils::readH5PartField(h5_file, "z", zBlock.data());
+        H5PartCloseFile(h5_file);
 
+        size_t multiplicity = d.side;
+        d.n                 = multiplicity * multiplicity * multiplicity * blockSize;
+
+        auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
+
+        T              r = constants_.at("r1");
+        cstone::Box<T> globalBox(-r, r, true);
         assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
-        // d.count = d.x.size();
         resize(d, d.x.size());
-
         initSedovFields(d, constants_);
 
         return globalBox;
@@ -166,5 +172,25 @@ public:
 
     const std::map<std::string, double>& constants() const override { return constants_; }
 };
+
+#else
+
+template<class Dataset>
+class SedovGlass : public ISimInitializer<Dataset>
+{
+    std::map<std::string, double> constants_;
+
+public:
+    SedovGlass(std::string initBlock) {}
+
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
+    {
+        throw std::runtime_error("Initialization from file only possible with HDF5 support enabled\n");
+    }
+
+    const std::map<std::string, double>& constants() const override { return constants_; }
+};
+
+#endif
 
 } // namespace sphexa
