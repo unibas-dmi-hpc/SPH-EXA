@@ -130,7 +130,15 @@ public:
         constants_ = sedovConstants();
     }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t multiplicity, Dataset& d) const override
+    /*! @brief initialize particle data with a constant density cube
+     *
+     * @param[in]    rank             MPI rank ID
+     * @param[in]    numRanks         number of MPI ranks
+     * @param[in]    cbrtNumPart      the cubic root of the global number of particles to generate
+     * @param[inout] d                particle dataset
+     * @return                        the global coordinate bounding box
+     */
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& d) const override
     {
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
@@ -139,6 +147,7 @@ public:
         fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
+        size_t multiplicity  = std::rint(cbrtNumPart / std::cbrt(blockSize));
         d.numParticlesGlobal = multiplicity * multiplicity * multiplicity * blockSize;
 
         T              r = constants_.at("r1");

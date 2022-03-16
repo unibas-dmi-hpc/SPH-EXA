@@ -46,6 +46,7 @@ int main(int argc, char** argv)
     }
 
     const size_t      maxStep        = parser.getInt("-s", 200);
+    const size_t      problemSize    = parser.getInt("-n", 50);
     const int         writeFrequency = parser.getInt("-w", -1);
     const bool        quiet          = parser.exists("--quiet");
     const bool        ascii          = parser.exists("--ascii");
@@ -54,7 +55,6 @@ int main(int argc, char** argv)
     const std::string outDirectory   = parser.getString("--outDir");
     const std::string initCond       = parser.getString("--init");
     const std::string glassBlock     = parser.getString("--glass");
-    const size_t      problemSize    = parser.getInt("-n", glassBlock.empty() ? 50 : 1);
     const std::string outFile        = outDirectory + "dump_" + initCond;
 
     float theta = parser.exists("--theta") ? parser.getDouble("--theta") : (grav ? 0.5 : 1.0);
@@ -94,7 +94,7 @@ int main(int argc, char** argv)
     d.setOutputFields(outputFields);
 
     if (rank == 0 && writeFrequency > 0) { fileWriter->constants(simInit->constants(), outFile); }
-    if (rank == 0) { std::cout << "Data generated." << std::endl; }
+    if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
 
     size_t bucketSizeFocus = 64;
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
@@ -153,8 +153,7 @@ void printHelp(char* name, int rank)
         printf("\t--grav \t\t Include self-gravity [false]\n\n");
         printf("\t--theta\t\t Gravity accuracy parameter [0.5]\n\n");
         printf("\t--ve \t\t Activate SPH with generalized volume elements\n\n");
-        printf("\t-n NUM \t\t\t problem size: grid length per dimension or duplication factor for glass init\n");
-        printf("         \t\t\t default for grids is: [50], for glass init: [1] \n");
+        printf("\t-n NUM \t\t\t Initialize data with (approx when using glass blocks) NUM^3 global particles [50]\n");
         printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [200]\n\n");
         printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
         printf("\t-f list \t\t Comma-separated list of field names to write for each dump, "
