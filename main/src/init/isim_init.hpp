@@ -46,8 +46,8 @@ template<class Dataset>
 class ISimInitializer
 {
 public:
-    virtual cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const = 0;
-    virtual const std::map<std::string, double>&    constants() const                              = 0;
+    virtual cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t, Dataset& d) const = 0;
+    virtual const std::map<std::string, double>&    constants() const                                      = 0;
 
     virtual ~ISimInitializer() = default;
 };

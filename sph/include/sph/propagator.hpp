@@ -85,7 +85,7 @@ protected:
                        d.ecin,
                        d.egrav,
                        domain.box(),
-                       d.n,
+                       d.numParticlesGlobal,
                        domain.nParticles(),
                        cstone::nNodes(domain.tree()),
                        domain.nParticlesWithHalos() - domain.nParticles(),

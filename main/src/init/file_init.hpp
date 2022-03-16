@@ -55,7 +55,7 @@ public:
     {
     }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t /*n*/, Dataset& d) const override
     {
         using T = typename Dataset::RealType;
 
@@ -68,8 +68,8 @@ public:
         size_t numH5Steps = H5PartGetNumSteps(h5_file);
         H5PartSetStep(h5_file, numH5Steps - 1);
 
-        size_t numParticles = H5PartGetNumParticles(h5_file);
-        d.n                 = numParticles;
+        size_t numParticles  = H5PartGetNumParticles(h5_file);
+        d.numParticlesGlobal = numParticles;
         if (numParticles < 1) { throw std::runtime_error("no particles in input file found\n"); }
 
         auto [first, last] = partitionRange(numParticles, rank, numRanks);
@@ -180,7 +180,7 @@ class FileInit : public ISimInitializer<Dataset>
 public:
     FileInit(std::string) {}
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t, Dataset& d) const override
     {
         throw std::runtime_error("Initialization from file only possible with HDF5 support enabled\n");
     }

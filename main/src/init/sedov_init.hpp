@@ -51,9 +51,9 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
     int    ng0         = 100;
     double r           = constants.at("r1");
     double totalVolume = std::pow(2 * r, 3);
-    double hInit       = std::cbrt(3.0 / (4 * M_PI) * ng0 * totalVolume / d.n) * 0.5;
+    double hInit       = std::cbrt(3.0 / (4 * M_PI) * ng0 * totalVolume / d.numParticlesGlobal) * 0.5;
 
-    double mPart  = constants.at("mTotal") / d.n;
+    double mPart  = constants.at("mTotal") / d.numParticlesGlobal;
     double width  = constants.at("width");
     double width2 = width * width;
 
@@ -96,27 +96,19 @@ class SedovGrid : public ISimInitializer<Dataset>
 public:
     SedovGrid() { constants_ = sedovConstants(); }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cubeSide, Dataset& d) const override
     {
-        using T = typename Dataset::RealType;
-        d.n     = d.side * d.side * d.side;
+        using T              = typename Dataset::RealType;
+        d.numParticlesGlobal = cubeSide * cubeSide * cubeSide;
 
-        auto [first, last] = partitionRange(d.n, rank, numRanks);
-        size_t count       = last - first;
-
-        resize(d, count);
-
-        if (rank == 0)
-        {
-            std::cout << "Approx: " << count * (d.data().size() * 64.) / (8. * 1000. * 1000. * 1000.)
-                      << "GB allocated on rank 0." << std::endl;
-        }
+        auto [first, last] = partitionRange(d.numParticlesGlobal, rank, numRanks);
+        resize(d, last - first);
 
         T r = constants_.at("r1");
-        regularGrid(r, d.side, first, last, d.x, d.y, d.z);
+        regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
         initSedovFields(d, constants_);
 
-        T halfStep = r / d.side;
+        T halfStep = r / cubeSide;
         return cstone::Box<T>(-r - halfStep, r - halfStep, true);
     }
 
@@ -138,7 +130,7 @@ public:
         constants_ = sedovConstants();
     }
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t multiplicity, Dataset& d) const override
     {
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
@@ -148,8 +140,7 @@ public:
         fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
         size_t blockSize = xBlock.size();
 
-        size_t multiplicity = d.side;
-        d.n                 = multiplicity * multiplicity * multiplicity * blockSize;
+        d.numParticlesGlobal = multiplicity * multiplicity * multiplicity * blockSize;
 
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
 
@@ -176,7 +167,7 @@ class SedovGlass : public ISimInitializer<Dataset>
 public:
     SedovGlass(std::string initBlock) {}
 
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t m, Dataset& d) const override
     {
         throw std::runtime_error("Initialization from file only possible with HDF5 support enabled\n");
     }
