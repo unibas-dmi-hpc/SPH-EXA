@@ -241,6 +241,7 @@ void assembleCube(KeyType keyStart, KeyType keyEnd, const cstone::Box<T>& global
     }
 }
 
+//! @brief Discard any particles outside a sphere with radius @p r centered on the origin
 template<class T, class Vector>
 void cutSphere(T radius, Vector& x, Vector& y, Vector& z)
 {
