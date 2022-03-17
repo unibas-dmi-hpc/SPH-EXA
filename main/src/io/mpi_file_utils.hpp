@@ -111,6 +111,25 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
     H5PartCloseFile(h5_file);
 }
 
+//! @brief read x,y,z coordinates from an H5Part file (at step 0)
+template<class Vector>
+void readTemplateBlock(std::string block, Vector& x, Vector& y, Vector& z)
+{
+    H5PartFile* h5_file = nullptr;
+    h5_file             = H5PartOpenFile(block.c_str(), H5PART_READ);
+    H5PartSetStep(h5_file, 0);
+    size_t blockSize = H5PartGetNumParticles(h5_file);
+    x.resize(blockSize);
+    y.resize(blockSize);
+    z.resize(blockSize);
+
+    // read the template block
+    fileutils::readH5PartField(h5_file, "x", x.data());
+    fileutils::readH5PartField(h5_file, "y", y.data());
+    fileutils::readH5PartField(h5_file, "z", z.data());
+    H5PartCloseFile(h5_file);
+}
+
 #endif
 
 } // namespace fileutils

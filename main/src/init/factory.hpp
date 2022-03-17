@@ -44,9 +44,16 @@ namespace sphexa
 {
 
 template<class Dataset>
-std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCase)
+std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCase, std::string glassBlock)
 {
-    if (testCase == "sedov") { return std::make_unique<SedovGrid<Dataset>>(); }
+    if (testCase == "sedov")
+    {
+        if (glassBlock.empty()) { return std::make_unique<SedovGrid<Dataset>>(); }
+        else
+        {
+            return std::make_unique<SedovGlass<Dataset>>(glassBlock);
+        }
+    }
     if (testCase == "noh") { return std::make_unique<NohGrid<Dataset>>(); }
     else
     {

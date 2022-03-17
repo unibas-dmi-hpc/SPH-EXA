@@ -54,6 +54,7 @@ public:
     Propagator(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
         : timer(output, rank)
         , out(output)
+        , rank_(rank)
         , ngmax_(ngmax)
         , ng0_(ng0)
     {
@@ -67,6 +68,7 @@ protected:
     MasterProcessTimer timer;
     std::ostream&      out;
 
+    size_t rank_;
     //! maximum number of neighbors per particle
     size_t ngmax_;
     //! average number of neighbors per particle
@@ -76,7 +78,7 @@ protected:
     {
         size_t totalNeighbors = neighborsSum(domain.startIndex(), domain.endIndex(), d.neighborsCount);
 
-        if (d.rank == 0)
+        if (rank_ == 0)
         {
             printCheck(d.ttot,
                        d.minDt,
@@ -85,7 +87,7 @@ protected:
                        d.ecin,
                        d.egrav,
                        domain.box(),
-                       d.n,
+                       d.numParticlesGlobal,
                        domain.nParticles(),
                        cstone::nNodes(domain.tree()),
                        domain.nParticlesWithHalos() - domain.nParticles(),

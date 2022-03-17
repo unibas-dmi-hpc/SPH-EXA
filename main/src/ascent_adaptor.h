@@ -1,5 +1,4 @@
-#ifndef AscentAdaptor_h
-#define AscentAdaptor_h
+#pragma once
 
 #include "sph/particles_data.hpp"
 
@@ -130,4 +129,3 @@ void Execute(Dataset d, long startIndex, long endIndex)
 void Finalize() { a.close(); }
 
 } // namespace AscentAdaptor
-#endif
