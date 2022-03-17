@@ -108,15 +108,6 @@ int main(int argc, char** argv)
     else
         domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
 
-    resizeNeighbors(d, d.x.size() * ngmax);
-    findNeighborsSfc<Real, KeyType>(
-        0, d.x.size(), ngmax, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, box);
-
-    std::sort(d.neighborsCount.begin(), d.neighborsCount.end());
-    std::cout << "d.x.size() " << d.x.size() << std::endl;
-    std::cout << "neighbors stats " << d.neighborsCount.front() << " " << d.neighborsCount.back() << std::endl;
-    std::cout << std::count(d.neighborsCount.begin(), d.neighborsCount.end(), 0) << std::endl;
-
     if (rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
     viz::init_catalyst(argc, argv);

@@ -115,8 +115,6 @@ public:
     const std::map<std::string, double>& constants() const override { return constants_; }
 };
 
-#ifdef SPH_EXA_HAVE_H5PART
-
 template<class Dataset>
 class SedovGlass : public ISimInitializer<Dataset>
 {
@@ -164,25 +162,5 @@ public:
 
     const std::map<std::string, double>& constants() const override { return constants_; }
 };
-
-#else
-
-template<class Dataset>
-class SedovGlass : public ISimInitializer<Dataset>
-{
-    std::map<std::string, double> constants_;
-
-public:
-    SedovGlass(std::string initBlock) {}
-
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t m, Dataset& d) const override
-    {
-        throw std::runtime_error("Initialization from file only possible with HDF5 support enabled\n");
-    }
-
-    const std::map<std::string, double>& constants() const override { return constants_; }
-};
-
-#endif
 
 } // namespace sphexa
