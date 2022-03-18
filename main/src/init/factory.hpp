@@ -54,7 +54,14 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
             return std::make_unique<SedovGlass<Dataset>>(glassBlock);
         }
     }
-    if (testCase == "noh") { return std::make_unique<NohGrid<Dataset>>(); }
+    if (testCase == "noh")
+    {
+        if (glassBlock.empty()) { return std::make_unique<NohGrid<Dataset>>(); }
+        else
+        {
+            return std::make_unique<NohGlassSphere<Dataset>>(glassBlock);
+        }
+    }
     else
     {
         return std::make_unique<FileInit<Dataset>>(testCase);

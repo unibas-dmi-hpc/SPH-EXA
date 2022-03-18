@@ -42,15 +42,12 @@ namespace sphexa
 {
 
 template<class Dataset>
-void initNohFields(Dataset& d, const std::map<std::string, double>& constants)
+void initNohFields(Dataset& d, double totalVolume, const std::map<std::string, double>& constants)
 {
     using T = typename Dataset::RealType;
 
-    int    ng0         = 100;
-    double r1          = constants.at("r1");
-    double totalVolume = std::pow(2 * r1, 3);
-    double hInit       = std::cbrt(3.0 / (4 * M_PI) * ng0 * totalVolume / d.numParticlesGlobal) * 0.5;
-
+    int    ng0           = 100;
+    double hInit         = std::cbrt(3.0 / (4 * M_PI) * ng0 * totalVolume / d.numParticlesGlobal) * 0.5;
     double mPart         = constants.at("mTotal") / d.numParticlesGlobal;
     double firstTimeStep = constants.at("firstTimeStep");
 
@@ -81,22 +78,29 @@ void initNohFields(Dataset& d, const std::map<std::string, double>& constants)
     }
 }
 
+std::map<std::string, double> nohConstants()
+{
+    return {{"r0", 0},
+            {"r1", 0.5},
+            {"mTotal", 1.},
+            {"dim", 3},
+            {"gamma", 5.0 / 3.0},
+            {"rho0", 1.},
+            {"u0", 1e-20},
+            {"p0", 0.},
+            {"vr0", -1.},
+            {"cs0", 0.},
+            {"firstTimeStep", 1e-4}};
+}
+
 template<class Dataset>
 class NohGrid : public ISimInitializer<Dataset>
 {
-    std::map<std::string, double> constants_{{"r0", 0},
-                                             {"r1", 0.5},
-                                             {"mTotal", 1.},
-                                             {"dim", 3},
-                                             {"gamma", 5.0 / 3.0},
-                                             {"rho0", 1.},
-                                             {"u0", 1e-20},
-                                             {"p0", 0.},
-                                             {"vr0", -1.},
-                                             {"cs0", 0.},
-                                             {"firstTimeStep", 1e-4}};
+    std::map<std::string, double> constants_;
 
 public:
+    NohGrid() { constants_ = nohConstants(); }
+
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cubeSide, Dataset& d) const override
     {
         using T              = typename Dataset::RealType;
@@ -106,11 +110,57 @@ public:
         resize(d, last - first);
 
         T r = constants_.at("r1");
-
         regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
-        initNohFields(d, constants_);
+
+        double totalVolume = 8.0 * r * r * r;
+        initNohFields(d, totalVolume, constants_);
 
         return cstone::Box<T>(-r, r, false);
+    }
+
+    const std::map<std::string, double>& constants() const override { return constants_; }
+};
+
+template<class Dataset>
+class NohGlassSphere : public ISimInitializer<Dataset>
+{
+    std::string                   glassBlock;
+    std::map<std::string, double> constants_;
+
+public:
+    NohGlassSphere(std::string initBlock)
+        : glassBlock(initBlock)
+    {
+        constants_ = nohConstants();
+    }
+
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& d) const override
+    {
+        using KeyType = typename Dataset::KeyType;
+        using T       = typename Dataset::RealType;
+
+        std::vector<T> xBlock, yBlock, zBlock;
+        fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
+        size_t blockSize = xBlock.size();
+
+        size_t multiplicity = std::rint(cbrtNumPart / std::cbrt(blockSize));
+
+        T              r = constants_.at("r1");
+        cstone::Box<T> globalBox(-r, r, false);
+
+        auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
+        assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
+        cutSphere(r, d.x, d.y, d.z);
+
+        d.numParticlesGlobal = d.x.size();
+        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, d.comm);
+
+        resize(d, d.x.size());
+
+        double totalVolume = 4. * M_PI / 3. * r * r * r;
+        initNohFields(d, totalVolume, constants_);
+
+        return globalBox;
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }
