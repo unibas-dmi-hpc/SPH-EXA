@@ -1,4 +1,4 @@
-function(sphexa_add_test name)
+function(ryoanji_add_test name)
   set(options FAILURE_EXPECTED RUN_SERIAL)
   set(one_value_args EXECUTABLE RANKS TIMEOUT)
   set(multi_value_args ARGS)
