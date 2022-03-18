@@ -59,8 +59,9 @@ int main(int argc, char** argv)
     fprintf(stdout, "theta                : %f\n", theta);
     fprintf(stdout, "ncrit                : %d\n", ncrit);
 
-    std::vector<Vec4<T>> h_bodies(numBodies);
+    thrust::host_vector<Vec4<T>> h_bodies(numBodies);
     makeCubeBodies(h_bodies.data(), numBodies, boxSize);
+
     // upload bodies to device
     thrust::device_vector<Vec4<T>> d_bodies = h_bodies;
 
@@ -74,6 +75,17 @@ int main(int argc, char** argv)
 
     int highestLevel = treeBuilder.extract(rawPtr(sources.data()), levelRange.data());
 
+    h_bodies = d_bodies;
+    std::vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies);
+    for (size_t i = 0; i < numBodies; ++i)
+    {
+        x[i] = h_bodies[i][0];
+        y[i] = h_bodies[i][1];
+        z[i] = h_bodies[i][2];
+        m[i] = h_bodies[i][3];
+    }
+    thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m;
+
     thrust::device_vector<Vec4<T>>       sourceCenter(numSources);
     thrust::device_vector<MultipoleType> Multipole(numSources);
 
@@ -86,7 +98,7 @@ int main(int argc, char** argv)
             rawPtr(sourceCenter.data()),
             rawPtr(Multipole.data()));
 
-    thrust::device_vector<Vec4<T>> bodyAcc(numBodies);
+    thrust::device_vector<T> d_p(numBodies), d_ax(numBodies), d_ay(numBodies), d_az(numBodies);
 
     fprintf(stdout, "--- BH Profiling ----------------\n");
 
@@ -97,8 +109,14 @@ int main(int argc, char** argv)
                                                images,
                                                eps,
                                                cycle,
-                                               rawPtr(d_bodies.data()),
-                                               rawPtr(bodyAcc.data()),
+                                               rawPtr(d_x.data()),
+                                               rawPtr(d_y.data()),
+                                               rawPtr(d_z.data()),
+                                               rawPtr(d_m.data()),
+                                               rawPtr(d_p.data()),
+                                               rawPtr(d_ax.data()),
+                                               rawPtr(d_ay.data()),
+                                               rawPtr(d_az.data()),
                                                rawPtr(sources.data()),
                                                rawPtr(sourceCenter.data()),
                                                rawPtr(Multipole.data()),
@@ -123,7 +141,11 @@ int main(int argc, char** argv)
     flops = 24. * numBodies * numBodies / dt / 1e12;
     fprintf(stdout, "Total Direct         : %.7f s (%.7f TFlops)\n", dt, flops);
 
-    thrust::host_vector<Vec4<T>> h_bodyAcc       = bodyAcc;
+    thrust::host_vector<T> h_p  = d_p;
+    thrust::host_vector<T> h_ax = d_ax;
+    thrust::host_vector<T> h_ay = d_ay;
+    thrust::host_vector<T> h_az = d_az;
+
     thrust::host_vector<Vec4<T>> h_bodyAccDirect = bodyAccDirect;
 
     std::vector<double> delta(numBodies);
@@ -131,7 +153,7 @@ int main(int argc, char** argv)
     for (int i = 0; i < numBodies; i++)
     {
         Vec3<T> ref   = {h_bodyAccDirect[i][1], h_bodyAccDirect[i][2], h_bodyAccDirect[i][3]};
-        Vec3<T> probe = {h_bodyAcc[i][1], h_bodyAcc[i][2], h_bodyAcc[i][3]};
+        Vec3<T> probe = {h_ax[i], h_ay[i], h_az[i]};
         delta[i]    = std::sqrt(norm2(ref - probe) / norm2(ref));
     }
 

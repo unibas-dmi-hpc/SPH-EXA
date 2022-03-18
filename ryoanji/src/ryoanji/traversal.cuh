@@ -144,7 +144,8 @@ __device__ void directAcc(Vec4<T> sourceBody, Vec4<T> acc_i[TravConfig::nwt], co
  */
 template<class T, class MType>
 __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec3<T> pos_i[TravConfig::nwt], const Vec3<T> targetCenter,
-                              const Vec3<T> targetSize, const Vec4<T>* __restrict__ bodyPos,
+                              const Vec3<T> targetSize, const T* __restrict__ x, const T* __restrict__ y,
+                              const T* __restrict__ z, const T* __restrict__ m,
                               const CellData* __restrict__ sourceCells, const Vec4<T>* __restrict__ sourceCenter,
                               const MType* __restrict__ Multipoles, const T EPS2, int2 rootRange,
                               volatile int* tempQueue, int* cellQueue)
@@ -238,7 +239,8 @@ __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec3<T> pos_i[TravConfig::nw
 
             if (numBodiesWarp >= GpuConfig::warpSize) // Process bodies from current set of source cells
             {
-                const Vec4<T> sourceBody = bodyPos[bodyIdx]; // Load source body coordinates
+                // Load source body coordinates
+                const Vec4<T> sourceBody = {x[bodyIdx], y[bodyIdx], z[bodyIdx], m[bodyIdx]};
                 directAcc(sourceBody, acc_i, pos_i, EPS2);
                 numBodiesWarp -= GpuConfig::warpSize;
                 numBodiesLane -= GpuConfig::warpSize;
@@ -253,7 +255,8 @@ __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec3<T> pos_i[TravConfig::nw
                 bdyFillLevel += numBodiesWarp;
                 if (bdyFillLevel >= GpuConfig::warpSize) // If this causes bodyQueue to spill
                 {
-                    const Vec4<T> sourceBody = bodyPos[bodyQueue]; // Load source body coordinates
+                    // Load source body coordinates
+                    const Vec4<T> sourceBody = {x[bodyQueue], y[bodyQueue], z[bodyQueue], m[bodyQueue]};
                     directAcc(sourceBody, acc_i, pos_i, EPS2);
                     bdyFillLevel -= GpuConfig::warpSize;
                     // bodyQueue is now empty; put body indices that spilled into the queue
@@ -285,7 +288,8 @@ __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec3<T> pos_i[TravConfig::nw
     {
         const int bodyIdx = laneIdx < bdyFillLevel ? bodyQueue : -1;
         // Load position of source bodies, with padding for invalid lanes
-        const Vec4<T> sourceBody = bodyIdx >= 0 ? bodyPos[bodyIdx] : Vec4<T>{T(0), T(0), T(0), T(0)};
+        const Vec4<T> sourceBody =
+            bodyIdx >= 0 ? Vec4<T>{x[bodyIdx], y[bodyIdx], z[bodyIdx], m[bodyIdx]} : Vec4<T>{T(0), T(0), T(0), T(0)};
         directAcc(sourceBody, acc_i, pos_i, EPS2);
         p2pCounter += bdyFillLevel;
     }
@@ -327,9 +331,10 @@ __global__ void resetTraversalCounters()
  */
 template<class T, class MType>
 __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
-    int firstBody, int lastBody, int images, const T EPS2, T cycle, const int2 rootRange,
-    const Vec4<T>* __restrict__ bodyPos, const CellData* __restrict__ srcCells, const Vec4<T>* __restrict__ srcCenter,
-    const MType* __restrict__ Multipoles, Vec4<T>* bodyAcc, int* globalPool)
+    int firstBody, int lastBody, int images, const T EPS2, T cycle, const int2 rootRange, const T* __restrict__ x,
+    const T* __restrict__ y, const T* __restrict__ z, const T* __restrict__ m, const CellData* __restrict__ srcCells,
+    const Vec4<T>* __restrict__ srcCenter, const MType* __restrict__ Multipoles, T* p, T* ax, T* ay, T* az,
+    int* globalPool)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
     const int warpIdx = threadIdx.x >> GpuConfig::warpSizeLog2;
@@ -377,7 +382,7 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
         for (int i = 0; i < TravConfig::nwt; i++)
         {
             int bodyIdx = imin(bodyBegin + i * GpuConfig::warpSize + laneIdx, bodyEnd - 1);
-            pos_i[i]    = makeVec3(bodyPos[bodyIdx]);
+            pos_i[i]    = {x[bodyIdx], y[bodyIdx], z[bodyIdx]};
         }
 
         Vec3<T> Xmin = pos_i[0];
@@ -423,7 +428,10 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
                                                         pos_i,
                                                         targetCenter,
                                                         targetSize,
-                                                        bodyPos,
+                                                        x,
+                                                        y,
+                                                        z,
+                                                        m,
                                                         srcCells,
                                                         srcCenter,
                                                         Multipoles,
@@ -478,7 +486,13 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
 
         for (int i = 0; i < TravConfig::nwt; i++)
         {
-            if (bodyIdx + i * GpuConfig::warpSize < bodyEnd) { bodyAcc[i * GpuConfig::warpSize + bodyIdx] = acc_i[i]; }
+            if (bodyIdx + i * GpuConfig::warpSize < bodyEnd)
+            {
+                p[i * GpuConfig::warpSize + bodyIdx]  = acc_i[i][0];
+                ax[i * GpuConfig::warpSize + bodyIdx] = acc_i[i][1];
+                ay[i * GpuConfig::warpSize + bodyIdx] = acc_i[i][2];
+                az[i * GpuConfig::warpSize + bodyIdx] = acc_i[i][3];
+            }
         }
     }
 }
@@ -499,9 +513,9 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
  * @return                   P2P and M2P interaction statistics
  */
 template<class T, class MType>
-Vec4<T> computeAcceleration(int firstBody, int lastBody, int images, T eps, T cycle, const Vec4<T>* bodyPos,
-                            Vec4<T>* bodyAcc, const CellData* sourceCells, const Vec4<T>* sourceCenter,
-                            const MType* Multipole, const int2* levelRange)
+Vec4<T> computeAcceleration(int firstBody, int lastBody, int images, T eps, T cycle, const T* x, const T* y, const T* z,
+                            const T* m, T* p, T* ax, T* ay, T* az, const CellData* sourceCells,
+                            const Vec4<T>* sourceCenter, const MType* Multipole, const int2* levelRange)
 {
     constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
 
@@ -525,11 +539,17 @@ Vec4<T> computeAcceleration(int firstBody, int lastBody, int images, T eps, T cy
                                                     eps * eps,
                                                     cycle,
                                                     {levelRange[1].x, levelRange[1].y},
-                                                    bodyPos,
+                                                    x,
+                                                    y,
+                                                    z,
+                                                    m,
                                                     sourceCells,
                                                     sourceCenter,
                                                     Multipole,
-                                                    bodyAcc,
+                                                    p,
+                                                    ax,
+                                                    ay,
+                                                    az,
                                                     rawPtr(globalPool.data()));
     kernelSuccess("traverse");
 
