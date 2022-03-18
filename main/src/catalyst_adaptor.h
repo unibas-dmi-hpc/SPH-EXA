@@ -1,5 +1,4 @@
-#ifndef CatalystAdaptor_h
-#define CatalystAdaptor_h
+#pragma once
 
 #include "sph/particles_data.hpp"
 
@@ -132,5 +131,3 @@ void Finalize()
     std::cout << "CatalystAdaptor::Finalize" << std::endl;
 }
 } // namespace CatalystAdaptor
-
-#endif

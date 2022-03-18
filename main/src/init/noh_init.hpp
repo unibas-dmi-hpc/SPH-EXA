@@ -26,7 +26,7 @@
 /*! @file
  * @brief Noh implosion simulation data initialization
  *
- * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ * @author Jose A. Escartin <ja.escartin@gmail.com>"
  */
 
 #pragma once
@@ -40,6 +40,46 @@
 
 namespace sphexa
 {
+
+template<class Dataset>
+void initNohFields(Dataset& d, const std::map<std::string, double>& constants)
+{
+    using T = typename Dataset::RealType;
+
+    int    ng0         = 100;
+    double r1          = constants.at("r1");
+    double totalVolume = std::pow(2 * r1, 3);
+    double hInit       = std::cbrt(3.0 / (4 * M_PI) * ng0 * totalVolume / d.numParticlesGlobal) * 0.5;
+
+    double mPart         = constants.at("mTotal") / d.numParticlesGlobal;
+    double firstTimeStep = constants.at("firstTimeStep");
+
+    std::fill(d.m.begin(), d.m.end(), mPart);
+    std::fill(d.h.begin(), d.h.end(), hInit);
+    std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
+    std::fill(d.mui.begin(), d.mui.end(), 10.0);
+    std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
+    std::fill(d.dt_m1.begin(), d.dt_m1.end(), firstTimeStep);
+    std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
+    d.minDt = firstTimeStep;
+
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < d.x.size(); i++)
+    {
+        T radius = std::sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
+        radius   = std::max(radius, 1e-10);
+
+        d.u[i] = constants.at("u0");
+
+        d.vx[i] = constants.at("vr0") * (d.x[i] / radius);
+        d.vy[i] = constants.at("vr0") * (d.y[i] / radius);
+        d.vz[i] = constants.at("vr0") * (d.z[i] / radius);
+
+        d.x_m1[i] = d.x[i] - d.vx[i] * firstTimeStep;
+        d.y_m1[i] = d.y[i] - d.vy[i] * firstTimeStep;
+        d.z_m1[i] = d.z[i] - d.vz[i] * firstTimeStep;
+    }
+}
 
 template<class Dataset>
 class NohGrid : public ISimInitializer<Dataset>
@@ -57,69 +97,23 @@ class NohGrid : public ISimInitializer<Dataset>
                                              {"firstTimeStep", 1e-4}};
 
 public:
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, Dataset& d) const override
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cubeSide, Dataset& d) const override
     {
-        using T = typename Dataset::RealType;
-        d.n     = d.side * d.side * d.side;
+        using T              = typename Dataset::RealType;
+        d.numParticlesGlobal = cubeSide * cubeSide * cubeSide;
 
-        auto [first, last] = partitionRange(d.n, rank, numRanks);
-        d.count            = last - first;
-
-        resize(d, d.count);
-
-        if (rank == 0)
-        {
-            std::cout << "Approx: " << d.count * (d.data().size() * 64.) / (8. * 1000. * 1000. * 1000.)
-                      << "GB allocated on rank 0." << std::endl;
-        }
+        auto [first, last] = partitionRange(d.numParticlesGlobal, rank, numRanks);
+        resize(d, last - first);
 
         T r = constants_.at("r1");
 
-        regularGrid(r, d.side, first, last, d.x, d.y, d.z);
-        initFields(d);
+        regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
+        initNohFields(d, constants_);
 
         return cstone::Box<T>(-r, r, false);
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }
-
-private:
-    void initFields(Dataset& d) const
-    {
-        using T = typename Dataset::RealType;
-
-        double r1            = constants_.at("r1");
-        double step          = (2. * r1) / d.side;
-        double hIni          = 1.5 * step;
-        double mPart         = constants_.at("mTotal") / d.n;
-        double firstTimeStep = constants_.at("firstTimeStep");
-
-        std::fill(d.m.begin(), d.m.end(), mPart);
-        std::fill(d.h.begin(), d.h.end(), hIni);
-        std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
-        std::fill(d.mui.begin(), d.mui.end(), 10.0);
-        std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
-        std::fill(d.dt_m1.begin(), d.dt_m1.end(), firstTimeStep);
-        std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
-        d.minDt = firstTimeStep;
-
-#pragma omp parallel for schedule(static)
-        for (size_t i = 0; i < d.count; i++)
-        {
-            T radius = std::sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
-            radius   = std::max(radius, 1e-10);
-
-            d.u[i] = constants_.at("u0");
-
-            d.vx[i] = constants_.at("vr0") * (d.x[i] / radius);
-            d.vy[i] = constants_.at("vr0") * (d.y[i] / radius);
-            d.vz[i] = constants_.at("vr0") * (d.z[i] / radius);
-
-            d.x_m1[i] = d.x[i] - d.vx[i] * firstTimeStep;
-            d.y_m1[i] = d.y[i] - d.vy[i] * firstTimeStep;
-            d.z_m1[i] = d.z[i] - d.vz[i] * firstTimeStep;
-        }
-    }
 };
 
 } // namespace sphexa
