@@ -34,7 +34,7 @@
 
 #include <thrust/device_vector.h>
 
-#include "cstone/sfc/sfc.hpp"
+#include "cstone/sfc/sfc.cuh"
 #include "cstone/util/util.hpp"
 
 #include "timing.cuh"
@@ -59,23 +59,6 @@ inline void computeSfcKeys(KeyType* keys, const unsigned* x, const unsigned* y, 
     computeSfcKeysKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys);
 }
 
-template<class KeyType, class T>
-__global__ void
-computeSfcKeysRealKernel(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T> box)
-{
-    size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid < numKeys)
-    {
-        keys[tid] = sfc3D<KeyType>(x[tid], y[tid], z[tid], box);
-    }
-}
-
-template<class KeyType, class T>
-inline void computeSfcRealKeys(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T>& box)
-{
-    constexpr int threadsPerBlock = 256;
-    computeSfcKeysRealKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys, box);
-}
 
 template<class KeyType>
 __global__ void decodeSfcKeysKernel(const KeyType* keys, unsigned* x, unsigned* y, unsigned* z, size_t numKeys)

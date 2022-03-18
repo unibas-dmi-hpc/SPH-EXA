@@ -457,13 +457,14 @@ struct Kernels<0, 0, 0>
  *
  */
 template<class T, class MType>
-HOST_DEVICE_FUN DEVICE_INLINE void P2M(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* bodyPos, MType& Mout)
+HOST_DEVICE_FUN DEVICE_INLINE void P2M(int begin, int end, const Vec4<T>& Xout, const T* x, const T* y, const T* z,
+                                       const T* m, MType& Mout)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
 
     for (int i = begin; i < end; i++)
     {
-        Vec4<T> body = bodyPos[i];
+        Vec4<T> body = {x[i], y[i], z[i], m[i]};
         Vec3<T> dX   = makeVec3(Xout - body);
         MType   M;
         M[0] = body[3];
@@ -484,8 +485,8 @@ HOST_DEVICE_FUN DEVICE_INLINE void P2M(int begin, int end, const Vec4<T>& Xout, 
  * @param[out]  Mout     the aggregated output multipole
  */
 template<class T, class MType>
-HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc,
-                                       const MType* Msrc, MType& Mout)
+HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc, const MType* Msrc,
+                                       MType& Mout)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
 
@@ -555,6 +556,32 @@ HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> M2P(Vec4<T> acc, const Vec3<T>& pos_i, con
     M[0] = M0;
 
     return acc;
+}
+
+//! @brief computes the center of mass for the bodies in the specified range
+template<class T>
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> setCenter(const int begin, const int end, const T* x, const T* y, const T* z,
+                                                const T* m)
+{
+    assert(begin <= end);
+
+    Vec4<T> center{0, 0, 0, 0};
+    for (int i = begin; i < end; i++)
+    {
+        T weight = m[i];
+
+        center[0] += weight * x[i];
+        center[1] += weight * y[i];
+        center[2] += weight * z[i];
+        center[3] += weight;
+    }
+
+    T invM = (center[3] != 0.0f) ? 1.0f / center[3] : 0.0f;
+    center[0] *= invM;
+    center[1] *= invM;
+    center[2] *= invM;
+
+    return center;
 }
 
 //! @brief computes the center of mass for the bodies in the specified range

@@ -30,7 +30,10 @@
  */
 
 #include <vector>
+#include <thrust/sequence.h>
+#include <thrust/gather.h>
 
+#include "cstone/sfc/sfc.cuh"
 #include "cstone/tree/octree.cuh"
 #include "cstone/tree/octree_internal.cuh"
 
@@ -74,16 +77,6 @@ __global__ void convertTree(cstone::OctreeGpuDataView<KeyType> cstoneTree, const
     }
 }
 
-template<class KeyType, class T>
-__global__ void computeSfcKeysRealKernel(KeyType* keys, const Vec4<T>* bodies, size_t numKeys, const cstone::Box<T> box)
-{
-    size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid < numKeys)
-    {
-        keys[tid] = cstone::sfc3D<cstone::HilbertKey<KeyType>>(bodies[tid][0], bodies[tid][1], bodies[tid][2], box);
-    }
-}
-
 template<class KeyType>
 class TreeBuilder<KeyType>::Impl
 {
@@ -93,7 +86,7 @@ public:
     Impl(unsigned ncrit);
 
     template<class T>
-    cstone::TreeNodeIndex update(Vec4<T>* bodies, size_t numBodies, const cstone::Box<T>& box);
+    cstone::TreeNodeIndex update(T* x, T* y, T* z, size_t numBodies, const cstone::Box<T>& box);
 
     int extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange);
 
@@ -124,16 +117,25 @@ TreeBuilder<KeyType>::Impl::Impl(unsigned ncrit)
 
 template<class KeyType>
 template<class T>
-cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(Vec4<T>* bodies, size_t numBodies, const cstone::Box<T>& csBox)
+cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(T* x, T* y, T* z, size_t numBodies,
+                                                         const cstone::Box<T>& csBox)
 {
     thrust::device_vector<KeyType> d_keys(numBodies);
+    thrust::device_vector<int>     d_ordering(numBodies);
+    thrust::device_vector<T>       tmp(numBodies);
 
-    constexpr unsigned numThreads = 256;
-    unsigned           numBlocks  = (numBodies - 1) / numThreads + 1;
-    computeSfcKeysRealKernel<<<numBlocks, numThreads>>>(
-        thrust::raw_pointer_cast(d_keys.data()), bodies, numBodies, csBox);
+    cstone::computeSfcRealKeys(
+        cstone::sfcKindPointer(thrust::raw_pointer_cast(d_keys.data())), x, y, z, numBodies, csBox);
 
-    thrust::sort_by_key(thrust::device, d_keys.begin(), d_keys.end(), bodies);
+    thrust::sequence(d_ordering.begin(), d_ordering.end(), 0);
+    thrust::sort_by_key(thrust::device, d_keys.begin(), d_keys.end(), d_ordering.begin());
+
+    thrust::gather(thrust::device, d_ordering.begin(), d_ordering.end(), x, tmp.begin());
+    thrust::copy(tmp.begin(), tmp.end(), x);
+    thrust::gather(thrust::device, d_ordering.begin(), d_ordering.end(), y, tmp.begin());
+    thrust::copy(tmp.begin(), tmp.end(), y);
+    thrust::gather(thrust::device, d_ordering.begin(), d_ordering.end(), z, tmp.begin());
+    thrust::copy(tmp.begin(), tmp.end(), z);
 
     if (d_tree_.size() == 0)
     {
@@ -209,9 +211,9 @@ TreeBuilder<KeyType>::~TreeBuilder() = default;
 
 template<class KeyType>
 template<class T>
-int TreeBuilder<KeyType>::update(Vec4<T>* bodies, size_t numBodies, const cstone::Box<T>& box)
+int TreeBuilder<KeyType>::update(T* x, T* y, T* z, size_t numBodies, const cstone::Box<T>& box)
 {
-    return impl_->update(bodies, numBodies, box);
+    return impl_->update(x, y, z, numBodies, box);
 }
 
 template<class KeyType>
@@ -229,9 +231,9 @@ unsigned TreeBuilder<KeyType>::maxTreeLevel() const
 template class TreeBuilder<uint32_t>;
 template class TreeBuilder<uint64_t>;
 
-template int TreeBuilder<uint32_t>::update(Vec4<float>*, size_t, const cstone::Box<float>&);
-template int TreeBuilder<uint64_t>::update(Vec4<float>*, size_t, const cstone::Box<float>&);
-template int TreeBuilder<uint32_t>::update(Vec4<double>*, size_t, const cstone::Box<double>&);
-template int TreeBuilder<uint64_t>::update(Vec4<double>*, size_t, const cstone::Box<double>&);
+template int TreeBuilder<uint32_t>::update(float*, float*, float*, size_t, const cstone::Box<float>&);
+template int TreeBuilder<uint64_t>::update(float*, float*, float*, size_t, const cstone::Box<float>&);
+template int TreeBuilder<uint32_t>::update(double*, double*, double*, size_t, const cstone::Box<double>&);
+template int TreeBuilder<uint64_t>::update(double*, double*, double*, size_t, const cstone::Box<double>&);
 
 } //namespace ryoanji

@@ -43,22 +43,13 @@ TEST(Multipole, P2M)
 {
     int numBodies = 1023;
 
-    std::vector<Vec4<float>> bodies(numBodies);
-    ryoanji::makeCubeBodies(bodies.data(), numBodies);
-
     std::vector<double> x(numBodies);
     std::vector<double> y(numBodies);
     std::vector<double> z(numBodies);
     std::vector<double> h(numBodies, 0.0);
     std::vector<double> m(numBodies);
 
-    for (size_t i = 0; i < numBodies; ++i)
-    {
-        x[i] = bodies[i][0];
-        y[i] = bodies[i][1];
-        z[i] = bodies[i][2];
-        m[i] = bodies[i][3];
-    }
+    ryoanji::makeCubeBodies(x.data(), y.data(), z.data(), m.data(), numBodies);
 
     CartesianQuadrupole<double>      cartesianQuadrupole;
     cstone::SourceCenterType<double> csCenter =
@@ -66,12 +57,12 @@ TEST(Multipole, P2M)
     particle2Multipole(
         x.data(), y.data(), z.data(), m.data(), 0, numBodies, util::makeVec3(csCenter), cartesianQuadrupole);
 
-    Vec4<float> centerMass = ryoanji::setCenter(0, numBodies, bodies.data());
+    Vec4<double> centerMass = ryoanji::setCenter(0, numBodies, x.data(), y.data(), z.data(), m.data());
 
-    ryoanji::SphericalMultipole<float, 4> sphericalOctopole;
+    ryoanji::SphericalMultipole<double, 4> sphericalOctopole;
     std::fill(sphericalOctopole.begin(), sphericalOctopole.end(), 0.0);
 
-    ryoanji::P2M(0, numBodies, centerMass, bodies.data(), sphericalOctopole);
+    ryoanji::P2M(0, numBodies, centerMass, x.data(), y.data(), z.data(), m.data(), sphericalOctopole);
 
     EXPECT_NEAR(sphericalOctopole[0], cartesianQuadrupole[Cqi::mass], 1e-6);
 
@@ -82,10 +73,10 @@ TEST(Multipole, P2M)
 
     // compare M2P results on a test target
     {
-        float eps2 = 0;
-        Vec3<float> testTarget{-8, -8, -8};
+        double eps2 = 0;
+        Vec3<double> testTarget{-8, -8, -8};
 
-        Vec4<float> acc{0, 0, 0, 0};
+        Vec4<double> acc{0, 0, 0, 0};
         acc = ryoanji::M2P(acc, testTarget, util::makeVec3(centerMass), sphericalOctopole, eps2);
         //printf("test acceleration: %f %f %f %f\n", acc[0], acc[1], acc[2], acc[3]);
 

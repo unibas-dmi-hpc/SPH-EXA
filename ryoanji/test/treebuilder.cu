@@ -74,7 +74,8 @@ void checkBodyIndexing(int numBodies, CellData* tree, int numSources)
 
 template<class T, class MType>
 void checkUpsweep(const cstone::Box<T>& box, const thrust::host_vector<CellData>& sources,
-                  const thrust::host_vector<Vec4<T>>& sourceCenter, const thrust::host_vector<Vec4<T>>& h_bodies,
+                  const thrust::host_vector<Vec4<T>>& sourceCenter, const thrust::host_vector<T>& x,
+                  const thrust::host_vector<T>& y, const thrust::host_vector<T>& z, const thrust::host_vector<T>& m,
                   const thrust::host_vector<MType>& Multipole)
 {
     TreeNodeIndex numSources = sources.size();
@@ -100,10 +101,10 @@ void checkUpsweep(const cstone::Box<T>& box, const thrust::host_vector<CellData>
             T cellMass = 0;
             for (int j = sources[i].body(); j < sources[i].body() + sources[i].nbody(); ++j)
             {
-                cellMass += h_bodies[j][3];
+                cellMass += m[j];
 
                 uint64_t bodyKey =
-                    cstone::sfc3D<cstone::SfcKind<uint64_t>>(h_bodies[j][0], h_bodies[j][1], h_bodies[j][2], box);
+                    cstone::sfc3D<cstone::SfcKind<uint64_t>>(x[j], y[j], z[j], box);
                 // check that the referenced body really lies inside the cell
                 // this is true if the keys, truncated to the first key-in-cell match
                 EXPECT_EQ(cellKey, cstone::enclosingBoxCode(bodyKey, sources[i].level()));
@@ -130,22 +131,25 @@ TEST(Buildtree, cstone)
     T   extent    = 3;
     T   theta     = 0.75;
 
-    thrust::host_vector<Vec4<T>> h_bodies(numBodies);
-    makeCubeBodies(h_bodies.data(), numBodies, extent);
+    thrust::host_vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies);
+    makeCubeBodies(x.data(), y.data(), z.data(), m.data(), numBodies, extent);
     // upload to device
-    thrust::device_vector<Vec4<T>> bodyPos = h_bodies;
+    thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m;
 
     cstone::Box<T> box(-extent * 1.1, extent * 1.1);
 
     TreeBuilder<uint64_t> treeBuilder;
-    int                   numSources = treeBuilder.update(rawPtr(bodyPos.data()), numBodies, box);
+    int numSources = treeBuilder.update(rawPtr(d_x.data()), rawPtr(d_y.data()), rawPtr(d_z.data()), numBodies, box);
 
     thrust::device_vector<CellData> sources(numSources);
     std::vector<int2>               levelRange(cstone::maxTreeLevel<uint64_t>{} + 1);
 
     int highestLevel = treeBuilder.extract(rawPtr(sources.data()), levelRange.data());
     // download from device
-    h_bodies = bodyPos;
+    x = d_x;
+    y = d_y;
+    z = d_z;
+    m = d_m;
 
     thrust::device_vector<Vec4<T>>       sourceCenter(numSources);
     thrust::device_vector<MultipoleType> Multipole(numSources);
@@ -154,7 +158,10 @@ TEST(Buildtree, cstone)
                      highestLevel,
                      theta,
                      levelRange.data(),
-                     rawPtr(bodyPos.data()),
+                     rawPtr(d_x.data()),
+                     rawPtr(d_y.data()),
+                     rawPtr(d_z.data()),
+                     rawPtr(d_m.data()),
                      rawPtr(sources.data()),
                      rawPtr(sourceCenter.data()),
                      rawPtr(Multipole.data()));
@@ -165,5 +172,5 @@ TEST(Buildtree, cstone)
     thrust::host_vector<MultipoleType> h_Multipole = Multipole;
 
     checkBodyIndexing(numBodies, h_sources.data(), numSources);
-    checkUpsweep(box, h_sources, h_sourceCenter, h_bodies, h_Multipole);
+    checkUpsweep(box, h_sources, h_sourceCenter, x, y, z, m, h_Multipole);
 }

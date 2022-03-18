@@ -37,24 +37,24 @@ namespace ryoanji
 {
 
 template<class T>
-static void makeCubeBodies(Vec4<T>* bodies, size_t n, double extent = 3)
+static void makeCubeBodies(T* x, T* y, T* z, T* m, size_t n, double extent = 3)
 {
     for (size_t i = 0; i < n; i++)
     {
-        bodies[i][0] = drand48() * 2 * extent - extent;
-        bodies[i][1] = drand48() * 2 * extent - extent;
-        bodies[i][2] = drand48() * 2 * extent - extent;
-        bodies[i][3] = drand48() / n;
+        x[i] = drand48() * 2 * extent - extent;
+        y[i] = drand48() * 2 * extent - extent;
+        z[i] = drand48() * 2 * extent - extent;
+        m[i] = drand48() / n;
     }
 
     // set non-random corners
-    bodies[0][0] = -extent;
-    bodies[0][1] = -extent;
-    bodies[0][2] = -extent;
+    x[0] = -extent;
+    y[0] = -extent;
+    z[0] = -extent;
 
-    bodies[n - 1][0] = extent;
-    bodies[n - 1][1] = extent;
-    bodies[n - 1][2] = extent;
+    x[n - 1] = extent;
+    y[n - 1] = extent;
+    z[n - 1] = extent;
 }
 
 //! generate a grid with npOnEdge^3 bodies

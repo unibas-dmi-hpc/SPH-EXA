@@ -57,8 +57,8 @@ struct UpsweepConfig
  * @param[out] Multipole        output multipole of each cell
  */
 template<class T, class MType>
-__global__ void upwardPass(const int firstCell, const int lastCell, CellData* cells, const Vec4<T>* bodyPos,
-                           Vec4<T>* sourceCenter, Vec3<T>* cellXmin, Vec3<T>* cellXmax, MType* Multipole)
+__global__ void upwardPass(const int firstCell, const int lastCell, CellData* cells, const T* x, const T* y, const T* z,
+                           const T* m, Vec4<T>* sourceCenter, Vec3<T>* cellXmin, Vec3<T>* cellXmax, MType* Multipole)
 {
     const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x + firstCell;
     if (cellIdx >= lastCell) return;
@@ -74,20 +74,20 @@ __global__ void upwardPass(const int firstCell, const int lastCell, CellData* ce
     {
         const int begin = cell.body();
         const int end   = begin + cell.nbody();
-        center          = setCenter(begin, end, bodyPos);
+        center          = setCenter(begin, end, x, y, z, m);
         for (int i = begin; i < end; i++)
         {
-            Vec3<T> pos = makeVec3(bodyPos[i]);
+            Vec3<T> pos = {x[i], y[i], z[i]};
             Xmin        = min(Xmin, pos);
             Xmax        = max(Xmax, pos);
         }
-        P2M(begin, end, center, bodyPos, M);
+        P2M(begin, end, center, x, y, z, m, M);
     }
     else
     {
         const int begin = cell.child();
-        const int end = begin + cell.nchild();
-        center = setCenter(begin, end, sourceCenter);
+        const int end   = begin + cell.nchild();
+        center          = setCenter(begin, end, sourceCenter);
 
         unsigned numBodiesChildren = 0;
         for (int i = begin; i < end; i++)
@@ -140,14 +140,14 @@ __global__ void normalize(int numCells, MType* multipoles)
 }
 
 template<class T, class MType>
-void upsweep(int numSources, int numLevels, T theta, const int2* levelRange, const Vec4<T>* bodyPos,
-             CellData* sourceCells, Vec4<T>* sourceCenter, MType* Multipole)
+void upsweep(int numSources, int numLevels, T theta, const int2* levelRange, const T* x, const T* y, const T* z,
+             const T* m, CellData* sourceCells, Vec4<T>* sourceCenter, MType* Multipole)
 {
     constexpr int numThreads = UpsweepConfig::numThreads;
 
     thrust::device_vector<Vec3<T>> d_cellXminmax(2 * numSources);
-    Vec3<T>* cellXmin = rawPtr(d_cellXminmax.data());
-    Vec3<T>* cellXmax = cellXmin + numSources;
+    Vec3<T>*                       cellXmin = rawPtr(d_cellXminmax.data());
+    Vec3<T>*                       cellXmax = cellXmin + numSources;
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
@@ -158,7 +158,10 @@ void upsweep(int numSources, int numLevels, T theta, const int2* levelRange, con
         upwardPass<<<numBlocks, numThreads>>>(levelRange[level].x,
                                               levelRange[level].y,
                                               sourceCells,
-                                              bodyPos,
+                                              x,
+                                              y,
+                                              z,
+                                              m,
                                               sourceCenter,
                                               cellXmin,
                                               cellXmax,
@@ -170,7 +173,7 @@ void upsweep(int numSources, int numLevels, T theta, const int2* levelRange, con
     setMAC<<<numBlocks, numThreads>>>(numSources, T(1.0) / theta, sourceCenter, cellXmin, cellXmax);
     normalize<<<numBlocks, numThreads>>>(numSources, Multipole);
 
-    auto t1   = std::chrono::high_resolution_clock::now();
+    auto   t1 = std::chrono::high_resolution_clock::now();
     double dt = std::chrono::duration<double>(t1 - t0).count();
 
     fprintf(stdout, "Upward pass          : %.7f s\n", dt);

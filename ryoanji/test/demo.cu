@@ -59,32 +59,21 @@ int main(int argc, char** argv)
     fprintf(stdout, "theta                : %f\n", theta);
     fprintf(stdout, "ncrit                : %d\n", ncrit);
 
-    thrust::host_vector<Vec4<T>> h_bodies(numBodies);
-    makeCubeBodies(h_bodies.data(), numBodies, boxSize);
+    thrust::host_vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies);
+    makeCubeBodies(x.data(), y.data(), z.data(), m.data(), numBodies, boxSize);
 
     // upload bodies to device
-    thrust::device_vector<Vec4<T>> d_bodies = h_bodies;
+    thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m;
 
     cstone::Box<T> box(-boxSize, boxSize);
 
     TreeBuilder<uint64_t> treeBuilder;
-    int                   numSources = treeBuilder.update(rawPtr(d_bodies.data()), d_bodies.size(), box);
+    int numSources = treeBuilder.update(rawPtr(d_x.data()), rawPtr(d_y.data()), rawPtr(d_z.data()), numBodies, box);
 
     thrust::device_vector<CellData> sources(numSources);
     std::vector<int2>               levelRange(treeBuilder.maxTreeLevel() + 1);
 
     int highestLevel = treeBuilder.extract(rawPtr(sources.data()), levelRange.data());
-
-    h_bodies = d_bodies;
-    std::vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies);
-    for (size_t i = 0; i < numBodies; ++i)
-    {
-        x[i] = h_bodies[i][0];
-        y[i] = h_bodies[i][1];
-        z[i] = h_bodies[i][2];
-        m[i] = h_bodies[i][3];
-    }
-    thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m;
 
     thrust::device_vector<Vec4<T>>       sourceCenter(numSources);
     thrust::device_vector<MultipoleType> Multipole(numSources);
@@ -93,7 +82,10 @@ int main(int argc, char** argv)
             highestLevel,
             theta,
             levelRange.data(),
-            rawPtr(d_bodies.data()),
+            rawPtr(d_x.data()),
+            rawPtr(d_y.data()),
+            rawPtr(d_z.data()),
+            rawPtr(d_m.data()),
             rawPtr(sources.data()),
             rawPtr(sourceCenter.data()),
             rawPtr(Multipole.data()));
@@ -131,6 +123,19 @@ int main(int argc, char** argv)
 
     if (!directRef) { return 0; }
 
+    thrust::host_vector<Vec4<T>> h_bodies(numBodies);
+    x = d_x;
+    y = d_y;
+    z = d_z;
+    for (size_t i = 0; i < numBodies; ++i)
+    {
+        h_bodies[i][0] = x[i];
+        h_bodies[i][1] = y[i];
+        h_bodies[i][2] = z[i];
+        h_bodies[i][3] = m[i];
+    }
+    thrust::device_vector<Vec4<T>> d_bodies = h_bodies;
+
     thrust::device_vector<Vec4<T>> bodyAccDirect(numBodies, Vec4<T>{T(0), T(0), T(0), T(0)});
 
     t0 = std::chrono::high_resolution_clock::now();
@@ -154,7 +159,7 @@ int main(int argc, char** argv)
     {
         Vec3<T> ref   = {h_bodyAccDirect[i][1], h_bodyAccDirect[i][2], h_bodyAccDirect[i][3]};
         Vec3<T> probe = {h_ax[i], h_ay[i], h_az[i]};
-        delta[i]    = std::sqrt(norm2(ref - probe) / norm2(ref));
+        delta[i]      = std::sqrt(norm2(ref - probe) / norm2(ref));
     }
 
     std::sort(begin(delta), end(delta));

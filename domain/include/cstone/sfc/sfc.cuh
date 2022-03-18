@@ -24,43 +24,34 @@
  */
 
 /*! @file
- * @brief  Build a tree for Ryoanji with the cornerstone framework
+ * @brief  SFC encoding/decoding in 32- and 64-bit on the GPU
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include <memory>
+#include "cstone/sfc/sfc.hpp"
 
-#include "ryoanji/types.h"
-
-namespace ryoanji
+namespace cstone
 {
 
-template<class KeyType>
-class TreeBuilder
+template<class KeyType, class T>
+__global__ void
+computeSfcKeysRealKernel(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T> box)
 {
-public:
-    TreeBuilder();
+    size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid < numKeys)
+    {
+        keys[tid] = sfc3D<KeyType>(x[tid], y[tid], z[tid], box);
+    }
+}
 
-    ~TreeBuilder();
+template<class KeyType, class T>
+inline void computeSfcRealKeys(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T>& box)
+{
+    constexpr int threadsPerBlock = 256;
+    computeSfcKeysRealKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys, box);
+}
 
-    TreeBuilder(unsigned ncrit);
-
-    template<class T>
-    int update(T* x, T* y, T* z, size_t numBodies, const cstone::Box<T>& box);
-
-    int extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange);
-
-    unsigned maxTreeLevel() const;
-
-private:
-    class Impl;
-    std::unique_ptr<Impl> impl_;
-};
-
-extern template class TreeBuilder<uint32_t>;
-extern template class TreeBuilder<uint64_t>;
-
-} // namespace ryoanji
+} // namespace cstone
