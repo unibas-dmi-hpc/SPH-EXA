@@ -36,6 +36,7 @@
 #include "cstone/sfc/box.hpp"
 
 #include "isim_init.hpp"
+#include "evrard_init.hpp"
 #include "file_init.hpp"
 #include "noh_init.hpp"
 #include "sedov_init.hpp"
@@ -61,6 +62,11 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
         {
             return std::make_unique<NohGlassSphere<Dataset>>(glassBlock);
         }
+    }
+    if (testCase == "evrard")
+    {
+        if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for evrard\n"); }
+        return std::make_unique<EvrardGlassSphere<Dataset>>(glassBlock);
     }
     else
     {

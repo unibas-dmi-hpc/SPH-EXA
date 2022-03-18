@@ -39,6 +39,7 @@ from argparse import ArgumentParser
 import h5py
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
 
 
 def nohShockFront(gamma, vel0, time):
@@ -122,12 +123,12 @@ def computeRadii(h5File, step):
 
 
 def plotRadialProfile(props, xSim, ySim, xSol, ySol):
-    plt.scatter(xSim, ySim, s=0.1, label="Simulation", color="C0")
+    plt.scatter(xSim, ySim, s=0.1, label="Simulation, L1 = %3f" % props["L1"], color="C0")
     plt.plot(xSol, ySol, label="Solution", color="C1")
     plt.xlabel("r")
     plt.ylabel(props["ylabel"])
     plt.draw()
-    plt.title(props["title"])
+    plt.title(props["title"] + ", N = %3e, t = %3f" % (len(xSim), props["time"]))
     plt.legend(loc="upper right")
     plt.savefig(props["fname"], format="png")
     plt.figure().clear()
@@ -139,11 +140,13 @@ def createDensityPlot(h5File, attrs, radii, time, step):
     rSol = np.linspace(attrs["r0"], attrs["r1"], 1000)
     rhoSol = np.vectorize(nohRho)(attrs["dim"], attrs["gamma"], attrs["rho0"], attrs["vr0"], rSol, time)
 
-    props = {"ylabel": "rho", "title": "Density", "fname": "noh_density_%4f.png" % time}
+    rhoSolFull = np.vectorize(nohRho)(attrs["dim"], attrs["gamma"], attrs["rho0"], attrs["vr0"], radii, time)
+    L1 = sum(abs(rhoSolFull - rho)) / len(rho)
+
+    props = {"ylabel": "rho", "title": "Density", "fname": "noh_density_%4f.png" % time, "time": time, "L1": L1}
     plotRadialProfile(props, radii, rho, rSol, rhoSol)
 
-    rhoSolFull = np.vectorize(nohRho)(attrs["dim"], attrs["gamma"], attrs["rho0"], attrs["vr0"], radii, time)
-    print("Density L1 error", sum(abs(rhoSolFull - rho)) / len(rho))
+    print("Density L1 error", L1)
 
 
 def createPressurePlot(h5File, attrs, radii, time, step):
@@ -153,12 +156,14 @@ def createPressurePlot(h5File, attrs, radii, time, step):
     pSol = np.vectorize(nohP)(attrs["dim"], attrs["gamma"], attrs["rho0"], attrs["u0"], attrs["p0"], attrs["vr0"],
                               rSol, time)
 
-    props = {"ylabel": "p", "title": "Pressure", "fname": "noh_pressure_%4f.png" % time}
-    plotRadialProfile(props, radii, p, rSol, pSol)
-
     pSolFull = np.vectorize(nohP)(attrs["dim"], attrs["gamma"], attrs["rho0"], attrs["u0"], attrs["p0"], attrs["vr0"],
                                   radii, time)
-    print("Pressure L1 error", sum(abs(pSolFull - p)) / len(p))
+    L1 = sum(abs(pSolFull - p)) / len(p)
+
+    props = {"ylabel": "p", "title": "Pressure", "fname": "noh_pressure_%4f.png" % time, "time": time, "L1": L1}
+    plotRadialProfile(props, radii, p, rSol, pSol)
+
+    print("Pressure L1 error", L1)
 
 
 def createVelocityPlot(h5File, attrs, radii, time, step):
@@ -171,11 +176,13 @@ def createVelocityPlot(h5File, attrs, radii, time, step):
     rSol = np.linspace(attrs["r0"], attrs["r1"], 1000)
     vSol = np.vectorize(nohVel)(attrs["gamma"], attrs["vr0"], rSol, time)
 
-    props = {"ylabel": "vel", "title": "Velocity", "fname": "noh_velocity_%4f.png" % time}
+    vSolFull = np.vectorize(nohVel)(attrs["gamma"], attrs["vr0"], radii, time)
+    L1 = sum(abs(vSolFull - vr)) / len(vr)
+
+    props = {"ylabel": "vel", "title": "Velocity", "fname": "noh_velocity_%4f.png" % time, "time": time, "L1": L1}
     plotRadialProfile(props, radii, vr, rSol, vSol)
 
-    vSolFull = np.vectorize(nohVel)(attrs["gamma"], attrs["vr0"], radii, time)
-    print("Velocity L1 error", sum(abs(vSolFull - vr)) / len(vr))
+    print("Velocity L1 error", L1)
 
 
 def createEnergyPlot(h5File, attrs, radii, time, step):
@@ -184,11 +191,13 @@ def createEnergyPlot(h5File, attrs, radii, time, step):
     rSol = np.linspace(attrs["r0"], attrs["r1"], 1000)
     uSol = np.vectorize(nohU)(attrs["gamma"], attrs["u0"], attrs["vr0"], rSol, time)
 
-    props = {"ylabel": "u", "title": "Energy", "fname": "noh_energy_%4f.png" % time}
+    uSolFull = np.vectorize(nohU)(attrs["gamma"], attrs["u0"], attrs["vr0"], radii, time)
+    L1 = sum(abs(uSolFull - u)) / len(u)
+
+    props = {"ylabel": "u", "title": "Energy", "fname": "noh_energy_%4f.png" % time, "time": time, "L1": L1}
     plotRadialProfile(props, radii, u, rSol, uSol)
 
-    uSolFull = np.vectorize(nohU)(attrs["gamma"], attrs["u0"], attrs["vr0"], radii, time)
-    print("Energy L1 error", sum(abs(uSolFull - u)) / len(u))
+    print("Energy L1 error", L1)
 
 
 if __name__ == "__main__":
@@ -225,6 +234,7 @@ if __name__ == "__main__":
         radii = computeRadii(h5File, hdf5_step)
     except KeyError:
         print("Could not load radii, input file does not contain fields \"x, y, z\"")
+        sys.exit(1)
 
     try:
         createDensityPlot(h5File, attrs, radii, time, hdf5_step)
