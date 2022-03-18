@@ -1,5 +1,3 @@
-include(sphexa_add_test)
-
 set(UNIT_TESTS
         density_kern.cpp
         iad_kern.cpp
@@ -15,7 +13,6 @@ target_include_directories(${testname} PRIVATE ${CSTONE_DIR})
 target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/include)
 
 target_link_libraries(${testname} PRIVATE GTest::gtest_main)
-sphexa_add_test(${testname} EXECUTABLE ${testname} RANKS 1)
-#add_test(NAME KernelTests COMMAND ${testname})
+add_test(NAME ${testname} COMMAND ${testname})
 
 install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/kernel)

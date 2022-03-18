@@ -1,5 +1,3 @@
-include(sphexa_add_test)
-
 list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
 include(setup_GTest)
 
@@ -16,8 +14,7 @@ if (CMAKE_CUDA_COMPILER)
     set_source_files_properties(buildtree.cu PROPERTIES COMPILE_FLAGS -G)
     set_source_files_properties(direct.cu PROPERTIES COMPILE_FLAGS -G)
     set_source_files_properties(multipole.cu PROPERTIES COMPILE_FLAGS -G)
-    # add_test(NAME RyoanjiGpuTests COMMAND ${testname})
-    sphexa_add_test(${testname} EXECUTABLE ${testname} RANKS 1)
+    add_test(NAME ${testname} COMMAND ${testname})
     install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji/unit_tests)
 
     add_executable(ryoanji demo.cu)
