@@ -11,16 +11,13 @@
 #include <vector>
 #include <numeric>
 
-using Real     = double;
-using CodeType = uint64_t;
-using Dataset  = ParticlesData<Real, CodeType>;
-
 namespace AscentAdaptor
 {
 ascent::Ascent a;
 conduit::Node  actions;
 
-void Initialize([[maybe_unused]] Dataset& d, [[maybe_unused]] long startIndex)
+template<class DataType>
+void Initialize([[maybe_unused]] DataType& d, [[maybe_unused]] long startIndex)
 {
     conduit::Node ascent_options;
     // ascent_options["default_dir"] = "/scratch/snx3000/jfavre/DummySPH/datasets";
@@ -76,7 +73,6 @@ void Initialize([[maybe_unused]] Dataset& d, [[maybe_unused]] long startIndex)
     */
 
     /* IO to disk */
-    /*
     conduit::Node &add_extr = actions.append();
     add_extr["action"] = "add_extracts";
     conduit::Node &savedata = add_extr["extracts"];
@@ -87,10 +83,10 @@ void Initialize([[maybe_unused]] Dataset& d, [[maybe_unused]] long startIndex)
     //savedata["e1/pipeline"] = "pl1";
     savedata["e1/params/path"] = "out_export_particles";
     savedata["e1/params/protocol"] = "blueprint/mesh/hdf5";
-    */
 }
 
-void Execute(Dataset d, long startIndex, long endIndex)
+template<class DataType>
+void Execute(DataType& d, long startIndex, long endIndex)
 {
     conduit::Node mesh;
     mesh["state/cycle"].set_external(&d.iteration);

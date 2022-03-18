@@ -130,7 +130,7 @@ int main(int argc, char** argv)
             fileWriter->dump(d, domain.startIndex(), domain.endIndex(), box, outFile);
         }
 
-        if (d.iteration % 5 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
+        if (d.iteration % 50 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
     }
 
     totalTimer.step("Total execution time of " + std::to_string(maxStep - startIteration + 1) + " iterations of " +

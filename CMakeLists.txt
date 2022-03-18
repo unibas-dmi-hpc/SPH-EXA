@@ -99,7 +99,7 @@ set_property(CACHE INSITU PROPERTY STRINGS None Catalyst Ascent)
 if(INSITU STREQUAL "Catalyst")
     find_package(catalyst REQUIRED PATHS "$ENV{EBROOTPARAVIEW}/lib/cmake/paraview-5.10")
 elseif(INSITU STREQUAL "Ascent")
-    find_package(Ascent REQUIRED PATHS "/apps/daint/UES/Ascent/ascent-install/lib/cmake/ascent")
+	find_package(Ascent REQUIRED PATHS "$ENV{EBROOTASCENT}/lib/cmake/ascent")
 endif()
 # }}}
 

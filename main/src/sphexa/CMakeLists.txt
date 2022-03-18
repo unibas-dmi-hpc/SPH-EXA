@@ -25,7 +25,7 @@ if(INSITU STREQUAL "Catalyst")
     target_link_libraries(${exename} PRIVATE catalyst::catalyst)
 elseif(INSITU STREQUAL "Ascent")
     target_include_directories(${exename} PRIVATE ..)
-    target_compile_definitions(sedov
+    target_compile_definitions(${exename}
 	    PRIVATE
 	    SPH_EXA_USE_ASCENT)
     target_link_libraries(${exename} PRIVATE ascent::ascent_mpi)

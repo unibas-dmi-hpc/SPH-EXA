@@ -12,10 +12,17 @@ build wth ParaView Catalyst on Piz Daint:
 ############
 
 prgenv:
-  module load daint-gpu cudatoolkit CMake/3.21.1 cray-hdf5-parallel
+  module load daint-gpu cudatoolkit CMake cray-hdf5-parallel Ascent
 
 build with ASCENT on Piz Daint:
   mkdir buildAscentDaint
   cd buildAscentDaint
-  cmake -C /users/jfavre/Projects/Ascent/daint106.cmake -DCMAKE_CXX_COMPILER=CC -DINSITU=Ascent ..
+  cmake \
+    -DHDF5_INCLUDE_DIR=/opt/cray/pe/hdf5-parallel/1.12.0.4/GNU/8.2/include \
+    -DTBB_INCLUDE_DIR=/opt/intel/compilers_and_libraries/linux/tbb/include \
+    -DTBB_LIBRARY_DEBUG=/opt/intel/compilers_and_libraries/linux/tbb/lib/intel64/gcc4.8/libtbb_debug.so \
+    -DTBB_LIBRARY_RELEASE=/opt/intel/compilers_and_libraries/linux/tbb/lib/intel64/gcc4.8/libtbb.so \
+    -DCMAKE_CXX_COMPILER=CC \
+    -DINSITU=Ascent \
+    ..
   
