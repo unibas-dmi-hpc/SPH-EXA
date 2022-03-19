@@ -41,78 +41,62 @@
 
 using namespace ryoanji;
 
-template<class T>
-std::vector<Vec4<T>> cpuReference(const std::vector<Vec4<T>>& bodies)
-{
-    size_t numBodies = bodies.size();
-
-    std::vector<double> x(numBodies);
-    std::vector<double> y(numBodies);
-    std::vector<double> z(numBodies);
-    std::vector<double> h(numBodies, 0.0);
-    std::vector<double> m(numBodies);
-
-    for (size_t i = 0; i < numBodies; ++i)
-    {
-        x[i] = bodies[i][0];
-        y[i] = bodies[i][1];
-        z[i] = bodies[i][2];
-        m[i] = bodies[i][3];
-    }
-
-    std::vector<double> ax(numBodies);
-    std::vector<double> ay(numBodies);
-    std::vector<double> az(numBodies);
-    std::vector<double> pot(numBodies);
-
-    float G = 1.0;
-
-    directSum(
-        x.data(), y.data(), z.data(), h.data(), m.data(), numBodies, G, ax.data(), ay.data(), az.data(), pot.data());
-
-    std::vector<Vec4<T>> acc(numBodies, Vec4<T>{0, 0, 0, 0});
-
-    for (size_t i = 0; i < numBodies; ++i)
-    {
-        acc[i] = Vec4<T>{T(pot[i]), T(ax[i]), T(ay[i]), T(az[i])};
-    }
-
-    return acc;
-}
-
 TEST(DirectSum, MatchCpu)
 {
-    using T = float;
+    using T = double;
     int npOnEdge  = 10;
     int numBodies = npOnEdge * npOnEdge * npOnEdge;
 
     // the CPU reference uses mass softening, while the GPU P2P kernel still uses plummer softening
     // so the only way to compare is without softening in both versions and make sure that
     // particles are not on top of each other
-    float eps = 0.0;
+    T eps = 0.0;
 
-    std::vector<Vec4<T>> h_bodies(numBodies);
-    ryoanji::makeGridBodies(h_bodies.data(), npOnEdge, 0.5);
+    std::vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies);
+    ryoanji::makeGridBodies(x.data(), y.data(), z.data(), m.data(), npOnEdge, 0.5);
 
     // upload to device
-    thrust::device_vector<Vec4<T>> bodyPos = h_bodies;
-    thrust::device_vector<Vec4<T>> bodyAcc(numBodies, Vec4<T>{0, 0, 0, 0});
+    thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m;
+    thrust::device_vector<T> p(numBodies), ax(numBodies), ay(numBodies), az(numBodies);
 
-    directSum(numBodies, rawPtr(bodyPos.data()), rawPtr(bodyAcc.data()), eps);
+    directSum(numBodies,
+              rawPtr(d_x.data()),
+              rawPtr(d_y.data()),
+              rawPtr(d_z.data()),
+              rawPtr(d_m.data()),
+              rawPtr(p.data()),
+              rawPtr(ax.data()),
+              rawPtr(ay.data()),
+              rawPtr(az.data()),
+              eps);
 
     // download body accelerations
-    thrust::host_vector<Vec4<T>> h_acc = bodyAcc;
+    thrust::host_vector<T> h_p = p, h_ax = ax, h_ay = ay, h_az = az;
 
-    auto refAcc = cpuReference(h_bodies);
+    std::vector<T> h(numBodies, 0);
+    T G = 1.0;
+
+    std::vector<T> refP(numBodies), refAx(numBodies), refAy(numBodies), refAz(numBodies);
+    directSum(x.data(),
+              y.data(),
+              z.data(),
+              h.data(),
+              m.data(),
+              numBodies,
+              G,
+              refAx.data(),
+              refAy.data(),
+              refAz.data(),
+              refP.data());
 
     for (int i = 0; i < numBodies; ++i)
     {
-        Vec3<T> ref   = {refAcc[i][1], refAcc[i][2], refAcc[i][3]};
-        Vec3<T> probe = {h_acc[i][1], h_acc[i][2], h_acc[i][3]};
+        Vec3<T> ref   = {refAx[i], refAy[i], refAz[i]};
+        Vec3<T> probe = {h_ax[i], h_ay[i], h_az[i]};
 
         EXPECT_NEAR(std::sqrt(norm2(ref - probe) / norm2(probe)), 0, 1e-6);
         // the potential
-        EXPECT_NEAR(refAcc[i][0], h_acc[i][0], 1e-6);
+        EXPECT_NEAR(refP[i], h_p[i], 1e-6);
 
         // printf("%f %f %f\n", ref[1], ref[2], ref[3]);
         // printf("%f %f %f\n", probe[1], probe[2], probe[3]);

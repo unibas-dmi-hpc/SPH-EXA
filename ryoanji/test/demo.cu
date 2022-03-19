@@ -123,23 +123,19 @@ int main(int argc, char** argv)
 
     if (!directRef) { return 0; }
 
-    thrust::host_vector<Vec4<T>> h_bodies(numBodies);
-    x = d_x;
-    y = d_y;
-    z = d_z;
-    for (size_t i = 0; i < numBodies; ++i)
-    {
-        h_bodies[i][0] = x[i];
-        h_bodies[i][1] = y[i];
-        h_bodies[i][2] = z[i];
-        h_bodies[i][3] = m[i];
-    }
-    thrust::device_vector<Vec4<T>> d_bodies = h_bodies;
-
-    thrust::device_vector<Vec4<T>> bodyAccDirect(numBodies, Vec4<T>{T(0), T(0), T(0), T(0)});
+    thrust::device_vector<T> refP(numBodies), refAx(numBodies), refAy(numBodies), refAz(numBodies);
 
     t0 = std::chrono::high_resolution_clock::now();
-    directSum(numBodies, rawPtr(d_bodies.data()), rawPtr(bodyAccDirect.data()), eps);
+    directSum(numBodies,
+              rawPtr(d_x.data()),
+              rawPtr(d_y.data()),
+              rawPtr(d_z.data()),
+              rawPtr(d_m.data()),
+              rawPtr(refP.data()),
+              rawPtr(refAx.data()),
+              rawPtr(refAy.data()),
+              rawPtr(refAz.data()),
+              eps);
     t1 = std::chrono::high_resolution_clock::now();
     dt = std::chrono::duration<double>(t1 - t0).count();
 
@@ -151,13 +147,16 @@ int main(int argc, char** argv)
     thrust::host_vector<T> h_ay = d_ay;
     thrust::host_vector<T> h_az = d_az;
 
-    thrust::host_vector<Vec4<T>> h_bodyAccDirect = bodyAccDirect;
+    thrust::host_vector<T> h_refP  = refP;
+    thrust::host_vector<T> h_refAx = refAx;
+    thrust::host_vector<T> h_refAy = refAy;
+    thrust::host_vector<T> h_refAz = refAz;
 
     std::vector<double> delta(numBodies);
 
     for (int i = 0; i < numBodies; i++)
     {
-        Vec3<T> ref   = {h_bodyAccDirect[i][1], h_bodyAccDirect[i][2], h_bodyAccDirect[i][3]};
+        Vec3<T> ref   = {h_refAx[i], h_refAy[i], h_refAz[i]};
         Vec3<T> probe = {h_ax[i], h_ay[i], h_az[i]};
         delta[i]      = std::sqrt(norm2(ref - probe) / norm2(ref));
     }

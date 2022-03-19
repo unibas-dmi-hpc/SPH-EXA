@@ -49,13 +49,13 @@ struct DirectConfig
 };
 
 template<class T>
-__global__ void directKernel(int numSource, T eps2, const Vec4<T>* __restrict__ bodyPos, Vec4<T>* bodyAcc)
+__global__ void directKernel(int numSource, T eps2, const T* __restrict__ x, const T* __restrict__ y,
+                             const T* __restrict__ z, const T* __restrict__ m, T* p, T* ax, T* ay, T* az)
 {
     unsigned targetIdx = blockDim.x * blockIdx.x + threadIdx.x;
 
-    Vec4<T> pos = {T(0), T(0), T(0), T(0)};
-    if (targetIdx < numSource) { pos = bodyPos[targetIdx]; }
-    const Vec3<T> pos_i{pos[0], pos[1], pos[2]};
+    Vec3<T> pos_i = {T(0), T(0), T(0)};
+    if (targetIdx < numSource) { pos_i = {x[targetIdx], y[targetIdx], z[targetIdx]}; }
 
     // kvec4<T> acc = {0.0, 0.0, 0.0, 0.0};
     util::array<double, 4> acc{0, 0, 0, 0};
@@ -65,7 +65,7 @@ __global__ void directKernel(int numSource, T eps2, const Vec4<T>* __restrict__ 
     {
         int sourceIdx = tile * blockDim.x + threadIdx.x;
         if (sourceIdx < numSource)
-            sm_bodytile[threadIdx.x] = bodyPos[sourceIdx];
+            sm_bodytile[threadIdx.x] = {x[sourceIdx], y[sourceIdx], z[sourceIdx], m[sourceIdx]};
         else
             sm_bodytile[threadIdx.x] = Vec4<T>{0, 0, 0, 0};
 
@@ -97,16 +97,22 @@ __global__ void directKernel(int numSource, T eps2, const Vec4<T>* __restrict__ 
         __syncthreads();
     }
 
-    if (targetIdx < numSource) { bodyAcc[targetIdx] = Vec4<T>{T(acc[0]), T(acc[1]), T(acc[2]), T(acc[3])}; }
+    if (targetIdx < numSource)
+    {
+        p[targetIdx]  = T(acc[0]);
+        ax[targetIdx] = T(acc[1]);
+        ay[targetIdx] = T(acc[2]);
+        az[targetIdx] = T(acc[3]);
+    }
 }
 
 template<class T>
-void directSum(std::size_t numBodies, const Vec4<T>* bodyPos, Vec4<T>* bodyAcc, T eps)
+void directSum(std::size_t numBodies, const T* x, const T* y, const T* z, const T* m, T* p, T* ax, T* ay, T* az, T eps)
 {
     int numThreads = DirectConfig::numThreads;
     int numBlock   = (numBodies - 1) / numThreads + 1;
 
-    directKernel<<<numBlock, numThreads>>>(numBodies, eps * eps, bodyPos, bodyAcc);
+    directKernel<<<numBlock, numThreads>>>(numBodies, eps * eps, x, y, z, m, p, ax, ay, az);
     ryoanji::kernelSuccess("direct sum");
 }
 
