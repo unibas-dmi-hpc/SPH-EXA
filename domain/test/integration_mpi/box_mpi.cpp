@@ -32,97 +32,81 @@
 #include "gtest/gtest.h"
 
 #include <numeric>
+#include <random>
 #include <vector>
 
 #include "cstone/sfc/box_mpi.hpp"
 
 using namespace cstone;
 
-template<class T>
-void globalMin(int rank, int nRanks)
+TEST(GlobalBox, localMinMax)
 {
-    int nElements = 1000;
-    std::vector<T> x(nElements);
+    using T = double;
+
+    int numElements = 1000;
+    std::vector<T> x(numElements);
     std::iota(begin(x), end(x), 1);
-    for (auto& val : x)
-        val /= (rank + 1);
 
-    T gmin = globalMin(begin(x), end(x));
+    std::random_device rd;
+    std::mt19937 g(rd());
+    std::shuffle(begin(x), end(x), g);
 
-    EXPECT_EQ(gmin, T(1) / nRanks);
-}
-
-TEST(GlobalBox, globalMin)
-{
-    int rank = 0, nRanks = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
-
-    globalMin<float>(rank, nRanks);
-    globalMin<double>(rank, nRanks);
+    auto [gmin, gmax] = localMinMax(begin(x), end(x));
+    EXPECT_EQ(gmin, T(1));
+    EXPECT_EQ(gmax, T(numElements));
 }
 
 template<class T>
-void globalMax(int rank, [[maybe_unused]] int nRanks)
+void makeGlobalBox(int rank, int numRanks)
 {
-    int nElements = 1000;
-    std::vector<T> x(nElements);
-    std::iota(begin(x), end(x), 1);
-    for (auto& val : x)
-        val /= (rank + 1);
-
-    T gmax = globalMax(begin(x), end(x));
-
-    EXPECT_EQ(gmax, T(nElements));
-}
-
-TEST(GlobalBox, globalMax)
-{
-    int rank = 0, nRanks = 0;
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
-
-    globalMax<float>(rank, nRanks);
-    globalMax<double>(rank, nRanks);
-}
-
-template<class T>
-void makeGlobalBox(int rank, int nRanks)
-{
-    int nElements = 10;
-    std::vector<T> x(nElements);
-    std::iota(begin(x), end(x), 1);
-
-    std::vector<T> y = x;
-    std::vector<T> z = x;
-
-    for (auto& val : x)
-        val *= (rank + 1);
-
-    for (auto& val : y)
-        val *= (rank + 2);
-
-    for (auto& val : z)
-        val *= (rank + 3);
+    T val = rank + 1;
+    std::vector<T> x{-val, val};
+    std::vector<T> y{val, 2 * val};
+    std::vector<T> z{-val, -2 * val};
 
     Box<T> box = makeGlobalBox(begin(x), end(x), begin(y), begin(z), Box<T>{0, 1});
-    Box<T> refBox{1, T(nElements * nRanks), 2, T(nElements * (nRanks + 1)), 3, T(nElements * (nRanks + 2))};
 
-    EXPECT_EQ(box, refBox);
+    T rVal = numRanks;
+    EXPECT_EQ(box.xmin(), -rVal);
+    EXPECT_EQ(box.xmax(), rVal);
+    EXPECT_EQ(box.ymin(), T(1));
+    EXPECT_EQ(box.ymax(), 2 * rVal);
+    EXPECT_EQ(box.zmin(), -2 * rVal);
+    EXPECT_EQ(box.zmax(), T(-1));
 
     // PBC case
-    Box<T> pbcBox{0, 1, 0, 1, 0, 1, true, true, true};
-    Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
-
-    EXPECT_EQ(pbcBox, newPbcBox);
+    {
+        Box<T> pbcBox{0, 1, 0, 1, 0, 1, true, true, true};
+        Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
+        EXPECT_EQ(pbcBox, newPbcBox);
+    }
+    // partial PBC
+    {
+        Box<T> pbcBox{0, 1, 0, 1, 0, 1, false, true, true};
+        Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
+        Box<T> refBox{-rVal, rVal, 0, 1, 0, 1, false, true, true};
+        EXPECT_EQ(refBox, newPbcBox);
+    }
+    {
+        Box<T> pbcBox{0, 1, 0, 1, 0, 1, true, false, true};
+        Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
+        Box<T> refBox{0, 1, T(1), 2 * rVal, 0, 1, true, false, true};
+        EXPECT_EQ(refBox, newPbcBox);
+    }
+    {
+        Box<T> pbcBox{0, 1, 0, 1, 0, 1, true, true, false};
+        Box<T> newPbcBox = makeGlobalBox(begin(x), end(x), begin(y), begin(z), pbcBox);
+        Box<T> refBox{0, 1, 0, 1, -2 * rVal, T(-1), true, true, false};
+        EXPECT_EQ(refBox, newPbcBox);
+    }
 }
 
 TEST(GlobalBox, makeGlobalBox)
 {
-    int rank = 0, nRanks = 0;
+    int rank = 0, numRanks = 0;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
-    makeGlobalBox<float>(rank, nRanks);
-    makeGlobalBox<double>(rank, nRanks);
+    makeGlobalBox<float>(rank, numRanks);
+    makeGlobalBox<double>(rank, numRanks);
 }
