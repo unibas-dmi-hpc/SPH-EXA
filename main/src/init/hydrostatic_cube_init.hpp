@@ -93,7 +93,7 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
 std::map<std::string, double> HydrostaticCubeConstants()
 {
     return {{"r", 10.},
-            {"rDelta", 5.},
+            {"rDelta", 10.},
             {"mTotal", 1.},
             {"dim", 3},
             {"gamma", 5.0 / 3.0},
@@ -115,74 +115,67 @@ public:
     {
         using T = typename Dataset::RealType;
 
-        T r      = constants_.at("r");
-        T rDelta = constants_.at("rDelta");
-
-        T rhoInt = constants_.at("rhoInt");
-        T rhoExt = constants_.at("rhoExt");
-
-        T stepRatio = rhoInt / rhoExt;
-        T stepInt   = (2. * r) / cubeSide;
-        T stepExt   = stepInt * stepRatio;
-
-        size_t deltaSize = rDelta / stepExt;
-        size_t totalSide = cubeSide + (2. * deltaSize);
-
-        d.numParticlesGlobal = (totalSide * totalSide * totalSide);
-
+        size_t nIntPart = cubeSide * cubeSide * cubeSide;
+        d.numParticlesGlobal = nIntPart;
         auto [first, last] = partitionRange(d.numParticlesGlobal, rank, numRanks);
         resize(d, last - first);
 
-        internalCubeGrid(r, rDelta, stepInt, stepExt, cubeSide, deltaSize, first, last, d.x, d.y, d.z);
+        T r = constants_.at("r");
+        regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
+
+        T stepRatio = constants_.at("rhoInt") / constants_.at("rhoExt");
+        T stepInt   = (2. * r) / cubeSide;
+        T stepExt   = stepInt * stepRatio;
+
+        T      rDelta      = constants_.at("rDelta");
+        size_t extCubeSide = 1 + round( (2. * (r + rDelta)) / stepExt);
+        T      initR       = -(r + rDelta);
+
+        // Count additional particles
+        size_t nExtPart = 0;
+        for (size_t i = 0; i < extCubeSide; i++)
+        {
+            T lz = initR + (i * stepExt);
+            for (size_t j = 0; j < extCubeSide; j++)
+            {
+                T ly = initR + (j * stepExt);
+                for (size_t k = 0; k < extCubeSide; k++)
+                {
+                    T lx = initR + (k * stepExt);
+                    if ( (abs(lx) > r) || (abs(ly) > r) || (abs(lz) > r) ) nExtPart++;
+                }
+            }
+        }
+
+        // Reside ParticleData
+        d.numParticlesGlobal += nExtPart;
+        resize(d, d.numParticlesGlobal);
+
+        // Add external cube positions
+        size_t idx = nIntPart;
+        for (size_t i = 0; i < extCubeSide; i++)
+        {
+            T lz = initR + (i * stepExt);
+            for (size_t j = 0; j < extCubeSide; j++)
+            {
+                T ly = initR + (j * stepExt);
+                for (size_t k = 0; k < extCubeSide; k++)
+                {
+                    T lx = initR + (k * stepExt);
+                    if ( (abs(lx) > r) || (abs(ly) > r) || (abs(lz) > r) )
+                    {
+                        idx++;
+                        d.z[idx] = lz;
+                        d.y[idx] = ly;
+                        d.x[idx] = lx;
+                    }
+                }
+            }
+        }
 
         initHydrostaticCubeFields(d, constants_);
 
         return cstone::Box<T>(-(r + rDelta), r + rDelta, true);
-    }
-
-    const std::map<std::string, double>& constants() const override { return constants_; }
-};
-
-template<class Dataset>
-class HydrostaticCubeGlass : public ISimInitializer<Dataset>
-{
-    std::string                   glassBlock;
-    std::map<std::string, double> constants_;
-
-public:
-    HydrostaticCubeGlass(std::string initBlock)
-        : glassBlock(initBlock)
-    {
-        constants_ = HydrostaticCubeConstants();
-    }
-
-    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& d) const override
-    {
-        using KeyType = typename Dataset::KeyType;
-        using T       = typename Dataset::RealType;
-
-        std::vector<T> xBlock, yBlock, zBlock;
-        fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
-        size_t blockSize = xBlock.size();
-
-        size_t multiplicity = std::rint(cbrtNumPart / std::cbrt(blockSize));
-
-        T              r = constants_.at("r1");
-        cstone::Box<T> globalBox(-r, r, false);
-
-        auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
-        assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
-        cutSphere(r, d.x, d.y, d.z);
-
-        d.numParticlesGlobal = d.x.size();
-        MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, d.comm);
-
-        resize(d, d.x.size());
-
-        double totalVolume = 4. * M_PI / 3. * r * r * r;
-        initHydrostaticCubeFields(d, constants_);
-
-        return globalBox;
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }

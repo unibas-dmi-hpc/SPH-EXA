@@ -36,8 +36,6 @@
 #include "cstone/util/array.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
-#include <iostream>
-
 namespace sphexa
 {
 
@@ -98,93 +96,6 @@ void regularGrid(double r, size_t side, size_t first, size_t last, Vector& x, Ve
                 if (first <= lindex && lindex < last)
                 {
                     double lx = -r + (k * step);
-
-                    z[lindex - first] = lz;
-                    y[lindex - first] = ly;
-                    x[lindex - first] = lx;
-                }
-            }
-        }
-    }
-}
-
-
-/*! @brief create regular cubic grid centered on (0,0,0) with an internal cube and an external cube with different rho
- *
- * @tparam     Vector
- * @param[in]  r         half the internal cube side-length
- * @param[in]  rDelta    half the external delta cube side-length
- * @param[in]  stepInt   step in the internal part
- * @param[in]  stepExt   step in the external part
- * @param[in]  cubeSide  number of particles in the internal cube along each dimension
- * @param[in]  deltaSide number of particles in the internal cube along each dimension
- * @param[in]  first     index in [0, side^3] of first particle add to x,y,z
- * @param[in]  last      index in [first, side^3] of last particles to add to x,y,z
- * @param[out] x         output coordinates, length = last - first
- * @param[out] y
- * @param[out] z
- */
-template<class Vector>
-void internalCubeGrid(double r, double rDelta, double stepInt, double stepExt, size_t cubeSide, size_t deltaSide,
-        size_t first, size_t last, Vector& x, Vector& y, Vector& z)
-{
-    size_t side  = cubeSide + (2. * deltaSide);
-
-#pragma omp parallel for
-    for (size_t i = first / (side * side); i < last / (side * side) + 1; ++i)
-    {
-        double lz;
-        if (i < deltaSide)
-        {
-            lz = -(r + rDelta) + (i * stepExt);                          // i < -r
-        }
-        else if (i >= deltaSide && i <= deltaSide + cubeSide)
-        {
-            lz = -r + ((i - deltaSide) * stepInt);                         // r(i) >= -r && r(i) <= +r
-        }
-        else
-        {
-            lz = r + ((i - deltaSide - cubeSide) * stepExt);                 // r(i) > +r
-        }
-
-        std::cout << "i:" << i << ", lz=" << lz;
-
-        for (size_t j = 0; j < side; ++j)
-        {
-            double ly;
-            if (j < deltaSide)
-            {
-                ly = -(r + rDelta) + (j * stepExt);                      // j < -r
-            }
-            else if (j >= deltaSide && j <= deltaSide + cubeSide)
-            {
-                ly = -r + ((j - deltaSide) * stepInt);                     // r(j) >= -r && r(j) <= +r
-            }
-            else
-            {
-                ly = r + ((j - deltaSide - cubeSide) * stepExt);             // r(j) > +r
-            }
-
-            for (size_t k = 0; k < side; ++k)
-            {
-                size_t lindex = (i * side * side) + (j * side) + k;
-
-                if (first <= lindex && lindex < last)
-                {
-                    double lx;
-                    if (k < deltaSide)
-                    {
-                        lx = -(r + rDelta) + (k * stepExt);              // k < -r
-                    }
-                    else if (k >= deltaSide && k <= deltaSide + cubeSide)
-                    {
-                        lx = -r + ((k - deltaSide) * stepInt);             // r(k) >= -r && r(k) <= +r
-                    }
-                    else
-                    {
-                        lx = r + ((k - deltaSide - cubeSide) * stepExt);     // r(k) > +r
-                    }
-
 
                     z[lindex - first] = lz;
                     y[lindex - first] = ly;
