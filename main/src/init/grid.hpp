@@ -106,40 +106,40 @@ void regularGrid(double r, size_t side, size_t first, size_t last, Vector& x, Ve
     }
 }
 
+
 /*! @brief create regular cubic grid centered on (0,0,0) with an internal cube and an external cube with different rho
  *
  * @tparam     Vector
- * @param[in]  r      half the internal cube side-length
- * @param[in]  rDelta half the external delta cube side-length
- * @param[in]  rhoInt Density in the internal part
- * @param[in]  rhoExt Density in the external part
- * @param[in]  side   number of particles along each dimension
- * @param[in]  first  index in [0, side^3] of first particle add to x,y,z
- * @param[in]  last   index in [first, side^3] of last particles to add to x,y,z
- * @param[out] x      output coordinates, length = last - first
+ * @param[in]  r         half the internal cube side-length
+ * @param[in]  rDelta    half the external delta cube side-length
+ * @param[in]  stepInt   step in the internal part
+ * @param[in]  stepExt   step in the external part
+ * @param[in]  cubeSide  number of particles in the internal cube along each dimension
+ * @param[in]  deltaSide number of particles in the internal cube along each dimension
+ * @param[in]  first     index in [0, side^3] of first particle add to x,y,z
+ * @param[in]  last      index in [first, side^3] of last particles to add to x,y,z
+ * @param[out] x         output coordinates, length = last - first
  * @param[out] y
  * @param[out] z
  */
 template<class Vector>
-void internalCubeGrid(double r, double rDelta, double rhoInt, double rhoExt,
-        size_t side, size_t first, size_t last, Vector& x, Vector& y, Vector& z)
+void internalCubeGrid(double r, double rDelta, double stepInt, double stepExt, size_t cubeSide, size_t deltaSide,
+        size_t first, size_t last, Vector& x, Vector& y, Vector& z)
 {
-    double distInt   = 2. * r;
-    double distTotal = distInt + (2. * rDelta);
-
-    double rhoRatio = rhoInt / rhoExt;
-
-
-    double step = (2. * r) / side;
+    size_t side = cubeSide + (2. * deltaSide);
 
 #pragma omp parallel for
     for (size_t i = first / (side * side); i < last / (side * side) + 1; ++i)
     {
-        double lz = -r + (i * step);
+        double lz;
+
+        lz = -r + (i * stepInt);
 
         for (size_t j = 0; j < side; ++j)
         {
-            double ly = -r + (j * step);
+            double ly;
+
+            ly = -r + (j * stepInt);
 
             for (size_t k = 0; k < side; ++k)
             {
@@ -147,7 +147,9 @@ void internalCubeGrid(double r, double rDelta, double rhoInt, double rhoExt,
 
                 if (first <= lindex && lindex < last)
                 {
-                    double lx = -r + (k * step);
+                    double lx;
+
+                    lx = -r + (k * stepInt);
 
                     z[lindex - first] = lz;
                     y[lindex - first] = ly;

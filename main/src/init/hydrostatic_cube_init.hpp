@@ -108,18 +108,27 @@ public:
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cubeSide, Dataset& d) const override
     {
-        using T              = typename Dataset::RealType;
-        d.numParticlesGlobal = cubeSide * cubeSide * cubeSide;
+        using T = typename Dataset::RealType;
+
+        T r      = constants_.at("r")
+        T rDelta = constants_.at("rDelta");
+
+        T rhoInt = constants_.at("rhoInt");
+        T rhoExt = constants_.at("rhoExt");
+
+        T stepRatio = rhoInt / rhoExt
+        T stepInt   = (2. * r) / cubeSide;
+        T stepExt   = stepInt * stepRatio;
+
+        size_t deltaSize = rDelta / stepExt;
+        size_t totalSide = cubeSide + (2. * deltaSize);
+
+        d.numParticlesGlobal = (totalSide * totalSide * totalSide);
 
         auto [first, last] = partitionRange(d.numParticlesGlobal, rank, numRanks);
         resize(d, last - first);
 
-        T r      = constants_.at("r")
-        T rDelta = constants_.at("rDelta");
-        T rhoInt = constants_.at("rhoInt");
-        T rhoExt = constants_.at("rhoExt");
-
-        internalCubeGrid(r, rDelta, rhoInt, rhoExt, cubeSide, first, last, d.x, d.y, d.z);
+        internalCubeGrid(r, rDelta, stepInt, stepExt, cubeSide, deltaSize, first, last, d.x, d.y, d.z);
 
         initHydrostaticCubeFields(d, constants_);
 
