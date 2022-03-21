@@ -110,13 +110,13 @@ public:
     {
         using T = typename Dataset::RealType;
 
-        T r      = constants_.at("r")
+        T r      = constants_.at("r");
         T rDelta = constants_.at("rDelta");
 
         T rhoInt = constants_.at("rhoInt");
         T rhoExt = constants_.at("rhoExt");
 
-        T stepRatio = rhoInt / rhoExt
+        T stepRatio = rhoInt / rhoExt;
         T stepInt   = (2. * r) / cubeSide;
         T stepExt   = stepInt * stepRatio;
 
@@ -175,7 +175,7 @@ public:
         resize(d, d.x.size());
 
         double totalVolume = 4. * M_PI / 3. * r * r * r;
-        initHydrostaticCubeFields(d, totalVolume, constants_);
+        initHydrostaticCubeFields(d, constants_);
 
         return globalBox;
     }
