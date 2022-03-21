@@ -50,10 +50,9 @@ void initHydrostaticCubeFields(Dataset& d, double totalVolume, const std::map<st
     double hInit         = std::cbrt(3.0 / (4 * M_PI) * ng0 * totalVolume / d.numParticlesGlobal) * 0.5;
     double mPart         = constants.at("mTotal") / d.numParticlesGlobal;
     double firstTimeStep = constants.at("firstTimeStep");
-    double rLow          = constants.at("rLow") * constants.at("r1");
-    double rHigh         = constants.at("rHigh") * constants.at("r1");
-    double uLow          = constants.at("pIsobaric")/(constants.at("gamma")-1.)/constants.at("rhoLow");
-    double uHigh         = constants.at("pIsobaric")/(constants.at("gamma")-1.)/constants.at("rhoHigh");
+    double r             = constants.at("r");
+    double uExt          = constants.at("pIsobaric")/(constants.at("gamma")-1.)/constants.at("rhoExt");
+    double uInt          = constants.at("pIsobaric")/(constants.at("gamma")-1.)/constants.at("rhoInt");
 
     std::fill(d.m.begin(), d.m.end(), mPart);
     std::fill(d.h.begin(), d.h.end(), hInit);
@@ -67,9 +66,9 @@ void initHydrostaticCubeFields(Dataset& d, double totalVolume, const std::map<st
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
-        bool outside = d.x[i] < rLow || d.y[i] < rLow || d.z[i] < rLow || d.x[i] > rHigh || d.y[i] > rHigh || d.z[i] > rHigh;
+        bool ext = d.x[i] < r || d.y[i] < r || d.z[i] < r || d.x[i] > r || d.y[i] > r || d.z[i] > r;
 
-        d.u[i] = outside ? uLow : uHigh;
+        d.u[i] = ext ? uExt : uInt;
 
         d.vx[i] = 0.;
         d.vy[i] = 0.;
@@ -83,15 +82,13 @@ void initHydrostaticCubeFields(Dataset& d, double totalVolume, const std::map<st
 
 std::map<std::string, double> HydrostaticCubeConstants()
 {
-    return {{"r0", 0},
-            {"r1", 1.},
+    return {{"r", 0.5},
+            {"rDelta", 0.25},
             {"mTotal", 1.},
             {"dim", 3},
             {"gamma", 5.0 / 3.0},
-            {"rLow", 0.25},
-            {"rHigh", 0.75},
-            {"rhoLow", 1.},
-            {"rhoHigh", 4.},
+            {"rhoExt", 1.},
+            {"rhoInt", 4.},
             {"pIsobaric", 2.5},     // pIsobaric = (gamma − 1)*rho*u
             {"firstTimeStep", 1e-4}};
 }
