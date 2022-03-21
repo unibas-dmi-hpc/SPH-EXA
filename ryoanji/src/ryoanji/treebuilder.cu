@@ -236,4 +236,4 @@ template int TreeBuilder<uint64_t>::update(float*, float*, float*, size_t, const
 template int TreeBuilder<uint32_t>::update(double*, double*, double*, size_t, const cstone::Box<double>&);
 template int TreeBuilder<uint64_t>::update(double*, double*, double*, size_t, const cstone::Box<double>&);
 
-} //namespace ryoanji
+} // namespace ryoanji

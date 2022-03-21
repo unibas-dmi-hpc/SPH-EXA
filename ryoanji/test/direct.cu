@@ -43,7 +43,7 @@ using namespace ryoanji;
 
 TEST(DirectSum, MatchCpu)
 {
-    using T = double;
+    using T       = double;
     int npOnEdge  = 10;
     int numBodies = npOnEdge * npOnEdge * npOnEdge;
 
@@ -74,7 +74,7 @@ TEST(DirectSum, MatchCpu)
     thrust::host_vector<T> h_p = p, h_ax = ax, h_ay = ay, h_az = az;
 
     std::vector<T> h(numBodies, 0);
-    T G = 1.0;
+    T              G = 1.0;
 
     std::vector<T> refP(numBodies), refAx(numBodies), refAy(numBodies), refAz(numBodies);
     directSum(x.data(),

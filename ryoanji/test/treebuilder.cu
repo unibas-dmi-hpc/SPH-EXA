@@ -103,8 +103,7 @@ void checkUpsweep(const cstone::Box<T>& box, const thrust::host_vector<CellData>
             {
                 cellMass += m[j];
 
-                uint64_t bodyKey =
-                    cstone::sfc3D<cstone::SfcKind<uint64_t>>(x[j], y[j], z[j], box);
+                uint64_t bodyKey = cstone::sfc3D<cstone::SfcKind<uint64_t>>(x[j], y[j], z[j], box);
                 // check that the referenced body really lies inside the cell
                 // this is true if the keys, truncated to the first key-in-cell match
                 EXPECT_EQ(cellKey, cstone::enclosingBoxCode(bodyKey, sources[i].level()));

@@ -66,27 +66,27 @@ TEST(Multipole, P2M)
 
     EXPECT_NEAR(sphericalOctopole[0], cartesianQuadrupole[Cqi::mass], 1e-6);
 
-    EXPECT_NEAR(centerMass[0], csCenter[0] , 1e-6);
-    EXPECT_NEAR(centerMass[1], csCenter[1] , 1e-6);
-    EXPECT_NEAR(centerMass[2], csCenter[2] , 1e-6);
+    EXPECT_NEAR(centerMass[0], csCenter[0], 1e-6);
+    EXPECT_NEAR(centerMass[1], csCenter[1], 1e-6);
+    EXPECT_NEAR(centerMass[2], csCenter[2], 1e-6);
     EXPECT_NEAR(centerMass[3], cartesianQuadrupole[Cqi::mass], 1e-6);
 
     // compare M2P results on a test target
     {
-        double eps2 = 0;
+        double       eps2 = 0;
         Vec3<double> testTarget{-8, -8, -8};
 
         Vec4<double> acc{0, 0, 0, 0};
         acc = ryoanji::M2P(acc, testTarget, util::makeVec3(centerMass), sphericalOctopole, eps2);
-        //printf("test acceleration: %f %f %f %f\n", acc[0], acc[1], acc[2], acc[3]);
+        // printf("test acceleration: %f %f %f %f\n", acc[0], acc[1], acc[2], acc[3]);
 
         // cstone is less precise
-        //float ax = 0;
-        //float ay = 0;
-        //float az = 0;
-        //cstone::multipole2particle(
+        // float ax = 0;
+        // float ay = 0;
+        // float az = 0;
+        // cstone::multipole2particle(
         //    testTarget[0], testTarget[1], testTarget[2], cstoneMultipole, eps2, &ax, &ay, &az);
-        //printf("cstone test acceleration: %f %f %f\n", ax, ay, az);
+        // printf("cstone test acceleration: %f %f %f\n", ax, ay, az);
 
         auto [axd, ayd, azd, pot] = particle2Particle(double(testTarget[0]),
                                                       double(testTarget[1]),
@@ -107,4 +107,3 @@ TEST(Multipole, P2M)
         EXPECT_NEAR(acc[3], azd, 1e-5);
     }
 }
-
