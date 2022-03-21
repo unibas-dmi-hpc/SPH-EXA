@@ -94,8 +94,9 @@ TEST(DirectSum, MatchCpu)
         Vec3<T> ref   = {refAx[i], refAy[i], refAz[i]};
         Vec3<T> probe = {h_ax[i], h_ay[i], h_az[i]};
 
-        EXPECT_NEAR(std::sqrt(norm2(ref - probe) / norm2(probe)), 0, 1e-6);
-        // the potential
+        EXPECT_NEAR(h_ax[i], refAx[i], 1e-6);
+        EXPECT_NEAR(h_ay[i], refAy[i], 1e-6);
+        EXPECT_NEAR(h_az[i], refAz[i], 1e-6);
         EXPECT_NEAR(refP[i], h_p[i], 1e-6);
 
         // printf("%f %f %f\n", ref[1], ref[2], ref[3]);

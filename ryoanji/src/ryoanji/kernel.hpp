@@ -508,8 +508,8 @@ HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xout, 
  * @param EPS2
  * @return        input acceleration plus contribution from this call
  */
-template<class T>
-HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> P2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, T q_j, T EPS2)
+template<class Ta, class T>
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> P2P(Vec4<Ta> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, T q_j, T EPS2)
 {
     Vec3<T> dX    = pos_j - pos_i;
     T       R2    = norm2(dX) + EPS2;
