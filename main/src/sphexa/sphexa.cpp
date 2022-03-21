@@ -150,7 +150,7 @@ void printHelp(char* name, int rank)
         printf("%s [OPTIONS]\n", name);
         printf("\nWhere possible options are:\n\n");
 
-        printf("\t--init \t\t Test case selection (sedov, noh) or an HDF5 file with initial conditions\n");
+        printf("\t--init \t\t Test case selection (sedov, noh, hydrostatic-cube) or an HDF5 file with initial conditions\n");
         printf("\t-n NUM \t\t Initialize data with (approx when using glass blocks) NUM^3 global particles [50]\n");
         printf("\t--glass \t Use glass block at tests\n\n");
 

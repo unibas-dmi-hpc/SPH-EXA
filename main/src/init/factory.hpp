@@ -40,6 +40,7 @@
 #include "file_init.hpp"
 #include "noh_init.hpp"
 #include "sedov_init.hpp"
+#include "hydrostatic_cube_init.hpp"
 
 namespace sphexa
 {
@@ -61,6 +62,14 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
         else
         {
             return std::make_unique<NohGlassSphere<Dataset>>(glassBlock);
+        }
+    }
+    if (testCase == "hydrostatic-cube")
+    {
+        if (glassBlock.empty()) { return std::make_unique<HydrostaticCubeGrid<Dataset>>(); }
+        else
+        {
+            return std::make_unique<HydrostaticCubeGlass<Dataset>>(glassBlock);
         }
     }
     if (testCase == "evrard")
