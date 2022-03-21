@@ -25,18 +25,22 @@ variables:
     #
     - if [ "$VARIANT" = "cuda" ]; then
         echo "## apt nvcc/11.6 (+gcc9+clang12+make+thrust)";
-        apt install -y --no-install-recommends wget vim-tiny file cuda-nvcc-11-6 clang-12 libomp-12-dev > /dev/null;
+        apt install -y --no-install-recommends wget vim-tiny file cuda-nvcc-11-6 clang-12 libomp-12-dev python3-pip > /dev/null;
       fi
     - if [ "$VARIANT" = "hip" ]; then
         echo "## apt hipcc/4.5 (+rocthrust-dev +parallel)";
-        apt install -y --no-install-recommends wget vim-tiny file rocthrust-dev time parallel > /dev/null;
+        apt install -y --no-install-recommends wget vim-tiny file rocthrust-dev time parallel python3-pip > /dev/null;
       fi
     - apt clean autoremove > /dev/null
     #
     - cd /usr/local/games
     - wget --quiet $JG_DEPS_PATH/c/CMake/cmake-3.22.2-linux-x86_64.tar.gz
     - wget --quiet $JG_DEPS_PATH/m/MPICH/mpich-3.1.4.tar.gz
+    - wget --quiet $JG_DEPS_PATH/h/HDF5/hdf5-1.13.0.tar.bz2
     - wget --quiet $JG_DEPS_PATH/g/googletest/release-1.11.0.tar.gz
+    - wget --quiet $JG_DEPS_PATH/in/glass.h5
+    - wget --quiet https://gist.githubusercontent.com/jgphpc/29d28747d672d7ac5d63d90cce51306b/raw/4833e4d4dfd9291228da6fc99a80c3d4b6e850e8/rfm.py
+      # TODO: - wget --quiet $JG_DEPS_PATH/in/rfm.py
     #
     - date; echo "## cmake:"
     #- cd /usr/local/games
@@ -44,11 +48,6 @@ variables:
     - cp -a cmake-3.22.2-linux-x86_64/bin/* /usr/bin/
     - cp -a cmake-3.22.2-linux-x86_64/share/cmake-3.22 /usr/share/cmake-3.22
     - rm -fr cmake-3.22.2-linux-x86_64.tar.gz cmake-3.22.2-linux-x86_64/bin/cmake-gui
-    #
-    - date; echo "## googletest:"
-    #- cd /usr/local/games
-    - tar xf release-1.11.0.tar.gz
-    - rm -f release-1.11.0.tar.gz
     #
     - date; echo "## mpich/3.1.4:"
     #- cd /usr/local/games
@@ -59,6 +58,47 @@ variables:
     - cd /usr/local/games
     - rm -fr mpich-3.1.4 mpich-3.1.4.tar.gz
     - ldconfig
+    #
+    # TODO: ftp
+    - date; echo "## hdf5"
+    - wget https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.13/hdf5-1.13.0/src/hdf5-1.13.0.tar.bz2
+    #- cd /usr/local/games
+    - tar xf hdf5-1.13.0.tar.bz2
+    - cmake 
+      -DCMAKE_C_COMPILER:STRING=mpicc 
+      -DONLY_SHARED_LIBS:BOOL=ON 
+      -DHDF5_BUILD_HL_LIB:BOOL=ON 
+      -DHDF5_ENABLE_Z_LIB_SUPPORT:BOOL=ON 
+      -DBUILD_SHARED_LIBS:BOOL=ON 
+      -DHDF5_ENABLE_PARALLEL:BOOL=ON 
+      -DHDF5_BUILD_TOOLS:BOOL=OFF 
+      -DBUILD_STATIC_LIBS=OFF 
+      -DHDF5_BUILD_EXAMPLES:BOOL=OFF 
+      -DBUILD_TESTING:BOOL=OFF 
+      -DHDF5_ENABLE_SZIP_SUPPORT:BOOL=OFF 
+      -DHDF5_ENABLE_SZIP_ENCODING:BOOL=OFF 
+      -DHDF5_ENABLE_THREADSAFE:BOOL=OFF 
+      -DHDF5_BUILD_CPP_LIB:BOOL=OFF 
+      -DHDF5_BUILD_FORTRAN:BOOL=OFF 
+      -DHDF5_BUILD_JAVA:BOOL=OFF 
+      -S hdf5-1.13.0 -B build > /dev/null
+    - cd build
+    - make --quiet -j `grep processor /proc/cpuinfo | wc -l` install > /dev/null
+    - export CMAKE_PREFIX_PATH=/usr/local/HDF_Group/HDF5/1.13.0/share/cmake:$CMAKE_PREFIX_PATH
+    - cd /usr/local/games
+    - rm -fr hdf5-1.13.0.tar.bz2 hdf5-1.13.0 build
+    - ln -s /usr/lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so
+    - ln -s /usr/lib/x86_64-linux-gnu/libpthread.so.0 /usr/lib/x86_64-linux-gnu/libpthread.so
+    #
+    - date; echo "## googletest:"
+    #- cd /usr/local/games
+    - tar xf release-1.11.0.tar.gz
+    - rm -f release-1.11.0.tar.gz
+    #
+    - date; echo "## analytical_solutions + reframe:"
+    #-apt install python3-pip
+    - pip install ReFrame-HPC h5py matplotlib
+    #
     - date; echo "## done"
 #}}}
 #{{{ .sph-base-skip
@@ -107,6 +147,7 @@ variables:
     - cd build
     - make help
     - make -j `grep processor /proc/cpuinfo | wc -l` install
+    # - make sedov_solution # ./main/src/analytical_solutions/sedov_solution/sedov_solution
     - date; echo "## done"
 #}}}
 #{{{ .sph-test
@@ -157,40 +198,90 @@ variables:
       fi
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "sphexa_gpu" ]; then
         echo "sedov:gpu";
-        /usr/local/bin/sphexa-cuda --init sedov -s 1 -n 50 ;
+        /usr/local/bin/sphexa-cuda --init sedov -s 200 -n 50 -w 200 --quiet |grep -v "Focus Tree Nodes:";
+        mkdir -p /usr/local/games/src;
+        python3 /usr/local/bin/compare_solutions.py -s 200 ./dump_sedov.h5part > /usr/local/games/src/sedov.rpt;
+        #
         echo "noh:gpu";
-        /usr/local/bin/sphexa-cuda --init noh -s 1 -n 50 ;
+        /usr/local/bin/sphexa-cuda --init noh -s 200 -n 50 -w 200 --quiet |grep -v "Focus Tree Nodes:";
+        mkdir -p /usr/local/games/src;
+        python3 /usr/local/bin/compare_solutions.py -s 200 ./dump_noh.h5part > /usr/local/games/src/noh.rpt;
+        #
+        echo "evrard:gpu";
+        /usr/local/bin/sphexa-cuda --init evrard --glass block.h5 -s 10 -n 50 -w 10 --quiet |grep -v "Focus Tree Nodes:";
+        # TODO: analytical solution
+        #
+        reframe -c /usr/local/games/rfm.py -r
+
       fi
+#}}}
+
+#{{{ NEW
+# git clone https://github.com/unibas-dmi-hpc/SPH-EXA
+# cmake -S SPH-EXA -B build -DCMAKE_BUILD_TYPE=Debug
+# cd build
+# make -j `grep processor /proc/cpuinfo | wc -l` sphexa-cuda
+# make sedov_solution # ./main/src/analytical_solutions/sedov_solution/sedov_solution
+# ../SPH-EXA/main/src/analytical_solutions/compare_solutions.py --help
+
+
+# srun -Acsstaff -Cgpu -n1 -t10 main/src/sphexa/sphexa-cuda --init sedov -s 200 -n 50 -w 200 --quiet
+# dump_sedov.h5part
+# ln -s ./main/src/analytical_solutions/sedov_solution/sedov_solution
+# ../SPH-EXA/main/src/analytical_solutions/compare_solutions.py -s 200 ./dump_sedov.h5part
+# Created solution file: 'sedov_solution_0.067152.dat
+# Loaded 125000 particles
+# Density L1 error 0.1572653736216059
+# Pressure L1 error 0.9210384183920723
+# Velocity L1 error 0.9231783805041059
+# root@850927d8981c:/usr/local/games/build# echo $?
+# 0
+
+
+# file dump_noh.h5part
+# dump_noh.h5part: Hierarchical Data Format (version 5) data
+#
+# time -p srun -Acsstaff -Cgpu -n1 -t10 main/src/sphexa/sphexa-cuda --init noh -s 200 -n 50 -w 200 --quiet |grep -v "Focus Tree Nodes:"
+# dom: export LD_LIBRARY_PATH=$CRAY_LD_LIBRARY_PATH:$LD_LIBRARY_PATH
+# ../SPH-EXA/main/src/analytical_solutions/compare_noh.py -s 200 dump_noh.h5part > noh.rpt
+# Loaded 125000 particles
+# Density L1 error 1.0957319601866014
+# Pressure L1 error 0.4584713613254362
+# Velocity L1 error 0.04655319764623379
+# Energy L1 error 0.029431896561347214
+#
+# srun -Acsstaff -Cgpu -n1 -t10 main/src/sphexa/sphexa-cuda --init evrard --glass block.h5 -s 200 -n 50 -w 200 --quiet
+# no analytical solution
 #}}}
 
 #{{{ nvidia/cuda:11.6.0 --> sph-exa_base:cuda
 #{{{ BUILD base image:
-# sph:base:cuda:
-#   # notice the final ':'
-#   stage: SPHbase
-#   extends: .sph-base
-#   image: nvidia/cuda:11.6.0-base-ubuntu20.04
-#   tags: 
-#     - $jfrogtag
-#   script:
-#     - nvcc --version
-#   variables:
-#     VARIANT: 'cuda'
-#     PERSIST_IMAGE_NAME: 'sph-exa_base:cuda'
-#}}}
-#{{{ SKIP base image:
 sph:base:cuda:
   # notice the final ':'
   stage: SPHbase
-  extends: .sph-base-skip
+  extends: .sph-base
   image: nvidia/cuda:11.6.0-base-ubuntu20.04
   tags: 
     - $jfrogtag
   script:
-    - echo "skipping build of base image"
+    - nvcc --version
   variables:
     VARIANT: 'cuda'
-    PERSIST_IMAGE_NAME: 'sph-exa_base:skip'
+    PERSIST_IMAGE_NAME: 'sph-exa_base:cuda'
+#}}}
+#{{{ SKIP base image:
+# sph:base:cuda:
+#   # notice the final ':'
+#   stage: SPHbase
+#   extends: .sph-base-skip
+#   image: nvidia/cuda:11.6.0-base-ubuntu20.04
+#   tags: 
+#     - $jfrogtag
+#   script:
+#     - echo "skipping build of base image"
+#   variables:
+#     VARIANT: 'cuda'
+#     PERSIST_IMAGE_NAME: 'sph-exa_base:skip'
 #}}}
 #}}}
 #{{{ nvidia/cuda:11.6.0 --> sph-exa_base:cuda --> sph-exa_install:cuda
@@ -214,91 +305,93 @@ sph:install:cuda:
     # TODO: INSITU
     # TODO: ./sphexa --init evrard_65k.h5 --grav
 #}}}
-#{{{ sph:test:cuda:1:
-sph:test:cuda:1:
-  stage: SPHtest
-  extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
-  needs: ['sph:install:cuda']
-  script:
-    - date
-  variables:
-    VARIANT: 'cuda'
-    RUN_VARIANT: '1'
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 1
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
-#}}}
-#{{{ sph:test:cuda:2:
-sph:test:cuda:2:
-  stage: SPHtest
-  extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
-  needs: ['sph:install:cuda']
-  script:
-    - date
-  variables:
-    VARIANT: 'cuda'
-    RUN_VARIANT: '2'
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 2
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-#}}}
-#{{{ sph:test:cuda:5:
-sph:test:cuda:5:
-  stage: SPHtest
-  extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
-  needs: ['sph:install:cuda']
-  script:
-    - date
-  variables:
-    VARIANT: 'cuda'
-    RUN_VARIANT: '5'
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 5
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # OMP_NUM_THREADS: 2
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-#}}}
-#{{{ sph:test:cuda:p100:
-sph:test:cuda:p100:
-  stage: SPHtest
-  extends: .sph-test
-  image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
-  needs: ['sph:install:cuda']
-  #needs: ['build:ubu:gnu']
-  script:
-    - date
-  variables:
-    VARIANT: 'cuda'
-    RUN_VARIANT: 'p100'
-    PULL_IMAGE: 'YES'
-    CSCS_REGISTRY_LOGIN: 'YES'
-    SLURM_PARTITION: cscsci
-    SLURM_JOB_NUM_NODES: 1
-    SLURM_NTASKS: 1
-    SLURM_CONSTRAINT: 'gpu'
-    USE_MPI: 'YES'
-    # SLURM_TIMELIMIT=15:00
-    # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
-#}}}
+#  
+#  #{{{ sph:test:cuda:1:
+#  sph:test:cuda:1:
+#    stage: SPHtest
+#    extends: .sph-test
+#    image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+#    needs: ['sph:install:cuda']
+#    script:
+#      - date
+#    variables:
+#      VARIANT: 'cuda'
+#      RUN_VARIANT: '1'
+#      PULL_IMAGE: 'YES'
+#      CSCS_REGISTRY_LOGIN: 'YES'
+#      SLURM_PARTITION: cscsci
+#      SLURM_JOB_NUM_NODES: 1
+#      SLURM_NTASKS: 1
+#      SLURM_CONSTRAINT: 'gpu'
+#      USE_MPI: 'YES'
+#      # SLURM_TIMELIMIT=15:00
+#  #}}}
+#  #{{{ sph:test:cuda:2:
+#  sph:test:cuda:2:
+#    stage: SPHtest
+#    extends: .sph-test
+#    image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+#    needs: ['sph:install:cuda']
+#    script:
+#      - date
+#    variables:
+#      VARIANT: 'cuda'
+#      RUN_VARIANT: '2'
+#      PULL_IMAGE: 'YES'
+#      CSCS_REGISTRY_LOGIN: 'YES'
+#      SLURM_PARTITION: cscsci
+#      SLURM_JOB_NUM_NODES: 1
+#      SLURM_NTASKS: 2
+#      SLURM_CONSTRAINT: 'gpu'
+#      USE_MPI: 'YES'
+#      # SLURM_TIMELIMIT=15:00
+#      # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+#  #}}}
+#  #{{{ sph:test:cuda:5:
+#  sph:test:cuda:5:
+#    stage: SPHtest
+#    extends: .sph-test
+#    image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+#    needs: ['sph:install:cuda']
+#    script:
+#      - date
+#    variables:
+#      VARIANT: 'cuda'
+#      RUN_VARIANT: '5'
+#      PULL_IMAGE: 'YES'
+#      CSCS_REGISTRY_LOGIN: 'YES'
+#      SLURM_PARTITION: cscsci
+#      SLURM_JOB_NUM_NODES: 1
+#      SLURM_NTASKS: 5
+#      SLURM_CONSTRAINT: 'gpu'
+#      USE_MPI: 'YES'
+#      # OMP_NUM_THREADS: 2
+#      # SLURM_TIMELIMIT=15:00
+#      # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+#  #}}}
+#  #{{{ sph:test:cuda:p100:
+#  sph:test:cuda:p100:
+#    stage: SPHtest
+#    extends: .sph-test
+#    image: art.cscs.ch/contbuild/testing/anfink/sph-exa_install:cuda
+#    needs: ['sph:install:cuda']
+#    #needs: ['build:ubu:gnu']
+#    script:
+#      - date
+#    variables:
+#      VARIANT: 'cuda'
+#      RUN_VARIANT: 'p100'
+#      PULL_IMAGE: 'YES'
+#      CSCS_REGISTRY_LOGIN: 'YES'
+#      SLURM_PARTITION: cscsci
+#      SLURM_JOB_NUM_NODES: 1
+#      SLURM_NTASKS: 1
+#      SLURM_CONSTRAINT: 'gpu'
+#      USE_MPI: 'YES'
+#      # SLURM_TIMELIMIT=15:00
+#      # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
+#  #}}}
+#  
 #{{{ sph:test:cuda:sphexa:
 sph:test:cuda:sphexa:cpu:
   stage: SPHtest
@@ -347,7 +440,7 @@ sph:test:cuda:sphexa:gpu:
 # G bin/sphexa-cuda <-- sedov-cuda
 # N bin/sedov_solution <-- TODO
 #12 bin/sphexa  <-- sedov
-#   bin/evrard  <-- (needs input file)
+#   bin/compare_solutions.py
 # -------------------------------------
 # ./sphexa --init sedov -s0 -n50
 # ./sphexa --init noh
