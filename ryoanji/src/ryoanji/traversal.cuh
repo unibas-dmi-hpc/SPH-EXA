@@ -73,8 +73,8 @@ __host__ __device__ __forceinline__ bool applyMAC(Vec3<T> sourceCenter, T MAC, C
 
 //! @brief apply M2P kernel for WarpSize different multipoles to the warp-owned target bodies
 template<class T, class MType>
-__device__ void approxAcc(Vec4<T> acc_i[TravConfig::nwt], const Vec3<T> pos_i[TravConfig::nwt], const int      cellIdx,
-                          const Vec4<T>* __restrict__ srcCenter, const MType* __restrict__ Multipoles, const T EPS2,
+__device__ void approxAcc(Vec4<T> acc_i[TravConfig::nwt], const Vec3<T> pos_i[TravConfig::nwt], const int cellIdx,
+                          const Vec4<T>* __restrict__ srcCenter, const MType* __restrict__ Multipoles,
                           volatile int* warpSpace)
 {
     constexpr int termSize = MType{}.size();
@@ -100,7 +100,7 @@ __device__ void approxAcc(Vec4<T> acc_i[TravConfig::nwt], const Vec3<T> pos_i[Tr
         #pragma unroll
         for (int k = 0; k < TravConfig::nwt; k++)
         {
-            acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(MType*)sm_Multipole, EPS2);
+            acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(MType*)sm_Multipole);
         }
     }
 }
@@ -210,7 +210,7 @@ __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec3<T> pos_i[TravConfig::nw
         if (apxFillLevel >= GpuConfig::warpSize) // If queue is larger than warp size,
         {
             // Call M2P kernel
-            approxAcc(acc_i, pos_i, approxQueue, sourceCenter, Multipoles, EPS2, tempQueue);
+            approxAcc(acc_i, pos_i, approxQueue, sourceCenter, Multipoles, tempQueue);
             apxFillLevel -= GpuConfig::warpSize;
             // pull down remaining source cell indices into now empty approxQueue
             approxQueue = shflDownSync(sourceQueue, numKeepWarp - apxFillLevel);
@@ -279,7 +279,7 @@ __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec3<T> pos_i[TravConfig::nw
     if (apxFillLevel > 0) // If there are leftover approx cells
     {
         // Call M2P kernel
-        approxAcc(acc_i, pos_i, laneIdx < apxFillLevel ? approxQueue : -1, sourceCenter, Multipoles, EPS2, tempQueue);
+        approxAcc(acc_i, pos_i, laneIdx < apxFillLevel ? approxQueue : -1, sourceCenter, Multipoles, tempQueue);
 
         m2pCounter += apxFillLevel;
     }

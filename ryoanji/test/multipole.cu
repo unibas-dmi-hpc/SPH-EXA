@@ -73,11 +73,10 @@ TEST(Multipole, P2M)
 
     // compare M2P results on a test target
     {
-        double       eps2 = 0;
         Vec3<double> testTarget{-8, -8, -8};
 
         Vec4<double> acc{0, 0, 0, 0};
-        acc = ryoanji::M2P(acc, testTarget, util::makeVec3(centerMass), sphericalOctopole, eps2);
+        acc = ryoanji::M2P(acc, testTarget, util::makeVec3(centerMass), sphericalOctopole);
         // printf("test acceleration: %f %f %f %f\n", acc[0], acc[1], acc[2], acc[3]);
 
         // cstone is less precise

@@ -561,12 +561,12 @@ HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> P2P(Vec4<Ta> acc, const Vec3<T>& pos_i, c
  * @return        input acceleration plus contribution from this call
  */
 template<class T, class MType>
-HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> M2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, MType& M, T EPS2)
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> M2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, MType& M)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
 
     Vec3<T> dX    = pos_i - pos_j;
-    T       R2    = norm2(dX) + EPS2;
+    T       R2    = norm2(dX);
     T       invR  = inverseSquareRoot(R2);
     T       invR2 = invR * invR;
 
