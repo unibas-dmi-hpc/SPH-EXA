@@ -50,6 +50,10 @@ void initHydrostaticCubeFields(Dataset& d, double totalVolume, const std::map<st
     double hInit         = std::cbrt(3.0 / (4 * M_PI) * ng0 * totalVolume / d.numParticlesGlobal) * 0.5;
     double mPart         = constants.at("mTotal") / d.numParticlesGlobal;
     double firstTimeStep = constants.at("firstTimeStep");
+    double rLow          = constants.at("rLow") * constants.at("r1");
+    double rHigh         = constants.at("rHigh") * constants.at("r1");
+    double uLow          = constants.at("pIsobaric")/(constants.at("gamma")-1.)/constants.at("rhoLow");
+    double uHigh         = constants.at("pIsobaric")/(constants.at("gamma")-1.)/constants.at("rhoHigh");
 
     std::fill(d.m.begin(), d.m.end(), mPart);
     std::fill(d.h.begin(), d.h.end(), hInit);
@@ -63,16 +67,9 @@ void initHydrostaticCubeFields(Dataset& d, double totalVolume, const std::map<st
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
-        if (   d.x[i] < 0.25 * constants.at("r1") || d.x[i] > 0.75 * constants.at("r1")
-            || d.y[i] < 0.25 * constants.at("r1") || d.y[i] > 0.75 * constants.at("r1")
-            || d.z[i] < 0.25 * constants.at("r1") || d.z[i] > 0.75 * constants.at("r1"))
-        {
-            d.u[i] = constants.at("pIsobaric")/(constants.at("gamma")-1.)/constants.at("rho0");
-        }
-        else
-        {
-            d.u[i] = constants.at("pIsobaric")/(constants.at("gamma")-1.)/constants.at("rho1");
-        }
+        bool outside = d.x[i] < rLow || d.y[i] < rLow || d.z[i] < rLow || d.x[i] > rHigh || d.y[i] > rHigh || d.z[i] > rHigh;
+
+        d.u[i] = outside ? uLow : uHigh;
 
         d.vx[i] = 0.;
         d.vy[i] = 0.;
@@ -91,8 +88,10 @@ std::map<std::string, double> HydrostaticCubeConstants()
             {"mTotal", 1.},
             {"dim", 3},
             {"gamma", 5.0 / 3.0},
-            {"rho0", 1.},
-            {"rho1", 4.},
+            {"rLow", 0.25},
+            {"rHigh", 0.75},
+            {"rhoLow", 1.},
+            {"rhoHigh", 4.},
             {"pIsobaric", 2.5},     // pIsobaric = (gamma − 1)*rho*u
             {"firstTimeStep", 1e-4}};
 }
