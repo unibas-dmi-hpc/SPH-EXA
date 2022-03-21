@@ -126,20 +126,40 @@ template<class Vector>
 void internalCubeGrid(double r, double rDelta, double stepInt, double stepExt, size_t cubeSide, size_t deltaSide,
         size_t first, size_t last, Vector& x, Vector& y, Vector& z)
 {
-    size_t side = cubeSide + (2. * deltaSide);
+    size_t side  = cubeSide + (2. * deltaSide);
 
 #pragma omp parallel for
     for (size_t i = first / (side * side); i < last / (side * side) + 1; ++i)
     {
         double lz;
-
-        lz = -r + (i * stepInt);
+        if (i < deltaSide)
+        {
+            lz = -(r + rDelta) + (i * stepExt);                          // i < -r
+        }
+        else if (i >= deltaSide && i <= deltaSide)
+        {
+            lz = -r + ((i-deltaSide) * stepInt);                         // r(i) >= -r && r(i) <= +r
+        }
+        else
+        {
+            lz = r + ((i-deltaSide-cubeSide) * stepExt);                 // r(i) > +r
+        }
 
         for (size_t j = 0; j < side; ++j)
         {
             double ly;
-
-            ly = -r + (j * stepInt);
+            if (j < deltaSide)
+            {
+                ly = -(r + rDelta) + (j * stepExt);                      // j < -r
+            }
+            else if (j >= deltaSide && j <= deltaSide)
+            {
+                ly = -r + ((j-deltaSide) * stepInt);                     // r(j) >= -r && r(j) <= +r
+            }
+            else
+            {
+                ly = r + ((j-deltaSide-cubeSide) * stepExt);             // r(j) > +r
+            }
 
             for (size_t k = 0; k < side; ++k)
             {
@@ -148,8 +168,19 @@ void internalCubeGrid(double r, double rDelta, double stepInt, double stepExt, s
                 if (first <= lindex && lindex < last)
                 {
                     double lx;
+                    if (k < deltaSide)
+                    {
+                        lx = -(r + rDelta) + (k * stepExt);              // k < -r
+                    }
+                    else if (k >= deltaSide && k <= deltaSide)
+                    {
+                        lx = -r + ((k-deltaSide) * stepInt);             // r(k) >= -r && r(k) <= +r
+                    }
+                    else
+                    {
+                        lx = r + ((k-deltaSide-cubeSide) * stepExt);     // r(k) > +r
+                    }
 
-                    lx = -r + (k * stepInt);
 
                     z[lindex - first] = lz;
                     y[lindex - first] = ly;
