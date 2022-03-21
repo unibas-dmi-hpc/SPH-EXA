@@ -18,7 +18,24 @@ static constexpr double G_cgs = 6.674e-8;
 static code_units grackle_units;
 
 template<typename T, typename Dataset>
-void cool_particle(Dataset& d, size_t i)
+void cool_particle(
+        T& dt,
+        T& rho,
+        T& u,
+        T& HI_fraction,
+        T& HII_fraction,
+        T& HeI_fraction,
+        T& HeII_fraction,
+        T& HeIII_fraction,
+        T& e_fraction,
+        T& HM_fraction,
+        T& H2I_fraction,
+        T& H2II_fraction,
+        T& DI_fraction,
+        T& DII_fraction,
+        T& HDI_fraction,
+        T& metal_fraction
+)
 {
     code_units         grackle_units_copy = grackle_units;
     grackle_field_data grackle_fields;
@@ -30,9 +47,9 @@ void cool_particle(Dataset& d, size_t i)
     grackle_fields.grid_end       = zero;
     grackle_fields.grid_dx        = 0.0;
 
-    gr_float gr_rho                        = (gr_float)d.rho[i];
+    gr_float gr_rho                        = (gr_float)rho;
     grackle_fields.density                 = &gr_rho;
-    gr_float gr_u                          = (gr_float)d.u[i];
+    gr_float gr_u                          = (gr_float)u;
     grackle_fields.internal_energy         = &gr_u;
     gr_float x_velocity                    = 0.;
     grackle_fields.x_velocity              = &x_velocity;
@@ -40,19 +57,19 @@ void cool_particle(Dataset& d, size_t i)
     grackle_fields.y_velocity              = &y_velocity;
     gr_float z_velocity                    = 0.;
     grackle_fields.z_velocity              = &z_velocity;
-    gr_float HI_density                    = (gr_float)d.HI_fraction[i] * (gr_float)d.rho[i];
-    gr_float HII_density                   = (gr_float)d.HII_fraction[i] * (gr_float)d.rho[i];
-    gr_float HeI_density                   = (gr_float)d.HeI_fraction[i] * (gr_float)d.rho[i];
-    gr_float HeII_density                  = (gr_float)d.HeII_fraction[i] * (gr_float)d.rho[i];
-    gr_float HeIII_density                 = (gr_float)d.HeIII_fraction[i] * (gr_float)d.rho[i];
-    gr_float e_density                     = (gr_float)d.e_fraction[i] * (gr_float)d.rho[i];
-    gr_float HM_density                    = (gr_float)d.HM_fraction[i] * (gr_float)d.rho[i];
-    gr_float H2I_density                   = (gr_float)d.H2I_fraction[i] * (gr_float)d.rho[i];
-    gr_float H2II_density                  = (gr_float)d.H2II_fraction[i] * (gr_float)d.rho[i];
-    gr_float DI_density                    = (gr_float)d.DI_fraction[i] * (gr_float)d.rho[i];
-    gr_float DII_density                   = (gr_float)d.DII_fraction[i] * (gr_float)d.rho[i];
-    gr_float HDI_density                   = (gr_float)d.HDI_fraction[i] * (gr_float)d.rho[i];
-    gr_float metal_density                 = (gr_float)d.metal_fraction[i] * (gr_float)d.rho[i];
+    gr_float HI_density                    = (gr_float)HI_fraction * (gr_float)rho;
+    gr_float HII_density                   = (gr_float)HII_fraction * (gr_float)rho;
+    gr_float HeI_density                   = (gr_float)HeI_fraction * (gr_float)rho;
+    gr_float HeII_density                  = (gr_float)HeII_fraction * (gr_float)rho;
+    gr_float HeIII_density                 = (gr_float)HeIII_fraction * (gr_float)rho;
+    gr_float e_density                     = (gr_float)e_fraction * (gr_float)rho;
+    gr_float HM_density                    = (gr_float)HM_fraction * (gr_float)rho;
+    gr_float H2I_density                   = (gr_float)H2I_fraction * (gr_float)rho;
+    gr_float H2II_density                  = (gr_float)H2II_fraction * (gr_float)rho;
+    gr_float DI_density                    = (gr_float)DI_fraction * (gr_float)rho;
+    gr_float DII_density                   = (gr_float)DII_fraction * (gr_float)rho;
+    gr_float HDI_density                   = (gr_float)HDI_fraction * (gr_float)rho;
+    gr_float metal_density                 = (gr_float)metal_fraction * (gr_float)rho;
     grackle_fields.HI_density              = &HI_density;
     grackle_fields.HII_density             = &HII_density;
     grackle_fields.HeI_density             = &HeI_density;
@@ -84,28 +101,28 @@ void cool_particle(Dataset& d, size_t i)
     grackle_fields.isrf_habing             = &isrf;
 
     // std::cout << grackle_units_copy.density_units << std::endl;
-    // std::cout << d.dt[i] / grackle_units.time_units << std::endl;
+    // std::cout << dt[i] / grackle_units.time_units << std::endl;
     // std::cout << HI_density / gr_rho << std::endl;
     // std::cout << HeI_density / gr_rho << std::endl;
     // std::cout << gr_u << std::endl;
 
-    solve_chemistry(&grackle_units_copy, &grackle_fields, d.dt[i] / grackle_units.time_units);
+    solve_chemistry(&grackle_units_copy, &grackle_fields, dt / grackle_units.time_units);
     // std::cout << HI_density/gr_rho << std::endl;
-    d.rho[i]            = gr_rho;
-    d.HI_fraction[i]    = HI_density / gr_rho;
-    d.HII_fraction[i]   = HII_density / gr_rho;
-    d.HeI_fraction[i]   = HeI_density / gr_rho;
-    d.HeII_fraction[i]  = HeII_density / gr_rho;
-    d.HeIII_fraction[i] = HeIII_density / gr_rho;
-    d.e_fraction[i]     = e_density / gr_rho;
-    d.HM_fraction[i]    = HM_density / gr_rho;
-    d.H2I_fraction[i]   = H2I_density / gr_rho;
-    d.H2II_fraction[i]  = H2II_density / gr_rho;
-    d.DI_fraction[i]    = DI_density / gr_rho;
-    d.DII_fraction[i]   = DII_density / gr_rho;
-    d.HDI_fraction[i]   = HDI_density / gr_rho;
-    d.metal_fraction[i] = metal_density / gr_rho;
-    d.u[i]              = gr_u;
+    rho            = gr_rho;
+    HI_fraction    = HI_density / gr_rho;
+    HII_fraction   = HII_density / gr_rho;
+    HeI_fraction   = HeI_density / gr_rho;
+    HeII_fraction  = HeII_density / gr_rho;
+    HeIII_fraction = HeIII_density / gr_rho;
+    e_fraction     = e_density / gr_rho;
+    HM_fraction    = HM_density / gr_rho;
+    H2I_fraction   = H2I_density / gr_rho;
+    H2II_fraction  = H2II_density / gr_rho;
+    DI_fraction    = DI_density / gr_rho;
+    DII_fraction   = DII_density / gr_rho;
+    HDI_fraction   = HDI_density / gr_rho;
+    metal_fraction = metal_density / gr_rho;
+    u              = gr_u;
 }
 
 void initGrackle(void)
@@ -132,8 +149,7 @@ void initGrackle(void)
     grackle_data->dust_chemistry         = 1;
     grackle_data->metal_cooling          = 1;
     grackle_data->UVbackground           = 1;
-    static char data_file[] =
-        "grackle_data_files/input/CloudyData_UVB=HM2012.h5";
+    static char data_file[] = "grackle_data_files/input/CloudyData_UVB=HM2012.h5";
     grackle_data->grackle_data_file = data_file;
     initialize_chemistry_data(&grackle_units);
 }

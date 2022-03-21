@@ -54,7 +54,23 @@ TEST(cooling_grackle, test1)
     std::cout << d.HeI_fraction[0] << std::endl;
     std::cout << d.metal_fraction[0] << std::endl;
 
-    cool_particle<Real, Dataset>(d, 0);
+    cool_particle<Real, Dataset>(d.dt[0],
+                                 d.rho[0],
+                                 d.u[0],
+                                 d.HI_fraction[0],
+                                 d.HII_fraction[0],
+                                 d.HeI_fraction[0],
+                                 d.HeII_fraction[0],
+                                 d.HeIII_fraction[0],
+                                 d.e_fraction[0],
+                                 d.HM_fraction[0],
+                                 d.H2I_fraction[0],
+                                 d.H2II_fraction[0],
+                                 d.DI_fraction[0],
+                                 d.DII_fraction[0],
+                                 d.HDI_fraction[0],
+                                 d.metal_fraction[0]
+    );
 
     std::cout << d.HI_fraction[0] << std::endl;
 
