@@ -36,6 +36,8 @@
 #include "cstone/util/array.hpp"
 #include "cstone/util/gsl-lite.hpp"
 
+#include <iostream>
+
 namespace sphexa
 {
 
@@ -136,14 +138,16 @@ void internalCubeGrid(double r, double rDelta, double stepInt, double stepExt, s
         {
             lz = -(r + rDelta) + (i * stepExt);                          // i < -r
         }
-        else if (i >= deltaSide && i <= deltaSide)
+        else if (i >= deltaSide && i <= deltaSide + cubeSide)
         {
-            lz = -r + ((i-deltaSide) * stepInt);                         // r(i) >= -r && r(i) <= +r
+            lz = -r + ((i - deltaSide) * stepInt);                         // r(i) >= -r && r(i) <= +r
         }
         else
         {
-            lz = r + ((i-deltaSide-cubeSide) * stepExt);                 // r(i) > +r
+            lz = r + ((i - deltaSide - cubeSide) * stepExt);                 // r(i) > +r
         }
+
+        std::cout << "i:" << i << ", lz=" << lz;
 
         for (size_t j = 0; j < side; ++j)
         {
@@ -152,13 +156,13 @@ void internalCubeGrid(double r, double rDelta, double stepInt, double stepExt, s
             {
                 ly = -(r + rDelta) + (j * stepExt);                      // j < -r
             }
-            else if (j >= deltaSide && j <= deltaSide)
+            else if (j >= deltaSide && j <= deltaSide + cubeSide)
             {
-                ly = -r + ((j-deltaSide) * stepInt);                     // r(j) >= -r && r(j) <= +r
+                ly = -r + ((j - deltaSide) * stepInt);                     // r(j) >= -r && r(j) <= +r
             }
             else
             {
-                ly = r + ((j-deltaSide-cubeSide) * stepExt);             // r(j) > +r
+                ly = r + ((j - deltaSide - cubeSide) * stepExt);             // r(j) > +r
             }
 
             for (size_t k = 0; k < side; ++k)
@@ -172,13 +176,13 @@ void internalCubeGrid(double r, double rDelta, double stepInt, double stepExt, s
                     {
                         lx = -(r + rDelta) + (k * stepExt);              // k < -r
                     }
-                    else if (k >= deltaSide && k <= deltaSide)
+                    else if (k >= deltaSide && k <= deltaSide + cubeSide)
                     {
-                        lx = -r + ((k-deltaSide) * stepInt);             // r(k) >= -r && r(k) <= +r
+                        lx = -r + ((k - deltaSide) * stepInt);             // r(k) >= -r && r(k) <= +r
                     }
                     else
                     {
-                        lx = r + ((k-deltaSide-cubeSide) * stepExt);     // r(k) > +r
+                        lx = r + ((k - deltaSide - cubeSide) * stepExt);     // r(k) > +r
                     }
 
 

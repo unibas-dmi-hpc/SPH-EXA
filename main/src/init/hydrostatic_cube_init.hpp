@@ -32,6 +32,7 @@
 #pragma once
 
 #include <map>
+#include <cmath>
 
 #include "cstone/sfc/box.hpp"
 
@@ -46,19 +47,18 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
 {
     using T = typename Dataset::RealType;
 
-    // How to select the h with different densities?
-    double r             = constants.at("r");
-    double rDelta        = constants.at("rDelta");
+    T r      = constants.at("r");
+    T rDelta = constants.at("rDelta");
 
-    double totalVolume   = 8.0 * r * r * r;
-    int    ng0           = 100;
-    double hInit         = std::cbrt(3.0 / (4 * M_PI) * ng0 * totalVolume / d.numParticlesGlobal) * 0.5;
-    std::fill(d.h.begin(), d.h.end(), hInit);
+    T rhoInt = constants.at("rhoInt");
+    T rhoExt = constants.at("rhoExt");
 
-    double mPart         = constants.at("mTotal") / d.numParticlesGlobal;
-    double firstTimeStep = constants.at("firstTimeStep");
-    double uExt          = constants.at("pIsobaric")/(constants.at("gamma")-1.)/constants.at("rhoExt");
-    double uInt          = constants.at("pIsobaric")/(constants.at("gamma")-1.)/constants.at("rhoInt");
+    T firstTimeStep = constants.at("firstTimeStep");
+
+    T uExt = constants.at("pIsobaric") / (constants.at("gamma") - 1.) / constants.at("rhoExt");
+    T uInt = constants.at("pIsobaric") / (constants.at("gamma") - 1.) / constants.at("rhoInt");
+
+    T mPart  = constants.at("mTotal") / d.numParticlesGlobal;
 
     std::fill(d.m.begin(), d.m.end(), mPart);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
@@ -72,6 +72,11 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
     for (size_t i = 0; i < d.x.size(); i++)
     {
         bool externalPart = (abs(d.x[i]) > r) && (abs(d.y[i]) > r) && (abs(d.z[i]) > r);
+
+        T      rho   = externalPart ? rhoExt : rhoInt;
+        size_t neigh = 100;
+
+        d.h[i] = 0.5 * std::pow(3. * neigh * mPart / 4. / M_PI / rho, 1. / 3.);
 
         d.u[i] = externalPart ? uExt : uInt;
 
@@ -87,14 +92,14 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
 
 std::map<std::string, double> HydrostaticCubeConstants()
 {
-    return {{"r", 0.25},
-            {"rDelta", 0.25},
+    return {{"r", 10.},
+            {"rDelta", 5.},
             {"mTotal", 1.},
             {"dim", 3},
             {"gamma", 5.0 / 3.0},
             {"rhoExt", 1.},
             {"rhoInt", 4.},
-            {"pIsobaric", 2.5},     // pIsobaric = (gamma − 1)*rho*u
+            {"pIsobaric", 2.5},         // pIsobaric = (gamma − 1.) * rho * u
             {"firstTimeStep", 1e-4}};
 }
 
@@ -132,7 +137,7 @@ public:
 
         initHydrostaticCubeFields(d, constants_);
 
-        return cstone::Box<T>(-r, r, false);
+        return cstone::Box<T>(-(r + rDelta), r + rDelta, true);
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }
