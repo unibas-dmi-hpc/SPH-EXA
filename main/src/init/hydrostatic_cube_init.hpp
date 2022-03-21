@@ -71,9 +71,9 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
-        bool ext = d.x[i] < r || d.y[i] < r || d.z[i] < r || d.x[i] > r || d.y[i] > r || d.z[i] > r;
+        bool externalPart = (abs(d.x[i]) > r) && (abs(d.y[i]) > r) && (abs(d.z[i]) > r);
 
-        d.u[i] = ext ? uExt : uInt;
+        d.u[i] = externalPart ? uExt : uInt;
 
         d.vx[i] = 0.;
         d.vy[i] = 0.;
