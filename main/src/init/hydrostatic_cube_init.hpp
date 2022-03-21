@@ -42,20 +42,25 @@ namespace sphexa
 {
 
 template<class Dataset>
-void initHydrostaticCubeFields(Dataset& d, double totalVolume, const std::map<std::string, double>& constants)
+void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& constants)
 {
     using T = typename Dataset::RealType;
 
+    // How to select the h with different densities?
+    double r             = constants.at("r");
+    double rDelta        = constants.at("rDelta");
+
+    double totalVolume   = 8.0 * r * r * r;
     int    ng0           = 100;
     double hInit         = std::cbrt(3.0 / (4 * M_PI) * ng0 * totalVolume / d.numParticlesGlobal) * 0.5;
+    std::fill(d.h.begin(), d.h.end(), hInit);
+
     double mPart         = constants.at("mTotal") / d.numParticlesGlobal;
     double firstTimeStep = constants.at("firstTimeStep");
-    double r             = constants.at("r");
     double uExt          = constants.at("pIsobaric")/(constants.at("gamma")-1.)/constants.at("rhoExt");
     double uInt          = constants.at("pIsobaric")/(constants.at("gamma")-1.)/constants.at("rhoInt");
 
     std::fill(d.m.begin(), d.m.end(), mPart);
-    std::fill(d.h.begin(), d.h.end(), hInit);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
     std::fill(d.mui.begin(), d.mui.end(), 10.0);
     std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
@@ -109,11 +114,14 @@ public:
         auto [first, last] = partitionRange(d.numParticlesGlobal, rank, numRanks);
         resize(d, last - first);
 
-        T r = constants_.at("r1");
-        regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
+        T r      = constants_.at("r")
+        T rDelta = constants_.at("rDelta");
+        T rhoInt = constants_.at("rhoInt");
+        T rhoExt = constants_.at("rhoExt");
 
-        double totalVolume = 8.0 * r * r * r;
-        initHydrostaticCubeFields(d, totalVolume, constants_);
+        internalCubeGrid(r, rDelta, rhoInt, rhoExt, cubeSide, first, last, d.x, d.y, d.z);
+
+        initHydrostaticCubeFields(d, constants_);
 
         return cstone::Box<T>(-r, r, false);
     }
