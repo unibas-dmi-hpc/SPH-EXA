@@ -63,14 +63,20 @@ void initHydrostaticCubeFields(Dataset& d, double totalVolume, const std::map<st
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
-        T radius = std::sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
-        radius   = std::max(radius, 1e-10);
+        if (   d.x[i] < 0.25 * constants.at("r1") || d.x[i] > 0.75 * constants.at("r1")
+            || d.y[i] < 0.25 * constants.at("r1") || d.y[i] > 0.75 * constants.at("r1")
+            || d.z[i] < 0.25 * constants.at("r1") || d.z[i] > 0.75 * constants.at("r1"))
+        {
+            d.u[i] = constants.at("pIsobaric")/(constants.at("gamma")-1.)/constants.at("rho0");
+        }
+        else
+        {
+            d.u[i] = constants.at("pIsobaric")/(constants.at("gamma")-1.)/constants.at("rho1");
+        }
 
-        d.u[i] = constants.at("u0");
-
-        d.vx[i] = constants.at("vr0") * (d.x[i] / radius);
-        d.vy[i] = constants.at("vr0") * (d.y[i] / radius);
-        d.vz[i] = constants.at("vr0") * (d.z[i] / radius);
+        d.vx[i] = 0.;
+        d.vy[i] = 0.;
+        d.vz[i] = 0.;
 
         d.x_m1[i] = d.x[i] - d.vx[i] * firstTimeStep;
         d.y_m1[i] = d.y[i] - d.vy[i] * firstTimeStep;
@@ -81,15 +87,13 @@ void initHydrostaticCubeFields(Dataset& d, double totalVolume, const std::map<st
 std::map<std::string, double> HydrostaticCubeConstants()
 {
     return {{"r0", 0},
-            {"r1", 0.5},
+            {"r1", 1.},
             {"mTotal", 1.},
             {"dim", 3},
             {"gamma", 5.0 / 3.0},
             {"rho0", 1.},
-            {"u0", 1e-20},
-            {"p0", 0.},
-            {"vr0", -1.},
-            {"cs0", 0.},
+            {"rho1", 4.},
+            {"pIsobaric", 2.5},     // pIsobaric = (gamma − 1)*rho*u
             {"firstTimeStep", 1e-4}};
 }
 
