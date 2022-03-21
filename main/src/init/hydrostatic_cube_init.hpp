@@ -87,7 +87,7 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
 
 std::map<std::string, double> HydrostaticCubeConstants()
 {
-    return {{"r", 0.5},
+    return {{"r", 0.25},
             {"rDelta", 0.25},
             {"mTotal", 1.},
             {"dim", 3},
