@@ -499,15 +499,6 @@ HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xout, 
     }
 }
 
-/*! @brief interaction between two particles
- *
- * @param acc     acceleration to add to
- * @param pos_i
- * @param pos_j
- * @param q_j
- * @param EPS2
- * @return        input acceleration plus contribution from this call
- */
 template<class Ta, class T>
 HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> P2P(Vec4<Ta> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, T q_j, T EPS2)
 {
@@ -523,6 +514,39 @@ HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> P2P(Vec4<Ta> acc, const Vec3<T>& pos_i, c
     acc[1] += dX[0];
     acc[2] += dX[1];
     acc[3] += dX[2];
+
+    return acc;
+}
+
+/*! @brief interaction between two particles
+ *
+ * @param acc     acceleration to add to
+ * @param pos_i
+ * @param pos_j
+ * @param m_j
+ * @param h_i
+ * @param h_j
+ * @return        input acceleration plus contribution from this call
+ */
+template<class Ta, class T>
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> P2P(Vec4<Ta> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, T m_j, T h_i,
+                                           T h_j)
+{
+    Vec3<T> dX = pos_j - pos_i;
+    T       R2 = norm2(dX);
+
+    T h_ij  = h_i + h_j;
+    T h_ij2 = h_ij * h_ij;
+    T R2eff = (R2 < h_ij2) ? h_ij2 : R2;
+
+    T invR   = inverseSquareRoot(R2eff);
+    T invR2  = invR * invR;
+    T invR3m = m_j * invR * invR2;
+
+    acc[0] -= invR3m * R2;
+    acc[1] += dX[0] * invR3m;
+    acc[2] += dX[1] * invR3m;
+    acc[3] += dX[2] * invR3m;
 
     return acc;
 }

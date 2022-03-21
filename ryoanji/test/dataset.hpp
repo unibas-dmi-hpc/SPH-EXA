@@ -37,14 +37,16 @@ namespace ryoanji
 {
 
 template<class T>
-static void makeCubeBodies(T* x, T* y, T* z, T* m, size_t n, double extent = 3)
+static void makeCubeBodies(T* x, T* y, T* z, T* m, T* h, size_t n, double extent = 3)
 {
+    T hInit = std::cbrt(800.0 / n) * extent;
     for (size_t i = 0; i < n; i++)
     {
         x[i] = drand48() * 2 * extent - extent;
         y[i] = drand48() * 2 * extent - extent;
         z[i] = drand48() * 2 * extent - extent;
         m[i] = drand48() / n;
+        h[i] = hInit;
     }
 
     // set non-random corners
@@ -55,22 +57,6 @@ static void makeCubeBodies(T* x, T* y, T* z, T* m, size_t n, double extent = 3)
     x[n - 1] = extent;
     y[n - 1] = extent;
     z[n - 1] = extent;
-}
-
-//! generate a grid with npOnEdge^3 bodies
-template<class T>
-static void makeGridBodies(T* x, T* y, T* z, T* m, int npOnEdge, double spacing)
-{
-    for (size_t i = 0; i < npOnEdge; i++)
-        for (size_t j = 0; j < npOnEdge; j++)
-            for (size_t k = 0; k < npOnEdge; k++)
-            {
-                size_t linIdx = i * npOnEdge * npOnEdge + j * npOnEdge + k;
-                x[linIdx]     = i * spacing;
-                y[linIdx]     = j * spacing;
-                z[linIdx]     = k * spacing;
-                m[linIdx]     = 1.0 / (npOnEdge * npOnEdge * npOnEdge);
-            }
 }
 
 } // namespace ryoanji

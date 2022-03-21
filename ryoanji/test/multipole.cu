@@ -46,10 +46,10 @@ TEST(Multipole, P2M)
     std::vector<double> x(numBodies);
     std::vector<double> y(numBodies);
     std::vector<double> z(numBodies);
-    std::vector<double> h(numBodies, 0.0);
     std::vector<double> m(numBodies);
+    std::vector<double> h(numBodies);
 
-    ryoanji::makeCubeBodies(x.data(), y.data(), z.data(), m.data(), numBodies);
+    ryoanji::makeCubeBodies(x.data(), y.data(), z.data(), m.data(), h.data(), numBodies);
 
     CartesianQuadrupole<double>      cartesianQuadrupole;
     cstone::SourceCenterType<double> csCenter =

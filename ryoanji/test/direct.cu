@@ -43,20 +43,14 @@ using namespace ryoanji;
 
 TEST(DirectSum, MatchCpu)
 {
-    using T       = double;
-    int npOnEdge  = 10;
-    int numBodies = npOnEdge * npOnEdge * npOnEdge;
+    using T          = double;
+    size_t numBodies = 1000;
 
-    // the CPU reference uses mass softening, while the GPU P2P kernel still uses plummer softening
-    // so the only way to compare is without softening in both versions and make sure that
-    // particles are not on top of each other
-    T eps = 0.0;
-
-    std::vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies);
-    ryoanji::makeGridBodies(x.data(), y.data(), z.data(), m.data(), npOnEdge, 0.5);
+    std::vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies), h(numBodies, 0.1);
+    ryoanji::makeCubeBodies(x.data(), y.data(), z.data(), m.data(), h.data(), numBodies);
 
     // upload to device
-    thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m;
+    thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m, d_h = h;
     thrust::device_vector<T> p(numBodies), ax(numBodies), ay(numBodies), az(numBodies);
 
     directSum(numBodies,
@@ -64,17 +58,16 @@ TEST(DirectSum, MatchCpu)
               rawPtr(d_y.data()),
               rawPtr(d_z.data()),
               rawPtr(d_m.data()),
+              rawPtr(d_h.data()),
               rawPtr(p.data()),
               rawPtr(ax.data()),
               rawPtr(ay.data()),
-              rawPtr(az.data()),
-              eps);
+              rawPtr(az.data()));
 
     // download body accelerations
     thrust::host_vector<T> h_p = p, h_ax = ax, h_ay = ay, h_az = az;
 
-    std::vector<T> h(numBodies, 0);
-    T              G = 1.0;
+    T G = 1.0;
 
     std::vector<T> refP(numBodies), refAx(numBodies), refAy(numBodies), refAz(numBodies);
     directSum(x.data(),

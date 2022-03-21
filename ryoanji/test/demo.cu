@@ -59,11 +59,11 @@ int main(int argc, char** argv)
     fprintf(stdout, "theta                : %f\n", theta);
     fprintf(stdout, "ncrit                : %d\n", ncrit);
 
-    thrust::host_vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies);
-    makeCubeBodies(x.data(), y.data(), z.data(), m.data(), numBodies, boxSize);
+    thrust::host_vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies), h(numBodies);
+    makeCubeBodies(x.data(), y.data(), z.data(), m.data(), h.data(), numBodies, boxSize);
 
     // upload bodies to device
-    thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m;
+    thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m, d_h = h;
 
     cstone::Box<T> box(-boxSize, boxSize);
 
@@ -131,11 +131,12 @@ int main(int argc, char** argv)
               rawPtr(d_y.data()),
               rawPtr(d_z.data()),
               rawPtr(d_m.data()),
+              rawPtr(d_h.data()),
               rawPtr(refP.data()),
               rawPtr(refAx.data()),
               rawPtr(refAy.data()),
-              rawPtr(refAz.data()),
-              eps);
+              rawPtr(refAz.data()));
+
     t1 = std::chrono::high_resolution_clock::now();
     dt = std::chrono::duration<double>(t1 - t0).count();
 

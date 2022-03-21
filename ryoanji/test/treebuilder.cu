@@ -130,8 +130,8 @@ TEST(Buildtree, cstone)
     T   extent    = 3;
     T   theta     = 0.75;
 
-    thrust::host_vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies);
-    makeCubeBodies(x.data(), y.data(), z.data(), m.data(), numBodies, extent);
+    thrust::host_vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies), h(numBodies);
+    makeCubeBodies(x.data(), y.data(), z.data(), m.data(), h.data(), numBodies, extent);
     // upload to device
     thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m;
 
