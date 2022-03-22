@@ -194,9 +194,9 @@ public:
                     T lx = initR + (k * stepExt);
                     if ( (abs(lx) > r) || (abs(ly) > r) || (abs(lz) > r) )
                     {
-                        d.x[idx] = lx - (MCxExt - MCxInt);
-                        d.y[idx] = ly - (MCyExt - MCyInt);
-                        d.z[idx] = lz - (MCzExt - MCzInt);
+                        d.x[idx] = lx + (MCxInt - MCxExt);
+                        d.y[idx] = ly + (MCyInt - MCyExt);
+                        d.z[idx] = lz + (MCzInt - MCzExt);
 
                         idx++;
                     }
