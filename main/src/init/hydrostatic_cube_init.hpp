@@ -123,6 +123,20 @@ public:
         T r = constants_.at("r");
         regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
 
+        T MCxInt = 0.;
+        T MCyInt = 0.;
+        T MCzInt = 0.;
+        // Calculate mass center of the internal cube
+        for (size_t i = 0; i < nIntPart; i++)
+        {
+            MCxInt += d.x[i];
+            MCyInt += d.y[i];
+            MCzInt += d.z[i];
+        }
+        MCxInt /= nIntPart;
+        MCyInt /= nIntPart;
+        MCzInt /= nIntPart;
+
         T stepRatio = constants_.at("rhoInt") / constants_.at("rhoExt");
         T stepInt   = (2. * r) / cubeSide;
         T stepExt   = stepInt * stepRatio;
@@ -133,22 +147,35 @@ public:
 
         // Count additional particles
         size_t nExtPart = 0;
+        T      MCxExt   = 0.;
+        T      MCyExt   = 0.;
+        T      MCzExt   = 0.;
         for (size_t i = 0; i < extCubeSide; i++)
         {
             T lz = initR + (i * stepExt);
+
             for (size_t j = 0; j < extCubeSide; j++)
             {
                 T ly = initR + (j * stepExt);
+
                 for (size_t k = 0; k < extCubeSide; k++)
                 {
                     T lx = initR + (k * stepExt);
+
                     if ( (abs(lx) > r) || (abs(ly) > r) || (abs(lz) > r) )
                     {
                         nExtPart++;
+
+                        MCxExt += lx;
+                        MCyExt += ly;
+                        MCzExt += lz;
                     }
                 }
             }
         }
+        MCxExt /= nExtPart;
+        MCxExt /= nExtPart;
+        MCxExt /= nExtPart;
 
         // Reside ParticleData
         d.numParticlesGlobal += nExtPart;
@@ -167,13 +194,11 @@ public:
                     T lx = initR + (k * stepExt);
                     if ( (abs(lx) > r) || (abs(ly) > r) || (abs(lz) > r) )
                     {
+                        d.x[idx] = lx - (MCxExt - MCxInt);
+                        d.y[idx] = ly - (MCyExt - MCyInt);
+                        d.z[idx] = lz - (MCzExt - MCzInt);
+
                         idx++;
-
-                        d.z[idx] = lz;
-                        d.y[idx] = ly;
-                        d.x[idx] = lx;
-
-                        //std::cout << "idx=" << idx << " (x=" << lx << ",y=" << ly << ",z=" << lz << ")" << std::endl;
                     }
                 }
             }
@@ -181,7 +206,7 @@ public:
 
         initHydrostaticCubeFields(d, constants_);
 
-        return cstone::Box<T>(-(r + rDelta), r + rDelta, true);
+        return cstone::Box<T>(-(r + 1.1 * rDelta), r + 1.1 * rDelta, true);
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }
