@@ -43,21 +43,23 @@ namespace sphexa
 {
 
 template<class Dataset>
-void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& constants)
+void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& constants, double massPart)
 {
     using T = typename Dataset::RealType;
 
     T r      = constants.at("r");
     T rDelta = constants.at("rDelta");
 
-    T mPart  = constants.at("mTotal") / d.numParticlesGlobal;
-
     T rhoInt = constants.at("rhoInt");
     T rhoExt = constants.at("rhoExt");
 
+    //T mPart  = constants.at("mTotal") / d.numParticlesGlobal;
+
     size_t ng0  = 100;
-    T      hInt = 0.5 * std::pow(3. * ng0 * mPart / 4. / M_PI / rhoInt, 1. / 3.);
-    T      hExt = 0.5 * std::pow(3. * ng0 * mPart / 4. / M_PI / rhoExt, 1. / 3.);
+    T      hInt = 0.5 * std::pow(3. * ng0 * massPart / 4. / M_PI / rhoInt, 1. / 3.);
+    T      hExt = 0.5 * std::pow(3. * ng0 * massPart / 4. / M_PI / rhoExt, 1. / 3.);
+
+    std::cout << "hInt=" << hInt << ", hExt=" << hExt << std::endl;
 
     T pIsobaric = constants.at("pIsobaric");
     T gamma     = constants.at("gamma");
@@ -67,7 +69,7 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
 
     T firstTimeStep = constants.at("firstTimeStep");
 
-    std::fill(d.m.begin(), d.m.end(), mPart);
+    std::fill(d.m.begin(), d.m.end(), massPart);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
     std::fill(d.mui.begin(), d.mui.end(), 10.0);
     std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
@@ -84,7 +86,7 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
-        bool externalPart = (abs(d.x[i]) > r) && (abs(d.y[i]) > r) && (abs(d.z[i]) > r);
+        bool externalPart = (abs(d.x[i]) > r) || (abs(d.y[i]) > r) || (abs(d.z[i]) > r);
 
         d.h[i] = externalPart ? hExt : hInt;
 
@@ -102,13 +104,13 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
 
 std::map<std::string, double> HydrostaticCubeConstants()
 {
-    return {{"r", 10.},
-            {"rDelta", 10.},
+    return {{"r", .25},
+            {"rDelta", .25},
             {"mTotal", 1.},
             {"dim", 3},
             {"gamma", 5.0 / 3.0},
             {"rhoExt", 1.},
-            {"rhoInt", 4.},
+            {"rhoInt", 8.},
             {"pIsobaric", 2.5},         // pIsobaric = (gamma − 1.) * rho * u
             {"firstTimeStep", 1e-4}};
 }
@@ -149,11 +151,15 @@ public:
 
         T stepRatio = constants_.at("rhoInt") / constants_.at("rhoExt");
         T stepInt   = (2. * r) / cubeSide;
-        T stepExt   = stepInt * stepRatio;
+        T stepExt   = stepInt * std::pow(stepRatio, 1./3.);
 
         T      rDelta      = constants_.at("rDelta");
-        size_t extCubeSide = 1 + round( (2. * (r + rDelta)) / stepExt);
+        size_t extCubeSide = round((2. * (r + rDelta)) / stepExt);
         T      initR       = -(r + rDelta);
+
+        T vol = 1.;
+        size_t totalCubeExt =extCubeSide * extCubeSide * extCubeSide;
+        T massPart = vol / totalCubeExt;
 
         // Count additional particles
         size_t nExtPart = 0;
@@ -184,8 +190,8 @@ public:
             }
         }
         MCxExt /= nExtPart;
-        MCxExt /= nExtPart;
-        MCxExt /= nExtPart;
+        MCyExt /= nExtPart;
+        MCzExt /= nExtPart;
 
         // Reside ParticleData
         d.numParticlesGlobal += nExtPart;
@@ -214,7 +220,10 @@ public:
             }
         }
 
-        initHydrostaticCubeFields(d, constants_);
+        std::cout << "stepInt=" << stepInt << ", stepExt=" << stepExt << std::endl;
+        std::cout << "nIntPart=" << nIntPart << ", totalCubeExt=" << totalCubeExt << ", nExtPart=" << nExtPart << std::endl;
+
+        initHydrostaticCubeFields(d, constants_, massPart);
 
         return cstone::Box<T>(-(r + (1.1 * rDelta)), r + (1.1 * rDelta), true);
     }
