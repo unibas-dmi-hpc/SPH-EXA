@@ -50,15 +50,22 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
     T r      = constants.at("r");
     T rDelta = constants.at("rDelta");
 
+    T mPart  = constants.at("mTotal") / d.numParticlesGlobal;
+
     T rhoInt = constants.at("rhoInt");
     T rhoExt = constants.at("rhoExt");
 
+    size_t ng0  = 100;
+    T      hInt = 0.5 * std::pow(3. * ng0 * mPart / 4. / M_PI / rhoInt, 1. / 3.);
+    T      hExt = 0.5 * std::pow(3. * ng0 * mPart / 4. / M_PI / rhoExt, 1. / 3.);
+
+    T pIsobaric = constants.at("pIsobaric");
+    T gamma     = constants.at("gamma");
+
+    T uInt = pIsobaric / (gamma - 1.) / rhoInt;
+    T uExt = pIsobaric / (gamma - 1.) / rhoExt;
+
     T firstTimeStep = constants.at("firstTimeStep");
-
-    T uExt = constants.at("pIsobaric") / (constants.at("gamma") - 1.) / constants.at("rhoExt");
-    T uInt = constants.at("pIsobaric") / (constants.at("gamma") - 1.) / constants.at("rhoInt");
-
-    T mPart  = constants.at("mTotal") / d.numParticlesGlobal;
 
     std::fill(d.m.begin(), d.m.end(), mPart);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
@@ -68,19 +75,18 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
     d.minDt = firstTimeStep;
 
+    /*
     double totalVolume   = 8.0 * (r + rDelta) * (r + rDelta) * (r + rDelta);
-    int    ng0           = 100;
     double hInit         = std::cbrt(3.0 / (4 * M_PI) * ng0 * totalVolume / d.numParticlesGlobal) * 0.5;
     std::fill(d.h.begin(), d.h.end(), hInit);
+    */
 
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
         bool externalPart = (abs(d.x[i]) > r) && (abs(d.y[i]) > r) && (abs(d.z[i]) > r);
 
-        T rho = externalPart ? rhoExt : rhoInt;
-
-        //d.h[i] = 0.5 * std::pow(3. * ng0 * mPart / 4. / M_PI / rho, 1. / 3.);
+        d.h[i] = externalPart ? hExt : hInt;
 
         d.u[i] = externalPart ? uExt : uInt;
 
