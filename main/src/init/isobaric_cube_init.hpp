@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief Hydrostatic cube simulation data initialization
+ * @brief Isobaric cube simulation data initialization
  *
  * @author Jose A. Escartin <ja.escartin@gmail.com>"
  */
@@ -43,7 +43,7 @@ namespace sphexa
 {
 
 template<class Dataset>
-void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& constants, double massPart)
+void initIsobaricCubeFields(Dataset& d, const std::map<std::string, double>& constants, double massPart)
 {
     using T = typename Dataset::RealType;
 
@@ -92,7 +92,7 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
     }
 }
 
-std::map<std::string, double> HydrostaticCubeConstants()
+std::map<std::string, double> IsobaricCubeConstants()
 {
     return {{"r", .25},
             {"rDelta", .25},
@@ -105,12 +105,12 @@ std::map<std::string, double> HydrostaticCubeConstants()
 }
 
 template<class Dataset>
-class HydrostaticCubeGrid : public ISimInitializer<Dataset>
+class IsobaricCubeGrid : public ISimInitializer<Dataset>
 {
     std::map<std::string, double> constants_;
 
 public:
-    HydrostaticCubeGrid() { constants_ = HydrostaticCubeConstants(); }
+    IsobaricCubeGrid() { constants_ = IsobaricCubeConstants(); }
 
     cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cubeSide, Dataset& d) const override
     {
@@ -210,7 +210,7 @@ public:
             }
         }
 
-        initHydrostaticCubeFields(d, constants_, massPart);
+        initIsobaricCubeFields(d, constants_, massPart);
 
         return cstone::Box<T>(-(r + (1.1 * rDelta)), r + (1.1 * rDelta), true);
     }
