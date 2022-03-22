@@ -138,6 +138,8 @@ public:
         MCyInt /= nIntPart;
         MCzInt /= nIntPart;
 
+        std::cout << "MCInt(x=" << MCxInt << ",y=" << MCyInt << ",z=" << MCzInt  << ")" << std::endl;
+
         T stepRatio = constants_.at("rhoInt") / constants_.at("rhoExt");
         T stepInt   = (2. * r) / cubeSide;
         T stepExt   = stepInt * std::pow(stepRatio, 1./3.);
@@ -168,7 +170,7 @@ public:
                 {
                     T lx = initR + (k * stepExt);
 
-                    if ( (abs(lx) > r) || (abs(ly) > r) || (abs(lz) > r) )
+                    if ( (abs(lx - MCxInt) > r) || (abs(ly - MCyInt) > r) || (abs(lz - MCzInt) > r) )
                     {
                         nExtPart++;
 
@@ -182,6 +184,8 @@ public:
         MCxExt /= nExtPart;
         MCyExt /= nExtPart;
         MCzExt /= nExtPart;
+
+        std::cout << "MCExt(x=" << MCxExt << ",y=" << MCyExt << ",z=" << MCzExt << ")" << std::endl;
 
         // Reside ParticleData
         d.numParticlesGlobal += nExtPart;
@@ -198,7 +202,7 @@ public:
                 for (size_t k = 0; k < extCubeSide; k++)
                 {
                     T lx = initR + (k * stepExt);
-                    if ( (abs(lx) > r) || (abs(ly) > r) || (abs(lz) > r) )
+                    if ( (abs(lx - MCxInt) > r) || (abs(ly - MCyInt) > r) || (abs(lz - MCzInt) > r) )
                     {
                         d.x[idx] = lx + (MCxInt - MCxExt);
                         d.y[idx] = ly + (MCyInt - MCyExt);
