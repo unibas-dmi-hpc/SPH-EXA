@@ -73,8 +73,8 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
     {
         bool externalPart = (abs(d.x[i]) > r) && (abs(d.y[i]) > r) && (abs(d.z[i]) > r);
 
-        T      rho   = externalPart ? rhoExt : rhoInt;
         size_t neigh = 100;
+        T      rho   = externalPart ? rhoExt : rhoInt;
 
         d.h[i] = 0.5 * std::pow(3. * neigh * mPart / 4. / M_PI / rho, 1. / 3.);
 
@@ -142,7 +142,10 @@ public:
                 for (size_t k = 0; k < extCubeSide; k++)
                 {
                     T lx = initR + (k * stepExt);
-                    if ( (abs(lx) > r) || (abs(ly) > r) || (abs(lz) > r) ) nExtPart++;
+                    if ( (abs(lx) > r) || (abs(ly) > r) || (abs(lz) > r) )
+                    {
+                        nExtPart++;
+                    }
                 }
             }
         }
@@ -165,9 +168,12 @@ public:
                     if ( (abs(lx) > r) || (abs(ly) > r) || (abs(lz) > r) )
                     {
                         idx++;
+
                         d.z[idx] = lz;
                         d.y[idx] = ly;
                         d.x[idx] = lx;
+
+                        //std::cout << "idx=" << idx << " (x=" << lx << ",y=" << ly << ",z=" << lz << ")" << std::endl;
                     }
                 }
             }
