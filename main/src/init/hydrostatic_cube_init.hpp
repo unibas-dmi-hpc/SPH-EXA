@@ -142,13 +142,12 @@ public:
         T stepInt   = (2. * r) / cubeSide;
         T stepExt   = stepInt * std::pow(stepRatio, 1./3.);
 
-        T rDelta    = constants_.at("rDelta");
-        T initR     = -(r + rDelta);
-        T totalSide = 2. * (r + rDelta);
+        T rDelta      = constants_.at("rDelta");
+        T initR       = -(r + rDelta);
+        T totalSide   = 2. * (r + rDelta);
+        T totalVolume = totalSide * totalSide * totalSide;
 
-        size_t extCubeSide = round(totalSide / stepExt);
-
-        T      totalVolume  = totalSide * totalSide * totalSide;
+        size_t extCubeSide  = round(totalSide / stepExt);
         size_t totalCubeExt = extCubeSide * extCubeSide * extCubeSide;
         T      massPart     = totalVolume / totalCubeExt;
 
