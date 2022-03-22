@@ -68,7 +68,10 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
     d.minDt = firstTimeStep;
 
-    size_t ng0 = 100;
+    double totalVolume   = 8.0 * (r + rDelta) * (r + rDelta) * (r + rDelta);
+    int    ng0           = 100;
+    double hInit         = std::cbrt(3.0 / (4 * M_PI) * ng0 * totalVolume / d.numParticlesGlobal) * 0.5;
+    std::fill(d.h.begin(), d.h.end(), hInit);
 
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
@@ -77,7 +80,7 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
 
         T rho = externalPart ? rhoExt : rhoInt;
 
-        d.h[i] = 0.5 * std::pow(3. * ng0 * mPart / 4. / M_PI / rho, 1. / 3.);
+        //d.h[i] = 0.5 * std::pow(3. * ng0 * mPart / 4. / M_PI / rho, 1. / 3.);
 
         d.u[i] = externalPart ? uExt : uInt;
 
