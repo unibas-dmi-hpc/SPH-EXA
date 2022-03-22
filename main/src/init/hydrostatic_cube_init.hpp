@@ -68,15 +68,16 @@ void initHydrostaticCubeFields(Dataset& d, const std::map<std::string, double>& 
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
     d.minDt = firstTimeStep;
 
+    size_t ng0 = 100;
+
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
         bool externalPart = (abs(d.x[i]) > r) && (abs(d.y[i]) > r) && (abs(d.z[i]) > r);
 
-        size_t neigh = 100;
-        T      rho   = externalPart ? rhoExt : rhoInt;
+        T rho = externalPart ? rhoExt : rhoInt;
 
-        d.h[i] = 0.5 * std::pow(3. * neigh * mPart / 4. / M_PI / rho, 1. / 3.);
+        d.h[i] = 0.5 * std::pow(3. * ng0 * mPart / 4. / M_PI / rho, 1. / 3.);
 
         d.u[i] = externalPart ? uExt : uInt;
 
@@ -206,7 +207,7 @@ public:
 
         initHydrostaticCubeFields(d, constants_);
 
-        return cstone::Box<T>(-(r + 1.1 * rDelta), r + 1.1 * rDelta, true);
+        return cstone::Box<T>(-(r + (1.1 * rDelta)), r + (1.1 * rDelta), true);
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }
