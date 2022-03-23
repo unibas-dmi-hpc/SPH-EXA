@@ -46,7 +46,7 @@ TEST(DirectSum, MatchCpu)
     using T          = double;
     size_t numBodies = 1000;
 
-    std::vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies), h(numBodies, 0.1);
+    std::vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies), h(numBodies);
     ryoanji::makeCubeBodies(x.data(), y.data(), z.data(), m.data(), h.data(), numBodies);
 
     // upload to device

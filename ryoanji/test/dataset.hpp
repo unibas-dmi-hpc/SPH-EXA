@@ -39,7 +39,8 @@ namespace ryoanji
 template<class T>
 static void makeCubeBodies(T* x, T* y, T* z, T* m, T* h, size_t n, double extent = 3)
 {
-    T hInit = std::cbrt(800.0 / n) * extent;
+    double ng0   = 100;
+    T      hInit = std::cbrt(ng0 / n / 4.19) * extent;
     for (size_t i = 0; i < n; i++)
     {
         x[i] = drand48() * 2 * extent - extent;

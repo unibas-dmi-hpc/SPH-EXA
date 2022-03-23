@@ -45,13 +45,10 @@ int main(int argc, char** argv)
     int directRef = argc > 2 ? std::stoi(argv[2]) : 1;
 
     std::size_t numBodies = (1 << power) - 1;
-    int         images    = 0;
     T           theta     = 0.6;
     T           boxSize   = 3;
 
-    const T   eps   = 0.05;
     const int ncrit = 64;
-    const T   cycle = 2 * M_PI;
 
     fprintf(stdout, "--- BH Parameters ---------------\n");
     fprintf(stdout, "numBodies            : %lu\n", numBodies);
@@ -98,13 +95,11 @@ int main(int argc, char** argv)
 
     Vec4<T> interactions = computeAcceleration(0,
                                                numBodies,
-                                               images,
-                                               eps,
-                                               cycle,
                                                rawPtr(d_x.data()),
                                                rawPtr(d_y.data()),
                                                rawPtr(d_z.data()),
                                                rawPtr(d_m.data()),
+                                               rawPtr(d_h.data()),
                                                rawPtr(d_p.data()),
                                                rawPtr(d_ax.data()),
                                                rawPtr(d_ay.data()),
