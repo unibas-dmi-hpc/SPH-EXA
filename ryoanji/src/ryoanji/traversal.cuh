@@ -145,12 +145,12 @@ __device__ void directAcc(Vec4<T> sourceBody, T hSource, Vec4<T> acc_i[TravConfi
  * can be routed through the read-only/texture cache.
  */
 template<class T, class MType>
-__device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec4<T> pos_i[TravConfig::nwt], const Vec3<T> targetCenter,
-                              const Vec3<T> targetSize, const T* __restrict__ x, const T* __restrict__ y,
-                              const T* __restrict__ z, const T* __restrict__ m, const T* __restrict__ h,
-                              const CellData* __restrict__ sourceCells, const Vec4<T>* __restrict__ sourceCenter,
-                              const MType* __restrict__ Multipoles, int2 rootRange,
-                              volatile int* tempQueue, int* cellQueue)
+__device__ util::tuple<unsigned, unsigned>
+traverseWarp(Vec4<T>* acc_i, const Vec4<T> pos_i[TravConfig::nwt], const Vec3<T> targetCenter, const Vec3<T> targetSize,
+             const T* __restrict__ x, const T* __restrict__ y, const T* __restrict__ z, const T* __restrict__ m,
+             const T* __restrict__ h, const CellData* __restrict__ sourceCells,
+             const Vec4<T>* __restrict__ sourceCenter, const MType* __restrict__ Multipoles, int2 rootRange,
+             volatile int* tempQueue, int* cellQueue)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
 
@@ -195,7 +195,7 @@ __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec4<T> pos_i[TravConfig::nw
         const int  numChildWarp = shflSync(numChildScan, GpuConfig::warpSize - 1); // Total numChild of current warp
         sourceOffset += imin(GpuConfig::warpSize, numSources - sourceOffset);  // advance current level stack pointer
         if (numChildWarp + numSources - sourceOffset > TravConfig::memPerWarp) // If cell queue overflows
-            return make_uint2(0xFFFFFFFF, 0xFFFFFFFF);                         // Exit kernel
+            return {0xFFFFFFFF, 0xFFFFFFFF};                                   // Exit kernel
         int childIdx = oldSources + numSources + newSources + numChildLane;    // Child index of current lane
         for (int i = 0; i < numChild; i++)                                     // Loop over child cells for each lane
             cellQueue[ringAddr(childIdx + i)] = childBegin + i;                // Queue child cells for next level
@@ -302,10 +302,10 @@ __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec4<T> pos_i[TravConfig::nw
     return {m2pCounter, p2pCounter};
 }
 
-__device__ uint64_t     sumP2PGlob = 0;
-__device__ unsigned int maxP2PGlob = 0;
-__device__ uint64_t     sumM2PGlob = 0;
-__device__ unsigned int maxM2PGlob = 0;
+__device__ unsigned long long sumP2PGlob = 0;
+__device__ unsigned           maxP2PGlob = 0;
+__device__ unsigned long long sumM2PGlob = 0;
+__device__ unsigned           maxM2PGlob = 0;
 
 __device__ unsigned int targetCounterGlob = 0;
 
@@ -407,56 +407,33 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
             acc_i[i] = Vec4<T>{T(0), T(0), T(0), T(0)};
         }
 
-        const uint2 counters = traverseWarp(acc_i,
-                                            pos_i,
-                                            targetCenter,
-                                            targetSize,
-                                            x,
-                                            y,
-                                            z,
-                                            m,
-                                            h,
-                                            srcCells,
-                                            srcCenter,
-                                            Multipoles,
-                                            rootRange,
-                                            tempQueue,
-                                            cellQueue);
-        assert(!(counters.x == 0xFFFFFFFF && counters.y == 0xFFFFFFFF));
+        auto [numM2P, numP2P] = traverseWarp(acc_i,
+                                             pos_i,
+                                             targetCenter,
+                                             targetSize,
+                                             x,
+                                             y,
+                                             z,
+                                             m,
+                                             h,
+                                             srcCells,
+                                             srcCenter,
+                                             Multipoles,
+                                             rootRange,
+                                             tempQueue,
+                                             cellQueue);
+        assert(numM2P != 0xFFFFFFFF && numP2P != 0xFFFFFFFF);
 
-        int numM2P = counters.x;
-        int numP2P = counters.y;
-
-        int maxP2P = numP2P;
-        int sumP2P = 0;
-        int maxM2P = numM2P;
-        int sumM2P = 0;
-
-        const int bodyIdx = bodyBegin + laneIdx;
-        for (int i = 0; i < TravConfig::nwt; i++)
-        {
-            if (i * GpuConfig::warpSize + bodyIdx < bodyEnd)
-            {
-                sumM2P += numM2P;
-                sumP2P += numP2P;
-            }
-        }
-        #pragma unroll
-        for (int i = 0; i < GpuConfig::warpSizeLog2; i++)
-        {
-            maxP2P = max(maxP2P, shflXorSync(maxP2P, 1 << i));
-            sumP2P += shflXorSync(sumP2P, 1 << i);
-            maxM2P = max(maxM2P, shflXorSync(maxM2P, 1 << i));
-            sumM2P += shflXorSync(sumM2P, 1 << i);
-        }
         if (laneIdx == 0)
         {
-            atomicMax(&maxP2PGlob, maxP2P);
-            atomicAdd((unsigned long long*)&sumP2PGlob, (unsigned long long)sumP2P);
-            atomicMax(&maxM2PGlob, maxM2P);
-            atomicAdd((unsigned long long*)&sumM2PGlob, (unsigned long long)sumM2P);
+            int targetGroupSize = bodyEnd - bodyBegin;
+            atomicMax(&maxP2PGlob, numP2P);
+            atomicAdd(&sumP2PGlob, numP2P * targetGroupSize);
+            atomicMax(&maxM2PGlob, numM2P);
+            atomicAdd(&sumM2PGlob, numM2P * targetGroupSize);
         }
 
+        const int bodyIdx = bodyBegin + laneIdx;
         for (int i = 0; i < TravConfig::nwt; i++)
         {
             if (bodyIdx + i * GpuConfig::warpSize < bodyEnd)
