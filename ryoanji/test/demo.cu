@@ -83,6 +83,7 @@ int main(int argc, char** argv)
             rawPtr(d_y.data()),
             rawPtr(d_z.data()),
             rawPtr(d_m.data()),
+            rawPtr(d_h.data()),
             rawPtr(sources.data()),
             rawPtr(sourceCenter.data()),
             rawPtr(Multipole.data()));

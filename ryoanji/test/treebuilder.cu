@@ -133,7 +133,7 @@ TEST(Buildtree, cstone)
     thrust::host_vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies), h(numBodies);
     makeCubeBodies(x.data(), y.data(), z.data(), m.data(), h.data(), numBodies, extent);
     // upload to device
-    thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m;
+    thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m, d_h = h;
 
     cstone::Box<T> box(-extent * 1.1, extent * 1.1);
 
@@ -161,6 +161,7 @@ TEST(Buildtree, cstone)
                      rawPtr(d_y.data()),
                      rawPtr(d_z.data()),
                      rawPtr(d_m.data()),
+                     rawPtr(d_h.data()),
                      rawPtr(sources.data()),
                      rawPtr(sourceCenter.data()),
                      rawPtr(Multipole.data()));

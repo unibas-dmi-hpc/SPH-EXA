@@ -58,14 +58,15 @@ struct UpsweepConfig
  */
 template<class T, class MType>
 __global__ void upwardPass(const int firstCell, const int lastCell, CellData* cells, const T* x, const T* y, const T* z,
-                           const T* m, Vec4<T>* sourceCenter, Vec3<T>* cellXmin, Vec3<T>* cellXmax, MType* Multipole)
+                           const T* m, const T* h, Vec4<T>* sourceCenter, Vec4<T>* cellXmin, Vec4<T>* cellXmax,
+                           MType* Multipole)
 {
     const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x + firstCell;
     if (cellIdx >= lastCell) return;
     CellData& cell = cells[cellIdx];
     const T   huge = T(1e10);
-    Vec3<T>   Xmin{+huge, +huge, +huge};
-    Vec3<T>   Xmax{-huge, -huge, -huge};
+    Vec4<T>   Xmin{+huge, +huge, +huge, +huge};
+    Vec4<T>   Xmax{-huge, -huge, -huge, -huge};
     Vec4<T>   center;
     MType     M;
     M = 0;
@@ -77,7 +78,7 @@ __global__ void upwardPass(const int firstCell, const int lastCell, CellData* ce
         center          = setCenter(begin, end, x, y, z, m);
         for (int i = begin; i < end; i++)
         {
-            Vec3<T> pos = {x[i], y[i], z[i]};
+            Vec4<T> pos = {x[i], y[i], z[i], h[i]};
             Xmin        = min(Xmin, pos);
             Xmax        = max(Xmax, pos);
         }
@@ -109,21 +110,22 @@ __global__ void upwardPass(const int firstCell, const int lastCell, CellData* ce
 }
 
 template<class T>
-__global__ void setMAC(int numCells, T invTheta, Vec4<T>* sourceCenter, const Vec3<T>* cellXmin,
-                       const Vec3<T>* cellXmax)
+__global__ void setMAC(int numCells, T invTheta, Vec4<T>* sourceCenter, const Vec4<T>* cellXmin,
+                       const Vec4<T>* cellXmax)
 {
     int cellIdx = blockIdx.x * blockDim.x + threadIdx.x;
     if (cellIdx >= numCells) { return; }
 
-    Vec3<T> Xmin = cellXmin[cellIdx];
-    Vec3<T> Xmax = cellXmax[cellIdx];
+    Vec3<T> Xmin = makeVec3(cellXmin[cellIdx]);
+    Vec3<T> Xmax = makeVec3(cellXmax[cellIdx]);
+    T       Hmax = cellXmax[cellIdx][3];
     Vec3<T> Xi   = makeVec3(sourceCenter[cellIdx]);
     Vec3<T> X    = (Xmax + Xmin) * T(0.5);
-    Vec3<T> R    = (Xmax - Xmin) * T(0.5f);
+    Vec3<T> R    = (Xmax - Xmin) * T(0.5);
     Vec3<T> dX   = X - Xi;
     T       s    = sqrt(norm2(dX));
-    T       l    = max(T(2.0) * max(R), T(1.0e-6));
-    T       MAC  = l * invTheta + s;
+    T       l    = T(2) * max(R);
+    T       MAC  = max(l * invTheta + s, 2 * Hmax + s + l * 0.5);
     T       MAC2 = MAC * MAC;
 
     sourceCenter[cellIdx][3] = MAC2;
@@ -141,13 +143,13 @@ __global__ void normalize(int numCells, MType* multipoles)
 
 template<class T, class MType>
 void upsweep(int numSources, int numLevels, T theta, const int2* levelRange, const T* x, const T* y, const T* z,
-             const T* m, CellData* sourceCells, Vec4<T>* sourceCenter, MType* Multipole)
+             const T* m, const T* h, CellData* sourceCells, Vec4<T>* sourceCenter, MType* Multipole)
 {
     constexpr int numThreads = UpsweepConfig::numThreads;
 
-    thrust::device_vector<Vec3<T>> d_cellXminmax(2 * numSources);
-    Vec3<T>*                       cellXmin = rawPtr(d_cellXminmax.data());
-    Vec3<T>*                       cellXmax = cellXmin + numSources;
+    thrust::device_vector<Vec4<T>> d_cellXminmax(2 * numSources);
+    Vec4<T>*                       cellXmin = rawPtr(d_cellXminmax.data());
+    Vec4<T>*                       cellXmax = cellXmin + numSources;
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
@@ -162,6 +164,7 @@ void upsweep(int numSources, int numLevels, T theta, const int2* levelRange, con
                                               y,
                                               z,
                                               m,
+                                              h,
                                               sourceCenter,
                                               cellXmin,
                                               cellXmax,
