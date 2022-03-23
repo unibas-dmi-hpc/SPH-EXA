@@ -50,7 +50,7 @@ struct UpsweepConfig
  * @param[in]  level            current level to process
  * @param[in]  levelRange       first and last node in @p cells of @p level
  * @param[in]  cells            the tree cells
- * @param[in]  bodyPos          SFC sorted bodies as referenced by @p cells
+ * @param[in]  x,y,z,m,h        SFC sorted bodies as referenced by @p cells
  * @param[out] sourceCenter     the center of mass of each tree cell
  * @param[out] cellXmin         coordinate minimum of each cell
  * @param[out] cellXmax         coordinate maximum of each cell
@@ -109,6 +109,7 @@ __global__ void upwardPass(const int firstCell, const int lastCell, CellData* ce
     Multipole[cellIdx]    = M;
 }
 
+//! @brief calculate the squared MAC radius of each cell, store as the 4-th member sourceCenter
 template<class T>
 __global__ void setMAC(int numCells, T invTheta, Vec4<T>* sourceCenter, const Vec4<T>* cellXmin,
                        const Vec4<T>* cellXmax)

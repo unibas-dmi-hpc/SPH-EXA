@@ -60,9 +60,17 @@ struct TravConfig
 
 __device__ __forceinline__ int ringAddr(const int i) { return i & (TravConfig::memPerWarp - 1); }
 
+/*! @brief evaluate multipole acceptance criterion
+ *
+ * @tparam T
+ * @param sourceCenter  center-mass coordinates of the source cell
+ * @param MAC           the square of the MAC acceptance radius around @p sourceCenter
+ * @param targetCenter  geometric center of the target particle group bounding box
+ * @param targetSize    the half length in each dimension of the target bounding box
+ * @return              true if the target is too close for using the multipole
+ */
 template<class T>
-__host__ __device__ __forceinline__ bool applyMAC(Vec3<T> sourceCenter, T MAC, CellData sourceData,
-                                                  Vec3<T> targetCenter, Vec3<T> targetSize)
+__host__ __device__ __forceinline__ bool applyMAC(Vec3<T> sourceCenter, T MAC, Vec3<T> targetCenter, Vec3<T> targetSize)
 {
     Vec3<T> dX = abs(targetCenter - sourceCenter) - targetSize;
     dX += abs(dX);
@@ -71,7 +79,19 @@ __host__ __device__ __forceinline__ bool applyMAC(Vec3<T> sourceCenter, T MAC, C
     return R2 < MAC;
 }
 
-//! @brief apply M2P kernel for WarpSize different multipoles to the warp-owned target bodies
+/*! @brief apply M2P kernel with GpuConfig::warpSize different multipoles to the target bodies
+ *
+ * @tparam       T            float or double
+ * @tparam       MType        Multipole type, e.g. Cartesian or Spherical of varying expansion order
+ * @param[inout] acc_i        target particle acceleration to add to
+ * @param[in]    pos_i        target particle (x,y,z,h) of each lane
+ * @param[in]    cellIdx      the index of each lane of the multipole to apply, in [0:numSourceCells]
+ * @param[in]    srcCenter    pointer to source cell centers in global memory, length numSourceCells
+ * @param[in]    Multipoles   pointer to the multipole array in global memory, length numSourceCells
+ * @param[-]     warpSpace    shared memory for temporary multipole storage, uninitialized
+ *
+ * Number of computed M2P interactions per call is GpuConfig::warpSize^2 * TravConfig::nwt
+ */
 template<class T, class MType>
 __device__ void approxAcc(Vec4<T> acc_i[TravConfig::nwt], const Vec4<T> pos_i[TravConfig::nwt], const int cellIdx,
                           const Vec4<T>* __restrict__ srcCenter, const MType* __restrict__ Multipoles,
@@ -105,7 +125,16 @@ __device__ void approxAcc(Vec4<T> acc_i[TravConfig::nwt], const Vec4<T> pos_i[Tr
     }
 }
 
-//! @brief compute body-body interactions
+/*! @brief compute body-body interactions
+ *
+ * @tparam       T            float or double
+ * @param[in]    sourceBody   source body x,y,z,m
+ * @param[in]    hSource      source body smoothing length
+ * @param[inout] acc_i        target acceleration to add to
+ * @param[in]    pos_i        target body x,y,z,h
+ *
+ * Number of computed P2P interactions per call is GpuConfig::warpSize^2 * TravConfig::nwt
+ */
 template<class T>
 __device__ void directAcc(Vec4<T> sourceBody, T hSource, Vec4<T> acc_i[TravConfig::nwt],
                           const Vec4<T> pos_i[TravConfig::nwt])
@@ -126,16 +155,16 @@ __device__ void directAcc(Vec4<T> sourceBody, T hSource, Vec4<T> acc_i[TravConfi
 
 /*! @brief traverse one warp with up to 64 target bodies down the tree
  *
- * @param[inout] acc_i         acceleration to add to, TravConfig::nwt fvec4 per lane
+ * @param[inout] acc_i         acceleration of target to add to, TravConfig::nwt Vec4 per lane
  * @param[in]    pos_i         target positions, and smoothing lengths, TravConfig::nwt per lane
  * @param[in]    targetCenter  geometrical target center
  * @param[in]    targetSize    geometrical target bounding box size
- * @param[in]    bodyPos       source bodies as referenced by tree cells
+ * @param[in]    x,y,z,m,h     source bodies as referenced by tree cells
  * @param[in]    sourceCells   source cell data
  * @param[in]    sourceCenter  source center data, x,y,z location and square of MAC radius, same order as sourceCells
  * @param[in]    Multipoles    the multipole expansions in the same order as srcCells
  * @param[in]    rootRange     source cell indices indices of the top 8 octants
- * @param[-]     tempQueue     shared mem int pointer to 32 ints, uninitialized
+ * @param[-]     tempQueue     shared mem int pointer to GpuConfig::warpSize ints, uninitialized
  * @param[-]     cellQueue     pointer to global memory, 4096 ints per thread, uninitialized
  * @return                     Number of M2P and P2P interactions applied to the group of target particles.
  *                             The totals for the warp are the numbers returned here times the number of valid
@@ -182,9 +211,8 @@ traverseWarp(Vec4<T>* acc_i, const Vec4<T> pos_i[TravConfig::nwt], const Vec3<T>
         const Vec3<T>  curSrcCenter{MAC[0], MAC[1], MAC[2]};                      // Current source cell center
         const CellData sourceData = sourceCells[sourceQueue];                     // load source cell data
         const bool     isNode     = sourceData.isNode();                          // Is non-leaf cell
-        const bool     isClose =
-            applyMAC(curSrcCenter, MAC[3], sourceData, targetCenter, targetSize); // Is too close for MAC
-        const bool isSource = sourceIdx < numSources;                             // Source index is within bounds
+        const bool     isClose    = applyMAC(curSrcCenter, MAC[3], targetCenter, targetSize); // Is too close for MAC
+        const bool     isSource   = sourceIdx < numSources;                       // Source index is within bounds
 
         // Split
         const bool isSplit      = isNode && isClose && isSource;       // Source cell must be split
@@ -319,16 +347,23 @@ __global__ void resetTraversalCounters()
     targetCounterGlob = 0;
 }
 
-/*! @brief tree traversal
+/*! @brief Compute approximate body accelerations with Barnes-Hut
  *
- * @param[in]  firstBody     index of first body in bodyPos to compute acceleration for
+ * @param[in]  firstBody     index of first body in @p bodyPos to compute acceleration for
  * @param[in]  lastBody      index (exclusive) of last body in @p bodyPos to compute acceleration for
  * @param[in]  rootRange     (start,end) index pair of cell indices to start traversal from
- * @param[in]  bodyPos       pointer to SFC-sorted bodies
- * @param[in]  srcCells      source cell data
- * @param[in]  srcCenter     source center data, x,y,z location and square of MAC radius, same order as srcCells
- * @param[in]  Multipoles    the multipole expansions in the same order as srcCells
- * @param[out] bodyAcc       body accelerations
+ * @param[in]  x             bodies, in SFC order and as referenced by sourceCells, on device
+ * @param[in]  y
+ * @param[in]  z
+ * @param[in]  m             body masses, on device
+ * @param[in]  h             body smoothing lengths, on device
+ * @param[in]  srcCells      tree connectivity and body location cell data, on device
+ * @param[in]  srcCenter     center-of-mass and MAC radius^2 for each cell, on device
+ * @param[in]  Multipole     cell multipoles, on device
+ * @param[out] p             output potential body acceleration in SFC order, on device
+ * @param[out] ax
+ * @param[out] ay
+ * @param[out] az
  * @param[-]   globalPool    length proportional to number of warps in the launch grid, uninitialized
  */
 template<class T, class MType>
@@ -454,8 +489,8 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
  * @param[in]  x             bodies, in SFC order and as referenced by sourceCells, on device
  * @param[in]  y
  * @param[in]  z
- * @param[in]  m             body masses
- * @param[in]  h             body smoothing lengths
+ * @param[in]  m             body masses, on device
+ * @param[in]  h             body smoothing lengths, on device
  * @param[out] p             output potential body acceleration in SFC order, on device
  * @param[out] ax
  * @param[out] ay

@@ -46,11 +46,30 @@ public:
 
     ~TreeBuilder();
 
+    //! @brief initialize with the desired maximum particles per leaf cell
     TreeBuilder(unsigned ncrit);
 
+    /*! @brief construct an octree from body coordinates
+     *
+     * @tparam        T           float or double
+     * @param[inout]  x           body x-coordinates, will be sorted in SFC-order
+     * @param[inout]  y           body y-coordinates, will be sorted in SFC-order
+     * @param[inout]  z           body z-coordinates, will be sorted in SFC-order
+     * @param[in]     numBodies   number of bodies in @p x,y,z
+     * @param[in]     box         the coordinate bounding box
+     * @return                    the total number of cells in the constructed octree
+     *
+     * Note: x,y,z arrays will be sorted in SFC order to match be consistent with the cell body offsets of the tree
+     */
     template<class T>
     int update(T* x, T* y, T* z, size_t numBodies, const cstone::Box<T>& box);
 
+    /*! @brief extract the octree from the previous update call in ryoanji format
+     *
+     * @param[out] d_ryoanjiTree array of length numSources as returned by the previous update call
+     * @param[out] h_levelRange  indices of the first node at each subdivison level
+     * @return     the maximum subdivision level in the output tree
+     */
     int extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange);
 
     unsigned maxTreeLevel() const;

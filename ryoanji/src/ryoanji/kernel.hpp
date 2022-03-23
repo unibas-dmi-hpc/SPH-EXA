@@ -499,25 +499,6 @@ HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xout, 
     }
 }
 
-template<class Ta, class T>
-HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> P2P(Vec4<Ta> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, T q_j, T EPS2)
-{
-    Vec3<T> dX    = pos_j - pos_i;
-    T       R2    = norm2(dX) + EPS2;
-    T       invR  = inverseSquareRoot(R2);
-    T       invR2 = invR * invR;
-    T       invR1 = q_j * invR;
-
-    dX *= invR1 * invR2;
-
-    acc[0] -= invR1;
-    acc[1] += dX[0];
-    acc[2] += dX[1];
-    acc[3] += dX[2];
-
-    return acc;
-}
-
 /*! @brief interaction between two particles
  *
  * @param acc     acceleration to add to
