@@ -47,6 +47,7 @@ int main(int argc, char** argv)
     std::size_t numBodies = (1 << power) - 1;
     T           theta     = 0.6;
     T           boxSize   = 3;
+    T           G         = 1.0;
 
     const int ncrit = 64;
 
@@ -88,7 +89,7 @@ int main(int argc, char** argv)
             rawPtr(sourceCenter.data()),
             rawPtr(Multipole.data()));
 
-    thrust::device_vector<T> d_p(numBodies), d_ax(numBodies), d_ay(numBodies), d_az(numBodies);
+    thrust::device_vector<T> d_p(numBodies, 0), d_ax(numBodies, 0), d_ay(numBodies, 0), d_az(numBodies, 0);
 
     fprintf(stdout, "--- BH Profiling ----------------\n");
 
@@ -101,6 +102,7 @@ int main(int argc, char** argv)
                                                rawPtr(d_z.data()),
                                                rawPtr(d_m.data()),
                                                rawPtr(d_h.data()),
+                                               G,
                                                rawPtr(d_p.data()),
                                                rawPtr(d_ax.data()),
                                                rawPtr(d_ay.data()),

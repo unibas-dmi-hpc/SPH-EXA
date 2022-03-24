@@ -349,29 +349,32 @@ __global__ void resetTraversalCounters()
 
 /*! @brief Compute approximate body accelerations with Barnes-Hut
  *
- * @param[in]  firstBody     index of first body in @p bodyPos to compute acceleration for
- * @param[in]  lastBody      index (exclusive) of last body in @p bodyPos to compute acceleration for
- * @param[in]  rootRange     (start,end) index pair of cell indices to start traversal from
- * @param[in]  x             bodies, in SFC order and as referenced by sourceCells, on device
- * @param[in]  y
- * @param[in]  z
- * @param[in]  m             body masses, on device
- * @param[in]  h             body smoothing lengths, on device
- * @param[in]  srcCells      tree connectivity and body location cell data, on device
- * @param[in]  srcCenter     center-of-mass and MAC radius^2 for each cell, on device
- * @param[in]  Multipole     cell multipoles, on device
- * @param[out] p             output potential body acceleration in SFC order, on device
- * @param[out] ax
- * @param[out] ay
- * @param[out] az
- * @param[-]   globalPool    length proportional to number of warps in the launch grid, uninitialized
+ * @param[in]    firstBody     index of first body in @p bodyPos to compute acceleration for
+ * @param[in]    lastBody      index (exclusive) of last body in @p bodyPos to compute acceleration for
+ * @param[in]    rootRange     (start,end) index pair of cell indices to start traversal from
+ * @param[in]    x             bodies, in SFC order and as referenced by sourceCells, on device
+ * @param[in]    y
+ * @param[in]    z
+ * @param[in]    m             body masses, on device
+ * @param[in]    h             body smoothing lengths, on device
+ * @param[in]    srcCells      tree connectivity and body location cell data, on device
+ * @param[in]    srcCenter     center-of-mass and MAC radius^2 for each cell, on device
+ * @param[in]    Multipole     cell multipoles, on device
+ * @param[in]    G             gravitational constant
+ * @param[inout] p             output potential body acceleration to add to, on device
+ * @param[inout] ax
+ * @param[inout] ay
+ * @param[inout] az
+ * @param[-]     globalPool    temporary storage for the cell traversal stack, uninitialized
+ *                             each active warp needs space for TravConfig::memPerWarp int32,
+ *                             so the total size is TravConfig::memPerWarp * numWarpsPerBlock * numBlocks
  */
 template<class T, class MType>
 __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
-    int firstBody, int lastBody, const int2 rootRange, const T* __restrict__ x,
-    const T* __restrict__ y, const T* __restrict__ z, const T* __restrict__ m, const T* __restrict__ h,
-    const CellData* __restrict__ srcCells, const Vec4<T>* __restrict__ srcCenter, const MType* __restrict__ Multipoles,
-    T* p, T* ax, T* ay, T* az, int* globalPool)
+    int firstBody, int lastBody, const int2 rootRange, const T* __restrict__ x, const T* __restrict__ y,
+    const T* __restrict__ z, const T* __restrict__ m, const T* __restrict__ h, const CellData* __restrict__ srcCells,
+    const Vec4<T>* __restrict__ srcCenter, const MType* __restrict__ Multipoles, T G, T* p, T* ax, T* ay, T* az,
+    int* globalPool)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
     const int warpIdx = threadIdx.x >> GpuConfig::warpSizeLog2;
@@ -473,10 +476,10 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
         {
             if (bodyIdx + i * GpuConfig::warpSize < bodyEnd)
             {
-                p[i * GpuConfig::warpSize + bodyIdx]  = acc_i[i][0];
-                ax[i * GpuConfig::warpSize + bodyIdx] = acc_i[i][1];
-                ay[i * GpuConfig::warpSize + bodyIdx] = acc_i[i][2];
-                az[i * GpuConfig::warpSize + bodyIdx] = acc_i[i][3];
+                p[i * GpuConfig::warpSize + bodyIdx]  += G * acc_i[i][0];
+                ax[i * GpuConfig::warpSize + bodyIdx] += G * acc_i[i][1];
+                ay[i * GpuConfig::warpSize + bodyIdx] += G * acc_i[i][2];
+                az[i * GpuConfig::warpSize + bodyIdx] += G * acc_i[i][3];
             }
         }
     }
@@ -503,7 +506,7 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
  */
 template<class T, class MType>
 Vec4<T> computeAcceleration(int firstBody, int lastBody, const T* x, const T* y, const T* z, const T* m, const T* h,
-                            T* p, T* ax, T* ay, T* az, const CellData* sourceCells, const Vec4<T>* sourceCenter,
+                            T G, T* p, T* ax, T* ay, T* az, const CellData* sourceCells, const Vec4<T>* sourceCenter,
                             const MType* Multipole, const int2* levelRange)
 {
     constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
@@ -533,6 +536,7 @@ Vec4<T> computeAcceleration(int firstBody, int lastBody, const T* x, const T* y,
                                                     sourceCells,
                                                     sourceCenter,
                                                     Multipole,
+                                                    G,
                                                     p,
                                                     ax,
                                                     ay,
