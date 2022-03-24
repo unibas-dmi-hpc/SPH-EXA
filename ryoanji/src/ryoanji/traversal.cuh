@@ -335,6 +335,7 @@ __device__ unsigned           maxP2PGlob = 0;
 __device__ unsigned long long sumM2PGlob = 0;
 __device__ unsigned           maxM2PGlob = 0;
 
+__device__ float totalPotentialGlob = 0;
 __device__ unsigned int targetCounterGlob = 0;
 
 __global__ void resetTraversalCounters()
@@ -344,11 +345,14 @@ __global__ void resetTraversalCounters()
     sumM2PGlob = 0;
     maxM2PGlob = 0;
 
+    totalPotentialGlob = 0;
     targetCounterGlob = 0;
 }
 
 /*! @brief Compute approximate body accelerations with Barnes-Hut
  *
+ * @tparam       P             If P == T*, then the potential of each body will be stored.
+ *                             Otherwise only the global potential sum will be calculated.
  * @param[in]    firstBody     index of first body in @p bodyPos to compute acceleration for
  * @param[in]    lastBody      index (exclusive) of last body in @p bodyPos to compute acceleration for
  * @param[in]    rootRange     (start,end) index pair of cell indices to start traversal from
@@ -369,11 +373,11 @@ __global__ void resetTraversalCounters()
  *                             each active warp needs space for TravConfig::memPerWarp int32,
  *                             so the total size is TravConfig::memPerWarp * numWarpsPerBlock * numBlocks
  */
-template<class T, class MType>
+template<class T, class MType, class P>
 __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
     int firstBody, int lastBody, const int2 rootRange, const T* __restrict__ x, const T* __restrict__ y,
     const T* __restrict__ z, const T* __restrict__ m, const T* __restrict__ h, const CellData* __restrict__ srcCells,
-    const Vec4<T>* __restrict__ srcCenter, const MType* __restrict__ Multipoles, T G, T* p, T* ax, T* ay, T* az,
+    const Vec4<T>* __restrict__ srcCenter, const MType* __restrict__ Multipoles, T G, P p, T* ax, T* ay, T* az,
     int* globalPool)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
@@ -462,6 +466,20 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
                                              cellQueue);
         assert(numM2P != 0xFFFFFFFF && numP2P != 0xFFFFFFFF);
 
+        const int bodyIdx = bodyBegin + laneIdx;
+
+        float warpPotential = 0;
+        for (int i = 0; i < TravConfig::nwt; i++)
+        {
+            if (i * GpuConfig::warpSize + bodyIdx < bodyEnd) { warpPotential += G * acc_i[i][0]; }
+        }
+
+#pragma unroll
+        for (int i = 0; i < GpuConfig::warpSizeLog2; i++)
+        {
+            warpPotential += shflXorSync(warpPotential, 1 << i);
+        }
+
         if (laneIdx == 0)
         {
             int targetGroupSize = bodyEnd - bodyBegin;
@@ -469,14 +487,14 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
             atomicAdd(&sumP2PGlob, numP2P * targetGroupSize);
             atomicMax(&maxM2PGlob, numM2P);
             atomicAdd(&sumM2PGlob, numM2P * targetGroupSize);
+            atomicAdd(&totalPotentialGlob, warpPotential);
         }
 
-        const int bodyIdx = bodyBegin + laneIdx;
         for (int i = 0; i < TravConfig::nwt; i++)
         {
             if (bodyIdx + i * GpuConfig::warpSize < bodyEnd)
             {
-                p[i * GpuConfig::warpSize + bodyIdx]  += G * acc_i[i][0];
+                if constexpr (std::is_same_v<P, T*>) { p[i * GpuConfig::warpSize + bodyIdx] += G * acc_i[i][0]; }
                 ax[i * GpuConfig::warpSize + bodyIdx] += G * acc_i[i][1];
                 ay[i * GpuConfig::warpSize + bodyIdx] += G * acc_i[i][2];
                 az[i * GpuConfig::warpSize + bodyIdx] += G * acc_i[i][3];
@@ -494,20 +512,20 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
  * @param[in]  z
  * @param[in]  m             body masses, on device
  * @param[in]  h             body smoothing lengths, on device
- * @param[out] p             output potential body acceleration in SFC order, on device
- * @param[out] ax
- * @param[out] ay
- * @param[out] az
+ * @param[inout] p           body potential to add to, on device
+ * @param[inout] ax          body acceleration to add to
+ * @param[inout] ay
+ * @param[inout] az
  * @param[in]  sourceCells   tree connectivity and body location cell data, on device
  * @param[in]  sourceCenter  center-of-mass and MAC radius^2 for each cell, on device
  * @param[in]  Multipole     cell multipoles, on device
  * @param[in]  levelRange    first and last cell of each level in the source tree, on host
  * @return                   P2P and M2P interaction statistics
  */
-template<class T, class MType>
-Vec4<T> computeAcceleration(int firstBody, int lastBody, const T* x, const T* y, const T* z, const T* m, const T* h,
-                            T G, T* p, T* ax, T* ay, T* az, const CellData* sourceCells, const Vec4<T>* sourceCenter,
-                            const MType* Multipole, const int2* levelRange)
+template<class T, class MType, class P>
+auto computeAcceleration(int firstBody, int lastBody, const T* x, const T* y, const T* z, const T* m, const T* h, T G,
+                         P p, T* ax, T* ay, T* az, const CellData* sourceCells, const Vec4<T>* sourceCenter,
+                         const MType* Multipole, const int2* levelRange)
 {
     constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
 
@@ -555,11 +573,15 @@ Vec4<T> computeAcceleration(int firstBody, int lastBody, const T* x, const T* y,
     checkGpuErrors(cudaMemcpyFromSymbol(&sumM2P, sumM2PGlob, sizeof(uint64_t)));
     checkGpuErrors(cudaMemcpyFromSymbol(&maxM2P, maxM2PGlob, sizeof(unsigned int)));
 
-    Vec4<T> interactions;
+    float totalPotential;
+    checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
+
+    util::array<T, 5> interactions;
     interactions[0] = T(sumP2P) / T(numBodies);
     interactions[1] = T(maxP2P);
     interactions[2] = T(sumM2P) / T(numBodies);
     interactions[3] = T(maxM2P);
+    interactions[4] = totalPotential;
 
     T flops = (interactions[0] * 20.0 + interactions[2] * 2.0 * powf(ExpansionOrder<MType{}.size()>{}, 3)) *
               T(numBodies) / dt / 1e12;

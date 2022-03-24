@@ -24,6 +24,7 @@
  */
 
 #include <chrono>
+#include <numeric>
 
 #include "dataset.hpp"
 #include "ryoanji/gpu_config.h"
@@ -95,22 +96,22 @@ int main(int argc, char** argv)
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
-    Vec4<T> interactions = computeAcceleration(0,
-                                               numBodies,
-                                               rawPtr(d_x.data()),
-                                               rawPtr(d_y.data()),
-                                               rawPtr(d_z.data()),
-                                               rawPtr(d_m.data()),
-                                               rawPtr(d_h.data()),
-                                               G,
-                                               rawPtr(d_p.data()),
-                                               rawPtr(d_ax.data()),
-                                               rawPtr(d_ay.data()),
-                                               rawPtr(d_az.data()),
-                                               rawPtr(sources.data()),
-                                               rawPtr(sourceCenter.data()),
-                                               rawPtr(Multipole.data()),
-                                               levelRange.data());
+    auto interactions = computeAcceleration(0,
+                                            numBodies,
+                                            rawPtr(d_x.data()),
+                                            rawPtr(d_y.data()),
+                                            rawPtr(d_z.data()),
+                                            rawPtr(d_m.data()),
+                                            rawPtr(d_h.data()),
+                                            G,
+                                            rawPtr(d_p.data()),
+                                            rawPtr(d_ax.data()),
+                                            rawPtr(d_ay.data()),
+                                            rawPtr(d_az.data()),
+                                            rawPtr(sources.data()),
+                                            rawPtr(sourceCenter.data()),
+                                            rawPtr(Multipole.data()),
+                                            levelRange.data());
 
     auto   t1    = std::chrono::high_resolution_clock::now();
     double dt    = std::chrono::duration<double>(t1 - t0).count();
@@ -153,8 +154,10 @@ int main(int argc, char** argv)
 
     std::vector<double> delta(numBodies);
 
+    double potentialSum = 0;
     for (int i = 0; i < numBodies; i++)
     {
+        potentialSum += h_p[i];
         Vec3<T> ref   = {h_refAx[i], h_refAy[i], h_refAz[i]};
         Vec3<T> probe = {h_ax[i], h_ay[i], h_az[i]};
         delta[i]      = std::sqrt(norm2(ref - probe) / norm2(ref));
@@ -164,6 +167,8 @@ int main(int argc, char** argv)
 
     fprintf(stdout, "--- BH vs. direct ---------------\n");
 
+    std::cout << "potentials, body-sum: " << potentialSum << " atomic sum: " << interactions[4]
+              << " reference: " << std::accumulate(h_refP.begin(), h_refP.end(), 0.0) << std::endl;
     std::cout << "min Error: " << delta[0] << std::endl;
     std::cout << "50th percentile: " << delta[numBodies / 2] << std::endl;
     std::cout << "10th percentile: " << delta[numBodies * 0.9] << std::endl;
