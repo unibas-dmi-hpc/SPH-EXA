@@ -60,21 +60,41 @@ struct TravConfig
 
 __device__ __forceinline__ int ringAddr(const int i) { return i & (TravConfig::memPerWarp - 1); }
 
+/*! @brief evaluate multipole acceptance criterion
+ *
+ * @tparam T
+ * @param sourceCenter  center-mass coordinates of the source cell
+ * @param MAC           the square of the MAC acceptance radius around @p sourceCenter
+ * @param targetCenter  geometric center of the target particle group bounding box
+ * @param targetSize    the half length in each dimension of the target bounding box
+ * @return              true if the target is too close for using the multipole
+ */
 template<class T>
-__host__ __device__ __forceinline__ bool applyMAC(Vec3<T> sourceCenter, T MAC, CellData sourceData,
-                                                  Vec3<T> targetCenter, Vec3<T> targetSize)
+__host__ __device__ __forceinline__ bool applyMAC(Vec3<T> sourceCenter, T MAC, Vec3<T> targetCenter, Vec3<T> targetSize)
 {
     Vec3<T> dX = abs(targetCenter - sourceCenter) - targetSize;
     dX += abs(dX);
     dX *= T(0.5);
     T R2 = norm2(dX);
-    return R2 < std::abs(MAC) || sourceData.nbody() < 3;
+    return R2 < MAC;
 }
 
-//! @brief apply M2P kernel for WarpSize different multipoles to the warp-owned target bodies
+/*! @brief apply M2P kernel with GpuConfig::warpSize different multipoles to the target bodies
+ *
+ * @tparam       T            float or double
+ * @tparam       MType        Multipole type, e.g. Cartesian or Spherical of varying expansion order
+ * @param[inout] acc_i        target particle acceleration to add to
+ * @param[in]    pos_i        target particle (x,y,z,h) of each lane
+ * @param[in]    cellIdx      the index of each lane of the multipole to apply, in [0:numSourceCells]
+ * @param[in]    srcCenter    pointer to source cell centers in global memory, length numSourceCells
+ * @param[in]    Multipoles   pointer to the multipole array in global memory, length numSourceCells
+ * @param[-]     warpSpace    shared memory for temporary multipole storage, uninitialized
+ *
+ * Number of computed M2P interactions per call is GpuConfig::warpSize^2 * TravConfig::nwt
+ */
 template<class T, class MType>
-__device__ void approxAcc(Vec4<T> acc_i[TravConfig::nwt], const Vec3<T> pos_i[TravConfig::nwt], const int      cellIdx,
-                          const Vec4<T>* __restrict__ srcCenter, const MType* __restrict__ Multipoles, const T EPS2,
+__device__ void approxAcc(Vec4<T> acc_i[TravConfig::nwt], const Vec4<T> pos_i[TravConfig::nwt], const int cellIdx,
+                          const Vec4<T>* __restrict__ srcCenter, const MType* __restrict__ Multipoles,
                           volatile int* warpSpace)
 {
     constexpr int termSize = MType{}.size();
@@ -97,57 +117,69 @@ __device__ void approxAcc(Vec4<T> acc_i[TravConfig::nwt], const Vec3<T> pos_i[Tr
         if (laneIdx < termSize) { sm_Multipole[laneIdx] = gm_M[currentCell * termSize + laneIdx]; }
         syncWarp();
 
-        #pragma unroll
+#pragma unroll
         for (int k = 0; k < TravConfig::nwt; k++)
         {
-            acc_i[k] = M2P(acc_i[k], pos_i[k], pos_j, *(MType*)sm_Multipole, EPS2);
+            acc_i[k] = M2P(acc_i[k], makeVec3(pos_i[k]), pos_j, *(MType*)sm_Multipole);
         }
     }
 }
 
-//! @brief compute body-body interactions
+/*! @brief compute body-body interactions
+ *
+ * @tparam       T            float or double
+ * @param[in]    sourceBody   source body x,y,z,m
+ * @param[in]    hSource      source body smoothing length
+ * @param[inout] acc_i        target acceleration to add to
+ * @param[in]    pos_i        target body x,y,z,h
+ *
+ * Number of computed P2P interactions per call is GpuConfig::warpSize^2 * TravConfig::nwt
+ */
 template<class T>
-__device__ void directAcc(Vec4<T> sourceBody, Vec4<T> acc_i[TravConfig::nwt], const Vec3<T> pos_i[TravConfig::nwt],
-                          const T EPS2)
+__device__ void directAcc(Vec4<T> sourceBody, T hSource, Vec4<T> acc_i[TravConfig::nwt],
+                          const Vec4<T> pos_i[TravConfig::nwt])
 {
     for (int j = 0; j < GpuConfig::warpSize; j++)
     {
         Vec3<T> pos_j{shflSync(sourceBody[0], j), shflSync(sourceBody[1], j), shflSync(sourceBody[2], j)};
-        T       q_j = shflSync(sourceBody[3], j);
+        T       m_j = shflSync(sourceBody[3], j);
+        T       h_j = shflSync(hSource, j);
 
-        #pragma unroll
+#pragma unroll
         for (int k = 0; k < TravConfig::nwt; k++)
         {
-            acc_i[k] = P2P(acc_i[k], pos_i[k], pos_j, q_j, EPS2);
+            acc_i[k] = P2P(acc_i[k], makeVec3(pos_i[k]), pos_j, m_j, h_j, pos_i[k][3]);
         }
     }
 }
 
 /*! @brief traverse one warp with up to 64 target bodies down the tree
  *
- * @param[inout] acc_i         acceleration to add to, TravConfig::nwt fvec4 per lane
- * @param[in]    pos_i         target positions, TravConfig::nwt per lane
+ * @param[inout] acc_i         acceleration of target to add to, TravConfig::nwt Vec4 per lane
+ * @param[in]    pos_i         target positions, and smoothing lengths, TravConfig::nwt per lane
  * @param[in]    targetCenter  geometrical target center
  * @param[in]    targetSize    geometrical target bounding box size
- * @param[in]    bodyPos       source bodies as referenced by tree cells
+ * @param[in]    x,y,z,m,h     source bodies as referenced by tree cells
  * @param[in]    sourceCells   source cell data
  * @param[in]    sourceCenter  source center data, x,y,z location and square of MAC radius, same order as sourceCells
  * @param[in]    Multipoles    the multipole expansions in the same order as srcCells
- * @param[in]    EPS2          plummer softening
  * @param[in]    rootRange     source cell indices indices of the top 8 octants
- * @param[-]     tempQueue     shared mem int pointer to 32 ints, uninitialized
+ * @param[-]     tempQueue     shared mem int pointer to GpuConfig::warpSize ints, uninitialized
  * @param[-]     cellQueue     pointer to global memory, 4096 ints per thread, uninitialized
- * @return
+ * @return                     Number of M2P and P2P interactions applied to the group of target particles.
+ *                             The totals for the warp are the numbers returned here times the number of valid
+ *                             targets in the warp.
  *
  * Constant input pointers are additionally marked __restrict__ to indicate to the compiler that loads
  * can be routed through the read-only/texture cache.
  */
 template<class T, class MType>
-__device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec3<T> pos_i[TravConfig::nwt], const Vec3<T> targetCenter,
-                              const Vec3<T> targetSize, const Vec4<T>* __restrict__ bodyPos,
-                              const CellData* __restrict__ sourceCells, const Vec4<T>* __restrict__ sourceCenter,
-                              const MType* __restrict__ Multipoles, const T EPS2, int2 rootRange,
-                              volatile int* tempQueue, int* cellQueue)
+__device__ util::tuple<unsigned, unsigned>
+traverseWarp(Vec4<T>* acc_i, const Vec4<T> pos_i[TravConfig::nwt], const Vec3<T> targetCenter, const Vec3<T> targetSize,
+             const T* __restrict__ x, const T* __restrict__ y, const T* __restrict__ z, const T* __restrict__ m,
+             const T* __restrict__ h, const CellData* __restrict__ sourceCells,
+             const Vec4<T>* __restrict__ sourceCenter, const MType* __restrict__ Multipoles, int2 rootRange,
+             volatile int* tempQueue, int* cellQueue)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
 
@@ -179,9 +211,8 @@ __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec3<T> pos_i[TravConfig::nw
         const Vec3<T>  curSrcCenter{MAC[0], MAC[1], MAC[2]};                      // Current source cell center
         const CellData sourceData = sourceCells[sourceQueue];                     // load source cell data
         const bool     isNode     = sourceData.isNode();                          // Is non-leaf cell
-        const bool     isClose =
-            applyMAC(curSrcCenter, MAC[3], sourceData, targetCenter, targetSize); // Is too close for MAC
-        const bool isSource = sourceIdx < numSources;                             // Source index is within bounds
+        const bool     isClose    = applyMAC(curSrcCenter, MAC[3], targetCenter, targetSize); // Is too close for MAC
+        const bool     isSource   = sourceIdx < numSources;                       // Source index is within bounds
 
         // Split
         const bool isSplit      = isNode && isClose && isSource;       // Source cell must be split
@@ -192,7 +223,7 @@ __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec3<T> pos_i[TravConfig::nw
         const int  numChildWarp = shflSync(numChildScan, GpuConfig::warpSize - 1); // Total numChild of current warp
         sourceOffset += imin(GpuConfig::warpSize, numSources - sourceOffset);  // advance current level stack pointer
         if (numChildWarp + numSources - sourceOffset > TravConfig::memPerWarp) // If cell queue overflows
-            return make_uint2(0xFFFFFFFF, 0xFFFFFFFF);                         // Exit kernel
+            return {0xFFFFFFFF, 0xFFFFFFFF};                                   // Exit kernel
         int childIdx = oldSources + numSources + newSources + numChildLane;    // Child index of current lane
         for (int i = 0; i < numChild; i++)                                     // Loop over child cells for each lane
             cellQueue[ringAddr(childIdx + i)] = childBegin + i;                // Queue child cells for next level
@@ -209,7 +240,7 @@ __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec3<T> pos_i[TravConfig::nw
         if (apxFillLevel >= GpuConfig::warpSize) // If queue is larger than warp size,
         {
             // Call M2P kernel
-            approxAcc(acc_i, pos_i, approxQueue, sourceCenter, Multipoles, EPS2, tempQueue);
+            approxAcc(acc_i, pos_i, approxQueue, sourceCenter, Multipoles, tempQueue);
             apxFillLevel -= GpuConfig::warpSize;
             // pull down remaining source cell indices into now empty approxQueue
             approxQueue = shflDownSync(sourceQueue, numKeepWarp - apxFillLevel);
@@ -238,8 +269,10 @@ __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec3<T> pos_i[TravConfig::nw
 
             if (numBodiesWarp >= GpuConfig::warpSize) // Process bodies from current set of source cells
             {
-                const Vec4<T> sourceBody = bodyPos[bodyIdx]; // Load source body coordinates
-                directAcc(sourceBody, acc_i, pos_i, EPS2);
+                // Load source body coordinates
+                const Vec4<T> sourceBody = {x[bodyIdx], y[bodyIdx], z[bodyIdx], m[bodyIdx]};
+                const T       hSource    = h[bodyIdx];
+                directAcc(sourceBody, hSource, acc_i, pos_i);
                 numBodiesWarp -= GpuConfig::warpSize;
                 numBodiesLane -= GpuConfig::warpSize;
                 p2pCounter += GpuConfig::warpSize;
@@ -253,8 +286,10 @@ __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec3<T> pos_i[TravConfig::nw
                 bdyFillLevel += numBodiesWarp;
                 if (bdyFillLevel >= GpuConfig::warpSize) // If this causes bodyQueue to spill
                 {
-                    const Vec4<T> sourceBody = bodyPos[bodyQueue]; // Load source body coordinates
-                    directAcc(sourceBody, acc_i, pos_i, EPS2);
+                    // Load source body coordinates
+                    const Vec4<T> sourceBody = {x[bodyQueue], y[bodyQueue], z[bodyQueue], m[bodyQueue]};
+                    const T       hSource    = h[bodyQueue];
+                    directAcc(sourceBody, hSource, acc_i, pos_i);
                     bdyFillLevel -= GpuConfig::warpSize;
                     // bodyQueue is now empty; put body indices that spilled into the queue
                     bodyQueue = shflDownSync(bodyIdx, numBodiesWarp - bdyFillLevel);
@@ -276,7 +311,7 @@ __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec3<T> pos_i[TravConfig::nw
     if (apxFillLevel > 0) // If there are leftover approx cells
     {
         // Call M2P kernel
-        approxAcc(acc_i, pos_i, laneIdx < apxFillLevel ? approxQueue : -1, sourceCenter, Multipoles, EPS2, tempQueue);
+        approxAcc(acc_i, pos_i, laneIdx < apxFillLevel ? approxQueue : -1, sourceCenter, Multipoles, tempQueue);
 
         m2pCounter += apxFillLevel;
     }
@@ -285,19 +320,22 @@ __device__ uint2 traverseWarp(Vec4<T>* acc_i, const Vec3<T> pos_i[TravConfig::nw
     {
         const int bodyIdx = laneIdx < bdyFillLevel ? bodyQueue : -1;
         // Load position of source bodies, with padding for invalid lanes
-        const Vec4<T> sourceBody = bodyIdx >= 0 ? bodyPos[bodyIdx] : Vec4<T>{T(0), T(0), T(0), T(0)};
-        directAcc(sourceBody, acc_i, pos_i, EPS2);
+        const Vec4<T> sourceBody =
+            bodyIdx >= 0 ? Vec4<T>{x[bodyIdx], y[bodyIdx], z[bodyIdx], m[bodyIdx]} : Vec4<T>{T(0), T(0), T(0), T(0)};
+        const T hSource = bodyIdx >= 0 ? h[bodyIdx] : T(0);
+        directAcc(sourceBody, hSource, acc_i, pos_i);
         p2pCounter += bdyFillLevel;
     }
 
     return {m2pCounter, p2pCounter};
 }
 
-__device__ uint64_t     sumP2PGlob = 0;
-__device__ unsigned int maxP2PGlob = 0;
-__device__ uint64_t     sumM2PGlob = 0;
-__device__ unsigned int maxM2PGlob = 0;
+__device__ unsigned long long sumP2PGlob = 0;
+__device__ unsigned           maxP2PGlob = 0;
+__device__ unsigned long long sumM2PGlob = 0;
+__device__ unsigned           maxM2PGlob = 0;
 
+__device__ float totalPotentialGlob = 0;
 __device__ unsigned int targetCounterGlob = 0;
 
 __global__ void resetTraversalCounters()
@@ -307,29 +345,40 @@ __global__ void resetTraversalCounters()
     sumM2PGlob = 0;
     maxM2PGlob = 0;
 
+    totalPotentialGlob = 0;
     targetCounterGlob = 0;
 }
 
-/*! @brief tree traversal
+/*! @brief Compute approximate body accelerations with Barnes-Hut
  *
- * @param[in]  firstBody     index of first body in bodyPos to compute acceleration for
- * @param[in]  lastBody      index (exclusive) of last body in @p bodyPos to compute acceleration for
- * @param[in]  images        number of periodic images to include
- * @param[in]  EPS2          Plummer softening parameter
- * @param[in]  cycle         2 * M_PI
- * @param[in]  rootRange     (start,end) index pair of cell indices to start traversal from
- * @param[in]  bodyPos       pointer to SFC-sorted bodies
- * @param[in]  srcCells      source cell data
- * @param[in]  srcCenter     source center data, x,y,z location and square of MAC radius, same order as srcCells
- * @param[in]  Multipoles    the multipole expansions in the same order as srcCells
- * @param[out] bodyAcc       body accelerations
- * @param[-]   globalPool    length proportional to number of warps in the launch grid, uninitialized
+ * @tparam       P             If P == T*, then the potential of each body will be stored.
+ *                             Otherwise only the global potential sum will be calculated.
+ * @param[in]    firstBody     index of first body in @p bodyPos to compute acceleration for
+ * @param[in]    lastBody      index (exclusive) of last body in @p bodyPos to compute acceleration for
+ * @param[in]    rootRange     (start,end) index pair of cell indices to start traversal from
+ * @param[in]    x             bodies, in SFC order and as referenced by sourceCells, on device
+ * @param[in]    y
+ * @param[in]    z
+ * @param[in]    m             body masses, on device
+ * @param[in]    h             body smoothing lengths, on device
+ * @param[in]    srcCells      tree connectivity and body location cell data, on device
+ * @param[in]    srcCenter     center-of-mass and MAC radius^2 for each cell, on device
+ * @param[in]    Multipole     cell multipoles, on device
+ * @param[in]    G             gravitational constant
+ * @param[inout] p             output potential body acceleration to add to, on device
+ * @param[inout] ax
+ * @param[inout] ay
+ * @param[inout] az
+ * @param[-]     globalPool    temporary storage for the cell traversal stack, uninitialized
+ *                             each active warp needs space for TravConfig::memPerWarp int32,
+ *                             so the total size is TravConfig::memPerWarp * numWarpsPerBlock * numBlocks
  */
-template<class T, class MType>
+template<class T, class MType, class P>
 __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
-    int firstBody, int lastBody, int images, const T EPS2, T cycle, const int2 rootRange,
-    const Vec4<T>* __restrict__ bodyPos, const CellData* __restrict__ srcCells, const Vec4<T>* __restrict__ srcCenter,
-    const MType* __restrict__ Multipoles, Vec4<T>* bodyAcc, int* globalPool)
+    int firstBody, int lastBody, const int2 rootRange, const T* __restrict__ x, const T* __restrict__ y,
+    const T* __restrict__ z, const T* __restrict__ m, const T* __restrict__ h, const CellData* __restrict__ srcCells,
+    const Vec4<T>* __restrict__ srcCenter, const MType* __restrict__ Multipoles, T G, P p, T* ax, T* ay, T* az,
+    int* globalPool)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
     const int warpIdx = threadIdx.x >> GpuConfig::warpSizeLog2;
@@ -373,19 +422,19 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
         const int bodyEnd   = imin(bodyBegin + TravConfig::targetSize, lastBody);
 
         // load target coordinates
-        Vec3<T> pos_i[TravConfig::nwt];
+        Vec4<T> pos_i[TravConfig::nwt];
         for (int i = 0; i < TravConfig::nwt; i++)
         {
             int bodyIdx = imin(bodyBegin + i * GpuConfig::warpSize + laneIdx, bodyEnd - 1);
-            pos_i[i]    = makeVec3(bodyPos[bodyIdx]);
+            pos_i[i]    = {x[bodyIdx], y[bodyIdx], z[bodyIdx], h[bodyIdx]};
         }
 
-        Vec3<T> Xmin = pos_i[0];
-        Vec3<T> Xmax = pos_i[0];
+        Vec3<T> Xmin = makeVec3(pos_i[0]);
+        Vec3<T> Xmax = makeVec3(pos_i[0]);
         for (int i = 1; i < TravConfig::nwt; i++)
         {
-            Xmin = min(Xmin, pos_i[i]);
-            Xmax = max(Xmax, pos_i[i]);
+            Xmin = min(Xmin, makeVec3(pos_i[i]));
+            Xmax = max(Xmax, makeVec3(pos_i[i]));
         }
 
         Xmin = {warpMin(Xmin[0]), warpMin(Xmin[1]), warpMin(Xmin[2])};
@@ -400,85 +449,56 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
             acc_i[i] = Vec4<T>{T(0), T(0), T(0), T(0)};
         }
 
-        int numP2P = 0, numM2P = 0;
-        for (int ix = -images; ix <= images; ix++)
-        {
-            for (int iy = -images; iy <= images; iy++)
-            {
-                for (int iz = -images; iz <= images; iz++)
-                {
-                    Vec3<T> Xperiodic;
-                    Xperiodic[0] = ix * cycle;
-                    Xperiodic[1] = iy * cycle;
-                    Xperiodic[2] = iz * cycle;
-
-                    // apply periodic shift
-                    targetCenter -= Xperiodic;
-                    for (int i = 0; i < TravConfig::nwt; i++)
-                    {
-                        pos_i[i] -= Xperiodic;
-                    }
-
-                    const uint2 counters = traverseWarp(acc_i,
-                                                        pos_i,
-                                                        targetCenter,
-                                                        targetSize,
-                                                        bodyPos,
-                                                        srcCells,
-                                                        srcCenter,
-                                                        Multipoles,
-                                                        EPS2,
-                                                        rootRange,
-                                                        tempQueue,
-                                                        cellQueue);
-                    assert(!(counters.x == 0xFFFFFFFF && counters.y == 0xFFFFFFFF));
-
-                    // revert periodic shift
-                    targetCenter += Xperiodic;
-                    for (int i = 0; i < TravConfig::nwt; i++)
-                    {
-                        pos_i[i] += Xperiodic;
-                    }
-
-                    numM2P += counters.x;
-                    numP2P += counters.y;
-                }
-            }
-        }
-
-        int maxP2P = numP2P;
-        int sumP2P = 0;
-        int maxM2P = numM2P;
-        int sumM2P = 0;
+        auto [numM2P, numP2P] = traverseWarp(acc_i,
+                                             pos_i,
+                                             targetCenter,
+                                             targetSize,
+                                             x,
+                                             y,
+                                             z,
+                                             m,
+                                             h,
+                                             srcCells,
+                                             srcCenter,
+                                             Multipoles,
+                                             rootRange,
+                                             tempQueue,
+                                             cellQueue);
+        assert(numM2P != 0xFFFFFFFF && numP2P != 0xFFFFFFFF);
 
         const int bodyIdx = bodyBegin + laneIdx;
+
+        float warpPotential = 0;
         for (int i = 0; i < TravConfig::nwt; i++)
         {
-            if (i * GpuConfig::warpSize + bodyIdx < bodyEnd)
-            {
-                sumM2P += numM2P;
-                sumP2P += numP2P;
-            }
+            if (i * GpuConfig::warpSize + bodyIdx < bodyEnd) { warpPotential += G * acc_i[i][0]; }
         }
-        #pragma unroll
+
+#pragma unroll
         for (int i = 0; i < GpuConfig::warpSizeLog2; i++)
         {
-            maxP2P = max(maxP2P, shflXorSync(maxP2P, 1 << i));
-            sumP2P += shflXorSync(sumP2P, 1 << i);
-            maxM2P = max(maxM2P, shflXorSync(maxM2P, 1 << i));
-            sumM2P += shflXorSync(sumM2P, 1 << i);
+            warpPotential += shflXorSync(warpPotential, 1 << i);
         }
+
         if (laneIdx == 0)
         {
-            atomicMax(&maxP2PGlob, maxP2P);
-            atomicAdd((unsigned long long*)&sumP2PGlob, (unsigned long long)sumP2P);
-            atomicMax(&maxM2PGlob, maxM2P);
-            atomicAdd((unsigned long long*)&sumM2PGlob, (unsigned long long)sumM2P);
+            int targetGroupSize = bodyEnd - bodyBegin;
+            atomicMax(&maxP2PGlob, numP2P);
+            atomicAdd(&sumP2PGlob, numP2P * targetGroupSize);
+            atomicMax(&maxM2PGlob, numM2P);
+            atomicAdd(&sumM2PGlob, numM2P * targetGroupSize);
+            atomicAdd(&totalPotentialGlob, warpPotential);
         }
 
         for (int i = 0; i < TravConfig::nwt; i++)
         {
-            if (bodyIdx + i * GpuConfig::warpSize < bodyEnd) { bodyAcc[i * GpuConfig::warpSize + bodyIdx] = acc_i[i]; }
+            if (bodyIdx + i * GpuConfig::warpSize < bodyEnd)
+            {
+                if constexpr (std::is_same_v<P, T*>) { p[i * GpuConfig::warpSize + bodyIdx] += G * acc_i[i][0]; }
+                ax[i * GpuConfig::warpSize + bodyIdx] += G * acc_i[i][1];
+                ay[i * GpuConfig::warpSize + bodyIdx] += G * acc_i[i][2];
+                az[i * GpuConfig::warpSize + bodyIdx] += G * acc_i[i][3];
+            }
         }
     }
 }
@@ -487,21 +507,25 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
  *
  * @param[in]  firstBody     index of first body in @p bodyPos to compute acceleration for
  * @param[in]  lastBody      index (exclusive) of last body in @p bodyPos to compute acceleration for
- * @param[in]  images        number of periodic images (per direction per dimension)
- * @param[in]  eps           plummer softening parameter
- * @param[in]  cycle         2 * M_PI
- * @param[in]  bodyPos       bodies, in SFC order and as referenced by sourceCells, on device
- * @param[out] bodyAcc       output body acceleration in SFC order, on device
+ * @param[in]  x             bodies, in SFC order and as referenced by sourceCells, on device
+ * @param[in]  y
+ * @param[in]  z
+ * @param[in]  m             body masses, on device
+ * @param[in]  h             body smoothing lengths, on device
+ * @param[inout] p           body potential to add to, on device
+ * @param[inout] ax          body acceleration to add to
+ * @param[inout] ay
+ * @param[inout] az
  * @param[in]  sourceCells   tree connectivity and body location cell data, on device
  * @param[in]  sourceCenter  center-of-mass and MAC radius^2 for each cell, on device
  * @param[in]  Multipole     cell multipoles, on device
  * @param[in]  levelRange    first and last cell of each level in the source tree, on host
  * @return                   P2P and M2P interaction statistics
  */
-template<class T, class MType>
-Vec4<T> computeAcceleration(int firstBody, int lastBody, int images, T eps, T cycle, const Vec4<T>* bodyPos,
-                            Vec4<T>* bodyAcc, const CellData* sourceCells, const Vec4<T>* sourceCenter,
-                            const MType* Multipole, const int2* levelRange)
+template<class T, class MType, class P>
+auto computeAcceleration(int firstBody, int lastBody, const T* x, const T* y, const T* z, const T* m, const T* h, T G,
+                         P p, T* ax, T* ay, T* az, const CellData* sourceCells, const Vec4<T>* sourceCenter,
+                         const MType* Multipole, const int2* levelRange)
 {
     constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
 
@@ -521,15 +545,20 @@ Vec4<T> computeAcceleration(int firstBody, int lastBody, int images, T eps, T cy
     auto t0 = std::chrono::high_resolution_clock::now();
     traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody,
                                                     lastBody,
-                                                    images,
-                                                    eps * eps,
-                                                    cycle,
                                                     {levelRange[1].x, levelRange[1].y},
-                                                    bodyPos,
+                                                    x,
+                                                    y,
+                                                    z,
+                                                    m,
+                                                    h,
                                                     sourceCells,
                                                     sourceCenter,
                                                     Multipole,
-                                                    bodyAcc,
+                                                    G,
+                                                    p,
+                                                    ax,
+                                                    ay,
+                                                    az,
                                                     rawPtr(globalPool.data()));
     kernelSuccess("traverse");
 
@@ -544,11 +573,15 @@ Vec4<T> computeAcceleration(int firstBody, int lastBody, int images, T eps, T cy
     checkGpuErrors(cudaMemcpyFromSymbol(&sumM2P, sumM2PGlob, sizeof(uint64_t)));
     checkGpuErrors(cudaMemcpyFromSymbol(&maxM2P, maxM2PGlob, sizeof(unsigned int)));
 
-    Vec4<T> interactions;
+    float totalPotential;
+    checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
+
+    util::array<T, 5> interactions;
     interactions[0] = T(sumP2P) / T(numBodies);
     interactions[1] = T(maxP2P);
     interactions[2] = T(sumM2P) / T(numBodies);
     interactions[3] = T(maxM2P);
+    interactions[4] = totalPotential;
 
     T flops = (interactions[0] * 20.0 + interactions[2] * 2.0 * powf(ExpansionOrder<MType{}.size()>{}, 3)) *
               T(numBodies) / dt / 1e12;

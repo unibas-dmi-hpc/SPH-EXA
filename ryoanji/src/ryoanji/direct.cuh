@@ -34,8 +34,9 @@
 
 #pragma once
 
-#include "types.h"
 #include "kahan.hpp"
+#include "kernel.hpp"
+#include "types.h"
 
 namespace ryoanji
 {
@@ -49,25 +50,31 @@ struct DirectConfig
 };
 
 template<class T>
-__global__ void directKernel(int numSource, T eps2, const Vec4<T>* __restrict__ bodyPos, Vec4<T>* bodyAcc)
+__global__ void directKernel(int numSource, const T* __restrict__ x, const T* __restrict__ y,
+                             const T* __restrict__ z, const T* __restrict__ m, const T* __restrict__ h, T* p, T* ax,
+                             T* ay, T* az)
 {
     unsigned targetIdx = blockDim.x * blockIdx.x + threadIdx.x;
 
-    Vec4<T> pos = {T(0), T(0), T(0), T(0)};
-    if (targetIdx < numSource) { pos = bodyPos[targetIdx]; }
-    const Vec3<T> pos_i{pos[0], pos[1], pos[2]};
+    Vec3<T> pos_i = {T(0), T(0), T(0)};
+    T       h_i   = 1.0;
+    if (targetIdx < numSource)
+    {
+        pos_i = {x[targetIdx], y[targetIdx], z[targetIdx]};
+        h_i   = h[targetIdx];
+    }
 
     // kvec4<T> acc = {0.0, 0.0, 0.0, 0.0};
-    util::array<double, 4> acc{0, 0, 0, 0};
+    util::array<T, 4> acc{0, 0, 0, 0};
 
-    __shared__ Vec4<T> sm_bodytile[DirectConfig::numThreads];
+    __shared__ util::array<T, 5> sm_bodytile[DirectConfig::numThreads];
     for (int tile = 0; tile < gridDim.x; ++tile)
     {
         int sourceIdx = tile * blockDim.x + threadIdx.x;
         if (sourceIdx < numSource)
-            sm_bodytile[threadIdx.x] = bodyPos[sourceIdx];
+            sm_bodytile[threadIdx.x] = {x[sourceIdx], y[sourceIdx], z[sourceIdx], m[sourceIdx], h[sourceIdx]};
         else
-            sm_bodytile[threadIdx.x] = Vec4<T>{0, 0, 0, 0};
+            sm_bodytile[threadIdx.x] = {0, 0, 0, 0, 1.0};
 
         __syncthreads();
 
@@ -75,38 +82,31 @@ __global__ void directKernel(int numSource, T eps2, const Vec4<T>* __restrict__ 
         {
             Vec3<T> pos_j{sm_bodytile[j][0], sm_bodytile[j][1], sm_bodytile[j][2]};
             T       q_j = sm_bodytile[j][3];
-            Vec3<T> dX  = pos_j - pos_i;
+            T       h_j = sm_bodytile[j][4];
 
-            T R2    = norm2(dX);
-            T invR  = rsqrtf(R2 + eps2);
-            T invR2 = invR * invR;
-            T invR1 = q_j * invR;
-
-            dX *= invR1 * invR2;
-
-            // avoid self gravity
-            if (R2 != 0.0f)
-            {
-                acc[0] -= invR1;
-                acc[1] += dX[0];
-                acc[2] += dX[1];
-                acc[3] += dX[2];
-            }
+            acc = P2P(acc, pos_i, pos_j, q_j, h_i, h_j);
         }
 
         __syncthreads();
     }
 
-    if (targetIdx < numSource) { bodyAcc[targetIdx] = Vec4<T>{T(acc[0]), T(acc[1]), T(acc[2]), T(acc[3])}; }
+    if (targetIdx < numSource)
+    {
+        p[targetIdx]  = T(acc[0]);
+        ax[targetIdx] = T(acc[1]);
+        ay[targetIdx] = T(acc[2]);
+        az[targetIdx] = T(acc[3]);
+    }
 }
 
 template<class T>
-void directSum(std::size_t numBodies, const Vec4<T>* bodyPos, Vec4<T>* bodyAcc, T eps)
+void directSum(std::size_t numBodies, const T* x, const T* y, const T* z, const T* m, const T* h, T* p, T* ax, T* ay,
+               T* az)
 {
     int numThreads = DirectConfig::numThreads;
     int numBlock   = (numBodies - 1) / numThreads + 1;
 
-    directKernel<<<numBlock, numThreads>>>(numBodies, eps * eps, bodyPos, bodyAcc);
+    directKernel<<<numBlock, numThreads>>>(numBodies, x, y, z, m, h, p, ax, ay, az);
     ryoanji::kernelSuccess("direct sum");
 }
 

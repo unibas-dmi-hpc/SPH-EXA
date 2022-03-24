@@ -81,11 +81,10 @@ TEST(WarpScan, max)
 
 __global__ void testScan(int* values)
 {
-    int val = 1;
-    int scan = inclusiveScanInt(val);
+    int val             = 1;
+    int scan            = inclusiveScanInt(val);
     values[threadIdx.x] = scan;
 }
-
 
 TEST(WarpScan, inclusiveInt)
 {
@@ -101,7 +100,7 @@ TEST(WarpScan, inclusiveInt)
 
 __global__ void testScanBool(int* result)
 {
-    bool val = threadIdx.x % 2;
+    bool val            = threadIdx.x % 2;
     result[threadIdx.x] = exclusiveScanBool(val);
 }
 
@@ -121,17 +120,14 @@ __global__ void testSegScan(int* values)
 {
     int val = 1;
 
-    if (threadIdx.x == 8)
-        val = 2;
+    if (threadIdx.x == 8) val = 2;
 
-    if (threadIdx.x == 16)
-        val = -2;
+    if (threadIdx.x == 16) val = -2;
 
-    if (threadIdx.x == 31)
-        val = -3;
+    if (threadIdx.x == 31) val = -3;
 
-    int carry = 1;
-    int scan = inclusiveSegscanInt(val, carry);
+    int carry           = 1;
+    int scan            = inclusiveSegscanInt(val, carry);
     values[threadIdx.x] = scan;
 }
 
@@ -158,9 +154,9 @@ __global__ void streamCompactTest(int* result)
 {
     __shared__ int exchange[GpuConfig::warpSize];
 
-    int val     = threadIdx.x;
-    bool keep   = threadIdx.x % 2 == 0;
-    int numKeep = streamCompact(&val, keep, exchange);
+    int  val     = threadIdx.x;
+    bool keep    = threadIdx.x % 2 == 0;
+    int  numKeep = streamCompact(&val, keep, exchange);
 
     result[threadIdx.x] = val;
 }
@@ -171,8 +167,8 @@ TEST(WarpScan, streamCompact)
     streamCompactTest<<<1, GpuConfig::warpSize>>>(rawPtr(d_values.data()));
     thrust::host_vector<int> h_values = d_values;
 
-    for (int i = 0; i < GpuConfig::warpSize/2; ++i)
+    for (int i = 0; i < GpuConfig::warpSize / 2; ++i)
     {
-        EXPECT_EQ(h_values[i], 2*i);
+        EXPECT_EQ(h_values[i], 2 * i);
     }
 }

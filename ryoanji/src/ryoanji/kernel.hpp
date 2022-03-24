@@ -457,13 +457,14 @@ struct Kernels<0, 0, 0>
  *
  */
 template<class T, class MType>
-HOST_DEVICE_FUN DEVICE_INLINE void P2M(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* bodyPos, MType& Mout)
+HOST_DEVICE_FUN DEVICE_INLINE void P2M(int begin, int end, const Vec4<T>& Xout, const T* x, const T* y, const T* z,
+                                       const T* m, MType& Mout)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
 
     for (int i = begin; i < end; i++)
     {
-        Vec4<T> body = bodyPos[i];
+        Vec4<T> body = {x[i], y[i], z[i], m[i]};
         Vec3<T> dX   = makeVec3(Xout - body);
         MType   M;
         M[0] = body[3];
@@ -484,8 +485,8 @@ HOST_DEVICE_FUN DEVICE_INLINE void P2M(int begin, int end, const Vec4<T>& Xout, 
  * @param[out]  Mout     the aggregated output multipole
  */
 template<class T, class MType>
-HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc,
-                                       const MType* Msrc, MType& Mout)
+HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc, const MType* Msrc,
+                                       MType& Mout)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
 
@@ -503,25 +504,30 @@ HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xout, 
  * @param acc     acceleration to add to
  * @param pos_i
  * @param pos_j
- * @param q_j
- * @param EPS2
+ * @param m_j
+ * @param h_i
+ * @param h_j
  * @return        input acceleration plus contribution from this call
  */
-template<class T>
-HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> P2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, T q_j, T EPS2)
+template<class Ta, class T>
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> P2P(Vec4<Ta> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, T m_j, T h_i,
+                                           T h_j)
 {
-    Vec3<T> dX    = pos_j - pos_i;
-    T       R2    = norm2(dX) + EPS2;
-    T       invR  = inverseSquareRoot(R2);
-    T       invR2 = invR * invR;
-    T       invR1 = q_j * invR;
+    Vec3<T> dX = pos_j - pos_i;
+    T       R2 = norm2(dX);
 
-    dX *= invR1 * invR2;
+    T h_ij  = h_i + h_j;
+    T h_ij2 = h_ij * h_ij;
+    T R2eff = (R2 < h_ij2) ? h_ij2 : R2;
 
-    acc[0] -= invR1;
-    acc[1] += dX[0];
-    acc[2] += dX[1];
-    acc[3] += dX[2];
+    T invR   = inverseSquareRoot(R2eff);
+    T invR2  = invR * invR;
+    T invR3m = m_j * invR * invR2;
+
+    acc[0] -= invR3m * R2;
+    acc[1] += dX[0] * invR3m;
+    acc[2] += dX[1] * invR3m;
+    acc[3] += dX[2] * invR3m;
 
     return acc;
 }
@@ -536,12 +542,12 @@ HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> P2P(Vec4<T> acc, const Vec3<T>& pos_i, con
  * @return        input acceleration plus contribution from this call
  */
 template<class T, class MType>
-HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> M2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, MType& M, T EPS2)
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> M2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, MType& M)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
 
     Vec3<T> dX    = pos_i - pos_j;
-    T       R2    = norm2(dX) + EPS2;
+    T       R2    = norm2(dX);
     T       invR  = inverseSquareRoot(R2);
     T       invR2 = invR * invR;
 
@@ -555,6 +561,32 @@ HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> M2P(Vec4<T> acc, const Vec3<T>& pos_i, con
     M[0] = M0;
 
     return acc;
+}
+
+//! @brief computes the center of mass for the bodies in the specified range
+template<class T>
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> setCenter(const int begin, const int end, const T* x, const T* y, const T* z,
+                                                const T* m)
+{
+    assert(begin <= end);
+
+    Vec4<T> center{0, 0, 0, 0};
+    for (int i = begin; i < end; i++)
+    {
+        T weight = m[i];
+
+        center[0] += weight * x[i];
+        center[1] += weight * y[i];
+        center[2] += weight * z[i];
+        center[3] += weight;
+    }
+
+    T invM = (center[3] != 0.0f) ? 1.0f / center[3] : 0.0f;
+    center[0] *= invM;
+    center[1] *= invM;
+    center[2] *= invM;
+
+    return center;
 }
 
 //! @brief computes the center of mass for the bodies in the specified range
