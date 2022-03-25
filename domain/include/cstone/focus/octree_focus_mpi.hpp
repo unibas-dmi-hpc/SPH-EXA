@@ -109,8 +109,8 @@ public:
         bool converged = tree_.update(focusStart, focusEnd, enforcedKeys, counts_, macs_);
         translateAssignment(assignment, globalTreeLeaves, treeLeaves(), peerRanks, myRank_, assignment_);
 
-        prevFocusStart = focusStart;
-        prevFocusEnd   = focusEnd;
+        prevFocusStart   = focusStart;
+        prevFocusEnd     = focusEnd;
         rebalanceStatus_ = invalid;
         return converged;
     }
@@ -177,7 +177,7 @@ public:
     }
 
     template<class T>
-    void peerExchange(gsl::span<const int> peerRanks, gsl::span<T> quantities, int commTag)
+    void peerExchange(gsl::span<const int> peerRanks, gsl::span<T> quantities, int commTag) const
     {
         exchangeTreeletGeneral<T>(peerRanks, treelets_, assignment_, octree().nodeKeys(), octree().levelRange(),
                                   octree().internalOrder(), quantities, commTag);
@@ -205,10 +205,8 @@ public:
      *                ranks contains data obtained through global collective communication between ranks
      */
     template<class T, class F>
-    void globalExchange(const Octree<KeyType>& globalTree,
-                        T* globalQuantities,
-                        T* quantities,
-                        F&& upsweepFunction)
+    void
+    globalExchange(const Octree<KeyType>& globalTree, T* globalQuantities, T* quantities, F&& upsweepFunction) const
     {
         TreeNodeIndex numGlobalLeaves = globalTree.numLeafNodes();
         std::vector<T> globalLeafQuantities(numGlobalLeaves);
@@ -220,7 +218,7 @@ public:
         assert(globalLeaves[firstIdx] == prevFocusStart);
         assert(globalLeaves[lastIdx] == prevFocusEnd);
 
-        #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
         for (TreeNodeIndex globalIdx = firstIdx; globalIdx < lastIdx; ++globalIdx)
         {
             TreeNodeIndex localIdx          = octree().locate(globalLeaves[globalIdx], globalLeaves[globalIdx + 1]);
@@ -268,10 +266,11 @@ public:
 
         globalCenters_.resize(globalTree.numTreeNodes());
         centers_.resize(octree().numTreeNodes());
-        //! prepare local leaf centers
-        #pragma omp parallel for schedule(static)
+
+#pragma omp parallel for schedule(static)
         for (TreeNodeIndex leafIdx = 0; leafIdx < octree().numLeafNodes(); ++leafIdx)
         {
+            //! prepare local leaf centers
             TreeNodeIndex nodeIdx = octree().toInternal(leafIdx);
             centers_[nodeIdx] =
                 massCenter<RealType>(x.data(), y.data(), z.data(), m.data(), layout[leafIdx], layout[leafIdx + 1]);
@@ -297,9 +296,8 @@ public:
      * @param[in] globalTreeLeaves global cornerstone leaf tree
      */
     template<class T>
-    void updateMinMac(const Box<T>& box,
-                      const SpaceCurveAssignment& assignment,
-                      gsl::span<const KeyType> globalTreeLeaves)
+    void
+    updateMinMac(const Box<T>& box, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves)
     {
         KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
         KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
@@ -318,9 +316,8 @@ public:
      * @param[in] globalTreeLeaves global cornerstone leaf tree
      */
     template<class T>
-    void updateVecMac(const Box<T>& box,
-                      const SpaceCurveAssignment& assignment,
-                      gsl::span<const KeyType> globalTreeLeaves)
+    void
+    updateVecMac(const Box<T>& box, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves)
     {
         KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
         KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
@@ -380,24 +377,20 @@ public:
 
     void addMacs(gsl::span<int> haloFlags) const
     {
-        #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
         for (TreeNodeIndex i = 0; i < haloFlags.ssize(); ++i)
         {
             size_t iIdx = octree().toInternal(i);
-            if (macs_[iIdx] && !haloFlags[i])
-            {
-                haloFlags[i] = 1;
-            }
+            if (macs_[iIdx] && !haloFlags[i]) { haloFlags[i] = 1; }
         }
     }
 
 private:
-
     enum Status : int
     {
-        invalid = 0,
+        invalid         = 0,
         countsCriterion = 1,
-        macCriterion = 2,
+        macCriterion    = 2,
         // the status is valid for rebalancing if both the counts and macs have been updated
         // since the last call to updateTree
         valid = countsCriterion | macCriterion
@@ -418,7 +411,7 @@ private:
     //! @brief previous iteration focus start
     KeyType prevFocusStart = 0;
     //! @brief previous iteration focus end
-    KeyType prevFocusEnd   = 0;
+    KeyType prevFocusEnd = 0;
 
     //! @brief particle counts of the focused tree leaves, tree_.treeLeaves()
     std::vector<unsigned> leafCounts_;
