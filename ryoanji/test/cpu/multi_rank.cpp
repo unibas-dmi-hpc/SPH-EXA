@@ -43,13 +43,8 @@ using namespace ryoanji;
 
 //! @brief can be used to calculate reasonable smoothing lengths for each particle
 template<class KeyType, class Tc, class Th>
-void adjustSmoothingLength(LocalIndex numParticles,
-                           int ng0,
-                           int ngmax,
-                           const std::vector<Tc>& xGlob,
-                           const std::vector<Tc>& yGlob,
-                           const std::vector<Tc>& zGlob,
-                           std::vector<Th>& hGlob,
+void adjustSmoothingLength(LocalIndex numParticles, int ng0, int ngmax, const std::vector<Tc>& xGlob,
+                           const std::vector<Tc>& yGlob, const std::vector<Tc>& zGlob, std::vector<Th>& hGlob,
                            const cstone::Box<Tc>& box)
 {
     std::vector<KeyType> codesGlobal(numParticles);
@@ -94,9 +89,9 @@ void adjustSmoothingLength(LocalIndex numParticles,
                                   ngmax);
 
             const Tc c0 = 7.0;
-            int nn      = std::max(neighborCounts[i], 1);
+            int      nn = std::max(neighborCounts[i], 1);
             h[i]        = h[i] * 0.5 * pow(1.0 + (c0 * ng0) / nn, 1.0 / 3.0);
-        } while (neighborCounts[i] < ng0/2 || neighborCounts[i] >= ngmax);
+        } while (neighborCounts[i] < ng0 / 2 || neighborCounts[i] >= ngmax);
     }
 
     for (LocalIndex i = 0; i < numParticles; ++i)
@@ -108,7 +103,7 @@ void adjustSmoothingLength(LocalIndex numParticles,
 template<class T, class KeyType>
 static int globalMultipoleExchange(int thisRank, int numRanks)
 {
-    using MultipoleType = CartesianQuadrupole<T>;
+    using MultipoleType              = CartesianQuadrupole<T>;
     const LocalIndex numParticles    = 1000;
     unsigned         bucketSize      = 64;
     unsigned         bucketSizeLocal = 16;
@@ -141,12 +136,18 @@ static int globalMultipoleExchange(int thisRank, int numRanks)
 
     domain.syncGrav(particleKeys, x, y, z, h, m);
 
-    const cstone::Octree<KeyType>& focusTree = domain.focusTree();
-    gsl::span<const cstone::SourceCenterType<T>> centers = domain.expansionCenters();
+    const cstone::Octree<KeyType>&               focusTree = domain.focusTree();
+    gsl::span<const cstone::SourceCenterType<T>> centers   = domain.expansionCenters();
 
     std::vector<MultipoleType> multipoles(focusTree.numTreeNodes());
-    ryoanji::computeLeafMultipoles(
-        focusTree, domain.layout(), x.data(), y.data(), z.data(), m.data(), centers.data(), multipoles.data());
+    ryoanji::computeLeafMultipoles(x.data(),
+                                   y.data(),
+                                   z.data(),
+                                   m.data(),
+                                   focusTree.internalOrder(),
+                                   domain.layout(),
+                                   centers.data(),
+                                   multipoles.data());
 
     ryoanji::CombineMultipole<MultipoleType> combineMultipole(centers.data());
     upsweep(focusTree, multipoles.data(), combineMultipole);
@@ -169,8 +170,8 @@ static int globalMultipoleExchange(int thisRank, int numRanks)
 
     double maxDiff = max(abs(reference - globalRootMultipole));
 
-    bool pass = maxDiff < 1e-10;
-    int numPassed = pass;
+    bool pass      = maxDiff < 1e-10;
+    int  numPassed = pass;
     mpiAllreduce(MPI_IN_PLACE, &numPassed, 1, MPI_SUM);
 
     if (thisRank == 0)
@@ -180,7 +181,10 @@ static int globalMultipoleExchange(int thisRank, int numRanks)
     }
 
     if (numPassed == numRanks) { return EXIT_SUCCESS; }
-    else { return EXIT_FAILURE; }
+    else
+    {
+        return EXIT_FAILURE;
+    }
 }
 
 int main(int argc, char** argv)

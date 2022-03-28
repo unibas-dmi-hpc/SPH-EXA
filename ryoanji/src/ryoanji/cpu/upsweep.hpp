@@ -32,7 +32,6 @@
 #pragma once
 
 #include "cstone/focus/source_center.hpp"
-#include "cstone/tree/octree_internal.hpp"
 #include "multipole.hpp"
 #include "kernel_wrapper.hpp"
 
@@ -41,35 +40,29 @@ namespace ryoanji
 
 /*! @brief compute multipoles from particle data for the entire tree hierarchy
  *
- * @tparam     KeyType    32- or 64-bit unsigned integer
- * @tparam     T1         float or double
- * @tparam     T2         float or double
- * @tparam     MType      Multipole type, e.g. CartesianQuadrupole
- * @param[in]  octree     full linked octree
- * @param[in]  layout     array of length @p octree.numLeafNodes()+1, layout[i] is the start offset
- *                        into the x,y,z,m arrays for the leaf node with index i. The last element
- *                        is equal to the length of the x,y,z,m arrays.
- * @param[in]  x          local particle x-coordinates
- * @param[in]  y          local particle y-coordinates
- * @param[in]  z          local particle z-coordinates
- * @param[in]  m          local particle masses
- * @param[in]  centers    expansion (com) center of each tree cell, length = octree.numTreeNodes()
- * @param[out] multipoles output multipole moments , length = octree.numTreeNodes()
+ * @tparam     T1             float or double
+ * @tparam     T2             float or double
+ * @tparam     MType          Multipole type, e.g. CartesianQuadrupole
+ * @param[in]  x              local particle x-coordinates
+ * @param[in]  y              local particle y-coordinates
+ * @param[in]  z              local particle z-coordinates
+ * @param[in]  m              local particle masses
+ * @param[in]  leafToInternal convert from a leaf index in [0:numLeafNodes] into an internal index in [0:numTreeNodes]
+ * @param[in]  layout         array of length numLeafNodes + 1, layout[i] is the start offset
+ *                            into the x,y,z,m arrays for the leaf node with index i. The last element
+ *                            is equal to the length of the x,y,z,m arrays.
+ * @param[in]  centers        expansion (com) center of each tree cell, length = numTreeNodes
+ * @param[out] multipoles     output multipole moments , length = numTreeNodes
  */
-template<class KeyType, class T1, class T2, class MType>
-void computeLeafMultipoles(const cstone::Octree<KeyType>& octree,
-                           gsl::span<const LocalIndex> layout,
-                           const T1* x,
-                           const T1* y,
-                           const T1* z,
-                           const T2* m,
-                           const cstone::SourceCenterType<T1>* centers,
-                           MType* multipoles)
+template<class T1, class T2, class MType>
+void computeLeafMultipoles(const T1* x, const T1* y, const T1* z, const T2* m,
+                           gsl::span<const cstone::TreeNodeIndex> leafToInternal, gsl::span<const LocalIndex> layout,
+                           const cstone::SourceCenterType<T1>* centers, MType* multipoles)
 {
-    #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex leafIdx = 0; leafIdx < octree.numLeafNodes(); ++leafIdx)
+#pragma omp parallel for schedule(static)
+    for (size_t leafIdx = 0; leafIdx < leafToInternal.size(); ++leafIdx)
     {
-        TreeNodeIndex i = octree.toInternal(leafIdx);
+        TreeNodeIndex i = leafToInternal[leafIdx];
         particle2Multipole(x, y, z, m, layout[leafIdx], layout[leafIdx + 1], makeVec3(centers[i]), multipoles[i]);
     }
 }
@@ -90,13 +83,10 @@ public:
         return ret;
     }
 
-    void setCenters(const cstone::SourceCenterType<typename MType::value_type>* centers)
-    {
-        centers_ = centers;
-    }
+    void setCenters(const cstone::SourceCenterType<typename MType::value_type>* centers) { centers_ = centers; }
 
 private:
     const cstone::SourceCenterType<typename MType::value_type>* centers_;
 };
 
-} // namespace cstone
+} // namespace ryoanji

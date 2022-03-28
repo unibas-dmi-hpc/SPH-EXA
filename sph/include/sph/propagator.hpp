@@ -308,8 +308,14 @@ public:
         gsl::span<const cstone::SourceCenterType<T>> centers = domain.expansionCenters();
 
         std::vector<MultipoleType> multipoles(octree.numTreeNodes());
-        ryoanji::computeLeafMultipoles(
-            octree, domain.layout(), d.x.data(), d.y.data(), d.z.data(), d.m.data(), centers.data(), multipoles.data());
+        ryoanji::computeLeafMultipoles(d.x.data(),
+                                       d.y.data(),
+                                       d.z.data(),
+                                       d.m.data(),
+                                       octree.internalOrder(),
+                                       domain.layout(),
+                                       centers.data(),
+                                       multipoles.data());
 
         ryoanji::CombineMultipole<MultipoleType> combineMultipole(centers.data());
         //! first upsweep with local data
