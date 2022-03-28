@@ -319,10 +319,10 @@ public:
 
         ryoanji::CombineMultipole<MultipoleType> combineMultipole(centers.data());
         //! first upsweep with local data
-        upsweep(octree, multipoles.data(), combineMultipole);
+        ryoanji::upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles.data());
         domain.template exchangeFocusGlobal<MultipoleType>(multipoles, combineMultipole);
-        //! second upsweep with leaf data from peer ranks in place
-        upsweep(octree, multipoles.data(), combineMultipole);
+        //! second upsweep with leaf data from peer and global ranks in place
+        ryoanji::upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles.data());
 
         d.egrav = ryoanji::computeGravity(octree,
                                           centers.data(),
