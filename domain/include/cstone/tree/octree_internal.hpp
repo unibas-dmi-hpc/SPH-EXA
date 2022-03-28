@@ -257,7 +257,10 @@ public:
     //! @brief stores the first internal node index of each tree subdivision level
     gsl::span<const TreeNodeIndex> levelRange() const { return levelRange_; }
     //! @brief converts a cornerstone index into an internal index
-    gsl::span<const TreeNodeIndex> internalOrder() const { return leafToInternal_; }
+    gsl::span<const TreeNodeIndex> internalOrder() const
+    {
+        return {leafToInternal_.data() + numInternalNodes_, size_t(numLeafNodes_)};
+    }
 
     //! @brief total number of nodes in the tree
     inline TreeNodeIndex numTreeNodes() const { return levelRange_.back(); }
