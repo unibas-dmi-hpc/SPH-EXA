@@ -183,6 +183,34 @@ public:
                                   octree().internalOrder(), quantities, commTag);
     }
 
+    /*! @brief transfer quantities of leaf cells inside the focus into a global array
+     *
+     * @tparam T
+     * @param[in]  globalLeaves      cstone SFC key leaf cell array of the global tree
+     * @param[in]  localQuantities   cell properties of the locally focused tree
+     * @param[out] globalQuantities  cell properties of the global tree
+     */
+    template<class T>
+    void populateGlobal(gsl::span<const KeyType> globalLeaves,
+                        gsl::span<const T> localQuantities,
+                        gsl::span<T> globalQuantities) const
+    {
+        TreeNodeIndex firstGlobalIdx = findNodeAbove(globalLeaves, prevFocusStart);
+        TreeNodeIndex lastGlobalIdx  = findNodeAbove(globalLeaves, prevFocusEnd);
+        // make sure that the focus is resolved exactly in the global tree
+        assert(globalLeaves[firstIdx] == prevFocusStart);
+        assert(globalLeaves[lastIdx] == prevFocusEnd);
+
+#pragma omp parallel for schedule(static)
+        for (TreeNodeIndex globalIdx = firstGlobalIdx; globalIdx < lastGlobalIdx; ++globalIdx)
+        {
+            TreeNodeIndex localIdx      = octree().locate(globalLeaves[globalIdx], globalLeaves[globalIdx + 1]);
+            globalQuantities[globalIdx] = localQuantities[localIdx];
+            assert(octree().codeStart(localIdx) == globalLeaves[globalIdx]);
+            assert(octree().codeEnd(localIdx) == globalLeaves[globalIdx + 1]);
+        }
+    }
+
     /*! @brief exchange data of non-peer (beyond focus) tree cells
      *
      * @tparam        T                an arithmetic type, or compile-time fix-sized arrays thereof
@@ -205,32 +233,23 @@ public:
      *                ranks contains data obtained through global collective communication between ranks
      */
     template<class T, class F>
-    void
-    globalExchange(const Octree<KeyType>& globalTree, T* globalQuantities, T* quantities, F&& upsweepFunction) const
+    void globalExchange(const Octree<KeyType>& globalTree,
+                        gsl::span<T> globalQuantities,
+                        gsl::span<T> quantities,
+                        F&& upsweepFunction) const
     {
         TreeNodeIndex numGlobalLeaves = globalTree.numLeafNodes();
         std::vector<T> globalLeafQuantities(numGlobalLeaves);
         //! fetch local quantities into globalLeaves
         gsl::span<const KeyType> globalLeaves = globalTree.treeLeaves();
 
-        TreeNodeIndex firstIdx = findNodeAbove(globalLeaves, prevFocusStart);
-        TreeNodeIndex lastIdx  = findNodeAbove(globalLeaves, prevFocusEnd);
-        assert(globalLeaves[firstIdx] == prevFocusStart);
-        assert(globalLeaves[lastIdx] == prevFocusEnd);
+        populateGlobal<T>(globalLeaves, quantities, globalQuantities);
 
-#pragma omp parallel for schedule(static)
-        for (TreeNodeIndex globalIdx = firstIdx; globalIdx < lastIdx; ++globalIdx)
-        {
-            TreeNodeIndex localIdx          = octree().locate(globalLeaves[globalIdx], globalLeaves[globalIdx + 1]);
-            globalLeafQuantities[globalIdx] = quantities[localIdx];
-            assert(octree().codeStart(localIdx) == globalLeaves[globalIdx]);
-            assert(octree().codeEnd(localIdx) == globalLeaves[globalIdx + 1]);
-        }
         //! exchange global leaves
         mpiAllreduce(MPI_IN_PLACE, globalLeafQuantities.data(), numGlobalLeaves, MPI_SUM);
 
         //! upsweep of the global tree
-        upsweep(globalTree, globalLeafQuantities.data(), globalQuantities, std::forward<F>(upsweepFunction));
+        upsweep(globalTree, globalLeafQuantities.data(), globalQuantities.data(), std::forward<F>(upsweepFunction));
 
         gsl::span<const KeyType> localLeaves = treeLeaves();
         //! globalIndices: range of leaf cell indices in the locally focused tree that need global information
@@ -281,7 +300,7 @@ public:
         //! exchange information with peer close to focus
         peerExchange<SourceCenterType<T>>(peerRanks, centers_, static_cast<int>(P2pTags::focusPeerCenters));
         //! global exchange for the top nodes that are bigger than local domains
-        globalExchange(globalTree, globalCenters_.data(), centers_.data(), CombineSourceCenter<T>{});
+        globalExchange<SourceCenterType<T>>(globalTree, globalCenters_, centers_, CombineSourceCenter<T>{});
         //! upsweep with all (leaf) data in place
         upsweep(octree(), centers_.data(), CombineSourceCenter<T>{});
         //! calculate mac radius for each cell based on location of expansion centers

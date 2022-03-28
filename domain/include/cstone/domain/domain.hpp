@@ -185,7 +185,8 @@ public:
 
         if (firstCall_)
         {
-            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
+            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(),
+                                global_.nodeCounts());
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
         focusTree_.updateCounts(keyView, peers, global_.treeLeaves(), global_.nodeCounts());
@@ -218,7 +219,8 @@ public:
 
         if (firstCall_)
         {
-            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
+            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(),
+                                global_.nodeCounts());
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
         focusTree_.updateCounts(keyView, peers, global_.treeLeaves(), global_.nodeCounts());
@@ -259,7 +261,8 @@ public:
         std::vector<CellProperty> globalProperties(globalTree.numTreeNodes());
 
         focusTree_.peerExchange(peers, cellProperties, static_cast<int>(P2pTags::focusPeerCenters) + 1);
-        focusTree_.globalExchange(globalTree, globalProperties.data(), cellProperties.data(), combinationFunction);
+        focusTree_.template globalExchange<CellProperty>(globalTree, globalProperties, cellProperties,
+                                                         combinationFunction);
     }
 
     //! @brief return the index of the first particle that's part of the local assignment
@@ -286,7 +289,6 @@ public:
     const Box<T>& box() const { return global_.box(); }
 
 private:
-
     //! @brief bounds initialization on first call, use all particles
     template<class... Arrays>
     void initBounds(std::size_t bufferSize)
@@ -304,10 +306,7 @@ private:
     {
         std::array<std::size_t, sizeof...(Arrays)> sizes{arrays.size()...};
         bool allEqual = size_t(std::count(begin(sizes), end(sizes), value)) == sizes.size();
-        if (!allEqual)
-        {
-            throw std::runtime_error("Domain sync: input array sizes are inconsistent\n");
-        }
+        if (!allEqual) { throw std::runtime_error("Domain sync: input array sizes are inconsistent\n"); }
     }
 
     template<class... Vectors>

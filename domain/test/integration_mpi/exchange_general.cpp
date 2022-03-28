@@ -123,7 +123,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     std::vector<int> globalCounts(domainTree.numTreeNodes());
 
     focusTree.template peerExchange<int>(peers, testCounts, static_cast<int>(P2pTags::focusPeerCounts) + 2);
-    focusTree.globalExchange(domainTree, globalCounts.data(), testCounts.data(), SumCombination<int>{});
+    focusTree.template globalExchange<int>(domainTree, globalCounts, testCounts, SumCombination<int>{});
     upsweepSum(octree, testCounts.data());
 
     {
@@ -153,7 +153,6 @@ TEST(GeneralFocusExchange, randomGaussian)
     generalExchangeRandomGaussian<unsigned, float>(rank, nRanks);
     generalExchangeRandomGaussian<uint64_t, float>(rank, nRanks);
 }
-
 
 template<class KeyType, class T>
 static void generalExchangeSourceCenter(int thisRank, int numRanks)
@@ -223,7 +222,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
             SourceCenterType<T> reference = massCenter<T>(coords.x().data(), coords.y().data(), coords.z().data(),
                                                           globalMasses.data(), startIndex, endIndex);
 
-            T refMac = computeMac(octree.nodeKeys()[i], makeVec3(reference), 1.0 / theta, box);
+            T refMac     = computeMac(octree.nodeKeys()[i], makeVec3(reference), 1.0 / theta, box);
             reference[3] = (reference[3] == T(0)) ? T(0) : refMac;
 
             EXPECT_NEAR(sourceCenter[i][0], reference[0], tol);
