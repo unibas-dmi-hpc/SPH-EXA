@@ -15,6 +15,7 @@
 #include "sph/positions.hpp"
 #include "sph/total_energy.hpp"
 #include "sph/update_h.hpp"
+#include "sph/kh_growth_rate.hpp"
 
 #include "sph/av_switches.hpp"
 #include "sph/density_ve.hpp"

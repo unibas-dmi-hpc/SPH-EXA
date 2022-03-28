@@ -65,7 +65,7 @@ public:
     size_t iteration{1};
     size_t numParticlesGlobal;
 
-    T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
+    T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0}, khgr{0.0};
     T minDt;
 
     std::vector<T> x, y, z, x_m1, y_m1, z_m1;    // Positions
