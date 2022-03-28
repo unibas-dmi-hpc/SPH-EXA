@@ -73,11 +73,11 @@ inline HOST_DEVICE_FUN int mergeCountAndMacOp(TreeNodeIndex nodeIdx,
                                               unsigned bucketSize)
 {
     TreeNodeIndex siblingGroup = (nodeIdx - 1) / 8;
-    TreeNodeIndex parent = nodeIdx ? parents[siblingGroup] : 0;
+    TreeNodeIndex parent       = nodeIdx ? parents[siblingGroup] : 0;
 
     TreeNodeIndex firstSibling = childOffsets[parent];
-    auto g = childOffsets + firstSibling;
-    bool onlyLeafSiblings = (g[0]+g[1]+g[2]+g[3]+g[4]+g[5]+g[6]+g[7]) == 0;
+    auto g                     = childOffsets + firstSibling;
+    bool onlyLeafSiblings      = (g[0] + g[1] + g[2] + g[3] + g[4] + g[5] + g[6] + g[7]) == 0;
 
     TreeNodeIndex siblingIdx = nodeIdx - firstSibling;
     KeyType nodeKey          = decodePlaceholderBit(nodeKeys[nodeIdx]);
@@ -139,10 +139,10 @@ bool rebalanceDecisionEssential(gsl::span<const KeyType> nodeKeys,
                                 LocalIndex* nodeOps)
 {
     bool converged = true;
-    #pragma omp parallel
+#pragma omp parallel
     {
         bool convergedThread = true;
-        #pragma omp for
+#pragma omp for
         for (TreeNodeIndex i = 0; i < nodeKeys.ssize(); ++i)
         {
             // ignore internal nodes
@@ -269,7 +269,6 @@ void injectKeys(KeyVector& tree, gsl::span<const typename KeyVector::value_type>
     tree.erase(uit, end(tree));
 }
 
-
 template<class KeyType>
 class FocusedOctreeCore
 {
@@ -302,9 +301,9 @@ public:
     {
         assert(TreeNodeIndex(counts.size()) == tree_.numTreeNodes());
         assert(TreeNodeIndex(macs.size()) == tree_.numTreeNodes());
-        assert(TreeNodeIndex(tree_.nodeOrder_.size()) >= tree_.numTreeNodes());
+        assert(TreeNodeIndex(tree_.internalToLeaf_.size()) >= tree_.numTreeNodes());
 
-        gsl::span<TreeNodeIndex> nodeOpsAll(tree_.nodeOrder_);
+        gsl::span<TreeNodeIndex> nodeOpsAll(tree_.internalToLeaf_);
         bool converged =
             rebalanceDecisionEssential(tree_.nodeKeys(), tree_.childOffsets(), tree_.parents(), counts.data(),
                                        macs.data(), focusStart, focusEnd, bucketSize_, nodeOpsAll.data());
@@ -317,7 +316,7 @@ public:
         std::copy(mandatoryKeys.begin(), mandatoryKeys.end(), std::back_inserter(allMandatoryKeys));
 
         gsl::span<const KeyType> leaves = tree_.treeLeaves();
-        auto status = enforceKeys<KeyType>(leaves, allMandatoryKeys, nodeOps);
+        auto status                     = enforceKeys<KeyType>(leaves, allMandatoryKeys, nodeOps);
 
         if (status == ResolutionStatus::cancelMerge)
         {
@@ -400,7 +399,7 @@ public:
 
     const Octree<KeyType>& octree() const { return tree_.octree(); }
 
-    gsl::span<const KeyType>  treeLeaves() const { return tree_.treeLeaves(); }
+    gsl::span<const KeyType> treeLeaves() const { return tree_.treeLeaves(); }
     gsl::span<const unsigned> leafCounts() const { return leafCounts_; }
 
 private:
