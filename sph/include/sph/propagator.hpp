@@ -89,7 +89,7 @@ protected:
                        domain.box(),
                        d.numParticlesGlobal,
                        domain.nParticles(),
-                       cstone::nNodes(domain.tree()),
+                       domain.globalTree().numLeafNodes(),
                        domain.nParticlesWithHalos() - domain.nParticles(),
                        totalNeighbors);
 

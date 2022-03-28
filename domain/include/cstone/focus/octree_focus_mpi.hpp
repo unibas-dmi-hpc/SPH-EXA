@@ -86,6 +86,8 @@ public:
         {
             throw std::runtime_error("update of criteria required before updating the tree structure\n");
         }
+        peers_.resize(peerRanks.size());
+        std::copy(peerRanks.begin(), peerRanks.end(), peers_.begin());
 
         KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
         KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
@@ -97,17 +99,17 @@ public:
         }
 
         std::vector<KeyType> enforcedKeys;
-        enforcedKeys.reserve(peerRanks.size() * 2);
+        enforcedKeys.reserve(peers_.size() * 2);
 
         focusTransfer(treeLeaves(), myRank_, prevFocusStart, prevFocusEnd, focusStart, focusEnd, enforcedKeys);
-        for (int peer : peerRanks)
+        for (int peer : peers_)
         {
             enforcedKeys.push_back(globalTreeLeaves[assignment.firstNodeIdx(peer)]);
             enforcedKeys.push_back(globalTreeLeaves[assignment.lastNodeIdx(peer)]);
         }
 
         bool converged = tree_.update(focusStart, focusEnd, enforcedKeys, counts_, macs_);
-        translateAssignment(assignment, globalTreeLeaves, treeLeaves(), peerRanks, myRank_, assignment_);
+        translateAssignment(assignment, globalTreeLeaves, treeLeaves(), peers_, myRank_, assignment_);
 
         prevFocusStart   = focusStart;
         prevFocusEnd     = focusEnd;
@@ -120,9 +122,6 @@ public:
      * @param[in] box              global coordinate bounding box
      * @param[in] particleKeys     SFC keys of local particles
      * @param[in] myRank           ID of the executing rank
-     * @param[in] peerRanks        list of ranks that have nodes that fail the MAC criterion
-     *                             w.r.t to the assigned SFC part of @p myRank
-     *                             use e.g. findPeersMac to calculate this list
      * @param[in] globalTreeLeaves global cornerstone leaf tree
      * @param[in] globalCounts     global cornerstone leaf tree counts
      * @return                     true if the tree structure did not change
@@ -136,7 +135,6 @@ public:
      *    and must be sorted in ascending order (checked)
      */
     void updateCounts(gsl::span<const KeyType> particleKeys,
-                      gsl::span<const int> peerRanks,
                       gsl::span<const KeyType> globalTreeLeaves,
                       gsl::span<const unsigned> globalCounts)
     {
@@ -151,9 +149,9 @@ public:
 
         // counts from neighboring peers
         std::vector<MPI_Request> treeletRequests;
-        exchangeTreelets(peerRanks, assignment_, leaves, treelets_, treeletRequests);
-        exchangeTreeletCounts(peerRanks, treelets_, assignment_, leaves, leafCounts_, treeletRequests);
-        MPI_Waitall(int(peerRanks.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
+        exchangeTreelets(peers_, assignment_, leaves, treelets_, treeletRequests);
+        exchangeTreeletCounts(peers_, treelets_, assignment_, leaves, leafCounts_, treeletRequests);
+        MPI_Waitall(int(peers_.size()), treeletRequests.data(), MPI_STATUS_IGNORE);
 
         // global counts
         auto globalCountIndices = invertRanges(0, assignment_, nNodes(leaves));
@@ -177,9 +175,9 @@ public:
     }
 
     template<class T>
-    void peerExchange(gsl::span<const int> peerRanks, gsl::span<T> quantities, int commTag) const
+    void peerExchange(gsl::span<T> quantities, int commTag) const
     {
-        exchangeTreeletGeneral<T>(peerRanks, treelets_, assignment_, octree().nodeKeys(), octree().levelRange(),
+        exchangeTreeletGeneral<T>(peers_, treelets_, assignment_, octree().nodeKeys(), octree().levelRange(),
                                   octree().internalOrder(), quantities, commTag);
     }
 
@@ -286,7 +284,6 @@ public:
                        gsl::span<const T> y,
                        gsl::span<const T> z,
                        gsl::span<const Tm> m,
-                       gsl::span<const int> peerRanks,
                        const SpaceCurveAssignment& assignment,
                        const Octree<KeyType>& globalTree,
                        const Box<T>& box)
@@ -313,7 +310,7 @@ public:
         //! upsweep with local data in place
         upsweep(octree(), centers_.data(), CombineSourceCenter<T>{});
         //! exchange information with peer close to focus
-        peerExchange<SourceCenterType<T>>(peerRanks, centers_, static_cast<int>(P2pTags::focusPeerCenters));
+        peerExchange<SourceCenterType<T>>(centers_, static_cast<int>(P2pTags::focusPeerCenters));
         //! global exchange for the top nodes that are bigger than local domains
         std::vector<SourceCenterType<T>> globalLeafCenters(globalTree.numLeafNodes());
         populateGlobal<SourceCenterType<T>>(globalTree.treeLeaves(), centers_, globalLeafCenters);
@@ -377,7 +374,7 @@ public:
                 gsl::span<const unsigned> globalCounts)
     {
         bool converged = updateTree(peers, assignment, globalTreeLeaves);
-        updateCounts(particleKeys, peers, globalTreeLeaves, globalCounts);
+        updateCounts(particleKeys, globalTreeLeaves, globalCounts);
         updateMinMac(box, assignment, globalTreeLeaves);
         return converged;
     }
@@ -442,6 +439,8 @@ private:
     //! @brief opening angle refinement criterion
     float theta_;
 
+    //! @brief list of peer ranks from last call to updateTree()
+    std::vector<int> peers_;
     //! @brief the tree structures that the peers have for the domain of the executing rank (myRank_)
     std::vector<std::vector<KeyType>> treelets_;
 

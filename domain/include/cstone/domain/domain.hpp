@@ -189,7 +189,7 @@ public:
                                 global_.nodeCounts());
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-        focusTree_.updateCounts(keyView, peers, global_.treeLeaves(), global_.nodeCounts());
+        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves());
 
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
@@ -223,8 +223,8 @@ public:
                                 global_.nodeCounts());
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-        focusTree_.updateCounts(keyView, peers, global_.treeLeaves(), global_.nodeCounts());
-        focusTree_.template updateCenters<T, T>(x, y, z, m, peers, global_.assignment(), global_.octree(), box());
+        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
+        focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box());
         focusTree_.updateVecMac(box(), global_.assignment(), global_.treeLeaves());
 
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
@@ -256,11 +256,9 @@ public:
         assert(globalTree.numTreeNodes() == globalCenters.ssize());
         combinationFunction.setCenters(globalCenters.data());
 
-        std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), globalTree, box(), theta_);
-
         std::vector<CellProperty> globalProperties(globalTree.numTreeNodes());
 
-        focusTree_.peerExchange(peers, cellProperties, static_cast<int>(P2pTags::focusPeerCenters) + 1);
+        focusTree_.peerExchange(cellProperties, static_cast<int>(P2pTags::focusPeerCenters) + 1);
         focusTree_.template globalExchange<CellProperty>(globalTree, globalProperties, cellProperties,
                                                          combinationFunction);
     }
@@ -274,7 +272,7 @@ public:
     //! @brief return number of locally assigned particles plus number of halos
     [[nodiscard]] LocalIndex nParticlesWithHalos() const { return bufDesc_.size; }
     //! @brief read only visibility of the global octree leaves to the outside
-    gsl::span<const KeyType> tree() const { return global_.treeLeaves(); }
+    const Octree<KeyType>& globalTree() const { return global_.octree(); }
     //! @brief read only visibility of the focused octree
     const Octree<KeyType>& focusTree() const { return focusTree_.octree(); }
     //! @brief the index of the first locally assigned cell in focusTree()

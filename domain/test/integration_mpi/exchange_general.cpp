@@ -122,7 +122,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
 
     std::vector<int> globalCounts(domainTree.numTreeNodes());
 
-    focusTree.template peerExchange<int>(peers, testCounts, static_cast<int>(P2pTags::focusPeerCounts) + 2);
+    focusTree.template peerExchange<int>(testCounts, static_cast<int>(P2pTags::focusPeerCounts) + 2);
     focusTree.template globalExchange<int>(domainTree, globalCounts, testCounts, SumCombination<int>{});
     upsweepSum(octree, testCounts.data());
 
@@ -206,7 +206,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
 
     const Octree<KeyType>& octree = focusTree.octree();
 
-    focusTree.template updateCenters<T, T>(x, y, z, m, peers, assignment, domainTree, box);
+    focusTree.template updateCenters<T, T>(x, y, z, m, assignment, domainTree, box);
     auto sourceCenter = focusTree.expansionCenters();
 
     constexpr T tol = std::is_same_v<T, double> ? 1e-10 : 1e-4;
