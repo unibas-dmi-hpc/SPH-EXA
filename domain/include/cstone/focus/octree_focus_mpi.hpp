@@ -211,6 +211,33 @@ public:
         }
     }
 
+    /*! @brief transfer missing cell quantities from global tree into localQuantities
+     *
+     * @tparam T
+     * @param[in]  globalTree
+     * @param[in]  globalQuantities   tree cell properties for each cell in @p globalTree include internal cells
+     * @param[out] localQuantities    local tree cell properties
+     */
+    template<class T>
+    void extractGlobal(const Octree<KeyType>& globalTree,
+                       gsl::span<const T> globalQuantities,
+                       gsl::span<T> localQuantities) const
+    {
+        gsl::span<const KeyType> localLeaves = treeLeaves();
+        //! requestIndices: range of leaf cell indices in the locally focused tree that need global information
+        auto requestIndices = invertRanges(0, assignment_, octree().numLeafNodes());
+        for (auto range : requestIndices)
+        {
+            //! from global tree, pull in missing elements into locally focused tree
+            for (TreeNodeIndex i = range.start(); i < range.end(); ++i)
+            {
+                TreeNodeIndex globalIndex    = globalTree.locate(localLeaves[i], localLeaves[i + 1]);
+                TreeNodeIndex internalIdx    = octree().toInternal(i);
+                localQuantities[internalIdx] = globalQuantities[globalIndex];
+            }
+        }
+    }
+
     /*! @brief exchange data of non-peer (beyond focus) tree cells
      *
      * @tparam        T                an arithmetic type, or compile-time fix-sized arrays thereof
@@ -251,19 +278,7 @@ public:
         //! upsweep of the global tree
         upsweep(globalTree, globalLeafQuantities.data(), globalQuantities.data(), std::forward<F>(upsweepFunction));
 
-        gsl::span<const KeyType> localLeaves = treeLeaves();
-        //! globalIndices: range of leaf cell indices in the locally focused tree that need global information
-        auto globalIndices = invertRanges(0, assignment_, octree().numLeafNodes());
-        for (auto range : globalIndices)
-        {
-            //! from global tree, pull in missing elements into locally focused tree
-            for (TreeNodeIndex i = range.start(); i < range.end(); ++i)
-            {
-                TreeNodeIndex globalIndex = globalTree.locate(localLeaves[i], localLeaves[i + 1]);
-                TreeNodeIndex internalIdx = octree().toInternal(i);
-                quantities[internalIdx]   = globalQuantities[globalIndex];
-            }
-        }
+        extractGlobal<T>(globalTree, globalQuantities, quantities);
     }
 
     template<class T, class Tm>
