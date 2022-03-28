@@ -80,8 +80,7 @@ int main()
     std::vector<MultipoleType> multipoles(octree.numTreeNodes());
     computeLeafMultipoles(
         x, y, z, masses.data(), octree.internalOrder(), layout, sourceCenters.data(), multipoles.data());
-    CombineMultipole<MultipoleType> combineMultipole(sourceCenters.data());
-    upsweep(octree, multipoles.data(), combineMultipole);
+    upsweepMultipoles(octree.levelRange(), octree.childOffsets(), sourceCenters.data(), multipoles.data());
     for (size_t i = 0; i < multipoles.size(); ++i)
     {
         multipoles[i] = ryoanji::normalize(multipoles[i]);

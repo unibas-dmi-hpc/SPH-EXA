@@ -304,9 +304,9 @@ public:
         assert(TreeNodeIndex(tree_.internalToLeaf_.size()) >= tree_.numTreeNodes());
 
         gsl::span<TreeNodeIndex> nodeOpsAll(tree_.internalToLeaf_);
-        bool converged =
-            rebalanceDecisionEssential(tree_.nodeKeys(), tree_.childOffsets(), tree_.parents(), counts.data(),
-                                       macs.data(), focusStart, focusEnd, bucketSize_, nodeOpsAll.data());
+        bool converged = rebalanceDecisionEssential(tree_.nodeKeys(), tree_.childOffsets().data(),
+                                                    tree_.parents().data(), counts.data(), macs.data(), focusStart,
+                                                    focusEnd, bucketSize_, nodeOpsAll.data());
 
         assert(tree_.childOffsets_.size() >= size_t(tree_.numLeafNodes() + 1));
         gsl::span<TreeNodeIndex> nodeOps(tree_.childOffsets_.data(), tree_.numLeafNodes() + 1);

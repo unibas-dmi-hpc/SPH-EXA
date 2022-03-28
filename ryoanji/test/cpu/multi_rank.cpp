@@ -149,11 +149,12 @@ static int globalMultipoleExchange(int thisRank, int numRanks)
                                    centers.data(),
                                    multipoles.data());
 
-    ryoanji::CombineMultipole<MultipoleType> combineMultipole(centers.data());
-    upsweep(focusTree, multipoles.data(), combineMultipole);
+    upsweepMultipoles(focusTree.levelRange(), focusTree.childOffsets(), centers.data(), multipoles.data());
 
+    ryoanji::CombineMultipole<MultipoleType> combineMultipole(centers.data());
     domain.template exchangeFocusGlobal<MultipoleType>(multipoles, combineMultipole);
-    upsweep(focusTree, multipoles.data(), combineMultipole);
+
+    upsweepMultipoles(focusTree.levelRange(), focusTree.childOffsets(), centers.data(), multipoles.data());
 
     MultipoleType globalRootMultipole = multipoles[focusTree.levelOffset(0)];
 

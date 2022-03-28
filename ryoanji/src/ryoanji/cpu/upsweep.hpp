@@ -67,6 +67,29 @@ void computeLeafMultipoles(const T1* x, const T1* y, const T1* z, const T2* m,
     }
 }
 
+template<class T, class MType>
+void upsweepMultipoles(gsl::span<const cstone::TreeNodeIndex> levelOffset,
+                       gsl::span<const cstone::TreeNodeIndex> childOffsets, const cstone::SourceCenterType<T>* centers,
+                       MType* multipoles)
+{
+    int currentLevel = cstone::maxTreeLevel<uint64_t>{};
+
+    for (; currentLevel >= 0; --currentLevel)
+    {
+        TreeNodeIndex start = levelOffset[currentLevel];
+        TreeNodeIndex end   = levelOffset[currentLevel + 1];
+#pragma omp parallel for schedule(static)
+        for (TreeNodeIndex i = start; i < end; ++i)
+        {
+            cstone::TreeNodeIndex firstChild = childOffsets[i];
+            if (firstChild)
+            {
+                multipole2Multipole(firstChild, firstChild + 8, centers[i], centers, multipoles, multipoles[i]);
+            }
+        }
+    }
+}
+
 template<class MType>
 class CombineMultipole
 {

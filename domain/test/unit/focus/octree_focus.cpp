@@ -59,15 +59,15 @@ static auto computeNodeOps(const Octree<KeyType>& octree,
     {
         auto [keyStub, level, value] = t;
 
-        KeyType keyStart  = pad(KeyType(keyStub), 3*level);
+        KeyType keyStart  = pad(KeyType(keyStub), 3 * level);
         TreeNodeIndex idx = octree.locate(keyStart, keyStart + nodeRange<KeyType>(level));
-        macs[idx] = value;
+        macs[idx]         = value;
     }
 
     std::vector<int> nodeOps(octree.numTreeNodes());
     bool converged =
-        rebalanceDecisionEssential(octree.nodeKeys(), octree.childOffsets(), octree.parents(), counts.data(),
-                                   macs.data(), focusStart, focusEnd, bucketSize, nodeOps.data());
+        rebalanceDecisionEssential(octree.nodeKeys(), octree.childOffsets().data(), octree.parents().data(),
+                                   counts.data(), macs.data(), focusStart, focusEnd, bucketSize, nodeOps.data());
 
     std::vector<int> ret(octree.numLeafNodes());
     octree.template extractLeaves<int>(nodeOps, ret);
@@ -90,9 +90,9 @@ static void rebalanceDecision()
         // fused
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 2, 1, 1, 1, 1, 1, 1, 2, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
-        std::vector<char>  macs{1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<char> macs{1, 1, 1, 0, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
-        std::vector<int>       reference{1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<int> reference{1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
         // (keyStub, level, value) tuples for internal cell macs
         std::vector<std::tuple<int, int, int>> internalMacs{{0, 0, 1}, {0, 1, 1}, {7, 1, 1}};
@@ -107,10 +107,10 @@ static void rebalanceDecision()
         // MAC wins, nodes stay, but are not split
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 2, 1, 0, 0, 0, 0};
-        std::vector<char>  macs{1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<char> macs{1, 1, 1, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
         //                            ^
         //                            parent of leaf nodes 14-21
-        std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
+        std::vector<int> reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
 
         std::vector<std::tuple<int, int, int>> internalMacs{{0, 0, 1}, {0, 1, 1}, {7, 1, 1}};
         auto [nodeOps, converged] =
@@ -123,10 +123,10 @@ static void rebalanceDecision()
         // nodes 14-21 should stay based on counts, and should be fused based on MACs. MAC wins, nodes are fused
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 2, 1, 0, 0, 0, 0};
-        std::vector<char>  macs{1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<char> macs{1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0};
         //                            ^
         //                            parent of leaf nodes 14-21
-        std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<int> reference{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0};
 
         std::vector<std::tuple<int, int, int>> internalMacs{{0, 0, 1}, {0, 1, 1}, {7, 1, 0}};
         auto [nodeOps, converged] =
@@ -144,11 +144,11 @@ static void rebalanceDecision()
         //                               |                     |                       |
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 2, 1, 1, 1, 1, 1, 1, 1, 1, 0, 0, 1, 1, 2, 1, 2, 1, 1, 2, 1, 1};
-        std::vector<char>  macs{1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0};
+        std::vector<char> macs{1, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0};
         //                 root ^  ^  ^
         //   parent of leaves 0-7  |  | parent of leaf nodes 8-15                  ^ here count says split, mac says
         //                                                                           merge, result: stay
-        std::vector<int>       reference{1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1};
+        std::vector<int> reference{1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1};
         //                                                             ----------------
         //                   these nodes are kept alive because their siblings (8 and 9) are inside the focus and are
         //                   staying
@@ -170,9 +170,9 @@ static void rebalanceDecision()
         //                               |                |                      |-----------------------
         //                               0  1  2  3  4  5  6  7  8  9 10 11 12 13 14 15 16 17 18 19 20 21
         std::vector<unsigned> leafCounts{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1};
-        std::vector<char>  macs{1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+        std::vector<char> macs{1, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
 
-        std::vector<int>       reference{1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1};
+        std::vector<int> reference{1, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1};
         // Check that nodes 6-13, directly adjacent to the focus area can be merged
 
         std::vector<std::tuple<int, int, int>> internalMacs{{0, 0, 1}, {6, 1, 0}, {7, 1, 0}};
@@ -333,7 +333,7 @@ template<class KeyType>
 static void computeEssentialTree()
 {
     Box<double> box{-1, 1};
-    int nParticles = 200000;
+    int nParticles        = 200000;
     unsigned csBucketSize = 16;
 
     auto codes = makeRandomUniformKeys<KeyType>(nParticles);
@@ -343,14 +343,15 @@ static void computeEssentialTree()
     globalTree.update(csTree.data(), nNodes(csTree));
 
     unsigned bucketSize = 16;
-    float theta = 1.0;
+    float theta         = 1.0;
     FocusedOctreeSingleNode<KeyType> tree(bucketSize, theta);
 
     // sorted reference tree node counts in each (except focus) octant at the 1st division level
-    std::vector<TreeNodeIndex> refCounts{92, 302, 302, 302, 1184, 1184, 1184, /*4131*/};
+    std::vector<TreeNodeIndex> refCounts{92, 302, 302, 302, 1184, 1184, 1184,
+                                         /*4131*/};
 
     KeyType focusStart = 1;
-    KeyType focusEnd = pad(KeyType(1), 3);
+    KeyType focusEnd   = pad(KeyType(1), 3);
 
     tree.update(box, codes, focusStart, focusEnd, {});
     // The focus boundaries have to be contained in the tree, even after just one update step.
@@ -378,7 +379,8 @@ static void computeEssentialTree()
         // From 0 to matchingFocusNode, the focusTree should be identical to the spanningTree
         std::vector<KeyType> spanningKeys{0, focusStart, nodeRange<KeyType>(0)};
         auto spanningTree = computeSpanningTree<KeyType>(spanningKeys);
-        EXPECT_EQ(tree.treeLeaves().first(matchingFocusNode), gsl::span<KeyType>(spanningTree.data(), matchingFocusNode));
+        EXPECT_EQ(tree.treeLeaves().first(matchingFocusNode),
+                  gsl::span<KeyType>(spanningTree.data(), matchingFocusNode));
 
         auto nodeCounts = octantNodeCount<KeyType>(tree.treeLeaves());
         EXPECT_EQ(nodeCounts, refCounts);

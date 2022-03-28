@@ -250,9 +250,9 @@ public:
     //! @brief return const pointer to node(cell) SFC keys
     gsl::span<const KeyType> nodeKeys() const { return prefixes_; }
     //! @brief return const pointer to child offsets array
-    const TreeNodeIndex* childOffsets() const { return childOffsets_.data(); }
+    gsl::span<const TreeNodeIndex> childOffsets() const { return childOffsets_; }
     //! @brief return const pointer to the cell parents array
-    const TreeNodeIndex* parents() const { return parents_.data(); }
+    gsl::span<const TreeNodeIndex> parents() const { return parents_; }
 
     //! @brief stores the first internal node index of each tree subdivision level
     gsl::span<const TreeNodeIndex> levelRange() const { return levelRange_; }
