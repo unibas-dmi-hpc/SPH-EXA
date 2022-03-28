@@ -315,7 +315,12 @@ public:
         //! exchange information with peer close to focus
         peerExchange<SourceCenterType<T>>(peerRanks, centers_, static_cast<int>(P2pTags::focusPeerCenters));
         //! global exchange for the top nodes that are bigger than local domains
-        globalExchange<SourceCenterType<T>>(globalTree, globalCenters_, centers_, CombineSourceCenter<T>{});
+        std::vector<SourceCenterType<T>> globalLeafCenters(globalTree.numLeafNodes());
+        populateGlobal<SourceCenterType<T>>(globalTree.treeLeaves(), centers_, globalLeafCenters);
+        mpiAllreduce(MPI_IN_PLACE, globalLeafCenters.data(), globalLeafCenters.size(), MPI_SUM);
+        upsweep(globalTree, globalLeafCenters.data(), globalCenters_.data(), CombineSourceCenter<T>{});
+        extractGlobal<SourceCenterType<T>>(globalTree, globalCenters_, centers_);
+
         //! upsweep with all (leaf) data in place
         upsweep(octree(), centers_.data(), CombineSourceCenter<T>{});
         //! calculate mac radius for each cell based on location of expansion centers
