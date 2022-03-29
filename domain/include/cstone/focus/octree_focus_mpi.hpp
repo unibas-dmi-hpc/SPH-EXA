@@ -169,7 +169,8 @@ public:
         }
 
         counts_.resize(tree_.octree().numTreeNodes());
-        upsweep(octree(), leafCounts_.data(), counts_.data(), SumCombination<unsigned>{});
+        scatter(octree().internalOrder(), leafCounts_.data(), counts_.data());
+        upsweep(octree(), counts_.data(), SumCombination<unsigned>{});
 
         rebalanceStatus_ |= countsCriterion;
     }
@@ -272,7 +273,8 @@ public:
         std::vector<SourceCenterType<T>> globalLeafCenters(globalTree.numLeafNodes());
         populateGlobal<SourceCenterType<T>>(globalTree.treeLeaves(), centers_, globalLeafCenters);
         mpiAllreduce(MPI_IN_PLACE, globalLeafCenters.data(), globalLeafCenters.size(), MPI_SUM);
-        upsweep(globalTree, globalLeafCenters.data(), globalCenters_.data(), CombineSourceCenter<T>{});
+        scatter(globalTree.internalOrder(), globalLeafCenters.data(), globalCenters_.data());
+        upsweep(globalTree, globalCenters_.data(), CombineSourceCenter<T>{});
         extractGlobal<SourceCenterType<T>>(globalTree, globalCenters_, centers_);
 
         //! upsweep with all (leaf) data in place

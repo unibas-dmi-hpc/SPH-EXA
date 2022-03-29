@@ -81,8 +81,7 @@ TEST(Gravity, TreeWalk)
 
     std::vector<MultipoleType> multipoles(octree.numTreeNodes());
     computeLeafMultipoles(x, y, z, masses.data(), octree.internalOrder(), layout, centers.data(), multipoles.data());
-    CombineMultipole<MultipoleType> combineMultipole(centers.data());
-    upsweep(octree, multipoles.data(), combineMultipole);
+    upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles.data());
     for (size_t i = 0; i < multipoles.size(); ++i)
     {
         multipoles[i] = ryoanji::normalize(multipoles[i]);

@@ -392,7 +392,8 @@ public:
                           particleKeys.data() + particleKeys.size(), std::numeric_limits<unsigned>::max(), true);
 
         counts_.resize(octree().numTreeNodes());
-        upsweep(octree(), leafCounts_.data(), counts_.data(), SumCombination<unsigned>{});
+        scatter(octree().internalOrder(), leafCounts_.data(), counts_.data());
+        upsweep(octree(), counts_.data(), SumCombination<unsigned>{});
 
         return converged;
     }

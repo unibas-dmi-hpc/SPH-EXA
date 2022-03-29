@@ -90,26 +90,4 @@ void upsweepMultipoles(gsl::span<const cstone::TreeNodeIndex> levelOffset,
     }
 }
 
-template<class MType>
-class CombineMultipole
-{
-public:
-    CombineMultipole(const cstone::SourceCenterType<typename MType::value_type>* centers)
-        : centers_(centers)
-    {
-    }
-
-    MType operator()(TreeNodeIndex nodeIdx, TreeNodeIndex child, MType* multipoles)
-    {
-        MType ret;
-        multipole2Multipole(child, child + 8, centers_[nodeIdx], centers_, multipoles, ret);
-        return ret;
-    }
-
-    void setCenters(const cstone::SourceCenterType<typename MType::value_type>* centers) { centers_ = centers; }
-
-private:
-    const cstone::SourceCenterType<typename MType::value_type>* centers_;
-};
-
 } // namespace ryoanji

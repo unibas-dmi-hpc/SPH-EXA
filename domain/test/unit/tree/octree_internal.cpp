@@ -198,7 +198,6 @@ TEST(InternalOctree, irregularL3)
     octreeIrregularL3<uint64_t>();
 }
 
-
 //! @brief this generates a max-depth cornerstone tree
 template<class KeyType>
 static void spanningTree()
@@ -229,9 +228,9 @@ static void binaryIndexConversion()
     std::vector<TreeNodeIndex> octreeIndices(numNodes);
     for (TreeNodeIndex tid = 0; tid < numNodes; ++tid)
     {
-        int prefixLength  = commonPrefix(cstree[tid], cstree[tid + 1]);
-        bool divisibleBy3 = prefixLength % 3 == 0;
-        octreeIndices[tid]  = (divisibleBy3) ? 1 : 0;
+        int prefixLength   = commonPrefix(cstree[tid], cstree[tid + 1]);
+        bool divisibleBy3  = prefixLength % 3 == 0;
+        octreeIndices[tid] = (divisibleBy3) ? 1 : 0;
     }
     std::vector<TreeNodeIndex> binaryToOct(numNodes);
     std::exclusive_scan(begin(octreeIndices), end(octreeIndices), begin(binaryToOct), 0);
@@ -359,13 +358,14 @@ static void upsweepSumIrregularL3()
     std::vector<unsigned> leafCounts(nNodes(cstoneTree), 1);
     std::vector<unsigned> nodeCounts(octree.numTreeNodes());
 
-    upsweep(octree, leafCounts.data(), nodeCounts.data(), SumCombination<unsigned>{});
+    scatter(octree.internalOrder(), leafCounts.data(), nodeCounts.data());
+    upsweep(octree, nodeCounts.data(), SumCombination<unsigned>{});
 
     //                                      L1                       L2
     //                                                               00                       30
-    std::vector<unsigned> refNodeCounts{29, 15, 1, 1, 8, 1, 1, 1, 1,  1, 1, 8, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
-                                   //  L3
-                                   // 020
+    std::vector<unsigned> refNodeCounts{29, 15, 1, 1, 8, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        //  L3
+                                        // 020
                                         1, 1, 1, 1, 1, 1, 1, 1};
 
     EXPECT_EQ(nodeCounts, refNodeCounts);

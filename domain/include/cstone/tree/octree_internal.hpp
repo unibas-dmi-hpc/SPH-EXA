@@ -446,17 +446,6 @@ void upsweep(const Octree<KeyType>& octree, T* quantities, CombinationFunction&&
     }
 }
 
-//! @brief perform upsweep, initializing leaf quantities from a separate array
-template<class T, class KeyType, class CombinationFunction>
-void upsweep(const Octree<KeyType>& octree,
-             const T* leafQuantities,
-             T* quantities,
-             CombinationFunction&& combinationFunction)
-{
-    scatter(octree.internalOrder(), leafQuantities, quantities);
-    upsweep(octree, quantities, std::forward<CombinationFunction>(combinationFunction));
-}
-
 template<class T>
 struct SumCombination
 {
