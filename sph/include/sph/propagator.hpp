@@ -93,7 +93,7 @@ protected:
                        domain.nParticlesWithHalos() - domain.nParticles(),
                        totalNeighbors);
 
-            std::cout << "### Check ### Focus Tree Nodes: " << domain.focusTree().numLeafNodes() << std::endl;
+            std::cout << "### Check ### Focus Tree Nodes: " << domain.focusTree().octree().numLeafNodes() << std::endl;
             printTotalIterationTime(d.iteration, timer.duration());
         }
     }
@@ -304,8 +304,14 @@ public:
         computeMomentumAndEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
-        const cstone::Octree<KeyType>&               octree  = domain.focusTree();
-        gsl::span<const cstone::SourceCenterType<T>> centers = domain.expansionCenters();
+        //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
+        const cstone::FocusedOctree<KeyType, T>& focusTree = domain.focusTree();
+        //! the focused octree, structure only
+        const cstone::Octree<KeyType>&               octree  = focusTree.octree();
+        gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCenters();
+
+        const cstone::Octree<KeyType>&                     globalOctree  = domain.globalTree();
+        const gsl::span<const cstone::SourceCenterType<T>> globalCenters = focusTree.globalExpansionCenters();
 
         std::vector<MultipoleType> multipoles(octree.numTreeNodes());
         ryoanji::computeLeafMultipoles(d.x.data(),
@@ -317,10 +323,23 @@ public:
                                        centers.data(),
                                        multipoles.data());
 
-        ryoanji::CombineMultipole<MultipoleType> combineMultipole(centers.data());
         //! first upsweep with local data
         ryoanji::upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles.data());
-        domain.template exchangeFocusGlobal<MultipoleType>(multipoles, combineMultipole);
+
+        std::vector<MultipoleType> globalLeafMultipoles(globalOctree.numLeafNodes());
+        focusTree.template populateGlobal<MultipoleType>(globalOctree.treeLeaves(), multipoles, globalLeafMultipoles);
+        mpiAllreduce(MPI_IN_PLACE, globalLeafMultipoles.data(), globalLeafMultipoles.size(), MPI_SUM);
+
+        std::vector<MultipoleType> globalMultipoles(globalOctree.numTreeNodes());
+        cstone::scatter(globalOctree.internalOrder(), globalLeafMultipoles.data(), globalMultipoles.data());
+        ryoanji::upsweepMultipoles(
+            globalOctree.levelRange(), globalOctree.childOffsets(), globalCenters.data(), globalMultipoles.data());
+
+        focusTree.template extractGlobal<MultipoleType>(globalOctree, globalMultipoles, multipoles);
+
+        focusTree.template peerExchange<MultipoleType>(multipoles,
+                                                       static_cast<int>(cstone::P2pTags::focusPeerCenters) + 1);
+
         //! second upsweep with leaf data from peer and global ranks in place
         ryoanji::upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles.data());
 

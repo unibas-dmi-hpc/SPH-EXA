@@ -247,22 +247,6 @@ public:
         halos_.exchangeHalos(arrays.data()...);
     }
 
-    template<class CellProperty, class CombinationFunction>
-    void exchangeFocusGlobal(gsl::span<CellProperty> cellProperties, CombinationFunction combinationFunction)
-    {
-        const Octree<KeyType>& globalTree = global_.octree();
-
-        gsl::span<const SourceCenterType<T>> globalCenters = focusTree_.globalExpansionCenters();
-        assert(globalTree.numTreeNodes() == globalCenters.ssize());
-        combinationFunction.setCenters(globalCenters.data());
-
-        std::vector<CellProperty> globalProperties(globalTree.numTreeNodes());
-
-        focusTree_.peerExchange(cellProperties, static_cast<int>(P2pTags::focusPeerCenters) + 1);
-        focusTree_.template globalExchange<CellProperty>(globalTree, globalProperties, cellProperties,
-                                                         combinationFunction);
-    }
-
     //! @brief return the index of the first particle that's part of the local assignment
     [[nodiscard]] LocalIndex startIndex() const { return bufDesc_.start; }
     //! @brief return one past the index of the last particle that's part of the local assignment
@@ -274,13 +258,11 @@ public:
     //! @brief read only visibility of the global octree leaves to the outside
     const Octree<KeyType>& globalTree() const { return global_.octree(); }
     //! @brief read only visibility of the focused octree
-    const Octree<KeyType>& focusTree() const { return focusTree_.octree(); }
+    const FocusedOctree<KeyType, T>& focusTree() const { return focusTree_; }
     //! @brief the index of the first locally assigned cell in focusTree()
     TreeNodeIndex startCell() const { return focusTree_.assignment()[myRank_].start(); }
     //! @brief the index of the last locally assigned cell in focusTree()
     TreeNodeIndex endCell() const { return focusTree_.assignment()[myRank_].end(); }
-    //! @brief expansion (com) center and mac^2 radii of each focus tree cell
-    gsl::span<const SourceCenterType<T>> expansionCenters() const { return focusTree_.expansionCenters(); }
     //! @brief particle offsets of each focus tree leaf cell
     gsl::span<const LocalIndex> layout() const { return layout_; }
     //! @brief return the coordinate bounding box from the previous sync call

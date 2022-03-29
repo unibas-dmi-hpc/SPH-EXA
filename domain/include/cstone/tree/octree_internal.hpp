@@ -453,12 +453,7 @@ void upsweep(const Octree<KeyType>& octree,
              T* quantities,
              CombinationFunction&& combinationFunction)
 {
-#pragma omp parallel for schedule(static)
-    for (TreeNodeIndex i = 0; i < octree.numLeafNodes(); ++i)
-    {
-        TreeNodeIndex internalIdx = octree.toInternal(i);
-        quantities[internalIdx]   = leafQuantities[i];
-    }
+    scatter(octree.internalOrder(), leafQuantities, quantities);
     upsweep(octree, quantities, std::forward<CombinationFunction>(combinationFunction));
 }
 
@@ -470,11 +465,5 @@ struct SumCombination
         return Q[c] + Q[c + 1] + Q[c + 2] + Q[c + 3] + Q[c + 4] + Q[c + 5] + Q[c + 6] + Q[c + 7];
     }
 };
-
-template<class T, class KeyType>
-void upsweepSum(const Octree<KeyType>& octree, T* quantities)
-{
-    upsweep(octree, quantities, SumCombination<T>{});
-}
 
 } // namespace cstone

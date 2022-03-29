@@ -101,7 +101,7 @@ void adjustSmoothingLength(LocalIndex numParticles, int ng0, int ngmax, const st
 }
 
 template<class T, class KeyType>
-static int globalMultipoleExchange(int thisRank, int numRanks)
+static int multipoleExchangeTest(int thisRank, int numRanks)
 {
     using MultipoleType              = CartesianQuadrupole<T>;
     const LocalIndex numParticles    = 1000;
@@ -136,27 +136,38 @@ static int globalMultipoleExchange(int thisRank, int numRanks)
 
     domain.syncGrav(particleKeys, x, y, z, h, m);
 
-    const cstone::Octree<KeyType>&               focusTree = domain.focusTree();
-    gsl::span<const cstone::SourceCenterType<T>> centers   = domain.expansionCenters();
+    //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
+    const cstone::FocusedOctree<KeyType, T>& focusTree = domain.focusTree();
+    //! the focused octree, structure only
+    const cstone::Octree<KeyType>&               octree  = focusTree.octree();
+    gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCenters();
 
-    std::vector<MultipoleType> multipoles(focusTree.numTreeNodes());
+    const cstone::Octree<KeyType>&                     globalOctree  = domain.globalTree();
+    const gsl::span<const cstone::SourceCenterType<T>> globalCenters = focusTree.globalExpansionCenters();
+
+    std::vector<MultipoleType> multipoles(octree.numTreeNodes());
     ryoanji::computeLeafMultipoles(x.data(),
                                    y.data(),
                                    z.data(),
                                    m.data(),
-                                   focusTree.internalOrder(),
+                                   octree.internalOrder(),
                                    domain.layout(),
                                    centers.data(),
                                    multipoles.data());
 
-    upsweepMultipoles(focusTree.levelRange(), focusTree.childOffsets(), centers.data(), multipoles.data());
+    //! first upsweep with local data
+    ryoanji::upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles.data());
 
-    ryoanji::CombineMultipole<MultipoleType> combineMultipole(centers.data());
-    domain.template exchangeFocusGlobal<MultipoleType>(multipoles, combineMultipole);
+    auto ryUpsweep = [](auto levelRange, auto childOffsets, auto centers, auto M)
+    { ryoanji::upsweepMultipoles(levelRange, childOffsets, centers, M); };
+    cstone::globalMultipoleExchange<MultipoleType>(globalOctree, focusTree, globalCenters, multipoles, ryUpsweep);
 
-    upsweepMultipoles(focusTree.levelRange(), focusTree.childOffsets(), centers.data(), multipoles.data());
+    focusTree.template peerExchange<MultipoleType>(multipoles, static_cast<int>(cstone::P2pTags::focusPeerCenters) + 1);
 
-    MultipoleType globalRootMultipole = multipoles[focusTree.levelOffset(0)];
+    //! second upsweep with leaf data from peer and global ranks in place
+    ryoanji::upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles.data());
+
+    MultipoleType globalRootMultipole = multipoles[octree.levelOffset(0)];
 
     // compute reference root cell multipole from global particle data
     MultipoleType reference;
@@ -166,7 +177,7 @@ static int globalMultipoleExchange(int thisRank, int numRanks)
                        globalMasses.data(),
                        0,
                        numParticles * numRanks,
-                       makeVec3(centers[focusTree.levelOffset(0)]),
+                       makeVec3(centers[octree.levelOffset(0)]),
                        reference);
 
     double maxDiff = max(abs(reference - globalRootMultipole));
@@ -196,7 +207,7 @@ int main(int argc, char** argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
-    int testResult = globalMultipoleExchange<double, uint64_t>(rank, numRanks);
+    int testResult = multipoleExchangeTest<double, uint64_t>(rank, numRanks);
 
     MPI_Finalize();
 

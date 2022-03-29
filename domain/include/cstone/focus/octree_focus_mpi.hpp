@@ -236,49 +236,6 @@ public:
         }
     }
 
-    /*! @brief exchange data of non-peer (beyond focus) tree cells
-     *
-     * @tparam        T                an arithmetic type, or compile-time fix-sized arrays thereof
-     * @tparam        F                function object for octree upsweep
-     * @param[in]     globalTree       the same global (replicated on all ranks) tree that was used for peer rank
-     *                                 detection
-     * @param[out]    globalQuantities an array of length @p globalTree.numTreeNodes(), will be populated with
-     *                                 information from @p quantities
-     * @param[inout]  quantities       an array of length octree().numTreeNodes() with cell properties of the
-     *                                 locally focused octree
-     *
-     * The data flow is:
-     *  local cells of quantities -> leaves of globalQuantities -> global collective communication -> upsweep
-     *   -> back-contribution of global cell quantities into the
-     *
-     * Precondition:  quantities contains valid data for each cell, including internal cells,
-     *                that falls into the focus range of the executing
-     *                rank
-     * Postcondition: each element of quantities corresponding to cells non-local and not owned by any of the peer
-     *                ranks contains data obtained through global collective communication between ranks
-     */
-    template<class T, class F>
-    void globalExchange(const Octree<KeyType>& globalTree,
-                        gsl::span<T> globalQuantities,
-                        gsl::span<T> quantities,
-                        F&& upsweepFunction) const
-    {
-        TreeNodeIndex numGlobalLeaves = globalTree.numLeafNodes();
-        std::vector<T> globalLeafQuantities(numGlobalLeaves);
-        //! fetch local quantities into globalLeaves
-        gsl::span<const KeyType> globalLeaves = globalTree.treeLeaves();
-
-        populateGlobal<T>(globalLeaves, quantities, globalQuantities);
-
-        //! exchange global leaves
-        mpiAllreduce(MPI_IN_PLACE, globalLeafQuantities.data(), numGlobalLeaves, MPI_SUM);
-
-        //! upsweep of the global tree
-        upsweep(globalTree, globalLeafQuantities.data(), globalQuantities.data(), std::forward<F>(upsweepFunction));
-
-        extractGlobal<T>(globalTree, globalQuantities, quantities);
-    }
-
     template<class T, class Tm>
     void updateCenters(gsl::span<const T> x,
                        gsl::span<const T> y,
@@ -467,5 +424,49 @@ private:
     //! @brief the status of the macs_ and counts_ rebalance criteria
     int rebalanceStatus_{valid};
 };
+
+/*! @brief exchange data of non-peer (beyond focus) tree cells
+ *
+ * @tparam        T                an arithmetic type, or compile-time fix-sized arrays thereof
+ * @tparam        F                function object for octree upsweep
+ * @param[in]     globalTree       the same global (replicated on all ranks) tree that was used for peer rank
+ *                                 detection
+ * @param[out]    globalQuantities an array of length @p globalTree.numTreeNodes(), will be populated with
+ *                                 information from @p quantities
+ * @param[inout]  quantities       an array of length octree().numTreeNodes() with cell properties of the
+ *                                 locally focused octree
+ *
+ * The data flow is:
+ *  local cells of quantities -> leaves of globalQuantities -> global collective communication -> upsweep
+ *   -> back-contribution of global cell quantities into the
+ *
+ * Precondition:  quantities contains valid data for each cell, including internal cells,
+ *                that falls into the focus range of the executing
+ *                rank
+ * Postcondition: each element of quantities corresponding to cells non-local and not owned by any of the peer
+ *                ranks contains data obtained through global collective communication between ranks
+ */
+template<class MType, class T, class KeyType, class F>
+void globalMultipoleExchange(const Octree<KeyType>& globalOctree,
+                             const FocusedOctree<KeyType, T>& focusTree,
+                             gsl::span<const SourceCenterType<T>> globalCenters,
+                             gsl::span<MType> multipoles,
+                             F&& upsweepFunction)
+{
+    TreeNodeIndex numGlobalLeaves = globalOctree.numLeafNodes();
+    std::vector<MType> globalLeafMultipoles(numGlobalLeaves);
+    focusTree.template populateGlobal<MType>(globalOctree.treeLeaves(), multipoles, globalLeafMultipoles);
+
+    //! exchange global leaves
+    mpiAllreduce(MPI_IN_PLACE, globalLeafMultipoles.data(), numGlobalLeaves, MPI_SUM);
+
+    std::vector<MType> globalMultipoles(globalOctree.numTreeNodes());
+    scatter(globalOctree.internalOrder(), globalLeafMultipoles.data(), globalMultipoles.data());
+    //! upsweep with the global tree
+    upsweepFunction(globalOctree.levelRange(), globalOctree.childOffsets(), globalCenters.data(),
+                    globalMultipoles.data());
+
+    focusTree.template extractGlobal<MType>(globalOctree, globalMultipoles, multipoles);
+}
 
 } // namespace cstone
