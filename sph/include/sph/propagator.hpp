@@ -247,8 +247,6 @@ public:
         timer.step("UpdateQuantities");
         computeTotalEnergy(first, last, d);
         timer.step("EnergyConservation");
-        computeKHGrowthRate(first, last, d, domain.box());
-        timer.step("KHGrowthRate");
         updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");
 
