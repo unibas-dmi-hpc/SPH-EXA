@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief output time and energies each iteration
+ * @brief output time and energies each iteration (default)
  * @author Lukas Schmidt
  */
 
