@@ -429,19 +429,23 @@ private:
     std::vector<KeyType> cstoneTree_;
 };
 
-template<class T, class KeyType, class CombinationFunction>
-void upsweep(const Octree<KeyType>& octree, T* quantities, CombinationFunction&& combinationFunction)
+template<class T, class CombinationFunction>
+void upsweep(gsl::span<const TreeNodeIndex> levelOffset,
+             gsl::span<const TreeNodeIndex> childOffsets,
+             T* quantities,
+             CombinationFunction&& combinationFunction)
 {
-    int currentLevel = maxTreeLevel<KeyType>{};
+    int currentLevel = levelOffset.size() - 2;
 
     for (; currentLevel >= 0; --currentLevel)
     {
-        TreeNodeIndex start = octree.levelOffset(currentLevel);
-        TreeNodeIndex end   = octree.levelOffset(currentLevel + 1);
+        TreeNodeIndex start = levelOffset[currentLevel];
+        TreeNodeIndex end   = levelOffset[currentLevel + 1];
 #pragma omp parallel for schedule(static)
         for (TreeNodeIndex i = start; i < end; ++i)
         {
-            if (!octree.isLeaf(i)) { quantities[i] = combinationFunction(i, octree.child(i, 0), quantities); }
+            cstone::TreeNodeIndex firstChild = childOffsets[i];
+            if (firstChild) { quantities[i] = combinationFunction(i, firstChild, quantities); }
         }
     }
 }

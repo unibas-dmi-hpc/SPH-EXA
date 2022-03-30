@@ -43,7 +43,7 @@ using namespace ryoanji;
 
 TEST(Gravity, TreeWalk)
 {
-    using T             = float;
+    using T             = double;
     using KeyType       = uint64_t;
     using MultipoleType = ryoanji::CartesianQuadrupole<T>;
 
@@ -78,7 +78,7 @@ TEST(Gravity, TreeWalk)
     std::vector<SourceCenterType<T>> centers(octree.numTreeNodes());
     computeLeafMassCenter<T, T, T, KeyType>(
         coordinates.x(), coordinates.y(), coordinates.z(), masses, coordinates.particleKeys(), octree, centers);
-    upsweep(octree, centers.data(), CombineSourceCenter<T>{});
+    upsweep(octree.levelRange(), octree.childOffsets(), centers.data(), CombineSourceCenter<T>{});
     setMac<T>(octree.nodeKeys(), centers, 1.0 / theta, box);
 
     std::vector<MultipoleType> multipoles(octree.numTreeNodes());

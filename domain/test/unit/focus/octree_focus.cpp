@@ -50,11 +50,11 @@ static auto computeNodeOps(const Octree<KeyType>& octree,
 {
     std::vector<unsigned> counts(octree.numTreeNodes());
     scatter(octree.internalOrder(), leafCounts.data(), counts.data());
-    upsweep(octree, counts.data(), SumCombination<unsigned>{});
+    upsweep(octree.levelRange(), octree.childOffsets(), counts.data(), SumCombination<unsigned>{});
 
     std::vector<char> macs(octree.numTreeNodes());
     scatter(octree.internalOrder(), csMacs.data() + octree.numInternalNodes(), macs.data());
-    upsweep(octree, macs.data(), SumCombination<char>{});
+    upsweep(octree.levelRange(), octree.childOffsets(), macs.data(), SumCombination<char>{});
 
     // transfer values for internal node macs
     for (auto t : imacs)

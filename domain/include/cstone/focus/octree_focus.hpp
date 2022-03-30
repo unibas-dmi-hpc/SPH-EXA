@@ -393,7 +393,7 @@ public:
 
         counts_.resize(octree().numTreeNodes());
         scatter(octree().internalOrder(), leafCounts_.data(), counts_.data());
-        upsweep(octree(), counts_.data(), SumCombination<unsigned>{});
+        upsweep(octree().levelRange(), octree().childOffsets(), counts_.data(), SumCombination<unsigned>{});
 
         return converged;
     }

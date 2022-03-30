@@ -72,7 +72,7 @@ void upsweepMultipoles(gsl::span<const cstone::TreeNodeIndex> levelOffset,
                        gsl::span<const cstone::TreeNodeIndex> childOffsets, const cstone::SourceCenterType<T>* centers,
                        MType* multipoles)
 {
-    int currentLevel = cstone::maxTreeLevel<uint64_t>{};
+    int currentLevel = levelOffset.size() - 2;
 
     for (; currentLevel >= 0; --currentLevel)
     {
