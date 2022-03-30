@@ -24,30 +24,41 @@
  */
 
 /*! @file
- * @brief to add
- *
+ * @brief output time and energies each iteration
  * @author Lukas Schmidt
  */
 
-#pragma once
-
-
-#include "cstone/sfc/box.hpp"
+#include "file_utils.hpp"
+#include "iobservables.hpp"
+#include <fstream>
 #include "ifile_writer.hpp"
-#include "io/mpi_file_utils.hpp"
 
-namespace sphexa
-{
+
+namespace sphexa {
+
 
 template<class Dataset>
-class IObservables
+class TimeAndEnergy : public IObservables<Dataset>
 {
+    std::ofstream& constantsFile;
+
 public:
 
-    virtual void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex,
-                    cstone::Box<typename Dataset::RealType>& box) = 0;
+    TimeAndEnergy(std::ofstream& constPath) : constantsFile(constPath){}
+
+    using T = typename Dataset::RealType; 
+    void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex,
+                    cstone::Box<T>& box)
+    {
+        fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
+    }
     
-    virtual ~IObservables() = default;
 };
 
-} // namespace sphexa
+
+
+
+
+
+
+} //namespace sphexa

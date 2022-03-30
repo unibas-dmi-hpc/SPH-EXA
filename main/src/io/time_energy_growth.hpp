@@ -24,16 +24,17 @@
  */
 
 /*! @file
- * @brief Noh implosion simulation data initialization
+ * @brief output and calculate energies and growth rate for Kelvin-Helmholtz tests
  *
- * @author Jose A. Escartin <ja.escartin@gmail.com>"
+ * @author Lukas Schmidt
  */
 
+#include "file_utils.hpp"
 #include "iobservables.hpp"
-#include <cmath> //??
+#include "sph/math.hpp" //??
+#include <fstream>
 #include "ifile_writer.hpp"
 
-#define PI 3.14159265358979323846
 
 namespace sphexa {
 
@@ -48,6 +49,7 @@ void localGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, T* sumsi, T
     const T* m =    d.m.data();
     const T* kx =   d.kx.data();
     const T ybox =  box.ly();
+    //const T PI =    3.14159265358979323846;
 
     T sumsiThread = 0.0, sumciThread = 0.0, sumdiThread = 0.0;
 #pragma omp parallel for reduction(+ : sumsiThread, sumciThread, sumdiThread)
@@ -92,7 +94,7 @@ T computeKHGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, const csto
     MPI_Reduce(sum, globalSum, 3, MpiType<T>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
 #endif
     return 2.e0 * std::sqrt((globalSum[0]/globalSum[2])*(globalSum[0]/globalSum[2]) + (globalSum[1]/globalSum[2])*(globalSum[1]/globalSum[2]));
-    //printf("KH Growth Rate this iteration: %f\n", d.khgr);
+    ;
 }
 
 
@@ -101,8 +103,21 @@ T computeKHGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, const csto
 template<class Dataset>
 class TimeEnergyGrowth : public IObservables<Dataset>
 {
+    std::ofstream& constantsFile;
+
+public:
+
+    TimeEnergyGrowth(std::ofstream& constPath) : constantsFile(constPath){}
+
     using T = typename Dataset::RealType; 
-    T khgr = computeKHGrowthRate<typename T>(size_t startIndex, size_t endIndex, Dataset &d, const int &box);
+    void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex,
+                    cstone::Box<T>& box)
+    {
+        T khgr = computeKHGrowthRate<T>(firstIndex, lastIndex, d, box);
+        printf("KH Growth Rate this iteration: %f\n", khgr);
+        fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, khgr);
+    }
+    
 };
 
 

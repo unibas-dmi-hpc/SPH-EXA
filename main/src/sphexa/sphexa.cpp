@@ -12,6 +12,7 @@
 #include "cstone/domain/domain.hpp"
 #include "sph/propagator.hpp"
 #include "init/factory.hpp"
+#include "io/factory.hpp"
 #include "io/arg_parser.hpp"
 #include "io/ifile_writer.hpp"
 #include "util/timer.hpp"
@@ -113,6 +114,8 @@ int main(int argc, char** argv)
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
+    std::unique_ptr<IObservables<Dataset>> observables = observablesFactory<Dataset>(initCond, constantsFile);
+
     MasterProcessTimer totalTimer(output, rank);
     totalTimer.start();
     size_t startIteration = d.iteration;
@@ -122,7 +125,7 @@ int main(int argc, char** argv)
 
         if (rank == 0)
         {
-            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
+            observables -> computeAndWrite(d, domain.startIndex(), domain.endIndex(), box);
         }
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)

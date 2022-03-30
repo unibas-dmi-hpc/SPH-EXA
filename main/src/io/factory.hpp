@@ -31,17 +31,19 @@
 
 #pragma once
 
-#include <fstream>
-#include <map>
 #include <memory>
+#include <string>
 
 #include "cstone/sfc/box.hpp"
+#include "iobservables.hpp"
+#include "time_energy_growth.hpp"
+#include "time_energies.hpp"
 
 namespace sphexa
 {
 
 template<class Dataset>
-std::unique_ptr<IObservables<Dataset>> observablesFactory(std::string testCase, std::ofstream constantsFile)
+std::unique_ptr<IObservables<Dataset>> observablesFactory(std::string testCase, std::ofstream& constantsFile)
 {
     if (testCase == "IC_kelvin-helmholtz.h5")
     {
@@ -49,7 +51,8 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(std::string testCase, 
     }
     else
     {
-       //return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);
+       
+       return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);
     }
 }
 
