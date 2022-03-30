@@ -40,7 +40,6 @@
 #include "sph/sph.hpp"
 
 #include "util/timer.hpp"
-#include "particles_data.hpp"
 
 namespace sphexa
 {
