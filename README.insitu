@@ -1,13 +1,20 @@
 #!/bin/sh
 
 prgenv:
-  module load daint-gpu cudatoolkit CMake/3.21.1
-  module load ParaView/5.10.0-CrayGNU-20.11-EGL
+  module load daint-gpu cudatoolkit CMake
+  module load ParaView/5.10.0-CrayGNU-21.09-EGL
 
 build wth ParaView Catalyst on Piz Daint:
   mkdir buildCatalystDaint
   cd buildCatalystDaint
-  cmake -DCMAKE_CXX_COMPILER=CC -DINSITU=Catalyst ..
+  cmake \
+    -DCMAKE_CXX_COMPILER=CC \
+    -DINSITU=Catalyst \
+    -DBUILD_ANALYTICAL:BOOL=OFF \
+    -DBUILD_GMOCK:BOOL=OFF \
+    -DBUILD_TESTING:BOOL=OFF \
+    -DSPH_EXA_WITH_H5PART:BOOL=OFF \
+    ..
 
 ############
 
