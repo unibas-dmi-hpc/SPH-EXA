@@ -124,10 +124,9 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
 
     focusTree.template peerExchange<int>(testCounts, static_cast<int>(P2pTags::focusPeerCounts) + 2);
 
-    auto upsweepFunction = [](auto levelRange, auto childOffsets, auto /*centers*/, auto M)
+    auto upsweepFunction = [](auto levelRange, auto childOffsets, auto M)
     { upsweep(levelRange, childOffsets, M, SumCombination<int>{}); };
-    globalMultipoleExchange<int>(domainTree, focusTree, gsl::span<const SourceCenterType<T>>{nullptr, 0}, testCounts,
-                                 upsweepFunction);
+    globalFocusExchange<int>(domainTree, focusTree, testCounts, upsweepFunction);
 
     upsweep(octree.levelRange(), octree.childOffsets(), testCounts.data(), SumCombination<int>{});
 

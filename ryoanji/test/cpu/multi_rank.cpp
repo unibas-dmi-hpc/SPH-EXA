@@ -158,9 +158,9 @@ static int multipoleExchangeTest(int thisRank, int numRanks)
     //! first upsweep with local data
     ryoanji::upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles.data());
 
-    auto ryUpsweep = [](auto levelRange, auto childOffsets, auto centers, auto M)
+    auto ryUpsweep = [](auto levelRange, auto childOffsets, auto M, auto centers)
     { ryoanji::upsweepMultipoles(levelRange, childOffsets, centers, M); };
-    cstone::globalMultipoleExchange<MultipoleType>(globalOctree, focusTree, globalCenters, multipoles, ryUpsweep);
+    cstone::globalFocusExchange<MultipoleType>(globalOctree, focusTree, multipoles, ryUpsweep, globalCenters.data());
 
     focusTree.template peerExchange<MultipoleType>(multipoles, static_cast<int>(cstone::P2pTags::focusPeerCenters) + 1);
 
