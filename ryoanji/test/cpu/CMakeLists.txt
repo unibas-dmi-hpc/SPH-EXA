@@ -14,17 +14,10 @@ target_compile_options(ryoanji_cpu_unit_tests PRIVATE -Wall -Wextra -Wno-unknown
 
 target_include_directories(ryoanji_cpu_unit_tests PRIVATE ${RYOANJI_TEST_INCLUDE_DIRS})
 
-target_link_libraries(ryoanji_cpu_unit_tests PRIVATE GTest::gtest_main)
+target_link_libraries(ryoanji_cpu_unit_tests PRIVATE GTest::gtest_main OpenMP::OpenMP_CXX)
 add_test(NAME ryoanji_cpu_unit_tests COMMAND ryoanji_cpu_unit_tests)
 
 install(TARGETS ryoanji_cpu_unit_tests RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji/cpu_unit_tests)
-
-set(testname gravity_perf)
-add_executable(${testname} gravity.cpp)
-target_include_directories(${testname} PRIVATE ${RYOANJI_TEST_INCLUDE_DIRS})
-target_link_libraries(${testname} PRIVATE OpenMP::OpenMP_CXX)
-#target_compile_options(${testname} PRIVATE -Rpass=loop-vectorize -Rpass-analysis=loop-vectorize)
-install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji)
 
 set(testname multi_rank)
 add_executable(${testname} multi_rank.cpp)

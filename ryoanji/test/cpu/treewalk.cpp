@@ -29,6 +29,8 @@
  * @author Sebastian Keller        <sebastian.f.keller@gmail.com>
  */
 
+#include <chrono>
+
 #include "gtest/gtest.h"
 
 #include "cstone/sfc/box.hpp"
@@ -41,7 +43,7 @@ using namespace ryoanji;
 
 TEST(Gravity, TreeWalk)
 {
-    using T             = double;
+    using T             = float;
     using KeyType       = uint64_t;
     using MultipoleType = ryoanji::CartesianQuadrupole<T>;
 
@@ -93,55 +95,28 @@ TEST(Gravity, TreeWalk)
     std::vector<T> ax(numParticles, 0);
     std::vector<T> ay(numParticles, 0);
     std::vector<T> az(numParticles, 0);
-    std::vector<T> potential(numParticles, 0);
 
-    computeGravity(octree,
-                   centers.data(),
-                   multipoles.data(),
-                   layout.data(),
-                   0,
-                   octree.numLeafNodes(),
-                   x,
-                   y,
-                   z,
-                   h.data(),
-                   masses.data(),
-                   G,
-                   ax.data(),
-                   ay.data(),
-                   az.data(),
-                   potential.data());
+    auto   t0       = std::chrono::high_resolution_clock::now();
+    double egravTot = computeGravity(octree,
+                                     centers.data(),
+                                     multipoles.data(),
+                                     layout.data(),
+                                     0,
+                                     octree.numLeafNodes(),
+                                     x,
+                                     y,
+                                     z,
+                                     h.data(),
+                                     masses.data(),
+                                     G,
+                                     ax.data(),
+                                     ay.data(),
+                                     az.data());
+    auto   t1       = std::chrono::high_resolution_clock::now();
+    double elapsed  = std::chrono::duration<double>(t1 - t0).count();
 
-    // test version that computes total grav energy only instead of per particle
-    {
-        double egravTot = 0.0;
-        for (size_t i = 0; i < numParticles; ++i)
-        {
-            egravTot += masses[i] * potential[i];
-        }
-        egravTot *= 0.5;
-
-        std::vector<T> ax2(numParticles, 0);
-        std::vector<T> ay2(numParticles, 0);
-        std::vector<T> az2(numParticles, 0);
-        double         egravTot2 = computeGravity(octree,
-                                          centers.data(),
-                                          multipoles.data(),
-                                          layout.data(),
-                                          0,
-                                          octree.numLeafNodes(),
-                                          x,
-                                          y,
-                                          z,
-                                          h.data(),
-                                          masses.data(),
-                                          G,
-                                          ax2.data(),
-                                          ay2.data(),
-                                          az2.data());
-        std::cout << "total gravitational energy: " << egravTot << std::endl;
-        EXPECT_NEAR((egravTot - egravTot2) / egravTot, 0, 1e-4);
-    }
+    std::cout << "Time elapsed for " << numParticles << " particles: " << elapsed << " s, "
+              << double(numParticles) / 1e6 / elapsed << " million particles/second" << std::endl;
 
     // direct sum reference
     std::vector<T> Ax(numParticles, 0);
@@ -149,8 +124,22 @@ TEST(Gravity, TreeWalk)
     std::vector<T> Az(numParticles, 0);
     std::vector<T> potentialReference(numParticles, 0);
 
+    t0 = std::chrono::high_resolution_clock::now();
     directSum(
         x, y, z, h.data(), masses.data(), numParticles, G, Ax.data(), Ay.data(), Az.data(), potentialReference.data());
+    t1      = std::chrono::high_resolution_clock::now();
+    elapsed = std::chrono::duration<double>(t1 - t0).count();
+
+    std::cout << "Time elapsed for direct sum: " << elapsed << " s, " << double(numParticles) / 1e6 / elapsed
+              << " million particles/second" << std::endl;
+
+    double refPotSum = 0;
+    for (LocalIndex i = 0; i < numParticles; ++i)
+    {
+        refPotSum += masses[i] * potentialReference[i];
+    }
+    refPotSum *= 0.5;
+    EXPECT_NEAR(std::abs(refPotSum - egravTot) / refPotSum, 0, 1e-2);
 
     // relative errors
     std::vector<T> delta(numParticles);
@@ -161,8 +150,6 @@ TEST(Gravity, TreeWalk)
         T dz = az[i] - Az[i];
 
         delta[i] = std::sqrt((dx * dx + dy * dy + dz * dz) / (Ax[i] * Ax[i] + Ay[i] * Ay[i] + Az[i] * Az[i]));
-
-        EXPECT_NEAR((potential[i] - potentialReference[i]) / potentialReference[i], 0, 1e-2);
     }
 
     // sort errors in ascending order to infer the error distribution
