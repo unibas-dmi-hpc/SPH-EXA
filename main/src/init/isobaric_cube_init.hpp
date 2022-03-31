@@ -138,7 +138,7 @@ public:
         MCyInt /= nIntPart;
         MCzInt /= nIntPart;
 
-        std::cout << "MCInt(x=" << MCxInt << ",y=" << MCyInt << ",z=" << MCzInt  << ")" << std::endl;
+        //std::cout << "MCInt(x=" << MCxInt << ",y=" << MCyInt << ",z=" << MCzInt  << ")" << std::endl;
 
         T stepRatio = constants_.at("rhoInt") / constants_.at("rhoExt");
         T stepInt   = (2. * r) / cubeSide;
@@ -185,7 +185,7 @@ public:
         MCyExt /= nExtPart;
         MCzExt /= nExtPart;
 
-        std::cout << "MCExt(x=" << MCxExt << ",y=" << MCyExt << ",z=" << MCzExt << ")" << std::endl;
+        //std::cout << "MCExt(x=" << MCxExt << ",y=" << MCyExt << ",z=" << MCzExt << ")" << std::endl;
 
         // Reside ParticleData
         d.numParticlesGlobal += nExtPart;
