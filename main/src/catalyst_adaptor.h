@@ -36,11 +36,8 @@ void Initialize(int argc, char* argv[])
     std::cout << "CatalystAdaptor::Initialize" << std::endl;
 }
 
-using Real     = double;
-using CodeType = uint64_t;
-using Dataset  = ParticlesData<Real, CodeType>;
-
-void Execute(Dataset& d, long startIndex, long endIndex)
+template<class DataType>
+void Execute(DataType& d, long startIndex, long endIndex)
 {
     conduit_cpp::Node exec_params;
     // add time/cycle information

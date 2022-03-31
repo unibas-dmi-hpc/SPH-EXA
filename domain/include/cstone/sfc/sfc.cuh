@@ -24,40 +24,34 @@
  */
 
 /*! @file
- * @brief Generation of test input bodies
+ * @brief  SFC encoding/decoding in 32- and 64-bit on the GPU
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
-#include "ryoanji/types.h"
+#include "cstone/sfc/sfc.hpp"
 
-namespace ryoanji
+namespace cstone
 {
 
-template<class T>
-static void makeCubeBodies(T* x, T* y, T* z, T* m, T* h, size_t n, double extent = 3)
+template<class KeyType, class T>
+__global__ void
+computeSfcKeysRealKernel(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T> box)
 {
-    double ng0   = 100;
-    T      hInit = std::cbrt(ng0 / n / 4.19) * extent;
-    for (size_t i = 0; i < n; i++)
+    size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
+    if (tid < numKeys)
     {
-        x[i] = drand48() * 2 * extent - extent;
-        y[i] = drand48() * 2 * extent - extent;
-        z[i] = drand48() * 2 * extent - extent;
-        m[i] = drand48() / n;
-        h[i] = hInit;
+        keys[tid] = sfc3D<KeyType>(x[tid], y[tid], z[tid], box);
     }
-
-    // set non-random corners
-    x[0] = -extent;
-    y[0] = -extent;
-    z[0] = -extent;
-
-    x[n - 1] = extent;
-    y[n - 1] = extent;
-    z[n - 1] = extent;
 }
 
-} // namespace ryoanji
+template<class KeyType, class T>
+inline void computeSfcRealKeys(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T>& box)
+{
+    constexpr int threadsPerBlock = 256;
+    computeSfcKeysRealKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys, box);
+}
+
+} // namespace cstone

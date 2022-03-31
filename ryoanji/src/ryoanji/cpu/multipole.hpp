@@ -42,7 +42,7 @@
 namespace ryoanji
 {
 
-template <class T>
+template<class T>
 using CartesianQuadrupole = util::array<T, 8>;
 
 template<class MType>
@@ -78,14 +78,8 @@ struct Cqi
  * @param[out]   gv             output quadrupole
  */
 template<class T1, class T2, class T3>
-void particle2Multipole(const T1* x,
-                        const T1* y,
-                        const T1* z,
-                        const T2* m,
-                        LocalIndex first,
-                        LocalIndex last,
-                        const Vec3<T1>& center,
-                        CartesianQuadrupole<T3>& gv)
+void particle2Multipole(const T1* x, const T1* y, const T1* z, const T2* m, LocalIndex first, LocalIndex last,
+                        const Vec3<T1>& center, CartesianQuadrupole<T3>& gv)
 {
     gv = T3(0);
     if (first == last) { return; }
@@ -125,9 +119,9 @@ template<class T>
 void moveExpansionCenter(Vec3<T> Xold, Vec3<T> Xnew, CartesianQuadrupole<T>& gv)
 {
     Vec3<T> dX = Xold - Xnew;
-    T rx = dX[0];
-    T ry = dX[1];
-    T rz = dX[2];
+    T       rx = dX[0];
+    T       ry = dX[1];
+    T       rz = dX[2];
 
     gv[Cqi::qxx] = gv.qxx - rx * rx * gv[Cqi::mass];
     gv[Cqi::qxy] = gv.qxy - rx * ry * gv[Cqi::mass];
@@ -166,28 +160,20 @@ template<class T1, class T2>
 HOST_DEVICE_FUN inline __attribute__((always_inline)) util::tuple<T1, T1, T1, T1>
 particle2Particle(T1 tx, T1 ty, T1 tz, T2 th, T1 sx, T1 sy, T1 sz, T2 sh, T2 sm)
 {
-    T1 rx = sx - tx;
-    T1 ry = sy - ty;
-    T1 rz = sz - tz;
-
+    T1 rx  = sx - tx;
+    T1 ry  = sy - ty;
+    T1 rz  = sz - tz;
     T1 r_2 = rx * rx + ry * ry + rz * rz;
-    T1 r = std::sqrt(r_2);
-    T1 r_minus1 = 1.0 / r;
-    T1 r_minus2 = r_minus1 * r_minus1;
 
-    T1 mEffective = sm;
+    T2 h_st  = th + sh;
+    T2 h_st2 = h_st * h_st;
 
-    T1 h_ts = th + sh;
-    if (r < h_ts)
-    {
-        // apply mass softening correction
-        T1 vgr = r / h_ts;
-        mEffective *= vgr * vgr * vgr;
-    }
+    T1 R2eff  = (r_2 < h_st2) ? h_st2 : r_2;
+    T1 invR   = T1(1.0) / std::sqrt(R2eff);
+    T1 invR2  = invR * invR;
+    T1 invR3m = sm * invR * invR2;
 
-    T1 Mr_minus3 = mEffective * r_minus1 * r_minus2;
-
-    return {Mr_minus3 * rx, Mr_minus3 * ry, Mr_minus3 * rz, -Mr_minus3 * r_2};
+    return {invR3m * rx, invR3m * ry, invR3m * rz, -invR3m * r_2};
 }
 
 /*! @brief direct gravity calculation with particle-particle interactions
@@ -216,15 +202,8 @@ particle2Particle(T1 tx, T1 ty, T1 tz, T2 th, T1 sx, T1 sy, T1 sz, T2 sh, T2 sm)
  *    all particles that follow it.
  */
 template<class T1, class T2>
-HOST_DEVICE_FUN util::tuple<T1, T1, T1, T1> particle2Particle(T1 tx,
-                                                              T1 ty,
-                                                              T1 tz,
-                                                              T2 hi,
-                                                              const T1* sx,
-                                                              const T1* sy,
-                                                              const T1* sz,
-                                                              const T2* h,
-                                                              const T2* m,
+HOST_DEVICE_FUN util::tuple<T1, T1, T1, T1> particle2Particle(T1 tx, T1 ty, T1 tz, T2 hi, const T1* sx, const T1* sy,
+                                                              const T1* sz, const T2* h, const T2* m,
                                                               LocalIndex numSources)
 {
     T1 axLoc = 0;
@@ -232,9 +211,9 @@ HOST_DEVICE_FUN util::tuple<T1, T1, T1, T1> particle2Particle(T1 tx,
     T1 azLoc = 0;
     T1 uLoc  = 0;
 
-    #if defined(__llvm__) || defined(__clang__)
-        #pragma clang loop vectorize(enable)
-    #endif
+#if defined(__llvm__) || defined(__clang__)
+#pragma clang loop vectorize(enable)
+#endif
     for (LocalIndex j = 0; j < numSources; ++j)
     {
         auto [ax_, ay_, az_, u_] = particle2Particle(tx, ty, tz, hi, sx[j], sy[j], sz[j], h[j], m[j]);
@@ -345,8 +324,8 @@ void multipole2Multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>*
     for (int i = begin; i < end; i++)
     {
         const MType& Mi = Msrc[i];
-        Vec4<T> Xi      = Xsrc[i];
-        Vec3<T> dX      = makeVec3(Xout - Xi);
+        Vec4<T>      Xi = Xsrc[i];
+        Vec3<T>      dX = makeVec3(Xout - Xi);
         addQuadrupole(Mout, dX, Mi);
     }
 }

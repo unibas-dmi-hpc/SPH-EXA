@@ -24,6 +24,7 @@
  */
 
 #include <chrono>
+#include <numeric>
 
 #include "dataset.hpp"
 #include "ryoanji/gpu_config.h"
@@ -45,13 +46,11 @@ int main(int argc, char** argv)
     int directRef = argc > 2 ? std::stoi(argv[2]) : 1;
 
     std::size_t numBodies = (1 << power) - 1;
-    int         images    = 0;
     T           theta     = 0.6;
     T           boxSize   = 3;
+    T           G         = 1.0;
 
-    const T   eps   = 0.05;
     const int ncrit = 64;
-    const T   cycle = 2 * M_PI;
 
     fprintf(stdout, "--- BH Parameters ---------------\n");
     fprintf(stdout, "numBodies            : %lu\n", numBodies);
@@ -59,15 +58,16 @@ int main(int argc, char** argv)
     fprintf(stdout, "theta                : %f\n", theta);
     fprintf(stdout, "ncrit                : %d\n", ncrit);
 
-    std::vector<Vec4<T>> h_bodies(numBodies);
-    makeCubeBodies(h_bodies.data(), numBodies, boxSize);
+    thrust::host_vector<T> x(numBodies), y(numBodies), z(numBodies), m(numBodies), h(numBodies);
+    makeCubeBodies(x.data(), y.data(), z.data(), m.data(), h.data(), numBodies, boxSize);
+
     // upload bodies to device
-    thrust::device_vector<Vec4<T>> d_bodies = h_bodies;
+    thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m, d_h = h;
 
     cstone::Box<T> box(-boxSize, boxSize);
 
     TreeBuilder<uint64_t> treeBuilder;
-    int                   numSources = treeBuilder.update(rawPtr(d_bodies.data()), d_bodies.size(), box);
+    int numSources = treeBuilder.update(rawPtr(d_x.data()), rawPtr(d_y.data()), rawPtr(d_z.data()), numBodies, box);
 
     thrust::device_vector<CellData> sources(numSources);
     std::vector<int2>               levelRange(treeBuilder.maxTreeLevel() + 1);
@@ -81,28 +81,37 @@ int main(int argc, char** argv)
             highestLevel,
             theta,
             levelRange.data(),
-            rawPtr(d_bodies.data()),
+            rawPtr(d_x.data()),
+            rawPtr(d_y.data()),
+            rawPtr(d_z.data()),
+            rawPtr(d_m.data()),
+            rawPtr(d_h.data()),
             rawPtr(sources.data()),
             rawPtr(sourceCenter.data()),
             rawPtr(Multipole.data()));
 
-    thrust::device_vector<Vec4<T>> bodyAcc(numBodies);
+    thrust::device_vector<T> d_p(numBodies, 0), d_ax(numBodies, 0), d_ay(numBodies, 0), d_az(numBodies, 0);
 
     fprintf(stdout, "--- BH Profiling ----------------\n");
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
-    Vec4<T> interactions = computeAcceleration(0,
-                                               numBodies,
-                                               images,
-                                               eps,
-                                               cycle,
-                                               rawPtr(d_bodies.data()),
-                                               rawPtr(bodyAcc.data()),
-                                               rawPtr(sources.data()),
-                                               rawPtr(sourceCenter.data()),
-                                               rawPtr(Multipole.data()),
-                                               levelRange.data());
+    auto interactions = computeAcceleration(0,
+                                            numBodies,
+                                            rawPtr(d_x.data()),
+                                            rawPtr(d_y.data()),
+                                            rawPtr(d_z.data()),
+                                            rawPtr(d_m.data()),
+                                            rawPtr(d_h.data()),
+                                            G,
+                                            rawPtr(d_p.data()),
+                                            rawPtr(d_ax.data()),
+                                            rawPtr(d_ay.data()),
+                                            rawPtr(d_az.data()),
+                                            rawPtr(sources.data()),
+                                            rawPtr(sourceCenter.data()),
+                                            rawPtr(Multipole.data()),
+                                            levelRange.data());
 
     auto   t1    = std::chrono::high_resolution_clock::now();
     double dt    = std::chrono::duration<double>(t1 - t0).count();
@@ -113,32 +122,53 @@ int main(int argc, char** argv)
 
     if (!directRef) { return 0; }
 
-    thrust::device_vector<Vec4<T>> bodyAccDirect(numBodies, Vec4<T>{T(0), T(0), T(0), T(0)});
+    thrust::device_vector<T> refP(numBodies), refAx(numBodies), refAy(numBodies), refAz(numBodies);
 
     t0 = std::chrono::high_resolution_clock::now();
-    directSum(numBodies, rawPtr(d_bodies.data()), rawPtr(bodyAccDirect.data()), eps);
+    directSum(numBodies,
+              rawPtr(d_x.data()),
+              rawPtr(d_y.data()),
+              rawPtr(d_z.data()),
+              rawPtr(d_m.data()),
+              rawPtr(d_h.data()),
+              rawPtr(refP.data()),
+              rawPtr(refAx.data()),
+              rawPtr(refAy.data()),
+              rawPtr(refAz.data()));
+
     t1 = std::chrono::high_resolution_clock::now();
     dt = std::chrono::duration<double>(t1 - t0).count();
 
     flops = 24. * numBodies * numBodies / dt / 1e12;
     fprintf(stdout, "Total Direct         : %.7f s (%.7f TFlops)\n", dt, flops);
 
-    thrust::host_vector<Vec4<T>> h_bodyAcc       = bodyAcc;
-    thrust::host_vector<Vec4<T>> h_bodyAccDirect = bodyAccDirect;
+    thrust::host_vector<T> h_p  = d_p;
+    thrust::host_vector<T> h_ax = d_ax;
+    thrust::host_vector<T> h_ay = d_ay;
+    thrust::host_vector<T> h_az = d_az;
+
+    thrust::host_vector<T> h_refP  = refP;
+    thrust::host_vector<T> h_refAx = refAx;
+    thrust::host_vector<T> h_refAy = refAy;
+    thrust::host_vector<T> h_refAz = refAz;
 
     std::vector<double> delta(numBodies);
 
+    double potentialSum = 0;
     for (int i = 0; i < numBodies; i++)
     {
-        Vec3<T> ref   = {h_bodyAccDirect[i][1], h_bodyAccDirect[i][2], h_bodyAccDirect[i][3]};
-        Vec3<T> probe = {h_bodyAcc[i][1], h_bodyAcc[i][2], h_bodyAcc[i][3]};
-        delta[i]    = std::sqrt(norm2(ref - probe) / norm2(ref));
+        potentialSum += h_p[i];
+        Vec3<T> ref   = {h_refAx[i], h_refAy[i], h_refAz[i]};
+        Vec3<T> probe = {h_ax[i], h_ay[i], h_az[i]};
+        delta[i]      = std::sqrt(norm2(ref - probe) / norm2(ref));
     }
 
     std::sort(begin(delta), end(delta));
 
     fprintf(stdout, "--- BH vs. direct ---------------\n");
 
+    std::cout << "potentials, body-sum: " << potentialSum << " atomic sum: " << interactions[4]
+              << " reference: " << std::accumulate(h_refP.begin(), h_refP.end(), 0.0) << std::endl;
     std::cout << "min Error: " << delta[0] << std::endl;
     std::cout << "50th percentile: " << delta[numBodies / 2] << std::endl;
     std::cout << "10th percentile: " << delta[numBodies * 0.9] << std::endl;

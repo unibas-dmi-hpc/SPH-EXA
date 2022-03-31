@@ -34,7 +34,7 @@
 
 #include <thrust/device_vector.h>
 
-#include "cstone/sfc/sfc.hpp"
+#include "cstone/sfc/sfc.cuh"
 #include "cstone/util/util.hpp"
 
 #include "timing.cuh"
@@ -46,10 +46,7 @@ __global__ void
 computeSfcKeysKernel(KeyType* keys, const unsigned* x, const unsigned* y, const unsigned* z, size_t numKeys)
 {
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid < numKeys)
-    {
-        keys[tid] = iSfcKey<KeyType>(x[tid], y[tid], z[tid]);
-    }
+    if (tid < numKeys) { keys[tid] = iSfcKey<KeyType>(x[tid], y[tid], z[tid]); }
 }
 
 template<class KeyType>
@@ -59,32 +56,11 @@ inline void computeSfcKeys(KeyType* keys, const unsigned* x, const unsigned* y, 
     computeSfcKeysKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys);
 }
 
-template<class KeyType, class T>
-__global__ void
-computeSfcKeysRealKernel(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T> box)
-{
-    size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid < numKeys)
-    {
-        keys[tid] = sfc3D<KeyType>(x[tid], y[tid], z[tid], box);
-    }
-}
-
-template<class KeyType, class T>
-inline void computeSfcRealKeys(KeyType* keys, const T* x, const T* y, const T* z, size_t numKeys, const Box<T>& box)
-{
-    constexpr int threadsPerBlock = 256;
-    computeSfcKeysRealKernel<<<iceil(numKeys, threadsPerBlock), threadsPerBlock>>>(keys, x, y, z, numKeys, box);
-}
-
 template<class KeyType>
 __global__ void decodeSfcKeysKernel(const KeyType* keys, unsigned* x, unsigned* y, unsigned* z, size_t numKeys)
 {
     size_t tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid < numKeys)
-    {
-        thrust::tie(x[tid], y[tid], z[tid]) = decodeSfc(keys[tid]);
-    }
+    if (tid < numKeys) { thrust::tie(x[tid], y[tid], z[tid]) = decodeSfc(keys[tid]); }
 }
 
 template<class KeyType>
@@ -114,7 +90,7 @@ int main()
     std::generate(begin(y), end(y), getRand);
     std::generate(begin(z), end(z), getRand);
 
-    thrust::device_vector<MortonKey<IntegerType>>  mortonKeys(numKeys);
+    thrust::device_vector<MortonKey<IntegerType>> mortonKeys(numKeys);
     thrust::device_vector<HilbertKey<IntegerType>> hilbertKeys(numKeys);
 
     {
@@ -146,7 +122,7 @@ int main()
         };
 
         float t_hilbert = timeGpu(computeHilbert);
-        float t_morton = timeGpu(computeMorton);
+        float t_morton  = timeGpu(computeMorton);
         std::cout << "compute time for " << numKeys << " hilbert keys: " << t_hilbert / 1000 << " s" << std::endl;
         std::cout << "compute time for " << numKeys << " morton keys: " << t_morton / 1000 << " s" << std::endl;
 
@@ -160,7 +136,7 @@ int main()
                           thrust::raw_pointer_cast(dy2.data()), thrust::raw_pointer_cast(dz2.data()), numKeys);
         };
 
-        float t_decode = timeGpu(decodeHilbert);
+        float t_decode  = timeGpu(decodeHilbert);
         bool passDecode = thrust::equal(dx.begin(), dx.end(), dx2.begin()) &&
                           thrust::equal(dy.begin(), dy.end(), dy2.begin()) &&
                           thrust::equal(dz.begin(), dz.end(), dz2.begin());
@@ -169,7 +145,7 @@ int main()
                   << std::endl;
     }
 
-    thrust::device_vector<MortonKey<IntegerType>>  mortonKeys2(numKeys);
+    thrust::device_vector<MortonKey<IntegerType>> mortonKeys2(numKeys);
     thrust::device_vector<HilbertKey<IntegerType>> hilbertKeys2(numKeys);
 
     {
@@ -191,10 +167,10 @@ int main()
 
         float t_hilbert = timeGpu(computeHilbert);
         float t_morton  = timeGpu(computeMorton);
-        std::cout << "compute time for " << numKeys << " hilbert keys from doubles : "
-                  << t_hilbert / 1000 << " s" << std::endl;
-        std::cout << "compute time for " << numKeys << " morton keys from doubles: "
-                  << t_morton / 1000 << " s" << std::endl;
+        std::cout << "compute time for " << numKeys << " hilbert keys from doubles : " << t_hilbert / 1000 << " s"
+                  << std::endl;
+        std::cout << "compute time for " << numKeys << " morton keys from doubles: " << t_morton / 1000 << " s"
+                  << std::endl;
     }
 
     std::cout << "keys match: " << thrust::equal(hilbertKeys.begin(), hilbertKeys.end(), hilbertKeys2.begin())

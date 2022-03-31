@@ -25,18 +25,20 @@ variables:
     #
     - if [ "$VARIANT" = "cuda" ]; then
         echo "## apt nvcc/11.6 (+gcc9+clang12+make+thrust)";
-        apt install -y --no-install-recommends wget vim-tiny file cuda-nvcc-11-6 clang-12 libomp-12-dev > /dev/null;
+        apt install -y --no-install-recommends wget vim-tiny file cuda-nvcc-11-6 clang-12 libomp-12-dev python3-pip zlib1g-dev > /dev/null;
       fi
     - if [ "$VARIANT" = "hip" ]; then
         echo "## apt hipcc/4.5 (+rocthrust-dev +parallel)";
-        apt install -y --no-install-recommends wget vim-tiny file rocthrust-dev time parallel > /dev/null;
+        apt install -y --no-install-recommends wget vim-tiny file rocthrust-dev time parallel python3-pip > /dev/null;
       fi
     - apt clean autoremove > /dev/null
     #
     - cd /usr/local/games
     - wget --quiet $JG_DEPS_PATH/c/CMake/cmake-3.22.2-linux-x86_64.tar.gz
     - wget --quiet $JG_DEPS_PATH/m/MPICH/mpich-3.1.4.tar.gz
+    - wget --quiet $JG_DEPS_PATH/h/hdf5/hdf5-1.13.0.tar.bz2
     - wget --quiet $JG_DEPS_PATH/g/googletest/release-1.11.0.tar.gz
+    - wget --quiet $JG_DEPS_PATH/in/glass.h5
     #
     - date; echo "## cmake:"
     #- cd /usr/local/games
@@ -44,11 +46,6 @@ variables:
     - cp -a cmake-3.22.2-linux-x86_64/bin/* /usr/bin/
     - cp -a cmake-3.22.2-linux-x86_64/share/cmake-3.22 /usr/share/cmake-3.22
     - rm -fr cmake-3.22.2-linux-x86_64.tar.gz cmake-3.22.2-linux-x86_64/bin/cmake-gui
-    #
-    - date; echo "## googletest:"
-    #- cd /usr/local/games
-    - tar xf release-1.11.0.tar.gz
-    - rm -f release-1.11.0.tar.gz
     #
     - date; echo "## mpich/3.1.4:"
     #- cd /usr/local/games
@@ -59,6 +56,45 @@ variables:
     - cd /usr/local/games
     - rm -fr mpich-3.1.4 mpich-3.1.4.tar.gz
     - ldconfig
+    #
+    - date; echo "## hdf5"
+    #- cd /usr/local/games
+    - tar xf hdf5-1.13.0.tar.bz2
+    - cmake 
+      -DCMAKE_C_COMPILER:STRING=mpicc 
+      -DONLY_SHARED_LIBS:BOOL=ON 
+      -DHDF5_BUILD_HL_LIB:BOOL=ON 
+      -DHDF5_ENABLE_Z_LIB_SUPPORT:BOOL=ON 
+      -DBUILD_SHARED_LIBS:BOOL=ON 
+      -DHDF5_ENABLE_PARALLEL:BOOL=ON 
+      -DHDF5_BUILD_TOOLS:BOOL=OFF 
+      -DBUILD_STATIC_LIBS=OFF 
+      -DHDF5_BUILD_EXAMPLES:BOOL=OFF 
+      -DBUILD_TESTING:BOOL=OFF 
+      -DHDF5_ENABLE_SZIP_SUPPORT:BOOL=OFF 
+      -DHDF5_ENABLE_SZIP_ENCODING:BOOL=OFF 
+      -DHDF5_ENABLE_THREADSAFE:BOOL=OFF 
+      -DHDF5_BUILD_CPP_LIB:BOOL=OFF 
+      -DHDF5_BUILD_FORTRAN:BOOL=OFF 
+      -DHDF5_BUILD_JAVA:BOOL=OFF 
+      -S hdf5-1.13.0 -B build > /dev/null
+    - cd build
+    - make --quiet -j `grep processor /proc/cpuinfo | wc -l` install > /dev/null
+    - export CMAKE_PREFIX_PATH=/usr/local/HDF_Group/HDF5/1.13.0/share/cmake:$CMAKE_PREFIX_PATH
+    - cd /usr/local/games
+    - rm -fr hdf5-1.13.0.tar.bz2 hdf5-1.13.0 build
+    - ln -fs /usr/lib/x86_64-linux-gnu/libdl.so.2 /usr/lib/x86_64-linux-gnu/libdl.so
+    - ln -fs /usr/lib/x86_64-linux-gnu/libpthread.so.0 /usr/lib/x86_64-linux-gnu/libpthread.so
+    #
+    - date; echo "## googletest:"
+    #- cd /usr/local/games
+    - tar xf release-1.11.0.tar.gz
+    - rm -f release-1.11.0.tar.gz
+    #
+    - date; echo "## analytical_solutions + reframe:"
+    #-apt install python3-pip
+    - pip install ReFrame-HPC h5py matplotlib
+    #
     - date; echo "## done"
 #}}}
 #{{{ .sph-base-skip
@@ -98,6 +134,7 @@ variables:
       BUILD_ANALYTICAL=$BUILD_ANALYTICAL
       SPH_EXA_WITH_HIP=$SPH_EXA_WITH_HIP
       CMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
+    - export CMAKE_PREFIX_PATH=/usr/local/HDF_Group/HDF5/1.13.0/share/cmake:$CMAKE_PREFIX_PATH
     - cmake -S . -B build
       -DCMAKE_CXX_COMPILER=mpicxx
       -DBUILD_TESTING=$BUILD_TESTING
@@ -107,6 +144,7 @@ variables:
     - cd build
     - make help
     - make -j `grep processor /proc/cpuinfo | wc -l` install
+    # - make sedov_solution # ./main/src/analytical_solutions/sedov_solution/sedov_solution
     - date; echo "## done"
 #}}}
 #{{{ .sph-test
@@ -150,17 +188,37 @@ variables:
         /usr/local/sbin/ryoanji/unit_tests/ryoanji_unit_tests;echo;
       fi
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "sphexa_cpu" ]; then
+        export LD_LIBRARY_PATH=/usr/local/HDF_Group/HDF5/1.13.0/lib:$LD_LIBRARY_PATH;
         echo "sedov:cpu";
         /usr/local/bin/sphexa --init sedov -s 1 -n 50 ;
+        echo "sedov+ve:cpu";
+        /usr/local/bin/sphexa --init sedov --ve -s 1 -n 50 ;
         echo "noh:cpu";
         /usr/local/bin/sphexa --init noh -s 1 -n 50 ;
       fi
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "sphexa_gpu" ]; then
+        export LD_LIBRARY_PATH=/usr/local/HDF_Group/HDF5/1.13.0/lib:$LD_LIBRARY_PATH;
+        ln -fs /usr/local/bin/sedov_solution . ;
         echo "sedov:gpu";
-        /usr/local/bin/sphexa-cuda --init sedov -s 1 -n 50 ;
+        /usr/local/bin/sphexa-cuda --init sedov -s 200 -n 50 -w 200 --quiet |grep -v "Focus Tree Nodes:";
+        mkdir -p /usr/local/games/src;
+        python3 /usr/local/bin/compare_solutions.py -s 200 ./dump_sedov.h5part > /usr/local/games/src/sedov.rpt;
         echo "noh:gpu";
-        /usr/local/bin/sphexa-cuda --init noh -s 1 -n 50 ;
+        /usr/local/bin/sphexa-cuda --init noh -s 200 -n 50 -w 200 --quiet |grep -v "Focus Tree Nodes:";
+        mkdir -p /usr/local/games/src;
+        python3 /usr/local/bin/compare_noh.py -s 200 ./dump_noh.h5part > /usr/local/games/src/noh.rpt;
+        echo "evrard:gpu";
+        /usr/local/bin/sphexa-cuda --init evrard --glass /usr/local/games/glass.h5 -s 10 -n 50 -w 10 --quiet |grep -v "Focus Tree Nodes:";
+        echo "rpt:";
+        cat /usr/local/games/src/sedov.rpt /usr/local/games/src/noh.rpt;
+        cp /sources/.gitlab/rfm.py /usr/local/games/rfm.py;
+        reframe -c /usr/local/games/rfm.py -r;
       fi
+#}}}
+
+#{{{ NOTES
+# file dump_noh.h5part
+# dump_noh.h5part: Hierarchical Data Format (version 5) data
 #}}}
 
 #{{{ nvidia/cuda:11.6.0 --> sph-exa_base:cuda
@@ -214,6 +272,7 @@ sph:install:cuda:
     # TODO: INSITU
     # TODO: ./sphexa --init evrard_65k.h5 --grav
 #}}}
+
 #{{{ sph:test:cuda:1:
 sph:test:cuda:1:
   stage: SPHtest
@@ -299,6 +358,7 @@ sph:test:cuda:p100:
     # SLURM_TIMELIMIT=15:00
     # PERSIST_IMAGE_NAME: sph-exa_gnu_tested:1.0
 #}}}
+
 #{{{ sph:test:cuda:sphexa:
 sph:test:cuda:sphexa:cpu:
   stage: SPHtest
@@ -347,7 +407,7 @@ sph:test:cuda:sphexa:gpu:
 # G bin/sphexa-cuda <-- sedov-cuda
 # N bin/sedov_solution <-- TODO
 #12 bin/sphexa  <-- sedov
-#   bin/evrard  <-- (needs input file)
+#   bin/compare_solutions.py
 # -------------------------------------
 # ./sphexa --init sedov -s0 -n50
 # ./sphexa --init noh
