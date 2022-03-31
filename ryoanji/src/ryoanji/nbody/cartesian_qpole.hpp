@@ -37,7 +37,7 @@
 #include <cmath>
 
 #include "cstone/util/tuple.hpp"
-#include "ryoanji/types.h"
+#include "types.h"
 
 namespace ryoanji
 {

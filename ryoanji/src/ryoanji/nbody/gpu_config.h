@@ -43,12 +43,12 @@ namespace ryoanji
 
 struct GpuConfig
 {
-    //! @brief number of threads per warp
-    #if defined(__CUDACC__) && !defined(__HIPCC__)
+//! @brief number of threads per warp
+#if defined(__CUDACC__) && !defined(__HIPCC__)
     static constexpr int warpSize = 32;
-    #else
+#else
     static constexpr int warpSize = 64;
-    #endif
+#endif
 
     static_assert(warpSize == 32 || warpSize == 64, "warp size has to be 32 or 64");
 

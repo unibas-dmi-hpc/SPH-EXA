@@ -33,12 +33,12 @@
 
 #include "cstone/sfc/sfc.hpp"
 
-#include "dataset.hpp"
+#include "../nbody/dataset.hpp"
 
-#include "ryoanji/gpu_config.h"
-#include "ryoanji/treebuilder.cuh"
-#include "ryoanji/types.h"
-#include "ryoanji/upwardpass.cuh"
+#include "ryoanji/interface/treebuilder.cuh"
+#include "ryoanji/nbody/gpu_config.h"
+#include "ryoanji/nbody/types.h"
+#include "ryoanji/nbody/upwardpass.cuh"
 
 using namespace ryoanji;
 

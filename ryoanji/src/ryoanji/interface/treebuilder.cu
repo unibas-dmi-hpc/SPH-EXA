@@ -37,8 +37,8 @@
 #include "cstone/tree/octree.cuh"
 #include "cstone/tree/octree_internal.cuh"
 
-#include "ryoanji/types.h"
-#include "ryoanji/treebuilder.cuh"
+#include "ryoanji/nbody/types.h"
+#include "ryoanji/interface/treebuilder.cuh"
 
 namespace ryoanji
 {

@@ -35,8 +35,8 @@
 
 #include "cstone/sfc/box.hpp"
 #include "coord_samples/random.hpp"
-#include "ryoanji/cpu/treewalk.hpp"
-#include "ryoanji/cpu/upsweep.hpp"
+#include "ryoanji/nbody/traversal_cpu.hpp"
+#include "ryoanji/nbody/upsweep_cpu.hpp"
 
 using namespace cstone;
 using namespace ryoanji;

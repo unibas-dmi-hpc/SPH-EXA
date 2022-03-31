@@ -32,7 +32,7 @@
 #pragma once
 
 #include "cstone/focus/source_center.hpp"
-#include "multipole.hpp"
+#include "cartesian_qpole.hpp"
 #include "kernel_wrapper.hpp"
 
 namespace ryoanji

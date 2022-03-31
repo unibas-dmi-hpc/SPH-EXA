@@ -39,8 +39,8 @@
 template<typename T>
 struct kahan
 {
-    T s;
-    T c;
+    T                               s;
+    T                               c;
     HOST_DEVICE_FUN __forceinline__ kahan() {} // Default constructor
     HOST_DEVICE_FUN __forceinline__ kahan(const T& v)
     { // Copy constructor (scalar)
@@ -136,8 +136,8 @@ struct kahan
         temp.c = -c;
         return temp;
     }
-    HOST_DEVICE_FUN operator T() { return s + c; }             // Type-casting (lvalue)
-    HOST_DEVICE_FUN operator const T() const { return s + c; } // Type-casting (rvalue)
+    HOST_DEVICE_FUN      operator T() { return s + c; }             // Type-casting (lvalue)
+    HOST_DEVICE_FUN      operator const T() const { return s + c; } // Type-casting (rvalue)
     friend std::ostream& operator<<(std::ostream& s, const kahan& v)
     { // Output stream
         s << (v.s + v.c);

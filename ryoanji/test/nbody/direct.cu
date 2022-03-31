@@ -35,9 +35,9 @@
 #include <thrust/device_vector.h>
 
 #include "dataset.hpp"
-#include "ryoanji/gpu_config.h"
-#include "ryoanji/direct.cuh"
-#include "ryoanji/cpu/treewalk.hpp"
+#include "ryoanji/nbody/gpu_config.h"
+#include "ryoanji/nbody/direct.cuh"
+#include "ryoanji/nbody/traversal_cpu.hpp"
 
 using namespace ryoanji;
 

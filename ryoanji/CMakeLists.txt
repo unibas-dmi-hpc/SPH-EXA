@@ -20,6 +20,9 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
 endif()
 
+set(CSTONE_DIR ${CMAKE_SOURCE_DIR}/domain/include)
+set(CSTONE_TEST_DIR ${CMAKE_SOURCE_DIR}/domain/test)
+
 add_subdirectory(src)
 if (BUILD_TESTING)
   add_subdirectory(test)

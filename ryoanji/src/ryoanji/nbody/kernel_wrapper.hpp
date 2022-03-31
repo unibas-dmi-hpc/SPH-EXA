@@ -33,8 +33,8 @@
 
 #include <cmath>
 
-#include "ryoanji/kernel.hpp"
 #include "cstone/util/tuple.hpp"
+#include "kernel.hpp"
 
 namespace ryoanji
 {
@@ -82,8 +82,8 @@ HOST_DEVICE_FUN void particle2Multipole(const T1* x, const T1* y, const T1* z, c
 /*! @brief apply gravitational interaction with a multipole to a particle
  */
 template<class T1, class T2>
-HOST_DEVICE_FUN inline util::tuple<T1, T1, T1, T1>
-multipole2Particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center, SphericalMultipole<T2, 2>& multipole)
+HOST_DEVICE_FUN inline util::tuple<T1, T1, T1, T1> multipole2Particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center,
+                                                                      SphericalMultipole<T2, 2>& multipole)
 {
     Vec3<T1> body{tx, ty, tz};
     Vec4<T1> acc{0, 0, 0, 0};
@@ -95,8 +95,8 @@ multipole2Particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center, SphericalMultipo
 /*! @brief apply gravitational interaction with a multipole to a particle
  */
 template<class T1, class T2>
-HOST_DEVICE_FUN inline util::tuple<T1, T1, T1, T1>
-multipole2Particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center, SphericalMultipole<T2, 4>& multipole)
+HOST_DEVICE_FUN inline util::tuple<T1, T1, T1, T1> multipole2Particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center,
+                                                                      SphericalMultipole<T2, 4>& multipole)
 {
     Vec3<T1> body{tx, ty, tz};
     Vec4<T1> acc{0, 0, 0, 0};

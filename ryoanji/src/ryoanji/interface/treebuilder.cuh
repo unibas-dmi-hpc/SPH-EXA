@@ -33,7 +33,7 @@
 
 #include <memory>
 
-#include "ryoanji/types.h"
+#include "ryoanji/nbody/types.h"
 
 namespace ryoanji
 {

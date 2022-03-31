@@ -35,9 +35,9 @@
 #include "cstone/findneighbors.hpp"
 #include "coord_samples/random.hpp"
 
-#include "ryoanji/types.h"
-#include "ryoanji/cpu/multipole.hpp"
-#include "ryoanji/cpu/upsweep.hpp"
+#include "ryoanji/nbody/types.h"
+#include "ryoanji/nbody/cartesian_qpole.hpp"
+#include "ryoanji/nbody/upsweep_cpu.hpp"
 
 using namespace ryoanji;
 

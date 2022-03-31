@@ -48,7 +48,7 @@ using TreeNodeIndex = cstone::TreeNodeIndex;
 using LocalIndex    = cstone::LocalIndex;
 
 template<size_t P>
-struct TermSize : public stl::integral_constant<size_t, P * (P + 1) * (P + 2) / 6>
+struct TermSize : public stl::integral_constant<size_t, P*(P + 1) * (P + 2) / 6>
 {
 };
 
@@ -113,12 +113,12 @@ public:
     {
     }
 
-    HOST_DEVICE_FUN int level() const { return data[0] >> LEVEL_SHIFT; }
-    HOST_DEVICE_FUN int parent() const { return data[0] & LEVEL_MASK; }
-    HOST_DEVICE_FUN int child() const { return data[1] & CHILD_MASK; }
-    HOST_DEVICE_FUN int nchild() const { return (data[1] >> CHILD_SHIFT) + 1; }
-    HOST_DEVICE_FUN int body() const { return data[2]; }
-    HOST_DEVICE_FUN int nbody() const { return data[3]; }
+    HOST_DEVICE_FUN int  level() const { return data[0] >> LEVEL_SHIFT; }
+    HOST_DEVICE_FUN int  parent() const { return data[0] & LEVEL_MASK; }
+    HOST_DEVICE_FUN int  child() const { return data[1] & CHILD_MASK; }
+    HOST_DEVICE_FUN int  nchild() const { return (data[1] >> CHILD_SHIFT) + 1; }
+    HOST_DEVICE_FUN int  body() const { return data[2]; }
+    HOST_DEVICE_FUN int  nbody() const { return data[3]; }
     HOST_DEVICE_FUN bool isLeaf() const { return data[1] == 0; }
     HOST_DEVICE_FUN bool isNode() const { return !isLeaf(); }
 

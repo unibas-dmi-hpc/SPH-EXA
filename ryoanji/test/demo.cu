@@ -26,13 +26,13 @@
 #include <chrono>
 #include <numeric>
 
-#include "dataset.hpp"
-#include "ryoanji/gpu_config.h"
-#include "ryoanji/types.h"
-#include "ryoanji/treebuilder.cuh"
-#include "ryoanji/traversal.cuh"
-#include "ryoanji/direct.cuh"
-#include "ryoanji/upwardpass.cuh"
+#include "nbody/dataset.hpp"
+#include "ryoanji/interface/treebuilder.cuh"
+#include "ryoanji/nbody/gpu_config.h"
+#include "ryoanji/nbody/types.h"
+#include "ryoanji/nbody/traversal.cuh"
+#include "ryoanji/nbody/direct.cuh"
+#include "ryoanji/nbody/upwardpass.cuh"
 
 using namespace ryoanji;
 

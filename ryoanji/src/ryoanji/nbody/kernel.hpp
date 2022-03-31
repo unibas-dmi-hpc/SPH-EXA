@@ -31,7 +31,7 @@
  * @author Rio Yokota <rioyokota@gsic.titech.ac.jp>
  */
 
-#include "ryoanji/types.h"
+#include "types.h"
 
 namespace ryoanji
 {

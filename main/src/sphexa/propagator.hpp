@@ -35,8 +35,8 @@
 #include <iostream>
 
 #include "cstone/domain/domain.hpp"
-#include "ryoanji/cpu/treewalk.hpp"
-#include "ryoanji/cpu/upsweep.hpp"
+#include "ryoanji/nbody/traversal_cpu.hpp"
+#include "ryoanji/nbody/upsweep_cpu.hpp"
 #include "sph/sph.hpp"
 
 #include "util/timer.hpp"
