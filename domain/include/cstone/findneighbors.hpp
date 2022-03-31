@@ -29,7 +29,6 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-
 #pragma once
 
 #include <cmath>
@@ -84,8 +83,10 @@ HOST_DEVICE_FUN constexpr unsigned radiusToTreeLevel(T radius, T minRange)
 template<class KeyType>
 HOST_DEVICE_FUN inline void storeCode(bool pbc, int* iNonPbc, int* iPbc, KeyType code, KeyType* boxes)
 {
-    if (pbc) boxes[--(*iPbc)]    = code;
-    else     boxes[(*iNonPbc)++] = code;
+    if (pbc)
+        boxes[--(*iPbc)] = code;
+    else
+        boxes[(*iNonPbc)++] = code;
 }
 
 /*! @brief find neighbor box codes
@@ -115,12 +116,12 @@ HOST_DEVICE_FUN util::array<int, 2>
 findNeighborBoxes(T x, T y, T z, T radiusSq, unsigned level, const Box<T>& bbox, KeyType* nCodes)
 {
     constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
-    int cubeLength = maxCoord >> level;
+    int cubeLength         = maxCoord >> level;
 
     int mask = ~(cubeLength - 1);
-    int ix = stl::min(int((x - bbox.xmin()) * maxCoord * bbox.ilx()), maxCoord - 1) & mask;
-    int iy = stl::min(int((y - bbox.ymin()) * maxCoord * bbox.ily()), maxCoord - 1) & mask;
-    int iz = stl::min(int((z - bbox.zmin()) * maxCoord * bbox.ilz()), maxCoord - 1) & mask;
+    int ix   = stl::min(int((x - bbox.xmin()) * maxCoord * bbox.ilx()), maxCoord - 1) & mask;
+    int iy   = stl::min(int((y - bbox.ymin()) * maxCoord * bbox.ily()), maxCoord - 1) & mask;
+    int iz   = stl::min(int((z - bbox.zmin()) * maxCoord * bbox.ilz()), maxCoord - 1) & mask;
 
     KeyType boxCode = enclosingBoxCode(iSfcKey<KeyType>(ix, iy, iz), level);
 
@@ -128,19 +129,19 @@ findNeighborBoxes(T x, T y, T z, T radiusSq, unsigned level, const Box<T>& bbox,
     FBox<T> nodeBox = createFpBox<KeyType>(ibox, bbox);
 
     auto square = [](T x) { return x * x; };
-    T dx0 = square(x - nodeBox.xmin());
-    T dx1 = square(x - nodeBox.xmax());
-    T dy0 = square(y - nodeBox.ymin());
-    T dy1 = square(y - nodeBox.ymax());
-    T dz0 = square(z - nodeBox.zmin());
-    T dz1 = square(z - nodeBox.zmax());
+    T dx0       = square(x - nodeBox.xmin());
+    T dx1       = square(x - nodeBox.xmax());
+    T dy0       = square(y - nodeBox.ymin());
+    T dy1       = square(y - nodeBox.ymax());
+    T dz0       = square(z - nodeBox.zmin());
+    T dz1       = square(z - nodeBox.zmax());
 
-    bool hxd = ibox.xmin() == 0;
-    bool hxu = ibox.xmax() == maxCoord;
-    bool hyd = ibox.ymin() == 0;
-    bool hyu = ibox.ymax() == maxCoord;
-    bool hzd = ibox.zmin() == 0;
-    bool hzu = ibox.zmax() == maxCoord;
+    bool hxd       = ibox.xmin() == 0;
+    bool hxu       = ibox.xmax() == maxCoord;
+    bool hyd       = ibox.ymin() == 0;
+    bool hyu       = ibox.ymax() == maxCoord;
+    bool hzd       = ibox.zmin() == 0;
+    bool hzu       = ibox.zmax() == maxCoord;
     bool stepXdown = !hxd || (bbox.pbcX() && level > 1);
     bool stepXup   = !hxu || (bbox.pbcX() && level > 1);
     bool stepYdown = !hyd || (bbox.pbcY() && level > 1);
@@ -165,35 +166,35 @@ findNeighborBoxes(T x, T y, T z, T radiusSq, unsigned level, const Box<T>& bbox,
     if (dx0 < radiusSq && stepXdown)
         storeCode(hxd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1, 0, 0), nCodes);
     if (dx1 < radiusSq && stepXup)
-        storeCode(hxu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1, 0, 0), nCodes);
+        storeCode(hxu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 1, 0, 0), nCodes);
     if (dy0 < radiusSq && stepYdown)
-        storeCode(hyd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  0, -1, 0), nCodes);
+        storeCode(hyd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 0, -1, 0), nCodes);
     if (dy1 < radiusSq && stepYup)
-        storeCode(hyu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  0,  1, 0), nCodes);
+        storeCode(hyu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 0, 1, 0), nCodes);
     if (dz0 < radiusSq && stepZdown)
-        storeCode(hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  0, 0, -1), nCodes);
+        storeCode(hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 0, 0, -1), nCodes);
     if (dz1 < radiusSq && stepZup)
-        storeCode(hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  0, 0, 1), nCodes);
+        storeCode(hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 0, 0, 1), nCodes);
 
     // XY edge touch
     if (dx0 + dy0 < radiusSq && stepXdown && stepYdown)
         storeCode(hxd || hyd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1, -1, 0), nCodes);
     if (dx0 + dy1 < radiusSq && stepXdown && stepYup)
-        storeCode(hxd || hyu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1,  1, 0), nCodes);
+        storeCode(hxd || hyu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1, 1, 0), nCodes);
     if (dx1 + dy0 < radiusSq && stepXup && stepYdown)
-        storeCode(hxu || hyd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1, -1, 0), nCodes);
+        storeCode(hxu || hyd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 1, -1, 0), nCodes);
     if (dx1 + dy1 < radiusSq && stepXup && stepYup)
-        storeCode(hxu || hyu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1,  1, 0), nCodes);
+        storeCode(hxu || hyu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 1, 1, 0), nCodes);
 
     // XZ edge touch
     if (dx0 + dz0 < radiusSq && stepXdown && stepZdown)
         storeCode(hxd || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1, 0, -1), nCodes);
     if (dx0 + dz1 < radiusSq && stepXdown && stepZup)
-        storeCode(hxd || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1,  0, 1), nCodes);
+        storeCode(hxd || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1, 0, 1), nCodes);
     if (dx1 + dz0 < radiusSq && stepXup && stepZdown)
-        storeCode(hxu || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1, 0, -1), nCodes);
+        storeCode(hxu || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 1, 0, -1), nCodes);
     if (dx1 + dz1 < radiusSq && stepXup && stepZup)
-        storeCode(hxu || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1,  0, 1), nCodes);
+        storeCode(hxu || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 1, 0, 1), nCodes);
 
     // YZ edge touch
     if (dy0 + dz0 < radiusSq && stepYdown && stepZdown)
@@ -203,26 +204,26 @@ findNeighborBoxes(T x, T y, T z, T radiusSq, unsigned level, const Box<T>& bbox,
     if (dy1 + dz0 < radiusSq && stepYup && stepZdown)
         storeCode(hyu || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 0, 1, -1), nCodes);
     if (dy1 + dz1 < radiusSq && stepYup && stepZup)
-        storeCode(hyu || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 0,  1, 1), nCodes);
+        storeCode(hyu || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 0, 1, 1), nCodes);
 
     // corner touches
     if (dx0 + dy0 + dz0 < radiusSq && stepXdown && stepYdown && stepZdown)
         storeCode(hxd || hyd || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1, -1, -1), nCodes);
     if (dx0 + dy0 + dz1 < radiusSq && stepXdown && stepYdown && stepZup)
-        storeCode(hxd || hyd || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1, -1,  1), nCodes);
+        storeCode(hxd || hyd || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1, -1, 1), nCodes);
     if (dx0 + dy1 + dz0 < radiusSq && stepXdown && stepYup && stepZdown)
-        storeCode(hxd || hyu || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1,  1, -1), nCodes);
+        storeCode(hxd || hyu || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1, 1, -1), nCodes);
     if (dx0 + dy1 + dz1 < radiusSq && stepXdown && stepYup && stepZup)
-        storeCode(hxd || hyu || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1,  1,  1), nCodes);
+        storeCode(hxd || hyu || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, -1, 1, 1), nCodes);
 
     if (dx1 + dy0 + dz0 < radiusSq && stepXup && stepYdown && stepZdown)
-        storeCode(hxu || hyd || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1, -1, -1), nCodes);
+        storeCode(hxu || hyd || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 1, -1, -1), nCodes);
     if (dx1 + dy0 + dz1 < radiusSq && stepXup && stepYdown && stepZup)
-        storeCode(hxu || hyd || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1, -1,  1), nCodes);
+        storeCode(hxu || hyd || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 1, -1, 1), nCodes);
     if (dx1 + dy1 + dz0 < radiusSq && stepXup && stepYup && stepZdown)
-        storeCode(hxu || hyu || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1,  1, -1), nCodes);
+        storeCode(hxu || hyu || hzd, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 1, 1, -1), nCodes);
     if (dx1 + dy1 + dz1 < radiusSq && stepXup && stepYup && stepZup)
-        storeCode(hxu || hyu || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level,  1,  1,  1), nCodes);
+        storeCode(hxu || hyu || hzu, &nBoxes, &iBoxPbc, sfcNeighbor<KeyType>(ibox, level, 1, 1, 1), nCodes);
 
     return {nBoxes, iBoxPbc};
 }
@@ -252,7 +253,7 @@ findNeighborBoxesSimple(T xi, T yi, T zi, unsigned level, const Box<T>& bbox, Ke
     // level is the smallest tree subdivision level at which the node edge length is still bigger than radius
     KeyType xyzCode = sfc3D<KeyType>(xi, yi, zi, bbox);
     KeyType boxCode = enclosingBoxCode(xyzCode, level);
-    IBox nodeBox = sfcIBox(boxCode, boxCode + nodeRange<KeyType>(level));
+    IBox nodeBox    = sfcIBox(boxCode, boxCode + nodeRange<KeyType>(level));
 
     int ibox = 27;
     for (int dx = -1; dx < 2; ++dx)
@@ -260,36 +261,44 @@ findNeighborBoxesSimple(T xi, T yi, T zi, unsigned level, const Box<T>& bbox, Ke
             for (int dz = -1; dz < 2; ++dz)
             {
                 KeyType searchBoxCode = sfcNeighbor<KeyType>(nodeBox, level, dx, dy, dz);
-                bool alreadyThere = false;
+                bool alreadyThere     = false;
                 for (int i = ibox; i < 27; ++i)
                 {
-                    if (nCodes[i] == searchBoxCode)
-                        alreadyThere = true;
+                    if (nCodes[i] == searchBoxCode) alreadyThere = true;
                 }
 
-                if (!alreadyThere)
-                    nCodes[--ibox] = searchBoxCode;
+                if (!alreadyThere) nCodes[--ibox] = searchBoxCode;
             }
 
     return {0, ibox};
 }
 
 template<class KeyType, class Integer, class T, class F>
-HOST_DEVICE_FUN void searchBoxes(const KeyType* searchKeys, int firstBox, int lastBox, int level,
+HOST_DEVICE_FUN void searchBoxes(const KeyType* searchKeys,
+                                 int firstBox,
+                                 int lastBox,
+                                 int level,
                                  const Integer* particleKeys,
                                  LocalIndex numParticleKeys,
                                  LocalIndex particleIndex,
-                                 const T* x, const T* y, const T* z, T radiusSq,
-                                 int* neighbors, int* neighborsCount, int ngmax, F&& distance)
+                                 const T* x,
+                                 const T* y,
+                                 const T* z,
+                                 T radiusSq,
+                                 int* neighbors,
+                                 int* neighborsCount,
+                                 int ngmax,
+                                 F&& distance)
 {
     int numNeighbors = *neighborsCount;
     for (int ibox = firstBox; ibox < lastBox; ++ibox)
     {
         KeyType searchBox = searchKeys[ibox];
-        LocalIndex startIndex = stl::lower_bound(particleKeys, particleKeys + numParticleKeys, searchBox)
-                                        - particleKeys;
-        LocalIndex endIndex   = stl::upper_bound(particleKeys + startIndex, particleKeys + numParticleKeys,
-                                                         searchBox + nodeRange<KeyType>(level)) - particleKeys;
+        LocalIndex startIndex =
+            stl::lower_bound(particleKeys, particleKeys + numParticleKeys, searchBox) - particleKeys;
+        LocalIndex endIndex = stl::upper_bound(particleKeys + startIndex, particleKeys + numParticleKeys,
+                                               searchBox + nodeRange<KeyType>(level)) -
+                              particleKeys;
 
         for (LocalIndex j = startIndex; j < endIndex; ++j)
         {
@@ -306,7 +315,6 @@ HOST_DEVICE_FUN void searchBoxes(const KeyType* searchKeys, int firstBox, int la
     }
     *neighborsCount = numNeighbors;
 }
-
 
 /*! @brief findNeighbors of particle number @p id within radius
  *
@@ -332,10 +340,17 @@ HOST_DEVICE_FUN void searchBoxes(const KeyType* searchKeys, int firstBox, int la
  * @param[in]  ngmax           maximum number of neighbors per particle
  */
 template<class T, class KeyType>
-HOST_DEVICE_FUN void findNeighbors(LocalIndex id, const T* x, const T* y, const T* z, const T* h,
-                                   const Box<T>& box, const KeyType* particleKeys,
-                                   int* neighbors, int* neighborsCount,
-                                   LocalIndex numParticleKeys, int ngmax)
+HOST_DEVICE_FUN void findNeighbors(LocalIndex id,
+                                   const T* x,
+                                   const T* y,
+                                   const T* z,
+                                   const T* h,
+                                   const Box<T>& box,
+                                   const KeyType* particleKeys,
+                                   int* neighbors,
+                                   int* neighborsCount,
+                                   LocalIndex numParticleKeys,
+                                   int ngmax)
 {
     // SPH convention is search radius = 2 * h
     T radius   = 2 * h[id];
@@ -358,15 +373,12 @@ HOST_DEVICE_FUN void findNeighbors(LocalIndex id, const T* x, const T* y, const 
     int numNeighbors = 0;
 
     // search non-PBC boxes
-    searchBoxes(neighborCodes, 0, nBoxes, level, particleKeys, numParticleKeys, id, x, y, z, radiusSq,
-                neighbors, &numNeighbors, ngmax,
-                [xi, yi, zi](T xj, T yj, T zj) { return distancesq(xi, yi, zi, xj, yj, zj); } );
-
-    if (numNeighbors == ngmax) { return; }
+    searchBoxes(neighborCodes, 0, nBoxes, level, particleKeys, numParticleKeys, id, x, y, z, radiusSq, neighbors,
+                &numNeighbors, ngmax, [xi, yi, zi](T xj, T yj, T zj) { return distancesq(xi, yi, zi, xj, yj, zj); });
 
     // search PBC boxes
-    searchBoxes(neighborCodes, iBoxPbc, 27, level, particleKeys, numParticleKeys, id, x, y, z, radiusSq,
-                neighbors, &numNeighbors, ngmax,
+    searchBoxes(neighborCodes, iBoxPbc, 27, level, particleKeys, numParticleKeys, id, x, y, z, radiusSq, neighbors,
+                &numNeighbors, ngmax,
                 [xi, yi, zi, &box](T xj, T yj, T zj) { return distanceSqPbc(xi, yi, zi, xj, yj, zj, box); });
 
     *neighborsCount = numNeighbors;
@@ -374,20 +386,27 @@ HOST_DEVICE_FUN void findNeighbors(LocalIndex id, const T* x, const T* y, const 
 
 //! @brief generic version for Morton and Hilbert keys
 template<class T, class KeyType>
-void findNeighbors(const T* x, const T* y, const T* z, const T* h,
+void findNeighbors(const T* x,
+                   const T* y,
+                   const T* z,
+                   const T* h,
                    LocalIndex firstId,
                    LocalIndex lastId,
                    LocalIndex numParticles,
-                   const Box<T>& box, const KeyType* particleKeys, int* neighbors, int* neighborsCount, int ngmax)
+                   const Box<T>& box,
+                   const KeyType* particleKeys,
+                   int* neighbors,
+                   int* neighborsCount,
+                   int ngmax)
 {
     LocalIndex numWork = lastId - firstId;
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (LocalIndex i = 0; i < numWork; ++i)
     {
         LocalIndex id = i + firstId;
-        findNeighbors(id, x, y, z, h, box, particleKeys, neighbors + i * ngmax, neighborsCount + i,
-                      numParticles, ngmax);
+        findNeighbors(id, x, y, z, h, box, particleKeys, neighbors + i * ngmax, neighborsCount + i, numParticles,
+                      ngmax);
     }
 }
 
