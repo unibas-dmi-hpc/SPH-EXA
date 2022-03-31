@@ -35,9 +35,10 @@
 #include "cstone/findneighbors.hpp"
 #include "coord_samples/random.hpp"
 
-#include "ryoanji/nbody/types.h"
-#include "ryoanji/nbody/cartesian_qpole.hpp"
-#include "ryoanji/nbody/upsweep_cpu.hpp"
+#include "ryoanji/interface/global_multipole.hpp"
+//#include "ryoanji/nbody/types.h"
+//#include "ryoanji/nbody/cartesian_qpole.hpp"
+//#include "ryoanji/nbody/upsweep_cpu.hpp"
 
 using namespace ryoanji;
 
@@ -142,30 +143,16 @@ static int multipoleExchangeTest(int thisRank, int numRanks)
     const cstone::Octree<KeyType>&               octree  = focusTree.octree();
     gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCenters();
 
-    const cstone::Octree<KeyType>&                     globalOctree  = domain.globalTree();
-    const gsl::span<const cstone::SourceCenterType<T>> globalCenters = focusTree.globalExpansionCenters();
-
     std::vector<MultipoleType> multipoles(octree.numTreeNodes());
-    ryoanji::computeLeafMultipoles(x.data(),
-                                   y.data(),
-                                   z.data(),
-                                   m.data(),
-                                   octree.internalOrder(),
-                                   domain.layout(),
-                                   centers.data(),
-                                   multipoles.data());
-
-    //! first upsweep with local data
-    ryoanji::upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles.data());
-
-    auto ryUpsweep = [](auto levelRange, auto childOffsets, auto M, auto centers)
-    { ryoanji::upsweepMultipoles(levelRange, childOffsets, centers, M); };
-    cstone::globalFocusExchange<MultipoleType>(globalOctree, focusTree, multipoles, ryUpsweep, globalCenters.data());
-
-    focusTree.template peerExchange<MultipoleType>(multipoles, static_cast<int>(cstone::P2pTags::focusPeerCenters) + 1);
-
-    //! second upsweep with leaf data from peer and global ranks in place
-    ryoanji::upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles.data());
+    ryoanji::computeGlobalMultipoles(x.data(),
+                                     y.data(),
+                                     z.data(),
+                                     m.data(),
+                                     x.size(),
+                                     domain.globalTree(),
+                                     domain.focusTree(),
+                                     domain.layout().data(),
+                                     multipoles.data());
 
     MultipoleType globalRootMultipole = multipoles[octree.levelOffset(0)];
 

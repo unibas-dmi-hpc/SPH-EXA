@@ -37,6 +37,7 @@
 #include "cstone/domain/domain.hpp"
 #include "ryoanji/nbody/traversal_cpu.hpp"
 #include "ryoanji/nbody/upsweep_cpu.hpp"
+#include "ryoanji/interface/global_multipole.hpp"
 #include "sph/sph.hpp"
 
 #include "util/timer.hpp"
@@ -306,44 +307,21 @@ public:
         //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
         const cstone::FocusedOctree<KeyType, T>& focusTree = domain.focusTree();
         //! the focused octree, structure only
-        const cstone::Octree<KeyType>&               octree  = focusTree.octree();
-        gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCenters();
-
-        const cstone::Octree<KeyType>&                     globalOctree  = domain.globalTree();
-        const gsl::span<const cstone::SourceCenterType<T>> globalCenters = focusTree.globalExpansionCenters();
+        const cstone::Octree<KeyType>& octree = focusTree.octree();
 
         std::vector<MultipoleType> multipoles(octree.numTreeNodes());
-        ryoanji::computeLeafMultipoles(d.x.data(),
-                                       d.y.data(),
-                                       d.z.data(),
-                                       d.m.data(),
-                                       octree.internalOrder(),
-                                       domain.layout(),
-                                       centers.data(),
-                                       multipoles.data());
-
-        //! first upsweep with local data
-        ryoanji::upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles.data());
-
-        std::vector<MultipoleType> globalLeafMultipoles(globalOctree.numLeafNodes());
-        focusTree.template populateGlobal<MultipoleType>(globalOctree.treeLeaves(), multipoles, globalLeafMultipoles);
-        mpiAllreduce(MPI_IN_PLACE, globalLeafMultipoles.data(), globalLeafMultipoles.size(), MPI_SUM);
-
-        std::vector<MultipoleType> globalMultipoles(globalOctree.numTreeNodes());
-        cstone::scatter(globalOctree.internalOrder(), globalLeafMultipoles.data(), globalMultipoles.data());
-        ryoanji::upsweepMultipoles(
-            globalOctree.levelRange(), globalOctree.childOffsets(), globalCenters.data(), globalMultipoles.data());
-
-        focusTree.template extractGlobal<MultipoleType>(globalOctree, globalMultipoles, multipoles);
-
-        focusTree.template peerExchange<MultipoleType>(multipoles,
-                                                       static_cast<int>(cstone::P2pTags::focusPeerCenters) + 1);
-
-        //! second upsweep with leaf data from peer and global ranks in place
-        ryoanji::upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles.data());
+        ryoanji::computeGlobalMultipoles(d.x.data(),
+                                         d.y.data(),
+                                         d.z.data(),
+                                         d.m.data(),
+                                         d.x.size(),
+                                         domain.globalTree(),
+                                         domain.focusTree(),
+                                         domain.layout().data(),
+                                         multipoles.data());
 
         d.egrav = ryoanji::computeGravity(octree,
-                                          centers.data(),
+                                          focusTree.expansionCenters().data(),
                                           multipoles.data(),
                                           domain.layout().data(),
                                           domain.startCell(),

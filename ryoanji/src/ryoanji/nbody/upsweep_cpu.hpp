@@ -56,7 +56,7 @@ namespace ryoanji
  */
 template<class T1, class T2, class MType>
 void computeLeafMultipoles(const T1* x, const T1* y, const T1* z, const T2* m,
-                           gsl::span<const cstone::TreeNodeIndex> leafToInternal, gsl::span<const LocalIndex> layout,
+                           gsl::span<const cstone::TreeNodeIndex> leafToInternal, const LocalIndex* layout,
                            const cstone::SourceCenterType<T1>* centers, MType* multipoles)
 {
 #pragma omp parallel for schedule(static)

@@ -82,7 +82,8 @@ TEST(Gravity, TreeWalk)
     setMac<T>(octree.nodeKeys(), centers, 1.0 / theta, box);
 
     std::vector<MultipoleType> multipoles(octree.numTreeNodes());
-    computeLeafMultipoles(x, y, z, masses.data(), octree.internalOrder(), layout, centers.data(), multipoles.data());
+    computeLeafMultipoles(
+        x, y, z, masses.data(), octree.internalOrder(), layout.data(), centers.data(), multipoles.data());
     upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles.data());
     for (size_t i = 0; i < multipoles.size(); ++i)
     {
