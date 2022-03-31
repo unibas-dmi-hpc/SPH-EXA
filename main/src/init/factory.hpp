@@ -38,6 +38,7 @@
 #include "isim_init.hpp"
 #include "evrard_init.hpp"
 #include "file_init.hpp"
+#include "isobaric_cube_init.hpp"
 #include "noh_init.hpp"
 #include "sedov_init.hpp"
 
@@ -62,6 +63,10 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
         {
             return std::make_unique<NohGlassSphere<Dataset>>(glassBlock);
         }
+    }
+    if (testCase == "isobaric-cube")
+    {
+        return std::make_unique<IsobaricCubeGrid<Dataset>>();
     }
     if (testCase == "evrard")
     {
