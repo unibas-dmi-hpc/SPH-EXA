@@ -141,9 +141,6 @@ public:
 
         // Count additional particles
         size_t nExtPart = 0;
-        T      MCxExt   = 0.;
-        T      MCyExt   = 0.;
-        T      MCzExt   = 0.;
         for (size_t i = 0; i < extCubeSide; i++)
         {
             T lz = initR + (i * stepExt);
@@ -160,8 +157,6 @@ public:
                 }
             }
         }
-
-        std::cout << "MCExt(x=" << MCxExt << ",y=" << MCyExt << ",z=" << MCzExt << ")" << std::endl;
 
         // Reside ParticleData
         d.numParticlesGlobal += nExtPart;
