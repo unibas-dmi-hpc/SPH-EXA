@@ -62,7 +62,7 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
     // output name
     const char* h5_fname = path.c_str();
     H5PartFile* h5_file  = nullptr;
-    int numRanks;
+    int         numRanks;
     MPI_Comm_size(d.comm, &numRanks);
 
 #ifdef H5PART_PARALLEL_IO
