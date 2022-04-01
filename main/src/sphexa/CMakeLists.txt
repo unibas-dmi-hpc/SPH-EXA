@@ -7,8 +7,32 @@ function(enableH5Part exename)
     endif()
 endfunction()
 
-set(exename sphexa)
+find_package(Git)
+if(Git_FOUND)
+    if(EXISTS "${CMAKE_SOURCE_DIR}/.git")
+  execute_process(
+    COMMAND git rev-parse --abbrev-ref HEAD
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_BRANCH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+  execute_process(
+    COMMAND git log -1 --format=%h
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    OUTPUT_VARIABLE GIT_COMMIT_HASH
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+  )
+else(EXISTS "${CMAKE_SOURCE_DIR}/.git")
+  set(GIT_BRANCH "-")
+  set(GIT_COMMIT_HASH "-")
+endif(EXISTS "${CMAKE_SOURCE_DIR}/.git")
+endif(Git_FOUND)
+configure_file(
+  version.h.in
+  ${CMAKE_BINARY_DIR}/main/src/util/version.h
+)
 
+set(exename sphexa)
 add_executable(${exename} sphexa.cpp)
 target_include_directories(${exename} PRIVATE ${SPH_EXA_INCLUDE_DIRS})
 target_link_libraries(${exename} PRIVATE ${MPI_CXX_LIBRARIES})
@@ -34,6 +58,7 @@ endif()
 if(CMAKE_CUDA_COMPILER)
     add_executable(${exename}-cuda $<TARGET_OBJECTS:gather_obj> $<TARGET_OBJECTS:cuda_find_neighbors_obj> $<TARGET_OBJECTS:cuda_sph> sphexa.cpp)
     target_include_directories(${exename}-cuda PRIVATE ${SPH_EXA_INCLUDE_DIRS})
+    target_include_directories(${exename}-cuda PUBLIC ${CMAKE_BINARY_DIR}/main/src/util)
     target_compile_definitions(${exename}-cuda PRIVATE USE_MPI USE_CUDA)
     set_target_properties(${exename}-cuda PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
     target_link_libraries(${exename}-cuda PRIVATE ${MPI_CXX_LIBRARIES})
@@ -47,6 +72,7 @@ elseif(CMAKE_HIP_COMPILER)
     add_executable(${exename}-hip $<TARGET_OBJECTS:gather_obj> $<TARGET_OBJECTS:cuda_find_neighbors_obj> $<TARGET_OBJECTS:cuda_sph> sphexa.cpp)
     set_property(TARGET ${exename}-hip PROPERTY HIP_ARCHITECTURES gfx908)
     target_include_directories(${exename}-hip PRIVATE ${SPH_EXA_INCLUDE_DIRS})
+    target_include_directories(${exename}-hip PUBLIC ${CMAKE_BINARY_DIR}/main/src/util)
     target_include_directories(${exename}-hip PRIVATE ${HIP_PATH}/include)
     target_compile_definitions(${exename}-hip PRIVATE USE_MPI USE_CUDA)
     target_link_libraries(${exename}-hip PRIVATE ${MPI_CXX_LIBRARIES})

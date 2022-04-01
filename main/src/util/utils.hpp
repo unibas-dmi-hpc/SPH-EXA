@@ -2,6 +2,7 @@
 
 #include <tuple>
 #include <omp.h>
+#include <version.h>
 
 namespace sphexa
 {
@@ -25,8 +26,10 @@ auto initMpi()
                omp_get_max_threads(),
                _OPENMP);
 #else
-        printf("# %d MPI-%d.%d process(es) with 1 OpenMP thread/process\n", mpi_ranks, mpi_version, mpi_subversion);
+        printf("# %d MPI-%d.%d process(es) with 1 OpenMP thread/process\n",
+               mpi_ranks, mpi_version, mpi_subversion);
 #endif
+        printf("# git: %s/%s\n", GIT_BRANCH, GIT_COMMIT_HASH);
     }
     return std::make_tuple(rank, numRanks);
 }
