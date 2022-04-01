@@ -27,12 +27,14 @@
  * @brief  Upsweep for multipole and source center computation
  *
  * @author Rio Yokota <rioyokota@gsic.titech.ac.jp>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
 #pragma once
 
 #include <chrono>
 
+#include "kernel_wrapper.hpp"
 #include "kernel.hpp"
 
 namespace ryoanji
@@ -43,70 +45,115 @@ struct UpsweepConfig
     static constexpr int numThreads = 256;
 };
 
+template<class Tc, class Tm, class Tf, class MType>
+__global__ void computeLeafMultipoles(const Tc* x, const Tc* y, const Tc* z, const Tm* m,
+                                      const TreeNodeIndex* leafToInternal, TreeNodeIndex numLeaves,
+                                      const LocalIndex* layout, const Vec4<Tf>* centers, MType* multipoles)
+{
+    unsigned leafIdx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (leafIdx < numLeaves)
+    {
+        TreeNodeIndex i = leafToInternal[leafIdx];
+        particle2Multipole(x, y, z, m, layout[leafIdx], layout[leafIdx + 1], makeVec3(centers[i]), multipoles[i]);
+    }
+}
+
 /*! @brief perform multipole upward sweep for one tree level
  *
  * launch config: one thread per cell of the current level
  *
- * @param[in]  level            current level to process
- * @param[in]  levelRange       first and last node in @p cells of @p level
- * @param[in]  cells            the tree cells
- * @param[in]  x,y,z,m,h        SFC sorted bodies as referenced by @p cells
- * @param[out] sourceCenter     the center of mass of each tree cell
- * @param[out] cellXmin         coordinate minimum of each cell
- * @param[out] cellXmax         coordinate maximum of each cell
- * @param[out] Multipole        output multipole of each cell
+ * @param[in]  firstCell        first cell to process
+ * @param[in]  lastCell         last cell to process
+ * @param[in]  childOffsets     cell index of first child of each node
+ * @param[in]  centers          source expansion (mass) centers
+ * @param[out] multipoles       output multipole of each cell
  */
 template<class T, class MType>
-__global__ void upwardPass(const int firstCell, const int lastCell, CellData* cells, const T* x, const T* y, const T* z,
-                           const T* m, const T* h, Vec4<T>* sourceCenter, Vec4<T>* cellXmin, Vec4<T>* cellXmax,
-                           MType* Multipole)
+__global__ void upsweepMultipoles(TreeNodeIndex firstCell, TreeNodeIndex lastCell, const TreeNodeIndex* childOffsets,
+                                  const Vec4<T>* centers, MType* multipoles)
 {
     const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x + firstCell;
     if (cellIdx >= lastCell) return;
-    CellData& cell = cells[cellIdx];
+
+    TreeNodeIndex firstChild = childOffsets[cellIdx];
+
+    // firstChild is zero if the cell is a leaf
+    if (firstChild)
+    {
+        multipole2Multipole(firstChild, firstChild + 8, centers[cellIdx], centers, multipoles, multipoles[cellIdx]);
+    }
+}
+
+template<class Tc, class Tm, class Th, class Tf>
+__global__ void computeLeafCenters(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const Th* h,
+                                   const TreeNodeIndex* leafToInternal, TreeNodeIndex numLeaves,
+                                   const LocalIndex* layout, Vec4<Tf>* centers, Vec4<Tc>* cellXmin, Vec4<Tc>* cellXmax)
+{
+    unsigned leafIdx = blockIdx.x * blockDim.x + threadIdx.x;
+
+    const Tc huge = Tc(1e10);
+    Vec4<Tc> Xmin{+huge, +huge, +huge, +huge};
+    Vec4<Tc> Xmax{-huge, -huge, -huge, -huge};
+    Vec4<Tc> center;
+
+    if (leafIdx < numLeaves)
+    {
+        TreeNodeIndex begin = layout[leafIdx];
+        TreeNodeIndex end   = layout[leafIdx + 1];
+        center              = setCenter(begin, end, x, y, z, m);
+        for (int i = begin; i < end; i++)
+        {
+            Vec4<Tc> pos = {x[i], y[i], z[i], h[i]};
+            Xmin         = min(Xmin, pos);
+            Xmax         = max(Xmax, pos);
+        }
+        TreeNodeIndex cellIdx = leafToInternal[leafIdx];
+        centers[cellIdx]      = center;
+        cellXmin[cellIdx]     = Xmin;
+        cellXmax[cellIdx]     = Xmax;
+    }
+}
+
+/*! @brief perform source expansion center upward sweep for one tree level
+ *
+ * launch config: one thread per cell of the current level
+ *
+ * @param[in]  firstCell        first cell to process
+ * @param[in]  lastCell         last cell to process
+ * @param[in]  childOffsets     cell index of first child of each node
+ * @param[out] centers          source expansion (mass) centers
+ * @param[out] cellXmin         minimum coordinate of any body in the cell
+ * @param[out] cellXmax         maximum coordinate of any body in the cell
+ */
+template<class T>
+__global__ void upsweepCenters(TreeNodeIndex firstCell, TreeNodeIndex lastCell, const TreeNodeIndex* childOffsets,
+                               Vec4<T>* centers, Vec4<T>* cellXmin, Vec4<T>* cellXmax)
+{
+    const int cellIdx = blockIdx.x * blockDim.x + threadIdx.x + firstCell;
+    if (cellIdx >= lastCell) return;
+
     const T   huge = T(1e10);
     Vec4<T>   Xmin{+huge, +huge, +huge, +huge};
     Vec4<T>   Xmax{-huge, -huge, -huge, -huge};
     Vec4<T>   center;
-    MType     M;
-    M = 0;
 
-    if (cell.isLeaf())
-    {
-        const int begin = cell.body();
-        const int end   = begin + cell.nbody();
-        center          = setCenter(begin, end, x, y, z, m);
-        for (int i = begin; i < end; i++)
-        {
-            Vec4<T> pos = {x[i], y[i], z[i], h[i]};
-            Xmin        = min(Xmin, pos);
-            Xmax        = max(Xmax, pos);
-        }
-        P2M(begin, end, center, x, y, z, m, M);
-    }
-    else
-    {
-        const int begin = cell.child();
-        const int end   = begin + cell.nchild();
-        center          = setCenter(begin, end, sourceCenter);
+    TreeNodeIndex firstChild = childOffsets[cellIdx];
 
-        unsigned numBodiesChildren = 0;
+    // firstChild is zero if the cell is a leaf
+    if (firstChild)
+    {
+        TreeNodeIndex begin = firstChild;
+        TreeNodeIndex end   = firstChild + 8;
+        center              = setCenter(begin, end, centers);
         for (int i = begin; i < end; i++)
         {
             Xmin = min(Xmin, cellXmin[i]);
             Xmax = max(Xmax, cellXmax[i]);
-            numBodiesChildren += cells[i].nbody();
         }
-
-        cell.setBody(cells[begin].body());
-        cell.setNBody(numBodiesChildren);
-
-        M2M(begin, end, center, sourceCenter, Multipole, M);
+        centers[cellIdx]  = center;
+        cellXmin[cellIdx] = Xmin;
+        cellXmax[cellIdx] = Xmax;
     }
-    sourceCenter[cellIdx] = center;
-    cellXmin[cellIdx]     = Xmin;
-    cellXmax[cellIdx]     = Xmax;
-    Multipole[cellIdx]    = M;
 }
 
 //! @brief calculate the squared MAC radius of each cell, store as the 4-th member sourceCenter
@@ -143,8 +190,9 @@ __global__ void normalize(int numCells, MType* multipoles)
 }
 
 template<class T, class MType>
-void upsweep(int numSources, int numLevels, T theta, const int2* levelRange, const T* x, const T* y, const T* z,
-             const T* m, const T* h, CellData* sourceCells, Vec4<T>* sourceCenter, MType* Multipole)
+void upsweep(int numSources, int numLeaves, int numLevels, T theta, const int2* levelRange, const T* x, const T* y,
+             const T* z, const T* m, const T* h, const LocalIndex* layout, const TreeNodeIndex* childOffsets,
+             const TreeNodeIndex* leafToInternal, Vec4<T>* centers, MType* Multipole)
 {
     constexpr int numThreads = UpsweepConfig::numThreads;
 
@@ -154,27 +202,30 @@ void upsweep(int numSources, int numLevels, T theta, const int2* levelRange, con
 
     auto t0 = std::chrono::high_resolution_clock::now();
 
-    for (int level = numLevels; level >= 1; level--)
+    computeLeafCenters<<<(numLeaves - 1) / numThreads + 1, numThreads>>>(
+        x, y, z, m, h, leafToInternal, numLeaves, layout, centers, cellXmin, cellXmax);
+    for (int level = numLevels - 1; level >= 1; level--)
     {
         int numCellsLevel = levelRange[level].y - levelRange[level].x;
         int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
-        upwardPass<<<numBlocks, numThreads>>>(levelRange[level].x,
-                                              levelRange[level].y,
-                                              sourceCells,
-                                              x,
-                                              y,
-                                              z,
-                                              m,
-                                              h,
-                                              sourceCenter,
-                                              cellXmin,
-                                              cellXmax,
-                                              Multipole);
-        kernelSuccess("upwardPass");
+        upsweepCenters<<<numBlocks, numThreads>>>(
+            levelRange[level].x, levelRange[level].y, childOffsets, centers, cellXmin, cellXmax);
     }
 
+    computeLeafMultipoles<<<(numLeaves - 1) / numThreads + 1, numThreads>>>(
+        x, y, z, m, leafToInternal, numLeaves, layout, centers, Multipole);
+    for (int level = numLevels - 1; level >= 1; level--)
+    {
+        int numCellsLevel = levelRange[level].y - levelRange[level].x;
+        int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
+        upsweepMultipoles<<<numBlocks, numThreads>>>(
+            levelRange[level].x, levelRange[level].y, childOffsets, centers, Multipole);
+    }
+
+    kernelSuccess("upwardPass");
+
     int numBlocks = (numSources - 1) / numThreads + 1;
-    setMAC<<<numBlocks, numThreads>>>(numSources, T(1.0) / theta, sourceCenter, cellXmin, cellXmax);
+    setMAC<<<numBlocks, numThreads>>>(numSources, T(1.0) / theta, centers, cellXmin, cellXmax);
     normalize<<<numBlocks, numThreads>>>(numSources, Multipole);
 
     auto   t1 = std::chrono::high_resolution_clock::now();

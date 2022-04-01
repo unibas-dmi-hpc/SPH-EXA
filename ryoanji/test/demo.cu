@@ -77,7 +77,8 @@ int main(int argc, char** argv)
     thrust::device_vector<Vec4<T>>       sourceCenter(numSources);
     thrust::device_vector<MultipoleType> Multipole(numSources);
 
-    upsweep(sources.size(),
+    upsweep(numSources,
+            treeBuilder.numLeafNodes(),
             highestLevel,
             theta,
             levelRange.data(),
@@ -86,7 +87,9 @@ int main(int argc, char** argv)
             rawPtr(d_z.data()),
             rawPtr(d_m.data()),
             rawPtr(d_h.data()),
-            rawPtr(sources.data()),
+            treeBuilder.layout(),
+            treeBuilder.childOffsets(),
+            treeBuilder.leafToInternal(),
             rawPtr(sourceCenter.data()),
             rawPtr(Multipole.data()));
 

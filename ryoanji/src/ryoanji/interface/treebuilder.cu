@@ -90,6 +90,26 @@ public:
 
     int extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange);
 
+    const LocalIndex* layout() const
+    {
+        return thrust::raw_pointer_cast(d_layout_.data());
+    }
+
+    const TreeNodeIndex* childOffsets() const
+    {
+        return thrust::raw_pointer_cast(octreeGpuData_.childOffsets.data());
+    }
+
+    const TreeNodeIndex* leafToInternal() const
+    {
+        return thrust::raw_pointer_cast(octreeGpuData_.inverseNodeOrder.data() + octreeGpuData_.numInternalNodes);
+    }
+
+    TreeNodeIndex numLeafNodes() const
+    {
+        return octreeGpuData_.numLeafNodes;
+    }
+
 private:
     unsigned bucketSize_;
 
@@ -220,6 +240,30 @@ template<class KeyType>
 int TreeBuilder<KeyType>::extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange)
 {
     return impl_->extract(d_ryoanjiTree, h_levelRange);
+}
+
+template<class KeyType>
+const LocalIndex* TreeBuilder<KeyType>::layout() const
+{
+    return impl_->layout();
+}
+
+template<class KeyType>
+const TreeNodeIndex* TreeBuilder<KeyType>::childOffsets() const
+{
+    return impl_->childOffsets();
+}
+
+template<class KeyType>
+const TreeNodeIndex* TreeBuilder<KeyType>::leafToInternal() const
+{
+    return impl_->leafToInternal();
+}
+
+template<class KeyType>
+TreeNodeIndex TreeBuilder<KeyType>::numLeafNodes() const
+{
+    return impl_->numLeafNodes();
 }
 
 template<class KeyType>

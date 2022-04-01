@@ -54,11 +54,6 @@ void checkBodyIndexing(int numBodies, CellData* tree, int numSources)
                 bodyIndexed[j]++;
             }
         }
-        else
-        {
-            EXPECT_EQ(tree[i].nchild(), 8);
-            EXPECT_TRUE(tree[i].nbody() > 0);
-        }
 
         if (tree[i].level() > 1)
         {
@@ -112,12 +107,6 @@ void checkUpsweep(const cstone::Box<T>& box, const thrust::host_vector<CellData>
             // each multipole should have the total mass of referenced bodies in the first entry
             EXPECT_NEAR(cellMass, Multipole[i][0], 1e-5);
         }
-        else
-        {
-            EXPECT_EQ(sourceCenter[i][0], 0.0f);
-            EXPECT_EQ(sourceCenter[i][1], 0.0f);
-            EXPECT_EQ(sourceCenter[i][2], 0.0f);
-        }
     }
 }
 
@@ -154,6 +143,7 @@ TEST(Buildtree, cstone)
     thrust::device_vector<MultipoleType> Multipole(numSources);
 
     ryoanji::upsweep(numSources,
+                     treeBuilder.numLeafNodes(),
                      highestLevel,
                      theta,
                      levelRange.data(),
@@ -162,7 +152,9 @@ TEST(Buildtree, cstone)
                      rawPtr(d_z.data()),
                      rawPtr(d_m.data()),
                      rawPtr(d_h.data()),
-                     rawPtr(sources.data()),
+                     treeBuilder.layout(),
+                     treeBuilder.childOffsets(),
+                     treeBuilder.leafToInternal(),
                      rawPtr(sourceCenter.data()),
                      rawPtr(Multipole.data()));
 

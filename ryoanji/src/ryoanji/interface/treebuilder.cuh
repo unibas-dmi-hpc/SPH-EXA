@@ -72,7 +72,12 @@ public:
      */
     int extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange);
 
-    unsigned maxTreeLevel() const;
+    const LocalIndex* layout() const;
+    const TreeNodeIndex* childOffsets() const;
+    const TreeNodeIndex* leafToInternal() const;
+
+    TreeNodeIndex numLeafNodes() const;
+    unsigned      maxTreeLevel() const;
 
 private:
     class Impl;

@@ -108,7 +108,8 @@ HOST_DEVICE_FUN inline util::tuple<T1, T1, T1, T1> multipole2Particle(T1 tx, T1 
 /*! @brief Combine multipoles into a single multipole
  */
 template<class T, class MType, std::enable_if_t<IsSpherical<MType>{}, int> = 0>
-void multipole2Multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc, const MType* Msrc, MType& Mout)
+HOST_DEVICE_FUN void multipole2Multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc,
+                                         const MType* Msrc, MType& Mout)
 {
     Mout = 0;
     M2M(begin, end, Xout, Xsrc, Msrc, Mout);

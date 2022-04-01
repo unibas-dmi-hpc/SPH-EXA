@@ -232,8 +232,9 @@ public:
     //! @brief store the first node index of every tree level, length = maxTreeLevel + 2
     thrust::device_vector<TreeNodeIndex> levelRange;
 
-    //! @brief maps between the (level-key) sorted layout B and the unsorted intermediate binary layout A
+    //! @brief maps internal to leaf (cstone) order
     thrust::device_vector<TreeNodeIndex> nodeOrder;
+    //! @brief maps leaf (cstone) order to internal level-sorted order
     thrust::device_vector<TreeNodeIndex> inverseNodeOrder;
 };
 
