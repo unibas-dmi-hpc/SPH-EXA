@@ -33,6 +33,7 @@
 
 #include <map>
 #include <cmath>
+#include <algorithm>
 
 #include "cstone/sfc/box.hpp"
 
@@ -235,8 +236,23 @@ public:
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
         assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
+        T ratioInt = 2.;
+
+        #pragma omp parallel for schedule(static)
+        for (size_t i = 0; i < d.x.size(); i++)
+        {
+            std::transform(d.x.begin(), d.x.end(), d.x.begin(), [ratioInt](T &c){ return c/ratioInt; });
+            std::transform(d.y.begin(), d.y.end(), d.y.begin(), [ratioInt](T &c){ return c/ratioInt; });
+            std::transform(d.z.begin(), d.z.end(), d.z.begin(), [ratioInt](T &c){ return c/ratioInt; });
+        }
+
         resize(d, d.x.size());
-        initIsobaricCubeFields(d, constants_);
+
+        T totalSide   = 2. * (r + rDelta);
+        T totalVolume = totalSide * totalSide * totalSide;
+        T massPart    = totalVolume / d.x.size();
+
+        initIsobaricCubeFields(d, constants_, massPart);
 
         return globalBox;
     }
