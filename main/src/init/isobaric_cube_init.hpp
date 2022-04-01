@@ -100,7 +100,7 @@ std::map<std::string, double> IsobaricCubeConstants()
             {"gamma", 5.0 / 3.0},
             {"rhoExt", 1.},
             {"rhoInt", 8.},
-            {"pIsobaric", 2.5},         // pIsobaric = (gamma − 1.) * rho * u
+            {"pIsobaric", 2.5}, // pIsobaric = (gamma − 1.) * rho * u
             {"firstTimeStep", 1e-4}};
 }
 
@@ -116,40 +116,26 @@ public:
     {
         using T = typename Dataset::RealType;
 
-        size_t nIntPart = cubeSide * cubeSide * cubeSide;
+        size_t nIntPart      = cubeSide * cubeSide * cubeSide;
         d.numParticlesGlobal = nIntPart;
-        auto [first, last] = partitionRange(d.numParticlesGlobal, rank, numRanks);
+        auto [first, last]   = partitionRange(d.numParticlesGlobal, rank, numRanks);
         resize(d, last - first);
 
         T r = constants_.at("r");
         regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
 
-        T MCxInt = 0.;
-        T MCyInt = 0.;
-        T MCzInt = 0.;
-        // Calculate mass center of the internal cube
-        for (size_t i = 0; i < nIntPart; i++)
-        {
-            MCxInt += d.x[i];
-            MCyInt += d.y[i];
-            MCzInt += d.z[i];
-        }
-        MCxInt /= nIntPart;
-        MCyInt /= nIntPart;
-        MCzInt /= nIntPart;
-
-        //std::cout << "MCInt(x=" << MCxInt << ",y=" << MCyInt << ",z=" << MCzInt  << ")" << std::endl;
-
         T stepRatio = constants_.at("rhoInt") / constants_.at("rhoExt");
+        T rDelta    = constants_.at("rDelta");
         T stepInt   = (2. * r) / cubeSide;
-        T stepExt   = stepInt * std::pow(stepRatio, 1./3.);
+        T stepExt   = stepInt * std::pow(stepRatio, 1. / 3.);
+        T totalSide = 2. * (r + rDelta);
 
-        T rDelta      = constants_.at("rDelta");
-        T initR       = -(r + rDelta);
-        T totalSide   = 2. * (r + rDelta);
+        size_t extCubeSide = round(totalSide / stepExt);
+        stepExt            = totalSide / T(extCubeSide); // Adjust stepExt exactly to the actual # of particles
+
+        T initR       = -(r + rDelta) + 0.5 * stepExt;
         T totalVolume = totalSide * totalSide * totalSide;
 
-        size_t extCubeSide  = round(totalSide / stepExt);
         size_t totalCubeExt = extCubeSide * extCubeSide * extCubeSide;
         T      massPart     = totalVolume / totalCubeExt;
 
@@ -170,22 +156,12 @@ public:
                 {
                     T lx = initR + (k * stepExt);
 
-                    if ( (abs(lx - MCxInt) > r) || (abs(ly - MCyInt) > r) || (abs(lz - MCzInt) > r) )
-                    {
-                        nExtPart++;
-
-                        MCxExt += lx;
-                        MCyExt += ly;
-                        MCzExt += lz;
-                    }
+                    if ((abs(lx) - r > 1.e-15) || (abs(ly) - r > 1.e-15) || (abs(lz) - r > 1.e-15)) { nExtPart++; }
                 }
             }
         }
-        MCxExt /= nExtPart;
-        MCyExt /= nExtPart;
-        MCzExt /= nExtPart;
 
-        //std::cout << "MCExt(x=" << MCxExt << ",y=" << MCyExt << ",z=" << MCzExt << ")" << std::endl;
+        std::cout << "MCExt(x=" << MCxExt << ",y=" << MCyExt << ",z=" << MCzExt << ")" << std::endl;
 
         // Reside ParticleData
         d.numParticlesGlobal += nExtPart;
@@ -202,11 +178,11 @@ public:
                 for (size_t k = 0; k < extCubeSide; k++)
                 {
                     T lx = initR + (k * stepExt);
-                    if ( (abs(lx - MCxInt) > r) || (abs(ly - MCyInt) > r) || (abs(lz - MCzInt) > r) )
+                    if ((abs(lx) - r > 1.e-15) || (abs(ly) - r > 1.e-15) || (abs(lz) - r > 1.e-15))
                     {
-                        d.x[idx] = lx + (MCxInt - MCxExt);
-                        d.y[idx] = ly + (MCyInt - MCyExt);
-                        d.z[idx] = lz + (MCzInt - MCzExt);
+                        d.x[idx] = lx;
+                        d.y[idx] = ly;
+                        d.z[idx] = lz;
 
                         idx++;
                     }
@@ -216,7 +192,7 @@ public:
 
         initIsobaricCubeFields(d, constants_, massPart);
 
-        return cstone::Box<T>(-(r + (1.1 * rDelta)), r + (1.1 * rDelta), true);
+        return cstone::Box<T>(-(r + rDelta), r + rDelta, true);
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }
