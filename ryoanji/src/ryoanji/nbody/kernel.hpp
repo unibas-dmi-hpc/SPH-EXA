@@ -564,16 +564,16 @@ HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> M2P(Vec4<T> acc, const Vec3<T>& pos_i, con
 }
 
 //! @brief computes the center of mass for the bodies in the specified range
-template<class T>
-HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> setCenter(const int begin, const int end, const T* x, const T* y, const T* z,
-                                                const T* m)
+template<class Tc, class Tm>
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<Tc> setCenter(const int begin, const int end, const Tc* x, const Tc* y, const Tc* z,
+                                                 const Tm* m)
 {
     assert(begin <= end);
 
-    Vec4<T> center{0, 0, 0, 0};
+    Vec4<Tc> center{0, 0, 0, 0};
     for (int i = begin; i < end; i++)
     {
-        T weight = m[i];
+        Tm weight = m[i];
 
         center[0] += weight * x[i];
         center[1] += weight * y[i];
@@ -581,7 +581,7 @@ HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> setCenter(const int begin, const int end, 
         center[3] += weight;
     }
 
-    T invM = (center[3] != 0.0f) ? 1.0f / center[3] : 0.0f;
+    Tc invM = (center[3] != 0.0f) ? 1.0f / center[3] : 0.0f;
     center[0] *= invM;
     center[1] *= invM;
     center[2] *= invM;

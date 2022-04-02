@@ -32,7 +32,7 @@
 #include "ryoanji/nbody/types.h"
 #include "ryoanji/nbody/traversal.cuh"
 #include "ryoanji/nbody/direct.cuh"
-#include "ryoanji/nbody/upwardpass.cuh"
+#include "ryoanji/nbody/upsweep.cuh"
 
 using namespace ryoanji;
 

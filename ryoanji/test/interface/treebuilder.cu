@@ -38,7 +38,7 @@
 #include "ryoanji/interface/treebuilder.cuh"
 #include "ryoanji/nbody/gpu_config.h"
 #include "ryoanji/nbody/types.h"
-#include "ryoanji/nbody/upwardpass.cuh"
+#include "ryoanji/nbody/upsweep.cuh"
 
 using namespace ryoanji;
 

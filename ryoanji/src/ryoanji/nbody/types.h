@@ -55,6 +55,12 @@ struct TermSize : public stl::integral_constant<size_t, P*(P + 1) * (P + 2) / 6>
 template<class T, size_t P>
 using SphericalMultipole = util::array<T, TermSize<P>{}>;
 
+template<class T>
+using SphericalQuadrupole = SphericalMultipole<T, 2>;
+
+template<class T>
+using SphericalHexadecapole = SphericalMultipole<T, 4>;
+
 template<class MType>
 struct IsSpherical
     : public stl::integral_constant<size_t, MType{}.size() == TermSize<2>{} || MType{}.size() == TermSize<4>{}>
