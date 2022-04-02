@@ -69,7 +69,7 @@ auto partitionRange(size_t R, size_t i, size_t N)
  * @tparam     Vector
  * @param[in]  r      half the cube side-length
  * @param[in]  side   number of particles along each dimension
- * @param[in]  first  index in [0, side^3] of first particle add to x,y,z
+ * @param[in]  first  index in [0, side^3] of first particle to add to x,y,z
  * @param[in]  last   index in [first, side^3] of last particles to add to x,y,z
  * @param[out] x      output coordinates, length = last - first
  * @param[out] y
@@ -80,14 +80,16 @@ void regularGrid(double r, size_t side, size_t first, size_t last, Vector& x, Ve
 {
     double step = (2. * r) / side;
 
+    double r_ini = -r + 0.5 * step;
+
 #pragma omp parallel for
     for (size_t i = first / (side * side); i < last / (side * side) + 1; ++i)
     {
-        double lz = -r + (i * step);
+        double lz = r_ini + (i * step);
 
         for (size_t j = 0; j < side; ++j)
         {
-            double ly = -r + (j * step);
+            double ly = r_ini + (j * step);
 
             for (size_t k = 0; k < side; ++k)
             {
@@ -95,7 +97,7 @@ void regularGrid(double r, size_t side, size_t first, size_t last, Vector& x, Ve
 
                 if (first <= lindex && lindex < last)
                 {
-                    double lx = -r + (k * step);
+                    double lx = r_ini + (k * step);
 
                     z[lindex - first] = lz;
                     y[lindex - first] = ly;
