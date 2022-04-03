@@ -111,7 +111,8 @@ std::map<std::string, double> IsobaricCubeConstants()
             {"rhoInt", 8.},
             {"pIsobaric", 2.5}, // pIsobaric = (gamma − 1.) * rho * u
             {"firstTimeStep", 1e-4},
-            {"epsilon", 1e-15}};
+            {"epsilon", 1e-15},
+            {"pairInstability", 1e-3}};
 }
 
 template<class Dataset>
@@ -223,10 +224,77 @@ public:
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
 
-        std::vector<T> xBlock, yBlock, zBlock;
-        fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
-        size_t blockSize = xBlock.size();
+        // Load glass for internal glass cube [0, 1]
+        std::vector<T> xBlockInt, yBlockInt, zBlockInt;
+        fileutils::readTemplateBlock(glassBlock, xBlockInt, yBlockInt, zBlockInt);
+        size_t blockSizeInt = xBlockInt.size();
 
+        // Copy glass for external cube
+        std::vector<T> xBlockExt = xBlockInt;
+        std::vector<T> yBlockExt = yBlockInt;
+        std::vector<T> zBlockExt = zBlockInt;
+
+        // Reduce by half the coordinates in the internal cube -> Density ratio 1 to 8, if the cubes have same #parts
+        T ratioInt = .5;
+        for (size_t i = 0; i < blockSizeInt; i++)
+        {
+            std::transform(xBlockInt.begin(), xBlockInt.end(), xBlockInt.begin(), [ratioInt](T &c){ return ratioInt * c; });
+            std::transform(yBlockInt.begin(), yBlockInt.end(), yBlockInt.begin(), [ratioInt](T &c){ return ratioInt * c; });
+            std::transform(zBlockInt.begin(), zBlockInt.end(), zBlockInt.begin(), [ratioInt](T &c){ return ratioInt * c; });
+        }
+
+        // Layer position between internal and external glass cube [0,1]
+        T      pairInstability = constants_.at("pairInstability");
+        T      r1              = 0.25 - pairInstability;
+        T      r2              = 0.75 + pairInstability;
+        size_t blockSizeExt    = 0;
+
+        // Remove the particles in the external cube, that are in the internal cube space
+        typename std::vector<T>::iterator xIt = xBlockExt.begin();
+        typename std::vector<T>::iterator yIt = yBlockExt.begin();
+        typename std::vector<T>::iterator zIt = zBlockExt.begin();
+        while(xIt != xBlockExt.end()) {
+
+            if( (*xIt >= r1 && *xIt <= r2) && (*yIt >= r1 && *yIt <= r2) && (*zIt >= r2 && *zIt <= r2) )
+            {
+
+                xIt = xBlockExt.erase(xIt);
+                yIt = yBlockExt.erase(yIt);
+                zIt = zBlockExt.erase(zIt);
+            }
+            else
+            {
+                ++xIt;
+                ++yIt;
+                ++zIt;
+
+                ++blockSizeExt;
+            }
+        }
+
+        // Concatenate internal + external cube
+        size_t blockSize = blockSizeInt + blockSizeExt;
+
+        // Concatenate x-positions
+        std::vector<T> xBlock;
+        xBlock.reserve(blockSize);
+        xBlock.insert(xBlock.end(), xBlockInt.begin(), xBlockInt.end());
+        xBlock.insert(xBlock.end(), xBlockExt.begin(), xBlockExt.end());
+
+        // Concatenate y-positions
+        std::vector<T> yBlock;
+        yBlock.reserve(blockSize);
+        yBlock.insert(yBlock.end(), yBlockInt.begin(), yBlockInt.end());
+        yBlock.insert(yBlock.end(), yBlockExt.begin(), yBlockExt.end());
+
+        // Concatenate z-positions
+        std::vector<T> zBlock;
+        zBlock.reserve(blockSize);
+        zBlock.insert(zBlock.end(), zBlockInt.begin(), zBlockInt.end());
+        zBlock.insert(zBlock.end(), zBlockExt.begin(), zBlockExt.end());
+
+
+        // Make Box and resize domine
         size_t multiplicity  = std::rint(cbrtNumPart / std::cbrt(blockSize));
         d.numParticlesGlobal = multiplicity * multiplicity * multiplicity * blockSize;
 
@@ -236,23 +304,14 @@ public:
 
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
         assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
-
-        T ratioInt = 2.;
-
-        #pragma omp parallel for schedule(static)
-        for (size_t i = 0; i < d.x.size(); i++)
-        {
-            std::transform(d.x.begin(), d.x.end(), d.x.begin(), [ratioInt](T &c){ return c/ratioInt; });
-            std::transform(d.y.begin(), d.y.end(), d.y.begin(), [ratioInt](T &c){ return c/ratioInt; });
-            std::transform(d.z.begin(), d.z.end(), d.z.begin(), [ratioInt](T &c){ return c/ratioInt; });
-        }
-
         resize(d, d.x.size());
 
+        // Calculate mass particle
         T totalSide   = 2. * (r + rDelta);
         T totalVolume = totalSide * totalSide * totalSide;
         T massPart    = totalVolume / d.x.size();
 
+        // Initialize Isobaric cube domine variables
         initIsobaricCubeFields(d, constants_, massPart);
 
         return globalBox;
