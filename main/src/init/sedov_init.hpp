@@ -108,8 +108,7 @@ public:
         regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
         initSedovFields(d, constants_);
 
-        T halfStep = r / cubeSide;
-        return cstone::Box<T>(-r - halfStep, r - halfStep, true);
+        return cstone::Box<T>(-r, r, true);
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }

@@ -151,6 +151,7 @@ public:
 
         // Count additional particles
         size_t nExtPart = 0;
+
         T      epsilon  = constants_.at("epsilon");
         for (size_t i = 0; i < extCubeSide; i++)
         {
