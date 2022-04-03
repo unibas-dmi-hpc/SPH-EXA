@@ -33,6 +33,7 @@
 
 #include <map>
 #include <cmath>
+#include <algorithm>
 
 #include "cstone/sfc/box.hpp"
 
@@ -64,6 +65,7 @@ void initIsobaricCubeFields(Dataset& d, const std::map<std::string, double>& con
     T uExt = pIsobaric / (gamma - 1.) / rhoExt;
 
     T firstTimeStep = constants.at("firstTimeStep");
+    T epsilon       = constants.at("epsilon");
 
     std::fill(d.m.begin(), d.m.end(), massPart);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
@@ -73,14 +75,21 @@ void initIsobaricCubeFields(Dataset& d, const std::map<std::string, double>& con
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
     d.minDt = firstTimeStep;
 
+
+
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
-        bool externalPart = (abs(d.x[i]) > r) || (abs(d.y[i]) > r) || (abs(d.z[i]) > r);
-
-        d.h[i] = externalPart ? hExt : hInt;
-
-        d.u[i] = externalPart ? uExt : uInt;
+        if ((abs(d.x[i]) - r > epsilon) || (abs(d.y[i]) - r > epsilon) || (abs(d.z[i]) - r > epsilon))
+        {
+            d.h[i] = hExt;
+            d.u[i] = uExt;
+        }
+        else
+        {
+            d.h[i] = hInt;
+            d.u[i] = uInt;
+        }
 
         d.vx[i] = 0.;
         d.vy[i] = 0.;
@@ -101,7 +110,8 @@ std::map<std::string, double> IsobaricCubeConstants()
             {"rhoExt", 1.},
             {"rhoInt", 8.},
             {"pIsobaric", 2.5}, // pIsobaric = (gamma − 1.) * rho * u
-            {"firstTimeStep", 1e-4}};
+            {"firstTimeStep", 1e-4},
+            {"epsilon", 1e-15}};
 }
 
 template<class Dataset>
@@ -141,6 +151,8 @@ public:
 
         // Count additional particles
         size_t nExtPart = 0;
+
+        T      epsilon  = constants_.at("epsilon");
         for (size_t i = 0; i < extCubeSide; i++)
         {
             T lz = initR + (i * stepExt);
@@ -153,7 +165,7 @@ public:
                 {
                     T lx = initR + (k * stepExt);
 
-                    if ((abs(lx) - r > 1.e-15) || (abs(ly) - r > 1.e-15) || (abs(lz) - r > 1.e-15)) { nExtPart++; }
+                    if ((abs(lx) - r > epsilon) || (abs(ly) - r > epsilon) || (abs(lz) - r > epsilon)) { nExtPart++; }
                 }
             }
         }
@@ -173,7 +185,7 @@ public:
                 for (size_t k = 0; k < extCubeSide; k++)
                 {
                     T lx = initR + (k * stepExt);
-                    if ((abs(lx) - r > 1.e-15) || (abs(ly) - r > 1.e-15) || (abs(lz) - r > 1.e-15))
+                    if ((abs(lx) - r > epsilon) || (abs(ly) - r > epsilon) || (abs(lz) - r > epsilon))
                     {
                         d.x[idx] = lx;
                         d.y[idx] = ly;
@@ -188,6 +200,62 @@ public:
         initIsobaricCubeFields(d, constants_, massPart);
 
         return cstone::Box<T>(-(r + rDelta), r + rDelta, true);
+    }
+
+    const std::map<std::string, double>& constants() const override { return constants_; }
+};
+
+template<class Dataset>
+class IsobaricCubeGlass : public ISimInitializer<Dataset>
+{
+    std::string                   glassBlock;
+    std::map<std::string, double> constants_;
+
+public:
+    IsobaricCubeGlass(std::string initBlock)
+        : glassBlock(initBlock)
+    {
+        constants_ = IsobaricCubeConstants();
+    }
+
+    cstone::Box<typename Dataset::RealType> init(int rank, int numRanks, size_t cbrtNumPart, Dataset& d) const override
+    {
+        using KeyType = typename Dataset::KeyType;
+        using T       = typename Dataset::RealType;
+
+        std::vector<T> xBlock, yBlock, zBlock;
+        fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
+        size_t blockSize = xBlock.size();
+
+        size_t multiplicity  = std::rint(cbrtNumPart / std::cbrt(blockSize));
+        d.numParticlesGlobal = multiplicity * multiplicity * multiplicity * blockSize;
+
+        T r      = constants_.at("r");
+        T rDelta = constants_.at("rDelta");
+        cstone::Box<T> globalBox(-(r + rDelta), r + rDelta, true);
+
+        auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
+        assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
+
+        T ratioInt = 2.;
+
+        #pragma omp parallel for schedule(static)
+        for (size_t i = 0; i < d.x.size(); i++)
+        {
+            std::transform(d.x.begin(), d.x.end(), d.x.begin(), [ratioInt](T &c){ return c/ratioInt; });
+            std::transform(d.y.begin(), d.y.end(), d.y.begin(), [ratioInt](T &c){ return c/ratioInt; });
+            std::transform(d.z.begin(), d.z.end(), d.z.begin(), [ratioInt](T &c){ return c/ratioInt; });
+        }
+
+        resize(d, d.x.size());
+
+        T totalSide   = 2. * (r + rDelta);
+        T totalVolume = totalSide * totalSide * totalSide;
+        T massPart    = totalVolume / d.x.size();
+
+        initIsobaricCubeFields(d, constants_, massPart);
+
+        return globalBox;
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }
