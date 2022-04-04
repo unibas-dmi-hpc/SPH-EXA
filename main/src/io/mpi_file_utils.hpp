@@ -62,8 +62,6 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
     // output name
     const char* h5_fname = path.c_str();
     H5PartFile* h5_file  = nullptr;
-    int         numRanks;
-    MPI_Comm_size(d.comm, &numRanks);
 
 #ifdef H5PART_PARALLEL_IO
     if (std::filesystem::exists(h5_fname)) { h5_file = H5PartOpenFileParallel(h5_fname, H5PART_APPEND, d.comm); }
@@ -72,6 +70,8 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
         h5_file = H5PartOpenFileParallel(h5_fname, H5PART_WRITE, d.comm);
     }
 #else
+    int numRanks;
+    MPI_Comm_size(d.comm, &numRanks);
     if (numRanks > 1)
     {
         throw std::runtime_error("Cannot write HDF5 output with multiple ranks without parallel HDF5 support\n");
