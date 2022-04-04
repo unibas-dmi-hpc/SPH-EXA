@@ -2,6 +2,7 @@
 
 #include <tuple>
 #include <omp.h>
+#include <version.h>
 
 namespace sphexa
 {
@@ -16,6 +17,7 @@ auto initMpi()
     if (rank == 0)
     {
         int mpi_version, mpi_subversion;
+        printf("# SPHEXA: %s/%s\n", GIT_BRANCH, GIT_COMMIT_HASH);
         MPI_Get_version(&mpi_version, &mpi_subversion);
 #ifdef _OPENMP
         printf("# %d MPI-%d.%d process(es) with %d OpenMP-%u thread(s)/process\n",
