@@ -18,7 +18,6 @@ option(SPH_EXA_WITH_HIP "Build SPH-EXA with HIP" OFF)
 if (BUILD_TESTING)
     include(setup_GTest)
 endif()
-## include(setup_gitinfo)
 
 if (SPH_EXA_WITH_HIP)
     cmake_minimum_required(VERSION 3.21)
