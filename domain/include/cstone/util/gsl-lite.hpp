@@ -3562,7 +3562,7 @@ public:
     template< class Container
         gsl_ENABLE_IF_(( detail::is_compatible_container< Container, element_type >::value ))
     >
-    gsl_api gsl_constexpr span( Container & cont ) gsl_noexcept
+    gsl_constexpr span( Container & cont ) gsl_noexcept
         : first_( std17::data( cont ) )
         , last_ ( std17::data( cont ) + std17::size( cont ) )
     {}
@@ -3573,7 +3573,7 @@ public:
             && detail::is_compatible_container< Container, element_type >::value
         ))
     >
-    gsl_api gsl_constexpr span( Container const & cont ) gsl_noexcept
+    gsl_constexpr span( Container const & cont ) gsl_noexcept
         : first_( std17::data( cont ) )
         , last_ ( std17::data( cont ) + std17::size( cont ) )
     {}
