@@ -75,8 +75,6 @@ void initIsobaricCubeFields(Dataset& d, const std::map<std::string, double>& con
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
     d.minDt = firstTimeStep;
 
-
-
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
@@ -153,7 +151,7 @@ public:
         // Count additional particles
         size_t nExtPart = 0;
 
-        T      epsilon  = constants_.at("epsilon");
+        T epsilon = constants_.at("epsilon");
         for (size_t i = 0; i < extCubeSide; i++)
         {
             T lz = initR + (i * stepExt);
@@ -238,9 +236,12 @@ public:
         T ratioInt = .5;
         for (size_t i = 0; i < blockSizeInt; i++)
         {
-            std::transform(xBlockInt.begin(), xBlockInt.end(), xBlockInt.begin(), [ratioInt](T &c){ return ratioInt * c; });
-            std::transform(yBlockInt.begin(), yBlockInt.end(), yBlockInt.begin(), [ratioInt](T &c){ return ratioInt * c; });
-            std::transform(zBlockInt.begin(), zBlockInt.end(), zBlockInt.begin(), [ratioInt](T &c){ return ratioInt * c; });
+            std::transform(
+                xBlockInt.begin(), xBlockInt.end(), xBlockInt.begin(), [ratioInt](T& c) { return ratioInt * c; });
+            std::transform(
+                yBlockInt.begin(), yBlockInt.end(), yBlockInt.begin(), [ratioInt](T& c) { return ratioInt * c; });
+            std::transform(
+                zBlockInt.begin(), zBlockInt.end(), zBlockInt.begin(), [ratioInt](T& c) { return ratioInt * c; });
         }
 
         // Layer position between internal and external glass cube [0,1]
@@ -253,9 +254,10 @@ public:
         typename std::vector<T>::iterator xIt = xBlockExt.begin();
         typename std::vector<T>::iterator yIt = yBlockExt.begin();
         typename std::vector<T>::iterator zIt = zBlockExt.begin();
-        while(xIt != xBlockExt.end()) {
+        while (xIt != xBlockExt.end())
+        {
 
-            if( (*xIt >= r1 && *xIt <= r2) && (*yIt >= r1 && *yIt <= r2) && (*zIt >= r2 && *zIt <= r2) )
+            if ((*xIt >= r1 && *xIt <= r2) && (*yIt >= r1 && *yIt <= r2) && (*zIt >= r2 && *zIt <= r2))
             {
 
                 xIt = xBlockExt.erase(xIt);
@@ -293,13 +295,12 @@ public:
         zBlock.insert(zBlock.end(), zBlockInt.begin(), zBlockInt.end());
         zBlock.insert(zBlock.end(), zBlockExt.begin(), zBlockExt.end());
 
-
         // Make Box and resize domine
         size_t multiplicity  = std::rint(cbrtNumPart / std::cbrt(blockSize));
         d.numParticlesGlobal = multiplicity * multiplicity * multiplicity * blockSize;
 
-        T r      = constants_.at("r");
-        T rDelta = constants_.at("rDelta");
+        T              r      = constants_.at("r");
+        T              rDelta = constants_.at("rDelta");
         cstone::Box<T> globalBox(-(r + rDelta), r + rDelta, true);
 
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
