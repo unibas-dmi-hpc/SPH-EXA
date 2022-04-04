@@ -25,18 +25,19 @@
 
 /*! @file
  * @brief output and calculate energies and growth rate for Kelvin-Helmholtz tests
+ *        This calculation for the growth rate was taken from McNally et al. ApJSS, 201 (2012)
  *
  * @author Lukas Schmidt
  */
 
-#include "file_utils.hpp"
 #include "iobservables.hpp"
-#include "sph/math.hpp" //??
-#include <fstream>
-#include "ifile_writer.hpp"
+#include "sph/math.hpp"
+#include <mpi.h>
+#include "io/ifile_writer.hpp"
 
 
 namespace sphexa {
+
 
 template<typename T, class Dataset>
 void localGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, T* sumsi, T* sumci, T* sumdi, const cstone::Box<T>& box)
@@ -49,7 +50,6 @@ void localGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, T* sumsi, T
     const T* m =    d.m.data();
     const T* kx =   d.kx.data();
     const T ybox =  box.ly();
-    //const T PI =    3.14159265358979323846;
 
     T sumsiThread = 0.0, sumciThread = 0.0, sumdiThread = 0.0;
 #pragma omp parallel for reduction(+ : sumsiThread, sumciThread, sumdiThread)
@@ -82,7 +82,16 @@ void localGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, T* sumsi, T
     *sumdi = sumdiThread;
 }
 
-
+/*! @brief global calculation of the growth rate
+*
+* @tparam        T            double or float
+* @tparam        Dataset
+* @tparam        Box
+* @param[in]     startIndex   first locally assigned particle index of buffers in @p d
+* @param[in]     endIndex     last locally assigned particle index of buffers in @p d
+* @param[in]     d            particle data set
+* @param[in]     box          bounding box 
+*/
 template<typename T, class Dataset>
 T computeKHGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
@@ -90,16 +99,14 @@ T computeKHGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, const csto
     localGrowthRate(startIndex, endIndex, d, sum + 0, sum + 1, sum + 2, box);
 
     int rootRank = 0;
-#ifdef USE_MPI
     MPI_Reduce(sum, globalSum, 3, MpiType<T>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
-#endif
     return 2.e0 * std::sqrt((globalSum[0]/globalSum[2])*(globalSum[0]/globalSum[2]) + (globalSum[1]/globalSum[2])*(globalSum[1]/globalSum[2]));
     ;
 }
 
 
 
-
+//! @brief Observables that includes times, energies and Kelvin-Helmholtz growth rate
 template<class Dataset>
 class TimeEnergyGrowth : public IObservables<Dataset>
 {
@@ -109,13 +116,21 @@ public:
 
     TimeEnergyGrowth(std::ofstream& constPath) : constantsFile(constPath){}
 
-    using T = typename Dataset::RealType; 
+    using T = typename Dataset::RealType;
+    
+
     void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex,
                     cstone::Box<T>& box)
     {
         T khgr = computeKHGrowthRate<T>(firstIndex, lastIndex, d, box);
-        printf("KH Growth Rate this iteration: %f\n", khgr);
-        fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, khgr);
+
+        int rank;
+        MPI_Comm_rank(d.comm, &rank);
+
+        if(rank == 0) 
+        {
+            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav, khgr);
+        }
     }
     
 };

@@ -31,13 +31,12 @@
 
 #pragma once
 
-#include <memory>
-#include <string>
 
 #include "cstone/sfc/box.hpp"
 #include "iobservables.hpp"
 #include "time_energy_growth.hpp"
 #include "time_energies.hpp"
+
 
 namespace sphexa
 {
@@ -45,13 +44,42 @@ namespace sphexa
 template<class Dataset>
 std::unique_ptr<IObservables<Dataset>> observablesFactory(std::string testCase, std::ofstream& constantsFile)
 {
-    if (testCase == "IC_kelvin-helmholtz.h5")
+    //observables to check
+    const char* KelvinHelmholtz = "KelvinHelmholtzGrowthRate";
+    int khgrAttr[1] = {0};
+
+    if(std::filesystem::exists(testCase))
+    {
+        H5PartFile* h5_file = nullptr;
+        h5_file = H5PartOpenFile(testCase.c_str(), H5PART_READ);
+        size_t attrN = H5PartGetNumFileAttribs(h5_file);
+        char* attrName = new char; 
+        long int length = 40; //arbitrary high value to read enough
+        long int* attr_type;
+        long int* attr_nelem;
+
+        
+
+        for(size_t i = 0; i < attrN; i++)
+        {
+            H5PartGetFileAttribInfo(h5_file, i, attrName, length, attr_type, attr_nelem);
+            if(strcmp(attrName, KelvinHelmholtz) == 0)
+            {
+                H5PartReadFileAttrib(h5_file, attrName, khgrAttr);
+            }
+            
+        
+        }
+        H5PartCloseFile(h5_file);
+
+    }
+
+    if (khgrAttr[0])
     {
         return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile);
     }
     else
     {
-       
        return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);
     }
 }

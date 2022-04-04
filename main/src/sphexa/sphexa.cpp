@@ -12,7 +12,7 @@
 #include "cstone/domain/domain.hpp"
 #include "sph/propagator.hpp"
 #include "init/factory.hpp"
-#include "io/factory.hpp"
+#include "observables/factory.hpp"
 #include "io/arg_parser.hpp"
 #include "io/ifile_writer.hpp"
 #include "util/timer.hpp"
@@ -123,10 +123,7 @@ int main(int argc, char** argv)
     {
         propagator->step(domain, d);
 
-        if (rank == 0)
-        {
-            observables -> computeAndWrite(d, domain.startIndex(), domain.endIndex(), box);
-        }
+        observables -> computeAndWrite(d, domain.startIndex(), domain.endIndex(), box);
 
         if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
         {
