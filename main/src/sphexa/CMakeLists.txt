@@ -7,7 +7,6 @@ function(enableH5Part exename)
     endif()
 endfunction()
 
-# xxx GIT xxx
 set(exename sphexa)
 add_executable(${exename} sphexa.cpp)
 target_include_directories(${exename} PRIVATE ${SPH_EXA_INCLUDE_DIRS})
