@@ -66,7 +66,7 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
     }
     if (testCase == "isobaric-cube")
     {
-        if (glassBlock.empty()) { return std::make_unique<IsobaricCubeGrid<Dataset>>();return std::make_unique<IsobaricCubeGrid<Dataset>>(); }
+        if (glassBlock.empty()) { return std::make_unique<IsobaricCubeGrid<Dataset>>(); }
         else
         {
             return std::make_unique<IsobaricCubeGlass<Dataset>>(glassBlock);
