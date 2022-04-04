@@ -110,7 +110,7 @@ std::map<std::string, double> IsobaricCubeConstants()
             {"pIsobaric", 2.5}, // pIsobaric = (gamma − 1.) * rho * u
             {"firstTimeStep", 1e-4},
             {"epsilon", 1e-15},
-            {"pairInstability", 1e-6}};
+            {"pairInstability", 0.}}; //1e-6}};
 }
 
 template<class Dataset>
@@ -224,12 +224,14 @@ public:
 
         T r               = constants_.at("r");
         T rDelta          = constants_.at("rDelta");
+        T rhoInt          = constants_.at("rhoInt");
         T pairInstability = constants_.at("pairInstability");
         T rLimit          = r + pairInstability;
 
         // Load glass for internal glass cube [0, 1]
         std::vector<T> xBlock, yBlock, zBlock;
         fileutils::readTemplateBlock(glassBlock, xBlock, yBlock, zBlock);
+        size_t nPartInternalCube = xBlock.size();
 
         // Copy glass for external cube
         std::vector<T> xBlockExt = xBlock;
@@ -275,10 +277,10 @@ public:
         assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
         resize(d, d.x.size());
 
-        // Calculate mass particle
-        T totalSide   = 2. * (r + rDelta);
+        // Calculate mass particle with the internal cube
+        T totalSide   = 2. * r;
         T totalVolume = totalSide * totalSide * totalSide;
-        T massPart    = totalVolume / d.x.size();
+        T massPart    = totalVolume * rhoInt / nPartInternalCube;
 
         // Initialize Isobaric cube domine variables
         initIsobaricCubeFields(d, constants_, massPart);
