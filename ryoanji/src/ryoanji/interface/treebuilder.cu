@@ -64,7 +64,7 @@ __global__ void convertTree(cstone::OctreeGpuDataView<KeyType> cstoneTree, const
         }
         else
         {
-            cstone::TreeNodeIndex leafIndex = cstoneTree.nodeOrder[tid] - cstoneTree.numInternalNodes;
+            cstone::TreeNodeIndex leafIndex = cstoneTree.nodeOrder[tid];
             assert(leafIndex >= 0);
             firstParticle = layout[leafIndex];
             lastParticle  = layout[leafIndex + 1];
@@ -105,6 +105,11 @@ public:
         return thrust::raw_pointer_cast(octreeGpuData_.inverseNodeOrder.data() + octreeGpuData_.numInternalNodes);
     }
 
+    const TreeNodeIndex* internalToLeaf() const
+    {
+        return thrust::raw_pointer_cast(octreeGpuData_.nodeOrder.data());
+    }
+
     TreeNodeIndex numLeafNodes() const
     {
         return octreeGpuData_.numLeafNodes;
@@ -134,6 +139,16 @@ TreeBuilder<KeyType>::Impl::Impl(unsigned ncrit)
     : bucketSize_(ncrit)
 {
 }
+
+struct Minus
+{
+    TreeNodeIndex shift;
+    Minus(TreeNodeIndex s)
+        : shift(s)
+    {
+    }
+    __host__ __device__ TreeNodeIndex operator()(TreeNodeIndex i) { return i - shift; }
+};
 
 template<class KeyType>
 template<class T>
@@ -175,6 +190,11 @@ cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(T* x, T* y, T* z, size_
 
     octreeGpuData_.resize(cstone::nNodes(d_tree_));
     cstone::buildInternalOctreeGpu(thrust::raw_pointer_cast(d_tree_.data()), octreeGpuData_.getData());
+
+    thrust::transform(octreeGpuData_.nodeOrder.begin(),
+                      octreeGpuData_.nodeOrder.end(),
+                      octreeGpuData_.nodeOrder.begin(),
+                      Minus(octreeGpuData_.numInternalNodes));
 
     return octreeGpuData_.numInternalNodes + octreeGpuData_.numLeafNodes;
 }
@@ -258,6 +278,12 @@ template<class KeyType>
 const TreeNodeIndex* TreeBuilder<KeyType>::leafToInternal() const
 {
     return impl_->leafToInternal();
+}
+
+template<class KeyType>
+const TreeNodeIndex* TreeBuilder<KeyType>::internalToLeaf() const
+{
+    return impl_->internalToLeaf();
 }
 
 template<class KeyType>

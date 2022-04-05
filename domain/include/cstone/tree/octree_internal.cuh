@@ -163,7 +163,7 @@ __global__ void invertOrder(const TreeNodeIndex* order, TreeNodeIndex* inverseOr
  * @tparam       KeyType     unsigned 32- or 64-bit integer
  * @param[in]    cstoneTree  GPU buffer with the SFC leaf cell keys
  * @param[inout] d           input:  pointers to pre-allocated GPU buffers for octree cells
- *                           ouptut: fully linked octree
+ *                           output: fully linked octree
  *
  * This does not allocate memory on the GPU, (except thrust temp buffers for scans and sorting)
  */

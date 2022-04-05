@@ -75,6 +75,7 @@ public:
     const LocalIndex* layout() const;
     const TreeNodeIndex* childOffsets() const;
     const TreeNodeIndex* leafToInternal() const;
+    const TreeNodeIndex* internalToLeaf() const;
 
     TreeNodeIndex numLeafNodes() const;
     unsigned      maxTreeLevel() const;
