@@ -110,7 +110,7 @@ std::map<std::string, double> IsobaricCubeConstants()
             {"pIsobaric", 2.5}, // pIsobaric = (gamma − 1.) * rho * u
             {"firstTimeStep", 1e-4},
             {"epsilon", 1e-15},
-            {"pairInstability", 0.}}; //1e-6}};
+            {"pairInstability", 0.}}; // 1e-6}};
 }
 
 template<class Dataset>
@@ -222,11 +222,11 @@ public:
         using KeyType = typename Dataset::KeyType;
         using T       = typename Dataset::RealType;
 
-        T r               = constants_.at("r");
-        T rDelta          = constants_.at("rDelta");
-        T rhoInt          = constants_.at("rhoInt");
-        T pairInstability = constants_.at("pairInstability");
-        T rLimit          = r + pairInstability;
+        T r       = constants_.at("r");
+        T rDelta  = constants_.at("rDelta");
+        T rhoInt  = constants_.at("rhoInt");
+        T rhoExt  = constants_.at("rhoExt");
+        T epsilon = constants_.at("pairInstability");
 
         // Load glass for internal glass cube [0, 1]
         std::vector<T> xBlock, yBlock, zBlock;
@@ -238,33 +238,36 @@ public:
         std::vector<T> yBlockExt = yBlock;
         std::vector<T> zBlockExt = zBlock;
 
-        // Reduce by half the coordinates in the internal cube -> Density ratio 1 to 8, if the cubes have same #parts
-        T ratioInt = .5;
-        std::transform(xBlock.begin(), xBlock.end(), xBlock.begin(), [ratioInt](T& c) { return ratioInt * c; });
-        std::transform(yBlock.begin(), yBlock.end(), yBlock.begin(), [ratioInt](T& c) { return ratioInt * c; });
-        std::transform(zBlock.begin(), zBlock.end(), zBlock.begin(), [ratioInt](T& c) { return ratioInt * c; });
+        // Reduce the coordinates in the internal cube by the density ratio
+        T ratio = 1. / std::pow(rhoInt / rhoExt, 1. / 3.);
+        std::for_each(xBlock.begin(), xBlock.end(), [ratio](T& c) { c *= ratio; });
+        std::for_each(yBlock.begin(), yBlock.end(), [ratio](T& c) { c *= ratio; });
+        std::for_each(zBlock.begin(), zBlock.end(), [ratio](T& c) { c *= ratio; });
 
         // Add particles of the external cube that are not in the internal cube space
-        typename std::vector<T>::iterator xIt = xBlockExt.begin();
-        typename std::vector<T>::iterator yIt = yBlockExt.begin();
-        typename std::vector<T>::iterator zIt = zBlockExt.begin();
-        while (xIt != xBlockExt.end())
+        for (size_t i = 0; i < nPartInternalCube; i++)
         {
-            if ((abs(*xIt) > rLimit) || (abs(*yIt) > rLimit) || (abs(*zIt) > rLimit))
+            T lx = xBlockExt[i];
+            T ly = yBlockExt[i];
+            T lz = zBlockExt[i];
+
+            if ((abs(lx) - r > epsilon) || (abs(ly) - r > epsilon) || (abs(lz) - r > epsilon))
             {
-                xBlock.push_back(*xIt);
-                yBlock.push_back(*yIt);
-                zBlock.push_back(*zIt);
+                xBlock.push_back(lx);
+                yBlock.push_back(ly);
+                zBlock.push_back(lz);
             }
-            ++xIt;
-            ++yIt;
-            ++zIt;
         }
 
+        // Calculate mass particle with the internal cube
+        T totalSide   = 2. * r;
+        T totalVolume = totalSide * totalSide * totalSide;
+        T massPart    = totalVolume * rhoInt / nPartInternalCube;
+
         // Move everything to the positive quadrant [0,1] for the assembleCube(...) function
-        std::for_each(xBlock.begin(), xBlock.end(), [](T& c) { c += .5; });
-        std::for_each(yBlock.begin(), yBlock.end(), [](T& c) { c += .5; });
-        std::for_each(zBlock.begin(), zBlock.end(), [](T& c) { c += .5; });
+        std::for_each(xBlock.begin(), xBlock.end(), [totalSide](T& c) { c += totalSide; });
+        std::for_each(yBlock.begin(), yBlock.end(), [totalSide](T& c) { c += totalSide; });
+        std::for_each(zBlock.begin(), zBlock.end(), [totalSide](T& c) { c += totalSide; });
 
         // Make Box and resize domine
         size_t blockSize     = xBlock.size();
@@ -276,11 +279,6 @@ public:
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
         assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
         resize(d, d.x.size());
-
-        // Calculate mass particle with the internal cube
-        T totalSide   = 2. * r;
-        T totalVolume = totalSide * totalSide * totalSide;
-        T massPart    = totalVolume * rhoInt / nPartInternalCube;
 
         // Initialize Isobaric cube domine variables
         initIsobaricCubeFields(d, constants_, massPart);
