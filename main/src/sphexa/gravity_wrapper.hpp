@@ -97,9 +97,12 @@ private:
     std::vector<MType> multipoles_;
 };
 
-template<class MType, class KeyType, class Tc, class Tm, class Tf>
+template<class, class KeyType, class Tc, class Tm, class Tf>
 class MultipoleHolderGpu
 {
+    // Cartesian not yet supported
+    using MType = ryoanji::SphericalMultipole<Tc, 4>;
+
 public:
     MultipoleHolderGpu() = default;
 
@@ -113,7 +116,7 @@ public:
 
         reallocate(multipoles_, octree.numTreeNodes(), 1.05);
 
-        mHolder_.compute(d.devPtrs.d_x,
+        mHolder_.upsweep(d.devPtrs.d_x,
                          d.devPtrs.d_y,
                          d.devPtrs.d_z,
                          d.devPtrs.d_m,
@@ -126,26 +129,17 @@ public:
     template<class Dataset, class Domain>
     void traverse(Dataset& d, const Domain& domain)
     {
-        //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
-        const auto& focusTree = domain.focusTree();
-        //! the focused octree, structure only
-        const cstone::Octree<KeyType>& octree = focusTree.octree();
-
-        d.egrav = ryoanji::computeGravity(octree,
-                                          focusTree.expansionCenters().data(),
-                                          multipoles_.data(),
-                                          domain.layout().data(),
-                                          domain.startCell(),
-                                          domain.endCell(),
-                                          d.x.data(),
-                                          d.y.data(),
-                                          d.z.data(),
-                                          d.h.data(),
-                                          d.m.data(),
-                                          d.g,
-                                          d.grad_P_x.data(),
-                                          d.grad_P_y.data(),
-                                          d.grad_P_z.data());
+        d.egrav = mHolder_.compute(domain.startIndex(),
+                                   domain.endIndex(),
+                                   d.devPtrs.d_x,
+                                   d.devPtrs.d_y,
+                                   d.devPtrs.d_z,
+                                   d.devPtrs.d_m,
+                                   d.devPtrs.d_h,
+                                   d.g,
+                                   d.devPtrs.d_grad_P_x,
+                                   d.devPtrs.d_grad_P_y,
+                                   d.devPtrs.d_grad_P_z);
     }
 
     const MType* multipoles() const { return multipoles_.data(); }

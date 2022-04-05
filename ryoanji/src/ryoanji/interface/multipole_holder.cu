@@ -36,6 +36,7 @@
 #include "ryoanji/nbody/gpu_config.h"
 #include "ryoanji/nbody/upwardpass.cuh"
 #include "ryoanji/nbody/upsweep_cpu.hpp"
+#include "ryoanji/nbody/traversal.cuh"
 
 namespace ryoanji
 {
@@ -52,7 +53,7 @@ class MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::Impl
 public:
     Impl() {}
 
-    void compute(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const cstone::Octree<KeyType>& globalOctree,
+    void upsweep(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const cstone::Octree<KeyType>& globalOctree,
                  const cstone::FocusedOctree<KeyType, Tf>& focusTree, const cstone::LocalIndex* layout,
                  MType* multipoles)
     {
@@ -128,6 +129,47 @@ public:
         memcpy(multipoles, rawPtr(multipoles_.data()), multipoles_.size(), cudaMemcpyDeviceToHost);
     }
 
+    float compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
+                  const Tm* h, Tc G, Tc* ax, Tc* ay, Tc* az)
+    {
+        resetTraversalCounters<<<1, 1>>>();
+
+        constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
+
+        LocalIndex numBodies = lastBody - firstBody;
+
+        // each target gets a warp (numWarps == numTargets)
+        int numWarps  = (numBodies - 1) / TravConfig::targetSize + 1;
+        int numBlocks = (numWarps - 1) / numWarpsPerBlock + 1;
+        numBlocks     = std::min(numBlocks, TravConfig::maxNumActiveBlocks);
+
+        LocalIndex poolSize = TravConfig::memPerWarp * numWarpsPerBlock * numBlocks;
+
+        reallocate(globalPool_, poolSize, 1.05);
+        traverse<<<numBlocks, TravConfig::numThreads>>>(firstBody,
+                                                        lastBody,
+                                                        {1, 9},
+                                                        x,
+                                                        y,
+                                                        z,
+                                                        m,
+                                                        h,
+                                                        (CellData*)(NULL),
+                                                        rawPtr(centers_.data()),
+                                                        rawPtr(multipoles_.data()),
+                                                        G,
+                                                        nullptr,
+                                                        ax,
+                                                        ay,
+                                                        az,
+                                                        rawPtr(globalPool_.data()));
+
+        float totalPotential;
+        checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
+
+        return totalPotential;
+    }
+
 private:
     void resize(size_t numLeaves)
     {
@@ -150,6 +192,8 @@ private:
 
     thrust::device_vector<Vec4<Tf>> centers_;
     thrust::device_vector<MType>    multipoles_;
+
+    thrust::device_vector<int> globalPool_;
 };
 
 template<class Tc, class Tm, class Tf, class KeyType, class MType>
@@ -161,12 +205,20 @@ template<class Tc, class Tm, class Tf, class KeyType, class MType>
 MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::~MultipoleHolder() = default;
 
 template<class Tc, class Tm, class Tf, class KeyType, class MType>
-void MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::compute(const Tc* x, const Tc* y, const Tc* z, const Tm* m,
+void MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::upsweep(const Tc* x, const Tc* y, const Tc* z, const Tm* m,
                                                           const cstone::Octree<KeyType>&            globalTree,
                                                           const cstone::FocusedOctree<KeyType, Tf>& focusTree,
                                                           const LocalIndex* layout, MType* multipoles)
 {
-    impl_->compute(x, y, z, m, globalTree, focusTree, layout, multipoles);
+    impl_->upsweep(x, y, z, m, globalTree, focusTree, layout, multipoles);
+}
+
+template<class Tc, class Tm, class Tf, class KeyType, class MType>
+float MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x,
+                                                           const Tc* y, const Tc* z, const Tm* m, const Tm* h, Tc G,
+                                                           Tc* ax, Tc* ay, Tc* az)
+{
+    return impl_->compute(firstBody, lastBody, x, y, z, m, h, G, ax, ay, az);
 }
 
 template class MultipoleHolder<double, double, double, uint64_t, SphericalMultipole<double, 4>>;
@@ -178,13 +230,14 @@ template class MultipoleHolder<double, float, double, uint32_t, SphericalMultipo
 template class MultipoleHolder<double, float, double, uint32_t, SphericalMultipole<float, 4>>;
 template class MultipoleHolder<float, float, float, uint32_t, SphericalMultipole<float, 4>>;
 
-template class MultipoleHolder<double, double, double, uint64_t, CartesianQuadrupole<double>>;
-template class MultipoleHolder<double, float, double, uint64_t, CartesianQuadrupole<double>>;
-template class MultipoleHolder<double, float, double, uint64_t, CartesianQuadrupole<float>>;
-template class MultipoleHolder<float, float, float, uint64_t, CartesianQuadrupole<float>>;
-template class MultipoleHolder<double, double, double, uint32_t, CartesianQuadrupole<double>>;
-template class MultipoleHolder<double, float, double, uint32_t, CartesianQuadrupole<double>>;
-template class MultipoleHolder<double, float, double, uint32_t, CartesianQuadrupole<float>>;
-template class MultipoleHolder<float, float, float, uint32_t, CartesianQuadrupole<float>>;
+// missing M2P wrapper for Cartesian multipoles
+// template class MultipoleHolder<double, double, double, uint64_t, CartesianQuadrupole<double>>;
+// template class MultipoleHolder<double, float, double, uint64_t, CartesianQuadrupole<double>>;
+// template class MultipoleHolder<double, float, double, uint64_t, CartesianQuadrupole<float>>;
+// template class MultipoleHolder<float, float, float, uint64_t, CartesianQuadrupole<float>>;
+// template class MultipoleHolder<double, double, double, uint32_t, CartesianQuadrupole<double>>;
+// template class MultipoleHolder<double, float, double, uint32_t, CartesianQuadrupole<double>>;
+// template class MultipoleHolder<double, float, double, uint32_t, CartesianQuadrupole<float>>;
+// template class MultipoleHolder<float, float, float, uint32_t, CartesianQuadrupole<float>>;
 
 } // namespace ryoanji

@@ -509,20 +509,20 @@ HOST_DEVICE_FUN DEVICE_INLINE void M2M(int begin, int end, const Vec4<T>& Xout, 
  * @param h_j
  * @return        input acceleration plus contribution from this call
  */
-template<class Ta, class T>
-HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> P2P(Vec4<Ta> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, T m_j, T h_i,
-                                           T h_j)
+template<class Ta, class Tc, class Tm>
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> P2P(Vec4<Ta> acc, const Vec3<Tc>& pos_i, const Vec3<Tc>& pos_j, Tm m_j, Tm h_i,
+                                           Tm h_j)
 {
-    Vec3<T> dX = pos_j - pos_i;
-    T       R2 = norm2(dX);
+    Vec3<Tc> dX = pos_j - pos_i;
+    Tc       R2 = norm2(dX);
 
-    T h_ij  = h_i + h_j;
-    T h_ij2 = h_ij * h_ij;
-    T R2eff = (R2 < h_ij2) ? h_ij2 : R2;
+    Tc h_ij  = h_i + h_j;
+    Tc h_ij2 = h_ij * h_ij;
+    Tc R2eff = (R2 < h_ij2) ? h_ij2 : R2;
 
-    T invR   = inverseSquareRoot(R2eff);
-    T invR2  = invR * invR;
-    T invR3m = m_j * invR * invR2;
+    Tc invR   = inverseSquareRoot(R2eff);
+    Tc invR2  = invR * invR;
+    Tc invR3m = m_j * invR * invR2;
 
     acc[0] -= invR3m * R2;
     acc[1] += dX[0] * invR3m;
@@ -541,22 +541,22 @@ HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> P2P(Vec4<Ta> acc, const Vec3<T>& pos_i, c
  * @param EPS2    plummer softening parameter
  * @return        input acceleration plus contribution from this call
  */
-template<class T, class MType>
-HOST_DEVICE_FUN DEVICE_INLINE Vec4<T> M2P(Vec4<T> acc, const Vec3<T>& pos_i, const Vec3<T>& pos_j, MType& M)
+template<class Ta, class Tc, class MType>
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> M2P(Vec4<Ta> acc, const Vec3<Tc>& pos_i, const Vec3<Tc>& pos_j, MType& M)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};
 
-    Vec3<T> dX    = pos_i - pos_j;
-    T       R2    = norm2(dX);
-    T       invR  = inverseSquareRoot(R2);
-    T       invR2 = invR * invR;
+    Vec3<Tc> dX    = pos_i - pos_j;
+    Tc       R2    = norm2(dX);
+    Tc       invR  = inverseSquareRoot(R2);
+    Tc       invR2 = invR * invR;
 
-    T invRN[P];
+    Tc invRN[P];
     invRN[0] = M[0] * invR;
     DerivativeTerm<P - 1>::invR(invRN, invR2);
 
-    T M0 = M[0];
-    M[0] = 1;
+    auto M0 = M[0];
+    M[0]    = 1;
     Kernels<0, 0, P - 1>::M2P(acc, invRN, dX, M);
     M[0] = M0;
 

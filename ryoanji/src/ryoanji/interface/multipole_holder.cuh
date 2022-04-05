@@ -47,9 +47,12 @@ public:
 
     ~MultipoleHolder();
 
-    void compute(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const cstone::Octree<KeyType>& globalOctree,
+    void upsweep(const Tc* x, const Tc* y, const Tc* z, const Tm* m, const cstone::Octree<KeyType>& globalOctree,
                  const cstone::FocusedOctree<KeyType, Tf>& focusTree, const cstone::LocalIndex* layout,
                  MType* multipoles);
+
+    float compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
+                  const Tm* h, Tc G, Tc* ax, Tc* ay, Tc* az);
 
 private:
     class Impl;

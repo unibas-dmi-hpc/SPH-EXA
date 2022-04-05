@@ -45,7 +45,7 @@ using namespace ryoanji;
 template<class T, class KeyType>
 static int multipoleHolderTest(int thisRank, int numRanks)
 {
-    using MultipoleType              = CartesianQuadrupole<T>;
+    using MultipoleType              = SphericalMultipole<T, 4>;
     const LocalIndex numParticles    = 1000;
     unsigned         bucketSize      = 64;
     unsigned         bucketSizeLocal = 16;
@@ -88,7 +88,7 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCenters();
 
     std::vector<MultipoleType> multipoles(octree.numTreeNodes());
-    multipoleHolder.compute(thrust::raw_pointer_cast(d_x.data()),
+    multipoleHolder.upsweep(thrust::raw_pointer_cast(d_x.data()),
                             thrust::raw_pointer_cast(d_y.data()),
                             thrust::raw_pointer_cast(d_z.data()),
                             thrust::raw_pointer_cast(d_m.data()),
