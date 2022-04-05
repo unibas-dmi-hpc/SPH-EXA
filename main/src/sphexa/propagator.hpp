@@ -35,12 +35,11 @@
 #include <iostream>
 
 #include "cstone/domain/domain.hpp"
-#include "ryoanji/nbody/traversal_cpu.hpp"
-#include "ryoanji/nbody/upsweep_cpu.hpp"
-#include "ryoanji/interface/global_multipole.hpp"
 #include "sph/sph.hpp"
-
+#include "sph/traits.hpp"
 #include "util/timer.hpp"
+
+#include "gravity_wrapper.hpp"
 
 namespace sphexa
 {
@@ -263,6 +262,16 @@ class HydroGravProp final : public Propagator<DomainType, ParticleDataType>
     using Base::ngmax_;
     using Base::timer;
 
+    using T             = typename ParticleDataType::RealType;
+    using KeyType       = typename ParticleDataType::KeyType;
+    using MultipoleType = ryoanji::CartesianQuadrupole<T>;
+
+    using Acc = typename ParticleDataType::AcceleratorType;
+    using MHolder_t =
+        typename detail::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<MultipoleType,
+                                                                                                     KeyType, T, T, T>;
+    MHolder_t mHolder_;
+
 public:
     HydroGravProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
         : Base(ngmax, ng0, output, rank)
@@ -271,10 +280,6 @@ public:
 
     void step(DomainType& domain, ParticleDataType& d) override
     {
-        using T             = typename ParticleDataType::RealType;
-        using KeyType       = typename ParticleDataType::KeyType;
-        using MultipoleType = ryoanji::CartesianQuadrupole<T>;
-
         timer.start();
         domain.syncGrav(
             d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
@@ -309,20 +314,11 @@ public:
         //! the focused octree, structure only
         const cstone::Octree<KeyType>& octree = focusTree.octree();
 
-        std::vector<MultipoleType> multipoles(octree.numTreeNodes());
-        ryoanji::computeGlobalMultipoles(d.x.data(),
-                                         d.y.data(),
-                                         d.z.data(),
-                                         d.m.data(),
-                                         d.x.size(),
-                                         domain.globalTree(),
-                                         domain.focusTree(),
-                                         domain.layout().data(),
-                                         multipoles.data());
+        mHolder_.upsweep(d, domain);
 
         d.egrav = ryoanji::computeGravity(octree,
                                           focusTree.expansionCenters().data(),
-                                          multipoles.data(),
+                                          mHolder_.multipoles(),
                                           domain.layout().data(),
                                           domain.startCell(),
                                           domain.endCell(),
