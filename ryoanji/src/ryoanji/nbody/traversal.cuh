@@ -175,11 +175,12 @@ __device__ void directAcc(Vec4<Tc> sourceBody, Tm hSource, Vec4<Ta> acc_i[TravCo
  */
 template<class Tc, class Tm, class Tf, class MType>
 __device__ util::tuple<unsigned, unsigned>
-traverseWarp(Vec4<Tc>* acc_i, const Vec4<Tc> pos_i[TravConfig::nwt], const Vec3<Tf> targetCenter, const Vec3<Tf> targetSize,
-             const Tc* __restrict__ x, const Tc* __restrict__ y, const Tc* __restrict__ z, const Tm* __restrict__ m,
-             const Tm* __restrict__ h, const CellData* __restrict__ sourceCells,
-             const Vec4<Tf>* __restrict__ sourceCenter, const MType* __restrict__ Multipoles, int2 rootRange,
-             volatile int* tempQueue, int* cellQueue)
+           traverseWarp(Vec4<Tc>* acc_i, const Vec4<Tc> pos_i[TravConfig::nwt], const Vec3<Tf> targetCenter,
+                        const Vec3<Tf> targetSize, const Tc* __restrict__ x, const Tc* __restrict__ y, const Tc* __restrict__ z,
+                        const Tm* __restrict__ m, const Tm* __restrict__ h, const CellData* __restrict__ /*sourceCells*/,
+                        const TreeNodeIndex* __restrict__ childOffsets, const TreeNodeIndex* __restrict__ internalToLeaf,
+                        const LocalIndex* __restrict__ layout, const Vec4<Tf>* __restrict__ sourceCenter,
+                        const MType* __restrict__ Multipoles, int2 rootRange, volatile int* tempQueue, int* cellQueue)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
 
@@ -206,18 +207,18 @@ traverseWarp(Vec4<Tc>* acc_i, const Vec4<Tc> pos_i[TravConfig::nwt], const Vec3<
     while (numSources > 0) // While there are source cells to traverse
     {
         const int      sourceIdx   = sourceOffset + laneIdx;                      // Source cell index of current lane
-        int            sourceQueue = cellQueue[ringAddr(oldSources + sourceIdx)]; // Global source cell index in queue
+        const int      curSource   = cellQueue[ringAddr(oldSources + sourceIdx)];
+        int            sourceQueue = curSource;                                   // Global source cell index in queue
         const Vec4<Tf> MAC         = sourceCenter[sourceQueue];                   // load source cell center + MAC
         const Vec3<Tf> curSrcCenter{MAC[0], MAC[1], MAC[2]};                      // Current source cell center
-        const CellData sourceData = sourceCells[sourceQueue];                     // load source cell data
-        const bool     isNode     = sourceData.isNode();                          // Is non-leaf cell
+        const int  childBegin     = childOffsets[sourceQueue];                  // First child cell
+        const bool     isNode     = childBegin;                          // Is non-leaf cell
         const bool     isClose    = applyMAC(curSrcCenter, MAC[3], targetCenter, targetSize); // Is too close for MAC
         const bool     isSource   = sourceIdx < numSources;                       // Source index is within bounds
 
         // Split
         const bool isSplit      = isNode && isClose && isSource;       // Source cell must be split
-        const int  childBegin   = sourceData.child();                  // First child cell
-        const int  numChild     = sourceData.nchild() & -int(isSplit); // Number of child cells (masked by split flag)
+        const int  numChild     = 8 & -int(isSplit);                   // Number of child cells (masked by split flag)
         const int  numChildScan = inclusiveScanInt(numChild);          // Inclusive scan of numChild
         const int  numChildLane = numChildScan - numChild;             // Exclusive scan of numChild
         const int  numChildWarp = shflSync(numChildScan, GpuConfig::warpSize - 1); // Total numChild of current warp
@@ -250,7 +251,9 @@ traverseWarp(Vec4<Tc>* acc_i, const Vec4<Tc> pos_i[TravConfig::nwt], const Vec3<
         // Direct
         const bool isLeaf        = !isNode;                                          // Is leaf cell
         bool       isDirect      = isClose && isLeaf && isSource;                    // Source cell can be used for P2P
-        const int  numBodies     = sourceData.nbody() & -int(isDirect);              // Number of bodies in cell
+        const int  leafIdx       = (isDirect) ? internalToLeaf[curSource] : 0;
+        const int  firstBody     = layout[leafIdx];
+        const int  numBodies     = (layout[leafIdx + 1] - firstBody) & -int(isDirect);  // Number of bodies in cell
         const int  numBodiesScan = inclusiveScanInt(numBodies);                      // Inclusive scan of numBodies
         int        numBodiesLane = numBodiesScan - numBodies;                        // Exclusive scan of numBodies
         int        numBodiesWarp = shflSync(numBodiesScan, GpuConfig::warpSize - 1); // Total numBodies of current warp
@@ -261,7 +264,7 @@ traverseWarp(Vec4<Tc>* acc_i, const Vec4<Tc> pos_i[TravConfig::nwt], const Vec3<
             if (isDirect && (numBodiesLane < GpuConfig::warpSize))
             {
                 isDirect                 = false;                  // Set cell as processed
-                tempQueue[numBodiesLane] = -1 - sourceData.body(); // Put first source cell body index into the queue
+                tempQueue[numBodiesLane] = -1 - firstBody; // Put first source cell body index into the queue
             }
             const int bodyIdx = inclusiveSegscanInt(tempQueue[laneIdx], prevBodyIdx);
             // broadcast last processed bodyIdx from the last lane to restart the scan in the next iteration
@@ -377,8 +380,9 @@ template<class Tc, class Tm, class Tf, class MType, class P>
 __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
     int firstBody, int lastBody, const int2 rootRange, const Tc* __restrict__ x, const Tc* __restrict__ y,
     const Tc* __restrict__ z, const Tm* __restrict__ m, const Tm* __restrict__ h, const CellData* __restrict__ srcCells,
-    const Vec4<Tf>* __restrict__ srcCenter, const MType* __restrict__ Multipoles, Tc G, P p, Tc* ax, Tc* ay, Tc* az,
-    int* globalPool)
+    const TreeNodeIndex* __restrict__ childOffsets, const TreeNodeIndex* __restrict__ internalToLeaf,
+    const LocalIndex* __restrict__ layout, const Vec4<Tf>* __restrict__ srcCenter, const MType* __restrict__ Multipoles,
+    Tc G, P p, Tc* ax, Tc* ay, Tc* az, int* globalPool)
 {
     const int laneIdx = threadIdx.x & (GpuConfig::warpSize - 1);
     const int warpIdx = threadIdx.x >> GpuConfig::warpSizeLog2;
@@ -459,6 +463,9 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
                                              m,
                                              h,
                                              srcCells,
+                                             childOffsets,
+                                             internalToLeaf,
+                                             layout,
                                              srcCenter,
                                              Multipoles,
                                              rootRange,
@@ -524,7 +531,8 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
  */
 template<class T, class MType, class P>
 auto computeAcceleration(int firstBody, int lastBody, const T* x, const T* y, const T* z, const T* m, const T* h, T G,
-                         P p, T* ax, T* ay, T* az, const CellData* sourceCells, const Vec4<T>* sourceCenter,
+                         P p, T* ax, T* ay, T* az, const CellData* sourceCells, const TreeNodeIndex* childOffsets,
+                         const TreeNodeIndex* internalToLeaf, const LocalIndex* layout, const Vec4<T>* sourceCenter,
                          const MType* Multipole, const int2* levelRange)
 {
     constexpr int numWarpsPerBlock = TravConfig::numThreads / GpuConfig::warpSize;
@@ -552,6 +560,9 @@ auto computeAcceleration(int firstBody, int lastBody, const T* x, const T* y, co
                                                     m,
                                                     h,
                                                     sourceCells,
+                                                    childOffsets,
+                                                    internalToLeaf,
+                                                    layout,
                                                     sourceCenter,
                                                     Multipole,
                                                     G,

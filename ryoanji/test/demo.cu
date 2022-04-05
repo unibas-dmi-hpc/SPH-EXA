@@ -112,6 +112,9 @@ int main(int argc, char** argv)
                                             rawPtr(d_ay.data()),
                                             rawPtr(d_az.data()),
                                             rawPtr(sources.data()),
+                                            treeBuilder.childOffsets(),
+                                            treeBuilder.internalToLeaf(),
+                                            treeBuilder.layout(),
                                             rawPtr(sourceCenter.data()),
                                             rawPtr(Multipole.data()),
                                             levelRange.data());
