@@ -309,28 +309,8 @@ public:
         computeMomentumAndEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
-        //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
-        const cstone::FocusedOctree<KeyType, T>& focusTree = domain.focusTree();
-        //! the focused octree, structure only
-        const cstone::Octree<KeyType>& octree = focusTree.octree();
-
         mHolder_.upsweep(d, domain);
-
-        d.egrav = ryoanji::computeGravity(octree,
-                                          focusTree.expansionCenters().data(),
-                                          mHolder_.multipoles(),
-                                          domain.layout().data(),
-                                          domain.startCell(),
-                                          domain.endCell(),
-                                          d.x.data(),
-                                          d.y.data(),
-                                          d.z.data(),
-                                          d.h.data(),
-                                          d.m.data(),
-                                          d.g,
-                                          d.grad_P_x.data(),
-                                          d.grad_P_y.data(),
-                                          d.grad_P_z.data());
+        mHolder_.traverse(d, domain);
 
         // temporary sign fix, see note in ParticlesData
         d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;

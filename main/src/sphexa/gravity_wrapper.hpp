@@ -66,6 +66,31 @@ public:
                                          multipoles_.data());
     }
 
+    template<class Dataset, class Domain>
+    void traverse(Dataset& d, const Domain& domain)
+    {
+        //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
+        const auto& focusTree = domain.focusTree();
+        //! the focused octree, structure only
+        const cstone::Octree<KeyType>& octree = focusTree.octree();
+
+        d.egrav = ryoanji::computeGravity(octree,
+                                          focusTree.expansionCenters().data(),
+                                          multipoles_.data(),
+                                          domain.layout().data(),
+                                          domain.startCell(),
+                                          domain.endCell(),
+                                          d.x.data(),
+                                          d.y.data(),
+                                          d.z.data(),
+                                          d.h.data(),
+                                          d.m.data(),
+                                          d.g,
+                                          d.grad_P_x.data(),
+                                          d.grad_P_y.data(),
+                                          d.grad_P_z.data());
+    }
+
     const MType* multipoles() const { return multipoles_.data(); }
 
 private:
@@ -96,6 +121,31 @@ public:
                          domain.focusTree(),
                          domain.layout().data(),
                          multipoles_.data());
+    }
+
+    template<class Dataset, class Domain>
+    void traverse(Dataset& d, const Domain& domain)
+    {
+        //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
+        const auto& focusTree = domain.focusTree();
+        //! the focused octree, structure only
+        const cstone::Octree<KeyType>& octree = focusTree.octree();
+
+        d.egrav = ryoanji::computeGravity(octree,
+                                          focusTree.expansionCenters().data(),
+                                          multipoles_.data(),
+                                          domain.layout().data(),
+                                          domain.startCell(),
+                                          domain.endCell(),
+                                          d.x.data(),
+                                          d.y.data(),
+                                          d.z.data(),
+                                          d.h.data(),
+                                          d.m.data(),
+                                          d.g,
+                                          d.grad_P_x.data(),
+                                          d.grad_P_y.data(),
+                                          d.grad_P_z.data());
     }
 
     const MType* multipoles() const { return multipoles_.data(); }
