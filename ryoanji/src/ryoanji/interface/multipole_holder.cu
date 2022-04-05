@@ -32,12 +32,19 @@
 #include <thrust/device_vector.h>
 
 #include "multipole_holder.cuh"
+#include "ryoanji/nbody/cartesian_qpole.hpp"
 #include "ryoanji/nbody/gpu_config.h"
 #include "ryoanji/nbody/upwardpass.cuh"
 #include "ryoanji/nbody/upsweep_cpu.hpp"
 
 namespace ryoanji
 {
+
+template<class T>
+void memcpy(T* dest, const T* src, size_t n, cudaMemcpyKind kind)
+{
+    cudaMemcpy(dest, src, sizeof(T) * n, kind);
+}
 
 template<class Tc, class Tm, class Tf, class KeyType, class MType>
 class MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::Impl
@@ -52,12 +59,20 @@ public:
         constexpr int numThreads = UpsweepConfig::numThreads;
         const cstone::Octree<KeyType>& octree = focusTree.octree();
 
-        //auto centers       = focusTree.expansionCenters();
+        TreeNodeIndex numLeaves = focusTree.octree().numLeafNodes();
+        resize(numLeaves);
+
+        auto centers       = focusTree.expansionCenters();
         auto globalCenters = focusTree.globalExpansionCenters();
 
-        TreeNodeIndex numLeaves = focusTree.octree().numLeafNodes();
+        // H2D leafToInternal, layout, centers, childOffsets
+        const TreeNodeIndex* leafToInternal = octree.internalOrder().data();
+        memcpy(rawPtr(leafToInternal_.data()), leafToInternal, numLeaves, cudaMemcpyHostToDevice);
+        const TreeNodeIndex* childOffsets = octree.childOffsets().data();
+        memcpy(rawPtr(childOffsets_.data()), childOffsets, childOffsets_.size(), cudaMemcpyHostToDevice);
 
-        // H2D leafToInternal, layout, centers
+        memcpy(rawPtr(layout_.data()), layout, layout_.size(), cudaMemcpyHostToDevice);
+        memcpy(rawPtr(centers_.data()), centers.data(), centers.size(), cudaMemcpyHostToDevice);
 
         computeLeafMultipoles<<<(numLeaves - 1) / numThreads + 1, numThreads>>>(x,
                                                                                 y,
@@ -72,18 +87,19 @@ public:
         //! first upsweep with local data
         int  numLevels  = 21;
         auto levelRange = octree.levelRange();
-        for (int level = numLevels - 1; level >= 1; level--)
+        for (int level = numLevels - 1; level >= 0; level--)
         {
             int numCellsLevel = levelRange[level + 1] - levelRange[level];
             int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
-            upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level + 1],
-                                                         levelRange[level],
+            upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level],
+                                                         levelRange[level + 1],
                                                          rawPtr(childOffsets_.data()),
                                                          rawPtr(centers_.data()),
-                                                         multipoles);
+                                                         rawPtr(multipoles_.data()));
         }
 
         // D2H multipoles
+        memcpy(multipoles, rawPtr(multipoles_.data()), multipoles_.size(), cudaMemcpyDeviceToHost);
 
         auto ryUpsweep = [](auto levelRange, auto childOffsets, auto M, auto centers)
         { upsweepMultipoles(levelRange, childOffsets, centers, M); };
@@ -94,21 +110,39 @@ public:
         focusTree.peerExchange(multipoleSpan, static_cast<int>(cstone::P2pTags::focusPeerCenters) + 1);
 
         // H2D multipoles
+        memcpy(rawPtr(multipoles_.data()), multipoles, multipoles_.size(), cudaMemcpyHostToDevice);
 
         //! second upsweep with leaf data from peer and global ranks in place
-        for (int level = numLevels - 1; level >= 1; level--)
+        for (int level = numLevels - 1; level >= 0; level--)
         {
             int numCellsLevel = levelRange[level + 1] - levelRange[level];
             int numBlocks     = (numCellsLevel - 1) / numThreads + 1;
-            upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level + 1],
-                                                         levelRange[level],
+            upsweepMultipoles<<<numBlocks, numThreads>>>(levelRange[level],
+                                                         levelRange[level + 1],
                                                          rawPtr(childOffsets_.data()),
                                                          rawPtr(centers_.data()),
                                                          rawPtr(multipoles_.data()));
         }
+
+        // D2H multipoles
+        memcpy(multipoles, rawPtr(multipoles_.data()), multipoles_.size(), cudaMemcpyDeviceToHost);
     }
 
 private:
+    void resize(size_t numLeaves)
+    {
+        size_t numNodes = numLeaves + (numLeaves - 1) / 7;
+
+        double growthRate = 1.05;
+        reallocate(leafToInternal_, numLeaves, growthRate);
+        reallocate(childOffsets_, numNodes, growthRate);
+
+        reallocate(layout_, numLeaves + 1, growthRate);
+
+        reallocate(centers_, numNodes, growthRate);
+        reallocate(multipoles_, numNodes, growthRate);
+    }
+
     thrust::device_vector<TreeNodeIndex> leafToInternal_;
     thrust::device_vector<TreeNodeIndex> childOffsets_;
 
@@ -143,5 +177,14 @@ template class MultipoleHolder<double, double, double, uint32_t, SphericalMultip
 template class MultipoleHolder<double, float, double, uint32_t, SphericalMultipole<double, 4>>;
 template class MultipoleHolder<double, float, double, uint32_t, SphericalMultipole<float, 4>>;
 template class MultipoleHolder<float, float, float, uint32_t, SphericalMultipole<float, 4>>;
+
+template class MultipoleHolder<double, double, double, uint64_t, CartesianQuadrupole<double>>;
+template class MultipoleHolder<double, float, double, uint64_t, CartesianQuadrupole<double>>;
+template class MultipoleHolder<double, float, double, uint64_t, CartesianQuadrupole<float>>;
+template class MultipoleHolder<float, float, float, uint64_t, CartesianQuadrupole<float>>;
+template class MultipoleHolder<double, double, double, uint32_t, CartesianQuadrupole<double>>;
+template class MultipoleHolder<double, float, double, uint32_t, CartesianQuadrupole<double>>;
+template class MultipoleHolder<double, float, double, uint32_t, CartesianQuadrupole<float>>;
+template class MultipoleHolder<float, float, float, uint32_t, CartesianQuadrupole<float>>;
 
 } // namespace ryoanji

@@ -19,6 +19,14 @@ ryoanji_add_test(${testname} EXECUTABLE ${testname} RANKS 10)
 install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji)
 unset(testname)
 
+set(testname multipole_holder)
+add_executable(${testname} multipole_holder.cu)
+target_include_directories(${testname} PRIVATE ${RYOANJI_TEST_INCLUDE_DIRS})
+target_link_libraries(${testname} PRIVATE ryoanji_multipole OpenMP::OpenMP_CXX)
+ryoanji_add_test(${testname} EXECUTABLE ${testname} RANKS 10)
+install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji)
+unset(testname)
+
 # CPU unit test suite
 set(testname ryoanji_cpu_unit_tests)
 add_executable(${testname}

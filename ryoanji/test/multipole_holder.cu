@@ -31,16 +31,19 @@
 
 #include <mpi.h>
 
+#include <thrust/device_vector.h>
+
 #include "cstone/domain/domain.hpp"
 #include "cstone/findneighbors.hpp"
 #include "coord_samples/random.hpp"
 
 #include "ryoanji/interface/global_multipole.hpp"
+#include "ryoanji/interface/multipole_holder.cuh"
 
 using namespace ryoanji;
 
 template<class T, class KeyType>
-static int multipoleExchangeTest(int thisRank, int numRanks)
+static int multipoleHolderTest(int thisRank, int numRanks)
 {
     using MultipoleType              = CartesianQuadrupole<T>;
     const LocalIndex numParticles    = 1000;
@@ -75,6 +78,9 @@ static int multipoleExchangeTest(int thisRank, int numRanks)
 
     domain.syncGrav(particleKeys, x, y, z, h, m);
 
+    MultipoleHolder<T, T, T, KeyType, MultipoleType> multipoleHolder;
+    thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m;
+
     //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
     const cstone::FocusedOctree<KeyType, T>& focusTree = domain.focusTree();
     //! the focused octree, structure only
@@ -82,15 +88,14 @@ static int multipoleExchangeTest(int thisRank, int numRanks)
     gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCenters();
 
     std::vector<MultipoleType> multipoles(octree.numTreeNodes());
-    ryoanji::computeGlobalMultipoles(x.data(),
-                                     y.data(),
-                                     z.data(),
-                                     m.data(),
-                                     x.size(),
-                                     domain.globalTree(),
-                                     domain.focusTree(),
-                                     domain.layout().data(),
-                                     multipoles.data());
+    multipoleHolder.compute(thrust::raw_pointer_cast(d_x.data()),
+                            thrust::raw_pointer_cast(d_y.data()),
+                            thrust::raw_pointer_cast(d_z.data()),
+                            thrust::raw_pointer_cast(d_m.data()),
+                            domain.globalTree(),
+                            domain.focusTree(),
+                            domain.layout().data(),
+                            multipoles.data());
 
     MultipoleType globalRootMultipole = multipoles[octree.levelOffset(0)];
 
@@ -132,7 +137,7 @@ int main(int argc, char** argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
-    int testResult = multipoleExchangeTest<double, uint64_t>(rank, numRanks);
+    int testResult = multipoleHolderTest<double, uint64_t>(rank, numRanks);
 
     MPI_Finalize();
 

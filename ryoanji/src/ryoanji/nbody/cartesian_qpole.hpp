@@ -78,8 +78,8 @@ struct Cqi
  * @param[out]   gv             output quadrupole
  */
 template<class T1, class T2, class T3>
-void particle2Multipole(const T1* x, const T1* y, const T1* z, const T2* m, LocalIndex first, LocalIndex last,
-                        const Vec3<T1>& center, CartesianQuadrupole<T3>& gv)
+HOST_DEVICE_FUN void particle2Multipole(const T1* x, const T1* y, const T1* z, const T2* m, LocalIndex first,
+                                        LocalIndex last, const Vec3<T1>& center, CartesianQuadrupole<T3>& gv)
 {
     gv = T3(0);
     if (first == last) { return; }
@@ -283,19 +283,19 @@ HOST_DEVICE_FUN inline util::tuple<T1, T1, T1, T1> multipole2Particle(T1 tx, T1 
  *
  * Implements formula (2.5) from Hernquist 1987 (parallel axis theorem)
  */
-template<class T>
-void addQuadrupole(CartesianQuadrupole<T>& composite, Vec3<T> dX, const CartesianQuadrupole<T>& addend)
+template<class T, class Tc>
+HOST_DEVICE_FUN void addQuadrupole(CartesianQuadrupole<T>& composite, Vec3<Tc> dX, const CartesianQuadrupole<T>& addend)
 {
-    T rx = dX[0];
-    T ry = dX[1];
-    T rz = dX[2];
+    Tc rx = dX[0];
+    Tc ry = dX[1];
+    Tc rz = dX[2];
 
-    T rx_2 = rx * rx;
-    T ry_2 = ry * ry;
-    T rz_2 = rz * rz;
-    T r_2  = (rx_2 + ry_2 + rz_2) * (1.0 / 3.0);
+    Tc rx_2 = rx * rx;
+    Tc ry_2 = ry * ry;
+    Tc rz_2 = rz * rz;
+    Tc r_2  = (rx_2 + ry_2 + rz_2) * (1.0 / 3.0);
 
-    T ml = addend[Cqi::mass] * 3;
+    Tc ml = addend[Cqi::mass] * 3;
 
     composite[Cqi::mass] += addend[Cqi::mass];
     composite[Cqi::qxx] += addend[Cqi::qxx] + ml * (rx_2 - r_2);
@@ -318,7 +318,8 @@ void addQuadrupole(CartesianQuadrupole<T>& composite, Vec3<T> dX, const Cartesia
  * @param[out]  Mout     the aggregated output multipole
  */
 template<class T, class MType, std::enable_if_t<MType{}.size() == CartesianQuadrupole<T>{}.size(), int> = 0>
-void multipole2Multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc, const MType* Msrc, MType& Mout)
+HOST_DEVICE_FUN void multipole2Multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc,
+                                         const MType* Msrc, MType& Mout)
 {
     Mout = 0;
     for (int i = begin; i < end; i++)
