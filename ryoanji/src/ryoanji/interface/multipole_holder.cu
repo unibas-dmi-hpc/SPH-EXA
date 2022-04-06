@@ -66,11 +66,16 @@ public:
         auto centers       = focusTree.expansionCenters();
         auto globalCenters = focusTree.globalExpansionCenters();
 
-        // H2D leafToInternal, layout, centers, childOffsets
+        // H2D leafToInternal, internalToLeaf, layout, centers, childOffsets
+
         const TreeNodeIndex* leafToInternal = octree.internalOrder().data();
         memcpy(rawPtr(leafToInternal_.data()), leafToInternal, numLeaves, cudaMemcpyHostToDevice);
+
+        const TreeNodeIndex* internalToLeaf = octree.toLeafOrder().data();
+        memcpy(rawPtr(internalToLeaf_.data()), internalToLeaf, internalToLeaf_.size(), cudaMemcpyHostToDevice);
+
         const TreeNodeIndex* childOffsets = octree.childOffsets().data();
-        memcpy(rawPtr(childOffsets_.data()), childOffsets, childOffsets_.size(), cudaMemcpyHostToDevice);
+        memcpy(rawPtr(childOffsets_.data()), octree.childOffsets().data(), childOffsets_.size(), cudaMemcpyHostToDevice);
 
         memcpy(rawPtr(layout_.data()), layout, layout_.size(), cudaMemcpyHostToDevice);
         memcpy(rawPtr(centers_.data()), centers.data(), centers.size(), cudaMemcpyHostToDevice);
@@ -154,7 +159,9 @@ public:
                                                         z,
                                                         m,
                                                         h,
-                                                        (CellData*)(NULL),
+                                                        rawPtr(childOffsets_.data()),
+                                                        rawPtr(internalToLeaf_.data()),
+                                                        rawPtr(layout_.data()),
                                                         rawPtr(centers_.data()),
                                                         rawPtr(multipoles_.data()),
                                                         G,
@@ -177,6 +184,7 @@ private:
 
         double growthRate = 1.05;
         reallocate(leafToInternal_, numLeaves, growthRate);
+        reallocate(internalToLeaf_, numNodes, growthRate);
         reallocate(childOffsets_, numNodes, growthRate);
 
         reallocate(layout_, numLeaves + 1, growthRate);
@@ -186,6 +194,7 @@ private:
     }
 
     thrust::device_vector<TreeNodeIndex> leafToInternal_;
+    thrust::device_vector<TreeNodeIndex> internalToLeaf_;
     thrust::device_vector<TreeNodeIndex> childOffsets_;
 
     thrust::device_vector<LocalIndex> layout_;

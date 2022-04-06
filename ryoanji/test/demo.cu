@@ -111,7 +111,6 @@ int main(int argc, char** argv)
                                             rawPtr(d_ax.data()),
                                             rawPtr(d_ay.data()),
                                             rawPtr(d_az.data()),
-                                            rawPtr(sources.data()),
                                             treeBuilder.childOffsets(),
                                             treeBuilder.internalToLeaf(),
                                             treeBuilder.layout(),

@@ -261,6 +261,8 @@ public:
     {
         return {leafToInternal_.data() + numInternalNodes_, size_t(numLeafNodes_)};
     }
+    //! @brief converts  an internal index into a cornerstone index
+    gsl::span<const TreeNodeIndex> toLeafOrder() const { return {internalToLeaf_.data(), size_t(numTreeNodes())}; }
 
     //! @brief total number of nodes in the tree
     inline TreeNodeIndex numTreeNodes() const { return levelRange_.back(); }
