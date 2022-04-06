@@ -24,7 +24,7 @@
  */
 
 /*! @file
- * @brief  Ryoanji tree cell types and utilities
+ * @brief  Ryoanji multipole and related types
  *
  * @author Rio Yokota <rioyokota@gsic.titech.ac.jp>
  */
@@ -84,48 +84,6 @@ struct ExpansionOrder<TermSize<3>{}> : stl::integral_constant<size_t, 3>
 template<>
 struct ExpansionOrder<TermSize<4>{}> : stl::integral_constant<size_t, 4>
 {
-};
-
-class CellData
-{
-private:
-    static const int CHILD_SHIFT = 29;
-    static const int CHILD_MASK  = ~(0x7U << CHILD_SHIFT);
-    static const int LEVEL_SHIFT = 27;
-    static const int LEVEL_MASK  = ~(0x1FU << LEVEL_SHIFT);
-
-    using DataType = util::array<unsigned, 4>;
-    DataType data;
-
-public:
-    CellData() = default;
-
-    HOST_DEVICE_FUN CellData(unsigned level, unsigned parent, unsigned body, unsigned nbody, unsigned child = 0,
-                             unsigned nchild = 1)
-    {
-        unsigned parentPack = parent | (level << LEVEL_SHIFT);
-        unsigned childPack  = child | ((nchild - 1) << CHILD_SHIFT);
-        data                = DataType{parentPack, childPack, body, nbody};
-    }
-
-    HOST_DEVICE_FUN CellData(DataType data_)
-        : data(data_)
-    {
-    }
-
-    HOST_DEVICE_FUN int  level() const { return data[0] >> LEVEL_SHIFT; }
-    HOST_DEVICE_FUN int  parent() const { return data[0] & LEVEL_MASK; }
-    HOST_DEVICE_FUN int  child() const { return data[1] & CHILD_MASK; }
-    HOST_DEVICE_FUN int  nchild() const { return (data[1] >> CHILD_SHIFT) + 1; }
-    HOST_DEVICE_FUN int  body() const { return data[2]; }
-    HOST_DEVICE_FUN int  nbody() const { return data[3]; }
-    HOST_DEVICE_FUN bool isLeaf() const { return data[1] == 0; }
-    HOST_DEVICE_FUN bool isNode() const { return !isLeaf(); }
-
-    HOST_DEVICE_FUN void setParent(unsigned parent) { data[0] = parent | (level() << LEVEL_SHIFT); }
-    HOST_DEVICE_FUN void setChild(unsigned child) { data[1] = child | ((nchild() - 1) << CHILD_SHIFT); }
-    HOST_DEVICE_FUN void setBody(unsigned body_) { data[2] = body_; }
-    HOST_DEVICE_FUN void setNBody(unsigned nbody_) { data[3] = nbody_; }
 };
 
 } // namespace ryoanji

@@ -69,10 +69,8 @@ int main(int argc, char** argv)
     TreeBuilder<uint64_t> treeBuilder;
     int numSources = treeBuilder.update(rawPtr(d_x.data()), rawPtr(d_y.data()), rawPtr(d_z.data()), numBodies, box);
 
-    thrust::device_vector<CellData> sources(numSources);
-    std::vector<int2>               levelRange(treeBuilder.maxTreeLevel() + 1);
-
-    int highestLevel = treeBuilder.extract(rawPtr(sources.data()), levelRange.data());
+    std::vector<int2> levelRange(treeBuilder.maxTreeLevel() + 1);
+    int               highestLevel = treeBuilder.extract(levelRange.data());
 
     thrust::device_vector<Vec4<T>>       sourceCenter(numSources);
     thrust::device_vector<MultipoleType> Multipole(numSources);

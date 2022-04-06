@@ -11,22 +11,6 @@ if (CMAKE_CUDA_COMPILER)
     # set_source_files_properties(demo.cu PROPERTIES COMPILE_FLAGS "-Xptxas -v")
 endif ()
 
-set(testname multi_rank)
-add_executable(${testname} multi_rank.cpp)
-target_include_directories(${testname} PRIVATE ${MPI_CXX_INCLUDE_PATH} ${RYOANJI_TEST_INCLUDE_DIRS})
-target_link_libraries(${testname} PRIVATE OpenMP::OpenMP_CXX ${MPI_CXX_LIBRARIES})
-ryoanji_add_test(${testname} EXECUTABLE ${testname} RANKS 10)
-install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji)
-unset(testname)
-
-set(testname multipole_holder)
-add_executable(${testname} multipole_holder.cu)
-target_include_directories(${testname} PRIVATE ${RYOANJI_TEST_INCLUDE_DIRS})
-target_link_libraries(${testname} PRIVATE ryoanji OpenMP::OpenMP_CXX)
-ryoanji_add_test(${testname} EXECUTABLE ${testname} RANKS 10)
-install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji)
-unset(testname)
-
 # CPU unit test suite
 set(testname ryoanji_cpu_unit_tests)
 add_executable(${testname}
@@ -44,7 +28,6 @@ install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji
 if (CMAKE_CUDA_COMPILER)
     set(testname ryoanji_unit_tests)
     add_executable(${testname}
-            interface/treebuilder.cu
             nbody/direct.cu
             nbody/multipole.cu
             nbody/warpscan.cu
@@ -56,3 +39,5 @@ if (CMAKE_CUDA_COMPILER)
     add_test(NAME ${testname} COMMAND ${testname})
     install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji/unit_tests)
 endif ()
+
+add_subdirectory(interface)
