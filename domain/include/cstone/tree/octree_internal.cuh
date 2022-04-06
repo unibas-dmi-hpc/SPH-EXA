@@ -158,6 +158,19 @@ __global__ void invertOrder(const TreeNodeIndex* order, TreeNodeIndex* inverseOr
     }
 }
 
+namespace detail
+{
+struct Minus
+{
+    TreeNodeIndex shift;
+    Minus(TreeNodeIndex s)
+        : shift(s)
+    {
+    }
+    __host__ __device__ TreeNodeIndex operator()(TreeNodeIndex i) { return i - shift; }
+};
+} // namespace detail
+
 /*! @brief construct the internal octree part of a given octree leaf cell array on the GPU
  *
  * @tparam       KeyType     unsigned 32- or 64-bit integer
@@ -179,6 +192,8 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeGpuDataView<KeyType
     thrust::sort_by_key(thrust::device, d.prefixes, d.prefixes + numNodes, d.internalToLeaf);
 
     invertOrder<<<iceil(numNodes, numThreads), numThreads>>>(d.internalToLeaf, d.leafToInternal, numNodes);
+    thrust::transform(thrust::device, d.internalToLeaf, d.internalToLeaf + numNodes, d.internalToLeaf,
+                      detail::Minus(d.numInternalNodes));
     getLevelRange<<<maxTreeLevel<KeyType>{} + 2, 1>>>(d.prefixes, numNodes, d.levelRange);
 
     thrust::fill(thrust::device, d.childOffsets, d.childOffsets + numNodes, 0);

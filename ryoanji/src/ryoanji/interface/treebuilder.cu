@@ -106,16 +106,6 @@ TreeBuilder<KeyType>::Impl::Impl(unsigned ncrit)
 {
 }
 
-struct Minus
-{
-    TreeNodeIndex shift;
-    Minus(TreeNodeIndex s)
-        : shift(s)
-    {
-    }
-    __host__ __device__ TreeNodeIndex operator()(TreeNodeIndex i) { return i - shift; }
-};
-
 template<class KeyType>
 template<class T>
 cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(T* x, T* y, T* z, size_t numBodies,
@@ -156,11 +146,6 @@ cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(T* x, T* y, T* z, size_
 
     octreeGpuData_.resize(cstone::nNodes(d_tree_));
     cstone::buildInternalOctreeGpu(thrust::raw_pointer_cast(d_tree_.data()), octreeGpuData_.getData());
-
-    thrust::transform(octreeGpuData_.internalToLeaf.begin(),
-                      octreeGpuData_.internalToLeaf.end(),
-                      octreeGpuData_.internalToLeaf.begin(),
-                      Minus(octreeGpuData_.numInternalNodes));
 
     return octreeGpuData_.numInternalNodes + octreeGpuData_.numLeafNodes;
 }
