@@ -199,6 +199,11 @@ void buildInternalOctreeCpu(const KeyType* cstoneTree,
     {
         leafToInternal[internalToLeaf[i]] = i;
     }
+#pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < numNodes; ++i)
+    {
+        internalToLeaf[i] -= numInternalNodes;
+    }
     getLevelRangeCpu(prefixes, numNodes, levelRange);
 
     std::fill(childOffsets, childOffsets + numNodes, 0);
@@ -342,7 +347,7 @@ public:
     [[nodiscard]] inline TreeNodeIndex cstoneIndex(TreeNodeIndex node) const
     {
         assert(size_t(node) < internalToLeaf_.size());
-        return internalToLeaf_[node] - numInternalNodes_;
+        return internalToLeaf_[node];
     }
 
     /*! @brief extract elements corresponding to leaf nodes and arrange in cstone (ascending SFC key) order
