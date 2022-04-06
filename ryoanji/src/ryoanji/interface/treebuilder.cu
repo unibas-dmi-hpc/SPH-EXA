@@ -68,12 +68,12 @@ public:
 
     const TreeNodeIndex* leafToInternal() const
     {
-        return thrust::raw_pointer_cast(octreeGpuData_.inverseNodeOrder.data() + octreeGpuData_.numInternalNodes);
+        return thrust::raw_pointer_cast(octreeGpuData_.leafToInternal.data() + octreeGpuData_.numInternalNodes);
     }
 
     const TreeNodeIndex* internalToLeaf() const
     {
-        return thrust::raw_pointer_cast(octreeGpuData_.nodeOrder.data());
+        return thrust::raw_pointer_cast(octreeGpuData_.internalToLeaf.data());
     }
 
     TreeNodeIndex numLeafNodes() const
@@ -157,9 +157,9 @@ cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(T* x, T* y, T* z, size_
     octreeGpuData_.resize(cstone::nNodes(d_tree_));
     cstone::buildInternalOctreeGpu(thrust::raw_pointer_cast(d_tree_.data()), octreeGpuData_.getData());
 
-    thrust::transform(octreeGpuData_.nodeOrder.begin(),
-                      octreeGpuData_.nodeOrder.end(),
-                      octreeGpuData_.nodeOrder.begin(),
+    thrust::transform(octreeGpuData_.internalToLeaf.begin(),
+                      octreeGpuData_.internalToLeaf.end(),
+                      octreeGpuData_.internalToLeaf.begin(),
                       Minus(octreeGpuData_.numInternalNodes));
 
     return octreeGpuData_.numInternalNodes + octreeGpuData_.numLeafNodes;
