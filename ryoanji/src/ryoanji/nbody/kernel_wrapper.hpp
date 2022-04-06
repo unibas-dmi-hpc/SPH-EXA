@@ -41,38 +41,19 @@ namespace ryoanji
 
 /*! @brief Compute the monopole and quadruple moments from particle coordinates
  */
-template<class T1, class T2, class T3>
-HOST_DEVICE_FUN void particle2Multipole(const T1* x, const T1* y, const T1* z, const T2* m, LocalIndex first,
-                                        LocalIndex last, const Vec3<T1>& center, SphericalMultipole<T3, 2>& Mout)
+template<class Tc, class Tm, class Tf, class MType, std::enable_if_t<IsSpherical<MType>{}, int> = 0>
+HOST_DEVICE_FUN void particle2Multipole(const Tc* x, const Tc* y, const Tc* z, const Tm* m, LocalIndex first,
+                                        LocalIndex last, const Vec3<Tf>& center, MType& Mout)
 {
-    constexpr int P = 2;
+    constexpr int P = ExpansionOrder<MType{}.size()>{};
 
     Mout = 0;
     for (LocalIndex i = first; i < last; i++)
     {
-        Vec3<T1> body{x[i], y[i], z[i]};
-        Vec3<T1> dX = center - body;
+        Vec3<Tc> body{x[i], y[i], z[i]};
+        Vec3<Tc> dX = center - body;
 
-        SphericalMultipole<T3, P> M;
-        M[0] = m[i];
-        Kernels<0, 0, P - 1>::P2M(M, dX);
-        Mout += M;
-    }
-}
-
-template<class T1, class T2, class T3>
-HOST_DEVICE_FUN void particle2Multipole(const T1* x, const T1* y, const T1* z, const T2* m, LocalIndex first,
-                                        LocalIndex last, const Vec3<T1>& center, SphericalMultipole<T3, 4>& Mout)
-{
-    constexpr int P = 4;
-
-    Mout = 0;
-    for (LocalIndex i = first; i < last; i++)
-    {
-        Vec3<T1> body{x[i], y[i], z[i]};
-        Vec3<T1> dX = center - body;
-
-        SphericalMultipole<T3, P> M;
+        MType M;
         M[0] = m[i];
         Kernels<0, 0, P - 1>::P2M(M, dX);
         Mout += M;
@@ -81,27 +62,14 @@ HOST_DEVICE_FUN void particle2Multipole(const T1* x, const T1* y, const T1* z, c
 
 /*! @brief apply gravitational interaction with a multipole to a particle
  */
-template<class T1, class T2>
-HOST_DEVICE_FUN inline util::tuple<T1, T1, T1, T1> multipole2Particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center,
-                                                                      SphericalMultipole<T2, 2>& multipole)
+template<class T1, class T2, class MType, std::enable_if_t<IsSpherical<MType>{}, int> = 0>
+HOST_DEVICE_FUN DEVICE_INLINE util::tuple<T1, T1, T1, T1> multipole2Particle(T1 tx, T1 ty, T1 tz,
+                                                                             const Vec3<T1>& center, MType& M)
 {
     Vec3<T1> body{tx, ty, tz};
     Vec4<T1> acc{0, 0, 0, 0};
 
-    acc = M2P(acc, body, center, multipole, T1(0));
-    return {acc[1], acc[2], acc[3], acc[0]};
-}
-
-/*! @brief apply gravitational interaction with a multipole to a particle
- */
-template<class T1, class T2>
-HOST_DEVICE_FUN inline util::tuple<T1, T1, T1, T1> multipole2Particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center,
-                                                                      SphericalMultipole<T2, 4>& multipole)
-{
-    Vec3<T1> body{tx, ty, tz};
-    Vec4<T1> acc{0, 0, 0, 0};
-
-    acc = M2P(acc, body, center, multipole, T1(0));
+    acc = M2P(acc, body, center, M, T1(0));
     return {acc[1], acc[2], acc[3], acc[0]};
 }
 

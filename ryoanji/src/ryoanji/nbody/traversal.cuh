@@ -98,7 +98,7 @@ __device__ void approxAcc(Vec4<Ta> acc_i[TravConfig::nwt], const Vec4<Tc> pos_i[
                           volatile int* warpSpace)
 {
     constexpr int termSize = MType{}.size();
-    static_assert(termSize <= GpuConfig::warpSize, "needs adaptation to work beyond octopoles");
+    static_assert(termSize <= GpuConfig::warpSize, "multipole size too large for shared-mem warpSpace");
 
     using MValueType = typename MType::value_type;
 
