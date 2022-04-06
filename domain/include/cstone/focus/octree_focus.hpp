@@ -310,7 +310,7 @@ public:
 
         assert(tree_.childOffsets_.size() >= size_t(tree_.numLeafNodes() + 1));
         gsl::span<TreeNodeIndex> nodeOps(tree_.childOffsets_.data(), tree_.numLeafNodes() + 1);
-        tree_.template extractLeaves<TreeNodeIndex>(nodeOpsAll, nodeOps);
+        reorder(tree_.internalOrder(), nodeOpsAll.data(), nodeOps.data());
 
         std::vector<KeyType> allMandatoryKeys{focusStart, focusEnd};
         std::copy(mandatoryKeys.begin(), mandatoryKeys.end(), std::back_inserter(allMandatoryKeys));

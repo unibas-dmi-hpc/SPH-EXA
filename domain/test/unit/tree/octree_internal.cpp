@@ -322,33 +322,6 @@ TEST(InternalOctree, cstoneIndex)
 }
 
 template<class KeyType>
-static void extractLeaves()
-{
-    std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
-    std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
-
-    Octree<KeyType> fullTree;
-    fullTree.update(spanningTree.data(), nNodes(spanningTree));
-
-    std::vector<KeyType> prefixes(fullTree.numTreeNodes());
-    for (size_t i = 0; i < prefixes.size(); ++i)
-    {
-        prefixes[i] = fullTree.codeStart(i);
-    }
-
-    std::vector<KeyType> leafExtract(fullTree.numLeafNodes());
-    fullTree.template extractLeaves<KeyType>(prefixes, leafExtract);
-
-    EXPECT_TRUE(std::equal(leafExtract.begin(), leafExtract.end(), spanningTree.begin()));
-}
-
-TEST(InternalOctree, extractLeaves)
-{
-    extractLeaves<unsigned>();
-    extractLeaves<uint64_t>();
-}
-
-template<class KeyType>
 static void upsweepSumIrregularL3()
 {
     std::vector<KeyType> cstoneTree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0, 2).divide(3).makeTree();

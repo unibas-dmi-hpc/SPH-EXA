@@ -197,8 +197,8 @@ public:
         TreeNodeIndex firstGlobalIdx = findNodeAbove(globalLeaves, prevFocusStart);
         TreeNodeIndex lastGlobalIdx  = findNodeAbove(globalLeaves, prevFocusEnd);
         // make sure that the focus is resolved exactly in the global tree
-        assert(globalLeaves[firstIdx] == prevFocusStart);
-        assert(globalLeaves[lastIdx] == prevFocusEnd);
+        assert(globalLeaves[firstGlobalIdx] == prevFocusStart);
+        assert(globalLeaves[lastGlobalIdx] == prevFocusEnd);
 
 #pragma omp parallel for schedule(static)
         for (TreeNodeIndex globalIdx = firstGlobalIdx; globalIdx < lastGlobalIdx; ++globalIdx)

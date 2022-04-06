@@ -350,24 +350,6 @@ public:
         return internalToLeaf_[node];
     }
 
-    /*! @brief extract elements corresponding to leaf nodes and arrange in cstone (ascending SFC key) order
-     *
-     * @param[in]   in   input sequence of length numTreeNodes()
-     * @param[out]  out  output sequence of length numLeafNodes()
-     */
-    template<class T>
-    void extractLeaves(gsl::span<const T> in, gsl::span<T> out) const
-    {
-        assert(in.size() >= size_t(numTreeNodes()));
-        assert(out.size() >= size_t(numLeafNodes()));
-
-#pragma omp parallel for schedule(static)
-        for (TreeNodeIndex i = 0; i < numLeafNodes_; ++i)
-        {
-            out[i] = in[leafToInternal_[i + numInternalNodes_]];
-        }
-    }
-
     /*! @brief finds the index of the node with SFC key range [startKey:endKey]
      *
      * @param startKey   lower SFC key
