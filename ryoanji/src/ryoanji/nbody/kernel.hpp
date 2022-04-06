@@ -532,7 +532,7 @@ HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> P2P(Vec4<Ta> acc, const Vec3<Tc>& pos_i, 
     return acc;
 }
 
-/*! @brief apply multipole to particle
+/*! @brief apply a spherial multipole to a particle
  *
  * @param acc     acceleration to add to
  * @param pos_i   target particle coordinate
@@ -541,7 +541,7 @@ HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> P2P(Vec4<Ta> acc, const Vec3<Tc>& pos_i, 
  * @param EPS2    plummer softening parameter
  * @return        input acceleration plus contribution from this call
  */
-template<class Ta, class Tc, class MType>
+template<class Ta, class Tc, class MType, std::enable_if_t<IsSpherical<MType>{}, int> = 0>
 HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> M2P(Vec4<Ta> acc, const Vec3<Tc>& pos_i, const Vec3<Tc>& pos_j, MType& M)
 {
     constexpr int P = ExpansionOrder<MType{}.size()>{};

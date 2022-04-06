@@ -50,6 +50,11 @@ struct IsCartesian : public stl::integral_constant<size_t, MType{}.size() == Car
 {
 };
 
+template<>
+struct ExpansionOrder<CartesianQuadrupole<float>{}.size()> : stl::integral_constant<size_t, 2>
+{
+};
+
 //! @brief CartesianQuadrupole index names
 struct Cqi
 {
@@ -234,6 +239,7 @@ HOST_DEVICE_FUN util::tuple<T1, T1, T1, T1> particle2Particle(T1 tx, T1 ty, T1 t
  * @param[in]     tx         target particle x coordinate
  * @param[in]     ty         target particle y coordinate
  * @param[in]     tz         target particle z coordinate
+ * @param[in]     center     source center of mass
  * @param[in]     multipole  multipole source
  * @param[inout]  ugrav      location to add gravitational potential to
  * @return                   tuple(ax, ay, az, u)
@@ -246,8 +252,8 @@ HOST_DEVICE_FUN util::tuple<T1, T1, T1, T1> particle2Particle(T1 tx, T1 ty, T1 t
  * quadrupole: Q*vec(r) / r^5 - 5/2 * vec(r)*Q*vec(r) * vec(r) / r^7
  */
 template<class T1, class T2>
-HOST_DEVICE_FUN inline util::tuple<T1, T1, T1, T1> multipole2Particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center,
-                                                                      const CartesianQuadrupole<T2>& multipole)
+HOST_DEVICE_FUN DEVICE_INLINE util::tuple<T1, T1, T1, T1>
+multipole2Particle(T1 tx, T1 ty, T1 tz, const Vec3<T1>& center, const CartesianQuadrupole<T2>& multipole)
 {
     T2 rx = tx - center[0];
     T2 ry = ty - center[1];

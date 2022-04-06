@@ -34,6 +34,8 @@
 #include <cmath>
 
 #include "cstone/util/tuple.hpp"
+
+#include "cartesian_qpole.hpp"
 #include "kernel.hpp"
 
 namespace ryoanji
@@ -61,6 +63,8 @@ HOST_DEVICE_FUN void particle2Multipole(const Tc* x, const Tc* y, const Tc* z, c
 }
 
 /*! @brief apply gravitational interaction with a multipole to a particle
+ *
+ * Makes Spherical multipoles usable in the CPU gravity tree traversal implementation
  */
 template<class T1, class T2, class MType, std::enable_if_t<IsSpherical<MType>{}, int> = 0>
 HOST_DEVICE_FUN DEVICE_INLINE util::tuple<T1, T1, T1, T1> multipole2Particle(T1 tx, T1 ty, T1 tz,
@@ -71,6 +75,17 @@ HOST_DEVICE_FUN DEVICE_INLINE util::tuple<T1, T1, T1, T1> multipole2Particle(T1 
 
     acc = M2P(acc, body, center, M, T1(0));
     return {acc[1], acc[2], acc[3], acc[0]};
+}
+
+/*! @brief apply gravitational interaction with a multipole to a particle
+ *
+ * Makes Cartesian multipoles usable in the GPU gravity tree traversal implementation
+ */
+template<class Ta, class Tc, class MType, std::enable_if_t<IsCartesian<MType>{}, int> = 0>
+HOST_DEVICE_FUN DEVICE_INLINE Vec4<Ta> M2P(Vec4<Ta> acc, const Vec3<Tc>& pos_i, const Vec3<Tc>& pos_j, MType& M)
+{
+    auto [ax, ay, az, p] = multipole2Particle(pos_i[0], pos_i[1], pos_i[2], pos_j, M);
+    return {acc[0] + p, acc[1] + ax, acc[2] + ay, acc[3] + az};
 }
 
 /*! @brief Combine multipoles into a single multipole

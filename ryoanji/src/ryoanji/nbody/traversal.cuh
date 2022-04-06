@@ -34,6 +34,7 @@
 
 #include <algorithm>
 #include "kernel.hpp"
+#include "kernel_wrapper.hpp"
 #include "warpscan.cuh"
 
 namespace ryoanji
