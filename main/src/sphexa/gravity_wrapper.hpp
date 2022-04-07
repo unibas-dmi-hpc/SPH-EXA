@@ -97,12 +97,9 @@ private:
     std::vector<MType> multipoles_;
 };
 
-template<class, class KeyType, class Tc, class Tm, class Tf>
+template<class MType, class KeyType, class Tc, class Tm, class Tf>
 class MultipoleHolderGpu
 {
-    // Cartesian not yet supported
-    using MType = ryoanji::SphericalMultipole<Tc, 4>;
-
 public:
     MultipoleHolderGpu() = default;
 

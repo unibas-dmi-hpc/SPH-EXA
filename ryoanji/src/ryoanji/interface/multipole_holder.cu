@@ -165,16 +165,15 @@ public:
                                                         rawPtr(centers_.data()),
                                                         rawPtr(multipoles_.data()),
                                                         G,
-                                                        nullptr,
+                                                        (int*)(nullptr),
                                                         ax,
                                                         ay,
                                                         az,
                                                         rawPtr(globalPool_.data()));
-
         float totalPotential;
         checkGpuErrors(cudaMemcpyFromSymbol(&totalPotential, totalPotentialGlob, sizeof(float)));
 
-        return totalPotential;
+        return 0.5f * Tc(G) * totalPotential;
     }
 
 private:
@@ -239,14 +238,13 @@ template class MultipoleHolder<double, float, double, uint32_t, SphericalMultipo
 template class MultipoleHolder<double, float, double, uint32_t, SphericalMultipole<float, 4>>;
 template class MultipoleHolder<float, float, float, uint32_t, SphericalMultipole<float, 4>>;
 
-// missing M2P wrapper for Cartesian multipoles
-// template class MultipoleHolder<double, double, double, uint64_t, CartesianQuadrupole<double>>;
-// template class MultipoleHolder<double, float, double, uint64_t, CartesianQuadrupole<double>>;
-// template class MultipoleHolder<double, float, double, uint64_t, CartesianQuadrupole<float>>;
-// template class MultipoleHolder<float, float, float, uint64_t, CartesianQuadrupole<float>>;
-// template class MultipoleHolder<double, double, double, uint32_t, CartesianQuadrupole<double>>;
-// template class MultipoleHolder<double, float, double, uint32_t, CartesianQuadrupole<double>>;
-// template class MultipoleHolder<double, float, double, uint32_t, CartesianQuadrupole<float>>;
-// template class MultipoleHolder<float, float, float, uint32_t, CartesianQuadrupole<float>>;
+template class MultipoleHolder<double, double, double, uint64_t, CartesianQuadrupole<double>>;
+template class MultipoleHolder<double, float, double, uint64_t, CartesianQuadrupole<double>>;
+template class MultipoleHolder<double, float, double, uint64_t, CartesianQuadrupole<float>>;
+template class MultipoleHolder<float, float, float, uint64_t, CartesianQuadrupole<float>>;
+template class MultipoleHolder<double, double, double, uint32_t, CartesianQuadrupole<double>>;
+template class MultipoleHolder<double, float, double, uint32_t, CartesianQuadrupole<double>>;
+template class MultipoleHolder<double, float, double, uint32_t, CartesianQuadrupole<float>>;
+template class MultipoleHolder<float, float, float, uint32_t, CartesianQuadrupole<float>>;
 
 } // namespace ryoanji

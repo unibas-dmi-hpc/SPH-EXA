@@ -150,7 +150,7 @@ int main(int argc, char** argv)
     thrust::host_vector<T> h_ay = d_ay;
     thrust::host_vector<T> h_az = d_az;
 
-    thrust::host_vector<T> h_refP  = refP;
+    double referencePotential = 0.5 * G * thrust::reduce(refP.begin(), refP.end(), 0.0);
     thrust::host_vector<T> h_refAx = refAx;
     thrust::host_vector<T> h_refAy = refAy;
     thrust::host_vector<T> h_refAz = refAz;
@@ -170,8 +170,8 @@ int main(int argc, char** argv)
 
     fprintf(stdout, "--- BH vs. direct ---------------\n");
 
-    std::cout << "potentials, body-sum: " << potentialSum << " atomic sum: " << interactions[4]
-              << " reference: " << std::accumulate(h_refP.begin(), h_refP.end(), 0.0) << std::endl;
+    std::cout << "potentials, body-sum: " << 0.5 * G * potentialSum << " atomic sum: " << 0.5 * G * interactions[4]
+              << " reference: " << referencePotential << std::endl;
     std::cout << "min Error: " << delta[0] << std::endl;
     std::cout << "50th percentile: " << delta[numBodies / 2] << std::endl;
     std::cout << "10th percentile: " << delta[numBodies * 0.9] << std::endl;

@@ -92,7 +92,7 @@ __global__ void directKernel(int numSource, const T* __restrict__ x, const T* __
 
     if (targetIdx < numSource)
     {
-        p[targetIdx]  = T(acc[0]);
+        p[targetIdx]  = m[targetIdx] * T(acc[0]);
         ax[targetIdx] = T(acc[1]);
         ay[targetIdx] = T(acc[2]);
         az[targetIdx] = T(acc[3]);

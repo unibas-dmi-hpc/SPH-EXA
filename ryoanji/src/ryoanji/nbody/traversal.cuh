@@ -472,12 +472,13 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
                                              cellQueue);
         assert(numM2P != 0xFFFFFFFF && numP2P != 0xFFFFFFFF);
 
-        const int bodyIdx = bodyBegin + laneIdx;
+        const int bodyIdxLane = bodyBegin + laneIdx;
 
         float warpPotential = 0;
         for (int i = 0; i < TravConfig::nwt; i++)
         {
-            if (i * GpuConfig::warpSize + bodyIdx < bodyEnd) { warpPotential += G * acc_i[i][0]; }
+            const int bodyIdx = bodyIdxLane + i * GpuConfig::warpSize;
+            if (bodyIdx < bodyEnd) { warpPotential += m[bodyIdx] * acc_i[i][0]; }
         }
 
 #pragma unroll
@@ -498,12 +499,13 @@ __global__ __launch_bounds__(TravConfig::numThreads) void traverse(
 
         for (int i = 0; i < TravConfig::nwt; i++)
         {
-            if (bodyIdx + i * GpuConfig::warpSize < bodyEnd)
+            const int bodyIdx = bodyIdxLane + i * GpuConfig::warpSize;
+            if (bodyIdx < bodyEnd)
             {
-                if constexpr (std::is_same_v<P, Tc*>) { p[i * GpuConfig::warpSize + bodyIdx] += G * acc_i[i][0]; }
-                ax[i * GpuConfig::warpSize + bodyIdx] += G * acc_i[i][1];
-                ay[i * GpuConfig::warpSize + bodyIdx] += G * acc_i[i][2];
-                az[i * GpuConfig::warpSize + bodyIdx] += G * acc_i[i][3];
+                if constexpr (std::is_same_v<P, Tc*>) { p[bodyIdx] += m[bodyIdx] * acc_i[i][0]; }
+                ax[bodyIdx] += G * acc_i[i][1];
+                ay[bodyIdx] += G * acc_i[i][2];
+                az[bodyIdx] += G * acc_i[i][3];
             }
         }
     }
