@@ -39,7 +39,8 @@
 
 using namespace ryoanji;
 
-int main()
+//int main()
+int main(int argc, char** argv)
 {
     using T             = float;
     using KeyType       = uint64_t;
@@ -49,7 +50,7 @@ int main()
     float G                 = 1.0;
     unsigned bucketSize     = 64;
     float theta             = 0.75;
-    LocalIndex numParticles = 100000;
+    LocalIndex numParticles = argc > 1 ? std::stoi(argv[1]) : 100000;
     cstone::Box<T> box(-1, 1);
 
     RandomCoordinates<T, cstone::SfcKind<KeyType>> coordinates(numParticles, box);
