@@ -209,17 +209,17 @@ void adjustSmoothingLength(cstone::LocalIndex numParticles,
 
     cstone::computeSfcKeys(x.data(), y.data(), z.data(), cstone::sfcKindPointer(codesGlobal.data()), numParticles, box);
     std::vector<cstone::LocalIndex> ordering(numParticles);
-    std::iota(begin(ordering), end(ordering), cstone::LocalIndex(0));
-    cstone::sort_by_key(begin(codesGlobal), end(codesGlobal), begin(ordering));
+    std::iota(ordering.begin(), ordering.end(), cstone::LocalIndex(0));
+    cstone::sort_by_key(codesGlobal.begin(), codesGlobal.end(), ordering.begin());
     cstone::reorderInPlace(ordering, x.data());
     cstone::reorderInPlace(ordering, y.data());
     cstone::reorderInPlace(ordering, z.data());
     cstone::reorderInPlace(ordering, h.data());
 
     std::vector<cstone::LocalIndex> inverseOrdering(numParticles);
-    std::iota(begin(inverseOrdering), end(inverseOrdering), 0);
-    std::vector orderCpy = ordering;
-    cstone::sort_by_key(begin(orderCpy), end(orderCpy), begin(inverseOrdering));
+    std::iota(inverseOrdering.begin(), inverseOrdering.end(), 0);
+    std::vector<cstone::LocalIndex> orderCpy = ordering;
+    cstone::sort_by_key(orderCpy.begin(), orderCpy.end(), inverseOrdering.begin());
 
     std::vector<int> neighbors(numParticles * ngmax);
     std::vector<int> neighborCounts(numParticles);
