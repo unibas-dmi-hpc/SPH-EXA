@@ -149,7 +149,8 @@ variables:
 #}}}
 #{{{ .sph-test
 .sph-test: &sph-test
-  extends: .dom
+  extends: .daint
+  # extends: .dom
   # tag is set in .dom
   before_script:
     # /usr/local/bin/evrard <-- (needs input file)
@@ -158,7 +159,7 @@ variables:
         /usr/local/sbin/coord_samples/coordinate_test;echo;
         /usr/local/sbin/kernel/kernel_tests_ve;echo;
         /usr/local/sbin/kernel/kernel_tests;echo;
-        /usr/local/sbin/ryoanji/gravity_perf;echo;
+        OMP_NUM_THREADS=6 /usr/local/sbin/ryoanji/gravity_perf 10000;echo;
         /usr/local/sbin/ryoanji/cpu_unit_tests/ryoanji_cpu_unit_tests;echo;
         /usr/local/sbin/unit/component_units;echo;
         /usr/local/sbin/unit/component_units_omp;echo;
