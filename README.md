@@ -206,7 +206,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 * [Platform for Advanced Scientific Computing (PASC)](https://www.pasc-ch.org/)
-   * [SPH-EXA project 1](https://www.pasc-ch.org/projects/2017-2020/sph-exa/)
-   * [SPH-EXA project 2](https://www.pasc-ch.org/projects/2021-2024/sph-exa2/)
+   * [SPH-EXA project 1](https://www.pasc-ch.org/projects/2017-2020/sph-exa/) and [webpage](https://hpc.dmi.unibas.ch/en/research/sph-exa/)
+   * [SPH-EXA project 2](https://www.pasc-ch.org/projects/2021-2024/sph-exa2/) and [webpage](https://hpc.dmi.unibas.ch/en/research/pasc-sph-exa2/)
 * [Swiss National Supercomputing Center (CSCS)](https://www.cscs.ch/)
 * [Scientific Computing Center of the University of Basel (sciCORE)](https://scicore.unibas.ch/)
+* [Swiss participation in Square Kilometer Aray (SKA)](https://www.sbfi.admin.ch/sbfi/en/home/research-and-innovation/international-cooperation-r-and-i/international-research-organisations/skao.html)
