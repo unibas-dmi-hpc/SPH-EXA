@@ -6,10 +6,10 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS_RELEASE "-O3 -fno-math-errno -march=native -DNDEBUG")
 set(CMAKE_CUDA_FLAGS_RELEASE "-O3 -DNDEBUG")
 
-##################################################
-# CMAKE_MODULE_PATH
-##################################################
-list(APPEND CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake")
+list(APPEND CMAKE_MODULE_PATH 
+     "${PROJECT_SOURCE_DIR}/cmake"
+     "${PROJECT_SOURCE_DIR}/main/cmake"
+)
 
 option(BUILD_TESTING "build unit and integration tests" ON)
 option(BUILD_ANALYTICAL "build analytical solution" ON)
