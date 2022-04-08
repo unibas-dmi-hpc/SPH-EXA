@@ -101,7 +101,7 @@ int main(int argc, char** argv)
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
     size_t bucketSize = std::max(bucketSizeFocus, d.numParticlesGlobal / (100 * numRanks));
     Domain domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
-    auto   propagator = propagatorFactory<Domain, Dataset>(haveGrav, ve, ngmax, ng0, output, rank);
+    auto   propagator = propagatorFactory<Domain, Dataset>(ve, ngmax, ng0, output, rank);
 
     if (ve)
         domain.sync(
