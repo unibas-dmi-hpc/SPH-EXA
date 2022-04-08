@@ -39,17 +39,17 @@
 
 using namespace ryoanji;
 
-int main()
+int main(int argc, char** argv)
 {
     using T             = float;
     using KeyType       = uint64_t;
     using MultipoleType = ryoanji::CartesianQuadrupole<T>;
-    //using MultipoleType = ryoanji::SphericalMultipole<T, 2>;
+    // using MultipoleType = ryoanji::SphericalMultipole<T, 2>;
 
-    float G                 = 1.0;
-    unsigned bucketSize     = 64;
-    float theta             = 0.75;
-    LocalIndex numParticles = 100000;
+    float          G            = 1.0;
+    unsigned       bucketSize   = 64;
+    float          theta        = 0.75;
+    LocalIndex     numParticles = argc > 1 ? std::stoi(argv[1]) : 100000;
     cstone::Box<T> box(-1, 1);
 
     RandomCoordinates<T, cstone::SfcKind<KeyType>> coordinates(numParticles, box);
@@ -72,8 +72,8 @@ int main()
     stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
 
     std::vector<cstone::SourceCenterType<T>> sourceCenters(octree.numTreeNodes());
-    cstone::computeLeafMassCenter<T, T, T, KeyType>(coordinates.x(), coordinates.y(), coordinates.z(), masses,
-                                            coordinates.particleKeys(), octree, sourceCenters);
+    cstone::computeLeafMassCenter<T, T, T, KeyType>(
+        coordinates.x(), coordinates.y(), coordinates.z(), masses, coordinates.particleKeys(), octree, sourceCenters);
     upsweep(octree, sourceCenters.data(), cstone::CombineSourceCenter<T>{});
     cstone::setMac<T>(octree.nodeKeys(), sourceCenters, 1.0 / theta, box);
 
@@ -92,9 +92,23 @@ int main()
     std::vector<T> pot(numParticles, 0);
 
     auto t0 = std::chrono::high_resolution_clock::now();
-    computeGravity(octree, sourceCenters.data(), multipoles.data(), layout.data(), 0, octree.numLeafNodes(), x, y, z,
-                   h.data(), masses.data(), G, ax.data(), ay.data(), az.data(), pot.data());
-    auto t1       = std::chrono::high_resolution_clock::now();
+    computeGravity(octree,
+                   sourceCenters.data(),
+                   multipoles.data(),
+                   layout.data(),
+                   0,
+                   octree.numLeafNodes(),
+                   x,
+                   y,
+                   z,
+                   h.data(),
+                   masses.data(),
+                   G,
+                   ax.data(),
+                   ay.data(),
+                   az.data(),
+                   pot.data());
+    auto  t1      = std::chrono::high_resolution_clock::now();
     float elapsed = std::chrono::duration<double>(t1 - t0).count();
 
     std::cout << "Time elapsed for " << numParticles << " particles: " << elapsed << " s, "
@@ -113,10 +127,19 @@ int main()
 
         auto t0 = std::chrono::high_resolution_clock::now();
 
-        directSum(xd.data(), yd.data(), zd.data(), h.data(), masses.data(), numParticles, G, Ax.data(), Ay.data(),
-                  Az.data(), potRef.data());
+        directSum(xd.data(),
+                  yd.data(),
+                  zd.data(),
+                  h.data(),
+                  masses.data(),
+                  numParticles,
+                  G,
+                  Ax.data(),
+                  Ay.data(),
+                  Az.data(),
+                  potRef.data());
 
-        auto t1       = std::chrono::high_resolution_clock::now();
+        auto  t1      = std::chrono::high_resolution_clock::now();
         float elapsed = std::chrono::duration<double>(t1 - t0).count();
 
         std::cout << "Time elapsed for direct sum: " << elapsed << " s, " << double(numParticles) / 1e6 / elapsed
@@ -124,22 +147,22 @@ int main()
     }
 
     std::vector<T> delta(numParticles);
-    #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
     for (LocalIndex i = 0; i < numParticles; ++i)
     {
         T dx = ax[i] - Ax[i];
         T dy = ay[i] - Ay[i];
         T dz = az[i] - Az[i];
 
-        delta[i] = std::sqrt( (dx*dx + dy*dy + dz*dz) / (Ax[i]*Ax[i] + Ay[i]*Ay[i] + Az[i]*Az[i]));
+        delta[i] = std::sqrt((dx * dx + dy * dy + dz * dz) / (Ax[i] * Ax[i] + Ay[i] * Ay[i] + Az[i] * Az[i]));
     }
 
     std::sort(begin(delta), end(delta));
 
     std::cout.precision(10);
-    std::cout << "min Error: "       << delta[0] << std::endl;
-    std::cout << "50th percentile: " << delta[numParticles/2] << std::endl;
-    std::cout << "10th percentile: " << delta[numParticles*0.9] << std::endl;
-    std::cout << "1st percentile: "  << delta[numParticles*0.99] << std::endl;
-    std::cout << "max Error: "       << delta[numParticles-1] << std::endl;
+    std::cout << "min Error: " << delta[0] << std::endl;
+    std::cout << "50th percentile: " << delta[numParticles / 2] << std::endl;
+    std::cout << "10th percentile: " << delta[numParticles * 0.9] << std::endl;
+    std::cout << "1st percentile: " << delta[numParticles * 0.99] << std::endl;
+    std::cout << "max Error: " << delta[numParticles - 1] << std::endl;
 }
