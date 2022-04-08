@@ -36,6 +36,7 @@
 
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"
+#include "data_util.hpp"
 #include "traits.hpp"
 
 #if defined(USE_CUDA)
@@ -172,7 +173,7 @@ public:
     std::vector<int> conservedFields;
     //! @brief particle fields recomputed every step from conserved fields
     std::vector<int> dependentFields;
-    //! @brief particle fields select for file outputj
+    //! @brief particle fields selected for file output
     std::vector<int> outputFields;
 
 #ifdef USE_MPI
@@ -208,68 +209,5 @@ public:
 
 template<typename T, typename I, class Acc>
 const T ParticlesData<T, I, Acc>::K = sphexa::compute_3d_k(sincIndex);
-
-template<class Array>
-std::vector<int> fieldStringsToInt(const Array& allNames, const std::vector<std::string>& subsetNames)
-{
-    std::vector<int> subsetIndices;
-    subsetIndices.reserve(subsetNames.size());
-    for (const auto& field : subsetNames)
-    {
-        auto it = std::find(allNames.begin(), allNames.end(), field);
-        if (it == allNames.end()) { throw std::runtime_error("Field " + field + " does not exist\n"); }
-
-        size_t fieldIndex = it - allNames.begin();
-        subsetIndices.push_back(fieldIndex);
-    }
-    return subsetIndices;
-}
-
-//! @brief extract a vector of pointers to particle fields for file output
-template<class Dataset>
-auto getOutputArrays(Dataset& dataset)
-{
-    using T            = typename Dataset::RealType;
-    auto fieldPointers = dataset.data();
-
-    std::vector<const T*> outputFields(dataset.outputFields.size());
-    std::transform(dataset.outputFields.begin(),
-                   dataset.outputFields.end(),
-                   outputFields.begin(),
-                   [&fieldPointers](int i) { return fieldPointers[i]->data(); });
-
-    return outputFields;
-}
-
-//! @brief resizes all particles fields of @p d listed in data() to the specified size
-template<class Dataset>
-void resize(Dataset& d, size_t size)
-{
-    double growthRate = 1.05;
-    auto   data_      = d.data();
-
-    for (int i : d.conservedFields)
-    {
-        reallocate(*data_[i], size, growthRate);
-    }
-    for (int i : d.dependentFields)
-    {
-        reallocate(*data_[i], size, growthRate);
-    }
-
-    reallocate(d.codes, size, growthRate);
-    reallocate(d.neighborsCount, size, growthRate);
-
-    d.devPtrs.resize(size);
-}
-
-//! resizes the neighbors list, only used in the CPU verison
-template<class Dataset>
-void resizeNeighbors(Dataset& d, size_t size)
-{
-    double growthRate = 1.05;
-    //! If we have a GPU, neighbors are calculated on-the-fly, so we don't need space to store them
-    reallocate(d.neighbors, HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
-}
 
 } // namespace sphexa
