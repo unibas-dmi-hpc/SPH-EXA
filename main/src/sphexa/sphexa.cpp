@@ -48,8 +48,6 @@ int main(int argc, char** argv)
     const std::string        initCond       = parser.getString("--init");
     const size_t             problemSize    = parser.getInt("-n", 50);
     const std::string        glassBlock     = parser.getString("--glass");
-    const bool               grav           = parser.exists("--grav");
-    const float              theta          = parser.exists("--theta") ? parser.getDouble("--theta") : (grav ? 0.5 : 1.0);
     const bool               ve             = parser.exists("--ve");
     const size_t             maxStep        = parser.getInt("-s", 200);
     const int                writeFrequency = parser.getInt("-w", -1);
@@ -69,7 +67,6 @@ int main(int argc, char** argv)
 
     size_t ngmax = 150;
     size_t ng0   = 100;
-
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
@@ -94,6 +91,9 @@ int main(int argc, char** argv)
     cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, d);
     d.setOutputFields(outputFields);
 
+    bool  haveGrav = (d.g != 0.0);
+    float theta    = parser.exists("--theta") ? parser.getDouble("--theta") : (haveGrav ? 0.5 : 1.0);
+
     if (rank == 0 && writeFrequency > 0) { fileWriter->constants(simInit->constants(), outFile); }
     if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
 
@@ -101,7 +101,7 @@ int main(int argc, char** argv)
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
     size_t bucketSize = std::max(bucketSizeFocus, d.numParticlesGlobal / (100 * numRanks));
     Domain domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
-    auto   propagator = propagatorFactory<Domain, Dataset>(grav, ve, ngmax, ng0, output, rank);
+    auto   propagator = propagatorFactory<Domain, Dataset>(haveGrav, ve, ngmax, ng0, output, rank);
 
     if (ve)
         domain.sync(
@@ -150,12 +150,12 @@ void printHelp(char* name, int rank)
         printf("%s [OPTIONS]\n", name);
         printf("\nWhere possible options are:\n\n");
 
-        printf("\t--init \t\t Test case selection (sedov, noh, isobaric-cube) or an HDF5 file with initial conditions\n");
+        printf(
+            "\t--init \t\t Test case selection (sedov, noh, isobaric-cube) or an HDF5 file with initial conditions\n");
         printf("\t-n NUM \t\t Initialize data with (approx when using glass blocks) NUM^3 global particles [50]\n");
         printf("\t--glass \t Use glass block at tests\n\n");
 
-        printf("\t--grav \t\t Include self-gravity [theta=0.5 by default]\n");
-        printf("\t--theta NUM \t Gravity accuracy parameter\n\n");
+        printf("\t--theta NUM \t Gravity accuracy parameter [default 0.5 when self-gravity is active]\n\n");
 
         printf("\t--ve \t\t Activate SPH with generalized volume elements\n\n");
 
