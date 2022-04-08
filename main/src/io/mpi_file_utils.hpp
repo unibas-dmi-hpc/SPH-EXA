@@ -70,7 +70,9 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
         h5_file = H5PartOpenFileParallel(h5_fname, H5PART_WRITE, d.comm);
     }
 #else
-    if (d.nrank > 1)
+    int numRanks;
+    MPI_Comm_size(d.comm, &numRanks);
+    if (numRanks > 1)
     {
         throw std::runtime_error("Cannot write HDF5 output with multiple ranks without parallel HDF5 support\n");
     }
