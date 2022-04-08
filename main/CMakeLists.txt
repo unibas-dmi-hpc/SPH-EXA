@@ -5,5 +5,5 @@ set(SPH_DIR ${PROJECT_SOURCE_DIR}/sph/include)
 
 add_subdirectory(src)
 if (BUILD_TESTING)
-add_subdirectory(test)
-endif()
+    add_subdirectory(test)
+endif (BUILD_TESTING)
