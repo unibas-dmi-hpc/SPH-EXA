@@ -149,7 +149,8 @@ variables:
 #}}}
 #{{{ .sph-test
 .sph-test: &sph-test
-  extends: .dom
+  extends: .daint
+  # extends: .dom
   # tag is set in .dom
   before_script:
     # /usr/local/bin/evrard <-- (needs input file)
