@@ -34,8 +34,6 @@
 #include "cstone/focus/octree_focus.hpp"
 #include "cstone/tree/octree_util.hpp"
 
-#include "coord_samples/random.hpp"
-
 namespace cstone
 {
 
@@ -312,7 +310,13 @@ TEST(FocusedOctree, enforceKeys)
 template<class KeyType>
 TreeNodeIndex numNodesInRange(gsl::span<const KeyType> tree, KeyType a, KeyType b)
 {
-    return std::lower_bound(tree.begin(), tree.end(), b) - std::lower_bound(tree.begin(), tree.end(), a);
+    auto itb = std::lower_bound(tree.begin(), tree.end(), b);
+    auto ita = std::lower_bound(tree.begin(), tree.end(), a);
+
+    EXPECT_EQ(*itb, b);
+    EXPECT_EQ(*ita, a);
+
+    return itb - ita;
 }
 
 template<class KeyType>
@@ -338,14 +342,16 @@ static void computeEssentialTree()
     int nParticles        = 200000;
     unsigned csBucketSize = 16;
 
-    auto codes = makeRandomUniformKeys<KeyType>(nParticles);
+    std::vector<KeyType> codes(nParticles);
+    std::iota(codes.begin(), codes.end(), 0);
+    std::for_each(codes.begin(), codes.end(), [n = nParticles](auto& k) { k *= double(nodeRange<KeyType>(0)) / n; });
 
     auto [csTree, csCounts] = computeOctree(codes.data(), codes.data() + nParticles, csBucketSize);
     Octree<KeyType> globalTree;
     globalTree.update(csTree.data(), nNodes(csTree));
 
     unsigned bucketSize = 16;
-    float theta         = 1.0;
+    float theta         = 0.9;
     FocusedOctreeSingleNode<KeyType> tree(bucketSize, theta);
 
     // sorted reference tree node counts in each (except focus) octant at the 1st division level
