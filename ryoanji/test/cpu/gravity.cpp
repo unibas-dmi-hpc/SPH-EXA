@@ -39,7 +39,6 @@
 
 using namespace ryoanji;
 
-// int main()
 int main(int argc, char** argv)
 {
     using T             = float;
