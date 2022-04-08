@@ -323,7 +323,7 @@ HOST_DEVICE_FUN void addQuadrupole(CartesianQuadrupole<T>& composite, Vec3<Tc> d
  * @param[in]   Msrc     input multipoles
  * @param[out]  Mout     the aggregated output multipole
  */
-template<class T, class MType, std::enable_if_t<MType{}.size() == CartesianQuadrupole<T>{}.size(), int> = 0>
+template<class T, class MType, std::enable_if_t<IsCartesian<MType>{}, int> = 0>
 HOST_DEVICE_FUN void multipole2Multipole(int begin, int end, const Vec4<T>& Xout, const Vec4<T>* Xsrc,
                                          const MType* Msrc, MType& Mout)
 {

@@ -8,9 +8,9 @@ install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji
 unset(testname)
 
 set(testname global_upsweep_gpu)
-add_executable(${testname} global_upsweep_gpu.cu)
+add_executable(${testname} global_upsweep_gpu.cpp)
 target_include_directories(${testname} PRIVATE ${RYOANJI_TEST_INCLUDE_DIRS})
-target_link_libraries(${testname} PRIVATE ryoanji OpenMP::OpenMP_CXX)
+target_link_libraries(${testname} PRIVATE ryoanji OpenMP::OpenMP_CXX CUDA::cudart)
 ryoanji_add_test(${testname} EXECUTABLE ${testname} RANKS 10)
 install(TARGETS ${testname} RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji)
 unset(testname)

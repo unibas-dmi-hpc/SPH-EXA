@@ -79,7 +79,7 @@ static int multipoleHolderTest(int thisRank, int numRanks)
     domain.syncGrav(particleKeys, x, y, z, h, m);
 
     MultipoleHolder<T, T, T, KeyType, MultipoleType> multipoleHolder;
-    thrust::device_vector<T> d_x = x, d_y = y, d_z = z, d_m = m;
+    thrust::device_vector<T>                         d_x = x, d_y = y, d_z = z, d_m = m;
 
     //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
     const cstone::FocusedOctree<KeyType, T>& focusTree = domain.focusTree();
