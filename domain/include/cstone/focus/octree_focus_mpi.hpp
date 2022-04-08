@@ -31,6 +31,8 @@
 
 #pragma once
 
+#include <numeric>
+
 #include "cstone/domain/layout.hpp"
 #include "cstone/focus/exchange_focus.hpp"
 #include "cstone/focus/octree_focus.hpp"
