@@ -330,7 +330,7 @@ void directSum(const T1* x, const T1* y, const T1* z, const T2* h, const T2* m, 
         *(ax + t) += G * (ax_ + ax2_);
         *(ay + t) += G * (ay_ + ay2_);
         *(az + t) += G * (az_ + az2_);
-        *(ugrav + t) += G * (u_ + u2_);
+        *(ugrav + t) += G * m[t] * (u_ + u2_);
     }
 }
 
