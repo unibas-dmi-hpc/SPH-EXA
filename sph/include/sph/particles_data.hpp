@@ -69,6 +69,9 @@ public:
     T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
     T minDt;
 
+    //! @brief gravitational constant
+    T g = 0.0;
+
     std::vector<T> x, y, z, x_m1, y_m1, z_m1;    // Positions
     std::vector<T> vx, vy, vz;                   // Velocities
     std::vector<T> rho;                          // Density
@@ -179,9 +182,6 @@ public:
 #ifdef USE_MPI
     MPI_Comm comm;
 #endif
-
-    //! @brief gravitational constant
-    T g = 0.0;
 
     constexpr static T sincIndex     = 6.0;
     constexpr static T Kcour         = 0.2;
