@@ -235,7 +235,7 @@ const MType* MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::deviceMultipoles() con
 }
 
 template class MultipoleHolder<double, double, double, uint64_t, SphericalMultipole<double, 4>>;
-template class MultipoleHolder<double, float, double, uint64_t, SphericalMultipole<double, 4>>;
+template class MultipoleHolder<double, double, double, uint64_t, SphericalMultipole<float, 4>>;
 template class MultipoleHolder<double, float, double, uint64_t, SphericalMultipole<float, 4>>;
 template class MultipoleHolder<float, float, float, uint64_t, SphericalMultipole<float, 4>>;
 template class MultipoleHolder<double, double, double, uint32_t, SphericalMultipole<double, 4>>;
@@ -244,7 +244,7 @@ template class MultipoleHolder<double, float, double, uint32_t, SphericalMultipo
 template class MultipoleHolder<float, float, float, uint32_t, SphericalMultipole<float, 4>>;
 
 template class MultipoleHolder<double, double, double, uint64_t, CartesianQuadrupole<double>>;
-template class MultipoleHolder<double, float, double, uint64_t, CartesianQuadrupole<double>>;
+template class MultipoleHolder<double, double, double, uint64_t, CartesianQuadrupole<float>>;
 template class MultipoleHolder<double, float, double, uint64_t, CartesianQuadrupole<float>>;
 template class MultipoleHolder<float, float, float, uint64_t, CartesianQuadrupole<float>>;
 template class MultipoleHolder<double, double, double, uint32_t, CartesianQuadrupole<double>>;

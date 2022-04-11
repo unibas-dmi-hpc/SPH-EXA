@@ -131,7 +131,7 @@ class HydroProp final : public Propagator<DomainType, ParticleDataType>
 
     using T             = typename ParticleDataType::RealType;
     using KeyType       = typename ParticleDataType::KeyType;
-    using MultipoleType = ryoanji::CartesianQuadrupole<T>;
+    using MultipoleType = ryoanji::CartesianQuadrupole<float>;
 
     using Acc = typename ParticleDataType::AcceleratorType;
     using MHolder_t =
