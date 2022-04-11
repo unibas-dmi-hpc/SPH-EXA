@@ -54,6 +54,8 @@ public:
     float compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
                   const Tm* h, Tc G, Tc* ax, Tc* ay, Tc* az);
 
+    const MType* deviceMultipoles() const;
+
 private:
     class Impl;
     std::unique_ptr<Impl> impl_;

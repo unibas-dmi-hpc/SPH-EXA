@@ -129,9 +129,6 @@ public:
                                                          rawPtr(centers_.data()),
                                                          rawPtr(multipoles_.data()));
         }
-
-        // D2H multipoles
-        memcpy(multipoles, rawPtr(multipoles_.data()), multipoles_.size(), cudaMemcpyDeviceToHost);
     }
 
     float compute(LocalIndex firstBody, LocalIndex lastBody, const Tc* x, const Tc* y, const Tc* z, const Tm* m,
@@ -175,6 +172,8 @@ public:
 
         return 0.5f * Tc(G) * totalPotential;
     }
+
+    const MType* deviceMultipoles() const { return rawPtr(multipoles_.data()); }
 
 private:
     void resize(size_t numLeaves)
@@ -227,6 +226,12 @@ float MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::compute(LocalIndex firstBody,
                                                            Tc* ax, Tc* ay, Tc* az)
 {
     return impl_->compute(firstBody, lastBody, x, y, z, m, h, G, ax, ay, az);
+}
+
+template<class Tc, class Tm, class Tf, class KeyType, class MType>
+const MType* MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::deviceMultipoles() const
+{
+    return impl_->deviceMultipoles();
 }
 
 template class MultipoleHolder<double, double, double, uint64_t, SphericalMultipole<double, 4>>;
