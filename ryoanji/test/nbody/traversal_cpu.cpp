@@ -137,7 +137,7 @@ TEST(Gravity, TreeWalk)
     double refPotSum = 0;
     for (LocalIndex i = 0; i < numParticles; ++i)
     {
-        refPotSum += masses[i] * potentialReference[i];
+        refPotSum += potentialReference[i];
     }
     refPotSum *= 0.5;
     EXPECT_NEAR(std::abs(refPotSum - egravTot) / refPotSum, 0, 1e-2);
