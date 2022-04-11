@@ -178,7 +178,7 @@ variables:
         /usr/local/sbin/integration_mpi/domain_nranks;echo;
         /usr/local/sbin/integration_mpi/exchange_general;echo;
         /usr/local/sbin/integration_mpi/exchange_keys;echo;
-        /usr/local/sbin/ryoanji/multi_rank;echo;
+        /usr/local/sbin/ryoanji/global_upsweep_cpu;echo;
       fi
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "p100" ]; then
         /usr/local/sbin/performance/hilbert_perf_gpu;echo;

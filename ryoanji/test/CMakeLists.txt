@@ -9,6 +9,7 @@ if (CMAKE_CUDA_COMPILER)
     target_link_libraries(ryoanji_demo PUBLIC cstone_tree)
     set_target_properties(ryoanji_demo PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
     # set_source_files_properties(demo.cu PROPERTIES COMPILE_FLAGS "-Xptxas -v")
+    install(TARGETS ryoanji_demo RUNTIME DESTINATION ${CMAKE_INSTALL_SBINDIR}/ryoanji/ryoanji_demo)
 endif ()
 
 # CPU unit test suite
