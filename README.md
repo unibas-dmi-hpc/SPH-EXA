@@ -82,8 +82,10 @@ Recommended CMake configuration on Piz Daint:
 ```shell
 module load daint-gpu
 module load cudatoolkit
-module load CMake/3.22.1 # or newer
+module load CMake/3.22.1               # or newer
 module load cray-hdf5-parallel
+module load gcc/9.3.0                  # only used as host compiler by nvcc
+export GCC_X86_64=/opt/gcc/9.3.0/snos  # system header versions are too old
 
 mkdir build
 cd build
@@ -97,10 +99,12 @@ cmake -DCMAKE_CXX_COMPILER=CC <GIT_SOURCE_DIR>
 
 The main ```sphexa``` application can either start a simulation by reading initial conditions
 from a file or generate an initial configuration for a named test case.
+Self-gravity will be activated automatically based on named test-case choice or if the HDF5 initial
+configuration file has an HDF5 attribute with a non-zero value for the gravitational constant.
 
 Arguments:  
-* ```--init CASE/FILE ```: `sedov` for simulation the Sedov blast wave, `noh` for the Noh implosion or
-                                   provide and HDF5 file with valid input data
+* ```--init CASE/FILE ```: `sedov` for simulation the Sedov blast wave, `noh` for the Noh implosion,
+                            `evrard` for the Evrard collapse or provide an HDF5 file with valid input data
 * ```-n NUM``` : Run the simulation with NUM^3 (NUM to the cube) number of particles (for named test cases)
 * ```-s NUM``` : Run the simulation with NUM of iterations (time-steps)  
 * ```-w NUM``` : Dump particle data every NUM iterations (time-steps)  
@@ -120,8 +124,8 @@ Example usage:
 * ```OMP_NUM_THREADS=12 srun -Cgpu -A<your account> -n<nnodes> -c12 ./sphexa-cuda --init sedov -n 100 -s 1000 -w 10```
   Optimal runtime configuration on Piz Daint for `nnodes` GPU compute nodes. Launches 1 MPI rank with
   12 OpenMP threads per node.
-* ```./sphexa-cuda --init evrard.h5 --grav -s 2000 -w 100 -f x,y,z,rho,p,vx,vy,vz```
-  Run SPH-EXA, initializing particle data from an input file (e.g. for the Evrard collapse). Include
+* ```./sphexa-cuda --init evrard.h5 -s 2000 -w 100 -f x,y,z,rho,p,vx,vy,vz```
+  Run SPH-EXA, initializing particle data from an input file (e.g. for the Evrard collapse). Includes
   gravitational forces between particles. The angle dependent accuracy parameter theta can be specificed
   with ```--theta <value>```, the default is `0.5`.
 
