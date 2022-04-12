@@ -423,7 +423,7 @@ if __name__ == "__main__":
     parser = ArgumentParser(description='Plot paper solutions against SPH simulations')
     parser.add_argument('simFile', help="SPH simulation HDF5 file")
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('-t', '--time', type=float, dest="time", choices=tSolutions, help="Valid simulation time to plot the paper solution")
+    group.add_argument('-t', '--time', type=float, dest="time", choices=tSolutions, help="Valid simulation times to plot the paper solution")
     args = parser.parse_args()
 
     # Get time
