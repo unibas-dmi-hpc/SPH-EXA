@@ -137,13 +137,6 @@ public:
                                    d.devPtrs.d_grad_P_x,
                                    d.devPtrs.d_grad_P_y,
                                    d.devPtrs.d_grad_P_z);
-#ifdef USE_CUDA
-        size_t sizeWithHalos = d.x.size();
-        size_t size_np_T     = sizeWithHalos * sizeof(decltype(d.grad_P_x[0]));
-        CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data(), d.devPtrs.d_grad_P_x, size_np_T, cudaMemcpyDeviceToHost));
-        CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data(), d.devPtrs.d_grad_P_y, size_np_T, cudaMemcpyDeviceToHost));
-        CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data(), d.devPtrs.d_grad_P_z, size_np_T, cudaMemcpyDeviceToHost));
-#endif
     }
 
     const MType* multipoles() const { return multipoles_.data(); }
