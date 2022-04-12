@@ -322,7 +322,6 @@ def computeVr(h5File, step):
     vx = loadH5Field(h5File, "vx", step)
     vy = loadH5Field(h5File, "vy", step)
     vz = loadH5Field(h5File, "vz", step)
-    print("Loaded velXYZ in %s particles" % len(vx))
     return np.sqrt(vx ** 2 + vy ** 2 + vz ** 2)
 
 
@@ -339,84 +338,29 @@ def plotRadialProfile(props, xSim, ySim, xSol, ySol):
     
     plt.xlabel("r")
     plt.ylabel(props["ylabel"])
-    
     plt.draw()
-    
     plt.title(props["title"] + ", N = %3e, t = %3f" % (len(xSim), props["time"]))
-    
     plt.legend(loc="upper right")
-    
     plt.savefig(props["fname"], format="png")
-    
     plt.figure().clear()
 
 
 def createDensityPlot(h5File, time, step, radii, rhoNorm, rhoSolX, rhoSolY):
-    
-    print("")
-
-    print("rhoSolX:")
-    print(rhoSolX)
-    print("rhoSolY:")
-    print(rhoSolY)
-    
     rho = loadH5Field(h5File, "rho", step) / rhoNorm
-    print("")
-    print("radii:")
-    print(radii)
-    print("rho:")
-    print(rho)
-    
     props = {"ylabel": "rho", "title": "Density", "fname": "evrard_density_%4f.png" % time, "time": time, "xLogScale": "true", "yLogScale": "true"}
-    print(props)
-
     plotRadialProfile(props, radii, rho, rhoSolX, rhoSolY)
-    print("")
 
 
 def createPressurePlot(h5File, time, step, radii, pNorm, pSolX, pSolY):
-    
-    print("")
-
-    print("pSolX:")
-    print(pSolX)
-    print("pSolY:")
-    print(pSolY)
-    
     p = loadH5Field(h5File, "p", step) / pNorm
-    print("")
-    print("radii:")
-    print(radii)
-    print("p:")
-    print(p)
-    
     props = {"ylabel": "p", "title": "Pressure", "fname": "evrard_pressure_%4f.png" % time, "time": time, "xLogScale": "true", "yLogScale": "true"}
-    print(props)
-
     plotRadialProfile(props, radii, p, pSolX, pSolY)
-    print("")
 
 
 def createVelocityPlot(h5File, time, step, radii, vNorm, velSolX, velSolY):
-
-    print("")
-    print("velSolX:")
-    print(velSolX)
-    print("velSolY:")
-    print(velSolY)
-
     vr = computeVr(h5File, hdf5_step) / vNorm
-    print("")
-    print("radii:")
-    print(radii)
-    print("vr:")
-    print(vr)
-
     props = {"ylabel": "vel", "title": "Velocity", "fname": "evrard_velocity_%4f.png" % time, "time": time, "xLogScale": "true", "yLogScale": "false"}
-    print(props)
-
     plotRadialProfile(props, radii, vr, velSolX, velSolY)
-    print("")
 
 
 if __name__ == "__main__":
