@@ -29,12 +29,14 @@
  * @author Sebastian Keller        <sebastian.f.keller@gmail.com>
  */
 
+#include <chrono>
+
 #include "gtest/gtest.h"
 
 #include "cstone/sfc/box.hpp"
 #include "coord_samples/random.hpp"
-#include "ryoanji/cpu/treewalk.hpp"
-#include "ryoanji/cpu/upsweep.hpp"
+#include "ryoanji/nbody/traversal_cpu.hpp"
+#include "ryoanji/nbody/upsweep_cpu.hpp"
 
 using namespace cstone;
 using namespace ryoanji;
@@ -45,11 +47,11 @@ TEST(Gravity, TreeWalk)
     using KeyType       = uint64_t;
     using MultipoleType = ryoanji::CartesianQuadrupole<T>;
 
-    float theta         = 0.6;
-    float G             = 1.0;
-    unsigned bucketSize = 64;
+    float          theta      = 0.6;
+    float          G          = 1.0;
+    unsigned       bucketSize = 64;
     cstone::Box<T> box(-1, 1);
-    LocalIndex numParticles = 10000;
+    LocalIndex     numParticles = 10000;
 
     RandomCoordinates<T, SfcKind<KeyType>> coordinates(numParticles, box);
 
@@ -62,9 +64,8 @@ TEST(Gravity, TreeWalk)
     std::generate(begin(masses), end(masses), drand48);
 
     // the leaf cells and leaf particle counts
-    auto [treeLeaves, counts] = computeOctree(coordinates.particleKeys().data(),
-                                              coordinates.particleKeys().data() + numParticles,
-                                              bucketSize);
+    auto [treeLeaves, counts] =
+        computeOctree(coordinates.particleKeys().data(), coordinates.particleKeys().data() + numParticles, bucketSize);
 
     // fully linked octree, including internal part
     Octree<KeyType> octree;
@@ -75,15 +76,15 @@ TEST(Gravity, TreeWalk)
     stl::exclusive_scan(counts.begin(), counts.end() + 1, layout.begin(), LocalIndex(0));
 
     std::vector<SourceCenterType<T>> centers(octree.numTreeNodes());
-    computeLeafMassCenter<T, T, T, KeyType>(coordinates.x(), coordinates.y(), coordinates.z(), masses,
-                                            coordinates.particleKeys(), octree, centers);
-    upsweep(octree, centers.data(), CombineSourceCenter<T>{});
+    computeLeafMassCenter<T, T, T, KeyType>(
+        coordinates.x(), coordinates.y(), coordinates.z(), masses, coordinates.particleKeys(), octree, centers);
+    upsweep(octree.levelRange(), octree.childOffsets(), centers.data(), CombineSourceCenter<T>{});
     setMac<T>(octree.nodeKeys(), centers, 1.0 / theta, box);
 
     std::vector<MultipoleType> multipoles(octree.numTreeNodes());
-    computeLeafMultipoles(octree, layout, x, y, z, masses.data(), centers.data(), multipoles.data());
-    CombineMultipole<MultipoleType> combineMultipole(centers.data());
-    upsweep(octree, multipoles.data(), combineMultipole);
+    computeLeafMultipoles(
+        x, y, z, masses.data(), octree.internalOrder(), layout.data(), centers.data(), multipoles.data());
+    upsweepMultipoles(octree.levelRange(), octree.childOffsets(), centers.data(), multipoles.data());
     for (size_t i = 0; i < multipoles.size(); ++i)
     {
         multipoles[i] = ryoanji::normalize(multipoles[i]);
@@ -95,29 +96,28 @@ TEST(Gravity, TreeWalk)
     std::vector<T> ax(numParticles, 0);
     std::vector<T> ay(numParticles, 0);
     std::vector<T> az(numParticles, 0);
-    std::vector<T> potential(numParticles, 0);
 
-    computeGravity(octree, centers.data(), multipoles.data(), layout.data(), 0, octree.numLeafNodes(), x, y, z,
-                   h.data(), masses.data(), G, ax.data(), ay.data(), az.data(), potential.data());
+    auto   t0       = std::chrono::high_resolution_clock::now();
+    double egravTot = computeGravity(octree,
+                                     centers.data(),
+                                     multipoles.data(),
+                                     layout.data(),
+                                     0,
+                                     octree.numLeafNodes(),
+                                     x,
+                                     y,
+                                     z,
+                                     h.data(),
+                                     masses.data(),
+                                     G,
+                                     ax.data(),
+                                     ay.data(),
+                                     az.data());
+    auto   t1       = std::chrono::high_resolution_clock::now();
+    double elapsed  = std::chrono::duration<double>(t1 - t0).count();
 
-    // test version that computes total grav energy only instead of per particle
-    {
-        double egravTot = 0.0;
-        for (size_t i = 0; i < numParticles; ++i)
-        {
-            egravTot += masses[i] * potential[i];
-        }
-        egravTot *= 0.5;
-
-        std::vector<T> ax2(numParticles, 0);
-        std::vector<T> ay2(numParticles, 0);
-        std::vector<T> az2(numParticles, 0);
-        double egravTot2 =
-            computeGravity(octree, centers.data(), multipoles.data(), layout.data(), 0, octree.numLeafNodes(), x,
-                           y, z, h.data(), masses.data(), G, ax2.data(), ay2.data(), az2.data());
-        std::cout << "total gravitational energy: " << egravTot << std::endl;
-        EXPECT_NEAR((egravTot - egravTot2) / egravTot, 0, 1e-4);
-    }
+    std::cout << "Time elapsed for " << numParticles << " particles: " << elapsed << " s, "
+              << double(numParticles) / 1e6 / elapsed << " million particles/second" << std::endl;
 
     // direct sum reference
     std::vector<T> Ax(numParticles, 0);
@@ -125,8 +125,22 @@ TEST(Gravity, TreeWalk)
     std::vector<T> Az(numParticles, 0);
     std::vector<T> potentialReference(numParticles, 0);
 
-    directSum(x, y, z, h.data(), masses.data(), numParticles, G, Ax.data(), Ay.data(), Az.data(),
-              potentialReference.data());
+    t0 = std::chrono::high_resolution_clock::now();
+    directSum(
+        x, y, z, h.data(), masses.data(), numParticles, G, Ax.data(), Ay.data(), Az.data(), potentialReference.data());
+    t1      = std::chrono::high_resolution_clock::now();
+    elapsed = std::chrono::duration<double>(t1 - t0).count();
+
+    std::cout << "Time elapsed for direct sum: " << elapsed << " s, " << double(numParticles) / 1e6 / elapsed
+              << " million particles/second" << std::endl;
+
+    double refPotSum = 0;
+    for (LocalIndex i = 0; i < numParticles; ++i)
+    {
+        refPotSum += potentialReference[i];
+    }
+    refPotSum *= 0.5;
+    EXPECT_NEAR(std::abs(refPotSum - egravTot) / refPotSum, 0, 1e-2);
 
     // relative errors
     std::vector<T> delta(numParticles);
@@ -136,24 +150,22 @@ TEST(Gravity, TreeWalk)
         T dy = ay[i] - Ay[i];
         T dz = az[i] - Az[i];
 
-        delta[i] = std::sqrt( (dx*dx + dy*dy + dz*dz) / (Ax[i]*Ax[i] + Ay[i]*Ay[i] + Az[i]*Az[i]));
-
-        EXPECT_NEAR((potential[i] - potentialReference[i]) / potentialReference[i], 0, 1e-2);
+        delta[i] = std::sqrt((dx * dx + dy * dy + dz * dz) / (Ax[i] * Ax[i] + Ay[i] * Ay[i] + Az[i] * Az[i]));
     }
 
     // sort errors in ascending order to infer the error distribution
     std::sort(begin(delta), end(delta));
 
-    EXPECT_TRUE(delta[numParticles*0.99] < 3e-3);
-    EXPECT_TRUE(delta[numParticles-1] < 2e-2);
+    EXPECT_TRUE(delta[numParticles * 0.99] < 3e-3);
+    EXPECT_TRUE(delta[numParticles - 1] < 2e-2);
 
     std::cout.precision(10);
-    std::cout << "min Error: "       << delta[0] << std::endl;
+    std::cout << "min Error: " << delta[0] << std::endl;
     // 50% of particles have an error smaller than this
-    std::cout << "50th percentile: " << delta[numParticles/2] << std::endl;
+    std::cout << "50th percentile: " << delta[numParticles / 2] << std::endl;
     // 90% of particles have an error smaller than this
-    std::cout << "10th percentile: " << delta[numParticles*0.9] << std::endl;
+    std::cout << "10th percentile: " << delta[numParticles * 0.9] << std::endl;
     // 99% of particles have an error smaller than this
-    std::cout << "1st percentile: "  << delta[numParticles*0.99] << std::endl;
-    std::cout << "max Error: "       << delta[numParticles-1] << std::endl;
+    std::cout << "1st percentile: " << delta[numParticles * 0.99] << std::endl;
+    std::cout << "max Error: " << delta[numParticles - 1] << std::endl;
 }

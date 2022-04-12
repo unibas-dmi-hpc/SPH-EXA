@@ -30,7 +30,7 @@
 #include "cstone/focus/source_center.hpp"
 #include "cstone/sfc/box.hpp"
 #include "coord_samples/random.hpp"
-#include "ryoanji/cpu/multipole.hpp"
+#include "ryoanji/nbody/cartesian_qpole.hpp"
 
 using namespace cstone;
 using namespace ryoanji;
@@ -53,7 +53,6 @@ TEST(Gravity, P2PmsoftBase)
     T hs[2] = {h, h};
     T m[2]  = {1, 1};
 
-
     auto [xacc, yacc, zacc, pot] = particle2Particle(x, y, z, h, xs, ys, zs, hs, m, 2);
 
     // h too small to trigger softening, so results should match the non-softened numbers
@@ -66,7 +65,7 @@ TEST(Gravity, P2PmsoftBase)
 //! @brief Tests direct particle-to-particle gravity interactions with mass softening
 TEST(Gravity, P2PmsoftH)
 {
-    using T = double;
+    using T                  = double;
     constexpr int numSources = 2;
 
     // target
@@ -74,7 +73,7 @@ TEST(Gravity, P2PmsoftH)
     T y = 1;
     T z = 1;
     // distance to first source is sqrt(3)/2, so here r < hi + hj
-    T h = std::sqrt(3)/2 + 0.001;
+    T h = std::sqrt(3) / 2 + 0.001;
 
     // source
     T xs[numSources] = {2, -2};
@@ -91,7 +90,6 @@ TEST(Gravity, P2PmsoftH)
     EXPECT_NEAR(pot, -0.7678049688481372, 1e-10);
 }
 
-
 /*! @brief Tests the gravity interaction of a multipole with a target particle
  *
  * The gravity on the target particle is first evaluated with the direct P2P sum as a reference.
@@ -102,7 +100,7 @@ TEST(Gravity, M2P)
     using T = double;
 
     cstone::Box<T> box(-1, 1);
-    LocalIndex numParticles = 100;
+    LocalIndex     numParticles = 100;
 
     RandomCoordinates<T, SfcKind<unsigned>> coordinates(numParticles, box);
 
@@ -115,7 +113,7 @@ TEST(Gravity, M2P)
     std::vector<T> masses(numParticles);
     std::generate(begin(masses), end(masses), drand48);
 
-    SourceCenterType<T> center = massCenter<T>(x, y, z, masses.data(), 0, numParticles);
+    SourceCenterType<T>    center = massCenter<T>(x, y, z, masses.data(), 0, numParticles);
     CartesianQuadrupole<T> multipole;
     particle2Multipole(x, y, z, masses.data(), 0, numParticles, makeVec3(center), multipole);
 
@@ -130,19 +128,19 @@ TEST(Gravity, M2P)
     auto [axApprox, ayApprox, azApprox, potApprox] =
         multipole2Particle(target[0], target[1], target[2], makeVec3(center), multipole);
 
-    //std::cout << std::fixed;
-    //std::cout.precision(8);
-    //std::cout << "direct: " << accDirect[0] << " " << accDirect[1] << " " << accDirect[2] << std::endl;
-    //std::cout << "approx: " << accApprox[0] << " " << accApprox[1] << " " << accApprox[2] << std::endl;
+    // std::cout << std::fixed;
+    // std::cout.precision(8);
+    // std::cout << "direct: " << accDirect[0] << " " << accDirect[1] << " " << accDirect[2] << std::endl;
+    // std::cout << "approx: " << accApprox[0] << " " << accApprox[1] << " " << accApprox[2] << std::endl;
 
     EXPECT_NEAR(potDirect, potApprox, 1e-3);
     EXPECT_TRUE(std::abs(axApprox - axDirect) < 1e-3);
     EXPECT_TRUE(std::abs(ayApprox - ayDirect) < 1e-3);
     EXPECT_TRUE(std::abs(azApprox - azDirect) < 1e-3);
 
-    EXPECT_NEAR(axApprox, 0.74358243303934313,    1e-10);
+    EXPECT_NEAR(axApprox, 0.74358243303934313, 1e-10);
     EXPECT_NEAR(ayApprox, 9.1306187450872109e-05, 1e-10);
-    EXPECT_NEAR(azApprox, 0.0095252528595820823,  1e-10);
+    EXPECT_NEAR(azApprox, 0.0095252528595820823, 1e-10);
 }
 
 /*! @brief tests aggregation of multipoles into a composite multipole
@@ -156,7 +154,7 @@ TEST(Gravity, M2M)
     using T = double;
 
     cstone::Box<T> box(-1, 1);
-    LocalIndex numParticles = 160;
+    LocalIndex     numParticles = 160;
 
     RandomCoordinates<T, SfcKind<unsigned>> coordinates(numParticles, box);
 
@@ -168,13 +166,13 @@ TEST(Gravity, M2M)
     std::generate(begin(masses), end(masses), drand48);
 
     // reference directly constructed from particles
-    SourceCenterType<T> refCenter = massCenter<T>(x, y, z, masses.data(), 0, numParticles);
+    SourceCenterType<T>    refCenter = massCenter<T>(x, y, z, masses.data(), 0, numParticles);
     CartesianQuadrupole<T> reference;
     particle2Multipole(x, y, z, masses.data(), 0, numParticles, makeVec3(refCenter), reference);
 
-    LocalIndex eighth = numParticles / 8;
+    LocalIndex             eighth = numParticles / 8;
     CartesianQuadrupole<T> sc[8];
-    SourceCenterType<T> centers[8];
+    SourceCenterType<T>    centers[8];
     for (int i = 0; i < 8; ++i)
     {
         centers[i] = massCenter<T>(x, y, z, masses.data(), i * eighth, (i + 1) * eighth);

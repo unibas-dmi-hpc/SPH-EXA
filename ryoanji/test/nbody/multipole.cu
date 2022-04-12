@@ -34,8 +34,8 @@
 #include "cstone/focus/source_center.hpp"
 
 #include "dataset.hpp"
-#include "ryoanji/cpu/multipole.hpp"
-#include "ryoanji/kernel.hpp"
+#include "ryoanji/nbody/cartesian_qpole.hpp"
+#include "ryoanji/nbody/kernel.hpp"
 
 using namespace ryoanji;
 

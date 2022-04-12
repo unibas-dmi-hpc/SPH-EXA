@@ -56,8 +56,8 @@ HOST_DEVICE_FUN Vec3<T> minDistance(const Vec3<T>& X, const Vec3<T>& bCenter, co
 
 //! @brief returns the smallest distance vector between two boxes, 0 if they overlap
 template<class T>
-HOST_DEVICE_FUN Vec3<T> minDistance(const Vec3<T>& aCenter, const Vec3<T>& aSize, const Vec3<T>& bCenter,
-                                    const Vec3<T>& bSize, const Box<T>& box)
+HOST_DEVICE_FUN Vec3<T> minDistance(
+    const Vec3<T>& aCenter, const Vec3<T>& aSize, const Vec3<T>& bCenter, const Vec3<T>& bSize, const Box<T>& box)
 {
     Vec3<T> dX = bCenter - aCenter;
     dX         = abs(applyPbc(dX, box));
@@ -227,14 +227,18 @@ void markMacPerBox(const Vec3<T>& targetCenter,
  * @param[in]  box          global coordinate bounding box
  * @param[in]  focusStart   lower SFC focus code
  * @param[in]  focusEnd     upper SFC focus code
- * @param[in]  invThetaSq   1./theta^2
+ * @param[in]  invTheta     1./theta
  * @param[out] markings     array of length @p octree.numTreeNodes(), each position i
  *                          will be set to 1, if the node of @p octree with index i fails the MAC paired with
  *                          any node contained in the focus range [focusStart:focusEnd]
  */
 template<template<class> class TreeType, class T, class KeyType>
-void markMac(const TreeType<KeyType>& octree, const Box<T>& box, KeyType focusStart, KeyType focusEnd,
-             float invTheta, char* markings)
+void markMac(const TreeType<KeyType>& octree,
+             const Box<T>& box,
+             KeyType focusStart,
+             KeyType focusEnd,
+             float invTheta,
+             char* markings)
 
 {
     std::fill(markings, markings + octree.numTreeNodes(), 0);
@@ -245,10 +249,10 @@ void markMac(const TreeType<KeyType>& octree, const Box<T>& box, KeyType focusSt
     spanSfcRange(focusStart, focusEnd, focusCodes.data());
     focusCodes.back() = focusEnd;
 
-    #pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic)
     for (TreeNodeIndex i = 0; i < numFocusBoxes; ++i)
     {
-        IBox target = sfcIBox(sfcKey(focusCodes[i]), sfcKey(focusCodes[i + 1]));
+        IBox target                     = sfcIBox(sfcKey(focusCodes[i]), sfcKey(focusCodes[i + 1]));
         auto [targetCenter, targetSize] = centerAndSize<KeyType>(target, box);
         markMacPerBox(targetCenter, targetSize, octree, box, invTheta, focusStart, focusEnd, markings);
     }
@@ -313,10 +317,10 @@ void markVecMac(const TreeType<KeyType>& octree,
     spanSfcRange(focusStart, focusEnd, focusCodes.data());
     focusCodes.back() = focusEnd;
 
-    #pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic)
     for (TreeNodeIndex i = 0; i < numFocusBoxes; ++i)
     {
-        IBox target = sfcIBox(sfcKey(focusCodes[i]), sfcKey(focusCodes[i + 1]));
+        IBox target                     = sfcIBox(sfcKey(focusCodes[i]), sfcKey(focusCodes[i + 1]));
         auto [targetCenter, targetSize] = centerAndSize<KeyType>(target, box);
         markVecMacPerBox(targetCenter, targetSize, octree, centers, box, focusStart, focusEnd, markings);
     }

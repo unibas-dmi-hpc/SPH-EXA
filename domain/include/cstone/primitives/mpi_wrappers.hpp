@@ -112,7 +112,7 @@ auto mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request
 }
 
 //! @brief adaptor to wrap compile-time size arrays into flattened arrays of the underlying type
-template<class T, std::enable_if_t<T{}.size() != 0, int> = 0>
+template<class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
 auto mpiSendAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
 {
     using ValueType    = typename T::value_type;
@@ -129,7 +129,7 @@ auto mpiRecvSync(T* data, int count, int rank, int tag, MPI_Status* status)
 }
 
 //! @brief adaptor to wrap compile-time size arrays into flattened arrays of the underlying type
-template<class T, std::enable_if_t<T{}.size() != 0, int> = 0>
+template<class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
 auto mpiRecvSync(T* data, int count, int rank, int tag, MPI_Status* status)
 {
     using ValueType    = typename T::value_type;
@@ -147,7 +147,7 @@ auto mpiRecvAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request
 }
 
 //! @brief adaptor to wrap compile-time size arrays into flattened arrays of the underlying type
-template<class T, std::enable_if_t<T{}.size() != 0, int> = 0>
+template<class T, std::enable_if_t<!std::is_arithmetic_v<T>, int> = 0>
 auto mpiRecvAsync(T* data, int count, int rank, int tag, std::vector<MPI_Request>& requests)
 {
     using ValueType    = typename T::value_type;
@@ -164,7 +164,7 @@ auto mpiAllreduce(const Ts* src, Td* dest, int count, MPI_Op op)
 }
 
 //! @brief adaptor to wrap compile-time size arrays into flattened arrays of the underlying type
-template<class Ts, class Td, std::enable_if_t<Td{}.size() != 0, int> = 0>
+template<class Ts, class Td, std::enable_if_t<!std::is_arithmetic_v<Td>, int> = 0>
 auto mpiAllreduce(const Ts* src, Td* dest, int count, MPI_Op op)
 {
     using ValueType    = typename Td::value_type;

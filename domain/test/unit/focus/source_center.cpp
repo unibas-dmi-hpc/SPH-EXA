@@ -74,7 +74,7 @@ TEST(FocusedOctree, sourceCenter)
 template<class KeyType>
 static void computeSourceCenter()
 {
-    using T = double;
+    using T                 = double;
     LocalIndex numParticles = 20000;
     Box<T> box{-1, 1};
     unsigned csBucketSize = 16;
@@ -87,12 +87,12 @@ static void computeSourceCenter()
     octree.update(csTree.data(), nNodes(csTree));
 
     std::vector<T> masses(numParticles);
-    std::generate(begin(masses), end(masses), [numParticles](){ return drand48() / numParticles; });
+    std::generate(begin(masses), end(masses), [numParticles]() { return drand48() / numParticles; });
     std::vector<util::array<T, 4>> centers(octree.numTreeNodes());
 
-    computeLeafMassCenter<T, T, T, KeyType>(coords.x(), coords.y(), coords.z(), masses,
-                                                           coords.particleKeys(), octree, centers);
-    upsweep(octree, centers.data(), CombineSourceCenter<T>{});
+    computeLeafMassCenter<T, T, T, KeyType>(coords.x(), coords.y(), coords.z(), masses, coords.particleKeys(), octree,
+                                            centers);
+    upsweep(octree.levelRange(), octree.childOffsets(), centers.data(), CombineSourceCenter<T>{});
 
     util::array<T, 4> refRootCenter =
         massCenter<T>(coords.x().data(), coords.y().data(), coords.z().data(), masses.data(), 0, numParticles);

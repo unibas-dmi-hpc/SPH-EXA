@@ -198,7 +198,6 @@ TEST(InternalOctree, irregularL3)
     octreeIrregularL3<uint64_t>();
 }
 
-
 //! @brief this generates a max-depth cornerstone tree
 template<class KeyType>
 static void spanningTree()
@@ -229,9 +228,9 @@ static void binaryIndexConversion()
     std::vector<TreeNodeIndex> octreeIndices(numNodes);
     for (TreeNodeIndex tid = 0; tid < numNodes; ++tid)
     {
-        int prefixLength  = commonPrefix(cstree[tid], cstree[tid + 1]);
-        bool divisibleBy3 = prefixLength % 3 == 0;
-        octreeIndices[tid]  = (divisibleBy3) ? 1 : 0;
+        int prefixLength   = commonPrefix(cstree[tid], cstree[tid + 1]);
+        bool divisibleBy3  = prefixLength % 3 == 0;
+        octreeIndices[tid] = (divisibleBy3) ? 1 : 0;
     }
     std::vector<TreeNodeIndex> binaryToOct(numNodes);
     std::exclusive_scan(begin(octreeIndices), end(octreeIndices), begin(binaryToOct), 0);
@@ -323,33 +322,6 @@ TEST(InternalOctree, cstoneIndex)
 }
 
 template<class KeyType>
-static void extractLeaves()
-{
-    std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
-    std::vector<KeyType> spanningTree = computeSpanningTree<KeyType>(cornerstones);
-
-    Octree<KeyType> fullTree;
-    fullTree.update(spanningTree.data(), nNodes(spanningTree));
-
-    std::vector<KeyType> prefixes(fullTree.numTreeNodes());
-    for (size_t i = 0; i < prefixes.size(); ++i)
-    {
-        prefixes[i] = fullTree.codeStart(i);
-    }
-
-    std::vector<KeyType> leafExtract(fullTree.numLeafNodes());
-    fullTree.template extractLeaves<KeyType>(prefixes, leafExtract);
-
-    EXPECT_TRUE(std::equal(leafExtract.begin(), leafExtract.end(), spanningTree.begin()));
-}
-
-TEST(InternalOctree, extractLeaves)
-{
-    extractLeaves<unsigned>();
-    extractLeaves<uint64_t>();
-}
-
-template<class KeyType>
 static void upsweepSumIrregularL3()
 {
     std::vector<KeyType> cstoneTree = OctreeMaker<KeyType>{}.divide().divide(0).divide(0, 2).divide(3).makeTree();
@@ -359,13 +331,14 @@ static void upsweepSumIrregularL3()
     std::vector<unsigned> leafCounts(nNodes(cstoneTree), 1);
     std::vector<unsigned> nodeCounts(octree.numTreeNodes());
 
-    upsweep(octree, leafCounts.data(), nodeCounts.data(), SumCombination<unsigned>{});
+    scatter(octree.internalOrder(), leafCounts.data(), nodeCounts.data());
+    upsweep(octree.levelRange(), octree.childOffsets(), nodeCounts.data(), SumCombination<unsigned>{});
 
     //                                      L1                       L2
     //                                                               00                       30
-    std::vector<unsigned> refNodeCounts{29, 15, 1, 1, 8, 1, 1, 1, 1,  1, 1, 8, 1, 1, 1, 1, 1,  1, 1, 1, 1, 1, 1, 1, 1,
-                                   //  L3
-                                   // 020
+    std::vector<unsigned> refNodeCounts{29, 15, 1, 1, 8, 1, 1, 1, 1, 1, 1, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+                                        //  L3
+                                        // 020
                                         1, 1, 1, 1, 1, 1, 1, 1};
 
     EXPECT_EQ(nodeCounts, refNodeCounts);

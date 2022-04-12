@@ -77,6 +77,7 @@ public:
 
         H5PartReadStepAttrib(h5_file, "time", &d.ttot);
         H5PartReadStepAttrib(h5_file, "minDt", &d.minDt);
+        H5PartReadStepAttrib(h5_file, "minDt_m1", &d.minDt_m1);
         H5PartReadStepAttrib(h5_file, "step", &d.iteration);
         d.iteration++;
         H5PartReadStepAttrib(h5_file, "gravConstant", &d.g);

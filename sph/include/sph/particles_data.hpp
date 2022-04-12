@@ -67,7 +67,10 @@ public:
     size_t numParticlesGlobal;
 
     T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
-    T minDt;
+    T minDt, minDt_m1;
+
+    //! @brief gravitational constant
+    T g = 0.0;
 
     std::vector<T> x, y, z, x_m1, y_m1, z_m1;    // Positions
     std::vector<T> vx, vy, vz;                   // Velocities
@@ -124,7 +127,7 @@ public:
     void setConservedFields()
     {
         std::vector<std::string> fields{
-            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "dt_m1"};
+            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1"};
         conservedFields = fieldStringsToInt(fieldNames, fields);
     }
 
@@ -137,7 +140,6 @@ public:
                                         "grad_P_y",
                                         "grad_P_z",
                                         "du",
-                                        "dt",
                                         "c11",
                                         "c12",
                                         "c13",
@@ -152,15 +154,15 @@ public:
     void setConservedFieldsVE()
     {
         std::vector<std::string> fields{
-            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "dt_m1", "alpha"};
+            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha"};
         conservedFields = fieldStringsToInt(fieldNames, fields);
     }
 
     void setDependentFieldsVE()
     {
-        std::vector<std::string> fields{"rho",        "p",    "c",     "grad_P_x", "grad_P_y", "grad_P_z", "du",
-                                        "dt",         "c11",  "c12",   "c13",      "c22",      "c23",      "c33",
-                                        "maxvsignal", "rho0", "wrho0", "kx",       "whomega",  "divv",     "curlv"};
+        std::vector<std::string> fields{"rho",  "p",     "c",   "grad_P_x", "grad_P_y", "grad_P_z", "du",
+                                        "c11",  "c12",   "c13", "c22",      "c23",      "c33",      "maxvsignal",
+                                        "rho0", "wrho0", "kx",  "whomega",  "divv",     "curlv"};
         dependentFields = fieldStringsToInt(fieldNames, fields);
     }
 
@@ -179,13 +181,6 @@ public:
 #ifdef USE_MPI
     MPI_Comm comm;
 #endif
-
-    // TODO: unify this with computePosition/Acceleration:
-    // from SPH we have acceleration = -grad_P, so computePosition adds a factor of -1 to the pressure gradients
-    // instead, the pressure gradients should be renamed to acceleration and computeMomentumAndEnergy should directly
-    // set this to -grad_P, such that we don't need to add the gravitational acceleration with a factor of -1 on top
-    T g = -1.0; // for Evrard Collapse Gravity.
-    // constexpr static T g = 6.6726e-8; // the REAL value of g. g is 1.0 for Evrard mainly
 
     constexpr static T sincIndex     = 6.0;
     constexpr static T Kcour         = 0.2;

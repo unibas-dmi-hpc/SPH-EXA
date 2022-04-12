@@ -56,7 +56,9 @@ void initEvrardFields(Dataset& d, const std::map<std::string, double>& constants
     std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
     std::fill(d.dt_m1.begin(), d.dt_m1.end(), firstTimeStep);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
-    d.minDt = firstTimeStep;
+
+    d.minDt    = firstTimeStep;
+    d.minDt_m1 = firstTimeStep;
 
     std::fill(d.vx.begin(), d.vx.end(), 0.0);
     std::fill(d.vy.begin(), d.vy.end(), 0.0);
@@ -131,6 +133,13 @@ public:
 
         resize(d, d.x.size());
         initEvrardFields(d, constants_);
+
+        // TODO: unify this with computePosition/Acceleration:
+        // from SPH we have acceleration = -grad_P, so computePosition adds a factor of -1 to the pressure gradients
+        // instead, the pressure gradients should be renamed to acceleration and computeMomentumAndEnergy should
+        // directly set this to -grad_P, such that we don't need to add the gravitational acceleration with a factor of
+        // -1 on top. The cgs value of g would be 6.6726e-8, 1.0 for Evrard mainly.
+        d.g = -1.0;
 
         return globalBox;
     }
