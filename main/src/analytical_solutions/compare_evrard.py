@@ -327,33 +327,96 @@ def computeVr(h5File, step):
 
 
 def plotRadialProfile(props, xSim, ySim, xSol, ySol):
-    plt.scatter(xSim, ySim, s=0.1, label="Simulation, L1 = %3f" % props["L1"], color="C0")
+
+    if props["xLogScale"] == "true":
+        plt.xscale('log')
+
+    if props["yLogScale"] == "true":
+        plt.yscale('log')
+            
+    plt.scatter(xSim, ySim, s=0.1, label="Simulation", color="C0")
     plt.plot(xSol, ySol, label="Solution", color="C1")
+    
     plt.xlabel("r")
     plt.ylabel(props["ylabel"])
+    
     plt.draw()
+    
     plt.title(props["title"] + ", N = %3e, t = %3f" % (len(xSim), props["time"]))
+    
     plt.legend(loc="upper right")
+    
     plt.savefig(props["fname"], format="png")
+    
     plt.figure().clear()
 
 
-def createDensityPlot(h5File, attrs, radii, time, step, rhoNorm, rhoSolX, rhoSolY):
+def createDensityPlot(h5File, time, step, radii, rhoNorm, rhoSolX, rhoSolY):
+    
+    print("")
+
+    print("rhoSolX:")
+    print(rhoSolX)
+    print("rhoSolY:")
+    print(rhoSolY)
+    
     rho = loadH5Field(h5File, "rho", step) / rhoNorm
-    props = {"ylabel": "rho", "title": "Density", "fname": "evrard_density_%4f.png" % time, "time": time}
+    print("")
+    print("radii:")
+    print(radii)
+    print("rho:")
+    print(rho)
+    
+    props = {"ylabel": "rho", "title": "Density", "fname": "evrard_density_%4f.png" % time, "time": time, "xLogScale": "true", "yLogScale": "true"}
+    print(props)
+
     plotRadialProfile(props, radii, rho, rhoSolX, rhoSolY)
+    print("")
 
 
-def createPressurePlot(h5File, attrs, radii, time, step, pNorm, pSolX, pSolY):
+def createPressurePlot(h5File, time, step, radii, pNorm, pSolX, pSolY):
+    
+    print("")
+
+    print("pSolX:")
+    print(pSolX)
+    print("pSolY:")
+    print(pSolY)
+    
     p = loadH5Field(h5File, "p", step) / pNorm
-    props = {"ylabel": "p", "title": "Pressure", "fname": "evrard_pressure_%4f.png" % time, "time": time}
+    print("")
+    print("radii:")
+    print(radii)
+    print("p:")
+    print(p)
+    
+    props = {"ylabel": "p", "title": "Pressure", "fname": "evrard_pressure_%4f.png" % time, "time": time, "xLogScale": "true", "yLogScale": "true"}
+    print(props)
+
     plotRadialProfile(props, radii, p, pSolX, pSolY)
+    print("")
 
 
-def createVelocityPlot(h5File, attrs, radii, time, step, vNorm, velSolX, velSolY):
+def createVelocityPlot(h5File, time, step, radii, vNorm, velSolX, velSolY):
+
+    print("")
+    print("velSolX:")
+    print(velSolX)
+    print("velSolY:")
+    print(velSolY)
+
     vr = computeVr(h5File, hdf5_step) / vNorm
-    props = {"ylabel": "vel", "title": "Velocity", "fname": "evrard_velocity_%4f.png" % time, "time": time}
+    print("")
+    print("radii:")
+    print(radii)
+    print("vr:")
+    print(vr)
+
+    props = {"ylabel": "vel", "title": "Velocity", "fname": "evrard_velocity_%4f.png" % time, "time": time, "xLogScale": "true", "yLogScale": "false"}
+    print(props)
+
     plotRadialProfile(props, radii, vr, velSolX, velSolY)
+    print("")
 
 
 if __name__ == "__main__":
@@ -385,15 +448,15 @@ if __name__ == "__main__":
     # Select Solution in function of the time
     if time == t1:
         rhoSolX, rhoSolY = Evrard_Density_t1[:, 0],  Evrard_Density_t1[:, 1]
-        pSolX,   pSolY   = Evrard_Pressure_t2[:, 0], Evrard_Pressure_t2[:, 1]
-        velSolX, velSolY = Evrard_Velocity_t3[:, 0], Evrard_Velocity_t3[:, 1]
+        pSolX,   pSolY   = Evrard_Pressure_t1[:, 0], Evrard_Pressure_t1[:, 1]
+        velSolX, velSolY = Evrard_Velocity_t1[:, 0], Evrard_Velocity_t1[:, 1]
     elif time == t2:
-        rhoSolX, rhoSolY = Evrard_Density_t1[:, 0],  Evrard_Density_t1[:, 1]
+        rhoSolX, rhoSolY = Evrard_Density_t2[:, 0],  Evrard_Density_t2[:, 1]
         pSolX,   pSolY   = Evrard_Pressure_t2[:, 0], Evrard_Pressure_t2[:, 1]
-        velSolX, velSolY = Evrard_Velocity_t3[:, 0], Evrard_Velocity_t3[:, 1]
+        velSolX, velSolY = Evrard_Velocity_t2[:, 0], Evrard_Velocity_t2[:, 1]
     elif time == t3:
-        rhoSolX, rhoSolY = Evrard_Density_t1[:, 0],  Evrard_Density_t1[:, 1]
-        pSolX,   pSolY   = Evrard_Pressure_t2[:, 0], Evrard_Pressure_t2[:, 1]
+        rhoSolX, rhoSolY = Evrard_Density_t3[:, 0],  Evrard_Density_t3[:, 1]
+        pSolX,   pSolY   = Evrard_Pressure_t3[:, 0], Evrard_Pressure_t3[:, 1]
         velSolX, velSolY = Evrard_Velocity_t3[:, 0], Evrard_Velocity_t3[:, 1]
     else:
         print("No valid input time for the solution")
@@ -422,16 +485,16 @@ if __name__ == "__main__":
         sys.exit(1)
         
     try:
-        createDensityPlot(h5File, attrs, radii, time, hdf5_step, rhoNorm, rhoSolX, rhoSolY)
+        createDensityPlot(h5File, time, hdf5_step, radii, rhoNorm, rhoSolX, rhoSolY)
     except KeyError:
         print("Could not plot density profile, input does not contain field \"rho\"")
 
     try:
-        createPressurePlot(h5File, attrs, radii, time, hdf5_step, pNorm, pSolX, pSolY)
+        createPressurePlot(h5File, time, hdf5_step, radii, pNorm, pSolX, pSolY)
     except KeyError:
         print("Could not plot pressure profile, input does not contain field \"p\"")
 
     try:
-        createVelocityPlot(h5File, attrs, radii, time, hdf5_step, vNorm, velSolX, velSolY)
+        createVelocityPlot(h5File, time, hdf5_step, radii, vNorm, velSolX, velSolY)
     except KeyError:
         print("Could not plot velocity profile, input does not contain fields \"vx, vy, vz\"")
