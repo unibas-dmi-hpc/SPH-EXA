@@ -29,7 +29,7 @@ Reference Noh solution:
    an Artificial Heat Flux", W.F. Noh. JCP 72 (1987), 78-120
 
 Usage examples:
-    $ python ./compare_noh.py --version'
+    $ python ./compare_noh.py --help
     $ python ./compare_noh.py dump_noh.h5part --time 0.018
     $ python ./compare_noh.py dump_noh.h5part --step 100
 """
