@@ -37,45 +37,11 @@
 #include "cstone/tree/octree.cuh"
 #include "cstone/tree/octree_internal.cuh"
 
-#include "ryoanji/types.h"
-#include "ryoanji/treebuilder.cuh"
+#include "ryoanji/nbody/types.h"
+#include "ryoanji/interface/treebuilder.cuh"
 
 namespace ryoanji
 {
-
-template<class KeyType>
-__global__ void convertTree(cstone::OctreeGpuDataView<KeyType> cstoneTree, const cstone::LocalIndex* layout,
-                            ryoanji::CellData* ryoanjiTree)
-{
-    unsigned tid = blockIdx.x * blockDim.x + threadIdx.x;
-    if (tid < cstoneTree.numInternalNodes + cstoneTree.numLeafNodes)
-    {
-        cstone::LocalIndex firstParticle = 0;
-        cstone::LocalIndex lastParticle  = 0;
-
-        cstone::TreeNodeIndex child       = 0;
-        int                   numChildren = 1;
-
-        bool isLeaf = (cstoneTree.childOffsets[tid] == 0);
-        if (!isLeaf)
-        {
-            child       = cstoneTree.childOffsets[tid];
-            numChildren = 8;
-        }
-        else
-        {
-            cstone::TreeNodeIndex leafIndex = cstoneTree.nodeOrder[tid] - cstoneTree.numInternalNodes;
-            assert(leafIndex >= 0);
-            firstParticle = layout[leafIndex];
-            lastParticle  = layout[leafIndex + 1];
-        }
-
-        unsigned level     = cstone::decodePrefixLength(cstoneTree.prefixes[tid]) / 3;
-        unsigned parentIdx = (tid == 0) ? 0 : cstoneTree.parents[(tid - 1) / 8];
-        ryoanjiTree[tid] =
-            ryoanji::CellData(level, parentIdx, firstParticle, lastParticle - firstParticle, child, numChildren);
-    }
-}
 
 template<class KeyType>
 class TreeBuilder<KeyType>::Impl
@@ -88,7 +54,32 @@ public:
     template<class T>
     cstone::TreeNodeIndex update(T* x, T* y, T* z, size_t numBodies, const cstone::Box<T>& box);
 
-    int extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange);
+    int extract(int2* h_levelRange);
+
+    const LocalIndex* layout() const
+    {
+        return thrust::raw_pointer_cast(d_layout_.data());
+    }
+
+    const TreeNodeIndex* childOffsets() const
+    {
+        return thrust::raw_pointer_cast(octreeGpuData_.childOffsets.data());
+    }
+
+    const TreeNodeIndex* leafToInternal() const
+    {
+        return thrust::raw_pointer_cast(octreeGpuData_.leafToInternal.data() + octreeGpuData_.numInternalNodes);
+    }
+
+    const TreeNodeIndex* internalToLeaf() const
+    {
+        return thrust::raw_pointer_cast(octreeGpuData_.internalToLeaf.data());
+    }
+
+    TreeNodeIndex numLeafNodes() const
+    {
+        return octreeGpuData_.numLeafNodes;
+    }
 
 private:
     unsigned bucketSize_;
@@ -160,21 +151,14 @@ cstone::TreeNodeIndex TreeBuilder<KeyType>::Impl::update(T* x, T* y, T* z, size_
 }
 
 template<class KeyType>
-int TreeBuilder<KeyType>::Impl::extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange)
+int TreeBuilder<KeyType>::Impl::extract(int2* h_levelRange)
 {
-    cstone::TreeNodeIndex numNodes = octreeGpuData_.numInternalNodes + octreeGpuData_.numLeafNodes;
-
     d_layout_.resize(d_counts_.size() + 1);
     thrust::copy(d_counts_.begin(), d_counts_.end(), d_layout_.begin());
     thrust::exclusive_scan(thrust::device,
                            thrust::raw_pointer_cast(d_layout_.data()),
                            thrust::raw_pointer_cast(d_layout_.data()) + d_layout_.size(),
                            thrust::raw_pointer_cast(d_layout_.data()));
-
-    constexpr unsigned numThreads = 256;
-    unsigned           numBlocks  = (numNodes - 1) / numThreads + 1;
-    convertTree<<<numBlocks, numThreads>>>(
-        octreeGpuData_.getData(), thrust::raw_pointer_cast(d_layout_.data()), d_ryoanjiTree);
 
     thrust::host_vector<int> cs_levelRange = octreeGpuData_.levelRange;
 
@@ -217,9 +201,39 @@ int TreeBuilder<KeyType>::update(T* x, T* y, T* z, size_t numBodies, const cston
 }
 
 template<class KeyType>
-int TreeBuilder<KeyType>::extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange)
+int TreeBuilder<KeyType>::extract(int2* h_levelRange)
 {
-    return impl_->extract(d_ryoanjiTree, h_levelRange);
+    return impl_->extract(h_levelRange);
+}
+
+template<class KeyType>
+const LocalIndex* TreeBuilder<KeyType>::layout() const
+{
+    return impl_->layout();
+}
+
+template<class KeyType>
+const TreeNodeIndex* TreeBuilder<KeyType>::childOffsets() const
+{
+    return impl_->childOffsets();
+}
+
+template<class KeyType>
+const TreeNodeIndex* TreeBuilder<KeyType>::leafToInternal() const
+{
+    return impl_->leafToInternal();
+}
+
+template<class KeyType>
+const TreeNodeIndex* TreeBuilder<KeyType>::internalToLeaf() const
+{
+    return impl_->internalToLeaf();
+}
+
+template<class KeyType>
+TreeNodeIndex TreeBuilder<KeyType>::numLeafNodes() const
+{
+    return impl_->numLeafNodes();
 }
 
 template<class KeyType>

@@ -82,14 +82,10 @@ void computeTimestep(size_t startIndex, size_t endIndex, Dataset& d)
     MPI_Allreduce(MPI_IN_PLACE, &minDt, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
 #endif
 
-#pragma omp parallel for schedule(static)
-    for (size_t i = startIndex; i < endIndex; i++)
-    {
-        d.dt[i] = minDt;
-    }
-
     d.ttot += minDt;
-    d.minDt = minDt;
+
+    d.minDt_m1 = d.minDt;
+    d.minDt    = minDt;
 }
 
 } // namespace sph

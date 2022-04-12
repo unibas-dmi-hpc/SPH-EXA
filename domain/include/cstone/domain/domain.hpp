@@ -185,10 +185,11 @@ public:
 
         if (firstCall_)
         {
-            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
+            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(),
+                                global_.nodeCounts());
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-        focusTree_.updateCounts(keyView, peers, global_.treeLeaves(), global_.nodeCounts());
+        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
         focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves());
 
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
@@ -218,11 +219,12 @@ public:
 
         if (firstCall_)
         {
-            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts());
+            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(),
+                                global_.nodeCounts());
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
-        focusTree_.updateCounts(keyView, peers, global_.treeLeaves(), global_.nodeCounts());
-        focusTree_.template updateCenters<T, T>(x, y, z, m, peers, global_.assignment(), global_.octree(), box());
+        focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
+        focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box());
         focusTree_.updateVecMac(box(), global_.assignment(), global_.treeLeaves());
 
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
@@ -245,23 +247,6 @@ public:
         halos_.exchangeHalos(arrays.data()...);
     }
 
-    template<class CellProperty, class CombinationFunction>
-    void exchangeFocusGlobal(gsl::span<CellProperty> cellProperties, CombinationFunction combinationFunction)
-    {
-        const Octree<KeyType>& globalTree = global_.octree();
-
-        gsl::span<const SourceCenterType<T>> globalCenters = focusTree_.globalExpansionCenters();
-        assert(globalTree.numTreeNodes() == globalCenters.ssize());
-        combinationFunction.setCenters(globalCenters.data());
-
-        std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), globalTree, box(), theta_);
-
-        std::vector<CellProperty> globalProperties(globalTree.numTreeNodes());
-
-        focusTree_.peerExchange(peers, cellProperties, static_cast<int>(P2pTags::focusPeerCenters) + 1);
-        focusTree_.globalExchange(globalTree, globalProperties.data(), cellProperties.data(), combinationFunction);
-    }
-
     //! @brief return the index of the first particle that's part of the local assignment
     [[nodiscard]] LocalIndex startIndex() const { return bufDesc_.start; }
     //! @brief return one past the index of the last particle that's part of the local assignment
@@ -271,22 +256,19 @@ public:
     //! @brief return number of locally assigned particles plus number of halos
     [[nodiscard]] LocalIndex nParticlesWithHalos() const { return bufDesc_.size; }
     //! @brief read only visibility of the global octree leaves to the outside
-    gsl::span<const KeyType> tree() const { return global_.treeLeaves(); }
+    const Octree<KeyType>& globalTree() const { return global_.octree(); }
     //! @brief read only visibility of the focused octree
-    const Octree<KeyType>& focusTree() const { return focusTree_.octree(); }
+    const FocusedOctree<KeyType, T>& focusTree() const { return focusTree_; }
     //! @brief the index of the first locally assigned cell in focusTree()
     TreeNodeIndex startCell() const { return focusTree_.assignment()[myRank_].start(); }
     //! @brief the index of the last locally assigned cell in focusTree()
     TreeNodeIndex endCell() const { return focusTree_.assignment()[myRank_].end(); }
-    //! @brief expansion (com) center and mac^2 radii of each focus tree cell
-    gsl::span<const SourceCenterType<T>> expansionCenters() const { return focusTree_.expansionCenters(); }
     //! @brief particle offsets of each focus tree leaf cell
     gsl::span<const LocalIndex> layout() const { return layout_; }
     //! @brief return the coordinate bounding box from the previous sync call
     const Box<T>& box() const { return global_.box(); }
 
 private:
-
     //! @brief bounds initialization on first call, use all particles
     template<class... Arrays>
     void initBounds(std::size_t bufferSize)
@@ -304,10 +286,7 @@ private:
     {
         std::array<std::size_t, sizeof...(Arrays)> sizes{arrays.size()...};
         bool allEqual = size_t(std::count(begin(sizes), end(sizes), value)) == sizes.size();
-        if (!allEqual)
-        {
-            throw std::runtime_error("Domain sync: input array sizes are inconsistent\n");
-        }
+        if (!allEqual) { throw std::runtime_error("Domain sync: input array sizes are inconsistent\n"); }
     }
 
     template<class... Vectors>

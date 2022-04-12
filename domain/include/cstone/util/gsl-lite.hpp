@@ -3560,20 +3560,20 @@ public:
 
 #if gsl_HAVE( CONSTRAINED_SPAN_CONTAINER_CTOR )
     template< class Container
-        gsl_ENABLE_IF_(( detail::is_compatible_container< Container, element_type >::value ))
+        //gsl_ENABLE_IF_(( detail::is_compatible_container< Container, element_type >::value ))
     >
-    gsl_api gsl_constexpr span( Container & cont ) gsl_noexcept
+    gsl_constexpr span( Container & cont ) gsl_noexcept
         : first_( std17::data( cont ) )
         , last_ ( std17::data( cont ) + std17::size( cont ) )
     {}
 
     template< class Container
-        gsl_ENABLE_IF_((
-            std::is_const< element_type >::value
-            && detail::is_compatible_container< Container, element_type >::value
-        ))
+        //gsl_ENABLE_IF_((
+        //    std::is_const< element_type >::value
+        //    && detail::is_compatible_container< Container, element_type >::value
+        //))
     >
-    gsl_api gsl_constexpr span( Container const & cont ) gsl_noexcept
+    gsl_constexpr span( Container const & cont ) gsl_noexcept
         : first_( std17::data( cont ) )
         , last_ ( std17::data( cont ) + std17::size( cont ) )
     {}
@@ -3624,11 +3624,11 @@ public:
     // constructors taking unique_ptr deprecated since 0.29.0
 
 # if gsl_HAVE( UNIQUE_PTR )
-#  if gsl_HAVE( DEFAULT_FUNCTION_TEMPLATE_ARG )
-    template< class ArrayElementType = typename std::add_pointer<element_type>::type >
-#  else
+//#  if gsl_HAVE( DEFAULT_FUNCTION_TEMPLATE_ARG )
+//    template< class ArrayElementType = typename std::add_pointer<element_type>::type >
+//#  else
     template< class ArrayElementType >
-#  endif
+//#  endif
     gsl_DEPRECATED
     gsl_constexpr span( unique_ptr<ArrayElementType> const & ptr, index_type count )
         : first_( ptr.get() )
@@ -3667,7 +3667,7 @@ public:
 #endif
 
     template< class U
-        gsl_ENABLE_IF_(( std::is_convertible<U(*)[], element_type(*)[]>::value ))
+    //    gsl_ENABLE_IF_(( std::is_convertible<U(*)[], element_type(*)[]>::value ))
     >
     gsl_api gsl_constexpr span( span<U> const & other )
         : first_( other.begin() )
