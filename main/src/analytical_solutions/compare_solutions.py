@@ -73,6 +73,7 @@ def determineTimestep(time, timesteps):
     """ Return the timestep with simulation time closest to the specified time """
     return np.argmin(np.abs(timesteps - time))
 
+
 def computeRadii(h5File, step):
     """ Load XYZ coordinates and compute their radii """
     x = loadH5Field(h5File, "x", step)

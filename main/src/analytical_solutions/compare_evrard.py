@@ -59,8 +59,9 @@ This routine produces 1d solutions for the evrard collapse:
 
 Usage examples:
     $ python ./compare_evrard.py --version'
-    $ python ./compare_evrard.py dump_evrard.h5part --time 0.018
-    $ python ./compare_evrard.py dump_evrard.h5part --step 100
+    $ python ./compare_evrard.py dump_evrard.h5part --time 0.77
+    $ python ./compare_evrard.py dump_evrard.h5part --time 1.29
+    $ python ./compare_evrard.py dump_evrard.h5part --time 2.58
 
 """
 
@@ -70,15 +71,17 @@ __version__ = "0.1.0"
 
 from argparse import ArgumentParser
 
+import math
 import h5py
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
 """ Time where the outputs with be compare with the solution """
-t1 = 0.77
-t2 = 1.29
-t3 = 2.58
+t1         = 0.77
+t2         = 1.29
+t3         = 2.58
+tSolutions = [t1, t2, t3]
 
 """ Evrard density solution at t1,t2,t3 """
 Evrard_Density_t1 = np.array([
@@ -285,21 +288,6 @@ Evrard_Velocity_t3 = np.array([
 ])
 
 
-def evrardRho(xgeom, gamma, rho0, vel0, r, time):
-    """ analytical density at radius r for given time"""
-    return rho0 * ((gamma + 1) / (gamma - 1)) ** xgeom
-
-
-def evrardP(xgeom, gamma, rho0, u0, p0, vel0, r, time):
-    """ analytical pressure at radius r for given time"""
-    return (gamma - 1) * evrardRho(xgeom, gamma, rho0, vel0, r, time) * evrardU(gamma, u0, vel0, r, time)
-
-
-def evrardVel(gamma, vel0, r, time):
-    """ analytical velocity magnitude at radius r for given time"""
-    return 0
-
-
 def loadH5Field(h5File, what, step):
     """ Load the specified particle field at the given step, returns an array of length numParticles """
     return np.array(h5File["Step#%s/%s" % (step, what)])
@@ -350,107 +338,100 @@ def plotRadialProfile(props, xSim, ySim, xSol, ySol):
     plt.figure().clear()
 
 
-def createDensityPlot(h5File, attrs, radii, time, step, timeNorm, rhoNorm):
-    rho = loadH5Field(h5File, "rho", step)
-
-    rSol = np.linspace(attrs["r0"], attrs["r1"], 1000)
-    rhoSol = np.vectorize(evrardRho)(attrs["dim"], attrs["gamma"], attrs["rho0"], attrs["vr0"], rSol, time)
-
-    rhoSolFull = np.vectorize(evrardRho)(attrs["dim"], attrs["gamma"], attrs["rho0"], attrs["vr0"], radii, time)
-    L1 = sum(abs(rhoSolFull - rho)) / len(rho)
-
+def createDensityPlot(h5File, attrs, radii, time, step, rhoNorm, rhoSolX, rhoSolY):
+    rho = loadH5Field(h5File, "rho", step) / rhoNorm
     props = {"ylabel": "rho", "title": "Density", "fname": "evrard_density_%4f.png" % time, "time": time, "L1": L1}
-    plotRadialProfile(props, radii, rho, rSol, rhoSol)
-
-    print("Density L1 error", L1)
+    plotRadialProfile(props, radii, rho, rhoSolX, rhoSolY)
 
 
-def createPressurePlot(h5File, attrs, radii, time, step, timeNorm, pNorm):
-    p = loadH5Field(h5File, "p", step)
-
-    rSol = np.linspace(attrs["r0"], attrs["r1"], 1000)
-    pSol = np.vectorize(evrardP)(attrs["dim"], attrs["gamma"], attrs["rho0"], attrs["u0"], attrs["p0"], attrs["vr0"],
-                              rSol, time)
-
-    pSolFull = np.vectorize(evrardP)(attrs["dim"], attrs["gamma"], attrs["rho0"], attrs["u0"], attrs["p0"], attrs["vr0"],
-                                  radii, time)
-    L1 = sum(abs(pSolFull - p)) / len(p)
-
+def createPressurePlot(h5File, attrs, radii, time, step, pNorm, pSolX, pSolY):
+    p = loadH5Field(h5File, "p", step) / pNorm
     props = {"ylabel": "p", "title": "Pressure", "fname": "evrard_pressure_%4f.png" % time, "time": time, "L1": L1}
-    plotRadialProfile(props, radii, p, rSol, pSol)
-
-    print("Pressure L1 error", L1)
+    plotRadialProfile(props, radii, p, pSolX, pSolY)
 
 
-def createVelocityPlot(h5File, attrs, radii, time, step, timeNorm, vNorm):
-    vr = computeVr(h5File, hdf5_step)
-
-    rSol = np.linspace(attrs["r0"], attrs["r1"], 1000)
-    vSol = np.vectorize(evrardVel)(attrs["gamma"], attrs["vr0"], rSol, time)
-
-    vSolFull = np.vectorize(evrardVel)(attrs["gamma"], attrs["vr0"], radii, time)
-    L1 = sum(abs(vSolFull - vr)) / len(vr)
-
+def createVelocityPlot(h5File, attrs, radii, time, step, vNorm, velSolX, velSolY):
+    vr = computeVr(h5File, hdf5_step) / vNorm
     props = {"ylabel": "vel", "title": "Velocity", "fname": "evrard_velocity_%4f.png" % time, "time": time, "L1": L1}
-    plotRadialProfile(props, radii, vr, rSol, vSol)
-
-    print("Velocity L1 error", L1)
+    plotRadialProfile(props, radii, vr, velSolX, velSolY)
 
 
 if __name__ == "__main__":
     parser = ArgumentParser(description='Plot paper solutions against SPH simulations')
     parser.add_argument('simFile', help="SPH simulation HDF5 file")
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('-s', '--step', type=int, dest="step", help="plot paper solution at the given simulation step")
-    group.add_argument('-t', '--time', type=float, dest="time", help="simulation time for which to plot paper solution")
+    group.add_argument('-t', '--time', type=float, dest="time", choices=tSolutions, help="Simulation time for which to plot paper solution")
     args = parser.parse_args()
 
+    # Get time
+    time = args.time
+
+    # Get HDF5 Simulation file
     h5File = h5py.File(args.simFile, "r")
 
-    step = args.step
+    # Get attributes from 'evrard_init.hpp'
+    attrs = h5File.attrs
+    G  = attrs["G"]
+    R  = attrs["r"]
+    Mt = attrs["mTotal"]
+    
+    # Normalization variables: Steinmetz & Müller (1993)
+    timeNorm = ((R ** 3.) / G * Mt) ** 0.5
+    rhoNorm  = (3. * Mt) / (4. * math.pi * (R ** 3.))
+    uNorm    = G * Mt / R
+    vNorm    = uNorm ** 0.5
+    pNorm    = rhoNorm * uNorm
 
+    # Select Solution in function of the time
+    if time == t1:
+        rhoSolX, rhoSolY = Evrard_Density_t1[:, 1],  Evrard_Density_t1[:, 2]
+        pSolX,   pSolY   = Evrard_Pressure_t2[:, 1], Evrard_Pressure_t2[:, 2]
+        velSolX, velSolY = Evrard_Velocity_t3[:, 1], Evrard_Velocity_t3[:, 2]
+    elif time == t2:
+        rhoSolX, rhoSolY = Evrard_Density_t1[:, 1],  Evrard_Density_t1[:, 2]
+        pSolX,   pSolY   = Evrard_Pressure_t2[:, 1], Evrard_Pressure_t2[:, 2]
+        velSolX, velSolY = Evrard_Velocity_t3[:, 1], Evrard_Velocity_t3[:, 2]
+    elif time == t3:
+        rhoSolX, rhoSolY = Evrard_Density_t1[:, 1],  Evrard_Density_t1[:, 2]
+        pSolX,   pSolY   = Evrard_Pressure_t2[:, 1], Evrard_Pressure_t2[:, 2]
+        velSolX, velSolY = Evrard_Velocity_t3[:, 1], Evrard_Velocity_t3[:, 2]
+    else:
+        print("No valid input time for the solution")
+        sys.exit(1)
+        
     # simulation time of each step that was written to file
     timesteps = loadTimesteps(h5File)
+    
     # the actual iteration number of each step that was written
     stepNumbers = loadStepNumbers(h5File)
 
-    if step is None:
-        # output time specified instead of step, locate closest output step
-        stepIndex = determineTimestep(args.time, timesteps)
-        step = stepNumbers[stepIndex]
-        print("The closest timestep to the specified time of %s is step %s at t=%s" % (
-            args.time, step, timesteps[stepIndex]))
+    # output time specified instead of step, locate closest output step
+    timeAprox = time * timeNorm
+    stepIndex = determineTimestep(timeAprox, timesteps)
+    step = stepNumbers[stepIndex]
+    print("The closest timestep to the specified time of %s is step %s at t=%s" % (timeAprox, step, timesteps[stepIndex]))
 
     hdf5_step = np.searchsorted(stepNumbers, step)
-    time = timesteps[hdf5_step]
-
-    attrs = h5File.attrs
-
+    
+    # Calulate Radius
     radii = None
     try:
         radii = computeRadii(h5File, hdf5_step)
     except KeyError:
         print("Could not load radii, input file does not contain fields \"x, y, z\"")
         sys.exit(1)
-
-    # Normalization variables: Steinmetz & Müller (1993)
-    timeNorm = ((R ** 3.) / G * Mt) ** 0.5
-    rhoNorm  = (3. * Mt) / (4. * M_PI * (R ** 3.))
-    uNorm    = G * Mt / R
-    vNorm    = (G * Mt / R) ** 0.5
-    pNorm    = rhoNorm * uNorm
-
+        
     try:
-        createDensityPlot(h5File, attrs, radii, time, hdf5_step, timeNorm, rhoNorm)
+        createDensityPlot(h5File, attrs, radii, time, hdf5_step, rhoNorm, rhoSolX, rhoSolY)
     except KeyError:
         print("Could not plot density profile, input does not contain field \"rho\"")
 
     try:
-        createPressurePlot(h5File, attrs, radii, time, hdf5_step, timeNorm, pNorm)
+        createPressurePlot(h5File, attrs, radii, time, hdf5_step, pNorm, pSolX, pSolY)
     except KeyError:
         print("Could not plot pressure profile, input does not contain field \"p\"")
 
     try:
-        createVelocityPlot(h5File, attrs, radii, time, hdf5_step, timeNorm, vNorm)
+        createVelocityPlot(h5File, attrs, radii, time, hdf5_step, vNorm, velSolX, velSolY)
     except KeyError:
         print("Could not plot velocity profile, input does not contain fields \"vx, vy, vz\"")
