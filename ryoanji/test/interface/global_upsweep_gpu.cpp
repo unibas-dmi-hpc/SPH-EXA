@@ -97,7 +97,9 @@ static int multipoleHolderTest(int thisRank, int numRanks)
                             domain.layout().data(),
                             multipoles.data());
 
-    cudaMemcpy(multipoles.data(), multipoleHolder.deviceMultipoles(), multipoles.size() * sizeof(MultipoleType),
+    cudaMemcpy(multipoles.data(),
+               multipoleHolder.deviceMultipoles(),
+               multipoles.size() * sizeof(MultipoleType),
                cudaMemcpyDeviceToHost);
 
     MultipoleType globalRootMultipole = multipoles[octree.levelOffset(0)];

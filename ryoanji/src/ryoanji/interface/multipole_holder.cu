@@ -57,8 +57,8 @@ public:
                  const cstone::FocusedOctree<KeyType, Tf>& focusTree, const cstone::LocalIndex* layout,
                  MType* multipoles)
     {
-        constexpr int numThreads = UpsweepConfig::numThreads;
-        const cstone::Octree<KeyType>& octree = focusTree.octree();
+        constexpr int                  numThreads = UpsweepConfig::numThreads;
+        const cstone::Octree<KeyType>& octree     = focusTree.octree();
 
         TreeNodeIndex numLeaves = focusTree.octree().numLeafNodes();
         resize(numLeaves);
@@ -75,7 +75,8 @@ public:
         memcpy(rawPtr(internalToLeaf_.data()), internalToLeaf, internalToLeaf_.size(), cudaMemcpyHostToDevice);
 
         const TreeNodeIndex* childOffsets = octree.childOffsets().data();
-        memcpy(rawPtr(childOffsets_.data()), octree.childOffsets().data(), childOffsets_.size(), cudaMemcpyHostToDevice);
+        memcpy(
+            rawPtr(childOffsets_.data()), octree.childOffsets().data(), childOffsets_.size(), cudaMemcpyHostToDevice);
 
         memcpy(rawPtr(layout_.data()), layout, layout_.size(), cudaMemcpyHostToDevice);
         memcpy(rawPtr(centers_.data()), centers.data(), centers.size(), cudaMemcpyHostToDevice);
@@ -204,7 +205,8 @@ private:
 };
 
 template<class Tc, class Tm, class Tf, class KeyType, class MType>
-MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::MultipoleHolder() : impl_(new Impl())
+MultipoleHolder<Tc, Tm, Tf, KeyType, MType>::MultipoleHolder()
+    : impl_(new Impl())
 {
 }
 
