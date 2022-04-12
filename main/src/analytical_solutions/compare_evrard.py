@@ -31,7 +31,7 @@ References Evrard solution:
     3.3 Self-gravitationg collapse of a cold gas sphere (p 922)
     
 - "On the capabilities and limits of smoothed particle hydrodynamics",
-    M. Steinmetz & E. Müller. A&A 268 (1993), p. 391-410.
+    M. Steinmetz & E. Muller. A&A 268 (1993), p. 391-410.
     3.3 Adiabatic spherical collapse of an initially isothermal gas cloud (p 405)
 
 
@@ -375,7 +375,7 @@ if __name__ == "__main__":
     R  = attrs["r"]
     Mt = attrs["mTotal"]
     
-    # Normalization variables: Steinmetz & Müller (1993)
+    # Normalization variables: Steinmetz & Muller (1993)
     timeNorm = ((R ** 3.) / G * Mt) ** 0.5
     rhoNorm  = (3. * Mt) / (4. * math.pi * (R ** 3.))
     uNorm    = G * Mt / R
