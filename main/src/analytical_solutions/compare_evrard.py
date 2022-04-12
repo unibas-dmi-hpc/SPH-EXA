@@ -340,19 +340,19 @@ def plotRadialProfile(props, xSim, ySim, xSol, ySol):
 
 def createDensityPlot(h5File, attrs, radii, time, step, rhoNorm, rhoSolX, rhoSolY):
     rho = loadH5Field(h5File, "rho", step) / rhoNorm
-    props = {"ylabel": "rho", "title": "Density", "fname": "evrard_density_%4f.png" % time, "time": time, "L1": L1}
+    props = {"ylabel": "rho", "title": "Density", "fname": "evrard_density_%4f.png" % time, "time": time}
     plotRadialProfile(props, radii, rho, rhoSolX, rhoSolY)
 
 
 def createPressurePlot(h5File, attrs, radii, time, step, pNorm, pSolX, pSolY):
     p = loadH5Field(h5File, "p", step) / pNorm
-    props = {"ylabel": "p", "title": "Pressure", "fname": "evrard_pressure_%4f.png" % time, "time": time, "L1": L1}
+    props = {"ylabel": "p", "title": "Pressure", "fname": "evrard_pressure_%4f.png" % time, "time": time}
     plotRadialProfile(props, radii, p, pSolX, pSolY)
 
 
 def createVelocityPlot(h5File, attrs, radii, time, step, vNorm, velSolX, velSolY):
     vr = computeVr(h5File, hdf5_step) / vNorm
-    props = {"ylabel": "vel", "title": "Velocity", "fname": "evrard_velocity_%4f.png" % time, "time": time, "L1": L1}
+    props = {"ylabel": "vel", "title": "Velocity", "fname": "evrard_velocity_%4f.png" % time, "time": time}
     plotRadialProfile(props, radii, vr, velSolX, velSolY)
 
 
@@ -384,17 +384,17 @@ if __name__ == "__main__":
 
     # Select Solution in function of the time
     if time == t1:
-        rhoSolX, rhoSolY = Evrard_Density_t1[:, 1],  Evrard_Density_t1[:, 2]
-        pSolX,   pSolY   = Evrard_Pressure_t2[:, 1], Evrard_Pressure_t2[:, 2]
-        velSolX, velSolY = Evrard_Velocity_t3[:, 1], Evrard_Velocity_t3[:, 2]
+        rhoSolX, rhoSolY = Evrard_Density_t1[:, 0],  Evrard_Density_t1[:, 1]
+        pSolX,   pSolY   = Evrard_Pressure_t2[:, 0], Evrard_Pressure_t2[:, 1]
+        velSolX, velSolY = Evrard_Velocity_t3[:, 0], Evrard_Velocity_t3[:, 1]
     elif time == t2:
-        rhoSolX, rhoSolY = Evrard_Density_t1[:, 1],  Evrard_Density_t1[:, 2]
-        pSolX,   pSolY   = Evrard_Pressure_t2[:, 1], Evrard_Pressure_t2[:, 2]
-        velSolX, velSolY = Evrard_Velocity_t3[:, 1], Evrard_Velocity_t3[:, 2]
+        rhoSolX, rhoSolY = Evrard_Density_t1[:, 0],  Evrard_Density_t1[:, 1]
+        pSolX,   pSolY   = Evrard_Pressure_t2[:, 0], Evrard_Pressure_t2[:, 1]
+        velSolX, velSolY = Evrard_Velocity_t3[:, 0], Evrard_Velocity_t3[:, 1]
     elif time == t3:
-        rhoSolX, rhoSolY = Evrard_Density_t1[:, 1],  Evrard_Density_t1[:, 2]
-        pSolX,   pSolY   = Evrard_Pressure_t2[:, 1], Evrard_Pressure_t2[:, 2]
-        velSolX, velSolY = Evrard_Velocity_t3[:, 1], Evrard_Velocity_t3[:, 2]
+        rhoSolX, rhoSolY = Evrard_Density_t1[:, 0],  Evrard_Density_t1[:, 1]
+        pSolX,   pSolY   = Evrard_Pressure_t2[:, 0], Evrard_Pressure_t2[:, 1]
+        velSolX, velSolY = Evrard_Velocity_t3[:, 0], Evrard_Velocity_t3[:, 1]
     else:
         print("No valid input time for the solution")
         sys.exit(1)
