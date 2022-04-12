@@ -35,80 +35,14 @@
 #include "cstone/findneighbors.hpp"
 #include "coord_samples/random.hpp"
 
-#include "ryoanji/types.h"
-#include "ryoanji/cpu/multipole.hpp"
-#include "ryoanji/cpu/upsweep.hpp"
+#include "ryoanji/interface/global_multipole.hpp"
 
 using namespace ryoanji;
 
-//! @brief can be used to calculate reasonable smoothing lengths for each particle
-template<class KeyType, class Tc, class Th>
-void adjustSmoothingLength(LocalIndex numParticles,
-                           int ng0,
-                           int ngmax,
-                           const std::vector<Tc>& xGlob,
-                           const std::vector<Tc>& yGlob,
-                           const std::vector<Tc>& zGlob,
-                           std::vector<Th>& hGlob,
-                           const cstone::Box<Tc>& box)
-{
-    std::vector<KeyType> codesGlobal(numParticles);
-
-    std::vector<Tc> x = xGlob;
-    std::vector<Tc> y = yGlob;
-    std::vector<Tc> z = zGlob;
-    std::vector<Tc> h = hGlob;
-
-    cstone::computeSfcKeys(x.data(), y.data(), z.data(), cstone::sfcKindPointer(codesGlobal.data()), numParticles, box);
-    std::vector<LocalIndex> ordering(numParticles);
-    std::iota(begin(ordering), end(ordering), LocalIndex(0));
-    cstone::sort_by_key(begin(codesGlobal), end(codesGlobal), begin(ordering));
-    cstone::reorderInPlace(ordering, x.data());
-    cstone::reorderInPlace(ordering, y.data());
-    cstone::reorderInPlace(ordering, z.data());
-    cstone::reorderInPlace(ordering, h.data());
-
-    std::vector<LocalIndex> inverseOrdering(numParticles);
-    std::iota(begin(inverseOrdering), end(inverseOrdering), 0);
-    std::vector orderCpy = ordering;
-    cstone::sort_by_key(begin(orderCpy), end(orderCpy), begin(inverseOrdering));
-
-    std::vector<int> neighbors(numParticles * ngmax);
-    std::vector<int> neighborCounts(numParticles);
-
-    // adjust h[i] such that each particle has between ng0/2 and ngmax neighbors
-    for (LocalIndex i = 0; i < numParticles; ++i)
-    {
-        do
-        {
-            cstone::findNeighbors(i,
-                                  x.data(),
-                                  y.data(),
-                                  z.data(),
-                                  h.data(),
-                                  box,
-                                  cstone::sfcKindPointer(codesGlobal.data()),
-                                  neighbors.data() + i * ngmax,
-                                  neighborCounts.data() + i,
-                                  numParticles,
-                                  ngmax);
-
-            const Tc c0 = 7.0;
-            int nn      = std::max(neighborCounts[i], 1);
-            h[i]        = h[i] * 0.5 * pow(1.0 + (c0 * ng0) / nn, 1.0 / 3.0);
-        } while (neighborCounts[i] < ng0/2 || neighborCounts[i] >= ngmax);
-    }
-
-    for (LocalIndex i = 0; i < numParticles; ++i)
-    {
-        hGlob[i] = h[inverseOrdering[i]];
-    }
-}
-
 template<class T, class KeyType>
-static int globalMultipoleExchange(int thisRank, int numRanks)
+static int multipoleExchangeTest(int thisRank, int numRanks)
 {
-    using MultipoleType = CartesianQuadrupole<T>;
+    using MultipoleType              = CartesianQuadrupole<T>;
     const LocalIndex numParticles    = 1000;
     unsigned         bucketSize      = 64;
     unsigned         bucketSizeLocal = 16;
@@ -141,20 +75,24 @@ static int globalMultipoleExchange(int thisRank, int numRanks)
 
     domain.syncGrav(particleKeys, x, y, z, h, m);
 
-    const cstone::Octree<KeyType>& focusTree = domain.focusTree();
-    gsl::span<const cstone::SourceCenterType<T>> centers = domain.expansionCenters();
+    //! includes tree plus associated information, like peer ranks, assignment, counts, centers, etc
+    const cstone::FocusedOctree<KeyType, T>& focusTree = domain.focusTree();
+    //! the focused octree, structure only
+    const cstone::Octree<KeyType>&               octree  = focusTree.octree();
+    gsl::span<const cstone::SourceCenterType<T>> centers = focusTree.expansionCenters();
 
-    std::vector<MultipoleType> multipoles(focusTree.numTreeNodes());
-    ryoanji::computeLeafMultipoles(
-        focusTree, domain.layout(), x.data(), y.data(), z.data(), m.data(), centers.data(), multipoles.data());
+    std::vector<MultipoleType> multipoles(octree.numTreeNodes());
+    ryoanji::computeGlobalMultipoles(x.data(),
+                                     y.data(),
+                                     z.data(),
+                                     m.data(),
+                                     x.size(),
+                                     domain.globalTree(),
+                                     domain.focusTree(),
+                                     domain.layout().data(),
+                                     multipoles.data());
 
-    ryoanji::CombineMultipole<MultipoleType> combineMultipole(centers.data());
-    upsweep(focusTree, multipoles.data(), combineMultipole);
-
-    domain.template exchangeFocusGlobal<MultipoleType>(multipoles, combineMultipole);
-    upsweep(focusTree, multipoles.data(), combineMultipole);
-
-    MultipoleType globalRootMultipole = multipoles[focusTree.levelOffset(0)];
+    MultipoleType globalRootMultipole = multipoles[octree.levelOffset(0)];
 
     // compute reference root cell multipole from global particle data
     MultipoleType reference;
@@ -164,13 +102,13 @@ static int globalMultipoleExchange(int thisRank, int numRanks)
                        globalMasses.data(),
                        0,
                        numParticles * numRanks,
-                       makeVec3(centers[focusTree.levelOffset(0)]),
+                       makeVec3(centers[octree.levelOffset(0)]),
                        reference);
 
     double maxDiff = max(abs(reference - globalRootMultipole));
 
-    bool pass = maxDiff < 1e-10;
-    int numPassed = pass;
+    bool pass      = maxDiff < 1e-10;
+    int  numPassed = pass;
     mpiAllreduce(MPI_IN_PLACE, &numPassed, 1, MPI_SUM);
 
     if (thisRank == 0)
@@ -180,7 +118,10 @@ static int globalMultipoleExchange(int thisRank, int numRanks)
     }
 
     if (numPassed == numRanks) { return EXIT_SUCCESS; }
-    else { return EXIT_FAILURE; }
+    else
+    {
+        return EXIT_FAILURE;
+    }
 }
 
 int main(int argc, char** argv)
@@ -191,7 +132,7 @@ int main(int argc, char** argv)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
-    int testResult = globalMultipoleExchange<double, uint64_t>(rank, numRanks);
+    int testResult = multipoleExchangeTest<double, uint64_t>(rank, numRanks);
 
     MPI_Finalize();
 
