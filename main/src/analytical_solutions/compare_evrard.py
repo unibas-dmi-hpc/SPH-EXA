@@ -70,6 +70,7 @@ __author__ = "Jose A. Escartin (ja.escartin@gmail.com)"
 __version__ = "0.1.0"
 
 from argparse import ArgumentParser
+from scipy.interpolate import LinearNDInterpolator
 
 import math
 import h5py
@@ -288,6 +289,33 @@ Evrard_Velocity_t3 = np.array([
 ])
 
 
+def evrardArrayFull(radii, xSol, ySol):
+    """ Interpolate solution at radii """
+    
+    yFullSol = []
+    size = len(xSol)
+    
+    for r in radii:
+        index = np.searchsorted(xSol, r)
+        
+        if index == 0 :
+            y = ySol[0]
+        elif index == len(xSol) : 
+            y = ySol[index-1]
+        else :
+            x0 = xSol[index-1]
+            x1 = xSol[index]
+            
+            y0 = ySol[index-1]
+            y1 = ySol[index]
+            
+            y = ((y1 - y0) / (x1 - x0)) * (r - x0) + y0  
+        
+        yFullSol.append(y)
+        
+    return yFullSol
+    
+
 def loadH5Field(h5File, what, step):
     """ Load the specified particle field at the given step, returns an array of length numParticles """
     return np.array(h5File["Step#%s/%s" % (step, what)])
@@ -330,33 +358,48 @@ def plotRadialProfile(props, xSim, ySim, xSol, ySol):
     if props["yLogScale"] == "true":
         plt.yscale('log')
             
-    plt.scatter(xSim, ySim, s=0.1, label="Simulation", color="C0")
-    plt.plot(xSol, ySol, label="Solution", color="C1")
+    plt.scatter(xSim, ySim, s=0.1, label="Simulation, L1 = %3f" % props["L1"], color="C0")
+    plt.plot(xSol, ySol, label="Solution, t = %.3f" % props["tApprox"], color="C1")
     
     plt.xlabel("r")
     plt.ylabel(props["ylabel"])
     plt.draw()
-    plt.title(props["title"] + " : N = %8d, t = %.2f, t=, step = %6d" % (len(xSim), props["time"], props["step"]))
+    plt.title(props["title"] + " : N = %8d, t = %.3f, step = %6d" % (len(xSim), props["tReal"], props["step"]))
     plt.legend(loc="upper right")
     plt.savefig(props["fname"], format="png")
     plt.figure().clear()
 
 
-def createDensityPlot(h5File, hdf5_step, time, step, radii, rhoNorm, rhoSolX, rhoSolY):
+def createDensityPlot(h5File, hdf5_step, tApprox, tReal, step, radii, rhoNorm, rhoSolX, rhoSolY):
     rho = loadH5Field(h5File, "rho", hdf5_step) / rhoNorm
-    props = {"ylabel": "rho", "title": "Density", "fname": "evrard_density_%4f.png" % time, "time": time, "step": step, "xLogScale": "true", "yLogScale": "true"}
+
+    rhoSolFull = evrardArrayFull(radii, rhoSolX, rhoSolY)
+    L1 = sum(abs(rhoSolFull - rho)) / len(rho)
+    print("Density L1 error", L1)
+        
+    props = {"ylabel": "rho", "title": "Density", "fname": "evrard_density_%4f.png" % tReal, "tApprox": tApprox, "tReal": tReal, "step": step, "xLogScale": "true", "yLogScale": "true", "L1": L1}
     plotRadialProfile(props, radii, rho, rhoSolX, rhoSolY)
 
 
-def createPressurePlot(h5File, hdf5_step, time, step, radii, pNorm, pSolX, pSolY):
+def createPressurePlot(h5File, hdf5_step, tApprox, tReal, step, radii, pNorm, pSolX, pSolY):
     p = loadH5Field(h5File, "p", hdf5_step) / pNorm
-    props = {"ylabel": "p", "title": "Pressure", "fname": "evrard_pressure_%4f.png" % time, "time": time, "step": step, "xLogScale": "true", "yLogScale": "true"}
+
+    pSolFull = evrardArrayFull(radii, pSolX, pSolY)
+    L1 = sum(abs(pSolFull - p)) / len(p)
+    print("Pressure L1 error", L1)
+    
+    props = {"ylabel": "p", "title": "Pressure", "fname": "evrard_pressure_%4f.png" % tReal, "tApprox": tApprox, "tReal": tReal, "step": step, "xLogScale": "true", "yLogScale": "true", "L1": L1}
     plotRadialProfile(props, radii, p, pSolX, pSolY)
 
 
-def createVelocityPlot(h5File, vr, time, step, radii, vNorm, velSolX, velSolY):
+def createVelocityPlot(h5File, vr, tApprox, tReal, step, radii, vNorm, velSolX, velSolY):
     vrPlot = vr / vNorm
-    props = {"ylabel": "vel", "title": "Velocity", "fname": "evrard_velocity_%4f.png" % time, "time": time, "step": step, "xLogScale": "true", "yLogScale": "false"}
+
+    vrSolFull = evrardArrayFull(radii, velSolX, velSolY)
+    L1 = sum(abs(vrSolFull - vrPlot)) / len(vrPlot)
+    print("Velocity L1 error", L1)
+    
+    props = {"ylabel": "vel", "title": "Velocity", "fname": "evrard_velocity_%4f.png" % tReal, "tApprox": tApprox, "tReal": tReal, "step": step, "xLogScale": "true", "yLogScale": "false", "L1": L1}
     plotRadialProfile(props, radii, vrPlot, velSolX, velSolY)
 
 
@@ -410,8 +453,8 @@ if __name__ == "__main__":
     stepNumbers = loadStepNumbers(h5File)
 
     # output time specified instead of step, locate closest output step
-    tAprox = time * tNorm
-    stepIndex = determineTimestep(tAprox, timesteps)
+    tApprox = time * tNorm
+    stepIndex = determineTimestep(tApprox, timesteps)
     step = stepNumbers[stepIndex]
     tReal = timesteps[stepIndex]
     print("The closest timestep to the specified solution time of t/t*=%s is step=%s at tReal=%s, where t*=%s" % (time, step, tReal, tNorm))
@@ -428,16 +471,16 @@ if __name__ == "__main__":
         sys.exit(1)
         
     try:
-        createDensityPlot(h5File, hdf5_step, tReal, step, radii, rhoNorm, rhoSolX, rhoSolY)
+        createDensityPlot(h5File, hdf5_step, tApprox, tReal, step, radii, rhoNorm, rhoSolX, rhoSolY)
     except KeyError:
         print("Could not plot density profile, input does not contain field \"rho\"")
 
     try:
-        createPressurePlot(h5File, hdf5_step, tReal, step, radii, pNorm, pSolX, pSolY)
+        createPressurePlot(h5File, hdf5_step, tApprox, tReal, step, radii, pNorm, pSolX, pSolY)
     except KeyError:
         print("Could not plot pressure profile, input does not contain field \"p\"")
 
     try:
-        createVelocityPlot(h5File, vr, tReal, step, radii, vNorm, velSolX, velSolY)
+        createVelocityPlot(h5File, vr, tApprox, tReal, step, radii, vNorm, velSolX, velSolY)
     except KeyError:
         print("Could not plot velocity profile, input does not contain fields \"vx, vy, vz\"")
