@@ -91,6 +91,7 @@ public:
     std::vector<KeyType>                          codes;          // Particle space-filling-curve keys
     std::vector<int, PinnedAlloc_t<AccType, int>> neighborsCount; // number of neighbors of each particle
     std::vector<int>                              neighbors;      // only used in the CPU version
+    std::vector<T>                             hasFBC;
 
     DeviceData_t<AccType, T, KeyType> devPtrs;
 
@@ -104,7 +105,8 @@ public:
         "x",   "y",     "z",   "x_m1", "y_m1",  "z_m1",     "vx",       "vy",       "vz",         "rho",
         "u",   "p",     "h",   "m",    "c",     "grad_P_x", "grad_P_y", "grad_P_z", "du",         "du_m1",
         "dt",  "dt_m1", "c11", "c12",  "c13",   "c22",      "c23",      "c33",      "maxvsignal", "mue",
-        "mui", "temp",  "cv",  "rho0", "wrho0", "kx",       "whomega",  "divv",     "curlv",      "alpha"};
+        "mui", "temp",  "cv",  "rho0", "wrho0", "kx",       "whomega",  "divv",     "curlv",      "alpha",
+        "hasFBC"};
 
     /*! @brief return a vector of pointers to field vectors
      *
@@ -117,7 +119,8 @@ public:
             &x,   &y,     &z,   &x_m1, &y_m1,  &z_m1,     &vx,       &vy,       &vz,         &rho,
             &u,   &p,     &h,   &m,    &c,     &grad_P_x, &grad_P_y, &grad_P_z, &du,         &du_m1,
             &dt,  &dt_m1, &c11, &c12,  &c13,   &c22,      &c23,      &c33,      &maxvsignal, &mue,
-            &mui, &temp,  &cv,  &rho0, &wrho0, &kx,       &whomega,  &divv,     &curlv,      &alpha};
+            &mui, &temp,  &cv,  &rho0, &wrho0, &kx,       &whomega,  &divv,     &curlv,      &alpha,
+            &hasFBC};
 
         static_assert(ret.size() == fieldNames.size());
 

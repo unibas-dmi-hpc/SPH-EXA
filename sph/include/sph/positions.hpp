@@ -74,9 +74,17 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
     T* du_m1 = d.du_m1.data();
     T* dt_m1 = d.dt_m1.data();
 
+    T hasFBC;
+
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
     {
+        if(d.hasFBC[i] == 1.0)
+        {
+            hasFBC = 0.0;
+        } else {
+            hasFBC = 1.0;
+        }
         Vec3T A{-d.grad_P_x[i], -d.grad_P_y[i], -d.grad_P_z[i]};
         Vec3T X{x[i], y[i], z[i]};
         Vec3T X_m1{x_m1[i], y_m1[i], z_m1[i]};
@@ -87,7 +95,11 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         T deltaA = dt_i + 0.5 * dt_m1[i];
         T deltaB = 0.5 * (dt_i + dt_m1[i]);
 
-        Vec3T Val = (X - X_m1) * (1.0 / dt_m1[i]);
+        Vec3T Val = (X - X_m1) * (1.0 * hasFBC/ dt_m1[i]);
+        if(Val[0] == 0 && Val[1] == 0 && Val[2] == 0)
+        {
+            //printf("val zero: i %lu hasFBC %d", i, d.hasFBC[i]);
+        }
 
 #ifndef NDEBUG
         if (std::isnan(A[0]) || std::isnan(A[1]) || std::isnan(A[2]))
@@ -96,9 +108,9 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         }
 #endif
 
-        Vec3T V = Val + A * deltaA;
+        Vec3T V = Val + A * (deltaA * hasFBC);
         X_m1    = X;
-        X += dt_i * Val + A * deltaB * dt_i;
+        X += (dt_i * hasFBC) * Val + A * deltaB * (dt_i * hasFBC);
 
         if (box.pbcX() && X[0] < box.xmin())
         {

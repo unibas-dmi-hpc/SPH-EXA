@@ -37,6 +37,7 @@
 
 #include "io/mpi_file_utils.hpp"
 #include "isim_init.hpp"
+#include "fixed_boundaries.hpp"
 
 namespace sphexa
 {
@@ -83,8 +84,22 @@ public:
 
         double extents[6];
         H5PartReadStepAttrib(h5_file, "box", extents);
-        int pbc[3];
-        H5PartReadStepAttrib(h5_file, "pbc", pbc);
+        int boundaries[3];
+        H5PartReadStepAttrib(h5_file, "boundaryType", boundaries);
+        int pbc[3] = {0};
+        int fbc[3] = {0};
+        for (int i = 0; i < 3; ++i)
+        {
+            if(boundaries[i] == 1 /*|| boundaries[i] == 0*/)
+            {
+                pbc[i] = 1;
+            } else if (boundaries[i] == 2)
+            {
+                fbc[i] = 1;
+            }
+            //invalid value handling?
+
+        }
         cstone::Box<T> box(
             extents[0], extents[1], extents[2], extents[3], extents[4], extents[5], pbc[0], pbc[1], pbc[2]);
 
@@ -113,6 +128,9 @@ public:
 
         std::fill(d.mue.begin(), d.mue.end(), 2.0);
         std::fill(d.mui.begin(), d.mui.end(), 10.0);
+
+        std::fill(d.hasFBC.begin(), d.hasFBC.end(), 0.0);
+        applyFixedBoundaries(d, fbc, box);
 
         H5PartCloseFile(h5_file);
         return box;

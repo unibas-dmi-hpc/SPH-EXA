@@ -56,7 +56,7 @@ int main(int argc, char** argv)
     const std::string        outDirectory   = parser.getString("--outDir");
     const bool               quiet          = parser.exists("--quiet");
 
-    if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c"}; }
+    if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c", "hasFBC"}; }
 
     const std::string outFile = outDirectory + "dump_" + initCond;
 

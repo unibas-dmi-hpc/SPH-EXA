@@ -97,6 +97,7 @@ void resize(Dataset& d, size_t size)
 
     reallocate(d.codes, size, growthRate);
     reallocate(d.neighborsCount, size, growthRate);
+    reallocate(d.hasFBC, size, growthRate);
 
     d.devPtrs.resize(size);
 }
