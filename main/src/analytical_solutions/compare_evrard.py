@@ -336,7 +336,7 @@ def plotRadialProfile(props, xSim, ySim, xSol, ySol):
     plt.xlabel("r")
     plt.ylabel(props["ylabel"])
     plt.draw()
-    plt.title(props["title"] + ", N = %3e, t = %3f" % (len(xSim), props["time"]))
+    plt.title(props["title"] + ", N = %3e, t = %3f, st = %3f" % (len(xSim), props["time"], props["step"]))
     plt.legend(loc="upper right")
     plt.savefig(props["fname"], format="png")
     plt.figure().clear()
@@ -344,19 +344,19 @@ def plotRadialProfile(props, xSim, ySim, xSol, ySol):
 
 def createDensityPlot(h5File, time, step, radii, rhoNorm, rhoSolX, rhoSolY):
     rho = loadH5Field(h5File, "rho", step) / rhoNorm
-    props = {"ylabel": "rho", "title": "Density", "fname": "evrard_density_%4f.png" % time, "time": time, "xLogScale": "true", "yLogScale": "true"}
+    props = {"ylabel": "rho", "title": "Density", "fname": "evrard_density_%4f.png" % time, "time": time, "step": step, "xLogScale": "true", "yLogScale": "true"}
     plotRadialProfile(props, radii, rho, rhoSolX, rhoSolY)
 
 
 def createPressurePlot(h5File, time, step, radii, pNorm, pSolX, pSolY):
     p = loadH5Field(h5File, "p", step) / pNorm
-    props = {"ylabel": "p", "title": "Pressure", "fname": "evrard_pressure_%4f.png" % time, "time": time, "xLogScale": "true", "yLogScale": "true"}
+    props = {"ylabel": "p", "title": "Pressure", "fname": "evrard_pressure_%4f.png" % time, "time": time, "step": step, "xLogScale": "true", "yLogScale": "true"}
     plotRadialProfile(props, radii, p, pSolX, pSolY)
 
 
 def createVelocityPlot(h5File, time, step, radii, vr, vNorm, velSolX, velSolY):
     vrPlot = vr / vNorm
-    props = {"ylabel": "vel", "title": "Velocity", "fname": "evrard_velocity_%4f.png" % time, "time": time, "xLogScale": "true", "yLogScale": "false"}
+    props = {"ylabel": "vel", "title": "Velocity", "fname": "evrard_velocity_%4f.png" % time, "time": time, "step": step, "xLogScale": "true", "yLogScale": "false"}
     plotRadialProfile(props, radii, vrPlot, velSolX, velSolY)
 
 
