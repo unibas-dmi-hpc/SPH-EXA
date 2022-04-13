@@ -289,33 +289,6 @@ Evrard_Velocity_t3 = np.array([
 ])
 
 
-def evrardArrayFull(radii, xSol, ySol):
-    """ Interpolate solution at radii """
-    
-    yFullSol = []
-    size = len(xSol)
-    
-    for r in radii:
-        index = np.searchsorted(xSol, r)
-        
-        if index == 0 :
-            y = ySol[0]
-        elif index == len(xSol) : 
-            y = ySol[index-1]
-        else :
-            x0 = xSol[index-1]
-            x1 = xSol[index]
-            
-            y0 = ySol[index-1]
-            y1 = ySol[index]
-            
-            y = ((y1 - y0) / (x1 - x0)) * (r - x0) + y0  
-        
-        yFullSol.append(y)
-        
-    return yFullSol
-    
-
 def loadH5Field(h5File, what, step):
     """ Load the specified particle field at the given step, returns an array of length numParticles """
     return np.array(h5File["Step#%s/%s" % (step, what)])
@@ -350,6 +323,11 @@ def computeRadiiAndVr(h5File, step):
     return radii,vr 
 
 
+def computeL1Error(xSim, ySim, xSol, ySol):
+    ySolExpanded = np.interp(xSim, xSol, ySol)
+    return sum(abs(ySolExpanded - ySim)) / len(xSim)
+
+
 def plotRadialProfile(props, xSim, ySim, xSol, ySol):
 
     if props["xLogScale"] == "true":
@@ -373,8 +351,7 @@ def plotRadialProfile(props, xSim, ySim, xSol, ySol):
 def createDensityPlot(h5File, hdf5_step, tApprox, tReal, step, radii, rhoNorm, rhoSolX, rhoSolY):
     rho = loadH5Field(h5File, "rho", hdf5_step) / rhoNorm
 
-    rhoSolFull = evrardArrayFull(radii, rhoSolX, rhoSolY)
-    L1 = sum(abs(rhoSolFull - rho)) / len(rho)
+    L1 = computeL1Error(radii, rho, rhoSolX, rhoSolY)
     print("Density L1 error", L1)
         
     props = {"ylabel": "rho", "title": "Density", "fname": "evrard_density_%4f.png" % tReal, "tApprox": tApprox, "tReal": tReal, "step": step, "xLogScale": "true", "yLogScale": "true", "L1": L1}
@@ -384,8 +361,7 @@ def createDensityPlot(h5File, hdf5_step, tApprox, tReal, step, radii, rhoNorm, r
 def createPressurePlot(h5File, hdf5_step, tApprox, tReal, step, radii, pNorm, pSolX, pSolY):
     p = loadH5Field(h5File, "p", hdf5_step) / pNorm
 
-    pSolFull = evrardArrayFull(radii, pSolX, pSolY)
-    L1 = sum(abs(pSolFull - p)) / len(p)
+    L1 = computeL1Error(radii, p, pSolX, pSolY)
     print("Pressure L1 error", L1)
     
     props = {"ylabel": "p", "title": "Pressure", "fname": "evrard_pressure_%4f.png" % tReal, "tApprox": tApprox, "tReal": tReal, "step": step, "xLogScale": "true", "yLogScale": "true", "L1": L1}
@@ -395,8 +371,7 @@ def createPressurePlot(h5File, hdf5_step, tApprox, tReal, step, radii, pNorm, pS
 def createVelocityPlot(h5File, vr, tApprox, tReal, step, radii, vNorm, velSolX, velSolY):
     vrPlot = vr / vNorm
 
-    vrSolFull = evrardArrayFull(radii, velSolX, velSolY)
-    L1 = sum(abs(vrSolFull - vrPlot)) / len(vrPlot)
+    L1 = computeL1Error(radii, vrPlot, velSolX, velSolY)
     print("Velocity L1 error", L1)
     
     props = {"ylabel": "vel", "title": "Velocity", "fname": "evrard_velocity_%4f.png" % tReal, "tApprox": tApprox, "tReal": tReal, "step": step, "xLogScale": "true", "yLogScale": "false", "L1": L1}
