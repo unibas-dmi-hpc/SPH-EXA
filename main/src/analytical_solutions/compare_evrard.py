@@ -318,7 +318,7 @@ def computeRadiiAndVr(h5File, step):
     vz = loadH5Field(h5File, "vz", step)
     radii = np.sqrt(x ** 2 + y ** 2 + z ** 2) 
     vr = (vx*x + vy*y + vz*z) / radii
-    print("Calculated (3D) Radii and RadialVelocity in %s particles" % len(x))
+    print("Calculated Radii and RadialVelocity in %s particles" % len(x))
     return radii,vr 
 
 
@@ -336,25 +336,25 @@ def plotRadialProfile(props, xSim, ySim, xSol, ySol):
     plt.xlabel("r")
     plt.ylabel(props["ylabel"])
     plt.draw()
-    plt.title(props["title"] + ", N = %3e, t = %3f, st = %3f" % (len(xSim), props["time"], props["step"]))
+    plt.title(props["title"] + " : N = %8d, t = %.2f, t=, step = %6d" % (len(xSim), props["time"], props["step"]))
     plt.legend(loc="upper right")
     plt.savefig(props["fname"], format="png")
     plt.figure().clear()
 
 
-def createDensityPlot(h5File, time, step, radii, rhoNorm, rhoSolX, rhoSolY):
-    rho = loadH5Field(h5File, "rho", step) / rhoNorm
+def createDensityPlot(h5File, hdf5_step, time, step, radii, rhoNorm, rhoSolX, rhoSolY):
+    rho = loadH5Field(h5File, "rho", hdf5_step) / rhoNorm
     props = {"ylabel": "rho", "title": "Density", "fname": "evrard_density_%4f.png" % time, "time": time, "step": step, "xLogScale": "true", "yLogScale": "true"}
     plotRadialProfile(props, radii, rho, rhoSolX, rhoSolY)
 
 
-def createPressurePlot(h5File, time, step, radii, pNorm, pSolX, pSolY):
-    p = loadH5Field(h5File, "p", step) / pNorm
+def createPressurePlot(h5File, hdf5_step, time, step, radii, pNorm, pSolX, pSolY):
+    p = loadH5Field(h5File, "p", hdf5_step) / pNorm
     props = {"ylabel": "p", "title": "Pressure", "fname": "evrard_pressure_%4f.png" % time, "time": time, "step": step, "xLogScale": "true", "yLogScale": "true"}
     plotRadialProfile(props, radii, p, pSolX, pSolY)
 
 
-def createVelocityPlot(h5File, time, step, radii, vr, vNorm, velSolX, velSolY):
+def createVelocityPlot(h5File, vr, time, step, radii, vNorm, velSolX, velSolY):
     vrPlot = vr / vNorm
     props = {"ylabel": "vel", "title": "Velocity", "fname": "evrard_velocity_%4f.png" % time, "time": time, "step": step, "xLogScale": "true", "yLogScale": "false"}
     plotRadialProfile(props, radii, vrPlot, velSolX, velSolY)
@@ -364,7 +364,7 @@ if __name__ == "__main__":
     parser = ArgumentParser(description='Plot paper solutions against SPH simulations')
     parser.add_argument('simFile', help="SPH simulation HDF5 file")
     group = parser.add_mutually_exclusive_group()
-    group.add_argument('-t', '--time', type=float, dest="time", choices=tSolutions, help="Valid simulation times to plot the paper solution")
+    group.add_argument('-t', '--time', type=float, dest="time", choices=tSolutions, help="Valid simulation times (t/t*) to plot the same paper solution graphics")
     args = parser.parse_args()
 
     # Get time
@@ -380,11 +380,11 @@ if __name__ == "__main__":
     Mt = attrs["mTotal"]
     
     # Normalization variables: Steinmetz & Muller (1993)
-    timeNorm = ((R ** 3.) / G * Mt) ** 0.5
-    rhoNorm  = (3. * Mt) / (4. * math.pi * (R ** 3.))
-    uNorm    = G * Mt / R
-    vNorm    = uNorm ** 0.5
-    pNorm    = rhoNorm * uNorm
+    tNorm   = ((R ** 3.) / G * Mt) ** 0.5
+    rhoNorm = (3. * Mt) / (4. * math.pi * (R ** 3.))
+    uNorm   = G * Mt / R
+    vNorm   = uNorm ** 0.5
+    pNorm   = rhoNorm * uNorm
 
     # Select Solution in function of the time
     if time == t1:
@@ -410,10 +410,11 @@ if __name__ == "__main__":
     stepNumbers = loadStepNumbers(h5File)
 
     # output time specified instead of step, locate closest output step
-    timeAprox = time * timeNorm
-    stepIndex = determineTimestep(timeAprox, timesteps)
+    tAprox = time * tNorm
+    stepIndex = determineTimestep(tAprox, timesteps)
     step = stepNumbers[stepIndex]
-    print("The closest timestep to the specified time of %s is step %s at t=%s" % (timeAprox, step, timesteps[stepIndex]))
+    tReal = timesteps[stepIndex]
+    print("The closest timestep to the specified solution time of t/t*=%s is step=%s at tReal=%s, where t*=%s" % (time, step, tReal, tNorm))
 
     hdf5_step = np.searchsorted(stepNumbers, step)
     
@@ -427,16 +428,16 @@ if __name__ == "__main__":
         sys.exit(1)
         
     try:
-        createDensityPlot(h5File, time, hdf5_step, radii, rhoNorm, rhoSolX, rhoSolY)
+        createDensityPlot(h5File, hdf5_step, tReal, step, radii, rhoNorm, rhoSolX, rhoSolY)
     except KeyError:
         print("Could not plot density profile, input does not contain field \"rho\"")
 
     try:
-        createPressurePlot(h5File, time, hdf5_step, radii, pNorm, pSolX, pSolY)
+        createPressurePlot(h5File, hdf5_step, tReal, step, radii, pNorm, pSolX, pSolY)
     except KeyError:
         print("Could not plot pressure profile, input does not contain field \"p\"")
 
     try:
-        createVelocityPlot(h5File, time, hdf5_step, radii, vr, vNorm, velSolX, velSolY)
+        createVelocityPlot(h5File, vr, tReal, step, radii, vNorm, velSolX, velSolY)
     except KeyError:
         print("Could not plot velocity profile, input does not contain fields \"vx, vy, vz\"")
