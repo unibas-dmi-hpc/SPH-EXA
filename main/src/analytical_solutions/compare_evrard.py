@@ -423,7 +423,7 @@ if __name__ == "__main__":
     try:
         radii,vr = computeRadiiAndVr(h5File, hdf5_step)
     except KeyError:
-        print("Could not load radii, input file does not contain fields \"x, y, z\"")
+        print("Could not load radii, input file does not contain all fields \"x, y, z, vx, vy, vz\"")
         sys.exit(1)
         
     try:
