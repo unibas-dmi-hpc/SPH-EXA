@@ -308,21 +308,18 @@ def determineTimestep(time, timesteps):
     return np.argmin(np.abs(timesteps - time))
 
 
-def computeRadii(h5File, step):
-    """ Load XYZ coordinates and compute their radii """
+def computeRadiiAndVr(h5File, step):
+    """ Load XYZ coordinates and compute their radii and RadialVelocity"""
     x = loadH5Field(h5File, "x", step)
     y = loadH5Field(h5File, "y", step)
     z = loadH5Field(h5File, "z", step)
-    print("Loaded XYZ in %s particles" % len(x))
-    return np.sqrt(x ** 2 + y ** 2 + z ** 2)
-
-
-def computeVr(h5File, step):
-    """ Load velXYZ coordinates and compute their vr """
     vx = loadH5Field(h5File, "vx", step)
     vy = loadH5Field(h5File, "vy", step)
     vz = loadH5Field(h5File, "vz", step)
-    return np.sqrt(vx ** 2 + vy ** 2 + vz ** 2)
+    radii = np.sqrt(x ** 2 + y ** 2 + z ** 2) 
+    vr = (vx*x + vy*y + vz*z) / radii
+    print("Calculated (3D) Radii and RadialVelocity in %s particles" % len(x))
+    return radii,vr 
 
 
 def plotRadialProfile(props, xSim, ySim, xSol, ySol):
@@ -357,10 +354,10 @@ def createPressurePlot(h5File, time, step, radii, pNorm, pSolX, pSolY):
     plotRadialProfile(props, radii, p, pSolX, pSolY)
 
 
-def createVelocityPlot(h5File, time, step, radii, vNorm, velSolX, velSolY):
-    vr = computeVr(h5File, hdf5_step) / vNorm
+def createVelocityPlot(h5File, time, step, radii, vr, vNorm, velSolX, velSolY):
+    vrPlot = vr / vNorm
     props = {"ylabel": "vel", "title": "Velocity", "fname": "evrard_velocity_%4f.png" % time, "time": time, "xLogScale": "true", "yLogScale": "false"}
-    plotRadialProfile(props, radii, vr, velSolX, velSolY)
+    plotRadialProfile(props, radii, vrPlot, velSolX, velSolY)
 
 
 if __name__ == "__main__":
@@ -420,10 +417,11 @@ if __name__ == "__main__":
 
     hdf5_step = np.searchsorted(stepNumbers, step)
     
-    # Calulate Radius
+    # Calulate Radius and RadialVelocity
     radii = None
+    vr = None
     try:
-        radii = computeRadii(h5File, hdf5_step)
+        radii,vr = computeRadiiAndVr(h5File, hdf5_step)
     except KeyError:
         print("Could not load radii, input file does not contain fields \"x, y, z\"")
         sys.exit(1)
@@ -439,6 +437,6 @@ if __name__ == "__main__":
         print("Could not plot pressure profile, input does not contain field \"p\"")
 
     try:
-        createVelocityPlot(h5File, time, hdf5_step, radii, vNorm, velSolX, velSolY)
+        createVelocityPlot(h5File, time, hdf5_step, radii, vr, vNorm, velSolX, velSolY)
     except KeyError:
         print("Could not plot velocity profile, input does not contain fields \"vx, vy, vz\"")
