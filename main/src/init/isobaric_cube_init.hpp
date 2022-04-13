@@ -78,9 +78,24 @@ void initIsobaricCubeFields(Dataset& d, const std::map<std::string, double>& con
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
-        if ((abs(d.x[i]) - r > epsilon) || (abs(d.y[i]) - r > epsilon) || (abs(d.z[i]) - r > epsilon))
+        T xi = std::abs(d.x[i]);
+        T yi = std::abs(d.y[i]);
+        T zi = std::abs(d.z[i]);
+
+        if ((xi > r + epsilon) || (yi > r + epsilon) || (zi > r + epsilon))
         {
-            d.h[i] = hExt;
+            if ((xi > r + 2 * hExt) || (yi > r + 2 * hExt) || (zi > r + 2 * hExt))
+            {
+                // more than two smoothing lengths away from the inner cube
+                d.h[i] = hExt;
+            }
+            else
+            {
+                T dist = std::max({xi - r, yi - r, zi - r});
+                // reduce smoothing lengths for particles outside, but close to the inner cube
+                d.h[i] = hInt * (1 - dist / (2 * hExt)) + hExt * dist / (2 * hExt);
+            }
+
             d.u[i] = uExt;
         }
         else
