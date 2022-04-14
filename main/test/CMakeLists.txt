@@ -1,6 +1,7 @@
 
 set(UNIT_TESTS
         init/grid.cpp
+        init/isobaric_cube.cpp
         test_main.cpp)
 
 set(exename frontend_units)
