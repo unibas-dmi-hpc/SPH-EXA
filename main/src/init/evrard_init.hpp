@@ -94,7 +94,12 @@ void initEvrardFields(Dataset& d, const std::map<std::string, double>& constants
 
 std::map<std::string, double> evrardConstants()
 {
-    return {{"r", 1.}, {"mTotal", 1.}, {"gamma", 5.0 / 3.0}, {"u0", 0.05}, {"firstTimeStep", 1e-4}};
+    return {{"G", 1.},
+            {"r", 1.},
+            {"mTotal", 1.},
+            {"gamma", 5. / 3.},
+            {"u0", 0.05},
+            {"firstTimeStep", 1e-4}};
 }
 
 template<class Dataset>
@@ -139,7 +144,7 @@ public:
         // instead, the pressure gradients should be renamed to acceleration and computeMomentumAndEnergy should
         // directly set this to -grad_P, such that we don't need to add the gravitational acceleration with a factor of
         // -1 on top. The cgs value of g would be 6.6726e-8, 1.0 for Evrard mainly.
-        d.g = -1.0;
+        d.g = -constants_.at("G");
 
         return globalBox;
     }
