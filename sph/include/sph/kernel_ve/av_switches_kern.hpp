@@ -86,7 +86,7 @@ AVswitchesJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
         T ry = yi - y[j];
         T rz = zi - z[j];
 
-        applyPBC(box, 2.0 * hi, rx, ry, rz);
+        applyPBC(box, T(2) * hi, rx, ry, rz);
 
         T r2   = rx * rx + ry * ry + rz * rz;
         T dist = std::sqrt(r2);

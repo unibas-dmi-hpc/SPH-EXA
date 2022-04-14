@@ -70,9 +70,9 @@ public:
 
     DeviceParticlesData()
     {
-        size_t                             size_lt_T = lt::size * sizeof(T);
-        const std::array<double, lt::size> wh        = lt::createWharmonicLookupTable<double, lt::size>();
-        const std::array<double, lt::size> whd       = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+        size_t                        size_lt_T = lt::size * sizeof(T);
+        const std::array<T, lt::size> wh        = lt::createWharmonicLookupTable<T, lt::size>();
+        const std::array<T, lt::size> whd       = lt::createWharmonicDerivativeLookupTable<T, lt::size>();
 
         CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
         CHECK_CUDA_ERR(cudaMemcpy(d_wh, wh.data(), size_lt_T, cudaMemcpyHostToDevice));

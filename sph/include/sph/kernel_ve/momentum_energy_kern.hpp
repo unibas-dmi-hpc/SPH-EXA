@@ -96,7 +96,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T ry = yi - y[j];
         T rz = zi - z[j];
 
-        applyPBC(box, 2.0 * hi, rx, ry, rz);
+        applyPBC(box, T(2) * hi, rx, ry, rz);
 
         T r2   = rx * rx + ry * ry + rz * rz;
         T dist = std::sqrt(r2);
@@ -106,7 +106,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T vz_ij = vzi - vz[j];
 
         T hj    = h[j];
-        T hjInv = 1.0 / hj;
+        T hjInv = T(1) / hj;
 
         T v1 = dist * hiInv;
         T v2 = dist * hjInv;
@@ -143,7 +143,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T viscosity_jj = viscosity_ij;
 
         // For time-step calculations
-        T vijsignal = ci + cj - 3.0 * wij;
+        T vijsignal = ci + cj - T(3) * wij;
         maxvsignali = (vijsignal > maxvsignali) ? vijsignal : maxvsignali;
 
         T mj = m[j];
@@ -163,13 +163,13 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         {
             a_mom = m[j] * xmassi * xmassj;
             b_mom = a_mom;
-            mark_ramp += 1.0;
+            mark_ramp += T(1);
         }
         else
         {
             sigma_ij = ramp * (Atwood - Atmin);
-            a_mom    = m[j] * pow(xmassi, 2.0 - sigma_ij) * pow(xmassj, sigma_ij);
-            b_mom    = m[j] * pow(xmassj, 2.0 - sigma_ij) * pow(xmassi, sigma_ij);
+            a_mom    = m[j] * pow(xmassi, T(2) - sigma_ij) * pow(xmassj, sigma_ij);
+            b_mom    = m[j] * pow(xmassj, T(2) - sigma_ij) * pow(xmassi, sigma_ij);
             mark_ramp += sigma_ij;
         }
 
@@ -178,9 +178,9 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T b_visc     = volj * viscosity_jj;
         T momentum_i = proi * a_mom; // + 0.5 * a_visc;
         T momentum_j = proj * b_mom; // + 0.5 * b_visc;
-        T a_visc_x   = 0.5 * (a_visc * termA1_i + b_visc * termA1_j);
-        T a_visc_y   = 0.5 * (a_visc * termA2_i + b_visc * termA2_j);
-        T a_visc_z   = 0.5 * (a_visc * termA3_i + b_visc * termA3_j);
+        T a_visc_x   = T(0.5) * (a_visc * termA1_i + b_visc * termA1_j);
+        T a_visc_y   = T(0.5) * (a_visc * termA2_i + b_visc * termA2_j);
+        T a_visc_z   = T(0.5) * (a_visc * termA3_i + b_visc * termA3_j);
 
         {
             // T a = Wi * (mj_pro_i + viscosity_ij * mi_roi);
@@ -195,7 +195,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
             // T a = Wi * (2.0 * mj_pro_i + viscosity_ij * mi_roi);
             // T b = viscosity_ij * mj_roj_Wj;
 
-            energy += a_mom * 2.0 * proi * (vx_ij * termA1_i + vy_ij * termA2_i + vz_ij * termA3_i);
+            energy += a_mom * T(2) * proi * (vx_ij * termA1_i + vy_ij * termA2_i + vz_ij * termA3_i);
             // energy += vx_ij * (a * termA1_i + b * termA1_j) + vy_ij * (a * termA2_i + b * termA2_j) +
             //           vz_ij * (a * termA3_i + b * termA3_j);
         }
@@ -203,8 +203,8 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
 
     // with the choice of calculating coordinate (r) and velocity (v_ij) differences as i - j,
     // we add the negative sign only here at the end instead of to termA123_ij in each iteration
-    a_visc_energy = std::max(0.0, a_visc_energy);
-    du[i]         = 0.5 * (energy + a_visc_energy);
+    a_visc_energy = std::max(T(0), a_visc_energy);
+    du[i]         = T(0.5) * (energy + a_visc_energy);
     grad_P_x[i]   = momentum_x;
     grad_P_y[i]   = momentum_y;
     grad_P_z[i]   = momentum_z;
