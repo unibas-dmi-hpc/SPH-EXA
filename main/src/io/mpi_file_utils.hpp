@@ -135,7 +135,7 @@ void readTemplateBlock(std::string block, Vector& x, Vector& y, Vector& z)
 #else
 
 template<class Vector>
-void readTemplateBlock(std::string block, Vector& x, Vector& y, Vector& z)
+void readTemplateBlock(std::string /*block*/, Vector& /*x*/, Vector& /*y*/, Vector& /*z*/)
 {
     throw std::runtime_error("Glass initialization with template blocks only supported with HDF5 support\n");
 }
