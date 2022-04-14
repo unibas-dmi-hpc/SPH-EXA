@@ -53,6 +53,16 @@ inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& f
     return H5PartWriteDataFloat64(h5_file, fieldName.c_str(), field);
 }
 
+void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, double* value, size_t numElements)
+{
+    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_FLOAT64, value, numElements);
+}
+
+void sphexaWriteStepAttrib(H5PartFile* h5_file, const std::string& name, float* value, size_t numElements)
+{
+    H5PartWriteStepAttrib(h5_file, name.c_str(), H5PART_FLOAT32, value, numElements);
+}
+
 template<class Dataset, class T>
 void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::Box<T>& box, const std::string& path)
 {
@@ -87,11 +97,12 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
     h5_id_t numSteps = H5PartGetNumSteps(h5_file);
     H5PartSetStep(h5_file, numSteps);
 
-    H5PartWriteStepAttrib(h5_file, "time", H5PART_FLOAT64, &d.ttot, 1);
-    H5PartWriteStepAttrib(h5_file, "minDt", H5PART_FLOAT64, &d.minDt, 1);
+    sphexaWriteStepAttrib(h5_file, "time", &d.ttot, 1);
+    sphexaWriteStepAttrib(h5_file, "minDt", &d.minDt, 1);
+    sphexaWriteStepAttrib(h5_file, "minDt_m1", &d.minDt_m1, 1);
+    sphexaWriteStepAttrib(h5_file, "gravConstant", &d.g, 1);
     // record the actual SPH-iteration as step attribute
     H5PartWriteStepAttrib(h5_file, "step", H5PART_INT64, &d.iteration, 1);
-    H5PartWriteStepAttrib(h5_file, "gravConstant", H5PART_FLOAT64, &d.g, 1);
 
     // record the global coordinate bounding box
     double extents[6] = {box.xmin(), box.xmax(), box.ymin(), box.ymax(), box.zmin(), box.zmax()};
