@@ -68,7 +68,8 @@ __global__ void cudaIAD(T sincIndex, T K, int ngmax, cstone::Box<T> box, int fir
 }
 
 template<class Dataset>
-void computeIAD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<double>& box)
+void computeIAD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+                const cstone::Box<typename Dataset::RealType>& box)
 {
     using T = typename Dataset::RealType;
 
@@ -120,6 +121,10 @@ template void computeIAD(size_t, size_t, size_t, ParticlesData<double, unsigned,
                          const cstone::Box<double>&);
 template void computeIAD(size_t, size_t, size_t, ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                          const cstone::Box<double>&);
+template void computeIAD(size_t, size_t, size_t, ParticlesData<float, unsigned, cstone::GpuTag>& d,
+                         const cstone::Box<float>&);
+template void computeIAD(size_t, size_t, size_t, ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+                         const cstone::Box<float>&);
 
 } // namespace cuda
 } // namespace sph

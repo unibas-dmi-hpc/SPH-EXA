@@ -40,7 +40,8 @@ __global__ void cudaDensity(T sincIndex, T K, int ngmax, cstone::Box<T> box, int
 }
 
 template<class Dataset>
-void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<double>& box)
+void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+                    const cstone::Box<typename Dataset::RealType>& box)
 {
     using T       = typename Dataset::RealType;
     using KeyType = typename Dataset::KeyType;
@@ -112,6 +113,10 @@ template void computeDensity(size_t, size_t, size_t, ParticlesData<double, unsig
                              const cstone::Box<double>&);
 template void computeDensity(size_t, size_t, size_t, ParticlesData<double, uint64_t, cstone::GpuTag>&,
                              const cstone::Box<double>&);
+template void computeDensity(size_t, size_t, size_t, ParticlesData<float, unsigned, cstone::GpuTag>&,
+                             const cstone::Box<float>&);
+template void computeDensity(size_t, size_t, size_t, ParticlesData<float, uint64_t, cstone::GpuTag>&,
+                             const cstone::Box<float>&);
 
 } // namespace cuda
 } // namespace sph

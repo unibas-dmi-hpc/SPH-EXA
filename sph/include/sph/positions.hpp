@@ -70,10 +70,10 @@ void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const csto
         Vec3T X_m1{x_m1[i], y_m1[i], z_m1[i]};
 
         // Update positions according to Press (2nd order)
-        T deltaA = dt + 0.5 * dt_m1;
-        T deltaB = 0.5 * (dt + dt_m1);
+        T deltaA = dt + T(0.5) * dt_m1;
+        T deltaB = T(0.5) * (dt + dt_m1);
 
-        Vec3T Val = (X - X_m1) * (1.0 / dt_m1);
+        Vec3T Val = (X - X_m1) * (T(1) / dt_m1);
 
 #ifndef NDEBUG
         if (std::isnan(A[0]) || std::isnan(A[1]) || std::isnan(A[2]))

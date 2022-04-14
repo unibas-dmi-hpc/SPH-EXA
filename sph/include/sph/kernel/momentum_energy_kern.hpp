@@ -36,7 +36,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
 
     T mi_roi = m[i] / ro[i];
 
-    T hiInv  = 1.0 / hi;
+    T hiInv  = T(1) / hi;
     T hiInv3 = hiInv * hiInv * hiInv;
 
     T maxvsignali = 0.0;
@@ -57,7 +57,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T ry = yi - y[j];
         T rz = zi - z[j];
 
-        applyPBC(box, 2.0 * hi, rx, ry, rz);
+        applyPBC(box, T(2) * hi, rx, ry, rz);
 
         T r2   = rx * rx + ry * ry + rz * rz;
         T dist = std::sqrt(r2);
@@ -67,7 +67,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T vz_ij = vzi - vz[j];
 
         T hj    = h[j];
-        T hjInv = 1.0 / hj;
+        T hjInv = T(1) / hj;
 
         T v1 = dist * hiInv;
         T v2 = dist * hjInv;
@@ -97,11 +97,11 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T cj  = c[j];
 
         T           wij          = rv / dist;
-        constexpr T av_alpha     = 1.0;
+        constexpr T av_alpha     = T(1);
         T           viscosity_ij = T(0.5) * artificial_viscosity(av_alpha, av_alpha, ci, cj, wij);
 
         // For time-step calculations
-        T vijsignal = ci + cj - 3.0 * wij;
+        T vijsignal = ci + cj - T(3) * wij;
         maxvsignali = (vijsignal > maxvsignali) ? vijsignal : maxvsignali;
 
         T mj        = m[j];
@@ -118,7 +118,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
             momentum_z += a * termA3_i + b * termA3_j;
         }
         {
-            T a = Wi * (2.0 * mj_pro_i + viscosity_ij * mi_roi);
+            T a = Wi * (T(2) * mj_pro_i + viscosity_ij * mi_roi);
             T b = viscosity_ij * mj_roj_Wj;
 
             energy += vx_ij * (a * termA1_i + b * termA1_j) + vy_ij * (a * termA2_i + b * termA2_j) +
@@ -128,7 +128,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
 
     // with the choice of calculating coordinate (r) and velocity (v_ij) differences as i - j,
     // we add the negative sign only here at the end instead of to termA123_ij in each iteration
-    du[i]         = -K * 0.5 * energy;
+    du[i]         = -K * T(0.5) * energy;
     grad_P_x[i]   = -K * momentum_x;
     grad_P_y[i]   = -K * momentum_y;
     grad_P_z[i]   = -K * momentum_z;

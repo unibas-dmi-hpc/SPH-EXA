@@ -71,7 +71,7 @@ __global__ void cudaGradP(T sincIndex, T K, int ngmax, cstone::Box<T> box, int f
 
 template<class Dataset>
 void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
-                              const cstone::Box<double>& box)
+                              const cstone::Box<typename Dataset::RealType>& box)
 {
     using T = typename Dataset::RealType;
 
@@ -147,6 +147,10 @@ template void computeMomentumAndEnergy(size_t, size_t, size_t, ParticlesData<dou
                                        const cstone::Box<double>&);
 template void computeMomentumAndEnergy(size_t, size_t, size_t, ParticlesData<double, uint64_t, cstone::GpuTag>& d,
                                        const cstone::Box<double>&);
+template void computeMomentumAndEnergy(size_t, size_t, size_t, ParticlesData<float, unsigned, cstone::GpuTag>& d,
+                                       const cstone::Box<float>&);
+template void computeMomentumAndEnergy(size_t, size_t, size_t, ParticlesData<float, uint64_t, cstone::GpuTag>& d,
+                                       const cstone::Box<float>&);
 
 } // namespace cuda
 } // namespace sph
