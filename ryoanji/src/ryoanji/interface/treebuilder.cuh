@@ -33,7 +33,7 @@
 
 #include <memory>
 
-#include "ryoanji/types.h"
+#include "ryoanji/nbody/types.h"
 
 namespace ryoanji
 {
@@ -64,15 +64,20 @@ public:
     template<class T>
     int update(T* x, T* y, T* z, size_t numBodies, const cstone::Box<T>& box);
 
-    /*! @brief extract the octree from the previous update call in ryoanji format
+    /*! @brief extract the octree level range from the previous update call
      *
-     * @param[out] d_ryoanjiTree array of length numSources as returned by the previous update call
      * @param[out] h_levelRange  indices of the first node at each subdivison level
      * @return     the maximum subdivision level in the output tree
      */
-    int extract(ryoanji::CellData* d_ryoanjiTree, int2* h_levelRange);
+    int extract(int2* h_levelRange);
 
-    unsigned maxTreeLevel() const;
+    const LocalIndex* layout() const;
+    const TreeNodeIndex* childOffsets() const;
+    const TreeNodeIndex* leafToInternal() const;
+    const TreeNodeIndex* internalToLeaf() const;
+
+    TreeNodeIndex numLeafNodes() const;
+    unsigned      maxTreeLevel() const;
 
 private:
     class Impl;

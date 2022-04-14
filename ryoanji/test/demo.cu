@@ -26,13 +26,13 @@
 #include <chrono>
 #include <numeric>
 
-#include "dataset.hpp"
-#include "ryoanji/gpu_config.h"
-#include "ryoanji/types.h"
-#include "ryoanji/treebuilder.cuh"
-#include "ryoanji/traversal.cuh"
-#include "ryoanji/direct.cuh"
-#include "ryoanji/upwardpass.cuh"
+#include "nbody/dataset.hpp"
+#include "ryoanji/interface/treebuilder.cuh"
+#include "ryoanji/nbody/gpu_config.h"
+#include "ryoanji/nbody/types.h"
+#include "ryoanji/nbody/traversal.cuh"
+#include "ryoanji/nbody/direct.cuh"
+#include "ryoanji/nbody/upwardpass.cuh"
 
 using namespace ryoanji;
 
@@ -69,15 +69,14 @@ int main(int argc, char** argv)
     TreeBuilder<uint64_t> treeBuilder;
     int numSources = treeBuilder.update(rawPtr(d_x.data()), rawPtr(d_y.data()), rawPtr(d_z.data()), numBodies, box);
 
-    thrust::device_vector<CellData> sources(numSources);
-    std::vector<int2>               levelRange(treeBuilder.maxTreeLevel() + 1);
-
-    int highestLevel = treeBuilder.extract(rawPtr(sources.data()), levelRange.data());
+    std::vector<int2> levelRange(treeBuilder.maxTreeLevel() + 1);
+    int               highestLevel = treeBuilder.extract(levelRange.data());
 
     thrust::device_vector<Vec4<T>>       sourceCenter(numSources);
     thrust::device_vector<MultipoleType> Multipole(numSources);
 
-    upsweep(sources.size(),
+    upsweep(numSources,
+            treeBuilder.numLeafNodes(),
             highestLevel,
             theta,
             levelRange.data(),
@@ -86,7 +85,9 @@ int main(int argc, char** argv)
             rawPtr(d_z.data()),
             rawPtr(d_m.data()),
             rawPtr(d_h.data()),
-            rawPtr(sources.data()),
+            treeBuilder.layout(),
+            treeBuilder.childOffsets(),
+            treeBuilder.leafToInternal(),
             rawPtr(sourceCenter.data()),
             rawPtr(Multipole.data()));
 
@@ -108,7 +109,9 @@ int main(int argc, char** argv)
                                             rawPtr(d_ax.data()),
                                             rawPtr(d_ay.data()),
                                             rawPtr(d_az.data()),
-                                            rawPtr(sources.data()),
+                                            treeBuilder.childOffsets(),
+                                            treeBuilder.internalToLeaf(),
+                                            treeBuilder.layout(),
                                             rawPtr(sourceCenter.data()),
                                             rawPtr(Multipole.data()),
                                             levelRange.data());
@@ -147,7 +150,7 @@ int main(int argc, char** argv)
     thrust::host_vector<T> h_ay = d_ay;
     thrust::host_vector<T> h_az = d_az;
 
-    thrust::host_vector<T> h_refP  = refP;
+    double referencePotential = 0.5 * G * thrust::reduce(refP.begin(), refP.end(), 0.0);
     thrust::host_vector<T> h_refAx = refAx;
     thrust::host_vector<T> h_refAy = refAy;
     thrust::host_vector<T> h_refAz = refAz;
@@ -167,8 +170,8 @@ int main(int argc, char** argv)
 
     fprintf(stdout, "--- BH vs. direct ---------------\n");
 
-    std::cout << "potentials, body-sum: " << potentialSum << " atomic sum: " << interactions[4]
-              << " reference: " << std::accumulate(h_refP.begin(), h_refP.end(), 0.0) << std::endl;
+    std::cout << "potentials, body-sum: " << 0.5 * G * potentialSum << " atomic sum: " << 0.5 * G * interactions[4]
+              << " reference: " << referencePotential << std::endl;
     std::cout << "min Error: " << delta[0] << std::endl;
     std::cout << "50th percentile: " << delta[numBodies / 2] << std::endl;
     std::cout << "10th percentile: " << delta[numBodies * 0.9] << std::endl;

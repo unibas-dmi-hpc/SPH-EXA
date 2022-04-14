@@ -71,6 +71,12 @@ void initIsobaricCubeFields(Dataset& d, const std::map<std::string, double>& con
     std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
     std::fill(d.dt_m1.begin(), d.dt_m1.end(), firstTimeStep);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
+<<<<<<< HEAD
+=======
+
+    d.minDt    = firstTimeStep;
+    d.minDt_m1 = firstTimeStep;
+>>>>>>> branch 'develop' of https://github.com/jaescartin1/SPH-EXA.git
 
     d.minDt    = firstTimeStep;
     d.minDt_m1 = firstTimeStep;

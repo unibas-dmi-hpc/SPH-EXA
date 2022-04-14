@@ -50,8 +50,8 @@ struct OctreeGpuDataView
     TreeNodeIndex* childOffsets;
     TreeNodeIndex* parents;
     TreeNodeIndex* levelRange;
-    TreeNodeIndex* nodeOrder;
-    TreeNodeIndex* inverseNodeOrder;
+    TreeNodeIndex* internalToLeaf;
+    TreeNodeIndex* leafToInternal;
 };
 
 /*! @brief combine internal and leaf tree parts into a single array with the nodeKey prefixes
@@ -95,7 +95,7 @@ __global__ void createUnsortedLayout(const KeyType* leaves,
  * @tparam     KeyType           unsigned 32- or 64-bit integer
  * @param[in]  prefixes          octree node prefixes in Warren-Salmon format
  * @param[in]  numInternalNodes  number of internal octree nodes
- * @param[in]  inverseNodeOrder  translation map from unsorted layout to level/SFC sorted octree layout
+ * @param[in]  leafToInternal    translation map from unsorted layout to level/SFC sorted octree layout
  *                               length is total number of octree nodes, internal + leaves
  * @param[in]  levelRange        indices of the first node at each level
  * @param[out] childOffsets      octree node index of first child for each node, length is total number of nodes
@@ -105,7 +105,7 @@ __global__ void createUnsortedLayout(const KeyType* leaves,
 template<class KeyType>
 __global__ void linkTree(const KeyType* prefixes,
                          TreeNodeIndex numInternalNodes,
-                         const TreeNodeIndex* inverseNodeOrder,
+                         const TreeNodeIndex* leafToInternal,
                          const TreeNodeIndex* levelRange,
                          TreeNodeIndex* childOffsets,
                          TreeNodeIndex* parents)
@@ -114,7 +114,7 @@ __global__ void linkTree(const KeyType* prefixes,
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid < numInternalNodes)
     {
-        TreeNodeIndex idxA    = inverseNodeOrder[tid];
+        TreeNodeIndex idxA    = leafToInternal[tid];
         KeyType prefix        = prefixes[idxA];
         KeyType nodeKey       = decodePlaceholderBit(prefix);
         unsigned prefixLength = decodePrefixLength(prefix);
@@ -158,12 +158,25 @@ __global__ void invertOrder(const TreeNodeIndex* order, TreeNodeIndex* inverseOr
     }
 }
 
+namespace detail
+{
+struct Minus
+{
+    TreeNodeIndex shift;
+    Minus(TreeNodeIndex s)
+        : shift(s)
+    {
+    }
+    __host__ __device__ TreeNodeIndex operator()(TreeNodeIndex i) { return i - shift; }
+};
+} // namespace detail
+
 /*! @brief construct the internal octree part of a given octree leaf cell array on the GPU
  *
  * @tparam       KeyType     unsigned 32- or 64-bit integer
  * @param[in]    cstoneTree  GPU buffer with the SFC leaf cell keys
  * @param[inout] d           input:  pointers to pre-allocated GPU buffers for octree cells
- *                           ouptut: fully linked octree
+ *                           output: fully linked octree
  *
  * This does not allocate memory on the GPU, (except thrust temp buffers for scans and sorting)
  */
@@ -174,15 +187,17 @@ void buildInternalOctreeGpu(const KeyType* cstoneTree, OctreeGpuDataView<KeyType
 
     TreeNodeIndex numNodes = d.numInternalNodes + d.numLeafNodes;
     createUnsortedLayout<<<iceil(numNodes, numThreads), numThreads>>>(cstoneTree, d.numInternalNodes, d.numLeafNodes,
-                                                                      d.prefixes, d.nodeOrder);
+                                                                      d.prefixes, d.internalToLeaf);
 
-    thrust::sort_by_key(thrust::device, d.prefixes, d.prefixes + numNodes, d.nodeOrder);
+    thrust::sort_by_key(thrust::device, d.prefixes, d.prefixes + numNodes, d.internalToLeaf);
 
-    invertOrder<<<iceil(numNodes, numThreads), numThreads>>>(d.nodeOrder, d.inverseNodeOrder, numNodes);
+    invertOrder<<<iceil(numNodes, numThreads), numThreads>>>(d.internalToLeaf, d.leafToInternal, numNodes);
+    thrust::transform(thrust::device, d.internalToLeaf, d.internalToLeaf + numNodes, d.internalToLeaf,
+                      detail::Minus(d.numInternalNodes));
     getLevelRange<<<maxTreeLevel<KeyType>{} + 2, 1>>>(d.prefixes, numNodes, d.levelRange);
 
     thrust::fill(thrust::device, d.childOffsets, d.childOffsets + numNodes, 0);
-    linkTree<<<iceil(d.numInternalNodes, numThreads), numThreads>>>(d.prefixes, d.numInternalNodes, d.inverseNodeOrder,
+    linkTree<<<iceil(d.numInternalNodes, numThreads), numThreads>>>(d.prefixes, d.numInternalNodes, d.leafToInternal,
                                                                     d.levelRange, d.childOffsets, d.parents);
 }
 
@@ -204,8 +219,8 @@ public:
         //+1 due to level 0 and +1 due to the upper bound for the last level
         levelRange.resize(maxTreeLevel<KeyType>{} + 2);
 
-        nodeOrder.resize(numNodes);
-        inverseNodeOrder.resize(numNodes);
+        internalToLeaf.resize(numNodes);
+        leafToInternal.resize(numNodes);
     }
 
     OctreeGpuDataView<KeyType> getData()
@@ -216,8 +231,8 @@ public:
                 thrust::raw_pointer_cast(childOffsets.data()),
                 thrust::raw_pointer_cast(parents.data()),
                 thrust::raw_pointer_cast(levelRange.data()),
-                thrust::raw_pointer_cast(nodeOrder.data()),
-                thrust::raw_pointer_cast(inverseNodeOrder.data())};
+                thrust::raw_pointer_cast(internalToLeaf.data()),
+                thrust::raw_pointer_cast(leafToInternal.data())};
     }
 
     TreeNodeIndex numLeafNodes{0};
@@ -232,9 +247,10 @@ public:
     //! @brief store the first node index of every tree level, length = maxTreeLevel + 2
     thrust::device_vector<TreeNodeIndex> levelRange;
 
-    //! @brief maps between the (level-key) sorted layout B and the unsorted intermediate binary layout A
-    thrust::device_vector<TreeNodeIndex> nodeOrder;
-    thrust::device_vector<TreeNodeIndex> inverseNodeOrder;
+    //! @brief maps internal to leaf (cstone) order
+    thrust::device_vector<TreeNodeIndex> internalToLeaf;
+    //! @brief maps leaf (cstone) order to internal level-sorted order
+    thrust::device_vector<TreeNodeIndex> leafToInternal;
 };
 
 } // namespace cstone
