@@ -66,7 +66,7 @@ void initNohFields(Dataset& d, double totalVolume, const std::map<std::string, d
     for (size_t i = 0; i < d.x.size(); i++)
     {
         T radius = std::sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
-        radius   = std::max(radius, 1e-10);
+        radius   = std::max(radius, T(1e-10));
 
         d.u[i] = constants.at("u0");
 

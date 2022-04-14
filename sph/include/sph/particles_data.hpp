@@ -94,8 +94,8 @@ public:
 
     DeviceData_t<AccType, T, KeyType> devPtrs;
 
-    const std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
-    const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+    const std::array<T, lt::size> wh  = lt::createWharmonicLookupTable<T, lt::size>();
+    const std::array<T, lt::size> whd = lt::createWharmonicDerivativeLookupTable<T, lt::size>();
 
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().

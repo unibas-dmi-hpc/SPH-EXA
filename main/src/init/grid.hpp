@@ -46,7 +46,7 @@ namespace sphexa
  * @param N   the total number of segments
  * @return    the start and end index (subrange of R) of the i-th segment
  */
-auto partitionRange(size_t R, size_t i, size_t N)
+inline auto partitionRange(size_t R, size_t i, size_t N)
 {
     size_t s = R / N;
     size_t r = R % N;

@@ -24,7 +24,7 @@ CUDA_DEVICE_HOST_FUN inline void IADJLoop(int i, T sincIndex, T K, const cstone:
     T zi = z[i];
 
     T hi    = h[i];
-    T hiInv = 1.0 / hi;
+    T hiInv = T(1) / hi;
 
     for (int pj = 0; pj < neighborsCount; ++pj)
     {
@@ -34,7 +34,7 @@ CUDA_DEVICE_HOST_FUN inline void IADJLoop(int i, T sincIndex, T K, const cstone:
         T ry = (yi - y[j]);
         T rz = (zi - z[j]);
 
-        applyPBC(box, 2.0 * hi, rx, ry, rz);
+        applyPBC(box, T(2) * hi, rx, ry, rz);
 
         T dist = std::sqrt(rx * rx + ry * ry + rz * rz);
 
@@ -52,7 +52,7 @@ CUDA_DEVICE_HOST_FUN inline void IADJLoop(int i, T sincIndex, T K, const cstone:
         tau33 += rz * rz * mj_roj_w;
     }
 
-    T det = tau11 * tau22 * tau33 + 2.0 * tau12 * tau23 * tau13 - tau11 * tau23 * tau23 - tau22 * tau13 * tau13 -
+    T det = tau11 * tau22 * tau33 + T(2) * tau12 * tau23 * tau13 - tau11 * tau23 * tau23 - tau22 * tau13 * tau13 -
             tau33 * tau12 * tau12;
 
     // note normalization factor: cij have units of 1/tau because det is proportional to tau^3 so we have to
