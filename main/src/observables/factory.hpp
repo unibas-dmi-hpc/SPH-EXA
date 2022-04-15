@@ -31,56 +31,79 @@
 
 #pragma once
 
+#include <string>
 
 #include "cstone/sfc/box.hpp"
 #include "iobservables.hpp"
 #include "time_energy_growth.hpp"
 #include "time_energies.hpp"
 
-
 namespace sphexa
 {
 
-template<class Dataset>
-std::unique_ptr<IObservables<Dataset>> observablesFactory(std::string testCase, std::ofstream& constantsFile)
+#ifdef SPH_EXA_HAVE_H5PART
+
+//! @brief return true if the specified attribute exists, is integral and is non-zero and if @p fname exists
+static bool haveH5Attribute(const std::string& fname, const std::string& attributeToRead)
 {
-    //observables to check
-    const char* KelvinHelmholtz = "KelvinHelmholtzGrowthRate";
-    int khgrAttr[1] = {0};
+    int ret = 0;
 
-    if(std::filesystem::exists(testCase))
+    if (std::filesystem::exists(fname))
     {
-        H5PartFile* h5_file = nullptr;
-        h5_file = H5PartOpenFile(testCase.c_str(), H5PART_READ);
-        size_t attrN = H5PartGetNumFileAttribs(h5_file);
-        char* attrName = new char; 
-        long int length = 40; //arbitrary high value to read enough
-        long int* attr_type;
-        long int* attr_nelem;
+        H5PartFile* h5_file  = nullptr;
+        h5_file              = H5PartOpenFile(fname.c_str(), H5PART_READ);
+        size_t numAttributes = H5PartGetNumFileAttribs(h5_file);
 
-        
+        h5part_int64_t maxlen = 256;
+        char           attributeName[maxlen];
 
-        for(size_t i = 0; i < attrN; i++)
+        h5part_int64_t attributeType;
+        h5part_int64_t attributeLength;
+
+        for (h5part_int64_t i = 0; i < numAttributes; i++)
         {
-            H5PartGetFileAttribInfo(h5_file, i, attrName, length, attr_type, attr_nelem);
-            if(strcmp(attrName, KelvinHelmholtz) == 0)
+            H5PartGetFileAttribInfo(h5_file, i, attributeName, maxlen, &attributeType, &attributeLength);
+            if (attributeType != H5PART_INT64)
             {
-                H5PartReadFileAttrib(h5_file, attrName, khgrAttr);
+                throw std::runtime_error("unexpected attribute type in haveH5Attribute\n");
             }
-            
-        
+
+            if (attributeName == attributeToRead)
+            {
+                H5PartReadFileAttrib(h5_file, attributeName, &ret);
+                break;
+            }
         }
         H5PartCloseFile(h5_file);
-
     }
 
-    if (khgrAttr[0])
+    return ret;
+}
+
+#else
+
+static bool haveH5Attribute(const std::string& fname, const std::string& attributeToRead)
+{
+    if (std::filesystem::exists(fname))
+    {
+        std::cout << "WARNING: Could not read attribute " + attributeToRead + ". HDF5 support missing\n";
+    }
+
+    return false;
+}
+
+#endif
+
+template<class Dataset>
+std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& testCase, std::ofstream& constantsFile)
+{
+    if (haveH5Attribute(testCase, "KelvinHelmholtzGrowthRate"))
     {
         return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile);
     }
     else
     {
-       return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);
+        return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);
     }
 }
 
