@@ -14,13 +14,14 @@ namespace cuda
 {
 
 template<class Dataset>
-extern void computeDensity(size_t, size_t, size_t, Dataset& d, const cstone::Box<double>&);
+extern void computeDensity(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeIAD(size_t, size_t, size_t, Dataset& d, const cstone::Box<double>&);
+extern void computeIAD(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeMomentumAndEnergy(size_t, size_t, size_t, Dataset& d, const cstone::Box<double>&);
+extern void computeMomentumAndEnergy(size_t, size_t, size_t, Dataset& d,
+                                     const cstone::Box<typename Dataset::RealType>&);
 
 } // namespace cuda
 } // namespace sph

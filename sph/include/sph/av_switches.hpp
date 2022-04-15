@@ -39,9 +39,8 @@ void computeAVswitchesImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dat
     const T* kx   = d.kx.data();
     const T* rho0 = d.rho0.data();
 
-    const T  K         = d.K;
-    const T* dt        = d.dt.data();
-    const T  sincIndex = d.sincIndex;
+    const T K         = d.K;
+    const T sincIndex = d.sincIndex;
 
     const T alphamin       = d.alphamin;
     const T alphamax       = d.alphamax;
@@ -79,7 +78,7 @@ void computeAVswitchesImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dat
                                             kx,
                                             rho0,
                                             divv,
-                                            dt[i],
+                                            d.minDt,
                                             alphamin,
                                             alphamax,
                                             decay_constant,

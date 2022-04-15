@@ -1,8 +1,40 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2021 CSCS, ETH Zurich
+ *               2021 University of Basel
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/*! @file
+ * @brief Contains the object holding all particle data on the GPU
+ */
+
 #pragma once
+
+#include <thrust/device_vector.h>
 
 #include "cuda_utils.cuh"
 #include "sph/pinned_allocator.h"
 #include "sph/tables.hpp"
+#include "sph/data_util.hpp"
 
 namespace sphexa
 {
@@ -38,9 +70,9 @@ public:
 
     DeviceParticlesData()
     {
-        size_t                             size_lt_T = lt::size * sizeof(T);
-        const std::array<double, lt::size> wh        = lt::createWharmonicLookupTable<double, lt::size>();
-        const std::array<double, lt::size> whd       = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+        size_t                        size_lt_T = lt::size * sizeof(T);
+        const std::array<T, lt::size> wh        = lt::createWharmonicLookupTable<T, lt::size>();
+        const std::array<T, lt::size> whd       = lt::createWharmonicDerivativeLookupTable<T, lt::size>();
 
         CHECK_CUDA_ERR(utils::cudaMalloc(size_lt_T, d_wh, d_whd));
         CHECK_CUDA_ERR(cudaMemcpy(d_wh, wh.data(), size_lt_T, cudaMemcpyHostToDevice));

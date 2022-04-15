@@ -58,13 +58,15 @@ void initNohFields(Dataset& d, double totalVolume, const std::map<std::string, d
     std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
     std::fill(d.dt_m1.begin(), d.dt_m1.end(), firstTimeStep);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
-    d.minDt = firstTimeStep;
+
+    d.minDt    = firstTimeStep;
+    d.minDt_m1 = firstTimeStep;
 
 #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < d.x.size(); i++)
     {
         T radius = std::sqrt((d.x[i] * d.x[i]) + (d.y[i] * d.y[i]) + (d.z[i] * d.z[i]));
-        radius   = std::max(radius, 1e-10);
+        radius   = std::max(radius, T(1e-10));
 
         d.u[i] = constants.at("u0");
 

@@ -149,7 +149,8 @@ variables:
 #}}}
 #{{{ .sph-test
 .sph-test: &sph-test
-  extends: .dom
+  extends: .daint
+  # extends: .dom
   # tag is set in .dom
   before_script:
     # /usr/local/bin/evrard <-- (needs input file)
@@ -158,7 +159,6 @@ variables:
         /usr/local/sbin/coord_samples/coordinate_test;echo;
         /usr/local/sbin/kernel/kernel_tests_ve;echo;
         /usr/local/sbin/kernel/kernel_tests;echo;
-        /usr/local/sbin/ryoanji/gravity_perf;echo;
         /usr/local/sbin/ryoanji/cpu_unit_tests/ryoanji_cpu_unit_tests;echo;
         /usr/local/sbin/unit/component_units;echo;
         /usr/local/sbin/unit/component_units_omp;echo;
@@ -178,7 +178,7 @@ variables:
         /usr/local/sbin/integration_mpi/domain_nranks;echo;
         /usr/local/sbin/integration_mpi/exchange_general;echo;
         /usr/local/sbin/integration_mpi/exchange_keys;echo;
-        /usr/local/sbin/ryoanji/multi_rank;echo;
+        /usr/local/sbin/ryoanji/global_upsweep_cpu;echo;
       fi
     - if [ "$VARIANT" = "cuda" ] && [ "$RUN_VARIANT" = "p100" ]; then
         /usr/local/sbin/performance/hilbert_perf_gpu;echo;
@@ -440,7 +440,6 @@ sph:test:cuda:sphexa:gpu:
 # G sbin/unit_cuda/component_units_cuda
 # 5 sbin/ryoanji/multi_rank
 # G sbin/ryoanji/unit_tests/ryoanji_unit_tests
-# 1 sbin/ryoanji/gravity_perf
 # 1 sbin/ryoanji/cpu_unit_tests/ryoanji_cpu_unit_tests
 # 1 sbin/unit/component_units
 # 1 sbin/unit/component_units_omp

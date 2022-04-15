@@ -10,7 +10,7 @@
 #endif
 
 #include "cstone/domain/domain.hpp"
-#include "sph/propagator.hpp"
+#include "propagator.hpp"
 #include "init/factory.hpp"
 #include "observables/factory.hpp"
 #include "io/arg_parser.hpp"
@@ -46,19 +46,20 @@ int main(int argc, char** argv)
         throw std::runtime_error("no initial conditions specified (--init flag missing)\n");
     }
 
-    const size_t      maxStep        = parser.getInt("-s", 200);
-    const size_t      problemSize    = parser.getInt("-n", 50);
-    const int         writeFrequency = parser.getInt("-w", -1);
-    const bool        quiet          = parser.exists("--quiet");
-    const bool        ascii          = parser.exists("--ascii");
-    const bool        grav           = parser.exists("--grav");
-    const bool        ve             = parser.exists("--ve");
-    const std::string outDirectory   = parser.getString("--outDir");
-    const std::string initCond       = parser.getString("--init");
-    const std::string glassBlock     = parser.getString("--glass");
-    const std::string outFile        = outDirectory + "dump_" + initCond;
+    const std::string        initCond       = parser.getString("--init");
+    const size_t             problemSize    = parser.getInt("-n", 50);
+    const std::string        glassBlock     = parser.getString("--glass");
+    const bool               ve             = parser.exists("--ve");
+    const size_t             maxStep        = parser.getInt("-s", 200);
+    const int                writeFrequency = parser.getInt("-w", -1);
+    std::vector<std::string> outputFields   = parser.getCommaList("-f");
+    const bool               ascii          = parser.exists("--ascii");
+    const std::string        outDirectory   = parser.getString("--outDir");
+    const bool               quiet          = parser.exists("--quiet");
 
-    float theta = parser.exists("--theta") ? parser.getDouble("--theta") : (grav ? 0.5 : 1.0);
+    if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c"}; }
+
+    const std::string outFile = outDirectory + "dump_" + initCond;
 
     using Real    = double;
     using KeyType = uint64_t;
@@ -67,9 +68,6 @@ int main(int argc, char** argv)
 
     size_t ngmax = 150;
     size_t ng0   = 100;
-
-    std::vector<std::string> outputFields = parser.getCommaList("-f");
-    if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c"}; }
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
@@ -94,6 +92,9 @@ int main(int argc, char** argv)
     cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, d);
     d.setOutputFields(outputFields);
 
+    bool  haveGrav = (d.g != 0.0);
+    float theta    = parser.exists("--theta") ? parser.getDouble("--theta") : (haveGrav ? 0.5 : 1.0);
+
     if (rank == 0 && writeFrequency > 0) { fileWriter->constants(simInit->constants(), outFile); }
     if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
 
@@ -101,13 +102,12 @@ int main(int argc, char** argv)
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
     size_t bucketSize = std::max(bucketSizeFocus, d.numParticlesGlobal / (100 * numRanks));
     Domain domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
-    auto   propagator = propagatorFactory<Domain, Dataset>(grav, ve, ngmax, ng0, output, rank);
+    auto   propagator = propagatorFactory<Domain, Dataset>(ve, ngmax, ng0, output, rank);
 
     if (ve)
-        domain.sync(
-            d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1, d.alpha);
+        domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.alpha);
     else
-        domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.dt_m1);
+        domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1);
 
     if (rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
@@ -149,19 +149,27 @@ void printHelp(char* name, int rank)
         printf("%s [OPTIONS]\n", name);
         printf("\nWhere possible options are:\n\n");
 
-        printf("\t--init \t\t Test case selection (sedov, noh) or an HDF5 file with initial conditions\n\n");
-        printf("\t--grav \t\t Include self-gravity [false]\n\n");
-        printf("\t--theta\t\t Gravity accuracy parameter [0.5]\n\n");
-        printf("\t--ve \t\t Activate SPH with generalized volume elements\n\n");
-        printf("\t-n NUM \t\t\t Initialize data with (approx when using glass blocks) NUM^3 global particles [50]\n");
-        printf("\t-s NUM \t\t\t NUM Number of iterations (time-steps) [200]\n\n");
-        printf("\t-w NUM \t\t\t Dump particles data every NUM iterations (time-steps) [-1]\n\n");
-        printf("\t-f list \t\t Comma-separated list of field names to write for each dump, "
-               "e.g -f x,y,z,h,rho\n\n");
+        printf(
+            "\t--init \t\t Test case selection (sedov, noh, isobaric-cube) or an HDF5 file with initial conditions\n");
+        printf("\t-n NUM \t\t Initialize data with (approx when using glass blocks) NUM^3 global particles [50]\n");
+        printf("\t--glass \t Use glass block at tests\n\n");
 
-        printf("\t--quiet \t\t Don't print anything to stdout [false]\n\n");
-        printf("\t--outDir PATH \t\t Path to directory where output will be saved [./].\
-                    \n\t\t\t\t Note that directory must exist and be provided with ending slash.\
-                    \n\t\t\t\t Example: --outDir /home/user/folderToSaveOutputFiles/\n");
+        printf("\t--theta NUM \t Gravity accuracy parameter [default 0.5 when self-gravity is active]\n\n");
+
+        printf("\t--ve \t\t Activate SPH with generalized volume elements\n\n");
+
+        printf("\t-s NUM \t\t NUM Number of iterations (time-steps) [200]\n\n");
+
+        printf("\t-w NUM \t\t Dump particles data every NUM iterations (time-steps) [-1]\n");
+        printf("\t-f list \t Comma-separated list of field names to write for each dump,\n\
+                    \t\t e.g: -f x,y,z,h,rho\n\n");
+
+        printf("\t--ascii \t Dump file in ASCII format [binary HDF5 by default]\n\n");
+
+        printf("\t--outDir PATH \t Path to directory where output will be saved [./].\n\
+                    \t\t Note that directory must exist and be provided with ending slash,\n\
+                    \t\t e.g: --outDir /home/user/folderToSaveOutputFiles/\n\n");
+
+        printf("\t--quiet \t Don't print anything to stdout\n\n");
     }
 }

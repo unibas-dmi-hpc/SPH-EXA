@@ -55,7 +55,7 @@ CUDA_DEVICE_HOST_FUN inline void IADJLoop(int i, T sincIndex, T K, const cstone:
     T zi = z[i];
 
     T hi    = h[i];
-    T hiInv = 1.0 / hi;
+    T hiInv = T(1) / hi;
     T norm  = K * hiInv * hiInv * hiInv;
 
     for (int pj = 0; pj < neighborsCount; ++pj)
@@ -66,7 +66,7 @@ CUDA_DEVICE_HOST_FUN inline void IADJLoop(int i, T sincIndex, T K, const cstone:
         T ry = (yi - y[j]);
         T rz = (zi - z[j]);
 
-        applyPBC(box, 2.0 * hi, rx, ry, rz);
+        applyPBC(box, T(2) * hi, rx, ry, rz);
 
         T dist = std::sqrt(rx * rx + ry * ry + rz * rz);
 

@@ -36,6 +36,7 @@
 
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"
+#include "data_util.hpp"
 #include "traits.hpp"
 
 #if defined(USE_CUDA)
@@ -66,7 +67,10 @@ public:
     size_t numParticlesGlobal;
 
     T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
-    T minDt;
+    T minDt, minDt_m1;
+
+    //! @brief gravitational constant
+    T g = 0.0;
 
     std::vector<T> x, y, z, x_m1, y_m1, z_m1;    // Positions
     std::vector<T> vx, vy, vz;                   // Velocities
@@ -90,8 +94,8 @@ public:
 
     DeviceData_t<AccType, T, KeyType> devPtrs;
 
-    const std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
-    const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+    const std::array<T, lt::size> wh  = lt::createWharmonicLookupTable<T, lt::size>();
+    const std::array<T, lt::size> whd = lt::createWharmonicDerivativeLookupTable<T, lt::size>();
 
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
@@ -123,7 +127,7 @@ public:
     void setConservedFields()
     {
         std::vector<std::string> fields{
-            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "dt_m1"};
+            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1"};
         conservedFields = fieldStringsToInt(fieldNames, fields);
     }
 
@@ -136,7 +140,6 @@ public:
                                         "grad_P_y",
                                         "grad_P_z",
                                         "du",
-                                        "dt",
                                         "c11",
                                         "c12",
                                         "c13",
@@ -151,15 +154,15 @@ public:
     void setConservedFieldsVE()
     {
         std::vector<std::string> fields{
-            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "dt_m1", "alpha"};
+            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha"};
         conservedFields = fieldStringsToInt(fieldNames, fields);
     }
 
     void setDependentFieldsVE()
     {
-        std::vector<std::string> fields{"rho",        "p",    "c",     "grad_P_x", "grad_P_y", "grad_P_z", "du",
-                                        "dt",         "c11",  "c12",   "c13",      "c22",      "c23",      "c33",
-                                        "maxvsignal", "rho0", "wrho0", "kx",       "whomega",  "divv",     "curlv"};
+        std::vector<std::string> fields{"rho",  "p",     "c",   "grad_P_x", "grad_P_y", "grad_P_z", "du",
+                                        "c11",  "c12",   "c13", "c22",      "c23",      "c33",      "maxvsignal",
+                                        "rho0", "wrho0", "kx",  "whomega",  "divv",     "curlv"};
         dependentFields = fieldStringsToInt(fieldNames, fields);
     }
 
@@ -172,19 +175,12 @@ public:
     std::vector<int> conservedFields;
     //! @brief particle fields recomputed every step from conserved fields
     std::vector<int> dependentFields;
-    //! @brief particle fields select for file outputj
+    //! @brief particle fields selected for file output
     std::vector<int> outputFields;
 
 #ifdef USE_MPI
     MPI_Comm comm;
 #endif
-
-    // TODO: unify this with computePosition/Acceleration:
-    // from SPH we have acceleration = -grad_P, so computePosition adds a factor of -1 to the pressure gradients
-    // instead, the pressure gradients should be renamed to acceleration and computeMomentumAndEnergy should directly
-    // set this to -grad_P, such that we don't need to add the gravitational acceleration with a factor of -1 on top
-    T g = -1.0; // for Evrard Collapse Gravity.
-    // constexpr static T g = 6.6726e-8; // the REAL value of g. g is 1.0 for Evrard mainly
 
     constexpr static T sincIndex     = 6.0;
     constexpr static T Kcour         = 0.2;
@@ -208,68 +204,5 @@ public:
 
 template<typename T, typename I, class Acc>
 const T ParticlesData<T, I, Acc>::K = sphexa::compute_3d_k(sincIndex);
-
-template<class Array>
-std::vector<int> fieldStringsToInt(const Array& allNames, const std::vector<std::string>& subsetNames)
-{
-    std::vector<int> subsetIndices;
-    subsetIndices.reserve(subsetNames.size());
-    for (const auto& field : subsetNames)
-    {
-        auto it = std::find(allNames.begin(), allNames.end(), field);
-        if (it == allNames.end()) { throw std::runtime_error("Field " + field + " does not exist\n"); }
-
-        size_t fieldIndex = it - allNames.begin();
-        subsetIndices.push_back(fieldIndex);
-    }
-    return subsetIndices;
-}
-
-//! @brief extract a vector of pointers to particle fields for file output
-template<class Dataset>
-auto getOutputArrays(Dataset& dataset)
-{
-    using T            = typename Dataset::RealType;
-    auto fieldPointers = dataset.data();
-
-    std::vector<const T*> outputFields(dataset.outputFields.size());
-    std::transform(dataset.outputFields.begin(),
-                   dataset.outputFields.end(),
-                   outputFields.begin(),
-                   [&fieldPointers](int i) { return fieldPointers[i]->data(); });
-
-    return outputFields;
-}
-
-//! @brief resizes all particles fields of @p d listed in data() to the specified size
-template<class Dataset>
-void resize(Dataset& d, size_t size)
-{
-    double growthRate = 1.05;
-    auto   data_      = d.data();
-
-    for (int i : d.conservedFields)
-    {
-        reallocate(*data_[i], size, growthRate);
-    }
-    for (int i : d.dependentFields)
-    {
-        reallocate(*data_[i], size, growthRate);
-    }
-
-    reallocate(d.codes, size, growthRate);
-    reallocate(d.neighborsCount, size, growthRate);
-
-    d.devPtrs.resize(size);
-}
-
-//! resizes the neighbors list, only used in the CPU verison
-template<class Dataset>
-void resizeNeighbors(Dataset& d, size_t size)
-{
-    double growthRate = 1.05;
-    //! If we have a GPU, neighbors are calculated on-the-fly, so we don't need space to store them
-    reallocate(d.neighbors, HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
-}
 
 } // namespace sphexa

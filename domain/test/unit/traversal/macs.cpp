@@ -42,7 +42,7 @@ namespace cstone
 
 TEST(Macs, minPointDistance)
 {
-    using T = double;
+    using T       = double;
     using KeyType = unsigned;
 
     constexpr unsigned mc = maxCoord<KeyType>{};
@@ -51,22 +51,22 @@ TEST(Macs, minPointDistance)
         Box<T> box(0, 1);
         IBox ibox(0, mc / 2);
 
-        T px = (mc/2.0 + 1) / mc;
+        T px = (mc / 2.0 + 1) / mc;
         Vec3<T> X{px, px, px};
 
         auto [center, size] = centerAndSize<KeyType>(ibox, box);
 
         T probe = std::sqrt(norm2(minDistance(X, center, size, box)));
-        EXPECT_NEAR(std::sqrt(3)/mc, probe, 1e-10);
+        EXPECT_NEAR(std::sqrt(3) / mc, probe, 1e-10);
     }
 }
 
 TEST(Macs, minDistanceSq)
 {
-    using KeyType = uint64_t;
-    using T = double;
+    using KeyType             = uint64_t;
+    using T                   = double;
     constexpr size_t maxCoord = 1u << maxTreeLevel<KeyType>{};
-    constexpr T unitLengthSq = T(1.) / (maxCoord * maxCoord);
+    constexpr T unitLengthSq  = T(1.) / (maxCoord * maxCoord);
 
     Box<T> box(0, 2, 0, 3, 0, 4);
 
@@ -74,8 +74,8 @@ TEST(Macs, minDistanceSq)
         IBox a(0, 1, 0, 1, 0, 1);
         IBox b(2, 3, 0, 1, 0, 1);
 
-        T probe1 = minDistanceSq<KeyType>(a, b, box);
-        T probe2 = minDistanceSq<KeyType>(b, a, box);
+        T probe1    = minDistanceSq<KeyType>(a, b, box);
+        T probe2    = minDistanceSq<KeyType>(b, a, box);
         T reference = box.lx() * box.lx() * unitLengthSq;
 
         EXPECT_DOUBLE_EQ(probe1, reference);
@@ -85,8 +85,8 @@ TEST(Macs, minDistanceSq)
         IBox a(0, 1, 0, 1, 0, 1);
         IBox b(0, 1, 2, 3, 0, 1);
 
-        T probe1 = minDistanceSq<KeyType>(a, b, box);
-        T probe2 = minDistanceSq<KeyType>(b, a, box);
+        T probe1    = minDistanceSq<KeyType>(a, b, box);
+        T probe2    = minDistanceSq<KeyType>(b, a, box);
         T reference = box.ly() * box.ly() * unitLengthSq;
 
         EXPECT_DOUBLE_EQ(probe1, reference);
@@ -96,8 +96,8 @@ TEST(Macs, minDistanceSq)
         IBox a(0, 1, 0, 1, 0, 1);
         IBox b(0, 1, 0, 1, 2, 3);
 
-        T probe1 = minDistanceSq<KeyType>(a, b, box);
-        T probe2 = minDistanceSq<KeyType>(b, a, box);
+        T probe1    = minDistanceSq<KeyType>(a, b, box);
+        T probe2    = minDistanceSq<KeyType>(b, a, box);
         T reference = box.lz() * box.lz() * unitLengthSq;
 
         EXPECT_DOUBLE_EQ(probe1, reference);
@@ -108,8 +108,8 @@ TEST(Macs, minDistanceSq)
         IBox a(0, 1, 0, 1, 0, 1);
         IBox b(maxCoord - 1, maxCoord, 0, 1, 0, 1);
 
-        T probe1 = minDistanceSq<KeyType>(a, b, box);
-        T probe2 = minDistanceSq<KeyType>(b, a, box);
+        T probe1    = minDistanceSq<KeyType>(a, b, box);
+        T probe2    = minDistanceSq<KeyType>(b, a, box);
         T reference = box.lx() * box.lx() * T(maxCoord - 2) * T(maxCoord - 2) * unitLengthSq;
 
         EXPECT_DOUBLE_EQ(probe1, reference);
@@ -119,9 +119,9 @@ TEST(Macs, minDistanceSq)
 
 TEST(Macs, minDistanceSqPbc)
 {
-    using KeyType = uint64_t;
-    using T = double;
-    constexpr int maxCoord = 1u << maxTreeLevel<KeyType>{};
+    using KeyType            = uint64_t;
+    using T                  = double;
+    constexpr int maxCoord   = 1u << maxTreeLevel<KeyType>{};
     constexpr T unitLengthSq = T(1.) / (T(maxCoord) * T(maxCoord));
 
     {
@@ -162,8 +162,8 @@ TEST(Macs, minDistanceSqPbc)
         IBox a(0, 1);
         IBox b(maxCoord / 2 + 1, maxCoord / 2 + 2);
 
-        T probe1 = minDistanceSq<KeyType>(a, b, box);
-        T probe2 = minDistanceSq<KeyType>(b, a, box);
+        T probe1    = minDistanceSq<KeyType>(a, b, box);
+        T probe2    = minDistanceSq<KeyType>(b, a, box);
         T reference = 3 * T(maxCoord / 2 - 2) * T(maxCoord / 2 - 2) * box.lx() * box.lx() * unitLengthSq;
 
         EXPECT_DOUBLE_EQ(probe1, reference);
@@ -286,17 +286,14 @@ static std::vector<char> markMacAll2All(
     // loop over target cells
     for (TreeNodeIndex i = firstLeaf; i < lastLeaf; ++i)
     {
-        IBox targetBox = sfcIBox(sfcKey(leaves[i]), sfcKey(leaves[i + 1]));
+        IBox targetBox                  = sfcIBox(sfcKey(leaves[i]), sfcKey(leaves[i + 1]));
         auto [targetCenter, targetSize] = centerAndSize<KeyType>(targetBox, box);
 
         // loop over source cells
         for (TreeNodeIndex j = 0; j < octree.numTreeNodes(); ++j)
         {
             // source cells must not be in target cell range
-            if (leaves[firstLeaf] <= octree.codeStart(j) && octree.codeEnd(j) <= leaves[lastLeaf])
-            {
-                continue;
-            }
+            if (leaves[firstLeaf] <= octree.codeStart(j) && octree.codeEnd(j) <= leaves[lastLeaf]) { continue; }
             IBox sourceBox                  = sfcIBox(sfcKey(octree.codeStart(j)), sfcKey(octree.codeEnd(j)));
             auto [sourceCenter, sourceSize] = centerAndSize<KeyType>(sourceBox, box);
 
@@ -320,7 +317,7 @@ static void markMac()
 
     std::vector<char> markings(octree.numTreeNodes(), 0);
 
-    float theta = 0.58;
+    float theta                 = 0.58;
     TreeNodeIndex focusIdxStart = 0;
     TreeNodeIndex focusIdxEnd   = 2;
     markMac(octree, box, leaves[focusIdxStart], leaves[focusIdxEnd], 1. / theta, markings.data());
@@ -350,17 +347,14 @@ static std::vector<char> markVecMacAll2All(const Octree<KeyType>& octree,
     // loop over target cells
     for (TreeNodeIndex i = firstLeaf; i < lastLeaf; ++i)
     {
-        IBox targetBox = sfcIBox(sfcKey(leaves[i]), sfcKey(leaves[i + 1]));
+        IBox targetBox                  = sfcIBox(sfcKey(leaves[i]), sfcKey(leaves[i + 1]));
         auto [targetCenter, targetSize] = centerAndSize<KeyType>(targetBox, box);
 
         // loop over source cells
         for (TreeNodeIndex j = 0; j < octree.numTreeNodes(); ++j)
         {
             // source cells must not be in target cell range
-            if (leaves[firstLeaf] <= octree.codeStart(j) && octree.codeEnd(j) <= leaves[lastLeaf])
-            {
-                continue;
-            }
+            if (leaves[firstLeaf] <= octree.codeStart(j) && octree.codeEnd(j) <= leaves[lastLeaf]) { continue; }
 
             Vec4<T> center   = centers[j];
             bool violatesMac = vectorMacPbc(makeVec3(center), center[3], targetCenter, targetSize, box);
@@ -391,7 +385,7 @@ static void markMacVector()
     std::vector<SourceCenterType<T>> centers(octree.numTreeNodes());
     computeLeafMassCenter<T, T, T, KeyType>(coords.x(), coords.y(), coords.z(), masses, coords.particleKeys(), octree,
                                             centers);
-    upsweep(octree, centers.data(), CombineSourceCenter<T>{});
+    upsweep(octree.levelRange(), octree.childOffsets(), centers.data(), CombineSourceCenter<T>{});
     setMac<T, KeyType>(octree.nodeKeys(), centers, 1.0 / theta, box);
 
     std::vector<char> markings(octree.numTreeNodes(), 0);

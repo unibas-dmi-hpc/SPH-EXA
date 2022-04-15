@@ -29,7 +29,6 @@
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
-
 #pragma once
 
 #include <algorithm>
@@ -55,7 +54,7 @@ namespace cstone
  * Upon completion of this routine, the key sequence will be sorted and values
  * will be rearranged to reflect the key ordering
  */
-template <class InoutIterator, class OutputIterator, class Compare>
+template<class InoutIterator, class OutputIterator, class Compare>
 void sort_by_key(InoutIterator keyBegin, InoutIterator keyEnd, OutputIterator valueBegin, Compare compare)
 {
     using KeyType   = std::decay_t<decltype(*keyBegin)>;
@@ -63,26 +62,27 @@ void sort_by_key(InoutIterator keyBegin, InoutIterator keyEnd, OutputIterator va
     std::size_t n   = std::distance(keyBegin, keyEnd);
 
     // zip the input integer array together with the index sequence
-    std::vector<std::tuple<KeyType, ValueType>, util::DefaultInitAdaptor<std::tuple<KeyType, ValueType>>> keyIndexPairs(n);
-    #pragma omp parallel for schedule(static)
+    std::vector<std::tuple<KeyType, ValueType>, util::DefaultInitAdaptor<std::tuple<KeyType, ValueType>>> keyIndexPairs(
+        n);
+#pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < n; ++i)
         keyIndexPairs[i] = std::make_tuple(keyBegin[i], valueBegin[i]);
 
     // sort, comparing only the first tuple element
     std::sort(begin(keyIndexPairs), end(keyIndexPairs),
-              [compare](const auto& t1, const auto& t2){ return compare(std::get<0>(t1), std::get<0>(t2)); });
+              [compare](const auto& t1, const auto& t2) { return compare(std::get<0>(t1), std::get<0>(t2)); });
 
-    // extract the resulting ordering and store back the sorted keys
-    #pragma omp parallel for schedule(static)
+// extract the resulting ordering and store back the sorted keys
+#pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < n; ++i)
     {
-        keyBegin[i]  = std::get<0>(keyIndexPairs[i]);
+        keyBegin[i]   = std::get<0>(keyIndexPairs[i]);
         valueBegin[i] = std::get<1>(keyIndexPairs[i]);
     }
 }
 
 //! @brief calculate the sortKey that sorts the input sequence, default ascending order
-template <class InoutIterator, class OutputIterator>
+template<class InoutIterator, class OutputIterator>
 void sort_by_key(InoutIterator inBegin, InoutIterator inEnd, OutputIterator outBegin)
 {
     sort_by_key(inBegin, inEnd, outBegin, std::less<std::decay_t<decltype(*inBegin)>>{});
@@ -94,23 +94,34 @@ void omp_copy(InputIterator first, InputIterator last, OutputIterator out)
 {
     std::size_t n = last - first;
 
-    #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < n; ++i)
     {
         out[i] = first[i];
     }
 }
 
+//! @brief gather reorder
 template<class IndexType, class ValueType>
 void reorder(gsl::span<const IndexType> ordering, const ValueType* source, ValueType* destination)
 {
-    #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
     for (size_t i = 0; i < ordering.size(); ++i)
     {
         destination[i] = source[ordering[i]];
     }
 }
 
+//! @brief scatter reorder
+template<class IndexType, class ValueType>
+void scatter(gsl::span<const IndexType> ordering, const ValueType* source, ValueType* destination)
+{
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < ordering.size(); ++i)
+    {
+        destination[ordering[i]] = source[i];
+    }
+}
 
 /*! @brief reorder the input array according to the specified ordering, no reallocation
  *
@@ -123,7 +134,7 @@ template<class LocalIndex, class ValueType>
 void reorderInPlace(const std::vector<LocalIndex>& ordering, ValueType* array)
 {
     std::vector<ValueType, util::DefaultInitAdaptor<ValueType>> tmp(ordering.size());
-    #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
     for (std::size_t i = 0; i < ordering.size(); ++i)
     {
         tmp[i] = array[ordering[i]];

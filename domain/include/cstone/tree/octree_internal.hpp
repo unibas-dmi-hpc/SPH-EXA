@@ -87,29 +87,29 @@ HOST_DEVICE_FUN constexpr TreeNodeIndex binaryKeyWeight(KeyType key, unsigned le
  * @param[in]  binaryToOct       translation map from binary to octree nodes
  * @param[out] prefixes          output octree SFC keys, length @p numInternalNodes + numLeafNodes
  *                               NOTE: keys are prefixed with Warren-Salmon placeholder bits!
- * @param[out] nodeOrder         iota 0,1,2,3,... sequence for later use, length same as @p prefixes
+ * @param[out] internalToLeaf    iota 0,1,2,3,... sequence for later use, length same as @p prefixes
  */
 template<class KeyType>
 void createUnsortedLayoutCpu(const KeyType* leaves,
                              TreeNodeIndex numInternalNodes,
                              TreeNodeIndex numLeafNodes,
                              KeyType* prefixes,
-                             TreeNodeIndex* nodeOrder)
+                             TreeNodeIndex* internalToLeaf)
 {
-    #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
     for (TreeNodeIndex tid = 0; tid < numLeafNodes; ++tid)
     {
-        KeyType key                       = leaves[tid];
-        unsigned level                    = treeLevel(leaves[tid + 1] - key);
-        prefixes[tid + numInternalNodes]  = encodePlaceholderBit(key, 3 * level);
-        nodeOrder[tid + numInternalNodes] = tid + numInternalNodes;
+        KeyType key                            = leaves[tid];
+        unsigned level                         = treeLevel(leaves[tid + 1] - key);
+        prefixes[tid + numInternalNodes]       = encodePlaceholderBit(key, 3 * level);
+        internalToLeaf[tid + numInternalNodes] = tid + numInternalNodes;
 
         unsigned prefixLength = commonPrefix(key, leaves[tid + 1]);
         if (prefixLength % 3 == 0 && tid < numLeafNodes - 1)
         {
-            TreeNodeIndex octIndex = (tid + binaryKeyWeight(key, prefixLength / 3)) / 7;
-            prefixes[octIndex]     = encodePlaceholderBit(key, prefixLength);
-            nodeOrder[octIndex]    = octIndex;
+            TreeNodeIndex octIndex   = (tid + binaryKeyWeight(key, prefixLength / 3)) / 7;
+            prefixes[octIndex]       = encodePlaceholderBit(key, prefixLength);
+            internalToLeaf[octIndex] = octIndex;
         }
     }
 }
@@ -119,7 +119,7 @@ void createUnsortedLayoutCpu(const KeyType* leaves,
  * @tparam     KeyType           unsigned 32- or 64-bit integer
  * @param[in]  prefixes          octree node prefixes in Warren-Salmon format
  * @param[in]  numInternalNodes  number of internal octree nodes
- * @param[in]  inverseNodeOrder  translation map from unsorted layout to level/SFC sorted octree layout
+ * @param[in]  leafToInternal    translation map from unsorted layout to level/SFC sorted octree layout
  *                               length is total number of octree nodes, internal + leaves
  * @param[in]  levelRange        indices of the first node at each level
  * @param[out] childOffsets      octree node index of first child for each node, length is total number of nodes
@@ -129,15 +129,15 @@ void createUnsortedLayoutCpu(const KeyType* leaves,
 template<class KeyType>
 void linkTreeCpu(const KeyType* prefixes,
                  TreeNodeIndex numInternalNodes,
-                 const TreeNodeIndex* inverseNodeOrder,
+                 const TreeNodeIndex* leafToInternal,
                  const TreeNodeIndex* levelRange,
                  TreeNodeIndex* childOffsets,
                  TreeNodeIndex* parents)
 {
-    #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < numInternalNodes; ++i)
     {
-        TreeNodeIndex idxA    = inverseNodeOrder[i];
+        TreeNodeIndex idxA    = leafToInternal[i];
         KeyType prefix        = prefixes[idxA];
         KeyType nodeKey       = decodePlaceholderBit(prefix);
         unsigned prefixLength = decodePrefixLength(prefix);
@@ -180,32 +180,38 @@ void getLevelRangeCpu(const KeyType* nodeKeys, TreeNodeIndex numNodes, TreeNodeI
  * @param[in]    cstoneTree  GPU buffer with the SFC leaf cell keys
  */
 template<class KeyType>
-void buildInternalOctreeGpu(const KeyType* cstoneTree,
+void buildInternalOctreeCpu(const KeyType* cstoneTree,
                             TreeNodeIndex numLeafNodes,
                             TreeNodeIndex numInternalNodes,
                             KeyType* prefixes,
                             TreeNodeIndex* childOffsets,
                             TreeNodeIndex* parents,
                             TreeNodeIndex* levelRange,
-                            TreeNodeIndex* nodeOrder,
-                            TreeNodeIndex* inverseNodeOrder)
+                            TreeNodeIndex* internalToLeaf,
+                            TreeNodeIndex* leafToInternal)
 {
     TreeNodeIndex numNodes = numInternalNodes + numLeafNodes;
-    createUnsortedLayoutCpu(cstoneTree, numInternalNodes, numLeafNodes, prefixes, nodeOrder);
-    sort_by_key(prefixes, prefixes + numNodes, nodeOrder);
+    createUnsortedLayoutCpu(cstoneTree, numInternalNodes, numLeafNodes, prefixes, internalToLeaf);
+    sort_by_key(prefixes, prefixes + numNodes, internalToLeaf);
 
-    #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < numNodes; ++i)
     {
-        inverseNodeOrder[nodeOrder[i]] = i;
+        leafToInternal[internalToLeaf[i]] = i;
+    }
+#pragma omp parallel for schedule(static)
+    for (TreeNodeIndex i = 0; i < numNodes; ++i)
+    {
+        internalToLeaf[i] -= numInternalNodes;
     }
     getLevelRangeCpu(prefixes, numNodes, levelRange);
 
     std::fill(childOffsets, childOffsets + numNodes, 0);
-    linkTreeCpu(prefixes, numInternalNodes, inverseNodeOrder, levelRange, childOffsets, parents);
+    linkTreeCpu(prefixes, numInternalNodes, leafToInternal, levelRange, childOffsets, parents);
 }
 
-template<class K> class FocusedOctreeCore;
+template<class K>
+class FocusedOctreeCore;
 
 template<class KeyType>
 class Octree
@@ -226,9 +232,9 @@ public:
     void updateInternalTree()
     {
         resize(nNodes(cstoneTree_));
-        buildInternalOctreeGpu(cstoneTree_.data(), numLeafNodes_, numInternalNodes_, prefixes_.data(),
-                               childOffsets_.data(), parents_.data(), levelRange_.data(), nodeOrder_.data(),
-                               inverseNodeOrder_.data());
+        buildInternalOctreeCpu(cstoneTree_.data(), numLeafNodes_, numInternalNodes_, prefixes_.data(),
+                               childOffsets_.data(), parents_.data(), levelRange_.data(), internalToLeaf_.data(),
+                               leafToInternal_.data());
     }
 
     //! @brief rebalance based on leaf counts only, optimized version that avoids unnecessary allocations
@@ -236,8 +242,8 @@ public:
     {
         assert(TreeNodeIndex(counts.size()) == numLeafNodes_);
         bool converged =
-            rebalanceDecision(cstoneTree_.data(), counts.data(), numLeafNodes_, bucketSize, nodeOrder_.data());
-        rebalanceTree(cstoneTree_, prefixes_, nodeOrder_.data());
+            rebalanceDecision(cstoneTree_.data(), counts.data(), numLeafNodes_, bucketSize, internalToLeaf_.data());
+        rebalanceTree(cstoneTree_, prefixes_, internalToLeaf_.data());
         swap(cstoneTree_, prefixes_);
 
         updateInternalTree();
@@ -249,14 +255,19 @@ public:
     //! @brief return const pointer to node(cell) SFC keys
     gsl::span<const KeyType> nodeKeys() const { return prefixes_; }
     //! @brief return const pointer to child offsets array
-    const TreeNodeIndex* childOffsets() const { return childOffsets_.data(); }
+    gsl::span<const TreeNodeIndex> childOffsets() const { return childOffsets_; }
     //! @brief return const pointer to the cell parents array
-    const TreeNodeIndex* parents() const { return parents_.data(); }
+    gsl::span<const TreeNodeIndex> parents() const { return parents_; }
 
     //! @brief stores the first internal node index of each tree subdivision level
     gsl::span<const TreeNodeIndex> levelRange() const { return levelRange_; }
     //! @brief converts a cornerstone index into an internal index
-    gsl::span<const TreeNodeIndex> internalOrder() const { return inverseNodeOrder_; }
+    gsl::span<const TreeNodeIndex> internalOrder() const
+    {
+        return {leafToInternal_.data() + numInternalNodes_, size_t(numLeafNodes_)};
+    }
+    //! @brief converts  an internal index into a cornerstone index
+    gsl::span<const TreeNodeIndex> toLeafOrder() const { return {internalToLeaf_.data(), size_t(numTreeNodes())}; }
 
     //! @brief total number of nodes in the tree
     inline TreeNodeIndex numTreeNodes() const { return levelRange_.back(); }
@@ -302,7 +313,7 @@ public:
     inline KeyType codeEnd(TreeNodeIndex node) const
     {
         KeyType prefix = prefixes_[node];
-        assert(decodePrefixLength(prefix) % 3  == 0);
+        assert(decodePrefixLength(prefix) % 3 == 0);
         return decodePlaceholderBit(prefix) + (1ul << (3 * maxTreeLevel<KeyType>{} - decodePrefixLength(prefix)));
     }
 
@@ -322,8 +333,8 @@ public:
      */
     [[nodiscard]] inline TreeNodeIndex toInternal(TreeNodeIndex node) const
     {
-        assert(size_t(node + numInternalNodes()) < inverseNodeOrder_.size());
-        return inverseNodeOrder_[node + numInternalNodes()];
+        assert(size_t(node + numInternalNodes()) < leafToInternal_.size());
+        return leafToInternal_[node + numInternalNodes()];
     }
 
     /*! @brief returns index of @p node in the cornerstone tree used for construction
@@ -335,26 +346,8 @@ public:
      */
     [[nodiscard]] inline TreeNodeIndex cstoneIndex(TreeNodeIndex node) const
     {
-        assert(size_t(node) < nodeOrder_.size());
-        return nodeOrder_[node] - numInternalNodes_;
-    }
-
-    /*! @brief extract elements corresponding to leaf nodes and arrange in cstone (ascending SFC key) order
-     *
-     * @param[in]   in   input sequence of length numTreeNodes()
-     * @param[out]  out  output sequence of length numLeafNodes()
-     */
-    template<class T>
-    void extractLeaves(gsl::span<const T> in, gsl::span<T> out) const
-    {
-        assert(in.size() >= size_t(numTreeNodes()));
-        assert(out.size() >= size_t(numLeafNodes()));
-
-        #pragma omp parallel for schedule(static)
-        for (TreeNodeIndex i = 0; i < numLeafNodes_; ++i)
-        {
-            out[i] = in[inverseNodeOrder_[i + numInternalNodes_]];
-        }
+        assert(size_t(node) < internalToLeaf_.size());
+        return internalToLeaf_[node];
     }
 
     /*! @brief finds the index of the node with SFC key range [startKey:endKey]
@@ -399,8 +392,8 @@ private:
          */
         levelRange_.resize(maxTreeLevel<KeyType>{} + 2);
 
-        nodeOrder_.resize(numNodes);
-        inverseNodeOrder_.resize(numNodes);
+        internalToLeaf_.resize(numNodes);
+        leafToInternal_.resize(numNodes);
     }
 
     TreeNodeIndex numLeafNodes_{0};
@@ -418,47 +411,32 @@ private:
     std::vector<TreeNodeIndex, Alloc> levelRange_;
 
     //! @brief maps between the (level-key) sorted layout B and the unsorted intermediate binary layout A
-    std::vector<TreeNodeIndex, Alloc> nodeOrder_;
-    std::vector<TreeNodeIndex, Alloc> inverseNodeOrder_;
+    std::vector<TreeNodeIndex, Alloc> internalToLeaf_;
+    std::vector<TreeNodeIndex, Alloc> leafToInternal_;
 
     //! @brief the cornerstone leaf SFC key array
     std::vector<KeyType> cstoneTree_;
 };
 
-template<class T, class KeyType, class CombinationFunction>
-void upsweep(const Octree<KeyType>& octree, T* quantities, CombinationFunction&& combinationFunction)
-{
-    int currentLevel = maxTreeLevel<KeyType>{};
-
-    for ( ; currentLevel >= 0; --currentLevel)
-    {
-        TreeNodeIndex start = octree.levelOffset(currentLevel);
-        TreeNodeIndex end   = octree.levelOffset(currentLevel + 1);
-        #pragma omp parallel for schedule(static)
-        for (TreeNodeIndex i = start; i < end; ++i)
-        {
-            if (!octree.isLeaf(i))
-            {
-                quantities[i] = combinationFunction(i, octree.child(i, 0), quantities);
-            }
-        }
-    }
-}
-
-//! @brief perform upsweep, initializing leaf quantities from a separate array
-template<class T, class KeyType, class CombinationFunction>
-void upsweep(const Octree<KeyType>& octree,
-             const T* leafQuantities,
+template<class T, class CombinationFunction>
+void upsweep(gsl::span<const TreeNodeIndex> levelOffset,
+             gsl::span<const TreeNodeIndex> childOffsets,
              T* quantities,
              CombinationFunction&& combinationFunction)
 {
-    #pragma omp parallel for schedule(static)
-    for (TreeNodeIndex i = 0; i < octree.numLeafNodes(); ++i)
+    int currentLevel = levelOffset.size() - 2;
+
+    for (; currentLevel >= 0; --currentLevel)
     {
-        TreeNodeIndex internalIdx = octree.toInternal(i);
-        quantities[internalIdx]   = leafQuantities[i];
+        TreeNodeIndex start = levelOffset[currentLevel];
+        TreeNodeIndex end   = levelOffset[currentLevel + 1];
+#pragma omp parallel for schedule(static)
+        for (TreeNodeIndex i = start; i < end; ++i)
+        {
+            cstone::TreeNodeIndex firstChild = childOffsets[i];
+            if (firstChild) { quantities[i] = combinationFunction(i, firstChild, quantities); }
+        }
     }
-    upsweep(octree, quantities, std::forward<CombinationFunction>(combinationFunction));
 }
 
 template<class T>
@@ -469,11 +447,5 @@ struct SumCombination
         return Q[c] + Q[c + 1] + Q[c + 2] + Q[c + 3] + Q[c + 4] + Q[c + 5] + Q[c + 6] + Q[c + 7];
     }
 };
-
-template<class T, class KeyType>
-void upsweepSum(const Octree<KeyType>& octree, T* quantities)
-{
-    upsweep(octree, quantities, SumCombination<T>{});
-}
 
 } // namespace cstone

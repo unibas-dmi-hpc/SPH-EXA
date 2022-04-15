@@ -66,7 +66,9 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
     std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
     std::fill(d.dt_m1.begin(), d.dt_m1.end(), firstTimeStep);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
-    d.minDt = firstTimeStep;
+
+    d.minDt    = firstTimeStep;
+    d.minDt_m1 = firstTimeStep;
 
     std::fill(d.vx.begin(), d.vx.end(), 0.0);
     std::fill(d.vy.begin(), d.vy.end(), 0.0);
@@ -108,8 +110,7 @@ public:
         regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
         initSedovFields(d, constants_);
 
-        T halfStep = r / cubeSide;
-        return cstone::Box<T>(-r - halfStep, r - halfStep, true);
+        return cstone::Box<T>(-r, r, true);
     }
 
     const std::map<std::string, double>& constants() const override { return constants_; }
