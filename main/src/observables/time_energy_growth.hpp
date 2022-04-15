@@ -44,7 +44,6 @@ void localGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, T* sumsi, T
 {
     const T* x  =   d.x.data();
     const T* y  =   d.y.data();
-    const T* vx =   d.vx.data();
     const T* vy =   d.vy.data();
     const T* rho =  d.rho.data();
     const T* m =    d.m.data();
@@ -59,18 +58,16 @@ void localGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, T* sumsi, T
         T si;
         T ci;
         T di;
+        T aux;
         if(y[i] > ybox * 0.5e0)
         {
-            T aux = std::exp(-4.e0 * PI * std::abs(y[i] - 0.25e0));
-            si = vy[i] * voli * std::sin(4.e0 * PI * x[i]) * aux;
-            ci = vy[i] * voli * std::cos(4.e0 * PI * x[i]) * aux;
-            di = voli * aux;
+            aux = std::exp(-4.e0 * PI * std::abs(y[i] - 0.25e0));
         } else {
-            T aux = std::exp(-4.e0 * PI * std::abs((ybox - y[i]) - 0.25e0));
-            si = vy[i] * voli * std::sin(4.e0 * PI * x[i]) * aux;
-            ci = vy[i] * voli * std::cos(4.e0 * PI * x[i]) * aux;
-            di = voli * aux;
+            aux = std::exp(-4.e0 * PI * std::abs((ybox - y[i]) - 0.25e0));
         }
+        si = vy[i] * voli * std::sin(4.e0 * PI * x[i]) * aux;
+        ci = vy[i] * voli * std::cos(4.e0 * PI * x[i]) * aux;
+        di = voli * aux;
 
         sumsiThread += si;
         sumciThread += ci;
