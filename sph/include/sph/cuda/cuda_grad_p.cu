@@ -14,6 +14,7 @@ namespace sph
 namespace cuda
 {
 
+//! @brief compute atomic min for floats using integer operations
 __device__ __forceinline__ float atomicMinFloat(float* addr, float value)
 {
     float old;
