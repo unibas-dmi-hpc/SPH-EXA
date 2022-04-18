@@ -94,6 +94,11 @@ findPopulatedNodes(const KeyType* tree, TreeNodeIndex nNodes, const KeyType* cod
         populatedNodes[0] = stl::upper_bound(tree, tree + nNodes, *codesStart) - tree - 1;
         populatedNodes[1] = stl::upper_bound(tree, tree + nNodes, *(codesEnd - 1)) - tree;
     }
+    else
+    {
+        populatedNodes[0] = nNodes;
+        populatedNodes[1] = nNodes;
+    }
 }
 
 /*! @brief count number of particles in each octree node

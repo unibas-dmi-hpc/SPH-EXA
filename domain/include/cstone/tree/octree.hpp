@@ -208,6 +208,11 @@ void computeNodeCounts(const KeyType* tree,
         lastNode  = std::upper_bound(tree, tree + nNodes, *(codesEnd - 1)) - tree;
         assert(firstNode <= lastNode && "Are your particle codes sorted?");
     }
+    else
+    {
+        firstNode = nNodes;
+        lastNode  = nNodes;
+    }
 
 #pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < firstNode; ++i)
@@ -224,18 +229,13 @@ void computeNodeCounts(const KeyType* tree,
     {
         exclusiveScan(counts + firstNode, nNonZeroNodes);
 #pragma omp parallel for schedule(static)
-        for (TreeNodeIndex i = 0; i < nNonZeroNodes - 1; ++i)
+        for (TreeNodeIndex i = 0; i < nNonZeroNodes; ++i)
         {
             unsigned firstGuess  = counts[i + firstNode];
-            unsigned secondGuess = counts[i + firstNode + 1];
+            unsigned secondGuess = counts[std::min(i + firstNode + 1, nNodes - 1)];
             counts[i + firstNode] =
                 updateNodeCount(i, populatedTree, firstGuess, secondGuess, codesStart, codesEnd, maxCount);
         }
-
-        TreeNodeIndex lastIdx = nNonZeroNodes - 1;
-        unsigned lastGuess    = counts[lastIdx + firstNode];
-        counts[lastIdx + firstNode] =
-            updateNodeCount(lastIdx, populatedTree, lastGuess, lastGuess, codesStart, codesEnd, maxCount);
     }
     else
     {
