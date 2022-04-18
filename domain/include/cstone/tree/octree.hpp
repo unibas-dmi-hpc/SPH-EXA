@@ -71,7 +71,7 @@ namespace cstone
 template<class KeyType>
 inline TreeNodeIndex findNodeBelow(gsl::span<const KeyType> tree, KeyType key)
 {
-     return stl::upper_bound(tree.begin(), tree.end(), key) - tree.begin() - 1;
+    return stl::upper_bound(tree.begin(), tree.end(), key) - tree.begin() - 1;
 }
 
 //! @brief return first node that starts at or above key
@@ -112,17 +112,14 @@ HOST_DEVICE_FUN util::array<const KeyType*, 2> findSearchBounds(std::make_signed
 {
     assert(firstIdx >= 0);
 
-    using SI = std::make_signed_t<KeyType>;
+    using SI  = std::make_signed_t<KeyType>;
     SI nCodes = codesEnd - codesStart;
 
     // firstIdx must be an accessible index
     firstIdx = stl::min(nCodes - 1, firstIdx);
 
     // the last node in 64-bit is 2^63, which can't be represented as a negative number
-    if (targetCode == nodeRange<KeyType>(0))
-    {
-        return {codesStart + firstIdx, codesEnd};
-    }
+    if (targetCode == nodeRange<KeyType>(0)) { return {codesStart + firstIdx, codesEnd}; }
 
     KeyType firstCode = codesStart[firstIdx];
     if (firstCode == targetCode) { firstIdx++; }
@@ -161,14 +158,16 @@ HOST_DEVICE_FUN util::array<const KeyType*, 2> findSearchBounds(std::make_signed
  *                          whichever is smaller
  */
 template<class KeyType>
-HOST_DEVICE_FUN
-unsigned updateNodeCount(TreeNodeIndex nodeIdx, const KeyType* tree,
-                         std::make_signed_t<KeyType> firstGuess,
-                         std::make_signed_t<KeyType> secondGuess,
-                         const KeyType* codesStart, const KeyType* codesEnd, unsigned maxCount)
+HOST_DEVICE_FUN unsigned updateNodeCount(TreeNodeIndex nodeIdx,
+                                         const KeyType* tree,
+                                         std::make_signed_t<KeyType> firstGuess,
+                                         std::make_signed_t<KeyType> secondGuess,
+                                         const KeyType* codesStart,
+                                         const KeyType* codesEnd,
+                                         unsigned maxCount)
 {
     KeyType nodeStart = tree[nodeIdx];
-    KeyType nodeEnd   = tree[nodeIdx+1];
+    KeyType nodeEnd   = tree[nodeIdx + 1];
 
     auto searchBounds = findSearchBounds(firstGuess, nodeStart, codesStart, codesEnd);
     auto rangeStart   = stl::lower_bound(searchBounds[0], searchBounds[1], nodeStart);
@@ -193,50 +192,54 @@ unsigned updateNodeCount(TreeNodeIndex nodeIdx, const KeyType* tree,
  *                            to prevent overflow in MPI_Allreduce
  */
 template<class KeyType>
-void computeNodeCounts(const KeyType* tree, unsigned* counts, TreeNodeIndex nNodes,
-                       const KeyType* codesStart, const KeyType* codesEnd,
-                       unsigned maxCount, bool useCountsAsGuess = false)
+void computeNodeCounts(const KeyType* tree,
+                       unsigned* counts,
+                       TreeNodeIndex nNodes,
+                       const KeyType* codesStart,
+                       const KeyType* codesEnd,
+                       unsigned maxCount,
+                       bool useCountsAsGuess = false)
 {
     TreeNodeIndex firstNode = 0;
     TreeNodeIndex lastNode  = nNodes;
     if (codesStart != codesEnd)
     {
         firstNode = std::upper_bound(tree, tree + nNodes, *codesStart) - tree - 1;
-        lastNode  = std::upper_bound(tree, tree + nNodes, *(codesEnd-1)) - tree;
+        lastNode  = std::upper_bound(tree, tree + nNodes, *(codesEnd - 1)) - tree;
         assert(firstNode <= lastNode && "Are your particle codes sorted?");
     }
 
-    #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < firstNode; ++i)
         counts[i] = 0;
 
-    #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = lastNode; i < nNodes; ++i)
         counts[i] = 0;
 
-    TreeNodeIndex nNonZeroNodes = lastNode - firstNode;
+    TreeNodeIndex nNonZeroNodes  = lastNode - firstNode;
     const KeyType* populatedTree = tree + firstNode;
 
     if (useCountsAsGuess)
     {
         exclusiveScan(counts + firstNode, nNonZeroNodes);
-        #pragma omp parallel for schedule(static)
-        for (TreeNodeIndex i = 0; i < nNonZeroNodes-1; ++i)
+#pragma omp parallel for schedule(static)
+        for (TreeNodeIndex i = 0; i < nNonZeroNodes - 1; ++i)
         {
-            unsigned firstGuess   = counts[i + firstNode];
-            unsigned secondGuess  = counts[i + firstNode + 1];
-            counts[i + firstNode] = updateNodeCount(i, populatedTree, firstGuess, secondGuess,
-                                                    codesStart, codesEnd, maxCount);
+            unsigned firstGuess  = counts[i + firstNode];
+            unsigned secondGuess = counts[i + firstNode + 1];
+            counts[i + firstNode] =
+                updateNodeCount(i, populatedTree, firstGuess, secondGuess, codesStart, codesEnd, maxCount);
         }
 
-        TreeNodeIndex lastIdx       = nNonZeroNodes-1;
-        unsigned lastGuess          = counts[lastIdx + firstNode];
-        counts[lastIdx + firstNode] = updateNodeCount(lastIdx, populatedTree, lastGuess, lastGuess,
-                                                      codesStart, codesEnd, maxCount);
+        TreeNodeIndex lastIdx = nNonZeroNodes - 1;
+        unsigned lastGuess    = counts[lastIdx + firstNode];
+        counts[lastIdx + firstNode] =
+            updateNodeCount(lastIdx, populatedTree, lastGuess, lastGuess, codesStart, codesEnd, maxCount);
     }
     else
     {
-        #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
         for (TreeNodeIndex i = 0; i < nNonZeroNodes; ++i)
         {
             counts[i + firstNode] =
@@ -276,22 +279,23 @@ inline HOST_DEVICE_FUN util::tuple<int, unsigned> siblingAndLevel(const KeyType*
 
 //! @brief returns 0 for merging, 1 for no-change, 8 for splitting
 template<class KeyType>
-HOST_DEVICE_FUN int calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize)
+HOST_DEVICE_FUN int
+calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, const unsigned* counts, unsigned bucketSize)
 {
     auto [siblingIdx, level] = siblingAndLevel(tree, nodeIdx);
 
     if (siblingIdx > 0) // 8 siblings next to each other, node can potentially be merged
     {
         // pointer to first node in sibling group
-        auto g = counts + nodeIdx - siblingIdx;
-        bool countMerge = (g[0]+g[1]+g[2]+g[3]+g[4]+g[5]+g[6]+g[7]) <= bucketSize;
+        auto g          = counts + nodeIdx - siblingIdx;
+        bool countMerge = (g[0] + g[1] + g[2] + g[3] + g[4] + g[5] + g[6] + g[7]) <= bucketSize;
         if (countMerge) { return 0; } // merge
     }
 
     if (counts[nodeIdx] > bucketSize * 512 && level + 3 < maxTreeLevel<KeyType>{}) { return 4096; } // split
-    if (counts[nodeIdx] > bucketSize * 64  && level + 2 < maxTreeLevel<KeyType>{}) { return 512; } // split
-    if (counts[nodeIdx] > bucketSize * 8   && level + 1 < maxTreeLevel<KeyType>{}) { return 64; } // split
-    if (counts[nodeIdx] > bucketSize       && level     < maxTreeLevel<KeyType>{}) { return 8; } // split
+    if (counts[nodeIdx] > bucketSize * 64 && level + 2 < maxTreeLevel<KeyType>{}) { return 512; }   // split
+    if (counts[nodeIdx] > bucketSize * 8 && level + 1 < maxTreeLevel<KeyType>{}) { return 64; }     // split
+    if (counts[nodeIdx] > bucketSize && level < maxTreeLevel<KeyType>{}) { return 8; }              // split
 
     return 1; // default: do nothing
 }
@@ -314,15 +318,15 @@ HOST_DEVICE_FUN int calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, 
  *  - 8 if to be split.
  */
 template<class KeyType, class LocalIndex>
-bool rebalanceDecision(const KeyType* tree, const unsigned* counts, TreeNodeIndex nNodes,
-                       unsigned bucketSize, LocalIndex* nodeOps)
+bool rebalanceDecision(
+    const KeyType* tree, const unsigned* counts, TreeNodeIndex nNodes, unsigned bucketSize, LocalIndex* nodeOps)
 {
     bool converged = true;
 
-    #pragma omp parallel
+#pragma omp parallel
     {
         bool convergedThread = true;
-        #pragma omp for
+#pragma omp for
         for (TreeNodeIndex i = 0; i < nNodes; ++i)
         {
             int decision = calculateNodeOp(tree, i, counts, bucketSize);
@@ -344,19 +348,17 @@ bool rebalanceDecision(const KeyType* tree, const unsigned* counts, TreeNodeInde
  * @param  newTree    the new tree
  */
 template<class KeyType>
-HOST_DEVICE_FUN void processNode(TreeNodeIndex nodeIndex, const KeyType* oldTree, const TreeNodeIndex* nodeOps, KeyType* newTree)
+HOST_DEVICE_FUN void
+processNode(TreeNodeIndex nodeIndex, const KeyType* oldTree, const TreeNodeIndex* nodeOps, KeyType* newTree)
 {
     KeyType thisNode = oldTree[nodeIndex];
-    KeyType range    = oldTree[nodeIndex+1] - thisNode;
+    KeyType range    = oldTree[nodeIndex + 1] - thisNode;
     unsigned level   = treeLevel(range);
 
-    TreeNodeIndex opCode       = nodeOps[nodeIndex+1] - nodeOps[nodeIndex];
+    TreeNodeIndex opCode       = nodeOps[nodeIndex + 1] - nodeOps[nodeIndex];
     TreeNodeIndex newNodeIndex = nodeOps[nodeIndex];
 
-    if (opCode == 1)
-    {
-        newTree[newNodeIndex] = thisNode;
-    }
+    if (opCode == 1) { newTree[newNodeIndex] = thisNode; }
     else if (opCode == 8)
     {
         for (int sibling = 0; sibling < 8; ++sibling)
@@ -385,13 +387,13 @@ HOST_DEVICE_FUN void processNode(TreeNodeIndex nodeIndex, const KeyType* oldTree
 template<class InputVector, class OutputVector>
 void rebalanceTree(const InputVector& tree, OutputVector& newTree, TreeNodeIndex* nodeOps)
 {
-    using KeyType = typename InputVector::value_type;
+    using KeyType          = typename InputVector::value_type;
     TreeNodeIndex numNodes = nNodes(tree);
 
     exclusiveScan(nodeOps, numNodes + 1);
     newTree.resize(nodeOps[numNodes] + 1);
 
-    #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
     for (TreeNodeIndex i = 0; i < numNodes; ++i)
     {
         processNode(i, tree.data(), nodeOps, newTree.data());
@@ -418,8 +420,11 @@ void rebalanceTree(const InputVector& tree, OutputVector& newTree, TreeNodeIndex
  *    in MPI_Allreduce, therefore, maxCount should be set to 2^32/numRanks - 1 for distributed tree builds.
  */
 template<class KeyType>
-bool updateOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucketSize,
-                  std::vector<KeyType>& tree, std::vector<unsigned>& counts,
+bool updateOctree(const KeyType* codesStart,
+                  const KeyType* codesEnd,
+                  unsigned bucketSize,
+                  std::vector<KeyType>& tree,
+                  std::vector<unsigned>& counts,
                   unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
     std::vector<TreeNodeIndex> nodeOps(nNodes(tree) + 1);
@@ -438,13 +443,16 @@ bool updateOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned b
 //! @brief Convenience wrapper for updateOctree. Start from scratch and return a fully converged cornerstone tree.
 template<class KeyType>
 std::tuple<std::vector<KeyType>, std::vector<unsigned>>
-computeOctree(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucketSize,
+computeOctree(const KeyType* codesStart,
+              const KeyType* codesEnd,
+              unsigned bucketSize,
               unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
-    std::vector<KeyType>  tree{0, nodeRange<KeyType>(0)};
+    std::vector<KeyType> tree{0, nodeRange<KeyType>(0)};
     std::vector<unsigned> counts{unsigned(codesEnd - codesStart)};
 
-    while (!updateOctree(codesStart, codesEnd, bucketSize, tree, counts, maxCount));
+    while (!updateOctree(codesStart, codesEnd, bucketSize, tree, counts, maxCount))
+        ;
 
     return std::make_tuple(std::move(tree), std::move(counts));
 }
@@ -477,7 +485,7 @@ std::vector<KeyType> computeSpanningTree(gsl::span<const KeyType> spanningKeys)
     std::vector<TreeNodeIndex> offsets(numIntervals + 1);
     for (TreeNodeIndex i = 0; i < numIntervals; ++i)
     {
-        offsets[i] = spanSfcRange(spanningKeys[i], spanningKeys[i+1]);
+        offsets[i] = spanSfcRange(spanningKeys[i], spanningKeys[i + 1]);
     }
 
     exclusiveScanSerialInplace(offsets.data(), offsets.size(), 0);
@@ -485,7 +493,7 @@ std::vector<KeyType> computeSpanningTree(gsl::span<const KeyType> spanningKeys)
     std::vector<KeyType> spanningTree(offsets.back() + 1);
     for (TreeNodeIndex i = 0; i < numIntervals; ++i)
     {
-        spanSfcRange(spanningKeys[i], spanningKeys[i+1], spanningTree.data() + offsets[i]);
+        spanSfcRange(spanningKeys[i], spanningKeys[i + 1], spanningTree.data() + offsets[i]);
     }
     spanningTree.back() = nodeRange<KeyType>(0);
 
