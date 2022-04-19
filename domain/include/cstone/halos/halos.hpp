@@ -173,7 +173,7 @@ private:
                                   << " of similar magnitude than the rank domain volume. In that case, either"
                                   << " the number of ranks needs to be decreased or the number of particles"
                                   << " increased, leading to shorter smoothing lengths\n";
-                        MPI_Abort(MPI_COMM_WORLD, 1);
+                        MPI_Abort(MPI_COMM_WORLD, 35);
                     }
                 }
             }
