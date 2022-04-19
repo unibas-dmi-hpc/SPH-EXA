@@ -371,10 +371,10 @@ private:
         {
             if (i == myRank_)
             {
-                std::cout << "rank " << i << " " << assignedSize << " " << layout_.back()
-                          << " flags: " << numFlags << "/" << halos_.haloFlags().size()
-                          << " peers: [" << peers.size() << "] ";
-                for (auto r : peers) std::cout << r << " ";
+                std::cout << "rank " << i << " " << assignedSize << " " << layout_.back() << " flags: " << numFlags
+                          << "/" << halos_.haloFlags().size() << " peers: [" << peers.size() << "] ";
+                for (auto r : peers)
+                    std::cout << r << " ";
                 std::cout << std::endl;
             }
             MPI_Barrier(MPI_COMM_WORLD);
