@@ -46,7 +46,7 @@ int main(int argc, char** argv)
         throw std::runtime_error("no initial conditions specified (--init flag missing)\n");
     }
 
-    using Real    = float;
+    using Real    = double;
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType, AccType>;
     using Domain  = cstone::Domain<KeyType, Real, AccType>;
