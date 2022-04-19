@@ -38,15 +38,16 @@ public:
     }
 
     //! @brief parse a comma-separated list
-    std::vector<std::string> getCommaList(const std::string& option) const
+    template<class T>
+    std::vector<T> getCommaList(const std::string& option) const
     {
         std::string listWithCommas = getString(option);
 
         std::replace(listWithCommas.begin(), listWithCommas.end(), ',', ' ');
 
-        std::vector<std::string> list;
-        std::stringstream        ss(listWithCommas);
-        std::string              field;
+        std::vector<T>    list;
+        std::stringstream ss(listWithCommas);
+        T                 field;
         while (ss >> field)
         {
             list.push_back(field);

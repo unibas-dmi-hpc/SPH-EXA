@@ -3,6 +3,7 @@
 #include <string>
 #include <memory>
 #include <vector>
+#include <algorithm>
 
 // hard code MPI for now
 #ifndef USE_MPI
@@ -45,25 +46,28 @@ int main(int argc, char** argv)
         throw std::runtime_error("no initial conditions specified (--init flag missing)\n");
     }
 
+    using Real    = float;
+    using KeyType = uint64_t;
+    using Dataset = ParticlesData<Real, KeyType, AccType>;
+    using Domain  = cstone::Domain<KeyType, Real, AccType>;
+
     const std::string        initCond       = parser.getString("--init");
     const size_t             problemSize    = parser.getInt("-n", 50);
     const std::string        glassBlock     = parser.getString("--glass");
     const bool               ve             = parser.exists("--ve");
     const size_t             maxStep        = parser.getInt("-s", 200);
     const int                writeFrequency = parser.getInt("-w", -1);
-    std::vector<std::string> outputFields   = parser.getCommaList("-f");
+    std::vector<Real>        writeExtra     = parser.getCommaList<Real>("--wextra");
+    std::vector<std::string> outputFields   = parser.getCommaList<std::string>("-f");
     const bool               ascii          = parser.exists("--ascii");
     const std::string        outDirectory   = parser.getString("--outDir");
     const bool               quiet          = parser.exists("--quiet");
 
+    if (!writeExtra.empty()) { std::sort(writeExtra.begin(), writeExtra.end(), std::greater<Real>() ); }
+
     if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c"}; }
 
     const std::string outFile = outDirectory + "dump_" + initCond;
-
-    using Real    = double;
-    using KeyType = uint64_t;
-    using Dataset = ParticlesData<Real, KeyType, AccType>;
-    using Domain  = cstone::Domain<KeyType, Real, AccType>;
 
     size_t ngmax = 150;
     size_t ng0   = 100;
@@ -94,7 +98,7 @@ int main(int argc, char** argv)
     bool  haveGrav = (d.g != 0.0);
     float theta    = parser.exists("--theta") ? parser.getDouble("--theta") : (haveGrav ? 0.5 : 1.0);
 
-    if (rank == 0 && writeFrequency > 0) { fileWriter->constants(simInit->constants(), outFile); }
+    if (rank == 0 && (writeFrequency > 0 || !writeExtra.empty())) { fileWriter->constants(simInit->constants(), outFile); }
     if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
 
     size_t bucketSizeFocus = 64;
@@ -125,7 +129,29 @@ int main(int argc, char** argv)
             fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
         }
 
-        if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
+        // Check if write by --wextra times
+        bool writeXTime = false;
+        if (!writeExtra.empty())
+        {
+            Real writeTime   = writeExtra.back();
+            Real currentTime = d.ttot;
+            Real futureTime  = d.ttot + d.minDt;
+
+            if (currentTime > writeTime) { writeXTime = true; }
+            else
+            {
+                if (futureTime > writeTime)
+                {
+                    Real diffNow  = writeTime - currentTime;
+                    Real diffNext = futureTime - writeTime;
+                    if (diffNow < diffNext) { writeXTime = true; }
+                }
+            }
+
+            if (writeXTime) writeExtra.pop_back();
+        }
+
+        if (writeXTime || writeFrequency == 0 || (writeFrequency > 0 && d.iteration % writeFrequency == 0))
         {
             fileWriter->dump(d, domain.startIndex(), domain.endIndex(), box, outFile);
         }
@@ -161,6 +187,7 @@ void printHelp(char* name, int rank)
         printf("\t-s NUM \t\t NUM Number of iterations (time-steps) [200]\n\n");
 
         printf("\t-w NUM \t\t Dump particles data every NUM iterations (time-steps) [-1]\n");
+        printf("\t--wextra list \t Comma-separeted list of ~times to write in the simulation []\n");
         printf("\t-f list \t Comma-separated list of field names to write for each dump,\n\
                     \t\t e.g: -f x,y,z,h,rho\n\n");
 
