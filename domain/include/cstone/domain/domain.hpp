@@ -219,8 +219,15 @@ public:
 
         if (firstCall_)
         {
-            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(),
-                                global_.nodeCounts());
+            int converged = 0;
+            while (converged != numRanks_)
+            {
+                converged = focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
+                focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
+                focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box());
+                focusTree_.updateVecMac(box(), global_.assignment(), global_.treeLeaves());
+                MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+            }
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
         focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
@@ -355,6 +362,23 @@ private:
 
         // newBufDesc is now the valid buffer description
         std::swap(newBufDesc, bufDesc_);
+    }
+
+    void diagnostics(size_t assignedSize, gsl::span<int> peers)
+    {
+        int numFlags = std::count(halos_.haloFlags().cbegin(), halos_.haloFlags().cend(), 1);
+        for (int i = 0; i < numRanks_; ++i)
+        {
+            if (i == myRank_)
+            {
+                std::cout << "rank " << i << " " << assignedSize << " " << layout_.back()
+                          << " flags: " << numFlags << "/" << halos_.haloFlags().size()
+                          << " peers: [" << peers.size() << "] ";
+                for (auto r : peers) std::cout << r << " ";
+                std::cout << std::endl;
+            }
+            MPI_Barrier(MPI_COMM_WORLD);
+        }
     }
 
     int myRank_;

@@ -205,7 +205,8 @@ public:
 #pragma omp parallel for schedule(static)
         for (TreeNodeIndex globalIdx = firstGlobalIdx; globalIdx < lastGlobalIdx; ++globalIdx)
         {
-            TreeNodeIndex localIdx      = octree().locate(globalLeaves[globalIdx], globalLeaves[globalIdx + 1]);
+            TreeNodeIndex localIdx = octree().locate(globalLeaves[globalIdx], globalLeaves[globalIdx + 1]);
+            if (localIdx == octree().numTreeNodes()) { continue; }
             globalQuantities[globalIdx] = localQuantities[localIdx];
             assert(octree().codeStart(localIdx) == globalLeaves[globalIdx]);
             assert(octree().codeEnd(localIdx) == globalLeaves[globalIdx + 1]);

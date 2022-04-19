@@ -82,7 +82,7 @@ std::vector<int> findPeersMac(int myRank,
         IBox bBox             = sfcIBox(sfcKey(tree.codeStart(b)), tree.level(b));
         auto [aCenter, aSize] = centerAndSize<KeyType>(aBox, box);
         auto [bCenter, bSize] = centerAndSize<KeyType>(bBox, box);
-        return !minMacMutual(aCenter, aSize, bCenter, bSize, box, invTheta);
+        return !minVecMacMutual(aCenter, aSize, bCenter, bSize, box, invTheta);
     };
 
     auto m2l = [](TreeNodeIndex, TreeNodeIndex) {};
@@ -164,3 +164,4 @@ std::vector<int> findPeersMacStt(
 }
 
 } // namespace cstone
+
