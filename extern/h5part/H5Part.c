@@ -93,7 +93,7 @@ For further information contact: <a href="mailto:h5part@lists.psi.ch">h5part</a>
 #include "H5PartPrivate.h"
 #include "H5PartErrors.h"
 
-char H5PART_GROUPNAME_STEP[256] = "Step";
+char H5PART_GROUPNAME_STEP[H5PART_DATANAME_LEN] = "Step";
 
 /********* Global Variable Declarations *************/
 h5part_error_handler	_err_handler = H5PartReportErrorHandler;
@@ -153,8 +153,7 @@ _H5Part_open_file (
     f->flags = flags;
 
     /* set default step name */
-    strncpy ( f->groupname_step, H5PART_GROUPNAME_STEP, H5PART_STEPNAME_LEN );
-    f->stepno_width = 0;
+    strncpy ( f->groupname_step, H5PART_GROUPNAME_STEP, sizeof(f->groupname_step) );
 
     f->xfer_prop = f->create_prop = H5P_DEFAULT;
 
@@ -610,44 +609,7 @@ _H5Part_get_step_name(
     const h5part_int64_t step,
     char *name
 ) {
-
-    /* Work around sprintf bug on older systems */
-    if (f->stepno_width == 0 && step == 0) {
-        sprintf (
-            name,
-            "%s#%0*lld",
-            f->groupname_step, 1, (long long) step );
-    }
-    else {
-        sprintf (
-            name,
-            "%s#%0*lld",
-            f->groupname_step, f->stepno_width, (long long) step );
-    }
-
-    return H5PART_SUCCESS;
-}
-
-h5part_int64_t
-H5PartDefineStepName (
-    H5PartFile *f,
-    const char *name,
-    const h5part_int64_t width
-) {
-
-    CHECK_FILEHANDLE ( f );
-
-    h5part_int64_t len = H5PART_STEPNAME_LEN - width - 2;
-    if ( strlen(name) > len ) {
-        _H5Part_print_warn (
-            "Step name has been truncated to fit within %d chars.",
-            H5PART_STEPNAME_LEN );
-    }
-
-    strncpy ( f->groupname_step, name, len );
-    f->stepno_width = (int)width;
-
-    _H5Part_print_debug ( "Step name defined as '%s'", f->groupname_step );
+    sprintf(name, "%s#%01lld", f->groupname_step, (long long)step);
 
     return H5PART_SUCCESS;
 }

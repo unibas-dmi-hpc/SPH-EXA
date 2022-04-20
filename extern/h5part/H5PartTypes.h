@@ -22,7 +22,7 @@ __attribute__ ((format (printf, 3, 4)))
 typedef unsigned long		MPI_Comm;
 #endif
 
-#define H5PART_STEPNAME_LEN	64
+#define H5PART_STEPNAME_LEN	129
 #define H5PART_DATANAME_LEN	64
 
 struct H5BlockFile;
@@ -37,8 +37,7 @@ struct H5BlockFile;
 */
 struct H5PartFile {
     hid_t	file;
-    char	groupname_step[H5PART_STEPNAME_LEN];
-    int	stepno_width;
+    char	groupname_step[H5PART_DATANAME_LEN];
     int	empty;
 
     char flags;

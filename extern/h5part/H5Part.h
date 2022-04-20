@@ -108,12 +108,6 @@ H5PartFileIsValid (
     );
 
 /*============== File Writing Functions ==================== */
-h5part_int64_t
-H5PartDefineStepName (
-    H5PartFile *f,
-    const char *name,
-    const h5part_int64_t width
-    );
 
 h5part_int64_t
 H5PartSetNumParticles (

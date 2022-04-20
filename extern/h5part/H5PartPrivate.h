@@ -5,7 +5,7 @@
 #define H5_USE_16_API
 #endif
 
-extern char H5PART_GROUPNAME_STEP[256]	;
+extern char H5PART_GROUPNAME_STEP[64]	;
 
 #define H5PART_BTREE_IK 10000
 
