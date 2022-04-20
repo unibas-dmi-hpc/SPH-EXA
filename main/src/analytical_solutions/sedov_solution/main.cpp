@@ -126,14 +126,14 @@ int main(int argc, char** argv)
     }
 
     writeColumns1D(solFile);
-    fileutils::writeAscii<Real>(0,
-                                nSteps,
-                                solFile,
-                                true,
-                                {rSol.data(), rho.data(), u.data(), p.data(), vel.data(), cs.data()},
-                                std::setw(16),
-                                std::setprecision(7),
-                                std::scientific);
+    fileutils::writeAscii(0,
+                            nSteps,
+                            solFile,
+                            true,
+                            {rSol.data(), rho.data(), u.data(), p.data(), vel.data(), cs.data()},
+                            std::setw(16),
+                            std::setprecision(7),
+                            std::scientific);
 
     cout << "Created solution file: '" << solFile << std::endl;
 

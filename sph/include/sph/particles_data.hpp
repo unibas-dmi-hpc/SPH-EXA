@@ -33,6 +33,7 @@
 #include <cstdio>
 #include <iostream>
 #include <vector>
+#include
 
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"
@@ -113,7 +114,9 @@ public:
      */
     auto data()
     {
-        std::array<std::vector<T>*, fieldNames.size()> ret{
+        using FieldType = std::variant<std::vector<float>*, std::vector<double>*, std::vector<int>*>;
+
+        std::array<FieldType, fieldNames.size()> ret{
             &x,   &y,     &z,   &x_m1, &y_m1,  &z_m1,     &vx,       &vy,       &vz,         &rho,
             &u,   &p,     &h,   &m,    &c,     &grad_P_x, &grad_P_y, &grad_P_z, &du,         &du_m1,
             &dt,  &dt_m1, &c11, &c12,  &c13,   &c22,      &c23,      &c33,      &maxvsignal, &mue,
