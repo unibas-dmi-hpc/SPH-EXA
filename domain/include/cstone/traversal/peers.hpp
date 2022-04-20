@@ -143,7 +143,7 @@ std::vector<int> findPeersMacStt(
 
             IBox sourceBox                  = sfcIBox(sfcKey(nodeStart), octree.level(idx));
             auto [sourceCenter, sourceSize] = centerAndSize<KeyType>(sourceBox, box);
-            return !minMacMutual(targetCenter, targetSize, sourceCenter, sourceSize, box, invTheta);
+            return !minVecMacMutual(targetCenter, targetSize, sourceCenter, sourceSize, box, invTheta);
         };
 
         auto markLeafIdx = [&peers, &assignment](TreeNodeIndex idx)

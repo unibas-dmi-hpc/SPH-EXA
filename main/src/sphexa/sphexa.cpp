@@ -162,7 +162,7 @@ int main(int argc, char** argv)
     {
         propagator->step(domain, d);
 
-        observables -> computeAndWrite(d, domain.startIndex(), domain.endIndex(), box);
+        observables->computeAndWrite(d, domain.startIndex(), domain.endIndex(), box);
 
         if (isPeriodicOutputStep(d.iteration, writeFrequency) ||
             isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra))
