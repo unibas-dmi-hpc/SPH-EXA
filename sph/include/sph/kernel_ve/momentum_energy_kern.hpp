@@ -208,7 +208,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
     grad_P_x[i]   = momentum_x;
     grad_P_y[i]   = momentum_y;
     grad_P_z[i]   = momentum_z;
-    maxvsignal[i] = maxvsignali;
+    *maxvsignal   = maxvsignali;
 }
 
 } // namespace kernels

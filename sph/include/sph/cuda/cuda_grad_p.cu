@@ -14,17 +14,33 @@ namespace sph
 namespace cuda
 {
 
+//! @brief compute atomic min for floats using integer operations
+__device__ __forceinline__ float atomicMinFloat(float* addr, float value)
+{
+    float old;
+    old = (value >= 0) ? __int_as_float(atomicMin((int*)addr, __float_as_int(value)))
+                       : __uint_as_float(atomicMax((unsigned int*)addr, __float_as_uint(value)));
+
+    return old;
+}
+
+__device__ float minDt_device;
+
+struct GradPConfig
+{
+    //! @brief number of threads per block for the traversal kernel
+    static constexpr int numThreads = 128;
+};
+
 template<class T, class KeyType>
-__global__ void cudaGradP(T sincIndex, T K, int ngmax, cstone::Box<T> box, int firstParticle, int lastParticle,
+__global__ void cudaGradP(T sincIndex, T K, T Kcour, int ngmax, cstone::Box<T> box, int firstParticle, int lastParticle,
                           int numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z,
                           const T* vx, const T* vy, const T* vz, const T* h, const T* m, const T* rho, const T* p,
                           const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23,
-                          const T* c33, const T* wh, const T* whd, T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du,
-                          T* maxvsignal)
+                          const T* c33, const T* wh, const T* whd, T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + firstParticle;
-    if (i >= lastParticle) return;
 
     // need to hard-code ngmax stack allocation for now
     assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired value");
@@ -34,39 +50,56 @@ __global__ void cudaGradP(T sincIndex, T K, int ngmax, cstone::Box<T> box, int f
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
 
-    cstone::findNeighbors(
-        i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
+    T dt_i = INFINITY;
 
-    sph::kernels::momentumAndEnergyJLoop(i,
-                                         sincIndex,
-                                         K,
-                                         box,
-                                         neighbors,
-                                         neighborsCount,
-                                         x,
-                                         y,
-                                         z,
-                                         vx,
-                                         vy,
-                                         vz,
-                                         h,
-                                         m,
-                                         rho,
-                                         p,
-                                         c,
-                                         c11,
-                                         c12,
-                                         c13,
-                                         c22,
-                                         c23,
-                                         c33,
-                                         wh,
-                                         whd,
-                                         grad_P_x,
-                                         grad_P_y,
-                                         grad_P_z,
-                                         du,
-                                         maxvsignal);
+    if (i < lastParticle)
+    {
+        cstone::findNeighbors(
+            i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
+
+        T maxvsignal;
+        sph::kernels::momentumAndEnergyJLoop(i,
+                                             sincIndex,
+                                             K,
+                                             box,
+                                             neighbors,
+                                             neighborsCount,
+                                             x,
+                                             y,
+                                             z,
+                                             vx,
+                                             vy,
+                                             vz,
+                                             h,
+                                             m,
+                                             rho,
+                                             p,
+                                             c,
+                                             c11,
+                                             c12,
+                                             c13,
+                                             c22,
+                                             c23,
+                                             c33,
+                                             wh,
+                                             whd,
+                                             grad_P_x,
+                                             grad_P_y,
+                                             grad_P_z,
+                                             du,
+                                             &maxvsignal);
+
+        dt_i = sph::kernels::tsKCourant(maxvsignal, h[i], c[i], Kcour);
+    }
+
+    typedef cub::BlockReduce<T, GradPConfig::numThreads> BlockReduce;
+    __shared__ typename BlockReduce::TempStorage         temp_storage;
+
+    BlockReduce reduce(temp_storage);
+    T           blockMin = reduce.Reduce(dt_i, cub::Min());
+    __syncthreads();
+
+    if (threadIdx.x == 0) { atomicMinFloat(&minDt_device, blockMin); }
 }
 
 template<class Dataset>
@@ -93,11 +126,15 @@ void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, 
 
     unsigned numParticlesCompute = endIndex - startIndex;
 
-    unsigned numThreads = 128;
+    unsigned numThreads = GradPConfig::numThreads;
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
+
+    float huge = 1e10;
+    CHECK_CUDA_ERR(cudaMemcpyToSymbol(minDt_device, &huge, sizeof(huge)));
 
     cudaGradP<<<numBlocks, numThreads>>>(d.sincIndex,
                                          d.K,
+                                         d.Kcour,
                                          ngmax,
                                          box,
                                          startIndex,
@@ -126,10 +163,13 @@ void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, 
                                          d.devPtrs.d_grad_P_x,
                                          d.devPtrs.d_grad_P_y,
                                          d.devPtrs.d_grad_P_z,
-                                         d.devPtrs.d_du,
-                                         d.devPtrs.d_maxvsignal);
+                                         d.devPtrs.d_du);
 
     CHECK_CUDA_ERR(cudaGetLastError());
+
+    float minDt;
+    CHECK_CUDA_ERR(cudaMemcpyFromSymbol(&minDt, minDt_device, sizeof(minDt)));
+    d.minDt_loc = minDt;
 
     // if we don't have gravity, we copy back the pressure gradients (=acceleration) now
     if (d.g == 0.0)
@@ -140,7 +180,6 @@ void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, 
     }
 
     CHECK_CUDA_ERR(cudaMemcpy(d.du.data(), d.devPtrs.d_du, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.maxvsignal.data(), d.devPtrs.d_maxvsignal, size_np_T, cudaMemcpyDeviceToHost));
 }
 
 template void computeMomentumAndEnergy(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>& d,

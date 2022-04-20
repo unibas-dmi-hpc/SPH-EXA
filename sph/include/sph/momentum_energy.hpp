@@ -41,22 +41,26 @@ void computeMomentumAndEnergyImpl(size_t startIndex, size_t endIndex, size_t ngm
     const T* c23 = d.c23.data();
     const T* c33 = d.c33.data();
 
-    T* du         = d.du.data();
-    T* grad_P_x   = d.grad_P_x.data();
-    T* grad_P_y   = d.grad_P_y.data();
-    T* grad_P_z   = d.grad_P_z.data();
-    T* maxvsignal = d.maxvsignal.data();
+    T* du       = d.du.data();
+    T* grad_P_x = d.grad_P_x.data();
+    T* grad_P_y = d.grad_P_y.data();
+    T* grad_P_z = d.grad_P_z.data();
 
     const T* wh  = d.wh.data();
     const T* whd = d.whd.data();
 
-    T K         = d.K;
-    T sincIndex = d.sincIndex;
+    const T K         = d.K;
+    const T sincIndex = d.sincIndex;
 
-#pragma omp parallel for schedule(static)
+    T minDt = INFINITY;
+
+#pragma omp parallel for schedule(static) reduction(min : minDt)
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;
+
+        T maxvsignal = 0;
+
         kernels::momentumAndEnergyJLoop(i,
                                         sincIndex,
                                         K,
@@ -86,8 +90,13 @@ void computeMomentumAndEnergyImpl(size_t startIndex, size_t endIndex, size_t ngm
                                         grad_P_y,
                                         grad_P_z,
                                         du,
-                                        maxvsignal);
+                                        &maxvsignal);
+
+        T dt_i = kernels::tsKCourant(maxvsignal, h[i], c[i], d.Kcour);
+        minDt  = std::min(minDt, dt_i);
     }
+
+    d.minDt_loc = minDt;
 }
 
 template<class T, class Dataset>
