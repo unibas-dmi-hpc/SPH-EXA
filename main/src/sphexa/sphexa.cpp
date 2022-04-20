@@ -83,16 +83,16 @@ int main(int argc, char** argv)
     using Dataset = ParticlesData<Real, KeyType, AccType>;
     using Domain  = cstone::Domain<KeyType, Real, AccType>;
 
-    const std::string        initCond       = parser.getString("--init");
-    const size_t             problemSize    = parser.getInt("-n", 50);
-    const std::string        glassBlock     = parser.getString("--glass");
+    const std::string        initCond       = parser.get("--init");
+    const size_t             problemSize    = parser.get<int>("-n", 50);
+    const std::string        glassBlock     = parser.get("--glass");
     const bool               ve             = parser.exists("--ve");
-    const size_t             maxStep        = parser.getInt("-s", 200);
-    const int                writeFrequency = parser.getInt("-w", -1);
+    const size_t             maxStep        = parser.get<int>("-s", 200);
+    const int                writeFrequency = parser.get<int>("-w", -1);
     std::vector<std::string> writeExtra     = parser.getCommaList("--wextra");
     std::vector<std::string> outputFields   = parser.getCommaList("-f");
     const bool               ascii          = parser.exists("--ascii");
-    const std::string        outDirectory   = parser.getString("--outDir");
+    const std::string        outDirectory   = parser.get("--outDir");
     const bool               quiet          = parser.exists("--quiet");
 
     if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c"}; }
@@ -126,7 +126,7 @@ int main(int argc, char** argv)
     d.setOutputFields(outputFields);
 
     bool  haveGrav = (d.g != 0.0);
-    float theta    = parser.exists("--theta") ? parser.getDouble("--theta") : (haveGrav ? 0.5 : 1.0);
+    float theta    = parser.exists("--theta") ? parser.get<float>("--theta") : (haveGrav ? 0.5f : 1.0f);
 
     if (rank == 0 && (writeFrequency > 0 || !writeExtra.empty()))
     {

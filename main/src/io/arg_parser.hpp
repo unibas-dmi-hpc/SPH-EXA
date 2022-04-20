@@ -8,6 +8,14 @@
 namespace sphexa
 {
 
+//! @brief returns true if all characters of @p str together represent a valid integral number
+bool strIsIntegral(const std::string& str)
+{
+    char* ptr;
+    std::strtol(str.c_str(), &ptr, 10);
+    return (*ptr) == '\0' && !str.empty();
+}
+
 class ArgParser
 {
 public:
@@ -17,31 +25,29 @@ public:
     {
     }
 
-    std::string getString(const std::string& option, const std::string def = "") const
+    //! @brief look for @p option in the supplied cmd-line arguments and convert to T if found
+    template<class T = std::string>
+    T get(const std::string& option, T def = T{}) const
     {
         char** itr = std::find(begin, end, option);
-        if (itr != end && ++itr != end) return std::string(*itr);
-        return def;
-    }
-
-    int getInt(const std::string& option, const int def = 0) const
-    {
-        char** itr = std::find(begin, end, option);
-        if (itr != end && ++itr != end) return (int)std::stof(*itr);
-        return def;
-    }
-
-    double getDouble(const std::string& option, const double def = 0.) const
-    {
-        char** itr = find(begin, end, option);
-        if (itr != end && ++itr != end) return std::stod(*itr);
+        if (itr != end && ++itr != end)
+        {
+            if constexpr (std::is_arithmetic_v<T>)
+            {
+                return strIsIntegral(*itr) ? T(std::stoi(*itr)) : T(std::stod(*itr));
+            }
+            else
+            {
+                return std::string(*itr);
+            }
+        }
         return def;
     }
 
     //! @brief parse a comma-separated list
     std::vector<std::string> getCommaList(const std::string& option) const
     {
-        std::string listWithCommas = getString(option);
+        std::string listWithCommas = get(option);
 
         std::replace(listWithCommas.begin(), listWithCommas.end(), ',', ' ');
 
@@ -61,14 +67,6 @@ public:
 private:
     char **begin, **end;
 };
-
-//! @brief returns true if all characters of @p str together represent a valid integral number
-bool strIsIntegral(const std::string& str)
-{
-    char* ptr;
-    std::strtol(str.c_str(), &ptr, 10);
-    return (*ptr) == '\0' && !str.empty();
-}
 
 /*! @brief Evaluate if current step and simulation time should be output (to file)
  *
