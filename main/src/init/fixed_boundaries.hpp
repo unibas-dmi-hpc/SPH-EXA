@@ -51,13 +51,16 @@ namespace sphexa
                     d.vy[i] = 0.0;
                     d.vz[i] = 0.0;
                 }
+                else
+                {
+                    d.hasFBC[i] = 0.0;
+                }
             }
         }
         if (fbc[1]) //fixed boundaries in y-direction
         {
 #pragma omp parallel for
             for (size_t i = 0; i < d.x.size(); i++) {
-                //printf("particle %lu fbc: %d", i, d.hasFBC[i]);
                 T distYmax = std::abs(box.ymax() - d.y[i]);
                 T distYmin = std::abs(box.ymin() - d.y[i]);
 
@@ -66,6 +69,10 @@ namespace sphexa
                     d.vx[i] = 0.0;
                     d.vy[i] = 0.0;
                     d.vz[i] = 0.0;
+                }
+                else
+                {
+                    d.hasFBC[i] = 0.0;
                 }
             }
         }
@@ -81,6 +88,10 @@ namespace sphexa
                     d.vx[i] = 0.0;
                     d.vy[i] = 0.0;
                     d.vz[i] = 0.0;
+                }
+                else
+                {
+                    d.hasFBC[i] = 0.0;
                 }
             }
         }

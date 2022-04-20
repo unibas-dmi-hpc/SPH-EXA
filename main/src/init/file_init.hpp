@@ -125,12 +125,11 @@ public:
         initField(h5_file, rank, d.alpha, "alpha", d.alphamin);
 
         initXm1(h5_file, rank, d);
+        initFBC(h5_file, rank, d, fbc, box);
 
         std::fill(d.mue.begin(), d.mue.end(), 2.0);
         std::fill(d.mui.begin(), d.mui.end(), 10.0);
 
-        std::fill(d.hasFBC.begin(), d.hasFBC.end(), 0.0);
-        applyFixedBoundaries(d, fbc, box);
 
         H5PartCloseFile(h5_file);
         return box;
@@ -183,6 +182,31 @@ private:
                 d.x_m1[i] = d.x[i] - d.vx[i] * d.minDt;
                 d.y_m1[i] = d.y[i] - d.vy[i] * d.minDt;
                 d.z_m1[i] = d.z[i] - d.vz[i] * d.minDt;
+            }
+        }
+    }
+    template<class T>
+    static void initFBC(H5PartFile* h5_file, int rank, Dataset& d, int fbc[3], cstone::Box<T> box)
+    {
+        auto   names  = fileutils::datasetNames(h5_file);
+        bool hasField = std::count(names.begin(), names.end(), "hasFBC");
+        bool anyFBC = fbc[0] + fbc[1] + fbc[2];
+        if(hasField)
+        {
+            if(rank == 0) std::cout << "loading FBC attributes from file\n";
+            fileutils::readH5PartField(h5_file, "hasFBC", d.hasFBC.data());
+        }
+        else
+        {
+            if(anyFBC)
+            {
+                if(rank == 0) std::cout << "applying FBC\n";
+                applyFixedBoundaries(d, fbc, box);
+            }
+            else
+            {
+                if(rank == 0) std::cout << "no FBC found, initializing to zero";
+                std::fill(d.hasFBC.begin(), d.hasFBC.end(), 0.0);
             }
         }
     }
