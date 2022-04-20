@@ -4,6 +4,8 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <cmath>
+#include <cassert>
 
 namespace sphexa
 {
@@ -89,9 +91,31 @@ bool isExtraOutputStep(size_t step, double t1, double t2, const std::vector<std:
     return std::any_of(extraOutputs.begin(), extraOutputs.end(), matchStepOrTime);
 }
 
-bool isPeriodicOutputStep(size_t step, int writeFrequency)
+/*! @brief Evaluate if the current step should be output (to file) per time frequency
+ *
+ * @param t             simulation time at beginning of current step
+ * @param dt            time step of the step
+ * @param frequency     frequency time to output the simulation (>0.)
+ * @return              true if the step have a time that fit with the usual time frequency output in [t, t+dt]
+ */
+bool isPeriodicOutputTime(double t, double dt, double frequency)
 {
-    return writeFrequency == 0 || (writeFrequency > 0 && step % writeFrequency == 0);
+    assert(frequency > 0.);
+    double currentTime = std::fmod(t, frequency);
+    double futureTime  = currentTime + dt;
+    return (currentTime < dt) || ((futureTime > frequency) && (frequency - currentTime < futureTime - frequency));
+}
+
+/*! @brief Evaluate if the current step should be output (to file) per iteration frequency
+ *
+ * @param step          number of simulation step
+ * @param frequency     iteration frequency to output the simulation (>0)
+ * @return              true if the step fit with the usual iteration frequency output
+ */
+bool isPeriodicOutputStep(size_t step, int frequency)
+{
+    assert(frequency > 0);
+    return (step % frequency == 0);
 }
 
 } // namespace sphexa
