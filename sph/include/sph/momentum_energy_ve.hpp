@@ -28,6 +28,7 @@ void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
     const T* c     = d.c.data();
     const T* p     = d.p.data();
     const T* alpha = d.alpha.data();
+    const T* gradh = d.gradh.data();
 
     const T* c11 = d.c11.data();
     const T* c12 = d.c12.data();
@@ -88,6 +89,7 @@ void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
                                         kx,
                                         rho0,
                                         alpha,
+                                        gradh,
                                         grad_P_x,
                                         grad_P_y,
                                         grad_P_z,

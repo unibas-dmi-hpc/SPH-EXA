@@ -155,10 +155,7 @@ public:
         {
             domain.syncGrav(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1);
         }
-        else
-        {
-            domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1);
-        }
+        else { domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1); }
         timer.step("domain::sync");
 
         resize(d, domain.nParticlesWithHalos());
@@ -173,10 +170,10 @@ public:
             first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, domain.box());
         timer.step("FindNeighbors");
         computeDensity(first, last, ngmax_, d, domain.box());
-        timer.step("Density");
+        timer.step("Density & Gradh");
         computeEquationOfState(first, last, d);
         timer.step("EquationOfState");
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c);
+        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c, d.gradh);
         timer.step("mpi::synchronizeHalos");
         computeIAD(first, last, ngmax_, d, domain.box());
         timer.step("IAD");
@@ -294,10 +291,7 @@ std::unique_ptr<Propagator<DomainType, ParticleDataType>> propagatorFactory(bool
                                                                             std::ostream& output, size_t rank)
 {
     if (ve) { return std::make_unique<HydroVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank); }
-    else
-    {
-        return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
-    }
+    else { return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank); }
 }
 
 } // namespace sphexa

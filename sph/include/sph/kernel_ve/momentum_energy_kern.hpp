@@ -48,8 +48,8 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
                        const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h,
                        const T* m, const T* ro, const T* p, const T* c, const T* c11, const T* c12, const T* c13,
                        const T* c22, const T* c23, const T* c33, const T Atmin, const T Atmax, const T ramp,
-                       const T* wh, const T* whd, const T* kx, const T* rho0, const T* alpha, T* grad_P_x, T* grad_P_y,
-                       T* grad_P_z, T* du, T* maxvsignal)
+                       const T* wh, const T* whd, const T* kx, const T* rho0, const T* alpha, const T* gradh,
+                       T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du, T* maxvsignal)
 {
     T xi  = x[i];
     T yi  = y[i];
@@ -60,15 +60,14 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
 
     T hi  = h[i];
     T roi = ro[i];
-    // T pri = p[i];
     T ci  = c[i];
     T kxi = kx[i];
 
     T alpha_i = alpha[i];
 
-    // T mi_roi = m[i] / ro[i];
     T xmassi = m[i] / rho0[i];
-    T proi   = p[i] / kxi / m[i] / m[i];
+    T gradhi = gradh[i];
+    T proi   = p[i] / kxi / m[i] / m[i] / gradhi;
     T voli   = xmassi / kxi;
 
     T mark_ramp = 0.0;
@@ -147,10 +146,8 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         maxvsignali = (vijsignal > maxvsignali) ? vijsignal : maxvsignali;
 
         T mj = m[j];
-        // T mj_roj_Wj = mj / roj * Wj;
 
-        // T mj_pro_i = mj * pri  / (gradh_i * roi * roi);
-        T proj   = p[j] / kx[j] / m[j] / m[j];
+        T proj   = p[j] / kx[j] / m[j] / m[j] / gradh[j];
         T xmassj = mj / rho0[j];
 
         T Atwood = (abs(roi - roj)) / (roi + roj);
