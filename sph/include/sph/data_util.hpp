@@ -65,16 +65,16 @@ auto getOutputArrays(Dataset& dataset)
 {
     using T            = typename Dataset::RealType;
     auto fieldPointers = dataset.data();
-    using outputFieldType = std::variant<float*, double*, int*>;
+    using FieldType = std::variant<const float*, const double*, const int*>;
 
-    std::vector<outputFieldType> outputFields(dataset.outputFields.size());
-    int outIndex = 0;
+    std::vector<FieldType> outputFields;
+    outputFields.reserve(dataset.outputFields.size());
+    
     for (int i : dataset.outputFields)
     {
-        std::visit([&outputFields, outIndex](auto& arg) {
-            outputFields[outIndex] = arg->data();
+        std::visit([&outputFields](auto& arg) {
+            outputFields.push_back(arg->data());
         }, fieldPointers[i]);
-        outIndex++;
     }
     return outputFields;
 }
