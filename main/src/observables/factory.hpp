@@ -43,10 +43,10 @@ namespace sphexa
 
 #ifdef SPH_EXA_HAVE_H5PART
 
-//! @brief return true if the specified attribute exists, is integral and is non-zero and if @p fname exists
-static bool haveH5Attribute(const std::string& fname, const std::string& attributeToRead)
+//! @brief return true if the specified attribute exists and has the specified type
+static bool haveH5Attribute(const std::string& fname, const std::string& attributeToRead, h5part_int64_t h5Type)
 {
-    int ret = 0;
+    bool found = false;
 
     if (std::filesystem::exists(fname))
     {
@@ -63,21 +63,16 @@ static bool haveH5Attribute(const std::string& fname, const std::string& attribu
         for (h5part_int64_t i = 0; i < numAttributes; i++)
         {
             H5PartGetFileAttribInfo(h5_file, i, attributeName, maxlen, &attributeType, &attributeLength);
-            if (attributeType != H5PART_INT64)
+            if (attributeName == attributeToRead && attributeType == h5Type)
             {
-                throw std::runtime_error("unexpected attribute type in haveH5Attribute\n");
-            }
-
-            if (attributeName == attributeToRead)
-            {
-                H5PartReadFileAttrib(h5_file, attributeName, &ret);
+                found = true;
                 break;
             }
         }
         H5PartCloseFile(h5_file);
     }
 
-    return ret;
+    return found;
 }
 
 #else
@@ -97,14 +92,19 @@ static bool haveH5Attribute(const std::string& fname, const std::string& attribu
 template<class Dataset>
 std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& testCase, std::ofstream& constantsFile)
 {
-    if (haveH5Attribute(testCase, "KelvinHelmholtzGrowthRate"))
+    std::string khGrowthRate = "KelvinHelmholtzGrowthRate";
+    if (haveH5Attribute(testCase, khGrowthRate, H5PART_INT64))
     {
-        return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile);
+        h5part_int64_t attrValue;
+        H5PartFile*    h5_file = nullptr;
+        h5_file                = H5PartOpenFile(testCase.c_str(), H5PART_READ);
+        H5PartReadFileAttrib(h5_file, khGrowthRate.c_str(), &attrValue);
+        H5PartCloseFile(h5_file);
+
+        if (attrValue) { return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile); }
     }
-    else
-    {
-        return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);
-    }
+
+    return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);
 }
 
 } // namespace sphexa
