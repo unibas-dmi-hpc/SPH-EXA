@@ -28,9 +28,9 @@ void writeColumns(std::ostream& out, const Separator& sep, Columns&&... columns)
  * @param   fields         pointers to field array, each field is a column
  * @param   separators     arbitrary number of separators to insert between columns, eg '\t', std::setw(n), ...
  */
-template<class... Separators>
+template<class... T, class... Separators>
 void writeAscii(size_t firstIndex, size_t lastIndex, const std::string& path, bool append,
-                const std::vector<std::variant<float*, double*, int*>>& fields, Separators&&... separators)
+                const std::vector<std::variant<T*...>>& fields, Separators&&... separators)
 {
     std::ios_base::openmode mode;
     if (append) { mode = std::ofstream::app; }
