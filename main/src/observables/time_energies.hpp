@@ -24,45 +24,40 @@
  */
 
 /*! @file
- * @brief Min-reduction to determine global timestep
- *
- * @author Sebastian Keller <sebastian.f.keller@gmail.com>
- * @author Aurelien Cavelan
+ * @brief output time and energies each iteration (default)
+ * @author Lukas Schmidt
  */
 
-#pragma once
-
-#include <vector>
-#include <math.h>
-#include <algorithm>
-
-#include "kernels.hpp"
-
-#ifdef USE_MPI
-#include "mpi.h"
-#endif
+#include "iobservables.hpp"
+#include <fstream>
+#include "io/ifile_writer.hpp"
 
 namespace sphexa
 {
-namespace sph
-{
 
 template<class Dataset>
-void computeTimestep(size_t startIndex, size_t endIndex, Dataset& d)
+class TimeAndEnergy : public IObservables<Dataset>
 {
+    std::ofstream& constantsFile;
+
+public:
+    TimeAndEnergy(std::ofstream& constPath)
+        : constantsFile(constPath)
+    {
+    }
+
     using T = typename Dataset::RealType;
+    void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
+    {
 
-    T minDt = std::min(d.minDt_loc, d.maxDtIncrease * d.minDt);
+        int rank;
+        MPI_Comm_rank(d.comm, &rank);
 
-#ifdef USE_MPI
-    MPI_Allreduce(MPI_IN_PLACE, &minDt, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
-#endif
+        if (rank == 0)
+        {
+            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
+        }
+    }
+};
 
-    d.ttot += minDt;
-
-    d.minDt_m1 = d.minDt;
-    d.minDt    = minDt;
-}
-
-} // namespace sph
 } // namespace sphexa

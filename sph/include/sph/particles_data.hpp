@@ -67,7 +67,10 @@ public:
     size_t numParticlesGlobal;
 
     T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
+    //! current and previous (global) time-steps
     T minDt, minDt_m1;
+    //! temporary MPI rank local timestep;
+    T minDt_loc;
 
     //! @brief gravitational constant
     T g = 0.0;
@@ -101,8 +104,8 @@ public:
 
     DeviceData_t<AccType, T, KeyType> devPtrs;
 
-    const std::array<double, lt::size> wh  = lt::createWharmonicLookupTable<double, lt::size>();
-    const std::array<double, lt::size> whd = lt::createWharmonicDerivativeLookupTable<double, lt::size>();
+    const std::array<T, lt::size> wh  = lt::createWharmonicLookupTable<T, lt::size>();
+    const std::array<T, lt::size> whd = lt::createWharmonicDerivativeLookupTable<T, lt::size>();
 
     /*! @brief
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
@@ -170,9 +173,26 @@ public:
 
     void setDependentFieldsVE()
     {
-        std::vector<std::string> fields{"rho",  "p",     "c",   "grad_P_x", "grad_P_y", "grad_P_z", "du",
-                                        "c11",  "c12",   "c13", "c22",      "c23",      "c33",      "maxvsignal",
-                                        "rho0", "wrho0", "kx",  "divv",     "curlv",    "gradh"};
+        std::vector<std::string> fields{"rho",
+                                        "p",
+                                        "c",
+                                        "grad_P_x",
+                                        "grad_P_y",
+                                        "grad_P_z",
+                                        "du",
+                                        "c11",
+                                        "c12",
+                                        "c13",
+                                        "c22",
+                                        "c23",
+                                        "c33",
+                                        "rho0",
+                                        "wrho0",
+                                        "kx",
+                                        "divv",
+                                        "curlv",
+                                        "gradh"};
+
         dependentFields = fieldStringsToInt(fieldNames, fields);
     }
 

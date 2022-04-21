@@ -1,5 +1,38 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2021 CSCS, ETH Zurich
+ *               2021 University of Basel
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in all
+ * copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ */
+
+/*! @file
+ * @brief SPH-EXA application front-end and main function
+ *
+ * @author Ruben Cabezon <ruben.cabezon@unibas.ch>
+ * @author Aurelien Cavelan
+ * @author Jose A. Escartin <ja.escartin@gmail.com>
+ * @author Sebastian Keller <sebastian.f.keller@gmail.com>
+ */
+
 #include <iostream>
-#include <fstream>
 #include <string>
 #include <memory>
 #include <vector>
@@ -12,6 +45,7 @@
 #include "cstone/domain/domain.hpp"
 #include "propagator.hpp"
 #include "init/factory.hpp"
+#include "observables/factory.hpp"
 #include "io/arg_parser.hpp"
 #include "io/ifile_writer.hpp"
 #include "util/timer.hpp"
@@ -45,25 +79,26 @@ int main(int argc, char** argv)
         throw std::runtime_error("no initial conditions specified (--init flag missing)\n");
     }
 
-    const std::string        initCond       = parser.getString("--init");
-    const size_t             problemSize    = parser.getInt("-n", 50);
-    const std::string        glassBlock     = parser.getString("--glass");
+    using Real    = double;
+    using KeyType = uint64_t;
+    using Dataset = ParticlesData<Real, KeyType, AccType>;
+    using Domain  = cstone::Domain<KeyType, Real, AccType>;
+
+    const std::string        initCond       = parser.get("--init");
+    const size_t             problemSize    = parser.get<int>("-n", 50);
+    const std::string        glassBlock     = parser.get("--glass");
     const bool               ve             = parser.exists("--ve");
-    const size_t             maxStep        = parser.getInt("-s", 200);
-    const int                writeFrequency = parser.getInt("-w", -1);
+    const size_t             maxStep        = parser.get<int>("-s", 200);
+    const int                writeFrequency = parser.get<int>("-w", -1);
+    std::vector<std::string> writeExtra     = parser.getCommaList("--wextra");
     std::vector<std::string> outputFields   = parser.getCommaList("-f");
     const bool               ascii          = parser.exists("--ascii");
-    const std::string        outDirectory   = parser.getString("--outDir");
+    const std::string        outDirectory   = parser.get("--outDir");
     const bool               quiet          = parser.exists("--quiet");
 
     if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c"}; }
 
     const std::string outFile = outDirectory + "dump_" + initCond;
-
-    using Real    = double;
-    using KeyType = uint64_t;
-    using Dataset = ParticlesData<Real, KeyType, AccType>;
-    using Domain  = cstone::Domain<KeyType, Real, AccType>;
 
     size_t ngmax = 150;
     size_t ng0   = 100;
@@ -73,10 +108,7 @@ int main(int argc, char** argv)
 
     std::unique_ptr<IFileWriter<Dataset>> fileWriter;
     if (ascii) { fileWriter = std::make_unique<AsciiWriter<Dataset>>(); }
-    else
-    {
-        fileWriter = std::make_unique<H5PartWriter<Dataset>>();
-    }
+    else { fileWriter = std::make_unique<H5PartWriter<Dataset>>(); }
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
     std::unique_ptr<ISimInitializer<Dataset>> simInit = initializerFactory<Dataset>(initCond, glassBlock);
@@ -92,9 +124,12 @@ int main(int argc, char** argv)
     d.setOutputFields(outputFields);
 
     bool  haveGrav = (d.g != 0.0);
-    float theta    = parser.exists("--theta") ? parser.getDouble("--theta") : (haveGrav ? 0.5 : 1.0);
+    float theta    = parser.exists("--theta") ? parser.get<float>("--theta") : (haveGrav ? 0.5f : 1.0f);
 
-    if (rank == 0 && writeFrequency > 0) { fileWriter->constants(simInit->constants(), outFile); }
+    if (rank == 0 && (writeFrequency > 0 || !writeExtra.empty()))
+    {
+        fileWriter->constants(simInit->constants(), outFile);
+    }
     if (rank == 0) { std::cout << "Data generated for " << d.numParticlesGlobal << " global particles\n"; }
 
     size_t bucketSizeFocus = 64;
@@ -105,6 +140,8 @@ int main(int argc, char** argv)
 
     if (ve)
         domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.alpha);
+    else if (haveGrav)
+        domain.syncGrav(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1);
     else
         domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1);
 
@@ -113,6 +150,8 @@ int main(int argc, char** argv)
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
 
+    std::unique_ptr<IObservables<Dataset>> observables = observablesFactory<Dataset>(initCond, constantsFile);
+
     MasterProcessTimer totalTimer(output, rank);
     totalTimer.start();
     size_t startIteration = d.iteration;
@@ -120,12 +159,10 @@ int main(int argc, char** argv)
     {
         propagator->step(domain, d);
 
-        if (rank == 0)
-        {
-            fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
-        }
+        observables->computeAndWrite(d, domain.startIndex(), domain.endIndex(), box);
 
-        if ((writeFrequency > 0 && d.iteration % writeFrequency == 0) || writeFrequency == 0)
+        if (isPeriodicOutputStep(d.iteration, writeFrequency) ||
+            isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra))
         {
             fileWriter->dump(d, domain.startIndex(), domain.endIndex(), box, outFile);
         }
@@ -149,10 +186,10 @@ void printHelp(char* name, int rank)
         printf("%s [OPTIONS]\n", name);
         printf("\nWhere possible options are:\n\n");
 
-        printf(
-            "\t--init \t\t Test case selection (sedov, noh, isobaric-cube) or an HDF5 file with initial conditions\n");
+        printf("\t--init \t\t Test case selection (evrard, sedov, noh, isobaric-cube) or an HDF5 file "
+               "with initial conditions\n");
         printf("\t-n NUM \t\t Initialize data with (approx when using glass blocks) NUM^3 global particles [50]\n");
-        printf("\t--glass \t Use glass block at tests\n\n");
+        printf("\t--glass FILE\t Use glass block as template to generate initial x,y,z configuration\n\n");
 
         printf("\t--theta NUM \t Gravity accuracy parameter [default 0.5 when self-gravity is active]\n\n");
 
@@ -161,7 +198,9 @@ void printHelp(char* name, int rank)
         printf("\t-s NUM \t\t NUM Number of iterations (time-steps) [200]\n\n");
 
         printf("\t-w NUM \t\t Dump particles data every NUM iterations (time-steps) [-1]\n");
-        printf("\t-f list \t Comma-separated list of field names to write for each dump,\n\
+        printf("\t--wextra LIST \t Comma-separated list of steps (integers) or ~times (floating point) "
+               "at which to trigger output to file []\n");
+        printf("\t-f LIST \t Comma-separated list of field names to write for each dump,\n\
                     \t\t e.g: -f x,y,z,h,rho\n\n");
 
         printf("\t--ascii \t Dump file in ASCII format [binary HDF5 by default]\n\n");

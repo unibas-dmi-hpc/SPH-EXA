@@ -24,45 +24,46 @@
  */
 
 /*! @file
- * @brief Min-reduction to determine global timestep
+ * @brief Unit tests for I/O related functionality
  *
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
- * @author Aurelien Cavelan
  */
 
-#pragma once
+#include <iostream>
 
-#include <vector>
-#include <math.h>
-#include <algorithm>
+#include "gtest/gtest.h"
 
-#include "kernels.hpp"
+#include "io/arg_parser.hpp"
 
-#ifdef USE_MPI
-#include "mpi.h"
-#endif
+using namespace sphexa;
 
-namespace sphexa
+TEST(IO, strIsIntegral)
 {
-namespace sph
-{
+    EXPECT_TRUE(strIsIntegral("42"));
+    EXPECT_TRUE(strIsIntegral("-42"));
 
-template<class Dataset>
-void computeTimestep(size_t startIndex, size_t endIndex, Dataset& d)
-{
-    using T = typename Dataset::RealType;
-
-    T minDt = std::min(d.minDt_loc, d.maxDtIncrease * d.minDt);
-
-#ifdef USE_MPI
-    MPI_Allreduce(MPI_IN_PLACE, &minDt, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
-#endif
-
-    d.ttot += minDt;
-
-    d.minDt_m1 = d.minDt;
-    d.minDt    = minDt;
+    EXPECT_FALSE(strIsIntegral("3.1"));
+    EXPECT_FALSE(strIsIntegral("3a"));
 }
 
-} // namespace sph
-} // namespace sphexa
+TEST(IO, isExtraOutputStep)
+{
+    std::vector<std::string> writeExtra{"1", "4.2", "5", "0.77"};
+
+    EXPECT_TRUE(isExtraOutputStep(1, 0, 0, writeExtra));
+    EXPECT_TRUE(isExtraOutputStep(0, 4.19, 4.21, writeExtra));
+    EXPECT_TRUE(isExtraOutputStep(0, 4.2, 4.21, writeExtra));
+    EXPECT_TRUE(isExtraOutputStep(5, 0, 0, writeExtra));
+    EXPECT_TRUE(isExtraOutputStep(5, 0.76, 0.78, writeExtra));
+
+    EXPECT_FALSE(isExtraOutputStep(4, 0, 0, writeExtra));
+    EXPECT_FALSE(isExtraOutputStep(0, 4.19, 4.2, writeExtra));
+    EXPECT_FALSE(isExtraOutputStep(6, 5.19, 6.0, writeExtra));
+}
+
+TEST(IO, isPeriodicOutputStep)
+{
+    EXPECT_FALSE(isPeriodicOutputStep(42, -1));
+    EXPECT_TRUE(isPeriodicOutputStep(42, 0));
+    EXPECT_TRUE(isPeriodicOutputStep(42, 42));
+}

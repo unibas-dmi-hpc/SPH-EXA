@@ -369,7 +369,8 @@ public:
         unsigned level = decodePrefixLength(nodeKey) / 3;
         auto it = std::lower_bound(prefixes_.begin() + levelRange_[level], prefixes_.begin() + levelRange_[level + 1],
                                    nodeKey);
-        return it - prefixes_.begin();
+        if (it != prefixes_.end() && *it == nodeKey) { return it - prefixes_.begin(); }
+        else { return numTreeNodes(); }
     }
 
 private:

@@ -24,45 +24,27 @@
  */
 
 /*! @file
- * @brief Min-reduction to determine global timestep
+ * @brief to add
  *
- * @author Sebastian Keller <sebastian.f.keller@gmail.com>
- * @author Aurelien Cavelan
+ * @author Lukas Schmidt
  */
 
 #pragma once
 
-#include <vector>
-#include <math.h>
-#include <algorithm>
-
-#include "kernels.hpp"
-
-#ifdef USE_MPI
-#include "mpi.h"
-#endif
+#include "cstone/sfc/box.hpp"
+#include "io/ifile_writer.hpp"
 
 namespace sphexa
 {
-namespace sph
-{
 
 template<class Dataset>
-void computeTimestep(size_t startIndex, size_t endIndex, Dataset& d)
+class IObservables
 {
-    using T = typename Dataset::RealType;
+public:
+    virtual void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex,
+                                 cstone::Box<typename Dataset::RealType>& box) = 0;
 
-    T minDt = std::min(d.minDt_loc, d.maxDtIncrease * d.minDt);
+    virtual ~IObservables() = default;
+};
 
-#ifdef USE_MPI
-    MPI_Allreduce(MPI_IN_PLACE, &minDt, 1, MpiType<T>{}, MPI_MIN, MPI_COMM_WORLD);
-#endif
-
-    d.ttot += minDt;
-
-    d.minDt_m1 = d.minDt;
-    d.minDt    = minDt;
-}
-
-} // namespace sph
 } // namespace sphexa
