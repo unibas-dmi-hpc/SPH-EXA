@@ -33,7 +33,7 @@
 #include <cstdio>
 #include <iostream>
 #include <vector>
-#include
+#include <variant>
 
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"
