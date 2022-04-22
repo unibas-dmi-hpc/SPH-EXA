@@ -90,11 +90,12 @@ T computeKHGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, const csto
         throw std::runtime_error("kx was empty. KHGrowthRate only supported with volume elements (--ve)\n");
     }
 
-    std::array<T, 3> sum = localGrowthRate(
+    std::array<T, 3> localSum = localGrowthRate(
         startIndex, endIndex, d.x.data(), d.y.data(), d.vy.data(), d.rho.data(), d.m.data(), d.kx.data(), box);
 
-    int rootRank = 0;
-    MPI_Reduce(MPI_IN_PLACE, sum.data(), 3, MpiType<T>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
+    int              rootRank = 0;
+    std::array<T, 3> sum;
+    MPI_Reduce(localSum.data(), sum.data(), 3, MpiType<T>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
 
     return 2.0 * std::sqrt(sum[0] * sum[0] + sum[1] * sum[1]) / sum[2];
 }
