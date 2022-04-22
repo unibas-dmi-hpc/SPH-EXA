@@ -181,16 +181,8 @@ int main(int argc, char** argv)
         if ((iMaxStep && d.iteration == std::stoi(maxStepStr)) || (!iMaxStep && d.ttot > std::stod(maxStepStr))) break;
     }
 
-    if (iMaxStep)
-    {
-        totalTimer.step("Total execution time of " + std::to_string(std::stoi(maxStepStr) - startIteration + 1) +
-                        " iterations of " + initCond);
-    }
-    else
-    {
-        totalTimer.step("Total execution time until " + std::to_string(std::stod(maxStepStr)) + " time simulation of " +
-                        initCond);
-    }
+    totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration + 1) +
+                      " iterations of " + initCond + " up to t=" + std::to_string(d.ttot));
 
     constantsFile.close();
     viz::finalize();
