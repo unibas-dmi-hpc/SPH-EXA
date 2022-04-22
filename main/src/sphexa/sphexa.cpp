@@ -161,7 +161,7 @@ int main(int argc, char** argv)
     MasterProcessTimer totalTimer(output, rank);
     totalTimer.start();
     size_t startIteration = d.iteration;
-    for (; !stopSimulation(d.iteration, d.ttot, maxStepStr); d.iteration++)
+    for (; ; d.iteration++)
     {
         propagator->step(domain, d);
 
@@ -177,6 +177,8 @@ int main(int argc, char** argv)
         }
 
         if (d.iteration % 50 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
+
+        if (stopSimulation(d.iteration, d.ttot, maxStepStr)) break;
     }
 
     totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration + 1) +
