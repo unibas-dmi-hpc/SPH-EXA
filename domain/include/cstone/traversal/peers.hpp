@@ -82,7 +82,7 @@ std::vector<int> findPeersMac(int myRank,
         IBox bBox             = sfcIBox(sfcKey(tree.codeStart(b)), tree.level(b));
         auto [aCenter, aSize] = centerAndSize<KeyType>(aBox, box);
         auto [bCenter, bSize] = centerAndSize<KeyType>(bBox, box);
-        return !minMacMutual(aCenter, aSize, bCenter, bSize, box, invTheta);
+        return !minVecMacMutual(aCenter, aSize, bCenter, bSize, box, invTheta);
     };
 
     auto m2l = [](TreeNodeIndex, TreeNodeIndex) {};
@@ -98,7 +98,7 @@ std::vector<int> findPeersMac(int myRank,
     spanSfcRange(domainStart, domainEnd, spanningNodeKeys.data());
     spanningNodeKeys.back() = domainEnd;
 
-    #pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for schedule(dynamic)
     for (std::size_t i = 0; i < spanningNodeKeys.size() - 1; ++i)
     {
         TreeNodeIndex nodeIdx = domainTree.locate(spanningNodeKeys[i], spanningNodeKeys[i + 1]);
@@ -119,13 +119,13 @@ template<template<class> class TreeType, class KeyType, class T>
 std::vector<int> findPeersMacStt(
     int myRank, const SpaceCurveAssignment& assignment, const TreeType<KeyType>& octree, const Box<T>& box, float theta)
 {
-    float invTheta = 1.0f / theta;
+    float invTheta      = 1.0f / theta;
     KeyType domainStart = octree.codeStart(octree.toInternal(assignment.firstNodeIdx(myRank)));
     KeyType domainEnd   = octree.codeEnd(octree.toInternal(assignment.lastNodeIdx(myRank) - 1));
 
     std::vector<int> peers(assignment.numRanks());
 
-    #pragma omp parallel for
+#pragma omp parallel for
     for (TreeNodeIndex i = assignment.firstNodeIdx(myRank); i < assignment.lastNodeIdx(myRank); ++i)
     {
         TreeNodeIndex internalIdx = octree.toInternal(i);
@@ -133,21 +133,22 @@ std::vector<int> findPeersMacStt(
         Vec3<T> targetCenter, targetSize;
         std::tie(targetCenter, targetSize) = centerAndSize<KeyType>(target, box);
 
-        auto violatesMac = [&targetCenter, &targetSize, &octree, &box, invTheta, domainStart, domainEnd](TreeNodeIndex idx)
+        auto violatesMac =
+            [&targetCenter, &targetSize, &octree, &box, invTheta, domainStart, domainEnd](TreeNodeIndex idx)
         {
             KeyType nodeStart = octree.codeStart(idx);
             KeyType nodeEnd   = octree.codeEnd(idx);
             // if the tree node with index idx is fully contained in the focus, we stop traversal
             if (containedIn(nodeStart, nodeEnd, domainStart, domainEnd)) { return false; }
 
-            IBox sourceBox = sfcIBox(sfcKey(nodeStart), octree.level(idx));
+            IBox sourceBox                  = sfcIBox(sfcKey(nodeStart), octree.level(idx));
             auto [sourceCenter, sourceSize] = centerAndSize<KeyType>(sourceBox, box);
-            return !minMacMutual(targetCenter, targetSize, sourceCenter, sourceSize, box, invTheta);
+            return !minVecMacMutual(targetCenter, targetSize, sourceCenter, sourceSize, box, invTheta);
         };
 
         auto markLeafIdx = [&peers, &assignment](TreeNodeIndex idx)
         {
-            int peerRank = assignment.findRank(idx);
+            int peerRank    = assignment.findRank(idx);
             peers[peerRank] = 1;
         };
 
