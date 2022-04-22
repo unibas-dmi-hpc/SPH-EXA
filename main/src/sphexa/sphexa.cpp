@@ -134,7 +134,7 @@ int main(int argc, char** argv)
     bool  haveGrav = (d.g != 0.0);
     float theta    = parser.exists("--theta") ? parser.get<float>("--theta") : (haveGrav ? 0.5f : 1.0f);
 
-    if (rank == 0 && (writeFrequency > 0. || !writeExtra.empty()))
+    if (rank == 0 && (writeFrequencyStr != "0" || !writeExtra.empty()))
     {
         fileWriter->constants(simInit->constants(), outFile);
     }
