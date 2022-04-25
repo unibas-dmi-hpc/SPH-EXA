@@ -62,6 +62,7 @@ using AccType = cstone::CpuTag;
 using namespace sphexa;
 using namespace sphexa::sph;
 
+bool stopSimulation (size_t iteration, double time, std::string maxStepStr);
 void printHelp(char* binName, int rank);
 
 int main(int argc, char** argv)
@@ -96,7 +97,6 @@ int main(int argc, char** argv)
     const std::string        outDirectory      = parser.get("--outDir");
     const bool               quiet             = parser.exists("--quiet");
 
-    bool iMaxStep        = strIsIntegral(maxStepStr);
     bool iWriteFrequency = strIsIntegral(writeFrequencyStr);
 
     Real writeFrequency(std::stod(writeFrequencyStr));
@@ -134,7 +134,7 @@ int main(int argc, char** argv)
     bool  haveGrav = (d.g != 0.0);
     float theta    = parser.exists("--theta") ? parser.get<float>("--theta") : (haveGrav ? 0.5f : 1.0f);
 
-    if (rank == 0 && (writeFrequency > 0. || !writeExtra.empty()))
+    if (rank == 0 && (writeFrequencyStr != "0" || !writeExtra.empty()))
     {
         fileWriter->constants(simInit->constants(), outFile);
     }
@@ -163,7 +163,7 @@ int main(int argc, char** argv)
     MasterProcessTimer totalTimer(output, rank);
     totalTimer.start();
     size_t startIteration = d.iteration;
-    for (;; d.iteration++)
+    for (; ; d.iteration++)
     {
         propagator->step(domain, d);
 
@@ -180,23 +180,28 @@ int main(int argc, char** argv)
 
         if (d.iteration % 50 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
 
-        if ((iMaxStep && d.iteration == std::stoi(maxStepStr)) || (!iMaxStep && d.ttot > std::stod(maxStepStr))) break;
+        if (stopSimulation(d.iteration, d.ttot, maxStepStr)) break;
     }
 
-    if (iMaxStep)
-    {
-        totalTimer.step("Total execution time of " + std::to_string(std::stoi(maxStepStr) - startIteration + 1) +
-                        " iterations of " + initCond);
-    }
-    else
-    {
-        totalTimer.step("Total execution time until " + std::to_string(std::stod(maxStepStr)) + " time simulation of " +
-                        initCond);
-    }
+    totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration + 1) +
+                      " iterations of " + initCond + " up to t=" + std::to_string(d.ttot));
 
     constantsFile.close();
     viz::finalize();
     return exitSuccess();
+}
+
+bool stopSimulation(size_t iteration, double time, std::string maxStepStr)
+{
+    if (strIsIntegral(maxStepStr))
+    {
+        if (iteration == std::stoi(maxStepStr)) return true;
+    }
+    else
+    {
+        if (time > std::stod(maxStepStr)) return true;
+    }
+    return false;
 }
 
 void printHelp(char* name, int rank)

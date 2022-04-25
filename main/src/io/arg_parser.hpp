@@ -115,7 +115,7 @@ bool isPeriodicOutputTime(double t, double dt, double frequency)
 bool isPeriodicOutputStep(size_t step, int frequency)
 {
     assert(frequency > 0);
-    return (step % frequency == 0);
+    return frequency != 0 && (step % frequency == 0);
 }
 
 } // namespace sphexa
