@@ -62,7 +62,7 @@ using AccType = cstone::CpuTag;
 using namespace sphexa;
 using namespace sphexa::sph;
 
-bool stopSimulation (size_t iteration, double time, std::string maxStepStr);
+bool stopSimulation(size_t iteration, double time, const std::string& maxStepStr);
 void printHelp(char* binName, int rank);
 
 int main(int argc, char** argv)
@@ -75,10 +75,6 @@ int main(int argc, char** argv)
         printHelp(argv[0], rank);
         return exitSuccess();
     }
-    if (!parser.exists("--init") && rank == 0)
-    {
-        throw std::runtime_error("no initial conditions specified (--init flag missing)\n");
-    }
 
     using Real    = double;
     using KeyType = uint64_t;
@@ -86,20 +82,16 @@ int main(int argc, char** argv)
     using Domain  = cstone::Domain<KeyType, Real, AccType>;
 
     const std::string        initCond          = parser.get("--init");
-    const size_t             problemSize       = parser.get<int>("-n", 50);
+    const size_t             problemSize       = parser.get("-n", 50);
     const std::string        glassBlock        = parser.get("--glass");
     const bool               ve                = parser.exists("--ve");
-    const std::string        maxStepStr        = parser.get<std::string>("-s", "200");
-    const std::string        writeFrequencyStr = parser.get<std::string>("-w", "0");
+    const std::string        maxStepStr        = parser.get("-s", std::string("200"));
+    const std::string        writeFrequencyStr = parser.get("-w", std::string("0"));
     std::vector<std::string> writeExtra        = parser.getCommaList("--wextra");
     std::vector<std::string> outputFields      = parser.getCommaList("-f");
     const bool               ascii             = parser.exists("--ascii");
     const std::string        outDirectory      = parser.get("--outDir");
     const bool               quiet             = parser.exists("--quiet");
-
-    bool iWriteFrequency = strIsIntegral(writeFrequencyStr);
-
-    Real writeFrequency(std::stod(writeFrequencyStr));
 
     if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c"}; }
 
@@ -132,7 +124,7 @@ int main(int argc, char** argv)
     d.setOutputFields(outputFields);
 
     bool  haveGrav = (d.g != 0.0);
-    float theta    = parser.exists("--theta") ? parser.get<float>("--theta") : (haveGrav ? 0.5f : 1.0f);
+    float theta    = parser.get("--theta", haveGrav ? 0.5f : 1.0f);
 
     if (rank == 0 && (writeFrequencyStr != "0" || !writeExtra.empty()))
     {
@@ -163,45 +155,37 @@ int main(int argc, char** argv)
     MasterProcessTimer totalTimer(output, rank);
     totalTimer.start();
     size_t startIteration = d.iteration;
-    for (; ; d.iteration++)
+    for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++)
     {
         propagator->step(domain, d);
 
         observables->computeAndWrite(d, domain.startIndex(), domain.endIndex(), box);
 
-        bool writeXFrequency = (writeFrequency <= 0.) ? false
-                               : (iWriteFrequency)    ? isPeriodicOutputStep(d.iteration, writeFrequency)
-                                                      : isPeriodicOutputTime(d.ttot, d.minDt, writeFrequency);
-
-        if (writeXFrequency || isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra))
+        if (isPeriodicOutputStep(d.iteration, writeFrequencyStr) ||
+            isPeriodicOutputTime(d.ttot - d.minDt, d.ttot, writeFrequencyStr) ||
+            isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra))
         {
             fileWriter->dump(d, domain.startIndex(), domain.endIndex(), box, outFile);
         }
 
         if (d.iteration % 50 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
-
-        if (stopSimulation(d.iteration, d.ttot, maxStepStr)) break;
     }
 
-    totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration + 1) +
-                      " iterations of " + initCond + " up to t=" + std::to_string(d.ttot));
+    totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration + 1) + " iterations of " +
+                    initCond + " up to t = " + std::to_string(d.ttot));
 
     constantsFile.close();
     viz::finalize();
     return exitSuccess();
 }
 
-bool stopSimulation(size_t iteration, double time, std::string maxStepStr)
+//! @brief decide whether to stop the simulation based on evolved time (not wall-clock) or iteration count
+bool stopSimulation(size_t iteration, double time, const std::string& maxStepStr)
 {
-    if (strIsIntegral(maxStepStr))
-    {
-        if (iteration == std::stoi(maxStepStr)) return true;
-    }
-    else
-    {
-        if (time > std::stod(maxStepStr)) return true;
-    }
-    return false;
+    bool lastIteration = strIsIntegral(maxStepStr) && iteration == std::stoi(maxStepStr);
+    bool simTimeLimit  = !strIsIntegral(maxStepStr) && time > std::stod(maxStepStr);
+
+    return lastIteration || simTimeLimit;
 }
 
 void printHelp(char* name, int rank)

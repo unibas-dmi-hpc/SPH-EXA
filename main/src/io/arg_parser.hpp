@@ -70,7 +70,7 @@ private:
     char **begin, **end;
 };
 
-/*! @brief Evaluate if current step and simulation time should be output (to file)
+/*! @brief Evaluate whether the current step and simulation time should be output (to file)
  *
  * @param step          current simulation step
  * @param t1            simulation time at beginning of current step
@@ -91,31 +91,32 @@ bool isExtraOutputStep(size_t step, double t1, double t2, const std::vector<std:
     return std::any_of(extraOutputs.begin(), extraOutputs.end(), matchStepOrTime);
 }
 
-/*! @brief Evaluate if the current step should be output (to file) per time frequency
+/*! @brief Evaluate whether the current step should be output (to file) according to time frequency
  *
- * @param t             simulation time at beginning of current step
- * @param dt            time step of the step
- * @param frequency     frequency time to output the simulation (>0.)
- * @return              true if the step have a time that fit with the usual time frequency output in [t, t+dt]
+ * @param t1            simulation time at beginning of current step
+ * @param t2            simulation time at end of current step
+ * @param frequencyStr  frequency time to output the simulation as string
+ * @return              true if the interval [t1, t2] contains an integer multiple of the output frequency
  */
-bool isPeriodicOutputTime(double t, double dt, double frequency)
+bool isPeriodicOutputTime(double t1, double t2, const std::string& frequencyStr)
 {
-    assert(frequency > 0.);
-    double currentTime = std::fmod(t, frequency);
-    double futureTime  = currentTime + dt;
-    return (currentTime < dt) || ((futureTime > frequency) && (frequency - currentTime < futureTime - frequency));
+    double frequency = std::stod(frequencyStr);
+    if (strIsIntegral(frequencyStr) || frequency == 0.0) { return false; }
+
+    double closestMultiple = int(t2 / frequency) * frequency;
+    return t1 <= closestMultiple && closestMultiple < t2;
 }
 
-/*! @brief Evaluate if the current step should be output (to file) per iteration frequency
+/*! @brief Evaluate whether the current step should be output (to file) according to iteration frequency
  *
- * @param step          number of simulation step
- * @param frequency     iteration frequency to output the simulation (>0)
- * @return              true if the step fit with the usual iteration frequency output
+ * @param step          simulation step number
+ * @param frequencyStr  iteration frequency to output the simulation as string
+ * @return              true if the step is an integral multiple of the output frequency
  */
-bool isPeriodicOutputStep(size_t step, int frequency)
+bool isPeriodicOutputStep(size_t step, const std::string& frequencyStr)
 {
-    assert(frequency > 0);
-    return frequency != 0 && (step % frequency == 0);
+    int frequency = std::stoi(frequencyStr);
+    return strIsIntegral(frequencyStr) && frequency != 0 && (step % frequency == 0);
 }
 
 } // namespace sphexa

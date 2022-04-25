@@ -76,7 +76,13 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
     }
     else
     {
-        return std::make_unique<FileInit<Dataset>>(testCase);
+        if (std::filesystem::exists(testCase)) { return std::make_unique<FileInit<Dataset>>(testCase); }
+        else
+        {
+            throw std::runtime_error("supplied value of --init " +
+                                     (testCase.empty() ? "[empty string]" : "(\"" + testCase + "\")") +
+                                     " is not an existing file and does not refer to a supported test case\n");
+        }
     }
 }
 
