@@ -320,7 +320,7 @@ void focusTransfer(gsl::span<const KeyType> cstree,
 
         size_t numNodes = end - start;
         auto treelet    = updateTreelet(gsl::span<const KeyType>(cstree.data() + start, numNodes + 1),
-                                        {counts.data() + start, numNodes}, bucketSize);
+                                        gsl::span<const unsigned>(counts.data() + start, numNodes), bucketSize);
 
         mpiSendAsync(treelet.data(), int(treelet.size() - 1), myRank - 1, ownerTag, sendRequests);
         sendBuffers.push_back(std::move(treelet));
@@ -334,7 +334,7 @@ void focusTransfer(gsl::span<const KeyType> cstree,
 
         size_t numNodes = end - start;
         auto treelet    = updateTreelet(gsl::span<const KeyType>(cstree.data() + start, numNodes + 1),
-                                        {counts.data() + start, numNodes}, bucketSize);
+                                        gsl::span<const unsigned>(counts.data() + start, numNodes), bucketSize);
 
         mpiSendAsync(treelet.data(), int(treelet.size() - 1), myRank + 1, ownerTag, sendRequests);
         sendBuffers.push_back(std::move(treelet));
