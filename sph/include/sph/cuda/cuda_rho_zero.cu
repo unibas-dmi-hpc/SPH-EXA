@@ -3,7 +3,7 @@
 #include "sph.cuh"
 #include "sph/particles_data.hpp"
 #include "cuda_utils.cuh"
-#include "sph/kernel/density_kern.hpp"
+#include "sph/kernel/rho_zero_kern.hpp"
 
 #include "cstone/cuda/findneighbors.cuh"
 
@@ -73,21 +73,21 @@ __global__ void cudaRho0(
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
 
-    kernels::densityJLoop(i,
-                          sincIndex,
-                          K,
-                          box,
-                          neighbors,
-                          neighborsCount_,
-                          x,
-                          y,
-                          z,
-                          h,
-                          m,
-                          wh,
-                          whd,
-                          rho0,
-                          wrho0);
+    kernels::rho0JLoop(i,
+                       sincIndex,
+                       K,
+                       box,
+                       neighbors,
+                       neighborsCount_,
+                       x,
+                       y,
+                       z,
+                       h,
+                       m,
+                       wh,
+                       whd,
+                       rho0,
+                       wrho0);
 
     neighborsCount[tid] = neighborsCount_;
 }
