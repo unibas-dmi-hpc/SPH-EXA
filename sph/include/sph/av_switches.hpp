@@ -90,7 +90,11 @@ void computeAVswitchesImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dat
 template<class T, class Dataset>
 void computeAVswitches(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
+#if defined(USE_CUDA)
+    cuda::computeAVswitches(startIndex, endIndex, ngmax, d, box);
+#else
     computeAVswitchesImpl(startIndex, endIndex, ngmax, d, box);
+#endif
 }
 
 } // namespace sph

@@ -80,7 +80,11 @@ void computeDivvCurlvImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
 template<class T, class Dataset>
 void computeDivvCurlv(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
+#if defined(USE_CUDA)
+    cuda::computeDivvCurlv(startIndex, endIndex, ngmax, d, box);
+#else
     computeDivvCurlvImpl(startIndex, endIndex, ngmax, d, box);
+#endif
 }
 
 } // namespace sph

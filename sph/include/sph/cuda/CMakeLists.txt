@@ -1,9 +1,9 @@
 if(CMAKE_HIP_COMPILER)
-    set_source_files_properties(cuda_density.cu cuda_iad.cu cuda_momentum_energy.cu PROPERTIES LANGUAGE HIP)
+    set_source_files_properties(cuda_rho_zero.cu cuda_density.cu cuda_iad.cu cuda_divv_curlv.cu cuda_av_switches.cu cuda_momentum_energy.cu PROPERTIES LANGUAGE HIP)
 endif()
 
 if(CMAKE_CUDA_COMPILER OR CMAKE_HIP_COMPILER)
-    add_library(cuda_sph OBJECT cuda_density.cu cuda_iad.cu cuda_momentum_energy.cu)
+    add_library(cuda_sph OBJECT cuda_rho_zero.cu cuda_density.cu cuda_iad.cu cuda_divv_curlv.cu cuda_av_switches.cu cuda_momentum_energy.cu)
     target_include_directories(cuda_sph PRIVATE ${PROJECT_SOURCE_DIR}/include)
     target_include_directories(cuda_sph PRIVATE ${CSTONE_DIR})
     target_compile_definitions(cuda_sph PRIVATE USE_CUDA)

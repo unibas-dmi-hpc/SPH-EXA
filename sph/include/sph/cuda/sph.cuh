@@ -14,11 +14,23 @@ namespace cuda
 {
 
 template<class Dataset>
+extern void computeRho0(
+    size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+
+template<class Dataset>
 extern void computeDensity(
     size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
 extern void computeIAD(
+    size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+
+template<class Dataset>
+extern void computeDivvCurlv(
+    size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+
+template<class Dataset>
+extern void computeAVswitches(
     size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
