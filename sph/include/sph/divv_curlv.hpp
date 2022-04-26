@@ -48,6 +48,7 @@ void computeDivvCurlvImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;
+
         kernels::divV_curlVJLoop(i,
                                  sincIndex,
                                  K,

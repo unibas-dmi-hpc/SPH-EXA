@@ -76,6 +76,7 @@ public:
     T *d_p;
     T *d_c;
     T *d_c11, *d_c12, *d_c13, *d_c22, *d_c23, *d_c33;
+    T *d_divv, *d_curlv;
     T *d_alpha;
     T *d_grad_P_x, *d_grad_P_y, *d_grad_P_z;
     T *d_du;
@@ -115,6 +116,7 @@ public:
         CHECK_CUDA_ERR(utils::cudaFree(d_p));
         CHECK_CUDA_ERR(utils::cudaFree(d_c));
         CHECK_CUDA_ERR(utils::cudaFree(d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
+        CHECK_CUDA_ERR(utils::cudaFree(d_divv, d_curlv));
         CHECK_CUDA_ERR(utils::cudaFree(d_alpha));
         CHECK_CUDA_ERR(utils::cudaFree(d_grad_P_x,d_grad_P_y,d_grad_P_z));
         CHECK_CUDA_ERR(utils::cudaFree(d_du));
@@ -148,6 +150,7 @@ public:
                 CHECK_CUDA_ERR(utils::cudaFree(d_p));
                 CHECK_CUDA_ERR(utils::cudaFree(d_c));
                 CHECK_CUDA_ERR(utils::cudaFree(d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
+                CHECK_CUDA_ERR(utils::cudaFree(d_divv, d_curlv));
                 CHECK_CUDA_ERR(utils::cudaFree(d_alpha));
                 CHECK_CUDA_ERR(utils::cudaFree(d_grad_P_x,d_grad_P_y,d_grad_P_z));
                 CHECK_CUDA_ERR(utils::cudaFree(d_du));
@@ -171,6 +174,7 @@ public:
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_p));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_c));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_divv, d_curlv));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_alpha));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_grad_P_x,d_grad_P_y,d_grad_P_z));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_du));

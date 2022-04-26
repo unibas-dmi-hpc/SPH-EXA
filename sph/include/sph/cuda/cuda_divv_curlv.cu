@@ -3,7 +3,7 @@
 #include "sph.cuh"
 #include "sph/particles_data.hpp"
 #include "cuda_utils.cuh"
-#include "sph/kernel/density_kern.hpp"
+#include "sph/kernel/divv_curlv_kern.hpp"
 
 #include "cstone/cuda/findneighbors.cuh"
 
@@ -29,15 +29,23 @@ namespace cuda
  * @param[in]  x               x coords, length @p numParticles, SFC sorted
  * @param[in]  y               y coords, length @p numParticles, SFC sorted
  * @param[in]  z               z coords, length @p numParticles, SFC sorted
+ * @param[in]  vx
+ * @param[in]  vy
+ * @param[in]  vz
  * @param[in]  h               smoothing lengths, length @p numParticles
  * @param[in]  m               masses, length @p numParticles
+ * @param[in]  c11             IAD components, length @p numParticles
+ * @param[in]  c12
+ * @param[in]  c13
+ * @param[in]  c22
+ * @param[in]  c23
+ * @param[in]  c33
  * @param[in]  wh              sinc lookup table
  * @param[in]  whd             sinc derivative lookup table
+ * @param[in]  kx
  * @param[in]  rho0
- * @param[in]  wrho0
- * @param[out] rho             densities, length @p numParticles
- * @param[out] kx
- * @param[out] whomega
+ * @param[out] divv
+ * @param[out] curlv
  *
  */
 template<class T, class KeyType>
@@ -54,15 +62,23 @@ __global__ void cudaDivvCurlv(
     const T* x,
     const T* y,
     const T* z,
+    const T* vx,
+    const T* vy,
+    const T* vz,
     const T* h,
     const T* m,
+    const T* c11,
+    const T* c12,
+    const T* c13,
+    const T* c22,
+    const T* c23,
+    const T* c33,
     const T* wh,
     const T* whd,
+    const T* kx,
     const T* rho0,
-    const T* wrho0,
-    T* rho,
-    T* kx,
-    T* whomega)
+    T* divv,
+    T* curlv)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + firstParticle;
@@ -79,24 +95,32 @@ __global__ void cudaDivvCurlv(
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
 
-    kernels::densityJLoop(i,
-                          sincIndex,
-                          K,
-                          box,
-                          neighbors,
-                          neighborsCount_,
-                          x,
-                          y,
-                          z,
-                          h,
-                          m,
-                          wh,
-                          whd,
-                          rho0,
-                          wrho0,
-                          rho,
-                          kx,
-                          whomega);
+    kernels::divV_curlVJLoop(i,
+                             sincIndex,
+                             K,
+                             box,
+                             neighbors,
+                             neighborsCount_,
+                             x,
+                             y,
+                             z,
+                             vx,
+                             vy,
+                             vz,
+                             h,
+                             m,
+                             c11,
+                             c12,
+                             c13,
+                             c22,
+                             c23,
+                             c33,
+                             wh,
+                             whd,
+                             kx,
+                             rho0,
+                             divv,
+                             curlv);
 
     neighborsCount[tid] = neighborsCount_;
 }
@@ -122,8 +146,20 @@ void computeDivvCurlv(size_t startIndex, size_t endIndex, size_t ngmax, Dataset&
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_z, d.z.data(), size_np_T, cudaMemcpyHostToDevice));
+
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vx, d.vx.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vy, d.vy.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vz, d.vz.data(), size_np_T, cudaMemcpyHostToDevice));
+
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
+
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c11, d.c11.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c12, d.c12.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c13, d.c13.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c22, d.c22.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c23, d.c23.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c33, d.c33.data(), size_np_T, cudaMemcpyHostToDevice));
 
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_codes, d.codes.data(), size_np_CodeType, cudaMemcpyHostToDevice));
 
@@ -153,15 +189,23 @@ void computeDivvCurlv(size_t startIndex, size_t endIndex, size_t ngmax, Dataset&
                                                             d.devPtrs.d_x,
                                                             d.devPtrs.d_y,
                                                             d.devPtrs.d_z,
+                                                            d.devPtrs.d_vx,
+                                                            d.devPtrs.d_vy,
+                                                            d.devPtrs.d_vz,
                                                             d.devPtrs.d_h,
                                                             d.devPtrs.d_m,
+                                                            d.devPtrs.d_c11,
+                                                            d.devPtrs.d_c12,
+                                                            d.devPtrs.d_c13,
+                                                            d.devPtrs.d_c22,
+                                                            d.devPtrs.d_c23,
+                                                            d.devPtrs.d_c33,
                                                             d.devPtrs.d_wh,
                                                             d.devPtrs.d_whd,
-                                                            d.devPtrs.d_rho0,
-                                                            d.devPtrs.d_wrho0,
-                                                            d.devPtrs.d_rho,
                                                             d.devPtrs.d_kx,
-                                                            d.devPtrs.d_whomega);
+                                                            d.devPtrs.d_rho0,
+                                                            d.devPtrs.d_divv,
+                                                            d.devPtrs.d_curlv);
         CHECK_CUDA_ERR(cudaGetLastError());
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle,
@@ -172,9 +216,8 @@ void computeDivvCurlv(size_t startIndex, size_t endIndex, size_t ngmax, Dataset&
     }
 
     // Memcpy in default stream synchronizes all other streams
-    CHECK_CUDA_ERR(cudaMemcpy(d.rho.data(),     d.devPtrs.d_rho,     size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.kx.data(),      d.devPtrs.d_kx,      size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.whomega.data(), d.devPtrs.d_whomega, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.divv.data(), d.devPtrs.d_divv, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.curlv.data(), d.devPtrs.d_curlv, size_np_T, cudaMemcpyDeviceToHost));
 }
 
 template void computeDivvCurlv(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>&,
