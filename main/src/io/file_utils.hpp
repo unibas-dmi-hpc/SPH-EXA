@@ -2,6 +2,7 @@
 
 #include <fstream>
 #include <vector>
+#include <variant>
 
 namespace sphexa
 {
@@ -27,9 +28,9 @@ void writeColumns(std::ostream& out, const Separator& sep, Columns&&... columns)
  * @param   fields         pointers to field array, each field is a column
  * @param   separators     arbitrary number of separators to insert between columns, eg '\t', std::setw(n), ...
  */
-template<class T, class... Separators>
+template<class... T, class... Separators>
 void writeAscii(size_t firstIndex, size_t lastIndex, const std::string& path, bool append,
-                const std::vector<T*>& fields, Separators&&... separators)
+                const std::vector<std::variant<T*...>>& fields, Separators&&... separators)
 {
     std::ios_base::openmode mode;
     if (append) { mode = std::ofstream::app; }
@@ -47,7 +48,9 @@ void writeAscii(size_t firstIndex, size_t lastIndex, const std::string& path, bo
             for (auto field : fields)
             {
                 [[maybe_unused]] std::initializer_list<int> list{(dumpFile << separators, 0)...};
-                dumpFile << field[i];
+                std::visit([&dumpFile, i](auto& arg) {
+                    dumpFile << arg[i];
+                }, field);
             }
             dumpFile << std::endl;
         }
