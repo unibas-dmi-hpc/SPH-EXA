@@ -3,7 +3,7 @@
 #include "sph.cuh"
 #include "sph/particles_data.hpp"
 #include "cuda_utils.cuh"
-#include "sph/kernel/density_kern.hpp"
+#include "sph/kernel/av_switches_kern.hpp"
 
 #include "cstone/cuda/findneighbors.cuh"
 
@@ -29,40 +29,66 @@ namespace cuda
  * @param[in]  x               x coords, length @p numParticles, SFC sorted
  * @param[in]  y               y coords, length @p numParticles, SFC sorted
  * @param[in]  z               z coords, length @p numParticles, SFC sorted
+ * @param[in]  vx
+ * @param[in]  vy
+ * @param[in]  vz
  * @param[in]  h               smoothing lengths, length @p numParticles
  * @param[in]  m               masses, length @p numParticles
+ * @param[in]  c
+ * @param[in]  c11             IAD components, length @p numParticles
+ * @param[in]  c12
+ * @param[in]  c13
+ * @param[in]  c22
+ * @param[in]  c23
+ * @param[in]  c33
  * @param[in]  wh              sinc lookup table
  * @param[in]  whd             sinc derivative lookup table
+ * @param[in]  kx
  * @param[in]  rho0
- * @param[in]  wrho0
- * @param[out] rho             densities, length @p numParticles
- * @param[out] kx
- * @param[out] whomega
+ * @param[in]  divv
+ * @param[in]  dt
+ * @param[in]  alphamin
+ * @param[in]  alphamax
+ * @param[in]  decay_constant
+ * @param[out] alpha_i
  *
  */
 template<class T, class KeyType>
 __global__ void cudaAVswitches(
-    T sincIndex,
-    T K,
-    int ngmax,
-    cstone::Box<T> box,
-    int firstParticle,
-    int lastParticle,
-    int numParticles,
-    const KeyType* particleKeys,
-    int* neighborsCount,
-    const T* x,
-    const T* y,
-    const T* z,
-    const T* h,
-    const T* m,
-    const T* wh,
-    const T* whd,
-    const T* rho0,
-    const T* wrho0,
-    T* rho,
-    T* kx,
-    T* whomega)
+        T sincIndex,
+        T K,
+        int ngmax,
+        cstone::Box<T> box,
+        int firstParticle,
+        int lastParticle,
+        int numParticles,
+        const KeyType* particleKeys,
+        int* neighborsCount,
+        const T* x,
+        const T* y,
+        const T* z,
+        const T* vx,
+        const T* vy,
+        const T* vz,
+        const T* h,
+        const T* m,
+        const T* c,
+        const T* c11,
+        const T* c12,
+        const T* c13,
+        const T* c22,
+        const T* c23,
+        const T* c33,
+        const T* wh,
+        const T* whd,
+        const T* kx,
+        const T* rho0,
+        const T* divv,
+        const T dt,
+        const T alphamin,
+        const T alphamax,
+        const T decay_constant,
+        T* alpha)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + firstParticle;
@@ -79,24 +105,37 @@ __global__ void cudaAVswitches(
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
 
-    kernels::densityJLoop(i,
-                          sincIndex,
-                          K,
-                          box,
-                          neighbors,
-                          neighborsCount_,
-                          x,
-                          y,
-                          z,
-                          h,
-                          m,
-                          wh,
-                          whd,
-                          rho0,
-                          wrho0,
-                          rho,
-                          kx,
-                          whomega);
+    alpha[i] = kernels::AVswitchesJLoop(i,
+                                        sincIndex,
+                                        K,
+                                        box,
+                                        neighbors,
+                                        neighborsCount_,
+                                        x,
+                                        y,
+                                        z,
+                                        vx,
+                                        vy,
+                                        vz,
+                                        h,
+                                        m,
+                                        c,
+                                        c11,
+                                        c12,
+                                        c13,
+                                        c22,
+                                        c23,
+                                        c33,
+                                        wh,
+                                        whd,
+                                        kx,
+                                        rho0,
+                                        divv,
+                                        dt,
+                                        alphamin,
+                                        alphamax,
+                                        decay_constant,
+                                        alpha[i]);
 
     neighborsCount[tid] = neighborsCount_;
 }
@@ -123,8 +162,19 @@ void computeAVswitches(size_t startIndex, size_t endIndex, size_t ngmax, Dataset
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_z, d.z.data(), size_np_T, cudaMemcpyHostToDevice));
 
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vx, d.vx.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vy, d.vy.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vz, d.vz.data(), size_np_T, cudaMemcpyHostToDevice));
+
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
+
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c11, d.c11.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c12, d.c12.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c13, d.c13.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c22, d.c22.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c23, d.c23.data(), size_np_T, cudaMemcpyHostToDevice));
+    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c33, d.c33.data(), size_np_T, cudaMemcpyHostToDevice));
 
     CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_codes, d.codes.data(), size_np_CodeType, cudaMemcpyHostToDevice));
 
@@ -154,15 +204,29 @@ void computeAVswitches(size_t startIndex, size_t endIndex, size_t ngmax, Dataset
                                                              d.devPtrs.d_x,
                                                              d.devPtrs.d_y,
                                                              d.devPtrs.d_z,
+                                                             d.devPtrs.d_vx,
+                                                             d.devPtrs.d_vy,
+                                                             d.devPtrs.d_vz,
                                                              d.devPtrs.d_h,
                                                              d.devPtrs.d_m,
+                                                             d.devPtrs.d_c,
+                                                             d.devPtrs.d_c11,
+                                                             d.devPtrs.d_c12,
+                                                             d.devPtrs.d_c13,
+                                                             d.devPtrs.d_c22,
+                                                             d.devPtrs.d_c23,
+                                                             d.devPtrs.d_c33,
                                                              d.devPtrs.d_wh,
                                                              d.devPtrs.d_whd,
-                                                             d.devPtrs.d_rho0,
-                                                             d.devPtrs.d_wrho0,
-                                                             d.devPtrs.d_rho,
                                                              d.devPtrs.d_kx,
-                                                             d.devPtrs.d_whomega);
+                                                             d.devPtrs.d_rho0,
+                                                             d.devPtrs.d_divv,
+                                                             d.minDt,
+                                                             d.alphamin,
+                                                             d.alphamax,
+                                                             d.decay_constant,
+                                                             d.devPtrs.d_alpha);
+
         CHECK_CUDA_ERR(cudaGetLastError());
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle,
@@ -173,9 +237,7 @@ void computeAVswitches(size_t startIndex, size_t endIndex, size_t ngmax, Dataset
     }
 
     // Memcpy in default stream synchronizes all other streams
-    CHECK_CUDA_ERR(cudaMemcpy(d.rho.data(),     d.devPtrs.d_rho,     size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.kx.data(),      d.devPtrs.d_kx,      size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.whomega.data(), d.devPtrs.d_whomega, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.alpha.data(), d.devPtrs.d_alpha, size_np_T, cudaMemcpyDeviceToHost));
 }
 
 template void computeAVswitches(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>&,

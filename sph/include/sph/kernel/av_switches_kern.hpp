@@ -74,7 +74,7 @@ CUDA_DEVICE_HOST_FUN inline T AVswitchesJLoop(
         const T alphamin,
         const T alphamax,
         const T decay_constant,
-        T alpha_i)
+        const T alpha_in)
 {
     T xi  = x[i];
     T yi  = y[i];
@@ -151,20 +151,13 @@ CUDA_DEVICE_HOST_FUN inline T AVswitchesJLoop(
         alphaloc  = alphamax * a_const / (a_const + hi * abs(divv_i) + 0.05 * ci);
     }
 
-    if (alphaloc >= alpha_i) { alpha_i = alphaloc; }
+    if (alphaloc >= alpha_in) { return alphaloc; }
     else
     {
         T decay    = hi / (decay_constant * vijsignal_i);
-        T alphadot = 0.0;
-        if (alphaloc >= alphamin) { alphadot = (alphaloc - alpha_i) / decay; }
-        else
-        {
-            alphadot = (alphamin - alpha_i) / decay;
-        }
-        alpha_i += alphadot * dt;
+        T alphadot = (std::max(alphaloc, alphamin) - alpha_in) / decay;
+        return (alpha_in + (alphadot * dt));
     }
-
-    return alpha_i;
 }
 
 } // namespace kernels
