@@ -33,11 +33,8 @@ namespace cuda
  * @param[in]  m               masses, length @p numParticles
  * @param[in]  wh              sinc lookup table
  * @param[in]  whd             sinc derivative lookup table
- * @param[in]  rho0
- * @param[in]  wrho0
- * @param[out] rho             densities, length @p numParticles
- * @param[out] kx
- * @param[out] whomega
+ * @param[out] rho0
+ * @param[out] wrho0
  *
  */
 template<class T, class KeyType>
@@ -58,11 +55,8 @@ __global__ void cudaRho0(
     const T* m,
     const T* wh,
     const T* whd,
-    const T* rho0,
-    const T* wrho0,
-    T* rho,
-    T* kx,
-    T* whomega)
+    T* rho0,
+    T* wrho0)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + firstParticle;
@@ -93,10 +87,7 @@ __global__ void cudaRho0(
                           wh,
                           whd,
                           rho0,
-                          wrho0,
-                          rho,
-                          kx,
-                          whomega);
+                          wrho0);
 
     neighborsCount[tid] = neighborsCount_;
 }
@@ -158,10 +149,7 @@ void computeRho0(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
                                                        d.devPtrs.d_wh,
                                                        d.devPtrs.d_whd,
                                                        d.devPtrs.d_rho0,
-                                                       d.devPtrs.d_wrho0,
-                                                       d.devPtrs.d_rho,
-                                                       d.devPtrs.d_kx,
-                                                       d.devPtrs.d_whomega);
+                                                       d.devPtrs.d_wrho0);
         CHECK_CUDA_ERR(cudaGetLastError());
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle,
@@ -172,9 +160,8 @@ void computeRho0(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
     }
 
     // Memcpy in default stream synchronizes all other streams
-    CHECK_CUDA_ERR(cudaMemcpy(d.rho.data(),     d.devPtrs.d_rho,     size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.kx.data(),      d.devPtrs.d_kx,      size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.whomega.data(), d.devPtrs.d_whomega, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.rho0.data(), d.devPtrs.d_rho0,  size_np_T, cudaMemcpyDeviceToHost));
+1    CHECK_CUDA_ERR(cudaMemcpy(d.wrho0.data(), d.devPtrs.d_wrho0, size_np_T, cudaMemcpyDeviceToHost));
 }
 
 template void computeRho0(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>&,
