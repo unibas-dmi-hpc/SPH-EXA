@@ -49,7 +49,7 @@ void computeAVswitchesImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dat
 
     T* alpha = d.alpha.data();
 
-#pragma omp parallel for
+#pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;
