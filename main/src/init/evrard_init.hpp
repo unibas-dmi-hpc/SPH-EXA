@@ -94,12 +94,7 @@ void initEvrardFields(Dataset& d, const std::map<std::string, double>& constants
 
 std::map<std::string, double> evrardConstants()
 {
-    return {{"G", 1.},
-            {"r", 1.},
-            {"mTotal", 1.},
-            {"gamma", 5. / 3.},
-            {"u0", 0.05},
-            {"firstTimeStep", 1e-4}};
+    return {{"G", 1.}, {"r", 1.}, {"mTotal", 1.}, {"gamma", 5. / 3.}, {"u0", 0.05}, {"firstTimeStep", 1e-4}};
 }
 
 template<class Dataset>
@@ -135,6 +130,30 @@ public:
 
         d.numParticlesGlobal = d.x.size();
         MPI_Allreduce(MPI_IN_PLACE, &d.numParticlesGlobal, 1, MpiType<size_t>{}, MPI_SUM, d.comm);
+
+        size_t                    bucketSize = std::max(64lu, d.numParticlesGlobal / (100 * numRanks));
+        cstone::BufferDescription bufDesc{0, cstone::LocalIndex(d.x.size()), cstone::LocalIndex(d.x.size())};
+
+        cstone::GlobalAssignment<KeyType, T> distributor(rank, numRanks, bucketSize, globalBox);
+        cstone::ReorderFunctor_t<cstone::CpuTag, T, KeyType, cstone::LocalIndex> reorderFunctor;
+
+        std::vector<KeyType> particleKeys(d.x.size());
+        cstone::LocalIndex   newNParticlesAssigned =
+            distributor.assign(bufDesc, reorderFunctor, particleKeys.data(), d.x.data(), d.y.data(), d.z.data());
+        size_t exchangeSize = std::max(d.x.size(), size_t(newNParticlesAssigned));
+        cstone::reallocate(exchangeSize, particleKeys, d.x, d.y, d.z);
+        auto [exchangeStart, keyView] =
+            distributor.distribute(bufDesc, reorderFunctor, particleKeys.data(), d.x.data(), d.y.data(), d.z.data());
+
+        reorderFunctor(d.x.data() + exchangeStart, d.x.data());
+        reorderFunctor(d.y.data() + exchangeStart, d.y.data());
+        reorderFunctor(d.z.data() + exchangeStart, d.z.data());
+        d.x.resize(keyView.size());
+        d.y.resize(keyView.size());
+        d.z.resize(keyView.size());
+        d.x.shrink_to_fit();
+        d.y.shrink_to_fit();
+        d.z.shrink_to_fit();
 
         resize(d, d.x.size());
         initEvrardFields(d, constants_);

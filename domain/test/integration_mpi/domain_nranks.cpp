@@ -48,7 +48,6 @@
 
 using namespace cstone;
 
-
 /*! @brief random gaussian coordinate init
  *
  * We're not using the coordinates from coord_samples, because we don't
@@ -64,27 +63,23 @@ void initCoordinates(std::vector<T>& x, std::vector<T>& y, std::vector<T>& z, Bo
     std::normal_distribution<T> disY((box.ymax() + box.ymin()) / 2, (box.ymax() - box.ymin()) / 5);
     std::normal_distribution<T> disZ((box.zmax() + box.zmin()) / 2, (box.zmax() - box.zmin()) / 5);
 
-    auto randX = [cmin = box.xmin(), cmax = box.xmax(), &disX, &gen]() {
-        return std::max(std::min(disX(gen), cmax), cmin);
-    };
-    auto randY = [cmin = box.ymin(), cmax = box.ymax(), &disY, &gen]() {
-        return std::max(std::min(disY(gen), cmax), cmin);
-    };
-    auto randZ = [cmin = box.zmin(), cmax = box.zmax(), &disZ, &gen]() {
-        return std::max(std::min(disZ(gen), cmax), cmin);
-    };
+    auto randX = [cmin = box.xmin(), cmax = box.xmax(), &disX, &gen]()
+    { return std::max(std::min(disX(gen), cmax), cmin); };
+    auto randY = [cmin = box.ymin(), cmax = box.ymax(), &disY, &gen]()
+    { return std::max(std::min(disY(gen), cmax), cmin); };
+    auto randZ = [cmin = box.zmin(), cmax = box.zmax(), &disZ, &gen]()
+    { return std::max(std::min(disZ(gen), cmax), cmin); };
 
     std::generate(begin(x), end(x), randX);
     std::generate(begin(y), end(y), randY);
     std::generate(begin(z), end(z), randZ);
 }
 
-
 template<class KeyType, class T, class DomainType>
 void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalizeH = false)
 {
     LocalIndex numParticles = (1000 / nRanks) * nRanks;
-    Box<T> box = domain.box();
+    Box<T> box              = domain.box();
 
     // numParticles identical coordinates on each rank
     // Note: NOT sorted in morton order
@@ -104,19 +99,20 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
         }
     }
 
-    LocalIndex nParticlesPerRank = numParticles / nRanks;
+    LocalIndex firstExtract = rank * numParticles / nRanks;
+    LocalIndex lastExtract  = (rank + 1) * numParticles / nRanks;
 
-    std::vector<T> x{xGlobal.begin() + rank * nParticlesPerRank, xGlobal.begin() + (rank + 1) * nParticlesPerRank};
-    std::vector<T> y{yGlobal.begin() + rank * nParticlesPerRank, yGlobal.begin() + (rank + 1) * nParticlesPerRank};
-    std::vector<T> z{zGlobal.begin() + rank * nParticlesPerRank, zGlobal.begin() + (rank + 1) * nParticlesPerRank};
-    std::vector<T> h{hGlobal.begin() + rank * nParticlesPerRank, hGlobal.begin() + (rank + 1) * nParticlesPerRank};
+    std::vector<T> x{xGlobal.begin() + firstExtract, xGlobal.begin() + lastExtract};
+    std::vector<T> y{yGlobal.begin() + firstExtract, yGlobal.begin() + lastExtract};
+    std::vector<T> z{zGlobal.begin() + firstExtract, zGlobal.begin() + lastExtract};
+    std::vector<T> h{hGlobal.begin() + firstExtract, hGlobal.begin() + lastExtract};
 
     std::vector<KeyType> keys(x.size());
     domain.sync(keys, x, y, z, h);
 
-    LocalIndex localCount = domain.endIndex() - domain.startIndex();
+    LocalIndex localCount    = domain.endIndex() - domain.startIndex();
     LocalIndex localCountSum = localCount;
-    //int extractedCount = x.size();
+    // int extractedCount = x.size();
     MPI_Allreduce(MPI_IN_PLACE, &localCountSum, 1, MpiType<int>{}, MPI_SUM, MPI_COMM_WORLD);
     EXPECT_EQ(localCountSum, numParticles);
 
@@ -132,8 +128,8 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     int ngmax = 300;
     std::vector<int> neighbors(localCount * ngmax);
     std::vector<int> neighborsCount(localCount);
-    findNeighbors(x.data(), y.data(), z.data(), h.data(), domain.startIndex(), domain.endIndex(), x.size(),
-                  box, sfcKindPointer(keysRef.data()), neighbors.data(), neighborsCount.data(), ngmax);
+    findNeighbors(x.data(), y.data(), z.data(), h.data(), domain.startIndex(), domain.endIndex(), x.size(), box,
+                  sfcKindPointer(keysRef.data()), neighbors.data(), neighborsCount.data(), ngmax);
 
     int neighborSum = std::accumulate(begin(neighborsCount), end(neighborsCount), 0);
     MPI_Allreduce(MPI_IN_PLACE, &neighborSum, 1, MpiType<int>{}, MPI_SUM, MPI_COMM_WORLD);
@@ -141,8 +137,8 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
     {
         // Note: global coordinates are not yet in Morton order
         std::vector<KeyType> codesGlobal(numParticles);
-        computeSfcKeys(xGlobal.data(), yGlobal.data(), zGlobal.data(), sfcKindPointer(codesGlobal.data()),
-                       numParticles, box);
+        computeSfcKeys(xGlobal.data(), yGlobal.data(), zGlobal.data(), sfcKindPointer(codesGlobal.data()), numParticles,
+                       box);
         std::vector<LocalIndex> ordering(numParticles);
         std::iota(begin(ordering), end(ordering), LocalIndex(0));
         sort_by_key(begin(codesGlobal), end(codesGlobal), begin(ordering));
@@ -154,15 +150,13 @@ void randomGaussianDomain(DomainType domain, int rank, int nRanks, bool equalize
         // calculate reference neighbor sum from the full arrays
         std::vector<int> neighborsRef(numParticles * ngmax);
         std::vector<int> neighborsCountRef(numParticles);
-        findNeighbors(xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), 0, numParticles,
-                      numParticles, box, sfcKindPointer(codesGlobal.data()), neighborsRef.data(),
-                      neighborsCountRef.data(), ngmax);
+        findNeighbors(xGlobal.data(), yGlobal.data(), zGlobal.data(), hGlobal.data(), 0, numParticles, numParticles,
+                      box, sfcKindPointer(codesGlobal.data()), neighborsRef.data(), neighborsCountRef.data(), ngmax);
 
         int neighborSumRef = std::accumulate(begin(neighborsCountRef), end(neighborsCountRef), 0);
         EXPECT_EQ(neighborSum, neighborSumRef);
     }
 }
-
 
 TEST(FocusDomain, randomGaussianNeighborSum)
 {
@@ -170,7 +164,7 @@ TEST(FocusDomain, randomGaussianNeighborSum)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
-    int bucketSize = 50;
+    int bucketSize      = 50;
     int bucketSizeFocus = 10;
     // theta = 1.0 triggers the invalid case where smoothing lengths interact with domains further away
     // than the multipole criterion
@@ -200,9 +194,9 @@ TEST(FocusDomain, randomGaussianNeighborSumPbc)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &nRanks);
 
-    int bucketSize = 50;
+    int bucketSize      = 50;
     int bucketSizeFocus = 10;
-    float theta = 0.75;
+    float theta         = 0.75;
 
     {
         Domain<unsigned, double> domain(rank, nRanks, bucketSize, bucketSizeFocus, theta, {-1, 1, true});
@@ -228,14 +222,14 @@ TEST(FocusDomain, assignmentShift)
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
 
-    using Real = double;
+    using Real    = double;
     using KeyType = unsigned;
 
     Box<Real> box(0, 1);
     LocalIndex numParticlesPerRank = 15000;
-    unsigned bucketSize = 1024;
-    unsigned bucketSizeFocus = 8;
-    float theta = 0.5;
+    unsigned bucketSize            = 1024;
+    unsigned bucketSizeFocus       = 8;
+    float theta                    = 0.5;
 
     RandomCoordinates<Real, SfcKind<KeyType>> coordinates(numParticlesPerRank, box, rank);
 

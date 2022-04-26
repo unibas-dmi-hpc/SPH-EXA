@@ -48,7 +48,7 @@ namespace cstone
 template<class Iterator>
 auto localMinMax(Iterator start, Iterator end)
 {
-    assert(end > start);
+    assert(end >= start);
     using T = std::decay_t<decltype(*start)>;
 
     T minimum = INFINITY;
@@ -105,6 +105,6 @@ auto makeGlobalBox(Iterator xB, Iterator xE, Iterator yB, Iterator zB, const Box
 
     return Box<T>{extrema[0], extrema[1],         extrema[2],         extrema[3],        extrema[4],
                   extrema[5], previousBox.pbcX(), previousBox.pbcY(), previousBox.pbcZ()};
-};
+}
 
 } // namespace cstone

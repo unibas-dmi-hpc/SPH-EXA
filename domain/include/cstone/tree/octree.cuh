@@ -50,14 +50,15 @@ namespace cstone
 
 //! @brief see computeNodeCounts
 template<class KeyType>
-__global__ void computeNodeCountsKernel(const KeyType* tree, unsigned* counts, TreeNodeIndex nNodes, const KeyType* codesStart,
-                                        const KeyType* codesEnd, unsigned maxCount)
+__global__ void computeNodeCountsKernel(const KeyType* tree,
+                                        unsigned* counts,
+                                        TreeNodeIndex nNodes,
+                                        const KeyType* codesStart,
+                                        const KeyType* codesEnd,
+                                        unsigned maxCount)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid < nNodes)
-    {
-        counts[tid] = calculateNodeCount(tree[tid], tree[tid+1], codesStart, codesEnd, maxCount);
-    }
+    if (tid < nNodes) { counts[tid] = calculateNodeCount(tree[tid], tree[tid + 1], codesStart, codesEnd, maxCount); }
 }
 
 //! @brief see updateNodeCounts
@@ -85,12 +86,18 @@ __device__ TreeNodeIndex populatedNodes[2];
 
 //! @brief compute first and last non-empty nodes in the tree
 template<class KeyType>
-__global__ void findPopulatedNodes(const KeyType* tree, TreeNodeIndex nNodes, const KeyType* codesStart, const KeyType* codesEnd)
+__global__ void
+findPopulatedNodes(const KeyType* tree, TreeNodeIndex nNodes, const KeyType* codesStart, const KeyType* codesEnd)
 {
     if (threadIdx.x == 0 && codesStart != codesEnd)
     {
         populatedNodes[0] = stl::upper_bound(tree, tree + nNodes, *codesStart) - tree - 1;
         populatedNodes[1] = stl::upper_bound(tree, tree + nNodes, *(codesEnd - 1)) - tree;
+    }
+    else
+    {
+        populatedNodes[0] = nNodes;
+        populatedNodes[1] = nNodes;
     }
 }
 
@@ -107,12 +114,17 @@ __global__ void findPopulatedNodes(const KeyType* tree, TreeNodeIndex nNodes, co
  *                          to prevent overflow in MPI_Allreduce
  */
 template<class KeyType>
-void computeNodeCountsGpu(const KeyType* tree, unsigned* counts, TreeNodeIndex nNodes, const KeyType* codesStart,
-                          const KeyType* codesEnd, unsigned maxCount, bool useCountsAsGuess = false)
+void computeNodeCountsGpu(const KeyType* tree,
+                          unsigned* counts,
+                          TreeNodeIndex nNodes,
+                          const KeyType* codesStart,
+                          const KeyType* codesEnd,
+                          unsigned maxCount,
+                          bool useCountsAsGuess = false)
 {
     TreeNodeIndex popNodes[2];
 
-    findPopulatedNodes<<<1,1>>>(tree, nNodes, codesStart, codesEnd);
+    findPopulatedNodes<<<1, 1>>>(tree, nNodes, codesStart, codesEnd);
     checkGpuErrors(cudaMemcpyFromSymbol(popNodes, populatedNodes, 2 * sizeof(TreeNodeIndex)));
 
     checkGpuErrors(cudaMemset(counts, 0, popNodes[0] * sizeof(unsigned)));
@@ -122,13 +134,13 @@ void computeNodeCountsGpu(const KeyType* tree, unsigned* counts, TreeNodeIndex n
     if (useCountsAsGuess)
     {
         thrust::exclusive_scan(thrust::device, counts + popNodes[0], counts + popNodes[1], counts + popNodes[0]);
-        updateNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>
-            (tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
+        updateNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>(
+            tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
     }
     else
     {
-        computeNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>
-            (tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
+        computeNodeCountsKernel<<<iceil(popNodes[1] - popNodes[0], nThreads), nThreads>>>(
+            tree + popNodes[0], counts + popNodes[0], popNodes[1] - popNodes[0], codesStart, codesEnd, maxCount);
     }
 }
 
@@ -155,39 +167,32 @@ __device__ int rebalanceChangeCounter;
  *  - 8 if to be split.
  */
 template<class KeyType>
-__global__ void rebalanceDecisionKernel(const KeyType* tree, const unsigned* counts, TreeNodeIndex nNodes,
-                                        unsigned bucketSize, TreeNodeIndex* nodeOps)
+__global__ void rebalanceDecisionKernel(
+    const KeyType* tree, const unsigned* counts, TreeNodeIndex nNodes, unsigned bucketSize, TreeNodeIndex* nodeOps)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     if (tid < nNodes)
     {
         int decision = calculateNodeOp(tree, tid, counts, bucketSize);
-        if (decision != 1) { rebalanceChangeCounter = 1;}
+        if (decision != 1) { rebalanceChangeCounter = 1; }
         nodeOps[tid] = decision;
     }
 }
 
 //! @brief construct new nodes in the balanced tree
 template<class KeyType>
-__global__ void processNodes(const KeyType* oldTree, const TreeNodeIndex* nodeOps,
-                             TreeNodeIndex nOldNodes, TreeNodeIndex nNewNodes,
+__global__ void processNodes(const KeyType* oldTree,
+                             const TreeNodeIndex* nodeOps,
+                             TreeNodeIndex nOldNodes,
+                             TreeNodeIndex nNewNodes,
                              KeyType* newTree)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
-    if (tid < nOldNodes)
-    {
-        processNode(tid, oldTree, nodeOps, newTree);
-    }
-    if (tid == nNewNodes)
-    {
-        newTree[tid] = nodeRange<KeyType>(0);
-    }
+    if (tid < nOldNodes) { processNode(tid, oldTree, nodeOps, newTree); }
+    if (tid == nNewNodes) { newTree[tid] = nodeRange<KeyType>(0); }
 }
 
-__global__ void resetRebalanceCounter()
-{
-    rebalanceChangeCounter = 0;
-}
+__global__ void resetRebalanceCounter() { rebalanceChangeCounter = 0; }
 
 /*! @brief split or fuse octree nodes based on node counts relative to bucketSize
  *
@@ -202,33 +207,36 @@ __global__ void resetRebalanceCounter()
  * @return                 true if converged, false otherwise
  */
 template<class SfcVector>
-bool rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, unsigned bucketSize,
-                      SfcVector& tmpTree, thrust::device_vector<TreeNodeIndex>& workArray)
+bool rebalanceTreeGpu(SfcVector& tree,
+                      const unsigned* counts,
+                      unsigned bucketSize,
+                      SfcVector& tmpTree,
+                      thrust::device_vector<TreeNodeIndex>& workArray)
 {
-    using KeyType = typename SfcVector::value_type;
+    using KeyType           = typename SfcVector::value_type;
     TreeNodeIndex nOldNodes = nNodes(tree);
 
     // +1 to store the total sum of the exclusive scan in the last element
     workArray.resize(tree.size());
 
-    resetRebalanceCounter<<<1,1>>>();
+    resetRebalanceCounter<<<1, 1>>>();
 
     constexpr unsigned nThreads = 512;
-    rebalanceDecisionKernel<<<iceil(nOldNodes, nThreads), nThreads>>>(
-        thrust::raw_pointer_cast(tree.data()), counts, nOldNodes, bucketSize,
-        thrust::raw_pointer_cast(workArray.data()));
+    rebalanceDecisionKernel<<<iceil(nOldNodes, nThreads), nThreads>>>(thrust::raw_pointer_cast(tree.data()), counts,
+                                                                      nOldNodes, bucketSize,
+                                                                      thrust::raw_pointer_cast(workArray.data()));
 
     thrust::exclusive_scan(thrust::device, thrust::raw_pointer_cast(workArray.data()),
-                          thrust::raw_pointer_cast(workArray.data()) + workArray.size(),
-                          thrust::raw_pointer_cast(workArray.data()));
+                           thrust::raw_pointer_cast(workArray.data()) + workArray.size(),
+                           thrust::raw_pointer_cast(workArray.data()));
 
     // +1 for the end marker (nodeRange<KeyType>(0))
     tmpTree.resize(*workArray.rbegin() + 1);
 
     TreeNodeIndex nElements = stl::max(tree.size(), tmpTree.size());
     processNodes<<<iceil(nElements, nThreads), nThreads>>>(thrust::raw_pointer_cast(tree.data()),
-                                                           thrust::raw_pointer_cast(workArray.data()), nOldNodes, nNodes(tmpTree),
-                                                           thrust::raw_pointer_cast(tmpTree.data()));
+                                                           thrust::raw_pointer_cast(workArray.data()), nOldNodes,
+                                                           nNodes(tmpTree), thrust::raw_pointer_cast(tmpTree.data()));
     int changeCounter;
     checkGpuErrors(cudaMemcpyFromSymbol(&changeCounter, rebalanceChangeCounter, sizeof(int)));
 
@@ -251,17 +259,21 @@ bool rebalanceTreeGpu(SfcVector& tree, const unsigned* counts, unsigned bucketSi
  * @return                   true if converged, false otherwise
  */
 template<class KeyType>
-bool updateOctreeGpu(const KeyType* codesStart, const KeyType* codesEnd, unsigned bucketSize,
-                     thrust::device_vector<KeyType>& tree, thrust::device_vector<unsigned>& counts,
-                     thrust::device_vector<KeyType>& tmpTree, thrust::device_vector<TreeNodeIndex>& workArray,
+bool updateOctreeGpu(const KeyType* codesStart,
+                     const KeyType* codesEnd,
+                     unsigned bucketSize,
+                     thrust::device_vector<KeyType>& tree,
+                     thrust::device_vector<unsigned>& counts,
+                     thrust::device_vector<KeyType>& tmpTree,
+                     thrust::device_vector<TreeNodeIndex>& workArray,
                      unsigned maxCount = std::numeric_limits<unsigned>::max())
 {
     bool converged = rebalanceTreeGpu(tree, thrust::raw_pointer_cast(counts.data()), bucketSize, tmpTree, workArray);
     counts.resize(nNodes(tree));
 
     // local node counts
-    computeNodeCountsGpu(thrust::raw_pointer_cast(tree.data()), thrust::raw_pointer_cast(counts.data()),
-                         nNodes(tree), codesStart, codesEnd, maxCount, true);
+    computeNodeCountsGpu(thrust::raw_pointer_cast(tree.data()), thrust::raw_pointer_cast(counts.data()), nNodes(tree),
+                         codesStart, codesEnd, maxCount, true);
 
     return converged;
 }
