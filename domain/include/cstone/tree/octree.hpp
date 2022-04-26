@@ -387,7 +387,6 @@ processNode(TreeNodeIndex nodeIndex, const KeyType* oldTree, const TreeNodeIndex
 template<class InputVector, class OutputVector>
 void rebalanceTree(const InputVector& tree, OutputVector& newTree, TreeNodeIndex* nodeOps)
 {
-    using KeyType          = typename InputVector::value_type;
     TreeNodeIndex numNodes = nNodes(tree);
 
     exclusiveScan(nodeOps, numNodes + 1);
@@ -398,7 +397,7 @@ void rebalanceTree(const InputVector& tree, OutputVector& newTree, TreeNodeIndex
     {
         processNode(i, tree.data(), nodeOps, newTree.data());
     }
-    *newTree.rbegin() = nodeRange<KeyType>(0);
+    newTree.back() = tree.back();
 }
 
 /*! @brief update the octree with a single rebalance/count step
@@ -455,6 +454,29 @@ computeOctree(const KeyType* codesStart,
         ;
 
     return std::make_tuple(std::move(tree), std::move(counts));
+}
+
+/*! @brief update a treelet (sub-octree not spanning full SFC) based on node counts
+ *
+ * @tparam     KeyType       32- or 64-bit unsigned integer for SFC code
+ * @param[in]  treelet       cornerstone key sequence, covering only part of the SFC
+ * @param[in]  counts        particle counts per cell in @p treelet, length = treelet.size() - 1
+ * @param[in]  bucketSize    rebalance criterion
+ * @return                   rebalanced treelet with nodes split where count > @p bucketSize
+ *
+ * Currently used for rebalancing an SFC range before hand-over to another rank after assignment shift.
+ */
+template<class KeyType>
+std::vector<KeyType>
+updateTreelet(gsl::span<const KeyType> treelet, gsl::span<const unsigned> counts, unsigned bucketSize)
+{
+    std::vector<TreeNodeIndex> nodeOps(nNodes(treelet) + 1);
+    rebalanceDecision(treelet.data(), counts.data(), nNodes(treelet), bucketSize, nodeOps.data());
+
+    std::vector<KeyType> newTreelet;
+    rebalanceTree(treelet, newTreelet, nodeOps.data());
+
+    return newTreelet;
 }
 
 /*! @brief create a cornerstone octree around a series of given SFC codes
