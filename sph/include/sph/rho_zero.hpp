@@ -40,8 +40,24 @@ void computeRho0Impl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& 
     for (size_t i = startIndex; i < endIndex; i++)
     {
         size_t ni = i - startIndex;
+
         kernels::rho0JLoop(
-            i, sincIndex, K, box, neighbors + ngmax * ni, neighborsCount[i], x, y, z, h, m, wh, whd, rho0, wrho0);
+            i,
+            sincIndex,
+            K,
+            box,
+            neighbors + ngmax * ni,
+            neighborsCount[i],
+            x,
+            y,
+            z,
+            h,
+            m,
+            wh,
+            whd,
+            rho0,
+            wrho0);
+
 #ifndef NDEBUG
         if (std::isnan(rho0[i]))
             printf("ERROR::Rho0(%zu) rho0 %f, position: (%f %f %f), h: %f\n", i, rho0[i], x[i], y[i], z[i], h[i]);

@@ -43,6 +43,7 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
     for (size_t i = startIndex; i < endIndex; i++)
     {
         size_t ni = i - startIndex;
+
         kernels::densityJLoop(i,
                               sincIndex,
                               K,
@@ -61,6 +62,7 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
                               rho,
                               kx,
                               whomega);
+
 #ifndef NDEBUG
         if (std::isnan(rho[i]))
             printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", i, rho[i], x[i], y[i], z[i], h[i]);
