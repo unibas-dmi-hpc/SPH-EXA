@@ -52,7 +52,7 @@ CUDA_DEVICE_HOST_FUN inline void rho0JLoop(int i, T sincIndex, T K, const cstone
     T zi = z[i];
     T hi = h[i];
 
-    T hInv  = 1.0 / hi;
+    T hInv  = T(1) / hi;
     T h3Inv = hInv * hInv * hInv;
 
     T rho0i  = 0.0;

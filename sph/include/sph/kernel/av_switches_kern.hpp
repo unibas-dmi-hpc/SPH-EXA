@@ -69,7 +69,7 @@ AVswitchesJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
 
     T vijsignal_i = 1.e-40 * ci;
 
-    T hiInv  = 1.0 / hi;
+    T hiInv  = T(1) / hi;
     T hiInv3 = hiInv * hiInv * hiInv;
 
     T divv_i = divv[i];

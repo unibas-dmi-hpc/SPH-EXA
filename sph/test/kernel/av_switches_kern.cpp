@@ -34,7 +34,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/kernel_ve/av_switches_kern.hpp"
+#include "sph/kernel/av_switches_kern.hpp"
 #include "sph/tables.hpp"
 
 using namespace sphexa;

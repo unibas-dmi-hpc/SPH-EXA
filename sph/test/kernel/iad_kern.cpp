@@ -26,6 +26,7 @@
 /*! @file
  * @brief SPH density kernel tests
  *
+ * @author Ruben Cabezon <ruben.cabezon@unibas.ch>
  * @author Sebastian Keller <sebastian.f.keller@gmail.com>
  */
 
@@ -52,15 +53,19 @@ TEST(IAD, JLoop)
 
     // particle 0 has 4 neighbors
     std::vector<int> neighbors{1, 2, 3, 4};
-    int              neighborsCount = 4;
+    int              neighborsCount = 4, i;
 
     std::vector<T> x{1.0, 1.1, 3.2, 1.3, 2.4};
     std::vector<T> y{1.1, 1.2, 1.3, 4.4, 5.5};
     std::vector<T> z{1.2, 2.3, 1.4, 1.5, 1.6};
     std::vector<T> h{5.0, 5.1, 5.2, 5.3, 5.4};
-    std::vector<T> m{1.1, 1.2, 1.3, 1.4, 1.5};
-    std::vector<T> rho{0.014, 0.015, 0.016, 0.017, 0.018};
-
+    std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
+    std::vector<T> rho0{1.1, 1.2, 1.3, 1.4, 1.5};
+    std::vector<T> kx{-1.0, -1.0, -1.0, -1.0, -1.0};
+    for (i = 0; i < neighborsCount + 1; i++)
+    {
+        kx[i] = K * m[i] / rho0[i] / ::sphexa::math::pow(h[i], 3);
+    }
     /* distances of particle zero to particle j
      *
      * j = 1   1.10905
@@ -84,9 +89,10 @@ TEST(IAD, JLoop)
                            z.data(),
                            h.data(),
                            m.data(),
-                           rho.data(),
                            wh.data(),
                            whd.data(),
+                           rho0.data(),
+                           kx.data(),
                            &iad[0],
                            &iad[1],
                            &iad[2],
@@ -94,12 +100,12 @@ TEST(IAD, JLoop)
                            &iad[4],
                            &iad[5]);
 
-    EXPECT_NEAR(iad[0], 0.68826690705820426, 1e-10);
-    EXPECT_NEAR(iad[1], -0.12963692749098227, 1e-10);
-    EXPECT_NEAR(iad[2], -0.20435302529035185, 1e-10);
-    EXPECT_NEAR(iad[3], 0.39616100615949118, 1e-10);
-    EXPECT_NEAR(iad[4], -0.16797800818772629, 1e-10);
-    EXPECT_NEAR(iad[5], 1.9055087808073545, 1e-10);
+    EXPECT_NEAR(iad[0], 0.31413443265068125, 1e-10);
+    EXPECT_NEAR(iad[1], -0.058841281079, 1e-10);
+    EXPECT_NEAR(iad[2], -0.096300685874, 1e-10);
+    EXPECT_NEAR(iad[3], 0.17170816943657527, 1e-10);
+    EXPECT_NEAR(iad[4], -0.078629533251, 1e-10);
+    EXPECT_NEAR(iad[5], 0.90805776843544594, 1e-10);
 }
 
 TEST(IAD, JLoopPBC)
@@ -125,7 +131,8 @@ TEST(IAD, JLoopPBC)
     std::vector<T> z{1.2, 2.3, 1.4, 1.5, 9.6};
     std::vector<T> h{2.5, 2.51, 2.52, 2.53, 2.54};
     std::vector<T> m{1.1, 1.2, 1.3, 1.4, 1.5};
-    std::vector<T> rho{0.014, 0.015, 0.016, 0.017, 0.018};
+    std::vector<T> rho0{0.014, 0.015, 0.016, 0.017, 0.018};
+    std::vector<T> kx{1.0, 1.0, 1.0, 1.0, 1.0};
 
     /* distances of particle 0 to particle j
      *
@@ -150,9 +157,10 @@ TEST(IAD, JLoopPBC)
                            z.data(),
                            h.data(),
                            m.data(),
-                           rho.data(),
                            wh.data(),
                            whd.data(),
+                           rho0.data(),
+                           kx.data(),
                            &iad[0],
                            &iad[1],
                            &iad[2],

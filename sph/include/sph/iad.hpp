@@ -3,9 +3,11 @@
 #include <vector>
 
 #include <cmath>
+
 #include "math.hpp"
 #include "kernels.hpp"
 #include "kernel/iad_kern.hpp"
+
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
 #endif
@@ -21,12 +23,13 @@ void computeIADImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
 
-    const T* h  = d.h.data();
-    const T* m  = d.m.data();
-    const T* x  = d.x.data();
-    const T* y  = d.y.data();
-    const T* z  = d.z.data();
-    const T* ro = d.rho.data();
+    const T* h    = d.h.data();
+    const T* m    = d.m.data();
+    const T* x    = d.x.data();
+    const T* y    = d.y.data();
+    const T* z    = d.z.data();
+    const T* rho0 = d.rho0.data();
+    const T* kx   = d.kx.data();
 
     T* c11 = d.c11.data();
     T* c12 = d.c12.data();
@@ -56,9 +59,10 @@ void computeIADImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
                           z,
                           h,
                           m,
-                          ro,
                           wh,
                           whd,
+                          rho0,
+                          kx,
                           c11,
                           c12,
                           c13,

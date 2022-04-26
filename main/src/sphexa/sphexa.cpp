@@ -84,7 +84,6 @@ int main(int argc, char** argv)
     const std::string        initCond          = parser.get("--init");
     const size_t             problemSize       = parser.get("-n", 50);
     const std::string        glassBlock        = parser.get("--glass");
-    const bool               ve                = parser.exists("--ve");
     const std::string        maxStepStr        = parser.get("-s", std::string("200"));
     const std::string        writeFrequencyStr = parser.get("-w", std::string("0"));
     std::vector<std::string> writeExtra        = parser.getCommaList("--wextra");
@@ -115,11 +114,8 @@ int main(int argc, char** argv)
 
     Dataset d;
     d.comm = MPI_COMM_WORLD;
-    if (ve)
-    {
-        d.setConservedFieldsVE();
-        d.setDependentFieldsVE();
-    }
+    d.setConservedFieldsVE();
+    d.setDependentFieldsVE();
     cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, d);
     d.setOutputFields(outputFields);
 
@@ -136,11 +132,9 @@ int main(int argc, char** argv)
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
     size_t bucketSize = std::max(bucketSizeFocus, d.numParticlesGlobal / (100 * numRanks));
     Domain domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
-    auto   propagator = propagatorFactory<Domain, Dataset>(ve, ngmax, ng0, output, rank);
+    auto   propagator = propagatorFactory<Domain, Dataset>(ngmax, ng0, output, rank);
 
-    if (ve)
-        domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.alpha);
-    else if (haveGrav)
+    if (haveGrav)
         domain.syncGrav(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1);
     else
         domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1);
@@ -202,8 +196,6 @@ void printHelp(char* name, int rank)
         printf("\t--glass FILE\t Use glass block as template to generate initial x,y,z configuration\n\n");
 
         printf("\t--theta NUM \t Gravity accuracy parameter [default 0.5 when self-gravity is active]\n\n");
-
-        printf("\t--ve \t\t Activate SPH with generalized volume elements\n\n");
 
         printf("\t-s NUM \t\t int(NUM):  Number of iterations (time-steps) [200],\n\
                 \t real(NUM): Time   of simulation (time-model)\n\n");

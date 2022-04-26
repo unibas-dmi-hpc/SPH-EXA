@@ -34,7 +34,7 @@
 
 #include "gtest/gtest.h"
 
-#include "sph/kernel_ve/rho_zero_kern.hpp"
+#include "sph/kernel/rho_zero_kern.hpp"
 #include "sph/tables.hpp"
 
 using namespace sphexa;

@@ -172,24 +172,46 @@ public:
         findNeighborsSfc<T, KeyType>(
             first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, domain.box());
         timer.step("FindNeighbors");
+
+        computeRho0(first, last, ngmax_, d, domain.box());
+        timer.step("Rho0");
+
+        domain.exchangeHalos(d.rho0);
+        timer.step("mpi::synchronizeHalos");
+
         computeDensity(first, last, ngmax_, d, domain.box());
         timer.step("Density");
+
         computeEquationOfState(first, last, d);
         timer.step("EquationOfState");
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c);
+
+        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c, d.kx);
         timer.step("mpi::synchronizeHalos");
+
         computeIAD(first, last, ngmax_, d, domain.box());
         timer.step("IAD");
-        domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33);
+
+        computeDivvCurlv(first, last, ngmax_, d, domain.box());
+        timer.step("VelocityDivCurl");
+
+        domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33, d.divv, d.curlv);
         timer.step("mpi::synchronizeHalos");
-        computeMomentumAndEnergy(first, last, ngmax_, d, domain.box());
-        timer.step("MomentumEnergyIAD");
+
+        computeAVswitches(first, last, ngmax_, d, domain.box());
+        timer.step("AVswitches");
+
+        domain.exchangeHalos(d.alpha);
+        timer.step("mpi::synchronizeHalos");
+
+        computeMomentumEnergy(first, last, ngmax_, d, domain.box());
+        timer.step("MomentumEnergy");
 
         d.egrav = 0.0;
         if (doGrav)
         {
             mHolder_.upsweep(d, domain);
             timer.step("Upsweep");
+
             mHolder_.traverse(d, domain);
             // temporary sign fix, see note in ParticlesData
             d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
@@ -206,10 +228,13 @@ public:
 
         computeTimestep(first, last, d);
         timer.step("Timestep");
+
         computePositions(first, last, d, domain.box());
         timer.step("UpdateQuantities");
+
         computeTotalEnergy(first, last, d);
         timer.step("EnergyConservation");
+
         updateSmoothingLength(first, last, d, ng0_);
         timer.step("UpdateSmoothingLength");
 
@@ -219,85 +244,10 @@ public:
 };
 
 template<class DomainType, class ParticleDataType>
-class HydroVeProp final : public Propagator<DomainType, ParticleDataType>
-{
-    using Base = Propagator<DomainType, ParticleDataType>;
-    using Base::ng0_;
-    using Base::ngmax_;
-    using Base::timer;
-
-public:
-    HydroVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
-        : Base(ngmax, ng0, output, rank)
-    {
-    }
-
-    void step(DomainType& domain, ParticleDataType& d) override
-    {
-        using T       = typename ParticleDataType::RealType;
-        using KeyType = typename ParticleDataType::KeyType;
-
-        timer.start();
-        domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.alpha);
-        timer.step("domain::sync");
-
-        resize(d, domain.nParticlesWithHalos());
-        resizeNeighbors(d, domain.nParticles() * ngmax_);
-        size_t first = domain.startIndex();
-        size_t last  = domain.endIndex();
-
-        std::fill(begin(d.m), begin(d.m) + first, d.m[first]);
-        std::fill(begin(d.m) + last, end(d.m), d.m[first]);
-
-        findNeighborsSfc<T, KeyType>(
-            first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, domain.box());
-        timer.step("FindNeighbors");
-
-        computeRho0(first, last, ngmax_, d, domain.box());
-        timer.step("Rho0");
-        domain.exchangeHalos(d.rho0);
-        timer.step("mpi::synchronizeHalos");
-        computeDensityVE(first, last, ngmax_, d, domain.box());
-        timer.step("Density");
-        computeEquationOfState(first, last, d);
-        timer.step("EquationOfState");
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c, d.kx);
-        timer.step("mpi::synchronizeHalos");
-        computeIadVE(first, last, ngmax_, d, domain.box());
-        timer.step("IAD");
-        computeDivvCurlv(first, last, ngmax_, d, domain.box());
-        timer.step("VelocityDivCurl");
-        domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33, d.divv, d.curlv);
-        timer.step("mpi::synchronizeHalos");
-        computeAVswitches(first, last, ngmax_, d, domain.box());
-        timer.step("AVswitches");
-        domain.exchangeHalos(d.alpha);
-        timer.step("mpi::synchronizeHalos");
-        computeGradPVE(first, last, ngmax_, d, domain.box());
-        timer.step("MomentumAndEnergy");
-        computeTimestep(first, last, d);
-        timer.step("Timestep");
-        computePositions(first, last, d, domain.box());
-        timer.step("UpdateQuantities");
-        computeTotalEnergy(first, last, d);
-        timer.step("EnergyConservation");
-        updateSmoothingLength(first, last, d, ng0_);
-        timer.step("UpdateSmoothingLength");
-
-        timer.stop();
-        this->printIterationTimings(domain, d);
-    }
-};
-
-template<class DomainType, class ParticleDataType>
-std::unique_ptr<Propagator<DomainType, ParticleDataType>> propagatorFactory(bool ve, size_t ngmax, size_t ng0,
+std::unique_ptr<Propagator<DomainType, ParticleDataType>> propagatorFactory(size_t ngmax, size_t ng0,
                                                                             std::ostream& output, size_t rank)
 {
-    if (ve) { return std::make_unique<HydroVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank); }
-    else
-    {
-        return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
-    }
+    return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank);
 }
 
 } // namespace sphexa

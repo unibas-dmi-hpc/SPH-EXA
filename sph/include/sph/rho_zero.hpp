@@ -5,7 +5,8 @@
 #include "cstone/findneighbors.hpp"
 
 #include "kernels.hpp"
-#include "sph/kernel_ve/rho_zero_kern.hpp"
+#include "kernel/rho_zero_kern.hpp"
+
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
 #endif

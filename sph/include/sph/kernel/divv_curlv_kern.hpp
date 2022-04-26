@@ -58,7 +58,7 @@ divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
 
     T hi = h[i];
 
-    T hiInv  = 1.0 / hi;
+    T hiInv  = T(1) / hi;
     T hiInv3 = hiInv * hiInv * hiInv;
 
     divv[i]   = 0.0;

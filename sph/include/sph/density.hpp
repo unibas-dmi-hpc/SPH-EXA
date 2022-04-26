@@ -5,6 +5,7 @@
 #include "cstone/findneighbors.hpp"
 
 #include "kernel/density_kern.hpp"
+
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
 #endif
@@ -28,7 +29,12 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
     const T* wh  = d.wh.data();
     const T* whd = d.whd.data();
 
-    T* rho = d.rho.data();
+    const T* rho0  = d.rho0.data();
+    const T* wrho0 = d.wrho0.data();
+
+    T* kx      = d.kx.data();
+    T* whomega = d.whomega.data();
+    T* rho     = d.rho.data();
 
     const T K         = d.K;
     const T sincIndex = d.sincIndex;
@@ -36,16 +42,25 @@ void computeDensityImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        // int neighLoc[ngmax];
-        // int count;
-        // cstone::findNeighbors(
-        //    pi, x, y, z, h, box, cstone::sfcKindPointer(d.codes.data()), neighLoc, &count, d.codes.size(), ngmax);
-
         size_t ni = i - startIndex;
-
-        rho[i] = kernels::densityJLoop(
-            i, sincIndex, K, box, neighbors + ngmax * ni, neighborsCount[i], x, y, z, h, m, wh, whd);
-
+        kernels::densityJLoop(i,
+                              sincIndex,
+                              K,
+                              box,
+                              neighbors + ngmax * ni,
+                              neighborsCount[i],
+                              x,
+                              y,
+                              z,
+                              h,
+                              m,
+                              wh,
+                              whd,
+                              rho0,
+                              wrho0,
+                              rho,
+                              kx,
+                              whomega);
 #ifndef NDEBUG
         if (std::isnan(rho[i]))
             printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", i, rho[i], x[i], y[i], z[i], h[i]);

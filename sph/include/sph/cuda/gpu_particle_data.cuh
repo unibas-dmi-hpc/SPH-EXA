@@ -63,8 +63,23 @@ public:
 
     struct neighbors_stream d_stream[NST];
 
-    T *d_x, *d_y, *d_z, *d_vx, *d_vy, *d_vz, *d_m, *d_h, *d_rho, *d_p, *d_c, *d_c11, *d_c12, *d_c13, *d_c22, *d_c23,
-        *d_c33, *d_wh, *d_whd, *d_grad_P_x, *d_grad_P_y, *d_grad_P_z, *d_du, *d_maxvsignal;
+    T *d_x, *d_y, *d_z;
+    T *d_vx, *d_vy, *d_vz;
+    T *d_h;
+    T *d_m;
+    T *d_wh, *d_whd;
+    T *d_rho0;
+    T *d_wrho0;
+    T *d_rho;
+    T *d_kx;
+    T *d_whomega;
+    T *d_p;
+    T *d_c;
+    T *d_c11, *d_c12, *d_c13, *d_c22, *d_c23, *d_c33;
+    T *d_alpha;
+    T *d_grad_P_x, *d_grad_P_y, *d_grad_P_z;
+    T *d_du;
+    T *d_maxvsignal;
 
     KeyType* d_codes;
 
@@ -87,30 +102,24 @@ public:
 
     ~DeviceParticlesData()
     {
-        CHECK_CUDA_ERR(utils::cudaFree(d_x,
-                                       d_y,
-                                       d_z,
-                                       d_vx,
-                                       d_vy,
-                                       d_vz,
-                                       d_h,
-                                       d_m,
-                                       d_rho,
-                                       d_p,
-                                       d_c,
-                                       d_c11,
-                                       d_c12,
-                                       d_c13,
-                                       d_c22,
-                                       d_c23,
-                                       d_c33,
-                                       d_grad_P_x,
-                                       d_grad_P_y,
-                                       d_grad_P_z,
-                                       d_du,
-                                       d_maxvsignal,
-                                       d_wh,
-                                       d_whd));
+        CHECK_CUDA_ERR(utils::cudaFree(d_x, d_y, d_z));
+        CHECK_CUDA_ERR(utils::cudaFree(d_vx, d_vy, d_vz));
+        CHECK_CUDA_ERR(utils::cudaFree(d_h));
+        CHECK_CUDA_ERR(utils::cudaFree(d_m));
+        CHECK_CUDA_ERR(utils::cudaFree(d_wh, d_whd));
+        CHECK_CUDA_ERR(utils::cudaFree(d_rho0));
+        CHECK_CUDA_ERR(utils::cudaFree(d_wrho0));
+        CHECK_CUDA_ERR(utils::cudaFree(d_rho));
+        CHECK_CUDA_ERR(utils::cudaFree(d_kx));
+        CHECK_CUDA_ERR(utils::cudaFree(d_whomega));
+        CHECK_CUDA_ERR(utils::cudaFree(d_p));
+        CHECK_CUDA_ERR(utils::cudaFree(d_c));
+        CHECK_CUDA_ERR(utils::cudaFree(d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
+        CHECK_CUDA_ERR(utils::cudaFree(d_alpha));
+        CHECK_CUDA_ERR(utils::cudaFree(d_grad_P_x,d_grad_P_y,d_grad_P_z));
+        CHECK_CUDA_ERR(utils::cudaFree(d_du));
+        CHECK_CUDA_ERR(utils::cudaFree(d_maxvsignal));
+
         CHECK_CUDA_ERR(utils::cudaFree(d_codes));
 
         for (int i = 0; i < NST; ++i)
@@ -127,10 +136,22 @@ public:
             // TODO: Investigate benefits of low-level reallocate
             if (allocatedDeviceMemory)
             {
-                CHECK_CUDA_ERR(utils::cudaFree(d_x, d_y, d_z, d_h, d_m, d_rho));
+                CHECK_CUDA_ERR(utils::cudaFree(d_x, d_y, d_z));
+                CHECK_CUDA_ERR(utils::cudaFree(d_vx, d_vy, d_vz));
+                CHECK_CUDA_ERR(utils::cudaFree(d_h));
+                CHECK_CUDA_ERR(utils::cudaFree(d_m));
+                CHECK_CUDA_ERR(utils::cudaFree(d_rho0));
+                CHECK_CUDA_ERR(utils::cudaFree(d_wrho0));
+                CHECK_CUDA_ERR(utils::cudaFree(d_rho));
+                CHECK_CUDA_ERR(utils::cudaFree(d_kx));
+                CHECK_CUDA_ERR(utils::cudaFree(d_whomega));
+                CHECK_CUDA_ERR(utils::cudaFree(d_p));
+                CHECK_CUDA_ERR(utils::cudaFree(d_c));
                 CHECK_CUDA_ERR(utils::cudaFree(d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
-                CHECK_CUDA_ERR(utils::cudaFree(
-                    d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal));
+                CHECK_CUDA_ERR(utils::cudaFree(d_alpha));
+                CHECK_CUDA_ERR(utils::cudaFree(d_grad_P_x,d_grad_P_y,d_grad_P_z));
+                CHECK_CUDA_ERR(utils::cudaFree(d_du));
+                CHECK_CUDA_ERR(utils::cudaFree(d_maxvsignal));
 
                 CHECK_CUDA_ERR(utils::cudaFree(d_codes));
             }
@@ -138,12 +159,24 @@ public:
             size = size_t(double(size) * 1.01); // allocate 1% extra to avoid reallocation on small size increase
 
             size_t size_np_T       = size * sizeof(T);
-            size_t size_np_KeyType = size * sizeof(KeyType);
-
-            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z, d_h, d_m, d_rho));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_vx, d_vy, d_vz));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_h));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_m));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_rho0));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_wrho0));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_rho));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_kx));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_whomega));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_p));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_c));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
-            CHECK_CUDA_ERR(utils::cudaMalloc(
-                size_np_T, d_vx, d_vy, d_vz, d_p, d_c, d_grad_P_x, d_grad_P_y, d_grad_P_z, d_du, d_maxvsignal));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_alpha));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_grad_P_x,d_grad_P_y,d_grad_P_z));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_du));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_maxvsignal));
+
+            size_t size_np_KeyType = size * sizeof(KeyType);
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_KeyType, d_codes));
 
             allocatedDeviceMemory = size;
