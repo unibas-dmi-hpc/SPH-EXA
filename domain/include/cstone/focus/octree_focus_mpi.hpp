@@ -60,6 +60,7 @@ public:
         : myRank_(myRank)
         , numRanks_(numRanks)
         , theta_(theta)
+        , bucketSize_(bucketSize)
         , treelets_(numRanks_)
         , tree_(bucketSize)
         , counts_{bucketSize + 1}
@@ -103,7 +104,8 @@ public:
         std::vector<KeyType> enforcedKeys;
         enforcedKeys.reserve(peers_.size() * 2);
 
-        focusTransfer(treeLeaves(), myRank_, prevFocusStart, prevFocusEnd, focusStart, focusEnd, enforcedKeys);
+        focusTransfer(treeLeaves(), leafCounts(), bucketSize_, myRank_, prevFocusStart, prevFocusEnd, focusStart,
+                      focusEnd, enforcedKeys);
         for (int peer : peers_)
         {
             enforcedKeys.push_back(globalTreeLeaves[assignment.firstNodeIdx(peer)]);
@@ -408,6 +410,8 @@ private:
     int numRanks_;
     //! @brief opening angle refinement criterion
     float theta_;
+    //! @brief bucket size (ncrit) inside the focus are
+    unsigned bucketSize_;
 
     //! @brief list of peer ranks from last call to updateTree()
     std::vector<int> peers_;
