@@ -161,7 +161,7 @@ void computeRho0(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
 
     // Memcpy in default stream synchronizes all other streams
     CHECK_CUDA_ERR(cudaMemcpy(d.rho0.data(), d.devPtrs.d_rho0,  size_np_T, cudaMemcpyDeviceToHost));
-1    CHECK_CUDA_ERR(cudaMemcpy(d.wrho0.data(), d.devPtrs.d_wrho0, size_np_T, cudaMemcpyDeviceToHost));
+    CHECK_CUDA_ERR(cudaMemcpy(d.wrho0.data(), d.devPtrs.d_wrho0, size_np_T, cudaMemcpyDeviceToHost));
 }
 
 template void computeRho0(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>&,
