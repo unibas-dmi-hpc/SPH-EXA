@@ -43,11 +43,33 @@ namespace kernels
 {
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline void
-divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount,
-                const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h, const T* m,
-                const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T* wh,
-                const T* whd, const T* kx, const T* rho0, T* divv, T* curlv)
+CUDA_DEVICE_HOST_FUN inline void divV_curlVJLoop(
+        int i,
+        T sincIndex,
+        T K,
+        const cstone::Box<T>& box,
+        const int* neighbors,
+        int neighborsCount,
+        const T* x,
+        const T* y,
+        const T* z,
+        const T* vx,
+        const T* vy,
+        const T* vz,
+        const T* h,
+        const T* m,
+        const T* c11,
+        const T* c12,
+        const T* c13,
+        const T* c22,
+        const T* c23,
+        const T* c33,
+        const T* wh,
+        const T* whd,
+        const T* kx,
+        const T* rho0,
+        T* divv,
+        T* curlv)
 {
     T xi  = x[i];
     T yi  = y[i];

@@ -52,8 +52,7 @@ CUDA_DEVICE_HOST_FUN inline auto tsKCourant(T1 maxvsignal, T2 h, T3 c, double kc
 }
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline void
-momentumEnergyJLoop(
+CUDA_DEVICE_HOST_FUN inline void momentumEnergyJLoop(
         int i,
         T sincIndex,
         T K,
