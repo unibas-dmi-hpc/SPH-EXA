@@ -68,7 +68,10 @@ public:
     size_t numParticlesGlobal;
 
     T ttot{0.0}, etot{0.0}, ecin{0.0}, eint{0.0}, egrav{0.0};
+    //! current and previous (global) time-steps
     T minDt, minDt_m1;
+    //! temporary MPI rank local timestep;
+    T minDt_loc;
 
     //! @brief gravitational constant
     T g = 0.0;
@@ -85,7 +88,6 @@ public:
     std::vector<T> du, du_m1;                    // variation of the energy
     std::vector<T> dt, dt_m1;
     std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
-    std::vector<T> maxvsignal;
     std::vector<T> mue, mui, temp, cv;
     std::vector<T> rho0, wrho0, kx, whomega, divv, curlv, alpha;
 
@@ -102,10 +104,10 @@ public:
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
      */
     inline static constexpr std::array fieldNames{
-        "x",   "y",     "z",   "x_m1", "y_m1",  "z_m1",     "vx",       "vy",       "vz",         "rho",
-        "u",   "p",     "h",   "m",    "c",     "grad_P_x", "grad_P_y", "grad_P_z", "du",         "du_m1",
-        "dt",  "dt_m1", "c11", "c12",  "c13",   "c22",      "c23",      "c33",      "maxvsignal", "mue",
-        "mui", "temp",  "cv",  "rho0", "wrho0", "kx",       "whomega",  "divv",     "curlv",      "alpha"};
+        "x",    "y",     "z",    "x_m1",  "y_m1", "z_m1",     "vx",       "vy",       "vz",   "rho",
+        "u",    "p",     "h",    "m",     "c",    "grad_P_x", "grad_P_y", "grad_P_z", "du",   "du_m1",
+        "dt",   "dt_m1", "c11",  "c12",   "c13",  "c22",      "c23",      "c33",      "mue",  "mui",
+        "temp", "cv",    "rho0", "wrho0", "kx",   "whomega",  "divv",     "curlv",    "alpha"};
 
     /*! @brief return a vector of pointers to field vectors
      *
@@ -117,10 +119,9 @@ public:
         using FieldType = std::variant<std::vector<float>*, std::vector<double>*, std::vector<int>*>;
 
         std::array<FieldType, fieldNames.size()> ret{
-            &x,   &y,     &z,   &x_m1, &y_m1,  &z_m1,     &vx,       &vy,       &vz,         &rho,
-            &u,   &p,     &h,   &m,    &c,     &grad_P_x, &grad_P_y, &grad_P_z, &du,         &du_m1,
-            &dt,  &dt_m1, &c11, &c12,  &c13,   &c22,      &c23,      &c33,      &maxvsignal, &mue,
-            &mui, &temp,  &cv,  &rho0, &wrho0, &kx,       &whomega,  &divv,     &curlv,      &alpha};
+            &x,   &y,        &z,        &x_m1,     &y_m1, &z_m1,  &vx, &vy,      &vz,   &rho,   &u,    &p,   &h,   &m,
+            &c,   &grad_P_x, &grad_P_y, &grad_P_z, &du,   &du_m1, &dt, &dt_m1,   &c11,  &c12,   &c13,  &c22, &c23, &c33,
+            &mue, &mui,      &temp,     &cv,       &rho0, &wrho0, &kx, &whomega, &divv, &curlv, &alpha};
 
         static_assert(ret.size() == fieldNames.size());
 
@@ -136,20 +137,8 @@ public:
 
     void setDependentFields()
     {
-        std::vector<std::string> fields{"rho",
-                                        "p",
-                                        "c",
-                                        "grad_P_x",
-                                        "grad_P_y",
-                                        "grad_P_z",
-                                        "du",
-                                        "c11",
-                                        "c12",
-                                        "c13",
-                                        "c22",
-                                        "c23",
-                                        "c33",
-                                        "maxvsignal"};
+        std::vector<std::string> fields{
+            "rho", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z", "du", "c11", "c12", "c13", "c22", "c23", "c33"};
 
         dependentFields = fieldStringsToInt(fieldNames, fields);
     }
@@ -163,9 +152,25 @@ public:
 
     void setDependentFieldsVE()
     {
-        std::vector<std::string> fields{"rho",  "p",     "c",   "grad_P_x", "grad_P_y", "grad_P_z", "du",
-                                        "c11",  "c12",   "c13", "c22",      "c23",      "c33",      "maxvsignal",
-                                        "rho0", "wrho0", "kx",  "whomega",  "divv",     "curlv"};
+        std::vector<std::string> fields{"rho",
+                                        "p",
+                                        "c",
+                                        "grad_P_x",
+                                        "grad_P_y",
+                                        "grad_P_z",
+                                        "du",
+                                        "c11",
+                                        "c12",
+                                        "c13",
+                                        "c22",
+                                        "c23",
+                                        "c33",
+                                        "rho0",
+                                        "wrho0",
+                                        "kx",
+                                        "whomega",
+                                        "divv",
+                                        "curlv"};
         dependentFields = fieldStringsToInt(fieldNames, fields);
     }
 

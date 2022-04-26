@@ -47,7 +47,8 @@ template<class KeyType>
 class Halos
 {
 public:
-    Halos(int myRank) : myRank_(myRank)
+    Halos(int myRank)
+        : myRank_(myRank)
     {
     }
 
@@ -153,7 +154,7 @@ private:
 
         for (int range = 0; range < 2; ++range)
         {
-            #pragma omp parallel for
+#pragma omp parallel for
             for (TreeNodeIndex i = checkRanges[range][0]; i < checkRanges[range][1]; ++i)
             {
                 if (haloFlags_[i])
@@ -161,10 +162,7 @@ private:
                     bool peerFound = false;
                     for (auto peerRange : focusAssignment)
                     {
-                        if (peerRange.start() <= i && i < peerRange.end())
-                        {
-                            peerFound = true;
-                        }
+                        if (peerRange.start() <= i && i < peerRange.end()) { peerFound = true; }
                     }
                     if (!peerFound)
                     {
@@ -173,7 +171,7 @@ private:
                                   << " of similar magnitude than the rank domain volume. In that case, either"
                                   << " the number of ranks needs to be decreased or the number of particles"
                                   << " increased, leading to shorter smoothing lengths\n";
-                        MPI_Abort(MPI_COMM_WORLD, 1);
+                        MPI_Abort(MPI_COMM_WORLD, 35);
                     }
                 }
             }

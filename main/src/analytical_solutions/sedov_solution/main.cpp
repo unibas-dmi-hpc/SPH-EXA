@@ -60,9 +60,9 @@ int main(int argc, char** argv)
     }
 
     // Get command line parameters
-    const double time      = parser.getDouble("--time", 0.);
-    const string outDir    = parser.getString("--outDir", "./");
-    const bool   normalize = parser.exists("--normalize");
+    const double      time      = parser.get<double>("--time", 0.);
+    const std::string outDir    = parser.get<std::string>("--outDir", "./");
+    const bool        normalize = parser.exists("--normalize");
 
     // Get time without rounding
     ostringstream time_long;
@@ -70,7 +70,7 @@ int main(int argc, char** argv)
     string time_str = time_long.str();
 
     const string solFile =
-        parser.exists("--out") ? parser.getString("--out") : outDir + "sedov_solution_" + time_str + ".dat";
+        parser.exists("--out") ? parser.get("--out") : outDir + "sedov_solution_" + time_str + ".dat";
 
     // Calculate and write theoretical solution profile in one dimension
     auto         constants = sedovConstants();
