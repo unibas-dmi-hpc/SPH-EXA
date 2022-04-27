@@ -165,7 +165,7 @@ public:
         {
             domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1);
         }
-        timer.step("domain::sync --> codes, x,y,z, h, m, u, vx,vy,vz, x_m1,y_m1,z_m1, du_m1");
+        timer.step("domain::sync: codes, x,y,z, h, m, u, vx,vy,vz, x_m1,y_m1,z_m1, du_m1");
 
         resize(d, domain.nParticlesWithHalos());
         resizeNeighbors(d, domain.nParticles() * ngmax_);
@@ -178,27 +178,35 @@ public:
         findNeighborsSfc<T, KeyType>(
             first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, domain.box());
         timer.step("FindNeighbors");
-
 #ifdef USE_CUDA
         CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_codes, d.codes.data(), size_np_CodeType, cudaMemcpyHostToDevice));
         timer.step("GPU CudaCopyIn Sync HostToDevice: codes");
+#endif
 
+#ifdef USE_CUDA
         CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
         CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
         CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_z, d.z.data(), size_np_T, cudaMemcpyHostToDevice));
         CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
         CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
-        timer.step("GPU CudaCopyIn Sync HostToDevice: x,y,z, h, m");
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vx, d.vx.data(), size_np_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vy, d.vy.data(), size_np_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_vz, d.vz.data(), size_np_T, cudaMemcpyHostToDevice));
+        timer.step("GPU CudaCopyIn Sync HostToDevice: x,y,z, h, m, vx,vy,vz");
 #endif
 
         computeRhoZero(first, last, ngmax_, d, domain.box());
         timer.step("RhoZero");
 #ifdef USE_CUDA
-        CHECK_CUDA_ERR(cudaMemcpy(d.rho0.data(), d.devPtrs.d_rho0,  size_np_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.rho0.data(), d.devPtrs.d_rho0, size_np_T, cudaMemcpyDeviceToHost));
         timer.step("GPU CudaCopyBack Sync DeviceToHost: rho0");
 #endif
         domain.exchangeHalos(d.rho0);
-        timer.step("mpi::synchronizeHalos --> rho0");
+        timer.step("mpi::synchronizeHalos: rho0");
+#ifdef USE_CUDA
+        CHECK_CUDA_ERR(cudaMemcpy(d.rho0.data(), d.devPtrs.d_rho0, size_np_T, cudaMemcpyDeviceToHost));
+        timer.step("GPU CudaCopyBack Sync DeviceToHost: rho0");
+#endif
 
         computeDensity(first, last, ngmax_, d, domain.box());
         timer.step("Density");
@@ -208,17 +216,23 @@ public:
         timer.step("GPU CudaCopyBack Sync DeviceToHost: rho, kx");
 #endif
         domain.exchangeHalos(d.rho, d.kx);
-        timer.step("mpi::synchronizeHalos --> rho, kx");
+        timer.step("mpi::synchronizeHalos: rho, kx");
+#ifdef USE_CUDA
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_rho, d.rho.data(), size_np_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_kx, d.kx.data(), size_np_T, cudaMemcpyHostToDevice));
+        timer.step("GPU CudaCopyIn Sync HostToDevice: rho, kx");
+#endif
 
         computeEquationOfState(first, last, d);
         timer.step("EquationOfState");
         domain.exchangeHalos(d.p, d.c);
         timer.step("mpi::synchronizeHalos --> p, c");
-
 #ifdef USE_CUDA
-        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_rho, d.rho.data(), size_np_T, cudaMemcpyHostToDevice));
-        timer.step("GPU CudaCopyIn Sync HostToDevice: rho");
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_p, d.p.data(), size_np_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c, d.c.data(), size_np_T, cudaMemcpyHostToDevice));
+        timer.step("GPU CudaCopyIn Sync HostToDevice: p, c");
 #endif
+
         computeIAD(first, last, ngmax_, d, domain.box());
         timer.step("IAD");
 #ifdef USE_CUDA
@@ -231,17 +245,44 @@ public:
         timer.step("GPU CudaCopyBack Sync DeviceToHost: c11, c12, c13, c22, c23, c33");
 #endif
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33);
-        timer.step("mpi::synchronizeHalos --> c11, c12, c13, c22, c23, c33");
+        timer.step("mpi::synchronizeHalos: c11, c12, c13, c22, c23, c33");
+#ifdef USE_CUDA
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c11, d.c11.data(), size_np_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c12, d.c12.data(), size_np_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c13, d.c13.data(), size_np_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c22, d.c22.data(), size_np_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c23, d.c23.data(), size_np_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_c33, d.c33.data(), size_np_T, cudaMemcpyHostToDevice));
+        timer.step("GPU CudaCopyIn Sync HostToDevice: c11, c12, c13, c22, c23, c33");
+#endif
 
         computeDivvCurlv(first, last, ngmax_, d, domain.box());
         timer.step("VelocityDivCurl");
+#ifdef USE_CUDA
+        CHECK_CUDA_ERR(cudaMemcpy(d.divv.data(), d.devPtrs.d_divv, size_np_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.curlv.data(), d.devPtrs.d_curlv, size_np_T, cudaMemcpyDeviceToHost));
+        timer.step("GPU CudaCopyBack Sync DeviceToHost: divv, curlv");
+#endif
         domain.exchangeHalos(d.divv, d.curlv);
         timer.step("mpi::synchronizeHalos --> divv, curlv");
+#ifdef USE_CUDA
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_divv, d.divv.data(), size_np_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_curlv, d.curlv.data(), size_np_T, cudaMemcpyHostToDevice));
+        timer.step("GPU CudaCopyIn Sync HostToDevice: divv, curlv");
+#endif
 
         computeAVswitches(first, last, ngmax_, d, domain.box());
         timer.step("AVswitches");
+#ifdef USE_CUDA
+        CHECK_CUDA_ERR(cudaMemcpy(d.alpha.data(), d.devPtrs.d_alpha, size_np_T, cudaMemcpyDeviceToHost));
+        timer.step("GPU CudaCopyBack Sync DeviceToHost: alpha");
+#endif
         domain.exchangeHalos(d.alpha);
         timer.step("mpi::synchronizeHalos --> alpha");
+#ifdef USE_CUDA
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_alpha, d.alpha.data(), size_np_T, cudaMemcpyHostToDevice));
+        timer.step("GPU CudaCopyIn Sync HostToDevice: alpha");
+#endif
 
         computeMomentumEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergy");
