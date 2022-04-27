@@ -15,28 +15,22 @@ namespace cuda
 {
 
 template<class Dataset>
-extern void computeRhoZero(
-    size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeRhoZero(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeDensity(
-    size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeDensity(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeIAD(
-    size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeIAD(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeDivvCurlv(
-    size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeDivvCurlv(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeAVswitches(
-    size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeAVswitches(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>
-extern void computeMomentumEnergy(
-    size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
+extern void computeMomentumEnergy(size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 } // namespace cuda
 } // namespace sph

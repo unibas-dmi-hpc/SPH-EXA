@@ -113,7 +113,7 @@ int main(int argc, char** argv)
     std::unique_ptr<ISimInitializer<Dataset>> simInit = initializerFactory<Dataset>(initCond, glassBlock);
 
     Dataset d;
-    d.comm = MPI_COMM_WORLD;
+    d.comm                = MPI_COMM_WORLD;
     cstone::Box<Real> box = simInit->init(rank, numRanks, problemSize, d);
     d.setOutputFields(outputFields);
 

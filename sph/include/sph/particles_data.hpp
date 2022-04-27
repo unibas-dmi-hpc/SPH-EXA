@@ -130,20 +130,8 @@ public:
 
     void setConservedFields()
     {
-        std::vector<std::string> fields{"x",
-                                        "y",
-                                        "z",
-                                        "h",
-                                        "m",
-                                        "u",
-                                        "vx",
-                                        "vy",
-                                        "vz",
-                                        "x_m1",
-                                        "y_m1",
-                                        "z_m1",
-                                        "du_m1",
-                                        "alpha"};
+        std::vector<std::string> fields{
+            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha"};
 
         conservedFields = fieldStringsToInt(fieldNames, fields);
     }

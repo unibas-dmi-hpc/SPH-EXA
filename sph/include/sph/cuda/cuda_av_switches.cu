@@ -49,40 +49,12 @@ namespace cuda
  *
  */
 template<class T, class KeyType>
-__global__ void cudaAVswitches(
-        T sincIndex,
-        T K,
-        int ngmax,
-        cstone::Box<T> box,
-        int firstParticle,
-        int lastParticle,
-        int numParticles,
-        const KeyType* particleKeys,
-        const T* x,
-        const T* y,
-        const T* z,
-        const T* vx,
-        const T* vy,
-        const T* vz,
-        const T* h,
-        const T* m,
-        const T* c,
-        const T* c11,
-        const T* c12,
-        const T* c13,
-        const T* c22,
-        const T* c23,
-        const T* c33,
-        const T* wh,
-        const T* whd,
-        const T* kx,
-        const T* rho0,
-        const T* divv,
-        const T dt,
-        const T alphamin,
-        const T alphamax,
-        const T decay_constant,
-        T* alpha)
+__global__ void cudaAVswitches(T sincIndex, T K, int ngmax, cstone::Box<T> box, int firstParticle, int lastParticle,
+                               int numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z,
+                               const T* vx, const T* vy, const T* vz, const T* h, const T* m, const T* c, const T* c11,
+                               const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T* wh,
+                               const T* whd, const T* kx, const T* rho0, const T* divv, const T dt, const T alphamin,
+                               const T alphamax, const T decay_constant, T* alpha)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + firstParticle;

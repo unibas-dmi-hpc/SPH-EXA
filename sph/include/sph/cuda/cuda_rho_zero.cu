@@ -33,25 +33,9 @@ namespace cuda
  *
  */
 template<class T, class KeyType>
-__global__ void cudaRhoZero(
-    T sincIndex,
-    T K,
-    int ngmax,
-    cstone::Box<T> box,
-    int firstParticle,
-    int lastParticle,
-    int numParticles,
-    const KeyType* particleKeys,
-    int* neighborsCount,
-    const T* x,
-    const T* y,
-    const T* z,
-    const T* h,
-    const T* m,
-    const T* wh,
-    const T* whd,
-    T* rho0,
-    T* wrho0)
+__global__ void cudaRhoZero(T sincIndex, T K, int ngmax, cstone::Box<T> box, int firstParticle, int lastParticle,
+                            int numParticles, const KeyType* particleKeys, int* neighborsCount, const T* x, const T* y,
+                            const T* z, const T* h, const T* m, const T* wh, const T* whd, T* rho0, T* wrho0)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + firstParticle;
@@ -69,21 +53,7 @@ __global__ void cudaRhoZero(
         cstone::findNeighbors(
             i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
 
-        kernels::rhoZeroJLoop(i,
-                              sincIndex,
-                              K,
-                              box,
-                              neighbors,
-                              neighborsCount_,
-                              x,
-                              y,
-                              z,
-                              h,
-                              m,
-                              wh,
-                              whd,
-                              rho0,
-                              wrho0);
+        kernels::rhoZeroJLoop(i, sincIndex, K, box, neighbors, neighborsCount_, x, y, z, h, m, wh, whd, rho0, wrho0);
 
         neighborsCount[tid] = neighborsCount_;
     }

@@ -38,30 +38,10 @@ namespace cuda
  * @param[out] c33
  */
 template<class T, class KeyType>
-__global__ void cudaIAD(
-        T sincIndex,
-        T K,
-        int ngmax,
-        cstone::Box<T> box,
-        int firstParticle,
-        int lastParticle,
-        int numParticles,
-        const KeyType* particleKeys,
-        const T* x,
-        const T* y,
-        const T* z,
-        const T* h,
-        const T* m,
-        const T* wh,
-        const T* whd,
-        const T* rho0,
-        const T* kx,
-        T* c11,
-        T* c12,
-        T* c13,
-        T* c22,
-        T* c23,
-        T* c33)
+__global__ void cudaIAD(T sincIndex, T K, int ngmax, cstone::Box<T> box, int firstParticle, int lastParticle,
+                        int numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z, const T* h,
+                        const T* m, const T* wh, const T* whd, const T* rho0, const T* kx, T* c11, T* c12, T* c13,
+                        T* c22, T* c23, T* c33)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + firstParticle;

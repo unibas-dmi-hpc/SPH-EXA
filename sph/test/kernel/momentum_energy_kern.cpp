@@ -146,4 +146,3 @@ TEST(MomentumEnergy, JLoop)
     EXPECT_NEAR(du, -0.0053408003947106632, 1e-10);
     EXPECT_NEAR(maxvsignal, 1.4112466829, 1e-10);
 }
-

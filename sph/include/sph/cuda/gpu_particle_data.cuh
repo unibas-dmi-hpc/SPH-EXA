@@ -60,7 +60,6 @@ class DeviceParticlesData
     size_t allocatedTaskSize     = 0;
 
 public:
-
     // Number of CUDA streams to use
     static constexpr int NST = 2;
 
@@ -77,22 +76,22 @@ public:
 
     T *d_x, *d_y, *d_z;
     T *d_vx, *d_vy, *d_vz;
-    T *d_h;
-    T *d_m;
+    T* d_h;
+    T* d_m;
     T *d_wh, *d_whd;
-    T *d_rho0;
-    T *d_wrho0;
-    T *d_rho;
-    T *d_kx;
-    T *d_whomega;
-    T *d_p;
-    T *d_c;
+    T* d_rho0;
+    T* d_wrho0;
+    T* d_rho;
+    T* d_kx;
+    T* d_whomega;
+    T* d_p;
+    T* d_c;
     T *d_c11, *d_c12, *d_c13, *d_c22, *d_c23, *d_c33;
     T *d_divv, *d_curlv;
-    T *d_alpha;
+    T* d_alpha;
     T *d_grad_P_x, *d_grad_P_y, *d_grad_P_z;
-    T *d_du;
-    T *d_maxvsignal;
+    T* d_du;
+    T* d_maxvsignal;
 
     KeyType* d_codes;
 
@@ -130,7 +129,7 @@ public:
         CHECK_CUDA_ERR(utils::cudaFree(d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
         CHECK_CUDA_ERR(utils::cudaFree(d_divv, d_curlv));
         CHECK_CUDA_ERR(utils::cudaFree(d_alpha));
-        CHECK_CUDA_ERR(utils::cudaFree(d_grad_P_x,d_grad_P_y,d_grad_P_z));
+        CHECK_CUDA_ERR(utils::cudaFree(d_grad_P_x, d_grad_P_y, d_grad_P_z));
         CHECK_CUDA_ERR(utils::cudaFree(d_du));
         CHECK_CUDA_ERR(utils::cudaFree(d_maxvsignal));
 
@@ -164,7 +163,7 @@ public:
                 CHECK_CUDA_ERR(utils::cudaFree(d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
                 CHECK_CUDA_ERR(utils::cudaFree(d_divv, d_curlv));
                 CHECK_CUDA_ERR(utils::cudaFree(d_alpha));
-                CHECK_CUDA_ERR(utils::cudaFree(d_grad_P_x,d_grad_P_y,d_grad_P_z));
+                CHECK_CUDA_ERR(utils::cudaFree(d_grad_P_x, d_grad_P_y, d_grad_P_z));
                 CHECK_CUDA_ERR(utils::cudaFree(d_du));
                 CHECK_CUDA_ERR(utils::cudaFree(d_maxvsignal));
 
@@ -173,7 +172,7 @@ public:
 
             size = size_t(double(size) * 1.01); // allocate 1% extra to avoid reallocation on small size increase
 
-            size_t size_np_T       = size * sizeof(T);
+            size_t size_np_T = size * sizeof(T);
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_x, d_y, d_z));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_vx, d_vy, d_vz));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_h));
@@ -188,7 +187,7 @@ public:
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_c11, d_c12, d_c13, d_c22, d_c23, d_c33));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_divv, d_curlv));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_alpha));
-            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_grad_P_x,d_grad_P_y,d_grad_P_z));
+            CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_grad_P_x, d_grad_P_y, d_grad_P_z));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_du));
             CHECK_CUDA_ERR(utils::cudaMalloc(size_np_T, d_maxvsignal));
 

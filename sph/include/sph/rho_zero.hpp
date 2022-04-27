@@ -41,21 +41,8 @@ void computeRhoZeroImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
     {
         size_t ni = i - startIndex;
 
-        kernels::rhoZeroJLoop(i,
-                              sincIndex,
-                              K,
-                              box,
-                              neighbors + ngmax * ni,
-                              neighborsCount[i],
-                              x,
-                              y,
-                              z,
-                              h,
-                              m,
-                              wh,
-                              whd,
-                              rho0,
-                              wrho0);
+        kernels::rhoZeroJLoop(
+            i, sincIndex, K, box, neighbors + ngmax * ni, neighborsCount[i], x, y, z, h, m, wh, whd, rho0, wrho0);
 
 #ifndef NDEBUG
         if (std::isnan(rho0[i]))

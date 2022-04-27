@@ -36,27 +36,10 @@ namespace cuda
  *
  */
 template<class T, class KeyType>
-__global__ void cudaDensity(
-    T sincIndex,
-    T K,
-    int ngmax,
-    cstone::Box<T> box,
-    int firstParticle,
-    int lastParticle,
-    int numParticles,
-    const KeyType* particleKeys,
-    const T* x,
-    const T* y,
-    const T* z,
-    const T* h,
-    const T* m,
-    const T* wh,
-    const T* whd,
-    const T* rho0,
-    const T* wrho0,
-    T* rho,
-    T* kx,
-    T* whomega)
+__global__ void cudaDensity(T sincIndex, T K, int ngmax, cstone::Box<T> box, int firstParticle, int lastParticle,
+                            int numParticles, const KeyType* particleKeys, const T* x, const T* y, const T* z,
+                            const T* h, const T* m, const T* wh, const T* whd, const T* rho0, const T* wrho0, T* rho,
+                            T* kx, T* whomega)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + firstParticle;
@@ -74,24 +57,8 @@ __global__ void cudaDensity(
         cstone::findNeighbors(
             i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
 
-        kernels::densityJLoop(i,
-                              sincIndex,
-                              K,
-                              box,
-                              neighbors,
-                              neighborsCount,
-                              x,
-                              y,
-                              z,
-                              h,
-                              m,
-                              wh,
-                              whd,
-                              rho0,
-                              wrho0,
-                              rho,
-                              kx,
-                              whomega);
+        kernels::densityJLoop(
+            i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, h, m, wh, whd, rho0, wrho0, rho, kx, whomega);
     }
 }
 

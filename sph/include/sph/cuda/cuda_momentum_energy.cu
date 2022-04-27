@@ -66,45 +66,13 @@ __device__ float minDt_device;
  *
  */
 template<class T, class KeyType>
-__global__ void cudaMomentumEnergy(
-        T sincIndex,
-        T K,
-        T Kcour,
-        int ngmax,
-        cstone::Box<T> box,
-        int firstParticle,
-        int lastParticle,
-        int numParticles,
-        const KeyType* particleKeys,
-        const T* x,
-        const T* y,
-        const T* z,
-        const T* vx,
-        const T* vy,
-        const T* vz,
-        const T* h,
-        const T* m,
-        const T* rho,
-        const T* p,
-        const T* c,
-        const T* c11,
-        const T* c12,
-        const T* c13,
-        const T* c22,
-        const T* c23,
-        const T* c33,
-        const T  Atmin,
-        const T  Atmax,
-        const T  ramp,
-        const T* wh,
-        const T* whd,
-        const T* kx,
-        const T* rho0,
-        const T* alpha,
-        T* grad_P_x,
-        T* grad_P_y,
-        T* grad_P_z,
-        T* du)
+__global__ void cudaMomentumEnergy(T sincIndex, T K, T Kcour, int ngmax, cstone::Box<T> box, int firstParticle,
+                                   int lastParticle, int numParticles, const KeyType* particleKeys, const T* x,
+                                   const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h,
+                                   const T* m, const T* rho, const T* p, const T* c, const T* c11, const T* c12,
+                                   const T* c13, const T* c22, const T* c23, const T* c33, const T Atmin, const T Atmax,
+                                   const T ramp, const T* wh, const T* whd, const T* kx, const T* rho0, const T* alpha,
+                                   T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du)
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + firstParticle;
