@@ -171,48 +171,6 @@ TEST(Macs, minDistanceSqPbc)
     }
 }
 
-TEST(Macs, minMac)
-{
-    using T = double;
-
-    {
-        Vec3<T> cA{0.5, 0.5, 0.5};
-        Vec3<T> sA{0.5, 0.5, 0.5};
-
-        Vec3<T> cB{3.5, 3.5, 3.5};
-        Vec3<T> sB{0.5, 0.5, 0.5};
-
-        EXPECT_TRUE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.29));
-        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.28));
-
-        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, true), 1.0));
-    }
-    {
-        Vec3<T> cA{0.5, 0.5, 0.5};
-        Vec3<T> sA{1.0, 1.0, 1.0};
-
-        Vec3<T> cB{3.5, 3.5, 3.5};
-        Vec3<T> sB{0.5, 0.5, 0.5};
-
-        EXPECT_TRUE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.39));
-        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.38));
-
-        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, true), 1.0));
-    }
-    {
-        Vec3<T> cA{0.5, 0.5, 0.5};
-        Vec3<T> sA{0.5, 0.5, 0.5};
-
-        Vec3<T> cB{3.5, 3.5, 3.5};
-        Vec3<T> sB{1.0, 1.0, 1.0};
-
-        EXPECT_TRUE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.78));
-        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.76));
-
-        EXPECT_FALSE(minMac(cA, sA, cB, sB, Box<T>(0, 4, true), 1.0));
-    }
-}
-
 TEST(Macs, evaluateMAC)
 {
     using T = double;
@@ -275,64 +233,6 @@ TEST(Macs, minVecMacMutual)
     EXPECT_FALSE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.38));
 
     EXPECT_FALSE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, true), 1.0));
-}
-
-template<class KeyType, class T>
-static std::vector<char> markMacAll2All(
-    const Octree<KeyType>& octree, TreeNodeIndex firstLeaf, TreeNodeIndex lastLeaf, float invTheta, const Box<T>& box)
-{
-    gsl::span<const KeyType> leaves = octree.treeLeaves();
-    std::vector<char> markings(octree.numTreeNodes(), 0);
-
-    // loop over target cells
-    for (TreeNodeIndex i = firstLeaf; i < lastLeaf; ++i)
-    {
-        IBox targetBox                  = sfcIBox(sfcKey(leaves[i]), sfcKey(leaves[i + 1]));
-        auto [targetCenter, targetSize] = centerAndSize<KeyType>(targetBox, box);
-
-        // loop over source cells
-        for (TreeNodeIndex j = 0; j < octree.numTreeNodes(); ++j)
-        {
-            // source cells must not be in target cell range
-            if (leaves[firstLeaf] <= octree.codeStart(j) && octree.codeEnd(j) <= leaves[lastLeaf]) { continue; }
-            IBox sourceBox                  = sfcIBox(sfcKey(octree.codeStart(j)), sfcKey(octree.codeEnd(j)));
-            auto [sourceCenter, sourceSize] = centerAndSize<KeyType>(sourceBox, box);
-
-            // if source cell fails MAC w.r.t to current target, it gets marked
-            bool violatesMac = !minMac(targetCenter, targetSize, sourceCenter, sourceSize, box, invTheta);
-            if (violatesMac) { markings[j] = 1; }
-        }
-    }
-
-    return markings;
-}
-
-template<class KeyType>
-static void markMac()
-{
-    Box<double> box(0, 1);
-    std::vector<KeyType> leaves = OctreeMaker<KeyType>{}.divide().divide(0).divide(5).makeTree();
-
-    Octree<KeyType> octree;
-    octree.update(leaves.data(), nNodes(leaves));
-
-    std::vector<char> markings(octree.numTreeNodes(), 0);
-
-    float theta                 = 0.58;
-    TreeNodeIndex focusIdxStart = 0;
-    TreeNodeIndex focusIdxEnd   = 2;
-    markMac(octree, box, leaves[focusIdxStart], leaves[focusIdxEnd], 1. / theta, markings.data());
-
-    std::vector<char> reference = markMacAll2All<KeyType>(octree, focusIdxStart, focusIdxEnd, 1. / theta, box);
-
-    EXPECT_EQ(std::count(begin(markings), end(markings), 0), 9);
-    EXPECT_EQ(markings, reference);
-}
-
-TEST(Macs, markMac)
-{
-    markMac<unsigned>();
-    markMac<uint64_t>();
 }
 
 template<class KeyType, class T>
