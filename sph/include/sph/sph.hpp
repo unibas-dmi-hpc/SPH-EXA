@@ -16,5 +16,5 @@
 #include "sph/eos.hpp"
 #include "sph/timestep.hpp"
 #include "sph/update_quantities.hpp"
-#include "sph/total_energy.hpp"
+#include "sph/energy_conservation.hpp"
 #include "sph/smoothing_length.hpp"

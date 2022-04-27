@@ -76,7 +76,7 @@ void localEnergyReduction(size_t startIndex, size_t endIndex, Dataset& d, T* eKi
  * @param[inout]  d            particle data set
  */
 template<class Dataset>
-void computeTotalEnergy(size_t startIndex, size_t endIndex, Dataset& d)
+void computeEnergyConservation(size_t startIndex, size_t endIndex, Dataset& d)
 {
     using T = typename Dataset::RealType;
     T energies[3], globalEnergies[3];
