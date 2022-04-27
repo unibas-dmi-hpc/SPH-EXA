@@ -42,7 +42,7 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computePositions(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
+void computeUpdateQuantities(size_t startIndex, size_t endIndex, Dataset& d, const cstone::Box<T>& box)
 {
     using Vec3T = cstone::Vec3<T>;
     T dt        = d.minDt;

@@ -114,7 +114,7 @@ Main <-[#LightSeaGreen]- SPH
 deactivate SPH
 
 loop over particles (n times)
-Main -[#LightSeaGreen]> SPH: <color:#LightSeaGreen>computePositions</color>
+Main -[#LightSeaGreen]> SPH: <color:#LightSeaGreen>computeUpdateQuantities</color>
 note right
 Complexity O(N)
 OpenMP Parallel for

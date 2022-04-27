@@ -225,7 +225,7 @@ public:
         computeTimestep(first, last, d);
         timer.step("Timestep");
 
-        computePositions(first, last, d, domain.box());
+        computeUpdateQuantities(first, last, d, domain.box());
         timer.step("UpdateQuantities");
 
         computeTotalEnergy(first, last, d);
