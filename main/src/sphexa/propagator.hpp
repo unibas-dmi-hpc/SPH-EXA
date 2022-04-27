@@ -231,8 +231,8 @@ public:
         computeTotalEnergy(first, last, d);
         timer.step("EnergyConservation");
 
-        updateSmoothingLength(first, last, d, ng0_);
-        timer.step("UpdateSmoothingLength");
+        computeSmoothingLength(first, last, d, ng0_);
+        timer.step("SmoothingLength");
 
         timer.stop();
         this->printIterationTimings(domain, d);

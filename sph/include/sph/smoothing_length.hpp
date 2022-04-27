@@ -8,7 +8,7 @@ namespace sph
 {
 
 template<class Dataset>
-void updateSmoothingLength(size_t startIndex, size_t endIndex, Dataset& d, size_t ng0)
+void computeSmoothingLength(size_t startIndex, size_t endIndex, Dataset& d, size_t ng0)
 {
     using T     = typename Dataset::RealType;
     const T c0  = 7.0;
