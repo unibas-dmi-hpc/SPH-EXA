@@ -200,10 +200,19 @@ public:
 
         computeDensity(first, last, ngmax_, d, domain.box());
         timer.step("Density");
+#ifdef USE_CUDA
+        CHECK_CUDA_ERR(cudaMemcpy(d.rho.data(),     d.devPtrs.d_rho,     size_np_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.kx.data(),      d.devPtrs.d_kx,      size_np_T, cudaMemcpyDeviceToHost));
+#endif
+        domain.exchangeHalos(d.rho, d.kx);
+        timer.step("mpi::synchronizeHalos");
 
         computeEquationOfState(first, last, d);
         timer.step("EquationOfState");
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c, d.kx);
+        domain.exchangeHalos(d.p, d.c);
+        timer.step("mpi::synchronizeHalos");
+
+        domain.exchangeHalos(d.vx, d.vy, d.vz);
         timer.step("mpi::synchronizeHalos");
 
         computeIAD(first, last, ngmax_, d, domain.box());
