@@ -175,7 +175,6 @@ public:
 
         computeRhoZero(first, last, ngmax_, d, domain.box());
         timer.step("RhoZero");
-
         domain.exchangeHalos(d.rho0);
         timer.step("mpi::synchronizeHalos");
 
@@ -184,7 +183,6 @@ public:
 
         computeEquationOfState(first, last, d);
         timer.step("EquationOfState");
-
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c, d.kx);
         timer.step("mpi::synchronizeHalos");
 
@@ -193,13 +191,11 @@ public:
 
         computeDivvCurlv(first, last, ngmax_, d, domain.box());
         timer.step("VelocityDivCurl");
-
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33, d.divv, d.curlv);
         timer.step("mpi::synchronizeHalos");
 
         computeAVswitches(first, last, ngmax_, d, domain.box());
         timer.step("AVswitches");
-
         domain.exchangeHalos(d.alpha);
         timer.step("mpi::synchronizeHalos");
 
