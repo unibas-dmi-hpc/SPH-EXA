@@ -82,7 +82,6 @@ __global__ void cudaDivvCurlv(
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + firstParticle;
-    if (i >= lastParticle) return;
 
     // need to hard-code ngmax stack allocation for now
     assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired value");
@@ -92,37 +91,40 @@ __global__ void cudaDivvCurlv(
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
 
-    cstone::findNeighbors(
-        i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
+    if (i < lastParticle)
+    {
+        cstone::findNeighbors(
+            i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
 
-    kernels::divV_curlVJLoop(i,
-                             sincIndex,
-                             K,
-                             box,
-                             neighbors,
-                             neighborsCount_,
-                             x,
-                             y,
-                             z,
-                             vx,
-                             vy,
-                             vz,
-                             h,
-                             m,
-                             c11,
-                             c12,
-                             c13,
-                             c22,
-                             c23,
-                             c33,
-                             wh,
-                             whd,
-                             kx,
-                             rho0,
-                             divv,
-                             curlv);
+        kernels::divV_curlVJLoop(i,
+                                 sincIndex,
+                                 K,
+                                 box,
+                                 neighbors,
+                                 neighborsCount_,
+                                 x,
+                                 y,
+                                 z,
+                                 vx,
+                                 vy,
+                                 vz,
+                                 h,
+                                 m,
+                                 c11,
+                                 c12,
+                                 c13,
+                                 c22,
+                                 c23,
+                                 c33,
+                                 wh,
+                                 whd,
+                                 kx,
+                                 rho0,
+                                 divv,
+                                 curlv);
 
-    neighborsCount[tid] = neighborsCount_;
+        neighborsCount[tid] = neighborsCount_;
+    }
 }
 
 template<class Dataset>

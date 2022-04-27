@@ -71,8 +71,6 @@ __global__ void cudaIAD(
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + firstParticle;
 
-    if (i >= lastParticle) return;
-
     // need to hard-code ngmax stack allocation for now
     assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired size");
     int neighbors[NGMAX];
@@ -81,30 +79,33 @@ __global__ void cudaIAD(
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
 
-    cstone::findNeighbors(
-        i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
+    if (i < lastParticle)
+    {
+        cstone::findNeighbors(
+            i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
 
-    sph::kernels::IADJLoop(i,
-                           sincIndex,
-                           K,
-                           box,
-                           neighbors,
-                           neighborsCount,
-                           x,
-                           y,
-                           z,
-                           h,
-                           m,
-                           wh,
-                           whd,
-                           rho0,
-                           kx,
-                           c11,
-                           c12,
-                           c13,
-                           c22,
-                           c23,
-                           c33);
+        sph::kernels::IADJLoop(i,
+                               sincIndex,
+                               K,
+                               box,
+                               neighbors,
+                               neighborsCount,
+                               x,
+                               y,
+                               z,
+                               h,
+                               m,
+                               wh,
+                               whd,
+                               rho0,
+                               kx,
+                               c11,
+                               c12,
+                               c13,
+                               c22,
+                               c23,
+                               c33);
+    }
 }
 
 template<class Dataset>

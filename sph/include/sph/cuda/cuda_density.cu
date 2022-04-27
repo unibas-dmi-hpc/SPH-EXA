@@ -66,7 +66,6 @@ __global__ void cudaDensity(
 {
     unsigned tid = blockDim.x * blockIdx.x + threadIdx.x;
     unsigned i   = tid + firstParticle;
-    if (i >= lastParticle) return;
 
     // need to hard-code ngmax stack allocation for now
     assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired value");
@@ -76,29 +75,32 @@ __global__ void cudaDensity(
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
 
-    cstone::findNeighbors(
-        i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
+    if (i < lastParticle)
+    {
+        cstone::findNeighbors(
+            i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
 
-    kernels::densityJLoop(i,
-                          sincIndex,
-                          K,
-                          box,
-                          neighbors,
-                          neighborsCount_,
-                          x,
-                          y,
-                          z,
-                          h,
-                          m,
-                          wh,
-                          whd,
-                          rho0,
-                          wrho0,
-                          rho,
-                          kx,
-                          whomega);
+        kernels::densityJLoop(i,
+                              sincIndex,
+                              K,
+                              box,
+                              neighbors,
+                              neighborsCount_,
+                              x,
+                              y,
+                              z,
+                              h,
+                              m,
+                              wh,
+                              whd,
+                              rho0,
+                              wrho0,
+                              rho,
+                              kx,
+                              whomega);
 
-    neighborsCount[tid] = neighborsCount_;
+        neighborsCount[tid] = neighborsCount_;
+    }
 }
 
 template<class Dataset>
