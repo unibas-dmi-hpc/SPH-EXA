@@ -286,6 +286,17 @@ public:
 
         computeMomentumEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergy");
+#ifdef USE_CUDA
+        // if we don't have gravity, we copy back the pressure gradients (=acceleration) now
+        if (d.g == 0.0)
+        {
+            CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data(), d.devPtrs.d_grad_P_x, size_np_T, cudaMemcpyDeviceToHost));
+            CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data(), d.devPtrs.d_grad_P_y, size_np_T, cudaMemcpyDeviceToHost));
+            CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data(), d.devPtrs.d_grad_P_z, size_np_T, cudaMemcpyDeviceToHost));
+        }
+
+        CHECK_CUDA_ERR(cudaMemcpy(d.du.data(), d.devPtrs.d_du, size_np_T, cudaMemcpyDeviceToHost));
+#endif
 
         d.egrav = 0.0;
         if (doGrav)
@@ -303,7 +314,6 @@ public:
             CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data(), d.devPtrs.d_grad_P_y, size_np_T, cudaMemcpyDeviceToHost));
             CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data(), d.devPtrs.d_grad_P_z, size_np_T, cudaMemcpyDeviceToHost));
 #endif
-
         }
 
         computeTimestep(first, last, d);
