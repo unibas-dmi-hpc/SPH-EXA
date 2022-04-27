@@ -67,8 +67,8 @@ __global__ void cudaIAD(
     unsigned i   = tid + firstParticle;
 
     // need to hard-code ngmax stack allocation for now
-    assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired size");
-    int neighbors[NGMAX];
+    assert(ngmax <= CudaConfig::NGMAX && "ngmax too big, please increase NGMAX to desired size");
+    int neighbors[CudaConfig::NGMAX];
     int neighborsCount;
 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
