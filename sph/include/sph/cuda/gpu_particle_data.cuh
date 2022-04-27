@@ -212,8 +212,8 @@ public:
                 }
             }
 
-            taskSize =
-                size_t(double(taskSize) * 1.01); // allocate 1% extra to avoid reallocation on small size increase
+            // allocate 1% extra to avoid reallocation on small size increase
+            taskSize = size_t(double(taskSize) * 1.01);
 
             for (int i = 0; i < NST; ++i)
             {
