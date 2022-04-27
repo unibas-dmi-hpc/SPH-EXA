@@ -1,11 +1,6 @@
-#include <algorithm>
-
 #include "sph.cuh"
-#include "sph/particles_data.hpp"
-#include "cuda_utils.cuh"
-#include "sph/kernel/av_switches_kern.hpp"
 
-#include "cstone/cuda/findneighbors.cuh"
+#include "sph/kernel/av_switches_kern.hpp"
 
 namespace sphexa
 {
@@ -63,7 +58,6 @@ __global__ void cudaAVswitches(
         int lastParticle,
         int numParticles,
         const KeyType* particleKeys,
-        int* neighborsCount,
         const T* x,
         const T* y,
         const T* z,
@@ -96,7 +90,7 @@ __global__ void cudaAVswitches(
     // need to hard-code ngmax stack allocation for now
     assert(ngmax <= NGMAX && "ngmax too big, please increase NGMAX to desired value");
     int neighbors[NGMAX];
-    int neighborsCount_;
+    int neighborsCount;
 
     // starting from CUDA 11.3, dynamic stack allocation is available with the following command
     // int* neighbors = (int*)alloca(ngmax * sizeof(int));
@@ -104,14 +98,14 @@ __global__ void cudaAVswitches(
     if (i < lastParticle)
     {
         cstone::findNeighbors(
-            i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
+            i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
 
         alpha[i] = kernels::AVswitchesJLoop(i,
                                             sincIndex,
                                             K,
                                             box,
                                             neighbors,
-                                            neighborsCount_,
+                                            neighborsCount,
                                             x,
                                             y,
                                             z,
@@ -137,8 +131,6 @@ __global__ void cudaAVswitches(
                                             alphamax,
                                             decay_constant,
                                             alpha[i]);
-
-        neighborsCount[tid] = neighborsCount_;
     }
 }
 
@@ -185,13 +177,11 @@ void computeAVswitches(size_t startIndex, size_t endIndex, size_t ngmax, Dataset
         int          sIdx   = i % NST;
         cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
 
-        int* d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
-
         unsigned firstParticle       = startIndex + i * taskSize;
         unsigned lastParticle        = std::min(startIndex + (i + 1) * taskSize, endIndex);
         unsigned numParticlesCompute = lastParticle - firstParticle;
 
-        unsigned numThreads = 256;
+        unsigned numThreads = CudaConfig::numThreads;
         unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
         cudaAVswitches<<<numBlocks, numThreads, 0, stream>>>(d.sincIndex,
@@ -202,7 +192,6 @@ void computeAVswitches(size_t startIndex, size_t endIndex, size_t ngmax, Dataset
                                                              lastParticle,
                                                              sizeWithHalos,
                                                              d.devPtrs.d_codes,
-                                                             d_neighborsCount_use,
                                                              d.devPtrs.d_x,
                                                              d.devPtrs.d_y,
                                                              d.devPtrs.d_z,
@@ -230,12 +219,6 @@ void computeAVswitches(size_t startIndex, size_t endIndex, size_t ngmax, Dataset
                                                              d.devPtrs.d_alpha);
 
         CHECK_CUDA_ERR(cudaGetLastError());
-
-        CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle,
-                                       d_neighborsCount_use,
-                                       numParticlesCompute * sizeof(decltype(d.neighborsCount.front())),
-                                       cudaMemcpyDeviceToHost,
-                                       stream));
     }
 
     // Memcpy in default stream synchronizes all other streams

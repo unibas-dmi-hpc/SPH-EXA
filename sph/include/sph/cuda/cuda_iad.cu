@@ -1,11 +1,6 @@
-#include <algorithm>
-
 #include "sph.cuh"
-#include "sph/particles_data.hpp"
-#include "cuda_utils.cuh"
-#include "sph/kernel/iad_kern.hpp"
 
-#include "cstone/cuda/findneighbors.cuh"
+#include "sph/kernel/iad_kern.hpp"
 
 namespace sphexa
 {
@@ -123,7 +118,7 @@ void computeIAD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
 
     unsigned numParticlesCompute = endIndex - startIndex;
 
-    unsigned numThreads = 128;
+    unsigned numThreads = CudaConfig::numThreads;
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
     cudaIAD<<<numBlocks, numThreads>>>(d.sincIndex,

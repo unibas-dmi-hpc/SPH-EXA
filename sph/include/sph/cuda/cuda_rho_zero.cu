@@ -1,11 +1,6 @@
-#include <algorithm>
-
 #include "sph.cuh"
-#include "sph/particles_data.hpp"
-#include "cuda_utils.cuh"
-#include "sph/kernel/rho_zero_kern.hpp"
 
-#include "cstone/cuda/findneighbors.cuh"
+#include "sph/kernel/rho_zero_kern.hpp"
 
 namespace sphexa
 {
@@ -132,7 +127,7 @@ void computeRhoZero(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
         unsigned lastParticle        = std::min(startIndex + (i + 1) * taskSize, endIndex);
         unsigned numParticlesCompute = lastParticle - firstParticle;
 
-        unsigned numThreads = 256;
+        unsigned numThreads = CudaConfig::numThreads;
         unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
         cudaRhoZero<<<numBlocks, numThreads, 0, stream>>>(d.sincIndex,

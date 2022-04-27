@@ -1,11 +1,6 @@
-#include <algorithm>
-
 #include "sph.cuh"
-#include "sph/particles_data.hpp"
-#include "cuda_utils.cuh"
-#include "sph/kernel/momentum_energy_kern.hpp"
 
-#include "cstone/cuda/findneighbors.cuh"
+#include "sph/kernel/momentum_energy_kern.hpp"
 
 namespace sphexa
 {
@@ -25,12 +20,6 @@ __device__ __forceinline__ float atomicMinFloat(float* addr, float value)
 }
 
 __device__ float minDt_device;
-
-struct GradPConfig
-{
-    //! @brief number of threads per block for the traversal kernel
-    static constexpr int numThreads = 128;
-};
 
 /*! @brief
  *
@@ -176,8 +165,8 @@ __global__ void cudaMomentumEnergy(
         dt_i = sph::kernels::tsKCourant(maxvsignal, h[i], c[i], Kcour);
     }
 
-    typedef cub::BlockReduce<T, GradPConfig::numThreads> BlockReduce;
-    __shared__ typename BlockReduce::TempStorage         temp_storage;
+    typedef cub::BlockReduce<T, CudaConfig::numThreads> BlockReduce;
+    __shared__ typename BlockReduce::TempStorage        temp_storage;
 
     BlockReduce reduce(temp_storage);
     T           blockMin = reduce.Reduce(dt_i, cub::Min());
@@ -211,7 +200,7 @@ void computeMomentumEnergy(size_t startIndex, size_t endIndex, size_t ngmax, Dat
 
     unsigned numParticlesCompute = endIndex - startIndex;
 
-    unsigned numThreads = GradPConfig::numThreads;
+    unsigned numThreads = CudaConfig::numThreads;
     unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
     float huge = 1e10;
