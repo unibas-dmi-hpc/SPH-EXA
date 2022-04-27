@@ -31,10 +31,11 @@
 
 #include <thrust/device_vector.h>
 
-#include "cuda_utils.cuh"
 #include "sph/pinned_allocator.h"
 #include "sph/tables.hpp"
 #include "sph/data_util.hpp"
+
+#include "cuda_utils.cuh"
 
 namespace sphexa
 {
@@ -43,6 +44,15 @@ namespace sph
 namespace cuda
 {
 
+struct CudaConfig
+{
+    // Maximum number of neighbors supported in GPU kernels
+    static constexpr int NGMAX = 150;
+
+    // Number of threads per block for the traversal kernel
+    static constexpr int numThreads = 128;
+};
+
 template<typename T, class KeyType>
 class DeviceParticlesData
 {
@@ -50,9 +60,11 @@ class DeviceParticlesData
     size_t allocatedTaskSize     = 0;
 
 public:
-    // number of CUDA streams to use
+
+    // Number of CUDA streams to use
     static constexpr int NST = 2;
-    // max number of particles to process per launch in kernel with async transfers
+
+    // Max number of particles to process per launch in kernel with async transfers
     static constexpr int taskSize = 1000000;
 
     struct neighbors_stream
