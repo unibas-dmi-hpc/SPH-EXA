@@ -148,6 +148,13 @@ public:
 
     void step(DomainType& domain, ParticleDataType& d) override
     {
+
+#ifdef USE_CUDA
+        size_t sizeWithHalos    = d.x.size();
+        size_t size_np_T        = sizeWithHalos * sizeof(T);
+        size_t size_np_CodeType = sizeWithHalos * sizeof(KeyType);
+#endif
+
         bool doGrav = (d.g != 0.0);
 
         timer.start();
@@ -173,8 +180,21 @@ public:
             first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, domain.box());
         timer.step("FindNeighbors");
 
+#ifdef USE_CUDA
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_z, d.z.data(), size_np_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
+
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_codes, d.codes.data(), size_np_CodeType, cudaMemcpyHostToDevice));
+#endif
+
         computeRhoZero(first, last, ngmax_, d, domain.box());
         timer.step("RhoZero");
+#ifdef USE_CUDA
+        CHECK_CUDA_ERR(cudaMemcpy(d.rho0.data(), d.devPtrs.d_rho0,  size_np_T, cudaMemcpyDeviceToHost));
+#endif
         domain.exchangeHalos(d.rho0);
         timer.step("mpi::synchronizeHalos");
 
@@ -214,12 +234,11 @@ public:
             timer.step("Gravity");
 
 #ifdef USE_CUDA
-            size_t sizeWithHalos = d.x.size();
-            size_t size_np_T     = sizeWithHalos * sizeof(decltype(d.grad_P_x[0]));
             CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data(), d.devPtrs.d_grad_P_x, size_np_T, cudaMemcpyDeviceToHost));
             CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data(), d.devPtrs.d_grad_P_y, size_np_T, cudaMemcpyDeviceToHost));
             CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data(), d.devPtrs.d_grad_P_z, size_np_T, cudaMemcpyDeviceToHost));
 #endif
+
         }
 
         computeTimestep(first, last, d);

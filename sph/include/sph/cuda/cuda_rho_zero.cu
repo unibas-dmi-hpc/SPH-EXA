@@ -98,23 +98,12 @@ void computeRhoZero(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
 
     size_t sizeWithHalos     = d.x.size();
     size_t numLocalParticles = endIndex - startIndex;
-    size_t size_np_T         = sizeWithHalos * sizeof(T);
-    size_t size_np_CodeType  = sizeWithHalos * sizeof(KeyType);
 
     size_t taskSize = DeviceParticlesData<T, KeyType>::taskSize;
     size_t numTasks = iceil(numLocalParticles, taskSize);
 
     // number of CUDA streams to use
     constexpr int NST = DeviceParticlesData<T, Dataset>::NST;
-
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_z, d.z.data(), size_np_T, cudaMemcpyHostToDevice));
-
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
-
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_codes, d.codes.data(), size_np_CodeType, cudaMemcpyHostToDevice));
 
     for (int i = 0; i < numTasks; ++i)
     {
@@ -156,10 +145,6 @@ void computeRhoZero(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
                                        cudaMemcpyDeviceToHost,
                                        stream));
     }
-
-    // Memcpy in default stream synchronizes all other streams
-    CHECK_CUDA_ERR(cudaMemcpy(d.rho0.data(), d.devPtrs.d_rho0,  size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.wrho0.data(), d.devPtrs.d_wrho0, size_np_T, cudaMemcpyDeviceToHost));
 }
 
 template void computeRhoZero(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>&,
