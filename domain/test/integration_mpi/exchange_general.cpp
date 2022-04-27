@@ -226,7 +226,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
             SourceCenterType<T> reference = massCenter<T>(coords.x().data(), coords.y().data(), coords.z().data(),
                                                           globalMasses.data(), startIndex, endIndex);
 
-            T refMac     = computeMac(octree.nodeKeys()[i], makeVec3(reference), 1.0 / theta, box);
+            T refMac     = computeVecMacR2(octree.nodeKeys()[i], makeVec3(reference), 1.0 / theta, box);
             reference[3] = (reference[3] == T(0)) ? T(0) : refMac;
 
             EXPECT_NEAR(sourceCenter[i][0], reference[0], tol);

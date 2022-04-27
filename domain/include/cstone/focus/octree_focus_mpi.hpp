@@ -307,13 +307,19 @@ public:
     void
     updateMinMac(const Box<T>& box, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves)
     {
-        KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
-        KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
+        centers_.resize(octree().numTreeNodes());
 
-        macs_.resize(tree_.octree().numTreeNodes());
-        markMac(tree_.octree(), box, focusStart, focusEnd, 1.0 / theta_, macs_.data());
+        auto nodeKeys  = octree().nodeKeys();
+        float invTheta = 1.0f / theta_;
 
-        rebalanceStatus_ |= macCriterion;
+#pragma omp parallel for schedule(static)
+        for (size_t i = 0; i < nodeKeys.size(); ++i)
+        {
+            //! set centers to geometric centers for min dist Mac
+            centers_[i] = computeMinMacR2(nodeKeys[i], invTheta, box);
+        }
+
+        updateVecMac(box, assignment, globalTreeLeaves);
     }
 
     /*! @brief Update the MAC criteria based on the vector MAC

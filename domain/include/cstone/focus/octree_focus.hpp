@@ -383,8 +383,19 @@ public:
     {
         bool converged = tree_.update(focusStart, focusEnd, mandatoryKeys, counts_, macs_);
 
+        std::vector<Vec4<T>> centers_(tree_.octree().numTreeNodes());
+        auto nodeKeys  = octree().nodeKeys();
+        float invTheta = 1.0f / theta_;
+
+#pragma omp parallel for schedule(static)
+        for (size_t i = 0; i < nodeKeys.size(); ++i)
+        {
+            //! set centers to geometric centers for min dist Mac
+            centers_[i] = computeMinMacR2(nodeKeys[i], invTheta, box);
+        }
+
         macs_.resize(tree_.octree().numTreeNodes());
-        markMac(tree_.octree(), box, focusStart, focusEnd, 1.0 / theta_, macs_.data());
+        markVecMac(octree(), centers_.data(), box, focusStart, focusEnd, macs_.data());
 
         gsl::span<const KeyType> leaves = tree_.treeLeaves();
         leafCounts_.resize(nNodes(leaves));

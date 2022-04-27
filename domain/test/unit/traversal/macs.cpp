@@ -213,10 +213,11 @@ TEST(Macs, minMac)
     }
 }
 
-TEST(Macs, vectorMacAndPbc)
+TEST(Macs, evaluateMAC)
 {
     using T = double;
 
+    Box<T> noPbcBox(0, 1, false);
     Box<T> box(0, 1, true);
 
     Vec3<T> tcenter{0.1, 0.1, 0.1};
@@ -226,21 +227,21 @@ TEST(Macs, vectorMacAndPbc)
     T mac = 0.03;
     {
         Vec3<T> scenter{0.2, 0.2, 0.2};
-        EXPECT_TRUE(vectorMac(scenter, mac, tcenter, tsize));
-        EXPECT_TRUE(vectorMacPbc(scenter, mac, tcenter, tsize, box));
+        EXPECT_TRUE(evaluateMacPbc(scenter, mac, tcenter, tsize, noPbcBox));
+        EXPECT_TRUE(evaluateMacPbc(scenter, mac, tcenter, tsize, box));
     }
     {
         Vec3<T> scenter{0.2101, 0.2101, 0.2101};
-        EXPECT_FALSE(vectorMac(scenter, mac, tcenter, tsize));
-        EXPECT_FALSE(vectorMacPbc(scenter, mac, tcenter, tsize, box));
+        EXPECT_FALSE(evaluateMacPbc(scenter, mac, tcenter, tsize, noPbcBox));
+        EXPECT_FALSE(evaluateMacPbc(scenter, mac, tcenter, tsize, box));
     }
     {
         Vec3<T> scenter{1.0, 1.0, 1.0};
-        EXPECT_TRUE(vectorMacPbc(scenter, mac, tcenter, tsize, box));
+        EXPECT_TRUE(evaluateMacPbc(scenter, mac, tcenter, tsize, box));
     }
     {
         Vec3<T> scenter{0.9899, 0.9899, 0.9899};
-        EXPECT_FALSE(vectorMacPbc(scenter, mac, tcenter, tsize, box));
+        EXPECT_FALSE(evaluateMacPbc(scenter, mac, tcenter, tsize, box));
     }
 }
 
@@ -357,7 +358,7 @@ static std::vector<char> markVecMacAll2All(const Octree<KeyType>& octree,
             if (leaves[firstLeaf] <= octree.codeStart(j) && octree.codeEnd(j) <= leaves[lastLeaf]) { continue; }
 
             Vec4<T> center   = centers[j];
-            bool violatesMac = vectorMacPbc(makeVec3(center), center[3], targetCenter, targetSize, box);
+            bool violatesMac = evaluateMacPbc(makeVec3(center), center[3], targetCenter, targetSize, box);
             if (violatesMac) { markings[j] = 1; }
         }
     }

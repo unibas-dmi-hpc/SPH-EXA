@@ -35,7 +35,7 @@
 #include <vector>
 
 #include "boxoverlap.hpp"
-#include "cstone/traversal//traversal.hpp"
+#include "cstone/traversal/traversal.hpp"
 #include "cstone/tree/octree_internal.hpp"
 
 namespace cstone
@@ -103,22 +103,59 @@ HOST_DEVICE_FUN bool minMac(const Vec3<T>& aCenter,
     return dsq > (mac * mac);
 }
 
-/*! @brief Evaluate vector MAC based on precomputed acceptance radii
+/*! @brief Compute square of the acceptance radius for the minimum distance MAC
  *
- * @param sourceCenter   expansion (com) center of the source (cell)
- * @param Mac            the square of the distance from @p sourceCenter beyond which the MAC fails or passes
- * @param targetCenter   geometrical target center
- * @param targetSize     size of the target box
- * @return               true if source is close (needs to be opened)
- *
- * Evaluates  d^2 > mac^2 with:
- *  mac -> l/theta + s
- *  d   -> minimal distance of target box to source center of mass
- *  l   -> edge length of source box
- *  s   -> distance from geometric source center to source center mass
+ * @param prefix       SFC key of the tree cell with Warren-Salmon placeholder-bit
+ * @param invTheta     theta^-1 (opening parameter)
+ * @param box          global coordinate bounding box
+ * @return             geometric center in the first 3 elements, the square of the distance from @p sourceCenter
+ *                     beyond which the MAC fails or passes in the 4th element
  */
+template<class T, class KeyType>
+HOST_DEVICE_FUN Vec4<T> computeMinMacR2(KeyType prefix, float invTheta, const Box<T>& box)
+{
+    KeyType nodeKey  = decodePlaceholderBit(prefix);
+    int prefixLength = decodePrefixLength(prefix);
+
+    IBox cellBox              = sfcIBox(sfcKey(nodeKey), prefixLength / 3);
+    auto [geoCenter, geoSize] = centerAndSize<KeyType>(cellBox, box);
+
+    T l   = T(2) * max(geoSize);
+    T s   = l / T(2);
+    T mac = l * invTheta + s;
+
+    return {geoCenter[0], geoCenter[1], geoCenter[2], mac * mac};
+}
+
+/*! @brief Compute square of the acceptance radius for the vector MAC
+ *
+ * @param prefix       SFC key of the tree cell with Warren-Salmon placeholder-bit
+ * @param expCenter    expansion (com) center of the source (cell)
+ * @param invTheta     theta^-1 (opening parameter)
+ * @param box          global coordinate bounding box
+ * @return             the square of the distance from @p sourceCenter beyond which the MAC fails or passes
+ */
+template<class T, class KeyType>
+HOST_DEVICE_FUN T computeVecMacR2(KeyType prefix, Vec3<T> expCenter, float invTheta, const Box<T>& box)
+{
+    KeyType nodeKey  = decodePlaceholderBit(prefix);
+    int prefixLength = decodePrefixLength(prefix);
+
+    IBox cellBox              = sfcIBox(sfcKey(nodeKey), prefixLength / 3);
+    auto [geoCenter, geoSize] = centerAndSize<KeyType>(cellBox, box);
+
+    Vec3<T> dX = expCenter - geoCenter;
+
+    T s   = sqrt(norm2(dX));
+    T l   = T(2.0) * max(geoSize);
+    T mac = l * invTheta + s;
+
+    return mac * mac;
+}
+
+//! @brief evaluate an arbitrary MAC with respect to a given target
 template<class T>
-HOST_DEVICE_FUN bool vectorMac(Vec3<T> sourceCenter, T Mac, Vec3<T> targetCenter, Vec3<T> targetSize)
+HOST_DEVICE_FUN bool evaluateMac(Vec3<T> sourceCenter, T Mac, Vec3<T> targetCenter, Vec3<T> targetSize)
 {
     Vec3<T> dX = abs(targetCenter - sourceCenter) - targetSize;
     dX += abs(dX);
@@ -127,10 +164,20 @@ HOST_DEVICE_FUN bool vectorMac(Vec3<T> sourceCenter, T Mac, Vec3<T> targetCenter
     return R2 < std::abs(Mac);
 }
 
-//! @brief PBC-aware version of vectorMac, taking the global coordinate bounding box as input
+/*! @brief evaluate an arbitrary MAC with respect to a given target
+ *
+ * @tparam T              float or double
+ * @param  sourceCenter   source cell expansion center, can be geometric or center-mass, depending on
+ *                        choice of MAC used to compute @p macSq
+ * @param  macSq          squared multipole acceptance radius of the source cell
+ * @param  targetCenter   geometric target cell center coordinates
+ * @param  targetSize     geometric size of the target cell
+ * @param  box            global coordinate bounding box
+ * @return                true if the target is closer to @p sourceCenter than the acceptance radius
+ */
 template<class T>
 HOST_DEVICE_FUN bool
-vectorMacPbc(Vec3<T> sourceCenter, T Mac, Vec3<T> targetCenter, Vec3<T> targetSize, const Box<T>& box)
+evaluateMacPbc(Vec3<T> sourceCenter, T macSq, Vec3<T> targetCenter, Vec3<T> targetSize, const Box<T>& box)
 {
     Vec3<T> dX = targetCenter - sourceCenter;
 
@@ -139,7 +186,7 @@ vectorMacPbc(Vec3<T> sourceCenter, T Mac, Vec3<T> targetCenter, Vec3<T> targetSi
     dX += abs(dX);
     dX *= T(0.5);
     T R2 = norm2(dX);
-    return R2 < std::abs(Mac);
+    return R2 < std::abs(macSq);
 }
 
 //! @brief commutative version of the min-distance mac, based on floating point math
@@ -258,7 +305,7 @@ void markMac(const TreeType<KeyType>& octree,
     }
 }
 
-//! @brief mark all nodes of @p octree (leaves and internal) that fail the vectorMac w.r.t to @p target
+//! @brief mark all nodes of @p octree (leaves and internal) that fail the evaluateMac w.r.t to @p target
 template<template<class> class TreeType, class T, class KeyType>
 void markVecMacPerBox(const Vec3<T>& targetCenter,
                       const Vec3<T>& targetSize,
@@ -278,7 +325,7 @@ void markVecMacPerBox(const Vec3<T>& targetCenter,
         if (containedIn(nodeStart, nodeEnd, focusStart, focusEnd)) { return false; }
 
         Vec4<T> center   = centers[idx];
-        bool violatesMac = vectorMacPbc(makeVec3(center), center[3], targetCenter, targetSize, box);
+        bool violatesMac = evaluateMacPbc(makeVec3(center), center[3], targetCenter, targetSize, box);
         if (violatesMac && !markings[idx]) { markings[idx] = 1; }
 
         return violatesMac;
