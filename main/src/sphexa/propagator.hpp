@@ -169,6 +169,7 @@ public:
 
         resize(d, domain.nParticlesWithHalos());
         resizeNeighbors(d, domain.nParticles() * ngmax_);
+
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
 
