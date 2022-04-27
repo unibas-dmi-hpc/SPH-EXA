@@ -43,7 +43,7 @@ namespace kernels
 {
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline void rho0JLoop(
+CUDA_DEVICE_HOST_FUN inline void rhoZeroJLoop(
         int i,
         T sincIndex,
         T K,

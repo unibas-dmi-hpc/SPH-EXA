@@ -38,7 +38,7 @@ namespace cuda
  *
  */
 template<class T, class KeyType>
-__global__ void cudaRho0(
+__global__ void cudaRhoZero(
     T sincIndex,
     T K,
     int ngmax,
@@ -73,7 +73,7 @@ __global__ void cudaRho0(
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount_, numParticles, ngmax);
 
-    kernels::rho0JLoop(i,
+    kernels::rhoZeroJLoop(i,
                        sincIndex,
                        K,
                        box,
@@ -93,7 +93,7 @@ __global__ void cudaRho0(
 }
 
 template<class Dataset>
-void computeRho0(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
+void computeRhoZero(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
                     const cstone::Box<typename Dataset::RealType>& box)
 {
     using T       = typename Dataset::RealType;
@@ -133,24 +133,24 @@ void computeRho0(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
         unsigned numThreads = 256;
         unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
 
-        cudaRho0<<<numBlocks, numThreads, 0, stream>>>(d.sincIndex,
-                                                       d.K,
-                                                       ngmax,
-                                                       box,
-                                                       firstParticle,
-                                                       lastParticle,
-                                                       sizeWithHalos,
-                                                       d.devPtrs.d_codes,
-                                                       d_neighborsCount_use,
-                                                       d.devPtrs.d_x,
-                                                       d.devPtrs.d_y,
-                                                       d.devPtrs.d_z,
-                                                       d.devPtrs.d_h,
-                                                       d.devPtrs.d_m,
-                                                       d.devPtrs.d_wh,
-                                                       d.devPtrs.d_whd,
-                                                       d.devPtrs.d_rho0,
-                                                       d.devPtrs.d_wrho0);
+        cudaRhoZero<<<numBlocks, numThreads, 0, stream>>>(d.sincIndex,
+                                                          d.K,
+                                                          ngmax,
+                                                          box,
+                                                          firstParticle,
+                                                          lastParticle,
+                                                          sizeWithHalos,
+                                                          d.devPtrs.d_codes,
+                                                          d_neighborsCount_use,
+                                                          d.devPtrs.d_x,
+                                                          d.devPtrs.d_y,
+                                                          d.devPtrs.d_z,
+                                                          d.devPtrs.d_h,
+                                                          d.devPtrs.d_m,
+                                                          d.devPtrs.d_wh,
+                                                          d.devPtrs.d_whd,
+                                                          d.devPtrs.d_rho0,
+                                                          d.devPtrs.d_wrho0);
         CHECK_CUDA_ERR(cudaGetLastError());
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle,
@@ -165,14 +165,14 @@ void computeRho0(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
     CHECK_CUDA_ERR(cudaMemcpy(d.wrho0.data(), d.devPtrs.d_wrho0, size_np_T, cudaMemcpyDeviceToHost));
 }
 
-template void computeRho0(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>&,
-                          const cstone::Box<double>&);
-template void computeRho0(size_t, size_t, size_t, ParticlesData<double, uint64_t, cstone::GpuTag>&,
-                          const cstone::Box<double>&);
-template void computeRho0(size_t, size_t, size_t, ParticlesData<float, unsigned, cstone::GpuTag>&,
-                          const cstone::Box<float>&);
-template void computeRho0(size_t, size_t, size_t, ParticlesData<float, uint64_t, cstone::GpuTag>&,
-                          const cstone::Box<float>&);
+template void computeRhoZero(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>&,
+                             const cstone::Box<double>&);
+template void computeRhoZero(size_t, size_t, size_t, ParticlesData<double, uint64_t, cstone::GpuTag>&,
+                             const cstone::Box<double>&);
+template void computeRhoZero(size_t, size_t, size_t, ParticlesData<float, unsigned, cstone::GpuTag>&,
+                             const cstone::Box<float>&);
+template void computeRhoZero(size_t, size_t, size_t, ParticlesData<float, uint64_t, cstone::GpuTag>&,
+                             const cstone::Box<float>&);
 
 } // namespace cuda
 } // namespace sph

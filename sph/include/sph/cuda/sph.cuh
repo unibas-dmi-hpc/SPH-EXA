@@ -14,7 +14,7 @@ namespace cuda
 {
 
 template<class Dataset>
-extern void computeRho0(
+extern void computeRhoZero(
     size_t, size_t, size_t, Dataset& d, const cstone::Box<typename Dataset::RealType>&);
 
 template<class Dataset>

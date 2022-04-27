@@ -173,8 +173,8 @@ public:
             first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, domain.box());
         timer.step("FindNeighbors");
 
-        computeRho0(first, last, ngmax_, d, domain.box());
-        timer.step("Rho0");
+        computeRhoZero(first, last, ngmax_, d, domain.box());
+        timer.step("RhoZero");
 
         domain.exchangeHalos(d.rho0);
         timer.step("mpi::synchronizeHalos");

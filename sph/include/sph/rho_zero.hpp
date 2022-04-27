@@ -16,7 +16,7 @@ namespace sphexa
 namespace sph
 {
 template<typename T, class Dataset>
-void computeRho0Impl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeRhoZeroImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
@@ -41,21 +41,21 @@ void computeRho0Impl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& 
     {
         size_t ni = i - startIndex;
 
-        kernels::rho0JLoop(i,
-                           sincIndex,
-                           K,
-                           box,
-                           neighbors + ngmax * ni,
-                           neighborsCount[i],
-                           x,
-                           y,
-                           z,
-                           h,
-                           m,
-                           wh,
-                           whd,
-                           rho0,
-                           wrho0);
+        kernels::rhoZeroJLoop(i,
+                              sincIndex,
+                              K,
+                              box,
+                              neighbors + ngmax * ni,
+                              neighborsCount[i],
+                              x,
+                              y,
+                              z,
+                              h,
+                              m,
+                              wh,
+                              whd,
+                              rho0,
+                              wrho0);
 
 #ifndef NDEBUG
         if (std::isnan(rho0[i]))
@@ -65,12 +65,12 @@ void computeRho0Impl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& 
 }
 
 template<typename T, class Dataset>
-void computeRho0(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeRhoZero(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
 #if defined(USE_CUDA)
-    cuda::computeRho0(startIndex, endIndex, ngmax, d, box);
+    cuda::computeRhoZero(startIndex, endIndex, ngmax, d, box);
 #else
-    computeRho0Impl(startIndex, endIndex, ngmax, d, box);
+    computeRhoZeroImpl(startIndex, endIndex, ngmax, d, box);
 #endif
 }
 

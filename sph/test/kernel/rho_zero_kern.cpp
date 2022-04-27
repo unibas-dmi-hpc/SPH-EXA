@@ -39,7 +39,7 @@
 
 using namespace sphexa;
 
-TEST(rho0, JLoop)
+TEST(rhoZero, JLoop)
 {
     using T = double;
 
@@ -73,21 +73,21 @@ TEST(rho0, JLoop)
      * j = 4   7.62102
      */
 
-    sph::kernels::rho0JLoop(0,
-                            sincIndex,
-                            K,
-                            box,
-                            neighbors.data(),
-                            neighborsCount,
-                            x.data(),
-                            y.data(),
-                            z.data(),
-                            h.data(),
-                            m.data(),
-                            wh.data(),
-                            whd.data(),
-                            rho0.data(),
-                            wrho0.data());
+    sph::kernels::rhoZeroJLoop(0,
+                               sincIndex,
+                               K,
+                               box,
+                               neighbors.data(),
+                               neighborsCount,
+                               x.data(),
+                               y.data(),
+                               z.data(),
+                               h.data(),
+                               m.data(),
+                               wh.data(),
+                               whd.data(),
+                               rho0.data(),
+                               wrho0.data());
     EXPECT_NEAR(rho0[0], 1.8450716246e-2, 1e-10);
     EXPECT_NEAR(wrho0[0], -8.4240908240e-3, 1e-10);
 }
