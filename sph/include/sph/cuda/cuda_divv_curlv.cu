@@ -175,6 +175,7 @@ void computeDivvCurlv(size_t startIndex, size_t endIndex, size_t ngmax, Dataset&
                                                             d.devPtrs.d_rho0,
                                                             d.devPtrs.d_divv,
                                                             d.devPtrs.d_curlv);
+
         CHECK_CUDA_ERR(cudaGetLastError());
     }
 }

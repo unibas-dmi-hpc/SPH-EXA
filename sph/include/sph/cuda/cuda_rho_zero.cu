@@ -137,6 +137,7 @@ void computeRhoZero(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
                                                           d.devPtrs.d_whd,
                                                           d.devPtrs.d_rho0,
                                                           d.devPtrs.d_wrho0);
+
         CHECK_CUDA_ERR(cudaGetLastError());
 
         CHECK_CUDA_ERR(cudaMemcpyAsync(d.neighborsCount.data() + firstParticle,

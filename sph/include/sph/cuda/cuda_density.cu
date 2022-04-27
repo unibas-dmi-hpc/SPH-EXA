@@ -143,6 +143,7 @@ void computeDensity(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
                                                           d.devPtrs.d_rho,
                                                           d.devPtrs.d_kx,
                                                           d.devPtrs.d_whomega);
+
         CHECK_CUDA_ERR(cudaGetLastError());
     }
 }

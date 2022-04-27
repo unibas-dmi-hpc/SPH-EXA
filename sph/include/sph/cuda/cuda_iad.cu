@@ -107,40 +107,56 @@ template<class Dataset>
 void computeIAD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
                 const cstone::Box<typename Dataset::RealType>& box)
 {
-    using T = typename Dataset::RealType;
+    using T       = typename Dataset::RealType;
+    using KeyType = typename Dataset::KeyType;
 
-    // number of locally present particles, including halos
-    size_t sizeWithHalos = d.x.size();
+    size_t sizeWithHalos     = d.x.size();
+    size_t numLocalParticles = endIndex - startIndex;
 
-    unsigned numParticlesCompute = endIndex - startIndex;
+    size_t taskSize = DeviceParticlesData<T, KeyType>::taskSize;
+    size_t numTasks = iceil(numLocalParticles, taskSize);
 
-    unsigned numThreads = CudaConfig::numThreads;
-    unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
+    // number of CUDA streams to use
+    constexpr int NST = DeviceParticlesData<T, Dataset>::NST;
 
-    cudaIAD<<<numBlocks, numThreads>>>(d.sincIndex,
-                                       d.K,
-                                       ngmax,
-                                       box,
-                                       startIndex,
-                                       endIndex,
-                                       sizeWithHalos,
-                                       d.devPtrs.d_codes,
-                                       d.devPtrs.d_x,
-                                       d.devPtrs.d_y,
-                                       d.devPtrs.d_z,
-                                       d.devPtrs.d_h,
-                                       d.devPtrs.d_m,
-                                       d.devPtrs.d_wh,
-                                       d.devPtrs.d_whd,
-                                       d.devPtrs.d_rho0,
-                                       d.devPtrs.d_kx,
-                                       d.devPtrs.d_c11,
-                                       d.devPtrs.d_c12,
-                                       d.devPtrs.d_c13,
-                                       d.devPtrs.d_c22,
-                                       d.devPtrs.d_c23,
-                                       d.devPtrs.d_c33);
-    CHECK_CUDA_ERR(cudaGetLastError());
+    for (int i = 0; i < numTasks; ++i)
+    {
+        int          sIdx   = i % NST;
+        cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
+
+        unsigned firstParticle       = startIndex + i * taskSize;
+        unsigned lastParticle        = std::min(startIndex + (i + 1) * taskSize, endIndex);
+        unsigned numParticlesCompute = lastParticle - firstParticle;
+
+        unsigned numThreads = CudaConfig::numThreads;
+        unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
+
+        cudaIAD<<<numBlocks, numThreads, 0, stream>>>(d.sincIndex,
+                                                      d.K,
+                                                      ngmax,
+                                                      box,
+                                                      startIndex,
+                                                      endIndex,
+                                                      sizeWithHalos,
+                                                      d.devPtrs.d_codes,
+                                                      d.devPtrs.d_x,
+                                                      d.devPtrs.d_y,
+                                                      d.devPtrs.d_z,
+                                                      d.devPtrs.d_h,
+                                                      d.devPtrs.d_m,
+                                                      d.devPtrs.d_wh,
+                                                      d.devPtrs.d_whd,
+                                                      d.devPtrs.d_rho0,
+                                                      d.devPtrs.d_kx,
+                                                      d.devPtrs.d_c11,
+                                                      d.devPtrs.d_c12,
+                                                      d.devPtrs.d_c13,
+                                                      d.devPtrs.d_c22,
+                                                      d.devPtrs.d_c23,
+                                                      d.devPtrs.d_c33);
+
+        CHECK_CUDA_ERR(cudaGetLastError());
+    }
 }
 
 template void computeIAD(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>& d,

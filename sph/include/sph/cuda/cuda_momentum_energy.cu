@@ -179,58 +179,74 @@ template<class Dataset>
 void computeMomentumEnergy(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
                            const cstone::Box<typename Dataset::RealType>& box)
 {
-    using T = typename Dataset::RealType;
+    using T       = typename Dataset::RealType;
+    using KeyType = typename Dataset::KeyType;
 
-    size_t sizeWithHalos = d.x.size();
+    size_t sizeWithHalos     = d.x.size();
+    size_t numLocalParticles = endIndex - startIndex;
 
-    unsigned numParticlesCompute = endIndex - startIndex;
+    size_t taskSize = DeviceParticlesData<T, KeyType>::taskSize;
+    size_t numTasks = iceil(numLocalParticles, taskSize);
 
-    unsigned numThreads = CudaConfig::numThreads;
-    unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
+    // number of CUDA streams to use
+    constexpr int NST = DeviceParticlesData<T, Dataset>::NST;
 
     float huge = 1e10;
     CHECK_CUDA_ERR(cudaMemcpyToSymbol(minDt_device, &huge, sizeof(huge)));
 
-    cudaMomentumEnergy<<<numBlocks, numThreads>>>(d.sincIndex,
-                                                  d.K,
-                                                  d.Kcour,
-                                                  ngmax,
-                                                  box,
-                                                  startIndex,
-                                                  endIndex,
-                                                  sizeWithHalos,
-                                                  d.devPtrs.d_codes,
-                                                  d.devPtrs.d_x,
-                                                  d.devPtrs.d_y,
-                                                  d.devPtrs.d_z,
-                                                  d.devPtrs.d_vx,
-                                                  d.devPtrs.d_vy,
-                                                  d.devPtrs.d_vz,
-                                                  d.devPtrs.d_h,
-                                                  d.devPtrs.d_m,
-                                                  d.devPtrs.d_rho,
-                                                  d.devPtrs.d_p,
-                                                  d.devPtrs.d_c,
-                                                  d.devPtrs.d_c11,
-                                                  d.devPtrs.d_c12,
-                                                  d.devPtrs.d_c13,
-                                                  d.devPtrs.d_c22,
-                                                  d.devPtrs.d_c23,
-                                                  d.devPtrs.d_c33,
-                                                  d.Atmin,
-                                                  d.Atmax,
-                                                  d.ramp,
-                                                  d.devPtrs.d_wh,
-                                                  d.devPtrs.d_whd,
-                                                  d.devPtrs.d_kx,
-                                                  d.devPtrs.d_rho0,
-                                                  d.devPtrs.d_alpha,
-                                                  d.devPtrs.d_grad_P_x,
-                                                  d.devPtrs.d_grad_P_y,
-                                                  d.devPtrs.d_grad_P_z,
-                                                  d.devPtrs.d_du);
+    for (int i = 0; i < numTasks; ++i)
+    {
+        int          sIdx   = i % NST;
+        cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
 
-    CHECK_CUDA_ERR(cudaGetLastError());
+        unsigned firstParticle       = startIndex + i * taskSize;
+        unsigned lastParticle        = std::min(startIndex + (i + 1) * taskSize, endIndex);
+        unsigned numParticlesCompute = lastParticle - firstParticle;
+
+        unsigned numThreads = CudaConfig::numThreads;
+        unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
+
+        cudaMomentumEnergy<<<numBlocks, numThreads, 0, stream>>>(d.sincIndex,
+                                                                 d.K,
+                                                                 d.Kcour,
+                                                                 ngmax,
+                                                                 box,
+                                                                 startIndex,
+                                                                 endIndex,
+                                                                 sizeWithHalos,
+                                                                 d.devPtrs.d_codes,
+                                                                 d.devPtrs.d_x,
+                                                                 d.devPtrs.d_y,
+                                                                 d.devPtrs.d_z,
+                                                                 d.devPtrs.d_vx,
+                                                                 d.devPtrs.d_vy,
+                                                                 d.devPtrs.d_vz,
+                                                                 d.devPtrs.d_h,
+                                                                 d.devPtrs.d_m,
+                                                                 d.devPtrs.d_rho,
+                                                                 d.devPtrs.d_p,
+                                                                 d.devPtrs.d_c,
+                                                                 d.devPtrs.d_c11,
+                                                                 d.devPtrs.d_c12,
+                                                                 d.devPtrs.d_c13,
+                                                                 d.devPtrs.d_c22,
+                                                                 d.devPtrs.d_c23,
+                                                                 d.devPtrs.d_c33,
+                                                                 d.Atmin,
+                                                                 d.Atmax,
+                                                                 d.ramp,
+                                                                 d.devPtrs.d_wh,
+                                                                 d.devPtrs.d_whd,
+                                                                 d.devPtrs.d_kx,
+                                                                 d.devPtrs.d_rho0,
+                                                                 d.devPtrs.d_alpha,
+                                                                 d.devPtrs.d_grad_P_x,
+                                                                 d.devPtrs.d_grad_P_y,
+                                                                 d.devPtrs.d_grad_P_z,
+                                                                 d.devPtrs.d_du);
+
+        CHECK_CUDA_ERR(cudaGetLastError());
+    }
 
     float minDt;
     CHECK_CUDA_ERR(cudaMemcpyFromSymbol(&minDt, minDt_device, sizeof(minDt)));
