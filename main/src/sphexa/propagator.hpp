@@ -287,15 +287,6 @@ public:
         computeMomentumEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergy");
 #ifdef USE_CUDA
-        // if we don't have gravity, we copy back the pressure gradients (=acceleration) now
-        if (d.g == 0.0)
-        {
-            CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data(), d.devPtrs.d_grad_P_x, size_np_T, cudaMemcpyDeviceToHost));
-            CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data(), d.devPtrs.d_grad_P_y, size_np_T, cudaMemcpyDeviceToHost));
-            CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data(), d.devPtrs.d_grad_P_z, size_np_T, cudaMemcpyDeviceToHost));
-            timer.step("  * GPU CudaCopyBack Sync DeviceToHost: grad_P_x,grad_P_y,grad_P_z");
-        }
-
         CHECK_CUDA_ERR(cudaMemcpy(d.du.data(), d.devPtrs.d_du, size_np_T, cudaMemcpyDeviceToHost));
         timer.step("  * GPU CudaCopyBack Sync DeviceToHost: du");
 #endif
@@ -310,6 +301,7 @@ public:
             // temporary sign fix, see note in ParticlesData
             d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
             timer.step("Gravity");
+        }
 
 #ifdef USE_CUDA
             CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data(), d.devPtrs.d_grad_P_x, size_np_T, cudaMemcpyDeviceToHost));
@@ -317,7 +309,6 @@ public:
             CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data(), d.devPtrs.d_grad_P_z, size_np_T, cudaMemcpyDeviceToHost));
             timer.step("  * GPU CudaCopyBack Sync DeviceToHost: grad_P_x,grad_P_y,grad_P_z");
 #endif
-        }
 
         computeTimestep(first, last, d);
         timer.step("Timestep");
