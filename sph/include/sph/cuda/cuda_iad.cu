@@ -112,10 +112,6 @@ void computeIAD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
     // number of locally present particles, including halos
     size_t sizeWithHalos = d.x.size();
 
-    size_t size_np_T = sizeWithHalos * sizeof(T);
-
-    CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_rho, d.rho.data(), size_np_T, cudaMemcpyHostToDevice));
-
     unsigned numParticlesCompute = endIndex - startIndex;
 
     unsigned numThreads = CudaConfig::numThreads;
@@ -145,13 +141,6 @@ void computeIAD(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d,
                                        d.devPtrs.d_c23,
                                        d.devPtrs.d_c33);
     CHECK_CUDA_ERR(cudaGetLastError());
-
-    CHECK_CUDA_ERR(cudaMemcpy(d.c11.data(), d.devPtrs.d_c11, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.c12.data(), d.devPtrs.d_c12, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.c13.data(), d.devPtrs.d_c13, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.c22.data(), d.devPtrs.d_c22, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.c23.data(), d.devPtrs.d_c23, size_np_T, cudaMemcpyDeviceToHost));
-    CHECK_CUDA_ERR(cudaMemcpy(d.c33.data(), d.devPtrs.d_c33, size_np_T, cudaMemcpyDeviceToHost));
 }
 
 template void computeIAD(size_t, size_t, size_t, ParticlesData<double, unsigned, cstone::GpuTag>& d,

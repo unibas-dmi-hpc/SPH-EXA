@@ -148,6 +148,7 @@ public:
 
     void step(DomainType& domain, ParticleDataType& d) override
     {
+        timer.start();
 
 #ifdef USE_CUDA
         size_t sizeWithHalos    = d.x.size();
@@ -156,8 +157,6 @@ public:
 #endif
 
         bool doGrav = (d.g != 0.0);
-
-        timer.start();
         if (doGrav)
         {
             domain.syncGrav(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1);
@@ -166,7 +165,7 @@ public:
         {
             domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1);
         }
-        timer.step("domain::sync");
+        timer.step("domain::sync --> codes, x,y,z, h, m, u, vx,vy,vz, x_m1,y_m1,z_m1, du_m1");
 
         resize(d, domain.nParticlesWithHalos());
         resizeNeighbors(d, domain.nParticles() * ngmax_);
@@ -181,52 +180,68 @@ public:
         timer.step("FindNeighbors");
 
 #ifdef USE_CUDA
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_codes, d.codes.data(), size_np_CodeType, cudaMemcpyHostToDevice));
+        timer.step("GPU CudaCopyIn Sync HostToDevice: codes");
+
         CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_x, d.x.data(), size_np_T, cudaMemcpyHostToDevice));
         CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_y, d.y.data(), size_np_T, cudaMemcpyHostToDevice));
         CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_z, d.z.data(), size_np_T, cudaMemcpyHostToDevice));
         CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_h, d.h.data(), size_np_T, cudaMemcpyHostToDevice));
         CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_m, d.m.data(), size_np_T, cudaMemcpyHostToDevice));
-
-        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_codes, d.codes.data(), size_np_CodeType, cudaMemcpyHostToDevice));
+        timer.step("GPU CudaCopyIn Sync HostToDevice: x,y,z, h, m");
 #endif
 
         computeRhoZero(first, last, ngmax_, d, domain.box());
         timer.step("RhoZero");
 #ifdef USE_CUDA
         CHECK_CUDA_ERR(cudaMemcpy(d.rho0.data(), d.devPtrs.d_rho0,  size_np_T, cudaMemcpyDeviceToHost));
+        timer.step("GPU CudaCopyBack Sync DeviceToHost: rho0");
 #endif
         domain.exchangeHalos(d.rho0);
-        timer.step("mpi::synchronizeHalos");
+        timer.step("mpi::synchronizeHalos --> rho0");
 
         computeDensity(first, last, ngmax_, d, domain.box());
         timer.step("Density");
 #ifdef USE_CUDA
         CHECK_CUDA_ERR(cudaMemcpy(d.rho.data(),     d.devPtrs.d_rho,     size_np_T, cudaMemcpyDeviceToHost));
         CHECK_CUDA_ERR(cudaMemcpy(d.kx.data(),      d.devPtrs.d_kx,      size_np_T, cudaMemcpyDeviceToHost));
+        timer.step("GPU CudaCopyBack Sync DeviceToHost: rho, kx");
 #endif
         domain.exchangeHalos(d.rho, d.kx);
-        timer.step("mpi::synchronizeHalos");
+        timer.step("mpi::synchronizeHalos --> rho, kx");
 
         computeEquationOfState(first, last, d);
         timer.step("EquationOfState");
         domain.exchangeHalos(d.p, d.c);
-        timer.step("mpi::synchronizeHalos");
+        timer.step("mpi::synchronizeHalos --> p, c");
 
-        domain.exchangeHalos(d.vx, d.vy, d.vz);
-        timer.step("mpi::synchronizeHalos");
-
+#ifdef USE_CUDA
+        CHECK_CUDA_ERR(cudaMemcpy(d.devPtrs.d_rho, d.rho.data(), size_np_T, cudaMemcpyHostToDevice));
+        timer.step("GPU CudaCopyIn Sync HostToDevice: rho");
+#endif
         computeIAD(first, last, ngmax_, d, domain.box());
         timer.step("IAD");
+#ifdef USE_CUDA
+        CHECK_CUDA_ERR(cudaMemcpy(d.c11.data(), d.devPtrs.d_c11, size_np_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.c12.data(), d.devPtrs.d_c12, size_np_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.c13.data(), d.devPtrs.d_c13, size_np_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.c22.data(), d.devPtrs.d_c22, size_np_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.c23.data(), d.devPtrs.d_c23, size_np_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.c33.data(), d.devPtrs.d_c33, size_np_T, cudaMemcpyDeviceToHost));
+        timer.step("GPU CudaCopyBack Sync DeviceToHost: c11, c12, c13, c22, c23, c33");
+#endif
+        domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33);
+        timer.step("mpi::synchronizeHalos --> c11, c12, c13, c22, c23, c33");
 
         computeDivvCurlv(first, last, ngmax_, d, domain.box());
         timer.step("VelocityDivCurl");
-        domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33, d.divv, d.curlv);
-        timer.step("mpi::synchronizeHalos");
+        domain.exchangeHalos(d.divv, d.curlv);
+        timer.step("mpi::synchronizeHalos --> divv, curlv");
 
         computeAVswitches(first, last, ngmax_, d, domain.box());
         timer.step("AVswitches");
         domain.exchangeHalos(d.alpha);
-        timer.step("mpi::synchronizeHalos");
+        timer.step("mpi::synchronizeHalos --> alpha");
 
         computeMomentumEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergy");
