@@ -110,14 +110,14 @@ void computeRhoZero(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
         int          sIdx   = i % NST;
         cudaStream_t stream = d.devPtrs.d_stream[sIdx].stream;
 
-        int* d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
-
         unsigned firstParticle       = startIndex + i * taskSize;
         unsigned lastParticle        = std::min(startIndex + (i + 1) * taskSize, endIndex);
         unsigned numParticlesCompute = lastParticle - firstParticle;
 
         unsigned numThreads = CudaConfig::numThreads;
         unsigned numBlocks  = (numParticlesCompute + numThreads - 1) / numThreads;
+
+        int* d_neighborsCount_use = d.devPtrs.d_stream[sIdx].d_neighborsCount;
 
         cudaRhoZero<<<numBlocks, numThreads, 0, stream>>>(d.sincIndex,
                                                           d.K,
