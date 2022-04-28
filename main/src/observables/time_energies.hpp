@@ -28,14 +28,12 @@
  * @author Lukas Schmidt
  */
 
-
 #include "iobservables.hpp"
 #include <fstream>
 #include "io/ifile_writer.hpp"
 
-
-namespace sphexa {
-
+namespace sphexa
+{
 
 template<class Dataset>
 class TimeAndEnergy : public IObservables<Dataset>
@@ -43,29 +41,23 @@ class TimeAndEnergy : public IObservables<Dataset>
     std::ofstream& constantsFile;
 
 public:
+    TimeAndEnergy(std::ofstream& constPath)
+        : constantsFile(constPath)
+    {
+    }
 
-    TimeAndEnergy(std::ofstream& constPath) : constantsFile(constPath){}
-
-    using T = typename Dataset::RealType; 
-    void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex,
-                    cstone::Box<T>& box)
+    using T = typename Dataset::RealType;
+    void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
     {
 
         int rank;
         MPI_Comm_rank(d.comm, &rank);
 
-        if(rank == 0) 
+        if (rank == 0)
         {
             fileutils::writeColumns(constantsFile, ' ', d.iteration, d.ttot, d.minDt, d.etot, d.ecin, d.eint, d.egrav);
         }
     }
-    
 };
 
-
-
-
-
-
-
-} //namespace sphexa
+} // namespace sphexa

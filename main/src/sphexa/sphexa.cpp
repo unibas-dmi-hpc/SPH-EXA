@@ -104,10 +104,7 @@ int main(int argc, char** argv)
 
     std::unique_ptr<IFileWriter<Dataset>> fileWriter;
     if (ascii) { fileWriter = std::make_unique<AsciiWriter<Dataset>>(); }
-    else
-    {
-        fileWriter = std::make_unique<H5PartWriter<Dataset>>();
-    }
+    else { fileWriter = std::make_unique<H5PartWriter<Dataset>>(); }
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
     std::unique_ptr<ISimInitializer<Dataset>> simInit = initializerFactory<Dataset>(initCond, glassBlock);

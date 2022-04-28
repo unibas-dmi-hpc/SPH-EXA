@@ -161,10 +161,7 @@ public:
         {
             domain.syncGrav(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1);
         }
-        else
-        {
-            domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1);
-        }
+        else { domain.sync(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1); }
         timer.step("domain::sync: codes, x,y,z, h, m, u, vx,vy,vz, x_m1,y_m1,z_m1, du_m1");
 
         resize(d, domain.nParticlesWithHalos());

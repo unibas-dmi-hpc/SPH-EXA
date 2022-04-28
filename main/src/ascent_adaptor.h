@@ -73,15 +73,15 @@ void Initialize([[maybe_unused]] DataType& d, [[maybe_unused]] long startIndex)
     */
 
     /* IO to disk */
-    conduit::Node &add_extr = actions.append();
-    add_extr["action"] = "add_extracts";
-    conduit::Node &savedata = add_extr["extracts"];
+    conduit::Node& add_extr = actions.append();
+    add_extr["action"]      = "add_extracts";
+    conduit::Node& savedata = add_extr["extracts"];
 
     // add a relay extract that will write mesh data to
     // blueprint hdf5 files
     savedata["e1/type"] = "relay";
-    //savedata["e1/pipeline"] = "pl1";
-    savedata["e1/params/path"] = "out_export_particles";
+    // savedata["e1/pipeline"] = "pl1";
+    savedata["e1/params/path"]     = "out_export_particles";
     savedata["e1/params/protocol"] = "blueprint/mesh/hdf5";
 }
 

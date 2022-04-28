@@ -38,10 +38,7 @@ public:
             {
                 return strIsIntegral(*itr) ? T(std::stoi(*itr)) : T(std::stod(*itr));
             }
-            else
-            {
-                return std::string(*itr);
-            }
+            else { return std::string(*itr); }
         }
         return def;
     }
