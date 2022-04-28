@@ -384,14 +384,14 @@ public:
         bool converged = tree_.update(focusStart, focusEnd, mandatoryKeys, counts_, macs_);
 
         std::vector<Vec4<T>> centers_(tree_.octree().numTreeNodes());
-        auto nodeKeys  = octree().nodeKeys();
-        float invTheta = 1.0f / theta_;
+        auto nodeKeys     = octree().nodeKeys();
+        float invThetaEff = 1.0f / theta_ + 0.5;
 
 #pragma omp parallel for schedule(static)
         for (size_t i = 0; i < nodeKeys.size(); ++i)
         {
             //! set centers to geometric centers for min dist Mac
-            centers_[i] = computeMinMacR2(nodeKeys[i], invTheta, box);
+            centers_[i] = computeMinMacR2(nodeKeys[i], invThetaEff, box);
         }
 
         macs_.resize(tree_.octree().numTreeNodes());

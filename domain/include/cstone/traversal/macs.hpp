@@ -81,13 +81,13 @@ HOST_DEVICE_FUN T minDistanceSq(IBox a, IBox b, const Box<T>& box)
 /*! @brief Compute square of the acceptance radius for the minimum distance MAC
  *
  * @param prefix       SFC key of the tree cell with Warren-Salmon placeholder-bit
- * @param invTheta     theta^-1 (opening parameter)
+ * @param invThetaEff  theta^-1 + s (effective opening parameter)
  * @param box          global coordinate bounding box
  * @return             geometric center in the first 3 elements, the square of the distance from @p sourceCenter
  *                     beyond which the MAC fails or passes in the 4th element
  */
 template<class T, class KeyType>
-HOST_DEVICE_FUN Vec4<T> computeMinMacR2(KeyType prefix, float invTheta, const Box<T>& box)
+HOST_DEVICE_FUN Vec4<T> computeMinMacR2(KeyType prefix, float invThetaEff, const Box<T>& box)
 {
     KeyType nodeKey  = decodePlaceholderBit(prefix);
     int prefixLength = decodePrefixLength(prefix);
@@ -96,8 +96,7 @@ HOST_DEVICE_FUN Vec4<T> computeMinMacR2(KeyType prefix, float invTheta, const Bo
     auto [geoCenter, geoSize] = centerAndSize<KeyType>(cellBox, box);
 
     T l   = T(2) * max(geoSize);
-    T s   = l / T(2);
-    T mac = l * invTheta + s;
+    T mac = l * invThetaEff;
 
     return {geoCenter[0], geoCenter[1], geoCenter[2], mac * mac};
 }

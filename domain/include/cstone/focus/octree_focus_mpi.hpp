@@ -309,14 +309,14 @@ public:
     {
         centers_.resize(octree().numTreeNodes());
 
-        auto nodeKeys  = octree().nodeKeys();
-        float invTheta = 1.0f / theta_;
+        auto nodeKeys     = octree().nodeKeys();
+        float invThetaEff = 1.0f / theta_ + 0.5f;
 
 #pragma omp parallel for schedule(static)
         for (size_t i = 0; i < nodeKeys.size(); ++i)
         {
             //! set centers to geometric centers for min dist Mac
-            centers_[i] = computeMinMacR2(nodeKeys[i], invTheta, box);
+            centers_[i] = computeMinMacR2(nodeKeys[i], invThetaEff, box);
         }
 
         updateVecMac(box, assignment, globalTreeLeaves);
