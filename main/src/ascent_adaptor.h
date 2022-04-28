@@ -154,7 +154,7 @@ void Execute(DataType& d, long startIndex, long endIndex)
     mesh["fields/grad_P_z/association"] = "vertex";
     mesh["fields/grad_P_z/topology"]    = "mesh";
     mesh["fields/grad_P_z/values"].set_external(&d.grad_P_z[startIndex], endIndex - startIndex);
-    mesh["fields/grad_P_zz/volume_dependent"].set("false");
+    mesh["fields/grad_P_z/volume_dependent"].set("false");
     
     std::vector<conduit_int64> conn(endIndex - startIndex);
     std::iota(conn.begin(), conn.end(), 0);
