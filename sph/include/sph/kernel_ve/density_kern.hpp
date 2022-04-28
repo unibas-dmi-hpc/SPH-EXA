@@ -56,7 +56,7 @@ CUDA_DEVICE_HOST_FUN inline void densityJLoop(int i, T sincIndex, T K, const cst
     T wrho0i = wrho0[i];
     T xmassi = m[i] / rho0i;
 
-    T hInv  = 1.0 / hi;
+    T hInv  = T(1) / hi;
     T h3Inv = hInv * hInv * hInv;
 
     T kxi      = 0.0;
@@ -69,22 +69,20 @@ CUDA_DEVICE_HOST_FUN inline void densityJLoop(int i, T sincIndex, T K, const cst
         T   vloc   = dist * hInv;
         T   w      = ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
         T   dw     = wharmonic_derivative(vloc, w) * sincIndex;
-        T   dterh  = -(3.0 * w + vloc * dw);
+        T   dterh  = -(T(3) * w + vloc * dw);
         T   xmassj = m[j] / rho0[j];
 
         kxi += w * xmassj;
         whomegai += dterh * xmassj;
     }
 
-    kxi      = K * (kxi + xmassi) * h3Inv;
-    whomegai = K * (whomegai - 3.0 * xmassi) * h3Inv * hInv;
+    kx[i]    = K * (kxi + xmassi) * h3Inv;
+    whomegai = K * (whomegai - T(3) * xmassi) * h3Inv * hInv;
 
-    T roloc  = kxi * m[i] / xmassi;
-    ro[i]    = roloc;
-    kx[i]    = kxi;
-    whomegai = whomegai * m[i] / xmassi + (roloc / rho0i - K * xmassi * h3Inv) * wrho0i;
-    T dhdrho = -hi / ro[i] / 3.0; // This /3 is the dimension hard-coded.
-    gradh[i] = 1.0 - dhdrho * whomegai;
+    ro[i]    = kx[i] * m[i] / xmassi;
+    whomegai = whomegai * m[i] / xmassi + (ro[i] / rho0i - K * xmassi * h3Inv) * wrho0i;
+    T dhdrho = -hi / ro[i] / T(3); // This /3 is the dimension hard-coded.
+    gradh[i] = T(1) - dhdrho * whomegai;
 }
 
 } // namespace kernels
