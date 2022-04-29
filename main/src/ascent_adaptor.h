@@ -109,12 +109,12 @@ void Execute(DataType& d, long startIndex, long endIndex)
     mesh["fields/Internal Energy/topology"]    = "mesh";
     mesh["fields/Internal Energy/values"].set_external(&d.u[startIndex], endIndex - startIndex);
     mesh["fields/Internal Energy/volume_dependent"].set("false");
-    
+
     mesh["fields/Pressure/association"] = "vertex";
     mesh["fields/Pressure/topology"]    = "mesh";
     mesh["fields/Pressure/values"].set_external(&d.p[startIndex], endIndex - startIndex);
     mesh["fields/Pressure/volume_dependent"].set("false");
-        
+
     mesh["fields/vx/association"] = "vertex";
     mesh["fields/vx/topology"]    = "mesh";
     mesh["fields/vx/values"].set_external(&d.vx[startIndex], endIndex - startIndex);
@@ -127,22 +127,22 @@ void Execute(DataType& d, long startIndex, long endIndex)
     mesh["fields/vz/topology"]    = "mesh";
     mesh["fields/vz/values"].set_external(&d.vz[startIndex], endIndex - startIndex);
     mesh["fields/vz/volume_dependent"].set("false");
-    
+
     mesh["fields/Smoothing Length/association"] = "vertex";
     mesh["fields/Smoothing Length/topology"]    = "mesh";
     mesh["fields/Smoothing Length/values"].set_external(&d.h[startIndex], endIndex - startIndex);
     mesh["fields/Smoothing Length/volume_dependent"].set("false");
-    
+
     mesh["fields/Mass/association"] = "vertex";
     mesh["fields/Mass/topology"]    = "mesh";
     mesh["fields/Mass/values"].set_external(&d.m[startIndex], endIndex - startIndex);
     mesh["fields/Mass/volume_dependent"].set("false");
-    
+
     mesh["fields/Speed of sound/association"] = "vertex";
     mesh["fields/Speed of sound/topology"]    = "mesh";
     mesh["fields/Speed of sound/values"].set_external(&d.c[startIndex], endIndex - startIndex);
     mesh["fields/Speed of sound/volume_dependent"].set("false");
-    
+
     mesh["fields/grad_P_x/association"] = "vertex";
     mesh["fields/grad_P_x/topology"]    = "mesh";
     mesh["fields/grad_P_x/values"].set_external(&d.grad_P_x[startIndex], endIndex - startIndex);
@@ -155,7 +155,7 @@ void Execute(DataType& d, long startIndex, long endIndex)
     mesh["fields/grad_P_z/topology"]    = "mesh";
     mesh["fields/grad_P_z/values"].set_external(&d.grad_P_z[startIndex], endIndex - startIndex);
     mesh["fields/grad_P_z/volume_dependent"].set("false");
-    
+
     std::vector<conduit_int64> conn(endIndex - startIndex);
     std::iota(conn.begin(), conn.end(), 0);
     mesh["topologies/mesh/elements/connectivity"].set_external(conn);
