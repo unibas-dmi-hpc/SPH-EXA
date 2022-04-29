@@ -170,10 +170,10 @@ public:
             first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, domain.box());
         timer.step("FindNeighbors");
         computeDensity(first, last, ngmax_, d, domain.box());
-        timer.step("Density & Gradh");
+        timer.step("Density");
         computeEquationOfState(first, last, d);
         timer.step("EquationOfState");
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c, d.gradh);
+        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c);
         timer.step("mpi::synchronizeHalos");
         computeIAD(first, last, ngmax_, d, domain.box());
         timer.step("IAD");
@@ -255,10 +255,10 @@ public:
         domain.exchangeHalos(d.rho0);
         timer.step("mpi::synchronizeHalos");
         computeDensityVE(first, last, ngmax_, d, domain.box());
-        timer.step("Density");
+        timer.step("Density & Gradh");
         computeEquationOfState(first, last, d);
         timer.step("EquationOfState");
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c, d.kx);
+        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c, d.kx, d.gradh);
         timer.step("mpi::synchronizeHalos");
         computeIadVE(first, last, ngmax_, d, domain.box());
         timer.step("IAD");

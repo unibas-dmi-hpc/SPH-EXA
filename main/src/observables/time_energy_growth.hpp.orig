@@ -39,6 +39,35 @@
 
 namespace sphexa
 {
+<<<<<<< HEAD
+
+template<typename T, class Dataset>
+void localGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, T* sumsi, T* sumci, T* sumdi,
+                     const cstone::Box<T>& box)
+{
+    const T* x    = d.x.data();
+    const T* y    = d.y.data();
+    const T* vy   = d.vy.data();
+    const T* rho  = d.rho.data();
+    const T* m    = d.m.data();
+    const T* kx   = d.kx.data();
+    const T  ybox = box.ly();
+
+    T sumsiThread = 0.0, sumciThread = 0.0, sumdiThread = 0.0;
+#pragma omp parallel for reduction(+ : sumsiThread, sumciThread, sumdiThread)
+    for (size_t i = startIndex; i < endIndex; i++)
+    {
+        T voli = m[i] / (rho[i] * kx[i]);
+        T si;
+        T ci;
+        T di;
+        T aux;
+        if (y[i] > ybox * 0.5e0) { aux = std::exp(-4.e0 * PI * std::abs(y[i] - 0.25e0)); }
+        else { aux = std::exp(-4.e0 * PI * std::abs((ybox - y[i]) - 0.25e0)); }
+        si = vy[i] * voli * std::sin(4.e0 * PI * x[i]) * aux;
+        ci = vy[i] * voli * std::cos(4.e0 * PI * x[i]) * aux;
+        di = voli * aux;
+=======
 
 template<class Tc, class Tm>
 std::array<Tc, 3> localGrowthRate(size_t startIndex, size_t endIndex, const Tc* x, const Tc* y, const Tm* vy,
@@ -56,10 +85,14 @@ std::array<Tc, 3> localGrowthRate(size_t startIndex, size_t endIndex, const Tc* 
         Tc voli = m[i] / (rho[i] * kx[i]);
         Tc aux;
         if (y[i] > ybox * 0.5) { aux = std::exp(-4.0 * PI * std::abs(y[i] - 0.25)); }
-        else { aux = std::exp(-4.0 * PI * std::abs(ybox - y[i] - 0.25)); }
+        else
+        {
+            aux = std::exp(-4.0 * PI * std::abs(ybox - y[i] - 0.25));
+        }
         Tc si = vy[i] * voli * std::sin(4.0 * PI * x[i]) * aux;
         Tc ci = vy[i] * voli * std::cos(4.0 * PI * x[i]) * aux;
         Tc di = voli * aux;
+>>>>>>> develop
 
         sumsi += si;
         sumci += ci;
@@ -87,6 +120,15 @@ T computeKHGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, const csto
         throw std::runtime_error("kx was empty. KHGrowthRate only supported with volume elements (--ve)\n");
     }
 
+<<<<<<< HEAD
+    int rootRank = 0;
+    MPI_Reduce(sum, globalSum, 3, MpiType<T>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
+    return 2.e0 * std::sqrt((globalSum[0] / globalSum[2]) * (globalSum[0] / globalSum[2]) +
+                            (globalSum[1] / globalSum[2]) * (globalSum[1] / globalSum[2]));
+    ;
+}
+
+=======
     std::array<T, 3> localSum = localGrowthRate(
         startIndex, endIndex, d.x.data(), d.y.data(), d.vy.data(), d.rho.data(), d.m.data(), d.kx.data(), box);
 
@@ -97,6 +139,7 @@ T computeKHGrowthRate(size_t startIndex, size_t endIndex, Dataset& d, const csto
     return 2.0 * std::sqrt(sum[0] * sum[0] + sum[1] * sum[1]) / sum[2];
 }
 
+>>>>>>> develop
 //! @brief Observables that includes times, energies and Kelvin-Helmholtz growth rate
 template<class Dataset>
 class TimeEnergyGrowth : public IObservables<Dataset>

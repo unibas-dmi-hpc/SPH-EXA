@@ -4,6 +4,8 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include <cmath>
+#include <cassert>
 
 namespace sphexa
 {
@@ -65,7 +67,7 @@ private:
     char **begin, **end;
 };
 
-/*! @brief Evaluate if current step and simulation time should be output (to file)
+/*! @brief Evaluate whether the current step and simulation time should be output (to file)
  *
  * @param step          current simulation step
  * @param t1            simulation time at beginning of current step
@@ -86,9 +88,32 @@ bool isExtraOutputStep(size_t step, double t1, double t2, const std::vector<std:
     return std::any_of(extraOutputs.begin(), extraOutputs.end(), matchStepOrTime);
 }
 
-bool isPeriodicOutputStep(size_t step, int writeFrequency)
+/*! @brief Evaluate whether the current step should be output (to file) according to time frequency
+ *
+ * @param t1            simulation time at beginning of current step
+ * @param t2            simulation time at end of current step
+ * @param frequencyStr  frequency time to output the simulation as string
+ * @return              true if the interval [t1, t2] contains an integer multiple of the output frequency
+ */
+bool isPeriodicOutputTime(double t1, double t2, const std::string& frequencyStr)
 {
-    return writeFrequency == 0 || (writeFrequency > 0 && step % writeFrequency == 0);
+    double frequency = std::stod(frequencyStr);
+    if (strIsIntegral(frequencyStr) || frequency == 0.0) { return false; }
+
+    double closestMultiple = int(t2 / frequency) * frequency;
+    return t1 <= closestMultiple && closestMultiple < t2;
+}
+
+/*! @brief Evaluate whether the current step should be output (to file) according to iteration frequency
+ *
+ * @param step          simulation step number
+ * @param frequencyStr  iteration frequency to output the simulation as string
+ * @return              true if the step is an integral multiple of the output frequency
+ */
+bool isPeriodicOutputStep(size_t step, const std::string& frequencyStr)
+{
+    int frequency = std::stoi(frequencyStr);
+    return strIsIntegral(frequencyStr) && frequency != 0 && (step % frequency == 0);
 }
 
 } // namespace sphexa

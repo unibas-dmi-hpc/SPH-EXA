@@ -95,6 +95,11 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
     std::string khGrowthRate = "KelvinHelmholtzGrowthRate";
     if (haveH5Attribute(testCase, khGrowthRate, H5PART_INT64))
     {
+<<<<<<< HEAD
+        return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile);
+    }
+    else { return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile); }
+=======
         h5part_int64_t attrValue;
         H5PartFile*    h5_file = nullptr;
         h5_file                = H5PartOpenFile(testCase.c_str(), H5PART_READ);
@@ -105,6 +110,7 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
     }
 
     return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);
+>>>>>>> develop
 }
 
 } // namespace sphexa

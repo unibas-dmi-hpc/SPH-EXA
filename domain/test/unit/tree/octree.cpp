@@ -42,7 +42,7 @@ template<class T>
 using pair = util::array<T, 2>;
 
 template<class KeyType>
-void findSearchBounds()
+static void findSearchBounds()
 {
     //                          0   1   2   3   4   5   6   7   8   9
     std::vector<KeyType> codes{3, 10, 11, 14, 16, 16, 16, 18, 19, 21};
@@ -50,7 +50,7 @@ void findSearchBounds()
 
     {
         // upward search direction, guess distance from target: 0
-        int guess = 3;
+        int guess  = 3;
         auto probe = findSearchBounds(guess, KeyType(14), c, c + codes.size());
         pair<const KeyType*> reference{c + 2, c + 4};
         EXPECT_EQ(probe[0] - c, reference[0] - c);
@@ -58,7 +58,7 @@ void findSearchBounds()
     }
     {
         // upward search direction, guess distance from target: 1
-        int guess = 3;
+        int guess  = 3;
         auto probe = findSearchBounds(guess, KeyType(15), c, c + codes.size());
         pair<const KeyType*> reference{c + 3, c + 4};
         EXPECT_EQ(probe[0] - c, reference[0] - c);
@@ -66,7 +66,7 @@ void findSearchBounds()
     }
     {
         // upward search direction, guess distance from target: 1
-        int guess = 3;
+        int guess  = 3;
         auto probe = findSearchBounds(guess, KeyType(16), c, c + codes.size());
         pair<const KeyType*> reference{c + 3, c + 7};
         EXPECT_EQ(probe[0] - c, reference[0] - c);
@@ -74,7 +74,7 @@ void findSearchBounds()
     }
     {
         // upward search direction, guess distance from target: 6
-        int guess = 0;
+        int guess  = 0;
         auto probe = findSearchBounds(guess, KeyType(17), c, c + codes.size());
         pair<const KeyType*> reference{c + 0, c + 8};
         EXPECT_EQ(probe[0] - c, reference[0] - c);
@@ -82,7 +82,7 @@ void findSearchBounds()
     }
     {
         // downward search direction
-        int guess = 4;
+        int guess  = 4;
         auto probe = findSearchBounds(guess, KeyType(12), c, c + codes.size());
         pair<const KeyType*> reference{c + 2, c + 4};
         EXPECT_EQ(probe[0] - c, reference[0] - c);
@@ -90,7 +90,7 @@ void findSearchBounds()
     }
     {
         // downward search direction
-        int guess = 4;
+        int guess  = 4;
         auto probe = findSearchBounds(guess, KeyType(11), c, c + codes.size());
         pair<const KeyType*> reference{c + 0, c + 4};
         EXPECT_EQ(probe[0] - c, reference[0] - c);
@@ -98,7 +98,7 @@ void findSearchBounds()
     }
     {
         // downward search direction
-        int guess = 4;
+        int guess  = 4;
         auto probe = findSearchBounds(guess, KeyType(10), c, c + codes.size());
         pair<const KeyType*> reference{c + 0, c + 4};
         EXPECT_EQ(probe[0] - c, reference[0] - c);
@@ -106,7 +106,7 @@ void findSearchBounds()
     }
     {
         // downward search direction
-        int guess = 8;
+        int guess  = 8;
         auto probe = findSearchBounds(guess, KeyType(16), c, c + codes.size());
         pair<const KeyType*> reference{c + 0, c + 8};
         EXPECT_EQ(probe[0] - c, reference[0] - c);
@@ -114,7 +114,7 @@ void findSearchBounds()
     }
     {
         // downward search direction
-        int guess = 6;
+        int guess  = 6;
         auto probe = findSearchBounds(guess, KeyType(16), c, c + codes.size());
         pair<const KeyType*> reference{c + 3, c + 7};
         EXPECT_EQ(probe[0] - c, reference[0] - c);
@@ -122,7 +122,7 @@ void findSearchBounds()
     }
     {
         // direct hit on the last element
-        int guess = 9;
+        int guess  = 9;
         auto probe = findSearchBounds(guess, KeyType(21), c, c + codes.size());
         pair<const KeyType*> reference{c + 8, c + 10};
         EXPECT_EQ(probe[0] - c, reference[0] - c);
@@ -130,7 +130,7 @@ void findSearchBounds()
     }
     {
         // must be able to handle out-of-bounds guess
-        int guess = 12;
+        int guess  = 12;
         auto probe = findSearchBounds(guess, KeyType(16), c, c + codes.size());
         pair<const KeyType*> reference{c + 1, c + 9};
         EXPECT_EQ(probe[0] - c, reference[0] - c);
@@ -139,27 +139,21 @@ void findSearchBounds()
     {
         // must be able to handle the upper bound of the last node
         std::make_signed_t<KeyType> guess = 8;
-        KeyType targetKey = nodeRange<KeyType>(0);
-        auto probe = findSearchBounds(guess, targetKey, c, c + codes.size());
+        KeyType targetKey                 = nodeRange<KeyType>(0);
+        auto probe                        = findSearchBounds(guess, targetKey, c, c + codes.size());
         pair<const KeyType*> reference{c + 8, c + 10};
         EXPECT_EQ(probe[0] - c, reference[0] - c);
         EXPECT_EQ(probe[1] - c, reference[1] - c);
     }
 }
 
-TEST(CornerstoneOctree, findSearchBounds32)
-{
-    findSearchBounds<unsigned>();
-}
+TEST(CornerstoneOctree, findSearchBounds32) { findSearchBounds<unsigned>(); }
 
-TEST(CornerstoneOctree, findSearchBounds64)
-{
-    findSearchBounds<uint64_t>();
-}
+TEST(CornerstoneOctree, findSearchBounds64) { findSearchBounds<uint64_t>(); }
 
 //! @brief test that computeNodeCounts correctly counts the number of codes for each node
 template<class CodeType>
-void checkCountTreeNodes()
+static void checkCountTreeNodes()
 {
     std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
 
@@ -185,7 +179,7 @@ TEST(CornerstoneOctree, countTreeNodes32) { checkCountTreeNodes<unsigned>(); }
 TEST(CornerstoneOctree, countTreeNodes64) { checkCountTreeNodes<uint64_t>(); }
 
 template<class KeyType>
-void computeNodeCountsSTree()
+static void computeNodeCountsSTree()
 {
     std::vector<KeyType> cornerstones{0, 1, nodeRange<KeyType>(0) - 1, nodeRange<KeyType>(0)};
     std::vector<KeyType> tree = computeSpanningTree<KeyType>(cornerstones);
@@ -211,7 +205,7 @@ TEST(CornerstoneOctree, computeNodeCounts_spanningTree)
 }
 
 template<class CodeType, class LocalIndex>
-void rebalanceDecision()
+static void rebalanceDecision()
 {
     std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
 
@@ -233,7 +227,7 @@ TEST(CornerstoneOctree, rebalanceDecision)
 }
 
 template<class CodeType, class LocalIndex>
-void rebalanceDecisionSingleRoot()
+static void rebalanceDecisionSingleRoot()
 {
     std::vector<CodeType> tree = OctreeMaker<CodeType>{}.makeTree();
 
@@ -262,7 +256,7 @@ TEST(CornerstoneOctree, rebalanceDecisionSingleRoot)
  *  of the underlying 30-bit or 63 bit Morton code is exhausted.
  */
 template<class CodeType>
-void rebalanceInsufficentResolution()
+static void rebalanceInsufficentResolution()
 {
     constexpr int bucketSize = 1;
 
@@ -296,7 +290,7 @@ TEST(CornerstoneOctree, rebalanceInsufficientResolution)
 
 //! @brief check that nodes can be fused at the start of the tree
 template<class CodeType>
-void rebalanceTree()
+static void rebalanceTree()
 {
     std::vector<CodeType> tree = OctreeMaker<CodeType>{}.divide().divide(0).makeTree();
 
@@ -317,8 +311,66 @@ TEST(CornerstoneOctree, rebalance)
 }
 
 template<class KeyType>
-void checkOctreeWithCounts(const std::vector<KeyType>& tree, const std::vector<unsigned>& counts, int bucketSize,
-                           const std::vector<KeyType>& mortonCodes, bool relaxBucketCount)
+static void updateTreelet()
+{
+    unsigned bucketSize = 64;
+    auto tree           = OctreeMaker<KeyType>{}.divide().divide(0).makeTree();
+
+    TreeNodeIndex treeletStart = 7;
+    TreeNodeIndex treeletEnd   = 9;
+
+    {
+        gsl::span<const KeyType> treelet(tree.data() + treeletStart, tree.data() + treeletEnd + 1);
+        std::vector<unsigned> treeletCounts{bucketSize + 1, bucketSize - 1};
+
+        auto newTreelet = updateTreelet<KeyType>(treelet, treeletCounts, bucketSize);
+
+        std::vector<KeyType> reference{treelet.front(),      pad(KeyType(071), 9), pad(KeyType(072), 9),
+                                       pad(KeyType(073), 9), pad(KeyType(074), 9), pad(KeyType(075), 9),
+                                       pad(KeyType(076), 9), pad(KeyType(077), 9), pad(KeyType(01), 3),
+                                       treelet.back()};
+        EXPECT_EQ(nNodes(newTreelet), 9);
+        EXPECT_EQ(newTreelet, reference);
+    }
+    {
+        gsl::span<const KeyType> treelet(tree.data() + treeletStart, tree.data() + treeletEnd + 1);
+        std::vector<unsigned> treeletCounts{bucketSize - 1, bucketSize + 1};
+
+        auto newTreelet = updateTreelet<KeyType>(treelet, treeletCounts, bucketSize);
+
+        std::vector<KeyType> reference{treelet.front(),      pad(KeyType(010), 6), pad(KeyType(011), 6),
+                                       pad(KeyType(012), 6), pad(KeyType(013), 6), pad(KeyType(014), 6),
+                                       pad(KeyType(015), 6), pad(KeyType(016), 6), pad(KeyType(017), 6),
+                                       treelet.back()};
+        EXPECT_EQ(nNodes(newTreelet), 9);
+        EXPECT_EQ(newTreelet, reference);
+    }
+    treeletStart = 0;
+    treeletEnd   = 8;
+    {
+        gsl::span<const KeyType> treelet(tree.data() + treeletStart, tree.data() + treeletEnd + 1);
+        std::vector<unsigned> treeletCounts{1, 2, 3, 4, 5, 6, 7, 8};
+
+        auto newTreelet = updateTreelet<KeyType>(treelet, treeletCounts, bucketSize);
+
+        std::vector<KeyType> reference{treelet.front(), treelet.back()};
+        EXPECT_EQ(nNodes(newTreelet), 1);
+        EXPECT_EQ(newTreelet, reference);
+    }
+}
+
+TEST(CornerstoneOctree, updateTreelet)
+{
+    updateTreelet<unsigned>();
+    updateTreelet<uint64_t>();
+}
+
+template<class KeyType>
+static void checkOctreeWithCounts(const std::vector<KeyType>& tree,
+                                  const std::vector<unsigned>& counts,
+                                  int bucketSize,
+                                  const std::vector<KeyType>& mortonCodes,
+                                  bool relaxBucketCount)
 {
     using CodeType = KeyType;
     EXPECT_TRUE(checkOctreeInvariants(tree.data(), nNodes(tree)));

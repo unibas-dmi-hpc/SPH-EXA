@@ -30,6 +30,7 @@
 #pragma once
 
 #include <vector>
+#include <variant>
 
 #include "traits.hpp"
 
@@ -65,13 +66,15 @@ auto getOutputArrays(Dataset& dataset)
 {
     using T            = typename Dataset::RealType;
     auto fieldPointers = dataset.data();
+    using FieldType    = std::variant<const float*, const double*, const int*>;
 
-    std::vector<const T*> outputFields(dataset.outputFields.size());
-    std::transform(dataset.outputFields.begin(),
-                   dataset.outputFields.end(),
-                   outputFields.begin(),
-                   [&fieldPointers](int i) { return fieldPointers[i]->data(); });
+    std::vector<FieldType> outputFields;
+    outputFields.reserve(dataset.outputFields.size());
 
+    for (int i : dataset.outputFields)
+    {
+        std::visit([&outputFields](auto& arg) { outputFields.push_back(arg->data()); }, fieldPointers[i]);
+    }
     return outputFields;
 }
 
@@ -88,11 +91,11 @@ void resize(Dataset& d, size_t size)
 
     for (int i : d.conservedFields)
     {
-        reallocate(*data_[i], size, growthRate);
+        std::visit([size, growthRate](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
     }
     for (int i : d.dependentFields)
     {
-        reallocate(*data_[i], size, growthRate);
+        std::visit([size, growthRate](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
     }
 
     reallocate(d.codes, size, growthRate);

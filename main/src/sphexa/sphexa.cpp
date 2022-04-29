@@ -62,6 +62,7 @@ using AccType = cstone::CpuTag;
 using namespace sphexa;
 using namespace sphexa::sph;
 
+bool stopSimulation(size_t iteration, double time, const std::string& maxStepStr);
 void printHelp(char* binName, int rank);
 
 int main(int argc, char** argv)
@@ -74,27 +75,23 @@ int main(int argc, char** argv)
         printHelp(argv[0], rank);
         return exitSuccess();
     }
-    if (!parser.exists("--init") && rank == 0)
-    {
-        throw std::runtime_error("no initial conditions specified (--init flag missing)\n");
-    }
 
     using Real    = double;
     using KeyType = uint64_t;
     using Dataset = ParticlesData<Real, KeyType, AccType>;
     using Domain  = cstone::Domain<KeyType, Real, AccType>;
 
-    const std::string        initCond       = parser.get("--init");
-    const size_t             problemSize    = parser.get<int>("-n", 50);
-    const std::string        glassBlock     = parser.get("--glass");
-    const bool               ve             = parser.exists("--ve");
-    const size_t             maxStep        = parser.get<int>("-s", 200);
-    const int                writeFrequency = parser.get<int>("-w", -1);
-    std::vector<std::string> writeExtra     = parser.getCommaList("--wextra");
-    std::vector<std::string> outputFields   = parser.getCommaList("-f");
-    const bool               ascii          = parser.exists("--ascii");
-    const std::string        outDirectory   = parser.get("--outDir");
-    const bool               quiet          = parser.exists("--quiet");
+    const std::string        initCond          = parser.get("--init");
+    const size_t             problemSize       = parser.get("-n", 50);
+    const std::string        glassBlock        = parser.get("--glass");
+    const bool               ve                = parser.exists("--ve");
+    const std::string        maxStepStr        = parser.get("-s", std::string("200"));
+    const std::string        writeFrequencyStr = parser.get("-w", std::string("0"));
+    std::vector<std::string> writeExtra        = parser.getCommaList("--wextra");
+    std::vector<std::string> outputFields      = parser.getCommaList("-f");
+    const bool               ascii             = parser.exists("--ascii");
+    const std::string        outDirectory      = parser.get("--outDir");
+    const bool               quiet             = parser.exists("--quiet");
 
     if (outputFields.empty()) { outputFields = {"x", "y", "z", "vx", "vy", "vz", "h", "rho", "u", "p", "c"}; }
 
@@ -124,9 +121,9 @@ int main(int argc, char** argv)
     d.setOutputFields(outputFields);
 
     bool  haveGrav = (d.g != 0.0);
-    float theta    = parser.exists("--theta") ? parser.get<float>("--theta") : (haveGrav ? 0.5f : 1.0f);
+    float theta    = parser.get("--theta", haveGrav ? 0.5f : 1.0f);
 
-    if (rank == 0 && (writeFrequency > 0 || !writeExtra.empty()))
+    if (rank == 0 && (writeFrequencyStr != "0" || !writeExtra.empty()))
     {
         fileWriter->constants(simInit->constants(), outFile);
     }
@@ -155,13 +152,14 @@ int main(int argc, char** argv)
     MasterProcessTimer totalTimer(output, rank);
     totalTimer.start();
     size_t startIteration = d.iteration;
-    for (; d.iteration <= maxStep; d.iteration++)
+    for (; !stopSimulation(d.iteration - 1, d.ttot, maxStepStr); d.iteration++)
     {
         propagator->step(domain, d);
 
         observables->computeAndWrite(d, domain.startIndex(), domain.endIndex(), box);
 
-        if (isPeriodicOutputStep(d.iteration, writeFrequency) ||
+        if (isPeriodicOutputStep(d.iteration, writeFrequencyStr) ||
+            isPeriodicOutputTime(d.ttot - d.minDt, d.ttot, writeFrequencyStr) ||
             isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra))
         {
             fileWriter->dump(d, domain.startIndex(), domain.endIndex(), box, outFile);
@@ -170,12 +168,21 @@ int main(int argc, char** argv)
         if (d.iteration % 50 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
     }
 
-    totalTimer.step("Total execution time of " + std::to_string(maxStep - startIteration + 1) + " iterations of " +
-                    initCond);
+    totalTimer.step("Total execution time of " + std::to_string(d.iteration - startIteration + 1) + " iterations of " +
+                    initCond + " up to t = " + std::to_string(d.ttot));
 
     constantsFile.close();
     viz::finalize();
     return exitSuccess();
+}
+
+//! @brief decide whether to stop the simulation based on evolved time (not wall-clock) or iteration count
+bool stopSimulation(size_t iteration, double time, const std::string& maxStepStr)
+{
+    bool lastIteration = strIsIntegral(maxStepStr) && iteration == std::stoi(maxStepStr);
+    bool simTimeLimit  = !strIsIntegral(maxStepStr) && time > std::stod(maxStepStr);
+
+    return lastIteration || simTimeLimit;
 }
 
 void printHelp(char* name, int rank)
@@ -195,12 +202,18 @@ void printHelp(char* name, int rank)
 
         printf("\t--ve \t\t Activate SPH with generalized volume elements\n\n");
 
-        printf("\t-s NUM \t\t NUM Number of iterations (time-steps) [200]\n\n");
+        printf("\t-s NUM \t\t int(NUM):  Number of iterations (time-steps) [200],\n\
+                \t real(NUM): Time   of simulation (time-model)\n\n");
 
-        printf("\t-w NUM \t\t Dump particles data every NUM iterations (time-steps) [-1]\n");
-        printf("\t--wextra LIST \t Comma-separated list of steps (integers) or ~times (floating point) "
-               "at which to trigger output to file []\n");
-        printf("\t-f LIST \t Comma-separated list of field names to write for each dump,\n\
+        printf("\t--wextra LIST \t Comma-separated list of steps (integers) or ~times (floating point)"
+               " at which to trigger output to file []\n\
+                   \t\t e.g.: --wextra 1,0.77,1.29,2.58\n\n");
+
+        printf("\t-w NUM \t\t NUM<=0:    No write per frequency [0],\n\
+                \t int(NUM):  Dump particles data every NUM iteration steps,\n\
+                \t real(NUM): Dump particles data every NUM of time seconds\n\n");
+
+        printf("\t-f LIST \t Comma-separated list of field names to write for each dump [x,y,z,vx,vy,vz,h,rho,u,p,c]\n\
                     \t\t e.g: -f x,y,z,h,rho\n\n");
 
         printf("\t--ascii \t Dump file in ASCII format [binary HDF5 by default]\n\n");

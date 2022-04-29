@@ -68,6 +68,9 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
         if (glassBlock.empty()) { throw std::runtime_error("need a valid glass block for evrard\n"); }
         return std::make_unique<EvrardGlassSphere<Dataset>>(glassBlock);
     }
+<<<<<<< HEAD
+    else { return std::make_unique<FileInit<Dataset>>(testCase); }
+=======
     else
     {
         if (std::filesystem::exists(testCase)) { return std::make_unique<FileInit<Dataset>>(testCase); }
@@ -78,6 +81,7 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
                                      " is not an existing file and does not refer to a supported test case\n");
         }
     }
+>>>>>>> develop
 }
 
 } // namespace sphexa

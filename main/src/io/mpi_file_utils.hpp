@@ -3,6 +3,7 @@
 #ifdef SPH_EXA_HAVE_H5PART
 #include <filesystem>
 #include "H5Part.h"
+#include <variant>
 #endif
 
 namespace sphexa
@@ -29,6 +30,12 @@ std::vector<std::string> datasetNames(H5PartFile* h5_file)
     return setNames;
 }
 
+inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, int* field)
+{
+    static_assert(std::is_same_v<int, h5part_int32_t>);
+    return H5PartReadDataInt32(h5_file, fieldName.c_str(), field);
+}
+
 inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fieldName, float* field)
 {
     static_assert(std::is_same_v<float, h5part_float32_t>);
@@ -39,6 +46,12 @@ inline h5part_int64_t readH5PartField(H5PartFile* h5_file, const std::string& fi
 {
     static_assert(std::is_same_v<double, h5part_float64_t>);
     return H5PartReadDataFloat64(h5_file, fieldName.c_str(), field);
+}
+
+inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const int* field)
+{
+    static_assert(std::is_same_v<int, h5part_int32_t>);
+    return H5PartWriteDataInt32(h5_file, fieldName.c_str(), field);
 }
 
 inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const float* field)
@@ -112,7 +125,9 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
     for (size_t fidx = 0; fidx < fieldPointers.size(); ++fidx)
     {
         const std::string& fieldName = Dataset::fieldNames[d.outputFields[fidx]];
-        writeH5PartField(h5_file, fieldName, fieldPointers[fidx] + firstIndex);
+        std::visit([&h5_file, &fieldName, firstIndex](auto& arg)
+                   { writeH5PartField(h5_file, fieldName, arg + firstIndex); },
+                   fieldPointers[fidx]);
     }
 
     H5PartCloseFile(h5_file);
