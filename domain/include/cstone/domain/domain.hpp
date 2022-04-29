@@ -366,13 +366,39 @@ private:
 
     void diagnostics(size_t assignedSize, gsl::span<int> peers)
     {
+        auto focusAssignment = focusTree_.assignment();
+        auto focusTree       = focusTree_.treeLeaves();
+        auto globalTree      = global_.treeLeaves();
+
+        TreeNodeIndex numFocusPeers    = 0;
+        TreeNodeIndex numFocusTruePeer = 0;
+        for (int i = 0; i < numRanks_; ++i)
+        {
+            if (i != myRank_)
+            {
+                numFocusPeers += focusAssignment[i].count();
+                for (TreeNodeIndex fi = focusAssignment[i].start(); fi < focusAssignment[i].end(); ++fi)
+                {
+                    KeyType fnstart  = focusTree[fi];
+                    KeyType fnend    = focusTree[fi + 1];
+                    TreeNodeIndex gi = findNodeAbove(globalTree, fnstart);
+                    if (!(gi < nNodes(globalTree) && globalTree[gi] == fnstart && globalTree[gi + 1] <= fnend))
+                    {
+                        numFocusTruePeer++;
+                    }
+                }
+            }
+        }
+
         int numFlags = std::count(halos_.haloFlags().cbegin(), halos_.haloFlags().cend(), 1);
         for (int i = 0; i < numRanks_; ++i)
         {
             if (i == myRank_)
             {
-                std::cout << "rank " << i << " " << assignedSize << " " << layout_.back() << " flags: " << numFlags
-                          << "/" << halos_.haloFlags().size() << " peers: [" << peers.size() << "] ";
+                std::cout << "rank " << i << " " << assignedSize << " " << layout_.back()
+                          << " focus h/true/peers/loc/tot: " << numFlags << "/" << numFocusTruePeer << "/"
+                          << numFocusPeers << "/" << focusAssignment[myRank_].count() << "/"
+                          << halos_.haloFlags().size() << " peers: [" << peers.size() << "] ";
                 for (auto r : peers)
                     std::cout << r << " ";
                 std::cout << std::endl;
