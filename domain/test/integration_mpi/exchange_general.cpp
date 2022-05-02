@@ -61,6 +61,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     unsigned bucketSizeLocal      = 16;
     float theta                   = 10.0;
     float macOffset               = 0.5;
+    float invThetaEff             = invThetaMinMac(theta);
 
     Box<T> box{-1, 1};
 
@@ -80,7 +81,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
 
     // *******************************
 
-    auto peers = findPeersMac(thisRank, assignment, domainTree, box, theta);
+    auto peers = findPeersMac(thisRank, assignment, domainTree, box, invThetaEff);
 
     KeyType focusStart = tree[assignment.firstNodeIdx(thisRank)];
     KeyType focusEnd   = tree[assignment.lastNodeIdx(thisRank)];
@@ -167,6 +168,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
     unsigned bucketSizeLocal      = 16;
     float theta                   = 10.0;
     float macOffset               = 0.5;
+    float invThetaEff             = invThetaMinMac(theta);
 
     Box<T> box{-1, 1};
 
@@ -187,7 +189,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
 
     /*******************************/
 
-    auto peers = findPeersMac(thisRank, assignment, domainTree, box, theta);
+    auto peers = findPeersMac(thisRank, assignment, domainTree, box, invThetaEff);
 
     KeyType focusStart = tree[assignment.firstNodeIdx(thisRank)];
     KeyType focusEnd   = tree[assignment.lastNodeIdx(thisRank)];

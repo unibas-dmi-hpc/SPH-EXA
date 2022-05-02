@@ -229,10 +229,10 @@ TEST(Macs, minVecMacMutual)
     Vec3<T> cB{3.5, 3.5, 3.5};
     Vec3<T> sB{0.5, 0.5, 0.5};
 
-    EXPECT_TRUE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.39));
-    EXPECT_FALSE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, false), 1.0 / 0.38));
+    EXPECT_TRUE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, false), invThetaVecMac(0.39)));
+    EXPECT_FALSE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, false), invThetaVecMac(0.38)));
 
-    EXPECT_FALSE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, true), 1.0));
+    EXPECT_FALSE(minVecMacMutual(cA, sA, cB, sB, Box<T>(0, 4, true), invThetaVecMac(1.0)));
 }
 
 template<class KeyType, class T>

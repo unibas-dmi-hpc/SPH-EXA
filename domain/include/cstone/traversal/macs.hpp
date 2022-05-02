@@ -204,6 +204,8 @@ HOST_DEVICE_FUN bool minMacMutual(const Vec3<T>& centerA,
 
 /*! @brief commutative combination of min-distance and vector map
  *
+ * @param invThetaEff  1/theta + s, effective inverse opening parameter
+ *
  * This MAC doesn't pass any A-B pairs that would fail either the min-distance
  * or vector MAC. Can be used instead of the vector mac when the mass center locations
  * are not known.
@@ -214,20 +216,20 @@ HOST_DEVICE_FUN bool minVecMacMutual(const Vec3<T>& centerA,
                                      const Vec3<T>& centerB,
                                      const Vec3<T>& sizeB,
                                      const Box<T>& box,
-                                     float invTheta)
+                                     float invThetaEff)
 {
     bool passA;
     {
         // A = target, B = source
         Vec3<T> dX = minDistance(centerB, centerA, sizeA, box);
-        T mac = max(sizeB) * 2 * (invTheta + std::sqrt(3));
+        T mac = max(sizeB) * 2 * invThetaEff;
         passA = norm2(dX) > (mac * mac);
     }
     bool passB;
     {
         // B = target, A = source
         Vec3<T> dX = minDistance(centerA, centerB, sizeB, box);
-        T mac = max(sizeA) * 2 * (invTheta + std::sqrt(3));
+        T mac = max(sizeA) * 2 * invThetaEff;
         passB = norm2(dX) > (mac * mac);
     }
     return passA && passB;

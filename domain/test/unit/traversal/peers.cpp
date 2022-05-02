@@ -40,12 +40,14 @@ using namespace cstone;
 
 //! @brief reference peer search, all-all leaf comparison
 template<class KeyType, class T>
-static std::vector<int> findPeersAll2All(
-    int myRank, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> tree, const Box<T>& box, float theta)
+static std::vector<int> findPeersAll2All(int myRank,
+                                         const SpaceCurveAssignment& assignment,
+                                         gsl::span<const KeyType> tree,
+                                         const Box<T>& box,
+                                         float invThetaEff)
 {
     TreeNodeIndex firstIdx = assignment.firstNodeIdx(myRank);
     TreeNodeIndex lastIdx  = assignment.lastNodeIdx(myRank);
-    float invTheta         = 1.0f / theta;
 
     std::vector<Vec3<T>> boxCenter(nNodes(tree));
     std::vector<Vec3<T>> boxSize(nNodes(tree));
@@ -58,7 +60,7 @@ static std::vector<int> findPeersAll2All(
     std::vector<int> peers(assignment.numRanks());
     for (TreeNodeIndex i = firstIdx; i < lastIdx; ++i)
         for (TreeNodeIndex j = 0; j < TreeNodeIndex(nNodes(tree)); ++j)
-            if (!minVecMacMutual(boxCenter[i], boxSize[i], boxCenter[j], boxSize[j], box, invTheta))
+            if (!minVecMacMutual(boxCenter[i], boxSize[i], boxCenter[j], boxSize[j], box, invThetaEff))
             {
                 peers[assignment.findRank(j)] = 1;
             }
@@ -84,8 +86,8 @@ static void findMacPeers64grid(int rank, float theta, bool pbc, int /*refNumPeer
         assignment.addRange(Rank(i), i, i + 1, 1);
     }
 
-    std::vector<int> peers     = findPeersMac(rank, assignment, octree, box, theta);
-    std::vector<int> reference = findPeersAll2All(rank, assignment, octree.treeLeaves(), box, theta);
+    std::vector<int> peers     = findPeersMac(rank, assignment, octree, box, invThetaVecMac(theta));
+    std::vector<int> reference = findPeersAll2All(rank, assignment, octree.treeLeaves(), box, invThetaVecMac(theta));
 
     // EXPECT_EQ(refNumPeers, peers.size());
     EXPECT_EQ(peers, reference);
@@ -115,9 +117,10 @@ template<class KeyType>
 static void findPeers()
 {
     Box<double> box{-1, 1};
-    int nParticles = 100000;
-    int bucketSize = 64;
-    int numRanks   = 50;
+    int nParticles    = 100000;
+    int bucketSize    = 64;
+    int numRanks      = 50;
+    float invThetaEff = invThetaVecMac(0.5f);
 
     auto particleKeys   = makeRandomGaussianKeys<KeyType>(nParticles);
     auto [tree, counts] = computeOctree(particleKeys.data(), particleKeys.data() + nParticles, bucketSize);
@@ -128,20 +131,20 @@ static void findPeers()
     SpaceCurveAssignment assignment = singleRangeSfcSplit(counts, numRanks);
 
     int probeRank             = numRanks / 2;
-    std::vector<int> peersDtt = findPeersMac(probeRank, assignment, octree, box, 0.5);
-    std::vector<int> peersStt = findPeersMacStt(probeRank, assignment, octree, box, 0.5);
-    std::vector<int> peersA2A = findPeersAll2All<KeyType>(probeRank, assignment, tree, box, 0.5);
+    std::vector<int> peersDtt = findPeersMac(probeRank, assignment, octree, box, invThetaEff);
+    std::vector<int> peersStt = findPeersMacStt(probeRank, assignment, octree, box, invThetaEff);
+    std::vector<int> peersA2A = findPeersAll2All<KeyType>(probeRank, assignment, tree, box, invThetaEff);
     EXPECT_EQ(peersDtt, peersStt);
     EXPECT_EQ(peersDtt, peersA2A);
 
     // check for mutuality
     for (int peerRank : peersDtt)
     {
-        std::vector<int> peersOfPeerDtt = findPeersMac(peerRank, assignment, octree, box, 0.5);
+        std::vector<int> peersOfPeerDtt = findPeersMac(peerRank, assignment, octree, box, invThetaEff);
 
-        // std::vector<int> peersOfPeerStt = findPeersMacStt(peerRank, assignment, octree, box, 0.5);
+        // std::vector<int> peersOfPeerStt = findPeersMacStt(peerRank, assignment, octree, box, invThetaEff);
         // EXPECT_EQ(peersDtt, peersStt);
-        std::vector<int> peersOfPeerA2A = findPeersAll2All<KeyType>(peerRank, assignment, tree, box, 0.5);
+        std::vector<int> peersOfPeerA2A = findPeersAll2All<KeyType>(peerRank, assignment, tree, box, invThetaEff);
         EXPECT_EQ(peersOfPeerDtt, peersOfPeerA2A);
 
         // the peers of the peers of the probeRank have to have probeRank as peer

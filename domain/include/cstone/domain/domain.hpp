@@ -181,7 +181,8 @@ public:
         // h is already reordered here for use in halo discovery
         reorderFunctor(h.data() + exchangeStart, h.data());
 
-        std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), theta_);
+        float invThetaEff      = invThetaMinMac(theta_);
+        std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
 
         // half the box-length results in a standard min-mac criterion
         float macOffset = 0.5;
@@ -218,7 +219,8 @@ public:
         auto [exchangeStart, keyView] = distribute(particleKeys, x, y, z, h, m, particleProperties...);
         reorderArrays(reorderFunctor, exchangeStart, 0, x.data(), y.data(), z.data(), h.data(), m.data());
 
-        std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), theta_);
+        float invThetaEff      = invThetaVecMac(theta_);
+        std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), invThetaEff);
 
         // results in a worst-case vector-mac, sqrt(3) * box-length is the maximum com distance from cell-center
         float macOffset = std::sqrt(3.0f);
