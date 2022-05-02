@@ -45,7 +45,7 @@ using namespace cstone;
 template<class KeyType>
 void exchangeFocus(int myRank, int numRanks)
 {
-    std::vector<KeyType>  treeLeaves = makeUniformNLevelTree<KeyType>(64, 1);
+    std::vector<KeyType> treeLeaves = makeUniformNLevelTree<KeyType>(64, 1);
     std::vector<unsigned> counts(nNodes(treeLeaves), 0);
 
     std::vector<int> peers;
@@ -160,7 +160,8 @@ void exchangeFocusIrregular(int myRank, int numRanks)
     else
     {
         peerStartIdx = 0;
-        peerEndIdx = std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<KeyType>({4})) - begin(treeLeaves);
+        peerEndIdx =
+            std::lower_bound(begin(treeLeaves), end(treeLeaves), codeFromIndices<KeyType>({4})) - begin(treeLeaves);
     }
 
     for (int i = peerStartIdx; i < peerEndIdx; ++i)
@@ -168,7 +169,7 @@ void exchangeFocusIrregular(int myRank, int numRanks)
         int level = treeLevel(treeLeaves[i + 1] - treeLeaves[i]);
         // the particle count per node outside the focus is 8^(3 - level-of-node)
         unsigned numParticles = 1u << (3 * (3 - level));
-        reference[i] = numParticles;
+        reference[i]          = numParticles;
     }
 
     EXPECT_EQ(counts, reference);
@@ -198,7 +199,7 @@ TEST(PeerExchange, arrayWrap)
 
     if (rank == 0)
     {
-        std::vector<Vec> buffer{ {0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11} };
+        std::vector<Vec> buffer{{0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11}};
 
         std::vector<MPI_Request> requests;
         mpiSendAsync(buffer.data(), buffer.size(), 1, 0, requests);
@@ -207,9 +208,9 @@ TEST(PeerExchange, arrayWrap)
     if (rank == 1)
     {
         std::vector<Vec> buffer(3);
-        mpiRecvSync(buffer.data(), buffer.size(), 0, 0, MPI_STATUS_IGNORE) ;
+        mpiRecvSync(buffer.data(), buffer.size(), 0, 0, MPI_STATUS_IGNORE);
 
-        std::vector<Vec> reference{ {0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11} };
+        std::vector<Vec> reference{{0, 1, 2, 3}, {4, 5, 6, 7}, {8, 9, 10, 11}};
         EXPECT_EQ(buffer, reference);
     }
 }

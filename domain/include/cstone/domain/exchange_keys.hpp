@@ -100,12 +100,12 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
         for (TreeNodeIndex i = 0; i < numKeys; i += 2)
         {
             KeyType lowerKey = receiveBuffer[i];
-            KeyType upperKey = receiveBuffer[i+1];
+            KeyType upperKey = receiveBuffer[i + 1];
 
-            LocalIndex lowerIdx = stl::lower_bound(particleKeys.begin(), particleKeys.end(), lowerKey)
-                                          - particleKeys.begin() + offset;
-            LocalIndex upperIdx = stl::lower_bound(particleKeys.begin(), particleKeys.end(), upperKey)
-                                          - particleKeys.begin() + offset;
+            LocalIndex lowerIdx =
+                stl::lower_bound(particleKeys.begin(), particleKeys.end(), lowerKey) - particleKeys.begin() + offset;
+            LocalIndex upperIdx =
+                stl::lower_bound(particleKeys.begin(), particleKeys.end(), upperKey) - particleKeys.begin() + offset;
 
             ret[receiveRank].addRange(lowerIdx, upperIdx);
         }
@@ -118,7 +118,7 @@ SendList exchangeRequestKeys(gsl::span<const KeyType> treeLeaves,
 
     // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization
     // across all ranks before calling this function again
-    //MPI_Barrier(MPI_COMM_WORLD);
+    // MPI_Barrier(MPI_COMM_WORLD);
 
     return ret;
 }

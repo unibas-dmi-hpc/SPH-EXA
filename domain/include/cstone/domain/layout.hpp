@@ -96,10 +96,7 @@ invertRanges(TreeNodeIndex first, gsl::span<const IndexPair<TreeNodeIndex>> rang
         if (range.start() == range.end()) { continue; }
 
         assert(currentIndex <= range.start() && "non-empty ranges must be sorted\n");
-        if (currentIndex < range.start())
-        {
-            invertedRanges.emplace_back(currentIndex, range.start());
-        }
+        if (currentIndex < range.start()) { invertedRanges.emplace_back(currentIndex, range.start()); }
         currentIndex = range.end();
     }
     if (currentIndex < last) { invertedRanges.emplace_back(currentIndex, last); }
@@ -136,14 +133,20 @@ std::vector<IntegralType> extractMarkedElements(gsl::span<const IntegralType> so
     while (firstReqIdx != secondReqIdx)
     {
         // advance to first halo (or to secondReqIdx)
-        while (firstReqIdx < secondReqIdx && flags[firstReqIdx] == 0) { firstReqIdx++; }
+        while (firstReqIdx < secondReqIdx && flags[firstReqIdx] == 0)
+        {
+            firstReqIdx++;
+        }
 
         // add one request key range
         if (firstReqIdx != secondReqIdx)
         {
             requestKeys.push_back(source[firstReqIdx]);
             // advance until not a halo or end of range
-            while (firstReqIdx < secondReqIdx && flags[firstReqIdx] == 1) { firstReqIdx++; }
+            while (firstReqIdx < secondReqIdx && flags[firstReqIdx] == 1)
+            {
+                firstReqIdx++;
+            }
             requestKeys.push_back(source[firstReqIdx]);
         }
     }
@@ -166,7 +169,7 @@ inline void computeNodeLayout(gsl::span<const unsigned> focusLeafCounts,
                               TreeNodeIndex lastAssignedIdx,
                               gsl::span<LocalIndex> layout)
 {
-    #pragma omp parallel for
+#pragma omp parallel for
     for (TreeNodeIndex i = 0; i < TreeNodeIndex(focusLeafCounts.size()); ++i)
     {
         bool haveParticles = (firstAssignedIdx <= i && i < lastAssignedIdx) || haloFlags[i];

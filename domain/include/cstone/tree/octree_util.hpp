@@ -60,23 +60,18 @@ bool checkOctreeInvariants(const I* tree, int nNodes)
 {
     // the root node delineated by code 0 and nodeRange<KeyType>(0)
     // must be part of the tree
-    if (nNodes < 1)
-        return false;
-    if (tree[0] != 0 || tree[nNodes] != nodeRange<I>(0))
-        return false;
+    if (nNodes < 1) return false;
+    if (tree[0] != 0 || tree[nNodes] != nodeRange<I>(0)) return false;
 
     for (int i = 0; i < nNodes; ++i)
     {
-        if (i+1 < nNodes && tree[i] >= tree[i+1])
-            return false;
+        if (i + 1 < nNodes && tree[i] >= tree[i + 1]) return false;
 
-        I range = tree[i+1] - tree[i];
+        I range = tree[i + 1] - tree[i];
 
-        if (range == 0)
-            return false;
+        if (range == 0) return false;
 
-        if (!isPowerOf8(range))
-            return false;
+        if (!isPowerOf8(range)) return false;
     }
 
     return true;
@@ -98,16 +93,16 @@ std::vector<I> makeRootNodeTree()
 template<class I>
 std::vector<I> makeNLevelGrid(int level)
 {
-    unsigned ticksPerDim  = 1u << level;
-    I        nNodes       = ticksPerDim * ticksPerDim * ticksPerDim;
-    I tickRange = nodeRange<I>(level);
+    unsigned ticksPerDim = 1u << level;
+    I nNodes             = ticksPerDim * ticksPerDim * ticksPerDim;
+    I tickRange          = nodeRange<I>(level);
 
     std::vector<I> codes;
     codes.reserve(nNodes + 1);
 
     for (unsigned i = 0; i < nNodes; ++i)
     {
-        codes.push_back(i*tickRange);
+        codes.push_back(i * tickRange);
     }
 
     return codes;
@@ -117,14 +112,13 @@ std::vector<I> makeNLevelGrid(int level)
 template<class I>
 std::vector<I> makeUniformNLevelTree(std::size_t nParticles, int bucketSize)
 {
-    unsigned level      = log8ceil(I(nParticles/std::size_t(bucketSize)));
+    unsigned level      = log8ceil(I(nParticles / std::size_t(bucketSize)));
     std::vector<I> tree = makeNLevelGrid<I>(level);
 
     tree.push_back(nodeRange<I>(0));
 
     return tree;
 }
-
 
 /*! @brief transfer a series of hierarchical octree indices into a morton code
  *
@@ -144,11 +138,11 @@ inline I codeFromIndices(std::array<unsigned char, maxTreeLevel<uint64_t>{}> ind
     constexpr unsigned nLevels = (sizeof(I) * 8) / 3;
 
     I ret = 0;
-    for(unsigned idx = 0; idx < nLevels; ++idx)
+    for (unsigned idx = 0; idx < nLevels; ++idx)
     {
         assert(indices[idx] < 8);
         unsigned treeLevel = nLevels - idx - 1;
-        ret += I(indices[idx]) << (3*treeLevel);
+        ret += I(indices[idx]) << (3 * treeLevel);
     }
 
     return ret;
@@ -159,7 +153,10 @@ template<class I>
 class OctreeMaker
 {
 public:
-    OctreeMaker() : tree(makeRootNodeTree<I>()) {}
+    OctreeMaker()
+        : tree(makeRootNodeTree<I>())
+    {
+    }
 
     /*! @brief introduce all 8 children of the node specified as argument
      *
@@ -177,12 +174,12 @@ public:
         for (std::size_t i = 0; i < idx.size(); ++i)
             indices[i] = static_cast<unsigned char>(idx[i]);
 
-        assert( std::find(begin(tree), end(tree), codeFromIndices<I>(indices))
-                != end(tree) && "node to be divided not present in tree");
+        assert(std::find(begin(tree), end(tree), codeFromIndices<I>(indices)) != end(tree) &&
+               "node to be divided not present in tree");
 
         indices[level] = 1;
-        assert( std::find(begin(tree), end(tree), codeFromIndices<I>(indices))
-                == end(tree) && "children of node to be divided already present in tree");
+        assert(std::find(begin(tree), end(tree), codeFromIndices<I>(indices)) == end(tree) &&
+               "children of node to be divided already present in tree");
 
         for (std::size_t sibling = 1; sibling < 8; ++sibling)
         {
@@ -198,7 +195,7 @@ public:
      * Gets rid of the explicit level argument which is not needed if the number
      * of levels is known at compile time.
      */
-    template<class ...Args>
+    template<class... Args>
     OctreeMaker& divide(Args... args)
     {
         return divide({args...}, sizeof...(Args));
@@ -207,7 +204,7 @@ public:
     //! @brief return the finished tree, fulfilling the necessary invariants
     std::vector<I> makeTree()
     {
-        std::sort(begin(tree), end(tree)) ;
+        std::sort(begin(tree), end(tree));
         return tree;
     }
 

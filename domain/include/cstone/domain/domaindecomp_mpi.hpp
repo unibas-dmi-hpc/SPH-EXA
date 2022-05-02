@@ -66,26 +66,27 @@ namespace cstone
  *           already present on @p thisRank.
  */
 template<class... Arrays>
-std::tuple<LocalIndex, LocalIndex>
-exchangeParticles(const SendList& sendList, int thisRank,
+std::tuple<LocalIndex, LocalIndex> exchangeParticles(const SendList& sendList,
+                                                     int thisRank,
                                                      LocalIndex particleStart,
                                                      LocalIndex particleEnd,
                                                      LocalIndex arraySize,
                                                      LocalIndex numParticlesAssigned,
-                  const LocalIndex* ordering, Arrays... arrays)
+                                                     const LocalIndex* ordering,
+                                                     Arrays... arrays)
 {
     using T = std::common_type_t<std::decay_t<decltype(*arrays)>...>;
 
     constexpr int domainExchangeTag = static_cast<int>(P2pTags::domainExchange);
-    constexpr int numArrays = sizeof...(Arrays);
-    int numRanks = int(sendList.size());
+    constexpr int numArrays         = sizeof...(Arrays);
+    int numRanks                    = int(sendList.size());
 
     std::vector<std::vector<T>> sendBuffers;
-    std::vector<MPI_Request>    sendRequests;
+    std::vector<MPI_Request> sendRequests;
     sendBuffers.reserve(27);
     sendRequests.reserve(27);
 
-    std::array<T*, numArrays> sourceArrays{ (arrays + particleStart)... };
+    std::array<T*, numArrays> sourceArrays{(arrays + particleStart)...};
     for (int destinationRank = 0; destinationRank < numRanks; ++destinationRank)
     {
         LocalIndex sendCount = sendList[destinationRank].totalCount();
@@ -127,7 +128,7 @@ exchangeParticles(const SendList& sendList, int thisRank,
         newParticleEnd   = numParticlesAssigned;
     }
 
-    std::array<T*, numArrays> destinationArrays{ (arrays + receiveStart)... };
+    std::array<T*, numArrays> destinationArrays{(arrays + receiveStart)...};
 
     if (!fitHead && !fitTail && numIncoming > 0)
     {
@@ -182,7 +183,7 @@ exchangeParticles(const SendList& sendList, int thisRank,
 
     // MUST call MPI_Barrier or any other collective MPI operation that enforces synchronization
     // across all ranks before calling this function again.
-    //MPI_Barrier(MPI_COMM_WORLD);
+    // MPI_Barrier(MPI_COMM_WORLD);
 }
 
 } // namespace cstone

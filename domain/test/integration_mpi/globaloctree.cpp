@@ -43,7 +43,7 @@ template<class I>
 void buildTree(int rank)
 {
     constexpr unsigned level = 2;
-    std::vector<I> allCodes = makeNLevelGrid<I>(level);
+    std::vector<I> allCodes  = makeNLevelGrid<I>(level);
     std::vector<I> codes{begin(allCodes) + rank * allCodes.size() / 2,
                          begin(allCodes) + (rank + 1) * allCodes.size() / 2};
 

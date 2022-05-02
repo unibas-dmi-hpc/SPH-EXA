@@ -37,7 +37,8 @@
 
 #include "cstone/tree/octree_internal.hpp"
 
-namespace cstone {
+namespace cstone
+{
 
 //! Octree GPU data view for use in kernel code
 template<class KeyType>
@@ -143,8 +144,8 @@ __global__ void linkTree(const KeyType* prefixes,
 template<class KeyType>
 __global__ void getLevelRange(const KeyType* nodeKeys, TreeNodeIndex numNodes, TreeNodeIndex* levelRange)
 {
-    unsigned level = blockIdx.x;
-    auto it = stl::lower_bound(nodeKeys, nodeKeys + numNodes, encodePlaceholderBit(KeyType(0), 3 * level));
+    unsigned level    = blockIdx.x;
+    auto it           = stl::lower_bound(nodeKeys, nodeKeys + numNodes, encodePlaceholderBit(KeyType(0), 3 * level));
     levelRange[level] = TreeNodeIndex(it - nodeKeys);
 }
 
@@ -152,10 +153,7 @@ __global__ void getLevelRange(const KeyType* nodeKeys, TreeNodeIndex numNodes, T
 __global__ void invertOrder(const TreeNodeIndex* order, TreeNodeIndex* inverseOrder, TreeNodeIndex numNodes)
 {
     int tid = int(blockDim.x * blockIdx.x + threadIdx.x);
-    if (tid < numNodes)
-    {
-        inverseOrder[order[tid]] = tid;
-    }
+    if (tid < numNodes) { inverseOrder[order[tid]] = tid; }
 }
 
 namespace detail

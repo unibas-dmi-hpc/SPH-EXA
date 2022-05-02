@@ -64,7 +64,6 @@ std::vector<int> fieldStringsToInt(const Array& allNames, const std::vector<std:
 template<class Dataset>
 auto getOutputArrays(Dataset& dataset)
 {
-    using T            = typename Dataset::RealType;
     auto fieldPointers = dataset.data();
     using FieldType    = std::variant<const float*, const double*, const int*>;
 
