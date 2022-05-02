@@ -59,7 +59,6 @@ void globalRandomGaussian(int thisRank, int numRanks)
     unsigned bucketSize           = 64;
     unsigned bucketSizeLocal      = 16;
     float theta                   = 1.0;
-    float macOffset               = 0.5;
     float invThetaEff             = invThetaMinMac(theta);
 
     Box<T> box{-1, 1};
@@ -128,7 +127,9 @@ void globalRandomGaussian(int thisRank, int numRanks)
     int converged = 0;
     while (converged != numRanks)
     {
-        converged = focusTree.update(box, particleKeys, peers, assignment, tree, counts, macOffset);
+        converged = focusTree.updateTree(peers, assignment, tree);
+        focusTree.updateCounts(particleKeys, tree, counts);
+        focusTree.updateMinMac(box, assignment, tree, invThetaEff);
         MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
         // particle counts must always be valid, whatever state of convergence
