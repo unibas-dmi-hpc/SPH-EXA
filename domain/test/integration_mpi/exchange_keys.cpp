@@ -68,17 +68,17 @@ using namespace cstone;
 template<class KeyType>
 void exchangeKeys(int myRank, int numRanks)
 {
-    std::vector<unsigned> counts{2,2,1,1,1,1,2,2};
-    std::vector<int> haloFlags{0,1,0,0,0,0,1,0};
+    std::vector<unsigned> counts{2, 2, 1, 1, 1, 1, 2, 2};
+    std::vector<int> haloFlags{0, 1, 0, 0, 0, 0, 1, 0};
 
     KeyType o = myRank * 4;
-    std::vector<KeyType> treeLeaves{o, o+2, o+4, o+5, o+6, o+7, o+8, o+10, o+12};
+    std::vector<KeyType> treeLeaves{o, o + 2, o + 4, o + 5, o + 6, o + 7, o + 8, o + 10, o + 12};
 
-    std::vector<KeyType> particleKeys{o+4, o+5, o+6, o+7};
+    std::vector<KeyType> particleKeys{o + 4, o + 5, o + 6, o + 7};
 
     std::vector<TreeIndexPair> assignment(numRanks);
-    std::vector<int>     peers;
-    SendList             reference(numRanks);
+    std::vector<int> peers;
+    SendList reference(numRanks);
 
     if (myRank > 0)
     {
@@ -135,32 +135,26 @@ void unequalSurface(int myRank, int numRanks)
 
     if (myRank == 1)
     {
-        offset = nNodes(treeLeaves) - 1;
+        offset       = nNodes(treeLeaves) - 1;
         particleKeys = std::vector<KeyType>{treeLeaves.begin() + offset, treeLeaves.end()};
-        haloFlags = std::vector<int>{1,1,0,1,1,1,1,1};
+        haloFlags    = std::vector<int>{1, 1, 0, 1, 1, 1, 1, 1};
         peers.push_back(0);
         reference[0].addRange(offset, offset + 1);
     }
 
     if (myRank == 0)
     {
-        offset = 0;
+        offset       = 0;
         particleKeys = std::vector<KeyType>{treeLeaves.begin(), treeLeaves.begin() + nNodes(treeLeaves) - 1};
-        haloFlags = std::vector<int>{0,0,0,0,0,0,0,1};
+        haloFlags    = std::vector<int>{0, 0, 0, 0, 0, 0, 0, 1};
         peers.push_back(1);
         reference[1].addRange(0, nNodes(treeLeaves) - 1);
     }
 
     SendList probe = exchangeRequestKeys<KeyType>(treeLeaves, haloFlags, particleKeys, offset, assignment, peers);
 
-    if (myRank == 1)
-    {
-        EXPECT_EQ(probe, reference);
-    }
-    if (myRank == 0)
-    {
-        EXPECT_EQ(probe[1].totalCount(), nNodes(treeLeaves) - 2);
-    }
+    if (myRank == 1) { EXPECT_EQ(probe, reference); }
+    if (myRank == 0) { EXPECT_EQ(probe[1].totalCount(), nNodes(treeLeaves) - 2); }
 }
 
 TEST(ExchangeKeys, unequalSurface)

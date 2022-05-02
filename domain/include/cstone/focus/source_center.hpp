@@ -103,7 +103,7 @@ void computeLeafMassCenter(gsl::span<const T1> x,
                            const Octree<KeyType>& octree,
                            gsl::span<SourceCenterType<T3>> sourceCenter)
 {
-    #pragma omp parallel for
+#pragma omp parallel for
     for (TreeNodeIndex nodeIdx = 0; nodeIdx < octree.numTreeNodes(); ++nodeIdx)
     {
         if (octree.isLeaf(nodeIdx))
@@ -145,12 +145,12 @@ void setMac(gsl::span<const KeyType> nodeKeys,
             float invTheta,
             const Box<T>& box)
 {
-    #pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(static)
     for (size_t i = 0; i < nodeKeys.size(); ++i)
     {
         Vec4<T> center = centers[i];
-        T mac = computeMac(nodeKeys[i], util::makeVec3(center), invTheta, box);
-        centers[i][3] = (center[3] != T(0)) ? mac : T(0);
+        T mac          = computeMac(nodeKeys[i], util::makeVec3(center), invTheta, box);
+        centers[i][3]  = (center[3] != T(0)) ? mac : T(0);
     }
 }
 

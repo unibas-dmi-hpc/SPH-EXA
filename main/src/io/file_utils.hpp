@@ -34,10 +34,7 @@ void writeAscii(size_t firstIndex, size_t lastIndex, const std::string& path, bo
 {
     std::ios_base::openmode mode;
     if (append) { mode = std::ofstream::app; }
-    else
-    {
-        mode = std::ofstream::out;
-    }
+    else { mode = std::ofstream::out; }
 
     std::ofstream dumpFile(path, mode);
 
@@ -48,17 +45,12 @@ void writeAscii(size_t firstIndex, size_t lastIndex, const std::string& path, bo
             for (auto field : fields)
             {
                 [[maybe_unused]] std::initializer_list<int> list{(dumpFile << separators, 0)...};
-                std::visit([&dumpFile, i](auto& arg) {
-                    dumpFile << arg[i];
-                }, field);
+                std::visit([&dumpFile, i](auto& arg) { dumpFile << arg[i]; }, field);
             }
             dumpFile << std::endl;
         }
     }
-    else
-    {
-        throw std::runtime_error("Can't open file at path: " + path);
-    }
+    else { throw std::runtime_error("Can't open file at path: " + path); }
 
     dumpFile.close();
 }
@@ -89,10 +81,7 @@ void readAscii(const std::string& path, size_t numLines, const std::vector<T*>& 
         }
         inputFile.close();
     }
-    else
-    {
-        throw std::runtime_error("Can't open file at path: " + path);
-    }
+    else { throw std::runtime_error("Can't open file at path: " + path); }
 }
 
 } // namespace fileutils
