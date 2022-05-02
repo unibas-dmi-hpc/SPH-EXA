@@ -123,9 +123,7 @@ public:
 
     /*! @brief Perform a global update of the tree structure
      *
-     * @param[in] box              global coordinate bounding box
      * @param[in] particleKeys     SFC keys of local particles
-     * @param[in] myRank           ID of the executing rank
      * @param[in] globalTreeLeaves global cornerstone leaf tree
      * @param[in] globalCounts     global cornerstone leaf tree counts
      * @return                     true if the tree structure did not change
@@ -320,7 +318,7 @@ public:
             centers_[i] = computeMinMacR2(nodeKeys[i], invThetaEff, box);
         }
 
-        updateVecMac(box, assignment, globalTreeLeaves);
+        updateMacs(box, assignment, globalTreeLeaves);
     }
 
     /*! @brief Update the MAC criteria based on the vector MAC
@@ -332,13 +330,13 @@ public:
      */
     template<class T>
     void
-    updateVecMac(const Box<T>& box, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves)
+    updateMacs(const Box<T>& box, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves)
     {
         KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
         KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
 
         macs_.resize(octree().numTreeNodes());
-        markVecMac(octree(), centers_.data(), box, focusStart, focusEnd, macs_.data());
+        markMacs(octree(), centers_.data(), box, focusStart, focusEnd, macs_.data());
 
         rebalanceStatus_ |= macCriterion;
     }

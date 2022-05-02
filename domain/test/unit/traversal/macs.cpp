@@ -294,7 +294,7 @@ static void markMacVector()
     TreeNodeIndex focusIdxStart = 4;
     TreeNodeIndex focusIdxEnd   = 22;
 
-    markVecMac(octree, centers.data(), box, leaves[focusIdxStart], leaves[focusIdxEnd], markings.data());
+    markMacs(octree, centers.data(), box, leaves[focusIdxStart], leaves[focusIdxEnd], markings.data());
 
     std::vector<char> reference = markVecMacAll2All<KeyType>(octree, centers.data(), focusIdxStart, focusIdxEnd, box);
 

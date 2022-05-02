@@ -395,7 +395,7 @@ public:
         }
 
         macs_.resize(tree_.octree().numTreeNodes());
-        markVecMac(octree(), centers_.data(), box, focusStart, focusEnd, macs_.data());
+        markMacs(octree(), centers_.data(), box, focusStart, focusEnd, macs_.data());
 
         gsl::span<const KeyType> leaves = tree_.treeLeaves();
         leafCounts_.resize(nNodes(leaves));

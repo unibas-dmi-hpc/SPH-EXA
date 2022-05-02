@@ -221,7 +221,7 @@ public:
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), theta_);
 
         // results in a worst-case vector-mac, sqrt(3) * box-length is the maximum com distance from cell-center
-        float macOffset = std::sqrt(3);
+        float macOffset = std::sqrt(3.0f);
 
         if (firstCall_)
         {
@@ -232,7 +232,7 @@ public:
                 converged = focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
                 focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
                 focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box());
-                focusTree_.updateVecMac(box(), global_.assignment(), global_.treeLeaves());
+                focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
                 MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
             }
         }
@@ -240,7 +240,7 @@ public:
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
         focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
         focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box());
-        focusTree_.updateVecMac(box(), global_.assignment(), global_.treeLeaves());
+        focusTree_.updateMacs(box(), global_.assignment(), global_.treeLeaves());
 
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
         focusTree_.addMacs(halos_.haloFlags());

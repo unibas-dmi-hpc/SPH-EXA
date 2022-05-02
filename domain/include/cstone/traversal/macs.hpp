@@ -78,10 +78,22 @@ HOST_DEVICE_FUN T minDistanceSq(IBox a, IBox b, const Box<T>& box)
     return norm2(minDistance(aCenter, aSize, bCenter, bSize, box));
 }
 
+//! @brief compute 1/theta + s for the minimum distance MAC
+HOST_DEVICE_FUN inline float invThetaMinMac(float theta)
+{
+    return 1.0f / theta + 0.5f;
+}
+
+//! @brief compute 1/theta + s for the worst-case vector MAC
+HOST_DEVICE_FUN inline float invThetaVecMac(float theta)
+{
+    return 1.0f / theta + std::sqrt(3.0f);
+}
+
 /*! @brief Compute square of the acceptance radius for the minimum distance MAC
  *
  * @param prefix       SFC key of the tree cell with Warren-Salmon placeholder-bit
- * @param invThetaEff  theta^-1 + s (effective opening parameter)
+ * @param invThetaEff  1/theta + s (effective opening parameter)
  * @param box          global coordinate bounding box
  * @return             geometric center in the first 3 elements, the square of the distance from @p sourceCenter
  *                     beyond which the MAC fails or passes in the 4th element
@@ -105,7 +117,7 @@ HOST_DEVICE_FUN Vec4<T> computeMinMacR2(KeyType prefix, float invThetaEff, const
  *
  * @param prefix       SFC key of the tree cell with Warren-Salmon placeholder-bit
  * @param expCenter    expansion (com) center of the source (cell)
- * @param invTheta     theta^-1 (opening parameter)
+ * @param invTheta     1/theta (opening parameter)
  * @param box          global coordinate bounding box
  * @return             the square of the distance from @p sourceCenter beyond which the MAC fails or passes
  */
@@ -127,15 +139,23 @@ HOST_DEVICE_FUN T computeVecMacR2(KeyType prefix, Vec3<T> expCenter, float invTh
     return mac * mac;
 }
 
-//! @brief evaluate an arbitrary MAC with respect to a given target
+/*! @brief evaluate an arbitrary MAC with respect to a given target
+ *
+ * @tparam T             float or double
+ * @param sourceCenter   expansion center of the MAC
+ * @param macSq          squared acceptance radius around @p sourceCenter
+ * @param targetCenter   target coordinate
+ * @param targetSize     target half box length (>0) in all dimensions
+ * @return                true if the target is closer to @p sourceCenter than the acceptance radius
+ */
 template<class T>
-HOST_DEVICE_FUN bool evaluateMac(Vec3<T> sourceCenter, T Mac, Vec3<T> targetCenter, Vec3<T> targetSize)
+HOST_DEVICE_FUN bool evaluateMac(Vec3<T> sourceCenter, T macSq, Vec3<T> targetCenter, Vec3<T> targetSize)
 {
     Vec3<T> dX = abs(targetCenter - sourceCenter) - targetSize;
     dX += abs(dX);
     dX *= T(0.5);
     T R2 = norm2(dX);
-    return R2 < std::abs(Mac);
+    return R2 < std::abs(macSq);
 }
 
 /*! @brief evaluate an arbitrary MAC with respect to a given target
@@ -215,14 +235,14 @@ HOST_DEVICE_FUN bool minVecMacMutual(const Vec3<T>& centerA,
 
 //! @brief mark all nodes of @p octree (leaves and internal) that fail the evaluateMac w.r.t to @p target
 template<template<class> class TreeType, class T, class KeyType>
-void markVecMacPerBox(const Vec3<T>& targetCenter,
-                      const Vec3<T>& targetSize,
-                      const TreeType<KeyType>& octree,
-                      const Vec4<T>* centers,
-                      const Box<T>& box,
-                      KeyType focusStart,
-                      KeyType focusEnd,
-                      char* markings)
+void markMacPerBox(const Vec3<T>& targetCenter,
+                   const Vec3<T>& targetSize,
+                   const TreeType<KeyType>& octree,
+                   const Vec4<T>* centers,
+                   const Box<T>& box,
+                   KeyType focusStart,
+                   KeyType focusEnd,
+                   char* markings)
 {
     auto checkAndMarkMac =
         [&targetCenter, &targetSize, &octree, &box, focusStart, focusEnd, centers, markings](TreeNodeIndex idx)
@@ -256,12 +276,12 @@ void markVecMacPerBox(const Vec3<T>& targetCenter,
  *                          any node contained in the focus range [focusStart:focusEnd]
  */
 template<template<class> class TreeType, class T, class KeyType>
-void markVecMac(const TreeType<KeyType>& octree,
-                const Vec4<T>* centers,
-                const Box<T>& box,
-                KeyType focusStart,
-                KeyType focusEnd,
-                char* markings)
+void markMacs(const TreeType<KeyType>& octree,
+              const Vec4<T>* centers,
+              const Box<T>& box,
+              KeyType focusStart,
+              KeyType focusEnd,
+              char* markings)
 
 {
     std::fill(markings, markings + octree.numTreeNodes(), 0);
@@ -277,7 +297,7 @@ void markVecMac(const TreeType<KeyType>& octree,
     {
         IBox target                     = sfcIBox(sfcKey(focusCodes[i]), sfcKey(focusCodes[i + 1]));
         auto [targetCenter, targetSize] = centerAndSize<KeyType>(target, box);
-        markVecMacPerBox(targetCenter, targetSize, octree, centers, box, focusStart, focusEnd, markings);
+        markMacPerBox(targetCenter, targetSize, octree, centers, box, focusStart, focusEnd, markings);
     }
 }
 
