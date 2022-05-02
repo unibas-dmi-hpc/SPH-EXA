@@ -305,12 +305,13 @@ public:
      */
     template<class T>
     void
-    updateMinMac(const Box<T>& box, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves)
+    updateMinMac(const Box<T>& box, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves,
+                 float macOffset)
     {
         centers_.resize(octree().numTreeNodes());
 
         auto nodeKeys     = octree().nodeKeys();
-        float invThetaEff = 1.0f / theta_ + 0.5f;
+        float invThetaEff = 1.0f / theta_ + macOffset;
 
 #pragma omp parallel for schedule(static)
         for (size_t i = 0; i < nodeKeys.size(); ++i)
@@ -349,11 +350,12 @@ public:
                 gsl::span<const int> peers,
                 const SpaceCurveAssignment& assignment,
                 gsl::span<const KeyType> globalTreeLeaves,
-                gsl::span<const unsigned> globalCounts)
+                gsl::span<const unsigned> globalCounts,
+                float macOffset)
     {
         bool converged = updateTree(peers, assignment, globalTreeLeaves);
         updateCounts(particleKeys, globalTreeLeaves, globalCounts);
-        updateMinMac(box, assignment, globalTreeLeaves);
+        updateMinMac(box, assignment, globalTreeLeaves, macOffset);
         return converged;
     }
 
@@ -364,12 +366,13 @@ public:
                   gsl::span<const int> peers,
                   const SpaceCurveAssignment& assignment,
                   gsl::span<const KeyType> globalTreeLeaves,
-                  gsl::span<const unsigned> globalCounts)
+                  gsl::span<const unsigned> globalCounts,
+                  float macOffset)
     {
         int converged = 0;
         while (converged != numRanks_)
         {
-            converged = update(box, particleKeys, peers, assignment, globalTreeLeaves, globalCounts);
+            converged = update(box, particleKeys, peers, assignment, globalTreeLeaves, globalCounts, macOffset);
             MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
         }
     }

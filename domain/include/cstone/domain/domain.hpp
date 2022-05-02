@@ -183,14 +183,17 @@ public:
 
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), theta_);
 
+        // half the box-length results in a standard min-mac criterion
+        float macOffset = 0.5;
+
         if (firstCall_)
         {
             focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(),
-                                global_.nodeCounts());
+                                global_.nodeCounts(), macOffset);
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
         focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
-        focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves());
+        focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), macOffset);
 
         halos_.discover(focusTree_.octree(), focusTree_.assignment(), keyView, box(), h.data());
 
@@ -217,11 +220,15 @@ public:
 
         std::vector<int> peers = findPeersMac(myRank_, global_.assignment(), global_.octree(), box(), theta_);
 
+        // results in a worst-case vector-mac, sqrt(3) * box-length is the maximum com distance from cell-center
+        float macOffset = std::sqrt(3);
+
         if (firstCall_)
         {
             int converged = 0;
             while (converged != numRanks_)
             {
+                focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), macOffset);
                 converged = focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
                 focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
                 focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box());
@@ -229,6 +236,7 @@ public:
                 MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
             }
         }
+        focusTree_.updateMinMac(box(), global_.assignment(), global_.treeLeaves(), macOffset);
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
         focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
         focusTree_.template updateCenters<T, T>(x, y, z, m, global_.assignment(), global_.octree(), box());
@@ -240,6 +248,8 @@ public:
         reallocate(nNodes(focusTree_.treeLeaves()) + 1, layout_);
         halos_.computeLayout(focusTree_.treeLeaves(), focusTree_.leafCounts(), focusTree_.assignment(), keyView, peers,
                              layout_);
+
+        // diagnostics(keyView.size(), peers);
 
         updateLayout(exchangeStart, keyView, particleKeys, std::tie(x, y, z, h, m), std::tie(particleProperties...));
         setupHalos(particleKeys, x, y, z, h);
@@ -399,8 +409,10 @@ private:
                           << " focus h/true/peers/loc/tot: " << numFlags << "/" << numFocusTruePeer << "/"
                           << numFocusPeers << "/" << focusAssignment[myRank_].count() << "/"
                           << halos_.haloFlags().size() << " peers: [" << peers.size() << "] ";
-                for (auto r : peers)
-                    std::cout << r << " ";
+                if (numRanks_ <= 32)
+                {
+                    for (auto r : peers) { std::cout << r << " "; }
+                }
                 std::cout << std::endl;
             }
             MPI_Barrier(MPI_COMM_WORLD);

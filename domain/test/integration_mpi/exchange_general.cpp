@@ -60,6 +60,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     unsigned bucketSize           = 64;
     unsigned bucketSizeLocal      = 16;
     float theta                   = 10.0;
+    float macOffset               = 0.5;
 
     Box<T> box{-1, 1};
 
@@ -99,7 +100,7 @@ static void generalExchangeRandomGaussian(int thisRank, int numRanks)
     computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
 
     FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
-    focusTree.converge(box, particleKeys, peers, assignment, tree, counts);
+    focusTree.converge(box, particleKeys, peers, assignment, tree, counts, macOffset);
 
     const Octree<KeyType>& octree = focusTree.octree();
     std::vector<int> testCounts(octree.numTreeNodes(), -1);
@@ -165,6 +166,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
     unsigned bucketSize           = 64;
     unsigned bucketSizeLocal      = 16;
     float theta                   = 10.0;
+    float macOffset               = 0.5;
 
     Box<T> box{-1, 1};
 
@@ -206,7 +208,7 @@ static void generalExchangeSourceCenter(int thisRank, int numRanks)
     computeSfcKeys(x.data(), y.data(), z.data(), sfcKindPointer(particleKeys.data()), x.size(), box);
 
     FocusedOctree<KeyType, T> focusTree(thisRank, numRanks, bucketSizeLocal, theta);
-    focusTree.converge(box, particleKeys, peers, assignment, tree, counts);
+    focusTree.converge(box, particleKeys, peers, assignment, tree, counts, macOffset);
 
     const Octree<KeyType>& octree = focusTree.octree();
 
