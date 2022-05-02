@@ -196,17 +196,21 @@ HOST_DEVICE_FUN bool minVecMacMutual(const Vec3<T>& centerA,
                                      const Box<T>& box,
                                      float invTheta)
 {
-    Vec3<T> dX = minDistance(centerA, sizeA, centerB, sizeB, box);
-
-    T distSq = norm2(dX);
-    T sizeAB = 2 * stl::max(max(sizeA), max(sizeB));
-
-    Vec3<T> maxComOffset = max(sizeA, sizeB);
-    // s is the worst-case distance of the c.o.m from the geometrical center
-    T s   = std::sqrt(norm2(maxComOffset));
-    T mac = sizeAB * invTheta + s;
-
-    return distSq > (mac * mac);
+    bool passA;
+    {
+        // A = target, B = source
+        Vec3<T> dX = minDistance(centerB, centerA, sizeA, box);
+        T mac = max(sizeB) * 2 * (invTheta + std::sqrt(3));
+        passA = norm2(dX) > (mac * mac);
+    }
+    bool passB;
+    {
+        // B = target, A = source
+        Vec3<T> dX = minDistance(centerA, centerB, sizeB, box);
+        T mac = max(sizeA) * 2 * (invTheta + std::sqrt(3));
+        passB = norm2(dX) > (mac * mac);
+    }
+    return passA && passB;
 }
 
 //! @brief mark all nodes of @p octree (leaves and internal) that fail the evaluateMac w.r.t to @p target
