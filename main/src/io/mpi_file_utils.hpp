@@ -88,10 +88,7 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
 
 #ifdef H5PART_PARALLEL_IO
     if (std::filesystem::exists(h5_fname)) { h5_file = H5PartOpenFileParallel(h5_fname, H5PART_APPEND, d.comm); }
-    else
-    {
-        h5_file = H5PartOpenFileParallel(h5_fname, H5PART_WRITE, d.comm);
-    }
+    else { h5_file = H5PartOpenFileParallel(h5_fname, H5PART_WRITE, d.comm); }
 #else
     int numRanks;
     MPI_Comm_size(d.comm, &numRanks);
@@ -100,10 +97,7 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
         throw std::runtime_error("Cannot write HDF5 output with multiple ranks without parallel HDF5 support\n");
     }
     if (std::filesystem::exists(h5_fname)) { h5_file = H5PartOpenFile(h5_fname, H5PART_APPEND); }
-    else
-    {
-        h5_file = H5PartOpenFile(h5_fname, H5PART_WRITE);
-    }
+    else { h5_file = H5PartOpenFile(h5_fname, H5PART_WRITE); }
 #endif
 
     // create the next step
@@ -132,9 +126,8 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
     {
         const std::string& fieldName = Dataset::fieldNames[d.outputFields[fidx]];
         std::visit([&h5_file, &fieldName, firstIndex](auto& arg)
-        {
-            writeH5PartField(h5_file, fieldName, arg + firstIndex);
-        }, fieldPointers[fidx]);
+                   { writeH5PartField(h5_file, fieldName, arg + firstIndex); },
+                   fieldPointers[fidx]);
     }
 
     H5PartCloseFile(h5_file);

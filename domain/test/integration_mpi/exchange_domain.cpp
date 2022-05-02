@@ -87,12 +87,12 @@ void exchangeAllToAll(int thisRank, int numRanks)
     }
 
     // there's only one range per rank
-    segmentSize = sendList[thisRank].count(0);
+    segmentSize              = sendList[thisRank].count(0);
     int numParticlesThisRank = segmentSize * numRanks;
 
     reallocate(std::max(numParticlesThisRank, int(x.size())), x, y);
-    exchangeParticles(sendList, Rank(thisRank), 0, gridSize, x.size(), numParticlesThisRank,
-                      ordering.data(), x.data(), y.data());
+    exchangeParticles(sendList, Rank(thisRank), 0, gridSize, x.size(), numParticlesThisRank, ordering.data(), x.data(),
+                      y.data());
     reallocate(numParticlesThisRank, x, y);
 
     std::vector<T> refX(numParticlesThisRank);
@@ -143,7 +143,7 @@ void exchangeCyclicNeighbors(int thisRank, int numRanks)
     std::iota(begin(ordering), end(ordering), 0);
 
     // send the last nex elements to the next rank
-    int nex = 10;
+    int nex      = 10;
     int nextRank = (thisRank + 1) % numRanks;
 
     SendList sendList(numRanks);
@@ -152,8 +152,7 @@ void exchangeCyclicNeighbors(int thisRank, int numRanks)
     // send last nex to nextRank
     sendList[nextRank].addRange(gridSize - nex, gridSize);
 
-    exchangeParticles(sendList, Rank(thisRank), 0, gridSize, gridSize, gridSize,
-                      ordering.data(), x.data(), y.data());
+    exchangeParticles(sendList, Rank(thisRank), 0, gridSize, gridSize, gridSize, ordering.data(), x.data(), y.data());
 
     int incomingRank = (thisRank - 1 + numRanks) % numRanks;
     std::vector<T> refX(gridSize, thisRank);

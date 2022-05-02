@@ -31,7 +31,6 @@
 
 #pragma once
 
-
 #include "cstone/sfc/box.hpp"
 #include "io/ifile_writer.hpp"
 
@@ -42,10 +41,9 @@ template<class Dataset>
 class IObservables
 {
 public:
-
     virtual void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex,
-                    cstone::Box<typename Dataset::RealType>& box) = 0;
-    
+                                 cstone::Box<typename Dataset::RealType>& box) = 0;
+
     virtual ~IObservables() = default;
 };
 

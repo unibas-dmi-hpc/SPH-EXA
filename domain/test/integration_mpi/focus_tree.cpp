@@ -56,9 +56,9 @@ template<class KeyType, class T>
 void globalRandomGaussian(int thisRank, int numRanks)
 {
     const LocalIndex numParticles = 1000;
-    unsigned bucketSize = 64;
-    unsigned bucketSizeLocal = 16;
-    float theta = 1.0;
+    unsigned bucketSize           = 64;
+    unsigned bucketSizeLocal      = 16;
+    float theta                   = 1.0;
 
     Box<T> box{-1, 1};
 
@@ -93,7 +93,8 @@ void globalRandomGaussian(int thisRank, int numRanks)
 
     // build the reference focus tree from the common pool of coordinates, focused on the executing rank
     FocusedOctreeSingleNode<KeyType> referenceFocusTree(bucketSizeLocal, theta);
-    while (!referenceFocusTree.update(box, coords.particleKeys(), focusStart, focusEnd, peerBoundaries));
+    while (!referenceFocusTree.update(box, coords.particleKeys(), focusStart, focusEnd, peerBoundaries))
+        ;
 
     /*******************************/
 
@@ -129,7 +130,7 @@ void globalRandomGaussian(int thisRank, int numRanks)
         MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
         // particle counts must always be valid, whatever state of convergence
-        auto focusCounts = focusTree.leafCounts();
+        auto focusCounts      = focusTree.leafCounts();
         LocalIndex totalCount = std::accumulate(focusCounts.begin(), focusCounts.end(), LocalIndex(0));
         EXPECT_EQ(totalCount, numParticles * numRanks);
 

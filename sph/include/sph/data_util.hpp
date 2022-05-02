@@ -64,18 +64,15 @@ std::vector<int> fieldStringsToInt(const Array& allNames, const std::vector<std:
 template<class Dataset>
 auto getOutputArrays(Dataset& dataset)
 {
-    using T            = typename Dataset::RealType;
     auto fieldPointers = dataset.data();
-    using FieldType = std::variant<const float*, const double*, const int*>;
+    using FieldType    = std::variant<const float*, const double*, const int*>;
 
     std::vector<FieldType> outputFields;
     outputFields.reserve(dataset.outputFields.size());
-    
+
     for (int i : dataset.outputFields)
     {
-        std::visit([&outputFields](auto& arg) {
-            outputFields.push_back(arg->data());
-        }, fieldPointers[i]);
+        std::visit([&outputFields](auto& arg) { outputFields.push_back(arg->data()); }, fieldPointers[i]);
     }
     return outputFields;
 }
@@ -93,15 +90,11 @@ void resize(Dataset& d, size_t size)
 
     for (int i : d.conservedFields)
     {
-        std::visit([size, growthRate](auto& arg) {
-            reallocate(*arg, size, growthRate);
-        }, data_[i]);
+        std::visit([size, growthRate](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
     }
     for (int i : d.dependentFields)
     {
-        std::visit([size, growthRate](auto& arg) {
-            reallocate(*arg, size, growthRate);
-        }, data_[i]);
+        std::visit([size, growthRate](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
     }
 
     reallocate(d.codes, size, growthRate);
