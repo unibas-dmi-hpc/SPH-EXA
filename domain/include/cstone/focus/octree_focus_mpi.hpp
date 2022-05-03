@@ -302,9 +302,10 @@ public:
      * @param[in] globalTreeLeaves global cornerstone leaf tree
      */
     template<class T>
-    void
-    updateMinMac(const Box<T>& box, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves,
-                 float invThetaEff)
+    void updateMinMac(const Box<T>& box,
+                      const SpaceCurveAssignment& assignment,
+                      gsl::span<const KeyType> globalTreeLeaves,
+                      float invThetaEff)
     {
         centers_.resize(octree().numTreeNodes());
         auto nodeKeys = octree().nodeKeys();

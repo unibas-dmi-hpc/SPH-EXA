@@ -222,10 +222,7 @@ ResolutionStatus enforceKeys(gsl::span<const KeyType> treeLeaves,
             constexpr int maxAddLevels = 1;
             int levelDiff              = keyPos - level;
             if (levelDiff > maxAddLevels) { status = ResolutionStatus::failed; }
-            else
-            {
-                status = std::max(status, ResolutionStatus::rebalance);
-            }
+            else { status = std::max(status, ResolutionStatus::rebalance); }
 
             levelDiff        = std::min(levelDiff, maxAddLevels);
             nodeOps[nodeIdx] = std::max(nodeOps[nodeIdx], 1 << (3 * levelDiff));
@@ -322,10 +319,7 @@ public:
         {
             converged = std::all_of(nodeOps.begin(), nodeOps.end() - 1, [](TreeNodeIndex i) { return i == 1; });
         }
-        else if (status == ResolutionStatus::rebalance)
-        {
-            converged = false;
-        }
+        else if (status == ResolutionStatus::rebalance) { converged = false; }
 
         auto& newLeaves = tree_.prefixes_;
         rebalanceTree(leaves, newLeaves, nodeOps.data());

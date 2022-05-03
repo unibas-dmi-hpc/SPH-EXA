@@ -186,8 +186,8 @@ public:
 
         if (firstCall_)
         {
-            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(),
-                                global_.nodeCounts(), invThetaEff);
+            focusTree_.converge(box(), keyView, peers, global_.assignment(), global_.treeLeaves(), global_.nodeCounts(),
+                                invThetaEff);
         }
         focusTree_.updateTree(peers, global_.assignment(), global_.treeLeaves());
         focusTree_.updateCounts(keyView, global_.treeLeaves(), global_.nodeCounts());
@@ -407,7 +407,10 @@ private:
                           << halos_.haloFlags().size() << " peers: [" << peers.size() << "] ";
                 if (numRanks_ <= 32)
                 {
-                    for (auto r : peers) { std::cout << r << " "; }
+                    for (auto r : peers)
+                    {
+                        std::cout << r << " ";
+                    }
                 }
                 std::cout << std::endl;
             }

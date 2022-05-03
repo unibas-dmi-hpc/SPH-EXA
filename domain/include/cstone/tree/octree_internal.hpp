@@ -371,10 +371,7 @@ public:
         auto it = std::lower_bound(prefixes_.begin() + levelRange_[level], prefixes_.begin() + levelRange_[level + 1],
                                    nodeKey);
         if (it != prefixes_.end() && *it == nodeKey) { return it - prefixes_.begin(); }
-        else
-        {
-            return numTreeNodes();
-        }
+        else { return numTreeNodes(); }
     }
 
 private:

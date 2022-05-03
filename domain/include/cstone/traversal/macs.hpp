@@ -79,16 +79,10 @@ HOST_DEVICE_FUN T minDistanceSq(IBox a, IBox b, const Box<T>& box)
 }
 
 //! @brief compute 1/theta + s for the minimum distance MAC
-HOST_DEVICE_FUN inline float invThetaMinMac(float theta)
-{
-    return 1.0f / theta + 0.5f;
-}
+HOST_DEVICE_FUN inline float invThetaMinMac(float theta) { return 1.0f / theta + 0.5f; }
 
 //! @brief compute 1/theta + s for the worst-case vector MAC
-HOST_DEVICE_FUN inline float invThetaVecMac(float theta)
-{
-    return 1.0f / theta + std::sqrt(3.0f);
-}
+HOST_DEVICE_FUN inline float invThetaVecMac(float theta) { return 1.0f / theta + std::sqrt(3.0f); }
 
 /*! @brief Compute square of the acceptance radius for the minimum distance MAC
  *
@@ -222,15 +216,15 @@ HOST_DEVICE_FUN bool minVecMacMutual(const Vec3<T>& centerA,
     {
         // A = target, B = source
         Vec3<T> dX = minDistance(centerB, centerA, sizeA, box);
-        T mac = max(sizeB) * 2 * invThetaEff;
-        passA = norm2(dX) > (mac * mac);
+        T mac      = max(sizeB) * 2 * invThetaEff;
+        passA      = norm2(dX) > (mac * mac);
     }
     bool passB;
     {
         // B = target, A = source
         Vec3<T> dX = minDistance(centerA, centerB, sizeB, box);
-        T mac = max(sizeA) * 2 * invThetaEff;
-        passB = norm2(dX) > (mac * mac);
+        T mac      = max(sizeA) * 2 * invThetaEff;
+        passB      = norm2(dX) > (mac * mac);
     }
     return passA && passB;
 }
