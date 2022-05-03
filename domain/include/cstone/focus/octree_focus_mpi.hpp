@@ -123,9 +123,7 @@ public:
 
     /*! @brief Perform a global update of the tree structure
      *
-     * @param[in] box              global coordinate bounding box
      * @param[in] particleKeys     SFC keys of local particles
-     * @param[in] myRank           ID of the executing rank
      * @param[in] globalTreeLeaves global cornerstone leaf tree
      * @param[in] globalCounts     global cornerstone leaf tree counts
      * @return                     true if the tree structure did not change
@@ -304,16 +302,22 @@ public:
      * @param[in] globalTreeLeaves global cornerstone leaf tree
      */
     template<class T>
-    void
-    updateMinMac(const Box<T>& box, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves)
+    void updateMinMac(const Box<T>& box,
+                      const SpaceCurveAssignment& assignment,
+                      gsl::span<const KeyType> globalTreeLeaves,
+                      float invThetaEff)
     {
-        KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
-        KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
+        centers_.resize(octree().numTreeNodes());
+        auto nodeKeys = octree().nodeKeys();
 
-        macs_.resize(tree_.octree().numTreeNodes());
-        markMac(tree_.octree(), box, focusStart, focusEnd, 1.0 / theta_, macs_.data());
+#pragma omp parallel for schedule(static)
+        for (size_t i = 0; i < nodeKeys.size(); ++i)
+        {
+            //! set centers to geometric centers for min dist Mac
+            centers_[i] = computeMinMacR2(nodeKeys[i], invThetaEff, box);
+        }
 
-        rebalanceStatus_ |= macCriterion;
+        updateMacs(box, assignment, globalTreeLeaves);
     }
 
     /*! @brief Update the MAC criteria based on the vector MAC
@@ -325,30 +329,15 @@ public:
      */
     template<class T>
     void
-    updateVecMac(const Box<T>& box, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves)
+    updateMacs(const Box<T>& box, const SpaceCurveAssignment& assignment, gsl::span<const KeyType> globalTreeLeaves)
     {
         KeyType focusStart = globalTreeLeaves[assignment.firstNodeIdx(myRank_)];
         KeyType focusEnd   = globalTreeLeaves[assignment.lastNodeIdx(myRank_)];
 
         macs_.resize(octree().numTreeNodes());
-        markVecMac(octree(), centers_.data(), box, focusStart, focusEnd, macs_.data());
+        markMacs(octree(), centers_.data(), box, focusStart, focusEnd, macs_.data());
 
         rebalanceStatus_ |= macCriterion;
-    }
-
-    //! @brief update the tree structure and regenerate the mac and counts criteria
-    template<class T>
-    bool update(const Box<T>& box,
-                gsl::span<const KeyType> particleKeys,
-                gsl::span<const int> peers,
-                const SpaceCurveAssignment& assignment,
-                gsl::span<const KeyType> globalTreeLeaves,
-                gsl::span<const unsigned> globalCounts)
-    {
-        bool converged = updateTree(peers, assignment, globalTreeLeaves);
-        updateCounts(particleKeys, globalTreeLeaves, globalCounts);
-        updateMinMac(box, assignment, globalTreeLeaves);
-        return converged;
     }
 
     //! @brief update until converged with a simple min-distance MAC
@@ -358,12 +347,15 @@ public:
                   gsl::span<const int> peers,
                   const SpaceCurveAssignment& assignment,
                   gsl::span<const KeyType> globalTreeLeaves,
-                  gsl::span<const unsigned> globalCounts)
+                  gsl::span<const unsigned> globalCounts,
+                  float invThetaEff)
     {
         int converged = 0;
         while (converged != numRanks_)
         {
-            converged = update(box, particleKeys, peers, assignment, globalTreeLeaves, globalCounts);
+            converged = updateTree(peers, assignment, globalTreeLeaves);
+            updateCounts(particleKeys, globalTreeLeaves, globalCounts);
+            updateMinMac(box, assignment, globalTreeLeaves, invThetaEff);
             MPI_Allreduce(MPI_IN_PLACE, &converged, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
         }
     }

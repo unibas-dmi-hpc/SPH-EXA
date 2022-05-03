@@ -33,6 +33,7 @@
 
 #include "cstone/util/array.hpp"
 #include "cstone/tree/octree_internal.hpp"
+#include "cstone/traversal/macs.hpp"
 
 namespace cstone
 {
@@ -120,24 +121,6 @@ void computeLeafMassCenter(gsl::span<const T1> x,
     }
 }
 
-template<class T, class KeyType>
-HOST_DEVICE_FUN T computeMac(KeyType prefix, Vec3<T> expCenter, float invTheta, const Box<T>& box)
-{
-    KeyType nodeKey  = decodePlaceholderBit(prefix);
-    int prefixLength = decodePrefixLength(prefix);
-
-    IBox cellBox              = sfcIBox(sfcKey(nodeKey), prefixLength / 3);
-    auto [geoCenter, geoSize] = centerAndSize<KeyType>(cellBox, box);
-
-    Vec3<T> dX = expCenter - geoCenter;
-
-    T s   = sqrt(norm2(dX));
-    T l   = T(2.0) * max(geoSize);
-    T mac = l * invTheta + s;
-
-    return mac * mac;
-}
-
 //! @brief replace the last center element (mass) with the squared mac radius
 template<class T, class KeyType>
 void setMac(gsl::span<const KeyType> nodeKeys,
@@ -149,7 +132,7 @@ void setMac(gsl::span<const KeyType> nodeKeys,
     for (size_t i = 0; i < nodeKeys.size(); ++i)
     {
         Vec4<T> center = centers[i];
-        T mac          = computeMac(nodeKeys[i], util::makeVec3(center), invTheta, box);
+        T mac          = computeVecMacR2(nodeKeys[i], util::makeVec3(center), invTheta, box);
         centers[i][3]  = (center[3] != T(0)) ? mac : T(0);
     }
 }

@@ -101,7 +101,7 @@ void computeGravityGroup(TreeNodeIndex groupIdx, const cstone::Octree<KeyType>& 
         const auto& com = centers[idx];
         const auto& p   = multipoles[idx];
 
-        bool violatesMac = cstone::vectorMac(makeVec3(com), com[3], targetCenter, targetSize);
+        bool violatesMac = cstone::evaluateMac(makeVec3(com), com[3], targetCenter, targetSize);
 
         if (!violatesMac)
         {

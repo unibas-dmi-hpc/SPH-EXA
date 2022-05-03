@@ -45,7 +45,7 @@ namespace cstone
  * @param assignment    Decomposition of the global SFC into segments
  * @param domainTree    octree built on top of the global cornerstone leaves
  * @param box           global coordinate bounding box
- * @param theta         MAC opening parameter
+ * @param invThetaEff   1/theta + s, effective inverse opening parameter
  * @return              list of segment indices (i.e. "ranks") that contain tree leaf nodes
  *                      that fail the MAC paired with at least one tree leaf node inside
  *                      the @p myRank segment. This list contains at least the segments
@@ -64,14 +64,13 @@ std::vector<int> findPeersMac(int myRank,
                               const SpaceCurveAssignment& assignment,
                               const TreeType<KeyType>& domainTree,
                               const Box<T>& box,
-                              float theta)
+                              float invThetaEff)
 {
-    float invTheta      = 1.0f / theta;
     KeyType domainStart = domainTree.codeStart(domainTree.toInternal(assignment.firstNodeIdx(myRank)));
     KeyType domainEnd   = domainTree.codeEnd(domainTree.toInternal(assignment.lastNodeIdx(myRank) - 1));
 
     auto crossFocusPairs =
-        [domainStart, domainEnd, invTheta, &tree = domainTree, &box](TreeNodeIndex a, TreeNodeIndex b)
+        [domainStart, domainEnd, invThetaEff, &tree = domainTree, &box](TreeNodeIndex a, TreeNodeIndex b)
     {
         bool aFocusOverlap = overlapTwoRanges(domainStart, domainEnd, tree.codeStart(a), tree.codeEnd(a));
         bool bInFocus      = containedIn(tree.codeStart(b), tree.codeEnd(b), domainStart, domainEnd);
@@ -82,7 +81,7 @@ std::vector<int> findPeersMac(int myRank,
         IBox bBox             = sfcIBox(sfcKey(tree.codeStart(b)), tree.level(b));
         auto [aCenter, aSize] = centerAndSize<KeyType>(aBox, box);
         auto [bCenter, bSize] = centerAndSize<KeyType>(bBox, box);
-        return !minVecMacMutual(aCenter, aSize, bCenter, bSize, box, invTheta);
+        return !minVecMacMutual(aCenter, aSize, bCenter, bSize, box, invThetaEff);
     };
 
     auto m2l = [](TreeNodeIndex, TreeNodeIndex) {};
@@ -116,10 +115,12 @@ std::vector<int> findPeersMac(int myRank,
 
 //! @brief Args identical to findPeersMac, but implemented with single tree traversal for comparison
 template<template<class> class TreeType, class KeyType, class T>
-std::vector<int> findPeersMacStt(
-    int myRank, const SpaceCurveAssignment& assignment, const TreeType<KeyType>& octree, const Box<T>& box, float theta)
+std::vector<int> findPeersMacStt(int myRank,
+                                 const SpaceCurveAssignment& assignment,
+                                 const TreeType<KeyType>& octree,
+                                 const Box<T>& box,
+                                 float invThetaEff)
 {
-    float invTheta      = 1.0f / theta;
     KeyType domainStart = octree.codeStart(octree.toInternal(assignment.firstNodeIdx(myRank)));
     KeyType domainEnd   = octree.codeEnd(octree.toInternal(assignment.lastNodeIdx(myRank) - 1));
 
@@ -134,7 +135,7 @@ std::vector<int> findPeersMacStt(
         std::tie(targetCenter, targetSize) = centerAndSize<KeyType>(target, box);
 
         auto violatesMac =
-            [&targetCenter, &targetSize, &octree, &box, invTheta, domainStart, domainEnd](TreeNodeIndex idx)
+            [&targetCenter, &targetSize, &octree, &box, invThetaEff, domainStart, domainEnd](TreeNodeIndex idx)
         {
             KeyType nodeStart = octree.codeStart(idx);
             KeyType nodeEnd   = octree.codeEnd(idx);
@@ -143,7 +144,7 @@ std::vector<int> findPeersMacStt(
 
             IBox sourceBox                  = sfcIBox(sfcKey(nodeStart), octree.level(idx));
             auto [sourceCenter, sourceSize] = centerAndSize<KeyType>(sourceBox, box);
-            return !minVecMacMutual(targetCenter, targetSize, sourceCenter, sourceSize, box, invTheta);
+            return !minVecMacMutual(targetCenter, targetSize, sourceCenter, sourceSize, box, invThetaEff);
         };
 
         auto markLeafIdx = [&peers, &assignment](TreeNodeIndex idx)

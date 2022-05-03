@@ -77,7 +77,6 @@ public:
         reallocate(nNodes(leaves), haloFlags_);
         std::fill(begin(haloFlags_), end(haloFlags_), 0);
         findHalos(focusedTree, haloRadii.data(), box, firstAssignedNode, lastAssignedNode, haloFlags_.data());
-        checkHalos(focusAssignment);
     }
 
     /*! @brief Compute particle offsets of each tree node and determine halo send/receive indices
@@ -107,6 +106,8 @@ public:
 
         outgoingHaloIndices_ =
             exchangeRequestKeys<KeyType>(leaves, haloFlags_, particleKeys, newParticleStart, assignment, peers);
+
+        checkHalos(assignment);
         checkIndices(outgoingHaloIndices_, newParticleStart, newParticleEnd, layout.back());
 
         incomingHaloIndices_ = computeHaloReceiveList(layout, haloFlags_, assignment, peers);
