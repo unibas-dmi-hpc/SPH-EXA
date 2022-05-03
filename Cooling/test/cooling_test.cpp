@@ -2,12 +2,12 @@
 // Created by Noah Kubli on 28.02.22.
 //
 #include "gtest/gtest.h"
-#include "sph/cooling.hpp"
+#include "cooling.hpp"
 #include "sph/particles_data.hpp"
 #include <iostream>
 using namespace sphexa;
 
-TEST(cooling_grackle, test1)
+TEST(cooling_grackle, test1a)
 {
 #ifdef USE_CUDA
     using AccType = cstone::GpuTag;

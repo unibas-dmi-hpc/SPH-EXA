@@ -1,21 +1,22 @@
 include(sphexa_add_test)
 
 set(UNIT_TESTS
-        density_kern.cpp
-        iad_kern.cpp
-        momentum_energy.cpp
-#        cooling_test.cpp
-        test_main.cpp
+        cooling_test.cpp
 )
 
 set(GRACKLE_DIR ${PROJECT_SOURCE_DIR}/../extern/grackle/src/clib)
-set(testname kernel_tests)
+set(testname cooling_tests)
 add_executable(${testname} ${UNIT_TESTS})
 target_compile_options(${testname} PRIVATE -Wall -Wextra)
 target_compile_definitions(${testname} PUBLIC SPH_EXA_HAVE_H5PART)
 
-target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/include)
-target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/include/sph)
+#target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/include)
+#target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/include/sph)
+target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/Cooling/include)
+target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/sph/include)
+target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/sph/include/sph)
+#target_include_directories(${testname} PRIVATE ${PROJECT_SOURCE_DIR}/domain/include) #Sonst error cstone not found
+
 target_include_directories(${testname} PUBLIC ${PROJECT_SOURCE_DIR}/extern/h5part)
 target_include_directories(${testname} PRIVATE ${CSTONE_DIR})
 target_include_directories(${testname} PRIVATE ${GRACKLE_DIR})

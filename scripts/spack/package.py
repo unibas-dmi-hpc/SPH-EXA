@@ -47,7 +47,7 @@ class SphExaMiniApp(CMakePackage, CudaPackage):
         # Add arguments other than CMAKE_INSTALL_PREFIX and CMAKE_BUILD_TYPE
         args = ['-DCMAKE_VERBOSE_MAKEFILE=ON']
         args.append(f'-DCMAKE_CXX_COMPILER={self.compiler.cxx}')
-        # -DUSE_CUDA set in src/sedov/CMakeLists.txt target_compile_definitions
+        # -DUSE_CUDA set in include/sedov/CMakeLists.txt target_compile_definitions
         if '+cuda' in self.spec:
             sanity_check_is_file = [join_path('bin', 'sedov-cuda')]
 
