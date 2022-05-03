@@ -46,7 +46,7 @@ template<typename T>
 CUDA_DEVICE_HOST_FUN inline void densityJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
                                               int neighborsCount, const T* x, const T* y, const T* z, const T* h,
                                               const T* m, const T* wh, const T* whd, const T* rho0, const T* wrho0,
-                                              T* ro, T* kx, T* whomega)
+                                              T* ro, T* kx, T* gradh)
 {
     T xi     = x[i];
     T yi     = y[i];
@@ -76,15 +76,13 @@ CUDA_DEVICE_HOST_FUN inline void densityJLoop(int i, T sincIndex, T K, const cst
         whomegai += dterh * xmassj;
     }
 
-    kxi      = K * (kxi + xmassi) * h3Inv;
+    kx[i]    = K * (kxi + xmassi) * h3Inv;
     whomegai = K * (whomegai - 3.0 * xmassi) * h3Inv * hInv;
 
-    T roloc  = kxi * m[i] / xmassi;
-    whomegai = whomegai * m[i] / xmassi + (roloc / rho0i - K * xmassi * h3Inv) * wrho0i;
-
-    ro[i]      = roloc;
-    kx[i]      = kxi;
-    whomega[i] = whomegai;
+    ro[i]    = kx[i] * m[i] / xmassi;
+    whomegai = whomegai * m[i] / xmassi + (ro[i] / rho0i - K * xmassi * h3Inv) * wrho0i;
+    T dhdrho = -hi / ro[i] / 3.0; // This /3 is the dimension hard-coded.
+    gradh[i] = 1.0 - dhdrho * whomegai;
 }
 
 } // namespace kernels

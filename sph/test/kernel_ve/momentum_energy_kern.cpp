@@ -64,6 +64,7 @@ TEST(MomentumEnergy, JLoop)
     std::vector<T> h{5.0, 5.1, 5.2, 5.3, 5.4};
     std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
     std::vector<T> rho{0.014, 0.015, 0.016, 0.017, 0.018};
+    std::vector<T> gradh{1.25, 1., 0.8, 1.1, 0.51};
 
     std::vector<T> vx{0.010, -0.020, 0.030, -0.040, 0.050};
     std::vector<T> vy{-0.011, 0.021, -0.031, 0.041, -0.051};
@@ -134,16 +135,17 @@ TEST(MomentumEnergy, JLoop)
                                          kx.data(),
                                          rho0.data(),
                                          alpha.data(),
+                                         gradh.data(),
                                          &grad_Px,
                                          &grad_Py,
                                          &grad_Pz,
                                          &du,
                                          &maxvsignal);
 
-    EXPECT_NEAR(grad_Px, -0.41474721869900383, 1e-10);
-    EXPECT_NEAR(grad_Py, 0.025658320252911829, 1e-10);
-    EXPECT_NEAR(grad_Pz, -0.39246808566033031, 1e-10);
-    EXPECT_NEAR(du, -0.0053408003947106632, 1e-10);
+    EXPECT_NEAR(grad_Px, -4.7423317200544224e-1, 1e-10);
+    EXPECT_NEAR(grad_Py, 8.737996639917453e-2, 1e-10);
+    EXPECT_NEAR(grad_Pz, -5.303834041425971e-1, 1e-10);
+    EXPECT_NEAR(du, -3.8485025262537881e-3, 1e-10);
     EXPECT_NEAR(maxvsignal, 1.4112466829, 1e-10);
 }
 

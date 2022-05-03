@@ -51,18 +51,12 @@ std::unique_ptr<ISimInitializer<Dataset>> initializerFactory(std::string testCas
     if (testCase == "sedov")
     {
         if (glassBlock.empty()) { return std::make_unique<SedovGrid<Dataset>>(); }
-        else
-        {
-            return std::make_unique<SedovGlass<Dataset>>(glassBlock);
-        }
+        else { return std::make_unique<SedovGlass<Dataset>>(glassBlock); }
     }
     if (testCase == "noh")
     {
         if (glassBlock.empty()) { return std::make_unique<NohGrid<Dataset>>(); }
-        else
-        {
-            return std::make_unique<NohGlassSphere<Dataset>>(glassBlock);
-        }
+        else { return std::make_unique<NohGlassSphere<Dataset>>(glassBlock); }
     }
     if (testCase == "isobaric-cube")
     {

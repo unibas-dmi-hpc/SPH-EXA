@@ -118,18 +118,9 @@ static void focusTransferNRanks(int myRank, int numRanks)
     if (myRank < numRanks) { focusTransfer<KeyType>(treeLeaves, counts, bucketSize, myRank, a, b, c, d, buffer); }
 
     if (myRank == 0) { EXPECT_EQ(buffer.size(), 0); }
-    else if (myRank == numRanks - 1)
-    {
-        EXPECT_EQ(buffer.size(), 2);
-    }
-    else if (sign > 0)
-    {
-        EXPECT_EQ(buffer.size(), 4);
-    }
-    else
-    {
-        EXPECT_EQ(buffer.size(), 0);
-    }
+    else if (myRank == numRanks - 1) { EXPECT_EQ(buffer.size(), 2); }
+    else if (sign > 0) { EXPECT_EQ(buffer.size(), 4); }
+    else { EXPECT_EQ(buffer.size(), 0); }
 }
 
 TEST(FocusTransfer, simpleTestNRanks)

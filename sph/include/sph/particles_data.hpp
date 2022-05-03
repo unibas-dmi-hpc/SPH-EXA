@@ -79,17 +79,24 @@ public:
     std::vector<T> x, y, z, x_m1, y_m1, z_m1;    // Positions
     std::vector<T> vx, vy, vz;                   // Velocities
     std::vector<T> rho;                          // Density
+    std::vector<T> temp;                         // Temperature
     std::vector<T> u;                            // Internal Energy
     std::vector<T> p;                            // Pressure
     std::vector<T> h;                            // Smoothing Length
     std::vector<T> m;                            // Mass
     std::vector<T> c;                            // Speed of sound
+    std::vector<T> cv;                           // Specific heat
+    std::vector<T> mue, mui;                     // mean molecular weight (electrons, ions)
+    std::vector<T> divv, curlv;                  // Div(velocity), Curl(velocity)
     std::vector<T> grad_P_x, grad_P_y, grad_P_z; // gradient of the pressure
-    std::vector<T> du, du_m1;                    // variation of the energy
-    std::vector<T> dt, dt_m1;
+    std::vector<T> du, du_m1;                    // energy rate of change (du/dt)
+    std::vector<T> dt, dt_m1;                    // timestep
     std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
-    std::vector<T> mue, mui, temp, cv;
-    std::vector<T> rho0, wrho0, kx, whomega, divv, curlv, alpha;
+    std::vector<T> alpha;                        // AV coeficient
+    std::vector<T> rho0;                         // Classical SPH density
+    std::vector<T> wrho0;                        // Classical SPH gradient of density
+    std::vector<T> kx;                           // Volume element normalization
+    std::vector<T> gradh;                        // grad(h) term
 
     std::vector<KeyType>                          codes;          // Particle space-filling-curve keys
     std::vector<int, PinnedAlloc_t<AccType, int>> neighborsCount; // number of neighbors of each particle
@@ -107,7 +114,7 @@ public:
         "x",    "y",     "z",    "x_m1",  "y_m1", "z_m1",     "vx",       "vy",       "vz",   "rho",
         "u",    "p",     "h",    "m",     "c",    "grad_P_x", "grad_P_y", "grad_P_z", "du",   "du_m1",
         "dt",   "dt_m1", "c11",  "c12",   "c13",  "c22",      "c23",      "c33",      "mue",  "mui",
-        "temp", "cv",    "rho0", "wrho0", "kx",   "whomega",  "divv",     "curlv",    "alpha"};
+        "temp", "cv",    "rho0", "wrho0", "kx",   "divv",     "curlv",    "alpha",    "gradh"};
 
     /*! @brief return a vector of pointers to field vectors
      *
@@ -119,9 +126,9 @@ public:
         using FieldType = std::variant<std::vector<float>*, std::vector<double>*, std::vector<int>*>;
 
         std::array<FieldType, fieldNames.size()> ret{
-            &x,   &y,        &z,        &x_m1,     &y_m1, &z_m1,  &vx, &vy,      &vz,   &rho,   &u,    &p,   &h,   &m,
-            &c,   &grad_P_x, &grad_P_y, &grad_P_z, &du,   &du_m1, &dt, &dt_m1,   &c11,  &c12,   &c13,  &c22, &c23, &c33,
-            &mue, &mui,      &temp,     &cv,       &rho0, &wrho0, &kx, &whomega, &divv, &curlv, &alpha};
+            &x,   &y,   &z,        &x_m1,     &y_m1,     &z_m1, &vx,    &vy,    &vz,    &rho,  &u,     &p,     &h,
+            &m,   &c,   &grad_P_x, &grad_P_y, &grad_P_z, &du,   &du_m1, &dt,    &dt_m1, &c11,  &c12,   &c13,   &c22,
+            &c23, &c33, &mue,      &mui,      &temp,     &cv,   &rho0,  &wrho0, &kx,    &divv, &curlv, &alpha, &gradh};
 
         static_assert(ret.size() == fieldNames.size());
 
@@ -139,7 +146,6 @@ public:
     {
         std::vector<std::string> fields{
             "rho", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z", "du", "c11", "c12", "c13", "c22", "c23", "c33"};
-
         dependentFields = fieldStringsToInt(fieldNames, fields);
     }
 
@@ -168,9 +174,9 @@ public:
                                         "rho0",
                                         "wrho0",
                                         "kx",
-                                        "whomega",
                                         "divv",
-                                        "curlv"};
+                                        "curlv",
+                                        "gradh"};
         dependentFields = fieldStringsToInt(fieldNames, fields);
     }
 

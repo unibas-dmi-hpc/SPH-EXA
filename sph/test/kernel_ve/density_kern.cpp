@@ -65,7 +65,7 @@ TEST(Density, JLoop)
     std::vector<T> wrho0{1.1, 1.2, 1.3, 1.4, 1.5};
     std::vector<T> rho{-1.0, -1.0, -1.0, -1.0, -1.0};
     std::vector<T> kx{-1.0, -1.0, -1.0, -1.0, -1.0};
-    std::vector<T> whomega{-1.0, -1.0, -1.0, -1.0, -1.0};
+    std::vector<T> gradh{-1.0, -1.0, -1.0, -1.0, -1.0};
 
     /* distances of particle zero to particle j
      *
@@ -91,10 +91,10 @@ TEST(Density, JLoop)
                                wrho0.data(),
                                rho.data(),
                                kx.data(),
-                               whomega.data());
-    EXPECT_NEAR(rho[0], 0.0167849454056818, 1e-10);
-    EXPECT_NEAR(whomega[0], 0.0025190987613506956, 1e-10);
-    EXPECT_NEAR(kx[0], 0.015259041277892543, 1e-10);
+                               gradh.data());
+    EXPECT_NEAR(rho[0], 1.67849454056818e-2, 1e-10);
+    EXPECT_NEAR(gradh[0], 1.2501347388453987, 1e-10);
+    EXPECT_NEAR(kx[0], 1.5259041277892543e-2, 1e-10);
 }
 
 TEST(Density, JLoopPBC)
@@ -125,7 +125,7 @@ TEST(Density, JLoopPBC)
     std::vector<T> wrho0{0.0, 0.0, 0.0, 0.0, 0.0};
     std::vector<T> rho{-1.0, -1.0, -1.0, -1.0, -1.0};
     std::vector<T> kx{-1.0, -1.0, -1.0, -1.0, -1.0};
-    std::vector<T> whomega{-1.0, -1.0, -1.0, -1.0, -1.0};
+    std::vector<T> gradh{-1.0, -1.0, -1.0, -1.0, -1.0};
     /* distances of particle 0 to particle j
      *
      *         direct      PBC
@@ -152,7 +152,7 @@ TEST(Density, JLoopPBC)
                                wrho0.data(),
                                rho.data(),
                                kx.data(),
-                               whomega.data());
+                               gradh.data());
 
     EXPECT_NEAR(rho[0], 0.17929212293724384, 1e-10);
 }
