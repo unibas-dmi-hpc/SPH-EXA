@@ -158,8 +158,7 @@ public:
 
     void setDependentFieldsVE()
     {
-        std::vector<std::string> fields{"rho",
-                                        "p",
+        std::vector<std::string> fields{"p",
                                         "c",
                                         "grad_P_x",
                                         "grad_P_y",

@@ -256,9 +256,9 @@ public:
         timer.step("mpi::synchronizeHalos");
         computeDensityVE(first, last, ngmax_, d, domain.box());
         timer.step("Density & Gradh");
-        computeEquationOfState(first, last, d);
+        computeEquationOfStateVE(first, last, d);
         timer.step("EquationOfState");
-        domain.exchangeHalos(d.vx, d.vy, d.vz, d.rho, d.p, d.c, d.kx, d.gradh);
+        domain.exchangeHalos(d.vx, d.vy, d.vz, d.p, d.c, d.kx, d.gradh);
         timer.step("mpi::synchronizeHalos");
         computeIadVE(first, last, ngmax_, d, domain.box());
         timer.step("IAD");

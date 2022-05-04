@@ -50,5 +50,37 @@ void computeEquationOfState(size_t /*startIndex*/, size_t /*endIndex*/, Dataset&
     }
 }
 
+//! @brief same as computeEquationOfState, but compute as rho = kx * rho0
+template<typename Dataset>
+void computeEquationOfStateVE(size_t /*startIndex*/, size_t /*endIndex*/, Dataset& d)
+{
+    using T = typename Dataset::RealType;
+
+    // const T R     = 8.317e7;
+    const T gamma = (5.0 / 3.0);
+
+    const T* kx   = d.kx.data();
+    const T* rho0 = d.rho0.data();
+    const T* u    = d.u.data();
+    // const T* mui = d.mui.data();
+
+    const size_t numParticles = d.x.size();
+
+    // T* cv   = d.cv.data();
+    // T* temp = d.temp.data();
+    T* p = d.p.data();
+    T* c = d.c.data();
+
+#pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < numParticles; ++i)
+    {
+        // cv[i]   = T(1.5) * R / mui[i];
+        // temp[i] = u[i] / cv[i];
+        T tmp = u[i] * (gamma - 1);
+        p[i]  = kx[i] * rho0[i] * tmp;
+        c[i]  = std::sqrt(tmp);
+    }
+}
+
 } // namespace sph
 } // namespace sphexa

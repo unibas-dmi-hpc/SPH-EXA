@@ -71,22 +71,22 @@ TEST(Density, JLoop)
      * j = 3   5.71577
      * j = 4   7.62102
      */
-    auto [rho, kx, gradh] = sph::kernels::densityJLoop(0,
-                                                       sincIndex,
-                                                       K,
-                                                       box,
-                                                       neighbors.data(),
-                                                       neighborsCount,
-                                                       x.data(),
-                                                       y.data(),
-                                                       z.data(),
-                                                       h.data(),
-                                                       m.data(),
-                                                       wh.data(),
-                                                       whd.data(),
-                                                       rho0.data(),
-                                                       wrho0.data());
-    EXPECT_NEAR(rho, 1.67849454056818e-2, 1e-10);
+    auto [kx, gradh] = sph::kernels::densityJLoop(0,
+                                                  sincIndex,
+                                                  K,
+                                                  box,
+                                                  neighbors.data(),
+                                                  neighborsCount,
+                                                  x.data(),
+                                                  y.data(),
+                                                  z.data(),
+                                                  h.data(),
+                                                  m.data(),
+                                                  wh.data(),
+                                                  whd.data(),
+                                                  rho0.data(),
+                                                  wrho0.data());
+    EXPECT_NEAR(kx * rho0[0], 1.67849454056818e-2, 1e-10);
     EXPECT_NEAR(gradh, 1.2501347388453987, 1e-10);
     EXPECT_NEAR(kx, 1.5259041277892543e-2, 1e-10);
 }
@@ -126,21 +126,21 @@ TEST(Density, JLoopPBC)
      * j = 4  15.9367    2.26495
      */
 
-    auto [rho, gradh, kx] = sph::kernels::densityJLoop(0,
-                                                       sincIndex,
-                                                       K,
-                                                       box,
-                                                       neighbors.data(),
-                                                       neighborsCount,
-                                                       x.data(),
-                                                       y.data(),
-                                                       z.data(),
-                                                       h.data(),
-                                                       m.data(),
-                                                       wh.data(),
-                                                       whd.data(),
-                                                       rho0.data(),
-                                                       wrho0.data());
+    auto [kx, gradh] = sph::kernels::densityJLoop(0,
+                                                  sincIndex,
+                                                  K,
+                                                  box,
+                                                  neighbors.data(),
+                                                  neighborsCount,
+                                                  x.data(),
+                                                  y.data(),
+                                                  z.data(),
+                                                  h.data(),
+                                                  m.data(),
+                                                  wh.data(),
+                                                  whd.data(),
+                                                  rho0.data(),
+                                                  wrho0.data());
 
-    EXPECT_NEAR(rho, 0.17929212293724384, 1e-10);
+    EXPECT_NEAR(kx * rho0[0], 0.17929212293724384, 1e-10);
 }

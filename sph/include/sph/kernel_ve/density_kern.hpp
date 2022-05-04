@@ -43,7 +43,7 @@ namespace kernels
 {
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline util::tuple<T, T, T>
+CUDA_DEVICE_HOST_FUN inline util::tuple<T, T>
 densityJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount, const T* x,
              const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, const T* rho0, const T* wrho0)
 {
@@ -76,16 +76,13 @@ densityJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neig
     }
 
     kxi *= K * h3Inv;
-
     whomegai = K * (whomegai - T(3) * xmassi) * h3Inv * hInv;
     whomegai = whomegai * rho0i + (kxi - K * xmassi * h3Inv) * wrho0i;
 
     T dhdrho = -hi / (kxi * rho0i * T(3)); // This /3 is the dimension hard-coded.
-
-    T rhoi   = kxi * rho0i;
     T gradhi = T(1) - dhdrho * whomegai;
 
-    return {rhoi, kxi, gradhi};
+    return {kxi, gradhi};
 }
 
 } // namespace kernels
