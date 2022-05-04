@@ -58,6 +58,9 @@ public:
     using KeyType         = I;
     using AcceleratorType = AccType;
 
+    template<class ValueType>
+    using PinnedVec = std::vector<ValueType, PinnedAlloc_t<AcceleratorType, ValueType>>;
+
     ParticlesData()
     {
         setConservedFields();
@@ -76,31 +79,37 @@ public:
     //! @brief gravitational constant
     T g = 0.0;
 
-    std::vector<T> x, y, z, x_m1, y_m1, z_m1;    // Positions
-    std::vector<T> vx, vy, vz;                   // Velocities
-    std::vector<T> rho;                          // Density
-    std::vector<T> temp;                         // Temperature
-    std::vector<T> u;                            // Internal Energy
-    std::vector<T> p;                            // Pressure
-    std::vector<T> h;                            // Smoothing Length
-    std::vector<T> m;                            // Mass
-    std::vector<T> c;                            // Speed of sound
-    std::vector<T> cv;                           // Specific heat
-    std::vector<T> mue, mui;                     // mean molecular weight (electrons, ions)
-    std::vector<T> divv, curlv;                  // Div(velocity), Curl(velocity)
-    std::vector<T> grad_P_x, grad_P_y, grad_P_z; // gradient of the pressure
-    std::vector<T> du, du_m1;                    // energy rate of change (du/dt)
-    std::vector<T> dt, dt_m1;                    // timestep
-    std::vector<T> c11, c12, c13, c22, c23, c33; // IAD components
-    std::vector<T> alpha;                        // AV coeficient
-    std::vector<T> rho0;                         // Classical SPH density
-    std::vector<T> wrho0;                        // Classical SPH gradient of density
-    std::vector<T> kx;                           // Volume element normalization
-    std::vector<T> gradh;                        // grad(h) term
+    /*! @brief Particle fields
+     *
+     * The length of these arrays equals the local number of particles including halos
+     * if the field is active and is zero if the field is inactive.
+     */
+    std::vector<T>       x, y, z, x_m1, y_m1, z_m1;    // Positions
+    std::vector<T>       vx, vy, vz;                   // Velocities
+    std::vector<T>       rho;                          // Density
+    std::vector<T>       temp;                         // Temperature
+    std::vector<T>       u;                            // Internal Energy
+    std::vector<T>       p;                            // Pressure
+    std::vector<T>       h;                            // Smoothing Length
+    std::vector<T>       m;                            // Mass
+    std::vector<T>       c;                            // Speed of sound
+    std::vector<T>       cv;                           // Specific heat
+    std::vector<T>       mue, mui;                     // mean molecular weight (electrons, ions)
+    std::vector<T>       divv, curlv;                  // Div(velocity), Curl(velocity)
+    std::vector<T>       grad_P_x, grad_P_y, grad_P_z; // gradient of the pressure
+    std::vector<T>       du, du_m1;                    // energy rate of change (du/dt)
+    std::vector<T>       dt, dt_m1;                    // timestep
+    std::vector<T>       c11, c12, c13, c22, c23, c33; // IAD components
+    std::vector<T>       alpha;                        // AV coeficient
+    std::vector<T>       rho0;                         // Classical SPH density
+    std::vector<T>       wrho0;                        // Classical SPH gradient of density
+    std::vector<T>       kx;                           // Volume element normalization
+    std::vector<T>       gradh;                        // grad(h) term
+    std::vector<KeyType> codes;                        // Particle space-filling-curve keys
+    PinnedVec<int>       neighborsCount;               // number of neighbors of each particle
 
-    std::vector<KeyType>                          codes;          // Particle space-filling-curve keys
-    std::vector<int, PinnedAlloc_t<AccType, int>> neighborsCount; // number of neighbors of each particle
-    std::vector<int>                              neighbors;      // only used in the CPU version
+    //! @brief Indices of neighbors for each particle, length is number of assigned particles * ngmax. CPU version only.
+    std::vector<int> neighbors;
 
     DeviceData_t<AccType, T, KeyType> devPtrs;
 
@@ -111,10 +120,10 @@ public:
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
      */
     inline static constexpr std::array fieldNames{
-        "x",    "y",     "z",    "x_m1",  "y_m1", "z_m1",     "vx",       "vy",       "vz",   "rho",
-        "u",    "p",     "h",    "m",     "c",    "grad_P_x", "grad_P_y", "grad_P_z", "du",   "du_m1",
-        "dt",   "dt_m1", "c11",  "c12",   "c13",  "c22",      "c23",      "c33",      "mue",  "mui",
-        "temp", "cv",    "rho0", "wrho0", "kx",   "divv",     "curlv",    "alpha",    "gradh"};
+        "x",     "y",   "z",    "x_m1",  "y_m1",     "z_m1",     "vx",       "vy",  "vz",    "rho", "u",
+        "p",     "h",   "m",    "c",     "grad_P_x", "grad_P_y", "grad_P_z", "du",  "du_m1", "dt",  "dt_m1",
+        "c11",   "c12", "c13",  "c22",   "c23",      "c33",      "mue",      "mui", "temp",  "cv",  "rho0",
+        "wrho0", "kx",  "divv", "curlv", "alpha",    "gradh",    "keys",     "nc"};
 
     /*! @brief return a vector of pointers to field vectors
      *
@@ -123,12 +132,19 @@ public:
      */
     auto data()
     {
-        using FieldType = std::variant<std::vector<float>*, std::vector<double>*, std::vector<int>*>;
+        using IntVecType     = std::decay_t<decltype(neighborsCount)>;
+        using KeyVecType     = std::decay_t<decltype(codes)>;
+        using FieldAllocType = typename std::decay_t<decltype(x)>::allocator_type;
+        using FieldType      = std::variant<std::vector<float, FieldAllocType>*,
+                                       std::vector<double, FieldAllocType>*,
+                                       KeyVecType*,
+                                       IntVecType*>;
 
         std::array<FieldType, fieldNames.size()> ret{
-            &x,   &y,   &z,        &x_m1,     &y_m1,     &z_m1, &vx,    &vy,    &vz,    &rho,  &u,     &p,     &h,
-            &m,   &c,   &grad_P_x, &grad_P_y, &grad_P_z, &du,   &du_m1, &dt,    &dt_m1, &c11,  &c12,   &c13,   &c22,
-            &c23, &c33, &mue,      &mui,      &temp,     &cv,   &rho0,  &wrho0, &kx,    &divv, &curlv, &alpha, &gradh};
+            &x,     &y,     &z,     &x_m1,     &y_m1,          &z_m1,     &vx,   &vy,    &vz,   &rho,   &u,   &p,
+            &h,     &m,     &c,     &grad_P_x, &grad_P_y,      &grad_P_z, &du,   &du_m1, &dt,   &dt_m1, &c11, &c12,
+            &c13,   &c22,   &c23,   &c33,      &mue,           &mui,      &temp, &cv,    &rho0, &wrho0, &kx,  &divv,
+            &curlv, &alpha, &gradh, &codes,    &neighborsCount};
 
         static_assert(ret.size() == fieldNames.size());
 
@@ -144,20 +160,6 @@ public:
 
     void setDependentFields()
     {
-        std::vector<std::string> fields{
-            "rho", "p", "c", "grad_P_x", "grad_P_y", "grad_P_z", "du", "c11", "c12", "c13", "c22", "c23", "c33"};
-        dependentFields = fieldStringsToInt(fieldNames, fields);
-    }
-
-    void setConservedFieldsVE()
-    {
-        std::vector<std::string> fields{
-            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha"};
-        conservedFields = fieldStringsToInt(fieldNames, fields);
-    }
-
-    void setDependentFieldsVE()
-    {
         std::vector<std::string> fields{"rho",
                                         "p",
                                         "c",
@@ -171,12 +173,23 @@ public:
                                         "c22",
                                         "c23",
                                         "c33",
-                                        "rho0",
-                                        "wrho0",
-                                        "kx",
-                                        "divv",
-                                        "curlv",
-                                        "gradh"};
+                                        "keys",
+                                        "nc"};
+        dependentFields = fieldStringsToInt(fieldNames, fields);
+    }
+
+    void setConservedFieldsVE()
+    {
+        std::vector<std::string> fields{
+            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha"};
+        conservedFields = fieldStringsToInt(fieldNames, fields);
+    }
+
+    void setDependentFieldsVE()
+    {
+        std::vector<std::string> fields{"rho",   "p",   "c",    "grad_P_x", "grad_P_y", "grad_P_z", "du",
+                                        "c11",   "c12", "c13",  "c22",      "c23",      "c33",      "rho0",
+                                        "wrho0", "kx",  "divv", "curlv",    "gradh",    "keys",     "nc"};
         dependentFields = fieldStringsToInt(fieldNames, fields);
     }
 

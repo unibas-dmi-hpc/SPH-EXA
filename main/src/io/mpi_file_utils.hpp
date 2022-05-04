@@ -54,6 +54,16 @@ inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& f
     return H5PartWriteDataInt32(h5_file, fieldName.c_str(), field);
 }
 
+inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const unsigned* field)
+{
+    return H5PartWriteDataInt32(h5_file, fieldName.c_str(), (const h5part_int32_t*)field);
+}
+
+inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const uint64_t* field)
+{
+    return H5PartWriteDataInt64(h5_file, fieldName.c_str(), (const h5part_int64_t*)field);
+}
+
 inline h5part_int64_t writeH5PartField(H5PartFile* h5_file, const std::string& fieldName, const float* field)
 {
     static_assert(std::is_same_v<float, h5part_float32_t>);
