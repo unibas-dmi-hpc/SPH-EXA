@@ -43,10 +43,9 @@ namespace kernels
 {
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline void densityJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
-                                              int neighborsCount, const T* x, const T* y, const T* z, const T* h,
-                                              const T* m, const T* wh, const T* whd, const T* rho0, const T* wrho0,
-                                              T* ro, T* kx, T* gradh)
+CUDA_DEVICE_HOST_FUN inline util::tuple<T, T, T>
+densityJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount, const T* x,
+             const T* y, const T* z, const T* h, const T* m, const T* wh, const T* whd, const T* rho0, const T* wrho0)
 {
     T xi     = x[i];
     T yi     = y[i];
@@ -56,10 +55,10 @@ CUDA_DEVICE_HOST_FUN inline void densityJLoop(int i, T sincIndex, T K, const cst
     T wrho0i = wrho0[i];
     T xmassi = m[i] / rho0i;
 
-    T hInv  = 1.0 / hi;
+    T hInv  = T(1) / hi;
     T h3Inv = hInv * hInv * hInv;
 
-    T kxi      = 0.0;
+    T kxi      = xmassi;
     T whomegai = 0.0;
 
     for (int pj = 0; pj < neighborsCount; ++pj)
@@ -69,20 +68,24 @@ CUDA_DEVICE_HOST_FUN inline void densityJLoop(int i, T sincIndex, T K, const cst
         T   vloc   = dist * hInv;
         T   w      = ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
         T   dw     = wharmonic_derivative(vloc, w) * sincIndex;
-        T   dterh  = -(3.0 * w + vloc * dw);
+        T   dterh  = -(T(3) * w + vloc * dw);
         T   xmassj = m[j] / rho0[j];
 
         kxi += w * xmassj;
         whomegai += dterh * xmassj;
     }
 
-    kx[i]    = K * (kxi + xmassi) * h3Inv;
-    whomegai = K * (whomegai - 3.0 * xmassi) * h3Inv * hInv;
+    kxi *= K * h3Inv;
 
-    ro[i]    = kx[i] * m[i] / xmassi;
-    whomegai = whomegai * m[i] / xmassi + (ro[i] / rho0i - K * xmassi * h3Inv) * wrho0i;
-    T dhdrho = -hi / ro[i] / 3.0; // This /3 is the dimension hard-coded.
-    gradh[i] = 1.0 - dhdrho * whomegai;
+    whomegai = K * (whomegai - T(3) * xmassi) * h3Inv * hInv;
+    whomegai = whomegai * rho0i + (kxi - K * xmassi * h3Inv) * wrho0i;
+
+    T dhdrho = -hi / (kxi * rho0i * T(3)); // This /3 is the dimension hard-coded.
+
+    T rhoi   = kxi * rho0i;
+    T gradhi = T(1) - dhdrho * whomegai;
+
+    return {rhoi, kxi, gradhi};
 }
 
 } // namespace kernels

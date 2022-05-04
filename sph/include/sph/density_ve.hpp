@@ -41,25 +41,9 @@ void computeDensityVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
 #pragma omp parallel for
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        size_t ni = i - startIndex;
-        kernels::densityJLoop(i,
-                              sincIndex,
-                              K,
-                              box,
-                              neighbors + ngmax * ni,
-                              neighborsCount[i],
-                              x,
-                              y,
-                              z,
-                              h,
-                              m,
-                              wh,
-                              whd,
-                              rho0,
-                              wrho0,
-                              rho,
-                              kx,
-                              gradh);
+        size_t ni                          = i - startIndex;
+        util::tie(rho[i], kx[i], gradh[i]) = kernels::densityJLoop(
+            i, sincIndex, K, box, neighbors + ngmax * ni, neighborsCount[i], x, y, z, h, m, wh, whd, rho0, wrho0);
 #ifndef NDEBUG
         if (std::isnan(rho[i]))
             printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", i, rho[i], x[i], y[i], z[i], h[i]);

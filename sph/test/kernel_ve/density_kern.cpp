@@ -63,9 +63,6 @@ TEST(Density, JLoop)
     std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
     std::vector<T> rho0{1.1, 1.2, 1.3, 1.4, 1.5};
     std::vector<T> wrho0{1.1, 1.2, 1.3, 1.4, 1.5};
-    std::vector<T> rho{-1.0, -1.0, -1.0, -1.0, -1.0};
-    std::vector<T> kx{-1.0, -1.0, -1.0, -1.0, -1.0};
-    std::vector<T> gradh{-1.0, -1.0, -1.0, -1.0, -1.0};
 
     /* distances of particle zero to particle j
      *
@@ -74,27 +71,24 @@ TEST(Density, JLoop)
      * j = 3   5.71577
      * j = 4   7.62102
      */
-    sph::kernels::densityJLoop(0,
-                               sincIndex,
-                               K,
-                               box,
-                               neighbors.data(),
-                               neighborsCount,
-                               x.data(),
-                               y.data(),
-                               z.data(),
-                               h.data(),
-                               m.data(),
-                               wh.data(),
-                               whd.data(),
-                               rho0.data(),
-                               wrho0.data(),
-                               rho.data(),
-                               kx.data(),
-                               gradh.data());
-    EXPECT_NEAR(rho[0], 1.67849454056818e-2, 1e-10);
-    EXPECT_NEAR(gradh[0], 1.2501347388453987, 1e-10);
-    EXPECT_NEAR(kx[0], 1.5259041277892543e-2, 1e-10);
+    auto [rho, kx, gradh] = sph::kernels::densityJLoop(0,
+                                                       sincIndex,
+                                                       K,
+                                                       box,
+                                                       neighbors.data(),
+                                                       neighborsCount,
+                                                       x.data(),
+                                                       y.data(),
+                                                       z.data(),
+                                                       h.data(),
+                                                       m.data(),
+                                                       wh.data(),
+                                                       whd.data(),
+                                                       rho0.data(),
+                                                       wrho0.data());
+    EXPECT_NEAR(rho, 1.67849454056818e-2, 1e-10);
+    EXPECT_NEAR(gradh, 1.2501347388453987, 1e-10);
+    EXPECT_NEAR(kx, 1.5259041277892543e-2, 1e-10);
 }
 
 TEST(Density, JLoopPBC)
@@ -123,9 +117,6 @@ TEST(Density, JLoopPBC)
     std::vector<T> m{1.1, 1.2, 1.3, 1.4, 1.5};
     std::vector<T> rho0{1.0, 1.0, 1.0, 1.0, 1.0};
     std::vector<T> wrho0{0.0, 0.0, 0.0, 0.0, 0.0};
-    std::vector<T> rho{-1.0, -1.0, -1.0, -1.0, -1.0};
-    std::vector<T> kx{-1.0, -1.0, -1.0, -1.0, -1.0};
-    std::vector<T> gradh{-1.0, -1.0, -1.0, -1.0, -1.0};
     /* distances of particle 0 to particle j
      *
      *         direct      PBC
@@ -135,24 +126,21 @@ TEST(Density, JLoopPBC)
      * j = 4  15.9367    2.26495
      */
 
-    sph::kernels::densityJLoop(0,
-                               sincIndex,
-                               K,
-                               box,
-                               neighbors.data(),
-                               neighborsCount,
-                               x.data(),
-                               y.data(),
-                               z.data(),
-                               h.data(),
-                               m.data(),
-                               wh.data(),
-                               whd.data(),
-                               rho0.data(),
-                               wrho0.data(),
-                               rho.data(),
-                               kx.data(),
-                               gradh.data());
+    auto [rho, gradh, kx] = sph::kernels::densityJLoop(0,
+                                                       sincIndex,
+                                                       K,
+                                                       box,
+                                                       neighbors.data(),
+                                                       neighborsCount,
+                                                       x.data(),
+                                                       y.data(),
+                                                       z.data(),
+                                                       h.data(),
+                                                       m.data(),
+                                                       wh.data(),
+                                                       whd.data(),
+                                                       rho0.data(),
+                                                       wrho0.data());
 
-    EXPECT_NEAR(rho[0], 0.17929212293724384, 1e-10);
+    EXPECT_NEAR(rho, 0.17929212293724384, 1e-10);
 }
