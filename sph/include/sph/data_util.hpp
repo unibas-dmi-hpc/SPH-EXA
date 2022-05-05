@@ -65,7 +65,7 @@ template<class Dataset>
 auto getOutputArrays(Dataset& dataset)
 {
     auto fieldPointers = dataset.data();
-    using FieldType    = std::variant<const float*, const double*, const int*>;
+    using FieldType    = std::variant<const float*, const double*, const int*, const unsigned*, const uint64_t*>;
 
     std::vector<FieldType> outputFields;
     outputFields.reserve(dataset.outputFields.size());
@@ -97,13 +97,10 @@ void resize(Dataset& d, size_t size)
         std::visit([size, growthRate](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
     }
 
-    reallocate(d.codes, size, growthRate);
-    reallocate(d.neighborsCount, size, growthRate);
-
     d.devPtrs.resize(size);
 }
 
-//! resizes the neighbors list, only used in the CPU version
+//! @brief resizes the neighbors list, only used in the CPU version
 template<class Dataset>
 void resizeNeighbors(Dataset& d, size_t size)
 {
