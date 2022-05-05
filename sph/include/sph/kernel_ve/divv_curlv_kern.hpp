@@ -45,9 +45,9 @@ namespace kernels
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline void
 divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount,
-                const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h, const T* m,
-                const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T* wh,
-                const T* whd, const T* kx, const T* rho0, T* divv, T* curlv)
+                const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h, const T* c11,
+                const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T* wh, const T* whd,
+                const T* kx, const T* xm, T* divv, T* curlv)
 {
     T xi  = x[i];
     T yi  = y[i];
@@ -55,8 +55,7 @@ divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
     T vxi = vx[i];
     T vyi = vy[i];
     T vzi = vz[i];
-
-    T hi = h[i];
+    T hi  = h[i];
 
     T hiInv  = 1.0 / hi;
     T hiInv3 = hiInv * hiInv * hiInv;
@@ -98,7 +97,7 @@ divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
         T termA2 = -(c12i * rx + c22i * ry + c23i * rz) * Wi;
         T termA3 = -(c13i * rx + c23i * ry + c33i * rz) * Wi;
 
-        T xmassj = m[j] / rho0[j];
+        T xmassj = xm[j];
 
         divv[i] += (vx_ji * termA1 + vy_ji * termA2 + vz_ji * termA3) * xmassj;
 
@@ -108,7 +107,7 @@ divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
     }
 
     divv[i]  = divv[i] / kx[i];
-    curlv[i] = abs(sqrt(curlv_x * curlv_x + curlv_y * curlv_y + curlv_z * curlv_z)) / kx[i];
+    curlv[i] = std::abs(std::sqrt(curlv_x * curlv_x + curlv_y * curlv_y + curlv_z * curlv_z)) / kx[i];
 }
 
 } // namespace kernels

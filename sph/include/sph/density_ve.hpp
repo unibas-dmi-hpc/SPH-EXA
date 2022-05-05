@@ -19,16 +19,16 @@ void computeDensityVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
 
-    const T* h = d.h.data();
-    const T* m = d.m.data();
     const T* x = d.x.data();
     const T* y = d.y.data();
     const T* z = d.z.data();
+    const T* h = d.h.data();
+    const T* m = d.m.data();
 
     const T* wh  = d.wh.data();
     const T* whd = d.whd.data();
 
-    const T* rho0  = d.rho0.data();
+    const T* xm    = d.xm.data();
     const T* wrho0 = d.wrho0.data();
 
     T* kx    = d.kx.data();
@@ -55,7 +55,7 @@ void computeDensityVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
                               m,
                               wh,
                               whd,
-                              rho0,
+                              xm,
                               wrho0,
                               rho,
                               kx,

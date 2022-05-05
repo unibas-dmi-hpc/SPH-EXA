@@ -63,7 +63,7 @@ __global__ void cudaIAD(T sincIndex, T K, int ngmax, cstone::Box<T> box, int fir
     cstone::findNeighbors(
         i, x, y, z, h, box, cstone::sfcKindPointer(particleKeys), neighbors, &neighborsCount, numParticles, ngmax);
 
-    sph::kernels::IADJLoop(
+    sph::kernels::IADJLoop3L(
         i, sincIndex, K, box, neighbors, neighborsCount, x, y, z, h, m, rho, wh, whd, c11, c12, c13, c22, c23, c33);
 }
 

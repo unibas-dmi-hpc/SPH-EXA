@@ -43,9 +43,9 @@ namespace kernels
 {
 
 template<typename T>
-CUDA_DEVICE_HOST_FUN inline void rho0JLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
-                                           int neighborsCount, const T* x, const T* y, const T* z, const T* h,
-                                           const T* m, const T* wh, const T* whd, T* rho0, T* wrho0)
+CUDA_DEVICE_HOST_FUN inline void xmassJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
+                                            int neighborsCount, const T* x, const T* y, const T* z, const T* h,
+                                            const T* m, const T* wh, const T* whd, T* xm, T* wrho0)
 {
     T xi = x[i];
     T yi = y[i];
@@ -72,7 +72,7 @@ CUDA_DEVICE_HOST_FUN inline void rho0JLoop(int i, T sincIndex, T K, const cstone
         wrho0i += dterh * m[j];
     }
 
-    rho0[i]  = rho0i * K * h3Inv;
+    xm[i]    = mi / (rho0i * K * h3Inv);
     wrho0[i] = wrho0i * K * h3Inv * hInv;
 }
 
