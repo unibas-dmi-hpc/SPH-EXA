@@ -45,8 +45,8 @@ namespace kernels
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline void densityJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
                                               int neighborsCount, const T* x, const T* y, const T* z, const T* h,
-                                              const T* m, const T* wh, const T* whd, const T* xm, const T* wrho0,
-                                              T* ro, T* kx, T* gradh)
+                                              const T* m, const T* wh, const T* whd, const T* xm, const T* wrho0, T* ro,
+                                              T* kx, T* gradh)
 {
     T xi     = x[i];
     T yi     = y[i];

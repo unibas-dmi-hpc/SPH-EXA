@@ -48,8 +48,8 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
                        const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h,
                        const T* m, const T* ro, const T* p, const T* c, const T* c11, const T* c12, const T* c13,
                        const T* c22, const T* c23, const T* c33, const T Atmin, const T Atmax, const T ramp,
-                       const T* wh, const T* whd, const T* kx, const T* xm, const T* alpha, const T* gradh,
-                       T* grad_P_x, T* grad_P_y, T* grad_P_z, T* du, T* maxvsignal)
+                       const T* wh, const T* whd, const T* kx, const T* xm, const T* alpha, const T* gradh, T* grad_P_x,
+                       T* grad_P_y, T* grad_P_z, T* du, T* maxvsignal)
 {
     T xi  = x[i];
     T yi  = y[i];
