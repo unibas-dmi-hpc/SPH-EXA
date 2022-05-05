@@ -92,6 +92,7 @@ static bool haveH5Attribute(const std::string& fname, const std::string& attribu
 template<class Dataset>
 std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& testCase, std::ofstream& constantsFile)
 {
+#ifdef SPH_EXA_HAVE_H5PART
     std::string khGrowthRate = "KelvinHelmholtzGrowthRate";
     if (haveH5Attribute(testCase, khGrowthRate, H5PART_INT64))
     {
@@ -103,6 +104,7 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
 
         if (attrValue) { return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile); }
     }
+#endif
 
     return std::make_unique<TimeAndEnergy<Dataset>>(constantsFile);
 }

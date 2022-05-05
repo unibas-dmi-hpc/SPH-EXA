@@ -31,6 +31,7 @@
 
 #pragma once
 
+#include <filesystem>
 #include <map>
 
 #include "cstone/sfc/box.hpp"
