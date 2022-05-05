@@ -42,6 +42,13 @@ namespace sph
 namespace kernels
 {
 
+//! @brief a particular choice of defining generalized volume elements
+template<class T>
+CUDA_DEVICE_HOST_FUN inline T veDefinition(T mass, T rhoZero)
+{
+    return mass / rhoZero;
+}
+
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline void xmassJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
                                             int neighborsCount, const T* x, const T* y, const T* z, const T* h,
@@ -72,7 +79,7 @@ CUDA_DEVICE_HOST_FUN inline void xmassJLoop(int i, T sincIndex, T K, const cston
         wrho0i += dterh * m[j];
     }
 
-    xm[i]    = mi / (rho0i * K * h3Inv);
+    xm[i]    = veDefinition(mi, rho0i * K * h3Inv);
     wrho0[i] = wrho0i * K * h3Inv * hInv;
 }
 

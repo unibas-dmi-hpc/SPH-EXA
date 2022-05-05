@@ -21,4 +21,4 @@
 #include "sph/divv_curlv.hpp"
 #include "sph/iad_ve.hpp"
 #include "sph/momentum_energy_ve.hpp"
-#include "sph/rho_zero.hpp"
+#include "sph/xmass.hpp"

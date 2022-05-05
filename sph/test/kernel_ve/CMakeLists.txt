@@ -1,5 +1,5 @@
 set(UNIT_TESTS
-        rho_zero_kern.cpp
+        xmass_kern.cpp
         density_kern.cpp
         iad_kern.cpp
         divv_curlv_kern.cpp
