@@ -72,11 +72,11 @@ TEST(Divv_Curlv, JLoop)
     std::vector<T> c23{-0.25, -0.33, -0.14, -0.41, -0.50};
     std::vector<T> c33{0.26, 0.34, 0.15, 0.40, 0.51};
 
-    std::vector<T> rho0{1.1, 1.2, 1.3, 1.4, 1.5};
+    std::vector<T> xm{m[0] / 1.1, m[1] / 1.2, m[2] / 1.3, m[3] / 1.4, m[4] / 1.5};
     std::vector<T> kx{1.0, 1.5, 2.0, 2.7, 4.0};
     for (i = 0; i < neighborsCount + 1; i++)
     {
-        kx[i] = K * m[i] / rho0[i] / ::sphexa::math::pow(h[i], 3);
+        kx[i] = K * xm[i] / ::sphexa::math::pow(h[i], 3);
     }
     /* distances of particle zero to particle j
      *
@@ -104,7 +104,6 @@ TEST(Divv_Curlv, JLoop)
                                   vy.data(),
                                   vz.data(),
                                   h.data(),
-                                  m.data(),
                                   c11.data(),
                                   c12.data(),
                                   c13.data(),
@@ -114,7 +113,7 @@ TEST(Divv_Curlv, JLoop)
                                   wh.data(),
                                   whd.data(),
                                   kx.data(),
-                                  rho0.data(),
+                                  xm.data(),
                                   &divv,
                                   &curlv);
 

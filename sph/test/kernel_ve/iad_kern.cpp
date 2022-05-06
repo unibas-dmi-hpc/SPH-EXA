@@ -60,11 +60,11 @@ TEST(IAD, JLoop)
     std::vector<T> z{1.2, 2.3, 1.4, 1.5, 1.6};
     std::vector<T> h{5.0, 5.1, 5.2, 5.3, 5.4};
     std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
-    std::vector<T> rho0{1.1, 1.2, 1.3, 1.4, 1.5};
+    std::vector<T> xm{m[0] / 1.1, m[1] / 1.2, m[2] / 1.3, m[3] / 1.4, m[4] / 1.5};
     std::vector<T> kx{-1.0, -1.0, -1.0, -1.0, -1.0};
     for (i = 0; i < neighborsCount + 1; i++)
     {
-        kx[i] = K * m[i] / rho0[i] / ::sphexa::math::pow(h[i], 3);
+        kx[i] = K * xm[i] / ::sphexa::math::pow(h[i], 3);
     }
     /* distances of particle zero to particle j
      *
@@ -88,10 +88,9 @@ TEST(IAD, JLoop)
                            y.data(),
                            z.data(),
                            h.data(),
-                           m.data(),
                            wh.data(),
                            whd.data(),
-                           rho0.data(),
+                           xm.data(),
                            kx.data(),
                            &iad[0],
                            &iad[1],
@@ -131,7 +130,7 @@ TEST(IAD, JLoopPBC)
     std::vector<T> z{1.2, 2.3, 1.4, 1.5, 9.6};
     std::vector<T> h{2.5, 2.51, 2.52, 2.53, 2.54};
     std::vector<T> m{1.1, 1.2, 1.3, 1.4, 1.5};
-    std::vector<T> rho0{0.014, 0.015, 0.016, 0.017, 0.018};
+    std::vector<T> xm{m[0] / 0.014, m[1] / 0.015, m[2] / 0.016, m[3] / 0.017, m[4] / 0.018};
     std::vector<T> kx{1.0, 1.0, 1.0, 1.0, 1.0};
 
     /* distances of particle 0 to particle j
@@ -156,10 +155,9 @@ TEST(IAD, JLoopPBC)
                            y.data(),
                            z.data(),
                            h.data(),
-                           m.data(),
                            wh.data(),
                            whd.data(),
-                           rho0.data(),
+                           xm.data(),
                            kx.data(),
                            &iad[0],
                            &iad[1],

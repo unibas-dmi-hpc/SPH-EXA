@@ -16,13 +16,12 @@ void computeIadVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset&
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
 
-    const T* h    = d.h.data();
-    const T* x    = d.x.data();
-    const T* y    = d.y.data();
-    const T* z    = d.z.data();
-    const T* m    = d.m.data();
-    const T* rho0 = d.rho0.data();
-    const T* kx   = d.kx.data();
+    const T* h  = d.h.data();
+    const T* x  = d.x.data();
+    const T* y  = d.y.data();
+    const T* z  = d.z.data();
+    const T* xm = d.xm.data();
+    const T* kx = d.kx.data();
 
     T* c11 = d.c11.data();
     T* c12 = d.c12.data();
@@ -51,10 +50,9 @@ void computeIadVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset&
                           y,
                           z,
                           h,
-                          m,
                           wh,
                           whd,
-                          rho0,
+                          xm,
                           kx,
                           c11,
                           c12,

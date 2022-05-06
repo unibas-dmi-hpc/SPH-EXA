@@ -250,9 +250,9 @@ public:
             first, last, ngmax_, d.x, d.y, d.z, d.h, d.codes, d.neighbors, d.neighborsCount, domain.box());
         timer.step("FindNeighbors");
 
-        computeRho0(first, last, ngmax_, d, domain.box());
-        timer.step("Rho0");
-        domain.exchangeHalos(d.rho0);
+        computeXMass(first, last, ngmax_, d, domain.box());
+        timer.step("XMass");
+        domain.exchangeHalos(d.xm);
         timer.step("mpi::synchronizeHalos");
         computeDensityVE(first, last, ngmax_, d, domain.box());
         timer.step("Density & Gradh");

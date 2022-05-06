@@ -45,10 +45,10 @@ namespace kernels
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline T
 AVswitchesJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount,
-                const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h, const T* m,
-                const T* c, const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33,
-                const T* wh, const T* whd, const T* kx, const T* rho0, const T* divv, const T dt, const T alphamin,
-                const T alphamax, const T decay_constant, T alpha_i)
+                const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h, const T* c,
+                const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T* wh,
+                const T* whd, const T* kx, const T* xm, const T* divv, const T dt, const T alphamin, const T alphamax,
+                const T decay_constant, T alpha_i)
 {
     T xi  = x[i];
     T yi  = y[i];
@@ -67,9 +67,9 @@ AVswitchesJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
     T c23i = c23[i];
     T c33i = c33[i];
 
-    T vijsignal_i = 1.e-40 * ci;
+    T vijsignal_i = T(1.e-40) * ci;
 
-    T hiInv  = 1.0 / hi;
+    T hiInv  = T(1) / hi;
     T hiInv3 = hiInv * hiInv * hiInv;
 
     T divv_i = divv[i];
@@ -98,8 +98,8 @@ AVswitchesJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
         T rv           = rx * vx_ij + ry * vy_ij + rz * vz_ij;
         T vijsignal_ij = 0.0;
 
-        if (rv < 0.0) { vijsignal_ij = ci + c[j] - 3.0 * rv / dist; }
-        vijsignal_i = std::max(vijsignal_i, vijsignal_ij);
+        if (rv < T(0)) { vijsignal_ij = ci + c[j] - T(3) * rv / dist; }
+        vijsignal_i = stl::max(vijsignal_i, vijsignal_ij);
 
         T v1 = dist * hiInv;
         T Wi = K * hiInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
@@ -108,7 +108,7 @@ AVswitchesJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
         T termA2 = -(c12i * rx + c22i * ry + c23i * rz) * Wi;
         T termA3 = -(c13i * rx + c23i * ry + c33i * rz) * Wi;
 
-        T volj   = m[j] / rho0[j] / kx[j];
+        T volj   = xm[j] / kx[j];
         T factor = volj * (divv_i - divv[j]);
 
         graddivv_x += factor * termA1;
@@ -116,13 +116,13 @@ AVswitchesJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
         graddivv_z += factor * termA3;
     }
 
-    T graddivv = sqrt(graddivv_x * graddivv_x + graddivv_y * graddivv_y + graddivv_z * graddivv_z);
+    T graddivv = std::sqrt(graddivv_x * graddivv_x + graddivv_y * graddivv_y + graddivv_z * graddivv_z);
 
     T alphaloc = 0.0;
-    if (divv_i < 0.0)
+    if (divv_i < T(0))
     {
         T a_const = hi * hi * graddivv;
-        alphaloc  = alphamax * a_const / (a_const + hi * abs(divv_i) + 0.05 * ci);
+        alphaloc  = alphamax * a_const / (a_const + hi * std::abs(divv_i) + T(0.05) * ci);
     }
 
     if (alphaloc >= alpha_i) { alpha_i = alphaloc; }
