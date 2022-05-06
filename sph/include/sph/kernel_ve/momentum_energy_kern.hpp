@@ -46,10 +46,10 @@ template<typename T>
 CUDA_DEVICE_HOST_FUN inline void
 momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount,
                        const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h,
-                       const T* m, const T* ro, const T* p, const T* c, const T* c11, const T* c12, const T* c13,
-                       const T* c22, const T* c23, const T* c33, const T Atmin, const T Atmax, const T ramp,
-                       const T* wh, const T* whd, const T* kx, const T* xm, const T* alpha, const T* gradh, T* grad_P_x,
-                       T* grad_P_y, T* grad_P_z, T* du, T* maxvsignal)
+                       const T* m, const T* p, const T* c, const T* c11, const T* c12, const T* c13, const T* c22,
+                       const T* c23, const T* c33, const T Atmin, const T Atmax, const T ramp, const T* wh,
+                       const T* whd, const T* kx, const T* xm, const T* alpha, const T* gradh, T* grad_P_x, T* grad_P_y,
+                       T* grad_P_z, T* du, T* maxvsignal)
 {
     T xi  = x[i];
     T yi  = y[i];
@@ -60,13 +60,13 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
 
     T hi  = h[i];
     T mi  = m[i];
-    T roi = ro[i];
     T ci  = c[i];
     T kxi = kx[i];
 
     T alpha_i = alpha[i];
 
     T xmassi = xm[i];
+    T rhoi   = kxi * mi / xmassi;
     T gradhi = gradh[i];
     T proi   = p[i] / (kxi * mi * mi * gradhi);
     T voli   = xmassi / kxi;
@@ -132,9 +132,11 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T termA2_j = -(c12j * rx + c22j * ry + c23j * rz) * Wj;
         T termA3_j = -(c13j * rx + c23j * ry + c33j * rz) * Wj;
 
-        T roj = ro[j];
-        T cj  = c[j];
-        T kxj = kx[j];
+        T mj     = m[j];
+        T cj     = c[j];
+        T kxj    = kx[j];
+        T xmassj = xm[j];
+        T rhoj   = kxj * mj / xmassj;
 
         T alpha_j = alpha[j];
 
@@ -146,12 +148,9 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T vijsignal = ci + cj - T(3) * wij;
         maxvsignali = (vijsignal > maxvsignali) ? vijsignal : maxvsignali;
 
-        T mj = m[j];
+        T proj = p[j] / (kxj * mj * mj * gradh[j]);
 
-        T proj   = p[j] / (kxj * mj * mj * gradh[j]);
-        T xmassj = xm[j];
-
-        T Atwood = (abs(roi - roj)) / (roi + roj);
+        T Atwood = (std::abs(rhoi - rhoj)) / (rhoi + rhoj);
         if (Atwood < Atmin)
         {
             a_mom = mj * xmassi * xmassi;

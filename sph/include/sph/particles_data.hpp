@@ -187,9 +187,9 @@ public:
 
     void setDependentFieldsVE()
     {
-        std::vector<std::string> fields{"rho",   "p",   "c",    "grad_P_x", "grad_P_y", "grad_P_z", "du",
-                                        "c11",   "c12", "c13",  "c22",      "c23",      "c33",      "xm",
-                                        "wrho0", "kx",  "divv", "curlv",    "gradh",    "keys",     "nc"};
+        std::vector<std::string> fields{"p",   "c",    "grad_P_x", "grad_P_y", "grad_P_z", "du", "c11",
+                                        "c12", "c13",  "c22",      "c23",      "c33",      "xm", "wrho0",
+                                        "kx",  "divv", "curlv",    "gradh",    "keys",     "nc"};
         dependentFields = fieldStringsToInt(fieldNames, fields);
     }
 

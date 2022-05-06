@@ -24,7 +24,6 @@ void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
     const T* vx    = d.vx.data();
     const T* vy    = d.vy.data();
     const T* vz    = d.vz.data();
-    const T* rho   = d.rho.data();
     const T* c     = d.c.data();
     const T* p     = d.p.data();
     const T* alpha = d.alpha.data();
@@ -76,7 +75,6 @@ void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
                                         vz,
                                         h,
                                         m,
-                                        rho,
                                         p,
                                         c,
                                         c11,
