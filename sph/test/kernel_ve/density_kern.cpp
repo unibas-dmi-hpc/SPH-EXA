@@ -62,7 +62,6 @@ TEST(Density, JLoop)
     std::vector<T> h{5.0, 5.1, 5.2, 5.3, 5.4};
     std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
     std::vector<T> xm{m[0] / 1.1, m[1] / 1.2, m[2] / 1.3, m[3] / 1.4, m[4] / 1.5};
-    std::vector<T> wrho0{1.1, 1.2, 1.3, 1.4, 1.5};
     std::vector<T> kx{-1.0, -1.0, -1.0, -1.0, -1.0};
     std::vector<T> gradh{-1.0, -1.0, -1.0, -1.0, -1.0};
 
@@ -87,11 +86,10 @@ TEST(Density, JLoop)
                                wh.data(),
                                whd.data(),
                                xm.data(),
-                               wrho0.data(),
                                kx.data(),
                                gradh.data());
     EXPECT_NEAR(kx[0] * m[0] / xm[0], 1.67849454056818e-2, 1e-10);
-    EXPECT_NEAR(gradh[0], 1.2501347388453987, 1e-10);
+    EXPECT_NEAR(gradh[0], 0.20340838824719132, 1e-10);
     EXPECT_NEAR(kx[0], 1.5259041277892543e-2, 1e-10);
 }
 
@@ -120,8 +118,6 @@ TEST(Density, JLoopPBC)
     std::vector<T> h{2.5, 2.51, 2.52, 2.53, 2.54};
     std::vector<T> m{1.1, 1.2, 1.3, 1.4, 1.5};
     std::vector<T> xm = m;
-    std::vector<T> wrho0{0.0, 0.0, 0.0, 0.0, 0.0};
-    std::vector<T> rho{-1.0, -1.0, -1.0, -1.0, -1.0};
     std::vector<T> kx{-1.0, -1.0, -1.0, -1.0, -1.0};
     std::vector<T> gradh{-1.0, -1.0, -1.0, -1.0, -1.0};
     /* distances of particle 0 to particle j
@@ -147,7 +143,6 @@ TEST(Density, JLoopPBC)
                                wh.data(),
                                whd.data(),
                                xm.data(),
-                               wrho0.data(),
                                kx.data(),
                                gradh.data());
 

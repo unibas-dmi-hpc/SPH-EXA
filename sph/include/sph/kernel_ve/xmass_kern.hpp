@@ -52,7 +52,7 @@ CUDA_DEVICE_HOST_FUN inline T veDefinition(T mass, T rhoZero)
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline void xmassJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors,
                                             int neighborsCount, const T* x, const T* y, const T* z, const T* h,
-                                            const T* m, const T* wh, const T* whd, T* xm, T* wrho0)
+                                            const T* m, const T* wh, const T* whd, T* xm)
 {
     T xi = x[i];
     T yi = y[i];
@@ -64,23 +64,18 @@ CUDA_DEVICE_HOST_FUN inline void xmassJLoop(int i, T sincIndex, T K, const cston
     T h3Inv = hInv * hInv * hInv;
 
     // initialize with self-contribution
-    T rho0i  = mi;
-    T wrho0i = -T(3) * mi;
+    T rho0i = mi;
     for (int pj = 0; pj < neighborsCount; ++pj)
     {
-        int j     = neighbors[pj];
-        T   dist  = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
-        T   vloc  = dist * hInv;
-        T   w     = ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
-        T   dw    = wharmonic_derivative(vloc, w) * sincIndex;
-        T   dterh = -(T(3) * w + vloc * dw);
+        int j    = neighbors[pj];
+        T   dist = distancePBC(box, hi, xi, yi, zi, x[j], y[j], z[j]);
+        T   vloc = dist * hInv;
+        T   w    = ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, vloc), sincIndex);
 
         rho0i += w * m[j];
-        wrho0i += dterh * m[j];
     }
 
-    xm[i]    = veDefinition(mi, rho0i * K * h3Inv);
-    wrho0[i] = wrho0i * K * h3Inv * hInv;
+    xm[i] = veDefinition(mi, rho0i * K * h3Inv);
 }
 
 } // namespace kernels
