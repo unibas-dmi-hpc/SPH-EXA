@@ -1,5 +1,6 @@
 #pragma once
 
+#include "kernel_ve/iad_kern.hpp"
 #include "kernel_ve/divv_curlv_kern.hpp"
 #ifdef USE_CUDA
 #include "cuda/sph.cuh"
@@ -11,7 +12,7 @@ namespace sph
 {
 
 template<class T, class Dataset>
-void computeDivvCurlvImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeIadDivvCurlvImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
@@ -24,12 +25,12 @@ void computeDivvCurlvImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
     const T* vz = d.vz.data();
     const T* h  = d.h.data();
 
-    const T* c11 = d.c11.data();
-    const T* c12 = d.c12.data();
-    const T* c13 = d.c13.data();
-    const T* c22 = d.c22.data();
-    const T* c23 = d.c23.data();
-    const T* c33 = d.c33.data();
+    T* c11 = d.c11.data();
+    T* c12 = d.c12.data();
+    T* c13 = d.c13.data();
+    T* c22 = d.c22.data();
+    T* c23 = d.c23.data();
+    T* c33 = d.c33.data();
 
     T* divv  = d.divv.data();
     T* curlv = d.curlv.data();
@@ -46,6 +47,28 @@ void computeDivvCurlvImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;
+
+        kernels::IADJLoop(i,
+                          sincIndex,
+                          K,
+                          box,
+                          neighbors + ngmax * ni,
+                          neighborsCount[i],
+                          x,
+                          y,
+                          z,
+                          h,
+                          wh,
+                          whd,
+                          xm,
+                          kx,
+                          c11,
+                          c12,
+                          c13,
+                          c22,
+                          c23,
+                          c33);
+
         kernels::divV_curlVJLoop(i,
                                  sincIndex,
                                  K,
@@ -75,9 +98,9 @@ void computeDivvCurlvImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
 }
 
 template<class T, class Dataset>
-void computeDivvCurlv(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
+void computeIadDivvCurlv(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d, const cstone::Box<T>& box)
 {
-    computeDivvCurlvImpl(startIndex, endIndex, ngmax, d, box);
+    computeIadDivvCurlvImpl(startIndex, endIndex, ngmax, d, box);
 }
 
 } // namespace sph
