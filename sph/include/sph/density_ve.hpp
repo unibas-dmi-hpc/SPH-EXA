@@ -33,7 +33,6 @@ void computeDensityVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
 
     T* kx    = d.kx.data();
     T* gradh = d.gradh.data();
-    T* rho   = d.rho.data();
 
     const T K         = d.K;
     const T sincIndex = d.sincIndex;
@@ -57,12 +56,12 @@ void computeDensityVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
                               whd,
                               xm,
                               wrho0,
-                              rho,
                               kx,
                               gradh);
 #ifndef NDEBUG
-        if (std::isnan(rho[i]))
-            printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", i, rho[i], x[i], y[i], z[i], h[i]);
+        T rhoi = kx[i] * m[i] / xm[i];
+        if (std::isnan(rhoi))
+            printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", i, rhoi, x[i], y[i], z[i], h[i]);
 #endif
     }
 }
