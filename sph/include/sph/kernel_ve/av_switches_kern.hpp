@@ -122,7 +122,7 @@ AVswitchesJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
     if (divv_i < T(0))
     {
         T a_const = hi * hi * graddivv;
-        alphaloc  = alphamax * a_const / (a_const + hi * abs(divv_i) + T(0.05) * ci);
+        alphaloc  = alphamax * a_const / (a_const + hi * std::abs(divv_i) + T(0.05) * ci);
     }
 
     if (alphaloc >= alpha_i) { alpha_i = alphaloc; }
