@@ -28,8 +28,7 @@ void computeDensityVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
     const T* wh  = d.wh.data();
     const T* whd = d.whd.data();
 
-    const T* xm    = d.xm.data();
-    const T* wrho0 = d.wrho0.data();
+    const T* xm = d.xm.data();
 
     T* kx    = d.kx.data();
     T* gradh = d.gradh.data();
@@ -41,23 +40,8 @@ void computeDensityVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
     for (size_t i = startIndex; i < endIndex; i++)
     {
         size_t ni = i - startIndex;
-        kernels::densityJLoop(i,
-                              sincIndex,
-                              K,
-                              box,
-                              neighbors + ngmax * ni,
-                              neighborsCount[i],
-                              x,
-                              y,
-                              z,
-                              h,
-                              m,
-                              wh,
-                              whd,
-                              xm,
-                              wrho0,
-                              kx,
-                              gradh);
+        kernels::densityJLoop(
+            i, sincIndex, K, box, neighbors + ngmax * ni, neighborsCount[i], x, y, z, h, m, wh, whd, xm, kx, gradh);
 #ifndef NDEBUG
         T rhoi = kx[i] * m[i] / xm[i];
         if (std::isnan(rhoi))

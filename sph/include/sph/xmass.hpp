@@ -29,8 +29,7 @@ void computeXMassImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset&
     const T* wh  = d.wh.data();
     const T* whd = d.whd.data();
 
-    T* xm    = d.xm.data();
-    T* wrho0 = d.wrho0.data();
+    T* xm = d.xm.data();
 
     const T K         = d.K;
     const T sincIndex = d.sincIndex;
@@ -40,7 +39,7 @@ void computeXMassImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset&
     {
         size_t ni = i - startIndex;
         kernels::xmassJLoop(
-            i, sincIndex, K, box, neighbors + ngmax * ni, neighborsCount[i], x, y, z, h, m, wh, whd, xm, wrho0);
+            i, sincIndex, K, box, neighbors + ngmax * ni, neighborsCount[i], x, y, z, h, m, wh, whd, xm);
 #ifndef NDEBUG
         if (std::isnan(xm[i]))
             printf("ERROR::Rho0(%zu) rho0 %f, position: (%f %f %f), h: %f\n", i, xm[i], x[i], y[i], z[i], h[i]);

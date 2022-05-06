@@ -120,10 +120,10 @@ public:
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
      */
     inline static constexpr std::array fieldNames{
-        "x",     "y",   "z",    "x_m1",  "y_m1",     "z_m1",     "vx",       "vy",  "vz",    "rho", "u",
-        "p",     "h",   "m",    "c",     "grad_P_x", "grad_P_y", "grad_P_z", "du",  "du_m1", "dt",  "dt_m1",
-        "c11",   "c12", "c13",  "c22",   "c23",      "c33",      "mue",      "mui", "temp",  "cv",  "xm",
-        "wrho0", "kx",  "divv", "curlv", "alpha",    "gradh",    "keys",     "nc"};
+        "x",    "y",     "z",   "x_m1", "y_m1", "z_m1",     "vx",       "vy",       "vz",   "rho",
+        "u",    "p",     "h",   "m",    "c",    "grad_P_x", "grad_P_y", "grad_P_z", "du",   "du_m1",
+        "dt",   "dt_m1", "c11", "c12",  "c13",  "c22",      "c23",      "c33",      "mue",  "mui",
+        "temp", "cv",    "xm",  "kx",   "divv", "curlv",    "alpha",    "gradh",    "keys", "nc"};
 
     /*! @brief return a vector of pointers to field vectors
      *
@@ -141,10 +141,10 @@ public:
                                        IntVecType*>;
 
         std::array<FieldType, fieldNames.size()> ret{
-            &x,     &y,     &z,     &x_m1,     &y_m1,          &z_m1,     &vx,   &vy,    &vz, &rho,   &u,   &p,
-            &h,     &m,     &c,     &grad_P_x, &grad_P_y,      &grad_P_z, &du,   &du_m1, &dt, &dt_m1, &c11, &c12,
-            &c13,   &c22,   &c23,   &c33,      &mue,           &mui,      &temp, &cv,    &xm, &wrho0, &kx,  &divv,
-            &curlv, &alpha, &gradh, &codes,    &neighborsCount};
+            &x,    &y,     &z,   &x_m1, &y_m1, &z_m1,     &vx,       &vy,       &vz,    &rho,
+            &u,    &p,     &h,   &m,    &c,    &grad_P_x, &grad_P_y, &grad_P_z, &du,    &du_m1,
+            &dt,   &dt_m1, &c11, &c12,  &c13,  &c22,      &c23,      &c33,      &mue,   &mui,
+            &temp, &cv,    &xm,  &kx,   &divv, &curlv,    &alpha,    &gradh,    &codes, &neighborsCount};
 
         static_assert(ret.size() == fieldNames.size());
 
@@ -187,9 +187,25 @@ public:
 
     void setDependentFieldsVE()
     {
-        std::vector<std::string> fields{"p",   "c",    "grad_P_x", "grad_P_y", "grad_P_z", "du", "c11",
-                                        "c12", "c13",  "c22",      "c23",      "c33",      "xm", "wrho0",
-                                        "kx",  "divv", "curlv",    "gradh",    "keys",     "nc"};
+        std::vector<std::string> fields{"p",
+                                        "c",
+                                        "grad_P_x",
+                                        "grad_P_y",
+                                        "grad_P_z",
+                                        "du",
+                                        "c11",
+                                        "c12",
+                                        "c13",
+                                        "c22",
+                                        "c23",
+                                        "c33",
+                                        "xm",
+                                        "kx",
+                                        "divv",
+                                        "curlv",
+                                        "gradh",
+                                        "keys",
+                                        "nc"};
         dependentFields = fieldStringsToInt(fieldNames, fields);
     }
 

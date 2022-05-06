@@ -63,7 +63,6 @@ TEST(xmass, JLoop)
     std::vector<T> m{1.0, 1.0, 1.0, 1.0, 1.0};
     std::vector<T> rho{0.014, 0.015, 0.016, 0.017, 0.018};
     std::vector<T> xm{-1.0, -1.0, -1.0, -1.0, -1.0};
-    std::vector<T> wrho0{-1.0, -1.0, -1.0, -1.0, -1.0};
 
     /* distances of particle zero to particle j
      *
@@ -86,8 +85,6 @@ TEST(xmass, JLoop)
                              m.data(),
                              wh.data(),
                              whd.data(),
-                             xm.data(),
-                             wrho0.data());
+                             xm.data());
     EXPECT_NEAR(xm[0], m[0] / 1.84507162831338e-2, 1e-10);
-    EXPECT_NEAR(wrho0[0], -8.4240908240e-3, 1e-10);
 }
