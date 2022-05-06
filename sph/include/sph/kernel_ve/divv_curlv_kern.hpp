@@ -60,8 +60,7 @@ divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
     T hiInv  = 1.0 / hi;
     T hiInv3 = hiInv * hiInv * hiInv;
 
-    divv[i]   = 0.0;
-    curlv[i]  = 0.0;
+    T divvi   = 0.0;
     T curlv_x = 0.0;
     T curlv_y = 0.0;
     T curlv_z = 0.0;
@@ -91,7 +90,7 @@ divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
         T vz_ji = vz[j] - vzi;
 
         T v1 = dist * hiInv;
-        T Wi = K * hiInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
+        T Wi = ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
 
         T termA1 = -(c11i * rx + c12i * ry + c13i * rz) * Wi;
         T termA2 = -(c12i * rx + c22i * ry + c23i * rz) * Wi;
@@ -99,15 +98,15 @@ divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
 
         T xmassj = xm[j];
 
-        divv[i] += (vx_ji * termA1 + vy_ji * termA2 + vz_ji * termA3) * xmassj;
+        divvi += (vx_ji * termA1 + vy_ji * termA2 + vz_ji * termA3) * xmassj;
 
         curlv_x += (vz_ji * termA2 - vy_ji * termA3) * xmassj;
         curlv_y += (vx_ji * termA3 - vz_ji * termA1) * xmassj;
         curlv_z += (vy_ji * termA1 - vx_ji * termA2) * xmassj;
     }
 
-    divv[i]  = divv[i] / kx[i];
-    curlv[i] = std::abs(std::sqrt(curlv_x * curlv_x + curlv_y * curlv_y + curlv_z * curlv_z)) / kx[i];
+    divv[i]  = K * hiInv3 * divvi / kx[i];
+    curlv[i] = K * hiInv3 * std::abs(std::sqrt(curlv_x * curlv_x + curlv_y * curlv_y + curlv_z * curlv_z)) / kx[i];
 }
 
 } // namespace kernels
