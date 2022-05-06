@@ -51,7 +51,7 @@ void computeDivvCurlvImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
                                  K,
                                  box,
                                  neighbors + ngmax * ni,
-                                 neighborsCount[ni],
+                                 neighborsCount[i],
                                  x,
                                  y,
                                  z,
