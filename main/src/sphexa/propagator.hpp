@@ -260,10 +260,8 @@ public:
         timer.step("EquationOfState");
         domain.exchangeHalos(d.vx, d.vy, d.vz, d.p, d.c, d.kx, d.gradh);
         timer.step("mpi::synchronizeHalos");
-        computeIadVE(first, last, ngmax_, d, domain.box());
-        timer.step("IAD");
-        computeDivvCurlv(first, last, ngmax_, d, domain.box());
-        timer.step("VelocityDivCurl");
+        computeIadDivvCurlv(first, last, ngmax_, d, domain.box());
+        timer.step("IadVelocityDivCurl");
         domain.exchangeHalos(d.c11, d.c12, d.c13, d.c22, d.c23, d.c33, d.divv, d.curlv);
         timer.step("mpi::synchronizeHalos");
         computeAVswitches(first, last, ngmax_, d, domain.box());
