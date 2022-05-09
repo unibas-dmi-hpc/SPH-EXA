@@ -156,6 +156,7 @@ int main(int argc, char** argv)
             isPeriodicOutputTime(d.ttot - d.minDt, d.ttot, writeFrequencyStr) ||
             isExtraOutputStep(d.iteration, d.ttot - d.minDt, d.ttot, writeExtra))
         {
+            propagator->prepareOutput(d, domain.startIndex(), domain.endIndex());
             fileWriter->dump(d, domain.startIndex(), domain.endIndex(), box, outFile);
         }
 

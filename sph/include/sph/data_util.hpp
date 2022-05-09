@@ -65,12 +65,12 @@ template<class Dataset>
 auto getOutputArrays(Dataset& dataset)
 {
     auto fieldPointers = dataset.data();
-    using FieldType    = std::variant<const float*, const double*, const int*, const unsigned*, const uint64_t*>;
+    using FieldType    = std::variant<float*, double*, int*, unsigned*, uint64_t*>;
 
     std::vector<FieldType> outputFields;
-    outputFields.reserve(dataset.outputFields.size());
+    outputFields.reserve(dataset.outputFieldIndices.size());
 
-    for (int i : dataset.outputFields)
+    for (int i : dataset.outputFieldIndices)
     {
         std::visit([&outputFields](auto& arg) { outputFields.push_back(arg->data()); }, fieldPointers[i]);
     }
@@ -107,6 +107,54 @@ void resizeNeighbors(Dataset& d, size_t size)
     double growthRate = 1.05;
     //! If we have a GPU, neighbors are calculated on-the-fly, so we don't need space to store them
     reallocate(d.neighbors, HaveGpu<typename Dataset::AcceleratorType>{} ? 0 : size, growthRate);
+}
+
+/*! @brief Determine storage location for field with index @p what
+ *
+ * @tparam FieldPointers
+ * @param  what             the field index to store
+ * @param  outputFields     indices of output fields
+ * @param  conservedFields  indices of conserved fields
+ * @param  dependentFields  indices of dependent fields
+ * @param  fieldPointers    the array of variants returned by ParticlesData::data()
+ * @return                  @p what if @p what is either conserved or dependent
+ *                          otherwise the first field in @p dependentFields whose type matches the type of @p what
+ *                          and which is not listed in @p outputFields
+ *
+ * Field indices are relative to the names table in ParticlesData::fieldNames.
+ *
+ * Example usage: With volume elements, rho is not an active field. Instead, rho can be computed as rho = kx * m / xm.
+ * When output of rho is requested, we look for a field which we can fill with the values of kx * m / xm.
+ * Since outputs happen an the end of the iteration, we may use any dependent field (not conserved between iterations)
+ * which is not itself contained in the list of output fields.
+ */
+template<class FieldPointers>
+int findFieldIdx(int what, gsl::span<const int> outputFields, gsl::span<const int> conservedFields,
+                 gsl::span<const int> dependentFields, const FieldPointers& fieldPointers)
+{
+    bool fieldIsActive = (std::find(conservedFields.begin(), conservedFields.end(), what) != conservedFields.end()) ||
+                         (std::find(dependentFields.begin(), dependentFields.end(), what) != dependentFields.end());
+
+    if (fieldIsActive) { return what; }
+
+    for (int field : dependentFields)
+    {
+        bool fieldIsNotOutput = std::find(outputFields.begin(), outputFields.end(), field) == outputFields.end();
+
+        auto checkTypesMatch = [](const auto* varPtr1, const auto* varPtr2)
+        {
+            using VectorType1 = std::decay_t<decltype(*varPtr1)>;
+            using VectorType2 = std::decay_t<decltype(*varPtr2)>;
+
+            return std::is_same_v<typename VectorType1::value_type, typename VectorType2::value_type>;
+        };
+
+        bool typesMatch = std::visit(checkTypesMatch, fieldPointers[what], fieldPointers[field]);
+
+        if (fieldIsNotOutput && typesMatch) { return field; }
+    }
+
+    return fieldPointers.size();
 }
 
 } // namespace sphexa
