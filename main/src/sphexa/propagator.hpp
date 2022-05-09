@@ -130,9 +130,9 @@ template<class DomainType, class ParticleDataType>
 class HydroProp final : public Propagator<DomainType, ParticleDataType>
 {
     using Base = Propagator<DomainType, ParticleDataType>;
+    using Base::doGravity_;
     using Base::ng0_;
     using Base::ngmax_;
-    using Base::doGravity_;
     using Base::timer;
 
     using T             = typename ParticleDataType::RealType;
@@ -227,9 +227,9 @@ template<class DomainType, class ParticleDataType>
 class HydroVeProp final : public Propagator<DomainType, ParticleDataType>
 {
     using Base = Propagator<DomainType, ParticleDataType>;
+    using Base::doGravity_;
     using Base::ng0_;
     using Base::ngmax_;
-    using Base::doGravity_;
     using Base::timer;
 
     using T             = typename ParticleDataType::RealType;
@@ -238,8 +238,8 @@ class HydroVeProp final : public Propagator<DomainType, ParticleDataType>
 
     using Acc = typename ParticleDataType::AcceleratorType;
     using MHolder_t =
-    typename detail::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<MultipoleType,
-        KeyType, T, T, T>;
+        typename detail::AccelSwitchType<Acc, MultipoleHolderCpu, MultipoleHolderGpu>::template type<MultipoleType,
+                                                                                                     KeyType, T, T, T>;
 
     MHolder_t mHolder_;
 
