@@ -274,10 +274,6 @@ public:
         T innerVolume = (4. / 3.) * M_PI * innerSide * innerSide * innerSide;
         T massPart    = innerVolume * rhoInt / numParticlesInternal;
 
-        // Normalization: Should be 1., if not it should be ajust to 1. with the variable massNormalization
-        T massNormalization = 1.035; // 1.;
-        massPart /= massNormalization;
-
         // Initialize bubble shock domain variables
         resize(d, d.x.size());
         initBubbleShockFields(d, constants_, massPart);
