@@ -187,7 +187,7 @@ void printHelp(char* name, int rank)
         printf("%s [OPTIONS]\n", name);
         printf("\nWhere possible options are:\n\n");
 
-        printf("\t--init \t\t Test case selection (evrard, sedov, noh, isobaric-cube) or an HDF5 file "
+        printf("\t--init \t\t Test case selection (evrard, sedov, noh, isobaric-cube, bubble-shock) or an HDF5 file "
                "with initial conditions\n");
         printf("\t-n NUM \t\t Initialize data with (approx when using glass blocks) NUM^3 global particles [50]\n");
         printf("\t--glass FILE\t Use glass block as template to generate initial x,y,z configuration\n\n");
