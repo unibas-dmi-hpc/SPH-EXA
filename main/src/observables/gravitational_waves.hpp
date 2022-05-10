@@ -153,20 +153,21 @@ std::array<T, 8> gravRad(Dataset& d,size_t first, size_t last, T viewTheta, T vi
 template<class Dataset>
 class GravWaves : public IObservables<Dataset>
 {
+    using T = typename Dataset::RealType;
     std::ofstream& constantsFile;
+    T viewTheta;
+    T viewPhi;
 
 public:
-    GravWaves(std::ofstream& constPath)
-        : constantsFile(constPath)
+    GravWaves(std::ofstream& constPath, T theta, T phi)
+        : constantsFile(constPath), viewTheta(theta), viewPhi(phi)
     {
     }
 
-    using T = typename Dataset::RealType;
+
 
     void computeAndWrite(Dataset& d, size_t firstIndex, size_t lastIndex, cstone::Box<T>& box)
     {
-        T viewTheta = 0.0;
-        T viewPhi = 0.0;
 
         std::array<T, 8> out = gravRad(d, firstIndex, lastIndex, viewTheta, viewPhi);
 
