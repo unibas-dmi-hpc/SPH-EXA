@@ -98,7 +98,7 @@ public:
     std::vector<T>       dt, dt_m1;                    // timestep
     std::vector<T>       c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T>       alpha;                        // AV coeficient
-    std::vector<T>       xm;                           // Classical SPH density
+    std::vector<T>       xm;                           // Volume element definition
     std::vector<T>       kx;                           // Volume element normalization
     std::vector<T>       gradh;                        // grad(h) term
     std::vector<KeyType> codes;                        // Particle space-filling-curve keys

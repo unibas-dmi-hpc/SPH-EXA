@@ -76,7 +76,7 @@ protected:
     size_t rank_;
     //! maximum number of neighbors per particle
     size_t ngmax_;
-    //! average number of neighbors per particle
+    //! target number of neighbors per particle
     size_t ng0_;
 
     bool doGravity_;
