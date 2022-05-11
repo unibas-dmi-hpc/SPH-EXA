@@ -47,7 +47,7 @@ void computeDensityVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
         gradh[i] = gradhi;
 
 #ifndef NDEBUG
-        T rhoi = kx[i] * m[i] / xm[i];
+        T rhoi = kxi * m[i] / xm[i];
         if (std::isnan(rhoi))
             printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", i, rhoi, x[i], y[i], z[i], h[i]);
 #endif
