@@ -31,7 +31,6 @@
 #include <array>
 #include "mpi.h"
 
-#include "sph/math.hpp"
 #include "iobservables.hpp"
 #include "io/ifile_writer.hpp"
 
@@ -59,7 +58,6 @@ T d2QuadpoleMomentum(size_t begin, size_t end, T* pos1, T* pos2, T* vel1, T* vel
         for(size_t i = begin; i < end; i++)
         {
             T acc1 = -gradp1[i];
-            T acc2 = -gradp2[i];
             T factor1 = vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i];
             T factor2 = x[i] * (-gradP_x[i]) + y[i] * (-gradP_y[i]) + z[i] * (-gradP_z[i]);
 
@@ -75,7 +73,7 @@ T d2QuadpoleMomentum(size_t begin, size_t end, T* pos1, T* pos2, T* vel1, T* vel
         {
             T acc1 = -gradp1[i];
             T acc2 = -gradp2[i];
-            out += (2.0 * vel1[i] * vel2[i] + pos1[i] * acc2 + pos2[i] * acc1) * m[i];
+            out += (2.0 * vel1[i] * vel2[i] + acc1 * pos2[i] + pos1[i] * acc2) * m[i];
         }
         return out;
     }
@@ -101,7 +99,7 @@ std::array<T, 8> gravRad(Dataset& d,size_t first, size_t last, T viewTheta, T vi
 
     T g = 6.6726e-8;    //Gravitational constant
     T c = 2.997924562e10;   //Speed of light
-    T gwunits = std::pow(g/c, 4.0/3.08568025e22); //Gravitational Waves unit at 10kpc
+    T gwunits = g / std::pow(c, 4) / 3.08568025e22; //Gravitational Waves unit at 10kpc
 
     std::array<T, 6> d2Local;
 
@@ -122,7 +120,7 @@ std::array<T, 8> gravRad(Dataset& d,size_t first, size_t last, T viewTheta, T vi
 
     int rootRank = 0;
     std::array<T, 6> d2Global;
-    MPI_Reduce(d2Local.data(), d2Global.data(),6,MpiType<T>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
+    MPI_Reduce(d2Local.data(), d2Global.data(),6, MpiType<T>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
 
     if (viewTheta == 0.0 && viewPhi == 0.0)
     {
@@ -132,9 +130,9 @@ std::array<T, 8> gravRad(Dataset& d,size_t first, size_t last, T viewTheta, T vi
     }
     else
     {
-        dot2ibartt = (d2Global[0] * std::pow(std::cos(viewPhi), 2) + d2Global[1] * std::pow(std::sin(viewPhi), 2) + d2Global[3] * std::sin(2.0 * viewPhi)
+        dot2ibartt = (d2Global[0] * std::pow(std::cos(viewPhi), 2) + d2Global[1] * std::pow(std::sin(viewPhi), 2) + d2Global[3] * std::sin(2.0 * viewPhi))
                       * std::pow(std::cos(viewTheta), 2) + d2Global[2] * std::pow(std::sin(viewTheta), 2)
-                      - (d2Global[4] * std::cos(viewPhi) + d2Global[5] * std::sin(viewPhi)) * std::sin(2.0 * viewTheta));
+                      - (d2Global[4] * std::cos(viewPhi) + d2Global[5] * std::sin(viewPhi)) * std::sin(2.0 * viewTheta);
 
         dot2ibarpp = d2Global[0] * std::pow(std::cos(viewPhi), 2) + d2Global[1] * std::pow(std::cos(viewPhi), 2) - d2Global[3] * std::sin(2.0 * viewPhi);
 

@@ -30,7 +30,64 @@
 
 #include <algorithm>
 #include "gtest/gtest.h"
+#include "cstone/domain/domain.hpp"
 #include "observables/gravitational_waves.hpp"
+#include "sph/particles_data.hpp"
 
 using namespace sphexa;
+using AccType = cstone::CpuTag;
+using T = double;
+using KeyType = uint64_t;
+using Dataset = ParticlesData<T, KeyType, AccType>;
 
+
+
+TEST(observables, grav)
+{
+    MPI_Init(NULL, NULL);
+    int rank = 0, numRanks = 0;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    MPI_Comm_size(MPI_COMM_WORLD, &numRanks);
+
+    Dataset d;
+
+    std::vector<T> x = {23.0,   234.0,  -345.0, 456.0,  -567.0};
+    std::vector<T> y = {-678.0, 789.0,  -890.0, -901.0, 112.0};
+    std::vector<T> z = {122.0,  -233.0, 543.0,  765.0,  -234.0};
+
+    std::vector<T> vx = {723.0e-1,  244.0,    345.0e2,    406.0e-1,   -267.0e2};
+    std::vector<T> vy = {-778.0,    489.0e-1,   -810.0,     900.0,      122.0};
+    std::vector<T> vz = {-722.0e2,  -234.0,     -541.0e2,   705.0,      232.0e-1};
+
+    std::vector<T> gradP_x = {-123.0e-3, 334.0,     345.0,      136.0e-3,  -167.0};
+    std::vector<T> gradP_y = {-678.0e-3, -789.0,    -891.0e-3,  -901.0,    -132.0e-3};
+    std::vector<T> gradP_z = {-122.0e-3, 333.0e-3,  543.0e-3,   -765.0,    214.0};
+    std::vector<T> m = {1.0e5,  1.0e5,  1.0e5,  1.0e5,  1.0e5,};
+
+    d.x = x;
+    d.y = y;
+    d.z = z;
+    d.vx = vx;
+    d.vy = vy;
+    d.vz = vz;
+    d.grad_P_x = gradP_x;
+    d.grad_P_y = gradP_y;
+    d.grad_P_z = gradP_z;
+    d.m = m;
+
+    T viewTheta = 0.545;
+    T viewPhi   = 1.421;
+
+    std::array<T, 8> test = gravRad(d, 0, 5 , viewTheta, viewPhi);
+
+    EXPECT_NEAR(test[0], 2.6945973e-58, 1e-60); //httplus
+    EXPECT_NEAR(test[1], -1.2658849e-57, 1e-60);//httcross
+
+    EXPECT_NEAR(test[2], -2.8909536e14, 1e6);   //ixx
+    EXPECT_NEAR(test[3], -6.6934625e14, 1e6);   //iyy
+    EXPECT_NEAR(test[4], 9.5844161e14, 1e6);    //izz
+    EXPECT_NEAR(test[5], -6.1762905e12, 1e6);   //ixy
+    EXPECT_NEAR(test[6], -3.7443143e14, 1e6);   //ixz
+    EXPECT_NEAR(test[7], 2.0102984e13, 1e6);    //iyz
+
+}
