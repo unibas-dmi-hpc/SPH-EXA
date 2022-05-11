@@ -47,9 +47,6 @@
 namespace sphexa
 {
 
-template<class Array>
-std::vector<int> fieldStringsToInt(const Array&, const std::vector<std::string>&);
-
 template<typename T, typename I, class AccType>
 class ParticlesData
 {
@@ -101,8 +98,7 @@ public:
     std::vector<T>       dt, dt_m1;                    // timestep
     std::vector<T>       c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T>       alpha;                        // AV coeficient
-    std::vector<T>       xm;                           // Classical SPH density
-    std::vector<T>       wrho0;                        // Classical SPH gradient of density
+    std::vector<T>       xm;                           // Volume element definition
     std::vector<T>       kx;                           // Volume element normalization
     std::vector<T>       gradh;                        // grad(h) term
     std::vector<KeyType> codes;                        // Particle space-filling-curve keys
@@ -211,7 +207,20 @@ public:
 
     void setOutputFields(const std::vector<std::string>& outFields)
     {
-        outputFields = fieldStringsToInt(fieldNames, outFields);
+        outputFieldNames   = outFields;
+        outputFieldIndices = fieldStringsToInt(fieldNames, outFields);
+
+        for (int& outIndex : outputFieldIndices)
+        {
+            int originalIndex = outIndex;
+            outIndex          = findFieldIdx(outIndex, outputFieldIndices, conservedFields, dependentFields, data());
+
+            if (outIndex == fieldNames.size())
+            {
+                throw std::runtime_error(std::string("Could not find output location for field ") +
+                                         fieldNames[originalIndex]);
+            }
+        }
     }
 
     //! @brief particle fields to conserve between iterations, needed for checkpoints and domain exchange
@@ -219,7 +228,8 @@ public:
     //! @brief particle fields recomputed every step from conserved fields
     std::vector<int> dependentFields;
     //! @brief particle fields selected for file output
-    std::vector<int> outputFields;
+    std::vector<int>         outputFieldIndices;
+    std::vector<std::string> outputFieldNames;
 
 #ifdef USE_MPI
     MPI_Comm comm;
