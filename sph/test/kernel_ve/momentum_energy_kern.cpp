@@ -140,9 +140,9 @@ TEST(MomentumEnergy, JLoop)
                                          &du,
                                          &maxvsignal);
 
-    EXPECT_NEAR(grad_Px, -4.6852624676440924e-1, 1e-10);
-    EXPECT_NEAR(grad_Py, 8.2810161944474575e-2, 1e-10);
-    EXPECT_NEAR(grad_Pz, -5.209843022360216e-1, 1e-10);
+    EXPECT_NEAR(grad_Px, 4.6852624676440924e-1, 1e-10);
+    EXPECT_NEAR(grad_Py, -8.2810161944474575e-2, 1e-10);
+    EXPECT_NEAR(grad_Pz, 5.209843022360216e-1, 1e-10);
     EXPECT_NEAR(du, -3.8445778269613888e-3, 1e-10);
     EXPECT_NEAR(maxvsignal, 1.4112466829, 1e-10);
 }

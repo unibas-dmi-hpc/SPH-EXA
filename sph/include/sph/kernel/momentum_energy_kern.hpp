@@ -138,9 +138,9 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
     // with the choice of calculating coordinate (r) and velocity (v_ij) differences as i - j,
     // we add the negative sign only here at the end instead of to termA123_ij in each iteration
     du[i]       = -K * T(0.5) * energy;
-    grad_P_x[i] = -K * momentum_x;
-    grad_P_y[i] = -K * momentum_y;
-    grad_P_z[i] = -K * momentum_z;
+    grad_P_x[i] = K * momentum_x;
+    grad_P_y[i] = K * momentum_y;
+    grad_P_z[i] = K * momentum_z;
     *maxvsignal = maxvsignali;
 }
 

@@ -193,14 +193,11 @@ public:
         computeMomentumAndEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
-        d.egrav = 0.0;
         if (doGravity_)
         {
             mHolder_.upsweep(d, domain);
             timer.step("Upsweep");
             mHolder_.traverse(d, domain);
-            // temporary sign fix, see note in ParticlesData
-            d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
             timer.step("Gravity");
 
 #ifdef USE_CUDA
@@ -305,14 +302,11 @@ public:
         computeGradPVE(first, last, ngmax_, d, domain.box());
         timer.step("MomentumAndEnergy");
 
-        d.egrav = 0.0;
         if (doGravity_)
         {
             mHolder_.upsweep(d, domain);
             timer.step("Upsweep");
             mHolder_.traverse(d, domain);
-            // temporary sign fix, see note in ParticlesData
-            d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
             timer.step("Gravity");
         }
 
