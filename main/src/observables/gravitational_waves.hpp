@@ -39,29 +39,36 @@ namespace sphexa
 
 //!@brief calculates the second derivative of the quadpole momentum
 template<class T, class Dataset>
-T d2QuadpoleMomentum(size_t begin, size_t end, T* pos1, T* pos2, T* vel1, T* vel2, T* gradp1, T* gradp2, T* m, Dataset& d)
+T d2QuadpoleMomentum(size_t begin, size_t end, int pos1, int pos2, Dataset& d)
 {
-    T out;
+    T* x        = d.x.data();
+    T* y        = d.y.data();
+    T* z        = d.z.data();
+    T* vx       = d.vx.data();
+    T* vy       = d.vy.data();
+    T* vz       = d.vz.data();
+    T* gradP_x  = d.grad_P_x.data();
+    T* gradP_y  = d.grad_P_y.data();
+    T* gradP_z  = d.grad_P_z.data();
+    T* m        = d.m.data();
+
+    T out = 0.0;
+
+    std::array<T*, 3> pos = {x, y, z};
+    std::array<T*, 3> vel = {vx, vy, vz};
+    std::array<T*, 3> gradP = {gradP_x, gradP_y, gradP_z};
+
     if(pos1 == pos2)
     {
-        T* x        = d.x.data();
-        T* y        = d.y.data();
-        T* z        = d.z.data();
-        T* vx       = d.vx.data();
-        T* vy       = d.vy.data();
-        T* vz       = d.vz.data();
-        T* gradP_x  = d.grad_P_x.data();
-        T* gradP_y  = d.grad_P_y.data();
-        T* gradP_z  = d.grad_P_z.data();
 
 #pragma omp parallel for reduction(+ : out)
         for(size_t i = begin; i < end; i++)
         {
-            T acc1 = -gradp1[i];
+            T acc1 = -gradP[pos1][i];
             T factor1 = vx[i] * vx[i] + vy[i] * vy[i] + vz[i] * vz[i];
             T factor2 = x[i] * (-gradP_x[i]) + y[i] * (-gradP_y[i]) + z[i] * (-gradP_z[i]);
 
-            out += (3.0 * (vel1[i] * vel1[i] + pos1[i] * acc1) - factor1 - factor2) * m[i];
+            out += (3.0 * (vel[pos1][i] * vel[pos1][i] + pos[pos1][i] * acc1) - factor1 - factor2) * m[i];
 
         }
         return out * 2.0 / 3.0;
@@ -71,9 +78,9 @@ T d2QuadpoleMomentum(size_t begin, size_t end, T* pos1, T* pos2, T* vel1, T* vel
 #pragma omp parallel for reduction(+ : out)
         for(size_t i = begin; i < end; i++)
         {
-            T acc1 = -gradp1[i];
-            T acc2 = -gradp2[i];
-            out += (2.0 * vel1[i] * vel2[i] + acc1 * pos2[i] + pos1[i] * acc2) * m[i];
+            T acc1 = -gradP[pos1][i];
+            T acc2 = -gradP[pos2][i];
+            out += (2.0 * vel[pos1][i] * vel[pos2][i] + acc1 * pos[pos2][i] + pos[pos1][i] * acc2) * m[i];
         }
         return out;
     }
@@ -103,19 +110,13 @@ std::array<T, 8> gravRad(Dataset& d,size_t first, size_t last, T viewTheta, T vi
 
     std::array<T, 6> d2Local;
 
-    d2Local[0] = d2QuadpoleMomentum(first, last, d.x.data(), d.x.data(),
-                                    d.vx.data(), d.vx.data(), d.grad_P_x.data(), d.grad_P_x.data(), d.m.data(), d);
-    d2Local[1] = d2QuadpoleMomentum(first, last, d.y.data(), d.y.data(),
-                                    d.vy.data(), d.vy.data(), d.grad_P_y.data(), d.grad_P_y.data(), d.m.data(), d);
-    d2Local[2] = d2QuadpoleMomentum(first, last, d.z.data(), d.z.data(),
-                                    d.vz.data(), d.vz.data(), d.grad_P_z.data(), d.grad_P_z.data(), d.m.data(), d);
+    d2Local[0] = d2QuadpoleMomentum<T>(first, last, 0, 0, d); //ixx
+    d2Local[1] = d2QuadpoleMomentum<T>(first, last, 1, 1, d); //iyy
+    d2Local[2] = d2QuadpoleMomentum<T>(first, last, 2, 2, d); //izz
 
-    d2Local[3] = d2QuadpoleMomentum(first, last, d.x.data(), d.y.data(),
-                                    d.vx.data(), d.vy.data(), d.grad_P_x.data(), d.grad_P_y.data(), d.m.data(), d);
-    d2Local[4] = d2QuadpoleMomentum(first, last, d.x.data(), d.z.data(),
-                                    d.vx.data(), d.vz.data(), d.grad_P_x.data(), d.grad_P_z.data(), d.m.data(), d);
-    d2Local[5] = d2QuadpoleMomentum(first, last, d.y.data(), d.z.data(),
-                                    d.vy.data(), d.vz.data(), d.grad_P_y.data(), d.grad_P_z.data(), d.m.data(), d);
+    d2Local[3] = d2QuadpoleMomentum<T>(first, last, 0, 1, d); //ixy
+    d2Local[4] = d2QuadpoleMomentum<T>(first, last, 0, 2, d); //ixz
+    d2Local[5] = d2QuadpoleMomentum<T>(first, last, 1, 2, d); //iyz
 
 
     int rootRank = 0;
@@ -130,14 +131,25 @@ std::array<T, 8> gravRad(Dataset& d,size_t first, size_t last, T viewTheta, T vi
     }
     else
     {
-        dot2ibartt = (d2Global[0] * std::pow(std::cos(viewPhi), 2) + d2Global[1] * std::pow(std::sin(viewPhi), 2) + d2Global[3] * std::sin(2.0 * viewPhi))
-                      * std::pow(std::cos(viewTheta), 2) + d2Global[2] * std::pow(std::sin(viewTheta), 2)
-                      - (d2Global[4] * std::cos(viewPhi) + d2Global[5] * std::sin(viewPhi)) * std::sin(2.0 * viewTheta);
+        T sin2t = std::sin(2.0 * viewTheta);
+        T sin2p = std::sin(2.0 * viewPhi);
+        T cos2p = std::cos(2.0 * viewPhi);
+        T sint  = std::sin(viewTheta);
+        T sinp  = std::sin(viewPhi);
+        T cost  = std::cos(viewTheta);
+        T cosp  = std::cos(viewPhi);
+        T sqsint = sint * sint;
+        T sqsinp = sinp * sinp;
+        T sqcost = cost * cost;
+        T sqcosp = cosp * cosp;
 
-        dot2ibarpp = d2Global[0] * std::pow(std::cos(viewPhi), 2) + d2Global[1] * std::pow(std::cos(viewPhi), 2) - d2Global[3] * std::sin(2.0 * viewPhi);
+        dot2ibartt = (d2Global[0] * sqcosp + d2Global[1] * sqsinp + d2Global[3] * sin2p) * sqcost + d2Global[2] * sqsint
+                        - (d2Global[4] * cosp + d2Global[5] * sinp) * sin2t;
 
-        dot2ibartp = 0.5 * (d2Global[1] - d2Global[0]) * std::cos(viewTheta) * std::sin(2.0 * viewPhi) + d2Global[3] * std::cos(viewTheta) * std::cos(2.0 * viewPhi)
-                        + (d2Global[4] * std::sin(viewPhi) - d2Global[5] * std::cos(viewPhi)) * std::sin(viewTheta);
+        dot2ibarpp = d2Global[0] * sqsinp + d2Global[1] * sqcosp - d2Global[3] * sin2p;
+
+        dot2ibartp = 0.5 * (d2Global[1] - d2Global[0]) * cost * sin2p + d2Global[3] * cost * cos2p
+                        + (d2Global[4] * sinp - d2Global[5] * cosp) * sint;
     }
 
     T httplus = (dot2ibartt - dot2ibarpp) * gwunits;

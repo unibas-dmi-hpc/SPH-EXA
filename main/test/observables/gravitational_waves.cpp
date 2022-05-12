@@ -51,7 +51,7 @@ TEST(observables, grav)
 
     Dataset d;
 
-    std::vector<T> x = {23.0,   234.0,  -345.0, 456.0,  -567.0};
+    std::vector<T> x = {123.0,   234.0,  -345.0, 456.0,  -567.0};
     std::vector<T> y = {-678.0, 789.0,  -890.0, -901.0, 112.0};
     std::vector<T> z = {122.0,  -233.0, 543.0,  765.0,  -234.0};
 
@@ -80,14 +80,14 @@ TEST(observables, grav)
 
     std::array<T, 8> test = gravRad(d, 0, 5 , viewTheta, viewPhi);
 
-    EXPECT_NEAR(test[0], 2.6945973e-58, 1e-60); //httplus
-    EXPECT_NEAR(test[1], -1.2658849e-57, 1e-60);//httcross
+    EXPECT_NEAR(test[0], 2.69459728766579961e-58, 1e-72); //httplus
+    EXPECT_EQ(test[1], -1.26588487735439141e-57);//httcross
 
-    EXPECT_NEAR(test[2], -2.8909536e14, 1e6);   //ixx
-    EXPECT_NEAR(test[3], -6.6934625e14, 1e6);   //iyy
-    EXPECT_NEAR(test[4], 9.5844161e14, 1e6);    //izz
-    EXPECT_NEAR(test[5], -6.1762905e12, 1e6);   //ixy
-    EXPECT_NEAR(test[6], -3.7443143e14, 1e6);   //ixz
-    EXPECT_NEAR(test[7], 2.0102984e13, 1e6);    //iyz
+    EXPECT_EQ(test[2], -2.89095364643866687e14);   //ixx
+    EXPECT_EQ(test[3], -6.69346245332466625e14);   //iyy
+    EXPECT_EQ(test[4], 9.58441609976333125e14);    //izz
+    EXPECT_EQ(test[5], -6.17629053030000000e12);   //ixy
+    EXPECT_EQ(test[6], -3.74431432361500000e14);   //ixz
+    EXPECT_EQ(test[7], 2.01029844058000000e13);    //iyz
 
 }
