@@ -103,6 +103,8 @@ elseif(INSITU STREQUAL "Ascent")
 endif()
 # }}}
 
+find_package(FFTW)
+
 add_subdirectory(domain)
 add_subdirectory(ryoanji)
 add_subdirectory(sph)
