@@ -5,6 +5,7 @@
 #   https://github.com/wjakob/layerlab/blob/master/cmake/FindFFTW.cmake, commit 4d58bfdc28891b4f9373dfe46239dda5a0b561c6
 # Modifications:
 #   Copyright (c) 2017, Patrick Bos
+#   https://github.com/egpbos/findFFTW
 #
 # Usage:
 #   find_package(FFTW [REQUIRED] [QUIET] [COMPONENTS component1 ... componentX] )
