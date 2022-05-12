@@ -103,7 +103,14 @@ elseif(INSITU STREQUAL "Ascent")
 endif()
 # }}}
 
-find_package(FFTW)
+option(SPH_EXA_WITH_FFTW "Enable use of the FFTW library" ON)
+if (SPH_EXA_WITH_FFTW)
+    find_package(FFTW)
+    if (NOT FFTW_FOUND)
+        message(STATUS "No FFTW support")
+        set(SPH_EXA_WITH_FFTW OFF)
+    endif ()
+endif ()
 
 add_subdirectory(domain)
 add_subdirectory(ryoanji)
