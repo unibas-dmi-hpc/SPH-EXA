@@ -15,8 +15,8 @@ CUDA_DEVICE_HOST_FUN util::tuple<T2, T2> equationOfState(T1 u, T2 rho)
     constexpr T2 gamma = (5.0 / 3.0);
 
     T2 tmp = u * (gamma - T1(1));
-    T2 p  = rho * tmp;
-    T2 c  = std::sqrt(tmp);
+    T2 p   = rho * tmp;
+    T2 c   = std::sqrt(tmp);
 
     return {p, c};
 }
@@ -61,7 +61,7 @@ void computeEquationOfState(size_t startIndex, size_t endIndex, Dataset& d)
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; ++i)
     {
-        auto rho = kx[i] * m[i] / xm[i];
+        auto rho             = kx[i] * m[i] / xm[i];
         std::tie(p[i], c[i]) = equationOfState(u[i], rho);
     }
 }
