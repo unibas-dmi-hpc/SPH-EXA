@@ -33,6 +33,7 @@
 #pragma once
 
 #include <iostream>
+#include <variant>
 
 #include "cstone/domain/domain.hpp"
 #include "sph/sph.hpp"
@@ -64,6 +65,8 @@ public:
 
     virtual void step(DomainType& domain, ParticleDataType& d) = 0;
 
+    virtual void prepareOutput(ParticleDataType& d, size_t startIndex, size_t endIndex){};
+
     virtual ~Propagator() = default;
 
 protected:
@@ -73,7 +76,7 @@ protected:
     size_t rank_;
     //! maximum number of neighbors per particle
     size_t ngmax_;
-    //! average number of neighbors per particle
+    //! target number of neighbors per particle
     size_t ng0_;
 
     bool doGravity_;
@@ -324,6 +327,29 @@ public:
 
         timer.stop();
         this->printIterationTimings(domain, d);
+    }
+
+    void prepareOutput(ParticleDataType& d, size_t startIndex, size_t endIndex) override
+    {
+        auto fieldPointers = getOutputArrays(d);
+
+        for (size_t outIdx = 0; outIdx < fieldPointers.size(); ++outIdx)
+        {
+            if (d.outputFieldNames[outIdx] == "rho")
+            {
+                auto computeRho =
+                    [startIndex, endIndex, kx = d.kx.data(), m = d.m.data(), xm = d.xm.data()](auto* varField)
+                {
+#pragma omp parallel for schedule(static)
+                    for (size_t i = startIndex; i < endIndex; ++i)
+                    {
+                        varField[i] = kx[i] * m[i] / xm[i];
+                    }
+                };
+
+                std::visit(computeRho, fieldPointers[outIdx]);
+            }
+        }
     }
 };
 

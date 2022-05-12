@@ -134,7 +134,7 @@ void writeH5Part(Dataset& d, size_t firstIndex, size_t lastIndex, const cstone::
     auto fieldPointers = getOutputArrays(d);
     for (size_t fidx = 0; fidx < fieldPointers.size(); ++fidx)
     {
-        const std::string& fieldName = Dataset::fieldNames[d.outputFields[fidx]];
+        const std::string& fieldName = d.outputFieldNames[fidx];
         std::visit([&h5_file, &fieldName, firstIndex](auto& arg)
                    { writeH5PartField(h5_file, fieldName, arg + firstIndex); },
                    fieldPointers[fidx]);
