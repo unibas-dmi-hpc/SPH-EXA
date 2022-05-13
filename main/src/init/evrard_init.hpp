@@ -155,7 +155,7 @@ public:
         d.y.shrink_to_fit();
         d.z.shrink_to_fit();
 
-        resize(d, d.x.size());
+        d.resize(d.x.size());
         initEvrardFields(d, constants_);
 
         return globalBox;

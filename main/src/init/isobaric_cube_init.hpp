@@ -272,7 +272,7 @@ public:
         T massPart    = innerVolume * rhoInt / numParticlesInternal;
 
         // Initialize isobaric cube domain variables
-        resize(d, d.x.size());
+        d.resize(d.x.size());
         initIsobaricCubeFields(d, constants_, massPart);
 
         return globalBox;

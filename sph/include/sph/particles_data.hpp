@@ -58,6 +58,8 @@ public:
     template<class ValueType>
     using PinnedVec = std::vector<ValueType, PinnedAlloc_t<AcceleratorType, ValueType>>;
 
+    ParticlesData() { std::fill(fieldStates_.begin(), fieldStates_.end(), FieldState::unused); }
+
     size_t iteration{1};
     size_t numParticlesGlobal;
 
@@ -68,7 +70,7 @@ public:
     T minDt_loc;
 
     //! @brief gravitational constant
-    T g = 0.0;
+    T g{0.0};
 
     /*! @brief Particle fields
      *
@@ -138,38 +140,32 @@ public:
         return ret;
     }
 
-    void setConserved(const std::vector<std::string>& fields)
-    {
-        conservedFields = fieldStringsToInt(fieldNames, fields);
-    }
+    void setConserved(const std::vector<std::string>& fields) { setState(fields, FieldState::conserved); }
 
-    void setDependent(const std::vector<std::string>& fields)
-    {
-        dependentFields = fieldStringsToInt(fieldNames, fields);
-    }
+    void setDependent(const std::vector<std::string>& fields) { setState(fields, FieldState::dependent); }
 
     void setOutputFields(const std::vector<std::string>& outFields)
     {
         outputFieldNames   = outFields;
         outputFieldIndices = fieldStringsToInt(fieldNames, outFields);
-
-        for (int& outIndex : outputFieldIndices)
-        {
-            int originalIndex = outIndex;
-            outIndex          = findFieldIdx(outIndex, outputFieldIndices, conservedFields, dependentFields, data());
-
-            if (outIndex == fieldNames.size())
-            {
-                throw std::runtime_error(std::string("Could not find output location for field ") +
-                                         fieldNames[originalIndex]);
-            }
-        }
     }
 
-    //! @brief Fields to conserve between iterations, needed for checkpoints and domain exchange.
-    std::vector<int> conservedFields;
-    //! @brief Fields not conserved between iterations. This list may be dynamically changed by the propagator.
-    std::vector<int> dependentFields;
+    void resize(size_t size)
+    {
+        double growthRate = 1.05;
+        auto   data_      = data();
+
+        for (size_t i = 0; i < data_.size(); ++i)
+        {
+            if (fieldStates_[i] != FieldState::unused)
+            {
+                std::visit([size, growthRate](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
+            }
+        }
+
+        devPtrs.resize(size);
+    }
+
     //! @brief particle fields selected for file output
     std::vector<int>         outputFieldIndices;
     std::vector<std::string> outputFieldNames;
@@ -196,6 +192,25 @@ public:
 
     // Interpolation kernel normalization constant
     const static T K;
+
+private:
+    enum class FieldState
+    {
+        unused,
+        conserved,
+        dependent
+    };
+
+    void setState(const std::vector<std::string>& fields, FieldState state)
+    {
+        for (const auto& field : fields)
+        {
+            int idx           = std::find(fieldNames.begin(), fieldNames.end(), field) - fieldNames.begin();
+            fieldStates_[idx] = state;
+        }
+    }
+
+    std::array<FieldState, fieldNames.size()> fieldStates_;
 };
 
 template<typename T, typename I, class Acc>

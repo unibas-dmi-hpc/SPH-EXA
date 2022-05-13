@@ -77,29 +77,6 @@ auto getOutputArrays(Dataset& dataset)
     return outputFields;
 }
 
-/*! @brief resizes all active particles fields of @p d to the specified size
- *
- * Important Note: this only resizes the fields that are listed either as conserved or dependent.
- * The conserved/dependent list may be set at runtime, depending on the need of the simulation!
- */
-template<class Dataset>
-void resize(Dataset& d, size_t size)
-{
-    double growthRate = 1.05;
-    auto   data_      = d.data();
-
-    for (int i : d.conservedFields)
-    {
-        std::visit([size, growthRate](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
-    }
-    for (int i : d.dependentFields)
-    {
-        std::visit([size, growthRate](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
-    }
-
-    d.devPtrs.resize(size);
-}
-
 //! @brief resizes the neighbors list, only used in the CPU version
 template<class Dataset>
 void resizeNeighbors(Dataset& d, size_t size)

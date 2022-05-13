@@ -174,7 +174,7 @@ public:
         sync(domain, d);
         timer.step("domain::sync");
 
-        resize(d, domain.nParticlesWithHalos());
+        d.resize(domain.nParticlesWithHalos());
         resizeNeighbors(d, domain.nParticles() * ngmax_);
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
@@ -297,7 +297,7 @@ public:
         sync(domain, d);
         timer.step("domain::sync");
 
-        resize(d, domain.nParticlesWithHalos());
+        d.resize(domain.nParticlesWithHalos());
         resizeNeighbors(d, domain.nParticles() * ngmax_);
         size_t first = domain.startIndex();
         size_t last  = domain.endIndex();
