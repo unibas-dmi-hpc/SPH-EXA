@@ -95,7 +95,6 @@ public:
     std::vector<T>       divv, curlv;                  // Div(velocity), Curl(velocity)
     std::vector<T>       ax, ay, az;                   // acceleration
     std::vector<T>       du, du_m1;                    // energy rate of change (du/dt)
-    std::vector<T>       dt, dt_m1;                    // timestep
     std::vector<T>       c11, c12, c13, c22, c23, c33; // IAD components
     std::vector<T>       alpha;                        // AV coeficient
     std::vector<T>       xm;                           // Volume element definition
@@ -116,9 +115,9 @@ public:
      * Name of each field as string for use e.g in HDF5 output. Order has to correspond to what's returned by data().
      */
     inline static constexpr std::array fieldNames{
-        "x",   "y",   "z",    "x_m1", "y_m1", "z_m1",  "vx",   "vy",    "vz",    "rho",   "u",    "p",   "h",   "m",
-        "c",   "ax",  "ay",   "az",   "du",   "du_m1", "dt",   "dt_m1", "c11",   "c12",   "c13",  "c22", "c23", "c33",
-        "mue", "mui", "temp", "cv",   "xm",   "kx",    "divv", "curlv", "alpha", "gradh", "keys", "nc"};
+        "x",   "y",   "z",    "x_m1", "y_m1", "z_m1", "vx",    "vy",    "vz",    "rho",   "u",    "p",   "h",
+        "m",   "c",   "ax",   "ay",   "az",   "du",   "du_m1", "c11",   "c12",   "c13",   "c22",  "c23", "c33",
+        "mue", "mui", "temp", "cv",   "xm",   "kx",   "divv",  "curlv", "alpha", "gradh", "keys", "nc"};
 
     /*! @brief return a vector of pointers to field vectors
      *
@@ -136,10 +135,9 @@ public:
                                        IntVecType*>;
 
         std::array<FieldType, fieldNames.size()> ret{
-            &x,    &y,     &z,   &x_m1, &y_m1, &z_m1,  &vx,    &vy,    &vz,    &rho,
-            &u,    &p,     &h,   &m,    &c,    &ax,    &ay,    &az,    &du,    &du_m1,
-            &dt,   &dt_m1, &c11, &c12,  &c13,  &c22,   &c23,   &c33,   &mue,   &mui,
-            &temp, &cv,    &xm,  &kx,   &divv, &curlv, &alpha, &gradh, &codes, &neighborsCount};
+            &x,    &y,  &z,  &x_m1, &y_m1, &z_m1,  &vx,    &vy,    &vz,    &rho,           &u,   &p,   &h,   &m,
+            &c,    &ax, &ay, &az,   &du,   &du_m1, &c11,   &c12,   &c13,   &c22,           &c23, &c33, &mue, &mui,
+            &temp, &cv, &xm, &kx,   &divv, &curlv, &alpha, &gradh, &codes, &neighborsCount};
 
         static_assert(ret.size() == fieldNames.size());
 

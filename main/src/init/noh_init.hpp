@@ -55,8 +55,6 @@ void initNohFields(Dataset& d, double totalVolume, const std::map<std::string, d
     std::fill(d.h.begin(), d.h.end(), hInit);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
     std::fill(d.mui.begin(), d.mui.end(), 10.0);
-    std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
-    std::fill(d.dt_m1.begin(), d.dt_m1.end(), firstTimeStep);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
 
     d.minDt    = firstTimeStep;
