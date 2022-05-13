@@ -86,9 +86,9 @@ public:
                                           d.h.data(),
                                           d.m.data(),
                                           d.g,
-                                          d.grad_P_x.data(),
-                                          d.grad_P_y.data(),
-                                          d.grad_P_z.data());
+                                          d.ax.data(),
+                                          d.ay.data(),
+                                          d.az.data());
     }
 
     const MType* multipoles() const { return multipoles_.data(); }
@@ -134,9 +134,9 @@ public:
                                    d.devPtrs.d_m,
                                    d.devPtrs.d_h,
                                    d.g,
-                                   d.devPtrs.d_grad_P_x,
-                                   d.devPtrs.d_grad_P_y,
-                                   d.devPtrs.d_grad_P_z);
+                                   d.devPtrs.d_ax,
+                                   d.devPtrs.d_ay,
+                                   d.devPtrs.d_az);
     }
 
     const MType* multipoles() const { return multipoles_.data(); }

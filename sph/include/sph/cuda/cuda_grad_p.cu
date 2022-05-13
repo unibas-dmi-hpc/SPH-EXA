@@ -160,9 +160,9 @@ void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, 
                                          d.devPtrs.d_c33,
                                          d.devPtrs.d_wh,
                                          d.devPtrs.d_whd,
-                                         d.devPtrs.d_grad_P_x,
-                                         d.devPtrs.d_grad_P_y,
-                                         d.devPtrs.d_grad_P_z,
+                                         d.devPtrs.d_ax,
+                                         d.devPtrs.d_ay,
+                                         d.devPtrs.d_az,
                                          d.devPtrs.d_du);
 
     CHECK_CUDA_ERR(cudaGetLastError());
@@ -174,9 +174,9 @@ void computeMomentumAndEnergy(size_t startIndex, size_t endIndex, size_t ngmax, 
     // if we don't have gravity, we copy back the pressure gradients (=acceleration) now
     if (d.g == 0.0)
     {
-        CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data(), d.devPtrs.d_grad_P_x, size_np_T, cudaMemcpyDeviceToHost));
-        CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data(), d.devPtrs.d_grad_P_y, size_np_T, cudaMemcpyDeviceToHost));
-        CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data(), d.devPtrs.d_grad_P_z, size_np_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.ax.data(), d.devPtrs.d_ax, size_np_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.ay.data(), d.devPtrs.d_ay, size_np_T, cudaMemcpyDeviceToHost));
+        CHECK_CUDA_ERR(cudaMemcpy(d.az.data(), d.devPtrs.d_az, size_np_T, cudaMemcpyDeviceToHost));
     }
 
     CHECK_CUDA_ERR(cudaMemcpy(d.du.data(), d.devPtrs.d_du, size_np_T, cudaMemcpyDeviceToHost));

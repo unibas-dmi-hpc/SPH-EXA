@@ -193,22 +193,19 @@ public:
         computeMomentumAndEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
-        d.egrav = 0.0;
         if (doGravity_)
         {
             mHolder_.upsweep(d, domain);
             timer.step("Upsweep");
             mHolder_.traverse(d, domain);
-            // temporary sign fix, see note in ParticlesData
-            d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
             timer.step("Gravity");
 
 #ifdef USE_CUDA
             size_t sizeWithHalos = d.x.size();
-            size_t size_np_T     = sizeWithHalos * sizeof(decltype(d.grad_P_x[0]));
-            CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_x.data(), d.devPtrs.d_grad_P_x, size_np_T, cudaMemcpyDeviceToHost));
-            CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_y.data(), d.devPtrs.d_grad_P_y, size_np_T, cudaMemcpyDeviceToHost));
-            CHECK_CUDA_ERR(cudaMemcpy(d.grad_P_z.data(), d.devPtrs.d_grad_P_z, size_np_T, cudaMemcpyDeviceToHost));
+            size_t size_np_T     = sizeWithHalos * sizeof(decltype(d.ax[0]));
+            CHECK_CUDA_ERR(cudaMemcpy(d.ax.data(), d.devPtrs.d_ax, size_np_T, cudaMemcpyDeviceToHost));
+            CHECK_CUDA_ERR(cudaMemcpy(d.ay.data(), d.devPtrs.d_ay, size_np_T, cudaMemcpyDeviceToHost));
+            CHECK_CUDA_ERR(cudaMemcpy(d.az.data(), d.devPtrs.d_az, size_np_T, cudaMemcpyDeviceToHost));
 #endif
         }
 
@@ -305,14 +302,11 @@ public:
         computeGradPVE(first, last, ngmax_, d, domain.box());
         timer.step("MomentumAndEnergy");
 
-        d.egrav = 0.0;
         if (doGravity_)
         {
             mHolder_.upsweep(d, domain);
             timer.step("Upsweep");
             mHolder_.traverse(d, domain);
-            // temporary sign fix, see note in ParticlesData
-            d.egrav = (d.g > 0.0) ? d.egrav : -d.egrav;
             timer.step("Gravity");
         }
 

@@ -114,8 +114,8 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T rv = rx * vx_ij + ry * vy_ij + rz * vz_ij;
 
         T hjInv3 = hjInv * hjInv * hjInv;
-        T Wi     = K * hiInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
-        T Wj     = K * hjInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v2), (int)sincIndex);
+        T Wi     = hiInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
+        T Wj     = hjInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v2), (int)sincIndex);
 
         T termA1_i = -(c11i * rx + c12i * ry + c13i * rz) * Wi;
         T termA2_i = -(c12i * rx + c22i * ry + c23i * rz) * Wi;
@@ -201,11 +201,12 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
     // with the choice of calculating coordinate (r) and velocity (v_ij) differences as i - j,
     // we add the negative sign only here at the end instead of to termA123_ij in each iteration
     a_visc_energy = std::max(T(0), a_visc_energy);
-    du[i]         = energy + T(0.5) * a_visc_energy; // factor of 2 already removed from 2P/rho
-    grad_P_x[i]   = momentum_x;
-    grad_P_y[i]   = momentum_y;
-    grad_P_z[i]   = momentum_z;
-    *maxvsignal   = maxvsignali;
+    du[i]         = K * (energy + T(0.5) * a_visc_energy); // factor of 2 already removed from 2P/rho
+    // grad_P_xyz is stored as the acceleration, accel = -grad_P / rho
+    grad_P_x[i] = -K * momentum_x;
+    grad_P_y[i] = -K * momentum_y;
+    grad_P_z[i] = -K * momentum_z;
+    *maxvsignal = maxvsignali;
 }
 
 } // namespace kernels

@@ -122,9 +122,9 @@ TEST(MomentumEnergy, JLoop)
                                          &du,
                                          &maxvsignal);
 
-    EXPECT_NEAR(grad_Px, -10.483775138679292, 1e-10);
-    EXPECT_NEAR(grad_Py, -0.090944092644194813, 1e-10);
-    EXPECT_NEAR(grad_Pz, -10.561586270570247, 1e-10);
+    EXPECT_NEAR(grad_Px, 10.483775138679292, 1e-10);
+    EXPECT_NEAR(grad_Py, 0.090944092644194813, 1e-10);
+    EXPECT_NEAR(grad_Pz, 10.561586270570247, 1e-10);
     EXPECT_NEAR(du, -0.26313730882245978, 1e-10);
     EXPECT_NEAR(maxvsignal, 1.4112466828564338, 1e-10);
 }
@@ -216,9 +216,9 @@ TEST(MomentumEnergy, JLoopPBC)
                                          &du,
                                          &maxvsignal);
 
-    EXPECT_NEAR(grad_Px, -18.964174134069442, 1e-10);
-    EXPECT_NEAR(grad_Py, -37.008899054154412, 1e-10);
-    EXPECT_NEAR(grad_Pz, 18.654914156760281, 1e-10);
+    EXPECT_NEAR(grad_Px, 18.964174134069442, 1e-10);
+    EXPECT_NEAR(grad_Py, 37.008899054154412, 1e-10);
+    EXPECT_NEAR(grad_Pz, -18.654914156760281, 1e-10);
     EXPECT_NEAR(du, 0.23856924628683882, 1e-10);
     EXPECT_NEAR(maxvsignal, 1.2762102355330307, 1e-10);
 }
