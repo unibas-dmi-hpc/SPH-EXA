@@ -19,21 +19,19 @@ void computeDensityVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
 
-    const T* h = d.h.data();
-    const T* m = d.m.data();
     const T* x = d.x.data();
     const T* y = d.y.data();
     const T* z = d.z.data();
+    const T* h = d.h.data();
+    const T* m = d.m.data();
 
     const T* wh  = d.wh.data();
     const T* whd = d.whd.data();
 
-    const T* rho0  = d.rho0.data();
-    const T* wrho0 = d.wrho0.data();
+    const T* xm = d.xm.data();
 
     T* kx    = d.kx.data();
     T* gradh = d.gradh.data();
-    T* rho   = d.rho.data();
 
     const T K         = d.K;
     const T sincIndex = d.sincIndex;
@@ -41,28 +39,17 @@ void computeDensityVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Data
 #pragma omp parallel for
     for (size_t i = startIndex; i < endIndex; i++)
     {
-        size_t ni = i - startIndex;
-        kernels::densityJLoop(i,
-                              sincIndex,
-                              K,
-                              box,
-                              neighbors + ngmax * ni,
-                              neighborsCount[i],
-                              x,
-                              y,
-                              z,
-                              h,
-                              m,
-                              wh,
-                              whd,
-                              rho0,
-                              wrho0,
-                              rho,
-                              kx,
-                              gradh);
+        size_t ni          = i - startIndex;
+        auto [kxi, gradhi] = kernels::densityJLoop(
+            i, sincIndex, K, box, neighbors + ngmax * ni, neighborsCount[i], x, y, z, h, m, wh, whd, xm);
+
+        kx[i]    = kxi;
+        gradh[i] = gradhi;
+
 #ifndef NDEBUG
-        if (std::isnan(rho[i]))
-            printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", i, rho[i], x[i], y[i], z[i], h[i]);
+        T rhoi = kxi * m[i] / xm[i];
+        if (std::isnan(rhoi))
+            printf("ERROR::Density(%zu) density %f, position: (%f %f %f), h: %f\n", i, rhoi, x[i], y[i], z[i], h[i]);
 #endif
     }
 }

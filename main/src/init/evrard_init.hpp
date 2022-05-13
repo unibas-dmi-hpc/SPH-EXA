@@ -121,7 +121,9 @@ public:
 
         size_t multiplicity = std::rint(cbrtNumPart / std::cbrt(blockSize));
 
-        T              r = constants_.at("r");
+        d.g = constants_.at("G");
+        T r = constants_.at("r");
+
         cstone::Box<T> globalBox(-r, r, false);
 
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
@@ -157,13 +159,6 @@ public:
 
         resize(d, d.x.size());
         initEvrardFields(d, constants_);
-
-        // TODO: unify this with computePosition/Acceleration:
-        // from SPH we have acceleration = -grad_P, so computePosition adds a factor of -1 to the pressure gradients
-        // instead, the pressure gradients should be renamed to acceleration and computeMomentumAndEnergy should
-        // directly set this to -grad_P, such that we don't need to add the gravitational acceleration with a factor of
-        // -1 on top. The cgs value of g would be 6.6726e-8, 1.0 for Evrard mainly.
-        d.g = -constants_.at("G");
 
         return globalBox;
     }

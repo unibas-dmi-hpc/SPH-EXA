@@ -21,12 +21,12 @@ void computeIADImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
     const int* neighbors      = d.neighbors.data();
     const int* neighborsCount = d.neighborsCount.data();
 
-    const T* h  = d.h.data();
-    const T* m  = d.m.data();
-    const T* x  = d.x.data();
-    const T* y  = d.y.data();
-    const T* z  = d.z.data();
-    const T* ro = d.rho.data();
+    const T* h   = d.h.data();
+    const T* m   = d.m.data();
+    const T* x   = d.x.data();
+    const T* y   = d.y.data();
+    const T* z   = d.z.data();
+    const T* rho = d.rho.data();
 
     T* c11 = d.c11.data();
     T* c12 = d.c12.data();
@@ -45,26 +45,26 @@ void computeIADImpl(size_t startIndex, size_t endIndex, size_t ngmax, Dataset& d
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         size_t ni = i - startIndex;
-        kernels::IADJLoop(i,
-                          sincIndex,
-                          K,
-                          box,
-                          neighbors + ngmax * ni,
-                          neighborsCount[i],
-                          x,
-                          y,
-                          z,
-                          h,
-                          m,
-                          ro,
-                          wh,
-                          whd,
-                          c11,
-                          c12,
-                          c13,
-                          c22,
-                          c23,
-                          c33);
+        kernels::IADJLoop3L(i,
+                            sincIndex,
+                            K,
+                            box,
+                            neighbors + ngmax * ni,
+                            neighborsCount[i],
+                            x,
+                            y,
+                            z,
+                            h,
+                            m,
+                            rho,
+                            wh,
+                            whd,
+                            c11,
+                            c12,
+                            c13,
+                            c22,
+                            c23,
+                            c33);
     }
 }
 

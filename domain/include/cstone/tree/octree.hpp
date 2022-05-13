@@ -287,8 +287,10 @@ calculateNodeOp(const KeyType* tree, TreeNodeIndex nodeIdx, const unsigned* coun
     if (siblingIdx > 0) // 8 siblings next to each other, node can potentially be merged
     {
         // pointer to first node in sibling group
-        auto g          = counts + nodeIdx - siblingIdx;
-        bool countMerge = (g[0] + g[1] + g[2] + g[3] + g[4] + g[5] + g[6] + g[7]) <= bucketSize;
+        auto g             = counts + nodeIdx - siblingIdx;
+        size_t parentCount = size_t(g[0]) + size_t(g[1]) + size_t(g[2]) + size_t(g[3]) + size_t(g[4]) + size_t(g[5]) +
+                             size_t(g[6]) + size_t(g[7]);
+        bool countMerge = parentCount <= size_t(bucketSize);
         if (countMerge) { return 0; } // merge
     }
 

@@ -45,9 +45,9 @@ namespace kernels
 template<typename T>
 CUDA_DEVICE_HOST_FUN inline void
 divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount,
-                const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h, const T* m,
-                const T* c11, const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T* wh,
-                const T* whd, const T* kx, const T* rho0, T* divv, T* curlv)
+                const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h, const T* c11,
+                const T* c12, const T* c13, const T* c22, const T* c23, const T* c33, const T* wh, const T* whd,
+                const T* kx, const T* xm, T* divv, T* curlv)
 {
     T xi  = x[i];
     T yi  = y[i];
@@ -55,14 +55,12 @@ divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
     T vxi = vx[i];
     T vyi = vy[i];
     T vzi = vz[i];
-
-    T hi = h[i];
+    T hi  = h[i];
 
     T hiInv  = 1.0 / hi;
     T hiInv3 = hiInv * hiInv * hiInv;
 
-    divv[i]   = 0.0;
-    curlv[i]  = 0.0;
+    T divvi   = 0.0;
     T curlv_x = 0.0;
     T curlv_y = 0.0;
     T curlv_z = 0.0;
@@ -92,23 +90,23 @@ divV_curlVJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* n
         T vz_ji = vz[j] - vzi;
 
         T v1 = dist * hiInv;
-        T Wi = K * hiInv3 * ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
+        T Wi = ::sphexa::math::pow(lt::wharmonic_lt_with_derivative(wh, whd, v1), (int)sincIndex);
 
         T termA1 = -(c11i * rx + c12i * ry + c13i * rz) * Wi;
         T termA2 = -(c12i * rx + c22i * ry + c23i * rz) * Wi;
         T termA3 = -(c13i * rx + c23i * ry + c33i * rz) * Wi;
 
-        T xmassj = m[j] / rho0[j];
+        T xmassj = xm[j];
 
-        divv[i] += (vx_ji * termA1 + vy_ji * termA2 + vz_ji * termA3) * xmassj;
+        divvi += (vx_ji * termA1 + vy_ji * termA2 + vz_ji * termA3) * xmassj;
 
         curlv_x += (vz_ji * termA2 - vy_ji * termA3) * xmassj;
         curlv_y += (vx_ji * termA3 - vz_ji * termA1) * xmassj;
         curlv_z += (vy_ji * termA1 - vx_ji * termA2) * xmassj;
     }
 
-    divv[i]  = divv[i] / kx[i];
-    curlv[i] = abs(sqrt(curlv_x * curlv_x + curlv_y * curlv_y + curlv_z * curlv_z)) / kx[i];
+    divv[i]  = K * hiInv3 * divvi / kx[i];
+    curlv[i] = K * hiInv3 * std::abs(std::sqrt(curlv_x * curlv_x + curlv_y * curlv_y + curlv_z * curlv_z)) / kx[i];
 }
 
 } // namespace kernels

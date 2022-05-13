@@ -24,7 +24,6 @@ void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
     const T* vx    = d.vx.data();
     const T* vy    = d.vy.data();
     const T* vz    = d.vz.data();
-    const T* rho   = d.rho.data();
     const T* c     = d.c.data();
     const T* p     = d.p.data();
     const T* alpha = d.alpha.data();
@@ -38,14 +37,14 @@ void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
     const T* c33 = d.c33.data();
 
     T* du       = d.du.data();
-    T* grad_P_x = d.grad_P_x.data();
-    T* grad_P_y = d.grad_P_y.data();
-    T* grad_P_z = d.grad_P_z.data();
+    T* grad_P_x = d.ax.data();
+    T* grad_P_y = d.ay.data();
+    T* grad_P_z = d.az.data();
 
-    const T* wh   = d.wh.data();
-    const T* whd  = d.whd.data();
-    const T* kx   = d.kx.data();
-    const T* rho0 = d.rho0.data();
+    const T* wh  = d.wh.data();
+    const T* whd = d.whd.data();
+    const T* kx  = d.kx.data();
+    const T* xm  = d.xm.data();
 
     const T K         = d.K;
     const T sincIndex = d.sincIndex;
@@ -76,7 +75,6 @@ void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
                                         vz,
                                         h,
                                         m,
-                                        rho,
                                         p,
                                         c,
                                         c11,
@@ -91,7 +89,7 @@ void computeGradPVeImpl(size_t startIndex, size_t endIndex, size_t ngmax, Datase
                                         wh,
                                         whd,
                                         kx,
-                                        rho0,
+                                        xm,
                                         alpha,
                                         gradh,
                                         grad_P_x,
