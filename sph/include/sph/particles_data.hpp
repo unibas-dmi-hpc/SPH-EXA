@@ -58,12 +58,6 @@ public:
     template<class ValueType>
     using PinnedVec = std::vector<ValueType, PinnedAlloc_t<AcceleratorType, ValueType>>;
 
-    ParticlesData()
-    {
-        setConservedFields();
-        setDependentFields();
-    }
-
     size_t iteration{1};
     size_t numParticlesGlobal;
 
@@ -144,48 +138,13 @@ public:
         return ret;
     }
 
-    void setConservedFields()
+    void setConserved(const std::vector<std::string>& fields)
     {
-        std::vector<std::string> fields{
-            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1"};
         conservedFields = fieldStringsToInt(fieldNames, fields);
     }
 
-    void setDependentFields()
+    void setDependent(const std::vector<std::string>& fields)
     {
-        std::vector<std::string> fields{
-            "rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "keys", "nc"};
-        dependentFields = fieldStringsToInt(fieldNames, fields);
-    }
-
-    void setConservedFieldsVE()
-    {
-        std::vector<std::string> fields{
-            "x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha"};
-        conservedFields = fieldStringsToInt(fieldNames, fields);
-    }
-
-    void setDependentFieldsVE()
-    {
-        std::vector<std::string> fields{"p",
-                                        "c",
-                                        "ax",
-                                        "ay",
-                                        "az",
-                                        "du",
-                                        "c11",
-                                        "c12",
-                                        "c13",
-                                        "c22",
-                                        "c23",
-                                        "c33",
-                                        "xm",
-                                        "kx",
-                                        "divv",
-                                        "curlv",
-                                        "gradh",
-                                        "keys",
-                                        "nc"};
         dependentFields = fieldStringsToInt(fieldNames, fields);
     }
 
@@ -207,9 +166,9 @@ public:
         }
     }
 
-    //! @brief particle fields to conserve between iterations, needed for checkpoints and domain exchange
+    //! @brief Fields to conserve between iterations, needed for checkpoints and domain exchange.
     std::vector<int> conservedFields;
-    //! @brief particle fields recomputed every step from conserved fields
+    //! @brief Fields not conserved between iterations. This list may be dynamically changed by the propagator.
     std::vector<int> dependentFields;
     //! @brief particle fields selected for file output
     std::vector<int>         outputFieldIndices;
