@@ -44,41 +44,61 @@ namespace sphexa
  * @param d             Dataset
  * @param first         first locally assigned particle index of buffers in @p d
  * @param last          first locally assigned particle index of buffers in @p d
- * @param viewTheta     viewing angle to determine ...
- * @param viewPhi       viewing angle to determine ...
- * @return              array containing the observables and the second derivative of the quadpole momentum:
+ * @param viewTheta     viewing angle for the polarization modes
+ * @param viewPhi       viewing angle for the polarization modes
+ * @return              array containing the polarization modes and the second derivative of the quadpole momentum:
  *                      {httplus, httcross, ixx, iyy, izz, ixy, ixz, iyz}
  */
 template<class T, class Dataset>
 std::array<T, 8> gravRad(Dataset& d,size_t first, size_t last, T viewTheta, T viewPhi)
 {
+    struct Q
+    {
+        enum IndexLabels
+        {
+            xx = 0,
+            yy = 1,
+            zz = 2,
+            xy = 3,
+            xz = 4,
+            yz = 5
+        };
+    };
 
-    std::array<T, 6> d2Qxx_local;
+    struct Dim
+    {
+        enum IndexLabels
+        {
+            x = 0,
+            y = 1,
+            z = 2,
+        };
+    };
 
-    d2Qxx_local[0] = d2QuadpoleMomentum<T>(first, last, 0, 0,
-                                       d.x.data(), d.y.data(), d.z.data(), d.vx.data(), d.vy.data(), d.vz.data(),
-                                            d.ax.data(), d.ay.data(), d.az.data(), d.m.data()); //ixx
-    d2Qxx_local[1] = d2QuadpoleMomentum<T>(first, last, 1, 1,
-                                       d.x.data(), d.y.data(), d.z.data(), d.vx.data(), d.vy.data(), d.vz.data(),
-                                            d.ax.data(), d.ay.data(), d.az.data(), d.m.data()); //iyy
-    d2Qxx_local[2] = d2QuadpoleMomentum<T>(first, last, 2, 2,
-                                       d.x.data(), d.y.data(), d.z.data(), d.vx.data(), d.vy.data(), d.vz.data(),
-                                            d.ax.data(), d.ay.data(), d.az.data(), d.m.data()); //izz
+    std::array<T, 6> d2Q_local;
 
-    d2Qxx_local[3] = d2QuadpoleMomentum<T>(first, last, 0, 1,
+    d2Q_local[Q::xx] = d2QuadpoleMomentum<T>(first, last, Dim::x, Dim::x,
                                        d.x.data(), d.y.data(), d.z.data(), d.vx.data(), d.vy.data(), d.vz.data(),
-                                            d.ax.data(), d.ay.data(), d.az.data(), d.m.data()); //ixy
-    d2Qxx_local[4] = d2QuadpoleMomentum<T>(first, last, 0, 2,
-                                       d.x.data(), d.y.data(), d.z.data(), d.vx.data(), d.vy.data(), d.vz.data(),
-                                            d.ax.data(), d.ay.data(), d.az.data(), d.m.data()); //ixz
-    d2Qxx_local[5] = d2QuadpoleMomentum<T>(first, last, 1, 2,
-                                       d.x.data(), d.y.data(), d.z.data(), d.vx.data(), d.vy.data(), d.vz.data(),
-                                            d.ax.data(), d.ay.data(), d.az.data(), d.m.data()); //iyz
-
+                                            d.ax.data(), d.ay.data(), d.az.data(), d.m.data());
+    d2Q_local[Q::yy] = d2QuadpoleMomentum<T>(first, last, Dim::y, Dim::y,
+                                                           d.x.data(), d.y.data(), d.z.data(), d.vx.data(), d.vy.data(), d.vz.data(),
+                                                           d.ax.data(), d.ay.data(), d.az.data(), d.m.data());
+    d2Q_local[Q::zz] = d2QuadpoleMomentum<T>(first, last, Dim::z, Dim::z,
+                                                           d.x.data(), d.y.data(), d.z.data(), d.vx.data(), d.vy.data(), d.vz.data(),
+                                                           d.ax.data(), d.ay.data(), d.az.data(), d.m.data());
+    d2Q_local[Q::xy] = d2QuadpoleMomentum<T>(first, last, Dim::x, Dim::y,
+                                                           d.x.data(), d.y.data(), d.z.data(), d.vx.data(), d.vy.data(), d.vz.data(),
+                                                           d.ax.data(), d.ay.data(), d.az.data(), d.m.data());
+    d2Q_local[Q::xz] = d2QuadpoleMomentum<T>(first, last, Dim::x, Dim::z,
+                                                           d.x.data(), d.y.data(), d.z.data(), d.vx.data(), d.vy.data(), d.vz.data(),
+                                                           d.ax.data(), d.ay.data(), d.az.data(), d.m.data());
+    d2Q_local[Q::yz] = d2QuadpoleMomentum<T>(first, last, Dim::y, Dim::z,
+                                                           d.x.data(), d.y.data(), d.z.data(), d.vx.data(), d.vy.data(), d.vz.data(),
+                                                           d.ax.data(), d.ay.data(), d.az.data(), d.m.data());
 
     int rootRank = 0;
     std::array<T, 6> d2Qxx_global;
-    MPI_Reduce(d2Qxx_local.data(), d2Qxx_global.data(),6, MpiType<T>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
+    MPI_Reduce(d2Q_local.data(), d2Qxx_global.data(),6, MpiType<T>{}, MPI_SUM, rootRank, MPI_COMM_WORLD);
 
     T httplus;
     T httcross;

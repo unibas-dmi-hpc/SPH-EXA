@@ -24,6 +24,7 @@
  */
 
 /*! @file calculations for the gravitational waves observable
+ *          References: Centrella & McMillan ApJ, 416 (1993), R. M. Cabezon Phd Thesis (2010)
  *
  *  @author Lukas Schmidt
  */
@@ -33,6 +34,7 @@
 namespace sphexa
 {
 
+//! @brief calculates the two polarization modes of the gravitational waves for a given quadrupole momentum
 template<class T>
 void computeHtt(std::array<T, 6> quadpoleMomentum, T theta, T phi, T* httplus, T* httcross)
 {
@@ -66,7 +68,7 @@ void computeHtt(std::array<T, 6> quadpoleMomentum, T theta, T phi, T* httplus, T
     *httcross = 2.0 * dot2ibartp * gwunits;
 }
 
-//!@brief calculates the second derivative of the quadpole momentum
+//!@brief calculates the second derivative of the quadrupole momentum
 template<class T>
 T d2QuadpoleMomentum(size_t begin, size_t end, int dim1, int dim2, const T* x, const T* y, const T* z, const T* vx,
                      const T* vy, const T* vz, const T* ax, const T* ay, const T* az, const T* m)
