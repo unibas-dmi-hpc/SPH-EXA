@@ -102,13 +102,13 @@ int main(int argc, char** argv)
 
     std::ofstream nullOutput("/dev/null");
     std::ostream& output = quiet ? nullOutput : std::cout;
-
-    std::unique_ptr<IFileWriter<Dataset>> fileWriter;
-    if (ascii) { fileWriter = std::make_unique<AsciiWriter<Dataset>>(); }
-    else { fileWriter = std::make_unique<H5PartWriter<Dataset>>(); }
     std::ofstream constantsFile(outDirectory + "constants.txt");
 
-    std::unique_ptr<ISimInitializer<Dataset>> simInit = initializerFactory<Dataset>(initCond, glassBlock);
+    //! @brief evaluate user choice for different kind of actions
+    auto simInit     = initializerFactory<Dataset>(initCond, glassBlock);
+    auto propagator  = propagatorFactory<Domain, Dataset>(ve, ngmax, ng0, output, rank);
+    auto fileWriter  = fileWriterFactory<Dataset>(ascii);
+    auto observables = observablesFactory<Dataset>(initCond, constantsFile);
 
     Dataset d;
     d.comm = MPI_COMM_WORLD;
@@ -133,15 +133,12 @@ int main(int argc, char** argv)
     // we want about 100 global nodes per rank to decompose the domain with +-1% accuracy
     size_t bucketSize = std::max(bucketSizeFocus, d.numParticlesGlobal / (100 * numRanks));
     Domain domain(rank, numRanks, bucketSize, bucketSizeFocus, theta, box);
-    auto   propagator = propagatorFactory<Domain, Dataset>(ve, ngmax, ng0, output, rank, haveGrav);
 
     propagator->sync(domain, d);
     if (rank == 0) std::cout << "Domain synchronized, nLocalParticles " << d.x.size() << std::endl;
 
     viz::init_catalyst(argc, argv);
     viz::init_ascent(d, domain.startIndex());
-
-    std::unique_ptr<IObservables<Dataset>> observables = observablesFactory<Dataset>(initCond, constantsFile);
 
     MasterProcessTimer totalTimer(output, rank);
     totalTimer.start();

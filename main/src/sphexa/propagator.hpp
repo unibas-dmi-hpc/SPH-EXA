@@ -51,13 +51,12 @@ template<class DomainType, class ParticleDataType>
 class Propagator
 {
 public:
-    Propagator(size_t ngmax, size_t ng0, std::ostream& output, size_t rank, bool doGrav)
+    Propagator(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
         : timer(output, rank)
         , out(output)
         , rank_(rank)
         , ngmax_(ngmax)
         , ng0_(ng0)
-        , doGravity_(doGrav)
     {
     }
 
@@ -78,8 +77,6 @@ protected:
     size_t ngmax_;
     //! target number of neighbors per particle
     size_t ng0_;
-
-    bool doGravity_;
 
     void printIterationTimings(const DomainType& domain, const ParticleDataType& d)
     {
@@ -133,7 +130,6 @@ template<class DomainType, class ParticleDataType>
 class HydroProp final : public Propagator<DomainType, ParticleDataType>
 {
     using Base = Propagator<DomainType, ParticleDataType>;
-    using Base::doGravity_;
     using Base::ng0_;
     using Base::ngmax_;
     using Base::timer;
@@ -149,14 +145,14 @@ class HydroProp final : public Propagator<DomainType, ParticleDataType>
     MHolder_t mHolder_;
 
 public:
-    HydroProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank, bool doGravity)
-        : Base(ngmax, ng0, output, rank, doGravity)
+    HydroProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+        : Base(ngmax, ng0, output, rank)
     {
     }
 
     void sync(DomainType& domain, ParticleDataType& d) override
     {
-        if (doGravity_)
+        if (d.g != 0.0)
         {
             domain.syncGrav(d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1);
         }
@@ -193,7 +189,7 @@ public:
         computeMomentumAndEnergy(first, last, ngmax_, d, domain.box());
         timer.step("MomentumEnergyIAD");
 
-        if (doGravity_)
+        if (d.g != 0.0)
         {
             mHolder_.upsweep(d, domain);
             timer.step("Upsweep");
@@ -227,7 +223,6 @@ template<class DomainType, class ParticleDataType>
 class HydroVeProp final : public Propagator<DomainType, ParticleDataType>
 {
     using Base = Propagator<DomainType, ParticleDataType>;
-    using Base::doGravity_;
     using Base::ng0_;
     using Base::ngmax_;
     using Base::timer;
@@ -244,14 +239,14 @@ class HydroVeProp final : public Propagator<DomainType, ParticleDataType>
     MHolder_t mHolder_;
 
 public:
-    HydroVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank, bool doGravity)
-        : Base(ngmax, ng0, output, rank, doGravity)
+    HydroVeProp(size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+        : Base(ngmax, ng0, output, rank)
     {
     }
 
     void sync(DomainType& domain, ParticleDataType& d) override
     {
-        if (doGravity_)
+        if (d.g != 0.0)
         {
             domain.syncGrav(
                 d.codes, d.x, d.y, d.z, d.h, d.m, d.u, d.vx, d.vy, d.vz, d.x_m1, d.y_m1, d.z_m1, d.du_m1, d.alpha);
@@ -302,7 +297,7 @@ public:
         computeGradPVE(first, last, ngmax_, d, domain.box());
         timer.step("MomentumAndEnergy");
 
-        if (doGravity_)
+        if (d.g != 0.0)
         {
             mHolder_.upsweep(d, domain);
             timer.step("Upsweep");
@@ -349,10 +344,10 @@ public:
 
 template<class DomainType, class ParticleDataType>
 std::unique_ptr<Propagator<DomainType, ParticleDataType>>
-propagatorFactory(bool ve, size_t ngmax, size_t ng0, std::ostream& output, size_t rank, bool doGravity)
+propagatorFactory(bool ve, size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
 {
-    if (ve) { return std::make_unique<HydroVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank, doGravity); }
-    else { return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank, doGravity); }
+    if (ve) { return std::make_unique<HydroVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank); }
+    else { return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank); }
 }
 
 } // namespace sphexa

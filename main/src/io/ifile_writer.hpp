@@ -108,4 +108,11 @@ struct H5PartWriter : public IFileWriter<Dataset>
     }
 };
 
+template<class Dataset>
+std::unique_ptr<IFileWriter<Dataset>> fileWriterFactory(bool ascii)
+{
+    if (ascii) { return std::make_unique<AsciiWriter<Dataset>>(); }
+    else { return std::make_unique<H5PartWriter<Dataset>>(); }
+}
+
 } // namespace sphexa
