@@ -3,6 +3,7 @@ set(UNIT_TESTS
         init/grid.cpp
         init/isobaric_cube.cpp
         io/arg_parser.cpp
+        observables/gravitational_waves.cpp
         sphexa/particles_data.cpp
         test_main.cpp)
 
