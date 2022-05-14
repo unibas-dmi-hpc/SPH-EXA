@@ -37,6 +37,7 @@
 #include "iobservables.hpp"
 #include "time_energy_growth.hpp"
 #include "time_energies.hpp"
+#include "gravitational_waves.hpp"
 
 namespace sphexa
 {
@@ -94,6 +95,8 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
 {
 #ifdef SPH_EXA_HAVE_H5PART
     std::string khGrowthRate = "KelvinHelmholtzGrowthRate";
+    std::string gravWaves = "observeGravWaves";
+
     if (haveH5Attribute(testCase, khGrowthRate, H5PART_INT64))
     {
         h5part_int64_t attrValue;
@@ -103,6 +106,16 @@ std::unique_ptr<IObservables<Dataset>> observablesFactory(const std::string& tes
         H5PartCloseFile(h5_file);
 
         if (attrValue) { return std::make_unique<TimeEnergyGrowth<Dataset>>(constantsFile); }
+    }
+
+    if(haveH5Attribute(testCase, gravWaves, H5PART_FLOAT64))
+    {
+        double attrValue[3];
+        H5PartFile*    h5_file = nullptr;
+        h5_file                = H5PartOpenFile(testCase.c_str(), H5PART_READ);
+        H5PartReadFileAttrib(h5_file, gravWaves.c_str(), attrValue);
+        H5PartCloseFile(h5_file);
+        if(attrValue[0] != 0) { return std::make_unique<GravWaves<Dataset>>(constantsFile, attrValue[1], attrValue[2]); }
     }
 #endif
 
