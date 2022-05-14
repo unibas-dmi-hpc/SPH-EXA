@@ -49,7 +49,7 @@ struct AsciiWriter : public IFileWriter<Dataset>
                 }
                 catch (std::runtime_error& ex)
                 {
-                    if (rank == 0) fprintf(stderr, "ERROR: %s. Terminating\n", ex.what());
+                    if (rank == 0) fprintf(stderr, "ERROR: %s Terminating\n", ex.what());
                     MPI_Abort(d.comm, 1);
                 }
             }

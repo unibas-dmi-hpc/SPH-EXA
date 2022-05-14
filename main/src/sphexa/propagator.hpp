@@ -66,6 +66,7 @@ public:
     virtual void step(DomainType& domain, ParticleDataType& d) = 0;
 
     virtual void prepareOutput(ParticleDataType& d, size_t startIndex, size_t endIndex){};
+    virtual void finishOutput(ParticleDataType& d){};
 
     virtual ~Propagator() = default;
 
@@ -349,33 +350,40 @@ public:
         this->printIterationTimings(domain, d);
     }
 
+    //! @brief configure the dataset for output
     void prepareOutput(ParticleDataType& d, size_t startIndex, size_t endIndex) override
     {
-        auto fieldPointers = getOutputArrays(d);
-
-        for (size_t outIdx = 0; outIdx < fieldPointers.size(); ++outIdx)
+        bool outputRho =
+            std::find(d.outputFieldNames.begin(), d.outputFieldNames.end(), "rho") != d.outputFieldNames.end();
+        if (outputRho)
         {
-            if (d.outputFieldNames[outIdx] == "rho")
-            {
-                auto computeRho =
-                    [startIndex, endIndex, kx = d.kx.data(), m = d.m.data(), xm = d.xm.data()](auto* varField)
-                {
-#pragma omp parallel for schedule(static)
-                    for (size_t i = startIndex; i < endIndex; ++i)
-                    {
-                        varField[i] = kx[i] * m[i] / xm[i];
-                    }
-                };
+            d.release("c11");
+            d.acquire("rho");
 
-                std::visit(computeRho, fieldPointers[outIdx]);
+#pragma omp parallel for schedule(static)
+            for (size_t i = startIndex; i < endIndex; ++i)
+            {
+                d.rho[i] = d.kx[i] * d.m[i] / d.xm[i];
             }
+        }
+    }
+
+    //! @brief undo output configuration and restore compute configuration
+    void finishOutput(ParticleDataType& d) override
+    {
+        bool outputRho =
+            std::find(d.outputFieldNames.begin(), d.outputFieldNames.end(), "rho") != d.outputFieldNames.end();
+        if (outputRho)
+        {
+            d.release("rho");
+            d.acquire("c11");
         }
     }
 };
 
 template<class DomainType, class ParticleDataType>
-std::unique_ptr<Propagator<DomainType, ParticleDataType>>
-propagatorFactory(bool ve, size_t ngmax, size_t ng0, std::ostream& output, size_t rank)
+std::unique_ptr<Propagator<DomainType, ParticleDataType>> propagatorFactory(bool ve, size_t ngmax, size_t ng0,
+                                                                            std::ostream& output, size_t rank)
 {
     if (ve) { return std::make_unique<HydroVeProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank); }
     else { return std::make_unique<HydroProp<DomainType, ParticleDataType>>(ngmax, ng0, output, rank); }

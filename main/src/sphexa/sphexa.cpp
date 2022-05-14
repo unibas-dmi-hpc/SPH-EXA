@@ -151,6 +151,7 @@ int main(int argc, char** argv)
         {
             propagator->prepareOutput(d, domain.startIndex(), domain.endIndex());
             fileWriter->dump(d, domain.startIndex(), domain.endIndex(), box, outFile);
+            propagator->finishOutput(d);
         }
 
         if (d.iteration % 50 == 0) { viz::execute(d, domain.startIndex(), domain.endIndex()); }
