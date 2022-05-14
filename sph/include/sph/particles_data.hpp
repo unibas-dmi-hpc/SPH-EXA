@@ -30,14 +30,14 @@
 #pragma once
 
 #include <array>
-#include <cstdio>
-#include <iostream>
 #include <vector>
 #include <variant>
 
+#include "cstone/util/util.hpp"
 #include "sph/kernels.hpp"
 #include "sph/tables.hpp"
 #include "data_util.hpp"
+#include "field_states.hpp"
 #include "traits.hpp"
 
 #if defined(USE_CUDA)
@@ -48,7 +48,7 @@ namespace sphexa
 {
 
 template<typename T, typename I, class AccType>
-class ParticlesData
+class ParticlesData : public FieldStates<ParticlesData<T, I, AccType>>
 {
 public:
     using RealType        = T;
@@ -57,8 +57,6 @@ public:
 
     template<class ValueType>
     using PinnedVec = std::vector<ValueType, PinnedAlloc_t<AcceleratorType, ValueType>>;
-
-    ParticlesData() { std::fill(fieldStates_.begin(), fieldStates_.end(), FieldState::unused); }
 
     size_t iteration{1};
     size_t numParticlesGlobal;
@@ -140,10 +138,6 @@ public:
         return ret;
     }
 
-    void setConserved(const std::vector<std::string>& fields) { setState(fields, FieldState::conserved); }
-
-    void setDependent(const std::vector<std::string>& fields) { setState(fields, FieldState::dependent); }
-
     void setOutputFields(const std::vector<std::string>& outFields)
     {
         outputFieldNames   = outFields;
@@ -157,7 +151,7 @@ public:
 
         for (size_t i = 0; i < data_.size(); ++i)
         {
-            if (fieldStates_[i] != FieldState::unused)
+            if (this->isAllocated(i))
             {
                 std::visit([size, growthRate](auto& arg) { reallocate(*arg, size, growthRate); }, data_[i]);
             }
@@ -192,25 +186,6 @@ public:
 
     // Interpolation kernel normalization constant
     const static T K;
-
-private:
-    enum class FieldState
-    {
-        unused,
-        conserved,
-        dependent
-    };
-
-    void setState(const std::vector<std::string>& fields, FieldState state)
-    {
-        for (const auto& field : fields)
-        {
-            int idx           = std::find(fieldNames.begin(), fieldNames.end(), field) - fieldNames.begin();
-            fieldStates_[idx] = state;
-        }
-    }
-
-    std::array<FieldState, fieldNames.size()> fieldStates_;
 };
 
 template<typename T, typename I, class Acc>

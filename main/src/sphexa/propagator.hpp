@@ -32,7 +32,6 @@
 
 #pragma once
 
-#include <iostream>
 #include <variant>
 
 #include "cstone/domain/domain.hpp"
@@ -154,9 +153,8 @@ public:
 
     void activateFields(ParticleDataType& d) override
     {
-        d.setConserved({"x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1"});
-        d.setDependent(
-            {"rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "keys", "nc"});
+        d.setConserved("x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1");
+        d.setDependent("rho", "p", "c", "ax", "ay", "az", "du", "c11", "c12", "c13", "c22", "c23", "c33", "keys", "nc");
     }
 
     void sync(DomainType& domain, ParticleDataType& d) override
@@ -255,26 +253,26 @@ public:
 
     void activateFields(ParticleDataType& d) override
     {
-        d.setConserved({"x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha"});
-        d.setDependent({"p",
-                        "c",
-                        "ax",
-                        "ay",
-                        "az",
-                        "du",
-                        "c11",
-                        "c12",
-                        "c13",
-                        "c22",
-                        "c23",
-                        "c33",
-                        "xm",
-                        "kx",
-                        "divv",
-                        "curlv",
-                        "gradh",
-                        "keys",
-                        "nc"});
+        d.setConserved("x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha");
+        d.setDependent("p",
+                       "c",
+                       "ax",
+                       "ay",
+                       "az",
+                       "du",
+                       "c11",
+                       "c12",
+                       "c13",
+                       "c22",
+                       "c23",
+                       "c33",
+                       "xm",
+                       "kx",
+                       "divv",
+                       "curlv",
+                       "gradh",
+                       "keys",
+                       "nc");
     }
 
     void sync(DomainType& domain, ParticleDataType& d) override
