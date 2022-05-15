@@ -41,67 +41,67 @@ struct MpiType
 template<>
 struct MpiType<double>
 {
-    constexpr operator MPI_Datatype() const noexcept { return MPI_DOUBLE; }
+    operator MPI_Datatype() const noexcept { return MPI_DOUBLE; }
 };
 
 template<>
 struct MpiType<float>
 {
-    constexpr operator MPI_Datatype() const noexcept { return MPI_FLOAT; }
+    operator MPI_Datatype() const noexcept { return MPI_FLOAT; }
 };
 
 template<>
 struct MpiType<char>
 {
-    constexpr operator MPI_Datatype() const noexcept { return MPI_CHAR; }
+    operator MPI_Datatype() const noexcept { return MPI_CHAR; }
 };
 
 template<>
 struct MpiType<unsigned char>
 {
-    constexpr operator MPI_Datatype() const noexcept { return MPI_UNSIGNED_CHAR; }
+    operator MPI_Datatype() const noexcept { return MPI_UNSIGNED_CHAR; }
 };
 
 template<>
 struct MpiType<short>
 {
-    constexpr operator MPI_Datatype() const noexcept { return MPI_SHORT; }
+    operator MPI_Datatype() const noexcept { return MPI_SHORT; }
 };
 
 template<>
 struct MpiType<unsigned short>
 {
-    constexpr operator MPI_Datatype() const noexcept { return MPI_UNSIGNED_SHORT; }
+    operator MPI_Datatype() const noexcept { return MPI_UNSIGNED_SHORT; }
 };
 
 template<>
 struct MpiType<int>
 {
-    constexpr operator MPI_Datatype() const noexcept { return MPI_INT; }
+    operator MPI_Datatype() const noexcept { return MPI_INT; }
 };
 
 template<>
 struct MpiType<unsigned>
 {
-    constexpr operator MPI_Datatype() const noexcept { return MPI_UNSIGNED; }
+    operator MPI_Datatype() const noexcept { return MPI_UNSIGNED; }
 };
 
 template<>
 struct MpiType<long>
 {
-    constexpr operator MPI_Datatype() const noexcept { return MPI_LONG; }
+    operator MPI_Datatype() const noexcept { return MPI_LONG; }
 };
 
 template<>
 struct MpiType<unsigned long>
 {
-    constexpr operator MPI_Datatype() const noexcept { return MPI_UNSIGNED_LONG; }
+    operator MPI_Datatype() const noexcept { return MPI_UNSIGNED_LONG; }
 };
 
 template<>
 struct MpiType<unsigned long long>
 {
-    constexpr operator MPI_Datatype() const noexcept { return MPI_UNSIGNED_LONG_LONG; }
+    operator MPI_Datatype() const noexcept { return MPI_UNSIGNED_LONG_LONG; }
 };
 
 template<class T, std::enable_if_t<std::is_arithmetic_v<T>, int> = 0>
