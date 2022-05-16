@@ -50,19 +50,22 @@ CUDA_DEVICE_HOST_FUN util::tuple<T2, T2> equationOfState(T1 u, T2 rho, T3 mui)
 template<typename Dataset>
 void computeEquationOfState(size_t startIndex, size_t endIndex, Dataset& d)
 {
-    const auto* u  = d.u.data();
-    const auto* kx = d.kx.data();
-    const auto* xm = d.xm.data();
-    const auto* m  = d.m.data();
+    const auto* u     = d.u.data();
+    const auto* m     = d.m.data();
+    const auto* kx    = d.kx.data();
+    const auto* xm    = d.xm.data();
+    const auto* gradh = d.gradh.data();
 
-    auto* p = d.p.data();
-    auto* c = d.c.data();
+    auto* p    = d.p.data();
+    auto* prho = d.prho.data();
+    auto* c    = d.c.data();
 
 #pragma omp parallel for schedule(static)
     for (size_t i = startIndex; i < endIndex; ++i)
     {
         auto rho             = kx[i] * m[i] / xm[i];
         std::tie(p[i], c[i]) = equationOfState(u[i], rho);
+        prho[i]              = p[i] / (kx[i] * m[i] * m[i] * gradh[i]);
     }
 }
 

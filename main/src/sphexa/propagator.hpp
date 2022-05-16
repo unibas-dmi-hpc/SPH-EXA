@@ -256,6 +256,7 @@ public:
     {
         d.setConserved("x", "y", "z", "h", "m", "u", "vx", "vy", "vz", "x_m1", "y_m1", "z_m1", "du_m1", "alpha");
         d.setDependent("p",
+                       "prho",
                        "c",
                        "ax",
                        "ay",
