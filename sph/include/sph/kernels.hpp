@@ -109,5 +109,39 @@ CUDA_DEVICE_FUN inline T artificial_viscosity(T alpha_i, T alpha_j, T c_i, T c_j
 
     return viscosity_ij;
 }
+/*! @brief calculate the AV heat conduction between a pair of two particles
+ *
+ * @tparam T      float or double
+ * @param p_i     baryonic pressure of particle i
+ * @param p_j     baryonic pressure of particle j
+ * @param rho_i   baryonic density of particle i
+ * @param rho_j   baryonic density of particle j
+ * @param delta_u internal energy difference between particles i and j (u_i - u_j)
+ * @param w_ij    relative velocity (v_i - v_j), projected onto the connecting axis (r_i - r_j)
+ * @return        the heat conduction AV term
+ */
+template<typename T>
+CUDA_DEVICE_FUN inline T AV_heat_conduction(T w_ij, T rho_i, T rho_j, T p_i, T p_j, T delta_u)
+{
+    constexpr T alfa_u = T(0.05);
+
+    T heat_conduction = T(0.0);
+    if (w_ij < T(0.0))
+    {
+        T vij_signal_u = T(0.0);
+
+        // with gravity
+        vij_signal_u = abs(w_ij);
+
+        // without gravity
+        //T rho_ij     = T(0.5) * (rho_i + rho_j);
+        //vij_signal_u = std::sqrt(abs(p_i - p_j) / rho_ij);
+
+        heat_conduction = alfa_u * vij_signal_u * delta_u;
+    }
+
+    return heat_conduction;
+}
+
 
 } // namespace sphexa

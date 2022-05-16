@@ -46,7 +46,7 @@ template<typename T>
 CUDA_DEVICE_HOST_FUN inline void
 momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const int* neighbors, int neighborsCount,
                        const T* x, const T* y, const T* z, const T* vx, const T* vy, const T* vz, const T* h,
-                       const T* m, const T* p, const T* c, const T* c11, const T* c12, const T* c13, const T* c22,
+                       const T* m, const T* p, const T* c, const T* u, const T* c11, const T* c12, const T* c13, const T* c22,
                        const T* c23, const T* c33, const T Atmin, const T Atmax, const T ramp, const T* wh,
                        const T* whd, const T* kx, const T* xm, const T* alpha, const T* gradh, T* grad_P_x, T* grad_P_y,
                        T* grad_P_z, T* du, T* maxvsignal)
@@ -61,6 +61,7 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
     T hi  = h[i];
     T mi  = m[i];
     T ci  = c[i];
+    T ui  = u[i];
     T kxi = kx[i];
 
     T alpha_i = alpha[i];
@@ -79,7 +80,8 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
 
     T maxvsignali = 0.0;
     T momentum_x = 0.0, momentum_y = 0.0, momentum_z = 0.0, energy = 0.0;
-    T a_visc_energy = 0.0;
+    T a_visc_gradp = 0.0;
+    T a_heat_cond  = 0.0;
 
     T c11i = c11[i];
     T c12i = c12[i];
@@ -100,6 +102,10 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
 
         T r2   = rx * rx + ry * ry + rz * rz;
         T dist = std::sqrt(r2);
+
+        T ux_ij = rx / dist;
+        T uy_ij = ry / dist;
+        T uz_ij = rz / dist;
 
         T vx_ij = vxi - vx[j];
         T vy_ij = vyi - vy[j];
@@ -134,21 +140,24 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
 
         T mj     = m[j];
         T cj     = c[j];
+        T uj     = u[j];
         T kxj    = kx[j];
         T xmassj = xm[j];
         T rhoj   = kxj * mj / xmassj;
 
         T alpha_j = alpha[j];
 
-        T wij          = rv / dist;
-        T viscosity_ij = artificial_viscosity(alpha_i, alpha_j, ci, cj, wij);
-        T viscosity_jj = viscosity_ij;
+        T wij             = rv / dist;
+        T delta_u         = ui - uj;
+        T proj            = p[j] / (kxj * mj * mj * gradh[j]);
+        T viscosity_ij    = artificial_viscosity(alpha_i, alpha_j, ci, cj, wij);
+        T heat_conduction = AV_heat_conduction(wij, rhoi, rhoj, proi, proj, delta_u);
+        T viscosity_jj    = viscosity_ij;
 
         // For time-step calculations
         T vijsignal = ci + cj - T(3) * wij;
         maxvsignali = (vijsignal > maxvsignali) ? vijsignal : maxvsignali;
 
-        T proj = p[j] / (kxj * mj * mj * gradh[j]);
 
         T Atwood = (std::abs(rhoi - rhoj)) / (rhoi + rhoj);
         if (Atwood < Atmin)
@@ -179,6 +188,12 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T a_visc_y   = T(0.5) * (a_visc * termA2_i + b_visc * termA2_j);
         T a_visc_z   = T(0.5) * (a_visc * termA3_i + b_visc * termA3_j);
 
+        T a_heat     = voli * mj / mi * heat_conduction;
+        T b_heat     = volj * heat_conduction;
+        T a_heat_x   = T(0.5) * (a_heat * termA1_i + b_heat * termA1_j);
+        T a_heat_y   = T(0.5) * (a_heat * termA2_i + b_heat * termA2_j);
+        T a_heat_z   = T(0.5) * (a_heat * termA3_i + b_heat * termA3_j);
+
         {
             // T a = Wi * (mj_pro_i + viscosity_ij * mi_roi);
             // T b = mj_roj_Wj * (p[j] / (roj * gradh_j) + viscosity_ij);
@@ -186,7 +201,10 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
             momentum_x += momentum_i * termA1_i + momentum_j * termA1_j + a_visc_x;
             momentum_y += momentum_i * termA2_i + momentum_j * termA2_j + a_visc_y;
             momentum_z += momentum_i * termA3_i + momentum_j * termA3_j + a_visc_z;
-            a_visc_energy += a_visc_x * vx_ij + a_visc_y * vy_ij + a_visc_z * vz_ij;
+
+            a_visc_gradp += a_visc_x * vx_ij + a_visc_y * vy_ij + a_visc_z * vz_ij;
+            a_heat_cond  += a_heat_x * ux_ij + a_heat_y * uy_ij + a_heat_z * uz_ij;
+
         }
         {
             // T a = Wi * (2.0 * mj_pro_i + viscosity_ij * mi_roi);
@@ -200,8 +218,9 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
 
     // with the choice of calculating coordinate (r) and velocity (v_ij) differences as i - j,
     // we add the negative sign only here at the end instead of to termA123_ij in each iteration
-    a_visc_energy = std::max(T(0), a_visc_energy);
-    du[i]         = K * (energy + T(0.5) * a_visc_energy); // factor of 2 already removed from 2P/rho
+    a_visc_gradp = std::max(T(0), a_visc_gradp);
+    du[i]        = K * (energy + T(0.5) * a_visc_gradp + a_heat_cond); // factor of 2 already removed from 2P/rho
+
     // grad_P_xyz is stored as the acceleration, accel = -grad_P / rho
     grad_P_x[i] = -K * momentum_x;
     grad_P_y[i] = -K * momentum_y;
