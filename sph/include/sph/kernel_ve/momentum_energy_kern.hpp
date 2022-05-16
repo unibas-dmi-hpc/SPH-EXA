@@ -178,15 +178,12 @@ momentumAndEnergyJLoop(int i, T sincIndex, T K, const cstone::Box<T>& box, const
         T a_visc_y   = T(0.5) * (a_visc * termA2_i + b_visc * termA2_j);
         T a_visc_z   = T(0.5) * (a_visc * termA3_i + b_visc * termA3_j);
 
-        {
-            momentum_x += momentum_i * termA1_i + momentum_j * termA1_j + a_visc_x;
-            momentum_y += momentum_i * termA2_i + momentum_j * termA2_j + a_visc_y;
-            momentum_z += momentum_i * termA3_i + momentum_j * termA3_j + a_visc_z;
-            a_visc_energy += a_visc_x * vx_ij + a_visc_y * vy_ij + a_visc_z * vz_ij;
-        }
-        {
-            energy += a_mom * prhoi * (vx_ij * termA1_i + vy_ij * termA2_i + vz_ij * termA3_i);
-        }
+        momentum_x += momentum_i * termA1_i + momentum_j * termA1_j + a_visc_x;
+        momentum_y += momentum_i * termA2_i + momentum_j * termA2_j + a_visc_y;
+        momentum_z += momentum_i * termA3_i + momentum_j * termA3_j + a_visc_z;
+
+        a_visc_energy += a_visc_x * vx_ij + a_visc_y * vy_ij + a_visc_z * vz_ij;
+        energy += momentum_i * (vx_ij * termA1_i + vy_ij * termA2_i + vz_ij * termA3_i);
     }
 
     a_visc_energy = std::max(T(0), a_visc_energy);
