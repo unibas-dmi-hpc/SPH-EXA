@@ -63,8 +63,6 @@ void initSedovFields(Dataset& d, const std::map<std::string, double>& constants)
     std::fill(d.h.begin(), d.h.end(), hInit);
     std::fill(d.du_m1.begin(), d.du_m1.end(), 0.0);
     std::fill(d.mui.begin(), d.mui.end(), 10.0);
-    std::fill(d.dt.begin(), d.dt.end(), firstTimeStep);
-    std::fill(d.dt_m1.begin(), d.dt_m1.end(), firstTimeStep);
     std::fill(d.alpha.begin(), d.alpha.end(), d.alphamin);
 
     d.minDt    = firstTimeStep;
@@ -104,7 +102,7 @@ public:
         d.numParticlesGlobal = cubeSide * cubeSide * cubeSide;
 
         auto [first, last] = partitionRange(d.numParticlesGlobal, rank, numRanks);
-        resize(d, last - first);
+        d.resize(last - first);
 
         T r = constants_.at("r1");
         regularGrid(r, cubeSide, first, last, d.x, d.y, d.z);
@@ -155,7 +153,7 @@ public:
         auto [keyStart, keyEnd] = partitionRange(cstone::nodeRange<KeyType>(0), rank, numRanks);
         assembleCube<T>(keyStart, keyEnd, globalBox, multiplicity, xBlock, yBlock, zBlock, d.x, d.y, d.z);
 
-        resize(d, d.x.size());
+        d.resize(d.x.size());
         initSedovFields(d, constants_);
 
         return globalBox;
